@@ -28,18 +28,18 @@ If the change can't be unit-tested (e.g. external API call, headless CLI spawn),
 
 Anything that adds or changes user-visible behavior gets a paragraph in the relevant `docs/` file in the **same commit**:
 
-- New CLI command → `docs/APX-CLI.md`
-- New daemon endpoint or behavior → `docs/APX-DAEMON.md`
-- Schema change, new on-disk file/directory → `docs/APC-SPEC.md`
-- Skill/agent prompt change → `docs/APX-SKILL.md`
+- New CLI command → APC docs `src/pages/docs/reference/apx-cli.mdx`
+- New daemon endpoint or behavior → APC docs `src/pages/docs/reference/apx-daemon.mdx`
+- Schema change, new on-disk file/directory → APC docs `src/pages/docs/specification/`
+- Skill/agent prompt change → `src/core/apx-skill.md` and `src/core/apc-context-skill.md`
 
 Don't ship a feature whose only documentation is the commit message.
 
 ### 3. The filesystem is the source of truth
 
-All state lives in `.apc/` (project-scoped) or `~/.apx/` (global vault). There is no database. If you add a new type of persistent state, it must be a file on disk — markdown or JSON. Never introduce a SQLite dependency or any in-memory-only store for operator-visible data.
+Project context lives in `.apc/`. Runtime state lives in `~/.apx/`. If you add a new type of persistent state, make the boundary explicit.
 
-Runtime state (memory, sessions) MUST NOT be placed inside `.apc/` at the project level unless it belongs to the committed project definition. Agent sessions and memory live in `.apc/agents/<slug>/`.
+Runtime sessions, conversations, messages, caches, and provider transcripts MUST NOT be placed inside `.apc/`.
 
 ### 4. Skill files have two sources of truth — keep them in sync
 
@@ -76,9 +76,9 @@ apx skills add --global
 ## Reading order for a new contributor
 
 1. [`README.md`](README.md) — what APC/APX is.
-2. [`docs/APC-SPEC.md`](docs/APC-SPEC.md) — the protocol on disk.
-3. [`docs/APX-DAEMON.md`](docs/APX-DAEMON.md) — the daemon design + REST API.
-4. [`docs/APX-CLI.md`](docs/APX-CLI.md) — every `apx` command.
+2. APC specification pages in `../apc/src/pages/docs/specification/`.
+3. APX daemon reference in `../apc/src/pages/docs/reference/apx-daemon.mdx`.
+4. APX CLI reference in `../apc/src/pages/docs/reference/apx-cli.mdx`.
 5. This file — house rules.
 
 ---

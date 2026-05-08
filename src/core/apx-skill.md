@@ -1,6 +1,9 @@
-# APX — Agent Project Framework
+# APX — Agent Project Context Runtime
 
 The daemon runs on `127.0.0.1:7430` and auto-starts on first `apx` call.
+
+APX reads APC project context from `.apc/`, but APX runtime state belongs outside the repository
+under `~/.apx/projects/<project-id>/`.
 
 ---
 
@@ -48,6 +51,8 @@ apx mcp run filesystem read_file '{"path": "README.md"}'
 
 ## Memory
 
+Write memory only for durable, safe project facts. Do not store raw transcripts or secrets.
+
 ```bash
 apx memory <slug>                       # read agent's memory.md
 apx memory <slug> --append "<fact>"     # append a durable note
@@ -56,8 +61,10 @@ apx memory <slug> --replace < file.md  # replace entire memory from stdin
 
 ## Sessions
 
+Sessions are APX runtime state. They do not belong in `.apc/`.
+
 ```bash
-apx session new <slug> --title "What you did"   # create session file
+apx session new <slug> --title "What you did"   # create APX local session file
 apx session list <slug>                          # list sessions
 apx session check                                # exits 1 if session already active
 ```

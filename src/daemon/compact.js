@@ -52,8 +52,8 @@ Style: dense and factual. No pleasantries. No meta-commentary. Just the facts.
 
 // Resolve the most-recent conversation file for an agent, or the one explicitly
 // named. Returns the full filepath.
-function resolveConvFile(projectRoot, agentSlug, filename) {
-  const dir = path.join(projectRoot, ".apc", "agents", agentSlug, "conversations");
+function resolveConvFile(storagePath, agentSlug, filename) {
+  const dir = path.join(storagePath, "agents", agentSlug, "conversations");
   if (!fs.existsSync(dir)) throw new Error(`no conversations dir for agent "${agentSlug}"`);
 
   if (filename) {
@@ -76,13 +76,13 @@ function serializeFm(obj) {
 }
 
 export async function compactConversation({
-  projectRoot,
+  storagePath,
   agentSlug,
   filename,
   modelId,
   config,
 }) {
-  const filepath = resolveConvFile(projectRoot, agentSlug, filename);
+  const filepath = resolveConvFile(storagePath, agentSlug, filename);
   const raw = fs.readFileSync(filepath, "utf8");
   const { fm, turns } = parseConversation(raw);
 

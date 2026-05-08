@@ -109,11 +109,8 @@ export async function resolveProjectId(target) {
   // No override: walk up from cwd
   const root = findApfRoot();
   if (!root) {
-    const registered = await http.get("/projects").catch(() => []);
-    const hint = registered.length
-      ? `registered projects: ${registered.map((p) => `"${p.name}" (id ${p.id})`).join(", ")}`
-      : "no projects registered yet — run `apx project add <path>` first";
-    throw new Error(`not inside an APC project. Use --project <name|id|path>. ${hint}`);
+    // Fall back to the default project (id=0) — always available, no .apc/ required.
+    return 0;
   }
   const projects = await http.get("/projects");
   const found = projects.find((p) => p.path === root);

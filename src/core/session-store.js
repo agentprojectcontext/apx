@@ -5,9 +5,9 @@
 import fs from "node:fs";
 import path from "node:path";
 
-export function generateSessionId(projectRoot, agentSlug) {
+export function generateSessionId(storageRoot, agentSlug) {
   const today = new Date().toISOString().slice(0, 10);
-  const dir = path.join(projectRoot, ".apc", "agents", agentSlug, "sessions");
+  const dir = path.join(storageRoot, "agents", agentSlug, "sessions");
   let next = 1;
   if (fs.existsSync(dir)) {
     for (const f of fs.readdirSync(dir)) {

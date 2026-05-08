@@ -79,6 +79,9 @@ async function main() {
   const projects = new ProjectManager(cfg);
   const registries = new RegistryCache();
 
+  // Default project (id=0) is always available — no local .apc/ required.
+  projects.registerDefault();
+
   // Load registered projects from config.
   for (const entry of cfg.projects) {
     try {

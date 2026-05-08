@@ -1,8 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { findApfRoot, readAgents } from "../../core/parser.js";
-import { ensureAgentDir } from "../../core/scaffold.js";
+import { getOrCreateApxId } from "../../core/scaffold.js";
 import { generateSessionId } from "../../core/session-store.js";
+import { ensureProjectStorage } from "../../core/config.js";
 import { http } from "../http.js";
 import { resolveProjectId } from "./project.js";
 
@@ -12,6 +13,12 @@ function requireRoot() {
   const root = findApfRoot();
   if (!root) throw new Error("not inside an APC project (run `apx init` first)");
   return root;
+}
+
+function requireStorageRoot(root) {
+  const apxId = getOrCreateApxId(root);
+  if (!apxId) throw new Error("could not resolve APX project storage id");
+  return ensureProjectStorage(apxId);
 }
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -61,7 +68,7 @@ function setFrontmatterField(text, field, value) {
 }
 
 function listAllSessions(root) {
-  const agentsDir = path.join(root, ".apc", "agents");
+  const agentsDir = path.join(requireStorageRoot(root), "agents");
   if (!fs.existsSync(agentsDir)) return [];
   const out = [];
   for (const slug of fs.readdirSync(agentsDir)) {
@@ -124,10 +131,11 @@ export function cmdSessionNew(args) {
     throw new Error(`agent "${slug}" not found in AGENTS.md`);
   }
 
-  ensureAgentDir(root, slug);
-  const id = generateSessionId(root, slug);
+  const storageRoot = requireStorageRoot(root);
+  const id = generateSessionId(storageRoot, slug);
   const filename = `${id}.md`;
-  const filepath = path.join(root, ".apc", "agents", slug, "sessions", filename);
+  const filepath = path.join(storageRoot, "agents", slug, "sessions", filename);
+  fs.mkdirSync(path.dirname(filepath), { recursive: true });
 
   const taskRef = args.flags["task-ref"] === true ? "" : (args.flags["task-ref"] || "");
   let body = "";

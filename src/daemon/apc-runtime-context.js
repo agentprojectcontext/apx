@@ -1,13 +1,13 @@
 // Helpers that wrap external runtimes (Claude Code, Codex, OpenCode, Aider)
 // with APC awareness:
 //
-//   1. Create an APC session BEFORE the runtime starts.
+//   1. Create an APX runtime session BEFORE the runtime starts.
 //   2. Inject an "APC Runtime Context" block into the system prompt so the
 //      runtime knows the session id, the cwd of the project, and the apx
 //      commands it can use to update memory / append session notes.
 //   3. After the runtime returns, capture the external transcript path
 //      (Claude Code gives one, Codex/OpenCode/Aider don't yet) and write it
-//      into the APC session frontmatter.
+//      into the APX session frontmatter.
 //   4. Close the session with a synthesised result (truncated stdout).
 //
 // Used by both POST /projects/:pid/agents/:slug/runtime (CLI) and the
@@ -22,12 +22,12 @@ const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 const APC_RUNTIME_HINT = `
 # APC Runtime Context
 
-You are running inside an APC (Agent Project Framework) project. APC gives you durable session state across runs.
+You are running inside an APC (Agent Project Context) project. APC gives you portable project context. APX gives you local runtime session state.
 
 - **Project**: {{name}}  ({{path}})
 - **Agent**: {{agent}}
 - **APC session id**: {{session_id}}
-  (filename: .apc/agents/{{agent}}/sessions/{{session_id}}.md)
+  (stored in APX local runtime storage, outside .apc/)
 
 ## Commands you can use during this run
 
@@ -52,11 +52,11 @@ export function buildApfHint({ projectName, projectPath, agentSlug, sessionId })
     .replace(/\{\{session_id\}\}/g, sessionId);
 }
 
-// Create the APC session file on disk. Returns { id, filename, path }.
-export function createRuntimeSession({ projectRoot, agentSlug, runtime, taskRef = "", title }) {
-  const dir = path.join(projectRoot, ".apc", "agents", agentSlug, "sessions");
+// Create the APX runtime session file on disk. Returns { id, filename, path }.
+export function createRuntimeSession({ projectRoot, storageRoot = projectRoot, agentSlug, runtime, taskRef = "", title }) {
+  const dir = path.join(storageRoot, "agents", agentSlug, "sessions");
   fs.mkdirSync(dir, { recursive: true });
-  const id = generateSessionId(projectRoot, agentSlug);
+  const id = generateSessionId(storageRoot, agentSlug);
   const file = path.join(dir, `${id}.md`);
   const started = nowIso();
   const sessionTitle = title || `Runtime: ${runtime}`;

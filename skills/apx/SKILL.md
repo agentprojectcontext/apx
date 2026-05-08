@@ -4,10 +4,12 @@ description: "APX CLI skill. Activate ONLY when the user asks about running agen
 homepage: https://github.com/agentprojectcontext/apx
 ---
 
-# APX — Agent Project Framework
+# APX — Agent Project Context Runtime
 
 This project uses **APX**. The daemon runs on `127.0.0.1:7430` and auto-starts on first `apx` call.
 Your current session, project, and agent are already injected above this block — refer to them.
+
+APX runtime state belongs outside `.apc/`, under `~/.apx/projects/<project-id>/`.
 
 ---
 
@@ -32,7 +34,7 @@ apx exec <slug> "<prompt>"
 The output of `apx run` / `apx exec` is the agent's full stdout.
 If the agent printed `APC_RESULT: <value>`, that value is also captured as structured output.
 
-## Memory — durable, persists between sessions
+## Memory — durable, safe facts
 
 ```bash
 apx memory <slug>                       # read agent's memory.md
@@ -40,7 +42,7 @@ apx memory <slug> --append "<fact>"     # append a durable note (non-destructive
 apx memory <slug> --replace < file.md  # replace entire memory from stdin
 ```
 
-Write to memory when you discover something the agent should know on every future run.
+Write to memory only when you discover safe project context the agent should know on future runs.
 
 ## Observe activity
 
@@ -74,4 +76,5 @@ Print this on the last meaningful line of your output:
 APC_RESULT: <one-line summary or value>
 ```
 The invoker (`apx run`, super-agent, Telegram bot) captures it as structured output.
-Keep it factual and short — it becomes the session result stored in `.apc/agents/<slug>/sessions/`.
+Keep it factual and short. It becomes the session result stored in APX local runtime state, not
+inside `.apc/`.

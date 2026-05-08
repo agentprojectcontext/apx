@@ -55,7 +55,7 @@ test("appendMessageToFs writes JSONL — one record per line", () => {
       ts: "2026-05-08T10:00:05Z",
       meta: { chat_id: 1, tools_called: [{ tool: "list_agents", args: {} }] },
     });
-    const file = path.join(root, ".apc", "messages", "2026-05-08.jsonl");
+    const file = path.join(root, "messages", "2026-05-08.jsonl");
     const text = fs.readFileSync(file, "utf8");
     const lines = text.trim().split("\n");
     assert.equal(lines.length, 2);
@@ -195,7 +195,7 @@ test("rebuildMessagesFromFs reads BOTH .jsonl and .md (legacy) and merges by ts"
   const db = freshDb();
   try {
     // Write a legacy .md by hand
-    const dir = path.join(root, ".apc", "messages");
+    const dir = path.join(root, "messages");
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(
       path.join(dir, "2026-05-07.md"),

@@ -1,150 +1,102 @@
 
 # Agent Project Context
 
-This project uses APC. All agent context lives in `.apc/` — not in `.claude/`, `.cursor/`, `.windsurf/`, or any other IDE folder.
+This project uses APC. APC stores portable project context in `.apc/` and `AGENTS.md`.
+
+APC does not store raw runtime sessions. Sessions, conversations, messages, caches, provider
+threads, and private runtime memory stay in the IDE, CLI, daemon, or user-level store that created
+them.
 
 ## FIRST: check for pending migration
 
-**Before doing anything else**, check if `.apc/migrate.md` exists:
+Before doing anything else, check if `.apc/migrate.md` exists:
 
 ```bash
 cat .apc/migrate.md 2>/dev/null
 ```
 
-If it exists, open the conversation with this message — do not answer any other question first:
+If it exists, offer to migrate before answering anything else. Read detected files, separate durable
+project context from runtime/private state, and migrate only what belongs in APC.
 
-> I see this project was just initialized with **Agent Project Context (APC)**.
->
-> I found context files that haven't been migrated yet:
-> [list files from .apc/migrate.md]
->
-> I'll read them, understand what's in them, and migrate intelligently — keeping only what APC doesn't already handle.
->
-> **Want me to start?**
+If the user says no or later, delete `.apc/migrate.md` so the offer is not repeated.
 
-### How to migrate — think, don't copy
+## Migration rule: think, do not copy
 
-**Step 1 — Read everything first.** Read all detected context files in full. Also read `AGENTS.md` if it exists. Understand the full project structure, conventions, and any referenced directories (e.g. `works/`, `docs/`, `notes/`).
+Classify content:
 
-**Step 2 — Classify each piece of content:**
-
-| What it says | What to do |
+| Content | Action |
 |---|---|
-| Agent definitions (role, model, skills) | Create `.apc/agents/<slug>.md` |
-| Any instruction about writing sessions to a custom path (`works/sessions/`, `notes/`, etc.) | **Drop it** — APC handles sessions natively in `.apc/agents/<slug>/sessions/` |
-| Any instruction about writing memory to a custom path (`works/memory.md`, etc.) | **Drop it** — APC handles memory natively in `.apc/agents/<slug>/memory.md` |
-| "List agents in `AGENTS.md`" or any auto-generation rule for `AGENTS.md` | **Drop it** — APC handles this natively |
-| Project-specific directories not covered by APC (e.g. `works/specs/`, `works/tasks/`) | **Keep in `AGENTS.md`** — document the convention there |
-| Project rules, testing policy, stack notes, URLs, credentials | **Keep in `AGENTS.md`** — project context that APC doesn't define |
-| IDE-specific shortcuts or instructions (e.g. "run `npm run dev` in Claude terminal") | **Keep in `AGENTS.md`** — still useful to all agents |
+| Agent definitions: role, model, skills, description | Put in `.apc/agents/<slug>.md` and/or `AGENTS.md` |
+| Shared project rules, stack notes, commands, testing policy | Keep in `AGENTS.md` |
+| Reusable instruction blocks | Move to `.apc/skills/<name>.md` |
+| Durable safe facts useful to all contributors | Add to `.apc/agents/<slug>/memory.md` only after curation |
+| MCP expectations without secrets | Add to `.apc/mcps.json` |
+| Raw sessions, transcripts, conversations, messages, tool logs | Do not move into `.apc/`; leave with source runtime |
+| Secrets, tokens, credentials, private headers | Do not store in repository |
+| IDE UI settings or personal aliases | Leave in IDE/user config |
+| Instructions to store sessions under `.apc/` | Drop as obsolete |
 
-**Step 3 — Write `AGENTS.md`.** Start from what already exists in `AGENTS.md`, add what you kept from the classified content. Remove anything that duplicates APC native behavior. Keep it agent-neutral — no IDE-specific framing.
+## APC structure
 
-**Step 4 — Delete the original files** (`CLAUDE.md`, `.cursorrules`, etc.). Do not leave stubs. The content either moved to `AGENTS.md` / `.apc/agents/` or was intentionally dropped because APC covers it.
-
-**Step 5 — Delete `.apc/migrate.md`** to mark migration complete.
-
-**Step 6 — Summarize** what was created, what was kept, and what was dropped (and why).
-
-If the user says no or later: delete `.apc/migrate.md` immediately so this offer is not shown again in future sessions.
-
----
-
-## Structure
-
-```
-AGENTS.md                        ← project context: rules, stack, conventions (commit)
+```text
+AGENTS.md                        ← root project contract
 .apc/
-  project.json                   ← metadata + apx field (commit)
-  .gitignore                     ← safe defaults, created by apx init (commit)
-  agents/<slug>.md               ← agent definition (commit)
-  agents/<slug>/
-    memory.md                    ← curated memory (commit)
-    sessions/                    ← raw session logs (local-only, gitignored)
-  skills/                        ← reusable prompt fragments (commit)
-  mcps.json                      ← MCP declarations without secrets (commit)
+  project.json                   ← project metadata
+  .gitignore                     ← safety guard
+  agents/<slug>.md               ← agent definition
+  agents/<slug>/memory.md        ← optional curated project memory
+  skills/<name>.md               ← reusable project instructions
+  mcps.json                      ← MCP hints without secrets
 ```
 
-## Visibility rules
+Do not store:
 
-| What | Visibility | Commit? |
-|---|---|---|
-| Agent definitions, skills, rules | `stable` / `project` | Yes |
-| `memory.md` | `project` | Yes |
-| `sessions/` | `local` | No — gitignored |
-| `secrets/`, `*.secret.json`, `*.env` | `private` | Never |
-| `cache/`, `tmp/` | `ephemeral` | No — gitignored |
-| `migrate.md` | `ephemeral` | No — gitignored |
-
-**Write sessions to `.apc/agents/<slug>/sessions/`** — they stay local. Extract meaningful decisions into `memory.md` — that travels with the repo.
-
-## Rules
-
-1. Read your definition and memory from `.apc/agents/<your-slug>/`
-2. Write memory to `.apc/agents/<your-slug>/memory.md` — never to IDE-specific folders
-3. Write raw session logs to `.apc/agents/<your-slug>/sessions/` — they are gitignored
-4. `AGENTS.md` is the neutral project context file — edit it directly, it is not auto-generated
-5. To list agents: read `AGENTS.md` or list `.apc/agents/*.md`
-
-## Sessions — write one at the end of every task
-
-Sessions are the record of what was done, for future agents and for the team.
-
-**Where to write:**
-- APC standard path: `.apc/agents/<slug>/sessions/<date>-<slug>.md` (gitignored)
-- Project-specific path: check `AGENTS.md` — some projects use `works/sessions/` or similar
-
-**Format — always use this frontmatter:**
-
-```markdown
----
-title: Short title of what was done
-description: One-line summary for the index
-date: YYYY-MM-DD
-status: open | completed | in-progress | abandoned
----
-
-## Goal
-What was the task or request.
-
-## Done
-What was completed. Be specific — file paths, decisions, changes.
-
-## Pending
-Anything left unfinished or deferred.
+```text
+.apc/agents/<slug>/sessions/
+.apc/sessions/
+.apc/conversations/
+.apc/messages/
+.apc/project.db
+.apc/cache/
+.apc/tmp/
+.apc/private/
+.apc/secrets/
 ```
 
-**How to create:**
-- If APX is installed (`apx` field in `project.json` is `"installed"`):
-  ```bash
-  apx session new <slug> --title "Short title"
-  ```
-  Then fill in `description`, update `status` to `completed` when done.
-- If APX is not available: create the file manually following the format above.
+## Operating rules
 
-**When to write:** at the end of every task session, before closing. Not optional.
+1. Read `AGENTS.md` and relevant `.apc/` files before assuming project context.
+2. Read agent definitions from `.apc/agents/<slug>.md` when present.
+3. Read curated project memory from `.apc/agents/<slug>/memory.md` when present.
+4. Write only durable, safe, curated facts to APC memory.
+5. Never write raw sessions, transcripts, messages, conversations, or tool logs into `.apc/`.
+6. Keep secrets out of APC and out of git.
+7. Treat `.apc/mcps.json` as MCP configuration hints, not as an MCP implementation.
 
-## APX — check once, remember forever
+## Sessions
 
-Read `.apc/project.json`. It has an `apx` field:
+Sessions belong to the runtime that created them.
 
-- **`"installed"`** — APX is available. Use `apx` commands freely when useful.
-- **`"declined"`** — user chose not to install. Never suggest or run `apx` commands.
-- **`null` or missing** — unknown. Do the one-time check below, then write the result and never ask again.
+Examples:
 
-### One-time APX detection (only when `apx` is null or missing)
-
-```bash
-apx --version 2>/dev/null && echo "FOUND" || echo "NOT_FOUND"
+```text
+Codex runtime storage
+Claude Code runtime storage
+OpenCode runtime storage
+~/.apx/projects/<project-id>/agents/<slug>/sessions/
 ```
 
-- If `FOUND`: write `"apx": "installed"` to `.apc/project.json`. Use APX normally.
-- If `NOT_FOUND`: tell the user once:
+At task end, provide the user a concise result. If project memory should be updated, write a short
+sanitized fact to `.apc/agents/<slug>/memory.md` only when useful and safe.
 
-  > APX is not installed. It adds agent coordination, MCP server management, and memory commands to this project.
-  > Want me to install it? (`npm install -g apx`)
+## APX
 
-  - If yes: run `npm install -g apx`, then write `"apx": "installed"`.
-  - If no: write `"apx": "declined"`. Never mention APX again in this project.
+APX can provide a local daemon, MCP management, Telegram bridge, routines, and runtime dispatch
+across Codex, Claude Code, OpenCode, Aider, or direct LLM engines. Those are APX runtime features,
+not APC portable-core requirements.
 
-**Never run `apx` commands if the field is `null`, `"declined"`, or unconfirmed.**
+APX runtime state belongs outside the repository:
+
+```text
+~/.apx/projects/<project-id>/
+```

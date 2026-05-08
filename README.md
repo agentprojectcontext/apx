@@ -16,7 +16,7 @@ APX is a daemon + CLI that brings the APC convention to life:
 - **Plugins** — Telegram bot integration out of the box
 - **MCP support** — each agent can expose or consume MCP servers
 
-APX is opinionated about storage: the filesystem is the source of truth. No database required to read agent state. Project definitions live in the repo; runtime state (memory, sessions) lives in `~/.apx/` and is never committed.
+APX is opinionated about storage: the filesystem is the source of truth. Project definitions and curated memory live in the repo. Runtime state such as sessions, conversations, messages, and caches lives in `~/.apx/` and is never committed.
 
 ## Quick start
 
@@ -65,13 +65,12 @@ Runtime state — local machine only, never committed:
 ```text
 ~/.apx/projects/<project-id>/
 ├── project.db             ← regenerable SQLite cache
+├── messages/              ← local message history
 └── agents/
     ├── <slug>/
-    │   ├── memory.md      ← durable memory, updated by the agent
     │   ├── sessions/      ← one .md per runtime invocation
     │   └── conversations/ ← LLM conversation threads
     └── default/           ← fallback when no agent role is active
-        ├── memory.md
         └── sessions/
 ```
 
@@ -94,7 +93,8 @@ apx messages tail --channel runtime      # only agent invocations
 
 ## Message channels
 
-All activity is logged to `.apc/messages/YYYY-MM-DD.jsonl`:
+Activity belongs to APX runtime state, not `.apc/`. Message storage is local to APX, under
+`~/.apx/`:
 
 | Channel | What it captures |
 |---------|-----------------|

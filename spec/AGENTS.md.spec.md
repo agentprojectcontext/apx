@@ -5,9 +5,8 @@
 
 This document defines the `AGENTS.md` grammar APC consumers parse at the project root.
 
-It is a companion to, not a replacement for, the broader APC specification:
-
-- [APC Specification](../docs/APC-SPEC.md)
+It is a companion to, not a replacement for, the broader APC specification in
+`agentprojectcontext/agentprojectcontext`.
 
 ## 1. Purpose
 

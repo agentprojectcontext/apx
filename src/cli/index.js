@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// apx — unified CLI for APC (Agent Project Framework).
+// apx — unified CLI for APC (Agent Project Context).
 // ESM, Node >= 18.
 import fs from "node:fs";
 import path from "node:path";
@@ -87,17 +87,18 @@ const VERSION = JSON.parse(
   fs.readFileSync(path.join(__dirname, "..", "..", "package.json"), "utf8")
 ).version;
 
-const HELP = `apx — Agent Project Framework
+const HELP = `apx — Agent Project Context
 
 Usage:
   apx <command> [<subcommand>] [args] [--flags]
 
 Bootstrap:
   apx init [path] [--name "<name>"]                    initialize an APC project
-  apx project add <path>                               register a project with the daemon
+  apx project add [path]                               register a project with the daemon
   apx project list
   apx project remove <path|id>
-  apx project rebuild [<path|id>]                      rebuild SQLite cache from filesystem
+  apx project rebuild [<path|id>]                      rebuild project index from filesystem
+  apx add project [path]                               alias for: apx project add
 
 Agents:
   apx agent add <slug> [--role R] [--model M] [--skills a,b] [--language es-AR] [--description D]
@@ -144,7 +145,7 @@ Telegram:
 Messages:
   apx messages tail [--agent <slug>] [--channel <ch>] [-n 50] [--global]
                      global channels (telegram, direct, whatsapp) → ~/.apx/messages/<ch>/
-                     project channels (runtime, a2a, exec)        → <project>/.apc/messages/
+                     project channels (runtime, a2a, exec)        → ~/.apx/projects/<id>/messages/
   apx messages search "<query>"
 
 LLM engines (v0.2):
@@ -465,6 +466,14 @@ async function dispatch(cmd, rest) {
       case "identity":
         await cmdIdentity(parseArgs(rest));
         break;
+
+      case "add": {
+        // apx add <domain> [...args] — consistent alternative to apx <domain> add
+        const sub = rest[0];
+        if (sub === "project") await cmdProjectAdd(parseArgs(rest.slice(1)));
+        else die(`unknown 'add' subcommand: ${sub || "(none)"} — try: project`);
+        break;
+      }
 
       default:
         die(`unknown command: ${cmd}\nRun \`apx --help\` for usage.`);

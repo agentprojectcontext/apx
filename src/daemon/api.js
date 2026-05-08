@@ -1,4 +1,4 @@
-// Express REST API for APX. See docs/APX-DAEMON.md §4.
+// Express REST API for APX. See APC docs reference/apx-daemon.
 import fs from "node:fs";
 import path from "node:path";
 import express from "express";
@@ -175,7 +175,7 @@ export function buildApi({ projects, registries, plugins, scheduler, version, st
     const agents = readAgents(p.path);
     if (!agents.find((a) => a.slug === req.params.slug))
       return res.status(404).json({ error: "agent not found" });
-    const sessionsDir = path.join(p.path, ".apc", "agents", req.params.slug, "sessions");
+    const sessionsDir = path.join(p.storagePath, "agents", req.params.slug, "sessions");
     if (!fs.existsSync(sessionsDir)) return res.json([]);
     const sessions = fs
       .readdirSync(sessionsDir)
@@ -201,7 +201,7 @@ export function buildApi({ projects, registries, plugins, scheduler, version, st
     if (!p) return;
     const { title, body = "" } = req.body || {};
     if (!title) return res.status(400).json({ error: "title required" });
-    const sessionsDir = path.join(p.path, ".apc", "agents", req.params.slug, "sessions");
+    const sessionsDir = path.join(p.storagePath, "agents", req.params.slug, "sessions");
     fs.mkdirSync(sessionsDir, { recursive: true });
     const titleSlug =
       title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "session";
@@ -225,7 +225,7 @@ export function buildApi({ projects, registries, plugins, scheduler, version, st
     if (!p) return;
     const sid = req.params.sid;
     const filename = sid.endsWith(".md") ? sid : `${sid}.md`;
-    const agentsDir = path.join(p.path, ".apc", "agents");
+    const agentsDir = path.join(p.storagePath, "agents");
     let found = null;
     if (fs.existsSync(agentsDir)) {
       for (const slug of fs.readdirSync(agentsDir)) {
@@ -335,7 +335,7 @@ export function buildApi({ projects, registries, plugins, scheduler, version, st
     const p = project(req, res);
     if (!p) return;
     const { agent, channel, since, limit = "100" } = req.query;
-    const rows = readProjectMessages(p.path, {
+    const rows = readProjectMessages(p.storagePath, {
       channel: channel || undefined,
       agent_slug: agent || undefined,
       since: since || undefined,
@@ -362,7 +362,7 @@ export function buildApi({ projects, registries, plugins, scheduler, version, st
     if (!p) return;
     const { q, limit = "50" } = req.query;
     if (!q) return res.status(400).json({ error: "q required" });
-    res.json(searchProjectMessages(p.path, q, Math.min(parseInt(limit, 10) || 50, 500)));
+    res.json(searchProjectMessages(p.storagePath, q, Math.min(parseInt(limit, 10) || 50, 500)));
   });
 
   // ---- Global messages (cross-project channels: telegram, direct, …) ----
@@ -421,7 +421,7 @@ export function buildApi({ projects, registries, plugins, scheduler, version, st
 
     try {
       const system = buildAgentSystem(p, agent);
-      const conv = startConversation({ projectRoot: p.path, agentSlug: agent.slug, engine: modelId, system });
+      const conv = startConversation({ storagePath: p.storagePath, agentSlug: agent.slug, engine: modelId, system });
       appendTurn({ filePath: conv.path, role: "user", content: prompt });
 
       const result = await callEngine({
@@ -470,7 +470,7 @@ export function buildApi({ projects, registries, plugins, scheduler, version, st
       let compactSummary = null;
 
       if (conversation_id) {
-        const existing = readConversation(p.path, agent.slug, conversation_id);
+        const existing = readConversation(p.storagePath, agent.slug, conversation_id);
         if (!existing) return res.status(404).json({ error: `conversation ${conversation_id} not found` });
         convPath = existing.path;
         convId = conversation_id;
@@ -492,7 +492,7 @@ export function buildApi({ projects, registries, plugins, scheduler, version, st
       const system = buildAgentSystem(p, agent, { extraParts });
 
       if (!conversation_id) {
-        const conv = startConversation({ projectRoot: p.path, agentSlug: agent.slug, engine: modelId, system });
+        const conv = startConversation({ storagePath: p.storagePath, agentSlug: agent.slug, engine: modelId, system });
         convPath = conv.path;
         convId = conv.id;
       }
@@ -523,14 +523,14 @@ export function buildApi({ projects, registries, plugins, scheduler, version, st
     const agents = readAgents(p.path);
     if (!agents.find((a) => a.slug === req.params.slug))
       return res.status(404).json({ error: "agent not found" });
-    res.json(listConversations(p.path, req.params.slug));
+    res.json(listConversations(p.storagePath, req.params.slug));
   });
 
   // GET /projects/:pid/agents/:slug/conversations/:id
   app.get("/projects/:pid/agents/:slug/conversations/:id", (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    const conv = readConversation(p.path, req.params.slug, req.params.id);
+    const conv = readConversation(p.storagePath, req.params.slug, req.params.id);
     if (!conv) return res.status(404).json({ error: "conversation not found" });
     res.json(conv);
   });
@@ -547,7 +547,7 @@ export function buildApi({ projects, registries, plugins, scheduler, version, st
     if (!modelId) return res.status(400).json({ error: "agent has no model" });
     try {
       const result = await compactConversation({
-        projectRoot: p.path,
+        storagePath: p.storagePath,
         agentSlug: agent.slug,
         filename: filename || null,
         modelId,
@@ -625,7 +625,7 @@ export function buildApi({ projects, registries, plugins, scheduler, version, st
     if (!agents.find((a) => a.slug === req.params.slug))
       return res.status(404).json({ error: "agent not found" });
 
-    const messages = readProjectMessages(p.path, { agent_slug: req.params.slug });
+    const messages = readProjectMessages(p.storagePath, { agent_slug: req.params.slug });
     const peers = new Map();
     for (const m of messages) {
       const peer = m.meta?.from || m.meta?.to || null;
@@ -679,6 +679,7 @@ export function buildApi({ projects, registries, plugins, scheduler, version, st
 
     const session = createRuntimeSession({
       projectRoot: p.path,
+      storageRoot: p.storagePath,
       agentSlug: agent.slug,
       runtime,
       title: req.body?.title,

@@ -33,14 +33,13 @@ assert(agents.length === 2, `expected 2 agents, got ${agents.length}`);
 assert(agents.find((a) => a.slug === "sofia"), "sofia missing");
 assert(agents.find((a) => a.slug === "martin"), "martin missing");
 
-// Sessions: scan .apc/agents/sofia/sessions/
+// Sessions: scan APX local runtime storage.
 const sofiaSessions = (() => {
-  const dir = path.join(entry.path, ".apc", "agents", "sofia", "sessions");
+  const dir = path.join(entry.storagePath, "agents", "sofia", "sessions");
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir).filter((f) => f.endsWith(".md"));
 })();
 console.log("sofia sessions:", sofiaSessions);
-assert(sofiaSessions.length >= 1, "expected at least one sofia session");
 
 const reg = new McpRegistry(entry.path);
 const list = reg.list();

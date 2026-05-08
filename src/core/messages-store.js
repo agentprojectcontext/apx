@@ -1,7 +1,7 @@
 // Messages store: filesystem source-of-truth + SQLite cache mirror.
 //
 // On disk (project-specific — runtime, a2a, exec):
-//   <project>/.apc/messages/YYYY-MM-DD.jsonl
+//   ~/.apx/projects/<project-id>/messages/YYYY-MM-DD.jsonl
 //
 // On disk (global cross-project channels — telegram, direct, whatsapp, …):
 //   ~/.apx/messages/<channel>/YYYY-MM-DD.jsonl
@@ -24,12 +24,12 @@ const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 
 function dayPathJsonl(projectRoot, ts) {
   const day = (ts || nowIso()).slice(0, 10);
-  return path.join(projectRoot, ".apc", "messages", `${day}.jsonl`);
+  return path.join(projectRoot, "messages", `${day}.jsonl`);
 }
 
 function dayPathMd(projectRoot, ts) {
   const day = (ts || nowIso()).slice(0, 10);
-  return path.join(projectRoot, ".apc", "messages", `${day}.md`);
+  return path.join(projectRoot, "messages", `${day}.md`);
 }
 
 export function appendMessageToFs({ projectRoot, channel, direction, author, body, meta = {}, ts, agent_slug, session_id, external_id }) {
@@ -262,7 +262,7 @@ function sanitizeAssistantForContext(content) {
 // ---------------------------------------------------------------------------
 
 export function readProjectMessages(projectRoot, { channel, agent_slug, since, limit = 100 } = {}) {
-  const dir = path.join(projectRoot, ".apc", "messages");
+  const dir = path.join(projectRoot, "messages");
   if (!fs.existsSync(dir)) return [];
   const all = [];
   for (const f of fs.readdirSync(dir).sort()) {
@@ -285,7 +285,7 @@ export function readProjectMessages(projectRoot, { channel, agent_slug, since, l
 export function searchProjectMessages(projectRoot, query, limit = 50) {
   if (!query) return [];
   const q = query.toLowerCase();
-  const dir = path.join(projectRoot, ".apc", "messages");
+  const dir = path.join(projectRoot, "messages");
   if (!fs.existsSync(dir)) return [];
   const all = [];
   for (const f of fs.readdirSync(dir).sort()) {
@@ -392,10 +392,10 @@ export function readGlobalMessages({ channel, limit = 100, since } = {}) {
   return all.slice(-limit);
 }
 
-// Wipe the cache and re-populate from .apc/messages/*. Reads BOTH `.jsonl`
+// Wipe the cache and re-populate from APX project messages. Reads BOTH `.jsonl`
 // (current format) and `.md` (legacy). Called by rebuild.
 export function rebuildMessagesFromFs(db, projectRoot) {
-  const dir = path.join(projectRoot, ".apc", "messages");
+  const dir = path.join(projectRoot, "messages");
   if (!fs.existsSync(dir)) return { count: 0 };
   db.prepare("DELETE FROM messages").run();
 

@@ -11,6 +11,21 @@ export const TELEGRAM_STATE_PATH = path.join(APX_HOME, "telegram-state.json");
 // Global channel messages (telegram, direct, whatsapp, …) live here,
 // separated from any project.  Structure: ~/.apx/messages/<channel>/YYYY-MM-DD.jsonl
 export const GLOBAL_MESSAGES_DIR = path.join(APX_HOME, "messages");
+// Per-project runtime storage (conversations, sessions) — never in the repo.
+// Structure: ~/.apx/projects/<apx_id>/agents/<slug>/conversations/
+export const PROJECT_STORE_ROOT = path.join(APX_HOME, "projects");
+export const DEFAULT_PROJECT_ID = "default";
+export const DEFAULT_PROJECT_STORE = path.join(PROJECT_STORE_ROOT, DEFAULT_PROJECT_ID);
+
+export function projectStorageRoot(apxId) {
+  return path.join(PROJECT_STORE_ROOT, apxId);
+}
+
+export function ensureProjectStorage(apxId) {
+  const root = projectStorageRoot(apxId);
+  fs.mkdirSync(root, { recursive: true });
+  return root;
+}
 
 const DEFAULT_CONFIG = {
   port: 7430,

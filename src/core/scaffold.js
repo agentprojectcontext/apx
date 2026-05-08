@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { readAgents, readAgentsFromDir, VAULT_DIR } from "./parser.js";
 
@@ -188,9 +189,13 @@ const AGENTS_MD_TEMPLATE = `# Agents
 -->
 `;
 
-const APC_GITIGNORE = `# APC runtime data — local-first by default
+const APC_GITIGNORE = `# APC runtime data — never in the repository
+# Chat conversations and runtime sessions belong in ~/.apx/projects/<id>/
 agents/*/sessions/
+agents/*/conversations/
 sessions/
+conversations/
+messages/
 chats/
 cache/
 tmp/
@@ -200,6 +205,7 @@ secrets/
 *.secret.json
 *.env
 *.env.*
+project.db
 migrate.md
 `;
 
@@ -241,6 +247,20 @@ function writeMigrateMd(apfDir, found) {
   fs.writeFileSync(path.join(apfDir, "migrate.md"), lines.join("\n") + "\n");
 }
 
+// Get the stable APX storage ID for a project, generating one if it doesn't exist.
+// Called by the daemon when registering a project.
+export function getOrCreateApxId(root) {
+  const p = path.join(root, ".apc", "project.json");
+  if (!fs.existsSync(p)) return null;
+  let cfg;
+  try { cfg = JSON.parse(fs.readFileSync(p, "utf8")); } catch { return null; }
+  if (cfg.apx_id) return cfg.apx_id;
+  const apxId = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+  cfg.apx_id = apxId;
+  fs.writeFileSync(p, JSON.stringify(cfg, null, 2) + "\n");
+  return apxId;
+}
+
 export function initApf(directory, { name } = {}) {
   const root = path.resolve(directory);
   fs.mkdirSync(root, { recursive: true });
@@ -252,6 +272,7 @@ export function initApf(directory, { name } = {}) {
 
   const projectJson = path.join(apfDir, "project.json");
   if (!fs.existsSync(projectJson)) {
+    const apxId = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
     fs.writeFileSync(
       projectJson,
       JSON.stringify(
@@ -261,7 +282,7 @@ export function initApf(directory, { name } = {}) {
           apf: SPEC_VERSION,
           created: nowIso(),
           apx: null,
-          sessions: { defaultVisibility: "local" },
+          apx_id: apxId,
         },
         null,
         2
@@ -291,7 +312,7 @@ export function initApf(directory, { name } = {}) {
 
 export function ensureAgentDir(root, slug) {
   const dir = path.join(root, ".apc", "agents", slug);
-  fs.mkdirSync(path.join(dir, "sessions"), { recursive: true });
+  fs.mkdirSync(dir, { recursive: true });
   const memory = path.join(dir, "memory.md");
   if (!fs.existsSync(memory)) {
     fs.writeFileSync(

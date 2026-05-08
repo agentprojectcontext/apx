@@ -31,7 +31,7 @@ export function makeTempProject({ name = "tmp", agents = [], skills = [], mcps =
     agentsMd += "\n";
 
     const adir = path.join(root, ".apc", "agents", a.slug);
-    fs.mkdirSync(path.join(adir, "sessions"), { recursive: true });
+    fs.mkdirSync(adir, { recursive: true });
     fs.writeFileSync(
       path.join(adir, "memory.md"),
       a.memory || `# Memory — ${a.slug}\n\n## Identity\n- ${a.slug}\n`

@@ -1,14 +1,14 @@
-// Conversation storage: append-only markdown at .apc/agents/<slug>/conversations/
-// with SQLite mirror for fast querying. Filesystem is source of truth.
+// Conversation storage: append-only markdown at ~/.apx/projects/<id>/agents/<slug>/conversations/
+// Filesystem is source of truth. storagePath = ~/.apx/projects/<apx_id>
 
 import fs from "node:fs";
 import path from "node:path";
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 
-export function generateConversationId(projectRoot, agentSlug) {
+export function generateConversationId(storagePath, agentSlug) {
   const today = new Date().toISOString().slice(0, 10);
-  const dir = path.join(projectRoot, ".apc", "agents", agentSlug, "conversations");
+  const dir = path.join(storagePath, "agents", agentSlug, "conversations");
   let next = 1;
   if (fs.existsSync(dir)) {
     for (const f of fs.readdirSync(dir)) {
@@ -22,15 +22,15 @@ export function generateConversationId(projectRoot, agentSlug) {
   return `${today}-${String(next).padStart(2, "0")}`;
 }
 
-export function conversationPath(projectRoot, agentSlug, idOrFilename) {
+export function conversationPath(storagePath, agentSlug, idOrFilename) {
   const filename = idOrFilename.endsWith(".md") ? idOrFilename : `${idOrFilename}.md`;
-  return path.join(projectRoot, ".apc", "agents", agentSlug, "conversations", filename);
+  return path.join(storagePath, "agents", agentSlug, "conversations", filename);
 }
 
-export function startConversation({ projectRoot, agentSlug, engine, system }) {
-  const dir = path.join(projectRoot, ".apc", "agents", agentSlug, "conversations");
+export function startConversation({ storagePath, agentSlug, engine, system }) {
+  const dir = path.join(storagePath, "agents", agentSlug, "conversations");
   fs.mkdirSync(dir, { recursive: true });
-  const id = generateConversationId(projectRoot, agentSlug);
+  const id = generateConversationId(storagePath, agentSlug);
   const file = path.join(dir, `${id}.md`);
   const started = nowIso();
   const fm =
@@ -84,14 +84,14 @@ export function parseConversation(text) {
   return { fm, turns };
 }
 
-export function readConversation(projectRoot, agentSlug, idOrFilename) {
-  const p = conversationPath(projectRoot, agentSlug, idOrFilename);
+export function readConversation(storagePath, agentSlug, idOrFilename) {
+  const p = conversationPath(storagePath, agentSlug, idOrFilename);
   if (!fs.existsSync(p)) return null;
   return { ...parseConversation(fs.readFileSync(p, "utf8")), path: p };
 }
 
-export function listConversations(projectRoot, agentSlug) {
-  const dir = path.join(projectRoot, ".apc", "agents", agentSlug, "conversations");
+export function listConversations(storagePath, agentSlug) {
+  const dir = path.join(storagePath, "agents", agentSlug, "conversations");
   if (!fs.existsSync(dir)) return [];
   return fs
     .readdirSync(dir)
