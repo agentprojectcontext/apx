@@ -1,70 +1,78 @@
 # APX — Agent Project Framework
 
-This project uses **APX**. The daemon runs on `127.0.0.1:7430` and auto-starts on first `apx` call.
-Your current session, project, and agent are already injected above this block — refer to them.
+The daemon runs on `127.0.0.1:7430` and auto-starts on first `apx` call.
 
 ---
 
-## Discover the project
-
-```bash
-apx agent list                          # agents in AGENTS.md + their roles/models
-apx mcp list                            # MCP servers available to this project
-```
-
 ## Coordinate with other agents
 
+**First: can you spawn a subagent natively in this IDE?**
+
+If yes — do that. No APX needed. Claude Code, Cursor, and other IDEs can spawn subagents directly using your current context.
+
+Use `apx run` only when:
+- The user explicitly asks to run the agent in a specific external runtime ("run this in Codex", "run the QA agent outside this session")
+- You need to run an agent in a runtime different from the one you're in
+- You're orchestrating from outside any IDE (e.g. a script, Telegram bot, CI)
+
 ```bash
-# Full external session (best for complex, multi-step tasks)
+# Run agent in an external runtime — full isolated session
 apx run <slug> --runtime claude-code "<prompt>"
 apx run <slug> --runtime codex        "<prompt>"
+apx run <slug> --runtime opencode     "<prompt>"
 
-# Quick one-shot LLM call (requires engine API key in ~/.apx/config.json)
-apx exec <slug> "<prompt>"
+# Example: run the qa agent in codex with a specific task
+apx run qa --runtime codex "run the full test suite and report failures"
 ```
 
-The output of `apx run` / `apx exec` is the agent's full stdout.
-If the agent printed `APC_RESULT: <value>`, that value is also captured as structured output.
-
-## Memory — durable, persists between sessions
+The output is the agent's full stdout. If it printed `APC_RESULT: <value>`, that value is captured as structured output.
 
 ```bash
-apx memory <slug>                       # read agent's memory.md
-apx memory <slug> --append "<fact>"     # append a durable note (non-destructive)
-apx memory <slug> --replace < file.md  # replace entire memory from stdin
+# Quick one-shot LLM call (no external CLI needed, uses ~/.apx/config.json engine key)
+apx exec <slug> "<prompt>"
 ```
 
 ## MCP tools
 
+MCPs declared in `.apc/mcps.json` are proxied through the APX daemon. Use `apx mcp` only for MCPs registered there — not for MCPs that are already running locally in your IDE session.
+
 ```bash
-apx mcp list                            # registered MCP servers declared in .apc/mcps.json
-apx mcp tools <server>                  # list tools a server exposes
-apx mcp run   <server> <tool> '<json>'  # call a tool directly
+apx mcp list                            # MCPs registered in .apc/mcps.json
+apx mcp tools <server>                  # tools a server exposes
+apx mcp run   <server> <tool> '<json>'  # call a tool
+
+# Example:
+apx mcp tools filesystem
+apx mcp run filesystem read_file '{"path": "README.md"}'
 ```
 
-MCP servers declared in `.apc/mcps.json` only work when APX daemon is running.
-If a tool call fails or MCPs aren't responding, check: `apx --version` to confirm APX is active.
+## Memory
+
+```bash
+apx memory <slug>                       # read agent's memory.md
+apx memory <slug> --append "<fact>"     # append a durable note
+apx memory <slug> --replace < file.md  # replace entire memory from stdin
+```
+
+## Sessions
+
+```bash
+apx session new <slug> --title "What you did"   # create session file
+apx session list <slug>                          # list sessions
+apx session check                                # exits 1 if session already active
+```
 
 ## Observe activity
 
 ```bash
-apx messages tail                       # last 50 messages, all channels
-apx messages tail --channel runtime     # only agent invocations (in/out)
+apx messages tail                               # last 50 messages, all channels
+apx messages tail --channel runtime             # only agent invocations
 apx messages tail --agent <slug> -n 20
-apx session list  <slug>                # sessions for a specific agent
 ```
 
-## Anti-collision guard
+## APC_RESULT
 
-Before starting a long task, prevent duplicate runs:
-```bash
-apx session check    # exits 1 if a session is already active for this agent
-```
-
-## APC_RESULT — signal your return value
-
-Print this on the last meaningful line of your output:
+Print on the last meaningful line of your output so the invoker captures it:
 ```
 APC_RESULT: <one-line summary or value>
 ```
-The invoker (`apx run`, super-agent, Telegram bot) captures it as structured output.

@@ -1,5 +1,10 @@
 {
   "mcpServers": {
+    "ping": {
+      "command": "node",
+      "args": ["/Volumes/SSDT7Shield/proyectos_varios/agentprojectcontext/apx/testing/mcps/ping/index.js"],
+      "enabled": true
+    },
     "filesystem": {
       "command": "npx",
       "args": [
