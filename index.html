@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>APX — Agent Project eXecutor</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #05070f;
+      --surface: #0d1117;
+      --surface2: #161b22;
+      --border: rgba(56,139,253,0.15);
+      --border-bright: rgba(56,139,253,0.3);
+      --text: #e6edf3;
+      --muted: rgba(230,237,243,0.45);
+      --accent: #58a6ff;
+      --accent2: #3ddcff;
+      --green: #3fb950;
+    }
+
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    /* ── HERO ── */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 5rem 2rem 4rem;
+      text-align: center;
+      position: relative;
+    }
+
+    /* subtle radial glow */
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 60% 40% at 50% 30%, rgba(56,139,253,0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-tag {
+      font-size: 0.72rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      border: 1px solid var(--border-bright);
+      border-radius: 100px;
+      padding: 0.3rem 0.9rem;
+      margin-bottom: 1.5rem;
+    }
+
+    h1 {
+      font-size: clamp(3.5rem, 8vw, 6rem);
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 1;
+      margin-bottom: 0.3rem;
+    }
+
+    h1 span { color: var(--accent2); }
+
+    .hero-sub {
+      font-size: 1rem;
+      color: var(--muted);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-bottom: 1.5rem;
+    }
+
+    .tagline {
+      font-size: 1.2rem;
+      color: var(--muted);
+      max-width: 560px;
+      line-height: 1.6;
+      margin-bottom: 0.6rem;
+    }
+
+    .tagline-sub {
+      font-size: 0.88rem;
+      color: rgba(230,237,243,0.3);
+      margin-bottom: 2.5rem;
+    }
+
+    /* ── BUTTONS ── */
+    .btns {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 4rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.6rem 1.4rem;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      font-weight: 500;
+      text-decoration: none;
+      transition: all 0.15s;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #000;
+    }
+    .btn-primary:hover { filter: brightness(1.1); }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid rgba(56,139,253,0.3);
+    }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── ARCH DIAGRAM ── */
+    .arch {
+      width: 100%;
+      max-width: 960px;
+      margin: 0 auto 5rem;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 1.5rem;
+      align-items: center;
+      padding: 0 1rem;
+    }
+
+    .arch-col {
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .arch-col.right { align-items: flex-start; }
+    .arch-col.left  { align-items: flex-end; }
+
+    .arch-pill {
+      border: 1px solid var(--border-bright);
+      border-radius: 10px;
+      padding: 0.55rem 1.1rem;
+      font-size: 0.88rem;
+      font-weight: 500;
+      background: var(--surface2);
+      color: var(--text);
+      white-space: nowrap;
+    }
+
+    .arch-pill.dim { opacity: 0.55; }
+
+    /* central APX box */
+    .arch-center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .apx-box {
+      border: 1px solid rgba(56,139,253,0.5);
+      border-radius: 18px;
+      padding: 2.5rem 3rem;
+      background: linear-gradient(135deg, rgba(56,139,253,0.12) 0%, rgba(61,220,255,0.06) 100%);
+      box-shadow: 0 0 60px rgba(56,139,253,0.12), inset 0 1px 0 rgba(255,255,255,0.05);
+      text-align: center;
+    }
+
+    .apx-box h2 {
+      font-size: 3.5rem;
+      font-weight: 900;
+      letter-spacing: -0.05em;
+      color: #fff;
+      line-height: 1;
+    }
+
+    .apx-box .runtime-label {
+      font-size: 0.7rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-top: 0.3rem;
+    }
+
+    .apx-box .pills {
+      display: flex;
+      gap: 0.4rem;
+      justify-content: center;
+      margin-top: 0.75rem;
+    }
+
+    .apx-box .micro {
+      font-size: 0.65rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: rgba(56,139,253,0.7);
+      border: 1px solid rgba(56,139,253,0.25);
+      border-radius: 100px;
+      padding: 0.2rem 0.5rem;
+    }
+
+    /* ── FALLBACK CHAIN ── */
+    .fallback {
+      width: 100%;
+      max-width: 960px;
+      margin: 0 auto 5rem;
+      padding: 0 1rem;
+    }
+
+    .fallback h3 {
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+
+    .fallback-chain {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      flex-wrap: wrap;
+    }
+
+    .fb-node {
+      display: flex;
+      align-items: center;
+      gap: 0;
+    }
+
+    .fb-box {
+      border: 1px solid var(--border-bright);
+      border-radius: 8px;
+      padding: 0.5rem 1.2rem;
+      font-size: 0.88rem;
+      font-weight: 500;
+      background: var(--surface2);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .fb-check {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 1px solid var(--green);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.65rem;
+      color: var(--green);
+      flex-shrink: 0;
+    }
+
+    .fb-arrow {
+      font-size: 0.7rem;
+      color: var(--muted);
+      padding: 0 0.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.1rem;
+    }
+    .fb-arrow span { font-size: 0.6rem; color: rgba(230,237,243,0.25); }
+
+    /* ── SECTIONS ── */
+    section.features {
+      width: 100%;
+      max-width: 960px;
+      margin: 0 auto 5rem;
+      padding: 0 1rem;
+    }
+
+    section.features h2 {
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 1.5rem;
+      text-align: center;
+    }
+
+    .feat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .feat {
+      background: var(--surface);
+      padding: 1.75rem;
+    }
+
+    .feat-icon { font-size: 1.4rem; margin-bottom: 0.75rem; }
+    .feat h3 { font-size: 0.88rem; font-weight: 600; margin-bottom: 0.4rem; }
+    .feat p { font-size: 0.8rem; color: var(--muted); line-height: 1.5; }
+
+    /* ── TERMINAL ── */
+    section.terminal {
+      width: 100%;
+      max-width: 760px;
+      margin: 0 auto 5rem;
+      padding: 0 1rem;
+    }
+
+    section.terminal h2 {
+      font-size: 0.7rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+
+    .term-window {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .term-bar {
+      background: #161b22;
+      padding: 0.6rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .dot-r { background: #ff5f57; }
+    .dot-y { background: #febc2e; }
+    .dot-g { background: #28c840; }
+    .term-title { margin-left: auto; margin-right: auto; font-size: 0.75rem; color: var(--muted); }
+
+    .term-body {
+      padding: 1.5rem;
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 0.82rem;
+      line-height: 2;
+    }
+
+    .term-body .prompt { color: var(--accent2); }
+    .term-body .cmd    { color: #e6edf3; }
+    .term-body .out    { color: rgba(230,237,243,0.45); }
+    .term-body .hi     { color: var(--accent); }
+    .term-body .cursor { display: inline-block; width: 8px; height: 1em; background: var(--accent2); vertical-align: text-bottom; animation: blink 1s step-end infinite; }
+    @keyframes blink { 50% { opacity: 0; } }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 2.5rem 2rem;
+      text-align: center;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+    footer a { color: var(--muted); text-decoration: none; }
+    footer a:hover { color: var(--accent); }
+
+    @media (max-width: 640px) {
+      .arch { grid-template-columns: 1fr; }
+      .arch-col.left, .arch-col.right { align-items: center; }
+    }
+  </style>
+</head>
+<body>
+
+<section class="hero">
+  <div class="hero-tag">Local runtime for AI agents</div>
+  <h1>APX <span>+</span> APC</h1>
+  <p class="hero-sub">Discover · Orchestrate · Bridge</p>
+  <p class="tagline">Portable project context. Local runtime for AI agents.</p>
+  <p class="tagline-sub">One context layer. Any IDE. Your projects stay yours.</p>
+
+  <div class="btns">
+    <a class="btn btn-primary" href="https://github.com/agentprojectcontext/apx">Get started</a>
+    <a class="btn btn-secondary" href="https://github.com/agentprojectcontext/agentprojectcontext">APC Protocol →</a>
+    <a class="btn btn-secondary" href="https://github.com/agentprojectcontext/apx">GitHub</a>
+  </div>
+
+  <!-- Architecture diagram -->
+  <div class="arch">
+    <!-- Left: runtimes -->
+    <div class="arch-col left">
+      <div class="arch-pill">Claude</div>
+      <div class="arch-pill">Cursor</div>
+      <div class="arch-pill dim">Codex</div>
+      <div class="arch-pill dim">OpenCode</div>
+    </div>
+
+    <!-- Center: APX -->
+    <div class="arch-center">
+      <div class="apx-box">
+        <h2>APX</h2>
+        <p class="runtime-label">Local Runtime</p>
+        <div class="pills">
+          <span class="micro">Discover</span>
+          <span class="micro">Orchestrate</span>
+          <span class="micro">Bridge</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: channels -->
+    <div class="arch-col right">
+      <div class="arch-pill">Telegram</div>
+      <div class="arch-pill">MCP</div>
+      <div class="arch-pill dim">API</div>
+    </div>
+  </div>
+</section>
+
+<!-- Routing / fallback -->
+<div class="fallback">
+  <h3>Routing / Fallback</h3>
+  <div class="fallback-chain">
+    <div class="fb-node">
+      <div class="fb-box">Claude <div class="fb-check">✓</div></div>
+    </div>
+    <div class="fb-arrow">→<span>fallback</span></div>
+    <div class="fb-node">
+      <div class="fb-box">Codex <div class="fb-check">✓</div></div>
+    </div>
+    <div class="fb-arrow">→<span>fallback</span></div>
+    <div class="fb-node">
+      <div class="fb-box">OpenCode <div class="fb-check">✓</div></div>
+    </div>
+    <div class="fb-arrow">→<span>fallback</span></div>
+    <div class="fb-node">
+      <div class="fb-box" style="border-style:dashed;opacity:0.6">Local Model</div>
+    </div>
+  </div>
+</div>
+
+<!-- Features -->
+<section class="features">
+  <h2>What APX provides</h2>
+  <div class="feat-grid">
+    <div class="feat">
+      <div class="feat-icon">⚡</div>
+      <h3>Daemon + CLI</h3>
+      <p>Local HTTP daemon auto-starts. <code>apx run</code> spawns a full agent session in any runtime.</p>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">🔀</div>
+      <h3>Multi-runtime</h3>
+      <p>Claude Code, Codex, OpenCode, Aider. Route to any runtime, fall back automatically.</p>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">🗂️</div>
+      <h3>Filesystem-first</h3>
+      <p>No database. All agent state — memory, sessions, messages — lives in <code>.apc/</code>.</p>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">📡</div>
+      <h3>Telegram + MCP</h3>
+      <p>Built-in Telegram bot plugin. MCP server declarations per project.</p>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">🧠</div>
+      <h3>Multi-engine</h3>
+      <p>Anthropic, OpenAI, Gemini, Ollama, or mock. Configured per project or globally.</p>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">📋</div>
+      <h3>Activity log</h3>
+      <p>Every invocation logged to JSONL. Stream with <code>apx messages tail</code>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Terminal -->
+<section class="terminal">
+  <h2>Quick start</h2>
+  <div class="term-window">
+    <div class="term-bar">
+      <div class="dot dot-r"></div>
+      <div class="dot dot-y"></div>
+      <div class="dot dot-g"></div>
+      <span class="term-title">apx (local)</span>
+    </div>
+    <div class="term-body">
+      <div><span class="prompt">$ </span><span class="cmd">apx agent list</span></div>
+      <div class="out">Projects:</div>
+      <div class="out">  · <span class="hi">Project A</span>   .apc/</div>
+      <div class="out">  · <span class="hi">Project B</span>   .apc/</div>
+      <br>
+      <div><span class="prompt">$ </span><span class="cmd">apx run superagent --runtime claude-code "Review open PRs"</span></div>
+      <div class="out">▶ Running agent <span class="hi">'superagent'</span> in Project A…<span class="cursor"></span></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p>
+    PROJECT-CENTRIC · PORTABLE · LOCAL-FIRST &nbsp;·&nbsp;
+    <a href="https://github.com/agentprojectcontext/apx">GitHub</a> &nbsp;·&nbsp;
+    <a href="https://github.com/agentprojectcontext/agentprojectcontext">APC Protocol</a>
+  </p>
+  <p style="margin-top:0.5rem;font-size:0.7rem;opacity:0.4">NO DUPLICATED PER-IDE CONFIGS. ONE CONTEXT LAYER ACROSS TOOLS.</p>
+</footer>
+
+</body>
+</html>
