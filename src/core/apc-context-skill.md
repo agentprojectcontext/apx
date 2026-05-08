@@ -71,17 +71,27 @@ AGENTS.md              ← project context: rules, conventions, stack notes (age
 3. `AGENTS.md` is auto-generated — edit individual files in `.apc/agents/`, not `AGENTS.md`
 4. To list agents: read `AGENTS.md` or list `.apc/agents/*.md`
 
-## APX — optional superpowers
+## APX — check once, remember forever
 
-If the project has `.apc/mcps.json`, MCP servers need **APX** to run.
-If you need to run another agent, coordinate between agents, or install agents from the team workspace, **APX** is required.
+Read `.apc/project.json`. It has an `apx` field:
 
-Check if APX is installed:
+- **`"installed"`** — APX is available. Use `apx` commands freely when useful.
+- **`"declined"`** — user chose not to install. Never suggest or run `apx` commands.
+- **`null` or missing** — unknown. Do the one-time check below, then write the result and never ask again.
+
+### One-time APX detection (only when `apx` is null or missing)
+
 ```bash
-apx --version 2>/dev/null || echo "APX not installed"
+apx --version 2>/dev/null && echo "FOUND" || echo "NOT_FOUND"
 ```
 
-If APX is not installed, inform the user:
-> This project has [MCPs / agents] configured in `.apc/` that require APX to function.
-> Install with: `npm install -g apx`
-> Docs: https://github.com/agentprojectcontext/apx
+- If `FOUND`: write `"apx": "installed"` to `.apc/project.json`. Use APX normally.
+- If `NOT_FOUND`: tell the user once:
+
+  > APX is not installed. It adds agent coordination, MCP server management, and memory commands to this project.
+  > Want me to install it? (`npm install -g apx`)
+
+  - If yes: run `npm install -g apx`, then write `"apx": "installed"`.
+  - If no: write `"apx": "declined"`. Never mention APX again in this project.
+
+**Never run `apx` commands if the field is `null`, `"declined"`, or unconfirmed.**

@@ -245,6 +245,7 @@ export function initApf(directory, { name } = {}) {
           version: "0.1.0",
           apf: SPEC_VERSION,
           created: nowIso(),
+          apx: null,
         },
         null,
         2
@@ -255,13 +256,6 @@ export function initApf(directory, { name } = {}) {
   const agentsMd = path.join(root, "AGENTS.md");
   if (!fs.existsSync(agentsMd)) {
     fs.writeFileSync(agentsMd, AGENTS_MD_TEMPLATE);
-  }
-
-  // Write the APX base skill so all runtimes start with it automatically.
-  const apxSkill = path.join(apfDir, "skills", "apx.md");
-  if (!fs.existsSync(apxSkill)) {
-    const src = path.join(__dirname, "apx-skill.md");
-    if (fs.existsSync(src)) fs.copyFileSync(src, apxSkill);
   }
 
   // Detect scattered context files and flag for agent-driven migration.
