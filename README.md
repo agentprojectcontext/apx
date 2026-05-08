@@ -1,4 +1,6 @@
-# APX — Agent Project eXecutor
+<p align="center">
+  <img src="assets/hero.png" alt="APX — Local Runtime for AI Agents" width="600">
+</p>
 
 > The reference implementation of the [APC protocol](https://github.com/agentprojectcontext/agentprojectcontext).
 > APX is to APC what a language SDK is to a protocol spec.
@@ -111,6 +113,12 @@ Configured in `~/.apx/config.json`:
   }
 }
 ```
+
+## Architecture
+
+<p align="center">
+  <img src="assets/diagram.png" alt="APX architecture diagram" width="720">
+</p>
 
 ## APC protocol
 
