@@ -50,8 +50,8 @@ export async function cmdSkillsAdd(args) {
     const home = os.homedir();
     console.log("");
     for (const r of results) {
-      const short = r.dir.replace(home, "~");
-      console.log(`  ${r.status.padEnd(10)}  ${short}/apx/SKILL.md`);
+      const short = r.file.replace(home, "~");
+      console.log(`  ${r.status.padEnd(10)}  ${short}`);
     }
     console.log("\n  Loaded by: Claude Code, Cursor, Codex (OpenAI), Antigravity, and skills.sh-compatible tools.");
     console.log("  Activates automatically when working in a project with AGENTS.md or .apc/");
@@ -111,7 +111,8 @@ export async function cmdSkillsStatus() {
   const root = findApfRoot();
 
   // Global
-  console.log("Global skills (~/.../skills/apx/SKILL.md):");
+  const SKILL_SLUGS = ["apx", "apc-context"];
+  console.log("Global skills:");
   const GLOBAL_DIRS = [
     { label: "Claude Code / Cursor compat", dir: path.join(os.homedir(), ".claude", "skills") },
     { label: "Cursor (primary)",            dir: path.join(os.homedir(), ".cursor", "skills") },
@@ -119,9 +120,12 @@ export async function cmdSkillsStatus() {
     { label: "Antigravity / others",        dir: path.join(os.homedir(), ".agents", "skills") },
   ];
   const gw = Math.max(...GLOBAL_DIRS.map((d) => d.label.length));
+  const sw = Math.max(...SKILL_SLUGS.map((s) => s.length));
   for (const { label, dir } of GLOBAL_DIRS) {
-    const dest = path.join(dir, "apx", "SKILL.md");
-    console.log(`  ${label.padEnd(gw)}  ${fs.existsSync(dest) ? "installed" : "not installed"}`);
+    for (const slug of SKILL_SLUGS) {
+      const dest = path.join(dir, slug, "SKILL.md");
+      console.log(`  ${label.padEnd(gw)}  ${slug.padEnd(sw)}  ${fs.existsSync(dest) ? "installed" : "not installed"}`);
+    }
   }
 
   // Project-scoped
