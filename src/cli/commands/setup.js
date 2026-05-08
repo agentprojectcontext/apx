@@ -1,0 +1,336 @@
+// apx setup — interactive first-run wizard.
+// Guides the user through provider, model, channels, and language.
+// Starts the daemon and sends a fun wake-up message when done.
+
+import fs from "node:fs";
+import https from "node:https";
+import http from "node:http";
+import readline from "node:readline";
+import { spawnSync, spawn } from "node:child_process";
+import { readConfig, writeConfig, APX_HOME } from "../../core/config.js";
+
+// ── ANSI helpers ──────────────────────────────────────────────────────────────
+const c = {
+  reset: "\x1b[0m",
+  bold:  "\x1b[1m",
+  dim:   "\x1b[2m",
+  cyan:  "\x1b[36m",
+  green: "\x1b[32m",
+  yellow:"\x1b[33m",
+  red:   "\x1b[31m",
+  gray:  "\x1b[90m",
+};
+const b  = (s) => `${c.bold}${s}${c.reset}`;
+const cy = (s) => `${c.cyan}${s}${c.reset}`;
+const gr = (s) => `${c.green}${s}${c.reset}`;
+const di = (s) => `${c.dim}${s}${c.reset}`;
+
+// ── readline helpers ─────────────────────────────────────────────────────────
+let rl;
+function initRl() {
+  rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+}
+function ask(prompt) {
+  return new Promise((resolve) => rl.question(prompt, (a) => resolve(a.trim())));
+}
+function close() { rl.close(); }
+
+// ── Fetch helpers ─────────────────────────────────────────────────────────────
+function fetchJson(url, timeout = 4000) {
+  return new Promise((resolve) => {
+    const mod = url.startsWith("https") ? https : http;
+    const req = mod.get(url, { timeout }, (res) => {
+      let body = "";
+      res.on("data", (c) => (body += c));
+      res.on("end", () => { try { resolve(JSON.parse(body)); } catch { resolve(null); } });
+    });
+    req.on("error", () => resolve(null));
+    req.on("timeout", () => { req.destroy(); resolve(null); });
+  });
+}
+
+async function fetchOllamaModels(baseUrl) {
+  const data = await fetchJson(`${baseUrl.replace(/\/$/, "")}/api/tags`);
+  if (!data?.models) return [];
+  return data.models.map((m) => m.name).filter(Boolean);
+}
+
+// ── Provider definitions ──────────────────────────────────────────────────────
+const PROVIDERS = [
+  {
+    id: "anthropic",
+    label: "Anthropic (Claude)",
+    needsKey: true,
+    keyLabel: "Anthropic API key",
+    keyHint: "sk-ant-...",
+    models: ["claude-sonnet-4-5", "claude-haiku-4-5", "claude-opus-4-5"],
+  },
+  {
+    id: "openai",
+    label: "OpenAI (GPT)",
+    needsKey: true,
+    keyLabel: "OpenAI API key",
+    keyHint: "sk-...",
+    models: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"],
+  },
+  {
+    id: "ollama",
+    label: "Ollama (local / self-hosted)",
+    needsKey: false,
+    models: [], // fetched dynamically
+  },
+  {
+    id: "gemini",
+    label: "Gemini (Google)",
+    needsKey: true,
+    keyLabel: "Gemini API key",
+    keyHint: "AIza...",
+    models: ["gemini-2.0-flash", "gemini-1.5-pro"],
+  },
+];
+
+// ── Main wizard ───────────────────────────────────────────────────────────────
+export async function cmdSetup() {
+  initRl();
+
+  console.log();
+  console.log(b(cy("  ╔═══════════════════════════════════╗")));
+  console.log(b(cy("  ║        APX Setup Wizard           ║")));
+  console.log(b(cy("  ╚═══════════════════════════════════╝")));
+  console.log();
+  console.log(di("  This will configure the APX daemon and super-agent."));
+  console.log(di("  You can re-run `apx setup` at any time to change settings."));
+  console.log();
+
+  // ── Super-agent? ────────────────────────────────────────────────────────────
+  const wantAgent = await ask(`  Enable super-agent? ${di("[Y/n]")} `);
+  if (/^n/i.test(wantAgent)) {
+    console.log(`\n  ${gr("✓")} Skipping super-agent. Run ${cy("apx daemon start")} to start the daemon.\n`);
+    close();
+    return;
+  }
+
+  // ── Provider ────────────────────────────────────────────────────────────────
+  console.log();
+  console.log(b("  AI Provider:"));
+  PROVIDERS.forEach((p, i) => console.log(`    ${cy(String(i + 1))}. ${p.label}`));
+  console.log();
+  let providerIdx = -1;
+  while (providerIdx < 0) {
+    const ans = await ask(`  Choose [1-${PROVIDERS.length}]: `);
+    const n = parseInt(ans, 10);
+    if (n >= 1 && n <= PROVIDERS.length) providerIdx = n - 1;
+    else console.log(`  ${c.yellow}Please enter a number between 1 and ${PROVIDERS.length}.${c.reset}`);
+  }
+  const provider = PROVIDERS[providerIdx];
+  let apiKey = "";
+  let ollamaUrl = "http://localhost:11434";
+
+  if (provider.id === "ollama") {
+    const urlAns = await ask(`  Ollama URL ${di("[http://localhost:11434]")}: `);
+    ollamaUrl = urlAns || "http://localhost:11434";
+  } else if (provider.needsKey) {
+    apiKey = await ask(`  ${provider.keyLabel} ${di(`(${provider.keyHint})`)}: `);
+  }
+
+  // ── Model ───────────────────────────────────────────────────────────────────
+  console.log();
+  let models = [...provider.models];
+
+  if (provider.id === "ollama") {
+    process.stdout.write(`  Fetching models from Ollama... `);
+    const fetched = await fetchOllamaModels(ollamaUrl);
+    if (fetched.length) {
+      models = fetched;
+      console.log(gr(`${fetched.length} found`));
+    } else {
+      console.log(di("(couldn't reach Ollama, enter manually)"));
+    }
+  }
+
+  let chosenModel = "";
+  if (models.length) {
+    console.log(b("  Model:"));
+    models.forEach((m, i) => console.log(`    ${cy(String(i + 1))}. ${m}`));
+    console.log(`    ${cy(String(models.length + 1))}. ${di("Enter manually")}`);
+    console.log();
+    let modelIdx = -1;
+    while (modelIdx < 0) {
+      const ans = await ask(`  Choose [1-${models.length + 1}]: `);
+      const n = parseInt(ans, 10);
+      if (n >= 1 && n <= models.length) { modelIdx = n - 1; chosenModel = models[modelIdx]; }
+      else if (n === models.length + 1) {
+        chosenModel = await ask("  Model name: ");
+        modelIdx = 0;
+      } else {
+        console.log(`  ${c.yellow}Invalid choice.${c.reset}`);
+      }
+    }
+  } else {
+    chosenModel = await ask("  Model name (e.g. qwen2.5:14b): ");
+  }
+  chosenModel = `${provider.id}:${chosenModel}`;
+
+  // ── Channels ────────────────────────────────────────────────────────────────
+  console.log();
+  console.log(b("  Channels:"));
+  console.log(`    ${cy("1")}. Web (local API — always on)`);
+  console.log(`    ${cy("2")}. Telegram`);
+  console.log();
+  const chAns = await ask(`  Enable Telegram? ${di("[Y/n]")} `);
+  const wantTelegram = !/^n/i.test(chAns);
+
+  let botToken = "";
+  let chatId = "";
+
+  if (wantTelegram) {
+    console.log();
+    console.log(di("  Create a bot at https://t.me/BotFather → get the token."));
+    console.log(di("  Then message your bot and visit:"));
+    console.log(di("  https://api.telegram.org/bot<TOKEN>/getUpdates to find your chat_id."));
+    console.log();
+    botToken = await ask("  Bot token: ");
+    chatId   = await ask("  Your chat ID: ");
+  }
+
+  // ── Language ────────────────────────────────────────────────────────────────
+  console.log();
+  console.log(b("  Language:"));
+  console.log(di("  The super-agent will always respond in your language."));
+  console.log();
+  const language = await ask("  Your language (e.g. English, Español, Português): ") || "English";
+
+  // ── Summary ─────────────────────────────────────────────────────────────────
+  console.log();
+  console.log(b("  ─── Summary ───────────────────────────────────────────"));
+  console.log(`  Provider:   ${cy(provider.label)}`);
+  console.log(`  Model:      ${cy(chosenModel)}`);
+  if (provider.id === "ollama") console.log(`  Ollama URL: ${cy(ollamaUrl)}`);
+  console.log(`  Telegram:   ${wantTelegram ? gr("enabled") : di("disabled")}`);
+  console.log(`  Language:   ${cy(language)}`);
+  console.log(b("  ────────────────────────────────────────────────────────"));
+  console.log();
+
+  const confirm = await ask(`  Start the daemon with these settings? ${di("[Y/n]")} `);
+  if (/^n/i.test(confirm)) {
+    console.log("\n  Cancelled. Run `apx setup` again to configure.\n");
+    close();
+    return;
+  }
+
+  close(); // done with prompts
+
+  // ── Write config ─────────────────────────────────────────────────────────────
+  const cfg = readConfig();
+
+  cfg.super_agent.enabled = true;
+  cfg.super_agent.model = chosenModel;
+  // System prompt: language instruction only, no wizard references
+  cfg.super_agent.system = `Always respond in the user's language: ${language}.`;
+
+  if (provider.id === "ollama") {
+    cfg.engines.ollama.base_url = ollamaUrl;
+  } else if (provider.needsKey && apiKey) {
+    cfg.engines[provider.id].api_key = apiKey;
+  }
+
+  if (wantTelegram && botToken && chatId) {
+    cfg.telegram.enabled = true;
+    cfg.telegram.bot_token = botToken;
+    cfg.telegram.chat_id = chatId;
+  }
+
+  writeConfig(cfg);
+  console.log(`\n  ${gr("✓")} Config saved to ${di("~/.apx/config.json")}`);
+
+  // ── Start daemon ─────────────────────────────────────────────────────────────
+  console.log();
+  process.stdout.write(`  Starting daemon... `);
+
+  const start = spawnSync("apx", ["daemon", "start"], { encoding: "utf8" });
+  if (start.status !== 0) {
+    console.log(c.red + "failed" + c.reset);
+    console.log(start.stderr || start.stdout);
+    process.exit(1);
+  }
+  console.log(gr("running ✓"));
+
+  // Give daemon a moment to come up
+  await new Promise((r) => setTimeout(r, 2000));
+
+  // ── Wake-up Telegram message ─────────────────────────────────────────────────
+  if (wantTelegram && botToken && chatId) {
+    console.log();
+    process.stdout.write(`  Sending wake-up message... `);
+    try {
+      const resp = await sendTelegramWakeup({ botToken, chatId, language, model: chosenModel });
+      if (resp) console.log(gr("sent ✓"));
+      else console.log(di("(couldn't reach Telegram)"));
+    } catch {
+      console.log(di("(couldn't reach Telegram)"));
+    }
+  }
+
+  console.log();
+  console.log(gr(b("  ✅ APX is ready!")));
+  console.log();
+  console.log(`  Daemon:   ${cy("http://127.0.0.1:7430")}`);
+  if (wantTelegram) console.log(`  Telegram: ${cy("active — message your bot")}`);
+  console.log();
+  console.log(di("  Tip: run `apx daemon status` anytime to check health."));
+  console.log();
+}
+
+// Send a fun wake-up message via Telegram using super-agent.
+// The prompt is in English so the model knows to reply in the user's language.
+async function sendTelegramWakeup({ botToken, chatId, language, model }) {
+  const prompt =
+    `You are APX, an AI agent assistant that just came online. ` +
+    `Send a short, fun, enthusiastic wake-up message to the user. ` +
+    `Be playful and creative — like a friendly AI that just woke up. ` +
+    `Keep it under 3 sentences. ` +
+    `IMPORTANT: respond in ${language}. ` +
+    `Do not mention that you were configured or set up.`;
+
+  // Ask the daemon's super-agent (give it a second attempt window)
+  let text;
+  try {
+    const res = await fetchJson("http://127.0.0.1:7430/super-agent/ask", 8000);
+    text = res?.text;
+  } catch {}
+
+  // Fallback: generate a simple message without daemon
+  if (!text) {
+    text = languageFallback(language);
+  }
+
+  // Send via Telegram bot API
+  return new Promise((resolve) => {
+    const body = JSON.stringify({ chat_id: chatId, text, parse_mode: "Markdown" });
+    const req = https.request({
+      hostname: "api.telegram.org",
+      path: `/bot${botToken}/sendMessage`,
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(body) },
+      timeout: 6000,
+    }, (res) => {
+      let d = "";
+      res.on("data", (c) => (d += c));
+      res.on("end", () => { try { resolve(JSON.parse(d)); } catch { resolve(null); } });
+    });
+    req.on("error", () => resolve(null));
+    req.write(body);
+    req.end();
+  });
+}
+
+// Minimal fallback messages per common language (used only if daemon can't respond)
+function languageFallback(lang) {
+  const l = lang.toLowerCase();
+  if (/espa[ñn]|spanish|arg|lat/i.test(l)) return "⚡ ¡Despierto y listo para trabajar! APX online.";
+  if (/portugu|brasil/i.test(l)) return "⚡ Acordei e pronto para trabalhar! APX online.";
+  if (/franc|french/i.test(l)) return "⚡ Réveillé et prêt à travailler ! APX en ligne.";
+  if (/deutsch|german/i.test(l)) return "⚡ Aufgewacht und bereit! APX ist online.";
+  if (/ital/i.test(l)) return "⚡ Sveglio e pronto a lavorare! APX online.";
+  return "⚡ I'm awake and ready to go! APX is online.";
+}

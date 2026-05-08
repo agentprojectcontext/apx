@@ -72,6 +72,7 @@ import { cmdSkillsAdd, cmdSkillsList, cmdSkillsStatus } from "./commands/skills.
 import { cmdIdentity } from "./commands/identity.js";
 import { cmdCommandList, cmdCommandShow } from "./commands/command.js";
 import { cmdUpdate } from "./commands/update.js";
+import { cmdSetup } from "./commands/setup.js";
 import { checkForUpdate } from "../core/update-check.js";
 import {
   cmdRoutineList,
@@ -203,6 +204,7 @@ Skills (IDE integration):
   apx skills status                    show which IDE targets are installed (project + global)
 
 Other:
+  apx setup                                            interactive setup wizard (alias: apx install)
   apx update                                           check for updates and upgrade (alias: apx upgrade)
   apx --help
   apx --version
@@ -477,6 +479,11 @@ async function dispatch(cmd, rest) {
         else die(`unknown 'add' subcommand: ${sub || "(none)"} — try: project`);
         break;
       }
+
+      case "setup":
+      case "install":
+        await cmdSetup();
+        return;
 
       case "update":
       case "upgrade":
