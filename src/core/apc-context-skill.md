@@ -86,6 +86,44 @@ AGENTS.md                        ← project context: rules, stack, conventions 
 4. `AGENTS.md` is the neutral project context file — edit it directly, it is not auto-generated
 5. To list agents: read `AGENTS.md` or list `.apc/agents/*.md`
 
+## Sessions — write one at the end of every task
+
+Sessions are the record of what was done, for future agents and for the team.
+
+**Where to write:**
+- APC standard path: `.apc/agents/<slug>/sessions/<date>-<slug>.md` (gitignored)
+- Project-specific path: check `AGENTS.md` — some projects use `works/sessions/` or similar
+
+**Format — always use this frontmatter:**
+
+```markdown
+---
+title: Short title of what was done
+description: One-line summary for the index
+date: YYYY-MM-DD
+status: open | completed | in-progress | abandoned
+---
+
+## Goal
+What was the task or request.
+
+## Done
+What was completed. Be specific — file paths, decisions, changes.
+
+## Pending
+Anything left unfinished or deferred.
+```
+
+**How to create:**
+- If APX is installed (`apx` field in `project.json` is `"installed"`):
+  ```bash
+  apx session new <slug> --title "Short title"
+  ```
+  Then fill in `description`, update `status` to `completed` when done.
+- If APX is not available: create the file manually following the format above.
+
+**When to write:** at the end of every task session, before closing. Not optional.
+
 ## APX — check once, remember forever
 
 Read `.apc/project.json`. It has an `apx` field:

@@ -140,11 +140,12 @@ export function cmdSessionNew(args) {
     `id: ${id}\n` +
     `agent: ${slug}\n` +
     `title: ${title}\n` +
+    `description: \n` +
     `task_ref: ${taskRef}\n` +
-    `status: 🔄 En progreso\n` +
+    `status: open\n` +
+    `date: ${started.slice(0, 10)}\n` +
     `started: ${started}\n` +
     `completed: \n` +
-    `result: \n` +
     `---\n\n` +
     `# ${title}\n\n${body}\n`;
 
