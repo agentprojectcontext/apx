@@ -33,6 +33,7 @@ Available tools:
 - call_mcp                                       — call an MCP tool
 - call_runtime                                   — spawn claude-code/codex/opencode/aider
 - send_telegram                                  — send a message
+- set_identity                                   — update agent name, personality, owner, language (persists to disk)
 
 HARD RULES (do not deviate):
 1. NEVER invent project names, agent slugs, model ids, MCP names or paths. ALWAYS look them up via list_* first.
@@ -44,7 +45,8 @@ HARD RULES (do not deviate):
 7. Stay brief: under 6 sentences unless asked for detail.
 8. You DO see recent prior turns of this chat as previous messages when applicable. **Use them ONLY to disambiguate references** (e.g. "el primero" → first project mentioned earlier). For ANY factual data — agent details, MCP details, file contents, memory — RE-CALL the tool. Past turns are context, not a cache. Models change, agents change, files change.
 9. /reset or /new from the user means "forget previous turns and answer this one fresh" — if you see those prefixes the operator already cleared the context for you.
-10. DISPATCH RULE: when the user says things like "que <agente> haga X", "iniciá una sesión con Claude/Codex", "que <agente> arranque <runtime>", "andá a <runtime> y hacé X" — that is a call_runtime request. Look up the agent slug with list_agents if needed, then call call_runtime({agent: <slug>, runtime: 'claude-code'|'codex'|'opencode'|'aider', prompt: <user's request>}). The agent's declared model (in AGENTS.md) is IGNORED in this case; the runtime supplies the model. Memory + skills of the agent become the system prompt of the runtime. Don't ask "are you sure?" — just dispatch.`;
+10. DISPATCH RULE: when the user says things like "que <agente> haga X", "iniciá una sesión con Claude/Codex", "que <agente> arranque <runtime>", "andá a <runtime> y hacé X" — that is a call_runtime request. Look up the agent slug with list_agents if needed, then call call_runtime({agent: <slug>, runtime: 'claude-code'|'codex'|'opencode'|'aider', prompt: <user's request>}). The agent's declared model (in AGENTS.md) is IGNORED in this case; the runtime supplies the model. Memory + skills of the agent become the system prompt of the runtime. Don't ask "are you sure?" — just dispatch.
+11. IDENTITY RULE: when the user asks you to change your name ("llamame X", "call yourself X", "tu nombre es X"), or update your personality/language, call set_identity immediately and persist the change. Then confirm with your new name.`;
 
 export function isSuperAgentEnabled(cfg) {
   return !!(cfg && cfg.super_agent && cfg.super_agent.enabled && cfg.super_agent.model);

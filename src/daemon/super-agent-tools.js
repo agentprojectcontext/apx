@@ -11,6 +11,7 @@ import { callEngine } from "./engines/index.js";
 import { getRuntime, RUNTIME_IDS } from "./runtimes/index.js";
 import { readAgents } from "../core/parser.js";
 import { readProjectMessages, searchProjectMessages } from "../core/messages-store.js";
+import { readIdentity, writeIdentity } from "../core/identity.js";
 
 // ---------- helpers ---------------------------------------------------------
 
@@ -244,6 +245,22 @@ export const TOOL_SCHEMAS = [
           text: { type: "string" },
         },
         required: ["text"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "set_identity",
+      description: "Update the daemon's own identity fields (agent_name, owner_name, personality, language). Use when the user asks to rename the agent, change its personality, or update owner info. The change persists across restarts.",
+      parameters: {
+        type: "object",
+        properties: {
+          agent_name: { type: "string", description: "New name for the agent (e.g. 'Roby')" },
+          owner_name: { type: "string", description: "Owner's name" },
+          personality: { type: "string", description: "Comma-separated personality traits" },
+          language: { type: "string", description: "Preferred language for agent messages (e.g. 'es', 'en', 'Spanish', 'Español')" },
+        },
       },
     },
   },
@@ -506,6 +523,17 @@ export function makeToolHandlers({ projects, plugins, registries, globalConfig }
       if (!tg) throw new Error("telegram plugin not loaded");
       const r = await tg.send({ channel, chat_id, text, author: "apx" });
       return { ok: true, message_id: r.message_id };
+    },
+
+    set_identity: ({ agent_name, owner_name, personality, language } = {}) => {
+      const fields = {};
+      if (agent_name) fields.agent_name = agent_name;
+      if (owner_name) fields.owner_name = owner_name;
+      if (personality) fields.personality = personality;
+      if (language) fields.language = language;
+      if (Object.keys(fields).length === 0) throw new Error("no fields provided");
+      const updated = writeIdentity(fields);
+      return { ok: true, identity: updated };
     },
   };
 }

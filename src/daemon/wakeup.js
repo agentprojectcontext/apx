@@ -5,20 +5,44 @@ import { resolveProvider, getAdapter } from "./engines/index.js";
 
 const WAKEUP_COOLDOWN_MS = 30 * 60 * 1000; // 30 min
 
+// Detect preferred language from identity, then fall back to system LANG env.
+function detectLanguage(identity) {
+  if (identity.language) return identity.language;
+  const lang = process.env.LANG || process.env.LC_MESSAGES || process.env.LC_ALL || "";
+  const code = lang.split(/[_\.]/)[0].toLowerCase();
+  const map = {
+    es: "Spanish (Español)",
+    en: "English",
+    fr: "French (Français)",
+    pt: "Portuguese (Português)",
+    de: "German (Deutsch)",
+    it: "Italian (Italiano)",
+    nl: "Dutch (Nederlands)",
+    ru: "Russian (Русский)",
+    ja: "Japanese (日本語)",
+    zh: "Chinese (中文)",
+    ko: "Korean (한국어)",
+    ar: "Arabic (العربية)",
+  };
+  return map[code] || "Spanish (Español)"; // default es-AR like the super-agent
+}
+
 async function generateMessage(identity, engineConfig) {
   try {
     const { provider, model } = resolveProvider("ollama:qwen2.5:14b");
     const engine = getAdapter(provider);
+    const language = detectLanguage(identity);
     const result = await engine.chat({
       system: `You are ${identity.agent_name}, an AI agent assistant. Your personality: ${identity.personality || "direct, curious, helpful"}. Your owner is ${identity.owner_name}. Context: ${identity.owner_context || "AI developer"}.`,
       messages: [
         {
           role: "user",
           content:
-            "Write a short, creative wake-up message to send when you first come online. " +
-            "Be yourself — direct, slightly witty, concrete. 2-3 sentences max. " +
-            "Mention who you are, who you're here for, and one thing you're ready to help with. " +
-            "No emojis. No greetings like 'Hello!' — start differently.",
+            `Write a short, creative wake-up message to send when you first come online. ` +
+            `Write it in ${language}. ` +
+            `Be yourself — direct, slightly witty, concrete. 2-3 sentences max. ` +
+            `Mention who you are, who you're here for, and one thing you're ready to help with. ` +
+            `No emojis. No greetings like 'Hello!' or 'Hola!' — start differently.`,
         },
       ],
       model,
