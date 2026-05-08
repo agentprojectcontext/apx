@@ -1,6 +1,6 @@
 {
   "name": "@agentprojectcontext/apx",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": "APX — unified CLI + daemon for the Agent Project Context (APC) standard.",
   "publishConfig": {
     "access": "public"
@@ -35,7 +35,8 @@
   "devDependencies": {
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
-    "better-sqlite3": "^11.3.0"
+    "better-sqlite3": "^11.3.0",
+    "conventional-changelog-conventionalcommits": "^9.3.1"
   },
   "keywords": [
     "apc",
