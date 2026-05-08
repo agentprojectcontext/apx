@@ -100,7 +100,15 @@ test("list_mcps WITHOUT project + multiple projects → returns grouped list", a
   projects.register(root1);
   projects.register(root2);
   try {
-    const handlers = makeToolHandlers({ projects, plugins: null, registries: null, globalConfig: {} });
+    const registries = {
+      for: (p) => ({
+        list: () => {
+          const m = p.path === root1 ? "fs1" : "fs2";
+          return [{ name: m, source: "apc", enabled: true, command: "true" }];
+        }
+      })
+    };
+    const handlers = makeToolHandlers({ projects, plugins: null, registries, globalConfig: {} });
     const r = handlers.list_mcps();
     assert.equal(r.length, 2);
     const names = r.flatMap((e) => e.mcps.map((m) => m.name)).sort();
@@ -114,7 +122,12 @@ test("list_mcps WITHOUT project + multiple projects → returns grouped list", a
 test("list_mcps returns the MCP registry", () => {
   const { root, projects } = setup();
   try {
-    const handlers = makeToolHandlers({ projects, plugins: null, registries: null, globalConfig: {} });
+    const registries = {
+      for: () => ({
+        list: () => [{ name: "filesystem", source: "apc", enabled: true }]
+      })
+    };
+    const handlers = makeToolHandlers({ projects, plugins: null, registries, globalConfig: {} });
     const r = handlers.list_mcps({});
     assert.equal(r.length, 1);
     assert.equal(r[0].name, "filesystem");

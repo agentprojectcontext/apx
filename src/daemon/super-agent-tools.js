@@ -286,7 +286,7 @@ export function makeToolHandlers({ projects, plugins, registries, globalConfig }
         model: a.fields.Model || null,
         language: a.fields.Language || null,
         description: a.fields.Description || null,
-        skills: (a.fields.Skills || "").split(",").map((s) => s.trim()).filter(Boolean),
+        skills: Array.isArray(a.fields.Skills) ? a.fields.Skills : (a.fields.Skills || "").split(",").map((s) => s.trim()).filter(Boolean),
       });
       const p = resolveProject(projects, project, { allowMulti: true });
       if (p) {
