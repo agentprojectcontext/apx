@@ -31,9 +31,9 @@ If it exists, open the conversation with this message — do not answer any othe
 | What it says | What to do |
 |---|---|
 | Agent definitions (role, model, skills) | Create `.apc/agents/<slug>.md` |
-| "Write sessions to `works/sessions/`" | **Drop it** — APC handles sessions natively in `.apc/agents/<slug>/sessions/` |
-| "Write memory to `works/memory.md`" | **Drop it** — APC handles memory natively in `.apc/agents/<slug>/memory.md` |
-| "List agents in `AGENTS.md`" | **Drop it** — APC handles this natively |
+| Any instruction about writing sessions to a custom path (`works/sessions/`, `notes/`, etc.) | **Drop it** — APC handles sessions natively in `.apc/agents/<slug>/sessions/` |
+| Any instruction about writing memory to a custom path (`works/memory.md`, etc.) | **Drop it** — APC handles memory natively in `.apc/agents/<slug>/memory.md` |
+| "List agents in `AGENTS.md`" or any auto-generation rule for `AGENTS.md` | **Drop it** — APC handles this natively |
 | Project-specific directories not covered by APC (e.g. `works/specs/`, `works/tasks/`) | **Keep in `AGENTS.md`** — document the convention there |
 | Project rules, testing policy, stack notes, URLs, credentials | **Keep in `AGENTS.md`** — project context that APC doesn't define |
 | IDE-specific shortcuts or instructions (e.g. "run `npm run dev` in Claude terminal") | **Keep in `AGENTS.md`** — still useful to all agents |
