@@ -71,6 +71,8 @@ import { cmdPluginsList, cmdPluginStatus } from "./commands/plugins.js";
 import { cmdSkillsAdd, cmdSkillsList, cmdSkillsStatus } from "./commands/skills.js";
 import { cmdIdentity } from "./commands/identity.js";
 import { cmdCommandList, cmdCommandShow } from "./commands/command.js";
+import { cmdUpdate } from "./commands/update.js";
+import { checkForUpdate } from "../core/update-check.js";
 import {
   cmdRoutineList,
   cmdRoutineGet,
@@ -201,6 +203,7 @@ Skills (IDE integration):
   apx skills status                    show which IDE targets are installed (project + global)
 
 Other:
+  apx update                                           check for updates and upgrade (alias: apx upgrade)
   apx --help
   apx --version
 
@@ -475,6 +478,11 @@ async function dispatch(cmd, rest) {
         break;
       }
 
+      case "update":
+      case "upgrade":
+        await cmdUpdate(parseArgs(rest));
+        return; // skip checkForUpdate after an update
+
       default:
         die(`unknown command: ${cmd}\nRun \`apx --help\` for usage.`);
     }
@@ -484,6 +492,7 @@ const [topCmd, ...topRest] = argv;
 (async () => {
   try {
     await dispatch(topCmd, topRest);
+    checkForUpdate(VERSION);
   } catch (err) {
     die(err && err.message ? err.message : String(err));
   }
