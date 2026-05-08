@@ -330,9 +330,9 @@ async function dispatch(cmd, rest) {
       case "daemon": {
         const sub = rest[0];
         const a = parseArgs(rest.slice(1));
-        if (sub === "start") await cmdDaemonStart();
-        else if (sub === "stop") await cmdDaemonStop();
-        else if (sub === "status") await cmdDaemonStatus();
+        if (sub === "start") await cmdDaemonStart(a);
+        else if (sub === "stop") await cmdDaemonStop(a);
+        else if (sub === "status") await cmdDaemonStatus(a);
         else if (sub === "logs") cmdDaemonLogs(a);
         else die(`unknown daemon subcommand: ${sub || "(none)"}`);
         break;
