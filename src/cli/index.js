@@ -490,7 +490,7 @@ async function dispatch(cmd, rest) {
 
       case "update":
       case "upgrade":
-        await cmdUpdate(parseArgs(rest));
+        await cmdUpdate(parseArgs(rest), VERSION);
         return; // skip checkForUpdate after an update
 
       default:

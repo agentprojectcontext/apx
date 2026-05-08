@@ -4,7 +4,7 @@ import { getLatestVersion } from "../../core/update-check.js";
 
 const PACKAGE_NAME = "@agentprojectcontext/apx";
 
-export async function cmdUpdate(args) {
+export async function cmdUpdate(args, currentVersion) {
   const force = args.flags.force || args.flags.yes || args.flags.y;
 
   console.log("Checking for updates...");
@@ -15,12 +15,7 @@ export async function cmdUpdate(args) {
     process.exit(1);
   }
 
-  // Read current version from the package that owns this file.
-  const { createRequire } = await import("node:module");
-  const { fileURLToPath } = await import("node:url");
-  const require = createRequire(import.meta.url);
-  const pkg = require("../../package.json");
-  const current = pkg.version;
+  const current = currentVersion;
 
   function isNewer(cur, lat) {
     const parse = (v) => v.replace(/^v/, "").split(".").map(Number);
