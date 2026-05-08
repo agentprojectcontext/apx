@@ -73,6 +73,7 @@ import { cmdIdentity } from "./commands/identity.js";
 import { cmdCommandList, cmdCommandShow } from "./commands/command.js";
 import { cmdUpdate } from "./commands/update.js";
 import { cmdSetup } from "./commands/setup.js";
+import { cmdStatus } from "./commands/status.js";
 import { checkForUpdate } from "../core/update-check.js";
 import { mascot } from "../core/mascot.js";
 import {
@@ -91,127 +92,144 @@ const VERSION = JSON.parse(
   fs.readFileSync(path.join(__dirname, "..", "..", "package.json"), "utf8")
 ).version;
 
-const HELP = `apx — Agent Project Context
+// ── ANSI helpers (help only) ─────────────────────────────────────────────────
+const H = {
+  R:  "\x1b[0m",
+  B:  "\x1b[1m",
+  DI: "\x1b[2m",
+  CY: "\x1b[36m",
+  GR: "\x1b[32m",
+  YE: "\x1b[33m",
+  WH: "\x1b[97m",
+  MA: "\x1b[35m",
+};
+const hSec  = (s) => `\n${H.B}${H.CY}  ${s}${H.R}\n`;
+const hCmd  = (cmd, pad, desc) => `  ${H.WH}${cmd.padEnd(pad)}${H.R}  ${H.DI}${desc}${H.R}`;
+const hSub  = (sub, pad, desc) => `    ${H.CY}${sub.padEnd(pad)}${H.R}  ${H.DI}${desc}${H.R}`;
+const hFlag = (f,   pad, desc) => `    ${H.YE}${f.padEnd(pad)}${H.R}  ${H.DI}${desc}${H.R}`;
 
-Usage:
-  apx <command> [<subcommand>] [args] [--flags]
+function buildHelp(version) {
+  return [
+    "",
+    `  ${H.B}${H.WH}apx${H.R}  ${H.DI}Agent Project Context  v${version}${H.R}`,
+    `  ${H.DI}Docs: https://agentprojectcontext.com${H.R}`,
+    "",
+    `  ${H.DI}Usage:${H.R}  ${H.WH}apx${H.R} ${H.CY}<command>${H.R} ${H.DI}[subcommand] [args] [--flags]${H.R}`,
+    "",
 
-Bootstrap:
-  apx init [path] [--name "<name>"]                    initialize an APC project
-  apx project add [path]                               register a project with the daemon
-  apx project list
-  apx project remove <path|id>
-  apx project rebuild [<path|id>]                      rebuild project index from filesystem
-  apx add project [path]                               alias for: apx project add
+    hSec("Bootstrap"),
+    hCmd("apx init [path]",            36, "--name \"<name>\"  initialize a new APC project"),
+    hCmd("apx setup",                  36, "interactive wizard: provider → model → channels → daemon  (alias: install)"),
+    hCmd("apx status",                 36, "full system status: daemon, super-agent, engines, telegram, projects"),
+    hCmd("apx update",                 36, "check for updates and upgrade  (alias: upgrade)"),
+    hCmd("apx project add [path]",     36, "register a project with the daemon"),
+    hCmd("apx project list",           36, ""),
+    hCmd("apx project remove <id>",    36, ""),
+    hCmd("apx project rebuild [id]",   36, "rebuild project index from filesystem"),
+    hCmd("apx add project [path]",     36, "alias for: apx project add"),
 
-Agents:
-  apx agent add <slug> [--role R] [--model M] [--skills a,b] [--language es-AR] [--description D]
-  apx agent list
-  apx agent get <slug>
+    hSec("Agents"),
+    hCmd("apx agent add <slug>",       36, "--role R  --model M  --skills a,b  --language es-AR  --description D"),
+    hCmd("apx agent list",             36, ""),
+    hCmd("apx agent get <slug>",       36, ""),
+    hCmd("apx agent import",           36, ""),
+    hCmd("apx agent vault list",       36, ""),
+    hCmd("apx agent vault add",        36, ""),
 
-Memory:
-  apx memory <slug>                                    print memory.md
-  apx memory <slug> --append "<note>"                  append under "## Recent context"
-  apx memory <slug> --replace                          replace from stdin
+    hSec("Identity & Config"),
+    hCmd("apx identity show",          36, "print current agent identity (name, owner, personality)"),
+    hCmd("apx identity set <k> <v>",   36, "set identity field"),
+    hCmd("apx identity wizard",        36, "interactive identity setup"),
+    hCmd("apx config show",            36, "--effective  --only-overrides"),
+    hCmd("apx config set <key> <val>", 36, "set key in .apc/config.json  (JSON-aware)"),
+    hCmd("apx config unset <key>",     36, "remove key from .apc/config.json"),
 
-Sessions:
-  apx session new <slug> --title "<title>" [--task-ref REF] [--body - | --body "<text>"]
-  apx session list [<slug>] [--last N]
-  apx session get <id> [--body]
-  apx session update <id> [--status S] [--result R] [--title T] [--task-ref REF]
-  apx session close <id> [--result "<text>"]
-  apx session check                                    anti-collision: exit 1 if active session
-  apx session close-stale                              auto-close sessions older than 1h
-  apx session resume <id> [--summary] [--full]         read APC session + external transcript (Claude Code, etc.)
-  apx session compact <agent> [--conversation <id>]    collapse conversation history into a dense summary
+    hSec("Memory"),
+    hCmd("apx memory <slug>",          36, "print memory.md"),
+    hCmd("apx memory <slug> --append", 36, "\"<note>\"  append under '## Recent context'"),
+    hCmd("apx memory <slug> --replace",36, "replace from stdin"),
 
-MCPs:
-  apx mcp list
-  apx mcp add <name> --command <cmd> [args...] [--env KEY=VAL]
-  apx mcp remove <name>
-  apx mcp enable <name>
-  apx mcp disable <name>
-  apx mcp run <name> <tool> [<json-args>]              call a tool through the daemon
-  apx mcp tools <name>                                 list tools (v0.2)
-  apx mcp check                                        audit multi-source merge (v0.2)
+    hSec("Sessions"),
+    hCmd("apx session new <slug>",     36, "--title \"T\" [--task-ref REF] [--body -|\"text\"]"),
+    hCmd("apx session list [slug]",    36, "--last N"),
+    hCmd("apx session get <id>",       36, "--body"),
+    hCmd("apx session update <id>",    36, "--status S  --result R  --title T"),
+    hCmd("apx session close <id>",     36, "--result \"text\""),
+    hCmd("apx session check",          36, "anti-collision: exit 1 if active session"),
+    hCmd("apx session close-stale",    36, "auto-close sessions older than 1h"),
+    hCmd("apx session resume <id>",    36, "--summary  --full  (APC + Claude Code transcript)"),
+    hCmd("apx session compact <slug>", 36, "--conversation <id>  collapse history into summary"),
 
-Daemon:
-  apx daemon start
-  apx daemon stop
-  apx daemon status
-  apx daemon logs [--tail N]
+    hSec("MCPs"),
+    hCmd("apx mcp list",               36, ""),
+    hCmd("apx mcp add <name>",         36, "--command <cmd> [args]  --env KEY=VAL"),
+    hCmd("apx mcp remove <name>",      36, ""),
+    hCmd("apx mcp enable/disable",     36, "<name>"),
+    hCmd("apx mcp run <name> <tool>",  36, "[<json-args>]  call a tool through the daemon"),
+    hCmd("apx mcp tools <name>",       36, "list available tools"),
+    hCmd("apx mcp check",              36, "audit multi-source merge"),
 
-Telegram:
-  apx telegram send "<text>" [--chat <id>]
-  apx telegram status
-  apx telegram setup
+    hSec("Daemon"),
+    hCmd("apx daemon start",           36, ""),
+    hCmd("apx daemon stop",            36, ""),
+    hCmd("apx daemon status",          36, ""),
+    hCmd("apx daemon logs",            36, "--tail N"),
 
-Messages:
-  apx messages tail [--agent <slug>] [--channel <ch>] [-n 50] [--global]
-                     global channels (telegram, direct, whatsapp) → ~/.apx/messages/<ch>/
-                     project channels (runtime, a2a, exec)        → ~/.apx/projects/<id>/messages/
-  apx messages search "<query>"
+    hSec("Telegram"),
+    hCmd("apx telegram send \"text\"", 36, "--chat <id>"),
+    hCmd("apx telegram status",        36, ""),
+    hCmd("apx telegram setup",         36, ""),
 
-LLM engines (v0.2):
-  apx exec <agent> "<prompt>" [--model <id>] [--max-tokens N] [--temperature T]
-                                                       one-shot LLM call (Anthropic/OpenAI/Ollama/Gemini/mock)
-  apx chat <agent> [--conversation <id>] [--model <id>]   interactive REPL
-  apx conversations list <agent>
-  apx conversations get  <agent> <id>
+    hSec("Messages"),
+    hCmd("apx messages tail",          36, "--agent <slug>  --channel <ch>  -n 50  --global"),
+    hCmd("apx messages search \"q\"",  36, ""),
 
-External agent runtimes (v0.3):
-  apx run <agent> --runtime <id> "<prompt>" [--timeout <s>]
-                                                       claude-code | codex | opencode | aider
-  apx env detect                                       which agent CLIs are installed
+    hSec("LLM / Chat"),
+    hCmd("apx exec <agent> \"prompt\"",36, "--model <id>  --max-tokens N  --temperature T"),
+    hCmd("apx chat <agent>",           36, "--conversation <id>  --model <id>  (interactive REPL)"),
+    hCmd("apx conversations list",     36, "<agent>"),
+    hCmd("apx conversations get",      36, "<agent> <id>"),
 
-Agent-to-agent (v0.4):
-  apx send <from> <to> "<body>" [--deliver]            log a2a message; --deliver runs target's engine
-  apx connections <agent>                              mental map: who/how/when this agent talked
+    hSec("Runtimes"),
+    hCmd("apx run <agent>",            36, "--runtime <id> \"prompt\"  --timeout <s>"),
+    `                                        ${H.DI}runtimes: claude-code | codex | opencode | aider${H.R}`,
+    hCmd("apx env detect",             36, "which agent CLIs are installed"),
 
-Project config (.apc/config.json):
-  apx config show [--effective | --only-overrides]    show project overrides + effective config
-  apx config set   <key.path> <value>                  set a key in .apc/config.json (JSON-aware)
-  apx config unset <key.path>                          remove a key from .apc/config.json
+    hSec("Agent-to-Agent"),
+    hCmd("apx send <from> <to> \"msg\"",36, "--deliver  log A2A message; --deliver runs target engine"),
+    hCmd("apx connections <agent>",    36, "mental map: who/how/when this agent talked"),
+    hCmd("apx graph <agent>",          36, "alias for connections"),
 
-Global flags:
-  --project <name|id|path>                             pin commands to a specific project
-                                                       (or use sugar: apx project <name|id> <subcommand...>)
+    hSec("Routines"),
+    hCmd("apx routine list",           36, "list routines + next/last run"),
+    hCmd("apx routine add <name>",     36, "--kind K  --schedule S  [--spec '{...}']"),
+    `    ${H.DI}kinds: heartbeat | exec_agent | telegram | shell${H.R}`,
+    `    ${H.DI}schedule: every:60s | every:5m | every:1h | once:<iso>${H.R}`,
+    hCmd("apx routine get <name>",     36, ""),
+    hCmd("apx routine run <name>",     36, "manual trigger (ignores schedule)"),
+    hCmd("apx routine enable <name>",  36, ""),
+    hCmd("apx routine disable <name>", 36, ""),
+    hCmd("apx routine remove <name>",  36, ""),
 
-Plugins:
-  apx plugins list                                     show loaded plugins and their status
-  apx plugins status <id>                              detailed status of one plugin (e.g. telegram)
+    hSec("Commands & Skills"),
+    hCmd("apx command list",           36, "list workflow commands (.apc/commands/)"),
+    hCmd("apx command show <name>",    36, "print command content"),
+    hCmd("apx skills add [targets]",   36, "install skill into IDE rule files  (claude-code cursor windsurf copilot trae)"),
+    hCmd("apx skills add --global",    36, "install to ~/.claude/skills/ etc."),
+    hCmd("apx skills list",            36, ""),
+    hCmd("apx skills status",          36, "show which IDE targets are installed"),
 
-Routines (per-project scheduled tasks):
-  apx routine list                                     list routines + next/last run
-  apx routine add <name> --kind <K> --schedule <S> [--spec '<json>' | --K=V...]
-                                                       kinds: heartbeat | exec_agent | telegram | shell
-                                                       schedule: every:60s | every:5m | every:1h | once:<iso>
-  apx routine get <name>
-  apx routine run <name>                               run now (manual trigger, ignores schedule)
-  apx routine enable <name> | apx routine disable <name>
-  apx routine remove <name>
+    hSec("Plugins"),
+    hCmd("apx plugins list",           36, "show loaded plugins and their status"),
+    hCmd("apx plugins status <id>",    36, "detailed status of one plugin (e.g. telegram)"),
 
-Commands (.apc/commands/):
-  apx command list                     list workflow commands
-  apx command show <name>              print command content
-
-Skills (IDE integration):
-  apx skills add [<target>...]         install APX skill into project IDE rule files
-                                         targets: claude-code cursor windsurf copilot trae
-                                         (omit targets to install all)
-  apx skills add --global              install to ~/.claude/skills/ ~/.cursor/skills/ ~/.agents/skills/
-                                         picked up by Claude Code, Cursor, Codex, Antigravity globally
-  apx skills list                      list skills in .apc/skills/
-  apx skills status                    show which IDE targets are installed (project + global)
-
-Other:
-  apx setup                                            interactive setup wizard (alias: apx install)
-  apx update                                           check for updates and upgrade (alias: apx upgrade)
-  apx --help
-  apx --version
-
-Docs: https://agentprojectcontext.com
-`;
+    hSec("Flags"),
+    hFlag("--project <name|id|path>",  36, "pin commands to a specific project"),
+    hFlag("--help",                    36, "show this help"),
+    hFlag("--version",                 36, "print version"),
+    "",
+  ].join("\n") + "\n";
+}
 
 function parseArgs(argv) {
   const args = { _: [], flags: {} };
@@ -255,8 +273,18 @@ function die(msg, code = 1) {
 
 const argv = process.argv.slice(2);
 
+// ── Global error safety net ──────────────────────────────────────────────────
+// Catches any unhandled promise rejection or sync exception that escapes
+// the main try/catch — shows the panda instead of a raw Node.js stack trace.
+process.on("uncaughtException", (err) => {
+  die(err && err.message ? err.message : String(err));
+});
+process.on("unhandledRejection", (reason) => {
+  die(reason instanceof Error ? reason.message : String(reason));
+});
+
 if (argv.length === 0 || argv[0] === "--help" || argv[0] === "-h" || argv[0] === "help") {
-  process.stdout.write(HELP);
+  process.stdout.write(buildHelp(VERSION));
   process.exit(0);
 }
 
@@ -482,6 +510,10 @@ async function dispatch(cmd, rest) {
         else die(`unknown 'add' subcommand: ${sub || "(none)"} — try: project`);
         break;
       }
+
+      case "status":
+        await cmdStatus();
+        return; // skip checkForUpdate after status (avoid noise)
 
       case "setup":
       case "install":
