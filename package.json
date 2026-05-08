@@ -20,7 +20,7 @@
   "scripts": {
     "start": "node src/daemon/index.js",
     "smoke": "node src/daemon/smoke.js",
-    "test": "node --test --test-reporter=spec 'tests/*.test.js'",
+    "test": "node --test --test-reporter=spec tests/*.test.js",
     "upgrade": "npm install && npm install -g .",
     "postinstall": "node src/cli/postinstall.js"
   },

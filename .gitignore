@@ -5,10 +5,6 @@ node_modules/
 **/.apc/messages/*.md
 **/.apc/agents/*/sessions/*.md
 **/.apc/agents/*/conversations/*.md
-**/.apc/project.db
-**/.apc/project.db-shm
-**/.apc/project.db-wal
-**/.apf/
 
 # Global APX home (user config, tokens, state)
 .apx/
