@@ -281,14 +281,15 @@ export async function cmdSetup() {
 // The prompt is in English so the model knows to reply in the user's language.
 async function sendTelegramWakeup({ botToken, chatId, language, model }) {
   const prompt =
-    `You are APX, an AI agent assistant that just came online. ` +
-    `Send a short, fun, enthusiastic wake-up message to the user. ` +
-    `Be playful and creative — like a friendly AI that just woke up. ` +
-    `Keep it under 3 sentences. ` +
-    `IMPORTANT: respond in ${language}. ` +
-    `Do not mention that you were configured or set up.`;
+    `You are APX, an AI agent assistant that just came online for the first time. ` +
+    `Write a short, enthusiastic wake-up message in ${language}. ` +
+    `Structure it in exactly 3 short lines: ` +
+    `1) An energetic line announcing you are online (use ⚡ emoji). ` +
+    `2) Say you don't have a name yet and ask the user what they'd like to call you. ` +
+    `3) Ask the user for their own name or what you should call them. ` +
+    `Be warm and playful. Do NOT mention configuration or setup.`;
 
-  // Ask the daemon's super-agent (give it a second attempt window)
+  // Ask the daemon's super-agent
   let text;
   try {
     const res = await fetchJson("http://127.0.0.1:7430/super-agent/ask", 8000);
@@ -323,10 +324,15 @@ async function sendTelegramWakeup({ botToken, chatId, language, model }) {
 // Minimal fallback messages per common language (used only if daemon can't respond)
 function languageFallback(lang) {
   const l = lang.toLowerCase();
-  if (/espa[ñn]|spanish|arg|lat/i.test(l)) return "⚡ ¡Despierto y listo para trabajar! APX online.";
-  if (/portugu|brasil/i.test(l)) return "⚡ Acordei e pronto para trabalhar! APX online.";
-  if (/franc|french/i.test(l)) return "⚡ Réveillé et prêt à travailler ! APX en ligne.";
-  if (/deutsch|german/i.test(l)) return "⚡ Aufgewacht und bereit! APX ist online.";
-  if (/ital/i.test(l)) return "⚡ Sveglio e pronto a lavorare! APX online.";
-  return "⚡ I'm awake and ready to go! APX is online.";
+  if (/espa[ñn]|spanish|arg|lat/i.test(l))
+    return "⚡ ¡Despierto y listo para trabajar! APX online.\nAún no tengo nombre, ¿cómo te gustaría llamarme?\nY vos, ¿cómo te llamas o cómo puedo llamarte?";
+  if (/portugu|brasil/i.test(l))
+    return "⚡ Acordei e pronto para trabalhar! APX online.\nAinda não tenho nome, como você gostaria de me chamar?\nE você, como posso te chamar?";
+  if (/franc|french/i.test(l))
+    return "⚡ Réveillé et prêt à travailler ! APX en ligne.\nJe n'ai pas encore de nom, comment souhaitez-vous m'appeler ?\nEt vous, comment puis-je vous appeler ?";
+  if (/deutsch|german/i.test(l))
+    return "⚡ Aufgewacht und bereit! APX ist online.\nIch habe noch keinen Namen — wie möchtest du mich nennen?\nUnd du, wie kann ich dich nennen?";
+  if (/ital/i.test(l))
+    return "⚡ Sveglio e pronto a lavorare! APX online.\nNon ho ancora un nome, come vorresti chiamarmi?\nE tu, come posso chiamarti?";
+  return "⚡ I'm awake and ready to go! APX is online.\nI don't have a name yet — what would you like to call me?\nAnd you, what's your name or what should I call you?";
 }
