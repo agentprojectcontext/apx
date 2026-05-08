@@ -1,0 +1,10 @@
+{
+  "telegram": {
+    "route_to_agent": "sandbox"
+  },
+  "engines": {
+    "ollama": {
+      "base_url": "http://localhost:11434"
+    }
+  }
+}

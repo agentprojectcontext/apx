@@ -1,0 +1,22 @@
+node_modules/
+
+# Runtime data — never commit real session logs or runtime state
+**/.apc/messages/*.jsonl
+**/.apc/messages/*.md
+**/.apc/agents/*/sessions/*.md
+**/.apc/agents/*/conversations/*.md
+**/.apc/project.db
+**/.apc/project.db-shm
+**/.apc/project.db-wal
+**/.apf/
+
+# Global APX home (user config, tokens, state)
+.apx/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# macOS
+.DS_Store

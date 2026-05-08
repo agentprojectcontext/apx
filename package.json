@@ -1,0 +1,46 @@
+{
+  "name": "apx",
+  "version": "0.1.0",
+  "description": "APX — unified CLI + daemon for the Agent Project Context (APC) standard.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "apx": "./src/cli/index.js",
+    "apx-daemon": "./src/daemon/index.js",
+    "apx-mcp": "./src/mcp/index.js"
+  },
+  "files": [
+    "src/",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node src/daemon/index.js",
+    "smoke": "node src/daemon/smoke.js",
+    "test": "node --test --test-reporter=spec 'tests/*.test.js'"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "express": "^4.21.0",
+    "node-fetch": "^3.3.2"
+  },
+  "devDependencies": {
+    "better-sqlite3": "^11.3.0"
+  },
+  "keywords": [
+    "apc",
+    "apx",
+    "agents",
+    "mcp",
+    "daemon",
+    "claude",
+    "ai"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/apc-spec/apc.git"
+  },
+  "homepage": "https://github.com/apc-spec/apc"
+}

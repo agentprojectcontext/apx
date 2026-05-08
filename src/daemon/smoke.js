@@ -1,0 +1,54 @@
+// Smoke test: register the example project and verify agents, sessions, MCPs
+// are readable from the filesystem without any SQLite.
+//
+//   node src/smoke.js
+//
+// Exits non-zero on failure.
+import path from "node:path";
+import fs from "node:fs";
+import { fileURLToPath } from "node:url";
+import { ProjectManager } from "./db.js";
+import { McpRegistry } from "./mcp-runner.js";
+import { readAgents } from "../core/parser.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const EXAMPLE = path.resolve(__dirname, "..", "..", "examples", "my-first-project");
+
+function assert(cond, msg) {
+  if (!cond) {
+    console.error("FAIL:", msg);
+    process.exit(1);
+  }
+}
+
+const projects = new ProjectManager();
+const entry = projects.register(EXAMPLE);
+console.log("registered project", entry.id, entry.path);
+
+const agents = readAgents(entry.path);
+console.log("agents:", agents.map((a) => `${a.slug} (${a.fields.Role || "-"}, ${a.fields.Model || "-"})`));
+assert(agents.length === 2, `expected 2 agents, got ${agents.length}`);
+assert(agents.find((a) => a.slug === "sofia"), "sofia missing");
+assert(agents.find((a) => a.slug === "martin"), "martin missing");
+
+// Sessions: scan .apc/agents/sofia/sessions/
+const sofiaSessions = (() => {
+  const dir = path.join(entry.path, ".apc", "agents", "sofia", "sessions");
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir).filter((f) => f.endsWith(".md"));
+})();
+console.log("sofia sessions:", sofiaSessions);
+assert(sofiaSessions.length >= 1, "expected at least one sofia session");
+
+const reg = new McpRegistry(entry.path);
+const list = reg.list();
+console.log("mcps:", list.map((m) => `${m.name} (${m.source})`));
+assert(list.find((m) => m.name === "filesystem" && m.source === "apc"), "filesystem MCP missing");
+assert(list.find((m) => m.name === "brave" && m.source === "apc"), "brave MCP missing");
+const conflicts = reg.conflicts();
+console.log("conflicts:", conflicts);
+reg.shutdown();
+
+console.log("OK");
