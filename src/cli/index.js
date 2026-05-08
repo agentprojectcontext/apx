@@ -69,6 +69,7 @@ import {
 } from "./commands/config.js";
 import { cmdPluginsList, cmdPluginStatus } from "./commands/plugins.js";
 import { cmdSkillsAdd, cmdSkillsList, cmdSkillsStatus } from "./commands/skills.js";
+import { cmdIdentity } from "./commands/identity.js";
 import { cmdCommandList, cmdCommandShow } from "./commands/command.js";
 import {
   cmdRoutineList,
@@ -460,6 +461,10 @@ async function dispatch(cmd, rest) {
         else die(`unknown skills subcommand: ${sub}`);
         break;
       }
+
+      case "identity":
+        await cmdIdentity(parseArgs(rest));
+        break;
 
       default:
         die(`unknown command: ${cmd}\nRun \`apx --help\` for usage.`);

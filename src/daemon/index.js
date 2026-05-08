@@ -18,6 +18,7 @@ import { McpRegistry } from "./mcp-runner.js";
 import { PluginManager } from "./plugins/index.js";
 import { RoutineScheduler } from "./routines.js";
 import { buildApi } from "./api.js";
+import { triggerWakeup } from "./wakeup.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -126,6 +127,8 @@ async function main() {
     writePid();
     log(`apx-daemon ${PKG.version} listening on http://${host}:${port}`);
     log(`projects: ${projects.list().length} | plugins: ${Object.keys(plugins.status()).join(", ") || "(none)"}`);
+    // Fire wake-up message after a short delay so plugins (Telegram) are ready
+    setTimeout(() => triggerWakeup(cfg, log), 3000);
   });
 
   function shutdown(signal) {
