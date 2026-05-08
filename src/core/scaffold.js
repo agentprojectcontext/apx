@@ -188,6 +188,21 @@ const AGENTS_MD_TEMPLATE = `# Agents
 -->
 `;
 
+const APC_GITIGNORE = `# APC runtime data — local-first by default
+agents/*/sessions/
+sessions/
+chats/
+cache/
+tmp/
+private/
+secrets/
+*.local.json
+*.secret.json
+*.env
+*.env.*
+migrate.md
+`;
+
 function nowIso() {
   return new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 }
@@ -246,11 +261,17 @@ export function initApf(directory, { name } = {}) {
           apf: SPEC_VERSION,
           created: nowIso(),
           apx: null,
+          sessions: { defaultVisibility: "local" },
         },
         null,
         2
       ) + "\n"
     );
+  }
+
+  const gitignore = path.join(apfDir, ".gitignore");
+  if (!fs.existsSync(gitignore)) {
+    fs.writeFileSync(gitignore, APC_GITIGNORE);
   }
 
   const agentsMd = path.join(root, "AGENTS.md");

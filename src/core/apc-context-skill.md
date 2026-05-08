@@ -53,23 +53,38 @@ If the user says no or later: delete `.apc/migrate.md` immediately so this offer
 ## Structure
 
 ```
-AGENTS.md              ← project context: rules, conventions, stack notes (agent-neutral)
+AGENTS.md                        ← project context: rules, stack, conventions (commit)
 .apc/
-  project.json         ← project metadata
-  agents/<slug>.md     ← agent definition: role, model, skills
+  project.json                   ← metadata + apx field (commit)
+  .gitignore                     ← safe defaults, created by apx init (commit)
+  agents/<slug>.md               ← agent definition (commit)
   agents/<slug>/
-    memory.md          ← durable memory for this agent
-    sessions/          ← session logs
-  skills/              ← reusable prompt fragments
-  mcps.json            ← MCP server declarations
+    memory.md                    ← curated memory (commit)
+    sessions/                    ← raw session logs (local-only, gitignored)
+  skills/                        ← reusable prompt fragments (commit)
+  mcps.json                      ← MCP declarations without secrets (commit)
 ```
+
+## Visibility rules
+
+| What | Visibility | Commit? |
+|---|---|---|
+| Agent definitions, skills, rules | `stable` / `project` | Yes |
+| `memory.md` | `project` | Yes |
+| `sessions/` | `local` | No — gitignored |
+| `secrets/`, `*.secret.json`, `*.env` | `private` | Never |
+| `cache/`, `tmp/` | `ephemeral` | No — gitignored |
+| `migrate.md` | `ephemeral` | No — gitignored |
+
+**Write sessions to `.apc/agents/<slug>/sessions/`** — they stay local. Extract meaningful decisions into `memory.md` — that travels with the repo.
 
 ## Rules
 
 1. Read your definition and memory from `.apc/agents/<your-slug>/`
 2. Write memory to `.apc/agents/<your-slug>/memory.md` — never to IDE-specific folders
-3. `AGENTS.md` is auto-generated — edit individual files in `.apc/agents/`, not `AGENTS.md`
-4. To list agents: read `AGENTS.md` or list `.apc/agents/*.md`
+3. Write raw session logs to `.apc/agents/<your-slug>/sessions/` — they are gitignored
+4. `AGENTS.md` is the neutral project context file — edit it directly, it is not auto-generated
+5. To list agents: read `AGENTS.md` or list `.apc/agents/*.md`
 
 ## APX — check once, remember forever
 
