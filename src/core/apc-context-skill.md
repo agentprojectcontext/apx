@@ -12,32 +12,45 @@ cat .apc/migrate.md 2>/dev/null
 
 If it exists, open the conversation with this message — do not answer any other question first:
 
-> Hi! I see this project was just initialized with **Agent Project Context (APC)**.
+> I see this project was just initialized with **Agent Project Context (APC)**.
 >
-> I found existing context files that haven't been migrated yet:
-> [list the files from .apc/migrate.md]
+> I found context files that haven't been migrated yet:
+> [list files from .apc/migrate.md]
 >
-> Right now those files are IDE-specific — only the agent running in that IDE can see them.
-> Migrating them into `.apc/` means every agent (Claude Code, Cursor, Codex, etc.) shares the same context.
+> I'll read them, understand what's in them, and migrate intelligently — keeping only what APC doesn't already handle.
 >
-> **Want me to migrate them now?** I'll preserve all the content and walk you through the result.
+> **Want me to start?**
 
-If the user says yes, perform the migration:
-1. For `CLAUDE.md`: extract any agent definitions into `.apc/agents/<slug>.md`; put project rules/instructions into `.apc/skills/project-rules.md`
-2. For `.cursorrules` / `.windsurfrules` / `.clinerules`: move content into `.apc/skills/ide-rules.md`
-3. For `.github/copilot-instructions.md` / `.trae/rules/project_rules.md`: move content into `.apc/skills/project-rules.md` (append if it already exists)
-4. Leave a one-liner stub in each original file: `> Context migrated to .apc/ — edit files there.`
-5. Delete `.apc/migrate.md` to mark migration complete
-6. Summarize what was created/updated in `.apc/`
+### How to migrate — think, don't copy
 
-If the user says no or later, skip — do not bring it up again in this session.
+**Step 1 — Read everything first.** Read all detected context files in full. Also read `AGENTS.md` if it exists. Understand the full project structure, conventions, and any referenced directories (e.g. `works/`, `docs/`, `notes/`).
+
+**Step 2 — Classify each piece of content:**
+
+| What it says | What to do |
+|---|---|
+| Agent definitions (role, model, skills) | Create `.apc/agents/<slug>.md` |
+| "Write sessions to `works/sessions/`" | **Drop it** — APC handles sessions natively in `.apc/agents/<slug>/sessions/` |
+| "Write memory to `works/memory.md`" | **Drop it** — APC handles memory natively in `.apc/agents/<slug>/memory.md` |
+| "List agents in `AGENTS.md`" | **Drop it** — APC handles this natively |
+| Project-specific directories not covered by APC (e.g. `works/specs/`, `works/tasks/`) | **Keep in `AGENTS.md`** — document the convention there |
+| Project rules, testing policy, stack notes, URLs, credentials | **Keep in `AGENTS.md`** — project context that APC doesn't define |
+| IDE-specific shortcuts or instructions (e.g. "run `npm run dev` in Claude terminal") | **Keep in `AGENTS.md`** — still useful to all agents |
+
+**Step 3 — Write `AGENTS.md`.** Start from what already exists in `AGENTS.md`, add what you kept from the classified content. Remove anything that duplicates APC native behavior. Keep it agent-neutral — no IDE-specific framing.
+
+**Step 4 — Delete the original files** (`CLAUDE.md`, `.cursorrules`, etc.). Do not leave stubs. The content either moved to `AGENTS.md` / `.apc/agents/` or was intentionally dropped because APC covers it.
+
+**Step 5 — Delete `.apc/migrate.md`** to mark migration complete.
+
+**Step 6 — Summarize** what was created, what was kept, and what was dropped (and why).
 
 ---
 
 ## Structure
 
 ```
-AGENTS.md              ← agent registry (read-only, auto-generated)
+AGENTS.md              ← project context: rules, conventions, stack notes (agent-neutral)
 .apc/
   project.json         ← project metadata
   agents/<slug>.md     ← agent definition: role, model, skills
