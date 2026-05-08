@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
-import { readAgents, readAgentsFromDir } from "./parser.js";
+import { readAgents, readAgentsFromDir, VAULT_DIR } from "./parser.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -244,9 +244,43 @@ export function writeAgentFile(root, slug, fields, body = "") {
   fs.writeFileSync(dest, lines.join("\n") + "\n");
 }
 
+// Write a vault agent template to ~/.apx/agents/<slug>.md
+export function writeVaultAgentFile(slug, fields, body = "") {
+  fs.mkdirSync(VAULT_DIR, { recursive: true });
+  const dest = path.join(VAULT_DIR, `${slug}.md`);
+  const lines = ["---"];
+  const order = ["role", "model", "language", "description", "skills", "tools"];
+  const written = new Set();
+  for (const key of order) {
+    const titleKey = key.charAt(0).toUpperCase() + key.slice(1);
+    const v = fields[titleKey] ?? fields[key];
+    if (v === undefined || v === null || v === "") continue;
+    lines.push(`${key}: ${Array.isArray(v) ? v.join(", ") : v}`);
+    written.add(titleKey);
+  }
+  for (const [k, v] of Object.entries(fields)) {
+    const titleKey = k.charAt(0).toUpperCase() + k.slice(1);
+    if (written.has(titleKey) || v === undefined || v === null || v === "") continue;
+    lines.push(`${k.toLowerCase()}: ${Array.isArray(v) ? v.join(", ") : v}`);
+  }
+  lines.push("---");
+  if (body) lines.push("", body);
+  fs.writeFileSync(dest, lines.join("\n") + "\n");
+}
+
+// Add a slug to the project's agents.imported list in project.json
+export function addImportedAgent(root, slug) {
+  const p = path.join(root, ".apc", "project.json");
+  let cfg = {};
+  try { cfg = JSON.parse(fs.readFileSync(p, "utf8")); } catch {}
+  if (!cfg.agents) cfg.agents = {};
+  if (!cfg.agents.imported) cfg.agents.imported = [];
+  if (!cfg.agents.imported.includes(slug)) cfg.agents.imported.push(slug);
+  fs.writeFileSync(p, JSON.stringify(cfg, null, 2) + "\n");
+}
+
 // Regenerate AGENTS.md from .apc/agents/*.md for Codex/Antigravity compat.
 export function regenerateAgentsMd(root) {
-  // readAgents merges file-based agents + any legacy AGENTS.md entries not yet migrated.
   const agents = readAgents(root);
   const header = [
     "# Agents",
@@ -261,7 +295,10 @@ export function regenerateAgentsMd(root) {
     return;
   }
 
-  const blocks = agents.map((a) => renderAgentBlock(a.slug, a.fields));
+  const blocks = agents.map((a) => {
+    const tag = a.source === "vault" ? "  <!-- vault -->" : "";
+    return renderAgentBlock(a.slug, a.fields) + tag;
+  });
   fs.writeFileSync(path.join(root, "AGENTS.md"), header + blocks.join("\n\n") + "\n");
 }
 

@@ -103,23 +103,87 @@ export function readAgentsFromDir(root) {
     });
 }
 
+// ---------------------------------------------------------------------------
+// Vault — ~/.apx/agents/<slug>.md  (global templates, no memory)
+// ---------------------------------------------------------------------------
+
+import os from "node:os";
+
+export const VAULT_DIR = path.join(os.homedir(), ".apx", "agents");
+
+export function readVaultAgents() {
+  if (!fs.existsSync(VAULT_DIR)) return [];
+  return fs
+    .readdirSync(VAULT_DIR)
+    .filter((f) => f.endsWith(".md") && SLUG_RE.test(f.slice(0, -3)))
+    .sort()
+    .map((f) => {
+      const slug = f.slice(0, -3);
+      const agent = parseAgentFile(slug, fs.readFileSync(path.join(VAULT_DIR, f), "utf8"));
+      return { ...agent, source: "vault" };
+    });
+}
+
+// Resolve a single agent for a project: local file → vault → null
+export function resolveAgent(root, slug) {
+  const localPath = path.join(root, ".apc", "agents", `${slug}.md`);
+  if (fs.existsSync(localPath)) {
+    const agent = parseAgentFile(slug, fs.readFileSync(localPath, "utf8"));
+    return { ...agent, source: "local" };
+  }
+  const vaultPath = path.join(VAULT_DIR, `${slug}.md`);
+  if (fs.existsSync(vaultPath)) {
+    const agent = parseAgentFile(slug, fs.readFileSync(vaultPath, "utf8"));
+    return { ...agent, source: "vault" };
+  }
+  return null;
+}
+
+// Return slugs imported from vault in this project (from project.json)
+export function importedVaultSlugs(root) {
+  const p = path.join(root, ".apc", "project.json");
+  if (!fs.existsSync(p)) return [];
+  try {
+    const cfg = JSON.parse(fs.readFileSync(p, "utf8"));
+    return cfg.agents?.imported ?? [];
+  } catch { return []; }
+}
+
 // Primary entry point.
-// - Agent files (.apc/agents/*.md) are source of truth.
-// - If AGENTS.md is the old hand-written format (not auto-generated), merge any
-//   agents not yet migrated to individual files so nothing is silently dropped.
+// Resolution order:
+//   1. .apc/agents/<slug>.md  (local — overrides everything)
+//   2. ~/.apx/agents/<slug>.md  (vault — for imported slugs)
+//   3. Legacy hand-written AGENTS.md (not auto-generated)
 export function readAgents(root) {
-  const fromFiles = readAgentsFromDir(root);
+  const fromFiles = readAgentsFromDir(root).map((a) => ({ ...a, source: "local" }));
+  const localSlugs = new Set(fromFiles.map((a) => a.slug));
+
+  // Vault agents imported into this project
+  const imported = importedVaultSlugs(root);
+  const vaultAgents = imported
+    .filter((slug) => !localSlugs.has(slug))
+    .map((slug) => {
+      const vaultPath = path.join(VAULT_DIR, `${slug}.md`);
+      if (!fs.existsSync(vaultPath)) return null;
+      const agent = parseAgentFile(slug, fs.readFileSync(vaultPath, "utf8"));
+      return { ...agent, source: "vault" };
+    })
+    .filter(Boolean);
+
+  const all = [...fromFiles, ...vaultAgents];
+  const allSlugs = new Set(all.map((a) => a.slug));
+
   const agentsMdPath = path.join(root, "AGENTS.md");
-  if (!fs.existsSync(agentsMdPath)) return fromFiles;
+  if (!fs.existsSync(agentsMdPath)) return all;
 
   const mdText = fs.readFileSync(agentsMdPath, "utf8");
-  // Auto-generated marker — it's just a cache, don't merge from it.
-  if (mdText.includes("Auto-generated from .apc/agents/")) return fromFiles;
+  if (mdText.includes("Auto-generated from .apc/agents/")) return all;
 
-  // Legacy hand-written AGENTS.md: include any agents not yet migrated to files.
-  const fileSlugs = new Set(fromFiles.map((a) => a.slug));
-  const legacy = parseAgentsMd(mdText).filter((a) => !fileSlugs.has(a.slug));
-  return [...fromFiles, ...legacy];
+  // Legacy hand-written AGENTS.md
+  const legacy = parseAgentsMd(mdText)
+    .filter((a) => !allSlugs.has(a.slug))
+    .map((a) => ({ ...a, source: "legacy" }));
+  return [...all, ...legacy];
 }
 
 // ---------------------------------------------------------------------------

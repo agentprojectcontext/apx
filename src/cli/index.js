@@ -16,6 +16,9 @@ import {
   cmdAgentAdd,
   cmdAgentList,
   cmdAgentGet,
+  cmdAgentImport,
+  cmdAgentVaultList,
+  cmdAgentVaultAdd,
 } from "./commands/agent.js";
 import { cmdMemory } from "./commands/memory.js";
 import {
@@ -285,9 +288,17 @@ async function dispatch(cmd, rest) {
       case "agent": {
         const sub = rest[0];
         const a = parseArgs(rest.slice(1));
-        if (sub === "add") cmdAgentAdd(a);
+        if (sub === "add") await cmdAgentAdd(a);
         else if (sub === "list" || sub === "ls") cmdAgentList();
         else if (sub === "get" || sub === "show") cmdAgentGet(a);
+        else if (sub === "import") await cmdAgentImport(a);
+        else if (sub === "vault") {
+          const vsub = a._[0];
+          const va = { ...a, _: a._.slice(1) };
+          if (vsub === "list" || vsub === "ls") cmdAgentVaultList();
+          else if (vsub === "add") await cmdAgentVaultAdd(va);
+          else die(`unknown vault subcommand: ${vsub || "(none)"} — try: list, add`);
+        }
         else die(`unknown agent subcommand: ${sub || "(none)"}`);
         break;
       }
