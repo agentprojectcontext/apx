@@ -6,8 +6,9 @@ import fs from "node:fs";
 import https from "node:https";
 import http from "node:http";
 import readline from "node:readline";
-import { spawnSync, spawn } from "node:child_process";
-import { readConfig, writeConfig, APX_HOME } from "../../core/config.js";
+import { spawnSync } from "node:child_process";
+import { readConfig, writeConfig } from "../../core/config.js";
+import { mascot } from "../../core/mascot.js";
 
 // ── ANSI helpers ──────────────────────────────────────────────────────────────
 const c = {
@@ -93,13 +94,8 @@ const PROVIDERS = [
 export async function cmdSetup() {
   initRl();
 
-  console.log();
-  console.log(b(cy("  ╔═══════════════════════════════════╗")));
-  console.log(b(cy("  ║        APX Setup Wizard           ║")));
-  console.log(b(cy("  ╚═══════════════════════════════════╝")));
-  console.log();
-  console.log(di("  This will configure the APX daemon and super-agent."));
-  console.log(di("  You can re-run `apx setup` at any time to change settings."));
+  mascot("wave", "Setup Wizard — configure daemon, model, and channels");
+  console.log(di("  Re-run `apx setup` anytime to change settings."));
   console.log();
 
   // ── Super-agent? ────────────────────────────────────────────────────────────

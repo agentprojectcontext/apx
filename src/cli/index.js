@@ -74,6 +74,7 @@ import { cmdCommandList, cmdCommandShow } from "./commands/command.js";
 import { cmdUpdate } from "./commands/update.js";
 import { cmdSetup } from "./commands/setup.js";
 import { checkForUpdate } from "../core/update-check.js";
+import { mascot } from "../core/mascot.js";
 import {
   cmdRoutineList,
   cmdRoutineGet,
@@ -246,7 +247,9 @@ function parseArgs(argv) {
 }
 
 function die(msg, code = 1) {
-  process.stderr.write(`apx: ${msg}\n`);
+  // Show panda mascot for user-facing errors
+  const isUnknown = msg.startsWith("unknown command") || msg.startsWith("unknown");
+  mascot(isUnknown ? "confused" : "sad", `apx: ${msg}`);
   process.exit(code);
 }
 
