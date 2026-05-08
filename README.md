@@ -16,7 +16,7 @@ APX is a daemon + CLI that brings the APC convention to life:
 - **Plugins** — Telegram bot integration out of the box
 - **MCP support** — each agent can expose or consume MCP servers
 
-APX is opinionated about storage: the filesystem is the source of truth. No database required to read agent state.
+APX is opinionated about storage: the filesystem is the source of truth. No database required to read agent state. Project definitions live in the repo; runtime state (memory, sessions) lives in `~/.apx/` and is never committed.
 
 ## Quick start
 
@@ -46,20 +46,33 @@ Requires Node.js 20+. The daemon starts automatically on first `apx` call.
 
 ## Project layout
 
+Project context — committed to the repository:
+
 ```text
 project-root/
-├── AGENTS.md              ← agent definitions (auto-generated from .apc/agents/)
+├── AGENTS.md              ← agent definitions
 └── .apc/
-    ├── project.json       ← project metadata
+    ├── project.json       ← project metadata + stable "id"
     ├── agents/
-    │   └── <slug>/
-    │       ├── <slug>.md  ← agent frontmatter (role, model, skills…)
-    │       ├── memory.md  ← durable memory, updated by the agent
-    │       └── sessions/  ← one .md per runtime invocation
-    ├── messages/          ← JSONL activity log (runtime, telegram, a2a)
+    │   └── <slug>.md      ← agent definition (role, model, skills…)
     ├── mcps.json          ← MCP servers available to this project
     ├── skills/            ← reusable skill prompts
     └── commands/          ← custom slash commands
+```
+
+Runtime state — local machine only, never committed:
+
+```text
+~/.apx/projects/<project-id>/
+├── project.db             ← regenerable SQLite cache
+└── agents/
+    ├── <slug>/
+    │   ├── memory.md      ← durable memory, updated by the agent
+    │   ├── sessions/      ← one .md per runtime invocation
+    │   └── conversations/ ← LLM conversation threads
+    └── default/           ← fallback when no agent role is active
+        ├── memory.md
+        └── sessions/
 ```
 
 ## Core commands
