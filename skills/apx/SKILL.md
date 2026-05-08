@@ -1,7 +1,7 @@
 ---
 name: apx
-description: APX (Agent Project Framework) skill. Use this when the project has an AGENTS.md or .apc/ directory. Provides multi-agent coordination commands (apx run, apx exec), memory management (apx memory), MCP tool access (apx mcp), session tracking (apx session), and message observation (apx messages tail). Activate on: "run an agent", "coordinate agents", "check agent memory", "list MCPs", "tail messages", "session check", "apx", "APC project".
-homepage: https://github.com/apc-spec/apf
+description: "APX CLI skill. Activate ONLY when the user asks about running agents, coordinating between agents, or explicitly uses apx commands. Provides: apx run, apx exec, apx memory, apx mcp, apx session, apx messages tail. Do NOT activate just because .apc/ exists — project context is handled by the apc-context skill. Activate on: 'apx run', 'apx exec', 'run an agent', 'coordinate agents', 'multi-agent', 'apx memory', 'apx mcp', 'daemon'."
+homepage: https://github.com/agentprojectcontext/apx
 ---
 
 # APX — Agent Project Framework

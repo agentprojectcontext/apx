@@ -11,6 +11,7 @@
   },
   "files": [
     "src/",
+    "skills/",
     "README.md"
   ],
   "engines": {
@@ -20,7 +21,8 @@
     "start": "node src/daemon/index.js",
     "smoke": "node src/daemon/smoke.js",
     "test": "node --test --test-reporter=spec 'tests/*.test.js'",
-    "upgrade": "npm install && npm install -g ."
+    "upgrade": "npm install && npm install -g .",
+    "postinstall": "node src/cli/postinstall.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
@@ -41,7 +43,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/apc-spec/apc.git"
+    "url": "https://github.com/agentprojectcontext/apx.git"
   },
-  "homepage": "https://github.com/apc-spec/apc"
+  "homepage": "https://github.com/agentprojectcontext/apx"
 }

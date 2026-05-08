@@ -34,24 +34,24 @@ apx memory <slug> --append "<fact>"     # append a durable note (non-destructive
 apx memory <slug> --replace < file.md  # replace entire memory from stdin
 ```
 
-Write to memory when you discover something the agent should know on every future run.
+## MCP tools
+
+```bash
+apx mcp list                            # registered MCP servers declared in .apc/mcps.json
+apx mcp tools <server>                  # list tools a server exposes
+apx mcp run   <server> <tool> '<json>'  # call a tool directly
+```
+
+MCP servers declared in `.apc/mcps.json` only work when APX daemon is running.
+If a tool call fails or MCPs aren't responding, check: `apx --version` to confirm APX is active.
 
 ## Observe activity
 
 ```bash
 apx messages tail                       # last 50 messages, all channels
 apx messages tail --channel runtime     # only agent invocations (in/out)
-apx messages tail --channel telegram    # Telegram conversation history
 apx messages tail --agent <slug> -n 20
 apx session list  <slug>                # sessions for a specific agent
-```
-
-## MCP tools
-
-```bash
-apx mcp list                            # registered MCP servers
-apx mcp tools <server>                  # list tools a server exposes
-apx mcp run   <server> <tool> '<json>'  # call a tool directly
 ```
 
 ## Anti-collision guard
@@ -61,11 +61,10 @@ Before starting a long task, prevent duplicate runs:
 apx session check    # exits 1 if a session is already active for this agent
 ```
 
-## APC_RESULT — how to signal your return value
+## APC_RESULT — signal your return value
 
 Print this on the last meaningful line of your output:
 ```
 APC_RESULT: <one-line summary or value>
 ```
 The invoker (`apx run`, super-agent, Telegram bot) captures it as structured output.
-Keep it factual and short — it becomes the session result stored in `.apc/agents/<slug>/sessions/`.

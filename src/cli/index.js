@@ -202,7 +202,7 @@ Other:
   apx --help
   apx --version
 
-Docs: https://github.com/apc-spec/apf
+Docs: https://agentprojectcontext.com
 `;
 
 function parseArgs(argv) {

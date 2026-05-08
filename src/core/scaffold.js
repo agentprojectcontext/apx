@@ -29,7 +29,7 @@ export const IDE_TARGETS = [
     ideDir: ".cursor",
     file: ".cursor/rules/apx.mdc",
     render: (c) =>
-      `---\ndescription: APX Agent Project Framework. Use when the project has AGENTS.md or .apc/ — provides apx run, apx exec, apx memory, apx mcp, apx messages, apx session commands.\n---\n\n${c}`,
+      `---\ndescription: APX CLI skill. Activate when the user asks about running agents, coordinating between agents, or uses apx commands (apx run, apx exec, apx memory, apx mcp, apx session, apx messages).\n---\n\n${c}`,
     append: false,
   },
   {
@@ -38,7 +38,7 @@ export const IDE_TARGETS = [
     ideDir: ".windsurf",
     file: ".windsurf/rules/apx.md",
     render: (c) =>
-      `---\ntrigger: model_decision\ndescription: APX Agent Project Framework. Use when the project has AGENTS.md or .apc/ — provides apx run, apx exec, apx memory, apx mcp, apx messages, apx session commands.\n---\n\n${c}`,
+      `---\ntrigger: model_decision\ndescription: APX CLI skill. Activate when the user asks about running agents, coordinating between agents, or uses apx commands (apx run, apx exec, apx memory, apx mcp, apx session, apx messages).\n---\n\n${c}`,
     append: false,
   },
   {
@@ -70,81 +70,112 @@ const GLOBAL_SKILL_DIRS = [
   path.join(os.homedir(), ".agents", "skills"),    // Antigravity/other skills.sh adopters
 ];
 
-function buildSkillMd(content) {
+function buildApcContextSkillMd(content) {
   const frontmatter = [
     "---",
-    "name: apx",
-    "description: APX (Agent Project Framework) skill. Use when the project has AGENTS.md or .apc/. Provides: multi-agent coordination (apx run, apx exec), memory (apx memory), MCP access (apx mcp), sessions (apx session), message history (apx messages tail). Activate on: run an agent, coordinate agents, apx, APC project, check agent memory, list MCPs.",
-    "homepage: https://github.com/apc-spec/apf",
+    "name: apc-context",
+    "description: ALWAYS activate when the project has a .apc/ directory or AGENTS.md file. Do not wait to be asked. Read .apc/ before making any assumption about agents, memory, or project structure. Activate on: .apc/, AGENTS.md, 'which agents', 'list agents', 'agent context', 'who are the agents', any question about agents or memory in this project.",
+    "homepage: https://github.com/agentprojectcontext/agentprojectcontext",
     "---",
     "",
   ].join("\n");
   return frontmatter + content;
 }
 
-// Install the APX skill into IDE rule files. Returns an array of result objects.
+function buildSkillMd(content) {
+  const frontmatter = [
+    "---",
+    "name: apx",
+    "description: APX CLI skill. Activate when: user asks to run or coordinate agents, use MCP tools from .apc/mcps.json, install agents from a team workspace, or explicitly mentions apx commands. Do NOT activate just because .apc/ exists — that is handled by the apc-context skill. Activate on: 'apx run', 'apx exec', 'run an agent', 'coordinate agents', 'MCP not working', 'install agent', 'team agents', 'apx memory', 'daemon'.",
+    "homepage: https://github.com/agentprojectcontext/apx",
+    "---",
+    "",
+  ].join("\n");
+  return frontmatter + content;
+}
+
+// Install APX + APC context skills into IDE rule files. Returns an array of result objects.
 // targetIds: array of target ids to install; null = all project targets.
 export function installIdeSkills(root, targetIds = null) {
-  const skillSource = path.join(__dirname, "apx-skill.md");
-  if (!fs.existsSync(skillSource)) return [];
+  const apxSrc = path.join(__dirname, "apx-skill.md");
+  const apcSrc = path.join(__dirname, "apc-context-skill.md");
+  if (!fs.existsSync(apxSrc)) return [];
 
-  const content = fs.readFileSync(skillSource, "utf8").trim();
+  const apxContent = fs.readFileSync(apxSrc, "utf8").trim();
+  const apcContent = fs.existsSync(apcSrc) ? fs.readFileSync(apcSrc, "utf8").trim() : null;
+
   const targets = targetIds
     ? IDE_TARGETS.filter((t) => targetIds.includes(t.id))
     : IDE_TARGETS;
 
   const results = [];
   for (const t of targets) {
-    // Skip if the IDE hasn't been set up in this project yet.
     if (t.ideDir && !fs.existsSync(path.join(root, t.ideDir))) {
       results.push({ ...t, status: "skipped (IDE not present)" });
       continue;
     }
+
+    // Install APX skill
     const dest = path.join(root, t.file);
     fs.mkdirSync(path.dirname(dest), { recursive: true });
-    const rendered = t.render(content);
-
+    const rendered = t.render(apxContent);
     if (t.append) {
       const existing = fs.existsSync(dest) ? fs.readFileSync(dest, "utf8") : "";
       if (t.guard && existing.includes(t.guard)) {
         results.push({ ...t, status: "already installed" });
-        continue;
+      } else {
+        fs.appendFileSync(dest, rendered, "utf8");
+        results.push({ ...t, status: "appended" });
       }
-      fs.appendFileSync(dest, rendered, "utf8");
-      results.push({ ...t, status: "appended" });
     } else {
       const existed = fs.existsSync(dest);
       fs.writeFileSync(dest, rendered, "utf8");
       results.push({ ...t, status: existed ? "updated" : "created" });
     }
+
+    // Install APC context skill alongside (only for non-append targets with a skills dir)
+    if (apcContent && t.id === "claude-code") {
+      const apcDest = path.join(root, ".claude", "skills", "apc-context", "SKILL.md");
+      fs.mkdirSync(path.dirname(apcDest), { recursive: true });
+      const existed = fs.existsSync(apcDest);
+      fs.writeFileSync(apcDest, buildApcContextSkillMd(apcContent), "utf8");
+      results.push({ ...t, id: "claude-code/apc-context", label: "Claude Code (apc-context)", file: apcDest, status: existed ? "updated" : "created" });
+    }
   }
   return results;
 }
 
-// Install APX skill to global ~/.claude/skills/, ~/.cursor/skills/, ~/.agents/skills/.
-// Returns an array of result objects with { dir, status }.
+// Install both APX and APC context skills to global ~/.../skills/ dirs.
+// Returns an array of result objects with { dir, skill, status }.
 export function installGlobalSkills() {
-  const skillSource = path.join(__dirname, "apx-skill.md");
-  if (!fs.existsSync(skillSource)) return [];
-
-  const content = fs.readFileSync(skillSource, "utf8").trim();
-  const skillMd = buildSkillMd(content);
   const results = [];
 
+  const apxSrc = path.join(__dirname, "apx-skill.md");
+  const apcSrc = path.join(__dirname, "apc-context-skill.md");
+
+  const skills = [];
+  if (fs.existsSync(apxSrc))
+    skills.push({ slug: "apx", md: buildSkillMd(fs.readFileSync(apxSrc, "utf8").trim()) });
+  if (fs.existsSync(apcSrc))
+    skills.push({ slug: "apc-context", md: buildApcContextSkillMd(fs.readFileSync(apcSrc, "utf8").trim()) });
+
   for (const base of GLOBAL_SKILL_DIRS) {
-    const dest = path.join(base, "apx", "SKILL.md");
-    fs.mkdirSync(path.dirname(dest), { recursive: true });
-    const existed = fs.existsSync(dest);
-    fs.writeFileSync(dest, skillMd, "utf8");
-    results.push({ dir: base, file: dest, status: existed ? "updated" : "created" });
+    for (const { slug, md } of skills) {
+      const dest = path.join(base, slug, "SKILL.md");
+      fs.mkdirSync(path.dirname(dest), { recursive: true });
+      const existed = fs.existsSync(dest);
+      fs.writeFileSync(dest, md, "utf8");
+      results.push({ dir: base, skill: slug, file: dest, status: existed ? "updated" : "created" });
+    }
   }
   return results;
 }
+
 
 const AGENTS_MD_TEMPLATE = `# Agents
 
 > This file is the contract for agents in this project.
-> It follows the APC spec (https://github.com/apc-spec/apf).
+> It follows the APC spec (https://github.com/agentprojectcontext/agentprojectcontext).
 
 <!-- Add an agent like this:
 
