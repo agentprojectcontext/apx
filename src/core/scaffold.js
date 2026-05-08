@@ -192,6 +192,40 @@ function nowIso() {
   return new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 }
 
+// Files that carry project context but are IDE-specific — candidates for APC migration.
+const SCATTERED_CONTEXT_FILES = [
+  { file: "CLAUDE.md",                         label: "Claude Code instructions" },
+  { file: ".cursorrules",                      label: "Cursor rules" },
+  { file: ".windsurfrules",                    label: "Windsurf rules" },
+  { file: ".clinerules",                       label: "Cline rules" },
+  { file: ".github/copilot-instructions.md",   label: "GitHub Copilot instructions" },
+  { file: ".trae/rules/project_rules.md",      label: "Trae rules" },
+];
+
+// Returns files found in `root` that look like scattered context.
+export function detectScatteredContext(root) {
+  return SCATTERED_CONTEXT_FILES.filter(({ file }) =>
+    fs.existsSync(path.join(root, file))
+  );
+}
+
+// Writes .apc/migrate.md so the next agent session opens with a migration offer.
+function writeMigrateMd(apfDir, found) {
+  const lines = [
+    "# APC Migration Pending",
+    "",
+    "This file was created by `apx init`. It signals to agents that this project",
+    "has existing context files that have not yet been migrated to `.apc/`.",
+    "",
+    "**Delete this file** once migration is complete.",
+    "",
+    "## Detected files",
+    "",
+    ...found.map(({ file, label }) => `- \`${file}\` — ${label}`),
+  ];
+  fs.writeFileSync(path.join(apfDir, "migrate.md"), lines.join("\n") + "\n");
+}
+
 export function initApf(directory, { name } = {}) {
   const root = path.resolve(directory);
   fs.mkdirSync(root, { recursive: true });
@@ -230,7 +264,14 @@ export function initApf(directory, { name } = {}) {
     if (fs.existsSync(src)) fs.copyFileSync(src, apxSkill);
   }
 
-  return { root, agentsMd, projectJson };
+  // Detect scattered context files and flag for agent-driven migration.
+  const scattered = detectScatteredContext(root);
+  const migrateMd = path.join(apfDir, "migrate.md");
+  if (scattered.length > 0 && !fs.existsSync(migrateMd)) {
+    writeMigrateMd(apfDir, scattered);
+  }
+
+  return { root, agentsMd, projectJson, pendingMigration: scattered };
 }
 
 export function ensureAgentDir(root, slug) {

@@ -9,5 +9,15 @@ export function cmdInit(args) {
   console.log(`Initialized APC project at ${result.root}`);
   console.log(`  ${path.relative(process.cwd(), result.agentsMd)}`);
   console.log(`  ${path.relative(process.cwd(), result.projectJson)}`);
-  console.log(`\nNext: apx agent add <slug> --role <role> --model <model>`);
+
+  if (result.pendingMigration?.length > 0) {
+    console.log(`\napx: existing context files detected:`);
+    for (const { file, label } of result.pendingMigration) {
+      console.log(`  ${file.padEnd(44)} ${label}`);
+    }
+    console.log(`\n  .apc/migrate.md written.`);
+    console.log(`  Open this project in your AI assistant — it will offer to migrate.`);
+  } else {
+    console.log(`\nNext: apx agent add <slug> --role <role> --model <model>`);
+  }
 }
