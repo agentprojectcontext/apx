@@ -1,3 +1,4 @@
+
 # Agent Project Context
 
 This project uses APC. All agent context lives in `.apc/` — not in `.claude/`, `.cursor/`, `.windsurf/`, or any other IDE folder.
@@ -44,6 +45,8 @@ If it exists, open the conversation with this message — do not answer any othe
 **Step 5 — Delete `.apc/migrate.md`** to mark migration complete.
 
 **Step 6 — Summarize** what was created, what was kept, and what was dropped (and why).
+
+If the user says no or later: delete `.apc/migrate.md` immediately so this offer is not shown again in future sessions.
 
 ---
 
