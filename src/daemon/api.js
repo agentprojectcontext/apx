@@ -1,6 +1,7 @@
 // Express REST API for APX. See APC docs reference/apx-daemon.
 import fs from "node:fs";
 import path from "node:path";
+import { execFile } from "node:child_process";
 import express from "express";
 import { readApfMcps, writeApfMcps, SOURCES } from "./mcp-sources.js";
 import { callEngine, ENGINE_IDS } from "./engines/index.js";
@@ -885,6 +886,167 @@ export function buildApi({ projects, registries, plugins, scheduler, version, st
     writeProjectConfig(p.path, cfg);
     projects.rebuild(p.id);
     res.json({ ok: true, project_only: cfg });
+  });
+
+  // ---- Run (bash execution) -----------------------------------------
+  // POST /run  { cmd, cwd?, project?, timeout_ms? }
+  // Executes a shell command and returns stdout + stderr.
+  // `cwd` defaults to the project path (by id or first registered), or process.cwd().
+  app.post("/run", (req, res) => {
+    const { cmd, cwd: cwdOverride, project: projectRef, timeout_ms = 30000 } = req.body || {};
+    if (!cmd) return res.status(400).json({ error: "cmd required" });
+
+    // Resolve working directory
+    let cwd = cwdOverride || null;
+    if (!cwd) {
+      let entry = null;
+      if (projectRef !== undefined && projectRef !== null) {
+        const all = projects.list();
+        const ref = String(projectRef);
+        entry = all.find((p) => String(p.id) === ref || p.path === path.resolve(ref));
+      }
+      if (!entry) {
+        const all = projects.list().filter((p) => p.id !== 0);
+        entry = all[0] || projects.get(0);
+      }
+      cwd = entry ? entry.path : process.cwd();
+    }
+
+    const timeout = Math.min(Math.max(parseInt(timeout_ms, 10) || 30000, 1000), 300000);
+
+    execFile("bash", ["-c", cmd], { cwd, timeout, maxBuffer: 4 * 1024 * 1024 }, (err, stdout, stderr) => {
+      const exit_code = err?.code ?? (err ? 1 : 0);
+      res.json({
+        ok: !err || exit_code === 0,
+        exit_code,
+        stdout: stdout || "",
+        stderr: stderr || "",
+        cwd,
+      });
+    });
+  });
+
+  // ---- Top-level memory shortcuts -----------------------------------
+  // GET  /memory?project=<id>          → reads default agent memory.md
+  // POST /memory?project=<id>  { body } → writes it
+  //
+  // Targets the *first non-default agent* of the resolved project,
+  // or falls back to a bare memory.md in .apc/ root.
+
+  function resolveTopProject(query) {
+    const ref = query?.project;
+    if (ref !== undefined && ref !== null) {
+      const all = projects.list();
+      const r = String(ref);
+      return projects.get(all.find((p) => String(p.id) === r || p.path === path.resolve(r))?.id);
+    }
+    const all = projects.list().filter((p) => p.id !== 0);
+    return all.length ? projects.get(all[0].id) : projects.get(0);
+  }
+
+  function resolveMemoryPath(p) {
+    const agentsDir = path.join(p.path, ".apc", "agents");
+    if (fs.existsSync(agentsDir)) {
+      const slugs = fs.readdirSync(agentsDir).filter((s) => {
+        const mp = path.join(agentsDir, s, "memory.md");
+        return fs.statSync(path.join(agentsDir, s)).isDirectory();
+      });
+      if (slugs.length) return path.join(agentsDir, slugs[0], "memory.md");
+    }
+    return path.join(p.path, ".apc", "memory.md");
+  }
+
+  app.get("/memory", (req, res) => {
+    const p = resolveTopProject(req.query);
+    if (!p) return res.status(404).json({ error: "no project registered" });
+    const memPath = resolveMemoryPath(p);
+    const body = fs.existsSync(memPath) ? fs.readFileSync(memPath, "utf8") : "";
+    res.json({ project_id: p.id, path: memPath, body });
+  });
+
+  app.post("/memory", (req, res) => {
+    const p = resolveTopProject(req.query);
+    if (!p) return res.status(404).json({ error: "no project registered" });
+    const { body } = req.body || {};
+    if (typeof body !== "string") return res.status(400).json({ error: "body must be string" });
+    const memPath = resolveMemoryPath(p);
+    fs.mkdirSync(path.dirname(memPath), { recursive: true });
+    fs.writeFileSync(memPath, body);
+    try { projects.rebuild(p.id); } catch {}
+    res.json({ ok: true, path: memPath, bytes: Buffer.byteLength(body, "utf8") });
+  });
+
+  // ---- Top-level file shortcuts -------------------------------------
+  // GET  /files?path=<rel>&project=<id>          → read file contents
+  // POST /files?project=<id>  { path, content }  → write file
+
+  app.get("/files", (req, res) => {
+    const p = resolveTopProject(req.query);
+    if (!p) return res.status(404).json({ error: "no project registered" });
+    const rel = req.query.path;
+    if (!rel) {
+      // List top-level files of the project
+      try {
+        const entries = fs.readdirSync(p.path).map((name) => {
+          const full = path.join(p.path, name);
+          const stat = fs.statSync(full);
+          return { name, type: stat.isDirectory() ? "dir" : "file", size: stat.isDirectory() ? null : stat.size };
+        });
+        return res.json({ project_id: p.id, cwd: p.path, entries });
+      } catch (e) {
+        return res.status(500).json({ error: e.message });
+      }
+    }
+    const abs = path.resolve(p.path, rel);
+    if (!abs.startsWith(path.resolve(p.path))) return res.status(403).json({ error: "path escapes project root" });
+    if (!fs.existsSync(abs)) return res.status(404).json({ error: "not found" });
+    const stat = fs.statSync(abs);
+    if (stat.isDirectory()) {
+      const entries = fs.readdirSync(abs).map((name) => {
+        const s = fs.statSync(path.join(abs, name));
+        return { name, type: s.isDirectory() ? "dir" : "file", size: s.isDirectory() ? null : s.size };
+      });
+      return res.json({ project_id: p.id, path: rel, type: "dir", entries });
+    }
+    const content = fs.readFileSync(abs, "utf8");
+    res.json({ project_id: p.id, path: rel, type: "file", size: stat.size, content });
+  });
+
+  app.post("/files", (req, res) => {
+    const p = resolveTopProject(req.query);
+    if (!p) return res.status(404).json({ error: "no project registered" });
+    const { path: rel, content } = req.body || {};
+    if (!rel) return res.status(400).json({ error: "path required" });
+    if (typeof content !== "string") return res.status(400).json({ error: "content must be string" });
+    const abs = path.resolve(p.path, rel);
+    if (!abs.startsWith(path.resolve(p.path))) return res.status(403).json({ error: "path escapes project root" });
+    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    fs.writeFileSync(abs, content);
+    res.json({ ok: true, path: rel, bytes: Buffer.byteLength(content, "utf8") });
+  });
+
+  // ---- Top-level MCP shortcuts --------------------------------------
+  // GET  /mcp?project=<id>                        → list MCPs
+  // POST /mcp/run  { project?, name, tool, params } → call MCP tool
+
+  app.get("/mcp", (req, res) => {
+    const p = resolveTopProject(req.query);
+    if (!p) return res.status(404).json({ error: "no project registered" });
+    res.json(registries.for(p).list());
+  });
+
+  app.post("/mcp/run", async (req, res) => {
+    const { project: projectRef, name, tool, params } = req.body || {};
+    if (!name) return res.status(400).json({ error: "name required" });
+    if (!tool) return res.status(400).json({ error: "tool required" });
+    const p = resolveTopProject({ project: projectRef });
+    if (!p) return res.status(404).json({ error: "no project registered" });
+    try {
+      const result = await registries.for(p).call(name, tool, params);
+      res.json({ ok: true, result });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
   });
 
   // ---- Admin --------------------------------------------------------
