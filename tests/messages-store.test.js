@@ -63,7 +63,12 @@ test("appendMessageToFs writes JSONL — one record per line", () => {
     const r2 = JSON.parse(lines[1]);
     assert.equal(r1.body, "hola");
     assert.equal(r1.direction, "in");
+    assert.equal(r1.type, "user");
+    assert.equal(r1.actor_id, "@user");
+    assert.equal(r1.meta.type, "user");
     assert.equal(r2.body, "hi back");
+    assert.equal(r2.type, "agent");
+    assert.equal(r2.actor_id, "apx");
     assert.deepEqual(r2.meta.tools_called, [{ tool: "list_agents", args: {} }]);
   } finally {
     cleanupTempProject(root);
@@ -81,8 +86,29 @@ test("parseDayJsonl reads JSONL", async () => {
   const rows = parseDayJsonl(text);
   assert.equal(rows.length, 2);
   assert.equal(rows[0].body, "hola");
+  assert.equal(rows[0].type, "user");
+  assert.equal(rows[0].actor_id, "@a");
   assert.equal(rows[0].meta.chat_id, 1);
   assert.equal(rows[1].body, "hi");
+  assert.equal(rows[1].type, "agent");
+  assert.equal(rows[1].actor_id, "apx");
+});
+
+test("parseDayJsonl preserves explicit type and actor_id", async () => {
+  const { parseDayJsonl } = await import("../src/core/messages-store.js");
+  const text = JSON.stringify({
+    ts: "2026-05-08T10:00:00Z",
+    channel: "tool",
+    direction: "out",
+    type: "tool",
+    actor_id: "filesystem.read_file",
+    author: "filesystem",
+    body: "ok",
+  });
+  const rows = parseDayJsonl(text);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].type, "tool");
+  assert.equal(rows[0].actor_id, "filesystem.read_file");
 });
 
 test("parseDayFile (legacy md) still works for backward compat", () => {
@@ -95,6 +121,8 @@ hola
   const rows = parseDayFile(text);
   assert.equal(rows.length, 1);
   assert.equal(rows[0].body, "hola");
+  assert.equal(rows[0].type, "user");
+  assert.equal(rows[0].actor_id, "@user");
   assert.equal(rows[0].meta.chat_id, 99);
 });
 

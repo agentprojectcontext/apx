@@ -25,7 +25,9 @@ export default {
       ts: m.ts,
       channel: m.channel,
       direction: m.direction,
+      type: m.type,
       author: m.author,
+      actor_id: m.actor_id,
       body: m.body,
     }));
   },

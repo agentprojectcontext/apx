@@ -76,9 +76,13 @@ apx session check                                # exits 1 if session already ac
 
 ```bash
 apx messages tail                               # last 50 messages, all channels
+apx messages chat --channel telegram -n 20      # chat view with user/agent/system type
 apx messages tail --channel runtime             # only agent invocations
 apx messages tail --agent <slug> -n 20
 ```
+
+Message rows expose `type` (`user`, `agent`, `tool`, `system`) and `actor_id`; use `messages chat`
+when you need a readable transcript.
 
 ## Super-agent permissions
 

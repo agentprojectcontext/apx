@@ -88,6 +88,7 @@ apx exec  <slug> "<prompt>"                          # quick LLM call
 
 apx session list <slug>                  # list past sessions
 apx messages tail                        # last 50 messages, all channels
+apx messages chat --channel telegram     # chat view with user/agent/system type
 apx messages tail --channel runtime      # only agent invocations
 ```
 
@@ -95,6 +96,9 @@ apx messages tail --channel runtime      # only agent invocations
 
 Activity belongs to APX runtime state, not `.apc/`. Message storage is local to APX, under
 `~/.apx/`:
+
+JSONL messages include `type` (`user`, `agent`, `tool`, or `system`) plus `actor_id`, so chat views
+can distinguish Telegram users from APX agents and future subagents.
 
 | Channel | What it captures |
 |---------|-----------------|

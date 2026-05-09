@@ -276,11 +276,14 @@ class ChannelPoller {
     appendGlobalMessage({
       channel: "telegram",
       direction: "in",
+      type: "user",
+      actor_id: msg.from?.id ? String(msg.from.id) : author,
       external_id: String(u.update_id),
       author,
       body: text,
       meta: {
         chat_id,
+        user_id: msg.from?.id || null,
         message_id: msg.message_id,
         tg_channel: this.channel.name,
       },
@@ -299,6 +302,8 @@ class ChannelPoller {
         appendGlobalMessage({
           channel: "telegram",
           direction: "out",
+          type: "agent",
+          actor_id: "apx",
           author: "apx",
           body: ack,
           meta: { chat_id, tg_channel: this.channel.name, in_reply_to: u.update_id, reset: true },
@@ -401,6 +406,9 @@ class ChannelPoller {
       appendGlobalMessage({
         channel: "telegram",
         direction: "out",
+        type: "agent",
+        actor_id: replyAuthor || "apx",
+        agent_slug: replyAuthor || "apx",
         author: replyAuthor || "apx",
         body: clean || replyText,
         meta,
@@ -410,6 +418,9 @@ class ChannelPoller {
       appendGlobalMessage({
         channel: "telegram",
         direction: "out",
+        type: "agent",
+        actor_id: replyAuthor || "apx",
+        agent_slug: replyAuthor || "apx",
         author: replyAuthor || "apx",
         body: `[send_failed] ${clean || replyText}`,
         meta: {
@@ -549,6 +560,9 @@ export default {
         appendGlobalMessage({
           channel: "telegram",
           direction: "out",
+          type: "agent",
+          actor_id: author,
+          agent_slug: author,
           author,
           body: text,
           meta: {

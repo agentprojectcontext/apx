@@ -50,6 +50,8 @@ async function handleHeartbeat(ctx, routine) {
   project.logMessage({
     channel,
     direction: "out",
+    type: "system",
+    actor_id: "apx:routine",
     author: "apx",
     body: message,
     meta: { routine: routine.name },
@@ -87,6 +89,8 @@ async function handleExecAgent(ctx, routine) {
     agent_slug: slug,
     channel: "routine",
     direction: "out",
+    type: "agent",
+    actor_id: slug,
     author: slug,
     body: result.text,
     meta: { routine: routine.name, usage: result.usage },
@@ -118,6 +122,8 @@ async function handleSuperAgent(ctx, routine) {
   project.logMessage({
     channel: "routine",
     direction: "out",
+    type: "agent",
+    actor_id: result.name || "super_agent",
     author: result.name || "super_agent",
     body: result.text || "",
     meta: { routine: routine.name, tool_trace: result.trace, usage: result.usage },
@@ -200,6 +206,8 @@ export async function runRoutineNow(ctx, routine) {
   ctx.project.logMessage?.({
     channel: "routine",
     direction: "out",
+    type: "system",
+    actor_id: "apx:routine",
     author: "apx",
     body: status === "ok"
       ? `routine ${routine.name} ok`

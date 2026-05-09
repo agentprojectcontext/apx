@@ -348,13 +348,13 @@ export function buildApi({ projects, registries, plugins, scheduler, version, st
   app.post("/projects/:pid/messages", (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    const { channel, direction, agent_slug, body, meta = {}, author = null } =
+    const { channel, direction, type, actor_id, agent_slug, body, meta = {}, author = null } =
       req.body || {};
     if (!channel || !direction || !body)
       return res.status(400).json({ error: "channel, direction, body required" });
     if (!["in", "out"].includes(direction))
       return res.status(400).json({ error: "direction must be in|out" });
-    const r = p.logMessage({ agent_slug: agent_slug || null, channel, direction, author, body, meta });
+    const r = p.logMessage({ agent_slug: agent_slug || null, channel, direction, type, actor_id, author, body, meta });
     res.status(201).json({ ok: true, ts: r.ts });
   });
 

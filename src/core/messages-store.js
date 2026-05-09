@@ -7,7 +7,7 @@
 //   ~/.apx/messages/<channel>/YYYY-MM-DD.jsonl
 //
 // Each line:
-//   {"ts":"...","channel":"...","direction":"in|out","author":"...","body":"...","meta":{...}}
+//   {"ts":"...","channel":"...","direction":"in|out","type":"user|agent|tool|system","author":"...","actor_id":"...","body":"...","meta":{...}}
 //
 // Why JSONL: same shape as Claude Code's ~/.claude/projects/<id>.jsonl.
 // Streamable, structured, no markdown parsing fragility.
@@ -32,24 +32,61 @@ function dayPathMd(projectRoot, ts) {
   return path.join(projectRoot, "messages", `${day}.md`);
 }
 
-export function appendMessageToFs({ projectRoot, channel, direction, author, body, meta = {}, ts, agent_slug, session_id, external_id }) {
+const VALID_MESSAGE_TYPES = new Set(["user", "agent", "tool", "system"]);
+
+function normalizeMessageType(type) {
+  return typeof type === "string" && VALID_MESSAGE_TYPES.has(type) ? type : null;
+}
+
+export function inferMessageType({ type, channel, direction, author, agent_slug, meta = {} } = {}) {
+  const explicit = normalizeMessageType(type) || normalizeMessageType(meta.type) || normalizeMessageType(meta.actor_type);
+  if (explicit) return explicit;
+  if (channel === "a2a") return "agent";
+  if (meta.tool || meta.tool_name) return "tool";
+  if (author === "system") return "system";
+  if (agent_slug && author && author !== "user" && !String(author).startsWith("@")) return "agent";
+  if (direction === "in" && (author === "user" || String(author || "").startsWith("@"))) return "user";
+  if (direction === "out") return "agent";
+  return direction === "in" ? "user" : "agent";
+}
+
+function inferActorId({ type, actor_id, author, agent_slug, meta = {} } = {}) {
+  if (actor_id) return actor_id;
+  if (meta.actor_id) return meta.actor_id;
+  if (type === "user") return meta.user_id ? String(meta.user_id) : (author || "user");
+  if (type === "agent") return agent_slug || author || "agent";
+  if (type === "tool") return meta.tool || meta.tool_name || author || "tool";
+  if (type === "system") return author || "system";
+  return author || null;
+}
+
+function messageMeta({ type, actor_id, agent_slug, session_id, external_id, meta = {} }) {
+  return {
+    ...meta,
+    type,
+    ...(actor_id ? { actor_id } : {}),
+    ...(agent_slug ? { agent: agent_slug } : {}),
+    ...(session_id ? { session_id } : {}),
+    ...(external_id ? { external_id } : {}),
+  };
+}
+
+export function appendMessageToFs({ projectRoot, channel, direction, type, actor_id, author, body, meta = {}, ts, agent_slug, session_id, external_id }) {
   ts = ts || nowIso();
   const file = dayPathJsonl(projectRoot, ts);
   fs.mkdirSync(path.dirname(file), { recursive: true });
 
-  // Compose meta from explicit fields plus the bag
-  const fullMeta = {
-    ...(agent_slug ? { agent: agent_slug } : {}),
-    ...(session_id ? { session_id } : {}),
-    ...(external_id ? { external_id } : {}),
-    ...meta,
-  };
+  const msgType = inferMessageType({ type, channel, direction, author, agent_slug, meta });
+  const msgActorId = inferActorId({ type: msgType, actor_id, author, agent_slug, meta });
+  const fullMeta = messageMeta({ type: msgType, actor_id: msgActorId, agent_slug, session_id, external_id, meta });
 
   const record = {
     ts,
     channel,
     direction,
+    type: msgType,
     author: author || null,
+    ...(msgActorId ? { actor_id: msgActorId } : {}),
     body: body || "",
     ...(Object.keys(fullMeta).length ? { meta: fullMeta } : {}),
   };
@@ -65,6 +102,16 @@ export function insertMessageRow(db, m) {
     const a = db.prepare("SELECT id FROM agents WHERE slug = ?").get(m.agent_slug);
     if (a) agent_id = a.id;
   }
+  const type = inferMessageType(m);
+  const actor_id = inferActorId({ ...m, type });
+  const meta = messageMeta({
+    type,
+    actor_id,
+    agent_slug: m.agent_slug,
+    session_id: m.session_id,
+    external_id: m.external_id,
+    meta: m.meta || {},
+  });
   return db
     .prepare(
       `INSERT INTO messages (agent_id, session_id, channel, direction, external_id, author, body, meta_json, ts)
@@ -78,17 +125,19 @@ export function insertMessageRow(db, m) {
       m.external_id || null,
       m.author || null,
       m.body || "",
-      JSON.stringify(m.meta || {}),
+      JSON.stringify(meta),
       m.ts
     );
 }
 
 // Single entry point used by everywhere the daemon writes a message.
-export function appendMessage({ projectRoot, db, channel, direction, author, body, meta = {}, ts, agent_slug, session_id, external_id }) {
+export function appendMessage({ projectRoot, db, channel, direction, type, actor_id, author, body, meta = {}, ts, agent_slug, session_id, external_id }) {
   const written = appendMessageToFs({
     projectRoot,
     channel,
     direction,
+    type,
+    actor_id,
     author,
     body,
     meta,
@@ -100,6 +149,8 @@ export function appendMessage({ projectRoot, db, channel, direction, author, bod
   insertMessageRow(db, {
     channel,
     direction,
+    type,
+    actor_id,
     author,
     body,
     meta,
@@ -121,15 +172,33 @@ export function parseDayJsonl(text) {
     try { obj = JSON.parse(trimmed); } catch { continue; }
     if (!obj || typeof obj !== "object") continue;
     const meta = obj.meta || {};
+    const agent_slug = obj.agent_slug || meta.agent;
+    const type = inferMessageType({
+      type: obj.type,
+      channel: obj.channel,
+      direction: obj.direction,
+      author: obj.author,
+      agent_slug,
+      meta,
+    });
+    const actor_id = inferActorId({
+      type,
+      actor_id: obj.actor_id,
+      author: obj.author,
+      agent_slug,
+      meta,
+    });
     out.push({
       ts: obj.ts,
       channel: obj.channel,
       direction: obj.direction,
+      type,
       author: obj.author,
+      actor_id,
       body: obj.body || "",
       meta,
-      agent_slug: meta.agent,
-      session_id: typeof meta.apc_session_id === "number" ? meta.apc_session_id : null,
+      agent_slug,
+      session_id: meta.session_id ?? (typeof meta.apc_session_id === "number" ? meta.apc_session_id : null),
       external_id: meta.external_id,
     });
   }
@@ -156,10 +225,15 @@ export function parseDayFile(text) {
       body = body.replace(metaMatch[0], "");
     }
     body = body.trim();
+    const agent_slug = meta.agent;
+    const type = inferMessageType({ channel, direction, author, agent_slug, meta });
+    const actor_id = inferActorId({ type, author, agent_slug, meta });
     out.push({
       ts, channel, direction, author, body, meta,
-      agent_slug: meta.agent,
-      session_id: typeof meta.apc_session_id === "number" ? meta.apc_session_id : null,
+      type,
+      actor_id,
+      agent_slug,
+      session_id: meta.session_id ?? (typeof meta.apc_session_id === "number" ? meta.apc_session_id : null),
       external_id: meta.external_id,
     });
   }
@@ -343,21 +417,21 @@ export function getRecentTelegramTurnsFromFs({
 // ---------------------------------------------------------------------------
 
 // Write a message to the global channel store.  No SQL cache — JSONL only.
-export function appendGlobalMessage({ channel, direction, author, body, meta = {}, ts, agent_slug, external_id }) {
+export function appendGlobalMessage({ channel, direction, type, actor_id, author, body, meta = {}, ts, agent_slug, external_id }) {
   ts = ts || nowIso();
   const dir = path.join(GLOBAL_MESSAGES_DIR, channel);
   fs.mkdirSync(dir, { recursive: true });
   const file = path.join(dir, `${ts.slice(0, 10)}.jsonl`);
-  const fullMeta = {
-    ...(agent_slug ? { agent: agent_slug } : {}),
-    ...(external_id ? { external_id } : {}),
-    ...meta,
-  };
+  const msgType = inferMessageType({ type, channel, direction, author, agent_slug, meta });
+  const msgActorId = inferActorId({ type: msgType, actor_id, author, agent_slug, meta });
+  const fullMeta = messageMeta({ type: msgType, actor_id: msgActorId, agent_slug, external_id, meta });
   const record = {
     ts,
     channel,
     direction,
+    type: msgType,
     author: author || null,
+    ...(msgActorId ? { actor_id: msgActorId } : {}),
     body: body || "",
     ...(Object.keys(fullMeta).length ? { meta: fullMeta } : {}),
   };
