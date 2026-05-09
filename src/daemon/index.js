@@ -44,6 +44,32 @@ function writePid() {
   } catch {}
 }
 
+function pidIsAlive(pid) {
+  if (!pid || pid === process.pid) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function claimSingleton() {
+  try {
+    if (fs.existsSync(PID_PATH)) {
+      const pid = parseInt(fs.readFileSync(PID_PATH, "utf8"), 10);
+      if (pidIsAlive(pid)) {
+        log(`fatal: apx-daemon already running with pid ${pid}`);
+        process.exit(1);
+      }
+      fs.unlinkSync(PID_PATH);
+    }
+  } catch (e) {
+    log(`fatal: cannot claim daemon pid file: ${e.message}`);
+    process.exit(1);
+  }
+}
+
 function clearPid() {
   try {
     if (fs.existsSync(PID_PATH)) fs.unlinkSync(PID_PATH);
@@ -71,6 +97,7 @@ class RegistryCache {
 
 async function main() {
   ensureHome();
+  claimSingleton();
 
   const cfg = readConfig();
   const host = effectiveHost(cfg);
@@ -95,7 +122,6 @@ async function main() {
 
   const plugins = new PluginManager({ projects, config: cfg, log, registries });
   plugins.initAll();
-  plugins.startAll();
 
   const scheduler = new RoutineScheduler({
     projects,
@@ -103,7 +129,6 @@ async function main() {
     globalConfig: cfg,
     log,
   });
-  scheduler.start();
 
   const startedAt = Date.now();
   const app = buildApi({
@@ -130,8 +155,18 @@ async function main() {
     writePid();
     log(`apx-daemon ${PKG.version} listening on http://${host}:${port}`);
     log(`projects: ${projects.list().length} | plugins: ${Object.keys(plugins.status()).join(", ") || "(none)"}`);
+    plugins.startAll();
+    scheduler.start();
     // Fire wake-up message after a short delay so plugins (Telegram) are ready
     setTimeout(() => triggerWakeup(cfg, log), 3000);
+  });
+
+  server.on("error", (e) => {
+    log(`fatal: listen ${host}:${port} failed: ${e.message}`);
+    plugins.stopAll();
+    registries.shutdown();
+    clearPid();
+    process.exit(1);
   });
 
   function shutdown(signal) {

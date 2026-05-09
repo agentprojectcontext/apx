@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { ProjectManager } from "../src/daemon/db.js";
 import { makeToolHandlers, TOOL_SCHEMAS } from "../src/daemon/super-agent-tools.js";
 import { makeTempProject, cleanupTempProject } from "./_helpers.js";
@@ -24,10 +25,12 @@ function setup() {
 test("TOOL_SCHEMAS exposes the expected functions", () => {
   const names = TOOL_SCHEMAS.map((t) => t.function.name);
   for (const expected of [
-    "list_projects", "list_agents", "list_mcps",
-    "read_agent_memory", "list_files", "read_file",
+    "list_projects", "list_agents", "list_vault_agents", "import_agent",
+    "add_project", "list_mcps", "read_agent_memory", "list_files", "read_file",
+    "write_file", "edit_file", "run_shell",
     "tail_messages", "search_messages",
     "call_agent", "call_mcp", "call_runtime", "send_telegram",
+    "set_identity",
   ]) {
     assert.ok(names.includes(expected), `missing tool: ${expected}`);
   }
@@ -46,11 +49,24 @@ test("list_projects returns the registered project", () => {
   }
 });
 
-test("list_agents returns the agents from AGENTS.md", () => {
+test("list_agents without project returns grouped inventory", () => {
   const { root, projects } = setup();
   try {
     const handlers = makeToolHandlers({ projects, plugins: null, registries: null, globalConfig: {} });
     const r = handlers.list_agents({});
+    assert.equal(r.length, 1);
+    assert.equal(r[0].project.name, "Test Project");
+    assert.deepEqual(r[0].agents.map((a) => a.slug).sort(), ["martin", "sofia"]);
+  } finally {
+    cleanupTempProject(root);
+  }
+});
+
+test("list_agents returns the agents from AGENTS.md", () => {
+  const { root, projects } = setup();
+  try {
+    const handlers = makeToolHandlers({ projects, plugins: null, registries: null, globalConfig: {} });
+    const r = handlers.list_agents({ project: "Test Project" });
     const slugs = r.map((a) => a.slug).sort();
     assert.deepEqual(slugs, ["martin", "sofia"]);
     const sofia = r.find((a) => a.slug === "sofia");
@@ -128,7 +144,7 @@ test("list_mcps returns the MCP registry", () => {
       })
     };
     const handlers = makeToolHandlers({ projects, plugins: null, registries, globalConfig: {} });
-    const r = handlers.list_mcps({});
+    const r = handlers.list_mcps({ project: "Test Project" });
     assert.equal(r.length, 1);
     assert.equal(r[0].name, "filesystem");
     assert.equal(r[0].source, "apc");
@@ -170,6 +186,43 @@ test("read_file refuses path traversal", () => {
       () => handlers.read_file({ path: "/etc/passwd" }),
       /escapes the project root/
     );
+  } finally {
+    cleanupTempProject(root);
+  }
+});
+
+test("write_file requires confirmation in automatico mode", () => {
+  const { root, projects } = setup();
+  try {
+    const handlers = makeToolHandlers({
+      projects,
+      plugins: null,
+      registries: null,
+      globalConfig: { super_agent: { permission_mode: "automatico" } },
+    });
+    assert.throws(
+      () => handlers.write_file({ path: "x.txt", content: "hello" }),
+      /requires_confirmation/
+    );
+    const r = handlers.write_file({ path: "x.txt", content: "hello", confirmed: true });
+    assert.equal(r.ok, true);
+  } finally {
+    cleanupTempProject(root);
+  }
+});
+
+test("run_shell executes in selected project when confirmed", async () => {
+  const { root, projects } = setup();
+  try {
+    const handlers = makeToolHandlers({
+      projects,
+      plugins: null,
+      registries: null,
+      globalConfig: { super_agent: { permission_mode: "automatico" } },
+    });
+    const r = await handlers.run_shell({ command: "pwd", confirmed: true });
+    assert.equal(r.exit_code, 0);
+    assert.equal(fs.realpathSync(r.stdout.trim()), fs.realpathSync(root));
   } finally {
     cleanupTempProject(root);
   }
