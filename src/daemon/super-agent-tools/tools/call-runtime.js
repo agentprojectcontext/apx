@@ -68,7 +68,11 @@ export default {
     }
 
     const r = await rt.run({
-      system: buildAgentSystem(p, agent),
+      system: buildAgentSystem(p, agent, {
+        invocation: "runtime",
+        runtime,
+        caller: "super_agent_tool",
+      }),
       prompt,
       cwd: p.path,
       timeoutMs: timeout_s * 1000,

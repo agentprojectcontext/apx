@@ -1,5 +1,5 @@
-import fs from "node:fs";
 import path from "node:path";
+import { agentSkills, buildAgentSystem as buildCoreAgentSystem } from "../../core/agent-system.js";
 
 export function projectMeta(projects, entry) {
   const meta = projects.list().find((p) => p.id === entry.id);
@@ -61,8 +61,7 @@ export function safePathJoin(root, sub = ".") {
 }
 
 export function skillsFromFields(fields = {}) {
-  if (Array.isArray(fields.Skills)) return fields.Skills;
-  return (fields.Skills || "").split(",").map((s) => s.trim()).filter(Boolean);
+  return agentSkills({ fields });
 }
 
 export function agentRow(agent) {
@@ -76,24 +75,8 @@ export function agentRow(agent) {
   };
 }
 
-export function buildAgentSystem(project, agent) {
-  const parts = [];
-  if (agent.fields.Description) parts.push(agent.fields.Description);
-  if (agent.fields.Role) parts.push(`Role: ${agent.fields.Role}`);
-  if (agent.fields.Language) parts.push(`Default language: ${agent.fields.Language}`);
-
-  const memPath = path.join(project.path, ".apc", "agents", agent.slug, "memory.md");
-  if (fs.existsSync(memPath)) parts.push("## Memory\n" + fs.readFileSync(memPath, "utf8"));
-
-  const apxSkill = path.join(project.path, ".apc", "skills", "apx.md");
-  if (fs.existsSync(apxSkill)) parts.push("## APX\n" + fs.readFileSync(apxSkill, "utf8"));
-
-  for (const skill of skillsFromFields(agent.fields)) {
-    const skillPath = path.join(project.path, ".apc", "skills", `${skill}.md`);
-    if (fs.existsSync(skillPath)) parts.push(`## Skill: ${skill}\n` + fs.readFileSync(skillPath, "utf8"));
-  }
-
-  return parts.join("\n\n");
+export function buildAgentSystem(project, agent, opts = {}) {
+  return buildCoreAgentSystem(project, agent, opts);
 }
 
 export function createPermissionGuard(globalConfig = {}, { implicitConfirmation = false } = {}) {

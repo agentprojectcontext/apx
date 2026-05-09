@@ -66,7 +66,7 @@ export function createRuntimeSession({ projectRoot, storageRoot = projectRoot, a
     `agent: ${agentSlug}\n` +
     `title: ${sessionTitle}\n` +
     `task_ref: ${taskRef}\n` +
-    `status: 🔄 En progreso\n` +
+    `status: 🔄 In progress\n` +
     `started: ${started}\n` +
     `completed: \n` +
     `result: \n` +
@@ -91,7 +91,7 @@ export function closeRuntimeSession({ filePath, externalSessionPath, exitCode, r
   } else if (result) {
     text = setField(text, "result", result.slice(0, 300));
   }
-  text = setField(text, "status", exitCode === 0 ? "✅ Completada" : "⚠️ Cerrada con error");
+  text = setField(text, "status", exitCode === 0 ? "✅ Completed" : "⚠️ Closed with error");
   fs.writeFileSync(filePath, text);
 }
 

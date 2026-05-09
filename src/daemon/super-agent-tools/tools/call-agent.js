@@ -28,7 +28,10 @@ export default {
 
     const result = await callEngine({
       modelId: agent.fields.Model,
-      system: buildAgentSystem(p, agent),
+      system: buildAgentSystem(p, agent, {
+        invocation: "engine",
+        caller: "super_agent_tool",
+      }),
       messages: [{ role: "user", content: prompt }],
       config: p.config || globalConfig,
     });

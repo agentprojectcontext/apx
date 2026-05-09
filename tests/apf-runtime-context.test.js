@@ -43,7 +43,7 @@ test("createRuntimeSession + readSessionFrontmatter roundtrip", () => {
     assert.equal(fm.agent, "sofia");
     assert.equal(fm.runtime, "claude-code");
     assert.equal(fm.task_ref, "TASK-9");
-    assert.match(fm.status, /En progreso/);
+    assert.match(fm.status, /In progress/);
   } finally {
     cleanupTempProject(root);
   }
@@ -65,7 +65,7 @@ test("closeRuntimeSession writes external_session_path + completed status", () =
     });
     const { fm } = readSessionFrontmatter(s.path);
     assert.equal(fm.external_session_path, "/tmp/transcript.jsonl");
-    assert.match(fm.status, /✅ Completada/);
+    assert.match(fm.status, /✅ Completed/);
     assert.match(fm.result, /✅ exit 0/);
     assert.match(fm.result, /did the thing/);
     assert.ok(fm.completed, "completed timestamp should be set");
@@ -74,7 +74,7 @@ test("closeRuntimeSession writes external_session_path + completed status", () =
   }
 });
 
-test("closeRuntimeSession marks failures with ⚠️ Cerrada con error", () => {
+test("closeRuntimeSession marks failures with ⚠️ Closed with error", () => {
   const root = makeTempProject({ agents: [{ slug: "sofia" }] });
   try {
     const s = createRuntimeSession({
@@ -88,7 +88,7 @@ test("closeRuntimeSession marks failures with ⚠️ Cerrada con error", () => {
       result: "broke",
     });
     const { fm } = readSessionFrontmatter(s.path);
-    assert.match(fm.status, /⚠️ Cerrada con error/);
+    assert.match(fm.status, /⚠️ Closed with error/);
     assert.match(fm.result, /⚠️ exit 1/);
   } finally {
     cleanupTempProject(root);
@@ -127,7 +127,7 @@ test("createRuntimeSession + closeRuntimeSession sequence — full roundtrip", (
     // Frontmatter still well-formed (starts with ---, ends with ---)
     assert.match(text, /^---\n[\s\S]*?\n---/);
     const { fm } = readSessionFrontmatter(s.path);
-    assert.equal(fm.status, "✅ Completada");
+    assert.equal(fm.status, "✅ Completed");
     assert.equal(fm.external_session_path, "/tmp/x.jsonl");
   } finally {
     cleanupTempProject(root);

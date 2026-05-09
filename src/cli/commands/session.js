@@ -104,9 +104,9 @@ function findSessionById(root, id) {
 }
 
 function statusEmoji(status) {
-  if (/Completada|complete/i.test(status)) return "✅";
-  if (/En progreso|in.progress/i.test(status)) return "🔄";
-  if (/stale|Cerrada/i.test(status)) return "⚠️";
+  if (/complete/i.test(status)) return "✅";
+  if (/in.progress/i.test(status)) return "🔄";
+  if (/stale|closed/i.test(status)) return "⚠️";
   return "❓";
 }
 
@@ -242,7 +242,7 @@ export function cmdSessionClose(args) {
   if (!s) throw new Error(`session "${id}" not found`);
 
   let text = fs.readFileSync(s.path, "utf8");
-  text = setFrontmatterField(text, "status", "✅ Completada");
+  text = setFrontmatterField(text, "status", "✅ Completed");
   text = setFrontmatterField(text, "completed", nowIso());
   if (args.flags.result && args.flags.result !== true) {
     text = setFrontmatterField(text, "result", String(args.flags.result));
@@ -254,7 +254,7 @@ export function cmdSessionClose(args) {
 export function cmdSessionCheck() {
   const root = requireRoot();
   const sessions = listAllSessions(root).filter((s) =>
-    /En progreso/i.test(s.status)
+    /in.progress/i.test(s.status)
   );
 
   if (sessions.length === 0) {
@@ -338,7 +338,7 @@ export async function cmdSessionResume(args) {
 export function cmdSessionCloseStale() {
   const root = requireRoot();
   const sessions = listAllSessions(root).filter((s) =>
-    /En progreso/i.test(s.status)
+    /in.progress/i.test(s.status)
   );
   let closed = 0;
   for (const s of sessions) {
@@ -348,7 +348,7 @@ export function cmdSessionCloseStale() {
     text = setFrontmatterField(
       text,
       "status",
-      `⚠️ Cerrada automáticamente (stale >${STALE_HOURS}h)`
+      `⚠️ Automatically closed (stale >${STALE_HOURS}h)`
     );
     text = setFrontmatterField(text, "completed", nowIso());
     text = setFrontmatterField(

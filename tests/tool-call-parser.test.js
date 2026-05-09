@@ -22,7 +22,7 @@ test("extractPseudoToolCalls — multiple blocks", () => {
 _icall()
 {"name": "list_agents", "arguments": {"project": "APX testing sandbox"}}
 </tool_call>
-{"name": "send_telegram", "arguments": {"text": "En el proyecto..."}}
+{"name": "send_telegram", "arguments": {"text": "In the project..."}}
 </tool_call>`;
   const calls = extractPseudoToolCalls(text);
   assert.equal(calls.length, 3);
@@ -30,7 +30,7 @@ _icall()
   assert.equal(calls[1].function.name, "list_agents");
   assert.equal(calls[1].function.arguments.project, "APX testing sandbox");
   assert.equal(calls[2].function.name, "send_telegram");
-  assert.match(calls[2].function.arguments.text, /^En el proyecto/);
+  assert.match(calls[2].function.arguments.text, /^In the project/);
 });
 
 test("extractPseudoToolCalls — nested arguments object", () => {
@@ -61,16 +61,16 @@ test("cleanTextOfPseudoToolCalls — strips fences and JSON blocks", () => {
 <tool_call>
 {"name": "list_agents", "arguments": {}}
 </tool_call>
-Y después esto.`;
+And after this.`;
   const cleaned = cleanTextOfPseudoToolCalls(text);
   assert.match(cleaned, /^Voy a hacer esto/);
-  assert.match(cleaned, /Y después esto\.$/);
+  assert.match(cleaned, /And after this\.$/);
   assert.doesNotMatch(cleaned, /tool_call/);
   assert.doesNotMatch(cleaned, /list_agents/);
 });
 
 test("cleanTextOfPseudoToolCalls — leaves clean text untouched", () => {
-  const text = "Hola, ¿cómo va?";
+  const text = "Hello, how is it going?";
   assert.equal(cleanTextOfPseudoToolCalls(text), text);
 });
 

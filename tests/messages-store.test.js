@@ -177,10 +177,10 @@ test("getRecentTelegramTurns — sanitizes assistant turns with factual data", a
   const root = makeTempProject({ agents: [{ slug: "sofia" }] });
   const db = freshDb();
   try {
-    appendMessage({ projectRoot: root, db, channel: "telegram", direction: "in",  author: "@a", body: "qué agentes hay?", meta: { chat_id: 1 }, ts: "2026-05-08T10:00:00Z" });
-    appendMessage({ projectRoot: root, db, channel: "telegram", direction: "out", author: "apx", body: "Hay 2 agentes:\n- sofia: claude-haiku-4-5\n- martin: claude-sonnet-4-6", meta: { chat_id: 1 }, ts: "2026-05-08T10:00:01Z" });
+    appendMessage({ projectRoot: root, db, channel: "telegram", direction: "in",  author: "@a", body: "which agents exist?", meta: { chat_id: 1 }, ts: "2026-05-08T10:00:00Z" });
+    appendMessage({ projectRoot: root, db, channel: "telegram", direction: "out", author: "apx", body: "There are 2 agents:\n- sofia: claude-haiku-4-5\n- martin: claude-sonnet-4-6", meta: { chat_id: 1 }, ts: "2026-05-08T10:00:01Z" });
     const turns = getRecentTelegramTurns(db, { chat_id: 1, limit: 10, max_age_hours: 999_999 });
-    assert.equal(turns[0].content, "qué agentes hay?");
+    assert.equal(turns[0].content, "which agents exist?");
     // assistant turn was redacted because it contained model ids + bullet list
     assert.match(turns[1].content, /Re-call the tool/);
     assert.doesNotMatch(turns[1].content, /claude-haiku/);
@@ -196,10 +196,10 @@ test("getRecentTelegramTurns — keeps short conversational turns intact", async
   const db = freshDb();
   try {
     appendMessage({ projectRoot: root, db, channel: "telegram", direction: "in",  author: "@a", body: "hola",                meta: { chat_id: 1 }, ts: "2026-05-08T10:00:00Z" });
-    appendMessage({ projectRoot: root, db, channel: "telegram", direction: "out", author: "apx", body: "Hola, ¿cómo estás?", meta: { chat_id: 1 }, ts: "2026-05-08T10:00:01Z" });
+    appendMessage({ projectRoot: root, db, channel: "telegram", direction: "out", author: "apx", body: "Hello, how are you?", meta: { chat_id: 1 }, ts: "2026-05-08T10:00:01Z" });
     const turns = getRecentTelegramTurns(db, { chat_id: 1, limit: 10, max_age_hours: 999_999 });
     assert.equal(turns[0].content, "hola");
-    assert.equal(turns[1].content, "Hola, ¿cómo estás?");
+    assert.equal(turns[1].content, "Hello, how are you?");
   } finally {
     db.close();
     cleanupTempProject(root);

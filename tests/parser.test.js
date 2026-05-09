@@ -69,7 +69,7 @@ test("parseSessionFrontmatter — basic fields", () => {
 id: 2026-05-07-01
 agent: sofia
 title: Hello world
-status: 🔄 En progreso
+status: 🔄 In progress
 started: 2026-05-07T14:32:00Z
 ---
 

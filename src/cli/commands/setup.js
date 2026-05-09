@@ -194,7 +194,7 @@ export async function cmdSetup() {
   console.log(b("  Language:"));
   console.log(di("  The super-agent will always respond in your language."));
   console.log();
-  const language = await ask("  Your language (e.g. English, Español, Português): ") || "English";
+  const language = await ask("  Your language (e.g. English, Spanish, Portuguese): ") || "English";
 
   // ── Summary ─────────────────────────────────────────────────────────────────
   console.log();
@@ -324,15 +324,15 @@ async function sendTelegramWakeup({ botToken, chatId, language, model }) {
 // Minimal fallback messages per common language (used only if daemon can't respond)
 function languageFallback(lang) {
   const l = lang.toLowerCase();
-  if (/espa[ñn]|spanish|arg|lat/i.test(l))
-    return "⚡ ¡Despierto y listo para trabajar! APX online.\nAún no tengo nombre, ¿cómo te gustaría llamarme?\nY vos, ¿cómo te llamas o cómo puedo llamarte?";
+  if (/spanish|arg|lat/i.test(l))
+    return "⚡ APX is online and ready to work.\nI do not have a name yet. What would you like to call me?\nAnd what should I call you?";
   if (/portugu|brasil/i.test(l))
-    return "⚡ Acordei e pronto para trabalhar! APX online.\nAinda não tenho nome, como você gostaria de me chamar?\nE você, como posso te chamar?";
+    return "⚡ APX is online and ready to work.\nI do not have a name yet. What would you like to call me?\nAnd what should I call you?";
   if (/franc|french/i.test(l))
-    return "⚡ Réveillé et prêt à travailler ! APX en ligne.\nJe n'ai pas encore de nom, comment souhaitez-vous m'appeler ?\nEt vous, comment puis-je vous appeler ?";
+    return "⚡ APX is online and ready to work.\nI do not have a name yet. What would you like to call me?\nAnd what should I call you?";
   if (/deutsch|german/i.test(l))
-    return "⚡ Aufgewacht und bereit! APX ist online.\nIch habe noch keinen Namen — wie möchtest du mich nennen?\nUnd du, wie kann ich dich nennen?";
+    return "⚡ APX is online and ready to work.\nI do not have a name yet. What would you like to call me?\nAnd what should I call you?";
   if (/ital/i.test(l))
-    return "⚡ Sveglio e pronto a lavorare! APX online.\nNon ho ancora un nome, come vorresti chiamarmi?\nE tu, come posso chiamarti?";
+    return "⚡ APX is online and ready to work.\nI do not have a name yet. What would you like to call me?\nAnd what should I call you?";
   return "⚡ I'm awake and ready to go! APX is online.\nI don't have a name yet — what would you like to call me?\nAnd you, what's your name or what should I call you?";
 }

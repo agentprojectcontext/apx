@@ -15,7 +15,7 @@
 //     },
 //     "routines": [
 //       { "name": "morning-report", "schedule": "0 9 * * *", "agent": "sofia",
-//         "prompt": "Resumen del día anterior", "channel": "telegram" }
+//         "prompt": "Previous day summary", "channel": "telegram" }
 //     ]
 //   }
 //

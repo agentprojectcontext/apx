@@ -33,6 +33,7 @@ APC projects are filesystem projects anywhere on disk with AGENTS.md and .apc/pr
 Useful CLI facts:
 - Permission mode: apx permission show; apx permission set total|automatico|permiso.
 - Routines: apx routine list|get|history|run|add. Autonomous super-agent routines use kind super_agent.
+- Routine design: if the user asks for an agent to think, decide, write, or reply, create an exec_agent routine with spec.agent and spec.prompt. If the user asks APX itself to orchestrate tools or Telegram, create a super_agent routine. If the request is only a deterministic command, create a shell routine. If unclear, ask one short question: "agent routine or simple command routine?"
 - Safe read-only shell checks such as apx --help, apx routine list, docker ps, find, ls, rg, grep can run in automatico without asking.
 
 Channel context:
@@ -57,30 +58,30 @@ Available tools:
 
 HARD RULES (do not deviate):
 1. NEVER invent project names, agent slugs, model ids, MCP names or paths. ALWAYS look them up via list_* first.
-2. If the user says "los agentes" / "lista" / "qué hay" without specifying a project, that means **all of them** — call the tool WITHOUT a project argument and the result will include every project.
+2. If the user asks for agents, lists, inventory, or "what exists" without specifying a project, that means **all of them** — call the tool WITHOUT a project argument and the result will include every project.
 3. NEVER answer "specify a project" — instead, just call the tool with no argument and you'll get the full picture.
 4. If a tool result has an error, retry with different arguments before falling back to asking the user.
 5. Respect permission mode. total = execute requested actions without confirmation. automatico = read/list/safe shell actions run directly; destructive, external, runtime, MCP calls, outbound messages, config, and filesystem mutations need explicit user confirmation. permiso = only allowed tools run directly; everything else needs confirmation.
-6. Default language: es-AR. Plain text, no markdown formatting (Telegram doesn't render it).
+6. Write in the user's language unless they request another language. The system prompt stays English. Plain text, no markdown formatting for Telegram.
 7. Stay brief: under 6 sentences unless asked for detail.
 8. You DO see recent prior turns of this chat as previous messages when applicable. **Use them ONLY to disambiguate references** (e.g. "el primero" → first project mentioned earlier). For ANY factual data — agent details, MCP details, file contents, memory — RE-CALL the tool. Past turns are context, not a cache. Models change, agents change, files change.
 9. /reset or /new from the user means "forget previous turns and answer this one fresh" — if you see those prefixes the operator already cleared the context for you.
 10. ACTION RULE: use direct tools for direct work. run_shell executes commands; write_file/edit_file modify files. call_runtime is only for spawning a separate external runtime/chat. call_mcp is only for an MCP server/tool.
-11. DISPATCH RULE: when the user says things like "que <agente> haga X", "iniciá una sesión con Claude/Codex", "que <agente> arranque <runtime>", "andá a <runtime> y hacé X" — that is a call_runtime request. Look up the agent slug with list_agents if needed, then call call_runtime({agent: <slug>, runtime: 'claude-code'|'codex'|'opencode'|'aider', prompt: <user's request>}). The agent's declared model (in AGENTS.md) is IGNORED in this case; the runtime supplies the model. Memory + skills of the agent become the system prompt of the runtime.
+11. DISPATCH RULE: when the user asks a named agent to work inside Claude, Codex, OpenCode, or Aider, that is a call_runtime request. Look up the agent slug with list_agents if needed, then call call_runtime({agent: <slug>, runtime: 'claude-code'|'codex'|'opencode'|'aider', prompt: <user's request>}). The agent's declared model (in AGENTS.md) is IGNORED in this case; the runtime supplies the model. Memory + skills of the agent become the system prompt of the runtime.
 12. PROJECT RULE: when the user gives no project, use project "default". Do not infer a non-default project from old chat history unless the user references it. If they mention a path or project name, look it up or add it with add_project.
 13. VAULT RULE: when the user wants a new existing agent/template, call list_vault_agents first. If a suitable vault agent exists, import_agent into the chosen project. If none fits, say briefly what is missing.
-14. NO-PENDING RULE: never say "dame un segundo", "voy a hacerlo", or "lo intento luego" as a final answer. Either call the tool in this same turn or say what blocks you.
-15. IDENTITY RULE: when the user asks you to change your name ("llamame X", "call yourself X", "tu nombre es X"), or update your personality/language, call set_identity and persist the change. Then confirm with your new name.`;
+14. NO-PENDING RULE: never say "give me a second", "I will do it", or "I will try later" as a final answer. Either call the tool in this same turn or say what blocks you.
+15. IDENTITY RULE: when the user asks you to change your name, call yourself something, or update your personality/language, call set_identity and persist the change. Then confirm with your new name.`;
 
 function isShortConfirmation(text) {
-  return /^(s[ií]|si dale|sí dale|dale|ok|oka|okey|confirmo|confirmado|mandale|hacelo|proced[eé]|vamos)\b/i
+  return /^(yes|y|si|si dale|dale|ok|okay|confirm|confirmed|go|proceed|do it)\b/i
     .test(String(text || "").trim());
 }
 
 function lastAssistantAskedForConfirmation(messages) {
   for (let i = messages.length - 1; i >= 0; i--) {
     if (messages[i]?.role !== "assistant") continue;
-    return /\b(confirm[aá]s?|confirmame|ok|permiso|puedo|dale|proced[ao])\b/i.test(messages[i].content || "");
+    return /\b(confirm|confirmation|ok|okay|permission|allowed|proceed|do it|dale)\b/i.test(messages[i].content || "");
   }
   return false;
 }

@@ -11,11 +11,10 @@
 //   shell       — run a shell command.        spec: { command, timeout_ms? }
 
 import { spawn } from "node:child_process";
-import path from "node:path";
-import fs from "node:fs";
 import { callEngine } from "./engines/index.js";
 import { runSuperAgent } from "./super-agent.js";
 import { readAgents } from "../core/parser.js";
+import { buildAgentSystem } from "../core/agent-system.js";
 import {
   listRoutines,
   getRoutine,
@@ -70,17 +69,13 @@ async function handleExecAgent(ctx, routine) {
   const model = agent.fields.Model;
   if (!model) throw new Error(`agent ${slug} has no model`);
 
-  const f = agent.fields;
-  const parts = [];
-  if (f.Description) parts.push(f.Description);
-  if (f.Role) parts.push(`Role: ${f.Role}`);
-  const memPath = path.join(project.path, ".apc", "agents", slug, "memory.md");
-  if (fs.existsSync(memPath)) parts.push("## Memory\n" + fs.readFileSync(memPath, "utf8"));
-  parts.push(`You were invoked by routine "${routine.name}". Reply briefly, max 4 sentences.`);
-
   const result = await callEngine({
     modelId: model,
-    system: parts.join("\n\n"),
+    system: buildAgentSystem(project, agent, {
+      invocation: "routine",
+      routine: routine.name,
+      extraParts: [`Reply briefly, max 4 sentences.`],
+    }),
     messages: [{ role: "user", content: prompt }],
     config: project.config || globalConfig,
   });

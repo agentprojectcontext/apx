@@ -28,13 +28,13 @@
 //   }
 
 import fs from "node:fs";
-import path from "node:path";
 import { TELEGRAM_STATE_PATH } from "../../core/config.js";
 import { callEngine } from "../engines/index.js";
 import { runSuperAgent, isSuperAgentEnabled } from "../super-agent.js";
 import { stripThinking } from "../thinking.js";
 import { getRecentTelegramTurnsFromFs, appendGlobalMessage } from "../../core/messages-store.js";
 import { readAgents } from "../../core/parser.js";
+import { buildAgentSystem } from "../../core/agent-system.js";
 
 const API_BASE = "https://api.telegram.org";
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -297,7 +297,7 @@ class ChannelPoller {
     // honor it for future messages.
     if (isReset) {
       try {
-        const ack = "Listo, contexto limpiado. Empezamos de cero — ¿qué necesitás?";
+        const ack = "Done, context cleared. Starting fresh. What do you need?";
         await this._send({ chat_id, text: ack });
         appendGlobalMessage({
           channel: "telegram",
@@ -327,7 +327,11 @@ class ChannelPoller {
       const agent = readAgents(target.path).find((a) => a.slug === routeSlug);
       if (agent && agent.fields.Model) {
         try {
-          const system = buildAgentSystem(target, agent, author);
+          const system = buildAgentSystem(target, agent, {
+            invocation: "telegram",
+            channel: this.channel.name,
+            caller: author,
+          });
           const result = await callEngine({
             modelId: agent.fields.Model,
             system,
@@ -484,26 +488,6 @@ class ChannelPoller {
     if (!json.ok) throw new Error(json.description || `send failed (${res.status})`);
     return json.result;
   }
-}
-
-// ---------- system-prompt builder (same as /exec) ---------------------------
-
-function buildAgentSystem(target, agent, author) {
-  const parts = [];
-  if (agent.fields.Description) parts.push(agent.fields.Description);
-  if (agent.fields.Role) parts.push(`Role: ${agent.fields.Role}`);
-  if (agent.fields.Language) parts.push(`Default language: ${agent.fields.Language}`);
-  parts.push(
-    `You are speaking via Telegram with ${author}. Keep responses brief — ideally under 4 sentences. Mirror their language.`
-  );
-  const memPath = path.join(target.path, ".apc", "agents", agent.slug, "memory.md");
-  if (fs.existsSync(memPath)) parts.push("## Memory\n" + fs.readFileSync(memPath, "utf8"));
-  const skills = (agent.fields.Skills || "").split(",").map((s) => s.trim()).filter(Boolean);
-  for (const skill of skills) {
-    const sp = path.join(target.path, ".apc", "skills", `${skill}.md`);
-    if (fs.existsSync(sp)) parts.push(`## Skill: ${skill}\n` + fs.readFileSync(sp, "utf8"));
-  }
-  return parts.join("\n\n");
 }
 
 function sleep(ms) {

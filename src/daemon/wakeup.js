@@ -11,20 +11,20 @@ function detectLanguage(identity) {
   const lang = process.env.LANG || process.env.LC_MESSAGES || process.env.LC_ALL || "";
   const code = lang.split(/[_\.]/)[0].toLowerCase();
   const map = {
-    es: "Spanish (Español)",
+    es: "Spanish",
     en: "English",
-    fr: "French (Français)",
-    pt: "Portuguese (Português)",
-    de: "German (Deutsch)",
-    it: "Italian (Italiano)",
-    nl: "Dutch (Nederlands)",
-    ru: "Russian (Русский)",
-    ja: "Japanese (日本語)",
-    zh: "Chinese (中文)",
-    ko: "Korean (한국어)",
-    ar: "Arabic (العربية)",
+    fr: "French",
+    pt: "Portuguese",
+    de: "German",
+    it: "Italian",
+    nl: "Dutch",
+    ru: "Russian",
+    ja: "Japanese",
+    zh: "Chinese",
+    ko: "Korean",
+    ar: "Arabic",
   };
-  return map[code] || "Spanish (Español)"; // default es-AR like the super-agent
+  return map[code] || "English";
 }
 
 async function generateMessage(identity, engineConfig) {

@@ -19,7 +19,7 @@ function askYN(rl, question, defaultYes = false) {
     rl.question(`${question} [${hint}]: `, (ans) => {
       const a = ans.trim().toLowerCase();
       if (!a) return resolve(defaultYes);
-      resolve(a === "y" || a === "yes" || a === "s" || a === "si" || a === "sí");
+      resolve(a === "y" || a === "yes");
     });
   });
 }
@@ -120,7 +120,7 @@ export async function runWizard() {
   const personality   = await ask(rl, "  Personality (comma-separated traits)", existing.personality || "direct, curious, helpful");
   const owner_name    = await ask(rl, "  Your name", existing.owner_name || "");
   const owner_context = await ask(rl, "  What are you building / working on", existing.owner_context || "");
-  const language      = await ask(rl, "  Language for agent messages (e.g. Spanish, English)", existing.language || "Spanish (Español)");
+  const language      = await ask(rl, "  Language for agent messages (e.g. Spanish, English)", existing.language || "English");
 
   console.log("\n  Claude Code permissions");
   console.log("  APX can configure Claude Code to allow terminal commands without prompts.");

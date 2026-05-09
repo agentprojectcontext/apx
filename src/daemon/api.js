@@ -42,6 +42,7 @@ import { readGlobalMessages, readProjectMessages, searchProjectMessages } from "
 import { readAgents } from "../core/parser.js";
 import { parseSessionFrontmatter } from "../core/parser.js";
 import { writeAgentFile, ensureAgentDir, regenerateAgentsMd } from "../core/scaffold.js";
+import { buildAgentSystem } from "../core/agent-system.js";
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 
@@ -421,7 +422,7 @@ export function buildApi({ projects, registries, plugins, scheduler, version, st
     if (!modelId) return res.status(400).json({ error: "agent has no model and none provided" });
 
     try {
-      const system = buildAgentSystem(p, agent);
+      const system = buildAgentSystem(p, agent, { invocation: "engine" });
       const conv = startConversation({ storagePath: p.storagePath, agentSlug: agent.slug, engine: modelId, system });
       appendTurn({ filePath: conv.path, role: "user", content: prompt });
 
@@ -488,9 +489,9 @@ export function buildApi({ projects, registries, plugins, scheduler, version, st
 
       // Build system prompt — inject compact summary if this conversation was compacted.
       const extraParts = compactSummary
-        ? [`## Contexto de conversación anterior (compactado)\n${compactSummary}`]
+        ? [`## Previous Conversation Context (Compacted)\n${compactSummary}`]
         : [];
-      const system = buildAgentSystem(p, agent, { extraParts });
+      const system = buildAgentSystem(p, agent, { invocation: "engine", extraParts });
 
       if (!conversation_id) {
         const conv = startConversation({ storagePath: p.storagePath, agentSlug: agent.slug, engine: modelId, system });
@@ -688,6 +689,8 @@ export function buildApi({ projects, registries, plugins, scheduler, version, st
     });
 
     const system = buildAgentSystem(p, agent, {
+      invocation: "runtime",
+      runtime,
       extraParts: [
         buildApfHint({
           projectName,
@@ -775,11 +778,11 @@ export function buildApi({ projects, registries, plugins, scheduler, version, st
     if (req.query.summarize === "true" && isSuperAgentEnabled(config)) {
       try {
         const prompt =
-          `Resumí qué pasó en esta sesión APC en 4 bullets concretos.\n\n` +
+          `Summarize what happened in this APC session in 4 concrete bullets.\n\n` +
           `Frontmatter:\n${JSON.stringify(out.frontmatter, null, 2)}\n\n` +
           (out.external_transcript
-            ? `Transcript externo (últimos ${out.external_transcript.tail.length} chars):\n${out.external_transcript.tail}`
-            : `(sin transcript externo)`);
+            ? `External transcript (last ${out.external_transcript.tail.length} chars):\n${out.external_transcript.tail}`
+            : `(no external transcript)`);
         const sa = await runSuperAgent({ globalConfig: config, projects, plugins, registries, prompt, contextNote: `Resume request for session ${id}.` });
         out.summary = sa.text;
       } catch (e) {
@@ -1083,27 +1086,4 @@ function agentToResponse(a) {
     tools: Array.isArray(f.Tools) ? f.Tools : [],
     extra,
   };
-}
-
-// Build system prompt from an agent's fields + memory + skills.
-// Optional `extraParts` are appended at the end.
-function buildAgentSystem(p, agent, { extraParts = [] } = {}) {
-  const f = agent.fields || {};
-  const parts = [];
-  if (f.Description) parts.push(f.Description);
-  if (f.Role) parts.push(`Role: ${f.Role}`);
-  if (f.Language) parts.push(`Default language: ${f.Language}`);
-  const memPath = path.join(p.path, ".apc", "agents", agent.slug, "memory.md");
-  if (fs.existsSync(memPath)) {
-    parts.push("## Memory\n" + fs.readFileSync(memPath, "utf8"));
-  }
-  const apxSkill = path.join(p.path, ".apc", "skills", "apx.md");
-  if (fs.existsSync(apxSkill)) parts.push("## APX\n" + fs.readFileSync(apxSkill, "utf8"));
-  const skills = Array.isArray(f.Skills) ? f.Skills : [];
-  for (const skill of skills) {
-    const sp = path.join(p.path, ".apc", "skills", `${skill}.md`);
-    if (fs.existsSync(sp)) parts.push(`## Skill: ${skill}\n` + fs.readFileSync(sp, "utf8"));
-  }
-  for (const ep of extraParts) parts.push(ep);
-  return parts.join("\n\n");
 }

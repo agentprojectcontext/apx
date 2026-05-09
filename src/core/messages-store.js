@@ -297,9 +297,9 @@ export function getRecentTelegramTurns(
 // answer that mixes fragments of the old one with hallucinations. The
 // failure observed with qwen2.5:14b was:
 //
-//   prev assistant: "agente sandbox con modelo ollama:llama3.2:3b"
-//   user: "y en el otro proyecto qué agente tiene?"
-//   assistant (alucinated): "agente assistant con modelo ollama:llama3.2:3b"
+//   prev assistant: "sandbox agent with model ollama:llama3.2:3b"
+//   user: "and what agent does the other project have?"
+//   assistant (hallucinated): "assistant agent with model ollama:llama3.2:3b"
 //                           (sofia exists, not "assistant", and her model is
 //                            claude-haiku-4-5, not the carry-over from above)
 //
