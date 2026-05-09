@@ -75,7 +75,7 @@ export function getRoutine(projectPath, name) {
   return readFile(projectPath).find((r) => r.name === name) || null;
 }
 
-export function upsertRoutine(projectPath, { name, kind, schedule, spec, enabled = true }) {
+export function upsertRoutine(projectPath, { name, kind, schedule, spec, enabled = true, permission_mode, allowed_tools }) {
   if (!name || !kind || !schedule) throw new Error("routine requires name, kind, schedule");
   const now = nowIso();
   const routines = readFile(projectPath);
@@ -87,6 +87,8 @@ export function upsertRoutine(projectPath, { name, kind, schedule, spec, enabled
     kind,
     schedule,
     spec: spec || {},
+    permission_mode: permission_mode || prev?.permission_mode || null,
+    allowed_tools: Array.isArray(allowed_tools) ? allowed_tools : (prev?.allowed_tools || []),
     enabled: enabled !== false,
     last_run_at: prev?.last_run_at ?? null,
     last_status: prev?.last_status ?? null,

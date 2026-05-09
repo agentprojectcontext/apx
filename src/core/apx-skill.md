@@ -5,6 +5,9 @@ The daemon runs on `127.0.0.1:7430` and auto-starts on first `apx` call.
 APX reads APC project context from `.apc/`, but APX runtime state belongs outside the repository
 under `~/.apx/projects/<project-id>/`.
 
+The APX super-agent has an always-available default workspace at `~/.apx/projects/default`.
+When no project is named, system-level work belongs there.
+
 ---
 
 ## Coordinate with other agents
@@ -76,6 +79,29 @@ apx messages tail                               # last 50 messages, all channels
 apx messages tail --channel runtime             # only agent invocations
 apx messages tail --agent <slug> -n 20
 ```
+
+## Super-agent permissions
+
+```bash
+apx permission show
+apx permission set automatico   # total | automatico | permiso
+```
+
+`automatico` runs read/list/safe shell checks directly and asks before destructive shell, MCP,
+runtime, outbound, config, or filesystem mutation actions.
+
+## Routines
+
+```bash
+apx routine list
+apx routine get <name>
+apx routine history <name>
+apx routine add clima --kind super_agent --schedule every:5m \
+  --permission-mode total \
+  --spec '{"prompt":"Check weather and send Telegram update."}'
+```
+
+Routine kinds: `heartbeat`, `exec_agent`, `super_agent`, `telegram`, `shell`.
 
 ## APC_RESULT
 

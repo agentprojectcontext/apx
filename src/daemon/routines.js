@@ -6,6 +6,7 @@
 // Kinds:
 //   heartbeat   — log a heartbeat message.   spec: { channel?, message? }
 //   exec_agent  — call an agent engine.       spec: { agent: slug, prompt }
+//   super_agent — call the APX super-agent.   spec: { prompt }
 //   telegram    — send a Telegram message.    spec: { channel?, chat_id?, text }
 //   shell       — run a shell command.        spec: { command, timeout_ms? }
 
@@ -13,6 +14,7 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 import fs from "node:fs";
 import { callEngine } from "./engines/index.js";
+import { runSuperAgent } from "./super-agent.js";
 import { readAgents } from "../core/parser.js";
 import {
   listRoutines,
@@ -92,6 +94,37 @@ async function handleExecAgent(ctx, routine) {
   return { status: "ok", reply: result.text };
 }
 
+async function handleSuperAgent(ctx, routine) {
+  const { project, globalConfig, projects, plugins, registries } = ctx;
+  const { prompt } = routine.spec;
+  if (!prompt) throw new Error("super_agent: spec needs { prompt }");
+
+  const cfg = structuredClone(globalConfig || {});
+  cfg.super_agent = {
+    ...(globalConfig?.super_agent || {}),
+    ...(routine.permission_mode ? { permission_mode: routine.permission_mode } : {}),
+    ...(Array.isArray(routine.allowed_tools) ? { allowed_tools: routine.allowed_tools } : {}),
+  };
+
+  const result = await runSuperAgent({
+    globalConfig: cfg,
+    projects,
+    plugins,
+    registries,
+    prompt,
+    contextNote: `You were invoked by APX routine "${routine.name}" in project ${project.path}. This is an autonomous scheduled run, not an interactive Telegram reply.`,
+  });
+
+  project.logMessage({
+    channel: "routine",
+    direction: "out",
+    author: result.name || "super_agent",
+    body: result.text || "",
+    meta: { routine: routine.name, tool_trace: result.trace, usage: result.usage },
+  });
+  return { status: "ok", reply: result.text, trace: result.trace };
+}
+
 async function handleTelegram(ctx, routine) {
   const { plugins } = ctx;
   const tg = plugins?.get("telegram");
@@ -130,6 +163,7 @@ function handleShell(ctx, routine) {
 const HANDLERS = {
   heartbeat: handleHeartbeat,
   exec_agent: handleExecAgent,
+  super_agent: handleSuperAgent,
   telegram: handleTelegram,
   shell: handleShell,
 };
@@ -144,6 +178,10 @@ export async function runRoutineNow(ctx, routine) {
   let errMsg = null;
   try {
     result = await handler(ctx, routine);
+    if (result?.status === "error") {
+      status = "error";
+      errMsg = result.error || result.stderr || `routine ${routine.name} returned error status`;
+    }
   } catch (e) {
     status = "error";
     errMsg = e.message;
@@ -159,13 +197,23 @@ export async function runRoutineNow(ctx, routine) {
     next_run_at: next,
     disable: isOnce,
   });
+  ctx.project.logMessage?.({
+    channel: "routine",
+    direction: "out",
+    author: "apx",
+    body: status === "ok"
+      ? `routine ${routine.name} ok`
+      : `routine ${routine.name} error: ${errMsg}`,
+    meta: { routine: routine.name, status, result },
+  });
   return { ...result, last_run_at: lastRun, next_run_at: next };
 }
 
 export class RoutineScheduler {
-  constructor({ projects, plugins, globalConfig, log }) {
+  constructor({ projects, plugins, registries, globalConfig, log }) {
     this.projects = projects;
     this.plugins = plugins;
+    this.registries = registries;
     this.globalConfig = globalConfig;
     this.log = log || (() => {});
     this._timer = null;
@@ -199,7 +247,13 @@ export class RoutineScheduler {
         for (const r of due) {
           this.log(`routine ${r.name} (${r.kind}) firing in project #${proj.id}`);
           await runRoutineNow(
-            { project: proj, plugins: this.plugins, globalConfig: this.globalConfig },
+            {
+              project: proj,
+              projects: this.projects,
+              plugins: this.plugins,
+              registries: this.registries,
+              globalConfig: this.globalConfig,
+            },
             r
           );
         }

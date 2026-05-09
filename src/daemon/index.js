@@ -126,6 +126,7 @@ async function main() {
   const scheduler = new RoutineScheduler({
     projects,
     plugins,
+    registries,
     globalConfig: cfg,
     log,
   });

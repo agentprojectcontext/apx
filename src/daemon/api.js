@@ -843,7 +843,7 @@ export function buildApi({ projects, registries, plugins, scheduler, version, st
     const r = getRoutine(p.path, req.params.name);
     if (!r) return res.status(404).json({ error: "routine not found" });
     try {
-      const result = await runRoutineNow({ project: p, plugins, globalConfig: config }, r);
+      const result = await runRoutineNow({ project: p, projects, plugins, registries, globalConfig: config }, r);
       res.json(result);
     } catch (e) {
       res.status(500).json({ error: e.message });

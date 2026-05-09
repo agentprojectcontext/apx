@@ -96,16 +96,17 @@ export function buildAgentSystem(project, agent) {
   return parts.join("\n\n");
 }
 
-export function createPermissionGuard(globalConfig = {}) {
+export function createPermissionGuard(globalConfig = {}, { implicitConfirmation = false } = {}) {
   const permissionMode = globalConfig.super_agent?.permission_mode || "automatico";
   const allowedTools = new Set(globalConfig.super_agent?.allowed_tools || []);
 
   return function requirePermission(tool, { dangerous = false, confirmed = false } = {}) {
+    const ok = confirmed || implicitConfirmation;
     if (permissionMode === "total") return;
-    if (permissionMode === "permiso" && !allowedTools.has(tool) && !confirmed) {
+    if (permissionMode === "permiso" && !allowedTools.has(tool) && !ok) {
       throw new Error(`requires_confirmation: permission_mode=permiso blocks ${tool}`);
     }
-    if (permissionMode === "automatico" && dangerous && !confirmed) {
+    if (permissionMode === "automatico" && dangerous && !ok) {
       throw new Error(`requires_confirmation: permission_mode=automatico requires confirmation for ${tool}`);
     }
   };

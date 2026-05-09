@@ -1,5 +1,6 @@
 import { http } from "../http.js";
 import { resolveProjectId } from "./project.js";
+import { readConfig, writeConfig } from "../../core/config.js";
 
 function parseValue(raw) {
   // best-effort: try JSON first (covers numbers, bools, objects, arrays, null,
@@ -53,4 +54,26 @@ export async function cmdConfigUnset(args) {
   const pid = await resolveProjectId(args?.flags?.project);
   await http.patch(`/projects/${pid}/config`, { unset: [key] });
   console.log(`unset ${key}`);
+}
+
+export function cmdPermission(args = {}) {
+  const sub = args._[0] || "show";
+  const cfg = readConfig();
+  cfg.super_agent = cfg.super_agent || {};
+  if (sub === "show" || sub === "get" || sub === "ls") {
+    console.log(`permission_mode=${cfg.super_agent.permission_mode || "automatico"}`);
+    console.log(`allowed_tools=${(cfg.super_agent.allowed_tools || []).join(",") || "(none)"}`);
+    return;
+  }
+  if (sub === "set") {
+    const mode = args._[1];
+    if (!["total", "automatico", "permiso"].includes(mode)) {
+      throw new Error("apx permissions set: mode must be total, automatico, or permiso");
+    }
+    cfg.super_agent.permission_mode = mode;
+    writeConfig(cfg);
+    console.log(`permission_mode=${mode}`);
+    return;
+  }
+  throw new Error(`unknown permissions subcommand: ${sub}`);
 }

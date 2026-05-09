@@ -66,6 +66,7 @@ import {
   cmdConfigShow,
   cmdConfigSet,
   cmdConfigUnset,
+  cmdPermission,
 } from "./commands/config.js";
 import { cmdPluginsList, cmdPluginStatus } from "./commands/plugins.js";
 import { cmdSkillsAdd, cmdSkillsList, cmdSkillsStatus } from "./commands/skills.js";
@@ -84,6 +85,7 @@ import {
   cmdRoutineEnable,
   cmdRoutineDisable,
   cmdRoutineRun,
+  cmdRoutineHistory,
 } from "./commands/routine.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -142,6 +144,8 @@ function buildHelp(version) {
     hCmd("apx identity wizard",        36, "interactive identity setup"),
     hCmd("apx config show",            36, "--effective  --only-overrides"),
     hCmd("apx config set <key> <val>", 36, "set key in .apc/config.json  (JSON-aware)"),
+    hCmd("apx permission show",        36, "show super-agent permission mode"),
+    hCmd("apx permission set <mode>",  36, "mode: total | automatico | permiso"),
     hCmd("apx config unset <key>",     36, "remove key from .apc/config.json"),
 
     hSec("Memory"),
@@ -203,9 +207,11 @@ function buildHelp(version) {
     hSec("Routines"),
     hCmd("apx routine list",           36, "list routines + next/last run"),
     hCmd("apx routine add <name>",     36, "--kind K  --schedule S  [--spec '{...}']"),
-    `    ${H.DI}kinds: heartbeat | exec_agent | telegram | shell${H.R}`,
+    `    ${H.DI}kinds: heartbeat | exec_agent | super_agent | telegram | shell${H.R}`,
+    `    ${H.DI}flags: --permission-mode total|automatico|permiso  --allowed-tools a,b${H.R}`,
     `    ${H.DI}schedule: every:60s | every:5m | every:1h | once:<iso>${H.R}`,
     hCmd("apx routine get <name>",     36, ""),
+    hCmd("apx routine history <name>", 36, "show routine execution history"),
     hCmd("apx routine run <name>",     36, "manual trigger (ignores schedule)"),
     hCmd("apx routine enable <name>",  36, ""),
     hCmd("apx routine disable <name>", 36, ""),
@@ -454,6 +460,11 @@ async function dispatch(cmd, rest) {
         break;
       }
 
+      case "permission": {
+        await cmdPermission(parseArgs(rest));
+        break;
+      }
+
       case "plugins":
       case "plugin": {
         const sub = rest[0];
@@ -475,6 +486,7 @@ async function dispatch(cmd, rest) {
         else if (sub === "enable") await cmdRoutineEnable(a);
         else if (sub === "disable") await cmdRoutineDisable(a);
         else if (sub === "run") await cmdRoutineRun(a);
+        else if (sub === "history" || sub === "hist") await cmdRoutineHistory(a);
         else die(`unknown routine subcommand: ${sub}`);
         break;
       }

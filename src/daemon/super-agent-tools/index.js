@@ -17,6 +17,7 @@ import callMcp from "./tools/call-mcp.js";
 import callRuntime from "./tools/call-runtime.js";
 import sendTelegram from "./tools/send-telegram.js";
 import setIdentity from "./tools/set-identity.js";
+import setPermissionMode from "./tools/set-permission-mode.js";
 import { createPermissionGuard } from "./helpers.js";
 
 const TOOLS = [
@@ -39,6 +40,7 @@ const TOOLS = [
   callRuntime,
   sendTelegram,
   setIdentity,
+  setPermissionMode,
 ];
 
 export const TOOL_SCHEMAS = TOOLS.map((tool) => tool.schema);
@@ -46,7 +48,9 @@ export const TOOL_SCHEMAS = TOOLS.map((tool) => tool.schema);
 export function makeToolHandlers(ctx) {
   const toolCtx = {
     ...ctx,
-    requirePermission: createPermissionGuard(ctx.globalConfig || {}),
+    requirePermission: createPermissionGuard(ctx.globalConfig || {}, {
+      implicitConfirmation: !!ctx.implicitConfirmation,
+    }),
   };
   return Object.fromEntries(TOOLS.map((tool) => [tool.name, tool.makeHandler(toolCtx)]));
 }

@@ -252,7 +252,7 @@ class ChannelPoller {
     if (chat_id && !isReset) {
       previousMessages = getRecentTelegramTurnsFromFs({
         chat_id,
-        limit: 12,
+        limit: 20,
         max_age_hours: 24,
       });
       // Honour a /reset marker: drop everything up to and including it.
@@ -355,7 +355,7 @@ class ChannelPoller {
           registries: this.registries,
           prompt: text,
           previousMessages,
-          contextNote: `Inbound came on Telegram channel "${this.channel.name}" from ${author}. Previous turns of this chat are included for context.`,
+          contextNote: `You are replying inside Telegram right now. Telegram channel="${this.channel.name}", author=${author}, chat_id=${chat_id}. Keep the reply plain-text and concise. Previous turns of this chat are included only for local conversational context; re-call tools for facts.`,
         });
         replyText = sa.text;
         replyAuthor = sa.name;
@@ -407,6 +407,22 @@ class ChannelPoller {
       });
     } catch (e) {
       this.log(`telegram[${this.channel.name}] send-back error: ${e.message}`);
+      appendGlobalMessage({
+        channel: "telegram",
+        direction: "out",
+        author: replyAuthor || "apx",
+        body: `[send_failed] ${clean || replyText}`,
+        meta: {
+          chat_id,
+          tg_channel: this.channel.name,
+          in_reply_to: u.update_id,
+          send_error: e.message,
+          ...(saTrace && saTrace.length > 0
+            ? { tools_called: saTrace.map((t) => ({ tool: t.tool, args: t.args })) }
+            : {}),
+          ...(saUsage ? { usage: saUsage } : {}),
+        },
+      });
     }
   }
 

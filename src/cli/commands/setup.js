@@ -221,8 +221,8 @@ export async function cmdSetup() {
 
   cfg.super_agent.enabled = true;
   cfg.super_agent.model = chosenModel;
-  // System prompt: language instruction only, no wizard references
-  cfg.super_agent.system = `Always respond in the user's language: ${language}.`;
+  cfg.super_agent.system = "";
+  cfg.super_agent.permission_mode = cfg.super_agent.permission_mode || "automatico";
 
   if (provider.id === "ollama") {
     cfg.engines.ollama.base_url = ollamaUrl;

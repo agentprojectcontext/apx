@@ -30,7 +30,7 @@ test("TOOL_SCHEMAS exposes the expected functions", () => {
     "write_file", "edit_file", "run_shell",
     "tail_messages", "search_messages",
     "call_agent", "call_mcp", "call_runtime", "send_telegram",
-    "set_identity",
+    "set_identity", "set_permission_mode",
   ]) {
     assert.ok(names.includes(expected), `missing tool: ${expected}`);
   }
@@ -221,6 +221,23 @@ test("run_shell executes in selected project when confirmed", async () => {
       globalConfig: { super_agent: { permission_mode: "automatico" } },
     });
     const r = await handlers.run_shell({ command: "pwd", confirmed: true });
+    assert.equal(r.exit_code, 0);
+    assert.equal(fs.realpathSync(r.stdout.trim()), fs.realpathSync(root));
+  } finally {
+    cleanupTempProject(root);
+  }
+});
+
+test("run_shell allows safe read-only commands in automatico mode", async () => {
+  const { root, projects } = setup();
+  try {
+    const handlers = makeToolHandlers({
+      projects,
+      plugins: null,
+      registries: null,
+      globalConfig: { super_agent: { permission_mode: "automatico" } },
+    });
+    const r = await handlers.run_shell({ command: "pwd" });
     assert.equal(r.exit_code, 0);
     assert.equal(fs.realpathSync(r.stdout.trim()), fs.realpathSync(root));
   } finally {

@@ -21,6 +21,28 @@ function run(command, { cwd, timeoutMs }) {
   });
 }
 
+function isSafeShellCommand(command) {
+  const text = String(command || "").trim();
+  if (!text) return false;
+  if (/[`$<>]/.test(text)) return false;
+  if (/\b(rm|mv|cp|chmod|chown|mkdir|touch|tee|kill|pkill|npm\s+install|curl\s+-X|apx\s+routine\s+(add|remove|rm|enable|disable|run)|apx\s+config\s+set)\b/i.test(text)) {
+    return false;
+  }
+
+  const segments = text.split(/\s*(?:\||&&|\|\|)\s*/).filter(Boolean);
+  return segments.every((segment) => {
+    const cmd = segment.trim().split(/\s+/)[0];
+    if (["pwd", "ls", "find", "rg", "grep", "cat", "head", "tail", "sed", "wc", "date", "stat", "file", "du", "df", "whoami", "id", "uname", "echo"].includes(cmd)) {
+      return true;
+    }
+    if (cmd === "docker") return /^docker\s+ps\b/.test(segment.trim());
+    if (cmd === "apx") {
+      return /^apx\s+(--help|-h|help|status|daemon\s+status|routine\s+(list|ls|get|show)\b|project\s+(list|ls)\b|agent\s+(list|ls)\b|config\s+(show|ls)\b)/.test(segment.trim());
+    }
+    return false;
+  });
+}
+
 export default {
   name: "run_shell",
   schema: {
@@ -42,7 +64,7 @@ export default {
     },
   },
   makeHandler: ({ projects, requirePermission }) => async ({ project, cwd = ".", command, timeout_s = 60, confirmed = false }) => {
-    requirePermission("run_shell", { dangerous: true, confirmed });
+    requirePermission("run_shell", { dangerous: !isSafeShellCommand(command), confirmed });
     if (!command) throw new Error("run_shell: command required");
 
     const p = resolveProject(projects, project);
