@@ -6,8 +6,9 @@ import path from "node:path";
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 const isoToMs = (iso) => (iso ? Date.parse(iso) : 0);
 
-function routinesPath(projectPath) {
-  return path.join(projectPath, ".apc", "routines.json");
+function routinesPath(storagePath) {
+  // storagePath is always ~/.apx/projects/{apxId}/ — flat, no .apc subdir needed.
+  return path.join(storagePath, "routines.json");
 }
 
 function readFile(projectPath) {

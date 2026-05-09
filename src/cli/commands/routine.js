@@ -26,13 +26,15 @@ export async function cmdRoutineList(args = {}) {
   const pid = await resolveProjectId(args?.flags?.project);
   const rows = await http.get(`/projects/${pid}/routines`);
   if (rows.length === 0) {
-    console.log("(no routines)");
+    console.log(`(no routines in project #${pid})`);
     return;
   }
-  console.log("NAME".padEnd(20) + " EN " + "KIND".padEnd(11) + " SCHEDULE".padEnd(20) + " NEXT_RUN".padEnd(22) + " LAST");
+  // Show project ID in header so user knows which project's routines are displayed.
+  console.log(`project #${pid} routines:`);
+  console.log("NAME".padEnd(22) + " EN " + "KIND".padEnd(11) + " SCHEDULE".padEnd(20) + " NEXT_RUN".padEnd(22) + " LAST");
   for (const r of rows) {
     console.log(
-      r.name.padEnd(20) + " " +
+      r.name.padEnd(22) + " " +
       (r.enabled ? "✓" : "✗").padEnd(2) + " " +
       (r.kind || "?").padEnd(10) + " " +
       (r.schedule || "?").padEnd(20) + " " +

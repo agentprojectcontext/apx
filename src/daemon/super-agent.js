@@ -71,7 +71,8 @@ HARD RULES (do not deviate):
 12. PROJECT RULE: when the user gives no project, use project "default". Do not infer a non-default project from old chat history unless the user references it. If they mention a path or project name, look it up or add it with add_project.
 13. VAULT RULE: when the user wants a new existing agent/template, call list_vault_agents first. If a suitable vault agent exists, import_agent into the chosen project. If none fits, say briefly what is missing.
 14. NO-PENDING RULE: never say "give me a second", "I will do it", or "I will try later" as a final answer. Either call the tool in this same turn or say what blocks you.
-15. IDENTITY RULE: when the user asks you to change your name, call yourself something, or update your personality/language, call set_identity and persist the change. Then confirm with your new name.`;
+15. IDENTITY RULE: when the user asks you to change your name, call yourself something, or update your personality/language, call set_identity and persist the change. Then confirm with your new name.
+16. ROUTINES RULE: NEVER create a routine in the default project (id=0). Routines MUST be tied to a specific registered project. Before adding a routine, call list_projects to find the correct project id or name. Then pass --project <id|name> to apx routine add. If no project fits, ask the user which project to use. Creating routines in project 0/default mixes unrelated projects' schedules and corrupts state.`;
 
 function isShortConfirmation(text) {
   return /^(yes|y|si|si dale|dale|ok|okay|confirm|confirmed|go|proceed|do it)\b/i

@@ -191,7 +191,7 @@ export async function runRoutineNow(ctx, routine) {
   const lastRun = nowIso();
   const next = computeNextRun({ schedule: routine.schedule, last_run_at: lastRun });
   const isOnce = parseSchedule(routine.schedule).kind === "once";
-  updateRunState(ctx.project.path, routine.name, {
+  updateRunState(ctx.project.storagePath, routine.name, {
     last_run_at: lastRun,
     last_status: status,
     last_error: errMsg,
@@ -246,7 +246,7 @@ export class RoutineScheduler {
       const nowStr = nowIso();
       for (const proj of this.projects.list().map((p) => this.projects.get(p.id))) {
         if (!proj) continue;
-        const due = getDueRoutines(proj.path, nowStr);
+        const due = getDueRoutines(proj.storagePath, nowStr);
         for (const r of due) {
           this.log(`routine ${r.name} (${r.kind}) firing in project #${proj.id}`);
           await runRoutineNow(

@@ -53,6 +53,22 @@ The frontmatter `description` strings are assembled in `src/core/scaffold.js` (`
 apx skills add --global
 ```
 
+### 5. Routines live in APX home storage, not inside the project
+
+Routines are stored in `~/.apx/projects/{apxId}/routines.json` (the project's `storagePath`), **never** inside the project directory or `.apc/`.
+
+When creating routines via `apx routine add`, always pass `--project <id|name|path>` so the routine is associated with the correct project. Without `--project`, the default project (id=0) is used, which is a shared scratch space — **not** a real user project.
+
+```bash
+# Correct: pin to a specific project
+apx routine add weather-bariloche --kind super_agent --schedule "0 8 * * *" --project agent-project-context --prompt "..."
+
+# Wrong: creates routine in default project (id=0)
+apx routine add weather-bariloche --kind super_agent --schedule "0 8 * * *" --prompt "..."
+```
+
+Use `apx project list` to see registered project IDs and names before creating routines.
+
 ---
 
 ## Agents in this project
