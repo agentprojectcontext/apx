@@ -1,4 +1,5 @@
-// Helpers that wrap external runtimes (Claude Code, Codex, OpenCode, Aider)
+// Helpers that wrap external runtimes (Claude Code, Codex, OpenCode, Aider,
+// Cursor Agent, Gemini CLI, Qwen Code)
 // with APC awareness:
 //
 //   1. Create an APX runtime session BEFORE the runtime starts.
@@ -6,7 +7,7 @@
 //      runtime knows the session id, the cwd of the project, and the apx
 //      commands it can use to update memory / append session notes.
 //   3. After the runtime returns, capture the external transcript path
-//      (Claude Code gives one, Codex/OpenCode/Aider don't yet) and write it
+//      (Claude Code gives one; most other runtimes don't yet) and write it
 //      into the APX session frontmatter.
 //   4. Close the session with a synthesised result (truncated stdout).
 //

@@ -40,6 +40,15 @@ test("call_runtime schema allows APX runtime without an explicit agent", () => {
   const schema = TOOL_SCHEMAS.find((t) => t.function.name === "call_runtime");
   assert.ok(schema);
   assert.deepEqual(schema.function.parameters.required.sort(), ["prompt", "runtime"]);
+  assert.deepEqual(schema.function.parameters.properties.runtime.enum, [
+    "claude-code",
+    "codex",
+    "opencode",
+    "aider",
+    "cursor-agent",
+    "gemini-cli",
+    "qwen-code",
+  ]);
 });
 
 test("list_projects returns the registered project", () => {

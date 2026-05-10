@@ -1,5 +1,6 @@
 // Runtime adapters: spawn external agent CLIs (Claude Code, Codex, OpenCode,
-// Aider, Cursor Agent, Gemini CLI, Qwen Code, ...) with the agent's system prompt + the prompt we want to run, and
+// Aider, Cursor Agent, Gemini CLI, Qwen Code, ...) with the agent's system
+// prompt + the prompt we want to run, and
 // capture their output. Unlike engines/ — which talk directly to model APIs —
 // runtimes/ delegate the whole conversation to the external tool. APX only
 // records the invocation, the prompt, the captured output, and where the tool

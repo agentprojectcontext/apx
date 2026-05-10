@@ -26,7 +26,7 @@ npm install -g apx
 # In any directory with an AGENTS.md
 apx init
 
-# Spawn an agent with a full Claude Code runtime
+# Spawn an agent with a full external runtime
 apx run sofia --runtime claude-code "Review the open PRs and summarize them"
 
 # Or a quick one-shot LLM exec
@@ -84,6 +84,7 @@ apx memory <slug>                        # read agent memory
 apx memory <slug> --append "<note>"      # append to memory
 
 apx run   <slug> --runtime claude-code "<prompt>"   # full runtime session
+apx run   <slug> --runtime cursor-agent "<prompt>"  # Cursor Agent runtime
 apx exec  <slug> "<prompt>"                          # quick LLM call
 
 apx session list <slug>                  # list past sessions

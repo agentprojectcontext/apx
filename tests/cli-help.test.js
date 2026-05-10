@@ -70,3 +70,21 @@ test("messages chat help documents actor type transcript view", () => {
   assert.match(out, /user, agent, tool, or system type/);
   assert.match(out, /--channel <name>/);
 });
+
+test("run help lists all supported runtimes", () => {
+  const result = runHelp(["run", "--help"]);
+  const out = stripAnsi(result.stdout);
+
+  assert.equal(result.status, 0);
+  for (const runtime of [
+    "claude-code",
+    "codex",
+    "opencode",
+    "aider",
+    "cursor-agent",
+    "gemini-cli",
+    "qwen-code",
+  ]) {
+    assert.match(out, new RegExp(runtime));
+  }
+});

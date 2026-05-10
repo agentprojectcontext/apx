@@ -26,6 +26,11 @@ apx mcp list                            # MCP servers available to this project
 # Full external session (best for complex, multi-step tasks)
 apx run <slug> --runtime claude-code "<prompt>"
 apx run <slug> --runtime codex        "<prompt>"
+apx run <slug> --runtime opencode     "<prompt>"
+apx run <slug> --runtime aider        "<prompt>"
+apx run <slug> --runtime cursor-agent "<prompt>"
+apx run <slug> --runtime gemini-cli   "<prompt>"
+apx run <slug> --runtime qwen-code    "<prompt>"
 
 # Quick one-shot LLM call (requires engine API key in ~/.apx/config.json)
 apx exec <slug> "<prompt>"

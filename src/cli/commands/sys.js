@@ -102,14 +102,19 @@ export async function cmdSys(args) {
       return;
     }
 
-    if (handleEditingKey(str, key, state, renderScreen)) return;
-
-    if (key.name === "return") {
+    if (isReturnKey(key)) {
       isRequesting = true;
       await submitPrompt(pid, state, previousMessages, renderScreen, close);
       isRequesting = false;
+      return;
     }
+
+    if (handleEditingKey(str, key, state, renderScreen)) return;
   });
+}
+
+export function isReturnKey(key) {
+  return key?.name === "return" || key?.name === "enter";
 }
 
 async function handlePaletteKey(key, cfg, state, renderScreen, close) {
@@ -189,7 +194,7 @@ function loadModelOptions(cfg, state, renderScreen) {
     });
 }
 
-function handleEditingKey(str, key, state, renderScreen) {
+export function handleEditingKey(str, key, state, renderScreen) {
   if (key.name === "tab") {
     state.currentModeIdx = (state.currentModeIdx + 1) % MODES.length;
     renderScreen();
@@ -261,7 +266,7 @@ function handleEditingKey(str, key, state, renderScreen) {
     return true;
   }
 
-  if (str && str.length === 1 && !key.ctrl && !key.meta) {
+  if (str && str.length === 1 && !key.ctrl && !key.meta && str >= " ") {
     state.inputText = state.inputText.slice(0, state.cursorIndex) + str + state.inputText.slice(state.cursorIndex);
     state.cursorIndex += str.length;
     renderScreen();

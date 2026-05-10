@@ -92,8 +92,8 @@ sanitized fact to `.apc/agents/<slug>/memory.md` only when useful and safe.
 ## APX
 
 APX can provide a local daemon, MCP management, Telegram bridge, routines, and runtime dispatch
-across Codex, Claude Code, OpenCode, Aider, or direct LLM engines. Those are APX runtime features,
-not APC portable-core requirements.
+across Codex, Claude Code, OpenCode, Aider, Cursor Agent, Gemini CLI, Qwen Code, or direct LLM
+engines. Those are APX runtime features, not APC portable-core requirements.
 
 The APX super-agent uses `~/.apx/projects/default` for system-level work when no project is named.
 APX routines can run heartbeat, shell, Telegram, project agent, or super-agent tasks on a schedule.

@@ -26,6 +26,10 @@ Use `apx run` only when:
 apx run <slug> --runtime claude-code "<prompt>"
 apx run <slug> --runtime codex        "<prompt>"
 apx run <slug> --runtime opencode     "<prompt>"
+apx run <slug> --runtime aider        "<prompt>"
+apx run <slug> --runtime cursor-agent "<prompt>"
+apx run <slug> --runtime gemini-cli   "<prompt>"
+apx run <slug> --runtime qwen-code    "<prompt>"
 
 # Example: run the qa agent in codex with a specific task
 apx run qa --runtime codex "run the full test suite and report failures"
