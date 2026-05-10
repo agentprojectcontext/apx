@@ -3,7 +3,7 @@ import path from "node:path";
 import { findApfRoot, readAgents } from "../../core/parser.js";
 import { getOrCreateApxId } from "../../core/scaffold.js";
 import { generateSessionId } from "../../core/session-store.js";
-import { ensureProjectStorage } from "../../core/config.js";
+import { projectStorageRoot, ensureProjectStorage } from "../../core/config.js";
 import { http } from "../http.js";
 import { resolveProjectId } from "./project.js";
 
@@ -18,7 +18,7 @@ function requireRoot() {
 function requireStorageRoot(root) {
   const apxId = getOrCreateApxId(root);
   if (!apxId) throw new Error("could not resolve APX project storage id");
-  return ensureProjectStorage(apxId);
+  return projectStorageRoot(apxId);
 }
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");

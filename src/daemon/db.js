@@ -37,9 +37,11 @@ export class ProjectManager {
     // Ensure directories exist for projects initialized before they were added.
     fs.mkdirSync(path.join(abs, ".apc", "commands"), { recursive: true });
 
-    // Ensure stable APX storage root exists (~/.apx/projects/<apx_id>/).
+    // Resolve stable APX storage ID (read from .apc/project.json).
     const apxId = getOrCreateApxId(abs);
-    const storagePath = ensureProjectStorage(apxId);
+    // Don't create the physical storage folder yet.
+    // Just resolve where it SHOULD be.
+    const storagePath = path.join(path.dirname(DEFAULT_PROJECT_STORE), apxId || "null");
 
     const entry = {
       id: this._nextId++,
@@ -48,8 +50,15 @@ export class ProjectManager {
       apxId,
       config: effectiveConfig(this.globalConfig, abs),
     };
-    // Project runtime messages stay in APX local storage.
-    entry.logMessage = (payload) => appendMessageToFs({ projectRoot: storagePath, ...payload });
+
+    // Lazy message logger: ensure directory exists ONLY when writing.
+    entry.logMessage = (payload) => {
+      if (entry.apxId) {
+        ensureProjectStorage(entry.apxId);
+      }
+      return appendMessageToFs({ projectRoot: entry.storagePath, ...payload });
+    };
+
     this.byId.set(entry.id, entry);
     this.byPath.set(abs, entry);
     return entry;

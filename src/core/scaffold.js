@@ -256,6 +256,7 @@ export function getOrCreateApxId(root) {
   try { cfg = JSON.parse(fs.readFileSync(p, "utf8")); } catch { return null; }
   if (cfg.apx_id) return cfg.apx_id;
   const apxId = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+  console.log(`[apx] Generating new stable ID ${apxId} for project at ${root}`);
   cfg.apx_id = apxId;
   fs.writeFileSync(p, JSON.stringify(cfg, null, 2) + "\n");
   return apxId;

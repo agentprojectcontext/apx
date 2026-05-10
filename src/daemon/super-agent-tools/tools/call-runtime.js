@@ -99,7 +99,7 @@ export default {
         type: "object",
         properties: {
           project: { type: "string" },
-          agent: { type: "string", description: "Optional APC agent slug from AGENTS.md, not runtime name. Use only when the user explicitly named that agent. Omit for 'vos mismo', 'default', 'base', or no agent." },
+          agent: { type: "string", description: "APC agent slug. MANDATORY OMIT if you are acting as yourself (APX/vos mismo/default). Use ONLY if the user named a specific agent from AGENTS.md." },
           runtime: {
             type: "string",
             enum: RUNTIME_IDS,
