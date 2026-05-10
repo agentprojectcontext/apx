@@ -69,6 +69,10 @@ apx routine add weather-bariloche --kind super_agent --schedule "0 8 * * *" --pr
 
 Use `apx project list` to see registered project IDs and names before creating routines.
 
+### 6. Self-run / Super-agent identity
+
+When acting as APX itself (self-run, "vos mismo", or default mode), always use `apx` as the agent identity for sessions and logs. Do **not** force the selection of a project agent from `AGENTS.md` unless the user explicitly names one. Tool calls like `call_runtime` should omit the `agent` parameter in this mode.
+
 ---
 
 ## Agents in this project

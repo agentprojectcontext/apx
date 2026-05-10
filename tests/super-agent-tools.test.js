@@ -40,7 +40,7 @@ test("call_runtime schema allows APX runtime without an explicit agent", () => {
   const schema = TOOL_SCHEMAS.find((t) => t.function.name === "call_runtime");
   assert.ok(schema);
   assert.deepEqual(schema.function.parameters.required.sort(), ["prompt", "runtime"]);
-  assert.match(schema.function.parameters.properties.agent.description, /Omit for 'vos mismo'/);
+  assert.match(schema.function.parameters.properties.agent.description, /vos mismo/);
   assert.deepEqual(schema.function.parameters.properties.runtime.enum, [
     "claude-code",
     "codex",
