@@ -9,7 +9,7 @@ export default {
     type: "function",
     function: {
       name: "set_permission_mode",
-      description: "Set the super-agent permission mode in ~/.apx/config.json. Modes: total, automatico, permiso.",
+      description: "Set APX tool permission mode in ~/.apx/config.json. Modes: total, automatico, permiso.",
       parameters: {
         type: "object",
         properties: {

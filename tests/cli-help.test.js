@@ -88,3 +88,24 @@ test("run help lists all supported runtimes", () => {
     assert.match(out, new RegExp(runtime));
   }
 });
+
+test("top-level help uses code command and omits removed aliases", () => {
+  const result = runHelp(["--help"]);
+  const out = stripAnsi(result.stdout);
+
+  assert.equal(result.status, 0);
+  assert.match(out, /apx code/);
+  assert.match(out, /Projects/);
+  assert.doesNotMatch(out, /apx sys/);
+  assert.doesNotMatch(out, /apx add project/);
+  assert.doesNotMatch(out, /apx graph/);
+});
+
+test("code help is the terminal assistant help", () => {
+  const result = runHelp(["code", "--help"]);
+  const out = stripAnsi(result.stdout);
+
+  assert.equal(result.status, 0);
+  assert.match(out, /apx code/);
+  assert.match(out, /terminal coding assistant/);
+});

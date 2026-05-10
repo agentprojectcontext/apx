@@ -60,7 +60,7 @@ import {
   cmdConversationsList,
   cmdConversationsGet,
 } from "./commands/chat.js";
-import { cmdSys } from "./commands/sys.js";
+import { cmdSys as cmdCode } from "./commands/sys.js";
 import { cmdRun, cmdEnvDetect } from "./commands/runtime.js";
 import { cmdSend, cmdConnections } from "./commands/a2a.js";
 import {
@@ -184,7 +184,7 @@ const HELP_TOPICS = new Map(Object.entries({
     title: "apx project add",
     summary: "Register a project with the APX daemon.",
     usage: ["apx project add [path]"],
-    examples: ["apx project add .", "apx add project ../repo"],
+    examples: ["apx project add .", "apx project add ../repo"],
   }),
   "project list": topic({
     title: "apx project list",
@@ -203,19 +203,6 @@ const HELP_TOPICS = new Map(Object.entries({
     summary: "Rebuild a daemon project index from filesystem context.",
     usage: ["apx project rebuild [id]"],
     examples: ["apx project rebuild", "apx project rebuild default"],
-  }),
-  add: topic({
-    title: "apx add",
-    summary: "Friendly alias namespace for add operations.",
-    usage: ["apx add project [path]"],
-    commands: [["project [path]", "Alias for apx project add [path]."]],
-    examples: ["apx add project ."],
-  }),
-  "add project": topic({
-    title: "apx add project",
-    summary: "Alias for apx project add.",
-    usage: ["apx add project [path]"],
-    examples: ["apx add project ."],
   }),
   agent: topic({
     title: "apx agent",
@@ -298,7 +285,7 @@ const HELP_TOPICS = new Map(Object.entries({
   }),
   identity: topic({
     title: "apx identity",
-    summary: "Read or edit daemon identity fields.",
+    summary: "Read or edit APX profile identity fields.",
     usage: ["apx identity <show|set|wizard> [args]"],
     commands: [
       ["show", "Print current identity."],
@@ -309,13 +296,13 @@ const HELP_TOPICS = new Map(Object.entries({
   }),
   "identity show": topic({
     title: "apx identity show",
-    summary: "Print current daemon identity.",
+    summary: "Print current APX profile identity.",
     usage: ["apx identity show"],
     examples: ["apx identity show"],
   }),
   "identity set": topic({
     title: "apx identity set",
-    summary: "Set one daemon identity field.",
+    summary: "Set one APX profile identity field.",
     usage: ["apx identity set <key> <value>"],
     examples: ["apx identity set agent_name Ada", "apx identity set owner_name Sam"],
   }),
@@ -364,7 +351,7 @@ const HELP_TOPICS = new Map(Object.entries({
   }),
   permission: topic({
     title: "apx permission",
-    summary: "Show or set super-agent permission mode.",
+    summary: "Show or set APX tool permission mode.",
     usage: ["apx permission show", "apx permission set <total|automatico|permiso>"],
     commands: [
       ["show", "Print current permission mode."],
@@ -374,13 +361,13 @@ const HELP_TOPICS = new Map(Object.entries({
   }),
   "permission show": topic({
     title: "apx permission show",
-    summary: "Print current super-agent permission mode.",
+    summary: "Print current APX tool permission mode.",
     usage: ["apx permission show"],
     examples: ["apx permission show"],
   }),
   "permission set": topic({
     title: "apx permission set",
-    summary: "Set super-agent permission mode.",
+    summary: "Set APX tool permission mode.",
     usage: ["apx permission set <total|automatico|permiso>"],
     examples: ["apx permission set permiso"],
   }),
@@ -702,14 +689,14 @@ const HELP_TOPICS = new Map(Object.entries({
     ],
     examples: ["apx chat reviewer", "apx chat reviewer --conversation abc123"],
   }),
-  sys: topic({
-    title: "apx sys",
-    summary: "Start an interactive super-agent chat REPL with system and workspace context.",
-    usage: ["apx sys [--project <name|id|path>]"],
+  code: topic({
+    title: "apx code",
+    summary: "Start the APX terminal coding assistant with system and workspace context.",
+    usage: ["apx code [--project <name|id|path>]"],
     options: [
       ["--project <name|id|path>", "Pin command to a specific project."],
     ],
-    examples: ["apx sys", "apx sys --project default"],
+    examples: ["apx code", "apx code --project default"],
   }),
   conversations: topic({
     title: "apx conversations",
@@ -779,16 +766,9 @@ const HELP_TOPICS = new Map(Object.entries({
   connections: topic({
     title: "apx connections",
     summary: "Show an agent communication map.",
-    usage: ["apx connections <agent> [--project <name|id|path>]", "apx graph <agent> [--project <name|id|path>]"],
+    usage: ["apx connections <agent> [--project <name|id|path>]"],
     options: [["--project <name|id|path>", "Pin command to a specific project."]],
     examples: ["apx connections reviewer"],
-  }),
-  graph: topic({
-    title: "apx graph",
-    summary: "Alias for apx connections.",
-    usage: ["apx graph <agent> [--project <name|id|path>]"],
-    options: [["--project <name|id|path>", "Pin command to a specific project."]],
-    examples: ["apx graph reviewer"],
   }),
   routine: topic({
     title: "apx routine",
@@ -931,11 +911,12 @@ const HELP_TOPICS = new Map(Object.entries({
   command: topic({
     title: "apx command",
     summary: "List or show workflow commands from .apc/commands/.",
-    usage: ["apx command [list]", "apx command show <name>"],
+    usage: ["apx command [list] [--project <name|id|path>]", "apx command show <name> [--project <name|id|path>]"],
     commands: [
       ["list | ls", "List workflow commands."],
       ["show | get <name>", "Print one command file."],
     ],
+    options: [["--project <name|id|path>", "Pin command to a specific project; defaults to current APC project or default."]],
     examples: ["apx command list", "apx command show release"],
   }),
   commands: topic({
@@ -947,13 +928,15 @@ const HELP_TOPICS = new Map(Object.entries({
   "command list": topic({
     title: "apx command list",
     summary: "List workflow commands in .apc/commands/.",
-    usage: ["apx command list", "apx command ls"],
+    usage: ["apx command list [--project <name|id|path>]", "apx command ls [--project <name|id|path>]"],
+    options: [["--project <name|id|path>", "Pin command to a specific project; defaults to current APC project or default."]],
     examples: ["apx command list"],
   }),
   "command show": topic({
     title: "apx command show",
     summary: "Print one workflow command file.",
-    usage: ["apx command show <name>", "apx command get <name>"],
+    usage: ["apx command show <name> [--project <name|id|path>]", "apx command get <name> [--project <name|id|path>]"],
+    options: [["--project <name|id|path>", "Pin command to a specific project; defaults to current APC project or default."]],
     examples: ["apx command show release"],
   }),
   skills: topic({
@@ -1019,6 +1002,7 @@ const HELP_TOPICS = new Map(Object.entries({
 const HELP_ALIASES = new Map(Object.entries({
   "project ls": "project list",
   "project rm": "project remove",
+  "sys": "code",
   "agent ls": "agent list",
   "agent show": "agent get",
   "agent vault ls": "agent vault list",
@@ -1074,11 +1058,12 @@ function buildHelp(version) {
     hCmd("apx setup",                  36, "interactive wizard: provider → model → channels → daemon  (alias: install)"),
     hCmd("apx status",                 36, "full system status: daemon, super-agent, engines, telegram, projects"),
     hCmd("apx update",                 36, "check for updates and upgrade  (alias: upgrade)"),
+
+    hSec("Projects"),
     hCmd("apx project add [path]",     36, "register a project with the daemon"),
     hCmd("apx project list",           36, ""),
     hCmd("apx project remove <id>",    36, ""),
     hCmd("apx project rebuild [id]",   36, "rebuild project index from filesystem"),
-    hCmd("apx add project [path]",     36, "alias for: apx project add"),
 
     hSec("Agents"),
     hCmd("apx agent add <slug>",       36, "--role R  --model M  --skills a,b  --language es-AR  --description D"),
@@ -1088,15 +1073,16 @@ function buildHelp(version) {
     hCmd("apx agent vault list",       36, ""),
     hCmd("apx agent vault add",        36, ""),
 
-    hSec("Identity & Config"),
-    hCmd("apx identity show",          36, "print current agent identity (name, owner, personality)"),
+    hSec("APX Profile"),
+    hCmd("apx identity show",          36, "print current APX identity (name, owner, personality)"),
     hCmd("apx identity set <k> <v>",   36, "set identity field"),
     hCmd("apx identity wizard",        36, "interactive identity setup"),
+
+    hSec("Config"),
     hCmd("apx config show",            36, "--effective  --only-overrides"),
-    hCmd("apx config set <key> <val>", 36, "set key in .apc/config.json  (JSON-aware)"),
-    hCmd("apx permission show",        36, "show super-agent permission mode"),
+    hCmd("apx config set|unset",       36, "<key> [value]  edit .apc/config.json  (JSON-aware)"),
+    hCmd("apx permission show",        36, "show APX tool permission mode"),
     hCmd("apx permission set <mode>",  36, "mode: total | automatico | permiso"),
-    hCmd("apx config unset <key>",     36, "remove key from .apc/config.json"),
 
     hSec("Memory"),
     hCmd("apx memory <slug>",          36, "print memory.md"),
@@ -1123,7 +1109,7 @@ function buildHelp(version) {
     hCmd("apx mcp tools <name>",       36, "list available tools"),
     hCmd("apx mcp check",              36, "audit multi-source merge"),
 
-    hSec("Daemon"),
+    hSec("Daemon Service"),
     hCmd("apx daemon start",           36, ""),
     hCmd("apx daemon stop",            36, ""),
     hCmd("apx daemon status",          36, ""),
@@ -1139,11 +1125,11 @@ function buildHelp(version) {
     hCmd("apx messages chat",          36, "--channel telegram  -n 50"),
     hCmd("apx messages search \"q\"",  36, ""),
 
-    hSec("LLM / Chat"),
-    hCmd("apx exec <agent> \"prompt\"",36, "--model <id>  --max-tokens N  --temperature T"),
-    hCmd("apx chat <agent>",           36, "--conversation <id>  --model <id>  (interactive REPL)"),
-    hCmd("apx sys",                    36, "super-agent chat w/ system+workspace context"),
-    hCmd("apx conversations list",     36, "<agent>"),
+    hSec("LLM / Code"),
+    hCmd("apx code",                   36, "APX terminal coding assistant"),
+    hCmd("apx exec <agent> \"prompt\"",36, "one-shot agent call  --model <id>  --max-tokens N"),
+    hCmd("apx chat <agent>",           36, "interactive agent REPL  --conversation <id>"),
+    hCmd("apx conversations list",     36, "stored exec/chat conversations for <agent>"),
     hCmd("apx conversations get",      36, "<agent> <id>"),
 
     hSec("Runtimes"),
@@ -1154,7 +1140,6 @@ function buildHelp(version) {
     hSec("Agent-to-Agent"),
     hCmd("apx send <from> <to> \"msg\"",36, "--deliver  log A2A message; --deliver runs target engine"),
     hCmd("apx connections <agent>",    36, "mental map: who/how/when this agent talked"),
-    hCmd("apx graph <agent>",          36, "alias for connections"),
 
     hSec("Routines & Pipeline"),
     hCmd("apx routine list",           36, "list routines + next/last run"),
@@ -1452,8 +1437,9 @@ async function dispatch(cmd, rest) {
         await cmdChat(parseArgs(rest));
         break;
 
+      case "code":
       case "sys":
-        await cmdSys(parseArgs(rest));
+        await cmdCode(parseArgs(rest));
         break;
 
       case "conversations":
@@ -1482,7 +1468,6 @@ async function dispatch(cmd, rest) {
         break;
 
       case "connections":
-      case "graph":
         await cmdConnections(parseArgs(rest));
         break;
 
@@ -1543,8 +1528,8 @@ async function dispatch(cmd, rest) {
       case "commands": {
         const sub = rest[0];
         const a = parseArgs(rest.slice(1));
-        if (!sub || sub === "list" || sub === "ls") cmdCommandList();
-        else if (sub === "show" || sub === "get") cmdCommandShow(a);
+        if (!sub || sub === "list" || sub === "ls") await cmdCommandList(a);
+        else if (sub === "show" || sub === "get") await cmdCommandShow(a);
         else die(`unknown command subcommand: ${sub}`);
         break;
       }
@@ -1562,14 +1547,6 @@ async function dispatch(cmd, rest) {
       case "identity":
         await cmdIdentity(parseArgs(rest));
         break;
-
-      case "add": {
-        // apx add <domain> [...args] — consistent alternative to apx <domain> add
-        const sub = rest[0];
-        if (sub === "project") await cmdProjectAdd(parseArgs(rest.slice(1)));
-        else die(`unknown 'add' subcommand: ${sub || "(none)"} — try: project`);
-        break;
-      }
 
       case "status":
         await cmdStatus();

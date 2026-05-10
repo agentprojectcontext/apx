@@ -2,6 +2,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { findApfRoot } from "../../core/parser.js";
+import { http } from "../http.js";
+import { resolveProjectId } from "./project.js";
 
 function commandsDir(root) {
   return path.join(root, ".apc", "commands");
@@ -13,9 +15,28 @@ function listCommandFiles(root) {
   return fs.readdirSync(dir).filter((f) => f.endsWith(".md")).sort();
 }
 
-export function cmdCommandList() {
+async function resolveCommandRoot(args = {}) {
+  const explicitProject = args?.flags?.project;
+  if (explicitProject !== undefined && explicitProject !== null && explicitProject !== "") {
+    const pid = await resolveProjectId(explicitProject);
+    const projects = await http.get("/projects");
+    const project = projects.find((p) => p.id === pid);
+    if (!project) throw new Error(`project ${pid} not found`);
+    return project.path;
+  }
+
   const root = findApfRoot();
-  if (!root) throw new Error("not inside an APC project");
+  if (root) return root;
+
+  const pid = await resolveProjectId();
+  const projects = await http.get("/projects");
+  const project = projects.find((p) => p.id === pid);
+  if (!project) throw new Error(`project ${pid} not found`);
+  return project.path;
+}
+
+export async function cmdCommandList(args = {}) {
+  const root = await resolveCommandRoot(args);
   const files = listCommandFiles(root);
   if (files.length === 0) {
     console.log("(no commands — add .md files to .apc/commands/)");
@@ -31,11 +52,10 @@ export function cmdCommandList() {
   }
 }
 
-export function cmdCommandShow(args) {
+export async function cmdCommandShow(args) {
   const name = args._[0];
   if (!name) throw new Error("apx command show: missing <name>");
-  const root = findApfRoot();
-  if (!root) throw new Error("not inside an APC project");
+  const root = await resolveCommandRoot(args);
   const file = path.join(commandsDir(root), `${name}.md`);
   if (!fs.existsSync(file)) throw new Error(`command "${name}" not found in .apc/commands/`);
   process.stdout.write(fs.readFileSync(file, "utf8"));

@@ -7,7 +7,7 @@ export default {
     type: "function",
     function: {
       name: "set_identity",
-      description: "Update daemon identity fields. Persists to ~/.apx/identity.json.",
+      description: "Update APX profile identity fields. Persists to ~/.apx/identity.json.",
       parameters: {
         type: "object",
         properties: {

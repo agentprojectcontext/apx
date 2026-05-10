@@ -88,7 +88,7 @@ apx messages tail --agent <slug> -n 20
 Message rows expose `type` (`user`, `agent`, `tool`, `system`) and `actor_id`; use `messages chat`
 when you need a readable transcript.
 
-## Super-agent permissions
+## APX tool permissions
 
 ```bash
 apx permission show
