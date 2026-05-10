@@ -3,7 +3,30 @@
 // Returns one JSON line with the result and session_id.
 // Reference: https://docs.claude.com/en/docs/claude-code/headless
 
+import fs from "node:fs";
+import path from "node:path";
 import { runProcess } from "./_spawn.js";
+
+export function encodeClaudeProjectPath(cwd) {
+  return String(cwd || process.cwd()).replace(/[^A-Za-z0-9]/g, "-");
+}
+
+export function resolveClaudeSessionPath({ cwd, sessionId, home = process.env.HOME || process.env.USERPROFILE || "" }) {
+  if (!sessionId || !home) return null;
+  const projectsDir = path.join(home, ".claude", "projects");
+  const encodedCwd = encodeClaudeProjectPath(cwd);
+  const expected = path.join(projectsDir, encodedCwd, `${sessionId}.jsonl`);
+  if (fs.existsSync(expected)) return expected;
+
+  try {
+    for (const dir of fs.readdirSync(projectsDir)) {
+      const candidate = path.join(projectsDir, dir, `${sessionId}.jsonl`);
+      if (fs.existsSync(candidate)) return candidate;
+    }
+  } catch {}
+
+  return expected;
+}
 
 export default {
   id: "claude-code",
@@ -40,12 +63,7 @@ export default {
     }
 
     if (sessionId) {
-      // Claude Code's session directory naming: replace BOTH "/" and "_" with
-      // "-" (verified empirically against ~/.claude/projects/). The trailing
-      // file is `<sessionId>.jsonl`.
-      const home = process.env.HOME || process.env.USERPROFILE || "";
-      const encodedCwd = (cwd || process.cwd()).replace(/[/_]/g, "-");
-      externalSessionPath = `${home}/.claude/projects/${encodedCwd}/${sessionId}.jsonl`;
+      externalSessionPath = resolveClaudeSessionPath({ cwd, sessionId });
     }
 
     return {

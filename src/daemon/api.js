@@ -774,10 +774,14 @@ export function buildApi({ projects, registries, plugins, scheduler, version, st
     if (!p) return;
     const { id } = req.params;
 
-    const agentsDir = path.join(p.path, ".apc", "agents");
+    const sessionRoots = [
+      path.join(p.storagePath || p.path, "agents"),
+      path.join(p.path, ".apc", "agents"),
+    ];
     let sessionFile = null;
     let agentSlug = null;
-    if (fs.existsSync(agentsDir)) {
+    for (const agentsDir of sessionRoots) {
+      if (!fs.existsSync(agentsDir)) continue;
       for (const slug of fs.readdirSync(agentsDir)) {
         const f = path.join(agentsDir, slug, "sessions", `${id}.md`);
         if (fs.existsSync(f)) {
@@ -786,6 +790,7 @@ export function buildApi({ projects, registries, plugins, scheduler, version, st
           break;
         }
       }
+      if (sessionFile) break;
     }
     if (!sessionFile) return res.status(404).json({ error: `session ${id} not found` });
 

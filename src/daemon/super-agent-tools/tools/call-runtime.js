@@ -1,4 +1,12 @@
+import fs from "node:fs";
+import path from "node:path";
 import { readAgents } from "../../../core/parser.js";
+import {
+  buildApfHint,
+  closeRuntimeSession,
+  createRuntimeSession,
+  extractApfResult,
+} from "../../apc-runtime-context.js";
 import { getRuntime, RUNTIME_IDS } from "../../runtimes/index.js";
 import { buildAgentSystem, confirmedProperty, resolveProject } from "../helpers.js";
 
@@ -20,18 +28,51 @@ function resolveProjectForAgent(projects, project, slug) {
   return resolveProject(projects, project);
 }
 
+function projectName(project) {
+  try {
+    const meta = JSON.parse(fs.readFileSync(path.join(project.path, ".apc", "project.json"), "utf8"));
+    if (meta.name) return meta.name;
+  } catch {}
+  return path.basename(project.path);
+}
+
+function buildRuntimeSystem(project, agent, runtime, sessionId, caller) {
+  const agentSlug = agent?.slug || "apx";
+  const hint = buildApfHint({
+    projectName: projectName(project),
+    projectPath: project.path,
+    agentSlug,
+    sessionId,
+  });
+  if (agent) {
+    return buildAgentSystem(project, agent, {
+      invocation: "runtime",
+      runtime,
+      caller,
+      extraParts: [hint],
+    });
+  }
+
+  return [
+    "You are APX running inside an external coding runtime.",
+    "No APC agent was explicitly selected for this run.",
+    "Use the project context and runtime tools directly. Do not impersonate a project agent.",
+    hint,
+  ].join("\n\n");
+}
+
 export default {
   name: "call_runtime",
   schema: {
     type: "function",
     function: {
       name: "call_runtime",
-      description: "Spawn an external CLI runtime (Claude Code, Codex, OpenCode, Aider) impersonating an APC agent.",
+      description: "Spawn an external CLI runtime (Claude Code, Codex, OpenCode, Aider), optionally impersonating an APC agent.",
       parameters: {
         type: "object",
         properties: {
           project: { type: "string" },
-          agent: { type: "string", description: "APC agent slug from AGENTS.md, not runtime name" },
+          agent: { type: "string", description: "Optional APC agent slug from AGENTS.md, not runtime name. Omit when the user did not name an agent." },
           runtime: {
             type: "string",
             enum: ["claude-code", "codex", "opencode", "aider"],
@@ -41,16 +82,16 @@ export default {
           timeout_s: { type: "integer", description: "seconds before SIGTERM; default 300" },
           confirmed: confirmedProperty("true only after explicit user confirmation for this exact runtime command"),
         },
-        required: ["agent", "runtime", "prompt"],
+        required: ["runtime", "prompt"],
       },
     },
   },
   makeHandler: ({ projects, requirePermission }) => async ({ project, agent: slug, runtime, prompt, timeout_s = 300, confirmed = false }) => {
     requirePermission("call_runtime", { dangerous: true, confirmed });
 
-    const p = resolveProjectForAgent(projects, project, slug);
-    const agent = readAgents(p.path).find((a) => a.slug === slug);
-    if (!agent) {
+    const p = slug ? resolveProjectForAgent(projects, project, slug) : resolveProject(projects, project);
+    const agent = slug ? readAgents(p.path).find((a) => a.slug === slug) : null;
+    if (slug && !agent) {
       const directory = projects.list().map((entry) => ({
         project: entry.name,
         kind: entry.id === 0 ? "default" : "project",
@@ -67,45 +108,74 @@ export default {
       return { error: `${e.message}. Available runtimes: ${RUNTIME_IDS.join(", ")}` };
     }
 
-    const r = await rt.run({
-      system: buildAgentSystem(p, agent, {
-        invocation: "runtime",
-        runtime,
-        caller: "super_agent_tool",
-      }),
-      prompt,
-      cwd: p.path,
-      timeoutMs: timeout_s * 1000,
-    });
-
-    p.logMessage({
-      agent_slug: slug,
-      channel: "runtime",
-      direction: "in",
-      author: "user",
-      body: prompt,
-      meta: { runtime, invoked_by: "super_agent_tool" },
-    });
-    p.logMessage({
-      agent_slug: slug,
-      channel: "runtime",
-      direction: "out",
-      author: slug,
-      body: r.output || "",
-      meta: {
-        runtime,
-        exit_code: r.exitCode,
-        external_session_path: r.externalSessionPath || null,
-        invoked_by: "super_agent_tool",
-      },
-    });
-
-    return {
+    const actor = agent?.slug || "apx";
+    const session = createRuntimeSession({
+      projectRoot: p.path,
+      storageRoot: p.storagePath,
+      agentSlug: actor,
       runtime,
-      exit_code: r.exitCode,
-      output: (r.output || "").slice(0, 4000),
-      truncated: (r.output || "").length > 4000,
-      external_session_path: r.externalSessionPath || null,
-    };
+      title: `Runtime: ${runtime}${agent ? ` (${agent.slug})` : ""}`,
+    });
+
+    try {
+      const r = await rt.run({
+        system: buildRuntimeSystem(p, agent, runtime, session.id, "super_agent_tool"),
+        prompt,
+        cwd: p.path,
+        timeoutMs: timeout_s * 1000,
+      });
+
+      const result = extractApfResult(r.output) || (r.output || "").slice(0, 200);
+      closeRuntimeSession({
+        filePath: session.path,
+        externalSessionPath: r.externalSessionPath || null,
+        exitCode: r.exitCode,
+        result,
+      });
+
+      p.logMessage({
+        agent_slug: actor,
+        channel: "runtime",
+        direction: "in",
+        author: "user",
+        body: prompt,
+        meta: { runtime, invoked_by: "super_agent_tool", apc_session: session.id },
+      });
+      p.logMessage({
+        agent_slug: actor,
+        channel: "runtime",
+        direction: "out",
+        author: actor,
+        body: r.output || "",
+        meta: {
+          runtime,
+          exit_code: r.exitCode,
+          external_session_path: r.externalSessionPath || null,
+          session_id: r.sessionId || null,
+          apc_session: session.id,
+          invoked_by: "super_agent_tool",
+        },
+      });
+
+      return {
+        runtime,
+        agent: agent?.slug || null,
+        apc_session: session.id,
+        exit_code: r.exitCode,
+        output: (r.output || "").slice(0, 4000),
+        truncated: (r.output || "").length > 4000,
+        external_session_path: r.externalSessionPath || null,
+        session_id: r.sessionId || null,
+      };
+    } catch (e) {
+      try {
+        closeRuntimeSession({
+          filePath: session.path,
+          exitCode: -1,
+          result: `error: ${e.message.slice(0, 200)}`,
+        });
+      } catch {}
+      throw e;
+    }
   },
 };

@@ -36,6 +36,12 @@ test("TOOL_SCHEMAS exposes the expected functions", () => {
   }
 });
 
+test("call_runtime schema allows APX runtime without an explicit agent", () => {
+  const schema = TOOL_SCHEMAS.find((t) => t.function.name === "call_runtime");
+  assert.ok(schema);
+  assert.deepEqual(schema.function.parameters.required.sort(), ["prompt", "runtime"]);
+});
+
 test("list_projects returns the registered project", () => {
   const { root, projects } = setup();
   try {
