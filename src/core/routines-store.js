@@ -2,6 +2,7 @@
 // Replaces the SQLite `routines` table for project-scoped scheduled tasks.
 import fs from "node:fs";
 import path from "node:path";
+import cronParser from "cron-parser";
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 const isoToMs = (iso) => (iso ? Date.parse(iso) : 0);
@@ -32,6 +33,7 @@ function writeFile(projectPath, routines) {
 
 export function parseSchedule(s, baseMs = Date.now()) {
   if (!s || typeof s !== "string") return { kind: "invalid" };
+  
   if (s.startsWith("every:")) {
     const spec = s.slice(6).trim();
     const m = spec.match(/^(\d+)(s|m|h|d)$/);
@@ -40,13 +42,21 @@ export function parseSchedule(s, baseMs = Date.now()) {
     const mult = { s: 1000, m: 60_000, h: 3_600_000, d: 86_400_000 }[m[2]];
     return { kind: "every", intervalMs: n * mult };
   }
+  
   if (s.startsWith("once:")) {
     const ts = s.slice(5).trim();
     const ms = Date.parse(ts);
     if (isNaN(ms)) return { kind: "invalid" };
     return { kind: "once", atMs: ms };
   }
-  return { kind: "invalid" };
+
+  // Fallback: Try parsing as standard cron expression using cron-parser
+  try {
+    const interval = cronParser.parseExpression(s, { currentDate: new Date(baseMs) });
+    return { kind: "cron", parser: interval };
+  } catch (err) {
+    return { kind: "invalid" };
+  }
 }
 
 export function computeNextRun(routine, baseMs = Date.now()) {
@@ -63,6 +73,14 @@ export function computeNextRun(routine, baseMs = Date.now()) {
     const target = next < baseMs ? baseMs + 100 : next;
     return new Date(target).toISOString().replace(/\.\d{3}Z$/, "Z");
   }
+  if (sched.kind === "cron") {
+    try {
+      const nextDate = sched.parser.next();
+      return nextDate.toISOString().replace(/\.\d{3}Z$/, "Z");
+    } catch (err) {
+      return null;
+    }
+  }
   return null;
 }
 
@@ -76,10 +94,10 @@ export function getRoutine(projectPath, name) {
   return readFile(projectPath).find((r) => r.name === name) || null;
 }
 
-export function upsertRoutine(projectPath, { name, kind, schedule, spec, enabled = true, permission_mode, allowed_tools }) {
+export function upsertRoutine(storagePath, { name, kind, schedule, spec, enabled = true, permission_mode, allowed_tools, pre_commands, post_commands, skip_prompt_on }) {
   if (!name || !kind || !schedule) throw new Error("routine requires name, kind, schedule");
   const now = nowIso();
-  const routines = readFile(projectPath);
+  const routines = readFile(storagePath);
   const idx = routines.findIndex((r) => r.name === name);
   const prev = idx >= 0 ? routines[idx] : null;
   const next = computeNextRun({ schedule, last_run_at: null });
@@ -90,6 +108,16 @@ export function upsertRoutine(projectPath, { name, kind, schedule, spec, enabled
     spec: spec || {},
     permission_mode: permission_mode || prev?.permission_mode || null,
     allowed_tools: Array.isArray(allowed_tools) ? allowed_tools : (prev?.allowed_tools || []),
+    // Pipeline fields
+    pre_commands: Array.isArray(pre_commands) ? pre_commands : (prev?.pre_commands || []),
+    post_commands: Array.isArray(post_commands) ? post_commands : (prev?.post_commands || []),
+    // When to skip phase 2 (the LLM call):
+    //   "signal"      — (default) skip if APX_SKIP found in pre_commands stdout
+    //   "pre_failure" — skip if any pre_command exits != 0
+    //   "pre_success" — skip if all pre_commands exit 0
+    //   "always"      — never run the LLM (shell-only routine)
+    //   "never"       — always run the LLM regardless of pre_commands
+    skip_prompt_on: skip_prompt_on || prev?.skip_prompt_on || "signal",
     enabled: enabled !== false,
     last_run_at: prev?.last_run_at ?? null,
     last_status: prev?.last_status ?? null,
@@ -103,7 +131,7 @@ export function upsertRoutine(projectPath, { name, kind, schedule, spec, enabled
   } else {
     routines.push(entry);
   }
-  writeFile(projectPath, routines);
+  writeFile(storagePath, routines);
   return entry;
 }
 
@@ -141,7 +169,12 @@ export function updateRunState(projectPath, name, { last_run_at, last_status, la
 }
 
 export function getDueRoutines(projectPath, nowStr) {
-  return readFile(projectPath).filter(
-    (r) => r.enabled && (!r.next_run_at || r.next_run_at <= nowStr)
-  );
+  return readFile(projectPath).filter((r) => {
+    if (!r.enabled) return false;
+    // CRITICAL: If the schedule cannot be parsed, NEVER run it.
+    // Otherwise, an invalid schedule (like a cron string) sets next_run_at to null,
+    // which previously caused it to be considered ALWAYS due and spam execution every 5 seconds!
+    if (parseSchedule(r.schedule).kind === "invalid") return false;
+    return (!r.next_run_at || r.next_run_at <= nowStr);
+  });
 }

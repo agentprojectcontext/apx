@@ -67,9 +67,23 @@ export async function cmdRoutineAdd(args) {
   const allowed_tools = args.flags["allowed-tools"] && args.flags["allowed-tools"] !== true
     ? String(args.flags["allowed-tools"]).split(",").map((s) => s.trim()).filter(Boolean)
     : undefined;
+  // Pipeline: pre/post commands as comma-separated list or repeated --pre-commands flags.
+  const parseCmdList = (val) => {
+    if (!val || val === true) return undefined;
+    if (Array.isArray(val)) return val.flatMap((v) => String(v).split(",")).map((s) => s.trim()).filter(Boolean);
+    return String(val).split(",").map((s) => s.trim()).filter(Boolean);
+  };
+  const pre_commands = parseCmdList(args.flags["pre-commands"]);
+  const post_commands = parseCmdList(args.flags["post-commands"]);
+  const skip_prompt_on = args.flags["skip-prompt-on"] && args.flags["skip-prompt-on"] !== true
+    ? args.flags["skip-prompt-on"]
+    : undefined;
   const pid = await resolveProjectId(args?.flags?.project);
-  const r = await http.post(`/projects/${pid}/routines`, { name, kind, schedule, spec, permission_mode, allowed_tools });
+  const r = await http.post(`/projects/${pid}/routines`, { name, kind, schedule, spec, permission_mode, allowed_tools, pre_commands, post_commands, skip_prompt_on });
   console.log(`added routine "${r.name}" (${r.kind}, ${r.schedule}) → next ${r.next_run_at}`);
+  if (r.pre_commands?.length)  console.log(`  pre:  ${r.pre_commands.join(", ")}`);
+  if (r.post_commands?.length) console.log(`  post: ${r.post_commands.join(", ")}`);
+  if (r.skip_prompt_on && r.skip_prompt_on !== "signal") console.log(`  skip_prompt_on: ${r.skip_prompt_on}`);
 }
 
 export async function cmdRoutineRemove(args) {

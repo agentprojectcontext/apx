@@ -18,6 +18,7 @@ import callRuntime from "./tools/call-runtime.js";
 import sendTelegram from "./tools/send-telegram.js";
 import setIdentity from "./tools/set-identity.js";
 import setPermissionMode from "./tools/set-permission-mode.js";
+import searchFiles from "./tools/search-files.js";
 import { createPermissionGuard } from "./helpers.js";
 
 const TOOLS = [
@@ -41,6 +42,7 @@ const TOOLS = [
   sendTelegram,
   setIdentity,
   setPermissionMode,
+  searchFiles,
 ];
 
 export const TOOL_SCHEMAS = TOOLS.map((tool) => tool.schema);

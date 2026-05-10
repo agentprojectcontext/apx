@@ -60,6 +60,7 @@ import {
   cmdConversationsList,
   cmdConversationsGet,
 } from "./commands/chat.js";
+import { cmdSys } from "./commands/sys.js";
 import { cmdRun, cmdEnvDetect } from "./commands/runtime.js";
 import { cmdSend, cmdConnections } from "./commands/a2a.js";
 import {
@@ -87,6 +88,12 @@ import {
   cmdRoutineRun,
   cmdRoutineHistory,
 } from "./commands/routine.js";
+import {
+  cmdArtifactCreate,
+  cmdArtifactList,
+  cmdArtifactShow,
+  cmdArtifactRemove,
+} from "./commands/artifact.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -695,6 +702,15 @@ const HELP_TOPICS = new Map(Object.entries({
     ],
     examples: ["apx chat reviewer", "apx chat reviewer --conversation abc123"],
   }),
+  sys: topic({
+    title: "apx sys",
+    summary: "Start an interactive super-agent chat REPL with system and workspace context.",
+    usage: ["apx sys [--project <name|id|path>]"],
+    options: [
+      ["--project <name|id|path>", "Pin command to a specific project."],
+    ],
+    examples: ["apx sys", "apx sys --project default"],
+  }),
   conversations: topic({
     title: "apx conversations",
     summary: "List or read stored agent conversations.",
@@ -806,16 +822,22 @@ const HELP_TOPICS = new Map(Object.entries({
   "routine add": topic({
     title: "apx routine add",
     summary: "Create a scheduled routine.",
-    usage: ["apx routine add <name> --kind <kind> --schedule <schedule> [--spec '<json>'] [--permission-mode <mode>] [--allowed-tools a,b] [--project <name|id|path>]"],
+    usage: ["apx routine add <name> --kind <kind> --schedule <schedule> [--spec '<json>'] [--pre-commands 'cmd1,cmd2'] [--post-commands 'cmd'] [--skip-prompt-on signal|pre_failure|pre_success|always|never] [--project <name|id|path>]"],
     options: [
       ["--kind <kind>", "heartbeat, exec_agent, super_agent, telegram, or shell."],
       ["--schedule <schedule>", "every:60s, every:5m, every:1h, or once:<iso>."],
       ["--spec '<json>'", "Routine-specific JSON config."],
+      ["--pre-commands 'cmd'", "Comma-separated shell commands to run BEFORE the LLM. Use 'artifact:<name>' shorthand."],
+      ["--post-commands 'cmd'", "Comma-separated shell commands to run AFTER the LLM. Env: APX_LLM_OUTPUT, APX_PRE_OUTPUT, APX_STATUS."],
+      ["--skip-prompt-on <mode>", "signal (default), pre_failure, pre_success, always, never."],
       ["--permission-mode <mode>", "total, automatico, or permiso."],
       ["--allowed-tools a,b", "Comma-separated allowed tool names."],
       ["--project <name|id|path>", "Pin command to a specific project."],
     ],
-    examples: ["apx routine add check --kind shell --schedule every:1h --spec '{\"cmd\":\"npm test\"}'"],
+    examples: [
+      "apx routine add check --kind shell --schedule every:1h --spec '{\"cmd\":\"npm test\"}'",
+      "apx routine add asana-check --kind super_agent --schedule '*/5 * * * *' --pre-commands 'artifact:check_asana.sh' --skip-prompt-on pre_success --project 0",
+    ],
   }),
   "routine get": topic({
     title: "apx routine get",
@@ -858,6 +880,53 @@ const HELP_TOPICS = new Map(Object.entries({
     usage: ["apx routine remove <name> [--project <name|id|path>]", "apx routine rm <name> [--project <name|id|path>]"],
     options: [["--project <name|id|path>", "Pin command to a specific project."]],
     examples: ["apx routine remove check"],
+  }),
+  artifact: topic({
+    title: "apx artifact",
+    summary: "Managed files stored in project storage. Used as pre/post-commands scripts or data files for routines.",
+    usage: ["apx artifact <subcommand> [args] [--flags]"],
+    commands: [
+      ["create <name>", "Create a new empty artifact. Prints its absolute path."],
+      ["list | ls", "List artifacts in the project."],
+      ["show <name>", "Print artifact content."],
+      ["remove | rm <name>", "Delete an artifact."],
+    ],
+    examples: [
+      "apx artifact create check_asana.sh --project 0",
+      "apx artifact list",
+      "apx artifact show check_asana.sh",
+    ],
+  }),
+  "artifact create": topic({
+    title: "apx artifact create",
+    summary: "Create a new managed artifact file.",
+    usage: ["apx artifact create <name> [--content 'text'] [--project <name|id|path>]"],
+    options: [
+      ["--content 'text'", "Initial file content (default: empty)."],
+      ["--project <name|id|path>", "Pin command to a specific project."],
+    ],
+    examples: ["apx artifact create check_asana.sh --project 0"],
+  }),
+  "artifact list": topic({
+    title: "apx artifact list",
+    summary: "List artifacts in the project storage.",
+    usage: ["apx artifact list [--project <name|id|path>]"],
+    options: [["--project <name|id|path>", "Pin command to a specific project."]],
+    examples: ["apx artifact list"],
+  }),
+  "artifact show": topic({
+    title: "apx artifact show",
+    summary: "Print artifact content.",
+    usage: ["apx artifact show <name> [--project <name|id|path>]"],
+    options: [["--project <name|id|path>", "Pin command to a specific project."]],
+    examples: ["apx artifact show check_asana.sh"],
+  }),
+  "artifact remove": topic({
+    title: "apx artifact remove",
+    summary: "Delete an artifact.",
+    usage: ["apx artifact remove <name> [--project <name|id|path>]", "apx artifact rm <name>"],
+    options: [["--project <name|id|path>", "Pin command to a specific project."]],
+    examples: ["apx artifact remove check_asana.sh"],
   }),
   command: topic({
     title: "apx command",
@@ -1073,6 +1142,7 @@ function buildHelp(version) {
     hSec("LLM / Chat"),
     hCmd("apx exec <agent> \"prompt\"",36, "--model <id>  --max-tokens N  --temperature T"),
     hCmd("apx chat <agent>",           36, "--conversation <id>  --model <id>  (interactive REPL)"),
+    hCmd("apx sys",                    36, "super-agent chat w/ system+workspace context"),
     hCmd("apx conversations list",     36, "<agent>"),
     hCmd("apx conversations get",      36, "<agent> <id>"),
 
@@ -1086,11 +1156,13 @@ function buildHelp(version) {
     hCmd("apx connections <agent>",    36, "mental map: who/how/when this agent talked"),
     hCmd("apx graph <agent>",          36, "alias for connections"),
 
-    hSec("Routines"),
+    hSec("Routines & Pipeline"),
     hCmd("apx routine list",           36, "list routines + next/last run"),
     hCmd("apx routine add <name>",     36, "--kind K  --schedule S  [--spec '{...}']"),
     `    ${H.DI}kinds: heartbeat | exec_agent | super_agent | telegram | shell${H.R}`,
     `    ${H.DI}flags: --permission-mode total|automatico|permiso  --allowed-tools a,b${H.R}`,
+    `    ${H.DI}pipeline: --pre-commands 'cmd1,cmd2'  --post-commands 'cmd'${H.R}`,
+    `    ${H.DI}         --skip-prompt-on signal|pre_failure|pre_success|always|never${H.R}`,
     `    ${H.DI}schedule: every:60s | every:5m | every:1h | once:<iso>${H.R}`,
     hCmd("apx routine get <name>",     36, ""),
     hCmd("apx routine history <name>", 36, "show routine execution history"),
@@ -1098,6 +1170,12 @@ function buildHelp(version) {
     hCmd("apx routine enable <name>",  36, ""),
     hCmd("apx routine disable <name>", 36, ""),
     hCmd("apx routine remove <name>",  36, ""),
+
+    hSec("Artifacts"),
+    hCmd("apx artifact create <name>", 36, "create managed file in project storage  [--content '...'] [--project 0]"),
+    hCmd("apx artifact list",          36, "list artifacts"),
+    hCmd("apx artifact show <name>",   36, "print artifact content"),
+    hCmd("apx artifact remove <name>", 36, ""),
 
     hSec("Commands & Skills"),
     hCmd("apx command list",           36, "list workflow commands (.apc/commands/)"),
@@ -1374,6 +1452,10 @@ async function dispatch(cmd, rest) {
         await cmdChat(parseArgs(rest));
         break;
 
+      case "sys":
+        await cmdSys(parseArgs(rest));
+        break;
+
       case "conversations":
       case "conv": {
         const sub = rest[0];
@@ -1442,6 +1524,18 @@ async function dispatch(cmd, rest) {
         else if (sub === "run") await cmdRoutineRun(a);
         else if (sub === "history" || sub === "hist") await cmdRoutineHistory(a);
         else die(`unknown routine subcommand: ${sub}`);
+        break;
+      }
+
+      case "artifact":
+      case "artifacts": {
+        const sub = rest[0];
+        const a = parseArgs(rest.slice(1));
+        if (!sub || sub === "list" || sub === "ls") await cmdArtifactList(a);
+        else if (sub === "create" || sub === "new") await cmdArtifactCreate(a);
+        else if (sub === "show" || sub === "get") await cmdArtifactShow(a);
+        else if (sub === "remove" || sub === "rm") await cmdArtifactRemove(a);
+        else die(`unknown artifact subcommand: ${sub}`);
         break;
       }
 

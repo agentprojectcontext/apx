@@ -43,6 +43,12 @@ import { readAgents } from "../core/parser.js";
 import { parseSessionFrontmatter } from "../core/parser.js";
 import { writeAgentFile, ensureAgentDir, regenerateAgentsMd } from "../core/scaffold.js";
 import { buildAgentSystem } from "../core/agent-system.js";
+import {
+  createArtifact,
+  listArtifacts,
+  readArtifact,
+  removeArtifact,
+} from "../core/artifacts-store.js";
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 
@@ -518,6 +524,35 @@ export function buildApi({ projects, registries, plugins, scheduler, version, st
     }
   });
 
+  // POST /projects/:pid/super-agent/chat
+  app.post("/projects/:pid/super-agent/chat", async (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const { prompt, contextNote, previousMessages, model } = req.body || {};
+    if (!prompt) return res.status(400).json({ error: "prompt required" });
+    try {
+      const saResult = await runSuperAgent({
+        globalConfig: config,
+        projects,
+        plugins,
+        registries,
+        prompt,
+        contextNote: contextNote || `Context: Project ${p.id} (${p.name}) at ${p.path}`,
+        previousMessages: previousMessages || [],
+        overrideModel: model,
+      });
+      projects.rebuild(p.id);
+      res.json({
+        text: saResult.text,
+        usage: saResult.usage,
+        name: saResult.name,
+        trace: saResult.trace,
+      });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // GET /projects/:pid/agents/:slug/conversations
   app.get("/projects/:pid/agents/:slug/conversations", (req, res) => {
     const p = project(req, res);
@@ -812,11 +847,49 @@ export function buildApi({ projects, registries, plugins, scheduler, version, st
     const p = project(req, res);
     if (!p) return;
     try {
+      // Pass all fields including pipeline extensions.
       const r = upsertRoutine(p.storagePath, req.body || {});
       res.status(201).json(r);
     } catch (e) {
       res.status(400).json({ error: e.message });
     }
+  });
+
+  // ---- Artifacts (managed files in storagePath/artifacts/) ---------
+  app.get("/projects/:pid/artifacts", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    res.json(listArtifacts(p.storagePath));
+  });
+
+  app.post("/projects/:pid/artifacts", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const { name, content = "" } = req.body || {};
+    if (!name) return res.status(400).json({ error: "name required" });
+    try {
+      const filePath = createArtifact(p.storagePath, name, content);
+      res.status(201).json({ name, path: filePath });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  app.get("/projects/:pid/artifacts/:name", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    try {
+      res.json(readArtifact(p.storagePath, decodeURIComponent(req.params.name)));
+    } catch (e) {
+      res.status(404).json({ error: e.message });
+    }
+  });
+
+  app.delete("/projects/:pid/artifacts/:name", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const ok = removeArtifact(p.storagePath, decodeURIComponent(req.params.name));
+    res.status(ok ? 204 : 404).end();
   });
 
   app.delete("/projects/:pid/routines/:name", (req, res) => {

@@ -34,6 +34,7 @@ Useful CLI facts:
 - Permission mode: apx permission show; apx permission set total|automatico|permiso.
 - Routines: apx routine list|get|history|run|add. Autonomous super-agent routines use kind super_agent.
 - Routine design: if the user asks for an agent to think, decide, write, or reply, create an exec_agent routine with spec.agent and spec.prompt. If the user asks APX itself to orchestrate tools or Telegram, create a super_agent routine. If the request is only a deterministic command, create a shell routine. If unclear, ask one short question: "agent routine or simple command routine?"
+- Routine schedules: APX supports standard cron expressions (e.g. '*/5 * * * *'), OR 'every:<number><s|m|h|d>' (e.g. 'every:60s'), OR 'once:<iso-8601>'.
 - Safe read-only shell checks such as apx --help, apx routine list, docker ps, find, ls, rg, grep can run in automatico without asking.
 
 Channel context:
@@ -41,20 +42,6 @@ Channel context:
 - If not Telegram, answer normally for the caller, still concise.
 
 You HAVE tools. THE FIRST THING you do for any factual question is call a tool. Do not ask the user to specify a project unless the tool itself fails.
-
-Available tools:
-- list_projects, list_agents, list_mcps         — discovery (call WITHOUT project to get all of them across every registered project; specify project only to filter)
-- list_vault_agents, import_agent, add_project  — inspect the agent vault, install a vault agent into a project, register an APC project
-- read_agent_memory                              — what an agent knows
-- list_files, read_file, write_file, edit_file   — inspect/create/edit files in default or a project
-- run_shell                                      — execute shell commands in default or a project
-- tail_messages, search_messages                 — see history
-- call_agent                                     — delegate to a project agent
-- call_mcp                                       — call an installed MCP tool when MCP is the right protocol
-- call_runtime                                   — spawn a separate claude-code/codex/opencode/aider session when the user wants an external runtime/chat
-- send_telegram                                  — send a message
-- set_identity                                   — update agent name, personality, owner, language (persists to disk)
-- set_permission_mode                            — set total/automatico/permiso in ~/.apx/config.json
 
 HARD RULES (do not deviate):
 1. NEVER invent project names, agent slugs, model ids, MCP names or paths. ALWAYS look them up via list_* first.
@@ -99,11 +86,13 @@ export async function runSuperAgent({
   prompt,
   contextNote = "",
   previousMessages = [],
+  overrideModel = null,
 }) {
   if (!isSuperAgentEnabled(globalConfig)) {
     throw new Error("super-agent not enabled (set super_agent.enabled and .model in ~/.apx/config.json)");
   }
   const sa = globalConfig.super_agent;
+  const activeModel = overrideModel || sa.model;
 
   // Tiny project hint — JUST names + ids, no detail. The model is expected to
   // call list_agents / list_mcps / read_agent_memory / etc. for everything
@@ -153,7 +142,7 @@ export async function runSuperAgent({
 
   for (let iter = 0; iter < MAX_TOOL_ITERS; iter++) {
     const result = await callEngine({
-      modelId: sa.model,
+      modelId: activeModel,
       system,
       messages: conversation,
       config: globalConfig,

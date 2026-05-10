@@ -17,3 +17,4 @@ node_modules/
 # macOS
 .DS_Store
 testing
+opencode_ref/
