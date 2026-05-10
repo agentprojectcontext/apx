@@ -87,12 +87,25 @@ function buildSkillMd(content) {
   const frontmatter = [
     "---",
     "name: apx",
-    "description: APX CLI skill. Activate when: user asks to run or coordinate agents, use MCP tools from .apc/mcps.json, install agents from a team workspace, or explicitly mentions apx commands. Do NOT activate just because .apc/ exists — that is handled by the apc-context skill. Activate on: 'apx run', 'apx exec', 'run an agent', 'coordinate agents', 'MCP not working', 'install agent', 'team agents', 'apx memory', 'daemon'.",
+    "description: \"APX CLI skill. Activate when: user asks to run or coordinate agents, use MCP tools from .apc/mcps.json, install agents from a team workspace, or explicitly mentions apx commands. Do NOT activate just because .apc/ exists — that is handled by the apc-context skill. Activate on: 'apx run', 'apx exec', 'run an agent', 'coordinate agents', 'MCP not working', 'install agent', 'team agents', 'apx memory', 'daemon'.\"",
     "homepage: https://github.com/agentprojectcontext/apx",
     "---",
     "",
   ].join("\n");
   return frontmatter + content;
+}
+
+function readRuntimeSkillFiles() {
+  const skillsDir = path.join(__dirname, "runtime-skills");
+  if (!fs.existsSync(skillsDir)) return [];
+
+  return fs.readdirSync(skillsDir)
+    .filter((name) => name.endsWith(".md"))
+    .sort()
+    .map((name) => ({
+      slug: path.basename(name, ".md"),
+      md: fs.readFileSync(path.join(skillsDir, name), "utf8").trim(),
+    }));
 }
 
 // Install APX + APC context skills into IDE rule files. Returns an array of result objects.
@@ -159,6 +172,7 @@ export function installGlobalSkills() {
     skills.push({ slug: "apx", md: buildSkillMd(fs.readFileSync(apxSrc, "utf8").trim()) });
   if (fs.existsSync(apcSrc))
     skills.push({ slug: "apc-context", md: buildApcContextSkillMd(fs.readFileSync(apcSrc, "utf8").trim()) });
+  skills.push(...readRuntimeSkillFiles());
 
   for (const base of GLOBAL_SKILL_DIRS) {
     for (const { slug, md } of skills) {

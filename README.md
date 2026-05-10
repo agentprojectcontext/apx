@@ -113,9 +113,13 @@ can distinguish Telegram users from APX agents and future subagents.
 | Runtime | Description |
 |---------|-------------|
 | `claude-code` | Spawns Claude Code CLI with the agent's system prompt injected |
-| `codex` | OpenAI Codex CLI |
+| `codex` | OpenAI Codex CLI via non-interactive `codex exec --sandbox workspace-write --skip-git-repo-check` |
 | `opencode` | OpenCode CLI |
 | `aider` | Aider CLI |
+
+Global APX skill installation also writes named helper skills for `codex-cli`, `claude-code`,
+`opencode-cli`, and `openrouter`. They are intentionally narrow and should activate only when those
+tools/providers are explicitly mentioned.
 
 ## Engines (for `apx exec`)
 

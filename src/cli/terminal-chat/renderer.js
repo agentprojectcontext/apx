@@ -275,6 +275,9 @@ function transcriptLines(transcript, width) {
       for (const chunk of chunks) {
         addLine(lines, margin + C.primary + "┃" + C.panel + " " + C.text + padAnsi(chunk, inner), C.bg);
       }
+      if (item.meta) {
+        addLine(lines, margin + C.primary + "┃" + C.panel + " " + C.muted + padAnsi(item.meta, inner), C.bg);
+      }
       addLine(lines, margin + C.primary + "┃" + C.panel + " " + " ".repeat(inner), C.bg);
       continue;
     }
@@ -315,13 +318,21 @@ function transcriptLines(transcript, width) {
   return lines;
 }
 
-function renderChat(transcript, chatWidth, height, promptTop) {
+function renderChat(state, chatWidth, height, promptTop) {
   const maxRows = Math.max(1, promptTop - 1);
-  const lines = transcriptLines(transcript, chatWidth - 2);
-  const slice = lines.slice(Math.max(0, lines.length - maxRows));
+  const lines = transcriptLines(state.transcript, chatWidth - 2);
+  const maxOffset = Math.max(0, lines.length - maxRows);
+  const offset = Math.min(Math.max(0, state.chatScrollOffset || 0), maxOffset);
+  state.chatScrollOffset = offset;
+  const start = Math.max(0, lines.length - maxRows - offset);
+  const slice = lines.slice(start, start + maxRows);
 
   for (let i = 0; i < slice.length && i < maxRows; i++) {
     writeAt(i, 0, slice[i].text, chatWidth - 1, slice[i].bg);
+  }
+
+  if (offset > 0 && maxRows > 1) {
+    writeAt(0, 0, C.muted + `↑ ${offset} lines above bottom`, chatWidth - 1, C.bg);
   }
 }
 
@@ -407,7 +418,7 @@ export function renderTerminalChat(state) {
     renderLogo(chatWidth, Math.max(1, Math.floor(height / 2) - 8));
   } else {
     const prompt = promptGeometry(false, true, chatWidth);
-    renderChat(state.transcript, chatWidth, height, prompt.top);
+    renderChat(state, chatWidth, height, prompt.top);
   }
 
   const cursor = renderPromptBlock(state, chatWidth);

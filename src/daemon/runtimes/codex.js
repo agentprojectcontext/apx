@@ -1,5 +1,5 @@
 // OpenAI Codex CLI runtime adapter.
-//   codex exec "<prompt>"
+//   codex exec --sandbox workspace-write --skip-git-repo-check "<prompt>"
 // System prompt is prepended to the prompt body since Codex doesn't have a
 // dedicated --system flag in `exec` mode.
 // Reference: https://github.com/openai/codex
@@ -15,7 +15,7 @@ export default {
     const fullPrompt = system ? `${system}\n\n---\n\n${prompt}` : prompt;
     const r = await runProcess({
       command: "codex",
-      args: ["exec", fullPrompt],
+      args: ["exec", "--sandbox", "workspace-write", "--skip-git-repo-check", fullPrompt],
       cwd,
       env,
       timeoutMs,

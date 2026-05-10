@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import codex from "../src/daemon/runtimes/codex.js";
 import cursorAgent from "../src/daemon/runtimes/cursor-agent.js";
 import geminiCli from "../src/daemon/runtimes/gemini-cli.js";
 import qwenCode from "../src/daemon/runtimes/qwen-code.js";
@@ -47,6 +48,28 @@ test("runtime registry includes external CLI adapters", () => {
   assert.equal(getRuntime("cursor-agent").binary, "cursor-agent");
   assert.equal(getRuntime("gemini-cli").binary, "gemini");
   assert.equal(getRuntime("qwen-code").binary, "qwen");
+});
+
+test("codex runtime uses exec mode that works outside git repos", async () => {
+  await withFakeBinary("codex", fakeNodeScript("codex output\n"), async (env) => {
+    const r = await codex.run({
+      system: "system text",
+      prompt: "do work",
+      cwd: process.cwd(),
+      env,
+      timeoutMs: 5000,
+    });
+    const args = JSON.parse(fs.readFileSync(env.APX_FAKE_ARGS_FILE, "utf8"));
+    assert.deepEqual(args.slice(0, 4), [
+      "exec",
+      "--sandbox",
+      "workspace-write",
+      "--skip-git-repo-check",
+    ]);
+    assert.match(args[4], /system text/);
+    assert.match(args[4], /do work/);
+    assert.equal(r.output, "codex output");
+  });
 });
 
 test("cursor-agent runtime uses headless print mode", async () => {

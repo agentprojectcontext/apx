@@ -1,12 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { handleEditingKey, isReturnKey } from "../src/cli/commands/sys.js";
+import { handleEditingKey, handleScrollKey, isReturnKey } from "../src/cli/commands/sys.js";
 
 function makeState() {
   return {
     currentModeIdx: 0,
     inputText: "",
     cursorIndex: 0,
+    hasStarted: false,
+    chatScrollOffset: 0,
   };
 }
 
@@ -38,4 +40,23 @@ test("editing inserts printable characters", () => {
   assert.equal(handled, true);
   assert.equal(state.inputText, "a");
   assert.equal(state.cursorIndex, 1);
+});
+
+test("scroll keys move chat transcript offset after chat starts", () => {
+  const state = makeState();
+  state.hasStarted = true;
+  let renders = 0;
+
+  assert.equal(handleScrollKey({ name: "up" }, state, () => { renders++; }), true);
+  assert.equal(state.chatScrollOffset, 3);
+  assert.equal(handleScrollKey({ name: "pagedown" }, state, () => { renders++; }), true);
+  assert.equal(state.chatScrollOffset, 0);
+  assert.equal(renders, 2);
+});
+
+test("scroll keys are ignored before chat starts", () => {
+  const state = makeState();
+
+  assert.equal(handleScrollKey({ name: "up" }, state, () => {}), false);
+  assert.equal(state.chatScrollOffset, 0);
 });

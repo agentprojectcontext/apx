@@ -32,10 +32,12 @@ export async function cmdSys(args) {
     hasStarted: false,
     sessionTitle: "",
     usage: { input: 0, output: 0, percent: 0 },
+    chatScrollOffset: 0,
     transcript: [],
   };
 
   const previousMessages = [];
+  const pendingPrompts = [];
   let restored = false;
   let isRequesting = false;
 
@@ -74,8 +76,6 @@ export async function cmdSys(args) {
   renderScreen();
 
   process.stdin.on("keypress", async (str, key) => {
-    if (isRequesting) return;
-
     if (key.ctrl && key.name === "c") {
       close();
     }
@@ -102,9 +102,16 @@ export async function cmdSys(args) {
       return;
     }
 
+    if (handleScrollKey(key, state, renderScreen)) return;
+
     if (isReturnKey(key)) {
+      if (isRequesting) {
+        queuePrompt(state, pendingPrompts, renderScreen);
+        return;
+      }
+
       isRequesting = true;
-      await submitPrompt(pid, state, previousMessages, renderScreen, close);
+      await submitPromptQueue(pid, state, previousMessages, pendingPrompts, renderScreen, close);
       isRequesting = false;
       return;
     }
@@ -115,6 +122,37 @@ export async function cmdSys(args) {
 
 export function isReturnKey(key) {
   return key?.name === "return" || key?.name === "enter";
+}
+
+export function handleScrollKey(key, state, renderScreen) {
+  if (!state.hasStarted || !key) return false;
+  const pageSize = key.name === "pageup" || key.name === "pagedown" ? 8 : 3;
+
+  if (key.name === "pageup" || key.name === "up" || (key.ctrl && key.name === "up")) {
+    state.chatScrollOffset = Math.min(100000, (state.chatScrollOffset || 0) + pageSize);
+    renderScreen();
+    return true;
+  }
+
+  if (key.name === "pagedown" || key.name === "down" || (key.ctrl && key.name === "down")) {
+    state.chatScrollOffset = Math.max(0, (state.chatScrollOffset || 0) - pageSize);
+    renderScreen();
+    return true;
+  }
+
+  if (key.meta && key.name === "up") {
+    state.chatScrollOffset = Math.min(100000, (state.chatScrollOffset || 0) + 20);
+    renderScreen();
+    return true;
+  }
+
+  if (key.meta && key.name === "down") {
+    state.chatScrollOffset = 0;
+    renderScreen();
+    return true;
+  }
+
+  return false;
 }
 
 async function handlePaletteKey(key, cfg, state, renderScreen, close) {
@@ -276,18 +314,46 @@ export function handleEditingKey(str, key, state, renderScreen) {
   return false;
 }
 
-async function submitPrompt(pid, state, previousMessages, renderScreen, close) {
+function queuePrompt(state, pendingPrompts, renderScreen) {
   const text = state.inputText.trim();
   if (!text) return;
-  if (text.toLowerCase() === "exit" || text.toLowerCase() === "quit") {
+
+  state.hasStarted = true;
+  state.inputText = "";
+  state.cursorIndex = 0;
+  state.chatScrollOffset = 0;
+
+  const item = { type: "user", text, meta: "queued" };
+  pendingPrompts.push({ text, item });
+  state.transcript.push(item);
+  renderScreen();
+}
+
+async function submitPromptQueue(pid, state, previousMessages, pendingPrompts, renderScreen, close) {
+  const firstText = state.inputText.trim();
+  if (!firstText) return;
+  if (firstText.toLowerCase() === "exit" || firstText.toLowerCase() === "quit") {
     close();
   }
 
   state.hasStarted = true;
   state.inputText = "";
   state.cursorIndex = 0;
-  state.transcript.push({ type: "user", text });
-  state.transcript.push({ type: "status", text: "Thinking..." });
+  state.chatScrollOffset = 0;
+
+  const firstItem = { type: "user", text: firstText };
+  state.transcript.push(firstItem);
+  await runPrompt(pid, state, previousMessages, renderScreen, firstText, firstItem);
+
+  while (pendingPrompts.length > 0) {
+    const queued = pendingPrompts.shift();
+    delete queued.item.meta;
+    await runPrompt(pid, state, previousMessages, renderScreen, queued.text, queued.item);
+  }
+}
+
+async function runPrompt(pid, state, previousMessages, renderScreen, text, userItem) {
+  appendLiveItem(state, { type: "status", text: "Thinking...", active: true });
   renderScreen();
 
   const startTime = Date.now();
@@ -312,29 +378,42 @@ async function submitPrompt(pid, state, previousMessages, renderScreen, close) {
       result = await http.post(`/projects/${pid}/super-agent/chat`, body);
       removeStatus(state);
       for (const trace of result.trace || []) {
-        state.transcript.push({ type: "tool", trace });
+        appendLiveItem(state, { type: "tool", trace });
       }
     }
 
     completeSuperAgentResult(result, text, startTime, state, previousMessages);
   } catch (e) {
     removeStatus(state);
-    state.transcript.push({ type: "error", text: e.message });
+    appendLiveItem(state, { type: "error", text: e.message });
   }
 
+  if (userItem) delete userItem.meta;
   renderScreen();
 }
 
 function removeStatus(state) {
-  const last = state.transcript[state.transcript.length - 1];
-  if (last?.type === "status") state.transcript.pop();
+  for (let i = state.transcript.length - 1; i >= 0; i--) {
+    if (state.transcript[i]?.type === "status" && state.transcript[i]?.active) {
+      state.transcript.splice(i, 1);
+      return;
+    }
+  }
+}
+
+function appendLiveItem(state, item) {
+  const queuedIndex = state.transcript.findIndex(
+    (entry) => entry?.type === "user" && entry?.meta === "queued"
+  );
+  if (queuedIndex >= 0) state.transcript.splice(queuedIndex, 0, item);
+  else state.transcript.push(item);
 }
 
 function handleProgressEvent(event, state, renderScreen) {
   if (event.type === "model_start") {
-    const last = state.transcript[state.transcript.length - 1];
-    if (last?.type === "status") {
-      last.text = event.iteration > 1 ? `Thinking... step ${event.iteration}` : "Thinking...";
+    const status = [...state.transcript].reverse().find((item) => item?.type === "status" && item?.active);
+    if (status) {
+      status.text = event.iteration > 1 ? `Thinking... step ${event.iteration}` : "Thinking...";
       renderScreen();
     }
     return;
@@ -342,7 +421,7 @@ function handleProgressEvent(event, state, renderScreen) {
 
   if (event.type === "assistant_text" && event.text) {
     removeStatus(state);
-    state.transcript.push({
+    appendLiveItem(state, {
       type: "assistant",
       name: state.activeAgent,
       text: event.text,
@@ -354,7 +433,7 @@ function handleProgressEvent(event, state, renderScreen) {
 
   if (event.type === "tool_start" && event.trace) {
     removeStatus(state);
-    state.transcript.push({ type: "tool", trace: event.trace });
+    appendLiveItem(state, { type: "tool", trace: event.trace });
     renderScreen();
     return;
   }
@@ -365,7 +444,7 @@ function handleProgressEvent(event, state, renderScreen) {
       (item) => item.type === "tool" && item.trace?.id && item.trace.id === event.trace.id
     );
     if (idx >= 0) state.transcript[idx] = { type: "tool", trace: event.trace };
-    else state.transcript.push({ type: "tool", trace: event.trace });
+    else appendLiveItem(state, { type: "tool", trace: event.trace });
     renderScreen();
   }
 }
@@ -383,7 +462,7 @@ function completeSuperAgentResult(result, userText, startTime, state, previousMe
   state.usage.output += result.usage?.output_tokens || 0;
   state.usage.percent = Math.min(99, Math.round((state.usage.input / 200000) * 100));
 
-  state.transcript.push({
+  appendLiveItem(state, {
     type: "assistant",
     name: state.activeAgent,
     text: result.text,

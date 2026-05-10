@@ -42,6 +42,22 @@ The output is the agent's full stdout. If it printed `APC_RESULT: <value>`, that
 apx exec <slug> "<prompt>"
 ```
 
+## Command accuracy
+
+Do not invent APX subcommands. Before telling another runtime to call APX, verify the exact CLI
+form with `apx --help` or `apx <command> --help`.
+
+Known Telegram form:
+
+```bash
+apx telegram status
+apx telegram send "message"
+apx telegram send "message" --chat 123456
+```
+
+Do not use guessed aliases such as `apx send-telegram` or `apx telegram "message"` unless current
+`apx --help` shows that exact form.
+
 ## MCP tools
 
 MCPs declared in `.apc/mcps.json` are proxied through the APX daemon. Use `apx mcp` only for MCPs registered there — not for MCPs that are already running locally in your IDE session.
