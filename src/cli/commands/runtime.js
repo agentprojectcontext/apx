@@ -5,7 +5,7 @@ export async function cmdRun(args) {
   const slug = args._[0];
   if (!slug) throw new Error("apx run: usage: apx run <agent> --runtime <id> \"<prompt>\"");
   const runtime = args.flags.runtime === true ? null : args.flags.runtime;
-  if (!runtime) throw new Error("apx run: --runtime required (claude-code | codex | opencode | aider)");
+  if (!runtime) throw new Error("apx run: --runtime required (claude-code | codex | opencode | aider | cursor-agent | gemini-cli | qwen-code)");
 
   let prompt = args._.slice(1).join(" ").trim();
   if (!prompt || prompt === "-") {

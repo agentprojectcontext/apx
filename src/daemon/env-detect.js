@@ -11,6 +11,7 @@ const PROBES = [
   { id: "aider",       binary: "aider",     args: ["--version"], category: "runtime" },
   { id: "gemini-cli",  binary: "gemini",    args: ["--version"], category: "runtime" },
   { id: "cursor-agent",binary: "cursor-agent", args: ["--version"], category: "runtime" },
+  { id: "qwen-code",   binary: "qwen",      args: ["--version"], category: "runtime" },
 
   // Local LLM runners (engines/)
   { id: "ollama",      binary: "ollama",    args: ["--version"], category: "engine" },

@@ -67,7 +67,7 @@ export default {
     type: "function",
     function: {
       name: "call_runtime",
-      description: "Spawn an external CLI runtime (Claude Code, Codex, OpenCode, Aider), optionally impersonating an APC agent.",
+      description: "Spawn an external CLI runtime (Claude Code, Codex, OpenCode, Aider, Cursor Agent, Gemini CLI, Qwen Code), optionally impersonating an APC agent.",
       parameters: {
         type: "object",
         properties: {
@@ -75,7 +75,7 @@ export default {
           agent: { type: "string", description: "Optional APC agent slug from AGENTS.md, not runtime name. Omit when the user did not name an agent." },
           runtime: {
             type: "string",
-            enum: ["claude-code", "codex", "opencode", "aider"],
+            enum: RUNTIME_IDS,
             description: "external CLI runtime",
           },
           prompt: { type: "string" },
