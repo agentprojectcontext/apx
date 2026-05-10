@@ -39,7 +39,7 @@ function projectName(project) {
 }
 
 function buildRuntimeSystem(project, agent, runtime, sessionId, caller) {
-  const agentSlug = agent?.slug || "super-agent";
+  const agentSlug = agent?.slug || "apx";
   const hint = buildApfHint({
     projectName: projectName(project),
     projectPath: project.path,
@@ -148,7 +148,7 @@ export default {
       };
     }
 
-  const actor = agent?.slug || "super-agent";
+    const actor = agent?.slug || "apx";
     const session = createRuntimeSession({
       projectRoot: p.path,
       storageRoot: p.storagePath,
