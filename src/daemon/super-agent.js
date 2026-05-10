@@ -53,13 +53,14 @@ HARD RULES (do not deviate):
 7. Stay brief: under 6 sentences unless asked for detail.
 8. You DO see recent prior turns of this chat as previous messages when applicable. **Use them ONLY to disambiguate references** (e.g. "el primero" → first project mentioned earlier). For ANY factual data — agent details, MCP details, file contents, memory — RE-CALL the tool. Past turns are context, not a cache. Models change, agents change, files change.
 9. /reset or /new from the user means "forget previous turns and answer this one fresh" — if you see those prefixes the operator already cleared the context for you.
-10. DELEGATION RULE: when the user asks an agent to do a task, use call_agent (unless they specify opening it in a runtime, then see rule 11).
-11. DISPATCH RULE: when the user asks to work inside Claude, Codex, OpenCode, Aider, Cursor, Gemini CLI, or Qwen Code, use call_runtime({runtime: 'claude-code'|'codex'|'opencode'|'aider'|'cursor-agent'|'gemini-cli'|'qwen-code', prompt: <user's request>}). If they explicitly name an agent to spawn, pass agent: <slug>. If they don't name an agent, DO NOT pass an agent argument. When an agent is passed, its memory + skills become the system prompt of the runtime.
-12. PROJECT RULE: when the user gives no project, use project "default". Do not infer a non-default project from old chat history unless the user references it. If they mention a path or project name, look it up or add it with add_project.
-13. VAULT RULE: when the user wants a new existing agent/template, call list_vault_agents first. If a suitable vault agent exists, import_agent into the chosen project. If none fits, say briefly what is missing.
-14. NO-PENDING RULE: never say "give me a second", "I will do it", or "I will try later" as a final answer. Either call the tool in this same turn or say what blocks you.
-15. IDENTITY RULE: when the user asks you to change your name, call yourself something, or update your personality/language, call set_identity and persist the change. Then confirm with your new name.
-16. ROUTINES RULE: NEVER create a routine in the default project (id=0). Routines MUST be tied to a specific registered project. Before adding a routine, call list_projects to find the correct project id or name. Then pass --project <id|name> to apx routine add. If no project fits, ask the user which project to use. Creating routines in project 0/default mixes unrelated projects' schedules and corrupts state.`;
+10. SELF-RUN RULE: if the user says "vos mismo", "tu mismo", "same", "base", "default", "sin agente", or does not explicitly name an agent slug, act as APX itself. Do NOT call list_agents to choose a candidate. Do NOT pass agent to call_runtime/call_agent.
+11. DELEGATION RULE: when the user asks a named APC agent to do a task, use call_agent (unless they specify opening it in a runtime, then see rule 12).
+12. DISPATCH RULE: when the user asks to work inside Claude, Codex, OpenCode, Aider, Cursor, Gemini CLI, or Qwen Code, use call_runtime({runtime: 'claude-code'|'codex'|'opencode'|'aider'|'cursor-agent'|'gemini-cli'|'qwen-code', prompt: <user's request>}). First prefer runtimes the tool reports as installed/runnable; if a runtime is missing or fails, report that fact and its stderr/error instead of pretending success. If the user explicitly named an agent slug, pass agent: <slug>. If they didn't, DO NOT pass agent. When an agent is passed, its memory + skills become the system prompt of the runtime.
+13. PROJECT RULE: when the user gives no project, use project "default". Do not infer a non-default project from old chat history unless the user references it. If they mention a path or project name, look it up or add it with add_project.
+14. VAULT RULE: when the user wants a new existing agent/template, call list_vault_agents first. If a suitable vault agent exists, import_agent into the chosen project. If none fits, say briefly what is missing.
+15. NO-PENDING RULE: never say "give me a second", "I will do it", or "I will try later" as a final answer. Either call the tool in this same turn or say what blocks you.
+16. IDENTITY RULE: when the user asks you to change your name, call yourself something, or update your personality/language, call set_identity and persist the change. Then confirm with your new name.
+17. ROUTINES RULE: NEVER create a routine in the default project (id=0). Routines MUST be tied to a specific registered project. Before adding a routine, call list_projects to find the correct project id or name. Then pass --project <id|name> to apx routine add. If no project fits, ask the user which project to use. Creating routines in project 0/default mixes unrelated projects' schedules and corrupts state.`;
 
 function isShortConfirmation(text) {
   return /^(yes|y|si|si dale|dale|ok|okay|confirm|confirmed|go|proceed|do it)\b/i
@@ -87,6 +88,7 @@ export async function runSuperAgent({
   contextNote = "",
   previousMessages = [],
   overrideModel = null,
+  onEvent = null,
 }) {
   if (!isSuperAgentEnabled(globalConfig)) {
     throw new Error("super-agent not enabled (set super_agent.enabled and .model in ~/.apx/config.json)");
@@ -141,6 +143,7 @@ export async function runSuperAgent({
   let lastText = "";
 
   for (let iter = 0; iter < MAX_TOOL_ITERS; iter++) {
+    await emitProgress(onEvent, { type: "model_start", iteration: iter + 1 });
     const result = await callEngine({
       modelId: activeModel,
       system,
@@ -174,6 +177,11 @@ export async function runSuperAgent({
       break;
     }
 
+    const visibleText = cleanTextOfPseudoToolCalls(lastText).trim();
+    if (visibleText) {
+      await emitProgress(onEvent, { type: "assistant_text", text: visibleText, iteration: iter + 1 });
+    }
+
     // Append the assistant turn (with its tool_calls) and execute each call.
     conversation.push({
       role: "assistant",
@@ -191,6 +199,12 @@ export async function runSuperAgent({
       args = args || {};
 
       let toolResult;
+      const traceId = `${iter + 1}:${trace.length + 1}`;
+      await emitProgress(onEvent, {
+        type: "tool_start",
+        trace: { id: traceId, tool: name, args, pending: true },
+        iteration: iter + 1,
+      });
       try {
         const handler = handlers[name];
         if (!handler) {
@@ -202,7 +216,13 @@ export async function runSuperAgent({
         toolResult = { error: e.message };
       }
 
-      trace.push({ tool: name, args, result: summarizeForTrace(toolResult) });
+      const traceItem = { id: traceId, tool: name, args, result: summarizeForTrace(toolResult) };
+      trace.push(traceItem);
+      await emitProgress(onEvent, {
+        type: "tool_result",
+        trace: traceItem,
+        iteration: iter + 1,
+      });
 
       conversation.push({
         role: "tool",
@@ -218,6 +238,11 @@ export async function runSuperAgent({
     name: sa.name || "apx",
     trace,
   };
+}
+
+async function emitProgress(onEvent, event) {
+  if (typeof onEvent !== "function") return;
+  await onEvent(event);
 }
 
 function summarizeForTrace(r) {

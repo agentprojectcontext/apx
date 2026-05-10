@@ -300,31 +300,93 @@ async function submitPrompt(pid, state, previousMessages, renderScreen, close) {
       model: state.activeModel,
     };
 
-    const result = await http.post(`/projects/${pid}/super-agent/chat`, body);
-    state.transcript.pop();
-    for (const trace of result.trace || []) {
-      state.transcript.push({ type: "tool", trace });
+    let result;
+    try {
+      result = await http.streamPost(
+        `/projects/${pid}/super-agent/chat/stream`,
+        body,
+        (event) => handleProgressEvent(event, state, renderScreen)
+      );
+    } catch (e) {
+      if (e.status !== 404) throw e;
+      result = await http.post(`/projects/${pid}/super-agent/chat`, body);
+      removeStatus(state);
+      for (const trace of result.trace || []) {
+        state.transcript.push({ type: "tool", trace });
+      }
     }
 
-    previousMessages.push({ role: "user", content: text });
-    previousMessages.push({ role: "assistant", content: result.text });
-    if (previousMessages.length > 20) previousMessages.splice(0, previousMessages.length - 20);
-
-    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    state.usage.input += result.usage?.input_tokens || 0;
-    state.usage.output += result.usage?.output_tokens || 0;
-    state.usage.percent = Math.min(99, Math.round((state.usage.input / 200000) * 100));
-
-    state.transcript.push({
-      type: "assistant",
-      name: state.activeAgent,
-      text: result.text,
-      meta: `${elapsed}s   ·   In: ${result.usage?.input_tokens || 0} Out: ${result.usage?.output_tokens || 0}`,
-    });
+    completeSuperAgentResult(result, text, startTime, state, previousMessages);
   } catch (e) {
-    state.transcript.pop();
+    removeStatus(state);
     state.transcript.push({ type: "error", text: e.message });
   }
 
   renderScreen();
+}
+
+function removeStatus(state) {
+  const last = state.transcript[state.transcript.length - 1];
+  if (last?.type === "status") state.transcript.pop();
+}
+
+function handleProgressEvent(event, state, renderScreen) {
+  if (event.type === "model_start") {
+    const last = state.transcript[state.transcript.length - 1];
+    if (last?.type === "status") {
+      last.text = event.iteration > 1 ? `Thinking... step ${event.iteration}` : "Thinking...";
+      renderScreen();
+    }
+    return;
+  }
+
+  if (event.type === "assistant_text" && event.text) {
+    removeStatus(state);
+    state.transcript.push({
+      type: "assistant",
+      name: state.activeAgent,
+      text: event.text,
+      meta: "intermediate",
+    });
+    renderScreen();
+    return;
+  }
+
+  if (event.type === "tool_start" && event.trace) {
+    removeStatus(state);
+    state.transcript.push({ type: "tool", trace: event.trace });
+    renderScreen();
+    return;
+  }
+
+  if (event.type === "tool_result" && event.trace) {
+    removeStatus(state);
+    const idx = state.transcript.findIndex(
+      (item) => item.type === "tool" && item.trace?.id && item.trace.id === event.trace.id
+    );
+    if (idx >= 0) state.transcript[idx] = { type: "tool", trace: event.trace };
+    else state.transcript.push({ type: "tool", trace: event.trace });
+    renderScreen();
+  }
+}
+
+function completeSuperAgentResult(result, userText, startTime, state, previousMessages) {
+  removeStatus(state);
+  if (!result) throw new Error("super-agent stream ended without final result");
+
+  previousMessages.push({ role: "user", content: userText });
+  previousMessages.push({ role: "assistant", content: result.text });
+  if (previousMessages.length > 20) previousMessages.splice(0, previousMessages.length - 20);
+
+  const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+  state.usage.input += result.usage?.input_tokens || 0;
+  state.usage.output += result.usage?.output_tokens || 0;
+  state.usage.percent = Math.min(99, Math.round((state.usage.input / 200000) * 100));
+
+  state.transcript.push({
+    type: "assistant",
+    name: state.activeAgent,
+    text: result.text,
+    meta: `${elapsed}s   ·   In: ${result.usage?.input_tokens || 0} Out: ${result.usage?.output_tokens || 0}`,
+  });
 }

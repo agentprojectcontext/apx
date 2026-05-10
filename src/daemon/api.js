@@ -525,6 +525,50 @@ export function buildApi({ projects, registries, plugins, scheduler, version, st
   });
 
   // POST /projects/:pid/super-agent/chat
+  app.post("/projects/:pid/super-agent/chat/stream", async (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const { prompt, contextNote, previousMessages, model } = req.body || {};
+    if (!prompt) return res.status(400).json({ error: "prompt required" });
+
+    res.setHeader("content-type", "application/x-ndjson; charset=utf-8");
+    res.setHeader("cache-control", "no-cache, no-transform");
+    res.setHeader("x-accel-buffering", "no");
+    res.flushHeaders?.();
+
+    const send = (event) => {
+      res.write(JSON.stringify(event) + "\n");
+    };
+
+    try {
+      const saResult = await runSuperAgent({
+        globalConfig: config,
+        projects,
+        plugins,
+        registries,
+        prompt,
+        contextNote: contextNote || `Context: Project ${p.id} (${p.name}) at ${p.path}`,
+        previousMessages: previousMessages || [],
+        overrideModel: model,
+        onEvent: send,
+      });
+      projects.rebuild(p.id);
+      send({
+        type: "final",
+        result: {
+          text: saResult.text,
+          usage: saResult.usage,
+          name: saResult.name,
+          trace: saResult.trace,
+        },
+      });
+      res.end();
+    } catch (e) {
+      send({ type: "error", error: e.message });
+      res.end();
+    }
+  });
+
   app.post("/projects/:pid/super-agent/chat", async (req, res) => {
     const p = project(req, res);
     if (!p) return;

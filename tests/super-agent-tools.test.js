@@ -40,6 +40,7 @@ test("call_runtime schema allows APX runtime without an explicit agent", () => {
   const schema = TOOL_SCHEMAS.find((t) => t.function.name === "call_runtime");
   assert.ok(schema);
   assert.deepEqual(schema.function.parameters.required.sort(), ["prompt", "runtime"]);
+  assert.match(schema.function.parameters.properties.agent.description, /Omit for 'vos mismo'/);
   assert.deepEqual(schema.function.parameters.properties.runtime.enum, [
     "claude-code",
     "codex",
@@ -49,6 +50,31 @@ test("call_runtime schema allows APX runtime without an explicit agent", () => {
     "gemini-cli",
     "qwen-code",
   ]);
+});
+
+test("call_runtime reports missing runtime before creating a blank run", async () => {
+  const { root, projects } = setup();
+  const oldPath = process.env.PATH;
+  process.env.PATH = "";
+  try {
+    const handlers = makeToolHandlers({
+      projects,
+      plugins: null,
+      registries: null,
+      globalConfig: { super_agent: { permission_mode: "total" } },
+    });
+    const r = await handlers.call_runtime({
+      runtime: "aider",
+      prompt: "test",
+    });
+    assert.match(r.error, /runtime "aider" is not installed or not runnable/);
+    assert.equal(r.runtime, "aider");
+    assert.equal(r.binary, "aider");
+    assert.deepEqual(r.installed_runtimes, []);
+  } finally {
+    process.env.PATH = oldPath;
+    cleanupTempProject(root);
+  }
 });
 
 test("list_projects returns the registered project", () => {

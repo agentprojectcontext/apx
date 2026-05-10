@@ -91,9 +91,66 @@ async function request(method, path, body, opts = {}) {
   return json;
 }
 
+async function streamRequest(method, path, body, onEvent, opts = {}) {
+  if (opts.autoStart !== false) await ensureDaemon();
+  else if (!(await ping())) {
+    throw new Error(`apx daemon not running (no response on ${baseUrl()})`);
+  }
+
+  const res = await fetch(`${baseUrl()}${path}`, {
+    method,
+    headers: body ? { "content-type": "application/json" } : {},
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    let json = null;
+    try { json = text ? JSON.parse(text) : null; } catch {}
+    const err = new Error(json?.error || `${method} ${path} → ${res.status}`);
+    err.status = res.status;
+    throw err;
+  }
+
+  if (!res.body?.getReader) {
+    throw new Error("streaming response is not supported by this Node.js runtime");
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let finalResult = null;
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split(/\r?\n/);
+    buffer = lines.pop() || "";
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      const event = JSON.parse(line);
+      if (event.type === "final") finalResult = event.result;
+      if (event.type === "error") throw new Error(event.error || "stream error");
+      await onEvent?.(event);
+    }
+  }
+
+  buffer += decoder.decode();
+  if (buffer.trim()) {
+    const event = JSON.parse(buffer);
+    if (event.type === "final") finalResult = event.result;
+    if (event.type === "error") throw new Error(event.error || "stream error");
+    await onEvent?.(event);
+  }
+
+  return finalResult;
+}
+
 export const http = {
   get: (p, opts) => request("GET", p, undefined, opts),
   post: (p, body, opts) => request("POST", p, body, opts),
+  streamPost: (p, body, onEvent, opts) => streamRequest("POST", p, body, onEvent, opts),
   put: (p, body, opts) => request("PUT", p, body, opts),
   patch: (p, body, opts) => request("PATCH", p, body, opts),
   delete: (p, opts) => request("DELETE", p, undefined, opts),

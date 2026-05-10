@@ -7,6 +7,8 @@ import {
   createRuntimeSession,
   extractApfResult,
 } from "../../apc-runtime-context.js";
+import { detectAll } from "../../env-detect.js";
+import { runProcess } from "../../runtimes/_spawn.js";
 import { getRuntime, RUNTIME_IDS } from "../../runtimes/index.js";
 import { buildAgentSystem, confirmedProperty, resolveProject } from "../helpers.js";
 
@@ -61,18 +63,43 @@ function buildRuntimeSystem(project, agent, runtime, sessionId, caller) {
   ].join("\n\n");
 }
 
+async function runtimeAvailability(runtime, rt) {
+  const probe = await runProcess({
+    command: rt.binary,
+    args: rt.versionFlag ? [rt.versionFlag] : ["--version"],
+    timeoutMs: 3000,
+  });
+  if (probe.exitCode === 0 || probe.stdout || probe.stderr) {
+    return { ok: true };
+  }
+
+  const detected = await detectAll();
+  const current = detected.find((d) => d.id === runtime || d.binary === rt.binary);
+  if (current?.installed) {
+    return { ok: true, detected };
+  }
+  return {
+    ok: false,
+    reason: current?.reason || `${rt.binary} not found`,
+    detected,
+    installed: detected
+      .filter((d) => d.category === "runtime" && d.installed)
+      .map((d) => d.id),
+  };
+}
+
 export default {
   name: "call_runtime",
   schema: {
     type: "function",
     function: {
       name: "call_runtime",
-      description: "Spawn an external CLI runtime (Claude Code, Codex, OpenCode, Aider, Cursor Agent, Gemini CLI, Qwen Code), optionally impersonating an APC agent.",
+      description: "Spawn an external CLI runtime (Claude Code, Codex, OpenCode, Aider, Cursor Agent, Gemini CLI, Qwen Code). Omit agent for the base APX/default self-run.",
       parameters: {
         type: "object",
         properties: {
           project: { type: "string" },
-          agent: { type: "string", description: "Optional APC agent slug from AGENTS.md, not runtime name. Omit when the user did not name an agent." },
+          agent: { type: "string", description: "Optional APC agent slug from AGENTS.md, not runtime name. Use only when the user explicitly named that agent. Omit for 'vos mismo', 'default', 'base', or no agent." },
           runtime: {
             type: "string",
             enum: RUNTIME_IDS,
@@ -106,6 +133,19 @@ export default {
       rt = getRuntime(runtime);
     } catch (e) {
       return { error: `${e.message}. Available runtimes: ${RUNTIME_IDS.join(", ")}` };
+    }
+
+    const availability = await runtimeAvailability(runtime, rt);
+    if (!availability.ok) {
+      return {
+        error: `runtime "${runtime}" is not installed or not runnable (${availability.reason})`,
+        runtime,
+        binary: rt.binary,
+        installed_runtimes: availability.installed,
+        hint: availability.installed.length
+          ? `Try one of: ${availability.installed.join(", ")}`
+          : "No external runtime CLIs were detected. Run apx env detect for details.",
+      };
     }
 
     const actor = agent?.slug || "apx";
@@ -163,6 +203,7 @@ export default {
         apc_session: session.id,
         exit_code: r.exitCode,
         output: (r.output || "").slice(0, 4000),
+        stderr: (r.stderr || "").slice(0, 2000),
         truncated: (r.output || "").length > 4000,
         external_session_path: r.externalSessionPath || null,
         session_id: r.sessionId || null,

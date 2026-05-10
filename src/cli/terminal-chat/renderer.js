@@ -229,6 +229,11 @@ function addToolBlock(lines, item, width) {
   addLine(lines, "", C.bg);
   addLine(lines, margin + C.muted + `→ ${label}${target ? " " + fit(String(target), inner) : ""}`, C.bg);
 
+  if (trace.pending) {
+    addLine(lines, margin + C.dim + "  " + C.muted + "running...", C.bg);
+    return;
+  }
+
   if (trace.tool === "write_file") {
     const heading = `# Wrote ${args.path || "file"}`;
     addLine(lines, margin + C.panel + " " + C.muted + heading + " ".repeat(Math.max(0, inner - visible(heading))), C.bg);
