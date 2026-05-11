@@ -75,6 +75,26 @@ function lastAssistantAskedForConfirmation(messages) {
   return false;
 }
 
+/**
+ * Returns true if the model response looks like a pure acknowledgment
+ * with no actual content — the classic "ghost response" anti-pattern.
+ */
+function isGhostResponse(text) {
+  const t = String(text || "").trim();
+  if (t.length > 200) return false; // long responses are probably real
+  return /^(ok|okay|got it|understood|sure|of course|on it|dale|entendido|claro|voy|ya lo hago|dame un (segundo|momento)|un momento|let me|i (will|can|shall)|i'm (going|about)|give me a|ahora lo|enseguida|checking|looking|fetching|working on|stand by|please wait|un seg|dame sec)[\s.,!]*/i
+    .test(t);
+}
+
+/**
+ * Returns true if the user's prompt looks like an instruction to act
+ * rather than just a question or statement.
+ */
+function looksLikeActionRequest(text) {
+  const t = String(text || "").trim().toLowerCase();
+  return /\b(list|show|find|get|fetch|search|run|execute|create|add|make|start|stop|delete|update|send|check|read|write|look|tell me|dame|mostra|busca|ejecuta|crea|agrega|mandá|revisá|corré|borrá|arrancá)\b/.test(t);
+}
+
 export function isSuperAgentEnabled(cfg) {
   return !!(cfg && cfg.super_agent && cfg.super_agent.enabled && cfg.super_agent.model);
 }
@@ -172,6 +192,20 @@ export async function runSuperAgent({
     }
 
     if (!toolCalls || toolCalls.length === 0) {
+      // Ghost-response detection: if the model returned a pure acknowledgment
+      // (no tool calls, no real content) on the FIRST iteration in response to
+      // what looks like an action request, inject a re-prompt.
+      if (iter === 0 && isGhostResponse(lastText) && looksLikeActionRequest(prompt)) {
+        await emitProgress(onEvent, { type: "ghost_response_detected", text: lastText });
+        conversation.push({ role: "assistant", content: lastText });
+        conversation.push({
+          role: "user",
+          content:
+            "Remember: you must execute the action, not just confirm it. " +
+            "Call the tool now — action first, report after.",
+        });
+        continue; // give the model one more chance
+      }
       // Final answer — clean up any stray fence markers just in case
       lastText = cleanTextOfPseudoToolCalls(lastText) || lastText;
       break;

@@ -35,6 +35,9 @@
     "express": "^4.21.0",
     "node-fetch": "^3.3.2"
   },
+  "optionalDependencies": {
+    "puppeteer": "^22.0.0"
+  },
   "devDependencies": {
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",

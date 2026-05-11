@@ -3,6 +3,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import express from "express";
+import { buildBrowserRouter } from "./tools/browser.js";
+import { buildSearchRouter } from "./tools/search.js";
+import { buildRegistryRouter } from "./tools/registry.js";
+import { buildGlobRouter } from "./tools/glob.js";
+import { buildGrepRouter } from "./tools/grep.js";
 import { readApfMcps, writeApfMcps, SOURCES } from "./mcp-sources.js";
 import { callEngine, ENGINE_IDS } from "./engines/index.js";
 import { getRuntime, RUNTIME_IDS } from "./runtimes/index.js";
@@ -57,6 +62,15 @@ export function buildApi({ projects, registries, plugins, scheduler, version, st
 
   const app = express();
   app.use(express.json({ limit: "2mb" }));
+
+  // ---- Tool routers (browser / search / glob / grep / registry) ----
+  app.use("/tools/browser", buildBrowserRouter(express));
+  app.use("/tools/search",  buildSearchRouter(express));
+  app.use("/tools/glob",    buildGlobRouter(express));
+  app.use("/tools/grep",    buildGrepRouter(express));
+  // Registry MUST be mounted after specific routers so /:name wildcard
+  // doesn't shadow /tools/browser, /tools/search, etc.
+  app.use("/tools", buildRegistryRouter(express, { projects, registries }));
 
   // ---- Health -------------------------------------------------------
   app.get("/health", (_req, res) => {
@@ -394,6 +408,60 @@ export function buildApi({ projects, registries, plugins, scheduler, version, st
     try {
       const r = await telegram.send({ chat_id, text, channel });
       res.status(202).json({ ok: true, message_id: r.message_id });
+    } catch (e) {
+      res.status(502).json({ error: e.message });
+    }
+  });
+
+  // POST /telegram/send_photo  { chat_id?, photo (path|url), caption?, channel? }
+  app.post("/telegram/send_photo", async (req, res) => {
+    const { chat_id, photo, caption, parse_mode, channel } = req.body || {};
+    if (!photo) return res.status(400).json({ error: "photo required (path or url)" });
+    if (!telegram) return res.status(503).json({ error: "telegram plugin not loaded" });
+    try {
+      const r = await telegram.sendPhoto({ chat_id, photo, caption, parse_mode, channel });
+      res.status(202).json({ ok: true, message_id: r?.message_id });
+    } catch (e) {
+      res.status(502).json({ error: e.message });
+    }
+  });
+
+  // POST /telegram/send_voice  { chat_id?, audio (path), caption?, duration?, channel? }
+  app.post("/telegram/send_voice", async (req, res) => {
+    const { chat_id, audio, caption, duration, channel } = req.body || {};
+    if (!audio) return res.status(400).json({ error: "audio required (path)" });
+    if (!telegram) return res.status(503).json({ error: "telegram plugin not loaded" });
+    try {
+      const r = await telegram.sendVoice({ chat_id, audio, caption, duration, channel });
+      res.status(202).json({ ok: true, message_id: r?.message_id });
+    } catch (e) {
+      res.status(502).json({ error: e.message });
+    }
+  });
+
+  // POST /telegram/send_audio  { chat_id?, audio (path), caption?, title?, performer?, channel? }
+  app.post("/telegram/send_audio", async (req, res) => {
+    const { chat_id, audio, caption, title, performer, channel } = req.body || {};
+    if (!audio) return res.status(400).json({ error: "audio required (path)" });
+    if (!telegram) return res.status(503).json({ error: "telegram plugin not loaded" });
+    try {
+      const r = await telegram.sendAudio({ chat_id, audio, caption, title, performer, channel });
+      res.status(202).json({ ok: true, message_id: r?.message_id });
+    } catch (e) {
+      res.status(502).json({ error: e.message });
+    }
+  });
+
+  // POST /telegram/notify  — alias for /telegram/send for proactive daemon notifications
+  // Any internal daemon code (routines, error handlers, MCP failure hooks) can POST here
+  // to push a message to the user without waiting for a user-initiated request.
+  app.post("/telegram/notify", async (req, res) => {
+    const { chat_id, text, channel } = req.body || {};
+    if (!text) return res.status(400).json({ error: "text required" });
+    if (!telegram) return res.status(503).json({ error: "telegram plugin not loaded" });
+    try {
+      const r = await telegram.send({ chat_id, text, channel });
+      res.status(202).json({ ok: true, message_id: r.message_id, via: "notify" });
     } catch (e) {
       res.status(502).json({ error: e.message });
     }
@@ -1169,6 +1237,163 @@ export function buildApi({ projects, registries, plugins, scheduler, version, st
     try {
       const result = await registries.for(p).call(name, tool, params);
       res.json({ ok: true, result });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // ---- Session search (cross-agent, cross-conversation) ------------
+  // GET /sessions/search?q=...&project=...&limit=20
+  // Searches session files (.apc/agents/{slug}/sessions/*.md) and
+  // conversation files (~/.apx/.../conversations/*.md) by text content.
+  app.get("/sessions/search", (req, res) => {
+    const { q, project: projectRef, limit = "20" } = req.query;
+    if (!q) return res.status(400).json({ error: "q required" });
+    const lim = Math.min(parseInt(limit, 10) || 20, 200);
+    const needle = q.toLowerCase();
+
+    // Resolve project (or search all)
+    const allProjects = projects.list();
+    const targetProjects = (() => {
+      if (projectRef != null) {
+        const ref = String(projectRef);
+        const found = allProjects.find((p) => String(p.id) === ref || p.path === path.resolve(ref));
+        return found ? [projects.get(found.id)] : [];
+      }
+      return allProjects.map((p) => projects.get(p.id)).filter(Boolean);
+    })();
+
+    const matches = [];
+
+    for (const p of targetProjects) {
+      if (!p) continue;
+
+      // 1. Search session files in project (.apc/agents/{slug}/sessions/)
+      const sessionAgentsDir = path.join(p.path, ".apc", "agents");
+      if (fs.existsSync(sessionAgentsDir)) {
+        for (const slug of fs.readdirSync(sessionAgentsDir)) {
+          const sessionsDir = path.join(sessionAgentsDir, slug, "sessions");
+          if (!fs.existsSync(sessionsDir)) continue;
+          for (const f of fs.readdirSync(sessionsDir).filter((x) => x.endsWith(".md"))) {
+            const filePath = path.join(sessionsDir, f);
+            try {
+              const text = fs.readFileSync(filePath, "utf8");
+              if (text.toLowerCase().includes(needle)) {
+                // Find matching excerpt
+                const lines = text.split("\n");
+                const matchLine = lines.findIndex((l) => l.toLowerCase().includes(needle));
+                const excerpt = lines.slice(Math.max(0, matchLine - 1), matchLine + 3).join("\n");
+                matches.push({
+                  type: "session",
+                  project: p.id,
+                  agent: slug,
+                  filename: f,
+                  path: filePath,
+                  excerpt: excerpt.slice(0, 300),
+                });
+                if (matches.length >= lim) break;
+              }
+            } catch {}
+          }
+          if (matches.length >= lim) break;
+        }
+      }
+
+      if (matches.length >= lim) break;
+
+      // 2. Search conversation files in daemon storage (~/.apx/.../conversations/)
+      const convAgentsDir = path.join(p.storagePath, "agents");
+      if (fs.existsSync(convAgentsDir)) {
+        for (const slug of fs.readdirSync(convAgentsDir)) {
+          const convDir = path.join(convAgentsDir, slug, "conversations");
+          if (!fs.existsSync(convDir)) continue;
+          for (const f of fs.readdirSync(convDir).filter((x) => x.endsWith(".md"))) {
+            const filePath = path.join(convDir, f);
+            try {
+              const text = fs.readFileSync(filePath, "utf8");
+              if (text.toLowerCase().includes(needle)) {
+                const lines = text.split("\n");
+                const matchLine = lines.findIndex((l) => l.toLowerCase().includes(needle));
+                const excerpt = lines.slice(Math.max(0, matchLine - 1), matchLine + 3).join("\n");
+                matches.push({
+                  type: "conversation",
+                  project: p.id,
+                  agent: slug,
+                  filename: f,
+                  path: filePath,
+                  excerpt: excerpt.slice(0, 300),
+                });
+                if (matches.length >= lim) break;
+              }
+            } catch {}
+          }
+          if (matches.length >= lim) break;
+        }
+      }
+
+      if (matches.length >= lim) break;
+    }
+
+    res.json({ q, count: matches.length, results: matches });
+  });
+
+  // POST /sessions/:id/compact
+  // Shortcut: resolves which project/agent owns the session file,
+  // then delegates to the existing compactConversation logic.
+  // Body: { project?, model? }
+  app.post("/sessions/:id/compact", async (req, res) => {
+    const { id } = req.params;
+    const { model: modelOverride, project: projectRef } = req.body || {};
+
+    // Find which project/agent owns this session ID
+    const allProjects = projectRef != null
+      ? (() => {
+          const ref = String(projectRef);
+          const found = projects.list().find((p) => String(p.id) === ref || p.path === path.resolve(ref));
+          return found ? [projects.get(found.id)] : [];
+        })()
+      : projects.list().map((p) => projects.get(p.id)).filter(Boolean);
+
+    let found = null;
+    const filename = id.endsWith(".md") ? id : `${id}.md`;
+
+    for (const p of allProjects) {
+      if (!p) continue;
+      // Search in daemon conversation storage
+      const agentsDir = path.join(p.storagePath, "agents");
+      if (fs.existsSync(agentsDir)) {
+        for (const slug of fs.readdirSync(agentsDir)) {
+          const f = path.join(agentsDir, slug, "conversations", filename);
+          if (fs.existsSync(f)) {
+            found = { p, slug };
+            break;
+          }
+        }
+      }
+      if (found) break;
+    }
+
+    if (!found) {
+      return res.status(404).json({ error: `session/conversation "${id}" not found` });
+    }
+
+    const { p, slug } = found;
+    const { readAgents: _readAgents } = await import("../core/parser.js");
+    const agents = _readAgents(p.path);
+    const agent = agents.find((a) => a.slug === slug);
+    const modelId = modelOverride || agent?.fields?.Model;
+    if (!modelId) return res.status(400).json({ error: "agent has no model; pass model in body" });
+
+    try {
+      const { compactConversation } = await import("./compact.js");
+      const result = await compactConversation({
+        storagePath: p.storagePath,
+        agentSlug: slug,
+        filename,
+        modelId,
+        config: p.config || config,
+      });
+      res.json(result);
     } catch (e) {
       res.status(500).json({ error: e.message });
     }

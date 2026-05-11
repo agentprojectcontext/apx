@@ -18,3 +18,6 @@ node_modules/
 .DS_Store
 testing
 opencode_ref/
+
+# Claude Code worktrees / local state
+.claude/
