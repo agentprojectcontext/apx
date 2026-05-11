@@ -54,6 +54,7 @@ import {
   cmdTelegramSetup,
 } from "./commands/telegram.js";
 import { cmdMessagesTail, cmdMessagesSearch, cmdMessagesChat } from "./commands/messages.js";
+import { cmdSearch } from "./commands/search.js";
 import { cmdExec } from "./commands/exec.js";
 import {
   cmdChat,
@@ -653,6 +654,21 @@ const HELP_TOPICS = new Map(Object.entries({
     options: [["--project <name|id|path>", "Pin command to a specific project."]],
     examples: ["apx messages search \"deploy\""],
   }),
+  search: topic({
+    title: "apx search",
+    summary: "Web search from the terminal (DuckDuckGo / Brave / Puppeteer fallback).",
+    usage: ["apx search \"<query>\" [--mode auto|ddg|brave|browser] [-n N] [--json]"],
+    options: [
+      ["--mode <m>", "auto (default) | ddg | brave | browser. Brave needs BRAVE_API_KEY."],
+      ["-n N",       "Number of results (default 5, max 20)."],
+      ["--json",     "Output raw JSON instead of the formatted list."],
+    ],
+    examples: [
+      "apx search \"agent project context\"",
+      "apx search \"node 22 release notes\" --mode ddg -n 10",
+      "apx search \"weather buenos aires\" --json",
+    ],
+  }),
   "messages chat": topic({
     title: "apx messages chat",
     summary: "Print APX messages as a chat transcript with user, agent, tool, or system type.",
@@ -1129,6 +1145,7 @@ function buildHelp(version) {
     hCmd("apx code",                   36, "APX terminal coding assistant"),
     hCmd("apx exec <agent> \"prompt\"",36, "one-shot agent call  --model <id>  --max-tokens N"),
     hCmd("apx chat <agent>",           36, "interactive agent REPL  --conversation <id>"),
+    hCmd("apx search \"query\"",       36, "web search (ddg | brave | browser)  --mode <m>  -n N"),
     hCmd("apx conversations list",     36, "stored exec/chat conversations for <agent>"),
     hCmd("apx conversations get",      36, "<agent> <id>"),
 
@@ -1431,6 +1448,10 @@ async function dispatch(cmd, rest) {
 
       case "exec":
         await cmdExec(parseArgs(rest));
+        break;
+
+      case "search":
+        await cmdSearch(parseArgs(rest));
         break;
 
       case "chat":

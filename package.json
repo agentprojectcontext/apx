@@ -36,6 +36,7 @@
     "node-fetch": "^3.3.2"
   },
   "optionalDependencies": {
+    "fast-glob": "^3.3.2",
     "puppeteer": "^22.0.0"
   },
   "devDependencies": {

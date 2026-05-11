@@ -60,7 +60,8 @@ HARD RULES (do not deviate):
 14. VAULT RULE: When the user wants a new existing agent/template, call list_vault_agents first. If a suitable vault agent exists, import_agent into the chosen project. If none fits, say briefly what is missing.
 15. NO-PENDING RULE: never say "give me a second", "I will do it", or "I will try later" as a final answer. Either call the tool in this same turn or say what blocks you.
 16. IDENTITY RULE: when the user asks you to change your name, call yourself something, or update your personality/language, call set_identity and persist the change. Then confirm with your new name.
-17. ROUTINES RULE: NEVER create a routine in the default project (id=0). Routines MUST be tied to a specific registered project. Before adding a routine, call list_projects to find the correct project id or name. Then pass --project <id|name> to apx routine add. If no project fits, ask the user which project to use. Creating routines in project 0/default mixes unrelated projects' schedules and corrupts state.`;
+17. ROUTINES RULE: NEVER create a routine in the default project (id=0). Routines MUST be tied to a specific registered project. Before adding a routine, call list_projects to find the correct project id or name. Then pass --project <id|name> to apx routine add. If no project fits, ask the user which project to use. Creating routines in project 0/default mixes unrelated projects' schedules and corrupts state.
+18. **NO EMPTY RESPONSES**: Never respond with only text when you have tools available and the user is asking you to DO something. Call the tool FIRST, then explain. Never say "I'll do X" without immediately calling the tool. Empty acknowledgments ("ok", "entendido", "dame un minuto", "voy", "checking", "stand by") without a tool call are invalid responses — they will be re-prompted and waste a turn.`;
 
 function isShortConfirmation(text) {
   return /^(yes|y|si|si dale|dale|ok|okay|confirm|confirmed|go|proceed|do it)\b/i
@@ -164,12 +165,18 @@ export async function runSuperAgent({
 
   for (let iter = 0; iter < MAX_TOOL_ITERS; iter++) {
     await emitProgress(onEvent, { type: "model_start", iteration: iter + 1 });
+    // On the first iteration, force a tool call. This prevents the model from
+    // returning a bare acknowledgment ("ok", "dame un segundo") instead of
+    // acting on an action request. On later iterations (after tool results
+    // have been fed back) tool_choice is "auto" so the model can produce its
+    // final text summary.
     const result = await callEngine({
       modelId: activeModel,
       system,
       messages: conversation,
       config: globalConfig,
       tools: TOOL_SCHEMAS,
+      toolChoice: iter === 0 ? "required" : "auto",
       maxTokens: 1024,
     });
     totalUsage.input_tokens += result.usage?.input_tokens || 0;

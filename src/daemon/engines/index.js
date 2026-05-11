@@ -46,7 +46,7 @@ export function getAdapter(provider) {
   return a;
 }
 
-export async function callEngine({ modelId, system, messages, config, temperature, maxTokens, tools }) {
+export async function callEngine({ modelId, system, messages, config, temperature, maxTokens, tools, toolChoice }) {
   const { provider, model } = resolveProvider(modelId);
   const adapter = getAdapter(provider);
   const providerCfg =
@@ -58,6 +58,7 @@ export async function callEngine({ modelId, system, messages, config, temperatur
     temperature,
     maxTokens,
     tools,
+    toolChoice,
     config: providerCfg,
   });
 }
