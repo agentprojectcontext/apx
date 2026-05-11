@@ -1,3 +1,10 @@
+## [1.14.1](https://github.com/agentprojectcontext/apx/compare/v1.14.0...v1.14.1) (2026-05-11)
+
+
+### Bug Fixes
+
+* **telegram:** document support + reject base64 in text + screenshot save_to_tmp ([a48587e](https://github.com/agentprojectcontext/apx/commit/a48587e52f50767f94ef69154da44211b41eb9d0)), closes [#22](https://github.com/agentprojectcontext/apx/issues/22) [hi#level](https://github.com/hi/issues/level)
+
 # [1.14.0](https://github.com/agentprojectcontext/apx/compare/v1.13.1...v1.14.0) (2026-05-11)
 
 
