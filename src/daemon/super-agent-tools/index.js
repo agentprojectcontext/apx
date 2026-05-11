@@ -21,6 +21,7 @@ import setPermissionMode from "./tools/set-permission-mode.js";
 import searchFiles from "./tools/search-files.js";
 import listSkills from "./tools/list-skills.js";
 import loadSkill from "./tools/load-skill.js";
+import transcribeAudio from "./tools/transcribe-audio.js";
 import { createPermissionGuard } from "./helpers.js";
 import { buildBridgedTools, DEFAULT_CATEGORIES } from "./registry-bridge.js";
 
@@ -48,6 +49,7 @@ const NATIVE_TOOLS = [
   searchFiles,
   listSkills,
   loadSkill,
+  transcribeAudio,
 ];
 
 // Registry-backed bridges. Categories can be overridden per-process via env

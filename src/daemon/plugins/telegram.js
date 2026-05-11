@@ -36,6 +36,7 @@ import { stripThinking } from "../thinking.js";
 import { getRecentTelegramTurnsFromFs, appendGlobalMessage } from "../../core/messages-store.js";
 import { readAgents } from "../../core/parser.js";
 import { buildAgentSystem } from "../../core/agent-system.js";
+import { transcribe as transcribeAudioFile } from "../transcription.js";
 
 const API_BASE = "https://api.telegram.org";
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -131,47 +132,9 @@ export async function sendAudio(token, chatId, audio, { caption, title, performe
   return json.result;
 }
 
-/**
- * Transcribe an audio file via OpenAI Whisper.
- * Reads OPENAI_API_KEY from env or engines.openai.api_key in ~/.apx/config.json.
- * Returns the transcribed text, or throws if no key / API failure.
- */
-async function transcribeAudio(filePath) {
-  let apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) {
-    try {
-      const { readConfig } = await import("../../core/config.js");
-      apiKey = readConfig()?.engines?.openai?.api_key || "";
-    } catch { /* ignore */ }
-  }
-  if (!apiKey) throw new Error("OPENAI_API_KEY not set (env or engines.openai.api_key)");
-
-  const fileBuf = fs.readFileSync(filePath);
-  const ext = path.extname(filePath).slice(1).toLowerCase() || "ogg";
-  const mimeMap = {
-    oga: "audio/ogg", ogg: "audio/ogg", opus: "audio/ogg",
-    mp3: "audio/mpeg", m4a: "audio/mp4", mp4: "audio/mp4",
-    wav: "audio/wav", webm: "audio/webm",
-  };
-  const mime = mimeMap[ext] || "audio/ogg";
-  const blob = new Blob([fileBuf], { type: mime });
-
-  const form = new FormData();
-  form.append("file", blob, `audio.${ext}`);
-  form.append("model", "whisper-1");
-
-  const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}` },
-    body: form,
-  });
-  if (!res.ok) {
-    const err = await res.text().catch(() => "");
-    throw new Error(`Whisper ${res.status}: ${err.slice(0, 200)}`);
-  }
-  const json = await res.json();
-  return String(json.text || "").trim();
-}
+// Audio transcription is delegated to the central dispatcher
+// (../transcription.js) which handles local (faster-whisper via Python) +
+// OpenAI cloud fallback. See that module for config keys.
 
 /**
  * Download a file from Telegram servers.
@@ -444,6 +407,7 @@ class ChannelPoller {
       let localPath = null;
       let transcript = "";
       let transcribeError = null;
+      let transcribeBackend = null;
       try {
         localPath = await downloadTelegramFile(token, incomingAudio.file_id, mediaDir);
         this.log(`telegram[${this.channel.name}] audio saved: ${localPath}`);
@@ -452,8 +416,10 @@ class ChannelPoller {
       }
       if (localPath) {
         try {
-          transcript = await transcribeAudio(localPath);
-          this.log(`telegram[${this.channel.name}] audio transcribed (${transcript.length} chars)`);
+          const result = await transcribeAudioFile(localPath);
+          transcript = result.text || "";
+          transcribeBackend = result.backend;
+          this.log(`telegram[${this.channel.name}] audio transcribed via ${transcribeBackend} (${transcript.length} chars, lang=${result.language || "?"})`);
         } catch (e) {
           transcribeError = e.message;
           this.log(`telegram[${this.channel.name}] audio transcription failed: ${e.message}`);
@@ -480,6 +446,7 @@ class ChannelPoller {
           file_id: incomingAudio.file_id,
           duration: incomingAudio.duration,
           mime_type: incomingAudio.mime_type,
+          transcription_backend: transcribeBackend,
           transcription_error: transcribeError,
         },
       });
