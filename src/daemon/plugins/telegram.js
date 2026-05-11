@@ -132,6 +132,48 @@ export async function sendAudio(token, chatId, audio, { caption, title, performe
 }
 
 /**
+ * Transcribe an audio file via OpenAI Whisper.
+ * Reads OPENAI_API_KEY from env or engines.openai.api_key in ~/.apx/config.json.
+ * Returns the transcribed text, or throws if no key / API failure.
+ */
+async function transcribeAudio(filePath) {
+  let apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    try {
+      const { readConfig } = await import("../../core/config.js");
+      apiKey = readConfig()?.engines?.openai?.api_key || "";
+    } catch { /* ignore */ }
+  }
+  if (!apiKey) throw new Error("OPENAI_API_KEY not set (env or engines.openai.api_key)");
+
+  const fileBuf = fs.readFileSync(filePath);
+  const ext = path.extname(filePath).slice(1).toLowerCase() || "ogg";
+  const mimeMap = {
+    oga: "audio/ogg", ogg: "audio/ogg", opus: "audio/ogg",
+    mp3: "audio/mpeg", m4a: "audio/mp4", mp4: "audio/mp4",
+    wav: "audio/wav", webm: "audio/webm",
+  };
+  const mime = mimeMap[ext] || "audio/ogg";
+  const blob = new Blob([fileBuf], { type: mime });
+
+  const form = new FormData();
+  form.append("file", blob, `audio.${ext}`);
+  form.append("model", "whisper-1");
+
+  const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}` },
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.text().catch(() => "");
+    throw new Error(`Whisper ${res.status}: ${err.slice(0, 200)}`);
+  }
+  const json = await res.json();
+  return String(json.text || "").trim();
+}
+
+/**
  * Download a file from Telegram servers.
  * Returns the local file path where it was saved.
  */
@@ -387,6 +429,65 @@ class ChannelPoller {
       }
       // If there's a caption, continue to handle it as text; otherwise return
       if (!text) return;
+    }
+
+    // ── Incoming voice / audio handling ──────────────────────────────────
+    // Telegram sends `voice` for the press-and-hold mic recording (.oga/opus)
+    // and `audio` for uploaded audio files (mp3/m4a/etc.). Either way we
+    // download, run it through Whisper, prefix the result with `[audio] `
+    // and let the rest of the message flow handle it as plain text.
+    const incomingAudio = msg.voice || msg.audio;
+    if (incomingAudio && incomingAudio.file_id) {
+      const token = resolveBotToken(this.channel);
+      const mediaDir = path.join(APX_HOME, "media");
+      fs.mkdirSync(mediaDir, { recursive: true });
+      let localPath = null;
+      let transcript = "";
+      let transcribeError = null;
+      try {
+        localPath = await downloadTelegramFile(token, incomingAudio.file_id, mediaDir);
+        this.log(`telegram[${this.channel.name}] audio saved: ${localPath}`);
+      } catch (e) {
+        this.log(`telegram[${this.channel.name}] audio download failed: ${e.message}`);
+      }
+      if (localPath) {
+        try {
+          transcript = await transcribeAudio(localPath);
+          this.log(`telegram[${this.channel.name}] audio transcribed (${transcript.length} chars)`);
+        } catch (e) {
+          transcribeError = e.message;
+          this.log(`telegram[${this.channel.name}] audio transcription failed: ${e.message}`);
+        }
+      }
+      const audioBody = transcript
+        ? `[audio] ${transcript}`
+        : `[audio] (transcription unavailable${transcribeError ? ": " + transcribeError : ""})`;
+
+      appendGlobalMessage({
+        channel: "telegram",
+        direction: "in",
+        type: "audio",
+        actor_id: msg.from?.id ? String(msg.from.id) : author,
+        external_id: String(u.update_id),
+        author,
+        body: audioBody,
+        meta: {
+          chat_id,
+          user_id: msg.from?.id || null,
+          message_id: msg.message_id,
+          tg_channel: this.channel.name,
+          local_path: localPath,
+          file_id: incomingAudio.file_id,
+          duration: incomingAudio.duration,
+          mime_type: incomingAudio.mime_type,
+          transcription_error: transcribeError,
+        },
+      });
+
+      // Inject the transcribed text into `text` so the rest of the agent
+      // pipeline treats it identically to a typed message. If there was a
+      // caption alongside the audio, prepend the audio marker to it.
+      text = text ? `${audioBody}\n${text}` : audioBody;
     }
 
     // /reset or /new wipes the rolling context for this chat. We just
