@@ -113,6 +113,40 @@ export async function sendVoice(token, chatId, audio, { caption, duration } = {}
  * @param {string} [opts.title]
  * @param {string} [opts.performer]
  */
+/**
+ * Send any file as a Telegram document (PDF, zip, txt, etc).
+ * @param {string} token
+ * @param {string|number} chatId
+ * @param {string|Buffer} document  Path or Buffer of document data
+ * @param {object} [opts]
+ * @param {string} [opts.caption]
+ * @param {string} [opts.filename] override filename for Buffer input
+ * @param {string} [opts.mime_type]
+ */
+export async function sendDocument(token, chatId, document, { caption, filename, mime_type } = {}) {
+  const url = `${API_BASE}/bot${token}/sendDocument`;
+  const form = new FormData();
+  form.append("chat_id", String(chatId));
+  if (caption) form.append("caption", caption);
+
+  // URL string → let Telegram fetch it
+  if (typeof document === "string" && /^https?:\/\//.test(document)) {
+    form.append("document", document);
+  } else {
+    const buf = Buffer.isBuffer(document) ? document : fs.readFileSync(document);
+    const name =
+      filename ||
+      (typeof document === "string" ? path.basename(document) : "document.bin");
+    const blob = new Blob([buf], { type: mime_type || "application/octet-stream" });
+    form.append("document", blob, name);
+  }
+
+  const res = await fetch(url, { method: "POST", body: form });
+  const json = await res.json();
+  if (!json.ok) throw new Error(`sendDocument failed: ${json.description || res.status}`);
+  return json.result;
+}
+
 export async function sendAudio(token, chatId, audio, { caption, title, performer } = {}) {
   const url = `${API_BASE}/bot${token}/sendAudio`;
   const form = new FormData();
@@ -724,6 +758,14 @@ class ChannelPoller {
     return sendVoice(token, target, audio, { caption, duration });
   }
 
+  /** Send a document (PDF, zip, etc) via this channel */
+  async _sendDocument({ chat_id, document, caption, filename, mime_type }) {
+    const token = resolveBotToken(this.channel);
+    if (!token) throw new Error(`channel ${this.channel.name}: no bot_token`);
+    const target = chat_id || resolveChatId(this.channel);
+    return sendDocument(token, target, document, { caption, filename, mime_type });
+  }
+
   /** Send an audio file via this channel */
   async _sendAudio({ chat_id, audio, caption, title, performer }) {
     const token = resolveBotToken(this.channel);
@@ -844,6 +886,29 @@ export default {
           author,
           body: caption || "[voice]",
           meta: { chat_id: chat_id || resolveChatId(p.channel), tg_channel: p.channel.name },
+        });
+        return result;
+      },
+
+      /**
+       * Send a document (PDF, zip, txt, generated reports, etc).
+       * document: local file path, Buffer, or public https URL.
+       */
+      async sendDocument({ channel: channelName, chat_id, document, caption, filename, mime_type, author = "apx" }) {
+        const p =
+          (channelName && pollers.find((pp) => pp.channel.name === channelName)) ||
+          pollers.find((pp) => resolveBotToken(pp.channel)) ||
+          null;
+        if (!p) throw new Error("no telegram channel available");
+        const result = await p._sendDocument({ chat_id, document, caption, filename, mime_type });
+        appendGlobalMessage({
+          channel: "telegram",
+          direction: "out",
+          type: "document",
+          actor_id: author,
+          author,
+          body: caption || `[document${filename ? " " + filename : ""}]`,
+          meta: { chat_id: chat_id || resolveChatId(p.channel), tg_channel: p.channel.name, filename, mime_type },
         });
         return result;
       },

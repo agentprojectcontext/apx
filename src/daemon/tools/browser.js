@@ -197,7 +197,7 @@ export async function browser_navigate({ url, launch_options, allow_dangerous } 
   };
 }
 
-export async function browser_screenshot({ selector, full_page = false, width, height, encoded = false } = {}) {
+export async function browser_screenshot({ selector, full_page = false, width, height, encoded = false, save_path, save_to_tmp = false } = {}) {
   const page = await ensureBrowser();
   if (width || height) {
     await page.setViewport({
@@ -218,12 +218,30 @@ export async function browser_screenshot({ selector, full_page = false, width, h
     throw new Error(`Screenshot too large: ${Math.round(size / 1024)}KB (max ${Math.round(MAX_SCREENSHOT_BYTES / 1024)}KB)`);
   }
 
+  // Optional disk write so the caller can pass `path` to e.g. send_telegram
+  // instead of shuttling base64 around.
+  let writtenPath = null;
+  if (save_path || save_to_tmp) {
+    const fs   = await import("node:fs");
+    const path = await import("node:path");
+    const os   = await import("node:os");
+    let target = save_path;
+    if (!target) {
+      const dir = path.join(os.tmpdir(), "apx-screenshots");
+      fs.mkdirSync(dir, { recursive: true });
+      target = path.join(dir, `screenshot-${Date.now()}.png`);
+    }
+    fs.writeFileSync(target, Buffer.from(String(buf), "base64"));
+    writtenPath = target;
+  }
+
   return {
     ok: true,
     url: page.url(),
     format: "png",
     bytes: size,
     base64: buf,
+    path: writtenPath,
     data_uri: encoded ? `data:image/png;base64,${buf}` : undefined,
   };
 }

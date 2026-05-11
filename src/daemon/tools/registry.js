@@ -366,19 +366,21 @@ const TOOL_DEFINITIONS = [
   {
     name: "browser_screenshot",
     category: "browser",
-    description: "Take a screenshot of the current browser page (or a single element via selector). Returns base64 PNG.",
+    description: "Take a screenshot of the current browser page (or an element via selector). Returns { base64, path?, bytes, url }. To send via Telegram, prefer `save_to_tmp: true` and pass the returned `path` to send_telegram({photo_path}); otherwise pass `base64` straight to send_telegram({photo_base64}). NEVER include the base64 in any text field — Telegram does not render it.",
     endpoint: { method: "POST", path: "/tools/browser/screenshot" },
     parameters: {
       type: "object",
       properties: {
-        selector: { type: "string", description: "CSS selector of element to capture. Omit to capture full viewport/page." },
-        full_page: { type: "boolean", default: false },
-        width: { type: "number", description: "Viewport width (capped at 1920)." },
-        height: { type: "number", description: "Viewport height (capped at 1080)." },
-        encoded: { type: "boolean", description: "Also return a data: URI." },
+        selector:    { type: "string",  description: "CSS selector of element to capture. Omit for full viewport/page." },
+        full_page:   { type: "boolean", default: false },
+        width:       { type: "number",  description: "Viewport width (capped at 1920)." },
+        height:      { type: "number",  description: "Viewport height (capped at 1080)." },
+        encoded:     { type: "boolean", description: "Also return a data:image/png;base64 URI in response." },
+        save_path:   { type: "string",  description: "Absolute path to write the PNG. Returns it in `path`." },
+        save_to_tmp: { type: "boolean", description: "Auto-write to <os.tmpdir>/apx-screenshots/screenshot-<ts>.png. Returns the path." },
       },
     },
-    examples: [{}, { selector: "#hero" }],
+    examples: [{}, { selector: "#hero" }, { save_to_tmp: true }],
   },
   {
     name: "browser_click",
