@@ -13,6 +13,7 @@
 //   }
 import { callEngine } from "./engines/index.js";
 import { TOOL_SCHEMAS, makeToolHandlers } from "./super-agent-tools.js";
+import { listSkills } from "./skills-loader.js";
 import {
   extractPseudoToolCalls,
   cleanTextOfPseudoToolCalls,
@@ -63,7 +64,8 @@ HARD RULES (do not deviate):
 17. ROUTINES RULE: NEVER create a routine in the default project (id=0). Routines MUST be tied to a specific registered project. Before adding a routine, call list_projects to find the correct project id or name. Then pass --project <id|name> to apx routine add. If no project fits, ask the user which project to use. Creating routines in project 0/default mixes unrelated projects' schedules and corrupts state.
 18. **NO EMPTY RESPONSES**: Never respond with only text when you have tools available and the user is asking you to DO something. Call the tool FIRST, then explain. Never say "I'll do X" without immediately calling the tool. Empty acknowledgments ("ok", "entendido", "dame un minuto", "voy", "checking", "stand by") without a tool call are invalid responses — they will be re-prompted and waste a turn.
 19. **CWD RULE**: When the channel context includes a "CWD: <path>" line, that is the user's current working directory. References to "este directorio", "este proyecto", "esta carpeta", "acá", "aquí", "this directory", "this project", "current dir/folder" all mean that exact CWD path. Use it as the path argument directly — DO NOT ask the user "what's the path?" when CWD is already given. Example: if user says "agregá este proyecto a la lista", call add_project({path: <CWD>}) immediately.
-20. **NO MANUAL SCAFFOLDING**: To register or scaffold a project, ALWAYS use add_project — it auto-creates AGENTS.md and .apc/project.json when missing (one call, atomic). NEVER write AGENTS.md, .apc/project.json, or any APC scaffold file by hand via run_shell / write_file / shell pipes. The schema must come from the official initApf scaffold, not improvised. If add_project errors, report the error to the user — don't try to work around it with shell hacks. Same for any other APC-managed file (.apc/agents/*, .apc/skills/*, etc.) — use the dedicated tool, never raw filesystem writes.`;
+20. **NO MANUAL SCAFFOLDING**: To register or scaffold a project, ALWAYS use add_project — it auto-creates AGENTS.md and .apc/project.json when missing (one call, atomic). NEVER write AGENTS.md, .apc/project.json, or any APC scaffold file by hand via run_shell / write_file / shell pipes. The schema must come from the official initApf scaffold, not improvised. If add_project errors, report the error to the user — don't try to work around it with shell hacks. Same for any other APC-managed file (.apc/agents/*, .apc/skills/*, etc.) — use the dedicated tool, never raw filesystem writes.
+21. **SKILLS — ON DEMAND**: The "# Available skills" section below lists every skill available to you (slug + description, NO body). When the user asks about specific APX/APC commands, project structure, agent runtimes, or anything where exact syntax or detailed behavior matches a skill description (in ANY language — match semantically, not by keyword), call load_skill({slug}) to fetch the full markdown body. If a CWD is in the contextNote, pass it as project_path so project-scoped skills resolve. If the user explicitly asks "what skills do you have?", you can either read the catalog below directly OR call list_skills to get a fresh enumeration. Do NOT load skills for trivial / unrelated questions — that wastes tokens. Don't guess CLI syntax when a skill can tell you; load it.`;
 
 function isShortConfirmation(text) {
   return /^(yes|y|si|si dale|dale|ok|okay|confirm|confirmed|go|proceed|do it)\b/i
@@ -137,12 +139,32 @@ export async function runSuperAgent({
     "When a tool schema has confirmed, set confirmed=true only after explicit user confirmation for that exact action.",
   ].join("\n");
 
+  // Build a lightweight catalog of available skills (slug + 1-line description).
+  // Skill BODIES are NOT included — only the catalog. The model decides which
+  // (if any) to load on demand via load_skill(slug). Cross-lingual matching is
+  // handled by the LLM itself (no router needed). Empty if no skills found.
+  const skillsCatalog = (() => {
+    let list = [];
+    try { list = listSkills(); } catch { /* loader failure → empty catalog */ }
+    if (!list.length) return "";
+    return [
+      "# Available skills (load on demand)",
+      "Below is the catalog of skills (slug + description). Bodies are NOT loaded yet.",
+      "If the user asks how something works, requests syntax/docs, or otherwise needs",
+      "knowledge that matches a skill description (in any language — match semantically),",
+      "call load_skill({slug}) to load the full markdown into your context.",
+      "",
+      ...list.map(s => `- **${s.slug}** [${s.source}]: ${s.description || "(no description)"}`),
+    ].join("\n");
+  })();
+
   const system = [
     sa.system || DEFAULT_SYSTEM,
     permissionNote,
     contextNote,
     "# Registered projects (just the index — call tools for details)",
     projectIndex || "(no projects registered)",
+    skillsCatalog,
   ]
     .filter(Boolean)
     .join("\n\n");
