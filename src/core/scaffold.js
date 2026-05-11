@@ -6,8 +6,42 @@ import { fileURLToPath } from "node:url";
 import { readAgents, readAgentsFromDir, VAULT_DIR } from "./parser.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const PACKAGE_ROOT = path.resolve(__dirname, "..", "..");
+const BUNDLED_SKILLS_DIR = path.join(PACKAGE_ROOT, "skills");
+const RUNTIME_SKILLS_DIR = path.join(__dirname, "runtime-skills");
 
 export const SPEC_VERSION = "0.1.0";
+
+// ---------------------------------------------------------------------------
+// Bundled skills — single source of truth lives at <packageRoot>/skills/<slug>/SKILL.md
+// with proper frontmatter. The `apc-context` copy is refreshed on every
+// install/update from the canonical APC repo (see src/cli/postinstall.js).
+// ---------------------------------------------------------------------------
+
+function readBundledSkill(slug) {
+  const file = path.join(BUNDLED_SKILLS_DIR, slug, "SKILL.md");
+  if (!fs.existsSync(file)) return null;
+  return fs.readFileSync(file, "utf8");
+}
+
+// Split frontmatter and body from a SKILL.md. Used by IDE targets that need
+// to re-wrap the body in their own rule-file frontmatter.
+function splitFrontmatter(raw) {
+  if (!raw.startsWith("---")) return { fm: "", body: raw };
+  const end = raw.indexOf("\n---", 3);
+  if (end < 0) return { fm: "", body: raw };
+  const fm = raw.slice(0, end + 4);
+  const body = raw.slice(end + 4).replace(/^\n/, "");
+  return { fm, body };
+}
+
+// Pull description from frontmatter so cursor/.mdc rule files can advertise
+// the same activation trigger.
+function readDescription(raw) {
+  const { fm } = splitFrontmatter(raw);
+  const m = fm.match(/^description:\s*"?(.*?)"?\s*$/m);
+  return m ? m[1] : "";
+}
 
 // ---------------------------------------------------------------------------
 // IDE skill targets — written during `apx init` and `apx skills add`
@@ -21,7 +55,8 @@ export const IDE_TARGETS = [
     label: "Claude Code",
     ideDir: ".claude",
     file: ".claude/skills/apx/SKILL.md",
-    render: (c) => buildSkillMd(c),
+    // Claude Code consumes SKILL.md with its native frontmatter as-is.
+    render: (raw) => raw,
     append: false,
   },
   {
@@ -29,8 +64,11 @@ export const IDE_TARGETS = [
     label: "Cursor",
     ideDir: ".cursor",
     file: ".cursor/rules/apx.mdc",
-    render: (c) =>
-      `---\ndescription: APX CLI skill. Activate when the user asks about running agents, coordinating between agents, or uses apx commands (apx run, apx exec, apx memory, apx mcp, apx session, apx messages).\n---\n\n${c}`,
+    render: (raw) => {
+      const { body } = splitFrontmatter(raw);
+      const desc = readDescription(raw);
+      return `---\ndescription: ${desc}\n---\n\n${body}`;
+    },
     append: false,
   },
   {
@@ -38,8 +76,11 @@ export const IDE_TARGETS = [
     label: "Windsurf",
     ideDir: ".windsurf",
     file: ".windsurf/rules/apx.md",
-    render: (c) =>
-      `---\ntrigger: model_decision\ndescription: APX CLI skill. Activate when the user asks about running agents, coordinating between agents, or uses apx commands (apx run, apx exec, apx memory, apx mcp, apx session, apx messages).\n---\n\n${c}`,
+    render: (raw) => {
+      const { body } = splitFrontmatter(raw);
+      const desc = readDescription(raw);
+      return `---\ntrigger: model_decision\ndescription: ${desc}\n---\n\n${body}`;
+    },
     append: false,
   },
   {
@@ -47,7 +88,10 @@ export const IDE_TARGETS = [
     label: "GitHub Copilot",
     ideDir: ".github",
     file: ".github/copilot-instructions.md",
-    render: (c) => `\n<!-- apx-skill -->\n${c}\n<!-- /apx-skill -->\n`,
+    render: (raw) => {
+      const { body } = splitFrontmatter(raw);
+      return `\n<!-- apx-skill -->\n${body}\n<!-- /apx-skill -->\n`;
+    },
     append: true,
     guard: "<!-- apx-skill -->",
   },
@@ -56,13 +100,16 @@ export const IDE_TARGETS = [
     label: "Trae",
     ideDir: ".trae",
     file: ".trae/rules/project_rules.md",
-    render: (c) => `\n<!-- apx-skill -->\n${c}\n<!-- /apx-skill -->\n`,
+    render: (raw) => {
+      const { body } = splitFrontmatter(raw);
+      return `\n<!-- apx-skill -->\n${body}\n<!-- /apx-skill -->\n`;
+    },
     append: true,
     guard: "<!-- apx-skill -->",
   },
 ];
 
-// Global targets (absolute paths, use ~/<dir>/skills/apx/SKILL.md format).
+// Global targets (absolute paths, use ~/<dir>/skills/<slug>/SKILL.md format).
 // These dirs are read by Claude Code, Cursor (compat), and tools adopting the skills.sh spec.
 const GLOBAL_SKILL_DIRS = [
   path.join(os.homedir(), ".claude", "skills"),    // Claude Code + Cursor legacy compat
@@ -71,52 +118,23 @@ const GLOBAL_SKILL_DIRS = [
   path.join(os.homedir(), ".agents", "skills"),    // Antigravity/other skills.sh adopters
 ];
 
-function buildApcContextSkillMd(content) {
-  const frontmatter = [
-    "---",
-    "name: apc-context",
-    "description: \"ALWAYS activate when the project has a .apc/ directory or AGENTS.md file. Do not wait to be asked. Read .apc/ before making any assumption about agents, memory, or project structure. Activate on: .apc/, AGENTS.md, 'which agents', 'list agents', 'agent context', 'who are the agents', any question about agents or memory in this project. IMPORTANT: if .apc/migrate.md exists, open the conversation with a migration offer before answering anything else. If the user declines, delete .apc/migrate.md immediately so it is not shown again.\"",
-    "homepage: https://github.com/agentprojectcontext/agentprojectcontext",
-    "---",
-    "",
-  ].join("\n");
-  return frontmatter + content;
-}
-
-function buildSkillMd(content) {
-  const frontmatter = [
-    "---",
-    "name: apx",
-    "description: \"APX CLI skill. Activate when: user asks to run or coordinate agents, use MCP tools from .apc/mcps.json, install agents from a team workspace, or explicitly mentions apx commands. Do NOT activate just because .apc/ exists — that is handled by the apc-context skill. Activate on: 'apx run', 'apx exec', 'run an agent', 'coordinate agents', 'MCP not working', 'install agent', 'team agents', 'apx memory', 'daemon'.\"",
-    "homepage: https://github.com/agentprojectcontext/apx",
-    "---",
-    "",
-  ].join("\n");
-  return frontmatter + content;
-}
-
 function readRuntimeSkillFiles() {
-  const skillsDir = path.join(__dirname, "runtime-skills");
-  if (!fs.existsSync(skillsDir)) return [];
-
-  return fs.readdirSync(skillsDir)
+  if (!fs.existsSync(RUNTIME_SKILLS_DIR)) return [];
+  return fs.readdirSync(RUNTIME_SKILLS_DIR)
     .filter((name) => name.endsWith(".md"))
     .sort()
     .map((name) => ({
       slug: path.basename(name, ".md"),
-      md: fs.readFileSync(path.join(skillsDir, name), "utf8").trim(),
+      md: fs.readFileSync(path.join(RUNTIME_SKILLS_DIR, name), "utf8").trim(),
     }));
 }
 
 // Install APX + APC context skills into IDE rule files. Returns an array of result objects.
 // targetIds: array of target ids to install; null = all project targets.
 export function installIdeSkills(root, targetIds = null) {
-  const apxSrc = path.join(__dirname, "apx-skill.md");
-  const apcSrc = path.join(__dirname, "apc-context-skill.md");
-  if (!fs.existsSync(apxSrc)) return [];
-
-  const apxContent = fs.readFileSync(apxSrc, "utf8").trim();
-  const apcContent = fs.existsSync(apcSrc) ? fs.readFileSync(apcSrc, "utf8").trim() : null;
+  const apxRaw = readBundledSkill("apx");
+  const apcRaw = readBundledSkill("apc-context");
+  if (!apxRaw) return [];
 
   const targets = targetIds
     ? IDE_TARGETS.filter((t) => targetIds.includes(t.id))
@@ -129,10 +147,9 @@ export function installIdeSkills(root, targetIds = null) {
       continue;
     }
 
-    // Install APX skill
     const dest = path.join(root, t.file);
     fs.mkdirSync(path.dirname(dest), { recursive: true });
-    const rendered = t.render(apxContent);
+    const rendered = t.render(apxRaw);
     if (t.append) {
       const existing = fs.existsSync(dest) ? fs.readFileSync(dest, "utf8") : "";
       if (t.guard && existing.includes(t.guard)) {
@@ -147,31 +164,28 @@ export function installIdeSkills(root, targetIds = null) {
       results.push({ ...t, status: existed ? "updated" : "created" });
     }
 
-    // Install APC context skill alongside (only for non-append targets with a skills dir)
-    if (apcContent && t.id === "claude-code") {
+    // Install APC context skill alongside Claude Code (dir-style skills dir).
+    if (apcRaw && t.id === "claude-code") {
       const apcDest = path.join(root, ".claude", "skills", "apc-context", "SKILL.md");
       fs.mkdirSync(path.dirname(apcDest), { recursive: true });
       const existed = fs.existsSync(apcDest);
-      fs.writeFileSync(apcDest, buildApcContextSkillMd(apcContent), "utf8");
+      fs.writeFileSync(apcDest, apcRaw, "utf8");
       results.push({ ...t, id: "claude-code/apc-context", label: "Claude Code (apc-context)", file: apcDest, status: existed ? "updated" : "created" });
     }
   }
   return results;
 }
 
-// Install both APX and APC context skills to global ~/.../skills/ dirs.
+// Install bundled APX/APC skills + runtime docs to global ~/.../skills/ dirs.
 // Returns an array of result objects with { dir, skill, status }.
 export function installGlobalSkills() {
   const results = [];
 
-  const apxSrc = path.join(__dirname, "apx-skill.md");
-  const apcSrc = path.join(__dirname, "apc-context-skill.md");
-
   const skills = [];
-  if (fs.existsSync(apxSrc))
-    skills.push({ slug: "apx", md: buildSkillMd(fs.readFileSync(apxSrc, "utf8").trim()) });
-  if (fs.existsSync(apcSrc))
-    skills.push({ slug: "apc-context", md: buildApcContextSkillMd(fs.readFileSync(apcSrc, "utf8").trim()) });
+  const apxRaw = readBundledSkill("apx");
+  const apcRaw = readBundledSkill("apc-context");
+  if (apxRaw) skills.push({ slug: "apx", md: apxRaw });
+  if (apcRaw) skills.push({ slug: "apc-context", md: apcRaw });
   skills.push(...readRuntimeSkillFiles());
 
   for (const base of GLOBAL_SKILL_DIRS) {
