@@ -291,15 +291,74 @@ const TOOL_DEFINITIONS = [
     ],
   },
 
-  // ── browser ───────────────────────────────────────────────────────────────
+  // ── fetch (native HTTP, no browser) ───────────────────────────────────────
+  {
+    name: "http_get",
+    category: "fetch",
+    description: "Native HTTP GET — fast, no headless browser. Use for REST APIs, raw HTML, JSON endpoints.",
+    endpoint: { method: "POST", path: "/tools/fetch/get" },
+    parameters: {
+      type: "object",
+      properties: {
+        url: { type: "string" },
+        headers: { type: "object" },
+        timeout_ms: { type: "number", default: 30000 },
+      },
+      required: ["url"],
+    },
+    examples: [{ url: "https://api.github.com/repos/anthropics/anthropic-sdk-typescript" }],
+  },
+  {
+    name: "http_post",
+    category: "fetch",
+    description: "Native HTTP POST — sends body as JSON when body is an object. Use for REST APIs.",
+    endpoint: { method: "POST", path: "/tools/fetch/post" },
+    parameters: {
+      type: "object",
+      properties: {
+        url: { type: "string" },
+        body: { description: "Object → JSON-stringified. String → sent as-is." },
+        headers: { type: "object" },
+        timeout_ms: { type: "number", default: 30000 },
+        json: { type: "boolean", description: "Force JSON parsing of response body." },
+      },
+      required: ["url"],
+    },
+    examples: [{ url: "https://api.example.com/items", body: { name: "foo" } }],
+  },
+  {
+    name: "http_request",
+    category: "fetch",
+    description: "Generic HTTP request with full control over method, headers, body, timeout.",
+    endpoint: { method: "POST", path: "/tools/fetch/request" },
+    parameters: {
+      type: "object",
+      properties: {
+        url: { type: "string" },
+        method: { type: "string", default: "GET" },
+        headers: { type: "object" },
+        body: {},
+        timeout_ms: { type: "number", default: 30000 },
+        json: { type: "boolean" },
+      },
+      required: ["url"],
+    },
+    examples: [{ url: "https://api.example.com/x", method: "DELETE" }],
+  },
+
+  // ── browser (Puppeteer-backed — heavier, launches Chromium lazily) ────────
   {
     name: "browser_navigate",
     category: "browser",
-    description: "Navigate the headless browser to a URL.",
+    description: "Navigate the headless browser to a URL. Launches Chromium lazily on first call.",
     endpoint: { method: "POST", path: "/tools/browser/navigate" },
     parameters: {
       type: "object",
-      properties: { url: { type: "string" } },
+      properties: {
+        url: { type: "string" },
+        launch_options: { type: "object", description: "Puppeteer launch overrides (headless, args, defaultViewport, etc.)." },
+        allow_dangerous: { type: "boolean", description: "Allow dangerous launch args (--no-sandbox, --single-process, etc.)." },
+      },
       required: ["url"],
     },
     examples: [{ url: "https://example.com" }],
@@ -307,13 +366,19 @@ const TOOL_DEFINITIONS = [
   {
     name: "browser_screenshot",
     category: "browser",
-    description: "Take a screenshot of the current browser page. Returns base64 PNG.",
+    description: "Take a screenshot of the current browser page (or a single element via selector). Returns base64 PNG.",
     endpoint: { method: "POST", path: "/tools/browser/screenshot" },
     parameters: {
       type: "object",
-      properties: { full_page: { type: "boolean", default: false } },
+      properties: {
+        selector: { type: "string", description: "CSS selector of element to capture. Omit to capture full viewport/page." },
+        full_page: { type: "boolean", default: false },
+        width: { type: "number", description: "Viewport width (capped at 1920)." },
+        height: { type: "number", description: "Viewport height (capped at 1080)." },
+        encoded: { type: "boolean", description: "Also return a data: URI." },
+      },
     },
-    examples: [{}],
+    examples: [{}, { selector: "#hero" }],
   },
   {
     name: "browser_click",
@@ -330,7 +395,7 @@ const TOOL_DEFINITIONS = [
   {
     name: "browser_type",
     category: "browser",
-    description: "Type text into a CSS selector on the current browser page.",
+    description: "Type text into a CSS selector. Uses focus + Ctrl+A + Backspace to clear, then types with realistic delay.",
     endpoint: { method: "POST", path: "/tools/browser/type" },
     parameters: {
       type: "object",
@@ -344,41 +409,88 @@ const TOOL_DEFINITIONS = [
     examples: [{ selector: "input#search", text: "hello world" }],
   },
   {
-    name: "browser_fetch",
+    name: "browser_select",
     category: "browser",
-    description: "Fetch a URL via the headless browser (bypasses some network blocks). Falls back to node-fetch.",
-    endpoint: { method: "POST", path: "/tools/browser/fetch" },
+    description: "Choose an option in a <select> element by its value.",
+    endpoint: { method: "POST", path: "/tools/browser/select" },
     parameters: {
       type: "object",
       properties: {
-        url: { type: "string" },
-        method: { type: "string", default: "GET" },
-        headers: { type: "object" },
-        body: { type: "string" },
+        selector: { type: "string" },
+        value: { type: "string" },
       },
-      required: ["url"],
+      required: ["selector", "value"],
     },
-    examples: [{ url: "https://api.example.com/data" }],
+    examples: [{ selector: "select#country", value: "AR" }],
   },
   {
-    name: "browser_get_text",
+    name: "browser_hover",
     category: "browser",
-    description: "Extract readable text from the current browser page.",
-    endpoint: { method: "POST", path: "/tools/browser/get_text" },
-    parameters: { type: "object", properties: {} },
-    examples: [{}],
+    description: "Hover the cursor over an element (triggers tooltips, dropdowns, hover states).",
+    endpoint: { method: "POST", path: "/tools/browser/hover" },
+    parameters: {
+      type: "object",
+      properties: { selector: { type: "string" } },
+      required: ["selector"],
+    },
+    examples: [{ selector: "nav .menu-item" }],
   },
   {
     name: "browser_evaluate",
     category: "browser",
-    description: "Execute arbitrary JavaScript in the current browser page and return the result.",
+    description: "Execute JavaScript in the page context. Captures the script's console.log/info/warn/error output and returns it alongside the result.",
     endpoint: { method: "POST", path: "/tools/browser/evaluate" },
     parameters: {
       type: "object",
-      properties: { code: { type: "string", description: "JS code to eval (function body)" } },
+      properties: { code: { type: "string", description: "JS code to eval (function body)." } },
       required: ["code"],
     },
     examples: [{ code: "return document.title;" }],
+  },
+  {
+    name: "browser_get_text",
+    category: "browser",
+    description: "Extract readable text from the current page (or a single element). Strips script/style/nav/header/footer.",
+    endpoint: { method: "POST", path: "/tools/browser/get_text" },
+    parameters: {
+      type: "object",
+      properties: { selector: { type: "string", description: "Optional CSS selector." } },
+    },
+    examples: [{}, { selector: "article" }],
+  },
+  {
+    name: "browser_get_content",
+    category: "browser",
+    description: "Return raw innerHTML of the page or a single element (truncated at 1MB).",
+    endpoint: { method: "POST", path: "/tools/browser/get_content" },
+    parameters: {
+      type: "object",
+      properties: { selector: { type: "string" } },
+    },
+    examples: [{}, { selector: "main" }],
+  },
+  {
+    name: "browser_wait_for_selector",
+    category: "browser",
+    description: "Wait until a CSS selector appears on the page.",
+    endpoint: { method: "POST", path: "/tools/browser/wait_for_selector" },
+    parameters: {
+      type: "object",
+      properties: {
+        selector: { type: "string" },
+        timeout: { type: "number", default: 30000 },
+      },
+      required: ["selector"],
+    },
+    examples: [{ selector: ".results-loaded" }],
+  },
+  {
+    name: "browser_close",
+    category: "browser",
+    description: "Close the headless browser and free resources.",
+    endpoint: { method: "POST", path: "/tools/browser/close" },
+    parameters: { type: "object", properties: {} },
+    examples: [{}],
   },
 
   // ── search ────────────────────────────────────────────────────────────────

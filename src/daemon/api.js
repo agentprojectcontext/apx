@@ -4,6 +4,7 @@ import path from "node:path";
 import { execFile } from "node:child_process";
 import express from "express";
 import { buildBrowserRouter } from "./tools/browser.js";
+import { buildFetchRouter } from "./tools/fetch.js";
 import { buildSearchRouter } from "./tools/search.js";
 import { buildRegistryRouter } from "./tools/registry.js";
 import { buildGlobRouter } from "./tools/glob.js";
@@ -63,13 +64,16 @@ export function buildApi({ projects, registries, plugins, scheduler, version, st
   const app = express();
   app.use(express.json({ limit: "2mb" }));
 
-  // ---- Tool routers (browser / search / glob / grep / registry) ----
+  // ---- Tool routers (fetch / browser / search / glob / grep / registry) ----
+  // fetch  = native HTTP, no Chromium  → fast, cheap, default for REST/HTML
+  // browser = Puppeteer-backed         → heavy, lazy-launched, for JS-rendered pages
+  app.use("/tools/fetch",   buildFetchRouter(express));
   app.use("/tools/browser", buildBrowserRouter(express));
   app.use("/tools/search",  buildSearchRouter(express));
   app.use("/tools/glob",    buildGlobRouter(express));
   app.use("/tools/grep",    buildGrepRouter(express));
   // Registry MUST be mounted after specific routers so /:name wildcard
-  // doesn't shadow /tools/browser, /tools/search, etc.
+  // doesn't shadow /tools/browser, /tools/fetch, /tools/search, etc.
   app.use("/tools", buildRegistryRouter(express, { projects, registries }));
 
   // ---- Health -------------------------------------------------------
