@@ -1,19 +1,26 @@
 // daemon/skills-loader.js
 // Discover and load APX skills on-demand for the super-agent.
 //
-// Skills are markdown files with YAML frontmatter (name, description, ...)
-// — same format used by Claude Code, Cursor, etc. The super-agent does NOT
-// inject them into its system prompt by default; instead it calls
-// list_skills() / load_skill() as needed. This keeps baseline tokens at zero
-// and only spends them on turns where the doc is actually relevant.
+// The super-agent reads skills from immutable INTERNAL sources under
+// src/core/ — they ship with apx and can never be deleted by the user. This
+// guarantees apx/apc/runtime knowledge is always available regardless of
+// what the user does to ~/.apx/skills/. Distribution copies under
+// <package>/skills/ are a separate concern (scaffold.js handles them) and
+// the loader does NOT read from there.
 //
 // Discovery order (priority high → low):
 //   1. <projectPath>/.apc/skills/<slug>.md          ← project-scoped
 //   1b.<projectPath>/.apc/skills/<slug>/SKILL.md    ← same, dir-style
 //   2. ~/.apx/skills/<slug>/SKILL.md                ← user-installed global
-//   3. <packageRoot>/skills/<slug>/SKILL.md         ← built-in (apx, apc-context)
+//   3. <packageRoot>/src/core/runtime-skills/<slug>.md ← built-in runtime docs
+//                                                       (claude-code, codex-cli,
+//                                                       opencode-cli, openrouter)
+//   4. <packageRoot>/src/core/apx-skill.md          ← built-in intrinsic apx
+//   4b.<packageRoot>/src/core/apc-context-skill.md  ← built-in intrinsic apc-context
 //
-// A slug found in a higher-priority location SHADOWS lower ones.
+// A slug found in a higher-priority location SHADOWS lower ones — so a user
+// who drops `~/.apx/skills/apx/SKILL.md` overrides the intrinsic one, but the
+// intrinsic stays in the package as a safety net.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -24,8 +31,39 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
 const PACKAGE_ROOT = path.resolve(__dirname, "..", "..");
 
-const BUILTIN_DIR = path.join(PACKAGE_ROOT, "skills");
-const GLOBAL_DIR  = path.join(os.homedir(), ".apx", "skills");
+const RUNTIME_SKILLS_DIR = path.join(PACKAGE_ROOT, "src", "core", "runtime-skills");
+const GLOBAL_DIR         = path.join(os.homedir(), ".apx", "skills");
+const CORE_DIR           = path.join(PACKAGE_ROOT, "src", "core");
+
+// Intrinsic built-in skills whose source files (src/core/*-skill.md) do NOT
+// carry frontmatter — the scaffold.js wrapper adds frontmatter when copying
+// these out to external IDE skill dirs. For the super-agent's catalog we
+// supply slug + description inline. Keep in sync with scaffold.js.
+const INTRINSIC = [
+  {
+    slug: "apx",
+    file: path.join(CORE_DIR, "apx-skill.md"),
+    description:
+      "APX CLI skill. Activate when: user asks to run or coordinate agents, " +
+      "use MCP tools from .apc/mcps.json, install agents from a team workspace, " +
+      "or explicitly mentions apx commands. Do NOT activate just because .apc/ exists — " +
+      "that is handled by the apc-context skill. Activate on: 'apx run', 'apx exec', " +
+      "'run an agent', 'coordinate agents', 'MCP not working', 'install agent', " +
+      "'team agents', 'apx memory', 'daemon'.",
+  },
+  {
+    slug: "apc-context",
+    file: path.join(CORE_DIR, "apc-context-skill.md"),
+    description:
+      "ALWAYS activate when the project has a .apc/ directory or AGENTS.md file. " +
+      "Do not wait to be asked. Read .apc/ before making any assumption about agents, " +
+      "memory, or project structure. Activate on: .apc/, AGENTS.md, 'which agents', " +
+      "'list agents', 'agent context', 'who are the agents', any question about agents " +
+      "or memory in this project. IMPORTANT: if .apc/migrate.md exists, open the " +
+      "conversation with a migration offer before answering anything else. If the user " +
+      "declines, delete .apc/migrate.md immediately so it is not shown again.",
+  },
+];
 
 // ---------------------------------------------------------------------------
 // Frontmatter parsing (minimal — handles the YAML we ship)
@@ -44,7 +82,6 @@ function parseFrontmatter(raw) {
     const m = line.match(/^([a-zA-Z_][a-zA-Z0-9_-]*)\s*:\s*(.*)$/);
     if (!m) continue;
     let val = m[2].trim();
-    // strip matching quotes
     if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
       val = val.slice(1, -1);
     }
@@ -54,7 +91,7 @@ function parseFrontmatter(raw) {
 }
 
 // ---------------------------------------------------------------------------
-// Single-source discovery
+// Directory scanners
 // ---------------------------------------------------------------------------
 
 /** Returns [{slug, source, file}] from a directory using <slug>/SKILL.md layout. */
@@ -116,8 +153,15 @@ export function listSkills({ projectPath } = {}) {
   // priority 2: user-installed global
   found.push(...scanDirStyle(GLOBAL_DIR, "global"));
 
-  // priority 3: built-in
-  found.push(...scanDirStyle(BUILTIN_DIR, "builtin"));
+  // priority 3: built-in runtime docs (have frontmatter)
+  found.push(...scanFlatStyle(RUNTIME_SKILLS_DIR, "builtin"));
+
+  // priority 4: intrinsic built-ins (no frontmatter — descriptions hardcoded)
+  for (const it of INTRINSIC) {
+    if (fs.existsSync(it.file)) {
+      found.push({ slug: it.slug, source: "builtin", file: it.file, _description: it.description });
+    }
+  }
 
   // dedupe by slug (first-wins = higher priority shadows lower)
   const seen = new Set();
@@ -126,13 +170,15 @@ export function listSkills({ projectPath } = {}) {
     if (seen.has(entry.slug)) continue;
     seen.add(entry.slug);
 
-    // Lazy parse just the frontmatter for the description.
-    let description = "";
-    try {
-      const raw = fs.readFileSync(entry.file, "utf8");
-      const { fm } = parseFrontmatter(raw);
-      description = fm.description || "";
-    } catch { /* unreadable — skip description */ }
+    // Description: prefer inline (intrinsic) → frontmatter → empty
+    let description = entry._description || "";
+    if (!description) {
+      try {
+        const raw = fs.readFileSync(entry.file, "utf8");
+        const { fm } = parseFrontmatter(raw);
+        description = fm.description || "";
+      } catch { /* unreadable — skip description */ }
+    }
 
     result.push({
       slug: entry.slug,
@@ -145,8 +191,8 @@ export function listSkills({ projectPath } = {}) {
 }
 
 /**
- * Load the full body of a skill (frontmatter stripped). Resolves via the
- * same priority chain as listSkills().
+ * Load the full body of a skill (frontmatter stripped if present). Resolves
+ * via the same priority chain as listSkills().
  *
  * @param {string} slug
  * @param {object} opts
@@ -168,7 +214,7 @@ export function loadSkill(slug, { projectPath } = {}) {
     slug: entry.slug,
     source: entry.source,
     file: entry.file,
-    description: fm.description || entry.description || "",
+    description: entry.description || fm.description || "",
     frontmatter: fm,
     body: body.trim(),
   };
@@ -176,6 +222,7 @@ export function loadSkill(slug, { projectPath } = {}) {
 
 // Useful for diagnostics
 export const SKILL_LOCATIONS = {
-  builtin: BUILTIN_DIR,
+  runtime_skills: RUNTIME_SKILLS_DIR,
+  intrinsic: CORE_DIR,
   global: GLOBAL_DIR,
 };
