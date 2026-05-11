@@ -359,9 +359,14 @@ async function runPrompt(pid, state, previousMessages, renderScreen, text, userI
   const startTime = Date.now();
 
   try {
+    const cwd = process.cwd();
     const body = {
       prompt: `[Mode: ${MODES[state.currentModeIdx]}]\n${text}`,
-      contextNote: "Channel: terminal. Format freely using markdown, but keep it readable. Use code diffs when editing.",
+      contextNote: [
+        "Channel: terminal. Format freely using markdown, but keep it readable. Use code diffs when editing.",
+        `CWD: ${cwd}`,
+        "When the user says \"este directorio\", \"este proyecto\", \"acá\", \"aquí\", \"this directory\", \"current dir\" or any equivalent reference without naming a path, they mean exactly the CWD above. Use it as the path argument directly — don't ask the user to provide it.",
+      ].join("\n"),
       previousMessages,
       model: state.activeModel,
     };
