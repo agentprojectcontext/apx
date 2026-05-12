@@ -10,7 +10,7 @@ function getKey(config) {
 export default {
   id: "openai",
 
-  async chat({ system, messages, model, temperature = 1.0, maxTokens = 1024, config = {}, tools, toolChoice }) {
+  async chat({ system, messages, model, temperature = 1.0, maxTokens = 1024, config = {}, tools, toolChoice, signal }) {
     const key = getKey(config);
     if (!key) throw new Error("openai: no api_key (set OPENAI_API_KEY or engines.openai.api_key)");
     if (!model) throw new Error("openai: model required");
@@ -52,6 +52,7 @@ export default {
         authorization: `Bearer ${key}`,
       },
       body: JSON.stringify(body),
+      signal,
     });
     const json = await res.json();
     if (!res.ok) {

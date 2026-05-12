@@ -10,7 +10,7 @@ function getKey(config) {
 export default {
   id: "gemini",
 
-  async chat({ system, messages, model, temperature = 0.7, maxTokens = 1024, config = {} }) {
+  async chat({ system, messages, model, temperature = 0.7, maxTokens = 1024, config = {}, signal }) {
     const key = getKey(config);
     if (!key) throw new Error("gemini: no api_key (set GEMINI_API_KEY or engines.gemini.api_key)");
     if (!model) throw new Error("gemini: model required");
@@ -33,6 +33,7 @@ export default {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
+      signal,
     });
     const json = await res.json();
     if (!res.ok) {

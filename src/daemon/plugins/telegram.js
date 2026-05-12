@@ -290,6 +290,7 @@ class ChannelPoller {
     this.polling = false;
     this.lastError = null;
     this.lastUpdateAt = null;
+    this.activeRequests = new Map(); // chat_id -> AbortController
   }
 
   resolveProject() {
@@ -390,6 +391,18 @@ class ChannelPoller {
         ? "@" + msg.from.username
         : `${msg.from?.first_name || ""} ${msg.from?.last_name || ""}`.trim() || "unknown";
     const chat_id = msg.chat?.id;
+
+    // Default Interrupt: abort any running request for this chat_id
+    if (chat_id) {
+      const prev = this.activeRequests.get(chat_id);
+      if (prev) {
+        this.log(`telegram[${this.channel.name}] interrupting previous request for chat ${chat_id}`);
+        prev.abort();
+      }
+    }
+    const abortCtrl = new AbortController();
+    if (chat_id) this.activeRequests.set(chat_id, abortCtrl);
+
     let text = msg.text || msg.caption || "";
 
     // ── Incoming photo handling ───────────────────────────────────────────
@@ -617,16 +630,22 @@ class ChannelPoller {
           prompt: text,
           previousMessages,
           contextNote: `You are replying inside Telegram right now. Telegram channel="${this.channel.name}", author=${author}, chat_id=${chat_id}. Keep the reply plain-text and concise. Previous turns of this chat are included only for local conversational context; re-call tools for facts.`,
+          signal: abortCtrl.signal,
         });
         replyText = sa.text;
         replyAuthor = sa.name;
         saTrace = sa.trace;
         saUsage = sa.usage;
       } catch (e) {
+        if (abortCtrl.signal.aborted) {
+          this.log(`telegram[${this.channel.name}] request aborted for chat ${chat_id}`);
+          return; // don't send reply if aborted
+        }
         this.log(`telegram[${this.channel.name}] super-agent failed: ${e.message}`);
       }
     }
 
+    if (chat_id) this.activeRequests.delete(chat_id);
     if (!replyText) {
       stopTyping();
       return;

@@ -156,6 +156,7 @@ export async function runSuperAgent({
   previousMessages = [],
   overrideModel = null,
   onEvent = null,
+  signal,
 }) {
   if (!isSuperAgentEnabled(globalConfig)) {
     throw new Error("super-agent not enabled (set super_agent.enabled and .model in ~/.apx/config.json)");
@@ -247,6 +248,7 @@ export async function runSuperAgent({
         tools: usePseudoTools ? null : TOOL_SCHEMAS,
         toolChoice: usePseudoTools ? null : (iter === 0 ? "required" : "auto"),
         maxTokens: 1024,
+        signal,
       });
     } catch (e) {
       if (usePseudoTools && /^ollama:/i.test(String(activeModel || "")) && /ollama\s+500/i.test(String(e?.message || "")) && trace.length > 0) {
@@ -265,6 +267,7 @@ export async function runSuperAgent({
         tools: null,
         toolChoice: null,
         maxTokens: 1024,
+        signal,
       });
     }
     totalUsage.input_tokens += result.usage?.input_tokens || 0;

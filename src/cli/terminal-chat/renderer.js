@@ -176,6 +176,9 @@ function renderPromptBlock(state, chatWidth) {
     (state.hasStarted && state.transcript?.some((t) => t.type === "user" && t.meta === "queued")
       ? C.bold + C.warning + "ctrl+i" + C.normal + C.muted + " interrupt  "
       : "") +
+    (state.hasStarted && state.transcript?.length > 0
+      ? C.bold + C.text + "click" + C.normal + C.muted + " actions  "
+      : "") +
     C.bold + C.text + "enter" + C.normal + C.muted + " send";
   const hotkeyLeft = Math.max(left, left + boxWidth - visible(hotkeys));
   writeAt(top + 5, hotkeyLeft, hotkeys, visible(hotkeys), C.bg);
@@ -308,7 +311,23 @@ function transcriptLines(transcript, width) {
     }
 
     if (item.type === "tool") {
-      addToolBlock(lines, item, width);
+      const trace = item.trace || {};
+      const isQuestion = trace.tool === "ask_questions";
+      const label = isQuestion ? C.warning + C.bold + "QUESTION" : C.muted + "TOOL";
+      const name = isQuestion ? "" : C.text + trace.tool;
+      
+      if (isQuestion && trace.args?.questions) {
+        addLine(lines, "", C.bg);
+        addLine(lines, margin + label + C.muted + " (…)" + C.bg, C.bg);
+        for (const q of trace.args.questions) {
+          const qWrapped = wrapText(`• ${q}`, inner - 2);
+          for (const line of qWrapped) {
+            addLine(lines, margin + C.primary + "┃ " + C.text + padAnsi(line, inner - 2), C.bg);
+          }
+        }
+      } else {
+        addLine(lines, margin + label + " " + name + C.bg, C.bg);
+      }
       continue;
     }
 

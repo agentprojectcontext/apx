@@ -11,7 +11,7 @@ function getKey(config) {
 export default {
   id: "anthropic",
 
-  async chat({ system, messages, model, temperature = 1.0, maxTokens = 1024, config = {}, tools, toolChoice }) {
+  async chat({ system, messages, model, temperature = 1.0, maxTokens = 1024, config = {}, tools, toolChoice, signal }) {
     const key = getKey(config);
     if (!key) throw new Error("anthropic: no api_key (set ANTHROPIC_API_KEY or engines.anthropic.api_key)");
     if (!model) throw new Error("anthropic: model required");
@@ -47,6 +47,7 @@ export default {
         "anthropic-version": API_VERSION,
       },
       body: JSON.stringify(body),
+      signal,
     });
     const json = await res.json();
     if (!res.ok) {

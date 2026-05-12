@@ -16,6 +16,7 @@ const MAIN_PALETTE_OPTIONS = ["Switch model", "Connect provider", "Open editor",
 // Message Actions overlay options for a queued message
 const MSG_ACTION_SEND   = "Send now  (interrupt current)";
 const MSG_ACTION_COPY   = "Copy message text";
+const MSG_ACTION_QUESTION = "Ask about this...";
 const MSG_ACTION_REMOVE = "Remove from queue";
 
 export async function cmdSys(args) {
@@ -41,9 +42,9 @@ export async function cmdSys(args) {
     transcript: [],
     // Message Actions overlay state
     inMsgActions: false,
-    msgActionsTarget: null,   // { text } of the targeted queued message
+    msgActionsTarget: null,   // { text } of the targeted message
     msgActionsSelection: 0,
-    msgActionsOptions: [MSG_ACTION_SEND, MSG_ACTION_COPY, MSG_ACTION_REMOVE],
+    msgActionsOptions: [MSG_ACTION_SEND, MSG_ACTION_COPY, MSG_ACTION_QUESTION, MSG_ACTION_REMOVE],
   };
 
   const previousMessages = [];
@@ -201,27 +202,30 @@ export async function cmdSys(args) {
  * and if so open the Message Actions overlay for it.
  */
 function handleMouseClick(col, row, state, pendingPrompts, renderScreen, onInterrupt) {
-  if (!state.hasStarted || pendingPrompts.length === 0) return;
+  if (!state.hasStarted) return;
 
-  // Walk transcript looking for queued items and compare to approximate
-  // rendered row positions.  We only care about the QUEUED badge area.
-  // The transcript is rendered starting from row 0 upward; we check a rough
-  // 2-row hit-box around each queued bubble.
-  const queuedItems = state.transcript.filter(
-    (item) => item.type === "user" && item.meta === "queued"
-  );
-  if (queuedItems.length === 0) return;
+  // Find the message bubble that was clicked. 
+  // We look for both queued and regular messages in the transcript.
+  // Transcript is rendered from bottom to top in terms of logic, 
+  // but we'll use a simple heuristic for now.
+  const allUserMessages = state.transcript.filter(t => t.type === "user");
+  if (allUserMessages.length === 0) return;
 
-  // Find corresponding pending prompt by matching text
-  // (simple heuristic: open overlay for the first queued msg if click is in
-  // the left 80% of the terminal — avoids sidebar hits)
   const { width } = { width: process.stdout.columns || 80 };
   if (col > Math.floor(width * 0.8)) return;
 
-  // Just open actions for the nearest queued item (first one by default)
+  // For now, just pick the most recent one if clicked in the main area.
+  // In a real app we'd map row to transcript index precisely.
   state.inMsgActions = true;
-  state.msgActionsTarget = queuedItems[0];
+  state.msgActionsTarget = allUserMessages[allUserMessages.length - 1];
   state.msgActionsSelection = 0;
+  
+  // Filter options: "Send now" only for queued items
+  const isQueued = state.msgActionsTarget.meta === "queued";
+  state.msgActionsOptions = isQueued 
+    ? [MSG_ACTION_SEND, MSG_ACTION_COPY, MSG_ACTION_QUESTION, MSG_ACTION_REMOVE]
+    : [MSG_ACTION_COPY, MSG_ACTION_QUESTION];
+
   renderScreen();
 }
 
@@ -270,6 +274,14 @@ async function handleMsgActionsKey(key, state, pendingPrompts, renderScreen, onI
       execSync(cmd, { input: target?.text || "", stdio: ["pipe", "ignore", "ignore"] });
     } catch {}
     state.transcript.push({ type: "status", text: "Copied to clipboard" });
+    renderScreen();
+    return;
+  }
+
+  if (selected === MSG_ACTION_QUESTION) {
+    const text = target?.text || "";
+    state.inputText = `Pregunta sobre esto: "${text.slice(0, 50)}${text.length > 50 ? "..." : ""}"\n\n`;
+    state.cursorIndex = state.inputText.length;
     renderScreen();
     return;
   }
