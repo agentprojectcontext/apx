@@ -1,3 +1,12 @@
+# [1.15.0](https://github.com/agentprojectcontext/apx/compare/v1.14.1...v1.15.0) (2026-05-12)
+
+
+### Features
+
+* add abort signal support to engine chat calls and update telegram message handling ([f78ef1f](https://github.com/agentprojectcontext/apx/commit/f78ef1fffa295f12cd827c346f4906ee9cd95c77))
+* add interrupt flag to telegram command, implement request abortion, add error tracing and logging middleware, and improve tool fallback mechanisms. ([bc499ca](https://github.com/agentprojectcontext/apx/commit/bc499ca06253565e130d9581aec3d8345a69289b))
+* add signal support to openai chat engine for request cancellation ([c22ffc9](https://github.com/agentprojectcontext/apx/commit/c22ffc9464c894fb1e680b67a77ef1e13fb3c725))
+
 ## [1.14.1](https://github.com/agentprojectcontext/apx/compare/v1.14.0...v1.14.1) (2026-05-11)
 
 
