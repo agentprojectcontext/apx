@@ -390,7 +390,7 @@ class ChannelPoller {
         ? "@" + msg.from.username
         : `${msg.from?.first_name || ""} ${msg.from?.last_name || ""}`.trim() || "unknown";
     const chat_id = msg.chat?.id;
-    const text = msg.text || msg.caption || "";
+    let text = msg.text || msg.caption || "";
 
     // ── Incoming photo handling ───────────────────────────────────────────
     if (msg.photo && msg.photo.length > 0) {

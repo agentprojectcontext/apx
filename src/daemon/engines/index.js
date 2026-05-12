@@ -46,11 +46,10 @@ export function getAdapter(provider) {
   return a;
 }
 
-export async function callEngine({ modelId, system, messages, config, temperature, maxTokens, tools, toolChoice }) {
+export async function callEngine({ modelId, system, messages, config, temperature, maxTokens, tools, toolChoice, signal }) {
   const { provider, model } = resolveProvider(modelId);
   const adapter = getAdapter(provider);
-  const providerCfg =
-    (config && config.engines && config.engines[provider]) || {};
+  const providerCfg = (config && config.engines && config.engines[provider]) || {};
   return adapter.chat({
     system,
     messages,
@@ -60,6 +59,7 @@ export async function callEngine({ modelId, system, messages, config, temperatur
     tools,
     toolChoice,
     config: providerCfg,
+    signal,
   });
 }
 

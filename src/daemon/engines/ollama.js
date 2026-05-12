@@ -8,7 +8,7 @@ function baseUrl(config) {
 export default {
   id: "ollama",
 
-  async chat({ system, messages, model, temperature = 0.7, maxTokens = 1024, tools, config = {} }) {
+  async chat({ system, messages, model, temperature = 0.7, maxTokens = 1024, tools, config = {}, signal }) {
     if (!model) throw new Error("ollama: model required");
 
     // The caller can pass `messages` as either:
@@ -45,6 +45,7 @@ export default {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
+      signal,
     });
     if (!res.ok) {
       const text = await res.text();
