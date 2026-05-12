@@ -68,6 +68,47 @@ HARD RULES (do not deviate):
 21. **SKILLS — ON DEMAND**: The "# Available skills" section below lists every skill available to you (slug + description, NO body). When the user asks about specific APX/APC commands, project structure, agent runtimes, or anything where exact syntax or detailed behavior matches a skill description (in ANY language — match semantically, not by keyword), call load_skill({slug}) to fetch the full markdown body. If a CWD is in the contextNote, pass it as project_path so project-scoped skills resolve. If the user explicitly asks "what skills do you have?", you can either read the catalog below directly OR call list_skills to get a fresh enumeration. Do NOT load skills for trivial / unrelated questions — that wastes tokens. Don't guess CLI syntax when a skill can tell you; load it.
 22. **NEVER PASTE BASE64 OR DATA URIs IN MESSAGE TEXT**: When you need to send an image, audio, or file via Telegram (or any channel), you MUST pass it via the dedicated parameter — NEVER embed it in the text field. Concretely: after browser_screenshot returns its base64 field, call send_telegram({text: "<short caption>", photo_base64: "<that base64>"}). Do NOT write text like 'Aquí está: ![screenshot](data:image/png;base64,...)' — Telegram (and most chat clients) do NOT render data URIs or markdown images; the user sees thousands of garbage characters. Same for files: use document_path / document_base64 / document_url, NOT the text field. The text field is exclusively for human-readable prose (and becomes the caption when media is attached). If unsure, save the image to /tmp/screenshot-<ts>.png first (browser_screenshot supports save_to_tmp=true and returns a path field) and pass that path to send_telegram via photo_path — never inline the bytes in text.`;
 
+function compactToolSchema(schema) {
+  const fn = schema?.function || {};
+  const params = fn.parameters || {};
+  const properties = params.properties || {};
+  return {
+    name: fn.name,
+    description: fn.description,
+    required: params.required || [],
+    properties: Object.fromEntries(
+      Object.entries(properties).map(([name, spec]) => [
+        name,
+        {
+          type: spec?.type || "string",
+          enum: spec?.enum,
+          description: spec?.description,
+        },
+      ])
+    ),
+  };
+}
+
+function pseudoToolSystem(system) {
+  const catalog = TOOL_SCHEMAS.map(compactToolSchema);
+  return [
+    system,
+    "# Structured tool fallback",
+    "The engine rejected native structured tools. You can still call tools by emitting plain JSON.",
+    "When you need a tool, respond ONLY with one JSON object per line:",
+    "{\"name\":\"tool_name\",\"arguments\":{\"arg\":\"value\"}}",
+    "After tool results arrive, continue the task or give the final answer normally.",
+    "Available tools:",
+    JSON.stringify(catalog),
+  ].join("\n\n");
+}
+
+function shouldRetryWithPseudoTools(modelId, error, alreadyPseudo) {
+  if (alreadyPseudo) return false;
+  const message = String(error?.message || "");
+  return /^ollama:/i.test(String(modelId || "")) && /ollama\s+500/i.test(message);
+}
+
 function isShortConfirmation(text) {
   return /^(yes|y|si|si dale|dale|ok|okay|confirm|confirmed|go|proceed|do it)\b/i
     .test(String(text || "").trim());
@@ -187,6 +228,7 @@ export async function runSuperAgent({
   const trace = [];
   let totalUsage = { input_tokens: 0, output_tokens: 0 };
   let lastText = "";
+  let usePseudoTools = false;
 
   for (let iter = 0; iter < MAX_TOOL_ITERS; iter++) {
     await emitProgress(onEvent, { type: "model_start", iteration: iter + 1 });
@@ -195,15 +237,36 @@ export async function runSuperAgent({
     // acting on an action request. On later iterations (after tool results
     // have been fed back) tool_choice is "auto" so the model can produce its
     // final text summary.
-    const result = await callEngine({
-      modelId: activeModel,
-      system,
-      messages: conversation,
-      config: globalConfig,
-      tools: TOOL_SCHEMAS,
-      toolChoice: iter === 0 ? "required" : "auto",
-      maxTokens: 1024,
-    });
+    let result;
+    try {
+      result = await callEngine({
+        modelId: activeModel,
+        system: usePseudoTools ? pseudoToolSystem(system) : system,
+        messages: conversation,
+        config: globalConfig,
+        tools: usePseudoTools ? null : TOOL_SCHEMAS,
+        toolChoice: usePseudoTools ? null : (iter === 0 ? "required" : "auto"),
+        maxTokens: 1024,
+      });
+    } catch (e) {
+      if (usePseudoTools && /^ollama:/i.test(String(activeModel || "")) && /ollama\s+500/i.test(String(e?.message || "")) && trace.length > 0) {
+        await emitProgress(onEvent, { type: "model_retry", reason: "ollama_final_response_500", iteration: iter + 1 });
+        lastText = fallbackFinalText(trace, e);
+        break;
+      }
+      if (!shouldRetryWithPseudoTools(activeModel, e, usePseudoTools)) throw e;
+      usePseudoTools = true;
+      await emitProgress(onEvent, { type: "model_retry", reason: "ollama_structured_tools_500", iteration: iter + 1 });
+      result = await callEngine({
+        modelId: activeModel,
+        system: pseudoToolSystem(system),
+        messages: conversation,
+        config: globalConfig,
+        tools: null,
+        toolChoice: null,
+        maxTokens: 1024,
+      });
+    }
     totalUsage.input_tokens += result.usage?.input_tokens || 0;
     totalUsage.output_tokens += result.usage?.output_tokens || 0;
     lastText = result.text || "";
@@ -316,4 +379,26 @@ function summarizeForTrace(r) {
   const s = JSON.stringify(r);
   if (s.length <= 400) return r;
   return s.slice(0, 380) + "…(truncated)";
+}
+
+function fallbackFinalText(trace, error) {
+  const lines = [
+    "Tool execution completed, but the model failed while composing the final answer.",
+    `Engine error: ${String(error?.message || error).slice(0, 220)}`,
+    "Trace:",
+  ];
+  for (const item of trace.slice(-8)) {
+    lines.push(`- ${item.tool}: ${previewTraceResult(item.result)}`);
+  }
+  return lines.join("\n");
+}
+
+function previewTraceResult(result) {
+  if (result === null || result === undefined) return "ok";
+  if (typeof result === "string") return result.slice(0, 180);
+  if (result.error) return `error: ${String(result.error).slice(0, 180)}`;
+  if (result.path) return String(result.path).slice(0, 180);
+  if (result.content) return String(result.content).slice(0, 180);
+  if (result.results) return JSON.stringify(result.results).slice(0, 180);
+  return JSON.stringify(result).slice(0, 180);
 }

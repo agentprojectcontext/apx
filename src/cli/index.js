@@ -607,9 +607,16 @@ const HELP_TOPICS = new Map(Object.entries({
   "telegram send": topic({
     title: "apx telegram send",
     summary: "Send a Telegram message through the configured bridge.",
-    usage: ["apx telegram send \"<text>\" [--chat <id>]"],
-    options: [["--chat <id>", "Override configured chat id."]],
-    examples: ["apx telegram send \"Deploy finished\" --chat 123456"],
+    usage: ["apx telegram send \"<text>\" [--chat <id>] [--interrupt]"],
+    options: [
+      ["--chat <id>", "Override configured chat id."],
+      ["--interrupt", "Send immediately, bypassing any pending agent queue (alias: --force)."],
+      ["--force", "Alias for --interrupt."],
+    ],
+    examples: [
+      "apx telegram send \"Deploy finished\" --chat 123456",
+      "apx telegram send \"Urgent!\" --interrupt",
+    ],
   }),
   "telegram status": topic({
     title: "apx telegram status",

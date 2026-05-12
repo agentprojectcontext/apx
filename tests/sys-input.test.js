@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { handleEditingKey, handleScrollKey, isReturnKey } from "../src/cli/commands/sys.js";
+import { handleEditingKey, handleScrollKey, isExitCommand, isReturnKey } from "../src/cli/commands/sys.js";
 
 function makeState() {
   return {
@@ -16,6 +16,13 @@ test("return key is detected for terminal submit", () => {
   assert.equal(isReturnKey({ name: "return" }), true);
   assert.equal(isReturnKey({ name: "enter" }), true);
   assert.equal(isReturnKey({ name: "backspace" }), false);
+});
+
+test("exit command is detected exactly", () => {
+  assert.equal(isExitCommand("exit"), true);
+  assert.equal(isExitCommand(" quit "), true);
+  assert.equal(isExitCommand("exit now"), false);
+  assert.equal(isExitCommand(""), false);
 });
 
 test("editing ignores return control character", () => {

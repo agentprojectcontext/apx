@@ -1,6 +1,7 @@
 // Express REST API for APX. See APC docs reference/apx-daemon.
 import fs from "node:fs";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
 import express from "express";
 import { buildBrowserRouter } from "./tools/browser.js";
@@ -49,6 +50,7 @@ import { readAgents } from "../core/parser.js";
 import { parseSessionFrontmatter } from "../core/parser.js";
 import { writeAgentFile, ensureAgentDir, regenerateAgentsMd } from "../core/scaffold.js";
 import { buildAgentSystem } from "../core/agent-system.js";
+import { appendErrorTrace, previewText } from "../core/logging.js";
 import {
   createArtifact,
   listArtifacts,
@@ -58,11 +60,34 @@ import {
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 
+function appendSuperAgentErrorTrace(req, error, details = {}) {
+  appendErrorTrace({
+    trace_id: req.apxTraceId,
+    surface: "daemon_api",
+    route: `${req.method} ${req.route?.path || req.path}`,
+    project_id: req.params?.pid || null,
+    channel: /Channel:\s*([^\n]+)/i.exec(details.contextNote || "")?.[1]?.trim() || null,
+    model: details.model || null,
+    stream: !!details.stream,
+    prompt_preview: previewText(details.prompt),
+    previous_messages: Array.isArray(details.previousMessages) ? details.previousMessages.length : 0,
+    error: {
+      message: error?.message || String(error),
+      stack: error?.stack || null,
+    },
+  });
+}
+
 export function buildApi({ projects, registries, plugins, scheduler, version, startedAt, addProjectGlobally, config }) {
   const telegram = plugins?.get("telegram");
 
   const app = express();
   app.use(express.json({ limit: "2mb" }));
+  app.use((req, res, next) => {
+    req.apxTraceId = req.get("x-apx-trace-id") || randomUUID();
+    res.setHeader("x-apx-trace-id", req.apxTraceId);
+    next();
+  });
 
   // ---- Tool routers (fetch / browser / search / glob / grep / registry) ----
   // fetch  = native HTTP, no Chromium  → fast, cheap, default for REST/HTML
@@ -636,7 +661,8 @@ export function buildApi({ projects, registries, plugins, scheduler, version, st
       });
       res.end();
     } catch (e) {
-      send({ type: "error", error: e.message });
+      appendSuperAgentErrorTrace(req, e, { prompt, contextNote, previousMessages, model, stream: true });
+      send({ type: "error", trace_id: req.apxTraceId, error: `${e.message} (trace: ${req.apxTraceId})` });
       res.end();
     }
   });
@@ -665,7 +691,8 @@ export function buildApi({ projects, registries, plugins, scheduler, version, st
         trace: saResult.trace,
       });
     } catch (e) {
-      res.status(500).json({ error: e.message });
+      appendSuperAgentErrorTrace(req, e, { prompt, contextNote, previousMessages, model, stream: false });
+      res.status(500).json({ error: e.message, trace_id: req.apxTraceId });
     }
   });
 

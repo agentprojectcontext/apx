@@ -75,6 +75,7 @@ async function request(method, path, body, opts = {}) {
     method,
     headers: body ? { "content-type": "application/json" } : {},
     body: body ? JSON.stringify(body) : undefined,
+    signal: opts.signal,
   });
   const text = await res.text();
   let json;
@@ -101,6 +102,7 @@ async function streamRequest(method, path, body, onEvent, opts = {}) {
     method,
     headers: body ? { "content-type": "application/json" } : {},
     body: body ? JSON.stringify(body) : undefined,
+    signal: opts.signal,
   });
 
   if (!res.ok) {
@@ -121,10 +123,21 @@ async function streamRequest(method, path, body, onEvent, opts = {}) {
   let buffer = "";
   let finalResult = null;
 
+  // Register abort handler to cancel the reader
+  if (opts.signal) {
+    opts.signal.addEventListener("abort", () => reader.cancel().catch(() => {}), { once: true });
+  }
+
   while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
+    let chunk;
+    try {
+      chunk = await reader.read();
+    } catch (e) {
+      // AbortError or cancel — treat as clean end
+      break;
+    }
+    if (chunk.done) break;
+    buffer += decoder.decode(chunk.value, { stream: true });
     const lines = buffer.split(/\r?\n/);
     buffer = lines.pop() || "";
     for (const line of lines) {
@@ -138,10 +151,12 @@ async function streamRequest(method, path, body, onEvent, opts = {}) {
 
   buffer += decoder.decode();
   if (buffer.trim()) {
-    const event = JSON.parse(buffer);
-    if (event.type === "final") finalResult = event.result;
-    if (event.type === "error") throw new Error(event.error || "stream error");
-    await onEvent?.(event);
+    try {
+      const event = JSON.parse(buffer);
+      if (event.type === "final") finalResult = event.result;
+      if (event.type === "error") throw new Error(event.error || "stream error");
+      await onEvent?.(event);
+    } catch {}
   }
 
   return finalResult;
@@ -156,4 +171,6 @@ export const http = {
   delete: (p, opts) => request("DELETE", p, undefined, opts),
   baseUrl,
   ping,
+  /** Create a fresh AbortController for cancelling in-flight requests. */
+  createAbortController: () => new AbortController(),
 };

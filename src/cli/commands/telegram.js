@@ -4,8 +4,14 @@ export async function cmdTelegramSend(args) {
   const text = args._[0];
   if (!text) throw new Error("apx telegram send: missing <text>");
   const chat_id = args.flags.chat === true ? undefined : args.flags.chat;
-  const result = await http.post("/telegram/send", { chat_id, text });
-  console.log(`✅ sent (message_id=${result.message_id})`);
+  // --interrupt / --force: send immediately bypassing any pending agent queue
+  const interrupt = !!(args.flags.interrupt || args.flags.force);
+  const result = await http.post("/telegram/send", { chat_id, text, interrupt });
+  if (interrupt) {
+    console.log(`⚡ sent (interrupt, message_id=${result.message_id})`);
+  } else {
+    console.log(`✅ sent (message_id=${result.message_id})`);
+  }
 }
 
 export async function cmdTelegramStatus() {

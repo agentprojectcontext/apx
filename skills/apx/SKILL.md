@@ -1,29 +1,34 @@
 ---
 name: apx
-description: "APX CLI skill. Activate ONLY when the user asks about running agents, coordinating between agents, or explicitly uses apx commands. Provides: apx run, apx exec, apx memory, apx mcp, apx session, apx messages tail. Do NOT activate just because .apc/ exists — project context is handled by the apc-context skill. Activate on: 'apx run', 'apx exec', 'run an agent', 'coordinate agents', 'multi-agent', 'apx memory', 'apx mcp', 'daemon'."
+description: "APX CLI skill. Activate when: user asks to run or coordinate agents, use MCP tools from .apc/mcps.json, install agents from a team workspace, or explicitly mentions apx commands. Do NOT activate just because .apc/ exists — that is handled by the apc-context skill. Activate on: 'apx run', 'apx exec', 'run an agent', 'coordinate agents', 'MCP not working', 'install agent', 'team agents', 'apx memory', 'daemon'."
 homepage: https://github.com/agentprojectcontext/apx
 ---
 
 # APX — Agent Project Context Runtime
 
-This project uses **APX**. The daemon runs on `127.0.0.1:7430` and auto-starts on first `apx` call.
-Your current session, project, and agent are already injected above this block — refer to them.
+The daemon runs on `127.0.0.1:7430` and auto-starts on first `apx` call.
 
-APX runtime state belongs outside `.apc/`, under `~/.apx/projects/<project-id>/`.
+APX reads APC project context from `.apc/`, but APX runtime state belongs outside the repository
+under `~/.apx/projects/<project-id>/`.
+
+The APX super-agent has an always-available default workspace at `~/.apx/projects/default`.
+When no project is named, system-level work belongs there.
 
 ---
 
-## Discover the project
-
-```bash
-apx agent list                          # agents in AGENTS.md + their roles/models
-apx mcp list                            # MCP servers available to this project
-```
-
 ## Coordinate with other agents
 
+**First: can you spawn a subagent natively in this IDE?**
+
+If yes — do that. No APX needed. Claude Code, Cursor, and other IDEs can spawn subagents directly using your current context.
+
+Use `apx run` only when:
+- The user explicitly asks to run the agent in a specific external runtime ("run this in Codex", "run the QA agent outside this session")
+- You need to run an agent in a runtime different from the one you're in
+- You're orchestrating from outside any IDE (e.g. a script, Telegram bot, CI)
+
 ```bash
-# Full external session (best for complex, multi-step tasks)
+# Run agent in an external runtime — full isolated session
 apx run <slug> --runtime claude-code "<prompt>"
 apx run <slug> --runtime codex        "<prompt>"
 apx run <slug> --runtime opencode     "<prompt>"
@@ -32,54 +37,105 @@ apx run <slug> --runtime cursor-agent "<prompt>"
 apx run <slug> --runtime gemini-cli   "<prompt>"
 apx run <slug> --runtime qwen-code    "<prompt>"
 
-# Quick one-shot LLM call (requires engine API key in ~/.apx/config.json)
+# Example: run the qa agent in codex with a specific task
+apx run qa --runtime codex "run the full test suite and report failures"
+```
+
+The output is the agent's full stdout. If it printed `APC_RESULT: <value>`, that value is captured as structured output.
+
+```bash
+# Quick one-shot LLM call (no external CLI needed, uses ~/.apx/config.json engine key)
 apx exec <slug> "<prompt>"
 ```
 
-The output of `apx run` / `apx exec` is the agent's full stdout.
-If the agent printed `APC_RESULT: <value>`, that value is also captured as structured output.
+## Command accuracy
 
-## Memory — durable, safe facts
+Do not invent APX subcommands. Before telling another runtime to call APX, verify the exact CLI
+form with `apx --help` or `apx <command> --help`.
+
+Known Telegram form:
+
+```bash
+apx telegram status
+apx telegram send "message"
+apx telegram send "message" --chat 123456
+```
+
+Do not use guessed aliases such as `apx send-telegram` or `apx telegram "message"` unless current
+`apx --help` shows that exact form.
+
+## MCP tools
+
+MCPs declared in `.apc/mcps.json` are proxied through the APX daemon. Use `apx mcp` only for MCPs registered there — not for MCPs that are already running locally in your IDE session.
+
+```bash
+apx mcp list                            # MCPs registered in .apc/mcps.json
+apx mcp tools <server>                  # tools a server exposes
+apx mcp run   <server> <tool> '<json>'  # call a tool
+
+# Example:
+apx mcp tools filesystem
+apx mcp run filesystem read_file '{"path": "README.md"}'
+```
+
+## Memory
+
+Write memory only for durable, safe project facts. Do not store raw transcripts or secrets.
 
 ```bash
 apx memory <slug>                       # read agent's memory.md
-apx memory <slug> --append "<fact>"     # append a durable note (non-destructive)
+apx memory <slug> --append "<fact>"     # append a durable note
 apx memory <slug> --replace < file.md  # replace entire memory from stdin
 ```
 
-Write to memory only when you discover safe project context the agent should know on future runs.
+## Sessions
+
+Sessions are APX runtime state. They do not belong in `.apc/`.
+
+```bash
+apx session new <slug> --title "What you did"   # create APX local session file
+apx session list <slug>                          # list sessions
+apx session check                                # exits 1 if session already active
+```
 
 ## Observe activity
 
 ```bash
-apx messages tail                       # last 50 messages, all channels
-apx messages tail --channel runtime     # only agent invocations (in/out)
-apx messages tail --channel telegram    # Telegram conversation history
+apx messages tail                               # last 50 messages, all channels
+apx messages chat --channel telegram -n 20      # chat view with user/agent/system type
+apx messages tail --channel runtime             # only agent invocations
 apx messages tail --agent <slug> -n 20
-apx session list  <slug>                # sessions for a specific agent
 ```
 
-## MCP tools
+Message rows expose `type` (`user`, `agent`, `tool`, `system`) and `actor_id`; use `messages chat`
+when you need a readable transcript.
+
+## APX tool permissions
 
 ```bash
-apx mcp list                            # registered MCP servers
-apx mcp tools <server>                  # list tools a server exposes
-apx mcp run   <server> <tool> '<json>'  # call a tool directly
+apx permission show
+apx permission set automatico   # total | automatico | permiso
 ```
 
-## Anti-collision guard
+`automatico` runs read/list/safe shell checks directly and asks before destructive shell, MCP,
+runtime, outbound, config, or filesystem mutation actions.
 
-Before starting a long task, prevent duplicate runs:
+## Routines
+
 ```bash
-apx session check    # exits 1 if a session is already active for this agent
+apx routine list
+apx routine get <name>
+apx routine history <name>
+apx routine add clima --kind super_agent --schedule every:5m \
+  --permission-mode total \
+  --spec '{"prompt":"Check weather and send Telegram update."}'
 ```
 
-## APC_RESULT — how to signal your return value
+Routine kinds: `heartbeat`, `exec_agent`, `super_agent`, `telegram`, `shell`.
 
-Print this on the last meaningful line of your output:
+## APC_RESULT
+
+Print on the last meaningful line of your output so the invoker captures it:
 ```
 APC_RESULT: <one-line summary or value>
 ```
-The invoker (`apx run`, super-agent, Telegram bot) captures it as structured output.
-Keep it factual and short. It becomes the session result stored in APX local runtime state, not
-inside `.apc/`.

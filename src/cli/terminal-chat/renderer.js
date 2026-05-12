@@ -173,6 +173,9 @@ function renderPromptBlock(state, chatWidth) {
   const hotkeys =
     C.bold + C.text + "tab" + C.normal + C.muted + " agents  " +
     C.bold + C.text + "ctrl+p" + C.normal + C.muted + " commands  " +
+    (state.hasStarted && state.transcript?.some((t) => t.type === "user" && t.meta === "queued")
+      ? C.bold + C.warning + "ctrl+i" + C.normal + C.muted + " interrupt  "
+      : "") +
     C.bold + C.text + "enter" + C.normal + C.muted + " send";
   const hotkeyLeft = Math.max(left, left + boxWidth - visible(hotkeys));
   writeAt(top + 5, hotkeyLeft, hotkeys, visible(hotkeys), C.bg);
@@ -276,7 +279,11 @@ function transcriptLines(transcript, width) {
         addLine(lines, margin + C.primary + "┃" + C.panel + " " + C.text + padAnsi(chunk, inner), C.bg);
       }
       if (item.meta) {
-        addLine(lines, margin + C.primary + "┃" + C.panel + " " + C.muted + padAnsi(item.meta, inner), C.bg);
+        // Show QUEUED badge with distinct highlight color
+        const badgeText = item.meta === "queued"
+          ? C.warning + C.bold + "QUEUED" + C.normal + C.muted + "  click to send/remove"
+          : C.muted + item.meta;
+        addLine(lines, margin + C.primary + "┃" + C.panel + " " + badgeText + padAnsi("", Math.max(0, inner - (item.meta === "queued" ? 28 : visible(item.meta)))), C.bg);
       }
       addLine(lines, margin + C.primary + "┃" + C.panel + " " + " ".repeat(inner), C.bg);
       continue;
@@ -408,6 +415,36 @@ function renderPaletteOverlay(state) {
   );
 }
 
+function renderMsgActionsOverlay(state) {
+  const { width, height } = terminalSize();
+  const title = "Message Actions";
+  const opts = state.msgActionsOptions;
+  const preview = fit(state.msgActionsTarget?.text || "", 42);
+  const boxWidth = Math.min(62, Math.max(title.length + 8, preview.length + 6, ...opts.map((x) => visible(x) + 8)));
+  const boxHeight = opts.length + 5;
+  const left = centerLeft(width, boxWidth);
+  const top = Math.max(1, Math.floor((height - boxHeight) / 2));
+
+  writeAt(top, left, C.text + C.bold + " " + title + C.normal, boxWidth, C.panel);
+  writeAt(top + 1, left, C.muted + " " + C.italic + preview + C.noItalic, boxWidth, C.panel);
+  writeAt(top + 2, left, C.dim + "▀".repeat(boxWidth), boxWidth, C.panel);
+  for (let i = 0; i < opts.length; i++) {
+    const active = i === state.msgActionsSelection;
+    const marker = active ? "›" : " ";
+    const bg = active ? C.panel2 : C.panel;
+    const fg = active ? C.primary + C.bold : C.text;
+    writeAt(top + 3 + i, left, fg + ` ${marker} ${opts[i]}` + C.normal, boxWidth, bg);
+  }
+  writeAt(top + 3 + opts.length, left, C.dim + "▄".repeat(boxWidth), boxWidth, C.panel);
+  writeAt(
+    top + 4 + opts.length,
+    left,
+    C.muted + "↑↓ select  " + C.text + C.bold + "enter" + C.normal + C.muted + " choose  " + C.text + C.bold + "esc" + C.normal + C.muted + " close",
+    boxWidth,
+    C.bg
+  );
+}
+
 export function renderTerminalChat(state) {
   clearFull();
   const { width, height } = terminalSize();
@@ -424,5 +461,6 @@ export function renderTerminalChat(state) {
   const cursor = renderPromptBlock(state, chatWidth);
 
   if (state.inCommandPalette) renderPaletteOverlay(state);
-  if (!state.inCommandPalette) moveTo(cursor.row, cursor.col);
+  if (state.inMsgActions) renderMsgActionsOverlay(state);
+  if (!state.inCommandPalette && !state.inMsgActions) moveTo(cursor.row, cursor.col);
 }

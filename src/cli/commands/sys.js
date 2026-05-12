@@ -13,6 +13,11 @@ import {
 
 const MAIN_PALETTE_OPTIONS = ["Switch model", "Connect provider", "Open editor", "Exit"];
 
+// Message Actions overlay options for a queued message
+const MSG_ACTION_SEND   = "Send now  (interrupt current)";
+const MSG_ACTION_COPY   = "Copy message text";
+const MSG_ACTION_REMOVE = "Remove from queue";
+
 export async function cmdSys(args) {
   const pid = await resolveProjectId(args?.flags?.project);
   const cfg = readConfig();
@@ -34,16 +39,25 @@ export async function cmdSys(args) {
     usage: { input: 0, output: 0, percent: 0 },
     chatScrollOffset: 0,
     transcript: [],
+    // Message Actions overlay state
+    inMsgActions: false,
+    msgActionsTarget: null,   // { text } of the targeted queued message
+    msgActionsSelection: 0,
+    msgActionsOptions: [MSG_ACTION_SEND, MSG_ACTION_COPY, MSG_ACTION_REMOVE],
   };
 
   const previousMessages = [];
   const pendingPrompts = [];
   let restored = false;
   let isRequesting = false;
+  // AbortController for the current in-flight LLM request
+  let currentAbortCtrl = null;
 
   function restoreTerminal() {
     if (restored) return;
     restored = true;
+    // Disable mouse tracking before exit
+    process.stdout.write("\x1b[?1000l\x1b[?1015l\x1b[?1006l");
     if (process.stdin.isTTY) process.stdin.setRawMode(false);
     process.stdout.write(C.reset + C.showCursor + C.resetBg + C.altOff);
   }
@@ -67,6 +81,8 @@ export async function cmdSys(args) {
   readline.emitKeypressEvents(process.stdin);
   if (process.stdin.isTTY) process.stdin.setRawMode(true);
   process.stdout.write(C.altOn + C.setBgBlack + C.showCursor + C.bg);
+  // Enable xterm mouse button tracking (X10 + SGR extended for wide terminals)
+  process.stdout.write("\x1b[?1000h\x1b[?1015h\x1b[?1006h");
   process.once("exit", restoreTerminal);
   process.once("SIGINT", close);
   process.once("SIGTERM", close);
@@ -75,25 +91,72 @@ export async function cmdSys(args) {
 
   renderScreen();
 
+  // Handle raw mouse tracking bytes before readline keypress
+  process.stdin.on("data", (chunk) => {
+    const raw = typeof chunk === "string" ? chunk : chunk.toString("binary");
+    // SGR mouse: ESC [ < Pb ; Px ; Py M/m
+    const sgrMatch = raw.match(/\x1b\[<(\d+);(\d+);(\d+)([Mm])/);
+    if (sgrMatch) {
+      const btn = parseInt(sgrMatch[1], 10);
+      const col = parseInt(sgrMatch[2], 10) - 1;
+      const row = parseInt(sgrMatch[3], 10) - 1;
+      const press = sgrMatch[4] === "M";
+      if (press && btn === 0) {
+        handleMouseClick(col, row, state, pendingPrompts, renderScreen, () => {
+          // interrupt callback: abort current request then flush queue
+          if (currentAbortCtrl) currentAbortCtrl.abort();
+        });
+      }
+      return;
+    }
+  });
+
   process.stdin.on("keypress", async (str, key) => {
     if (key.ctrl && key.name === "c") {
+      // If a request is running, interrupt it first; second Ctrl-C exits
+      if (isRequesting && currentAbortCtrl) {
+        currentAbortCtrl.abort();
+        return;
+      }
       close();
+    }
+
+    // Ctrl+I = interrupt current request and immediately send first queued prompt
+    if (key.ctrl && key.name === "i" && isRequesting) {
+      if (currentAbortCtrl) currentAbortCtrl.abort();
+      return;
     }
 
     if (key.ctrl && key.name === "p") {
       state.inCommandPalette = !state.inCommandPalette;
+      state.inMsgActions = false;
       resetPalette();
       renderScreen();
       return;
     }
 
-    if (key.name === "escape" && state.inCommandPalette) {
-      if (state.paletteState !== "main") {
-        resetPalette();
-      } else {
-        state.inCommandPalette = false;
+    if (key.name === "escape") {
+      if (state.inMsgActions) {
+        state.inMsgActions = false;
+        state.msgActionsTarget = null;
+        renderScreen();
+        return;
       }
-      renderScreen();
+      if (state.inCommandPalette) {
+        if (state.paletteState !== "main") {
+          resetPalette();
+        } else {
+          state.inCommandPalette = false;
+        }
+        renderScreen();
+        return;
+      }
+    }
+
+    if (state.inMsgActions) {
+      await handleMsgActionsKey(key, state, pendingPrompts, renderScreen, () => {
+        if (currentAbortCtrl) currentAbortCtrl.abort();
+      });
       return;
     }
 
@@ -105,14 +168,23 @@ export async function cmdSys(args) {
     if (handleScrollKey(key, state, renderScreen)) return;
 
     if (isReturnKey(key)) {
+      if (isExitCommand(state.inputText)) {
+        close();
+        return;
+      }
+
       if (isRequesting) {
         queuePrompt(state, pendingPrompts, renderScreen);
         return;
       }
 
       isRequesting = true;
-      await submitPromptQueue(pid, state, previousMessages, pendingPrompts, renderScreen, close);
+      await submitPromptQueue(
+        pid, state, previousMessages, pendingPrompts, renderScreen, close,
+        (ctrl) => { currentAbortCtrl = ctrl; }
+      );
       isRequesting = false;
+      currentAbortCtrl = null;
       return;
     }
 
@@ -120,8 +192,110 @@ export async function cmdSys(args) {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Mouse click → Message Actions overlay
+// ---------------------------------------------------------------------------
+
+/**
+ * Determine if a click at (col, row) lands on a queued user message bubble,
+ * and if so open the Message Actions overlay for it.
+ */
+function handleMouseClick(col, row, state, pendingPrompts, renderScreen, onInterrupt) {
+  if (!state.hasStarted || pendingPrompts.length === 0) return;
+
+  // Walk transcript looking for queued items and compare to approximate
+  // rendered row positions.  We only care about the QUEUED badge area.
+  // The transcript is rendered starting from row 0 upward; we check a rough
+  // 2-row hit-box around each queued bubble.
+  const queuedItems = state.transcript.filter(
+    (item) => item.type === "user" && item.meta === "queued"
+  );
+  if (queuedItems.length === 0) return;
+
+  // Find corresponding pending prompt by matching text
+  // (simple heuristic: open overlay for the first queued msg if click is in
+  // the left 80% of the terminal — avoids sidebar hits)
+  const { width } = { width: process.stdout.columns || 80 };
+  if (col > Math.floor(width * 0.8)) return;
+
+  // Just open actions for the nearest queued item (first one by default)
+  state.inMsgActions = true;
+  state.msgActionsTarget = queuedItems[0];
+  state.msgActionsSelection = 0;
+  renderScreen();
+}
+
+/** Keyboard nav inside the Message Actions overlay */
+async function handleMsgActionsKey(key, state, pendingPrompts, renderScreen, onInterrupt) {
+  if (key.name === "up") {
+    state.msgActionsSelection = Math.max(0, state.msgActionsSelection - 1);
+    renderScreen();
+    return;
+  }
+  if (key.name === "down") {
+    state.msgActionsSelection = Math.min(
+      state.msgActionsOptions.length - 1,
+      state.msgActionsSelection + 1
+    );
+    renderScreen();
+    return;
+  }
+  if (key.name !== "return") {
+    renderScreen();
+    return;
+  }
+
+  const selected = state.msgActionsOptions[state.msgActionsSelection];
+  const target = state.msgActionsTarget;
+
+  // Close overlay first
+  state.inMsgActions = false;
+  state.msgActionsTarget = null;
+
+  if (selected === MSG_ACTION_REMOVE) {
+    // Remove from pendingPrompts and transcript
+    const idx = pendingPrompts.findIndex((p) => p.text === target?.text);
+    if (idx >= 0) pendingPrompts.splice(idx, 1);
+    const tidx = state.transcript.indexOf(target);
+    if (tidx >= 0) state.transcript.splice(tidx, 1);
+    renderScreen();
+    return;
+  }
+
+  if (selected === MSG_ACTION_COPY) {
+    // Best-effort clipboard via pbcopy (macOS) / xclip (Linux)
+    try {
+      const { execSync } = await import("node:child_process");
+      const cmd = process.platform === "darwin" ? "pbcopy" : "xclip -selection clipboard";
+      execSync(cmd, { input: target?.text || "", stdio: ["pipe", "ignore", "ignore"] });
+    } catch {}
+    state.transcript.push({ type: "status", text: "Copied to clipboard" });
+    renderScreen();
+    return;
+  }
+
+  if (selected === MSG_ACTION_SEND) {
+    // Promote the queued item to front of queue, then interrupt current request
+    const idx = pendingPrompts.findIndex((p) => p.text === target?.text);
+    if (idx > 0) {
+      const [entry] = pendingPrompts.splice(idx, 1);
+      pendingPrompts.unshift(entry);
+    }
+    // Signal the interrupt — the running submitPromptQueue will pick it up
+    onInterrupt();
+    renderScreen();
+    return;
+  }
+
+  renderScreen();
+}
+
 export function isReturnKey(key) {
   return key?.name === "return" || key?.name === "enter";
+}
+
+export function isExitCommand(text) {
+  return /^(exit|quit)$/i.test(String(text || "").trim());
 }
 
 export function handleScrollKey(key, state, renderScreen) {
@@ -329,11 +503,15 @@ function queuePrompt(state, pendingPrompts, renderScreen) {
   renderScreen();
 }
 
-async function submitPromptQueue(pid, state, previousMessages, pendingPrompts, renderScreen, close) {
+async function submitPromptQueue(
+  pid, state, previousMessages, pendingPrompts, renderScreen, close,
+  setAbortCtrl = () => {}
+) {
   const firstText = state.inputText.trim();
   if (!firstText) return;
-  if (firstText.toLowerCase() === "exit" || firstText.toLowerCase() === "quit") {
+  if (isExitCommand(firstText)) {
     close();
+    return;
   }
 
   state.hasStarted = true;
@@ -343,20 +521,29 @@ async function submitPromptQueue(pid, state, previousMessages, pendingPrompts, r
 
   const firstItem = { type: "user", text: firstText };
   state.transcript.push(firstItem);
-  await runPrompt(pid, state, previousMessages, renderScreen, firstText, firstItem);
+  await runPrompt(
+    pid, state, previousMessages, renderScreen, firstText, firstItem, setAbortCtrl
+  );
 
   while (pendingPrompts.length > 0) {
     const queued = pendingPrompts.shift();
     delete queued.item.meta;
-    await runPrompt(pid, state, previousMessages, renderScreen, queued.text, queued.item);
+    await runPrompt(
+      pid, state, previousMessages, renderScreen, queued.text, queued.item, setAbortCtrl
+    );
   }
 }
 
-async function runPrompt(pid, state, previousMessages, renderScreen, text, userItem) {
+async function runPrompt(
+  pid, state, previousMessages, renderScreen, text, userItem,
+  setAbortCtrl = () => {}
+) {
   appendLiveItem(state, { type: "status", text: "Thinking...", active: true });
   renderScreen();
 
   const startTime = Date.now();
+  const abortCtrl = http.createAbortController();
+  setAbortCtrl(abortCtrl);
 
   try {
     const cwd = process.cwd();
@@ -372,28 +559,49 @@ async function runPrompt(pid, state, previousMessages, renderScreen, text, userI
     };
 
     let result;
+    let interrupted = false;
     try {
       result = await http.streamPost(
         `/projects/${pid}/super-agent/chat/stream`,
         body,
-        (event) => handleProgressEvent(event, state, renderScreen)
+        (event) => handleProgressEvent(event, state, renderScreen),
+        { signal: abortCtrl.signal }
       );
     } catch (e) {
-      if (e.status !== 404) throw e;
-      result = await http.post(`/projects/${pid}/super-agent/chat`, body);
-      removeStatus(state);
-      for (const trace of result.trace || []) {
-        appendLiveItem(state, { type: "tool", trace });
+      if (abortCtrl.signal.aborted) {
+        // Interrupted by user — show notice and continue to next queued prompt
+        interrupted = true;
+        removeStatus(state);
+        appendLiveItem(state, {
+          type: "status",
+          text: `\u26a1 Interrupted — ${text.slice(0, 60)}${text.length > 60 ? "\u2026" : ""}`,
+        });
+      } else if (e.status !== 404) {
+        throw e;
+      } else {
+        result = await http.post(
+          `/projects/${pid}/super-agent/chat`, body,
+          { signal: abortCtrl.signal }
+        );
+        removeStatus(state);
+        for (const trace of result.trace || []) {
+          appendLiveItem(state, { type: "tool", trace });
+        }
       }
     }
 
-    completeSuperAgentResult(result, text, startTime, state, previousMessages);
+    if (!interrupted && result) {
+      completeSuperAgentResult(result, text, startTime, state, previousMessages);
+    }
   } catch (e) {
-    removeStatus(state);
-    appendLiveItem(state, { type: "error", text: e.message });
+    if (!abortCtrl.signal.aborted) {
+      removeStatus(state);
+      appendLiveItem(state, { type: "error", text: e.message });
+    }
   }
 
   if (userItem) delete userItem.meta;
+  setAbortCtrl(null);
   renderScreen();
 }
 
@@ -421,6 +629,14 @@ function handleProgressEvent(event, state, renderScreen) {
       status.text = event.iteration > 1 ? `Thinking... step ${event.iteration}` : "Thinking...";
       renderScreen();
     }
+    return;
+  }
+
+  if (event.type === "model_retry") {
+    const status = [...state.transcript].reverse().find((item) => item?.type === "status" && item?.active);
+    if (status) status.text = "Retrying with tool fallback...";
+    else appendLiveItem(state, { type: "status", text: "Retrying with tool fallback...", active: true });
+    renderScreen();
     return;
   }
 

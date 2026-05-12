@@ -14,7 +14,14 @@ import { readAgents } from "../core/parser.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const EXAMPLE = path.resolve(__dirname, "..", "..", "examples", "my-first-project");
+const EXAMPLE_CANDIDATES = [
+  path.resolve(__dirname, "..", "..", "examples", "my-first-project"),
+  path.resolve(__dirname, "..", "..", "..", "apc", "examples", "my-first-project"),
+];
+const EXAMPLE = EXAMPLE_CANDIDATES.find((p) =>
+  fs.existsSync(path.join(p, "AGENTS.md")) &&
+  fs.existsSync(path.join(p, ".apc", "project.json"))
+);
 
 function assert(cond, msg) {
   if (!cond) {
@@ -24,6 +31,7 @@ function assert(cond, msg) {
 }
 
 const projects = new ProjectManager();
+assert(EXAMPLE, `example project missing; checked ${EXAMPLE_CANDIDATES.join(", ")}`);
 const entry = projects.register(EXAMPLE);
 console.log("registered project", entry.id, entry.path);
 
