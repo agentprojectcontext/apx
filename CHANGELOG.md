@@ -1,3 +1,10 @@
+## [1.15.4](https://github.com/agentprojectcontext/apx/compare/v1.15.3...v1.15.4) (2026-05-13)
+
+
+### Bug Fixes
+
+* wire identity into super-agent system prompt, unify language to config ([604cc45](https://github.com/agentprojectcontext/apx/commit/604cc4538ebe7a4f2a2e2b7fdf9e20cab74c298f))
+
 ## [1.15.3](https://github.com/agentprojectcontext/apx/compare/v1.15.2...v1.15.3) (2026-05-13)
 
 
