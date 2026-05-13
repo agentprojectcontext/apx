@@ -24,10 +24,11 @@
     "start": "node src/daemon/index.js",
     "smoke": "node src/daemon/smoke.js",
     "test": "node --test --test-reporter=spec tests/*.test.js",
-    "upgrade": "npm install && npm install -g .",
+    "upgrade": "pnpm install && pnpm add -g .",
     "prepack": "node scripts/sync-apc-skill.js",
     "postinstall": "node src/cli/postinstall.js"
   },
+  "packageManager": "pnpm@10.25.0",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "chalk": "^5.6.2",
@@ -55,6 +56,9 @@
     "claude",
     "ai"
   ],
+  "pnpm": {
+    "onlyBuiltDependencies": ["better-sqlite3", "puppeteer"]
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/agentprojectcontext/apx.git"

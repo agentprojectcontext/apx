@@ -1,6 +1,6 @@
 ---
 name: apc-context
-description: "ALWAYS activate when the project has a .apc/ directory or AGENTS.md file. Read APC project context before making assumptions about agents, memory, skills, MCP hints, or project structure. If .apc/migrate.md exists, offer migration before other work."
+description: "ALWAYS activate when the project has a .apc/ directory or AGENTS.md file. Do not wait to be asked. Read .apc/ before making any assumption about agents, memory, or project structure. Activate on: .apc/, AGENTS.md, 'which agents', 'list agents', 'agent context', 'who are the agents', any question about agents or memory in this project. IMPORTANT: if .apc/migrate.md exists, open the conversation with a migration offer before answering anything else. If the user declines, delete .apc/migrate.md immediately so it is not shown again."
 homepage: https://github.com/agentprojectcontext/agentprojectcontext
 ---
 

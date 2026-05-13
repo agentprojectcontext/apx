@@ -124,25 +124,57 @@ export async function cmdDaemonStop(args = {}) {
   }
 }
 
-export function cmdDaemonLogs(args) {
+export async function cmdDaemonLogs(args) {
   const debug = args.flags?.debug;
+  const follow = args.flags?.follow || args.flags?.f;
+
   if (!fs.existsSync(LOG_PATH)) {
     console.log(fmt.gray(`  (no log file at ${LOG_PATH})`));
     return;
   }
-  const tail  = args.flags?.tail ? parseInt(args.flags.tail, 10) : 50;
-  const lines = fs.readFileSync(LOG_PATH, "utf8").split("\n");
+
+  const tail = args.flags?.tail ? parseInt(args.flags.tail, 10) : 50;
+  const content = fs.readFileSync(LOG_PATH, "utf8");
+  const lines = content.split("\n");
   const slice = lines.slice(-tail - 1).filter(Boolean);
 
   if (debug) console.log(fmt.gray(`  log: ${LOG_PATH}  (last ${tail} lines)\n`));
 
-  for (const line of slice) {
-    // dim timestamps, highlight ERROR/WARN
+  const printLine = (line) => {
     const colored = line
       .replace(/^(\d{4}-\d\d-\d\dT[\d:.Z]+)/, (m) => fmt.gray(m))
       .replace(/\bERROR\b/g, fmt.red("ERROR"))
-      .replace(/\bWARN\b/g,  fmt.yellow("WARN"))
-      .replace(/\bINFO\b/g,  fmt.cyan("INFO"));
+      .replace(/\bWARN\b/g, fmt.yellow("WARN"))
+      .replace(/\bINFO\b/g, fmt.cyan("INFO"));
     console.log(colored);
+  };
+
+  for (const line of slice) {
+    printLine(line);
+  }
+
+  if (follow) {
+    let currentSize = fs.statSync(LOG_PATH).size;
+    fs.watch(LOG_PATH, (event) => {
+      if (event === "change") {
+        const newSize = fs.statSync(LOG_PATH).size;
+        if (newSize > currentSize) {
+          const stream = fs.createReadStream(LOG_PATH, {
+            start: currentSize,
+            end: newSize - 1,
+          });
+          stream.on("data", (chunk) => {
+            const lines = chunk.toString().split("\n").filter(Boolean);
+            for (const l of lines) printLine(l);
+          });
+          currentSize = newSize;
+        } else if (newSize < currentSize) {
+          // File truncated or rotated
+          currentSize = newSize;
+        }
+      }
+    });
+    // Keep process alive
+    return new Promise(() => {});
   }
 }

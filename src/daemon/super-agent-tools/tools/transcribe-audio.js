@@ -11,7 +11,7 @@ export default {
     function: {
       name: "transcribe_audio",
       description:
-        "Transcribe an audio file to text. Default backend is local faster-whisper (model 'medium' on CPU with int8 quantization), with automatic fallback to OpenAI Whisper API if local fails. Pass file_path for a file on disk, or base64 for raw audio bytes (will be written to a temp file). Override provider/model/language as needed.",
+        "Transcribe an audio file to text. Default backend is local faster-whisper (model 'small' on CPU with int8 quantization, persistent server to avoid reload overhead), with automatic fallback to OpenAI Whisper API if local fails. Pass file_path for a file on disk, or base64 for raw audio bytes (will be written to a temp file). Override provider/model/language as needed.",
       parameters: {
         type: "object",
         properties: {
@@ -19,7 +19,7 @@ export default {
           base64: { type: "string", description: "alternative to file_path — raw base64 audio bytes (or 'data:audio/...;base64,...' data URI)" },
           format: { type: "string", description: "file extension hint when using base64 (default 'ogg')" },
           provider: { type: "string", description: "override the configured provider: 'auto' | 'local' | 'openai'" },
-          model: { type: "string", description: "local model size: tiny | base | small | medium | large | large-v2 | large-v3 (default medium)" },
+          model: { type: "string", description: "local model size: tiny | base | small | medium | large | large-v2 | large-v3 (default small)" },
           language: { type: "string", description: "ISO 639-1 code (e.g. 'es', 'en') or 'auto' for detection" },
           device: { type: "string", description: "local device: cpu | cuda (default cpu)" },
           compute_type: { type: "string", description: "local quantization: int8 | int8_float16 | float16 | float32 (default int8)" },

@@ -42,7 +42,9 @@ def main() -> int:
         return 1
 
     try:
-        model = WhisperModel(args.model, device=args.device, compute_type=args.compute_type)
+        import multiprocessing
+        threads = os.cpu_count() or 4
+        model = WhisperModel(args.model, device=args.device, compute_type=args.compute_type, cpu_threads=threads)
     except Exception as e:
         print(json.dumps({"ok": False, "error": f"failed to load model '{args.model}': {e}"}))
         return 1
