@@ -176,7 +176,12 @@ export function installIdeSkills(root, targetIds = null) {
   return results;
 }
 
-// Install bundled APX/APC skills + runtime docs to global ~/.../skills/ dirs.
+// Install bundled APX/APC skills to global ~/.../skills/ dirs.
+// Only apx and apc-context are installed everywhere — they teach IDE tools
+// (Claude Code, Cursor, Codex) about the APX CLI and APC project standard.
+// Runtime CLI skills (claude-code, codex-cli, etc.) are APX-internal; APX
+// loads them from src/daemon/runtime-skills/ at startup and does NOT push
+// them to other tools' global skill dirs.
 // Returns an array of result objects with { dir, skill, status }.
 export function installGlobalSkills() {
   const results = [];
@@ -186,7 +191,8 @@ export function installGlobalSkills() {
   const apcRaw = readBundledSkill("apc-context");
   if (apxRaw) skills.push({ slug: "apx", md: apxRaw });
   if (apcRaw) skills.push({ slug: "apc-context", md: apcRaw });
-  skills.push(...readRuntimeSkillFiles());
+  // Runtime skills (claude-code, codex-cli, opencode-cli, openrouter, …) are
+  // NOT included here — they are APX-only internals, not for IDE consumption.
 
   for (const base of GLOBAL_SKILL_DIRS) {
     for (const { slug, md } of skills) {
