@@ -143,6 +143,23 @@ function looksLikeActionRequest(text) {
   return /\b(list|show|find|get|fetch|search|run|execute|create|add|make|start|stop|delete|update|send|check|read|write|look|tell me|dame|mostra|busca|ejecuta|crea|agrega|mandá|revisá|corré|borrá|arrancá)\b/.test(t);
 }
 
+/**
+ * Build the identity block injected into every super-agent system prompt.
+ * Pure function — exported for unit tests.
+ *
+ * @param {object|null} identity  result of readIdentity(), or a plain object for tests
+ * @param {string} userLang       ISO 639-1 code from config.user.language (default "en")
+ */
+export function buildIdentityBlock(identity, userLang = "en") {
+  const lines = ["# Identity"];
+  if (identity?.agent_name) lines.push(`Your name is ${identity.agent_name}.`);
+  if (identity?.personality) lines.push(`Your personality: ${identity.personality}.`);
+  if (identity?.owner_name) lines.push(`Your owner is ${identity.owner_name}.`);
+  if (identity?.owner_context) lines.push(`Owner context: ${identity.owner_context}`);
+  lines.push(`Always reply in the language with ISO code "${userLang}" unless the user explicitly switches.`);
+  return lines.join("\n");
+}
+
 export function isSuperAgentEnabled(cfg) {
   return !!(cfg && cfg.super_agent && cfg.super_agent.enabled && cfg.super_agent.model);
 }
@@ -158,6 +175,7 @@ export async function runSuperAgent({
   overrideModel = null,
   onEvent = null,
   signal,
+  onToken = null,
 }) {
   if (!isSuperAgentEnabled(globalConfig)) {
     throw new Error("super-agent not enabled (set super_agent.enabled and .model in ~/.apx/config.json)");
@@ -206,15 +224,7 @@ export async function runSuperAgent({
   // Language comes from config.user.language (ISO 639-1) so it stays in sync with transcription.
   const identity = (() => { try { return readIdentity(); } catch { return null; } })();
   const userLang = globalConfig?.user?.language || "en";
-  const identityBlock = (() => {
-    const lines = ["# Identity"];
-    if (identity?.agent_name) lines.push(`Your name is ${identity.agent_name}.`);
-    if (identity?.personality) lines.push(`Your personality: ${identity.personality}.`);
-    if (identity?.owner_name) lines.push(`Your owner is ${identity.owner_name}.`);
-    if (identity?.owner_context) lines.push(`Owner context: ${identity.owner_context}`);
-    lines.push(`Always reply in the language with ISO code "${userLang}" unless the user explicitly switches.`);
-    return lines.join("\n");
-  })();
+  const identityBlock = buildIdentityBlock(identity, userLang);
 
   const system = [
     sa.system || DEFAULT_SYSTEM,
@@ -265,6 +275,9 @@ export async function runSuperAgent({
         toolChoice: usePseudoTools ? null : (iter === 0 ? "required" : "auto"),
         maxTokens: 1024,
         signal,
+        // Only stream tokens on non-forced iterations (iter > 0) — on iter 0
+        // the model MUST call a tool, so we skip streaming to avoid confusion.
+        onToken: (iter > 0 && onToken) ? onToken : null,
       });
     } catch (e) {
       if (usePseudoTools && /^ollama:/i.test(String(activeModel || "")) && /ollama\s+500/i.test(String(e?.message || "")) && trace.length > 0) {
@@ -284,6 +297,7 @@ export async function runSuperAgent({
         toolChoice: null,
         maxTokens: 1024,
         signal,
+        onToken: (iter > 0 && onToken) ? onToken : null,
       });
     }
     totalUsage.input_tokens += result.usage?.input_tokens || 0;

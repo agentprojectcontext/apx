@@ -46,6 +46,24 @@ const DEFAULT_LOCAL = {
 };
 
 // ---------------------------------------------------------------------------
+// Config helpers (pure — exported for tests)
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve the effective transcription language.
+ * Priority: explicit local config → config.user.language → "auto" (whisper detects).
+ *
+ * @param {object} localCfg   merged transcription.local config
+ * @param {string} userLang   config.user.language ISO code (e.g. "es"), or ""
+ * @returns {string}          ISO code or "auto"
+ */
+export function resolveTranscriptionLanguage(localCfg, userLang) {
+  if (localCfg.language && localCfg.language !== "auto") return localCfg.language;
+  if (userLang) return userLang;
+  return "auto";
+}
+
+// ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
 
@@ -59,9 +77,7 @@ async function getConfig() {
     // Explicit transcription.local.language always wins; "auto" means fall back to user.language.
     const userLang = cfg.user?.language || "";
     const localBase = { ...DEFAULT_LOCAL, ...(t.local || {}) };
-    if ((!localBase.language || localBase.language === "auto") && userLang) {
-      localBase.language = userLang;
-    }
+    localBase.language = resolveTranscriptionLanguage(localBase, userLang);
     return {
       provider: t.provider || "auto",
       local: localBase,
@@ -293,6 +309,29 @@ export async function transcribe(filePath, overrides = {}) {
       );
     }
     return transcribeOpenAI(filePath, cfg.openaiKey);
+  }
+}
+
+/**
+ * Transcribe raw audio bytes (e.g. from a mic chunk or Telegram voice blob).
+ * Saves to a temp file, transcribes, cleans up.
+ *
+ * @param {Buffer} buf        raw audio data
+ * @param {string} format     file extension hint: "webm" | "ogg" | "wav" | "mp3" (default "webm")
+ * @param {object} overrides  same as transcribe() overrides
+ */
+export async function transcribeBuffer(buf, format = "webm", overrides = {}) {
+  if (!buf || !buf.length) throw new Error("transcribeBuffer: empty buffer");
+  const ext = format.replace(/^\./, "") || "webm";
+  const tmpFile = path.join(
+    (await import("node:os")).default.tmpdir(),
+    `apx-audio-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+  );
+  try {
+    fs.writeFileSync(tmpFile, buf);
+    return await transcribe(tmpFile, overrides);
+  } finally {
+    try { fs.unlinkSync(tmpFile); } catch {}
   }
 }
 
