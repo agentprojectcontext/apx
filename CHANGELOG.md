@@ -1,3 +1,10 @@
+## [1.15.5](https://github.com/agentprojectcontext/apx/compare/v1.15.4...v1.15.5) (2026-05-13)
+
+
+### Bug Fixes
+
+* daemon bearer token auth and SSRF protection in fetch tool ([813c412](https://github.com/agentprojectcontext/apx/commit/813c4127cd8d41d3d24b3f8aaf9f5faff60cde59))
+
 ## [1.15.4](https://github.com/agentprojectcontext/apx/compare/v1.15.3...v1.15.4) (2026-05-13)
 
 
