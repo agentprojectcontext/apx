@@ -1,3 +1,10 @@
+## [1.15.2](https://github.com/agentprojectcontext/apx/compare/v1.15.1...v1.15.2) (2026-05-13)
+
+
+### Bug Fixes
+
+* store user language as ISO 639-1 in config, wire to transcription ([a4c70f6](https://github.com/agentprojectcontext/apx/commit/a4c70f64908f49a3d1593e620546b7bd6a51ca6b))
+
 ## [1.15.1](https://github.com/agentprojectcontext/apx/compare/v1.15.0...v1.15.1) (2026-05-13)
 
 
