@@ -1,3 +1,10 @@
+## [1.15.6](https://github.com/agentprojectcontext/apx/compare/v1.15.5...v1.15.6) (2026-05-13)
+
+
+### Bug Fixes
+
+* wakeup language reads config.user.language, add regression tests ([5c48128](https://github.com/agentprojectcontext/apx/commit/5c48128738aadc0b8b43228618d971bf8aa2b928))
+
 ## [1.15.5](https://github.com/agentprojectcontext/apx/compare/v1.15.4...v1.15.5) (2026-05-13)
 
 
