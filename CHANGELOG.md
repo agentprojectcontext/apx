@@ -1,3 +1,10 @@
+## [1.15.3](https://github.com/agentprojectcontext/apx/compare/v1.15.2...v1.15.3) (2026-05-13)
+
+
+### Bug Fixes
+
+* apx update auto-restarts daemon, runtime skills not propagated globally ([c343993](https://github.com/agentprojectcontext/apx/commit/c343993733c344de5e6c21a6458e8dc207d9b268))
+
 ## [1.15.2](https://github.com/agentprojectcontext/apx/compare/v1.15.1...v1.15.2) (2026-05-13)
 
 
