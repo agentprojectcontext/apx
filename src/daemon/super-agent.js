@@ -18,6 +18,7 @@ import {
   extractPseudoToolCalls,
   cleanTextOfPseudoToolCalls,
 } from "./tool-call-parser.js";
+import { readIdentity } from "../core/identity.js";
 
 const MAX_TOOL_ITERS = 6;
 
@@ -201,8 +202,23 @@ export async function runSuperAgent({
     ].join("\n");
   })();
 
+  // Identity: who the agent is, who it works for, and what extra context the owner provided.
+  // Language comes from config.user.language (ISO 639-1) so it stays in sync with transcription.
+  const identity = (() => { try { return readIdentity(); } catch { return null; } })();
+  const userLang = globalConfig?.user?.language || "en";
+  const identityBlock = (() => {
+    const lines = ["# Identity"];
+    if (identity?.agent_name) lines.push(`Your name is ${identity.agent_name}.`);
+    if (identity?.personality) lines.push(`Your personality: ${identity.personality}.`);
+    if (identity?.owner_name) lines.push(`Your owner is ${identity.owner_name}.`);
+    if (identity?.owner_context) lines.push(`Owner context: ${identity.owner_context}`);
+    lines.push(`Always reply in the language with ISO code "${userLang}" unless the user explicitly switches.`);
+    return lines.join("\n");
+  })();
+
   const system = [
     sa.system || DEFAULT_SYSTEM,
+    identityBlock,
     permissionNote,
     contextNote,
     "# Registered projects (just the index — call tools for details)",

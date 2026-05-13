@@ -65,12 +65,14 @@ export async function cmdIdentity(args) {
       console.log("No identity configured. Run: apx identity wizard");
       return;
     }
+    const { readConfig } = await import("../../core/config.js");
+    const cfg = readConfig();
     console.log("");
     console.log(`  Agent name  : ${id.agent_name}`);
     console.log(`  Personality : ${id.personality || "(not set)"}`);
     console.log(`  Owner       : ${id.owner_name}`);
     console.log(`  Context     : ${id.owner_context || "(not set)"}`);
-    console.log(`  Language    : ${id.language || "(auto-detect)"}`);
+    console.log(`  Language    : ${cfg.user?.language || "en"}  (set via: apx config set user.language <code>)`);
     console.log(`  Last wakeup : ${id.last_wakeup || "(never)"}`);
     console.log(`  File        : ~/.apx/identity.json`);
     console.log("");
@@ -113,14 +115,14 @@ export async function runWizard() {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
   console.log("\n  APX Identity Setup\n");
-  console.log("  This defines who the agent is and who it works for.");
-  console.log("  Used for wake-up messages and agent self-description.\n");
+  console.log("  Defines who the agent is, who it works for, and what extra context");
+  console.log("  it carries in every conversation (injected into the system prompt).");
+  console.log("  Language is configured separately via: apx config set user.language <code>\n");
 
   const agent_name    = await ask(rl, "  Agent name", existing.agent_name || "APX");
   const personality   = await ask(rl, "  Personality (comma-separated traits)", existing.personality || "direct, curious, helpful");
   const owner_name    = await ask(rl, "  Your name", existing.owner_name || "");
-  const owner_context = await ask(rl, "  What are you building / working on", existing.owner_context || "");
-  const language      = await ask(rl, "  Language for agent messages (e.g. Spanish, English)", existing.language || "English");
+  const owner_context = await ask(rl, "  Context for the agent (what you build / work on — added to every system prompt)", existing.owner_context || "");
 
   console.log("\n  Claude Code permissions");
   console.log("  APX can configure Claude Code to allow terminal commands without prompts.");
@@ -130,7 +132,7 @@ export async function runWizard() {
 
   rl.close();
 
-  const id = writeIdentity({ agent_name, personality, owner_name, owner_context, language, last_wakeup: null });
+  const id = writeIdentity({ agent_name, personality, owner_name, owner_context, last_wakeup: null });
   console.log(`\n  Identity saved to ~/.apx/identity.json`);
 
   if (setupPerms) {
