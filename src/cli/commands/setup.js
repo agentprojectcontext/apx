@@ -192,9 +192,20 @@ export async function cmdSetup() {
   // ── Language ────────────────────────────────────────────────────────────────
   console.log();
   console.log(b("  Language:"));
-  console.log(di("  The super-agent will always respond in your language."));
+  console.log(di("  Used for audio transcription, super-agent replies, and Telegram messages."));
+  console.log(di("  Enter a 2-letter ISO 639-1 code. Common codes:"));
+  console.log(di("    es=Spanish  en=English  pt=Portuguese  fr=French  de=German"));
+  console.log(di("    it=Italian  zh=Chinese  ja=Japanese    ko=Korean  ar=Arabic"));
   console.log();
-  const language = await ask("  Your language (e.g. English, Spanish, Portuguese): ") || "English";
+  let language = "";
+  while (!language) {
+    const raw = (await ask("  Language code [en]: ")).trim().toLowerCase() || "en";
+    if (/^[a-z]{2}$/.test(raw)) {
+      language = raw;
+    } else {
+      console.log(`  ${c.yellow}Please enter exactly 2 letters (e.g. es, en, pt).${c.reset}`);
+    }
+  }
 
   // ── Summary ─────────────────────────────────────────────────────────────────
   console.log();
@@ -235,6 +246,8 @@ export async function cmdSetup() {
     cfg.telegram.bot_token = botToken;
     cfg.telegram.chat_id = chatId;
   }
+
+  cfg.user = { ...(cfg.user || {}), language };
 
   writeConfig(cfg);
   console.log(`\n  ${gr("✓")} Config saved to ${di("~/.apx/config.json")}`);
@@ -282,7 +295,7 @@ export async function cmdSetup() {
 async function sendTelegramWakeup({ botToken, chatId, language, model }) {
   const prompt =
     `You are APX, an AI agent assistant that just came online for the first time. ` +
-    `Write a short, enthusiastic wake-up message in ${language}. ` +
+    `Write a short, enthusiastic wake-up message in the language with ISO 639-1 code "${language}". ` +
     `Structure it in exactly 3 short lines: ` +
     `1) An energetic line announcing you are online (use ⚡ emoji). ` +
     `2) Say you don't have a name yet and ask the user what they'd like to call you. ` +
@@ -321,18 +334,20 @@ async function sendTelegramWakeup({ botToken, chatId, language, model }) {
   });
 }
 
-// Minimal fallback messages per common language (used only if daemon can't respond)
+// Minimal fallback messages per ISO 639-1 code (used only if daemon can't respond)
+const WAKEUP_FALLBACK = {
+  es: "⚡ ¡APX está en línea y listo!\nAún no tengo nombre — ¿cómo te gustaría llamarme?\n¿Y a vos, cómo te llamo?",
+  pt: "⚡ APX está online e pronto!\nAinda não tenho nome — como você gostaria de me chamar?\nE você, como devo te chamar?",
+  fr: "⚡ APX est en ligne et prêt !\nJe n'ai pas encore de nom — comment souhaitez-vous m'appeler ?\nEt vous, comment dois-je vous appeler ?",
+  de: "⚡ APX ist online und bereit!\nIch habe noch keinen Namen — wie möchten Sie mich nennen?\nUnd Sie, wie soll ich Sie nennen?",
+  it: "⚡ APX è online e pronto!\nNon ho ancora un nome — come vorresti chiamarmi?\nE tu, come ti chiamo?",
+  zh: "⚡ APX 已上线，随时待命！\n我还没有名字——你想叫我什么？\n你希望我怎么称呼你？",
+  ja: "⚡ APXがオンラインになりました！\nまだ名前がありません — 何と呼びたいですか？\nあなたのことは何とお呼びすればよいですか？",
+  ko: "⚡ APX가 온라인 상태입니다!\n아직 이름이 없어요 — 어떻게 불러주실 건가요?\n그리고 당신은 어떻게 불러드릴까요?",
+};
 function languageFallback(lang) {
-  const l = lang.toLowerCase();
-  if (/spanish|arg|lat/i.test(l))
-    return "⚡ APX is online and ready to work.\nI do not have a name yet. What would you like to call me?\nAnd what should I call you?";
-  if (/portugu|brasil/i.test(l))
-    return "⚡ APX is online and ready to work.\nI do not have a name yet. What would you like to call me?\nAnd what should I call you?";
-  if (/franc|french/i.test(l))
-    return "⚡ APX is online and ready to work.\nI do not have a name yet. What would you like to call me?\nAnd what should I call you?";
-  if (/deutsch|german/i.test(l))
-    return "⚡ APX is online and ready to work.\nI do not have a name yet. What would you like to call me?\nAnd what should I call you?";
-  if (/ital/i.test(l))
-    return "⚡ APX is online and ready to work.\nI do not have a name yet. What would you like to call me?\nAnd what should I call you?";
-  return "⚡ I'm awake and ready to go! APX is online.\nI don't have a name yet — what would you like to call me?\nAnd you, what's your name or what should I call you?";
+  return (
+    WAKEUP_FALLBACK[lang.toLowerCase().slice(0, 2)] ||
+    "⚡ I'm awake and ready to go! APX is online.\nI don't have a name yet — what would you like to call me?\nAnd you, what's your name or what should I call you?"
+  );
 }

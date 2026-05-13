@@ -55,9 +55,16 @@ async function getConfig() {
     const cfg = readConfig() || {};
     const t = cfg.transcription || {};
     const openaiKey = cfg.engines?.openai?.api_key || process.env.OPENAI_API_KEY || "";
+    // Use user.language as default for transcription language if not explicitly set.
+    // Explicit transcription.local.language always wins; "auto" means fall back to user.language.
+    const userLang = cfg.user?.language || "";
+    const localBase = { ...DEFAULT_LOCAL, ...(t.local || {}) };
+    if ((!localBase.language || localBase.language === "auto") && userLang) {
+      localBase.language = userLang;
+    }
     return {
       provider: t.provider || "auto",
-      local: { ...DEFAULT_LOCAL, ...(t.local || {}) },
+      local: localBase,
       openaiKey,
     };
   } catch {

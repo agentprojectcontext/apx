@@ -32,6 +32,9 @@ const DEFAULT_CONFIG = {
   host: "127.0.0.1",
   log_level: "info",
   projects: [],
+  user: {
+    language: "en",  // ISO 639-1 two-letter code; used by transcription, super-agent, and wake-up message
+  },
   telegram: {
     enabled: false,
     bot_token: "",
@@ -87,6 +90,7 @@ export function mergeDefaults(cfg) {
   return {
     ...DEFAULT_CONFIG,
     ...cfg,
+    user: { ...DEFAULT_CONFIG.user, ...(cfg.user || {}) },
     telegram: {
       ...DEFAULT_CONFIG.telegram,
       ...(cfg.telegram || {}),
