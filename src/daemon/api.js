@@ -78,7 +78,7 @@ function appendSuperAgentErrorTrace(req, error, details = {}) {
   });
 }
 
-export function buildApi({ projects, registries, plugins, scheduler, version, startedAt, addProjectGlobally, config }) {
+export function buildApi({ projects, registries, plugins, scheduler, version, startedAt, addProjectGlobally, config, token }) {
   const telegram = plugins?.get("telegram");
 
   const app = express();
@@ -88,6 +88,17 @@ export function buildApi({ projects, registries, plugins, scheduler, version, st
     res.setHeader("x-apx-trace-id", req.apxTraceId);
     next();
   });
+
+  // Token auth — skip only /health so the CLI can ping before reading the token.
+  if (token) {
+    app.use((req, res, next) => {
+      if (req.path === "/health") return next();
+      const auth = req.get("authorization") || "";
+      const provided = auth.startsWith("Bearer ") ? auth.slice(7) : "";
+      if (provided !== token) return res.status(401).json({ error: "unauthorized" });
+      next();
+    });
+  }
 
   // ---- Tool routers (fetch / browser / search / glob / grep / registry) ----
   // fetch  = native HTTP, no Chromium  → fast, cheap, default for REST/HTML

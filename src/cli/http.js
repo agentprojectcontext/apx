@@ -11,6 +11,12 @@ const __dirname = path.dirname(__filename);
 const DEFAULT_PORT = parseInt(process.env.APX_PORT || "7430", 10);
 const DEFAULT_HOST = process.env.APX_HOST || "127.0.0.1";
 
+const TOKEN_PATH = path.join(os.homedir(), ".apx", "daemon.token");
+
+function readToken() {
+  try { return fs.readFileSync(TOKEN_PATH, "utf8").trim(); } catch { return ""; }
+}
+
 function baseUrl() {
   return `http://${DEFAULT_HOST}:${DEFAULT_PORT}`;
 }
@@ -71,9 +77,13 @@ async function request(method, path, body, opts = {}) {
   else if (!(await ping())) {
     throw new Error(`apx daemon not running (no response on ${baseUrl()})`);
   }
+  const token = readToken();
   const res = await fetch(`${baseUrl()}${path}`, {
     method,
-    headers: body ? { "content-type": "application/json" } : {},
+    headers: {
+      ...(body ? { "content-type": "application/json" } : {}),
+      ...(token ? { "authorization": `Bearer ${token}` } : {}),
+    },
     body: body ? JSON.stringify(body) : undefined,
     signal: opts.signal,
   });
@@ -98,9 +108,13 @@ async function streamRequest(method, path, body, onEvent, opts = {}) {
     throw new Error(`apx daemon not running (no response on ${baseUrl()})`);
   }
 
+  const token = readToken();
   const res = await fetch(`${baseUrl()}${path}`, {
     method,
-    headers: body ? { "content-type": "application/json" } : {},
+    headers: {
+      ...(body ? { "content-type": "application/json" } : {}),
+      ...(token ? { "authorization": `Bearer ${token}` } : {}),
+    },
     body: body ? JSON.stringify(body) : undefined,
     signal: opts.signal,
   });

@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { randomBytes } from "node:crypto";
 import {
   readConfig,
   writeConfig,
@@ -12,6 +13,7 @@ import {
   PID_PATH,
   LOG_PATH,
   APX_HOME,
+  TOKEN_PATH,
 } from "../core/config.js";
 import { ProjectManager } from "./db.js";
 import { McpRegistry } from "./mcp-runner.js";
@@ -76,6 +78,12 @@ function clearPid() {
   } catch {}
 }
 
+function generateToken() {
+  const token = randomBytes(32).toString("hex");
+  fs.writeFileSync(TOKEN_PATH, token, { mode: 0o600 });
+  return token;
+}
+
 class RegistryCache {
   constructor() {
     this.byProjectId = new Map();
@@ -98,6 +106,7 @@ class RegistryCache {
 async function main() {
   ensureHome();
   claimSingleton();
+  const token = generateToken();
 
   const cfg = readConfig();
   const host = effectiveHost(cfg);
@@ -138,6 +147,7 @@ async function main() {
     plugins,
     scheduler,
     config: cfg,
+    token,
     version: PKG.version,
     startedAt,
     addProjectGlobally: (absPath) => {

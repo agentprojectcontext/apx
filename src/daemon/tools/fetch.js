@@ -33,6 +33,22 @@ async function getFetch() {
 const DEFAULT_TIMEOUT = 30000;
 const MAX_BODY_BYTES  = 5 * 1024 * 1024; // 5MB
 
+// Block private/link-local ranges and cloud metadata endpoints to prevent SSRF.
+const BLOCKED_HOST_RE = /^(localhost|metadata\.google\.internal\.?)$/i;
+const PRIVATE_IP_RE   = /^(127\.\d+\.\d+\.\d+|0\.0\.0\.0|::1|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|192\.168\.\d+\.\d+|169\.254\.\d+\.\d+|fd[0-9a-f]{2}:)/i;
+
+function validateUrl(rawUrl) {
+  let parsed;
+  try { parsed = new URL(rawUrl); } catch { throw new Error("Invalid URL"); }
+  if (!["http:", "https:"].includes(parsed.protocol)) {
+    throw new Error(`Protocol "${parsed.protocol}" is not allowed; use http or https`);
+  }
+  const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (BLOCKED_HOST_RE.test(host) || PRIVATE_IP_RE.test(host)) {
+    throw new Error(`Requests to private or link-local addresses are blocked`);
+  }
+}
+
 async function readBody(response, jsonHint) {
   const ctype = response.headers.get("content-type") || "";
   const wantsJson = jsonHint || ctype.includes("application/json");
@@ -57,6 +73,7 @@ async function readBody(response, jsonHint) {
 
 async function doRequest({ url, method = "GET", headers = {}, body = null, timeout_ms = DEFAULT_TIMEOUT, json = false } = {}) {
   if (!url) throw new Error("url required");
+  validateUrl(url);
   const fetch = await getFetch();
 
   const controller = new AbortController();

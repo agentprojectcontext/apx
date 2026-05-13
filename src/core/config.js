@@ -8,6 +8,7 @@ export const CONFIG_PATH = path.join(APX_HOME, "config.json");
 export const PID_PATH = path.join(APX_HOME, "daemon.pid");
 export const LOG_PATH = path.join(APX_HOME, "daemon.log");
 export const TELEGRAM_STATE_PATH = path.join(APX_HOME, "telegram-state.json");
+export const TOKEN_PATH = path.join(APX_HOME, "daemon.token");
 // Global channel messages (telegram, direct, whatsapp, …) live here,
 // separated from any project.  Structure: ~/.apx/messages/<channel>/YYYY-MM-DD.jsonl
 export const GLOBAL_MESSAGES_DIR = path.join(APX_HOME, "messages");
