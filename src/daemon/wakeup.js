@@ -5,33 +5,28 @@ import { resolveProvider, getAdapter } from "./engines/index.js";
 
 const WAKEUP_COOLDOWN_MS = 30 * 60 * 1000; // 30 min
 
-// Detect preferred language from identity, then fall back to system LANG env.
-function detectLanguage(identity) {
-  if (identity.language) return identity.language;
+const ISO_TO_LANGUAGE = {
+  es: "Spanish", en: "English", fr: "French", pt: "Portuguese",
+  de: "German", it: "Italian", nl: "Dutch", ru: "Russian",
+  ja: "Japanese", zh: "Chinese", ko: "Korean", ar: "Arabic",
+};
+
+// Exported for unit testing.
+// Priority: config.user.language (ISO 639-1) → identity.language (legacy) → system LANG env.
+export function detectLanguage(identity, config) {
+  const cfgLang = config?.user?.language;
+  if (cfgLang) return ISO_TO_LANGUAGE[cfgLang.toLowerCase()] || cfgLang;
+  if (identity?.language) return identity.language;
   const lang = process.env.LANG || process.env.LC_MESSAGES || process.env.LC_ALL || "";
   const code = lang.split(/[_\.]/)[0].toLowerCase();
-  const map = {
-    es: "Spanish",
-    en: "English",
-    fr: "French",
-    pt: "Portuguese",
-    de: "German",
-    it: "Italian",
-    nl: "Dutch",
-    ru: "Russian",
-    ja: "Japanese",
-    zh: "Chinese",
-    ko: "Korean",
-    ar: "Arabic",
-  };
-  return map[code] || "English";
+  return ISO_TO_LANGUAGE[code] || "English";
 }
 
 async function generateMessage(identity, engineConfig) {
   try {
     const { provider, model } = resolveProvider("ollama:qwen2.5:14b");
     const engine = getAdapter(provider);
-    const language = detectLanguage(identity);
+    const language = detectLanguage(identity, engineConfig);
     const result = await engine.chat({
       system: `You are ${identity.agent_name}, an AI agent assistant. Your personality: ${identity.personality || "direct, curious, helpful"}. Your owner is ${identity.owner_name}. Context: ${identity.owner_context || "AI developer"}.`,
       messages: [
