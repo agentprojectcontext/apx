@@ -1,3 +1,10 @@
+## [1.15.1](https://github.com/agentprojectcontext/apx/compare/v1.15.0...v1.15.1) (2026-05-13)
+
+
+### Bug Fixes
+
+* persistent whisper server, pnpm migration, daemon logs --follow ([60403b9](https://github.com/agentprojectcontext/apx/commit/60403b9d5d0f422a5dc8bb4c462f146590dfa550))
+
 # [1.15.0](https://github.com/agentprojectcontext/apx/compare/v1.14.1...v1.15.0) (2026-05-12)
 
 
