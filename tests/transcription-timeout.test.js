@@ -39,11 +39,18 @@ test("transcription: timeout fetch call uses opts.timeout_ms when provided", asy
     path.join(__dirname, "..", "src", "daemon", "transcription.js"),
     "utf8",
   );
-  // Should reference opts.timeout_ms near the AbortSignal.timeout call.
+  // Should bind opts.timeout_ms to the local `timeoutMs` AND pass it to
+  // AbortSignal.timeout(). We assert both bindings exist; they may be far
+  // apart in the file (retry loop in between is allowed).
   assert.match(
     src,
-    /opts\.timeout_ms[\s\S]{0,400}AbortSignal\.timeout/,
-    "transcribeLocal should derive timeout from opts.timeout_ms",
+    /Number\(opts\.timeout_ms\)/,
+    "transcribeLocal should read opts.timeout_ms",
+  );
+  assert.match(
+    src,
+    /AbortSignal\.timeout\(\s*timeoutMs\s*\)/,
+    "fetch must abort using the configurable timeoutMs",
   );
   // The old hardcoded value must be gone (or at least not the only path).
   const oldHardcoded = src.match(/AbortSignal\.timeout\(\s*5\s*\*\s*60_000\s*\)/);

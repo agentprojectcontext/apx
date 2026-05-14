@@ -54,6 +54,7 @@ import {
   cmdTelegramSetup,
 } from "./commands/telegram.js";
 import { cmdMessagesTail, cmdMessagesSearch, cmdMessagesChat } from "./commands/messages.js";
+import { cmdLog } from "./commands/log.js";
 import { cmdSearch } from "./commands/search.js";
 import { cmdExec } from "./commands/exec.js";
 import {
@@ -71,6 +72,7 @@ import {
   cmdPermission,
 } from "./commands/config.js";
 import { cmdPluginsList, cmdPluginStatus } from "./commands/plugins.js";
+import { cmdOverlayStart, cmdOverlayStop, cmdOverlayStatus } from "./commands/overlay.js";
 import { cmdSkillsAdd, cmdSkillsList, cmdSkillsStatus } from "./commands/skills.js";
 import { cmdIdentity } from "./commands/identity.js";
 import { cmdCommandList, cmdCommandShow } from "./commands/command.js";
@@ -1136,7 +1138,8 @@ function buildHelp(version) {
     hCmd("apx daemon start",           36, ""),
     hCmd("apx daemon stop",            36, ""),
     hCmd("apx daemon status",          36, ""),
-    hCmd("apx daemon logs",            36, "--tail N"),
+    hCmd("apx daemon logs",            36, "--tail N  legacy daemon stdout log"),
+    hCmd("apx log",                    36, "unified log (all modules)  -f follow  --tail N  --errors only"),
 
     hSec("Telegram"),
     hCmd("apx telegram send \"text\"", 36, "--chat <id>"),
@@ -1453,6 +1456,15 @@ async function dispatch(cmd, rest) {
         break;
       }
 
+      case "log":
+      case "logs": {
+        // `apx log` is the unified daemon log (everything: telegram, whisper,
+        // super-agent, tools, overlay). For just the legacy stdout sink,
+        // use `apx daemon logs`. `apx log -f` follows; `--errors` filters.
+        await cmdLog(parseArgs(rest));
+        break;
+      }
+
       case "exec":
         await cmdExec(parseArgs(rest));
         break;
@@ -1589,6 +1601,16 @@ async function dispatch(cmd, rest) {
       case "upgrade":
         await cmdUpdate(parseArgs(rest), VERSION);
         return; // skip checkForUpdate after an update
+
+      case "overlay": {
+        const [sub, ...oRest] = rest;
+        const oArgs = parseArgs(oRest);
+        if (!sub || sub === "start")  { await cmdOverlayStart(oArgs); return; }
+        if (sub === "stop")           { await cmdOverlayStop(oArgs);  return; }
+        if (sub === "status")         { await cmdOverlayStatus(oArgs);return; }
+        die(`unknown overlay sub-command: ${sub}\nUsage: apx overlay <start|stop|status>`);
+        return;
+      }
 
       default:
         die(`unknown command: ${cmd}\nRun \`apx --help\` for usage.`);

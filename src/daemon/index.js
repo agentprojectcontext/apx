@@ -21,6 +21,8 @@ import { PluginManager } from "./plugins/index.js";
 import { RoutineScheduler } from "./routines.js";
 import { buildApi } from "./api.js";
 import { triggerWakeup } from "./wakeup.js";
+import { registerOverlayClient } from "./overlay-ws.js";
+import { log as logToUnified } from "../core/logging.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -32,8 +34,41 @@ const PKG = JSON.parse(
 // to ~/.apx/daemon.log via `stdio: ["ignore", out, out]`. So a single
 // process.stdout.write reaches the file once. In foreground (npm start), it
 // still prints to the console. No double-append.
+//
+// Beyond the legacy stdout sink we also fan out every line to the unified
+// ~/.apx/logs/apx.log via core/logging.js so `apx log` and `apx log -f`
+// see everything that any plugin/module writes through the daemon's log fn.
+//
+// Heuristic for level/module inference: messages prefixed "fatal:" /
+// "uncaughtException:" / "error:" are ERROR; "warn:" / "could not" / "skipping"
+// are WARN; everything else INFO. Plugins normally pass `plugin <id> ...` or
+// `<id>[<name>] ...` — we use the first bracketed token (or first word before
+// ":") as the module tag.
+function inferLevel(msg) {
+  if (/^fatal:|^uncaughtException:|^error:|failed|crash/i.test(msg)) return "ERROR";
+  if (/^warn:|could not|skipping|orphan|broken pipe/i.test(msg)) return "WARN";
+  return "INFO";
+}
+function inferModule(msg) {
+  // "plugin telegram initialized" → telegram
+  const plug = msg.match(/^plugin\s+([a-z_-]+)/i);
+  if (plug) return plug[1];
+  // "telegram[default] ..." → telegram
+  const bracket = msg.match(/^([a-z_-]+)\[/i);
+  if (bracket) return bracket[1];
+  // "whisper: preloading ..." → whisper
+  const colon = msg.match(/^([a-z_-]+):\s/i);
+  if (colon) return colon[1];
+  // "overlay: ..." caught above; "loaded project ..." → daemon
+  return "daemon";
+}
 const log = (msg) => {
   process.stdout.write(`[${new Date().toISOString()}] ${msg}\n`);
+  try {
+    logToUnified(inferLevel(msg), inferModule(msg), msg);
+  } catch {
+    // logger is best-effort, never throw
+  }
 };
 
 function ensureHome() {
@@ -170,6 +205,25 @@ async function main() {
     scheduler.start();
     // Fire wake-up message after a short delay so plugins (Telegram) are ready
     setTimeout(() => triggerWakeup(cfg, log), 3000);
+    // Preload whisper-server in the background so first overlay transcription is fast.
+    // Adopts an existing one if already on the port; otherwise spawns fresh.
+    import("./transcription.js").then(({ preloadWhisperServer }) => {
+      preloadWhisperServer((m) => log(m));
+    }).catch(() => {});
+  });
+
+  // Attach WebSocket upgrade for overlay channel on /overlay/ws
+  server.on("upgrade", async (req, socket, head) => {
+    if (req.url !== "/overlay/ws") { socket.destroy(); return; }
+    // Lazy-import ws to avoid hard dep on startup
+    let WebSocketServer;
+    try { ({ WebSocketServer } = await import("ws")); } catch {
+      socket.destroy(); return;
+    }
+    const wss = new WebSocketServer({ noServer: true });
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      registerOverlayClient(ws);
+    });
   });
 
   server.on("error", (e) => {
@@ -185,6 +239,10 @@ async function main() {
     scheduler.stop();
     plugins.stopAll();
     registries.shutdown();
+    // Best-effort shutdown of whisper-server subprocess.
+    import("./transcription.js").then(({ shutdownWhisperServer }) => {
+      shutdownWhisperServer().catch(() => {});
+    }).catch(() => {});
     server.close(() => {
       clearPid();
       process.exit(0);

@@ -30,6 +30,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn, exec } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { logInfo, logWarn, logError } from "../core/logging.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -290,30 +291,71 @@ async function transcribeLocal(filePath, opts) {
   const timeoutMs = Number(opts.timeout_ms) > 0
     ? Number(opts.timeout_ms)
     : DEFAULT_LOCAL.timeout_ms;
-  const res = await fetch(`http://127.0.0.1:${WHISPER_PORT}/transcribe`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      audio_path: filePath,
-      language,
-      beam_size: opts.beam_size || DEFAULT_LOCAL.beam_size,
-    }),
-    signal: AbortSignal.timeout(timeoutMs),
+
+  const body = JSON.stringify({
+    audio_path: filePath,
+    language,
+    beam_size: opts.beam_size || DEFAULT_LOCAL.beam_size,
   });
 
-  const json = await res.json();
-  if (!json.ok) throw new Error(json.error || "transcription failed");
-
-  return {
-    ok: true,
-    backend: "local",
-    text: json.text || "",
-    language: json.language || null,
-    language_probability: json.language_probability ?? null,
-    duration: json.duration ?? null,
-    model: json.model,
-    compute_type: json.compute_type,
-  };
+  // Long transcriptions on CPU (small int8, 1-minute voice note) can take
+  // 30-45s. Under undici (Node fetch) we occasionally see "fetch failed"
+  // from the inbound Telegram path even though the whisper-server completes
+  // the request successfully — a keep-alive socket gets reset somewhere
+  // between the long whisper-server response and the daemon's other
+  // concurrent traffic. We retry once on a generic "fetch failed" so the
+  // user actually gets a reply.
+  const maxAttempts = 2;
+  let lastErr = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const t0 = Date.now();
+    try {
+      logInfo("whisper", `transcribeLocal attempt ${attempt}/${maxAttempts}`, {
+        file: path.basename(filePath),
+        language: language || "auto",
+        timeout_ms: timeoutMs,
+      });
+      const res = await fetch(`http://127.0.0.1:${WHISPER_PORT}/transcribe`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "connection": "close" },
+        body,
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.error || "transcription failed");
+      logInfo("whisper", `transcribeLocal ok in ${Date.now() - t0}ms`, {
+        chars: (json.text || "").length,
+        language: json.language,
+        duration: json.duration,
+      });
+      return {
+        ok: true,
+        backend: "local",
+        text: json.text || "",
+        language: json.language || null,
+        language_probability: json.language_probability ?? null,
+        duration: json.duration ?? null,
+        model: json.model,
+        compute_type: json.compute_type,
+      };
+    } catch (e) {
+      lastErr = e;
+      const isRetriable =
+        /fetch failed|ECONNRESET|socket hang up|terminated/i.test(e.message || "");
+      const dt = Date.now() - t0;
+      logWarn("whisper", `transcribeLocal attempt ${attempt} failed in ${dt}ms`, {
+        error: e.message,
+        retriable: isRetriable,
+        will_retry: isRetriable && attempt < maxAttempts,
+      });
+      if (!isRetriable || attempt >= maxAttempts) break;
+      // Brief backoff before retry — gives the whisper-server.py thread time
+      // to flush its pending response and release the model lock.
+      await _sleep(500);
+    }
+  }
+  logError("whisper", `transcribeLocal exhausted retries`, { error: lastErr?.message });
+  throw lastErr || new Error("local transcription failed");
 }
 
 // ---------------------------------------------------------------------------
