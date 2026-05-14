@@ -23,7 +23,11 @@ jobs:
                   node-version: 22
                   registry-url: https://registry.npmjs.org/
 
-            - run: npm install
+            # --legacy-peer-deps: opentui-spinner@0.0.6 pins @opentui/core@^0.1.49
+            # but the project uses ^0.2.8; without this flag npm 10+ refuses
+            # with ERESOLVE. Removing opentui-spinner would also work but it
+            # is used by the new TUI.
+            - run: npm install --legacy-peer-deps
             - run: npm run test
             - run: npx semantic-release
               env:
