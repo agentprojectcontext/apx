@@ -1,3 +1,10 @@
+## [1.19.1](https://github.com/agentprojectcontext/apx/compare/v1.19.0...v1.19.1) (2026-05-14)
+
+
+### Bug Fixes
+
+* **super-agent:** revert permission default to automatico, trim audio prompt ([e121f4e](https://github.com/agentprojectcontext/apx/commit/e121f4ea09bbabf2685305983fcc124cfface2b1))
+
 # [1.19.0](https://github.com/agentprojectcontext/apx/compare/v1.18.0...v1.19.0) (2026-05-14)
 
 
