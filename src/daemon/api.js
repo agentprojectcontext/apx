@@ -1,5 +1,6 @@
 // Express REST API for APX. See APC docs reference/apx-daemon.
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { execFile } from "node:child_process";
@@ -1438,6 +1439,63 @@ export function buildApi({ projects, registries, plugins, scheduler, version, st
       res.json(result);
     } catch (e) {
       res.status(500).json({ error: e.message });
+    }
+  });
+
+  // ---- Transcription chunk (shared: overlay, Telegram, any channel) -
+  // POST /transcribe/chunk  ← raw audio bytes (webm, ogg, wav, mp3 …)
+  // Headers: X-Audio-Format, X-Language (ISO or "auto"), X-Provider (auto|local|openai)
+  // Returns: { ok, text, backend, language, … }
+  app.post("/transcribe/chunk", async (req, res) => {
+    const chunks = [];
+    req.on("data", (c) => chunks.push(c));
+    req.on("end", async () => {
+      const buf = Buffer.concat(chunks);
+      if (!buf.length) return res.status(400).json({ ok: false, error: "empty body" });
+      const format   = req.headers["x-audio-format"] || "webm";
+      const language = req.headers["x-language"] || "auto";
+      const provider = req.headers["x-provider"];
+      try {
+        const { transcribeBuffer } = await import("./transcription.js");
+        const result = await transcribeBuffer(buf, format, {
+          language: language === "auto" ? undefined : language,
+          beam_size: 3,
+          ...(provider ? { provider } : {}),
+        });
+        res.json(result);
+      } catch (e) {
+        res.status(500).json({ ok: false, error: e.message });
+      }
+    });
+    req.on("error", (e) => res.status(500).json({ ok: false, error: e.message }));
+  });
+
+  // ---- Overlay channel (voice/floating window) ----------------------
+  app.get("/overlay/status", (_req, res) => {
+    // Lazy import to avoid hard dep
+    import("./overlay-ws.js").then(({ overlayClients }) => {
+      res.json({ ok: true, connected_clients: overlayClients.size });
+    }).catch(() => res.json({ ok: true, connected_clients: 0 }));
+  });
+
+  // POST /overlay/message  ← text sent by the overlay after transcription
+  // Runs the super-agent and streams tokens back via WebSocket.
+  app.post("/overlay/message", async (req, res) => {
+    const { text, previousMessages = [] } = req.body || {};
+    if (!text) return res.status(400).json({ error: "text required" });
+    res.json({ ok: true }); // respond immediately; result comes via WebSocket
+
+    // Inline execution — the overlay plugin handles the heavy lift;
+    // here we just trigger it if the plugin is registered.
+    try {
+      const overlayPlugin = plugins.instances.get("overlay");
+      if (overlayPlugin?.handleMessage) {
+        await overlayPlugin.handleMessage({ text, previousMessages });
+      }
+    } catch (e) {
+      import("./overlay-ws.js").then(({ broadcastOverlay }) => {
+        broadcastOverlay({ type: "error", message: e.message });
+      }).catch(() => {});
     }
   });
 

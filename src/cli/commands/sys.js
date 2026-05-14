@@ -10,8 +10,15 @@ import {
   renderTerminalChat,
   titlecase,
 } from "../terminal-chat/renderer.js";
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
+import { spawnSync } from "node:child_process";
 
-const MAIN_PALETTE_OPTIONS = ["Switch model", "Connect provider", "Open editor", "Exit"];
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const TUI_SRC = resolve(__dirname, "../../tui/run.ts");
+
+const MAIN_PALETTE_OPTIONS = ["Switch model", "Switch agent", "Connect provider", "Open editor", "Exit"];
 
 // Message Actions overlay options for a queued message
 const MSG_ACTION_SEND   = "Send now  (interrupt current)";
@@ -23,6 +30,20 @@ export async function cmdSys(args) {
   const pid = await resolveProjectId(args?.flags?.project);
   const cfg = readConfig();
   const id = readIdentity();
+
+  // Launch new Solid.js TUI via bun (runs TS source directly — no esbuild bundle needed)
+  if (existsSync(TUI_SRC)) {
+    const bunBin = process.env.BUN_PATH || "bun";
+    spawnSync(bunBin, [
+      "--preload", "@opentui/solid/preload",
+      TUI_SRC,
+      "--pid", pid,
+      "--agent", id?.agent_name || cfg.super_agent?.name || "super-agent",
+      "--model", cfg.super_agent?.model || "claude-3-5-sonnet",
+    ], { stdio: "inherit", cwd: resolve(__dirname, "../../..") });
+    return;
+  }
+
 
   const state = {
     currentModeIdx: 0,
@@ -162,7 +183,7 @@ export async function cmdSys(args) {
     }
 
     if (state.inCommandPalette) {
-      await handlePaletteKey(key, cfg, state, renderScreen, close);
+      await handlePaletteKey(key, pid, cfg, state, renderScreen, close);
       return;
     }
 
@@ -341,7 +362,7 @@ export function handleScrollKey(key, state, renderScreen) {
   return false;
 }
 
-async function handlePaletteKey(key, cfg, state, renderScreen, close) {
+async function handlePaletteKey(key, pid, cfg, state, renderScreen, close) {
   if (key.name === "up") {
     state.paletteSelection = Math.max(0, state.paletteSelection - 1);
     renderScreen();
@@ -362,19 +383,28 @@ async function handlePaletteKey(key, cfg, state, renderScreen, close) {
   const selected = state.paletteOptions[state.paletteSelection];
 
   if (state.paletteState === "main") {
-    if (selected === "Exit") close();
+    if (selected === "Exit") { close(); return; }
 
     if (selected === "Switch model") {
       state.paletteState = "switch_model";
       state.paletteOptions = ["Loading models..."];
       state.paletteSelection = 0;
       renderScreen();
-      loadModelOptions(cfg, state, renderScreen);
+      loadModelOptions(pid, cfg, state, renderScreen);
+      return;
+    }
+
+    if (selected === "Switch agent") {
+      state.paletteState = "switch_agent";
+      state.paletteOptions = ["Loading agents..."];
+      state.paletteSelection = 0;
+      renderScreen();
+      loadAgentOptions(pid, state, renderScreen);
       return;
     }
 
     state.inCommandPalette = false;
-    state.transcript.push({ type: "status", text: `Executing command: ${selected} (not implemented yet)` });
+    state.transcript.push({ type: "status", text: `Command: ${selected} (not implemented yet)` });
     renderScreen();
     return;
   }
@@ -393,7 +423,20 @@ async function handlePaletteKey(key, cfg, state, renderScreen, close) {
     configModule.writeConfig(currentCfg);
 
     state.inCommandPalette = false;
-    state.transcript.push({ type: "status", text: `Model updated globally to ${selected}` });
+    state.transcript.push({ type: "status", text: `Model → ${selected}` });
+    renderScreen();
+    return;
+  }
+
+  if (
+    state.paletteState === "switch_agent" &&
+    !selected.startsWith("Loading") &&
+    !selected.startsWith("Failed") &&
+    !selected.startsWith("No ")
+  ) {
+    state.activeAgent = selected;
+    state.inCommandPalette = false;
+    state.transcript.push({ type: "status", text: `Agent → ${selected}` });
     renderScreen();
     return;
   }
@@ -401,20 +444,49 @@ async function handlePaletteKey(key, cfg, state, renderScreen, close) {
   renderScreen();
 }
 
-function loadModelOptions(cfg, state, renderScreen) {
-  const baseUrl = cfg.engines?.ollama?.base_url || "http://127.0.0.1:11434";
-  fetch(`${baseUrl}/api/tags`)
+function loadModelOptions(pid, cfg, state, renderScreen) {
+  // Load engines from APX daemon first, then fall back to Ollama tags
+  const apxEnginesPromise = pid
+    ? http.get("/engines").then((d) => d?.engines || []).catch(() => [])
+    : Promise.resolve([]);
+
+  const ollamaBaseUrl = cfg.engines?.ollama?.base_url || "http://127.0.0.1:11434";
+  const ollamaPromise = fetch(`${ollamaBaseUrl}/api/tags`)
     .then((r) => r.json())
-    .then((data) => {
-      state.paletteOptions = data.models?.length
-        ? data.models.map((m) => "ollama:" + m.name)
-        : ["No Ollama models found"];
-      state.paletteOptions.push("openai:gpt-4o", "anthropic:claude-3-5-sonnet-20240620");
+    .then((d) => (d.models || []).map((m) => "ollama:" + m.name))
+    .catch(() => []);
+
+  Promise.all([apxEnginesPromise, ollamaPromise])
+    .then(([apxEngines, ollamaModels]) => {
+      const all = [
+        ...apxEngines.filter((e) => typeof e === "string"),
+        ...ollamaModels,
+      ];
+      state.paletteOptions = all.length ? all : ["No models found"];
       if (state.paletteState === "switch_model") renderScreen();
     })
     .catch(() => {
-      state.paletteOptions = ["Failed to load from Ollama", "openai:gpt-4o", "anthropic:claude-3-5-sonnet-20240620"];
+      state.paletteOptions = ["Failed to load models"];
       if (state.paletteState === "switch_model") renderScreen();
+    });
+}
+
+function loadAgentOptions(pid, state, renderScreen) {
+  if (!pid) {
+    state.paletteOptions = ["No project selected"];
+    renderScreen();
+    return;
+  }
+  http.get(`/projects/${pid}/agents`)
+    .then((agents) => {
+      state.paletteOptions = Array.isArray(agents) && agents.length
+        ? agents.map((a) => a.slug || a.name || String(a))
+        : ["No agents found"];
+      if (state.paletteState === "switch_agent") renderScreen();
+    })
+    .catch(() => {
+      state.paletteOptions = ["Failed to load agents"];
+      if (state.paletteState === "switch_agent") renderScreen();
     });
 }
 

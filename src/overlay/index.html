@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; media-src *;">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>APX</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Header -->
+    <div id="header">
+      <span class="logo">APX</span>
+      <span id="status-text" class="status">Ready</span>
+      <div id="conn-badge" title="Daemon disconnected"></div>
+      <button class="btn-close" id="btn-close" title="Close (Esc)">✕</button>
+    </div>
+
+    <!-- Messages -->
+    <div id="messages">
+      <div id="empty-state">
+        <div class="icon">🎙</div>
+        <div>Press <kbd id="empty-shortcut-hint">⌘G</kbd> to start speaking</div>
+      </div>
+    </div>
+
+    <!-- Live transcription bar -->
+    <div id="live-bar">
+      <div class="rec-dot"></div>
+      <div id="live-text">Listening…</div>
+    </div>
+
+    <!-- Hint bar -->
+    <div id="hint-bar">
+      <span class="hint"><kbd id="shortcut-hint">⌘⇧\</kbd> record</span>
+      <span class="hint"><kbd>Esc</kbd> cancel / close</span>
+    </div>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

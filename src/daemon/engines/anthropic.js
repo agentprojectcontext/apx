@@ -11,7 +11,7 @@ function getKey(config) {
 export default {
   id: "anthropic",
 
-  async chat({ system, messages, model, temperature = 1.0, maxTokens = 1024, config = {}, tools, toolChoice, signal }) {
+  async chat({ system, messages, model, temperature = 1.0, maxTokens = 1024, config = {}, tools, toolChoice, signal, onToken }) {
     const key = getKey(config);
     if (!key) throw new Error("anthropic: no api_key (set ANTHROPIC_API_KEY or engines.anthropic.api_key)");
     if (!model) throw new Error("anthropic: model required");
@@ -39,6 +39,65 @@ export default {
       }
     }
 
+    // Streaming path — only when onToken provided AND no tool_choice=required
+    // (we can't stream tool-forced turns because tool_calls are embedded in SSE)
+    if (typeof onToken === "function" && toolChoice !== "required" && toolChoice !== "any") {
+      body.stream = true;
+      const res = await fetch(API_BASE, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": key,
+          "anthropic-version": API_VERSION,
+        },
+        body: JSON.stringify(body),
+        signal,
+      });
+      if (!res.ok) {
+        const err = await res.text().catch(() => "");
+        throw new Error(`anthropic ${res.status}: ${err.slice(0, 200)}`);
+      }
+
+      const decoder = new TextDecoder();
+      let text = "";
+      let inputTokens = 0;
+      let outputTokens = 0;
+      let stopReason = null;
+      let buf = "";
+
+      for await (const chunk of res.body) {
+        buf += decoder.decode(chunk, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop(); // keep incomplete last line
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const raw = line.slice(6).trim();
+          if (raw === "[DONE]") continue;
+          let evt;
+          try { evt = JSON.parse(raw); } catch { continue; }
+          if (evt.type === "content_block_delta" && evt.delta?.type === "text_delta") {
+            const t = evt.delta.text || "";
+            if (t) { text += t; onToken(t); }
+          } else if (evt.type === "message_delta") {
+            stopReason = evt.delta?.stop_reason || stopReason;
+            outputTokens = evt.usage?.output_tokens || outputTokens;
+          } else if (evt.type === "message_start") {
+            inputTokens = evt.message?.usage?.input_tokens || 0;
+            outputTokens = evt.message?.usage?.output_tokens || 0;
+          }
+        }
+      }
+
+      return {
+        text,
+        tool_uses: undefined,
+        stop_reason: stopReason,
+        usage: { input_tokens: inputTokens, output_tokens: outputTokens },
+        raw: null,
+      };
+    }
+
+    // Non-streaming path (original)
     const res = await fetch(API_BASE, {
       method: "POST",
       headers: {

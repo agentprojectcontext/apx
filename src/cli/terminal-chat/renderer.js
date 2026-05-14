@@ -9,6 +9,7 @@ export const C = {
   altOn: "\x1b[?1049h",
   altOff: "\x1b[?1049l",
   showCursor: "\x1b[?25h",
+  hideCursor: "\x1b[?25l",
   setBgBlack: "\x1b]11;#000000\x07",
   resetBg: "\x1b]111\x07",
   bg: "\x1b[48;2;0;0;0m",
@@ -26,6 +27,27 @@ export const C = {
   italic: "\x1b[3m",
   noItalic: "\x1b[23m",
 };
+
+// ---------------------------------------------------------------------------
+// Output buffer — all rendering writes here; flushed once per frame.
+// This eliminates flash: the terminal sees clear+draw as a single atomic op.
+// ---------------------------------------------------------------------------
+let _buf = "";
+
+function _w(s) {
+  _buf += s;
+}
+
+function _moveTo(row, col) {
+  _buf += `\x1b[${Math.max(1, row + 1)};${Math.max(1, col + 1)}H`;
+}
+
+function _writeAt(row, col, text, width, bg = C.bg) {
+  _moveTo(row, col);
+  _buf += bg + padAnsi(text, width) + C.bg;
+}
+
+// ---------------------------------------------------------------------------
 
 export function titlecase(value) {
   const clean = String(value || "").trim();
@@ -66,23 +88,9 @@ function terminalSize() {
   };
 }
 
+// Legacy direct-write moveTo used for final cursor positioning after flush
 function moveTo(row, col) {
   readline.cursorTo(process.stdout, Math.max(0, col), Math.max(0, row));
-}
-
-function writeAt(row, col, text, width, bg = C.bg) {
-  moveTo(row, col);
-  process.stdout.write(bg + padAnsi(text, width) + C.bg);
-}
-
-function clearFull() {
-  const { width, height } = terminalSize();
-  process.stdout.write(C.bg + "\x1b[2J\x1b[3J\x1b[H");
-  for (let row = 0; row < height; row++) {
-    process.stdout.write(C.bg + " ".repeat(width));
-    if (row < height - 1) process.stdout.write("\n");
-  }
-  process.stdout.write("\x1b[H" + C.bg);
 }
 
 function centerLeft(width, contentWidth) {
@@ -122,7 +130,7 @@ function renderLogo(termWidth, top) {
     const line = lines[i];
     const left = centerLeft(termWidth, visible(line));
     const color = i < 2 ? C.dim : i < 4 ? C.muted : C.text;
-    writeAt(top + i, left, C.bold + color + line + C.normal, visible(line));
+    _writeAt(top + i, left, C.bold + color + line + C.normal, visible(line));
   }
 }
 
@@ -164,11 +172,11 @@ function renderPromptBlock(state, chatWidth) {
     : C.muted + C.italic + fit(placeholder, contentWidth) + C.noItalic;
   const metaLine = renderModeMeta(currentModeIdx, activeAgent, activeModel, contentWidth);
 
-  writeAt(top, left, C.primary + "┃" + C.panel + " " + " ".repeat(contentWidth), boxWidth, C.bg);
-  writeAt(top + 1, left, C.primary + "┃" + C.panel + " " + padAnsi(promptLine, contentWidth), boxWidth, C.bg);
-  writeAt(top + 2, left, C.primary + "┃" + C.panel + " " + " ".repeat(contentWidth), boxWidth, C.bg);
-  writeAt(top + 3, left, C.primary + "┃" + C.panel + " " + padAnsi(metaLine, contentWidth), boxWidth, C.bg);
-  writeAt(top + 4, left, C.primary + "╹" + C.panel + " " + " ".repeat(contentWidth), boxWidth, C.bg);
+  _writeAt(top, left, C.primary + "┃" + C.panel + " " + " ".repeat(contentWidth), boxWidth, C.bg);
+  _writeAt(top + 1, left, C.primary + "┃" + C.panel + " " + padAnsi(promptLine, contentWidth), boxWidth, C.bg);
+  _writeAt(top + 2, left, C.primary + "┃" + C.panel + " " + " ".repeat(contentWidth), boxWidth, C.bg);
+  _writeAt(top + 3, left, C.primary + "┃" + C.panel + " " + padAnsi(metaLine, contentWidth), boxWidth, C.bg);
+  _writeAt(top + 4, left, C.primary + "╹" + C.panel + " " + " ".repeat(contentWidth), boxWidth, C.bg);
 
   const hotkeys =
     C.bold + C.text + "tab" + C.normal + C.muted + " agents  " +
@@ -181,7 +189,7 @@ function renderPromptBlock(state, chatWidth) {
       : "") +
     C.bold + C.text + "enter" + C.normal + C.muted + " send";
   const hotkeyLeft = Math.max(left, left + boxWidth - visible(hotkeys));
-  writeAt(top + 5, hotkeyLeft, hotkeys, visible(hotkeys), C.bg);
+  _writeAt(top + 5, hotkeyLeft, hotkeys, visible(hotkeys), C.bg);
 
   return { row: top + 1, col: left + 2 + visible(beforeCursor) };
 }
@@ -282,7 +290,6 @@ function transcriptLines(transcript, width) {
         addLine(lines, margin + C.primary + "┃" + C.panel + " " + C.text + padAnsi(chunk, inner), C.bg);
       }
       if (item.meta) {
-        // Show QUEUED badge with distinct highlight color
         const badgeText = item.meta === "queued"
           ? C.warning + C.bold + "QUEUED" + C.normal + C.muted + "  click to send/remove"
           : C.muted + item.meta;
@@ -315,7 +322,7 @@ function transcriptLines(transcript, width) {
       const isQuestion = trace.tool === "ask_questions";
       const label = isQuestion ? C.warning + C.bold + "QUESTION" : C.muted + "TOOL";
       const name = isQuestion ? "" : C.text + trace.tool;
-      
+
       if (isQuestion && trace.args?.questions) {
         addLine(lines, "", C.bg);
         addLine(lines, margin + label + C.muted + " (…)" + C.bg, C.bg);
@@ -354,11 +361,11 @@ function renderChat(state, chatWidth, height, promptTop) {
   const slice = lines.slice(start, start + maxRows);
 
   for (let i = 0; i < slice.length && i < maxRows; i++) {
-    writeAt(i, 0, slice[i].text, chatWidth - 1, slice[i].bg);
+    _writeAt(i, 0, slice[i].text, chatWidth - 1, slice[i].bg);
   }
 
   if (offset > 0 && maxRows > 1) {
-    writeAt(0, 0, C.muted + `↑ ${offset} lines above bottom`, chatWidth - 1, C.bg);
+    _writeAt(0, 0, C.muted + `↑ ${offset} lines above bottom`, chatWidth - 1, C.bg);
   }
 }
 
@@ -369,37 +376,37 @@ function renderSidebar(state) {
   const sideWidth = Math.min(34, Math.max(28, Math.floor(width * 0.3)));
   const left = width - sideWidth;
   for (let row = 0; row < height; row++) {
-    writeAt(row, left, "", sideWidth, C.panel);
+    _writeAt(row, left, "", sideWidth, C.panel);
   }
 
   const contentWidth = sideWidth - 4;
   const totalTokens = state.usage.input + state.usage.output;
 
-  writeAt(1, left + 2, C.text + C.bold + "Sesión" + C.normal, contentWidth, C.panel);
-  writeAt(2, left + 2, C.muted + fit(state.sessionTitle || "chat local", contentWidth), contentWidth, C.panel);
-  writeAt(3, left + 2, C.muted + "agent " + C.text + state.activeAgent, contentWidth, C.panel);
-  writeAt(4, left + 2, C.muted + "app " + C.text + `APX ${state.version}`, contentWidth, C.panel);
+  _writeAt(1, left + 2, C.text + C.bold + "Sesión" + C.normal, contentWidth, C.panel);
+  _writeAt(2, left + 2, C.muted + fit(state.sessionTitle || "chat local", contentWidth), contentWidth, C.panel);
+  _writeAt(3, left + 2, C.muted + "agent " + C.text + state.activeAgent, contentWidth, C.panel);
+  _writeAt(4, left + 2, C.muted + "app " + C.text + `APX ${state.version}`, contentWidth, C.panel);
 
-  writeAt(6, left + 2, C.text + C.bold + "Modelo" + C.normal, contentWidth, C.panel);
+  _writeAt(6, left + 2, C.text + C.bold + "Modelo" + C.normal, contentWidth, C.panel);
   const modelLines = wrapText(state.activeModel || "(none)", contentWidth).slice(0, 2);
   modelLines.forEach((line, index) => {
-    writeAt(7 + index, left + 2, C.muted + line, contentWidth, C.panel);
+    _writeAt(7 + index, left + 2, C.muted + line, contentWidth, C.panel);
   });
 
-  writeAt(10, left + 2, C.text + C.bold + "Contexto" + C.normal, contentWidth, C.panel);
-  writeAt(11, left + 2, C.muted + `${totalTokens.toLocaleString()} tokens total`, contentWidth, C.panel);
-  writeAt(12, left + 2, C.muted + `${state.usage.input.toLocaleString()} in · ${state.usage.output.toLocaleString()} out`, contentWidth, C.panel);
-  writeAt(13, left + 2, C.muted + `${state.usage.percent}% usado`, contentWidth, C.panel);
-  writeAt(14, left + 2, C.muted + "$0.00 spent", contentWidth, C.panel);
+  _writeAt(10, left + 2, C.text + C.bold + "Contexto" + C.normal, contentWidth, C.panel);
+  _writeAt(11, left + 2, C.muted + `${totalTokens.toLocaleString()} tokens total`, contentWidth, C.panel);
+  _writeAt(12, left + 2, C.muted + `${state.usage.input.toLocaleString()} in · ${state.usage.output.toLocaleString()} out`, contentWidth, C.panel);
+  _writeAt(13, left + 2, C.muted + `${state.usage.percent}% usado`, contentWidth, C.panel);
+  _writeAt(14, left + 2, C.muted + "$0.00 spent", contentWidth, C.panel);
 
-  writeAt(16, left + 2, C.text + C.bold + "LSP" + C.normal, contentWidth, C.panel);
-  writeAt(17, left + 2, C.muted + "LSPs are disabled", contentWidth, C.panel);
+  _writeAt(16, left + 2, C.text + C.bold + "LSP" + C.normal, contentWidth, C.panel);
+  _writeAt(17, left + 2, C.muted + "LSPs are disabled", contentWidth, C.panel);
 
   const cwdLines = wrapText(process.cwd(), contentWidth).slice(-4);
   let row = Math.max(19, height - cwdLines.length - 4);
-  writeAt(row++, left + 2, C.text + C.bold + "Directorio" + C.normal, contentWidth, C.panel);
-  for (const line of cwdLines) writeAt(row++, left + 2, C.muted + line, contentWidth, C.panel);
-  writeAt(height - 1, left + 2, C.success + "• " + C.text + "APX" + C.muted + ` ${state.version}`, contentWidth, C.panel);
+  _writeAt(row++, left + 2, C.text + C.bold + "Directorio" + C.normal, contentWidth, C.panel);
+  for (const line of cwdLines) _writeAt(row++, left + 2, C.muted + line, contentWidth, C.panel);
+  _writeAt(height - 1, left + 2, C.success + "• " + C.text + "APX" + C.muted + ` ${state.version}`, contentWidth, C.panel);
 
   return { left, width: sideWidth };
 }
@@ -415,17 +422,17 @@ function renderPaletteOverlay(state) {
   const left = centerLeft(width, boxWidth);
   const top = Math.max(1, Math.floor((height - boxHeight) / 2));
 
-  writeAt(top, left, C.text + C.bold + " " + title + C.normal, boxWidth, C.panel);
-  writeAt(top + 1, left, C.dim + "▀".repeat(boxWidth), boxWidth, C.panel);
+  _writeAt(top, left, C.text + C.bold + " " + title + C.normal, boxWidth, C.panel);
+  _writeAt(top + 1, left, C.dim + "▀".repeat(boxWidth), boxWidth, C.panel);
   for (let i = 0; i < state.paletteOptions.length; i++) {
     const active = i === state.paletteSelection;
     const marker = active ? "›" : " ";
     const bg = active ? C.panel2 : C.panel;
     const fg = active ? C.primary + C.bold : C.text;
-    writeAt(top + 2 + i, left, fg + ` ${marker} ${state.paletteOptions[i]}` + C.normal, boxWidth, bg);
+    _writeAt(top + 2 + i, left, fg + ` ${marker} ${state.paletteOptions[i]}` + C.normal, boxWidth, bg);
   }
-  writeAt(top + 2 + state.paletteOptions.length, left, C.dim + "▄".repeat(boxWidth), boxWidth, C.panel);
-  writeAt(
+  _writeAt(top + 2 + state.paletteOptions.length, left, C.dim + "▄".repeat(boxWidth), boxWidth, C.panel);
+  _writeAt(
     top + 3 + state.paletteOptions.length,
     left,
     C.muted + "↑↓ select  " + C.text + C.bold + "enter" + C.normal + C.muted + " choose  " + C.text + C.bold + "esc" + C.normal + C.muted + " close",
@@ -444,18 +451,18 @@ function renderMsgActionsOverlay(state) {
   const left = centerLeft(width, boxWidth);
   const top = Math.max(1, Math.floor((height - boxHeight) / 2));
 
-  writeAt(top, left, C.text + C.bold + " " + title + C.normal, boxWidth, C.panel);
-  writeAt(top + 1, left, C.muted + " " + C.italic + preview + C.noItalic, boxWidth, C.panel);
-  writeAt(top + 2, left, C.dim + "▀".repeat(boxWidth), boxWidth, C.panel);
+  _writeAt(top, left, C.text + C.bold + " " + title + C.normal, boxWidth, C.panel);
+  _writeAt(top + 1, left, C.muted + " " + C.italic + preview + C.noItalic, boxWidth, C.panel);
+  _writeAt(top + 2, left, C.dim + "▀".repeat(boxWidth), boxWidth, C.panel);
   for (let i = 0; i < opts.length; i++) {
     const active = i === state.msgActionsSelection;
     const marker = active ? "›" : " ";
     const bg = active ? C.panel2 : C.panel;
     const fg = active ? C.primary + C.bold : C.text;
-    writeAt(top + 3 + i, left, fg + ` ${marker} ${opts[i]}` + C.normal, boxWidth, bg);
+    _writeAt(top + 3 + i, left, fg + ` ${marker} ${opts[i]}` + C.normal, boxWidth, bg);
   }
-  writeAt(top + 3 + opts.length, left, C.dim + "▄".repeat(boxWidth), boxWidth, C.panel);
-  writeAt(
+  _writeAt(top + 3 + opts.length, left, C.dim + "▄".repeat(boxWidth), boxWidth, C.panel);
+  _writeAt(
     top + 4 + opts.length,
     left,
     C.muted + "↑↓ select  " + C.text + C.bold + "enter" + C.normal + C.muted + " choose  " + C.text + C.bold + "esc" + C.normal + C.muted + " close",
@@ -465,7 +472,9 @@ function renderMsgActionsOverlay(state) {
 }
 
 export function renderTerminalChat(state) {
-  clearFull();
+  // Reset buffer — clear screen and home cursor in ONE atomic write (no flash)
+  _buf = C.bg + "\x1b[2J\x1b[H";
+
   const { width, height } = terminalSize();
   const sidebar = state.hasStarted ? renderSidebar(state) : null;
   const chatWidth = sidebar ? sidebar.left : width;
@@ -481,5 +490,11 @@ export function renderTerminalChat(state) {
 
   if (state.inCommandPalette) renderPaletteOverlay(state);
   if (state.inMsgActions) renderMsgActionsOverlay(state);
-  if (!state.inCommandPalette && !state.inMsgActions) moveTo(cursor.row, cursor.col);
+
+  // Position cursor in buffer before final flush
+  _buf += `\x1b[${Math.max(1, cursor.row + 1)};${Math.max(1, cursor.col + 1)}H`;
+
+  // Single atomic write — terminal renders entire frame at once, no flash
+  process.stdout.write(_buf);
+  _buf = "";
 }

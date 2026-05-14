@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022"],
+    "types": ["node"],
+    "outDir": "./dist/cli",
+    "rootDir": "./src/cli-ts",
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "noEmit": true,
+    "paths": {
+      "@apx/http": ["./src/cli/http.js"]
+    }
+  },
+  "include": ["src/cli-ts/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}
