@@ -1,3 +1,10 @@
+# [1.18.0](https://github.com/agentprojectcontext/apx/compare/v1.17.0...v1.18.0) (2026-05-14)
+
+
+### Features
+
+* **tui:** inline shell mode inside apx code chat ([0cc83f8](https://github.com/agentprojectcontext/apx/commit/0cc83f8d8cad033dae707386fa4ec36f441581d3))
+
 # [1.17.0](https://github.com/agentprojectcontext/apx/compare/v1.16.0...v1.17.0) (2026-05-14)
 
 
