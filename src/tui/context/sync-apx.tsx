@@ -13,10 +13,15 @@ export type ApxSession = {
 export type ApxMessage = {
   id: string
   sessionID: string
-  role: "user" | "assistant"
+  role: "user" | "assistant" | "shell"
   text: string
   streaming?: boolean
   error?: boolean
+  // Shell-specific
+  shellID?: string
+  command?: string
+  cwd?: string
+  exitCode?: number | null
 }
 
 export const { use: useApxSync, provider: ApxSyncProvider } = createSimpleContext({
@@ -78,6 +83,55 @@ export const { use: useApxSync, provider: ApxSyncProvider } = createSimpleContex
         setStore("previousMessages", (prev) => [...prev, { role: "assistant", content: e.text }])
       }
 
+      if (ev.type === "shell.start") {
+        const e = ev
+        setStore(
+          "messages",
+          produce((draft) => {
+            ;(draft[e.sessionID] ??= []).push({
+              id: e.shellID,
+              sessionID: e.sessionID,
+              role: "shell",
+              text: "",
+              streaming: true,
+              shellID: e.shellID,
+              command: e.command,
+              cwd: e.cwd,
+            })
+          }),
+        )
+      }
+
+      if (ev.type === "shell.output") {
+        const e = ev
+        setStore(
+          "messages",
+          produce((draft) => {
+            const msgs = draft[e.sessionID]
+            if (!msgs) return
+            const target = msgs.find((m) => m.role === "shell" && m.shellID === e.shellID)
+            if (target) target.text += e.chunk
+          }),
+        )
+      }
+
+      if (ev.type === "shell.done") {
+        const e = ev
+        setStore(
+          "messages",
+          produce((draft) => {
+            const msgs = draft[e.sessionID]
+            if (!msgs) return
+            const target = msgs.find((m) => m.role === "shell" && m.shellID === e.shellID)
+            if (target) {
+              target.streaming = false
+              target.exitCode = e.exitCode
+              if (e.signal) target.text += `\n[killed by signal ${e.signal}]`
+            }
+          }),
+        )
+      }
+
       if (ev.type === "error") {
         const e = ev
         setStore(
@@ -119,6 +173,11 @@ export const { use: useApxSync, provider: ApxSyncProvider } = createSimpleContex
         }),
       )
       return id
+    }
+
+    async function runShell(command: string, cwd?: string) {
+      const sessionID = await ensureSession()
+      await sdk.runShell(sessionID, command, cwd ?? process.cwd())
     }
 
     async function sendMessage(text: string) {
@@ -172,6 +231,7 @@ export const { use: useApxSync, provider: ApxSyncProvider } = createSimpleContex
         async refresh() {},
       },
       sendMessage,
+      runShell,
       ensureSession,
     }
   },

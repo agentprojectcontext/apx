@@ -4,6 +4,7 @@ import { onCleanup } from "solid-js"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
+import { spawn } from "node:child_process"
 
 const TOKEN_PATH = path.join(os.homedir(), ".apx", "daemon.token")
 
@@ -20,6 +21,9 @@ export type ApxEvent =
   | { type: "chunk"; sessionID: string; chunk: string }
   | { type: "final"; sessionID: string; text: string; usage?: { input_tokens: number; output_tokens: number } }
   | { type: "error"; sessionID: string; error: string }
+  | { type: "shell.start"; sessionID: string; shellID: string; command: string; cwd: string }
+  | { type: "shell.output"; sessionID: string; shellID: string; stream: "stdout" | "stderr"; chunk: string }
+  | { type: "shell.done"; sessionID: string; shellID: string; exitCode: number | null; signal: NodeJS.Signals | null }
 
 export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
   name: "SDK",
@@ -102,6 +106,27 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
       return (data as any).id as string
     }
 
+    function runShell(sessionID: string, command: string, cwd: string = process.cwd()): Promise<{ shellID: string; exitCode: number | null }> {
+      const shellID = `sh-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+      emitter.emit("event", { type: "shell.start", sessionID, shellID, command, cwd })
+      return new Promise((resolve) => {
+        const child = spawn(command, { shell: true, cwd, env: process.env })
+        child.stdout?.on("data", (buf) => {
+          emitter.emit("event", { type: "shell.output", sessionID, shellID, stream: "stdout", chunk: buf.toString() })
+        })
+        child.stderr?.on("data", (buf) => {
+          emitter.emit("event", { type: "shell.output", sessionID, shellID, stream: "stderr", chunk: buf.toString() })
+        })
+        child.on("error", (err) => {
+          emitter.emit("event", { type: "shell.output", sessionID, shellID, stream: "stderr", chunk: `[spawn error] ${err.message}\n` })
+        })
+        child.on("close", (code, signal) => {
+          emitter.emit("event", { type: "shell.done", sessionID, shellID, exitCode: code, signal })
+          resolve({ shellID, exitCode: code })
+        })
+      })
+    }
+
     async function listSessions(): Promise<Array<{ id: string; title: string; updatedAt?: number }>> {
       try {
         const token = readToken()
@@ -146,7 +171,12 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
         fork: async (_opts: any) => ({ data: undefined, error: new Error("not supported") }),
         abort: async (_opts: any) => {},
         prompt: async (_opts: any) => {},
-        shell: async (_opts: any) => {},
+        shell: async (opts: { sessionID?: string; command?: string; cwd?: string }) => {
+          if (!opts?.command) return { data: undefined }
+          const sid = opts.sessionID || (await createSession())
+          const r = await runShell(sid, opts.command, opts.cwd)
+          return { data: r }
+        },
         command: async (_opts: any) => {},
         refresh: async () => {},
         update: async (_opts: any) => ({ data: undefined }),
@@ -180,6 +210,7 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
       streamChat,
       createSession,
       listSessions,
+      runShell,
     }
   },
 })

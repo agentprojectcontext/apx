@@ -47,6 +47,35 @@ function AssistantBubble(props: { msg: ApxMessage }) {
   )
 }
 
+function ShellBubble(props: { msg: ApxMessage }) {
+  const { theme } = useTheme()
+  const header = () => {
+    const code = props.msg.exitCode
+    const status = props.msg.streaming
+      ? "running"
+      : code === 0
+        ? "exit 0"
+        : code == null
+          ? "ended"
+          : `exit ${code}`
+    return `$ ${props.msg.command ?? ""}  · ${status}`
+  }
+  const body = () => props.msg.text || (props.msg.streaming ? "…" : "(no output)")
+  return (
+    <box flexDirection="column" marginBottom={1} paddingLeft={2} paddingRight={2}>
+      <text color={theme.warning ?? theme.primary} bold>
+        {header()}
+      </text>
+      <text
+        color={props.msg.exitCode && props.msg.exitCode !== 0 ? theme.error : theme.text}
+        wrap
+      >
+        {body()}
+      </text>
+    </box>
+  )
+}
+
 export function Session() {
   const dims = useTerminalDimensions()
   const { theme } = useTheme()
@@ -109,7 +138,11 @@ export function Session() {
     inputEl.clear()
     setSending(true)
     try {
-      await sync.sendMessage(text)
+      if (text.startsWith("!") && text.length > 1) {
+        await sync.runShell(text.slice(1).trim())
+      } else {
+        await sync.sendMessage(text)
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e : new Error(String(e)))
     } finally {
@@ -132,17 +165,17 @@ export function Session() {
             fallback={
               <box paddingLeft={2} paddingTop={2}>
                 <text color={theme.textMuted} italic>
-                  Type a message and press Enter to start chatting.
+                  Type a message to chat, or prefix with ! to run a shell command (e.g. !ls).
                 </text>
               </box>
             }
           >
             <For each={messages()}>
-              {(msg) => (
-                <Show when={msg.role === "user"} fallback={<AssistantBubble msg={msg} />}>
-                  <UserBubble msg={msg} />
-                </Show>
-              )}
+              {(msg) => {
+                if (msg.role === "user") return <UserBubble msg={msg} />
+                if (msg.role === "shell") return <ShellBubble msg={msg} />
+                return <AssistantBubble msg={msg} />
+              }}
             </For>
           </Show>
           <box height={1} />
@@ -163,7 +196,7 @@ export function Session() {
               inputEl = r
               promptRef.set(makeRef(r))
             }}
-            placeholder={sending() ? "Waiting for response…" : "Ask anything... (Enter to send)"}
+            placeholder={sending() ? "Waiting for response…" : "Ask anything... (prefix ! to run shell, e.g. !ls)"}
             placeholderColor={theme.textMuted}
             textColor={theme.text}
             focusedTextColor={theme.text}
