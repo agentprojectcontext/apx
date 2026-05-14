@@ -22,6 +22,21 @@ import { readIdentity } from "../core/identity.js";
 
 const MAX_TOOL_ITERS = 6;
 
+// Tools that, when they're the ONLY thing the model called in an iteration,
+// don't count as "real work" — they're acknowledgements (telegram ping back
+// to the user, log lines, etc). When the model emits an iteration that only
+// contains acks, we DON'T let it leave the loop on iter N+1 with empty text:
+// we force another required tool call so the actual task gets executed.
+//
+// This is the fix for the "agent sends 'ya te escucho 🎧' and then stops"
+// bug. Without it, gemma4-class models sometimes consider the ack the
+// complete reply on iter 0 and emit only "ok" on iter 1, breaking out.
+const ACK_ONLY_TOOLS = new Set(["send_telegram"]);
+// Hard cap so the model can't ack-ack-ack forever — after this many
+// consecutive ack-only iterations we let the loop progress naturally
+// (the model already had its chance to call a real tool).
+const MAX_CONSECUTIVE_ACKS = 2;
+
 const DEFAULT_SYSTEM = `# Identity (override everything else)
 You are **APX** — Manuel's personal assistant running on his Mac.
 You are NOT a code analyzer, NOT a generic chatbot, NOT a tutor.
@@ -284,14 +299,21 @@ export async function runSuperAgent({
   let totalUsage = { input_tokens: 0, output_tokens: 0 };
   let lastText = "";
   let usePseudoTools = false;
+  // Track how many consecutive iterations contained only ACK_ONLY tools.
+  // While this is > 0 we keep tool_choice="required" so the next iter has
+  // to do real work — otherwise gemma4-class models call send_telegram
+  // for the ack and then break out with empty text on iter N+1.
+  let ackOnlyStreak = 0;
 
   for (let iter = 0; iter < MAX_TOOL_ITERS; iter++) {
     await emitProgress(onEvent, { type: "model_start", iteration: iter + 1 });
-    // On the first iteration, force a tool call. This prevents the model from
-    // returning a bare acknowledgment ("ok", "dame un segundo") instead of
-    // acting on an action request. On later iterations (after tool results
-    // have been fed back) tool_choice is "auto" so the model can produce its
-    // final text summary.
+    // Force a tool call on iter 0 (no bare "ok dame un segundo" reply), AND
+    // on any iteration that immediately follows an ack-only iter (so the
+    // model can't ack and then stop). After at most MAX_CONSECUTIVE_ACKS
+    // forced rounds we let it fall back to "auto" so the model can finish.
+    const forceTool =
+      iter === 0 ||
+      (ackOnlyStreak > 0 && ackOnlyStreak <= MAX_CONSECUTIVE_ACKS);
     let result;
     try {
       result = await callEngine({
@@ -300,12 +322,12 @@ export async function runSuperAgent({
         messages: conversation,
         config: globalConfig,
         tools: usePseudoTools ? null : TOOL_SCHEMAS,
-        toolChoice: usePseudoTools ? null : (iter === 0 ? "required" : "auto"),
+        toolChoice: usePseudoTools ? null : (forceTool ? "required" : "auto"),
         maxTokens: 1024,
         signal,
-        // Only stream tokens on non-forced iterations (iter > 0) — on iter 0
-        // the model MUST call a tool, so we skip streaming to avoid confusion.
-        onToken: (iter > 0 && onToken) ? onToken : null,
+        // Only stream tokens on non-forced iterations — on forced iters the
+        // model MUST emit a tool_call, streaming text would confuse the user.
+        onToken: (!forceTool && onToken) ? onToken : null,
       });
     } catch (e) {
       if (usePseudoTools && /^ollama:/i.test(String(activeModel || "")) && /ollama\s+500/i.test(String(e?.message || "")) && trace.length > 0) {
@@ -419,6 +441,25 @@ export async function runSuperAgent({
         tool_name: name,
         content: JSON.stringify(toolResult),
       });
+    }
+
+    // Did this iteration consist of ONLY ack-style tool calls? If so we'll
+    // keep tool_choice forced on the next iter (see top of loop). A turn
+    // that mixes send_telegram + e.g. browser_screenshot counts as "real
+    // work" and resets the streak.
+    const allAckOnly = toolCalls.every((tc) => {
+      const n = (tc.function?.name) || tc.name;
+      return ACK_ONLY_TOOLS.has(n);
+    });
+    if (allAckOnly) {
+      ackOnlyStreak += 1;
+      await emitProgress(onEvent, {
+        type: "ack_only_iter",
+        iteration: iter + 1,
+        streak: ackOnlyStreak,
+      });
+    } else {
+      ackOnlyStreak = 0;
     }
   }
 
