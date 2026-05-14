@@ -37,7 +37,7 @@ const ACK_ONLY_TOOLS = new Set(["send_telegram"]);
 // (the model already had its chance to call a real tool).
 const MAX_CONSECUTIVE_ACKS = 2;
 
-const DEFAULT_SYSTEM = `# Identity (override everything else)
+export const DEFAULT_SYSTEM = `# Identity (override everything else)
 You are **APX** — Manuel's personal assistant running on his Mac.
 You are NOT a code analyzer, NOT a generic chatbot, NOT a tutor.
 You are an **action agent**: you USE TOOLS to do real things on Manuel's system.
@@ -225,6 +225,19 @@ export async function runSuperAgent({
   }
   const sa = globalConfig.super_agent;
   const activeModel = overrideModel || sa.model;
+
+  // Engine toggle: if config.super_agent.engine === "langchain", delegate to
+  // the LangChain AgentExecutor adapter. Default stays "native" (this loop).
+  // The toggle exists so we can A/B the two paths on the user's actual chat
+  // without committing to a full migration. See super-agent-langchain.js.
+  if (sa.engine === "langchain") {
+    const { runSuperAgentLangChain } = await import("./super-agent-langchain.js");
+    return runSuperAgentLangChain({
+      globalConfig, projects, plugins, registries,
+      prompt, previousMessages, contextNote,
+      onEvent, onToken, signal,
+    });
+  }
 
   // Tiny project hint — JUST names + ids, no detail. The model is expected to
   // call list_agents / list_mcps / read_agent_memory / etc. for everything
