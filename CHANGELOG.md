@@ -1,3 +1,18 @@
+# [1.16.0](https://github.com/agentprojectcontext/apx/compare/v1.15.6...v1.16.0) (2026-05-14)
+
+
+### Bug Fixes
+
+* **daemon:** ghost responses on Ollama, long-audio timeouts, silent Telegram failures ([b480f00](https://github.com/agentprojectcontext/apx/commit/b480f002052d389efc006bf080fe98cb844a1628))
+* **super-agent:** keep tool_choice forced after ack-only iterations ([716434f](https://github.com/agentprojectcontext/apx/commit/716434f9f644c6a2c53d5a8a3c0a4b5ce526e739))
+* **super-agent:** Spanish-first identity, always-on Telegram path, dynamic ack ([8562659](https://github.com/agentprojectcontext/apx/commit/8562659130abbf21d65fb0a6bd84d8729bffcd87))
+
+
+### Features
+
+* **daemon+cli:** streaming engines, overlay Electron app, apx-ng TS CLI, SolidJS TUI ([bd5a6a8](https://github.com/agentprojectcontext/apx/commit/bd5a6a88a58b6d3c983cde3d514705aeeb54a8cb))
+* **logging:** unified ~/.apx/logs/apx.log + apx log CLI + whisper retry ([0d54565](https://github.com/agentprojectcontext/apx/commit/0d54565f5c13196e0768d1b5c0aeaeee6ad8d4d5))
+
 ## [1.15.6](https://github.com/agentprojectcontext/apx/compare/v1.15.5...v1.15.6) (2026-05-13)
 
 
