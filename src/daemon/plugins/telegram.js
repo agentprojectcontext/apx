@@ -554,7 +554,13 @@ class ChannelPoller {
       },
     });
 
-    if (!this.channel.respond_with_engine) return;
+    // Super-agent is ALWAYS active on Telegram: respond_with_engine === false
+    // used to silently drop user messages, which looked to the user like the
+    // bot ignored them. Honour the legacy flag only as a soft hint (skip the
+    // routed-agent shortcut so we fall straight to super-agent) but never let
+    // it short-circuit the whole reply. To genuinely silence the bot, disable
+    // the channel entirely (telegram.enabled = false in config).
+    const skipRoutedAgent = this.channel.respond_with_engine === false;
     if (!text) return;
 
     // Short-circuit /reset / /new: send an ack and don't engage the engine.
@@ -586,8 +592,9 @@ class ChannelPoller {
     let replyAuthor;
     const projectCfg = target.config || this.globalConfig;
 
-    // Try the project's chosen agent first
-    const routeSlug = this.channel.route_to_agent;
+    // Try the project's chosen agent first (skipped if the legacy
+    // respond_with_engine === false hint asked to bypass routed agents).
+    const routeSlug = skipRoutedAgent ? null : this.channel.route_to_agent;
     if (routeSlug) {
       const agent = readAgents(target.path).find((a) => a.slug === routeSlug);
       if (agent && agent.fields.Model) {
