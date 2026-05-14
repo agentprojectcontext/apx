@@ -442,6 +442,28 @@ export function buildApi({ projects, registries, plugins, scheduler, version, st
     res.json(telegram.status());
   });
 
+  // POST /telegram/start  — (re)start polling for every configured channel.
+  app.post("/telegram/start", (_req, res) => {
+    if (!telegram) return res.status(503).json({ error: "telegram plugin not loaded" });
+    try {
+      telegram.start();
+      res.json({ ok: true, status: telegram.status() });
+    } catch (e) {
+      res.status(502).json({ error: e.message });
+    }
+  });
+
+  // POST /telegram/stop  — stop polling on every channel (config stays intact).
+  app.post("/telegram/stop", (_req, res) => {
+    if (!telegram) return res.status(503).json({ error: "telegram plugin not loaded" });
+    try {
+      telegram.stop();
+      res.json({ ok: true, status: telegram.status() });
+    } catch (e) {
+      res.status(502).json({ error: e.message });
+    }
+  });
+
   app.post("/telegram/send", async (req, res) => {
     const { chat_id, text, channel } = req.body || {};
     if (!text) return res.status(400).json({ error: "text required" });

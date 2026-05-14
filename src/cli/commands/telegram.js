@@ -36,6 +36,29 @@ export async function cmdTelegramStatus() {
   }
 }
 
+export async function cmdTelegramStart() {
+  const r = await http.post("/telegram/start", {});
+  const channels = r.status?.channels || [];
+  const polling = channels.filter((c) => c.polling).length;
+  if (channels.length === 0) {
+    console.log("⚠️  no telegram channels configured — run: apx telegram setup");
+    return;
+  }
+  if (polling === 0) {
+    console.log("⚠️  polling did not start — check telegram.enabled in ~/.apx/config.json and that a bot_token is set");
+    for (const c of channels) {
+      if (c.last_error) console.log(`   ${c.name}: ${c.last_error}`);
+    }
+    return;
+  }
+  console.log(`✅ telegram polling (${polling}/${channels.length} channel${channels.length !== 1 ? "s" : ""})`);
+}
+
+export async function cmdTelegramStop() {
+  await http.post("/telegram/stop", {});
+  console.log("⏹  telegram polling stopped (config unchanged — apx telegram start to resume)");
+}
+
 export function cmdTelegramSetup() {
   console.log(`Edit ~/.apx/config.json — telegram section:
 

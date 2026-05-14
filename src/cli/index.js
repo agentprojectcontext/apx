@@ -52,6 +52,8 @@ import {
   cmdTelegramSend,
   cmdTelegramStatus,
   cmdTelegramSetup,
+  cmdTelegramStart,
+  cmdTelegramStop,
 } from "./commands/telegram.js";
 import { cmdMessagesTail, cmdMessagesSearch, cmdMessagesChat } from "./commands/messages.js";
 import { cmdLog } from "./commands/log.js";
@@ -598,13 +600,15 @@ const HELP_TOPICS = new Map(Object.entries({
   telegram: topic({
     title: "apx telegram",
     summary: "Configure, inspect, and send through the Telegram bridge.",
-    usage: ["apx telegram <send|status|setup> [args] [--flags]"],
+    usage: ["apx telegram <send|status|start|stop|setup> [args] [--flags]"],
     commands: [
       ["send \"text\"", "Send a Telegram message."],
       ["status", "Show Telegram plugin status."],
+      ["start", "Start polling on every configured channel."],
+      ["stop", "Stop polling (config stays intact)."],
       ["setup", "Print setup guidance."],
     ],
-    examples: ["apx telegram status", "apx telegram send \"hello\" --chat 123456"],
+    examples: ["apx telegram status", "apx telegram start", "apx telegram send \"hello\" --chat 123456"],
   }),
   "telegram send": topic({
     title: "apx telegram send",
@@ -625,6 +629,18 @@ const HELP_TOPICS = new Map(Object.entries({
     summary: "Show Telegram bridge status.",
     usage: ["apx telegram status"],
     examples: ["apx telegram status"],
+  }),
+  "telegram start": topic({
+    title: "apx telegram start",
+    summary: "Start Telegram polling on every configured channel.",
+    usage: ["apx telegram start"],
+    examples: ["apx telegram start"],
+  }),
+  "telegram stop": topic({
+    title: "apx telegram stop",
+    summary: "Stop Telegram polling (config stays intact; resume with apx telegram start).",
+    usage: ["apx telegram stop"],
+    examples: ["apx telegram stop"],
   }),
   "telegram setup": topic({
     title: "apx telegram setup",
@@ -1441,6 +1457,8 @@ async function dispatch(cmd, rest) {
         const a = parseArgs(rest.slice(1));
         if (sub === "send") await cmdTelegramSend(a);
         else if (sub === "status") await cmdTelegramStatus();
+        else if (sub === "start") await cmdTelegramStart();
+        else if (sub === "stop") await cmdTelegramStop();
         else if (sub === "setup") cmdTelegramSetup();
         else die(`unknown telegram subcommand: ${sub || "(none)"}`);
         break;

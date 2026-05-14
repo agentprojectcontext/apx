@@ -79,17 +79,43 @@ export async function cmdStatus() {
   }
 
   // ── Telegram ───────────────────────────────────────────────────────────────
+  // Prefer the daemon's live view (real polling state). Fall back to the
+  // config file only when the daemon is unreachable. The config check must
+  // honour BOTH the legacy top-level bot_token AND per-channel tokens.
   console.log(sec("Telegram"));
   const tg = cfg.telegram || {};
-  if (tg.enabled && tg.bot_token) {
-    console.log(`  ${ok("enabled")}`);
-    console.log(`${key("chat_id")}${val(tg.chat_id || "(not set)")}`);
-    console.log(`${key("bot_token")}${DI}${maskToken(tg.bot_token)}${R}`);
-    if (tg.channels?.length) {
-      console.log(`${key("channels")}${val(tg.channels.length + " configured")}`);
+  let tgLive = null;
+  if (daemonOk) {
+    try { tgLive = await http.get("/telegram/status"); } catch {}
+  }
+
+  if (tgLive) {
+    const channels = tgLive.channels || [];
+    const polling = channels.filter((c) => c.polling).length;
+    if (!tgLive.enabled) {
+      console.log(`  ${off("disabled in config")}   run: ${CY}apx setup${R}`);
+    } else if (channels.length === 0) {
+      console.log(`  ${off("enabled, no channels")}   run: ${CY}apx setup${R}`);
+    } else if (polling === 0) {
+      console.log(`  ${err("enabled, not polling")}   run: ${CY}apx telegram start${R}`);
+    } else {
+      console.log(`  ${ok("polling")}   ${val(`${polling}/${channels.length} channel${channels.length !== 1 ? "s" : ""}`)}`);
+    }
+    for (const c of channels) {
+      const mark = c.polling ? `${GR}●${R}` : `${RE}○${R}`;
+      const tok = c.bot_token_present ? "" : ` ${DI}(no token)${R}`;
+      const lastErr = c.last_error ? `  ${RE}${c.last_error}${R}` : "";
+      console.log(`${key(c.name)}${mark} ${DI}chat ${c.chat_id || "(unset)"}${R}${tok}${lastErr}`);
     }
   } else {
-    console.log(`  ${off("disabled")}   run: ${CY}apx setup${R}`);
+    // Daemon down — best-effort from config. Token may be top-level or per-channel.
+    const hasToken = !!tg.bot_token || (tg.channels || []).some((c) => c.bot_token);
+    if (tg.enabled && hasToken) {
+      console.log(`  ${off("configured")}   ${DI}daemon down — start it to see live status${R}`);
+      console.log(`${key("channels")}${val((tg.channels?.length || 1) + " configured")}`);
+    } else {
+      console.log(`  ${off("disabled")}   run: ${CY}apx setup${R}`);
+    }
   }
 
   // ── Projects ───────────────────────────────────────────────────────────────
@@ -112,11 +138,6 @@ export async function cmdStatus() {
   }
 
   console.log();
-}
-
-function maskToken(token) {
-  if (!token || token.length < 12) return "***";
-  return token.slice(0, 6) + "…" + token.slice(-4);
 }
 
 function formatUptime(s) {

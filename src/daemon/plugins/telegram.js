@@ -344,6 +344,8 @@ class ChannelPoller {
     while (this.polling) {
       try {
         const updates = await this._getUpdates();
+        // A successful poll clears any stale error so status reflects recovery.
+        this.lastError = null;
         for (const u of updates) {
           await this._handleUpdate(u);
           this.offset = u.update_id + 1;
