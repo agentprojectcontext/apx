@@ -1,3 +1,10 @@
+# [1.17.0](https://github.com/agentprojectcontext/apx/compare/v1.16.0...v1.17.0) (2026-05-14)
+
+
+### Features
+
+* **super-agent:** optional LangChain AgentExecutor engine (toggle) ([d50ec71](https://github.com/agentprojectcontext/apx/commit/d50ec7176ba6302e03c1d9db8756574e1d7b7cca))
+
 # [1.16.0](https://github.com/agentprojectcontext/apx/compare/v1.15.6...v1.16.0) (2026-05-14)
 
 
