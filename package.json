@@ -35,6 +35,10 @@
   },
   "packageManager": "pnpm@10.25.0",
   "dependencies": {
+    "@langchain/anthropic": "^0.3.34",
+    "@langchain/community": "^0.3.59",
+    "@langchain/core": "^0.3.80",
+    "@langchain/ollama": "^0.2.4",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@opentui/core": "^0.2.8",
     "@opentui/keymap": "^0.2.8",
@@ -52,6 +56,7 @@
     "express": "^4.21.0",
     "fuzzysort": "^3.1.0",
     "jsonc-parser": "^3.3.1",
+    "langchain": "^0.3.37",
     "node-fetch": "^3.3.2",
     "open": "^11.0.0",
     "opentui-spinner": "^0.0.6",
@@ -60,7 +65,8 @@
     "semver": "^7.8.0",
     "solid-js": "^1.9.12",
     "strip-ansi": "^7.2.0",
-    "yargs": "^18.0.0"
+    "yargs": "^18.0.0",
+    "zod": "^3.25.76"
   },
   "optionalDependencies": {
     "fast-glob": "^3.3.2",
