@@ -28,7 +28,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { spawn } from "node:child_process";
+import { spawn, exec } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -43,6 +43,12 @@ const DEFAULT_LOCAL = {
   language: "auto",
   beam_size: 5,
   idle_minutes: 10,
+  // Max time we wait for /transcribe to return. Long audio files (Telegram
+  // voice notes > 10 min) can take several minutes on CPU; the previous
+  // hard-coded 5-minute cap silently truncated them. 20 minutes covers a
+  // ~60-minute voice note on a small int8 model. Override with
+  // transcription.local.timeout_ms in ~/.apx/config.json if needed.
+  timeout_ms: 20 * 60_000,
 };
 
 // ---------------------------------------------------------------------------
@@ -114,6 +120,21 @@ async function _isServerHealthy() {
   }
 }
 
+// Check if the running whisper-server is using a specific model.
+// Returns the model name string, or null if not reachable.
+async function _serverModelName() {
+  try {
+    const res = await fetch(`http://127.0.0.1:${WHISPER_PORT}/health`, {
+      signal: AbortSignal.timeout(800),
+    });
+    if (!res.ok) return null;
+    const j = await res.json();
+    return j?.model || null;
+  } catch {
+    return null;
+  }
+}
+
 async function _waitForServer(maxMs = 15_000) {
   const deadline = Date.now() + maxMs;
   while (Date.now() < deadline) {
@@ -123,18 +144,62 @@ async function _waitForServer(maxMs = 15_000) {
   throw new Error(`whisper-server did not start within ${maxMs}ms`);
 }
 
+// Find the PID of the process LISTENing on the whisper port (server only,
+// not clients). Filtering by -sTCP:LISTEN is critical — without it, lsof
+// also returns clients with an open connection (including this daemon).
+async function _findListenerPid() {
+  return new Promise((resolve) => {
+    exec(`lsof -ti tcp:${WHISPER_PORT} -sTCP:LISTEN`, (err, stdout) => {
+      if (err || !stdout) return resolve(null);
+      const candidates = stdout.trim().split("\n")
+        .map(s => parseInt(s, 10))
+        .filter(n => Number.isFinite(n) && n !== process.pid);
+      resolve(candidates[0] || null);
+    });
+  });
+}
+
+async function _killOrphanWhisper() {
+  // First try graceful /shutdown on the whisper server.
+  try {
+    await fetch(`http://127.0.0.1:${WHISPER_PORT}/shutdown`, {
+      method: "POST", signal: AbortSignal.timeout(1000),
+    });
+    await _sleep(600);
+  } catch {}
+  // If still bound, force-kill the LISTENER pid only (never our own pid).
+  const pid = await _findListenerPid();
+  if (pid && pid !== process.pid) {
+    try { process.kill(pid, "SIGTERM"); } catch {}
+    await _sleep(400);
+    try { process.kill(pid, 0); try { process.kill(pid, "SIGKILL"); } catch {} } catch {}
+    await _sleep(300);
+  }
+}
+
 async function ensureWhisperServer(opts) {
   const model = opts.model || DEFAULT_LOCAL.model;
 
   // Already running with the right model — health-check to confirm still alive.
   if (_serverProcess && _serverModel === model) {
     if (await _isServerHealthy()) return;
-    // Process died (idle shutdown). Fall through to restart.
     _serverProcess = null;
     _serverModel = null;
   }
 
-  // Wrong model: kill old server and start fresh.
+  // Adopt an externally-running whisper-server (e.g. left over from prior daemon).
+  if (!_serverProcess) {
+    const existing = await _serverModelName();
+    if (existing === model) {
+      _serverModel = model;
+      return;
+    }
+    if (existing) {
+      // Wrong model: kick out the orphan so we can start the right one.
+      await _killOrphanWhisper();
+    }
+  }
+
   if (_serverProcess) {
     try { _serverProcess.kill(); } catch {}
     _serverProcess = null;
@@ -142,6 +207,10 @@ async function ensureWhisperServer(opts) {
     await _sleep(300);
   }
 
+  await _spawnWhisper(opts, model, /* retried */ false);
+}
+
+async function _spawnWhisper(opts, model, retried) {
   const args = [
     WHISPER_SERVER,
     "--port", String(WHISPER_PORT),
@@ -167,32 +236,44 @@ async function ensureWhisperServer(opts) {
   });
 
   // Wait for the "ready" line on stdout, then wait for HTTP to respond.
-  await new Promise((resolve, reject) => {
-    const timeout = setTimeout(
-      () => reject(new Error("whisper-server startup timed out (15s)")),
-      15_000
-    );
-    let buf = "";
-    proc.stdout.on("data", (chunk) => {
-      buf += chunk.toString();
-      const nl = buf.indexOf("\n");
-      if (nl === -1) return;
-      const line = buf.slice(0, nl).trim();
-      buf = buf.slice(nl + 1);
-      clearTimeout(timeout);
-      try {
-        const msg = JSON.parse(line);
-        if (msg.status === "error") return reject(new Error(msg.error || "whisper-server error"));
-        resolve(); // "ready"
-      } catch {
-        resolve(); // unexpected line but server is up
-      }
+  try {
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(
+        () => reject(new Error("whisper-server startup timed out (15s)")),
+        15_000
+      );
+      let buf = "";
+      proc.stdout.on("data", (chunk) => {
+        buf += chunk.toString();
+        const nl = buf.indexOf("\n");
+        if (nl === -1) return;
+        const line = buf.slice(0, nl).trim();
+        buf = buf.slice(nl + 1);
+        clearTimeout(timeout);
+        try {
+          const msg = JSON.parse(line);
+          if (msg.status === "error") return reject(new Error(msg.error || "whisper-server error"));
+          resolve(); // "ready"
+        } catch {
+          resolve(); // unexpected line but server is up
+        }
+      });
+      proc.on("exit", (code) => {
+        clearTimeout(timeout);
+        reject(new Error(`whisper-server exited (code ${code}) before becoming ready`));
+      });
     });
-    proc.on("exit", (code) => {
-      clearTimeout(timeout);
-      reject(new Error(`whisper-server exited (code ${code}) before becoming ready`));
-    });
-  });
+  } catch (e) {
+    // Self-heal: if the port was already in use, kill the orphan and retry once.
+    const msg = e.message || "";
+    if (!retried && /address already in use|errno 48|eaddrinuse/i.test(msg)) {
+      _serverProcess = null;
+      _serverModel = null;
+      await _killOrphanWhisper();
+      return _spawnWhisper(opts, model, /* retried */ true);
+    }
+    throw e;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -206,6 +287,9 @@ async function transcribeLocal(filePath, opts) {
     ? null
     : (opts.language || null);
 
+  const timeoutMs = Number(opts.timeout_ms) > 0
+    ? Number(opts.timeout_ms)
+    : DEFAULT_LOCAL.timeout_ms;
   const res = await fetch(`http://127.0.0.1:${WHISPER_PORT}/transcribe`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -214,7 +298,7 @@ async function transcribeLocal(filePath, opts) {
       language,
       beam_size: opts.beam_size || DEFAULT_LOCAL.beam_size,
     }),
-    signal: AbortSignal.timeout(5 * 60_000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
 
   const json = await res.json();
@@ -296,19 +380,19 @@ export async function transcribe(filePath, overrides = {}) {
     return transcribeOpenAI(filePath, cfg.openaiKey);
   }
   if (provider === "local") {
+    // Explicit local-only: bubble up the real error, do not mention OpenAI.
     return transcribeLocal(filePath, localOpts);
   }
 
-  // auto: local first, fall back to openai
+  // auto: local first, fall back to openai only if a key is configured
   try {
     return await transcribeLocal(filePath, localOpts);
   } catch (localErr) {
-    if (!cfg.openaiKey) {
-      throw new Error(
-        `local transcription failed and no OpenAI fallback available: ${localErr.message}`
-      );
+    if (cfg.openaiKey) {
+      return transcribeOpenAI(filePath, cfg.openaiKey);
     }
-    return transcribeOpenAI(filePath, cfg.openaiKey);
+    // No OpenAI configured — surface the real local error verbatim.
+    throw new Error(`local transcription failed: ${localErr.message}`);
   }
 }
 
@@ -332,6 +416,44 @@ export async function transcribeBuffer(buf, format = "webm", overrides = {}) {
     return await transcribe(tmpFile, overrides);
   } finally {
     try { fs.unlinkSync(tmpFile); } catch {}
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Lifecycle (preload on daemon start, shutdown on daemon stop)
+// ---------------------------------------------------------------------------
+
+/**
+ * Eagerly start the whisper server so the first transcription is fast.
+ * Safe to call multiple times. Never throws — logs and continues on failure.
+ */
+export async function preloadWhisperServer(log = console.log) {
+  try {
+    const cfg = await getConfig();
+    if (cfg.provider === "openai") return; // local backend not used
+    log(`whisper: preloading model "${cfg.local.model}" on port ${WHISPER_PORT}…`);
+    await ensureWhisperServer(cfg.local);
+    log(`whisper: ready on port ${WHISPER_PORT} (model: ${_serverModel})`);
+  } catch (e) {
+    log(`whisper: preload failed — ${e.message} (will retry lazily on first request)`);
+  }
+}
+
+/**
+ * Stop the whisper server we own (no-op if we adopted an external one).
+ */
+export async function shutdownWhisperServer() {
+  if (_serverProcess) {
+    try { _serverProcess.kill(); } catch {}
+    _serverProcess = null;
+    _serverModel = null;
+  } else {
+    // Try graceful shutdown of an adopted server
+    try {
+      await fetch(`http://127.0.0.1:${WHISPER_PORT}/shutdown`, {
+        method: "POST", signal: AbortSignal.timeout(500),
+      });
+    } catch {}
   }
 }
 

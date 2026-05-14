@@ -64,12 +64,18 @@ class _Handler(BaseHTTPRequestHandler):
         pass  # suppress access log; APX daemon handles its own logging
 
     def _send_json(self, code, body):
-        data = json.dumps(body).encode()
-        self.send_response(code)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Content-Length", str(len(data)))
-        self.end_headers()
-        self.wfile.write(data)
+        # Swallow BrokenPipe / ConnectionReset — these happen when the daemon
+        # times out and aborts the request before we finish responding, and
+        # they used to fill the daemon log with multi-page Python tracebacks.
+        try:
+            data = json.dumps(body).encode()
+            self.send_response(code)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
 
     def _read_body(self):
         n = int(self.headers.get("Content-Length", 0))
@@ -92,6 +98,51 @@ class _Handler(BaseHTTPRequestHandler):
             self._send_json(404, {"ok": False, "error": "not found"})
 
     def do_POST(self):
+        # /transcribe_chunk reads raw bytes — must be handled BEFORE _read_body()
+        # which would consume rfile for JSON endpoints.
+        if self.path == "/transcribe_chunk":
+            _touch()
+            content_length = int(self.headers.get("Content-Length", 0))
+            if content_length <= 0:
+                self._send_json(400, {"ok": False, "error": "empty body"})
+                return
+            audio_bytes = self.rfile.read(content_length)
+            audio_format = (self.headers.get("X-Audio-Format") or "webm").strip().lstrip(".")
+            language_hdr = self.headers.get("X-Language") or None
+            language = language_hdr if language_hdr and language_hdr != "auto" else None
+            beam_size = int(self.headers.get("X-Beam-Size") or 3)
+
+            with _model_lock:
+                try:
+                    m = _load_model_if_needed(_Handler.model_name, _Handler.device, _Handler.compute_type)
+                except ImportError:
+                    self._send_json(500, {"ok": False, "error": "faster-whisper not installed"})
+                    return
+                except Exception as e:
+                    self._send_json(500, {"ok": False, "error": f"model load failed: {e}"})
+                    return
+
+                import tempfile
+                tmp = tempfile.NamedTemporaryFile(suffix=f".{audio_format}", delete=False)
+                try:
+                    tmp.write(audio_bytes)
+                    tmp.close()
+                    segments, info = m.transcribe(tmp.name, beam_size=beam_size, language=language)
+                    text = " ".join(seg.text.strip() for seg in segments).strip()
+                    self._send_json(200, {
+                        "ok": True, "text": text,
+                        "language": info.language,
+                        "language_probability": round(info.language_probability, 4),
+                        "duration": round(info.duration, 2) if hasattr(info, "duration") else None,
+                        "model": _model_name,
+                    })
+                except Exception as e:
+                    self._send_json(500, {"ok": False, "error": f"chunk transcription failed: {e}"})
+                finally:
+                    try: os.unlink(tmp.name)
+                    except Exception: pass
+            return
+
         req = self._read_body()
 
         if self.path == "/transcribe":

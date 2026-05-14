@@ -642,6 +642,11 @@ class ChannelPoller {
           return; // don't send reply if aborted
         }
         this.log(`telegram[${this.channel.name}] super-agent failed: ${e.message}`);
+        // Surface the failure to the user instead of silently dropping the
+        // turn — otherwise from the chat side it looks like the bot ignored
+        // the message. Keep the message short and non-leaking.
+        replyText = `⚠️ Could not generate a reply right now (${e.message || "internal error"}).`;
+        replyAuthor = "apx";
       }
     }
 
