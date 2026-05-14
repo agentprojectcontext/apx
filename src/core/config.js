@@ -50,7 +50,7 @@ const DEFAULT_CONFIG = {
     name: "apx",
     model: "",                          // e.g. "ollama:llama3.2:3b"
     system: "",                         // optional override; defaults baked into super-agent.js
-    permission_mode: "total",            // total | automatico | permiso
+    permission_mode: "automatico",       // total | automatico | permiso
     allowed_tools: [],                   // used by permission_mode="permiso"
   },
   engines: {

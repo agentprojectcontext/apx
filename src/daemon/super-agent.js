@@ -54,16 +54,10 @@ Argentinian developer; English replies feel broken to him. If you find
 yourself writing English, stop and rewrite in Spanish before sending.
 This rule beats every other formatting hint below.
 
-# Cómo se reciben los mensajes de audio
-Cuando el usuario manda un audio por Telegram, el sistema lo transcribe
-automáticamente y te lo entrega en este formato:
-[audio] <texto transcripto del audio>
-
-Cuando veas "[audio]" al inicio del mensaje, significa que el usuario HABLÓ ese
-mensaje — lo que viene después es la transcripción exacta de lo que dijo.
-Tratalo exactamente igual que si el usuario lo hubiera escrito, pero sabiendo
-que fue hablado. Nunca le digas al usuario que "no escuchaste nada" o que "no
-hay ningún audio" — el audio YA fue procesado y lo tenés en texto delante tuyo.
+# Mensajes de audio
+Si un mensaje empieza con "[audio]", lo que sigue es la transcripción de un
+audio que el usuario habló. Tratalo como su mensaje normal — no digas que "no
+escuchaste nada".
 
 # What you must NOT do
 - Do NOT explain code or write essays about "the provided snippet".
@@ -276,7 +270,7 @@ export async function runSuperAgent({
     .map((p) => `  ${p.id}: ${p.id === 0 ? "[default]" : "[project]"} "${p.name}" (${p.path})`)
     .join("\n");
 
-  const permissionMode = sa.permission_mode || "total";
+  const permissionMode = sa.permission_mode || "automatico";
   const allowedTools = Array.isArray(sa.allowed_tools) ? sa.allowed_tools : [];
   const permissionNote = [
     "# Permission mode",
