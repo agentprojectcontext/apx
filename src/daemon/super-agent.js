@@ -226,19 +226,6 @@ export async function runSuperAgent({
   const sa = globalConfig.super_agent;
   const activeModel = overrideModel || sa.model;
 
-  // Engine toggle: if config.super_agent.engine === "langchain", delegate to
-  // the LangChain AgentExecutor adapter. Default stays "native" (this loop).
-  // The toggle exists so we can A/B the two paths on the user's actual chat
-  // without committing to a full migration. See super-agent-langchain.js.
-  if (sa.engine === "langchain") {
-    const { runSuperAgentLangChain } = await import("./super-agent-langchain.js");
-    return runSuperAgentLangChain({
-      globalConfig, projects, plugins, registries,
-      prompt, previousMessages, contextNote,
-      onEvent, onToken, signal,
-    });
-  }
-
   // Tiny project hint — JUST names + ids, no detail. The model is expected to
   // call list_agents / list_mcps / read_agent_memory / etc. for everything
   // else. Keeping this short forces actual tool use instead of letting the
