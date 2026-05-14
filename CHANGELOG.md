@@ -1,3 +1,11 @@
+# [1.19.0](https://github.com/agentprojectcontext/apx/compare/v1.18.0...v1.19.0) (2026-05-14)
+
+
+### Features
+
+* **super-agent:** audio-aware prompt, APX self-knowledge, total permissions ([02c5fdd](https://github.com/agentprojectcontext/apx/commit/02c5fdd8f7449009d11f788141524a86cb120382))
+* **telegram:** real polling status + start/stop commands ([39af83a](https://github.com/agentprojectcontext/apx/commit/39af83a474e295f8dc2617ebe3dce85bc06dc462))
+
 # [1.18.0](https://github.com/agentprojectcontext/apx/compare/v1.17.0...v1.18.0) (2026-05-14)
 
 
