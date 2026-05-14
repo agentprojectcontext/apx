@@ -44,10 +44,15 @@ test("telegram: super-agent catch surfaces a reply on non-abort errors", () => {
 
 test("telegram: aborted requests still short-circuit silently", () => {
   // The abort path must remain a silent return — interrupting the user's own
-  // request shouldn't generate a "could not reply" message.
-  assert.match(
-    SRC,
-    /abortCtrl\.signal\.aborted[\s\S]{0,200}return;\s*\/\/ don't send reply if aborted/,
-    "abort path must still return without replying",
+  // request shouldn't generate a "could not reply" message. We assert the
+  // contract (the abort branch returns and never assigns replyText) rather
+  // than an exact comment string, so wording changes don't break the test.
+  const abortBlock = SRC.match(/if \(abortCtrl\.signal\.aborted\) \{[\s\S]{0,400}?\n {8}\}/);
+  assert.ok(abortBlock, "abort branch must exist");
+  assert.match(abortBlock[0], /return;/, "abort path must return");
+  assert.doesNotMatch(
+    abortBlock[0],
+    /replyText\s*=/,
+    "abort path must NOT set a reply — interrupting is silent",
   );
 });

@@ -403,6 +403,11 @@ export function getRecentTelegramTurnsFromFs({
   all.sort((a, b) => (a.ts || "").localeCompare(b.ts || ""));
   const filtered = all
     .filter((m) => String(m.meta?.chat_id ?? "") === String(chat_id))
+    // Only conversational turns become model context. `tool` / `system`
+    // entries are kept in the store for the audit trail (and for channels
+    // that DO render tools), but replaying them as assistant messages would
+    // look like bogus answers to the model.
+    .filter((m) => m.type === "user" || m.type === "agent")
     .slice(-limit);
   return filtered.map((m) => {
     const role = m.direction === "in" ? "user" : "assistant";

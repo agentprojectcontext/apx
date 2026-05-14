@@ -626,10 +626,69 @@ class ChannelPoller {
       }
     }
 
-    // Fallback: super-agent
-    let saTrace = null;
+    // Fallback: super-agent — STREAMED.
+    // Each iteration's assistant text is sent to Telegram as its own message
+    // the moment the model produces it (its running commentary), so the user
+    // sees a real back-and-forth instead of one giant final dump. Tool calls
+    // are logged to the message store — visible via apx log / apx search and
+    // to channels that render tools — but NEVER sent to Telegram; tools are
+    // internal. The conversation saved on disk is the full, real exchange;
+    // Telegram is just the prose-only view of it.
     let saUsage = null;
+    let streamedCount = 0;
+    let lastStreamedText = "";
     if (!replyText && isSuperAgentEnabled(this.globalConfig)) {
+      const onEvent = async (ev) => {
+        try {
+          if (ev.type === "assistant_text" && ev.text) {
+            const piece = stripThinking(ev.text).trim();
+            if (!piece) return;
+            await this._send({ chat_id, text: piece });
+            lastStreamedText = piece;
+            streamedCount += 1;
+            appendGlobalMessage({
+              channel: "telegram",
+              direction: "out",
+              type: "agent",
+              actor_id: "apx",
+              agent_slug: "apx",
+              author: "apx",
+              body: piece,
+              meta: {
+                chat_id,
+                tg_channel: this.channel.name,
+                in_reply_to: u.update_id,
+                streamed: true,
+                iteration: ev.iteration,
+              },
+            });
+          } else if (ev.type === "tool_result" && ev.trace) {
+            // Logged for the audit trail / other channels — NOT sent to Telegram.
+            const t = ev.trace;
+            appendGlobalMessage({
+              channel: "telegram",
+              direction: "out",
+              type: "tool",
+              actor_id: t.tool,
+              author: "apx",
+              body: `${t.tool}(${JSON.stringify(t.args || {}).slice(0, 200)})`,
+              meta: {
+                chat_id,
+                tg_channel: this.channel.name,
+                in_reply_to: u.update_id,
+                tool: t.tool,
+                args: t.args,
+                result: t.result,
+                iteration: ev.iteration,
+              },
+            });
+          }
+        } catch (e) {
+          // A failed intermediate send must not abort the whole run.
+          this.log(`telegram[${this.channel.name}] stream event failed: ${e.message}`);
+        }
+      };
+
       try {
         const sa = await runSuperAgent({
           globalConfig: this.globalConfig,
@@ -640,15 +699,20 @@ class ChannelPoller {
           previousMessages,
           contextNote: `You are replying inside Telegram right now. Telegram channel="${this.channel.name}", author=${author}, chat_id=${chat_id}. Keep the reply plain-text and concise. Previous turns of this chat are included only for local conversational context; re-call tools for facts.`,
           signal: abortCtrl.signal,
+          onEvent,
         });
         replyText = sa.text;
         replyAuthor = sa.name;
-        saTrace = sa.trace;
         saUsage = sa.usage;
       } catch (e) {
         if (abortCtrl.signal.aborted) {
+          // A newer message superseded this one. Whatever streamed so far is
+          // already sent + logged; the newer message's run continues the
+          // thread from that history.
           this.log(`telegram[${this.channel.name}] request aborted for chat ${chat_id}`);
-          return; // don't send reply if aborted
+          if (chat_id) this.activeRequests.delete(chat_id);
+          stopTyping();
+          return;
         }
         this.log(`telegram[${this.channel.name}] super-agent failed: ${e.message}`);
         // Surface the failure to the user instead of silently dropping the
@@ -660,37 +724,29 @@ class ChannelPoller {
     }
 
     if (chat_id) this.activeRequests.delete(chat_id);
-    if (!replyText) {
-      stopTyping();
-      return;
-    }
 
-    // Strip <thinking>...</thinking> blocks before sending to Telegram —
-    // reasoning is noise to the chat reader. The full text (with thinking)
-    // stays in the daemon log and in messages with channel='engine' if the
-    // model produced any.
-    const clean = stripThinking(replyText);
+    // Final answer. The intermediate prose was already streamed; only send the
+    // final text if it's non-empty AND not a duplicate of the last streamed
+    // piece (the loop can end on an iteration whose text was already sent).
+    // If nothing streamed and there's no final text, send a minimal ack so the
+    // turn isn't silently empty.
+    const finalClean = replyText ? stripThinking(replyText).trim() : "";
+    let toSend = "";
+    if (finalClean && finalClean !== lastStreamedText) toSend = finalClean;
+    else if (!finalClean && streamedCount === 0) toSend = "Listo.";
 
-    // Send reply via this channel's bot
     stopTyping();
+    if (!toSend) return; // everything was already streamed — nothing left to send
+
     try {
-      await this._send({ chat_id, text: clean || replyText });
-      // Log outbound — store the cleaned text (what we actually sent). The
-      // full reasoning (if any) goes in meta_json so it's recoverable.
+      await this._send({ chat_id, text: toSend });
       const meta = {
         chat_id,
         tg_channel: this.channel.name,
         in_reply_to: u.update_id,
+        final: true,
       };
-      if (clean !== replyText) meta.thinking_stripped = true;
-      if (saTrace && saTrace.length > 0) {
-        // Compact representation: [{tool, args}] without the full result
-        // (results can be huge — keep them out of the long-lived FS log).
-        meta.tools_called = saTrace.map((t) => ({
-          tool: t.tool,
-          args: t.args,
-        }));
-      }
+      if (replyText && stripThinking(replyText) !== replyText) meta.thinking_stripped = true;
       if (saUsage) meta.usage = saUsage;
       appendGlobalMessage({
         channel: "telegram",
@@ -699,7 +755,7 @@ class ChannelPoller {
         actor_id: replyAuthor || "apx",
         agent_slug: replyAuthor || "apx",
         author: replyAuthor || "apx",
-        body: clean || replyText,
+        body: toSend,
         meta,
       });
     } catch (e) {
@@ -711,15 +767,12 @@ class ChannelPoller {
         actor_id: replyAuthor || "apx",
         agent_slug: replyAuthor || "apx",
         author: replyAuthor || "apx",
-        body: `[send_failed] ${clean || replyText}`,
+        body: `[send_failed] ${toSend}`,
         meta: {
           chat_id,
           tg_channel: this.channel.name,
           in_reply_to: u.update_id,
           send_error: e.message,
-          ...(saTrace && saTrace.length > 0
-            ? { tools_called: saTrace.map((t) => ({ tool: t.tool, args: t.args })) }
-            : {}),
           ...(saUsage ? { usage: saUsage } : {}),
         },
       });
