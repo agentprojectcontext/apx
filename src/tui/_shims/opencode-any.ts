@@ -96,8 +96,8 @@ export const cmd: any = {}
 export const withTimeout: any = (fn: any) => fn
 export const withNetworkOptions: any = () => {}
 export const resolveNetworkOptionsNoConfig: any = () => ({})
-export const displayCharAt: any = () => ""
-export const mentionTriggerIndex: any = () => -1
+export const displayCharAt: any = () => undefined
+export const mentionTriggerIndex: any = () => undefined
 export const installPlugin: any = () => {}
 export const patchPluginConfig: any = () => {}
 export const readPluginManifest: any = () => ({})

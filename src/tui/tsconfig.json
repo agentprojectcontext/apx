@@ -23,6 +23,7 @@
       "@/snapshot": ["./_shims/snapshot.ts"],
       "@/config/console-state": ["./_shims/config-console-state.ts"],
       "@/cli/error": ["./_shims/cli-error.ts"],
+      "@/cli/cmd/prompt-display": ["./_shims/prompt-display.ts"],
       "@/cli/logo": ["./_shims/cli-logo.ts"],
       "@/cli/ui.ts": ["./_shims/cli-ui.ts"],
       "@/cli/ui": ["./_shims/cli-ui.ts"],

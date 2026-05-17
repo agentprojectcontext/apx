@@ -35,16 +35,45 @@ export const { use: useApxSync, provider: ApxSyncProvider } = createSimpleContex
       messages: Record<string, ApxMessage[]>
       currentSessionID: string | undefined
       previousMessages: Array<{ role: string; content: string }>
+      usage: { input: number; output: number }
     }>({
       status: "loading",
       sessions: [],
       messages: {},
       currentSessionID: undefined,
       previousMessages: [],
+      usage: { input: 0, output: 0 },
     })
 
     // Listen to APX stream events
     sdk.event.on("event", (ev: ApxEvent) => {
+      if (ev.type === "user") {
+        const e = ev
+        batch(() => {
+          setStore(
+            "messages",
+            produce((draft) => {
+              ;(draft[e.sessionID] ??= []).push({
+                id: `user-${Date.now()}`,
+                sessionID: e.sessionID,
+                role: "user",
+                text: e.text,
+              })
+            }),
+          )
+          setStore("previousMessages", (prev) => [...prev, { role: "user", content: e.text }])
+          setStore("currentSessionID", e.sessionID)
+          setStore(
+            "sessions",
+            produce((draft) => {
+              if (!draft.some((s) => s.id === e.sessionID)) {
+                draft.unshift({ id: e.sessionID, title: e.text.slice(0, 60) || "New session" })
+              }
+            }),
+          )
+        })
+      }
+
       if (ev.type === "chunk") {
         const e = ev
         setStore(
@@ -74,13 +103,30 @@ export const { use: useApxSync, provider: ApxSyncProvider } = createSimpleContex
           produce((draft) => {
             const msgs = (draft[e.sessionID] ??= [])
             const last = msgs[msgs.length - 1]
-            if (last?.role === "assistant") {
+            if (last?.role === "assistant" && last.streaming) {
+              // A streaming bubble already exists (chunk events arrived) — finalize it.
               last.text = e.text
               last.streaming = false
+            } else {
+              // The super-agent delivers the whole reply in `final` with no
+              // preceding chunks — create the assistant bubble here.
+              msgs.push({
+                id: `msg-${Date.now()}`,
+                sessionID: e.sessionID,
+                role: "assistant",
+                text: e.text,
+                streaming: false,
+              })
             }
           }),
         )
         setStore("previousMessages", (prev) => [...prev, { role: "assistant", content: e.text }])
+        if (e.usage) {
+          setStore("usage", (u) => ({
+            input: u.input + (e.usage?.input_tokens ?? 0),
+            output: u.output + (e.usage?.output_tokens ?? 0),
+          }))
+        }
       }
 
       if (ev.type === "shell.start") {

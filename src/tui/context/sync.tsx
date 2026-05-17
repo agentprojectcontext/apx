@@ -7,6 +7,7 @@
  */
 import { createSimpleContext } from "./helper"
 import { useApxSync } from "./sync-apx"
+import { useArgs } from "./args"
 import { onMount } from "solid-js"
 
 // Re-export useApxSync as useSync for compatibility
@@ -14,9 +15,39 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
   name: "Sync",
   init: () => {
     const apx = useApxSync()
+    const args = useArgs()
 
     onMount(() => {
       // APX sync already loads sessions in its own onMount
+    })
+
+    // APX has a single configured super-agent (passed via --agent). The opencode
+    // TUI expects `data.agent` to be a non-empty list, otherwise the prompt has
+    // no "current agent" and Enter silently refuses to submit.
+    const apxAgent = () => ({
+      name: args.agent || "apx",
+      mode: "primary" as const,
+      hidden: false,
+      description: "APX super-agent",
+    })
+
+    // APX uses freeform model strings and resolves the model server-side from
+    // the CLI `--model` arg. The opencode TUI, however, refuses to submit unless
+    // `local.model.current()` resolves to a model that exists in some provider.
+    // Expose a synthetic provider containing the configured model so model
+    // resolution / validation passes. The values are cosmetic — the daemon
+    // ignores them and uses the CLI model string directly.
+    const apxModelKey = () => args.model || "apx-default"
+    const apxProvider = () => ({
+      id: "apx",
+      name: "APX",
+      models: {
+        [apxModelKey()]: {
+          id: apxModelKey(),
+          name: apxModelKey(),
+          capabilities: { reasoning: false },
+        },
+      },
     })
 
     // Return a compatible object that matches the shape expected by existing TUI components
@@ -25,14 +56,18 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
         get status() {
           return apx.status
         },
-        // Provider fields (APX has no providers — return stubs)
-        provider: [] as any[],
+        // Provider fields — synthetic single provider wrapping the APX model.
+        get provider() {
+          return [apxProvider()] as any[]
+        },
         provider_default: {} as Record<string, string>,
         provider_next: { all: [], default: {}, connected: [] } as any,
         provider_auth: {} as Record<string, any[]>,
         console_state: { switchableOrgCount: 0 } as any,
-        // Agent fields — empty for APX (agent is configured via CLI args)
-        agent: [] as any[],
+        // Agent fields — APX exposes the single configured super-agent.
+        get agent() {
+          return [apxAgent()] as any[]
+        },
         command: [] as any[],
         // Session-related — delegate to APX
         get session() {

@@ -18,6 +18,7 @@ function readToken(): string {
 
 export type ApxEvent =
   | { type: "session.created"; sessionID: string }
+  | { type: "user"; sessionID: string; text: string }
   | { type: "chunk"; sessionID: string; chunk: string }
   | { type: "final"; sessionID: string; text: string; usage?: { input_tokens: number; output_tokens: number } }
   | { type: "error"; sessionID: string; error: string }
@@ -54,13 +55,29 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
       prompt: string,
       previousMessages: Array<{ role: string; content: string }> = [],
     ) {
+      // Do NOT send `model` — the super-agent owns its model (configured at the
+      // system level in ~/.apx/config.json). Overriding it from the TUI would
+      // bypass that single source of truth. `props.model` is kept only for
+      // display in the sidebar.
       const res = await fetch(`${props.url}/projects/${props.pid}/super-agent/chat/stream`, {
         method: "POST",
         headers: headers(),
-        body: JSON.stringify({ prompt, model: props.model, previousMessages }),
+        body: JSON.stringify({ prompt, previousMessages }),
         signal: abort.signal,
       })
-      if (!res.ok || !res.body) throw new Error(`stream error: ${res.status}`)
+      if (!res.ok || !res.body) {
+        // Surface the daemon's actual error message (e.g. {"error":"project not found"})
+        // instead of a bare status code.
+        let detail = ""
+        try {
+          const body = await res.text()
+          const parsed = JSON.parse(body)
+          detail = parsed?.error ?? body
+        } catch {
+          /* non-JSON / empty body */
+        }
+        throw new Error(detail ? `${detail} (HTTP ${res.status})` : `stream error: ${res.status}`)
+      }
       const reader = res.body.getReader()
       const dec = new TextDecoder()
       let buf = ""
@@ -90,20 +107,11 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
       }
     }
 
+    // The APX daemon has no generic "create session" route — a chat turn is
+    // streamed directly through /super-agent/chat/stream. The TUI still needs a
+    // stable session id to group messages, so we mint one locally.
     async function createSession(): Promise<string> {
-      const token = readToken()
-      const res = await fetch(`${props.url}/projects/${props.pid}/sessions`, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          ...(token ? { authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({}),
-        signal: abort.signal,
-      })
-      if (!res.ok) throw new Error(`createSession: ${res.status}`)
-      const data = await res.json()
-      return (data as any).id as string
+      return `apx-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     }
 
     function runShell(sessionID: string, command: string, cwd: string = process.cwd()): Promise<{ shellID: string; exitCode: number | null }> {
@@ -170,7 +178,26 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
         delete: async (_opts: any) => ({ data: undefined }),
         fork: async (_opts: any) => ({ data: undefined, error: new Error("not supported") }),
         abort: async (_opts: any) => {},
-        prompt: async (_opts: any) => {},
+        // Called by the opencode home prompt on submit. Extract the text from
+        // the message parts, surface it as a user bubble, then stream the reply.
+        prompt: async (opts: any) => {
+          const sid: string = opts?.sessionID || (await createSession())
+          const text = ((opts?.parts ?? []) as any[])
+            .filter((p) => p && p.type === "text" && typeof p.text === "string")
+            .map((p) => p.text)
+            .join("\n")
+            .trim()
+          if (!text) return { data: undefined }
+          emitter.emit("event", { type: "user", sessionID: sid, text })
+          void streamChat(sid, text).catch((err) => {
+            emitter.emit("event", {
+              type: "error",
+              sessionID: sid,
+              error: err instanceof Error ? err.message : String(err),
+            })
+          })
+          return { data: { id: sid } }
+        },
         shell: async (opts: { sessionID?: string; command?: string; cwd?: string }) => {
           if (!opts?.command) return { data: undefined }
           const sid = opts.sessionID || (await createSession())
