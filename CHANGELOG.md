@@ -1,3 +1,10 @@
+# [1.21.0](https://github.com/agentprojectcontext/apx/compare/v1.20.0...v1.21.0) (2026-05-17)
+
+
+### Features
+
+* **tui:** ship logo redesign and APX sidebar to npm ([9515c28](https://github.com/agentprojectcontext/apx/commit/9515c2812611f3ecc671ef29e778e8cbc5337ec7))
+
 # [1.20.0](https://github.com/agentprojectcontext/apx/compare/v1.19.1...v1.20.0) (2026-05-14)
 
 
