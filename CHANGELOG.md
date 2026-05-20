@@ -1,3 +1,10 @@
+## [1.22.1](https://github.com/agentprojectcontext/apx/compare/v1.22.0...v1.22.1) (2026-05-20)
+
+
+### Bug Fixes
+
+* **cli:** apx update no longer fails when pnpm global bin dir is unset ([e535506](https://github.com/agentprojectcontext/apx/commit/e5355064e4666359608a778e9202957274b7d228))
+
 # [1.22.0](https://github.com/agentprojectcontext/apx/compare/v1.21.0...v1.22.0) (2026-05-20)
 
 
