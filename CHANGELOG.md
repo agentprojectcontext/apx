@@ -1,3 +1,10 @@
+## [1.22.2](https://github.com/agentprojectcontext/apx/compare/v1.22.1...v1.22.2) (2026-05-20)
+
+
+### Bug Fixes
+
+* **cli:** apx update picks the package manager that owns the install ([46c9c52](https://github.com/agentprojectcontext/apx/commit/46c9c52268e0147f8825ac5980d016352f1e6300))
+
 ## [1.22.1](https://github.com/agentprojectcontext/apx/compare/v1.22.0...v1.22.1) (2026-05-20)
 
 
