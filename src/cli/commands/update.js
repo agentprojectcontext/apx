@@ -17,8 +17,11 @@ function isNewer(cur, lat) {
 function hasPnpmGlobal() {
   const r = spawnSync("pnpm", ["--version"], { encoding: "utf8", stdio: "pipe" });
   if (r.status !== 0) return false;
-  // pnpm needs PNPM_HOME configured to manage global packages
-  const check = spawnSync("pnpm", ["root", "-g"], { encoding: "utf8", stdio: "pipe" });
+  // `pnpm add -g` needs a configured global *bin* directory (PNPM_HOME / the
+  // result of `pnpm setup`). `pnpm root -g` succeeds even without it, so probe
+  // `pnpm bin -g` instead — it fails with ERR_PNPM_NO_GLOBAL_BIN_DIR when the
+  // global bin directory is missing.
+  const check = spawnSync("pnpm", ["bin", "-g"], { encoding: "utf8", stdio: "pipe" });
   return check.status === 0 && !!check.stdout?.trim();
 }
 
@@ -62,15 +65,25 @@ export async function cmdUpdate(args, currentVersion) {
     console.log("stopped.");
   }
 
-  // Prefer pnpm global if configured, fall back to npm.
-  const usePnpm = hasPnpmGlobal();
-  const pm = usePnpm ? "pnpm" : "npm";
-  const installArgs = usePnpm
-    ? ["add", "-g", `${PACKAGE_NAME}@${latest}`]
-    : ["install", "-g", `${PACKAGE_NAME}@${latest}`];
+  // Pick a package manager that can actually install global binaries. Prefer
+  // pnpm only when its global bin directory is configured; otherwise npm. If
+  // the first attempt fails, fall back to the other so a misconfigured pnpm
+  // never blocks the update.
+  const pnpmStep = ["pnpm", ["add", "-g", `${PACKAGE_NAME}@${latest}`]];
+  const npmStep = ["npm", ["install", "-g", `${PACKAGE_NAME}@${latest}`]];
+  const steps = hasPnpmGlobal() ? [pnpmStep, npmStep] : [npmStep];
 
-  console.log(`\nInstalling ${PACKAGE_NAME}@${latest} via ${pm}...\n`);
-  const result = spawnSync(pm, installArgs, { stdio: "inherit" });
+  let result;
+  for (let i = 0; i < steps.length; i++) {
+    const [pm, installArgs] = steps[i];
+    console.log(`\nInstalling ${PACKAGE_NAME}@${latest} via ${pm}...\n`);
+    result = spawnSync(pm, installArgs, { stdio: "inherit" });
+    if (result.status === 0) break;
+    const next = steps[i + 1];
+    if (next) {
+      console.log(`\n⚠️  ${pm} install failed — retrying with ${next[0]}...`);
+    }
+  }
 
   if (result.status !== 0) {
     console.error(`\n❌ Update failed (exit ${result.status})`);
