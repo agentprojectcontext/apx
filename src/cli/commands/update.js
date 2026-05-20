@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
 import readline from "node:readline";
+import { fileURLToPath } from "node:url";
 import { getLatestVersion } from "../../core/update-check.js";
 
 const PACKAGE_NAME = "@agentprojectcontext/apx";
@@ -23,6 +24,30 @@ function hasPnpmGlobal() {
   // global bin directory is missing.
   const check = spawnSync("pnpm", ["bin", "-g"], { encoding: "utf8", stdio: "pipe" });
   return check.status === 0 && !!check.stdout?.trim();
+}
+
+// Detect which package manager actually owns this apx install, by checking
+// where the running files live. Most installs are npm (it was the recommended
+// installer before the project moved to pnpm), so npm is the safe default
+// when detection is inconclusive.
+function detectInstaller() {
+  let selfDir;
+  try {
+    selfDir = fileURLToPath(import.meta.url);
+  } catch {
+    selfDir = "";
+  }
+  const probe = (cmd) => {
+    const r = spawnSync(cmd, ["root", "-g"], { encoding: "utf8", stdio: "pipe" });
+    return r.status === 0 ? r.stdout?.trim() || "" : "";
+  };
+  const pnpmRoot = probe("pnpm");
+  const npmRoot = probe("npm");
+  if (pnpmRoot && selfDir.startsWith(pnpmRoot)) return "pnpm";
+  if (npmRoot && selfDir.startsWith(npmRoot)) return "npm";
+  // pnpm's global store path contains a "/pnpm/" segment.
+  if (/[\\/]pnpm[\\/]/.test(selfDir)) return "pnpm";
+  return "npm";
 }
 
 function daemonRunning() {
@@ -65,13 +90,20 @@ export async function cmdUpdate(args, currentVersion) {
     console.log("stopped.");
   }
 
-  // Pick a package manager that can actually install global binaries. Prefer
-  // pnpm only when its global bin directory is configured; otherwise npm. If
-  // the first attempt fails, fall back to the other so a misconfigured pnpm
-  // never blocks the update.
+  // Install with whichever package manager owns this apx install. npm is the
+  // default (most installs predate the move to pnpm). pnpm is used first only
+  // when it owns the install AND its global bin directory is configured.
+  // The other package manager is always kept as a fallback so a misconfigured
+  // pnpm never blocks the update.
   const pnpmStep = ["pnpm", ["add", "-g", `${PACKAGE_NAME}@${latest}`]];
   const npmStep = ["npm", ["install", "-g", `${PACKAGE_NAME}@${latest}`]];
-  const steps = hasPnpmGlobal() ? [pnpmStep, npmStep] : [npmStep];
+  const pnpmUsable = hasPnpmGlobal();
+  const steps =
+    detectInstaller() === "pnpm" && pnpmUsable
+      ? [pnpmStep, npmStep]
+      : pnpmUsable
+        ? [npmStep, pnpmStep]
+        : [npmStep];
 
   let result;
   for (let i = 0; i < steps.length; i++) {
