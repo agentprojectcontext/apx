@@ -1,3 +1,10 @@
+# [1.22.0](https://github.com/agentprojectcontext/apx/compare/v1.21.0...v1.22.0) (2026-05-20)
+
+
+### Features
+
+* **cli:** add apx sessions to list AI engine sessions ([9d79b4d](https://github.com/agentprojectcontext/apx/commit/9d79b4d1916a27ad36f867196bdd10b141d34bad))
+
 # [1.21.0](https://github.com/agentprojectcontext/apx/compare/v1.20.0...v1.21.0) (2026-05-17)
 
 
