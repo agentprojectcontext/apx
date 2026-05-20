@@ -98,6 +98,29 @@ apx session list <slug>                          # list sessions
 apx session check                                # exits 1 if session already active
 ```
 
+### List sessions of other AI engines
+
+`apx sessions list` lists sessions of external AI engines (Claude Code, Codex)
+without opening their interactive pickers. It resolves the project directory
+from a registered APX project (`--project`) or an explicit path (`--dir`).
+
+```bash
+apx sessions list                                       # APX engine projects (default)
+apx sessions list --engine claude                       # Claude Code project folders
+apx sessions list --engine claude --project iacrmar     # sessions of a registered project
+apx sessions list --engine claude --dir /path/to/repo   # sessions of any directory
+apx sessions list --engine codex  --dir /path/to/repo   # Codex sessions
+```
+
+Output prints date + session id + title, newest first, plus the exact resume command.
+
+**Resume a Claude Code session** (run from the project directory):
+
+```bash
+claude --continue                       # resume the most recent session
+claude -p --resume <session-id> "..."   # resume a specific session, always with -p (print mode)
+```
+
 ## Observe activity
 
 ```bash

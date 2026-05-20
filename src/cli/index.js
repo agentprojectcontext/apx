@@ -32,6 +32,7 @@ import {
   cmdSessionResume,
   cmdSessionCompact,
 } from "./commands/session.js";
+import { cmdSessionsList } from "./commands/sessions.js";
 import {
   cmdMcpList,
   cmdMcpAdd,
@@ -481,6 +482,45 @@ const HELP_TOPICS = new Map(Object.entries({
       ["--project <name|id|path>", "Pin to a specific daemon project."],
     ],
     examples: ["apx session compact reviewer --conversation abc123"],
+  }),
+  sessions: topic({
+    title: "apx sessions",
+    summary: "List AI engine sessions (Claude Code, Codex, APX) non-interactively.",
+    usage: ["apx sessions list [--engine <id>] [--project <name>|--dir <path>] [--limit N]"],
+    commands: [
+      ["list | ls", "List engine projects, or sessions of one project."],
+    ],
+    options: [
+      ["--engine <id>", "apx (default) | claude | codex | antigravity."],
+      ["--project <name>", "A registered APX project to resolve the directory from."],
+      ["--dir <path>", "An explicit project directory (for unregistered projects)."],
+      ["--limit N", "Show only the N most recent sessions."],
+    ],
+    examples: [
+      "apx sessions list --engine claude",
+      "apx sessions list --engine claude --project iacrmar",
+      "apx sessions list --engine codex --dir /path/to/project",
+    ],
+  }),
+  "sessions list": topic({
+    title: "apx sessions list",
+    summary: "List engine projects, or the sessions of one resolved project.",
+    usage: [
+      "apx sessions list [--engine <id>]",
+      "apx sessions list --engine <id> --project <name>",
+      "apx sessions list --engine <id> --dir <path>",
+    ],
+    options: [
+      ["--engine <id>", "apx (default) | claude | codex | antigravity."],
+      ["--project <name>", "Resolve directory from a registered APX project."],
+      ["--dir <path>", "Explicit project directory."],
+      ["--limit N", "Show only the N most recent sessions."],
+    ],
+    examples: [
+      "apx sessions list",
+      "apx sessions list --engine claude --project iacrmar",
+      "apx sessions list --engine codex --dir /Volumes/work/iacrmar",
+    ],
   }),
   mcp: topic({
     title: "apx mcp",
@@ -1049,6 +1089,7 @@ const HELP_ALIASES = new Map(Object.entries({
   "agent vault ls": "agent vault list",
   "session ls": "session list",
   "session show": "session get",
+  "sessions ls": "sessions list",
   "mcp ls": "mcp list",
   "mcp rm": "mcp remove",
   "conv list": "conversations list",
@@ -1140,6 +1181,7 @@ function buildHelp(version) {
     hCmd("apx session close-stale",    36, "auto-close sessions older than 1h"),
     hCmd("apx session resume <id>",    36, "--summary  --full  (APC + Claude Code transcript)"),
     hCmd("apx session compact <slug>", 36, "--conversation <id>  collapse history into summary"),
+    hCmd("apx sessions list",          36, "list AI engine sessions  --engine claude|codex|apx  --project P | --dir D"),
 
     hSec("MCPs"),
     hCmd("apx mcp list",               36, ""),
@@ -1423,6 +1465,15 @@ async function dispatch(cmd, rest) {
         else if (sub === "resume") await cmdSessionResume(a);
         else if (sub === "compact") await cmdSessionCompact(a);
         else die(`unknown session subcommand: ${sub || "(none)"}`);
+        break;
+      }
+
+      case "sessions": {
+        const sub = rest[0];
+        const isListSub = sub === "list" || sub === "ls";
+        const a = parseArgs(isListSub ? rest.slice(1) : rest);
+        if (!sub || isListSub || sub.startsWith("--")) cmdSessionsList(a);
+        else die(`unknown sessions subcommand: ${sub} — try: list`);
         break;
       }
 

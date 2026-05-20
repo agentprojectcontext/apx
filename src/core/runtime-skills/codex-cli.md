@@ -60,6 +60,23 @@ codex exec --json --sandbox workspace-write --skip-git-repo-check "task"
 `--skip-git-repo-check` matters for APX default runtime dirs such as `~/.apx/projects/default`,
 which may not be Git repositories.
 
+## List and resume sessions
+
+List Codex sessions for a project non-interactively with APX:
+
+```bash
+apx sessions list --engine codex --project <name>   # registered APX project
+apx sessions list --engine codex --dir <path>       # any directory
+```
+
+Resume a session:
+
+```bash
+codex resume <session-id>                  # interactive
+codex exec resume <session-id> "..."       # non-interactive
+codex resume --last                        # most recent session
+```
+
 ## APX runtime
 
 Run a project agent through Codex:

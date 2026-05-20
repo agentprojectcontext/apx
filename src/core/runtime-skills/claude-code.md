@@ -53,6 +53,23 @@ For high-trust automation in an already sandboxed environment:
 claude -p "task" --permission-mode bypassPermissions --output-format json
 ```
 
+## List and resume sessions
+
+Claude Code has no `--list`; `--resume` is always an interactive picker. To list
+sessions non-interactively, use APX:
+
+```bash
+apx sessions list --engine claude --project <name>   # registered APX project
+apx sessions list --engine claude --dir <path>       # any directory
+```
+
+This prints each session's id and title. To resume one (run from the project directory):
+
+```bash
+claude --continue                       # most recent session
+claude -p --resume <session-id> "..."   # specific session, always with -p (print mode)
+```
+
 ## APX runtime
 
 Run a project agent through Claude Code:
