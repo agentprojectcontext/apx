@@ -4,6 +4,7 @@ import os from "node:os";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { readAgents, readAgentsFromDir, VAULT_DIR } from "./parser.js";
+import { readApcContextSkill } from "./apc-skill-sync.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PACKAGE_ROOT = path.resolve(__dirname, "..", "..");
@@ -15,10 +16,16 @@ export const SPEC_VERSION = "0.1.0";
 // ---------------------------------------------------------------------------
 // Bundled skills — single source of truth lives at <packageRoot>/skills/<slug>/SKILL.md
 // with proper frontmatter. The `apc-context` copy is refreshed on every
-// install/update from the canonical APC repo (see src/cli/postinstall.js).
+// install/update from the canonical APC repo (see src/interfaces/cli/postinstall.js).
 // ---------------------------------------------------------------------------
 
+// Bundled skills — apx lives in skills/apx/. apc-context is synced from
+// the canonical APC repo (../apc or GitHub) — never edited in APX.
 function readBundledSkill(slug) {
+  if (slug === "apc-context") {
+    const synced = readApcContextSkill();
+    return synced?.text || null;
+  }
   const file = path.join(BUNDLED_SKILLS_DIR, slug, "SKILL.md");
   if (!fs.existsSync(file)) return null;
   return fs.readFileSync(file, "utf8");
@@ -180,7 +187,7 @@ export function installIdeSkills(root, targetIds = null) {
 // Only apx and apc-context are installed everywhere — they teach IDE tools
 // (Claude Code, Cursor, Codex) about the APX CLI and APC project standard.
 // Runtime CLI skills (claude-code, codex-cli, etc.) are APX-internal; APX
-// loads them from src/daemon/runtime-skills/ at startup and does NOT push
+// loads them from src/core/runtime-skills/ at startup and does NOT push
 // them to other tools' global skill dirs.
 // Returns an array of result objects with { dir, skill, status }.
 export function installGlobalSkills() {

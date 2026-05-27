@@ -14,7 +14,7 @@ test("transcription: DEFAULT_LOCAL exposes a timeout_ms >= 20 minutes", async ()
   const { fileURLToPath } = await import("node:url");
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
   const src = fs.readFileSync(
-    path.join(__dirname, "..", "src", "daemon", "transcription.js"),
+    path.join(__dirname, "..", "src", "host", "daemon", "transcription.js"),
     "utf8",
   );
 
@@ -36,7 +36,7 @@ test("transcription: timeout fetch call uses opts.timeout_ms when provided", asy
   const { fileURLToPath } = await import("node:url");
   const __dirname = path.dirname(fileURLToPath(import.meta.url));
   const src = fs.readFileSync(
-    path.join(__dirname, "..", "src", "daemon", "transcription.js"),
+    path.join(__dirname, "..", "src", "host", "daemon", "transcription.js"),
     "utf8",
   );
   // Should bind opts.timeout_ms to the local `timeoutMs` AND pass it to

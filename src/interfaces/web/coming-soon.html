@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>APX — web admin (coming soon)</title>
+  <style>
+    :root { color-scheme: light dark; }
+    html, body {
+      margin: 0; padding: 0;
+      font: 16px/1.5 -apple-system, system-ui, "Segoe UI", Roboto, sans-serif;
+      background: #0b0d10; color: #d6dbe1;
+      min-height: 100vh;
+      display: grid; place-items: center;
+    }
+    main { max-width: 540px; padding: 2rem; }
+    h1 {
+      font-size: 1.6rem; margin: 0 0 0.5rem;
+      letter-spacing: -0.02em;
+    }
+    .mascot {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      font-size: 0.78rem; line-height: 1; color: #6b7785;
+      white-space: pre; margin-bottom: 1.25rem;
+    }
+    p { margin: 0.4rem 0; color: #aab2bc; }
+    code {
+      font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      background: #1a1e23; padding: 0.1em 0.4em; border-radius: 3px;
+      font-size: 0.88em;
+    }
+    a { color: #7ab8ff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .meta {
+      margin-top: 1.5rem; padding-top: 1rem;
+      border-top: 1px solid #1f242a; font-size: 0.85rem; color: #6b7785;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="mascot">  ▄███████▄
+ █ ██   ██ █
+ █  ◕   ◕  █
+ █   ╰~╯   █
+  ▀███████▀
+   ╱  ╲  ╱  ╲</div>
+
+    <h1>Web admin — coming soon</h1>
+
+    <p>This is going to be the APX control panel: config, projects, agents, routines, channels, MCPs, sessions, tasks. Everything you'd otherwise do via <code>apx</code> on the terminal.</p>
+
+    <p>It's not built yet. The daemon is running fine — you can use the CLI in the meantime:</p>
+
+    <p style="margin-top: 0.8rem;">
+      <code>apx --help</code> &nbsp; <code>apx status</code> &nbsp; <code>apx code</code>
+    </p>
+
+    <div class="meta">
+      Daemon health: <code>GET /health</code> &middot;
+      Tracked in <code>spec/backlog/08-web-admin-panel.md</code>
+    </div>
+  </main>
+</body>
+</html>

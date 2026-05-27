@@ -34,7 +34,9 @@ const DEFAULT_CONFIG = {
   log_level: "info",
   projects: [],
   user: {
-    language: "en",  // ISO 639-1 two-letter code; used by transcription, super-agent, and wake-up message
+    language: "en",  // ISO 639-1; super-agent replies, transcription, wake-up
+    locale: "",      // optional BCP-47 dialect hint, e.g. es-AR
+    timezone: "",    // optional IANA zone, e.g. America/Argentina/Buenos_Aires
   },
   telegram: {
     enabled: false,
@@ -49,15 +51,38 @@ const DEFAULT_CONFIG = {
     enabled: false,
     name: "apx",
     model: "",                          // e.g. "ollama:llama3.2:3b"
-    system: "",                         // optional override; defaults baked into super-agent.js
+    system: "",                         // optional override; defaults in src/core/agent/prompts/
     permission_mode: "automatico",       // total | automatico | permiso
     allowed_tools: [],                   // used by permission_mode="permiso"
+    model_fallback: {
+      enabled: true,
+      order: ["ollama", "openrouter", "groq"],
+      models: {
+        openrouter: "openrouter:meta-llama/llama-3.3-70b-instruct",
+        groq: "groq:llama-3.3-70b-versatile",
+      },
+      health_timeout_ms: 800,
+    },
   },
   engines: {
     anthropic: { api_key: "" },
-    openai: { api_key: "" },
+    openai: { api_key: "", base_url: "https://api.openai.com/v1" },
+    groq: { api_key: "", base_url: "https://api.groq.com/openai/v1" },
+    openrouter: { api_key: "", base_url: "https://openrouter.ai/api/v1" },
     gemini: { api_key: "" },
     ollama: { base_url: "http://localhost:11434" },
+  },
+  voice: {
+    // Text-to-speech configuration. Selector reads voice.tts.provider; "auto"
+    // probes engines in preference order (piper → elevenlabs → openai →
+    // gemini → mock). Per-engine settings live under voice.tts.<engine>.
+    tts: {
+      provider: "auto",         // "auto" | "piper" | "elevenlabs" | "openai" | "gemini" | "mock"
+      piper:      { bin: "piper", model: "", speaker: "", extra_args: [] },
+      elevenlabs: { api_key: "", model: "eleven_multilingual_v2", voice_id: "", output_format: "mp3_44100_128" },
+      openai:     { api_key: "", model: "tts-1", voice: "alloy", format: "mp3" },
+      gemini:     { api_key: "", model: "gemini-2.5-flash-preview-tts", voice: "Kore" },
+    },
   },
 };
 
@@ -97,14 +122,39 @@ export function mergeDefaults(cfg) {
       ...(cfg.telegram || {}),
       channels: Array.isArray(cfg.telegram?.channels) ? cfg.telegram.channels : [],
     },
-    super_agent: { ...DEFAULT_CONFIG.super_agent, ...(cfg.super_agent || {}) },
+    super_agent: {
+      ...DEFAULT_CONFIG.super_agent,
+      ...(cfg.super_agent || {}),
+      model_fallback: {
+        ...DEFAULT_CONFIG.super_agent.model_fallback,
+        ...(cfg.super_agent?.model_fallback || {}),
+        models: {
+          ...DEFAULT_CONFIG.super_agent.model_fallback.models,
+          ...(cfg.super_agent?.model_fallback?.models || {}),
+        },
+      },
+    },
     engines: {
       ...DEFAULT_CONFIG.engines,
       ...(cfg.engines || {}),
       anthropic: { ...DEFAULT_CONFIG.engines.anthropic, ...(cfg.engines?.anthropic || {}) },
       openai:    { ...DEFAULT_CONFIG.engines.openai,    ...(cfg.engines?.openai    || {}) },
+      groq:      { ...DEFAULT_CONFIG.engines.groq,      ...(cfg.engines?.groq      || {}) },
+      openrouter: { ...DEFAULT_CONFIG.engines.openrouter, ...(cfg.engines?.openrouter || {}) },
       gemini:    { ...DEFAULT_CONFIG.engines.gemini,    ...(cfg.engines?.gemini    || {}) },
       ollama:    { ...DEFAULT_CONFIG.engines.ollama,    ...(cfg.engines?.ollama    || {}) },
+    },
+    voice: {
+      ...DEFAULT_CONFIG.voice,
+      ...(cfg.voice || {}),
+      tts: {
+        ...DEFAULT_CONFIG.voice.tts,
+        ...(cfg.voice?.tts || {}),
+        piper:      { ...DEFAULT_CONFIG.voice.tts.piper,      ...(cfg.voice?.tts?.piper      || {}) },
+        elevenlabs: { ...DEFAULT_CONFIG.voice.tts.elevenlabs, ...(cfg.voice?.tts?.elevenlabs || {}) },
+        openai:     { ...DEFAULT_CONFIG.voice.tts.openai,     ...(cfg.voice?.tts?.openai     || {}) },
+        gemini:     { ...DEFAULT_CONFIG.voice.tts.gemini,     ...(cfg.voice?.tts?.gemini     || {}) },
+      },
     },
     projects: Array.isArray(cfg.projects) ? cfg.projects : [],
   };

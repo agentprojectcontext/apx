@@ -5,10 +5,10 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
-import { ENGINES } from "../src/cli/commands/sessions.js";
+import { ENGINES } from "../src/interfaces/cli/commands/sessions.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const CLI = path.join(__dirname, "..", "src", "cli", "index.js");
+const CLI = path.join(__dirname, "..", "src", "interfaces", "cli", "index.js");
 
 function encode(p) {
   return String(p).replace(/[^A-Za-z0-9]/g, "-");

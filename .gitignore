@@ -1,8 +1,7 @@
 node_modules/
 
-# Build output — produced by `npm run build` from src/cli-ts/.
-# Published to npm via the package's `files` array, not via git.
-dist/
+# APC context skill — canonical source is agentprojectcontext/apc (synced at install/prepack)
+skills/apc-context/
 
 # Runtime data — never commit real session logs or runtime state
 **/.apc/messages/*.jsonl

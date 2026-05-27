@@ -12,7 +12,7 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import ollama from "../src/daemon/engines/ollama.js";
+import ollama from "../src/core/engines/ollama.js";
 
 function stubFetchCapturingBody() {
   const captured = {};

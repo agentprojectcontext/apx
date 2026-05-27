@@ -73,6 +73,20 @@ Use `apx project list` to see registered project IDs and names before creating r
 
 When acting as APX itself (self-run, "vos mismo", or default mode), always use `apx` as the agent identity for sessions and logs. Do **not** force the selection of a project agent from `AGENTS.md` unless the user explicitly names one. Tool calls like `call_runtime` should omit the `agent` parameter in this mode.
 
+### 7. "Super-agent" terminology
+
+`super-agent` is **not** a persona name — it is the *mode* in which the APX default agent runs (the daemon-level tool-using loop that handles requests when no project agent is named). It appears in:
+
+- Code paths: `src/core/agent/run-agent.js`, `src/host/daemon/super-agent.js`, `src/host/daemon/api/super-agent.js`
+- HTTP routes: `/projects/:pid/super-agent/chat[/stream]`
+- Config keys: `~/.apx/config.json → super_agent.{enabled, model, system, model_fallback}`
+- Channel meta and routine kinds: `kind: "super_agent"`
+- Prompts: `src/core/agent/prompts/super-agent-base.md`
+
+The user-facing display name of this agent comes from `~/.apx/identity.json` (the "agent name"). When writing user-visible copy (Telegram, overlay bubbles, CLI output, error messages), refer to the agent by that identity name — never as "super-agent". When writing internal documentation or code comments, "super-agent" is the correct term for the mode.
+
+If you are an LLM reading this: treat any user reference to "the super-agent" as a reference to **you in default-APX mode**. Do not look for an agent literally named `super-agent`; there isn't one.
+
 ---
 
 ## Agents in this project

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { handleEditingKey, handleScrollKey, isExitCommand, isReturnKey } from "../src/cli/commands/sys.js";
+import { handleEditingKey, handleScrollKey, isExitCommand, isReturnKey } from "../src/interfaces/cli/commands/sys.js";
 
 function makeState() {
   return {
