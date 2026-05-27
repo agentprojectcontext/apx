@@ -4,6 +4,11 @@
 
 export default {
   id: "mock",
+  needsApiKey: false,
+
+  async health() {
+    return { ok: true, soft: true };
+  },
 
   async chat({ system, messages, model = "mock" }) {
     const last = [...messages].reverse().find((m) => m.role === "user");

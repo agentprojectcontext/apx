@@ -10,6 +10,22 @@ function getKey(config) {
 
 export default {
   id: "anthropic",
+  needsApiKey: true,
+  apiKeyEnv: "ANTHROPIC_API_KEY",
+  defaultFallbackModel: "anthropic:claude-haiku-4-5",
+
+  /**
+   * Anthropic doesn't expose a cheap "/health" surface and `/v1/messages` is
+   * billed. We treat "have an api_key" as the gate; the actual call surfaces
+   * 401s if the key is bad. Marked `soft: true` so callers know this is a
+   * presence check, not a real probe.
+   */
+  async health(config = {}) {
+    const key = getKey(config);
+    return key
+      ? { ok: true, provider: "anthropic", soft: true }
+      : { ok: false, provider: "anthropic", reason: "no api_key" };
+  },
 
   async chat({ system, messages, model, temperature = 1.0, maxTokens = 1024, config = {}, tools, toolChoice, signal, onToken }) {
     const key = getKey(config);

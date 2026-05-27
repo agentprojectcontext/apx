@@ -1,4 +1,11 @@
-// Model router: quick provider health checks + ordered fallback.
+// Model router: thin orchestrator over engine adapters.
+//
+// What used to be a long per-provider switch (health checks, env-var maps,
+// default fallback models, base URLs) now lives in each adapter under
+// src/core/engines/<provider>.js. The router only knows the grammar of model
+// ids and the algorithm of trying the chain in order. Per-provider details
+// are owned by the provider.
+import { getAdapter } from "../engines/index.js";
 
 export function parseModelId(modelId) {
   if (typeof modelId !== "string" || !modelId) {
@@ -15,155 +22,49 @@ export function parseModelId(modelId) {
   throw new Error(`cannot infer provider for model "${modelId}"`);
 }
 
-export const DEFAULT_FALLBACK_ORDER = ["ollama", "openrouter", "groq"];
+// Default chain when no super_agent.model_fallback is configured. Order: the
+// cloud providers that have a published default model id. Ollama isn't here
+// because it depends on the user's pulled models. Anthropic/Gemini neither
+// (key-gated, no canonical free fallback).
+export const DEFAULT_FALLBACK_ORDER = ["openrouter", "groq"];
 
-export const DEFAULT_FALLBACK_MODELS = {
-  openrouter: "openrouter:meta-llama/llama-3.3-70b-instruct",
-  groq: "groq:llama-3.3-70b-versatile",
-};
+// Built on demand from each adapter's `defaultFallbackModel`. Kept as a
+// getter so adding an engine doesn't require updating this file.
+function getDefaultFallbackModels() {
+  const map = {};
+  for (const id of DEFAULT_FALLBACK_ORDER) {
+    try {
+      const a = getAdapter(id);
+      if (a?.defaultFallbackModel) map[id] = a.defaultFallbackModel;
+    } catch { /* missing adapter — skip */ }
+  }
+  return map;
+}
+export const DEFAULT_FALLBACK_MODELS = getDefaultFallbackModels();
 
 function engineCfg(config, provider) {
   return (config?.engines && config.engines[provider]) || {};
 }
 
-function hasApiKey(config, provider) {
-  const cfg = engineCfg(config, provider);
-  const envMap = {
-    openai: "OPENAI_API_KEY",
-    groq: "GROQ_API_KEY",
-    openrouter: "OPENROUTER_API_KEY",
-    anthropic: "ANTHROPIC_API_KEY",
-    gemini: "GEMINI_API_KEY",
-  };
-  const key = cfg.api_key || process.env[envMap[provider] || ""] || "";
-  return Boolean(String(key).trim());
-}
-
-async function pingUrl(url, { timeoutMs = 800, headers = {} } = {}) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    const res = await Promise.race([
-      fetch(url, { signal: ctrl.signal, headers }),
-      new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("timeout")), timeoutMs);
-      }),
-    ]);
-    return { ok: res.ok, status: res.status };
-  } catch (e) {
-    const msg = e?.message || "unreachable";
-    return { ok: false, reason: /abort|timeout/i.test(msg) ? "timeout" : msg };
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-// Same shape as pingUrl but returns the parsed JSON body when the response
-// is 2xx. Used by the Ollama strict-model health check below.
-async function fetchJsonWithTimeout(url, { timeoutMs = 800, headers = {} } = {}) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, { signal: ctrl.signal, headers });
-    if (!res.ok) return { ok: false, status: res.status, reason: `HTTP ${res.status}` };
-    const json = await res.json().catch(() => null);
-    return { ok: true, status: res.status, json };
-  } catch (e) {
-    const msg = e?.message || "unreachable";
-    return { ok: false, reason: /abort|timeout/i.test(msg) ? "timeout" : msg };
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-// Decide whether an Ollama `/api/tags` response actually has the model the
-// caller is about to use. Matches first on exact `models[].name`, then on a
-// permissive prefix (so `llama3` matches `llama3:latest`). Returns
-// { present, available } so callers can report what's there for diagnostics.
-function ollamaHasModel(tagsJson, candidateModel) {
-  const list = Array.isArray(tagsJson?.models) ? tagsJson.models : [];
-  const names = list.map((m) => m?.name).filter((n) => typeof n === "string");
-  if (!candidateModel) return { present: true, available: names };
-  const wanted = String(candidateModel).trim();
-  if (!wanted) return { present: true, available: names };
-  if (names.includes(wanted)) return { present: true, available: names };
-  // Tolerate "foo" matching "foo:latest" / "foo:tag".
-  const prefix = wanted + ":";
-  if (names.some((n) => n.startsWith(prefix))) return { present: true, available: names };
-  return { present: false, available: names };
-}
-
 /**
- * Check whether a provider is reachable AND, when given a candidate model,
- * whether that specific model is actually loaded. Without the candidate the
- * check stays loose (just "is the host up"); with one it's strict.
+ * Delegate to the provider's adapter for the actual probe. The router used to
+ * have a per-provider switch here; that's now adapter responsibility.
  *
- * The `candidateModel` parameter is the bare model id WITHOUT the
- * "<provider>:" prefix (e.g. "gemma4:31b-cloud", "llama-3.3-70b-versatile").
+ * `candidateModel` is the bare model id (no "<provider>:" prefix). Adapters
+ * that care (Ollama strict mode) use it; others ignore it.
  */
 export async function checkProviderHealth(provider, config, timeoutMs = 800, opts = {}) {
   const p = String(provider || "").toLowerCase();
-  const candidate = opts.candidateModel || null;
-
-  if (p === "ollama") {
-    const base = (engineCfg(config, "ollama").base_url || process.env.OLLAMA_HOST || "http://localhost:11434")
-      .replace(/\/$/, "");
-    // Strict path: when we know which model is expected, parse /api/tags and
-    // verify it's pulled. Otherwise fall back to a plain reachability ping.
-    if (candidate) {
-      const res = await fetchJsonWithTimeout(`${base}/api/tags`, { timeoutMs });
-      if (!res.ok) {
-        return { ok: false, provider: p, reason: res.reason || `HTTP ${res.status}`, detail: base };
-      }
-      const { present, available } = ollamaHasModel(res.json, candidate);
-      if (present) {
-        return { ok: true, provider: p, detail: base };
-      }
-      return {
-        ok: false,
-        provider: p,
-        reason: `model "${candidate}" not loaded on this host`,
-        detail: base,
-        available,
-      };
-    }
-    const res = await pingUrl(`${base}/api/tags`, { timeoutMs });
-    return res.ok
-      ? { ok: true, provider: p, detail: base }
-      : { ok: false, provider: p, reason: res.reason || `HTTP ${res.status}`, detail: base };
+  let adapter;
+  try {
+    adapter = getAdapter(p);
+  } catch {
+    return { ok: false, provider: p, reason: "unknown provider" };
   }
-
-  if (p === "groq" || p === "openrouter" || p === "openai") {
-    if (!hasApiKey(config, p)) {
-      return { ok: false, provider: p, reason: "no api_key" };
-    }
-    const cfg = engineCfg(config, p);
-    const base = (cfg.base_url || {
-      groq: "https://api.groq.com/openai/v1",
-      openrouter: "https://openrouter.ai/api/v1",
-      openai: "https://api.openai.com/v1",
-    }[p]).replace(/\/$/, "");
-    const key = cfg.api_key || process.env[{ groq: "GROQ_API_KEY", openrouter: "OPENROUTER_API_KEY", openai: "OPENAI_API_KEY" }[p]] || "";
-    const res = await pingUrl(`${base}/models`, {
-      timeoutMs: Math.max(timeoutMs, 1200),
-      headers: { authorization: `Bearer ${key}` },
-    });
-    if (res.ok) return { ok: true, provider: p, detail: base };
-    // Key present but models ping failed — still allow attempt (some keys lack /models).
-    return { ok: true, provider: p, detail: base, soft: true, reason: res.reason || `HTTP ${res.status}` };
+  if (typeof adapter.health !== "function") {
+    return { ok: false, provider: p, reason: "adapter has no health()" };
   }
-
-  if (p === "anthropic" || p === "gemini") {
-    return hasApiKey(config, p)
-      ? { ok: true, provider: p, soft: true }
-      : { ok: false, provider: p, reason: "no api_key" };
-  }
-
-  if (p === "mock") {
-    return { ok: true, provider: p, soft: true };
-  }
-
-  return { ok: false, provider: p, reason: "unknown provider" };
+  return adapter.health(engineCfg(config, p), { timeoutMs, candidateModel: opts.candidateModel || null });
 }
 
 /**

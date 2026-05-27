@@ -9,6 +9,16 @@ function getKey(config) {
 
 export default {
   id: "gemini",
+  needsApiKey: true,
+  apiKeyEnv: "GEMINI_API_KEY",
+  defaultFallbackModel: null, // no canonical free model — user picks
+
+  async health(config = {}) {
+    const key = getKey(config);
+    return key
+      ? { ok: true, provider: "gemini", soft: true }
+      : { ok: false, provider: "gemini", reason: "no api_key" };
+  },
 
   async chat({ system, messages, model, temperature = 0.7, maxTokens = 1024, config = {}, signal }) {
     const key = getKey(config);

@@ -1,5 +1,6 @@
 // Ollama adapter (https://github.com/ollama/ollama/blob/main/docs/api.md#generate-a-chat-completion).
 // Local-only. No API key. Default base_url http://localhost:11434.
+import { pingUrl, fetchJsonWithTimeout, modelInOllamaTags } from "./_health.js";
 
 function baseUrl(config) {
   return config.base_url || process.env.OLLAMA_HOST || "http://localhost:11434";
@@ -7,6 +8,40 @@ function baseUrl(config) {
 
 export default {
   id: "ollama",
+  needsApiKey: false,
+  defaultBaseUrl: "http://localhost:11434",
+
+  /**
+   * Health check. Two modes:
+   *  - Loose (no candidateModel): just confirm `/api/tags` answers — useful
+   *    for "is the host reachable" diagnostics in `apx status`.
+   *  - Strict (candidateModel given): confirm the model is actually pulled
+   *    on this host. Otherwise the chat call would fail with a confusing
+   *    "model not found" mid-conversation; better to fall through to the
+   *    next fallback now.
+   */
+  async health(config = {}, { timeoutMs = 800, candidateModel = null } = {}) {
+    const base = baseUrl(config).replace(/\/$/, "");
+    if (!candidateModel) {
+      const res = await pingUrl(`${base}/api/tags`, { timeoutMs });
+      return res.ok
+        ? { ok: true, provider: "ollama", detail: base }
+        : { ok: false, provider: "ollama", reason: res.reason || `HTTP ${res.status}`, detail: base };
+    }
+    const res = await fetchJsonWithTimeout(`${base}/api/tags`, { timeoutMs });
+    if (!res.ok) {
+      return { ok: false, provider: "ollama", reason: res.reason || `HTTP ${res.status}`, detail: base };
+    }
+    const { present, available } = modelInOllamaTags(res.json, candidateModel);
+    if (present) return { ok: true, provider: "ollama", detail: base };
+    return {
+      ok: false,
+      provider: "ollama",
+      reason: `model "${candidateModel}" not loaded on this host`,
+      detail: base,
+      available,
+    };
+  },
 
   async chat({ system, messages, model, temperature = 0.7, maxTokens = 1024, tools, toolChoice, config = {}, signal, onToken }) {
     if (!model) throw new Error("ollama: model required");

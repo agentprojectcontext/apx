@@ -1,6 +1,12 @@
 // Shared OpenAI-compatible chat adapter (OpenAI, Groq, OpenRouter, …).
+import { pingUrl } from "./_health.js";
 
-export function createOpenAiCompatibleEngine({ id, defaultBaseUrl, apiKeyEnv }) {
+export function createOpenAiCompatibleEngine({
+  id,
+  defaultBaseUrl,
+  apiKeyEnv,
+  defaultFallbackModel = null,
+}) {
   function getKey(config) {
     return config?.api_key || process.env[apiKeyEnv] || "";
   }
@@ -12,6 +18,36 @@ export function createOpenAiCompatibleEngine({ id, defaultBaseUrl, apiKeyEnv }) 
 
   return {
     id,
+    needsApiKey: true,
+    apiKeyEnv,
+    defaultBaseUrl,
+    defaultFallbackModel,
+
+    /**
+     * Health: confirm we have a key and the `/models` catalog answers.
+     * Returns `soft: true` when /models fails — some keys are limited to
+     * /chat/completions only, so we allow the chain to proceed but flag it.
+     */
+    async health(config = {}, { timeoutMs = 800 } = {}) {
+      if (!getKey(config)) {
+        return { ok: false, provider: id, reason: "no api_key" };
+      }
+      const base = getBaseUrl(config);
+      const res = await pingUrl(`${base}/models`, {
+        timeoutMs: Math.max(timeoutMs, 1200),
+        headers: { authorization: `Bearer ${getKey(config)}` },
+      });
+      if (res.ok) return { ok: true, provider: id, detail: base };
+      // Key present but catalog ping failed — keep going, the chat call will
+      // either succeed or surface its own error. See backlog 13 (lazy retry).
+      return {
+        ok: true,
+        provider: id,
+        detail: base,
+        soft: true,
+        reason: res.reason || `HTTP ${res.status}`,
+      };
+    },
 
     async chat({
       system,
