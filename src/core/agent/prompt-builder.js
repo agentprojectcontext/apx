@@ -132,6 +132,12 @@ export function buildSuperAgentSystem({
   contextNote = "",
   channel = "",
   channelMeta = {},
+  // Channel-specific addendum the super-agent caller can inject —
+  // e.g. voice.js asks for a trailing ```suggestions``` JSON block on
+  // voice/deck surfaces. Kept separate from contextNote so it lives
+  // at the end of the system prompt (where format directives belong),
+  // not mixed in with situational context.
+  systemSuffix = "",
 }) {
   const sa = globalConfig.super_agent;
   const projectIndex = projects
@@ -158,6 +164,7 @@ export function buildSuperAgentSystem({
     "# Registered projects (just the index — call tools for details)",
     projectIndex || "(no projects registered)",
     buildSkillsCatalog(listSkills),
+    systemSuffix,
   ]
     .filter(Boolean)
     .join("\n\n");

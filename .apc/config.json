@@ -1,0 +1,12 @@
+{
+  "super_agent": {
+    "model": "ollama:gemma4:31b-cloud",
+    "model_fallback": {
+      "models": [
+        "gemini:gemini-2.5-flash",
+        "groq:llama-3.3-70b-versatile",
+        "openrouter:openrouter/free"
+      ]
+    }
+  }
+}

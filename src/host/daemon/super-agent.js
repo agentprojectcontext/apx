@@ -30,6 +30,10 @@ export async function runSuperAgent({
   signal,
   onToken = null,
   suppressTools = null,
+  // Channel-specific addendum appended to the system prompt; used by
+  // voice.js to ask for trailing ```suggestions``` JSON on voice/deck
+  // surfaces. Optional; ignored if empty.
+  systemSuffix = "",
 }) {
   if (!isSuperAgentEnabled(globalConfig)) {
     throw new Error("super-agent not enabled (set super_agent.enabled and .model in ~/.apx/config.json)");
@@ -43,6 +47,7 @@ export async function runSuperAgent({
     contextNote,
     channel,
     channelMeta,
+    systemSuffix,
   });
 
   // Pick the schema subset for this channel: chit-chat surfaces get a small

@@ -386,7 +386,27 @@ async function runDeckExec({ kind, target, appHint, text, ctx }) {
     if (platform !== "darwin") throw new Error("open_app only implemented on macOS for now");
     const appName = MAC_APPS[String(target || "").toLowerCase()];
     if (!appName) throw new Error(`unknown app: ${target}`);
+    // Two-step launch:
+    //   1. `open -a` ensures the app is running (no-op if already up).
+    //   2. AppleScript `activate` brings it to the foreground across
+    //      Spaces / Stage Manager, which `open` alone often skips when
+    //      the app was already running in the background.
+    // Both are best-effort; we surface success as long as the launch
+    // command exited cleanly.
     await spawnDetached("open", ["-a", appName]);
+    try {
+      await new Promise((resolve) => {
+        const child = spawn("osascript", [
+          "-e",
+          `tell application "${appName}" to activate`,
+        ], { stdio: "ignore" });
+        child.on("close", () => resolve());
+        child.on("error", () => resolve());
+        setTimeout(() => { try { child.kill(); } catch {} ; resolve(); }, 600);
+      });
+    } catch {
+      // osascript missing or refused — `open -a` already ran.
+    }
     return { app: appName };
   }
 

@@ -25,6 +25,121 @@ import { transcribe } from "../transcription.js";
 import { runSuperAgent, isSuperAgentEnabled } from "../super-agent.js";
 import { appendErrorTrace, previewText } from "../../../core/logging.js";
 
+// ── Channel-aware pre-processor ────────────────────────────────────
+//
+// Each surface that talks to the super-agent (voice overlay on the
+// deck, deck buttons, telegram, raw API) has different ergonomics:
+// what the response will look like, how long it can be, whether the
+// UI can render structured suggestions. `buildChannelContext` is the
+// single place where those decisions live — voice.js passes the
+// channel string from the request body and gets back the context
+// note + system suffix to feed into the super-agent.
+//
+// The shape is intentionally tiny: contextNote becomes the
+// `contextNote` field on the super-agent call (gets prepended to the
+// prompt), systemSuffix is concatenated onto the system prompt to
+// teach the model surface-specific output rules (e.g. trailing
+// ```suggestions JSON block``` on voice/deck).
+function buildChannelContext(channel, { projectId, language = "es" } = {}) {
+  const base = {
+    contextNote: "",
+    systemSuffix: "",
+    wantsSuggestions: false,
+  };
+  const projectHint = projectId ? `\nActive project id: ${projectId}.` : "";
+  // Hard language directive — without this the model defaults to its
+  // training-bias English on short Spanish prompts, especially when
+  // the user mixes English-ish product names ("aicrm").
+  const langDirective = language === "es"
+    ? "IMPORTANT: Reply ALWAYS in Spanish (rioplatense/Argentina). The user speaks Spanish."
+    : `IMPORTANT: Reply in language "${language}".`;
+
+  switch (channel) {
+    case "voice":
+      return {
+        contextNote:
+          `${langDirective}\n` +
+          `Channel: voice. The user spoke this through the deck's voice overlay; ` +
+          `your reply will be read aloud by a TTS engine. Keep it under two short ` +
+          `sentences, no markdown, no bullet lists.${projectHint}`,
+        systemSuffix: SUGGESTIONS_INSTRUCTION,
+        wantsSuggestions: true,
+      };
+    case "deck":
+      return {
+        contextNote:
+          `${langDirective}\n` +
+          `Channel: deck. The user is on the cockpit dashboard. You can be ` +
+          `slightly longer than voice but stay concise — the reply renders in a ` +
+          `small card alongside action chips.${projectHint}`,
+        systemSuffix: SUGGESTIONS_INSTRUCTION,
+        wantsSuggestions: true,
+      };
+    case "telegram":
+      return {
+        contextNote:
+          `${langDirective}\n` +
+          `Channel: telegram. Reply in conversational tone; markdown is fine; ` +
+          `length up to a short paragraph. No suggestion chips — the user has a ` +
+          `keyboard.${projectHint}`,
+        systemSuffix: "",
+        wantsSuggestions: false,
+      };
+    default:
+      return {
+        ...base,
+        contextNote: `${langDirective}\nChannel: ${channel || "api"}.${projectHint}`,
+      };
+  }
+}
+
+const SUGGESTIONS_INSTRUCTION = `
+
+Output rule for this surface:
+After your visible reply, append a fenced code block tagged \`suggestions\`
+containing a JSON array of 2 to 4 short next-step actions the user is
+likely to want. Each entry must have a "label" (≤ 28 chars, sentence
+case, imperative) and an optional "command" (one of:
+"open_app:<name>", "task.create:<title>", "note.create", "copy_context",
+"open_path", or omitted for free-form). The user does NOT see the block;
+the deck strips it before rendering. Example:
+
+\`\`\`suggestions
+[{"label":"Abrir Claude","command":"open_app:claude"},
+ {"label":"Anotar como tarea","command":"task.create:revisar logs"}]
+\`\`\`
+
+If no useful next step exists, return an empty array \`[]\`.`;
+
+// Pull the trailing ```suggestions ... ``` block off the agent's
+// reply. Returns { cleanText, suggestions[] } — cleanText is the
+// reply with the block removed so the user (and TTS) never sees it.
+const SUGGESTIONS_BLOCK_RE = /\n*```\s*suggestions\s*\n([\s\S]*?)\n?```\s*$/i;
+
+function extractSuggestions(text) {
+  if (typeof text !== "string" || !text) return { cleanText: text || "", suggestions: [] };
+  const m = SUGGESTIONS_BLOCK_RE.exec(text);
+  if (!m) return { cleanText: text, suggestions: [] };
+  const cleanText = text.slice(0, m.index).trim();
+  let suggestions = [];
+  try {
+    const parsed = JSON.parse(m[1]);
+    if (Array.isArray(parsed)) {
+      suggestions = parsed
+        .filter((s) => s && typeof s === "object" && typeof s.label === "string")
+        .slice(0, 4)
+        .map((s) => ({
+          label: String(s.label).slice(0, 48),
+          ...(typeof s.command === "string" ? { command: s.command.slice(0, 96) } : {}),
+        }));
+    }
+  } catch {
+    // Malformed JSON — drop suggestions silently rather than fail the
+    // turn. Better UX to show the reply without chips than an error.
+  }
+  return { cleanText, suggestions };
+}
+
 // ── Voice intent classifier ────────────────────────────────────────
 //
 // A very small, regex-based router that catches a handful of "verb-y"
@@ -148,6 +263,39 @@ async function decodeAudioInput({ audio, format = "webm" }) {
 }
 
 export function register(app, { projects, plugins, registries }) {
+  // GET /voice/tts?path=<abs>
+  //
+  // Streams a TTS audio file back to the caller. Sandboxed to the
+  // ~/.apx/tmp/tts directory so a client can't request arbitrary
+  // filesystem paths through a manifest-leaked reply_audio_path.
+  app.get("/voice/tts", async (req, res) => {
+    const rawPath = String(req.query.path || "");
+    if (!rawPath) return res.status(400).json({ error: "path required" });
+    try {
+      const os = await import("node:os");
+      const ttsRoot = path.resolve(os.homedir(), ".apx", "tmp", "tts");
+      const resolved = path.resolve(rawPath);
+      if (!resolved.startsWith(ttsRoot + path.sep)) {
+        return res.status(403).json({ error: "path outside tts dir" });
+      }
+      if (!fs.existsSync(resolved)) return res.status(404).json({ error: "not found" });
+      const ext = path.extname(resolved).toLowerCase();
+      const mime =
+        ext === ".wav" ? "audio/wav" :
+        ext === ".mp3" ? "audio/mpeg" :
+        ext === ".m4a" || ext === ".aac" ? "audio/mp4" :
+        ext === ".ogg" || ext === ".opus" ? "audio/ogg" :
+        "application/octet-stream";
+      res.setHeader("Content-Type", mime);
+      // Cache for a minute — the client fetches each reply once anyway,
+      // but a retry shouldn't re-hit disk if it's the same file.
+      res.setHeader("Cache-Control", "private, max-age=60");
+      fs.createReadStream(resolved).pipe(res);
+    } catch (e) {
+      res.status(500).json({ error: e?.message || "tts read failed" });
+    }
+  });
+
   app.post("/voice/turn", async (req, res) => {
     const body = req.body || {};
     const cfg = readConfig();
@@ -198,9 +346,23 @@ export function register(app, { projects, plugins, registries }) {
       const channel = body.channel || "voice";
 
       let intentMeta = null;
+      let suggestions = [];
+      const channelCtx = buildChannelContext(channel, {
+        projectId: body.projectId,
+        language: body.language && body.language !== "auto" ? body.language : "es",
+      });
       if (intentResult.handled) {
         replyText = intentResult.reply;
         intentMeta = intentResult.meta || null;
+        // Intent shortcut bypasses the LLM, so no model-generated
+        // suggestions either; we hand-craft a couple based on the
+        // outcome so the chips area isn't empty.
+        if (intentMeta?.task_id) {
+          suggestions = [
+            { label: "Ver tareas", command: "deck.view:tasks" },
+            { label: "Anotar otra", command: "voice.again" },
+          ];
+        }
       } else if (isSuperAgentEnabled(cfg)) {
         try {
           const result = await runSuperAgent({
@@ -209,10 +371,18 @@ export function register(app, { projects, plugins, registries }) {
             plugins,
             registries,
             prompt: userText,
-            contextNote: `Channel: ${channel}\nThe user spoke this through a voice channel — reply concisely and naturally; the response will be read aloud.`,
+            contextNote: channelCtx.contextNote,
+            systemSuffix: channelCtx.systemSuffix,
             previousMessages,
           });
-          replyText = (result?.text || "").trim();
+          const raw = (result?.text || "").trim();
+          if (channelCtx.wantsSuggestions) {
+            const parsed = extractSuggestions(raw);
+            replyText = parsed.cleanText;
+            suggestions = parsed.suggestions;
+          } else {
+            replyText = raw;
+          }
         } catch (e) {
           appendErrorTrace({
             trace_id: req.apxTraceId,
@@ -266,6 +436,8 @@ export function register(app, { projects, plugins, registries }) {
         provider: tts.provider,
         tts_error: tts.error || undefined,
         intent: intentMeta || undefined,
+        suggestions: suggestions.length ? suggestions : undefined,
+        channel: channel,
       });
     } catch (e) {
       res.status(500).json({ error: e.message });
