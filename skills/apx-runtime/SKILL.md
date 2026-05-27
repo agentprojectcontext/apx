@@ -54,14 +54,25 @@ session_id: abc123
 ---
 ```
 
-To resume:
+All session resume / get / continue / summarise operations live in the
+**`apx-sessions`** skill. From here, the most common quick paths:
 
 ```bash
+# Discover the id (or use the one printed by `apx run`)
 apx sessions list --engine claude --project iacrmar
-# → date, session id, title, exact resume command (e.g. `claude -p --resume abc123 "..."`)
+
+# Resume — apx auto-detects which engine owns the id
+apx session resume <id>
+apx session resume <id> --continue              # spawn the native CLI to keep going
+apx session resume <id> --summary               # super-agent summary of the transcript
+apx session resume <id> --into apx:<slug>       # seed a new APX session with the summary
+
+# Just read the transcript
+apx session get <id> --any --full               # or --engine claude --tail 16k
 ```
 
-`apx sessions list` reads external engines' own session stores so you can pick up an old session without opening their interactive picker.
+See the `apx-sessions` skill for the full flag reference, collision handling,
+and daemon-vs-no-daemon matrix.
 
 ## APC_RESULT contract
 

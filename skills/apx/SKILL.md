@@ -92,33 +92,29 @@ apx memory <slug> --replace < file.md  # replace entire memory from stdin
 
 Sessions are APX runtime state. They do not belong in `.apc/`.
 
+Quick basics:
+
 ```bash
 apx session new <slug> --title "What you did"   # create APX local session file
-apx session list <slug>                          # list sessions
-apx session check                                # exits 1 if session already active
+apx session list                                 # list local APC sessions
+apx session check                                # exits 1 if a local session is still open
 ```
 
-### List sessions of other AI engines
+**Everything else session-related — cross-engine listing, resuming a Claude/Codex
+session by id, getting its full transcript, summarising it, spawning the native
+CLI to continue, or seeding a new APX session from an old one — lives in the
+dedicated `apx-sessions` skill.** Open that one when the user asks about
+`apx session resume`, `apx session get`, `apx sessions list`, "continue codex
+session", "summarize session", "traer sesión de claude", etc.
 
-`apx sessions list` lists sessions of external AI engines (Claude Code, Codex)
-without opening their interactive pickers. It resolves the project directory
-from a registered APX project (`--project`) or an explicit path (`--dir`).
-
-```bash
-apx sessions list                                       # APX engine projects (default)
-apx sessions list --engine claude                       # Claude Code project folders
-apx sessions list --engine claude --project iacrmar     # sessions of a registered project
-apx sessions list --engine claude --dir /path/to/repo   # sessions of any directory
-apx sessions list --engine codex  --dir /path/to/repo   # Codex sessions
-```
-
-Output prints date + session id + title, newest first, plus the exact resume command.
-
-**Resume a Claude Code session** (run from the project directory):
+One-liners for the most common cross-engine operations (see `apx-sessions` for
+the full reference):
 
 ```bash
-claude --continue                       # resume the most recent session
-claude -p --resume <session-id> "..."   # resume a specific session, always with -p (print mode)
+apx sessions list                                  # every engine, every project
+apx session resume <id>                            # auto-detects the engine
+apx session resume <id> --summary --into apx:<slug>  # summarise + spawn APX follow-up
+apx session get <id> --any --full                  # dump any engine's transcript
 ```
 
 ## Observe activity
