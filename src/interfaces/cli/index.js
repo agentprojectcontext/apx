@@ -97,6 +97,7 @@ import { cmdUpdate } from "./commands/update.js";
 import { cmdSetup } from "./commands/setup.js";
 import { cmdStatus } from "./commands/status.js";
 import { cmdModel } from "./commands/model.js";
+import { cmdPair, cmdPairList, cmdPairRevoke } from "./commands/pair.js";
 import { checkForUpdate } from "../../core/update-check.js";
 import { mascot } from "../../core/mascot.js";
 import {
@@ -1714,6 +1715,16 @@ async function dispatch(cmd, rest) {
         else if (sub === "status") await cmdDaemonStatus(a);
         else if (sub === "logs") cmdDaemonLogs(a);
         else die(`unknown daemon subcommand: ${sub || "(none)"}`);
+        break;
+      }
+
+      case "pair": {
+        const sub = rest[0];
+        const a = parseArgs(rest.slice(1));
+        if (!sub || sub === "new" || sub === "device") await cmdPair(a);
+        else if (sub === "list" || sub === "ls") await cmdPairList();
+        else if (sub === "revoke" || sub === "rm") await cmdPairRevoke(a);
+        else die(`unknown pair subcommand: ${sub} — try: (no arg), list, revoke <id>`);
         break;
       }
 

@@ -20,6 +20,7 @@ import { McpRegistry } from "../../core/mcp/runner.js";
 import { PluginManager } from "./plugins/index.js";
 import { RoutineScheduler } from "./routines.js";
 import { buildApi } from "./api.js";
+import { createTokenStore } from "./token-store.js";
 import { triggerWakeup } from "./wakeup.js";
 import { registerOverlayClient } from "./overlay-ws.js";
 import { log as logToUnified } from "../../core/logging.js";
@@ -181,6 +182,8 @@ async function main() {
     log,
   });
 
+  const tokenStore = createTokenStore({ masterToken: token });
+
   const startedAt = Date.now();
   const app = buildApi({
     projects,
@@ -189,6 +192,7 @@ async function main() {
     scheduler,
     config: cfg,
     token,
+    tokenStore,
     version: PKG.version,
     startedAt,
     addProjectGlobally: (absPath) => {

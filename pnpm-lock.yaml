@@ -44,6 +44,9 @@ importers:
       node-fetch:
         specifier: ^3.3.2
         version: 3.3.2
+      qrcode-terminal:
+        specifier: ^0.12.0
+        version: 0.12.0
       raw-body:
         specifier: ^3.0.0
         version: 3.0.2
@@ -2216,6 +2219,10 @@ packages:
     resolution: {integrity: sha512-XjCY1SiSEi1T7iSYuxS82ft85kwDJUS7wj1Z0eGVXKdtr5g4xnVcbjwxhq5xBnpK/E7x1VZZoJDxpjAOasHT4Q==}
     engines: {node: '>=18'}
     deprecated: < 24.15.0 is no longer supported
+    hasBin: true
+
+  qrcode-terminal@0.12.0:
+    resolution: {integrity: sha512-EXtzRZmC+YGmGlDFbXKxQiMZNwCLEO6BANKXG4iCtSIM0yqc/pappSx3RIKr4r0uh5JsBckOXeKrB3Iz7mdQpQ==}
     hasBin: true
 
   qs@6.15.1:
@@ -4947,7 +4954,7 @@ snapshots:
 
   parse-json@8.3.0:
     dependencies:
-      '@babel/code-frame': 7.29.0
+      '@babel/code-frame': 7.29.7
       index-to-position: 1.2.0
       type-fest: 4.41.0
 
@@ -5092,6 +5099,8 @@ snapshots:
       - typescript
       - utf-8-validate
     optional: true
+
+  qrcode-terminal@0.12.0: {}
 
   qs@6.15.1:
     dependencies:

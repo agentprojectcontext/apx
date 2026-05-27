@@ -10,6 +10,35 @@ import {
   resolveSuperAgentContext,
   appendSuperAgentErrorTrace,
 } from "./shared.js";
+import { loggerFor } from "../../../core/logging.js";
+
+const log = loggerFor("super-agent");
+
+// Wrap an onEvent emitter so that operationally interesting events also land
+// in the unified daemon log. We don't log every "model_start" — too noisy —
+// just the ones a user would want to see in `apx log -f` after a turn fails
+// or rotates models.
+function wrapOnEventForLog(send, { trace_id, channel }) {
+  return (event) => {
+    if (event?.type === "engine_failed") {
+      log.warn(
+        `engine ${event.model || "?"} failed → retrying with ${event.retry_with || "?"}`,
+        { trace_id, channel, reason: event.reason }
+      );
+    } else if (event?.type === "tools_suppressed") {
+      log.info(
+        `tools suppressed: ${(event.tools || []).join(", ")} (${event.reason || "?"})`,
+        { trace_id, channel }
+      );
+    } else if (event?.type === "model_routed" && event.from_fallback) {
+      log.info(
+        `model routing fell back: ${event.model} (provider=${event.provider})`,
+        { trace_id, channel }
+      );
+    }
+    if (send) send(event);
+  };
+}
 
 export function register(app, { projects, registries, plugins, project, config }) {
   app.post("/projects/:pid/super-agent/chat/stream", async (req, res) => {
@@ -40,7 +69,10 @@ export function register(app, { projects, registries, plugins, project, config }
         contextNote: ctx.contextNote,
         previousMessages: previousMessages || [],
         overrideModel: model,
-        onEvent: send,
+        onEvent: wrapOnEventForLog(send, {
+          trace_id: req.apxTraceId,
+          channel: ctx.channel,
+        }),
       });
       projects.rebuild(p.id);
       send({
@@ -88,6 +120,10 @@ export function register(app, { projects, registries, plugins, project, config }
         contextNote: ctx.contextNote,
         previousMessages: previousMessages || [],
         overrideModel: model,
+        onEvent: wrapOnEventForLog(null, {
+          trace_id: req.apxTraceId,
+          channel: ctx.channel,
+        }),
       });
       projects.rebuild(p.id);
       res.json({

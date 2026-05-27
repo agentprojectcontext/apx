@@ -17,13 +17,39 @@ export function traceIdMiddleware(req, res, next) {
   next();
 }
 
-// Bearer-token auth — applied to every path except /health.
-export function buildAuthMiddleware(token) {
+// Paths that bypass auth: /health for liveness probes, /pair/* so a fresh
+// client can bootstrap a token without already having one. /pair/init is
+// gated separately (localhost-only) inside the pairing module — auth
+// middleware just gets out of its way.
+const UNAUTHENTICATED_PREFIXES = ["/health", "/pair/"];
+function isUnauthenticatedPath(p) {
+  if (p === "/health") return true;
+  for (const prefix of UNAUTHENTICATED_PREFIXES) {
+    if (p === prefix.replace(/\/$/, "") || p.startsWith(prefix)) return true;
+  }
+  return false;
+}
+
+// Bearer-token auth.
+//
+// Accepts either:
+//   - a string (legacy: single master token), or
+//   - a tokenStore { has(token), touch?(token) } from token-store.js
+//
+// The tokenStore form lets multiple paired clients each carry their own
+// token. The middleware does an O(1) Set check and best-effort updates
+// last_seen.
+export function buildAuthMiddleware(tokenOrStore) {
+  const isStore = tokenOrStore && typeof tokenOrStore === "object" && typeof tokenOrStore.has === "function";
   return (req, res, next) => {
-    if (req.path === "/health") return next();
+    if (isUnauthenticatedPath(req.path)) return next();
     const auth = req.get("authorization") || "";
     const provided = auth.startsWith("Bearer ") ? auth.slice(7) : "";
-    if (provided !== token) return res.status(401).json({ error: "unauthorized" });
+    const ok = isStore ? tokenOrStore.has(provided) : provided === tokenOrStore;
+    if (!ok) return res.status(401).json({ error: "unauthorized" });
+    if (isStore && typeof tokenOrStore.touch === "function") {
+      try { tokenOrStore.touch(provided); } catch {}
+    }
     next();
   };
 }

@@ -3,7 +3,7 @@ import {
   extractPseudoToolCalls,
   cleanTextOfPseudoToolCalls,
 } from "./tool-call-parser.js";
-import { resolveActiveModel } from "./model-router.js";
+import { resolveActiveModel, fallbackModels } from "./model-router.js";
 import { MAX_TOOL_ITERS, ACK_ONLY_TOOLS, MAX_CONSECUTIVE_ACKS } from "./constants.js";
 import {
   isShortConfirmation,
@@ -13,6 +13,7 @@ import {
 } from "./ghost-guard.js";
 import { pseudoToolSystem, shouldRetryWithPseudoTools } from "./pseudo-tools.js";
 import { filterToolSchemas } from "./tools-overlap.js";
+import { isRetryableEngineError, shortRetryReason } from "./retry.js";
 
 async function emitProgress(onEvent, event) {
   if (typeof onEvent !== "function") return;
@@ -67,7 +68,21 @@ export async function runAgent({
   suppressTools = null, // optional list of tool names to remove from the registry
 }) {
   const routing = await resolveActiveModel(globalConfig, { overrideModel });
-  const activeModel = routing.modelId;
+  // Mutable: lazy-retry can rotate to a different model mid-loop on 429/413/5xx.
+  let activeModel = routing.modelId;
+
+  // Build the chain to walk on retryable failures: everything in
+  // fallbackModels() that isn't `activeModel` already AND wasn't already
+  // marked unhealthy by resolveActiveModel(). No point retrying with Ollama
+  // when /api/tags strict check just told us the model isn't pulled.
+  const triedHealth = new Map(
+    (routing.tried || []).map((t) => [t.modelId, t.healthy !== false])
+  );
+  const retryChain = fallbackModels(globalConfig).filter((m) => {
+    if (m === activeModel) return false;
+    if (triedHealth.get(m) === false) return false;
+    return true;
+  });
 
   if (routing.fromFallback) {
     await emitProgress(onEvent, {
@@ -120,6 +135,31 @@ export async function runAgent({
   let usePseudoTools = false;
   let ackOnlyStreak = 0;
 
+  // Engine call wrapped with lazy retry: on 413/429/5xx/rate-limit/etc, try
+  // the next model in `retryChain` instead of bubbling. Stops when the chain
+  // is exhausted; non-retryable errors (auth, bad payload) throw immediately.
+  // See spec/backlog/13 + src/core/agent/retry.js for the classifier.
+  const tryCallEngine = async (params, { allowRetry = true } = {}) => {
+    while (true) {
+      try {
+        return await callEngine({ ...params, modelId: activeModel });
+      } catch (e) {
+        if (!allowRetry || retryChain.length === 0 || !isRetryableEngineError(e)) throw e;
+        const nextModel = retryChain.shift();
+        await emitProgress(onEvent, {
+          type: "engine_failed",
+          model: activeModel,
+          reason: shortRetryReason(e),
+          retry_with: nextModel,
+        });
+        activeModel = nextModel;
+        // After switching providers the pseudo-tools mode (Ollama-only) is no
+        // longer relevant; reset so we use structured tools on the new model.
+        if (usePseudoTools) usePseudoTools = false;
+      }
+    }
+  };
+
   for (let iter = 0; iter < MAX_TOOL_ITERS; iter++) {
     await emitProgress(onEvent, { type: "model_start", iteration: iter + 1, model: activeModel });
     // Force a tool call on iter 0 ONLY when the user message looks like a real
@@ -133,14 +173,16 @@ export async function runAgent({
       (ackOnlyStreak > 0 && ackOnlyStreak <= MAX_CONSECUTIVE_ACKS);
     let result;
     try {
-      result = await callEngine({
-        modelId: activeModel,
+      result = await tryCallEngine({
         system: usePseudoTools ? pseudoToolSystem(system, effectiveSchemas) : system,
         messages: conversation,
         config: globalConfig,
         tools: usePseudoTools ? null : effectiveSchemas,
         toolChoice: usePseudoTools ? null : (forceTool ? "required" : "auto"),
-        maxTokens: 1024,
+        // Smaller cap: 1024 ate too much of the cheap-tier TPM budget. The
+        // super-agent rarely emits long replies; tool args are small. If a
+        // routine needs more, it can override via its spec.
+        maxTokens: 512,
         signal,
         onToken: (!forceTool && onToken) ? onToken : null,
       });
@@ -153,14 +195,13 @@ export async function runAgent({
       if (!shouldRetryWithPseudoTools(activeModel, e, usePseudoTools)) throw e;
       usePseudoTools = true;
       await emitProgress(onEvent, { type: "model_retry", reason: "ollama_structured_tools_500", iteration: iter + 1 });
-      result = await callEngine({
-        modelId: activeModel,
+      result = await tryCallEngine({
         system: pseudoToolSystem(system, toolSchemas),
         messages: conversation,
         config: globalConfig,
         tools: null,
         toolChoice: null,
-        maxTokens: 1024,
+        maxTokens: 512,
         signal,
         onToken: (iter > 0 && onToken) ? onToken : null,
       });

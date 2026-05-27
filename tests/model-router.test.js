@@ -294,3 +294,37 @@ test("resolveActiveModel: walks the array in order, primary first then fallback"
     globalThis.fetch = originalFetch;
   }
 });
+
+// ── Lazy retry: isRetryableEngineError classifier ───────────────────────────
+
+test("isRetryableEngineError: 429 / 413 / 5xx → retry", async () => {
+  const { isRetryableEngineError } = await import("../src/core/agent/retry.js");
+  assert.equal(isRetryableEngineError(new Error("groq 429: Rate limit reached")), true);
+  assert.equal(isRetryableEngineError(new Error("groq 413: Request too large for model")), true);
+  assert.equal(isRetryableEngineError(new Error("anthropic 529: overloaded")), true);
+  assert.equal(isRetryableEngineError(new Error("ollama 500: Internal server error")), true);
+  assert.equal(isRetryableEngineError(new Error("openrouter 502: bad gateway")), true);
+});
+
+test("isRetryableEngineError: auth / not-found / malformed → fatal", async () => {
+  const { isRetryableEngineError } = await import("../src/core/agent/retry.js");
+  assert.equal(isRetryableEngineError(new Error("openai 401: unauthorized")), false);
+  assert.equal(isRetryableEngineError(new Error("groq 403: forbidden")), false);
+  assert.equal(isRetryableEngineError(new Error("groq 400: 'tools.0.type' is missing")), false);
+  assert.equal(isRetryableEngineError(new Error("openai: no api_key")), false);
+});
+
+test("isRetryableEngineError: 400 'failed to call a function' → retry (model issue)", async () => {
+  const { isRetryableEngineError } = await import("../src/core/agent/retry.js");
+  assert.equal(
+    isRetryableEngineError(new Error("groq 400: Failed to call a function. Please adjust your prompt.")),
+    true
+  );
+});
+
+test("isRetryableEngineError: phrase fallback when no status code", async () => {
+  const { isRetryableEngineError } = await import("../src/core/agent/retry.js");
+  assert.equal(isRetryableEngineError(new Error("connection reset by peer")), true);
+  assert.equal(isRetryableEngineError(new Error("upstream timeout")), true);
+  assert.equal(isRetryableEngineError(new Error("absolutely nothing wrong here")), false);
+});

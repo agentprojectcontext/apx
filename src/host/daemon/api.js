@@ -39,6 +39,7 @@ import { register as registerTts } from "./api/tts.js";
 import { register as registerVoice } from "./api/voice.js";
 import { register as registerOverlay } from "./api/overlay.js";
 import { register as registerDeck } from "./api/deck.js";
+import { register as registerPairing } from "./api/pairing.js";
 import { register as registerAdmin } from "./api/admin.js";
 
 export function buildApi({
@@ -51,6 +52,7 @@ export function buildApi({
   addProjectGlobally,
   config,
   token,
+  tokenStore,
 }) {
   const telegram = plugins?.get("telegram");
   const app = express();
@@ -58,7 +60,11 @@ export function buildApi({
   // ---- Global middleware -------------------------------------------
   app.use(express.json({ limit: "2mb" }));
   app.use(traceIdMiddleware);
-  if (token) app.use(buildAuthMiddleware(token));
+  // Prefer the multi-token store when provided (production path); fall
+  // back to the single `token` argument for legacy callers and tests
+  // that haven't migrated yet.
+  if (tokenStore) app.use(buildAuthMiddleware(tokenStore));
+  else if (token) app.use(buildAuthMiddleware(token));
 
   // ---- Shared resolvers (closed over `projects`) -------------------
   const project = makeProjectResolver(projects);
@@ -78,6 +84,7 @@ export function buildApi({
     config,
     project,
     resolveTopProject,
+    tokenStore,
   };
 
   // ---- Tool routers — must mount BEFORE wildcard registry below ----
@@ -116,6 +123,7 @@ export function buildApi({
   registerVoice(app, ctx);
   registerOverlay(app, ctx);
   registerDeck(app, ctx);
+  registerPairing(app, ctx);
 
   // ---- Admin -------------------------------------------------------
   registerAdmin(app, ctx);
