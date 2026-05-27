@@ -125,7 +125,13 @@ class RegistryCache {
   }
   ensure(projectEntry) {
     if (!this.byProjectId.has(projectEntry.id)) {
-      this.byProjectId.set(projectEntry.id, new McpRegistry(projectEntry.path));
+      this.byProjectId.set(
+        projectEntry.id,
+        new McpRegistry({
+          projectPath: projectEntry.path,
+          storagePath: projectEntry.storagePath || null,
+        })
+      );
     }
     return this.byProjectId.get(projectEntry.id);
   }

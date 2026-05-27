@@ -53,7 +53,7 @@ const sofiaSessions = (() => {
 })();
 console.log("sofia sessions:", sofiaSessions);
 
-const reg = new McpRegistry(entry.path);
+const reg = new McpRegistry({ projectPath: entry.path, storagePath: entry.storagePath });
 const list = reg.list();
 console.log("mcps:", list.map((m) => `${m.name} (${m.source})`));
 assert(list.find((m) => m.name === "filesystem" && m.source === "apc"), "filesystem MCP missing");

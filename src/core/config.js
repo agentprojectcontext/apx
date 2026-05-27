@@ -40,8 +40,6 @@ const DEFAULT_CONFIG = {
   },
   telegram: {
     enabled: false,
-    bot_token: "",
-    chat_id: "",
     poll_interval_ms: 1500,
     route_to_agent: "",                 // slug of the agent that auto-replies (single-channel mode)
     respond_with_engine: true,          // false → just log, never auto-reply
@@ -112,16 +110,45 @@ export function writeConfig(cfg) {
   fs.renameSync(tmp, CONFIG_PATH);
 }
 
+// Migrate legacy `telegram.bot_token` / `telegram.chat_id` (root level) into
+// `telegram.channels[]`. These root-level fields were removed once channels[]
+// became the source of truth; we keep this helper around so existing configs
+// upgrade in place without losing credentials.
+function mergeTelegram(rawTelegram) {
+  const src = rawTelegram || {};
+  const { bot_token: legacyBotToken, chat_id: legacyChatId, channels: rawChannels, ...rest } = src;
+  let channels = Array.isArray(rawChannels) ? rawChannels : [];
+
+  const hasLegacy =
+    (typeof legacyBotToken === "string" && legacyBotToken.length > 0) ||
+    (typeof legacyChatId === "string" && legacyChatId.length > 0);
+
+  if (hasLegacy && channels.length === 0) {
+    // Build a single "default" channel from the legacy fields and drop them.
+    channels = [
+      {
+        name: "default",
+        bot_token: legacyBotToken || "",
+        chat_id: legacyChatId || "",
+      },
+    ];
+    // eslint-disable-next-line no-console
+    console.warn("[apx] migrated legacy telegram.bot_token/chat_id into channels[0]");
+  }
+
+  return {
+    ...DEFAULT_CONFIG.telegram,
+    ...rest,
+    channels,
+  };
+}
+
 export function mergeDefaults(cfg) {
   return {
     ...DEFAULT_CONFIG,
     ...cfg,
     user: { ...DEFAULT_CONFIG.user, ...(cfg.user || {}) },
-    telegram: {
-      ...DEFAULT_CONFIG.telegram,
-      ...(cfg.telegram || {}),
-      channels: Array.isArray(cfg.telegram?.channels) ? cfg.telegram.channels : [],
-    },
+    telegram: mergeTelegram(cfg.telegram),
     super_agent: {
       ...DEFAULT_CONFIG.super_agent,
       ...(cfg.super_agent || {}),
@@ -199,3 +226,82 @@ export function removeProject(cfg, idOrPath) {
   if (cfg.projects.length !== before) writeConfig(cfg);
   return { removed: before - cfg.projects.length };
 }
+// ── Telegram channels (multi-channel mode) ──────────────────────────────────
+// Each entry in cfg.telegram.channels[] is { name, bot_token, chat_id,
+// route_to_agent, project, respond_with_engine, poll_interval_ms }.
+// These helpers keep the array shape stable for the CLI and the daemon API.
+
+const CHANNEL_FIELDS = [
+  "name",
+  "bot_token",
+  "chat_id",
+  "route_to_agent",
+  "project",
+  "respond_with_engine",
+  "poll_interval_ms",
+];
+
+function ensureChannelsArray(cfg) {
+  cfg.telegram = cfg.telegram || {};
+  if (!Array.isArray(cfg.telegram.channels)) cfg.telegram.channels = [];
+  return cfg.telegram.channels;
+}
+
+export function listTelegramChannels(cfg) {
+  return ensureChannelsArray(cfg).slice();
+}
+
+export function findTelegramChannel(cfg, name) {
+  return ensureChannelsArray(cfg).find((c) => c.name === name) || null;
+}
+
+// Create-or-patch a channel by name. `patch` is a partial channel object;
+// unknown keys are dropped. Returns { created, channel }.
+export function upsertTelegramChannel(cfg, name, patch = {}) {
+  if (!name || typeof name !== "string")
+    throw new Error("upsertTelegramChannel: name required");
+  const channels = ensureChannelsArray(cfg);
+  let entry = channels.find((c) => c.name === name);
+  const created = !entry;
+  if (!entry) {
+    entry = { name };
+    channels.push(entry);
+  }
+  for (const k of CHANNEL_FIELDS) {
+    if (k === "name") continue;
+    if (patch[k] !== undefined) entry[k] = patch[k];
+  }
+  // Default respond_with_engine to true on create.
+  if (created && entry.respond_with_engine === undefined) {
+    entry.respond_with_engine = true;
+  }
+  writeConfig(cfg);
+  return { created, channel: entry };
+}
+
+export function removeTelegramChannel(cfg, name) {
+  const channels = ensureChannelsArray(cfg);
+  const before = channels.length;
+  cfg.telegram.channels = channels.filter((c) => c.name !== name);
+  const removed = before - cfg.telegram.channels.length;
+  if (removed > 0) writeConfig(cfg);
+  return { removed };
+}
+
+// Clear specific optional fields on a channel (project, route_to_agent, …).
+// Returns { channel } or null when no such channel.
+export function unsetTelegramChannelFields(cfg, name, fields = []) {
+  const ch = findTelegramChannel(cfg, name);
+  if (!ch) return null;
+  let mutated = false;
+  for (const f of fields) {
+    if (!CHANNEL_FIELDS.includes(f) || f === "name") continue;
+    if (f in ch) {
+      delete ch[f];
+      mutated = true;
+    }
+  }
+  if (mutated) writeConfig(cfg);
+  return { channel: ch };
+}
+

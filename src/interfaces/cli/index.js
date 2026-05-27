@@ -56,7 +56,19 @@ import {
   cmdTelegramSetup,
   cmdTelegramStart,
   cmdTelegramStop,
+  cmdTelegramChannelAdd,
+  cmdTelegramChannelList,
+  cmdTelegramChannelShow,
+  cmdTelegramChannelSet,
+  cmdTelegramChannelUnset,
+  cmdTelegramChannelRemove,
 } from "./commands/telegram.js";
+import {
+  cmdProjectConfigShow,
+  cmdProjectConfigSet,
+  cmdProjectConfigUnset,
+  cmdProjectConfigEdit,
+} from "./commands/project-config.js";
 import { cmdMessagesTail, cmdMessagesSearch, cmdMessagesChat } from "./commands/messages.js";
 import { cmdLog } from "./commands/log.js";
 import { cmdSearch } from "./commands/search.js";
@@ -221,6 +233,56 @@ const HELP_TOPICS = new Map(Object.entries({
     summary: "Rebuild a daemon project index from filesystem context.",
     usage: ["apx project rebuild [id]"],
     examples: ["apx project rebuild", "apx project rebuild default"],
+  }),
+  "project config": topic({
+    title: "apx project config",
+    summary: "Read / write the per-project config (.apc/config.json) via the daemon API.",
+    usage: ["apx project config <show|set|unset|edit> <project> [args]"],
+    commands: [
+      ["show <project>", "Print effective + project_only config. Use --key dotted.key for one value."],
+      ["set <project> <key> <value>", "Set a dotted key in the project config (PATCH set)."],
+      ["unset <project> <key>", "Remove a dotted key from the project config (PATCH unset)."],
+      ["edit <project>", "Open the project_only config in $EDITOR; full replace on save."],
+    ],
+    options: [
+      ["--key <dotted.key>", "Limit `show` to one key — prints effective and project_only side by side."],
+      ["--json", "Emit JSON instead of human-readable lines (show --key only)."],
+    ],
+    examples: [
+      "apx project config show iacrmar",
+      "apx project config show iacrmar --key super_agent.model",
+      "apx project config set iacrmar super_agent.model groq:llama-3.3-70b-versatile",
+      "apx project config unset iacrmar super_agent.model",
+      "apx project config edit iacrmar",
+    ],
+  }),
+  "project config show": topic({
+    title: "apx project config show",
+    summary: "Print the effective and project_only config for a project.",
+    usage: ["apx project config show <project> [--key dotted.key] [--json]"],
+    options: [
+      ["--key <dotted.key>", "Print just one key (effective + project_only)."],
+      ["--json", "JSON output (only with --key)."],
+    ],
+    examples: ["apx project config show iacrmar", "apx project config show iacrmar --key super_agent.model"],
+  }),
+  "project config set": topic({
+    title: "apx project config set",
+    summary: "Set a dotted-key value in .apc/config.json (PATCH).",
+    usage: ["apx project config set <project> <dotted.key> <value>"],
+    examples: ["apx project config set iacrmar super_agent.model groq:llama-3.3-70b-versatile"],
+  }),
+  "project config unset": topic({
+    title: "apx project config unset",
+    summary: "Remove a dotted-key from .apc/config.json (PATCH unset).",
+    usage: ["apx project config unset <project> <dotted.key>"],
+    examples: ["apx project config unset iacrmar super_agent.model"],
+  }),
+  "project config edit": topic({
+    title: "apx project config edit",
+    summary: "Open the project_only config in $EDITOR. Saves with PUT on exit.",
+    usage: ["apx project config edit <project>"],
+    examples: ["apx project config edit iacrmar"],
   }),
   agent: topic({
     title: "apx agent",
@@ -555,27 +617,44 @@ const HELP_TOPICS = new Map(Object.entries({
     title: "apx mcp list",
     summary: "List MCP servers available to a project.",
     usage: ["apx mcp list [--project <name|id|path>]", "apx mcp ls [--project <name|id|path>]"],
-    options: [["--project <name|id|path>", "Pin command to a specific project."]],
-    examples: ["apx mcp list", "apx mcp list --project default"],
+    options: [
+      ["--project <name|id|path>", "Pin command to a specific project."],
+      ["--scope <shared|runtime|global|all>", "Filter by scope (default: all). shared = .apc/mcps.json, runtime = ~/.apx/projects/<id>/mcps.json, global = ~/.apx/mcps.json."],
+    ],
+    examples: [
+      "apx mcp list",
+      "apx mcp list --project default",
+      "apx mcp list --scope runtime --project iacrmar",
+    ],
   }),
   "mcp add": topic({
     title: "apx mcp add",
-    summary: "Add a project-owned MCP server.",
-    usage: ["apx mcp add <name> --command <cmd> [--env KEY=VAL ...] [--project <name|id|path>] [-- <arg> ...]"],
+    summary: "Add an APX-owned MCP server. Default scope is `shared` (commit to repo) inside an APC project, else `global`.",
+    usage: ["apx mcp add <name> --command <cmd> [--scope <shared|runtime|global>] [--env KEY=VAL ...] [--project <name|id|path>] [-- <arg> ...]"],
     options: [
       ["--command <cmd>", "Executable command for stdio MCP server."],
+      ["--scope <s>", "shared = .apc/mcps.json (committable); runtime = ~/.apx/projects/<id>/mcps.json (per-project, local, chmod 0600 — use for tokens); global = ~/.apx/mcps.json (machine-wide)."],
       ["--env KEY=VAL", "Environment variable. Repeatable."],
       ["--project <name|id|path>", "Pin command to a specific project."],
       ["-- <arg> ...", "Arguments passed to the MCP command."],
     ],
-    examples: ["apx mcp add filesystem --command npx -- -y @modelcontextprotocol/server-filesystem ."],
+    examples: [
+      "apx mcp add filesystem --command npx -- -y @modelcontextprotocol/server-filesystem .",
+      "apx mcp add github --scope runtime --project iacrmar --command npx -- -y @modelcontextprotocol/server-github",
+    ],
   }),
   "mcp remove": topic({
     title: "apx mcp remove",
-    summary: "Remove a project-owned MCP server.",
-    usage: ["apx mcp remove <name> [--project <name|id|path>]", "apx mcp rm <name> [--project <name|id|path>]"],
-    options: [["--project <name|id|path>", "Pin command to a specific project."]],
-    examples: ["apx mcp remove filesystem"],
+    summary: "Remove an APX-owned MCP server from a given scope.",
+    usage: [
+      "apx mcp remove <name> [--scope <shared|runtime|global>] [--project <name|id|path>]",
+      "apx mcp rm <name> [--scope <shared|runtime|global>] [--project <name|id|path>]",
+    ],
+    options: [
+      ["--project <name|id|path>", "Pin command to a specific project."],
+      ["--scope <s>", "Which scope to remove from. Defaults to `shared` inside an APC project, else `global`."],
+    ],
+    examples: ["apx mcp remove filesystem", "apx mcp remove github --scope runtime --project iacrmar"],
   }),
   "mcp enable": topic({
     title: "apx mcp enable",
@@ -652,15 +731,21 @@ const HELP_TOPICS = new Map(Object.entries({
   telegram: topic({
     title: "apx telegram",
     summary: "Configure, inspect, and send through the Telegram bridge.",
-    usage: ["apx telegram <send|status|start|stop|setup> [args] [--flags]"],
+    usage: ["apx telegram <send|status|start|stop|setup|channel> [args] [--flags]"],
     commands: [
       ["send \"text\"", "Send a Telegram message."],
       ["status", "Show Telegram plugin status."],
       ["start", "Start polling on every configured channel."],
       ["stop", "Stop polling (config stays intact)."],
       ["setup", "Print setup guidance."],
+      ["channel <sub>", "Manage channels: add | list | show | set | unset | remove."],
     ],
-    examples: ["apx telegram status", "apx telegram start", "apx telegram send \"hello\" --chat 123456"],
+    examples: [
+      "apx telegram status",
+      "apx telegram channel add",
+      "apx telegram channel list",
+      "apx telegram send \"hello\" --chat 123456",
+    ],
   }),
   "telegram send": topic({
     title: "apx telegram send",
@@ -699,6 +784,79 @@ const HELP_TOPICS = new Map(Object.entries({
     summary: "Print Telegram setup guidance.",
     usage: ["apx telegram setup"],
     examples: ["apx telegram setup"],
+  }),
+  "telegram channel": topic({
+    title: "apx telegram channel",
+    summary: "Manage entries in cfg.telegram.channels[] — name, bot, chat, pinned project, master agent.",
+    usage: ["apx telegram channel <subcommand> [args] [--flags]"],
+    commands: [
+      ["add [name]", "Interactive wizard (or non-interactive with flags)."],
+      ["list | ls", "List configured channels."],
+      ["show <name>", "Print one channel as JSON."],
+      ["set <name>", "Patch fields (--project, --agent, --respond-engine true|false, --bot-token, --chat-id)."],
+      ["unset <name>", "Clear optional fields (--project, --agent, --bot-token, --chat-id)."],
+      ["remove | rm <name>", "Delete the channel from the array."],
+    ],
+    options: [
+      ["--project <name|id|path>", "Pin channel to a project for inbound routing."],
+      ["--agent <slug>", "Route inbound to this agent instead of the super-agent."],
+      ["--respond-engine <true|false>", "Whether the engine auto-replies on this channel."],
+      ["--bot-token <token>", "Override bot_token (use `add` non-interactively or `set` to rotate)."],
+      ["--chat-id <id>", "Default outbound chat id."],
+    ],
+    examples: [
+      "apx telegram channel add",
+      "apx telegram channel add clientes --bot-token TOKEN --chat-id 1234 --project iacrmar --agent comercial",
+      "apx telegram channel list",
+      "apx telegram channel set clientes --agent reviewer",
+      "apx telegram channel unset clientes --agent",
+      "apx telegram channel remove clientes",
+    ],
+  }),
+  "telegram channel add": topic({
+    title: "apx telegram channel add",
+    summary: "Interactive wizard (or one-shot non-interactive form) to add a Telegram channel.",
+    usage: [
+      "apx telegram channel add",
+      "apx telegram channel add <name> --bot-token TOKEN --chat-id ID [--project P] [--agent A] [--respond-engine true|false]",
+    ],
+    examples: [
+      "apx telegram channel add",
+      "apx telegram channel add support --bot-token 12345:ABC --chat-id 1234 --project default",
+    ],
+  }),
+  "telegram channel list": topic({
+    title: "apx telegram channel list",
+    summary: "List configured Telegram channels.",
+    usage: ["apx telegram channel list", "apx telegram channel ls"],
+    examples: ["apx telegram channel list"],
+  }),
+  "telegram channel show": topic({
+    title: "apx telegram channel show",
+    summary: "Print one Telegram channel as pretty JSON.",
+    usage: ["apx telegram channel show <name>"],
+    examples: ["apx telegram channel show clientes"],
+  }),
+  "telegram channel set": topic({
+    title: "apx telegram channel set",
+    summary: "Patch fields on an existing Telegram channel and reload the daemon.",
+    usage: ["apx telegram channel set <name> [--project P] [--agent A] [--respond-engine true|false] [--bot-token T] [--chat-id ID]"],
+    examples: [
+      "apx telegram channel set clientes --project iacrmar --agent comercial",
+      "apx telegram channel set clientes --respond-engine false",
+    ],
+  }),
+  "telegram channel unset": topic({
+    title: "apx telegram channel unset",
+    summary: "Clear optional fields on a channel (project pin, master agent, etc).",
+    usage: ["apx telegram channel unset <name> [--project] [--agent] [--bot-token] [--chat-id]"],
+    examples: ["apx telegram channel unset clientes --agent", "apx telegram channel unset clientes --project"],
+  }),
+  "telegram channel remove": topic({
+    title: "apx telegram channel remove",
+    summary: "Delete a channel from cfg.telegram.channels[] and reload the daemon.",
+    usage: ["apx telegram channel remove <name>", "apx telegram channel rm <name>"],
+    examples: ["apx telegram channel remove clientes"],
   }),
   messages: topic({
     title: "apx messages",
@@ -1148,6 +1306,20 @@ const HELP_ALIASES = new Map(Object.entries({
   "plugin list": "plugins list",
   "plugin ls": "plugins list",
   "plugin status": "plugins status",
+  "telegram channels": "telegram channel",
+  "telegram channels list": "telegram channel list",
+  "telegram channels ls": "telegram channel list",
+  "telegram channels add": "telegram channel add",
+  "telegram channels show": "telegram channel show",
+  "telegram channels set": "telegram channel set",
+  "telegram channels unset": "telegram channel unset",
+  "telegram channels remove": "telegram channel remove",
+  "telegram channels rm": "telegram channel remove",
+  "telegram channel ls": "telegram channel list",
+  "telegram channel get": "telegram channel show",
+  "telegram channel rm": "telegram channel remove",
+  "project config get": "project config show",
+  "project config rm": "project config unset",
 }));
 
 function buildHelp(version) {
@@ -1346,7 +1518,7 @@ function findHelpTopic(argv) {
       : withoutFlags;
   if (tokens.length === 0) return { global: true };
 
-  const projectSubcommands = new Set(["add", "list", "ls", "remove", "rm", "rebuild"]);
+  const projectSubcommands = new Set(["add", "list", "ls", "remove", "rm", "rebuild", "config"]);
   if (tokens[0] === "project" && tokens.length >= 3 && !projectSubcommands.has(tokens[1])) {
     for (let n = tokens.length - 2; n > 0; n--) {
       const key = normalizeHelpKey(tokens.slice(2, 2 + n).join(" "));
@@ -1441,12 +1613,22 @@ async function dispatch(cmd, rest) {
         const sub = rest[0];
         const a = parseArgs(rest.slice(1));
         const PROJECT_SUBCOMMANDS = new Set([
-          "add", "list", "ls", "remove", "rm", "rebuild",
+          "add", "list", "ls", "remove", "rm", "rebuild", "config",
         ]);
         if (sub === "add") await cmdProjectAdd(a);
         else if (sub === "list" || sub === "ls") await cmdProjectList();
         else if (sub === "remove" || sub === "rm") await cmdProjectRemove(a);
         else if (sub === "rebuild") await cmdProjectRebuild(a);
+        else if (sub === "config") {
+          // apx project config <show|set|unset|edit> <project> ...
+          const csub = rest[1];
+          const ca = parseArgs(rest.slice(2));
+          if (csub === "show" || csub === "get") await cmdProjectConfigShow(ca);
+          else if (csub === "set") await cmdProjectConfigSet(ca);
+          else if (csub === "unset" || csub === "rm") await cmdProjectConfigUnset(ca);
+          else if (csub === "edit") await cmdProjectConfigEdit(ca);
+          else die(`unknown project config subcommand: ${csub || "(none)"} — try: show, set, unset, edit`);
+        }
         else if (sub && !PROJECT_SUBCOMMANDS.has(sub)) {
           // Sugar: `apx project <name|id> <subcommand...>` runs the inner
           // subcommand with --project=<name|id> appended.
@@ -1543,6 +1725,17 @@ async function dispatch(cmd, rest) {
         else if (sub === "start") await cmdTelegramStart();
         else if (sub === "stop") await cmdTelegramStop();
         else if (sub === "setup") cmdTelegramSetup();
+        else if (sub === "channel" || sub === "channels") {
+          const csub = rest[1];
+          const ca = parseArgs(rest.slice(2));
+          if (csub === "add") await cmdTelegramChannelAdd(ca);
+          else if (csub === "list" || csub === "ls" || !csub) await cmdTelegramChannelList();
+          else if (csub === "show" || csub === "get") await cmdTelegramChannelShow(ca);
+          else if (csub === "set") await cmdTelegramChannelSet(ca);
+          else if (csub === "unset") await cmdTelegramChannelUnset(ca);
+          else if (csub === "remove" || csub === "rm") await cmdTelegramChannelRemove(ca);
+          else die(`unknown telegram channel subcommand: ${csub} — try: add, list, show, set, unset, remove`);
+        }
         else die(`unknown telegram subcommand: ${sub || "(none)"}`);
         break;
       }
@@ -1658,6 +1851,18 @@ async function dispatch(cmd, rest) {
         break;
       }
 
+      case "artifact":
+      case "artifacts": {
+        const sub = rest[0];
+        const a = parseArgs(rest.slice(1));
+        if (!sub || sub === "list" || sub === "ls") await cmdArtifactList(a);
+        else if (sub === "create" || sub === "new") await cmdArtifactCreate(a);
+        else if (sub === "show" || sub === "get") await cmdArtifactShow(a);
+        else if (sub === "remove" || sub === "rm") await cmdArtifactRemove(a);
+        else die(`unknown artifact subcommand: ${sub}`);
+        break;
+      }
+
       case "task":
       case "tasks": {
         const sub = rest[0];
@@ -1670,18 +1875,6 @@ async function dispatch(cmd, rest) {
         else if (sub === "reopen") await cmdTaskReopen(a);
         else if (sub === "patch" || sub === "edit") await cmdTaskPatch(a);
         else die(`unknown task subcommand: ${sub}\nUsage: apx task <list|add|show|done|drop|reopen|patch>`);
-        break;
-      }
-
-      case "artifact":
-      case "artifacts": {
-        const sub = rest[0];
-        const a = parseArgs(rest.slice(1));
-        if (!sub || sub === "list" || sub === "ls") await cmdArtifactList(a);
-        else if (sub === "create" || sub === "new") await cmdArtifactCreate(a);
-        else if (sub === "show" || sub === "get") await cmdArtifactShow(a);
-        else if (sub === "remove" || sub === "rm") await cmdArtifactRemove(a);
-        else die(`unknown artifact subcommand: ${sub}`);
         break;
       }
 

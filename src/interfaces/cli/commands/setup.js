@@ -179,6 +179,10 @@ export async function cmdSetup() {
 
   let botToken = "";
   let chatId = "";
+  // Optional pin: which project this default channel belongs to + which agent
+  // handles its messages. Empty = global super-agent + no project bias.
+  let tgPinProject = "";
+  let tgMasterAgent = "";
 
   if (wantTelegram) {
     console.log();
@@ -188,6 +192,24 @@ export async function cmdSetup() {
     console.log();
     botToken = await ask("  Bot token: ");
     chatId   = await ask("  Your chat ID: ");
+
+    // Optional channel-to-project pin (only if any project is registered).
+    const existing = readConfig();
+    const projects = Array.isArray(existing.projects) ? existing.projects : [];
+    if (projects.length > 0) {
+      console.log();
+      console.log(b("  Pin default channel to a project?"));
+      console.log(`    ${cy("0")}. (none — first registered project as fallback)`);
+      projects.forEach((p, i) => console.log(`    ${cy(String(i + 1))}. ${p.path}`));
+      const pIdx = parseInt(await ask("  Choose [0]: "), 10);
+      if (Number.isInteger(pIdx) && pIdx >= 1 && pIdx <= projects.length) {
+        tgPinProject = projects[pIdx - 1].path;
+        // Master agent name is free-form — `apx telegram channel add` can
+        // browse .apc/agents/ properly once channels CLI is wired up.
+        const agentAns = await ask(`  Master agent slug ${di("(blank → default APX super-agent)")}: `);
+        if (agentAns) tgMasterAgent = agentAns;
+      }
+    }
   }
 
   // ── Language ────────────────────────────────────────────────────────────────
@@ -283,8 +305,19 @@ export async function cmdSetup() {
 
   if (wantTelegram && botToken && chatId) {
     cfg.telegram.enabled = true;
-    cfg.telegram.bot_token = botToken;
-    cfg.telegram.chat_id = chatId;
+    if (!Array.isArray(cfg.telegram.channels)) cfg.telegram.channels = [];
+    const existing = cfg.telegram.channels.find((c) => c?.name === "default");
+    const patch = {
+      bot_token: botToken,
+      chat_id: chatId,
+      ...(tgPinProject ? { project: tgPinProject } : {}),
+      ...(tgMasterAgent ? { route_to_agent: tgMasterAgent } : {}),
+    };
+    if (existing) {
+      Object.assign(existing, patch);
+    } else {
+      cfg.telegram.channels.push({ name: "default", ...patch });
+    }
   }
 
   cfg.user = { ...(cfg.user || {}), language };

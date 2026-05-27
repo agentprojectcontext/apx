@@ -158,17 +158,29 @@ function entryToMeta(e) {
 }
 
 export class McpRegistry {
-  constructor(projectPath) {
-    this.projectPath = projectPath;
+  // Accepts either the project path string (back-compat) or an object
+  // { projectPath, storagePath } so the runtime scope can be aggregated.
+  constructor(arg) {
+    if (typeof arg === "string" || arg == null) {
+      this.projectPath = arg || null;
+      this.storagePath = null;
+    } else {
+      this.projectPath = arg.projectPath || null;
+      this.storagePath = arg.storagePath || null;
+    }
     this.processes = new Map(); // mcp name -> McpProcess
   }
 
+  _load() {
+    return loadAll(this.projectPath, { storagePath: this.storagePath });
+  }
+
   list() {
-    return loadAll(this.projectPath).entries.map(entryToMeta);
+    return this._load().entries.map(entryToMeta);
   }
 
   conflicts() {
-    return loadAll(this.projectPath).conflicts;
+    return this._load().conflicts;
   }
 
   evict(name) {
@@ -180,7 +192,7 @@ export class McpRegistry {
   }
 
   getByName(name) {
-    const e = loadAll(this.projectPath).entries.find((x) => x.name === name);
+    const e = this._load().entries.find((x) => x.name === name);
     return e ? entryToMeta(e) : null;
   }
 
