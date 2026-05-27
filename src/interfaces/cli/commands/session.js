@@ -1,11 +1,17 @@
 import fs from "node:fs";
 import path from "node:path";
+import { spawn } from "node:child_process";
 import { findApfRoot, readAgents } from "../../../core/parser.js";
 import { getOrCreateApxId } from "../../../core/scaffold.js";
 import { generateSessionId } from "../../../core/session-store.js";
 import { projectStorageRoot, ensureProjectStorage } from "../../../core/config.js";
 import { http } from "../http.js";
 import { resolveProjectId } from "./project.js";
+import {
+  ENGINES,
+  findSessionAcrossEngines,
+  findSessionInEngine,
+} from "./sessions.js";
 
 const STALE_HOURS = 1;
 
@@ -192,13 +198,79 @@ export function cmdSessionList(args) {
   }
 }
 
+/**
+ * `apx session get <id>` — single-record fetch.
+ *
+ *   - Default: search the current APC project's local sessions (legacy
+ *     behaviour, fast, no daemon, no engine scan).
+ *   - --engine <id>  : look only inside that engine's storage (apx, claude,
+ *                      codex). Useful when you want the raw transcript of a
+ *                      Claude/Codex session by id.
+ *   - --any          : search across every detected engine, complain on
+ *                      collisions. Equivalent to how resume auto-detects.
+ *   - --body         : print full file body (markdown for apx, JSONL for
+ *                      engines). With --engine or --any you also get the tail
+ *                      of the external transcript when present.
+ *   - --tail N       : print last N bytes of the transcript.
+ *   - --full         : print the entire transcript (overrides --tail).
+ *   - --json         : print metadata as JSON (machine-readable).
+ */
 export function cmdSessionGet(args) {
   const id = args._[0];
   if (!id) throw new Error("apx session get: missing <id>");
+
+  const engineFlag = args.flags.engine;
+  const wantAny = !!args.flags.any || !!args.flags.all;
+
+  // Engine / any modes — search engine storage directly, no APC root needed.
+  if (engineFlag || wantAny) {
+    let hits;
+    if (engineFlag && engineFlag !== true) {
+      const hit = findSessionInEngine(String(engineFlag), id);
+      hits = hit ? [hit] : [];
+    } else {
+      hits = findSessionAcrossEngines(id);
+    }
+    if (hits.length === 0) {
+      throw new Error(`session "${id}" not found in any detected engine`);
+    }
+    if (hits.length > 1) {
+      console.error(`⚠️ session id "${id}" exists in multiple engines:`);
+      for (const h of hits) console.error(`  - ${h.engine}: ${h.path}`);
+      throw new Error(`use --engine <id> to disambiguate`);
+    }
+    return printEngineSession(hits[0], args);
+  }
+
+  // Legacy / default — local APC project session lookup.
   const root = requireRoot();
   const s = findSessionById(root, id);
-  if (!s) throw new Error(`session "${id}" not found`);
-  if (args.flags.body) {
+  if (!s) {
+    throw new Error(
+      `session "${id}" not found in this APC project — try \`apx session get ${id} --any\` to search every engine`
+    );
+  }
+  if (args.flags.json) {
+    console.log(
+      JSON.stringify(
+        {
+          id: s.id,
+          agent: s.agent,
+          title: s.title,
+          status: s.status,
+          started: s.started,
+          completed: s.completed,
+          task_ref: s.task_ref,
+          result: s.result,
+          path: s.path,
+        },
+        null,
+        2
+      )
+    );
+    return;
+  }
+  if (args.flags.body || args.flags.full) {
     process.stdout.write(fs.readFileSync(s.path, "utf8"));
     return;
   }
@@ -211,6 +283,90 @@ export function cmdSessionGet(args) {
   console.log(`task_ref:  ${s.task_ref}`);
   console.log(`result:    ${s.result}`);
   console.log(`file:      ${path.relative(process.cwd(), s.path)}`);
+}
+
+// Print one engine session (apx | claude | codex). Shared by both
+// `apx session get --engine ...` and `apx session resume <id>`.
+function printEngineSession(meta, args) {
+  const engine = ENGINES[meta.engine];
+  const tailBytes = parseTailBytes(args.flags.tail);
+  const reading = engine.readSession(meta, { tailBytes: tailBytes || 64 * 1024 });
+
+  if (args.flags.json) {
+    console.log(
+      JSON.stringify(
+        {
+          engine: meta.engine,
+          id: meta.id,
+          path: meta.path,
+          cwd: meta.cwd,
+          mtime: meta.mtime,
+          title: meta.title,
+          agent_slug: meta.agentSlug || null,
+          format: reading.format || null,
+          size: reading.size || 0,
+          external: reading.external
+            ? { path: reading.external.path, size: reading.external.size }
+            : null,
+        },
+        null,
+        2
+      )
+    );
+    if (args.flags.body || args.flags.full) process.stdout.write(reading.raw || "");
+    return;
+  }
+
+  console.log(`# session ${meta.id} (engine: ${meta.engine})`);
+  console.log(`path:  ${meta.path}`);
+  if (meta.cwd) console.log(`cwd:   ${meta.cwd}`);
+  if (meta.title) console.log(`title: ${meta.title}`);
+  if (meta.agentSlug) console.log(`agent: ${meta.agentSlug}`);
+  console.log("");
+  if (!reading.found) {
+    console.log("(transcript file no longer exists on disk)");
+    return;
+  }
+  const wantFull = !!args.flags.full || !!args.flags.body;
+  const explicitTail = tailBytes !== null && tailBytes !== undefined;
+  if (wantFull) {
+    console.log("--- transcript (full) ---");
+    process.stdout.write(reading.raw);
+  } else if (explicitTail) {
+    console.log(`--- transcript (last ${reading.tail.length} bytes) ---`);
+    process.stdout.write(reading.tail);
+  } else {
+    // Default summary view: counts + hint, no body dump.
+    console.log(`format: ${reading.format} (${reading.size} bytes)`);
+    if (reading.external) {
+      console.log(
+        `external: ${reading.external.path} (${reading.external.size} bytes)`
+      );
+    }
+    console.log(
+      `(use --body / --full to dump the transcript, or --tail N for last N bytes)`
+    );
+  }
+}
+
+// Parse --tail value. "--tail" alone → default 16KB. "--tail 32k" / "--tail
+// 8000" / "--tail 1M" → explicit byte count. Returns null when --tail absent,
+// undefined when --tail is true (no value).
+function parseTailBytes(flag) {
+  if (flag === undefined) return null;
+  if (flag === true) return 16 * 1024;
+  const s = String(flag).trim().toLowerCase();
+  const m = s.match(/^(\d+)\s*([kmg]?)$/);
+  if (!m) {
+    const n = parseInt(s, 10);
+    return Number.isFinite(n) ? n : 16 * 1024;
+  }
+  const n = parseInt(m[1], 10);
+  const unit = m[2];
+  if (unit === "k") return n * 1024;
+  if (unit === "m") return n * 1024 * 1024;
+  if (unit === "g") return n * 1024 * 1024 * 1024;
+  return n;
 }
 
 export function cmdSessionUpdate(args) {
@@ -290,49 +446,222 @@ export function cmdSessionCheck() {
   process.exit(1);
 }
 
+/**
+ * `apx session resume <id>` — locate a session by id across every detected
+ * engine (apx | claude | codex), then optionally:
+ *
+ *   --engine <id>      restrict the search to one engine.
+ *   --summary          run the super-agent over the transcript tail (needs
+ *                      the daemon + super-agent configured).
+ *   --tail N|--full    print the transcript (last N bytes, or everything).
+ *   --continue         spawn the native CLI to resume the session
+ *                      interactively (claude --resume, codex resume, …).
+ *   --into apx[:slug]  create a *new* APX session whose body is the summary
+ *                      of <id>, so a fresh chat can pick up the thread.
+ *
+ * No --engine + multiple matches → list collisions and exit non-zero, so the
+ * caller can re-run with --engine.
+ */
 export async function cmdSessionResume(args) {
   const id = args._[0];
   if (!id) throw new Error("apx session resume: missing <session-id>");
-  const pid = await resolveProjectId(args?.flags?.project);
-  const summarize = args.flags.summary || args.flags.summarize ? "true" : "false";
-  const result = await http.get(
-    `/projects/${pid}/sessions/${id}/resume?summarize=${summarize}`
-  );
 
-  console.log(`# session ${id} (agent: ${result.agent})`);
-  console.log(`path: ${result.session_path}`);
-  console.log("");
-  console.log("## frontmatter");
-  for (const [k, v] of Object.entries(result.frontmatter || {})) {
-    if (v) console.log(`${k}: ${v}`);
-  }
-  console.log("");
-  if (result.external_transcript) {
-    const t = result.external_transcript;
-    console.log(`## external transcript`);
-    console.log(`path: ${t.path}`);
-    console.log(`size: ${t.size} bytes`);
-    if (args.flags.full) {
-      console.log("");
-      console.log("--- tail ---");
-      process.stdout.write(t.tail);
-    } else {
-      console.log(`(use --full to print the last ${t.tail.length} chars)`);
-    }
-  } else if (result.frontmatter?.external_session_path) {
-    console.log(`## external transcript: ${result.frontmatter.external_session_path}`);
-    console.log("(file no longer exists on disk)");
+  // ── 1. Resolve which engine owns this id ─────────────────────────────────
+  const engineFlag = args.flags.engine;
+  let hits;
+  if (engineFlag && engineFlag !== true) {
+    const hit = findSessionInEngine(String(engineFlag), id);
+    hits = hit ? [hit] : [];
   } else {
-    console.log("## external transcript: (none — runtime didn't report one)");
+    hits = findSessionAcrossEngines(id);
   }
-  if (result.summary) {
-    console.log("");
-    console.log("## summary (super-agent)");
-    console.log(result.summary);
-  } else if (summarize === "true") {
-    console.log("");
-    console.log("## summary: (failed — super-agent not configured?)");
+
+  if (hits.length === 0) {
+    throw new Error(
+      `session "${id}" not found in any detected engine` +
+        (engineFlag ? ` (engine="${engineFlag}")` : "")
+    );
   }
+  if (hits.length > 1) {
+    console.error(`⚠️  session id "${id}" exists in multiple engines:`);
+    for (const h of hits) {
+      console.error(`  - ${h.engine.padEnd(7)} ${h.path}${h.cwd ? `  (cwd: ${h.cwd})` : ""}`);
+    }
+    console.error(`→ re-run with --engine <id> to pick one (apx | claude | codex)`);
+    process.exit(2);
+  }
+
+  const meta = hits[0];
+
+  // ── 2. Print metadata + optional transcript dump ─────────────────────────
+  printEngineSession(meta, args);
+
+  // ── 3. Optional super-agent summary ──────────────────────────────────────
+  let summaryText = null;
+  if (args.flags.summary || args.flags.summarize) {
+    try {
+      summaryText = await summarizeSession(meta, args);
+      if (summaryText) {
+        console.log("");
+        console.log("## summary (super-agent)");
+        console.log(summaryText);
+      }
+    } catch (e) {
+      console.log("");
+      console.log(`## summary: (failed — ${e.message})`);
+    }
+  }
+
+  // ── 4. Optional spawn of native CLI to continue ──────────────────────────
+  if (args.flags.continue) {
+    const spec = spawnContinueSpec(meta);
+    if (!spec) {
+      console.log("");
+      console.log(`(--continue not supported for engine "${meta.engine}")`);
+    } else {
+      console.log("");
+      console.log(`→ launching: ${spec.bin} ${spec.args.join(" ")}`);
+      if (spec.cwd) console.log(`   cwd: ${spec.cwd}`);
+      const child = spawn(spec.bin, spec.args, {
+        cwd: spec.cwd || process.cwd(),
+        stdio: "inherit",
+      });
+      await new Promise((resolve) => {
+        child.on("exit", (code) => {
+          if (code !== 0) console.log(`(native CLI exited with code ${code})`);
+          resolve();
+        });
+        child.on("error", (e) => {
+          console.log(`(failed to launch ${spec.bin}: ${e.message})`);
+          resolve();
+        });
+      });
+    }
+  }
+
+  // ── 5. Optional --into apx[:slug] : seed a new APX session with the summary ─
+  if (args.flags.into) {
+    const intoSpec = String(args.flags.into);
+    if (!intoSpec.startsWith("apx")) {
+      console.log("");
+      console.log(`(--into "${intoSpec}" not supported — only "apx" or "apx:<slug>")`);
+    } else {
+      const slug = intoSpec.includes(":") ? intoSpec.split(":")[1] : null;
+      try {
+        const summary = summaryText || (await summarizeSession(meta, args).catch(() => null));
+        const created = createApxFollowupSession(meta, slug, summary, args);
+        console.log("");
+        console.log(`✅ new APX session: ${created.id}`);
+        console.log(`   agent:  ${created.agent}`);
+        console.log(`   file:   ${path.relative(process.cwd(), created.path)}`);
+        console.log(`   parent: ${meta.engine}:${meta.id}`);
+      } catch (e) {
+        console.log("");
+        console.log(`(--into failed: ${e.message})`);
+      }
+    }
+  }
+}
+
+// Ask the super-agent on the daemon to summarize a session. The daemon already
+// exposes /projects/:pid/sessions/:id/resume?summarize=true for native APX
+// sessions; we re-use that path when possible, and fall back to the project-
+// agnostic summarizer for claude/codex.
+async function summarizeSession(meta, args) {
+  if (meta.engine === "apx") {
+    const pid = await resolveProjectId(args?.flags?.project);
+    const r = await http.get(
+      `/projects/${pid}/sessions/${meta.id}/resume?summarize=true`
+    );
+    return r.summary || null;
+  }
+  // Non-apx: send the transcript tail to a generic super-agent endpoint.
+  const engine = ENGINES[meta.engine];
+  const reading = engine.readSession(meta, { tailBytes: 48 * 1024 });
+  if (!reading.found) return null;
+  const prompt =
+    `Summarize what happened in this ${meta.engine} session in 4 concrete bullets, ` +
+    `then list the next 1-2 obvious next steps. Reply in the user's language.\n\n` +
+    `Title: ${meta.title || "(none)"}\n` +
+    `Cwd:   ${meta.cwd || "(unknown)"}\n` +
+    `Last ${reading.tail.length} bytes of transcript:\n\n${reading.tail}`;
+  const r = await http.post(`/super-agent/summarize`, {
+    prompt,
+    context_note: `Resume request for ${meta.engine} session ${meta.id}.`,
+  });
+  return r?.text || null;
+}
+
+// Map (engine, id, cwd) → how to spawn the engine's native CLI in resume mode.
+function spawnContinueSpec(meta) {
+  if (meta.engine === "claude") {
+    return {
+      bin: "claude",
+      args: ["--resume", meta.id],
+      cwd: meta.cwd && fs.existsSync(meta.cwd) ? meta.cwd : null,
+    };
+  }
+  if (meta.engine === "codex") {
+    return {
+      bin: "codex",
+      args: ["resume", meta.id],
+      cwd: meta.cwd && fs.existsSync(meta.cwd) ? meta.cwd : null,
+    };
+  }
+  // For apx-native sessions there's no "native CLI" to resume — use --into.
+  return null;
+}
+
+// Create a new APX session whose body is the summary of an existing session.
+// Used by `apx session resume <id> --into apx[:slug]`. Picks a sensible
+// default agent slug when none is given.
+function createApxFollowupSession(meta, slugArg, summary, args) {
+  const root = requireRoot();
+  const agents = readAgents(root);
+  if (agents.length === 0) {
+    throw new Error("no agents in AGENTS.md — `apx agent add <slug>` first");
+  }
+  let slug = slugArg || meta.agentSlug || agents[0].slug;
+  if (!agents.find((a) => a.slug === slug)) {
+    throw new Error(
+      `agent "${slug}" not in AGENTS.md (known: ${agents.map((a) => a.slug).join(", ")})`
+    );
+  }
+
+  const storageRoot = requireStorageRoot(root);
+  const id = generateSessionId(storageRoot, slug);
+  const filename = `${id}.md`;
+  const filepath = path.join(storageRoot, "agents", slug, "sessions", filename);
+  fs.mkdirSync(path.dirname(filepath), { recursive: true });
+
+  const title = `Continued from ${meta.engine}:${meta.id}`;
+  const started = nowIso();
+  const body =
+    `> Spawned from \`${meta.engine}\` session \`${meta.id}\`\n` +
+    `> Original cwd: ${meta.cwd || "(unknown)"}\n` +
+    `> Original path: ${meta.path}\n\n` +
+    (summary
+      ? `## Summary of prior session\n\n${summary}\n`
+      : `(no summary available — re-run with the daemon up and \`super_agent.enabled = true\` to get one)\n`);
+
+  const content =
+    `---\n` +
+    `id: ${id}\n` +
+    `agent: ${slug}\n` +
+    `title: ${title}\n` +
+    `description: \n` +
+    `task_ref: \n` +
+    `status: open\n` +
+    `date: ${started.slice(0, 10)}\n` +
+    `started: ${started}\n` +
+    `completed: \n` +
+    `parent_session: ${meta.engine}:${meta.id}\n` +
+    `parent_session_path: ${meta.path}\n` +
+    `---\n\n` +
+    `# ${title}\n\n${body}\n`;
+
+  fs.writeFileSync(filepath, content);
+  return { id, agent: slug, path: filepath };
 }
 
 export function cmdSessionCloseStale() {

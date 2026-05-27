@@ -499,10 +499,25 @@ const HELP_TOPICS = new Map(Object.entries({
   }),
   "session get": topic({
     title: "apx session get",
-    summary: "Print one session metadata record or full markdown body.",
-    usage: ["apx session get <id> [--body]", "apx session show <id> [--body]"],
-    options: [["--body", "Print the full session markdown file."]],
-    examples: ["apx session get 2026-05-09-01", "apx session get 2026-05-09-01 --body"],
+    summary: "Print one session record (APX local, or any detected engine).",
+    usage: [
+      "apx session get <id> [--body|--full|--tail N] [--json]",
+      "apx session get <id> --engine <apx|claude|codex> [--full|--tail N]",
+      "apx session get <id> --any [--full|--tail N]",
+    ],
+    options: [
+      ["--body / --full", "Print the full session file (markdown or JSONL transcript)."],
+      ["--tail N[k|m]", "Print the last N bytes of the transcript (e.g. --tail 32k)."],
+      ["--engine <id>", "Look inside one engine's storage: apx | claude | codex."],
+      ["--any", "Search every detected engine; errors on id collisions."],
+      ["--json", "Machine-readable metadata."],
+    ],
+    examples: [
+      "apx session get 2026-05-09-01",
+      "apx session get 2026-05-09-01 --body",
+      "apx session get b3f0c... --engine claude --tail 16k",
+      "apx session get b3f0c... --any --full",
+    ],
   }),
   "session update": topic({
     title: "apx session update",
@@ -538,14 +553,27 @@ const HELP_TOPICS = new Map(Object.entries({
   }),
   "session resume": topic({
     title: "apx session resume",
-    summary: "Show APC session metadata and optional external transcript summary.",
-    usage: ["apx session resume <id> [--summary] [--full] [--project <name|id|path>]"],
-    options: [
-      ["--summary", "Ask the super-agent to summarize when available."],
-      ["--full", "Print the full available transcript tail."],
-      ["--project <name|id|path>", "Resolve session in a specific daemon project."],
+    summary:
+      "Locate <id> across every detected engine (apx | claude | codex), show it, and optionally continue.",
+    usage: [
+      "apx session resume <id> [--engine <id>] [--summary] [--full|--tail N]",
+      "apx session resume <id> --continue            # spawn native CLI to resume",
+      "apx session resume <id> --into apx[:slug]     # create a new APX session seeded with the summary",
     ],
-    examples: ["apx session resume 2026-05-09-01 --summary"],
+    options: [
+      ["--engine <id>", "Restrict the search to one engine: apx | claude | codex."],
+      ["--summary", "Ask the super-agent to summarize the transcript (needs daemon)."],
+      ["--tail N[k|m]", "Print the last N bytes of the transcript (default = metadata only)."],
+      ["--full / --body", "Print the entire transcript."],
+      ["--continue", "Spawn the engine's native CLI (claude --resume / codex resume)."],
+      ["--into apx[:slug]", "Create a new APX session whose body is the summary of <id>."],
+      ["--project <name|id|path>", "Pin to a specific APX project (apx-engine summaries only)."],
+    ],
+    examples: [
+      "apx session resume b3f0c12a... --summary",
+      "apx session resume 2026-05-09-01 --continue",
+      "apx session resume b3f0c12a... --engine claude --into apx:reviewer",
+    ],
   }),
   "session compact": topic({
     title: "apx session compact",
@@ -560,39 +588,43 @@ const HELP_TOPICS = new Map(Object.entries({
   }),
   sessions: topic({
     title: "apx sessions",
-    summary: "List AI engine sessions (Claude Code, Codex, APX) non-interactively.",
+    summary:
+      "List AI engine sessions (APX, Claude Code, Codex, …). Without --engine, lists every detected engine.",
     usage: ["apx sessions list [--engine <id>] [--project <name>|--dir <path>] [--limit N]"],
     commands: [
       ["list | ls", "List engine projects, or sessions of one project."],
     ],
     options: [
-      ["--engine <id>", "apx (default) | claude | codex | antigravity."],
+      ["--engine <id>", "Filter to one engine: apx | claude | codex | antigravity. Omit to list every detected engine."],
       ["--project <name>", "A registered APX project to resolve the directory from."],
       ["--dir <path>", "An explicit project directory (for unregistered projects)."],
-      ["--limit N", "Show only the N most recent sessions."],
+      ["--limit N", "Show only the N most recent sessions per engine."],
     ],
     examples: [
+      "apx sessions list                              # every engine, every project",
       "apx sessions list --engine claude",
       "apx sessions list --engine claude --project iacrmar",
-      "apx sessions list --engine codex --dir /path/to/project",
+      "apx sessions list --dir /path/to/project       # this dir across every engine",
     ],
   }),
   "sessions list": topic({
     title: "apx sessions list",
-    summary: "List engine projects, or the sessions of one resolved project.",
+    summary:
+      "List sessions. No --engine → every detected engine (empty engines show '(sin nada)', missing engines are skipped).",
     usage: [
-      "apx sessions list [--engine <id>]",
+      "apx sessions list                                # multi-engine view",
+      "apx sessions list --engine <id>                   # one engine",
       "apx sessions list --engine <id> --project <name>",
       "apx sessions list --engine <id> --dir <path>",
     ],
     options: [
-      ["--engine <id>", "apx (default) | claude | codex | antigravity."],
+      ["--engine <id>", "apx | claude | codex | antigravity. Omit to scan all."],
       ["--project <name>", "Resolve directory from a registered APX project."],
       ["--dir <path>", "Explicit project directory."],
-      ["--limit N", "Show only the N most recent sessions."],
+      ["--limit N", "Show only the N most recent sessions per engine."],
     ],
     examples: [
-      "apx sessions list",
+      "apx sessions list                                            # every engine, every project",
       "apx sessions list --engine claude --project iacrmar",
       "apx sessions list --engine codex --dir /Volumes/work/iacrmar",
     ],

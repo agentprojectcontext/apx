@@ -5,7 +5,11 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
-import { ENGINES } from "../src/interfaces/cli/commands/sessions.js";
+import {
+  ENGINES,
+  findSessionAcrossEngines,
+  findSessionInEngine,
+} from "../src/interfaces/cli/commands/sessions.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI = path.join(__dirname, "..", "src", "interfaces", "cli", "index.js");
@@ -128,4 +132,137 @@ test("sessions list rejects an unknown engine", () => {
   const result = runCli(["sessions", "list", "--engine", "bogus"]);
   assert.notEqual(result.status, 0);
   assert.match(stripAnsi(result.stdout + result.stderr), /unknown engine/);
+});
+
+// ── new: cross-engine lookup ────────────────────────────────────────────────
+
+test("claude findSessionById locates a session across project folders", () => {
+  const home = makeFakeHome();
+  const cwd = "/Volumes/work/example";
+  const dir = path.join(home, ".claude", "projects", encode(cwd));
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(
+    path.join(dir, "abc-123.jsonl"),
+    JSON.stringify({ type: "ai-title", aiTitle: "Some task" }) + "\n"
+  );
+  const hit = ENGINES.claude.findSessionById("abc-123", { home });
+  assert.ok(hit, "expected to find session");
+  assert.equal(hit.engine, "claude");
+  assert.equal(hit.id, "abc-123");
+  assert.equal(hit.title, "Some task");
+});
+
+test("codex findSessionById walks rollouts and returns the path", () => {
+  const home = makeFakeHome();
+  const dayDir = path.join(home, ".codex", "sessions", "2026", "05", "20");
+  fs.mkdirSync(dayDir, { recursive: true });
+  const file = path.join(dayDir, "rollout-2026-05-20T10-00-00-abc.jsonl");
+  fs.writeFileSync(
+    file,
+    JSON.stringify({
+      type: "session_meta",
+      payload: { id: "codex-xyz", cwd: "/proj/x" },
+    }) + "\n"
+  );
+  const hit = ENGINES.codex.findSessionById("codex-xyz", { home });
+  assert.ok(hit, "expected to find codex session");
+  assert.equal(hit.engine, "codex");
+  assert.equal(hit.path, file);
+  assert.equal(hit.cwd, "/proj/x");
+});
+
+test("apx findSessionById finds a session by frontmatter id", () => {
+  const home = makeFakeHome();
+  const projectDir = path.join(home, "myproj");
+  fs.mkdirSync(path.join(projectDir, ".apc"), { recursive: true });
+  fs.writeFileSync(
+    path.join(projectDir, ".apc", "project.json"),
+    JSON.stringify({ name: "myproj", apx_id: "apx-test-id" })
+  );
+  fs.mkdirSync(path.join(home, ".apx"), { recursive: true });
+  fs.writeFileSync(
+    path.join(home, ".apx", "config.json"),
+    JSON.stringify({ projects: [{ path: projectDir }] })
+  );
+  const sdir = path.join(
+    home,
+    ".apx",
+    "projects",
+    "apx-test-id",
+    "agents",
+    "reviewer",
+    "sessions"
+  );
+  fs.mkdirSync(sdir, { recursive: true });
+  fs.writeFileSync(
+    path.join(sdir, "2026-05-09-42.md"),
+    `---\nid: 2026-05-09-42\ntitle: Hi\nagent: reviewer\nstatus: open\n---\n\n# Hi\n`
+  );
+  const hit = ENGINES.apx.findSessionById("2026-05-09-42", { home });
+  assert.ok(hit);
+  assert.equal(hit.engine, "apx");
+  assert.equal(hit.agentSlug, "reviewer");
+  assert.equal(hit.title, "Hi");
+});
+
+test("findSessionAcrossEngines returns multiple hits on id collision", () => {
+  const home = makeFakeHome();
+  // Plant the same id in both claude and codex stores.
+  const claudeDir = path.join(home, ".claude", "projects", "encoded-x");
+  fs.mkdirSync(claudeDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(claudeDir, "collide-id.jsonl"),
+    JSON.stringify({ type: "ai-title", aiTitle: "from claude" }) + "\n"
+  );
+  const codexDir = path.join(home, ".codex", "sessions", "2026", "05", "20");
+  fs.mkdirSync(codexDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(codexDir, "rollout-2026-05-20T10-00-00.jsonl"),
+    JSON.stringify({
+      type: "session_meta",
+      payload: { id: "collide-id", cwd: "/somewhere" },
+    }) + "\n"
+  );
+  const hits = findSessionAcrossEngines("collide-id", { home });
+  const engines = hits.map((h) => h.engine).sort();
+  assert.deepEqual(engines, ["claude", "codex"]);
+});
+
+test("findSessionInEngine restricts the search to one engine", () => {
+  const home = makeFakeHome();
+  const dir = path.join(home, ".claude", "projects", "encoded-y");
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(
+    path.join(dir, "only-claude.jsonl"),
+    JSON.stringify({ type: "ai-title", aiTitle: "x" }) + "\n"
+  );
+  assert.ok(findSessionInEngine("claude", "only-claude", { home }));
+  assert.equal(findSessionInEngine("codex", "only-claude", { home }), null);
+});
+
+test("claude readSession returns raw + tail", () => {
+  const home = makeFakeHome();
+  const dir = path.join(home, ".claude", "projects", "encoded-z");
+  fs.mkdirSync(dir, { recursive: true });
+  const file = path.join(dir, "read-me.jsonl");
+  const body = "line-a\nline-b\nline-c\n".repeat(200);
+  fs.writeFileSync(file, body);
+  const reading = ENGINES.claude.readSession(
+    { path: file },
+    { tailBytes: 64 }
+  );
+  assert.equal(reading.found, true);
+  assert.equal(reading.size, body.length);
+  assert.ok(reading.tail.length <= 64);
+  assert.ok(body.endsWith(reading.tail));
+});
+
+test("sessions list without --engine prints every detected engine", () => {
+  // Smoke-test the CLI dispatch path. We can't easily fake HOME here for the
+  // child process, so we just assert it exits 0 and mentions APX (always
+  // available).
+  const result = runCli(["sessions", "list"]);
+  assert.equal(result.status, 0);
+  const out = stripAnsi(result.stdout);
+  assert.match(out, /APX/i);
 });

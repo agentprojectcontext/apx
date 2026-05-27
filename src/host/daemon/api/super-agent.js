@@ -102,6 +102,34 @@ export function register(app, { projects, registries, plugins, project, config }
     }
   });
 
+  // Project-agnostic one-shot summarize endpoint. Used by `apx session resume
+  // <id>` when the session lives outside any registered APX project (e.g. a
+  // raw Claude/Codex session). Returns { text } so callers can format the
+  // summary however they want.
+  app.post("/super-agent/summarize", async (req, res) => {
+    const { prompt, context_note: contextNote = "", model } = req.body || {};
+    if (!prompt) return res.status(400).json({ error: "prompt required" });
+    try {
+      const saResult = await runSuperAgent({
+        globalConfig: config,
+        projects,
+        plugins,
+        registries,
+        prompt,
+        contextNote,
+        channel: "api",
+        overrideModel: model,
+      });
+      res.json({
+        text: saResult.text,
+        usage: saResult.usage,
+        name: saResult.name,
+      });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   app.post("/projects/:pid/super-agent/chat", async (req, res) => {
     const p = project(req, res);
     if (!p) return;

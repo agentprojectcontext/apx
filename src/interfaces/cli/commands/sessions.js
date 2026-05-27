@@ -145,6 +145,15 @@ function claudeReadTitle(file) {
   return title || lastPrompt || null;
 }
 
+// Decode a Claude project folder name back to a cwd-like path. The encoding is
+// lossy (every non-alphanumeric becomes "-"), so this returns the encoded name
+// when no registered APX project maps back to a real cwd.
+function claudeDecodeProject(encoded, opts) {
+  const known = readApxProjects(opts);
+  const hit = known.find((p) => encodeClaudeProjectPath(p.path) === encoded);
+  return hit ? hit.path : null;
+}
+
 const claudeEngine = {
   id: "claude",
   label: "Claude Code",
@@ -154,6 +163,42 @@ const claudeEngine = {
     return fs.existsSync(dir)
       ? { available: true }
       : { available: false, reason: `${dir} not found` };
+  },
+  // Locate <id>.jsonl across every Claude project folder. Used by
+  // `apx session resume <id>` so the user doesn't need to know the cwd.
+  findSessionById(id, opts) {
+    const root = claudeProjectsDir(opts);
+    if (!fs.existsSync(root)) return null;
+    for (const name of fs.readdirSync(root)) {
+      const file = path.join(root, name, `${id}.jsonl`);
+      if (fs.existsSync(file)) {
+        return {
+          engine: "claude",
+          id,
+          path: file,
+          cwd: claudeDecodeProject(name, opts) || name,
+          mtime: safeStatMtime(file),
+          title: claudeReadTitle(file) || "(sin título)",
+        };
+      }
+    }
+    return null;
+  },
+  // Read the full JSONL transcript. Returns raw text plus a tail trimmed to
+  // tailBytes (default 64 KB) so callers can show "last N bytes" without
+  // loading huge logs into memory.
+  readSession(meta, { tailBytes = 64 * 1024 } = {}) {
+    if (!meta?.path || !fs.existsSync(meta.path)) {
+      return { found: false };
+    }
+    const raw = fs.readFileSync(meta.path, "utf8");
+    return {
+      found: true,
+      raw,
+      tail: raw.length > tailBytes ? raw.slice(-tailBytes) : raw,
+      size: raw.length,
+      format: "jsonl",
+    };
   },
   listProjects(opts) {
     const root = claudeProjectsDir(opts);
@@ -261,6 +306,40 @@ function codexScanRollouts(opts) {
   return found;
 }
 
+// Scan rollouts but also keep the absolute path so resume-by-id can read the
+// file straight off disk. Old codexScanRollouts dropped the path; this helper
+// keeps it.
+function codexScanRolloutsWithPath(opts) {
+  const root = codexSessionsDir(opts);
+  const found = [];
+  const walk = (dir) => {
+    let entries;
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const e of entries) {
+      const full = path.join(dir, e.name);
+      if (e.isDirectory()) walk(full);
+      else if (e.name.startsWith("rollout-") && e.name.endsWith(".jsonl")) {
+        const head = readHead(full);
+        const id = (head.match(/"id":"([^"]+)"/) || [])[1];
+        const cwd = (head.match(/"cwd":"([^"]+)"/) || [])[1];
+        if (id)
+          found.push({
+            id,
+            cwd: cwd || null,
+            mtime: safeStatMtime(full),
+            path: full,
+          });
+      }
+    }
+  };
+  walk(root);
+  return found;
+}
+
 const codexEngine = {
   id: "codex",
   label: "Codex",
@@ -270,6 +349,32 @@ const codexEngine = {
     return fs.existsSync(dir)
       ? { available: true }
       : { available: false, reason: `${dir} not found` };
+  },
+  findSessionById(id, opts) {
+    const hit = codexScanRolloutsWithPath(opts).find((r) => r.id === id);
+    if (!hit) return null;
+    const titles = codexTitleIndex(opts);
+    return {
+      engine: "codex",
+      id,
+      path: hit.path,
+      cwd: hit.cwd,
+      mtime: hit.mtime,
+      title: titles.get(id) || "(sin título)",
+    };
+  },
+  readSession(meta, { tailBytes = 64 * 1024 } = {}) {
+    if (!meta?.path || !fs.existsSync(meta.path)) {
+      return { found: false };
+    }
+    const raw = fs.readFileSync(meta.path, "utf8");
+    return {
+      found: true,
+      raw,
+      tail: raw.length > tailBytes ? raw.slice(-tailBytes) : raw,
+      size: raw.length,
+      format: "jsonl",
+    };
   },
   listProjects(opts) {
     const byCwd = new Map();
@@ -334,6 +439,73 @@ const apxEngine = {
   implemented: true,
   detect() {
     return { available: true };
+  },
+  // Walk every registered APX project looking for a session file whose
+  // frontmatter `id:` or filename (without .md) equals the given id.
+  findSessionById(id, opts) {
+    const projects = readApxProjects(opts);
+    for (const proj of projects) {
+      if (!proj.apxId) continue;
+      const agentsDir = path.join(apxStorageRoot(opts), proj.apxId, "agents");
+      if (!fs.existsSync(agentsDir)) continue;
+      for (const slug of fs.readdirSync(agentsDir)) {
+        const sdir = path.join(agentsDir, slug, "sessions");
+        let files;
+        try {
+          files = fs.readdirSync(sdir);
+        } catch {
+          continue;
+        }
+        for (const f of files) {
+          if (!f.endsWith(".md")) continue;
+          const file = path.join(sdir, f);
+          const baseId = f.slice(0, -3);
+          const fm = parseFrontmatter(fs.readFileSync(file, "utf8"));
+          if (fm.id === id || baseId === id) {
+            return {
+              engine: "apx",
+              id: fm.id || baseId,
+              path: file,
+              cwd: proj.path,
+              mtime: safeStatMtime(file),
+              title: fm.title || baseId,
+              agentSlug: slug,
+              apxId: proj.apxId,
+              projectName: proj.name,
+              externalSessionPath: fm.external_session_path || null,
+            };
+          }
+        }
+      }
+    }
+    return null;
+  },
+  // Read the APX session markdown. If the frontmatter points to an external
+  // transcript (the JSONL the underlying engine left behind), include its tail
+  // too — same data shape callers see for claude/codex direct reads.
+  readSession(meta, { tailBytes = 64 * 1024 } = {}) {
+    if (!meta?.path || !fs.existsSync(meta.path)) {
+      return { found: false };
+    }
+    const raw = fs.readFileSync(meta.path, "utf8");
+    const result = {
+      found: true,
+      raw,
+      tail: raw,
+      size: raw.length,
+      format: "markdown",
+    };
+    if (meta.externalSessionPath && fs.existsSync(meta.externalSessionPath)) {
+      const ext = fs.readFileSync(meta.externalSessionPath, "utf8");
+      result.external = {
+        path: meta.externalSessionPath,
+        raw: ext,
+        tail: ext.length > tailBytes ? ext.slice(-tailBytes) : ext,
+        size: ext.length,
+        format: "jsonl",
+      };
+    }
+    return result;
   },
   listProjects(opts) {
     return readApxProjects(opts).map((p) => {
@@ -429,6 +601,37 @@ export const ENGINES = {
   antigravity: antigravityEngine,
 };
 
+// ── cross-engine helpers (used by `apx session resume <id>` etc.) ────────────
+
+/**
+ * Search every implemented + detected engine for a session whose id matches.
+ * Returns an array of hits (0, 1, or more if the same id exists in multiple
+ * engines — callers should disambiguate via --engine).
+ */
+export function findSessionAcrossEngines(id, opts = {}) {
+  const hits = [];
+  for (const engine of Object.values(ENGINES)) {
+    if (!engine.implemented || typeof engine.findSessionById !== "function") continue;
+    const detected = engine.detect(opts);
+    if (!detected.available) continue;
+    try {
+      const hit = engine.findSessionById(id, opts);
+      if (hit) hits.push(hit);
+    } catch {}
+  }
+  return hits;
+}
+
+/** Same as findSessionAcrossEngines but limited to one engine id. */
+export function findSessionInEngine(engineId, id, opts = {}) {
+  const engine = ENGINES[engineId];
+  if (!engine) return null;
+  if (!engine.implemented || typeof engine.findSessionById !== "function") return null;
+  const detected = engine.detect(opts);
+  if (!detected.available) return null;
+  return engine.findSessionById(id, opts);
+}
+
 // ── command ──────────────────────────────────────────────────────────────────
 
 function printSessions(engine, dir, result, limit) {
@@ -480,29 +683,20 @@ function printProjects(engine, projects) {
   );
 }
 
-export function cmdSessionsList(args, opts = {}) {
-  const engineFlag = args.flags.engine;
-  if (engineFlag === true) {
-    throw new Error("--engine requires a value (apx, claude, codex, antigravity)");
-  }
-  const engineId = engineFlag ? String(engineFlag) : "apx";
-  const engine = ENGINES[engineId];
-  if (!engine) {
-    throw new Error(
-      `unknown engine "${engineId}" — valid engines: ${Object.keys(ENGINES).join(", ")}`
-    );
-  }
-
+// Run the single-engine list flow. Returns true if anything printed.
+function listSingleEngine(engine, args, opts, { headerPrefix = "" } = {}) {
   const detected = engine.detect(opts);
   if (!detected.available) {
-    console.log(`engine "${engine.id}" not available: ${detected.reason}`);
-    return;
+    // Caller filters by detect() already in "all engines" mode; this path is
+    // hit only when --engine names something the user explicitly asked for.
+    console.log(`${headerPrefix}engine "${engine.id}" not available: ${detected.reason}`);
+    return false;
   }
   if (!engine.implemented) {
     console.log(
-      `engine "${engine.id}" (${engine.label}) is detected but session listing is not implemented yet.`
+      `${headerPrefix}engine "${engine.id}" (${engine.label}) detected but listing not implemented yet.`
     );
-    return;
+    return false;
   }
 
   const dir = resolveTargetDir(args, opts);
@@ -513,5 +707,72 @@ export function cmdSessionsList(args, opts = {}) {
     printSessions(engine, dir, engine.listSessions(dir, opts), limit);
   } else {
     printProjects(engine, engine.listProjects(opts));
+  }
+  return true;
+}
+
+export function cmdSessionsList(args, opts = {}) {
+  const engineFlag = args.flags.engine;
+  if (engineFlag === true) {
+    throw new Error("--engine requires a value (apx, claude, codex, antigravity)");
+  }
+
+  // Explicit engine → behave exactly as before (single-engine view).
+  if (engineFlag) {
+    const engineId = String(engineFlag);
+    const engine = ENGINES[engineId];
+    if (!engine) {
+      throw new Error(
+        `unknown engine "${engineId}" — valid engines: ${Object.keys(ENGINES).join(", ")}`
+      );
+    }
+    listSingleEngine(engine, args, opts);
+    return;
+  }
+
+  // No --engine → iterate every engine present on the system. Detected-but-
+  // empty engines still get a heading with "(sin nada)" so the user sees what
+  // exists; engines not installed are silently skipped (no clutter).
+  let anyDetected = false;
+  let first = true;
+  for (const engine of Object.values(ENGINES)) {
+    const detected = engine.detect(opts);
+    if (!detected.available) continue;
+    anyDetected = true;
+    if (!first) console.log("");
+    first = false;
+    console.log(`══ ${engine.label} (${engine.id}) ══`);
+    if (!engine.implemented) {
+      console.log("  (detected — listing no soportado todavía)");
+      continue;
+    }
+    const dir = resolveTargetDir(args, opts);
+    const limitFlag = args.flags.limit || args.flags.last;
+    const limit =
+      limitFlag && limitFlag !== true ? parseInt(limitFlag, 10) : null;
+    if (dir) {
+      const result = engine.listSessions(dir, opts);
+      if (!result.found || (result.sessions || []).length === 0) {
+        console.log("  (sin nada)");
+        if (result.location) console.log(`  looked in: ${result.location}`);
+      } else {
+        printSessions(engine, dir, result, limit);
+      }
+    } else {
+      const list = engine.listProjects(opts);
+      if (list.length === 0) {
+        console.log("  (sin nada)");
+      } else {
+        printProjects(engine, list);
+      }
+    }
+  }
+  if (!anyDetected) {
+    console.log("(no engines detected — install claude, codex, or run `apx init` somewhere)");
+  } else {
+    console.log("");
+    console.log(
+      "Tip: --engine <id> filters to one engine; --project <name> or --dir <path> drills into a project."
+    );
   }
 }
