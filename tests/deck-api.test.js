@@ -62,3 +62,56 @@ test("GET /deck/manifest exposes APX Deck bootstrap data", async () => {
     cleanupTempProject(root);
   }
 });
+
+test("PATCH /deck/widgets/:id persists enable/disable into the manifest", async () => {
+  const root = makeTempProject({ name: "Toggle Project" });
+  const projects = new ProjectManager({});
+  projects.register(root);
+  const cfg = { host: "127.0.0.1", port: 7430 };
+  const app = buildApi({
+    projects,
+    registries: null,
+    plugins: { get: () => null, status: () => ({}) },
+    scheduler: null,
+    version: "test",
+    startedAt: Date.now(),
+    addProjectGlobally: () => {},
+    config: cfg,
+    token: "",
+  });
+
+  const { server, baseUrl } = await listen(app);
+  try {
+    const patchRes = await fetch(`${baseUrl}/deck/widgets/docker`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ enabled: false }),
+    });
+    assert.equal(patchRes.status, 200);
+    const patched = await patchRes.json();
+    assert.equal(patched.id, "docker");
+    assert.equal(patched.enabled, false);
+
+    const manifest = await (await fetch(`${baseUrl}/deck/manifest`)).json();
+    const docker = manifest.deck.widgets.find((w) => w.id === "docker");
+    assert.equal(docker.status, "disabled");
+    assert.equal(docker.user_enabled, false);
+
+    const bad = await fetch(`${baseUrl}/deck/widgets/nonsense-xx`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ enabled: true }),
+    });
+    assert.equal(bad.status, 404);
+
+    const bad2 = await fetch(`${baseUrl}/deck/widgets/docker`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ enabled: "yes" }),
+    });
+    assert.equal(bad2.status, 400);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+    cleanupTempProject(root);
+  }
+});

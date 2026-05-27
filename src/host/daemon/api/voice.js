@@ -25,6 +25,104 @@ import { transcribe } from "../transcription.js";
 import { runSuperAgent, isSuperAgentEnabled } from "../super-agent.js";
 import { appendErrorTrace, previewText } from "../../../core/logging.js";
 
+// ── Voice intent classifier ────────────────────────────────────────
+//
+// A very small, regex-based router that catches a handful of "verb-y"
+// utterances we want to short-circuit instead of sending to the LLM.
+// Right now: "crear tarea ...", "creá tarea ...", "agregá una tarea ...",
+// "nueva tarea ..." → POST to the project's tasks store directly.
+//
+// The classifier always returns either:
+//   - { handled: false } → caller falls through to the super-agent
+//   - { handled: true, reply: "...", meta?: {...} } → caller returns
+//
+// Keeping it dependency-free + sync lets us run it before any heavy
+// work in the voice handler.
+const TASK_INTENT_RE = new RegExp(
+  // Optional polite preamble: "podés / por favor"
+  "^\\s*(?:por favor|porfa|porfis|dale|che|apx)?[,!\\s]*" +
+    // Either:
+    //   (a) verb cluster + optional article + "tarea"
+    //   (b) standalone "nueva|otra tarea" (no verb)
+    "(?:" +
+      // (a) verbs — with optional clitic pronouns (-me, -te, -le)
+      "(?:crea[r]?|cre[áa]|agreg[áa](?:me|le)?|agreg[uú]e|sum[áa](?:me)?|" +
+      "anot[áa](?:me)?|an[oó]tame|guard[áa](?:me)?|met[ée](?:me)?|" +
+      "añad[íi]|añad[ée]|pone(?:me|le)?|recor[dáa]me)" +
+      "\\s+(?:una|la|el|esta|ese|otra|otro)?\\s*" +
+      "(?:tarea|task|pendiente|todo|to-do)" +
+    "|" +
+      // (b) "nueva tarea X" / "otra tarea X" without a verb
+      "(?:nueva|otra|nuevo)\\s+(?:tarea|task|pendiente)" +
+    ")" +
+    // Optional connectors before the title
+    "\\s+(?:que\\s+(?:diga|sea|es)|para|de|sobre|llamada|titulada|titul[áa]da|:|-|de:)?\\s*",
+  "i"
+);
+
+function extractTaskTitle(text) {
+  if (typeof text !== "string") return null;
+  const cleaned = text.trim().replace(/^[«"']|[«"'.,;:!?]+$/g, "");
+  if (!cleaned) return null;
+  const m = TASK_INTENT_RE.exec(cleaned);
+  if (!m) return null;
+  const title = cleaned.slice(m[0].length).trim().replace(/[.!?]+$/, "");
+  if (!title) return null;
+  return title;
+}
+
+function pickIntentProject({ projects, hintId }) {
+  if (!projects?.list) return null;
+  const list = projects.list();
+  if (hintId !== undefined && hintId !== null) {
+    const hit = list.find((p) => String(p.id) === String(hintId));
+    if (hit) return hit;
+  }
+  // Prefer the first non-default real project; fall back to default.
+  return list.find((p) => Number(p.id) !== 0) || list[0] || null;
+}
+
+async function tryVoiceTaskIntent({ projects, userText, hintProjectId }) {
+  const title = extractTaskTitle(userText);
+  if (!title) return { handled: false };
+  const listEntry = pickIntentProject({ projects, hintId: hintProjectId });
+  if (!listEntry) {
+    return {
+      handled: true,
+      reply: "No hay proyectos APX registrados. Agregá uno con `apx project add` y volvé a intentar.",
+    };
+  }
+  // projects.list() returns flat entries without storagePath; the
+  // resolver returns the full record. We need that for the JSONL store.
+  const project = projects.get(listEntry.id) || listEntry;
+  if (!project?.storagePath) {
+    return {
+      handled: true,
+      reply: `No pude crear la tarea: no encuentro el storage del proyecto ${project?.name || listEntry.name}.`,
+    };
+  }
+  try {
+    const { createTask } = await import("../../../core/tasks-store.js");
+    const task = createTask(project.storagePath, {
+      title,
+      source: "voice",
+    });
+    // Resolver may strip the human-readable name; fall back to the
+    // list entry which always has it.
+    const displayName = project.name || listEntry.name || `proyecto #${project.id}`;
+    return {
+      handled: true,
+      reply: `Listo. Anoté "${title}" en ${displayName}.`,
+      meta: { task_id: task.id, project_id: project.id },
+    };
+  } catch (e) {
+    return {
+      handled: true,
+      reply: `No pude crear la tarea: ${e.message || "error desconocido"}`,
+    };
+  }
+}
+
 async function decodeAudioInput({ audio, format = "webm" }) {
   if (!audio) return null;
   // A short string that starts with "/" and exists on disk is treated as a
@@ -82,14 +180,28 @@ export function register(app, { projects, plugins, registries }) {
         });
       }
 
-      // ── 2. Agent reply ───────────────────────────────────────────────
+      // ── 1.5 Intent classifier (regex short-circuits) ────────────────
+      // Cheap pattern match for "creá una tarea X" style utterances —
+      // we skip the LLM, create the task directly, and return a
+      // confirmatory reply that still gets TTS'd. The app sends
+      // `projectId` so we can target the active project; we fall back
+      // to the first non-default project otherwise.
+      const intentResult = await tryVoiceTaskIntent({
+        projects,
+        userText,
+        hintProjectId: body.projectId,
+      });
       let replyText = "";
       const previousMessages = Array.isArray(body.previousMessages)
         ? body.previousMessages
         : [];
       const channel = body.channel || "voice";
 
-      if (isSuperAgentEnabled(cfg)) {
+      let intentMeta = null;
+      if (intentResult.handled) {
+        replyText = intentResult.reply;
+        intentMeta = intentResult.meta || null;
+      } else if (isSuperAgentEnabled(cfg)) {
         try {
           const result = await runSuperAgent({
             globalConfig: cfg,
@@ -153,6 +265,7 @@ export function register(app, { projects, plugins, registries }) {
         reply_mime: tts.mime,
         provider: tts.provider,
         tts_error: tts.error || undefined,
+        intent: intentMeta || undefined,
       });
     } catch (e) {
       res.status(500).json({ error: e.message });

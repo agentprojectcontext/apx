@@ -66,13 +66,32 @@ export function createOpenAiCompatibleEngine({
       }
       if (!model) throw new Error(`${id}: model required`);
 
+      // Serialise messages for the OpenAI Chat Completions wire format.
+      //
+      // We preserve four optional fields the loop relies on:
+      //   - tool_calls  (assistant turns that emit a structured call)
+      //   - tool_call_id (tool result turns — Groq / OpenAI strict require
+      //                   this to match the assistant's tool_call id)
+      //   - name         (some providers prefer it on tool messages)
+      //
+      // Dropping any of these is the cause of the
+      //   "messages.N.tool_call_id: property 'tool_call_id' is missing"
+      // 400 we saw on Groq when llama-3.3 emitted a pseudo-tool call.
       const fullMessages = [];
       if (system) fullMessages.push({ role: "system", content: system });
       for (const m of messages) {
-        fullMessages.push({
+        const entry = {
           role: m.role,
           content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
-        });
+        };
+        if (m.tool_calls)    entry.tool_calls   = m.tool_calls;
+        if (m.tool_call_id)  entry.tool_call_id = m.tool_call_id;
+        // Some adapters expect `name` on tool messages; we map from tool_name
+        // (what run-agent.js writes) to be safe.
+        if (m.role === "tool" && (m.tool_name || m.name)) {
+          entry.name = m.name || m.tool_name;
+        }
+        fullMessages.push(entry);
       }
 
       const body = {

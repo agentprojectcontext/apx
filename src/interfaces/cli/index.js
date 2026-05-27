@@ -726,15 +726,16 @@ const HELP_TOPICS = new Map(Object.entries({
   }),
   daemon: topic({
     title: "apx daemon",
-    summary: "Start, stop, inspect, and read logs from the local APX daemon.",
-    usage: ["apx daemon <start|stop|status|logs> [--flags]"],
+    summary: "Start, stop, inspect, reload, and read logs from the local APX daemon.",
+    usage: ["apx daemon <start|stop|reload|status|logs> [--flags]"],
     commands: [
       ["start", "Start daemon."],
       ["stop", "Stop daemon."],
+      ["reload", "Reload ~/.apx/config.json without restart."],
       ["status", "Show daemon health."],
       ["logs", "Print daemon log tail."],
     ],
-    examples: ["apx daemon status", "apx daemon logs --tail 100"],
+    examples: ["apx daemon status", "apx daemon reload", "apx daemon logs --tail 100"],
   }),
   "daemon start": topic({
     title: "apx daemon start",
@@ -1293,6 +1294,339 @@ const HELP_TOPICS = new Map(Object.entries({
     usage: ["apx plugins status <id>"],
     examples: ["apx plugins status telegram"],
   }),
+
+  task: topic({
+    title: "apx task",
+    summary: "Per-project TODO list backed by the daemon (/projects/:pid/tasks).",
+    usage: ["apx task <subcommand> [args] [--flags]"],
+    commands: [
+      ["add | new | create \"<title>\"", "Create a task. Tags repeatable."],
+      ["list | ls", "List tasks (default state=open)."],
+      ["show | get <id>", "Print one task as JSON."],
+      ["done | complete <id>", "Mark task done."],
+      ["drop | archive <id>", "Drop / archive a task."],
+      ["reopen <id>", "Reopen a done or dropped task."],
+      ["patch | edit <id>", "Edit fields on an existing task."],
+    ],
+    options: [["--project <name|id|path>", "Pin command to a specific project."]],
+    examples: [
+      "apx task add \"Ship release notes\" --tag release --due 2026-06-01",
+      "apx task list --state open --tag release",
+      "apx task done t_abc123",
+    ],
+  }),
+  tasks: topic({
+    title: "apx tasks",
+    summary: "Alias for apx task.",
+    usage: ["apx tasks <subcommand> [args] [--flags]"],
+    examples: ["apx tasks list"],
+  }),
+  "task add": topic({
+    title: "apx task add",
+    summary: "Create a task on a project's TODO list.",
+    usage: ["apx task add \"<title>\" [--project X] [--body Y] [--tag t]... [--due 2026-05-30] [--agent A] [--source S]"],
+    options: [
+      ["--body <text>", "Optional task body / description."],
+      ["--tag <name>", "Tag the task. Repeatable for multiple tags."],
+      ["--due <date>", "Due date (any ISO-ish string the daemon accepts)."],
+      ["--agent <slug>", "Pre-assign the task to an agent."],
+      ["--source <name>", "Origin label (default: cli)."],
+      ["--project <name|id|path>", "Pin command to a specific project."],
+    ],
+    examples: [
+      "apx task add \"Review PR #42\" --agent reviewer --tag review",
+      "apx task add \"Release notes\" --tag release --tag docs --due 2026-06-01",
+    ],
+  }),
+  "task list": topic({
+    title: "apx task list",
+    summary: "List tasks in the current project (defaults to open).",
+    usage: ["apx task list [--state open|done|dropped|all] [--tag X] [--agent Y] [--due-before ISO] [--limit N] [--project P]"],
+    options: [
+      ["--state <s>", "open (default) | done | dropped | all."],
+      ["--tag <name>", "Filter by tag."],
+      ["--agent <slug>", "Filter by assigned agent."],
+      ["--due-before <iso>", "Only tasks with due date before this ISO date."],
+      ["--limit N", "Cap the number of rows."],
+      ["--project <name|id|path>", "Pin command to a specific project."],
+    ],
+    examples: [
+      "apx task list",
+      "apx task list --state all --limit 50",
+      "apx task list --agent reviewer --tag review",
+    ],
+  }),
+  "task show": topic({
+    title: "apx task show",
+    summary: "Print one task as JSON.",
+    usage: ["apx task show <id> [--project <name|id|path>]"],
+    options: [["--project <name|id|path>", "Pin command to a specific project."]],
+    examples: ["apx task show t_abc123"],
+  }),
+  "task done": topic({
+    title: "apx task done",
+    summary: "Mark a task as done.",
+    usage: ["apx task done <id> [--by <name>] [--project <name|id|path>]"],
+    options: [
+      ["--by <name>", "Who marked it done (free-form label)."],
+      ["--project <name|id|path>", "Pin command to a specific project."],
+    ],
+    examples: ["apx task done t_abc123", "apx task done t_abc123 --by reviewer"],
+  }),
+  "task drop": topic({
+    title: "apx task drop",
+    summary: "Drop / archive a task (kept in history, hidden from default list).",
+    usage: ["apx task drop <id> [--by <name>] [--project <name|id|path>]"],
+    options: [
+      ["--by <name>", "Who dropped it (free-form label)."],
+      ["--project <name|id|path>", "Pin command to a specific project."],
+    ],
+    examples: ["apx task drop t_abc123"],
+  }),
+  "task reopen": topic({
+    title: "apx task reopen",
+    summary: "Reopen a previously done or dropped task.",
+    usage: ["apx task reopen <id> [--project <name|id|path>]"],
+    options: [["--project <name|id|path>", "Pin command to a specific project."]],
+    examples: ["apx task reopen t_abc123"],
+  }),
+  "task patch": topic({
+    title: "apx task patch",
+    summary: "Edit fields on an existing task (title/body/due/agent/tags).",
+    usage: ["apx task patch <id> [--title T] [--body B] [--due D] [--agent A] [--tag t]... [--project P]"],
+    options: [
+      ["--title <text>", "Replace the title."],
+      ["--body <text>", "Replace the body."],
+      ["--due <date>", "Replace the due date (empty string clears)."],
+      ["--agent <slug>", "Reassign (empty string clears)."],
+      ["--tag <name>", "Replace tags. Repeatable; passing none clears."],
+      ["--project <name|id|path>", "Pin command to a specific project."],
+    ],
+    examples: [
+      "apx task patch t_abc123 --title \"New title\"",
+      "apx task patch t_abc123 --tag review --tag urgent",
+    ],
+  }),
+
+  // ── Pair (companion-device pairing) ───────────────────────────────────────
+  pair: topic({
+    title: "apx pair",
+    summary: "Pair a companion device (Deck app, etc.) with the local APX daemon via QR code.",
+    usage: [
+      "apx pair [label] [--label <name>]",
+      "apx pair list | ls",
+      "apx pair revoke <id>",
+    ],
+    commands: [
+      ["(no arg) | new | device", "Issue a pairing nonce, render the QR, poll until the device confirms."],
+      ["list | ls", "List currently-paired clients."],
+      ["revoke | rm <id>", "Revoke a paired client token."],
+    ],
+    options: [["--label <name>", "Friendly label stored with the pairing."]],
+    examples: ["apx pair", "apx pair \"phone\"", "apx pair list", "apx pair revoke d_abc123"],
+  }),
+  "pair new": topic({
+    title: "apx pair new",
+    summary: "Issue a pairing nonce, render the QR, and poll the daemon until the device confirms.",
+    usage: ["apx pair [label] [--label <name>]", "apx pair new", "apx pair device"],
+    options: [["--label <name>", "Friendly label stored with the pairing."]],
+    examples: ["apx pair", "apx pair \"phone\"", "apx pair new --label tablet"],
+  }),
+  "pair list": topic({
+    title: "apx pair list",
+    summary: "List currently-paired companion clients.",
+    usage: ["apx pair list", "apx pair ls"],
+    examples: ["apx pair list"],
+  }),
+  "pair revoke": topic({
+    title: "apx pair revoke",
+    summary: "Revoke a paired client token by id.",
+    usage: ["apx pair revoke <id>", "apx pair rm <id>"],
+    examples: ["apx pair revoke d_abc123"],
+  }),
+
+  // ── Overlay (floating voice window) ───────────────────────────────────────
+  overlay: topic({
+    title: "apx overlay",
+    summary: "Launch, stop, or inspect the floating Electron voice overlay window.",
+    usage: ["apx overlay <start|stop|status> [--flags]"],
+    commands: [
+      ["start", "Start the overlay window (or report if already running)."],
+      ["stop", "Stop the overlay window."],
+      ["status", "Print overlay process state and PID."],
+    ],
+    options: [["--debug, -d", "Verbose start-up logs (start only)."]],
+    examples: ["apx overlay start", "apx overlay status", "apx overlay stop"],
+  }),
+  "overlay start": topic({
+    title: "apx overlay start",
+    summary: "Start the floating Electron voice overlay window. No-op if it is already running.",
+    usage: ["apx overlay start [--debug]"],
+    options: [["--debug, -d", "Verbose start-up logs."]],
+    examples: ["apx overlay start", "apx overlay start --debug"],
+  }),
+  "overlay stop": topic({
+    title: "apx overlay stop",
+    summary: "Stop the floating Electron voice overlay window.",
+    usage: ["apx overlay stop"],
+    examples: ["apx overlay stop"],
+  }),
+  "overlay status": topic({
+    title: "apx overlay status",
+    summary: "Print overlay process state and PID (read from ~/.apx/overlay.pid).",
+    usage: ["apx overlay status"],
+    examples: ["apx overlay status"],
+  }),
+
+  // ── Voice (TTS / mic round-trip) ──────────────────────────────────────────
+  voice: topic({
+    title: "apx voice",
+    summary: "Speak text through the daemon TTS, run a mic→reply round-trip, or list providers.",
+    usage: [
+      "apx voice say \"<text>\" [--provider <id>] [--voice <name>] [--no-play]",
+      "apx voice listen [--seconds N] [--provider <id>] [--no-play]",
+      "apx voice providers",
+    ],
+    commands: [
+      ["say \"<text>\"", "Synthesize and play text via /tts/say."],
+      ["listen", "Record from mic, send to /voice/turn, play the reply."],
+      ["providers | list", "List configured TTS / STT providers."],
+    ],
+    options: [
+      ["--provider <id>", "Override configured provider for this call."],
+      ["--voice <name>", "Override voice id (say only)."],
+      ["--seconds N", "Record for N seconds (listen). 0 = stop on silence."],
+      ["--no-play", "Do not play audio after synthesis / reply."],
+    ],
+    examples: [
+      "apx voice say \"hola, ¿cómo estás?\"",
+      "apx voice listen --seconds 5",
+      "apx voice providers",
+    ],
+  }),
+  "voice say": topic({
+    title: "apx voice say",
+    summary: "Synthesize text through the daemon TTS pipeline (/tts/say) and (by default) play it.",
+    usage: ["apx voice say \"<text>\" [--provider <id>] [--voice <name>] [--no-play]"],
+    options: [
+      ["--provider <id>", "Override configured TTS provider."],
+      ["--voice <name>", "Override voice id."],
+      ["--no-play", "Synthesize but do not play the audio file."],
+    ],
+    examples: [
+      "apx voice say \"hola\"",
+      "apx voice say \"prueba\" --provider piper --voice es_AR",
+      "apx voice say \"silenciado\" --no-play",
+    ],
+  }),
+  "voice listen": topic({
+    title: "apx voice listen",
+    summary: "Record from the local mic, send to /voice/turn (STT + super-agent + TTS), and play the reply.",
+    usage: ["apx voice listen [--seconds N] [--provider <id>] [--no-play]"],
+    options: [
+      ["--seconds N", "Record N seconds. 0 (default) = stop on silence."],
+      ["--provider <id>", "Override STT provider."],
+      ["--no-play", "Do not play the reply audio."],
+    ],
+    examples: ["apx voice listen", "apx voice listen --seconds 5"],
+  }),
+  "voice providers": topic({
+    title: "apx voice providers",
+    summary: "List configured TTS / STT providers known to the daemon.",
+    usage: ["apx voice providers", "apx voice list"],
+    examples: ["apx voice providers"],
+  }),
+
+  // ── Unified daemon log ────────────────────────────────────────────────────
+  log: topic({
+    title: "apx log",
+    summary: "Read the unified daemon log (~/.apx/logs/apx.log). Covers every module: telegram, whisper, super-agent, tools, overlay.",
+    usage: ["apx log [--tail N] [-f|--follow] [--errors]"],
+    options: [
+      ["--tail N", "Print the last N lines (default 100)."],
+      ["-f, --follow", "Keep tailing as new lines are appended."],
+      ["--errors", "Show only [ERROR] lines (also includes structured errors.jsonl)."],
+    ],
+    examples: ["apx log", "apx log --tail 50", "apx log -f", "apx log --errors --tail 20"],
+  }),
+  logs: topic({
+    title: "apx logs",
+    summary: "Alias for apx log.",
+    usage: ["apx logs [--tail N] [-f|--follow] [--errors]"],
+    examples: ["apx logs --tail 50"],
+  }),
+
+  // ── Model router ──────────────────────────────────────────────────────────
+  model: topic({
+    title: "apx model",
+    summary: "Inspect or edit the super-agent model fallback router (~/.apx/config.json super_agent.model_fallback).",
+    usage: ["apx model <subcommand> [args]"],
+    commands: [
+      ["status | show", "Print fallback order, configured keys, per-provider probe results, and active model."],
+      ["order <p1> <p2> …", "Set the fallback order (e.g. ollama openrouter groq)."],
+      ["key <provider> <api-key>", "Save an API key under engines.<provider>.api_key."],
+      ["set <provider> <model-id>", "Pin a specific model id for one provider in the fallback map."],
+      ["test", "Resolve which model the router would pick right now."],
+      ["enable", "Enable the fallback router."],
+      ["disable", "Disable the fallback router (primary only)."],
+    ],
+    examples: [
+      "apx model status",
+      "apx model order ollama openrouter groq",
+      "apx model key groq sk-xxxx",
+      "apx model set openrouter openrouter/anthropic/claude-3.7-sonnet",
+      "apx model test",
+    ],
+  }),
+  "model status": topic({
+    title: "apx model status",
+    summary: "Show provider health + active model picked by the fallback router.",
+    usage: ["apx model status", "apx model show"],
+    examples: ["apx model status"],
+  }),
+  "model order": topic({
+    title: "apx model order",
+    summary: "Set the fallback order across providers.",
+    usage: ["apx model order <p1> <p2> …"],
+    examples: ["apx model order ollama openrouter groq"],
+  }),
+  "model key": topic({
+    title: "apx model key",
+    summary: "Save an API key for one provider in ~/.apx/config.json (engines.<provider>.api_key).",
+    usage: ["apx model key <groq|openrouter|openai|…> <api-key>"],
+    examples: ["apx model key groq sk-xxxx"],
+  }),
+  "model set": topic({
+    title: "apx model set",
+    summary: "Pin a specific model id for one provider in the fallback map.",
+    usage: ["apx model set <provider> <provider:model-id>"],
+    examples: ["apx model set openrouter openrouter/anthropic/claude-3.7-sonnet"],
+  }),
+  "model test": topic({
+    title: "apx model test",
+    summary: "Resolve which model the router would pick right now.",
+    usage: ["apx model test"],
+    examples: ["apx model test"],
+  }),
+  "model enable": topic({
+    title: "apx model enable",
+    summary: "Enable the fallback router.",
+    usage: ["apx model enable"],
+    examples: ["apx model enable"],
+  }),
+  "model disable": topic({
+    title: "apx model disable",
+    summary: "Disable the fallback router (primary model only).",
+    usage: ["apx model disable"],
+    examples: ["apx model disable"],
+  }),
+
+  "daemon reload": topic({
+    title: "apx daemon reload",
+    summary: "Reload ~/.apx/config.json into the daemon without restarting.",
+    usage: ["apx daemon reload"],
+    examples: ["apx daemon reload"],
+  }),
 }));
 
 const HELP_ALIASES = new Map(Object.entries({
@@ -1353,6 +1687,42 @@ const HELP_ALIASES = new Map(Object.entries({
   "telegram channel rm": "telegram channel remove",
   "project config get": "project config show",
   "project config rm": "project config unset",
+
+  // tasks (alias of task)
+  "tasks list": "task list",
+  "tasks ls": "task list",
+  "task ls": "task list",
+  "tasks add": "task add",
+  "tasks new": "task add",
+  "tasks create": "task add",
+  "task new": "task add",
+  "task create": "task add",
+  "tasks show": "task show",
+  "tasks get": "task show",
+  "task get": "task show",
+  "tasks done": "task done",
+  "tasks complete": "task done",
+  "task complete": "task done",
+  "tasks drop": "task drop",
+  "tasks archive": "task drop",
+  "task archive": "task drop",
+  "tasks reopen": "task reopen",
+  "tasks patch": "task patch",
+  "tasks edit": "task patch",
+  "task edit": "task patch",
+
+  // pair
+  "pair device": "pair new",
+  "pair ls": "pair list",
+  "pair rm": "pair revoke",
+
+  // voice
+  "voice list": "voice providers",
+
+  // model
+  "model show": "model status",
+  "model set-order": "model order",
+  "model set-key": "model key",
 }));
 
 function buildHelp(version) {
@@ -1475,6 +1845,15 @@ function buildHelp(version) {
     hCmd("apx routine disable <name>", 36, ""),
     hCmd("apx routine remove <name>",  36, ""),
 
+    hSec("Tasks"),
+    hCmd("apx task add \"<title>\"",   36, "--tag t  --due 2026-06-01  --agent A  --body \"...\""),
+    hCmd("apx task list",              36, "--state open|done|dropped|all  --tag X  --agent Y  --limit N"),
+    hCmd("apx task show <id>",         36, "print one task as JSON"),
+    hCmd("apx task done <id>",         36, "--by <name>  mark task done"),
+    hCmd("apx task drop <id>",         36, "drop / archive a task"),
+    hCmd("apx task reopen <id>",       36, "reopen a done/dropped task"),
+    hCmd("apx task patch <id>",        36, "--title T  --body B  --due D  --agent A  --tag t"),
+
     hSec("Artifacts"),
     hCmd("apx artifact create <name>", 36, "create managed file in project storage  [--content '...'] [--project 0]"),
     hCmd("apx artifact list",          36, "list artifacts"),
@@ -1492,6 +1871,19 @@ function buildHelp(version) {
     hSec("Plugins"),
     hCmd("apx plugins list",           36, "show loaded plugins and their status"),
     hCmd("apx plugins status <id>",    36, "detailed status of one plugin (e.g. telegram)"),
+
+    hSec("Voice & Overlay"),
+    hCmd("apx voice say \"text\"",     36, "TTS via daemon  --provider <id>  --voice <name>  --no-play"),
+    hCmd("apx voice listen",           36, "mic → /voice/turn → reply  --seconds N  --no-play"),
+    hCmd("apx voice providers",        36, "list configured TTS / STT providers"),
+    hCmd("apx overlay start",          36, "launch floating voice overlay (Electron)"),
+    hCmd("apx overlay stop",           36, ""),
+    hCmd("apx overlay status",         36, "show overlay process state"),
+
+    hSec("Pair (companion devices)"),
+    hCmd("apx pair [label]",           36, "QR pairing for Deck app / companion clients"),
+    hCmd("apx pair list",              36, "list paired clients"),
+    hCmd("apx pair revoke <id>",       36, "revoke a paired client token"),
 
     hSec("Flags"),
     hFlag("--project <name|id|path>",  36, "pin commands to a specific project"),

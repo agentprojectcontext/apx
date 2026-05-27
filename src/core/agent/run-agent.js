@@ -275,8 +275,14 @@ export async function runAgent({
       trace.push(traceItem);
       await emitProgress(onEvent, { type: "tool_result", trace: traceItem, iteration: iter + 1 });
 
+      // Groq (and strict OpenAI) require tool_call_id to be present and
+      // match the id of the tool_call in the previous assistant message.
+      // Real engines populate it; the pseudo-tool parser also assigns one
+      // (`pseudo_<…>`). Either way, surface it on the tool result message
+      // — otherwise Groq returns 400 "tool_call_id is missing".
       conversation.push({
         role: "tool",
+        tool_call_id: tc.id || `synth_${iter}_${trace.length}`,
         tool_name: name,
         content: JSON.stringify(toolResult),
       });

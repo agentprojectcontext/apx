@@ -41,6 +41,7 @@ import { register as registerOverlay } from "./api/overlay.js";
 import { register as registerDeck } from "./api/deck.js";
 import { register as registerPairing } from "./api/pairing.js";
 import { register as registerAdmin } from "./api/admin.js";
+import { register as registerWeb } from "./api/web.js";
 
 export function buildApi({
   projects,
@@ -127,6 +128,11 @@ export function buildApi({
 
   // ---- Admin -------------------------------------------------------
   registerAdmin(app, ctx);
+
+  // ---- Web admin panel (static SPA, must mount before 404) ---------
+  // Serves src/interfaces/web/dist when present + the /admin/web-token
+  // localhost-only token endpoint. No-op until the panel is built.
+  registerWeb(app, ctx);
 
   // ---- 404 catch-all (MUST be last) --------------------------------
   app.use((req, res) =>

@@ -56,7 +56,16 @@ function readBalancedJson(s, i) {
 // before/after.
 export function extractPseudoToolCalls(text) {
   if (!text || typeof text !== "string") return [];
-  const out = [];
+
+  // First pass: the Llama-3.3 (via Groq / OpenRouter) "dotted function"
+  // format: <function.NAME({...JSON...})</function>. The model emits this
+  // when it tries to do structured tool calling without proper SDK support.
+  // We translate each match into a regular pseudo-tool-call entry; the
+  // run-agent loop then treats them identically.
+  const llamaCalls = extractLlamaDottedFunctionCalls(text);
+
+  // Second pass: balanced `{name, arguments}` JSON anywhere in the text.
+  const jsonCalls = [];
   for (let i = 0; i < text.length; i++) {
     if (text[i] !== "{") continue;
     const balanced = readBalancedJson(text, i);
@@ -77,17 +86,74 @@ export function extractPseudoToolCalls(text) {
       parsed.arguments !== null &&
       !Array.isArray(parsed.arguments)
     ) {
-      out.push({
+      // Skip JSON that is actually the args object inside a dotted-function
+      // wrapper we already captured — otherwise we'd double-fire the tool.
+      const insideLlamaWrap = llamaCalls.some(
+        (lc) => lc._rawStart <= i && balanced.end <= lc._rawEnd
+      );
+      if (insideLlamaWrap) {
+        i = balanced.end - 1;
+        continue;
+      }
+      jsonCalls.push({
         id: nextId(),
-        function: {
-          name: parsed.name,
-          arguments: parsed.arguments,
-        },
+        function: { name: parsed.name, arguments: parsed.arguments },
         _pseudo: true,
         _raw: candidate,
       });
       i = balanced.end - 1;
     }
+  }
+
+  // Strip internal markers used to dedupe against JSON pass.
+  return [
+    ...llamaCalls.map(({ _rawStart, _rawEnd, ...rest }) => rest),
+    ...jsonCalls,
+  ];
+}
+
+// Parse the dotted-function format emitted by some Llama instructions:
+//
+//   <function.send_telegram({"text": "hi"})</function>
+//   <function.list_projects({})</function>
+//
+// We accept missing closing tags (model sometimes truncates) and tolerate
+// whitespace between the name, the parens, and the args object.
+function extractLlamaDottedFunctionCalls(text) {
+  const out = [];
+  const re = /<function\.([a-zA-Z_][a-zA-Z0-9_]*)\s*\(\s*(\{)/g;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    const name = m[1];
+    const argsStart = m.index + m[0].length - 1; // position of the `{`
+    const balanced = readBalancedJson(text, argsStart);
+    if (!balanced.ok) continue;
+    const argsBlob = text.slice(argsStart, balanced.end);
+    let args;
+    try {
+      args = JSON.parse(argsBlob);
+    } catch {
+      continue;
+    }
+    if (!args || typeof args !== "object" || Array.isArray(args)) continue;
+
+    // Find the end of the wrapper: optional ")", optional "</function>".
+    let cursor = balanced.end;
+    if (text[cursor] === ")") cursor++;
+    const tail = text.slice(cursor, cursor + 16);
+    const closeMatch = tail.match(/^\s*<\/function>/i);
+    if (closeMatch) cursor += closeMatch[0].length;
+
+    out.push({
+      id: nextId(),
+      function: { name, arguments: args },
+      _pseudo: true,
+      _raw: text.slice(m.index, cursor),
+      _rawStart: m.index,
+      _rawEnd: cursor,
+    });
+    // Advance regex past the closing brace so we don't double-match.
+    re.lastIndex = cursor;
   }
   return out;
 }
@@ -105,11 +171,18 @@ export function cleanTextOfPseudoToolCalls(text) {
   out = out.replace(/_icall\(\s*\)/g, "");
   out = out.replace(/```tool_(?:call|use)\s*([\s\S]*?)```/gi, "");
 
-  // Now drop balanced JSON objects that were tool-call-shaped
-  const calls = extractPseudoToolCalls(out);
-  for (const c of calls) {
-    out = out.replace(c._raw, "");
+  // The Llama "dotted-function" wrapper. Drop the whole block — both the
+  // opening `<function.NAME(` and the trailing `)</function>` — so the user
+  // never sees the wire format. Greedy on balanced braces would be wrong
+  // (model might emit JSON later in the same message), so we use the same
+  // extractor we built for the call-parsing pass and remove its raw spans.
+  for (const call of extractPseudoToolCalls(out)) {
+    if (call._raw) out = out.replace(call._raw, "");
   }
+  // Some models emit a stray `</function>` after the args without the
+  // opening tag — sweep those too.
+  out = out.replace(/<\/?function(?:\.[a-zA-Z_][a-zA-Z0-9_]*)?>/gi, "");
+
   // Tidy up whitespace & blank lines
   out = out.replace(/\n{3,}/g, "\n\n").trim();
   return out;

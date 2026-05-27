@@ -7,8 +7,32 @@
 //   apx task drop <id>     [--project X] [--by name]
 //   apx task reopen <id>   [--project X]
 //   apx task patch <id>    [--project X] [--title T] [--body B] [--due D] [--agent A] [--tag t]
+//
+// Each subcommand exports a usage string + a usageX() helper. The top-level
+// help (apx task --help / apx task <sub> --help) is wired through HELP_TOPICS
+// in src/interfaces/cli/index.js, but these inline helpers keep the
+// "wrong args" path readable from the command itself.
 import { http } from "../http.js";
 import { resolveProjectId } from "./project.js";
+
+// ── Usage strings (also used by index.js help topics) ────────────────────────
+export const TASK_USAGE = {
+  add:    'apx task add "<title>" [--project X] [--body Y] [--tag t]... [--due 2026-05-30] [--agent A]',
+  list:   "apx task list [--project X] [--state open|done|dropped|all] [--tag X] [--agent Y] [--due-before ISO] [--limit N]",
+  show:   "apx task show <id> [--project X]",
+  done:   "apx task done <id> [--project X] [--by name]",
+  drop:   "apx task drop <id> [--project X] [--by name]",
+  reopen: "apx task reopen <id> [--project X]",
+  patch:  "apx task patch <id> [--project X] [--title T] [--body B] [--due D] [--agent A] [--tag t]",
+};
+
+// Print "<msg>\nUsage: <usage>" to stderr and exit 1. Each cmd has a tiny
+// wrapper so errors point at the right usage line.
+function fail(sub, msg) {
+  console.error(`apx task ${sub}: ${msg}`);
+  console.error(`Usage: ${TASK_USAGE[sub]}`);
+  process.exit(1);
+}
 
 function asArray(v) {
   if (v === undefined || v === null) return [];
@@ -63,12 +87,10 @@ function renderDetail(t) {
   }, null, 2));
 }
 
+// ── add ───────────────────────────────────────────────────────────────────────
 export async function cmdTaskAdd(args) {
   const title = (args._ || []).join(" ").trim();
-  if (!title) {
-    console.error("apx task add: title required");
-    process.exit(1);
-  }
+  if (!title) return fail("add", "title required");
   const pid = await resolveProjectId(args?.flags?.project);
   const body = {
     title,
@@ -82,6 +104,7 @@ export async function cmdTaskAdd(args) {
   console.log(`added task ${task.id}: ${task.title}`);
 }
 
+// ── list ──────────────────────────────────────────────────────────────────────
 export async function cmdTaskList(args) {
   const pid = await resolveProjectId(args?.flags?.project);
   const params = new URLSearchParams();
@@ -95,17 +118,19 @@ export async function cmdTaskList(args) {
   renderTable(rows);
 }
 
+// ── show ──────────────────────────────────────────────────────────────────────
 export async function cmdTaskShow(args) {
   const id = (args._ || [])[0];
-  if (!id) { console.error("apx task show: id required"); process.exit(1); }
+  if (!id) return fail("show", "id required");
   const pid = await resolveProjectId(args?.flags?.project);
   const t = await http.get(`/projects/${pid}/tasks/${encodeURIComponent(id)}`);
   renderDetail(t);
 }
 
+// ── done ──────────────────────────────────────────────────────────────────────
 export async function cmdTaskDone(args) {
   const id = (args._ || [])[0];
-  if (!id) { console.error("apx task done: id required"); process.exit(1); }
+  if (!id) return fail("done", "id required");
   const pid = await resolveProjectId(args?.flags?.project);
   const t = await http.post(
     `/projects/${pid}/tasks/${encodeURIComponent(id)}/done`,
@@ -114,9 +139,10 @@ export async function cmdTaskDone(args) {
   console.log(`done: ${t.id} — ${t.title}`);
 }
 
+// ── drop ──────────────────────────────────────────────────────────────────────
 export async function cmdTaskDrop(args) {
   const id = (args._ || [])[0];
-  if (!id) { console.error("apx task drop: id required"); process.exit(1); }
+  if (!id) return fail("drop", "id required");
   const pid = await resolveProjectId(args?.flags?.project);
   const t = await http.post(
     `/projects/${pid}/tasks/${encodeURIComponent(id)}/drop`,
@@ -125,17 +151,19 @@ export async function cmdTaskDrop(args) {
   console.log(`dropped: ${t.id} — ${t.title}`);
 }
 
+// ── reopen ────────────────────────────────────────────────────────────────────
 export async function cmdTaskReopen(args) {
   const id = (args._ || [])[0];
-  if (!id) { console.error("apx task reopen: id required"); process.exit(1); }
+  if (!id) return fail("reopen", "id required");
   const pid = await resolveProjectId(args?.flags?.project);
   const t = await http.post(`/projects/${pid}/tasks/${encodeURIComponent(id)}/reopen`);
   console.log(`reopened: ${t.id} — ${t.title}`);
 }
 
+// ── patch ─────────────────────────────────────────────────────────────────────
 export async function cmdTaskPatch(args) {
   const id = (args._ || [])[0];
-  if (!id) { console.error("apx task patch: id required"); process.exit(1); }
+  if (!id) return fail("patch", "id required");
   const pid = await resolveProjectId(args?.flags?.project);
   const patch = {};
   if (args.flags?.title !== undefined) patch.title = args.flags.title;
@@ -144,8 +172,7 @@ export async function cmdTaskPatch(args) {
   if (args.flags?.agent !== undefined) patch.agent = args.flags.agent || null;
   if (args.flags?.tag   !== undefined) patch.tags  = asArray(args.flags.tag).filter(Boolean);
   if (Object.keys(patch).length === 0) {
-    console.error("apx task patch: at least one --title|--body|--due|--agent|--tag required");
-    process.exit(1);
+    return fail("patch", "at least one --title|--body|--due|--agent|--tag required");
   }
   const t = await http.patch(`/projects/${pid}/tasks/${encodeURIComponent(id)}`, { patch });
   renderDetail(t);

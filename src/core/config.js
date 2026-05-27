@@ -108,8 +108,105 @@ export function readConfig() {
   return mergeDefaults(raw);
 }
 
+// Fields whose values we treat as "credentials" — refuse to silently clobber.
+// If a writer hands us cfg that drops a previously-non-empty key here, we
+// write a sibling backup and emit a console warning. The write still
+// proceeds (so explicit "user wants to clear" still works) but never silent.
+// See spec/backlog/14-config-api-keys-reset.md.
+const CREDENTIAL_PATHS = [
+  ["engines", "anthropic", "api_key"],
+  ["engines", "openai", "api_key"],
+  ["engines", "groq", "api_key"],
+  ["engines", "openrouter", "api_key"],
+  ["engines", "gemini", "api_key"],
+  ["voice", "tts", "elevenlabs", "api_key"],
+  ["voice", "tts", "openai", "api_key"],
+  ["voice", "tts", "gemini", "api_key"],
+  ["telegram", "channels"], // entire array — losing it is also a regression
+];
+
+function getDeep(obj, parts) {
+  let cur = obj;
+  for (const p of parts) {
+    if (cur == null) return undefined;
+    cur = cur[p];
+  }
+  return cur;
+}
+
+function isMeaningful(value) {
+  if (value === undefined || value === null) return false;
+  if (typeof value === "string") return value.trim().length > 0;
+  if (Array.isArray(value)) return value.length > 0;
+  return true;
+}
+
+function backupConfigBeforeLoss() {
+  try {
+    const ts = new Date().toISOString().replace(/[:.]/g, "-");
+    const backup = `${CONFIG_PATH}.${ts}.bak`;
+    fs.copyFileSync(CONFIG_PATH, backup);
+    return backup;
+  } catch {
+    return null;
+  }
+}
+
 export function writeConfig(cfg) {
   ensureHome();
+
+  // Guard: refuse to silently clear credentials. The most common cause of
+  // wiped keys is a partial writeConfig() from a caller that forgot to
+  // re-read the on-disk state. We compare the incoming cfg against what's
+  // currently persisted and shout if a credential transitioned non-empty →
+  // empty without the caller setting `_allowClear: true` (escape hatch for
+  // an explicit reset).
+  if (!cfg?._allowClear && fs.existsSync(CONFIG_PATH)) {
+    let prior;
+    try {
+      prior = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf8"));
+    } catch {
+      prior = null;
+    }
+    if (prior) {
+      const lost = [];
+      for (const parts of CREDENTIAL_PATHS) {
+        const before = getDeep(prior, parts);
+        const after  = getDeep(cfg, parts);
+        if (isMeaningful(before) && !isMeaningful(after)) {
+          lost.push(parts.join("."));
+        }
+      }
+      if (lost.length > 0) {
+        const backup = backupConfigBeforeLoss();
+        // eslint-disable-next-line no-console
+        console.warn(
+          `[apx] writeConfig: refusing to clear credentials silently — ${lost.join(", ")} would be wiped.\n` +
+          `      Backup written to ${backup || "(could not create)"}.\n` +
+          `      Pass cfg._allowClear=true if this was intentional.`
+        );
+        // Patch the incoming cfg in-place: restore the lost values from disk
+        // so the caller's other intended changes still go through.
+        for (const parts of CREDENTIAL_PATHS) {
+          const before = getDeep(prior, parts);
+          const after  = getDeep(cfg, parts);
+          if (isMeaningful(before) && !isMeaningful(after)) {
+            // Mutate cfg to put the value back at parts.
+            let cur = cfg;
+            for (let i = 0; i < parts.length - 1; i++) {
+              const key = parts[i];
+              if (cur[key] == null || typeof cur[key] !== "object") cur[key] = {};
+              cur = cur[key];
+            }
+            cur[parts[parts.length - 1]] = before;
+          }
+        }
+      }
+    }
+  }
+  // Strip the marker before persisting.
+  if (cfg?._allowClear) delete cfg._allowClear;
+
   const tmp = `${CONFIG_PATH}.tmp`;
   fs.writeFileSync(tmp, JSON.stringify(cfg, null, 2) + "\n");
   fs.renameSync(tmp, CONFIG_PATH);
@@ -323,7 +420,12 @@ export function removeTelegramChannel(cfg, name) {
   const before = channels.length;
   cfg.telegram.channels = channels.filter((c) => c.name !== name);
   const removed = before - cfg.telegram.channels.length;
-  if (removed > 0) writeConfig(cfg);
+  if (removed > 0) {
+    // Explicit user-initiated removal — bypass the credential-loss guard
+    // so the write goes through even when this empties the array.
+    cfg._allowClear = true;
+    writeConfig(cfg);
+  }
   return { removed };
 }
 

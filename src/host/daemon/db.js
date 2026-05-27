@@ -106,13 +106,27 @@ export class ProjectManager {
   list() {
     return Array.from(this.byId.values()).map((e) => {
       let name = path.basename(e.path);
+      // Tipología del proyecto: personal | company | app | software | other.
+      // El field es opcional en .apc/project.json; default = "other". El
+      // panel web lo usa para elegir ícono y agrupar; el daemon no le pone
+      // semántica especial. "default" es reservado para el proyecto id=0.
+      let kind = e.id === 0 ? "default" : "other";
       try {
         const meta = JSON.parse(
           fs.readFileSync(path.join(e.path, ".apc", "project.json"), "utf8")
         );
         if (meta.name) name = meta.name;
+        if (typeof meta.kind === "string" && meta.kind.trim()) {
+          kind = meta.kind.trim();
+        }
       } catch {}
-      return { id: e.id, path: e.path, name, agents: readAgents(e.path).length };
+      return {
+        id: e.id,
+        path: e.path,
+        name,
+        kind,
+        agents: readAgents(e.path).length,
+      };
     });
   }
 
