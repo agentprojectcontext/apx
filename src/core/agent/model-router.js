@@ -58,12 +58,75 @@ async function pingUrl(url, { timeoutMs = 800, headers = {} } = {}) {
   }
 }
 
-export async function checkProviderHealth(provider, config, timeoutMs = 800) {
+// Same shape as pingUrl but returns the parsed JSON body when the response
+// is 2xx. Used by the Ollama strict-model health check below.
+async function fetchJsonWithTimeout(url, { timeoutMs = 800, headers = {} } = {}) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal, headers });
+    if (!res.ok) return { ok: false, status: res.status, reason: `HTTP ${res.status}` };
+    const json = await res.json().catch(() => null);
+    return { ok: true, status: res.status, json };
+  } catch (e) {
+    const msg = e?.message || "unreachable";
+    return { ok: false, reason: /abort|timeout/i.test(msg) ? "timeout" : msg };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Decide whether an Ollama `/api/tags` response actually has the model the
+// caller is about to use. Matches first on exact `models[].name`, then on a
+// permissive prefix (so `llama3` matches `llama3:latest`). Returns
+// { present, available } so callers can report what's there for diagnostics.
+function ollamaHasModel(tagsJson, candidateModel) {
+  const list = Array.isArray(tagsJson?.models) ? tagsJson.models : [];
+  const names = list.map((m) => m?.name).filter((n) => typeof n === "string");
+  if (!candidateModel) return { present: true, available: names };
+  const wanted = String(candidateModel).trim();
+  if (!wanted) return { present: true, available: names };
+  if (names.includes(wanted)) return { present: true, available: names };
+  // Tolerate "foo" matching "foo:latest" / "foo:tag".
+  const prefix = wanted + ":";
+  if (names.some((n) => n.startsWith(prefix))) return { present: true, available: names };
+  return { present: false, available: names };
+}
+
+/**
+ * Check whether a provider is reachable AND, when given a candidate model,
+ * whether that specific model is actually loaded. Without the candidate the
+ * check stays loose (just "is the host up"); with one it's strict.
+ *
+ * The `candidateModel` parameter is the bare model id WITHOUT the
+ * "<provider>:" prefix (e.g. "gemma4:31b-cloud", "llama-3.3-70b-versatile").
+ */
+export async function checkProviderHealth(provider, config, timeoutMs = 800, opts = {}) {
   const p = String(provider || "").toLowerCase();
+  const candidate = opts.candidateModel || null;
 
   if (p === "ollama") {
     const base = (engineCfg(config, "ollama").base_url || process.env.OLLAMA_HOST || "http://localhost:11434")
       .replace(/\/$/, "");
+    // Strict path: when we know which model is expected, parse /api/tags and
+    // verify it's pulled. Otherwise fall back to a plain reachability ping.
+    if (candidate) {
+      const res = await fetchJsonWithTimeout(`${base}/api/tags`, { timeoutMs });
+      if (!res.ok) {
+        return { ok: false, provider: p, reason: res.reason || `HTTP ${res.status}`, detail: base };
+      }
+      const { present, available } = ollamaHasModel(res.json, candidate);
+      if (present) {
+        return { ok: true, provider: p, detail: base };
+      }
+      return {
+        ok: false,
+        provider: p,
+        reason: `model "${candidate}" not loaded on this host`,
+        detail: base,
+        available,
+      };
+    }
     const res = await pingUrl(`${base}/api/tags`, { timeoutMs });
     return res.ok
       ? { ok: true, provider: p, detail: base }
@@ -103,22 +166,101 @@ export async function checkProviderHealth(provider, config, timeoutMs = 800) {
   return { ok: false, provider: p, reason: "unknown provider" };
 }
 
-export function modelForProvider(globalConfig, provider) {
+/**
+ * Return the fallback chain as a flat list of model ids in the order they
+ * should be attempted. Each item is a fully-qualified `<provider>:<model>`
+ * string — no separate `order` array, no `models{provider}` map.
+ *
+ * Reads three formats, in priority order:
+ *
+ *  1. **New (preferred)**: `model_fallback.models` is an array of strings.
+ *     Order = array order. Each string carries its own provider prefix.
+ *
+ *       "model_fallback": { "models": ["openrouter:foo", "groq:bar"] }
+ *
+ *  2. **Legacy**: `model_fallback.order` is a provider list +
+ *     `model_fallback.models` is `{ <provider>: "<provider>:<model>" }`.
+ *     Walked in `order`; missing entries fill from DEFAULT_FALLBACK_MODELS or
+ *     (for Ollama) from `super_agent.model`.
+ *
+ *  3. **None**: no fallback configured → defaults derived from
+ *     DEFAULT_FALLBACK_ORDER + DEFAULT_FALLBACK_MODELS.
+ *
+ * The primary model (`super_agent.model`) is NOT included here — it's tried
+ * first by `resolveActiveModel`. This function returns only the alternates.
+ */
+export function fallbackModels(globalConfig) {
   const sa = globalConfig?.super_agent || {};
   const fb = sa.model_fallback || {};
-  const models = fb.models || {};
-  const p = String(provider).toLowerCase();
 
-  if (models[p]) return models[p];
-  if (p === "ollama" && sa.model && /^ollama:/i.test(sa.model)) return sa.model;
-  if (DEFAULT_FALLBACK_MODELS[p]) return DEFAULT_FALLBACK_MODELS[p];
-  return "";
+  // Format 1 — new
+  if (Array.isArray(fb.models)) {
+    return fb.models
+      .filter((m) => typeof m === "string" && m.includes(":"))
+      .map(String);
+  }
+
+  // Format 2 — legacy
+  const legacyMap = fb.models && typeof fb.models === "object" ? fb.models : null;
+  const order = Array.isArray(fb.order) ? fb.order.map(String) : null;
+  if (legacyMap || order) {
+    const chain = order || DEFAULT_FALLBACK_ORDER;
+    const out = [];
+    for (const provider of chain) {
+      const p = String(provider).toLowerCase();
+      let model = legacyMap?.[p];
+      if (!model) {
+        if (p === "ollama" && typeof sa.model === "string" && /^ollama:/i.test(sa.model)) {
+          model = sa.model;
+        } else if (DEFAULT_FALLBACK_MODELS[p]) {
+          model = DEFAULT_FALLBACK_MODELS[p];
+        }
+      }
+      if (model && typeof model === "string" && model.includes(":")) out.push(model);
+    }
+    return out;
+  }
+
+  // Format 3 — empty config, derive from defaults
+  return DEFAULT_FALLBACK_ORDER
+    .map((p) => DEFAULT_FALLBACK_MODELS[p])
+    .filter((m) => typeof m === "string" && m.includes(":"));
 }
 
+/**
+ * @deprecated use fallbackModels(). Kept for tests / external callers that
+ * still ask "what provider to try after Ollama?". Derives the answer from the
+ * resolved model chain.
+ */
 export function fallbackOrder(globalConfig) {
-  const fb = globalConfig?.super_agent?.model_fallback || {};
-  const order = Array.isArray(fb.order) ? fb.order.map(String) : [];
-  return order.length ? order : [...DEFAULT_FALLBACK_ORDER];
+  const models = fallbackModels(globalConfig);
+  const providers = [];
+  for (const m of models) {
+    try {
+      const p = parseModelId(m).provider;
+      if (!providers.includes(p)) providers.push(p);
+    } catch { /* skip malformed entries */ }
+  }
+  return providers.length ? providers : [...DEFAULT_FALLBACK_ORDER];
+}
+
+/**
+ * @deprecated use fallbackModels(). Looks up a single provider's model in
+ * the resolved chain. Returns "" if the provider isn't in the fallback list.
+ */
+export function modelForProvider(globalConfig, provider) {
+  const p = String(provider).toLowerCase();
+  const sa = globalConfig?.super_agent || {};
+  const models = fallbackModels(globalConfig);
+  const match = models.find((m) => {
+    try { return parseModelId(m).provider === p; } catch { return false; }
+  });
+  if (match) return match;
+  // Ollama gets a special fallback to the primary model (legacy behavior).
+  if (p === "ollama" && typeof sa.model === "string" && /^ollama:/i.test(sa.model)) {
+    return sa.model;
+  }
+  return DEFAULT_FALLBACK_MODELS[p] || "";
 }
 
 export function isFallbackEnabled(globalConfig) {
@@ -144,27 +286,37 @@ export async function resolveActiveModel(globalConfig, { overrideModel = null, t
   const sa = globalConfig?.super_agent || {};
   const fb = sa.model_fallback || {};
   const healthMs = timeoutMs ?? fb.health_timeout_ms ?? 800;
-  const order = fallbackOrder(globalConfig);
   const tried = [];
 
   if (isFallbackEnabled(globalConfig)) {
-    for (const provider of order) {
-      const modelId = modelForProvider(globalConfig, provider);
-      if (!modelId) {
-        tried.push({ provider, modelId: "", healthy: false, reason: "no model configured" });
+    // Build the full chain: primary first, then the fallback list, deduped.
+    // Each entry is a fully-qualified "<provider>:<model>" string.
+    const chain = [];
+    if (typeof sa.model === "string" && sa.model.includes(":")) chain.push(sa.model);
+    for (const m of fallbackModels(globalConfig)) {
+      if (!chain.includes(m)) chain.push(m);
+    }
+
+    for (const modelId of chain) {
+      let provider;
+      try {
+        provider = parseModelId(modelId).provider;
+      } catch (e) {
+        tried.push({ provider: null, modelId, healthy: false, reason: e.message });
         continue;
       }
-      const health = await checkProviderHealth(provider, globalConfig, healthMs);
+      const candidateModel = parseModelId(modelId).model;
+      const health = await checkProviderHealth(provider, globalConfig, healthMs, { candidateModel });
       tried.push({
         provider,
         modelId,
         healthy: health.ok,
         reason: health.reason || (health.ok ? "ok" : "unhealthy"),
         soft: health.soft,
+        available: health.available, // for "model not loaded" diagnostics
       });
       if (health.ok) {
-        const primary = sa.model || "";
-        const isPrimary = modelId === primary;
+        const isPrimary = modelId === sa.model;
         return {
           modelId,
           provider,

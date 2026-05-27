@@ -20,6 +20,7 @@ export {
   checkProviderHealth,
   probeAllProviders,
   fallbackOrder,
+  fallbackModels,
   modelForProvider,
   isFallbackEnabled,
   DEFAULT_FALLBACK_ORDER,

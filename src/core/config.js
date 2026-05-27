@@ -52,13 +52,18 @@ const DEFAULT_CONFIG = {
     system: "",                         // optional override; defaults in src/core/agent/prompts/
     permission_mode: "automatico",       // total | automatico | permiso
     allowed_tools: [],                   // used by permission_mode="permiso"
+    // Model fallback: ordered list. Each item carries its own provider
+    // prefix; the array order IS the attempt order. The router tries the
+    // primary (super_agent.model) first, then walks this list, skipping
+    // providers whose health check fails (Ollama strict-checks the model is
+    // actually pulled). Old configs with { order:[], models:{} } still work
+    // — they're normalised on read.
     model_fallback: {
       enabled: true,
-      order: ["ollama", "openrouter", "groq"],
-      models: {
-        openrouter: "openrouter:meta-llama/llama-3.3-70b-instruct",
-        groq: "groq:llama-3.3-70b-versatile",
-      },
+      models: [
+        "openrouter:meta-llama/llama-3.3-70b-instruct",
+        "groq:llama-3.3-70b-versatile",
+      ],
       health_timeout_ms: 800,
     },
   },
@@ -110,6 +115,47 @@ export function writeConfig(cfg) {
   fs.renameSync(tmp, CONFIG_PATH);
 }
 
+// Normalise `model_fallback` to the new format (`models` as an ordered array
+// of "<provider>:<model>" strings). Legacy configs that use `order + models{}`
+// are converted in place; the result is what the runtime sees, but
+// writeConfig() preserves whichever shape the user has on disk unless we
+// rewrite it explicitly elsewhere.
+function mergeModelFallback(raw) {
+  const def = DEFAULT_CONFIG.super_agent.model_fallback;
+  const src = raw && typeof raw === "object" ? raw : {};
+
+  // Resolve `models` to an array. Three input shapes:
+  //   1. array of strings → keep, filtered to "<provider>:<model>".
+  //   2. legacy object + (optional) order → walk order, collect values.
+  //   3. nothing → use defaults.
+  let models;
+  if (Array.isArray(src.models)) {
+    models = src.models
+      .filter((m) => typeof m === "string" && m.includes(":"))
+      .map(String);
+  } else if (src.models && typeof src.models === "object") {
+    const order = Array.isArray(src.order)
+      ? src.order.map(String)
+      : ["ollama", "openrouter", "groq"];
+    models = [];
+    for (const p of order) {
+      const m = src.models[p.toLowerCase()];
+      if (typeof m === "string" && m.includes(":")) models.push(m);
+    }
+  } else {
+    models = [...def.models];
+  }
+
+  return {
+    enabled: typeof src.enabled === "boolean" ? src.enabled : def.enabled,
+    models,
+    health_timeout_ms:
+      Number.isFinite(src.health_timeout_ms) && src.health_timeout_ms > 0
+        ? src.health_timeout_ms
+        : def.health_timeout_ms,
+  };
+}
+
 // Migrate legacy `telegram.bot_token` / `telegram.chat_id` (root level) into
 // `telegram.channels[]`. These root-level fields were removed once channels[]
 // became the source of truth; we keep this helper around so existing configs
@@ -152,14 +198,7 @@ export function mergeDefaults(cfg) {
     super_agent: {
       ...DEFAULT_CONFIG.super_agent,
       ...(cfg.super_agent || {}),
-      model_fallback: {
-        ...DEFAULT_CONFIG.super_agent.model_fallback,
-        ...(cfg.super_agent?.model_fallback || {}),
-        models: {
-          ...DEFAULT_CONFIG.super_agent.model_fallback.models,
-          ...(cfg.super_agent?.model_fallback?.models || {}),
-        },
-      },
+      model_fallback: mergeModelFallback(cfg.super_agent?.model_fallback),
     },
     engines: {
       ...DEFAULT_CONFIG.engines,
