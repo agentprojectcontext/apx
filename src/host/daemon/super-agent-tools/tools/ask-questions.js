@@ -1,6 +1,10 @@
 export default {
   name: "ask_questions",
   schema: {
+    // type: "function" is REQUIRED at the top level — OpenAI and Groq reject
+    // schemas without it (Groq → 400 'tools.N.type': property 'type' is missing).
+    // Anthropic / Ollama tolerate its absence but the contract is clearer with it.
+    type: "function",
     function: {
       name: "ask_questions",
       description: "Ask the user one or more specific questions to clarify the task or gather requirements.",

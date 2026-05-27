@@ -122,8 +122,14 @@ export async function runAgent({
 
   for (let iter = 0; iter < MAX_TOOL_ITERS; iter++) {
     await emitProgress(onEvent, { type: "model_start", iteration: iter + 1, model: activeModel });
+    // Force a tool call on iter 0 ONLY when the user message looks like a real
+    // action request ("listame…", "mandá…", "buscá…"). For chit-chat ("hola",
+    // "qué tal") forcing a tool makes weaker models (llama-3.3 via Groq,
+    // qwen3-32b) emit a malformed tool_calls payload — Groq then rejects the
+    // whole turn with 400 "Failed to call a function". Better: let the model
+    // choose between text and tool when the prompt is conversational.
     const forceTool =
-      iter === 0 ||
+      (iter === 0 && looksLikeActionRequest(prompt)) ||
       (ackOnlyStreak > 0 && ackOnlyStreak <= MAX_CONSECUTIVE_ACKS);
     let result;
     try {

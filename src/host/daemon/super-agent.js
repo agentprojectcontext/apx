@@ -1,5 +1,5 @@
 // Super-agent: daemon-level action agent for Telegram, TUI, overlay, routines.
-import { TOOL_SCHEMAS, makeToolHandlers } from "./super-agent-tools/index.js";
+import { schemasForChannel, makeToolHandlers } from "./super-agent-tools/index.js";
 import { listSkills } from "./skills-loader.js";
 import {
   runAgent,
@@ -45,13 +45,18 @@ export async function runSuperAgent({
     channelMeta,
   });
 
+  // Pick the schema subset for this channel: chit-chat surfaces get a small
+  // "core" set (~700 tokens) to fit cheap-tier TPM caps; routines get the
+  // full registry. The model can still call load_skill / read more on demand.
+  const toolSchemas = schemasForChannel(channel);
+
   return runAgent({
     globalConfig,
     system,
     prompt,
     previousMessages,
     overrideModel,
-    toolSchemas: TOOL_SCHEMAS,
+    toolSchemas,
     makeToolHandlers,
     toolHandlerCtx: { projects, plugins, registries, globalConfig },
     onEvent,

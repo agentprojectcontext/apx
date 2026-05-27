@@ -72,6 +72,49 @@ const TOOLS = [...NATIVE_TOOLS, ...BRIDGED_TOOLS];
 
 export const TOOL_SCHEMAS = TOOLS.map((tool) => tool.schema);
 
+// "Core" tools always sent to the model. The rest are pulled in on-demand via
+// load_skill or by switching to a heavier channel. Picked to fit cheap cloud
+// tiers: full TOOL_SCHEMAS is ~22 KB / ~5.5 K tokens — too much when Groq
+// free tier caps you at 6-12 K TPM. CORE_TOOL_NAMES is ~3 KB / ~700 tokens.
+// See spec/done/backlog item 12 for the underlying motivation.
+const CORE_TOOL_NAMES = new Set([
+  // Inventory — the model NEEDS to call these to know what's there.
+  "list_projects",
+  "list_agents",
+  "list_mcps",
+  "list_skills",
+  // Memory + identity — used during identity / config conversations.
+  "read_agent_memory",
+  "set_identity",
+  // Conversation control.
+  "ask_questions",
+  // On-demand expansion: this is how the model loads the rest of the surface.
+  "load_skill",
+  // Channels the user expects out of any super-agent turn.
+  "send_telegram",
+  // Lightweight delegation (no spawn).
+  "call_agent",
+  // Routine creation (very common ask via chat).
+  "create_task",
+  "list_tasks",
+]);
+
+export const CORE_TOOL_SCHEMAS = TOOLS
+  .filter((t) => CORE_TOOL_NAMES.has(t.name))
+  .map((t) => t.schema);
+
+/**
+ * Choose the tool schema list for a given channel. Telegram / overlay / api
+ * (chit-chat) get the "core" subset to stay under cheap-tier TPM limits;
+ * routines get the full list because they're deliberate, scheduled, and the
+ * user has chosen the model. Override with the explicit `full: true` opt.
+ */
+export function schemasForChannel(channel, { full = false } = {}) {
+  if (full) return TOOL_SCHEMAS;
+  if (channel === "routine") return TOOL_SCHEMAS;
+  return CORE_TOOL_SCHEMAS;
+}
+
 export function makeToolHandlers(ctx) {
   const toolCtx = {
     ...ctx,
