@@ -1,26 +1,47 @@
-# 09 — APX SO Android bridge
+# 09 — APX Deck bridge
 
 **Priority**: P3
 **Size**: L
-**Status**: specced (no work yet)
+**Status**: started
 
 ## Goal
 
-Let an Android app (separate repo: `apx-so`) drive the local APX daemon from the user's phone. The phone is on the same LAN (or, later, behind a tunnel) and the daemon is the server. Same tools, same agents, same memory, same projects — just a different surface.
+Let an Android app (separate repo: `apx-deck`, currently developed from `apx-so`) drive the local APX daemon from the user's phone. The phone is on the same LAN, USB reverse port, or later behind a tunnel. The daemon is the server. Same tools, same agents, same memory, same projects — just a different surface.
+
+APX Deck is a companion command console. APX remains the core bridge for projects, voice, memory,
+agents, safe actions, and daemon state. User-specific services such as Docker, Dokploy, Factorial,
+mail, Telegram, Teams, WhatsApp, browsers, and coding tools should be modeled as Deck widgets or
+plugins, not hard-coded into APX core.
 
 ## Decision recap
 
 - Android app: separate repo (decision 003).
-- The **bridge server lives in this repo** as a daemon plugin + API module:
+- The first bridge surface lives in this repo as a small daemon API module:
+  - `src/host/daemon/api/deck.js` — read-only bootstrap manifest for APX Deck.
+- Future remote pairing can still become a daemon plugin + API module:
   - `src/host/daemon/plugins/remote.js` — lifecycle (start/stop), connection tracking.
   - `src/host/daemon/api/remote.js` — pairing endpoints + WS upgrade.
 
-## Protocol sketch (subject to revision)
+## Current v1 bridge
+
+`GET /deck/manifest` returns:
+
+- daemon health metadata
+- APX projects and active project guess
+- APX plugin status
+- APX Deck desktops and generic widgets
+- safe action descriptors
+- endpoint map for voice, transcription, projects, plugins, and super-agent chat
+- explicit safety flags
+
+This endpoint is read-only. It does not execute shell commands or external plugin actions.
+
+## Future pairing protocol sketch
 
 ### Pairing (one-time per device)
 
 1. User runs `apx remote pair` on the desktop. Daemon prints a 6-digit code + a QR.
-2. The phone opens the APX SO app, scans the QR (or types the code).
+2. The phone opens APX Deck, scans the QR (or types the code).
 3. Phone POSTs `/remote/pair { code, device_label, device_pubkey }` over HTTP. Daemon verifies code, stores a per-device token + pubkey in `~/.apx/remote/devices.json`.
 4. Daemon responds with the bearer token specific to that device. Used for all future requests.
 

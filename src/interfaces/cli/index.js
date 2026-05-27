@@ -103,6 +103,15 @@ import {
   cmdArtifactShow,
   cmdArtifactRemove,
 } from "./commands/artifact.js";
+import {
+  cmdTaskAdd,
+  cmdTaskList,
+  cmdTaskShow,
+  cmdTaskDone,
+  cmdTaskDrop,
+  cmdTaskReopen,
+  cmdTaskPatch,
+} from "./commands/task.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1646,6 +1655,21 @@ async function dispatch(cmd, rest) {
         else if (sub === "run") await cmdRoutineRun(a);
         else if (sub === "history" || sub === "hist") await cmdRoutineHistory(a);
         else die(`unknown routine subcommand: ${sub}`);
+        break;
+      }
+
+      case "task":
+      case "tasks": {
+        const sub = rest[0];
+        const a = parseArgs(rest.slice(1));
+        if (!sub || sub === "list" || sub === "ls") await cmdTaskList(a);
+        else if (sub === "add" || sub === "new" || sub === "create") await cmdTaskAdd(a);
+        else if (sub === "show" || sub === "get") await cmdTaskShow(a);
+        else if (sub === "done" || sub === "complete") await cmdTaskDone(a);
+        else if (sub === "drop" || sub === "archive") await cmdTaskDrop(a);
+        else if (sub === "reopen") await cmdTaskReopen(a);
+        else if (sub === "patch" || sub === "edit") await cmdTaskPatch(a);
+        else die(`unknown task subcommand: ${sub}\nUsage: apx task <list|add|show|done|drop|reopen|patch>`);
         break;
       }
 

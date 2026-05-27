@@ -29,6 +29,7 @@ export async function runSuperAgent({
   onEvent = null,
   signal,
   onToken = null,
+  suppressTools = null,
 }) {
   if (!isSuperAgentEnabled(globalConfig)) {
     throw new Error("super-agent not enabled (set super_agent.enabled and .model in ~/.apx/config.json)");
@@ -57,5 +58,6 @@ export async function runSuperAgent({
     signal,
     onToken,
     agentName: sa.name || "apx",
+    suppressTools,
   });
 }

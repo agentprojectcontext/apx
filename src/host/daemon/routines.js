@@ -17,6 +17,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { callEngine } from "../../core/engines/index.js";
 import { runSuperAgent } from "./super-agent.js";
+import { computeSuppressedTools } from "../../core/agent/index.js";
 import { readAgents } from "../../core/parser.js";
 import { buildAgentSystem } from "../../core/agent-system.js";
 import { resolveArtifactRef, ARTIFACTS_SKIP_SIGNAL } from "../../core/artifacts-store.js";
@@ -110,6 +111,16 @@ async function handleSuperAgent(ctx, routine) {
     ...(Array.isArray(routine.allowed_tools) ? { allowed_tools: routine.allowed_tools } : {}),
   };
 
+  // Auto-suppress tools whose output would duplicate post_commands.
+  // Example: a routine with `apx telegram send "$APX_LLM_OUTPUT"` in post_commands
+  // shouldn't also let the agent call send_telegram inside the loop.
+  // See spec/backlog/01-routine-output-coherence.md.
+  const autoSuppress = computeSuppressedTools(routine.post_commands);
+  const explicitSuppress = Array.isArray(routine.spec?.suppress_tools)
+    ? routine.spec.suppress_tools.filter((s) => typeof s === "string")
+    : [];
+  const suppressTools = [...new Set([...autoSuppress, ...explicitSuppress])];
+
   const result = await runSuperAgent({
     globalConfig: cfg,
     projects,
@@ -121,6 +132,7 @@ async function handleSuperAgent(ctx, routine) {
       routineName: routine.name,
       projectPath: project.path,
     },
+    suppressTools: suppressTools.length > 0 ? suppressTools : null,
   });
 
   project.logMessage({

@@ -26,3 +26,8 @@ export {
   DEFAULT_FALLBACK_MODELS,
 } from "./model-router.js";
 export { runAgent } from "./run-agent.js";
+export {
+  POSTCMD_TOOL_OVERLAP,
+  computeSuppressedTools,
+  filterToolSchemas,
+} from "./tools-overlap.js";

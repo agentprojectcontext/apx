@@ -29,6 +29,7 @@ import { register as registerConnections } from "./api/connections.js";
 import { register as registerRuntimes } from "./api/runtimes.js";
 import { register as registerRoutines } from "./api/routines.js";
 import { register as registerArtifacts } from "./api/artifacts.js";
+import { register as registerTasks } from "./api/tasks.js";
 import { register as registerConfig } from "./api/config.js";
 import { register as registerRun } from "./api/run.js";
 import { register as registerTopLevel } from "./api/top-level.js";
@@ -37,6 +38,7 @@ import { register as registerTranscribe } from "./api/transcribe.js";
 import { register as registerTts } from "./api/tts.js";
 import { register as registerVoice } from "./api/voice.js";
 import { register as registerOverlay } from "./api/overlay.js";
+import { register as registerDeck } from "./api/deck.js";
 import { register as registerAdmin } from "./api/admin.js";
 
 export function buildApi({
@@ -98,6 +100,7 @@ export function buildApi({
   registerRuntimes(app, ctx);
   registerRoutines(app, ctx);
   registerArtifacts(app, ctx);
+  registerTasks(app, ctx);
   registerConfig(app, ctx);
 
   // ---- Top-level shortcuts (MCP server clients) --------------------
@@ -112,6 +115,7 @@ export function buildApi({
   registerTts(app, ctx);
   registerVoice(app, ctx);
   registerOverlay(app, ctx);
+  registerDeck(app, ctx);
 
   // ---- Admin -------------------------------------------------------
   registerAdmin(app, ctx);

@@ -12,6 +12,7 @@ import {
   looksLikeActionRequest,
 } from "./ghost-guard.js";
 import { pseudoToolSystem, shouldRetryWithPseudoTools } from "./pseudo-tools.js";
+import { filterToolSchemas } from "./tools-overlap.js";
 
 async function emitProgress(onEvent, event) {
   if (typeof onEvent !== "function") return;
@@ -63,6 +64,7 @@ export async function runAgent({
   signal,
   onToken = null,
   agentName = "apx",
+  suppressTools = null, // optional list of tool names to remove from the registry
 }) {
   const routing = await resolveActiveModel(globalConfig, { overrideModel });
   const activeModel = routing.modelId;
@@ -77,11 +79,39 @@ export async function runAgent({
     });
   }
 
-  const handlers = makeToolHandlers({
+  // Suppression: callers (notably the routine runner) can disable tools whose
+  // output would duplicate post_commands. We filter the schemas the engine
+  // sees AND keep a deny-set so a model that hallucinates a suppressed tool
+  // call gets a clear error rather than firing.
+  const effectiveSchemas = Array.isArray(suppressTools) && suppressTools.length > 0
+    ? filterToolSchemas(toolSchemas, suppressTools)
+    : toolSchemas;
+  const suppressed = new Set(Array.isArray(suppressTools) ? suppressTools : []);
+  if (suppressed.size > 0) {
+    await emitProgress(onEvent, {
+      type: "tools_suppressed",
+      tools: [...suppressed],
+      reason: "post_commands_overlap",
+    });
+  }
+
+  const rawHandlers = makeToolHandlers({
     ...toolHandlerCtx,
     implicitConfirmation:
       isShortConfirmation(prompt) && lastAssistantAskedForConfirmation(previousMessages),
   });
+  const handlers = suppressed.size > 0
+    ? new Proxy(rawHandlers, {
+        get(target, name) {
+          if (typeof name === "string" && suppressed.has(name)) {
+            return async () => ({
+              error: `tool "${name}" is suppressed for this invocation (post_commands already cover this output channel)`,
+            });
+          }
+          return target[name];
+        },
+      })
+    : rawHandlers;
 
   const conversation = [...previousMessages, { role: "user", content: prompt }];
   const trace = [];
@@ -99,10 +129,10 @@ export async function runAgent({
     try {
       result = await callEngine({
         modelId: activeModel,
-        system: usePseudoTools ? pseudoToolSystem(system, toolSchemas) : system,
+        system: usePseudoTools ? pseudoToolSystem(system, effectiveSchemas) : system,
         messages: conversation,
         config: globalConfig,
-        tools: usePseudoTools ? null : toolSchemas,
+        tools: usePseudoTools ? null : effectiveSchemas,
         toolChoice: usePseudoTools ? null : (forceTool ? "required" : "auto"),
         maxTokens: 1024,
         signal,

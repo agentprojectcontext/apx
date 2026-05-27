@@ -23,6 +23,8 @@ import listSkills from "./tools/list-skills.js";
 import loadSkill from "./tools/load-skill.js";
 import transcribeAudio from "./tools/transcribe-audio.js";
 import askQuestions from "./tools/ask-questions.js";
+import createTask from "./tools/create-task.js";
+import listTasks from "./tools/list-tasks.js";
 import { createPermissionGuard } from "./helpers.js";
 import { buildBridgedTools, DEFAULT_CATEGORIES } from "./registry-bridge.js";
 
@@ -52,6 +54,8 @@ const NATIVE_TOOLS = [
   loadSkill,
   transcribeAudio,
   askQuestions,
+  createTask,
+  listTasks,
 ];
 
 // Registry-backed bridges. Categories can be overridden per-process via env
