@@ -76,8 +76,29 @@ export default {
       throw new Error("gemini-tts: not implemented (response did not include inline audio data)");
     }
     const mime = inline.mimeType || inline.mime_type || "audio/wav";
-    const ext = mime.includes("mpeg") ? "mp3" : mime.includes("ogg") ? "ogg" : "wav";
-    const buf = Buffer.from(inline.data, "base64");
+    const rawBuf = Buffer.from(inline.data, "base64");
+
+    // Gemini commonly returns mime like "audio/L16;codec=pcm;rate=24000" —
+    // raw signed 16-bit little-endian PCM with no RIFF header. macOS afplay
+    // and most other players won't decode it. Wrap it in a WAV container if
+    // the mime signals PCM; pass through anything that's already a container.
+    const isRawPcm = /audio\/L16|audio\/pcm|codec=pcm/i.test(mime);
+    const isOgg   = /audio\/ogg/i.test(mime);
+    const isMpeg  = /audio\/mpeg/i.test(mime);
+
+    let buf = rawBuf;
+    let ext = "wav";
+    let outMime = mime;
+    if (isMpeg)      { ext = "mp3"; outMime = "audio/mpeg"; }
+    else if (isOgg)  { ext = "ogg"; outMime = "audio/ogg"; }
+    else if (isRawPcm || !/audio\/wav|audio\/x-wav/i.test(mime)) {
+      // Default any unknown / L16 mime to wrapped WAV.
+      const rateMatch = /rate=(\d+)/i.exec(mime || "");
+      const sampleRate = rateMatch ? parseInt(rateMatch[1], 10) : 24000;
+      buf = wrapPcmAsWav(rawBuf, { sampleRate, channels: 1, bitsPerSample: 16 });
+      ext = "wav";
+      outMime = "audio/wav";
+    }
 
     fs.mkdirSync(outDir, { recursive: true });
     const audioPath = path.join(outDir, `gemini-${randomUUID()}.${ext}`);
@@ -86,8 +107,32 @@ export default {
     return {
       audio_path: audioPath,
       duration_s: null,
-      mime,
+      mime: outMime,
       provider: "gemini",
     };
   },
 };
+
+// Build a minimal 44-byte RIFF/WAVE header for signed PCM and prepend it to
+// `pcm`. Used when an engine (today: Gemini) returns raw L16 PCM bytes that
+// players can't decode without a container.
+function wrapPcmAsWav(pcm, { sampleRate = 24000, channels = 1, bitsPerSample = 16 } = {}) {
+  const byteRate = sampleRate * channels * (bitsPerSample / 8);
+  const blockAlign = channels * (bitsPerSample / 8);
+  const dataSize = pcm.length;
+  const header = Buffer.alloc(44);
+  header.write("RIFF", 0, "ascii");
+  header.writeUInt32LE(36 + dataSize, 4);
+  header.write("WAVE", 8, "ascii");
+  header.write("fmt ", 12, "ascii");
+  header.writeUInt32LE(16, 16);          // PCM fmt chunk size
+  header.writeUInt16LE(1, 20);           // audio format = PCM
+  header.writeUInt16LE(channels, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(byteRate, 28);
+  header.writeUInt16LE(blockAlign, 32);
+  header.writeUInt16LE(bitsPerSample, 34);
+  header.write("data", 36, "ascii");
+  header.writeUInt32LE(dataSize, 40);
+  return Buffer.concat([header, pcm]);
+}
