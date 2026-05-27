@@ -4,7 +4,12 @@ import path from "node:path";
 import os from "node:os";
 import readline from "node:readline";
 import { findApfRoot } from "../../../core/parser.js";
-import { IDE_TARGETS, installIdeSkills, installGlobalSkills } from "../../../core/scaffold.js";
+import {
+  IDE_TARGETS,
+  installIdeSkills,
+  installGlobalSkills,
+  listBundledSkillSlugs,
+} from "../../../core/scaffold.js";
 
 // ---------------------------------------------------------------------------
 // Prompt helper
@@ -86,6 +91,61 @@ export async function cmdSkillsAdd(args) {
 }
 
 // ---------------------------------------------------------------------------
+// apx skills sync — non-interactive refresh of every bundled skill to every
+// global skill dir (.claude, .cursor, .codex, .agents). Same logic that runs
+// from postinstall — exposed as a command so the user can force-refresh
+// without reinstalling the package.
+// ---------------------------------------------------------------------------
+
+export async function cmdSkillsSync(args) {
+  const results = installGlobalSkills();
+  const home = os.homedir();
+
+  // Group by skill so the output is dense and scannable.
+  const bySkill = {};
+  for (const r of results) {
+    if (!bySkill[r.skill]) bySkill[r.skill] = [];
+    bySkill[r.skill].push({ dir: r.dir.replace(home, "~"), status: r.status });
+  }
+
+  const slugs = Object.keys(bySkill).sort();
+  if (slugs.length === 0) {
+    console.log("(no bundled skills found in skills/)");
+    return;
+  }
+
+  console.log(`Syncing ${slugs.length} bundled skill(s) to global skill dirs:\n`);
+  const sw = Math.max(...slugs.map((s) => s.length));
+  let updated = 0, created = 0, unchanged = 0;
+  for (const slug of slugs) {
+    const entries = bySkill[slug];
+    const counts = { unchanged: 0, updated: 0, created: 0 };
+    for (const e of entries) counts[e.status] = (counts[e.status] || 0) + 1;
+    updated += counts.updated;
+    created += counts.created;
+    unchanged += counts.unchanged;
+    const parts = [];
+    if (counts.created)   parts.push(`${counts.created} created`);
+    if (counts.updated)   parts.push(`${counts.updated} updated`);
+    if (counts.unchanged) parts.push(`${counts.unchanged} unchanged`);
+    console.log(`  ${slug.padEnd(sw)}  ${parts.join(", ")}`);
+  }
+  console.log("");
+  console.log(`Targets: .claude/skills, .cursor/skills, .codex/skills, .agents/skills`);
+  console.log(`Totals:  ${created} created, ${updated} updated, ${unchanged} unchanged`);
+
+  if (args?.flags?.verbose) {
+    console.log("");
+    for (const slug of slugs) {
+      console.log(`${slug}:`);
+      for (const e of bySkill[slug]) {
+        console.log(`  ${e.status.padEnd(10)}  ${e.dir}`);
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // apx skills list
 // ---------------------------------------------------------------------------
 
@@ -110,9 +170,10 @@ export async function cmdSkillsList() {
 export async function cmdSkillsStatus() {
   const root = findApfRoot();
 
-  // Global
-  const SKILL_SLUGS = ["apx", "apc-context"];
-  console.log("Global skills:");
+  // Global — discovered list of every bundled skill (auto-grows when a new
+  // skills/<slug>/SKILL.md is added to the repo).
+  const SKILL_SLUGS = listBundledSkillSlugs();
+  console.log(`Global skills (${SKILL_SLUGS.length} bundled):`);
   const GLOBAL_DIRS = [
     { label: "Claude Code / Cursor compat", dir: path.join(os.homedir(), ".claude", "skills") },
     { label: "Cursor (primary)",            dir: path.join(os.homedir(), ".cursor", "skills") },

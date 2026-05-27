@@ -90,7 +90,7 @@ import {
 import { cmdPluginsList, cmdPluginStatus } from "./commands/plugins.js";
 import { cmdOverlayStart, cmdOverlayStop, cmdOverlayStatus } from "./commands/overlay.js";
 import { cmdVoiceSay, cmdVoiceListen, cmdVoiceProviders } from "./commands/voice.js";
-import { cmdSkillsAdd, cmdSkillsList, cmdSkillsStatus } from "./commands/skills.js";
+import { cmdSkillsAdd, cmdSkillsList, cmdSkillsStatus, cmdSkillsSync } from "./commands/skills.js";
 import { cmdIdentity } from "./commands/identity.js";
 import { cmdCommandList, cmdCommandShow } from "./commands/command.js";
 import { cmdUpdate } from "./commands/update.js";
@@ -1239,13 +1239,19 @@ const HELP_TOPICS = new Map(Object.entries({
   skills: topic({
     title: "apx skills",
     summary: "Install and inspect APX skill files for IDEs and agent tools.",
-    usage: ["apx skills [add] [targets] [--global]", "apx skills list", "apx skills status"],
+    usage: ["apx skills [add] [targets] [--global]", "apx skills sync", "apx skills list", "apx skills status"],
     commands: [
       ["add [targets]", "Install APX skills into selected targets."],
-      ["list | ls", "List known skill targets."],
-      ["status", "Show installed target status."],
+      ["sync | refresh", "Re-install every bundled skill to every global skill dir (idempotent)."],
+      ["list | ls", "List skills installed in this project's .apc/skills/."],
+      ["status", "Show which bundled skills are present in each global dir."],
     ],
-    examples: ["apx skills add claude-code cursor", "apx skills add --global"],
+    examples: [
+      "apx skills add claude-code cursor",
+      "apx skills add --global",
+      "apx skills sync                # force-refresh after editing skills/ in the repo",
+      "apx skills sync --verbose      # show every (skill × target) line",
+    ],
   }),
   "skills add": topic({
     title: "apx skills add",
@@ -1253,6 +1259,14 @@ const HELP_TOPICS = new Map(Object.entries({
     usage: ["apx skills add [targets] [--global]"],
     options: [["--global", "Install to global user-level skill targets."]],
     examples: ["apx skills add claude-code cursor", "apx skills add --global"],
+  }),
+  "skills sync": topic({
+    title: "apx skills sync",
+    summary:
+      "Refresh every bundled APX skill (auto-discovered from skills/) into every global skill dir (.claude, .cursor, .codex, .agents). Same logic the postinstall hook runs; use this when you want to update without `npm install -g .`.",
+    usage: ["apx skills sync [--verbose]", "apx skills refresh"],
+    options: [["--verbose", "List each (skill × dir) result, not just the rollup."]],
+    examples: ["apx skills sync", "apx skills sync --verbose"],
   }),
   "skills list": topic({
     title: "apx skills list",
@@ -2329,6 +2343,7 @@ async function dispatch(cmd, rest) {
         if (!sub || sub === "add") await cmdSkillsAdd(a);
         else if (sub === "list" || sub === "ls") await cmdSkillsList(a);
         else if (sub === "status") await cmdSkillsStatus();
+        else if (sub === "sync" || sub === "refresh") await cmdSkillsSync(a);
         else die(`unknown skills subcommand: ${sub}`);
         break;
       }

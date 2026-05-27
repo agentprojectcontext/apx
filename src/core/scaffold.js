@@ -183,29 +183,58 @@ export function installIdeSkills(root, targetIds = null) {
   return results;
 }
 
-// Install bundled APX/APC skills to global ~/.../skills/ dirs.
-// Only apx and apc-context are installed everywhere — they teach IDE tools
-// (Claude Code, Cursor, Codex) about the APX CLI and APC project standard.
-// Runtime CLI skills (claude-code, codex-cli, etc.) are APX-internal; APX
-// loads them from src/core/runtime-skills/ at startup and does NOT push
-// them to other tools' global skill dirs.
+// Discover every bundled skill under skills/<slug>/SKILL.md. Used by
+// installGlobalSkills() so a new skill added to the repo automatically lands
+// on the user's machine after `npm install -g .` (or `npm update -g apx`)
+// without anyone having to touch this file.
+//
+// Excluded: directory names starting with "." (e.g. .DS_Store), and any
+// runtime-only CLI skill that lives under src/core/runtime-skills/ — those
+// are loaded in-process at daemon startup and are NOT for IDE consumption.
+// Public: just the list of bundled skill slugs (for `apx skills status` etc.).
+export function listBundledSkillSlugs() {
+  return discoverBundledSkills().map((s) => s.slug);
+}
+
+function discoverBundledSkills() {
+  const root = BUNDLED_SKILLS_DIR;
+  if (!fs.existsSync(root)) return [];
+  const out = [];
+  for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    if (entry.name.startsWith(".")) continue;
+    const skillFile = path.join(root, entry.name, "SKILL.md");
+    if (!fs.existsSync(skillFile)) continue;
+    out.push({ slug: entry.name, md: fs.readFileSync(skillFile, "utf8") });
+  }
+  return out.sort((a, b) => a.slug.localeCompare(b.slug));
+}
+
+// Install every bundled skill (apx, apc-context, apx-sessions, apx-runtime,
+// apx-mcp, apx-telegram, apx-routine, apx-task, …) to global ~/.../skills/
+// dirs so Claude Code, Cursor, Codex, and other IDEs all see them.
+//
+// Auto-discovers everything under skills/<slug>/SKILL.md so future skills
+// ship automatically — no edit to this file needed. Runs on every
+// `npm install -g .` and `npm update -g apx` via postinstall.js.
+//
 // Returns an array of result objects with { dir, skill, status }.
 export function installGlobalSkills() {
+  const skills = discoverBundledSkills();
   const results = [];
-
-  const skills = [];
-  const apxRaw = readBundledSkill("apx");
-  const apcRaw = readBundledSkill("apc-context");
-  if (apxRaw) skills.push({ slug: "apx", md: apxRaw });
-  if (apcRaw) skills.push({ slug: "apc-context", md: apcRaw });
-  // Runtime skills (claude-code, codex-cli, opencode-cli, openrouter, …) are
-  // NOT included here — they are APX-only internals, not for IDE consumption.
 
   for (const base of GLOBAL_SKILL_DIRS) {
     for (const { slug, md } of skills) {
       const dest = path.join(base, slug, "SKILL.md");
       fs.mkdirSync(path.dirname(dest), { recursive: true });
       const existed = fs.existsSync(dest);
+      // Only rewrite if the bundled copy differs — avoids touching mtime on
+      // skills the user hasn't actually changed.
+      const previous = existed ? fs.readFileSync(dest, "utf8") : null;
+      if (previous === md) {
+        results.push({ dir: base, skill: slug, file: dest, status: "unchanged" });
+        continue;
+      }
       fs.writeFileSync(dest, md, "utf8");
       results.push({ dir: base, skill: slug, file: dest, status: existed ? "updated" : "created" });
     }
@@ -429,6 +458,19 @@ export function addImportedAgent(root, slug) {
   fs.writeFileSync(p, JSON.stringify(cfg, null, 2) + "\n");
 }
 
+// Appended to every regenerated AGENTS.md — stable project rules (not per-agent).
+const AGENTS_MD_FOOTER = `
+## Project rules
+
+1. Agent definitions live in \`.apc/agents/<slug>.md\`. This file is regenerated for discovery; edit the per-agent files, not the \`## <slug>\` blocks here.
+2. Curated durable facts belong in \`.apc/agents/<slug>/memory.md\` — never raw transcripts or secrets.
+3. Runtime sessions, conversations, and message logs stay outside the repo (\`~/.apx/projects/<id>/\` or the engine that created them).
+4. Shared MCP hints without secrets: \`.apc/mcps.json\`. Tokens: runtime scope only (\`apx mcp add --scope runtime\`).
+5. Reusable instructions: \`.apc/skills/<slug>/SKILL.md\` (project) or bundled \`skills/<slug>/SKILL.md\` in the APX package.
+6. **Skills stay in sync**: when you change CLI commands, daemon routes, config keys, Telegram/voice/routine behavior, or any workflow documented in a skill, update the matching \`skills/<slug>/SKILL.md\` (or \`.apc/skills/<slug>/SKILL.md\`) in the **same change**. Verify flags with \`apx <command> --help\` before documenting them — do not invent subcommands.
+7. **"super-agent" is a mode, not a persona name**. User-facing copy uses the identity from \`~/.apx/identity.json\` (default "APX"). Technical config keys and routine kinds may still say \`super_agent\`.
+`.trim();
+
 // Regenerate AGENTS.md from .apc/agents/*.md for Codex/Antigravity compat.
 export function regenerateAgentsMd(root) {
   const agents = readAgents(root);
@@ -440,16 +482,17 @@ export function regenerateAgentsMd(root) {
     "",
   ].join("\n");
 
-  if (agents.length === 0) {
-    fs.writeFileSync(path.join(root, "AGENTS.md"), header);
-    return;
-  }
+  const agentSection = agents.length === 0
+    ? ""
+    : agents.map((a) => {
+        const tag = a.source === "vault" ? "  <!-- vault -->" : "";
+        return renderAgentBlock(a.slug, a.fields) + tag;
+      }).join("\n\n") + "\n\n";
 
-  const blocks = agents.map((a) => {
-    const tag = a.source === "vault" ? "  <!-- vault -->" : "";
-    return renderAgentBlock(a.slug, a.fields) + tag;
-  });
-  fs.writeFileSync(path.join(root, "AGENTS.md"), header + blocks.join("\n\n") + "\n");
+  fs.writeFileSync(
+    path.join(root, "AGENTS.md"),
+    header + agentSection + AGENTS_MD_FOOTER + "\n"
+  );
 }
 
 export function appendAgentToAgentsMd(root, slug, fields) {
