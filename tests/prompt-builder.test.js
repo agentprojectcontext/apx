@@ -71,3 +71,46 @@ test("renderPromptTemplate: replaces {{vars}}", () => {
   assert.equal(renderPromptTemplate("hi {{name}}", { name: "Ada" }), "hi Ada");
   assert.equal(renderPromptTemplate("hi {{missing}}", {}), "hi ");
 });
+
+// Channel template renders project pin + route-to-agent blocks when present
+// and silently omits them when absent. Tracked in spec/done backlog for
+// Fase C (channel↔project spawn announce).
+test("telegram channel template includes project pin when present", async () => {
+  const { buildChannelContextBlock } = await import("../src/core/agent/prompt-builder.js");
+  const out = buildChannelContextBlock("telegram", {
+    channelName: "default",
+    author: "Manú",
+    chatId: "1234",
+    projectBlock: "\nProject pin: **iacrmar** (`/x/y`).",
+    routeBlock: "",
+  });
+  assert.match(out, /Project pin/);
+  assert.match(out, /iacrmar/);
+  assert.equal(/Master agent/.test(out), false);
+});
+
+test("telegram channel template omits both blocks when channelMeta has neither", async () => {
+  const { buildChannelContextBlock } = await import("../src/core/agent/prompt-builder.js");
+  const out = buildChannelContextBlock("telegram", {
+    channelName: "default",
+    author: "Manú",
+    chatId: "1234",
+  });
+  assert.equal(/Project pin/.test(out), false);
+  assert.equal(/Master agent/.test(out), false);
+  // Still has the base channel header.
+  assert.match(out, /telegram/);
+});
+
+test("telegram channel template includes master agent block when set", async () => {
+  const { buildChannelContextBlock } = await import("../src/core/agent/prompt-builder.js");
+  const out = buildChannelContextBlock("telegram", {
+    channelName: "clientes",
+    author: "X",
+    chatId: "9",
+    projectBlock: "",
+    routeBlock: "\nMaster agent for this channel: **reviewer**.",
+  });
+  assert.match(out, /Master agent/);
+  assert.match(out, /reviewer/);
+});

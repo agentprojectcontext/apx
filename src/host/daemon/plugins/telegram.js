@@ -41,6 +41,43 @@ import { transcribe as transcribeAudioFile } from "../transcription.js";
 const API_BASE = "https://api.telegram.org";
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 
+// Build the channelMeta passed to the super-agent loop. The prompt template at
+// src/core/agent/prompts/channels/telegram.md interpolates {{projectBlock}}
+// and {{routeBlock}} verbatim, so we pre-render them as plain text here
+// (the template engine doesn't do conditionals).
+function buildTelegramMeta({ channelName, author, chatId, target, routeToAgent }) {
+  const projectBlock = target
+    ? `\nProject pin: **${target.name || "(unnamed)"}** (\`${target.path || "?"}\`).\n` +
+      "This Telegram channel belongs to that project. Default any " +
+      "project-scoped tool call (list_agents, list_tasks, list_mcps, " +
+      "list_skills, create_task, list_routines, …) to " +
+      `\`${target.name || target.path}\` without asking the user "which ` +
+      'project?". Only ask when they explicitly reference another project ' +
+      "by name."
+    : "";
+  const routeBlock = routeToAgent
+    ? `\nMaster agent for this channel: **${routeToAgent}**. Prefer ` +
+      `delegating substantive work to that agent via call_agent({ project: ` +
+      `"${target?.name || target?.path || ""}", agent: "${routeToAgent}", ` +
+      "prompt: <user message> }) rather than answering yourself, unless " +
+      "the message is small-talk or a quick factual reply."
+    : "";
+  return {
+    channelName,
+    author,
+    chatId,
+    projectBlock,
+    routeBlock,
+    // Also expose raw fields for any future surface / log that wants them.
+    ...(target ? {
+      projectId:   String(target.id),
+      projectName: target.name || "",
+      projectPath: target.path || "",
+    } : {}),
+    ...(routeToAgent ? { routeToAgent } : {}),
+  };
+}
+
 // ---------- media sending helpers -------------------------------------------
 
 /**
@@ -698,11 +735,13 @@ class ChannelPoller {
           prompt: text,
           previousMessages,
           channel: "telegram",
-          channelMeta: {
+          channelMeta: buildTelegramMeta({
             channelName: this.channel.name,
             author,
             chatId: chat_id,
-          },
+            target,
+            routeToAgent: this.channel.route_to_agent,
+          }),
           signal: abortCtrl.signal,
           onEvent,
         });

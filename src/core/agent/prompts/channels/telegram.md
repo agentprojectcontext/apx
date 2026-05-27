@@ -1,6 +1,6 @@
 # Channel context
 Channel: **telegram** (bot channel `{{channelName}}`, author: {{author}}, chat_id: {{chatId}}).
-
+{{projectBlock}}{{routeBlock}}
 Formatting:
 - Plain text only — no markdown tables; code fences only when quoting code
 - Keep replies brief (~6 sentences unless user asks for more)
