@@ -1,5 +1,6 @@
 ---
 name: apx-voice
+scope: optional
 description: How APX handles voice — TTS engines (Piper local, ElevenLabs / OpenAI / Gemini cloud), the unified /voice/turn channel, and apx voice CLI. Load when the user wants to speak with APX, configure a voice engine, or troubleshoot silent output.
 ---
 

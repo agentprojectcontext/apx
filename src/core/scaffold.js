@@ -191,9 +191,33 @@ export function installIdeSkills(root, targetIds = null) {
 // Excluded: directory names starting with "." (e.g. .DS_Store), and any
 // runtime-only CLI skill that lives under src/core/runtime-skills/ — those
 // are loaded in-process at daemon startup and are NOT for IDE consumption.
-// Public: just the list of bundled skill slugs (for `apx skills status` etc.).
+// Public: bundled skill slugs grouped by scope.
+//   public   → pushed to every global skill dir on install / sync (default).
+//   optional → not pushed by default; user opts in with --include-optional
+//              or `apx skills add <slug> --global` for one-off install.
+//   internal → APX-developer skills (mcp-builder, skill-builder, etc.); never
+//              pushed globally, only available to APX itself via the bundled
+//              copy. Avoids cluttering other IDEs with stuff their users won't
+//              run.
 export function listBundledSkillSlugs() {
   return discoverBundledSkills().map((s) => s.slug);
+}
+
+export function listBundledSkills() {
+  return discoverBundledSkills().map(({ slug, scope }) => ({ slug, scope }));
+}
+
+// Tiny frontmatter peek — we only need the `scope:` field. Avoids pulling in
+// a full YAML parser for one optional line.
+function parseFrontmatterScope(md) {
+  if (!md.startsWith("---\n")) return "public";
+  const end = md.indexOf("\n---", 4);
+  if (end === -1) return "public";
+  const m = md.slice(4, end).match(/^scope:\s*(\w+)/m);
+  if (!m) return "public";
+  const s = m[1].toLowerCase();
+  if (s === "internal" || s === "optional" || s === "public") return s;
+  return "public";
 }
 
 function discoverBundledSkills() {
@@ -205,38 +229,67 @@ function discoverBundledSkills() {
     if (entry.name.startsWith(".")) continue;
     const skillFile = path.join(root, entry.name, "SKILL.md");
     if (!fs.existsSync(skillFile)) continue;
-    out.push({ slug: entry.name, md: fs.readFileSync(skillFile, "utf8") });
+    const md = fs.readFileSync(skillFile, "utf8");
+    out.push({ slug: entry.name, md, scope: parseFrontmatterScope(md) });
   }
   return out.sort((a, b) => a.slug.localeCompare(b.slug));
 }
 
-// Install every bundled skill (apx, apc-context, apx-sessions, apx-runtime,
-// apx-mcp, apx-telegram, apx-routine, apx-task, …) to global ~/.../skills/
-// dirs so Claude Code, Cursor, Codex, and other IDEs all see them.
+// Install bundled skills to every global ~/.../skills/ dir so Claude Code,
+// Cursor, Codex, and other IDEs see them.
 //
-// Auto-discovers everything under skills/<slug>/SKILL.md so future skills
-// ship automatically — no edit to this file needed. Runs on every
-// `npm install -g .` and `npm update -g apx` via postinstall.js.
+// By default only `scope: public` skills land globally. Pass
+// includeOptional / includeInternal to push the other tiers (or call
+// `apx skills add <slug> --global` for a single one).
 //
-// Returns an array of result objects with { dir, skill, status }.
-export function installGlobalSkills() {
-  const skills = discoverBundledSkills();
-  const results = [];
+// Pruning: if a slug that was previously installed has since been demoted to
+// internal/optional (or marked as non-public for the current call), we remove
+// the stale global copy unless prune=false. Keeps IDE skill lists clean.
+//
+// Returns an array of { dir, skill, file, status, scope }.
+//   status ∈ {created, updated, unchanged, pruned, skipped}
+export function installGlobalSkills({
+  includeOptional = false,
+  includeInternal = false,
+  prune = true,
+} = {}) {
+  const all = discoverBundledSkills();
+  const wanted = all.filter((s) => {
+    if (s.scope === "internal") return includeInternal;
+    if (s.scope === "optional") return includeOptional;
+    return true; // public
+  });
+  const wantedSlugs = new Set(wanted.map((s) => s.slug));
+  const knownSlugs = new Set(all.map((s) => s.slug));
 
+  const results = [];
   for (const base of GLOBAL_SKILL_DIRS) {
-    for (const { slug, md } of skills) {
+    // Push the wanted set.
+    for (const { slug, md, scope } of wanted) {
       const dest = path.join(base, slug, "SKILL.md");
       fs.mkdirSync(path.dirname(dest), { recursive: true });
       const existed = fs.existsSync(dest);
-      // Only rewrite if the bundled copy differs — avoids touching mtime on
-      // skills the user hasn't actually changed.
       const previous = existed ? fs.readFileSync(dest, "utf8") : null;
       if (previous === md) {
-        results.push({ dir: base, skill: slug, file: dest, status: "unchanged" });
+        results.push({ dir: base, skill: slug, file: dest, status: "unchanged", scope });
         continue;
       }
       fs.writeFileSync(dest, md, "utf8");
-      results.push({ dir: base, skill: slug, file: dest, status: existed ? "updated" : "created" });
+      results.push({ dir: base, skill: slug, file: dest, status: existed ? "updated" : "created", scope });
+    }
+    // Prune anything WE shipped previously but should no longer be there
+    // (slug exists in the bundle but isn't `wanted` this run).
+    if (prune) {
+      for (const { slug, scope } of all) {
+        if (wantedSlugs.has(slug)) continue;
+        if (!knownSlugs.has(slug)) continue;
+        const dest = path.join(base, slug, "SKILL.md");
+        if (!fs.existsSync(dest)) continue;
+        fs.unlinkSync(dest);
+        // Best-effort: drop the now-empty <slug>/ dir too.
+        try { fs.rmdirSync(path.dirname(dest)); } catch {}
+        results.push({ dir: base, skill: slug, file: dest, status: "pruned", scope });
+      }
     }
   }
   return results;

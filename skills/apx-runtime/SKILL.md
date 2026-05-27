@@ -5,7 +5,7 @@ description: How to call external coding CLIs (claude-code, codex, opencode, aid
 
 # apx-runtime
 
-A "runtime" in APX is an external AI coding CLI that APX can invoke headlessly. APX builds the agent's system prompt, spawns the CLI with the right flags, captures the stdout (and the external tool's session id when available), and stores the run as an APC session under `<repo>/.apc/agents/<slug>/sessions/`.
+A "runtime" in APX is an external AI coding CLI that APX can invoke headlessly. APX builds the agent's system prompt, spawns the CLI with the right flags, captures the stdout (and the external tool's session id when available), and stores the run metadata as a session file under `~/.apx/projects/<apxId>/agents/<slug>/sessions/` (runtime state — never committed). Some flows also link to the external engine's own transcript path.
 
 ## Supported runtimes
 
@@ -39,16 +39,16 @@ Behavior:
 2. Reads the agent's `AGENT.md` + memory + skills, builds the system prompt with `buildAgentSystem({ invocation: "runtime", runtime: "<id>" })`.
 3. Spawns the CLI with the right flags. cwd = project path.
 4. Captures stdout. If the runtime printed `APC_RESULT: <value>`, that's the structured result; else the first 200 chars of stdout.
-5. Writes `<repo>/.apc/agents/<slug>/sessions/<YYYY-MM-DD>-<id>.md` with frontmatter linking back to the external tool's own session file (when available).
+5. Writes `~/.apx/projects/<apxId>/agents/<slug>/sessions/<YYYY-MM-DD>-<id>.md` with frontmatter linking back to the external tool's own session file (when available).
 
 ## Resuming an external session
 
 After a `apx run`, the resulting APC session file references the external transcript:
 
 ```yaml
-# .apc/agents/reviewer/sessions/2026-05-27-claude-code-abc123.md
+# ~/.apx/projects/<apxId>/agents/reviewer/sessions/2026-05-27-claude-code-abc123.md
 ---
-external_session_path: /Users/.../.claude/projects/<...>/sessions/abc123.jsonl
+external_session_path: /Users/.../.claude/projects/<...>/abc123.jsonl
 runtime: claude-code
 session_id: abc123
 ---

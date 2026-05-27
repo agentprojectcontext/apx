@@ -1263,10 +1263,22 @@ const HELP_TOPICS = new Map(Object.entries({
   "skills sync": topic({
     title: "apx skills sync",
     summary:
-      "Refresh every bundled APX skill (auto-discovered from skills/) into every global skill dir (.claude, .cursor, .codex, .agents). Same logic the postinstall hook runs; use this when you want to update without `npm install -g .`.",
-    usage: ["apx skills sync [--verbose]", "apx skills refresh"],
-    options: [["--verbose", "List each (skill × dir) result, not just the rollup."]],
-    examples: ["apx skills sync", "apx skills sync --verbose"],
+      "Refresh bundled APX skills (auto-discovered from skills/) into every global skill dir (.claude, .cursor, .codex, .agents). Pushes only `scope: public` skills by default; pass --include-optional / --include-internal to push the other tiers. Prunes copies of slugs no longer included (use --no-prune to keep them).",
+    usage: [
+      "apx skills sync [--verbose] [--include-optional] [--include-internal] [--no-prune]",
+      "apx skills refresh",
+    ],
+    options: [
+      ["--include-optional", "Also push `scope: optional` skills (apx-voice, …)."],
+      ["--include-internal", "Also push `scope: internal` APX-dev skills (apx-mcp-builder, …)."],
+      ["--no-prune", "Don't remove global copies of slugs that aren't included this run."],
+      ["--verbose", "List each (skill × dir) result, not just the rollup."],
+    ],
+    examples: [
+      "apx skills sync",
+      "apx skills sync --include-optional",
+      "apx skills sync --include-internal --verbose",
+    ],
   }),
   "skills list": topic({
     title: "apx skills list",

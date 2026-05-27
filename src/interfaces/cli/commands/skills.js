@@ -9,6 +9,7 @@ import {
   installIdeSkills,
   installGlobalSkills,
   listBundledSkillSlugs,
+  listBundledSkills,
 } from "../../../core/scaffold.js";
 
 // ---------------------------------------------------------------------------
@@ -98,14 +99,20 @@ export async function cmdSkillsAdd(args) {
 // ---------------------------------------------------------------------------
 
 export async function cmdSkillsSync(args) {
-  const results = installGlobalSkills();
+  const includeOptional = !!args?.flags?.["include-optional"] || !!args?.flags?.optional;
+  const includeInternal = !!args?.flags?.["include-internal"] || !!args?.flags?.internal;
+  const prune = args?.flags?.["no-prune"] ? false : true;
+
+  const results = installGlobalSkills({ includeOptional, includeInternal, prune });
   const home = os.homedir();
 
   // Group by skill so the output is dense and scannable.
   const bySkill = {};
+  const scopeOf = {};
   for (const r of results) {
     if (!bySkill[r.skill]) bySkill[r.skill] = [];
     bySkill[r.skill].push({ dir: r.dir.replace(home, "~"), status: r.status });
+    scopeOf[r.skill] = r.scope;
   }
 
   const slugs = Object.keys(bySkill).sort();
@@ -114,25 +121,51 @@ export async function cmdSkillsSync(args) {
     return;
   }
 
-  console.log(`Syncing ${slugs.length} bundled skill(s) to global skill dirs:\n`);
+  const filters = [];
+  if (includeOptional) filters.push("+optional");
+  if (includeInternal) filters.push("+internal");
+  console.log(
+    `Syncing ${slugs.length} bundled skill(s) to global skill dirs` +
+      (filters.length ? ` [${filters.join(" ")}]` : "") + ":\n"
+  );
+
   const sw = Math.max(...slugs.map((s) => s.length));
-  let updated = 0, created = 0, unchanged = 0;
+  const totals = { unchanged: 0, updated: 0, created: 0, pruned: 0 };
   for (const slug of slugs) {
     const entries = bySkill[slug];
-    const counts = { unchanged: 0, updated: 0, created: 0 };
+    const counts = { unchanged: 0, updated: 0, created: 0, pruned: 0 };
     for (const e of entries) counts[e.status] = (counts[e.status] || 0) + 1;
-    updated += counts.updated;
-    created += counts.created;
-    unchanged += counts.unchanged;
+    for (const k of Object.keys(totals)) totals[k] += counts[k] || 0;
     const parts = [];
-    if (counts.created)   parts.push(`${counts.created} created`);
-    if (counts.updated)   parts.push(`${counts.updated} updated`);
-    if (counts.unchanged) parts.push(`${counts.unchanged} unchanged`);
-    console.log(`  ${slug.padEnd(sw)}  ${parts.join(", ")}`);
+    for (const k of ["created", "updated", "unchanged", "pruned"]) {
+      if (counts[k]) parts.push(`${counts[k]} ${k}`);
+    }
+    const scope = scopeOf[slug];
+    const tag = scope === "public" ? "" : ` [${scope}]`;
+    console.log(`  ${slug.padEnd(sw)}${tag.padEnd(11)}  ${parts.join(", ")}`);
   }
   console.log("");
   console.log(`Targets: .claude/skills, .cursor/skills, .codex/skills, .agents/skills`);
-  console.log(`Totals:  ${created} created, ${updated} updated, ${unchanged} unchanged`);
+  const totalParts = [];
+  for (const k of ["created", "updated", "unchanged", "pruned"]) {
+    if (totals[k]) totalParts.push(`${totals[k]} ${k}`);
+  }
+  console.log(`Totals:  ${totalParts.join(", ") || "(no changes)"}`);
+
+  // Hint about non-default tiers.
+  const skipped = listBundledSkills().filter(
+    (s) =>
+      (s.scope === "internal" && !includeInternal) ||
+      (s.scope === "optional" && !includeOptional)
+  );
+  if (skipped.length > 0) {
+    console.log("");
+    console.log("Skipped (not pushed by default):");
+    for (const s of skipped) console.log(`  ${s.slug.padEnd(sw)}  scope=${s.scope}`);
+    console.log("");
+    console.log("Re-run with --include-optional / --include-internal to push them too,");
+    console.log("or `apx skills add <slug> --global` for one-off install.");
+  }
 
   if (args?.flags?.verbose) {
     console.log("");
@@ -170,22 +203,36 @@ export async function cmdSkillsList() {
 export async function cmdSkillsStatus() {
   const root = findApfRoot();
 
-  // Global — discovered list of every bundled skill (auto-grows when a new
-  // skills/<slug>/SKILL.md is added to the repo).
-  const SKILL_SLUGS = listBundledSkillSlugs();
-  console.log(`Global skills (${SKILL_SLUGS.length} bundled):`);
+  // Global — discovered list of every bundled skill with its scope.
+  const bundled = listBundledSkills();
+  const byScope = {
+    public: bundled.filter((s) => s.scope === "public"),
+    optional: bundled.filter((s) => s.scope === "optional"),
+    internal: bundled.filter((s) => s.scope === "internal"),
+  };
+  console.log(
+    `Bundled skills: ${bundled.length} total (${byScope.public.length} public, ` +
+      `${byScope.optional.length} optional, ${byScope.internal.length} internal)`
+  );
+  console.log("");
+  console.log(`Global skill dirs:`);
   const GLOBAL_DIRS = [
     { label: "Claude Code / Cursor compat", dir: path.join(os.homedir(), ".claude", "skills") },
     { label: "Cursor (primary)",            dir: path.join(os.homedir(), ".cursor", "skills") },
     { label: "Codex",                       dir: path.join(os.homedir(), ".codex",  "skills") },
     { label: "Antigravity / others",        dir: path.join(os.homedir(), ".agents", "skills") },
   ];
-  const gw = Math.max(...GLOBAL_DIRS.map((d) => d.label.length));
-  const sw = Math.max(...SKILL_SLUGS.map((s) => s.length));
+  const sw = Math.max(...bundled.map((s) => s.slug.length));
   for (const { label, dir } of GLOBAL_DIRS) {
-    for (const slug of SKILL_SLUGS) {
+    console.log(`\n  ${label} — ${dir.replace(os.homedir(), "~")}`);
+    for (const { slug, scope } of bundled) {
       const dest = path.join(dir, slug, "SKILL.md");
-      console.log(`  ${label.padEnd(gw)}  ${slug.padEnd(sw)}  ${fs.existsSync(dest) ? "installed" : "not installed"}`);
+      const present = fs.existsSync(dest);
+      const tag = scope === "public" ? "" : ` [${scope}]`;
+      const state = present
+        ? "✓ installed"
+        : (scope === "public" ? "✗ MISSING (run `apx skills sync`)" : "—");
+      console.log(`    ${slug.padEnd(sw)}${tag.padEnd(11)}  ${state}`);
     }
   }
 

@@ -5,7 +5,7 @@ description: How to create, configure, and use project agents in APX. Load when 
 
 # apx-agent
 
-A project agent is a named persona inside an APC project. Defined in `AGENTS.md` (project root) with optional per-agent files under `.apc/agents/<slug>/`. Each agent has a Role, Model, Description, Skills list, and a memory.
+A project agent is a named persona inside an APC project. Canonical definition: `.apc/agents/<slug>.md` (flat file). `AGENTS.md` is auto-regenerated for discovery. Per-agent runtime data: `.apc/agents/<slug>/memory.md` (and optional `sessions/` only when using external runtimes that write APC session stubs — APX-native sessions live under `~/.apx/projects/<id>/`).
 
 ## Concrete CLI calls
 
@@ -13,9 +13,8 @@ A project agent is a named persona inside an APC project. Defined in `AGENTS.md`
 # List agents in a project
 apx agent list --project iacrmar
 
-# Create a new agent (writes .apc/agents/<slug>/AGENT.md + regenerates AGENTS.md)
+# Create a new agent (writes .apc/agents/<slug>.md + regenerates AGENTS.md)
 apx agent add reviewer \
-  --project iacrmar \
   --role "Code reviewer" \
   --model claude-haiku-4-5 \
   --language es \
@@ -24,11 +23,13 @@ apx agent add reviewer \
   --skills code-review,git
 
 # Import an agent template from the global vault (~/.apx/agents/)
-apx agent vault list                            # see what's available
-apx agent vault import <slug> --project iacrmar # copy template into the project
+apx agent vault list                 # see what's available
+apx agent import <slug>              # register vault slug in this project
+apx agent import <slug> --copy       # copy vault .md into .apc/agents/ for local edits
+apx agent import <slug> --force      # overwrite existing local definition
 
 # Show details (config + memory)
-apx agent show <slug> --project iacrmar
+apx agent get <slug>                 # alias: apx agent show <slug>
 
 # Per-agent memory (drives system prompt for that agent)
 apx memory <slug> --project iacrmar                          # read
@@ -55,11 +56,11 @@ That's the prompt the engine sees on every `apx exec <agent>` or `apx chat <agen
 
 Each agent can set `Model:` in its `AGENT.md` to override the global super-agent model. Useful when a particular agent should use a cheaper / smaller / specialized model.
 
-```yaml
-# .apc/agents/reviewer/AGENT.md
+```markdown
+# .apc/agents/reviewer.md
 ---
 Role: Code reviewer
-Model: claude-haiku-4-5      ← this agent always uses Haiku, independent of super-agent.model
+Model: claude-haiku-4-5      ← this agent always uses Haiku, independent of super_agent.model
 Language: es
 ---
 ```
@@ -69,10 +70,9 @@ When a routine `kind: exec_agent` runs with `spec.agent: reviewer`, it uses that
 ## Anti-examples
 
 ```bash
-# DON'T hand-write .apc/agents/<slug>/AGENT.md.
-mkdir -p /path/.apc/agents/reviewer
-echo "..." > /path/.apc/agents/reviewer/AGENT.md
-# ↑ Will silently fail validation. Use `apx agent add`.
+# DON'T hand-write .apc/agents/<slug>.md without matching AGENTS.md regeneration.
+echo "..." > /path/.apc/agents/reviewer.md
+# ↑ Prefer `apx agent add` or `apx agent import` so AGENTS.md stays consistent.
 
 # DON'T set Model: to a provider you don't have keys for.
 # An agent with Model: openai:gpt-4o on a machine with no openai.api_key fails on first call.

@@ -86,8 +86,8 @@ apx routine add weather-bariloche \
   --kind exec_agent \
   --schedule "every:24h" \
   --spec '{"agent":"default","prompt":"El clima es {{pre_output}}. Una frase amigable."}' \
-  --pre-command "curl -s 'https://wttr.in/Bariloche?format=%t+%C+viento+%w'" \
-  --post-command 'apx telegram send "$APX_LLM_OUTPUT"'
+  --pre-commands "curl -s 'https://wttr.in/Bariloche?format=%t+%C+viento+%w'" \
+  --post-commands 'apx telegram send "$APX_LLM_OUTPUT"'
 
 # Create — super-agent with tools
 apx routine add daily-status \

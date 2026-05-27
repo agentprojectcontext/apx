@@ -51,12 +51,19 @@ apx telegram start
 apx telegram stop
 apx telegram status
 
-# Sending (defaults to channel="default")
+# Sending (defaults to first configured channel; use --chat for explicit chat id)
 apx telegram send "texto"
-apx telegram send "texto" --channel clientes
-apx telegram send_photo  --photo /abs/path.png --caption "..." --channel default
-apx telegram send_voice  --audio /abs/path.ogg --duration 5
-apx telegram send_audio  --audio /abs/path.mp3 --title "X" --performer "Y"
+apx telegram send "texto" --chat 123456789
+
+# Media (daemon HTTP API — no dedicated CLI subcommand yet)
+curl -X POST http://127.0.0.1:7430/telegram/send_photo \
+  -H "Authorization: Bearer $(cat ~/.apx/daemon.token)" \
+  -H "Content-Type: application/json" \
+  -d '{"photo":"/abs/path.png","caption":"...","channel":"clientes"}'
+curl -X POST http://127.0.0.1:7430/telegram/send_voice \
+  -H "Authorization: Bearer $(cat ~/.apx/daemon.token)" \
+  -H "Content-Type: application/json" \
+  -d '{"audio":"/abs/path.ogg","duration":5,"channel":"default"}'
 ```
 
 Every `channel` CRUD write triggers `POST /admin/reload` so the polling plugin picks up the new wiring without a daemon restart.
@@ -103,6 +110,6 @@ This is how you wire "I have a client A bot, a personal bot, and a notifications
 ## Don't
 
 - Don't write to `telegram.bot_token` / `telegram.chat_id` at root.
-- Don't expect `apx telegram send` to send to a project — it sends to a *channel*, default if none given. Use `--channel <name>`.
+- Don't expect `apx telegram send` to target a project — it sends to a *chat id* (or the channel's configured `chat_id`). Use `apx telegram channel show <name>` to verify wiring.
 - Don't set `respond_with_engine: false` and then wonder why messages aren't getting replies. That flag turns auto-reply off for the channel.
 - Don't forget that the Telegram plugin only fires on chat IDs you've listed. Messages from other chats are ignored.

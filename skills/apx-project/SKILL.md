@@ -56,7 +56,8 @@ The CLI calls `resolveProjectId()` which does fuzzy id-or-name-or-path matching.
 ├── AGENTS.md                                   ← agent definitions (committed)
 └── .apc/
     ├── project.json                            ← { apxId, name, ... }
-    ├── agents/<slug>/{AGENT.md, memory.md, sessions/}
+    ├── agents/<slug>.md
+    ├── agents/<slug>/memory.md
     ├── skills/<slug>.md or <slug>/SKILL.md
     ├── mcps.json                               ← shared MCPs (committed)
     ├── commands/                               ← custom slash-commands

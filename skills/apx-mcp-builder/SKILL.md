@@ -1,5 +1,6 @@
 ---
 name: apx-mcp-builder
+scope: internal
 description: How to build a Model Context Protocol (MCP) server from scratch and wire it into APX. Load when the user asks "creame un MCP server", "necesito una herramienta para X", or you need to expose a new tool surface to agents. Covers the JSON-RPC stdio protocol, FastMCP Python / TypeScript SDK shapes, and APX-specific registration.
 ---
 
