@@ -46,7 +46,15 @@ function buildChannelContext(channel, { projectId, language = "es" } = {}) {
     systemSuffix: "",
     wantsSuggestions: false,
   };
-  const projectHint = projectId ? `\nActive project id: ${projectId}.` : "";
+  // Imperative project hint: weaker models otherwise ask "¿en qué
+  // proyecto?" even when the active project is obvious from the
+  // surface. Tell them to just use it.
+  const projectHint = projectId
+    ? `\nThe active project is id=${projectId}. For ANY task/note/list ` +
+      `action, pass project_id=${projectId} automatically. Do NOT ask the ` +
+      `user which project — they're already looking at it. Only use a ` +
+      `different project if the user explicitly names one.`
+    : "";
   // Hard language directive — without this the model defaults to its
   // training-bias English on short Spanish prompts, especially when
   // the user mixes English-ish product names ("aicrm").
@@ -93,23 +101,34 @@ function buildChannelContext(channel, { projectId, language = "es" } = {}) {
   }
 }
 
+// Balanced suffix. An earlier, more aggressive version ("EJECUTA, no
+// narres — LLAMÁ A LA TOOL") made Gemini call tools for EVERYTHING,
+// even "hola" → it fired send_telegram("hola"). The rule below gates
+// tool use on a *clear* action request and explicitly tells the model
+// to just talk for chit-chat.
 const SUGGESTIONS_INSTRUCTION = `
 
-Output rule for this surface:
-After your visible reply, append a fenced code block tagged \`suggestions\`
-containing a JSON array of 2 to 4 short next-step actions the user is
-likely to want. Each entry must have a "label" (≤ 28 chars, sentence
-case, imperative) and an optional "command" (one of:
-"open_app:<name>", "task.create:<title>", "note.create", "copy_context",
-"open_path", or omitted for free-form). The user does NOT see the block;
-the deck strips it before rendering. Example:
+# Cuándo usar tools
+SOLO llamá una tool cuando el usuario pide CLARAMENTE una acción
+concreta: "creá una tarea …", "mandá un telegram …", "listá …",
+"abrí …", "marcá como hecha …". En esos casos ejecutá la tool (no
+digas "lo voy a hacer" — hacelo) y después confirmá en una frase corta
+en castellano lo que YA hiciste.
 
+Si el mensaje es un saludo, una pregunta, o charla ("hola", "cómo
+andás", "qué podés hacer") NO llames ninguna tool: respondé en texto,
+breve, en castellano.
+
+Nunca llames la misma tool dos veces en el mismo turno.
+
+# Sugerencias (opcional)
+Al final, en su propia línea, podés agregar un bloque fenced
+\`suggestions\` con 2-3 próximos pasos. El usuario NO lo ve (la deck lo
+quita):
 \`\`\`suggestions
-[{"label":"Abrir Claude","command":"open_app:claude"},
- {"label":"Anotar como tarea","command":"task.create:revisar logs"}]
+[{"label":"Ver tareas","command":"deck.view:tasks"}]
 \`\`\`
-
-If no useful next step exists, return an empty array \`[]\`.`;
+Si no hay próximos pasos útiles, omití el bloque.`;
 
 // Pull the trailing ```suggestions ... ``` block off the agent's
 // reply. Returns { cleanText, suggestions[] } — cleanText is the
@@ -328,17 +347,19 @@ export function register(app, { projects, plugins, registries }) {
         });
       }
 
-      // ── 1.5 Intent classifier (regex short-circuits) ────────────────
-      // Cheap pattern match for "creá una tarea X" style utterances —
-      // we skip the LLM, create the task directly, and return a
-      // confirmatory reply that still gets TTS'd. The app sends
-      // `projectId` so we can target the active project; we fall back
-      // to the first non-default project otherwise.
-      const intentResult = await tryVoiceTaskIntent({
-        projects,
-        userText,
-        hintProjectId: body.projectId,
-      });
+      // ── 1.5 Intent classifier (DISABLED) ──────────────────────────
+      // We used to regex-match "creá una tarea X" here and short-circuit
+      // the LLM. That fired far too eagerly — any sentence containing
+      // those words became a task title, even when the user's actual
+      // intent was different ("explicame cómo funciona crear una
+      // tarea" would create a bogus task).
+      //
+      // The right path is the agent's own tool calling: the super-agent
+      // already has `create_task`, `send_telegram`, `list_tasks`, etc.
+      // in its CORE schema (see super-agent-tools/index.js). We let
+      // the model decide; the system prompt below pushes it toward
+      // tool use instead of narrating the action in prose.
+      const intentResult = { handled: false };
       let replyText = "";
       const previousMessages = Array.isArray(body.previousMessages)
         ? body.previousMessages
@@ -380,6 +401,15 @@ export function register(app, { projects, plugins, registries }) {
             const parsed = extractSuggestions(raw);
             replyText = parsed.cleanText;
             suggestions = parsed.suggestions;
+            // Safety net: small models sometimes return ONLY the
+            // suggestions block (no visible reply). Don't ship empty
+            // text to TTS — synthesize a generic confirmation so the
+            // user gets audible feedback that something happened.
+            if (!replyText && raw) {
+              replyText = suggestions.length
+                ? "Listo."
+                : raw;
+            }
           } else {
             replyText = raw;
           }

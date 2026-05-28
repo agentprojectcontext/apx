@@ -134,6 +134,31 @@ export async function runAgent({
   let lastText = "";
   let usePseudoTools = false;
   let ackOnlyStreak = 0;
+  // Side-effect dedupe. Weaker models (Gemini especially) sometimes
+  // re-emit the SAME tool call across iterations — e.g. send_telegram
+  // three times with identical args, spamming the user. For tools
+  // that mutate the world we remember the (name + args) signature and
+  // short-circuit duplicates with a synthetic "already done" result
+  // instead of re-running. Read-only tools are exempt (idempotent and
+  // sometimes legitimately repeated, like list_tasks before/after).
+  const sideEffectExecuted = new Map();
+  const SIDE_EFFECT_TOOLS = new Set([
+    "send_telegram",
+    "create_task",
+    "write_file",
+    "edit_file",
+    "run_shell",
+    "call_runtime",
+    "add_project",
+    "set_identity",
+  ]);
+  const sideEffectSignature = (name, args) => {
+    try {
+      return `${name}:${JSON.stringify(args)}`;
+    } catch {
+      return `${name}:<unserializable>`;
+    }
+  };
 
   // Engine call wrapped with lazy retry: on 413/429/5xx/rate-limit/etc, try
   // the next model in `retryChain` instead of bubbling. Stops when the chain
@@ -264,11 +289,28 @@ export async function runAgent({
         trace: { id: traceId, tool: name, args, pending: true },
         iteration: iter + 1,
       });
-      try {
-        const handler = handlers[name];
-        toolResult = handler ? await handler(args) : { error: `unknown tool: ${name}` };
-      } catch (e) {
-        toolResult = { error: e.message };
+      // Dedupe identical side-effecting calls within this turn.
+      const sig = SIDE_EFFECT_TOOLS.has(name) ? sideEffectSignature(name, args) : null;
+      if (sig && sideEffectExecuted.has(sig)) {
+        toolResult = {
+          ok: true,
+          deduped: true,
+          note: `Ya ejecuté "${name}" con estos mismos argumentos en este turno; no lo repito.`,
+          previous: sideEffectExecuted.get(sig),
+        };
+        await emitProgress(onEvent, {
+          type: "tool_deduped",
+          trace: { id: traceId, tool: name, args },
+          iteration: iter + 1,
+        });
+      } else {
+        try {
+          const handler = handlers[name];
+          toolResult = handler ? await handler(args) : { error: `unknown tool: ${name}` };
+        } catch (e) {
+          toolResult = { error: e.message };
+        }
+        if (sig) sideEffectExecuted.set(sig, summarizeForTrace(toolResult));
       }
 
       const traceItem = { id: traceId, tool: name, args, result: summarizeForTrace(toolResult) };
