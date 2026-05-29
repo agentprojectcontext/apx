@@ -24,8 +24,9 @@
     "start": "node src/host/daemon/index.js",
     "smoke": "node src/host/daemon/smoke.js",
     "test": "node --test --test-reporter=spec tests/*.test.js",
+    "build:web": "node scripts/build-web.js",
     "upgrade": "pnpm install && pnpm add -g .",
-    "prepack": "node scripts/sync-apc-skill.js",
+    "prepack": "node scripts/sync-apc-skill.js && node scripts/build-web.js",
     "postinstall": "node src/interfaces/cli/postinstall.js"
   },
   "packageManager": "pnpm@10.25.0",
