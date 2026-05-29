@@ -1,5 +1,8 @@
 node_modules/
 
+# Web build artifacts (vite output)
+src/interfaces/web/dist/
+
 # APC context skill — canonical source is agentprojectcontext/apc (synced at install/prepack)
 skills/apc-context/
 
