@@ -19,7 +19,8 @@ import {
   cmdAgentImport,
   cmdAgentVaultList,
   cmdAgentVaultAdd,
-  cmdAgentVaultSync,
+  cmdAgentVaultRm,
+  cmdAgentVaultRestore,
 } from "./commands/agent.js";
 import { cmdMemory } from "./commands/memory.js";
 import {
@@ -303,9 +304,10 @@ const HELP_TOPICS = new Map(Object.entries({
       ["list | ls", "List project agents."],
       ["get | show <slug>", "Print one agent definition."],
       ["import <slug>", "Import an agent template from ~/.apx/agents."],
-      ["vault list | ls", "List reusable global agent templates."],
-      ["vault add <slug>", "Create or copy a reusable global agent template."],
-      ["vault sync", "Seed ~/.apx/agents/ from the bundled starter pack (skips existing; --force to overwrite)."],
+      ["vault list | ls", "List vault templates (bundled defaults + your overrides)."],
+      ["vault add <slug>", "Create a new vault template in the user layer (~/.apx/agents/)."],
+      ["vault rm <slug>", "Delete a vault template (tombstones the bundled default so it stays hidden)."],
+      ["vault restore <slug>", "Lift a tombstone so a previously-removed bundled default is visible again."],
     ],
     examples: ["apx agent add reviewer --role Reviewer --model gpt-5.2", "apx agent list"],
   }),
@@ -374,19 +376,17 @@ const HELP_TOPICS = new Map(Object.entries({
     ],
     examples: ["apx agent vault add reviewer --role Reviewer --model gpt-5.2"],
   }),
-  "agent vault sync": topic({
-    title: "apx agent vault sync",
-    summary: "Seed ~/.apx/agents/ with the bundled starter pack (PandaProject + nicho-apps team).",
-    usage: ["apx agent vault sync [--force] [--dry-run]"],
-    options: [
-      ["--force", "Overwrite vault entries that already exist (default: skip)."],
-      ["--dry-run | -n", "Show what would be copied without writing."],
-    ],
-    examples: [
-      "apx agent vault sync",
-      "apx agent vault sync --dry-run",
-      "apx agent vault sync --force",
-    ],
+  "agent vault rm": topic({
+    title: "apx agent vault rm",
+    summary: "Delete a vault template. Bundled defaults are tombstoned, not erased; restore them with `apx agent vault restore`.",
+    usage: ["apx agent vault rm <slug>"],
+    examples: ["apx agent vault rm tessa-qa"],
+  }),
+  "agent vault restore": topic({
+    title: "apx agent vault restore",
+    summary: "Lift a tombstone so a previously-removed bundled default is visible again.",
+    usage: ["apx agent vault restore <slug>"],
+    examples: ["apx agent vault restore tessa-qa"],
   }),
   identity: topic({
     title: "apx identity",
@@ -2236,10 +2236,11 @@ async function dispatch(cmd, rest) {
         else if (sub === "vault") {
           const vsub = a._[0];
           const va = { ...a, _: a._.slice(1) };
-          if (vsub === "list" || vsub === "ls") cmdAgentVaultList();
+          if (vsub === "list" || vsub === "ls") cmdAgentVaultList(va);
           else if (vsub === "add") await cmdAgentVaultAdd(va);
-          else if (vsub === "sync") await cmdAgentVaultSync(va);
-          else die(`unknown vault subcommand: ${vsub || "(none)"} — try: list, add, sync`);
+          else if (vsub === "rm" || vsub === "remove") cmdAgentVaultRm(va);
+          else if (vsub === "restore") cmdAgentVaultRestore(va);
+          else die(`unknown vault subcommand: ${vsub || "(none)"} — try: list, add, rm, restore`);
         }
         else die(`unknown agent subcommand: ${sub || "(none)"}`);
         break;

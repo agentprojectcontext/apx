@@ -3,7 +3,14 @@ import path from "node:path";
 import os from "node:os";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { readAgents, readAgentsFromDir, VAULT_DIR } from "./parser.js";
+import {
+  readAgents,
+  readAgentsFromDir,
+  VAULT_DIR,
+  BUNDLED_VAULT_DIR,
+  readVaultTombstones,
+  writeVaultTombstones,
+} from "./parser.js";
 import { readApcContextSkill } from "./apc-skill-sync.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -498,6 +505,44 @@ export function writeVaultAgentFile(slug, fields, body = "") {
   lines.push("---");
   if (body) lines.push("", body);
   fs.writeFileSync(dest, lines.join("\n") + "\n");
+  // Writing always clears a tombstone — the user is explicitly putting this
+  // slug back, even if it was previously removed.
+  const tombs = readVaultTombstones();
+  if (tombs.delete(slug)) writeVaultTombstones(tombs);
+}
+
+// Remove a vault agent. If the slug has a user-layer file we delete it; if
+// the slug ALSO exists in the bundle (or the user file didn't exist but the
+// bundled one does), we add a tombstone so it stays hidden. Returns one of:
+//   { removed: "user" }      — user file deleted, bundled NOT present
+//   { removed: "user+tomb" } — user file deleted AND bundled hidden by tombstone
+//   { removed: "tomb" }      — bundled-only slug, hidden by tombstone
+//   { removed: null }        — slug not found anywhere
+export function removeVaultAgent(slug) {
+  const userPath = path.join(VAULT_DIR, `${slug}.md`);
+  const bundledPath = path.join(BUNDLED_VAULT_DIR, `${slug}.md`);
+  const hadUser = fs.existsSync(userPath);
+  const hasBundled = fs.existsSync(bundledPath);
+  if (!hadUser && !hasBundled) return { removed: null };
+  if (hadUser) fs.rmSync(userPath);
+  if (hasBundled) {
+    const tombs = readVaultTombstones();
+    tombs.add(slug);
+    writeVaultTombstones(tombs);
+  }
+  return {
+    removed: hadUser && hasBundled ? "user+tomb" : hadUser ? "user" : "tomb",
+  };
+}
+
+// Un-tombstone a bundled slug so it becomes visible again. Returns whether a
+// tombstone existed before. No-op if there was nothing to restore.
+export function restoreVaultAgent(slug) {
+  const tombs = readVaultTombstones();
+  if (!tombs.has(slug)) return { restored: false };
+  tombs.delete(slug);
+  writeVaultTombstones(tombs);
+  return { restored: true };
 }
 
 // Add a slug to the project's agents.imported list in project.json

@@ -1,16 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { findApfRoot, readAgents, readVaultAgents, VAULT_DIR, SLUG_RE } from "../../../core/parser.js";
-import { writeAgentFile, writeVaultAgentFile, addImportedAgent, ensureAgentDir, regenerateAgentsMd } from "../../../core/scaffold.js";
+import { findApfRoot, readAgents, readVaultAgents, readVaultAgent, VAULT_DIR, SLUG_RE } from "../../../core/parser.js";
+import { writeAgentFile, writeVaultAgentFile, removeVaultAgent, restoreVaultAgent, addImportedAgent, ensureAgentDir, regenerateAgentsMd } from "../../../core/scaffold.js";
 import { http } from "../http.js";
-
-// Bundled starter templates: assets/agent-vault-defaults/<slug>.md inside the
-// APX repo. Sync copies these to the user's vault (~/.apx/agents/) if the
-// slug isn't already there. Resolves from this file's location so it works
-// when APX is installed globally or run from a worktree.
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const BUNDLED_VAULT_DIR = path.resolve(__dirname, "../../../../assets/agent-vault-defaults");
 
 // ── ANSI ──────────────────────────────────────────────────────────────────────
 const c = { reset:"\x1b[0m", bold:"\x1b[1m", dim:"\x1b[2m", cyan:"\x1b[36m", green:"\x1b[32m", yellow:"\x1b[33m", gray:"\x1b[90m" };
@@ -108,10 +100,11 @@ export function cmdAgentGet(args) {
 
 // ── Vault commands ────────────────────────────────────────────────────────────
 
-export function cmdAgentVaultList() {
-  const vault = readVaultAgents();
+export function cmdAgentVaultList(args = { flags: {} }) {
+  const includeRemoved = !!args.flags.all || !!args.flags["include-removed"];
+  const vault = readVaultAgents({ includeRemoved });
   if (vault.length === 0) {
-    console.log(dim(`(vault empty — add templates with \`apx agent vault add <slug>\`)`));
+    console.log(dim(`(vault empty — bundled defaults missing? add one with \`apx agent vault add <slug>\`)`));
     console.log(gray(`  vault: ${VAULT_DIR}`));
     return;
   }
@@ -119,10 +112,16 @@ export function cmdAgentVaultList() {
   for (const a of vault) {
     const role  = a.fields.Role  ? dim(a.fields.Role)  : gray("—");
     const model = a.fields.Model ? dim(a.fields.Model) : gray("—");
-    console.log(`  ${bold(a.slug)}  ${role}  ${cyan(model)}`);
+    const tag   = a.source === "bundled"        ? gray("[bundled]")
+                : a.source === "user-override" ? tag2("[override]")
+                : a.source === "user"          ? tag2("[user]")
+                : "";
+    console.log(`  ${bold(a.slug)}  ${role}  ${cyan(model)}  ${tag}`);
   }
   console.log();
 }
+// Local helper just for the list table coloring above.
+function tag2(s) { return `${c.green}${s}${c.reset}`; }
 
 export async function cmdAgentVaultAdd(args) {
   const slug = args._[0];
@@ -152,53 +151,34 @@ export async function cmdAgentVaultAdd(args) {
   console.log(`\n  ${bold(slug)} added to vault  ${gray(VAULT_DIR + "/" + slug + ".md")}\n`);
 }
 
-// Seed the user's vault from the bundled starter pack. By default we only
-// COPY templates the user doesn't already have, so re-running is safe and
-// preserves any edits. `--force` overwrites everything; `--dry-run` lists
-// what would happen without writing.
-export async function cmdAgentVaultSync(args = { flags: {} }) {
-  const force = !!args.flags.force;
-  const dry   = !!args.flags["dry-run"] || !!args.flags.n;
-  if (!fs.existsSync(BUNDLED_VAULT_DIR)) {
-    throw new Error(`bundled defaults dir not found: ${BUNDLED_VAULT_DIR}`);
+// Remove a vault template. If the slug exists in the bundle a tombstone is
+// written so it stays hidden until `apx agent vault restore <slug>`. User-
+// layer files are physically removed.
+export function cmdAgentVaultRm(args) {
+  const slug = args._[0];
+  if (!slug || !SLUG_RE.test(slug)) throw new Error("apx agent vault rm: missing or invalid <slug>");
+  const before = readVaultAgent(slug, { includeRemoved: true });
+  if (!before) throw new Error(`"${slug}" not found in vault (bundled or user)`);
+  const out = removeVaultAgent(slug);
+  if (out.removed === "tomb") {
+    console.log(`  ${tag("hidden")}  ${bold(slug)}  ${gray("(bundled default tombstoned — restore with `apx agent vault restore`)")}`);
+  } else if (out.removed === "user") {
+    console.log(`  ${tag("removed")}  ${bold(slug)}  ${gray("(user template deleted; no bundled default exists)")}`);
+  } else if (out.removed === "user+tomb") {
+    console.log(`  ${tag("removed")}  ${bold(slug)}  ${gray("(user override deleted + bundled tombstoned)")}`);
   }
-  const bundled = fs.readdirSync(BUNDLED_VAULT_DIR)
-    .filter((f) => f.endsWith(".md") && SLUG_RE.test(f.slice(0, -3)))
-    .sort();
-  if (bundled.length === 0) {
-    console.log(dim("(no bundled templates to sync)"));
+}
+
+// Un-tombstone a bundled slug. No-op if it wasn't hidden.
+export function cmdAgentVaultRestore(args) {
+  const slug = args._[0];
+  if (!slug || !SLUG_RE.test(slug)) throw new Error("apx agent vault restore: missing or invalid <slug>");
+  const out = restoreVaultAgent(slug);
+  if (!out.restored) {
+    console.log(dim(`  (slug "${slug}" was not tombstoned — nothing to restore)`));
     return;
   }
-  fs.mkdirSync(VAULT_DIR, { recursive: true });
-
-  let copied = 0, skipped = 0, overwritten = 0;
-  for (const f of bundled) {
-    const slug = f.slice(0, -3);
-    const src  = path.join(BUNDLED_VAULT_DIR, f);
-    const dest = path.join(VAULT_DIR, f);
-    const exists = fs.existsSync(dest);
-    if (exists && !force) {
-      console.log(`  ${gray("skip")}  ${bold(slug)}  ${gray("(already in vault — pass --force to overwrite)")}`);
-      skipped++;
-      continue;
-    }
-    if (dry) {
-      console.log(`  ${tag(exists ? "would overwrite" : "would copy")}  ${bold(slug)}`);
-      if (exists) overwritten++; else copied++;
-      continue;
-    }
-    fs.copyFileSync(src, dest);
-    console.log(`  ${exists ? tag("overwrote") : cyan("copied")}  ${bold(slug)}  ${gray("→")}  ${gray(dest)}`);
-    if (exists) overwritten++; else copied++;
-  }
-  console.log();
-  console.log(
-    dim(`  ${copied} new, ${overwritten} overwritten, ${skipped} skipped  `) +
-    gray(`(vault: ${VAULT_DIR})`)
-  );
-  if (!dry && (copied > 0 || overwritten > 0)) {
-    console.log(dim(`  list them with: apx agent vault list`));
-  }
+  console.log(`  ${cyan("restored")}  ${bold(slug)}  ${gray("(bundled default visible again)")}`);
 }
 
 export async function cmdAgentImport(args) {

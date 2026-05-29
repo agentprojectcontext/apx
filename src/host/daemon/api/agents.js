@@ -6,18 +6,100 @@
 //   PUT  /projects/:pid/agents/:slug/memory
 import fs from "node:fs";
 import path from "node:path";
-import { readAgents, readVaultAgents } from "../../../core/parser.js";
+import { readAgents, readVaultAgents, readVaultAgent } from "../../../core/parser.js";
 import {
   writeAgentFile,
+  writeVaultAgentFile,
+  removeVaultAgent,
+  restoreVaultAgent,
   ensureAgentDir,
   regenerateAgentsMd,
 } from "../../../core/scaffold.js";
 import { agentToResponse } from "./shared.js";
 
+// Lowercase the patch keys we accept on the vault and turn skills/tools into
+// arrays. The writer takes either case but normalizes; passing this through
+// it keeps the on-disk format consistent.
+const VAULT_PATCH_FIELDS = ["role", "model", "language", "description", "skills", "tools", "is_master"];
+function normalizeVaultPatch(input = {}) {
+  const out = {};
+  for (const k of VAULT_PATCH_FIELDS) {
+    const lower = k;
+    const title = k.charAt(0).toUpperCase() + k.slice(1);
+    const v = input[lower] ?? input[title];
+    if (v === undefined || v === null) continue;
+    if (k === "skills" || k === "tools") {
+      out[title] = Array.isArray(v)
+        ? v.map(String).map((s) => s.trim()).filter(Boolean)
+        : String(v).split(",").map((s) => s.trim()).filter(Boolean);
+    } else {
+      out[title] = v;
+    }
+  }
+  return out;
+}
+
 export function register(app, { projects, project }) {
-  // Vault = global agent templates in ~/.apx/agents/<slug>.md (not project agents).
-  app.get("/agents/vault", (_req, res) => {
-    res.json(readVaultAgents().map(agentToResponse));
+  // Vault = global agent templates. Two-layer: bundled defaults shipped with
+  // APX (assets/agent-vault-defaults/) + user overrides/new ones in
+  // ~/.apx/agents/. The user layer wins per slug; tombstones in .removed.json
+  // hide bundled entries. GET merges both with `source` set per item.
+  app.get("/agents/vault", (req, res) => {
+    const includeRemoved = req.query?.include_removed === "1";
+    res.json(readVaultAgents({ includeRemoved }).map((a) => ({
+      ...agentToResponse(a),
+      source: a.source, // "bundled" | "user" | "user-override"
+    })));
+  });
+
+  // Create or replace a vault template (user layer / copy-on-write).
+  app.post("/agents/vault", (req, res) => {
+    const { slug, fields, body = "" } = req.body || {};
+    if (!slug || !/^[a-z][a-z0-9_-]*$/.test(slug)) {
+      return res.status(400).json({ error: "valid slug required" });
+    }
+    try {
+      writeVaultAgentFile(slug, normalizeVaultPatch(fields || {}), body);
+      const created = readVaultAgent(slug);
+      res.status(201).json(created ? agentToResponse(created) : { slug });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  // Patch a vault template. If the slug is bundled-only, copy it to the user
+  // layer first (the writer already does this), then apply the merged fields.
+  app.patch("/agents/vault/:slug", (req, res) => {
+    const { slug } = req.params;
+    const current = readVaultAgent(slug);
+    if (!current) return res.status(404).json({ error: `vault agent ${slug} not found` });
+    const patch = normalizeVaultPatch(req.body?.fields || req.body || {});
+    const mergedFields = { ...(current.fields || {}), ...patch };
+    const body = req.body?.body !== undefined ? String(req.body.body) : (current.body || "");
+    try {
+      writeVaultAgentFile(slug, mergedFields, body);
+      const after = readVaultAgent(slug);
+      res.json(after ? agentToResponse(after) : { slug });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  // Delete a vault template. Tombstones bundled slugs so they stay hidden;
+  // deletes the user-layer file otherwise. POST .../restore lifts a tombstone.
+  app.delete("/agents/vault/:slug", (req, res) => {
+    const { slug } = req.params;
+    const out = removeVaultAgent(slug);
+    if (!out.removed) return res.status(404).json({ error: `vault agent ${slug} not found` });
+    res.json({ ok: true, ...out });
+  });
+
+  app.post("/agents/vault/:slug/restore", (req, res) => {
+    const { slug } = req.params;
+    const out = restoreVaultAgent(slug);
+    if (!out.restored) return res.status(404).json({ error: `slug ${slug} was not tombstoned` });
+    const after = readVaultAgent(slug);
+    res.json({ ok: true, agent: after ? agentToResponse(after) : null });
   });
 
   // Import a vault template into a project (copies it to .apc/agents/<slug>.md).

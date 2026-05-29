@@ -1,15 +1,23 @@
 ---
 name: apx-agency-agents
-description: "Manage the APX agent vault — a library of reusable agent templates (Roby, Cody, Rocky, Tessa, Max, Arch, Sid, Vera, Finn, plus generic specialists: development, marketing, ops, qa, support). Load this when the user wants to: spawn a specialized agent, look up which templates are available, seed an empty vault with the bundled starter pack, import a template into a project, or create a new vault template. Trigger on: 'lanzar agente', 'spawn agent', 'usar a Cody/Rocky/Tessa/Max/Arch/Sid/Vera/Roby', 'qué agentes hay', 'sembrar vault', 'sync vault', 'agent vault sync', 'agent vault list', 'apx agent vault', 'importar agente', 'nuevo agente', 'crear agente nuevo'."
+description: "Manage the APX agent vault — a library of reusable agent templates (Roby, Cody, Rocky, Tessa, Max, Arch, Sid, Vera, Finn, plus generic specialists: development, marketing, ops, qa, support). Load this when the user wants to: spawn a specialized agent, look up which templates are available, import a template into a project, create a new vault template, delete/hide a bundled default, or restore a previously hidden one. Trigger on: 'lanzar agente', 'spawn agent', 'usar a Cody/Rocky/Tessa/Max/Arch/Sid/Vera/Roby', 'qué agentes hay', 'agent vault list', 'apx agent vault', 'importar agente', 'nuevo agente', 'crear agente nuevo', 'borrar agente default', 'restaurar agente'."
 ---
 
 # apx-agency-agents — the APX agent vault
 
-The vault is the **global, project-agnostic library of agent templates** that ship with APX. They live in `~/.apx/agents/<slug>.md` and can be imported into any project with `apx agent import <slug>` (or from a project's Agents → Importar in the web UI).
+The vault is the **global, project-agnostic library of agent templates** in APX. Two layers, deduped per-slug, with the user layer winning:
+
+| Layer | Where | Mutability |
+|---|---|---|
+| **Bundled** | `<repo>/assets/agent-vault-defaults/<slug>.md` | Read-only on disk. Always visible unless tombstoned. |
+| **User** | `~/.apx/agents/<slug>.md` | Read-write. Overrides the bundled with the same slug. |
+| **Tombstones** | `~/.apx/agents/.removed.json` | List of bundled slugs the user explicitly hid. |
+
+Listing returns `bundled ∪ user`, with `source: "bundled" | "user" | "user-override"` per entry. Editing a bundled entry is **copy-on-write** — it materializes into the user layer the moment you save. Deleting a bundled entry **tombstones** it (you can restore later); deleting a user-only entry physically removes the file.
 
 ## Bundled starter pack
 
-When you run `apx agent vault sync`, APX seeds the vault from the in-repo bundle at **`assets/agent-vault-defaults/`**. It currently ships two families:
+APX ships 14 templates out of the box, two families:
 
 ### Named team (from nicho-apps)
 A characterful crew already used in production by NichoApps:
@@ -42,25 +50,27 @@ Both families default to `model: openrouter:meta-llama/llama-3.3-70b-instruct` a
 ## Concrete commands
 
 ```bash
-# Seed the vault from the bundled pack (skips existing slugs — safe to re-run)
-apx agent vault sync
-
-# See what would happen without writing
-apx agent vault sync --dry-run
-
-# Force overwrite (destroys your local edits — confirm before doing this)
-apx agent vault sync --force
-
-# List what's in the vault now
+# List the vault (bundled + your overrides, with [bundled] / [user] / [override] tags)
 apx agent vault list
 
-# Create your own template from scratch (or copy one out of a project)
+# Include tombstoned bundled defaults (the ones you hid)
+apx agent vault list --all
+
+# Create a new template (writes ~/.apx/agents/<slug>.md)
 apx agent vault add reviewer \
   --role "Code reviewer" \
   --model claude-haiku-4-5 \
   --language es \
   --skills code-review,git \
   --description "Reviews PRs and pushes back on hand-wavy diffs."
+
+# Delete a template:
+#   - user-only slug → file is physically deleted
+#   - bundled slug   → tombstoned, hidden from listings
+apx agent vault rm tessa-qa
+
+# Bring back a tombstoned bundled default
+apx agent vault restore tessa-qa
 
 # Import a vault template into the current project
 apx agent import cody-developer
@@ -71,6 +81,10 @@ apx agent import roby-orchestrator --force   # overwrite an existing local def
 list_vault_agents()
 import_agent({ slug: "cody-developer", project: "<name-or-path>" })
 ```
+
+## The web equivalents
+
+The Agent defaults tab (`/p/0/agent-defaults`) has the same CRUD: a "Nuevo" button (POST `/agents/vault`), "Editar" per card (PATCH `/agents/vault/:slug`, copy-on-write for bundled), "Borrar"/"Ocultar" (DELETE), and a "Mostrar removidos" toggle that surfaces tombstoned bundled defaults with a "Restaurar" button.
 
 ## When to use which agent
 
@@ -122,6 +136,6 @@ is_master: false
 
 ## Gotchas
 
-- `apx agent vault sync` **never** overwrites your edits unless you pass `--force`. Re-running it is the safe way to pick up new bundled templates without losing customizations.
+- **Bundled defaults are always present** — there's no sync step. They appear in `apx agent vault list` and in the web UI the moment APX is installed. Removing one tombstones it; editing one copies it to your user layer.
 - The slug `roby-orchestrator` is intentionally **not** `roby` — the APX super-agent persona is already named "Roby" via `~/.apx/identity.json`. Importing a project agent called `roby` would shadow that and cause confusion. Use `roby-orchestrator` for a *project-level* orchestrator.
-- The `agency-agents` skill in `~/.claude/skills/` pulls from an external GitHub repo (`msitarzewski/agency-agents`). APX bundles a snapshot in `assets/agent-vault-defaults/` so installs are offline-first. To refresh from upstream, edit the bundle and re-commit; users sync with `apx agent vault sync --force`.
+- The `agency-agents` skill in `~/.claude/skills/` pulls from an external GitHub repo (`msitarzewski/agency-agents`). APX bundles a snapshot in `assets/agent-vault-defaults/` so installs are offline-first. To refresh from upstream, edit the bundle and re-commit; existing users' overrides are untouched.
