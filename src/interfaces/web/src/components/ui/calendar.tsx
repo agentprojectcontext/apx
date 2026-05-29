@@ -85,7 +85,9 @@ function Calendar({
             : "flex items-center gap-1 rounded-(--cell-radius) text-sm [&>svg]:size-3.5 [&>svg]:text-muted-foreground",
           defaultClassNames.caption_label
         ),
-        table: "w-full border-collapse",
+        // react-day-picker v9 dropped the <table> layout in favor of a flex
+        // grid, so the `table` ClassNames key was removed too. Leaving the
+        // override here would error out the build.
         weekdays: cn("flex", defaultClassNames.weekdays),
         weekday: cn(
           "flex-1 rounded-(--cell-radius) text-[0.8rem] font-normal text-muted-foreground select-none",
