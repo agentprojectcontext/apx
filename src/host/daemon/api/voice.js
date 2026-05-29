@@ -46,15 +46,21 @@ function buildChannelContext(channel, { projectId, language = "es" } = {}) {
     systemSuffix: "",
     wantsSuggestions: false,
   };
-  // Imperative project hint: weaker models otherwise ask "¿en qué
-  // proyecto?" even when the active project is obvious from the
-  // surface. Tell them to just use it.
+  // Project resolution hint.
+  //   - per-project mic (projectId set): use it imperatively, don't ask.
+  //   - global deck mic (no projectId): default to project id=0
+  //     ("default") for actions unless the user names a project out
+  //     loud. Either way, don't pester the user with "¿en qué
+  //     proyecto?" — pick a sensible default and act.
   const projectHint = projectId
     ? `\nThe active project is id=${projectId}. For ANY task/note/list ` +
       `action, pass project_id=${projectId} automatically. Do NOT ask the ` +
-      `user which project — they're already looking at it. Only use a ` +
-      `different project if the user explicitly names one.`
-    : "";
+      `user which project — only switch if they explicitly name another.`
+    : `\nThis is the GLOBAL mic (no project in focus). For task/note/list ` +
+      `actions, default to project_id=0 ("default") UNLESS the user names ` +
+      `a project out loud (e.g. "en evolution-registry…", "en el proyecto ` +
+      `apx…") — then resolve that project by name. Never ask "¿en qué ` +
+      `proyecto?"; pick the default and act.`;
   // Hard language directive — without this the model defaults to its
   // training-bias English on short Spanish prompts, especially when
   // the user mixes English-ish product names ("aicrm").
@@ -368,6 +374,7 @@ export function register(app, { projects, plugins, registries }) {
 
       let intentMeta = null;
       let suggestions = [];
+      let toolsUsed = [];
       const channelCtx = buildChannelContext(channel, {
         projectId: body.projectId,
         language: body.language && body.language !== "auto" ? body.language : "es",
@@ -397,6 +404,22 @@ export function register(app, { projects, plugins, registries }) {
             previousMessages,
           });
           const raw = (result?.text || "").trim();
+          // Surface the tools the agent actually executed this turn so
+          // the overlay can show "lo que APX hizo" instead of echoing
+          // the transcript. Dedup by name (a list_tasks before+after
+          // shows once) and map to a compact {name, summary} shape.
+          if (Array.isArray(result?.trace)) {
+            const seen = new Set();
+            for (const t of result.trace) {
+              const name = t?.tool;
+              if (!name || seen.has(name)) continue;
+              seen.add(name);
+              toolsUsed.push({
+                name,
+                ok: !(t?.result && t.result.error),
+              });
+            }
+          }
           if (channelCtx.wantsSuggestions) {
             const parsed = extractSuggestions(raw);
             replyText = parsed.cleanText;
@@ -467,6 +490,7 @@ export function register(app, { projects, plugins, registries }) {
         tts_error: tts.error || undefined,
         intent: intentMeta || undefined,
         suggestions: suggestions.length ? suggestions : undefined,
+        tools_used: toolsUsed.length ? toolsUsed : undefined,
         channel: channel,
       });
     } catch (e) {

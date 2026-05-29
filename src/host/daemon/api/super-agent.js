@@ -107,7 +107,7 @@ export function register(app, { projects, registries, plugins, project, config }
   // raw Claude/Codex session). Returns { text } so callers can format the
   // summary however they want.
   app.post("/super-agent/summarize", async (req, res) => {
-    const { prompt, context_note: contextNote = "", model } = req.body || {};
+    const { prompt, context_note: contextNote = "", model, max_tokens } = req.body || {};
     if (!prompt) return res.status(400).json({ error: "prompt required" });
     try {
       const saResult = await runSuperAgent({
@@ -119,6 +119,13 @@ export function register(app, { projects, registries, plugins, project, config }
         contextNote,
         channel: "api",
         overrideModel: model,
+        maxTokens:
+          max_tokens && Number.isFinite(Number(max_tokens))
+            ? Number(max_tokens)
+            : undefined,
+        // Summaries are pure text — no tool registry, so a transcript that
+        // mentions a tool (telegram, etc.) can't trigger a real side effect.
+        noTools: true,
       });
       res.json({
         text: saResult.text,

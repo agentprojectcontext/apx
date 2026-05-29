@@ -24,6 +24,7 @@ const API_PREFIXES = [
   "/health", "/admin", "/projects", "/telegram", "/engines", "/runtimes",
   "/messages", "/sessions", "/tools", "/mcp", "/voice", "/tts", "/overlay",
   "/transcribe", "/run", "/files", "/memory", "/env", "/pair", "/deck",
+  "/super-agent", "/identity",
 ];
 
 function isApiPath(p) {
@@ -36,9 +37,11 @@ function isApiPath(p) {
 export function register(app, { express, token }) {
   // /admin/web-token: localhost-only endpoint that returns the daemon token
   // so the same-origin admin panel can authenticate every subsequent call.
-  // Refuses if the request didn't come from loopback — even when the daemon
-  // is bound to 0.0.0.0 for remote pairing, only the local user gets the
-  // token through this back door.
+  // Refuses if the request didn't come from loopback. Also refuses if the
+  // request was tunneled in via Cloudflare/ngrok/etc. — those connect from
+  // a local agent so the socket IP IS loopback, but tunnel-specific headers
+  // give them away. When tunneled, the SPA must instead receive the token
+  // via URL fragment (#token=…) that the operator shares out-of-band.
   app.get("/admin/web-token", (req, res) => {
     const ra = req.ip || req.socket?.remoteAddress || "";
     const isLocal =
@@ -48,6 +51,21 @@ export function register(app, { express, token }) {
       ra === "" /* in-process */;
     if (!isLocal) {
       return res.status(403).json({ error: "web-token is loopback-only" });
+    }
+    const tunneledHeaders = [
+      "cf-connecting-ip",
+      "cf-ray",
+      "x-forwarded-for",
+      "x-real-ip",
+      "x-forwarded-host",
+      "ngrok-trace-id",
+    ];
+    for (const h of tunneledHeaders) {
+      if (req.headers[h]) {
+        return res.status(403).json({
+          error: "web-token disabled for tunneled requests — share #token=… in URL fragment instead",
+        });
+      }
     }
     res.json({ token });
   });

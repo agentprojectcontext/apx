@@ -41,6 +41,8 @@ import { register as registerOverlay } from "./api/overlay.js";
 import { register as registerDeck } from "./api/deck.js";
 import { register as registerPairing } from "./api/pairing.js";
 import { register as registerAdmin } from "./api/admin.js";
+import { register as registerAdminConfig } from "./api/admin-config.js";
+import { register as registerIdentity } from "./api/identity.js";
 import { register as registerWeb } from "./api/web.js";
 
 export function buildApi({
@@ -85,6 +87,7 @@ export function buildApi({
     config,
     project,
     resolveTopProject,
+    token,
     tokenStore,
   };
 
@@ -128,6 +131,8 @@ export function buildApi({
 
   // ---- Admin -------------------------------------------------------
   registerAdmin(app, ctx);
+  registerAdminConfig(app, ctx);
+  registerIdentity(app, ctx);
 
   // ---- Web admin panel (static SPA, must mount before 404) ---------
   // Serves src/interfaces/web/dist when present + the /admin/web-token

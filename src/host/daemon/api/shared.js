@@ -18,15 +18,39 @@ export function traceIdMiddleware(req, res, next) {
 }
 
 // Paths that bypass auth: /health for liveness probes, /pair/* so a fresh
-// client can bootstrap a token without already having one. /pair/init is
-// gated separately (localhost-only) inside the pairing module — auth
-// middleware just gets out of its way.
-const UNAUTHENTICATED_PREFIXES = ["/health", "/pair/"];
-function isUnauthenticatedPath(p) {
+// client can bootstrap a token without already having one, and
+// /admin/web-token so the local same-origin admin panel can self-bootstrap.
+// /pair/init and /admin/web-token both enforce localhost-only checks of
+// their own — the auth middleware just gets out of their way.
+const UNAUTHENTICATED_PREFIXES = ["/health", "/pair/", "/admin/web-token"];
+// API prefixes that MUST stay authenticated. Anything not in this list,
+// requested with GET, is treated as a static SPA asset (HTML/CSS/JS/font)
+// or a client-router path and served without auth — the bundle itself
+// fetches /admin/web-token to obtain a bearer for the subsequent API
+// calls. This is safe because all data-bearing routes start with one of
+// the API prefixes below.
+const API_PREFIXES = [
+  "/health", "/admin", "/projects", "/telegram", "/engines", "/runtimes",
+  "/messages", "/sessions", "/tools", "/mcp", "/voice", "/tts", "/overlay",
+  "/transcribe", "/run", "/files", "/memory", "/env", "/pair", "/deck",
+  "/super-agent", "/identity", "/agents", "/tasks",
+];
+function isApiPath(p) {
+  for (const prefix of API_PREFIXES) {
+    if (p === prefix || p.startsWith(prefix + "/")) return true;
+  }
+  return false;
+}
+function isUnauthenticatedPath(p, method = "GET") {
   if (p === "/health") return true;
+  if (p === "/admin/web-token") return true;
   for (const prefix of UNAUTHENTICATED_PREFIXES) {
     if (p === prefix.replace(/\/$/, "") || p.startsWith(prefix)) return true;
   }
+  // GET requests that don't hit an API prefix are SPA assets / client-router
+  // paths; let them through so the admin bundle can load before it has a
+  // bearer.
+  if (method === "GET" && !isApiPath(p)) return true;
   return false;
 }
 
@@ -42,7 +66,7 @@ function isUnauthenticatedPath(p) {
 export function buildAuthMiddleware(tokenOrStore) {
   const isStore = tokenOrStore && typeof tokenOrStore === "object" && typeof tokenOrStore.has === "function";
   return (req, res, next) => {
-    if (isUnauthenticatedPath(req.path)) return next();
+    if (isUnauthenticatedPath(req.path, req.method)) return next();
     const auth = req.get("authorization") || "";
     const provided = auth.startsWith("Bearer ") ? auth.slice(7) : "";
     const ok = isStore ? tokenOrStore.has(provided) : provided === tokenOrStore;
@@ -153,6 +177,11 @@ export function agentToResponse(a) {
     "Description",
     "Skills",
     "Tools",
+    "Master",
+    "Primary",
+    "Parent",
+    "Type",
+    "Area",
   ]);
   const extra = {};
   for (const [k, v] of Object.entries(f)) {
@@ -164,6 +193,14 @@ export function agentToResponse(a) {
     model: f.Model || null,
     language: f.Language || null,
     description: f.Description || null,
+    is_master: String(f.Master || f.Primary || "").toLowerCase() === "true",
+    // Orchestrator → subagent link. Lives in APC (AGENT.md frontmatter), so it
+    // travels with the project and is diffable. Runtime state stays in ~/.apx.
+    parent: f.Parent || null,
+    // Typology (specialist/assistant/orchestrator/worker/monitor) + area. Both
+    // definitional, kept in APC frontmatter.
+    type: f.Type || null,
+    area: f.Area || null,
     skills: Array.isArray(f.Skills) ? f.Skills : [],
     tools: Array.isArray(f.Tools) ? f.Tools : [],
     extra,

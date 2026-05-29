@@ -74,12 +74,28 @@ export function setDottedKey(obj, dottedKey, value) {
   let cur = obj;
   for (let i = 0; i < parts.length - 1; i++) {
     const k = parts[i];
-    if (typeof cur[k] !== "object" || cur[k] === null || Array.isArray(cur[k])) {
-      cur[k] = {};
+    const nextKey = parts[i + 1];
+    if (Array.isArray(cur)) {
+      const idx = Number(k);
+      if (!Number.isInteger(idx) || idx < 0) return obj;
+      if (typeof cur[idx] !== "object" || cur[idx] === null) {
+        cur[idx] = /^\d+$/.test(nextKey) ? [] : {};
+      }
+      cur = cur[idx];
+      continue;
+    }
+    if (typeof cur[k] !== "object" || cur[k] === null) {
+      cur[k] = /^\d+$/.test(nextKey) ? [] : {};
     }
     cur = cur[k];
   }
-  cur[parts[parts.length - 1]] = value;
+  const last = parts[parts.length - 1];
+  if (Array.isArray(cur)) {
+    const idx = Number(last);
+    if (Number.isInteger(idx) && idx >= 0) cur[idx] = value;
+  } else {
+    cur[last] = value;
+  }
   return obj;
 }
 
@@ -87,11 +103,19 @@ export function unsetDottedKey(obj, dottedKey) {
   const parts = dottedKey.split(".");
   let cur = obj;
   for (let i = 0; i < parts.length - 1; i++) {
-    if (typeof cur[parts[i]] !== "object") return false;
-    cur = cur[parts[i]];
+    const key = parts[i];
+    if (Array.isArray(cur)) {
+      const idx = Number(key);
+      if (!Number.isInteger(idx) || typeof cur[idx] !== "object") return false;
+      cur = cur[idx];
+      continue;
+    }
+    if (typeof cur[key] !== "object") return false;
+    cur = cur[key];
   }
-  if (parts[parts.length - 1] in cur) {
-    delete cur[parts[parts.length - 1]];
+  const last = parts[parts.length - 1];
+  if (last in cur) {
+    delete cur[last];
     return true;
   }
   return false;

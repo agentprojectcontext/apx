@@ -6,7 +6,7 @@
 //   PUT  /projects/:pid/agents/:slug/memory
 import fs from "node:fs";
 import path from "node:path";
-import { readAgents } from "../../../core/parser.js";
+import { readAgents, readVaultAgents } from "../../../core/parser.js";
 import {
   writeAgentFile,
   ensureAgentDir,
@@ -15,6 +15,32 @@ import {
 import { agentToResponse } from "./shared.js";
 
 export function register(app, { projects, project }) {
+  // Vault = global agent templates in ~/.apx/agents/<slug>.md (not project agents).
+  app.get("/agents/vault", (_req, res) => {
+    res.json(readVaultAgents().map(agentToResponse));
+  });
+
+  // Import a vault template into a project (copies it to .apc/agents/<slug>.md).
+  app.post("/projects/:pid/agents/import", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const { slug } = req.body || {};
+    if (!slug) return res.status(400).json({ error: "slug required" });
+    const vault = readVaultAgents().find((a) => a.slug === slug);
+    if (!vault) return res.status(404).json({ error: `vault agent ${slug} not found` });
+    if (readAgents(p.path).find((a) => a.slug === slug))
+      return res.status(400).json({ error: `agent ${slug} already exists in project` });
+    try {
+      writeAgentFile(p.path, slug, vault.fields || {}, vault.body || "");
+      ensureAgentDir(p.path, slug);
+      regenerateAgentsMd(p.path);
+      projects.rebuild(p.id);
+      res.status(201).json(agentToResponse(readAgents(p.path).find((a) => a.slug === slug)));
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
   app.get("/projects/:pid/agents", (req, res) => {
     const p = project(req, res);
     if (!p) return;
@@ -31,13 +57,13 @@ export function register(app, { projects, project }) {
     const memory = fs.existsSync(memPath)
       ? fs.readFileSync(memPath, "utf8")
       : "";
-    res.json({ ...agentToResponse(a), memory });
+    res.json({ ...agentToResponse(a), memory, system: a.body || "" });
   });
 
   app.post("/projects/:pid/agents", (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    const { slug, role, model, skills, language, description, tools } =
+    const { slug, role, model, skills, language, description, tools, is_master, parent } =
       req.body || {};
     if (!slug) return res.status(400).json({ error: "slug required" });
     if (!/^[a-z][a-z0-9_-]*$/.test(slug))
@@ -53,6 +79,8 @@ export function register(app, { projects, project }) {
         Description: description || null,
         Skills: skills || [],
         Tools: tools || [],
+        Master: is_master ? true : null,
+        Parent: parent || null,
       });
       ensureAgentDir(p.path, slug);
       regenerateAgentsMd(p.path);
@@ -62,6 +90,90 @@ export function register(app, { projects, project }) {
     } catch (e) {
       res.status(400).json({ error: e.message });
     }
+  });
+
+  // Edit an existing agent. Merges provided fields into the AGENT.md
+  // frontmatter; `system` rewrites the body (the agent's system prompt).
+  app.patch("/projects/:pid/agents/:slug", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const slug = req.params.slug;
+    const existing = readAgents(p.path).find((a) => a.slug === slug);
+    if (!existing) return res.status(404).json({ error: "agent not found" });
+    const b = req.body || {};
+    const fields = { ...(existing.fields || {}) };
+    const setStr = (key, val) => {
+      if (val === undefined) return;
+      if (val === null || val === "") delete fields[key];
+      else fields[key] = val;
+    };
+    setStr("Role", b.role);
+    setStr("Model", b.model);
+    setStr("Language", b.language);
+    setStr("Description", b.description);
+    setStr("Parent", b.parent);
+    setStr("Type", b.type);
+    setStr("Area", b.area);
+    if (b.skills !== undefined) fields.Skills = Array.isArray(b.skills) ? b.skills : [];
+    if (b.tools !== undefined) fields.Tools = Array.isArray(b.tools) ? b.tools : [];
+    if (b.is_master !== undefined) {
+      if (b.is_master) fields.Master = true;
+      else { delete fields.Master; delete fields.Primary; }
+    }
+    const body = b.system !== undefined ? b.system : (existing.body || "");
+    try {
+      writeAgentFile(p.path, slug, fields, body);
+      ensureAgentDir(p.path, slug);
+      regenerateAgentsMd(p.path);
+      projects.rebuild(p.id);
+      const updated = readAgents(p.path).find((a) => a.slug === slug);
+      res.json(agentToResponse(updated));
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  // Delete an agent: removes .apc/agents/<slug>.md and its data dir.
+  app.delete("/projects/:pid/agents/:slug", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const slug = req.params.slug;
+    const file = path.join(p.path, ".apc", "agents", `${slug}.md`);
+    const dir = path.join(p.path, ".apc", "agents", slug);
+    if (!fs.existsSync(file) && !fs.existsSync(dir))
+      return res.status(404).json({ error: "agent not found" });
+    try {
+      if (fs.existsSync(file)) fs.rmSync(file);
+      if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
+      regenerateAgentsMd(p.path);
+      projects.rebuild(p.id);
+      res.json({ ok: true });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
+  // ---- Project-level memory (.apc/memory.md) ----
+  app.get("/projects/:pid/memory", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const memPath = path.join(p.path, ".apc", "memory.md");
+    const body = fs.existsSync(memPath) ? fs.readFileSync(memPath, "utf8") : "";
+    res.json({ body, path: memPath });
+  });
+
+  app.put("/projects/:pid/memory", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const { body } = req.body || {};
+    if (typeof body !== "string")
+      return res.status(400).json({ error: "body must be string" });
+    const apcDir = path.join(p.path, ".apc");
+    fs.mkdirSync(apcDir, { recursive: true });
+    const memPath = path.join(apcDir, "memory.md");
+    fs.writeFileSync(memPath, body);
+    try { projects.rebuild(p.id); } catch {}
+    res.json({ ok: true, bytes: Buffer.byteLength(body, "utf8") });
   });
 
   // ---- Per-agent memory ----
