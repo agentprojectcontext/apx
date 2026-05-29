@@ -89,6 +89,45 @@ export function buildIdentityBlock(identity, userLang = "en") {
   return buildUserContextBlock(identity, { user: { language: userLang } });
 }
 
+// "Who you're talking to" block. Agent-agnostic: built once from the resolved
+// sender (see core/telegram-identity.js) and injected into BOTH the super-agent
+// prompt and any routed project-agent prompt, so identification doesn't depend
+// on which agent answers. Returns "" when there's no sender info.
+export function buildRelationshipBlock(sender) {
+  if (!sender || sender.userId == null) return "";
+  const handle = sender.username ? ` (@${sender.username})` : "";
+  const lines = ["# Who you're talking to"];
+
+  if (sender.isGroup) {
+    lines.push(
+      "This is a Telegram GROUP chat with multiple people — do NOT assume a single owner."
+    );
+    lines.push(
+      `Sender of this message: ${sender.name}${handle}, role: ${sender.role}.`
+    );
+  } else if (sender.isOwner) {
+    lines.push(
+      `You are talking to your owner, ${sender.name}. Treat them as the owner — ` +
+        "never ask their name or who they are; you already know them."
+    );
+  } else if (sender.role && sender.role !== "guest") {
+    lines.push(`You are talking to ${sender.name}${handle}, role: ${sender.role}.`);
+  } else {
+    lines.push(
+      `You are talking to ${sender.name}${handle}, who is NOT a recognized contact ` +
+        "(role: guest, no permissions)."
+    );
+    lines.push(
+      "Politely say you don't know them yet and ask who they are; tell them you'll " +
+        "note it down, but that you cannot grant any role or permissions yourself — " +
+        "only the owner or someone via terminal/web can assign a role. Do not perform " +
+        "privileged or destructive actions on their behalf."
+    );
+  }
+  if (sender.note) lines.push(`Notes on this contact: ${sender.note}`);
+  return lines.join("\n");
+}
+
 export function isSuperAgentEnabled(cfg) {
   const sa = cfg && cfg.super_agent;
   if (!sa || !sa.model) return false;
@@ -132,6 +171,10 @@ export function buildSuperAgentSystem({
   contextNote = "",
   channel = "",
   channelMeta = {},
+  // Pre-rendered "who you're talking to" block (see buildRelationshipBlock).
+  // Injected right after the user/identity block so the model knows the
+  // sender's identity and role before anything else.
+  relationshipBlock = "",
   // Channel-specific addendum the super-agent caller can inject —
   // e.g. voice.js asks for a trailing ```suggestions``` JSON block on
   // voice/deck surfaces. Kept separate from contextNote so it lives
@@ -159,6 +202,7 @@ export function buildSuperAgentSystem({
   return [
     sa.system || loadDefaultSystemPrompt(),
     buildUserContextBlock(identity, globalConfig),
+    relationshipBlock,
     buildPermissionBlock(sa),
     extraContext,
     "# Registered projects (just the index — call tools for details)",

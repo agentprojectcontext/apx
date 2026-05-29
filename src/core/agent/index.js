@@ -7,6 +7,7 @@ export {
   buildIdentityBlock,
   buildUserContextBlock,
   buildChannelContextBlock,
+  buildRelationshipBlock,
   buildSuperAgentSystem,
   isSuperAgentEnabled,
   loadDefaultSystemPrompt,

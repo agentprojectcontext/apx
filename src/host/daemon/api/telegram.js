@@ -13,6 +13,14 @@
 //   PATCH  /telegram/channels/:name { ...fields }     — patch (set/unset via null)
 //   DELETE /telegram/channels/:name                   — remove channel
 //
+//   GET    /telegram/contacts                          — roster + roles + channel owners
+//   PATCH  /telegram/contacts/:user_id { role, ... }   — set role/name/note
+//   DELETE /telegram/contacts/:user_id                 — remove a contact
+//   GET    /telegram/roles                             — role → {tools} map
+//   PUT    /telegram/roles/:name { tools }             — define/replace a role
+//   DELETE /telegram/roles/:name                       — remove a custom role
+//   (channel owner is set via PATCH /telegram/channels/:name { owner_user_id })
+//
 // The CRUD endpoints edit ~/.apx/config.json directly and DO NOT auto-reload
 // the running plugin. Callers should POST /admin/reload afterwards.
 import {
@@ -22,7 +30,26 @@ import {
   upsertTelegramChannel,
   removeTelegramChannel,
   unsetTelegramChannelFields,
+  listContacts,
+  findContact,
+  upsertContact,
+  removeContact,
+  listRoles,
+  setRole,
+  removeRole,
 } from "../../../core/config.js";
+
+function redactChannel(channel) {
+  if (!channel?.bot_token) return channel;
+  return {
+    ...channel,
+    bot_token: `*** set *** (...${String(channel.bot_token).slice(-5)})`,
+  };
+}
+
+function isSecretMarker(value) {
+  return typeof value === "string" && value.startsWith("*** set ***");
+}
 
 export function register(app, { telegram }) {
   app.get("/telegram/status", (_req, res) => {
@@ -131,7 +158,7 @@ export function register(app, { telegram }) {
   app.get("/telegram/channels", (_req, res) => {
     try {
       const cfg = readConfig();
-      res.json({ channels: listTelegramChannels(cfg) });
+      res.json({ channels: listTelegramChannels(cfg).map(redactChannel) });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
@@ -144,8 +171,13 @@ export function register(app, { telegram }) {
     }
     try {
       const cfg = readConfig();
-      const result = upsertTelegramChannel(cfg, body.name, body);
-      res.status(result.created ? 201 : 200).json(result);
+      const existing = findTelegramChannel(cfg, body.name);
+      const patch = { ...body };
+      if (existing?.bot_token && (patch.bot_token === undefined || isSecretMarker(patch.bot_token))) {
+        patch.bot_token = existing.bot_token;
+      }
+      const result = upsertTelegramChannel(cfg, body.name, patch);
+      res.status(result.created ? 201 : 200).json({ ...result, channel: redactChannel(result.channel) });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
@@ -165,13 +197,16 @@ export function register(app, { telegram }) {
       const setPatch = Object.fromEntries(
         Object.entries(body).filter(([, v]) => v !== null)
       );
+      if (existing?.bot_token && (setPatch.bot_token === undefined || isSecretMarker(setPatch.bot_token))) {
+        delete setPatch.bot_token;
+      }
       if (Object.keys(setPatch).length > 0) {
         upsertTelegramChannel(cfg, name, setPatch);
       }
       if (unset.length > 0) {
         unsetTelegramChannelFields(cfg, name, unset);
       }
-      res.json({ ok: true, channel: findTelegramChannel(cfg, name) });
+      res.json({ ok: true, channel: redactChannel(findTelegramChannel(cfg, name)) });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
@@ -186,6 +221,91 @@ export function register(app, { telegram }) {
       res.json({ ok: true, removed });
     } catch (e) {
       res.status(500).json({ error: e.message });
+    }
+  });
+
+  // ── Contacts roster (global; keyed by Telegram user_id) ─────────────────
+  // Identity of a person is global; per-channel owner_user_id marks who owns a
+  // channel. These edit ~/.apx/config.json directly; the running poller picks
+  // changes up on its next inbound message (it re-reads config per message), so
+  // no /admin/reload is required for contact/role edits.
+  app.get("/telegram/contacts", (_req, res) => {
+    try {
+      const cfg = readConfig();
+      res.json({
+        contacts: listContacts(cfg),
+        roles: listRoles(cfg),
+        channel_owners: listTelegramChannels(cfg).map((c) => ({
+          name: c.name,
+          owner_user_id: c.owner_user_id ?? null,
+        })),
+      });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.patch("/telegram/contacts/:user_id", (req, res) => {
+    const { user_id } = req.params;
+    const body = req.body || {};
+    try {
+      const cfg = readConfig();
+      const patch = {};
+      for (const k of ["name", "username", "role", "note"]) {
+        if (body[k] !== undefined) patch[k] = body[k];
+      }
+      if (Object.keys(patch).length === 0) {
+        return res.status(400).json({ error: "nothing to update (name/username/role/note)" });
+      }
+      const { created, contact } = upsertContact(cfg, user_id, patch);
+      res.status(created ? 201 : 200).json({ ok: true, created, contact });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.delete("/telegram/contacts/:user_id", (req, res) => {
+    const { user_id } = req.params;
+    try {
+      const cfg = readConfig();
+      const { removed } = removeContact(cfg, user_id);
+      if (!removed) return res.status(404).json({ error: `no contact: ${user_id}` });
+      res.json({ ok: true, removed });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // ── Roles (role → { tools }) ────────────────────────────────────────────
+  app.get("/telegram/roles", (_req, res) => {
+    try {
+      res.json({ roles: listRoles(readConfig()) });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.put("/telegram/roles/:name", (req, res) => {
+    const { name } = req.params;
+    const body = req.body || {};
+    try {
+      const tools = body.tools === "*" || Array.isArray(body.tools) ? body.tools : [];
+      const cfg = readConfig();
+      const role = setRole(cfg, name, { tools });
+      res.json({ ok: true, name, role });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  app.delete("/telegram/roles/:name", (req, res) => {
+    const { name } = req.params;
+    try {
+      const { removed } = removeRole(readConfig(), name);
+      if (!removed) return res.status(404).json({ error: `no role: ${name}` });
+      res.json({ ok: true, removed });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
     }
   });
 

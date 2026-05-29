@@ -37,6 +37,9 @@ import { getRecentTelegramTurnsFromFs, appendGlobalMessage } from "../../../core
 import { readAgents } from "../../../core/parser.js";
 import { buildAgentSystem } from "../../../core/agent-system.js";
 import { transcribe as transcribeAudioFile } from "../transcription.js";
+import { resolveAgentName, SUPERAGENT_ACTOR_ID } from "../../../core/identity.js";
+import { registerSender, resolveAllowedTools } from "../../../core/telegram-identity.js";
+import { buildRelationshipBlock } from "../../../core/agent/index.js";
 
 const API_BASE = "https://api.telegram.org";
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -431,6 +434,22 @@ class ChannelPoller {
         : `${msg.from?.first_name || ""} ${msg.from?.last_name || ""}`.trim() || "unknown";
     const chat_id = msg.chat?.id;
 
+    // Resolve WHO is writing (owner / known contact / guest), keyed by the
+    // stable Telegram user_id. Records unknown senders and, on a fresh private
+    // channel with no owner yet, claims this sender as the owner. Mutates the
+    // in-memory globalConfig in place so later messages in this daemon session
+    // see the update. The resulting block is injected into whichever agent
+    // answers (super-agent OR a routed project agent).
+    const { sender } = registerSender({
+      cfg: this.globalConfig,
+      channelName: this.channel.name,
+      from: msg.from,
+      chatType: msg.chat?.type,
+    });
+    const relationshipBlock = buildRelationshipBlock(sender);
+    // Role-based tool gating for the super-agent path (guests → no tools).
+    const allowedTools = resolveAllowedTools(this.globalConfig, sender);
+
     // Default Interrupt: abort any running request for this chat_id
     if (chat_id) {
       const prev = this.activeRequests.get(chat_id);
@@ -613,8 +632,10 @@ class ChannelPoller {
           channel: "telegram",
           direction: "out",
           type: "agent",
-          actor_id: "apx",
-          author: "apx",
+          actor_id: SUPERAGENT_ACTOR_ID,
+          actor_kind: "superagent",
+          agent_slug: SUPERAGENT_ACTOR_ID,
+          author: resolveAgentName(this.globalConfig),
           body: ack,
           meta: { chat_id, tg_channel: this.channel.name, in_reply_to: u.update_id, reset: true },
         });
@@ -629,7 +650,11 @@ class ChannelPoller {
 
     let replyText;
     let replyAuthor;
+    let replyActorId;   // stable id: super_agent | agent slug
+    let replyKind;      // actor_kind: superagent | agent
     const projectCfg = target.config || this.globalConfig;
+    // Display name for the super-agent persona on this channel (Roby / APX).
+    const agentDisplay = resolveAgentName(this.globalConfig);
 
     // Try the project's chosen agent first (skipped if the legacy
     // respond_with_engine === false hint asked to bypass routed agents).
@@ -642,6 +667,7 @@ class ChannelPoller {
             invocation: "telegram",
             channel: this.channel.name,
             caller: author,
+            extraParts: [relationshipBlock],
           });
           const result = await callEngine({
             modelId: agent.fields.Model,
@@ -651,10 +677,14 @@ class ChannelPoller {
           });
           replyText = result.text;
           replyAuthor = agent.slug;
+          replyActorId = agent.slug;
+          replyKind = "agent";
         } catch (e) {
           this.log(`telegram[${this.channel.name}] agent reply failed: ${e.message}`);
           replyText = `[apx error] ${e.message.slice(0, 200)}`;
-          replyAuthor = "apx";
+          replyAuthor = agentDisplay;
+          replyActorId = SUPERAGENT_ACTOR_ID;
+          replyKind = "superagent";
         }
       } else {
         this.log(
@@ -687,9 +717,10 @@ class ChannelPoller {
               channel: "telegram",
               direction: "out",
               type: "agent",
-              actor_id: "apx",
-              agent_slug: "apx",
-              author: "apx",
+              actor_id: SUPERAGENT_ACTOR_ID,
+              actor_kind: "superagent",
+              agent_slug: SUPERAGENT_ACTOR_ID,
+              author: agentDisplay,
               body: piece,
               meta: {
                 chat_id,
@@ -707,7 +738,8 @@ class ChannelPoller {
               direction: "out",
               type: "tool",
               actor_id: t.tool,
-              author: "apx",
+              actor_kind: "tool",
+              author: agentDisplay,
               body: `${t.tool}(${JSON.stringify(t.args || {}).slice(0, 200)})`,
               meta: {
                 chat_id,
@@ -735,6 +767,8 @@ class ChannelPoller {
           prompt: text,
           previousMessages,
           channel: "telegram",
+          relationshipBlock,
+          allowedTools,
           channelMeta: buildTelegramMeta({
             channelName: this.channel.name,
             author,
@@ -746,7 +780,9 @@ class ChannelPoller {
           onEvent,
         });
         replyText = sa.text;
-        replyAuthor = sa.name;
+        replyAuthor = sa.name || agentDisplay;
+        replyActorId = SUPERAGENT_ACTOR_ID;
+        replyKind = "superagent";
         saUsage = sa.usage;
       } catch (e) {
         if (abortCtrl.signal.aborted) {
@@ -763,7 +799,9 @@ class ChannelPoller {
         // turn — otherwise from the chat side it looks like the bot ignored
         // the message. Keep the message short and non-leaking.
         replyText = `⚠️ Could not generate a reply right now (${e.message || "internal error"}).`;
-        replyAuthor = "apx";
+        replyAuthor = agentDisplay;
+        replyActorId = SUPERAGENT_ACTOR_ID;
+        replyKind = "superagent";
       }
     }
 
@@ -796,9 +834,10 @@ class ChannelPoller {
         channel: "telegram",
         direction: "out",
         type: "agent",
-        actor_id: replyAuthor || "apx",
-        agent_slug: replyAuthor || "apx",
-        author: replyAuthor || "apx",
+        actor_id: replyActorId || SUPERAGENT_ACTOR_ID,
+        actor_kind: replyKind || "superagent",
+        agent_slug: replyActorId || SUPERAGENT_ACTOR_ID,
+        author: replyAuthor || agentDisplay,
         body: toSend,
         meta,
       });
@@ -808,9 +847,10 @@ class ChannelPoller {
         channel: "telegram",
         direction: "out",
         type: "agent",
-        actor_id: replyAuthor || "apx",
-        agent_slug: replyAuthor || "apx",
-        author: replyAuthor || "apx",
+        actor_id: replyActorId || SUPERAGENT_ACTOR_ID,
+        actor_kind: replyKind || "superagent",
+        agent_slug: replyActorId || SUPERAGENT_ACTOR_ID,
+        author: replyAuthor || agentDisplay,
         body: `[send_failed] ${toSend}`,
         meta: {
           chat_id,
@@ -949,7 +989,7 @@ export default {
       // that bot; otherwise first available bot-tokened channel. Always logs
       // the outbound on `messages` of the channel's target project so audit
       // trails are complete.
-      async send({ channel: channelName, chat_id, text, author = "apx", project }) {
+      async send({ channel: channelName, chat_id, text, author = resolveAgentName(config), project }) {
         const p =
           (channelName && pollers.find((pp) => pp.channel.name === channelName)) ||
           pollers.find((pp) => resolveBotToken(pp.channel)) ||
@@ -960,8 +1000,9 @@ export default {
           channel: "telegram",
           direction: "out",
           type: "agent",
-          actor_id: author,
-          agent_slug: author,
+          actor_id: SUPERAGENT_ACTOR_ID,
+          actor_kind: "superagent",
+          agent_slug: SUPERAGENT_ACTOR_ID,
           author,
           body: text,
           meta: {
@@ -978,7 +1019,7 @@ export default {
        * photo: local file path, Buffer, or public URL
        * opts: { caption, parse_mode, channel, author }
        */
-      async sendPhoto({ channel: channelName, chat_id, photo, caption, parse_mode, author = "apx" }) {
+      async sendPhoto({ channel: channelName, chat_id, photo, caption, parse_mode, author = resolveAgentName(config) }) {
         const p =
           (channelName && pollers.find((pp) => pp.channel.name === channelName)) ||
           pollers.find((pp) => resolveBotToken(pp.channel)) ||
@@ -989,7 +1030,8 @@ export default {
           channel: "telegram",
           direction: "out",
           type: "photo",
-          actor_id: author,
+          actor_id: SUPERAGENT_ACTOR_ID,
+          actor_kind: "superagent",
           author,
           body: caption || "[photo]",
           meta: { chat_id: chat_id || resolveChatId(p.channel), tg_channel: p.channel.name },
@@ -1001,7 +1043,7 @@ export default {
        * Send a voice message (OGG/Opus preferred).
        * audio: local file path or Buffer
        */
-      async sendVoice({ channel: channelName, chat_id, audio, caption, duration, author = "apx" }) {
+      async sendVoice({ channel: channelName, chat_id, audio, caption, duration, author = resolveAgentName(config) }) {
         const p =
           (channelName && pollers.find((pp) => pp.channel.name === channelName)) ||
           pollers.find((pp) => resolveBotToken(pp.channel)) ||
@@ -1012,7 +1054,8 @@ export default {
           channel: "telegram",
           direction: "out",
           type: "voice",
-          actor_id: author,
+          actor_id: SUPERAGENT_ACTOR_ID,
+          actor_kind: "superagent",
           author,
           body: caption || "[voice]",
           meta: { chat_id: chat_id || resolveChatId(p.channel), tg_channel: p.channel.name },
@@ -1024,7 +1067,7 @@ export default {
        * Send a document (PDF, zip, txt, generated reports, etc).
        * document: local file path, Buffer, or public https URL.
        */
-      async sendDocument({ channel: channelName, chat_id, document, caption, filename, mime_type, author = "apx" }) {
+      async sendDocument({ channel: channelName, chat_id, document, caption, filename, mime_type, author = resolveAgentName(config) }) {
         const p =
           (channelName && pollers.find((pp) => pp.channel.name === channelName)) ||
           pollers.find((pp) => resolveBotToken(pp.channel)) ||
@@ -1035,7 +1078,8 @@ export default {
           channel: "telegram",
           direction: "out",
           type: "document",
-          actor_id: author,
+          actor_id: SUPERAGENT_ACTOR_ID,
+          actor_kind: "superagent",
           author,
           body: caption || `[document${filename ? " " + filename : ""}]`,
           meta: { chat_id: chat_id || resolveChatId(p.channel), tg_channel: p.channel.name, filename, mime_type },
@@ -1047,7 +1091,7 @@ export default {
        * Send an audio file (MP3/M4A — shown in music player).
        * audio: local file path or Buffer
        */
-      async sendAudio({ channel: channelName, chat_id, audio, caption, title, performer, author = "apx" }) {
+      async sendAudio({ channel: channelName, chat_id, audio, caption, title, performer, author = resolveAgentName(config) }) {
         const p =
           (channelName && pollers.find((pp) => pp.channel.name === channelName)) ||
           pollers.find((pp) => resolveBotToken(pp.channel)) ||
@@ -1058,7 +1102,8 @@ export default {
           channel: "telegram",
           direction: "out",
           type: "audio",
-          actor_id: author,
+          actor_id: SUPERAGENT_ACTOR_ID,
+          actor_kind: "superagent",
           author,
           body: caption || title || "[audio]",
           meta: { chat_id: chat_id || resolveChatId(p.channel), tg_channel: p.channel.name },

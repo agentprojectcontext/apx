@@ -31,8 +31,10 @@ import {
   cmdSessionCloseStale,
   cmdSessionResume,
   cmdSessionCompact,
+  cmdSessionSummary,
+  cmdSessionAsk,
 } from "./commands/session.js";
-import { cmdSessionsList } from "./commands/sessions.js";
+import { cmdSessionsList, cmdSessionFind } from "./commands/sessions.js";
 import {
   cmdMcpList,
   cmdMcpAdd,
@@ -62,6 +64,11 @@ import {
   cmdTelegramChannelSet,
   cmdTelegramChannelUnset,
   cmdTelegramChannelRemove,
+  cmdTelegramContacts,
+  cmdTelegramContactRemove,
+  cmdTelegramRole,
+  cmdTelegramRoles,
+  cmdTelegramOwner,
 } from "./commands/telegram.js";
 import {
   cmdProjectConfigShow,
@@ -97,7 +104,7 @@ import { cmdUpdate } from "./commands/update.js";
 import { cmdSetup } from "./commands/setup.js";
 import { cmdStatus } from "./commands/status.js";
 import { cmdModel } from "./commands/model.js";
-import { cmdPair, cmdPairList, cmdPairRevoke } from "./commands/pair.js";
+import { cmdPair, cmdPairWeb, cmdPairList, cmdPairRevoke } from "./commands/pair.js";
 import { checkForUpdate } from "../../core/update-check.js";
 import { mascot } from "../../core/mascot.js";
 import {
@@ -148,13 +155,14 @@ const hCmd  = (cmd, pad, desc) => `  ${H.WH}${cmd.padEnd(pad)}${H.R}  ${H.DI}${d
 const hSub  = (sub, pad, desc) => `    ${H.CY}${sub.padEnd(pad)}${H.R}  ${H.DI}${desc}${H.R}`;
 const hFlag = (f,   pad, desc) => `    ${H.YE}${f.padEnd(pad)}${H.R}  ${H.DI}${desc}${H.R}`;
 
-const topic = ({ title, summary, usage = [], commands = [], options = [], examples = [] }) => ({
+const topic = ({ title, summary, usage = [], commands = [], options = [], examples = [], notes = [] }) => ({
   title,
   summary,
   usage,
   commands,
   options,
   examples,
+  notes,
 });
 
 const HELP_TOPICS = new Map(Object.entries({
@@ -476,8 +484,45 @@ const HELP_TOPICS = new Map(Object.entries({
       ["close-stale", "Auto-close stale active sessions."],
       ["resume <id>", "Show APC session and optional external transcript summary."],
       ["compact <slug>", "Compact latest or selected conversation into summary."],
+      ["find | search <text>", "Find sessions by title (cross-engine). --deep also searches content."],
+      ["summary <id>", "LLM summary of any session by id (alias for resume --summary)."],
+      ["ask <id> \"<q>\"", "Ask a question about a session; map-reduces large transcripts."],
     ],
-    examples: ["apx session list reviewer --last 5", "apx session close 2026-05-09-01 --result \"Done\""],
+    examples: ["apx session find \"mejorar interfaz web\"", "apx session ask 019abc... \"¿qué cambios al sidebar?\""],
+  }),
+  "session find": topic({
+    title: "apx session find",
+    summary: "Find sessions by title across every engine, newest first. The fast way to turn a remembered title into a session id.",
+    usage: [
+      "apx session find \"<text>\" [--deep] [--engine <id>] [--dir <path>|--project <name>] [--limit N] [--json]",
+    ],
+    options: [
+      ["--deep", "Also search inside transcript content, not just titles (slower)."],
+      ["--engine <id>", "Restrict to one engine (apx | claude | codex)."],
+      ["--dir <path> / --project <name>", "Scope to one project (reaches unregistered Claude projects)."],
+      ["--limit N", "Max results (default 20)."],
+      ["--json", "Machine-readable output."],
+    ],
+    examples: [
+      "apx session find \"mejorar interfaz web\"",
+      "apx session find \"sidebar\" --deep --engine codex",
+    ],
+  }),
+  "session summary": topic({
+    title: "apx session summary",
+    summary: "Print an LLM summary of any session by id (resolves the owning engine automatically).",
+    usage: ["apx session summary <id> [--engine <id>]"],
+    examples: ["apx session summary 019abc...", "apx session summary 2e3c84 --engine claude"],
+  }),
+  "session ask": topic({
+    title: "apx session ask",
+    summary: "Ask a free-form question about a session. Small transcripts answered in one shot; large ones are map-reduced (mine each part, then synthesize).",
+    usage: ["apx session ask <id> \"<question>\" [--engine <id>] [--max-chunks N]"],
+    options: [
+      ["--max-chunks N", "Cap how many transcript parts are mined (default 20)."],
+      ["--engine <id>", "Restrict to one engine (apx | claude | codex)."],
+    ],
+    examples: ["apx session ask 019abc... \"¿qué decidimos sobre el sidebar?\""],
   }),
   "session new": topic({
     title: "apx session new",
@@ -765,7 +810,7 @@ const HELP_TOPICS = new Map(Object.entries({
   telegram: topic({
     title: "apx telegram",
     summary: "Configure, inspect, and send through the Telegram bridge.",
-    usage: ["apx telegram <send|status|start|stop|setup|channel> [args] [--flags]"],
+    usage: ["apx telegram <send|status|start|stop|setup|channel|contacts|role|roles|owner> [args] [--flags]"],
     commands: [
       ["send \"text\"", "Send a Telegram message."],
       ["status", "Show Telegram plugin status."],
@@ -773,13 +818,51 @@ const HELP_TOPICS = new Map(Object.entries({
       ["stop", "Stop polling (config stays intact)."],
       ["setup", "Print setup guidance."],
       ["channel <sub>", "Manage channels: add | list | show | set | unset | remove."],
+      ["contacts", "List the known-people roster (auto-recorded from inbound messages)."],
+      ["role <user_id> <role>", "Assign a role to a contact (owner-only / terminal)."],
+      ["roles <sub>", "Define role→tools: list | set <name> --tools a,b | rm <name>."],
+      ["owner <channel> <user_id>", "Set who owns a channel."],
     ],
     examples: [
       "apx telegram status",
       "apx telegram channel add",
-      "apx telegram channel list",
+      "apx telegram contacts",
+      "apx telegram role 889721252 editor",
+      "apx telegram owner default 889721252",
       "apx telegram send \"hello\" --chat 123456",
     ],
+  }),
+  "telegram contacts": topic({
+    title: "apx telegram contacts",
+    summary: "List the global contacts roster, with each person's role and last-seen.",
+    usage: ["apx telegram contacts", "apx telegram contacts rm <user_id>"],
+    examples: ["apx telegram contacts", "apx telegram contacts rm 123456"],
+  }),
+  "telegram role": topic({
+    title: "apx telegram role",
+    summary: "Assign a role to a contact by Telegram user_id. Roles gate which tools they can use.",
+    usage: ["apx telegram role <user_id> <role>"],
+    examples: ["apx telegram role 889721252 editor", "apx telegram role 123456 guest"],
+  }),
+  "telegram roles": topic({
+    title: "apx telegram roles",
+    summary: "Define role→tools capability maps. owner/guest are built-in.",
+    usage: [
+      "apx telegram roles",
+      "apx telegram roles set <name> --tools call_agent,list_tasks",
+      "apx telegram roles set <name> --tools '*'",
+      "apx telegram roles rm <name>",
+    ],
+    examples: [
+      "apx telegram roles",
+      "apx telegram roles set editor --tools call_agent,create_task,list_tasks",
+    ],
+  }),
+  "telegram owner": topic({
+    title: "apx telegram owner",
+    summary: "Set who owns a channel (overrides their role to owner on that channel).",
+    usage: ["apx telegram owner <channel> <user_id>"],
+    examples: ["apx telegram owner default 889721252"],
   }),
   "telegram send": topic({
     title: "apx telegram send",
@@ -1440,16 +1523,40 @@ const HELP_TOPICS = new Map(Object.entries({
     summary: "Pair a companion device (Deck app, etc.) with the local APX daemon via QR code.",
     usage: [
       "apx pair [label] [--label <name>]",
+      "apx pair web",
       "apx pair list | ls",
       "apx pair revoke <id>",
     ],
     commands: [
-      ["(no arg) | new | device", "Issue a pairing nonce, render the QR, poll until the device confirms."],
+      ["(no arg) | deck | device", "QR for the APX Deck app (JSON payload). Poll until the device confirms."],
+      ["web", "QR + link for a browser on the LAN — scan with the phone camera or share the link."],
       ["list | ls", "List currently-paired clients."],
       ["revoke | rm <id>", "Revoke a paired client token."],
     ],
     options: [["--label <name>", "Friendly label stored with the pairing."]],
-    examples: ["apx pair", "apx pair \"phone\"", "apx pair list", "apx pair revoke d_abc123"],
+    examples: ["apx pair", "apx pair web", "apx pair list", "apx pair revoke d_abc123"],
+    notes: [
+      "`apx pair` (deck) QR carries a JSON payload only the Deck app understands.",
+      "`apx pair web` QR carries a URL a browser/phone-camera can open — see `apx help pair web`.",
+      "Both share one engine: a per-client token, listable with `apx pair list`, revocable with `apx pair revoke`.",
+    ],
+  }),
+  "pair web": topic({
+    title: "apx pair web",
+    summary: "Pair a browser on the LAN. Mints a one-shot code (90s) and renders a QR + a shareable link.",
+    usage: ["apx pair web"],
+    commands: [
+      ["scan QR", "Point the phone's native camera at the QR → it opens the web already linked."],
+      ["share link", "Copy the printed `link:` (…/#pair=<code>) into Telegram/chat; tapping it pairs the browser."],
+      ["paste code", "Type the printed `code:` into the web pairing screen (manual fallback)."],
+    ],
+    examples: ["apx pair web"],
+    notes: [
+      "The QR/link encode a URL, so they only work for browsers — for the APX Deck app use `apx pair`.",
+      "The daemon must be reachable from the device: bind LAN (host=0.0.0.0) or use a tunnel (Tailscale/Cloudflare).",
+      "The code expires in 90s and is single-use; re-run to get a fresh one.",
+      "Each paired browser shows up in Settings › Dispositivos (kind=web) and is revocable with `apx pair revoke <id>`.",
+    ],
   }),
   "pair new": topic({
     title: "apx pair new",
@@ -1664,6 +1771,7 @@ const HELP_ALIASES = new Map(Object.entries({
   "agent vault ls": "agent vault list",
   "session ls": "session list",
   "session show": "session get",
+  "session search": "session find",
   "sessions ls": "sessions list",
   "mcp ls": "mcp list",
   "mcp rm": "mcp remove",
@@ -1810,6 +1918,9 @@ function buildHelp(version) {
     hCmd("apx session close-stale",    36, "auto-close sessions older than 1h"),
     hCmd("apx session resume <id>",    36, "--summary  --full  (APC + Claude Code transcript)"),
     hCmd("apx session compact <slug>", 36, "--conversation <id>  collapse history into summary"),
+    hCmd("apx session find <text>",    36, "find sessions by title (cross-engine)  --deep  --engine X"),
+    hCmd("apx session summary <id>",   36, "LLM summary of any session by id"),
+    hCmd("apx session ask <id> \"<q>\"", 36, "ask about a session  --max-chunks N"),
     hCmd("apx sessions list",          36, "list AI engine sessions  --engine claude|codex|apx  --project P | --dir D"),
 
     hSec("MCPs"),
@@ -1908,6 +2019,7 @@ function buildHelp(version) {
 
     hSec("Pair (companion devices)"),
     hCmd("apx pair [label]",           36, "QR pairing for Deck app / companion clients"),
+    hCmd("apx pair web",               36, "QR + link to pair a browser on the LAN"),
     hCmd("apx pair list",              36, "list paired clients"),
     hCmd("apx pair revoke <id>",       36, "revoke a paired client token"),
 
@@ -1941,6 +2053,10 @@ function buildTopicHelp(t) {
   if (t.examples.length) {
     lines.push(hSec("Examples"));
     for (const ex of t.examples) lines.push(`    ${H.WH}${ex}${H.R}`);
+  }
+  if (t.notes?.length) {
+    lines.push(hSec("Notes"));
+    for (const n of t.notes) lines.push(`    ${H.DI}${n}${H.R}`);
   }
   lines.push(
     hSec("Global Flags"),
@@ -2128,6 +2244,9 @@ async function dispatch(cmd, rest) {
         else if (sub === "close-stale") cmdSessionCloseStale();
         else if (sub === "resume") await cmdSessionResume(a);
         else if (sub === "compact") await cmdSessionCompact(a);
+        else if (sub === "find" || sub === "search") cmdSessionFind(a);
+        else if (sub === "summary") await cmdSessionSummary(a);
+        else if (sub === "ask") await cmdSessionAsk(a);
         else die(`unknown session subcommand: ${sub || "(none)"}`);
         break;
       }
@@ -2171,10 +2290,11 @@ async function dispatch(cmd, rest) {
       case "pair": {
         const sub = rest[0];
         const a = parseArgs(rest.slice(1));
-        if (!sub || sub === "new" || sub === "device") await cmdPair(a);
+        if (!sub || sub === "new" || sub === "device" || sub === "deck") await cmdPair(a);
+        else if (sub === "web") await cmdPairWeb(a);
         else if (sub === "list" || sub === "ls") await cmdPairList();
         else if (sub === "revoke" || sub === "rm") await cmdPairRevoke(a);
-        else die(`unknown pair subcommand: ${sub} — try: (no arg), list, revoke <id>`);
+        else die(`unknown pair subcommand: ${sub} — try: (no arg)/deck, web, list, revoke <id>`);
         break;
       }
 
@@ -2197,6 +2317,16 @@ async function dispatch(cmd, rest) {
           else if (csub === "remove" || csub === "rm") await cmdTelegramChannelRemove(ca);
           else die(`unknown telegram channel subcommand: ${csub} — try: add, list, show, set, unset, remove`);
         }
+        else if (sub === "contacts" || sub === "contact") {
+          const csub = rest[1];
+          const ca = parseArgs(rest.slice(2));
+          if (csub === "rm" || csub === "remove") await cmdTelegramContactRemove(ca);
+          else if (!csub || csub === "list" || csub === "ls") await cmdTelegramContacts();
+          else die(`unknown telegram contacts subcommand: ${csub} — try: list, rm`);
+        }
+        else if (sub === "role") await cmdTelegramRole(parseArgs(rest.slice(1)));
+        else if (sub === "roles") await cmdTelegramRoles(parseArgs(rest.slice(1)));
+        else if (sub === "owner") await cmdTelegramOwner(parseArgs(rest.slice(1)));
         else die(`unknown telegram subcommand: ${sub || "(none)"}`);
         break;
       }

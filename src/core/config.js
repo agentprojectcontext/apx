@@ -43,7 +43,17 @@ const DEFAULT_CONFIG = {
     poll_interval_ms: 1500,
     route_to_agent: "",                 // slug of the agent that auto-replies (single-channel mode)
     respond_with_engine: true,          // false → just log, never auto-reply
-    channels: [],                       // multi-channel mode; each item: {name, bot_token, chat_id, route_to_agent, project, respond_with_engine}
+    channels: [],                       // multi-channel mode; each item: {name, bot_token, chat_id, route_to_agent, project, respond_with_engine, owner_user_id}
+    // Global roster keyed by Telegram user_id (msg.from.id). Identity of a
+    // person is the same across every channel/chat; the per-channel
+    // owner_user_id only marks who is the owner *of that channel*.
+    contacts: [],                       // each: {user_id, name, username, role, note, first_seen, last_seen}
+    // role → capabilities. "owner" is implicit (full); "guest" is the default
+    // for unknown senders (no permissions). Custom roles can be added here.
+    roles: {
+      owner: { tools: "*" },
+      guest: { tools: [] },
+    },
   },
   super_agent: {
     enabled: false,
@@ -283,6 +293,8 @@ function mergeTelegram(rawTelegram) {
     ...DEFAULT_CONFIG.telegram,
     ...rest,
     channels,
+    contacts: Array.isArray(src.contacts) ? src.contacts : [],
+    roles: { ...DEFAULT_CONFIG.telegram.roles, ...(src.roles || {}) },
   };
 }
 
@@ -375,6 +387,7 @@ const CHANNEL_FIELDS = [
   "project",
   "respond_with_engine",
   "poll_interval_ms",
+  "owner_user_id",
 ];
 
 function ensureChannelsArray(cfg) {
@@ -444,5 +457,103 @@ export function unsetTelegramChannelFields(cfg, name, fields = []) {
   }
   if (mutated) writeConfig(cfg);
   return { channel: ch };
+}
+
+// ── Telegram contacts (global roster, keyed by user_id) ─────────────────────
+// Identity of a person is global; the per-channel owner_user_id only marks who
+// owns a given channel. Role lives on the contact (global), per the chosen
+// design — owner_user_id overrides it to "owner" for that channel only.
+
+const CONTACT_FIELDS = [
+  "user_id",
+  "name",
+  "username",
+  "role",
+  "note",
+  "first_seen",
+  "last_seen",
+];
+
+function ensureContactsArray(cfg) {
+  cfg.telegram = cfg.telegram || {};
+  if (!Array.isArray(cfg.telegram.contacts)) cfg.telegram.contacts = [];
+  return cfg.telegram.contacts;
+}
+
+export function listContacts(cfg) {
+  return ensureContactsArray(cfg).slice();
+}
+
+export function findContact(cfg, userId) {
+  if (userId == null) return null;
+  return (
+    ensureContactsArray(cfg).find((c) => String(c.user_id) === String(userId)) ||
+    null
+  );
+}
+
+// Create-or-patch a contact by user_id. Unknown keys are dropped.
+export function upsertContact(cfg, userId, patch = {}, { persist = true } = {}) {
+  if (userId == null) throw new Error("upsertContact: user_id required");
+  const contacts = ensureContactsArray(cfg);
+  let entry = contacts.find((c) => String(c.user_id) === String(userId));
+  const created = !entry;
+  if (!entry) {
+    entry = { user_id: userId };
+    contacts.push(entry);
+  }
+  for (const k of CONTACT_FIELDS) {
+    if (k === "user_id") continue;
+    if (patch[k] !== undefined) entry[k] = patch[k];
+  }
+  if (persist) writeConfig(cfg);
+  return { created, contact: entry };
+}
+
+export function setContactRole(cfg, userId, role) {
+  const { contact } = upsertContact(cfg, userId, { role });
+  return contact;
+}
+
+export function removeContact(cfg, userId) {
+  const contacts = ensureContactsArray(cfg);
+  const before = contacts.length;
+  cfg.telegram.contacts = contacts.filter(
+    (c) => String(c.user_id) !== String(userId)
+  );
+  const removed = before - cfg.telegram.contacts.length;
+  if (removed > 0) writeConfig(cfg);
+  return { removed };
+}
+
+export function setChannelOwner(cfg, channelName, userId) {
+  return upsertTelegramChannel(cfg, channelName, { owner_user_id: userId });
+}
+
+// ── Telegram roles (role → capability map) ──────────────────────────────────
+
+export function listRoles(cfg) {
+  cfg.telegram = cfg.telegram || {};
+  return { ...(cfg.telegram.roles || {}) };
+}
+
+export function setRole(cfg, name, def) {
+  if (!name || typeof name !== "string") throw new Error("setRole: name required");
+  cfg.telegram = cfg.telegram || {};
+  cfg.telegram.roles = cfg.telegram.roles || {};
+  cfg.telegram.roles[name] = def;
+  writeConfig(cfg);
+  return cfg.telegram.roles[name];
+}
+
+export function removeRole(cfg, name) {
+  cfg.telegram = cfg.telegram || {};
+  if (!cfg.telegram.roles || !(name in cfg.telegram.roles)) return { removed: 0 };
+  if (name === "owner" || name === "guest") {
+    throw new Error(`role "${name}" is built-in and cannot be removed`);
+  }
+  delete cfg.telegram.roles[name];
+  writeConfig(cfg);
+  return { removed: 1 };
 }
 

@@ -256,6 +256,98 @@ export async function cmdTelegramChannelRemove(args) {
   console.log(`🗑  removed channel "${name}"`);
 }
 
+// ─── apx telegram contacts / role / owner ───────────────────────────────────
+// Manage the global roster (cfg.telegram.contacts[]), per-channel owners
+// (cfg.telegram.channels[].owner_user_id) and roles (cfg.telegram.roles).
+// The poller re-reads config per inbound message, so these take effect on the
+// next message without an explicit reload.
+
+function roleTag(c, owners) {
+  if (owners.some((o) => String(o.owner_user_id) === String(c.user_id))) return "owner";
+  return c.role || "guest";
+}
+
+export async function cmdTelegramContacts() {
+  const { contacts, channel_owners = [] } = await http.get("/telegram/contacts");
+  if (!contacts || contacts.length === 0) {
+    console.log("(no contacts yet — they're recorded automatically when people message a bot)");
+    return;
+  }
+  console.log(`contacts (${contacts.length}):`);
+  for (const c of contacts) {
+    const handle = c.username ? `@${c.username}` : "—";
+    const last = c.last_seen ? c.last_seen.slice(0, 10) : "—";
+    console.log(
+      `  ${String(c.user_id).padEnd(12)} ${String(c.name || "—").padEnd(20)} ${handle.padEnd(18)} role=${roleTag(c, channel_owners).padEnd(10)} seen=${last}`
+    );
+  }
+}
+
+export async function cmdTelegramRole(args) {
+  const userId = args._[0];
+  const role = args._[1];
+  if (!userId || !role) {
+    throw new Error("apx telegram role <user_id> <role>  (e.g. apx telegram role 123 editor)");
+  }
+  const r = await http.patch(`/telegram/contacts/${encodeURIComponent(userId)}`, { role });
+  console.log(`✅ ${r.contact?.name || userId} → role "${role}"`);
+}
+
+export async function cmdTelegramContactRemove(args) {
+  const userId = args._[0];
+  if (!userId) throw new Error("apx telegram contact rm <user_id>");
+  await http.delete(`/telegram/contacts/${encodeURIComponent(userId)}`);
+  console.log(`🗑  removed contact ${userId}`);
+}
+
+export async function cmdTelegramOwner(args) {
+  const channel = args._[0];
+  const userId = args._[1];
+  if (!channel || !userId) {
+    throw new Error("apx telegram owner <channel> <user_id>");
+  }
+  await http.patch(`/telegram/channels/${encodeURIComponent(channel)}`, {
+    owner_user_id: /^\d+$/.test(String(userId)) ? Number(userId) : userId,
+  });
+  await reloadDaemon();
+  console.log(`✅ owner of channel "${channel}" set to ${userId}`);
+}
+
+export async function cmdTelegramRoles(args) {
+  const sub = args._[0];
+  if (sub === "set") {
+    const name = args._[1];
+    if (!name) throw new Error("apx telegram roles set <name> [--tools a,b,c | --tools '*']");
+    const raw = args.flags.tools;
+    let tools = [];
+    if (raw === "*" || raw === true) tools = "*";
+    else if (typeof raw === "string") tools = raw.split(",").map((s) => s.trim()).filter(Boolean);
+    await http.put(`/telegram/roles/${encodeURIComponent(name)}`, { tools });
+    console.log(`✅ role "${name}" → tools ${tools === "*" ? "*" : `[${tools.join(", ")}]`}`);
+    return;
+  }
+  if (sub === "rm" || sub === "remove") {
+    const name = args._[1];
+    if (!name) throw new Error("apx telegram roles rm <name>");
+    await http.delete(`/telegram/roles/${encodeURIComponent(name)}`);
+    console.log(`🗑  removed role "${name}"`);
+    return;
+  }
+  // default: list
+  const { roles } = await http.get("/telegram/roles");
+  const names = Object.keys(roles || {});
+  if (names.length === 0) {
+    console.log("(no roles defined)");
+    return;
+  }
+  console.log(`roles (${names.length}):`);
+  for (const n of names) {
+    const t = roles[n]?.tools;
+    const desc = t === "*" ? "all tools" : Array.isArray(t) ? (t.length ? t.join(", ") : "no tools") : "—";
+    console.log(`  ${n.padEnd(12)} ${desc}`);
+  }
+}
+
 export function cmdTelegramSetup() {
   console.log(`Edit ~/.apx/config.json — telegram section:
 
