@@ -20,6 +20,7 @@ import { runSuperAgent } from "./super-agent.js";
 import { computeSuppressedTools } from "../../core/agent/index.js";
 import { readAgents } from "../../core/parser.js";
 import { buildAgentSystem } from "../../core/agent-system.js";
+import { resolveAgentName, SUPERAGENT_ACTOR_ID } from "../../core/identity.js";
 import { resolveArtifactRef, ARTIFACTS_SKIP_SIGNAL } from "../../core/artifacts-store.js";
 import {
   listRoutines,
@@ -92,6 +93,7 @@ async function handleExecAgent(ctx, routine) {
     direction: "out",
     type: "agent",
     actor_id: slug,
+    actor_kind: "agent",
     author: slug,
     body: result.text,
     meta: { routine: routine.name, usage: result.usage },
@@ -139,8 +141,9 @@ async function handleSuperAgent(ctx, routine) {
     channel: "routine",
     direction: "out",
     type: "agent",
-    actor_id: result.name || "super_agent",
-    author: result.name || "super_agent",
+    actor_id: SUPERAGENT_ACTOR_ID,
+    actor_kind: "superagent",
+    author: result.name || resolveAgentName(globalConfig),
     body: result.text || "",
     meta: { routine: routine.name, tool_trace: result.trace, usage: result.usage },
   });

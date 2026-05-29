@@ -34,8 +34,32 @@ function dayPathMd(projectRoot, ts) {
 
 const VALID_MESSAGE_TYPES = new Set(["user", "agent", "tool", "system"]);
 
+// Render class (`type`) stays a 4-value enum the UI branches on. `actor_kind`
+// is a finer discriminator stored in meta: who/what actually produced the turn.
+//   superagent — the APX daemon-level agent (persona from identity.json)
+//   agent      — a project agent (its own slug/persona, may run on any engine)
+//   engine     — a raw external engine reply with no project-agent persona
+//   user / tool / system — mirror the render class
+const VALID_ACTOR_KINDS = new Set(["superagent", "agent", "engine", "user", "tool", "system"]);
+
 function normalizeMessageType(type) {
   return typeof type === "string" && VALID_MESSAGE_TYPES.has(type) ? type : null;
+}
+
+function normalizeActorKind(kind) {
+  return typeof kind === "string" && VALID_ACTOR_KINDS.has(kind) ? kind : null;
+}
+
+// Best-effort classification of the actor when not given explicitly. Legacy
+// records (and most call sites) don't set actor_kind, so this keeps history
+// queryable: a `type:"agent"` turn whose actor_id is the stable super-agent id
+// is a "superagent"; any other agent turn is a project "agent".
+function inferActorKind({ actor_kind, type, actor_id, meta = {} } = {}) {
+  const explicit = normalizeActorKind(actor_kind) || normalizeActorKind(meta.actor_kind);
+  if (explicit) return explicit;
+  if (type === "user" || type === "tool" || type === "system") return type;
+  if (type === "agent") return actor_id === "super_agent" ? "superagent" : "agent";
+  return null;
 }
 
 export function inferMessageType({ type, channel, direction, author, agent_slug, meta = {} } = {}) {
@@ -60,25 +84,27 @@ function inferActorId({ type, actor_id, author, agent_slug, meta = {} } = {}) {
   return author || null;
 }
 
-function messageMeta({ type, actor_id, agent_slug, session_id, external_id, meta = {} }) {
+function messageMeta({ type, actor_id, actor_kind, agent_slug, session_id, external_id, meta = {} }) {
   return {
     ...meta,
     type,
     ...(actor_id ? { actor_id } : {}),
+    ...(actor_kind ? { actor_kind } : {}),
     ...(agent_slug ? { agent: agent_slug } : {}),
     ...(session_id ? { session_id } : {}),
     ...(external_id ? { external_id } : {}),
   };
 }
 
-export function appendMessageToFs({ projectRoot, channel, direction, type, actor_id, author, body, meta = {}, ts, agent_slug, session_id, external_id }) {
+export function appendMessageToFs({ projectRoot, channel, direction, type, actor_id, actor_kind, author, body, meta = {}, ts, agent_slug, session_id, external_id }) {
   ts = ts || nowIso();
   const file = dayPathJsonl(projectRoot, ts);
   fs.mkdirSync(path.dirname(file), { recursive: true });
 
   const msgType = inferMessageType({ type, channel, direction, author, agent_slug, meta });
   const msgActorId = inferActorId({ type: msgType, actor_id, author, agent_slug, meta });
-  const fullMeta = messageMeta({ type: msgType, actor_id: msgActorId, agent_slug, session_id, external_id, meta });
+  const msgActorKind = inferActorKind({ actor_kind, type: msgType, actor_id: msgActorId, meta });
+  const fullMeta = messageMeta({ type: msgType, actor_id: msgActorId, actor_kind: msgActorKind, agent_slug, session_id, external_id, meta });
 
   const record = {
     ts,
@@ -104,9 +130,11 @@ export function insertMessageRow(db, m) {
   }
   const type = inferMessageType(m);
   const actor_id = inferActorId({ ...m, type });
+  const actor_kind = inferActorKind({ actor_kind: m.actor_kind, type, actor_id, meta: m.meta || {} });
   const meta = messageMeta({
     type,
     actor_id,
+    actor_kind,
     agent_slug: m.agent_slug,
     session_id: m.session_id,
     external_id: m.external_id,
@@ -131,13 +159,14 @@ export function insertMessageRow(db, m) {
 }
 
 // Single entry point used by everywhere the daemon writes a message.
-export function appendMessage({ projectRoot, db, channel, direction, type, actor_id, author, body, meta = {}, ts, agent_slug, session_id, external_id }) {
+export function appendMessage({ projectRoot, db, channel, direction, type, actor_id, actor_kind, author, body, meta = {}, ts, agent_slug, session_id, external_id }) {
   const written = appendMessageToFs({
     projectRoot,
     channel,
     direction,
     type,
     actor_id,
+    actor_kind,
     author,
     body,
     meta,
@@ -151,6 +180,7 @@ export function appendMessage({ projectRoot, db, channel, direction, type, actor
     direction,
     type,
     actor_id,
+    actor_kind,
     author,
     body,
     meta,
@@ -188,6 +218,7 @@ export function parseDayJsonl(text) {
       agent_slug,
       meta,
     });
+    const actor_kind = inferActorKind({ actor_kind: obj.actor_kind, type, actor_id, meta });
     out.push({
       ts: obj.ts,
       channel: obj.channel,
@@ -195,6 +226,7 @@ export function parseDayJsonl(text) {
       type,
       author: obj.author,
       actor_id,
+      actor_kind,
       body: obj.body || "",
       meta,
       agent_slug,
@@ -228,10 +260,12 @@ export function parseDayFile(text) {
     const agent_slug = meta.agent;
     const type = inferMessageType({ channel, direction, author, agent_slug, meta });
     const actor_id = inferActorId({ type, author, agent_slug, meta });
+    const actor_kind = inferActorKind({ type, actor_id, meta });
     out.push({
       ts, channel, direction, author, body, meta,
       type,
       actor_id,
+      actor_kind,
       agent_slug,
       session_id: meta.session_id ?? (typeof meta.apc_session_id === "number" ? meta.apc_session_id : null),
       external_id: meta.external_id,
@@ -422,14 +456,15 @@ export function getRecentTelegramTurnsFromFs({
 // ---------------------------------------------------------------------------
 
 // Write a message to the global channel store.  No SQL cache — JSONL only.
-export function appendGlobalMessage({ channel, direction, type, actor_id, author, body, meta = {}, ts, agent_slug, external_id }) {
+export function appendGlobalMessage({ channel, direction, type, actor_id, actor_kind, author, body, meta = {}, ts, agent_slug, external_id }) {
   ts = ts || nowIso();
   const dir = path.join(GLOBAL_MESSAGES_DIR, channel);
   fs.mkdirSync(dir, { recursive: true });
   const file = path.join(dir, `${ts.slice(0, 10)}.jsonl`);
   const msgType = inferMessageType({ type, channel, direction, author, agent_slug, meta });
   const msgActorId = inferActorId({ type: msgType, actor_id, author, agent_slug, meta });
-  const fullMeta = messageMeta({ type: msgType, actor_id: msgActorId, agent_slug, external_id, meta });
+  const msgActorKind = inferActorKind({ actor_kind, type: msgType, actor_id: msgActorId, meta });
+  const fullMeta = messageMeta({ type: msgType, actor_id: msgActorId, actor_kind: msgActorKind, agent_slug, external_id, meta });
   const record = {
     ts,
     channel,

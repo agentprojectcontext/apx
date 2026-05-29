@@ -111,6 +111,46 @@ test("parseDayJsonl preserves explicit type and actor_id", async () => {
   assert.equal(rows[0].actor_id, "filesystem.read_file");
 });
 
+test("actor_kind — explicit value is persisted and round-trips", async () => {
+  const { parseDayJsonl } = await import("../src/core/messages-store.js");
+  const root = makeTempProject({ agents: [{ slug: "sofia", role: "Support" }] });
+  try {
+    appendMessageToFs({
+      projectRoot: root,
+      channel: "telegram",
+      direction: "out",
+      type: "agent",
+      actor_id: "super_agent",
+      actor_kind: "superagent",
+      author: "Roby",
+      body: "hola",
+      ts: "2026-05-08T11:00:00Z",
+    });
+    const text = fs.readFileSync(path.join(root, "messages", "2026-05-08.jsonl"), "utf8");
+    const rec = JSON.parse(text.trim());
+    assert.equal(rec.type, "agent");
+    assert.equal(rec.author, "Roby");
+    assert.equal(rec.meta.actor_kind, "superagent");
+    const rows = parseDayJsonl(text);
+    assert.equal(rows[0].actor_kind, "superagent");
+  } finally {
+    cleanupTempProject(root);
+  }
+});
+
+test("actor_kind — inferred from actor_id when not given (superagent vs agent)", async () => {
+  const { parseDayJsonl } = await import("../src/core/messages-store.js");
+  const text = [
+    JSON.stringify({ ts: "2026-05-08T10:00:00Z", channel: "telegram", direction: "out", type: "agent", actor_id: "super_agent", author: "Roby", body: "a" }),
+    JSON.stringify({ ts: "2026-05-08T10:00:01Z", channel: "engine", direction: "out", type: "agent", actor_id: "sofia", author: "sofia", body: "b" }),
+    JSON.stringify({ ts: "2026-05-08T10:00:02Z", channel: "telegram", direction: "in", author: "@user", body: "c" }),
+  ].join("\n");
+  const rows = parseDayJsonl(text);
+  assert.equal(rows[0].actor_kind, "superagent");
+  assert.equal(rows[1].actor_kind, "agent");
+  assert.equal(rows[2].actor_kind, "user");
+});
+
 test("parseDayFile (legacy md) still works for backward compat", () => {
   const text = `# Messages — 2026-05-08
 

@@ -17,7 +17,26 @@ import {
   countTasks,
 } from "../../../core/tasks-store.js";
 
-export function register(app, { project }) {
+export function register(app, { project, projects }) {
+  // Global tasks across every project.
+  app.get("/tasks", (req, res) => {
+    const state = req.query.state || "open";
+    const out = [];
+    for (const entry of projects.list()) {
+      const p = projects.get(entry.id);
+      if (!p) continue;
+      let tasks = [];
+      try {
+        tasks = listTasks(p.storagePath, {
+          state: state === "all" ? undefined : state,
+          limit: 500,
+        });
+      } catch { /* skip project */ }
+      for (const t of tasks) out.push({ ...t, project_id: entry.id, project_name: entry.name || entry.path });
+    }
+    res.json(out);
+  });
+
   app.get("/projects/:pid/tasks", (req, res) => {
     const p = project(req, res);
     if (!p) return;

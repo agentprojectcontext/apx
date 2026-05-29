@@ -107,6 +107,9 @@ export function register(app, { projects, registries, plugins, project, config }
         agent_slug: agent.slug,
         channel: "runtime",
         direction: "out",
+        type: "agent",
+        actor_id: agent.slug,
+        actor_kind: "agent",
         author: agent.slug,
         body: r.output || "",
         meta: {

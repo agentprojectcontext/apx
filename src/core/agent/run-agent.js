@@ -66,6 +66,11 @@ export async function runAgent({
   onToken = null,
   agentName = "apx",
   suppressTools = null, // optional list of tool names to remove from the registry
+  // Per-reply output cap. Defaults to 512 (tuned for chit-chat + small tool
+  // args on cheap-tier TPM budgets). Summarization callers raise this because
+  // "thinking" models (gemini-2.5-flash) burn the budget reasoning and emit
+  // empty text on dense input when it's too low.
+  maxTokens = 512,
 }) {
   const routing = await resolveActiveModel(globalConfig, { overrideModel });
   // Mutable: lazy-retry can rotate to a different model mid-loop on 429/413/5xx.
@@ -194,8 +199,9 @@ export async function runAgent({
     // whole turn with 400 "Failed to call a function". Better: let the model
     // choose between text and tool when the prompt is conversational.
     const forceTool =
-      (iter === 0 && looksLikeActionRequest(prompt)) ||
-      (ackOnlyStreak > 0 && ackOnlyStreak <= MAX_CONSECUTIVE_ACKS);
+      effectiveSchemas.length > 0 &&
+      ((iter === 0 && looksLikeActionRequest(prompt)) ||
+        (ackOnlyStreak > 0 && ackOnlyStreak <= MAX_CONSECUTIVE_ACKS));
     let result;
     try {
       result = await tryCallEngine({
@@ -204,10 +210,10 @@ export async function runAgent({
         config: globalConfig,
         tools: usePseudoTools ? null : effectiveSchemas,
         toolChoice: usePseudoTools ? null : (forceTool ? "required" : "auto"),
-        // Smaller cap: 1024 ate too much of the cheap-tier TPM budget. The
-        // super-agent rarely emits long replies; tool args are small. If a
-        // routine needs more, it can override via its spec.
-        maxTokens: 512,
+        // Smaller cap by default: 1024 ate too much of the cheap-tier TPM
+        // budget. The super-agent rarely emits long replies; tool args are
+        // small. Summarization callers raise it via the maxTokens arg.
+        maxTokens,
         signal,
         onToken: (!forceTool && onToken) ? onToken : null,
       });
@@ -226,7 +232,7 @@ export async function runAgent({
         config: globalConfig,
         tools: null,
         toolChoice: null,
-        maxTokens: 512,
+        maxTokens,
         signal,
         onToken: (iter > 0 && onToken) ? onToken : null,
       });

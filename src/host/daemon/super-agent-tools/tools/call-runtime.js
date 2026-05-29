@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { loggerFor } from "../../../../core/logging.js";
 import { readAgents } from "../../../../core/parser.js";
 import {
   buildApfHint,
@@ -8,9 +9,64 @@ import {
   extractApfResult,
 } from "../../apc-runtime-context.js";
 import { detectAll } from "../../env-detect.js";
+import {
+  findEngineSessionById,
+  readEngineSessionContext,
+} from "../../engine-sessions.js";
 import { runProcess } from "../../runtimes/_spawn.js";
 import { getRuntime, RUNTIME_IDS } from "../../runtimes/index.js";
 import { buildAgentSystem, confirmedProperty, resolveProject } from "../helpers.js";
+
+const log = loggerFor("call_runtime");
+
+// Decide if the runtime actually did the work the model asked for. A spawn
+// failure (-1), a non-zero exit, or a clean exit with no captured output and
+// no transcript path all point at "process didn't really run" — exactly the
+// false-positive scenario this guard exists to catch.
+function runtimeLooksLikeFailure(r) {
+  if (!r) return { failed: true, reason: "no runtime result" };
+  if (r.exitCode === -1 || r.error) {
+    return { failed: true, reason: r.error || "spawn error" };
+  }
+  if (typeof r.exitCode === "number" && r.exitCode !== 0) {
+    return { failed: true, reason: `exit ${r.exitCode}` };
+  }
+  if (r.killed) return { failed: true, reason: "killed (timeout)" };
+  const out = String(r.output || "").trim();
+  const stderr = String(r.stderr || "").trim();
+  if (!out && !r.externalSessionPath && !r.sessionId) {
+    return {
+      failed: true,
+      reason: stderr ? `empty output (stderr: ${stderr.slice(0, 120)})` : "empty output",
+    };
+  }
+  return { failed: false };
+}
+
+// If the model passed resume_session_id, look the session up (claude / codex /
+// apx) and prepend a tiny context block so the runtime knows what the prior
+// session was about. The model's prompt still wins; this is preamble only.
+function buildResumePreamble(sessionId) {
+  if (!sessionId) return { text: "", meta: null };
+  let meta;
+  try {
+    meta = findEngineSessionById(sessionId);
+  } catch {
+    return { text: "", meta: null };
+  }
+  if (!meta) return { text: "", meta: null };
+  const ctx = readEngineSessionContext(meta);
+  const title = ctx?.title || meta.title || null;
+  const lastPrompt = ctx?.lastPrompt || null;
+  if (!title && !lastPrompt) return { text: "", meta };
+  const parts = [
+    `## Context from prior session (${meta.engine}:${meta.id})`,
+  ];
+  if (title) parts.push(`Title: ${title}`);
+  if (lastPrompt) parts.push(`Last prompt: ${lastPrompt}`);
+  parts.push("---");
+  return { text: parts.join("\n") + "\n\n", meta };
+}
 
 function resolveProjectForAgent(projects, project, slug) {
   if (project) return resolveProject(projects, project);
@@ -106,6 +162,10 @@ export default {
             description: "external CLI runtime",
           },
           prompt: { type: "string" },
+          resume_session_id: {
+            type: "string",
+            description: "Optional prior session id (claude/codex/apx) — APX prepends that session's title + last prompt to the prompt so the runtime has context.",
+          },
           timeout_s: { type: "integer", description: "seconds before SIGTERM; default 300" },
           confirmed: confirmedProperty("true only after explicit user confirmation for this exact runtime command"),
         },
@@ -113,7 +173,7 @@ export default {
       },
     },
   },
-  makeHandler: ({ projects, requirePermission }) => async ({ project, agent: slug, runtime, prompt, timeout_s = 300, confirmed = false }) => {
+  makeHandler: ({ projects, requirePermission }) => async ({ project, agent: slug, runtime, prompt, resume_session_id = null, timeout_s = 300, confirmed = false }) => {
     requirePermission("call_runtime", { dangerous: true, confirmed });
 
     const p = slug ? resolveProjectForAgent(projects, project, slug) : resolveProject(projects, project);
@@ -157,20 +217,33 @@ export default {
       title: `Runtime: ${runtime}${agent ? ` (${agent.slug})` : ""}`,
     });
 
+    const resume = buildResumePreamble(resume_session_id);
+    const effectivePrompt = resume.text ? resume.text + prompt : prompt;
+
+    log.info(`spawn ${runtime}`, {
+      apc_session: session.id,
+      agent: actor,
+      project: p.path,
+      resume_session_id: resume_session_id || null,
+      resume_resolved: resume.meta ? `${resume.meta.engine}:${resume.meta.id}` : null,
+      timeout_s,
+    });
+
     try {
       const r = await rt.run({
         system: buildRuntimeSystem(p, agent, runtime, session.id, "super_agent_tool"),
-        prompt,
+        prompt: effectivePrompt,
         cwd: p.path,
         timeoutMs: timeout_s * 1000,
       });
 
+      const failure = runtimeLooksLikeFailure(r);
       const result = extractApfResult(r.output) || (r.output || "").slice(0, 200);
       closeRuntimeSession({
         filePath: session.path,
         externalSessionPath: r.externalSessionPath || null,
-        exitCode: r.exitCode,
-        result,
+        exitCode: failure.failed && r.exitCode === 0 ? -1 : r.exitCode,
+        result: failure.failed ? `failed: ${failure.reason}` : result,
       });
 
       p.logMessage({
@@ -178,14 +251,17 @@ export default {
         channel: "runtime",
         direction: "in",
         author: "user",
-        body: prompt,
-        meta: { runtime, invoked_by: "super_agent_tool", apc_session: session.id },
+        body: effectivePrompt,
+        meta: { runtime, invoked_by: "super_agent_tool", apc_session: session.id, resume_session_id: resume_session_id || null },
       });
       p.logMessage({
         agent_slug: actor,
         channel: "runtime",
         direction: "out",
-        author: actor,
+        type: "agent",
+        actor_id: agent?.slug || runtime,
+        actor_kind: agent?.slug ? "agent" : "engine",
+        author: agent?.slug || runtime,
         body: r.output || "",
         meta: {
           runtime,
@@ -194,7 +270,37 @@ export default {
           session_id: r.sessionId || null,
           apc_session: session.id,
           invoked_by: "super_agent_tool",
+          failed: failure.failed || false,
+          failure_reason: failure.failed ? failure.reason : null,
         },
+      });
+
+      if (failure.failed) {
+        log.error(`${runtime} run failed: ${failure.reason}`, {
+          apc_session: session.id,
+          exit_code: r.exitCode,
+          stderr: String(r.stderr || "").slice(0, 500),
+          external_session_path: r.externalSessionPath || null,
+        });
+        return {
+          error: `runtime "${runtime}" did not complete successfully: ${failure.reason}`,
+          runtime,
+          agent: agent?.slug || null,
+          apc_session: session.id,
+          exit_code: r.exitCode,
+          stderr: (r.stderr || "").slice(0, 2000),
+          output: (r.output || "").slice(0, 2000),
+          external_session_path: r.externalSessionPath || null,
+          session_id: r.sessionId || null,
+        };
+      }
+
+      log.info(`${runtime} run ok`, {
+        apc_session: session.id,
+        exit_code: r.exitCode,
+        external_session_path: r.externalSessionPath || null,
+        session_id: r.sessionId || null,
+        output_bytes: (r.output || "").length,
       });
 
       return {
@@ -209,6 +315,9 @@ export default {
         session_id: r.sessionId || null,
       };
     } catch (e) {
+      log.error(`${runtime} run threw: ${e.message}`, {
+        apc_session: session.id,
+      });
       try {
         closeRuntimeSession({
           filePath: session.path,

@@ -113,12 +113,12 @@ export default {
     const document = decodeDocument({ document_base64, document_path, document_url });
     if (document) {
       const result = await telegram.sendDocument({
-        channel, chat_id, document, caption: text, filename, mime_type, author: "apx",
+        channel, chat_id, document, caption: text, filename, mime_type,
       });
       return { ok: true, kind: "document", message_id: result.message_id, filename };
     }
 
-    const result = await telegram.send({ channel, chat_id, text, author: "apx" });
+    const result = await telegram.send({ channel, chat_id, text });
     return { ok: true, kind: "text", message_id: result.message_id };
   },
 };
