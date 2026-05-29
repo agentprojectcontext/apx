@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# APX pre-push gate.
+#
+# Commits go through freely — but a push (which is the closest thing to
+# "deploy" we have) must NOT succeed unless:
+#   1. The backend test suite passes.
+#   2. The web bundle builds cleanly (vite build + web typecheck).
+#
+# Anything that produces a dist/ or any other build output needs to be
+# validated here, because the daemon ships those files via prepack/install
+# and a broken build means broken installs downstream.
+#
+# Bypass (only when you know what you're doing): git push --no-verify.
+# Skip just the web build for a doc-only push: APX_SKIP_WEB_BUILD=1 git push.
+
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+# Colors — only when stderr is a TTY (so CI logs stay plain).
+if [ -t 2 ]; then
+  C_DIM=$'\033[2m'; C_RED=$'\033[31m'; C_GREEN=$'\033[32m'; C_BOLD=$'\033[1m'; C_RST=$'\033[0m'
+else
+  C_DIM=""; C_RED=""; C_GREEN=""; C_BOLD=""; C_RST=""
+fi
+
+step() { printf "%spre-push:%s %s\n" "$C_BOLD" "$C_RST" "$1" >&2; }
+fail() { printf "%spre-push FAILED:%s %s\n" "$C_RED" "$C_RST" "$1" >&2; exit 1; }
+ok()   { printf "%s✓%s %s\n" "$C_GREEN" "$C_RST" "$1" >&2; }
+skip() { printf "%s· skip%s %s\n" "$C_DIM" "$C_RST" "$1" >&2; }
+
+START="$(date +%s)"
+
+# 1) Backend tests — the source of truth for behavior the daemon ships.
+step "running backend tests (npm test)"
+if ! npm test --silent >/tmp/apx-pre-push-test.log 2>&1; then
+  printf "%s\n" "── last 30 lines of npm test ──" >&2
+  tail -30 /tmp/apx-pre-push-test.log >&2
+  fail "backend tests failed (full log: /tmp/apx-pre-push-test.log)"
+fi
+ok "backend tests"
+
+# 2) Web build — the daemon serves this on install, so a broken build means
+#    a broken deploy. Skippable with APX_SKIP_WEB_BUILD=1 for doc/typo pushes.
+if [ "${APX_SKIP_WEB_BUILD:-}" = "1" ]; then
+  skip "web build (APX_SKIP_WEB_BUILD=1)"
+else
+  step "building web bundle (scripts/build-web.js)"
+  if ! node scripts/build-web.js >/tmp/apx-pre-push-build.log 2>&1; then
+    printf "%s\n" "── last 40 lines of build-web ──" >&2
+    tail -40 /tmp/apx-pre-push-build.log >&2
+    fail "web build failed (full log: /tmp/apx-pre-push-build.log)"
+  fi
+  ok "web build"
+
+  # Strict TS check too — the build silences type errors with esbuild, so we
+  # run tsc separately. One pre-existing error in calendar.tsx was fixed, so
+  # the gate is "zero errors". If a new vendor file lands with errors that
+  # aren't ours, downgrade this to a warning rather than blocking the push.
+  step "web typecheck (tsc --noEmit)"
+  if ! (cd src/interfaces/web && npx --no-install tsc --noEmit) >/tmp/apx-pre-push-tsc.log 2>&1; then
+    printf "%s\n" "── tsc output ──" >&2
+    cat /tmp/apx-pre-push-tsc.log >&2
+    fail "web typecheck failed (full log: /tmp/apx-pre-push-tsc.log)"
+  fi
+  ok "web typecheck"
+fi
+
+END="$(date +%s)"
+printf "%spre-push OK in %ss%s\n" "$C_GREEN" "$((END - START))" "$C_RST" >&2
