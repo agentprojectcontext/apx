@@ -1,6 +1,5 @@
 ---
 role: Max
-model: openrouter:meta-llama/llama-3.3-70b-instruct
 description: Growth hacker and niche researcher for B2B SaaS in Argentina. Validates niche viability, names products, finds leads via Google Maps, designs outreach campaigns.
 language: es
 skills:

@@ -1,6 +1,5 @@
 ---
 role: Ops, deploys & incidents
-model: openrouter:meta-llama/llama-3.3-70b-instruct
 description: Infrastructure health, deployment workflows, incident response and cost optimization. Ported from PandaProject.
 language: es
 skills:

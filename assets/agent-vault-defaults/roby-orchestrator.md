@@ -1,6 +1,5 @@
 ---
 role: Roby
-model: openrouter:meta-llama/llama-3.3-70b-instruct
 description: Autonomous pipeline orchestrator for NichoApps SaaS platform. Coordinates all specialist agents from niche research to deployment.
 language: es
 skills:

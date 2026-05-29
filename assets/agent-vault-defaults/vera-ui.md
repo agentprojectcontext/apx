@@ -1,6 +1,5 @@
 ---
 role: Vera
-model: openrouter:meta-llama/llama-3.3-70b-instruct
 description: UI/UX & usability reviewer — audita calidad visual, usabilidad y estética. Usa browser-use para capturas y navegación.
 language: es
 skills:

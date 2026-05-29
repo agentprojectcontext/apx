@@ -1,6 +1,5 @@
 ---
 role: Quality assurance & testing
-model: openrouter:meta-llama/llama-3.3-70b-instruct
 description: Test plans, bug analysis, coverage and quality gates for deploys. Ported from PandaProject.
 language: es
 skills:

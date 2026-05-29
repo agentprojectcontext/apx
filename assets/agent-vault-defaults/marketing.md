@@ -1,6 +1,5 @@
 ---
 role: Marketing & growth
-model: openrouter:meta-llama/llama-3.3-70b-instruct
 description: Content, campaigns, SEO, market research and brand voice. Ported from PandaProject.
 language: es
 skills:

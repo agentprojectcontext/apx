@@ -1,6 +1,5 @@
 ---
 role: Sid
-model: openrouter:meta-llama/llama-3.3-70b-instruct
 description: Security specialist for NichoApps SaaS platform. Audits multi-tenant isolation (IDOR), MercadoPago webhook HMAC, CSRF, security headers, and auth flows. Fixes what can be fixed in-session, documents the rest. Use proactively before deploys or after adding new webhooks/billing flows.
 language: es
 skills:

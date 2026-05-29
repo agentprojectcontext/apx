@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import useSWR from "swr";
 import { Bot, Crown, Plus, Sparkles, Trash2, Wrench, Pencil, RotateCcw } from "lucide-react";
 import { Agents } from "../../lib/api";
 import { Section } from "../../components/Section";
 import { Badge, Button, Dialog, Empty, Field, Input, Loading, Switch, Textarea } from "../../components/ui";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../../components/ui/tooltip";
 import { useToast } from "../../components/Toast";
 import type { AgentEntry } from "../../types/daemon";
 
@@ -74,31 +75,33 @@ export function AgentDefaultsTab() {
                     {a.is_master ? <Crown className="size-4 text-white" /> : <Bot className="size-4 text-white" />}
                   </div>
                   <span className="truncate text-sm font-semibold">{a.slug}</span>
+                  <SourceBadge source={a.source} />
                 </div>
-                <SourceBadge source={a.source} />
+                <div className="flex shrink-0 items-center gap-0.5">
+                  {tombstoned ? (
+                    <IconBtn label="Restaurar" onClick={() => restore(a.slug)} variant="secondary"><RotateCcw size={13} /></IconBtn>
+                  ) : (
+                    <>
+                      <IconBtn label="Editar" onClick={() => setEditing(a)} variant="ghost"><Pencil size={13} /></IconBtn>
+                      <IconBtn
+                        label={a.source === "user" ? "Borrar" : "Ocultar"}
+                        onClick={() => remove(a)}
+                        variant="ghost-destructive"
+                      >
+                        <Trash2 size={13} />
+                      </IconBtn>
+                    </>
+                  )}
+                </div>
               </div>
-              {a.model && <Badge tone="info">{a.model}</Badge>}
+              {a.model
+                ? <Badge tone="info">{a.model}</Badge>
+                : <span className="text-[10px] text-muted-fg">modelo: default del router</span>}
               {a.description && <p className="line-clamp-3 text-xs text-muted-fg">{a.description}</p>}
               <div className="flex flex-wrap gap-1">
                 {a.role && <Badge>{a.role}</Badge>}
                 {a.skills?.map((s) => <span key={s} className="inline-flex items-center gap-0.5 rounded bg-muted px-1 py-0.5 text-[9px] text-muted-fg"><Sparkles size={9} /> {s}</span>)}
                 {a.tools?.map((t) => <span key={t} className="inline-flex items-center gap-0.5 rounded bg-muted px-1 py-0.5 text-[9px] text-muted-fg"><Wrench size={9} /> {t}</span>)}
-              </div>
-              <div className="mt-auto flex justify-end gap-1 pt-2">
-                {tombstoned ? (
-                  <Button size="sm" variant="secondary" onClick={() => restore(a.slug)}>
-                    <RotateCcw size={12} /> Restaurar
-                  </Button>
-                ) : (
-                  <>
-                    <Button size="sm" variant="ghost" onClick={() => setEditing(a)}>
-                      <Pencil size={12} /> Editar
-                    </Button>
-                    <Button size="sm" variant="destructive" onClick={() => remove(a)}>
-                      <Trash2 size={12} /> {a.source === "user" ? "Borrar" : "Ocultar"}
-                    </Button>
-                  </>
-                )}
               </div>
             </div>
           );
@@ -120,6 +123,39 @@ function SourceBadge({ source }: { source?: VaultAgent["source"] }) {
   if (source === "user")          return <Badge tone="success">user</Badge>;
   if (source === "user-override") return <Badge tone="warning">override</Badge>;
   return <Badge tone="muted">bundled</Badge>;
+}
+
+// Small square icon button with a tooltip; keeps the card header compact.
+// We use the ui Button for the destructive variant fallback via className.
+function IconBtn({
+  label,
+  onClick,
+  variant = "ghost",
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  variant?: "ghost" | "ghost-destructive" | "secondary";
+  children: ReactNode;
+}) {
+  const base = "inline-flex size-7 items-center justify-center rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40";
+  const variants = {
+    ghost: "text-muted-fg hover:bg-accent hover:text-accent-fg",
+    "ghost-destructive": "text-muted-fg hover:bg-destructive/15 hover:text-destructive",
+    secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+  } as const;
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <button type="button" onClick={onClick} aria-label={label} className={`${base} ${variants[variant]}`}>
+            {children}
+          </button>
+        }
+      />
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  );
 }
 
 // Create / edit dialog. When opened on a bundled agent the API patch will

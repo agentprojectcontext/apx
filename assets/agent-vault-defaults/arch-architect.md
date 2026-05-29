@@ -1,6 +1,5 @@
 ---
 role: Arch
-model: openrouter:meta-llama/llama-3.3-70b-instruct
 description: Software architect specializing in Laravel multi-tenant SaaS systems. Designs scalable, maintainable architectures with clear trade-off documentation.
 language: es
 skills:

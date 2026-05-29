@@ -1,6 +1,5 @@
 ---
 role: Customer support & escalations
-model: openrouter:meta-llama/llama-3.3-70b-instruct
 description: User issue resolution, classification, empathetic responses and knowledge-base building. Ported from PandaProject.
 language: es
 skills:

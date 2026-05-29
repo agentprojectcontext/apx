@@ -1,6 +1,5 @@
 ---
 role: Engineering & code
-model: openrouter:meta-llama/llama-3.3-70b-instruct
 description: Handles code, architecture, reviews, debugging and implementation plans. Ported from PandaProject.
 language: es
 skills:

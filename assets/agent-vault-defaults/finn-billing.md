@@ -1,6 +1,5 @@
 ---
 role: Finn
-model: openrouter:meta-llama/llama-3.3-70b-instruct
 description: Billing & infrastructure specialist for NichoApps. Handles MercadoPago integration, subscription plan management, payment flows, seeder/migration pipelines, and environment setup across apps. Implements in base-app first, then propagates.
 language: es
 skills:
