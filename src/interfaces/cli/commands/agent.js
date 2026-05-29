@@ -1,8 +1,16 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { findApfRoot, readAgents, readVaultAgents, VAULT_DIR, SLUG_RE } from "../../../core/parser.js";
 import { writeAgentFile, writeVaultAgentFile, addImportedAgent, ensureAgentDir, regenerateAgentsMd } from "../../../core/scaffold.js";
 import { http } from "../http.js";
+
+// Bundled starter templates: assets/agent-vault-defaults/<slug>.md inside the
+// APX repo. Sync copies these to the user's vault (~/.apx/agents/) if the
+// slug isn't already there. Resolves from this file's location so it works
+// when APX is installed globally or run from a worktree.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const BUNDLED_VAULT_DIR = path.resolve(__dirname, "../../../../assets/agent-vault-defaults");
 
 // ── ANSI ──────────────────────────────────────────────────────────────────────
 const c = { reset:"\x1b[0m", bold:"\x1b[1m", dim:"\x1b[2m", cyan:"\x1b[36m", green:"\x1b[32m", yellow:"\x1b[33m", gray:"\x1b[90m" };
@@ -142,6 +150,55 @@ export async function cmdAgentVaultAdd(args) {
 
   writeVaultAgentFile(slug, fields);
   console.log(`\n  ${bold(slug)} added to vault  ${gray(VAULT_DIR + "/" + slug + ".md")}\n`);
+}
+
+// Seed the user's vault from the bundled starter pack. By default we only
+// COPY templates the user doesn't already have, so re-running is safe and
+// preserves any edits. `--force` overwrites everything; `--dry-run` lists
+// what would happen without writing.
+export async function cmdAgentVaultSync(args = { flags: {} }) {
+  const force = !!args.flags.force;
+  const dry   = !!args.flags["dry-run"] || !!args.flags.n;
+  if (!fs.existsSync(BUNDLED_VAULT_DIR)) {
+    throw new Error(`bundled defaults dir not found: ${BUNDLED_VAULT_DIR}`);
+  }
+  const bundled = fs.readdirSync(BUNDLED_VAULT_DIR)
+    .filter((f) => f.endsWith(".md") && SLUG_RE.test(f.slice(0, -3)))
+    .sort();
+  if (bundled.length === 0) {
+    console.log(dim("(no bundled templates to sync)"));
+    return;
+  }
+  fs.mkdirSync(VAULT_DIR, { recursive: true });
+
+  let copied = 0, skipped = 0, overwritten = 0;
+  for (const f of bundled) {
+    const slug = f.slice(0, -3);
+    const src  = path.join(BUNDLED_VAULT_DIR, f);
+    const dest = path.join(VAULT_DIR, f);
+    const exists = fs.existsSync(dest);
+    if (exists && !force) {
+      console.log(`  ${gray("skip")}  ${bold(slug)}  ${gray("(already in vault — pass --force to overwrite)")}`);
+      skipped++;
+      continue;
+    }
+    if (dry) {
+      console.log(`  ${tag(exists ? "would overwrite" : "would copy")}  ${bold(slug)}`);
+      if (exists) overwritten++; else copied++;
+      continue;
+    }
+    fs.copyFileSync(src, dest);
+    console.log(`  ${exists ? tag("overwrote") : cyan("copied")}  ${bold(slug)}  ${gray("→")}  ${gray(dest)}`);
+    if (exists) overwritten++; else copied++;
+  }
+  console.log();
+  console.log(
+    dim(`  ${copied} new, ${overwritten} overwritten, ${skipped} skipped  `) +
+    gray(`(vault: ${VAULT_DIR})`)
+  );
+  if (!dry && (copied > 0 || overwritten > 0)) {
+    console.log(dim(`  list them with: apx agent vault list`));
+  }
 }
 
 export async function cmdAgentImport(args) {

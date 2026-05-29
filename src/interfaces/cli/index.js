@@ -19,6 +19,7 @@ import {
   cmdAgentImport,
   cmdAgentVaultList,
   cmdAgentVaultAdd,
+  cmdAgentVaultSync,
 } from "./commands/agent.js";
 import { cmdMemory } from "./commands/memory.js";
 import {
@@ -304,6 +305,7 @@ const HELP_TOPICS = new Map(Object.entries({
       ["import <slug>", "Import an agent template from ~/.apx/agents."],
       ["vault list | ls", "List reusable global agent templates."],
       ["vault add <slug>", "Create or copy a reusable global agent template."],
+      ["vault sync", "Seed ~/.apx/agents/ from the bundled starter pack (skips existing; --force to overwrite)."],
     ],
     examples: ["apx agent add reviewer --role Reviewer --model gpt-5.2", "apx agent list"],
   }),
@@ -371,6 +373,20 @@ const HELP_TOPICS = new Map(Object.entries({
       ["--description <text>", "Short agent description."],
     ],
     examples: ["apx agent vault add reviewer --role Reviewer --model gpt-5.2"],
+  }),
+  "agent vault sync": topic({
+    title: "apx agent vault sync",
+    summary: "Seed ~/.apx/agents/ with the bundled starter pack (PandaProject + nicho-apps team).",
+    usage: ["apx agent vault sync [--force] [--dry-run]"],
+    options: [
+      ["--force", "Overwrite vault entries that already exist (default: skip)."],
+      ["--dry-run | -n", "Show what would be copied without writing."],
+    ],
+    examples: [
+      "apx agent vault sync",
+      "apx agent vault sync --dry-run",
+      "apx agent vault sync --force",
+    ],
   }),
   identity: topic({
     title: "apx identity",
@@ -2222,7 +2238,8 @@ async function dispatch(cmd, rest) {
           const va = { ...a, _: a._.slice(1) };
           if (vsub === "list" || vsub === "ls") cmdAgentVaultList();
           else if (vsub === "add") await cmdAgentVaultAdd(va);
-          else die(`unknown vault subcommand: ${vsub || "(none)"} — try: list, add`);
+          else if (vsub === "sync") await cmdAgentVaultSync(va);
+          else die(`unknown vault subcommand: ${vsub || "(none)"} — try: list, add, sync`);
         }
         else die(`unknown agent subcommand: ${sub || "(none)"}`);
         break;
