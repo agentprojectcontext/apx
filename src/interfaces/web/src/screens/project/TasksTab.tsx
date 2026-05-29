@@ -39,7 +39,7 @@ export function TasksTab({ pid }: { pid: string }) {
       action={
         <div className="flex gap-1">
           {(["open", "done", "dropped"] as const).map((s) => (
-            <Button key={s} size="sm" variant={state === s ? "primary" : "ghost"} onClick={() => setState(s)}>
+            <Button key={s} size="sm" data-testid={`task-filter-${s}`} variant={state === s ? "primary" : "ghost"} onClick={() => setState(s)}>
               {s}
             </Button>
           ))}
@@ -49,13 +49,14 @@ export function TasksTab({ pid }: { pid: string }) {
       <div className="mb-4 flex items-end gap-2">
         <Field label="Nueva task">
           <Input
+            data-testid="task-input"
             placeholder="ej. revisar bug del scroll"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") add(); }}
           />
         </Field>
-        <Button variant="primary" onClick={add} loading={busy}>
+        <Button variant="primary" data-testid="task-add" onClick={add} loading={busy}>
           <Plus size={14} /> agregar
         </Button>
       </div>
@@ -65,9 +66,9 @@ export function TasksTab({ pid }: { pid: string }) {
         <Empty>No hay tasks {state === "open" ? "abiertas" : state}. <code>apx task add "…"</code></Empty>
       )}
 
-      <ul className="space-y-2 text-sm">
+      <ul className="space-y-2 text-sm" data-testid="task-list">
         {(list.data || []).map((t) => (
-          <li key={t.id} className="flex items-start gap-3 rounded-md border border-border bg-muted/30 px-3 py-2">
+          <li key={t.id} data-testid={`task-${t.id}`} className="flex items-start gap-3 rounded-md border border-border bg-muted/30 px-3 py-2">
             <span className="mt-0.5 font-mono text-[10px] text-muted-fg">{t.id}</span>
             <div className="flex-1">
               <div className="font-medium">{t.title}</div>
@@ -81,16 +82,16 @@ export function TasksTab({ pid }: { pid: string }) {
             <div className="flex gap-1">
               {state === "open" && (
                 <>
-                  <Button size="sm" variant="secondary" onClick={() => mark(() => Tasks.done(pid, t.id), "✓ done")}>
+                  <Button size="sm" variant="secondary" aria-label="marcar done" data-testid={`task-done-${t.id}`} onClick={() => mark(() => Tasks.done(pid, t.id), "✓ done")}>
                     <Check size={13} />
                   </Button>
-                  <Button size="sm" variant="destructive" onClick={() => mark(() => Tasks.drop(pid, t.id), "✗ drop")}>
+                  <Button size="sm" variant="destructive" aria-label="descartar task" data-testid={`task-drop-${t.id}`} onClick={() => mark(() => Tasks.drop(pid, t.id), "✗ drop")}>
                     <Trash2 size={13} />
                   </Button>
                 </>
               )}
               {state !== "open" && (
-                <Button size="sm" variant="ghost" onClick={() => mark(() => Tasks.reopen(pid, t.id), "↻ reopen")}>
+                <Button size="sm" variant="ghost" aria-label="reabrir task" data-testid={`task-reopen-${t.id}`} onClick={() => mark(() => Tasks.reopen(pid, t.id), "↻ reopen")}>
                   <RotateCcw size={13} />
                 </Button>
               )}

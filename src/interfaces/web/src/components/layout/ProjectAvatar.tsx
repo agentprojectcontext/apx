@@ -19,9 +19,10 @@ interface Props {
   isDefault?: boolean;
   icon?: React.ReactNode;
   title?: string;
+  testId?: string;
 }
 
-export function ProjectAvatar({ label, active, onClick, isAdd, isSettings, isDefault, icon, title }: Props) {
+export function ProjectAvatar({ label, active, onClick, isAdd, isSettings, isDefault, icon, title, testId }: Props) {
   const text = label.trim() || "·";
   const { initials, subLabel } = computeInitialsAndSub(text);
   const tone: ProjectTone =
@@ -34,6 +35,7 @@ export function ProjectAvatar({ label, active, onClick, isAdd, isSettings, isDef
           <button
             type="button"
             onClick={onClick}
+            data-testid={testId}
             className="group relative flex w-full cursor-pointer flex-col items-center gap-1"
           >
             <span

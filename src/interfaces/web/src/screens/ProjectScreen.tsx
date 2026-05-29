@@ -166,7 +166,7 @@ export function ProjectScreen() {
             )}
           </div>
         </header>
-        <div className="w-full space-y-6 p-6 pt-2">
+        <div className="w-full space-y-6 p-6 pt-2" data-testid={`project-tab-${active || "overview"}`}>
           <Routes>
             <Route index               element={<Overview pid={pid} />} />
             <Route path="workspaces"   element={<WorkspacesTab />} />

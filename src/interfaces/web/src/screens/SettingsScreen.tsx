@@ -88,7 +88,7 @@ export function SettingsScreen() {
             </div>
           </div>
         </header>
-        <div className={`mx-auto w-full ${WIDE_TABS.has(active) ? "max-w-6xl" : "max-w-3xl"} space-y-6 p-6`}>
+        <div className={`mx-auto w-full ${WIDE_TABS.has(active) ? "max-w-6xl" : "max-w-3xl"} space-y-6 p-6`} data-testid={`settings-tab-${active}`}>
           <Panel />
         </div>
       </div>

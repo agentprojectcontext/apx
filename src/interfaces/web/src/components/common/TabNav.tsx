@@ -81,6 +81,7 @@ export function TabNav({ sections, active, onChange, collapsed = false }: TabNav
                 <button
                   type="button"
                   onClick={() => onChange(key)}
+                  data-testid={`tabnav-${key || "index"}`}
                   className={cn(
                     "flex cursor-pointer items-center rounded-lg transition-colors",
                     collapsed ? "size-9 justify-center" : "w-full gap-2 px-2.5 py-1.5",

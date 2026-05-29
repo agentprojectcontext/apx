@@ -3,6 +3,11 @@ node_modules/
 # Web build artifacts (vite output)
 src/interfaces/web/dist/
 
+# Playwright run output
+src/interfaces/web/test-results/
+src/interfaces/web/e2e/reports/
+src/interfaces/web/playwright-report/
+
 # APC context skill — canonical source is agentprojectcontext/apc (synced at install/prepack)
 skills/apc-context/
 

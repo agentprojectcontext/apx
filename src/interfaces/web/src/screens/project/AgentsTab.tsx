@@ -75,7 +75,7 @@ export function AgentsTab({ pid }: { pid: string }) {
             <Upload size={13} /> Importar
           </Button>
           <Button size="sm" variant="secondary" onClick={() => chat()}><Send size={13} /> Chat</Button>
-          <Button size="sm" variant="primary" onClick={() => setCreating(true)}><Plus size={14} /> {t("project.agents.new")}</Button>
+          <Button size="sm" variant="primary" data-testid="agent-new" onClick={() => setCreating(true)}><Plus size={14} /> {t("project.agents.new")}</Button>
         </div>
       }
     >
@@ -215,6 +215,7 @@ function AgentCard({
   const { gradient, Icon } = agentVisual(agent);
   return (
     <div
+      data-testid={`agent-card-${agent.slug}`}
       className={cn(
         "cursor-pointer rounded-xl border border-border bg-card p-3 transition-colors hover:border-muted-fg/50",
         wide ? "w-64" : compact ? "w-44" : "w-52",
@@ -247,7 +248,7 @@ function ListView({ agents, onOpen, onChat }: { agents: AgentEntry[]; onOpen: (s
       {sorted.map((a) => {
         const { gradient, Icon } = agentVisual(a);
         return (
-          <div key={a.slug} className="flex cursor-pointer items-center gap-4 rounded-xl border border-border bg-muted/30 p-3 hover:border-muted-fg/50" onClick={() => onOpen(a.slug)}>
+          <div key={a.slug} data-testid={`agent-card-${a.slug}`} className="flex cursor-pointer items-center gap-4 rounded-xl border border-border bg-muted/30 p-3 hover:border-muted-fg/50" onClick={() => onOpen(a.slug)}>
             <div className={cn("flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br", gradient)}>
               <Icon className="size-4 text-white" />
             </div>
@@ -328,13 +329,13 @@ function CreateAgentDialog({
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={busy}>Cancelar</Button>
-          <Button variant="primary" onClick={submit} loading={busy}>Crear</Button>
+          <Button variant="primary" data-testid="agent-create-submit" onClick={submit} loading={busy}>Crear</Button>
         </>
       }
     >
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
-          <Field label="slug"><Input autoFocus value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="cody" /></Field>
+          <Field label="slug"><Input autoFocus data-testid="agent-slug" value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="cody" /></Field>
           <Field label="role (opcional)"><Input value={role} onChange={(e) => setRole(e.target.value)} placeholder="code refactor" /></Field>
         </div>
         <div className="grid grid-cols-2 gap-3">

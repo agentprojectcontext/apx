@@ -24,6 +24,7 @@ export function ProjectSidebar({ onSelect }: Props) {
         <button
           type="button"
           onClick={() => onSelect("/")}
+          data-testid="nav-home"
           className="mb-2 cursor-pointer"
         >
           <Logo size={36} />
@@ -41,6 +42,7 @@ export function ProjectSidebar({ onSelect }: Props) {
           <Fragment key={p.id}>
             <ProjectAvatar
               label={label}
+              testId={`project-avatar-${p.id}`}
               title={isDefault ? `Base · espacio general (no se puede borrar)` : `${label} — ${p.path}`}
               active={active}
               isDefault={isDefault}
@@ -55,6 +57,7 @@ export function ProjectSidebar({ onSelect }: Props) {
       <ProjectAvatar
         label="Add"
         isAdd
+        testId="nav-add-project"
         icon={<Plus size={18} />}
         active={false}
         onClick={() => onSelect("/?action=add-project")}
@@ -65,6 +68,7 @@ export function ProjectSidebar({ onSelect }: Props) {
       <ProjectAvatar
         label="Settings"
         isSettings
+        testId="nav-settings"
         icon={<Settings size={16} />}
         active={location.pathname === "/settings" || location.pathname.startsWith("/settings/")}
         onClick={() => onSelect("/settings")}
