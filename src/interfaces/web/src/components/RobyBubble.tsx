@@ -8,12 +8,12 @@
 // purpose: a focused side panel, not a full chat UI replacement.
 
 import { useEffect, useRef, useState } from "react";
-import { Bot, Send, X } from "lucide-react";
+import { Bot, Send, Square, X } from "lucide-react";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "./ui/sheet";
 import { Button } from "./ui/button";
 import { SuperAgent } from "../lib/api";
 import { useToast } from "./Toast";
-import type { ConversationMessage } from "../types/daemon";
+import type { ChatStreamEvent, ConversationMessage } from "../types/daemon";
 
 interface Msg {
   role: "user" | "assistant";
@@ -29,11 +29,21 @@ export function RobyBubble() {
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
-  // Auto-scroll to the latest message.
+  // Auto-scroll to the latest message (also fires while streaming so the
+  // user sees the new tokens land at the bottom).
   useEffect(() => {
     if (open) endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [msgs, open]);
+
+  // Abort any in-flight stream on unmount.
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  const stop = () => {
+    abortRef.current?.abort();
+    setBusy(false);
+  };
 
   const send = async () => {
     const prompt = draft.trim();
@@ -49,25 +59,79 @@ export function RobyBubble() {
     ]);
     setDraft("");
     setBusy(true);
+
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    let streamed = "";
+    let errored = false;
+
+    const onEvent = (ev: ChatStreamEvent) => {
+      // The super-agent loop emits several event types; for the bubble we
+      // only need to surface assistant text deltas and the final/error
+      // summaries. Tool events are intentionally hidden — the bubble is a
+      // chat, not a debug surface.
+      if (ev?.type === "assistant_text" && typeof ev.text === "string" && ev.text) {
+        // The super-agent emits the FULL accumulated assistant text per
+        // iteration, not deltas — overwrite, don't append.
+        streamed = ev.text;
+        setMsgs((curr) => {
+          const copy = [...curr];
+          const last = copy[copy.length - 1];
+          if (last?.role === "assistant") {
+            copy[copy.length - 1] = { ...last, content: streamed, pending: true };
+          }
+          return copy;
+        });
+      } else if (ev?.type === "final") {
+        // Final event carries the authoritative consolidated text in result.text.
+        // Cast through unknown because ChatStreamEvent's loose shape doesn't
+        // model the nested result object.
+        const finalText = (ev as unknown as { result?: { text?: string } })?.result?.text;
+        const text = (typeof finalText === "string" && finalText) ? finalText : streamed;
+        setMsgs((curr) => {
+          const copy = [...curr];
+          const last = copy[copy.length - 1];
+          if (last?.role === "assistant") {
+            copy[copy.length - 1] = { ...last, content: text, pending: false };
+          }
+          return copy;
+        });
+      } else if (ev?.type === "error") {
+        errored = true;
+        toast.error(ev.error || "error");
+        setMsgs((curr) => {
+          const copy = [...curr];
+          const last = copy[copy.length - 1];
+          if (last?.role === "assistant" && last.pending) copy.pop();
+          return copy;
+        });
+      }
+    };
+
     try {
-      const out = await SuperAgent.send(0, { prompt, previousMessages: history });
-      setMsgs((curr) => {
-        const copy = [...curr];
-        const last = copy[copy.length - 1];
-        if (last?.role === "assistant") {
-          copy[copy.length - 1] = { ...last, content: out.text, pending: false };
-        }
-        return copy;
-      });
+      await SuperAgent.stream(0, { prompt, previousMessages: history }, onEvent, ctrl.signal);
     } catch (e) {
-      setMsgs((curr) => {
-        const copy = [...curr];
-        const last = copy[copy.length - 1];
-        if (last?.role === "assistant" && last.pending) copy.pop();
-        return copy;
-      });
-      toast.error((e as Error).message);
+      if (ctrl.signal.aborted) {
+        // User-triggered stop — keep whatever streamed so far, just clear pending.
+        setMsgs((curr) => {
+          const copy = [...curr];
+          const last = copy[copy.length - 1];
+          if (last?.role === "assistant" && last.pending) {
+            copy[copy.length - 1] = { ...last, content: streamed || "[detenido]", pending: false };
+          }
+          return copy;
+        });
+      } else if (!errored) {
+        toast.error((e as Error).message);
+        setMsgs((curr) => {
+          const copy = [...curr];
+          const last = copy[copy.length - 1];
+          if (last?.role === "assistant" && last.pending) copy.pop();
+          return copy;
+        });
+      }
     } finally {
+      if (abortRef.current === ctrl) abortRef.current = null;
       setBusy(false);
     }
   };
@@ -146,15 +210,26 @@ export function RobyBubble() {
                 className="min-h-[44px] flex-1 resize-none rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring/40"
                 disabled={busy}
               />
-              <Button
-                size="sm"
-                variant="default"
-                onClick={() => void send()}
-                disabled={busy || !draft.trim()}
-                title="Enviar"
-              >
-                <Send size={14} /> {busy ? "…" : ""}
-              </Button>
+              {busy ? (
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={stop}
+                  title="Detener stream"
+                >
+                  <Square size={14} fill="currentColor" />
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={() => void send()}
+                  disabled={!draft.trim()}
+                  title="Enviar"
+                >
+                  <Send size={14} />
+                </Button>
+              )}
             </div>
             <div className="mt-1 flex justify-between text-[10px] text-muted-fg">
               <span>POST /projects/0/super-agent/chat</span>

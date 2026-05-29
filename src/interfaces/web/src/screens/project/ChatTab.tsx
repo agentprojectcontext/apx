@@ -1,16 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import useSWR from "swr";
-import { Bot, Plus, Trash2 } from "lucide-react";
-import { Agents } from "../../lib/api";
+import { Plus, Trash2 } from "lucide-react";
+import { Agents, SuperAgent } from "../../lib/api";
 import { Badge, Button, Dialog, Empty, Field, Input, Loading, Switch } from "../../components/ui";
 import { UiSelect } from "../../components/UiSelect";
 import { Composer } from "../../components/chat/Composer";
 import { MessageList } from "../../components/chat/MessageList";
 import { useToast } from "../../components/Toast";
 import { t } from "../../i18n";
-import type { AgentEntry } from "../../types/daemon";
+import type { AgentEntry, ConversationMessage } from "../../types/daemon";
 import type { ChatMsg } from "../../hooks/useChat";
+
+// Virtual entry slug used in the agent dropdown to address the daemon-level
+// super-agent (persona "Roby" for the owner). Picked so it can't collide
+// with a real APC agent slug (which must match /^[a-z][a-z0-9_-]*$/).
+const ROBY_SLUG = "__super_agent__";
 
 export function ChatTab({ pid }: { pid: string }) {
   const toast = useToast();
@@ -23,10 +28,27 @@ export function ChatTab({ pid }: { pid: string }) {
   const [busy, setBusy] = useState(false);
 
   const agentList = agents.data || [];
+  // Virtual options shown in the dropdown — Roby is always first, then the
+  // real project agents. Roby works on every project (calls /projects/:pid
+  // /super-agent/chat) so we expose it everywhere, not just /base.
+  const isRoby = (slug: string | null | undefined) => slug === ROBY_SLUG;
+  const dropdownOptions = useMemo(
+    () => [
+      { value: ROBY_SLUG, label: "Roby (super-agent)" },
+      ...agentList.map((a) => ({ value: a.slug, label: a.slug })),
+    ],
+    [agentList],
+  );
   const activeAgent = useMemo(
     () => agentList.find((a) => a.slug === activeSlug) || agentList[0],
     [agentList, activeSlug],
   );
+  // Effective slug we'll send with: Roby if explicitly selected, or the first
+  // real agent, or Roby when the project has no agents at all.
+  const effectiveSlug = isRoby(activeSlug)
+    ? ROBY_SLUG
+    : (activeAgent?.slug || ROBY_SLUG);
+  const activeIsRoby = effectiveSlug === ROBY_SLUG;
 
   useEffect(() => {
     if (!activeSlug && activeAgent?.slug) setActiveSlug(activeAgent.slug);
@@ -39,7 +61,10 @@ export function ChatTab({ pid }: { pid: string }) {
 
   const send = async (text: string) => {
     const prompt = text.trim();
-    if (!prompt || !activeAgent || busy) return;
+    if (!prompt || busy) return;
+    // Roby (super-agent) is always available; a real project agent requires
+    // that the project actually has one configured.
+    if (!activeIsRoby && !activeAgent) return;
     const now = new Date().toISOString();
     setMsgs((curr) => [
       ...curr,
@@ -48,13 +73,25 @@ export function ChatTab({ pid }: { pid: string }) {
     ]);
     setBusy(true);
     try {
-      const out = await Agents.chat(pid, activeAgent.slug, { prompt, conversation_id: conversationId });
-      setConversationId(out.conversation_id);
+      let replyText: string;
+      if (activeIsRoby) {
+        // For Roby we don't have conversation_id semantics on the daemon
+        // side; the previousMessages array is the rolling context.
+        const history: ConversationMessage[] = msgs
+          .filter((m) => !m.pending && m.content)
+          .map((m) => ({ role: m.role, content: m.content }));
+        const out = await SuperAgent.send(pid, { prompt, previousMessages: history });
+        replyText = out.text;
+      } else {
+        const out = await Agents.chat(pid, activeAgent!.slug, { prompt, conversation_id: conversationId });
+        setConversationId(out.conversation_id);
+        replyText = out.text;
+      }
       setMsgs((curr) => {
         const copy = [...curr];
         const last = copy[copy.length - 1];
         if (last?.role === "assistant") {
-          copy[copy.length - 1] = { ...last, content: out.text, pending: false };
+          copy[copy.length - 1] = { ...last, content: replyText, pending: false };
         }
         return copy;
       });
@@ -73,44 +110,37 @@ export function ChatTab({ pid }: { pid: string }) {
 
   if (agents.isLoading) return <Loading />;
 
-  if (!agentList.length) {
-    return (
-      <>
-        <Empty>
-          <div className="space-y-3 text-center">
-            <Bot className="mx-auto size-8 text-muted-fg" />
-            <p>No hay agentes. Chat necesita agente master o subagente.</p>
-            <Button variant="primary" onClick={() => setCreating(true)}>
-              <Plus size={14} /> Crear agente
-            </Button>
-          </div>
-        </Empty>
-        <CreateAgentDialog
-          open={creating}
-          pid={pid}
-          onClose={() => setCreating(false)}
-          onCreated={() => { setCreating(false); agents.mutate(); }}
-        />
-      </>
-    );
-  }
+  // Header subtitle differs: with Roby selected the chat goes through the
+  // super-agent (it CAN call tools); a project agent is a direct LLM call.
+  const headerSubtitle = activeIsRoby
+    ? "Chat con Roby — el super-agente APX. Puede usar tools (proyectos, tasks, mcps, agentes)."
+    : t("project.chat.subtitle", { pid });
 
   return (
     <div className="flex h-[calc(100vh-9rem)] flex-col overflow-hidden rounded-xl border border-border bg-card/40">
       <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div className="min-w-0">
-          <h2 className="text-sm font-semibold">{t("project.chat.title")}</h2>
-          <p className="truncate text-[11px] text-muted-fg">{t("project.chat.subtitle", { pid })}</p>
+          <h2 className="text-sm font-semibold">
+            {activeIsRoby ? "Chat con Roby" : t("project.chat.title")}
+          </h2>
+          <p className="truncate text-[11px] text-muted-fg">{headerSubtitle}</p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-44">
+          <div className="w-52">
             <UiSelect
-              value={activeAgent?.slug || ""}
+              value={effectiveSlug}
               onChange={(v) => { setActiveSlug(v); resetConversation(); }}
-              options={agentList.map((a) => ({ value: a.slug, label: a.slug }))}
+              options={dropdownOptions}
             />
           </div>
-          {activeAgent?.model && <Badge tone="info">{activeAgent.model}</Badge>}
+          {activeIsRoby
+            ? <Badge tone="success">super-agent</Badge>
+            : activeAgent?.model && <Badge tone="info">{activeAgent.model}</Badge>}
+          {!agentList.length && !activeIsRoby && (
+            <Button variant="primary" size="sm" onClick={() => setCreating(true)}>
+              <Plus size={14} /> Crear agente
+            </Button>
+          )}
           <Button variant="ghost" size="sm" disabled={busy || msgs.length === 0} onClick={resetConversation}>
             <Trash2 size={13} /> {t("project.chat.clear")}
           </Button>
