@@ -85,6 +85,7 @@ export function ProjectScreen() {
           { key: "",         label: t("project.nav.overview"),  icon: FolderKanban },
           { key: "telegram", label: t("project.nav.telegram"),  icon: Send },
           { key: "chat",     label: t("project.nav.chat"),      icon: MessagesSquare },
+          { key: "threads",  label: t("project.nav.threads"),   icon: MessagesSquare },
           { key: "agents",   label: t("project.nav.agents"),    icon: Bot },
           { key: "memories", label: "Memorias",                 icon: Brain },
         ],

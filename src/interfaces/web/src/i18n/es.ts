@@ -221,7 +221,7 @@ export const es = {
       routines: "Rutinas",
       tasks:    "Tasks",
       mcps:     "MCPs",
-      threads:  "Threads",
+      threads:  "Chats",
       logs:     "Logs",
     },
 
@@ -294,7 +294,7 @@ export const es = {
     },
 
     threads: {
-      title:       "Threads",
+      title:       "Chats",
       subtitle:    "Conversaciones por agent (vacío = ningún log persistido todavía).",
       no_agents:   "No hay agents. Las conversaciones requieren un agent configurado.",
       pick:        "Elegí un agent para ver sus conversaciones.",

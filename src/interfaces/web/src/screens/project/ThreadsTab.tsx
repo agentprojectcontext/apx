@@ -4,6 +4,7 @@ import { Agents, Conversations } from "../../lib/api";
 import { Section } from "../../components/Section";
 import { Badge, Dialog, Empty, Loading } from "../../components/ui";
 import { cn } from "../../lib/cn";
+import { t } from "../../i18n";
 
 export function ThreadsTab({ pid }: { pid: string }) {
   const agents = useSWR(`/projects/${pid}/agents`, () => Agents.list(pid));
@@ -12,8 +13,8 @@ export function ThreadsTab({ pid }: { pid: string }) {
 
   return (
     <Section
-      title="Threads"
-      description="Conversaciones por agent (vacío = ningún log persistido todavía)."
+      title={t("project.threads.title")}
+      description={t("project.threads.subtitle")}
     >
       {agents.isLoading && <Loading />}
       {!agents.isLoading && (agents.data?.length ?? 0) === 0 && (

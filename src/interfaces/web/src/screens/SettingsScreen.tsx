@@ -47,6 +47,10 @@ const SECTIONS: TabSection[] = [
   },
 ];
 
+// Tabs whose content (model router + provider grid, telegram tabs) benefits
+// from a wider container; the rest keep the cosier 3xl reading width.
+const WIDE_TABS = new Set<TabKey>(["engines", "telegram"]);
+
 const PANELS: Record<TabKey, () => ReactElement> = {
   identity:    () => <IdentityPanel />,
   super_agent: () => <SuperAgentPanel />,
@@ -84,7 +88,7 @@ export function SettingsScreen() {
             </div>
           </div>
         </header>
-        <div className="mx-auto w-full max-w-3xl space-y-6 p-6">
+        <div className={`mx-auto w-full ${WIDE_TABS.has(active) ? "max-w-6xl" : "max-w-3xl"} space-y-6 p-6`}>
           <Panel />
         </div>
       </div>

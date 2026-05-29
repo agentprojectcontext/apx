@@ -6,6 +6,7 @@ import { ProjectScreen } from "./screens/ProjectScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { AddProjectDialog } from "./components/AddProjectDialog";
 import { PairingScreen } from "./screens/PairingScreen";
+import { RobyBubble } from "./components/RobyBubble";
 import { ToastProvider } from "./components/Toast";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { useTheme } from "./hooks/useTheme";
@@ -68,6 +69,9 @@ function Shell() {
         </div>
       </main>
       <AddProjectDialog open={addOpen} onClose={closeAdd} />
+      {/* Always-on floating shortcut to chat with Roby (the super-agent).
+          Visible on every authenticated screen; calls /projects/0/super-agent/chat. */}
+      <RobyBubble />
     </div>
   );
 }
