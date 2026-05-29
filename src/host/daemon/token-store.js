@@ -70,11 +70,12 @@ export function createTokenStore({ masterToken } = {}) {
 
     /** Create a new client token, persist it, return the public record
      *  (id + token; caller decides how to surface it). */
-    addClient(label = "") {
+    addClient(label = "", kind = "") {
       const entry = {
         id: randomUUID(),
         token: randomBytes(32).toString("hex"),
         label: String(label || "").slice(0, 64) || "device",
+        kind: String(kind || "").slice(0, 16) || "device",
         created_at: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),
         last_seen: null,
       };
@@ -97,6 +98,7 @@ export function createTokenStore({ masterToken } = {}) {
       return clients.map((c) => ({
         id: c.id,
         label: c.label,
+        kind: c.kind || "device",
         created_at: c.created_at,
         last_seen: c.last_seen,
         token_suffix: c.token.slice(-8),

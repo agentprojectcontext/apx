@@ -5,9 +5,24 @@
 import fs from "node:fs";
 import path from "node:path";
 import { parseSessionFrontmatter, readAgents } from "../../../core/parser.js";
+import { collectAllSessions } from "../../../interfaces/cli/commands/sessions.js";
 import { nowIso } from "./shared.js";
 
 export function register(app, { projects, project }) {
+  // Cross-engine sessions (apx · claude · codex), newest first.
+  app.get("/sessions", (req, res) => {
+    const engineId = req.query.engine ? String(req.query.engine) : null;
+    const limit = Math.min(parseInt(req.query.limit, 10) || 200, 1000);
+    let rows = [];
+    try {
+      rows = collectAllSessions({}, { engineId });
+    } catch (e) {
+      return res.status(500).json({ error: e.message, sessions: [] });
+    }
+    rows.sort((a, b) => (b.mtime || 0) - (a.mtime || 0));
+    res.json({ sessions: rows.slice(0, limit) });
+  });
+
   app.get("/projects/:pid/agents/:slug/sessions", (req, res) => {
     const p = project(req, res);
     if (!p) return;

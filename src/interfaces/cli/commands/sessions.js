@@ -25,6 +25,64 @@ function safeStatMtime(p) {
   }
 }
 
+// File-modification timestamps get clobbered by Time Machine and other backup
+// tools. Most engines write a `"timestamp": "<iso>"` field on every JSONL line
+// — when present, that's a far more reliable order key than mtime. We read a
+// short tail of the file and scan back for the latest valid timestamp,
+// falling back to the head, then mtime, when nothing parses.
+function readInternalTimestamp(file, { tailBytes = 8192, headBytes = 8192 } = {}) {
+  let stat;
+  try {
+    stat = fs.statSync(file);
+  } catch {
+    return 0;
+  }
+  const tail = readTimestampFromRange(file, Math.max(0, stat.size - tailBytes), stat.size, { fromEnd: true });
+  if (tail) return tail;
+  if (stat.size > tailBytes) {
+    const head = readTimestampFromRange(file, 0, Math.min(stat.size, headBytes), { fromEnd: false });
+    if (head) return head;
+  }
+  return stat.mtimeMs || 0;
+}
+
+function readTimestampFromRange(file, start, end, { fromEnd }) {
+  if (end <= start) return 0;
+  let buf;
+  try {
+    const fd = fs.openSync(file, "r");
+    try {
+      buf = Buffer.alloc(end - start);
+      fs.readSync(fd, buf, 0, buf.length, start);
+    } finally {
+      try { fs.closeSync(fd); } catch {}
+    }
+  } catch {
+    return 0;
+  }
+  const lines = buf.toString("utf8").split("\n");
+  const order = fromEnd ? [...lines.keys()].reverse() : [...lines.keys()];
+  for (const i of order) {
+    const line = lines[i];
+    if (!line || !line.includes('"timestamp"')) continue;
+    let d;
+    try {
+      d = JSON.parse(line);
+    } catch {
+      continue;
+    }
+    const ts = d?.timestamp || d?.payload?.timestamp;
+    if (!ts) continue;
+    const t = Date.parse(ts);
+    if (!Number.isNaN(t)) return t;
+  }
+  return 0;
+}
+
+function sessionTimestamp(file) {
+  return readInternalTimestamp(file) || safeStatMtime(file);
+}
+
 function fmtDate(ms) {
   if (!ms) return "          ";
   const d = new Date(ms);
@@ -177,7 +235,7 @@ const claudeEngine = {
           id,
           path: file,
           cwd: claudeDecodeProject(name, opts) || name,
-          mtime: safeStatMtime(file),
+          mtime: sessionTimestamp(file),
           title: claudeReadTitle(file) || "(sin título)",
         };
       }
@@ -221,7 +279,7 @@ const claudeEngine = {
         dir: matched ? matched.path : null,
         label: matched ? matched.path : name,
         count: files.length,
-        mtime: Math.max(...files.map((f) => safeStatMtime(path.join(dir, f)))),
+        mtime: Math.max(...files.map((f) => sessionTimestamp(path.join(dir, f)))),
       });
     }
     return out.sort((a, b) => b.mtime - a.mtime);
@@ -238,8 +296,9 @@ const claudeEngine = {
       const file = path.join(folder, f);
       sessions.push({
         id: f.slice(0, -6),
-        mtime: safeStatMtime(file),
+        mtime: sessionTimestamp(file),
         title: claudeReadTitle(file) || "(sin título)",
+        path: file,
       });
     }
     sessions.sort((a, b) => b.mtime - a.mtime);
@@ -280,7 +339,8 @@ function codexTitleIndex(opts) {
 }
 
 // Walk ~/.codex/sessions/YYYY/MM/DD/ collecting rollout-*.jsonl files and
-// reading their session_meta header (first line) for id + cwd.
+// reading their session_meta header (first line) for id + cwd. Prefers the
+// internal timestamp over mtime so backups don't scramble the order.
 function codexScanRollouts(opts) {
   const root = codexSessionsDir(opts);
   const found = [];
@@ -298,7 +358,7 @@ function codexScanRollouts(opts) {
         const head = readHead(full);
         const id = (head.match(/"id":"([^"]+)"/) || [])[1];
         const cwd = (head.match(/"cwd":"([^"]+)"/) || [])[1];
-        if (id) found.push({ id, cwd: cwd || null, mtime: safeStatMtime(full) });
+        if (id) found.push({ id, cwd: cwd || null, mtime: sessionTimestamp(full) });
       }
     }
   };
@@ -330,7 +390,7 @@ function codexScanRolloutsWithPath(opts) {
           found.push({
             id,
             cwd: cwd || null,
-            mtime: safeStatMtime(full),
+            mtime: sessionTimestamp(full),
             path: full,
           });
       }
@@ -397,12 +457,13 @@ const codexEngine = {
   },
   listSessions(dir, opts) {
     const titles = codexTitleIndex(opts);
-    const sessions = codexScanRollouts(opts)
+    const sessions = codexScanRolloutsWithPath(opts)
       .filter((r) => r.cwd === dir)
       .map((r) => ({
         id: r.id,
         mtime: r.mtime,
         title: titles.get(r.id) || "(sin título)",
+        path: r.path,
       }))
       .sort((a, b) => b.mtime - a.mtime);
     return { found: sessions.length > 0, location: dir, sessions };
@@ -427,6 +488,18 @@ function parseFrontmatter(text) {
     if (m) fm[m[1]] = m[2].trim();
   }
   return fm;
+}
+
+// APX sessions are .md with ISO timestamps in frontmatter — prefer those over
+// mtime for the same backup-safety reason the JSONL engines do.
+function apxSessionTimestamp(fm, file) {
+  for (const field of ["completed", "started"]) {
+    const v = fm?.[field];
+    if (!v || typeof v !== "string") continue;
+    const t = Date.parse(v);
+    if (!Number.isNaN(t)) return t;
+  }
+  return safeStatMtime(file);
 }
 
 function apxStorageRoot(opts) {
@@ -467,7 +540,7 @@ const apxEngine = {
               id: fm.id || baseId,
               path: file,
               cwd: proj.path,
-              mtime: safeStatMtime(file),
+              mtime: apxSessionTimestamp(fm, file),
               title: fm.title || baseId,
               agentSlug: slug,
               apxId: proj.apxId,
@@ -520,7 +593,9 @@ const apxEngine = {
               for (const f of fs.readdirSync(sdir)) {
                 if (!f.endsWith(".md")) continue;
                 count++;
-                mtime = Math.max(mtime, safeStatMtime(path.join(sdir, f)));
+                const file = path.join(sdir, f);
+                const fm = parseFrontmatter(fs.readFileSync(file, "utf8"));
+                mtime = Math.max(mtime, apxSessionTimestamp(fm, file));
               }
             } catch {}
           }
@@ -555,8 +630,9 @@ const apxEngine = {
         const fm = parseFrontmatter(fs.readFileSync(file, "utf8"));
         sessions.push({
           id: fm.id || f.slice(0, -3),
-          mtime: safeStatMtime(file),
+          mtime: apxSessionTimestamp(fm, file),
           title: `[${slug}] ${fm.title || "(sin título)"}`,
+          path: file,
         });
       }
     }
@@ -630,6 +706,149 @@ export function findSessionInEngine(engineId, id, opts = {}) {
   const detected = engine.detect(opts);
   if (!detected.available) return null;
   return engine.findSessionById(id, opts);
+}
+
+/**
+ * Enumerate every session across every detected+implemented engine, returning
+ * flat rows of { engine, id, title, mtime, cwd, path }. Used by `apx session
+ * find`. When `dir` is given, only that working directory is scanned (cheap);
+ * otherwise every project the engine knows about is walked.
+ *
+ * Caveat: an engine can only enumerate a project when it can resolve its cwd.
+ * Codex always records cwd; APX uses registered projects; Claude can only list
+ * folders that map back to a registered APX project (its folder names are a
+ * lossy encoding of the original path). Scope with --dir to reach the rest.
+ */
+export function collectAllSessions(opts = {}, { dir = null, engineId = null } = {}) {
+  const out = [];
+  for (const engine of Object.values(ENGINES)) {
+    if (engineId && engine.id !== engineId) continue;
+    if (!engine.implemented || typeof engine.listSessions !== "function") continue;
+    if (!engine.detect(opts).available) continue;
+
+    const dirs = [];
+    if (dir) {
+      dirs.push(dir);
+    } else {
+      let projects = [];
+      try {
+        projects = engine.listProjects(opts) || [];
+      } catch {}
+      for (const p of projects) if (p.dir) dirs.push(p.dir);
+    }
+
+    for (const d of dirs) {
+      let res;
+      try {
+        res = engine.listSessions(d, opts);
+      } catch {
+        continue;
+      }
+      if (!res || !res.found) continue;
+      for (const s of res.sessions || []) {
+        out.push({
+          engine: engine.id,
+          id: s.id,
+          title: s.title || "",
+          mtime: s.mtime || 0,
+          cwd: d,
+          path: s.path || null,
+        });
+      }
+    }
+  }
+  return out;
+}
+
+// Read a session file off disk for content (deep) search. Cheap: we already
+// have the absolute path from collectAllSessions, so no per-candidate rescan.
+function sessionContainsText(row, needle) {
+  if (!row.path) return false;
+  let text;
+  try {
+    text = fs.readFileSync(row.path, "utf8");
+  } catch {
+    return false;
+  }
+  return text.toLowerCase().includes(needle);
+}
+
+export function cmdSessionFind(args, opts = {}) {
+  const query = (args._ || []).join(" ").trim();
+  if (!query) {
+    throw new Error(
+      'apx session find: missing search text — e.g. apx session find "mejorar interfaz web"'
+    );
+  }
+  const needle = query.toLowerCase();
+  const deep = !!(args.flags.deep || args.flags.content);
+  const asJson = !!args.flags.json;
+  const engineFlag =
+    args.flags.engine && args.flags.engine !== true
+      ? String(args.flags.engine)
+      : null;
+  if (engineFlag && !ENGINES[engineFlag]) {
+    throw new Error(
+      `unknown engine "${engineFlag}" — valid engines: ${Object.keys(ENGINES).join(", ")}`
+    );
+  }
+  const limitFlag = args.flags.limit;
+  const limit =
+    limitFlag && limitFlag !== true ? parseInt(limitFlag, 10) : 20;
+
+  const dir = resolveTargetDir(args, opts);
+  const rows = collectAllSessions(opts, { dir, engineId: engineFlag });
+
+  const seen = new Set();
+  const matches = [];
+  for (const row of rows) {
+    const titleHit = String(row.title).toLowerCase().includes(needle);
+    let where = titleHit ? "title" : null;
+    if (!titleHit && deep && sessionContainsText(row, needle)) where = "content";
+    if (!where) continue;
+    const key = `${row.engine}:${row.id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    matches.push({ ...row, match: where });
+  }
+  matches.sort((a, b) => b.mtime - a.mtime);
+  const shown = matches.slice(0, limit);
+
+  if (asJson) {
+    console.log(JSON.stringify(shown, null, 2));
+    return;
+  }
+
+  if (matches.length === 0) {
+    console.log(`No sessions matching "${query}"${deep ? " (title + content)" : " (title)"}.`);
+    if (!deep) console.log("Tip: add --deep to search inside transcripts too.");
+    if (!dir) console.log("Tip: scope with --dir <path> or --project <name> to reach unregistered Claude projects.");
+    return;
+  }
+
+  console.log(
+    `${matches.length} match${matches.length === 1 ? "" : "es"} for "${query}"` +
+      (deep ? " (title + content)" : " (title)") +
+      (shown.length < matches.length ? ` — showing ${shown.length}` : "")
+  );
+  console.log("");
+  console.log(
+    `${"DATE".padEnd(12)} ${"ENGINE".padEnd(8)} ${"SESSION ID".padEnd(38)} TITLE`
+  );
+  console.log(
+    `${"─".repeat(12)} ${"─".repeat(8)} ${"─".repeat(38)} ${"─".repeat(30)}`
+  );
+  for (const m of shown) {
+    console.log(
+      `${fmtDate(m.mtime).padEnd(12)} ${String(m.engine).padEnd(8)} ${String(m.id).padEnd(38)} ${String(m.title).slice(0, 60)}`
+    );
+  }
+  console.log("");
+  console.log("Next:");
+  const top = shown[0];
+  console.log(`  apx session summary ${top.id}`);
+  console.log(`  apx session ask ${top.id} "your question"`);
+  console.log(`  apx session resume ${top.id} --continue`);
 }
 
 // ── command ──────────────────────────────────────────────────────────────────

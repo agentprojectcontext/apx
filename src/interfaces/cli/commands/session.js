@@ -462,11 +462,11 @@ export function cmdSessionCheck() {
  * No --engine + multiple matches → list collisions and exit non-zero, so the
  * caller can re-run with --engine.
  */
-export async function cmdSessionResume(args) {
-  const id = args._[0];
-  if (!id) throw new Error("apx session resume: missing <session-id>");
-
-  // ── 1. Resolve which engine owns this id ─────────────────────────────────
+// Resolve a single session by id across engines (or one engine via --engine).
+// Throws on zero matches; on a multi-engine collision it prints the candidates
+// and exits with code 2 (shared by resume / summary / ask).
+function resolveSingleSessionMeta(id, args, { verb = "resume" } = {}) {
+  if (!id) throw new Error(`apx session ${verb}: missing <session-id>`);
   const engineFlag = args.flags.engine;
   let hits;
   if (engineFlag && engineFlag !== true) {
@@ -475,7 +475,6 @@ export async function cmdSessionResume(args) {
   } else {
     hits = findSessionAcrossEngines(id);
   }
-
   if (hits.length === 0) {
     throw new Error(
       `session "${id}" not found in any detected engine` +
@@ -490,8 +489,14 @@ export async function cmdSessionResume(args) {
     console.error(`→ re-run with --engine <id> to pick one (apx | claude | codex)`);
     process.exit(2);
   }
+  return hits[0];
+}
 
-  const meta = hits[0];
+export async function cmdSessionResume(args) {
+  const id = args._[0];
+
+  // ── 1. Resolve which engine owns this id ─────────────────────────────────
+  const meta = resolveSingleSessionMeta(id, args, { verb: "resume" });
 
   // ── 2. Print metadata + optional transcript dump ─────────────────────────
   printEngineSession(meta, args);
@@ -575,21 +580,184 @@ async function summarizeSession(meta, args) {
     );
     return r.summary || null;
   }
-  // Non-apx: send the transcript tail to a generic super-agent endpoint.
-  const engine = ENGINES[meta.engine];
-  const reading = engine.readSession(meta, { tailBytes: 48 * 1024 });
-  if (!reading.found) return null;
-  const prompt =
-    `Summarize what happened in this ${meta.engine} session in 4 concrete bullets, ` +
-    `then list the next 1-2 obvious next steps. Reply in the user's language.\n\n` +
-    `Title: ${meta.title || "(none)"}\n` +
-    `Cwd:   ${meta.cwd || "(unknown)"}\n` +
-    `Last ${reading.tail.length} bytes of transcript:\n\n${reading.tail}`;
-  const r = await http.post(`/super-agent/summarize`, {
-    prompt,
-    context_note: `Resume request for ${meta.engine} session ${meta.id}.`,
+  // Non-apx: map-reduce the whole (binary-stripped) transcript. A byte-tail is
+  // unreliable here — the end of these JSONL transcripts is token-count
+  // bookkeeping, not conversation, so it has nothing to summarize.
+  const label = `${meta.engine} session "${meta.title || "(untitled)"}"`;
+  const head =
+    `Title: ${meta.title || "(none)"}\nCwd:   ${meta.cwd || "(unknown)"}\n`;
+  const { text } = await mapReduceSession(meta, {
+    note: "summary",
+    args,
+    oneShot: (t) =>
+      `Summarize what happened in this ${label} in 4 concrete bullets, then list ` +
+      `the next 1-2 obvious next steps. Reply in the user's language.\n\n${head}\n` +
+      `--- transcript ---\n${t}`,
+    mapInstruction: (chunk, i, n) =>
+      `Extract the key actions, decisions, file changes, and outcomes from part ` +
+      `${i}/${n} of a ${label} transcript. If this part is only bookkeeping/noise, ` +
+      `reply exactly "(nada relevante)". Be terse.\n\n--- part ${i}/${n} ---\n${chunk}`,
+    reduceInstruction: (notes) =>
+      `From these notes extracted across a ${label}, write 4 concrete bullets of what ` +
+      `happened, then 1-2 obvious next steps. Reply in the user's language.\n\n${head}\n` +
+      `Notes:\n\n${notes.join("\n\n")}`,
   });
-  return r?.text || null;
+  return text || null;
+}
+
+// `apx session summary <id>` — discoverable alias for `resume <id> --summary`.
+// Resolves the engine, then prints just the LLM summary (no metadata noise).
+export async function cmdSessionSummary(args) {
+  const id = args._[0];
+  const meta = resolveSingleSessionMeta(id, args, { verb: "summary" });
+  const summary = await summarizeSession(meta, args);
+  if (!summary) {
+    throw new Error(
+      "no summary produced — is the daemon up with super_agent.enabled in ~/.apx/config.json?"
+    );
+  }
+  console.log(`# summary — ${meta.engine}:${meta.id}`);
+  if (meta.title) console.log(`> ${meta.title}`);
+  console.log("");
+  console.log(summary);
+}
+
+// Pick the richest transcript text available for a session: prefer an attached
+// external JSONL (apx sessions that wrap another engine) over the .md/raw body.
+function sessionFullText(meta) {
+  const engine = ENGINES[meta.engine];
+  const reading = engine.readSession(meta, { tailBytes: 1 << 30 });
+  if (!reading.found) return null;
+  return reading.external?.raw || reading.raw || null;
+}
+
+// Transcripts (especially Codex/Claude JSONL) embed base64 image payloads and
+// other binary blobs that are pure noise for an LLM and waste chunk budget.
+// Drop data: URIs and any long unbroken base64-ish run, leaving a "[binary
+// omitted]" marker so the surrounding JSON structure stays readable.
+function stripBinaryNoise(text) {
+  if (!text) return text;
+  return text
+    .replace(/data:[\w.+-]+\/[\w.+-]+;base64,[A-Za-z0-9+/=]+/g, "[binary omitted]")
+    .replace(/[A-Za-z0-9+/]{200,}={0,2}/g, "[binary omitted]");
+}
+
+// Split a long string into byte-bounded chunks for the map step.
+function chunkText(text, chunkBytes) {
+  const chunks = [];
+  for (let i = 0; i < text.length; i += chunkBytes) {
+    chunks.push(text.slice(i, i + chunkBytes));
+  }
+  return chunks;
+}
+
+// We ask the summarize endpoint for a larger output budget than the
+// super-agent's 512 default: "thinking" models (gemini-2.5-flash) burn output
+// tokens reasoning over dense input and return empty text when the cap is too
+// low. With room to answer, ~48 KB chunks summarize reliably. Most sessions
+// fit in a handful of chunks; huge transcripts are capped by MR_MAX_CHUNKS
+// (raise with --max-chunks).
+const MR_CHUNK_BYTES = 48 * 1024;
+const MR_MAX_CHUNKS = 20;
+const MR_MAX_OUTPUT_TOKENS = 2048;
+
+// Generic map-reduce over a session transcript via the project-agnostic
+// /super-agent/summarize endpoint. Small (sanitized) transcripts go in one
+// shot; large ones are split into parts, each mined with `mapInstruction`, and
+// the surviving notes are synthesized with `reduceInstruction`. Both `ask` and
+// the non-apx `summary` path build on this — the byte-tail approach fails on
+// these JSONL transcripts because the tail is just token-count bookkeeping.
+async function mapReduceSession(meta, { mapInstruction, reduceInstruction, oneShot, note, args }) {
+  const text = stripBinaryNoise(sessionFullText(meta));
+  if (!text) throw new Error(`could not read transcript for ${meta.engine}:${meta.id}`);
+
+  const maxChunksFlag = args?.flags?.["max-chunks"];
+  const maxChunks =
+    maxChunksFlag && maxChunksFlag !== true
+      ? Math.max(1, parseInt(maxChunksFlag, 10))
+      : MR_MAX_CHUNKS;
+
+  if (text.length <= MR_CHUNK_BYTES) {
+    const r = await http.post(`/super-agent/summarize`, {
+      prompt: `${oneShot(text)}`,
+      context_note: `${note} (one-shot) ${meta.engine}:${meta.id}`,
+      max_tokens: MR_MAX_OUTPUT_TOKENS,
+    });
+    return { text: r?.text || null, chunks: 1, truncated: false };
+  }
+
+  const allChunks = chunkText(text, MR_CHUNK_BYTES);
+  const truncated = allChunks.length > maxChunks;
+  const chunks = allChunks.slice(0, maxChunks);
+
+  const notes = [];
+  for (let i = 0; i < chunks.length; i++) {
+    const r = await http.post(`/super-agent/summarize`, {
+      prompt: mapInstruction(chunks[i], i + 1, chunks.length),
+      context_note: `${note} map ${i + 1}/${chunks.length} ${meta.engine}:${meta.id}`,
+      max_tokens: MR_MAX_OUTPUT_TOKENS,
+    });
+    const n = (r?.text || "").trim();
+    if (n && !/^\(nada relevante\)\.?$/i.test(n)) notes.push(`[part ${i + 1}] ${n}`);
+  }
+
+  if (notes.length === 0) {
+    return { text: "(no relevant content found in the transcript)", chunks: chunks.length, truncated };
+  }
+
+  const r = await http.post(`/super-agent/summarize`, {
+    prompt: reduceInstruction(notes),
+    context_note: `${note} reduce ${meta.engine}:${meta.id}`,
+    max_tokens: MR_MAX_OUTPUT_TOKENS,
+  });
+  return { text: r?.text || null, chunks: chunks.length, truncated };
+}
+
+// `apx session ask <id> "<question>"` — RAG-lite Q&A over a session transcript.
+export async function cmdSessionAsk(args) {
+  const id = args._[0];
+  const question = (args._.slice(1) || []).join(" ").trim();
+  if (!question) {
+    throw new Error(
+      'apx session ask: missing question — e.g. apx session ask <id> "¿qué decidimos sobre el sidebar?"'
+    );
+  }
+  const meta = resolveSingleSessionMeta(id, args, { verb: "ask" });
+  const label = `${meta.engine} session "${meta.title || "(untitled)"}"`;
+  const { text, chunks, truncated } = await mapReduceSession(meta, {
+    note: "ask",
+    args,
+    oneShot: (t) =>
+      `Answer the question about this ${label}.\nQuestion: ${question}\n\n` +
+      `If the transcript doesn't contain the answer, say so plainly. ` +
+      `Reply concisely in the user's language.\n\n--- transcript ---\n${t}`,
+    mapInstruction: (chunk, i, n) =>
+      `You are mining part ${i}/${n} of a ${label} transcript to help answer a question.\n` +
+      `Question: ${question}\n\n` +
+      `Extract ONLY facts, decisions, code changes, file paths, or context from THIS part ` +
+      `that help answer it. If nothing here is relevant, reply exactly "(nada relevante)". ` +
+      `Be terse.\n\n--- part ${i}/${n} ---\n${chunk}`,
+    reduceInstruction: (notes) =>
+      `Answer the user's question using notes extracted from a ${label}.\n` +
+      `Question: ${question}\n\nNotes from ${notes.length} part(s):\n\n${notes.join("\n\n")}\n\n` +
+      `Give a direct, concise answer. If the notes don't answer it, say so. Reply in the user's language.`,
+  });
+  if (!text) {
+    throw new Error(
+      "no answer produced — is the daemon up with super_agent.enabled in ~/.apx/config.json?"
+    );
+  }
+  console.log(`# ${meta.engine}:${meta.id} — ${meta.title || "(untitled)"}`);
+  console.log(`> Q: ${question}`);
+  console.log("");
+  console.log(text);
+  if (truncated) {
+    console.log("");
+    console.log(
+      `⚠️  transcript exceeded ${chunks} chunks — answered over the first ` +
+        `${chunks} part(s). Raise with --max-chunks N for fuller coverage.`
+    );
+  }
 }
 
 // Map (engine, id, cwd) → how to spawn the engine's native CLI in resume mode.

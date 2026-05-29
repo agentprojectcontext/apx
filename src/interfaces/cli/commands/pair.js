@@ -54,8 +54,21 @@ function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+// `apx pair`  → companion devices via the APX Deck app (QR = JSON payload).
 export async function cmdPair(args = {}) {
-  const label = args.flags?.label || args._?.[0] || "";
+  return runPairing(args, "deck");
+}
+
+// `apx pair web` → a browser on the LAN. QR = a plain URL (`<base>/#pair=<pid>`)
+// so the phone's native camera opens the web already authenticating. Also
+// prints the link in plain text so you can share it (Telegram, chat) and the
+// recipient just taps it.
+export async function cmdPairWeb(args = {}) {
+  return runPairing(args, "web");
+}
+
+async function runPairing(args, channel) {
+  void (args.flags?.label || args._?.[0] || ""); // label is chosen by the device on confirm
 
   // 1. Ask daemon for a pairing nonce.
   let init;
@@ -69,30 +82,37 @@ export async function cmdPair(args = {}) {
   const ttlSec = Math.round((init.ttl_ms || 90_000) / 1000);
   const qrHost = pickHostForQr({ host: init.daemon?.host, port: init.daemon?.port });
   const qrPort = init.daemon?.port || 7430;
+  const baseUrl = `http://${qrHost}:${qrPort}`;
+  const webLink = `${baseUrl}/#pair=${init.pairing_id}`;
 
-  // 2. Build QR payload. Keep it small — devices read JSON.
-  //    Fields: v=1 (schema), url, pid (pairing_id), fp (master fingerprint).
-  const payload = {
-    v: 1,
-    url: `http://${qrHost}:${qrPort}`,
-    pid: init.pairing_id,
-    fp: init.fingerprint,
-  };
-  const encoded = JSON.stringify(payload);
+  // 2. QR payload differs per channel — no mixing.
+  //    deck: JSON {v,url,pid,fp} that the Deck app parses.
+  //    web : the scan-to-login URL the browser understands.
+  const qrData = channel === "web"
+    ? webLink
+    : JSON.stringify({ v: 1, url: baseUrl, pid: init.pairing_id, fp: init.fingerprint });
+  const title = channel === "web" ? "APX pairing (web)" : "APX pairing (deck)";
 
   console.log("");
-  console.log(`  ${fmt.bold("APX pairing")}  ${fmt.gray("·")}  ${fmt.dim(`expires in ${ttlSec}s`)}`);
+  console.log(`  ${fmt.bold(title)}  ${fmt.gray("·")}  ${fmt.dim(`expires in ${ttlSec}s`)}`);
   console.log("");
-  qrcode.generate(encoded, { small: true }, (qr) => {
+  qrcode.generate(qrData, { small: true }, (qr) => {
     console.log(qr);
   });
-  console.log(`  ${fmt.gray("scan with APX Deck app on the device")}`);
-  console.log(`  ${fmt.gray("url:")} ${fmt.cyan(payload.url)}   ${fmt.gray("fp:")} ${fmt.dim(init.fingerprint)}`);
+
+  if (channel === "web") {
+    console.log(`  ${fmt.gray("scan with the phone camera — opens the web already linked")}`);
+    console.log(`  ${fmt.gray("link:")} ${fmt.cyan(webLink)}`);
+    console.log(`  ${fmt.gray("code:")} ${fmt.bold(init.pairing_id)}  ${fmt.dim("(or paste it in the web pairing screen)")}`);
+  } else {
+    console.log(`  ${fmt.gray("scan with APX Deck app on the device")}`);
+    console.log(`  ${fmt.gray("url:")} ${fmt.cyan(baseUrl)}   ${fmt.gray("fp:")} ${fmt.dim(init.fingerprint)}`);
+  }
   console.log("");
 
   // 3. Poll /pair/status until confirmed or expired.
-  const start = Date.now();
-  const deadline = start + (init.ttl_ms || 90_000) + 5_000;
+  const reRun = channel === "web" ? "apx pair web" : "apx pair";
+  const deadline = Date.now() + (init.ttl_ms || 90_000) + 5_000;
   while (Date.now() < deadline) {
     await sleep(1500);
     try {
@@ -105,14 +125,14 @@ export async function cmdPair(args = {}) {
         return;
       }
       if (s.status === "expired" || s.status === "unknown") {
-        console.log(`  ${fmt.red("○")} pairing expired — re-run ${fmt.bold("apx pair")}`);
+        console.log(`  ${fmt.red("○")} pairing expired — re-run ${fmt.bold(reRun)}`);
         process.exit(1);
       }
     } catch (e) {
       // Transient errors are fine; keep polling.
     }
   }
-  console.log(`  ${fmt.red("○")} pairing expired — re-run ${fmt.bold("apx pair")}`);
+  console.log(`  ${fmt.red("○")} pairing expired — re-run ${fmt.bold(reRun)}`);
   process.exit(1);
 }
 

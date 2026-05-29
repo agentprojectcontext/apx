@@ -18,8 +18,30 @@
 // trick: we register them on a sub-router with its own auth check.
 
 import { randomUUID } from "node:crypto";
+import os from "node:os";
 
 const PAIRING_TTL_MS = 90_000;
+
+// Reachable base URLs a device on the LAN can hit. When the daemon binds to
+// the wildcard (0.0.0.0/::) we enumerate non-internal IPv4s; when it binds to
+// a concrete host we use that. Loopback is always last (only useful for the
+// host itself / adb reverse). Used to build the scan-to-login QR.
+function reachableUrls({ host, port }) {
+  const p = port || 7430;
+  const urls = [];
+  if (host && host !== "0.0.0.0" && host !== "::" && host !== "127.0.0.1") {
+    urls.push(`http://${host}:${p}`);
+  }
+  if (host === "0.0.0.0" || host === "::" || !host) {
+    for (const list of Object.values(os.networkInterfaces())) {
+      for (const i of list || []) {
+        if (i.family === "IPv4" && !i.internal) urls.push(`http://${i.address}:${p}`);
+      }
+    }
+  }
+  urls.push(`http://127.0.0.1:${p}`);
+  return [...new Set(urls)];
+}
 
 // pairing_id → { expires_at, confirmed_at, device_label, client_id }
 const sessions = new Map();
@@ -73,6 +95,9 @@ export function register(app, ctx) {
         host: config?.host || "127.0.0.1",
         port: config?.port || 7430,
       },
+      // Base URLs a LAN device can reach; the web builds `<url>/#pair=<pid>`
+      // so a phone can scan a QR and land already authenticating.
+      lan_urls: reachableUrls({ host: config?.host, port: config?.port }),
     });
   });
 
@@ -81,7 +106,7 @@ export function register(app, ctx) {
   // new client token. Nonce is one-shot.
   app.post("/pair/confirm", (req, res) => {
     purgeExpired();
-    const { pairing_id, label, fingerprint } = req.body || {};
+    const { pairing_id, label, fingerprint, kind } = req.body || {};
     if (!pairing_id || typeof pairing_id !== "string") {
       return res.status(400).json({ error: "pair/confirm: pairing_id required" });
     }
@@ -101,7 +126,7 @@ export function register(app, ctx) {
     // them anyway), but we surface it back so the device can decide.
     const expectedFp = tokenStore.masterFingerprint();
 
-    const client = tokenStore.addClient(label || "device");
+    const client = tokenStore.addClient(label || "device", kind || "device");
     s.confirmed_at = Date.now();
     s.device_label = client.label;
     s.client_id = client.id;
@@ -110,6 +135,7 @@ export function register(app, ctx) {
       token: client.token,
       client_id: client.id,
       label: client.label,
+      kind: client.kind,
       daemon_url: `http://${config?.host || "127.0.0.1"}:${config?.port || 7430}`,
       fingerprint: expectedFp,
       fingerprint_match:

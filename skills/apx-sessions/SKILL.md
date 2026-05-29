@@ -1,6 +1,6 @@
 ---
 name: apx-sessions
-description: "APX session management across engines (apx, claude, codex). Use when: listing sessions of one or every engine for a project, resuming a session by id without remembering which engine owns it, summarizing a Claude/Codex/APX transcript, pulling a full transcript by id (useful when you want to read another tool's session from inside Claude), spawning the native CLI to continue a session (`claude --resume`, `codex resume`), or seeding a brand-new APX session with the summary of an old one. Triggers on: 'apx session resume', 'apx session get', 'apx sessions list', 'continue codex session', 'resume claude session', 'summarize session', 'get session transcript', 'continue session in apx', 'qué sesiones hay', 'traer sesión de codex', 'leer sesión de claude'. Do NOT activate for generic agent orchestration or `apx run` — that belongs to the parent `apx` skill."
+description: "APX session management across engines (apx, claude, codex). Use when: finding a session by its title/topic without knowing the id (`apx session find`), listing sessions of one or every engine for a project, resuming a session by id without remembering which engine owns it, summarizing a Claude/Codex/APX transcript (`apx session summary`), asking a question about what happened in a past session (`apx session ask`), pulling a full transcript by id (useful when you want to read another tool's session from inside Claude), spawning the native CLI to continue a session (`claude --resume`, `codex resume`), or seeding a brand-new APX session with the summary of an old one. Triggers on: 'apx session find', 'find a session', 'buscar sesión', 'qué sesión era la de…', 'apx session ask', 'preguntale a la sesión', 'apx session summary', 'apx session resume', 'apx session get', 'apx sessions list', 'continue codex session', 'resume claude session', 'summarize session', 'get session transcript', 'continue session in apx', 'qué sesiones hay', 'traer sesión de codex', 'leer sesión de claude'. Do NOT activate for generic agent orchestration or `apx run` — that belongs to the parent `apx` skill."
 ---
 
 # APX Sessions — cross-engine resume, summary, and continuation
@@ -17,6 +17,73 @@ Engine storage locations APX scans:
 | antigravity | detected only — listing not implemented yet              |
 
 Engines not installed on the machine are silently skipped. Detected-but-empty engines show `(sin nada)`.
+
+---
+
+## The discovery flow (read this first)
+
+You almost never start with a session id — you start with a vague memory of a *title* ("the one about improving the web UI"). Do **not** hand-roll `apx sessions list ... | grep`. The flow is three commands:
+
+```bash
+# 1. Turn a remembered title into an id (cross-engine, newest first)
+apx session find "mejorar interfaz web"
+
+# 2. Get the gist of that session
+apx session summary <id>
+
+# 3. Ask something specific about it
+apx session ask <id> "¿qué cambios al sidebar quedaron pendientes?"
+```
+
+`find` prints a "Next:" block with the exact `summary`/`ask`/`resume` commands pre-filled with the top hit's id, so you can copy-paste straight through. **If you're tempted to grep session lists, use `find` instead.**
+
+---
+
+## Finding a session by title or content (`apx session find`)
+
+```bash
+apx session find "<text>"                      # match titles across every engine
+apx session find "<text>" --deep               # also search inside transcript content
+apx session find "<text>" --engine codex       # restrict to one engine
+apx session find "<text>" --dir /path/to/repo  # scope to one project (reaches unregistered Claude projects)
+apx session find "<text>" --limit 10 --json    # cap results / machine-readable
+```
+
+- Default search is **title-only** (fast — titles are already indexed per engine).
+- `--deep` reads each candidate transcript off disk and greps its content too. Slower; prefer combining it with `--engine`/`--dir` scope.
+- Output is one row per match — `DATE | ENGINE | SESSION ID | TITLE` — newest first, followed by ready-to-run `summary`/`ask`/`resume` commands.
+
+**Coverage caveat:** an engine can only be enumerated when APX can resolve a project's working directory. Codex always records it; APX uses registered projects; **Claude only lists folders that map back to a registered APX project** (its folder names are a lossy encoding of the cwd). If a Claude session is missing, scope with `--dir <path>` to reach it.
+
+---
+
+## Summarizing a session (`apx session summary`)
+
+```bash
+apx session summary <id>                  # auto-detect engine, print an LLM summary
+apx session summary <id> --engine claude  # skip auto-detect
+apx session summary <id> --max-chunks 8   # bound cost on a huge transcript
+```
+
+This is the discoverable alias for `apx session resume <id> --summary`. It resolves the owning engine, then prints a 4-bullet summary plus next steps. **Requires the daemon + `super_agent.enabled`.**
+
+---
+
+## Asking questions about a session (`apx session ask`)
+
+```bash
+apx session ask <id> "¿qué decidimos sobre el sidebar?"
+apx session ask <id> "what files were changed?" --max-chunks 30
+```
+
+RAG-lite Q&A over the transcript. Small transcripts are answered in one shot; large ones are **map-reduced**: each ~48 KB part is mined for question-relevant notes, then a final pass synthesizes the answer. **Requires the daemon + `super_agent.enabled`.**
+
+How it works and its limits:
+
+- Binary noise (base64 image payloads, which can be the majority of a JSONL transcript) is stripped before chunking.
+- Coverage is capped at `--max-chunks` (default 20 ≈ ~960 KB). Bigger transcripts print a truncation warning — raise `--max-chunks` for full coverage at the cost of more (sequential) model calls.
+- Speed scales with transcript size: a typical session answers in seconds; a multi-MB Codex rollout can take a couple of minutes.
+- Output quality depends on the configured `super_agent.model`. Small/cheap models that "think" (e.g. gemini-2.5-flash) can return thin answers; the command already requests a raised output budget to compensate.
 
 ---
 
@@ -125,12 +192,14 @@ apx session get 019abc... --engine codex --full > /tmp/prev.jsonl
 
 | Capability | Daemon required? |
 |------------|------------------|
+| `apx session find ...` | ❌ no |
 | `apx sessions list ...` | ❌ no |
 | `apx session get ...` (any mode) | ❌ no |
 | `apx session resume <id>` (metadata only) | ❌ no |
 | `apx session resume <id> --tail / --full` | ❌ no |
 | `apx session resume <id> --continue` | ❌ no |
-| `apx session resume <id> --summary` | ✅ yes (daemon + `super_agent.enabled` in `~/.apx/config.json`) |
+| `apx session resume <id> --summary` / `apx session summary <id>` | ✅ yes (daemon + `super_agent.enabled` in `~/.apx/config.json`) |
+| `apx session ask <id> "<q>"` | ✅ yes (daemon + `super_agent.enabled`) |
 | `apx session resume <id> --into apx[:slug]` | ⚠️ daemon needed only to compute the summary it embeds; without it, the new session is created with an empty summary block |
 
 If the daemon is down, `apx` auto-starts it when needed.
@@ -174,11 +243,14 @@ Pick one with `--engine claude` or `--engine codex` and run again.
 
 ## Tips for callers (LLMs)
 
-1. **Don't ask the user which engine.** Always try the auto-detect first: `apx session resume <id>`. If the CLI prints a collision message, *then* re-run with `--engine`.
-2. **Prefer `--tail N` over `--full`** when feeding into another model — JSONL is verbose, the tail is dense.
-3. **`--into apx:slug` is the bridge** between an external runtime's session and an APX agent. Use it when the user says "continuamos esto en apx con el agente reviewer".
-4. **Don't invent ids.** Always discover them via `apx sessions list` (or `--engine X --dir Y` to narrow down).
-5. **`apx session get --any --full`** is the simplest way to import an arbitrary engine session into your context, with no daemon dependency.
+1. **Start with `find`, not grep.** If the user describes a session by topic instead of id, run `apx session find "<text>"`. Never reconstruct this with `apx sessions list | grep` — that's the exact footgun this command replaces.
+2. **Don't ask the user which engine.** Auto-detect handles it. If the CLI prints a collision message, *then* re-run with `--engine`.
+3. **`summary` for the gist, `ask` for specifics.** Use `apx session summary <id>` to orient; use `apx session ask <id> "<q>"` when the user has a concrete question. Both need the daemon + `super_agent.enabled`.
+4. **`ask` on a huge transcript is slow and capped.** If the output warns about truncation and the user needs full coverage, re-run with a higher `--max-chunks`.
+5. **Prefer `--tail N` over `--full`** when feeding a raw transcript into another model — JSONL is verbose, the tail is dense.
+6. **`--into apx:slug` is the bridge** between an external runtime's session and an APX agent. Use it when the user says "continuamos esto en apx con el agente reviewer".
+7. **Don't invent ids.** Discover them via `apx session find` or `apx sessions list`.
+8. **`apx session get --any --full`** is the simplest way to import an arbitrary engine session into your context, with no daemon dependency.
 
 ---
 
@@ -186,9 +258,15 @@ Pick one with `--engine claude` or `--engine codex` and run again.
 
 ```bash
 # Discovery
+apx session find "<text>"                          # find by title across engines (start here)
+apx session find "<text>" --deep                   # also search transcript content
 apx sessions list                                  # all engines, all projects
 apx sessions list --project <name>                 # all engines, one project
 apx sessions list --engine <id> --dir <path>       # one engine, one dir
+
+# Understand
+apx session summary <id>                           # LLM summary of any session
+apx session ask <id> "<question>"                  # Q&A over the transcript (map-reduced)
 
 # Read
 apx session get <id>                               # local APC session metadata
