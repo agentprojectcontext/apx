@@ -7,7 +7,7 @@ import { TabNav, NavToggle, useNavCollapse, type TabSection } from "../component
 import { IdentityPanel } from "../components/settings/IdentityPanel";
 import { SuperAgentPanel } from "../components/settings/SuperAgentPanel";
 import { ModelsTab } from "./base/ModelsTab";
-import { TelegramGlobalPanel } from "../components/settings/TelegramGlobalPanel";
+import { TelegramSettingsTabs } from "../components/settings/TelegramSettingsTabs";
 import { DevicesPanel } from "../components/settings/DevicesPanel";
 import { AdvancedPanel } from "../components/settings/AdvancedPanel";
 import { AppearancePanel } from "../components/settings/AppearancePanel";
@@ -51,7 +51,7 @@ const PANELS: Record<TabKey, () => ReactElement> = {
   identity:    () => <IdentityPanel />,
   super_agent: () => <SuperAgentPanel />,
   engines:     () => <ModelsTab />,
-  telegram:    () => <TelegramGlobalPanel />,
+  telegram:    () => <TelegramSettingsTabs />,
   devices:     () => <DevicesPanel />,
   appearance:  () => <AppearancePanel />,
   advanced:    () => <AdvancedPanel />,

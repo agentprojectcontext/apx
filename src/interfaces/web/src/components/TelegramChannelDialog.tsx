@@ -73,6 +73,19 @@ export function TelegramChannelDialog({ channel, onClose, onSaved }: Props) {
         <Field label="route_to_agent" hint="Agente que contesta; vacío = super-agent APX.">
           <Input value={draft.route_to_agent || ""} onChange={(e) => setDraft({ ...draft, route_to_agent: e.target.value })} />
         </Field>
+        <Field
+          label="owner_user_id"
+          hint="user_id de Telegram del dueño de este canal. Override del rol global a 'owner' acá. Si lo dejás vacío, el primer mensaje privado lo reclama."
+        >
+          <Input
+            value={draft.owner_user_id != null ? String(draft.owner_user_id) : ""}
+            onChange={(e) => {
+              const raw = e.target.value.trim();
+              setDraft({ ...draft, owner_user_id: raw === "" ? undefined : /^\d+$/.test(raw) ? Number(raw) : raw });
+            }}
+            placeholder="889721252"
+          />
+        </Field>
         <Switch
           checked={!!draft.respond_with_engine}
           onChange={(v) => setDraft({ ...draft, respond_with_engine: v })}
