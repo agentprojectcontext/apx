@@ -22,7 +22,7 @@ const API_PREFIXES = [
   "/health", "/admin", "/projects", "/telegram", "/engines", "/runtimes",
   "/messages", "/sessions", "/tools", "/mcp", "/voice", "/tts", "/overlay",
   "/transcribe", "/run", "/files", "/memory", "/env", "/pair", "/deck",
-  "/super-agent", "/identity", "/agents", "/tasks",
+  "/super-agent", "/identity", "/agents", "/tasks", "/code",
 ];
 
 const proxy = Object.fromEntries(

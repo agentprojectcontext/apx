@@ -6,10 +6,10 @@ import {
   LayoutDashboard, Boxes, Cpu, ScrollText, History, Brain,
 } from "lucide-react";
 import { Projects } from "../lib/api";
-import { projectKindLabel } from "../components/layout/ProjectSidebar";
 import { Button } from "../components/ui";
 import { useToast } from "../components/Toast";
-import { TabNav, NavToggle, useNavCollapse, type TabSection } from "../components/common/TabNav";
+import { useNavCollapse, type TabSection } from "../components/common/TabNav";
+import { TabLayout } from "../components/common/TabLayout";
 import { useProject } from "../hooks/useProjects";
 import { STORAGE } from "../constants";
 import { t } from "../i18n";
@@ -49,31 +49,31 @@ export function ProjectScreen() {
       // Base = menú global / admin del daemon (distinto al de un proyecto).
       return [
         {
-          title: "General",
+          title: t("base.nav_general"),
           items: [
-            { key: "",               label: "Dashboard",      icon: LayoutDashboard },
-            { key: "workspaces",     label: "Workspaces",     icon: Boxes },
-            { key: "models",         label: "Models",         icon: Cpu },
-            { key: "agent-defaults", label: "Agent defaults", icon: Bot },
+            { key: "",               label: "Dashboard",                    icon: LayoutDashboard },
+            { key: "workspaces",     label: t("base.workspaces_title"),     icon: Boxes },
+            { key: "models",         label: t("settings.tabs.engines"),     icon: Cpu },
+            { key: "agent-defaults", label: t("base.defaults_title"),       icon: Bot },
           ],
         },
         {
-          title: "Actividad",
+          title: t("base.nav_activity"),
           items: [
-            { key: "chat",     label: "Chat",     icon: MessagesSquare },
-            { key: "sessions", label: "Sessions", icon: History },
-            { key: "tasks",    label: "Tasks",    icon: Zap },
-            { key: "logs",     label: "Logs",     icon: ScrollText },
+            { key: "chat",     label: t("project.nav.chat"),     icon: MessagesSquare },
+            { key: "sessions", label: t("base.sessions_title"),  icon: History },
+            { key: "tasks",    label: t("project.nav.tasks"),    icon: Zap },
+            { key: "logs",     label: t("project.nav.logs"),     icon: ScrollText },
           ],
         },
         {
-          title: "Sistema",
+          title: t("base.nav_system"),
           items: [
-            { key: "agents",   label: "Agents",   icon: Bot },
-            { key: "memories", label: "Memorias", icon: Brain },
-            { key: "routines", label: "Rutinas",  icon: Heart },
-            { key: "mcps",     label: "MCPs",     icon: Puzzle },
-            { key: "config",   label: "Config",   icon: Settings },
+            { key: "agents",   label: t("project.nav.agents"),   icon: Bot },
+            { key: "memories", label: t("project.nav.memories"), icon: Brain },
+            { key: "routines", label: t("project.nav.routines"), icon: Heart },
+            { key: "mcps",     label: t("project.nav.mcps"),     icon: Puzzle },
+            { key: "config",   label: t("project.nav.config"),   icon: Settings },
           ],
         },
       ];
@@ -87,7 +87,7 @@ export function ProjectScreen() {
           { key: "chat",     label: t("project.nav.chat"),      icon: MessagesSquare },
           { key: "threads",  label: t("project.nav.threads"),   icon: MessagesSquare },
           { key: "agents",   label: t("project.nav.agents"),    icon: Bot },
-          { key: "memories", label: "Memorias",                 icon: Brain },
+          { key: "memories", label: t("project.nav.memories"),  icon: Brain },
         ],
       },
       {
@@ -132,62 +132,47 @@ export function ProjectScreen() {
     navigate(url);
   };
 
+  const actions = Number(pid) !== 0 ? (
+    <>
+      <Button size="sm" variant="secondary" onClick={rebuild}>
+        <RefreshCw size={13} /> {t("project.rebuild")}
+      </Button>
+      <Button size="sm" variant="destructive" onClick={unregister}>
+        {t("admin.unregister")}
+      </Button>
+    </>
+  ) : undefined;
+
   return (
-    <div className="flex h-full">
-      <TabNav
-        sections={sections}
-        active={active}
-        onChange={onTabChange}
-        collapsed={collapsed}
-      />
-      <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
-        <header className="px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <NavToggle collapsed={collapsed} onToggle={toggle} />
-              <div>
-                <h1 className="text-xl font-semibold tracking-tight">
-                  {isBase ? "Base" : (project.name || project.path.split("/").pop())}
-                </h1>
-                <p className="text-xs text-muted-fg">
-                  {isBase ? "Espacio general · super-agente" : `${projectKindLabel(project.kind)} · ${project.path}`}
-                </p>
-              </div>
-            </div>
-            {Number(pid) !== 0 && (
-              <div className="flex gap-2">
-                <Button size="sm" variant="secondary" onClick={rebuild}>
-                  <RefreshCw size={13} /> {t("project.rebuild")}
-                </Button>
-                <Button size="sm" variant="destructive" onClick={unregister}>
-                  {t("admin.unregister")}
-                </Button>
-              </div>
-            )}
-          </div>
-        </header>
-        <div className="w-full space-y-6 p-6 pt-2" data-testid={`project-tab-${active || "overview"}`}>
-          <Routes>
-            <Route index               element={<Overview pid={pid} />} />
-            <Route path="workspaces"   element={<WorkspacesTab />} />
-            <Route path="models"       element={<ModelsTab />} />
-            <Route path="agent-defaults" element={<AgentDefaultsTab />} />
-            <Route path="sessions"     element={<SessionsTab />} />
-            <Route path="logs"         element={<LogsTab pid={pid} />} />
-            <Route path="config"       element={<ConfigTab pid={pid} />} />
-            <Route path="telegram"     element={<TelegramTab pid={pid} />} />
-            <Route path="agents"       element={<AgentsTab pid={pid} />} />
-            <Route path="agents/:slug" element={<AgentDetailScreen pid={pid} />} />
-            <Route path="memories"     element={<MemoriesTab pid={pid} />} />
-            <Route path="routines"     element={<RoutinesTab pid={pid} />} />
-            <Route path="tasks"        element={isBase ? <GlobalTasksTab /> : <TasksTab pid={pid} />} />
-            <Route path="mcps"         element={<McpsTab pid={pid} />} />
-            <Route path="threads"      element={<ThreadsTab pid={pid} />} />
-            <Route path="chat"         element={<ChatTab pid={pid} />} />
-            <Route path="*"            element={<Overview pid={pid} />} />
-          </Routes>
-        </div>
-      </div>
-    </div>
+    <TabLayout
+      sections={sections}
+      active={active}
+      onChange={onTabChange}
+      collapsed={collapsed}
+      onToggleCollapse={toggle}
+      actions={actions}
+      contentClassName="w-full space-y-6 p-6 pt-3"
+      testId={`project-tab-${active || "overview"}`}
+    >
+      <Routes>
+        <Route index               element={<Overview pid={pid} />} />
+        <Route path="workspaces"   element={<WorkspacesTab />} />
+        <Route path="models"       element={<ModelsTab />} />
+        <Route path="agent-defaults" element={<AgentDefaultsTab />} />
+        <Route path="sessions"     element={<SessionsTab />} />
+        <Route path="logs"         element={<LogsTab pid={pid} />} />
+        <Route path="config"       element={<ConfigTab pid={pid} />} />
+        <Route path="telegram"     element={<TelegramTab pid={pid} />} />
+        <Route path="agents"       element={<AgentsTab pid={pid} />} />
+        <Route path="agents/:slug" element={<AgentDetailScreen pid={pid} />} />
+        <Route path="memories"     element={<MemoriesTab pid={pid} />} />
+        <Route path="routines"     element={<RoutinesTab pid={pid} />} />
+        <Route path="tasks"        element={isBase ? <GlobalTasksTab /> : <TasksTab pid={pid} />} />
+        <Route path="mcps"         element={<McpsTab pid={pid} />} />
+        <Route path="threads"      element={<ThreadsTab pid={pid} />} />
+        <Route path="chat"         element={<ChatTab pid={pid} />} />
+        <Route path="*"            element={<Overview pid={pid} />} />
+      </Routes>
+    </TabLayout>
   );
 }

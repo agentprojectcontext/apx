@@ -1,9 +1,10 @@
 // Daemon HTTP routes for text-to-speech.
 //
-//   POST /tts/say        { text, voice?, language?, provider?, format? }
+//   POST /tts/say        { text, voice?, language?, provider?, format?, style? }
 //                        → { audio_path, duration_s, mime, provider }
 //
-//   GET  /tts/providers  → { configured_provider, engines: [{id, available, configured}] }
+//   GET  /tts/providers  → { configured_provider, mode, order,
+//                            engines: [{id, available, configured, enabled}] }
 //
 // Audio files land under ~/.apx/tmp/tts/<uuid>.<ext>. The caller (CLI,
 // Telegram plugin, overlay) is responsible for picking them up.
@@ -13,7 +14,7 @@ import { readConfig } from "../../../core/config.js";
 export function register(app) {
   app.post("/tts/say", async (req, res) => {
     try {
-      const { text, voice, language, provider, format } = req.body || {};
+      const { text, voice, language, provider, format, style } = req.body || {};
       if (typeof text !== "string" || !text.trim()) {
         return res.status(400).json({ error: "text required" });
       }
@@ -23,6 +24,7 @@ export function register(app) {
         language,
         provider,
         format,
+        style,
         globalConfig: readConfig(),
       });
       res.json(result);

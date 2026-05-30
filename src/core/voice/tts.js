@@ -11,7 +11,12 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { readConfig } from "../config.js";
-import { selectTtsEngine, listAvailableTtsEngines } from "./engines/index.js";
+import {
+  selectTtsEngine,
+  listAvailableTtsEngines,
+  resolveMode,
+  resolveChainOrder,
+} from "./engines/index.js";
 
 export const TTS_TMP_DIR = path.join(os.homedir(), ".apx", "tmp", "tts");
 
@@ -31,6 +36,9 @@ export function ensureTtsTmpDir() {
  *                                  auto-detect via multilingual models).
  * @param {string} [opts.format]   "mp3" | "wav" | "ogg" — engine may override.
  * @param {string} [opts.provider] Force a specific engine (skips selector).
+ * @param {string} [opts.style]    Natural-language speaking-style instruction
+ *                                  (engines that support it, e.g. Gemini, use
+ *                                  it; others ignore it).
  * @param {object} [opts.globalConfig]  Pass-in for tests; falls back to readConfig().
  * @returns {Promise<{audio_path, duration_s, mime, provider}>}
  */
@@ -40,6 +48,7 @@ export async function synthesize({
   language,
   format,
   provider,
+  style,
   globalConfig,
   signal,
 } = {}) {
@@ -58,6 +67,7 @@ export async function synthesize({
     voice,
     language,
     format,
+    style,
     outDir,
     config: engineConfig,
     parentEnginesCfg: cfg.engines,
@@ -68,10 +78,12 @@ export async function synthesize({
 /** List engines and whether they look usable right now. */
 export async function listProviders(globalConfig) {
   const cfg = globalConfig || readConfig() || {};
+  const ttsCfg = cfg?.voice?.tts || {};
   const engines = await listAvailableTtsEngines(cfg);
-  const configured = cfg?.voice?.tts?.provider || "auto";
   return {
-    configured_provider: configured,
+    configured_provider: ttsCfg.provider || "auto",
+    mode: resolveMode(ttsCfg),
+    order: resolveChainOrder(ttsCfg),
     engines,
   };
 }

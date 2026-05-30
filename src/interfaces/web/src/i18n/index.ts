@@ -4,6 +4,7 @@
 // time. Unknown keys log a warning and return the key itself so missing
 // strings surface visually in dev.
 import { es, type EsStrings } from "./es";
+import { en } from "./en";
 import { STORAGE } from "../constants";
 
 type DeepKeys<T, P extends string = ""> = {
@@ -14,8 +15,8 @@ type DeepKeys<T, P extends string = ""> = {
 
 export type TKey = DeepKeys<EsStrings>;
 
-const dictionaries = { es } as const;
-type Locale = keyof typeof dictionaries;
+const dictionaries: Record<string, unknown> = { es, en };
+export type Locale = "es" | "en";
 
 function readLocale(): Locale {
   try {
@@ -32,10 +33,15 @@ export function setLocale(l: Locale) {
   try { localStorage.setItem(STORAGE.language, l); } catch { /* quota */ }
 }
 
+export const LOCALES: { value: Locale; label: string }[] = [
+  { value: "es", label: "Español" },
+  { value: "en", label: "English" },
+];
+
 export function getLocale(): Locale { return activeLocale; }
 
 function lookup(key: string): string | undefined {
-  const dict = dictionaries[activeLocale] as unknown as Record<string, unknown>;
+  const dict = dictionaries[activeLocale] as Record<string, unknown>;
   const parts = key.split(".");
   let cur: any = dict;
   for (const p of parts) {
@@ -50,8 +56,26 @@ function format(s: string, vars?: Record<string, string | number>): string {
   return s.replace(/\{(\w+)\}/g, (_m, k) => (k in vars ? String(vars[k]) : `{${k}}`));
 }
 
+// Falls back to es dict when a key is missing in the active locale (safety net).
+function lookupWithFallback(key: string): string | undefined {
+  const found = lookup(key);
+  if (found !== undefined) return found;
+  if (activeLocale !== "es") {
+    const esDict = dictionaries["es"] as Record<string, unknown>;
+    const parts = key.split(".");
+    let cur: unknown = esDict;
+    for (const p of parts) {
+      if (cur && typeof cur === "object" && p in (cur as Record<string, unknown>)) {
+        cur = (cur as Record<string, unknown>)[p];
+      } else return undefined;
+    }
+    return typeof cur === "string" ? cur : undefined;
+  }
+  return undefined;
+}
+
 export function t(key: TKey, vars?: Record<string, string | number>): string {
-  const found = lookup(key as string);
+  const found = lookupWithFallback(key as string);
   if (found === undefined) {
     if ((import.meta as { env?: { DEV?: boolean } }).env?.DEV) {
       console.warn(`[i18n] missing key: ${key}`);

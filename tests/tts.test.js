@@ -15,6 +15,8 @@ import { synthesize, listProviders, TTS_TMP_DIR } from "../src/core/voice/tts.js
 import {
   selectTtsEngine,
   listAvailableTtsEngines,
+  resolveMode,
+  resolveChainOrder,
   TTS_ENGINE_IDS,
   AUTO_PREFERENCE,
 } from "../src/core/voice/engines/index.js";
@@ -147,6 +149,160 @@ test("listAvailableTtsEngines reports configured flag", async () => {
 
   const mock = list.find((e) => e.id === "mock");
   assert.equal(mock.available, true);
+});
+
+// ---------------------------------------------------------------------------
+// Mode / order / enabled (chain vs single)
+// ---------------------------------------------------------------------------
+
+test("resolveMode derives single/chain from legacy provider", () => {
+  assert.equal(resolveMode({ provider: "auto" }), "chain");
+  assert.equal(resolveMode({}), "chain");
+  assert.equal(resolveMode({ provider: "openai" }), "single");
+  // Explicit mode wins over the derived value.
+  assert.equal(resolveMode({ mode: "chain", provider: "openai" }), "chain");
+  assert.equal(resolveMode({ mode: "single", provider: "auto" }), "single");
+});
+
+test("resolveChainOrder puts custom ids first, keeps mock as guard", () => {
+  const order = resolveChainOrder({ order: ["gemini", "openai"] });
+  assert.equal(order[0], "gemini");
+  assert.equal(order[1], "openai");
+  assert.ok(order.includes("mock"), "mock must always be present");
+  // Unknown ids are dropped.
+  const cleaned = resolveChainOrder({ order: ["bogus", "mock"] });
+  assert.ok(!cleaned.includes("bogus"));
+});
+
+test("single mode uses the configured provider verbatim", async () => {
+  const sel = await selectTtsEngine({
+    globalConfig: { voice: { tts: { mode: "single", provider: "elevenlabs" } } },
+  });
+  assert.equal(sel.provider, "elevenlabs");
+});
+
+test("chain mode skips disabled engines", async () => {
+  const stash = {};
+  for (const k of ["ELEVENLABS_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY"]) {
+    stash[k] = process.env[k];
+    delete process.env[k];
+  }
+  try {
+    // elevenlabs is configured+available but disabled → must be skipped, and
+    // since nothing else has a key, we land on mock.
+    const sel = await selectTtsEngine({
+      globalConfig: {
+        voice: {
+          tts: {
+            mode: "chain",
+            order: ["elevenlabs", "mock"],
+            elevenlabs: { api_key: "sk_test", enabled: false },
+          },
+        },
+        engines: {},
+      },
+    });
+    assert.equal(sel.provider, "mock");
+  } finally {
+    for (const [k, v] of Object.entries(stash)) if (v) process.env[k] = v;
+  }
+});
+
+test("chain mode honours custom order over AUTO_PREFERENCE", async () => {
+  // Two cloud engines configured; custom order prefers gemini before openai.
+  const sel = await selectTtsEngine({
+    globalConfig: {
+      voice: {
+        tts: {
+          mode: "chain",
+          order: ["gemini", "openai"],
+          gemini: { api_key: "g" },
+          openai: { api_key: "o" },
+        },
+      },
+    },
+  });
+  assert.equal(sel.provider, "gemini");
+});
+
+test("listAvailableTtsEngines reports enabled flag; enabled-only block isn't 'configured'", async () => {
+  const list = await listAvailableTtsEngines({
+    voice: { tts: { piper: { enabled: false }, mock: {} } },
+  });
+  const piper = list.find((e) => e.id === "piper");
+  assert.equal(piper.enabled, false);
+  // Only an `enabled` key → not counted as real config.
+  assert.equal(piper.configured, false);
+});
+
+test("listProviders returns mode + order", async () => {
+  const info = await listProviders({
+    voice: { tts: { mode: "single", provider: "mock", order: ["gemini"] } },
+    engines: {},
+  });
+  assert.equal(info.mode, "single");
+  assert.equal(info.order[0], "gemini");
+  assert.ok(info.order.includes("mock"));
+});
+
+// ---------------------------------------------------------------------------
+// Gemini speaking-style prefix
+// ---------------------------------------------------------------------------
+
+test("gemini synthesize prefixes the style instruction onto the text", async () => {
+  let captured = null;
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = async (_url, opts) => {
+    captured = JSON.parse(opts.body);
+    return {
+      ok: true,
+      json: async () => ({
+        candidates: [{ content: { parts: [{ inlineData: { data: Buffer.from("x").toString("base64"), mimeType: "audio/L16;rate=24000" } }] } }],
+      }),
+    };
+  };
+  const outDir = path.join(os.tmpdir(), `apx-test-tts-${Date.now()}`);
+  try {
+    const r = await geminiEngine.synthesize({
+      text: "hola",
+      style: "hablá alegre",
+      outDir,
+      config: { api_key: "k" },
+    });
+    assert.equal(captured.contents[0].parts[0].text, "hablá alegre: hola");
+    try { fs.unlinkSync(r.audio_path); } catch {}
+  } finally {
+    globalThis.fetch = origFetch;
+    try { fs.rmSync(outDir, { recursive: true, force: true }); } catch {}
+  }
+});
+
+test("gemini per-call style overrides config.style", async () => {
+  let captured = null;
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = async (_url, opts) => {
+    captured = JSON.parse(opts.body);
+    return {
+      ok: true,
+      json: async () => ({
+        candidates: [{ content: { parts: [{ inlineData: { data: Buffer.from("x").toString("base64"), mimeType: "audio/L16;rate=24000" } }] } }],
+      }),
+    };
+  };
+  const outDir = path.join(os.tmpdir(), `apx-test-tts-${Date.now()}`);
+  try {
+    const r = await geminiEngine.synthesize({
+      text: "hola",
+      style: "override",
+      outDir,
+      config: { api_key: "k", style: "saved style" },
+    });
+    assert.equal(captured.contents[0].parts[0].text, "override: hola");
+    try { fs.unlinkSync(r.audio_path); } catch {}
+  } finally {
+    globalThis.fetch = origFetch;
+    try { fs.rmSync(outDir, { recursive: true, force: true }); } catch {}
+  }
 });
 
 // ---------------------------------------------------------------------------

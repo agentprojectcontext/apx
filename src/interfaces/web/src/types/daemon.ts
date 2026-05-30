@@ -242,10 +242,48 @@ export interface GlobalConfig {
   voice?: Record<string, unknown>;
 }
 
+/** Token accounting accumulated across a super-agent turn. */
+export interface ChatUsage {
+  input_tokens?: number;
+  output_tokens?: number;
+}
+
+/** A single tool invocation as surfaced by the agent loop's trace. */
+export interface ToolTrace {
+  id: string;
+  tool: string;
+  args?: Record<string, unknown>;
+  result?: unknown;
+  pending?: boolean;
+}
+
+/**
+ * NDJSON events emitted by the super-agent loop (see core/agent/run-agent.js).
+ * The fields are a union over every event `type`; consumers branch on `type`.
+ */
 export interface ChatStreamEvent {
   type?: string;
+  // text streaming (assistant_text carries `text`)
   delta?: string;
   text?: string;
   content?: string;
+  // diagnostics
   error?: string;
+  iteration?: number;
+  model?: string;
+  provider?: string;
+  reason?: string;
+  retry_with?: string;
+  from_fallback?: boolean;
+  tools?: string[];
+  streak?: number;
+  // tool_start / tool_result / tool_deduped
+  trace?: ToolTrace;
+  // final
+  result?: {
+    text?: string;
+    usage?: ChatUsage;
+    name?: string;
+    trace?: ToolTrace[];
+  };
 }

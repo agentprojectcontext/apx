@@ -5,6 +5,7 @@ import { Sessions } from "../../lib/api";
 import { Section } from "../../components/Section";
 import { Badge, Button, Empty, Loading } from "../../components/ui";
 import { UiSelect } from "../../components/UiSelect";
+import { t } from "../../i18n";
 
 const ENGINE_TONE: Record<string, "success" | "info" | "warning" | "muted"> = {
   apx: "success", claude: "info", codex: "warning",
@@ -17,8 +18,8 @@ export function SessionsTab() {
 
   return (
     <Section
-      title="Sessions"
-      description="Sesiones de todos los engines (apx · claude · codex), más nuevas primero."
+      title={t("base.sessions_title")}
+      description={t("base.sessions_desc")}
       action={
         <div className="flex items-center gap-2">
           <div className="w-40">
@@ -26,7 +27,7 @@ export function SessionsTab() {
               value={engine}
               onChange={setEngine}
               options={[
-                { value: "", label: "Todos los engines" },
+                { value: "", label: t("base.sessions_all") },
                 { value: "apx", label: "apx" },
                 { value: "claude", label: "claude" },
                 { value: "codex", label: "codex" },
@@ -38,8 +39,8 @@ export function SessionsTab() {
       }
     >
       {list.isLoading && <Loading />}
-      {list.error && <Empty>No pude leer las sesiones: {(list.error as Error).message}</Empty>}
-      {!list.isLoading && !list.error && rows.length === 0 && <Empty>Sin sesiones.</Empty>}
+      {list.error && <Empty>{t("base.sessions_error", { msg: (list.error as Error).message })}</Empty>}
+      {!list.isLoading && !list.error && rows.length === 0 && <Empty>{t("base.sessions_empty")}</Empty>}
       <ul className="space-y-1 text-sm">
         {rows.map((s, i) => (
           <li key={`${s.engine}-${s.id}-${i}`} className="flex items-center gap-3 rounded-md border border-border bg-muted/30 px-3 py-2">

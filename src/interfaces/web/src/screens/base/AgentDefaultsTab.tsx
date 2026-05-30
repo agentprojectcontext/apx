@@ -6,6 +6,7 @@ import { Section } from "../../components/Section";
 import { Badge, Button, Dialog, Empty, Field, Input, Loading, Switch, Textarea } from "../../components/ui";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../components/ui/tooltip";
 import { useToast } from "../../components/Toast";
+import { t } from "../../i18n";
 import type { AgentEntry } from "../../types/daemon";
 
 type VaultAgent = AgentEntry & { source?: "bundled" | "user" | "user-override" };
@@ -29,37 +30,37 @@ export function AgentDefaultsTab() {
   const remove = async (a: VaultAgent) => {
     const tombstoning = a.source !== "user";
     const msg = tombstoning
-      ? `Ocultar el default "${a.slug}"? Es bundled — quedá tombstoneado y lo recuperás con Restaurar.`
-      : `Borrar el template "${a.slug}"?`;
+      ? t("base.defaults_tombstone_msg", { slug: a.slug })
+      : t("base.defaults_delete_msg", { slug: a.slug });
     if (!confirm(msg)) return;
     try {
       await Agents.vaultRemove(a.slug);
-      toast.success(tombstoning ? "Ocultado." : "Borrado.");
+      toast.success(tombstoning ? t("base.defaults_hidden") : t("base.defaults_deleted"));
       vault.mutate();
     } catch (e) { toast.error((e as Error).message); }
   };
 
   const restore = async (slug: string) => {
-    try { await Agents.vaultRestore(slug); toast.success("Restaurado."); vault.mutate(); }
+    try { await Agents.vaultRestore(slug); toast.success(t("base.defaults_restored")); vault.mutate(); }
     catch (e) { toast.error((e as Error).message); }
   };
 
   return (
     <Section
-      title="Agent defaults"
-      description="Plantillas globales del vault. Las bundled vienen con APX y siempre están; las que crees o edites quedan en ~/.apx/agents y se superponen. Importalas a un proyecto desde Agents › Importar."
+      title={t("base.defaults_title")}
+      description={t("base.defaults_desc")}
       action={
         <div className="flex items-center gap-2">
-          <Switch checked={showRemoved} onChange={setShowRemoved} label="Mostrar removidos" />
+          <Switch checked={showRemoved} onChange={setShowRemoved} label={t("base.defaults_show_removed")} />
           <Button size="sm" onClick={() => setEditing("new")}>
-            <Plus size={14} /> Nuevo
+            <Plus size={14} /> {t("base.defaults_new")}
           </Button>
         </div>
       }
     >
       {vault.isLoading && <Loading />}
       {!vault.isLoading && items.length === 0 && (
-        <Empty>Sin plantillas en el vault.</Empty>
+        <Empty>{t("base.defaults_empty")}</Empty>
       )}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((a) => {
@@ -79,12 +80,12 @@ export function AgentDefaultsTab() {
                 </div>
                 <div className="flex shrink-0 items-center gap-0.5">
                   {tombstoned ? (
-                    <IconBtn label="Restaurar" onClick={() => restore(a.slug)} variant="secondary"><RotateCcw size={13} /></IconBtn>
+                    <IconBtn label={t("base.defaults_restore")} onClick={() => restore(a.slug)} variant="secondary"><RotateCcw size={13} /></IconBtn>
                   ) : (
                     <>
-                      <IconBtn label="Editar" onClick={() => setEditing(a)} variant="ghost"><Pencil size={13} /></IconBtn>
+                      <IconBtn label={t("base.defaults_edit")} onClick={() => setEditing(a)} variant="ghost"><Pencil size={13} /></IconBtn>
                       <IconBtn
-                        label={a.source === "user" ? "Borrar" : "Ocultar"}
+                        label={a.source === "user" ? t("base.defaults_delete") : t("base.defaults_hide")}
                         onClick={() => remove(a)}
                         variant="ghost-destructive"
                       >
@@ -193,13 +194,13 @@ function VaultAgentDialog({
     try {
       if (isNew) {
         if (!/^[a-z][a-z0-9_-]*$/.test(slug)) {
-          throw new Error("slug inválido (debe matchear /^[a-z][a-z0-9_-]*$/)");
+          throw new Error(t("base.defaults_slug_invalid"));
         }
         await Agents.vaultCreate(slug, fields, body);
-        toast.success(`Template "${slug}" creado.`);
+        toast.success(t("base.defaults_created", { slug }));
       } else {
         await Agents.vaultPatch(agent!.slug, { fields, body });
-        toast.success(`Template "${agent!.slug}" guardado.`);
+        toast.success(t("base.defaults_saved", { slug: agent!.slug }));
       }
       onSaved();
     } catch (e) {
@@ -213,18 +214,18 @@ function VaultAgentDialog({
     <Dialog
       open
       onClose={onClose}
-      title={isNew ? "Nuevo template" : `Editar "${agent!.slug}"`}
+      title={isNew ? t("base.defaults_new_title") : t("base.defaults_edit_title", { slug: agent!.slug })}
       description={isNew
-        ? "POST /agents/vault — se guarda en ~/.apx/agents/<slug>.md"
+        ? t("base.defaults_new_desc")
         : agent!.source === "bundled"
-          ? "Es un default bundled. Al guardar se hace copy-on-write a ~/.apx/agents/<slug>.md (queda como override)."
-          : "PATCH /agents/vault/:slug — edita el archivo en ~/.apx/agents."
+          ? t("base.defaults_bundled_desc")
+          : t("base.defaults_user_desc")
       }
       size="lg"
       footer={
         <>
-          <Button variant="ghost" onClick={onClose} disabled={busy}>Cancelar</Button>
-          <Button variant="primary" onClick={submit} loading={busy}>Guardar</Button>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>{t("common.cancel")}</Button>
+          <Button variant="primary" onClick={submit} loading={busy}>{t("common.save")}</Button>
         </>
       }
     >
@@ -246,7 +247,7 @@ function VaultAgentDialog({
           </Field>
           <Field label="is_master">
             <div className="flex h-9 items-center">
-              <Switch checked={isMaster} onChange={setIsMaster} label="Agente master" />
+              <Switch checked={isMaster} onChange={setIsMaster} label={t("base.defaults_master_label")} />
             </div>
           </Field>
         </div>

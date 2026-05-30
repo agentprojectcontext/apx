@@ -78,7 +78,7 @@ export function AddProjectDialog({ open, onClose }: { open: boolean; onClose: ()
               onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
             />
             <Button onClick={() => loadDirs(path || "~")} disabled={loadingDirs}>
-              <Search size={14} /> Buscar
+              <Search size={14} /> {t("add_project.search_btn")}
             </Button>
           </div>
         </Field>
@@ -98,9 +98,9 @@ export function AddProjectDialog({ open, onClose }: { open: boolean; onClose: ()
           <div className="max-h-64 overflow-y-auto p-2">
             {loadingDirs && <Loading />}
             {!loadingDirs && browseError && (
-              <Empty>Explorador no disponible hasta reiniciar daemon. Pegá ruta manual.</Empty>
+              <Empty>{t("add_project.browser_unavailable")}</Empty>
             )}
-            {!loadingDirs && !browseError && entries.length === 0 && <Empty>Sin carpetas.</Empty>}
+            {!loadingDirs && !browseError && entries.length === 0 && <Empty>{t("add_project.no_folders")}</Empty>}
             {!loadingDirs && !browseError && entries.map((entry) => (
               <button
                 key={entry}

@@ -22,8 +22,8 @@ test.describe("shell & auth", () => {
     await expect(page.getByTestId("settings-tab-identity")).toBeVisible();
     const html = page.locator("html");
     const before = await html.getAttribute("class");
-    // theme toggle is the lone icon button in the top bar header
-    await page.locator("header button").last().click();
+    // theme toggle is the lone button in the TopBar header (direct child of <main>)
+    await page.locator("main > header button").first().click();
     await expect(html).not.toHaveClass(before ?? "");
   });
 });

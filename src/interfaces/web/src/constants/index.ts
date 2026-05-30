@@ -22,6 +22,7 @@ export const STORAGE = {
   token: "apx.token",
   sidebarCollapsed: "apx.sidebar.collapsed",
   language: "apx.lang",
+  robyChat: "apx.roby.chat",
 } as const;
 
 /** Tailwind class tokens reused across components. */

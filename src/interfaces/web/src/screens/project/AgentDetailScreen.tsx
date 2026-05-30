@@ -12,17 +12,20 @@ import { Badge, Button, Field, Input, Loading, Switch, Textarea } from "../../co
 import { UiSelect } from "../../components/UiSelect";
 import { useToast } from "../../components/Toast";
 import { cn } from "../../lib/cn";
+import { t } from "../../i18n";
 import { AgentBrainGraph, type BrainNode } from "./AgentBrainGraph";
 
 type TabKey = "overview" | "memories" | "records" | "sleep" | "brain" | "config";
-const TABS: { key: TabKey; label: string; icon: typeof Bot }[] = [
-  { key: "overview", label: "Explorer", icon: Gauge },
-  { key: "memories", label: "Memorias", icon: Brain },
-  { key: "records",  label: "Records",  icon: Activity },
-  { key: "sleep",    label: "Sleep",    icon: Heart },
-  { key: "brain",    label: "Brain",    icon: Sparkles },
-  { key: "config",   label: "Config",   icon: Settings },
-];
+function buildTabs(): { key: TabKey; label: string; icon: typeof Bot }[] {
+  return [
+    { key: "overview", label: "Explorer",                         icon: Gauge },
+    { key: "memories", label: t("project.nav.memories"),          icon: Brain },
+    { key: "records",  label: t("project.agent_detail.records_title"), icon: Activity },
+    { key: "sleep",    label: t("project.agent_detail.sleep_title"),   icon: Heart },
+    { key: "brain",    label: t("project.agent_detail.brain_title"),   icon: Sparkles },
+    { key: "config",   label: t("settings.tabs.advanced"),             icon: Settings },
+  ];
+}
 
 const TYPE_OPTIONS = [
   { value: "", label: "— sin tipo —" },
@@ -32,6 +35,7 @@ const TYPE_OPTIONS = [
   { value: "worker",       label: "Worker",       description: "Corre tareas autónomas." },
   { value: "monitor",      label: "Monitor",      description: "Observa estado y reporta." },
 ];
+// Note: TYPE_OPTIONS labels are intentionally not externalized — they are proper nouns / technical terms
 const csv = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
 
 const routinesForAgent = (rs: RoutineEntry[], slug: string) =>
@@ -49,6 +53,7 @@ export function AgentDetailScreen({ pid }: { pid: string }) {
   const { slug = "" } = useParams();
   const navigate = useNavigate();
   const [tab, setTab] = useState<TabKey>("overview");
+  const TABS = buildTabs();
 
   const detail = useSWR(`/projects/${pid}/agents/${slug}`, () => Agents.get(pid, slug));
   const agents = useSWR(`/projects/${pid}/agents`, () => Agents.list(pid));
@@ -63,7 +68,7 @@ export function AgentDetailScreen({ pid }: { pid: string }) {
   const children = (agents.data || []).filter((x) => x.parent === slug);
 
   if (detail.isLoading) return <Loading />;
-  if (!a) return <div className="text-sm text-muted-fg">Agente no encontrado.</div>;
+  if (!a) return <div className="text-sm text-muted-fg">{t("project.agent_detail.not_found")}</div>;
 
   const Icon = a.is_master ? Crown : Bot;
 
@@ -81,12 +86,12 @@ export function AgentDetailScreen({ pid }: { pid: string }) {
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-lg font-semibold">{a.slug}</h1>
-              {a.is_master && <Badge tone="success"><Crown size={10} /> Orquestador</Badge>}
+              {a.is_master && <Badge tone="success"><Crown size={10} /> {t("project.agents.orchestrator")}</Badge>}
               {a.role && <Badge>{a.role}</Badge>}
               {a.model && <Badge tone="info">{a.model}</Badge>}
               {a.parent && (
                 <button onClick={() => navigate(`/p/${pid}/agents/${a.parent}`)} className="text-[11px] text-violet-400 hover:underline">
-                  ↳ reporta a {a.parent}
+                  {t("project.agent_detail.reports_to")} {a.parent}
                 </button>
               )}
             </div>
@@ -94,7 +99,7 @@ export function AgentDetailScreen({ pid }: { pid: string }) {
           </div>
         </div>
         <Button size="sm" variant="primary" onClick={() => navigate(`/p/${pid}/chat?agent=${slug}`)}>
-          <Send size={13} /> Chat con {a.slug}
+          <Send size={13} /> {t("project.agent_detail.chat_btn", { slug: a.slug })}
         </Button>
       </div>
 
@@ -130,20 +135,20 @@ export function AgentDetailScreen({ pid }: { pid: string }) {
                 {!a.skills?.length && !a.tools?.length && <span className="text-xs text-muted-fg">—</span>}
               </div>
             </Section>
-            <Section title="Threads recientes" description="">
+            <Section title={t("project.agent_detail.threads_recent")} description="">
               <ul className="space-y-1 text-xs">
-                {(threads.data || []).slice(0, 6).map((t) => (
-                  <li key={t.id} className="flex items-center justify-between rounded-md bg-muted/30 px-2 py-1">
-                    <span className="truncate">{t.title || t.filename}</span>
-                    <span className="shrink-0 text-muted-fg">{t.messages ?? 0} msgs</span>
+                {(threads.data || []).slice(0, 6).map((th) => (
+                  <li key={th.id} className="flex items-center justify-between rounded-md bg-muted/30 px-2 py-1">
+                    <span className="truncate">{th.title || th.filename}</span>
+                    <span className="shrink-0 text-muted-fg">{th.messages ?? 0} {t("project.agent_detail.msgs_count")}</span>
                   </li>
                 ))}
-                {!threads.data?.length && <li className="text-muted-fg">Sin threads.</li>}
+                {!threads.data?.length && <li className="text-muted-fg">{t("project.agent_detail.no_threads")}</li>}
               </ul>
             </Section>
           </div>
           {children.length > 0 && (
-            <Section title="Subagentes" description="Agentes que reportan a este orquestador.">
+            <Section title={t("project.agent_detail.subagents")} description={t("project.agent_detail.subagents_desc")}>
               <div className="flex flex-wrap gap-2">
                 {children.map((c) => (
                   <button key={c.slug} onClick={() => navigate(`/p/${pid}/agents/${c.slug}`)}
@@ -225,50 +230,50 @@ function AgentConfigForm({
         description: description || null,
         system,
       });
-      toast.success("Agente actualizado.");
+      toast.success(t("project.agent_detail.update_success"));
       onSaved();
     } catch (e) { toast.error((e as Error).message); }
     finally { setBusy(false); }
   };
 
   const del = async () => {
-    if (!confirm(`Borrar el agente "${agent.slug}"? Se elimina .apc/agents/${agent.slug}.md y su carpeta.`)) return;
-    try { await Agents.remove(pid, agent.slug); toast.success("Agente borrado."); onDeleted(); }
+    if (!confirm(t("project.agent_detail.delete_confirm", { slug: agent.slug }))) return;
+    try { await Agents.remove(pid, agent.slug); toast.success(t("project.agent_detail.delete_success")); onDeleted(); }
     catch (e) { toast.error((e as Error).message); }
   };
 
   return (
-    <Section title="Configuración del agente" description={`.apc/agents/${agent.slug}.md — definición (frontmatter + system prompt).`}>
+    <Section title={t("project.agent_detail.config_title")} description={`.apc/agents/${agent.slug}.md — definición (frontmatter + system prompt).`}>
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Tipología (type)"><UiSelect value={type} onChange={setType} options={TYPE_OPTIONS} /></Field>
-          <Field label="Área" hint="ej. operaciones, marketing"><Input value={area} onChange={(e) => setArea(e.target.value)} placeholder="operaciones" /></Field>
+          <Field label={t("project.agent_detail.type_label")}><UiSelect value={type} onChange={setType} options={TYPE_OPTIONS} /></Field>
+          <Field label={t("project.agent_detail.area_label")} hint={t("project.agent_detail.area_hint")}><Input value={area} onChange={(e) => setArea(e.target.value)} placeholder={t("project.agent_detail.area_ph")} /></Field>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Role"><Input value={role} onChange={(e) => setRole(e.target.value)} placeholder="Operations Lead" /></Field>
-          <Field label="Reporta a (parent)">
+          <Field label={t("project.agent_detail.role_label")}><Input value={role} onChange={(e) => setRole(e.target.value)} placeholder="Operations Lead" /></Field>
+          <Field label={t("project.agent_detail.parent_label")}>
             <UiSelect
               value={parent}
               onChange={setParent}
-              placeholder="— ninguno —"
-              options={[{ value: "", label: "— ninguno —" }, ...agents.filter((x) => x.slug !== agent.slug).map((x) => ({ value: x.slug, label: x.slug }))]}
+              placeholder={t("project.agent_detail.none_parent")}
+              options={[{ value: "", label: t("project.agent_detail.none_parent") }, ...agents.filter((x) => x.slug !== agent.slug).map((x) => ({ value: x.slug, label: x.slug }))]}
             />
           </Field>
         </div>
-        <Field label="Modelo base" hint="Vacío = usa el modelo del Router (default). Setealo solo para forzar un modelo a este agente.">
-          <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder="(vacío = router default)" />
+        <Field label={t("project.agent_detail.model_label")} hint={t("project.agent_detail.model_hint")}>
+          <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder={t("project.agent_detail.model_ph")} />
         </Field>
-        <Field label="Skills (coma)"><Input value={skills} onChange={(e) => setSkills(e.target.value)} placeholder="skill-a, skill-b" /></Field>
+        <Field label={t("project.agent_detail.skills_label")}><Input value={skills} onChange={(e) => setSkills(e.target.value)} placeholder="skill-a, skill-b" /></Field>
         <ToolsPicker value={tools} onChange={setTools} />
-        <Field label="Bio / descripción"><Textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
-        <Field label="System prompt" hint="Define personalidad y comportamiento (cuerpo del AGENT.md).">
+        <Field label={t("project.agent_detail.bio_label")}><Textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
+        <Field label={t("project.agent_detail.system_label")} hint={t("project.agent_detail.system_hint")}>
           <Textarea rows={10} className="font-mono text-xs" value={system} onChange={(e) => setSystem(e.target.value)} placeholder="You are…" />
         </Field>
-        <Switch checked={isMaster} onChange={setIsMaster} label="Orquestador (master)" />
+        <Switch checked={isMaster} onChange={setIsMaster} label={t("project.agent_detail.master_label")} />
 
         <div className="flex items-center justify-between border-t border-border pt-3">
-          <Button variant="destructive" onClick={del}><Trash2 size={13} /> Borrar agente</Button>
-          <Button variant="primary" loading={busy} onClick={save}><Save size={13} /> Guardar cambios</Button>
+          <Button variant="destructive" onClick={del}><Trash2 size={13} /> {t("project.agent_detail.delete_btn")}</Button>
+          <Button variant="primary" loading={busy} onClick={save}><Save size={13} /> {t("project.agent_detail.save_btn")}</Button>
         </div>
       </div>
     </Section>
@@ -292,16 +297,16 @@ function MemoryEditor({ pid, slug, initial, onSaved }: { pid: string; slug: stri
   const dirty = value !== initial;
   const save = async () => {
     setBusy(true);
-    try { await Agents.memory.put(pid, slug, value); toast.success("Memoria guardada."); onSaved(); }
+    try { await Agents.memory.put(pid, slug, value); toast.success(t("project.agent_detail.memory_saved")); onSaved(); }
     catch (e) { toast.error((e as Error).message); }
     finally { setBusy(false); }
   };
   return (
-    <Section title="Memoria del agente" description={`.apc/agents/${slug}/memory.md — hechos durables que el agente recuerda.`}>
-      <Textarea rows={16} className="font-mono text-xs" value={value} onChange={(e) => setValue(e.target.value)} placeholder="(memoria vacía)" />
+    <Section title={t("project.agent_detail.memory_title")} description={`.apc/agents/${slug}/memory.md — hechos durables que el agente recuerda.`}>
+      <Textarea rows={16} className="font-mono text-xs" value={value} onChange={(e) => setValue(e.target.value)} placeholder={t("project.agent_detail.memory_empty")} />
       <div className="mt-2 flex items-center justify-between">
-        <span className="text-[11px] text-muted-fg">{value.length} chars · Markdown</span>
-        <Button size="sm" variant="primary" loading={busy} disabled={!dirty} onClick={save}><Save size={12} /> Guardar</Button>
+        <span className="text-[11px] text-muted-fg">{value.length} {t("project.memories.chars")}</span>
+        <Button size="sm" variant="primary" loading={busy} disabled={!dirty} onClick={save}><Save size={12} /> {t("project.memories.save_btn")}</Button>
       </div>
     </Section>
   );
@@ -310,9 +315,9 @@ function MemoryEditor({ pid, slug, initial, onSaved }: { pid: string; slug: stri
 function RecordsList({ records, loading }: { records: MessageEntry[]; loading: boolean }) {
   const sorted = useMemo(() => [...records].sort((a, b) => (b.ts || "").localeCompare(a.ts || "")), [records]);
   return (
-    <Section title="Records" description="Log de actividad del agente (mensajes/acciones). Lo más nuevo primero.">
+    <Section title={t("project.agent_detail.records_title")} description={t("project.agent_detail.records_desc")}>
       {loading && <Loading />}
-      {!loading && sorted.length === 0 && <p className="text-xs text-muted-fg">Sin actividad registrada.</p>}
+      {!loading && sorted.length === 0 && <p className="text-xs text-muted-fg">{t("project.agent_detail.no_activity")}</p>}
       <ul className="space-y-1 text-sm">
         {sorted.map((m, i) => (
           <li key={`${m.ts}-${i}`} className="flex items-start gap-2 rounded-md border border-border bg-muted/30 px-3 py-2">
@@ -337,16 +342,16 @@ function RecordsList({ records, loading }: { records: MessageEntry[]; loading: b
 function SleepView({ routines }: { routines: RoutineEntry[] }) {
   if (routines.length === 0) {
     return (
-      <Section title="Sleep / Heartbeat" description="Estado de ejecución del agente, derivado de sus rutinas.">
+      <Section title={t("project.agent_detail.sleep_title")} description={t("project.agent_detail.sleep_desc")}>
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 text-sm">
-          <div className="font-medium text-amber-400">Deep sleep · sin heartbeat</div>
-          <p className="mt-1 text-xs text-muted-fg">Este agente no tiene ninguna rutina que lo dispare. No se ejecuta de forma autónoma; solo responde cuando lo invocás (chat / tarea).</p>
+          <div className="font-medium text-amber-400">{t("project.agent_detail.sleep_deep")}</div>
+          <p className="mt-1 text-xs text-muted-fg">{t("project.agent_detail.sleep_deep_desc")}</p>
         </div>
       </Section>
     );
   }
   return (
-    <Section title="Sleep / Heartbeat" description="Estado de ejecución del agente, derivado de sus rutinas.">
+    <Section title={t("project.agent_detail.sleep_title")} description={t("project.agent_detail.sleep_desc")}>
       <div className="space-y-3">
         {routines.map((r) => {
           const running = r.enabled;
@@ -392,17 +397,17 @@ function ToolsPicker({ value, onChange }: { value: string; onChange: (v: string)
     if (set.has(name)) set.delete(name); else set.add(name);
     onChange([...set].join(", "));
   };
-  const custom = selected.filter((s) => !catalog.some((t) => t.name === s));
+  const custom = selected.filter((s) => !catalog.some((tool) => tool.name === s));
   return (
-    <Field label="Tools" hint="Qué tools puede usar el agente. Tocá para activar/desactivar; o editá la lista abajo.">
+    <Field label="Tools" hint={t("project.agent_detail.tools_hint")}>
       <div className="flex flex-wrap gap-1.5">
-        {catalog.map((t) => {
-          const on = selected.includes(t.name);
+        {catalog.map((tool) => {
+          const on = selected.includes(tool.name);
           return (
-            <button key={t.name} type="button" title={t.description || t.name} onClick={() => toggle(t.name)}
+            <button key={tool.name} type="button" title={tool.description || tool.name} onClick={() => toggle(tool.name)}
               className={cn("rounded-md border px-2 py-0.5 font-mono text-[11px] transition-colors",
                 on ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-400" : "border-border text-muted-fg hover:text-foreground")}>
-              {t.name}
+              {tool.name}
             </button>
           );
         })}
@@ -413,7 +418,7 @@ function ToolsPicker({ value, onChange }: { value: string; onChange: (v: string)
           </button>
         ))}
       </div>
-      <Input className="mt-2" value={value} onChange={(e) => onChange(e.target.value)} placeholder="lista (coma): echo, http_fetch" />
+      <Input className="mt-2" value={value} onChange={(e) => onChange(e.target.value)} placeholder={t("project.agent_detail.tools_custom_ph")} />
     </Field>
   );
 }
@@ -441,9 +446,9 @@ function BrainTab({
   }, [memory, threads, tasks, routines, parent, children]);
 
   return (
-    <Section title="Brain" description="Grafo de relaciones reales del agente: memoria, threads, tasks, heartbeats y jerarquía. (primera versión — lo refinamos)">
+    <Section title={t("project.agent_detail.brain_title")} description={t("project.agent_detail.brain_desc")}>
       {nodes.length === 0
-        ? <p className="text-xs text-muted-fg">Aún no hay relaciones para graficar (sin memoria, threads, tasks ni rutinas).</p>
+        ? <p className="text-xs text-muted-fg">{t("project.agent_detail.brain_empty")}</p>
         : <AgentBrainGraph center={slug} nodes={nodes} />}
     </Section>
   );

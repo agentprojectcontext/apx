@@ -1,9 +1,9 @@
-// Discord-style left rail. Logo on top (APX admin), then the projects column,
-// finally add + settings. The default workspace (id=0) is a normal project in
-// the column and is always first — `useProjects()` already sorts it that way.
-import { Fragment } from "react";
+// Discord-style left rail. Logo on top (APX admin), then Base, then the
+// rail-level MODULES (Voice/Deck/Code) that sit alongside Base, then the
+// projects column, finally add + settings. The default workspace (id=0) is
+// pinned first.
 import { useLocation } from "react-router-dom";
-import { Plus, Settings } from "lucide-react";
+import { Plus, Settings, Mic, LayoutGrid, Terminal, Bot, type LucideIcon } from "lucide-react";
 import { Logo } from "./Logo";
 import { ProjectAvatar } from "./ProjectAvatar";
 import { Tip } from "../ui/tip";
@@ -12,14 +12,38 @@ import { t } from "../../i18n";
 
 interface Props {
   onSelect: (href: string) => void;
+  onOpenRoby: () => void;
 }
 
-export function ProjectSidebar({ onSelect }: Props) {
+interface ModuleItem {
+  id: string;
+  label: string;
+  href: string;
+  icon: LucideIcon;
+}
+
+// Rail-level modules: large surfaces (many views/menus) that deserve a
+// top-level entry next to Base rather than living inside Settings.
+function buildModules(): ModuleItem[] {
+  return [
+    { id: "voice", label: t("nav.modules.voice"), href: "/m/voice", icon: Mic },
+    { id: "deck",  label: t("nav.modules.deck"),  href: "/m/deck",  icon: LayoutGrid },
+    { id: "code",  label: t("nav.modules.code"),  href: "/m/code",  icon: Terminal },
+  ];
+}
+
+export function ProjectSidebar({ onSelect, onOpenRoby }: Props) {
   const { projects, isLoading } = useProjects();
   const location = useLocation();
+  const MODULES = buildModules();
+
+  const isActive = (href: string) =>
+    location.pathname === href || location.pathname.startsWith(`${href}/`);
+  const base = projects.find((p) => String(p.id) === "0");
+  const rest = projects.filter((p) => String(p.id) !== "0");
 
   return (
-    <aside className="flex h-full w-20 flex-col items-center gap-3 bg-transparent py-3">
+    <aside className="flex h-full w-20 flex-col items-center gap-3 overflow-y-auto bg-transparent py-3">
       <Tip content={t("nav.apx_admin")} side="right">
         <button
           type="button"
@@ -33,24 +57,45 @@ export function ProjectSidebar({ onSelect }: Props) {
 
       {isLoading && <div className="size-10 animate-pulse rounded-xl bg-muted" />}
 
-      {projects.map((p) => {
-        const isDefault = String(p.id) === "0";
-        const label = isDefault ? "Base" : (p.name || p.path.split("/").pop() || String(p.id));
+      {base && (
+        <ProjectAvatar
+          label={t("base.title")}
+          testId="project-avatar-0"
+          title={t("base.subtitle")}
+          active={isActive("/p/0")}
+          isDefault
+          icon={<img src="/modules/superagent.png" alt={t("base.title")} className="size-7 object-contain" draggable={false} />}
+          onClick={() => onSelect("/p/0")}
+        />
+      )}
+
+      {/* Modules — rail-level surfaces alongside Base. */}
+      <div className="my-0.5 h-px w-8 rounded-full bg-border" />
+      {MODULES.map((m) => (
+        <ProjectAvatar
+          key={m.id}
+          label={m.label}
+          testId={`module-avatar-${m.id}`}
+          title={m.label}
+          active={isActive(m.href)}
+          icon={<m.icon size={18} />}
+          onClick={() => onSelect(m.href)}
+        />
+      ))}
+
+      {rest.length > 0 && <div className="my-0.5 h-px w-8 rounded-full bg-border" />}
+      {rest.map((p) => {
+        const label = p.name || p.path.split("/").pop() || String(p.id);
         const href = `/p/${p.id}`;
-        const active = location.pathname === href || location.pathname.startsWith(`${href}/`);
         return (
-          <Fragment key={p.id}>
-            <ProjectAvatar
-              label={label}
-              testId={`project-avatar-${p.id}`}
-              title={isDefault ? `Base · espacio general (no se puede borrar)` : `${label} — ${p.path}`}
-              active={active}
-              isDefault={isDefault}
-              icon={isDefault ? <img src="/modules/superagent.png" alt="Base" className="size-7 object-contain" draggable={false} /> : undefined}
-              onClick={() => onSelect(href)}
-            />
-            {isDefault && <div className="my-0.5 h-px w-8 rounded-full bg-border" />}
-          </Fragment>
+          <ProjectAvatar
+            key={p.id}
+            label={label}
+            testId={`project-avatar-${p.id}`}
+            title={`${label} — ${p.path}`}
+            active={isActive(href)}
+            onClick={() => onSelect(href)}
+          />
         );
       })}
 
@@ -74,6 +119,19 @@ export function ProjectSidebar({ onSelect }: Props) {
         onClick={() => onSelect("/settings")}
         title={t("nav.settings")}
       />
+      {/* Roby launcher — subtle (not a loud floating bubble), pinned under the
+          gear so it doesn't overlap the chat composer. */}
+      <Tip content={t("roby.talk")} side="right">
+        <button
+          type="button"
+          onClick={onOpenRoby}
+          data-testid="nav-roby"
+          aria-label={t("roby.talk")}
+          className="mt-1 flex size-10 items-center justify-center rounded-xl border border-border/60 bg-muted/30 text-muted-fg transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <Bot size={18} />
+        </button>
+      </Tip>
     </aside>
   );
 }
@@ -82,11 +140,11 @@ export function ProjectSidebar({ onSelect }: Props) {
 export function projectKindLabel(kind?: string): string {
   switch (kind) {
     case "personal": return "Personal";
-    case "company":  return "Empresa";
+    case "company":  return "Company";
     case "app":      return "App";
     case "software": return "Software";
     case "default":  return "Default";
-    case "other":    return "Otro";
-    default:         return "Proyecto";
+    case "other":    return "Other";
+    default:         return t("nav.project");
   }
 }

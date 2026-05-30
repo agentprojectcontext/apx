@@ -2,15 +2,16 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import useSWR from "swr";
 import { Plus, Trash2 } from "lucide-react";
-import { Agents, SuperAgent } from "../../lib/api";
+import { Agents } from "../../lib/api";
 import { Badge, Button, Dialog, Empty, Field, Input, Loading, Switch } from "../../components/ui";
 import { UiSelect } from "../../components/UiSelect";
 import { Composer } from "../../components/chat/Composer";
 import { MessageList } from "../../components/chat/MessageList";
+import { ContextBar } from "../../components/chat/ContextBar";
+import { useChat } from "../../hooks/useChat";
 import { useToast } from "../../components/Toast";
 import { t } from "../../i18n";
-import type { AgentEntry, ConversationMessage } from "../../types/daemon";
-import type { ChatMsg } from "../../hooks/useChat";
+import type { AgentEntry } from "../../types/daemon";
 
 // Virtual entry slug used in the agent dropdown to address the daemon-level
 // super-agent (persona "Roby" for the owner). Picked so it can't collide
@@ -23,9 +24,8 @@ export function ChatTab({ pid }: { pid: string }) {
   const agents = useSWR(`/projects/${pid}/agents`, () => Agents.list(pid));
   const [activeSlug, setActiveSlug] = useState(params.get("agent") || "");
   const [creating, setCreating] = useState(false);
-  const [msgs, setMsgs] = useState<ChatMsg[]>([]);
-  const [conversationId, setConversationId] = useState<string | undefined>();
-  const [busy, setBusy] = useState(false);
+  const [model, setModel] = useState("");
+  const { msgs, send: sendChat, stop, clear, streaming } = useChat(pid, (m) => toast.error(m));
 
   const agentList = agents.data || [];
   // Virtual options shown in the dropdown — Roby is always first, then the
@@ -54,57 +54,20 @@ export function ChatTab({ pid }: { pid: string }) {
     if (!activeSlug && activeAgent?.slug) setActiveSlug(activeAgent.slug);
   }, [activeAgent?.slug, activeSlug]);
 
-  const resetConversation = () => {
-    setMsgs([]);
-    setConversationId(undefined);
-  };
+  const resetConversation = () => clear();
 
   const send = async (text: string) => {
-    const prompt = text.trim();
-    if (!prompt || busy) return;
     // Roby (super-agent) is always available; a real project agent requires
     // that the project actually has one configured.
     if (!activeIsRoby && !activeAgent) return;
-    const now = new Date().toISOString();
-    setMsgs((curr) => [
-      ...curr,
-      { role: "user", content: prompt, ts: now },
-      { role: "assistant", content: "", ts: now, pending: true },
-    ]);
-    setBusy(true);
-    try {
-      let replyText: string;
-      if (activeIsRoby) {
-        // For Roby we don't have conversation_id semantics on the daemon
-        // side; the previousMessages array is the rolling context.
-        const history: ConversationMessage[] = msgs
-          .filter((m) => !m.pending && m.content)
-          .map((m) => ({ role: m.role, content: m.content }));
-        const out = await SuperAgent.send(pid, { prompt, previousMessages: history });
-        replyText = out.text;
-      } else {
-        const out = await Agents.chat(pid, activeAgent!.slug, { prompt, conversation_id: conversationId });
-        setConversationId(out.conversation_id);
-        replyText = out.text;
-      }
-      setMsgs((curr) => {
-        const copy = [...curr];
-        const last = copy[copy.length - 1];
-        if (last?.role === "assistant") {
-          copy[copy.length - 1] = { ...last, content: replyText, pending: false };
-        }
-        return copy;
-      });
-    } catch (e) {
-      toast.error((e as Error).message);
-      setMsgs((curr) => curr.filter((_, i) => i !== curr.length - 1));
-    } finally {
-      setBusy(false);
-    }
+    await sendChat(text, {
+      model: activeIsRoby ? model : undefined,
+      agentSlug: activeIsRoby ? undefined : activeAgent!.slug,
+    });
   };
 
   const copyToClipboard = async (text: string) => {
-    try { await navigator.clipboard.writeText(text); toast.info("Copiado."); }
+    try { await navigator.clipboard.writeText(text); toast.info(t("project.chat.copied")); }
     catch { /* ignore */ }
   };
 
@@ -113,15 +76,15 @@ export function ChatTab({ pid }: { pid: string }) {
   // Header subtitle differs: with Roby selected the chat goes through the
   // super-agent (it CAN call tools); a project agent is a direct LLM call.
   const headerSubtitle = activeIsRoby
-    ? "Chat con Roby — el super-agente APX. Puede usar tools (proyectos, tasks, mcps, agentes)."
-    : t("project.chat.subtitle", { pid });
+    ? t("project.chat.roby_subtitle")
+    : t("project.chat.subtitle");
 
   return (
-    <div className="flex h-[calc(100vh-9rem)] flex-col overflow-hidden rounded-xl border border-border bg-card/40">
+    <div className="flex h-[calc(100vh-11rem)] flex-col overflow-hidden rounded-xl border border-border bg-card/40">
       <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold">
-            {activeIsRoby ? "Chat con Roby" : t("project.chat.title")}
+            {activeIsRoby ? t("project.chat.roby_title") : t("project.chat.title")}
           </h2>
           <p className="truncate text-[11px] text-muted-fg">{headerSubtitle}</p>
         </div>
@@ -138,10 +101,10 @@ export function ChatTab({ pid }: { pid: string }) {
             : activeAgent?.model && <Badge tone="info">{activeAgent.model}</Badge>}
           {!agentList.length && !activeIsRoby && (
             <Button variant="primary" size="sm" onClick={() => setCreating(true)}>
-              <Plus size={14} /> Crear agente
+              <Plus size={14} /> {t("project.chat.create_agent")}
             </Button>
           )}
-          <Button variant="ghost" size="sm" disabled={busy || msgs.length === 0} onClick={resetConversation}>
+          <Button variant="ghost" size="sm" disabled={streaming || msgs.length === 0} onClick={resetConversation}>
             <Trash2 size={13} /> {t("project.chat.clear")}
           </Button>
         </div>
@@ -153,7 +116,14 @@ export function ChatTab({ pid }: { pid: string }) {
           <Empty>{t("project.chat.empty")}</Empty>
         )}
       </div>
-      <Composer onSend={send} onStop={() => null} streaming={busy} />
+      <ContextBar msgs={msgs} />
+      <Composer
+        onSend={send}
+        onStop={stop}
+        streaming={streaming}
+        model={activeIsRoby ? model : undefined}
+        onModelChange={activeIsRoby ? setModel : undefined}
+      />
       <CreateAgentDialog
         open={creating}
         pid={pid}
@@ -202,8 +172,8 @@ function CreateAgentDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      title="Crear agente"
-      description="Necesario para iniciar chat en proyecto."
+      title={t("project.chat.create_agent_title")}
+      description={t("project.chat.create_agent_desc")}
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={busy}>{t("common.cancel")}</Button>
@@ -215,13 +185,13 @@ function CreateAgentDialog({
         <Field label="slug">
           <Input autoFocus value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="master" />
         </Field>
-        <Field label="rol">
+        <Field label={t("project.chat.role_label")}>
           <Input value={role} onChange={(e) => setRole(e.target.value)} placeholder="master" />
         </Field>
-        <Field label="modelo" hint="ej. openai:gpt-5, groq:llama-3.3-70b-versatile">
+        <Field label={t("project.chat.model_label")} hint={t("project.chat.model_hint")}>
           <Input value={model} onChange={(e) => setModel(e.target.value)} />
         </Field>
-        <Switch checked={isMaster} onChange={setIsMaster} label="Agente master" />
+        <Switch checked={isMaster} onChange={setIsMaster} label={t("project.chat.master_label")} />
       </div>
     </Dialog>
   );

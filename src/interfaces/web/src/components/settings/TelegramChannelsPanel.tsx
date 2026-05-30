@@ -29,28 +29,28 @@ export function TelegramChannelsPanel() {
   for (const c of contacts) nameByUserId.set(String(c.user_id), c.name || `@${c.username || c.user_id}`);
 
   const remove = async (name: string) => {
-    if (!confirm(`¿Borrar el canal ${name}?`)) return;
-    try { await Telegram.channels.remove(name); toast.success("Canal eliminado."); mutate(); }
+    if (!confirm(t("telegram_channels.delete_confirm", { name }))) return;
+    try { await Telegram.channels.remove(name); toast.success(t("telegram_channels.removed")); mutate(); }
     catch (e) { toast.error((e as Error).message); }
   };
 
   return (
     <Section
-      title="Canales"
-      description="Cada canal es un bot que el daemon polea. Acá podés añadir/quitar canales, cambiar el agente que contesta, el proyecto al que pertenece y su dueño."
+      title={t("telegram_channels.title")}
+      description={t("telegram_channels.desc")}
       action={
         <Button size="sm" onClick={() => setEditing({ name: "" })}>
-          <Plus size={14} /> Nuevo canal
+          <Plus size={14} /> {t("telegram_channels.new_btn")}
         </Button>
       }
     >
       {isLoading && <Loading />}
-      {!isLoading && channels.length === 0 && <Empty>Todavía no hay canales — agregá el primero.</Empty>}
+      {!isLoading && channels.length === 0 && <Empty>{t("telegram_channels.empty")}</Empty>}
       <ul className="space-y-2 text-sm">
         {channels.map((c) => {
           const ownerLabel = c.owner_user_id != null
             ? (nameByUserId.get(String(c.owner_user_id)) || `user_id ${c.owner_user_id}`)
-            : "sin dueño (se reclama al primer DM)";
+            : t("telegram_channels.no_owner");
           return (
             <li key={c.name} className="rounded-md border border-border bg-muted/30 px-3 py-2">
               <div className="flex items-center justify-between gap-2">
@@ -69,7 +69,7 @@ export function TelegramChannelsPanel() {
                 <span>bot_token: {c.bot_token ? `…${secretSuffix(c.bot_token) ?? ""}` : "—"}</span>
                 <span>route_to_agent: {c.route_to_agent || "default APX"}</span>
                 <span>engine: {c.respond_with_engine ? "sí" : "no"}</span>
-                <span className="col-span-2">dueño: {ownerLabel}</span>
+                <span className="col-span-2">{t("telegram_channels.owner_label")} {ownerLabel}</span>
               </div>
             </li>
           );

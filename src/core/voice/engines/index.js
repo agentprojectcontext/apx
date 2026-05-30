@@ -1,13 +1,21 @@
 // TTS engine registry. Mirrors the LLM engine selector at src/core/engines/.
 //
-// Selection order:
-//   1. Explicit "provider" argument passed to synthesize() / selectEngine().
-//   2. voice.tts.provider in ~/.apx/config.json.
-//   3. First engine whose isAvailable() returns true (preference order below).
+// Two selection modes (config.voice.tts.mode):
+//   "chain"  — ordered fallback router. Walk the engine order (config.voice.tts
+//              .order, falling back to AUTO_PREFERENCE) skipping engines turned
+//              off (config.voice.tts.<id>.enabled === false) and pick the first
+//              one whose isAvailable() returns true. "mock" is always kept as
+//              the final guaranteed fallback.
+//   "single" — use exactly config.voice.tts.provider, no fallback. Lets you keep
+//              several engines configured but only ever use the chosen one by
+//              default (the others stay available for explicit overrides).
 //
-// Preference (auto): piper → elevenlabs → openai → gemini → mock.
-// The "mock" engine is always available and is the guaranteed fallback so
-// `apx voice say "hola"` works out of the box even without any API keys.
+// An explicit `provider` argument to synthesize()/selectTtsEngine() always wins
+// (used by the "Probar voz" tester to force a specific engine).
+//
+// Backward compat: when `mode` is absent it's derived from `provider`
+// (provider set & not "auto" → single; otherwise chain), so existing configs
+// keep working unchanged.
 
 import piper from "./piper.js";
 import elevenlabs from "./elevenlabs.js";
@@ -30,8 +38,39 @@ export function getTtsAdapter(provider) {
   return a;
 }
 
+function ttsConfig(globalConfig) {
+  return globalConfig?.voice?.tts || {};
+}
+
 function providerConfig(globalConfig, provider) {
-  return globalConfig?.voice?.tts?.[provider] || {};
+  return ttsConfig(globalConfig)?.[provider] || {};
+}
+
+function isEnabled(ttsCfg, id) {
+  return ttsCfg?.[id]?.enabled !== false;
+}
+
+/** Effective routing mode for the chain/single decision. */
+export function resolveMode(ttsCfg) {
+  if (ttsCfg?.mode === "chain" || ttsCfg?.mode === "single") return ttsCfg.mode;
+  const p = ttsCfg?.provider;
+  return p && p !== "auto" ? "single" : "chain";
+}
+
+/**
+ * Full engine order for chain mode: the user's custom order first (only known
+ * ids), then any remaining AUTO_PREFERENCE engines. Includes disabled engines
+ * so the UI can render + reorder every row; filtering happens at selection time.
+ */
+export function resolveChainOrder(ttsCfg) {
+  const custom = Array.isArray(ttsCfg?.order)
+    ? ttsCfg.order.filter((id) => TTS_ENGINE_IDS.includes(id))
+    : [];
+  const rest = AUTO_PREFERENCE.filter((id) => !custom.includes(id));
+  const full = [...custom, ...rest];
+  // Guarantee mock is present as the ultimate fallback.
+  if (!full.includes("mock")) full.push("mock");
+  return full;
 }
 
 /**
@@ -39,19 +78,29 @@ function providerConfig(globalConfig, provider) {
  * Returns { provider, adapter, engineConfig }.
  */
 export async function selectTtsEngine({ globalConfig, provider }) {
-  const configuredProvider = provider || globalConfig?.voice?.tts?.provider || "auto";
+  const ttsCfg = ttsConfig(globalConfig);
 
-  if (configuredProvider && configuredProvider !== "auto") {
-    const adapter = getTtsAdapter(configuredProvider);
-    return {
-      provider: configuredProvider,
-      adapter,
-      engineConfig: providerConfig(globalConfig, configuredProvider),
-    };
+  // 1. Explicit override (tester / API caller) always wins.
+  if (provider && provider !== "auto") {
+    const adapter = getTtsAdapter(provider);
+    return { provider, adapter, engineConfig: providerConfig(globalConfig, provider) };
   }
 
-  // Auto: probe preference order.
-  for (const id of AUTO_PREFERENCE) {
+  const mode = resolveMode(ttsCfg);
+
+  // 2. Single mode: use the configured engine verbatim, no fallback.
+  if (mode === "single") {
+    const id = ttsCfg?.provider;
+    if (id && id !== "auto") {
+      const adapter = getTtsAdapter(id);
+      return { provider: id, adapter, engineConfig: providerConfig(globalConfig, id) };
+    }
+    // Misconfigured single mode (no concrete provider) → fall through to chain.
+  }
+
+  // 3. Chain mode: probe the (enabled) order, first available wins.
+  for (const id of resolveChainOrder(ttsCfg)) {
+    if (id !== "mock" && !isEnabled(ttsCfg, id)) continue;
     const adapter = ADAPTERS[id];
     const cfg = providerConfig(globalConfig, id);
     try {
@@ -60,7 +109,7 @@ export async function selectTtsEngine({ globalConfig, provider }) {
       }
     } catch { /* probe failures fall through */ }
   }
-  // Should never get here since mock is always available, but guard anyway.
+  // mock is always available, but guard anyway.
   return {
     provider: "mock",
     adapter: mock,
@@ -73,6 +122,7 @@ export async function selectTtsEngine({ globalConfig, provider }) {
  * config + cheap probes; safe to call frequently.
  */
 export async function listAvailableTtsEngines(globalConfig) {
+  const ttsCfg = ttsConfig(globalConfig);
   const out = [];
   for (const id of TTS_ENGINE_IDS) {
     const adapter = ADAPTERS[id];
@@ -84,7 +134,10 @@ export async function listAvailableTtsEngines(globalConfig) {
     out.push({
       id,
       available,
-      configured: Object.keys(cfg).length > 0,
+      // `enabled` is a routing flag, not real config — exclude it from the
+      // "configured" heuristic so toggling on/off doesn't fake-mark an engine.
+      configured: Object.keys(cfg).filter((k) => k !== "enabled").length > 0,
+      enabled: isEnabled(ttsCfg, id),
     });
   }
   return out;

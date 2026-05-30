@@ -6,6 +6,7 @@ import { Section } from "../../components/Section";
 import { Badge, Button, Dialog, Empty, Field, Input, Loading, Switch, Textarea } from "../../components/ui";
 import { UiSelect } from "../../components/UiSelect";
 import { useToast } from "../../components/Toast";
+import { t } from "../../i18n";
 
 export function McpsTab({ pid }: { pid: string }) {
   const toast = useToast();
@@ -14,25 +15,25 @@ export function McpsTab({ pid }: { pid: string }) {
   const [open, setOpen] = useState(false);
 
   const remove = async (name: string, scope: any) => {
-    if (!confirm(`Borrar MCP ${name} de scope ${scope}?`)) return;
-    try { await Mcps.remove(pid, name, scope); toast.success("eliminado"); list.mutate(); }
-    catch (e: any) { toast.error(e?.message || "delete falló"); }
+    if (!confirm(t("project.mcps.delete_confirm", { name, scope }))) return;
+    try { await Mcps.remove(pid, name, scope); toast.success(t("project.mcps.removed")); list.mutate(); }
+    catch (e: any) { toast.error(e?.message || t("common.error_generic")); }
   };
 
   return (
     <Section
-      title="MCP servers"
-      description="3 scopes: runtime > shared > global. Conflictos arriba si los hay."
-      action={<Button size="sm" variant="primary" onClick={() => setOpen(true)}><Plus size={14} /> MCP</Button>}
+      title={t("project.mcps.title")}
+      description={t("project.mcps.subtitle")}
+      action={<Button size="sm" variant="primary" onClick={() => setOpen(true)}><Plus size={14} /> {t("project.mcps.new")}</Button>}
     >
       {conflicts.data?.conflicts?.length ? (
         <div className="mb-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs">
-          ⚠ Conflictos: {conflicts.data.conflicts.map((c: any) => c.name).join(", ")}
+          {t("project.mcps.conflicts", { names: conflicts.data.conflicts.map((c: any) => c.name).join(", ") })}
         </div>
       ) : null}
 
       {list.isLoading && <Loading />}
-      {!list.isLoading && (list.data?.length ?? 0) === 0 && <Empty>Sin MCPs configurados.</Empty>}
+      {!list.isLoading && (list.data?.length ?? 0) === 0 && <Empty>{t("project.mcps.empty")}</Empty>}
 
       <ul className="space-y-2 text-sm">
         {(list.data || []).map((m) => (
@@ -72,23 +73,23 @@ function CreateMcpDialog({
   const [enabled, setEnabled] = useState(true);
 
   const submit = async () => {
-    if (!name) { toast.error("name requerido"); return; }
+    if (!name) { toast.error(t("project.mcps.name_required")); return; }
     setBusy(true);
     try {
       let parsedEnv: Record<string, string> | undefined;
       if (env.trim()) {
         try { parsedEnv = JSON.parse(env); }
-        catch { toast.error("env debe ser JSON válido"); setBusy(false); return; }
+        catch { toast.error(t("project.mcps.env_invalid")); setBusy(false); return; }
       }
       const body =
         transport === "stdio"
           ? { name, command, args: args ? args.split(/\s+/) : undefined, env: parsedEnv, enabled }
           : { name, url, enabled };
       await Mcps.add(pid, scope, body);
-      toast.success("MCP agregado.");
+      toast.success(t("project.mcps.added"));
       setName(""); setCommand(""); setArgs(""); setUrl(""); setEnv("");
       onCreated();
-    } catch (e: any) { toast.error(e?.message || "add falló"); }
+    } catch (e: any) { toast.error(e?.message || t("common.error_generic")); }
     finally { setBusy(false); }
   };
 
@@ -96,18 +97,18 @@ function CreateMcpDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      title="Nuevo MCP"
-      description="POST /projects/:pid/mcps?scope=…"
+      title={t("project.mcps.new_title")}
+      description={t("project.mcps.new_desc")}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose} disabled={busy}>Cancelar</Button>
-          <Button variant="primary" onClick={submit} loading={busy}>Agregar</Button>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>{t("common.cancel")}</Button>
+          <Button variant="primary" onClick={submit} loading={busy}>{t("project.mcps.add_btn")}</Button>
         </>
       }
     >
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
-          <Field label="scope">
+          <Field label={t("project.mcps.scope_label")}>
             <UiSelect
               value={scope}
               onChange={(v) => setScope(v as any)}
@@ -118,7 +119,7 @@ function CreateMcpDialog({
               ]}
             />
           </Field>
-          <Field label="transport">
+          <Field label={t("project.mcps.transport_label")}>
             <UiSelect
               value={transport}
               onChange={(v) => setTransport(v as any)}
@@ -129,19 +130,19 @@ function CreateMcpDialog({
             />
           </Field>
         </div>
-        <Field label="name"><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="filesystem" /></Field>
+        <Field label={t("project.mcps.name_label")}><Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("project.mcps.name_ph")} /></Field>
         {transport === "stdio" ? (
           <>
-            <Field label="command"><Input value={command} onChange={(e) => setCommand(e.target.value)} placeholder="npx" /></Field>
-            <Field label="args" hint="space-separated"><Input value={args} onChange={(e) => setArgs(e.target.value)} placeholder="-y @modelcontextprotocol/server-filesystem /tmp" /></Field>
-            <Field label="env (JSON, opcional)" hint='{"FOO":"bar"}'>
+            <Field label={t("project.mcps.cmd_label")}><Input value={command} onChange={(e) => setCommand(e.target.value)} placeholder={t("project.mcps.cmd_ph")} /></Field>
+            <Field label={t("project.mcps.args_label")} hint={t("project.mcps.args_hint")}><Input value={args} onChange={(e) => setArgs(e.target.value)} placeholder={t("project.mcps.args_ph")} /></Field>
+            <Field label={t("project.mcps.env_label")} hint='{"FOO":"bar"}'>
               <Textarea rows={3} className="font-mono text-xs" value={env} onChange={(e) => setEnv(e.target.value)} />
             </Field>
           </>
         ) : (
-          <Field label="url"><Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://example.com/mcp" /></Field>
+          <Field label={t("project.mcps.url_label")}><Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder={t("project.mcps.url_ph")} /></Field>
         )}
-        <Switch checked={enabled} onChange={setEnabled} label="Habilitado" />
+        <Switch checked={enabled} onChange={setEnabled} label={t("project.mcps.enabled_label")} />
       </div>
     </Dialog>
   );

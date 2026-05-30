@@ -18,7 +18,7 @@ export function ThreadsTab({ pid }: { pid: string }) {
     >
       {agents.isLoading && <Loading />}
       {!agents.isLoading && (agents.data?.length ?? 0) === 0 && (
-        <Empty>No hay agents. Las conversaciones requieren un agent configurado.</Empty>
+        <Empty>{t("project.threads.no_agents")}</Empty>
       )}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <ul className="space-y-1 md:col-span-1">
@@ -40,7 +40,7 @@ export function ThreadsTab({ pid }: { pid: string }) {
         </ul>
         <div className="md:col-span-2">
           {activeSlug ? <ConvList pid={pid} slug={activeSlug} onOpen={setOpenId} /> :
-            <Empty>Elegí un agent para ver sus conversaciones.</Empty>}
+            <Empty>{t("project.threads.pick")}</Empty>}
         </div>
       </div>
 
@@ -54,7 +54,7 @@ export function ThreadsTab({ pid }: { pid: string }) {
 function ConvList({ pid, slug, onOpen }: { pid: string; slug: string; onOpen: (id: string) => void }) {
   const list = useSWR(`/projects/${pid}/agents/${slug}/conversations`, () => Conversations.list(pid, slug));
   if (list.isLoading) return <Loading />;
-  if (!list.data?.length) return <Empty>No hay conversaciones para <code>{slug}</code>.</Empty>;
+  if (!list.data?.length) return <Empty>{t("project.threads.empty", { slug })}</Empty>;
   return (
     <ul className="space-y-1 text-sm">
       {list.data.map((c) => (
@@ -68,8 +68,8 @@ function ConvList({ pid, slug, onOpen }: { pid: string; slug: string; onOpen: (i
             <span className="text-xs text-muted-fg">{new Date(c.started_at).toLocaleString()}</span>
           </div>
           <div className="mt-0.5 text-xs text-muted-fg">
-            {c.channel && <>via {c.channel} · </>}
-            {(c.messages ?? 0)} mensajes
+            {c.channel && <>{t("project.threads.via")} {c.channel} · </>}
+            {(c.messages ?? 0)} {t("project.threads.messages")}
           </div>
         </li>
       ))}
@@ -80,7 +80,7 @@ function ConvList({ pid, slug, onOpen }: { pid: string; slug: string; onOpen: (i
 function ConvDialog({ pid, slug, id, onClose }: { pid: string; slug: string; id: string; onClose: () => void }) {
   const data = useSWR(`/projects/${pid}/agents/${slug}/conversations/${id}`, () => Conversations.get(pid, slug, id));
   return (
-    <Dialog open onClose={onClose} title={`Conversación ${id}`} size="lg">
+    <Dialog open onClose={onClose} title={t("project.threads.conversation_title", { id })} size="lg">
       {data.isLoading && <Loading />}
       {data.data && (
         <div className="max-h-[60vh] space-y-3 overflow-y-auto pr-2">

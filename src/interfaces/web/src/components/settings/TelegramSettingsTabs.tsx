@@ -8,6 +8,7 @@ import { TelegramGlobalPanel } from "./TelegramGlobalPanel";
 import { TelegramChannelsPanel } from "./TelegramChannelsPanel";
 import { TelegramContactsPanel } from "./TelegramContactsPanel";
 import { TelegramRolesPanel } from "./TelegramRolesPanel";
+import { t } from "../../i18n";
 
 const STORAGE_KEY = "apx.settings.telegramTab";
 type Tab = "default" | "channels" | "contacts" | "roles";
@@ -31,10 +32,10 @@ export function TelegramSettingsTabs() {
   return (
     <Tabs value={tab} onValueChange={onChange} className="w-full">
       <TabsList>
-        <TabsTrigger value="default">Canal default</TabsTrigger>
-        <TabsTrigger value="channels">Canales</TabsTrigger>
-        <TabsTrigger value="contacts">Contactos</TabsTrigger>
-        <TabsTrigger value="roles">Roles</TabsTrigger>
+        <TabsTrigger value="default">{t("settings.telegram_global.title")}</TabsTrigger>
+        <TabsTrigger value="channels">{t("telegram_channels.title")}</TabsTrigger>
+        <TabsTrigger value="contacts">{t("telegram_contacts.title")}</TabsTrigger>
+        <TabsTrigger value="roles">{t("telegram_roles.title")}</TabsTrigger>
       </TabsList>
 
       <TabsContent value="default" className="mt-4">

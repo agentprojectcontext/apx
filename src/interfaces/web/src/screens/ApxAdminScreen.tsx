@@ -28,19 +28,19 @@ export function ApxAdminScreen() {
   const [sendTarget, setSendTarget] = useState<TelegramChannel | null>(null);
 
   const reload = async () => {
-    try { await Admin.reload(); toast.success("Config recargada."); }
+    try { await Admin.reload(); toast.success(t("admin.reload_success")); }
     catch (e) { toast.error((e as Error).message); }
   };
   const toggleTelegram = async () => {
     try {
-      if (tgStatus?.enabled) { await Telegram.stop(); toast.info("Polling detenido."); }
-      else { await Telegram.start(); toast.success("Polling iniciado."); }
+      if (tgStatus?.enabled) { await Telegram.stop(); toast.info(t("admin.telegram_polling_stopped")); }
+      else { await Telegram.start(); toast.success(t("admin.telegram_polling_started")); }
       mutateTgStatus();
     } catch (e) { toast.error((e as Error).message); }
   };
   const removeChannel = async (name: string) => {
-    if (!confirm(`Borrar el canal ${name}?`)) return;
-    try { await Telegram.channels.remove(name); toast.success("Canal eliminado."); mutateChannels(); }
+    if (!confirm(t("telegram_channels.delete_confirm", { name }))) return;
+    try { await Telegram.channels.remove(name); toast.success(t("admin.telegram_channel_removed")); mutateChannels(); }
     catch (e) { toast.error((e as Error).message); }
   };
   const removeProject = async (id: string, label: string) => {
@@ -114,7 +114,7 @@ export function ApxAdminScreen() {
               <div className="mt-1 grid grid-cols-3 gap-2 text-xs text-muted-fg">
                 <span>chat_id: {c.chat_id || "—"}</span>
                 <span>route_to_agent: {c.route_to_agent || "default APX"}</span>
-                <span>engine: {c.respond_with_engine ? "sí" : "no"}</span>
+                <span>engine: {c.respond_with_engine ? t("admin.engine_badge") : t("admin.engine_badge_no")}</span>
               </div>
             </li>
           ))}
@@ -137,7 +137,7 @@ export function ApxAdminScreen() {
                 <span className="font-medium">{p.name || p.path.split("/").pop()}</span>
                 <span className="ml-2 text-xs text-muted-fg">{p.path}</span>
               </button>
-              <Badge>{(p.agents ?? 0)} agents</Badge>
+              <Badge>{(p.agents ?? 0)} {t("admin.agents_badge")}</Badge>
               {Number(p.id) !== 0 && (
                 <Button size="sm" variant="destructive" onClick={() => removeProject(String(p.id), p.name || p.path)}>
                   {t("admin.unregister")}

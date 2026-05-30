@@ -7,7 +7,13 @@
 // include inline audio data.
 //
 // Config (~/.apx/config.json → voice.tts.gemini):
-//   { "api_key": "...", "model": "gemini-2.5-flash-preview-tts", "voice": "Kore" }
+//   { "api_key": "...", "model": "gemini-2.5-flash-preview-tts", "voice": "Kore",
+//     "style": "habla en tono alegre y enérgico" }
+//
+// `style` is an optional natural-language instruction describing HOW the voice
+// should speak. Gemini single-speaker TTS controls delivery by prefixing the
+// text with such an instruction, so we prepend "<style>: <text>" before
+// synthesizing. A per-call `style` arg overrides the saved config.style.
 //
 // If you need a guaranteed-working Gemini TTS path today, prefer ElevenLabs or
 // OpenAI engines and revisit this once Google stabilises the API.
@@ -36,7 +42,7 @@ export default {
     return Boolean(getKey(config, parentEnginesCfg));
   },
 
-  async synthesize({ text, voice, outDir, config = {}, signal, parentEnginesCfg }) {
+  async synthesize({ text, voice, style, outDir, config = {}, signal, parentEnginesCfg }) {
     if (!text) throw new Error("gemini-tts: empty text");
     const key = getKey(config, parentEnginesCfg);
     if (!key) throw new Error("gemini-tts: no api_key (set GEMINI_API_KEY or engines.gemini.api_key)");
@@ -44,9 +50,13 @@ export default {
     const model = config.model || DEFAULT_MODEL;
     const voiceName = voice || config.voice || "Kore";
 
+    // Speaking-style instruction: per-call `style` wins over saved config.style.
+    const styleHint = (style ?? config.style ?? "").trim();
+    const promptText = styleHint ? `${styleHint}: ${text}` : text;
+
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`;
     const body = {
-      contents: [{ parts: [{ text }] }],
+      contents: [{ parts: [{ text: promptText }] }],
       generationConfig: {
         responseModalities: ["AUDIO"],
         speechConfig: {

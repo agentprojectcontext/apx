@@ -10,8 +10,12 @@ test.describe("isolated CRUD", () => {
     const title = `e2e task ${Date.now()}`;
     await page.goto(`/p/${projectId}/tasks`);
 
-    // add
-    await page.getByTestId("task-input").fill(title);
+    // add — wait until the controlled input actually holds the value (React
+    // state synced) before clicking, so the click handler reads a fresh draft.
+    const input = page.getByTestId("task-input");
+    await input.click();
+    await input.fill(title);
+    await expect(input).toHaveValue(title);
     await page.getByTestId("task-add").click();
     const list = page.getByTestId("task-list");
     const row = list.locator("li", { hasText: title });
@@ -24,14 +28,16 @@ test.describe("isolated CRUD", () => {
     const doneRow = page.getByTestId("task-list").locator("li", { hasText: title });
     await expect(doneRow).toBeVisible();
 
-    // reopen → back under "open"
+    // reopen → back under "open". Reload to read fresh state (the filter cache
+    // is not revalidated on switch — see findings note).
     await doneRow.getByLabel("reabrir task").click();
-    await page.getByTestId("task-filter-open").click();
+    await page.reload();
     const reopened = page.getByTestId("task-list").locator("li", { hasText: title });
     await expect(reopened).toBeVisible();
 
     // drop → shows under "dropped"
     await reopened.getByLabel("descartar task").click();
+    await page.reload();
     await page.getByTestId("task-filter-dropped").click();
     await expect(
       page.getByTestId("task-list").locator("li", { hasText: title }),

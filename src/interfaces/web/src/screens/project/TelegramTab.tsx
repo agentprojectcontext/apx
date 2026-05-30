@@ -90,27 +90,27 @@ export function TelegramTab({ pid }: { pid: string }) {
           <Switch
             checked={enabled}
             onChange={setEnabled}
-            label={enabled ? "override activo" : t("project.telegram.use_default")}
+            label={enabled ? t("project.telegram.override_active") : t("project.telegram.use_default")}
           />
-          {existing && <Badge tone="success">Canal {existing.name}</Badge>}
+          {existing && <Badge tone="success">{t("project.telegram.channel_badge", { name: existing.name })}</Badge>}
         </div>
         {enabled && (
           <>
             <div className="grid grid-cols-2 gap-3">
-              <Field label={t("project.telegram.bot_token")} hint={existing?.bot_token ? `${secretHint(existing.bot_token)} — vacío = mantener` : "Si vacío, hereda del default."}>
+              <Field label={t("project.telegram.bot_token")} hint={existing?.bot_token ? `${secretHint(existing.bot_token)} — vacío = mantener` : t("project.telegram.bot_hint_none")}>
                 <Input type="password" value={botToken} onChange={(e) => setBotToken(e.target.value)} placeholder={existing?.bot_token ? secretHint(existing.bot_token) : ""} />
               </Field>
               <Field label={t("project.telegram.chat_id")}>
                 <Input value={chatId} onChange={(e) => setChatId(e.target.value)} />
               </Field>
-              <Field label="route_to_agent" hint="Slug del agent que atiende (vacío = super-agent).">
+              <Field label={t("project.telegram.route_agent")} hint={t("project.telegram.route_hint")}>
                 <Input value={routeAgent} onChange={(e) => setRouteAgent(e.target.value)} />
               </Field>
             </div>
             <Switch
               checked={respondWithEngine}
               onChange={setRespondWithEngine}
-              label="Responder con engine"
+              label={t("project.telegram.respond_engine")}
             />
           </>
         )}
@@ -118,7 +118,7 @@ export function TelegramTab({ pid }: { pid: string }) {
           <Button variant="primary" loading={busy} onClick={save}>{t("common.save")}</Button>
         </div>
         {!enabled && !existing && (
-          <Empty>Sin override. Los mensajes de este proyecto van al canal default.</Empty>
+          <Empty>{t("project.telegram.no_override")}</Empty>
         )}
       </div>
     </Section>

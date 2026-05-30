@@ -5,12 +5,13 @@ import { useTheme } from "../../hooks/useTheme";
 import { useToast } from "../Toast";
 import { getToken, setToken } from "../../lib/api";
 import { STORAGE } from "../../constants";
-import { t } from "../../i18n";
+import { t, setLocale, getLocale, LOCALES, type Locale } from "../../i18n";
 
 export function AppearancePanel() {
   const toast = useToast();
   const { theme, set } = useTheme();
   const [draftToken, setDraftToken] = useState("");
+  const [locale, setLocaleState] = useState<Locale>(getLocale());
 
   const save = () => {
     const v = draftToken.trim();
@@ -21,12 +22,33 @@ export function AppearancePanel() {
     toast.success(t("settings.token_saved"));
   };
 
+  const changeLocale = (l: Locale) => {
+    setLocale(l);
+    setLocaleState(l);
+    // Reload so all rendered strings pick up the new locale.
+    window.location.reload();
+  };
+
   return (
     <div className="space-y-6">
       <Section title={t("settings.appearance")}>
         <div className="flex items-center gap-2">
           <Button variant={theme === "light" ? "primary" : "secondary"} onClick={() => set("light")}>{t("settings.light_mode")}</Button>
           <Button variant={theme === "dark"  ? "primary" : "secondary"} onClick={() => set("dark")}>{t("settings.dark_mode")}</Button>
+        </div>
+      </Section>
+
+      <Section title={t("settings.language")}>
+        <div className="flex items-center gap-2">
+          {LOCALES.map((lo) => (
+            <Button
+              key={lo.value}
+              variant={locale === lo.value ? "primary" : "secondary"}
+              onClick={() => changeLocale(lo.value)}
+            >
+              {lo.label}
+            </Button>
+          ))}
         </div>
       </Section>
 

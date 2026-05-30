@@ -33,8 +33,8 @@ export function TelegramContactsPanel({ bare = false }: Props) {
     } catch (e) { toast.error((e as Error).message); }
   };
   const remove = async (c: TelegramContact) => {
-    if (!confirm(`¿Borrar el contacto ${c.name || c.user_id}?`)) return;
-    try { await Telegram.contacts.remove(c.user_id); toast.success("Contacto eliminado."); mutate(); }
+    if (!confirm(t("telegram_contacts.delete_confirm", { name: c.name || String(c.user_id) }))) return;
+    try { await Telegram.contacts.remove(c.user_id); toast.success(t("telegram_contacts.removed")); mutate(); }
     catch (e) { toast.error((e as Error).message); }
   };
 
@@ -42,7 +42,7 @@ export function TelegramContactsPanel({ bare = false }: Props) {
     <>
       {isLoading && <Loading />}
       {!isLoading && contacts.length === 0 && (
-        <Empty>Todavía no hay contactos — se registran solos cuando alguien escribe a un bot.</Empty>
+        <Empty>{t("telegram_contacts.empty")}</Empty>
       )}
       {contacts.length > 0 && (
         <ul className="space-y-2 text-sm">
@@ -55,14 +55,14 @@ export function TelegramContactsPanel({ bare = false }: Props) {
                   <div className="min-w-0">
                     <span className="font-medium">{c.name || "—"}</span>
                     {c.username && <span className="ml-2 text-xs text-muted-fg">@{c.username}</span>}
-                    {isOwner && <Badge tone="success">dueño</Badge>}
+                    {isOwner && <Badge tone="success">{t("telegram_contacts.owner_badge")}</Badge>}
                   </div>
                   <div className="flex items-center gap-2">
                     <Select
                       value={effectiveRole}
                       disabled={isOwner}
                       onChange={(e) => setRole(c, e.target.value)}
-                      title={isOwner ? "Es dueño de un canal — cambialo desde el canal" : "Asignar rol"}
+                      title={isOwner ? t("telegram_contacts.owner_hint") : t("telegram_contacts.assign_role")}
                     >
                       {roleNames.map((r) => <option key={r} value={r}>{r}</option>)}
                     </Select>
@@ -71,7 +71,7 @@ export function TelegramContactsPanel({ bare = false }: Props) {
                 </div>
                 <div className="mt-1 grid grid-cols-3 gap-2 text-xs text-muted-fg">
                   <span>user_id: {String(c.user_id)}</span>
-                  <span>visto: {c.last_seen ? c.last_seen.slice(0, 10) : "—"}</span>
+                  <span>{t("telegram_contacts.last_seen")} {c.last_seen ? c.last_seen.slice(0, 10) : "—"}</span>
                   <span>{roleToolsLabel(roles[effectiveRole])}</span>
                 </div>
               </li>
@@ -85,8 +85,8 @@ export function TelegramContactsPanel({ bare = false }: Props) {
   if (bare) return body;
   return (
     <Section
-      title="Contactos de Telegram"
-      description="Quién le escribe a los bots. El rol define qué herramientas puede usar; un invitado no tiene permisos hasta que le asignes un rol."
+      title={t("telegram_contacts.title")}
+      description={t("telegram_contacts.desc")}
     >
       {body}
     </Section>
@@ -95,7 +95,7 @@ export function TelegramContactsPanel({ bare = false }: Props) {
 
 function roleToolsLabel(role: TelegramRole | undefined): string {
   if (!role || role.tools === undefined) return "";
-  if (role.tools === "*") return "tools: todas";
-  if (Array.isArray(role.tools)) return role.tools.length ? `tools: ${role.tools.join(", ")}` : "tools: ninguna";
+  if (role.tools === "*") return t("telegram_contacts.tools_all");
+  if (Array.isArray(role.tools)) return role.tools.length ? `${t("telegram_contacts.tools_label")} ${role.tools.join(", ")}` : t("telegram_contacts.tools_none");
   return "";
 }

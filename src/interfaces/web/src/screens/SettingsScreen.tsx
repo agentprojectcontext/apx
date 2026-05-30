@@ -3,7 +3,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import {
   Bot, Cpu, KeyRound, MessageCircle, Palette, ScrollText, Send, Smartphone, User,
 } from "lucide-react";
-import { TabNav, NavToggle, useNavCollapse, type TabSection } from "../components/common/TabNav";
+import { useNavCollapse, type TabSection } from "../components/common/TabNav";
+import { TabLayout } from "../components/common/TabLayout";
 import { IdentityPanel } from "../components/settings/IdentityPanel";
 import { SuperAgentPanel } from "../components/settings/SuperAgentPanel";
 import { ModelsTab } from "./base/ModelsTab";
@@ -19,30 +20,30 @@ type TabKey =
 
 const SECTIONS: TabSection[] = [
   {
-    title: "Cuenta",
+    title: t("settings.account_section"),
     items: [
       { key: "identity",    label: t("settings.tabs.identity"),    icon: User },
       { key: "appearance",  label: t("settings.appearance"),       icon: Palette },
     ],
   },
   {
-    title: "Agentes & modelos",
+    title: t("settings.agents_section"),
     items: [
       { key: "super_agent", label: t("settings.tabs.super_agent"), icon: Bot },
-      { key: "engines",     label: "Modelos",                      icon: Cpu },
+      { key: "engines",     label: t("settings.tabs.engines"),     icon: Cpu },
     ],
   },
   {
-    title: "Canales & dispositivos",
+    title: t("settings.channels_section"),
     items: [
       { key: "telegram",    label: t("settings.tabs.telegram"),    icon: Send },
       { key: "devices",     label: t("settings.tabs.devices"),     icon: Smartphone },
     ],
   },
   {
-    title: "Avanzado",
+    title: t("settings.advanced_section"),
     items: [
-      { key: "advanced",    label: "Config",    icon: ScrollText },
+      { key: "advanced",    label: t("settings.tabs.advanced"),    icon: ScrollText },
     ],
   },
 ];
@@ -71,28 +72,17 @@ export function SettingsScreen() {
   void KeyRound; void MessageCircle;
 
   return (
-    <div className="flex h-full">
-      <TabNav
-        sections={SECTIONS}
-        active={active}
-        onChange={(k) => navigate(k === "identity" ? "/settings" : `/settings/${pathFromTab(k as TabKey)}`)}
-        collapsed={collapsed}
-      />
-      <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
-        <header className="px-6 py-4">
-          <div className="flex items-center gap-3">
-            <NavToggle collapsed={collapsed} onToggle={toggle} />
-            <div>
-              <h1 className="text-xl font-semibold tracking-tight">{t("settings.title")}</h1>
-              <p className="text-xs text-muted-fg">{t("settings.subtitle")}</p>
-            </div>
-          </div>
-        </header>
-        <div className={`mx-auto w-full ${WIDE_TABS.has(active) ? "max-w-6xl" : "max-w-3xl"} space-y-6 p-6`} data-testid={`settings-tab-${active}`}>
-          <Panel />
-        </div>
-      </div>
-    </div>
+    <TabLayout
+      sections={SECTIONS}
+      active={active}
+      onChange={(k) => navigate(k === "identity" ? "/settings" : `/settings/${pathFromTab(k as TabKey)}`)}
+      collapsed={collapsed}
+      onToggleCollapse={toggle}
+      contentClassName={`mx-auto w-full ${WIDE_TABS.has(active) ? "max-w-6xl" : "max-w-3xl"} space-y-6 p-6 pt-3`}
+      testId={`settings-tab-${active}`}
+    >
+      <Panel />
+    </TabLayout>
   );
 }
 

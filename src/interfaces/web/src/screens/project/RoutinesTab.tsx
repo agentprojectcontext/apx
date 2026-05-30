@@ -7,6 +7,7 @@ import { Badge, Button, Dialog, Empty, Field, Input, Loading, Switch, Textarea }
 import { UiSelect } from "../../components/UiSelect";
 import { useToast } from "../../components/Toast";
 import { cn } from "../../lib/cn";
+import { t } from "../../i18n";
 
 function splitLines(v: string): string[] {
   return v.split("\n").map((s) => s.trim()).filter(Boolean);
@@ -78,28 +79,28 @@ export function RoutinesTab({ pid }: { pid: string }) {
 
   const toggle = async (r: RoutineEntry) => {
     try { await (r.enabled ? Routines.disable : Routines.enable)(pid, r.name); list.mutate(); }
-    catch (e: any) { toast.error(e?.message || "toggle falló"); }
+    catch (e: any) { toast.error(e?.message || t("project.routines.toggle_error")); }
   };
   const runNow = async (r: RoutineEntry) => {
-    try { await Routines.run(pid, r.name); toast.success(`${r.name} disparada.`); }
-    catch (e: any) { toast.error(e?.message || "run falló"); }
+    try { await Routines.run(pid, r.name); toast.success(t("project.routines.run_success", { name: r.name })); }
+    catch (e: any) { toast.error(e?.message || t("project.routines.run_error")); }
   };
   const remove = async (r: RoutineEntry) => {
-    if (!confirm(`Borrar rutina ${r.name}?`)) return;
-    try { await Routines.remove(pid, r.name); toast.success("borrada."); list.mutate(); }
-    catch (e: any) { toast.error(e?.message || "delete falló"); }
+    if (!confirm(t("project.routines.delete_confirm", { name: r.name }))) return;
+    try { await Routines.remove(pid, r.name); toast.success(t("project.routines.delete_success")); list.mutate(); }
+    catch (e: any) { toast.error(e?.message || t("project.routines.delete_error")); }
   };
 
   return (
     <Section
-      title="Rutinas"
-      description="Tareas programadas (cron · cada N · una vez). Cada rutina dispara un agente, el super-agente, Telegram o un shell. Click en una fila para editar."
+      title={t("project.routines.title")}
+      description={t("project.routines.subtitle")}
       action={<Button size="sm" variant="primary" onClick={() => setEditing({ kind: "super_agent", schedule: "every:10m", enabled: true })}>
-        <Plus size={14} /> Nueva
+        <Plus size={14} /> {t("project.routines.new_btn")}
       </Button>}
     >
       {list.isLoading && <Loading />}
-      {!list.isLoading && (list.data?.length ?? 0) === 0 && <Empty>Sin rutinas. Creá una arriba.</Empty>}
+      {!list.isLoading && (list.data?.length ?? 0) === 0 && <Empty>{t("project.routines.empty")}</Empty>}
       <ul className="space-y-2 text-sm">
         {(list.data || []).map((row) => {
           const meta = KIND_META[row.kind];
@@ -118,7 +119,7 @@ export function RoutinesTab({ pid }: { pid: string }) {
                   </span>
                   <span className="font-medium">{row.name}</span>
                   <Badge tone={row.kind === "shell" ? "warning" : "info"}>{meta?.label || row.kind}</Badge>
-                  {!row.enabled && <Badge tone="muted">pausada</Badge>}
+                  {!row.enabled && <Badge tone="muted">{t("project.routines.paused")}</Badge>}
                 </div>
                 <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                   <Switch checked={row.enabled} onChange={() => toggle(row)} />
@@ -129,7 +130,7 @@ export function RoutinesTab({ pid }: { pid: string }) {
               <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-fg">
                 <span>⏱ {scheduleHuman(row.schedule)}</span>
                 <span>{actionSummary(row.kind, row.spec || {})}</span>
-                {row.next_run_at && <span>próxima: {new Date(row.next_run_at).toLocaleString()}</span>}
+                {row.next_run_at && <span>{t("project.routines.next_run")} {new Date(row.next_run_at).toLocaleString()}</span>}
                 <span className={cn(row.last_status === "ok" && "text-emerald-500", err && "text-destructive")}>
                   última: {row.last_status || "—"}
                 </span>
@@ -204,7 +205,7 @@ function RoutineEditor({
   };
 
   const submit = async () => {
-    if (!name) { toast.error("name requerido"); return; }
+    if (!name) { toast.error(t("project.routines.name_required")); return; }
     setBusy(true);
     try {
       const usePP = kind === "exec_agent" || kind === "super_agent";
@@ -214,9 +215,9 @@ function RoutineEditor({
         pre_commands: usePP ? splitLines(pre) : [],
         post_commands: usePP ? splitLines(post) : [],
       });
-      toast.success("Rutina guardada.");
+      toast.success(t("project.routines.saved"));
       onSaved();
-    } catch (e: any) { toast.error(e?.message || "save falló"); }
+    } catch (e: any) { toast.error(e?.message || t("project.routines.save_error")); }
     finally { setBusy(false); }
   };
 
@@ -247,40 +248,40 @@ function RoutineEditor({
     <Dialog
       open={!!draft}
       onClose={onClose}
-      title={draft?.name ? `Editar ${draft.name}` : "Nueva rutina"}
-      description="Se guarda en .apc/routines.json. La rutina corre mientras el daemon está activo."
+      title={draft?.name ? t("project.routines.edit_title", { name: draft.name }) : t("project.routines.new_title")}
+      description={t("project.routines.dialog_desc")}
       size="xl"
       footer={
         <>
-          <Button variant="ghost" onClick={onClose} disabled={busy}>Cancelar</Button>
-          <Button variant="primary" onClick={submit} loading={busy}>Guardar</Button>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>{t("common.cancel")}</Button>
+          <Button variant="primary" onClick={submit} loading={busy}>{t("common.save")}</Button>
         </>
       }
     >
       <div className="space-y-4">
         {/* status */}
         <div className="flex items-center justify-between rounded-lg border border-border bg-muted/20 px-3 py-2">
-          <Switch checked={enabled} onChange={setEnabled} label="Habilitada" />
-          <span className="text-[11px] text-muted-fg">{enabled ? "Activa · corre según el intervalo" : "Pausada · solo con el botón Run"}</span>
+          <Switch checked={enabled} onChange={setEnabled} label={t("project.routines.enabled_label")} />
+          <span className="text-[11px] text-muted-fg">{enabled ? t("project.routines.enabled_hint") : t("project.routines.disabled_hint")}</span>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
           {/* LEFT — qué y cuándo */}
           <div className="space-y-3">
-            <Field label="Nombre (name)" hint={draft?.name ? "No se puede cambiar al editar." : undefined}>
+            <Field label={t("project.routines.name_field")} hint={draft?.name ? t("project.routines.name_no_edit") : undefined}>
               <Input value={name} disabled={!!draft?.name} onChange={(e) => setName(e.target.value)} placeholder="resumen-diario" />
             </Field>
-            <Field label="Acción (kind)">
+            <Field label={t("project.routines.kind_field")}>
               <UiSelect value={kind} onChange={(v) => setKind(v as Kind)} options={KIND_OPTIONS} />
             </Field>
             <p className="-mt-1 text-[11px] text-muted-fg">{KIND_META[kind].desc}</p>
             {kind === "exec_agent" && (
-              <Field label="Agente (spec.agent)" hint="Quién ejecuta la rutina.">
-                <UiSelect value={agent} onChange={setAgent} placeholder={agentsList.isLoading ? "cargando…" : "— elegí un agente —"}
+              <Field label={t("project.routines.agent_field")} hint={t("project.routines.agent_hint")}>
+                <UiSelect value={agent} onChange={setAgent} placeholder={agentsList.isLoading ? t("project.routines.agent_loading") : t("project.routines.agent_pick")}
                   options={(agentsList.data || []).map((a) => ({ value: a.slug, label: a.slug, description: [a.role, a.model].filter(Boolean).join(" · ") || undefined }))} />
               </Field>
             )}
-            <Field label="Intervalo (schedule)" hint="Elegí un preset o escribilo a mano. Manual = solo corre con el botón Run.">
+            <Field label={t("project.routines.schedule_field")} hint={t("project.routines.schedule_hint")}>
               <div className="space-y-2">
                 <div className="flex flex-wrap gap-1">
                   {SCHED_PRESETS.map((s) => (
@@ -303,25 +304,25 @@ function RoutineEditor({
           <div className="space-y-3">
             {/* LLM: pre → prompt → post */}
             {usesPrePost && (
-              <Field label="Pre-commands (pre_commands)" hint="Shell ANTES del prompt. Uno por línea.">
+              <Field label={t("project.routines.pre_field")} hint={t("project.routines.pre_hint")}>
                 <Textarea rows={2} className="font-mono text-xs" value={pre} onChange={(e) => setPre(e.target.value)} placeholder="curl -s https://wttr.in/Bariloche" />
               </Field>
             )}
             {kind === "exec_agent" && (
-              <Field label="Prompt (spec.prompt)"><Textarea rows={4} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="qué pendiente hay para hoy?" /></Field>
+              <Field label={t("project.routines.prompt_exec")}><Textarea rows={4} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder={t("project.routines.prompt_exec_ph")} /></Field>
             )}
             {kind === "super_agent" && (
-              <Field label="Prompt (spec.prompt)"><Textarea rows={4} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="resumí el estado del proyecto" /></Field>
+              <Field label={t("project.routines.prompt_super")}><Textarea rows={4} value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder={t("project.routines.prompt_super_ph")} /></Field>
             )}
 
             {/* Telegram: solo manda un mensaje (sin LLM) */}
             {kind === "telegram" && (
               <>
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="Canal (spec.channel)"><Input value={tgChannel} onChange={(e) => setTgChannel(e.target.value)} placeholder="default" /></Field>
-                  <Field label="Chat ID (spec.chat_id)"><Input value={tgChatId} onChange={(e) => setTgChatId(e.target.value)} placeholder="(usa el del canal)" /></Field>
+                  <Field label={t("project.routines.tg_channel")}><Input value={tgChannel} onChange={(e) => setTgChannel(e.target.value)} placeholder="default" /></Field>
+                  <Field label={t("project.routines.tg_chat_id")}><Input value={tgChatId} onChange={(e) => setTgChatId(e.target.value)} placeholder="(usa el del canal)" /></Field>
                 </div>
-                <Field label="Texto (spec.text)" hint="Mensaje fijo a enviar. No usa modelo.">
+                <Field label={t("project.routines.tg_text")} hint={t("project.routines.tg_text_hint")}>
                   <Textarea rows={8} value={tgText} onChange={(e) => setTgText(e.target.value)} placeholder="mensaje a enviar" />
                 </Field>
               </>
@@ -329,7 +330,7 @@ function RoutineEditor({
 
             {/* Shell: un comando, ocupando todo */}
             {kind === "shell" && (
-              <Field label="Comando (spec.command)" hint="Corre tal cual en el shell. Sin prompt ni pre/post.">
+              <Field label={t("project.routines.shell_field")} hint={t("project.routines.shell_hint")}>
                 <Textarea rows={11} className="font-mono text-xs" value={command} onChange={(e) => setCommand(e.target.value)} placeholder="cd /repo && git pull && npm test" />
               </Field>
             )}
@@ -337,13 +338,13 @@ function RoutineEditor({
             {/* Heartbeat: solo loguea */}
             {kind === "heartbeat" && (
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Canal (spec.channel)"><Input value={hbChannel} onChange={(e) => setHbChannel(e.target.value)} placeholder="heartbeat" /></Field>
-                <Field label="Mensaje (spec.message)"><Input value={hbMessage} onChange={(e) => setHbMessage(e.target.value)} placeholder="sigo vivo" /></Field>
+                <Field label={t("project.routines.hb_channel")}><Input value={hbChannel} onChange={(e) => setHbChannel(e.target.value)} placeholder="heartbeat" /></Field>
+                <Field label={t("project.routines.hb_message")}><Input value={hbMessage} onChange={(e) => setHbMessage(e.target.value)} placeholder="sigo vivo" /></Field>
               </div>
             )}
 
             {usesPrePost && (
-              <Field label="Post-commands (post_commands)" hint="Shell DESPUÉS del prompt. Uno por línea.">
+              <Field label={t("project.routines.post_field")} hint={t("project.routines.post_hint")}>
                 <Textarea rows={2} className="font-mono text-xs" value={post} onChange={(e) => setPost(e.target.value)} placeholder={'apx telegram send "$APX_LLM_OUTPUT"'} />
               </Field>
             )}
@@ -352,7 +353,7 @@ function RoutineEditor({
 
         {/* Variables disponibles */}
         <div className="rounded-lg border border-border bg-muted/10 p-3">
-          <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-fg">Variables disponibles</div>
+          <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-fg">{t("project.routines.vars_title")}</div>
           <div className="flex flex-wrap gap-1.5">
             {VARS.map((v) => (
               <span key={v.v} title={v.desc} className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-1.5 py-0.5 font-mono text-[10px]">
@@ -364,7 +365,7 @@ function RoutineEditor({
 
         {/* Qué va a pasar — full width */}
         <div className="rounded-lg border border-border bg-muted/20 p-3">
-          <div className="mb-2 text-xs font-semibold text-muted-fg">Qué va a pasar <span className="font-normal text-muted-fg">· ⏱ {scheduleHuman(schedule)}</span></div>
+          <div className="mb-2 text-xs font-semibold text-muted-fg">{t("project.routines.what_happens")} <span className="font-normal text-muted-fg">· ⏱ {scheduleHuman(schedule)}</span></div>
           <div className="flex flex-wrap items-stretch gap-2">
             {steps.map((s, i) => (
               <div key={s.id} className="flex items-stretch gap-2">

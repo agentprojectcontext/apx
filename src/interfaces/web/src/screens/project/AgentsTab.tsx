@@ -59,29 +59,29 @@ export function AgentsTab({ pid }: { pid: string }) {
 
   return (
     <Section
-      title="Agents"
-      description="Definidos en AGENTS.md + .apc/agents/<slug>/. La jerarquía (orquestador → subagentes) vive en el frontmatter (Master / Parent)."
+      title={t("project.agents.title")}
+      description={t("project.agents.subtitle_full")}
       action={
         <div className="flex items-center gap-2">
           <div className="flex rounded-lg border border-border p-0.5">
             <button onClick={() => setView("hierarchy")} className={cn("flex items-center gap-1 rounded-md px-2 py-1 text-xs", view === "hierarchy" ? "bg-accent text-accent-fg" : "text-muted-fg")}>
-              <GitBranch size={13} /> Jerarquía
+              <GitBranch size={13} /> {t("project.agents.hierarchy")}
             </button>
             <button onClick={() => setView("list")} className={cn("flex items-center gap-1 rounded-md px-2 py-1 text-xs", view === "list" ? "bg-accent text-accent-fg" : "text-muted-fg")}>
-              <List size={13} /> Lista
+              <List size={13} /> {t("project.agents.list_view")}
             </button>
           </div>
           <Button size="sm" variant="ghost" onClick={() => setImporting(true)}>
-            <Upload size={13} /> Importar
+            <Upload size={13} /> {t("project.agents.import")}
           </Button>
-          <Button size="sm" variant="secondary" onClick={() => chat()}><Send size={13} /> Chat</Button>
+          <Button size="sm" variant="secondary" onClick={() => chat()}><Send size={13} /> {t("project.agents.chat")}</Button>
           <Button size="sm" variant="primary" data-testid="agent-new" onClick={() => setCreating(true)}><Plus size={14} /> {t("project.agents.new")}</Button>
         </div>
       }
     >
       {list.isLoading && <Loading />}
       {!list.isLoading && agents.length === 0 && (
-        <Empty>Sin agents. Agregá uno con <code>apx agent add</code> o el botón de arriba.</Empty>
+        <Empty>{t("project.agents.empty_text")}</Empty>
       )}
 
       {!list.isLoading && agents.length > 0 && (
@@ -118,7 +118,7 @@ function ImportVaultDialog({
 
   const doImport = async (slug: string) => {
     setBusy(slug);
-    try { await Agents.import(pid, slug); toast.success(`Importado: ${slug}`); onImported(); }
+    try { await Agents.import(pid, slug); toast.success(t("project.agents.import_success", { slug })); onImported(); }
     catch (e) { toast.error((e as Error).message); }
     finally { setBusy(""); }
   };
@@ -127,13 +127,13 @@ function ImportVaultDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      title="Importar del vault"
-      description="Plantillas en ~/.apx/agents. Se copian a este proyecto (.apc/agents/)."
+      title={t("project.agents.import_title")}
+      description={t("project.agents.import_desc")}
       size="lg"
-      footer={<Button variant="ghost" onClick={onClose}>Cerrar</Button>}
+      footer={<Button variant="ghost" onClick={onClose}>{t("common.close")}</Button>}
     >
       {vault.isLoading && <Loading />}
-      {!vault.isLoading && items.length === 0 && <Empty>Sin plantillas en el vault.</Empty>}
+      {!vault.isLoading && items.length === 0 && <Empty>{t("project.agents.import_empty")}</Empty>}
       <ul className="space-y-2">
         {items.map((a) => {
           const already = existing.includes(a.slug);
@@ -143,13 +143,13 @@ function ImportVaultDialog({
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-sm font-medium">{a.slug}</span>
-                  {a.is_master && <Badge tone="success"><Crown size={9} /> Orq</Badge>}
+                  {a.is_master && <Badge tone="success"><Crown size={9} /> {t("project.agents.orchestrator")}</Badge>}
                   {a.model && <Badge tone="info">{a.model}</Badge>}
                 </div>
                 {a.description && <p className="truncate text-xs text-muted-fg">{a.description}</p>}
               </div>
               <Button size="sm" variant="primary" disabled={already || busy === a.slug} loading={busy === a.slug} onClick={() => doImport(a.slug)}>
-                {already ? "ya está" : "Importar"}
+                {already ? t("project.agents.import_already") : t("project.agents.import_btn")}
               </Button>
             </li>
           );
@@ -229,13 +229,13 @@ function AgentCard({
         <span className="truncate text-sm font-semibold">{agent.slug}</span>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-1">
-        {agent.is_master && <Badge tone="success"><Crown size={9} /> Orquestador</Badge>}
+        {agent.is_master && <Badge tone="success"><Crown size={9} /> {t("project.agents.orchestrator")}</Badge>}
         {agent.role && <Badge>{agent.role}</Badge>}
         {agent.model && !compact && <Badge tone="info">{agent.model}</Badge>}
       </div>
       <div className="mt-2 flex items-center gap-3 border-t border-border pt-2 text-xs text-muted-fg" onClick={(e) => e.stopPropagation()}>
-        <button onClick={() => onOpen(agent.slug)} className="flex items-center gap-1 hover:text-foreground"><Eye size={12} /> Ver</button>
-        <button onClick={() => onChat(agent.slug)} className="flex items-center gap-1 text-emerald-500 hover:text-emerald-400"><Send size={12} /> Chat</button>
+        <button onClick={() => onOpen(agent.slug)} className="flex items-center gap-1 hover:text-foreground"><Eye size={12} /> {t("project.agents.view")}</button>
+        <button onClick={() => onChat(agent.slug)} className="flex items-center gap-1 text-emerald-500 hover:text-emerald-400"><Send size={12} /> {t("project.agents.chat")}</button>
       </div>
     </div>
   );
@@ -255,7 +255,7 @@ function ListView({ agents, onOpen, onChat }: { agents: AgentEntry[]; onOpen: (s
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm font-semibold">{a.slug}</span>
-                {a.is_master && <Badge tone="success"><Crown size={10} /> Orquestador</Badge>}
+                {a.is_master && <Badge tone="success"><Crown size={10} /> {t("project.agents.orchestrator")}</Badge>}
                 {a.role && <Badge>{a.role}</Badge>}
                 {a.model && <Badge tone="info">{a.model}</Badge>}
                 {a.parent && <span className="text-[10px] text-violet-400">↳ {a.parent}</span>}
@@ -267,8 +267,8 @@ function ListView({ agents, onOpen, onChat }: { agents: AgentEntry[]; onOpen: (s
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-3 text-xs text-muted-fg" onClick={(e) => e.stopPropagation()}>
-              <button onClick={() => onOpen(a.slug)} className="flex items-center gap-1 hover:text-foreground"><Eye size={12} /> Ver</button>
-              <button onClick={() => onChat(a.slug)} className="flex items-center gap-1 text-emerald-500 hover:text-emerald-400"><Send size={12} /> Chat</button>
+              <button onClick={() => onOpen(a.slug)} className="flex items-center gap-1 hover:text-foreground"><Eye size={12} /> {t("project.agents.view")}</button>
+              <button onClick={() => onChat(a.slug)} className="flex items-center gap-1 text-emerald-500 hover:text-emerald-400"><Send size={12} /> {t("project.agents.chat")}</button>
             </div>
           </div>
         );
@@ -298,7 +298,7 @@ function CreateAgentDialog({
   };
 
   const submit = async () => {
-    if (!/^[a-z][a-z0-9_-]*$/.test(slug)) { toast.error("slug debe matchear /^[a-z][a-z0-9_-]*$/"); return; }
+    if (!/^[a-z][a-z0-9_-]*$/.test(slug)) { toast.error(t("project.agents.slug_invalid")); return; }
     setBusy(true);
     try {
       await Agents.create(pid, {
@@ -312,10 +312,10 @@ function CreateAgentDialog({
         is_master: isMaster,
         parent: parent || undefined,
       });
-      toast.success(`Agent ${slug} creado.`);
+      toast.success(t("project.agents.create_success", { slug }));
       onCreated();
       reset();
-    } catch (e: any) { toast.error(e?.message || "create falló"); }
+    } catch (e: any) { toast.error(e?.message || t("project.agents.create_error")); }
     finally { setBusy(false); }
   };
 
@@ -323,40 +323,40 @@ function CreateAgentDialog({
     <Dialog
       open={open}
       onClose={onClose}
-      title="Nuevo agent"
-      description="POST /projects/:pid/agents — escribe .apc/agents/<slug>.md."
+      title={t("project.agents.new_title")}
+      description={t("project.agents.new_desc")}
       size="lg"
       footer={
         <>
-          <Button variant="ghost" onClick={onClose} disabled={busy}>Cancelar</Button>
-          <Button variant="primary" data-testid="agent-create-submit" onClick={submit} loading={busy}>Crear</Button>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>{t("common.cancel")}</Button>
+          <Button variant="primary" data-testid="agent-create-submit" onClick={submit} loading={busy}>{t("common.create")}</Button>
         </>
       }
     >
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
-          <Field label="slug"><Input autoFocus data-testid="agent-slug" value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="cody" /></Field>
-          <Field label="role (opcional)"><Input value={role} onChange={(e) => setRole(e.target.value)} placeholder="code refactor" /></Field>
+          <Field label={t("project.agents.slug_label")}><Input autoFocus data-testid="agent-slug" value={slug} onChange={(e) => setSlug(e.target.value)} placeholder={t("project.agents.slug_ph")} /></Field>
+          <Field label={t("project.agents.role_label")}><Input value={role} onChange={(e) => setRole(e.target.value)} placeholder={t("project.agents.role_ph")} /></Field>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="model (opcional)" hint="ej. claude-sonnet-4.5, ollama:gemma2:9b"><Input value={model} onChange={(e) => setModel(e.target.value)} /></Field>
-          <Field label="language (opcional)"><UiSelect value={language} onChange={setLanguage} options={LANGS.map((l) => ({ value: l, label: l || "—" }))} /></Field>
+          <Field label={t("project.agents.model_label")} hint={t("project.agents.model_hint")}><Input value={model} onChange={(e) => setModel(e.target.value)} /></Field>
+          <Field label={t("project.agents.lang_label")}><UiSelect value={language} onChange={setLanguage} options={LANGS.map((l) => ({ value: l, label: l || "—" }))} /></Field>
         </div>
-        <Field label="description (opcional)"><Textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Qué hace este agente…" /></Field>
+        <Field label={t("project.agents.desc_label")}><Textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("project.agents.desc_ph")} /></Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="skills (coma)"><Input value={skills} onChange={(e) => setSkills(e.target.value)} placeholder="skill-a, skill-b" /></Field>
-          <Field label="tools (coma)"><Input value={tools} onChange={(e) => setTools(e.target.value)} placeholder="tool-a, tool-b" /></Field>
+          <Field label={t("project.agents.skills_label")}><Input value={skills} onChange={(e) => setSkills(e.target.value)} placeholder={t("project.agents.skills_ph")} /></Field>
+          <Field label={t("project.agents.tools_label")}><Input value={tools} onChange={(e) => setTools(e.target.value)} placeholder={t("project.agents.tools_ph")} /></Field>
         </div>
         <div className="grid grid-cols-2 items-end gap-3">
-          <Field label="reporta a (parent, opcional)" hint="Subagente de un orquestador.">
+          <Field label={t("project.agents.parent_label")} hint={t("project.agents.parent_hint")}>
             <UiSelect
               value={parent}
               onChange={setParent}
-              placeholder="— ninguno —"
-              options={[{ value: "", label: "— ninguno —" }, ...agents.filter((a) => a.slug !== slug).map((a) => ({ value: a.slug, label: a.slug }))]}
+              placeholder={t("project.agents.none_parent")}
+              options={[{ value: "", label: t("project.agents.none_parent") }, ...agents.filter((a) => a.slug !== slug).map((a) => ({ value: a.slug, label: a.slug }))]}
             />
           </Field>
-          <Switch checked={isMaster} onChange={setIsMaster} label="Orquestador (master)" />
+          <Switch checked={isMaster} onChange={setIsMaster} label={t("project.agents.master_label")} />
         </div>
       </div>
     </Dialog>

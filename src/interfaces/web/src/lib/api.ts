@@ -18,6 +18,9 @@ export * from "./api/admin";
 export * from "./api/identity";
 export * from "./api/super_agent";
 export * from "./api/filesystem";
+export * from "./api/voice";
+export * from "./api/deck";
+export * from "./api/code";
 
 // Re-export the daemon types so older imports of "../lib/api" still work.
 export type {

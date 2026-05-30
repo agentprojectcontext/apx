@@ -1,9 +1,13 @@
+import { useState } from "react";
 import { Route, Routes, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Moon, Sun } from "lucide-react";
-import { ProjectSidebar } from "./components/layout/ProjectSidebar";
+import { ProjectSidebar, projectKindLabel } from "./components/layout/ProjectSidebar";
 import { ApxAdminScreen } from "./screens/ApxAdminScreen";
 import { ProjectScreen } from "./screens/ProjectScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
+import { VoiceScreen } from "./screens/modules/VoiceScreen";
+import { DeckScreen } from "./screens/modules/DeckScreen";
+import { CodeScreen } from "./screens/modules/CodeScreen";
 import { AddProjectDialog } from "./components/AddProjectDialog";
 import { PairingScreen } from "./screens/PairingScreen";
 import { RobyBubble } from "./components/RobyBubble";
@@ -47,6 +51,7 @@ function Shell() {
   const [params, setParams] = useSearchParams();
   const { theme, toggle } = useTheme();
   const addOpen = params.get("action") === "add-project";
+  const [robyOpen, setRobyOpen] = useState(false);
 
   const closeAdd = () => {
     const next = new URLSearchParams(params);
@@ -56,22 +61,25 @@ function Shell() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground" data-testid="app-shell">
-      <ProjectSidebar onSelect={(href) => navigate(href)} />
+      <ProjectSidebar onSelect={(href) => navigate(href)} onOpenRoby={() => setRobyOpen(true)} />
       <main className="m-2 ml-0 flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
         <TopBar onToggleTheme={toggle} isDark={theme === "dark"} pathname={location.pathname} />
         <div className="flex-1 overflow-y-auto">
           <Routes>
             <Route path="/"           element={<ApxAdminScreen />} />
             <Route path="/settings/*" element={<SettingsScreen />} />
+            <Route path="/m/voice/*"  element={<VoiceScreen />} />
+            <Route path="/m/deck/*"   element={<DeckScreen />} />
+            <Route path="/m/code/*"   element={<CodeScreen />} />
             <Route path="/p/:pid/*"   element={<ProjectScreen />} />
             <Route path="*"           element={<NotFound />} />
           </Routes>
         </div>
       </main>
       <AddProjectDialog open={addOpen} onClose={closeAdd} />
-      {/* Always-on floating shortcut to chat with Roby (the super-agent).
-          Visible on every authenticated screen; calls /projects/0/super-agent/chat. */}
-      <RobyBubble />
+      {/* Roby (the super-agent) chat sheet. Launcher lives in the rail (below
+          Settings); open state is owned here so the rail can trigger it. */}
+      <RobyBubble open={robyOpen} onOpenChange={setRobyOpen} />
     </div>
   );
 }
@@ -104,9 +112,21 @@ function TopBar({
             ? [t("topbar.breadcrumb_root"), t("topbar.breadcrumb_base"), section].filter(Boolean).join(" › ")
             : [t("topbar.breadcrumb_root"), t("topbar.breadcrumb_projects"), projName, section].filter(Boolean).join(" › "))
         : t("topbar.breadcrumb_root");
+  const subtitle = pathname === "/"
+    ? ""
+    : parts[0] === "settings"
+      ? t("settings.subtitle")
+      : parts[0] === "p"
+        ? (isDefault
+            ? t("base.subtitle")
+            : project ? `${projectKindLabel(project.kind)} · ${project.path}` : "")
+        : "";
   return (
-    <header className="flex h-11 shrink-0 items-center justify-between px-4">
-      <span className="text-xs tracking-wide text-muted-fg">{crumb}</span>
+    <header className="flex h-11 shrink-0 items-center justify-between gap-4 px-4">
+      <span className="min-w-0 truncate text-xs tracking-wide text-muted-fg">
+        {crumb}
+        {subtitle && <span className="text-muted-fg/60"> · {subtitle}</span>}
+      </span>
       <button
         type="button"
         onClick={onToggleTheme}
@@ -122,12 +142,12 @@ function TopBar({
 function settingsLabel(key?: string) {
   switch (key) {
     case "super-agent": return t("settings.tabs.super_agent");
-    case "engines": return "Modelos";
+    case "engines": return t("settings.tabs.engines");
     case "telegram": return t("settings.tabs.telegram");
     case "devices": return t("settings.tabs.devices");
     case "appearance": return t("settings.appearance");
     case "config":
-    case "advanced": return "Config";
+    case "advanced": return t("settings.tabs.advanced");
     case "identity":
     default: return key ? key : "";
   }
@@ -143,12 +163,12 @@ function projectLabel(key?: string) {
     case "tasks": return t("project.nav.tasks");
     case "mcps": return t("project.nav.mcps");
     case "config": return t("project.nav.config");
-    case "workspaces": return "Workspaces";
-    case "models": return "Models";
-    case "agent-defaults": return "Agent defaults";
-    case "sessions": return "Sessions";
-    case "logs": return "Logs";
-    case "memories": return "Memorias";
+    case "workspaces": return t("base.workspaces_title");
+    case "models": return t("settings.tabs.engines");
+    case "agent-defaults": return t("base.defaults_title");
+    case "sessions": return t("base.sessions_title");
+    case "logs": return t("project.nav.logs");
+    case "memories": return t("project.nav.memories");
     default: return "";
   }
 }
@@ -170,8 +190,8 @@ function Splash({ text, sub }: { text: string; sub?: string }) {
 function NotFound() {
   return (
     <div className="p-8">
-      <h1 className="text-2xl">404</h1>
-      <p className="text-muted-fg">Esa ruta no existe.</p>
+      <h1 className="text-2xl">{t("not_found.title")}</h1>
+      <p className="text-muted-fg">{t("not_found.message")}</p>
     </div>
   );
 }

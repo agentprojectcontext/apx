@@ -6,13 +6,14 @@ import type { AgentEntry } from "../../types/daemon";
 import { Section } from "../../components/Section";
 import { Button, Empty, Loading, Textarea } from "../../components/ui";
 import { useToast } from "../../components/Toast";
+import { t } from "../../i18n";
 
 // Editable markdown memory block with dirty-tracking + save.
 function MemoryEditor({
   load,
   save,
   rows = 10,
-  placeholder = "(memoria vacía)",
+  placeholder,
 }: {
   load: () => Promise<string>;
   save: (body: string) => Promise<void>;
@@ -38,7 +39,7 @@ function MemoryEditor({
     try {
       await save(value);
       setOriginal(value);
-      toast.success("Memoria guardada.");
+      toast.success(t("project.memories.saved"));
     } catch (e) { toast.error((e as Error).message); }
     finally { setBusy(false); }
   };
@@ -53,9 +54,9 @@ function MemoryEditor({
         placeholder={placeholder}
       />
       <div className="flex items-center justify-between">
-        <span className="text-[11px] text-muted-fg">{value.length} chars · Markdown</span>
+        <span className="text-[11px] text-muted-fg">{value.length} {t("project.memories.chars")}</span>
         <Button size="sm" variant="primary" loading={busy} disabled={!dirty} onClick={onSave}>
-          <Save size={12} /> Guardar
+          <Save size={12} /> {t("project.memories.save_btn")}
         </Button>
       </div>
     </div>
@@ -96,8 +97,8 @@ export function MemoriesTab({ pid }: { pid: string }) {
   return (
     <div className="space-y-6">
       <Section
-        title="Memoria del proyecto"
-        description="Hechos durables a nivel proyecto. .apc/memory.md — la leen los agentes y el super-agente."
+        title={t("project.memories.project_title")}
+        description={t("project.memories.project_desc")}
       >
         <div className="flex items-start gap-3">
           <div className="mt-1 flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-sky-600 to-indigo-600">
@@ -108,19 +109,19 @@ export function MemoriesTab({ pid }: { pid: string }) {
               rows={12}
               load={() => Projects.memory.get(pid).then((r) => r.body)}
               save={(body) => Projects.memory.put(pid, body).then(() => {})}
-              placeholder="# Memoria del proyecto&#10;&#10;Hechos estables que cualquier agente debería saber…"
+              placeholder={t("project.memories.project_ph")}
             />
           </div>
         </div>
       </Section>
 
       <Section
-        title="Memorias de agentes"
-        description="Memoria individual por agente. .apc/agents/<slug>/memory.md"
+        title={t("project.memories.agents_title")}
+        description={t("project.memories.agents_desc")}
       >
         {agents.isLoading && <Loading />}
         {!agents.isLoading && (agents.data?.length ?? 0) === 0 && (
-          <Empty>Sin agentes en este proyecto.</Empty>
+          <Empty>{t("project.memories.no_agents")}</Empty>
         )}
         <ul className="space-y-2">
           {(agents.data || []).map((a) => (
