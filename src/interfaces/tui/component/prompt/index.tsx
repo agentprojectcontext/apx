@@ -163,7 +163,10 @@ export function Prompt(props: PromptProps) {
   const animationsEnabled = createMemo(() => kv.get("animations_enabled", true))
   const list = createMemo(() => props.placeholders?.normal ?? [])
   const shell = createMemo(() => props.placeholders?.shell ?? [])
-  const fileContextEnabled = createMemo(() => kv.get("file_context_enabled", true))
+  // APX default OFF: there's no live editor integration, so auto-attaching the
+  // "opened file" only injected a noisy <system-reminder> into the prompt and
+  // the user bubble. Toggle on via the command palette if you want it.
+  const fileContextEnabled = createMemo(() => kv.get("file_context_enabled", false))
   const [dismissedEditorSelectionKey, setDismissedEditorSelectionKey] = createSignal<string>()
   const editorContext = createMemo(() => {
     const selection = fileContextEnabled() ? editor.selection() : undefined

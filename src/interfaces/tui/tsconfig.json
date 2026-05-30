@@ -28,6 +28,7 @@
       "@/cli/ui.ts": ["./_shims/cli-ui.ts"],
       "@/cli/ui": ["./_shims/cli-ui.ts"],
       "@/util/locale": ["./_shims/util-locale.ts"],
+      "@/util/which": ["./_shims/util-which.ts"],
       "@/util/error": ["./_shims/util-error.ts"],
       "@/util/filesystem": ["./_shims/util-filesystem.ts"],
       "@/util/iife": ["./_shims/util-iife.ts"],

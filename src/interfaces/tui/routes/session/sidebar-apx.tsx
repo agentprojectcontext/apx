@@ -9,7 +9,7 @@ import { createMemo, Show } from "solid-js"
 import { useTheme } from "@tui/context/theme"
 import { useApxSync } from "@tui/context/sync-apx"
 import { useSDK } from "@tui/context/sdk-apx"
-import pkg from "../../../../package.json"
+import pkg from "../../../../../package.json"
 
 function titlecase(value: string) {
   if (!value) return value

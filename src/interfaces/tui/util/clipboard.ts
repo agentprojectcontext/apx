@@ -20,7 +20,7 @@ function lazy<T>(fn: () => Promise<T>): () => Promise<T> {
 
 // Lazy load which and clipboardy to avoid expensive execa/which/isexe chain at startup
 const getWhich = lazy(async () => {
-  const { which } = await import("../../../../util/which")
+  const { which } = await import("@/util/which")
   return which
 })
 

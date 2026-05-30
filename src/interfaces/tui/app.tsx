@@ -636,10 +636,10 @@ function App(props: { onSnapshot?: () => Promise<string[]> }) {
       },
       {
         name: "app.toggle.file_context",
-        title: kv.get("file_context_enabled", true) ? "Disable file context" : "Enable file context",
+        title: kv.get("file_context_enabled", false) ? "Disable file context" : "Enable file context",
         category: "System",
         run: () => {
-          kv.set("file_context_enabled", !kv.get("file_context_enabled", true))
+          kv.set("file_context_enabled", !kv.get("file_context_enabled", false))
           dialog.clear()
         },
       },
