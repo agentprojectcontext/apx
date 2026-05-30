@@ -45,6 +45,10 @@ function buildChannelContext(channel, { projectId, language = "es" } = {}) {
     contextNote: "",
     systemSuffix: "",
     wantsSuggestions: false,
+    // Channel id forwarded to runSuperAgent so the matching channels/*.md
+    // formatting block is injected. Empty = no channel block (telegram/api
+    // keep their own inline note below).
+    channel: "",
   };
   // Project resolution hint.
   //   - per-project mic (projectId set): use it imperatively, don't ask.
@@ -69,25 +73,24 @@ function buildChannelContext(channel, { projectId, language = "es" } = {}) {
     : `IMPORTANT: Reply in language "${language}".`;
 
   switch (channel) {
+    // voice + deck formatting now lives in channels/voice.md and
+    // channels/deck.md (injected via the forwarded `channel`); contextNote
+    // only carries the per-request dynamic bits (language + project hint).
     case "voice":
       return {
-        contextNote:
-          `${langDirective}\n` +
-          `Channel: voice. The user spoke this through the deck's voice overlay; ` +
-          `your reply will be read aloud by a TTS engine. Keep it under two short ` +
-          `sentences, no markdown, no bullet lists.${projectHint}`,
+        ...base,
+        contextNote: `${langDirective}${projectHint}`,
         systemSuffix: SUGGESTIONS_INSTRUCTION,
         wantsSuggestions: true,
+        channel: "voice",
       };
     case "deck":
       return {
-        contextNote:
-          `${langDirective}\n` +
-          `Channel: deck. The user is on the cockpit dashboard. You can be ` +
-          `slightly longer than voice but stay concise — the reply renders in a ` +
-          `small card alongside action chips.${projectHint}`,
+        ...base,
+        contextNote: `${langDirective}${projectHint}`,
         systemSuffix: SUGGESTIONS_INSTRUCTION,
         wantsSuggestions: true,
+        channel: "deck",
       };
     case "telegram":
       return {
@@ -400,6 +403,7 @@ export function register(app, { projects, plugins, registries }) {
             registries,
             prompt: userText,
             contextNote: channelCtx.contextNote,
+            channel: channelCtx.channel || "",
             systemSuffix: channelCtx.systemSuffix,
             previousMessages,
           });

@@ -8,6 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readIdentity } from "../identity.js";
+import { readSelfMemoryForPrompt } from "./self-memory.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROMPTS_DIR = path.join(__dirname, "prompts");
@@ -25,6 +26,8 @@ const CHANNEL_PROMPT_FILES = {
   overlay: "channels/overlay.md",
   routine: "channels/routine.md",
   api: "channels/api.md",
+  voice: "channels/voice.md",
+  deck: "channels/deck.md",
 };
 
 export function loadPrompt(relativePath) {
@@ -128,6 +131,20 @@ export function buildRelationshipBlock(sender) {
   return lines.join("\n");
 }
 
+// Roby's own notebook (~/.apx/memory.md), bounded for the prompt. Returns ""
+// when empty so the block is dropped entirely.
+export function buildSelfMemoryBlock() {
+  const slice = readSelfMemoryForPrompt();
+  if (!slice) return "";
+  return [
+    "# Your notebook (self-memory)",
+    "Durable things you chose to remember across sessions. Treat as known facts;",
+    "update with the `remember` tool. Call read_self_memory if this looks truncated.",
+    "",
+    slice,
+  ].join("\n");
+}
+
 export function isSuperAgentEnabled(cfg) {
   const sa = cfg && cfg.super_agent;
   if (!sa || !sa.model) return false;
@@ -202,6 +219,7 @@ export function buildSuperAgentSystem({
   return [
     sa.system || loadDefaultSystemPrompt(),
     buildUserContextBlock(identity, globalConfig),
+    buildSelfMemoryBlock(),
     relationshipBlock,
     buildPermissionBlock(sa),
     extraContext,

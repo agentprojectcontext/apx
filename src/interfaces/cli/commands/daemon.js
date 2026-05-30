@@ -3,6 +3,16 @@ import os from "node:os";
 import path from "node:path";
 import { ensureDaemon, http } from "../http.js";
 
+// Wait until nothing answers on the daemon port (old process fully exited and
+// released it), so a fresh start can bind it. Resolves true when down.
+async function waitForPortReleased({ tries = 40, intervalMs = 150 } = {}) {
+  for (let i = 0; i < tries; i++) {
+    if (!(await http.ping(200))) return true;
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  return false;
+}
+
 const PID_PATH = path.join(os.homedir(), ".apx", "daemon.pid");
 const LOG_PATH = path.join(os.homedir(), ".apx", "daemon.log");
 
@@ -109,6 +119,49 @@ export async function cmdDaemonReload(args = {}) {
   if (res.super_agent_model) console.log(fmt.kv("model", fmt.cyan(res.super_agent_model)));
   if (res.fallback_order?.length) console.log(fmt.kv("fallback", fmt.cyan(res.fallback_order.join(" → "))));
   console.log();
+}
+
+export async function cmdDaemonRestart(args = {}) {
+  const debug = args.flags?.debug;
+  const wasRunning = await http.ping();
+
+  if (wasRunning) {
+    // Ask the daemon to shut down cleanly; fall back to a PID kill if the
+    // HTTP shutdown route is unreachable (same fallback as `stop`).
+    try {
+      const res = await http.post("/admin/shutdown", undefined, { autoStart: false });
+      if (debug) debugRaw("/admin/shutdown", res);
+    } catch {
+      if (fs.existsSync(PID_PATH)) {
+        try {
+          const pid = parseInt(fs.readFileSync(PID_PATH, "utf8"), 10);
+          if (pid) process.kill(pid);
+        } catch {}
+      }
+    }
+    // The old process must release port 7430 before we start a fresh one,
+    // otherwise ensureDaemon() sees it alive and starts nothing.
+    if (!(await waitForPortReleased())) {
+      console.log(
+        `\n  ${fmt.red("○")} ${fmt.bold("apx daemon")}  ` +
+        `${fmt.dim("did not shut down in time — aborting restart")}\n`
+      );
+      process.exit(1);
+    }
+    process.stderr.write("apx: restarting daemon...\n");
+  } else {
+    process.stderr.write("apx: daemon not running — starting...\n");
+  }
+
+  await ensureDaemon({ silent: true });
+  const status = await http.get("/health", { autoStart: false });
+  if (debug) debugRaw("/health", status);
+  console.log(
+    `\n  ${fmt.green("●")} ${fmt.bold("apx daemon")} ${fmt.dim("v" + status.version)}` +
+    `  ${fmt.gray("·")}  ${fmt.green(wasRunning ? "restarted" : "started")}` +
+    `  ${fmt.gray("·")}  ${fmt.cyan("port")} ${status.port ?? (process.env.APX_PORT || 7430)}` +
+    `  ${fmt.gray("·")}  ${fmt.cyan("uptime")} ${uptime(status.uptime_s)}\n`
+  );
 }
 
 export async function cmdDaemonStop(args = {}) {

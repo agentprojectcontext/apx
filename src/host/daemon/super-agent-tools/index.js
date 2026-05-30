@@ -5,6 +5,8 @@ import importAgent from "./tools/import-agent.js";
 import addProject from "./tools/add-project.js";
 import listMcps from "./tools/list-mcps.js";
 import readAgentMemory from "./tools/read-agent-memory.js";
+import remember from "./tools/remember.js";
+import readSelfMemory from "./tools/read-self-memory.js";
 import listFiles from "./tools/list-files.js";
 import readFile from "./tools/read-file.js";
 import writeFile from "./tools/write-file.js";
@@ -12,6 +14,7 @@ import editFile from "./tools/edit-file.js";
 import runShell from "./tools/run-shell.js";
 import tailMessages from "./tools/tail-messages.js";
 import searchMessages from "./tools/search-messages.js";
+import searchSessions from "./tools/search-sessions.js";
 import callAgent from "./tools/call-agent.js";
 import callMcp from "./tools/call-mcp.js";
 import callRuntime from "./tools/call-runtime.js";
@@ -36,6 +39,8 @@ const NATIVE_TOOLS = [
   addProject,
   listMcps,
   readAgentMemory,
+  remember,
+  readSelfMemory,
   listFiles,
   readFile,
   writeFile,
@@ -43,6 +48,7 @@ const NATIVE_TOOLS = [
   runShell,
   tailMessages,
   searchMessages,
+  searchSessions,
   callAgent,
   callMcp,
   callRuntime,
@@ -86,6 +92,10 @@ const CORE_TOOL_NAMES = new Set([
   // Memory + identity — used during identity / config conversations.
   "read_agent_memory",
   "set_identity",
+  // Self-memory: jot durable facts so they survive across sessions.
+  "remember",
+  // Self-recall: "what did we do / last session" must work on every channel.
+  "search_sessions",
   // Conversation control.
   "ask_questions",
   // On-demand expansion: this is how the model loads the rest of the surface.
@@ -111,7 +121,12 @@ export const CORE_TOOL_SCHEMAS = TOOLS
  */
 export function schemasForChannel(channel, { full = false } = {}) {
   if (full) return TOOL_SCHEMAS;
+  // Routines and the local surfaces (web admin chat, `apx exec super-agent`)
+  // get the full registry — they run on a model the user picked and aren't
+  // subject to the cheap-tier TPM caps that motivate the "core" subset.
   if (channel === "routine") return TOOL_SCHEMAS;
+  if (channel === "api") return TOOL_SCHEMAS;
+  // Telegram / overlay stay on the small subset to fit cheap cloud TPM limits.
   return CORE_TOOL_SCHEMAS;
 }
 

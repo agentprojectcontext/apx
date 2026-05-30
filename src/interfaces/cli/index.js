@@ -50,6 +50,7 @@ import {
 import {
   cmdDaemonStart,
   cmdDaemonStop,
+  cmdDaemonRestart,
   cmdDaemonStatus,
   cmdDaemonLogs,
   cmdDaemonReload,
@@ -787,16 +788,23 @@ const HELP_TOPICS = new Map(Object.entries({
   }),
   daemon: topic({
     title: "apx daemon",
-    summary: "Start, stop, inspect, reload, and read logs from the local APX daemon.",
-    usage: ["apx daemon <start|stop|reload|status|logs> [--flags]"],
+    summary: "Start, stop, restart, inspect, reload, and read logs from the local APX daemon.",
+    usage: ["apx daemon <start|stop|restart|reload|status|logs> [--flags]"],
     commands: [
       ["start", "Start daemon."],
       ["stop", "Stop daemon."],
-      ["reload", "Reload ~/.apx/config.json without restart."],
+      ["restart", "Stop then start — picks up code, prompt, and tool changes."],
+      ["reload", "Re-read ~/.apx/config.json only (NOT code/prompts) without restart."],
       ["status", "Show daemon health."],
       ["logs", "Print daemon log tail."],
     ],
-    examples: ["apx daemon status", "apx daemon reload", "apx daemon logs --tail 100"],
+    examples: ["apx daemon status", "apx daemon restart", "apx daemon logs --tail 100"],
+  }),
+  "daemon restart": topic({
+    title: "apx daemon restart",
+    summary: "Restart the local APX daemon (stop + start in one step).",
+    usage: ["apx daemon restart"],
+    examples: ["apx daemon restart"],
   }),
   "daemon start": topic({
     title: "apx daemon start",
@@ -2298,6 +2306,7 @@ async function dispatch(cmd, rest) {
         const a = parseArgs(rest.slice(1));
         if (sub === "start") await cmdDaemonStart(a);
         else if (sub === "stop") await cmdDaemonStop(a);
+        else if (sub === "restart") await cmdDaemonRestart(a);
         else if (sub === "reload") await cmdDaemonReload(a);
         else if (sub === "status") await cmdDaemonStatus(a);
         else if (sub === "logs") cmdDaemonLogs(a);
