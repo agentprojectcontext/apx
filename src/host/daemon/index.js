@@ -24,6 +24,7 @@ import { createTokenStore } from "./token-store.js";
 import { triggerWakeup } from "./wakeup.js";
 import { registerOverlayClient } from "./overlay-ws.js";
 import { log as logToUnified } from "../../core/logging.js";
+import { initMemory, stopMemory } from "../../core/memory/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -213,6 +214,10 @@ async function main() {
     log(`projects: ${projects.list().length} | plugins: ${Object.keys(plugins.status()).join(", ") || "(none)"}`);
     plugins.startAll();
     scheduler.start();
+    // Cross-channel memory: ensure ~/.apx/memory.md exists, open the vector
+    // store, and start the incremental RAG indexer. Best-effort — never blocks
+    // boot and never throws into the daemon.
+    initMemory({ config: cfg, log }).catch((e) => log(`memory: init failed: ${e?.message || e}`));
     // Fire wake-up message after a short delay so plugins (Telegram) are ready
     setTimeout(() => triggerWakeup(cfg, log), 3000);
     // Preload whisper-server in the background so first overlay transcription is fast.
@@ -248,6 +253,7 @@ async function main() {
     log(`received ${signal}, shutting down...`);
     scheduler.stop();
     plugins.stopAll();
+    stopMemory();
     registries.shutdown();
     // Best-effort shutdown of whisper-server subprocess.
     import("./transcription.js").then(({ shutdownWhisperServer }) => {

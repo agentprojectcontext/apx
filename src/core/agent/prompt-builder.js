@@ -198,6 +198,11 @@ export function buildSuperAgentSystem({
   // at the end of the system prompt (where format directives belong),
   // not mixed in with situational context.
   systemSuffix = "",
+  // Pre-rendered output of the Memory Broker (Pieza 4): a [MEMORIA RELEVANTE]
+  // block built from the RAG retriever + recent memory.md entries. When
+  // provided it REPLACES the always-on self-memory slice (it already includes
+  // the latest notebook entries). "" falls back to the plain notebook slice.
+  memoryBlock = "",
 }) {
   const sa = globalConfig.super_agent;
   const projectIndex = projects
@@ -219,7 +224,7 @@ export function buildSuperAgentSystem({
   return [
     sa.system || loadDefaultSystemPrompt(),
     buildUserContextBlock(identity, globalConfig),
-    buildSelfMemoryBlock(),
+    memoryBlock || buildSelfMemoryBlock(),
     relationshipBlock,
     buildPermissionBlock(sa),
     extraContext,

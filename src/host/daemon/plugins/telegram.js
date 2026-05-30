@@ -34,6 +34,7 @@ import { callEngine } from "../../../core/engines/index.js";
 import { runSuperAgent, isSuperAgentEnabled } from "../super-agent.js";
 import { stripThinking } from "../thinking.js";
 import { getRecentTelegramTurnsFromFs, appendGlobalMessage } from "../../../core/messages-store.js";
+import { compactChannelIfNeeded } from "../../../core/memory/index.js";
 import { readAgents } from "../../../core/parser.js";
 import { buildAgentSystem } from "../../../core/agent-system.js";
 import { transcribe as transcribeAudioFile } from "../transcription.js";
@@ -575,9 +576,19 @@ class ChannelPoller {
     if (chat_id && !isReset) {
       previousMessages = getRecentTelegramTurnsFromFs({
         chat_id,
-        limit: 20,
+        keepRecent: 40,
         max_age_hours: 24,
       });
+      // Progressive compaction (Pieza 3) runs OUT of the reply path: if this
+      // chat is over threshold, summarize the oldest turns in the background so
+      // the next turn reads a [RESUMEN COMPACTADO] instead of raw history. Never
+      // awaited — adds zero latency to this reply, degrades gracefully.
+      compactChannelIfNeeded({
+        channel: "telegram",
+        chat_id,
+        config: this.globalConfig,
+        log: this.log,
+      }).catch(() => {});
       // Honour a /reset marker: drop everything up to and including it.
       const lastResetIdx = (() => {
         for (let i = previousMessages.length - 1; i >= 0; i--) {

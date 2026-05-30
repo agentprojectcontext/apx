@@ -85,6 +85,20 @@ const DEFAULT_CONFIG = {
     gemini: { api_key: "" },
     ollama: { base_url: "http://localhost:11434" },
   },
+  memory: {
+    // Cross-channel memory subsystem (RAG + progressive compaction + broker).
+    enabled: true,
+    embed_model: "nomic-embed-text",  // Ollama embeddings model
+    embed_base_url: "",               // "" → falls back to engines.ollama.base_url
+    embed_timeout_ms: 4000,
+    index_interval_s: 60,             // incremental RAG index cadence
+    rag_top_k: 5,                     // chunks retrieved per turn
+    broker_budget_ms: 800,            // hard cap on the Memory Broker
+    compact_threshold: 60,            // compact once a chat exceeds this many turns
+    keep_recent: 40,                  // verbatim turns always kept after compaction
+    compact_model: "ollama:gemma4:31b-cloud", // light LLM for compaction (Ollama, local endpoint)
+    compact_fallback_model: "",        // "" → falls back to super_agent.model (APX default)
+  },
   voice: {
     // Text-to-speech configuration. Selector reads voice.tts.provider; "auto"
     // probes engines in preference order (piper → elevenlabs → openai →
@@ -319,6 +333,7 @@ export function mergeDefaults(cfg) {
       gemini:    { ...DEFAULT_CONFIG.engines.gemini,    ...(cfg.engines?.gemini    || {}) },
       ollama:    { ...DEFAULT_CONFIG.engines.ollama,    ...(cfg.engines?.ollama    || {}) },
     },
+    memory: { ...DEFAULT_CONFIG.memory, ...(cfg.memory || {}) },
     voice: {
       ...DEFAULT_CONFIG.voice,
       ...(cfg.voice || {}),

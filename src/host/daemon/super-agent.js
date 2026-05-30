@@ -9,6 +9,7 @@ import {
   loadDefaultSystemPrompt,
 } from "../../core/agent/index.js";
 import { resolveAgentName } from "../../core/identity.js";
+import { memoryBlockFor } from "../../core/memory/index.js";
 
 export {
   buildIdentityBlock,
@@ -53,6 +54,15 @@ export async function runSuperAgent({
   }
 
   const sa = globalConfig.super_agent;
+
+  // Memory Broker (Pieza 4): assemble the [MEMORIA RELEVANTE] block before the
+  // turn. Silent + bounded (≤ broker_budget_ms); skipped for tool-free callers
+  // (summarize/ask) where injected context would only confuse the transcript.
+  let memoryBlock = "";
+  if (!noTools) {
+    memoryBlock = await memoryBlockFor(prompt, { config: globalConfig, channel });
+  }
+
   const system = buildSuperAgentSystem({
     globalConfig,
     projects,
@@ -62,6 +72,7 @@ export async function runSuperAgent({
     channelMeta,
     relationshipBlock,
     systemSuffix,
+    memoryBlock,
   });
 
   // Pick the schema subset for this channel: chit-chat surfaces get a small
@@ -88,7 +99,7 @@ export async function runSuperAgent({
     overrideModel,
     toolSchemas,
     makeToolHandlers,
-    toolHandlerCtx: { projects, plugins, registries, globalConfig },
+    toolHandlerCtx: { projects, plugins, registries, globalConfig, channel },
     onEvent,
     signal,
     onToken,
