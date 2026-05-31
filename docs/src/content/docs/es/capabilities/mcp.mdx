@@ -1,0 +1,175 @@
+---
+title: Servidores MCP
+description: Registrá, configurá y llamá servidores Model Context Protocol desde APX — tres alcances con distintas semánticas de commit y confidencialidad.
+sidebar:
+  order: 5
+---
+
+import { Aside, FileTree, Steps } from '@astrojs/starlight/components';
+import Screenshot from '../../../../components/Screenshot.astro';
+
+APX le da a cada agente acceso a servidores [Model Context Protocol](https://modelcontextprotocol.io)
+(MCP). Registrás el servidor una vez y los agentes llaman sus herramientas automáticamente
+durante la inferencia — sin necesidad de conectar tools a mano.
+
+## Los tres alcances
+
+Cada registro MCP pertenece a exactamente un alcance. El alcance controla dónde se guarda la
+config, si se hace commit al repo, y si es seguro incluir secretos.
+
+| Alcance | Archivo | ¿Se commitea? | ¿Secretos seguros? | Cuándo usarlo |
+|---|---|---|---|---|
+| `shared` | `<repo>/.apc/mcps.json` | **sí** | no | Servidores de equipo — filesystem, search, GitHub público |
+| `runtime` | `~/.apx/projects/<id>/mcps.json` (chmod 0600) | **no** | **sí** | Tokens, endpoints específicos de la máquina |
+| `global` | `~/.apx/mcps.json` | n/a | sí | A nivel de máquina — no atado a ningún proyecto |
+
+Si el mismo nombre aparece en más de un alcance, la prioridad de resolución es:
+**runtime > shared > global**. Los conflictos se muestran con `apx mcp check`.
+
+<Aside type="caution">
+  Nunca pongas tokens ni API keys en el alcance `shared`. Ese archivo se commitea al repo.
+  Usá `--scope runtime` para todo lo que incluya un secreto.
+</Aside>
+
+## Agregar un servidor
+
+```bash
+apx mcp add <name> --command <cmd> [--scope <shared|runtime|global>] [--env KEY=VAL ...] [-- <args>]
+```
+
+Todo lo que viene después de `--` se pasa textualmente como argumentos al comando. Repetí
+`--env` por cada variable de entorno.
+
+### Ejemplos comunes
+
+```bash
+# shared — servidor filesystem del proyecto (seguro de commitear)
+apx mcp add filesystem --command npx -- -y @modelcontextprotocol/server-filesystem .
+
+# runtime — GitHub con token (queda local)
+apx mcp add github --scope runtime --project my-app \
+  --command npx --env GITHUB_TOKEN=ghp_xxx \
+  -- -y @modelcontextprotocol/server-github
+
+# global — búsqueda Brave, a nivel máquina
+apx mcp add brave --scope global \
+  --command npx --env BRAVE_API_KEY=BSAxxx \
+  -- -y @modelcontextprotocol/server-brave-search
+
+# Servidor Python via uvx
+apx mcp add myserver --command uvx -- my-mcp-server
+
+# Script local
+apx mcp add localtools --command node -- /ruta/absoluta/server.js
+```
+
+<Aside type="tip">
+  Si tu historial de shell no es privado, exportá el token primero y pasá la referencia a la
+  variable: `--env GITHUB_TOKEN=$GITHUB_TOKEN`. Así el secreto no queda en el historial.
+</Aside>
+
+## Listar, activar y eliminar
+
+```bash
+# Listar todos los alcances (por defecto)
+apx mcp list
+apx mcp list --project my-app
+
+# Filtrar por alcance
+apx mcp list --scope runtime --project my-app
+apx mcp list --scope shared  --project my-app
+apx mcp list --scope global
+
+# Activar / desactivar (actúa sobre el alcance que tiene el servidor)
+apx mcp enable  filesystem --project my-app
+apx mcp disable filesystem --project my-app
+
+# Eliminar
+apx mcp remove filesystem --project my-app
+apx mcp remove github --scope runtime --project my-app
+```
+
+<Screenshot
+  surface="terminal"
+  caption="apx mcp list mostrando servidores en los tres alcances"
+  hint="Ejecutar: apx mcp list" />
+
+## Llamar una herramienta directamente
+
+Podés llamar cualquier herramienta a través del daemon sin pasar por un agente — útil para
+debugging y scripts.
+
+```bash
+# Listar las herramientas que expone el servidor (también fuerza que el daemon lo inicie)
+apx mcp tools filesystem
+
+# Llamar una herramienta específica con argumentos JSON
+apx mcp run filesystem read_file '{"path":"README.md"}'
+```
+
+## Auditoría: check
+
+```bash
+apx mcp check
+apx mcp check --project my-app
+```
+
+`check` reporta qué archivos de cada alcance existen en disco, la lista activa mergeada, y
+cualquier conflicto de nombres entre alcances. Ejecutalo primero cuando un servidor "no aparece"
+para un agente.
+
+## Cómo los agentes consumen los servidores MCP
+
+Los agentes no necesitan configuración extra para usar un servidor registrado — el daemon
+mergea los tres alcances al iniciar e inyecta la lista completa de herramientas en el contexto
+del agente. Dentro de una conversación, el agente llama las herramientas por nombre tal como
+el servidor las define.
+
+El binario `apx-mcp` (instalado junto con `apx`) es un bridge MCP separado que expone las
+herramientas propias de APX a hosts externos como Claude Desktop. No está relacionado con los
+servidores que registrás con `apx mcp add`.
+
+## Configs de IDEs externos (solo lectura)
+
+APX también descubre configs MCP escritas por otras herramientas y las muestra en
+`apx mcp list` con su etiqueta de origen. Son **solo lectura** — APX nunca escribe en ellas.
+
+| Etiqueta de origen | Archivo |
+|---|---|
+| `claude` | `.mcp.json` |
+| `cursor` | `.cursor/mcp.json` |
+| `vscode` | `.vscode/mcp.json` |
+| `roo` | `.roo/mcp.json` |
+| `gemini` | `.gemini/settings.json` |
+
+Usá `apx mcp check` para ver el panorama completo incluyendo fuentes externas.
+
+## Guía de decisión de alcance
+
+1. **¿Tiene tokens o secretos?** → `runtime`. Siempre.
+2. **¿Lo necesita todo el equipo?** → `shared` (se commitea).
+3. **¿Lo usás en todos tus proyectos de esta máquina?** → `global`.
+
+Por defecto cuando ninguno aplica: `shared` dentro de un proyecto APC, `global` fuera.
+
+## Debugging
+
+```bash
+# Ver qué alcances resuelve APX y qué archivos existen
+apx mcp check --project my-app
+
+# Forzar que el daemon inicie el servidor y liste sus herramientas
+apx mcp tools <name>
+
+# Seguir el log unificado para errores de inicio y stderr
+apx log -f
+```
+
+Un servidor que "no muestra herramientas" generalmente significa que el comando no pudo
+iniciar — paquete faltante, nombre de binario incorrecto, o variables de entorno no seteadas.
+El log unificado captura el stderr del servidor.
+
+## Ver también
+
+- [Conceptos — Agentes](/apx/es/concepts/agents/) — cómo los agentes declaran y consumen herramientas
+- [Capacidades — Skills](/apx/es/capabilities/skills/) — prompts de instrucciones reutilizables (un tipo distinto de herramienta)

@@ -1,0 +1,371 @@
+---
+title: Troubleshooting
+description: Fixes for the most common APX problems — daemon startup, provider failures, API key resets, Telegram conflicts, and missing optional dependencies.
+sidebar:
+  order: 2
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import Screenshot from '../../../components/Screenshot.astro';
+
+This page covers the issues you're most likely to hit when running APX. Each entry follows a
+**Problem → Cause → Fix** structure. Start with `apx status` and `apx log -f --errors` to narrow
+down what's failing before diving into a specific section.
+
+<Screenshot
+  surface="terminal"
+  caption="apx log -f --errors streaming only error lines in real time"
+  hint="Run: apx log -f --errors" />
+
+---
+
+## Daemon won't start
+
+### Port already in use
+
+**Problem:** `apx daemon start` exits immediately or `apx status` shows the daemon as stopped even
+after a start attempt.
+
+**Cause:** Something else — or a stale APX process — is already listening on port `7430` (the
+default). The daemon logs `fatal: listen 127.0.0.1:7430 failed: address already in use`.
+
+**Fix:**
+
+```bash
+# Find what holds the port
+lsof -i :7430
+
+# If it's a stale apx-daemon, kill it
+pkill -f apx-daemon
+
+# Then start fresh
+apx daemon start
+```
+
+To run on a different port permanently, set `APX_PORT` in your environment or set `"port"` in
+`~/.apx/config.json`:
+
+```json
+{ "port": 7431 }
+```
+
+<Aside type="caution">
+  After changing the port, all surfaces (web panel, Desktop, TUI) need to be restarted so they pick
+  up the new address. The daemon token lives at `~/.apx/daemon.token` and does not change with the
+  port.
+</Aside>
+
+### Daemon starts but `apx status` shows it as unreachable
+
+**Cause:** The daemon is bound to `127.0.0.1` by default. Remote access requires setting
+`"host": "0.0.0.0"` in `~/.apx/config.json`. In most local setups the culprit is a firewall or a
+VPN that intercepts loopback traffic.
+
+**Fix:** Check `apx daemon logs --tail 20` for the actual bind address. If the line reads
+`listening on http://127.0.0.1:7430` the daemon is healthy — the problem is in the client.
+
+---
+
+## Engine / provider failures
+
+### Provider reports healthy but calls fail
+
+**Problem:** `apx model status` shows a provider as `active`, but `apx exec "hello"` returns empty
+text or an error.
+
+**Cause:** The health check for cloud providers (OpenRouter, Groq, OpenAI) only hits `/models` — a
+200 OK means the catalog is reachable, **not** that your specific model is callable, your key has
+quota, or the model isn't rate-limited. For Anthropic and Gemini the check only confirms a key is
+present.
+
+Observed failure mode: the router picks `openrouter:free` as healthy, the actual chat call returns
+`429 Provider returned error`, and the super-agent returns `text: ""`.
+
+**Fix:**
+
+<Steps>
+
+1. Run `apx model test` — it resolves *which model* the router would pick right now and pings that
+   endpoint.
+
+2. If the primary provider is failing, move it later in the fallback chain:
+
+   ```bash
+   apx model order ollama groq openrouter
+   ```
+
+3. If all providers fail, check keys:
+
+   ```bash
+   apx model status   # shows key presence + probe result per provider
+   ```
+
+</Steps>
+
+<Aside type="note">
+  APX has a lazy-retry feature in development (spec #13): when a healthy-looking provider fails at
+  runtime with a 429 or 5xx, the router will automatically advance to the next candidate in the
+  chain. Until that ships, use `apx model order` to manually adjust priority.
+</Aside>
+
+<Screenshot
+  surface="terminal"
+  caption="apx model status showing a failing provider and the active fallback"
+  hint="Run: apx model status" />
+
+### Super-agent returns empty text
+
+**Problem:** `apx exec "hello"` or a Telegram message returns an empty reply with no error.
+
+**Cause (Ollama model not loaded):** Ollama is running but the configured model is not pulled.
+The health check confirms Ollama is up but does not verify the specific model exists — so the
+router picks Ollama, the engine call fails silently, and the chain never advances. See spec #11.
+
+**Fix:**
+
+```bash
+# Check what's actually loaded
+ollama list
+
+# Pull the missing model
+ollama pull <model-name>
+
+# Or switch the super-agent to a different primary
+apx model order openrouter groq ollama
+```
+
+**Cause (cloud model loop):** On some non-Anthropic providers, if the super-agent's tool-forcing
+policy pushes a model into a tool call on every iteration, the final reply can be empty. See
+spec #12.
+
+**Fix:** Switching to an Anthropic model (`claude-*`) reliably avoids this until spec #12 is
+resolved:
+
+```bash
+apx model key anthropic sk-ant-...
+apx model order anthropic openrouter groq
+```
+
+---
+
+## API keys get cleared unexpectedly
+
+**Problem:** Keys at `engines.groq.api_key`, `engines.openrouter.api_key`, or similar fields reset
+to empty strings without you touching them. This was observed on 2026-05-27 (spec #14).
+
+**Cause:** A partial `writeConfig()` call (from `apx config set`, a wizard re-run, or a daemon
+reload after a structural edit) can overwrite a sub-tree with defaults, silently wiping sibling
+fields.
+
+**Fix:**
+
+<Steps>
+
+1. Re-add the missing keys immediately — no restart needed:
+
+   ```bash
+   apx model key groq sk-xxxx
+   apx model key openrouter sk-or-...
+   apx model key gemini AIza...
+   ```
+
+2. If you recently ran `apx config set engines.<something>`, verify the full block still looks
+   right:
+
+   ```bash
+   apx config show --effective | grep -A 20 '"engines"'
+   ```
+
+3. After restoring keys, reload the daemon so it picks them up without a full restart:
+
+   ```bash
+   apx daemon reload
+   ```
+
+</Steps>
+
+<Aside type="caution">
+  Avoid `apx config set engines` with a partial JSON value — always set leaf keys (e.g.
+  `engines.groq.api_key`) rather than the entire `engines` object. This is a known issue (#14)
+  being addressed in the `writeConfig` layer.
+</Aside>
+
+---
+
+## Ollama strict model health
+
+**Problem:** `apx model status` shows Ollama as `active` but the super-agent silently fails.
+
+**Cause:** The current Ollama health probe hits `/api/tags` but does not verify that the model
+named in `super_agent.model` is actually in the pulled list. See spec #11.
+
+**Fix:**
+
+```bash
+# Confirm what models are pulled
+ollama list
+
+# The value in your config
+apx model status   # look for super_agent.model
+
+# If the configured model isn't pulled, either pull it or switch
+ollama pull <model>
+# or
+apx model set ollama llama3.2   # switch to a model you have
+```
+
+Until spec #11 is fixed, you can also ensure the fallback chain is robust:
+
+```bash
+apx model order ollama openrouter groq
+# Now if Ollama's model is missing, the next provider takes over
+```
+
+---
+
+## Telegram bot slot conflict
+
+**Problem:** The Telegram plugin stops responding. `apx log --errors` shows repeated lines like:
+
+```text
+[WARN] [telegram] getUpdates 409; backing off 30000ms
+```
+
+**Cause:** Telegram allows exactly **one** long-poll client per bot token. A second process claiming
+the same bot — common with `mcp-telegram-agent`, `mcp_telegram_notify`, or zombie `npx` processes
+from a previous session — wins the race and the APX daemon is locked out. See spec #15.
+
+**Fix:**
+
+<Steps>
+
+1. Find the competing process:
+
+   ```bash
+   ps aux | grep -iE 'telegram|mcp.telegram'
+   lsof -i -P -n | grep 149.154.
+   ```
+
+2. Kill it:
+
+   ```bash
+   pkill -f "mcp-telegram-agent"
+   pkill -f "mcp_telegram_notify"
+   ```
+
+3. Stop the APX daemon, wait for Telegram's server-side long-poll cache to expire, then restart:
+
+   ```bash
+   apx telegram stop
+   apx daemon stop
+   sleep 30
+   apx daemon start
+   ```
+
+4. Confirm polling resumed:
+
+   ```bash
+   apx telegram status
+   ```
+
+</Steps>
+
+<Aside type="caution">
+  The 30-second wait is not optional. Restarting the daemon immediately after killing the competitor
+  can still trigger a 409 because Telegram's server holds the previous session open for ~30 s.
+</Aside>
+
+<Aside type="note">
+  A planned `apx telegram doctor` command (spec #15) will automate this diagnosis — it will check
+  `getMe`, confirm no other long-poll holder exists, and list local competing PIDs.
+</Aside>
+
+---
+
+## Optional native dependencies not installed
+
+APX has three optional native dependencies. The daemon starts and most features work without them,
+but the capability they back degrades gracefully.
+
+### `better-sqlite3` + `sqlite-vec` (RAG / semantic memory)
+
+**Problem:** `apx log` shows `memory: sqlite-vec unavailable` and cross-agent memory search falls
+back to a flat JSON store.
+
+**Cause:** `better-sqlite3` is a native addon that requires a build toolchain. On some systems it
+fails to compile or is not pre-built for your Node.js version.
+
+**Fix:**
+
+```bash
+npm install -g better-sqlite3 sqlite-vec
+```
+
+If the build fails, ensure you have a C++ compiler:
+
+- **macOS:** `xcode-select --install`
+- **Linux:** `apt install build-essential` (Debian/Ubuntu) or equivalent
+- **Windows/WSL:** install the Windows Build Tools
+
+After a successful install, restart the daemon:
+
+```bash
+apx daemon restart
+```
+
+The log line changes to `memory: sqlite-vec backend active` once the extension loads.
+
+### `puppeteer` (browser-based web search)
+
+**Problem:** `apx search "query" --mode browser` fails with:
+
+```text
+Error: Puppeteer not installed. Run: npm install puppeteer
+```
+
+**Cause:** Puppeteer is not bundled with APX. The `ddg` and `brave` search modes do not need it —
+only `--mode browser` does.
+
+**Fix:**
+
+```bash
+npm install -g puppeteer
+```
+
+Puppeteer downloads a bundled Chromium on first install (~300 MB). If you want to use a system
+Chrome instead, install `puppeteer-core` and set `PUPPETEER_EXECUTABLE_PATH`.
+
+---
+
+## Reading logs
+
+Three commands cover different log views:
+
+| Command | What you see |
+|---|---|
+| `apx log` | Last 100 lines of the unified log (`~/.apx/logs/apx.log`) |
+| `apx log -f` | Live tail — all modules |
+| `apx log -f --errors` | Live tail — `[ERROR]` lines only |
+| `apx log --tail 50` | Last N lines |
+| `apx daemon logs --tail 100` | Legacy daemon stdout (older format) |
+
+The unified log (`apx log`) covers every module: telegram, whisper, super-agent, tools, desktop.
+Prefer it over `apx daemon logs` for debugging.
+
+<Aside type="tip">
+  Pipe through `grep` to focus on a specific module:
+
+  ```bash
+  apx log --tail 200 | grep '\[telegram\]'
+  apx log --tail 200 | grep '\[super-agent\]'
+  ```
+</Aside>
+
+---
+
+## Still stuck?
+
+- `apx status` — the single-command overview of daemon, super-agent, engines, and Telegram state.
+- [Configuration reference](/apx/concepts/configuration/) — full `~/.apx/config.json` schema.
+- [CLI surface](/apx/surfaces/cli/) — shell integration, environment variables, and advanced usage.
+- [CLI Cheatsheet](/apx/reference/cli-cheatsheet/) — every command at a glance.

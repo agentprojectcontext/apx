@@ -1,0 +1,153 @@
+---
+title: TUI
+description: apx code (asistente de coding terminal) y apx chat (REPL interactivo de agentes).
+sidebar:
+  order: 3
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import Screenshot from '../../../../components/Screenshot.astro';
+
+APX incluye dos modos interactivos de terminal que van más allá de las llamadas de un solo shot
+con `apx exec`:
+
+| Modo | Comando | Mejor para |
+|------|---------|------------|
+| Asistente de coding terminal | `apx code` | Sesiones de coding multi-turno con contexto completo del sistema, uso de herramientas, cambio de modelo |
+| REPL de agente | `apx chat <agent>` | Conversaciones de ida y vuelta con un agente específico del proyecto |
+
+Ambos modos persisten los hilos de conversación — podés retomar donde lo dejaste.
+
+---
+
+## `apx code` — asistente de coding terminal
+
+`apx code` lanza el TUI de APX: una aplicación terminal de pantalla completa construida sobre
+OpenTUI + Solid.js que transmite respuestas en streaming, muestra trazas de herramientas y te
+permite cambiar de modelo o agente sin salir de la sesión.
+
+```bash
+apx code                          # modo super-agent por defecto
+apx code --project my-project     # fijado a un proyecto específico
+apx code --agent reviewer         # enruta el chat a un agente del proyecto
+```
+
+<Screenshot
+  surface="tui"
+  caption="apx code — TUI de pantalla completa con transcript del chat y barra de entrada"
+  hint="Run: apx code" />
+
+### Qué ofrece el TUI
+
+- **Respuestas en streaming** — el texto aparece progresivamente mientras el modelo lo genera.
+- **Trazas de herramientas** — cada llamada a una herramienta y su resultado aparecen inline en el
+  transcript.
+- **Paleta de comandos** (`Ctrl+P`) — cambiá de modelo o agente sin salir.
+- **Cola mientras piensa** — podés escribir tu próximo mensaje mientras el agente todavía está
+  respondiendo; se encola y se envía apenas termine la respuesta actual.
+- **Interrupción** (`Ctrl+I` o `Ctrl+C` mientras ejecuta) — aborta la request actual; un segundo
+  `Ctrl+C` cierra el TUI.
+- **Message Actions** — hacé click en un mensaje de usuario para copiarlo, volver a preguntarle
+  sobre él o promoverlo al frente de la cola.
+- **Scroll** — `↑`/`↓`, `RePág`/`AvPág`, o `Meta+↑`/`Meta+↓` (saltar al tope/fondo).
+
+### Atajos de teclado
+
+| Tecla | Acción |
+|-------|--------|
+| `Enter` | Enviar mensaje (o encolar si el agente está pensando) |
+| `Ctrl+P` | Abrir paleta de comandos |
+| `Ctrl+I` | Interrumpir request actual |
+| `Ctrl+C` | Interrumpir (primera vez) / Cerrar (segunda vez) |
+| `Ctrl+A` / `Ctrl+E` | Mover cursor al inicio / fin de la entrada |
+| `Ctrl+U` | Borrar desde el cursor al inicio de línea |
+| `Ctrl+W` | Borrar la palabra anterior |
+| `RePág` / `AvPág` | Scroll en el transcript |
+| `Meta+↑` / `Meta+↓` | Saltar al tope / fondo del transcript |
+| `Tab` | Ciclar modo de entrada |
+| `exit` o `quit` | Escribir para cerrar |
+
+### Requisitos
+
+`apx code` usa [Bun](https://bun.sh/) para ejecutar el código TypeScript del TUI directamente. Si
+`bun` no está en tu PATH, configurá `BUN_PATH` en tu entorno. Si Bun no está disponible, `apx code`
+usa el renderer de terminal incorporado (sin Solid.js).
+
+<Aside type="note">
+  Cuando se pasa `--agent <slug>`, el TUI enruta el chat al endpoint `/agents/:slug/chat` del agente
+  del proyecto en lugar del stream del super-agent. Las respuestas en modo agente no son en streaming
+  (se muestra un spinner mientras llega la respuesta completa).
+</Aside>
+
+---
+
+## `apx chat` — REPL interactivo de agente
+
+`apx chat` es un REPL readline liviano y sin dependencias para conversaciones multi-turno con un
+agente del proyecto. Guarda cada intercambio como un hilo de conversación y te permite retomarlo
+con `--conversation <id>`.
+
+```bash
+apx chat reviewer                          # nueva conversación
+apx chat reviewer --conversation abc123    # continuar un hilo existente
+apx chat reviewer --model gpt-5.2         # sobreescribir el modelo para esta sesión
+```
+
+<Screenshot
+  surface="tui"
+  caption="apx chat reviewer — REPL readline con prompt del agente"
+  hint="Run: apx chat reviewer" />
+
+El prompt muestra el slug del agente seguido de `>`. Escribí tu mensaje y presioná `Enter`.
+Cerrá con `Ctrl+D`, `exit` o `quit`.
+
+### Persistencia de conversaciones
+
+Cada intercambio se agrega a un archivo Markdown de conversación bajo:
+
+```text
+~/.apx/projects/<project-id>/agents/<slug>/conversations/
+```
+
+Cada conversación tiene un id único. Usá `apx conversations list` para verlas y
+`apx conversations get` para leer el intercambio completo.
+
+---
+
+## `apx conversations`
+
+| Comando | Descripción |
+|---------|-------------|
+| `apx conversations list <agent>` | Lista las conversaciones exec/chat guardadas de un agente. |
+| `apx conversations get <agent> <id>` | Muestra una conversación con todos los turnos. |
+
+```bash
+apx conversations list reviewer
+apx conversations get reviewer abc123
+```
+
+Alias: `apx conv list reviewer`, `apx conv show reviewer abc123`.
+
+---
+
+## CLI vs TUI
+
+Usá el **CLI** (`apx exec`) para:
+- Llamadas de un solo shot con scripts o pipelines de shell.
+- Pasar la salida a otras herramientas.
+- Registrar un solo intercambio en el store de mensajes.
+
+Usá el **TUI** (`apx code`) para:
+- Sesiones de coding interactivas donde querés streaming, visibilidad de herramientas y cambio de
+  modelo.
+- Trabajo multi-turno extendido donde el transcript completo es valioso.
+
+Usá el **REPL** (`apx chat`) para:
+- Conversaciones de ida y vuelta con un agente específico del proyecto.
+- Conversaciones que querés retomar más tarde por id.
+- Situaciones donde Bun no está disponible o preferís una interfaz mínima.
+
+<Aside type="tip">
+  Los tres modos guardan sus conversaciones bajo `~/.apx/`. Ejecutá `apx sessions list` o
+  `apx session find "<text>"` para encontrar trabajo anterior en todos los engines y modos.
+</Aside>

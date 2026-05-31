@@ -1,11 +1,18 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import remarkGfm from 'remark-gfm';
 
 // https://astro.build/config
 export default defineConfig({
 	site: 'https://agentprojectcontext.github.io',
 	base: '/apx',
+	// GFM (tables, strikethrough, …) is applied internally for .md but is not
+	// exposed on markdown.remarkPlugins, so MDX (which extends this list) misses
+	// it. Add it explicitly so tables render in both .md and .mdx.
+	markdown: {
+		remarkPlugins: [remarkGfm],
+	},
 	integrations: [
 		starlight({
 			title: 'APX',

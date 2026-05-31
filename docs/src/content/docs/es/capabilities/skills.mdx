@@ -1,0 +1,138 @@
+---
+title: Skills
+description: Prompts de instrucciones reutilizables que APX inyecta en los agentes según demanda — instalálos en tu IDE una vez y todos los proyectos se benefician.
+sidebar:
+  order: 8
+---
+
+import { Aside, FileTree } from '@astrojs/starlight/components';
+import Screenshot from '../../../../components/Screenshot.astro';
+
+Una **skill** es un archivo Markdown que le enseña a un agente cómo hacer algo. El super-agente
+carga las skills según demanda — solo las relevantes para la conversación actual. APX viene con
+un conjunto de skills predefinidas (`skills/<slug>/SKILL.md` en el paquete) y soporta skills
+personalizadas a nivel de proyecto y de usuario global.
+
+Las skills y los agentes son independientes — un agente puede referenciar skills por slug en su
+frontmatter, y el super-agente las descubre automáticamente desde los directorios registrados.
+
+## Dónde viven las skills
+
+APX escanea tres ubicaciones, en orden de prioridad:
+
+1. `<repo>/.apc/skills/<slug>/SKILL.md` — alcance de proyecto (visible solo en este proyecto)
+2. `~/.apx/skills/<slug>/SKILL.md` — global de usuario (todos los proyectos en esta máquina)
+3. `<paquete APX>/skills/<slug>/SKILL.md` — predefinida (viene con APX, disponible en todos lados)
+
+Gana la primera coincidencia por slug. Una skill de proyecto reemplaza silenciosamente a una
+de usuario o predefinida con el mismo slug.
+
+## Instalar en herramientas de IDE
+
+Ejecutar `apx skills add` copia (o vincula) las skills predefinidas en los archivos de reglas
+de tu IDE, para que herramientas como Claude Code, Cursor y Copilot las detecten
+automáticamente.
+
+```bash
+# Interactivo: elegís alcance global o de proyecto
+apx skills add
+
+# Instalar en todos los directorios globales de skills (recomendado para primera instalación)
+apx skills add --global
+
+# Instalar solo en targets específicos
+apx skills add claude-code cursor
+
+# Instalar skills con alcance de proyecto para targets específicos
+apx skills add windsurf copilot
+```
+
+### Targets de IDE
+
+| ID de target | IDE | Archivo escrito |
+|---|---|---|
+| `claude-code` | Claude Code | `.claude/skills/apx/SKILL.md` |
+| `cursor` | Cursor | `.cursor/rules/apx.mdc` |
+| `windsurf` | Windsurf | `.windsurf/rules/apx.md` |
+| `copilot` | GitHub Copilot | `.github/copilot-instructions.md` (se agrega) |
+| `trae` | Trae | `.trae/rules/project_rules.md` (se agrega) |
+
+Las instalaciones globales escriben en `~/.claude/skills/`, `~/.cursor/skills/`,
+`~/.codex/skills/` y `~/.agents/skills/`. Estos directorios son leídos por Claude Code,
+Cursor, Codex (OpenAI), Antigravity, y cualquier herramienta compatible con `skills.sh`.
+
+Codex y Antigravity leen `AGENTS.md` automáticamente — no hace falta instalación separada para
+esas herramientas.
+
+<Aside type="note">
+  Claude Desktop no tiene soporte de archivos de proyecto. Usá el bridge `apx-mcp` en lugar de
+  skills para integraciones con Claude Desktop.
+</Aside>
+
+## Listar y ver estado
+
+```bash
+# Listar skills instaladas en .apc/skills/ de este proyecto
+apx skills list
+
+# Mostrar qué skills predefinidas están presentes en cada directorio global
+apx skills status
+```
+
+<Screenshot
+  surface="terminal"
+  caption="apx skills status mostrando skills instaladas y faltantes en los directorios globales"
+  hint="Ejecutar: apx skills status" />
+
+## Sincronizar skills predefinidas
+
+Después de actualizar APX, re-sincronizá las skills predefinidas en todos los directorios
+globales:
+
+```bash
+apx skills sync
+
+# Verbose — muestra cada línea (skill × target)
+apx skills sync --verbose
+```
+
+`sync` es idempotente y también se ejecuta automáticamente durante `npm install -g apx`.
+
+## La regla de sincronización de skills
+
+Regla 6 de AGENTS.md: cuando cambiás comandos de CLI, rutas del daemon, claves de config, o
+cualquier flujo documentado en una skill, actualizá el `skills/<slug>/SKILL.md` correspondiente
+**en el mismo commit**. Así las skills se mantienen precisas a medida que APX evoluciona.
+
+Verificá los flags con `apx <comando> --help` antes de documentarlos — no inventés subcomandos.
+
+## Escribir tu propia skill
+
+Una skill es un archivo Markdown con frontmatter YAML:
+
+```markdown
+---
+name: my-skill
+description: Cuándo cargar esta skill — escribila como condición de trigger, no como resumen.
+---
+
+<!-- Cuerpo: concreto, con opinión, con anti-ejemplos. -->
+```
+
+El campo `description` es lo que el modelo lee cuando decide si llamar a `load_skill`. Escribilo
+como trigger: _"Cargar ANTES de configurar X — cubre gotchas de Y y Z."_
+
+### Registrar una skill de proyecto
+
+```bash
+mkdir -p .apc/skills/my-skill
+# escribí .apc/skills/my-skill/SKILL.md
+apx skills list   # confirmá que aparece
+```
+
+No hace falta reiniciar el daemon — `listSkills()` re-escanea en cada llamada.
+
+## Ver también
+
+- [Capacidades — Vault de agentes](/apx/es/capabilities/agent-vault/) — plantillas de agentes reutilizables
+- [Conceptos — Agentes](/apx/es/concepts/agents/) — adjuntar skills a agentes via frontmatter
