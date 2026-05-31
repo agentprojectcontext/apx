@@ -20,7 +20,17 @@ export type ApxEvent =
   | { type: "session.created"; sessionID: string }
   | { type: "user"; sessionID: string; text: string }
   | { type: "chunk"; sessionID: string; chunk: string }
-  | { type: "final"; sessionID: string; text: string; usage?: { input_tokens: number; output_tokens: number } }
+  | { type: "model_start"; sessionID: string; model?: string; iteration?: number }
+  | { type: "assistant_text"; sessionID: string; text: string }
+  | { type: "tool_start"; sessionID: string; id: string; name: string; args?: any }
+  | { type: "tool_done"; sessionID: string; id: string; name: string; result?: string; ok?: boolean }
+  | {
+      type: "final"
+      sessionID: string
+      text: string
+      usage?: { input_tokens: number; output_tokens: number }
+      name?: string
+    }
   | { type: "error"; sessionID: string; error: string }
   | { type: "shell.start"; sessionID: string; shellID: string; command: string; cwd: string }
   | { type: "shell.output"; sessionID: string; shellID: string; stream: "stdout" | "stderr"; chunk: string }
@@ -42,6 +52,15 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
     const abort = new AbortController()
     const emitter = createGlobalEmitter<{ event: ApxEvent }>()
 
+    // Live model override. Defaults to the launch arg; updated when the user
+    // picks a model via /models (the Session view bridges local.model → here).
+    // Sent as `body.model` so the daemon's super-agent uses it for the turn.
+    let currentModel: string | undefined = props.model
+    const setModel = (model: string | undefined) => {
+      currentModel = model || undefined
+    }
+    const getModel = () => currentModel
+
     function headers(): Record<string, string> {
       const token = readToken()
       return {
@@ -55,14 +74,15 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
       prompt: string,
       previousMessages: Array<{ role: string; content: string }> = [],
     ) {
-      // Do NOT send `model` — the super-agent owns its model (configured at the
-      // system level in ~/.apx/config.json). Overriding it from the TUI would
-      // bypass that single source of truth. `props.model` is kept only for
-      // display in the sidebar.
+      // Send the live model selection as `body.model` so the daemon's
+      // super-agent honours the model the user picked via /models. When unset
+      // the daemon falls back to ~/.apx/config.json (super_agent.model).
+      const body: Record<string, unknown> = { prompt, previousMessages }
+      if (currentModel) body.model = currentModel
       const res = await fetch(`${props.url}/projects/${props.pid}/super-agent/chat/stream`, {
         method: "POST",
         headers: headers(),
-        body: JSON.stringify({ prompt, previousMessages }),
+        body: JSON.stringify(body),
         signal: abort.signal,
       })
       if (!res.ok || !res.body) {
@@ -91,15 +111,58 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
           if (!line.trim()) continue
           try {
             const ev = JSON.parse(line)
-            if (ev.type === "chunk") emitter.emit("event", { type: "chunk", sessionID, chunk: ev.chunk })
-            if (ev.type === "final")
-              emitter.emit("event", {
-                type: "final",
-                sessionID,
-                text: ev.result?.text ?? "",
-                usage: ev.result?.usage,
-              })
-            if (ev.type === "error") emitter.emit("event", { type: "error", sessionID, error: ev.error })
+            // Real APX super-agent event names (see core/agent/run-agent.js):
+            //   model_start { model, iteration }
+            //   assistant_text { text, iteration }   ← narration between tools
+            //   tool_start { tool, args, iteration }
+            //   tool_result { trace: { tool, args, result }, iteration }
+            //   final { result: { text, usage, name } }
+            //   error { error }
+            // `token`/`chunk` are kept for any future token-streaming backend.
+            switch (ev.type) {
+              case "token":
+              case "chunk":
+                emitter.emit("event", { type: "chunk", sessionID, chunk: ev.text ?? ev.chunk ?? "" })
+                break
+              case "model_start":
+                emitter.emit("event", { type: "model_start", sessionID, model: ev.model, iteration: ev.iteration })
+                break
+              case "assistant_text":
+                if (ev.text) emitter.emit("event", { type: "assistant_text", sessionID, text: ev.text })
+                break
+              case "tool_start":
+                // run-agent.js emits { type:"tool_start", trace:{ id, tool, args } }
+                emitter.emit("event", {
+                  type: "tool_start",
+                  sessionID,
+                  id: String(ev.trace?.id ?? `${ev.trace?.tool ?? "tool"}-${ev.iteration ?? 0}`),
+                  name: ev.trace?.tool ?? ev.tool ?? "tool",
+                  args: ev.trace?.args ?? ev.args,
+                })
+                break
+              case "tool_result":
+                emitter.emit("event", {
+                  type: "tool_done",
+                  sessionID,
+                  id: String(ev.trace?.id ?? ""),
+                  name: ev.trace?.tool ?? "tool",
+                  result: typeof ev.trace?.result === "string" ? ev.trace.result : JSON.stringify(ev.trace?.result ?? ""),
+                  ok: !ev.trace?.error,
+                })
+                break
+              case "final":
+                emitter.emit("event", {
+                  type: "final",
+                  sessionID,
+                  text: ev.result?.text ?? "",
+                  usage: ev.result?.usage,
+                  name: ev.result?.name,
+                })
+                break
+              case "error":
+                emitter.emit("event", { type: "error", sessionID, error: ev.error })
+                break
+            }
           } catch {
             // ignore parse errors for partial lines
           }
@@ -241,6 +304,8 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
       createSession,
       listSessions,
       runShell,
+      setModel,
+      getModel,
     }
   },
 })
