@@ -108,6 +108,8 @@ async function _handleMessage({ ws, text, previousMessages }, { projects, config
       throw new Error("super-agent not enabled — set super_agent.enabled + super_agent.model in ~/.apx/config.json");
     }
 
+    log(`desktop: super-agent turn start — model=${cfg.model || config?.super_agent?.model || "(default)"} text="${text.slice(0, 60)}"`);
+    const t0 = Date.now();
     const result = await runSuperAgent({
       globalConfig: config,
       projects,
@@ -136,6 +138,7 @@ async function _handleMessage({ ws, text, previousMessages }, { projects, config
       },
     });
     const finalText = fullResponse || result.text || "";
+    log(`desktop: super-agent turn done in ${Date.now() - t0}ms text_len=${finalText.length}`);
 
     // Emit done with full text
     _send(ws, { type: "done", text: finalText });
@@ -159,7 +162,10 @@ async function _handleMessage({ ws, text, previousMessages }, { projects, config
     if (e.name === "AbortError") {
       _send(ws, { type: "cancelled" });
     } else {
+      // Verbose stack — the previous one-liner hid root causes when the
+      // model adapter threw inside runSuperAgent's promise chain.
       log(`desktop: error — ${e.message}`);
+      console.error("desktop plugin: super-agent threw:", e.stack || e);
       _send(ws, { type: "error", message: e.message });
     }
   }
