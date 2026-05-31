@@ -357,13 +357,21 @@
         btn.innerHTML = `${ICON.check()} Copiado`;
         setTimeout(() => { btn.classList.remove("done"); btn.innerHTML = `${ICON.copy()} Copiar`; }, 1400);
       });
-      // regen: ask the daemon to retry the last user turn
+      // regen: drop this agent message, re-render, and start a fresh
+      // streaming turn for the same user prompt. Without startAgentTurn()
+      // here the daemon's `done` arrives with no streamingAgentEntry to
+      // attach it to, so the UI just silently swallows the reply.
       t.querySelector(".btn-regen")?.addEventListener("click", () => {
         const lastUser = [...messages].reverse().find((x) => x.role === "user");
         if (!lastUser) return;
-        // drop this agent message and re-send
+        // Also drop the matching assistant entry from `history` so the daemon
+        // gets the same conversation it had right before producing `m`.
+        if (history.length && history[history.length - 1].role === "assistant") {
+          history.pop();
+        }
         messages = messages.filter((x) => x.id !== m.id);
         rebuildConvFromState();
+        startAgentTurn();
         sendToDaemon(lastUser.text);
       });
     }
@@ -768,24 +776,28 @@
     const clean = (text || "").trim();
     if (!clean) { console.warn("desktop renderer: refused to commit empty user message"); return; }
     const m = { id: nextId++, role: "user", text: clean, t: nowHHMM(), via };
-    // Reset per-turn flags so the next streaming agent reply starts fresh.
-    doneHandled = false;
-    if (ttsTimer) { clearTimeout(ttsTimer); ttsTimer = null; }
     messages.push(m);
     history.push({ role: "user", content: clean });
     pendingUserText = "";
     removePendingUserPartial();
     ensureConv();
     appendTurn(m, true);
+    startAgentTurn();
+    sendToDaemon(clean);
+  }
+
+  // Begin a fresh agent turn: reset per-turn flags, switch to thinking,
+  // mount the placeholder bubble, and ask main to grow the window now (not
+  // one ResizeObserver tick later). Shared by commitUserMessage + regen so
+  // both paths set up the daemon-event pipeline identically.
+  function startAgentTurn() {
+    doneHandled = false;
+    pendingTtsTurnId = null;
+    if (ttsTimer) { clearTimeout(ttsTimer); ttsTimer = null; }
     mode = "thinking";
     render();
     ensureStreamingAgentBubble();
-    // Force an IMMEDIATE resize hint to main.js — the ResizeObserver fires
-    // asynchronously and the host window can stay at WIN_H_MIN for a beat
-    // after the conv card mounts, which leaves the card collapsed off the
-    // bottom of the viewport. Sending the hint now closes that race.
     requestWindowResize();
-    sendToDaemon(clean);
   }
 
   function sendToDaemon(text) {
