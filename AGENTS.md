@@ -13,6 +13,7 @@
 - `src/interfaces/` — `cli/`, `web/` (React + Vite admin panel), `tui/` (OpenTUI + Solid), `desktop/` (Electron floating voice window), `mcp-server/` (stdio MCP).
 - `tests/` — backend suite (Node's built-in test runner). `src/interfaces/web/e2e/` — Playwright.
 - `skills/` — bundled `SKILL.md` instructions. `scripts/` — build-web, sync, git hooks.
+- `docs/` — the public documentation site (Astro + Starlight, bilingual EN/ES). Self-contained: its own `package.json`/`node_modules`, **not** part of the npm package. See the "Docs site" section below.
 
 ## Project rules
 
@@ -22,6 +23,172 @@
 4. **"super-agent" is a mode, not a persona name.** User-facing copy uses the identity from `~/.apx/identity.json` (default "APX"). Technical config keys and routine kinds may still say `super_agent`.
 5. **Respect backward-compat shims.** The `overlay`→`desktop` channel rename keeps legacy paths working (`config.overlay` fallback, `/overlay/ws`, `apx overlay` forwarding). Don't reintroduce the old names and don't break the shims — they're covered by tests.
 6. **No secrets in the repo.** Tokens live in runtime scope only (`apx mcp add --scope runtime`); shared MCP hints without secrets go in `.apc/mcps.json`. Runtime sessions, conversations, and message logs stay outside the repo (`~/.apx/...`).
+7. **Docs site stays bilingual + in sync.** Every page in `docs/` exists twice — English at `src/content/docs/<section>/<slug>.md(x)` and Spanish (es-AR, "vos") at `src/content/docs/es/<section>/<slug>.md(x)` with the **same slug**. Add/edit both in the same change. When you change user-facing CLI commands, surfaces, or config, update the affected doc page(s). Read `docs/AUTHORING.md` before authoring — it's the contract for frontmatter, links, and components.
+8. **Channel rules live in ONE place; watch the prompt budget.** Per-channel formatting belongs in `src/core/agent/prompts/channels/<ch>.md` (+ `modes/voice.md`) — NOT inline in callers (`api/voice.js` used to duplicate this; don't reintroduce it). The base prompt `super-agent-base.md` ships on **every** turn on **every** channel, so it's the most expensive text in the system — keep it lean (~2.5k tok target). Measure before/after any prompt change with `node scripts/inspect-channel-prompts.js [channel] [--full]`. Don't recite a tool catalog in the prompt (the runtime sends real schemas); operational syntax (cron, ports, flags) belongs in on-demand `apx-*` skills, not always-on.
+
+## Super-agent system prompt & channels
+
+The super-agent prompt is assembled by `buildSuperAgentSystem()` in `src/core/agent/prompt-builder.js`, executed by the tool loop `runAgent()` in `src/core/agent/run-agent.js`, both driven by `runSuperAgent()` in `src/host/daemon/super-agent.js`. Block order (each dropped when empty): base → `# User & identity` → memory broker `[MEMORIA RELEVANTE]` (or notebook) → `# Hilos activos` → relationship → permission → channel block + contextNote → projects index → skills catalog → **voice mode** → systemSuffix. Format directives (voice mode, suggestions suffix) sit LAST for recency.
+
+- **Channels are SURFACES; voice is a MODE.** `CHANNEL_PROMPT_FILES` maps each surface to a `channels/<ch>.md`: `telegram, terminal, cli, routine, api, web, web_sidebar, deck, desktop`. There is **no** `voice` or `overlay` channel — `voice` is a modifier injected via `channelMeta.voice` (or legacy `channel === "voice"`) from `modes/voice.md`. `api/voice.js` maps incoming `"voice"`→deck+voice, `"deck"`→deck, `"desktop"`→desktop+voice.
+- **Who sets the channel string:** telegram plugin → `"telegram"`; `api/voice.js /voice/turn` → deck/desktop; `plugins/desktop.js` → `"desktop"` + `{voice:true}`; web front sends `channel` in the request body (`useChat.ts` → `"web"`, `RobyBubble.tsx` → `"web_sidebar"`), resolved by `resolveSuperAgentContext` in `api/shared.js` (defaults to `"api"`); routines → `"routine"`.
+- **Tool subset per channel** (`schemasForChannel` in `super-agent-tools/index.js`): FULL registry (47) for `routine`/`api`/`web`; CORE subset (14, `CORE_TOOL_NAMES`) for `telegram`/`web_sidebar`/`deck`/`desktop` to fit cheap-tier TPM caps. The model pulls more in via `load_skill`. Telegram can further restrict via `allowedTools` (role gating).
+- **Telegram heads-up:** `plugins/telegram.js` sends ONE localized "estoy con eso 🛠️" on the first `tool_start` IF the agent emitted no preamble (`streamedCount === 0`), because the user sees only prose, never tool calls. `assistant_text` events already stream as separate messages; tool events are logged but never sent to telegram.
+- **Skills catalog** is condensed by `condenseSkillDescription` (slug + first sentence, trigger-list tails stripped) — descriptions are authored for Claude Code's matcher, so their "Trigger on:/Activate when:" tails are noise in-prompt.
+
+## Memory, RAG & cross-channel store
+
+- **Embeddings provider is configurable** (mirrors TTS/STT). Registry at `src/core/memory/embed-engines/` (`ollama`/`openai`/`gemini`/`tf`) selected like `voice/engines`. Config: `memory.embeddings { provider:"auto"|id, mode:"chain"|"single", order, ollama{model,base_url}, openai{api_key,model,base_url}, gemini{api_key,model} }`. `embeddings.js` `embedOne/embedBatch` resolve via `selectEmbedEngine` and fall back to `tf` on any error. Legacy flat `memory.embed_*` keys still honored (back-compat shim). Routes: `GET /embeddings/providers`, `POST /embeddings/test`, `POST /embeddings/reindex`. Web UI: Settings → "Memoria (RAG)" (`MemoryPanel.tsx`). **Switching provider/model changes the embedder space** → cosine only matches within one embedder; run `/embeddings/reindex` (clears `memory.db` + cursor, re-embeds) after a switch, or old rows go dormant.
+- **Cross-channel message store is the spine.** Human turns from every surface log to `~/.apx/messages/<channel>/YYYY-MM-DD.jsonl` via `appendGlobalMessage({channel, direction, type, body, ...})` (object arg — a positional-string call is the old desktop bug). Writers: telegram plugin, `api/super-agent.js` (`logWebTurn`, web/web_sidebar only — not generic `api`), `api/voice.js` (deck/desktop), `plugins/desktop.js`. This store feeds the RAG indexer, `search_messages`, AND the active-threads block, so a channel that doesn't log is invisible cross-channel.
+- **`# Hilos activos en otros canales`** (`src/core/memory/active-threads.js`, `buildActiveThreadsBlock`): pure-recency awareness — last meaningful turn from each channel ≠ current, within `memory.active_threads.window_hours` (default 6, `max_lines` 3, enabled). Complements the semantic broker (which needs a topical query or a `remember`ed note). Built in `runSuperAgent` (skipped for routine/noTools), injected after the broker block. Takes an optional `messagesDir` for tests.
+
+## Desktop module (the floating voice window)
+
+`apx desktop` is a tray-resident Electron capsule the user invokes with a
+global hotkey (default ⌘G / Ctrl+G). It's the renamed `apx overlay` — see
+rule 5 above for the back-compat contract. Lives in
+`src/interfaces/desktop/` (`main.js` / `preload.js` / `renderer.js` /
+`style.css` + assets), wired through the daemon by `plugins/desktop.js`,
+`desktop-ws.js`, and `api/desktop.js`.
+
+### Boot chain (debug this top to bottom when something seems broken)
+1. `apx desktop start` → `src/interfaces/cli/commands/desktop.js`. The
+   `findElectron()` cascade tries `node_modules/.bin/electron` → then the
+   launchd-safe `node node_modules/electron/cli.js` → finally `npx electron`.
+   The shim wrappers do `exec node` and FAIL under launchd's minimal PATH
+   (no nvm), so for autostart the cli.js branch is the one that wins. Paths
+   resolve from `commands/desktop.js`, which is **4** levels under the
+   project root — use `path.resolve(__dirname, "..", "..", "..", "..")`,
+   not three (was a real bug at boot).
+2. The wrapper spawns Electron with `detached: true` then `unref()`s. This
+   is required for autostart: launchd kills the whole process group when
+   the "main" process (this wrapper) exits, so detach=true gives Electron
+   its own session and lets it survive the wrapper's 1.5s exit.
+3. `main.js` reads `desktop.theme` / `desktop.position` / `desktop.shortcut`
+   from `~/.apx/config.json` (fallback to legacy `overlay.shortcut`),
+   registers TWO global shortcuts (the configured one for record + `Alt+/`
+   for focus-input), and connects WS to `/desktop/ws`.
+4. `renderer.js` builds the capsule + conv card DOM from scratch (vanilla
+   JS — NOT React; no Babel/UMD in the Electron app). State machine:
+   `idle | listening | transcribing | thinking | speaking`. The renderer is
+   the source of truth for which mode is showing; main only relays IPC.
+
+### Things that broke in production and now have guards
+- **Conv card collapsed to 0 height**: `max-height: calc(100vh - 160px)` on
+  the conv card collapsed during the brief window where the host was still
+  at `WIN_H_MIN = 88` (pre first resize). Now an absolute `max-height: 580px`
+  + `min-height: 120px`, with explicit `requestWindowResize()` at the end of
+  `commitUserMessage()` / `finalizeStreamingAgent()` to grow the window in
+  the same tick the card mounts. **Do not reintroduce `calc(100vh - ...)`
+  on the conv card** without solving the boot-time circular dependency.
+- **Non-streaming model "Pensando…" stuck**: gemini-flash / groq-fast
+  models send the whole reply in a single `done` event with NO `token`
+  events. The renderer used to wait for tokens to fill the bubble, so the
+  bubble stayed empty with just the dots placeholder. On `done` we now
+  inject the final text into the bubble immediately + finalize + return
+  to idle. **TTS is fire-and-forget**: it runs in the background and
+  `attachAudioToTurn()` post-attaches the scrubber when `tts-ready`
+  arrives. Don't gate the user-visible reply on TTS completing.
+- **Double-`done` duplicates the reply**: daemons sometimes retry. Guard
+  with `doneHandled` (reset by `startAgentTurn()`).
+- **Regenerate on stale replies broke the thread**: Regen only makes
+  sense on the LAST agent turn. CSS hides `.btn-regen` on every
+  `.turn:not(.last)`; `clearLastClass()` strips the modifier when a fresh
+  turn mounts; the click handler keeps a `m.id !== last.id` guard.
+- **Tray click opens menu AND toggles window**: macOS fires `click` even
+  when a context menu is attached via `setContextMenu()`. We DON'T attach
+  the menu; we wire `tray.on("click", toggleWindow)` and
+  `tray.on("right-click", () => tray.popUpContextMenu(menu))` separately.
+- **Empty user bubble**: whisper occasionally returns a single space for
+  very short clips. Trim guards in `onstop`, `sendText`, and the
+  defensive guard inside `commitUserMessage`.
+- **Agent name flashes "Superagente"**: first paint must wait briefly for
+  `getAgentName()` IPC. There's a 400ms grace + an in-place placeholder
+  patch in the `.then()` for the case where render fires anyway.
+- **MediaRecorder chunked transcription**: webm/opus stores the EBML
+  header ONLY in the first chunk. Per-chunk transcription was undecodable
+  past chunk 1. The renderer now buffers chunks and re-transcribes the
+  CUMULATIVE blob each tick (live partial) + once on stop (authoritative).
+
+### Identity resolution
+The agent display name (what the bubble byline + capsule placeholder
+show) comes from `~/.apx/identity.json` `agent_name` FIRST, then
+`super_agent.name` as fallback, then literal "Superagente" as last
+resort. `super_agent.name` is an internal slug ("apx"), identity.agent_name
+is the human one ("Roby"). Don't invert the order.
+
+### Channel prompt
+`src/core/agent/prompts/channels/desktop.md` — voice-first, 1-2 sentences,
+plain prose only (read aloud verbatim by TTS), bias toward doing the
+action. Voice mode is always active for this channel
+(`plugins/desktop.js` sets `channelMeta: { voice: true }`).
+
+### Autostart at login (opt-in, per-user, no sudo)
+`apx desktop install` / `uninstall` — macOS launchd plist
+(`~/Library/LaunchAgents/dev.apx.desktop.plist`), Windows HKCU\…\Run, Linux
+`~/.config/autostart/apx-desktop.desktop`. Critical detail: the
+`ProgramArguments` MUST point at `process.execPath` (absolute node) + the
+absolute CLI script — NEVER the shim. launchd's PATH is `/usr/bin:/bin:/usr/sbin:/sbin`
+and any `exec node` shim ENOENTs there. `getApxRunner()` builds the
+correct tuple; `buildPlist()` escapes XML metachars in arg values.
+
+### Web admin
+`/m/desktop` (`src/interfaces/web/src/screens/modules/DesktopScreen.tsx`)
+shows status, edits the shortcut/enable/position/theme via PATCH to
+`/admin/config`, and previews the last desktop conversation via
+`GET /messages/global?channel=desktop`.
+
+### Out of scope — DO NOT touch from this module
+- `apx voice` (CLI TTS round-trip) and `voice.*` config keys — that's a
+  separate feature; the desktop module reads `voice.tts.*` only to
+  display "configured TTS engine: <name>" hints, never to write.
+- Whisper / faster-whisper — that's STT and lives in
+  `src/host/daemon/transcription.js`. The desktop renderer is a consumer
+  via `/transcribe/chunk`; do not duplicate the whisper-server lifecycle.
+
+## Docs site
+
+The public docs live in `docs/` — an **Astro 6 + Starlight 0.39** project, fully
+self-contained (own `package.json` + `node_modules`, independent of the apx npm
+package; `docs/` is in its own gitignore for `node_modules/`, `dist/`, `.astro/`).
+Authored 2026-05-30. **Read `docs/AUTHORING.md` first** — it is the style/format
+contract.
+
+### Structure
+- **Bilingual i18n**: `astro.config.mjs` sets `defaultLocale: 'root'` → English at
+  `src/content/docs/<section>/`, Spanish at `src/content/docs/es/<section>/`.
+  Same slug both languages so Starlight links the two versions. Sidebar groups use
+  `translations: { es: '…' }` for labels.
+- **Sections** (sidebar groups via `items: [{ autogenerate: { directory } }]` — note
+  Starlight ≥0.39 dropped bare `autogenerate` groups with a `label`, you must wrap in
+  `items`): `start`, `concepts`, `surfaces`, `engine`, `capabilities`, `reference`.
+- **Base path** is `/apx`. All internal links must be absolute and include it:
+  `/apx/<section>/<slug>/` (EN) and `/apx/es/<section>/<slug>/` (ES), trailing slash.
+- **Gold-standard pages** to copy style from: `start/installation.mdx`,
+  `start/architecture.mdx`.
+
+### Screenshots are placeholders
+There are **no real images** — every screenshot is the custom
+`src/components/Screenshot.astro` component (dashed box + `surface`/`caption`/`hint`).
+Import depth differs by locale: EN pages `../../../components/Screenshot.astro`,
+ES pages `../../../../components/Screenshot.astro`. Any file using a component must be
+`.mdx`. The owner fills real captures later by swapping `<Screenshot…/>` for a normal
+markdown image.
+
+### GFM-in-MDX gotcha (already fixed — keep it)
+Astro 6 applies GFM (tables, strikethrough…) **internally for `.md` only** and does
+NOT expose it on `markdown.remarkPlugins`, so `.mdx` files render tables as raw pipes.
+Fix is in `astro.config.mjs`: explicit `markdown: { remarkPlugins: [remarkGfm] }`
+(remark-gfm is a direct dependency). **Do not remove it** or every `.mdx` table breaks.
+
+### Commands & verify
+- Dev: `cd docs && pnpm dev` (port 4321, home at `/apx/`). LAN: add `--host`.
+  Launch config `apx-docs` in `.claude/launch.json` (which is gitignored).
+- Build: `cd docs && pnpm build`. After building, sanity-check internal links and
+  that tables rendered: `grep -rl "<p>|" dist --include=index.html` should be empty
+  and `grep -rho "<table" dist | wc -l` > 0.
+- The site is **not** wired into `npm run preflight`; build it explicitly when you
+  touch `docs/`.
 
 ## Agents (dogfood)
 

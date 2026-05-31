@@ -5,6 +5,23 @@ import path from "node:path";
 import { spawn, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { http } from "../http.js";
+import {
+  autostartIsOn as _autostartIsOn,
+  autostartInstall,
+  autostartUninstall,
+  getApxRunner as _getApxRunner,
+  buildPlist as _buildPlist,
+  MAC_PLIST_PATH,
+  LINUX_DESKTOP_PATH,
+  WIN_RUN_KEY,
+  WIN_RUN_NAME,
+} from "../../../core/desktop/autostart.js";
+
+// Re-exports — kept so existing tests (tests/desktop-autostart.test.js)
+// can still import these directly from the CLI module.
+export const getApxRunner = _getApxRunner;
+export const buildPlist   = _buildPlist;
+export const autostartIsOn = _autostartIsOn;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
@@ -284,164 +301,35 @@ export async function cmdDesktopStatus(_args = {}) {
 
 // ── Autostart (opt-in: apx desktop install / uninstall) ───────────────────
 //
-// We register a per-user login item — never system-wide, never sudo. The
-// command run at login is just `<apx-bin> desktop start`; the renderer's WS
-// has reconnect-with-backoff, so it's fine if the daemon isn't up yet.
-
-const AUTOSTART_LABEL  = "dev.apx.desktop";
-const MAC_PLIST_PATH   = path.join(os.homedir(), "Library", "LaunchAgents", `${AUTOSTART_LABEL}.plist`);
-const LINUX_DESKTOP_PATH = path.join(os.homedir(), ".config", "autostart", "apx-desktop.desktop");
-const WIN_RUN_KEY  = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
-const WIN_RUN_NAME = "APXDesktop";
-
-// Build the [bin, ...args] tuple a launchctl / Windows-Run / .desktop entry
-// should invoke. We DO NOT use the `apx` shim — pnpm/npm shims are shell
-// scripts that `exec node`, and launchd's PATH is minimal (no nvm, often no
-// /usr/local/bin), so they fail at boot with "exec: node: not found". Using
-// `process.execPath` (the absolute path of the node that's currently running
-// us) + the absolute CLI script is launchctl-safe on every platform.
-export function getApxRunner() {
-  // __dirname = .../src/interfaces/cli/commands → CLI entry sits one level up.
-  const cli = path.resolve(__dirname, "..", "index.js");
-  return [process.execPath, cli];
-}
-
-function escapeXml(s) {
-  return String(s).replace(/[<>&'"]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;" }[c]));
-}
-
-export function buildPlist(runner, logFile) {
-  // runner = [bin, ...preargs] (e.g. [node, /abs/cli/index.js])
-  const args = [...runner, "desktop", "start"];
-  const argsXml = args.map((a) => `    <string>${escapeXml(a)}</string>`).join("\n");
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>Label</key><string>${AUTOSTART_LABEL}</string>
-  <key>ProgramArguments</key>
-  <array>
-${argsXml}
-  </array>
-  <key>RunAtLoad</key><true/>
-  <key>KeepAlive</key><false/>
-  <key>ProcessType</key><string>Interactive</string>
-  <key>StandardOutPath</key><string>${escapeXml(logFile)}</string>
-  <key>StandardErrorPath</key><string>${escapeXml(logFile)}</string>
-</dict>
-</plist>
-`;
-}
-
-export function autostartIsOn() {
-  try {
-    if (process.platform === "darwin") return fs.existsSync(MAC_PLIST_PATH);
-    if (process.platform === "linux")  return fs.existsSync(LINUX_DESKTOP_PATH);
-    if (process.platform === "win32") {
-      const out = execFileSync("reg", ["query", WIN_RUN_KEY, "/v", WIN_RUN_NAME], {
-        stdio: ["ignore", "pipe", "ignore"],
-      }).toString();
-      return new RegExp(WIN_RUN_NAME).test(out);
-    }
-  } catch {}
-  return false;
-}
+// All the heavy lifting lives in core/desktop/autostart.js so the daemon's
+// /desktop/autostart endpoint and these CLI commands share a single
+// implementation. The functions below are just ANSI/UX wrappers around it.
 
 export async function cmdDesktopInstall(_args = {}) {
-  const runner = getApxRunner();   // [node, /abs/cli/index.js]
-  // Shell-quote each token for command strings (reg /d, .desktop Exec). plist
-  // takes individual <string> args so we don't need to quote there.
-  const sh = (s) => `"${String(s).replace(/"/g, '\\"')}"`;
-  const cmdline = [...runner, "desktop", "start"].map(sh).join(" ");
-
-  if (process.platform === "darwin") {
-    const logFile = path.join(os.homedir(), ".apx", "desktop-autostart.log");
-    fs.mkdirSync(path.dirname(MAC_PLIST_PATH), { recursive: true });
-    fs.mkdirSync(path.dirname(logFile), { recursive: true });
-    fs.writeFileSync(MAC_PLIST_PATH, buildPlist(runner, logFile), "utf8");
-    // Idempotent: unload if loaded, then load -w (persists across reboots).
-    try { execFileSync("launchctl", ["unload", MAC_PLIST_PATH], { stdio: "ignore" }); } catch {}
-    try { execFileSync("launchctl", ["load", "-w", MAC_PLIST_PATH], { stdio: "inherit" }); }
-    catch (e) {
-      console.error(`\n  ${fmt.red("✗")} launchctl load failed: ${e.message}\n  ${fmt.dim("plist:")} ${MAC_PLIST_PATH}\n`);
-      process.exit(1);
-    }
-    console.log(
-      `\n  ${fmt.green("✓")} ${fmt.bold("Autostart activado")}` +
-      `\n  ${fmt.dim("runs:")}  ${cmdline}` +
-      `\n  ${fmt.dim("plist:")} ${MAC_PLIST_PATH}` +
-      `\n  ${fmt.dim("log:")}   ${logFile}` +
-      `\n  ${fmt.dim("La ventana arrancará automáticamente en el próximo login.")}` +
-      `\n  ${fmt.dim("Para desactivar:")} ${fmt.cyan("apx desktop uninstall")}\n`
-    );
-    return;
+  const r = autostartInstall();
+  if (!r.ok) {
+    console.error(`\n  ${fmt.red("✗")} ${r.error}\n`);
+    process.exit(1);
   }
-  if (process.platform === "win32") {
-    try {
-      execFileSync("reg", [
-        "add", WIN_RUN_KEY,
-        "/v", WIN_RUN_NAME,
-        "/t", "REG_SZ",
-        "/d", cmdline,
-        "/f",
-      ], { stdio: "inherit" });
-    } catch (e) {
-      console.error(`\n  ${fmt.red("✗")} reg add failed: ${e.message}\n`);
-      process.exit(1);
-    }
-    console.log(
-      `\n  ${fmt.green("✓")} ${fmt.bold("Autostart activado")}` +
-      `\n  ${fmt.dim("registry:")} ${WIN_RUN_KEY}\\${WIN_RUN_NAME}` +
-      `\n  ${fmt.dim("command:")}  ${cmdline}` +
-      `\n  ${fmt.dim("Para desactivar:")} ${fmt.cyan("apx desktop uninstall")}\n`
-    );
-    return;
-  }
-  if (process.platform === "linux") {
-    fs.mkdirSync(path.dirname(LINUX_DESKTOP_PATH), { recursive: true });
-    fs.writeFileSync(LINUX_DESKTOP_PATH,
-      `[Desktop Entry]\nType=Application\nName=APX Desktop\nExec=${cmdline}\nX-GNOME-Autostart-enabled=true\nTerminal=false\n`,
-      "utf8");
-    console.log(
-      `\n  ${fmt.green("✓")} ${fmt.bold("Autostart activado")}` +
-      `\n  ${fmt.dim("runs:")} ${cmdline}` +
-      `\n  ${fmt.dim("file:")} ${LINUX_DESKTOP_PATH}` +
-      `\n  ${fmt.dim("Para desactivar:")} ${fmt.cyan("apx desktop uninstall")}\n`
-    );
-    return;
-  }
-  console.error(`\n  ${fmt.red("✗")} Autostart no soportado en esta plataforma: ${process.platform}\n`);
-  process.exit(1);
+  console.log(
+    `\n  ${fmt.green("✓")} ${fmt.bold("Autostart activado")}` +
+    (r.runs ? `\n  ${fmt.dim("runs:")}  ${r.runs}`  : "") +
+    (r.path ? `\n  ${fmt.dim("entry:")} ${r.path}` : "") +
+    `\n  ${fmt.dim("La ventana arrancará automáticamente en el próximo login.")}` +
+    `\n  ${fmt.dim("Para desactivar:")} ${fmt.cyan("apx desktop uninstall")}\n`
+  );
 }
 
 export async function cmdDesktopUninstall(_args = {}) {
-  if (process.platform === "darwin") {
-    if (!fs.existsSync(MAC_PLIST_PATH)) {
-      console.log(`\n  ${fmt.dim("Autostart no estaba activado.")}\n`);
-      return;
-    }
-    try { execFileSync("launchctl", ["unload", "-w", MAC_PLIST_PATH], { stdio: "ignore" }); } catch {}
-    try { fs.unlinkSync(MAC_PLIST_PATH); } catch {}
-    console.log(`\n  ${fmt.green("✓")} Autostart desactivado.\n  ${fmt.dim("Se eliminó:")} ${MAC_PLIST_PATH}\n`);
+  const r = autostartUninstall();
+  if (!r.ok) {
+    console.error(`\n  ${fmt.red("✗")} ${r.error}\n`);
+    process.exit(1);
+  }
+  if (!r.removed) {
+    console.log(`\n  ${fmt.dim("Autostart no estaba activado.")}\n`);
     return;
   }
-  if (process.platform === "win32") {
-    try {
-      execFileSync("reg", ["delete", WIN_RUN_KEY, "/v", WIN_RUN_NAME, "/f"], { stdio: "ignore" });
-      console.log(`\n  ${fmt.green("✓")} Autostart desactivado.\n  ${fmt.dim("Se eliminó:")} ${WIN_RUN_KEY}\\${WIN_RUN_NAME}\n`);
-    } catch {
-      console.log(`\n  ${fmt.dim("Autostart no estaba activado.")}\n`);
-    }
-    return;
-  }
-  if (process.platform === "linux") {
-    if (!fs.existsSync(LINUX_DESKTOP_PATH)) {
-      console.log(`\n  ${fmt.dim("Autostart no estaba activado.")}\n`);
-      return;
-    }
-    fs.unlinkSync(LINUX_DESKTOP_PATH);
-    console.log(`\n  ${fmt.green("✓")} Autostart desactivado.\n  ${fmt.dim("Se eliminó:")} ${LINUX_DESKTOP_PATH}\n`);
-    return;
-  }
+  console.log(`\n  ${fmt.green("✓")} Autostart desactivado.\n  ${fmt.dim("Se eliminó:")} ${r.path}\n`);
 }
 

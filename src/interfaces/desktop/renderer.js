@@ -109,6 +109,11 @@
   $capActions.style.cssText = "display:flex; align-items:center; gap:6px;";
 
   // ── Initial config from main (theme, position, shortcut, agent name) ─────
+  // Don't render() before this resolves — otherwise the first paint creates
+  // the input with the default "Hablá o escribí a Superagente…" placeholder
+  // and the render() guard ("if (!existingInput)") never recreates it, so
+  // the agent name stays wrong until the user changes mode.
+  let configReady = false;
   Promise.all([
     window.apx?.getTheme?.()     ?? "light",
     window.apx?.getPosition?.()  ?? "right",
@@ -121,13 +126,20 @@
     document.documentElement.setAttribute("data-theme", theme);
     setPosition(position);
     initialCaption(shortcut);
-    // Re-render so the placeholder ("Hablá o escribí a <name>…") picks up
-    // the resolved agent name on first paint.
+    configReady = true;
+    // If render() already fired the bootstrap paint (because the IPC was
+    // slow), the existing input has the stale placeholder. Patch it in
+    // place so the user sees the real agent name on the very first frame
+    // they can interact with.
+    const input = $capCenter.querySelector("input");
+    if (input) input.placeholder = `Hablá o escribí a ${agentName}…`;
     render();
   }).catch(() => {
     document.documentElement.setAttribute("data-theme", "light");
     setPosition("right");
     initialCaption("CommandOrControl+G");
+    configReady = true;
+    render();
   });
 
   function setPosition(p) {
@@ -986,5 +998,9 @@
   }
 
   // ── First paint ──────────────────────────────────────────────────────────
-  render();
+  // Wait briefly for the config Promise (theme/position/shortcut/agentName).
+  // If it doesn't resolve in 400ms, paint anyway so the window doesn't stay
+  // blank on a wedged daemon — the .then() will patch the placeholder when
+  // it finally resolves.
+  setTimeout(() => { if (!configReady) render(); }, 400);
 })();

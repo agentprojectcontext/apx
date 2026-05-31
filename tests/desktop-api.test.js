@@ -129,3 +129,35 @@ test("handleMessage rejects when the plugin is disabled", async () => {
     /not enabled/
   );
 });
+
+// ── Autostart endpoints (shared with `apx desktop install/uninstall`) ───
+
+test("GET /desktop/autostart returns {ok, enabled:boolean, platform}", async () => {
+  const { server, baseUrl } = await listen(makeApp());
+  try {
+    const res = await fetch(`${baseUrl}/desktop/autostart`);
+    assert.equal(res.status, 200);
+    const body = await res.json();
+    assert.equal(body.ok, true);
+    assert.equal(typeof body.enabled, "boolean");
+    assert.equal(body.platform, process.platform);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test("POST /desktop/autostart requires {enable: boolean}", async () => {
+  const { server, baseUrl } = await listen(makeApp());
+  try {
+    const res = await fetch(`${baseUrl}/desktop/autostart`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    assert.equal(res.status, 400);
+    const body = await res.json();
+    assert.match(body.error, /enable must be a boolean/);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
