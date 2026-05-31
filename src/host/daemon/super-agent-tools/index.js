@@ -114,19 +114,22 @@ export const CORE_TOOL_SCHEMAS = TOOLS
   .map((t) => t.schema);
 
 /**
- * Choose the tool schema list for a given channel. Telegram / overlay / api
+ * Choose the tool schema list for a given channel. Telegram / desktop / api
  * (chit-chat) get the "core" subset to stay under cheap-tier TPM limits;
  * routines get the full list because they're deliberate, scheduled, and the
  * user has chosen the model. Override with the explicit `full: true` opt.
  */
 export function schemasForChannel(channel, { full = false } = {}) {
   if (full) return TOOL_SCHEMAS;
-  // Routines and the local surfaces (web admin chat, `apx exec super-agent`)
-  // get the full registry — they run on a model the user picked and aren't
-  // subject to the cheap-tier TPM caps that motivate the "core" subset.
-  if (channel === "routine") return TOOL_SCHEMAS;
-  if (channel === "api") return TOOL_SCHEMAS;
-  // Telegram / overlay stay on the small subset to fit cheap cloud TPM limits.
+  // Full registry for deliberate, local surfaces running on a user-picked model
+  // (not subject to the cheap-tier TPM caps that motivate the "core" subset):
+  //   routine — scheduled/autonomous · api — generic HTTP / `apx exec`
+  //   web     — the big web chat (long-form workspace)
+  //   code    — the web Code module (needs read/write/edit/run_shell/grep/glob)
+  if (channel === "routine" || channel === "api" || channel === "web" || channel === "code")
+    return TOOL_SCHEMAS;
+  // Lightweight surfaces stay on the small subset to fit cheap cloud TPM limits
+  // and keep replies snappy: telegram, web_sidebar, deck, desktop.
   return CORE_TOOL_SCHEMAS;
 }
 

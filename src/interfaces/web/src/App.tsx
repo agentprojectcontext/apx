@@ -6,6 +6,7 @@ import { ApxAdminScreen } from "./screens/ApxAdminScreen";
 import { ProjectScreen } from "./screens/ProjectScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { VoiceScreen } from "./screens/modules/VoiceScreen";
+import { DesktopScreen } from "./screens/modules/DesktopScreen";
 import { DeckScreen } from "./screens/modules/DeckScreen";
 import { CodeScreen } from "./screens/modules/CodeScreen";
 import { AddProjectDialog } from "./components/AddProjectDialog";
@@ -68,7 +69,8 @@ function Shell() {
           <Routes>
             <Route path="/"           element={<ApxAdminScreen />} />
             <Route path="/settings/*" element={<SettingsScreen />} />
-            <Route path="/m/voice/*"  element={<VoiceScreen />} />
+            <Route path="/m/voice/*"   element={<VoiceScreen />} />
+            <Route path="/m/desktop/*" element={<DesktopScreen />} />
             <Route path="/m/deck/*"   element={<DeckScreen />} />
             <Route path="/m/code/*"   element={<CodeScreen />} />
             <Route path="/p/:pid/*"   element={<ProjectScreen />} />

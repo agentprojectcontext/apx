@@ -1,0 +1,84 @@
+---
+title: Quick start
+description: From apx init to running your first agent and watching the messages.
+sidebar:
+  order: 3
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components';
+import Screenshot from '../../../components/Screenshot.astro';
+
+This walkthrough takes you from an empty project to a running agent in a few minutes.
+
+<Steps>
+
+1. **Initialize a project.** In any directory you want APX to manage:
+
+   ```bash
+   apx init --name "My Project"
+   ```
+
+   This creates the `.apc/` folder and an `AGENTS.md`. See
+   [Projects](/apx/concepts/projects/) for what lands on disk.
+
+2. **Add an agent.** Give it a slug, a role, and a model:
+
+   ```bash
+   apx agent add sofia --role "backend reviewer" --model claude-sonnet-4.5
+   ```
+
+   <Screenshot
+     surface="terminal"
+     caption="apx agent add creating the sofia agent and writing .apc/agents/sofia.md"
+     hint="Run: apx agent add sofia --role 'backend reviewer' --model claude-sonnet-4.5" />
+
+3. **Run the agent through a full runtime.** This spawns an external coding CLI (here, Claude
+   Code) with the agent's system prompt injected:
+
+   ```bash
+   apx run sofia --runtime claude-code "Review the open PRs and summarize them"
+   ```
+
+   Prefer a quick, one-shot LLM answer instead? Use `exec`:
+
+   ```bash
+   apx exec sofia "What is my role in this project?"
+   ```
+
+4. **Watch what's happening.** Tail the message log across all channels:
+
+   ```bash
+   apx messages tail
+   ```
+
+   <Screenshot
+     surface="terminal"
+     caption="apx messages tail showing runtime and exec activity with actor types"
+     hint="Run: apx messages tail" />
+
+</Steps>
+
+## The interactive wizard
+
+Prefer to be guided? `apx setup` walks you through provider → model → channels → daemon in one
+flow:
+
+```bash
+apx setup
+```
+
+<Screenshot
+  surface="terminal"
+  caption="apx setup wizard: choosing a provider and model"
+  hint="Run: apx setup" />
+
+<Aside type="note">
+	`apx run` uses external **runtimes** (full coding CLIs). `apx exec` uses **engines** (direct LLM
+	calls). The difference is covered in [Runtimes](/apx/engine/runtimes/) and
+	[Engines](/apx/engine/engines/).
+</Aside>
+
+## Next
+
+- [Architecture](/apx/start/architecture/) — understand the layering before going deeper.
+- [CLI reference](/apx/surfaces/cli/) — the full command surface.

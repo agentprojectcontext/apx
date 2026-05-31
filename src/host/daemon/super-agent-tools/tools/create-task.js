@@ -18,7 +18,7 @@ export default {
           tags:    { type: "array", items: { type: "string" }, description: "Optional tags." },
           due:     { type: "string", description: "Optional ISO date (YYYY-MM-DD) the task is due by." },
           agent:   { type: "string", description: "Optional agent slug responsible for the task." },
-          source:  { type: "string", description: "Where the task came from (telegram, overlay, …). Defaults to the calling channel." },
+          source:  { type: "string", description: "Where the task came from (telegram, desktop, …). Defaults to the calling channel." },
         },
       },
     },

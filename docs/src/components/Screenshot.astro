@@ -1,0 +1,103 @@
+---
+/**
+ * Screenshot placeholder.
+ *
+ * Renders a consistent dashed box marking where a screenshot should go.
+ * Replace with a real <img> once the capture is taken.
+ *
+ * Usage in .mdx:
+ *   import Screenshot from '../../../components/Screenshot.astro';
+ *   <Screenshot
+ *     surface="web"
+ *     caption="Web admin panel — project list"
+ *     hint="apx web, then open the Projects rail" />
+ *
+ * Once captured, replace with:
+ *   ![Web admin panel — project list](../../../assets/shots/web-projects.png)
+ */
+interface Props {
+	/** Where the shot is taken: web | terminal | tui | desktop | code | voice | deck */
+	surface?: string;
+	/** Caption shown under the placeholder (and used as future alt text). */
+	caption: string;
+	/** Optional hint: the exact command / screen to capture. */
+	hint?: string;
+}
+
+const { surface = 'screen', caption, hint } = Astro.props;
+
+const ICONS: Record<string, string> = {
+	web: '🖥️',
+	terminal: '⌨️',
+	tui: '▦',
+	desktop: '🪟',
+	code: '</>',
+	voice: '🎙️',
+	deck: '🃏',
+	screen: '📷',
+};
+const icon = ICONS[surface] ?? ICONS.screen;
+---
+
+<figure class="apx-shot" data-surface={surface}>
+	<div class="apx-shot__box">
+		<span class="apx-shot__icon">{icon}</span>
+		<span class="apx-shot__badge">SCREENSHOT · {surface}</span>
+		<span class="apx-shot__caption">{caption}</span>
+		{hint && <code class="apx-shot__hint">{hint}</code>}
+	</div>
+	<figcaption>{caption}</figcaption>
+</figure>
+
+<style>
+	.apx-shot {
+		margin: 1.5rem 0;
+	}
+	.apx-shot__box {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 0.5rem;
+		text-align: center;
+		padding: 2.5rem 1.5rem;
+		border: 2px dashed var(--sl-color-gray-4);
+		border-radius: 0.75rem;
+		background:
+			repeating-linear-gradient(
+				45deg,
+				var(--sl-color-gray-7) 0,
+				var(--sl-color-gray-7) 10px,
+				var(--sl-color-gray-6) 10px,
+				var(--sl-color-gray-6) 20px
+			);
+		color: var(--sl-color-gray-2);
+	}
+	.apx-shot__icon {
+		font-size: 2rem;
+		line-height: 1;
+	}
+	.apx-shot__badge {
+		font-size: 0.7rem;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--sl-color-accent);
+		background: var(--sl-color-accent-low);
+		padding: 0.15rem 0.6rem;
+		border-radius: 999px;
+	}
+	.apx-shot__caption {
+		font-weight: 600;
+		color: var(--sl-color-white);
+	}
+	.apx-shot__hint {
+		font-size: 0.8rem;
+	}
+	.apx-shot figcaption {
+		text-align: center;
+		font-size: 0.85rem;
+		color: var(--sl-color-gray-3);
+		margin-top: 0.5rem;
+	}
+</style>

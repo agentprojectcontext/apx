@@ -24,6 +24,7 @@ import { register as registerPlugins } from "./api/plugins.js";
 import { register as registerEngines } from "./api/engines.js";
 import { register as registerExec } from "./api/exec.js";
 import { register as registerSuperAgent } from "./api/super-agent.js";
+import { register as registerCode } from "./api/code.js";
 import { register as registerConversations } from "./api/conversations.js";
 import { register as registerConnections } from "./api/connections.js";
 import { register as registerRuntimes } from "./api/runtimes.js";
@@ -36,8 +37,9 @@ import { register as registerTopLevel } from "./api/top-level.js";
 import { register as registerSessionsSearch } from "./api/sessions-search.js";
 import { register as registerTranscribe } from "./api/transcribe.js";
 import { register as registerTts } from "./api/tts.js";
+import { register as registerEmbeddings } from "./api/embeddings.js";
 import { register as registerVoice } from "./api/voice.js";
-import { register as registerOverlay } from "./api/overlay.js";
+import { register as registerDesktop } from "./api/desktop.js";
 import { register as registerDeck } from "./api/deck.js";
 import { register as registerPairing } from "./api/pairing.js";
 import { register as registerAdmin } from "./api/admin.js";
@@ -106,6 +108,7 @@ export function buildApi({
   registerEngines(app, ctx);
   registerExec(app, ctx);
   registerSuperAgent(app, ctx);
+  registerCode(app, ctx);
   registerConversations(app, ctx);
   registerConnections(app, ctx);
   registerRuntimes(app, ctx);
@@ -124,8 +127,9 @@ export function buildApi({
   registerPlugins(app, ctx);
   registerTranscribe(app, ctx);
   registerTts(app, ctx);
+  registerEmbeddings(app, ctx);
   registerVoice(app, ctx);
-  registerOverlay(app, ctx);
+  registerDesktop(app, ctx);
   registerDeck(app, ctx);
   registerPairing(app, ctx);
 

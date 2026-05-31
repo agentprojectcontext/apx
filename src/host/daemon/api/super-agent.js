@@ -11,8 +11,26 @@ import {
   appendSuperAgentErrorTrace,
 } from "./shared.js";
 import { loggerFor } from "../../../core/logging.js";
+import { appendGlobalMessage } from "../../../core/messages-store.js";
 
 const log = loggerFor("super-agent");
+
+// Persist human web turns to the cross-channel message store so they feed the
+// RAG index, search_messages, and the "active threads" awareness block. Only
+// the human surfaces (web big chat + sidebar) — not generic "api"/automation
+// callers. Best-effort: a logging failure never breaks the reply.
+const WEB_LOGGED_CHANNELS = new Set(["web", "web_sidebar"]);
+function logWebTurn(channel, { prompt, replyText }) {
+  if (!WEB_LOGGED_CHANNELS.has(channel)) return;
+  try {
+    appendGlobalMessage({ channel, direction: "in", type: "user", author: "user", body: prompt });
+    if (replyText) {
+      appendGlobalMessage({ channel, direction: "out", type: "agent", body: replyText });
+    }
+  } catch {
+    /* best-effort */
+  }
+}
 
 // Wrap an onEvent emitter so that operationally interesting events also land
 // in the unified daemon log. We don't log every "model_start" — too noisy —
@@ -75,6 +93,7 @@ export function register(app, { projects, registries, plugins, project, config }
         }),
       });
       projects.rebuild(p.id);
+      logWebTurn(ctx.channel, { prompt, replyText: saResult.text });
       send({
         type: "final",
         result: {
@@ -161,6 +180,7 @@ export function register(app, { projects, registries, plugins, project, config }
         }),
       });
       projects.rebuild(p.id);
+      logWebTurn(ctx.channel, { prompt, replyText: saResult.text });
       res.json({
         text: saResult.text,
         usage: saResult.usage,

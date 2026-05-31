@@ -22,7 +22,7 @@ const WEB_DIST = path.resolve(__dirname, "..", "..", "..", "interfaces", "web", 
 // the actual route registry.
 const API_PREFIXES = [
   "/health", "/admin", "/projects", "/telegram", "/engines", "/runtimes",
-  "/messages", "/sessions", "/tools", "/mcp", "/voice", "/tts", "/overlay",
+  "/messages", "/sessions", "/tools", "/mcp", "/voice", "/tts", "/desktop", "/overlay",
   "/transcribe", "/run", "/files", "/memory", "/env", "/pair", "/deck",
   "/super-agent", "/identity",
 ];

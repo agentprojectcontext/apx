@@ -73,7 +73,8 @@ export const es = {
     project:      "Proyecto",
     add_project:  "Agregar proyecto",
     modules: {
-      voice: "Voces",
+      voice:   "Voces",
+      desktop: "Escritorio",
       deck:  "Deck",
       code:  "Code",
     },

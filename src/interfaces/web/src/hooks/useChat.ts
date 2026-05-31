@@ -241,7 +241,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
       try {
         await SuperAgent.stream(
           pid,
-          { prompt: trimmed, previousMessages: history, model: opts.model || undefined },
+          { prompt: trimmed, previousMessages: history, model: opts.model || undefined, channel: "web" },
           applyEvent,
           ctrl.signal,
         );

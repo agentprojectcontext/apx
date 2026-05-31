@@ -88,6 +88,29 @@ const DEFAULT_CONFIG = {
   memory: {
     // Cross-channel memory subsystem (RAG + progressive compaction + broker).
     enabled: true,
+    // Embeddings provider for the RAG retriever. Selector reads
+    // memory.embeddings.provider; "auto" probes engines in preference order
+    // (ollama → gemini → openai → tf). Per-engine settings live under
+    // memory.embeddings.<engine>. Mirrors voice.tts. Switching provider changes
+    // the embedder space — re-index (clear memory.db) to backfill old messages.
+    embeddings: {
+      provider: "auto",          // "auto" | "ollama" | "openai" | "gemini" | "tf"
+      mode: "chain",             // "chain" (fallback router) | "single" (only the default)
+      order: ["ollama", "gemini", "openai", "tf"],
+      ollama: { model: "nomic-embed-text", base_url: "", timeout_ms: 4000 },
+      openai: { api_key: "", model: "text-embedding-3-small", base_url: "" },
+      gemini: { api_key: "", model: "text-embedding-004" },
+    },
+    // "Active threads" awareness: a tiny block listing recent activity on OTHER
+    // channels (pure recency, no semantic match) so a vague "seguimos?" on one
+    // surface can pick up a warm thread from another. Bounded + cheap; only
+    // appears when there's cross-channel activity in the window.
+    active_threads: {
+      enabled: true,
+      window_hours: 6,   // only surface channels touched within this window
+      max_lines: 3,      // hard cap on bullets (token guard)
+    },
+    // Legacy flat keys (still honored as an ollama override for old configs).
     embed_model: "nomic-embed-text",  // Ollama embeddings model
     embed_base_url: "",               // "" → falls back to engines.ollama.base_url
     embed_timeout_ms: 4000,
@@ -146,6 +169,8 @@ const CREDENTIAL_PATHS = [
   ["voice", "tts", "elevenlabs", "api_key"],
   ["voice", "tts", "openai", "api_key"],
   ["voice", "tts", "gemini", "api_key"],
+  ["memory", "embeddings", "openai", "api_key"],
+  ["memory", "embeddings", "gemini", "api_key"],
   ["telegram", "channels"], // entire array — losing it is also a regression
 ];
 
@@ -333,7 +358,21 @@ export function mergeDefaults(cfg) {
       gemini:    { ...DEFAULT_CONFIG.engines.gemini,    ...(cfg.engines?.gemini    || {}) },
       ollama:    { ...DEFAULT_CONFIG.engines.ollama,    ...(cfg.engines?.ollama    || {}) },
     },
-    memory: { ...DEFAULT_CONFIG.memory, ...(cfg.memory || {}) },
+    memory: {
+      ...DEFAULT_CONFIG.memory,
+      ...(cfg.memory || {}),
+      embeddings: {
+        ...DEFAULT_CONFIG.memory.embeddings,
+        ...(cfg.memory?.embeddings || {}),
+        ollama: { ...DEFAULT_CONFIG.memory.embeddings.ollama, ...(cfg.memory?.embeddings?.ollama || {}) },
+        openai: { ...DEFAULT_CONFIG.memory.embeddings.openai, ...(cfg.memory?.embeddings?.openai || {}) },
+        gemini: { ...DEFAULT_CONFIG.memory.embeddings.gemini, ...(cfg.memory?.embeddings?.gemini || {}) },
+      },
+      active_threads: {
+        ...DEFAULT_CONFIG.memory.active_threads,
+        ...(cfg.memory?.active_threads || {}),
+      },
+    },
     voice: {
       ...DEFAULT_CONFIG.voice,
       ...(cfg.voice || {}),

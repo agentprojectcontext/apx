@@ -20,7 +20,7 @@ const DAEMON_TARGET = process.env.APX_DAEMON_URL || "http://127.0.0.1:7430";
 // (e.g. an empty /pair/list).
 const API_PREFIXES = [
   "/health", "/admin", "/projects", "/telegram", "/engines", "/runtimes",
-  "/messages", "/sessions", "/tools", "/mcp", "/voice", "/tts", "/overlay",
+  "/messages", "/sessions", "/tools", "/mcp", "/voice", "/tts", "/desktop", "/overlay",
   "/transcribe", "/run", "/files", "/memory", "/env", "/pair", "/deck",
   "/super-agent", "/identity", "/agents", "/tasks", "/code",
 ];

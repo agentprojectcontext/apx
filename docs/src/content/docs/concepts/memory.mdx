@@ -1,0 +1,90 @@
+---
+title: Memory
+description: Curated per-agent memory.md files — what to put in them, what to keep out, and the commands to read, append, and replace them.
+sidebar:
+  order: 4
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import Screenshot from '../../../components/Screenshot.astro';
+
+Each agent can carry a `memory.md` file that APX injects into its system prompt on every call.
+This is the agent's **curated long-term memory** — a place for durable facts that should always be
+in context, not raw conversation history.
+
+## Where it lives
+
+```text
+.apc/agents/<slug>/memory.md
+```
+
+This file is committed to your repository alongside the agent definition. The agent reads it every
+time it is invoked, whether via `apx exec`, a routine, or Telegram.
+
+## What belongs in memory
+
+Memory should contain facts that are stable and durable — things the agent should always know:
+
+- The project's conventions ("we use pnpm, never npm")
+- The agent's preferences ("prefers short PR summaries, pushes back on vague diffs")
+- Key architectural decisions ("API is REST over HTTP, no GraphQL")
+- Ongoing responsibilities ("manages the staging deploy pipeline")
+
+**What does not belong:**
+
+- Raw conversation transcripts (they bloat the prompt and go stale)
+- Secrets or API keys (memory.md is committed — never put credentials here)
+- Temporary task context (use sessions for that)
+
+<Aside type="caution">
+  `memory.md` is committed to the repository. Never write secrets, tokens, or passwords into it.
+</Aside>
+
+## Commands
+
+### Read an agent's memory
+
+```bash
+apx memory reviewer                              # print to stdout
+apx memory reviewer --project my-app            # explicit project
+```
+
+<Screenshot
+  surface="terminal"
+  caption="apx memory reviewer — prints the current memory.md contents"
+  hint="Run: apx memory reviewer" />
+
+### Append a note
+
+```bash
+apx memory reviewer --append "Prefers short PR summaries"
+apx memory reviewer --append "Uses es-AR locale for all output"
+```
+
+The note is appended under a `## Recent context` heading (created if absent). This is the
+recommended way to add a single fact without touching the rest of the file.
+
+### Replace memory
+
+```bash
+apx memory reviewer --replace < new-memory.md   # full replace from stdin
+```
+
+Use this to do a clean rewrite — for example after a compaction pass, or to bulk-import a
+structured memory document.
+
+## Memory and the system prompt
+
+When APX builds the system prompt for an agent (`apx exec <slug>` or any routine call), the
+memory file is injected at position 5 in the prompt stack — after the role/language fields and
+before the skills. This means memory content is always visible to the model within the context
+window.
+
+For the cross-channel RAG system that retrieves semantically relevant past messages (not just the
+curated memory file), see [Memory system](/apx/capabilities/memory-system/).
+
+## Next
+
+- [Agents](/apx/concepts/agents/) — how agent definitions work.
+- [Memory system](/apx/capabilities/memory-system/) — the deeper RAG, compaction, and broker
+  layer that works across all channels.

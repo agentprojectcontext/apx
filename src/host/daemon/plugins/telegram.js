@@ -715,9 +715,41 @@ class ChannelPoller {
     let saUsage = null;
     let streamedCount = 0;
     let lastStreamedText = "";
+    // Telegram shows the user ONLY prose — never the tool calls. On an action
+    // request the model often jumps straight to a tool with no preamble text,
+    // so the user would stare at a silent chat until the final reply. Send one
+    // short localized heads-up the moment real work starts (first tool_start),
+    // but only if the agent didn't already write its own "on it" line.
+    let sentHeadsUp = false;
+    const headsUpPhrase = () => {
+      const lang = (this.globalConfig?.user?.language || "es").slice(0, 2);
+      const byLang = {
+        es: "Dale, estoy con eso… 🛠️",
+        en: "On it — working on that… 🛠️",
+        pt: "Já estou nisso… 🛠️",
+      };
+      return byLang[lang] || byLang.es;
+    };
     if (!replyText && isSuperAgentEnabled(this.globalConfig)) {
       const onEvent = async (ev) => {
         try {
+          if (ev.type === "tool_start" && !sentHeadsUp && streamedCount === 0) {
+            sentHeadsUp = true;
+            const heads = headsUpPhrase();
+            await this._send({ chat_id, text: heads });
+            appendGlobalMessage({
+              channel: "telegram",
+              direction: "out",
+              type: "agent",
+              actor_id: SUPERAGENT_ACTOR_ID,
+              actor_kind: "superagent",
+              agent_slug: SUPERAGENT_ACTOR_ID,
+              author: agentDisplay,
+              body: heads,
+              meta: { chat_id, tg_channel: this.channel.name, in_reply_to: u.update_id, heads_up: true },
+            });
+            return;
+          }
           if (ev.type === "assistant_text" && ev.text) {
             const piece = stripThinking(ev.text).trim();
             if (!piece) return;

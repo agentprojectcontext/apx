@@ -19,16 +19,35 @@ const promptCache = new Map();
 /** @deprecated use super-agent-base.md */
 const LEGACY_PROMPT_PATH = path.join(PROMPTS_DIR, "super-agent-default.md");
 
+// Channels are SURFACES (where the user is). Voice is NOT a channel — it's a
+// MODE that layers on top of a surface (see buildVoiceModeBlock); a spoken deck
+// turn is channel "deck" + voice mode, not its own channel.
 const CHANNEL_PROMPT_FILES = {
   telegram: "channels/telegram.md",
   terminal: "channels/terminal.md",
   cli: "channels/cli.md",
-  overlay: "channels/overlay.md",
   routine: "channels/routine.md",
   api: "channels/api.md",
-  voice: "channels/voice.md",
-  deck: "channels/deck.md",
+  web: "channels/web.md",                 // web big chat (long-form, full tools)
+  web_sidebar: "channels/web_sidebar.md", // web quick chat (short, lightweight)
+  deck: "channels/deck.md",               // cockpit dashboard
+  desktop: "channels/desktop.md",         // PC floating module (was "overlay")
+  code: "channels/code.md",               // web Code module (rich coding session)
 };
+
+// Voice mode: spoken-reply rules layered on any surface when the turn will be
+// read aloud by TTS (deck voice overlay, desktop module, etc). Injected with
+// high recency (right before systemSuffix) so weaker models don't bury it.
+const VOICE_MODE_FILE = "modes/voice.md";
+
+export function buildVoiceModeBlock(active) {
+  if (!active) return "";
+  try {
+    return loadPrompt(VOICE_MODE_FILE);
+  } catch {
+    return "";
+  }
+}
 
 export function loadPrompt(relativePath) {
   const key = relativePath.replace(/\\/g, "/");
@@ -162,6 +181,30 @@ function buildPermissionBlock(sa) {
   ].join("\n");
 }
 
+// Skill descriptions are authored for Claude Code's skill matcher, so many end
+// with verbose "Trigger on: …" / "Activate when …" lists and multi-sentence
+// usage notes. Inside Roby's prompt those tails are pure noise (he matches
+// semantically, not by trigger string). Keep the first sentence only, drop the
+// trigger/activation tail, and cap length — this is the single biggest
+// signal-per-token win in the prompt (~1k tokens recovered per turn).
+function condenseSkillDescription(desc) {
+  if (!desc) return "(no description)";
+  const full = String(desc).replace(/\s+/g, " ").trim();
+  const MARKER =
+    /\s*(?:Trigger(?:s)? on|Triggers|TRIGGER|Activate (?:on|when|only)|Use this skill (?:whenever|when)|Use (?:it )?when|Triggers include|SKIP|Also (?:use|triggers))\b/i;
+  // Prefer the gist before any trigger/activation marker; but if a skill leads
+  // straight into "Activate ONLY when…" (no gist first), that head is empty —
+  // fall back to the first sentence of the full text so we keep real info.
+  let d = full.split(MARKER)[0].trim();
+  if (d.length < 15) d = full;
+  // First sentence only, then cap length.
+  const firstStop = d.search(/\.(\s|$)/);
+  if (firstStop > 0) d = d.slice(0, firstStop + 1);
+  d = d.trim();
+  if (d.length > 160) d = d.slice(0, 157).trimEnd() + "…";
+  return d || "(no description)";
+}
+
 function buildSkillsCatalog(listSkills) {
   let list = [];
   try {
@@ -172,12 +215,11 @@ function buildSkillsCatalog(listSkills) {
   if (!list.length) return "";
   return [
     "# Available skills (load on demand)",
-    "Below is the catalog of skills (slug + description). Bodies are NOT loaded yet.",
-    "If the user asks how something works, requests syntax/docs, or otherwise needs",
-    "knowledge that matches a skill description (in any language — match semantically),",
-    "call load_skill({slug}) to load the full markdown into your context.",
+    "Catalog (slug + one-line gist). Bodies are NOT loaded. When the user needs",
+    "knowledge or syntax matching one (match semantically, any language), call",
+    "load_skill({slug}).",
     "",
-    ...list.map((s) => `- **${s.slug}** [${s.source}]: ${s.description || "(no description)"}`),
+    ...list.map((s) => `- **${s.slug}**: ${condenseSkillDescription(s.description)}`),
   ].join("\n");
 }
 
@@ -203,6 +245,9 @@ export function buildSuperAgentSystem({
   // provided it REPLACES the always-on self-memory slice (it already includes
   // the latest notebook entries). "" falls back to the plain notebook slice.
   memoryBlock = "",
+  // Pre-rendered "# Hilos activos en otros canales" block (recency-based
+  // cross-channel awareness; see core/memory/active-threads.js). "" → omitted.
+  activeThreadsBlock = "",
 }) {
   const sa = globalConfig.super_agent;
   const projectIndex = projects
@@ -220,17 +265,23 @@ export function buildSuperAgentSystem({
 
   const channelBlock = buildChannelContextBlock(channel, channelMeta);
   const extraContext = [channelBlock, contextNote].filter(Boolean).join("\n\n");
+  // Voice is a mode, not a channel: the caller flags a spoken turn via
+  // channelMeta.voice (or the legacy channel === "voice"). The block goes last,
+  // next to systemSuffix, so format directives keep recency.
+  const voiceModeBlock = buildVoiceModeBlock(channelMeta?.voice || channel === "voice");
 
   return [
     sa.system || loadDefaultSystemPrompt(),
     buildUserContextBlock(identity, globalConfig),
     memoryBlock || buildSelfMemoryBlock(),
+    activeThreadsBlock,
     relationshipBlock,
     buildPermissionBlock(sa),
     extraContext,
     "# Registered projects (just the index — call tools for details)",
     projectIndex || "(no projects registered)",
     buildSkillsCatalog(listSkills),
+    voiceModeBlock,
     systemSuffix,
   ]
     .filter(Boolean)

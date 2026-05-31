@@ -72,7 +72,8 @@ export const en = {
     project:      "Project",
     add_project:  "Add project",
     modules: {
-      voice: "Voices",
+      voice:   "Voices",
+      desktop: "Desktop",
       deck:  "Deck",
       code:  "Code",
     },

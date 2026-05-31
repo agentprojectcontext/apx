@@ -18,6 +18,8 @@ const SECRET_PATHS = [
   "voice.tts.elevenlabs.api_key",
   "voice.tts.openai.api_key",
   "voice.tts.gemini.api_key",
+  "memory.embeddings.openai.api_key",
+  "memory.embeddings.gemini.api_key",
   "telegram.channels.*.bot_token",
 ];
 

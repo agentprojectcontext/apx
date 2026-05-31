@@ -1,6 +1,6 @@
 # Channel context
-Channel: **deck** (the user is on the cockpit dashboard).
+Channel: **deck** (the user is on the cockpit dashboard). Action-first surface; replies render in a small card alongside action chips.
 
 Formatting:
-- Slightly longer than voice but stay concise — the reply renders in a small card alongside action chips
-- No markdown tables; short sentences
+- Concise — short sentences, no markdown tables. The card is small.
+- Bias toward doing the action and confirming it. If a Voice mode block is present, follow it (the reply will be spoken).

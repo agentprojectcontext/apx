@@ -3,7 +3,7 @@
 // projects column, finally add + settings. The default workspace (id=0) is
 // pinned first.
 import { useLocation } from "react-router-dom";
-import { Plus, Settings, Mic, LayoutGrid, Terminal, Bot, type LucideIcon } from "lucide-react";
+import { Plus, Settings, Mic, Monitor, LayoutGrid, Terminal, Bot, type LucideIcon } from "lucide-react";
 import { Logo } from "./Logo";
 import { ProjectAvatar } from "./ProjectAvatar";
 import { Tip } from "../ui/tip";
@@ -26,7 +26,8 @@ interface ModuleItem {
 // top-level entry next to Base rather than living inside Settings.
 function buildModules(): ModuleItem[] {
   return [
-    { id: "voice", label: t("nav.modules.voice"), href: "/m/voice", icon: Mic },
+    { id: "voice",   label: t("nav.modules.voice"),   href: "/m/voice",   icon: Mic },
+    { id: "desktop", label: t("nav.modules.desktop"), href: "/m/desktop", icon: Monitor },
     { id: "deck",  label: t("nav.modules.deck"),  href: "/m/deck",  icon: LayoutGrid },
     { id: "code",  label: t("nav.modules.code"),  href: "/m/code",  icon: Terminal },
   ];

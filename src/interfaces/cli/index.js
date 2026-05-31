@@ -98,7 +98,7 @@ import {
   cmdPermission,
 } from "./commands/config.js";
 import { cmdPluginsList, cmdPluginStatus } from "./commands/plugins.js";
-import { cmdOverlayStart, cmdOverlayStop, cmdOverlayStatus } from "./commands/overlay.js";
+import { cmdDesktopStart, cmdDesktopStop, cmdDesktopStatus, cmdDesktopInstall, cmdDesktopUninstall } from "./commands/desktop.js";
 import { cmdVoiceSay, cmdVoiceListen, cmdVoiceProviders } from "./commands/voice.js";
 import { cmdSkillsAdd, cmdSkillsList, cmdSkillsStatus, cmdSkillsSync } from "./commands/skills.js";
 import { cmdIdentity } from "./commands/identity.js";
@@ -1602,37 +1602,48 @@ const HELP_TOPICS = new Map(Object.entries({
     examples: ["apx pair revoke d_abc123"],
   }),
 
-  // ── Overlay (floating voice window) ───────────────────────────────────────
-  overlay: topic({
-    title: "apx overlay",
-    summary: "Launch, stop, or inspect the floating Electron voice overlay window.",
-    usage: ["apx overlay <start|stop|status> [--flags]"],
+  // ── Desktop (floating voice window) ───────────────────────────────────────
+  desktop: topic({
+    title: "apx desktop",
+    summary: "Launch, stop, or inspect the floating Electron voice desktop window.",
+    usage: ["apx desktop <start|stop|status|install|uninstall> [--flags]"],
     commands: [
-      ["start", "Start the overlay window (or report if already running)."],
-      ["stop", "Stop the overlay window."],
-      ["status", "Print overlay process state and PID."],
+      ["start",     "Start the desktop window (or report if already running)."],
+      ["stop",      "Stop the desktop window."],
+      ["status",    "Print desktop process state, PID, and autostart status."],
+      ["install",   "Activate autostart at user login (per-user, no sudo)."],
+      ["uninstall", "Deactivate autostart at user login."],
     ],
     options: [["--debug, -d", "Verbose start-up logs (start only)."]],
-    examples: ["apx overlay start", "apx overlay status", "apx overlay stop"],
+    examples: [
+      "apx desktop start", "apx desktop status", "apx desktop stop",
+      "apx desktop install", "apx desktop uninstall",
+    ],
   }),
-  "overlay start": topic({
-    title: "apx overlay start",
-    summary: "Start the floating Electron voice overlay window. No-op if it is already running.",
-    usage: ["apx overlay start [--debug]"],
+  "desktop start": topic({
+    title: "apx desktop start",
+    summary: "Start the floating Electron voice desktop window. No-op if it is already running.",
+    usage: ["apx desktop start [--debug]"],
     options: [["--debug, -d", "Verbose start-up logs."]],
-    examples: ["apx overlay start", "apx overlay start --debug"],
+    examples: ["apx desktop start", "apx desktop start --debug"],
   }),
-  "overlay stop": topic({
-    title: "apx overlay stop",
-    summary: "Stop the floating Electron voice overlay window.",
-    usage: ["apx overlay stop"],
-    examples: ["apx overlay stop"],
+  "desktop stop": topic({
+    title: "apx desktop stop",
+    summary: "Stop the floating Electron voice desktop window.",
+    usage: ["apx desktop stop"],
+    examples: ["apx desktop stop"],
   }),
-  "overlay status": topic({
-    title: "apx overlay status",
-    summary: "Print overlay process state and PID (read from ~/.apx/overlay.pid).",
-    usage: ["apx overlay status"],
-    examples: ["apx overlay status"],
+  "desktop status": topic({
+    title: "apx desktop status",
+    summary: "Print desktop process state and PID (read from ~/.apx/desktop.pid).",
+    usage: ["apx desktop status"],
+    examples: ["apx desktop status"],
+  }),
+  overlay: topic({
+    title: "apx overlay (deprecated)",
+    summary: "Renamed to `apx desktop`. The old name still works and forwards.",
+    usage: ["apx desktop <start|stop|status>"],
+    examples: ["apx desktop start"],
   }),
 
   // ── Voice (TTS / mic round-trip) ──────────────────────────────────────────
@@ -1697,7 +1708,7 @@ const HELP_TOPICS = new Map(Object.entries({
   // ── Unified daemon log ────────────────────────────────────────────────────
   log: topic({
     title: "apx log",
-    summary: "Read the unified daemon log (~/.apx/logs/apx.log). Covers every module: telegram, whisper, super-agent, tools, overlay.",
+    summary: "Read the unified daemon log (~/.apx/logs/apx.log). Covers every module: telegram, whisper, super-agent, tools, desktop.",
     usage: ["apx log [--tail N] [-f|--follow] [--errors]"],
     options: [
       ["--tail N", "Print the last N lines (default 100)."],
@@ -2037,9 +2048,11 @@ function buildHelp(version) {
     hCmd("apx voice say \"text\"",     36, "TTS via daemon  --provider <id>  --voice <name>  --no-play"),
     hCmd("apx voice listen",           36, "mic → /voice/turn → reply  --seconds N  --no-play"),
     hCmd("apx voice providers",        36, "list configured TTS / STT providers"),
-    hCmd("apx overlay start",          36, "launch floating voice overlay (Electron)"),
-    hCmd("apx overlay stop",           36, ""),
-    hCmd("apx overlay status",         36, "show overlay process state"),
+    hCmd("apx desktop start",          36, "launch floating voice desktop window (Electron)"),
+    hCmd("apx desktop stop",           36, ""),
+    hCmd("apx desktop status",         36, "show desktop process + autostart state"),
+    hCmd("apx desktop install",        36, "auto-launch the window at login (mac/win/linux)"),
+    hCmd("apx desktop uninstall",      36, "remove the auto-launch entry"),
 
     hSec("Pair (companion devices)"),
     hCmd("apx pair [label]",           36, "QR pairing for Deck app / companion clients"),
@@ -2371,7 +2384,7 @@ async function dispatch(cmd, rest) {
       case "log":
       case "logs": {
         // `apx log` is the unified daemon log (everything: telegram, whisper,
-        // super-agent, tools, overlay). For just the legacy stdout sink,
+        // super-agent, tools, desktop). For just the legacy stdout sink,
         // use `apx daemon logs`. `apx log -f` follows; `--errors` filters.
         await cmdLog(parseArgs(rest));
         break;
@@ -2535,13 +2548,18 @@ async function dispatch(cmd, rest) {
         await cmdUpdate(parseArgs(rest), VERSION);
         return; // skip checkForUpdate after an update
 
-      case "overlay": {
+      case "overlay":
+        console.error("  apx overlay has been renamed to apx desktop — forwarding.");
+        /* falls through */
+      case "desktop": {
         const [sub, ...oRest] = rest;
         const oArgs = parseArgs(oRest);
-        if (!sub || sub === "start")  { await cmdOverlayStart(oArgs); return; }
-        if (sub === "stop")           { await cmdOverlayStop(oArgs);  return; }
-        if (sub === "status")         { await cmdOverlayStatus(oArgs);return; }
-        die(`unknown overlay sub-command: ${sub}\nUsage: apx overlay <start|stop|status>`);
+        if (!sub || sub === "start")  { await cmdDesktopStart(oArgs); return; }
+        if (sub === "stop")           { await cmdDesktopStop(oArgs);  return; }
+        if (sub === "status")         { await cmdDesktopStatus(oArgs);return; }
+        if (sub === "install")        { await cmdDesktopInstall(oArgs);  return; }
+        if (sub === "uninstall")      { await cmdDesktopUninstall(oArgs);return; }
+        die(`unknown desktop sub-command: ${sub}\nUsage: apx desktop <start|stop|status|install|uninstall>`);
         return;
       }
 

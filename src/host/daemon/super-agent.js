@@ -1,4 +1,4 @@
-// Super-agent: daemon-level action agent for Telegram, TUI, overlay, routines.
+// Super-agent: daemon-level action agent for Telegram, TUI, desktop, routines.
 import { schemasForChannel, makeToolHandlers } from "./super-agent-tools/index.js";
 import { listSkills } from "./skills-loader.js";
 import {
@@ -59,8 +59,18 @@ export async function runSuperAgent({
   // turn. Silent + bounded (≤ broker_budget_ms); skipped for tool-free callers
   // (summarize/ask) where injected context would only confuse the transcript.
   let memoryBlock = "";
+  let activeThreadsBlock = "";
   if (!noTools) {
     memoryBlock = await memoryBlockFor(prompt, { config: globalConfig, channel });
+    // "Hilos activos en otros canales" — pure-recency cross-channel awareness.
+    // Skipped for autonomous routines (no human to reference other threads).
+    if (channel !== "routine") {
+      try {
+        activeThreadsBlock = buildActiveThreadsBlock(channel, { config: globalConfig });
+      } catch {
+        /* best-effort */
+      }
+    }
   }
 
   const system = buildSuperAgentSystem({
@@ -73,6 +83,7 @@ export async function runSuperAgent({
     relationshipBlock,
     systemSuffix,
     memoryBlock,
+    activeThreadsBlock,
   });
 
   // Pick the schema subset for this channel: chit-chat surfaces get a small

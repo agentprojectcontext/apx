@@ -22,7 +22,7 @@ import { RoutineScheduler } from "./routines.js";
 import { buildApi } from "./api.js";
 import { createTokenStore } from "./token-store.js";
 import { triggerWakeup } from "./wakeup.js";
-import { registerOverlayClient } from "./overlay-ws.js";
+import { registerDesktopClient } from "./desktop-ws.js";
 import { log as logToUnified } from "../../core/logging.js";
 import { initMemory, stopMemory } from "../../core/memory/index.js";
 
@@ -220,16 +220,17 @@ async function main() {
     initMemory({ config: cfg, log }).catch((e) => log(`memory: init failed: ${e?.message || e}`));
     // Fire wake-up message after a short delay so plugins (Telegram) are ready
     setTimeout(() => triggerWakeup(cfg, log), 3000);
-    // Preload whisper-server in the background so first overlay transcription is fast.
+    // Preload whisper-server in the background so first desktop transcription is fast.
     // Adopts an existing one if already on the port; otherwise spawns fresh.
     import("./transcription.js").then(({ preloadWhisperServer }) => {
       preloadWhisperServer((m) => log(m));
     }).catch(() => {});
   });
 
-  // Attach WebSocket upgrade for overlay channel on /overlay/ws
+  // Attach WebSocket upgrade for the desktop channel on /desktop/ws
+  // (legacy /overlay/ws still accepted for one release).
   server.on("upgrade", async (req, socket, head) => {
-    if (req.url !== "/overlay/ws") { socket.destroy(); return; }
+    if (req.url !== "/desktop/ws" && req.url !== "/overlay/ws") { socket.destroy(); return; }
     // Lazy-import ws to avoid hard dep on startup
     let WebSocketServer;
     try { ({ WebSocketServer } = await import("ws")); } catch {
@@ -237,7 +238,7 @@ async function main() {
     }
     const wss = new WebSocketServer({ noServer: true });
     wss.handleUpgrade(req, socket, head, (ws) => {
-      registerOverlayClient(ws);
+      registerDesktopClient(ws);
     });
   });
 

@@ -1,0 +1,175 @@
+---
+title: Proyectos
+description: Qué es un proyecto en APX, cómo se separa el layout comprometido .apc/ del estado local de runtime, y los comandos para gestionarlos.
+sidebar:
+  order: 1
+---
+
+import { FileTree, Aside, Steps } from '@astrojs/starlight/components';
+import Screenshot from '../../../../components/Screenshot.astro';
+
+Un **proyecto** es cualquier directorio que contiene un archivo `AGENTS.md` y un `.apc/project.json`.
+Una vez registrado con `apx project add`, el daemon lo rastrea y APX guarda todo el estado de
+runtime bajo `~/.apx/projects/<id>/`.
+
+## Dos tipos de almacenamiento
+
+APX impone una separación estricta entre lo que pertenece al repositorio y lo que pertenece a tu
+máquina:
+
+| Ubicación | Qué contiene | ¿Se commitea? |
+|---|---|---|
+| `<repo>/.apc/` | Definiciones de agentes, skills, hints de MCP, config del proyecto | Sí |
+| `~/.apx/projects/<id>/` | Sesiones, conversaciones, mensajes, cachés, logs de tareas | Nunca |
+
+Esto hace que la definición del proyecto sea portátil — cloná el repo en otra máquina, corré
+`apx project add .` y listo.
+
+## Layouts
+
+### Comprometido — el árbol `.apc/`
+
+<FileTree>
+- project-root/
+  - AGENTS.md              índice de agentes auto-generado; lo leen Codex, Claude, etc.
+  - .apc/
+    - project.json         metadatos del proyecto y el `apx_id` estable
+    - config.json          overrides de config a nivel proyecto (no pongas secretos acá)
+    - agents/
+      - \<slug\>.md        un archivo por agente — role, model, skills, description
+      - \<slug\>/
+        - memory.md        hechos duraderos del agente (curados, nunca transcripts en bruto)
+    - mcps.json            hints de MCP compartidos para este proyecto (sin tokens)
+    - skills/              skill prompts reutilizables a nivel proyecto
+    - commands/            slash commands personalizados
+</FileTree>
+
+### Local — el árbol del estado de runtime
+
+<FileTree>
+- ~/.apx/
+  - config.json            config global — engines, providers, configuración del daemon
+  - identity.json          nombre visible del asistente (por defecto "APX")
+  - projects/
+    - \<apx-id\>/
+      - messages/          YYYY-MM-DD.jsonl — todos los canales de mensajes del proyecto
+      - project.db         índice SQLite regenerable
+      - artifacts/         archivos producidos durante las sesiones
+      - routines.json      routines programadas para este proyecto
+      - tasks/             YYYY-MM.jsonl logs de tareas
+      - agents/
+        - \<slug\>/
+          - sessions/      un .md por invocación de runtime
+          - conversations/ threads de conversación con el LLM
+        - default/
+          - sessions/      fallback cuando no hay un agent role activo
+</FileTree>
+
+<Aside type="note">
+  El `apx_id` en `.apc/project.json` es el identificador estable que vincula la definición
+  comprometida con su carpeta de estado de runtime. Si movés `.apc/` sin correr
+  `apx project rebuild` después, ese vínculo se rompe.
+</Aside>
+
+## El archivo `project.json`
+
+Cada proyecto tiene un `.apc/project.json` que APX lee al registrarlo:
+
+```json
+{
+  "name": "my-app",
+  "version": "0.1.0",
+  "apf": "0.1.0",
+  "created": "2026-01-15T10:00:00Z",
+  "apx_id": "077078af9dd7"
+}
+```
+
+El `apx_id` se genera una sola vez (con `apx init`) y no debe cambiarse — es la clave permanente
+que vincula `.apc/` con `~/.apx/projects/<apx_id>/`.
+
+## Comandos
+
+### Registrar un proyecto
+
+```bash
+apx project add .                   # registrar el directorio actual
+apx project add /path/to/repo       # registrar una ruta explícita
+```
+
+APX lee `AGENTS.md` y `.apc/project.json` durante el registro. Si alguno falta, el comando
+termina con error — usá `apx init` para crear el scaffold de un proyecto nuevo.
+
+### Listar proyectos registrados
+
+```bash
+apx project list                    # nombre, id, ruta, cantidad de agentes
+apx project list -l                 # forma larga — también muestra storagePath
+```
+
+<Screenshot
+  surface="terminal"
+  caption="apx project list — proyectos registrados con id, ruta y cantidad de agentes"
+  hint="Run: apx project list -l" />
+
+### Remover y reconstruir
+
+```bash
+apx project remove <id|name|path>   # desregistrar (no toca los archivos)
+apx project rebuild <id|name|path>  # re-escanear .apc/ desde disco (usá esto después de mover el repo)
+```
+
+### Config por proyecto
+
+La configuración a nivel proyecto vive en `.apc/config.json` y sobreescribe el
+`~/.apx/config.json` global sólo para ese proyecto. Usá sintaxis de clave con puntos:
+
+```bash
+apx project config show <project>                          # vista efectiva + overrides del proyecto
+apx project config show <project> --key super_agent.model  # una sola clave
+apx project config set  <project> super_agent.model groq:llama-3.3-70b-versatile
+apx project config set  <project> super_agent.permission_mode total
+apx project config set  <project> telegram.route_to_agent reviewer
+apx project config unset <project> super_agent.model       # volver al valor global
+apx project config edit <project>                          # abrir $EDITOR en el JSON del proyecto
+```
+
+Cada escritura dispara un reload del daemon — no hace falta reiniciarlo.
+
+<Aside type="caution">
+  No pongas secretos en `.apc/config.json` — se commitea. Las API keys y tokens van en
+  `~/.apx/config.json` (local de la máquina) o en el scope de runtime de los MCPs.
+</Aside>
+
+## Resolución del argumento `<project>`
+
+Cualquier comando que acepta `<project>` acepta estas formas:
+
+- Id numérico: `1`
+- Nombre exacto del `project.json`: `my-app`
+- Ruta absoluta: `/home/user/repos/my-app`
+- Ruta relativa desde el directorio actual
+
+Si no sabés el id o el nombre, corré `apx project list` primero.
+
+## El flag `--project`
+
+La mayoría de los subcomandos de `apx` aceptan `--project <name|id|path>` para apuntar a un
+proyecto registrado en lugar de inferirlo del directorio actual:
+
+```bash
+apx agent list --project my-app
+apx session list --project my-app
+apx messages tail --project my-app
+```
+
+## El proyecto default
+
+APX mantiene un proyecto built-in con id `default` (`~/.apx/projects/default/`). Es el espacio de
+trabajo de scratch del super-agent — se usa cuando no hay un proyecto activo. No lo uses para trabajo
+real; es compartido entre todos los contextos.
+
+## Más información
+
+- [Agentes](/apx/es/concepts/agents/) — definí personas dentro de un proyecto.
+- [Configuración](/apx/es/concepts/configuration/) — referencia completa de config global y por proyecto.

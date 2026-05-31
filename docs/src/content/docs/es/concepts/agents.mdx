@@ -1,0 +1,153 @@
+---
+title: Agentes
+description: Definiciones de agentes en .apc/agents/, cómo se auto-genera AGENTS.md, y los comandos para crear, listar e importar agentes.
+sidebar:
+  order: 2
+---
+
+import { Aside, FileTree } from '@astrojs/starlight/components';
+import Screenshot from '../../../../components/Screenshot.astro';
+
+Un **agente** es una persona con nombre que vive dentro de un proyecto APC. Tiene un rol, un
+override de modelo opcional, una preferencia de idioma y un conjunto de skills. Su definición
+canónica es un archivo Markdown en `.apc/agents/<slug>.md`.
+
+## El archivo de definición del agente
+
+```markdown
+---
+role: Code reviewer
+model: claude-haiku-4-5
+language: es
+description: Revisa PRs y pushea contra los diffs vagos.
+tools: read,write,run
+skills: code-review,git
+---
+```
+
+Todos los campos excepto `role` son opcionales. Cuando se omite `model`, se usa el
+`super_agent.model` del proyecto (o el global por defecto) para las llamadas de ese agente.
+
+<FileTree>
+- .apc/
+  - agents/
+    - reviewer.md           definición del agente
+    - reviewer/
+      - memory.md           hechos duraderos para este agente (opcional)
+</FileTree>
+
+<Aside type="note">
+  El `AGENTS.md` en la raíz del repo se **auto-genera** con `apx agent add` y `apx agent remove`.
+  No lo editás a mano — tus cambios se van a pisar en el próximo write de `apx agent`.
+  Su propósito es el descubrimiento: herramientas como Codex, Claude Code y otros runtimes
+  compatibles con APC lo leen para saber qué agentes existen en el proyecto.
+</Aside>
+
+## Comandos
+
+### Listar agentes
+
+```bash
+apx agent list                       # agentes en el proyecto del directorio actual
+apx agent list --project my-app      # agentes en un proyecto con nombre
+```
+
+<Screenshot
+  surface="terminal"
+  caption="apx agent list — slug, role y model para cada agente del proyecto"
+  hint="Run: apx agent list" />
+
+### Agregar un agente
+
+```bash
+apx agent add reviewer \
+  --role "Code reviewer" \
+  --model claude-haiku-4-5 \
+  --language es \
+  --description "Revisa PRs y pushea contra los diffs vagos." \
+  --tools read,write,run \
+  --skills code-review,git
+```
+
+Esto escribe `.apc/agents/reviewer.md` y regenera `AGENTS.md`.
+
+### Inspeccionar un agente
+
+```bash
+apx agent get reviewer              # definición completa + extracto de memoria
+apx agent show reviewer             # alias
+```
+
+### Importar desde el vault
+
+El **vault** es una biblioteca global de templates de agentes reutilizables en `~/.apx/agents/`.
+APX incluye defaults predefinidos (un asistente de código `cody`, un escritor `doc`, etc.);
+también podés agregar los tuyos.
+
+```bash
+apx agent vault list                 # ver defaults incluidos + tus overrides
+apx agent import cody                # registrar el template del vault en este proyecto
+apx agent import cody --copy         # copiar el .md a .apc/agents/ para ediciones locales
+apx agent import cody --force        # sobreescribir una definición local existente
+```
+
+Gestión del vault:
+
+```bash
+apx agent vault add <slug>           # crear un template nuevo en ~/.apx/agents/
+apx agent vault rm <slug>            # ocultar un default predefinido (tombstone)
+apx agent vault restore <slug>       # des-ocultar un default con tombstone
+```
+
+## Override de modelo por agente
+
+Poné `model:` en el archivo del agente para usar un modelo distinto para ese agente,
+independientemente del `super_agent.model` del proyecto:
+
+```markdown
+---
+role: Code reviewer
+model: claude-haiku-4-5
+---
+```
+
+Cualquier string `provider:model-id` que soporten tus engines configurados funciona acá —
+por ejemplo `openai:gpt-4o` o `ollama:llama3.2:3b`.
+
+<Aside type="caution">
+  Asegurate de que el provider que especificás tenga una API key configurada en `~/.apx/config.json`.
+  Un agente con `model: openai:gpt-4o` va a fallar en el primer llamado si `engines.openai.api_key`
+  está vacío.
+</Aside>
+
+## Cómo se construye el system prompt
+
+Cuando llamás `apx exec <slug>` o un agente corre dentro de una routine, APX compone el system
+prompt en este orden:
+
+1. Bloque de identidad — `You are <slug>` + nombre del proyecto
+2. Description de `AGENTS.md`
+3. Campos Role y Language
+4. Canal de invocación — `engine | telegram | routine | runtime`
+5. Memoria de `.apc/agents/<slug>/memory.md` (si existe)
+6. Skills declaradas en el campo `skills:` del agente
+7. El meta-skill `apx`
+8. Footer fijo de disciplina de acciones
+
+## Agentes vs. super-agente
+
+| Aspecto | Super-agente (el propio APX) | Agente de proyecto |
+|---|---|---|
+| ¿Tiene tools? | Sí — registro completo de tools | No — sólo texto de entrada/salida |
+| Loop de ejecución | Loop multi-iteración con tools | Una sola llamada al LLM |
+| System prompt | `super-agent-base.md` + template de canal + identidad | Construido por agente como se describe arriba |
+| Configurado via | `super_agent.*` en config | `.apc/agents/<slug>.md` |
+
+Cuando tengas dudas: el super-agente es APX en sí mismo; los agentes de proyecto son personas
+especializadas que vos definís.
+
+## Más información
+
+- [Memoria](/apx/es/concepts/memory/) — cómo curar hechos duraderos para un agente.
+- [Sesiones](/apx/es/concepts/sessions/) — cómo se rastrean las invocaciones de agentes.
+- [Agent vault](/apx/es/capabilities/agent-vault/) — deep dive sobre los templates predefinidos.

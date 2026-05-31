@@ -5,6 +5,10 @@ export interface SuperAgentSendBody {
   prompt: string;
   previousMessages?: ConversationMessage[];
   model?: string;
+  // Surface that originated this turn, so the daemon injects the matching
+  // channels/*.md block. "web" = big chat (full tools), "web_sidebar" = quick
+  // chat (lightweight). Omitted → daemon defaults to "api".
+  channel?: "web" | "web_sidebar";
 }
 
 export const SuperAgent = {

@@ -126,7 +126,7 @@ export function RobyBubble({
     try {
       await SuperAgent.stream(
         0,
-        { prompt, previousMessages: history, model: model || undefined },
+        { prompt, previousMessages: history, model: model || undefined, channel: "web_sidebar" },
         onEvent,
         ctrl.signal,
       );

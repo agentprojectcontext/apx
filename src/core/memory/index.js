@@ -14,12 +14,14 @@
 import path from "node:path";
 import { APX_HOME } from "../config.js";
 import { ensureSelfMemoryFile } from "../agent/self-memory.js";
+import fs from "node:fs";
 import { openMemoryStore } from "./store.js";
-import { indexNewMessages } from "./indexer.js";
+import { indexNewMessages, CURSOR_PATH } from "./indexer.js";
 import { buildMemoryBlock } from "./broker.js";
 import { compactChannelIfNeeded } from "./compactor.js";
+import { buildActiveThreadsBlock } from "./active-threads.js";
 
-export { compactChannelIfNeeded };
+export { compactChannelIfNeeded, buildActiveThreadsBlock };
 
 const DB_PATH = path.join(APX_HOME, "memory.db");
 const JSON_PATH = path.join(APX_HOME, "memory-index.jsonl");
@@ -46,14 +48,12 @@ export function memoryEnabled(config) {
   return config?.memory?.enabled !== false;
 }
 
+// The embeddings provider is resolved from config.memory.embeddings inside
+// embedOne/embedBatch via the engine registry — so all we forward here is the
+// live config. (Legacy memory.embed_* keys are still honored by the registry's
+// back-compat shim in embed-engines/index.js.)
 function embedOptsFromConfig(config) {
-  const mem = config?.memory || {};
-  const base = mem.embed_base_url || config?.engines?.ollama?.base_url || "";
-  return {
-    baseUrl: base,
-    model: mem.embed_model || "nomic-embed-text",
-    timeoutMs: mem.embed_timeout_ms || 4000,
-  };
+  return { globalConfig: config };
 }
 
 // Boot the subsystem (Pieza 1 file creation + Pieza 2 store/index). Safe to
@@ -88,6 +88,30 @@ export async function initMemory({ config, log } = {}) {
   if (_timer.unref) _timer.unref();
 
   return _ready;
+}
+
+// Rebuild the vector store from scratch under the CURRENTLY configured embedder.
+// Switching provider/model changes the embedder space, which makes old rows
+// (tagged with the previous embedder) invisible to new queries — they're not
+// re-embedded incrementally because the cursor marks them as already indexed.
+// This clears the store + cursor and re-embeds every message. Never throws.
+export async function reindexMemory({ config } = {}) {
+  if (config) _cfg = config;
+  const store = await getMemoryStore();
+  if (!store) return { cleared: false, indexed: 0, error: "store unavailable" };
+  const before = store.count();
+  try {
+    store.clear();
+  } catch {
+    /* best-effort */
+  }
+  try {
+    fs.rmSync(CURSOR_PATH, { force: true });
+  } catch {
+    /* best-effort */
+  }
+  await indexNewMessages(store, { embed: embedOptsFromConfig(_cfg), log: () => {} }).catch(() => {});
+  return { cleared: before, indexed: store.count() };
 }
 
 export async function getMemoryStore() {

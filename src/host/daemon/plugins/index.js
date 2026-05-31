@@ -13,9 +13,9 @@
 // Plugins are discovered by static import here. Adding a new plugin = importing
 // it and pushing into PLUGINS.
 import telegramPlugin from "./telegram.js";
-import overlayPlugin from "./overlay.js";
+import desktopPlugin from "./desktop.js";
 
-export const PLUGINS = [telegramPlugin, overlayPlugin];
+export const PLUGINS = [telegramPlugin, desktopPlugin];
 
 export class PluginManager {
   constructor({ projects, config, log, registries }) {

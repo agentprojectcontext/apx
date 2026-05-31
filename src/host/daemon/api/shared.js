@@ -31,7 +31,7 @@ const UNAUTHENTICATED_PREFIXES = ["/health", "/pair/", "/admin/web-token"];
 // the API prefixes below.
 const API_PREFIXES = [
   "/health", "/admin", "/projects", "/telegram", "/engines", "/runtimes",
-  "/messages", "/sessions", "/tools", "/mcp", "/voice", "/tts", "/overlay",
+  "/messages", "/sessions", "/tools", "/mcp", "/voice", "/tts", "/desktop", "/overlay",
   "/transcribe", "/run", "/files", "/memory", "/env", "/pair", "/deck",
   "/super-agent", "/identity", "/agents", "/tasks",
 ];

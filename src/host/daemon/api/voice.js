@@ -23,6 +23,7 @@ import { readConfig } from "../../../core/config.js";
 import { synthesize } from "../../../core/voice/tts.js";
 import { transcribe } from "../transcription.js";
 import { runSuperAgent, isSuperAgentEnabled } from "../super-agent.js";
+import { appendGlobalMessage } from "../../../core/messages-store.js";
 import { appendErrorTrace, previewText } from "../../../core/logging.js";
 
 // ── Channel-aware pre-processor ────────────────────────────────────
@@ -46,9 +47,10 @@ function buildChannelContext(channel, { projectId, language = "es" } = {}) {
     systemSuffix: "",
     wantsSuggestions: false,
     // Channel id forwarded to runSuperAgent so the matching channels/*.md
-    // formatting block is injected. Empty = no channel block (telegram/api
-    // keep their own inline note below).
+    // formatting block is injected.
     channel: "",
+    // Forwarded as channelMeta; { voice: true } flags spoken mode.
+    channelMeta: {},
   };
   // Project resolution hint.
   //   - per-project mic (projectId set): use it imperatively, don't ask.
@@ -72,41 +74,26 @@ function buildChannelContext(channel, { projectId, language = "es" } = {}) {
     ? "IMPORTANT: Reply ALWAYS in Spanish (rioplatense/Argentina). The user speaks Spanish."
     : `IMPORTANT: Reply in language "${language}".`;
 
+  // Surface mapping. Channels are surfaces; "voice" is NOT a surface — it's the
+  // spoken MODE of the deck. All channel FORMATTING now lives in the
+  // channels/*.md + modes/voice.md blocks (injected by buildSuperAgentSystem);
+  // contextNote here carries ONLY per-request dynamic bits (language + project).
+  //   incoming "voice"   → deck surface, spoken
+  //   incoming "deck"    → deck surface, text card
+  //   incoming "desktop" → desktop module, spoken (voice-first)
+  const dynamicNote = `${langDirective}${projectHint}`;
   switch (channel) {
-    // voice + deck formatting now lives in channels/voice.md and
-    // channels/deck.md (injected via the forwarded `channel`); contextNote
-    // only carries the per-request dynamic bits (language + project hint).
     case "voice":
-      return {
-        ...base,
-        contextNote: `${langDirective}${projectHint}`,
-        systemSuffix: SUGGESTIONS_INSTRUCTION,
-        wantsSuggestions: true,
-        channel: "voice",
-      };
+      return { ...base, contextNote: dynamicNote, systemSuffix: SUGGESTIONS_INSTRUCTION, wantsSuggestions: true, channel: "deck", channelMeta: { voice: true } };
     case "deck":
-      return {
-        ...base,
-        contextNote: `${langDirective}${projectHint}`,
-        systemSuffix: SUGGESTIONS_INSTRUCTION,
-        wantsSuggestions: true,
-        channel: "deck",
-      };
+      return { ...base, contextNote: dynamicNote, systemSuffix: SUGGESTIONS_INSTRUCTION, wantsSuggestions: true, channel: "deck", channelMeta: {} };
+    case "desktop":
+      return { ...base, contextNote: dynamicNote, systemSuffix: SUGGESTIONS_INSTRUCTION, wantsSuggestions: true, channel: "desktop", channelMeta: { voice: true } };
     case "telegram":
-      return {
-        contextNote:
-          `${langDirective}\n` +
-          `Channel: telegram. Reply in conversational tone; markdown is fine; ` +
-          `length up to a short paragraph. No suggestion chips — the user has a ` +
-          `keyboard.${projectHint}`,
-        systemSuffix: "",
-        wantsSuggestions: false,
-      };
+      // Format rules live in channels/telegram.md; keep only the dynamic note.
+      return { ...base, contextNote: dynamicNote, channel: "telegram", channelMeta: {} };
     default:
-      return {
-        ...base,
-        contextNote: `${langDirective}\nChannel: ${channel || "api"}.${projectHint}`,
-      };
+      return { ...base, contextNote: dynamicNote, channel: channel || "api", channelMeta: {} };
   }
 }
 
@@ -404,6 +391,7 @@ export function register(app, { projects, plugins, registries }) {
             prompt: userText,
             contextNote: channelCtx.contextNote,
             channel: channelCtx.channel || "",
+            channelMeta: channelCtx.channelMeta || {},
             systemSuffix: channelCtx.systemSuffix,
             previousMessages,
           });
@@ -460,6 +448,17 @@ export function register(app, { projects, plugins, registries }) {
         replyText = userText;
       }
 
+      // Persist the turn to the cross-channel store (feeds RAG index,
+      // search_messages, and the "active threads" block). channelCtx.channel is
+      // the resolved surface ("deck"/"desktop"). Best-effort.
+      try {
+        const logCh = channelCtx.channel || channel;
+        if (logCh && logCh !== "api") {
+          appendGlobalMessage({ channel: logCh, direction: "in", type: "user", author: "user", body: userText });
+          if (replyText) appendGlobalMessage({ channel: logCh, direction: "out", type: "agent", body: replyText });
+        }
+      } catch { /* best-effort */ }
+
       // ── 3. TTS on the reply ──────────────────────────────────────────
       let tts = { audio_path: null, duration_s: null, mime: null, provider: null };
       if (replyText) {
@@ -512,7 +511,7 @@ export function register(app, { projects, plugins, registries }) {
 }
 
 // Note for plugin authors:
-//   Overlay (src/host/daemon/plugins/overlay.js) and Telegram
+//   Desktop (src/host/daemon/plugins/desktop.js) and Telegram
 //   (src/host/daemon/plugins/telegram.js) currently implement their own
 //   STT → agent → render pipelines. To get spoken replies via APX they can
 //   POST to /voice/turn (or call `synthesize()` directly) instead of
