@@ -40,6 +40,9 @@ export async function runSuperAgent({
   systemSuffix = "",
   // Per-reply output cap; forwarded to runAgent. Summarize/ask raise it.
   maxTokens,
+  // Max tool-loop iterations; forwarded to runAgent. The Code module raises
+  // this so coding tasks run to completion instead of stopping after a step.
+  maxIters,
   // Run tool-free: pure text generation, no tool registry. Used by the
   // summarize/ask endpoint so a transcript that *mentions* a tool (e.g. the
   // telegram plugin) can't make the model actually fire it.
@@ -117,5 +120,6 @@ export async function runSuperAgent({
     agentName: resolveAgentName(globalConfig),
     suppressTools,
     ...(maxTokens ? { maxTokens } : {}),
+    ...(maxIters ? { maxIters } : {}),
   });
 }

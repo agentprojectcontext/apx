@@ -71,6 +71,10 @@ export async function runAgent({
   // "thinking" models (gemini-2.5-flash) burn the budget reasoning and emit
   // empty text on dense input when it's too low.
   maxTokens = 512,
+  // Max tool-loop iterations. Defaults to MAX_TOOL_ITERS (tuned for chit-chat
+  // surfaces). The Code module raises this so a multi-step coding task can run
+  // to completion (read → edit → run → verify …) instead of stopping early.
+  maxIters = MAX_TOOL_ITERS,
 }) {
   const routing = await resolveActiveModel(globalConfig, { overrideModel });
   // Mutable: lazy-retry can rotate to a different model mid-loop on 429/413/5xx.
@@ -190,7 +194,7 @@ export async function runAgent({
     }
   };
 
-  for (let iter = 0; iter < MAX_TOOL_ITERS; iter++) {
+  for (let iter = 0; iter < maxIters; iter++) {
     await emitProgress(onEvent, { type: "model_start", iteration: iter + 1, model: activeModel });
     // Force a tool call on iter 0 ONLY when the user message looks like a real
     // action request ("listame…", "mandá…", "buscá…"). For chit-chat ("hola",

@@ -63,8 +63,10 @@ function modeGuidanceFor(mode) {
   }
   return [
     "MODE: build. Make the changes directly using your file and shell tools",
-    "(read_file, write_file, edit_file, run_shell, …), then briefly summarize",
-    "what you changed and why. Prefer surgical edits over rewrites.",
+    "(read_file, write_file, edit_file, run_shell, …). Do not ask for",
+    "confirmation and do not stop after one step — keep calling tools until the",
+    "entire task is done, then briefly summarize what you changed and why.",
+    "Prefer surgical edits over rewrites.",
   ].join(" ");
 }
 
@@ -270,6 +272,12 @@ export function register(app, { projects, project, config, registries, plugins }
         previousMessages,
         overrideModel: session.model || undefined,
         allowedTools: mode === "plan" ? PLAN_TOOLS : "*",
+        // Coding tasks are multi-step: give the loop plenty of room to run to
+        // completion (read → edit → run → verify …) and a real output budget
+        // so the model can write substantial code / explanations per turn,
+        // instead of stopping after a step or two.
+        maxIters: 50,
+        maxTokens: 8192,
         onEvent,
       });
       projects.rebuild(p.id);

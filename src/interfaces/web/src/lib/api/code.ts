@@ -1,55 +1,120 @@
-import { streamNdjson } from "../http";
-import type { ChatStreamEvent, ConversationMessage } from "../../types/daemon";
+import { http, streamNdjson } from "../http";
+import type { ChatStreamEvent, ChatUsage } from "../../types/daemon";
 
-// Code assistant client — the web surface for `apx code` (terminal coding
-// assistant). There is no dedicated `/code` daemon route, and we must not
-// restart the daemon, so the Code module rides on the EXISTING super-agent
-// chat stream: POST /projects/:pid/super-agent/chat/stream.
+// Code module client — the web surface for OpenCode-style coding sessions.
 //
-// Why the super-agent and not a plain per-agent chat? `apx code` is a
-// tool-using coding loop with project context. The super-agent is exactly
-// that: the default APX tool-using dispatcher, scoped to a project via :pid,
-// streaming NDJSON events (assistant_text / final / error / tool_*). Picking a
-// project in the UI gives the assistant its working context, mirroring how the
-// CLI resolves a project id before the REPL.
-//
-// Event shape on the wire (see src/host/daemon/api/super-agent.js):
-//   { type: "assistant_text", text }   full accumulated text per iteration
-//   { type: "tool_call" | "tool_result", ... } tool activity (surfaced as steps)
-//   { type: "final", result: { text, usage, name, trace } }
-//   { type: "error", error, trace_id }
+// Backed by the daemon's project-scoped code-session API (see
+// src/host/daemon/api/code.js). Sessions are persistent and server-side
+// stateful: the turn handler rebuilds history from the stored transcript, so
+// the client never sends `previousMessages`. Each session runs the super-agent
+// on the `code` channel with a plan/build mode and an optional model override.
 
-export interface CodeStreamBody {
-  /** The coding prompt / instruction for this turn. */
-  prompt: string;
-  /** Rolling conversation context (prior settled turns). */
-  previousMessages?: ConversationMessage[];
-  /** Optional model override (engine:model). */
+export type CodeMode = "build" | "plan";
+
+/** Rich part shape — mirrors hooks/useChat.ts ChatPart (text | tool). */
+export type CodeTextPart = { kind: "text"; text: string };
+export type CodeToolPart = {
+  kind: "tool";
+  id: string;
+  tool: string;
+  args?: Record<string, unknown>;
+  result?: unknown;
+  status: "running" | "done" | "error" | "deduped";
+};
+export type CodePart = CodeTextPart | CodeToolPart;
+
+export interface CodeTurn {
+  role: "user" | "assistant";
+  parts: CodePart[];
+  ts: string;
   model?: string;
+  mode?: CodeMode;
+  usage?: ChatUsage;
+  notes?: string[];
 }
 
-// We reuse the daemon's ChatStreamEvent but the super-agent loop emits a few
-// extra fields (result, tool names) that the loose type doesn't model; callers
-// narrow with a cast where needed.
+/** Session list row (no messages). */
+export interface CodeSessionRow {
+  id: string;
+  title: string;
+  mode: CodeMode;
+  model: string | null;
+  createdAt: string;
+  updatedAt: string;
+  messageCount: number;
+  hasGit: boolean;
+}
+
+/** Full session with transcript. */
+export interface CodeSession {
+  id: string;
+  projectId: string | null;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  model: string | null;
+  mode: CodeMode;
+  git: { baselineCommit: string | null; baselineTree: string } | null;
+  messages: CodeTurn[];
+}
+
+/** A single changed file in the session's diff vs its baseline. */
+export interface CodeFileChange {
+  path: string;
+  status: "added" | "modified" | "deleted";
+  additions: number | null;
+  deletions: number | null;
+  patch: string;
+}
+
+export interface CodeChanges {
+  git: boolean;
+  files: CodeFileChange[];
+}
+
 export type CodeStreamEvent = ChatStreamEvent & {
-  result?: { text?: string; usage?: unknown; name?: string; trace?: unknown };
   name?: string;
   tool?: string;
 };
 
+const base = (pid: string | number) => `/projects/${pid}/code/sessions`;
+
 export const Code = {
-  /**
-   * Stream a coding turn against the super-agent for the given project.
-   * `pid` is the project id that scopes the assistant's working context.
-   */
+  sessions: {
+    list: (pid: string | number) =>
+      http.get<{ sessions: CodeSessionRow[] }>(base(pid)).then((r) => r.sessions),
+
+    get: (pid: string | number, sid: string) =>
+      http.get<CodeSession>(`${base(pid)}/${sid}`),
+
+    create: (
+      pid: string | number,
+      body: { title?: string; model?: string | null; mode?: CodeMode } = {},
+    ) => http.post<CodeSession>(base(pid), body),
+
+    update: (
+      pid: string | number,
+      sid: string,
+      patch: { title?: string; model?: string | null; mode?: CodeMode },
+    ) => http.patch<CodeSession>(`${base(pid)}/${sid}`, patch),
+
+    remove: (pid: string | number, sid: string) =>
+      http.del<{ ok: boolean }>(`${base(pid)}/${sid}`),
+  },
+
+  changes: (pid: string | number, sid: string) =>
+    http.get<CodeChanges>(`${base(pid)}/${sid}/changes`),
+
+  /** Stream a coding turn into a session. History is server-side. */
   stream: (
     pid: string | number,
-    body: CodeStreamBody,
+    sid: string,
+    body: { prompt: string },
     onEvent: (ev: CodeStreamEvent) => void,
     signal?: AbortSignal,
   ) =>
     streamNdjson<CodeStreamEvent>(
-      `/projects/${pid}/super-agent/chat/stream`,
+      `${base(pid)}/${sid}/chat/stream`,
       body,
       onEvent,
       signal,

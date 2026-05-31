@@ -1,138 +1,199 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
-import { Code2, Eraser } from "lucide-react";
+import { Code2 } from "lucide-react";
 import { Code, Projects } from "../../lib/api";
-import { Badge, Button, Empty, Loading } from "../../components/ui";
-import { ChatInput } from "../../components/ui/chat-input";
+import { Badge, Empty, Loading } from "../../components/ui";
 import { MessageList } from "../../components/chat/MessageList";
 import { CodeProjectPicker } from "../../components/code/CodeProjectPicker";
-import { CodeToolTrail } from "../../components/code/CodeToolTrail";
+import { CodeSessionList } from "../../components/code/CodeSessionList";
+import { CodeComposer } from "../../components/code/CodeComposer";
+import { CodeSidePanel } from "../../components/code/CodeSidePanel";
 import { useToast } from "../../components/Toast";
-import type { CodeStreamEvent } from "../../lib/api/code";
-import type { ConversationMessage } from "../../types/daemon";
-import { textOf, type ChatMsg } from "../../hooks/useChat";
+import { t } from "../../i18n";
+import { applyStreamEvent, textOf, type ChatMsg } from "../../hooks/useChat";
+import type { CodeMode, CodeStreamEvent, CodeTurn } from "../../lib/api/code";
 
-// Code module — the web surface for `apx code` (the terminal coding
-// assistant). There is no `/code` daemon route and we must not restart the
-// daemon, so this screen rides the EXISTING project-scoped super-agent stream
-// (POST /projects/:pid/super-agent/chat/stream via lib/api/code.ts). The super
-// agent is APX's tool-using loop, so picking a project gives the assistant its
-// working context — exactly what `apx code` does in the CLI before its REPL.
+// Code module — OpenCode-style coding sessions in the APX web admin. Each
+// project owns a list of persistent sessions; the daemon keeps the transcript
+// server-side (api/code.js), so the UI just streams turns and renders them with
+// the shared chat components. The right panel shows token context + the diff of
+// what the session changed vs its git baseline.
 export function CodeScreen() {
   const toast = useToast();
   const projects = useSWR("/projects", () => Projects.list());
+  const projectList = useMemo(() => projects.data || [], [projects.data]);
+
   const [pid, setPid] = useState<string>("");
+  const [sid, setSid] = useState<string | null>(null);
   const [msgs, setMsgs] = useState<ChatMsg[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
-  const [tools, setTools] = useState<string[]>([]);
   const abortRef = useRef<AbortController | null>(null);
-
-  const projectList = useMemo(() => projects.data || [], [projects.data]);
 
   // Default to the first registered project once the list loads.
   useEffect(() => {
     if (!pid && projectList.length) setPid(String(projectList[0].id));
   }, [pid, projectList]);
 
-  // Switching projects starts a fresh coding session (different context).
-  const reset = () => {
+  // Sessions for the active project.
+  const sessions = useSWR(pid ? ["code-sessions", pid] : null, () =>
+    Code.sessions.list(pid),
+  );
+
+  // Full transcript of the active session.
+  const session = useSWR(pid && sid ? ["code-session", pid, sid] : null, () =>
+    Code.sessions.get(pid, sid!),
+  );
+
+  // Diff vs the session's git baseline.
+  const changes = useSWR(pid && sid ? ["code-changes", pid, sid] : null, () =>
+    Code.changes(pid, sid!),
+  );
+
+  // Auto-select the newest session when the list loads / project changes.
+  useEffect(() => {
+    const list = sessions.data || [];
+    if (!sid && list.length) setSid(list[0].id);
+    if (sid && list.length && !list.some((s) => s.id === sid)) setSid(list[0]?.id ?? null);
+  }, [sessions.data, sid]);
+
+  // Hydrate the message list whenever the active session's transcript loads.
+  // (Not while streaming — we own the array then.)
+  useEffect(() => {
     if (busy) return;
-    setMsgs([]);
-    setTools([]);
-  };
-  const onPickProject = (next: string) => {
-    if (next === pid) return;
-    setPid(next);
-    setMsgs([]);
-    setTools([]);
-  };
+    if (session.data) setMsgs((session.data.messages as ChatMsg[]) || []);
+    else if (!sid) setMsgs([]);
+  }, [session.data, sid, busy]);
 
   // Abort any in-flight stream on unmount.
   useEffect(() => () => abortRef.current?.abort(), []);
+
+  const active = session.data;
+  const mode: CodeMode = active?.mode === "plan" ? "plan" : "build";
+  const model = active?.model || "";
+
+  const onPickProject = (next: string) => {
+    if (next === pid || busy) return;
+    setPid(next);
+    setSid(null);
+    setMsgs([]);
+  };
+
+  const onSelectSession = (id: string) => {
+    if (busy || id === sid) return;
+    setSid(id);
+    setMsgs([]);
+  };
+
+  const onCreateSession = async () => {
+    if (!pid || busy) return;
+    try {
+      const created = await Code.sessions.create(pid, { title: t("code_module.untitled") });
+      await sessions.mutate();
+      setSid(created.id);
+      setMsgs([]);
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  };
+
+  const onRenameSession = async (id: string, current: string) => {
+    const title = window.prompt(t("code_module.rename"), current);
+    if (!title || title === current) return;
+    try {
+      await Code.sessions.update(pid, id, { title });
+      await sessions.mutate();
+      if (id === sid) await session.mutate();
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  };
+
+  const onDeleteSession = async (id: string) => {
+    if (busy) return;
+    if (!window.confirm(t("code_module.delete_confirm"))) return;
+    try {
+      await Code.sessions.remove(pid, id);
+      if (id === sid) {
+        setSid(null);
+        setMsgs([]);
+      }
+      await sessions.mutate();
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  };
+
+  // Persist mode / model changes to the session (PATCH) + keep SWR in sync.
+  const patchSession = useCallback(
+    async (patch: { mode?: CodeMode; model?: string | null }) => {
+      if (!sid) return;
+      try {
+        await Code.sessions.update(pid, sid, patch);
+        await Promise.all([session.mutate(), sessions.mutate()]);
+      } catch (e) {
+        toast.error((e as Error).message);
+      }
+    },
+    [pid, sid, session, sessions, toast],
+  );
 
   const stop = () => {
     abortRef.current?.abort();
     setBusy(false);
   };
 
+  const patchLast = (fn: (m: ChatMsg) => ChatMsg) =>
+    setMsgs((curr) => {
+      const copy = [...curr];
+      const last = copy[copy.length - 1];
+      if (last && last.role === "assistant") copy[copy.length - 1] = fn(last);
+      return copy;
+    });
+
   const send = async () => {
     const prompt = draft.trim();
-    if (!prompt || busy || !pid) return;
+    if (!prompt || busy || !pid || !sid) return;
     const now = new Date().toISOString();
-    const history: ConversationMessage[] = msgs
-      .filter((m) => !m.pending)
-      .map((m) => ({ role: m.role, content: textOf(m) }));
-
     setMsgs((curr) => [
       ...curr,
       { role: "user", parts: [{ kind: "text", text: prompt }], ts: now },
       { role: "assistant", parts: [], ts: now, pending: true },
     ]);
     setDraft("");
-    setTools([]);
     setBusy(true);
 
     const ctrl = new AbortController();
     abortRef.current = ctrl;
-    let streamed = "";
-    let errored = false;
-
-    // Set the assistant turn's text to a single text part (the super-agent
-    // emits the FULL accumulated text per iteration, so we overwrite).
-    const setAssistantText = (text: string, pending: boolean) =>
-      setMsgs((curr) => {
-        const copy = [...curr];
-        const last = copy[copy.length - 1];
-        if (last?.role === "assistant")
-          copy[copy.length - 1] = { ...last, parts: text ? [{ kind: "text", text }] : [], pending };
-        return copy;
-      });
-
     const onEvent = (ev: CodeStreamEvent) => {
-      if (ev?.type === "assistant_text" && typeof ev.text === "string" && ev.text) {
-        streamed = ev.text;
-        setAssistantText(streamed, true);
-      } else if (ev?.type === "tool_call" || ev?.type === "tool_start" || ev?.type === "tool_result") {
-        // Surface tool activity so the owner sees what the coding assistant is
-        // doing (read/edit/run). Dedup consecutive identical names.
-        const name = (ev.trace?.tool || ev.tool || ev.name) as string | undefined;
-        if (name) {
-          setTools((curr) => (curr[curr.length - 1] === name ? curr : [...curr, name]));
-        }
-      } else if (ev?.type === "final") {
-        const finalText = ev.result?.text;
-        const text = typeof finalText === "string" && finalText ? finalText : streamed;
-        setAssistantText(text, false);
-      } else if (ev?.type === "error") {
-        errored = true;
+      if (ev.type === "error") {
         toast.error(ev.error || "error");
-        setMsgs((curr) => {
-          const copy = [...curr];
-          const last = copy[copy.length - 1];
-          if (last?.role === "assistant" && last.pending) copy.pop();
-          return copy;
-        });
+        return;
       }
+      patchLast((m) => applyStreamEvent(m, ev));
     };
 
     try {
-      await Code.stream(pid, { prompt, previousMessages: history }, onEvent, ctrl.signal);
+      await Code.stream(pid, sid, { prompt }, onEvent, ctrl.signal);
+      patchLast((m) => ({ ...m, pending: false }));
     } catch (e) {
       if (ctrl.signal.aborted) {
-        setAssistantText(streamed || "[detenido]", false);
-      } else if (!errored) {
+        patchLast((m) => ({
+          ...m,
+          pending: false,
+          parts: [...m.parts, { kind: "text", text: t("code_module.stopped") }],
+        }));
+      } else {
         toast.error((e as Error).message);
-        setMsgs((curr) => {
-          const copy = [...curr];
-          const last = copy[copy.length - 1];
-          if (last?.role === "assistant" && last.pending) copy.pop();
-          return copy;
-        });
+        setMsgs((curr) => curr.filter((_, i) => i !== curr.length - 1));
       }
     } finally {
       if (abortRef.current === ctrl) abortRef.current = null;
       setBusy(false);
+      // Server persisted the turn; refresh derived views.
+      void session.mutate();
+      void sessions.mutate();
+      void changes.mutate();
     }
   };
 
@@ -146,71 +207,87 @@ export function CodeScreen() {
   };
 
   const hasProjects = !projects.isLoading && projectList.length > 0;
+  const turns: CodeTurn[] = useMemo(() => msgs as unknown as CodeTurn[], [msgs]);
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-2rem)] max-w-4xl flex-col p-4" data-testid="screen-code">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden p-4" data-testid="screen-code">
       <header className="mb-3 flex items-center justify-between gap-3">
         <div className="min-w-0">
           <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-            <Code2 size={22} /> Code
+            <Code2 size={22} /> {t("code_module.title")}
           </h1>
-          <p className="text-sm text-muted-fg">
-            Asistente de código de APX. Elegí un proyecto y pedile que lea, edite o ejecute.
-          </p>
+          <p className="text-sm text-muted-fg">{t("code_module.desc")}</p>
         </div>
-        <Badge tone="success">super-agent</Badge>
+        <Badge tone="success">{t("code_module.badge")}</Badge>
       </header>
 
       {projects.isLoading ? (
         <Loading />
       ) : !hasProjects ? (
-        <Empty>No hay proyectos registrados. Registrá uno con `apx project add` para usar Code.</Empty>
+        <Empty>{t("code_module.no_projects")}</Empty>
       ) : (
-        <div className="flex flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card/40">
-          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
-            <CodeProjectPicker
-              projects={projectList}
-              value={pid}
-              onChange={onPickProject}
-              disabled={busy}
-            />
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={busy || msgs.length === 0}
-              onClick={reset}
-              data-testid="code-clear"
-            >
-              <Eraser size={13} /> Limpiar
-            </Button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto" data-testid="code-transcript">
-            {msgs.length ? (
-              <MessageList msgs={msgs} onCopy={copyToClipboard} />
-            ) : (
-              <Empty>Mandale una instrucción de código para arrancar.</Empty>
-            )}
-          </div>
-
-          {busy && <CodeToolTrail tools={tools} />}
-
-          <div
-            className="border-t border-border bg-card/60 p-3"
-            data-testid="code-input"
-          >
-            <ChatInput
-              value={draft}
-              onValueChange={setDraft}
-              onSubmit={() => void send()}
-              onStop={stop}
+        <div className="flex min-h-0 flex-1 overflow-hidden rounded-xl border border-border bg-card/40">
+          {/* Left rail: project picker + session list */}
+          <aside className="flex w-60 shrink-0 flex-col border-r border-border">
+            <div className="shrink-0 border-b border-border p-2">
+              <CodeProjectPicker
+                projects={projectList}
+                value={pid}
+                onChange={onPickProject}
+                disabled={busy}
+              />
+            </div>
+            <CodeSessionList
+              sessions={sessions.data || []}
+              activeId={sid}
               busy={busy}
-              disabled={!pid}
-              placeholder="Pedí un cambio de código… (enter envía, shift+enter = nueva línea)"
-              maxRows={12}
-              footer={<span data-testid="code-target">{pid ? `proyecto #${pid} · super-agent` : "sin proyecto"}</span>}
+              onSelect={onSelectSession}
+              onCreate={onCreateSession}
+              onRename={onRenameSession}
+              onDelete={onDeleteSession}
             />
-          </div>
+          </aside>
+
+          {/* Center: transcript + composer */}
+          <main className="flex min-w-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 overflow-y-auto" data-testid="code-transcript">
+              {!sid ? (
+                <div className="grid h-full place-items-center p-6">
+                  <Empty>{t("code_module.pick_project")}</Empty>
+                </div>
+              ) : msgs.length ? (
+                <MessageList msgs={msgs} onCopy={copyToClipboard} />
+              ) : (
+                <div className="grid h-full place-items-center p-6">
+                  <Empty>{t("code_module.empty_chat")}</Empty>
+                </div>
+              )}
+            </div>
+            <div className="border-t border-border bg-card/60 p-3" data-testid="code-input">
+              <CodeComposer
+                value={draft}
+                onValueChange={setDraft}
+                onSubmit={() => void send()}
+                onStop={stop}
+                busy={busy}
+                disabled={!sid}
+                mode={mode}
+                onModeChange={(m) => void patchSession({ mode: m })}
+                model={model}
+                onModelChange={(m) => void patchSession({ model: m || null })}
+              />
+            </div>
+          </main>
+
+          {/* Right: context + changes */}
+          <aside className="hidden w-80 shrink-0 flex-col border-l border-border lg:flex">
+            <CodeSidePanel
+              turns={turns}
+              changes={changes.data}
+              changesLoading={changes.isLoading}
+              onRefreshChanges={() => void changes.mutate()}
+            />
+          </aside>
         </div>
       )}
     </div>

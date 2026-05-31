@@ -43,20 +43,26 @@ export function UiSelect({
       </SelectTrigger>
       {/* side=bottom + alignItemWithTrigger=false → dropdown sits BELOW the
           trigger (not overlapping it). p-1.5 gives breathing room. */}
-      <SelectContent side="bottom" sideOffset={6} align="start" alignItemWithTrigger={false} className="p-1.5">
+      <SelectContent
+        side="bottom"
+        sideOffset={6}
+        align="start"
+        alignItemWithTrigger={false}
+        className="max-w-[min(20rem,var(--available-width))] p-1.5"
+      >
         {options.map((o) => {
           const Icon = o.icon;
           return (
             <SelectItem key={o.value} value={o.value}>
-              <span className="flex items-center gap-2">
+              <span className="flex min-w-0 items-center gap-2">
                 {Icon ? <Icon className="size-4 shrink-0 text-muted-fg" /> : null}
                 {o.description ? (
-                  <span className="flex flex-col leading-tight">
-                    <span className="font-medium">{o.label}</span>
-                    <span className="text-[11px] text-muted-fg">{o.description}</span>
+                  <span className="flex min-w-0 flex-col leading-tight">
+                    <span className="truncate font-medium">{o.label}</span>
+                    <span className="truncate text-[11px] text-muted-fg">{o.description}</span>
                   </span>
                 ) : (
-                  <span>{o.label}</span>
+                  <span className="truncate">{o.label}</span>
                 )}
               </span>
             </SelectItem>
