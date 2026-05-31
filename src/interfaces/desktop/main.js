@@ -205,8 +205,15 @@ function createTray() {
     { type: "separator" },
     { label: "Quit APX Desktop", click: () => app.exit(0) },
   ]);
-  tray.setContextMenu(contextMenu);
-  tray.on("click", toggleWindow);
+
+  // IMPORTANT on macOS: do NOT call tray.setContextMenu(contextMenu).
+  // When a context menu is attached, ANY click (left or right) opens it
+  // AND fires the `click` event, so toggleWindow + the menu both trigger
+  // at once. Wire each button explicitly instead:
+  //   left-click  → toggle the floating window
+  //   right-click → pop up the context menu
+  tray.on("click",       () => toggleWindow());
+  tray.on("right-click", () => tray.popUpContextMenu(contextMenu));
 }
 
 function updateTrayRecording(rec) {
