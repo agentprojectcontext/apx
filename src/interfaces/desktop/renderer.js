@@ -50,6 +50,10 @@
   // requestTts / second finalize on the same in-flight bubble.
   let doneHandled = false;
   let ttsTimer = null;
+  // Which agent turn (by message id) is waiting for its TTS audio to attach.
+  // We finalize the bubble immediately on `done`, then post-attach the
+  // scrubber when (or if) tts-ready arrives.
+  let pendingTtsTurnId = null;
 
   // ── Inline SVG icons (mirrors the design's I.* set) ──────────────────────
   const SVG = (path, attrs = {}) => {
@@ -548,6 +552,25 @@
     }
   }
 
+  // Post-finalize hook: add a scrubber to an already-rendered agent turn
+  // when its TTS audio arrives. Called from the `tts-ready` daemon event.
+  function attachAudioToTurn(turnId, { url, dur }) {
+    const m = messages.find((x) => x.id === turnId);
+    if (!m) return;
+    m.audio = url;
+    m.dur   = dur || 0;
+    m.fresh = true; // autoplay the freshly-arrived reply
+    const turnEl = $convScroll?.querySelector(`[data-id="${turnId}"]`);
+    if (!turnEl) return;
+    // Insert the scrubber HTML just before turn-actions (matches appendTurn order).
+    const actions = turnEl.querySelector(".turn-actions");
+    const html = buildScrubberHtml(m);
+    if (actions) actions.insertAdjacentHTML("beforebegin", html);
+    else turnEl.insertAdjacentHTML("beforeend", html);
+    wireScrubber(turnEl, m);
+    scrollConvToBottom();
+  }
+
   function waveShape(n, seed = 7) {
     const out = []; let s = seed;
     for (let i = 0; i < n; i++) {
@@ -804,37 +827,50 @@
         if (doneHandled) break;
         doneHandled = true;
         const finalText = msg.text || streamingAgentEntry?.text || "";
-        if (streamingAgentEntry) streamingAgentEntry.text = finalText;
-        // Ask main for TTS; if no answer arrives within 6s, give up so the
-        // capsule never stays stuck in "Pensando…" / "está hablando…".
+        // CRITICAL: many models (gemini-flash, groq-fast tier) don't stream
+        // tokens — they send the whole reply in `done`. Without this branch
+        // the bubble stays with just the dots placeholder until TTS resolves
+        // (or 6s timeout), which feels broken. Inject the text NOW so the
+        // user sees the reply immediately.
+        if (streamingAgentEntry) {
+          streamingAgentEntry.text = finalText;
+          if (!streamingAgentEntry.started && finalText) {
+            streamingAgentEntry.started = true;
+            streamingAgentEntry.msgEl.innerHTML = formatWordsHtml(finalText);
+            scrollConvToBottom();
+          }
+        }
+        // Finalize and return to idle right away so the capsule frees up.
+        // TTS runs in the background; tts-ready will attach the scrubber to
+        // the already-rendered turn (see attachAudioToLastAgentTurn below).
+        const finalizedTurnId = streamingAgentEntry?.id;
+        finalizeStreamingAgent();
+        mode = "idle"; render();
+        // Fire-and-forget TTS request. If it returns audio, attach it to
+        // the turn we just rendered; if it errors / times out / never replies,
+        // no big deal — the user already has the text. Guard with a 6s soft
+        // timeout so a stuck request doesn't hold ttsTimer state.
         const handled = window.apx?.requestTts?.(finalText);
         if (handled) {
           if (ttsTimer) clearTimeout(ttsTimer);
-          ttsTimer = setTimeout(() => {
-            if (!streamingAgentEntry) return;
-            console.warn("desktop renderer: TTS timed out — finalizing without audio");
-            finalizeStreamingAgent();
-            mode = "idle"; render();
-          }, 6000);
-        } else {
-          finalizeStreamingAgent();
-          mode = "idle"; render();
+          ttsTimer = setTimeout(() => { ttsTimer = null; }, 6000);
+          // Remember which turn the next tts-ready/failed belongs to.
+          pendingTtsTurnId = finalizedTurnId || null;
         }
         break;
       }
       case "tts-ready": {
         if (ttsTimer) { clearTimeout(ttsTimer); ttsTimer = null; }
-        finalizeStreamingAgent({ audio: msg.url, dur: msg.duration });
-        // mode stays "thinking" until the <audio> actually plays — the
-        // scrubber's `play` event flips us to "speaking". If autoplay is
-        // blocked, the audio.error handler in wireScrubber returns to idle.
-        mode = "thinking"; render();
+        if (pendingTtsTurnId != null) {
+          attachAudioToTurn(pendingTtsTurnId, { url: msg.url, dur: msg.duration });
+          pendingTtsTurnId = null;
+        }
         break;
       }
       case "tts-failed":
+        // The text is already on screen; just clean up the timer + pending id.
         if (ttsTimer) { clearTimeout(ttsTimer); ttsTimer = null; }
-        finalizeStreamingAgent();
-        mode = "idle"; render();
+        pendingTtsTurnId = null;
         break;
       case "error":
         finalizeStreamingAgentError(msg.message || "Unknown error");
