@@ -1,12 +1,23 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import {
   loadDefaultSystemPrompt,
   buildUserContextBlock,
   buildChannelContextBlock,
   buildSuperAgentSystem,
+  buildProjectAgentsBlock,
+  PROJECT_AGENTS_MAX_CHARS,
   renderPromptTemplate,
 } from "../src/core/agent/prompt-builder.js";
+
+function tmpProjectWithAgentsMd(contents) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-pb-agents-"));
+  fs.writeFileSync(path.join(root, "AGENTS.md"), contents);
+  return root;
+}
 
 test("loadDefaultSystemPrompt: base prompt has no hardcoded owner names", () => {
   const base = loadDefaultSystemPrompt();
@@ -65,6 +76,65 @@ test("buildSuperAgentSystem: composes base + user + channel layers", () => {
   assert.ok(system.includes("Channel: **cli**"));
   assert.ok(system.includes("/tmp/work"));
   assert.ok(!system.includes("Manuel"));
+});
+
+test("buildProjectAgentsBlock: empty for no path, missing file, or blank file", () => {
+  assert.equal(buildProjectAgentsBlock(null), "");
+  assert.equal(buildProjectAgentsBlock("/no/such/dir/anywhere"), "");
+  const root = tmpProjectWithAgentsMd("   \n  ");
+  try {
+    assert.equal(buildProjectAgentsBlock(root), "");
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("buildProjectAgentsBlock: loads + labels the project's AGENTS.md", () => {
+  const root = tmpProjectWithAgentsMd("# AGENTS.md\n\nAlways write tests.\n");
+  try {
+    const block = buildProjectAgentsBlock(root);
+    assert.match(block, /# Project guidance \(AGENTS\.md\)/);
+    assert.match(block, /Always write tests\./);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("buildProjectAgentsBlock: size-caps oversized files with a truncation note", () => {
+  const big = "x".repeat(PROJECT_AGENTS_MAX_CHARS + 500);
+  const root = tmpProjectWithAgentsMd(big);
+  try {
+    const block = buildProjectAgentsBlock(root);
+    assert.match(block, /AGENTS\.md truncated/);
+    assert.ok(block.length < big.length + 200, "content should be capped");
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("buildSuperAgentSystem: injects project AGENTS.md when channelMeta.projectPath has one", () => {
+  const root = tmpProjectWithAgentsMd("# AGENTS.md\n\nProject rule: be terse.\n");
+  try {
+    const projects = { list: () => [{ id: 0, name: "default", path: "/tmp/default" }] };
+    const base = {
+      globalConfig: { super_agent: { model: "mock:mock", permission_mode: "automatico", allowed_tools: [] }, user: { language: "en" } },
+      projects,
+      listSkills: () => [],
+      channel: "web",
+    };
+    const withProject = buildSuperAgentSystem({ ...base, channelMeta: { projectPath: root } });
+    assert.match(withProject, /# Project guidance \(AGENTS\.md\)/);
+    assert.match(withProject, /Project rule: be terse\./);
+    // Ordered after the projects index, before the skills catalog.
+    assert.ok(
+      withProject.indexOf("Registered projects") < withProject.indexOf("# Project guidance (AGENTS.md)")
+    );
+
+    const withoutProject = buildSuperAgentSystem({ ...base, channelMeta: {} });
+    assert.doesNotMatch(withoutProject, /# Project guidance \(AGENTS\.md\)/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("renderPromptTemplate: replaces {{vars}}", () => {

@@ -127,10 +127,19 @@ export function resolveMemoryPath(p) {
 export function resolveSuperAgentContext(req, project) {
   const { channel, channelMeta, contextNote } = req.body || {};
   if (channel) {
+    const meta =
+      channelMeta && typeof channelMeta === "object" ? channelMeta : {};
+    // Always anchor the meta to the resolved project so the super-agent prompt
+    // can load this project's AGENTS.md (buildProjectAgentsBlock). Caller-set
+    // values win.
     return {
       channel,
-      channelMeta:
-        channelMeta && typeof channelMeta === "object" ? channelMeta : {},
+      channelMeta: {
+        projectId: String(project.id),
+        projectName: project.name,
+        projectPath: project.path,
+        ...meta,
+      },
       contextNote: contextNote || "",
     };
   }

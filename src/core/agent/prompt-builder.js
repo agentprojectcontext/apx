@@ -80,6 +80,29 @@ export function buildChannelContextBlock(channel, meta = {}) {
   return renderPromptTemplate(loadPrompt(rel), meta);
 }
 
+// Project startup rules. When APX runs its OWN loop inside a project, load that
+// project's AGENTS.md into the prompt — the same convention Claude/Codex follow
+// with CLAUDE.md/AGENTS.md. `projectPath` flows in via channelMeta.projectPath
+// (set by the super-agent API, the code module, and routines). This is wired
+// ONLY into the super-agent prompt: when APX delegates to an external engine,
+// that engine reads AGENTS.md itself. Size-capped to protect the prompt budget.
+export const PROJECT_AGENTS_MAX_CHARS = 6000;
+export function buildProjectAgentsBlock(projectPath) {
+  if (!projectPath) return "";
+  try {
+    const file = path.join(projectPath, "AGENTS.md");
+    if (!fs.existsSync(file)) return "";
+    let text = fs.readFileSync(file, "utf8").trim();
+    if (!text) return "";
+    if (text.length > PROJECT_AGENTS_MAX_CHARS) {
+      text = text.slice(0, PROJECT_AGENTS_MAX_CHARS) + "\n\n…(AGENTS.md truncated)";
+    }
+    return `# Project guidance (AGENTS.md)\n\nStartup rules for THIS project — follow them:\n\n${text}`;
+  } catch {
+    return "";
+  }
+}
+
 export function buildUserContextBlock(identity, globalConfig = {}) {
   const user = globalConfig?.user || {};
   const lang = user.language || identity?.language || "en";
@@ -280,6 +303,7 @@ export function buildSuperAgentSystem({
     extraContext,
     "# Registered projects (just the index — call tools for details)",
     projectIndex || "(no projects registered)",
+    buildProjectAgentsBlock(channelMeta?.projectPath),
     buildSkillsCatalog(listSkills),
     voiceModeBlock,
     systemSuffix,

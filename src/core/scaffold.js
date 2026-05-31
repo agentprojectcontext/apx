@@ -4,8 +4,6 @@ import os from "node:os";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import {
-  readAgents,
-  readAgentsFromDir,
   VAULT_DIR,
   BUNDLED_VAULT_DIR,
   readVaultTombstones,
@@ -303,20 +301,28 @@ export function installGlobalSkills({
 }
 
 
-const AGENTS_MD_TEMPLATE = `# Agents
+// Generic starter written ONCE at `apx init`. AGENTS.md is the project's
+// startup-rules file — read by Claude, Codex, APX and other AGENTS.md-aware
+// tools when they begin working here. It is NOT an agent registry (APX agents
+// live in `.apc/agents/<slug>.md`). After init it belongs to the user; APX
+// never rewrites it.
+const AGENTS_MD_TEMPLATE = `# AGENTS.md
 
-> This file is the contract for agents in this project.
-> It follows the APC spec (https://github.com/agentprojectcontext/agentprojectcontext).
+> Startup rules and conventions for AI agents working in this project.
+> Read by Claude, Codex, APX and other AGENTS.md-aware tools. Edit freely —
+> this file is yours; APX won't overwrite it.
 
-<!-- Add an agent like this:
+## Overview
 
-## sofia
-- **Role**: Support
-- **Model**: claude-haiku-4-5
-- **Skills**: customer-support
-- **Language**: es-AR
+<!-- What is this project? Tech stack, entry points, how to run it. -->
 
--->
+## Conventions
+
+<!-- Code style, structure, naming, testing — how to write code that fits. -->
+
+## Rules
+
+<!-- Hard constraints: what agents must always / never do here. -->
 `;
 
 const APC_GITIGNORE = `# APC runtime data — never in the repository
@@ -556,79 +562,8 @@ export function addImportedAgent(root, slug) {
   fs.writeFileSync(p, JSON.stringify(cfg, null, 2) + "\n");
 }
 
-// Appended to every regenerated AGENTS.md — stable project rules (not per-agent).
-const AGENTS_MD_FOOTER = `
-## Project rules
-
-1. Agent definitions live in \`.apc/agents/<slug>.md\`. This file is regenerated for discovery; edit the per-agent files, not the \`## <slug>\` blocks here.
-2. Curated durable facts belong in \`.apc/agents/<slug>/memory.md\` — never raw transcripts or secrets.
-3. Runtime sessions, conversations, and message logs stay outside the repo (\`~/.apx/projects/<id>/\` or the engine that created them).
-4. Shared MCP hints without secrets: \`.apc/mcps.json\`. Tokens: runtime scope only (\`apx mcp add --scope runtime\`).
-5. Reusable instructions: \`.apc/skills/<slug>/SKILL.md\` (project) or bundled \`skills/<slug>/SKILL.md\` in the APX package.
-6. **Skills stay in sync**: when you change CLI commands, daemon routes, config keys, Telegram/voice/routine behavior, or any workflow documented in a skill, update the matching \`skills/<slug>/SKILL.md\` (or \`.apc/skills/<slug>/SKILL.md\`) in the **same change**. Verify flags with \`apx <command> --help\` before documenting them — do not invent subcommands.
-7. **"super-agent" is a mode, not a persona name**. User-facing copy uses the identity from \`~/.apx/identity.json\` (default "APX"). Technical config keys and routine kinds may still say \`super_agent\`.
-`.trim();
-
-// The apx source repo dogfoods itself as an APC project, but its root
-// AGENTS.md is a hand-maintained developer guide — not a scaffold output.
-// Detect it by the package name so we never clobber those dev rules.
-function isApxSourceRepo(root) {
-  try {
-    const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
-    return pkg.name === "@agentprojectcontext/apx";
-  } catch {
-    return false;
-  }
-}
-
-// Regenerate AGENTS.md from .apc/agents/*.md for Codex/Antigravity compat.
-export function regenerateAgentsMd(root) {
-  if (isApxSourceRepo(root)) return; // hand-maintained dev guide; leave it alone
-  const agents = readAgents(root);
-  const header = [
-    "# Agents",
-    "",
-    "> Auto-generated from .apc/agents/*.md — edit individual agent files, not this file.",
-    "> Read by Codex, Antigravity, and other tools that follow the AGENTS.md convention.",
-    "",
-  ].join("\n");
-
-  const agentSection = agents.length === 0
-    ? ""
-    : agents.map((a) => {
-        const tag = a.source === "vault" ? "  <!-- vault -->" : "";
-        return renderAgentBlock(a.slug, a.fields) + tag;
-      }).join("\n\n") + "\n\n";
-
-  fs.writeFileSync(
-    path.join(root, "AGENTS.md"),
-    header + agentSection + AGENTS_MD_FOOTER + "\n"
-  );
-}
-
-export function appendAgentToAgentsMd(root, slug, fields) {
-  const agentsMdPath = path.join(root, "AGENTS.md");
-  let text = fs.existsSync(agentsMdPath)
-    ? fs.readFileSync(agentsMdPath, "utf8")
-    : AGENTS_MD_TEMPLATE;
-
-  if (!/^#\s+Agents\s*$/im.test(text)) {
-    text = `# Agents\n\n${text}`;
-  }
-
-  const block = renderAgentBlock(slug, fields);
-
-  if (!text.endsWith("\n")) text += "\n";
-  text += `\n${block}\n`;
-  fs.writeFileSync(agentsMdPath, text);
-}
-
-export function renderAgentBlock(slug, fields) {
-  const lines = [`## ${slug}`];
-  for (const [k, v] of Object.entries(fields)) {
-    if (v === undefined || v === null || v === "") continue;
-    const value = Array.isArray(v) ? v.join(", ") : v;
-    lines.push(`- **${k}**: ${value}`);
-  }
-  return lines.join("\n");
-}
+// NOTE: AGENTS.md is created once at `apx init` (see AGENTS_MD_TEMPLATE) and is
+// thereafter owned by the user — APX never regenerates it. Agents live in
+// `.apc/agents/<slug>.md` (read by parser.js readAgents); they are NOT listed
+// in AGENTS.md. The project's AGENTS.md is loaded INTO the super-agent prompt
+// by buildSuperAgentSystem() in src/core/agent/prompt-builder.js.

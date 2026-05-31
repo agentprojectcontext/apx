@@ -13,7 +13,6 @@ import {
   removeVaultAgent,
   restoreVaultAgent,
   ensureAgentDir,
-  regenerateAgentsMd,
 } from "../../../core/scaffold.js";
 import { agentToResponse } from "./shared.js";
 
@@ -115,7 +114,6 @@ export function register(app, { projects, project }) {
     try {
       writeAgentFile(p.path, slug, vault.fields || {}, vault.body || "");
       ensureAgentDir(p.path, slug);
-      regenerateAgentsMd(p.path);
       projects.rebuild(p.id);
       res.status(201).json(agentToResponse(readAgents(p.path).find((a) => a.slug === slug)));
     } catch (e) {
@@ -165,7 +163,6 @@ export function register(app, { projects, project }) {
         Parent: parent || null,
       });
       ensureAgentDir(p.path, slug);
-      regenerateAgentsMd(p.path);
       projects.rebuild(p.id);
       const created = readAgents(p.path).find((a) => a.slug === slug);
       res.status(201).json(agentToResponse(created));
@@ -206,7 +203,6 @@ export function register(app, { projects, project }) {
     try {
       writeAgentFile(p.path, slug, fields, body);
       ensureAgentDir(p.path, slug);
-      regenerateAgentsMd(p.path);
       projects.rebuild(p.id);
       const updated = readAgents(p.path).find((a) => a.slug === slug);
       res.json(agentToResponse(updated));
@@ -227,7 +223,6 @@ export function register(app, { projects, project }) {
     try {
       if (fs.existsSync(file)) fs.rmSync(file);
       if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
-      regenerateAgentsMd(p.path);
       projects.rebuild(p.id);
       res.json({ ok: true });
     } catch (e) {

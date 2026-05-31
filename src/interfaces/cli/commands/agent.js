@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { findApfRoot, readAgents, readVaultAgents, readVaultAgent, VAULT_DIR, SLUG_RE } from "../../../core/parser.js";
-import { writeAgentFile, writeVaultAgentFile, removeVaultAgent, restoreVaultAgent, addImportedAgent, ensureAgentDir, regenerateAgentsMd } from "../../../core/scaffold.js";
+import { writeAgentFile, writeVaultAgentFile, removeVaultAgent, restoreVaultAgent, addImportedAgent, ensureAgentDir } from "../../../core/scaffold.js";
 import { http } from "../http.js";
 
 // ── ANSI ──────────────────────────────────────────────────────────────────────
@@ -49,7 +49,6 @@ export async function cmdAgentAdd(args) {
 
   writeAgentFile(root, slug, fields);
   ensureAgentDir(root, slug);
-  regenerateAgentsMd(root);
   await nudgeDaemon(root);
 
   console.log(`Added agent ${slug}`);
@@ -213,6 +212,5 @@ export async function cmdAgentImport(args) {
   }
 
   ensureAgentDir(root, slug);
-  regenerateAgentsMd(root);
   await nudgeDaemon(root);
 }
