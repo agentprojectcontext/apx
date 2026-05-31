@@ -567,12 +567,23 @@ const AGENTS_MD_FOOTER = `
 5. Reusable instructions: \`.apc/skills/<slug>/SKILL.md\` (project) or bundled \`skills/<slug>/SKILL.md\` in the APX package.
 6. **Skills stay in sync**: when you change CLI commands, daemon routes, config keys, Telegram/voice/routine behavior, or any workflow documented in a skill, update the matching \`skills/<slug>/SKILL.md\` (or \`.apc/skills/<slug>/SKILL.md\`) in the **same change**. Verify flags with \`apx <command> --help\` before documenting them — do not invent subcommands.
 7. **"super-agent" is a mode, not a persona name**. User-facing copy uses the identity from \`~/.apx/identity.json\` (default "APX"). Technical config keys and routine kinds may still say \`super_agent\`.
-8. **Tests ship with behavior**. Every new daemon route, CLI command, plugin, or config key — and every bug fix — lands with a test in \`tests/<name>.test.js\` (Node's built-in runner; \`npm test\`). Patterns: drive HTTP routes through \`buildApi()\` + an ephemeral \`app.listen(0)\`; build project trees with \`makeTempProject()\` from \`tests/_helpers.js\`. Anything that writes under \`~/.apx\` must be isolated — set \`process.env.HOME\` to a temp dir **before** dynamic-importing the module (APX_HOME derives from \`os.homedir()\`); never touch the real store. Tests must run offline (no network, no API keys, no live daemon).
-9. **Gate every push with \`npm run preflight\`** (backend tests + web build + \`tsc --noEmit\`) — it must be green. The pre-push hook enforces this; don't bypass it.
 `.trim();
+
+// The apx source repo dogfoods itself as an APC project, but its root
+// AGENTS.md is a hand-maintained developer guide — not a scaffold output.
+// Detect it by the package name so we never clobber those dev rules.
+function isApxSourceRepo(root) {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
+    return pkg.name === "@agentprojectcontext/apx";
+  } catch {
+    return false;
+  }
+}
 
 // Regenerate AGENTS.md from .apc/agents/*.md for Codex/Antigravity compat.
 export function regenerateAgentsMd(root) {
+  if (isApxSourceRepo(root)) return; // hand-maintained dev guide; leave it alone
   const agents = readAgents(root);
   const header = [
     "# Agents",
