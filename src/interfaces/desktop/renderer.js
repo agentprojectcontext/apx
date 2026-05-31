@@ -44,6 +44,12 @@
   let history = [];               // [{role:'user'|'assistant', content}] sent to daemon for context
   let theme = "light";
   let position = "right";
+  let agentName = "Superagente";  // overwritten from config on first render
+
+  // Guard so a duplicate `done` event from the daemon never spawns a second
+  // requestTts / second finalize on the same in-flight bubble.
+  let doneHandled = false;
+  let ttsTimer = null;
 
   // ── Inline SVG icons (mirrors the design's I.* set) ──────────────────────
   const SVG = (path, attrs = {}) => {
@@ -98,17 +104,22 @@
   $badgeTxt.innerHTML = ICON.text();
   $capActions.style.cssText = "display:flex; align-items:center; gap:6px;";
 
-  // ── Initial config from main (theme, position, shortcut hint) ────────────
+  // ── Initial config from main (theme, position, shortcut, agent name) ─────
   Promise.all([
-    window.apx?.getTheme?.()    ?? "light",
-    window.apx?.getPosition?.() ?? "right",
-    window.apx?.getShortcut?.() ?? "CommandOrControl+G",
-  ]).then(([th, pos, shortcut]) => {
+    window.apx?.getTheme?.()     ?? "light",
+    window.apx?.getPosition?.()  ?? "right",
+    window.apx?.getShortcut?.()  ?? "CommandOrControl+G",
+    window.apx?.getAgentName?.() ?? "Superagente",
+  ]).then(([th, pos, shortcut, name]) => {
     theme = th || "light";
     position = pos || "right";
+    agentName = (name && String(name).trim()) || "Superagente";
     document.documentElement.setAttribute("data-theme", theme);
     setPosition(position);
     initialCaption(shortcut);
+    // Re-render so the placeholder ("Hablá o escribí a <name>…") picks up
+    // the resolved agent name on first paint.
+    render();
   }).catch(() => {
     document.documentElement.setAttribute("data-theme", "light");
     setPosition("right");
@@ -174,7 +185,7 @@
         $capCenter.innerHTML = "";
         const el = document.createElement("input");
         el.type = "text";
-        el.placeholder = "Hablá o escribí a Superagente…";
+        el.placeholder = `Hablá o escribí a ${agentName}…`;
         el.addEventListener("input", () => render());
         el.addEventListener("keydown", (e) => {
           if (e.key === "Enter" && el.value.trim()) {
@@ -215,7 +226,7 @@
         } else if (mode === "thinking") {
           $capCenter.innerHTML = `<span class="status"><span class="dots"><i></i><i></i><i></i></span><span class="shimmer">Pensando…</span></span>`;
         } else if (mode === "speaking") {
-          $capCenter.innerHTML = `<span class="status"><img class="sa-glyph" src="assets/superagent.png" alt=""/><span class="shimmer">Superagente está hablando…</span></span>`;
+          $capCenter.innerHTML = `<span class="status"><img class="sa-glyph" src="assets/superagent.png" alt=""/><span class="shimmer">${escapeHtml(agentName)} está hablando…</span></span>`;
         }
       }
     }
@@ -317,7 +328,7 @@
       t.innerHTML = `
         <div class="role agent">
           <span class="ava sa"><img src="assets/superagent.png" alt=""/></span>
-          <span class="who">Superagente</span>
+          <span class="who">${escapeHtml(agentName)}</span>
           <span class="time">${m.t || ""}</span>
         </div>
         <div class="msg-agent">${formatWordsHtml(m.text)}</div>
@@ -397,13 +408,16 @@
     const t = document.createElement("div");
     t.className = "turn last";
     t.dataset.id = id;
+    // Placeholder while we wait for the first token: just the dots — the
+    // word "Pensando" already appears in the capsule, no need to repeat it
+    // inside the bubble. See feedback on doble-"Pensando" in 2026-05-30.
     t.innerHTML = `
       <div class="role agent">
         <span class="ava sa"><img src="assets/superagent.png" alt=""/></span>
-        <span class="who">Superagente</span>
+        <span class="who">${escapeHtml(agentName)}</span>
       </div>
       <div class="msg-agent">
-        <span class="status-line"><span class="dots"><i></i><i></i><i></i></span><span class="shimmer">Pensando</span></span>
+        <span class="status-line"><span class="dots"><i></i><i></i><i></i></span></span>
       </div>
     `;
     $convScroll.appendChild(t);
@@ -415,7 +429,7 @@
     ensureStreamingAgentBubble();
     if (!streamingAgentEntry.started) {
       streamingAgentEntry.started = true;
-      streamingAgentEntry.msgEl.innerHTML = ""; // clear the "Pensando" status line
+      streamingAgentEntry.msgEl.innerHTML = ""; // clear the dots placeholder
     }
     streamingAgentEntry.text += chunk;
     // Re-render with the word-in animation: split into spans on word boundaries.
@@ -514,12 +528,23 @@
       setProgress(p);
     });
 
+    // If the audio errors out (404, decode error, autoplay block, etc) make
+    // sure the capsule doesn't stay stuck in "está hablando…".
+    audio.addEventListener("error", () => {
+      if (mode === "speaking") { mode = "idle"; render(); }
+    });
+
     // autoplay if it's the fresh reply
     if (m.fresh) {
       m.fresh = false;
       ttsAudio?.pause?.();
       ttsAudio = audio;
-      audio.play().catch(() => { /* user-gesture might block; ok */ });
+      audio.play().catch(() => {
+        // Autoplay block (rare in Electron with user-gesture but possible
+        // when the window has never been focused). Bail out so the capsule
+        // returns to idle and the user can still tap "play" on the scrubber.
+        if (mode === "speaking" || mode === "thinking") { mode = "idle"; render(); }
+      });
     }
   }
 
@@ -610,8 +635,11 @@
       };
       mediaRecorder.onstop = async () => {
         if (isCancelled) { recordedChunks = []; if (mode !== "idle") { mode = "idle"; render(); } return; }
-        const text = await transcribeBuffered();
+        const raw = await transcribeBuffered();
+        const text = (raw || "").trim();
         recordedChunks = [];
+        // Guard with .trim() — whisper occasionally returns a single space or
+        // newline for very short clips, which used to commit an empty bubble.
         if (!text || isCancelled) {
           mode = "idle";
           pendingUserText = "";
@@ -707,13 +735,19 @@
 
   // ── Send: text path + post-transcription commit path ─────────────────────
   function sendText(text) {
-    if (!text) return;
-    commitUserMessage(text, /* via */ "text");
+    const t = (text || "").trim();
+    if (!t) return;
+    commitUserMessage(t, /* via */ "text");
   }
   function commitUserMessage(text, via) {
-    const m = { id: nextId++, role: "user", text, t: nowHHMM(), via };
+    const clean = (text || "").trim();
+    if (!clean) { console.warn("desktop renderer: refused to commit empty user message"); return; }
+    const m = { id: nextId++, role: "user", text: clean, t: nowHHMM(), via };
+    // Reset per-turn flags so the next streaming agent reply starts fresh.
+    doneHandled = false;
+    if (ttsTimer) { clearTimeout(ttsTimer); ttsTimer = null; }
     messages.push(m);
-    history.push({ role: "user", content: text });
+    history.push({ role: "user", content: clean });
     pendingUserText = "";
     removePendingUserPartial();
     ensureConv();
@@ -721,7 +755,7 @@
     mode = "thinking";
     render();
     ensureStreamingAgentBubble();
-    sendToDaemon(text);
+    sendToDaemon(clean);
   }
 
   function sendToDaemon(text) {
@@ -766,22 +800,39 @@
       case "tool_start":  addToolPill(msg.name); break;
       case "tool_done":   updateToolPill(msg.name); break;
       case "done": {
+        // Daemon may emit `done` twice (retry/race). Process only once per turn.
+        if (doneHandled) break;
+        doneHandled = true;
         const finalText = msg.text || streamingAgentEntry?.text || "";
         if (streamingAgentEntry) streamingAgentEntry.text = finalText;
-        // Best-effort TTS — if main.js wires this, it'll come back via tts-ready.
+        // Ask main for TTS; if no answer arrives within 6s, give up so the
+        // capsule never stays stuck in "Pensando…" / "está hablando…".
         const handled = window.apx?.requestTts?.(finalText);
-        if (!handled) {
+        if (handled) {
+          if (ttsTimer) clearTimeout(ttsTimer);
+          ttsTimer = setTimeout(() => {
+            if (!streamingAgentEntry) return;
+            console.warn("desktop renderer: TTS timed out — finalizing without audio");
+            finalizeStreamingAgent();
+            mode = "idle"; render();
+          }, 6000);
+        } else {
           finalizeStreamingAgent();
           mode = "idle"; render();
         }
         break;
       }
       case "tts-ready": {
+        if (ttsTimer) { clearTimeout(ttsTimer); ttsTimer = null; }
         finalizeStreamingAgent({ audio: msg.url, dur: msg.duration });
-        mode = "speaking"; render();
+        // mode stays "thinking" until the <audio> actually plays — the
+        // scrubber's `play` event flips us to "speaking". If autoplay is
+        // blocked, the audio.error handler in wireScrubber returns to idle.
+        mode = "thinking"; render();
         break;
       }
       case "tts-failed":
+        if (ttsTimer) { clearTimeout(ttsTimer); ttsTimer = null; }
         finalizeStreamingAgent();
         mode = "idle"; render();
         break;
@@ -821,18 +872,24 @@
   });
 
   // ── Window-size hint to main (collapse to capsule when empty) ────────────
-  // Sends a debounced resize request whenever the rendered height changes.
+  // ResizeObserver fires whenever the rendered height of #root changes —
+  // more reliable than a setTimeout poll (used to under-report by one frame
+  // and clip the session bar). 24px bottom padding so the buttons breathe.
   let lastH = 0;
-  let resizeTimer = null;
   function requestWindowResize() {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => {
-      const h = Math.ceil($root.getBoundingClientRect().height) + 14 /* bottom margin */;
-      if (h !== lastH) {
-        lastH = h;
-        window.apx?.resize?.(h);
-      }
-    }, 60);
+    if (!$root) return;
+    const h = Math.ceil($root.getBoundingClientRect().height) + 24;
+    if (h !== lastH) {
+      lastH = h;
+      window.apx?.resize?.(h);
+    }
+  }
+  try {
+    const ro = new ResizeObserver(() => requestWindowResize());
+    ro.observe($root);
+  } catch {
+    // Older runtimes without ResizeObserver: fall back to a 250ms poll.
+    setInterval(requestWindowResize, 250);
   }
 
   // ── Helpers ──────────────────────────────────────────────────────────────

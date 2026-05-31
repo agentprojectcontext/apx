@@ -58,10 +58,19 @@ function readToken() {
 // (~480 × up to 600) when there is a conversation. The window starts small
 // and the renderer asks main to resize via the "resize-window" IPC.
 
-const WIN_W   = 480;
-const WIN_H_MIN = 80;     // just the capsule + margins (idle, no conv)
-const WIN_H_MAX = 760;    // capsule + full conv + session bar
+const WIN_W   = 540;      // wider capsule + conv card (was 480 — felt cramped)
+const WIN_H_MIN = 88;     // just the capsule + top/bottom padding (idle, no conv)
 const WIN_MARGIN = 14;    // edge padding (matches .float-root inset in CSS)
+
+// Cap window height at ~80% of the primary work area so the buttons never
+// clip and it always fits in the upper portion of any laptop screen.
+// Computed lazily — screen.getPrimaryDisplay() is only valid after app.ready.
+function getMaxWindowHeight() {
+  try {
+    const wa = screen.getPrimaryDisplay().workArea;
+    return Math.max(600, Math.min(1200, Math.round(wa.height * 0.8)));
+  } catch { return 820; }
+}
 
 function getPosition() {
   try {
@@ -79,6 +88,23 @@ function getTheme() {
     if (t === "light" || t === "dark") return t;
   } catch {}
   return "light";
+}
+
+// Resolve the agent's display name from ~/.apx/identity.json + config.
+// identity.agent_name is the display name ("Roby"); super_agent.name is an
+// internal slug ("apx"). Show the human one first. Falls back to
+// "Superagente" only if nothing is configured at all.
+const IDENTITY_PATH = path.join(os.homedir(), ".apx", "identity.json");
+function getAgentName() {
+  try {
+    const id = JSON.parse(fs.readFileSync(IDENTITY_PATH, "utf8"));
+    if (id?.agent_name) return String(id.agent_name);
+  } catch {}
+  try {
+    const cfg = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf8"));
+    if (cfg?.super_agent?.name) return String(cfg.super_agent.name);
+  } catch {}
+  return "Superagente";
 }
 
 function getWindowOrigin(height) {
@@ -203,7 +229,7 @@ function createWindow() {
     minWidth: WIN_W,
     minHeight: WIN_H_MIN,
     maxWidth: WIN_W,
-    maxHeight: WIN_H_MAX,
+    maxHeight: getMaxWindowHeight(),
     frame: false,
     transparent: true,
     alwaysOnTop: true,
@@ -363,12 +389,13 @@ ipcMain.handle("close-overlay", async () => { hideOverlay(); });
 ipcMain.handle("get-shortcut", () => getShortcut());
 ipcMain.handle("get-theme",    () => getTheme());
 ipcMain.handle("get-position", () => getPosition());
+ipcMain.handle("get-agent-name", () => getAgentName());
 
 // Renderer asks main to grow/shrink the window to fit its content.
-// Clamped to [WIN_H_MIN, WIN_H_MAX]; same anchor (top edge stays put).
+// Clamped to [WIN_H_MIN, getMaxWindowHeight()]; same anchor (top edge stays put).
 ipcMain.on("resize-window", (_e, { height }) => {
   if (!mainWindow) return;
-  const h = Math.max(WIN_H_MIN, Math.min(WIN_H_MAX, Math.ceil(height) || WIN_H_MIN));
+  const h = Math.max(WIN_H_MIN, Math.min(getMaxWindowHeight(), Math.ceil(height) || WIN_H_MIN));
   const [w, currentH] = mainWindow.getSize();
   if (h === currentH) return;
   mainWindow.setSize(w, h, /* animate */ false);
@@ -565,10 +592,26 @@ async function sendMessageToDaemon(text, previousMessages) {
 
 // Call POST /tts/say { text } → { ok, audio_path, duration_s, provider }.
 // Returns { ok:false, error } if TTS is not configured or the request fails.
+// POST /tts/say once with the daemon's configured provider (chain). If that
+// errors out (e.g. the user's gemini key isn't TTS-enabled and the daemon's
+// chain-fallback bug returns the first error instead of trying the next
+// engine), retry once with `provider: "mock"` so the renderer at least gets
+// a duration + scrubber instead of hanging. The user can plug a real TTS
+// engine in via the Voices web admin to get audible speech.
 function daemonTtsSay(text) {
+  return _ttsRequest(text, /* explicitProvider */ null).then((r) => {
+    if (r.ok) return r;
+    console.warn(`desktop: tts chain failed (${r.error}) — retrying with mock`);
+    return _ttsRequest(text, /* explicitProvider */ "mock");
+  });
+}
+
+function _ttsRequest(text, explicitProvider) {
   const token = readToken();
   return new Promise((resolve) => {
-    const body = JSON.stringify({ text });
+    const payload = { text };
+    if (explicitProvider) payload.provider = explicitProvider;
+    const body = JSON.stringify(payload);
     const options = {
       hostname: DAEMON_HOST,
       port: DAEMON_PORT,
@@ -595,7 +638,7 @@ function daemonTtsSay(text) {
       });
     });
     req.on("error", (e) => resolve({ ok: false, error: e.message }));
-    req.setTimeout(60_000, () => { req.destroy(); resolve({ ok: false, error: "tts timeout" }); });
+    req.setTimeout(30_000, () => { req.destroy(); resolve({ ok: false, error: "tts timeout" }); });
     req.write(body);
     req.end();
   });

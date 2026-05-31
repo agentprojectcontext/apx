@@ -15,11 +15,12 @@
   --brand:      oklch(0.72 0.20 142);
   --brand-soft: color-mix(in oklch, var(--brand) 16%, transparent);
 
-  /* glass surface (light frosted by default) */
-  --glass-bg: rgba(255,255,255,0.58);
-  --glass-bg-strong: rgba(255,255,255,0.74);
-  --glass-border: rgba(255,255,255,0.7);
-  --glass-hairline: rgba(20,24,40,0.08);
+  /* glass surface — light frosted but readable over any wallpaper.
+     The previous 0.58/0.74 was too see-through on busy desktops. */
+  --glass-bg:        rgba(255,255,255,0.86);
+  --glass-bg-strong: rgba(255,255,255,0.94);
+  --glass-border:    rgba(255,255,255,0.85);
+  --glass-hairline:  rgba(20,24,40,0.10);
   --ink:    oklch(0.27 0.02 264);
   --ink-2:  oklch(0.46 0.02 264);
   --ink-3:  oklch(0.62 0.015 264);
@@ -36,10 +37,10 @@
 }
 
 [data-theme="dark"] {
-  --glass-bg: rgba(22,24,33,0.56);
-  --glass-bg-strong: rgba(28,30,42,0.74);
-  --glass-border: rgba(255,255,255,0.12);
-  --glass-hairline: rgba(255,255,255,0.09);
+  --glass-bg:        rgba(22,24,33,0.82);
+  --glass-bg-strong: rgba(28,30,42,0.92);
+  --glass-border:    rgba(255,255,255,0.16);
+  --glass-hairline:  rgba(255,255,255,0.10);
   --user-bg:  rgba(255,255,255,0.07);
   --user-ink: oklch(0.92 0.01 264);
   --user-border: rgba(255,255,255,0.1);
@@ -205,7 +206,11 @@ button { font-family: inherit; }
   box-shadow: var(--shadow);
   overflow: hidden;
   display: flex; flex-direction: column;
-  max-height: min(60vh, 560px);
+  /* Card height is driven by content up to roughly 3/4 of the window.
+     The host window auto-resizes (see renderer's ResizeObserver), so when
+     the chat gets long the window grows until this cap; beyond it the
+     conv-scroll inside takes over. */
+  max-height: calc(100vh - 160px);
   animation: convIn .4s cubic-bezier(.2,.9,.3,1) both;
 }
 @keyframes convIn { from { transform: translateY(-10px) scale(.98); opacity: 0; } to { transform: none; opacity: 1; } }

@@ -38,9 +38,10 @@ contextBridge.exposeInMainWorld("apx", {
   platform: process.platform,
 
   // Config probes for first paint (theme, position, shortcut)
-  getShortcut: () => ipcRenderer.invoke("get-shortcut"),
-  getTheme:    () => ipcRenderer.invoke("get-theme"),
-  getPosition: () => ipcRenderer.invoke("get-position"),
+  getShortcut:  () => ipcRenderer.invoke("get-shortcut"),
+  getTheme:     () => ipcRenderer.invoke("get-theme"),
+  getPosition:  () => ipcRenderer.invoke("get-position"),
+  getAgentName: () => ipcRenderer.invoke("get-agent-name"),
 
   // Renderer asks main to resize the BrowserWindow to the rendered height
   resize: (height) => ipcRenderer.send("resize-window", { height }),
