@@ -458,6 +458,8 @@
     streamingAgentEntry.el.remove();
     streamingAgentEntry = null;
     appendTurn(m, true);
+    // Force resize so the window grows to fit the agent reply right away.
+    requestWindowResize();
   }
 
   function addToolPill(name) {
@@ -778,6 +780,11 @@
     mode = "thinking";
     render();
     ensureStreamingAgentBubble();
+    // Force an IMMEDIATE resize hint to main.js — the ResizeObserver fires
+    // asynchronously and the host window can stay at WIN_H_MIN for a beat
+    // after the conv card mounts, which leaves the card collapsed off the
+    // bottom of the viewport. Sending the hint now closes that race.
+    requestWindowResize();
     sendToDaemon(clean);
   }
 

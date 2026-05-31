@@ -206,11 +206,16 @@ button { font-family: inherit; }
   box-shadow: var(--shadow);
   overflow: hidden;
   display: flex; flex-direction: column;
-  /* Card height is driven by content up to roughly 3/4 of the window.
-     The host window auto-resizes (see renderer's ResizeObserver), so when
-     the chat gets long the window grows until this cap; beyond it the
-     conv-scroll inside takes over. */
-  max-height: calc(100vh - 160px);
+  /* Card grows with content up to this hard cap; conv-scroll handles
+     overflow beyond it. ABSOLUTE — using `calc(100vh - X)` was a bug:
+     during the brief moment after first render and before main.js's
+     resize-window IPC, the host window is still at WIN_H_MIN (88px),
+     so 100vh-160 evaluates to a negative number and the card collapses
+     to 0. The host window then never grows because $root has no content
+     to measure. A fixed cap removes that boot-time circular dependency.
+     min-height guarantees the card is visible the instant it mounts. */
+  min-height: 120px;
+  max-height: 580px;
   animation: convIn .4s cubic-bezier(.2,.9,.3,1) both;
 }
 @keyframes convIn { from { transform: translateY(-10px) scale(.98); opacity: 0; } to { transform: none; opacity: 1; } }
