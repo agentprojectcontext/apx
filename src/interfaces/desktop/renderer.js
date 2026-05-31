@@ -315,6 +315,7 @@
 
   function appendTurn(m, isLast) {
     if (!$convScroll) return;
+    if (isLast) clearLastClass();
     const t = document.createElement("div");
     t.className = "turn" + (isLast ? " last" : "");
     t.dataset.id = m.id;
@@ -357,14 +358,20 @@
         btn.innerHTML = `${ICON.check()} Copiado`;
         setTimeout(() => { btn.classList.remove("done"); btn.innerHTML = `${ICON.copy()} Copiar`; }, 1400);
       });
-      // regen: drop this agent message, re-render, and start a fresh
-      // streaming turn for the same user prompt. Without startAgentTurn()
-      // here the daemon's `done` arrives with no streamingAgentEntry to
-      // attach it to, so the UI just silently swallows the reply.
+      // regen: only the LAST agent turn can be regenerated. Past turns
+      // can't because we'd have to re-issue the user prompt that came right
+      // before THEM, then re-thread the entire suffix of the conversation,
+      // and that gets semantically confusing fast. CSS hides .btn-regen on
+      // older turns; this guard catches anyone who routes around the CSS.
       t.querySelector(".btn-regen")?.addEventListener("click", () => {
+        const lastMsg = messages[messages.length - 1];
+        if (!lastMsg || lastMsg.id !== m.id) {
+          console.warn("desktop renderer: regen only works on the last turn");
+          return;
+        }
         const lastUser = [...messages].reverse().find((x) => x.role === "user");
         if (!lastUser) return;
-        // Also drop the matching assistant entry from `history` so the daemon
+        // Drop the matching assistant entry from `history` so the daemon
         // gets the same conversation it had right before producing `m`.
         if (history.length && history[history.length - 1].role === "assistant") {
           history.pop();
@@ -377,6 +384,14 @@
     }
     $convScroll.appendChild(t);
     scrollConvToBottom();
+  }
+
+  // Strip the `last` modifier from every turn currently in the scroll. Called
+  // right before we mount a new "last" turn so the previous one stops being
+  // styled as the freshest reply (and its Regenerate button hides).
+  function clearLastClass() {
+    if (!$convScroll) return;
+    $convScroll.querySelectorAll(".turn.last").forEach((el) => el.classList.remove("last"));
   }
 
   function rebuildConvFromState() {
@@ -416,6 +431,7 @@
   function ensureStreamingAgentBubble() {
     if (!$convScroll) return;
     if (streamingAgentEntry?.el && document.body.contains(streamingAgentEntry.el)) return;
+    clearLastClass();
     const id = nextId++;
     const t = document.createElement("div");
     t.className = "turn last";

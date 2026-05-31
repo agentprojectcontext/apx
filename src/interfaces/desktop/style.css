@@ -334,6 +334,13 @@ button { font-family: inherit; }
   opacity: 0; transition: opacity .2s ease;
 }
 .turn:hover .turn-actions, .turn.last .turn-actions { opacity: 1; }
+
+/* Regenerate is only meaningful on the LAST agent turn — regenerating a
+   past one would replay the most-recent user prompt (not the one that
+   produced this reply) and silently break the conversation flow. Copy
+   stays available on every turn so users can grab old replies. */
+.turn .btn-regen { display: none; }
+.turn.last .btn-regen { display: inline-flex; }
 .chip {
   display: inline-flex; align-items: center; gap: 5px; cursor: pointer;
   padding: 4px 8px; border-radius: 9px; border: 1px solid var(--glass-hairline);
