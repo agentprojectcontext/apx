@@ -37,6 +37,18 @@ export function isGitRepo(cwd) {
   return (out || "").trim() === "true";
 }
 
+// Best-effort `git init` so the Code "changes" diff has something to compare
+// against. Non-destructive: it only creates an empty .git (no commit, no index
+// changes). Returns true if the directory is a git repo afterwards. Callers
+// must guard against initializing dirs that shouldn't be repos (e.g. the apx
+// home / default project).
+export function initGitRepo(cwd) {
+  if (!cwd) return false;
+  if (isGitRepo(cwd)) return true;
+  gitSafe(cwd, ["init"]);
+  return isGitRepo(cwd);
+}
+
 function headSha(cwd) {
   const out = gitSafe(cwd, ["rev-parse", "HEAD"]);
   return out ? out.trim() : null;

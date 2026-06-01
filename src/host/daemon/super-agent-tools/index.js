@@ -126,7 +126,15 @@ export function schemasForChannel(channel, { full = false } = {}) {
   //   routine — scheduled/autonomous · api — generic HTTP / `apx exec`
   //   web     — the big web chat (long-form workspace)
   //   code    — the web Code module (needs read/write/edit/run_shell/grep/glob)
-  if (channel === "routine" || channel === "api" || channel === "web" || channel === "code")
+  //   terminal — the `apx code`/`apx sys` TUI: same coding surface as web Code,
+  //              so it needs the full read/write/edit/run_shell registry too.
+  if (
+    channel === "routine" ||
+    channel === "api" ||
+    channel === "web" ||
+    channel === "code" ||
+    channel === "terminal"
+  )
     return TOOL_SCHEMAS;
   // Lightweight surfaces stay on the small subset to fit cheap cloud TPM limits
   // and keep replies snappy: telegram, web_sidebar, deck, desktop.

@@ -62,7 +62,11 @@ export function register(app, { projects, registries, plugins, project, config }
   app.post("/projects/:pid/super-agent/chat/stream", async (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    const { prompt, previousMessages, model } = req.body || {};
+    // Optional coding-surface knobs: the terminal Code TUI (apx code, Build
+    // mode) sends these so it runs to completion exactly like the web Code
+    // module. Plain chat callers omit them and keep the lightweight defaults.
+    const { prompt, previousMessages, model, maxIters, maxTokens, completionContract } =
+      req.body || {};
     if (!prompt) return res.status(400).json({ error: "prompt required" });
     const ctx = resolveSuperAgentContext(req, p);
 
@@ -87,6 +91,9 @@ export function register(app, { projects, registries, plugins, project, config }
         contextNote: ctx.contextNote,
         previousMessages: previousMessages || [],
         overrideModel: model,
+        ...(Number.isFinite(Number(maxIters)) ? { maxIters: Number(maxIters) } : {}),
+        ...(Number.isFinite(Number(maxTokens)) ? { maxTokens: Number(maxTokens) } : {}),
+        ...(completionContract ? { completionContract: true } : {}),
         onEvent: wrapOnEventForLog(send, {
           trace_id: req.apxTraceId,
           channel: ctx.channel,

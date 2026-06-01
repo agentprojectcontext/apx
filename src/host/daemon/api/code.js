@@ -22,7 +22,7 @@ import {
   removeCodeSession,
   appendTurn,
 } from "../../../core/code-sessions-store.js";
-import { captureBaseline, diffAgainstBaseline } from "../../../core/git-baseline.js";
+import { captureBaseline, diffAgainstBaseline, initGitRepo } from "../../../core/git-baseline.js";
 import { loggerFor } from "../../../core/logging.js";
 
 const log = loggerFor("code");
@@ -168,7 +168,18 @@ export function register(app, { projects, project, config, registries, plugins }
     const p = findProject(req, res);
     if (!p) return;
     const { title, model, mode } = req.body || {};
-    const git = captureBaseline(p.path);
+    let git = captureBaseline(p.path);
+    // No baseline because the project isn't a git repo yet. For real projects
+    // (not the default apx home, id 0) init one so the "changes" diff works —
+    // a coding surface is expected to be version-controlled. Best-effort.
+    if (!git && String(p.id) !== "0") {
+      if (initGitRepo(p.path)) {
+        git = captureBaseline(p.path);
+        log.info(`code: initialized git repo for diff tracking at ${p.path}`, {
+          pid: p.id,
+        });
+      }
+    }
     const session = createCodeSession(p.storagePath, {
       projectId: p.id,
       title,
@@ -272,19 +283,30 @@ export function register(app, { projects, project, config, registries, plugins }
         previousMessages,
         overrideModel: session.model || undefined,
         allowedTools: mode === "plan" ? PLAN_TOOLS : "*",
-        // Coding tasks are multi-step: give the loop plenty of room to run to
-        // completion (read → edit → run → verify …) and a real output budget
-        // so the model can write substantial code / explanations per turn,
-        // instead of stopping after a step or two.
-        maxIters: 50,
+        // Coding tasks are multi-step: give the loop a high safety ceiling so it
+        // can chain 20-30+ tools (read → edit → run → verify …) and a real
+        // output budget for substantial code / explanations per turn. The
+        // completion contract (build mode) is what actually keeps it going until
+        // done — maxIters is just the runaway backstop.
+        maxIters: 100,
         maxTokens: 8192,
+        // Build mode = the model must keep calling tools until it calls `finish`.
+        // Plan mode is read-only investigation that ends with a written plan, so
+        // it keeps the normal "text ends the turn" behavior.
+        completionContract: mode === "build",
         onEvent,
       });
       projects.rebuild(p.id);
 
       const turn = acc.build();
-      // Fallback: if the loop produced no streamed text part, store the final.
-      if (saResult.text && !turn.parts.some((p2) => p2.kind === "text")) {
+      // Persist the final text unless it's already the last text part we
+      // streamed. Previously this only appended when there was NO text part at
+      // all, so a trailing summary that came AFTER a tool call (the model's
+      // closing words) was silently dropped from the stored transcript.
+      if (
+        saResult.text &&
+        !turn.parts.some((p2) => p2.kind === "text" && p2.text === saResult.text)
+      ) {
         turn.parts.push({ kind: "text", text: saResult.text });
       }
       appendTurn(p.storagePath, session.id, {

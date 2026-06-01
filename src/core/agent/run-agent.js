@@ -49,6 +49,34 @@ function previewTraceResult(result) {
   return JSON.stringify(result).slice(0, 180);
 }
 
+// Loop-control tool injected when `completionContract` is on (coding surfaces).
+// With toolChoice:"required" the model can no longer end a turn by emitting
+// prose ("now I'll edit the file." → stop). It must EITHER call a real tool to
+// take the next step, OR call `finish` to declare the task complete. This makes
+// "keep going until done" enforceable by protocol structure — no language
+// heuristics, so it works regardless of the reply language.
+export const FINISH_TOOL_SCHEMA = {
+  type: "function",
+  function: {
+    name: "finish",
+    description:
+      "Call this ONLY when the user's request is fully complete and no step " +
+      "remains. Put your final answer / summary of what you did in `summary` " +
+      "(in the user's language). If anything is still pending, do NOT call " +
+      "finish — call the next tool and keep working instead.",
+    parameters: {
+      type: "object",
+      properties: {
+        summary: {
+          type: "string",
+          description: "Final answer or concise summary of the work completed.",
+        },
+      },
+      required: ["summary"],
+    },
+  },
+};
+
 /**
  * Shared tool-calling agent loop used by super-agent and future surfaces.
  */
@@ -75,6 +103,12 @@ export async function runAgent({
   // surfaces). The Code module raises this so a multi-step coding task can run
   // to completion (read → edit → run → verify …) instead of stopping early.
   maxIters = MAX_TOOL_ITERS,
+  // Structural "keep going until done" contract for coding surfaces. When on:
+  //   1. a `finish` tool is injected into the schema set, and
+  //   2. toolChoice is forced to "required" on EVERY iteration,
+  // so the model can only advance (call a tool) or stop (call finish) — it can
+  // never end the turn by narrating the next step. Language-agnostic by design.
+  completionContract = false,
 }) {
   const routing = await resolveActiveModel(globalConfig, { overrideModel });
   // Mutable: lazy-retry can rotate to a different model mid-loop on 429/413/5xx.
@@ -107,7 +141,7 @@ export async function runAgent({
   // output would duplicate post_commands. We filter the schemas the engine
   // sees AND keep a deny-set so a model that hallucinates a suppressed tool
   // call gets a clear error rather than firing.
-  const effectiveSchemas = Array.isArray(suppressTools) && suppressTools.length > 0
+  let effectiveSchemas = Array.isArray(suppressTools) && suppressTools.length > 0
     ? filterToolSchemas(toolSchemas, suppressTools)
     : toolSchemas;
   const suppressed = new Set(Array.isArray(suppressTools) ? suppressTools : []);
@@ -117,6 +151,13 @@ export async function runAgent({
       tools: [...suppressed],
       reason: "post_commands_overlap",
     });
+  }
+  // Completion contract: only meaningful when there are real tools to choose
+  // between. Inject `finish` so the model has a graceful way to end the turn
+  // under toolChoice:"required".
+  const useContract = completionContract && effectiveSchemas.length > 0;
+  if (useContract) {
+    effectiveSchemas = [...effectiveSchemas, FINISH_TOOL_SCHEMA];
   }
 
   const rawHandlers = makeToolHandlers({
@@ -204,7 +245,8 @@ export async function runAgent({
     // choose between text and tool when the prompt is conversational.
     const forceTool =
       effectiveSchemas.length > 0 &&
-      ((iter === 0 && looksLikeActionRequest(prompt)) ||
+      (useContract ||
+        (iter === 0 && looksLikeActionRequest(prompt)) ||
         (ackOnlyStreak > 0 && ackOnlyStreak <= MAX_CONSECUTIVE_ACKS));
     let result;
     try {
@@ -283,6 +325,7 @@ export async function runAgent({
       tool_calls: toolCalls,
     });
 
+    let finishSummary = null;
     for (const tc of toolCalls) {
       const fn = tc.function || tc;
       const name = fn.name;
@@ -291,6 +334,13 @@ export async function runAgent({
         try { args = JSON.parse(args); } catch { args = {}; }
       }
       args = args || {};
+
+      // Completion contract: `finish` declares the task done. Capture its
+      // summary as the final text and stop processing the rest of this turn.
+      if (name === "finish") {
+        finishSummary = typeof args.summary === "string" ? args.summary : "";
+        break;
+      }
 
       let toolResult;
       const traceId = `${iter + 1}:${trace.length + 1}`;
@@ -338,6 +388,16 @@ export async function runAgent({
         tool_name: name,
         content: JSON.stringify(toolResult),
       });
+    }
+
+    // Task declared complete via the contract — emit the summary as the final
+    // assistant text and exit the loop.
+    if (finishSummary !== null) {
+      if (finishSummary) {
+        lastText = finishSummary;
+        await emitProgress(onEvent, { type: "assistant_text", text: finishSummary, iteration: iter + 1 });
+      }
+      break;
     }
 
     const allAckOnly = toolCalls.every((tc) => {

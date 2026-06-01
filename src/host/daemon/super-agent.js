@@ -43,6 +43,9 @@ export async function runSuperAgent({
   // Max tool-loop iterations; forwarded to runAgent. The Code module raises
   // this so coding tasks run to completion instead of stopping after a step.
   maxIters,
+  // Structural "keep going until done" contract (finish tool + forced tool
+  // choice). Coding surfaces (web Code build mode, terminal Build) turn this on.
+  completionContract = false,
   // Run tool-free: pure text generation, no tool registry. Used by the
   // summarize/ask endpoint so a transcript that *mentions* a tool (e.g. the
   // telegram plugin) can't make the model actually fire it.
@@ -121,5 +124,6 @@ export async function runSuperAgent({
     suppressTools,
     ...(maxTokens ? { maxTokens } : {}),
     ...(maxIters ? { maxIters } : {}),
+    ...(completionContract ? { completionContract: true } : {}),
   });
 }

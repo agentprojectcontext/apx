@@ -701,13 +701,25 @@ async function runPrompt(
       return;
     }
 
+    const currentMode = MODES[state.currentModeIdx];
     const body = {
-      prompt: `[Mode: ${MODES[state.currentModeIdx]}]\n${text}`,
+      prompt: `[Mode: ${currentMode}]\n${text}`,
       channel: "terminal",
       channelMeta: { cwd },
       previousMessages,
       model: state.activeModel,
     };
+    // Coding modes mirror the web Code module: high iteration ceiling + a real
+    // output budget so multi-step tasks run to completion. Build additionally
+    // turns on the completion contract (the model keeps calling tools until it
+    // calls `finish` — no early "I'll do X" stops). Zen stays lightweight chat.
+    if (currentMode === "Build" || currentMode === "Plan") {
+      body.maxIters = 100;
+      body.maxTokens = 8192;
+    }
+    if (currentMode === "Build") {
+      body.completionContract = true;
+    }
 
     let result;
     let interrupted = false;
