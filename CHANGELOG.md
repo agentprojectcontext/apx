@@ -1,3 +1,10 @@
+## [1.30.2](https://github.com/agentprojectcontext/apx/compare/v1.30.1...v1.30.2) (2026-06-04)
+
+
+### Bug Fixes
+
+* **telegram:** show "typing…" during voice transcription ([e72881c](https://github.com/agentprojectcontext/apx/commit/e72881c0d6e1c0883db9e2be85ed97e027430325))
+
 ## [1.30.1](https://github.com/agentprojectcontext/apx/compare/v1.30.0...v1.30.1) (2026-06-04)
 
 
