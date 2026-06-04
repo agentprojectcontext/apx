@@ -1,3 +1,10 @@
+# [1.23.0](https://github.com/agentprojectcontext/apx/compare/v1.22.2...v1.23.0) (2026-06-04)
+
+
+### Features
+
+* **landing:** serious single-file landing + GitHub Pages deploy ([c77930e](https://github.com/agentprojectcontext/apx/commit/c77930ec044e8f1771e1149d28ec2fbf258c8131))
+
 ## [1.22.2](https://github.com/agentprojectcontext/apx/compare/v1.22.1...v1.22.2) (2026-05-20)
 
 

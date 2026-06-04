@@ -1,6 +1,6 @@
 {
   "name": "@agentprojectcontext/apx",
-  "version": "1.22.2",
+  "version": "1.23.0",
   "description": "APX — unified CLI + daemon for the Agent Project Context (APC) standard.",
   "publishConfig": {
     "access": "public"
