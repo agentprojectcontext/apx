@@ -1,3 +1,10 @@
+## [1.27.2](https://github.com/agentprojectcontext/apx/compare/v1.27.1...v1.27.2) (2026-06-04)
+
+
+### Bug Fixes
+
+* **landing:** account for sticky nav when centering full-viewport sections ([7b456a7](https://github.com/agentprojectcontext/apx/commit/7b456a7e2acade64f227a5a3aff38de1ab4f23c9))
+
 ## [1.27.1](https://github.com/agentprojectcontext/apx/compare/v1.27.0...v1.27.1) (2026-06-04)
 
 
