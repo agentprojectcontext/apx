@@ -15,7 +15,12 @@
   "files": [
     "src/",
     "skills/",
-    "README.md"
+    "README.md",
+    "!**/node_modules/**",
+    "!**/e2e/**",
+    "!**/playwright-report/**",
+    "!**/test-results/**",
+    "!**/*.tsbuildinfo"
   ],
   "engines": {
     "node": ">=18"
