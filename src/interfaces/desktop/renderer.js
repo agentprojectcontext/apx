@@ -31,10 +31,32 @@
   let recorderFormat = "webm";
   let liveBusy = false;
 
+  // Mic is async to open (getUserMedia + recorder warm-up). Until it's actually
+  // capturing we show a "Cargando…" state instead of the wave, so the user
+  // doesn't talk into the dead gap before the recorder starts.
+  let micReady = false;
+
+  // Silence auto-send: once speech has been heard, SILENCE_MS of quiet
+  // auto-commits the recording. RMS (time-domain) is the voice/silence gate.
+  // Both are overridable from config.json (desktop.silence_ms / voice_rms).
+  let speechSeen = false;
+  let lastVoiceTs = 0;
+  let SILENCE_MS = 1200;        // quiet after speech → send on its own
+  let VOICE_RMS  = 0.025;       // RMS above this counts as voice (0 = silence)
+  const PAUSE_PREVIEW_MS = 600; // a short pause kicks ONE decode (reused on send)
+
+  // When a pause triggers a preview decode, that decode already covers all the
+  // speech (the tail is just trailing silence), so the auto-send reuses it
+  // instead of paying a second full decode. These coordinate that handoff.
+  let pausePreviewed = false;   // a preview decode fired for the current pause
+  let reuseLiveOnStop = false;  // commit should reuse pendingUserText, not re-decode
+  let livePromise = null;       // in-flight preview decode (awaited on reuse)
+
   // Web Audio analyser — drives the live capsule wave from real mic amplitude
   let audioCtx = null;
   let analyser = null;
   let freqData = null;
+  let timeData = null;
   let waveRaf = null;
 
   let streamingAgentEntry = null; // { id, role:'agent', el, ... } during thinking/speaking
@@ -119,10 +141,15 @@
     window.apx?.getPosition?.()  ?? "right",
     window.apx?.getShortcut?.()  ?? "CommandOrControl+G",
     window.apx?.getAgentName?.() ?? "Superagente",
-  ]).then(([th, pos, shortcut, name]) => {
+    window.apx?.getVoiceTiming?.() ?? null,
+  ]).then(([th, pos, shortcut, name, timing]) => {
     theme = th || "light";
     position = pos || "right";
     agentName = (name && String(name).trim()) || "Superagente";
+    if (timing) {
+      if (typeof timing.silence_ms === "number") SILENCE_MS = timing.silence_ms;
+      if (typeof timing.voice_rms === "number")  VOICE_RMS  = timing.voice_rms;
+    }
     document.documentElement.setAttribute("data-theme", theme);
     setPosition(position);
     initialCaption(shortcut);
@@ -217,6 +244,13 @@
         }
       }
       // else: input already there → leave it alone (preserves focus + caret)
+    } else if (mode === "listening" && !micReady) {
+      // Mic still opening (getUserMedia + recorder warm-up). Show a loading
+      // status so the user waits for capture instead of talking into the gap.
+      if ($capCenter.dataset.mode !== "loading") {
+        $capCenter.dataset.mode = "loading";
+        $capCenter.innerHTML = `<span class="status"><span class="dots"><i></i><i></i><i></i></span><span class="shimmer">Cargando…</span></span>`;
+      }
     } else if (mode === "listening") {
       // Only rebuild the wave if it's not already there (avoids restarting
       // CSS animations / Web Audio binding every render).
@@ -246,9 +280,10 @@
         }
       }
     }
-    // Clear data-mode when we're back to idle/listening so a future busy mode
-    // re-renders correctly.
-    if (mode === "idle" || mode === "listening") $capCenter.dataset.mode = "";
+    // Clear data-mode when we're back to idle, or once the live wave is up, so
+    // a future busy mode re-renders correctly. While the mic is still warming
+    // up we keep the "loading" marker so "Cargando…" isn't rebuilt every frame.
+    if (mode === "idle" || (mode === "listening" && micReady)) $capCenter.dataset.mode = "";
 
     // actions
     $capActions.innerHTML = "";
@@ -273,7 +308,8 @@
       }
     } else if (mode === "listening") {
       addBtn("ghost", "Cancelar", ICON.x(), () => cancel());
-      addBtn("", "Enviar", ICON.send(), () => stopListening(/* commit */ true));
+      // No "Enviar" until the recorder is live — nothing to send mid-warm-up.
+      if (micReady) addBtn("", "Enviar", ICON.send(), () => stopListening(/* commit */ true));
     } else if (mode === "transcribing") {
       addBtn("ghost", "Cancelar", ICON.x(), () => cancel());
     } else if (mode === "thinking") {
@@ -624,6 +660,16 @@
   function startListening() {
     if (mode !== "idle") return;
     isCancelled = false;
+    micReady = false;      // show "Cargando…" until the recorder is actually live
+    speechSeen = false;
+    lastVoiceTs = 0;
+    pausePreviewed = false;
+    reuseLiveOnStop = false;
+    livePromise = null;
+    pendingUserText = "";
+    // Warm the whisper model now (overlaps the mic warm-up), so the decode at
+    // the end of this utterance doesn't pay a cold start.
+    window.apx?.warmupStt?.();
     mode = "listening";
     render();
     startMic();
@@ -678,6 +724,7 @@
         analyser.maxDecibels = -15;                   // ceiling (loud speech)
         src.connect(analyser);
         freqData = new Uint8Array(analyser.frequencyBinCount);
+        timeData = new Uint8Array(analyser.fftSize);
         startWaveLoop();
       } catch (e) {
         console.warn("desktop renderer: AnalyserNode init failed", e);
@@ -691,14 +738,27 @@
       recordedChunks = [];
       mediaRecorder = new MediaRecorder(audioStream, { mimeType, audioBitsPerSecond: 32000 });
       mediaRecorder.ondataavailable = (e) => {
+        // Just buffer. We deliberately do NOT decode on every chunk anymore —
+        // re-decoding the growing clip every 2s serialized on the single
+        // whisper thread and the final decode queued behind it (the old ~10s
+        // stall). Transcription now happens once, on a pause / on stop.
         if (e.data && e.data.size > 0) recordedChunks.push(e.data);
-        runLivePartial();
       };
       mediaRecorder.onstop = async () => {
         if (isCancelled) { recordedChunks = []; if (mode !== "idle") { mode = "idle"; render(); } return; }
-        const raw = await transcribeBuffered();
-        const text = (raw || "").trim();
+        let text = "";
+        // Auto-send after a pause: the pause already kicked a full decode that
+        // covers all the speech (the only thing after it is trailing silence),
+        // so reuse it instead of decoding the same audio again. Await the
+        // in-flight preview if it hasn't settled yet.
+        if (reuseLiveOnStop) {
+          if (livePromise) { try { await livePromise; } catch {} }
+          text = (pendingUserText || "").trim();
+        }
+        // Manual send (Enviar / ⌘G release) or no preview yet → one fresh decode.
+        if (!text) text = (await transcribeBuffered()).trim();
         recordedChunks = [];
+        reuseLiveOnStop = false;
         // Guard with .trim() — whisper occasionally returns a single space or
         // newline for very short clips, which used to commit an empty bubble.
         if (!text || isCancelled) {
@@ -711,7 +771,16 @@
         pendingUserText = text;
         commitUserMessage(text, /* via */ "voice");
       };
-      mediaRecorder.start(2000);
+      // 1s timeslice: chunks land often enough that a pause-preview decode has
+      // audio to work with even for short utterances. We no longer decode per
+      // chunk (just buffer), so a smaller slice is essentially free.
+      mediaRecorder.start(1000);
+      // Recorder is now live → swap "Cargando…" for the reactive wave and let
+      // silence detection arm. lastVoiceTs starts now so a fully silent open
+      // won't auto-send (speechSeen gates that).
+      micReady = true;
+      lastVoiceTs = Date.now();
+      if (mode === "listening") render();
     } catch (e) {
       console.error("desktop renderer: mic error", e);
       mode = "idle";
@@ -723,11 +792,16 @@
     try { audioStream?.getTracks().forEach((t) => t.stop()); } catch {}
     mediaRecorder = null;
     audioStream = null;
+    micReady = false;
+    speechSeen = false;
+    lastVoiceTs = 0;
+    pausePreviewed = false;
     stopWaveLoop();
     try { audioCtx?.close(); } catch {}
     audioCtx = null;
     analyser = null;
     freqData = null;
+    timeData = null;
   }
 
   // ── Reactive wave: amplitude-driven bar heights (runs while mode === listening)
@@ -738,6 +812,43 @@
     const tick = () => {
       if (mode !== "listening" || !analyser) { waveRaf = null; return; }
       analyser.getByteFrequencyData(freqData);
+
+      // ── Silence auto-send ──────────────────────────────────────────────
+      // Time-domain RMS is a reliable voice/silence gate (unlike the freq
+      // bars, it's independent of the analyser's dB scaling). Once we've heard
+      // speech, SILENCE_MS of quiet commits the recording on its own.
+      if (micReady && timeData) {
+        analyser.getByteTimeDomainData(timeData);
+        let sumSq = 0;
+        for (let i = 0; i < timeData.length; i++) {
+          const v = (timeData[i] - 128) / 128;
+          sumSq += v * v;
+        }
+        const rms = Math.sqrt(sumSq / timeData.length);
+        const now = Date.now();
+        if (rms > VOICE_RMS) {
+          speechSeen = true;
+          lastVoiceTs = now;
+          pausePreviewed = false;            // new speech → allow a fresh preview
+        } else if (speechSeen && lastVoiceTs) {
+          const silentFor = now - lastVoiceTs;
+          // A short pause kicks ONE decode of everything said so far. It doubles
+          // as the final transcription, so the auto-send below is instant
+          // instead of paying a decode after stop.
+          if (!pausePreviewed && silentFor >= PAUSE_PREVIEW_MS && !liveBusy) {
+            pausePreviewed = true;
+            runLivePartial();
+          }
+          // Sustained silence → auto-send, reusing the pause decode.
+          if (silentFor >= SILENCE_MS) {
+            waveRaf = null;
+            reuseLiveOnStop = true;
+            stopListening(/* commit */ true);
+            return;
+          }
+        }
+      }
+
       const wave = $capCenter.querySelector(".cap-wave");
       if (wave) {
         const bars = wave.children;
@@ -781,17 +892,20 @@
     } catch {}
     return "";
   }
-  async function runLivePartial() {
+  // Decode what's been recorded so far (fired once per speech pause). The
+  // result is stashed in pendingUserText and reused by the auto-send on stop,
+  // so the same audio is never decoded twice. livePromise lets onstop await an
+  // in-flight decode before reading the text.
+  function runLivePartial() {
     if (liveBusy || mode !== "listening" || !recordedChunks.length) return;
     liveBusy = true;
-    try {
-      const text = await transcribeBuffered();
-      if (text && mode === "listening") {
-        pendingUserText = text;
-        // No visible live preview in the capsule wave mode; update is mostly
-        // useful for the conv pending-user partial during transcribing.
-      }
-    } finally { liveBusy = false; }
+    livePromise = (async () => {
+      try {
+        const text = await transcribeBuffered();
+        if (text && mode === "listening") pendingUserText = text;
+      } finally { liveBusy = false; }
+    })();
+    return livePromise;
   }
 
   // ── Send: text path + post-transcription commit path ─────────────────────
@@ -880,11 +994,19 @@
         // (or 6s timeout), which feels broken. Inject the text NOW so the
         // user sees the reply immediately.
         if (streamingAgentEntry) {
-          streamingAgentEntry.text = finalText;
-          if (!streamingAgentEntry.started && finalText) {
+          // Render the authoritative final text. On a tool turn the bubble may
+          // already show a streamed intro ("Déjame ver…"); the real answer
+          // arrives now in `done`. Replace the bubble whenever finalText differs
+          // from what's on screen — otherwise the post-tool answer never shows
+          // and the turn looks stuck after the tool pill.
+          const shown = streamingAgentEntry.text || "";
+          if (finalText && finalText !== shown) {
             streamingAgentEntry.started = true;
+            streamingAgentEntry.text = finalText;
             streamingAgentEntry.msgEl.innerHTML = formatWordsHtml(finalText);
             scrollConvToBottom();
+          } else {
+            streamingAgentEntry.text = finalText || shown;
           }
         }
         // Finalize and return to idle right away so the capsule frees up.
@@ -949,8 +1071,20 @@
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       e.preventDefault();
-      if (mode === "listening" || mode === "transcribing" || mode === "thinking" || mode === "speaking") cancel();
-      else closeWindow();
+      // Escape cancels whatever is in flight (recording / transcribing /
+      // thinking / speaking). If nothing is in flight, a half-typed draft is
+      // cleared first; only an empty idle capsule closes the window.
+      if (mode === "listening" || mode === "transcribing" || mode === "thinking" || mode === "speaking") {
+        cancel();
+        return;
+      }
+      const input = $capCenter.querySelector("input");
+      if (input && input.value.trim()) {
+        input.value = "";
+        render();
+      } else {
+        closeWindow();
+      }
     }
   });
 
@@ -974,6 +1108,13 @@
     // Older runtimes without ResizeObserver: fall back to a 250ms poll.
     setInterval(requestWindowResize, 250);
   }
+
+  // ── Keep STT warm ────────────────────────────────────────────────────────
+  // The whisper server idles out after ~10 min. While the desktop window is
+  // running we ping it every 4 min (and once now) so it stays loaded — the
+  // user's first utterance never pays the cold-load cost.
+  window.apx?.warmupStt?.();
+  setInterval(() => { window.apx?.warmupStt?.(); }, 4 * 60 * 1000);
 
   // ── Helpers ──────────────────────────────────────────────────────────────
   function nowHHMM() {

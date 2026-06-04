@@ -137,8 +137,19 @@ async function _handleMessage({ ws, text, previousMessages }, { projects, config
         }
       },
     });
-    const finalText = fullResponse || result.text || "";
-    log(`desktop: super-agent turn done in ${Date.now() - t0}ms text_len=${finalText.length}`);
+    // result.text holds the FINAL (no-tool) iteration's answer — the only place
+    // it appears, since that iteration emits no tokens/events. fullResponse holds
+    // the streamed / preamble text (e.g. an "I'll check…" intro emitted during a
+    // tool iteration — the only assistant text non-streaming models like gemini
+    // surface live). The old `fullResponse || result.text` returned the intro and
+    // DROPPED the real answer on any tool turn, so the chain stalled after the
+    // tool. Merge them (deduped) so a tool turn shows the intro AND the answer.
+    const finalAnswer = (result.text || "").trim();
+    let finalText = (fullResponse || "").trim();
+    if (finalAnswer && !finalText.includes(finalAnswer)) {
+      finalText = finalText ? `${finalText}\n\n${finalAnswer}` : finalAnswer;
+    }
+    log(`desktop: super-agent turn done in ${Date.now() - t0}ms text_len=${finalText.length} tools=${toolsExecuted.length}`);
 
     // Emit done with full text
     _send(ws, { type: "done", text: finalText });

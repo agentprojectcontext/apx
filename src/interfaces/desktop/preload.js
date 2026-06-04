@@ -18,6 +18,10 @@ contextBridge.exposeInMainWorld("apx", {
   // Check if the whisper model is loaded (false = still loading)
   checkWhisperReady: () => ipcRenderer.invoke("check-whisper-ready"),
 
+  // Keep STT warm (loads the model if idle + resets the idle timer). Called
+  // while the window is open / on mic-open so the first decode isn't cold.
+  warmupStt: () => ipcRenderer.invoke("warmup-stt").catch(() => ({ ok: false })),
+
   // Send final text to daemon
   sendMessage: (text, previousMessages) =>
     ipcRenderer.invoke("send-message", { text, previousMessages }),
@@ -42,6 +46,7 @@ contextBridge.exposeInMainWorld("apx", {
   getTheme:     () => ipcRenderer.invoke("get-theme"),
   getPosition:  () => ipcRenderer.invoke("get-position"),
   getAgentName: () => ipcRenderer.invoke("get-agent-name"),
+  getVoiceTiming: () => ipcRenderer.invoke("get-voice-timing"),
 
   // Renderer asks main to resize the BrowserWindow to the rendered height
   resize: (height) => ipcRenderer.send("resize-window", { height }),

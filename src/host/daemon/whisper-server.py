@@ -94,6 +94,17 @@ class _Handler(BaseHTTPRequestHandler):
                 "model": _model_name or _Handler.model_name,
                 "loaded": _model is not None,
             })
+        elif self.path == "/warmup":
+            # Eagerly load the model into RAM (no audio needed) and reset the
+            # idle timer, so the first real transcription isn't cold. Blocks
+            # until the model is loaded the first time; instant once warm.
+            _touch()
+            with _model_lock:
+                try:
+                    _load_model_if_needed(_Handler.model_name, _Handler.device, _Handler.compute_type)
+                    self._send_json(200, {"ok": True, "loaded": _model is not None, "model": _model_name})
+                except Exception as e:
+                    self._send_json(500, {"ok": False, "error": f"model load failed: {e}"})
         else:
             self._send_json(404, {"ok": False, "error": "not found"})
 

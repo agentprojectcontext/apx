@@ -482,6 +482,35 @@ export async function preloadWhisperServer(log = console.log) {
 }
 
 /**
+ * Keep the local whisper server warm. Ensures it's loaded and pings /health,
+ * which resets the server's idle watchdog so a live session (e.g. the desktop
+ * window held open) never pays the cold-load cost on the next utterance.
+ * Cheap and safe to call repeatedly. Never throws.
+ * Returns { ok, model?, loaded?, provider } for the caller to surface.
+ */
+export async function warmupWhisper() {
+  try {
+    const cfg = await getConfig();
+    if (cfg.provider === "openai") return { ok: true, provider: "openai", loaded: false };
+    await ensureWhisperServer(cfg.local);
+    // /warmup loads the model into RAM (lazy otherwise) AND touches _last_used,
+    // resetting the idle timer. First call may block ~15-30s on a cold model;
+    // instant once warm. Generous timeout so the cold load can finish.
+    let loaded = false;
+    try {
+      const r = await fetch(`http://127.0.0.1:${WHISPER_PORT}/warmup`, {
+        signal: AbortSignal.timeout(40_000),
+      });
+      const j = await r.json().catch(() => ({}));
+      loaded = !!j.loaded;
+    } catch {}
+    return { ok: true, provider: "local", model: _serverModel, loaded };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+}
+
+/**
  * Stop the whisper server we own (no-op if we adopted an external one).
  */
 export async function shutdownWhisperServer() {

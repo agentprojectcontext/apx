@@ -6,6 +6,18 @@
 //
 // Shared by overlay, telegram voice messages, and any external caller.
 export function register(app) {
+  // GET /transcribe/warmup — load the local whisper model (if needed) and reset
+  // its idle watchdog. Callers (e.g. the desktop window) ping this while open so
+  // the first real utterance doesn't pay the cold-load cost.
+  app.get("/transcribe/warmup", async (_req, res) => {
+    try {
+      const { warmupWhisper } = await import("../transcription.js");
+      res.json(await warmupWhisper());
+    } catch (e) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
   app.post("/transcribe/chunk", async (req, res) => {
     const chunks = [];
     req.on("data", (c) => chunks.push(c));
