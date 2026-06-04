@@ -1,3 +1,10 @@
+## [1.27.1](https://github.com/agentprojectcontext/apx/compare/v1.27.0...v1.27.1) (2026-06-04)
+
+
+### Bug Fixes
+
+* **release:** exclude node_modules + dev assets from published package ([9fffaff](https://github.com/agentprojectcontext/apx/commit/9fffaff8f77eea9c18d1baef46aa7ad339708e39))
+
 # [1.27.0](https://github.com/agentprojectcontext/apx/compare/v1.26.0...v1.27.0) (2026-06-04)
 
 
