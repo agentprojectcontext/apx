@@ -1,3 +1,10 @@
+# [1.30.0](https://github.com/agentprojectcontext/apx/compare/v1.29.0...v1.30.0) (2026-06-04)
+
+
+### Features
+
+* **desktop/voice:** mic-failure detection + tidy turn UI ([4b7e784](https://github.com/agentprojectcontext/apx/commit/4b7e784e6e97a6caebcc044b29e2ed88c9b58818))
+
 # [1.29.0](https://github.com/agentprojectcontext/apx/compare/v1.28.0...v1.29.0) (2026-06-04)
 
 
