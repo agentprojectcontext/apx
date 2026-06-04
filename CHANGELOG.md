@@ -1,7 +1,3 @@
-## Unreleased
-
-- **config:** remove legacy `telegram.bot_token` / `telegram.chat_id` from the root config; channels[] is the single source of truth. Existing configs with the legacy fields are migrated automatically into a `default` channel on load (one-line warning is logged).
-
 # [1.25.0](https://github.com/agentprojectcontext/apx/compare/v1.24.0...v1.25.0) (2026-06-04)
 
 
