@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { ProjectManager } from "../src/daemon/db.js";
-import { makeToolHandlers, TOOL_SCHEMAS } from "../src/daemon/super-agent-tools.js";
+import { ProjectManager } from "../src/host/daemon/db.js";
+import { makeToolHandlers, TOOL_SCHEMAS } from "../src/host/daemon/super-agent-tools/index.js";
 import { makeTempProject, cleanupTempProject } from "./_helpers.js";
 
 function setup() {
@@ -120,7 +120,7 @@ test("list_agents returns the agents from AGENTS.md", () => {
 });
 
 test("list_agents WITHOUT project + multiple projects → returns grouped list", async () => {
-  const { ProjectManager } = await import("../src/daemon/db.js");
+  const { ProjectManager } = await import("../src/host/daemon/db.js");
   const root1 = makeTempProject({ name: "P1", agents: [{ slug: "a1" }] });
   const root2 = makeTempProject({ name: "P2", agents: [{ slug: "b1" }, { slug: "b2" }] });
   const projects = new ProjectManager({ engines: {} });
@@ -144,7 +144,7 @@ test("list_agents WITHOUT project + multiple projects → returns grouped list",
 });
 
 test("list_mcps WITHOUT project + multiple projects → returns grouped list", async () => {
-  const { ProjectManager } = await import("../src/daemon/db.js");
+  const { ProjectManager } = await import("../src/host/daemon/db.js");
   const root1 = makeTempProject({
     name: "P1", agents: [{ slug: "a1" }],
     mcps: { fs1: { command: "true", enabled: true } },

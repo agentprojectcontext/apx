@@ -3,7 +3,13 @@ import path from "node:path";
 import os from "node:os";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { readAgents, readAgentsFromDir, VAULT_DIR } from "./parser.js";
+import {
+  VAULT_DIR,
+  BUNDLED_VAULT_DIR,
+  readVaultTombstones,
+  writeVaultTombstones,
+} from "./parser.js";
+import { readApcContextSkill } from "./apc-skill-sync.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PACKAGE_ROOT = path.resolve(__dirname, "..", "..");
@@ -15,10 +21,16 @@ export const SPEC_VERSION = "0.1.0";
 // ---------------------------------------------------------------------------
 // Bundled skills — single source of truth lives at <packageRoot>/skills/<slug>/SKILL.md
 // with proper frontmatter. The `apc-context` copy is refreshed on every
-// install/update from the canonical APC repo (see src/cli/postinstall.js).
+// install/update from the canonical APC repo (see src/interfaces/cli/postinstall.js).
 // ---------------------------------------------------------------------------
 
+// Bundled skills — apx lives in skills/apx/. apc-context is synced from
+// the canonical APC repo (../apc or GitHub) — never edited in APX.
 function readBundledSkill(slug) {
+  if (slug === "apc-context") {
+    const synced = readApcContextSkill();
+    return synced?.text || null;
+  }
   const file = path.join(BUNDLED_SKILLS_DIR, slug, "SKILL.md");
   if (!fs.existsSync(file)) return null;
   return fs.readFileSync(file, "utf8");
@@ -176,51 +188,141 @@ export function installIdeSkills(root, targetIds = null) {
   return results;
 }
 
-// Install bundled APX/APC skills to global ~/.../skills/ dirs.
-// Only apx and apc-context are installed everywhere — they teach IDE tools
-// (Claude Code, Cursor, Codex) about the APX CLI and APC project standard.
-// Runtime CLI skills (claude-code, codex-cli, etc.) are APX-internal; APX
-// loads them from src/daemon/runtime-skills/ at startup and does NOT push
-// them to other tools' global skill dirs.
-// Returns an array of result objects with { dir, skill, status }.
-export function installGlobalSkills() {
+// Discover every bundled skill under skills/<slug>/SKILL.md. Used by
+// installGlobalSkills() so a new skill added to the repo automatically lands
+// on the user's machine after `npm install -g .` (or `npm update -g apx`)
+// without anyone having to touch this file.
+//
+// Excluded: directory names starting with "." (e.g. .DS_Store), and any
+// runtime-only CLI skill that lives under src/core/runtime-skills/ — those
+// are loaded in-process at daemon startup and are NOT for IDE consumption.
+// Public: bundled skill slugs grouped by scope.
+//   public   → pushed to every global skill dir on install / sync (default).
+//   optional → not pushed by default; user opts in with --include-optional
+//              or `apx skills add <slug> --global` for one-off install.
+//   internal → APX-developer skills (mcp-builder, skill-builder, etc.); never
+//              pushed globally, only available to APX itself via the bundled
+//              copy. Avoids cluttering other IDEs with stuff their users won't
+//              run.
+export function listBundledSkillSlugs() {
+  return discoverBundledSkills().map((s) => s.slug);
+}
+
+export function listBundledSkills() {
+  return discoverBundledSkills().map(({ slug, scope }) => ({ slug, scope }));
+}
+
+// Tiny frontmatter peek — we only need the `scope:` field. Avoids pulling in
+// a full YAML parser for one optional line.
+function parseFrontmatterScope(md) {
+  if (!md.startsWith("---\n")) return "public";
+  const end = md.indexOf("\n---", 4);
+  if (end === -1) return "public";
+  const m = md.slice(4, end).match(/^scope:\s*(\w+)/m);
+  if (!m) return "public";
+  const s = m[1].toLowerCase();
+  if (s === "internal" || s === "optional" || s === "public") return s;
+  return "public";
+}
+
+function discoverBundledSkills() {
+  const root = BUNDLED_SKILLS_DIR;
+  if (!fs.existsSync(root)) return [];
+  const out = [];
+  for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    if (entry.name.startsWith(".")) continue;
+    const skillFile = path.join(root, entry.name, "SKILL.md");
+    if (!fs.existsSync(skillFile)) continue;
+    const md = fs.readFileSync(skillFile, "utf8");
+    out.push({ slug: entry.name, md, scope: parseFrontmatterScope(md) });
+  }
+  return out.sort((a, b) => a.slug.localeCompare(b.slug));
+}
+
+// Install bundled skills to every global ~/.../skills/ dir so Claude Code,
+// Cursor, Codex, and other IDEs see them.
+//
+// By default only `scope: public` skills land globally. Pass
+// includeOptional / includeInternal to push the other tiers (or call
+// `apx skills add <slug> --global` for a single one).
+//
+// Pruning: if a slug that was previously installed has since been demoted to
+// internal/optional (or marked as non-public for the current call), we remove
+// the stale global copy unless prune=false. Keeps IDE skill lists clean.
+//
+// Returns an array of { dir, skill, file, status, scope }.
+//   status ∈ {created, updated, unchanged, pruned, skipped}
+export function installGlobalSkills({
+  includeOptional = false,
+  includeInternal = false,
+  prune = true,
+} = {}) {
+  const all = discoverBundledSkills();
+  const wanted = all.filter((s) => {
+    if (s.scope === "internal") return includeInternal;
+    if (s.scope === "optional") return includeOptional;
+    return true; // public
+  });
+  const wantedSlugs = new Set(wanted.map((s) => s.slug));
+  const knownSlugs = new Set(all.map((s) => s.slug));
+
   const results = [];
-
-  const skills = [];
-  const apxRaw = readBundledSkill("apx");
-  const apcRaw = readBundledSkill("apc-context");
-  if (apxRaw) skills.push({ slug: "apx", md: apxRaw });
-  if (apcRaw) skills.push({ slug: "apc-context", md: apcRaw });
-  // Runtime skills (claude-code, codex-cli, opencode-cli, openrouter, …) are
-  // NOT included here — they are APX-only internals, not for IDE consumption.
-
   for (const base of GLOBAL_SKILL_DIRS) {
-    for (const { slug, md } of skills) {
+    // Push the wanted set.
+    for (const { slug, md, scope } of wanted) {
       const dest = path.join(base, slug, "SKILL.md");
       fs.mkdirSync(path.dirname(dest), { recursive: true });
       const existed = fs.existsSync(dest);
+      const previous = existed ? fs.readFileSync(dest, "utf8") : null;
+      if (previous === md) {
+        results.push({ dir: base, skill: slug, file: dest, status: "unchanged", scope });
+        continue;
+      }
       fs.writeFileSync(dest, md, "utf8");
-      results.push({ dir: base, skill: slug, file: dest, status: existed ? "updated" : "created" });
+      results.push({ dir: base, skill: slug, file: dest, status: existed ? "updated" : "created", scope });
+    }
+    // Prune anything WE shipped previously but should no longer be there
+    // (slug exists in the bundle but isn't `wanted` this run).
+    if (prune) {
+      for (const { slug, scope } of all) {
+        if (wantedSlugs.has(slug)) continue;
+        if (!knownSlugs.has(slug)) continue;
+        const dest = path.join(base, slug, "SKILL.md");
+        if (!fs.existsSync(dest)) continue;
+        fs.unlinkSync(dest);
+        // Best-effort: drop the now-empty <slug>/ dir too.
+        try { fs.rmdirSync(path.dirname(dest)); } catch {}
+        results.push({ dir: base, skill: slug, file: dest, status: "pruned", scope });
+      }
     }
   }
   return results;
 }
 
 
-const AGENTS_MD_TEMPLATE = `# Agents
+// Generic starter written ONCE at `apx init`. AGENTS.md is the project's
+// startup-rules file — read by Claude, Codex, APX and other AGENTS.md-aware
+// tools when they begin working here. It is NOT an agent registry (APX agents
+// live in `.apc/agents/<slug>.md`). After init it belongs to the user; APX
+// never rewrites it.
+const AGENTS_MD_TEMPLATE = `# AGENTS.md
 
-> This file is the contract for agents in this project.
-> It follows the APC spec (https://github.com/agentprojectcontext/agentprojectcontext).
+> Startup rules and conventions for AI agents working in this project.
+> Read by Claude, Codex, APX and other AGENTS.md-aware tools. Edit freely —
+> this file is yours; APX won't overwrite it.
 
-<!-- Add an agent like this:
+## Overview
 
-## sofia
-- **Role**: Support
-- **Model**: claude-haiku-4-5
-- **Skills**: customer-support
-- **Language**: es-AR
+<!-- What is this project? Tech stack, entry points, how to run it. -->
 
--->
+## Conventions
+
+<!-- Code style, structure, naming, testing — how to write code that fits. -->
+
+## Rules
+
+<!-- Hard constraints: what agents must always / never do here. -->
 `;
 
 const APC_GITIGNORE = `# APC runtime data — never in the repository
@@ -409,6 +511,44 @@ export function writeVaultAgentFile(slug, fields, body = "") {
   lines.push("---");
   if (body) lines.push("", body);
   fs.writeFileSync(dest, lines.join("\n") + "\n");
+  // Writing always clears a tombstone — the user is explicitly putting this
+  // slug back, even if it was previously removed.
+  const tombs = readVaultTombstones();
+  if (tombs.delete(slug)) writeVaultTombstones(tombs);
+}
+
+// Remove a vault agent. If the slug has a user-layer file we delete it; if
+// the slug ALSO exists in the bundle (or the user file didn't exist but the
+// bundled one does), we add a tombstone so it stays hidden. Returns one of:
+//   { removed: "user" }      — user file deleted, bundled NOT present
+//   { removed: "user+tomb" } — user file deleted AND bundled hidden by tombstone
+//   { removed: "tomb" }      — bundled-only slug, hidden by tombstone
+//   { removed: null }        — slug not found anywhere
+export function removeVaultAgent(slug) {
+  const userPath = path.join(VAULT_DIR, `${slug}.md`);
+  const bundledPath = path.join(BUNDLED_VAULT_DIR, `${slug}.md`);
+  const hadUser = fs.existsSync(userPath);
+  const hasBundled = fs.existsSync(bundledPath);
+  if (!hadUser && !hasBundled) return { removed: null };
+  if (hadUser) fs.rmSync(userPath);
+  if (hasBundled) {
+    const tombs = readVaultTombstones();
+    tombs.add(slug);
+    writeVaultTombstones(tombs);
+  }
+  return {
+    removed: hadUser && hasBundled ? "user+tomb" : hadUser ? "user" : "tomb",
+  };
+}
+
+// Un-tombstone a bundled slug so it becomes visible again. Returns whether a
+// tombstone existed before. No-op if there was nothing to restore.
+export function restoreVaultAgent(slug) {
+  const tombs = readVaultTombstones();
+  if (!tombs.has(slug)) return { restored: false };
+  tombs.delete(slug);
+  writeVaultTombstones(tombs);
+  return { restored: true };
 }
 
 // Add a slug to the project's agents.imported list in project.json
@@ -422,52 +562,8 @@ export function addImportedAgent(root, slug) {
   fs.writeFileSync(p, JSON.stringify(cfg, null, 2) + "\n");
 }
 
-// Regenerate AGENTS.md from .apc/agents/*.md for Codex/Antigravity compat.
-export function regenerateAgentsMd(root) {
-  const agents = readAgents(root);
-  const header = [
-    "# Agents",
-    "",
-    "> Auto-generated from .apc/agents/*.md — edit individual agent files, not this file.",
-    "> Read by Codex, Antigravity, and other tools that follow the AGENTS.md convention.",
-    "",
-  ].join("\n");
-
-  if (agents.length === 0) {
-    fs.writeFileSync(path.join(root, "AGENTS.md"), header);
-    return;
-  }
-
-  const blocks = agents.map((a) => {
-    const tag = a.source === "vault" ? "  <!-- vault -->" : "";
-    return renderAgentBlock(a.slug, a.fields) + tag;
-  });
-  fs.writeFileSync(path.join(root, "AGENTS.md"), header + blocks.join("\n\n") + "\n");
-}
-
-export function appendAgentToAgentsMd(root, slug, fields) {
-  const agentsMdPath = path.join(root, "AGENTS.md");
-  let text = fs.existsSync(agentsMdPath)
-    ? fs.readFileSync(agentsMdPath, "utf8")
-    : AGENTS_MD_TEMPLATE;
-
-  if (!/^#\s+Agents\s*$/im.test(text)) {
-    text = `# Agents\n\n${text}`;
-  }
-
-  const block = renderAgentBlock(slug, fields);
-
-  if (!text.endsWith("\n")) text += "\n";
-  text += `\n${block}\n`;
-  fs.writeFileSync(agentsMdPath, text);
-}
-
-export function renderAgentBlock(slug, fields) {
-  const lines = [`## ${slug}`];
-  for (const [k, v] of Object.entries(fields)) {
-    if (v === undefined || v === null || v === "") continue;
-    const value = Array.isArray(v) ? v.join(", ") : v;
-    lines.push(`- **${k}**: ${value}`);
-  }
-  return lines.join("\n");
-}
+// NOTE: AGENTS.md is created once at `apx init` (see AGENTS_MD_TEMPLATE) and is
+// thereafter owned by the user — APX never regenerates it. Agents live in
+// `.apc/agents/<slug>.md` (read by parser.js readAgents); they are NOT listed
+// in AGENTS.md. The project's AGENTS.md is loaded INTO the super-agent prompt
+// by buildSuperAgentSystem() in src/core/agent/prompt-builder.js.

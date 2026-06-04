@@ -6,7 +6,7 @@ import path from "node:path";
 import {
   encodeClaudeProjectPath,
   resolveClaudeSessionPath,
-} from "../src/daemon/runtimes/claude-code.js";
+} from "../src/host/daemon/runtimes/claude-code.js";
 
 test("encodeClaudeProjectPath matches Claude Code project directory naming", () => {
   assert.equal(

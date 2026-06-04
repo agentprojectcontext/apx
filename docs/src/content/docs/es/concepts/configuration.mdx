@@ -1,0 +1,206 @@
+---
+title: Configuración
+description: ~/.apx/config.json global, identity.json, .apc/config.json por proyecto, y los comandos para leerlos y escribirlos.
+sidebar:
+  order: 6
+---
+
+import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+import Screenshot from '../../../../components/Screenshot.astro';
+
+APX usa dos capas de configuración — global (local a la máquina, nunca se commitea) y por proyecto
+(se commitea al repo, sin secretos). Los comandos en ambas capas usan sintaxis de clave con puntos
+y son JSON-aware.
+
+## Config global — `~/.apx/config.json`
+
+El archivo de config global se crea en el primer uso. Contiene las credenciales de los engines,
+configuración del daemon, el modelo del super-agente, voz, memoria y opciones de Telegram.
+
+### Estructura de alto nivel
+
+```json
+{
+  "port": 7430,
+  "host": "127.0.0.1",
+  "log_level": "info",
+  "user": {
+    "language": "en",
+    "locale": "",
+    "timezone": ""
+  },
+  "super_agent": { ... },
+  "engines": { ... },
+  "memory": { ... },
+  "voice": { ... },
+  "telegram": { ... },
+  "projects": []
+}
+```
+
+### Engines
+
+API keys y base URLs para todos los providers de LLM soportados:
+
+```json
+{
+  "engines": {
+    "anthropic":  { "api_key": "sk-ant-..." },
+    "openai":     { "api_key": "sk-...", "base_url": "https://api.openai.com/v1" },
+    "groq":       { "api_key": "...",    "base_url": "https://api.groq.com/openai/v1" },
+    "openrouter": { "api_key": "...",    "base_url": "https://openrouter.ai/api/v1" },
+    "gemini":     { "api_key": "..." },
+    "ollama":     { "base_url": "http://localhost:11434" }
+  }
+}
+```
+
+### Super-agente
+
+```json
+{
+  "super_agent": {
+    "enabled": false,
+    "name": "apx",
+    "model": "anthropic:claude-sonnet-4-5",
+    "permission_mode": "automatico",
+    "allowed_tools": [],
+    "model_fallback": {
+      "enabled": true,
+      "models": [
+        "openrouter:meta-llama/llama-3.3-70b-instruct",
+        "groq:llama-3.3-70b-versatile"
+      ],
+      "health_timeout_ms": 800
+    }
+  }
+}
+```
+
+`permission_mode` controla qué tools puede ejecutar el super-agente sin pedir confirmación:
+
+| Modo | Comportamiento |
+|---|---|
+| `total` | Todos los tools permitidos, sin confirmación |
+| `automatico` | APX decide automáticamente según heurísticas de seguridad |
+| `permiso` | Sólo los tools listados en `allowed_tools`; todo lo demás pregunta |
+
+## El archivo de identidad — `~/.apx/identity.json`
+
+Este archivo define el nombre visible y la personalidad del asistente:
+
+```json
+{
+  "name": "APX",
+  "persona": ""
+}
+```
+
+Cambiá `name` para darle a tu asistente un nombre distinto en todas las superficies (Telegram,
+Desktop, Web). La clave técnica de config `super_agent.name` es separada — `identity.json` es
+lo que ven los usuarios finales.
+
+## Config por proyecto — `.apc/config.json`
+
+Los overrides a nivel proyecto se commitean junto con las definiciones de agentes. Tienen
+prioridad sobre la config global sólo para ese proyecto. **Nunca pongas secretos acá** —
+este archivo se commitea.
+
+```json
+{
+  "super_agent": {
+    "model": "groq:llama-3.3-70b-versatile",
+    "permission_mode": "total"
+  },
+  "telegram": {
+    "route_to_agent": "reviewer"
+  }
+}
+```
+
+## Comandos de config
+
+### Ver la config
+
+<Tabs syncKey="cfg">
+  <TabItem label="Global">
+    ```bash
+    apx config show                   # config efectiva (global mergeada con defaults del proyecto)
+    apx config show --only-overrides  # sólo lo que difiere de los defaults
+    ```
+  </TabItem>
+  <TabItem label="Por proyecto">
+    ```bash
+    apx project config show my-app
+    apx project config show my-app --key super_agent.model
+    apx project config show my-app --effective
+    ```
+  </TabItem>
+</Tabs>
+
+<Screenshot
+  surface="terminal"
+  caption="apx config show — configuración efectiva completa como JSON"
+  hint="Run: apx config show" />
+
+### Setear y borrar valores
+
+Los valores son JSON-aware — los booleanos, números y arrays se parsean correctamente:
+
+```bash
+apx config set super_agent.enabled true
+apx config set super_agent.model "anthropic:claude-sonnet-4-5"
+apx config set engines.openai.api_key "sk-..."
+apx config unset super_agent.model                  # eliminar clave, volver al default
+```
+
+Para la config del proyecto:
+
+```bash
+apx project config set my-app super_agent.model groq:llama-3.3-70b-versatile
+apx project config set my-app telegram.route_to_agent reviewer
+apx project config unset my-app super_agent.model
+apx project config edit my-app                      # abrir en $EDITOR
+```
+
+## Comandos de modelo
+
+`apx model` gestiona el router de fallback de modelo del super-agente — la lista ordenada de
+providers que APX intenta en secuencia cuando el modelo primario no está disponible:
+
+```bash
+apx model status                                    # probar todos los providers, mostrar el modelo activo
+apx model order ollama openrouter groq              # setear el orden de fallback
+apx model key groq sk-xxxx                          # guardar una API key
+apx model set openrouter meta-llama/llama-3.3-70b-instruct  # pinear un modelo para un provider
+apx model test                                      # ¿qué modelo elegiría el router ahora mismo?
+apx model enable                                    # habilitar el router de fallback
+apx model disable                                   # deshabilitar (sólo modelo primario, sin fallback)
+```
+
+<Screenshot
+  surface="terminal"
+  caption="apx model status — probes por provider, presencia de API key y modelo activo"
+  hint="Run: apx model status" />
+
+## Comandos de permisos
+
+`apx permission` es un shorthand para leer y escribir `super_agent.permission_mode`:
+
+```bash
+apx permission show                                 # imprimir el modo actual
+apx permission set total                            # permitir todos los tools
+apx permission set automatico                       # APX decide
+apx permission set permiso                          # sólo allowed_tools
+```
+
+<Aside type="tip">
+  `automatico` es el default recomendado para la mayoría de los proyectos. Usá `total` sólo en
+  entornos de confianza y no interactivos. Usá `permiso` cuando querés control explícito sobre
+  cada tool que puede usar el agente.
+</Aside>
+
+## Más información
+
+- [Proyectos](/apx/es/concepts/projects/) — config por proyecto en `.apc/config.json`.
+- [Instalación](/apx/es/start/installation/) — dónde se crea `~/.apx/` por primera vez.

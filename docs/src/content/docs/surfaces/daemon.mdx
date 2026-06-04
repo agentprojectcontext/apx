@@ -1,0 +1,190 @@
+---
+title: Daemon
+description: The APX local daemon — what it is, how it auto-starts, and how to manage it.
+sidebar:
+  order: 2
+---
+
+import { Aside, FileTree } from '@astrojs/starlight/components';
+import Screenshot from '../../../components/Screenshot.astro';
+
+The APX daemon (`apx-daemon`) is the **host layer** of the system — a long-running local HTTP server
+on `127.0.0.1:7430` that owns everything that needs to persist across commands: project state,
+plugin lifecycle, the scheduler, conversation files, and the super-agent endpoint.
+
+Every surface — `apx` CLI, TUI, the web admin panel, the MCP bridge, the Desktop window — talks to
+the daemon over HTTP. See [Architecture](/apx/start/architecture/) for the full picture.
+
+<Screenshot
+  surface="terminal"
+  caption="apx daemon status — port, pid, uptime, plugins, projects"
+  hint="Run: apx daemon status" />
+
+---
+
+## Auto-start
+
+You never need to start the daemon manually. The first `apx` call that needs it spawns it in the
+background and waits a moment for it to become healthy. Subsequent calls reuse the running process.
+
+The daemon is a **singleton**: a PID file at `~/.apx/daemon.pid` prevents double starts. If the file
+exists but the process is dead, the next start cleans it up automatically.
+
+<Aside type="tip">
+  Run `apx status` at any time to see whether the daemon is running, which plugins are active, and
+  how many projects are loaded.
+</Aside>
+
+---
+
+## Managing the daemon
+
+```bash
+apx daemon start      # boot the daemon explicitly
+apx daemon stop       # send SIGTERM and wait
+apx daemon reload     # re-read ~/.apx/config.json only — does NOT restart the process
+apx daemon status     # print health: port, pid, uptime, plugins, projects
+apx daemon logs       # legacy stdout log tail
+apx daemon logs --tail 200
+```
+
+`apx daemon reload` is the lightweight option: it picks up config changes (Telegram channels,
+model keys, permission mode) without dropping in-flight requests. Use `apx daemon restart` (a
+stop + start) when you change source code or prompts.
+
+---
+
+## Logs
+
+APX writes to two places:
+
+| Path | What | Command |
+|------|------|---------|
+| `~/.apx/daemon.log` | Legacy stdout redirect (daemon process output) | `apx daemon logs --tail N` |
+| `~/.apx/logs/apx.log` | Unified structured log — every module writes here | `apx log` |
+
+**`apx log` is the recommended way to follow the system:**
+
+```bash
+apx log              # print the last 200 lines
+apx log -f           # follow (tail -f style)
+apx log --tail 500
+apx log --errors     # only ERROR-level lines
+```
+
+<Screenshot
+  surface="terminal"
+  caption="apx log -f — live unified log stream from all modules"
+  hint="Run: apx log -f" />
+
+The unified log format is:
+
+```text
+[2026-05-30 14:22:01.123] [INFO ] [telegram] plugin telegram initialized
+[2026-05-30 14:22:01.456] [INFO ] [daemon  ] apx-daemon 1.22.2 listening on http://127.0.0.1:7430
+```
+
+Secrets (tokens, API keys) are automatically redacted before writing.
+
+---
+
+## Plugin lifecycle
+
+On boot the daemon discovers two built-in plugins:
+
+| Plugin | What it does |
+|--------|--------------|
+| `telegram` | Long-poll Telegram bot gateway, inbound routing, contact roster |
+| `desktop` | WebSocket bridge for the Electron floating window |
+
+The `PluginManager` calls each plugin's `init()` once, then `start()` after the HTTP server is
+listening. On `SIGTERM` / `SIGINT` it calls `stop()` on each plugin before closing the server.
+
+Plugins can also install their own Express routes (`routes(app)` hook). The daemon registers these
+immediately after the core API routes, so plugin paths are available at the same base URL.
+
+You can inspect plugin state at any time:
+
+```bash
+apx plugins list            # all loaded plugins + running/stopped
+apx plugins status telegram # detailed status for one plugin
+```
+
+---
+
+## Scheduler ticks
+
+The daemon runs a `RoutineScheduler` that ticks every 5 seconds and checks which routines are due.
+When a routine fires, the scheduler:
+
+1. Reads the routine definition from `.apc/routines.json`.
+2. Resolves the kind handler (`heartbeat`, `exec_agent`, `super_agent`, `telegram`, `shell`).
+3. Runs any configured `pre_commands`, evaluates the `skip_prompt_on` condition, runs the main
+   action, then runs `post_commands`.
+4. Writes the updated `last_run` / `next_run` timestamps back to the routine store.
+
+See [Routines](/apx/capabilities/routines/) for the full spec and `apx routine add` flags.
+
+---
+
+## Conversation files
+
+Every agent conversation thread is stored as a Markdown file on disk — no database required for
+the core data, only for the regenerable index. The layout:
+
+<FileTree>
+- ~/.apx/
+  - config.json
+  - identity.json
+  - daemon.pid
+  - daemon.token
+  - daemon.log
+  - logs/
+    - apx.log
+    - errors.jsonl
+  - messages/
+    - telegram/
+      - YYYY-MM-DD.jsonl
+  - projects/
+    - \<project-id\>/
+      - project.db  ← regenerable SQLite index
+      - messages/
+      - agents/
+        - \<slug\>/
+          - sessions/   ← one .md per runtime invocation
+          - conversations/  ← LLM conversation threads
+        - default/
+          - sessions/
+</FileTree>
+
+<Aside type="note">
+  Nothing under `~/.apx/` is committed to git. Project definitions and curated memory live in the
+  repo under `.apc/`. See [Architecture](/apx/start/architecture/) for the storage split rationale.
+</Aside>
+
+---
+
+## Configuration
+
+The daemon reads `~/.apx/config.json` on start. Key fields:
+
+```json
+{
+  "port": 7430,
+  "host": "127.0.0.1",
+  "log_level": "info",
+  "super_agent": {
+    "enabled": true,
+    "model": "claude-3-5-sonnet",
+    "permission_mode": "automatico"
+  },
+  "telegram": { "enabled": true, "channels": [] },
+  "engines": {
+    "anthropic": { "api_key": "sk-ant-..." }
+  }
+}
+```
+
+After editing config, run `apx daemon reload` (for config-only changes) or `apx daemon restart`
+(for code/prompt changes). The `apx config set` and `apx model key` commands write this file and
+call the reload endpoint automatically.

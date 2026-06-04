@@ -1,0 +1,18 @@
+# APC runtime data — never in the repository
+# Chat conversations and runtime sessions belong in ~/.apx/projects/<id>/
+agents/*/sessions/
+agents/*/conversations/
+sessions/
+conversations/
+messages/
+chats/
+cache/
+tmp/
+private/
+secrets/
+*.local.json
+*.secret.json
+*.env
+*.env.*
+project.db
+migrate.md

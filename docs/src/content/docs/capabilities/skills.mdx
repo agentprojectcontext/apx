@@ -1,0 +1,135 @@
+---
+title: Skills
+description: Reusable instruction prompts that APX injects into agents on demand — install them into your IDE once and every project benefits.
+sidebar:
+  order: 8
+---
+
+import { Aside, FileTree } from '@astrojs/starlight/components';
+import Screenshot from '../../../components/Screenshot.astro';
+
+A **skill** is a Markdown file that teaches an agent how to do something. The super-agent
+loads skills on demand — only the ones relevant to the current conversation. APX ships a set of
+bundled skills (`skills/<slug>/SKILL.md` in the package) and supports project-scoped and
+user-global custom skills.
+
+Skills and agents are independent — an agent can reference skills by slug in its frontmatter,
+and the super-agent discovers them automatically from registered directories.
+
+## Where skills live
+
+APX scans three locations, in priority order:
+
+1. `<repo>/.apc/skills/<slug>/SKILL.md` — project-scoped (visible only in this project)
+2. `~/.apx/skills/<slug>/SKILL.md` — user-global (all projects on this machine)
+3. `<APX package>/skills/<slug>/SKILL.md` — bundled (ships with APX, available everywhere)
+
+The first match by slug wins. A project skill silently overrides a user or bundled skill with
+the same slug.
+
+## Install into IDE tools
+
+Running `apx skills add` copies (or links) the bundled skills into your IDE's rule files, so
+tools like Claude Code, Cursor, and Copilot pick them up automatically.
+
+```bash
+# Interactive: choose global or project scope
+apx skills add
+
+# Install to all global skill dirs (recommended for first setup)
+apx skills add --global
+
+# Install only to specific targets
+apx skills add claude-code cursor
+
+# Install project-scoped skills for specific targets
+apx skills add windsurf copilot
+```
+
+### IDE targets
+
+| Target ID | IDE | File written |
+|---|---|---|
+| `claude-code` | Claude Code | `.claude/skills/apx/SKILL.md` |
+| `cursor` | Cursor | `.cursor/rules/apx.mdc` |
+| `windsurf` | Windsurf | `.windsurf/rules/apx.md` |
+| `copilot` | GitHub Copilot | `.github/copilot-instructions.md` (appended) |
+| `trae` | Trae | `.trae/rules/project_rules.md` (appended) |
+
+Global installs write to `~/.claude/skills/`, `~/.cursor/skills/`, `~/.codex/skills/`, and
+`~/.agents/skills/`. These directories are read by Claude Code, Cursor, Codex (OpenAI),
+Antigravity, and any `skills.sh`-compatible tool.
+
+Codex and Antigravity read `AGENTS.md` automatically — no separate install needed for those.
+
+<Aside type="note">
+  Claude Desktop has no project-file support. Use the `apx-mcp` bridge instead of skills for
+  Claude Desktop integrations.
+</Aside>
+
+## List and status
+
+```bash
+# List skills installed in this project's .apc/skills/
+apx skills list
+
+# Show which bundled skills are present in each global dir
+apx skills status
+```
+
+<Screenshot
+  surface="terminal"
+  caption="apx skills status showing installed and missing skills across global dirs"
+  hint="Run: apx skills status" />
+
+## Sync bundled skills
+
+After updating APX, re-sync the bundled skills to all global dirs:
+
+```bash
+apx skills sync
+
+# Verbose — shows every (skill × target) line
+apx skills sync --verbose
+```
+
+`sync` is idempotent and is also run automatically during `npm install -g apx`.
+
+## The skills-stay-in-sync rule
+
+AGENTS.md rule 6: when you change CLI commands, daemon routes, config keys, or any workflow
+documented in a skill, update the matching `skills/<slug>/SKILL.md` in the **same commit**.
+This keeps skills accurate as APX evolves.
+
+Verify flags with `apx <command> --help` before documenting them — do not invent subcommands.
+
+## Write your own skill
+
+A skill is a Markdown file with YAML frontmatter:
+
+```markdown
+---
+name: my-skill
+description: When to load this skill — write it as a trigger condition, not a summary.
+---
+
+<!-- Body: concrete, opinionated, anti-example-driven. -->
+```
+
+The `description` field is what the model reads when deciding whether to call `load_skill`.
+Write it as a trigger: _"Load BEFORE configuring X — covers Y and Z gotchas."_
+
+### Register a project skill
+
+```bash
+mkdir -p .apc/skills/my-skill
+# write .apc/skills/my-skill/SKILL.md
+apx skills list   # confirm it appears
+```
+
+No daemon restart needed — `listSkills()` re-scans on every call.
+
+## See also
+
+- [Capabilities — Agent Vault](/apx/capabilities/agent-vault/) — reusable agent templates
+- [Concepts — Agents](/apx/concepts/agents/) — attaching skills to agents via frontmatter

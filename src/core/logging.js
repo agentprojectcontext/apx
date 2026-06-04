@@ -5,7 +5,7 @@ import { APX_HOME } from "./config.js";
 export const LOG_DIR = path.join(APX_HOME, "logs");
 export const ERROR_TRACE_PATH = path.join(LOG_DIR, "errors.jsonl");
 // Unified daemon log. Every module (daemon, telegram, whisper, super-agent,
-// tools, overlay) writes here with one consistent format so the user can
+// tools, desktop) writes here with one consistent format so the user can
 // follow the whole system from a single tail.
 export const APX_LOG_PATH = path.join(LOG_DIR, "apx.log");
 

@@ -1,0 +1,175 @@
+---
+title: Agent Vault
+description: A global library of reusable agent templates — named personas and generic specialists — that you can import into any project.
+sidebar:
+  order: 7
+---
+
+import { Aside, FileTree } from '@astrojs/starlight/components';
+import Screenshot from '../../../components/Screenshot.astro';
+
+The **agent vault** is a machine-wide library of agent templates. It ships with a set of
+bundled defaults (named personas and generic specialists) and lets you add your own. Templates
+are project-agnostic — you import a template into a project when you want to use it there.
+
+For per-project agent CRUD (adding, editing, memory) see [Concepts — Agents](/apx/concepts/agents/).
+
+## Two layers
+
+| Layer | Location | Mutability |
+|---|---|---|
+| Bundled | `<APX package>/assets/agent-vault-defaults/<slug>.md` | Read-only on disk. Always visible unless tombstoned. |
+| User | `~/.apx/agents/<slug>.md` | Read-write. A user file with the same slug shadows the bundled one. |
+
+Editing a bundled template is **copy-on-write** — APX materializes a copy in your user layer
+the moment you save. Deleting a bundled template **tombstones** it so it stays hidden until you
+restore it. Deleting a user-only template removes the file.
+
+## Bundled templates
+
+### Named team
+
+A characterful crew already used in production by NichoApps:
+
+| Slug | Role | Strengths |
+|---|---|---|
+| `roby-orchestrator` | Pipeline orchestrator | Autonomous task routing, multi-agent coordination |
+| `arch-architect` | Software architect | System design, tradeoffs, ADRs |
+| `cody-developer` | Senior developer | Code, refactors, technical leadership |
+| `tessa-qa` | QA / tester | Reality checks, test plans, real-user empathy |
+| `max-marketing` | Growth hacker | Content, campaigns, SEO, copy |
+| `sid-security` | Security specialist | Audits, threat models, hardening |
+| `rocky-pm` | Senior PM | Tasklists, roadmaps, stakeholder comms |
+| `vera-ui` | UI/UX reviewer | Visual audits, usability |
+| `finn-billing` | Billing / commercial ops | Stripe, invoicing, plan logic |
+
+### Generic specialists
+
+Plain functional roles — useful when you want the capability without a persona:
+
+| Slug | Role |
+|---|---|
+| `development` | Engineering & code |
+| `marketing` | Marketing & growth |
+| `ops` | Ops, deployments & incidents |
+| `qa` | Quality assurance & testing |
+| `support` | Customer support & escalations |
+
+<Aside type="note">
+  All bundled templates default to `model: openrouter:meta-llama/llama-3.3-70b-instruct` and
+  `language: es`. Override these on import or by editing the vault file.
+</Aside>
+
+## List the vault
+
+```bash
+# All visible templates (bundled + user overrides)
+apx agent vault list
+```
+
+<Screenshot
+  surface="terminal"
+  caption="apx agent vault list showing bundled and user templates with their source tags"
+  hint="Run: apx agent vault list" />
+
+Each entry is tagged `[bundled]`, `[user]`, or `[override]` (a user file that shadows a bundled
+slug).
+
+## Import a template into a project
+
+```bash
+# Link the vault template (reads it from ~/.apx/agents/ at runtime)
+apx agent import cody-developer
+
+# Copy the file into .apc/agents/ for local edits
+apx agent import tessa-qa --copy
+
+# Overwrite an existing project-local definition
+apx agent import roby-orchestrator --copy --force
+```
+
+After importing, the agent appears in `apx agent list` and is available to the project.
+
+<Aside type="tip">
+  Use `--copy` when you want to customize the agent for this project only without affecting the
+  shared vault template.
+</Aside>
+
+## Create a new template
+
+```bash
+apx agent vault add reviewer \
+  --role "Code reviewer" \
+  --model claude-haiku-4-5 \
+  --language es \
+  --skills code-review,git \
+  --description "Reviews PRs and pushes back on hand-wavy diffs."
+```
+
+This writes `~/.apx/agents/reviewer.md`. The new template is immediately visible in
+`apx agent vault list` and importable into any project.
+
+## Hide and restore a bundled template
+
+```bash
+# Hide (tombstone) a bundled default you don't want to see
+apx agent vault rm tessa-qa
+
+# Bring it back
+apx agent vault restore tessa-qa
+
+# List everything including tombstoned templates
+apx agent vault list --all
+```
+
+Tombstoning only affects listings and imports — the bundled file on disk is never deleted.
+
+## Template file format
+
+Vault templates use the same format as project agents:
+
+```markdown
+---
+role: Code reviewer
+model: openrouter:meta-llama/llama-3.3-70b-instruct
+description: Reviews PRs and pushes back on hand-wavy diffs.
+language: es
+skills: code-review, git
+tools: read_file, list_agents
+is_master: false
+---
+
+<!-- The agent's system prompt extension goes here. Plain markdown. -->
+```
+
+### Frontmatter fields
+
+| Field | Effect |
+|---|---|
+| `role` | Shown in CLI and web UI. Added to the agent's system prompt as "Role: …". |
+| `model` | Default model for engine routing. |
+| `description` | Shown in vault listings and the web Agent Defaults grid. |
+| `language` | Adds "Default language: \<code\>" to the system prompt. |
+| `skills` | Skill slugs loaded for this agent's turns. |
+| `tools` | Tool hints; actual callable tools depend on the invocation surface. |
+| `is_master` | If `true`, marked as a master agent in the project (badge + ordering). |
+
+## Where files live
+
+```text
+<APX package>/assets/agent-vault-defaults/<slug>.md   ← bundled (committed to APX repo)
+~/.apx/agents/<slug>.md                                ← user vault (your overrides)
+<project>/.apc/agents/<slug>.md                        ← project-local copy (after --copy)
+~/.apx/agents/.removed.json                            ← tombstones list
+```
+
+<Aside type="note">
+  The slug `roby-orchestrator` is intentionally not just `roby`. The APX super-agent persona
+  is already named "Roby" via `~/.apx/identity.json`. Importing a project agent called `roby`
+  would shadow that. Use `roby-orchestrator` for a project-level orchestrator.
+</Aside>
+
+## See also
+
+- [Concepts — Agents](/apx/concepts/agents/) — per-project agent CRUD, memory, and the `AGENT.md` format
+- [Capabilities — Skills](/apx/capabilities/skills/) — reusable instruction sets you can attach to agents

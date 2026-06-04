@@ -1,0 +1,150 @@
+---
+title: Sessions
+description: What APX sessions are, where they live, and the full suite of session commands across every supported engine.
+sidebar:
+  order: 3
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import Screenshot from '../../../components/Screenshot.astro';
+
+A **session** is a record of one agent invocation or work thread. APX-native sessions are Markdown
+files stored locally — never committed. APX also understands sessions created by Claude Code and
+Codex, giving you a single interface to find and resume work regardless of which engine started it.
+
+## Sessions vs. conversations
+
+| Concept | What it is | Where it lives |
+|---|---|---|
+| Session | High-level record — title, status, result, timestamps | `~/.apx/projects/<id>/agents/<slug>/sessions/` |
+| Conversation | The raw LLM message thread | `~/.apx/projects/<id>/agents/<slug>/conversations/` |
+| External session | Session file owned by Claude or Codex | `~/.claude/` or `~/.codex/` |
+
+Sessions are the durable artifact you come back to; conversations are the low-level turn-by-turn
+log that the engine reads.
+
+## Engine coverage
+
+APX cross-engine commands scan these locations:
+
+| Engine | Where APX looks |
+|---|---|
+| `apx` | `~/.apx/projects/<apx_id>/agents/<slug>/sessions/*.md` |
+| `claude` | `~/.claude/projects/<encoded-cwd>/<id>.jsonl` |
+| `codex` | `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` |
+
+Engines that are not installed are silently skipped.
+
+## Finding sessions
+
+Start with `apx session find` whenever you remember the topic but not the id:
+
+```bash
+apx session find "mejorar interfaz web"        # title search, cross-engine, newest first
+apx session find "sidebar" --deep              # also search transcript content
+apx session find "deploy" --engine codex       # restrict to one engine
+apx session find "api" --dir /path/to/repo     # scope to one directory
+apx session find "login" --limit 5 --json      # machine-readable output
+```
+
+The output includes a ready-to-run block of `summary`/`ask`/`resume` commands pre-filled with the
+top hit's id — copy-paste straight through without touching the id manually.
+
+## Listing sessions
+
+```bash
+apx sessions list                              # every engine, every known project
+apx sessions list --engine claude              # Claude sessions only
+apx sessions list --engine codex --limit 10
+apx sessions list --project my-app            # all engines, one registered project
+apx sessions list --dir /path/to/repo         # all engines, one directory
+```
+
+<Screenshot
+  surface="terminal"
+  caption="apx sessions list — grouped by engine with DATE | SESSION ID | TITLE rows"
+  hint="Run: apx sessions list" />
+
+## APX-native session commands
+
+These manage the `.md` session files that APX writes under `~/.apx/`:
+
+```bash
+apx session new <slug> --title "Investigate bug X"    # create a session file
+apx session list                                       # all agents in the current project
+apx session list <slug>                               # one agent's sessions
+apx session get <id>                                  # metadata
+apx session get <id> --body                           # full markdown body
+apx session update <id> --status "in progress"
+apx session close <id> --result "Fixed in PR #42"
+apx session check                                     # exit 1 if any active session exists
+apx session close-stale                               # auto-close sessions older than 1 hour
+apx session compact <slug>                            # summarize a conversation to disk
+```
+
+## Cross-engine resume
+
+```bash
+apx session resume <id>                    # auto-detect engine, show metadata
+apx session resume <id> --tail 32k         # print last 32 KB of transcript (no daemon needed)
+apx session resume <id> --full             # dump entire transcript
+apx session resume <id> --summary          # LLM summary via super-agent (daemon required)
+apx session resume <id> --continue         # spawn native CLI (claude --resume / codex resume)
+apx session resume <id> --into apx:slug    # seed a new APX session from the summary
+apx session resume <id> --engine claude    # skip auto-detect, use one engine
+```
+
+If the same id appears in multiple engines, APX prints all matches and asks you to re-run with
+`--engine <id>` to disambiguate.
+
+## Reading session content
+
+```bash
+# Local APX sessions
+apx session get <id>                       # metadata
+apx session get <id> --body               # full markdown
+
+# Any engine
+apx session get <id> --engine claude --full    # full Claude JSONL
+apx session get <id> --engine codex --tail 16k
+apx session get <id> --any --full             # search every engine, error on collision
+```
+
+## Summarize and ask
+
+These two commands require the daemon and `super_agent.enabled: true` in `~/.apx/config.json`:
+
+```bash
+apx session summary <id>                           # 4-bullet LLM summary
+apx session summary <id> --max-chunks 8            # bound cost on large transcripts
+
+apx session ask <id> "¿qué cambios al sidebar?"   # Q&A over the transcript
+apx session ask <id> "what files changed?" --max-chunks 30
+```
+
+Large transcripts are map-reduced: each ~48 KB chunk is mined for relevant notes, then a final
+pass synthesizes the answer. Binary noise (base64 image payloads) is stripped before chunking.
+
+<Aside type="tip">
+  Use `apx session summary` to orient yourself, then `apx session ask` for specific questions. For
+  very large Codex rollouts, raise `--max-chunks` if the output warns about truncation.
+</Aside>
+
+## Daemon requirements
+
+| Command | Daemon required? |
+|---|---|
+| `apx session find` | No |
+| `apx sessions list` | No |
+| `apx session get` (any mode) | No |
+| `apx session resume` (metadata, tail, full, continue) | No |
+| `apx session resume --summary` / `apx session summary` | Yes |
+| `apx session ask` | Yes |
+| `apx session resume --into apx:slug` (summary part only) | Yes |
+
+The daemon starts automatically when needed — you do not have to launch it manually.
+
+## Next
+
+- [Memory](/apx/concepts/memory/) — persisting durable facts between sessions.
+- [Projects](/apx/concepts/projects/) — where the `~/.apx/projects/<id>/` path comes from.

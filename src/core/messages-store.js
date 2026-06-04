@@ -32,10 +32,39 @@ function dayPathMd(projectRoot, ts) {
   return path.join(projectRoot, "messages", `${day}.md`);
 }
 
-const VALID_MESSAGE_TYPES = new Set(["user", "agent", "tool", "system"]);
+// `compact` is a progressive-compaction summary record (Pieza 3): a dense
+// recap of older turns, stored inline in the channel JSONL so the reader can
+// prepend it as a [RESUMEN COMPACTADO] system turn instead of replaying the
+// raw history it covers.
+const VALID_MESSAGE_TYPES = new Set(["user", "agent", "tool", "system", "compact"]);
+
+// Render class (`type`) stays a 4-value enum the UI branches on. `actor_kind`
+// is a finer discriminator stored in meta: who/what actually produced the turn.
+//   superagent — the APX daemon-level agent (persona from identity.json)
+//   agent      — a project agent (its own slug/persona, may run on any engine)
+//   engine     — a raw external engine reply with no project-agent persona
+//   user / tool / system — mirror the render class
+const VALID_ACTOR_KINDS = new Set(["superagent", "agent", "engine", "user", "tool", "system", "compact"]);
 
 function normalizeMessageType(type) {
   return typeof type === "string" && VALID_MESSAGE_TYPES.has(type) ? type : null;
+}
+
+function normalizeActorKind(kind) {
+  return typeof kind === "string" && VALID_ACTOR_KINDS.has(kind) ? kind : null;
+}
+
+// Best-effort classification of the actor when not given explicitly. Legacy
+// records (and most call sites) don't set actor_kind, so this keeps history
+// queryable: a `type:"agent"` turn whose actor_id is the stable super-agent id
+// is a "superagent"; any other agent turn is a project "agent".
+function inferActorKind({ actor_kind, type, actor_id, meta = {} } = {}) {
+  const explicit = normalizeActorKind(actor_kind) || normalizeActorKind(meta.actor_kind);
+  if (explicit) return explicit;
+  if (type === "compact") return "compact";
+  if (type === "user" || type === "tool" || type === "system") return type;
+  if (type === "agent") return actor_id === "super_agent" ? "superagent" : "agent";
+  return null;
 }
 
 export function inferMessageType({ type, channel, direction, author, agent_slug, meta = {} } = {}) {
@@ -57,28 +86,31 @@ function inferActorId({ type, actor_id, author, agent_slug, meta = {} } = {}) {
   if (type === "agent") return agent_slug || author || "agent";
   if (type === "tool") return meta.tool || meta.tool_name || author || "tool";
   if (type === "system") return author || "system";
+  if (type === "compact") return "compact";
   return author || null;
 }
 
-function messageMeta({ type, actor_id, agent_slug, session_id, external_id, meta = {} }) {
+function messageMeta({ type, actor_id, actor_kind, agent_slug, session_id, external_id, meta = {} }) {
   return {
     ...meta,
     type,
     ...(actor_id ? { actor_id } : {}),
+    ...(actor_kind ? { actor_kind } : {}),
     ...(agent_slug ? { agent: agent_slug } : {}),
     ...(session_id ? { session_id } : {}),
     ...(external_id ? { external_id } : {}),
   };
 }
 
-export function appendMessageToFs({ projectRoot, channel, direction, type, actor_id, author, body, meta = {}, ts, agent_slug, session_id, external_id }) {
+export function appendMessageToFs({ projectRoot, channel, direction, type, actor_id, actor_kind, author, body, meta = {}, ts, agent_slug, session_id, external_id }) {
   ts = ts || nowIso();
   const file = dayPathJsonl(projectRoot, ts);
   fs.mkdirSync(path.dirname(file), { recursive: true });
 
   const msgType = inferMessageType({ type, channel, direction, author, agent_slug, meta });
   const msgActorId = inferActorId({ type: msgType, actor_id, author, agent_slug, meta });
-  const fullMeta = messageMeta({ type: msgType, actor_id: msgActorId, agent_slug, session_id, external_id, meta });
+  const msgActorKind = inferActorKind({ actor_kind, type: msgType, actor_id: msgActorId, meta });
+  const fullMeta = messageMeta({ type: msgType, actor_id: msgActorId, actor_kind: msgActorKind, agent_slug, session_id, external_id, meta });
 
   const record = {
     ts,
@@ -104,9 +136,11 @@ export function insertMessageRow(db, m) {
   }
   const type = inferMessageType(m);
   const actor_id = inferActorId({ ...m, type });
+  const actor_kind = inferActorKind({ actor_kind: m.actor_kind, type, actor_id, meta: m.meta || {} });
   const meta = messageMeta({
     type,
     actor_id,
+    actor_kind,
     agent_slug: m.agent_slug,
     session_id: m.session_id,
     external_id: m.external_id,
@@ -131,13 +165,14 @@ export function insertMessageRow(db, m) {
 }
 
 // Single entry point used by everywhere the daemon writes a message.
-export function appendMessage({ projectRoot, db, channel, direction, type, actor_id, author, body, meta = {}, ts, agent_slug, session_id, external_id }) {
+export function appendMessage({ projectRoot, db, channel, direction, type, actor_id, actor_kind, author, body, meta = {}, ts, agent_slug, session_id, external_id }) {
   const written = appendMessageToFs({
     projectRoot,
     channel,
     direction,
     type,
     actor_id,
+    actor_kind,
     author,
     body,
     meta,
@@ -151,6 +186,7 @@ export function appendMessage({ projectRoot, db, channel, direction, type, actor
     direction,
     type,
     actor_id,
+    actor_kind,
     author,
     body,
     meta,
@@ -188,6 +224,7 @@ export function parseDayJsonl(text) {
       agent_slug,
       meta,
     });
+    const actor_kind = inferActorKind({ actor_kind: obj.actor_kind, type, actor_id, meta });
     out.push({
       ts: obj.ts,
       channel: obj.channel,
@@ -195,6 +232,7 @@ export function parseDayJsonl(text) {
       type,
       author: obj.author,
       actor_id,
+      actor_kind,
       body: obj.body || "",
       meta,
       agent_slug,
@@ -228,10 +266,12 @@ export function parseDayFile(text) {
     const agent_slug = meta.agent;
     const type = inferMessageType({ channel, direction, author, agent_slug, meta });
     const actor_id = inferActorId({ type, author, agent_slug, meta });
+    const actor_kind = inferActorKind({ type, actor_id, meta });
     out.push({
       ts, channel, direction, author, body, meta,
       type,
       actor_id,
+      actor_kind,
       agent_slug,
       session_id: meta.session_id ?? (typeof meta.apc_session_id === "number" ? meta.apc_session_id : null),
       external_id: meta.external_id,
@@ -376,20 +416,59 @@ export function searchProjectMessages(projectRoot, query, limit = 50) {
   return all.slice(0, Math.min(limit, 500));
 }
 
-// File-based Telegram turn history: reads from ~/.apx/messages/telegram/ JSONL.
+const TOOL_CONTEXT_CAP = 400; // chars of a tool result kept in model context
+
+// Truncated, prefixed rendering of a tool result for model context (Pieza 3).
+function renderToolResult(m) {
+  const name = m.meta?.tool_name || m.meta?.tool || m.actor_id || "tool";
+  const body = String(m.body || "").replace(/\s+/g, " ").trim();
+  return `[tool result: ${name}] ${body}`.slice(0, TOOL_CONTEXT_CAP);
+}
+
+// Collapse consecutive same-role entries into one message. Keeps the model
+// context clean and side-steps engines (Anthropic) that dislike consecutive
+// same-role turns once tool results land on the assistant side.
+function coalesceTurns(turns) {
+  const out = [];
+  for (const t of turns) {
+    const prev = out[out.length - 1];
+    if (prev && prev.role === t.role) {
+      prev.content = `${prev.content}\n${t.content}`.trim();
+    } else {
+      out.push({ role: t.role, content: t.content });
+    }
+  }
+  return out;
+}
+
+// File-based channel turn history (Pieza 3). Reads ~/.apx/messages/<channel>/
+// JSONL and shapes it for use as `previousMessages`:
+//   - the latest `compact` record (if any) is prepended as a role:"system"
+//     turn "[RESUMEN COMPACTADO turnos a-b]: …"; the raw turns it covers are
+//     dropped (they live in the summary now)
+//   - tool results are INCLUDED, truncated to 400 chars, prefixed
+//     "[tool result: <tool>]" (kept on the assistant side)
+//   - the most recent `keepRecent` conversational turns are kept verbatim
+//   - consecutive same-role turns are coalesced
+//
 // Pass _globalMessagesDir to override the default dir (useful in tests).
-export function getRecentTelegramTurnsFromFs({
+export function getRecentChannelTurnsFromFs({
+  channel = "telegram",
   chat_id,
-  limit = 12,
+  // Back-compat: `limit` (if given) is treated as the verbatim-turn budget.
+  limit,
+  keepRecent = 40,
   max_age_hours = 24,
+  includeTools = true,
   _globalMessagesDir,
 } = {}) {
   if (!chat_id) return [];
+  const keep = Number.isFinite(limit) ? limit : keepRecent;
   const cutoff = new Date(Date.now() - max_age_hours * 3600_000)
     .toISOString()
     .replace(/\.\d{3}Z$/, "Z");
   const base = _globalMessagesDir || GLOBAL_MESSAGES_DIR;
-  const dir = path.join(base, "telegram");
+  const dir = path.join(base, channel);
   if (!fs.existsSync(dir)) return [];
   const all = [];
   for (const f of fs.readdirSync(dir).sort()) {
@@ -401,20 +480,58 @@ export function getRecentTelegramTurnsFromFs({
     }
   }
   all.sort((a, b) => (a.ts || "").localeCompare(b.ts || ""));
-  const filtered = all
-    .filter((m) => String(m.meta?.chat_id ?? "") === String(chat_id))
-    // Only conversational turns become model context. `tool` / `system`
-    // entries are kept in the store for the audit trail (and for channels
-    // that DO render tools), but replaying them as assistant messages would
-    // look like bogus answers to the model.
-    .filter((m) => m.type === "user" || m.type === "agent")
-    .slice(-limit);
-  return filtered.map((m) => {
-    const role = m.direction === "in" ? "user" : "assistant";
-    let content = m.body;
-    if (role === "assistant") content = sanitizeAssistantForContext(content);
-    return { role, content };
-  });
+  const mine = all.filter((m) => String(m.meta?.chat_id ?? "") === String(chat_id));
+
+  // Latest compact record wins; everything it covers is replaced by its summary.
+  let compact = null;
+  for (const m of mine) if (m.type === "compact") compact = m;
+  const coverUntil = compact ? compact.meta?.covers_until_ts || compact.ts : "";
+
+  const eligible = mine.filter(
+    (m) =>
+      (m.type === "user" || m.type === "agent" || (includeTools && m.type === "tool")) &&
+      (!coverUntil || m.ts > coverUntil)
+  );
+
+  // Keep the last `keep` conversational (user/agent) turns plus any tool
+  // results interleaved among them.
+  const kept = [];
+  let realCount = 0;
+  for (let i = eligible.length - 1; i >= 0; i--) {
+    const m = eligible[i];
+    kept.push(m);
+    if (m.type === "user" || m.type === "agent") realCount++;
+    if (realCount >= keep) break;
+  }
+  kept.reverse();
+
+  const turns = [];
+  if (compact && String(compact.body || "").trim()) {
+    const range = compact.meta?.range;
+    const label = Array.isArray(range)
+      ? `turnos ${range[0]}-${range[1]}`
+      : `${compact.meta?.count || ""} turnos previos`.trim();
+    turns.push({
+      role: "system",
+      content: `[RESUMEN COMPACTADO ${label}]:\n${String(compact.body).trim()}`,
+    });
+  }
+  for (const m of kept) {
+    if (m.type === "tool") {
+      turns.push({ role: "assistant", content: renderToolResult(m) });
+    } else {
+      const role = m.type === "user" ? "user" : "assistant";
+      let content = m.body;
+      if (role === "assistant") content = sanitizeAssistantForContext(content);
+      turns.push({ role, content });
+    }
+  }
+  return coalesceTurns(turns);
+}
+
+// Telegram-specific wrapper kept for back-compat with existing call sites.
+export function getRecentTelegramTurnsFromFs(opts = {}) {
+  return getRecentChannelTurnsFromFs({ ...opts, channel: "telegram" });
 }
 
 // ---------------------------------------------------------------------------
@@ -422,14 +539,15 @@ export function getRecentTelegramTurnsFromFs({
 // ---------------------------------------------------------------------------
 
 // Write a message to the global channel store.  No SQL cache — JSONL only.
-export function appendGlobalMessage({ channel, direction, type, actor_id, author, body, meta = {}, ts, agent_slug, external_id }) {
+export function appendGlobalMessage({ channel, direction, type, actor_id, actor_kind, author, body, meta = {}, ts, agent_slug, external_id }) {
   ts = ts || nowIso();
   const dir = path.join(GLOBAL_MESSAGES_DIR, channel);
   fs.mkdirSync(dir, { recursive: true });
   const file = path.join(dir, `${ts.slice(0, 10)}.jsonl`);
   const msgType = inferMessageType({ type, channel, direction, author, agent_slug, meta });
   const msgActorId = inferActorId({ type: msgType, actor_id, author, agent_slug, meta });
-  const fullMeta = messageMeta({ type: msgType, actor_id: msgActorId, agent_slug, external_id, meta });
+  const msgActorKind = inferActorKind({ actor_kind, type: msgType, actor_id: msgActorId, meta });
+  const fullMeta = messageMeta({ type: msgType, actor_id: msgActorId, actor_kind: msgActorKind, agent_slug, external_id, meta });
   const record = {
     ts,
     channel,

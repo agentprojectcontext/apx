@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src *;">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>APX Desktop</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- All UI is rendered by renderer.js into #root. -->
+  <div id="root"></div>
+  <div id="conn-badge" class="conn-badge">Sin conexión al daemon</div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

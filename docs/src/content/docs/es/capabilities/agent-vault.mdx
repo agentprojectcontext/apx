@@ -1,0 +1,181 @@
+---
+title: Vault de agentes
+description: Una biblioteca global de plantillas de agentes reutilizables — personas nombradas y especialistas genéricos — que podés importar a cualquier proyecto.
+sidebar:
+  order: 7
+---
+
+import { Aside, FileTree } from '@astrojs/starlight/components';
+import Screenshot from '../../../../components/Screenshot.astro';
+
+El **vault de agentes** es una biblioteca de plantillas de agentes a nivel de máquina. Viene
+con un conjunto de plantillas predefinidas (personas nombradas y especialistas genéricos) y te
+permite agregar las tuyas. Las plantillas son independientes del proyecto — las importás a un
+proyecto cuando querés usarlas ahí.
+
+Para el CRUD de agentes por proyecto (agregar, editar, memoria) ver
+[Conceptos — Agentes](/apx/es/concepts/agents/).
+
+## Las dos capas
+
+| Capa | Ubicación | Mutabilidad |
+|---|---|---|
+| Predefinida | `<paquete APX>/assets/agent-vault-defaults/<slug>.md` | Solo lectura en disco. Siempre visible salvo que esté tombstoneada. |
+| Usuario | `~/.apx/agents/<slug>.md` | Lectura/escritura. Un archivo de usuario con el mismo slug reemplaza al predefinido. |
+
+Editar una plantilla predefinida es **copy-on-write** — APX materializa una copia en tu capa
+de usuario en el momento que guardás. Eliminar una plantilla predefinida la **tombstona** para
+que quede oculta hasta que la restaurés. Eliminar una plantilla solo de usuario borra el
+archivo.
+
+## Plantillas predefinidas
+
+### Equipo nombrado
+
+Un equipo con personalidad, ya usado en producción por NichoApps:
+
+| Slug | Rol | Fortalezas |
+|---|---|---|
+| `roby-orchestrator` | Orquestador de pipelines | Routing autónomo de tareas, coordinación multi-agente |
+| `arch-architect` | Arquitecto de software | Diseño de sistemas, tradeoffs, ADRs |
+| `cody-developer` | Desarrollador senior | Código, refactors, liderazgo técnico |
+| `tessa-qa` | QA / tester | Reality checks, planes de testing, empatía con usuarios reales |
+| `max-marketing` | Growth hacker | Contenido, campañas, SEO, copy |
+| `sid-security` | Especialista en seguridad | Auditorías, modelos de amenaza, hardening |
+| `rocky-pm` | PM senior | Tasklists, roadmaps, comunicación con stakeholders |
+| `vera-ui` | Revisora UI/UX | Auditorías visuales, usabilidad |
+| `finn-billing` | Ops de facturación / comercial | Stripe, facturación, lógica de planes |
+
+### Especialistas genéricos
+
+Roles funcionales simples — útiles cuando querés la capacidad sin una persona:
+
+| Slug | Rol |
+|---|---|
+| `development` | Ingeniería y código |
+| `marketing` | Marketing y crecimiento |
+| `ops` | Operaciones, deploys e incidentes |
+| `qa` | Aseguramiento de calidad y testing |
+| `support` | Soporte al cliente y escalaciones |
+
+<Aside type="note">
+  Todas las plantillas predefinidas usan `model: openrouter:meta-llama/llama-3.3-70b-instruct`
+  y `language: es` por defecto. Podés sobreescribir estos valores al importar o editando el
+  archivo del vault directamente.
+</Aside>
+
+## Listar el vault
+
+```bash
+# Todas las plantillas visibles (predefinidas + tus overrides)
+apx agent vault list
+```
+
+<Screenshot
+  surface="terminal"
+  caption="apx agent vault list mostrando plantillas predefinidas y de usuario con sus etiquetas"
+  hint="Ejecutar: apx agent vault list" />
+
+Cada entrada está etiquetada como `[bundled]`, `[user]` o `[override]` (un archivo de usuario
+que reemplaza un slug predefinido).
+
+## Importar una plantilla a un proyecto
+
+```bash
+# Vincular la plantilla del vault (la lee desde ~/.apx/agents/ en runtime)
+apx agent import cody-developer
+
+# Copiar el archivo a .apc/agents/ para ediciones locales
+apx agent import tessa-qa --copy
+
+# Sobreescribir una definición local existente
+apx agent import roby-orchestrator --copy --force
+```
+
+Después de importar, el agente aparece en `apx agent list` y está disponible para el proyecto.
+
+<Aside type="tip">
+  Usá `--copy` cuando querés personalizar el agente solo para este proyecto sin afectar la
+  plantilla compartida del vault.
+</Aside>
+
+## Crear una plantilla nueva
+
+```bash
+apx agent vault add reviewer \
+  --role "Revisor de código" \
+  --model claude-haiku-4-5 \
+  --language es \
+  --skills code-review,git \
+  --description "Revisa PRs y cuestiona diffs poco claros."
+```
+
+Esto escribe `~/.apx/agents/reviewer.md`. La nueva plantilla es inmediatamente visible en
+`apx agent vault list` e importable a cualquier proyecto.
+
+## Ocultar y restaurar una plantilla predefinida
+
+```bash
+# Ocultar (tombstonear) una plantilla predefinida que no querés ver
+apx agent vault rm tessa-qa
+
+# Traerla de vuelta
+apx agent vault restore tessa-qa
+
+# Listar todo incluyendo las tombstoneadas
+apx agent vault list --all
+```
+
+El tombstone solo afecta los listados e importaciones — el archivo predefinido en disco nunca
+se borra.
+
+## Formato del archivo de plantilla
+
+Las plantillas del vault usan el mismo formato que los agentes de proyecto:
+
+```markdown
+---
+role: Revisor de código
+model: openrouter:meta-llama/llama-3.3-70b-instruct
+description: Revisa PRs y cuestiona diffs poco claros.
+language: es
+skills: code-review, git
+tools: read_file, list_agents
+is_master: false
+---
+
+<!-- La extensión del system prompt del agente va acá. Markdown plano. -->
+```
+
+### Campos del frontmatter
+
+| Campo | Efecto |
+|---|---|
+| `role` | Se muestra en CLI y web. Se agrega al system prompt del agente como "Role: …". |
+| `model` | Modelo por defecto para el enrutamiento de engines. |
+| `description` | Se muestra en los listados del vault y la grilla Agent Defaults en la web. |
+| `language` | Agrega "Default language: \<código\>" al system prompt. |
+| `skills` | Slugs de skills cargados en los turnos de este agente. |
+| `tools` | Hints de herramientas; las herramientas realmente llamables dependen de la superficie de invocación. |
+| `is_master` | Si es `true`, marcado como agente maestro en el proyecto (badge + orden). |
+
+## Dónde viven los archivos
+
+```text
+<paquete APX>/assets/agent-vault-defaults/<slug>.md   ← predefinido (commiteado al repo APX)
+~/.apx/agents/<slug>.md                                ← vault de usuario (tus overrides)
+<proyecto>/.apc/agents/<slug>.md                       ← copia local del proyecto (con --copy)
+~/.apx/agents/.removed.json                            ← lista de tombstones
+```
+
+<Aside type="note">
+  El slug `roby-orchestrator` no es simplemente `roby` por una razón. La persona del
+  super-agente de APX ya se llama "Roby" via `~/.apx/identity.json`. Importar un agente de
+  proyecto llamado `roby` lo sobreescribiría. Usá `roby-orchestrator` para un orquestador a
+  nivel de proyecto.
+</Aside>
+
+## Ver también
+
+- [Conceptos — Agentes](/apx/es/concepts/agents/) — CRUD de agentes por proyecto, memoria y el formato `AGENT.md`
+- [Capacidades — Skills](/apx/es/capabilities/skills/) — sets de instrucciones reutilizables que podés adjuntar a los agentes

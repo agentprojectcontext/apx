@@ -7,7 +7,7 @@ import {
   createRuntimeSession,
   closeRuntimeSession,
   extractApfResult,
-} from "../src/daemon/apc-runtime-context.js";
+} from "../src/host/daemon/apc-runtime-context.js";
 import { readSessionFrontmatter } from "../src/core/session-store.js";
 import { makeTempProject, cleanupTempProject } from "./_helpers.js";
 

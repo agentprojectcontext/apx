@@ -1,0 +1,55 @@
+---
+title: APX
+description: Local runtime + CLI for the Agent Project Context (APC) standard.
+template: splash
+hero:
+  tagline: A local daemon + CLI that runs, coordinates, and remembers your AI agents — across the terminal, web, voice, and Telegram.
+  image:
+    file: ../../assets/logo.svg
+  actions:
+    - text: Get started
+      link: /apx/start/introduction/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/agentprojectcontext/apx
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+## What is APX?
+
+APX is the reference implementation of the [APC protocol](https://github.com/agentprojectcontext/agentprojectcontext):
+a **local daemon + `apx` CLI** that manages projects, agents, sessions, memory, and message
+logs. The filesystem is the source of truth — project context lives in your repo, runtime state
+lives in `~/.apx/`.
+
+<CardGrid stagger>
+	<Card title="One CLI, many engines" icon="laptop">
+		Run agents through Claude Code, Codex, OpenCode, Aider, Cursor — or call
+		LLMs directly via Anthropic, OpenAI, Gemini and Ollama engines.
+	</Card>
+	<Card title="Multi-surface" icon="puzzle">
+		The same agents reachable from the terminal, a web admin panel, a TUI, an
+		Electron desktop window, voice, deck, and a Telegram bot.
+	</Card>
+	<Card title="Memory that persists" icon="open-book">
+		Cross-channel memory: auto-written notes, RAG retrieval, progressive
+		compaction — your agents remember across sessions and surfaces.
+	</Card>
+	<Card title="MCP-native" icon="setting">
+		Every agent can expose or consume MCP servers, scoped per project,
+		runtime, or globally.
+	</Card>
+</CardGrid>
+
+## Explore the docs
+
+<CardGrid>
+	<LinkCard title="Installation" href="/apx/start/installation/" description="Install APX and start the daemon." />
+	<LinkCard title="Quick start" href="/apx/start/quick-start/" description="From apx init to your first agent run." />
+	<LinkCard title="Architecture" href="/apx/start/architecture/" description="Core, host, and interfaces — how it fits together." />
+	<LinkCard title="CLI reference" href="/apx/surfaces/cli/" description="Every apx command, grouped by task." />
+</CardGrid>

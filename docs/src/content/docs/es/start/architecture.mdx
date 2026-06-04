@@ -1,0 +1,81 @@
+---
+title: Arquitectura
+description: El diseño de tres capas core / host / interfaces y cómo cada superficie es un cliente delgado.
+sidebar:
+  order: 4
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import Screenshot from '../../../../components/Screenshot.astro';
+
+APX está organizado en **tres capas top-level** bajo `src/`. El límite entre lógica compartida y
+transporte es estricto — es lo que hace que agregar un engine, una tool o una superficie sea un
+cambio en un solo lugar.
+
+## Las tres capas
+
+### `core/` — lógica pura
+
+Sin transportes, sin Express, sin Electron, sin spawn de procesos. No importa nada de `host/` ni
+`interfaces/`. Acá vive el loop de LLM (`runAgent`), los prompts, los adaptadores de engines, el
+registro de tools, el runner de MCP, la memoria y las fachadas de síntesis de voz. Todo lo que
+podría usarse desde cualquier superficie pertenece acá.
+
+### `host/` — procesos de larga duración
+
+Hoy esto es solo el **daemon**. Es dueño del ruteo de Express, el ciclo de vida de plugins, los ticks
+del scheduler, los adaptadores de runtime (claude-code, codex, …), los archivos de conversación en
+disco y el sidecar de transcripción.
+
+### `interfaces/` — superficies
+
+Cada superficie que una persona o un cliente externo usa para hablar con APX:
+
+- `cli/` — el comando `apx`
+- `tui/` — `apx code`, el asistente de coding en terminal
+- `desktop/` — la ventana flotante de Electron
+- `web/` — el panel de administración
+- `mcp-server/` — el binario `apx-mcp`
+
+<Screenshot
+  surface="code"
+  caption="Árbol de src/ mostrando las capas core / host / interfaces"
+  hint="Ejecutá: find src -maxdepth 2 -type d" />
+
+## Las reglas de importación
+
+Estas reglas se aplican como invariantes de arquitectura — una violación se trata como un bug real:
+
+- `core/` no importa **nada** de `host/` ni `interfaces/`.
+- `host/` e `interfaces/` importan de `core/`, pero **nunca entre sí**.
+- El daemon es lo **único** que habla con los plugins. Las interfaces hablan con el daemon por HTTP.
+- Cada capa tiene sus propios utils locales; solo se promueven a `core/` cuando otra capa los
+  necesita.
+
+<Aside type="tip">
+	Un adaptador con sesgo de transporte (por ejemplo, un cliente OpenAI con sabor HTTP) igual vive en
+	`core/engines/` — el sesgo es parte del adaptador de LLM, no del transporte. El ruteo HTTP real de,
+	digamos, un request de TTS vive en `host/daemon/api/`.
+</Aside>
+
+## Por qué importa
+
+- Cada superficie — CLI, TUI, Desktop, panel web, servidor MCP, clientes futuros — se vuelve un
+  **cliente delgado** sobre `core/` o `host/`.
+- Agregar un engine, prompt o tool nuevo pasa en **un solo lugar**.
+- Agregar una superficie nueva es **una sola carpeta** bajo `interfaces/`.
+- Los refactors dejan de propagarse: un cambio en `runAgent()` se siente en todos lados, pero ninguna
+  superficie necesita enterarse.
+
+<Aside type="note">
+	Este diseño está registrado en el architecture decision record del proyecto
+	`spec/decisions/001-core-host-interfaces.md`.
+</Aside>
+
+## Modelo de almacenamiento
+
+El layering se complementa con una separación estricta de almacenamiento: el contexto del proyecto
+(agentes, memoria curada, hints de MCP) se commitea a tu repo bajo `.apc/`, mientras que el estado de
+runtime (sesiones, conversaciones, mensajes, cachés) vive en `~/.apx/` y nunca se commitea. Ver
+[Proyectos](/apx/es/concepts/projects/) y [Configuración](/apx/es/concepts/configuration/) para el
+layout completo.

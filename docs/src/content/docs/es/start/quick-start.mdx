@@ -1,0 +1,84 @@
+---
+title: Quick start
+description: De apx init a ejecutar tu primer agente y ver los mensajes.
+sidebar:
+  order: 3
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components';
+import Screenshot from '../../../../components/Screenshot.astro';
+
+Este recorrido te lleva de un proyecto vacío a un agente corriendo en pocos minutos.
+
+<Steps>
+
+1. **Inicializá un proyecto.** En cualquier directorio que quieras que APX administre:
+
+   ```bash
+   apx init --name "Mi Proyecto"
+   ```
+
+   Esto crea la carpeta `.apc/` y un `AGENTS.md`. Ver
+   [Proyectos](/apx/es/concepts/projects/) para qué queda en disco.
+
+2. **Agregá un agente.** Dale un slug, un rol y un modelo:
+
+   ```bash
+   apx agent add sofia --role "revisor backend" --model claude-sonnet-4.5
+   ```
+
+   <Screenshot
+     surface="terminal"
+     caption="apx agent add creando el agente sofia y escribiendo .apc/agents/sofia.md"
+     hint="Ejecutá: apx agent add sofia --role 'revisor backend' --model claude-sonnet-4.5" />
+
+3. **Ejecutá el agente con un runtime completo.** Esto lanza una CLI de coding externa (acá, Claude
+   Code) con el system prompt del agente inyectado:
+
+   ```bash
+   apx run sofia --runtime claude-code "Revisá los PRs abiertos y resumilos"
+   ```
+
+   ¿Preferís una respuesta rápida y de una sola vez? Usá `exec`:
+
+   ```bash
+   apx exec sofia "¿Cuál es mi rol en este proyecto?"
+   ```
+
+4. **Mirá qué está pasando.** Seguí el registro de mensajes en todos los canales:
+
+   ```bash
+   apx messages tail
+   ```
+
+   <Screenshot
+     surface="terminal"
+     caption="apx messages tail mostrando actividad de runtime y exec con tipos de actor"
+     hint="Ejecutá: apx messages tail" />
+
+</Steps>
+
+## El wizard interactivo
+
+¿Preferís que te guíen? `apx setup` te lleva por provider → modelo → canales → daemon en un solo
+flujo:
+
+```bash
+apx setup
+```
+
+<Screenshot
+  surface="terminal"
+  caption="Wizard apx setup: eligiendo un provider y un modelo"
+  hint="Ejecutá: apx setup" />
+
+<Aside type="note">
+	`apx run` usa **runtimes** externos (CLIs de coding completas). `apx exec` usa **engines**
+	(llamadas directas a LLMs). La diferencia se cubre en [Runtimes](/apx/es/engine/runtimes/) y
+	[Engines](/apx/es/engine/engines/).
+</Aside>
+
+## Siguiente
+
+- [Arquitectura](/apx/es/start/architecture/) — entendé el layering antes de profundizar.
+- [Referencia de CLI](/apx/es/surfaces/cli/) — la superficie completa de comandos.

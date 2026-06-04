@@ -1,0 +1,172 @@
+---
+title: MCP Servers
+description: Register, scope, and call Model Context Protocol servers from APX — three scopes with different commit and secrecy semantics.
+sidebar:
+  order: 5
+---
+
+import { Aside, FileTree, Steps } from '@astrojs/starlight/components';
+import Screenshot from '../../../components/Screenshot.astro';
+
+APX gives every agent access to [Model Context Protocol](https://modelcontextprotocol.io) (MCP)
+servers. You register a server once and agents call its tools automatically during inference —
+no manual tool wiring needed.
+
+## Three scopes
+
+Every MCP registration belongs to exactly one scope. The scope controls where the config is
+stored, whether it is committed to your repo, and whether secrets are safe to include.
+
+| Scope | File | Committed? | Secrets safe? | Use when |
+|---|---|---|---|---|
+| `shared` | `<repo>/.apc/mcps.json` | **yes** | no | Team-wide servers — filesystem, search, GitHub public |
+| `runtime` | `~/.apx/projects/<id>/mcps.json` (chmod 0600) | **no** | **yes** | Tokens, machine-specific endpoints |
+| `global` | `~/.apx/mcps.json` | n/a | yes | Machine-wide — not tied to any single project |
+
+When the same server name appears in more than one scope, resolution priority is:
+**runtime > shared > global**. Conflicts are surfaced by `apx mcp check`.
+
+<Aside type="caution">
+  Never put tokens or API keys in the `shared` scope. The file is committed to your repo.
+  Use `--scope runtime` for anything that includes a secret.
+</Aside>
+
+## Add a server
+
+```bash
+apx mcp add <name> --command <cmd> [--scope <shared|runtime|global>] [--env KEY=VAL ...] [-- <args>]
+```
+
+Everything after `--` is forwarded verbatim as arguments to the command. Repeat `--env` for each
+environment variable.
+
+### Common examples
+
+```bash
+# shared — project filesystem server (safe to commit)
+apx mcp add filesystem --command npx -- -y @modelcontextprotocol/server-filesystem .
+
+# runtime — GitHub with a token (stays local)
+apx mcp add github --scope runtime --project my-app \
+  --command npx --env GITHUB_TOKEN=ghp_xxx \
+  -- -y @modelcontextprotocol/server-github
+
+# global — Brave search, machine-wide
+apx mcp add brave --scope global \
+  --command npx --env BRAVE_API_KEY=BSAxxx \
+  -- -y @modelcontextprotocol/server-brave-search
+
+# Python server via uvx
+apx mcp add myserver --command uvx -- my-mcp-server
+
+# Local script
+apx mcp add localtools --command node -- /abs/path/to/server.js
+```
+
+<Aside type="tip">
+  If your shell history is not private, export the token first and pass the variable reference:
+  `--env GITHUB_TOKEN=$GITHUB_TOKEN`. That way the secret never appears in your history.
+</Aside>
+
+## List, enable, and remove
+
+```bash
+# List all scopes (default)
+apx mcp list
+apx mcp list --project my-app
+
+# Filter by scope
+apx mcp list --scope runtime --project my-app
+apx mcp list --scope shared  --project my-app
+apx mcp list --scope global
+
+# Toggle (operates on whichever scope owns the server)
+apx mcp enable  filesystem --project my-app
+apx mcp disable filesystem --project my-app
+
+# Remove
+apx mcp remove filesystem --project my-app
+apx mcp remove github --scope runtime --project my-app
+```
+
+<Screenshot
+  surface="terminal"
+  caption="apx mcp list showing servers across all three scopes"
+  hint="Run: apx mcp list" />
+
+## Call a tool directly
+
+You can call any tool through the daemon without going through an agent — useful for debugging
+and scripting.
+
+```bash
+# List the tools a server exposes (also forces the daemon to spawn it)
+apx mcp tools filesystem
+
+# Call a specific tool with JSON arguments
+apx mcp run filesystem read_file '{"path":"README.md"}'
+```
+
+## Audit: check
+
+```bash
+apx mcp check
+apx mcp check --project my-app
+```
+
+`check` reports which scope files exist on disk, the merged active list, and any name conflicts
+between scopes. Run it first when a server "doesn't appear" to an agent.
+
+## How agents consume MCP servers
+
+Agents do not need any extra configuration to use a registered server — the daemon merges the
+three scopes at startup and injects the full tool list into the agent's context. From inside a
+conversation the agent calls tools by name exactly as the server defines them.
+
+The `apx-mcp` binary (installed alongside `apx`) is a separate MCP bridge that exposes APX's
+own tools to external hosts like Claude Desktop. It is not related to the servers you register
+with `apx mcp add`.
+
+## Foreign IDE configs (read-only)
+
+APX also discovers MCP configs written by other tools and surfaces them in `apx mcp list` with
+their source label. These are **read-only** — APX will never write to them.
+
+| Source label | File |
+|---|---|
+| `claude` | `.mcp.json` |
+| `cursor` | `.cursor/mcp.json` |
+| `vscode` | `.vscode/mcp.json` |
+| `roo` | `.roo/mcp.json` |
+| `gemini` | `.gemini/settings.json` |
+
+Use `apx mcp check` to see the full merged picture including foreign sources.
+
+## Scope decision guide
+
+1. **Has tokens or secrets?** → `runtime`. Always.
+2. **Should every teammate have it?** → `shared` (committed).
+3. **Used across all your projects on this machine?** → `global`.
+
+Default when none is obvious: `shared` inside an APC project, `global` outside.
+
+## Debugging
+
+```bash
+# See what scopes APX resolves + which files exist
+apx mcp check --project my-app
+
+# Force the daemon to spawn the server and list its tools
+apx mcp tools <name>
+
+# Tail the unified log for spawn errors and stderr output
+apx log -f
+```
+
+A server that "doesn't show tools" usually means the command failed to start — missing package,
+wrong binary name, or env vars not set. The unified log captures the server's stderr.
+
+## See also
+
+- [Concepts — Agents](/apx/concepts/agents/) — how agents declare and consume tools
+- [Capabilities — Skills](/apx/capabilities/skills/) — reusable instruction prompts (a different kind of tool)

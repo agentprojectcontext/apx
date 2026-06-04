@@ -1,0 +1,400 @@
+/* ============================================================
+   APX Desktop — floating capsule + conversation glass
+   Vanilla port of styles.css + styles-v2.css from the v2 design.
+   The Electron BrowserWindow is transparent: there is no fake
+   menubar / desktop wallpaper here — the real OS shows through.
+   ============================================================ */
+
+:root {
+  /* action accent — muted, darker green by default; can be overridden by main.js */
+  --accent:  oklch(0.56 0.12 151);
+  --accent2: oklch(0.49 0.12 153);
+  --accent-soft: color-mix(in oklch, var(--accent) 14%, transparent);
+
+  /* brand green — used ONLY for the node icon */
+  --brand:      oklch(0.72 0.20 142);
+  --brand-soft: color-mix(in oklch, var(--brand) 16%, transparent);
+
+  /* glass surface — light frosted but readable over any wallpaper.
+     The previous 0.58/0.74 was too see-through on busy desktops. */
+  --glass-bg:        rgba(255,255,255,0.86);
+  --glass-bg-strong: rgba(255,255,255,0.94);
+  --glass-border:    rgba(255,255,255,0.85);
+  --glass-hairline:  rgba(20,24,40,0.10);
+  --ink:    oklch(0.27 0.02 264);
+  --ink-2:  oklch(0.46 0.02 264);
+  --ink-3:  oklch(0.62 0.015 264);
+
+  /* user bubble — neutral glass on top of conv glass */
+  --user-bg:  color-mix(in oklch, var(--ink) 6%, transparent);
+  --user-ink: var(--ink);
+  --user-border: var(--glass-hairline);
+
+  --shadow: 0 24px 70px -18px rgba(15,23,42,0.45), 0 2px 8px rgba(15,23,42,0.12);
+  --radius: 26px;
+
+  font-synthesis: none;
+}
+
+[data-theme="dark"] {
+  --glass-bg:        rgba(22,24,33,0.82);
+  --glass-bg-strong: rgba(28,30,42,0.92);
+  --glass-border:    rgba(255,255,255,0.16);
+  --glass-hairline:  rgba(255,255,255,0.10);
+  --user-bg:  rgba(255,255,255,0.07);
+  --user-ink: oklch(0.92 0.01 264);
+  --user-border: rgba(255,255,255,0.1);
+  --ink:    oklch(0.96 0.01 264);
+  --ink-2:  oklch(0.78 0.02 264);
+  --ink-3:  oklch(0.6 0.02 264);
+  --shadow: 0 28px 80px -16px rgba(0,0,0,0.6), 0 2px 10px rgba(0,0,0,0.4);
+}
+
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  height: 100%;
+  background: transparent;  /* Electron transparent window */
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: default;
+}
+body {
+  font-family: -apple-system, "SF Pro Display", "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow: hidden;
+  color: var(--ink);
+}
+button { font-family: inherit; }
+
+/* ============================================================
+   Layout: float-root holds capsule + conv + session bar
+   ============================================================ */
+.float-root {
+  position: absolute;
+  /* When the window is short (capsule-only) we want the capsule near the
+     top edge. When it's tall (with conv) we keep the same top so the user
+     sees an anchored capsule. Main.js positions/resizes the BrowserWindow. */
+  top: 14px;
+  left: 14px;
+  right: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  z-index: 60;
+  align-items: stretch;
+}
+.float-root.pos-center { /* main.js positions the window itself */ }
+.float-root.pos-left   { }
+.float-root.pos-right  { }
+.float-root.enter      { animation: floatInS .42s cubic-bezier(.18,.9,.25,1) both; }
+@keyframes floatInS { from { transform: translateY(-12px) scale(.97); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* ============================================================
+   Capsule (the always-visible bar)
+   ============================================================ */
+.cap {
+  position: relative;
+  display: flex; align-items: center; gap: 11px;
+  height: 52px; padding: 0 7px 0 13px;
+  border-radius: 27px;
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(42px) saturate(185%);
+  -webkit-backdrop-filter: blur(42px) saturate(185%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow);
+  transition: box-shadow .35s ease, transform .25s ease;
+  -webkit-app-region: drag;   /* let the user drag the window from the capsule */
+}
+.cap.listening { box-shadow: var(--shadow), 0 0 0 1.5px color-mix(in oklch, var(--accent) 55%, transparent); }
+.cap .center, .cap .act, .cap .cap-badge, .cap input, .cap .cap-wave { -webkit-app-region: no-drag; }
+
+/* mic/text indicator badge inside the capsule */
+.cap-badge {
+  position: relative; width: 30px; height: 30px; border-radius: 50%; flex: none;
+  background: linear-gradient(150deg, var(--accent), var(--accent2));
+  box-shadow: 0 1px 4px color-mix(in oklch, var(--accent) 26%, transparent);
+}
+.cap.listening .cap-badge, .cap.busy .cap-badge { animation: orbBreath 1.1s ease-in-out infinite; }
+.cap-badge .g {
+  position: absolute; inset: 0; display: grid; place-items: center; color: #fff;
+  transition: opacity .26s ease, transform .32s cubic-bezier(.3,1.3,.5,1);
+}
+.cap-badge .g.hide { opacity: 0; transform: scale(.5) rotate(-25deg); pointer-events: none; }
+.cap-badge .g.show { opacity: 1; transform: scale(1) rotate(0); }
+
+@keyframes orbBreath {
+  0%, 100% { transform: scale(1);    filter: saturate(1)    brightness(1); }
+  50%      { transform: scale(1.12); filter: saturate(1.25) brightness(1.12); }
+}
+
+.cap .center { flex: 1; min-width: 0; display: flex; align-items: center; height: 100%; }
+.cap input {
+  width: 100%; border: none; background: transparent; outline: none;
+  font: inherit; font-size: 15px; color: var(--ink); letter-spacing: -0.005em;
+  -webkit-user-select: text; user-select: text;
+}
+.cap input::placeholder { color: var(--ink-3); }
+
+/* compact live wave inside capsule */
+.cap-wave { display: flex; align-items: center; gap: 3px; height: 26px; width: 100%; justify-content: center; }
+.cap-wave i { width: 3px; border-radius: 3px; background: linear-gradient(var(--accent), var(--accent2));
+  height: 7px; animation: liveBar .9s ease-in-out infinite; }
+@keyframes liveBar { 0%, 100% { height: 7px;  opacity: .55; } 50% { height: var(--h, 26px); opacity: 1; } }
+
+/* `.reactive` = JS (Web Audio AnalyserNode) drives heights from real mic
+   amplitude. Disable the CSS keyframe animation here so inline `style.height`
+   wins, and add a short transition for visual smoothing between RAF frames. */
+.cap-wave.reactive i {
+  animation: none;
+  opacity: 1;
+  transition: height 70ms linear;
+}
+
+.cap .status {
+  display: flex; align-items: center; gap: 9px; font-size: 14px; color: var(--ink-2); font-weight: 500;
+}
+.sa-glyph { width: 17px; height: 17px; object-fit: contain; flex: none; }
+
+.cap .act {
+  width: 38px; height: 38px; border-radius: 50%; flex: none; border: none; cursor: pointer;
+  display: grid; place-items: center; color: #fff;
+  background: linear-gradient(150deg, var(--accent), var(--accent2));
+  box-shadow: 0 2px 8px color-mix(in oklch, var(--accent) 30%, transparent);
+  transition: transform .12s ease, filter .2s ease;
+}
+.cap .act:hover  { filter: brightness(1.06); }
+.cap .act:active { transform: scale(.9); }
+.cap .act.ghost  { background: var(--glass-hairline); color: var(--ink-2); box-shadow: none; }
+.cap .act.ghost:hover { background: color-mix(in oklch, var(--ink-3) 22%, transparent); color: var(--ink); }
+
+/* ============================================================
+   Caption pill under capsule (initial empty hint)
+   ============================================================ */
+.caption {
+  align-self: center; display: flex; align-items: center; gap: 8px;
+  font-size: 11px; color: rgba(255,255,255,.92); font-weight: 500;
+  padding: 4px 10px; border-radius: 9px;
+  background: rgba(20,22,32,.28); backdrop-filter: blur(12px);
+  text-shadow: 0 0.5px 1.5px rgba(0,0,0,.3);
+  animation: captionIn .4s ease both;
+}
+@keyframes captionIn { from { transform: translateY(-4px); filter: blur(3px); } to { transform: none; filter: blur(0); } }
+[data-theme="dark"] .caption { background: rgba(0,0,0,.32); }
+.caption .kbd { background: rgba(255,255,255,.22); color: #fff; border-color: rgba(255,255,255,.3); }
+
+.kbd {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 3px 7px; border-radius: 7px;
+  background: var(--accent-soft); color: var(--accent);
+  font-weight: 700; font-size: 11.5px;
+  border: 1px solid color-mix(in oklch, var(--accent) 26%, transparent);
+}
+[data-theme="dark"] .kbd { color: color-mix(in oklch, var(--accent) 60%, white); }
+
+/* ============================================================
+   Conversation card
+   ============================================================ */
+.conv {
+  position: relative;
+  border-radius: 22px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(44px) saturate(190%);
+  -webkit-backdrop-filter: blur(44px) saturate(190%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  display: flex; flex-direction: column;
+  /* Card grows with content up to this hard cap; conv-scroll handles
+     overflow beyond it. ABSOLUTE — using `calc(100vh - X)` was a bug:
+     during the brief moment after first render and before main.js's
+     resize-window IPC, the host window is still at WIN_H_MIN (88px),
+     so 100vh-160 evaluates to a negative number and the card collapses
+     to 0. The host window then never grows because $root has no content
+     to measure. A fixed cap removes that boot-time circular dependency.
+     min-height guarantees the card is visible the instant it mounts. */
+  min-height: 120px;
+  max-height: 580px;
+  animation: convIn .4s cubic-bezier(.2,.9,.3,1) both;
+}
+@keyframes convIn { from { transform: translateY(-10px) scale(.98); opacity: 0; } to { transform: none; opacity: 1; } }
+.conv::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none; border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255,255,255,.32), transparent 18%);
+}
+[data-theme="dark"] .conv::before { background: linear-gradient(180deg, rgba(255,255,255,.07), transparent 18%); }
+
+.conv-scroll {
+  overflow-y: auto; overflow-x: hidden; padding: 14px 16px 13px;
+  scroll-behavior: smooth; position: relative; z-index: 1; border-radius: 22px;
+  mask-image: linear-gradient(180deg, transparent 0, #000 14px, #000 calc(100% - 10px), transparent 100%);
+}
+.conv-scroll::-webkit-scrollbar { width: 7px; }
+.conv-scroll::-webkit-scrollbar-thumb { background: var(--glass-hairline); border-radius: 99px; }
+.conv-scroll::-webkit-scrollbar-thumb:hover { background: color-mix(in oklch, var(--ink-3) 40%, transparent); }
+
+/* ============================================================
+   Turn (user / agent)
+   ============================================================ */
+.turn { padding: 7px 0; opacity: 1; animation: msgIn .42s cubic-bezier(.2,.9,.3,1) both; }
+@keyframes msgIn { from { transform: translateY(12px); filter: blur(3px); } to { transform: none; filter: blur(0); } }
+
+.role { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; }
+.role .ava {
+  width: 18px; height: 18px; border-radius: 50%; flex: none;
+  display: grid; place-items: center; font-size: 10px; font-weight: 700;
+}
+.role.user .ava { background: color-mix(in oklch, var(--ink) 9%, transparent); color: var(--ink-2); }
+[data-theme="dark"] .role.user .ava { background: rgba(255,255,255,0.1); color: var(--ink-2); }
+.role.agent .ava {
+  background: #fff;
+  box-shadow: inset 0 0 0 1.5px color-mix(in oklch, var(--brand) 40%, transparent), 0 1px 3px rgba(15,23,42,0.14);
+  padding: 3px;
+}
+[data-theme="dark"] .role.agent .ava {
+  background: var(--brand-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--brand) 32%, transparent);
+}
+.role.agent .ava.sa { overflow: visible; }
+.role.agent .ava.sa img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.role .who  { font-size: 10.5px; font-weight: 650; color: var(--ink-2); letter-spacing: .01em; }
+.role .time { font-size: 10px;  color: var(--ink-3); margin-left: auto; font-variant-numeric: tabular-nums; }
+.via-mic {
+  display: inline-flex; align-items: center; vertical-align: -2px;
+  margin-left: 7px; color: var(--user-ink); opacity: .55;
+}
+
+.bubble-user {
+  margin-left: 24px;
+  padding: 9px 12px; border-radius: 4px 13px 13px 13px;
+  background: var(--user-bg);
+  border: 1px solid var(--user-border);
+  color: var(--user-ink); font-size: 13.5px; line-height: 1.45;
+  white-space: pre-wrap; word-wrap: break-word;
+}
+.msg-agent {
+  margin-left: 24px; padding-right: 4px;
+  color: var(--ink); font-size: 13.5px; line-height: 1.55;
+  white-space: pre-wrap; word-wrap: break-word;
+}
+.msg-agent .w { display: inline-block; animation: wordIn .26s ease both; }
+@keyframes wordIn { from { opacity: .15; filter: blur(4px); transform: translateY(2px); } to { opacity: 1; filter: blur(0); transform: none; } }
+.caret {
+  display: inline-block; width: 2px; height: 1.05em; vertical-align: -2px;
+  background: var(--accent); border-radius: 2px; margin-left: 1px; animation: blink 1s step-end infinite;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+/* status line inside the agent slot (Pensando / Hablando) */
+.status-line { display: flex; align-items: center; gap: 9px; font-size: 12.5px; color: var(--ink-2); }
+.shimmer {
+  background: linear-gradient(90deg, var(--ink-3), var(--ink), var(--ink-3));
+  background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: sh 1.4s linear infinite; font-weight: 600;
+}
+@keyframes sh { to { background-position: -200% 0; } }
+.dots { display: inline-flex; gap: 4px; }
+.dots i {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
+  animation: dot 1.2s ease-in-out infinite;
+}
+.dots i:nth-child(2) { animation-delay: .18s; }
+.dots i:nth-child(3) { animation-delay: .36s; }
+@keyframes dot { 0%, 100% { transform: translateY(0); opacity: .4; } 50% { transform: translateY(-5px); opacity: 1; } }
+
+/* ============================================================
+   Agent audio scrubber
+   ============================================================ */
+.audio {
+  margin: 11px 0 2px 24px; display: flex; align-items: center; gap: 9px;
+  padding: 7px 10px; border-radius: 13px;
+  background: var(--glass-hairline);
+}
+.audio .play {
+  width: 27px; height: 27px; border-radius: 50%; flex: none; cursor: pointer; border: none;
+  background: linear-gradient(150deg, var(--accent), var(--accent2));
+  color: #fff; display: grid; place-items: center;
+  box-shadow: 0 3px 10px color-mix(in oklch, var(--accent) 45%, transparent);
+  transition: transform .12s ease;
+}
+.audio .play:active { transform: scale(.9); }
+.wavebar { flex: 1; display: flex; align-items: center; gap: 2px; height: 26px; cursor: pointer; }
+.wavebar i {
+  flex: 1; border-radius: 2px; background: color-mix(in oklch, var(--ink-3) 45%, transparent);
+  transition: background .1s linear, transform .1s linear; transform-origin: center;
+}
+.wavebar i.on  { background: linear-gradient(var(--accent), var(--accent2)); }
+.wavebar i.cur { transform: scaleY(1.25); }
+.audio .dur { font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; min-width: 30px; text-align: right; }
+
+/* per-turn actions */
+.turn-actions {
+  margin: 7px 0 0 24px; display: flex; gap: 4px;
+  opacity: 0; transition: opacity .2s ease;
+}
+.turn:hover .turn-actions, .turn.last .turn-actions { opacity: 1; }
+
+/* Regenerate is only meaningful on the LAST agent turn — regenerating a
+   past one would replay the most-recent user prompt (not the one that
+   produced this reply) and silently break the conversation flow. Copy
+   stays available on every turn so users can grab old replies. */
+.turn .btn-regen { display: none; }
+.turn.last .btn-regen { display: inline-flex; }
+.chip {
+  display: inline-flex; align-items: center; gap: 5px; cursor: pointer;
+  padding: 4px 8px; border-radius: 9px; border: 1px solid var(--glass-hairline);
+  background: transparent; color: var(--ink-2); font-size: 11px; font-weight: 550;
+  transition: all .14s ease;
+}
+.chip:hover { background: var(--glass-hairline); color: var(--ink); border-color: transparent; }
+.chip.done  { color: oklch(0.6 0.15 150); }
+
+/* tool pill (when the agent runs a tool) */
+.tool-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin: 6px 0 6px 24px; padding: 4px 9px; border-radius: 9px;
+  background: var(--glass-hairline); border: 1px solid transparent;
+  font-size: 11px; color: var(--ink-2); font-weight: 550;
+}
+.tool-pill .spinner {
+  width: 10px; height: 10px; border-radius: 50%;
+  border: 1.5px solid color-mix(in oklch, var(--accent) 40%, transparent);
+  border-top-color: var(--accent); animation: spin .8s linear infinite;
+}
+.tool-pill .check { color: oklch(0.6 0.15 150); font-weight: 700; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ============================================================
+   Session bar (big floating buttons under conv)
+   ============================================================ */
+.session-bar {
+  display: flex; gap: 10px; justify-content: center;
+  animation: convIn .4s cubic-bezier(.2,.9,.3,1) both;
+}
+.sbtn {
+  display: inline-flex; align-items: center; gap: 9px; cursor: pointer;
+  height: 42px; padding: 0 20px; border-radius: 21px;
+  border: 1px solid var(--glass-border); color: var(--ink);
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(28px) saturate(180%); -webkit-backdrop-filter: blur(28px) saturate(180%);
+  box-shadow: var(--shadow);
+  font: inherit; font-size: 13.5px; font-weight: 600; letter-spacing: -0.005em;
+  transition: transform .14s ease, color .15s ease, background .15s ease, box-shadow .2s ease;
+}
+.sbtn:hover  { transform: translateY(-1px); }
+.sbtn:active { transform: scale(.96); }
+.sbtn .ic { display: grid; place-items: center; color: var(--ink-2); transition: color .15s ease; }
+.sbtn.new:hover   { color: color-mix(in oklch, var(--accent) 70%, var(--ink)); }
+.sbtn.new:hover .ic   { color: var(--accent); }
+.sbtn.close:hover { color: oklch(0.6 0.2 22); }
+.sbtn.close:hover .ic { color: oklch(0.6 0.2 22); }
+
+/* connection badge (overlay over capsule when daemon is down) */
+.conn-badge {
+  position: absolute; top: 60px; right: 14px;
+  padding: 4px 9px; border-radius: 9px; font-size: 11px; font-weight: 600;
+  background: oklch(0.6 0.2 22 / .85); color: #fff;
+  display: none; backdrop-filter: blur(10px);
+}
+.conn-badge.show { display: inline-block; }

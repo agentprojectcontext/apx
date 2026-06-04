@@ -1,0 +1,196 @@
+---
+title: Engines
+description: Direct LLM engines for apx exec and apx chat — Anthropic, OpenAI, Gemini, Ollama, Groq, OpenRouter, and mock — plus the model fallback router.
+sidebar:
+  order: 2
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import Screenshot from '../../../components/Screenshot.astro';
+
+An **engine** is a direct LLM adapter inside APX. When you call `apx exec` or `apx chat`, APX
+resolves the target model, selects the matching adapter, and calls the provider API — no external
+process is spawned.
+
+This is distinct from `apx run`, which delegates to an external coding CLI. See
+[Runtimes](/apx/engine/runtimes/) for that path.
+
+## Supported engines
+
+| Provider | Adapter ID | Notes |
+|----------|-----------|-------|
+| Anthropic | `anthropic` | Claude models; key from `ANTHROPIC_API_KEY` or config |
+| OpenAI | `openai` | GPT and o-series models; key from `OPENAI_API_KEY` or config |
+| Gemini | `gemini` | Google Gemini models; key from `GEMINI_API_KEY` or config |
+| Ollama | `ollama` | Local models; no API key needed, just `base_url` |
+| Groq | `groq` | OpenAI-compatible; default model `llama-3.3-70b-versatile` |
+| OpenRouter | `openrouter` | OpenAI-compatible; routes to many providers; default model `meta-llama/llama-3.3-70b-instruct` |
+| Mock | `mock` | Returns a canned response; useful for testing and CI |
+
+## Engine configuration
+
+Engines are configured in `~/.apx/config.json` under the `engines` key:
+
+```json
+{
+  "engines": {
+    "anthropic": { "api_key": "sk-ant-..." },
+    "openai":    { "api_key": "sk-...", "base_url": "https://api.openai.com/v1" },
+    "gemini":    { "api_key": "..." },
+    "groq":      { "api_key": "...", "base_url": "https://api.groq.com/openai/v1" },
+    "openrouter":{ "api_key": "...", "base_url": "https://openrouter.ai/api/v1" },
+    "ollama":    { "base_url": "http://localhost:11434" }
+  }
+}
+```
+
+API keys can also be set via environment variables — `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`,
+`GEMINI_API_KEY`, `GROQ_API_KEY`, `OPENROUTER_API_KEY` — without editing the config file.
+
+## Model ID grammar
+
+When specifying a model to `--model` or in an agent definition, APX accepts two forms:
+
+- **Explicit:** `<provider>:<model>` — e.g. `ollama:llama3.2`, `anthropic:claude-sonnet-4-5`,
+  `openrouter:meta-llama/llama-3.3-70b-instruct`
+- **Inferred:** bare model name — APX resolves the provider automatically:
+  - `claude-*` → `anthropic`
+  - `gpt-*`, `o1-*`, `o3-*`, `o4-*` → `openai`
+  - `gemini-*` → `gemini`
+  - `mock` → `mock`
+
+If APX cannot infer the provider, use the explicit `provider:model` form.
+
+## Running a one-shot exec
+
+```bash
+apx exec "<prompt>" [--model <id>] [--max-tokens N] [--temperature T] [--project <name|id|path>]
+apx exec -a <agent> "<prompt>" [--model <id>]
+```
+
+Without `-a`, the call goes to the APX super-agent (the daemon's default). With `-a`, it uses the
+specified APC agent's system prompt and memory.
+
+**Examples:**
+
+```bash
+# Super-agent, default model
+apx exec "Summarize the open tasks in this project"
+
+# Specific agent with model override
+apx exec -a reviewer "What are the riskiest changes in this PR?" --model anthropic:claude-opus-4-5
+
+# Local Ollama model
+apx exec "Explain this stack trace" --model ollama:llama3.2
+
+# Force a specific output size
+apx exec "Write a haiku about daemons" --max-tokens 100
+```
+
+## Interactive chat
+
+```bash
+apx chat <agent> [--model <id>] [--conversation <id>] [--project <name|id|path>]
+```
+
+`apx chat` opens an interactive REPL that keeps a conversation thread alive across turns. Each
+session is stored under `~/.apx/projects/<apx-id>/agents/<slug>/conversations/`. Pass
+`--conversation <id>` to resume a previous thread.
+
+```bash
+apx chat reviewer
+apx chat reviewer --conversation abc123
+```
+
+## The model fallback router
+
+For the APX super-agent (the daemon's own assistant), APX maintains a **model fallback router**.
+Instead of failing when a provider is unavailable, it tries providers in a configurable order.
+
+The router is configured under `super_agent.model_fallback` in `~/.apx/config.json`:
+
+```json
+{
+  "super_agent": {
+    "model": "ollama:llama3.2:3b",
+    "model_fallback": {
+      "enabled": true,
+      "models": [
+        "openrouter:meta-llama/llama-3.3-70b-instruct",
+        "groq:llama-3.3-70b-versatile"
+      ],
+      "health_timeout_ms": 800
+    }
+  }
+}
+```
+
+The router tries `super_agent.model` first. If it fails the health check (Ollama strictly verifies
+the model is pulled; cloud providers check reachability within `health_timeout_ms`), it walks
+`model_fallback.models` in order and uses the first healthy one.
+
+## Managing the router with apx model
+
+The `apx model` subcommands let you inspect and configure the fallback router without editing
+JSON by hand:
+
+```bash
+apx model status          # print provider health, fallback order, and active model
+apx model order ollama openrouter groq   # set the attempt order
+apx model key groq sk-xxxx              # save a provider API key
+apx model key openrouter sk-or-xxxx
+apx model set openrouter openrouter/anthropic/claude-3.7-sonnet  # pin a specific model for a provider
+apx model test                          # resolve which model the router would pick right now
+apx model enable                        # enable the fallback router
+apx model disable                       # disable (primary model only)
+```
+
+<Screenshot
+  surface="terminal"
+  caption="apx model status — shows provider health, fallback order, and currently active model"
+  hint="Run: apx model status" />
+
+<Aside type="tip">
+  `apx model status` is the fastest way to diagnose why the super-agent is using an unexpected
+  model. It shows each provider's health probe result alongside the resolved active model.
+</Aside>
+
+## Provider key shortcuts
+
+`apx model key` writes the key into `engines.<provider>.api_key` in `~/.apx/config.json`.
+Two providers that are commonly used as fallbacks have shortcut names:
+
+```bash
+apx model key groq <key>          # → engines.groq.api_key
+apx model key openrouter <key>    # → engines.openrouter.api_key
+```
+
+For Anthropic, OpenAI, and Gemini, set keys the same way:
+
+```bash
+apx model key anthropic <key>
+apx model key openai <key>
+apx model key gemini <key>
+```
+
+## Terminology note
+
+The config file uses the key `engines` for what this documentation calls engines (direct LLM
+adapters). An earlier design used the key `model_providers` internally. If you see references to
+`model_providers` in older skill files or notes, they refer to the same concept; the canonical key
+in `~/.apx/config.json` is `engines`.
+
+## run vs. exec
+
+| | `apx exec` / `apx chat` | `apx run` |
+|---|---|---|
+| **Execution model** | Direct LLM call inside APX | External CLI subprocess |
+| **File edits / shell** | No | Yes (the external CLI can write files and run commands) |
+| **Model choice** | `--model` flag or agent config, resolved by APX | Controlled by the external CLI's own config |
+| **Speed** | Fast — one API call | Slower — spawns a process, may take minutes |
+| **Use when** | Quick Q&A, generation, reasoning | Full coding-agent work (edits, terminal) |
+
+## Related
+
+- [Runtimes](/apx/engine/runtimes/) — external coding CLIs via `apx run`
+- [Configuration](/apx/concepts/configuration/) — full `~/.apx/config.json` reference

@@ -1,0 +1,168 @@
+---
+title: Tasks
+description: Per-project event-sourced TODO list — apx task add/list/done/drop/patch, short-id addressing, and how the super-agent feeds it.
+sidebar:
+  order: 4
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import Screenshot from '../../../components/Screenshot.astro';
+
+APX has a per-project **TODO list** backed by an append-only event log. Tasks are scoped to a
+project, addressable by short-id prefix, and never truly deleted — state transitions (`done`,
+`drop`) are recorded as events and the task persists forever.
+
+## Storage
+
+Tasks live in `~/.apx/projects/<apxId>/tasks/YYYY-MM.jsonl`, one file per month. State is the
+fold of the event stream: creating, completing, dropping, reopening, and patching all append
+events. Do not grep the JSONL directly for state — use `apx task list` or the API.
+
+## `apx task add`
+
+```bash
+apx task add "<title>" \
+  [--project <name|id|path>] \
+  [--body <text>] \
+  [--tag <name>]... \
+  [--due <YYYY-MM-DD>] \
+  [--agent <slug>] \
+  [--source <label>]
+```
+
+`--tag` is repeatable. Examples:
+
+```bash
+apx task add "Review PR #42" --project myapp --agent reviewer --tag review
+apx task add "Release notes" --project myapp --tag release --tag docs --due 2026-06-01
+apx task add "Call client"   --project myapp --due 2026-05-31 --tag urgent
+```
+
+<Aside type="caution">
+  Always pass `--project`. Without it the task lands in the first registered project (or default
+  id=0), which is probably not what you meant.
+</Aside>
+
+## `apx task list`
+
+```bash
+apx task list \
+  [--state open|done|dropped|all] \   # default: open
+  [--tag <name>] \
+  [--agent <slug>] \
+  [--due-before <iso>] \
+  [--limit <N>] \
+  [--project <name|id|path>]
+```
+
+```bash
+apx task list --project myapp                          # open tasks
+apx task list --project myapp --state all
+apx task list --project myapp --state done
+apx task list --project myapp --tag urgent
+apx task list --project myapp --due-before 2026-06-01
+apx task list --project myapp --agent reviewer --limit 10
+```
+
+<Screenshot
+  surface="terminal"
+  caption="apx task list — open tasks with id, title, tags, due date, and agent"
+  hint="Run: apx task list --project myapp" />
+
+## `apx task show`
+
+```bash
+apx task show <id> [--project <name|id|path>]
+apx task show abc  [--project <name|id|path>]   # prefix match (≥ 3 chars, must be unique)
+```
+
+Prints the full task as JSON, including all fields and current state.
+
+## State transitions
+
+```bash
+apx task done   <id> [--project P] [--by <name>]   # mark completed
+apx task drop   <id> [--project P]                  # archive (no longer needed)
+apx task reopen <id> [--project P]                  # flip back to open
+```
+
+`done` means "I completed this work." `drop` means "this is no longer needed." Metrics and
+reporting distinguish them — use the right one.
+
+## `apx task patch`
+
+```bash
+apx task patch <id> \
+  [--title <text>] \
+  [--body <text>] \
+  [--due <date>] \
+  [--agent <slug>] \
+  [--tag <name>]... \
+  [--project <name|id|path>]
+```
+
+`--tag` _replaces_ the tag list when provided; passing no `--tag` flags leaves tags unchanged.
+
+```bash
+apx task patch t_abc123 --project myapp --title "New title"
+apx task patch t_abc123 --project myapp --tag review --tag urgent   # replaces tags
+apx task patch t_abc123 --project myapp --due 2026-06-10
+```
+
+## ID format and prefix addressing
+
+Task IDs have the form `t_` + 6 base36 characters (32-bit entropy, ~4 billion keyspace). You can
+address a task by any prefix of ≥ 3 characters as long as it uniquely identifies one task. If two
+tasks share a prefix, the command returns an error — use a longer prefix.
+
+```bash
+apx task done t_abc123 --project myapp     # full id
+apx task done abc      --project myapp     # prefix, resolves if unique
+```
+
+## Task fields
+
+| Field | When | Notes |
+|---|---|---|
+| `title` | Required | Short imperative line. |
+| `body` | Optional | Longer notes. Markdown accepted. |
+| `tags` | Optional | Free-form strings. Filterable with `--tag`. |
+| `due` | Optional | ISO date `YYYY-MM-DD`. Filterable with `--due-before`. |
+| `agent` | Optional | Agent slug responsible for the task. |
+| `source` | Auto / optional | Origin: `cli`, `telegram`, `super-agent`, … |
+| `state` | Derived | `open` → `done` or `dropped`. Reopenable. |
+
+## How the super-agent feeds tasks
+
+The super-agent has `create_task` and `list_tasks` tools registered in its core tool set,
+available on every channel. When you say "remind me to close the auth bug in myapp", the model
+calls `create_task` with the right project, title, and optional fields. When you ask "what's
+pending in myapp?", it calls `list_tasks`.
+
+Example tool call the model emits:
+
+```json
+{
+  "name": "create_task",
+  "arguments": {
+    "project": "myapp",
+    "title": "Close auth bug",
+    "due": "2026-06-01",
+    "tags": ["bug"]
+  }
+}
+```
+
+If the project is ambiguous (user didn't say which one), the model calls `list_projects` first and
+asks — it never assumes. In a Telegram channel pinned to a project, the model uses that project as
+the default context.
+
+<Aside type="note">
+  Tasks are not a scheduler — they don't fire notifications when due. They are a list. A future
+  routine kind (`task-due-notify`) is planned but not yet built.
+</Aside>
+
+## Next
+
+- [Routines](/apx/capabilities/routines/) — schedule the super-agent to create or report on tasks.
+- [Super-agent](/apx/capabilities/super-agent/) — the tool loop that can create and query tasks conversationally.

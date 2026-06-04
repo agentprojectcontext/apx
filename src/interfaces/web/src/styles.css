@@ -1,0 +1,128 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-fg: hsl(var(--muted-foreground));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-fg: hsl(var(--accent-foreground));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+  --color-primary: hsl(var(--primary));
+  --color-primary-fg: hsl(var(--primary-foreground));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-destructive: hsl(var(--destructive));
+  --color-destructive-foreground: hsl(var(--destructive-foreground));
+  --color-sidebar: hsl(var(--sidebar));
+  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
+  --color-sidebar-primary: hsl(var(--sidebar-primary));
+  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
+  --color-sidebar-accent: hsl(var(--sidebar-accent));
+  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
+  --color-sidebar-border: hsl(var(--sidebar-border));
+  --color-sidebar-ring: hsl(var(--sidebar-ring));
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+/* shadcn-new design tokens. Dark by default — light handled by toggling
+   .dark off the <html> tag. Match Tailwind's `colors` config above. */
+@layer base {
+  :root {
+    --background: 220 16% 95%;
+    --foreground: 222 16% 16%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 16% 16%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 16% 16%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+    --accent: 220 14% 96%;
+    --accent-foreground: 222 16% 16%;
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 222 16% 16%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 222 80% 56%;
+    --primary: 222 47% 11%;
+    --primary-foreground: 210 20% 98%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 210 20% 98%;
+    --radius: 0.75rem;
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+    --sidebar: 0 0% 100%;
+    --sidebar-foreground: 222 16% 16%;
+    --sidebar-primary: 222 47% 11%;
+    --sidebar-primary-foreground: 210 20% 98%;
+    --sidebar-accent: 220 14% 96%;
+    --sidebar-accent-foreground: 222 16% 16%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 222 80% 56%;
+  }
+  .dark {
+    --background: 222 22% 5%;
+    --foreground: 210 16% 92%;
+    --card: 222 16% 11%;
+    --card-foreground: 210 16% 92%;
+    --popover: 222 16% 11%;
+    --popover-foreground: 210 16% 92%;
+    --muted: 222 14% 14%;
+    --muted-foreground: 217 10% 64%;
+    --accent: 222 14% 17%;
+    --accent-foreground: 210 16% 92%;
+    --secondary: 222 14% 17%;
+    --secondary-foreground: 210 16% 92%;
+    --border: 222 14% 18%;
+    --input: 222 14% 18%;
+    --ring: 217 91% 60%;
+    --primary: 210 16% 92%;
+    --primary-foreground: 222 18% 8%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 210 16% 92%;
+    --chart-1: 217 91% 60%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+    --sidebar: 222 16% 11%;
+    --sidebar-foreground: 210 16% 92%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 210 16% 92%;
+    --sidebar-accent: 222 14% 17%;
+    --sidebar-accent-foreground: 210 16% 92%;
+    --sidebar-border: 222 14% 18%;
+    --sidebar-ring: 217 91% 60%;
+  }
+  body {
+    font-feature-settings: "rlig" 1, "calt" 1;
+    @apply bg-background text-foreground;
+  }
+  * {
+    @apply border-border outline-ring/50;
+  }
+}
+
+/* Subtle scrollbar that doesn't fight the dark theme. */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground)); }

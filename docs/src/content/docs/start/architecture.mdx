@@ -1,0 +1,77 @@
+---
+title: Architecture
+description: The three-layer core / host / interfaces design and how every surface is a thin client.
+sidebar:
+  order: 4
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import Screenshot from '../../../components/Screenshot.astro';
+
+APX is organized into **three top-level layers** under `src/`. The boundary between shared logic and
+transport is strict — it's what keeps adding a new engine, tool, or surface a one-place change.
+
+## The three layers
+
+### `core/` — pure logic
+
+No transports, no Express, no Electron, no process spawning. Imports nothing from `host/` or
+`interfaces/`. This is where the LLM loop (`runAgent`), prompts, engine adapters, the tool registry,
+the MCP runner, memory, and voice synthesis facades live. Anything that could be used from any
+surface belongs here.
+
+### `host/` — long-running processes
+
+Today this is just the **daemon**. It owns Express routing, plugin lifecycle, scheduler ticks,
+runtime adapters (claude-code, codex, …), conversation files on disk, and the transcription sidecar.
+
+### `interfaces/` — surfaces
+
+Every surface a human or external client uses to talk to APX:
+
+- `cli/` — the `apx` command
+- `tui/` — `apx code`, the terminal coding assistant
+- `desktop/` — the Electron floating window
+- `web/` — the admin panel
+- `mcp-server/` — the `apx-mcp` binary
+
+<Screenshot
+  surface="code"
+  caption="src/ tree showing core / host / interfaces layers"
+  hint="Run: find src -maxdepth 2 -type d" />
+
+## The import rules
+
+These rules are enforced as architectural invariants — a violation is treated as a real bug:
+
+- `core/` imports from **nothing** in `host/` or `interfaces/`.
+- `host/` and `interfaces/` import from `core/`, but **never from each other**.
+- The daemon is the **only** thing that talks to plugins. Interfaces talk to the daemon over HTTP.
+- Each layer keeps its own local utils; they're only promoted to `core/` when another layer needs
+  them.
+
+<Aside type="tip">
+	An adapter with a transport bias (e.g. an HTTP-flavored OpenAI client) still lives in
+	`core/engines/` — the bias is part of the LLM adapter, not the transport. The actual HTTP routing
+	of, say, a TTS request lives in `host/daemon/api/`.
+</Aside>
+
+## Why it matters
+
+- Every surface — CLI, TUI, Desktop, web panel, MCP server, future clients — becomes a **thin
+  client** over `core/` or `host/`.
+- Adding a new engine, prompt, or tool happens in **one place**.
+- Adding a new surface is **one folder** under `interfaces/`.
+- Refactors stop rippling: a change to `runAgent()` is felt everywhere, but no surface needs to know.
+
+<Aside type="note">
+	This design is recorded in the project's architecture decision record
+	`spec/decisions/001-core-host-interfaces.md`.
+</Aside>
+
+## Storage model
+
+The layering pairs with a strict storage split: project context (agents, curated memory, MCP hints)
+is committed to your repo under `.apc/`, while runtime state (sessions, conversations, messages,
+caches) lives in `~/.apx/` and is never committed. See [Projects](/apx/concepts/projects/) and
+[Configuration](/apx/concepts/configuration/) for the full layout.
