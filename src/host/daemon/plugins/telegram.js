@@ -510,6 +510,10 @@ class ChannelPoller {
       const token = resolveBotToken(this.channel);
       const mediaDir = path.join(APX_HOME, "media");
       fs.mkdirSync(mediaDir, { recursive: true });
+      // Show "typing…" right away — download + transcription is the slow part of
+      // a voice message, and the reply-path typing (below) only starts after it,
+      // so without this the chat sits silent for seconds with no feedback.
+      const stopVoiceTyping = this._startTyping(chat_id);
       let localPath = null;
       let transcript = "";
       let transcribeError = null;
@@ -531,6 +535,7 @@ class ChannelPoller {
           this.log(`telegram[${this.channel.name}] audio transcription failed: ${e.message}`);
         }
       }
+      stopVoiceTyping(); // reply-path typing takes over from here
       const audioBody = transcript
         ? `[audio] ${transcript}`
         : `[audio] (transcription unavailable${transcribeError ? ": " + transcribeError : ""})`;
