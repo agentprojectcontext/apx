@@ -30,7 +30,8 @@
     --radius: 8px;
   }
   * { box-sizing: border-box; }
-  html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+  html { scroll-behavior: smooth; scroll-padding-top: 72px; scroll-snap-type: y proximity; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-snap-type: none; } }
   body {
     margin: 0;
     background:
@@ -44,8 +45,15 @@
     overflow-x: hidden;
   }
   a { color: var(--accent); text-decoration: none; }
-  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 22px; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 22px; width: 100%; }
 
+  /* Full-viewport sections with magnetic scroll-snap. Sections grow if content is taller. */
+  .hero, section {
+    min-height: 100vh;
+    display: flex; flex-direction: column; justify-content: center;
+    scroll-snap-align: start;
+    position: relative;
+  }
   /* Domino reveal — each section fades/slides up as it scrolls into view. */
   .hero, section { opacity: 0; transform: translateY(24px); transition: opacity .6s cubic-bezier(.2,.7,.2,1), transform .6s cubic-bezier(.2,.7,.2,1); }
   .hero.in, section.in { opacity: 1; transform: none; }
@@ -111,7 +119,31 @@
   .nav-links-hamburger.open .hamburger-menu { display: flex; }
 
   /* Hero */
-  .hero { padding: 92px 0 56px; text-align: center; }
+  .hero { padding: 92px 0 56px; text-align: center; overflow: hidden; }
+  /* Animated mesh of green dots drifting behind the wordmark — depth, not distraction. */
+  .hero::before {
+    content: ''; position: absolute; inset: -10%; pointer-events: none; z-index: 0;
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(63,185,80,0.18) 1px, transparent 0),
+      radial-gradient(circle at 1px 1px, rgba(63,185,80,0.10) 1px, transparent 0);
+    background-size: 36px 36px, 90px 90px;
+    background-position: 0 0, 18px 18px;
+    -webkit-mask-image: radial-gradient(ellipse 60% 55% at 50% 50%, #000 0%, transparent 75%);
+            mask-image: radial-gradient(ellipse 60% 55% at 50% 50%, #000 0%, transparent 75%);
+    animation: meshDrift 28s ease-in-out infinite alternate;
+  }
+  .hero::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 0;
+    background: radial-gradient(ellipse 40% 30% at 50% 30%, rgba(63,185,80,0.10), transparent 70%);
+    animation: heroPulse 6s ease-in-out infinite;
+  }
+  @keyframes meshDrift {
+    0%   { transform: translate(0, 0) scale(1); }
+    100% { transform: translate(20px, -16px) scale(1.04); }
+  }
+  @keyframes heroPulse { 0%,100% { opacity: 0.85; } 50% { opacity: 1; } }
+  .hero .wrap { position: relative; z-index: 1; }
+
   .badge {
     display: inline-flex; align-items: center; gap: 7px;
     font-size: 12.5px; color: var(--muted); border: 1px solid var(--border);
@@ -119,7 +151,8 @@
   }
   .badge .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); }
   .hero-logo { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 6px; }
-  .hero-logo img { width: 54px; height: 54px; filter: drop-shadow(0 4px 18px rgba(63,185,80,0.35)); }
+  .hero-logo img { width: 54px; height: 54px; filter: drop-shadow(0 4px 18px rgba(63,185,80,0.45)); animation: logoFloat 8s ease-in-out infinite; }
+  @keyframes logoFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
   .hero-logo .wordmark { font-size: clamp(30px, 6vw, 46px); font-weight: 700; color: var(--heading); letter-spacing: -0.01em; line-height: 1; }
   .hero h1 {
     font-size: clamp(30px, 5.2vw, 50px); line-height: 1.14; margin: 0 0 18px;
@@ -130,8 +163,24 @@
     -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
   }
   .hero .slogan { color: var(--accent); font-size: 12px; margin: 0 0 22px; letter-spacing: 0.22em; text-transform: uppercase; opacity: 0.95; }
-  .hero p.lede { font-size: clamp(16px, 2.4vw, 20px); color: var(--muted); max-width: 700px; margin: 0 auto 30px; }
+  .hero p.lede { font-size: clamp(16px, 2.4vw, 20px); color: var(--muted); max-width: 700px; margin: 0 auto 22px; }
   .hero-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+  /* APC badge — anchors the whole pitch to the protocol. */
+  .apc-badge {
+    display: inline-flex; align-items: center; gap: 10px; margin: 22px auto 0;
+    font-size: 12.5px; color: var(--muted); padding: 8px 16px; border-radius: 999px;
+    background: linear-gradient(90deg, rgba(63,185,80,0.10), rgba(63,185,80,0.04));
+    border: 1px solid var(--border); transition: border-color .15s ease, color .15s ease;
+  }
+  .apc-badge:hover { border-color: var(--accent); color: var(--fg); }
+  .apc-badge b { color: var(--accent); font-weight: 700; letter-spacing: 0.04em; }
+  .apc-badge .dot-anim { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 0 var(--accent); animation: dotPing 2.4s ease-out infinite; }
+  @keyframes dotPing {
+    0%   { box-shadow: 0 0 0 0 rgba(63,185,80,0.6); }
+    70%  { box-shadow: 0 0 0 10px rgba(63,185,80,0); }
+    100% { box-shadow: 0 0 0 0 rgba(63,185,80,0); }
+  }
 
   /* Sections */
   section { padding: 64px 0; }
@@ -221,15 +270,31 @@
   .tag { font-size: 10.5px; font-weight: 700; color: var(--accent); border: 1px solid var(--border); border-radius: 999px; padding: 1px 7px; margin-left: 4px; vertical-align: middle; }
 
   /* Previews — hover to expand */
-  .previews { display: flex; align-items: center; gap: 12px; height: 440px; max-width: 1000px; margin: 36px auto 0; }
+  .previews { display: flex; align-items: center; gap: 10px; height: 460px; max-width: 1100px; margin: 36px auto 0; }
   .preview-panel {
-    position: relative; flex: 1 1 0; min-width: 0; height: 340px; overflow: hidden;
+    position: relative; flex: 1 1 0; min-width: 0; height: 320px; overflow: hidden;
     border: 1px solid var(--border-soft); border-radius: var(--radius); cursor: pointer;
     background: linear-gradient(180deg, var(--panel), var(--panel2));
     transition: flex-grow .5s cubic-bezier(.2,.7,.2,1), height .5s cubic-bezier(.2,.7,.2,1), border-color .25s ease;
   }
-  .previews:hover .preview-panel { flex-grow: 0.55; height: 290px; }
-  .preview-panel:hover, .preview-panel:focus-visible { flex-grow: 3.4 !important; height: 440px !important; border-color: var(--accent); }
+  .previews:hover .preview-panel { flex-grow: 0.45; height: 280px; }
+  .preview-panel:hover, .preview-panel:focus-visible { flex-grow: 5 !important; height: 460px !important; border-color: var(--accent); }
+  .preview-panel.coming { cursor: default; opacity: 0.78; }
+  .preview-panel.coming::before {
+    content: ''; position: absolute; inset: 0; z-index: 0;
+    background-image: repeating-linear-gradient(45deg, rgba(63,185,80,0.05) 0 10px, transparent 10px 22px);
+    pointer-events: none;
+  }
+  .preview-panel .ph .soon {
+    display: inline-block; margin-top: 8px; font-size: 10px; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--accent); border: 1px solid var(--border);
+    border-radius: 999px; padding: 3px 9px; background: rgba(63,185,80,0.06);
+  }
+  .preview-panel .label .soon-tag {
+    margin-left: 6px; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--accent); background: rgba(63,185,80,0.10); border: 1px solid var(--border);
+    border-radius: 999px; padding: 1px 7px; font-weight: 600;
+  }
   .preview-panel .ph {
     position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
     color: var(--muted); font-size: 12.5px; opacity: 0.75; text-align: center; padding: 8px;
@@ -280,8 +345,110 @@
   .thint { font-size: 12px; color: var(--muted); margin-top: 8px; }
   @keyframes tslide { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
 
-  /* Get started */
-  .start { background: linear-gradient(180deg, var(--panel), var(--bg2)); border: 1px solid var(--border); border-radius: 18px; padding: 44px; text-align: center; }
+  /* Channels / stages — one conversation across surfaces */
+  .stage-track {
+    position: relative; margin: 50px auto 0; max-width: 980px; padding: 0 8px;
+  }
+  .stage-rail {
+    position: absolute; left: 4%; right: 4%; top: 41px; height: 2px;
+    background: linear-gradient(90deg, rgba(63,185,80,0.18), rgba(63,185,80,0.45), rgba(63,185,80,0.18));
+    border-radius: 2px; overflow: hidden;
+  }
+  .stage-rail::before {
+    content: ''; position: absolute; inset: 0; width: 28%;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    animation: stageScan 6s ease-in-out infinite;
+  }
+  @keyframes stageScan {
+    0%   { transform: translateX(-30%); }
+    100% { transform: translateX(360%); }
+  }
+  .stages {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; position: relative; z-index: 1;
+  }
+  .stage {
+    text-align: center; cursor: pointer; padding: 0 8px;
+    transition: transform .25s ease;
+  }
+  .stage:hover { transform: translateY(-4px); }
+  .stage-icon {
+    width: 82px; height: 82px; border-radius: 22px; margin: 0 auto 16px;
+    display: flex; align-items: center; justify-content: center; color: var(--accent);
+    background: linear-gradient(135deg, rgba(63,185,80,0.18), rgba(63,185,80,0.04));
+    border: 1px solid var(--border); position: relative;
+    transition: border-color .3s ease, box-shadow .3s ease, transform .3s ease;
+  }
+  .stage.on .stage-icon {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px rgba(63,185,80,0.10), 0 0 28px rgba(63,185,80,0.25);
+    transform: scale(1.06);
+  }
+  .stage-icon svg { width: 36px; height: 36px; }
+  .stage h3 { margin: 0 0 6px; font-size: 15px; color: var(--heading); font-weight: 700; }
+  .stage p { margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.55; }
+  .stage .step { font-size: 10.5px; color: var(--accent); letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 8px; font-weight: 700; }
+
+  .convo {
+    margin: 38px auto 0; max-width: 620px;
+    background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 22px 24px; min-height: 96px; position: relative; overflow: hidden;
+  }
+  .convo-line { color: var(--fg); font-size: 14.5px; line-height: 1.7; }
+  .convo-line .who { color: var(--accent); font-weight: 700; margin-right: 8px; }
+  .convo-line .ch { font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); float: right; margin-top: 4px; }
+  .convo .ctx { margin-top: 14px; color: var(--muted); font-size: 12px; }
+  .convo .ctx b { color: var(--accent); font-weight: 600; }
+
+  /* APC section */
+  #runtimes .apc-hero { display: flex; align-items: center; gap: 26px; flex-wrap: wrap; }
+  #runtimes .apc-mark {
+    font-size: 54px; font-weight: 900; letter-spacing: -0.04em; line-height: 1;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    border: 1px solid var(--border); border-radius: 18px; padding: 18px 22px;
+    background-color: var(--panel); box-shadow: 0 0 40px rgba(63,185,80,0.18);
+  }
+  .apc-points { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 36px; }
+  .apc-point { display: flex; gap: 14px; padding: 22px; background: var(--panel); border: 1px solid var(--border-soft); border-radius: var(--radius); transition: border-color .14s ease; }
+  .apc-point:hover { border-color: var(--accent); }
+  .apc-num { color: var(--accent); font-weight: 800; font-size: 20px; letter-spacing: -0.02em; }
+  .apc-point h4 { margin: 0 0 4px; color: var(--heading); font-size: 15px; }
+  .apc-point p { margin: 0; color: var(--muted); font-size: 13.5px; line-height: 1.55; }
+  .apc-point code { color: var(--accent2); background: rgba(63,185,80,0.08); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+
+  /* Get started — cinematic */
+  #start { position: relative; }
+  #start::before {
+    content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 0;
+    background:
+      radial-gradient(ellipse 50% 40% at 50% 50%, rgba(63,185,80,0.16), transparent 75%),
+      radial-gradient(circle at 1px 1px, rgba(63,185,80,0.10) 1px, transparent 0);
+    background-size: auto, 40px 40px;
+    -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, #000, transparent 80%);
+            mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, #000, transparent 80%);
+    animation: meshDrift 28s ease-in-out infinite alternate;
+  }
+  #start .wrap { position: relative; z-index: 1; }
+  .start {
+    background: linear-gradient(180deg, var(--panel), var(--bg2));
+    border: 1px solid var(--border); border-radius: 22px; padding: 56px 40px; text-align: center;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.45), 0 0 60px rgba(63,185,80,0.10);
+    position: relative; overflow: hidden;
+  }
+  .start-glow {
+    position: absolute; inset: -50%; pointer-events: none; z-index: 0;
+    background: conic-gradient(from 0deg at 50% 50%, transparent 0%, rgba(63,185,80,0.12) 25%, transparent 50%, rgba(63,185,80,0.10) 75%, transparent 100%);
+    animation: glowSpin 24s linear infinite; opacity: 0.65;
+  }
+  @keyframes glowSpin { to { transform: rotate(360deg); } }
+  .start > * { position: relative; z-index: 1; }
+  .start-logo img { filter: drop-shadow(0 6px 30px rgba(63,185,80,0.5)); animation: logoFloat 6s ease-in-out infinite; margin: 14px 0 6px; }
+  .start-title { font-size: clamp(28px, 4.4vw, 44px); margin: 10px 0 18px; }
+  .start-title .grad {
+    background: linear-gradient(120deg, var(--accent2), var(--accent));
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  }
+
   .codeblock {
     display: inline-flex; align-items: center; gap: 14px; margin: 18px auto 8px;
     background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
@@ -303,10 +470,16 @@
     .nav-links-hamburger { display: block; }
     .arch { grid-template-columns: 1fr; }
     .arch-col.left, .arch-col.right { align-items: center; }
+    .stages { grid-template-columns: repeat(2, 1fr); gap: 24px 16px; }
+    .stage-rail { display: none; }
+    .apc-points { grid-template-columns: 1fr; }
+    .previews { flex-direction: column; height: auto; }
+    .preview-panel { height: 180px !important; flex: none !important; }
   }
   @media (max-width: 520px) {
     .grid { grid-template-columns: 1fr; }
     .tgrid .tcard { padding: 20px; gap: 16px; flex-direction: column; text-align: center; }
+    .stages { grid-template-columns: 1fr; }
   }
 </style>
 </head>
@@ -321,7 +494,8 @@
       <div class="nav-links">
         <a href="#how-it-works">How it works</a>
         <a href="#features">Features</a>
-        <a href="#runtimes">Runtimes</a>
+        <a href="#channels">Channels</a>
+        <a href="#runtimes">APC</a>
         <a href="#start">Quick start</a>
         <a class="btn" href="https://github.com/agentprojectcontext/apx" target="_blank" rel="noopener">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.7.5.5 5.7.5 12c0 5.1 3.3 9.4 7.9 10.9.6.1.8-.2.8-.6v-2c-3.2.7-3.9-1.5-3.9-1.5-.5-1.3-1.3-1.7-1.3-1.7-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.7 1.3 3.4 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.3-1.3-5.3-5.7 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.6 1.6.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3.1 0 4.4-2.7 5.4-5.3 5.7.4.4.8 1.1.8 2.2v3.3c0 .4.2.7.8.6 4.6-1.5 7.9-5.8 7.9-10.9C23.5 5.7 18.3.5 12 .5z"/></svg>
@@ -335,7 +509,8 @@
         <div class="hamburger-menu">
           <a href="#how-it-works">How it works</a>
           <a href="#features">Features</a>
-          <a href="#runtimes">Runtimes</a>
+          <a href="#channels">Channels</a>
+          <a href="#runtimes">APC</a>
           <a href="#start">Quick start</a>
           <a class="btn" href="https://github.com/agentprojectcontext/apx" target="_blank" rel="noopener">GitHub</a>
         </div>
@@ -361,8 +536,11 @@
       <div class="hero-cta">
         <a class="btn primary" href="#start">Get started</a>
         <a class="btn" href="https://github.com/agentprojectcontext/apx" target="_blank" rel="noopener">View on GitHub</a>
-        <a class="btn" href="https://github.com/agentprojectcontext/agentprojectcontext" target="_blank" rel="noopener">APC Protocol &rarr;</a>
       </div>
+      <a class="apc-badge" href="https://github.com/agentprojectcontext/agentprojectcontext" target="_blank" rel="noopener">
+        <span class="dot-anim"></span>
+        Built on <b>APC</b> &mdash; the Agent Project Context protocol &rarr;
+      </a>
     </div>
   </header>
 
@@ -547,6 +725,53 @@
     </div>
   </section>
 
+  <!-- CHANNELS — one conversation across surfaces -->
+  <section id="channels">
+    <div class="wrap">
+      <div class="center">
+        <div class="eyebrow">Same context, every channel</div>
+        <h2 class="h">One conversation, however you talk to it</h2>
+        <p class="sub center">Start on Telegram, continue on the web, fire up Claude Code, end up in your project. APX
+          carries the session, the memory, and the routing &mdash; the agent never forgets where you left off.</p>
+      </div>
+
+      <div class="stage-track">
+        <div class="stage-rail"></div>
+        <div class="stages">
+          <div class="stage" data-i="0">
+            <div class="stage-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></svg></div>
+            <div class="step">Step 1</div>
+            <h3>Telegram</h3>
+            <p>You ask the project agent something from your phone.</p>
+          </div>
+          <div class="stage" data-i="1">
+            <div class="stage-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></div>
+            <div class="step">Step 2</div>
+            <h3>Web admin</h3>
+            <p>Open the web UI; the same thread is already there.</p>
+          </div>
+          <div class="stage" data-i="2">
+            <div class="stage-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m6 9 3 3-3 3M13 15h5"/></svg></div>
+            <div class="step">Step 3</div>
+            <h3>Claude Code</h3>
+            <p>Hand it off to a coding runtime &mdash; with the same context.</p>
+          </div>
+          <div class="stage" data-i="3">
+            <div class="stage-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v2"/><path d="M3 7h18l-1.5 12a2 2 0 0 1-2 2H6.5a2 2 0 0 1-2-2z"/></svg></div>
+            <div class="step">Step 4</div>
+            <h3>Your project</h3>
+            <p>Changes, memory and session land in <code style="color:var(--accent);background:rgba(63,185,80,0.08);padding:0 4px;border-radius:3px">.apc/</code>.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="convo" id="convo">
+        <div class="convo-line"><span class="who">You &rarr; Roby</span><span class="ch">Telegram</span>How are the open PRs doing?</div>
+        <div class="ctx">context carried: <b>1 thread</b> · <b>0 file edits</b> · <b>Telegram</b></div>
+      </div>
+    </div>
+  </section>
+
   <!-- PREVIEWS -->
   <section id="previews">
     <div class="wrap">
@@ -571,35 +796,58 @@
           <video muted loop playsinline preload="none"><source src="assets/preview-telegram.webm" type="video/webm"></video>
           <div class="label"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2 15 22l-4-9-9-4z"/></svg>Telegram</div>
         </div>
+        <div class="preview-panel" tabindex="0">
+          <div class="ph"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg><span>[ Desktop ]</span></div>
+          <video muted loop playsinline preload="none"><source src="assets/preview-desktop.webm" type="video/webm"></video>
+          <div class="label"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>Desktop</div>
+        </div>
+        <div class="preview-panel coming" tabindex="0">
+          <div class="ph"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 22h12M10 18v4M14 18v4"/></svg><span>[ Deck ]</span><span class="soon">coming soon</span></div>
+          <div class="label"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 22h12M10 18v4M14 18v4"/></svg>Deck <span class="soon-tag">soon</span></div>
+        </div>
       </div>
     </div>
   </section>
 
-  <!-- RUNTIMES -->
+  <!-- APC PROTOCOL -->
   <section id="runtimes">
     <div class="wrap">
-      <div class="eyebrow">How it actually started</div>
-      <h2 class="h">Six IDEs, six copies of the same agent config.</h2>
-      <p class="sub" style="max-width:760px;">
+      <div class="apc-hero">
+        <div class="apc-mark">APC</div>
+        <div>
+          <div class="eyebrow">The protocol underneath</div>
+          <h2 class="h" style="margin-top:4px;">Agent Project Context &mdash; one convention, every tool</h2>
+        </div>
+      </div>
+      <p class="sub" style="max-width:780px; margin-top:24px;">
         Every AI coding tool wanted its own folder, its own memory, its own rules file. The context
         was the same &mdash; the project &mdash; but it lived in six places and drifted in all of them.
       </p>
-      <p class="sub" style="max-width:760px; margin-top:14px;">
-        APX is the reference implementation of the <a href="https://github.com/agentprojectcontext/agentprojectcontext" target="_blank" rel="noopener">APC protocol</a>:
-        one on-disk convention for project context, and a runtime that lets any tool read it. Define an
-        agent once, run it anywhere, fall back when a runtime isn&rsquo;t installed, and keep the whole
-        trail in files you own.
+      <p class="sub" style="max-width:780px; margin-top:14px;">
+        <strong style="color:var(--fg)">APC</strong> defines a single on-disk convention for project context
+        &mdash; agents, memory, sessions, MCP servers, skills. <strong style="color:var(--fg)">APX</strong> is its
+        reference runtime: read the convention, route to any compliant tool, and keep the whole trail in files you own.
       </p>
+      <div class="apc-points">
+        <div class="apc-point"><span class="apc-num">01</span><div><h4>Define once</h4><p>Agents and skills live in <code>.apc/</code>, committed with your repo.</p></div></div>
+        <div class="apc-point"><span class="apc-num">02</span><div><h4>Run anywhere</h4><p>Any APC-aware tool reads the same context &mdash; Claude Code, Codex, OpenCode, future runtimes.</p></div></div>
+        <div class="apc-point"><span class="apc-num">03</span><div><h4>Stay portable</h4><p>No vendor database. Switch tools, fork the repo, move clouds &mdash; the context comes with you.</p></div></div>
+      </div>
+      <a class="btn primary" href="https://github.com/agentprojectcontext/agentprojectcontext" target="_blank" rel="noopener" style="margin-top:32px;">Read the APC spec &rarr;</a>
     </div>
   </section>
 
-  <!-- GET STARTED -->
+  <!-- GET STARTED — full attention -->
   <section id="start">
     <div class="wrap">
       <div class="start">
+        <div class="start-glow"></div>
         <div class="eyebrow">Get started</div>
-        <h2 class="h" style="margin-bottom:6px;">Install it and run</h2>
-        <p class="sub center" style="margin:0 auto;">Open source and free. No sales team, no demo request &mdash; just install the package. Requires Node.js 20+.</p>
+        <div class="start-logo">
+          <img src="assets/logo.png" alt="APX" width="64" height="64">
+        </div>
+        <h2 class="h start-title">Install it and run.<br><span class="grad">That&rsquo;s it.</span></h2>
+        <p class="sub center" style="margin:0 auto; font-size: 16px;">Open source and free. No sales team, no demo request &mdash; just install the package. Requires Node.js 20+.</p>
         <div class="codeblock"><span class="prompt">$</span> <span id="install-cmd">npm install -g apx</span><button class="copy" type="button" data-copy="npm install -g apx">copy</button></div>
         <div>
           <a class="btn primary" href="https://github.com/agentprojectcontext/apx" target="_blank" rel="noopener" style="margin-top:14px;">View on GitHub</a>
@@ -729,6 +977,46 @@
         sx = null;
       });
       show(0);
+    })();
+
+    // Channels — cycle through stages with the conversation thread.
+    (function () {
+      var stages = document.querySelectorAll('#channels .stage');
+      var convo = document.getElementById('convo');
+      if (!stages.length || !convo) return;
+      var states = [
+        { who: 'You &rarr; Roby', ch: 'Telegram',  msg: 'How are the open PRs doing?',          ctx: 'context carried: <b>1 thread</b> · <b>0 file edits</b> · <b>Telegram</b>' },
+        { who: 'Roby',            ch: 'Web admin', msg: 'Same thread, now on web. 4 PRs open — want me to review them?', ctx: 'context carried: <b>1 thread</b> · <b>session resumed</b> · <b>Web</b>' },
+        { who: 'Roby',            ch: 'Claude Code', msg: 'Running review in claude-code… read 4 PRs, 1 needs changes.',  ctx: 'context carried: <b>1 thread</b> · <b>runtime: claude-code</b> · <b>4 PRs read</b>' },
+        { who: 'apx',             ch: '.apc/',      msg: 'Session, memory and decision summary committed to <code style="color:var(--accent);background:rgba(63,185,80,0.08);padding:0 4px;border-radius:3px">.apc/agents/roby/</code>', ctx: 'persisted: <b>session.md</b> · <b>memory.md</b> · <b>filesystem-first</b>' }
+      ];
+      var i = 0, timer = null;
+      function paint(k) {
+        i = (k + states.length) % states.length;
+        stages.forEach(function (s, idx) { s.classList.toggle('on', idx === i); });
+        var st = states[i];
+        convo.innerHTML =
+          '<div class="convo-line"><span class="who">' + st.who + '</span><span class="ch">' + st.ch + '</span>' + st.msg + '</div>' +
+          '<div class="ctx">' + st.ctx + '</div>';
+      }
+      function tick() { paint(i + 1); timer = setTimeout(tick, 3200); }
+      stages.forEach(function (s) {
+        s.addEventListener('click', function () {
+          clearTimeout(timer); paint(parseInt(s.getAttribute('data-i'), 10));
+          timer = setTimeout(tick, 5000);
+        });
+      });
+      // Only run while the section is on screen.
+      var sec = document.getElementById('channels');
+      if ('IntersectionObserver' in window) {
+        var io = new IntersectionObserver(function (entries) {
+          entries.forEach(function (e) {
+            if (e.isIntersecting) { paint(0); clearTimeout(timer); timer = setTimeout(tick, 1800); }
+            else { clearTimeout(timer); }
+          });
+        }, { threshold: 0.35 });
+        io.observe(sec);
+      } else { paint(0); timer = setTimeout(tick, 1800); }
     })();
 
     // Copy install command.
