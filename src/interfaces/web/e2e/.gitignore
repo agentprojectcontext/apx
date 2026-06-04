@@ -1,0 +1,4 @@
+.runtime.json
+.playwright-report/
+test-results/
+.shots/

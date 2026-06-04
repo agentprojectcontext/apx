@@ -104,40 +104,102 @@ export function readAgentsFromDir(root) {
 }
 
 // ---------------------------------------------------------------------------
-// Vault — ~/.apx/agents/<slug>.md  (global templates, no memory)
+// Vault — global, project-agnostic agent templates.
+// Two-layer model:
+//   - BUNDLED  → assets/agent-vault-defaults/<slug>.md, shipped with APX,
+//                always visible. Read-only on the user's machine.
+//   - USER     → ~/.apx/agents/<slug>.md, the user's own additions and
+//                overrides on top of the bundle. User layer wins per-slug.
+//   - REMOVED  → ~/.apx/agents/.removed.json, tombstones (slugs the user
+//                explicitly deleted). Hidden from listings until restored.
+// Reading: BUNDLED ∪ USER, dedup by slug (user wins), filter tombstones.
+// Writing: always to the USER layer (copy-on-write). Removing: tombstones
+// if it's a bundled slug, deletes the user file otherwise.
 // ---------------------------------------------------------------------------
 
 import os from "node:os";
+import { fileURLToPath } from "node:url";
+
+const __parserDir = path.dirname(fileURLToPath(import.meta.url));
 
 export const VAULT_DIR = path.join(os.homedir(), ".apx", "agents");
+export const BUNDLED_VAULT_DIR = path.resolve(__parserDir, "../../assets/agent-vault-defaults");
+export const VAULT_TOMBSTONE_PATH = path.join(VAULT_DIR, ".removed.json");
 
-export function readVaultAgents() {
-  if (!fs.existsSync(VAULT_DIR)) return [];
+function readVaultDirRaw(dir) {
+  if (!fs.existsSync(dir)) return [];
   return fs
-    .readdirSync(VAULT_DIR)
+    .readdirSync(dir)
     .filter((f) => f.endsWith(".md") && SLUG_RE.test(f.slice(0, -3)))
     .sort()
-    .map((f) => {
-      const slug = f.slice(0, -3);
-      const agent = parseAgentFile(slug, fs.readFileSync(path.join(VAULT_DIR, f), "utf8"));
-      return { ...agent, source: "vault" };
-    });
+    .map((f) => ({ slug: f.slice(0, -3), file: path.join(dir, f) }));
 }
 
-// Resolve a single agent for a project: local file → vault → null
+export function readVaultTombstones() {
+  if (!fs.existsSync(VAULT_TOMBSTONE_PATH)) return new Set();
+  try {
+    const raw = JSON.parse(fs.readFileSync(VAULT_TOMBSTONE_PATH, "utf8"));
+    return new Set(Array.isArray(raw.slugs) ? raw.slugs : []);
+  } catch { return new Set(); }
+}
+
+export function writeVaultTombstones(slugs) {
+  fs.mkdirSync(VAULT_DIR, { recursive: true });
+  fs.writeFileSync(
+    VAULT_TOMBSTONE_PATH,
+    JSON.stringify({ slugs: [...slugs].sort() }, null, 2) + "\n",
+  );
+}
+
+export function readVaultAgents({ includeRemoved = false } = {}) {
+  const tombstones = readVaultTombstones();
+  // Build a map slug → { agent, source }. User layer overrides bundled.
+  const bySlug = new Map();
+  for (const { slug, file } of readVaultDirRaw(BUNDLED_VAULT_DIR)) {
+    if (!includeRemoved && tombstones.has(slug)) continue;
+    const agent = parseAgentFile(slug, fs.readFileSync(file, "utf8"));
+    bySlug.set(slug, { ...agent, source: "bundled" });
+  }
+  for (const { slug, file } of readVaultDirRaw(VAULT_DIR)) {
+    if (!includeRemoved && tombstones.has(slug)) continue;
+    const agent = parseAgentFile(slug, fs.readFileSync(file, "utf8"));
+    const overrides = bySlug.has(slug);
+    bySlug.set(slug, { ...agent, source: overrides ? "user-override" : "user" });
+  }
+  return [...bySlug.values()].sort((a, b) => a.slug.localeCompare(b.slug));
+}
+
+// Resolve a single vault agent honoring the layered model. Returns null when
+// the slug is missing or tombstoned (unless includeRemoved is true).
+function readVaultAgent(slug, { includeRemoved = false } = {}) {
+  if (!includeRemoved && readVaultTombstones().has(slug)) return null;
+  const userPath = path.join(VAULT_DIR, `${slug}.md`);
+  if (fs.existsSync(userPath)) {
+    const agent = parseAgentFile(slug, fs.readFileSync(userPath, "utf8"));
+    const overrides = fs.existsSync(path.join(BUNDLED_VAULT_DIR, `${slug}.md`));
+    return { ...agent, source: overrides ? "user-override" : "user" };
+  }
+  const bundledPath = path.join(BUNDLED_VAULT_DIR, `${slug}.md`);
+  if (fs.existsSync(bundledPath)) {
+    const agent = parseAgentFile(slug, fs.readFileSync(bundledPath, "utf8"));
+    return { ...agent, source: "bundled" };
+  }
+  return null;
+}
+
+// Resolve a single agent for a project: local file → vault (layered) → null.
 export function resolveAgent(root, slug) {
   const localPath = path.join(root, ".apc", "agents", `${slug}.md`);
   if (fs.existsSync(localPath)) {
     const agent = parseAgentFile(slug, fs.readFileSync(localPath, "utf8"));
     return { ...agent, source: "local" };
   }
-  const vaultPath = path.join(VAULT_DIR, `${slug}.md`);
-  if (fs.existsSync(vaultPath)) {
-    const agent = parseAgentFile(slug, fs.readFileSync(vaultPath, "utf8"));
-    return { ...agent, source: "vault" };
-  }
-  return null;
+  return readVaultAgent(slug);
 }
+
+// Exported for callers (CLI rm/edit, API DELETE/PATCH) that need to know
+// whether a slug is user-layer, bundled, or absent before acting.
+export { readVaultAgent };
 
 // Return slugs imported from vault in this project (from project.json)
 export function importedVaultSlugs(root) {

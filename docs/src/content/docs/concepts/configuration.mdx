@@ -1,0 +1,205 @@
+---
+title: Configuration
+description: Global ~/.apx/config.json, identity.json, project-level .apc/config.json, and the commands to read and write them.
+sidebar:
+  order: 6
+---
+
+import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+import Screenshot from '../../../components/Screenshot.astro';
+
+APX uses two configuration layers — global (machine-local, never committed) and project-local
+(committed to the repo, no secrets). Commands at both layers use dotted-key syntax and are
+JSON-aware.
+
+## Global config — `~/.apx/config.json`
+
+The global config file is created on first run. It holds engine credentials, daemon settings,
+the super-agent model, voice, memory, and Telegram options.
+
+### Top-level structure
+
+```json
+{
+  "port": 7430,
+  "host": "127.0.0.1",
+  "log_level": "info",
+  "user": {
+    "language": "en",
+    "locale": "",
+    "timezone": ""
+  },
+  "super_agent": { ... },
+  "engines": { ... },
+  "memory": { ... },
+  "voice": { ... },
+  "telegram": { ... },
+  "projects": []
+}
+```
+
+### Engines
+
+API keys and base URLs for every supported LLM provider:
+
+```json
+{
+  "engines": {
+    "anthropic":  { "api_key": "sk-ant-..." },
+    "openai":     { "api_key": "sk-...", "base_url": "https://api.openai.com/v1" },
+    "groq":       { "api_key": "...",    "base_url": "https://api.groq.com/openai/v1" },
+    "openrouter": { "api_key": "...",    "base_url": "https://openrouter.ai/api/v1" },
+    "gemini":     { "api_key": "..." },
+    "ollama":     { "base_url": "http://localhost:11434" }
+  }
+}
+```
+
+### Super-agent
+
+```json
+{
+  "super_agent": {
+    "enabled": false,
+    "name": "apx",
+    "model": "anthropic:claude-sonnet-4-5",
+    "permission_mode": "automatico",
+    "allowed_tools": [],
+    "model_fallback": {
+      "enabled": true,
+      "models": [
+        "openrouter:meta-llama/llama-3.3-70b-instruct",
+        "groq:llama-3.3-70b-versatile"
+      ],
+      "health_timeout_ms": 800
+    }
+  }
+}
+```
+
+`permission_mode` controls which tools the super-agent can run without asking:
+
+| Mode | Behavior |
+|---|---|
+| `total` | All tools allowed, no confirmation |
+| `automatico` | APX decides automatically based on safety heuristics |
+| `permiso` | Only tools listed in `allowed_tools`; everything else asks |
+
+## The identity file — `~/.apx/identity.json`
+
+This file sets the assistant's user-facing name and personality:
+
+```json
+{
+  "name": "APX",
+  "persona": ""
+}
+```
+
+Change `name` to give your assistant a different display name across all surfaces (Telegram,
+Desktop, Web). The technical config key `super_agent.name` is separate — `identity.json` is
+what end users see.
+
+## Project config — `.apc/config.json`
+
+Project-level overrides are committed alongside the agent definitions. They take priority over
+the global config for that project only. **Never put secrets here** — this file is committed.
+
+```json
+{
+  "super_agent": {
+    "model": "groq:llama-3.3-70b-versatile",
+    "permission_mode": "total"
+  },
+  "telegram": {
+    "route_to_agent": "reviewer"
+  }
+}
+```
+
+## Config commands
+
+### View config
+
+<Tabs syncKey="cfg">
+  <TabItem label="Global">
+    ```bash
+    apx config show                   # effective config (global merged with project defaults)
+    apx config show --only-overrides  # only what differs from defaults
+    ```
+  </TabItem>
+  <TabItem label="Project">
+    ```bash
+    apx project config show my-app
+    apx project config show my-app --key super_agent.model
+    apx project config show my-app --effective
+    ```
+  </TabItem>
+</Tabs>
+
+<Screenshot
+  surface="terminal"
+  caption="apx config show — full effective configuration as JSON"
+  hint="Run: apx config show" />
+
+### Set and unset values
+
+Values are JSON-aware — booleans, numbers, and arrays are parsed correctly:
+
+```bash
+apx config set super_agent.enabled true
+apx config set super_agent.model "anthropic:claude-sonnet-4-5"
+apx config set engines.openai.api_key "sk-..."
+apx config unset super_agent.model                  # remove key, fall back to default
+```
+
+For project config:
+
+```bash
+apx project config set my-app super_agent.model groq:llama-3.3-70b-versatile
+apx project config set my-app telegram.route_to_agent reviewer
+apx project config unset my-app super_agent.model
+apx project config edit my-app                      # open in $EDITOR
+```
+
+## Model commands
+
+`apx model` manages the super-agent's model fallback router — the ordered list of providers APX
+tries in sequence when the primary model is unavailable:
+
+```bash
+apx model status                                    # probe all providers, show active model
+apx model order ollama openrouter groq              # set fallback order
+apx model key groq sk-xxxx                          # save an API key
+apx model set openrouter meta-llama/llama-3.3-70b-instruct  # pin a model for one provider
+apx model test                                      # which model would be picked right now?
+apx model enable                                    # enable the fallback router
+apx model disable                                   # disable (primary only, no fallback)
+```
+
+<Screenshot
+  surface="terminal"
+  caption="apx model status — provider probes, API key presence, and active model"
+  hint="Run: apx model status" />
+
+## Permission commands
+
+`apx permission` is a shorthand for reading and writing `super_agent.permission_mode`:
+
+```bash
+apx permission show                                 # print current mode
+apx permission set total                            # allow all tools
+apx permission set automatico                       # APX decides
+apx permission set permiso                          # only allowed_tools
+```
+
+<Aside type="tip">
+  `automatico` is the recommended default for most projects. Use `total` only in trusted,
+  non-interactive environments. Use `permiso` when you want explicit control over every tool
+  the agent can reach.
+</Aside>
+
+## Next
+
+- [Projects](/apx/concepts/projects/) — per-project config in `.apc/config.json`.
+- [Installation](/apx/start/installation/) — where `~/.apx/` is first created.

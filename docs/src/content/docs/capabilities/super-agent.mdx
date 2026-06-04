@@ -1,0 +1,167 @@
+---
+title: Super-agent
+description: The tool-using default mode that runs when no project agent is named — what it is, how to invoke it with apx exec, its tool loop, and how to set the assistant's display name.
+sidebar:
+  order: 1
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import Screenshot from '../../../components/Screenshot.astro';
+
+The **super-agent** is a _mode_, not a persona name. When you run `apx exec` without targeting a
+specific project agent, APX activates this mode: the daemon-level, tool-using loop that can reach
+every registered tool — file operations, MCP calls, Telegram, shell, tasks, sessions, and more.
+
+The name the assistant uses when talking to you comes from `~/.apx/identity.json` (default
+**"APX"**). References to "super-agent" are an internal technical term for the mode. You configure
+it with `super_agent.*` keys in `~/.apx/config.json`, and routine kinds may still say
+`super_agent` — but users never see that label.
+
+<Aside type="note">
+  This design is recorded in `spec/decisions/002-super-agent-is-mode-not-name.md`.
+  See [Configuration](/apx/concepts/configuration/) for the full `super_agent.*` key reference.
+</Aside>
+
+## Enabling it
+
+The mode is disabled by default. Set both keys before you first call it:
+
+```bash
+apx config set super_agent.enabled true
+apx config set super_agent.model "anthropic:claude-sonnet-4-5"
+```
+
+Once enabled, every `apx exec` call without `-a <agent>` goes through this mode.
+
+## `apx exec` — the one-shot entry point
+
+```bash
+apx exec "<prompt>"                         # super-agent mode (default)
+apx exec -- "<prompt>"                      # same; -- avoids flag parsing issues
+apx exec -a reviewer "<prompt>"            # named project agent instead
+apx exec "<prompt>" --model gpt-5          # override the configured model for this call
+apx exec "<prompt>" --max-tokens 2000      # cap output tokens
+apx exec "<prompt>" --project my-app       # pin to a specific project context
+```
+
+<Screenshot
+  surface="terminal"
+  caption="apx exec in action — super-agent mode with tool calls visible"
+  hint="Run: apx exec 'list my open tasks across all projects'" />
+
+When the super-agent mode is active the daemon resolves the assistant's name from
+`~/.apx/identity.json` and displays it in status lines, TUI headers, and Telegram replies —
+never the string "super-agent".
+
+## The tool loop
+
+Under the hood `runSuperAgent()` builds a system prompt (identity block + project inventory +
+memory block + active-threads block), selects a tool schema subset appropriate for the channel,
+then calls the engine via the standard `runAgent()` loop. The loop continues until the model stops
+calling tools or a signal aborts it.
+
+### Tool registry
+
+The full registry has around 30 native tools plus registry-bridged tools (browser, fetch, search,
+glob, grep). The daemon picks a subset based on the channel to stay within cheap-tier TPM budgets:
+
+| Channel | Tool set | Rationale |
+|---|---|---|
+| `api` / `apx exec` | Full | Deliberate, user-picked model |
+| `routine` | Full | Scheduled, autonomous, user-picked model |
+| `web` / `code` | Full | Long-form workspace |
+| `telegram` | Core (~700 tokens) | Cheap tiers, snappy replies |
+| `desktop` / `deck` | Core | Same |
+
+The model can always expand its surface by calling `load_skill`.
+
+### Selected native tools
+
+| Tool | What it does |
+|---|---|
+| `create_task` / `list_tasks` | Add and read per-project TODO items |
+| `call_agent` | Delegate to a named project agent without spawning a new process |
+| `call_mcp` | Call any registered MCP server tool |
+| `call_runtime` | Run a Claude Code / Codex session |
+| `run_shell` | Execute a shell command (gated by permission mode) |
+| `send_telegram` | Send a message via the Telegram plugin |
+| `remember` | Write a durable fact to `~/.apx/memory.md` |
+| `search_sessions` | Retrieve past session transcripts |
+| `set_identity` | Update `~/.apx/identity.json` fields |
+
+## Cross-channel brokering
+
+The super-agent mode is the common handler behind every surface: Telegram messages, Desktop window
+prompts, `apx exec` calls, web chat, and routine runs all converge on `runSuperAgent()`. Each
+surface passes a `channel` identifier (`telegram`, `desktop`, `web`, `routine`, `api`, …) which
+drives:
+
+- Which tool subset is visible to the model.
+- Whether an "active threads" block (recent turns on _other_ channels) is injected.
+- Which Telegram sender identity and role-gating rules apply.
+
+The memory broker runs before every non-tool-free call and injects a `[MEMORIA RELEVANTE]` block
+into the system prompt. See [Memory system](/apx/capabilities/memory-system/) for details.
+
+## Identity — `apx identity`
+
+The assistant's user-facing name is stored in `~/.apx/identity.json`:
+
+```json
+{
+  "agent_name": "APX",
+  "owner_name": ""
+}
+```
+
+Three commands manage it:
+
+```bash
+apx identity show                 # print current identity fields
+apx identity set agent_name Ada   # change the display name to "Ada"
+apx identity set owner_name Sam   # set the owner/user name
+apx identity wizard               # interactive setup prompt
+```
+
+<Screenshot
+  surface="terminal"
+  caption="apx identity show — current agent and owner name"
+  hint="Run: apx identity show" />
+
+<Aside type="tip">
+  Changing `agent_name` propagates immediately to Telegram replies, the Desktop bubble, TUI
+  sidebar, and web chat. No restart needed.
+</Aside>
+
+## Permission mode
+
+`permission_mode` in `super_agent` controls what the tool loop can do without asking:
+
+| Mode | Behavior |
+|---|---|
+| `total` | All tools run without confirmation |
+| `automatico` | APX decides automatically (recommended) |
+| `permiso` | Only tools in `allowed_tools`; everything else asks |
+
+```bash
+apx permission set automatico
+```
+
+## Model fallback
+
+If the primary model is unavailable, APX walks a configurable ordered list of fallback providers.
+Set the order and enable the router:
+
+```bash
+apx model enable
+apx model order ollama openrouter groq
+apx model status          # probe all providers; show which would be used now
+```
+
+See [Configuration](/apx/concepts/configuration/) for the full `super_agent.model_fallback` schema.
+
+## Next
+
+- [Memory system](/apx/capabilities/memory-system/) — how the agent retrieves relevant context across channels.
+- [Routines](/apx/capabilities/routines/) — schedule the super-agent or a plain `exec_agent` on a cron.
+- [Configuration](/apx/concepts/configuration/) — full `super_agent.*` and `identity.json` reference.

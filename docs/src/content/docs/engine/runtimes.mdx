@@ -1,0 +1,171 @@
+---
+title: Runtimes
+description: Delegate agent tasks to external coding CLIs — Claude Code, Codex, OpenCode, Aider, Cursor Agent, Gemini CLI, and Qwen Code — via apx run.
+sidebar:
+  order: 1
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import Screenshot from '../../../components/Screenshot.astro';
+
+A **runtime** is an external AI coding CLI that APX can invoke headlessly on behalf of an agent.
+You use `apx run` to delegate a prompt to one of these tools; APX builds the system prompt, spawns
+the CLI, captures its output, and stores a session record. The external tool drives the actual
+model interaction, file edits, and shell commands — APX records the envelope.
+
+This is distinct from `apx exec`, which calls an LLM engine directly inside APX without spawning
+any external process. See [Engines](/apx/engine/engines/) for that path.
+
+## Supported runtimes
+
+| Runtime ID | Binary | What APX spawns |
+|------------|--------|-----------------|
+| `claude-code` | `claude` | Headless `-p` mode; receives the agent's system prompt via `--append-system-prompt`; returns structured JSON including a `session_id` that links to the Claude Code transcript |
+| `codex` | `codex` | `codex exec --sandbox workspace-write --skip-git-repo-check`; system prompt is prepended to the user prompt (no dedicated `--system` flag in exec mode) |
+| `opencode` | `opencode` | `opencode run`; system prompt prepended to prompt body |
+| `aider` | `aider` | `aider --message --yes-always --no-auto-commits`; non-interactive, no auto-commits |
+| `cursor-agent` | `cursor-agent` | `--print --output-format text --trust --force`; headless print mode |
+| `gemini-cli` | `gemini` | `--prompt --output-format text --approval-mode yolo`; headless prompt mode |
+| `qwen-code` | `qwen` | `--output-format text --approval-mode yolo`; system prompt via `--append-system-prompt` |
+
+<Aside type="note">
+  APX passes the agent's system prompt and the user prompt. It does **not** select or override the
+  model inside the external CLI — the CLI's own configuration (e.g. `CLAUDE.md` defaults for Claude
+  Code, or the Codex config file) controls that.
+</Aside>
+
+## Check what's installed
+
+Before picking a runtime, confirm which CLIs are available on the current machine:
+
+```bash
+apx env detect
+```
+
+<Screenshot
+  surface="terminal"
+  caption="apx env detect — shows installed runtimes, local LLM runners, and tools"
+  hint="Run: apx env detect" />
+
+The output groups results by category: `runtime`, `engine`, and `tool`. A runtime missing from
+the list is not installed — install its binary first, then re-run `apx env detect`.
+
+## Running an agent
+
+```bash
+apx run <agent> --runtime <id> "<prompt>" [--timeout <seconds>] [--project <name|id|path>]
+```
+
+**Examples:**
+
+```bash
+# Full code review via Claude Code
+apx run reviewer --runtime claude-code "Review the diff in src/ for memory leaks"
+
+# Refactoring task via Codex with a longer timeout
+apx run cody --runtime codex "Refactor parseAgentsMd to use a state machine" --timeout 600
+
+# One-liner with OpenCode
+apx run sofia --runtime opencode "Add JSDoc to every exported function in lib/"
+```
+
+<Screenshot
+  surface="terminal"
+  caption="apx run in progress — external Claude Code session with injected system prompt"
+  hint="Run: apx run reviewer --runtime claude-code 'Review this diff'" />
+
+### Options
+
+| Flag | Description |
+|------|-------------|
+| `--runtime <id>` | Required. One of the runtime IDs in the table above |
+| `--timeout <seconds>` | Maximum wall-clock time before APX kills the subprocess |
+| `--project <name\|id\|path>` | Pin to a specific project; defaults to the current directory |
+
+## How APX injects the system prompt
+
+When you run `apx run`, APX:
+
+<Steps>
+
+1. Reads the agent's definition from `.apc/agents/<slug>.md` plus its `memory.md` and any loaded
+   skills to build the full system prompt.
+
+2. Calls `buildAgentSystem({ invocation: "runtime", runtime: "<id>" })` — the same builder used by
+   `apx exec` and `apx chat`, but with the `runtime` invocation tag so prompts can branch.
+
+3. Passes the result to the CLI's system-prompt injection mechanism (e.g.
+   `--append-system-prompt` for `claude-code` and `qwen-code`, or prepended to the prompt body
+   for runtimes that lack a dedicated flag).
+
+4. Captures stdout. If the output includes a line starting with `APC_RESULT:`, that value is
+   stored as the session's structured result field.
+
+5. Writes a session file at
+   `~/.apx/projects/<apx-id>/agents/<slug>/sessions/<date>-<runtime>-<id>.md` with a frontmatter
+   link back to the external tool's own transcript path (when the runtime provides it).
+
+</Steps>
+
+## Session records and resuming
+
+After `apx run` completes, APX creates a session record:
+
+```yaml
+# ~/.apx/projects/<apx-id>/agents/reviewer/sessions/2026-05-27-claude-code-abc123.md
+---
+runtime: claude-code
+session_id: abc123
+external_session_path: /Users/me/.claude/projects/<encoded-cwd>/abc123.jsonl
+---
+```
+
+The `external_session_path` points to the external tool's own transcript. You can read, summarize,
+or continue from it using the session commands:
+
+```bash
+# List recent runtime sessions for an agent
+apx session list reviewer
+
+# Summarize what happened in a session
+apx session resume <id> --summary
+
+# Read the raw transcript
+apx session get <id> --full
+
+# Continue the session in Claude Code's native CLI
+apx session resume <id> --continue
+```
+
+## Structured results with APC_RESULT
+
+If you want APX to capture a machine-readable value from the external runtime, instruct the model
+(via the prompt) to print on its last line:
+
+```text
+APC_RESULT: <one-line value>
+```
+
+APX parses this and stores it as the session's `result` field, which other routines or the
+super-agent can read.
+
+## run vs. exec
+
+| | `apx run` | `apx exec` |
+|---|---|---|
+| **What runs** | External CLI (claude, codex, …) | Direct LLM call inside APX |
+| **File edits / shell** | Yes — the external CLI can write files and run commands | No — read-only LLM response |
+| **Model choice** | Controlled by the external CLI's own config | Controlled by `--model` or the agent's configured model |
+| **Session transcript** | Stored both in APX and in the external tool's own path | Stored in APX conversations only |
+| **Use when** | You need full coding-agent capabilities (edits, terminal) | You need a quick answer or one-shot generation |
+
+<Aside type="caution">
+  `apx run` is always **headless** — the external CLI runs non-interactively. For interactive
+  coding sessions, invoke the CLI directly (e.g. `claude` for Claude Code). Also avoid very large
+  prompts via the command line; shell argument limits apply.
+</Aside>
+
+## Related
+
+- [Engines](/apx/engine/engines/) — direct LLM calls with `apx exec` and `apx chat`
+- [Configuration](/apx/concepts/configuration/) — `~/.apx/config.json` reference

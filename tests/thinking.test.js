@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { splitThinking, stripThinking, formatForChannel } from "../src/daemon/thinking.js";
+import { splitThinking, stripThinking, formatForChannel } from "../src/host/daemon/thinking.js";
 
 test("splitThinking — no tags", () => {
   const r = splitThinking("hola");

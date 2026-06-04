@@ -3,11 +3,11 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import codex from "../src/daemon/runtimes/codex.js";
-import cursorAgent from "../src/daemon/runtimes/cursor-agent.js";
-import geminiCli from "../src/daemon/runtimes/gemini-cli.js";
-import qwenCode from "../src/daemon/runtimes/qwen-code.js";
-import { RUNTIME_IDS, getRuntime } from "../src/daemon/runtimes/index.js";
+import codex from "../src/host/daemon/runtimes/codex.js";
+import cursorAgent from "../src/host/daemon/runtimes/cursor-agent.js";
+import geminiCli from "../src/host/daemon/runtimes/gemini-cli.js";
+import qwenCode from "../src/host/daemon/runtimes/qwen-code.js";
+import { RUNTIME_IDS, getRuntime } from "../src/host/daemon/runtimes/index.js";
 
 async function withFakeBinary(name, body, fn) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-runtime-bin-"));

@@ -6,7 +6,7 @@
 //   system LANG env, causing wake-up messages to come out in the wrong language.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { detectLanguage } from "../src/daemon/wakeup.js";
+import { detectLanguage } from "../src/host/daemon/wakeup.js";
 import { buildAgentSystem } from "../src/core/agent-system.js";
 import { makeTempProject, cleanupTempProject } from "./_helpers.js";
 

@@ -1,0 +1,42 @@
+{
+  "extends": "../../../tsconfig.cli.json",
+  "compilerOptions": {
+    "jsx": "preserve",
+    "jsxImportSource": "@opentui/solid",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "noEmit": true,
+    "types": [],
+    "paths": {
+      "@tui/*": ["./*"],
+      "@/cli/cmd/tui/*": ["./*"],
+      "@opencode-ai/sdk/v2": ["./_shims/opencode-sdk-v2.ts"],
+      "@opencode-ai/core/flag/flag": ["./_shims/core-flag.ts"],
+      "@opencode-ai/core/util/binary": ["./_shims/core-binary.ts"],
+      "@opencode-ai/core/util/log": ["./_shims/core-log.ts"],
+      "@opencode-ai/core/*": ["./_shims/core-any.ts"],
+      "@opencode-ai/plugin/tui": ["./_shims/plugin-tui.ts"],
+      "@opencode-ai/plugin/*": ["./_shims/opencode-any.ts"],
+      "@/session/session": ["./_shims/session-session.ts"],
+      "@/session/retry": ["./_shims/session-retry.ts"],
+      "@/session/schema": ["./_shims/session-schema.ts"],
+      "@/provider/provider": ["./_shims/provider-provider.ts"],
+      "@/snapshot": ["./_shims/snapshot.ts"],
+      "@/config/console-state": ["./_shims/config-console-state.ts"],
+      "@/cli/error": ["./_shims/cli-error.ts"],
+      "@/cli/cmd/prompt-display": ["./_shims/prompt-display.ts"],
+      "@/cli/logo": ["./_shims/cli-logo.ts"],
+      "@/cli/ui.ts": ["./_shims/cli-ui.ts"],
+      "@/cli/ui": ["./_shims/cli-ui.ts"],
+      "@/util/locale": ["./_shims/util-locale.ts"],
+      "@/util/which": ["./_shims/util-which.ts"],
+      "@/util/error": ["./_shims/util-error.ts"],
+      "@/util/filesystem": ["./_shims/util-filesystem.ts"],
+      "@/util/iife": ["./_shims/util-iife.ts"],
+      "@/util/format": ["./_shims/util-format.ts"],
+      "@/util/process": ["./_shims/util-process.ts"],
+      "@/lsp/language": ["./_shims/lsp-language.ts"],
+      "@/tool/*": ["./_shims/tool-any.ts"],
+      "@/*": ["./_shims/opencode-any.ts"]
+    }
+  }
+}

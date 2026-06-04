@@ -1,0 +1,182 @@
+---
+title: Desktop (floating window)
+description: The Electron floating voice window — launch, autostart, shortcut, and what it does.
+sidebar:
+  order: 5
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components';
+import Screenshot from '../../../components/Screenshot.astro';
+
+The **Desktop** surface is a small Electron app that floats above all your
+windows. It gives you a persistent, keyboard-accessible voice capsule: press the
+global shortcut and start talking. The reply streams back as text and (if a TTS
+provider is configured) as spoken audio.
+
+<Screenshot
+  surface="desktop"
+  caption="APX Desktop — idle capsule with mic button"
+  hint="Run: apx desktop start, then press Cmd+G (Mac) or Ctrl+G (Win/Linux)" />
+
+## Commands
+
+```bash
+apx desktop start           # launch the floating window
+apx desktop start --debug   # launch with verbose start-up logs
+apx desktop stop            # terminate the window
+apx desktop status          # print process state, PID, autostart flag
+apx desktop install         # register autostart at user login (no sudo)
+apx desktop uninstall       # remove autostart entry
+```
+
+`start` is idempotent: if the window is already running it reports the current
+status instead of launching a second copy.
+
+## Autostart at login
+
+`apx desktop install` registers a per-user login item so the window launches
+automatically when you log in. No administrator password or sudo is required.
+
+```bash
+apx desktop install
+# Autostart registered.
+
+apx desktop status
+# state: running | pid: 12345 | autostart: enabled
+```
+
+To remove it:
+
+```bash
+apx desktop uninstall
+```
+
+The mechanism used per platform:
+
+| Platform | Mechanism |
+|---|---|
+| macOS | `~/Library/LaunchAgents/<plist>` |
+| Linux | `~/.config/autostart/<desktop>` |
+| Windows | Registry run key (HKCU) |
+
+## What the window does
+
+The window is a **capsule** — a narrow floating bar with one job: send a message
+to the super-agent and play back the reply.
+
+### State machine
+
+The capsule cycles through five states:
+
+| State | What you see |
+|---|---|
+| `idle` | Input field + mic button. Press Enter to send text, click mic (or hold the shortcut) to record. |
+| `listening` | Live audio waveform driven by real mic amplitude. Cancel or tap Send to commit. |
+| `transcribing` | Animated dots — WebM/OGG audio is being decoded by the Whisper STT sidecar. |
+| `thinking` | Dots + shimmer — the super-agent is producing tokens, shown as they arrive. |
+| `speaking` | Agent avatar + shimmer — TTS audio is playing back. A scrubber appears in the transcript. |
+
+<Screenshot
+  surface="desktop"
+  caption="Desktop — listening state with live waveform"
+  hint="Press the global shortcut, speak for a few seconds" />
+
+### Conversation transcript
+
+When a turn completes, the transcript card expands below the capsule. Each
+agent turn shows the text with word-in animation and, when TTS is configured, a
+waveform scrubber with play/pause and click-to-seek. Tool calls appear as pills
+with a spinner while running and a checkmark on completion.
+
+<Screenshot
+  surface="desktop"
+  caption="Desktop — conversation card with agent reply and audio scrubber"
+  hint="Complete a voice turn; scroll the transcript card" />
+
+### Global shortcut
+
+The default shortcut is `Cmd+G` on macOS and `Ctrl+G` on Windows/Linux.
+Override it in `~/.apx/config.json`:
+
+```json
+{
+  "desktop": {
+    "shortcut": "CommandOrControl+Shift+Space"
+  }
+}
+```
+
+You can also edit the shortcut in the [Web panel](/apx/surfaces/web/)
+under **Desktop** (`/m/desktop`) without editing JSON. Restart the window for
+the new shortcut to take effect.
+
+### Position and theme
+
+```json
+{
+  "desktop": {
+    "position": "right",
+    "theme": "light"
+  }
+}
+```
+
+`position` can be `"left"`, `"center"`, or `"right"` (default `"right"`).
+`theme` can be `"light"` or `"dark"` (default `"light"`).
+
+## How the window talks to the daemon
+
+The Electron main process opens a WebSocket to `ws://127.0.0.1:7430` and posts
+text via `POST /desktop/message`. The daemon's desktop plugin routes the message
+through the super-agent and streams tokens back over the WebSocket:
+
+```text
+Desktop (Electron)
+  │
+  ├── POST /desktop/message { text }  →  daemon acknowledges immediately
+  │
+  └── WebSocket ← daemon streams:
+        { type: "thinking" }
+        { type: "token", text: "…" }
+        { type: "tool_start", name: "create_task" }
+        { type: "tool_done",  name: "create_task" }
+        { type: "done", text: "full reply" }
+        { type: "tts-ready", url: "/voice/tts?path=…", duration: 3.2 }
+```
+
+TTS is synthesized by the daemon after the agent finishes, then the URL is
+served back via `GET /voice/tts?path=…`. The window fetches that URL and
+plays it with the Web Audio API.
+
+<Aside type="tip">
+  TTS quality depends on your configured provider. See [Voice](/apx/surfaces/voice/)
+  to configure Piper (local, no key) or a cloud engine.
+</Aside>
+
+## Daemon connection badge
+
+A small red dot appears in the top-right corner of the window when the WebSocket
+to the daemon is down. It disappears as soon as the connection is restored (the
+window reconnects automatically).
+
+## Troubleshooting
+
+**Window doesn't open after `apx desktop start`**
+- Check that Electron is installed: `npx electron --version`
+- Try `apx desktop start --debug` for verbose logs
+- Confirm the daemon is reachable: `apx status`
+
+**No audio playback**
+- The window requires a TTS provider. Run `apx voice providers` to see
+  what's configured, then follow the [Voice setup guide](/apx/surfaces/voice/).
+
+**Shortcut doesn't work**
+- Another app may own that key combo. Change it in config and restart.
+- On macOS, check System Settings → Privacy & Security → Accessibility for
+  Electron.
+
+## Related
+
+- [Voice](/apx/surfaces/voice/) — TTS/STT providers and the `apx voice` CLI
+- [Web panel](/apx/surfaces/web/) — manage the Desktop module from the browser
+- [Deck](/apx/surfaces/deck/) — companion app for your phone

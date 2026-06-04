@@ -1,0 +1,119 @@
+---
+title: Messages
+description: APX message channels, the JSONL format, and the commands to tail, chat, and search message logs.
+sidebar:
+  order: 5
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import Screenshot from '../../../components/Screenshot.astro';
+
+APX logs every interaction — agent runs, Telegram chats, direct calls — as JSONL messages. These
+logs are local to your machine and never committed.
+
+## Channels
+
+Every message belongs to a channel that describes its origin:
+
+| Channel | What it captures | Where it lives |
+|---|---|---|
+| `runtime` | `apx run` invocations — prompt in, response out | `~/.apx/projects/<id>/messages/` |
+| `a2a` | Agent-to-agent calls made from within a session | `~/.apx/projects/<id>/messages/` |
+| `exec` | Quick `apx exec` calls | `~/.apx/projects/<id>/messages/` |
+| `telegram` | Telegram bot messages | `~/.apx/messages/telegram/` (global — not per project) |
+
+## Message format
+
+Each line in a `.jsonl` file is one message:
+
+```json
+{
+  "id": "msg_01abc...",
+  "ts": "2026-05-30T14:22:01.123Z",
+  "channel": "runtime",
+  "type": "agent",
+  "actor_id": "reviewer",
+  "project_id": "077078af9dd7",
+  "content": "I reviewed the diff. The main issue is..."
+}
+```
+
+The `type` field distinguishes participants in a thread:
+
+| `type` | Who sent it |
+|---|---|
+| `user` | A human (CLI, Telegram, web) |
+| `agent` | An APX project agent |
+| `tool` | A tool call or tool result |
+| `system` | An internal APX system message |
+
+The `actor_id` carries the specific identity — a Telegram user id, an agent slug, or `"apx"` for
+the super-agent — so chat views can distinguish who is talking.
+
+## Commands
+
+### Tail recent messages
+
+```bash
+apx messages tail                              # last 50 messages, all channels
+apx messages tail --channel runtime            # only agent run messages
+apx messages tail --channel telegram           # only Telegram messages
+apx messages tail -n 100                       # increase the limit
+```
+
+<Screenshot
+  surface="terminal"
+  caption="apx messages tail — recent messages with type, actor, and content"
+  hint="Run: apx messages tail" />
+
+### Chat view
+
+The `chat` subcommand formats messages as a readable transcript, grouping by actor and highlighting
+`user` vs. `agent` turns:
+
+```bash
+apx messages chat                              # all channels, chat format
+apx messages chat --channel telegram           # Telegram conversation
+apx messages chat --channel runtime -n 20
+```
+
+<Screenshot
+  surface="terminal"
+  caption="apx messages chat --channel telegram — formatted conversation view"
+  hint="Run: apx messages chat --channel telegram -n 20" />
+
+### Search
+
+```bash
+apx messages search "deploy"                   # full-text search in message logs
+apx messages search "bug" --channel runtime
+```
+
+## Storage layout
+
+Per-project messages are partitioned by date:
+
+```text
+~/.apx/projects/<apx_id>/messages/
+├── 2026-05-28.jsonl
+├── 2026-05-29.jsonl
+└── 2026-05-30.jsonl
+```
+
+Telegram messages are stored globally (not per-project) because a single bot can serve multiple
+projects:
+
+```text
+~/.apx/messages/telegram/
+└── 2026-05-30.jsonl
+```
+
+<Aside type="note">
+  Message logs are append-only. APX never modifies or deletes existing log entries. Storage grows
+  over time — archive or clear old JSONL files manually if disk space is a concern.
+</Aside>
+
+## Next
+
+- [Sessions](/apx/concepts/sessions/) — higher-level invocation records that complement message logs.
+- [Projects](/apx/concepts/projects/) — where `<apx_id>` comes from.

@@ -6,7 +6,7 @@ import { spawnSync } from "node:child_process";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const CLI = path.join(__dirname, "..", "src", "cli", "index.js");
+const CLI = path.join(__dirname, "..", "src", "interfaces", "cli", "index.js");
 
 function runHelp(args) {
   return spawnSync(process.execPath, [CLI, ...args], {

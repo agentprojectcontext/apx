@@ -1,0 +1,177 @@
+---
+title: Memory system
+description: The cross-channel RAG memory — auto-written notes, vector retrieval, progressive compaction, the memory broker, and the configurable embeddings provider.
+sidebar:
+  order: 2
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import Screenshot from '../../../components/Screenshot.astro';
+
+APX's memory system is a four-piece layer that gives the super-agent durable, cross-channel
+context without any manual curation. It operates in the background on every turn and degrades
+gracefully — if a piece fails, the rest keep working.
+
+<Aside type="note">
+  This page covers the automatic, cross-channel memory system. For the curated per-agent
+  `memory.md` file that you author by hand, see [Memory (concepts)](/apx/concepts/memory/).
+</Aside>
+
+## The four pieces
+
+### Piece 1 — Auto-written notes (`~/.apx/memory.md`)
+
+When the super-agent calls its `remember` tool, the fact is appended to
+`~/.apx/memory.md` under a datestamped entry. This file is also read directly by the broker
+(Piece 4) so recent manual notes always surface.
+
+```bash
+# From a conversation: "remember that the staging server address changed to 10.0.1.5"
+# The agent calls the `remember` tool — you don't run this yourself.
+```
+
+The file is created on daemon boot if it doesn't exist. It is _not_ committed to the repo — it
+is machine-local global state.
+
+### Piece 2 — RAG retrieval (vector search)
+
+Every message that passes through any channel is indexed asynchronously in a vector store at
+`~/.apx/memory.db` (SQLite via `better-sqlite3`). The indexer runs in the background every
+60 seconds by default and embeds new messages since its last cursor position.
+
+At query time, the broker embeds the incoming message and runs a cosine similarity search to
+retrieve the top-K most relevant chunks from the entire cross-channel history.
+
+#### Embeddings provider
+
+The embeddings provider is configured at `config.memory.embeddings` and resolved through the same
+engine registry pattern as TTS/STT. Supported providers:
+
+| Provider | Notes |
+|---|---|
+| `ollama` | Local, default preference. Model: `nomic-embed-text`. |
+| `openai` | Cloud. Model: `text-embedding-3-small` by default. |
+| `gemini` | Cloud. Uses the Gemini embedding endpoint. |
+| `tf` | Offline fallback. Deterministic feature-hashing TF vector. Always available. |
+
+The default selection mode is `"auto"` (chain router): APX probes `ollama → gemini → openai →
+tf` in order and uses the first available. You can pin a single provider:
+
+```json
+{
+  "memory": {
+    "embeddings": {
+      "provider": "openai",
+      "openai": {
+        "model": "text-embedding-3-small",
+        "api_key": "sk-..."
+      }
+    }
+  }
+}
+```
+
+<Aside type="caution">
+  Changing embeddings provider invalidates the old index — vectors from different models are not
+  comparable. After switching, run:
+
+  ```bash
+  apx memory reindex
+  ```
+
+  This clears the store and re-embeds every message under the new provider.
+</Aside>
+
+#### The `tf` fallback
+
+When no provider is reachable, APX silently falls back to a deterministic, dependency-free
+feature-hashing term-frequency vector (256-dim, L2-normalised). Retrieval quality is lower than a
+real neural embedding but it keeps the system functional offline. The embedder tag on every stored
+vector ensures cosine similarity is only computed within the same embedder space.
+
+### Piece 3 — Progressive compaction
+
+Long conversations grow the context window. When a channel chat accumulates more than 60
+conversational turns (configurable), the oldest turns beyond the most recent 40 are collapsed into
+a dense LLM-written summary (`type: "compact"` record in the JSONL log). Future turns prepend
+that summary as a `[RESUMEN COMPACTADO]` system turn, keeping context bounded while preserving
+decisions, task assignments, and tool results.
+
+Compaction runs _out of the reply hot path_ — the current turn uses the latest existing compact;
+the next turn benefits from the new one.
+
+The compact model is configurable:
+
+```json
+{
+  "memory": {
+    "compact_model": "ollama:gemma4:31b-cloud",
+    "compact_fallback_model": "",
+    "compact_threshold": 60,
+    "keep_recent": 40
+  }
+}
+```
+
+If both `compact_model` and `compact_fallback_model` are unavailable, compaction is skipped
+silently — the raw turns are preserved and no reply is blocked.
+
+### Piece 4 — Memory broker
+
+Before every super-agent turn (on non-tool-free calls like `summarize`/`ask`), the broker
+assembles a `[MEMORIA RELEVANTE]` block that is injected into the system prompt. The broker:
+
+1. Reads the last 10 entries from `~/.apx/memory.md` (synchronous, always fast).
+2. Races a RAG query against an 800 ms budget — if Ollama is slow, the block is still returned
+   with whatever `memory.md` provided.
+3. Deduplicates hits by normalised text.
+4. Formats a bullet list with date, channel, and a 160-char excerpt per entry.
+
+The block is omitted entirely when there is nothing useful to surface (empty `memory.md` and no
+RAG hits).
+
+#### Active threads block
+
+In addition to the memory block, on interactive channels (not `routine`) the broker adds a
+separate "# Hilos activos en otros canales" block — the most recent turn from every other channel
+within a configurable time window (default: 6 hours, up to 3 bullets). This helps the agent
+notice "lo de antes en Telegram" references without a semantic match.
+
+## Configuration reference
+
+All keys live under `config.memory`:
+
+| Key | Default | Description |
+|---|---|---|
+| `enabled` | `true` | Set to `false` to disable the entire RAG subsystem. |
+| `index_interval_s` | `60` | How often the background indexer runs (seconds). |
+| `broker_budget_ms` | `800` | Max time the broker waits for RAG before returning. |
+| `rag_top_k` | `5` | Number of RAG hits injected per turn. |
+| `compact_threshold` | `60` | Turns before compaction triggers. |
+| `keep_recent` | `40` | Turns left verbatim after compaction. |
+| `compact_model` | `ollama:gemma4:31b-cloud` | Primary model for summarisation. |
+| `compact_fallback_model` | _(super_agent.model)_ | Fallback if primary is down. |
+| `embeddings.provider` | `"auto"` | `auto`, `ollama`, `openai`, `gemini`, or `tf`. |
+| `active_threads.enabled` | `true` | Show recent turns from other channels. |
+| `active_threads.window_hours` | `6` | How far back to look for other-channel turns. |
+| `active_threads.max_lines` | `3` | Max bullets in the active-threads block. |
+
+## How this differs from per-agent memory.md
+
+| | Per-agent `memory.md` | Cross-channel memory system |
+|---|---|---|
+| **Location** | `.apc/agents/<slug>/memory.md` | `~/.apx/memory.md` + `~/.apx/memory.db` |
+| **Committed?** | Yes | Never |
+| **Scope** | One agent | All channels, all agents |
+| **Written by** | You, by hand | The `remember` tool (auto) |
+| **Retrieval** | Full inject on every call | RAG (top-K, scored) + last-10 notes |
+| **Compaction** | Not applicable | Progressive (Piece 3) |
+
+Use the per-agent file for stable, curated facts about the agent's role. The cross-channel system
+handles dynamic, turn-by-turn context that spans surfaces.
+
+## Next
+
+- [Memory (concepts)](/apx/concepts/memory/) — curated per-agent memory.md files.
+- [Super-agent](/apx/capabilities/super-agent/) — how the broker plugs into the turn loop.
+- [Configuration](/apx/concepts/configuration/) — full `config.json` reference.

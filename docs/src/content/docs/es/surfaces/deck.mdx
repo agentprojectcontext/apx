@@ -1,0 +1,194 @@
+---
+title: Deck
+description: La app companion APX Deck — vinculación por QR, el bridge del deck y gestión de dispositivos vinculados.
+sidebar:
+  order: 7
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components';
+import Screenshot from '../../../../components/Screenshot.astro';
+
+**APX Deck** es una app companion (Android, repo separado: `apx-deck`) que te
+permite manejar el daemon APX local desde tu teléfono. Los mismos agentes, las
+mismas herramientas, la misma memoria, los mismos proyectos — solo otra
+superficie. Tu teléfono se conecta al daemon por la LAN (o por USB reverse port).
+
+El canal deck es distinto del modo [Voice](/apx/es/surfaces/voice/): voice es un
+*modo* de interacción hablada, mientras que deck es una *superficie* — una
+consola de comando companion con grilla de widgets, botones de acción y un
+micrófono de voz opcional.
+
+## Vinculación
+
+### Vincular el panel web (navegador)
+
+Para abrir el panel de administración en cualquier navegador (teléfono, tablet,
+otra computadora):
+
+```bash
+apx pair web
+```
+
+Imprime un código QR y una URL directa con token embebido:
+
+```text
+http://192.168.1.42:7430/#token=eyJ...
+```
+
+Escaneá el QR con la cámara del teléfono (sin app) o abrí la URL en cualquier
+navegador. Mirá [Panel web → vinculación LAN](/apx/es/surfaces/web/#abrir-desde-otro-dispositivo-vinculacin-lan).
+
+### Vincular la app Deck
+
+Para vincular un dispositivo Android con la app APX Deck instalada:
+
+```bash
+apx pair                    # sin argumento → vinculación Deck
+apx pair deck               # igual que el anterior
+apx pair --label "mi-celu"  # adjuntá una etiqueta amigable a la vinculación
+```
+
+El comando imprime un código QR que lleva un payload JSON. Abrí APX Deck en el
+teléfono y escaneá el QR. La app completa la vinculación, recibe un token bearer
+por dispositivo y lo guarda localmente para las requests futuras.
+
+<Screenshot
+  surface="deck"
+  caption="apx pair — código QR para la app companion APX Deck"
+  hint="Ejecutá: apx pair (sin argumentos)" />
+
+<Aside type="note">
+  El QR de `apx pair` (deck) lleva un payload JSON que solo entiende la app APX
+  Deck. El QR de `apx pair web` lleva una URL plana que cualquier cámara puede
+  abrir. Ambos usan el mismo motor de tokens pero formatos de QR distintos.
+</Aside>
+
+### Listar y revocar vinculaciones
+
+```bash
+apx pair list               # mostrar todos los clientes vinculados (id, etiqueta, fecha)
+apx pair revoke <id>        # revocar un token — ese dispositivo pierde el acceso
+```
+
+```text
+$ apx pair list
+  d_abc123   mi-celu     vinculado 2026-05-28
+  d_def456   tablet      vinculado 2026-05-29
+```
+
+Los tokens revocados quedan inválidos de inmediato. El dispositivo necesita
+re-vincularse para volver a conectarse.
+
+## El bridge del deck
+
+El bridge es un pequeño módulo API en el daemon: `src/host/daemon/api/deck.js`.
+Expone un único endpoint de solo lectura que la app Deck llama al arrancar para
+hacer bootstrap de su estado:
+
+```text
+GET /deck/manifest
+```
+
+El manifest devuelve:
+
+- Metadatos de salud del daemon
+- Proyectos APX y un guess del proyecto activo
+- Estado de plugins
+- Escritorios y descriptores de widgets
+- Descriptores de acciones seguras
+- Mapa de endpoints para voice, transcripción, proyectos, plugins y chat del super-agente
+- Flags de seguridad explícitos
+
+Este endpoint es **de solo lectura e intencionalmente limitado**. No ejecuta
+comandos de shell ni dispara acciones de plugins externos.
+
+Después del bootstrap desde el manifest, la app Deck usa la misma REST API que
+usa el panel web (`/projects/…`, `/voice/turn`, `/messages`, etc.) con su token
+bearer de dispositivo.
+
+<Screenshot
+  surface="deck"
+  caption="Módulo Deck en el panel web — manifest, grilla de widgets, card de contexto APX"
+  hint="Navegá a /m/deck en el panel web" />
+
+## Widgets y escritorios
+
+El manifest agrupa los widgets en **escritorios** (grupos con nombre, p. ej.
+"main", "dev"). Cada widget tiene:
+
+- `id` — identificador estable
+- `source` — `"internal"` (propiedad de APX) o `"external"` (definido por usuario/plugin)
+- `status` — `"available"` | `"configured"` | `"disabled"`
+- `user_enabled` — si el widget se muestra en el Deck
+
+Activá o desactivá un widget desde el [panel web → módulo Deck](/apx/es/surfaces/web/#deck)
+o via la API:
+
+```bash
+# PATCH /deck/widgets/:id  { enabled: true|false }
+curl -X PATCH http://127.0.0.1:7430/deck/widgets/mi-widget \
+  -H "Authorization: Bearer $(cat ~/.apx/daemon.token)" \
+  -H "Content-Type: application/json" \
+  -d '{"enabled": true}'
+```
+
+## Requisitos de red
+
+El daemon se vincula a `127.0.0.1` por defecto (solo loopback). Para que la app
+Deck en el teléfono pueda alcanzarlo, tenés que habilitarlo para LAN:
+
+```bash
+apx config set remote.bind 0.0.0.0
+# Luego reiniciá el daemon
+apx daemon stop
+apx daemon start
+```
+
+<Aside type="caution">
+  Vincular a `0.0.0.0` expone el daemon en la red local. Hacelo solo en una LAN
+  de confianza. El daemon loguea una advertencia al arrancar cuando está activo
+  el binding no-loopback.
+</Aside>
+
+Cuando estás detrás de un firewall o VPN, a veces se hace forward del puerto
+manualmente (p. ej. con `ssh -L`) en lugar de cambiar la dirección de binding.
+Los relays en la nube y los túneles (Tailscale, ngrok) están fuera del alcance
+explícito — APX no los configura, pero funcionan si los armás vos.
+
+## Modo de voz en el Deck
+
+El micrófono de la app Deck envía audio a `POST /voice/turn` con
+`"channel": "voice"`. El daemon:
+
+1. Transcribe el audio con Whisper (STT)
+2. Ejecuta el super-agente con un prompt optimizado para voz
+3. Sintetiza la respuesta con el proveedor TTS configurado
+4. Devuelve el texto de la respuesta, la ruta al archivo de audio, la duración y chips de sugerencia opcionales
+
+El texto de respuesta es corto y conversacional (optimizado para ser hablado).
+Los chips de sugerencias al final de la respuesta permiten tocar acciones de
+seguimiento comunes sin escribir.
+
+Mirá [Voice](/apx/es/surfaces/voice/) para la configuración de proveedores TTS.
+
+## Modelo de seguridad
+
+- Cada dispositivo vinculado recibe un token bearer único guardado en `~/.apx/remote/devices.json`.
+- Los tokens se pueden listar con `apx pair list` y revocar con `apx pair revoke <id>`.
+- El endpoint web-token (`/admin/web-token`) rechaza requests no-loopback y tunelizadas.
+  Para browsers remotos el token tiene que llegar via el fragmento de URL `#token=…`.
+- El endpoint del manifest es de solo lectura; no expone credenciales sensibles
+  ni ejecuta acciones.
+
+## Qué no está soportado aún (v1)
+
+- Relays en la nube / túneles — armalos externamente si los necesitás.
+- Sharing multi-usuario — un usuario, múltiples dispositivos.
+- Push notifications — la app hace polling o mantiene un WebSocket abierto.
+- Streaming WebSocket en tiempo real al Deck — trabajo pendiente (`/remote/ws`).
+
+## Relacionado
+
+- [Voice](/apx/es/surfaces/voice/) — proveedores de TTS/STT que usa el Deck
+- [Desktop](/apx/es/surfaces/desktop/) — la ventana flotante Electron
+- [Panel web](/apx/es/surfaces/web/) — incluye el módulo Deck y `apx pair web`

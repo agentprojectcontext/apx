@@ -1,0 +1,78 @@
+---
+title: Installation
+description: Install the APX CLI, start the daemon, and verify your setup.
+sidebar:
+  order: 2
+---
+
+import { Steps, Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+import Screenshot from '../../../components/Screenshot.astro';
+
+APX ships as a single npm package that provides three binaries: `apx` (CLI), `apx-daemon`
+(the local server), and `apx-mcp` (the MCP server bridge).
+
+## Requirements
+
+- **Node.js 20+** (the package engines field allows 18+, but 20+ is recommended).
+- macOS, Linux, or WSL. Some surfaces (Desktop, Voice) have extra OS-level dependencies covered on
+  their own pages.
+
+## Install
+
+<Tabs syncKey="pkg">
+	<TabItem label="npm">
+		```bash
+		npm install -g apx
+		```
+	</TabItem>
+	<TabItem label="pnpm">
+		```bash
+		pnpm add -g apx
+		```
+	</TabItem>
+</Tabs>
+
+<Aside type="tip">
+	The daemon starts automatically on your first `apx` call — you don't need to launch it by hand.
+</Aside>
+
+## Verify
+
+<Steps>
+
+1. Check the CLI is on your PATH:
+
+   ```bash
+   apx --version
+   ```
+
+2. Run any command to boot the daemon, then confirm it's healthy:
+
+   ```bash
+   apx status
+   ```
+
+   <Screenshot
+     surface="terminal"
+     caption="apx status showing the daemon running and its port"
+     hint="Run: apx status" />
+
+</Steps>
+
+## What gets created
+
+The first run creates the local runtime directory:
+
+```text
+~/.apx/
+├── config.json        ← engines, providers, global settings
+├── identity.json      ← the assistant's user-facing name (default "APX")
+└── projects/          ← per-project runtime state (sessions, messages, caches)
+```
+
+None of this is committed — it's local to your machine. See
+[Configuration](/apx/concepts/configuration/) for the full reference.
+
+## Next
+
+Head to the [Quick start](/apx/start/quick-start/) to initialize a project and run your first agent.

@@ -1,0 +1,150 @@
+---
+title: Agents
+description: Agent definitions in .apc/agents/, how AGENTS.md is auto-generated, and the commands to create, list, and import agents.
+sidebar:
+  order: 2
+---
+
+import { Aside, FileTree } from '@astrojs/starlight/components';
+import Screenshot from '../../../components/Screenshot.astro';
+
+An **agent** is a named persona living inside an APC project. It has a role, an optional model
+override, a language preference, and an optional set of skills. Its canonical definition is a single
+Markdown file at `.apc/agents/<slug>.md`.
+
+## The agent definition file
+
+```markdown
+---
+role: Code reviewer
+model: claude-haiku-4-5
+language: es
+description: Reviews PRs and pushes back on hand-wavy diffs.
+tools: read,write,run
+skills: code-review,git
+---
+```
+
+All fields except `role` are optional. When `model` is omitted the project's `super_agent.model`
+(or global default) is used for that agent's calls.
+
+<FileTree>
+- .apc/
+  - agents/
+    - reviewer.md           agent definition
+    - reviewer/
+      - memory.md           durable facts for this agent (optional)
+</FileTree>
+
+<Aside type="note">
+  `AGENTS.md` at the repo root is **auto-generated** by `apx agent add` and `apx agent remove`.
+  Do not edit it by hand — your changes will be overwritten on the next `apx agent` write.
+  Its purpose is discovery: tools like Codex, Claude Code, and other APC-aware runtimes read it
+  to learn which agents exist in a project.
+</Aside>
+
+## Commands
+
+### List agents
+
+```bash
+apx agent list                       # agents in the current directory's project
+apx agent list --project my-app      # agents in a named project
+```
+
+<Screenshot
+  surface="terminal"
+  caption="apx agent list — slug, role, model for every agent in the project"
+  hint="Run: apx agent list" />
+
+### Add an agent
+
+```bash
+apx agent add reviewer \
+  --role "Code reviewer" \
+  --model claude-haiku-4-5 \
+  --language es \
+  --description "Reviews PRs and pushes back on hand-wavy diffs." \
+  --tools read,write,run \
+  --skills code-review,git
+```
+
+This writes `.apc/agents/reviewer.md` and regenerates `AGENTS.md`.
+
+### Inspect an agent
+
+```bash
+apx agent get reviewer              # full definition + memory excerpt
+apx agent show reviewer             # alias
+```
+
+### Import from the vault
+
+The **vault** is a global library of reusable agent templates kept in `~/.apx/agents/`. APX ships
+bundled defaults (a `cody` code assistant, a `doc` writer, and so on); you can add your own.
+
+```bash
+apx agent vault list                 # see bundled defaults + your overrides
+apx agent import cody                # register the vault template in this project
+apx agent import cody --copy         # copy the .md into .apc/agents/ for local edits
+apx agent import cody --force        # overwrite an existing local definition
+```
+
+Vault management:
+
+```bash
+apx agent vault add <slug>           # create a new template in ~/.apx/agents/
+apx agent vault rm <slug>            # hide a bundled default (tombstone)
+apx agent vault restore <slug>       # un-hide a tombstoned bundled default
+```
+
+## Per-agent model override
+
+Set `model:` in the agent file to use a different model for that agent, independent of the
+project's `super_agent.model`:
+
+```markdown
+---
+role: Code reviewer
+model: claude-haiku-4-5
+---
+```
+
+Any `provider:model-id` string that your configured engines support works here — for example
+`openai:gpt-4o` or `ollama:llama3.2:3b`.
+
+<Aside type="caution">
+  Make sure the provider you specify has an API key configured in `~/.apx/config.json`. An agent
+  with `model: openai:gpt-4o` will fail on first call if `engines.openai.api_key` is empty.
+</Aside>
+
+## How the system prompt is built
+
+When you call `apx exec <slug>` or an agent runs inside a routine, APX composes the system prompt
+in this order:
+
+1. Identity block — `You are <slug>` + project name
+2. Description from `AGENTS.md`
+3. Role and Language fields
+4. Invocation channel — `engine | telegram | routine | runtime`
+5. Memory from `.apc/agents/<slug>/memory.md` (if it exists)
+6. Skills declared in the agent's `skills:` field
+7. The `apx` meta-skill
+8. Fixed action-discipline footer
+
+## Agents vs. the super-agent
+
+| Aspect | Super-agent (APX itself) | Project agent |
+|---|---|---|
+| Has tools? | Yes — full tool registry | No — text-in / text-out only |
+| Execution loop | Multi-iteration tool loop | Single LLM call |
+| System prompt | `super-agent-base.md` + channel template + identity | Built per-agent as above |
+| Configured via | `super_agent.*` in config | `.apc/agents/<slug>.md` |
+
+When in doubt: the super-agent is APX itself; project agents are specialized personas you define.
+
+## Next
+
+- [Memory](/apx/concepts/memory/) — curating durable facts for an agent.
+- [Sessions](/apx/concepts/sessions/) — how agent invocations are tracked.
+- [Agent vault](/apx/capabilities/agent-vault/) — deep dive on the bundled templates.
