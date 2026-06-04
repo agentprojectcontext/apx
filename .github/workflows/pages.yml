@@ -1,14 +1,16 @@
 name: Deploy landing to GitHub Pages
 
-# Publishes the root index.html (+ the assets it needs) to GitHub Pages,
-# so the landing is viewable at https://agentprojectcontext.github.io/apx/
+# Publishes landing.html (+ the assets it needs) to GitHub Pages as the
+# site's index.html, so the landing is viewable at
+# https://agentprojectcontext.github.io/apx/
+# (The repo's root index.html is the web-admin SPA — Vite needs it there.)
 # One-time setup: Repo Settings → Pages → Source: "GitHub Actions".
 
 on:
   push:
     branches: [main]
     paths:
-      - 'index.html'
+      - 'landing.html'
       - 'assets/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
@@ -34,9 +36,10 @@ jobs:
       - name: Assemble static site
         run: |
           mkdir -p _site/assets
-          cp index.html _site/
+          # landing.html is served as / (the site's index).
+          cp landing.html _site/index.html
           touch _site/.nojekyll
-          # Only the assets the landing references (logo, og image, any previews).
+          # Only the assets the landing references.
           cp assets/logo.png            _site/assets/ 2>/dev/null || true
           cp assets/hero.png            _site/assets/ 2>/dev/null || true
           cp assets/preview-*.webm      _site/assets/ 2>/dev/null || true
