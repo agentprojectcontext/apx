@@ -1,3 +1,10 @@
+# [1.29.0](https://github.com/agentprojectcontext/apx/compare/v1.28.0...v1.29.0) (2026-06-04)
+
+
+### Features
+
+* **desktop/renderer:** enhance agent message rendering and copy functionality ([2d418b2](https://github.com/agentprojectcontext/apx/commit/2d418b2d1cc393471b4583af278f3f71c142cd14))
+
 # [1.28.0](https://github.com/agentprojectcontext/apx/compare/v1.27.2...v1.28.0) (2026-06-04)
 
 
