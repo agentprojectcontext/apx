@@ -1,3 +1,10 @@
+# [1.25.0](https://github.com/agentprojectcontext/apx/compare/v1.24.0...v1.25.0) (2026-06-04)
+
+
+### Features
+
+* **landing:** swap preview video placeholders for animated CSS mockups ([ad76d41](https://github.com/agentprojectcontext/apx/commit/ad76d416019ed72d24a63d99db6a7589f8bb5f54))
+
 # [1.24.0](https://github.com/agentprojectcontext/apx/compare/v1.23.0...v1.24.0) (2026-06-04)
 
 
