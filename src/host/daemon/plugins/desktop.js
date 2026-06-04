@@ -100,8 +100,26 @@ async function _handleMessage({ ws, text, previousMessages }, { projects, config
     await appendGlobalMessage({ channel: CHANNEL, direction: "in", type: "user", author: "user", body: text });
   } catch {}
 
-  let fullResponse = "";
   let toolsExecuted = [];
+
+  // Per-segment streaming: instead of merging the whole turn into one blob, we
+  // emit each assistant text piece as its own `segment` (an intro before a tool,
+  // then the post-tool answer, …). The renderer renders each as its own bubble
+  // and synthesizes its own audio, so a multi-step reply reads as separate spoken
+  // messages instead of one run-on bubble. `liveBuf` accumulates streamed tokens
+  // (streaming engines) so they can be flushed as a segment at each boundary;
+  // for non-streaming models like gemini the text arrives whole via events.
+  let segSeq = 0;
+  let lastSegText = "";
+  let liveBuf = "";
+  const emittedSegments = [];
+  const emitSegment = (raw) => {
+    const seg = (raw || "").trim();
+    if (!seg || seg === lastSegText) return;
+    lastSegText = seg;
+    emittedSegments.push(seg);
+    _send(ws, { type: "segment", seq: ++segSeq, text: seg });
+  };
 
   try {
     if (!isSuperAgentEnabled(config)) {
@@ -120,10 +138,7 @@ async function _handleMessage({ ws, text, previousMessages }, { projects, config
       previousMessages: history.slice(0, -1),
       overrideModel: cfg.model || null,
       signal: controller.signal,
-      onToken: (chunk) => {
-        fullResponse += chunk;
-        _send(ws, { type: "token", text: chunk });
-      },
+      onToken: (chunk) => { liveBuf += chunk; },
       onEvent: async (event) => {
         if (event.type === "tool_start") {
           const t = event.trace;
@@ -131,28 +146,24 @@ async function _handleMessage({ ws, text, previousMessages }, { projects, config
           _send(ws, { type: "tool_start", name: t.tool, args: t.args });
         } else if (event.type === "tool_result") {
           _send(ws, { type: "tool_done", name: event.trace.tool });
-        } else if (event.type === "assistant_text" && event.text && !fullResponse) {
-          _send(ws, { type: "token", text: event.text });
-          fullResponse += event.text;
+        } else if (event.type === "assistant_text" && event.text) {
+          // A complete assistant text segment (e.g. the "I'll check…" intro
+          // emitted right before a tool runs). Ship it as its own message.
+          emitSegment(event.text);
+          liveBuf = "";
         }
       },
     });
-    // result.text holds the FINAL (no-tool) iteration's answer — the only place
-    // it appears, since that iteration emits no tokens/events. fullResponse holds
-    // the streamed / preamble text (e.g. an "I'll check…" intro emitted during a
-    // tool iteration — the only assistant text non-streaming models like gemini
-    // surface live). The old `fullResponse || result.text` returned the intro and
-    // DROPPED the real answer on any tool turn, so the chain stalled after the
-    // tool. Merge them (deduped) so a tool turn shows the intro AND the answer.
-    const finalAnswer = (result.text || "").trim();
-    let finalText = (fullResponse || "").trim();
-    if (finalAnswer && !finalText.includes(finalAnswer)) {
-      finalText = finalText ? `${finalText}\n\n${finalAnswer}` : finalAnswer;
-    }
-    log(`desktop: super-agent turn done in ${Date.now() - t0}ms text_len=${finalText.length} tools=${toolsExecuted.length}`);
+    // The final (no-tool) iteration's answer appears ONLY in result.text (or, for
+    // streaming engines, in liveBuf) — it's never emitted as an event. Ship it as
+    // the closing segment (deduped against the last one).
+    emitSegment((result.text || "").trim() || liveBuf.trim());
 
-    // Emit done with full text
-    _send(ws, { type: "done", text: finalText });
+    const finalText = emittedSegments.join("\n\n");
+    log(`desktop: super-agent turn done in ${Date.now() - t0}ms segments=${segSeq} text_len=${finalText.length} tools=${toolsExecuted.length}`);
+
+    // Turn end. `segments` lets the renderer know how many bubbles to expect.
+    _send(ws, { type: "done", segments: segSeq, text: finalText });
 
     // Append assistant turn to history
     if (ws && histories) {

@@ -26,10 +26,11 @@ contextBridge.exposeInMainWorld("apx", {
   sendMessage: (text, previousMessages) =>
     ipcRenderer.invoke("send-message", { text, previousMessages }),
 
-  // After "done", ask main to synthesize TTS. Returns true if main will reply
-  // with a tts-ready / tts-failed daemon-event; false if TTS is not wired.
-  requestTts: (text) => {
-    ipcRenderer.invoke("request-tts", { text }).catch(() => {});
+  // Ask main to synthesize TTS for one segment. `seg` correlates the resulting
+  // tts-ready/tts-failed event back to the bubble that requested it (each
+  // assistant message has its own audio). Returns true optimistically.
+  requestTts: (text, seg) => {
+    ipcRenderer.invoke("request-tts", { text, seg }).catch(() => {});
     return true; // optimistic; renderer waits for the event either way
   },
 
