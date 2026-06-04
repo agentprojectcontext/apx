@@ -1,3 +1,11 @@
+# [1.28.0](https://github.com/agentprojectcontext/apx/compare/v1.27.2...v1.28.0) (2026-06-04)
+
+
+### Features
+
+* **desktop/voice:** render agent turns as per-segment messages with sequential audio ([fe10da9](https://github.com/agentprojectcontext/apx/commit/fe10da9ca154eb48ec3180e311dd98b80b959f63))
+* **desktop/voice:** STT warmup + silence auto-send + tool-turn answer fix ([30d5489](https://github.com/agentprojectcontext/apx/commit/30d5489325299b4b7269294178b547d442902eab))
+
 ## [1.27.2](https://github.com/agentprojectcontext/apx/compare/v1.27.1...v1.27.2) (2026-06-04)
 
 
