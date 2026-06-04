@@ -1,523 +1,1220 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>APX — Agent Project eXecutor</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="APX — a local runtime for AI agents. One portable context layer across any IDE or AI coding tool: route, orchestrate, and bridge Claude Code, Codex, OpenCode and more. Filesystem-first. No lock-in.">
+<meta property="og:title" content="APX — Local Runtime for AI Agents">
+<meta property="og:description" content="One context layer. Any AI coding tool. Your projects stay yours.">
+<meta property="og:image" content="https://agentprojectcontext.github.io/apx/assets/hero.png">
+<meta property="og:url" content="https://agentprojectcontext.github.io/apx/">
+<meta name="twitter:card" content="summary_large_image">
+<title>APX — Local Runtime for AI Agents</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg fill='%233fb950'%3E%3Cpath d='M16 2l4 4-4 4-4-4z'/%3E%3Cpath d='M30 16l-4 4-4-4 4-4z'/%3E%3Cpath d='M16 30l-4-4 4-4 4 4z'/%3E%3Cpath d='M2 16l4-4 4 4-4 4z'/%3E%3Ccircle cx='16' cy='16' r='3'/%3E%3C/g%3E%3C/svg%3E">
+<style>
+  :root {
+    /* APX theme — green "orchestrate" brand on near-black */
+    --bg: #0a0d0a;
+    --bg2: #0d1117;          /* code / hl background */
+    --panel: #0d1117;        /* panel surface */
+    --panel2: #161b22;
+    --fg: #e6edf3;           /* primary light text */
+    --heading: #ffffff;
+    --muted: #7d8893;        /* subheader / secondary */
+    --border: rgba(63,185,80,0.22);  /* green-tinted border */
+    --border-soft: rgba(230,237,243,0.10);
+    --accent: #3fb950;       /* APX green */
+    --accent2: #56d364;      /* lighter green for gradients */
+    --green: #3fb950;
+    --gold: #d29922;
+    --radius: 8px;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 72px; scroll-snap-type: y proximity; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-snap-type: none; } }
+  body {
+    margin: 0;
+    background:
+      radial-gradient(1100px 520px at 82% -10%, rgba(63,185,80,0.12), transparent 60%),
+      radial-gradient(900px 520px at 0% 0%, rgba(63,185,80,0.10), transparent 55%),
+      var(--bg);
+    color: var(--fg);
+    font-family: 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 22px; width: 100%; }
 
-    :root {
-      --bg: #05070f;
-      --surface: #0d1117;
-      --surface2: #161b22;
-      --border: rgba(56,139,253,0.15);
-      --border-bright: rgba(56,139,253,0.3);
-      --text: #e6edf3;
-      --muted: rgba(230,237,243,0.45);
-      --accent: #58a6ff;
-      --accent2: #3ddcff;
-      --green: #3fb950;
-    }
+  /* Full-viewport sections with magnetic scroll-snap. Sections grow if content is taller. */
+  .hero, section {
+    min-height: 100vh;
+    display: flex; flex-direction: column; justify-content: center;
+    scroll-snap-align: start;
+    position: relative;
+  }
+  /* Domino reveal — each section fades/slides up as it scrolls into view. */
+  .hero, section { opacity: 0; transform: translateY(24px); transition: opacity .6s cubic-bezier(.2,.7,.2,1), transform .6s cubic-bezier(.2,.7,.2,1); }
+  .hero.in, section.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .hero, section { opacity: 1 !important; transform: none !important; transition: none; }
+  }
+  /* Capability cards cascade in like a domino expand. */
+  #features .feature { opacity: 0; transform: translateY(16px); }
+  #features.in .feature { animation: domino-in .5s cubic-bezier(.2,.7,.2,1) forwards; }
+  #features.in .feature:nth-child(1) { animation-delay: .04s; }
+  #features.in .feature:nth-child(2) { animation-delay: .09s; }
+  #features.in .feature:nth-child(3) { animation-delay: .14s; }
+  #features.in .feature:nth-child(4) { animation-delay: .19s; }
+  #features.in .feature:nth-child(5) { animation-delay: .24s; }
+  #features.in .feature:nth-child(6) { animation-delay: .29s; }
+  #features.in .feature:nth-child(7) { animation-delay: .34s; }
+  #features.in .feature:nth-child(8) { animation-delay: .39s; }
+  #features.in .feature:nth-child(9) { animation-delay: .44s; }
+  @keyframes domino-in { to { opacity: 1; transform: none; } }
 
-    html, body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-      -webkit-font-smoothing: antialiased;
-      overflow-x: hidden;
-    }
+  /* Nav */
+  nav {
+    position: sticky; top: 0; z-index: 50;
+    backdrop-filter: blur(10px);
+    background: rgba(10,13,10,0.82);
+    border-bottom: 1px solid var(--border);
+  }
+  nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+  .brand { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 17px; letter-spacing: 0.3px; color: var(--heading); }
+  .brand img { width: 26px; height: 26px; flex-shrink: 0; }
+  .nav-links { display: flex; align-items: center; gap: 22px; }
+  .nav-links a { color: var(--muted); font-size: 14px; font-weight: 500; }
+  .nav-links a:hover { color: var(--fg); }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 9px 16px; border-radius: 10px; font-weight: 600; font-size: 14px;
+    border: 1px solid var(--border); color: var(--fg); background: var(--panel);
+    transition: transform .12s ease, border-color .12s ease, background .12s ease;
+    cursor: pointer;
+  }
+  .btn:hover { transform: translateY(-1px); border-color: var(--accent); }
+  .btn.primary {
+    background: linear-gradient(135deg, var(--accent2), #2ea043);
+    color: #04220c; border: none;
+  }
+  .btn.primary:hover { filter: brightness(1.07); }
+  .nav-links-hamburger { display: none; position: relative; }
+  .hamburger-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 42px; height: 42px; border: 1px solid var(--border);
+    border-radius: 8px; background: var(--panel); color: var(--fg); cursor: pointer;
+  }
+  .hamburger-btn:hover { border-color: var(--accent); }
+  .hamburger-menu {
+    position: absolute; top: calc(100% + 10px); right: 0; min-width: 220px;
+    display: none; flex-direction: column; padding: 12px;
+    background: rgba(13,17,23,0.98); border: 1px solid var(--border);
+    border-radius: var(--radius); backdrop-filter: blur(10px);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+  }
+  .hamburger-menu a { color: var(--muted); padding: 8px 10px; border-radius: 6px; }
+  .hamburger-menu a:hover { color: var(--fg); }
+  .nav-links-hamburger.open .hamburger-menu { display: flex; }
 
-    /* ── HERO ── */
-    .hero {
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 5rem 2rem 4rem;
-      text-align: center;
-      position: relative;
-    }
+  /* Hero */
+  .hero { padding: 92px 0 56px; text-align: center; overflow: hidden; }
+  /* Animated mesh of green dots drifting behind the wordmark — depth, not distraction. */
+  .hero::before {
+    content: ''; position: absolute; inset: -10%; pointer-events: none; z-index: 0;
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(63,185,80,0.18) 1px, transparent 0),
+      radial-gradient(circle at 1px 1px, rgba(63,185,80,0.10) 1px, transparent 0);
+    background-size: 36px 36px, 90px 90px;
+    background-position: 0 0, 18px 18px;
+    -webkit-mask-image: radial-gradient(ellipse 60% 55% at 50% 50%, #000 0%, transparent 75%);
+            mask-image: radial-gradient(ellipse 60% 55% at 50% 50%, #000 0%, transparent 75%);
+    animation: meshDrift 28s ease-in-out infinite alternate;
+  }
+  .hero::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 0;
+    background: radial-gradient(ellipse 40% 30% at 50% 30%, rgba(63,185,80,0.10), transparent 70%);
+    animation: heroPulse 6s ease-in-out infinite;
+  }
+  @keyframes meshDrift {
+    0%   { transform: translate(0, 0) scale(1); }
+    100% { transform: translate(20px, -16px) scale(1.04); }
+  }
+  @keyframes heroPulse { 0%,100% { opacity: 0.85; } 50% { opacity: 1; } }
+  .hero .wrap { position: relative; z-index: 1; }
 
-    /* subtle radial glow */
-    .hero::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: radial-gradient(ellipse 60% 40% at 50% 30%, rgba(56,139,253,0.08) 0%, transparent 70%);
-      pointer-events: none;
-    }
+  .badge {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 12.5px; color: var(--muted); border: 1px solid var(--border);
+    background: var(--panel); padding: 5px 12px; border-radius: 999px; margin-bottom: 22px;
+  }
+  .badge .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .hero-logo { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 6px; }
+  .hero-logo img { width: 54px; height: 54px; filter: drop-shadow(0 4px 18px rgba(63,185,80,0.45)); animation: logoFloat 8s ease-in-out infinite; }
+  @keyframes logoFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+  .hero-logo .wordmark { font-size: clamp(30px, 6vw, 46px); font-weight: 700; color: var(--heading); letter-spacing: -0.01em; line-height: 1; }
+  .hero h1 {
+    font-size: clamp(30px, 5.2vw, 50px); line-height: 1.14; margin: 0 0 18px;
+    letter-spacing: -0.01em; font-weight: 700; color: var(--heading);
+  }
+  .hero h1 .grad {
+    background: linear-gradient(120deg, var(--accent2), var(--accent));
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .hero .slogan { color: var(--accent); font-size: 12px; margin: 0 0 22px; letter-spacing: 0.22em; text-transform: uppercase; opacity: 0.95; }
+  .hero p.lede { font-size: clamp(16px, 2.4vw, 20px); color: var(--muted); max-width: 700px; margin: 0 auto 22px; }
+  .hero-cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
 
-    .hero-tag {
-      font-size: 0.72rem;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--accent);
-      border: 1px solid var(--border-bright);
-      border-radius: 100px;
-      padding: 0.3rem 0.9rem;
-      margin-bottom: 1.5rem;
-    }
+  /* APC badge — anchors the whole pitch to the protocol. */
+  .apc-badge {
+    display: inline-flex; align-items: center; gap: 10px; margin: 22px auto 0;
+    font-size: 12.5px; color: var(--muted); padding: 8px 16px; border-radius: 999px;
+    background: linear-gradient(90deg, rgba(63,185,80,0.10), rgba(63,185,80,0.04));
+    border: 1px solid var(--border); transition: border-color .15s ease, color .15s ease;
+  }
+  .apc-badge:hover { border-color: var(--accent); color: var(--fg); }
+  .apc-badge b { color: var(--accent); font-weight: 700; letter-spacing: 0.04em; }
+  .apc-badge .dot-anim { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 0 var(--accent); animation: dotPing 2.4s ease-out infinite; }
+  @keyframes dotPing {
+    0%   { box-shadow: 0 0 0 0 rgba(63,185,80,0.6); }
+    70%  { box-shadow: 0 0 0 10px rgba(63,185,80,0); }
+    100% { box-shadow: 0 0 0 0 rgba(63,185,80,0); }
+  }
 
-    h1 {
-      font-size: clamp(3.5rem, 8vw, 6rem);
-      font-weight: 800;
-      letter-spacing: -0.04em;
-      line-height: 1;
-      margin-bottom: 0.3rem;
-    }
+  /* Sections */
+  section { padding: 64px 0; }
+  section:nth-of-type(even) { background: rgba(13,17,23,0.45); }
+  .eyebrow { color: var(--accent); font-weight: 700; font-size: 13px; letter-spacing: 0.12em; text-transform: uppercase; }
+  h2.h { font-size: clamp(24px, 3.6vw, 32px); margin: 8px 0 12px; letter-spacing: -0.01em; color: var(--heading); font-weight: 700; }
+  .sub { color: var(--muted); max-width: 640px; }
+  .center { text-align: center; }
+  .center .sub { margin: 0 auto; }
 
-    h1 span { color: var(--accent2); }
+  /* Architecture diagram */
+  .arch {
+    width: 100%; max-width: 920px; margin: 40px auto 0;
+    display: grid; grid-template-columns: 1fr auto 1fr; gap: 22px; align-items: center;
+  }
+  .arch-col { display: flex; flex-direction: column; gap: 10px; }
+  .arch-col.left { align-items: flex-end; }
+  .arch-col.right { align-items: flex-start; }
+  .arch-pill {
+    border: 1px solid var(--border); border-radius: 10px; padding: 9px 16px;
+    font-size: 14px; font-weight: 500; background: var(--panel); color: var(--fg); white-space: nowrap;
+  }
+  .arch-pill.dim { opacity: 0.5; }
+  .arch-center { display: flex; justify-content: center; }
+  .apx-box {
+    border: 1px solid rgba(63,185,80,0.5); border-radius: 18px; padding: 30px 38px;
+    background: linear-gradient(135deg, rgba(63,185,80,0.12), rgba(86,211,100,0.05));
+    box-shadow: 0 0 60px rgba(63,185,80,0.14), inset 0 1px 0 rgba(255,255,255,0.05); text-align: center;
+  }
+  .apx-box h3 { font-size: 40px; font-weight: 800; letter-spacing: -0.04em; color: #fff; margin: 0; line-height: 1; }
+  .apx-box .rt { font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--accent); margin-top: 6px; }
+  .apx-box .pills { display: flex; gap: 6px; justify-content: center; margin-top: 12px; flex-wrap: wrap; }
+  .apx-box .micro {
+    font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent);
+    border: 1px solid var(--border); border-radius: 999px; padding: 3px 8px;
+  }
+  .arch-cap { text-align: center; color: var(--muted); font-size: 12px; margin-top: 14px; letter-spacing: 0.06em; }
 
-    .hero-sub {
-      font-size: 1rem;
-      color: var(--muted);
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      margin-bottom: 1.5rem;
-    }
+  /* Routing / fallback chain */
+  .fallback { margin-top: 44px; }
+  .fallback h3 { font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 0 0 16px; text-align: center; }
+  .fallback-chain { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 4px; }
+  .fb-box {
+    border: 1px solid var(--border); border-radius: 8px; padding: 8px 16px; font-size: 14px;
+    font-weight: 500; background: var(--panel); display: flex; align-items: center; gap: 8px;
+  }
+  .fb-check { width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--green); display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--green); flex-shrink: 0; }
+  .fb-arrow { display: flex; flex-direction: column; align-items: center; padding: 0 6px; color: var(--muted); font-size: 12px; }
+  .fb-arrow span { font-size: 9px; opacity: 0.5; }
 
-    .tagline {
-      font-size: 1.2rem;
-      color: var(--muted);
-      max-width: 560px;
-      line-height: 1.6;
-      margin-bottom: 0.6rem;
-    }
+  /* Terminal */
+  .term-intro { color: var(--fg); font-size: clamp(13px, 1.8vw, 15px); margin: 0 auto; max-width: 600px; text-align: center; }
+  .term {
+    max-width: 640px; margin: 22px auto 0; text-align: left;
+    background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+    overflow: hidden; box-shadow: 0 24px 60px rgba(0,0,0,0.45); transition: opacity .18s ease, transform .18s ease;
+  }
+  .term-bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid var(--border); background: #161b22; }
+  .term-bar .dots { display: flex; gap: 7px; }
+  .term-bar .dots i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; }
+  .term-bar .dots .r { background: #ff5f57; } .term-bar .dots .y { background: #febc2e; } .term-bar .dots .g { background: #28c840; }
+  .term-bar .ttl { color: var(--muted); font-size: 12px; }
+  .term-bar .sp { width: 44px; }
+  .term pre {
+    margin: 0; padding: 20px 18px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 13.5px; color: var(--fg); line-height: 1.85; white-space: pre-wrap; min-height: 220px;
+  }
+  .term .pr { color: var(--accent2); } .term .ok { color: var(--green); } .term .cm { color: #6b7785; } .term .hi { color: var(--accent); }
+  .term-cursor { display: inline-block; color: var(--fg); animation: term-blink 1.05s steps(1) infinite; }
+  @keyframes term-blink { 50% { opacity: 0; } }
 
-    .tagline-sub {
-      font-size: 0.88rem;
-      color: rgba(230,237,243,0.3);
-      margin-bottom: 2.5rem;
-    }
+  /* Features grid */
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 36px; }
+  .feature {
+    background: var(--panel); border: 1px solid var(--border-soft); border-radius: var(--radius);
+    padding: 22px; transition: transform .14s ease, border-color .14s ease;
+  }
+  .feature:hover { transform: translateY(-3px); border-color: var(--accent); }
+  .feature .ico {
+    width: 40px; height: 40px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, rgba(63,185,80,0.20), rgba(63,185,80,0.06));
+    border: 1px solid var(--border); color: var(--accent); margin-bottom: 14px;
+  }
+  .feature h3 { margin: 0 0 6px; font-size: 16.5px; color: var(--heading); }
+  .feature p { margin: 0; color: var(--muted); font-size: 14px; }
+  .feature code { color: var(--accent2); background: rgba(63,185,80,0.08); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
+  .tag { font-size: 10.5px; font-weight: 700; color: var(--accent); border: 1px solid var(--border); border-radius: 999px; padding: 1px 7px; margin-left: 4px; vertical-align: middle; }
 
-    /* ── BUTTONS ── */
-    .btns {
-      display: flex;
-      gap: 0.75rem;
-      flex-wrap: wrap;
-      justify-content: center;
-      margin-bottom: 4rem;
-    }
+  /* Previews — hover to expand */
+  .previews { display: flex; align-items: center; gap: 10px; height: 460px; max-width: 1100px; margin: 36px auto 0; }
+  .preview-panel {
+    position: relative; flex: 1 1 0; min-width: 0; height: 320px; overflow: hidden;
+    border: 1px solid var(--border-soft); border-radius: var(--radius); cursor: pointer;
+    background: linear-gradient(180deg, var(--panel), var(--panel2));
+    transition: flex-grow .5s cubic-bezier(.2,.7,.2,1), height .5s cubic-bezier(.2,.7,.2,1), border-color .25s ease;
+  }
+  .previews:hover .preview-panel { flex-grow: 0.45; height: 280px; }
+  .preview-panel:hover, .preview-panel:focus-visible { flex-grow: 5 !important; height: 460px !important; border-color: var(--accent); }
+  .preview-panel.coming { cursor: default; opacity: 0.78; }
+  .preview-panel.coming::before {
+    content: ''; position: absolute; inset: 0; z-index: 0;
+    background-image: repeating-linear-gradient(45deg, rgba(63,185,80,0.05) 0 10px, transparent 10px 22px);
+    pointer-events: none;
+  }
+  .preview-panel .ph .soon {
+    display: inline-block; margin-top: 8px; font-size: 10px; letter-spacing: 0.16em;
+    text-transform: uppercase; color: var(--accent); border: 1px solid var(--border);
+    border-radius: 999px; padding: 3px 9px; background: rgba(63,185,80,0.06);
+  }
+  .preview-panel .label .soon-tag {
+    margin-left: 6px; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--accent); background: rgba(63,185,80,0.10); border: 1px solid var(--border);
+    border-radius: 999px; padding: 1px 7px; font-weight: 600;
+  }
+  .preview-panel .mock { position: absolute; inset: 0; z-index: 1; overflow: hidden; }
+  .preview-panel .mock-bar {
+    display: flex; align-items: center; gap: 7px; padding: 8px 12px;
+    background: #161b22; border-bottom: 1px solid var(--border-soft);
+  }
+  .preview-panel .mock-bar .d { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .preview-panel .mock-bar .r { background: #ff5f57; } .preview-panel .mock-bar .y { background: #febc2e; } .preview-panel .mock-bar .g { background: #28c840; }
+  .preview-panel .mock-bar .tt { margin-left: auto; margin-right: auto; color: var(--muted); font-size: 11px; }
 
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
-      padding: 0.6rem 1.4rem;
-      border-radius: 8px;
-      font-size: 0.88rem;
-      font-weight: 500;
-      text-decoration: none;
-      transition: all 0.15s;
-    }
+  /* CLI mock */
+  .mock-cli .mock-body { padding: 14px 14px 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; line-height: 1.85; color: var(--fg); }
+  .mock-cli .ln { opacity: 0; animation: cliLine 8s steps(1) infinite both; }
+  .mock-cli .ln:nth-child(1) { animation-delay: 0.0s; }
+  .mock-cli .ln:nth-child(2) { animation-delay: 0.7s; }
+  .mock-cli .ln:nth-child(3) { animation-delay: 1.6s; }
+  .mock-cli .ln:nth-child(4) { animation-delay: 2.4s; }
+  .mock-cli .ln:nth-child(5) { animation-delay: 3.2s; }
+  @keyframes cliLine {
+    0%, 87.5% { opacity: 1; }
+    93%, 100% { opacity: 0; }
+  }
+  .mock-cli .pr { color: var(--accent2); } .mock-cli .out { color: var(--muted); }
+  .mock-cli .ok { color: var(--green); margin-right: 4px; } .mock-cli .hi { color: var(--accent); }
+  .mock-cli .cm { color: #6b7785; } .mock-cli b { color: var(--fg); font-weight: 500; }
+  .mock-cli .cur { display: inline-block; color: var(--accent2); animation: blinkCur 1s steps(1) infinite; margin-left: 4px; }
+  @keyframes blinkCur { 50% { opacity: 0; } }
 
-    .btn-primary {
-      background: var(--accent);
-      color: #000;
-    }
-    .btn-primary:hover { filter: brightness(1.1); }
+  /* Web admin mock */
+  .mock-web .web-grid { display: grid; grid-template-columns: 80px 1fr; height: calc(100% - 33px); }
+  .mock-web .web-side { background: rgba(13,17,23,0.7); border-right: 1px solid var(--border-soft); padding: 10px 8px; font-size: 10px; display: flex; flex-direction: column; gap: 6px; }
+  .mock-web .web-brand { color: var(--heading); font-weight: 700; display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+  .mock-web .logo-dot { width: 10px; height: 10px; border-radius: 3px; background: var(--accent); }
+  .mock-web .web-nav-item { color: var(--muted); padding: 4px 6px; border-radius: 4px; font-size: 9.5px; }
+  .mock-web .web-nav-item.on { background: rgba(63,185,80,0.12); color: var(--fg); border: 1px solid var(--border); }
+  .mock-web .web-main { padding: 14px; display: flex; align-items: center; justify-content: center; }
+  .mock-web .web-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px 14px; width: 100%; max-width: 240px; box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+    animation: webPulse 4s ease-in-out infinite;
+  }
+  @keyframes webPulse {
+    0%,100% { transform: translateY(0); box-shadow: 0 8px 30px rgba(0,0,0,0.35); }
+    50%     { transform: translateY(-2px); box-shadow: 0 14px 40px rgba(63,185,80,0.18); }
+  }
+  .mock-web .web-card-h { font-size: 11.5px; color: var(--fg); margin-bottom: 8px; }
+  .mock-web .web-card-h b { color: var(--accent); }
+  .mock-web .web-card-row { font-size: 10.5px; color: var(--muted); margin-bottom: 4px; display: flex; gap: 8px; align-items: center; }
+  .mock-web .web-tag { font-size: 9px; padding: 1px 6px; border-radius: 4px; background: rgba(63,185,80,0.10); color: var(--accent); border: 1px solid var(--border); }
+  .mock-web .web-bar { height: 4px; background: var(--bg2); border-radius: 999px; margin-top: 10px; overflow: hidden; }
+  .mock-web .web-bar-fill { height: 100%; width: 30%; background: linear-gradient(90deg, var(--accent2), var(--accent)); animation: webProg 4s ease-in-out infinite; }
+  @keyframes webProg { 0% { width: 10%; } 50% { width: 80%; } 100% { width: 100%; } }
 
-    .btn-secondary {
-      background: transparent;
-      color: var(--text);
-      border: 1px solid rgba(56,139,253,0.3);
-    }
-    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+  /* Telegram mock */
+  .mock-tg { background: linear-gradient(180deg, #17212b, #0e1620); display: flex; flex-direction: column; padding: 12px 14px; }
+  .mock-tg .tg-head { display: flex; align-items: center; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .mock-tg .tg-av { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, var(--accent2), var(--accent)); display: flex; align-items: center; justify-content: center; color: #04220c; font-weight: 800; font-size: 13px; }
+  .mock-tg .tg-nm { color: #fff; font-size: 12.5px; font-weight: 600; }
+  .mock-tg .tg-st { color: rgba(255,255,255,0.45); font-size: 10px; }
+  .mock-tg .tg-body { padding-top: 10px; display: flex; flex-direction: column; gap: 8px; overflow: hidden; }
+  .mock-tg .tg-msg {
+    max-width: 80%; padding: 7px 11px; border-radius: 12px; font-size: 11.5px; line-height: 1.45;
+    opacity: 0; transform: translateY(10px); animation: tgPop 10s ease-out infinite both;
+  }
+  .mock-tg .tg-msg.in  { align-self: flex-start; background: #182533; color: #d6e0e8; border-bottom-left-radius: 4px; }
+  .mock-tg .tg-msg.out { align-self: flex-end;   background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #04220c; border-bottom-right-radius: 4px; font-weight: 500; }
+  .mock-tg .tg-msg:nth-child(1) { animation-delay: 0.4s; }
+  .mock-tg .tg-msg:nth-child(2) { animation-delay: 1.6s; }
+  .mock-tg .tg-msg:nth-child(3) { animation-delay: 2.9s; }
+  .mock-tg .tg-msg:nth-child(4) { animation-delay: 4.0s; }
+  @keyframes tgPop {
+    0%   { opacity: 0; transform: translateY(10px) scale(0.9); }
+    4%   { opacity: 1; transform: translateY(0) scale(1); }
+    88%  { opacity: 1; transform: translateY(0); }
+    96%  { opacity: 0; transform: translateY(-6px); }
+    100% { opacity: 0; }
+  }
+  .mock-tg .tg-typing { display: flex; gap: 4px; padding: 10px 12px; align-items: center; }
+  .mock-tg .tg-typing span { width: 6px; height: 6px; border-radius: 50%; background: #04220c; opacity: 0.6; animation: tgDot 1.4s ease-in-out infinite; }
+  .mock-tg .tg-typing span:nth-child(2) { animation-delay: 0.15s; }
+  .mock-tg .tg-typing span:nth-child(3) { animation-delay: 0.30s; }
+  @keyframes tgDot { 0%,100% { transform: translateY(0); opacity: 0.4; } 50% { transform: translateY(-3px); opacity: 1; } }
 
-    /* ── ARCH DIAGRAM ── */
-    .arch {
-      width: 100%;
-      max-width: 960px;
-      margin: 0 auto 5rem;
-      display: grid;
-      grid-template-columns: 1fr auto 1fr;
-      gap: 1.5rem;
-      align-items: center;
-      padding: 0 1rem;
-    }
+  /* Desktop mock */
+  .mock-desktop {
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(63,185,80,0.06), transparent 70%),
+      linear-gradient(180deg, #0e1117 0%, #050708 100%);
+    display: flex; flex-direction: column;
+  }
+  .mock-desktop .dk-menubar { display: flex; gap: 12px; padding: 8px 14px; background: rgba(0,0,0,0.35); }
+  .mock-desktop .dk-menubar span { width: 14px; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.12); }
+  .mock-desktop .dk-menubar span:first-child { background: var(--accent); width: 10px; }
+  .mock-desktop .dk-spotlight {
+    margin: auto; width: 84%; max-width: 280px;
+    background: rgba(255,255,255,0.95); color: #0a0d10; border-radius: 16px; padding: 12px 14px;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(63,185,80,0.18), 0 0 40px rgba(63,185,80,0.15);
+    animation: dkBreath 4s ease-in-out infinite;
+  }
+  @keyframes dkBreath {
+    0%,100% { box-shadow: 0 24px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(63,185,80,0.18), 0 0 40px rgba(63,185,80,0.15); }
+    50%     { box-shadow: 0 24px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(63,185,80,0.35), 0 0 60px rgba(63,185,80,0.30); }
+  }
+  .mock-desktop .dk-input { display: flex; align-items: center; gap: 8px; }
+  .mock-desktop .dk-text { font-size: 11.5px; color: #6b7280; flex: 1; }
+  .mock-desktop .dk-mic { width: 28px; height: 28px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; color: #fff; }
+  .mock-desktop .dk-hints { display: flex; gap: 8px; align-items: center; font-size: 10px; color: #6b7280; margin-top: 8px; }
+  .mock-desktop .dk-kbd { background: #e9eef2; border: 1px solid #d2d9df; border-radius: 4px; padding: 0 5px; font-family: ui-monospace, monospace; font-size: 9.5px; color: #0a0d10; }
+  .mock-desktop .cur { display: inline-block; width: 1px; background: #0a0d10; height: 1em; animation: blinkCur 1s steps(1) infinite; margin-left: 2px; }
 
-    .arch-col {
-      display: flex;
-      flex-direction: column;
-      gap: 0.6rem;
-    }
+  /* Deck mock — stacked cards drifting */
+  .mock-deck { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .mock-deck .deck-card {
+    position: absolute; width: 60%; height: 60%; border-radius: 10px;
+    background: linear-gradient(180deg, var(--panel), var(--bg2));
+    border: 1px solid var(--border-soft);
+    transition: transform .6s ease;
+  }
+  .mock-deck .deck-c1 { transform: translate(-22px, -14px) rotate(-7deg); opacity: 0.5; animation: deckDrift 6s ease-in-out infinite; }
+  .mock-deck .deck-c2 { transform: translate(-8px, -6px) rotate(-3deg); opacity: 0.7; animation: deckDrift 6s ease-in-out infinite -2s; }
+  .mock-deck .deck-c3 {
+    transform: translate(8px, 4px) rotate(2deg); opacity: 1;
+    border-color: var(--border); box-shadow: 0 14px 40px rgba(0,0,0,0.5);
+    padding: 14px; display: flex; flex-direction: column; gap: 7px;
+    animation: deckDrift 6s ease-in-out infinite -4s;
+  }
+  .mock-deck .deck-row { height: 6px; background: linear-gradient(90deg, var(--accent2), transparent); border-radius: 3px; opacity: 0.6; }
+  .mock-deck .deck-row.short { width: 55%; }
+  .mock-deck .deck-foot { margin-top: auto; text-align: center; }
+  .mock-deck .deck-soon { font-size: 9.5px; color: var(--accent); letter-spacing: 0.14em; text-transform: uppercase; border: 1px solid var(--border); border-radius: 999px; padding: 3px 8px; background: rgba(63,185,80,0.10); }
+  @keyframes deckDrift {
+    0%,100% { transform: translate(var(--dx, 0), var(--dy, 0)) rotate(var(--dr, 0deg)); }
+    50%     { transform: translate(calc(var(--dx, 0) + 2px), calc(var(--dy, 0) - 3px)) rotate(var(--dr, 0deg)); }
+  }
+  .mock-deck .deck-c1 { --dx: -22px; --dy: -14px; --dr: -7deg; }
+  .mock-deck .deck-c2 { --dx: -8px;  --dy: -6px;  --dr: -3deg; }
+  .mock-deck .deck-c3 { --dx: 8px;   --dy: 4px;   --dr: 2deg; }
+  .preview-panel .label {
+    position: absolute; z-index: 2; left: 0; right: 0; bottom: 0; padding: 14px 16px;
+    background: linear-gradient(0deg, rgba(0,0,0,0.85), transparent);
+    color: var(--heading); font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 8px; white-space: nowrap;
+  }
+  .preview-panel .label .ico { color: var(--accent); flex-shrink: 0; }
+  @media (max-width: 760px) {
+    .previews { flex-direction: column; height: auto; }
+    .preview-panel { height: 200px; flex: none; }
+    .previews:hover .preview-panel, .preview-panel:hover { flex: none !important; height: 200px !important; }
+  }
 
-    .arch-col.right { align-items: flex-start; }
-    .arch-col.left  { align-items: flex-end; }
+  /* Testimonials (gag, on-brand) */
+  .tcarousel-wrap { position: relative; max-width: 820px; margin: 36px auto 0; }
+  .tarrow {
+    position: absolute; top: 50%; transform: translateY(-50%); z-index: 4; width: 38px; height: 38px; border-radius: 50%;
+    background: rgba(13,17,23,0.85); border: 1px solid var(--border); color: var(--fg); font-size: 20px; line-height: 1; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: border-color .12s ease, color .12s ease;
+  }
+  .tarrow:hover { border-color: var(--accent); color: var(--accent); }
+  .tarrow.prev { left: 0; } .tarrow.next { right: 0; }
+  .tgrid { display: block; position: relative; overflow: hidden; cursor: pointer; margin: 0 auto; max-width: 740px; }
+  .tgrid .tcard {
+    display: none; flex-direction: row; align-items: flex-start; gap: 22px; text-align: left;
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 30px;
+  }
+  .tgrid .tcard.active { display: flex; animation: tslide .25s ease both; }
+  .tcard .av {
+    width: 56px; height: 56px; border-radius: 12px; overflow: hidden; flex: 0 0 auto;
+    display: flex; align-items: center; justify-content: center; color: var(--accent);
+    background: linear-gradient(135deg, rgba(63,185,80,0.20), rgba(63,185,80,0.06)); border: 1px solid var(--border);
+  }
+  .tcard .tmeta { flex: 1 1 auto; }
+  .tcard .tt { font-weight: 700; font-size: 17px; color: var(--heading); margin: 0 0 8px; }
+  .tcard .q { font-size: 15px; color: var(--muted); margin: 0 0 12px; line-height: 1.65; }
+  .tcard .q code { color: var(--accent2); background: rgba(63,185,80,0.08); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+  .tcard .rl { color: var(--accent); font-size: 12px; letter-spacing: 0.04em; text-transform: uppercase; font-weight: 600; }
+  .tnav { display: block; text-align: center; margin-top: 18px; }
+  .tdot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #2a313a; margin: 0 4px; cursor: pointer; }
+  .tdot.on { background: var(--accent); }
+  .thint { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  @keyframes tslide { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
 
-    .arch-pill {
-      border: 1px solid var(--border-bright);
-      border-radius: 10px;
-      padding: 0.55rem 1.1rem;
-      font-size: 0.88rem;
-      font-weight: 500;
-      background: var(--surface2);
-      color: var(--text);
-      white-space: nowrap;
-    }
+  /* Channels / stages — one conversation across surfaces */
+  .stage-track {
+    position: relative; margin: 50px auto 0; max-width: 980px; padding: 0 8px;
+  }
+  .stage-rail {
+    position: absolute; left: 4%; right: 4%; top: 41px; height: 2px;
+    background: linear-gradient(90deg, rgba(63,185,80,0.18), rgba(63,185,80,0.45), rgba(63,185,80,0.18));
+    border-radius: 2px; overflow: hidden;
+  }
+  .stage-rail::before {
+    content: ''; position: absolute; inset: 0; width: 28%;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    animation: stageScan 6s ease-in-out infinite;
+  }
+  @keyframes stageScan {
+    0%   { transform: translateX(-30%); }
+    100% { transform: translateX(360%); }
+  }
+  .stages {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; position: relative; z-index: 1;
+  }
+  .stage {
+    text-align: center; cursor: pointer; padding: 0 8px;
+    transition: transform .25s ease;
+  }
+  .stage:hover { transform: translateY(-4px); }
+  .stage-icon {
+    width: 82px; height: 82px; border-radius: 22px; margin: 0 auto 16px;
+    display: flex; align-items: center; justify-content: center; color: var(--accent);
+    background: linear-gradient(135deg, rgba(63,185,80,0.18), rgba(63,185,80,0.04));
+    border: 1px solid var(--border); position: relative;
+    transition: border-color .3s ease, box-shadow .3s ease, transform .3s ease;
+  }
+  .stage.on .stage-icon {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 4px rgba(63,185,80,0.10), 0 0 28px rgba(63,185,80,0.25);
+    transform: scale(1.06);
+  }
+  .stage-icon svg { width: 36px; height: 36px; }
+  .stage h3 { margin: 0 0 6px; font-size: 15px; color: var(--heading); font-weight: 700; }
+  .stage p { margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.55; }
+  .stage .step { font-size: 10.5px; color: var(--accent); letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 8px; font-weight: 700; }
 
-    .arch-pill.dim { opacity: 0.55; }
+  .convo {
+    margin: 38px auto 0; max-width: 620px;
+    background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 22px 24px; min-height: 96px; position: relative; overflow: hidden;
+  }
+  .convo-line { color: var(--fg); font-size: 14.5px; line-height: 1.7; }
+  .convo-line .who { color: var(--accent); font-weight: 700; margin-right: 8px; }
+  .convo-line .ch { font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); float: right; margin-top: 4px; }
+  .convo .ctx { margin-top: 14px; color: var(--muted); font-size: 12px; }
+  .convo .ctx b { color: var(--accent); font-weight: 600; }
 
-    /* central APX box */
-    .arch-center {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.5rem;
-    }
+  /* APC section */
+  #runtimes .apc-hero { display: flex; align-items: center; gap: 26px; flex-wrap: wrap; }
+  #runtimes .apc-mark {
+    font-size: 54px; font-weight: 900; letter-spacing: -0.04em; line-height: 1;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+    border: 1px solid var(--border); border-radius: 18px; padding: 18px 22px;
+    background-color: var(--panel); box-shadow: 0 0 40px rgba(63,185,80,0.18);
+  }
+  .apc-points { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 36px; }
+  .apc-point { display: flex; gap: 14px; padding: 22px; background: var(--panel); border: 1px solid var(--border-soft); border-radius: var(--radius); transition: border-color .14s ease; }
+  .apc-point:hover { border-color: var(--accent); }
+  .apc-num { color: var(--accent); font-weight: 800; font-size: 20px; letter-spacing: -0.02em; }
+  .apc-point h4 { margin: 0 0 4px; color: var(--heading); font-size: 15px; }
+  .apc-point p { margin: 0; color: var(--muted); font-size: 13.5px; line-height: 1.55; }
+  .apc-point code { color: var(--accent2); background: rgba(63,185,80,0.08); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
 
-    .apx-box {
-      border: 1px solid rgba(56,139,253,0.5);
-      border-radius: 18px;
-      padding: 2.5rem 3rem;
-      background: linear-gradient(135deg, rgba(56,139,253,0.12) 0%, rgba(61,220,255,0.06) 100%);
-      box-shadow: 0 0 60px rgba(56,139,253,0.12), inset 0 1px 0 rgba(255,255,255,0.05);
-      text-align: center;
-    }
+  /* Get started — cinematic */
+  #start { position: relative; }
+  #start::before {
+    content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 0;
+    background:
+      radial-gradient(ellipse 50% 40% at 50% 50%, rgba(63,185,80,0.16), transparent 75%),
+      radial-gradient(circle at 1px 1px, rgba(63,185,80,0.10) 1px, transparent 0);
+    background-size: auto, 40px 40px;
+    -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, #000, transparent 80%);
+            mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, #000, transparent 80%);
+    animation: meshDrift 28s ease-in-out infinite alternate;
+  }
+  #start .wrap { position: relative; z-index: 1; }
+  .start {
+    background: linear-gradient(180deg, var(--panel), var(--bg2));
+    border: 1px solid var(--border); border-radius: 22px; padding: 56px 40px; text-align: center;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.45), 0 0 60px rgba(63,185,80,0.10);
+    position: relative; overflow: hidden;
+  }
+  .start-glow {
+    position: absolute; inset: -50%; pointer-events: none; z-index: 0;
+    background: conic-gradient(from 0deg at 50% 50%, transparent 0%, rgba(63,185,80,0.12) 25%, transparent 50%, rgba(63,185,80,0.10) 75%, transparent 100%);
+    animation: glowSpin 24s linear infinite; opacity: 0.65;
+  }
+  @keyframes glowSpin { to { transform: rotate(360deg); } }
+  .start > * { position: relative; z-index: 1; }
+  .start-logo img { filter: drop-shadow(0 6px 30px rgba(63,185,80,0.5)); animation: logoFloat 6s ease-in-out infinite; margin: 14px 0 6px; }
+  .start-title { font-size: clamp(28px, 4.4vw, 44px); margin: 10px 0 18px; }
+  .start-title .grad {
+    background: linear-gradient(120deg, var(--accent2), var(--accent));
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  }
 
-    .apx-box h2 {
-      font-size: 3.5rem;
-      font-weight: 900;
-      letter-spacing: -0.05em;
-      color: #fff;
-      line-height: 1;
-    }
+  .codeblock {
+    display: inline-flex; align-items: center; gap: 14px; margin: 18px auto 8px;
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 16px; font-family: ui-monospace, monospace; font-size: 14px; color: var(--fg);
+  }
+  .codeblock .prompt { color: var(--accent); }
+  .codeblock .copy { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 13px; padding: 2px 6px; border-radius: 5px; }
+  .codeblock .copy:hover { color: var(--accent); background: rgba(63,185,80,0.1); }
+  .pill-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 18px; }
+  .pill { font-size: 12.5px; color: var(--muted); border: 1px solid var(--border); border-radius: 999px; padding: 5px 12px; background: var(--panel); }
 
-    .apx-box .runtime-label {
-      font-size: 0.7rem;
-      letter-spacing: 0.15em;
-      text-transform: uppercase;
-      color: var(--accent);
-      margin-top: 0.3rem;
-    }
+  footer { border-top: 1px solid var(--border); padding: 30px 0; color: var(--muted); font-size: 13px; }
+  footer .wrap { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+  footer a { color: var(--muted); } footer a:hover { color: var(--accent); }
 
-    .apx-box .pills {
-      display: flex;
-      gap: 0.4rem;
-      justify-content: center;
-      margin-top: 0.75rem;
-    }
-
-    .apx-box .micro {
-      font-size: 0.65rem;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: rgba(56,139,253,0.7);
-      border: 1px solid rgba(56,139,253,0.25);
-      border-radius: 100px;
-      padding: 0.2rem 0.5rem;
-    }
-
-    /* ── FALLBACK CHAIN ── */
-    .fallback {
-      width: 100%;
-      max-width: 960px;
-      margin: 0 auto 5rem;
-      padding: 0 1rem;
-    }
-
-    .fallback h3 {
-      font-size: 0.7rem;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 1rem;
-      text-align: center;
-    }
-
-    .fallback-chain {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 0;
-      flex-wrap: wrap;
-    }
-
-    .fb-node {
-      display: flex;
-      align-items: center;
-      gap: 0;
-    }
-
-    .fb-box {
-      border: 1px solid var(--border-bright);
-      border-radius: 8px;
-      padding: 0.5rem 1.2rem;
-      font-size: 0.88rem;
-      font-weight: 500;
-      background: var(--surface2);
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .fb-check {
-      width: 18px;
-      height: 18px;
-      border-radius: 50%;
-      border: 1px solid var(--green);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.65rem;
-      color: var(--green);
-      flex-shrink: 0;
-    }
-
-    .fb-arrow {
-      font-size: 0.7rem;
-      color: var(--muted);
-      padding: 0 0.5rem;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.1rem;
-    }
-    .fb-arrow span { font-size: 0.6rem; color: rgba(230,237,243,0.25); }
-
-    /* ── SECTIONS ── */
-    section.features {
-      width: 100%;
-      max-width: 960px;
-      margin: 0 auto 5rem;
-      padding: 0 1rem;
-    }
-
-    section.features h2 {
-      font-size: 0.7rem;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 1.5rem;
-      text-align: center;
-    }
-
-    .feat-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 1px;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      overflow: hidden;
-    }
-
-    .feat {
-      background: var(--surface);
-      padding: 1.75rem;
-    }
-
-    .feat-icon { font-size: 1.4rem; margin-bottom: 0.75rem; }
-    .feat h3 { font-size: 0.88rem; font-weight: 600; margin-bottom: 0.4rem; }
-    .feat p { font-size: 0.8rem; color: var(--muted); line-height: 1.5; }
-
-    /* ── TERMINAL ── */
-    section.terminal {
-      width: 100%;
-      max-width: 760px;
-      margin: 0 auto 5rem;
-      padding: 0 1rem;
-    }
-
-    section.terminal h2 {
-      font-size: 0.7rem;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 1rem;
-      text-align: center;
-    }
-
-    .term-window {
-      background: #0d1117;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      overflow: hidden;
-    }
-
-    .term-bar {
-      background: #161b22;
-      padding: 0.6rem 1rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .dot { width: 12px; height: 12px; border-radius: 50%; }
-    .dot-r { background: #ff5f57; }
-    .dot-y { background: #febc2e; }
-    .dot-g { background: #28c840; }
-    .term-title { margin-left: auto; margin-right: auto; font-size: 0.75rem; color: var(--muted); }
-
-    .term-body {
-      padding: 1.5rem;
-      font-family: "SF Mono", "Fira Code", monospace;
-      font-size: 0.82rem;
-      line-height: 2;
-    }
-
-    .term-body .prompt { color: var(--accent2); }
-    .term-body .cmd    { color: #e6edf3; }
-    .term-body .out    { color: rgba(230,237,243,0.45); }
-    .term-body .hi     { color: var(--accent); }
-    .term-body .cursor { display: inline-block; width: 8px; height: 1em; background: var(--accent2); vertical-align: text-bottom; animation: blink 1s step-end infinite; }
-    @keyframes blink { 50% { opacity: 0; } }
-
-    /* ── FOOTER ── */
-    footer {
-      border-top: 1px solid var(--border);
-      padding: 2.5rem 2rem;
-      text-align: center;
-      font-size: 0.78rem;
-      color: var(--muted);
-    }
-    footer a { color: var(--muted); text-decoration: none; }
-    footer a:hover { color: var(--accent); }
-
-    @media (max-width: 640px) {
-      .arch { grid-template-columns: 1fr; }
-      .arch-col.left, .arch-col.right { align-items: center; }
-    }
-  </style>
+  @media (max-width: 820px) {
+    .grid { grid-template-columns: repeat(2, 1fr); }
+    .nav-links { display: none; }
+    .nav-links-hamburger { display: block; }
+    .arch { grid-template-columns: 1fr; }
+    .arch-col.left, .arch-col.right { align-items: center; }
+    .stages { grid-template-columns: repeat(2, 1fr); gap: 24px 16px; }
+    .stage-rail { display: none; }
+    .apc-points { grid-template-columns: 1fr; }
+    .previews { flex-direction: column; height: auto; }
+    .preview-panel { height: 180px !important; flex: none !important; }
+  }
+  @media (max-width: 520px) {
+    .grid { grid-template-columns: 1fr; }
+    .tgrid .tcard { padding: 20px; gap: 16px; flex-direction: column; text-align: center; }
+    .stages { grid-template-columns: 1fr; }
+  }
+</style>
 </head>
 <body>
 
-<section class="hero">
-  <div class="hero-tag">Local runtime for AI agents</div>
-  <h1>APX <span>+</span> APC</h1>
-  <p class="hero-sub">Discover · Orchestrate · Bridge</p>
-  <p class="tagline">Portable project context. Local runtime for AI agents.</p>
-  <p class="tagline-sub">One context layer. Any IDE. Your projects stay yours.</p>
-
-  <div class="btns">
-    <a class="btn btn-primary" href="https://github.com/agentprojectcontext/apx">Get started</a>
-    <a class="btn btn-secondary" href="https://github.com/agentprojectcontext/agentprojectcontext">APC Protocol →</a>
-    <a class="btn btn-secondary" href="https://github.com/agentprojectcontext/apx">GitHub</a>
-  </div>
-
-  <!-- Architecture diagram -->
-  <div class="arch">
-    <!-- Left: runtimes -->
-    <div class="arch-col left">
-      <div class="arch-pill">Claude</div>
-      <div class="arch-pill">Cursor</div>
-      <div class="arch-pill dim">Codex</div>
-      <div class="arch-pill dim">OpenCode</div>
-    </div>
-
-    <!-- Center: APX -->
-    <div class="arch-center">
-      <div class="apx-box">
-        <h2>APX</h2>
-        <p class="runtime-label">Local Runtime</p>
-        <div class="pills">
-          <span class="micro">Discover</span>
-          <span class="micro">Orchestrate</span>
-          <span class="micro">Bridge</span>
+  <nav>
+    <div class="wrap">
+      <div class="brand">
+        <img src="assets/logo.png" alt="APX logo">
+        APX
+      </div>
+      <div class="nav-links">
+        <a href="#how-it-works">How it works</a>
+        <a href="#features">Features</a>
+        <a href="#channels">Channels</a>
+        <a href="#runtimes">APC</a>
+        <a href="#start">Quick start</a>
+        <a class="btn" href="https://github.com/agentprojectcontext/apx" target="_blank" rel="noopener">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.7.5.5 5.7.5 12c0 5.1 3.3 9.4 7.9 10.9.6.1.8-.2.8-.6v-2c-3.2.7-3.9-1.5-3.9-1.5-.5-1.3-1.3-1.7-1.3-1.7-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.7 1.3 3.4 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.3-1.3-5.3-5.7 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.6 1.6.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3.1 0 4.4-2.7 5.4-5.3 5.7.4.4.8 1.1.8 2.2v3.3c0 .4.2.7.8.6 4.6-1.5 7.9-5.8 7.9-10.9C23.5 5.7 18.3.5 12 .5z"/></svg>
+          GitHub
+        </a>
+      </div>
+      <div class="nav-links-hamburger">
+        <button class="hamburger-btn" aria-label="Open menu">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M3.5,7 C3.22,7 3,6.78 3,6.5 C3,6.22 3.22,6 3.5,6 L20.5,6 C20.78,6 21,6.22 21,6.5 C21,6.78 20.78,7 20.5,7 L3.5,7 Z M3.5,12 C3.22,12 3,11.78 3,11.5 C3,11.22 3.22,11 3.5,11 L20.5,11 C20.78,11 21,11.22 21,11.5 C21,11.78 20.78,12 20.5,12 L3.5,12 Z M3.5,17 C3.22,17 3,16.78 3,16.5 C3,16.22 3.22,16 3.5,16 L20.5,16 C20.78,16 21,16.22 21,16.5 C21,16.78 20.78,17 20.5,17 L3.5,17 Z"/></svg>
+        </button>
+        <div class="hamburger-menu">
+          <a href="#how-it-works">How it works</a>
+          <a href="#features">Features</a>
+          <a href="#channels">Channels</a>
+          <a href="#runtimes">APC</a>
+          <a href="#start">Quick start</a>
+          <a class="btn" href="https://github.com/agentprojectcontext/apx" target="_blank" rel="noopener">GitHub</a>
         </div>
       </div>
     </div>
+  </nav>
 
-    <!-- Right: channels -->
-    <div class="arch-col right">
-      <div class="arch-pill">Telegram</div>
-      <div class="arch-pill">MCP</div>
-      <div class="arch-pill dim">API</div>
+  <!-- HERO -->
+  <header class="hero">
+    <div class="wrap">
+      <div class="badge"><span class="dot"></span> Local runtime for AI agents</div>
+      <div class="hero-logo">
+        <img src="assets/logo.png" alt="APX">
+        <span class="wordmark">APX</span>
+      </div>
+      <p class="slogan">Discover · Orchestrate · Bridge</p>
+      <h1>One context layer.<br><span class="grad">Any AI coding tool.</span></h1>
+      <p class="lede">
+        APX is a local daemon + CLI that runs your AI agents against a single, portable project
+        context. Route to Claude Code, Codex, OpenCode or Aider, fall back automatically, and keep
+        every agent&rsquo;s memory and sessions in plain files. No database. No lock-in. Your projects stay yours.
+      </p>
+      <div class="hero-cta">
+        <a class="btn primary" href="#start">Get started</a>
+        <a class="btn" href="https://github.com/agentprojectcontext/apx" target="_blank" rel="noopener">View on GitHub</a>
+      </div>
+      <a class="apc-badge" href="https://github.com/agentprojectcontext/agentprojectcontext" target="_blank" rel="noopener">
+        <span class="dot-anim"></span>
+        Built on <b>APC</b> &mdash; the Agent Project Context protocol &rarr;
+      </a>
     </div>
-  </div>
-</section>
+  </header>
 
-<!-- Routing / fallback -->
-<div class="fallback">
-  <h3>Routing / Fallback</h3>
-  <div class="fallback-chain">
-    <div class="fb-node">
-      <div class="fb-box">Claude <div class="fb-check">✓</div></div>
-    </div>
-    <div class="fb-arrow">→<span>fallback</span></div>
-    <div class="fb-node">
-      <div class="fb-box">Codex <div class="fb-check">✓</div></div>
-    </div>
-    <div class="fb-arrow">→<span>fallback</span></div>
-    <div class="fb-node">
-      <div class="fb-box">OpenCode <div class="fb-check">✓</div></div>
-    </div>
-    <div class="fb-arrow">→<span>fallback</span></div>
-    <div class="fb-node">
-      <div class="fb-box" style="border-style:dashed;opacity:0.6">Local Model</div>
-    </div>
-  </div>
-</div>
+  <!-- HOW IT WORKS — architecture + routing -->
+  <section id="how-it-works">
+    <div class="wrap">
+      <div class="center">
+        <div class="eyebrow">How it works</div>
+        <h2 class="h">One runtime between your tools and your channels</h2>
+        <p class="sub center">APX sits in the middle: it discovers your project context, orchestrates the
+          right runtime or engine, and bridges every channel you talk to it through.</p>
+      </div>
 
-<!-- Features -->
-<section class="features">
-  <h2>What APX provides</h2>
-  <div class="feat-grid">
-    <div class="feat">
-      <div class="feat-icon">⚡</div>
-      <h3>Daemon + CLI</h3>
-      <p>Local HTTP daemon auto-starts. <code>apx run</code> spawns a full agent session in any runtime.</p>
-    </div>
-    <div class="feat">
-      <div class="feat-icon">🔀</div>
-      <h3>Multi-runtime</h3>
-      <p>Claude Code, Codex, OpenCode, Aider. Route to any runtime, fall back automatically.</p>
-    </div>
-    <div class="feat">
-      <div class="feat-icon">🗂️</div>
-      <h3>Filesystem-first</h3>
-      <p>No database. All agent state — memory, sessions, messages — lives in <code>.apc/</code>.</p>
-    </div>
-    <div class="feat">
-      <div class="feat-icon">📡</div>
-      <h3>Telegram + MCP</h3>
-      <p>Built-in Telegram bot plugin. MCP server declarations per project.</p>
-    </div>
-    <div class="feat">
-      <div class="feat-icon">🧠</div>
-      <h3>Multi-engine</h3>
-      <p>Anthropic, OpenAI, Gemini, Ollama, or mock. Configured per project or globally.</p>
-    </div>
-    <div class="feat">
-      <div class="feat-icon">📋</div>
-      <h3>Activity log</h3>
-      <p>Every invocation logged to JSONL. Stream with <code>apx messages tail</code>.</p>
-    </div>
-  </div>
-</section>
+      <div class="arch">
+        <div class="arch-col left">
+          <div class="arch-pill">Claude Code</div>
+          <div class="arch-pill">Codex</div>
+          <div class="arch-pill">OpenCode</div>
+          <div class="arch-pill dim">Aider</div>
+        </div>
+        <div class="arch-center">
+          <div class="apx-box">
+            <h3>APX</h3>
+            <div class="rt">Local Runtime</div>
+            <div class="pills">
+              <span class="micro">Discover</span>
+              <span class="micro">Orchestrate</span>
+              <span class="micro">Bridge</span>
+            </div>
+          </div>
+        </div>
+        <div class="arch-col right">
+          <div class="arch-pill">CLI</div>
+          <div class="arch-pill">Telegram</div>
+          <div class="arch-pill">MCP</div>
+          <div class="arch-pill dim">Web admin</div>
+        </div>
+      </div>
+      <p class="arch-cap">runtimes &amp; engines &nbsp;·&nbsp; one .apc/ context &nbsp;·&nbsp; any channel</p>
 
-<!-- Terminal -->
-<section class="terminal">
-  <h2>Quick start</h2>
-  <div class="term-window">
-    <div class="term-bar">
-      <div class="dot dot-r"></div>
-      <div class="dot dot-y"></div>
-      <div class="dot dot-g"></div>
-      <span class="term-title">apx (local)</span>
+      <div class="fallback">
+        <h3>Routing / fallback</h3>
+        <div class="fallback-chain">
+          <div class="fb-box">Claude Code <span class="fb-check">&check;</span></div>
+          <div class="fb-arrow">&rarr;<span>fallback</span></div>
+          <div class="fb-box">Codex <span class="fb-check">&check;</span></div>
+          <div class="fb-arrow">&rarr;<span>fallback</span></div>
+          <div class="fb-box">OpenCode <span class="fb-check">&check;</span></div>
+          <div class="fb-arrow">&rarr;<span>fallback</span></div>
+          <div class="fb-box" style="border-style:dashed;opacity:0.6">Local engine</div>
+        </div>
+      </div>
     </div>
-    <div class="term-body">
-      <div><span class="prompt">$ </span><span class="cmd">apx agent list</span></div>
-      <div class="out">Projects:</div>
-      <div class="out">  · <span class="hi">Project A</span>   .apc/</div>
-      <div class="out">  · <span class="hi">Project B</span>   .apc/</div>
-      <br>
-      <div><span class="prompt">$ </span><span class="cmd">apx run superagent --runtime claude-code "Review open PRs"</span></div>
-      <div class="out">▶ Running agent <span class="hi">'superagent'</span> in Project A…<span class="cursor"></span></div>
-    </div>
-  </div>
-</section>
+  </section>
 
-<footer>
-  <p>
-    PROJECT-CENTRIC · PORTABLE · LOCAL-FIRST &nbsp;·&nbsp;
-    <a href="https://github.com/agentprojectcontext/apx">GitHub</a> &nbsp;·&nbsp;
-    <a href="https://github.com/agentprojectcontext/agentprojectcontext">APC Protocol</a>
-  </p>
-  <p style="margin-top:0.5rem;font-size:0.7rem;opacity:0.4">NO DUPLICATED PER-IDE CONFIGS. ONE CONTEXT LAYER ACROSS TOOLS.</p>
-</footer>
+  <!-- TERMINAL -->
+  <section>
+    <div class="wrap">
+      <p class="term-intro">It&rsquo;s a CLI first. The daemon auto-starts on your first call &mdash; you just run things.</p>
+      <div class="term">
+        <div class="term-bar">
+          <span class="dots"><i class="r"></i><i class="y"></i><i class="g"></i></span>
+          <span class="ttl">apx &mdash; local</span>
+          <span class="sp"></span>
+        </div>
+        <pre id="term-pre"></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section id="features">
+    <div class="wrap">
+      <div class="center">
+        <div class="eyebrow">What APX provides</div>
+        <h2 class="h">A lot of moving parts, all local</h2>
+        <p class="sub">Started as a way to stop copying configs between IDEs. Became a runtime. Every
+          piece runs on your machine against whatever endpoints you point it at.</p>
+      </div>
+      <div class="grid">
+        <div class="feature">
+          <span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></svg></span>
+          <h3>Daemon + CLI</h3>
+          <p>A local HTTP daemon auto-starts. <code>apx run</code> spawns a full agent session in any runtime.</p>
+        </div>
+        <div class="feature">
+          <span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"/><path d="M4 20 21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg></span>
+          <h3>Multi-runtime</h3>
+          <p>Claude Code, Codex, OpenCode, Aider. Route to any runtime; fall back automatically.</p>
+        </div>
+        <div class="feature">
+          <span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg></span>
+          <h3>Routing &amp; fallback</h3>
+          <p>Declare a preferred runtime and a chain. If one is missing, APX walks down to the next.</p>
+        </div>
+        <div class="feature">
+          <span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v2"/><path d="M3 7h18l-1.5 12a2 2 0 0 1-2 2H6.5a2 2 0 0 1-2-2z"/></svg></span>
+          <h3>Filesystem-first</h3>
+          <p>No database. Agent definitions and curated memory live in <code>.apc/</code>, committed with your repo.</p>
+        </div>
+        <div class="feature">
+          <span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 0-4 4v1a4 4 0 0 0-2 7 4 4 0 0 0 6 4 4 4 0 0 0 6-4 4 4 0 0 0-2-7V6a4 4 0 0 0-4-4z"/></svg></span>
+          <h3>Multi-engine</h3>
+          <p>Direct LLM calls via Anthropic, OpenAI, Gemini, Ollama, or a mock. Per project or global.</p>
+        </div>
+        <div class="feature">
+          <span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></svg></span>
+          <h3>Telegram + MCP</h3>
+          <p>Built-in Telegram bot plugin with identity roles. Per-project MCP servers, exposed or consumed.</p>
+        </div>
+        <div class="feature">
+          <span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5"/><path d="M3 12c0 1.7 4 3 9 3s9-1.3 9-3"/></svg></span>
+          <h3>Curated memory</h3>
+          <p>Per-agent memory you read and append from the CLI &mdash; <code>apx memory &lt;slug&gt;</code>. Plain markdown.</p>
+        </div>
+        <div class="feature">
+          <span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H5.2L4 17.5z"/><path d="M8 9h8M8 12h5"/></svg></span>
+          <h3>Sessions &amp; activity log</h3>
+          <p>Every invocation logged to JSONL across channels. Stream it with <code>apx messages tail</code>.</p>
+        </div>
+        <div class="feature">
+          <span class="ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/></svg></span>
+          <h3>Agents &amp; skills <span class="tag">vault</span></h3>
+          <p>Reusable agent templates and skill prompts. Import from the vault, scope per project.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- USE CASES -->
+  <section id="use-cases">
+    <div class="wrap">
+      <div class="center">
+        <div class="eyebrow">Use cases</div>
+        <h2 class="h">What you build with APX</h2>
+        <p class="sub center">Concrete workflows the runtime is designed for. Click or swipe to browse.</p>
+      </div>
+      <div class="tcarousel-wrap">
+        <button class="tarrow prev" type="button" aria-label="Previous">&#8249;</button>
+        <div class="tgrid" id="tcarousel">
+
+          <figure class="tcard">
+            <span class="av"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 3h5v5"/><path d="M4 20 21 3"/><path d="M21 16v5h-5"/><path d="M15 15l6 6"/><path d="M4 4l5 5"/></svg></span>
+            <div class="tmeta">
+              <div class="tt">Review PRs across any runtime</div>
+              <p class="q">Point an agent at your repo and let APX route to Claude Code &mdash; falling back to Codex or OpenCode if one isn&rsquo;t installed. The session and its summary land in <code>.apc/</code>.</p>
+              <div class="rl">For teams standardizing AI review</div>
+            </div>
+          </figure>
+
+          <figure class="tcard">
+            <span class="av"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></svg></span>
+            <div class="tmeta">
+              <div class="tt">Operate your agents from Telegram</div>
+              <p class="q">Talk to project agents from your phone. Identity roles gate who can do what, and every message is logged per channel for a full audit trail.</p>
+              <div class="rl">For ops &amp; on-call workflows</div>
+            </div>
+          </figure>
+
+          <figure class="tcard">
+            <span class="av"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5"/><path d="M3 12c0 1.7 4 3 9 3s9-1.3 9-3"/></svg></span>
+            <div class="tmeta">
+              <div class="tt">Memory that lives in your repo</div>
+              <p class="q">Curated, per-agent memory is plain markdown, committed and reviewable alongside your code. No vendor database, no hidden state, no lock-in.</p>
+              <div class="rl">For privacy- &amp; portability-first teams</div>
+            </div>
+          </figure>
+
+          <figure class="tcard">
+            <span class="av"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/></svg></span>
+            <div class="tmeta">
+              <div class="tt">Run the same prompt across engines</div>
+              <p class="q">Send one prompt through Anthropic, OpenAI, Gemini or a local Ollama model with <code>apx exec</code>, configured per project or globally.</p>
+              <div class="rl">For evaluating models &amp; cost</div>
+            </div>
+          </figure>
+
+        </div>
+        <button class="tarrow next" type="button" aria-label="Next">&#8250;</button>
+      </div>
+      <div class="tnav" id="tnav"></div>
+    </div>
+  </section>
+
+  <!-- CHANNELS — one conversation across surfaces -->
+  <section id="channels">
+    <div class="wrap">
+      <div class="center">
+        <div class="eyebrow">Same context, every channel</div>
+        <h2 class="h">One conversation, however you talk to it</h2>
+        <p class="sub center">Start on Telegram, continue on the web, fire up Claude Code, end up in your project. APX
+          carries the session, the memory, and the routing &mdash; the agent never forgets where you left off.</p>
+      </div>
+
+      <div class="stage-track">
+        <div class="stage-rail"></div>
+        <div class="stages">
+          <div class="stage" data-i="0">
+            <div class="stage-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></svg></div>
+            <div class="step">Step 1</div>
+            <h3>Telegram</h3>
+            <p>You ask the project agent something from your phone.</p>
+          </div>
+          <div class="stage" data-i="1">
+            <div class="stage-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg></div>
+            <div class="step">Step 2</div>
+            <h3>Web admin</h3>
+            <p>Open the web UI; the same thread is already there.</p>
+          </div>
+          <div class="stage" data-i="2">
+            <div class="stage-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m6 9 3 3-3 3M13 15h5"/></svg></div>
+            <div class="step">Step 3</div>
+            <h3>Claude Code</h3>
+            <p>Hand it off to a coding runtime &mdash; with the same context.</p>
+          </div>
+          <div class="stage" data-i="3">
+            <div class="stage-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v2"/><path d="M3 7h18l-1.5 12a2 2 0 0 1-2 2H6.5a2 2 0 0 1-2-2z"/></svg></div>
+            <div class="step">Step 4</div>
+            <h3>Your project</h3>
+            <p>Changes, memory and session land in <code style="color:var(--accent);background:rgba(63,185,80,0.08);padding:0 4px;border-radius:3px">.apc/</code>.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="convo" id="convo">
+        <div class="convo-line"><span class="who">You &rarr; Roby</span><span class="ch">Telegram</span>How are the open PRs doing?</div>
+        <div class="ctx">context carried: <b>1 thread</b> · <b>0 file edits</b> · <b>Telegram</b></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PREVIEWS -->
+  <section id="previews">
+    <div class="wrap">
+      <div class="center">
+        <div class="eyebrow">See it in action</div>
+        <h2 class="h">Hover to take a closer look</h2>
+        <p class="sub center">Drop in a screen recording per surface &mdash; each panel expands and plays on hover.</p>
+      </div>
+      <div class="previews">
+        <!-- CLI & daemon -->
+        <div class="preview-panel" tabindex="0">
+          <div class="mock mock-cli">
+            <div class="mock-bar"><i class="d r"></i><i class="d y"></i><i class="d g"></i><span class="tt">apx</span></div>
+            <div class="mock-body">
+              <div class="ln"><span class="pr">$</span> apx <span class="hi">init</span></div>
+              <div class="ln out"><span class="ok">✓</span> registered <b>my-project</b></div>
+              <div class="ln"><span class="pr">$</span> apx run sofia --runtime <span class="hi">claude-code</span></div>
+              <div class="ln out"><span class="cm">▶ routing → claude-code …</span></div>
+              <div class="ln out"><span class="ok">✓</span> session complete<span class="cur">█</span></div>
+            </div>
+          </div>
+          <div class="label"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m6 9 3 3-3 3M13 15h5"/></svg>CLI &amp; daemon</div>
+        </div>
+
+        <!-- Web admin -->
+        <div class="preview-panel" tabindex="0">
+          <div class="mock mock-web">
+            <div class="mock-bar"><i class="d r"></i><i class="d y"></i><i class="d g"></i><span class="tt">APX · localhost</span></div>
+            <div class="web-grid">
+              <div class="web-side">
+                <div class="web-brand"><span class="logo-dot"></span>APX</div>
+                <div class="web-nav-item on">Projects</div>
+                <div class="web-nav-item">Agents</div>
+                <div class="web-nav-item">Sessions</div>
+                <div class="web-nav-item">MCPs</div>
+              </div>
+              <div class="web-main">
+                <div class="web-card">
+                  <div class="web-card-h">apx · <b>my-project</b></div>
+                  <div class="web-card-row"><span class="web-tag">agent</span> sofia</div>
+                  <div class="web-card-row"><span class="web-tag">runtime</span> claude-code</div>
+                  <div class="web-bar"><div class="web-bar-fill"></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="label"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>Web admin</div>
+        </div>
+
+        <!-- Telegram -->
+        <div class="preview-panel" tabindex="0">
+          <div class="mock mock-tg">
+            <div class="tg-head"><span class="tg-av">R</span><div><div class="tg-nm">Roby</div><div class="tg-st">online</div></div></div>
+            <div class="tg-body">
+              <div class="tg-msg in">How are the open PRs doing?</div>
+              <div class="tg-msg out">4 open. 1 needs changes. Want me to review them?</div>
+              <div class="tg-msg in">go ahead, summary please.</div>
+              <div class="tg-msg out tg-typing"><span></span><span></span><span></span></div>
+            </div>
+          </div>
+          <div class="label"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2 15 22l-4-9-9-4z"/></svg>Telegram</div>
+        </div>
+
+        <!-- Desktop -->
+        <div class="preview-panel" tabindex="0">
+          <div class="mock mock-desktop">
+            <div class="dk-menubar"><span></span><span></span><span></span><span></span></div>
+            <div class="dk-spotlight">
+              <div class="dk-input">
+                <span class="dk-text">Hablá o escribí a Roby&hellip;<span class="cur">█</span></span>
+                <span class="dk-mic"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></span>
+              </div>
+              <div class="dk-hints"><span class="dk-kbd">⌘G</span>para hablar<span class="dk-kbd">⌥/</span>para escribir</div>
+            </div>
+          </div>
+          <div class="label"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>Desktop</div>
+        </div>
+
+        <!-- Deck (coming soon) -->
+        <div class="preview-panel coming" tabindex="0">
+          <div class="mock mock-deck">
+            <div class="deck-card deck-c1"></div>
+            <div class="deck-card deck-c2"></div>
+            <div class="deck-card deck-c3">
+              <div class="deck-row"></div><div class="deck-row short"></div>
+              <div class="deck-foot"><span class="deck-soon">coming soon</span></div>
+            </div>
+          </div>
+          <div class="label"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 22h12M10 18v4M14 18v4"/></svg>Deck <span class="soon-tag">soon</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- APC PROTOCOL -->
+  <section id="runtimes">
+    <div class="wrap">
+      <div class="apc-hero">
+        <div class="apc-mark">APC</div>
+        <div>
+          <div class="eyebrow">The protocol underneath</div>
+          <h2 class="h" style="margin-top:4px;">Agent Project Context &mdash; one convention, every tool</h2>
+        </div>
+      </div>
+      <p class="sub" style="max-width:780px; margin-top:24px;">
+        Every AI coding tool wanted its own folder, its own memory, its own rules file. The context
+        was the same &mdash; the project &mdash; but it lived in six places and drifted in all of them.
+      </p>
+      <p class="sub" style="max-width:780px; margin-top:14px;">
+        <strong style="color:var(--fg)">APC</strong> defines a single on-disk convention for project context
+        &mdash; agents, memory, sessions, MCP servers, skills. <strong style="color:var(--fg)">APX</strong> is its
+        reference runtime: read the convention, route to any compliant tool, and keep the whole trail in files you own.
+      </p>
+      <div class="apc-points">
+        <div class="apc-point"><span class="apc-num">01</span><div><h4>Define once</h4><p>Agents and skills live in <code>.apc/</code>, committed with your repo.</p></div></div>
+        <div class="apc-point"><span class="apc-num">02</span><div><h4>Run anywhere</h4><p>Any APC-aware tool reads the same context &mdash; Claude Code, Codex, OpenCode, future runtimes.</p></div></div>
+        <div class="apc-point"><span class="apc-num">03</span><div><h4>Stay portable</h4><p>No vendor database. Switch tools, fork the repo, move clouds &mdash; the context comes with you.</p></div></div>
+      </div>
+      <a class="btn primary" href="https://github.com/agentprojectcontext/agentprojectcontext" target="_blank" rel="noopener" style="margin-top:32px;">Read the APC spec &rarr;</a>
+    </div>
+  </section>
+
+  <!-- GET STARTED — full attention -->
+  <section id="start">
+    <div class="wrap">
+      <div class="start">
+        <div class="start-glow"></div>
+        <div class="eyebrow">Get started</div>
+        <div class="start-logo">
+          <img src="assets/logo.png" alt="APX" width="64" height="64">
+        </div>
+        <h2 class="h start-title">Install it and run.<br><span class="grad">That&rsquo;s it.</span></h2>
+        <p class="sub center" style="margin:0 auto; font-size: 16px;">Open source and free. No sales team, no demo request &mdash; just install the package. Requires Node.js 20+.</p>
+        <div class="codeblock"><span class="prompt">$</span> <span id="install-cmd">npm install -g apx</span><button class="copy" type="button" data-copy="npm install -g apx">copy</button></div>
+        <div>
+          <a class="btn primary" href="https://github.com/agentprojectcontext/apx" target="_blank" rel="noopener" style="margin-top:14px;">View on GitHub</a>
+        </div>
+        <div class="pill-row">
+          <span class="pill">Filesystem-first</span>
+          <span class="pill">Multi-runtime</span>
+          <span class="pill">Local daemon</span>
+          <span class="pill">MCP-ready</span>
+          <span class="pill">No lock-in</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      <div>&copy; 2026 APX &middot; Reference implementation of the APC protocol.</div>
+      <div>
+        <a href="https://github.com/agentprojectcontext/apx" target="_blank" rel="noopener">GitHub</a> &nbsp;·&nbsp;
+        <a href="https://github.com/agentprojectcontext/agentprojectcontext" target="_blank" rel="noopener">APC Protocol</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Typewriter terminal: type real apx commands + output, loop.
+    (function () {
+      var pre = document.getElementById('term-pre');
+      if (!pre) return;
+      var lines = [
+        { p: '<span class="pr">$</span> ', t: 'apx init' },
+        { p: '',  t: '<span class="ok">✓</span> Detected AGENTS.md · project "apx" registered', instant: true },
+        { p: '',  t: '' , instant: true },
+        { p: '<span class="pr">$</span> ', t: 'apx run sofia --runtime claude-code "Review the open PRs"' },
+        { p: '',  t: '<span class="cm">▶ routing → claude-code … ✓ session complete</span>', instant: true },
+        { p: '',  t: '', instant: true },
+        { p: '<span class="pr">$</span> ', t: 'apx messages tail --channel runtime' },
+        { p: '',  t: '<span class="cm">runtime  sofia   <span class="hi">"Summarized 4 PRs, 1 needs changes"</span></span>', instant: true }
+      ];
+      var CURSOR = '<span class="term-cursor">█</span>';
+      var TYPE_MS = 34, done = [], li = 0, timer = null;
+
+      function render(partial) {
+        pre.innerHTML = done.join('\n') + (done.length ? '\n' : '') + partial + CURSOR;
+      }
+      function nextLine() {
+        if (li >= lines.length) { timer = setTimeout(reset, 4200); return; }
+        var ln = lines[li];
+        if (ln.instant) {
+          done.push(ln.p + ln.t); li++;
+          render(''); timer = setTimeout(nextLine, ln.t ? 380 : 120);
+          return;
+        }
+        var plain = ln.t.replace(/<[^>]+>/g, ''), i = 0;
+        (function step() {
+          if (i <= plain.length) {
+            render(ln.p + plain.slice(0, i)); i++; timer = setTimeout(step, TYPE_MS);
+          } else {
+            done.push(ln.p + ln.t); li++; timer = setTimeout(nextLine, 520);
+          }
+        })();
+      }
+      function reset() { clearTimeout(timer); done = []; li = 0; nextLine(); }
+
+      if ('IntersectionObserver' in window) {
+        var io2 = new IntersectionObserver(function (entries) {
+          entries.forEach(function (e) { if (e.isIntersecting) reset(); });
+        }, { threshold: 0.4 });
+        io2.observe(pre);
+      } else { reset(); }
+    })();
+
+    // (Previews are CSS-only mockups now — no video JS needed; hover expansion handled by CSS.)
+
+    // Domino reveal: fade/slide sections in as they enter view.
+    (function () {
+      var els = document.querySelectorAll('.hero, section');
+      if (!('IntersectionObserver' in window)) { els.forEach(function (e) { e.classList.add('in'); }); return; }
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+      }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
+      els.forEach(function (e) { io.observe(e); });
+    })();
+
+    // Testimonial carousel: tap/click/swipe/arrows + dots.
+    (function () {
+      var carousel = document.getElementById('tcarousel'), nav = document.getElementById('tnav');
+      if (!carousel || !nav) return;
+      var cards = [].slice.call(carousel.querySelectorAll('.tcard'));
+      if (!cards.length) return;
+      var idx = 0;
+      var dots = cards.map(function (_, k) {
+        var d = document.createElement('span'); d.className = 'tdot';
+        d.addEventListener('click', function (e) { e.stopPropagation(); show(k); });
+        nav.appendChild(d); return d;
+      });
+      var hint = document.createElement('div'); hint.className = 'thint';
+      hint.textContent = 'click or swipe for the next use case →'; nav.appendChild(hint);
+      function show(i) {
+        idx = (i + cards.length) % cards.length;
+        cards.forEach(function (c, k) { c.classList.toggle('active', k === idx); });
+        dots.forEach(function (d, k) { d.classList.toggle('on', k === idx); });
+      }
+      carousel.addEventListener('click', function () { show(idx + 1); });
+      var _p = document.querySelector('.tarrow.prev'), _n = document.querySelector('.tarrow.next');
+      if (_p) _p.addEventListener('click', function (e) { e.stopPropagation(); show(idx - 1); });
+      if (_n) _n.addEventListener('click', function (e) { e.stopPropagation(); show(idx + 1); });
+      var sx = null;
+      carousel.addEventListener('touchstart', function (e) { sx = e.touches[0].clientX; }, { passive: true });
+      carousel.addEventListener('touchend', function (e) {
+        if (sx === null) return;
+        var dx = e.changedTouches[0].clientX - sx;
+        if (Math.abs(dx) > 30) show(idx + (dx < 0 ? 1 : -1));
+        sx = null;
+      });
+      show(0);
+    })();
+
+    // Channels — cycle through stages with the conversation thread.
+    (function () {
+      var stages = document.querySelectorAll('#channels .stage');
+      var convo = document.getElementById('convo');
+      if (!stages.length || !convo) return;
+      var states = [
+        { who: 'You &rarr; Roby', ch: 'Telegram',  msg: 'How are the open PRs doing?',          ctx: 'context carried: <b>1 thread</b> · <b>0 file edits</b> · <b>Telegram</b>' },
+        { who: 'Roby',            ch: 'Web admin', msg: 'Same thread, now on web. 4 PRs open — want me to review them?', ctx: 'context carried: <b>1 thread</b> · <b>session resumed</b> · <b>Web</b>' },
+        { who: 'Roby',            ch: 'Claude Code', msg: 'Running review in claude-code… read 4 PRs, 1 needs changes.',  ctx: 'context carried: <b>1 thread</b> · <b>runtime: claude-code</b> · <b>4 PRs read</b>' },
+        { who: 'apx',             ch: '.apc/',      msg: 'Session, memory and decision summary committed to <code style="color:var(--accent);background:rgba(63,185,80,0.08);padding:0 4px;border-radius:3px">.apc/agents/roby/</code>', ctx: 'persisted: <b>session.md</b> · <b>memory.md</b> · <b>filesystem-first</b>' }
+      ];
+      var i = 0, timer = null;
+      function paint(k) {
+        i = (k + states.length) % states.length;
+        stages.forEach(function (s, idx) { s.classList.toggle('on', idx === i); });
+        var st = states[i];
+        convo.innerHTML =
+          '<div class="convo-line"><span class="who">' + st.who + '</span><span class="ch">' + st.ch + '</span>' + st.msg + '</div>' +
+          '<div class="ctx">' + st.ctx + '</div>';
+      }
+      function tick() { paint(i + 1); timer = setTimeout(tick, 3200); }
+      stages.forEach(function (s) {
+        s.addEventListener('click', function () {
+          clearTimeout(timer); paint(parseInt(s.getAttribute('data-i'), 10));
+          timer = setTimeout(tick, 5000);
+        });
+      });
+      // Only run while the section is on screen.
+      var sec = document.getElementById('channels');
+      if ('IntersectionObserver' in window) {
+        var io = new IntersectionObserver(function (entries) {
+          entries.forEach(function (e) {
+            if (e.isIntersecting) { paint(0); clearTimeout(timer); timer = setTimeout(tick, 1800); }
+            else { clearTimeout(timer); }
+          });
+        }, { threshold: 0.35 });
+        io.observe(sec);
+      } else { paint(0); timer = setTimeout(tick, 1800); }
+    })();
+
+    // Copy install command.
+    (function () {
+      document.querySelectorAll('.copy').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var txt = b.getAttribute('data-copy');
+          if (navigator.clipboard) navigator.clipboard.writeText(txt).then(function () {
+            var old = b.textContent; b.textContent = 'copied!';
+            setTimeout(function () { b.textContent = old; }, 1400);
+          });
+        });
+      });
+    })();
+
+    // Mobile hamburger.
+    (function () {
+      var container = document.querySelector('.nav-links-hamburger');
+      if (!container) return;
+      var button = container.querySelector('.hamburger-btn');
+      button.addEventListener('click', function (e) { e.stopPropagation(); container.classList.toggle('open'); });
+      document.addEventListener('click', function () { container.classList.remove('open'); });
+    })();
+  </script>
 
 </body>
 </html>
