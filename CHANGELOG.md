@@ -1,3 +1,10 @@
+## [1.30.1](https://github.com/agentprojectcontext/apx/compare/v1.30.0...v1.30.1) (2026-06-04)
+
+
+### Bug Fixes
+
+* **desktop/voice:** stop the agent repeating greetings + pre-announcing ([75e24e6](https://github.com/agentprojectcontext/apx/commit/75e24e6c4a8edc20b9a1f1de29c0c4c8d09515e5))
+
 # [1.30.0](https://github.com/agentprojectcontext/apx/compare/v1.29.0...v1.30.0) (2026-06-04)
 
 
