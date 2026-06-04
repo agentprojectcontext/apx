@@ -1,3 +1,10 @@
+# [1.27.0](https://github.com/agentprojectcontext/apx/compare/v1.26.0...v1.27.0) (2026-06-04)
+
+
+### Features
+
+* **landing:** restore landing as landing.html, sans-serif + mono mix ([78a0274](https://github.com/agentprojectcontext/apx/commit/78a0274e6ddcd224f09fa5c10014c7ab543cc506))
+
 # [1.26.0](https://github.com/agentprojectcontext/apx/compare/v1.25.0...v1.26.0) (2026-06-04)
 
 
