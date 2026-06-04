@@ -1,3 +1,10 @@
+# [1.24.0](https://github.com/agentprojectcontext/apx/compare/v1.23.0...v1.24.0) (2026-06-04)
+
+
+### Features
+
+* **landing:** full-viewport sections, magnetic snap, APC focus, channels animation ([be5f2d5](https://github.com/agentprojectcontext/apx/commit/be5f2d5e6b4623eda3ed38f2bb1b836e8a28457f)), closes [#channels](https://github.com/agentprojectcontext/apx/issues/channels) [#runtimes](https://github.com/agentprojectcontext/apx/issues/runtimes) [#start](https://github.com/agentprojectcontext/apx/issues/start)
+
 # [1.23.0](https://github.com/agentprojectcontext/apx/compare/v1.22.2...v1.23.0) (2026-06-04)
 
 
