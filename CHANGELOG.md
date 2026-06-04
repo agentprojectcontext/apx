@@ -1,3 +1,49 @@
+# [1.26.0](https://github.com/agentprojectcontext/apx/compare/v1.25.0...v1.26.0) (2026-06-04)
+
+
+### Bug Fixes
+
+* **desktop-plugin:** log super-agent turn lifecycle + verbose error stack ([7972772](https://github.com/agentprojectcontext/apx/commit/79727721144e92bf966f21710b14a432c77a4a54))
+* **desktop:** conv card collapsed off-screen on first reply ([fa7ddc8](https://github.com/agentprojectcontext/apx/commit/fa7ddc8d64e972906bb57e240d535b2e64deb56c))
+* **desktop:** live UX polish — agent name, double Pensando, TTS stuck, clipped buttons, opacity ([18cb545](https://github.com/agentprojectcontext/apx/commit/18cb5451b9b93212769fdbbb6b1e5fecb0f8eef4))
+* **desktop:** Regenerate button — restart the streaming pipeline, not just re-send ([d7996ff](https://github.com/agentprojectcontext/apx/commit/d7996ffa81efa338c2ee512b5077b75a49af95de))
+* **desktop:** Regenerate only on the last turn — never on stale replies ([7c1f970](https://github.com/agentprojectcontext/apx/commit/7c1f970a141d126190405d6eae41422281b4ac0d))
+* **desktop:** render reply immediately on `done` (non-streaming models) ([0cc8552](https://github.com/agentprojectcontext/apx/commit/0cc855296b14efb4745a8d5e876f4b12ce9a3bd4))
+* **desktop:** tray — left-click toggles window, right-click shows menu ([24d7d31](https://github.com/agentprojectcontext/apx/commit/24d7d31e217311e2f035a6b84b975527ceb33f49))
+* super-agent unblocked on cheap-tier cloud models ([0a127e6](https://github.com/agentprojectcontext/apx/commit/0a127e66fcdd90fd7471e66e1eafc5ec712abded))
+* **voice/gemini:** wrap raw L16 PCM in WAV header so afplay can read it ([ba5c416](https://github.com/agentprojectcontext/apx/commit/ba5c41638c31b7d43dd9c907c6972181b51c97fc))
+* **voice:** tool-call dedupe + balanced tool gating + es replies ([06bfce7](https://github.com/agentprojectcontext/apx/commit/06bfce7aa5c63f70ba9e5e25ee6e1ed89cdcc91a))
+* **web/vite:** proxy /agents and /tasks to the daemon during dev ([b96ad11](https://github.com/agentprojectcontext/apx/commit/b96ad11f7e561aaf8aa80822fb7c5458dcf81cdd))
+* **web:** drop unsupported react-day-picker v9 'table' key + breadcrumb label for Chats ([11d5d21](https://github.com/agentprojectcontext/apx/commit/11d5d21feeead76859c26cc4677fc1e75f838055))
+
+
+### Features
+
+* **agent:** lazy retry on transient engine errors + visible logs (backlog 13) ([7634a36](https://github.com/agentprojectcontext/apx/commit/7634a36ce022f932879beb4d453dfb5e59af9f8b))
+* **agent:** Llama-3.3 pseudo-tool parser + tool_call_id plumbing (item 12) ([ccc1987](https://github.com/agentprojectcontext/apx/commit/ccc198792b062716e81f889cbdb71b866fda4f80))
+* **agents:** bundled vault starter pack + apx agent vault sync + apx-agency-agents skill ([5353105](https://github.com/agentprojectcontext/apx/commit/5353105d9bd01869788c2ce5a03e8eee717ca8d8))
+* **desktop:** web admin v2 + autostart endpoint + agent-name race fix ([53e0975](https://github.com/agentprojectcontext/apx/commit/53e09759dca90ad3798d85299316f546272b8e16))
+* **engines/gemini:** function-calling support + backlog 14/15/16 ([648acff](https://github.com/agentprojectcontext/apx/commit/648acffdb78222c682b74e75cb96106aab62f40d))
+* **git:** add initGitRepo function for best-effort git initialization ([bf8cb3c](https://github.com/agentprojectcontext/apx/commit/bf8cb3c46a6079c2ee9b16b49ecde4a49934a92b))
+* **host:** pairing token store + cross-engine session resume ([6a4f8c2](https://github.com/agentprojectcontext/apx/commit/6a4f8c29b19e49d3752099e9c4bd0e3d2d05864a))
+* item 07 — 8 operational skills for the super-agent ([9a6c1f6](https://github.com/agentprojectcontext/apx/commit/9a6c1f6d58f166439ad77f6d9fb1bab8a1e67966))
+* items 01 + 05 + 08 (routine tool suppression, tasks per project, web skeleton) ([95b7b4d](https://github.com/agentprojectcontext/apx/commit/95b7b4def2dab21501b32213d425f2d3f24e05ff))
+* **memory:** cross-channel memory system for the super-agent ([5b799ca](https://github.com/agentprojectcontext/apx/commit/5b799ca018d6b21402fcaa1a5a7fad4372129fb6))
+* merge agents A+B+C — items 02, 03, 04, 06, 10 ([a40c7e3](https://github.com/agentprojectcontext/apx/commit/a40c7e3889be9db6e55850fa0087c1a8e2eb798d))
+* **router:** single-list fallback + strict Ollama model check (backlog 11) ([5b94e02](https://github.com/agentprojectcontext/apx/commit/5b94e02b5f53a6d05beb21dd79421443bdca7188))
+* **sessions:** cross-engine resume + continue + into-apx ([6bd64b1](https://github.com/agentprojectcontext/apx/commit/6bd64b1132b2e5d09acbc998a8e24494efbd4899))
+* **skills + channel:** Fase C — APX skill/MCP builder skills + channel-pinned project context ([dfd3672](https://github.com/agentprojectcontext/apx/commit/dfd3672ac2adecef8303aacd87ce1cd4fe4bc462))
+* **skills:** auto-discover every bundled skill on install + add `apx skills sync` ([03b3793](https://github.com/agentprojectcontext/apx/commit/03b37932a150bd24d883fb2cceb4d7ea506646b0))
+* **super-agent:** apx-default sessions, self-memory notebook, voice/deck channels + daemon restart ([8d3660e](https://github.com/agentprojectcontext/apx/commit/8d3660eda6c8c775eda904c0c568c7e4cf310f68))
+* **telegram:** per-channel owner + global contacts roster + role-based tool gating ([b00ec0b](https://github.com/agentprojectcontext/apx/commit/b00ec0bab5b9ccabd12afde89cd81e6ab6967d66))
+* **tui:** OpenCode-style session view (bubbles, tools, queue, actions) ([83b7dae](https://github.com/agentprojectcontext/apx/commit/83b7dae76c7b99ae6167d5fe39635d4f31650db3))
+* **web/chat:** Roby option in ChatTab + streaming in the bubble ([602c181](https://github.com/agentprojectcontext/apx/commit/602c181ef1ac05312f7464f65dad5a3b81133331))
+* **web/settings:** full Telegram config under one entry — tabs for Canal default, Canales, Contactos y Roles ([027dfbf](https://github.com/agentprojectcontext/apx/commit/027dfbf8ba62d49b19452957acd2b91e1366e96d))
+* **web/voice:** deck/voice/code admin modules, chat upgrades, TTS engine work ([a5949cd](https://github.com/agentprojectcontext/apx/commit/a5949cd56882a30142694ededd31926e6ef302dc))
+* **web:** always-on Roby bubble + rename Threads→Chats + Settings/Engines layout + canonical shadcn Switch ([e71795e](https://github.com/agentprojectcontext/apx/commit/e71795e9ffef753a9e31333650caf96828700daa))
+* **web:** full UI rewrite — Tailwind v4, shadcn-style kit, i18n, project/settings/pairing screens ([358e828](https://github.com/agentprojectcontext/apx/commit/358e82835e0b21e570a3d028cfb511b84ec86611))
+* **web:** OpenCode-style Code module — sessions, plan/build, context + changes ([0dd931d](https://github.com/agentprojectcontext/apx/commit/0dd931d09ed30697ce8fb4bbdc1a6b2ed9705b0b))
+
 # [1.25.0](https://github.com/agentprojectcontext/apx/compare/v1.24.0...v1.25.0) (2026-06-04)
 
 
