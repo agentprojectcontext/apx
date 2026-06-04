@@ -36,6 +36,14 @@
   // doesn't talk into the dead gap before the recorder starts.
   let micReady = false;
 
+  // Dead-mic detection: track the loudest RMS seen this session. If it stays
+  // near zero for DEAD_MIC_MS the stream is silent (no permission / muted /
+  // wrong device) and we surface a notice instead of hanging in "listening".
+  let listenStartTs = 0;
+  let micPeakRms = 0;
+  const DEAD_MIC_MS = 3500;
+  const DEAD_MIC_RMS = 0.004;
+
   // Silence auto-send: once speech has been heard, SILENCE_MS of quiet
   // auto-commits the recording. RMS (time-domain) is the voice/silence gate.
   // Both are overridable from config.json (desktop.silence_ms / voice_rms).
@@ -760,6 +768,8 @@
     micReady = false;      // show "Cargando…" until the recorder is actually live
     speechSeen = false;
     lastVoiceTs = 0;
+    listenStartTs = 0;
+    micPeakRms = 0;
     pausePreviewed = false;
     reuseLiveOnStop = false;
     livePromise = null;
@@ -880,12 +890,41 @@
       // won't auto-send (speechSeen gates that).
       micReady = true;
       lastVoiceTs = Date.now();
+      listenStartTs = Date.now();
+      micPeakRms = 0;
       if (mode === "listening") render();
     } catch (e) {
+      // getUserMedia failed → classify and tell the user, instead of silently
+      // bailing to idle (which looks like "it just doesn't work").
       console.error("desktop renderer: mic error", e);
+      micReady = false;
       mode = "idle";
+      const name = e?.name || "";
+      let notice;
+      if (name === "NotAllowedError" || name === "SecurityError" || /permission|denied/i.test(e?.message || "")) {
+        notice = "Roby no tiene permiso para el micrófono. Activalo en Ajustes del sistema › Privacidad y seguridad › Micrófono, y volvé a intentar.";
+      } else if (name === "NotFoundError" || name === "DevicesNotFoundError" || name === "OverconstrainedError") {
+        notice = "No encontré ningún micrófono conectado. Revisá el dispositivo de entrada y reintentá.";
+      } else {
+        notice = "No pude abrir el micrófono (" + (name || e?.message || "error") + "). Reintentá o revisá los permisos.";
+      }
+      showMicNotice(notice);
       render();
     }
+  }
+  // Visual-only system notice in the conversation (not a message, not history).
+  function showMicNotice(text) {
+    ensureConv();
+    if ($convScroll) {
+      // Replace any prior notice so they don't stack.
+      $convScroll.querySelector(".sys-notice")?.remove();
+      const el = document.createElement("div");
+      el.className = "sys-notice";
+      el.innerHTML = `<span class="ic">${ICON.mic()}</span><span>${escapeHtml(text)}</span>`;
+      $convScroll.appendChild(el);
+      scrollConvToBottom();
+    }
+    requestWindowResize();
   }
   function stopMic() {
     try { mediaRecorder?.stop(); } catch {}
@@ -926,6 +965,19 @@
         }
         const rms = Math.sqrt(sumSq / timeData.length);
         const now = Date.now();
+        if (rms > micPeakRms) micPeakRms = rms;
+        // Dead-mic guard: a real mic always has a noise floor (rms ≳ 0.005). If
+        // after DEAD_MIC_MS the signal is essentially flat zero, the stream is
+        // muted / wrong device / OS-blocked — tell the user instead of sitting
+        // in "listening" forever waiting for speech that can't arrive.
+        if (!speechSeen && listenStartTs && now - listenStartTs > DEAD_MIC_MS && micPeakRms < DEAD_MIC_RMS) {
+          waveRaf = null;
+          stopMic();
+          mode = "idle";
+          showMicNotice("No me está llegando audio del micrófono. Revisá que Roby tenga permiso (Ajustes del sistema › Privacidad y seguridad › Micrófono) y que esté seleccionado el micrófono correcto.");
+          render();
+          return;
+        }
         if (rms > VOICE_RMS) {
           speechSeen = true;
           lastVoiceTs = now;
