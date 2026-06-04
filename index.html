@@ -295,13 +295,142 @@
     color: var(--accent); background: rgba(63,185,80,0.10); border: 1px solid var(--border);
     border-radius: 999px; padding: 1px 7px; font-weight: 600;
   }
-  .preview-panel .ph {
-    position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
-    color: var(--muted); font-size: 12.5px; opacity: 0.75; text-align: center; padding: 8px;
+  .preview-panel .mock { position: absolute; inset: 0; z-index: 1; overflow: hidden; }
+  .preview-panel .mock-bar {
+    display: flex; align-items: center; gap: 7px; padding: 8px 12px;
+    background: #161b22; border-bottom: 1px solid var(--border-soft);
   }
-  .preview-panel .ph svg { color: var(--accent); opacity: 0.6; }
-  .preview-panel video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 1; opacity: 0; transition: opacity .3s ease; }
-  .preview-panel.has-video video { opacity: 1; }
+  .preview-panel .mock-bar .d { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .preview-panel .mock-bar .r { background: #ff5f57; } .preview-panel .mock-bar .y { background: #febc2e; } .preview-panel .mock-bar .g { background: #28c840; }
+  .preview-panel .mock-bar .tt { margin-left: auto; margin-right: auto; color: var(--muted); font-size: 11px; }
+
+  /* CLI mock */
+  .mock-cli .mock-body { padding: 14px 14px 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; line-height: 1.85; color: var(--fg); }
+  .mock-cli .ln { opacity: 0; animation: cliLine 8s steps(1) infinite both; }
+  .mock-cli .ln:nth-child(1) { animation-delay: 0.0s; }
+  .mock-cli .ln:nth-child(2) { animation-delay: 0.7s; }
+  .mock-cli .ln:nth-child(3) { animation-delay: 1.6s; }
+  .mock-cli .ln:nth-child(4) { animation-delay: 2.4s; }
+  .mock-cli .ln:nth-child(5) { animation-delay: 3.2s; }
+  @keyframes cliLine {
+    0%, 87.5% { opacity: 1; }
+    93%, 100% { opacity: 0; }
+  }
+  .mock-cli .pr { color: var(--accent2); } .mock-cli .out { color: var(--muted); }
+  .mock-cli .ok { color: var(--green); margin-right: 4px; } .mock-cli .hi { color: var(--accent); }
+  .mock-cli .cm { color: #6b7785; } .mock-cli b { color: var(--fg); font-weight: 500; }
+  .mock-cli .cur { display: inline-block; color: var(--accent2); animation: blinkCur 1s steps(1) infinite; margin-left: 4px; }
+  @keyframes blinkCur { 50% { opacity: 0; } }
+
+  /* Web admin mock */
+  .mock-web .web-grid { display: grid; grid-template-columns: 80px 1fr; height: calc(100% - 33px); }
+  .mock-web .web-side { background: rgba(13,17,23,0.7); border-right: 1px solid var(--border-soft); padding: 10px 8px; font-size: 10px; display: flex; flex-direction: column; gap: 6px; }
+  .mock-web .web-brand { color: var(--heading); font-weight: 700; display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+  .mock-web .logo-dot { width: 10px; height: 10px; border-radius: 3px; background: var(--accent); }
+  .mock-web .web-nav-item { color: var(--muted); padding: 4px 6px; border-radius: 4px; font-size: 9.5px; }
+  .mock-web .web-nav-item.on { background: rgba(63,185,80,0.12); color: var(--fg); border: 1px solid var(--border); }
+  .mock-web .web-main { padding: 14px; display: flex; align-items: center; justify-content: center; }
+  .mock-web .web-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+    padding: 12px 14px; width: 100%; max-width: 240px; box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+    animation: webPulse 4s ease-in-out infinite;
+  }
+  @keyframes webPulse {
+    0%,100% { transform: translateY(0); box-shadow: 0 8px 30px rgba(0,0,0,0.35); }
+    50%     { transform: translateY(-2px); box-shadow: 0 14px 40px rgba(63,185,80,0.18); }
+  }
+  .mock-web .web-card-h { font-size: 11.5px; color: var(--fg); margin-bottom: 8px; }
+  .mock-web .web-card-h b { color: var(--accent); }
+  .mock-web .web-card-row { font-size: 10.5px; color: var(--muted); margin-bottom: 4px; display: flex; gap: 8px; align-items: center; }
+  .mock-web .web-tag { font-size: 9px; padding: 1px 6px; border-radius: 4px; background: rgba(63,185,80,0.10); color: var(--accent); border: 1px solid var(--border); }
+  .mock-web .web-bar { height: 4px; background: var(--bg2); border-radius: 999px; margin-top: 10px; overflow: hidden; }
+  .mock-web .web-bar-fill { height: 100%; width: 30%; background: linear-gradient(90deg, var(--accent2), var(--accent)); animation: webProg 4s ease-in-out infinite; }
+  @keyframes webProg { 0% { width: 10%; } 50% { width: 80%; } 100% { width: 100%; } }
+
+  /* Telegram mock */
+  .mock-tg { background: linear-gradient(180deg, #17212b, #0e1620); display: flex; flex-direction: column; padding: 12px 14px; }
+  .mock-tg .tg-head { display: flex; align-items: center; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+  .mock-tg .tg-av { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, var(--accent2), var(--accent)); display: flex; align-items: center; justify-content: center; color: #04220c; font-weight: 800; font-size: 13px; }
+  .mock-tg .tg-nm { color: #fff; font-size: 12.5px; font-weight: 600; }
+  .mock-tg .tg-st { color: rgba(255,255,255,0.45); font-size: 10px; }
+  .mock-tg .tg-body { padding-top: 10px; display: flex; flex-direction: column; gap: 8px; overflow: hidden; }
+  .mock-tg .tg-msg {
+    max-width: 80%; padding: 7px 11px; border-radius: 12px; font-size: 11.5px; line-height: 1.45;
+    opacity: 0; transform: translateY(10px); animation: tgPop 10s ease-out infinite both;
+  }
+  .mock-tg .tg-msg.in  { align-self: flex-start; background: #182533; color: #d6e0e8; border-bottom-left-radius: 4px; }
+  .mock-tg .tg-msg.out { align-self: flex-end;   background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #04220c; border-bottom-right-radius: 4px; font-weight: 500; }
+  .mock-tg .tg-msg:nth-child(1) { animation-delay: 0.4s; }
+  .mock-tg .tg-msg:nth-child(2) { animation-delay: 1.6s; }
+  .mock-tg .tg-msg:nth-child(3) { animation-delay: 2.9s; }
+  .mock-tg .tg-msg:nth-child(4) { animation-delay: 4.0s; }
+  @keyframes tgPop {
+    0%   { opacity: 0; transform: translateY(10px) scale(0.9); }
+    4%   { opacity: 1; transform: translateY(0) scale(1); }
+    88%  { opacity: 1; transform: translateY(0); }
+    96%  { opacity: 0; transform: translateY(-6px); }
+    100% { opacity: 0; }
+  }
+  .mock-tg .tg-typing { display: flex; gap: 4px; padding: 10px 12px; align-items: center; }
+  .mock-tg .tg-typing span { width: 6px; height: 6px; border-radius: 50%; background: #04220c; opacity: 0.6; animation: tgDot 1.4s ease-in-out infinite; }
+  .mock-tg .tg-typing span:nth-child(2) { animation-delay: 0.15s; }
+  .mock-tg .tg-typing span:nth-child(3) { animation-delay: 0.30s; }
+  @keyframes tgDot { 0%,100% { transform: translateY(0); opacity: 0.4; } 50% { transform: translateY(-3px); opacity: 1; } }
+
+  /* Desktop mock */
+  .mock-desktop {
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(63,185,80,0.06), transparent 70%),
+      linear-gradient(180deg, #0e1117 0%, #050708 100%);
+    display: flex; flex-direction: column;
+  }
+  .mock-desktop .dk-menubar { display: flex; gap: 12px; padding: 8px 14px; background: rgba(0,0,0,0.35); }
+  .mock-desktop .dk-menubar span { width: 14px; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.12); }
+  .mock-desktop .dk-menubar span:first-child { background: var(--accent); width: 10px; }
+  .mock-desktop .dk-spotlight {
+    margin: auto; width: 84%; max-width: 280px;
+    background: rgba(255,255,255,0.95); color: #0a0d10; border-radius: 16px; padding: 12px 14px;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(63,185,80,0.18), 0 0 40px rgba(63,185,80,0.15);
+    animation: dkBreath 4s ease-in-out infinite;
+  }
+  @keyframes dkBreath {
+    0%,100% { box-shadow: 0 24px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(63,185,80,0.18), 0 0 40px rgba(63,185,80,0.15); }
+    50%     { box-shadow: 0 24px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(63,185,80,0.35), 0 0 60px rgba(63,185,80,0.30); }
+  }
+  .mock-desktop .dk-input { display: flex; align-items: center; gap: 8px; }
+  .mock-desktop .dk-text { font-size: 11.5px; color: #6b7280; flex: 1; }
+  .mock-desktop .dk-mic { width: 28px; height: 28px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; color: #fff; }
+  .mock-desktop .dk-hints { display: flex; gap: 8px; align-items: center; font-size: 10px; color: #6b7280; margin-top: 8px; }
+  .mock-desktop .dk-kbd { background: #e9eef2; border: 1px solid #d2d9df; border-radius: 4px; padding: 0 5px; font-family: ui-monospace, monospace; font-size: 9.5px; color: #0a0d10; }
+  .mock-desktop .cur { display: inline-block; width: 1px; background: #0a0d10; height: 1em; animation: blinkCur 1s steps(1) infinite; margin-left: 2px; }
+
+  /* Deck mock — stacked cards drifting */
+  .mock-deck { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .mock-deck .deck-card {
+    position: absolute; width: 60%; height: 60%; border-radius: 10px;
+    background: linear-gradient(180deg, var(--panel), var(--bg2));
+    border: 1px solid var(--border-soft);
+    transition: transform .6s ease;
+  }
+  .mock-deck .deck-c1 { transform: translate(-22px, -14px) rotate(-7deg); opacity: 0.5; animation: deckDrift 6s ease-in-out infinite; }
+  .mock-deck .deck-c2 { transform: translate(-8px, -6px) rotate(-3deg); opacity: 0.7; animation: deckDrift 6s ease-in-out infinite -2s; }
+  .mock-deck .deck-c3 {
+    transform: translate(8px, 4px) rotate(2deg); opacity: 1;
+    border-color: var(--border); box-shadow: 0 14px 40px rgba(0,0,0,0.5);
+    padding: 14px; display: flex; flex-direction: column; gap: 7px;
+    animation: deckDrift 6s ease-in-out infinite -4s;
+  }
+  .mock-deck .deck-row { height: 6px; background: linear-gradient(90deg, var(--accent2), transparent); border-radius: 3px; opacity: 0.6; }
+  .mock-deck .deck-row.short { width: 55%; }
+  .mock-deck .deck-foot { margin-top: auto; text-align: center; }
+  .mock-deck .deck-soon { font-size: 9.5px; color: var(--accent); letter-spacing: 0.14em; text-transform: uppercase; border: 1px solid var(--border); border-radius: 999px; padding: 3px 8px; background: rgba(63,185,80,0.10); }
+  @keyframes deckDrift {
+    0%,100% { transform: translate(var(--dx, 0), var(--dy, 0)) rotate(var(--dr, 0deg)); }
+    50%     { transform: translate(calc(var(--dx, 0) + 2px), calc(var(--dy, 0) - 3px)) rotate(var(--dr, 0deg)); }
+  }
+  .mock-deck .deck-c1 { --dx: -22px; --dy: -14px; --dr: -7deg; }
+  .mock-deck .deck-c2 { --dx: -8px;  --dy: -6px;  --dr: -3deg; }
+  .mock-deck .deck-c3 { --dx: 8px;   --dy: 4px;   --dr: 2deg; }
   .preview-panel .label {
     position: absolute; z-index: 2; left: 0; right: 0; bottom: 0; padding: 14px 16px;
     background: linear-gradient(0deg, rgba(0,0,0,0.85), transparent);
@@ -781,28 +910,85 @@
         <p class="sub center">Drop in a screen recording per surface &mdash; each panel expands and plays on hover.</p>
       </div>
       <div class="previews">
+        <!-- CLI & daemon -->
         <div class="preview-panel" tabindex="0">
-          <div class="ph"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m6 9 3 3-3 3M13 15h5"/></svg><span>[ CLI &amp; daemon ]</span></div>
-          <video muted loop playsinline preload="none"><source src="assets/preview-cli.webm" type="video/webm"></video>
+          <div class="mock mock-cli">
+            <div class="mock-bar"><i class="d r"></i><i class="d y"></i><i class="d g"></i><span class="tt">apx</span></div>
+            <div class="mock-body">
+              <div class="ln"><span class="pr">$</span> apx <span class="hi">init</span></div>
+              <div class="ln out"><span class="ok">✓</span> registered <b>my-project</b></div>
+              <div class="ln"><span class="pr">$</span> apx run sofia --runtime <span class="hi">claude-code</span></div>
+              <div class="ln out"><span class="cm">▶ routing → claude-code …</span></div>
+              <div class="ln out"><span class="ok">✓</span> session complete<span class="cur">█</span></div>
+            </div>
+          </div>
           <div class="label"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m6 9 3 3-3 3M13 15h5"/></svg>CLI &amp; daemon</div>
         </div>
+
+        <!-- Web admin -->
         <div class="preview-panel" tabindex="0">
-          <div class="ph"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg><span>[ Web admin ]</span></div>
-          <video muted loop playsinline preload="none"><source src="assets/preview-web.webm" type="video/webm"></video>
+          <div class="mock mock-web">
+            <div class="mock-bar"><i class="d r"></i><i class="d y"></i><i class="d g"></i><span class="tt">APX · localhost</span></div>
+            <div class="web-grid">
+              <div class="web-side">
+                <div class="web-brand"><span class="logo-dot"></span>APX</div>
+                <div class="web-nav-item on">Projects</div>
+                <div class="web-nav-item">Agents</div>
+                <div class="web-nav-item">Sessions</div>
+                <div class="web-nav-item">MCPs</div>
+              </div>
+              <div class="web-main">
+                <div class="web-card">
+                  <div class="web-card-h">apx · <b>my-project</b></div>
+                  <div class="web-card-row"><span class="web-tag">agent</span> sofia</div>
+                  <div class="web-card-row"><span class="web-tag">runtime</span> claude-code</div>
+                  <div class="web-bar"><div class="web-bar-fill"></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
           <div class="label"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>Web admin</div>
         </div>
+
+        <!-- Telegram -->
         <div class="preview-panel" tabindex="0">
-          <div class="ph"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2 15 22l-4-9-9-4z"/></svg><span>[ Telegram ]</span></div>
-          <video muted loop playsinline preload="none"><source src="assets/preview-telegram.webm" type="video/webm"></video>
+          <div class="mock mock-tg">
+            <div class="tg-head"><span class="tg-av">R</span><div><div class="tg-nm">Roby</div><div class="tg-st">online</div></div></div>
+            <div class="tg-body">
+              <div class="tg-msg in">How are the open PRs doing?</div>
+              <div class="tg-msg out">4 open. 1 needs changes. Want me to review them?</div>
+              <div class="tg-msg in">go ahead, summary please.</div>
+              <div class="tg-msg out tg-typing"><span></span><span></span><span></span></div>
+            </div>
+          </div>
           <div class="label"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2 15 22l-4-9-9-4z"/></svg>Telegram</div>
         </div>
+
+        <!-- Desktop -->
         <div class="preview-panel" tabindex="0">
-          <div class="ph"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg><span>[ Desktop ]</span></div>
-          <video muted loop playsinline preload="none"><source src="assets/preview-desktop.webm" type="video/webm"></video>
+          <div class="mock mock-desktop">
+            <div class="dk-menubar"><span></span><span></span><span></span><span></span></div>
+            <div class="dk-spotlight">
+              <div class="dk-input">
+                <span class="dk-text">Hablá o escribí a Roby&hellip;<span class="cur">█</span></span>
+                <span class="dk-mic"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></span>
+              </div>
+              <div class="dk-hints"><span class="dk-kbd">⌘G</span>para hablar<span class="dk-kbd">⌥/</span>para escribir</div>
+            </div>
+          </div>
           <div class="label"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>Desktop</div>
         </div>
+
+        <!-- Deck (coming soon) -->
         <div class="preview-panel coming" tabindex="0">
-          <div class="ph"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 22h12M10 18v4M14 18v4"/></svg><span>[ Deck ]</span><span class="soon">coming soon</span></div>
+          <div class="mock mock-deck">
+            <div class="deck-card deck-c1"></div>
+            <div class="deck-card deck-c2"></div>
+            <div class="deck-card deck-c3">
+              <div class="deck-row"></div><div class="deck-row short"></div>
+              <div class="deck-foot"><span class="deck-soon">coming soon</span></div>
+            </div>
+          </div>
           <div class="label"><svg class="ico" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 22h12M10 18v4M14 18v4"/></svg>Deck <span class="soon-tag">soon</span></div>
         </div>
       </div>
@@ -921,19 +1107,7 @@
       } else { reset(); }
     })();
 
-    // Previews: hover expands (CSS) + plays video; visible only once playing.
-    (function () {
-      document.querySelectorAll('.preview-panel').forEach(function (p) {
-        var v = p.querySelector('video');
-        if (!v) return;
-        v.addEventListener('playing', function () { p.classList.add('has-video'); });
-        var play = function () { var pr = v.play(); if (pr && pr.catch) pr.catch(function () {}); };
-        p.addEventListener('mouseenter', play);
-        p.addEventListener('focus', play);
-        p.addEventListener('mouseleave', function () { v.pause(); });
-        p.addEventListener('blur', function () { v.pause(); });
-      });
-    })();
+    // (Previews are CSS-only mockups now — no video JS needed; hover expansion handled by CSS.)
 
     // Domino reveal: fade/slide sections in as they enter view.
     (function () {
