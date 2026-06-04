@@ -328,19 +328,30 @@ button { font-family: inherit; }
 .wavebar i.cur { transform: scaleY(1.25); }
 .audio .dur { font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; min-width: 30px; text-align: right; }
 
-/* per-turn actions */
+/* Continued agent messages (no repeated "Roby" header) hug the previous one. */
+.turn.cont { padding-top: 0; }
+.turn.cont .msg-agent { margin-top: 1px; }
+
+/* Inline copy icon at the end of an agent message — hover-only, so it never
+   reserves an empty row of vertical space. */
+.msg-agent .btn-copy {
+  display: inline-flex; align-items: center; vertical-align: -3px;
+  margin-left: 6px; padding: 1px; border: none; background: transparent;
+  cursor: pointer; color: var(--ink-3); opacity: 0; transition: opacity .15s ease, color .15s ease;
+}
+.turn:hover .msg-agent .btn-copy { opacity: .55; }
+.msg-agent .btn-copy:hover { opacity: 1; color: var(--ink); }
+.msg-agent .btn-copy.done { opacity: 1; color: oklch(0.6 0.15 150); }
+
+/* per-turn actions — only Regenerate now, and only on the LAST agent turn.
+   Regenerating a past turn would replay the most-recent user prompt (not the
+   one that produced that reply) and silently break the flow, so it's hidden
+   everywhere else and takes no space. */
 .turn-actions {
-  margin: 7px 0 0 24px; display: flex; gap: 4px;
+  margin: 7px 0 0 24px; display: none; gap: 4px;
   opacity: 0; transition: opacity .2s ease;
 }
-.turn:hover .turn-actions, .turn.last .turn-actions { opacity: 1; }
-
-/* Regenerate is only meaningful on the LAST agent turn — regenerating a
-   past one would replay the most-recent user prompt (not the one that
-   produced this reply) and silently break the conversation flow. Copy
-   stays available on every turn so users can grab old replies. */
-.turn .btn-regen { display: none; }
-.turn.last .btn-regen { display: inline-flex; }
+.turn.last .turn-actions { display: flex; opacity: 1; }
 .chip {
   display: inline-flex; align-items: center; gap: 5px; cursor: pointer;
   padding: 4px 8px; border-radius: 9px; border: 1px solid var(--glass-hairline);

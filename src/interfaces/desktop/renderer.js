@@ -389,17 +389,28 @@
         <div class="bubble-user">${escapeHtml(m.text)}${viaIcon}</div>
       `;
     } else {
-      t.innerHTML = `
+      // Consecutive agent messages (intro + post-tool answer …) read as one
+      // continued reply: only the FIRST shows the "Roby" header — the rest skip
+      // it so a tool turn isn't a stack of repeated "Roby" labels. A new header
+      // only appears when something (a user message) breaks the run.
+      const idx = messages.indexOf(m);
+      const prevMsg = idx > 0 ? messages[idx - 1] : null;
+      const agentCont = !!(prevMsg && prevMsg.role === "agent");
+      if (agentCont) t.classList.add("cont");
+      const header = agentCont ? "" : `
         <div class="role agent">
           <span class="ava sa"><img src="assets/superagent.png" alt=""/></span>
           <span class="who">${escapeHtml(agentName)}</span>
           <span class="time">${m.t || ""}</span>
-        </div>
-        <div class="msg-agent">${formatWordsHtml(m.text)}</div>
-        ${m.audio ? "" /* scrubber added separately */ : ""}
+        </div>`;
+      // Copy is an inline icon at the end of the text, hover-only, so it never
+      // reserves an empty row. Regenerate lives in turn-actions and CSS shows it
+      // only on the last turn.
+      t.innerHTML = `
+        ${header}
+        <div class="msg-agent">${formatWordsHtml(m.text)}<button class="btn-copy" aria-label="Copiar" title="Copiar">${ICON.copy()}</button></div>
         <div class="turn-actions">
           <button class="chip btn-regen">${ICON.refresh()} Regenerar</button>
-          <button class="chip btn-copy">${ICON.copy()} Copiar</button>
         </div>
       `;
       if (m.audio && m.dur) {
@@ -409,13 +420,13 @@
         actions.insertAdjacentHTML("beforebegin", scrubberHtml);
         wireScrubber(t, m);
       }
-      // copy
+      // copy (inline icon → swaps to a check briefly)
       t.querySelector(".btn-copy")?.addEventListener("click", (e) => {
         navigator.clipboard?.writeText(m.text).catch(() => {});
         const btn = e.currentTarget;
         btn.classList.add("done");
-        btn.innerHTML = `${ICON.check()} Copiado`;
-        setTimeout(() => { btn.classList.remove("done"); btn.innerHTML = `${ICON.copy()} Copiar`; }, 1400);
+        btn.innerHTML = ICON.check();
+        setTimeout(() => { btn.classList.remove("done"); btn.innerHTML = ICON.copy(); }, 1400);
       });
       // regen: only the LAST agent turn can be regenerated. Past turns
       // can't because we'd have to re-issue the user prompt that came right
