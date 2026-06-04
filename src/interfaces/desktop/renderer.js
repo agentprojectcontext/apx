@@ -59,9 +59,21 @@
   let timeData = null;
   let waveRaf = null;
 
-  let streamingAgentEntry = null; // { id, role:'agent', el, ... } during thinking/speaking
-  let toolPillsByName = {};       // active tool pills inside the streaming bubble row
-  let ttsAudio = null;            // <audio> playing the agent reply
+  let streamingAgentEntry = null; // legacy single-bubble streaming (kept dormant)
+  let toolPillsByName = {};       // active tool pills, by tool name, for the live turn
+  let ttsAudio = null;            // <audio> currently playing
+
+  // ── Per-segment turn rendering ──────────────────────────────────────────
+  // A turn is now N agent message bubbles (intro, post-tool answer, …), each
+  // with its own audio. `currentTurn` tags every bubble of a turn so regen can
+  // drop the whole turn. The audio queue plays segment audios in seq order
+  // (gapless auto-play), waiting at the cursor for each segment's TTS to land.
+  let currentTurn = 0;
+  let turnAudios = [];            // [{ m, ready, failed, played }] ordered by seq
+  let audioCursor = 0;            // index of the next segment to play
+  let queuePlaying = false;       // a segment audio is currently playing
+  let turnDone = false;           // `done` received for the active turn
+  let turnWatchdog = null;        // flushes the queue if a segment's TTS hangs
 
   let history = [];               // [{role:'user'|'assistant', content}] sent to daemon for context
   let theme = "light";
@@ -357,7 +369,6 @@
       // Re-render all existing turns
       messages.forEach((m, i) => appendTurn(m, i === messages.length - 1));
       if (mode === "transcribing") renderPendingUserPartial();
-      if (mode === "thinking" || mode === "speaking") ensureStreamingAgentBubble();
     }
   }
 
@@ -424,7 +435,10 @@
         if (history.length && history[history.length - 1].role === "assistant") {
           history.pop();
         }
-        messages = messages.filter((x) => x.id !== m.id);
+        // A turn can be several agent bubbles (intro + post-tool answer…); drop
+        // them all so regen replaces the whole turn, not just the last segment.
+        const turnId = m.turn;
+        messages = messages.filter((x) => !(x.role === "agent" && turnId != null && x.turn === turnId) && x.id !== m.id);
         rebuildConvFromState();
         startAgentTurn();
         sendToDaemon(lastUser.text);
@@ -535,12 +549,14 @@
   }
 
   function addToolPill(name) {
-    ensureStreamingAgentBubble();
-    if (toolPillsByName[name]) return;
+    ensureConv();
+    if (!$convScroll || toolPillsByName[name]) return;
     const pill = document.createElement("div");
     pill.className = "tool-pill";
     pill.innerHTML = `<div class="spinner"></div><span>${escapeHtml(name)}</span>`;
-    $convScroll.insertBefore(pill, streamingAgentEntry.el);
+    // Append at the end of the conversation flow — pills sit between the
+    // segment bubbles in the order tools actually run.
+    $convScroll.appendChild(pill);
     toolPillsByName[name] = pill;
     scrollConvToBottom();
   }
@@ -577,53 +593,46 @@
     const dur   = m.dur || 1;
     const fmt   = (s) => `0:${String(Math.round(s)).padStart(2, "0")}`;
     const audio = new Audio(m.audio);
+    m._audioEl = audio;          // the audio queue drives sequential playback
     let raf = null;
-    let progress = 0;
 
     const setProgress = (p) => {
-      progress = Math.max(0, Math.min(1, p));
-      const cur = Math.floor(progress * N);
+      p = Math.max(0, Math.min(1, p));
+      const cur = Math.floor(p * N);
       bars.forEach((b, i) => {
         b.classList.toggle("on", i <= cur);
         b.classList.toggle("cur", i === cur && !audio.paused);
       });
-      $dur.textContent = progress > 0 || !audio.paused ? fmt(progress * dur) : fmt(dur);
+      $dur.textContent = p > 0 || !audio.paused ? fmt(p * dur) : fmt(dur);
     };
-
     const tick = () => {
       if (audio.duration > 0) setProgress(audio.currentTime / audio.duration);
       raf = requestAnimationFrame(tick);
     };
-    audio.addEventListener("play",   () => { $play.innerHTML = ICON.pause(); raf = requestAnimationFrame(tick); mode = "speaking"; render(); });
-    audio.addEventListener("pause",  () => { $play.innerHTML = ICON.play();  if (raf) cancelAnimationFrame(raf); if (mode === "speaking") { mode = "idle"; render(); } });
-    audio.addEventListener("ended",  () => { setProgress(1); if (mode === "speaking") { mode = "idle"; render(); } });
+    audio.addEventListener("play",  () => { $play.innerHTML = ICON.pause(); raf = requestAnimationFrame(tick); if (mode !== "speaking") { mode = "speaking"; render(); } });
+    audio.addEventListener("pause", () => { $play.innerHTML = ICON.play();  if (raf) cancelAnimationFrame(raf); });
+    audio.addEventListener("ended", () => { $play.innerHTML = ICON.play(); if (raf) cancelAnimationFrame(raf); setProgress(1); onSegmentEnded(m); });
+    // 404 / decode error / autoplay block: don't hang — advance the queue.
+    audio.addEventListener("error", () => onSegmentEnded(m));
 
-    $play.addEventListener("click", () => audio.paused ? audio.play() : audio.pause());
+    $play.addEventListener("click", () => {
+      if (audio.paused) {
+        // Manual play takes control — stop the auto-sequence so we don't fight it.
+        queuePlaying = false;
+        try { if (ttsAudio && ttsAudio !== audio && !ttsAudio.ended) ttsAudio.pause(); } catch {}
+        ttsAudio = audio;
+        audio.play().catch(() => { if (mode === "speaking") { mode = "idle"; render(); } });
+      } else {
+        audio.pause();
+        if (mode === "speaking") { mode = "idle"; render(); }
+      }
+    });
     $bar.addEventListener("click", (e) => {
       const r = $bar.getBoundingClientRect();
       const p = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
       if (audio.duration > 0) audio.currentTime = p * audio.duration;
       setProgress(p);
     });
-
-    // If the audio errors out (404, decode error, autoplay block, etc) make
-    // sure the capsule doesn't stay stuck in "está hablando…".
-    audio.addEventListener("error", () => {
-      if (mode === "speaking") { mode = "idle"; render(); }
-    });
-
-    // autoplay if it's the fresh reply
-    if (m.fresh) {
-      m.fresh = false;
-      ttsAudio?.pause?.();
-      ttsAudio = audio;
-      audio.play().catch(() => {
-        // Autoplay block (rare in Electron with user-gesture but possible
-        // when the window has never been focused). Bail out so the capsule
-        // returns to idle and the user can still tap "play" on the scrubber.
-        if (mode === "speaking" || mode === "thinking") { mode = "idle"; render(); }
-      });
-    }
   }
 
   // Post-finalize hook: add a scrubber to an already-rendered agent turn
@@ -633,15 +642,18 @@
     if (!m) return;
     m.audio = url;
     m.dur   = dur || 0;
-    m.fresh = true; // autoplay the freshly-arrived reply
     const turnEl = $convScroll?.querySelector(`[data-id="${turnId}"]`);
-    if (!turnEl) return;
-    // Insert the scrubber HTML just before turn-actions (matches appendTurn order).
-    const actions = turnEl.querySelector(".turn-actions");
-    const html = buildScrubberHtml(m);
-    if (actions) actions.insertAdjacentHTML("beforebegin", html);
-    else turnEl.insertAdjacentHTML("beforeend", html);
-    wireScrubber(turnEl, m);
+    if (turnEl && !turnEl.querySelector(".audio")) {
+      // Insert the scrubber HTML just before turn-actions (matches appendTurn).
+      const actions = turnEl.querySelector(".turn-actions");
+      const html = buildScrubberHtml(m);
+      if (actions) actions.insertAdjacentHTML("beforebegin", html);
+      else turnEl.insertAdjacentHTML("beforeend", html);
+      wireScrubber(turnEl, m); // sets m._audioEl
+    }
+    // Audio is ready → let the sequential queue play it when it's this
+    // segment's turn (gapless auto-play across the turn's bubbles).
+    queueMarkReady(m);
     scrollConvToBottom();
   }
 
@@ -654,6 +666,80 @@
       out.push(0.25 + (0.35 + r * 0.65) * (0.55 + env * 0.6));
     }
     return out;
+  }
+
+  // ── Per-turn setup + sequential audio queue ──────────────────────────────
+  // Each turn renders N agent bubbles (segments), each with its own audio. We
+  // play those audios in `seq` order, gaplessly: the cursor waits at a segment
+  // until its TTS lands, plays it, then advances. So Roby "speaks" its messages
+  // one after another even though they synthesize at different speeds.
+  function beginAgentTurn() {
+    currentTurn++;
+    resetTurnAudio();
+    doneHandled = false;
+    pendingTtsTurnId = null;
+    if (ttsTimer) { clearTimeout(ttsTimer); ttsTimer = null; }
+  }
+  function resetTurnAudio() {
+    try { ttsAudio?.pause?.(); } catch {}
+    ttsAudio = null;
+    turnAudios = [];
+    audioCursor = 0;
+    queuePlaying = false;
+    turnDone = false;
+    if (turnWatchdog) { clearTimeout(turnWatchdog); turnWatchdog = null; }
+  }
+  function queueRegisterSegment(m) {
+    if (!turnAudios.some((e) => e.m === m)) {
+      turnAudios.push({ m, ready: false, failed: false, played: false });
+      turnAudios.sort((a, b) => (a.m.seq || 0) - (b.m.seq || 0));
+    }
+  }
+  function queueMarkReady(m) {
+    const e = turnAudios.find((x) => x.m === m);
+    if (e) e.ready = true;
+    pumpAudioQueue();
+  }
+  function queueMarkFailed(m) {
+    const e = turnAudios.find((x) => x.m === m);
+    if (e) { e.ready = true; e.failed = true; e.played = true; }
+    pumpAudioQueue();
+  }
+  function pumpAudioQueue() {
+    if (queuePlaying) return;
+    while (audioCursor < turnAudios.length) {
+      const e = turnAudios[audioCursor];
+      if (!e.ready) return;                           // wait for this segment's TTS
+      if (e.played || e.failed || !e.m._audioEl) { audioCursor++; continue; }
+      const audio = e.m._audioEl;
+      queuePlaying = true;
+      try { if (ttsAudio && ttsAudio !== audio && !ttsAudio.ended) ttsAudio.pause(); } catch {}
+      ttsAudio = audio;
+      audio.play().catch(() => {                       // autoplay blocked / decode error
+        queuePlaying = false;
+        e.played = true;
+        audioCursor++;
+        pumpAudioQueue();
+      });
+      return;
+    }
+    // Drained. Once the turn is done and nothing's left, return to idle.
+    if (turnDone) {
+      if (turnWatchdog) { clearTimeout(turnWatchdog); turnWatchdog = null; }
+      if (mode === "speaking" || mode === "thinking") { mode = "idle"; render(); }
+    }
+  }
+  // Called from a segment audio's `ended` (or `error`). Advances the queue.
+  function onSegmentEnded(m) {
+    const e = turnAudios.find((x) => x.m === m);
+    if (e) { if (e.played) return; e.played = true; }
+    if (queuePlaying && ttsAudio === m._audioEl) {
+      queuePlaying = false;
+      audioCursor++;
+      pumpAudioQueue();
+    } else if (mode === "speaking") {
+      mode = "idle"; render();
+    }
   }
 
   // ── Recording flow ───────────────────────────────────────────────────────
@@ -695,6 +781,7 @@
     if (mode === "listening") { stopMic(); }
     if (mode === "thinking" || mode === "speaking") { window.apx?.cancel?.(); }
     removePendingUserPartial();
+    resetTurnAudio();   // stop any playing/queued segment audio
     if (streamingAgentEntry) {
       streamingAgentEntry.el.remove();
       streamingAgentEntry = null;
@@ -704,6 +791,8 @@
   }
 
   function stopSpeaking() {
+    // Halt the auto-sequence and the current segment.
+    queuePlaying = false;
     try { ttsAudio?.pause?.(); } catch {}
     if (mode === "speaking") { mode = "idle"; render(); }
   }
@@ -933,12 +1022,10 @@
   // one ResizeObserver tick later). Shared by commitUserMessage + regen so
   // both paths set up the daemon-event pipeline identically.
   function startAgentTurn() {
-    doneHandled = false;
-    pendingTtsTurnId = null;
-    if (ttsTimer) { clearTimeout(ttsTimer); ttsTimer = null; }
+    beginAgentTurn();      // bump currentTurn + reset the audio queue/guards
     mode = "thinking";
     render();
-    ensureStreamingAgentBubble();
+    ensureConv();          // segments will mount their own bubbles
     requestWindowResize();
   }
 
@@ -975,81 +1062,88 @@
   window.apx?.onDaemonEvent?.((msg) => {
     switch (msg.type) {
       case "thinking":
-        if (mode !== "thinking" && mode !== "speaking") { mode = "thinking"; render(); }
-        ensureStreamingAgentBubble();
+        // Marks the start of a turn. For locally-initiated turns startAgentTurn
+        // already ran beginAgentTurn() (mode is already "thinking"); for turns
+        // NOT initiated in this window (injected / broadcast from another client)
+        // we set them up here so currentTurn/queue/doneHandled are correct and
+        // the turn doesn't hang.
+        if (mode !== "thinking" && mode !== "speaking") {
+          beginAgentTurn();
+          mode = "thinking";
+          render();
+        } else {
+          doneHandled = false;
+        }
+        ensureConv();
         break;
       case "token":
+        // Legacy path (backend no longer streams tokens for desktop). Kept so a
+        // mixed-version daemon doesn't break — accumulate into a single bubble.
         appendStreamingToken(msg.text || "");
         break;
       case "tool_start":  addToolPill(msg.name); break;
       case "tool_done":   updateToolPill(msg.name); break;
+      case "segment": {
+        // Each segment is its own agent message bubble + its own audio.
+        ensureConv();
+        const text = (msg.text || "").trim();
+        if (!text) break;
+        const id = nextId++;
+        const m = { id, seq: msg.seq || 0, turn: currentTurn, role: "agent", text, t: nowHHMM(), audio: null, dur: null };
+        messages.push(m);
+        appendTurn(m, true);
+        queueRegisterSegment(m);
+        // Synthesize THIS segment; tts-ready(seg=id) attaches its audio + queues
+        // it for gapless sequential playback.
+        window.apx?.requestTts?.(text, id);
+        requestWindowResize();
+        scrollConvToBottom();
+        break;
+      }
       case "done": {
-        // Daemon may emit `done` twice (retry/race). Process only once per turn.
         if (doneHandled) break;
         doneHandled = true;
-        const finalText = msg.text || streamingAgentEntry?.text || "";
-        // CRITICAL: many models (gemini-flash, groq-fast tier) don't stream
-        // tokens — they send the whole reply in `done`. Without this branch
-        // the bubble stays with just the dots placeholder until TTS resolves
-        // (or 6s timeout), which feels broken. Inject the text NOW so the
-        // user sees the reply immediately.
-        if (streamingAgentEntry) {
-          // Render the authoritative final text. On a tool turn the bubble may
-          // already show a streamed intro ("Déjame ver…"); the real answer
-          // arrives now in `done`. Replace the bubble whenever finalText differs
-          // from what's on screen — otherwise the post-tool answer never shows
-          // and the turn looks stuck after the tool pill.
-          const shown = streamingAgentEntry.text || "";
-          if (finalText && finalText !== shown) {
-            streamingAgentEntry.started = true;
-            streamingAgentEntry.text = finalText;
-            streamingAgentEntry.msgEl.innerHTML = formatWordsHtml(finalText);
-            scrollConvToBottom();
-          } else {
-            streamingAgentEntry.text = finalText || shown;
-          }
-        }
-        // Finalize and return to idle right away so the capsule frees up.
-        // TTS runs in the background; tts-ready will attach the scrubber to
-        // the already-rendered turn (see attachAudioToLastAgentTurn below).
-        const finalizedTurnId = streamingAgentEntry?.id;
-        finalizeStreamingAgent();
-        mode = "idle"; render();
-        // Fire-and-forget TTS request. If it returns audio, attach it to
-        // the turn we just rendered; if it errors / times out / never replies,
-        // no big deal — the user already has the text. Guard with a 6s soft
-        // timeout so a stuck request doesn't hold ttsTimer state.
-        const handled = window.apx?.requestTts?.(finalText);
-        if (handled) {
-          if (ttsTimer) clearTimeout(ttsTimer);
-          ttsTimer = setTimeout(() => { ttsTimer = null; }, 6000);
-          // Remember which turn the next tts-ready/failed belongs to.
-          pendingTtsTurnId = finalizedTurnId || null;
+        turnDone = true;
+        // Record the whole turn as one assistant entry for conversation context.
+        const full = (msg.text || "").trim();
+        if (full) history.push({ role: "assistant", content: full });
+        // Safety net: if some segment's TTS never resolves, flush after 12s so
+        // the capsule can't get stuck in "Pensando…".
+        if (turnWatchdog) clearTimeout(turnWatchdog);
+        turnWatchdog = setTimeout(() => {
+          turnAudios.forEach((e) => { if (!e.ready) { e.ready = true; e.failed = true; e.played = true; } });
+          pumpAudioQueue();
+        }, 12000);
+        // Play whatever audio is already ready; flip to idle if there's nothing
+        // left to play (e.g. a turn that produced no audio).
+        pumpAudioQueue();
+        if (!queuePlaying && audioCursor >= turnAudios.length && mode !== "speaking") {
+          mode = "idle"; render();
         }
         break;
       }
-      case "tts-ready": {
-        if (ttsTimer) { clearTimeout(ttsTimer); ttsTimer = null; }
-        if (pendingTtsTurnId != null) {
-          attachAudioToTurn(pendingTtsTurnId, { url: msg.url, dur: msg.duration });
-          pendingTtsTurnId = null;
-        }
+      case "tts-ready":
+        if (msg.seg != null) attachAudioToTurn(msg.seg, { url: msg.url, dur: msg.duration });
+        break;
+      case "tts-failed": {
+        // No audio for this segment — skip it in the queue so playback advances.
+        const m = (msg.seg != null) ? messages.find((x) => x.id === msg.seg) : null;
+        if (m) queueMarkFailed(m);
         break;
       }
-      case "tts-failed":
-        // The text is already on screen; just clean up the timer + pending id.
-        if (ttsTimer) { clearTimeout(ttsTimer); ttsTimer = null; }
-        pendingTtsTurnId = null;
+      case "error": {
+        ensureConv();
+        const id = nextId++;
+        const m = { id, seq: 9999, turn: currentTurn, role: "agent", text: "Error: " + (msg.message || "Unknown error"), t: nowHHMM(), isError: true };
+        messages.push(m);
+        appendTurn(m, true);
+        turnDone = true;
+        if (mode !== "speaking") { mode = "idle"; render(); }
         break;
-      case "error":
-        finalizeStreamingAgentError(msg.message || "Unknown error");
-        break;
+      }
       case "cancelled":
-        if (streamingAgentEntry) {
-          if (!streamingAgentEntry.text) streamingAgentEntry.el.remove();
-          else finalizeStreamingAgent();
-          streamingAgentEntry = null;
-        }
+        resetTurnAudio();
+        turnDone = true;
         mode = "idle"; render();
         break;
     }

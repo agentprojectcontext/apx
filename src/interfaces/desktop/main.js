@@ -426,27 +426,29 @@ ipcMain.on("resize-window", (_e, { height }) => {
 // Renderer asks for TTS playback of the agent reply. We synthesize via the
 // daemon and pipe the audio path back as a daemon-event the renderer already
 // knows how to consume (tts-ready { url, duration } / tts-failed).
-ipcMain.handle("request-tts", async (_e, { text }) => {
+ipcMain.handle("request-tts", async (_e, { text, seg }) => {
   if (!text || !text.trim()) {
-    mainWindow?.webContents.send("daemon-event", { type: "tts-failed" });
+    mainWindow?.webContents.send("daemon-event", { type: "tts-failed", seg });
     return;
   }
   try {
     const result = await daemonTtsSay(text);
     if (result?.ok && result.audio_path) {
       // Expose the local file via file:// — preload's contextIsolation lets
-      // the renderer's <audio> tag fetch it directly.
+      // the renderer's <audio> tag fetch it directly. `seg` ties this audio to
+      // the bubble that asked for it.
       const url = "file://" + result.audio_path;
       mainWindow?.webContents.send("daemon-event", {
         type: "tts-ready",
+        seg,
         url,
         duration: result.duration_s || 0,
       });
     } else {
-      mainWindow?.webContents.send("daemon-event", { type: "tts-failed", error: result?.error || "no audio" });
+      mainWindow?.webContents.send("daemon-event", { type: "tts-failed", seg, error: result?.error || "no audio" });
     }
   } catch (e) {
-    mainWindow?.webContents.send("daemon-event", { type: "tts-failed", error: e.message });
+    mainWindow?.webContents.send("daemon-event", { type: "tts-failed", seg, error: e.message });
   }
 });
 
