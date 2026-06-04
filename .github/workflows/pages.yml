@@ -1,0 +1,49 @@
+name: Deploy landing to GitHub Pages
+
+# Publishes the root index.html (+ the assets it needs) to GitHub Pages,
+# so the landing is viewable at https://agentprojectcontext.github.io/apx/
+# One-time setup: Repo Settings → Pages → Source: "GitHub Actions".
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'assets/**'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Assemble static site
+        run: |
+          mkdir -p _site/assets
+          cp index.html _site/
+          touch _site/.nojekyll
+          # Only the assets the landing references (logo, og image, any previews).
+          cp assets/logo.png            _site/assets/ 2>/dev/null || true
+          cp assets/hero.png            _site/assets/ 2>/dev/null || true
+          cp assets/preview-*.webm      _site/assets/ 2>/dev/null || true
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
