@@ -46,6 +46,20 @@ function getShortcut() {
   return cfg?.desktop?.shortcut || cfg?.overlay?.shortcut || DEFAULT_SHORTCUT;
 }
 
+// Voice-capture timing for the listening capsule. Overridable in config.json:
+//   "desktop": { "silence_ms": 1200, "voice_rms": 0.025 }
+// silence_ms — quiet after speech before auto-send. voice_rms — RMS above
+// which audio counts as voice (lower = more sensitive).
+function getVoiceTiming() {
+  const cfg = readApxConfig();
+  const d = cfg?.desktop || cfg?.overlay || {};
+  const num = (v, def) => (typeof v === "number" && isFinite(v) ? v : def);
+  return {
+    silence_ms: Math.max(400, num(d.silence_ms, 1200)),
+    voice_rms:  Math.max(0,   num(d.voice_rms,  0.025)),
+  };
+}
+
 function readToken() {
   try { return fs.readFileSync(TOKEN_PATH, "utf8").trim(); } catch { return ""; }
 }
@@ -397,6 +411,7 @@ ipcMain.handle("get-shortcut", () => getShortcut());
 ipcMain.handle("get-theme",    () => getTheme());
 ipcMain.handle("get-position", () => getPosition());
 ipcMain.handle("get-agent-name", () => getAgentName());
+ipcMain.handle("get-voice-timing", () => getVoiceTiming());
 
 // Renderer asks main to grow/shrink the window to fit its content.
 // Clamped to [WIN_H_MIN, getMaxWindowHeight()]; same anchor (top edge stays put).
@@ -458,6 +473,32 @@ ipcMain.handle("check-whisper-ready", () => {
     });
     req.on("error", () => resolve({ ready: false }));
     req.setTimeout(800, () => { req.destroy(); resolve({ ready: false }); });
+    req.end();
+  });
+});
+
+// Renderer asks to keep STT warm. Routed through the daemon (not whisper
+// directly) so it both LOADS the model if it idled out and resets the idle
+// watchdog. Fire-and-forget from the renderer's side.
+ipcMain.handle("warmup-stt", async () => {
+  return new Promise((resolve) => {
+    const token = readToken();
+    const options = {
+      hostname: DAEMON_HOST,
+      port: DAEMON_PORT,
+      path: "/transcribe/warmup",
+      method: "GET",
+      headers: { ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
+    };
+    const req = http.request(options, (res) => {
+      let data = "";
+      res.on("data", (c) => data += c);
+      res.on("end", () => { try { resolve(JSON.parse(data)); } catch { resolve({ ok: false }); } });
+    });
+    req.on("error", () => resolve({ ok: false }));
+    // Cold model load can take ~30s; give it room. (Renderer fires this
+    // fire-and-forget, so a long warm-up never blocks the UI.)
+    req.setTimeout(45000, () => { req.destroy(); resolve({ ok: false }); });
     req.end();
   });
 });
