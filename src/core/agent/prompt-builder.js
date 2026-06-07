@@ -271,6 +271,11 @@ export function buildSuperAgentSystem({
   // Pre-rendered "# Hilos activos en otros canales" block (recency-based
   // cross-channel awareness; see core/memory/active-threads.js). "" → omitted.
   activeThreadsBlock = "",
+  // Compact "# Tools adicionales (activación on-demand)" block: instructions +
+  // the NAMES (no schemas) of tools that exist but aren't loaded on this
+  // channel, so the model knows they're reachable via discover_tools without
+  // paying for their schemas. "" → omitted (full channels load everything).
+  lazyToolsBlock = "",
 }) {
   const sa = globalConfig.super_agent;
   const projectIndex = projects
@@ -305,6 +310,7 @@ export function buildSuperAgentSystem({
     projectIndex || "(no projects registered)",
     buildProjectAgentsBlock(channelMeta?.projectPath),
     buildSkillsCatalog(listSkills),
+    lazyToolsBlock,
     voiceModeBlock,
     systemSuffix,
   ]

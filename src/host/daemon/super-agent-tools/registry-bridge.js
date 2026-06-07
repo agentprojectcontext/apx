@@ -114,6 +114,9 @@ export function buildBridgedTools(opts = {}) {
     .filter(e => e.endpoint?.path)
     .map(entry => ({
       name: entry.name,
+      // Carried through so the lazy-tools catalog can group on-demand tools by
+      // their registry category (browser/fetch/search/file) for discover_tools.
+      category: entry.category,
       schema: buildSchema(entry),
       makeHandler: buildHandler(entry),
     }));
