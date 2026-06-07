@@ -182,18 +182,103 @@ async function ensureBrowser({ launch_options, allow_dangerous } = {}) {
 }
 
 // ---------------------------------------------------------------------------
+// Context-destruction resilience
+// ---------------------------------------------------------------------------
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// Puppeteer throws this family of errors when an action (evaluate / get_text /
+// click / …) runs while the page is navigating, redirecting, or reloading —
+// the frame's JS execution context is torn down mid-call. Redirect-heavy sites
+// (ESPN geo/consent hops, login walls) trigger it constantly. These are
+// transient: waiting for the navigation to settle and retrying succeeds.
+const CONTEXT_DESTROYED_RE =
+  /Execution context was destroyed|Cannot find context|Execution context is not available|detached frame|frame (?:was|got) detached|Target closed|Session closed|Protocol error.*(?:Runtime|Page)\./i;
+
+export function isContextDestroyed(err) {
+  return CONTEXT_DESTROYED_RE.test(String(err?.message || err));
+}
+
+// Let any in-flight navigation finish so the next action sees a stable context.
+async function settlePage(page, { timeout = 5000 } = {}) {
+  if (!page || page.isClosed()) return;
+  await page.waitForNetworkIdle({ idleTime: 500, timeout }).catch(() => {});
+}
+
+// Run a page action, retrying on a transient "Execution context was destroyed"
+// (and friends): wait `delayMs`, let the page settle, try again — up to
+// `retries` extra attempts. Non-context errors bubble immediately.
+export async function withContextRetry(fn, { retries = 2, delayMs = 1500 } = {}) {
+  let lastErr;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (e) {
+      lastErr = e;
+      if (!isContextDestroyed(e) || attempt === retries) throw e;
+      await sleep(delayMs);
+      await settlePage(_page);
+    }
+  }
+  throw lastErr;
+}
+
+// Convenience: ensure the browser/page, then run an action under context-retry.
+async function onPage(fn) {
+  const page = await ensureBrowser();
+  return withContextRetry(() => fn(page));
+}
+
+// ---------------------------------------------------------------------------
 // Tool implementations
 // ---------------------------------------------------------------------------
 
-export async function browser_navigate({ url, launch_options, allow_dangerous } = {}) {
+export async function browser_navigate({ url, launch_options, allow_dangerous, wait_until } = {}) {
   if (!url) throw new Error("url required");
   const page = await ensureBrowser({ launch_options, allow_dangerous });
-  const response = await page.goto(url, { waitUntil: "networkidle2", timeout: 30000 });
+
+  const go = async (waitUntil) => {
+    const response = await page.goto(url, { waitUntil, timeout: 30000 });
+    // Some sites fire a client-side redirect/reload right after the initial
+    // load. Give it a beat to settle so the execution context is stable for
+    // the caller's NEXT tool (get_text/evaluate) instead of being destroyed
+    // out from under it.
+    await settlePage(page, { timeout: 3000 });
+    return response;
+  };
+
+  // Preferred wait strategy: networkidle2 (or caller override). On a
+  // context-destroyed / timeout / navigation error, fall back to the much more
+  // permissive "domcontentloaded" which resolves as soon as the DOM is parsed,
+  // before late redirects/XHR can tear the context down.
+  const preferred = wait_until || "networkidle2";
+  let response;
+  try {
+    response = await go(preferred);
+  } catch (e) {
+    const recoverable =
+      isContextDestroyed(e) ||
+      /TimeoutError|Navigation timeout|net::ERR_ABORTED|frame was detached/i.test(String(e?.message || e));
+    if (!recoverable || preferred === "domcontentloaded") throw e;
+    await sleep(1500);
+    response = await go("domcontentloaded");
+  }
+
+  // title() evaluates in-page, so it can itself throw if a redirect is still
+  // in flight — read it defensively (url() is sync and always safe).
+  let title = "";
+  try {
+    title = await withContextRetry(() => page.title(), { retries: 1, delayMs: 1000 });
+  } catch {
+    title = "";
+  }
+
   return {
     ok: true,
     url: page.url(),
     status: response?.status() ?? null,
-    title: await page.title(),
+    title,
+    wait_until: response ? (preferred) : null,
   };
 }
 
@@ -206,12 +291,13 @@ export async function browser_screenshot({ selector, full_page = false, width, h
     });
   }
 
-  const target = selector ? await page.$(selector) : null;
-  if (selector && !target) throw new Error(`Element not found: ${selector}`);
-
-  const buf = target
-    ? await target.screenshot({ type: "png", encoding: "base64" })
-    : await page.screenshot({ type: "png", encoding: "base64", fullPage: !!full_page });
+  const buf = await withContextRetry(async () => {
+    const target = selector ? await page.$(selector) : null;
+    if (selector && !target) throw new Error(`Element not found: ${selector}`);
+    return target
+      ? await target.screenshot({ type: "png", encoding: "base64" })
+      : await page.screenshot({ type: "png", encoding: "base64", fullPage: !!full_page });
+  });
 
   const size = Buffer.from(String(buf), "base64").length;
   if (size > MAX_SCREENSHOT_BYTES) {
@@ -248,50 +334,56 @@ export async function browser_screenshot({ selector, full_page = false, width, h
 
 export async function browser_click({ selector } = {}) {
   if (!selector) throw new Error("selector required");
-  const page = await ensureBrowser();
-  await page.waitForSelector(selector, { timeout: 10000 });
-  await page.click(selector);
-  await page.waitForNetworkIdle({ timeout: 5000 }).catch(() => {});
-  return { ok: true, selector, url: page.url() };
+  return onPage(async (page) => {
+    await page.waitForSelector(selector, { timeout: 10000 });
+    await page.click(selector);
+    await page.waitForNetworkIdle({ timeout: 5000 }).catch(() => {});
+    return { ok: true, selector, url: page.url() };
+  });
 }
 
 export async function browser_type({ selector, text, clear = true } = {}) {
   if (!selector) throw new Error("selector required");
   if (text === undefined) throw new Error("text required");
-  const page = await ensureBrowser();
-  await page.waitForSelector(selector, { timeout: 10000 });
-  await page.focus(selector);
-  if (clear) {
-    await page.keyboard.down("Control");
-    await page.keyboard.press("KeyA");
-    await page.keyboard.up("Control");
-    await page.keyboard.press("Backspace");
-  }
-  await page.type(selector, String(text), { delay: 20 });
-  return { ok: true, selector, typed: String(text).length };
+  return onPage(async (page) => {
+    await page.waitForSelector(selector, { timeout: 10000 });
+    await page.focus(selector);
+    if (clear) {
+      await page.keyboard.down("Control");
+      await page.keyboard.press("KeyA");
+      await page.keyboard.up("Control");
+      await page.keyboard.press("Backspace");
+    }
+    await page.type(selector, String(text), { delay: 20 });
+    return { ok: true, selector, typed: String(text).length };
+  });
 }
 
 export async function browser_select({ selector, value } = {}) {
   if (!selector) throw new Error("selector required");
   if (value === undefined) throw new Error("value required");
-  const page = await ensureBrowser();
-  await page.waitForSelector(selector, { timeout: 10000 });
-  await page.select(selector, String(value));
-  return { ok: true, selector, value };
+  return onPage(async (page) => {
+    await page.waitForSelector(selector, { timeout: 10000 });
+    await page.select(selector, String(value));
+    return { ok: true, selector, value };
+  });
 }
 
 export async function browser_hover({ selector } = {}) {
   if (!selector) throw new Error("selector required");
-  const page = await ensureBrowser();
-  await page.waitForSelector(selector, { timeout: 10000 });
-  await page.hover(selector);
-  return { ok: true, selector };
+  return onPage(async (page) => {
+    await page.waitForSelector(selector, { timeout: 10000 });
+    await page.hover(selector);
+    return { ok: true, selector };
+  });
 }
 
 export async function browser_evaluate({ code } = {}) {
   if (!code) throw new Error("code required");
-  const page = await ensureBrowser();
+  return onPage((page) => evaluateOnPage(page, code));
+}
 
+async function evaluateOnPage(page, code) {
   // Install in-page console capture so evaluated code's logs come back.
   await page.evaluate(() => {
     window.__apxHelper = { logs: [], orig: { ...console } };
@@ -325,54 +417,56 @@ export async function browser_evaluate({ code } = {}) {
 }
 
 export async function browser_get_text({ selector } = {}) {
-  const page = await ensureBrowser();
-  const text = await page.evaluate((sel) => {
-    const root = sel ? document.querySelector(sel) : document.body;
-    if (!root) return null;
-    const clone = root.cloneNode(true);
-    for (const tag of ["script", "style", "nav", "header", "footer", "noscript"]) {
-      for (const el of clone.querySelectorAll(tag)) el.remove();
-    }
-    return clone.innerText || clone.textContent || "";
-  }, selector ?? null);
-  if (text === null) throw new Error(`Element not found: ${selector}`);
-  const cleaned = text.replace(/\n{3,}/g, "\n\n").trim();
-  return {
-    ok: true,
-    url: page.url(),
-    title: await page.title(),
-    text: cleaned,
-    chars: cleaned.length,
-  };
+  return onPage(async (page) => {
+    const text = await page.evaluate((sel) => {
+      const root = sel ? document.querySelector(sel) : document.body;
+      if (!root) return null;
+      const clone = root.cloneNode(true);
+      for (const tag of ["script", "style", "nav", "header", "footer", "noscript"]) {
+        for (const el of clone.querySelectorAll(tag)) el.remove();
+      }
+      return clone.innerText || clone.textContent || "";
+    }, selector ?? null);
+    if (text === null) throw new Error(`Element not found: ${selector}`);
+    const cleaned = text.replace(/\n{3,}/g, "\n\n").trim();
+    let title = "";
+    try { title = await page.title(); } catch { title = ""; }
+    return {
+      ok: true,
+      url: page.url(),
+      title,
+      text: cleaned,
+      chars: cleaned.length,
+    };
+  });
 }
 
 export async function browser_get_content({ selector } = {}) {
-  const page = await ensureBrowser();
-  let content = selector
-    ? await page.$eval(selector, el => el.innerHTML).catch(() => null)
-    : await page.content();
-  if (content === null) throw new Error(`Element not found: ${selector}`);
+  return onPage(async (page) => {
+    let content = selector
+      ? await page.$eval(selector, el => el.innerHTML).catch(() => null)
+      : await page.content();
+    if (content === null) throw new Error(`Element not found: ${selector}`);
 
-  let truncated = false;
-  if (content.length > MAX_CONTENT_CHARS) {
-    content = content.slice(0, MAX_CONTENT_CHARS) + "\n[TRUNCATED]";
-    truncated = true;
-  }
-  return {
-    ok: true,
-    url: page.url(),
-    selector: selector ?? null,
-    chars: content.length,
-    truncated,
-    html: content,
-  };
+    let truncated = false;
+    if (content.length > MAX_CONTENT_CHARS) {
+      content = content.slice(0, MAX_CONTENT_CHARS) + "\n[TRUNCATED]";
+      truncated = true;
+    }
+    return {
+      ok: true,
+      url: page.url(),
+      selector: selector ?? null,
+      chars: content.length,
+      truncated,
+      html: content,
+    };
+  });
 }
 
 export async function browser_wait_for_selector({ selector, timeout = 30000 } = {}) {
   if (!selector) throw new Error("selector required");
-  const page = await ensureBrowser();
-  await page.waitForSelector(selector, { timeout });
-  return { ok: true, selector };
+  return onPage((page) => page.waitForSelector(selector, { timeout }).then(() => ({ ok: true, selector })));
 }
 
 export async function browser_close() {
