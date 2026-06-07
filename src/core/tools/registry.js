@@ -350,12 +350,17 @@ const TOOL_DEFINITIONS = [
   {
     name: "browser_navigate",
     category: "browser",
-    description: "Navigate the headless browser to a URL. Launches Chromium lazily on first call.",
+    description: "Navigate the headless browser to a URL. Launches Chromium lazily on first call. Auto-retries and falls back to a more permissive wait strategy on redirect-heavy sites.",
     endpoint: { method: "POST", path: "/tools/browser/navigate" },
     parameters: {
       type: "object",
       properties: {
         url: { type: "string" },
+        wait_until: {
+          type: "string",
+          enum: ["load", "domcontentloaded", "networkidle0", "networkidle2"],
+          description: "Puppeteer wait strategy (default networkidle2). Use 'domcontentloaded' for slow/redirect-heavy sites; navigate auto-falls back to it on failure anyway.",
+        },
         launch_options: { type: "object", description: "Puppeteer launch overrides (headless, args, defaultViewport, etc.)." },
         allow_dangerous: { type: "boolean", description: "Allow dangerous launch args (--no-sandbox, --single-process, etc.)." },
       },
