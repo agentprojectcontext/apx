@@ -18,7 +18,29 @@
 // Net result: adding a tool = adding one entry to registry.js. No file in
 // super-agent-tools/tools/, no import in index.js.
 
+import fs from "node:fs";
 import { TOOL_DEFINITIONS } from "../../../core/tools/registry.js";
+import { TOKEN_PATH } from "../../../core/config.js";
+
+// The bridge POSTs to the daemon's OWN HTTP server, which is behind the bearer
+// auth middleware (see api/shared.js). Without a token every bridged tool call
+// (web_search, browser_*, http_*, glob, grep) comes back 401 "unauthorized" —
+// which is exactly what Roby hit. We read the daemon's master token from
+// ~/.apx/daemon.token (the same file the CLI authenticates with) and cache it.
+let cachedToken = null;
+function daemonToken() {
+  if (cachedToken !== null) return cachedToken;
+  cachedToken =
+    process.env.APX_TOKEN ||
+    (() => {
+      try {
+        return fs.readFileSync(TOKEN_PATH, "utf8").trim();
+      } catch {
+        return "";
+      }
+    })();
+  return cachedToken;
+}
 
 // Native handlers in super-agent-tools/tools/ that own these names. The bridge
 // MUST skip them or the registry version (HTTP roundtrip) would shadow the
@@ -56,9 +78,13 @@ function buildHandler(entry) {
     const method = String(entry.endpoint?.method || "POST").toUpperCase();
     let url = `http://127.0.0.1:${port}${entry.endpoint?.path || ""}`;
 
+    const token = daemonToken();
     const opts = {
       method,
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+      },
     };
 
     if (method === "GET" || method === "HEAD") {

@@ -45,26 +45,54 @@ function extractText(html) {
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
-    .replace(/&#039;/g, "'")
+    .replace(/&#0?39;/g, "'")
     .replace(/&nbsp;/g, " ")
+    // Generic numeric entities (decimal &#92; and hex &#x27;) DDG sprinkles into
+    // titles/snippets — decode so results read cleanly.
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(parseInt(d, 10)))
     .replace(/\s{2,}/g, " ")
     .trim();
 }
 
+/**
+ * Unwrap DuckDuckGo's result redirect. DDG no longer exposes the target URL
+ * directly: every result href is `//duckduckgo.com/l/?uddg=<urlencoded real
+ * url>&rut=...`. We pull the `uddg` param out and decode it back to the real
+ * destination. Plain/protocol-relative URLs are normalized to https.
+ */
+export function unwrapDdgUrl(href) {
+  if (!href) return href;
+  const m = href.match(/[?&]uddg=([^&]+)/);
+  if (m) {
+    try {
+      return decodeURIComponent(m[1].replace(/&amp;/g, "&"));
+    } catch {
+      /* fall through to raw href */
+    }
+  }
+  if (href.startsWith("//")) return "https:" + href;
+  return href;
+}
+
 /** Parse DuckDuckGo HTML results */
-function parseDdgResults(html, limit) {
+export function parseDdgResults(html, limit) {
   const results = [];
-  // Match result blocks: each has a link (.result__a) and snippet (.result__snippet)
-  const blockRe = /<a[^>]+class="[^"]*result__a[^"]*"[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+  // Match result blocks: each has a link (.result__a) and snippet (.result__snippet).
+  // Attribute order varies (rel/class/href), so don't assume class precedes href.
+  const blockRe = /<a[^>]+class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
   const snippetRe = /<a[^>]+class="[^"]*result__snippet[^"]*"[^>]*>([\s\S]*?)<\/a>/gi;
 
   const links = [];
   let m;
   while ((m = blockRe.exec(html)) !== null && links.length < limit * 2) {
-    const href = m[1];
+    // DDG wraps every external link in a //duckduckgo.com/l/?uddg= redirect —
+    // decode it to the real target instead of discarding it (the old code
+    // dropped everything containing "duckduckgo.com", yielding zero results).
+    const url = unwrapDdgUrl(m[1]);
     const title = extractText(m[2]).trim();
-    if (href && title && !href.startsWith("//duckduckgo") && !href.includes("duckduckgo.com")) {
-      links.push({ url: href, title });
+    if (url && title && !/^https?:\/\/(?:[a-z]+\.)?duckduckgo\.com\//i.test(url) && !url.startsWith("//duckduckgo")) {
+      links.push({ url, title });
     }
   }
 
