@@ -1,3 +1,16 @@
+# [1.31.0](https://github.com/agentprojectcontext/apx/compare/v1.30.2...v1.31.0) (2026-06-07)
+
+
+### Bug Fixes
+
+* **browser:** recover from "Execution context was destroyed" on redirects ([c2b0f2b](https://github.com/agentprojectcontext/apx/commit/c2b0f2bc2314d4aee80bb2deeec38c07841eeae8))
+* **super-agent:** web_search "unauthorized" — auth the tool bridge + fix DDG parser ([30a6883](https://github.com/agentprojectcontext/apx/commit/30a6883d28ca5750057eb5336f8969ea8b876328)), closes [#92](https://github.com/agentprojectcontext/apx/issues/92) [#x27](https://github.com/agentprojectcontext/apx/issues/x27)
+
+
+### Features
+
+* **super-agent:** lazy tools with discover_tools + on-demand activation ([d495947](https://github.com/agentprojectcontext/apx/commit/d495947e824c60b4cf0def09322d4423c7a7826f))
+
 ## [1.30.2](https://github.com/agentprojectcontext/apx/compare/v1.30.1...v1.30.2) (2026-06-04)
 
 
