@@ -1,5 +1,5 @@
 // Super-agent: daemon-level action agent for Telegram, TUI, desktop, routines.
-import { schemasForChannel, makeToolHandlers } from "./super-agent-tools/index.js";
+import { createToolSession, buildLazyToolsBlock, makeToolHandlers } from "./super-agent-tools/index.js";
 import { listSkills } from "./skills-loader.js";
 import {
   runAgent,
@@ -79,6 +79,15 @@ export async function runSuperAgent({
     }
   }
 
+  // Per-turn tool session. Lightweight channels (telegram/desktop/deck) start
+  // on the small "base" set and expand on demand via discover_tools; full
+  // channels (routine/api/web/code/terminal) get the whole registry up front.
+  // The session also enforces role gating ("*" = unrestricted, [] = none,
+  // array = allowlist) on BOTH the initial set and any later activation, so a
+  // limited sender can't discover its way past the gate.
+  // noTools callers (summarize/ask) get no session — text only.
+  const toolSession = noTools ? null : createToolSession(channel, { allowedTools });
+
   const system = buildSuperAgentSystem({
     globalConfig,
     projects,
@@ -90,23 +99,12 @@ export async function runSuperAgent({
     systemSuffix,
     memoryBlock,
     activeThreadsBlock,
+    // Compact "tools you can activate" block (names only, no schemas). Empty on
+    // full channels and tool-free callers, where it's omitted from the prompt.
+    lazyToolsBlock: buildLazyToolsBlock(toolSession),
   });
 
-  // Pick the schema subset for this channel: chit-chat surfaces get a small
-  // "core" set (~700 tokens) to fit cheap-tier TPM caps; routines get the
-  // full registry. The model can still call load_skill / read more on demand.
-  // noTools callers (summarize/ask) get an empty set — text only.
-  let toolSchemas = noTools ? [] : schemasForChannel(channel);
-  // Role gating: restrict the visible tools for limited senders (e.g. guests
-  // on Telegram). "*" = unrestricted; [] = no tools; array = allowlist.
-  if (allowedTools !== "*" && Array.isArray(allowedTools)) {
-    if (allowedTools.length === 0) {
-      toolSchemas = [];
-    } else {
-      const allow = new Set(allowedTools);
-      toolSchemas = toolSchemas.filter((t) => allow.has(t?.function?.name || t?.name));
-    }
-  }
+  const toolSchemas = noTools ? [] : toolSession.initialSchemas;
 
   return runAgent({
     globalConfig,
@@ -116,7 +114,7 @@ export async function runSuperAgent({
     overrideModel,
     toolSchemas,
     makeToolHandlers,
-    toolHandlerCtx: { projects, plugins, registries, globalConfig, channel },
+    toolHandlerCtx: { projects, plugins, registries, globalConfig, channel, toolSession },
     onEvent,
     signal,
     onToken,

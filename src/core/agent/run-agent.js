@@ -178,6 +178,25 @@ export async function runAgent({
       })
     : rawHandlers;
 
+  // Lazy tools: when the super-agent runs a `discover_tools` activation, its
+  // handler pushes the newly-revealed schemas onto session.pending. We drain
+  // that queue into effectiveSchemas at the top of each iteration, so tools
+  // activated on step N are callable from step N+1. No session → no-op.
+  const toolSession = toolHandlerCtx?.toolSession || null;
+  const drainPendingTools = () => {
+    if (!toolSession || toolSession.pending.length === 0) return;
+    const seen = new Set(
+      effectiveSchemas.map((s) => s?.function?.name || s?.name)
+    );
+    const additions = [];
+    for (const sc of toolSession.pending) {
+      const n = sc?.function?.name || sc?.name;
+      if (n && !seen.has(n)) { additions.push(sc); seen.add(n); }
+    }
+    toolSession.pending = [];
+    if (additions.length > 0) effectiveSchemas = effectiveSchemas.concat(additions);
+  };
+
   const conversation = [...previousMessages, { role: "user", content: prompt }];
   const trace = [];
   let totalUsage = { input_tokens: 0, output_tokens: 0 };
@@ -236,6 +255,8 @@ export async function runAgent({
   };
 
   for (let iter = 0; iter < maxIters; iter++) {
+    // Merge any tools activated via discover_tools on the previous iteration.
+    drainPendingTools();
     await emitProgress(onEvent, { type: "model_start", iteration: iter + 1, model: activeModel });
     // Force a tool call on iter 0 ONLY when the user message looks like a real
     // action request ("listame…", "mandá…", "buscá…"). For chit-chat ("hola",
