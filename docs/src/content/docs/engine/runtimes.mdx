@@ -88,8 +88,9 @@ When you run `apx run`, APX:
 
 <Steps>
 
-1. Reads the agent's definition from `.apc/agents/<slug>.md` plus its `memory.md` and any loaded
-   skills to build the full system prompt.
+1. Reads the agent's definition from `.apc/agents/<slug>.md` plus runtime memory from
+   `~/.apx/projects/<apx_id>/agents/<slug>/memory.md` and any loaded skills to build the full
+   system prompt.
 
 2. Calls `buildAgentSystem({ invocation: "runtime", runtime: "<id>" })` — the same builder used by
    `apx exec` and `apx chat`, but with the `runtime` invocation tag so prompts can branch.

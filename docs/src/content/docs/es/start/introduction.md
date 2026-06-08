@@ -30,11 +30,11 @@ y **nunca se commitea**.
 | Vive en el repo (commiteado) | Vive en `~/.apx/` (solo local) |
 | ----------------------------- | ------------------------------- |
 | Definiciones en `AGENTS.md`   | Sesiones e hilos de conversación |
-| `.apc/agents/<slug>.md`       | Historial / logs de mensajes    |
+| `.apc/agents/<slug>.md`       | Memoria de agentes, historial / logs de mensajes |
 | `.apc/mcps.json` (sin secretos) | Caché SQLite `project.db`      |
 | `.apc/skills/`, `.apc/commands/` | Tokens de runtime de MCP      |
 
-Esta separación significa que tus agentes, sus roles y su memoria durable quedan versionados junto a
+Esta separación significa que tus agentes y sus roles quedan versionados junto a
 tu código, mientras que el ruido de runtime específico de la máquina queda fuera de git.
 
 ## Cómo se relaciona APX con APC

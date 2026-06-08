@@ -14,6 +14,13 @@ import {
   restoreVaultAgent,
   ensureAgentDir,
 } from "../../../core/scaffold.js";
+import {
+  ensureAgentRuntimeDir,
+  readAgentMemory,
+  writeAgentMemory,
+  agentMemoryPath,
+  legacyAgentMemoryPath,
+} from "../../../core/agent-memory.js";
 import { agentToResponse } from "./shared.js";
 
 // Lowercase the patch keys we accept on the vault and turn skills/tools into
@@ -114,6 +121,7 @@ export function register(app, { projects, project }) {
     try {
       writeAgentFile(p.path, slug, vault.fields || {}, vault.body || "");
       ensureAgentDir(p.path, slug);
+      ensureAgentRuntimeDir(p, slug);
       projects.rebuild(p.id);
       res.status(201).json(agentToResponse(readAgents(p.path).find((a) => a.slug === slug)));
     } catch (e) {
@@ -133,10 +141,7 @@ export function register(app, { projects, project }) {
     const agents = readAgents(p.path);
     const a = agents.find((x) => x.slug === req.params.slug);
     if (!a) return res.status(404).json({ error: "agent not found" });
-    const memPath = path.join(p.path, ".apc", "agents", a.slug, "memory.md");
-    const memory = fs.existsSync(memPath)
-      ? fs.readFileSync(memPath, "utf8")
-      : "";
+    const memory = readAgentMemory(p, a.slug);
     res.json({ ...agentToResponse(a), memory, system: a.body || "" });
   });
 
@@ -163,6 +168,7 @@ export function register(app, { projects, project }) {
         Parent: parent || null,
       });
       ensureAgentDir(p.path, slug);
+      ensureAgentRuntimeDir(p, slug);
       projects.rebuild(p.id);
       const created = readAgents(p.path).find((a) => a.slug === slug);
       res.status(201).json(agentToResponse(created));
@@ -203,6 +209,7 @@ export function register(app, { projects, project }) {
     try {
       writeAgentFile(p.path, slug, fields, body);
       ensureAgentDir(p.path, slug);
+      ensureAgentRuntimeDir(p, slug);
       projects.rebuild(p.id);
       const updated = readAgents(p.path).find((a) => a.slug === slug);
       res.json(agentToResponse(updated));
@@ -211,18 +218,20 @@ export function register(app, { projects, project }) {
     }
   });
 
-  // Delete an agent: removes .apc/agents/<slug>.md and its data dir.
+  // Delete an agent: removes .apc/agents/<slug>.md and runtime data dir.
   app.delete("/projects/:pid/agents/:slug", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const slug = req.params.slug;
     const file = path.join(p.path, ".apc", "agents", `${slug}.md`);
-    const dir = path.join(p.path, ".apc", "agents", slug);
-    if (!fs.existsSync(file) && !fs.existsSync(dir))
+    const runtimeDir = path.dirname(agentMemoryPath(p, slug));
+    const legacyDir = path.dirname(legacyAgentMemoryPath(p.path, slug));
+    if (!fs.existsSync(file) && !fs.existsSync(runtimeDir) && !fs.existsSync(legacyDir))
       return res.status(404).json({ error: "agent not found" });
     try {
       if (fs.existsSync(file)) fs.rmSync(file);
-      if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
+      if (fs.existsSync(runtimeDir)) fs.rmSync(runtimeDir, { recursive: true, force: true });
+      if (fs.existsSync(legacyDir)) fs.rmSync(legacyDir, { recursive: true, force: true });
       projects.rebuild(p.id);
       res.json({ ok: true });
     } catch (e) {
@@ -257,15 +266,7 @@ export function register(app, { projects, project }) {
   app.get("/projects/:pid/agents/:slug/memory", (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    const memPath = path.join(
-      p.path,
-      ".apc",
-      "agents",
-      req.params.slug,
-      "memory.md"
-    );
-    if (!fs.existsSync(memPath)) return res.json({ body: "" });
-    res.json({ body: fs.readFileSync(memPath, "utf8") });
+    res.json({ body: readAgentMemory(p, req.params.slug) });
   });
 
   app.put("/projects/:pid/agents/:slug/memory", (req, res) => {
@@ -274,10 +275,7 @@ export function register(app, { projects, project }) {
     const { body } = req.body || {};
     if (typeof body !== "string")
       return res.status(400).json({ error: "body must be string" });
-    const dir = path.join(p.path, ".apc", "agents", req.params.slug);
-    fs.mkdirSync(path.join(dir, "sessions"), { recursive: true });
-    const memPath = path.join(dir, "memory.md");
-    fs.writeFileSync(memPath, body);
+    writeAgentMemory(p, req.params.slug, body);
     projects.rebuild(p.id);
     res.json({ ok: true, bytes: Buffer.byteLength(body, "utf8") });
   });

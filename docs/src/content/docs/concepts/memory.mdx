@@ -15,11 +15,13 @@ in context, not raw conversation history.
 ## Where it lives
 
 ```text
-.apc/agents/<slug>/memory.md
+~/.apx/projects/<apx_id>/agents/<slug>/memory.md
 ```
 
-This file is committed to your repository alongside the agent definition. The agent reads it every
-time it is invoked, whether via `apx exec`, a routine, or Telegram.
+This file is local runtime state, outside the repository. The committed repository keeps the agent
+definition at `.apc/agents/<slug>.md`; APX keeps memory under `~/.apx` so private notes, owner
+context, and operational details do not leak into public repos. Legacy
+`.apc/agents/<slug>/memory.md` is read only as a migration fallback.
 
 ## What belongs in memory
 
@@ -33,11 +35,12 @@ Memory should contain facts that are stable and durable — things the agent sho
 **What does not belong:**
 
 - Raw conversation transcripts (they bloat the prompt and go stale)
-- Secrets or API keys (memory.md is committed — never put credentials here)
+- Secrets or API keys (runtime memory is local, but credentials still do not belong in prompts)
 - Temporary task context (use sessions for that)
 
 <Aside type="caution">
-  `memory.md` is committed to the repository. Never write secrets, tokens, or passwords into it.
+  Never write secrets, tokens, or passwords into `memory.md`. Even local prompt memory can be
+  copied, exported, or sent to a model.
 </Aside>
 
 ## Commands

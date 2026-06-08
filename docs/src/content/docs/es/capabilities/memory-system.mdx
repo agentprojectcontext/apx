@@ -162,15 +162,16 @@ Todas las claves están bajo `config.memory`:
 
 | | `memory.md` por agente | Sistema de memoria cross-channel |
 |---|---|---|
-| **Ubicación** | `.apc/agents/<slug>/memory.md` | `~/.apx/memory.md` + `~/.apx/memory.db` |
-| **¿Se commitea?** | Sí | Nunca |
+| **Ubicación** | `~/.apx/projects/<apx_id>/agents/<slug>/memory.md` | `~/.apx/memory.md` + `~/.apx/memory.db` |
+| **¿Se commitea?** | Nunca | Nunca |
 | **Alcance** | Un agente | Todos los canales, todos los agentes |
 | **Lo escribe** | Vos, a mano | La herramienta `remember` (automático) |
 | **Recuperación** | Inyección completa en cada llamada | RAG (top-K, con score) + últimas 10 notas |
 | **Compactación** | No aplica | Progresiva (Pieza 3) |
 
-Usá el archivo por agente para hechos estables y curados sobre el rol del agente. El sistema
-cross-channel maneja el contexto dinámico, turno a turno, que abarca superficies.
+Usá el archivo por agente para hechos estables y curados sobre el rol del agente dentro del
+proyecto. El sistema cross-channel maneja el contexto dinámico, turno a turno, que abarca
+superficies.
 
 ## Siguiente
 

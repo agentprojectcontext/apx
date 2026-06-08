@@ -619,6 +619,8 @@ function makeInlineHandlers({ projects, registries }) {
     memory_list: async (body) => {
       const { default: fs } = await import("node:fs");
       const { default: path } = await import("node:path");
+      const { readAgents } = await import("../parser.js");
+      const { agentMemoryPath } = await import("../agent-memory.js");
       // Find the project
       const all = projects.list();
       let p = null;
@@ -629,15 +631,13 @@ function makeInlineHandlers({ projects, registries }) {
       }
       if (!p) p = projects.get(all.filter((x) => x.id !== 0)[0]?.id) || projects.get(0);
       if (!p) throw new Error("no project registered");
-      const agentsDir = path.join(p.path, ".apc", "agents");
-      if (!fs.existsSync(agentsDir)) return { agents_with_memory: [] };
-      const result = fs.readdirSync(agentsDir).filter((slug) => {
-        return fs.existsSync(path.join(agentsDir, slug, "memory.md"));
-      }).map((slug) => {
-        const memPath = path.join(agentsDir, slug, "memory.md");
+      const result = readAgents(p.path).map((agent) => {
+        const slug = agent.slug;
+        const memPath = agentMemoryPath(p, slug);
+        if (!fs.existsSync(memPath)) return null;
         const stat = fs.statSync(memPath);
         return { agent: slug, path: memPath, size: stat.size, mtime: stat.mtime };
-      });
+      }).filter(Boolean);
       return { project: p.path, agents_with_memory: result };
     },
   };

@@ -5,7 +5,7 @@ description: How to create, configure, and use project agents in APX. Load when 
 
 # apx-agent
 
-A project agent is a named persona inside an APC project. Canonical definition: `.apc/agents/<slug>.md` (flat file). `AGENTS.md` is auto-regenerated for discovery. Per-agent runtime data: `.apc/agents/<slug>/memory.md` (and optional `sessions/` only when using external runtimes that write APC session stubs — APX-native sessions live under `~/.apx/projects/<id>/`).
+A project agent is a named persona inside an APC project. Canonical definition: `.apc/agents/<slug>.md` (flat file). `AGENTS.md` is auto-regenerated for discovery. Per-agent runtime data (memory, conversations, sessions) lives under `~/.apx/projects/<apx_id>/agents/<slug>/` and is never committed. APX still reads legacy `.apc/agents/<slug>/memory.md` as a migration fallback only.
 
 ## Concrete CLI calls
 
@@ -13,10 +13,10 @@ A project agent is a named persona inside an APC project. Canonical definition: 
 # List agents in a project
 apx agent list --project iacrmar
 
-# Create a new agent (writes .apc/agents/<slug>.md + regenerates AGENTS.md)
+# Create a new agent (writes .apc/agents/<slug>.md, creates runtime dir, regenerates AGENTS.md)
 apx agent add reviewer \
   --role "Code reviewer" \
-  --model claude-haiku-4-5 \
+  --model ollama:llama3.2:3b \
   --language es \
   --description "Reviews PRs and pushes back on hand-wavy diffs." \
   --tools read,write,run \
@@ -45,7 +45,7 @@ apx memory <slug> --project iacrmar --replace < file.md       # full replace fro
 2. Description (from AGENTS.md).
 3. Role + Language fields.
 4. Invocation context: `engine | telegram | routine | runtime` — the channel calling the agent.
-5. Memory: `.apc/agents/<slug>/memory.md` if it exists.
+5. Memory: `~/.apx/projects/<apx_id>/agents/<slug>/memory.md` if it exists, with legacy `.apc/agents/<slug>/memory.md` as a migration fallback.
 6. Skills declared in the agent's `Skills:` field, each loaded from `.apc/skills/<slug>.md` or the bundled set.
 7. The `apx` meta-skill (so the agent knows how to operate APX).
 8. ACTION_DISCIPLINE_RULES (fixed footer — anti-ghost, anti-disclaimer, action-first).
@@ -54,13 +54,13 @@ That's the prompt the engine sees on every `apx exec <agent>` or `apx chat <agen
 
 ## Models per agent
 
-Each agent can set `Model:` in its `AGENT.md` to override the global super-agent model. Useful when a particular agent should use a cheaper / smaller / specialized model.
+Each agent can set `Model:` in its `AGENT.md` to override the global super-agent model. Leave it empty when the agent should follow the project/global default.
 
 ```markdown
 # .apc/agents/reviewer.md
 ---
 Role: Code reviewer
-Model: claude-haiku-4-5      ← this agent always uses Haiku, independent of super_agent.model
+Model: ollama:llama3.2:3b    ← this agent uses this model, independent of super_agent.model
 Language: es
 ---
 ```

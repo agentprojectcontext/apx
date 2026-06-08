@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { readVaultAgents, VAULT_DIR } from "../../../../core/parser.js";
 import { addImportedAgent, ensureAgentDir } from "../../../../core/scaffold.js";
+import { ensureAgentRuntimeDir } from "../../../../core/agent-memory.js";
 import { confirmedProperty, projectMeta, resolveProject } from "../helpers.js";
 
 export default {
@@ -35,6 +36,7 @@ export default {
     const p = resolveProject(projects, project || "default");
     addImportedAgent(p.path, slug);
     ensureAgentDir(p.path, slug);
+    ensureAgentRuntimeDir(p, slug);
     projects.rebuild(p.id);
 
     return {

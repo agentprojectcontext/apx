@@ -40,8 +40,26 @@ test("adding an agent does NOT touch AGENTS.md (no regeneration)", () => {
 
     // Agent lands in .apc/agents/, AGENTS.md is byte-identical.
     assert.ok(fs.existsSync(path.join(root, ".apc", "agents", "cody.md")));
+    assert.equal(fs.existsSync(path.join(root, ".apc", "agents", "cody")), false);
     assert.equal(fs.readFileSync(agentsMd, "utf8"), before);
     assert.doesNotMatch(fs.readFileSync(agentsMd, "utf8"), /## cody/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("initApf writes a defensive .apc/.gitignore", () => {
+  const root = tmpDir();
+  try {
+    initApf(root, { name: "Demo" });
+    const ignore = fs.readFileSync(path.join(root, ".apc", ".gitignore"), "utf8");
+    assert.match(ignore, /agents\/\*\/$/m);
+    assert.match(ignore, /mcps\.local\.json/);
+    assert.match(ignore, /\*\.secret\.json/);
+    assert.match(ignore, /^\.env$/m);
+    assert.match(ignore, /\*\.env\.\*/);
+    assert.match(ignore, /service-account\*\.json/);
+    assert.match(ignore, /memory\.db/);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

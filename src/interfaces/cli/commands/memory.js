@@ -1,7 +1,6 @@
 import fs from "node:fs";
-import path from "node:path";
 import { findApfRoot } from "../../../core/parser.js";
-import { ensureAgentDir } from "../../../core/scaffold.js";
+import { agentMemoryPath, readAgentMemory, writeAgentMemory, ensureAgentRuntimeDir } from "../../../core/agent-memory.js";
 import { http } from "../http.js";
 
 function requireRoot() {
@@ -23,12 +22,11 @@ export async function cmdMemory(args) {
   const slug = args._[0];
   if (!slug) throw new Error("apx memory: missing <agent-slug>");
   const root = requireRoot();
-  const memPath = path.join(root, ".apc", "agents", slug, "memory.md");
+  const memPath = agentMemoryPath(root, slug);
 
   if (args.flags.replace) {
     const newBody = readStdinSync();
-    ensureAgentDir(root, slug);
-    fs.writeFileSync(memPath, newBody);
+    writeAgentMemory(root, slug, newBody);
     await nudgeDaemon(root);
     console.log(`replaced memory for ${slug} (${Buffer.byteLength(newBody)} bytes)`);
     return;
@@ -36,23 +34,24 @@ export async function cmdMemory(args) {
 
   if (args.flags.append && args.flags.append !== true) {
     const note = String(args.flags.append);
-    ensureAgentDir(root, slug);
-    let body = fs.existsSync(memPath) ? fs.readFileSync(memPath, "utf8") : "";
+    ensureAgentRuntimeDir(root, slug);
+    let body = readAgentMemory(root, slug);
     if (!/##\s+Recent context/i.test(body)) {
       body += body.endsWith("\n") ? "\n## Recent context\n" : "\n\n## Recent context\n";
     }
     const today = new Date().toISOString().slice(0, 10);
     body = body.replace(/(##\s+Recent context\s*\n)/i, `$1- ${today}: ${note}\n`);
-    fs.writeFileSync(memPath, body);
+    writeAgentMemory(root, slug, body);
     await nudgeDaemon(root);
     console.log(`appended to ${slug} memory: ${note}`);
     return;
   }
 
-  if (!fs.existsSync(memPath)) {
+  const body = readAgentMemory(root, slug);
+  if (!body && !fs.existsSync(memPath)) {
     throw new Error(`no memory for "${slug}" — agent dir not yet created`);
   }
-  process.stdout.write(fs.readFileSync(memPath, "utf8"));
+  process.stdout.write(body);
 }
 
 function readStdinSync() {

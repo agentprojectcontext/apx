@@ -37,8 +37,6 @@ Esto hace que la definición del proyecto sea portátil — cloná el repo en ot
     - config.json          overrides de config a nivel proyecto (no pongas secretos acá)
     - agents/
       - \<slug\>.md        un archivo por agente — role, model, skills, description
-      - \<slug\>/
-        - memory.md        hechos duraderos del agente (curados, nunca transcripts en bruto)
     - mcps.json            hints de MCP compartidos para este proyecto (sin tokens)
     - skills/              skill prompts reutilizables a nivel proyecto
     - commands/            slash commands personalizados
@@ -59,6 +57,7 @@ Esto hace que la definición del proyecto sea portátil — cloná el repo en ot
       - tasks/             YYYY-MM.jsonl logs de tareas
       - agents/
         - \<slug\>/
+          - memory.md      hechos duraderos del agente (curados, nunca transcripts en bruto)
           - sessions/      un .md por invocación de runtime
           - conversations/ threads de conversación con el LLM
         - default/

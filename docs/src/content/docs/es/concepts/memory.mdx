@@ -15,11 +15,13 @@ que siempre deben estar en contexto, no historial de conversación en bruto.
 ## Dónde vive
 
 ```text
-.apc/agents/<slug>/memory.md
+~/.apx/projects/<apx_id>/agents/<slug>/memory.md
 ```
 
-Este archivo se commitea al repositorio junto con la definición del agente. El agente lo lee
-cada vez que se lo invoca, ya sea vía `apx exec`, una routine o Telegram.
+Este archivo es estado runtime local, fuera del repositorio. El repo commiteado conserva la
+definición del agente en `.apc/agents/<slug>.md`; APX guarda la memoria bajo `~/.apx` para que
+notas privadas, contexto del owner y detalles operativos no se filtren a repos públicos. El path
+legacy `.apc/agents/<slug>/memory.md` se lee sólo como fallback de migración.
 
 ## Qué pertenece a la memoria
 
@@ -33,11 +35,12 @@ La memoria debe contener hechos estables y duraderos — cosas que el agente sie
 **Lo que NO pertenece acá:**
 
 - Transcripts de conversaciones en bruto (inflan el prompt y se vuelven obsoletos)
-- Secretos o API keys (memory.md se commitea — nunca pongas credenciales acá)
+- Secretos o API keys (la memoria runtime es local, pero credenciales igual no pertenecen al prompt)
 - Contexto de tareas temporales (para eso usá sesiones)
 
 <Aside type="caution">
-  `memory.md` se commitea al repositorio. Nunca escribas secretos, tokens ni contraseñas en él.
+  Nunca escribas secretos, tokens ni contraseñas en `memory.md`. Incluso memoria local de prompt
+  puede copiarse, exportarse o enviarse a un modelo.
 </Aside>
 
 ## Comandos

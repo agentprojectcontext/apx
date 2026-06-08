@@ -325,24 +325,60 @@ const AGENTS_MD_TEMPLATE = `# AGENTS.md
 <!-- Hard constraints: what agents must always / never do here. -->
 `;
 
-const APC_GITIGNORE = `# APC runtime data — never in the repository
-# Chat conversations and runtime sessions belong in ~/.apx/projects/<id>/
-agents/*/sessions/
-agents/*/conversations/
+const APC_GITIGNORE = `# APC repository-safe context only.
+# Runtime state belongs in ~/.apx/projects/<id>/, not in .apc/.
+
+# Legacy per-agent runtime dirs (agent definitions are flat: agents/<slug>.md)
+agents/*/
+
+# Runtime sessions / conversations / messages
 sessions/
 conversations/
 messages/
 chats/
+threads/
+transcripts/
+runs/
+
+# Runtime memory, indexes, databases, and caches
+memory.local.md
+auto-memory.md
 cache/
 tmp/
 private/
 secrets/
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+project.db
+memory.db
+memory-index.jsonl
+memory-cursor.json
+
+# Local config and secrets
+.env
 *.local.json
 *.secret.json
 *.env
 *.env.*
-project.db
+*.key
+*.pem
+*.p12
+*.crt
+credentials.json
+service-account*.json
+token*.json
+mcps.local.json
+config.local.json
+
+# Scratch planning state
+plans/scratch/
+plans/*.local.md
+
+# Migration marker and OS noise
 migrate.md
+.DS_Store
 `;
 
 function nowIso() {
@@ -448,19 +484,8 @@ export function initApf(directory, { name } = {}) {
 }
 
 export function ensureAgentDir(root, slug) {
-  const dir = path.join(root, ".apc", "agents", slug);
-  fs.mkdirSync(dir, { recursive: true });
-  const memory = path.join(dir, "memory.md");
-  if (!fs.existsSync(memory)) {
-    fs.writeFileSync(
-      memory,
-      `# Memory — ${slug}\n\n` +
-        `## Identity\n- \n\n` +
-        `## Long-term facts\n- \n\n` +
-        `## Recent context\n- \n`
-    );
-  }
-  return dir;
+  fs.mkdirSync(path.join(root, ".apc", "agents"), { recursive: true });
+  return path.join(root, ".apc", "agents");
 }
 
 // Write .apc/agents/<slug>.md — the canonical agent definition file.
