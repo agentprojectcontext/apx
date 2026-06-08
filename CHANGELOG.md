@@ -1,3 +1,10 @@
+## [1.31.1](https://github.com/agentprojectcontext/apx/compare/v1.31.0...v1.31.1) (2026-06-08)
+
+
+### Bug Fixes
+
+* keep APX agent runtime state out of APC ([aa314a7](https://github.com/agentprojectcontext/apx/commit/aa314a7c8b0f7a6a17323d2b364b562b2df76361))
+
 # [1.31.0](https://github.com/agentprojectcontext/apx/compare/v1.30.2...v1.31.0) (2026-06-07)
 
 
