@@ -17,7 +17,7 @@ canónica es un archivo Markdown en `.apc/agents/<slug>.md`.
 ```markdown
 ---
 role: Code reviewer
-model: claude-haiku-4-5
+model: ollama:llama3.2:3b
 language: es
 description: Revisa PRs y pushea contra los diffs vagos.
 tools: read,write,run
@@ -32,9 +32,13 @@ Todos los campos excepto `role` son opcionales. Cuando se omite `model`, se usa 
 - .apc/
   - agents/
     - reviewer.md           definición del agente
-    - reviewer/
-      - memory.md           hechos duraderos para este agente (opcional)
 </FileTree>
+
+Datos runtime del agente son locales y no se commitean:
+
+```text
+~/.apx/projects/<apx_id>/agents/reviewer/memory.md
+```
 
 <Aside type="note">
   El `AGENTS.md` en la raíz del repo se **auto-genera** con `apx agent add` y `apx agent remove`.
@@ -62,7 +66,7 @@ apx agent list --project my-app      # agentes en un proyecto con nombre
 ```bash
 apx agent add reviewer \
   --role "Code reviewer" \
-  --model claude-haiku-4-5 \
+  --model ollama:llama3.2:3b \
   --language es \
   --description "Revisa PRs y pushea contra los diffs vagos." \
   --tools read,write,run \
@@ -107,7 +111,7 @@ independientemente del `super_agent.model` del proyecto:
 ```markdown
 ---
 role: Code reviewer
-model: claude-haiku-4-5
+model: ollama:llama3.2:3b
 ---
 ```
 
@@ -129,7 +133,7 @@ prompt en este orden:
 2. Description de `AGENTS.md`
 3. Campos Role y Language
 4. Canal de invocación — `engine | telegram | routine | runtime`
-5. Memoria de `.apc/agents/<slug>/memory.md` (si existe)
+5. Memoria de `~/.apx/projects/<apx_id>/agents/<slug>/memory.md` (si existe)
 6. Skills declaradas en el campo `skills:` del agente
 7. El meta-skill `apx`
 8. Footer fijo de disciplina de acciones

@@ -1,6 +1,6 @@
 import fs from "node:fs";
-import path from "node:path";
 import { resolveProject } from "../helpers.js";
+import { agentMemoryPath, readAgentMemory } from "../../../../core/agent-memory.js";
 
 export default {
   name: "read_agent_memory",
@@ -21,8 +21,9 @@ export default {
   },
   makeHandler: ({ projects }) => ({ project, agent }) => {
     const p = resolveProject(projects, project);
-    const file = path.join(p.path, ".apc", "agents", agent, "memory.md");
-    if (!fs.existsSync(file)) return { error: `no memory.md for agent ${agent}` };
-    return { body: fs.readFileSync(file, "utf8") };
+    const file = agentMemoryPath(p, agent);
+    const body = readAgentMemory(p, agent);
+    if (!body && !fs.existsSync(file)) return { error: `no memory.md for agent ${agent}` };
+    return { body, path: file };
   },
 };

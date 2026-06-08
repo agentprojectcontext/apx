@@ -104,7 +104,7 @@ Después de importar, el agente aparece en `apx agent list` y está disponible p
 ```bash
 apx agent vault add reviewer \
   --role "Revisor de código" \
-  --model claude-haiku-4-5 \
+  --model ollama:llama3.2:3b \
   --language es \
   --skills code-review,git \
   --description "Revisa PRs y cuestiona diffs poco claros."

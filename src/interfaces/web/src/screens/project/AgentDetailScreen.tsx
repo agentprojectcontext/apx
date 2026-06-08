@@ -302,7 +302,7 @@ function MemoryEditor({ pid, slug, initial, onSaved }: { pid: string; slug: stri
     finally { setBusy(false); }
   };
   return (
-    <Section title={t("project.agent_detail.memory_title")} description={`.apc/agents/${slug}/memory.md — hechos durables que el agente recuerda.`}>
+    <Section title={t("project.agent_detail.memory_title")} description={`~/.apx/projects/<id>/agents/${slug}/memory.md — hechos durables que el agente recuerda.`}>
       <Textarea rows={16} className="font-mono text-xs" value={value} onChange={(e) => setValue(e.target.value)} placeholder={t("project.agent_detail.memory_empty")} />
       <div className="mt-2 flex items-center justify-between">
         <span className="text-[11px] text-muted-fg">{value.length} {t("project.memories.chars")}</span>

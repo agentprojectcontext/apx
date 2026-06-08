@@ -57,7 +57,6 @@ The CLI calls `resolveProjectId()` which does fuzzy id-or-name-or-path matching.
 └── .apc/
     ├── project.json                            ← { apxId, name, ... }
     ├── agents/<slug>.md
-    ├── agents/<slug>/memory.md
     ├── skills/<slug>.md or <slug>/SKILL.md
     ├── mcps.json                               ← shared MCPs (committed)
     ├── commands/                               ← custom slash-commands
@@ -65,7 +64,7 @@ The CLI calls `resolveProjectId()` which does fuzzy id-or-name-or-path matching.
 
 ~/.apx/projects/<apxId>/                        ← runtime state (never committed)
 ├── messages/YYYY-MM-DD.jsonl
-├── agents/<slug>/{sessions/, conversations/}
+├── agents/<slug>/{memory.md, sessions/, conversations/}
 ├── routines.json
 ├── tasks/YYYY-MM.jsonl
 ├── artifacts/

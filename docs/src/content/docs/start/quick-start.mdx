@@ -24,13 +24,13 @@ This walkthrough takes you from an empty project to a running agent in a few min
 2. **Add an agent.** Give it a slug, a role, and a model:
 
    ```bash
-   apx agent add sofia --role "backend reviewer" --model claude-sonnet-4.5
+   apx agent add sofia --role "backend reviewer" --model ollama:llama3.2:3b
    ```
 
    <Screenshot
      surface="terminal"
      caption="apx agent add creating the sofia agent and writing .apc/agents/sofia.md"
-     hint="Run: apx agent add sofia --role 'backend reviewer' --model claude-sonnet-4.5" />
+     hint="Run: apx agent add sofia --role 'backend reviewer' --model ollama:llama3.2:3b" />
 
 3. **Run the agent through a full runtime.** This spawns an external coding CLI (here, Claude
    Code) with the agent's system prompt injected:

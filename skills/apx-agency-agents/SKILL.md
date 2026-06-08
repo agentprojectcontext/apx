@@ -59,7 +59,7 @@ apx agent vault list --all
 # Create a new template (writes ~/.apx/agents/<slug>.md)
 apx agent vault add reviewer \
   --role "Code reviewer" \
-  --model claude-haiku-4-5 \
+  --model ollama:llama3.2:3b \
   --language es \
   --skills code-review,git \
   --description "Reviews PRs and pushes back on hand-wavy diffs."

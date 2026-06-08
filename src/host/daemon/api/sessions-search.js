@@ -31,7 +31,7 @@ export function register(app, { projects, config }) {
     for (const p of targetProjects) {
       if (!p) continue;
 
-      // 1) Session files in the repo (.apc/agents/<slug>/sessions/)
+      // 1) Legacy session files in the repo (.apc/agents/<slug>/sessions/)
       const sessionAgentsDir = path.join(p.path, ".apc", "agents");
       if (fs.existsSync(sessionAgentsDir)) {
         for (const slug of fs.readdirSync(sessionAgentsDir)) {

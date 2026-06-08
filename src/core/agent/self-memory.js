@@ -2,7 +2,7 @@
 //
 // This is distinct from:
 //   - identity.json   → who Roby is (name, personality, owner)
-//   - project agents' .apc/agents/<slug>/memory.md → per-agent, per-project
+//   - project agents' ~/.apx/projects/<apx_id>/agents/<slug>/memory.md → per-agent, per-project
 //   - sessions        → raw transcripts of past work (search_sessions)
 //
 // It is a single free-form markdown file at ~/.apx/memory.md that Roby keeps

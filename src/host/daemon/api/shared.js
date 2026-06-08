@@ -6,6 +6,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { appendErrorTrace, previewText } from "../../../core/logging.js";
+import { readAgents } from "../../../core/parser.js";
+import { agentMemoryPath } from "../../../core/agent-memory.js";
 
 export const nowIso = () =>
   new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -110,15 +112,10 @@ export function makeTopProjectResolver(projects) {
 }
 
 // Pick the memory.md to use when /memory is called without an agent ref.
-// Prefer the first .apc/agents/<slug>/memory.md; else .apc/memory.md.
+// Prefer the first agent's runtime-local memory; else project-level .apc/memory.md.
 export function resolveMemoryPath(p) {
-  const agentsDir = path.join(p.path, ".apc", "agents");
-  if (fs.existsSync(agentsDir)) {
-    const slugs = fs.readdirSync(agentsDir).filter((s) =>
-      fs.statSync(path.join(agentsDir, s)).isDirectory()
-    );
-    if (slugs.length) return path.join(agentsDir, slugs[0], "memory.md");
-  }
+  const firstAgent = readAgents(p.path)[0];
+  if (firstAgent) return agentMemoryPath(p, firstAgent.slug);
   return path.join(p.path, ".apc", "memory.md");
 }
 

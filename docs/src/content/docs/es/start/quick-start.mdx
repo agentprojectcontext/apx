@@ -24,13 +24,13 @@ Este recorrido te lleva de un proyecto vacío a un agente corriendo en pocos min
 2. **Agregá un agente.** Dale un slug, un rol y un modelo:
 
    ```bash
-   apx agent add sofia --role "revisor backend" --model claude-sonnet-4.5
+   apx agent add sofia --role "revisor backend" --model ollama:llama3.2:3b
    ```
 
    <Screenshot
      surface="terminal"
      caption="apx agent add creando el agente sofia y escribiendo .apc/agents/sofia.md"
-     hint="Ejecutá: apx agent add sofia --role 'revisor backend' --model claude-sonnet-4.5" />
+     hint="Ejecutá: apx agent add sofia --role 'revisor backend' --model ollama:llama3.2:3b" />
 
 3. **Ejecutá el agente con un runtime completo.** Esto lanza una CLI de coding externa (acá, Claude
    Code) con el system prompt del agente inyectado:

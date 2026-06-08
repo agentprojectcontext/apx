@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { findApfRoot, readAgents, readVaultAgents, readVaultAgent, VAULT_DIR, SLUG_RE } from "../../../core/parser.js";
 import { writeAgentFile, writeVaultAgentFile, removeVaultAgent, restoreVaultAgent, addImportedAgent, ensureAgentDir } from "../../../core/scaffold.js";
+import { ensureAgentRuntimeDir, agentMemoryPath } from "../../../core/agent-memory.js";
 import { http } from "../http.js";
 
 // ── ANSI ──────────────────────────────────────────────────────────────────────
@@ -49,6 +50,7 @@ export async function cmdAgentAdd(args) {
 
   writeAgentFile(root, slug, fields);
   ensureAgentDir(root, slug);
+  ensureAgentRuntimeDir(root, slug);
   await nudgeDaemon(root);
 
   console.log(`Added agent ${slug}`);
@@ -207,10 +209,11 @@ export async function cmdAgentImport(args) {
     addImportedAgent(root, slug);
     console.log(`\n  ${bold(slug)} imported from vault ${tag("↑ vault")}\n`);
     console.log(gray(`  definition: ${vaultPath}`));
-    console.log(gray(`  memory:     ${path.join(root, ".apc", "agents", slug, "memory.md")} (project-local)`));
+    console.log(gray(`  memory:     ${agentMemoryPath(root, slug)} (runtime-local)`));
     console.log();
   }
 
   ensureAgentDir(root, slug);
+  ensureAgentRuntimeDir(root, slug);
   await nudgeDaemon(root);
 }

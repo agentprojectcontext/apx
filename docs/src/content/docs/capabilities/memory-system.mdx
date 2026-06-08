@@ -160,15 +160,15 @@ All keys live under `config.memory`:
 
 | | Per-agent `memory.md` | Cross-channel memory system |
 |---|---|---|
-| **Location** | `.apc/agents/<slug>/memory.md` | `~/.apx/memory.md` + `~/.apx/memory.db` |
-| **Committed?** | Yes | Never |
+| **Location** | `~/.apx/projects/<apx_id>/agents/<slug>/memory.md` | `~/.apx/memory.md` + `~/.apx/memory.db` |
+| **Committed?** | Never | Never |
 | **Scope** | One agent | All channels, all agents |
 | **Written by** | You, by hand | The `remember` tool (auto) |
 | **Retrieval** | Full inject on every call | RAG (top-K, scored) + last-10 notes |
 | **Compaction** | Not applicable | Progressive (Piece 3) |
 
-Use the per-agent file for stable, curated facts about the agent's role. The cross-channel system
-handles dynamic, turn-by-turn context that spans surfaces.
+Use the per-agent file for stable, curated facts about the agent's project role. The cross-channel
+system handles dynamic, turn-by-turn context that spans surfaces.
 
 ## Next
 

@@ -36,8 +36,6 @@ picks it back up. Runtime state stays local.
     - config.json          project-level config overrides (never store secrets here)
     - agents/
       - \<slug\>.md        one file per agent — role, model, skills, description
-      - \<slug\>/
-        - memory.md        durable agent facts (curated, never raw transcripts)
     - mcps.json            shared MCP hints for this project (no tokens)
     - skills/              project-local reusable skill prompts
     - commands/            custom slash commands
@@ -58,6 +56,7 @@ picks it back up. Runtime state stays local.
       - tasks/             YYYY-MM.jsonl task logs
       - agents/
         - \<slug\>/
+          - memory.md      durable agent facts (curated, never raw transcripts)
           - sessions/      one .md per runtime invocation
           - conversations/ LLM conversation threads
         - default/

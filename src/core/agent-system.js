@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { readAgentMemory } from "./agent-memory.js";
 
 // ---------------------------------------------------------------------------
 // Anti-ghost-response rules injected into every agent system prompt.
@@ -62,8 +63,8 @@ export function buildAgentSystem(project, agent, {
 
   parts.push(buildInvocationContext({ invocation, runtime, channel, caller, routine }));
 
-  const memPath = path.join(project.path, ".apc", "agents", agent.slug, "memory.md");
-  if (fs.existsSync(memPath)) parts.push("## Memory\n" + fs.readFileSync(memPath, "utf8"));
+  const memory = readAgentMemory(project, agent.slug);
+  if (memory) parts.push("## Memory\n" + memory);
 
   const apxSkill = path.join(project.path, ".apc", "skills", "apx.md");
   if (fs.existsSync(apxSkill)) parts.push("## APX\n" + fs.readFileSync(apxSkill, "utf8"));
