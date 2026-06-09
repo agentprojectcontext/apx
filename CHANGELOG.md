@@ -1,3 +1,10 @@
+## [1.31.2](https://github.com/agentprojectcontext/apx/compare/v1.31.1...v1.31.2) (2026-06-09)
+
+
+### Bug Fixes
+
+* **tests:** update write_file confirmation test for async requirePermission ([e332113](https://github.com/agentprojectcontext/apx/commit/e3321139d498005d85ac6b05b15c73f785984069))
+
 ## [1.31.1](https://github.com/agentprojectcontext/apx/compare/v1.31.0...v1.31.1) (2026-06-08)
 
 
