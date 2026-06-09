@@ -54,6 +54,10 @@ export async function runSuperAgent({
   // restricts the visible tool schemas to those names; [] means no tools.
   // Used to gate guests/limited roles on Telegram (see resolveAllowedTools).
   allowedTools = "*",
+  // Channel-specific confirmation handler. See run-agent.js for contract.
+  // Null disables human-in-the-loop (tools that need confirmation fail
+  // immediately instead of waiting for user input).
+  requestConfirmation = null,
 }) {
   if (!isSuperAgentEnabled(globalConfig)) {
     throw new Error("super-agent not enabled (set super_agent.enabled and .model in ~/.apx/config.json)");
@@ -114,7 +118,7 @@ export async function runSuperAgent({
     overrideModel,
     toolSchemas,
     makeToolHandlers,
-    toolHandlerCtx: { projects, plugins, registries, globalConfig, channel, toolSession },
+    toolHandlerCtx: { projects, plugins, registries, globalConfig, channel, toolSession, requestConfirmation },
     onEvent,
     signal,
     onToken,

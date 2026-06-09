@@ -8,25 +8,30 @@ sidebar:
 import { Aside, FileTree } from '@astrojs/starlight/components';
 import Screenshot from '../../../components/Screenshot.astro';
 
-An **agent** is a named persona living inside an APC project. It has a role, an optional model
-override, a language preference, and an optional set of skills. Its canonical definition is a single
-Markdown file at `.apc/agents/<slug>.md`.
+An **agent** is a named persona living inside an APC project. It has a name, a description, an
+optional model override, a language preference, and an optional set of skills. Its canonical
+definition is a single Markdown file at `.apc/agents/<slug>.md`.
 
 ## The agent definition file
 
 ```markdown
 ---
-role: Code reviewer
-model: ollama:llama3.2:3b
-language: es
+name: reviewer
+model: inherit
 description: Reviews PRs and pushes back on hand-wavy diffs.
+role: Code reviewer
+language: es
 tools: read,write,run
 skills: code-review,git
+color: indigo
+emoji: 🔍
+vibe: Concrete feedback, no hand-waving.
 ---
 ```
 
-All fields except `role` are optional. When `model` is omitted the project's `super_agent.model`
-(or global default) is used for that agent's calls.
+`name` and `description` are required. Use `model: inherit` unless the project truly requires a
+specific model — this lets each runtime (Codex, Claude Code, Cursor, APX) apply its own configured
+default.
 
 <FileTree>
 - .apc/
@@ -37,7 +42,7 @@ All fields except `role` are optional. When `model` is omitted the project's `su
 Agent runtime data is local and uncommitted:
 
 ```text
-~/.apx/projects/<apx_id>/agents/reviewer/memory.md
+~/.apx/projects/<project_id>/agents/reviewer/memory.md
 ```
 
 <Aside type="note">
@@ -46,6 +51,24 @@ Agent runtime data is local and uncommitted:
   Its purpose is discovery: tools like Codex, Claude Code, and other APC-aware runtimes read it
   to learn which agents exist in a project.
 </Aside>
+
+## Required and optional fields
+
+| Field | Required | Purpose |
+|---|---:|---|
+| `name` | Yes | Stable agent slug used in commands and file name |
+| `model` | Yes | Use `inherit` unless the project truly requires a specific model |
+| `description` | Yes | Semantic activation trigger and responsibility summary |
+| `role` | No | Human-readable job title shown in prompts and listings |
+| `language` | No | Response language preference (e.g. `es`, `en`) |
+| `tools` | No | Comma-separated tool grants |
+| `skills` | No | APC skills the agent commonly uses |
+| `is_background` | No | Whether compatible runtimes may run the agent asynchronously |
+| `color`, `emoji`, `vibe` | No | UI and personality hints for runtimes that support them |
+
+APC should not tie one vendor's model as the default. Use `inherit` and let each runtime (Codex,
+Claude Code, Cursor, APX) apply its configured default. A specific `provider:model-id` is only
+appropriate when it is an explicit part of the project contract.
 
 ## Commands
 
@@ -65,10 +88,10 @@ apx agent list --project my-app      # agents in a named project
 
 ```bash
 apx agent add reviewer \
-  --role "Code reviewer" \
-  --model ollama:llama3.2:3b \
-  --language es \
   --description "Reviews PRs and pushes back on hand-wavy diffs." \
+  --role "Code reviewer" \
+  --model inherit \
+  --language es \
   --tools read,write,run \
   --skills code-review,git
 ```
@@ -104,12 +127,20 @@ apx agent vault restore <slug>       # un-hide a tombstoned bundled default
 
 ## Per-agent model override
 
-Set `model:` in the agent file to use a different model for that agent, independent of the
-project's `super_agent.model`:
+The recommended value is `model: inherit` — the agent uses whichever model the runtime has
+configured as its default. Set a specific `provider:model-id` only when the project contract
+explicitly requires it:
 
 ```markdown
 ---
-role: Code reviewer
+name: reviewer
+model: inherit
+---
+```
+
+```markdown
+---
+name: cheap-summarizer
 model: ollama:llama3.2:3b
 ---
 ```
@@ -131,7 +162,7 @@ in this order:
 2. Description from `AGENTS.md`
 3. Role and Language fields
 4. Invocation channel — `engine | telegram | routine | runtime`
-5. Memory from `~/.apx/projects/<apx_id>/agents/<slug>/memory.md` (if it exists)
+5. Memory from `~/.apx/projects/<project_id>/agents/<slug>/memory.md` (if it exists)
 6. Skills declared in the agent's `skills:` field
 7. The `apx` meta-skill
 8. Fixed action-discipline footer

@@ -20,8 +20,8 @@ export default {
       },
     },
   },
-  makeHandler: ({ requirePermission }) => ({ mode, confirmed = false }) => {
-    requirePermission("set_permission_mode", { dangerous: true, confirmed });
+  makeHandler: ({ requirePermission }) => async ({ mode, confirmed = false }) => {
+    await requirePermission("set_permission_mode", { dangerous: true, confirmed, args: { mode } });
     if (!MODES.has(mode)) throw new Error("mode must be total, automatico, or permiso");
     const cfg = readConfig();
     cfg.super_agent = cfg.super_agent || {};

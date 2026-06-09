@@ -64,7 +64,7 @@ export default {
     },
   },
   makeHandler: ({ projects, requirePermission }) => async ({ project, cwd = ".", command, timeout_s = 60, confirmed = false }) => {
-    requirePermission("run_shell", { dangerous: !isSafeShellCommand(command), confirmed });
+    await requirePermission("run_shell", { dangerous: !isSafeShellCommand(command), confirmed, args: { command } });
     if (!command) throw new Error("run_shell: command required");
 
     const p = resolveProject(projects, project);

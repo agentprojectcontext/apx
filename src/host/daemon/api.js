@@ -46,6 +46,7 @@ import { register as registerAdmin } from "./api/admin.js";
 import { register as registerAdminConfig } from "./api/admin-config.js";
 import { register as registerIdentity } from "./api/identity.js";
 import { register as registerWeb } from "./api/web.js";
+import { register as registerConfirm } from "./api/confirm.js";
 
 export function buildApi({
   projects,
@@ -108,6 +109,7 @@ export function buildApi({
   registerEngines(app, ctx);
   registerExec(app, ctx);
   registerSuperAgent(app, ctx);
+  registerConfirm(app, ctx);
   registerCode(app, ctx);
   registerConversations(app, ctx);
   registerConnections(app, ctx);

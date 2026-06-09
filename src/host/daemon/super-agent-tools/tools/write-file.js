@@ -21,8 +21,8 @@ export default {
       },
     },
   },
-  makeHandler: ({ projects, requirePermission }) => ({ project, path: sub, content, confirmed = false }) => {
-    requirePermission("write_file", { dangerous: true, confirmed });
+  makeHandler: ({ projects, requirePermission }) => async ({ project, path: sub, content, confirmed = false }) => {
+    await requirePermission("write_file", { dangerous: true, confirmed, args: { path: sub } });
     if (!sub) throw new Error("write_file: path required");
     const p = resolveProject(projects, project);
     const target = safePathJoin(p.path, sub);

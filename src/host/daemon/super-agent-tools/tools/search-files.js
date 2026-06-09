@@ -22,10 +22,7 @@ export default {
       },
     },
   },
-  makeHandler: ({ projects, requirePermission }) => async ({ query, project, path: sub = "." } = {}) => {
-    // Optional permission check if it's considered destructive, but search is safe read-only
-    await requirePermission("search_files", { query, project, path: sub }, "safe");
-    
+  makeHandler: ({ projects }) => async ({ query, project, path: sub = "." } = {}) => {
     const p = resolveProject(projects, project);
     const target = safePathJoin(p.path, sub);
 

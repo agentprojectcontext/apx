@@ -41,6 +41,8 @@ import { transcribe as transcribeAudioFile } from "../transcription.js";
 import { resolveAgentName, SUPERAGENT_ACTOR_ID } from "../../../core/identity.js";
 import { registerSender, resolveAllowedTools } from "../../../core/telegram-identity.js";
 import { buildRelationshipBlock } from "../../../core/agent/index.js";
+import { getConfirmationStore as getConfirmStore } from "../../../core/confirmation/pending-store.js";
+import { createTelegramConfirmAdapter } from "../../../core/confirmation/adapters/telegram.js";
 
 const API_BASE = "https://api.telegram.org";
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -422,6 +424,13 @@ class ChannelPoller {
 
   async _handleUpdate(u) {
     this.lastUpdateAt = nowIso();
+
+    // Inline keyboard button press: route to the confirmation adapter.
+    if (u.callback_query) {
+      await this._handleCallbackQuery(u.callback_query);
+      return;
+    }
+
     const msg = u.message || u.edited_message;
     if (!msg) return;
     const target = this.resolveProject();
@@ -806,6 +815,12 @@ class ChannelPoller {
         }
       };
 
+      const confirmAdapter = createTelegramConfirmAdapter({
+        token: resolveBotToken(this.channel),
+        chatId: chat_id,
+        pendingStore: getConfirmStore(),
+      });
+
       try {
         const sa = await runSuperAgent({
           globalConfig: this.globalConfig,
@@ -826,6 +841,7 @@ class ChannelPoller {
           }),
           signal: abortCtrl.signal,
           onEvent,
+          requestConfirmation: confirmAdapter.requestConfirmation,
         });
         replyText = sa.text;
         replyAuthor = sa.name || agentDisplay;
@@ -908,6 +924,18 @@ class ChannelPoller {
           ...(saUsage ? { usage: saUsage } : {}),
         },
       });
+    }
+  }
+
+  async _handleCallbackQuery(callbackQuery) {
+    const adapter = createTelegramConfirmAdapter({
+      token: resolveBotToken(this.channel),
+      chatId: callbackQuery.message?.chat?.id,
+      pendingStore: getConfirmStore(),
+    });
+    const handled = await adapter.handleCallbackQuery(callbackQuery);
+    if (!handled) {
+      this.log(`telegram[${this.channel.name}] unhandled callback_query: ${callbackQuery.data}`);
     }
   }
 

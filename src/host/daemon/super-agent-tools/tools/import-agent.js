@@ -23,8 +23,8 @@ export default {
       },
     },
   },
-  makeHandler: ({ projects, requirePermission }) => ({ project, agent: slug, confirmed = false }) => {
-    requirePermission("import_agent", { dangerous: true, confirmed });
+  makeHandler: ({ projects, requirePermission }) => async ({ project, agent: slug, confirmed = false }) => {
+    await requirePermission("import_agent", { dangerous: true, confirmed, args: { agent: slug } });
     if (!slug) throw new Error("import_agent: agent required");
 
     const vaultPath = path.join(VAULT_DIR, `${slug}.md`);

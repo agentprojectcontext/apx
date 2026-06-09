@@ -22,8 +22,8 @@ export default {
       },
     },
   },
-  makeHandler: ({ projects, requirePermission }) => ({ project, path, search, replace, all = false, confirmed = false }) => {
-    requirePermission("edit_file", { dangerous: true, confirmed });
+  makeHandler: ({ projects, requirePermission }) => async ({ project, path, search, replace, all = false, confirmed = false }) => {
+    await requirePermission("edit_file", { dangerous: true, confirmed, args: { path } });
     if (!path) throw new Error("edit_file: path required");
     if (!search) throw new Error("edit_file: search required");
 
