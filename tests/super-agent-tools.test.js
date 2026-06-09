@@ -232,7 +232,7 @@ test("read_file refuses path traversal", () => {
   }
 });
 
-test("write_file requires confirmation in automatico mode", () => {
+test("write_file requires confirmation in automatico mode", async () => {
   const { root, projects } = setup();
   try {
     const handlers = makeToolHandlers({
@@ -241,11 +241,11 @@ test("write_file requires confirmation in automatico mode", () => {
       registries: null,
       globalConfig: { super_agent: { permission_mode: "automatico" } },
     });
-    assert.throws(
+    await assert.rejects(
       () => handlers.write_file({ path: "x.txt", content: "hello" }),
-      /requires_confirmation/
+      /Action requires user confirmation/
     );
-    const r = handlers.write_file({ path: "x.txt", content: "hello", confirmed: true });
+    const r = await handlers.write_file({ path: "x.txt", content: "hello", confirmed: true });
     assert.equal(r.ok, true);
   } finally {
     cleanupTempProject(root);
