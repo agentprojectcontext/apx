@@ -21,7 +21,7 @@ export default {
     },
   },
   makeHandler: ({ projects, registries, requirePermission }) => async ({ project, mcp, tool, args = {}, confirmed = false }) => {
-    requirePermission("call_mcp", { dangerous: true, confirmed });
+    await requirePermission("call_mcp", { dangerous: true, confirmed, args: { mcp, tool } });
     const p = resolveProject(projects, project);
     if (!registries) throw new Error("MCP registry unavailable");
     const registry = registries.for ? registries.for(p) : registries.ensure(p);

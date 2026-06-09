@@ -31,7 +31,7 @@ y **nunca se commitea**.
 | ----------------------------- | ------------------------------- |
 | Definiciones en `AGENTS.md`   | Sesiones e hilos de conversación |
 | `.apc/agents/<slug>.md`       | Memoria de agentes, historial / logs de mensajes |
-| `.apc/mcps.json` (sin secretos) | Caché SQLite `project.db`      |
+| `.apc/mcps.json` (sin secretos) | Tokens de runtime MCP           |
 | `.apc/skills/`, `.apc/commands/` | Tokens de runtime de MCP      |
 
 Esta separación significa que tus agentes y sus roles quedan versionados junto a

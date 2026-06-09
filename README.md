@@ -64,7 +64,6 @@ Runtime state — local machine only, never committed:
 
 ```text
 ~/.apx/projects/<project-id>/
-├── project.db             ← regenerable SQLite cache
 ├── messages/              ← local message history
 └── agents/
     ├── <slug>/

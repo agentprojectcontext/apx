@@ -30,7 +30,7 @@ committed**.
 | ----------------------------- | ------------------------------- |
 | `AGENTS.md` agent definitions | Sessions & conversation threads |
 | `.apc/agents/<slug>.md`       | Agent memory, message history / logs |
-| `.apc/mcps.json` (no secrets) | `project.db` SQLite cache       |
+| `.apc/mcps.json` (no secrets) | MCP runtime tokens               |
 | `.apc/skills/`, `.apc/commands/` | MCP runtime tokens           |
 
 This split means your agents and their roles are versioned alongside your

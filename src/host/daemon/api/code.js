@@ -14,6 +14,7 @@
 // + per-mode tool gating), then persists the rich assistant turn.
 import { runSuperAgent } from "../super-agent.js";
 import { appendSuperAgentErrorTrace } from "./shared.js";
+import { createWebConfirmAdapter } from "../../../core/confirmation/adapters/web.js";
 import {
   listCodeSessions,
   getCodeSession,
@@ -295,6 +296,7 @@ export function register(app, { projects, project, config, registries, plugins }
         // it keeps the normal "text ends the turn" behavior.
         completionContract: mode === "build",
         onEvent,
+        requestConfirmation: createWebConfirmAdapter({ onEvent }),
       });
       projects.rebuild(p.id);
 

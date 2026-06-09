@@ -335,6 +335,7 @@ export function makeToolHandlers(ctx) {
     ...ctx,
     requirePermission: createPermissionGuard(ctx.globalConfig || {}, {
       implicitConfirmation: !!ctx.implicitConfirmation,
+      requestConfirmation: ctx.requestConfirmation || null,
     }),
   };
   return Object.fromEntries(TOOLS.map((tool) => [tool.name, tool.makeHandler(toolCtx)]));

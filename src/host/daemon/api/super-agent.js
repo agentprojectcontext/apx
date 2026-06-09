@@ -12,6 +12,7 @@ import {
 } from "./shared.js";
 import { loggerFor } from "../../../core/logging.js";
 import { appendGlobalMessage } from "../../../core/messages-store.js";
+import { createWebConfirmAdapter } from "../../../core/confirmation/adapters/web.js";
 
 const log = loggerFor("super-agent");
 
@@ -79,6 +80,15 @@ export function register(app, { projects, registries, plugins, project, config }
       res.write(JSON.stringify(event) + "\n");
     };
 
+    const onEvent = wrapOnEventForLog(send, {
+      trace_id: req.apxTraceId,
+      channel: ctx.channel,
+    });
+
+    // Web/TUI channels receive a "confirmation_required" SSE event and respond
+    // via POST /super-agent/confirm/:correlationId (see api/confirm.js).
+    const requestConfirmation = createWebConfirmAdapter({ onEvent });
+
     try {
       const saResult = await runSuperAgent({
         globalConfig: config,
@@ -94,10 +104,8 @@ export function register(app, { projects, registries, plugins, project, config }
         ...(Number.isFinite(Number(maxIters)) ? { maxIters: Number(maxIters) } : {}),
         ...(Number.isFinite(Number(maxTokens)) ? { maxTokens: Number(maxTokens) } : {}),
         ...(completionContract ? { completionContract: true } : {}),
-        onEvent: wrapOnEventForLog(send, {
-          trace_id: req.apxTraceId,
-          channel: ctx.channel,
-        }),
+        onEvent,
+        requestConfirmation,
       });
       projects.rebuild(p.id);
       logWebTurn(ctx.channel, { prompt, replyText: saResult.text });

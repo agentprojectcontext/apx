@@ -87,7 +87,7 @@ export default {
       confirmed = false,
     } = args;
 
-    requirePermission("send_telegram", { dangerous: true, confirmed });
+    await requirePermission("send_telegram", { dangerous: true, confirmed, args: { text } });
     if (!plugins) throw new Error("plugins unavailable");
     const telegram = plugins.get("telegram");
     if (!telegram) throw new Error("telegram plugin not loaded");

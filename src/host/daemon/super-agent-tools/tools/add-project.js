@@ -31,8 +31,8 @@ export default {
       },
     },
   },
-  makeHandler: ({ projects, requirePermission }) => ({ path: projectPath, name, init = true, confirmed = false }) => {
-    requirePermission("add_project", { dangerous: true, confirmed });
+  makeHandler: ({ projects, requirePermission }) => async ({ path: projectPath, name, init = true, confirmed = false }) => {
+    await requirePermission("add_project", { dangerous: true, confirmed, args: { path: projectPath } });
     if (!projectPath) throw new Error("add_project: path required");
 
     const abs = path.resolve(projectPath);

@@ -20,8 +20,8 @@ export default {
       },
     },
   },
-  makeHandler: ({ requirePermission }) => ({ agent_name, owner_name, owner_context, personality, confirmed = false } = {}) => {
-    requirePermission("set_identity", { dangerous: true, confirmed });
+  makeHandler: ({ requirePermission }) => async ({ agent_name, owner_name, owner_context, personality, confirmed = false } = {}) => {
+    await requirePermission("set_identity", { dangerous: true, confirmed, args: { agent_name } });
     const fields = {};
     if (agent_name) fields.agent_name = agent_name;
     if (owner_name) fields.owner_name = owner_name;

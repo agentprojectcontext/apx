@@ -1,5 +1,6 @@
 import path from "node:path";
 import { agentSkills, buildAgentSystem as buildCoreAgentSystem } from "../../../core/agent-system.js";
+import { buildConfirmDescription } from "../../../core/confirmation/index.js";
 
 export function projectMeta(projects, entry) {
   const meta = projects.list().find((p) => p.id === entry.id);
@@ -79,19 +80,39 @@ export function buildAgentSystem(project, agent, opts = {}) {
   return buildCoreAgentSystem(project, agent, opts);
 }
 
-export function createPermissionGuard(globalConfig = {}, { implicitConfirmation = false } = {}) {
+export function createPermissionGuard(globalConfig = {}, {
+  implicitConfirmation = false,
+  requestConfirmation = null,
+} = {}) {
   const permissionMode = globalConfig.super_agent?.permission_mode || "automatico";
   const allowedTools = new Set(globalConfig.super_agent?.allowed_tools || []);
 
-  return function requirePermission(tool, { dangerous = false, confirmed = false } = {}) {
+  // async so tools can `await requirePermission(...)` and the confirmation
+  // dialog resolves transparently before execution continues.
+  return async function requirePermission(tool, { dangerous = false, confirmed = false, args } = {}) {
     const ok = confirmed || implicitConfirmation;
     if (permissionMode === "total") return;
-    if (permissionMode === "permiso" && !allowedTools.has(tool) && !ok) {
-      throw new Error(`requires_confirmation: permission_mode=permiso blocks ${tool}`);
+
+    const blocked =
+      (permissionMode === "permiso" && !allowedTools.has(tool) && !ok) ||
+      (permissionMode === "automatico" && dangerous && !ok);
+
+    if (!blocked) return;
+
+    const description = buildConfirmDescription(tool, args || {});
+
+    if (!requestConfirmation) {
+      // No confirmation channel wired for this invocation context (e.g. routine,
+      // autonomous agent). Surface a clear message so the model can explain it.
+      throw new Error(`Action requires user confirmation: ${description}`);
     }
-    if (permissionMode === "automatico" && dangerous && !ok) {
-      throw new Error(`requires_confirmation: permission_mode=automatico requires confirmation for ${tool}`);
+
+    const userConfirmed = await requestConfirmation(tool, args || {}, description);
+
+    if (!userConfirmed) {
+      throw new Error(`User did not confirm: ${description}`);
     }
+    // Confirmed — fall through, tool executes normally.
   };
 }
 

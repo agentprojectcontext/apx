@@ -174,7 +174,7 @@ export default {
     },
   },
   makeHandler: ({ projects, requirePermission }) => async ({ project, agent: slug, runtime, prompt, resume_session_id = null, timeout_s = 300, confirmed = false }) => {
-    requirePermission("call_runtime", { dangerous: true, confirmed });
+    await requirePermission("call_runtime", { dangerous: true, confirmed, args: { runtime } });
 
     const p = slug ? resolveProjectForAgent(projects, project, slug) : resolveProject(projects, project);
     const agent = slug ? readAgents(p.path).find((a) => a.slug === slug) : null;
