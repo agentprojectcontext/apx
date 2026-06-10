@@ -80,20 +80,51 @@ function modeGuidanceFor(mode) {
     "for choices. Prefer 2–4 mutually-exclusive options when a question has a",
     "natural shortlist (yes/no, which-of-these, …); leave options empty for",
     "open-ended answers (API keys, names, free-form ideas).",
+    "If the previous assistant turn already asked these same questions and the",
+    "current user message is the compiled answers, DO NOT call ask_questions",
+    "again — process the answers and proceed with the task.",
   ].join(" ");
 }
 
 // Build the [{role, content}] history the super-agent expects from the stored
-// rich transcript: flatten each turn's text parts (tool parts are internal).
+// rich transcript: flatten each turn's text parts. Tool parts are normally
+// internal, but ask_questions is special — without surfacing it the model
+// loses track that it ALREADY asked, sees the user's compiled-answer reply
+// as a fresh request, and asks again forever. We render a one-line synthetic
+// summary of each ask_questions call so the next turn's context shows
+// "I asked X, the user replied Y" naturally.
+function summarizeAskQuestionsPart(part) {
+  const raw = part?.args?.questions;
+  if (!Array.isArray(raw) || raw.length === 0) return null;
+  const lines = raw
+    .map((q) => {
+      if (typeof q === "string") return `- ${q}`;
+      if (!q || typeof q !== "object" || typeof q.question !== "string") return null;
+      const opts = Array.isArray(q.options) ? q.options : [];
+      const optStr = opts
+        .map((o) => (typeof o === "string" ? o : (o && typeof o.label === "string" ? o.label : "")))
+        .filter(Boolean)
+        .join(", ");
+      return optStr ? `- ${q.question} (opciones: ${optStr})` : `- ${q.question}`;
+    })
+    .filter(Boolean);
+  if (lines.length === 0) return null;
+  return `[ask_questions]\n${lines.join("\n")}`;
+}
+
 function historyFrom(session) {
-  return (session.messages || []).map((m) => ({
-    role: m.role,
-    content: (m.parts || [])
-      .filter((p) => p && p.kind === "text" && p.text)
-      .map((p) => p.text)
-      .join("\n\n")
-      .trim(),
-  }));
+  return (session.messages || []).map((m) => {
+    const chunks = [];
+    for (const p of m.parts || []) {
+      if (!p) continue;
+      if (p.kind === "text" && p.text) chunks.push(p.text);
+      else if (p.kind === "tool" && p.tool === "ask_questions") {
+        const summary = summarizeAskQuestionsPart(p);
+        if (summary) chunks.push(summary);
+      }
+    }
+    return { role: m.role, content: chunks.join("\n\n").trim() };
+  });
 }
 
 // Accumulate stream events into the rich ChatPart shape so the persisted
