@@ -1,14 +1,19 @@
 import { Bot, Copy, User, Info } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { ToolCall } from "./ToolCall";
+import { AskQuestionsCard } from "./AskQuestionsCard";
 import { textOf, type ChatMsg } from "../../hooks/useChat";
 
 interface Props {
   msg: ChatMsg;
+  /** True when this is the last message in the list. Used to detect if an
+   *  ask_questions tool call is still waiting for the user vs already answered
+   *  (a later user message would push this assistant turn off the bottom). */
+  isLast?: boolean;
   onCopy?: (text: string) => void;
 }
 
-export function MessageBubble({ msg, onCopy }: Props) {
+export function MessageBubble({ msg, isLast, onCopy }: Props) {
   const mine = msg.role === "user";
   const copyText = textOf(msg);
   const hasTools = msg.parts.some((p) => p.kind === "tool");
@@ -35,14 +40,22 @@ export function MessageBubble({ msg, onCopy }: Props) {
         {/* Ordered parts: interleaved assistant text + tool calls. */}
         {msg.parts.map((part, i) =>
           part.kind === "tool" ? (
-            <ToolCall key={`${part.id}-${i}`} part={part} />
+            part.tool === "ask_questions" && !mine ? (
+              <AskQuestionsCard
+                key={`${part.id}-${i}`}
+                part={part}
+                pending={!!isLast}
+              />
+            ) : (
+              <ToolCall key={`${part.id}-${i}`} part={part} />
+            )
           ) : part.text ? (
             <div
               key={i}
               className={cn(
                 "whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm leading-relaxed shadow-sm",
                 mine
-                  ? "rounded-br-sm bg-primary text-primary-fg"
+                  ? "rounded-br-sm border border-emerald-500/30 bg-emerald-500/10 text-foreground dark:bg-emerald-500/15"
                   : "w-full rounded-bl-sm border border-border bg-card text-foreground",
               )}
             >

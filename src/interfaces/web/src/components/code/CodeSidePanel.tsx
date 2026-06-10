@@ -1,20 +1,22 @@
-import { Gauge, GitCompare } from "lucide-react";
+import { Gauge, GitCompare, Package } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
 import { t } from "../../i18n";
 import { CodeContextTab } from "./CodeContextTab";
 import { CodeChangesTab } from "./CodeChangesTab";
+import { CodeArtifactsTab } from "./CodeArtifactsTab";
 import type { CodeChanges, CodeTurn } from "../../lib/api/code";
 
 interface Props {
+  pid: string;
   turns: CodeTurn[];
   changes: CodeChanges | undefined;
   changesLoading: boolean;
   onRefreshChanges: () => void;
 }
 
-// Right-hand panel: Context (token metrics + breakdown) and Changes (diffs vs
-// the session's git baseline), mirroring OpenCode's session side panel.
-export function CodeSidePanel({ turns, changes, changesLoading, onRefreshChanges }: Props) {
+// Right-hand panel: Context (token metrics), Changes (diffs vs the session's
+// git baseline), and Artifacts (managed files under <project>/artifacts/).
+export function CodeSidePanel({ pid, turns, changes, changesLoading, onRefreshChanges }: Props) {
   const changeCount = changes?.files.length || 0;
   return (
     <Tabs defaultValue="context" className="flex h-full flex-col gap-0" data-testid="code-side-panel">
@@ -31,6 +33,9 @@ export function CodeSidePanel({ turns, changes, changesLoading, onRefreshChanges
               </span>
             )}
           </TabsTrigger>
+          <TabsTrigger value="artifacts" className="flex-1">
+            <Package className="size-3.5" /> {t("code_module.tab_artifacts")}
+          </TabsTrigger>
         </TabsList>
       </div>
       <TabsContent value="context" className="min-h-0 flex-1 overflow-y-auto">
@@ -38,6 +43,9 @@ export function CodeSidePanel({ turns, changes, changesLoading, onRefreshChanges
       </TabsContent>
       <TabsContent value="changes" className="min-h-0 flex-1 overflow-hidden">
         <CodeChangesTab changes={changes} loading={changesLoading} onRefresh={onRefreshChanges} />
+      </TabsContent>
+      <TabsContent value="artifacts" className="min-h-0 flex-1 overflow-hidden">
+        <CodeArtifactsTab pid={pid} />
       </TabsContent>
     </Tabs>
   );

@@ -146,6 +146,15 @@ async function _handleMessage({ ws, text, previousMessages }, { projects, config
           _send(ws, { type: "tool_start", name: t.tool, args: t.args });
         } else if (event.type === "tool_result") {
           _send(ws, { type: "tool_done", name: event.trace.tool });
+          // ask_questions on desktop is voice-first: there's no inline-keyboard
+          // UI to render, so we turn the structured questions into a spoken
+          // segment. The user voice-replies on the next turn and the super-agent
+          // sees that reply in its history. Each option is announced inline so
+          // TTS reads them aloud naturally.
+          if (event.trace?.tool === "ask_questions") {
+            const segments = formatAskQuestionsForVoice(event.trace.args?.questions);
+            if (segments) emitSegment(segments);
+          }
         } else if (event.type === "assistant_text" && event.text) {
           // A complete assistant text segment (e.g. the "I'll check…" intro
           // emitted right before a tool runs). Ship it as its own message.
@@ -191,6 +200,31 @@ async function _handleMessage({ ws, text, previousMessages }, { projects, config
       _send(ws, { type: "error", message: e.message });
     }
   }
+}
+
+// Build a voice-friendly transcript of an ask_questions tool call so the
+// desktop's TTS reads the prompt aloud and the bubble shows what was asked.
+// Single question + options reads as "<question> Opciones: A; B; C."
+// Multiple questions are numbered. Free-text questions just speak the prompt.
+function formatAskQuestionsForVoice(raw) {
+  if (!Array.isArray(raw) || raw.length === 0) return null;
+  const lines = [];
+  raw.forEach((rawQ, idx) => {
+    const q = typeof rawQ === "string" ? { question: rawQ } : (rawQ || {});
+    const text = typeof q.question === "string" ? q.question.trim() : "";
+    if (!text) return;
+    const prefix = raw.length > 1 ? `${idx + 1}. ` : "";
+    const opts = Array.isArray(q.options) ? q.options : [];
+    const optLabels = opts
+      .map((o) => (typeof o === "string" ? o : (o && typeof o.label === "string" ? o.label : "")))
+      .filter(Boolean);
+    let line = `${prefix}${text}`;
+    if (optLabels.length > 0) {
+      line += ` Opciones: ${optLabels.join("; ")}.`;
+    }
+    lines.push(line);
+  });
+  return lines.length > 0 ? lines.join("\n") : null;
 }
 
 function _send(ws, msg) {

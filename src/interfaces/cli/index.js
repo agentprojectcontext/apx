@@ -125,6 +125,7 @@ import {
   cmdArtifactList,
   cmdArtifactShow,
   cmdArtifactRemove,
+  cmdArtifactRun,
 } from "./commands/artifact.js";
 import {
   cmdTaskAdd,
@@ -1273,12 +1274,14 @@ const HELP_TOPICS = new Map(Object.entries({
       ["create <name>", "Create a new empty artifact. Prints its absolute path."],
       ["list | ls", "List artifacts in the project."],
       ["show <name>", "Print artifact content."],
+      ["run <name> [args...]", "Execute a runnable artifact (shebang or +x). Stdio is inherited."],
       ["remove | rm <name>", "Delete an artifact."],
     ],
     examples: [
       "apx artifact create check_asana.sh --project 0",
       "apx artifact list",
       "apx artifact show check_asana.sh",
+      "apx artifact run check_asana.sh",
     ],
   }),
   "artifact create": topic({
@@ -2490,6 +2493,7 @@ async function dispatch(cmd, rest) {
         else if (sub === "create" || sub === "new") await cmdArtifactCreate(a);
         else if (sub === "show" || sub === "get") await cmdArtifactShow(a);
         else if (sub === "remove" || sub === "rm") await cmdArtifactRemove(a);
+        else if (sub === "run") await cmdArtifactRun(a);
         else die(`unknown artifact subcommand: ${sub}`);
         break;
       }
