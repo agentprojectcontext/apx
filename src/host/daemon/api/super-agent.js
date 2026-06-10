@@ -13,6 +13,8 @@ import {
 import { loggerFor } from "../../../core/logging.js";
 import { appendGlobalMessage } from "../../../core/stores/messages.js";
 import { createWebConfirmAdapter } from "../../../core/confirmation/adapters/web.js";
+import { tryResolveSkillCommand } from "../skill-trigger.js";
+import { suggestSkillForPrompt } from "../skill-rag.js";
 
 const log = loggerFor("super-agent");
 
@@ -66,10 +68,23 @@ export function register(app, { projects, registries, plugins, project, config }
     // Optional coding-surface knobs: the terminal Code TUI (apx code, Build
     // mode) sends these so it runs to completion exactly like the web Code
     // module. Plain chat callers omit them and keep the lightweight defaults.
-    const { prompt, previousMessages, model, maxIters, maxTokens, completionContract } =
+    const { prompt: rawPrompt, previousMessages, model, maxIters, maxTokens, completionContract } =
       req.body || {};
-    if (!prompt) return res.status(400).json({ error: "prompt required" });
+    if (!rawPrompt) return res.status(400).json({ error: "prompt required" });
     const ctx = resolveSuperAgentContext(req, p);
+
+    // `/slug ...` shortcut: load the matching skill body into contextNote and
+    // strip the prefix from the user prompt. Falls through unchanged when the
+    // slug is unknown.
+    const slashed = tryResolveSkillCommand(rawPrompt, { projectPath: p.path });
+    const prompt = slashed.handled ? slashed.prompt : rawPrompt;
+    if (slashed.handled) {
+      ctx.contextNote = [ctx.contextNote, slashed.contextNote].filter(Boolean).join("\n\n");
+    } else {
+      // Semantic skill nudge — only when there was no explicit /slug.
+      const hint = await suggestSkillForPrompt(prompt, { projectPath: p.path });
+      if (hint) ctx.contextNote = [ctx.contextNote, hint].filter(Boolean).join("\n\n");
+    }
 
     res.setHeader("content-type", "application/x-ndjson; charset=utf-8");
     res.setHeader("cache-control", "no-cache, no-transform");

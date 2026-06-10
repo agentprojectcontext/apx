@@ -22,6 +22,7 @@ import { readAgents } from "../../core/apc/parser.js";
 import { buildAgentSystem } from "../../core/agent/build-agent-system.js";
 import { resolveAgentName, SUPERAGENT_ACTOR_ID } from "../../core/identity/index.js";
 import { resolveArtifactRef, ARTIFACTS_SKIP_SIGNAL } from "../../core/stores/artifacts.js";
+import { ensureRoutineMemory, readRoutineMemoryForPrompt, routineMemoryPath } from "../../core/stores/routine-memory.js";
 import {
   listRoutines,
   getRoutine,
@@ -135,6 +136,17 @@ async function handleSuperAgent(ctx, routine) {
       routineId: routine.id || "",
       routineSchedule: routine.schedule || "",
       routineLastRun: routine.last_run || "",
+      routineMemoryPath: (() => {
+        try {
+          ensureRoutineMemory(project.storagePath || project.path, routine.id, routine.name);
+          return routineMemoryPath(project.storagePath || project.path, routine.id);
+        } catch { return ""; }
+      })(),
+      routineMemory: (() => {
+        try {
+          return readRoutineMemoryForPrompt(project.storagePath || project.path, routine.id);
+        } catch { return ""; }
+      })(),
       projectPath: project.path,
     },
     suppressTools: suppressTools.length > 0 ? suppressTools : null,
