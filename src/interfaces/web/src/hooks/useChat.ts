@@ -49,13 +49,58 @@ export interface UseChatResult {
   streaming: boolean;
 }
 
-/** Concatenate the text parts of a message (for clipboard / history). */
+/** Concatenate the text parts of a message (for clipboard). */
 export function textOf(msg: ChatMsg): string {
   return msg.parts
     .filter((p): p is TextPart => p.kind === "text")
     .map((p) => p.text)
     .join("\n\n")
     .trim();
+}
+
+/** Compact line summarising an ask_questions tool call. Surfaced into the
+ *  history string we send to the super-agent so the model can see it ALREADY
+ *  asked and not re-ask the same questions on the next turn. Without this,
+ *  ask_questions calls are invisible in history and the model loops. */
+function summarizeAskQuestions(part: ToolPart): string | null {
+  const raw = (part.args as { questions?: unknown } | undefined)?.questions;
+  if (!Array.isArray(raw) || raw.length === 0) return null;
+  const lines = raw
+    .map((q) => {
+      if (typeof q === "string") return `- ${q}`;
+      if (!q || typeof q !== "object") return null;
+      const qq = q as { question?: unknown; options?: unknown };
+      if (typeof qq.question !== "string") return null;
+      const opts = Array.isArray(qq.options) ? qq.options : [];
+      const optStr = opts
+        .map((o) =>
+          typeof o === "string"
+            ? o
+            : o && typeof o === "object" && typeof (o as { label?: unknown }).label === "string"
+              ? ((o as { label: string }).label)
+              : "",
+        )
+        .filter((s) => s)
+        .join(", ");
+      return optStr ? `- ${qq.question} (opciones: ${optStr})` : `- ${qq.question}`;
+    })
+    .filter((s): s is string => !!s);
+  if (lines.length === 0) return null;
+  return `[ask_questions]\n${lines.join("\n")}`;
+}
+
+/** History view of a message — text parts plus ask_questions summaries.
+ *  Used when sending `previousMessages` to the super-agent. */
+export function historyTextOf(msg: ChatMsg): string {
+  const chunks: string[] = [];
+  for (const p of msg.parts) {
+    if (p.kind === "text" && p.text) chunks.push(p.text);
+    else if (p.kind === "tool" && p.tool === "ask_questions") {
+      const s = summarizeAskQuestions(p);
+      if (s) chunks.push(s);
+    }
+  }
+  return chunks.join("\n\n").trim();
 }
 
 const userPart = (text: string): ChatPart[] => [{ kind: "text", text }];
@@ -202,7 +247,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
       const nowIso = () => new Date().toISOString();
       const history: ConversationMessage[] = msgs.map((m) => ({
         role: m.role,
-        content: textOf(m),
+        content: historyTextOf(m),
       }));
 
       setMsgs((curr) => [
