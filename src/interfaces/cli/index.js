@@ -1803,7 +1803,6 @@ const HELP_TOPICS = new Map(Object.entries({
 const HELP_ALIASES = new Map(Object.entries({
   "project ls": "project list",
   "project rm": "project remove",
-  "sys": "code",
   "agent ls": "agent list",
   "agent show": "agent get",
   "agent vault ls": "agent vault list",
@@ -2406,7 +2405,6 @@ async function dispatch(cmd, rest) {
         break;
 
       case "code":
-      case "sys":
         await cmdCode(parseArgs(rest));
         break;
 

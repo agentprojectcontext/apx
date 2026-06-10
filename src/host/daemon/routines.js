@@ -132,6 +132,9 @@ async function handleSuperAgent(ctx, routine) {
     channel: "routine",
     channelMeta: {
       routineName: routine.name,
+      routineId: routine.id || "",
+      routineSchedule: routine.schedule || "",
+      routineLastRun: routine.last_run || "",
       projectPath: project.path,
     },
     suppressTools: suppressTools.length > 0 ? suppressTools : null,

@@ -141,7 +141,7 @@ export function stopMemory() {
   _ready = null;
 }
 
-// Build the [MEMORIA RELEVANTE] block for a turn (Pieza 4). Never throws —
+// Build the [RELEVANT MEMORY] block for a turn (Pieza 4). Never throws —
 // returns "" on any failure so the prompt builder can drop the block.
 export async function memoryBlockFor(message, { config, channel, budgetMs } = {}) {
   try {

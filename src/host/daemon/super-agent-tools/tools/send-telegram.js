@@ -1,4 +1,3 @@
-import { confirmedProperty } from "../helpers.js";
 
 function decodeBase64(b64) {
   const clean = String(b64).replace(/^data:[a-z/-]+;base64,/, "");
@@ -72,7 +71,6 @@ export default {
           document_url:    { type: "string", description: "public https URL of a file" },
           filename:        { type: "string", description: "filename to show in Telegram when sending a document (Buffer-style input)" },
           mime_type:       { type: "string", description: "optional MIME type for the document" },
-          confirmed: confirmedProperty("true only after explicit user confirmation for this exact outbound message"),
         },
         required: ["text"],
       },

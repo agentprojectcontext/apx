@@ -2,16 +2,10 @@ import { callEngine } from "../engines/index.js";
 import {
   extractPseudoToolCalls,
   cleanTextOfPseudoToolCalls,
-} from "./tool-call-parser.js";
+} from "./tools/tool-call-parser.js";
 import { resolveActiveModel, fallbackModels } from "./model-router.js";
 import { MAX_TOOL_ITERS, ACK_ONLY_TOOLS, MAX_CONSECUTIVE_ACKS, TURN_ENDING_TOOLS } from "./constants.js";
-import {
-  isShortConfirmation,
-  lastAssistantAskedForConfirmation,
-  isGhostResponse,
-  looksLikeActionRequest,
-} from "./ghost-guard.js";
-import { pseudoToolSystem, shouldRetryWithPseudoTools } from "./pseudo-tools.js";
+import { pseudoToolSystem, shouldRetryWithPseudoTools } from "./tools/pseudo-tools.js";
 import { filterToolSchemas } from "./tools-overlap.js";
 import { isRetryableEngineError, shortRetryReason } from "./retry.js";
 
@@ -160,11 +154,7 @@ export async function runAgent({
     effectiveSchemas = [...effectiveSchemas, FINISH_TOOL_SCHEMA];
   }
 
-  const rawHandlers = makeToolHandlers({
-    ...toolHandlerCtx,
-    implicitConfirmation:
-      isShortConfirmation(prompt) && lastAssistantAskedForConfirmation(previousMessages),
-  });
+  const rawHandlers = makeToolHandlers(toolHandlerCtx);
   const handlers = suppressed.size > 0
     ? new Proxy(rawHandlers, {
         get(target, name) {
@@ -258,16 +248,9 @@ export async function runAgent({
     // Merge any tools activated via discover_tools on the previous iteration.
     drainPendingTools();
     await emitProgress(onEvent, { type: "model_start", iteration: iter + 1, model: activeModel });
-    // Force a tool call on iter 0 ONLY when the user message looks like a real
-    // action request ("listame…", "mandá…", "buscá…"). For chit-chat ("hola",
-    // "qué tal") forcing a tool makes weaker models (llama-3.3 via Groq,
-    // qwen3-32b) emit a malformed tool_calls payload — Groq then rejects the
-    // whole turn with 400 "Failed to call a function". Better: let the model
-    // choose between text and tool when the prompt is conversational.
     const forceTool =
       effectiveSchemas.length > 0 &&
       (useContract ||
-        (iter === 0 && looksLikeActionRequest(prompt)) ||
         (ackOnlyStreak > 0 && ackOnlyStreak <= MAX_CONSECUTIVE_ACKS));
     let result;
     try {
@@ -320,17 +303,6 @@ export async function runAgent({
     }
 
     if (!toolCalls || toolCalls.length === 0) {
-      if (iter === 0 && isGhostResponse(lastText) && looksLikeActionRequest(prompt)) {
-        await emitProgress(onEvent, { type: "ghost_response_detected", text: lastText });
-        conversation.push({ role: "assistant", content: lastText });
-        conversation.push({
-          role: "user",
-          content:
-            "Remember: you must execute the action, not just confirm it. " +
-            "Call the tool now — action first, report after.",
-        });
-        continue;
-      }
       lastText = cleanTextOfPseudoToolCalls(lastText) || lastText;
       break;
     }

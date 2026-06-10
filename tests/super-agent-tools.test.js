@@ -232,9 +232,11 @@ test("read_file refuses path traversal", () => {
   }
 });
 
-test("write_file requires confirmation in automatico mode", async () => {
+test("write_file requires confirmation in automatico mode (via interface, not model)", async () => {
   const { root, projects } = setup();
   try {
+    // Without a requestConfirmation callback, the guard throws — the model
+    // can no longer self-confirm by passing `confirmed: true`.
     const handlers = makeToolHandlers({
       projects,
       plugins: null,
@@ -245,7 +247,20 @@ test("write_file requires confirmation in automatico mode", async () => {
       () => handlers.write_file({ path: "x.txt", content: "hello" }),
       /Action requires user confirmation/
     );
-    const r = await handlers.write_file({ path: "x.txt", content: "hello", confirmed: true });
+    // Even passing confirmed:true does NOT bypass — that arg is ignored now.
+    await assert.rejects(
+      () => handlers.write_file({ path: "x.txt", content: "hello", confirmed: true }),
+      /Action requires user confirmation/
+    );
+    // The only path through is a requestConfirmation callback (the UI dialog).
+    const handlersWithCallback = makeToolHandlers({
+      projects,
+      plugins: null,
+      registries: null,
+      globalConfig: { super_agent: { permission_mode: "automatico" } },
+      requestConfirmation: async () => true,
+    });
+    const r = await handlersWithCallback.write_file({ path: "x.txt", content: "hello" });
     assert.equal(r.ok, true);
   } finally {
     cleanupTempProject(root);

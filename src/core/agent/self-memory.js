@@ -1,20 +1,30 @@
-// Roby's own notebook — the super-agent's personal, persistent memory.
+// The super-agent's personal, persistent notebook.
 //
-// This is distinct from:
-//   - identity.json   → who Roby is (name, personality, owner)
+// Distinct from:
+//   - identity.json   → who the super-agent is (name, personality, owner)
 //   - project agents' ~/.apx/projects/<apx_id>/agents/<slug>/memory.md → per-agent, per-project
 //   - sessions        → raw transcripts of past work (search_sessions)
 //
-// It is a single free-form markdown file at ~/.apx/memory.md that Roby keeps
+// A single free-form markdown file at ~/.apx/memory.md kept by the super-agent
 // itself: durable facts about the owner, ongoing threads, decisions, and the
-// gist of what it has been working on (which it refreshes by skimming its own
-// recent sessions). A bounded slice is injected into every super-agent prompt;
-// the `remember` / `read_self_memory` tools write and read it.
+// gist of what it has been working on (refreshed by skimming its own recent
+// sessions). A bounded slice is injected into every super-agent prompt; the
+// `remember` / `read_self_memory` tools write and read it.
+//
+// The header inside the file picks up the current persona name from identity
+// (resolveAgentName) — never hardcode the agent name here.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { resolveAgentName } from "../identity.js";
 
 export const SELF_MEMORY_PATH = path.join(os.homedir(), ".apx", "memory.md");
+
+function notebookHeader() {
+  let name = "";
+  try { name = resolveAgentName(); } catch { /* identity missing */ }
+  return name ? `# ${name}'s notebook` : "# Self-memory";
+}
 
 // How much of the notebook to inline into the system prompt. The full file is
 // always readable via read_self_memory; this only bounds the always-on slice
@@ -67,7 +77,7 @@ export function appendSelfMemory(note, opts = {}) {
 
   let next;
   if (!existing.trim()) {
-    next = `# Roby's notebook\n\n${heading}\n${bullet}\n`;
+    next = `${notebookHeader()}\n\n${heading}\n${bullet}\n`;
   } else if (existing.includes(heading)) {
     // Append the bullet under today's existing heading.
     const lines = existing.split("\n");
@@ -100,7 +110,7 @@ export function ensureSelfMemoryFile() {
   try {
     if (fs.existsSync(SELF_MEMORY_PATH)) return false;
     fs.mkdirSync(path.dirname(SELF_MEMORY_PATH), { recursive: true });
-    fs.writeFileSync(SELF_MEMORY_PATH, "# Roby's notebook\n");
+    fs.writeFileSync(SELF_MEMORY_PATH, `${notebookHeader()}\n`);
     return true;
   } catch {
     return false;

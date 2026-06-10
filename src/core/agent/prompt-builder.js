@@ -9,10 +9,17 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readIdentity } from "../identity.js";
 import { readSelfMemoryForPrompt } from "./self-memory.js";
+import { buildSkillsHintBlock } from "./skills.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROMPTS_DIR = path.join(__dirname, "prompts");
 const BASE_PROMPT_PATH = path.join(PROMPTS_DIR, "super-agent-base.md");
+
+// Action discipline + chit-chat rules — same file used by project agents
+// (buildAgentSystem in agent-system.js), loaded once here for the super-agent.
+const ACTION_DISCIPLINE = fs
+  .readFileSync(path.join(PROMPTS_DIR, "action-discipline.md"), "utf8")
+  .trimEnd();
 
 const promptCache = new Map();
 
@@ -24,15 +31,15 @@ const LEGACY_PROMPT_PATH = path.join(PROMPTS_DIR, "super-agent-default.md");
 // turn is channel "deck" + voice mode, not its own channel.
 const CHANNEL_PROMPT_FILES = {
   telegram: "channels/telegram.md",
-  terminal: "channels/terminal.md",
   cli: "channels/cli.md",
   routine: "channels/routine.md",
   api: "channels/api.md",
   web: "channels/web.md",                 // web big chat (long-form, full tools)
   web_sidebar: "channels/web_sidebar.md", // web quick chat (short, lightweight)
+  web_code: "channels/web_code.md",       // web Code module (rich coding session)
   deck: "channels/deck.md",               // cockpit dashboard
   desktop: "channels/desktop.md",         // PC floating module (was "overlay")
-  code: "channels/code.md",               // web Code module (rich coding session)
+  code: "channels/code.md",               // `apx code` — terminal coding session
 };
 
 // Voice mode: spoken-reply rules layered on any surface when the turn will be
@@ -173,8 +180,8 @@ export function buildRelationshipBlock(sender) {
   return lines.join("\n");
 }
 
-// Roby's own notebook (~/.apx/memory.md), bounded for the prompt. Returns ""
-// when empty so the block is dropped entirely.
+// The super-agent's own notebook (~/.apx/memory.md), bounded for the prompt.
+// Returns "" when empty so the block is dropped entirely.
 export function buildSelfMemoryBlock() {
   const slice = readSelfMemoryForPrompt();
   if (!slice) return "";
@@ -191,59 +198,6 @@ export function isSuperAgentEnabled(cfg) {
   const sa = cfg && cfg.super_agent;
   if (!sa || !sa.model) return false;
   return sa.enabled !== false;
-}
-
-function buildPermissionBlock(sa) {
-  const permissionMode = sa.permission_mode || "automatico";
-  const allowedTools = Array.isArray(sa.allowed_tools) ? sa.allowed_tools : [];
-  return [
-    "# Permission mode",
-    `mode: ${permissionMode}`,
-    `allowed_tools: ${allowedTools.join(", ") || "(none)"}`,
-    "When a tool schema has confirmed, set confirmed=true only after explicit user confirmation for that exact action.",
-  ].join("\n");
-}
-
-// Skill descriptions are authored for Claude Code's skill matcher, so many end
-// with verbose "Trigger on: …" / "Activate when …" lists and multi-sentence
-// usage notes. Inside Roby's prompt those tails are pure noise (he matches
-// semantically, not by trigger string). Keep the first sentence only, drop the
-// trigger/activation tail, and cap length — this is the single biggest
-// signal-per-token win in the prompt (~1k tokens recovered per turn).
-function condenseSkillDescription(desc) {
-  if (!desc) return "(no description)";
-  const full = String(desc).replace(/\s+/g, " ").trim();
-  const MARKER =
-    /\s*(?:Trigger(?:s)? on|Triggers|TRIGGER|Activate (?:on|when|only)|Use this skill (?:whenever|when)|Use (?:it )?when|Triggers include|SKIP|Also (?:use|triggers))\b/i;
-  // Prefer the gist before any trigger/activation marker; but if a skill leads
-  // straight into "Activate ONLY when…" (no gist first), that head is empty —
-  // fall back to the first sentence of the full text so we keep real info.
-  let d = full.split(MARKER)[0].trim();
-  if (d.length < 15) d = full;
-  // First sentence only, then cap length.
-  const firstStop = d.search(/\.(\s|$)/);
-  if (firstStop > 0) d = d.slice(0, firstStop + 1);
-  d = d.trim();
-  if (d.length > 160) d = d.slice(0, 157).trimEnd() + "…";
-  return d || "(no description)";
-}
-
-function buildSkillsCatalog(listSkills) {
-  let list = [];
-  try {
-    list = listSkills();
-  } catch {
-    /* empty */
-  }
-  if (!list.length) return "";
-  return [
-    "# Available skills (load on demand)",
-    "Catalog (slug + one-line gist). Bodies are NOT loaded. When the user needs",
-    "knowledge or syntax matching one (match semantically, any language), call",
-    "load_skill({slug}).",
-    "",
-    ...list.map((s) => `- **${s.slug}**: ${condenseSkillDescription(s.description)}`),
-  ].join("\n");
 }
 
 export function buildSuperAgentSystem({
@@ -263,12 +217,12 @@ export function buildSuperAgentSystem({
   // at the end of the system prompt (where format directives belong),
   // not mixed in with situational context.
   systemSuffix = "",
-  // Pre-rendered output of the Memory Broker (Pieza 4): a [MEMORIA RELEVANTE]
+  // Pre-rendered output of the Memory Broker (Pieza 4): a [RELEVANT MEMORY]
   // block built from the RAG retriever + recent memory.md entries. When
   // provided it REPLACES the always-on self-memory slice (it already includes
   // the latest notebook entries). "" falls back to the plain notebook slice.
   memoryBlock = "",
-  // Pre-rendered "# Hilos activos en otros canales" block (recency-based
+  // Pre-rendered "# Active threads on other channels" block (recency-based
   // cross-channel awareness; see core/memory/active-threads.js). "" → omitted.
   activeThreadsBlock = "",
   // Compact "# Tools adicionales (activación on-demand)" block: instructions +
@@ -304,14 +258,14 @@ export function buildSuperAgentSystem({
     memoryBlock || buildSelfMemoryBlock(),
     activeThreadsBlock,
     relationshipBlock,
-    buildPermissionBlock(sa),
     extraContext,
     "# Registered projects (just the index — call tools for details)",
     projectIndex || "(no projects registered)",
     buildProjectAgentsBlock(channelMeta?.projectPath),
-    buildSkillsCatalog(listSkills),
+    buildSkillsHintBlock(listSkills),
     lazyToolsBlock,
     voiceModeBlock,
+    ACTION_DISCIPLINE,
     systemSuffix,
   ]
     .filter(Boolean)

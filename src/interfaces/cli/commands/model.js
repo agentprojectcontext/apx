@@ -2,10 +2,21 @@ import { readConfig, writeConfig } from "../../../core/config.js";
 import {
   probeAllProviders,
   resolveActiveModel,
-  fallbackOrder,
-  modelForProvider,
+  fallbackModels,
+  parseModelId,
   DEFAULT_FALLBACK_ORDER,
 } from "../../../core/agent/model-router.js";
+
+function providersFromFallback(cfg) {
+  const seen = [];
+  for (const m of fallbackModels(cfg)) {
+    try {
+      const p = parseModelId(m).provider;
+      if (!seen.includes(p)) seen.push(p);
+    } catch { /* skip malformed */ }
+  }
+  return seen.length ? seen : [...DEFAULT_FALLBACK_ORDER];
+}
 
 function parseValue(raw) {
   try {
@@ -56,7 +67,7 @@ export async function cmdModel(args = {}) {
     console.log("Model router");
     console.log(`  primary:   ${cfg.super_agent.model || "(not set)"}`);
     console.log(`  fallback:  ${cfg.super_agent.model_fallback.enabled !== false ? "on" : "off"}`);
-    console.log(`  order:     ${fallbackOrder(cfg).join(" → ")}`);
+    console.log(`  order:     ${providersFromFallback(cfg).join(" → ")}`);
     if (active) {
       console.log(`  active:    ${active.modelId}${active.fromFallback ? " (fallback)" : ""}`);
     }
@@ -133,4 +144,3 @@ export async function cmdModel(args = {}) {
   throw new Error(`unknown model subcommand: ${sub}. Try: status | order | key | set | test | enable | disable`);
 }
 
-export { modelForProvider, fallbackOrder };

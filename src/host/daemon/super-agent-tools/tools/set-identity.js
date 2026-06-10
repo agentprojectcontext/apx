@@ -1,5 +1,4 @@
 import { readIdentity, writeIdentity } from "../../../../core/identity.js";
-import { confirmedProperty } from "../helpers.js";
 
 export default {
   name: "set_identity",
@@ -15,7 +14,6 @@ export default {
           owner_name: { type: "string", description: "owner name" },
           owner_context: { type: "string", description: "context injected into every system prompt — what the owner builds / works on" },
           personality: { type: "string", description: "comma-separated personality traits" },
-          confirmed: confirmedProperty("true only after explicit user confirmation for this exact identity update"),
         },
       },
     },

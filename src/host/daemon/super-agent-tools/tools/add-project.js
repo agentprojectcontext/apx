@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { readConfig, addProject as addProjectInConfig } from "../../../../core/config.js";
 import { initApf } from "../../../../core/scaffold.js";
-import { confirmedProperty, projectMeta } from "../helpers.js";
+import { projectMeta } from "../helpers.js";
 
 function isApcProject(absPath) {
   return (
@@ -25,7 +25,6 @@ export default {
           path: { type: "string", description: "absolute or relative filesystem path to add" },
           name: { type: "string", description: "optional project name (used only when initializing a new APC project)" },
           init: { type: "boolean", description: "auto-create AGENTS.md and .apc/project.json if missing (default true)" },
-          confirmed: confirmedProperty("true only after explicit user confirmation for this exact project registration"),
         },
         required: ["path"],
       },

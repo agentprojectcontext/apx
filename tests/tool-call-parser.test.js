@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   extractPseudoToolCalls,
   cleanTextOfPseudoToolCalls,
-} from "../src/core/agent/tool-call-parser.js";
+} from "../src/core/agent/tools/tool-call-parser.js";
 
 test("extractPseudoToolCalls — single block with empty arguments", () => {
   const text = `<tool_call>

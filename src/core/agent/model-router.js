@@ -128,42 +128,6 @@ export function fallbackModels(globalConfig) {
     .filter((m) => typeof m === "string" && m.includes(":"));
 }
 
-/**
- * @deprecated use fallbackModels(). Kept for tests / external callers that
- * still ask "what provider to try after Ollama?". Derives the answer from the
- * resolved model chain.
- */
-export function fallbackOrder(globalConfig) {
-  const models = fallbackModels(globalConfig);
-  const providers = [];
-  for (const m of models) {
-    try {
-      const p = parseModelId(m).provider;
-      if (!providers.includes(p)) providers.push(p);
-    } catch { /* skip malformed entries */ }
-  }
-  return providers.length ? providers : [...DEFAULT_FALLBACK_ORDER];
-}
-
-/**
- * @deprecated use fallbackModels(). Looks up a single provider's model in
- * the resolved chain. Returns "" if the provider isn't in the fallback list.
- */
-export function modelForProvider(globalConfig, provider) {
-  const p = String(provider).toLowerCase();
-  const sa = globalConfig?.super_agent || {};
-  const models = fallbackModels(globalConfig);
-  const match = models.find((m) => {
-    try { return parseModelId(m).provider === p; } catch { return false; }
-  });
-  if (match) return match;
-  // Ollama gets a special fallback to the primary model (legacy behavior).
-  if (p === "ollama" && typeof sa.model === "string" && /^ollama:/i.test(sa.model)) {
-    return sa.model;
-  }
-  return DEFAULT_FALLBACK_MODELS[p] || "";
-}
-
 export function isFallbackEnabled(globalConfig) {
   const fb = globalConfig?.super_agent?.model_fallback || {};
   return fb.enabled !== false;
@@ -243,15 +207,29 @@ export async function resolveActiveModel(globalConfig, { overrideModel = null, t
 }
 
 export async function probeAllProviders(globalConfig, timeoutMs) {
-  const order = fallbackOrder(globalConfig);
+  const models = fallbackModels(globalConfig);
+  // Build a deduped list of {provider, model} in chain order. Fall back to
+  // DEFAULT_FALLBACK_ORDER + DEFAULT_FALLBACK_MODELS when nothing is configured.
+  const entries = [];
+  const seen = new Set();
+  for (const m of models) {
+    let provider;
+    try { provider = parseModelId(m).provider; } catch { continue; }
+    if (seen.has(provider)) continue;
+    seen.add(provider);
+    entries.push({ provider, model: m });
+  }
+  if (entries.length === 0) {
+    for (const provider of DEFAULT_FALLBACK_ORDER) {
+      const m = DEFAULT_FALLBACK_MODELS[provider];
+      entries.push({ provider, model: m || "(not set)" });
+    }
+  }
+
   const out = [];
-  for (const provider of order) {
+  for (const { provider, model } of entries) {
     const health = await checkProviderHealth(provider, globalConfig, timeoutMs);
-    out.push({
-      provider,
-      model: modelForProvider(globalConfig, provider) || "(not set)",
-      ...health,
-    });
+    out.push({ provider, model, ...health });
   }
   return out;
 }

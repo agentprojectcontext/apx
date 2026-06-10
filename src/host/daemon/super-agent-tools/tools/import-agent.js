@@ -3,7 +3,7 @@ import path from "node:path";
 import { readVaultAgents, VAULT_DIR } from "../../../../core/parser.js";
 import { addImportedAgent, ensureAgentDir } from "../../../../core/scaffold.js";
 import { ensureAgentRuntimeDir } from "../../../../core/agent-memory.js";
-import { confirmedProperty, projectMeta, resolveProject } from "../helpers.js";
+import { projectMeta, resolveProject } from "../helpers.js";
 
 export default {
   name: "import_agent",
@@ -17,7 +17,6 @@ export default {
         properties: {
           project: { type: "string", description: "project id/name/path; omit or use 'default' for ~/.apx/projects/default" },
           agent: { type: "string", description: "agent slug from list_vault_agents" },
-          confirmed: confirmedProperty("true only after explicit user confirmation for this exact import"),
         },
         required: ["agent"],
       },

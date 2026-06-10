@@ -1,5 +1,4 @@
 import { readConfig, writeConfig } from "../../../../core/config.js";
-import { confirmedProperty } from "../helpers.js";
 
 const MODES = new Set(["total", "automatico", "permiso"]);
 
@@ -14,7 +13,6 @@ export default {
         type: "object",
         properties: {
           mode: { type: "string", enum: ["total", "automatico", "permiso"] },
-          confirmed: confirmedProperty("true only after explicit user confirmation for this exact permission-mode change"),
         },
         required: ["mode"],
       },

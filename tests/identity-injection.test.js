@@ -93,7 +93,7 @@ test("set_identity schema: does NOT have language parameter (language lives in c
 test("set_identity schema: has standard identity fields", () => {
   const schema = TOOL_SCHEMAS.find((t) => t.function.name === "set_identity");
   const props = schema.function.parameters.properties;
-  for (const field of ["agent_name", "owner_name", "personality", "confirmed"]) {
+  for (const field of ["agent_name", "owner_name", "personality"]) {
     assert.ok(field in props, `missing expected field: ${field}`);
   }
 });

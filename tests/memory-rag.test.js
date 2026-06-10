@@ -1,5 +1,5 @@
 // Pieza 2 (RAG) + Pieza 4 (broker) — embeddings, vector store, incremental
-// indexer, and the [MEMORIA RELEVANTE] block. All offline: TF-fallback
+// indexer, and the [RELEVANT MEMORY] block. All offline: TF-fallback
 // embeddings (no Ollama) + JSON store backend (no sqlite-vec).
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -142,7 +142,7 @@ test("indexer: embedder downgrade (Ollama down) skips the pass and preserves the
   assert.equal(store.count(), 1, "nomic store untouched — not cleared, not polluted with TF rows");
 });
 
-test("broker: builds a [MEMORIA RELEVANTE] block from store hits", async () => {
+test("broker: builds a [RELEVANT MEMORY] block from store hits", async () => {
   const dir = tmpdir("broker");
   const store = new JsonStore(path.join(dir, "idx.jsonl"));
   const v = (t) => {
@@ -157,7 +157,7 @@ test("broker: builds a [MEMORIA RELEVANTE] block from store hits", async () => {
     embed: { forceTf: true },
     memoryPath: path.join(dir, "none.md"),
   });
-  assert.match(block, /\[MEMORIA RELEVANTE\]/);
+  assert.match(block, /\[RELEVANT MEMORY\]/);
   assert.match(block, /\[2026-05-28\]\[deck\]/);
   assert.match(block, /sanitizador/);
 });
@@ -188,7 +188,7 @@ test("broker: degrades gracefully — a throwing store still yields memory.md en
     budgetMs: 200,
   });
   // RAG failed, but the up-front memory.md read still populates the block.
-  assert.match(block, /\[MEMORIA RELEVANTE\]/);
+  assert.match(block, /\[RELEVANT MEMORY\]/);
   assert.match(block, /dato importante acordado/);
 });
 

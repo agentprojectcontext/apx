@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { confirmedProperty, resolveProject, safePathJoin } from "../helpers.js";
+import { resolveProject, safePathJoin } from "../helpers.js";
 
 export default {
   name: "write_file",
@@ -15,7 +15,6 @@ export default {
           project: { type: "string" },
           path: { type: "string", description: "relative path inside the project" },
           content: { type: "string" },
-          confirmed: confirmedProperty("true only after explicit user confirmation for this exact file write"),
         },
         required: ["path", "content"],
       },

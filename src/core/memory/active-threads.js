@@ -1,4 +1,4 @@
-// "Hilos activos en otros canales" — a tiny, recency-based awareness block.
+// "Active threads on other channels" — a tiny, recency-based awareness block.
 //
 // Unlike the Memory Broker (semantic RAG + remembered notes), this reads the
 // raw cross-channel message log and surfaces the most recent turn from every
@@ -20,9 +20,9 @@ function ago(ts) {
   const then = Date.parse(ts);
   if (!Number.isFinite(then)) return "";
   const mins = Math.max(0, Math.round((Date.now() - then) / 60000));
-  if (mins < 60) return `hace ${mins} min`;
+  if (mins < 60) return `${mins} min ago`;
   const hrs = Math.round(mins / 60);
-  return `hace ${hrs} h`;
+  return `${hrs} h ago`;
 }
 
 // Prefer the last USER turn (most recognizable for "lo de antes"); fall back to
@@ -69,7 +69,7 @@ function readChannelRecentTurn(baseDir, channel, sinceMs) {
   return turn;
 }
 
-// Build the "# Hilos activos en otros canales" block. Returns "" when there's
+// Build the "# Active threads on other channels" block. Returns "" when there's
 // nothing recent on another channel (or the feature is disabled).
 export function buildActiveThreadsBlock(currentChannel, { config, messagesDir } = {}) {
   try {
@@ -111,10 +111,10 @@ export function buildActiveThreadsBlock(currentChannel, { config, messagesDir } 
     });
 
     return [
-      "# Hilos activos en otros canales",
-      'Charlas recientes en otras superficies (NO es este chat). Si el usuario dice',
-      '"seguimos" / "lo de antes" / "lo de telegram", probablemente sea uno de estos —',
-      "retomalo naturalmente; usá search_messages para el detalle exacto.",
+      "# Active threads on other channels",
+      "Recent chatter on other surfaces (NOT this chat). If the user says",
+      '"let\'s continue" / "the thing from before" / "the telegram one" it\'s probably',
+      "one of these — pick it up naturally; use search_messages for exact detail.",
       "",
       ...lines,
     ].join("\n");
