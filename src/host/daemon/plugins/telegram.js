@@ -35,7 +35,7 @@ import { runSuperAgent, isSuperAgentEnabled } from "../super-agent.js";
 import { stripThinking } from "../thinking.js";
 import { getRecentTelegramTurnsFromFs, appendGlobalMessage } from "../../../core/stores/messages.js";
 import { compactChannelIfNeeded } from "../../../core/memory/index.js";
-import { readAgents } from "../../../core/parser.js";
+import { readAgents } from "../../../core/apc/parser.js";
 import { buildAgentSystem } from "../../../core/agent/build-agent-system.js";
 import { transcribe as transcribeAudioFile } from "../transcription.js";
 import { resolveAgentName, SUPERAGENT_ACTOR_ID } from "../../../core/identity/index.js";

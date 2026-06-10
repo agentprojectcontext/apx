@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseAgentsMd, parseSessionFrontmatter } from "../src/core/parser.js";
+import { parseAgentsMd, parseSessionFrontmatter } from "../src/core/apc/parser.js";
 
 test("parseAgentsMd — single agent with reserved fields", () => {
   const md = `# Agents

@@ -1,4 +1,4 @@
-import { readVaultAgents, VAULT_DIR } from "../../../../core/parser.js";
+import { readVaultAgents, VAULT_DIR } from "../../../../core/apc/parser.js";
 import { agentRow } from "../helpers.js";
 
 export default {

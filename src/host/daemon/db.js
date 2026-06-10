@@ -4,8 +4,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { appendMessageToFs } from "../../core/stores/messages.js";
 import { effectiveConfig } from "./project-config.js";
-import { readAgents } from "../../core/parser.js";
-import { getOrCreateApxId } from "../../core/scaffold.js";
+import { readAgents } from "../../core/apc/parser.js";
+import { getOrCreateApxId } from "../../core/apc/scaffold.js";
 import {
   ensureProjectStorage,
   DEFAULT_PROJECT_ID,

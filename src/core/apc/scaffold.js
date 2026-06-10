@@ -9,10 +9,11 @@ import {
   readVaultTombstones,
   writeVaultTombstones,
 } from "./parser.js";
-import { readApcContextSkill } from "./apc-skill-sync.js";
+import { readApcContextSkill } from "./skill-sync.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const PACKAGE_ROOT = path.resolve(__dirname, "..", "..");
+// Now under src/core/apc/ — one more "../" to escape than before.
+const PACKAGE_ROOT = path.resolve(__dirname, "..", "..", "..");
 const BUNDLED_SKILLS_DIR = path.join(PACKAGE_ROOT, "skills");
 const RUNTIME_SKILLS_DIR = path.join(__dirname, "runtime-skills");
 

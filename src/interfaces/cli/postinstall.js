@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Runs automatically after `npm install -g apx` and `npm update -g apx`.
 import os from "node:os";
-import { refreshApcContextSkill } from "../../core/apc-skill-sync.js";
-import { installGlobalSkills } from "../../core/scaffold.js";
+import { refreshApcContextSkill } from "../../core/apc/skill-sync.js";
+import { installGlobalSkills } from "../../core/apc/scaffold.js";
 
 try {
   const refresh = process.env.APX_SKIP_SKILL_REFRESH

@@ -4,7 +4,7 @@
 //   GET  /projects/:pid/sessions/:sid              by filename (cross-agent lookup)
 import fs from "node:fs";
 import path from "node:path";
-import { parseSessionFrontmatter, readAgents } from "../../../core/parser.js";
+import { parseSessionFrontmatter, readAgents } from "../../../core/apc/parser.js";
 import { collectAllSessions } from "../../../interfaces/cli/commands/sessions.js";
 import { nowIso } from "./shared.js";
 

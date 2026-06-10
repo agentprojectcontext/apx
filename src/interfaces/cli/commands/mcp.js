@@ -1,6 +1,6 @@
 import { http } from "../http.js";
 import { resolveProjectId } from "./project.js";
-import { findApfRoot } from "../../../core/parser.js";
+import { findApfRoot } from "../../../core/apc/parser.js";
 
 const VALID_SCOPES = new Set(["shared", "runtime", "global", "all"]);
 

@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { readVaultAgents, VAULT_DIR } from "../../../../core/parser.js";
-import { addImportedAgent, ensureAgentDir } from "../../../../core/scaffold.js";
+import { readVaultAgents, VAULT_DIR } from "../../../../core/apc/parser.js";
+import { addImportedAgent, ensureAgentDir } from "../../../../core/apc/scaffold.js";
 import { ensureAgentRuntimeDir } from "../../../../core/agent/memory.js";
 import { projectMeta, resolveProject } from "../helpers.js";
 

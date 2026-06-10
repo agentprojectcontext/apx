@@ -18,7 +18,7 @@ import { fileURLToPath } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { findApfRoot } from "../../core/parser.js";
+import { findApfRoot } from "../../core/apc/parser.js";
 import { ensureDaemon, http } from "../../cli/http.js";
 
 const __filename = fileURLToPath(import.meta.url);

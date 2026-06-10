@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { initApf, writeAgentFile, ensureAgentDir } from "../src/core/scaffold.js";
+import { initApf, writeAgentFile, ensureAgentDir } from "../src/core/apc/scaffold.js";
 
 function tmpDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "apx-agents-md-"));
