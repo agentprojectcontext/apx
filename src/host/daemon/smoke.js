@@ -9,7 +9,7 @@ import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { ProjectManager } from "./db.js";
 import { McpRegistry } from "../../core/mcp/runner.js";
-import { readAgents } from "../../core/parser.js";
+import { readAgents } from "../../core/apc/parser.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

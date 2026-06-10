@@ -4,7 +4,7 @@
 //                                  then delegates to compactConversation.
 import fs from "node:fs";
 import path from "node:path";
-import { readAgents } from "../../../core/parser.js";
+import { readAgents } from "../../../core/apc/parser.js";
 import { compactConversation } from "../compact.js";
 
 export function register(app, { projects, config }) {

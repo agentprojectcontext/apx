@@ -1,5 +1,5 @@
 import path from "node:path";
-import { initApf } from "../../../core/scaffold.js";
+import { initApf } from "../../../core/apc/scaffold.js";
 
 export function cmdInit(args) {
   const dir = args._[0] || ".";

@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import { findApfRoot } from "../../../core/parser.js";
+import { findApfRoot } from "../../../core/apc/parser.js";
 import { agentMemoryPath, readAgentMemory, writeAgentMemory, ensureAgentRuntimeDir } from "../../../core/agent/memory.js";
 import { http } from "../http.js";
 

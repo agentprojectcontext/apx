@@ -6,7 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { appendErrorTrace, previewText } from "../../../core/logging.js";
-import { readAgents } from "../../../core/parser.js";
+import { readAgents } from "../../../core/apc/parser.js";
 import { agentMemoryPath } from "../../../core/agent/memory.js";
 
 export const nowIso = () =>

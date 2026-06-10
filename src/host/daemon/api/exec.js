@@ -5,7 +5,7 @@
 //   POST /projects/:pid/agents/:slug/exec     one-shot, no history
 //   POST /projects/:pid/agents/:slug/chat     append to (or start) a conversation
 import { callEngine } from "../../../core/engines/index.js";
-import { readAgents } from "../../../core/parser.js";
+import { readAgents } from "../../../core/apc/parser.js";
 import { buildAgentSystem } from "../../../core/agent/build-agent-system.js";
 import {
   startConversation,

@@ -1,7 +1,7 @@
 // apx command — list and show workflow commands from .apc/commands/
 import fs from "node:fs";
 import path from "node:path";
-import { findApfRoot } from "../../../core/parser.js";
+import { findApfRoot } from "../../../core/apc/parser.js";
 import { http } from "../http.js";
 import { resolveProjectId } from "./project.js";
 

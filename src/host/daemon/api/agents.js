@@ -6,14 +6,14 @@
 //   PUT  /projects/:pid/agents/:slug/memory
 import fs from "node:fs";
 import path from "node:path";
-import { readAgents, readVaultAgents, readVaultAgent } from "../../../core/parser.js";
+import { readAgents, readVaultAgents, readVaultAgent } from "../../../core/apc/parser.js";
 import {
   writeAgentFile,
   writeVaultAgentFile,
   removeVaultAgent,
   restoreVaultAgent,
   ensureAgentDir,
-} from "../../../core/scaffold.js";
+} from "../../../core/apc/scaffold.js";
 import {
   ensureAgentRuntimeDir,
   readAgentMemory,
