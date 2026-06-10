@@ -326,10 +326,30 @@ function transcriptLines(transcript, width) {
       if (isQuestion && trace.args?.questions) {
         addLine(lines, "", C.bg);
         addLine(lines, margin + label + C.muted + " (…)" + C.bg, C.bg);
-        for (const q of trace.args.questions) {
-          const qWrapped = wrapText(`• ${q}`, inner - 2);
+        for (const rawQ of trace.args.questions) {
+          // Rich shape: {question, options[], multiSelect, allowText}. Legacy: string.
+          const q = typeof rawQ === "string" ? { question: rawQ } : (rawQ || {});
+          const qText = typeof q.question === "string" ? q.question : "";
+          if (!qText) continue;
+          const qWrapped = wrapText(`• ${qText}`, inner - 2);
           for (const line of qWrapped) {
             addLine(lines, margin + C.primary + "┃ " + C.text + padAnsi(line, inner - 2), C.bg);
+          }
+          const opts = Array.isArray(q.options) ? q.options : [];
+          if (opts.length > 0) {
+            const marker = q.multiSelect ? "[ ]" : "( )";
+            opts.forEach((opt, i) => {
+              const label = (opt && typeof opt === "object" && typeof opt.label === "string")
+                ? opt.label
+                : (typeof opt === "string" ? opt : "");
+              if (!label) return;
+              const desc = (opt && typeof opt === "object" && typeof opt.description === "string")
+                ? ` — ${opt.description}` : "";
+              const optLine = `   ${marker} ${i + 1}. ${label}${desc}`;
+              for (const line of wrapText(optLine, inner - 2)) {
+                addLine(lines, margin + C.primary + "┃ " + C.muted + padAnsi(line, inner - 2), C.bg);
+              }
+            });
           }
         }
       } else {

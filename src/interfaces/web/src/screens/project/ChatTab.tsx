@@ -8,6 +8,7 @@ import { UiSelect } from "../../components/UiSelect";
 import { Composer } from "../../components/chat/Composer";
 import { MessageList } from "../../components/chat/MessageList";
 import { ContextBar } from "../../components/chat/ContextBar";
+import { InlineAskPanel, pendingAskQuestions } from "../../components/chat/InlineAskPanel";
 import { useChat } from "../../hooks/useChat";
 import { useToast } from "../../components/Toast";
 import { t } from "../../i18n";
@@ -25,6 +26,7 @@ export function ChatTab({ pid }: { pid: string }) {
   const [activeSlug, setActiveSlug] = useState(params.get("agent") || "");
   const [creating, setCreating] = useState(false);
   const [model, setModel] = useState("");
+  const [dismissedAskKey, setDismissedAskKey] = useState<string | null>(null);
   const { msgs, send: sendChat, stop, clear, streaming } = useChat(pid, (m) => toast.error(m));
 
   const agentList = agents.data || [];
@@ -117,6 +119,19 @@ export function ChatTab({ pid }: { pid: string }) {
         )}
       </div>
       <ContextBar msgs={msgs} />
+      {(() => {
+        const pending = !streaming ? pendingAskQuestions(msgs) : null;
+        if (!pending || pending.turnKey === dismissedAskKey) return null;
+        return (
+          <InlineAskPanel
+            turnKey={pending.turnKey}
+            questions={pending.questions}
+            onSubmit={(compiled) => void send(compiled)}
+            onDismiss={() => setDismissedAskKey(pending.turnKey)}
+            disabled={streaming}
+          />
+        );
+      })()}
       <Composer
         onSend={send}
         onStop={stop}

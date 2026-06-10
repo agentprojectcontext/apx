@@ -8,6 +8,7 @@ import { CodeProjectPicker } from "../../components/code/CodeProjectPicker";
 import { CodeSessionList } from "../../components/code/CodeSessionList";
 import { CodeComposer } from "../../components/code/CodeComposer";
 import { CodeSidePanel } from "../../components/code/CodeSidePanel";
+import { InlineAskPanel, pendingAskQuestions } from "../../components/chat/InlineAskPanel";
 import { useToast } from "../../components/Toast";
 import { t } from "../../i18n";
 import { applyStreamEvent, textOf, type ChatMsg } from "../../hooks/useChat";
@@ -151,8 +152,8 @@ export function CodeScreen() {
       return copy;
     });
 
-  const send = async () => {
-    const prompt = draft.trim();
+  const send = async (overridePrompt?: string) => {
+    const prompt = (overridePrompt ?? draft).trim();
     if (!prompt || busy || !pid || !sid) return;
     const now = new Date().toISOString();
     setMsgs((curr) => [
@@ -209,6 +210,16 @@ export function CodeScreen() {
   const hasProjects = !projects.isLoading && projectList.length > 0;
   const turns: CodeTurn[] = useMemo(() => msgs as unknown as CodeTurn[], [msgs]);
 
+  // Detect unanswered ask_questions in the last assistant turn. Local "dismissed"
+  // ref keys off the turn id so the panel re-appears for a fresh batch.
+  const [dismissedKey, setDismissedKey] = useState<string | null>(null);
+  const pending = !busy ? pendingAskQuestions(msgs) : null;
+  const askVisible = pending && pending.turnKey !== dismissedKey;
+
+  const submitAnswers = (compiled: string) => {
+    void send(compiled);
+  };
+
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden p-4" data-testid="screen-code">
       <header className="mb-3 flex items-center justify-between gap-3">
@@ -263,6 +274,15 @@ export function CodeScreen() {
                 </div>
               )}
             </div>
+            {askVisible && pending && (
+              <InlineAskPanel
+                turnKey={pending.turnKey}
+                questions={pending.questions}
+                onSubmit={submitAnswers}
+                onDismiss={() => setDismissedKey(pending.turnKey)}
+                disabled={busy}
+              />
+            )}
             <div className="border-t border-border bg-card/60 p-3" data-testid="code-input">
               <CodeComposer
                 value={draft}
@@ -282,6 +302,7 @@ export function CodeScreen() {
           {/* Right: context + changes */}
           <aside className="hidden w-80 shrink-0 flex-col border-l border-border lg:flex">
             <CodeSidePanel
+              pid={pid}
               turns={turns}
               changes={changes.data}
               changesLoading={changes.isLoading}

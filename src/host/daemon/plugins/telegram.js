@@ -43,6 +43,7 @@ import { registerSender, resolveAllowedTools } from "../../../core/telegram-iden
 import { buildRelationshipBlock } from "../../../core/agent/index.js";
 import { getConfirmationStore as getConfirmStore } from "../../../core/confirmation/pending-store.js";
 import { createTelegramConfirmAdapter } from "../../../core/confirmation/adapters/telegram.js";
+import * as askFlow from "./telegram-ask.js";
 
 const API_BASE = "https://api.telegram.org";
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -577,6 +578,30 @@ class ChannelPoller {
       text = text ? `${audioBody}\n${text}` : audioBody;
     }
 
+    // If there's a pending ask_questions flow for this chat AND the current
+    // question is free-text, treat this message as the answer rather than a
+    // brand-new turn. Returns true when the message was consumed.
+    if (chat_id && text && await this._maybeConsumeAskTextAnswer({ chat_id, text })) {
+      // Still log the inbound so the chat history records what the user said.
+      appendGlobalMessage({
+        channel: "telegram",
+        direction: "in",
+        type: "user",
+        actor_id: msg.from?.id ? String(msg.from.id) : author,
+        external_id: String(u.update_id),
+        author,
+        body: text,
+        meta: {
+          chat_id,
+          user_id: msg.from?.id || null,
+          message_id: msg.message_id,
+          tg_channel: this.channel.name,
+          ask_answer: true,
+        },
+      });
+      return;
+    }
+
     // /reset or /new wipes the rolling context for this chat. We just
     // remember a marker timestamp; subsequent inbounds will only consider
     // history newer than this. Implemented by writing a synthetic message
@@ -848,6 +873,35 @@ class ChannelPoller {
         replyActorId = SUPERAGENT_ACTOR_ID;
         replyKind = "superagent";
         saUsage = sa.usage;
+
+        // ── ask_questions integration ────────────────────────────────────
+        // If the super-agent ended this turn by calling ask_questions, hand
+        // off to the inline-keyboard flow instead of sending the bare
+        // assistant text. The flow keeps state per chat_id and re-runs the
+        // super-agent once every answer is collected.
+        const askQuestions = askFlow.extractAskQuestionsFromTrace(sa.trace);
+        if (askQuestions && chat_id) {
+          if (chat_id) this.activeRequests.delete(chat_id);
+          stopTyping();
+          try {
+            await this._startAskFlow({
+              chat_id,
+              projectId: target?.id,
+              authorId: msg.from?.id,
+              questions: askQuestions,
+              author,
+              agentDisplay,
+              relationshipBlock,
+              allowedTools,
+              target,
+              sender,
+              update_id: u.update_id,
+            });
+          } catch (e) {
+            this.log(`telegram[${this.channel.name}] ask flow start failed: ${e.message}`);
+          }
+          return; // The reply for this turn IS the ask flow.
+        }
       } catch (e) {
         if (abortCtrl.signal.aborted) {
           // A newer message superseded this one. Whatever streamed so far is
@@ -928,6 +982,14 @@ class ChannelPoller {
   }
 
   async _handleCallbackQuery(callbackQuery) {
+    // Route ask_questions button presses before the confirmation adapter —
+    // both use `apx:<verb>:...` namespacing but ask owns its own state.
+    const data = callbackQuery.data || "";
+    if (data.startsWith("apx:ask:")) {
+      await this._handleAskCallback(callbackQuery);
+      return;
+    }
+
     const adapter = createTelegramConfirmAdapter({
       token: resolveBotToken(this.channel),
       chatId: callbackQuery.message?.chat?.id,
@@ -936,6 +998,230 @@ class ChannelPoller {
     const handled = await adapter.handleCallbackQuery(callbackQuery);
     if (!handled) {
       this.log(`telegram[${this.channel.name}] unhandled callback_query: ${callbackQuery.data}`);
+    }
+  }
+
+  // ── ask_questions: state-machine helpers ───────────────────────────────
+  // The flow lives in telegram-ask.js; this class owns the I/O (sending
+  // messages, editing keyboards, re-entering the super-agent loop with the
+  // compiled answer once the flow finishes).
+
+  async _renderQuestion(state) {
+    const text = askFlow.formatQuestionText(state);
+    const reply_markup = askFlow.buildKeyboard(state);
+    // If we already have a message for the previous question, leave its
+    // keyboard wiped — we draw a fresh message per question for clearer
+    // history in the chat (the question text stays as a record).
+    if (state.messageId) {
+      try {
+        await this._editKeyboard({
+          chat_id: state.chatId,
+          message_id: state.messageId,
+          reply_markup: { inline_keyboard: [] },
+        });
+      } catch { /* best-effort */ }
+    }
+    const sent = await this._send({
+      chat_id: state.chatId,
+      text,
+      reply_markup,
+      parse_mode: "Markdown",
+    });
+    state.messageId = sent?.message_id || null;
+    askFlow.saveState(state.chatId, state);
+  }
+
+  // Kick off a brand-new ask flow after the super-agent called ask_questions.
+  // The flow's `resume` callback captures the per-turn context (sender,
+  // relationship, project) so when the compiled answer arrives we can run
+  // another super-agent turn without retyping all the inputs.
+  async _startAskFlow(ctx) {
+    const state = askFlow.startFlow({
+      chatId: ctx.chat_id,
+      projectId: ctx.projectId,
+      authorId: ctx.authorId,
+      questions: ctx.questions,
+      resume: async (compiled) => {
+        await this._runResumedTurn({ ...ctx, compiled });
+      },
+    });
+    await this._renderQuestion(state);
+  }
+
+  // Apply an inline-keyboard press, then react: redraw, advance, or finish.
+  async _handleAskCallback(callbackQuery) {
+    const chatId = callbackQuery.message?.chat?.id;
+    if (!chatId) return;
+    const result = askFlow.applyCallback(chatId, callbackQuery.data || "");
+    // Ack the press regardless — keeps the spinner from hanging client-side.
+    await this._answerCallback({ callback_query_id: callbackQuery.id });
+    if (!result) return; // stale or unknown — adapter already ack'd.
+
+    if (result.action === "redraw") {
+      // Multi-select toggle: just refresh the keyboard on the SAME message.
+      try {
+        await this._editKeyboard({
+          chat_id: chatId,
+          message_id: callbackQuery.message?.message_id,
+          reply_markup: askFlow.buildKeyboard(result.state),
+        });
+      } catch (e) {
+        this.log(`telegram[${this.channel.name}] redraw failed: ${e.message}`);
+      }
+      return;
+    }
+    if (result.action === "advance") {
+      await this._renderQuestion(result.state);
+      return;
+    }
+    if (result.action === "cancel") {
+      try {
+        await this._editKeyboard({
+          chat_id: chatId,
+          message_id: callbackQuery.message?.message_id,
+          reply_markup: { inline_keyboard: [] },
+        });
+        await this._send({ chat_id: chatId, text: "Pregunta cancelada." });
+      } catch { /* best-effort */ }
+      return;
+    }
+    if (result.action === "done") {
+      try {
+        await this._editKeyboard({
+          chat_id: chatId,
+          message_id: callbackQuery.message?.message_id,
+          reply_markup: { inline_keyboard: [] },
+        });
+      } catch { /* best-effort */ }
+      // Feed the compiled answer back as a synthetic user turn.
+      if (typeof result.state.resume === "function") {
+        await result.state.resume(result.compiled);
+      }
+    }
+  }
+
+  // Apply a free-text user reply when there's a pending free-text question.
+  // Returns true iff the message was consumed by the ask flow (so the normal
+  // super-agent path should be skipped for this update).
+  async _maybeConsumeAskTextAnswer({ chat_id, text }) {
+    if (!chat_id || !text) return false;
+    if (!askFlow.hasPendingFreeText(chat_id)) return false;
+    const state = askFlow.applyTextAnswer(chat_id, text);
+    if (!state) return false;
+    // Advance: emit a synthetic "next" to move past this question.
+    const next = askFlow.applyCallback(
+      chat_id,
+      `apx:ask:${state.correlationId}:next`,
+    );
+    if (!next) return true;
+    if (next.action === "advance") {
+      await this._renderQuestion(next.state);
+      return true;
+    }
+    if (next.action === "done") {
+      if (typeof next.state.resume === "function") {
+        await next.state.resume(next.compiled);
+      }
+      return true;
+    }
+    return true;
+  }
+
+  // Run a follow-up super-agent turn with the compiled answers as the user
+  // prompt. Mirrors the post-runSuperAgent reply path in _handleUpdate but
+  // skipped of the photo/audio/reset preamble. Re-enters the ask flow if the
+  // model decides to ask again.
+  async _runResumedTurn(ctx) {
+    const { chat_id, compiled, target, relationshipBlock, allowedTools, author, agentDisplay, update_id, sender, authorId } = ctx;
+    if (!chat_id) return;
+    // Log the synthetic user message so getRecentTelegramTurnsFromFs picks
+    // it up on the NEXT inbound. Mirrors how a normal text reply would be
+    // recorded.
+    appendGlobalMessage({
+      channel: "telegram",
+      direction: "in",
+      type: "user",
+      actor_id: authorId ? String(authorId) : (author || "ask_flow"),
+      external_id: `ask-${Date.now()}`,
+      author: author || "user",
+      body: compiled,
+      meta: {
+        chat_id,
+        user_id: authorId || null,
+        tg_channel: this.channel.name,
+        ask_flow: true,
+      },
+    });
+
+    const previousMessages = getRecentTelegramTurnsFromFs({
+      chat_id,
+      keepRecent: 40,
+      max_age_hours: 24,
+    });
+
+    const stopTyping = this._startTyping(chat_id);
+    try {
+      const sa = await runSuperAgent({
+        globalConfig: this.globalConfig,
+        projects: this.projects,
+        plugins: this.plugins,
+        registries: this.registries,
+        prompt: compiled,
+        previousMessages,
+        channel: "telegram",
+        relationshipBlock,
+        allowedTools,
+        channelMeta: { channel: "telegram", chat_id, author, route_to_agent: this.channel.route_to_agent },
+      });
+      stopTyping();
+
+      // Did the model ask again? Restart the flow instead of replying.
+      const followupAsk = askFlow.extractAskQuestionsFromTrace(sa.trace);
+      if (followupAsk) {
+        await this._startAskFlow({
+          chat_id,
+          projectId: target?.id,
+          authorId,
+          questions: followupAsk,
+          author,
+          agentDisplay,
+          relationshipBlock,
+          allowedTools,
+          target,
+          sender,
+          update_id,
+        });
+        return;
+      }
+
+      const replyText = sa.text ? stripThinking(sa.text).trim() : "";
+      if (replyText) {
+        await this._send({ chat_id, text: replyText });
+        appendGlobalMessage({
+          channel: "telegram",
+          direction: "out",
+          type: "agent",
+          actor_id: SUPERAGENT_ACTOR_ID,
+          actor_kind: "superagent",
+          agent_slug: SUPERAGENT_ACTOR_ID,
+          author: sa.name || agentDisplay,
+          body: replyText,
+          meta: {
+            chat_id,
+            tg_channel: this.channel.name,
+            in_reply_to: update_id,
+            final: true,
+            ask_resume: true,
+            ...(sa.usage ? { usage: sa.usage } : {}),
+          },
+        });
+      }
+    } catch (e) {
+      stopTyping();
+      this.log(`telegram[${this.channel.name}] ask resume failed: ${e.message}`);
+      try {
+        await this._send({ chat_id, text: `⚠️ Error procesando tus respuestas (${e.message}).` });
+      } catch { /* best-effort */ }
     }
   }
 
@@ -971,20 +1257,62 @@ class ChannelPoller {
     return () => { stopped = true; };
   }
 
-  async _send({ chat_id, text }) {
+  async _send({ chat_id, text, reply_markup, parse_mode }) {
     const token = resolveBotToken(this.channel);
     if (!token) throw new Error(`channel ${this.channel.name}: no bot_token`);
     const target = chat_id || resolveChatId(this.channel);
     if (!target) throw new Error(`channel ${this.channel.name}: no chat_id`);
     const url = `${API_BASE}/bot${token}/sendMessage`;
+    const body = { chat_id: target, text };
+    if (reply_markup) body.reply_markup = reply_markup;
+    if (parse_mode) body.parse_mode = parse_mode;
     const res = await fetch(url, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ chat_id: target, text }),
+      body: JSON.stringify(body),
     });
     const json = await res.json();
     if (!json.ok) throw new Error(json.description || `send failed (${res.status})`);
     return json.result;
+  }
+
+  // Replace just the inline keyboard on a previously-sent message (used to
+  // refresh after a multi-select toggle, or to wipe buttons once the flow
+  // has moved on). Best-effort: failures are logged but don't break the flow.
+  async _editKeyboard({ chat_id, message_id, reply_markup }) {
+    const token = resolveBotToken(this.channel);
+    if (!token) return;
+    try {
+      const url = `${API_BASE}/bot${token}/editMessageReplyMarkup`;
+      const body = { chat_id, message_id };
+      if (reply_markup) body.reply_markup = reply_markup;
+      await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    } catch (e) {
+      this.log(`telegram[${this.channel.name}] editMessageReplyMarkup failed: ${e.message}`);
+    }
+  }
+
+  // Acknowledge a callback button press so the user's Telegram client clears
+  // the spinner on the tapped button. Optional `text` shows a small toast.
+  async _answerCallback({ callback_query_id, text }) {
+    const token = resolveBotToken(this.channel);
+    if (!token) return;
+    try {
+      const url = `${API_BASE}/bot${token}/answerCallbackQuery`;
+      const body = { callback_query_id };
+      if (text) body.text = text;
+      await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    } catch (e) {
+      this.log(`telegram[${this.channel.name}] answerCallbackQuery failed: ${e.message}`);
+    }
   }
 
   /** Send a photo via this channel */

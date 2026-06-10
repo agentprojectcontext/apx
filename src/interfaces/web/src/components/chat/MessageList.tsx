@@ -24,10 +24,11 @@ export function MessageList({ msgs, onCopy }: Props) {
     );
   }
 
+  const lastIdx = msgs.length - 1;
   return (
     <div className="space-y-4 px-3 py-4">
       {msgs.map((m, i) => (
-        <MessageBubble key={i} msg={m} onCopy={onCopy} />
+        <MessageBubble key={i} msg={m} isLast={i === lastIdx} onCopy={onCopy} />
       ))}
       <div ref={bottomRef} />
     </div>

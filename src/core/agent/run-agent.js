@@ -4,7 +4,7 @@ import {
   cleanTextOfPseudoToolCalls,
 } from "./tool-call-parser.js";
 import { resolveActiveModel, fallbackModels } from "./model-router.js";
-import { MAX_TOOL_ITERS, ACK_ONLY_TOOLS, MAX_CONSECUTIVE_ACKS } from "./constants.js";
+import { MAX_TOOL_ITERS, ACK_ONLY_TOOLS, MAX_CONSECUTIVE_ACKS, TURN_ENDING_TOOLS } from "./constants.js";
 import {
   isShortConfirmation,
   lastAssistantAskedForConfirmation,
@@ -347,6 +347,7 @@ export async function runAgent({
     });
 
     let finishSummary = null;
+    let turnEndingQuestions = null;
     for (const tc of toolCalls) {
       const fn = tc.function || tc;
       const name = fn.name;
@@ -409,6 +410,20 @@ export async function runAgent({
         tool_name: name,
         content: JSON.stringify(toolResult),
       });
+
+      // Capture turn-ending intents (e.g. ask_questions). The loop cannot
+      // legitimately advance without a user reply; under completionContract
+      // forcing another tool call just produces ask_questions spam.
+      if (TURN_ENDING_TOOLS.has(name) && !turnEndingQuestions) {
+        // Questions may be plain strings (legacy) or {question, options, ...}.
+        // For the assistant_text fallback we only need the prompt strings.
+        const qs = Array.isArray(args.questions)
+          ? args.questions
+              .map((q) => (typeof q === "string" ? q : q && typeof q.question === "string" ? q.question : null))
+              .filter(Boolean)
+          : [];
+        turnEndingQuestions = qs;
+      }
     }
 
     // Task declared complete via the contract — emit the summary as the final
@@ -418,6 +433,19 @@ export async function runAgent({
         lastText = finishSummary;
         await emitProgress(onEvent, { type: "assistant_text", text: finishSummary, iteration: iter + 1 });
       }
+      break;
+    }
+
+    // ask_questions (or future turn-ending tools): the task is genuinely
+    // blocked on user input. Exit the loop — completionContract or not,
+    // asking again gets us nowhere. We deliberately do NOT emit a synthetic
+    // assistant_text and we leave lastText empty so persistence and one-shot
+    // API callers don't end up with a duplicate bullet list next to the
+    // rendering surfaces' own UI (web AskQuestionsCard, terminal renderer,
+    // telegram inline keyboard). The structured questions live on the tool
+    // trace — that's the canonical source.
+    if (turnEndingQuestions) {
+      if (!lastText) lastText = "";
       break;
     }
 

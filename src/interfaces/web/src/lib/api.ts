@@ -21,6 +21,7 @@ export * from "./api/filesystem";
 export * from "./api/voice";
 export * from "./api/deck";
 export * from "./api/code";
+export * from "./api/artifacts";
 
 // Re-export the daemon types so older imports of "../lib/api" still work.
 export type {

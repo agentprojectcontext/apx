@@ -68,6 +68,18 @@ function modeGuidanceFor(mode) {
     "confirmation and do not stop after one step — keep calling tools until the",
     "entire task is done, then briefly summarize what you changed and why.",
     "Prefer surgical edits over rewrites.",
+    "When the user asks for a reusable script, snippet, or 'artifact' (something",
+    "they want to keep and run later), put it under `artifacts/<name>` inside",
+    "the project — it then shows up in the Artifacts tab. Don't drop reusable",
+    "scripts at the project root.",
+    "If a parameter you need is missing (API key, app id, target URL, …), call",
+    "`ask_questions` ONCE with all your questions and stop — control returns",
+    "to the user. Do not call ask_questions again in the same turn; you'll just",
+    "get the same blank state back. Each question can be a string (free-text",
+    "answer) OR an object {question, options:[{label, description}], multiSelect}",
+    "for choices. Prefer 2–4 mutually-exclusive options when a question has a",
+    "natural shortlist (yes/no, which-of-these, …); leave options empty for",
+    "open-ended answers (API keys, names, free-form ideas).",
   ].join(" ");
 }
 
