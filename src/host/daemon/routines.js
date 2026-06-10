@@ -19,8 +19,8 @@ import { callEngine } from "../../core/engines/index.js";
 import { runSuperAgent } from "./super-agent.js";
 import { computeSuppressedTools } from "../../core/agent/index.js";
 import { readAgents } from "../../core/parser.js";
-import { buildAgentSystem } from "../../core/agent-system.js";
-import { resolveAgentName, SUPERAGENT_ACTOR_ID } from "../../core/identity.js";
+import { buildAgentSystem } from "../../core/agent/build-agent-system.js";
+import { resolveAgentName, SUPERAGENT_ACTOR_ID } from "../../core/identity/index.js";
 import { resolveArtifactRef, ARTIFACTS_SKIP_SIGNAL } from "../../core/artifacts-store.js";
 import {
   listRoutines,

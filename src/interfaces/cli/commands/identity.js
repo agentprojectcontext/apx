@@ -1,5 +1,5 @@
 import readline from "node:readline";
-import { readIdentity, writeIdentity } from "../../../core/identity.js";
+import { readIdentity, writeIdentity } from "../../../core/identity/index.js";
 
 function ask(rl, question, defaultVal) {
   return new Promise((resolve) => {

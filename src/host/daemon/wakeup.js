@@ -1,6 +1,6 @@
 // Wake-up message — sent via Telegram once per daemon restart (with cooldown).
 import fetch from "node-fetch";
-import { readIdentity, writeIdentity } from "../../core/identity.js";
+import { readIdentity, writeIdentity } from "../../core/identity/index.js";
 import { resolveProvider, getAdapter } from "../../core/engines/index.js";
 
 const WAKEUP_COOLDOWN_MS = 30 * 60 * 1000; // 30 min

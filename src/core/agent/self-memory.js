@@ -16,7 +16,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { resolveAgentName } from "../identity.js";
+import { resolveAgentName } from "../identity/index.js";
 
 export const SELF_MEMORY_PATH = path.join(os.homedir(), ".apx", "memory.md");
 

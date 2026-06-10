@@ -9,7 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { readAgents } from "../../../core/parser.js";
 import { readSessionFrontmatter } from "../../../core/session-store.js";
-import { buildAgentSystem } from "../../../core/agent-system.js";
+import { buildAgentSystem } from "../../../core/agent/build-agent-system.js";
 import { getRuntime, RUNTIME_IDS } from "../runtimes/index.js";
 import { detectAll } from "../env-detect.js";
 import {

@@ -6,7 +6,7 @@
 // whole credentials block, and a UI that forgot one field would wipe secrets.
 // Dotted keys make every edit narrowly-scoped.
 import { readConfig, writeConfig } from "../../../core/config.js";
-import { resolveAgentName } from "../../../core/identity.js";
+import { resolveAgentName } from "../../../core/identity/index.js";
 import { setDottedKey, unsetDottedKey } from "../project-config.js";
 
 const SECRET_PATHS = [

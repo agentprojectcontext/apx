@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import { findApfRoot } from "../../../core/parser.js";
-import { agentMemoryPath, readAgentMemory, writeAgentMemory, ensureAgentRuntimeDir } from "../../../core/agent-memory.js";
+import { agentMemoryPath, readAgentMemory, writeAgentMemory, ensureAgentRuntimeDir } from "../../../core/agent/memory.js";
 import { http } from "../http.js";
 
 function requireRoot() {

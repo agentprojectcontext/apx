@@ -1,14 +1,14 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { readAgentMemory } from "./agent-memory.js";
+import { readAgentMemory } from "./memory.js";
 
 // Anti-ghost-response rules injected into every agent system prompt. The text
 // lives next to the agent prompts (src/core/agent/prompts/action-discipline.md)
 // so it can be edited without touching code. Cached at module load.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ACTION_DISCIPLINE_RULES = fs
-  .readFileSync(path.join(__dirname, "agent", "prompts", "action-discipline.md"), "utf8")
+  .readFileSync(path.join(__dirname, "prompts", "action-discipline.md"), "utf8")
   .trimEnd();
 
 function listField(value) {
