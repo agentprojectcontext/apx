@@ -2,8 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   parseModelId,
-  modelForProvider,
-  fallbackOrder,
+  fallbackModels,
   resolveActiveModel,
   checkProviderHealth,
 } from "../src/core/agent/model-router.js";
@@ -19,16 +18,13 @@ test("parseModelId: groq and openrouter explicit forms", () => {
   });
 });
 
-test("modelForProvider: ollama uses super_agent.model", () => {
-  const cfg = { super_agent: { model: "ollama:gemma4:31b-cloud" } };
-  assert.equal(modelForProvider(cfg, "ollama"), "ollama:gemma4:31b-cloud");
-});
-
-test("fallbackOrder: defaults when unset are derived from the default models array", () => {
+test("fallbackModels: defaults when unset come from DEFAULT_FALLBACK_MODELS", () => {
   // The new single-list shape means defaults only include providers we have a
-  // canonical model id for (DEFAULT_FALLBACK_MODELS). Ollama needs the user's
-  // own pulled model and is not a default.
-  assert.deepEqual(fallbackOrder({}), ["openrouter", "groq"]);
+  // canonical model id for. Ollama needs the user's own pulled model and is
+  // not a default.
+  const models = fallbackModels({});
+  const providers = models.map((m) => parseModelId(m).provider);
+  assert.deepEqual(providers, ["openrouter", "groq"]);
 });
 
 test("resolveActiveModel: skips ollama when down, picks openrouter with key", async () => {

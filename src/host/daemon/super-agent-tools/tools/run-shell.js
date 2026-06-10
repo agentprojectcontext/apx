@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { confirmedProperty, resolveProject, safePathJoin } from "../helpers.js";
+import { resolveProject, safePathJoin } from "../helpers.js";
 
 function run(command, { cwd, timeoutMs }) {
   return new Promise((resolve) => {
@@ -57,7 +57,6 @@ export default {
           cwd: { type: "string", description: "relative working directory inside the selected project; default '.'" },
           command: { type: "string" },
           timeout_s: { type: "integer", description: "seconds before SIGTERM; default 60" },
-          confirmed: confirmedProperty("true only after explicit user confirmation for this exact shell command"),
         },
         required: ["command"],
       },

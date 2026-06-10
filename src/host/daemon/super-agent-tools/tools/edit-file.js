@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import { confirmedProperty, resolveProject, safePathJoin } from "../helpers.js";
+import { resolveProject, safePathJoin } from "../helpers.js";
 
 export default {
   name: "edit_file",
@@ -16,7 +16,6 @@ export default {
           search: { type: "string", description: "exact text to replace" },
           replace: { type: "string", description: "replacement text" },
           all: { type: "boolean", description: "replace all matches; default false replaces one match" },
-          confirmed: confirmedProperty("true only after explicit user confirmation for this exact file edit"),
         },
         required: ["path", "search", "replace"],
       },

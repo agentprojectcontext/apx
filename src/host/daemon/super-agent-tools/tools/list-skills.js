@@ -1,4 +1,5 @@
 import { listSkills, SKILL_LOCATIONS } from "../../skills-loader.js";
+import { condenseSkillDescription } from "../../../../core/agent/skills.js";
 
 export default {
   name: "list_skills",
@@ -26,7 +27,11 @@ export default {
       count: skills.length,
       locations: SKILL_LOCATIONS,
       project_path: project_path || null,
-      skills: skills.map(({ slug, source, description }) => ({ slug, source, description })),
+      skills: skills.map(({ slug, source, description }) => ({
+        slug,
+        source,
+        description: condenseSkillDescription(description),
+      })),
     };
   },
 };

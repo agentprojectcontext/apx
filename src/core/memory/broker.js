@@ -1,10 +1,10 @@
 // Memory Broker (Pieza 4) — runs before each super-agent turn and assembles the
-// [MEMORIA RELEVANTE] block injected into the system prompt.
+// [RELEVANT MEMORY] block injected into the system prompt.
 //
 //   incoming message
 //     → embed it + RAG retriever (Pieza 2) → top-K relevant chunks
 //     → read the last N entries of memory.md
-//     → merge, dedupe, format as a [MEMORIA RELEVANTE] block
+//     → merge, dedupe, format as a [RELEVANT MEMORY] block
 //
 // Silent and bounded: the whole thing races an 800 ms budget. If RAG is slow
 // (Ollama lagging), the block still returns with whatever memory.md gave us —
@@ -79,7 +79,7 @@ function bulletFor({ date, channel, text }) {
   return `• ${d}${c} ${trunc(text)}`.replace(/\s+/g, " ").trim();
 }
 
-// Build the [MEMORIA RELEVANTE] block. Returns "" when there's nothing useful.
+// Build the [RELEVANT MEMORY] block. Returns "" when there's nothing useful.
 //
 // opts: { store, config, memoryPath, budgetMs, topK, channel, embed }
 export async function buildMemoryBlock(message, opts = {}) {
@@ -132,13 +132,13 @@ export async function buildMemoryBlock(message, opts = {}) {
   if (bullets.length === 0) return "";
 
   return [
-    "# Memoria relevante (cross-channel)",
-    "Contexto recuperado de tu memoria y del historial de todos los canales. Tratá",
-    "como hechos conocidos; si arrancás una sesión nueva y algo de acá sigue abierto,",
-    "mencionalo naturalmente (\"ayer estuvimos con X, ¿seguimos?\") sin que te pregunten.",
+    "# Relevant memory (cross-channel)",
+    "Context recovered from your notebook and from the message log across channels.",
+    "Treat these as known facts. If a fresh session opens and something here is still",
+    "open, bring it up naturally in the user's language (e.g. \"yesterday we were on X — shall we continue?\") without being asked.",
     "",
-    "[MEMORIA RELEVANTE]",
+    "[RELEVANT MEMORY]",
     ...bullets,
-    "[/MEMORIA RELEVANTE]",
+    "[/RELEVANT MEMORY]",
   ].join("\n");
 }

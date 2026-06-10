@@ -334,7 +334,6 @@ export function makeToolHandlers(ctx) {
   const toolCtx = {
     ...ctx,
     requirePermission: createPermissionGuard(ctx.globalConfig || {}, {
-      implicitConfirmation: !!ctx.implicitConfirmation,
       requestConfirmation: ctx.requestConfirmation || null,
     }),
   };

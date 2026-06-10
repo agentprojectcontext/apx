@@ -15,7 +15,7 @@ import {
 } from "../../engine-sessions.js";
 import { runProcess } from "../../runtimes/_spawn.js";
 import { getRuntime, RUNTIME_IDS } from "../../runtimes/index.js";
-import { buildAgentSystem, confirmedProperty, resolveProject } from "../helpers.js";
+import { buildAgentSystem, resolveProject } from "../helpers.js";
 
 const log = loggerFor("call_runtime");
 
@@ -167,7 +167,6 @@ export default {
             description: "Optional prior session id (claude/codex/apx) — APX prepends that session's title + last prompt to the prompt so the runtime has context.",
           },
           timeout_s: { type: "integer", description: "seconds before SIGTERM; default 300" },
-          confirmed: confirmedProperty("true only after explicit user confirmation for this exact runtime command"),
         },
         required: ["runtime", "prompt"],
       },

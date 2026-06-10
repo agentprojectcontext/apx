@@ -1,4 +1,4 @@
-import { confirmedProperty, resolveProject } from "../helpers.js";
+import { resolveProject } from "../helpers.js";
 
 export default {
   name: "call_mcp",
@@ -14,7 +14,6 @@ export default {
           mcp: { type: "string", description: "MCP server name" },
           tool: { type: "string", description: "tool name on that MCP" },
           args: { type: "object", description: "arguments object" },
-          confirmed: confirmedProperty("true only after explicit user confirmation for this exact MCP call"),
         },
         required: ["mcp", "tool"],
       },

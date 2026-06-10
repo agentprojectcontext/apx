@@ -40,12 +40,18 @@ export async function cmdSys(args) {
   // Launch new Solid.js TUI via bun (runs TS source directly — no esbuild bundle needed)
   if (existsSync(TUI_SRC)) {
     const bunBin = process.env.BUN_PATH || "bun";
+    // bun must resolve node_modules/tsconfig from the apx package root, so the
+    // spawn cwd stays there — but we pass the user's actual working directory
+    // (where they ran `apx code`) via --cwd so the TUI shows the real project
+    // path + git branch instead of apx/src.
+    const userCwd = process.cwd();
     spawnSync(bunBin, [
       "--preload", "@opentui/solid/preload",
       TUI_SRC,
       "--pid", pid,
       "--agent", routedAgentSlug || defaultAgentLabel,
       "--model", cfg.super_agent?.model || "claude-3-5-sonnet",
+      "--cwd", userCwd,
     ], { stdio: "inherit", cwd: resolve(__dirname, "../../..") });
     return;
   }
@@ -704,7 +710,7 @@ async function runPrompt(
     const currentMode = MODES[state.currentModeIdx];
     const body = {
       prompt: `[Mode: ${currentMode}]\n${text}`,
-      channel: "terminal",
+      channel: "code",
       channelMeta: { cwd },
       previousMessages,
       model: state.activeModel,

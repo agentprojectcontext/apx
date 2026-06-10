@@ -26,7 +26,7 @@ test("active-threads: surfaces recent turns from OTHER channels, excludes curren
   writeTurn(base, "web", { direction: "in", type: "user", body: "este es el canal actual", ts: recent });
 
   const block = buildActiveThreadsBlock("web", { config: cfg, messagesDir: base });
-  assert.match(block, /Hilos activos en otros canales/);
+  assert.match(block, /Active threads on other channels/);
   assert.match(block, /telegram/);
   assert.match(block, /deploy del crm/);
   // The current channel (web) must NOT appear as a thread.

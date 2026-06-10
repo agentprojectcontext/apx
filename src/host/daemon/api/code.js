@@ -316,7 +316,7 @@ export function register(app, { projects, project, config, registries, plugins }
         plugins,
         registries,
         prompt,
-        channel: "code",
+        channel: "web_code",
         channelMeta: {
           projectId: String(p.id),
           projectName: p.name,
@@ -380,7 +380,7 @@ export function register(app, { projects, project, config, registries, plugins }
       });
       appendSuperAgentErrorTrace(req, e, {
         prompt,
-        channel: "code",
+        channel: "web_code",
         previousMessages,
         model: session.model,
         stream: true,
