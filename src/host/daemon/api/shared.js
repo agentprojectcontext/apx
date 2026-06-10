@@ -7,7 +7,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { appendErrorTrace, previewText } from "../../../core/logging.js";
 import { readAgents } from "../../../core/parser.js";
-import { agentMemoryPath } from "../../../core/agent-memory.js";
+import { agentMemoryPath } from "../../../core/agent/memory.js";
 
 export const nowIso = () =>
   new Date().toISOString().replace(/\.\d{3}Z$/, "Z");

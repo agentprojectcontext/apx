@@ -20,7 +20,7 @@ import {
   writeAgentMemory,
   agentMemoryPath,
   legacyAgentMemoryPath,
-} from "../../../core/agent-memory.js";
+} from "../../../core/agent/memory.js";
 import { agentToResponse } from "./shared.js";
 
 // Lowercase the patch keys we accept on the vault and turn skills/tools into

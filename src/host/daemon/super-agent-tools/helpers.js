@@ -1,5 +1,5 @@
 import path from "node:path";
-import { agentSkills, buildAgentSystem as buildCoreAgentSystem } from "../../../core/agent-system.js";
+import { agentSkills, buildAgentSystem as buildCoreAgentSystem } from "../../../core/agent/build-agent-system.js";
 import { buildConfirmDescription } from "../../../core/confirmation/index.js";
 
 export function projectMeta(projects, entry) {

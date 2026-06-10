@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { findApfRoot, readAgents, readVaultAgents, readVaultAgent, VAULT_DIR, SLUG_RE } from "../../../core/parser.js";
 import { writeAgentFile, writeVaultAgentFile, removeVaultAgent, restoreVaultAgent, addImportedAgent, ensureAgentDir } from "../../../core/scaffold.js";
-import { ensureAgentRuntimeDir, agentMemoryPath } from "../../../core/agent-memory.js";
+import { ensureAgentRuntimeDir, agentMemoryPath } from "../../../core/agent/memory.js";
 import { http } from "../http.js";
 
 // ── ANSI ──────────────────────────────────────────────────────────────────────

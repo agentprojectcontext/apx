@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import { resolveProject } from "../helpers.js";
-import { agentMemoryPath, readAgentMemory } from "../../../../core/agent-memory.js";
+import { agentMemoryPath, readAgentMemory } from "../../../../core/agent/memory.js";
 
 export default {
   name: "read_agent_memory",

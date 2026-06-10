@@ -8,7 +8,7 @@ import {
   buildIdentityBlock,
   loadDefaultSystemPrompt,
 } from "../../core/agent/index.js";
-import { resolveAgentName } from "../../core/identity.js";
+import { resolveAgentName } from "../../core/identity/index.js";
 import { memoryBlockFor } from "../../core/memory/index.js";
 
 export {

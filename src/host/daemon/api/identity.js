@@ -1,6 +1,6 @@
 // GET   /identity            full identity.json
 // PATCH /identity            { agent_name?, owner_name?, personality?, owner_context?, language?, timezone? }
-import { readIdentity, writeIdentity } from "../../../core/identity.js";
+import { readIdentity, writeIdentity } from "../../../core/identity/index.js";
 
 const ALLOWED_KEYS = new Set([
   "agent_name",

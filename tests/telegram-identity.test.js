@@ -27,7 +27,7 @@ const {
   listRoles,
 } = await import("../src/core/config.js");
 const { resolveSender, registerSender, resolveAllowedTools } = await import(
-  "../src/core/telegram-identity.js"
+  "../src/core/identity/telegram.js"
 );
 const { buildRelationshipBlock } = await import("../src/core/agent/index.js");
 
