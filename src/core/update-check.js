@@ -6,7 +6,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import https from "node:https";
-import { APX_HOME } from "./config.js";
+import { APX_HOME } from "./config/index.js";
 
 const PACKAGE_NAME = "@agentprojectcontext/apx";
 const CACHE_PATH = path.join(APX_HOME, "update-check.json");

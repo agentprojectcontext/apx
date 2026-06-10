@@ -19,7 +19,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { GLOBAL_MESSAGES_DIR, APX_HOME } from "../config.js";
+import { GLOBAL_MESSAGES_DIR, APX_HOME } from "../config/index.js";
 import { SELF_MEMORY_PATH, parseSelfMemoryEntries } from "../agent/self-memory.js";
 import { embedBatch, embedOne } from "./embeddings.js";
 

@@ -9,7 +9,7 @@
 // Audio files land under ~/.apx/tmp/tts/<uuid>.<ext>. The caller (CLI,
 // Telegram plugin, overlay) is responsible for picking them up.
 import { synthesize, listProviders } from "../../../core/voice/tts.js";
-import { readConfig } from "../../../core/config.js";
+import { readConfig } from "../../../core/config/index.js";
 
 export function register(app) {
   app.post("/tts/say", async (req, res) => {

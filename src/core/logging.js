@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { APX_HOME } from "./config.js";
+import { APX_HOME } from "./config/index.js";
 
 export const LOG_DIR = path.join(APX_HOME, "logs");
 export const ERROR_TRACE_PATH = path.join(LOG_DIR, "errors.jsonl");

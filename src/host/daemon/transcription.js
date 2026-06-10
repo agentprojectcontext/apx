@@ -76,7 +76,7 @@ export function resolveTranscriptionLanguage(localCfg, userLang) {
 
 async function getConfig() {
   try {
-    const { readConfig } = await import("../core/config.js");
+    const { readConfig } = await import("../core/config/index.js");
     const cfg = readConfig() || {};
     const t = cfg.transcription || {};
     const openaiKey = cfg.engines?.openai?.api_key || process.env.OPENAI_API_KEY || "";

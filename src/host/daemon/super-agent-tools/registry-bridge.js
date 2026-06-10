@@ -20,7 +20,7 @@
 
 import fs from "node:fs";
 import { TOOL_DEFINITIONS } from "../../../core/tools/registry.js";
-import { TOKEN_PATH } from "../../../core/config.js";
+import { TOKEN_PATH } from "../../../core/config/index.js";
 
 // The bridge POSTs to the daemon's OWN HTTP server, which is behind the bearer
 // auth middleware (see api/shared.js). Without a token every bridged tool call

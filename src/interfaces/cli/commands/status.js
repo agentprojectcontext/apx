@@ -1,7 +1,7 @@
 // apx status — show full system status at a glance.
 // Daemon, super-agent, engines, telegram, projects.
 
-import { readConfig } from "../../../core/config.js";
+import { readConfig } from "../../../core/config/index.js";
 import { http } from "../http.js";
 
 const R  = "\x1b[0m";

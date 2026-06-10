@@ -1,32 +1,25 @@
 // Global APX config under ~/.apx/config.json. Cross-platform.
+//
+// Filesystem paths live in ./paths.js and are re-exported from here so callers
+// can keep `import { APX_HOME, projectStorageRoot } from ".../config"` working.
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
+import { APX_HOME, CONFIG_PATH } from "./paths.js";
 
-export const APX_HOME = path.join(os.homedir(), ".apx");
-export const CONFIG_PATH = path.join(APX_HOME, "config.json");
-export const PID_PATH = path.join(APX_HOME, "daemon.pid");
-export const LOG_PATH = path.join(APX_HOME, "daemon.log");
-export const TELEGRAM_STATE_PATH = path.join(APX_HOME, "telegram-state.json");
-export const TOKEN_PATH = path.join(APX_HOME, "daemon.token");
-// Global channel messages (telegram, direct, whatsapp, …) live here,
-// separated from any project.  Structure: ~/.apx/messages/<channel>/YYYY-MM-DD.jsonl
-export const GLOBAL_MESSAGES_DIR = path.join(APX_HOME, "messages");
-// Per-project runtime storage (conversations, sessions) — never in the repo.
-// Structure: ~/.apx/projects/<apx_id>/agents/<slug>/conversations/
-export const PROJECT_STORE_ROOT = path.join(APX_HOME, "projects");
-export const DEFAULT_PROJECT_ID = "default";
-export const DEFAULT_PROJECT_STORE = path.join(PROJECT_STORE_ROOT, DEFAULT_PROJECT_ID);
-
-export function projectStorageRoot(apxId) {
-  return path.join(PROJECT_STORE_ROOT, apxId);
-}
-
-export function ensureProjectStorage(apxId) {
-  const root = projectStorageRoot(apxId);
-  fs.mkdirSync(root, { recursive: true });
-  return root;
-}
+export {
+  APX_HOME,
+  CONFIG_PATH,
+  PID_PATH,
+  LOG_PATH,
+  TELEGRAM_STATE_PATH,
+  TOKEN_PATH,
+  GLOBAL_MESSAGES_DIR,
+  PROJECT_STORE_ROOT,
+  DEFAULT_PROJECT_ID,
+  DEFAULT_PROJECT_STORE,
+  projectStorageRoot,
+  ensureProjectStorage,
+} from "./paths.js";
 
 const DEFAULT_CONFIG = {
   port: 7430,

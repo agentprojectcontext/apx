@@ -1,4 +1,4 @@
-import { readConfig, writeConfig } from "../../../../core/config.js";
+import { readConfig, writeConfig } from "../../../../core/config/index.js";
 
 const MODES = new Set(["total", "automatico", "permiso"]);
 

@@ -16,7 +16,7 @@ import {
   findTelegramChannel,
   upsertContact,
   upsertTelegramChannel,
-} from "../config.js";
+} from "../config/index.js";
 
 function telegramDisplayName(from) {
   const full = [from?.first_name, from?.last_name].filter(Boolean).join(" ").trim();

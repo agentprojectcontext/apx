@@ -8,7 +8,7 @@
 //   POST /embeddings/reindex    → { ok, cleared, indexed }  (rebuild the vector
 //                                   store under the current embedder — needed
 //                                   after switching provider/model)
-import { readConfig } from "../../../core/config.js";
+import { readConfig } from "../../../core/config/index.js";
 import {
   listAvailableEmbedEngines,
   embeddingsConfig,

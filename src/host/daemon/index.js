@@ -14,7 +14,7 @@ import {
   LOG_PATH,
   APX_HOME,
   TOKEN_PATH,
-} from "../../core/config.js";
+} from "../../core/config/index.js";
 import { ProjectManager } from "./db.js";
 import { McpRegistry } from "../../core/mcp/runner.js";
 import { PluginManager } from "./plugins/index.js";

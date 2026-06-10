@@ -23,7 +23,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { randomBytes, randomUUID, createHash } from "node:crypto";
-import { APX_HOME } from "../../core/config.js";
+import { APX_HOME } from "../../core/config/index.js";
 
 export const CLIENTS_PATH = path.join(APX_HOME, "clients.json");
 

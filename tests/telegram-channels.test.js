@@ -1,4 +1,4 @@
-// Unit tests for the telegram-channel CRUD helpers in src/core/config.js
+// Unit tests for the telegram-channel CRUD helpers in src/core/config/index.js
 // and for the apx telegram channel CLI commands (with a mocked http client).
 //
 // We deliberately don't spin up the daemon — the CLI commands import the
@@ -12,7 +12,7 @@ import os from "node:os";
 import path from "node:path";
 
 // Force a per-test APX home so we never touch the real ~/.apx/config.json.
-// Each `import.meta.resolve` of core/config.js reads APX_HOME from
+// Each `import.meta.resolve` of core/config/index.js reads APX_HOME from
 // `os.homedir()`, which we point at a tmpdir before the import.
 const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "apx-tg-channels-"));
 process.env.HOME = tmpHome;
@@ -26,7 +26,7 @@ const {
   unsetTelegramChannelFields,
   findTelegramChannel,
   listTelegramChannels,
-} = await import("../src/core/config.js");
+} = await import("../src/core/config/index.js");
 
 test("upsertTelegramChannel creates a channel with default respond_with_engine", () => {
   const cfg = readConfig();
