@@ -1,6 +1,6 @@
 import { http } from "../http.js";
 import { resolveProjectId } from "./project.js";
-import { readConfig, writeConfig } from "../../../core/config.js";
+import { readConfig, writeConfig } from "../../../core/config/index.js";
 
 function parseValue(raw) {
   // best-effort: try JSON first (covers numbers, bools, objects, arrays, null,

@@ -10,7 +10,7 @@ import {
   ensureProjectStorage,
   DEFAULT_PROJECT_ID,
   DEFAULT_PROJECT_STORE,
-} from "../../core/config.js";
+} from "../../core/config/index.js";
 
 export class ProjectManager {
   constructor(globalConfig = {}) {

@@ -12,7 +12,7 @@
 // affected piece simply contributes nothing.
 
 import path from "node:path";
-import { APX_HOME } from "../config.js";
+import { APX_HOME } from "../config/index.js";
 import { ensureSelfMemoryFile } from "../agent/self-memory.js";
 import fs from "node:fs";
 import { openMemoryStore } from "./store.js";

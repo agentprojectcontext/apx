@@ -22,7 +22,7 @@ export async function cmdIdentity(args) {
       console.log("No identity configured. Run: apx identity wizard");
       return;
     }
-    const { readConfig } = await import("../../../core/config.js");
+    const { readConfig } = await import("../../../core/config/index.js");
     const cfg = readConfig();
     console.log("");
     console.log(`  Agent name  : ${id.agent_name}`);

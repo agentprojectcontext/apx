@@ -25,7 +25,7 @@ const {
   setRole,
   removeRole,
   listRoles,
-} = await import("../src/core/config.js");
+} = await import("../src/core/config/index.js");
 const { resolveSender, registerSender, resolveAllowedTools } = await import(
   "../src/core/identity/telegram.js"
 );

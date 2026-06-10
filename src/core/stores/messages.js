@@ -18,7 +18,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { GLOBAL_MESSAGES_DIR } from "../config.js";
+import { GLOBAL_MESSAGES_DIR } from "../config/index.js";
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 

@@ -7,7 +7,7 @@ import https from "node:https";
 import http from "node:http";
 import readline from "node:readline";
 import { spawnSync } from "node:child_process";
-import { readConfig, writeConfig } from "../../../core/config.js";
+import { readConfig, writeConfig } from "../../../core/config/index.js";
 import { mascot } from "../../../core/mascot.js";
 import { setupClaudePermissions } from "../claude-permissions.js";
 

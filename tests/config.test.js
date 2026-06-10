@@ -1,8 +1,8 @@
-// Unit tests for src/core/config.js — mergeDefaults behaviour.
+// Unit tests for src/core/config/index.js — mergeDefaults behaviour.
 // These run without touching ~/.apx since mergeDefaults is a pure function.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mergeDefaults } from "../src/core/config.js";
+import { mergeDefaults } from "../src/core/config/index.js";
 
 // ---------------------------------------------------------------------------
 // user.language

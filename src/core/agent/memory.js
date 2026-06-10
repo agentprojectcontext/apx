@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { projectStorageRoot } from "../config.js";
+import { projectStorageRoot } from "../config/index.js";
 import { getOrCreateApxId } from "../apc/scaffold.js";
 
 const EMPTY_MEMORY = (slug) =>
