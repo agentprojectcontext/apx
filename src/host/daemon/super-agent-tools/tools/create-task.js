@@ -1,4 +1,4 @@
-import { createTask } from "../../../../core/tasks-store.js";
+import { createTask } from "../../../../core/stores/tasks.js";
 
 export default {
   name: "create_task",

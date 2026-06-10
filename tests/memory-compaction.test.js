@@ -14,7 +14,7 @@ process.env.USERPROFILE = tmpHome;
 const { appendSelfMemory, parseSelfMemoryEntries, readSelfMemory, ensureSelfMemoryFile, SELF_MEMORY_PATH } =
   await import("../src/core/agent/self-memory.js");
 const { appendGlobalMessage, getRecentChannelTurnsFromFs, getRecentTelegramTurnsFromFs } =
-  await import("../src/core/messages-store.js");
+  await import("../src/core/stores/messages.js");
 const { compactChannelIfNeeded } = await import("../src/core/memory/compactor.js");
 
 // --- Pieza 1: notebook ------------------------------------------------------

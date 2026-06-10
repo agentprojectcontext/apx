@@ -16,7 +16,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { GLOBAL_MESSAGES_DIR } from "../config.js";
-import { parseDayJsonl, appendGlobalMessage } from "../messages-store.js";
+import { parseDayJsonl, appendGlobalMessage } from "../stores/messages.js";
 import { callEngine } from "../engines/index.js";
 
 const DEFAULT_MAX_TURNS = 60;

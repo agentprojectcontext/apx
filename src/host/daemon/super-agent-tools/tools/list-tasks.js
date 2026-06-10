@@ -1,4 +1,4 @@
-import { listTasks } from "../../../../core/tasks-store.js";
+import { listTasks } from "../../../../core/stores/tasks.js";
 
 export default {
   name: "list_tasks",

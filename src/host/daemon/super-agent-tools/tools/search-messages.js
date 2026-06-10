@@ -1,4 +1,4 @@
-import { searchProjectMessages } from "../../../../core/messages-store.js";
+import { searchProjectMessages } from "../../../../core/stores/messages.js";
 import { resolveProject } from "../helpers.js";
 
 export default {

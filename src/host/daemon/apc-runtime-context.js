@@ -16,7 +16,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { generateSessionId } from "../../core/session-store.js";
+import { generateSessionId } from "../../core/stores/sessions.js";
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 

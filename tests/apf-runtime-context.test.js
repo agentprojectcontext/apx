@@ -8,7 +8,7 @@ import {
   closeRuntimeSession,
   extractApfResult,
 } from "../src/host/daemon/apc-runtime-context.js";
-import { readSessionFrontmatter } from "../src/core/session-store.js";
+import { readSessionFrontmatter } from "../src/core/stores/sessions.js";
 import { makeTempProject, cleanupTempProject } from "./_helpers.js";
 
 test("buildApfHint substitutes the placeholders", () => {

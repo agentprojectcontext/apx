@@ -1,4 +1,4 @@
-// Per-project tasks (TODOs). Backed by core/tasks-store.js (JSONL event log).
+// Per-project tasks (TODOs). Backed by core/stores/tasks.js (JSONL event log).
 //   GET    /projects/:pid/tasks                  ?state=open|done|dropped|all&tag=X&agent=Y&due_before=ISO&limit=N
 //   POST   /projects/:pid/tasks                  { title, body?, tags?, due?, agent?, source?, meta? }
 //   GET    /projects/:pid/tasks/:id              (id or prefix)
@@ -15,7 +15,7 @@ import {
   dropTask,
   reopenTask,
   countTasks,
-} from "../../../core/tasks-store.js";
+} from "../../../core/stores/tasks.js";
 
 export function register(app, { project, projects }) {
   // Global tasks across every project.

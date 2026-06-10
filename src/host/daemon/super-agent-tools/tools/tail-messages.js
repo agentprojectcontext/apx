@@ -1,4 +1,4 @@
-import { readProjectMessages } from "../../../../core/messages-store.js";
+import { readProjectMessages } from "../../../../core/stores/messages.js";
 import { resolveProject } from "../helpers.js";
 
 export default {

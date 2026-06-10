@@ -3,7 +3,7 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { findApfRoot, readAgents } from "../../../core/parser.js";
 import { getOrCreateApxId } from "../../../core/scaffold.js";
-import { generateSessionId } from "../../../core/session-store.js";
+import { generateSessionId } from "../../../core/stores/sessions.js";
 import { projectStorageRoot, ensureProjectStorage } from "../../../core/config.js";
 import { http } from "../http.js";
 import { resolveProjectId } from "./project.js";

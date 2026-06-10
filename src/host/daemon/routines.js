@@ -21,7 +21,7 @@ import { computeSuppressedTools } from "../../core/agent/index.js";
 import { readAgents } from "../../core/parser.js";
 import { buildAgentSystem } from "../../core/agent/build-agent-system.js";
 import { resolveAgentName, SUPERAGENT_ACTOR_ID } from "../../core/identity/index.js";
-import { resolveArtifactRef, ARTIFACTS_SKIP_SIGNAL } from "../../core/artifacts-store.js";
+import { resolveArtifactRef, ARTIFACTS_SKIP_SIGNAL } from "../../core/stores/artifacts.js";
 import {
   listRoutines,
   getRoutine,
@@ -32,7 +32,7 @@ import {
   getDueRoutines,
   parseSchedule,
   computeNextRun,
-} from "../../core/routines-store.js";
+} from "../../core/stores/routines.js";
 
 export {
   listRoutines,

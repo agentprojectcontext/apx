@@ -2,7 +2,7 @@
 // Projects are identified by path; no SQLite — filesystem is the source of truth.
 import fs from "node:fs";
 import path from "node:path";
-import { appendMessageToFs } from "../../core/messages-store.js";
+import { appendMessageToFs } from "../../core/stores/messages.js";
 import { effectiveConfig } from "./project-config.js";
 import { readAgents } from "../../core/parser.js";
 import { getOrCreateApxId } from "../../core/scaffold.js";
