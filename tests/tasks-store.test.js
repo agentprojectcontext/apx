@@ -1,5 +1,5 @@
 // Tasks store: append-only JSONL event log per project.
-// See src/core/tasks-store.js + spec/backlog/05-tasks-per-project.md.
+// See src/core/stores/tasks.js + spec/backlog/05-tasks-per-project.md.
 import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -14,7 +14,7 @@ import {
   dropTask,
   reopenTask,
   countTasks,
-} from "../src/core/tasks-store.js";
+} from "../src/core/stores/tasks.js";
 
 let storagePath;
 

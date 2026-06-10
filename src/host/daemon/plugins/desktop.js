@@ -23,7 +23,7 @@ import {
   setDesktopMessageHandler,
 } from "../desktop-ws.js";
 import { runSuperAgent, isSuperAgentEnabled } from "../super-agent.js";
-import { appendGlobalMessage } from "../../../core/messages-store.js";
+import { appendGlobalMessage } from "../../../core/stores/messages.js";
 
 const CHANNEL = "desktop";
 

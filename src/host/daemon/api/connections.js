@@ -1,7 +1,7 @@
 // GET /projects/:pid/agents/:slug/connections
 // Builds a per-peer summary of an agent's a2a traffic from the messages store.
 import { readAgents } from "../../../core/parser.js";
-import { readProjectMessages } from "../../../core/messages-store.js";
+import { readProjectMessages } from "../../../core/stores/messages.js";
 
 export function register(app, { project }) {
   app.get("/projects/:pid/agents/:slug/connections", (req, res) => {

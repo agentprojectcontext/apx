@@ -8,7 +8,7 @@ import {
   parseDayFile,
   rebuildMessagesFromFs,
   appendMessage,
-} from "../src/core/messages-store.js";
+} from "../src/core/stores/messages.js";
 import { makeTempProject, cleanupTempProject } from "./_helpers.js";
 
 function freshDb() {
@@ -76,7 +76,7 @@ test("appendMessageToFs writes JSONL — one record per line", () => {
 });
 
 test("parseDayJsonl reads JSONL", async () => {
-  const { parseDayJsonl } = await import("../src/core/messages-store.js");
+  const { parseDayJsonl } = await import("../src/core/stores/messages.js");
   const text = [
     JSON.stringify({ ts: "2026-05-08T10:00:00Z", channel: "telegram", direction: "in", author: "@a", body: "hola", meta: { chat_id: 1 } }),
     JSON.stringify({ ts: "2026-05-08T10:00:01Z", channel: "telegram", direction: "out", author: "apx", body: "hi", meta: {} }),
@@ -95,7 +95,7 @@ test("parseDayJsonl reads JSONL", async () => {
 });
 
 test("parseDayJsonl preserves explicit type and actor_id", async () => {
-  const { parseDayJsonl } = await import("../src/core/messages-store.js");
+  const { parseDayJsonl } = await import("../src/core/stores/messages.js");
   const text = JSON.stringify({
     ts: "2026-05-08T10:00:00Z",
     channel: "tool",
@@ -112,7 +112,7 @@ test("parseDayJsonl preserves explicit type and actor_id", async () => {
 });
 
 test("actor_kind — explicit value is persisted and round-trips", async () => {
-  const { parseDayJsonl } = await import("../src/core/messages-store.js");
+  const { parseDayJsonl } = await import("../src/core/stores/messages.js");
   const root = makeTempProject({ agents: [{ slug: "sofia", role: "Support" }] });
   try {
     appendMessageToFs({
@@ -139,7 +139,7 @@ test("actor_kind — explicit value is persisted and round-trips", async () => {
 });
 
 test("actor_kind — inferred from actor_id when not given (superagent vs agent)", async () => {
-  const { parseDayJsonl } = await import("../src/core/messages-store.js");
+  const { parseDayJsonl } = await import("../src/core/stores/messages.js");
   const text = [
     JSON.stringify({ ts: "2026-05-08T10:00:00Z", channel: "telegram", direction: "out", type: "agent", actor_id: "super_agent", author: "Roby", body: "a" }),
     JSON.stringify({ ts: "2026-05-08T10:00:01Z", channel: "engine", direction: "out", type: "agent", actor_id: "sofia", author: "sofia", body: "b" }),
@@ -167,11 +167,11 @@ hola
 });
 
 test("getRecentTelegramTurns — pulls per chat_id in chronological order", async () => {
-  const { getRecentTelegramTurns } = await import("../src/core/messages-store.js");
+  const { getRecentTelegramTurns } = await import("../src/core/stores/messages.js");
   const root = makeTempProject({ agents: [{ slug: "sofia" }] });
   const db = freshDb();
   try {
-    const append = (await import("../src/core/messages-store.js")).appendMessage;
+    const append = (await import("../src/core/stores/messages.js")).appendMessage;
     // Two chats interleaved
     append({ projectRoot: root, db, channel: "telegram", direction: "in",  author: "@a", body: "hola A1", ts: "2026-05-08T10:00:00Z", meta: { chat_id: 1 } });
     append({ projectRoot: root, db, channel: "telegram", direction: "out", author: "apx", body: "respuesta A1", ts: "2026-05-08T10:00:01Z", meta: { chat_id: 1 } });
@@ -193,7 +193,7 @@ test("getRecentTelegramTurns — pulls per chat_id in chronological order", asyn
 });
 
 test("getRecentTelegramTurns — respects max_age_hours and limit", async () => {
-  const { getRecentTelegramTurns, appendMessage } = await import("../src/core/messages-store.js");
+  const { getRecentTelegramTurns, appendMessage } = await import("../src/core/stores/messages.js");
   const root = makeTempProject({ agents: [{ slug: "sofia" }] });
   const db = freshDb();
   try {
@@ -213,7 +213,7 @@ test("getRecentTelegramTurns — respects max_age_hours and limit", async () => 
 });
 
 test("getRecentTelegramTurns — sanitizes assistant turns with factual data", async () => {
-  const { getRecentTelegramTurns, appendMessage } = await import("../src/core/messages-store.js");
+  const { getRecentTelegramTurns, appendMessage } = await import("../src/core/stores/messages.js");
   const root = makeTempProject({ agents: [{ slug: "sofia" }] });
   const db = freshDb();
   try {
@@ -231,7 +231,7 @@ test("getRecentTelegramTurns — sanitizes assistant turns with factual data", a
 });
 
 test("getRecentTelegramTurns — keeps short conversational turns intact", async () => {
-  const { getRecentTelegramTurns, appendMessage } = await import("../src/core/messages-store.js");
+  const { getRecentTelegramTurns, appendMessage } = await import("../src/core/stores/messages.js");
   const root = makeTempProject({ agents: [{ slug: "sofia" }] });
   const db = freshDb();
   try {
@@ -247,7 +247,7 @@ test("getRecentTelegramTurns — keeps short conversational turns intact", async
 });
 
 test("getRecentTelegramTurns — empty when no chat_id", async () => {
-  const { getRecentTelegramTurns } = await import("../src/core/messages-store.js");
+  const { getRecentTelegramTurns } = await import("../src/core/stores/messages.js");
   const db = freshDb();
   try {
     assert.deepEqual(getRecentTelegramTurns(db, { chat_id: null }), []);
@@ -258,7 +258,7 @@ test("getRecentTelegramTurns — empty when no chat_id", async () => {
 });
 
 test("rebuildMessagesFromFs reads BOTH .jsonl and .md (legacy) and merges by ts", async () => {
-  const { rebuildMessagesFromFs, appendMessage } = await import("../src/core/messages-store.js");
+  const { rebuildMessagesFromFs, appendMessage } = await import("../src/core/stores/messages.js");
   const root = makeTempProject({ agents: [{ slug: "sofia" }] });
   const db = freshDb();
   try {

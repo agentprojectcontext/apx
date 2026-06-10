@@ -23,7 +23,7 @@ import { readConfig } from "../../../core/config.js";
 import { synthesize } from "../../../core/voice/tts.js";
 import { transcribe } from "../transcription.js";
 import { runSuperAgent, isSuperAgentEnabled } from "../super-agent.js";
-import { appendGlobalMessage } from "../../../core/messages-store.js";
+import { appendGlobalMessage } from "../../../core/stores/messages.js";
 import { appendErrorTrace, previewText } from "../../../core/logging.js";
 
 // ── Channel-aware pre-processor ────────────────────────────────────
@@ -232,7 +232,7 @@ async function tryVoiceTaskIntent({ projects, userText, hintProjectId }) {
     };
   }
   try {
-    const { createTask } = await import("../../../core/tasks-store.js");
+    const { createTask } = await import("../../../core/stores/tasks.js");
     const task = createTask(project.storagePath, {
       title,
       source: "voice",

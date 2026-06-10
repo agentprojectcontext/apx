@@ -13,7 +13,7 @@ import {
   listArtifacts,
   readArtifact,
   removeArtifact,
-} from "../../../core/artifacts-store.js";
+} from "../../../core/stores/artifacts.js";
 
 // Same heuristic as `apx artifact run` (cli/commands/artifact.js): exec bit
 // OR shebang counts as runnable. We auto-chmod when shebang-only so the

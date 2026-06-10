@@ -22,7 +22,7 @@ import {
   updateCodeSession,
   removeCodeSession,
   appendTurn,
-} from "../../../core/code-sessions-store.js";
+} from "../../../core/stores/code-sessions.js";
 import { captureBaseline, diffAgainstBaseline, initGitRepo } from "../../../core/git-baseline.js";
 import { loggerFor } from "../../../core/logging.js";
 

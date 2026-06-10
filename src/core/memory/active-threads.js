@@ -12,7 +12,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { GLOBAL_MESSAGES_DIR } from "../config.js";
-import { parseDayJsonl } from "../messages-store.js";
+import { parseDayJsonl } from "../stores/messages.js";
 
 const BODY_CAP = 70;
 

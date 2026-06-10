@@ -11,7 +11,7 @@ import {
   appendSuperAgentErrorTrace,
 } from "./shared.js";
 import { loggerFor } from "../../../core/logging.js";
-import { appendGlobalMessage } from "../../../core/messages-store.js";
+import { appendGlobalMessage } from "../../../core/stores/messages.js";
 import { createWebConfirmAdapter } from "../../../core/confirmation/adapters/web.js";
 
 const log = loggerFor("super-agent");
