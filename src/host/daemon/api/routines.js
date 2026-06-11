@@ -15,7 +15,7 @@ import {
   deleteRoutine,
   setEnabled as setRoutineEnabled,
   runRoutineNow,
-} from "../routines.js";
+} from "#core/routines/index.js";
 
 export function register(app, { projects, registries, plugins, project, config }) {
   app.get("/projects/:pid/routines", (req, res) => {

@@ -50,7 +50,7 @@ const SCHED_PRESETS = [
   { label: "días hábiles 9am", value: "cron 0 9 * * 1-5" },
 ];
 
-// Template/env vars the routine runner exposes (src/host/daemon/routines.js).
+// Template/env vars the routine runner exposes (src/core/routines/runner.js).
 const VARS = [
   { v: "{{pre_output}}", where: "prompt", desc: "Salida de los pre-commands, inyectada en el prompt." },
   { v: "$APX_LLM_OUTPUT", where: "post", desc: "Respuesta del agente / super-agente." },

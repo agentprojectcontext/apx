@@ -58,7 +58,7 @@ export const ENGINE_ORDER = [
 export const PERMISSION_MODES = ["total", "automatico", "permiso"] as const;
 export type PermissionMode = (typeof PERMISSION_MODES)[number];
 
-/** Routine kinds — must match src/host/daemon/routines.js. */
+/** Routine kinds — must match src/core/routines/runner.js. */
 export const ROUTINE_KINDS = [
   "heartbeat",
   "exec_agent",

@@ -2,7 +2,7 @@
 //
 // Path: <projectStoragePath>/routines/<routineId>/memory.md
 //
-// The routine handler (host/daemon/routines.js) creates the file on first read
+// The routine handler (core/routines/runner.js) creates the file on first read
 // and injects a bounded slice into the super-agent prompt via
 // channelMeta.routineMemory. The routine can write back with future tooling;
 // today we only read.

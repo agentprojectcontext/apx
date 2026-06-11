@@ -1,19 +1,17 @@
-// Routines: scheduled tasks per project. State persists in .apc/routines.json.
+// Routine execution — the domain logic any caller can invoke (daemon
+// scheduler, CLI `apx routine run`, HTTP `/projects/:pid/routines/:name/run`,
+// MCP server, future scripts). The runner orchestrates a 3-phase pipeline:
+//   1. pre_commands  (shell)
+//   2. handler       (heartbeat / exec_agent / super_agent / telegram / shell)
+//   3. post_commands (shell)
 //
-// Schedule formats:
-//   every:60s | every:5m | every:1h | once:<iso-8601>
-//
-// Kinds:
-//   heartbeat   — log a heartbeat message.   spec: { channel?, message? }
-//   exec_agent  — call an agent engine.       spec: { agent: slug, prompt }
-//   super_agent — call the APX super-agent.   spec: { prompt }
-//   telegram    — send a Telegram message.    spec: { channel?, chat_id?, text }
-//   shell       — run a shell command.        spec: { command, timeout_ms? }
-
+// `runRoutineNow(ctx, routine)` is the single entry point. Pass a ctx with at
+// least { project, projects, plugins, registries, globalConfig }. The runner
+// is process-state free — the daemon's RoutineScheduler is a separate file
+// (host/daemon/routines-scheduler.js) that just polls and calls this.
 import { spawn } from "node:child_process";
-import { execFile } from "node:child_process";
-import os from "node:os";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { callEngine } from "#core/engines/index.js";
 import { runSuperAgent } from "#core/agent/super-agent.js";
@@ -22,32 +20,18 @@ import { readAgents } from "#core/apc/parser.js";
 import { buildAgentSystem } from "#core/agent/build-agent-system.js";
 import { resolveAgentName, SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
 import { resolveArtifactRef, ARTIFACTS_SKIP_SIGNAL } from "#core/stores/artifacts.js";
-import { ensureRoutineMemory, readRoutineMemoryForPrompt, routineMemoryPath } from "#core/stores/routine-memory.js";
+import {
+  ensureRoutineMemory,
+  readRoutineMemoryForPrompt,
+  routineMemoryPath,
+} from "#core/stores/routine-memory.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import {
-  listRoutines,
-  getRoutine,
-  upsertRoutine,
-  deleteRoutine,
-  setEnabled,
   updateRunState,
-  getDueRoutines,
   parseSchedule,
   computeNextRun,
 } from "#core/stores/routines.js";
-
-export {
-  listRoutines,
-  getRoutine,
-  upsertRoutine,
-  deleteRoutine,
-  setEnabled,
-  parseSchedule,
-  computeNextRun,
-};
-
-const TICK_MS = 5_000;
-const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
+import { nowIso } from "#core/util/time.js";
 
 // --------------------- handlers ---------------------------------------------
 
@@ -211,7 +195,7 @@ const HANDLERS = {
 
 // --------------------- pipeline: pre/post shell commands --------------------
 
-// Run a single shell command. Returns { exitCode, stdout, stderr }.
+/** Run a single shell command. Returns { exitCode, stdout, stderr }. */
 function runShellCmd(cmd, env = {}, cwd = os.homedir()) {
   return new Promise((resolve) => {
     const child = spawn("sh", ["-c", cmd], {
@@ -228,13 +212,13 @@ function runShellCmd(cmd, env = {}, cwd = os.homedir()) {
   });
 }
 
-// Inject {{pre_output}} into a prompt string.
+/** Inject {{pre_output}} into a prompt string. */
 function injectPreOutput(prompt, preOutput) {
   if (!prompt || typeof prompt !== "string") return prompt;
   return prompt.replace(/\{\{pre_output\}\}/g, preOutput || "");
 }
 
-// Determine whether to skip the LLM call based on skip_prompt_on + pre results.
+/** Decide whether to skip the LLM call based on skip_prompt_on + pre results. */
 function shouldSkipPrompt(routine, preExitCode, preStdout) {
   const mode = routine.skip_prompt_on || "signal";
   if (mode === "always") return true;
@@ -245,10 +229,22 @@ function shouldSkipPrompt(routine, preExitCode, preStdout) {
   return false;
 }
 
-// --------------------- runtime: run one + loop ------------------------------
+// --------------------- runtime: run one routine -----------------------------
 
+/**
+ * Execute a single routine end-to-end (pre_commands → handler → post_commands)
+ * and persist last-run state. Pure with respect to process lifecycle — does NOT
+ * touch a timer, queue, or scheduler. Pure with respect to network — the
+ * super-agent / telegram handlers obviously go out, but the orchestration is
+ * sync from the caller's point of view via the returned promise.
+ *
+ * @param {object} ctx
+ *   - project: ProjectManager entry (logMessage, path, storagePath)
+ *   - projects, plugins, registries, globalConfig
+ * @param {object} routine The routine record from core/stores/routines.js
+ * @returns {object} { status, last_run_at, next_run_at, ...handler-result }
+ */
 export async function runRoutineNow(ctx, routine) {
-  // Determine the working directory for shell commands.
   const cwd = ctx.project?.path || os.homedir();
   const storagePath = ctx.project?.storagePath || os.homedir();
 
@@ -263,31 +259,26 @@ export async function runRoutineNow(ctx, routine) {
   if (hasPreCmds) {
     const combinedOut = [];
     for (const rawCmd of routine.pre_commands) {
-      // Resolve "artifact:<name>" shorthand to its absolute path.
       const cmd = resolveArtifactRef(rawCmd, storagePath);
       const { exitCode, stdout, stderr } = await runShellCmd(cmd, {}, cwd);
       combinedOut.push(stdout);
       if (stderr) combinedOut.push(stderr);
       preExitCode = exitCode;
       if (exitCode !== 0 && (routine.skip_prompt_on === "pre_failure" || routine.skip_prompt_on === "signal")) {
-        // Stop running further pre_commands on failure when mode cares about exit code.
         break;
       }
     }
     preStdout = combinedOut.join("");
 
-    // Write pre output to a temp file so post_commands can reference it via
-    // $APX_PRE_OUTPUT_FILE even if the output is large.
     try {
       preOutputFile = path.join(os.tmpdir(), `apx-pre-${routine.name}-${Date.now()}.txt`);
       fs.writeFileSync(preOutputFile, preStdout);
     } catch { preOutputFile = null; }
   }
 
-  // Env vars injected into post_commands and available in shell pre_commands output.
   const pipelineEnv = {
     APX_PRE_EXIT: String(preExitCode),
-    APX_PRE_OUTPUT: preStdout.slice(0, 32_000), // guard against huge outputs
+    APX_PRE_OUTPUT: preStdout.slice(0, 32_000),
     APX_PRE_OUTPUT_FILE: preOutputFile || "",
     APX_ROUTINE: routine.name,
   };
@@ -300,7 +291,6 @@ export async function runRoutineNow(ctx, routine) {
   let errMsg = null;
 
   if (!skip) {
-    // Inject {{pre_output}} into exec_agent and super_agent prompts.
     const enrichedRoutine = (hasPreCmds && preStdout)
       ? {
           ...routine,
@@ -344,11 +334,9 @@ export async function runRoutineNow(ctx, routine) {
     for (const rawCmd of routine.post_commands) {
       const cmd = resolveArtifactRef(rawCmd, storagePath);
       await runShellCmd(cmd, postEnv, cwd);
-      // Post-command failures are logged but don't change routine status.
     }
   }
 
-  // Cleanup temp file.
   if (preOutputFile) try { fs.unlinkSync(preOutputFile); } catch {}
 
   const lastRun = nowIso();
@@ -373,59 +361,4 @@ export async function runRoutineNow(ctx, routine) {
     meta: { routine: routine.name, status, skipped: skip, result },
   });
   return { ...result, last_run_at: lastRun, next_run_at: next };
-}
-
-export class RoutineScheduler {
-  constructor({ projects, plugins, registries, globalConfig, log }) {
-    this.projects = projects;
-    this.plugins = plugins;
-    this.registries = registries;
-    this.globalConfig = globalConfig;
-    this.log = log || (() => {});
-    this._timer = null;
-    this._running = false;
-  }
-
-  start() {
-    if (this._timer) return;
-    this._timer = setInterval(
-      () => this._tick().catch((e) => this.log(`routines tick error: ${e.message}`)),
-      TICK_MS
-    );
-    this._timer.unref?.();
-  }
-
-  stop() {
-    if (this._timer) {
-      clearInterval(this._timer);
-      this._timer = null;
-    }
-  }
-
-  async _tick() {
-    if (this._running) return;
-    this._running = true;
-    try {
-      const nowStr = nowIso();
-      for (const proj of this.projects.list().map((p) => this.projects.get(p.id))) {
-        if (!proj) continue;
-        const due = getDueRoutines(proj.storagePath, nowStr);
-        for (const r of due) {
-          this.log(`routine ${r.name} (${r.kind}) firing in project #${proj.id}`);
-          await runRoutineNow(
-            {
-              project: proj,
-              projects: this.projects,
-              plugins: this.plugins,
-              registries: this.registries,
-              globalConfig: this.globalConfig,
-            },
-            r
-          );
-        }
-      }
-    } finally {
-      this._running = false;
-    }
-  }
 }
