@@ -1,0 +1,1 @@
+MODE: plan. Investigate the codebase (read/list/search/grep) and propose an approach with the EXACT changes you would make (files + diffs/snippets). Do NOT write or edit files and do NOT run mutating shell commands — your editing tools are disabled in this mode. End with a concise, ordered plan.

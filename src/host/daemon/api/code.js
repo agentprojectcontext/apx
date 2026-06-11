@@ -27,65 +27,17 @@ import {
 import { captureBaseline, diffAgainstBaseline, initGitRepo } from "#core/git-baseline.js";
 import { loggerFor } from "#core/logging.js";
 import { readAgents } from "#core/apc/parser.js";
+import { CODE_PLAN_TOOLS, CODE_BUILD_TOOLS } from "#core/agent/tools/names.js";
+import { codeModeGuidance } from "#core/agent/prompts/modes/index.js";
 
 const log = loggerFor("code");
 
-// Read-only tool allowlist for PLAN mode: the agent can explore the repo but
-// not mutate it (no write/edit/shell/delegation/side-effects). Build mode gets
-// the unrestricted set ("*"). Names must match super-agent-tools/index.js.
-const PLAN_TOOLS = [
-  "read_file",
-  "list_files",
-  "search_files",
-  "grep",
-  "glob",
-  "list_projects",
-  "list_agents",
-  "list_mcps",
-  "read_agent_memory",
-  "read_self_memory",
-  "search_sessions",
-  "search_messages",
-  "tail_messages",
-  "list_skills",
-  "load_skill",
-  "list_tasks",
-  "ask_questions",
-  "fetch",
-  "search",
-];
-
+// Mode-specific tool allow-lists and prompt fragments are owned by core/:
+//   - tool names + plan/build lists → #core/agent/tools/names.js
+//   - per-mode guidance text         → #core/agent/prompts/modes/*.md
+// This file just picks the right pair for the request.
 function modeGuidanceFor(mode) {
-  if (mode === "plan") {
-    return [
-      "MODE: plan. Investigate the codebase (read/list/search/grep) and propose",
-      "an approach with the EXACT changes you would make (files + diffs/snippets).",
-      "Do NOT write or edit files and do NOT run mutating shell commands — your",
-      "editing tools are disabled in this mode. End with a concise, ordered plan.",
-    ].join(" ");
-  }
-  return [
-    "MODE: build. Make the changes directly using your file and shell tools",
-    "(read_file, write_file, edit_file, run_shell, …). Do not ask for",
-    "confirmation and do not stop after one step — keep calling tools until the",
-    "entire task is done, then briefly summarize what you changed and why.",
-    "Prefer surgical edits over rewrites.",
-    "When the user asks for a reusable script, snippet, or 'artifact' (something",
-    "they want to keep and run later), put it under `artifacts/<name>` inside",
-    "the project — it then shows up in the Artifacts tab. Don't drop reusable",
-    "scripts at the project root.",
-    "If a parameter you need is missing (API key, app id, target URL, …), call",
-    "`ask_questions` ONCE with all your questions and stop — control returns",
-    "to the user. Do not call ask_questions again in the same turn; you'll just",
-    "get the same blank state back. Each question can be a string (free-text",
-    "answer) OR an object {question, options:[{label, description}], multiSelect}",
-    "for choices. Prefer 2–4 mutually-exclusive options when a question has a",
-    "natural shortlist (yes/no, which-of-these, …); leave options empty for",
-    "open-ended answers (API keys, names, free-form ideas).",
-    "If the previous assistant turn already asked these same questions and the",
-    "current user message is the compiled answers, DO NOT call ask_questions",
-    "again — process the answers and proceed with the task.",
-  ].join(" ");
+  return codeModeGuidance(mode);
 }
 
 // Build the [{role, content}] history the super-agent expects from the stored
@@ -340,7 +292,7 @@ export function register(app, { projects, project, config, registries, plugins }
         previousMessages,
         systemSuffix: agentSystemSuffix,
         overrideModel: session.model || undefined,
-        allowedTools: mode === "plan" ? PLAN_TOOLS : "*",
+        allowedTools: mode === "plan" ? CODE_PLAN_TOOLS : CODE_BUILD_TOOLS,
         // Coding tasks are multi-step: give the loop a high safety ceiling so it
         // can chain 20-30+ tools (read → edit → run → verify …) and a real
         // output budget for substantial code / explanations per turn. The
