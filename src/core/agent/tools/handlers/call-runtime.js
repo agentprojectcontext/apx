@@ -12,7 +12,7 @@ import { detectAll } from "#host/daemon/env-detect.js";
 import {
   findEngineSessionById,
   readEngineSessionContext,
-} from "#host/daemon/engine-sessions.js";
+} from "#core/stores/engine-sessions.js";
 import { runProcess } from "#host/daemon/runtimes/_spawn.js";
 import { getRuntime, RUNTIME_IDS } from "#host/daemon/runtimes/index.js";
 import { buildAgentSystem, resolveProject } from "../helpers.js";
