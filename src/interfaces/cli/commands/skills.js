@@ -4,6 +4,7 @@ import path from "node:path";
 import os from "node:os";
 import readline from "node:readline";
 import { findApfRoot } from "#core/apc/parser.js";
+import { http } from "../http.js";
 import {
   IDE_TARGETS,
   installIdeSkills,
@@ -182,7 +183,27 @@ export async function cmdSkillsSync(args) {
 // apx skills list
 // ---------------------------------------------------------------------------
 
-export async function cmdSkillsList() {
+export async function cmdSkillsList(args = {}) {
+  // --all queries the daemon, which returns project + global + bundled +
+  // runtime-skills (same catalog the super-agent sees and the web picker uses).
+  // Without --all we only list `.apc/skills/` (what the user installed in
+  // THIS project), matching the historical behaviour.
+  if (args?.flags?.all) {
+    const root = findApfRoot();
+    const params = root ? `?project_path=${encodeURIComponent(root)}` : "";
+    const out = await http.get(`/skills${params}`);
+    if (!out.count) {
+      console.log("(no skills available)");
+      return;
+    }
+    console.log(`SLUG`.padEnd(28) + "SOURCE".padEnd(10) + "DESCRIPTION");
+    for (const s of out.skills) {
+      const desc = (s.description || "").slice(0, 70);
+      console.log(s.slug.padEnd(28) + (s.source || "?").padEnd(10) + desc);
+    }
+    return;
+  }
+
   const root = findApfRoot();
   const skillsDir = root ? path.join(root, ".apc", "skills") : null;
   const files = skillsDir && fs.existsSync(skillsDir)
@@ -190,7 +211,7 @@ export async function cmdSkillsList() {
     : [];
 
   if (files.length === 0) {
-    console.log("(no skills installed in .apc/skills/)");
+    console.log("(no skills installed in .apc/skills/ — try `apx skills list --all` for the full catalog)");
     return;
   }
   for (const f of files) console.log(f.replace(/\.md$/, ""));
