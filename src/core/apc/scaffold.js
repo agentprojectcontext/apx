@@ -16,7 +16,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Now under src/core/apc/ — one more "../" to escape than before.
 const PACKAGE_ROOT = path.resolve(__dirname, "..", "..", "..");
 const BUNDLED_SKILLS_DIR = path.join(PACKAGE_ROOT, "skills");
-const RUNTIME_SKILLS_DIR = path.join(__dirname, "runtime-skills");
+// runtime-skills lives at src/core/runtime-skills/, one level up from this
+// file's new home in src/core/apc/ (was a sibling before the Phase 3 move).
+const RUNTIME_SKILLS_DIR = path.join(__dirname, "..", "runtime-skills");
 
 export const SPEC_VERSION = "0.1.0";
 

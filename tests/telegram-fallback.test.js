@@ -16,7 +16,8 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SRC = fs.readFileSync(
-  path.join(__dirname, "..", "src", "host", "daemon", "plugins", "telegram", "index.js"),
+  // _handleUpdate body lives in dispatch.js after the telegram sub-split.
+  path.join(__dirname, "..", "src", "host", "daemon", "plugins", "telegram", "dispatch.js"),
   "utf8",
 );
 
