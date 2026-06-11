@@ -1,3 +1,13 @@
+## [1.32.1](https://github.com/agentprojectcontext/apx/compare/v1.32.0...v1.32.1) (2026-06-11)
+
+
+### Bug Fixes
+
+* **ask:** surface ask_questions in conversation history so the model doesn't loop ([720634d](https://github.com/agentprojectcontext/apx/commit/720634d1cdc572f49232f78efb141d063a20b3a5))
+* **code+agent:** cwd context, git-style diffs, no double greeting ([d2a820b](https://github.com/agentprojectcontext/apx/commit/d2a820b530a545addc48e66db3823dacb226ca19))
+* **super-agent:** /chat endpoint now accepts completionContract + maxIters + maxTokens ([3e36d09](https://github.com/agentprojectcontext/apx/commit/3e36d0962ec6fe0f22ddbf0b14dabd3da89be76f))
+* **telegram:** stop Roby from greeting twice per turn ([c2e09e0](https://github.com/agentprojectcontext/apx/commit/c2e09e0cb57473178a785343bf67be3071d6d94b))
+
 # [1.32.0](https://github.com/agentprojectcontext/apx/compare/v1.31.2...v1.32.0) (2026-06-10)
 
 
