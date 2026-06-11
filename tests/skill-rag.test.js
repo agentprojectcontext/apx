@@ -14,7 +14,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { suggestSkillForPrompt, clearSkillVectorCache } from "#host/daemon/skill-rag.js";
+import { suggestSkillForPrompt, clearSkillVectorCache } from "#core/agent/skills/rag.js";
 
 function withSkill(slug, description, fn) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-skill-rag-"));

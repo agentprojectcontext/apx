@@ -19,8 +19,8 @@
 // embeddings are cached in-process by (slug, source) so the cold cost is
 // O(skills) once per process start.
 import { embedOne, cosineSim } from "#core/memory/embeddings.js";
-import { condenseSkillDescription } from "#core/agent/skills.js";
-import { listSkills } from "./skills-loader.js";
+import { condenseSkillDescription } from "#core/agent/skills/index.js";
+import { listSkills } from "./loader.js";
 
 const SIM_THRESHOLD = 0.45;        // below this, no suggestion
 const MARGIN = 0.05;               // top must beat runner-up by at least this

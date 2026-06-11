@@ -1,6 +1,6 @@
 // Super-agent: daemon-level action agent for Telegram, TUI, desktop, routines.
 import { createToolSession, buildLazyToolsBlock, makeToolHandlers } from "./super-agent-tools/index.js";
-import { listSkills } from "./skills-loader.js";
+import { listSkills } from "#core/agent/skills/loader.js";
 import {
   runAgent,
   buildSuperAgentSystem,
