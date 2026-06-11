@@ -3,11 +3,11 @@ import path from "node:path";
 import { loggerFor } from "#core/logging.js";
 import { readAgents } from "#core/apc/parser.js";
 import {
-  buildApfHint,
   closeRuntimeSession,
   createRuntimeSession,
-  extractApfResult,
-} from "#host/daemon/apc-runtime-context.js";
+  extractRuntimeResult as extractApfResult,
+} from "#core/stores/runtime-sessions.js";
+import { buildRuntimeBridgeHint as buildApfHint } from "#core/agent/runtime-bridge.js";
 import { detectAll } from "#host/daemon/env-detect.js";
 import {
   findEngineSessionById,
