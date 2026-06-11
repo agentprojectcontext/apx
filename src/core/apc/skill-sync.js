@@ -4,7 +4,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-export const PACKAGE_ROOT = path.resolve(__dirname, "..", "..");
+// __dirname is src/core/apc/ after the Phase 3 move (was src/core/ before).
+// Repo root is three levels up, not two.
+export const PACKAGE_ROOT = path.resolve(__dirname, "..", "..", "..");
 
 export const APC_SKILL_REL = path.join("skills", "apc-context", "SKILL.md");
 export const APC_SKILL_REMOTE =
