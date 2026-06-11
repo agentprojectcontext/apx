@@ -1,3 +1,11 @@
+## [1.33.1](https://github.com/agentprojectcontext/apx/compare/v1.33.0...v1.33.1) (2026-06-11)
+
+
+### Bug Fixes
+
+* **parser:** correct BUNDLED_VAULT_DIR path and enhance Gemini engine handling ([e6d1db7](https://github.com/agentprojectcontext/apx/commit/e6d1db779d19938f63b2741a6ed6d146f29cff4d)), closes [#46](https://github.com/agentprojectcontext/apx/issues/46)
+* **parser:** correct BUNDLED_VAULT_DIR path and enhance Gemini engine handling ([2f9cc6f](https://github.com/agentprojectcontext/apx/commit/2f9cc6f4f29fc16fdd938c93e8afda7dc41f27d3))
+
 # [1.33.0](https://github.com/agentprojectcontext/apx/compare/v1.32.2...v1.33.0) (2026-06-11)
 
 
