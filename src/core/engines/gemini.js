@@ -51,15 +51,24 @@ function toGeminiContents(messages) {
     if (m.role === "assistant" && Array.isArray(m.tool_calls) && m.tool_calls.length > 0) {
       out.push({
         role: "model",
-        parts: m.tool_calls.map((tc) => ({
-          functionCall: {
-            name: tc.function?.name || tc.name,
-            args:
-              typeof tc.function?.arguments === "string"
-                ? safeParseJson(tc.function.arguments)
-                : tc.function?.arguments || tc.arguments || {},
-          },
-        })),
+        parts: m.tool_calls.map((tc) => {
+          const part = {
+            functionCall: {
+              name: tc.function?.name || tc.name,
+              args:
+                typeof tc.function?.arguments === "string"
+                  ? safeParseJson(tc.function.arguments)
+                  : tc.function?.arguments || tc.arguments || {},
+            },
+          };
+          // Gemini 3.x thinking models require us to echo back the
+          // thoughtSignature that came attached to the original functionCall
+          // part, or the API rejects the next turn with 400. We captured it
+          // in the response parser; replay it verbatim when present.
+          const sig = tc._thoughtSignature || tc.thought_signature;
+          if (sig) part.thoughtSignature = sig;
+          return part;
+        }),
       });
       continue;
     }
@@ -143,14 +152,22 @@ export default {
     for (const p of parts) {
       const fc = p.functionCall || p.function_call;
       if (fc?.name) {
-        toolCalls.push({
+        const tc = {
           id: `gemini_${randomUUID().slice(0, 8)}`,
           type: "function",
           function: {
             name: fc.name,
             arguments: typeof fc.args === "string" ? fc.args : JSON.stringify(fc.args || {}),
           },
-        });
+        };
+        // Thinking models (Gemini 3.x) attach a thoughtSignature to the part
+        // alongside the functionCall. We must replay it on the next request
+        // or the API 400s. Carry it on the tool_call so the next call to
+        // toGeminiContents() can put it back. Underscore prefix marks it as
+        // adapter-private metadata other engines should ignore.
+        const sig = p.thoughtSignature || p.thought_signature;
+        if (sig) tc._thoughtSignature = sig;
+        toolCalls.push(tc);
       }
     }
 

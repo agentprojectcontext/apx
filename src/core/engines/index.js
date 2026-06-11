@@ -52,12 +52,22 @@ export async function callEngine({ modelId, system, messages, config, temperatur
   const { provider, model } = resolveProvider(modelId);
   const adapter = getAdapter(provider);
   const providerCfg = (config && config.engines && config.engines[provider]) || {};
+  // The per-provider `default_max_tokens` set in the web admin (Provider modal
+  // slider) acts as a floor: callers may ask for more, but never less. This
+  // matters for "thinking" models (e.g. Gemini 3.x) whose internal reasoning
+  // tokens count against maxOutputTokens — too low a cap and the visible reply
+  // gets truncated mid-sentence. Fallback chain:
+  //   caller value → provider cfg → 2048 (safe baseline that survives thinking
+  //   models without truncating; non-thinking models just don't fill it).
+  const providerCap = Number(providerCfg.default_max_tokens) || 0;
+  const callerCap = Number(maxTokens) || 0;
+  const effectiveMaxTokens = Math.max(callerCap, providerCap) || 2048;
   return adapter.chat({
     system,
     messages,
     model,
     temperature,
-    maxTokens,
+    maxTokens: effectiveMaxTokens,
     tools,
     toolChoice,
     config: providerCfg,
