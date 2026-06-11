@@ -17,6 +17,8 @@ import { TooltipProvider } from "./components/ui/tooltip";
 import { useTheme } from "./hooks/useTheme";
 import { useProjects } from "./hooks/useProjects";
 import { useTokenBootstrap } from "./hooks/useTokenBootstrap";
+import { NavCollapseProvider, useNavCollapseCtx } from "./hooks/useNavCollapseCtx";
+import { NavToggle } from "./components/common/TabNav";
 import { t } from "./i18n";
 
 export function App() {
@@ -61,28 +63,30 @@ function Shell() {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground" data-testid="app-shell">
-      <ProjectSidebar onSelect={(href) => navigate(href)} onOpenRoby={() => setRobyOpen(true)} />
-      <main className="m-2 ml-0 flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-        <TopBar onToggleTheme={toggle} isDark={theme === "dark"} pathname={location.pathname} />
-        <div className="flex-1 overflow-y-auto">
-          <Routes>
-            <Route path="/"           element={<ApxAdminScreen />} />
-            <Route path="/settings/*" element={<SettingsScreen />} />
-            <Route path="/m/voice/*"   element={<VoiceScreen />} />
-            <Route path="/m/desktop/*" element={<DesktopScreen />} />
-            <Route path="/m/deck/*"   element={<DeckScreen />} />
-            <Route path="/m/code/*"   element={<CodeScreen />} />
-            <Route path="/p/:pid/*"   element={<ProjectScreen />} />
-            <Route path="*"           element={<NotFound />} />
-          </Routes>
-        </div>
-      </main>
-      <AddProjectDialog open={addOpen} onClose={closeAdd} />
-      {/* Roby (the super-agent) chat sheet. Launcher lives in the rail (below
-          Settings); open state is owned here so the rail can trigger it. */}
-      <RobyBubble open={robyOpen} onOpenChange={setRobyOpen} />
-    </div>
+    <NavCollapseProvider>
+      <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground" data-testid="app-shell">
+        <ProjectSidebar onSelect={(href) => navigate(href)} onOpenRoby={() => setRobyOpen(true)} />
+        <main className="m-2 ml-0 flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+          <TopBar onToggleTheme={toggle} isDark={theme === "dark"} pathname={location.pathname} />
+          <div className="flex-1 overflow-y-auto">
+            <Routes>
+              <Route path="/"           element={<ApxAdminScreen />} />
+              <Route path="/settings/*" element={<SettingsScreen />} />
+              <Route path="/m/voice/*"   element={<VoiceScreen />} />
+              <Route path="/m/desktop/*" element={<DesktopScreen />} />
+              <Route path="/m/deck/*"   element={<DeckScreen />} />
+              <Route path="/m/code/*"   element={<CodeScreen />} />
+              <Route path="/p/:pid/*"   element={<ProjectScreen />} />
+              <Route path="*"           element={<NotFound />} />
+            </Routes>
+          </div>
+        </main>
+        <AddProjectDialog open={addOpen} onClose={closeAdd} />
+        {/* Roby (the super-agent) chat sheet. Launcher lives in the rail (below
+            Settings); open state is owned here so the rail can trigger it. */}
+        <RobyBubble open={robyOpen} onOpenChange={setRobyOpen} />
+      </div>
+    </NavCollapseProvider>
   );
 }
 
@@ -123,19 +127,21 @@ function TopBar({
             ? t("base.subtitle")
             : project ? `${projectKindLabel(project.kind)} · ${project.path}` : "")
         : "";
+  const nav = useNavCollapseCtx();
   return (
-    <header className="flex h-11 shrink-0 items-center justify-between gap-4 px-4">
-      <span className="min-w-0 truncate text-xs tracking-wide text-muted-fg">
+    <header className="flex h-10 shrink-0 items-center gap-2 border-b border-border/50 px-3">
+      {nav && <NavToggle collapsed={nav.collapsed} onToggle={nav.toggle} />}
+      <span className="min-w-0 flex-1 truncate text-[11px] tracking-wide text-muted-fg">
         {crumb}
-        {subtitle && <span className="text-muted-fg/60"> · {subtitle}</span>}
+        {subtitle && <span className="text-muted-fg/50"> · {subtitle}</span>}
       </span>
       <button
         type="button"
         onClick={onToggleTheme}
         title={isDark ? t("topbar.light") : t("topbar.dark")}
-        className="rounded-md p-1.5 text-muted-fg hover:bg-accent hover:text-accent-fg"
+        className="shrink-0 rounded-md p-1.5 text-muted-fg hover:bg-accent hover:text-accent-fg"
       >
-        {isDark ? <Sun size={16} /> : <Moon size={16} />}
+        {isDark ? <Sun size={14} /> : <Moon size={14} />}
       </button>
     </header>
   );

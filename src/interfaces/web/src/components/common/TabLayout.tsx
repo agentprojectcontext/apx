@@ -3,8 +3,9 @@
 // collapse toggle (and optional page actions) followed by the routed content.
 // The page title/subtitle live in the top breadcrumb now, not here.
 import { type ReactNode } from "react";
-import { TabNav, NavToggle, type TabSection } from "./TabNav";
+import { TabNav, type TabSection } from "./TabNav";
 import { cn } from "../../lib/cn";
+import { useRegisterNavCollapse } from "../../hooks/useNavCollapseCtx";
 
 interface Props {
   sections: TabSection[];
@@ -29,14 +30,17 @@ export function TabLayout({
   testId,
   children,
 }: Props) {
+  useRegisterNavCollapse(collapsed, onToggleCollapse);
+
   return (
     <div className="flex h-full">
       <TabNav sections={sections} active={active} onChange={onChange} collapsed={collapsed} />
       <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
-        <div className="flex items-center justify-between px-6 pt-3">
-          <NavToggle collapsed={collapsed} onToggle={onToggleCollapse} />
-          {actions ? <div className="flex gap-2">{actions}</div> : null}
-        </div>
+        {actions ? (
+          <div className="flex items-center justify-end gap-2 px-6 pt-3">
+            {actions}
+          </div>
+        ) : null}
         <div className={cn(contentClassName)} data-testid={testId}>
           {children}
         </div>

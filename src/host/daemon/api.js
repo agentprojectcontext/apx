@@ -22,6 +22,7 @@ import { register as registerMessages } from "./api/messages.js";
 import { register as registerTelegram } from "./api/telegram.js";
 import { register as registerPlugins } from "./api/plugins.js";
 import { register as registerEngines } from "./api/engines.js";
+import { register as registerSkills } from "./api/skills.js";
 import { register as registerExec } from "./api/exec.js";
 import { register as registerSuperAgent } from "./api/super-agent.js";
 import { register as registerCode } from "./api/code.js";
@@ -107,6 +108,7 @@ export function buildApi({
   registerMcps(app, ctx);
   registerMessages(app, ctx);
   registerEngines(app, ctx);
+  registerSkills(app, ctx);
   registerExec(app, ctx);
   registerSuperAgent(app, ctx);
   registerConfirm(app, ctx);

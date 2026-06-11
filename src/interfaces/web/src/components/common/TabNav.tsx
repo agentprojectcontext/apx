@@ -1,7 +1,7 @@
 // Left-rail tab nav used inside Settings + per-project screens. Mirrors
 // the panda.project sectioned-nav pattern: optional section title above
 // each group, icon + label rows, active state in the section's tone.
-import { useState, useEffect, Fragment, type ElementType } from "react";
+import { useState, useEffect, useCallback, Fragment, type ElementType } from "react";
 import { PanelLeft } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { Tip } from "../ui/tip";
@@ -34,12 +34,12 @@ export function useNavCollapse(storageKey: string) {
     try { setCollapsed(localStorage.getItem(storageKey) === "true"); } catch { /* ignore */ }
   }, [storageKey]);
 
-  const toggle = () =>
+  const toggle = useCallback(() =>
     setCollapsed((v) => {
       const next = !v;
       try { localStorage.setItem(storageKey, String(next)); } catch { /* quota */ }
       return next;
-    });
+    }), [storageKey]);
 
   return { collapsed, toggle };
 }
