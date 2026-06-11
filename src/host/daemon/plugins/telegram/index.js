@@ -45,13 +45,13 @@ import { getConfirmationStore as getConfirmStore } from "#core/confirmation/pend
 import { CHANNELS } from "#core/constants/channels.js";
 import { tryResolveSkillCommand } from "#core/agent/skills/trigger.js";
 import { createTelegramConfirmAdapter } from "#core/confirmation/adapters/telegram.js";
-import * as askFlow from "./ask.js";
+import * as askFlow from "#core/channels/telegram/ask.js";
 
-// API_BASE re-imported from ./media.js below
+// API_BASE re-imported from #core/channels/telegram/media.js below
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 
-// All non-class-bound helpers live in ./helpers.js so the file stays
-// focused on the poller class + dispatch wiring.
+// All non-class-bound channel logic lives in core/channels/telegram/ — this
+// file stays focused on the poller class + plugin lifecycle wiring.
 import {
   buildTelegramMeta,
   loadState,
@@ -61,11 +61,11 @@ import {
   tokenSource,
   resolveChannels,
   sleep,
-} from "./helpers.js";
-import { handleUpdate } from "./dispatch.js";
+} from "#core/channels/telegram/helpers.js";
+import { handleUpdate } from "#core/channels/telegram/dispatch.js";
 
 // ---------- media sending helpers (re-exports) ------------------------------
-import { sendPhoto, sendVoice, sendDocument, sendAudio, downloadTelegramFile, API_BASE } from "./media.js";
+import { sendPhoto, sendVoice, sendDocument, sendAudio, downloadTelegramFile, API_BASE } from "#core/channels/telegram/media.js";
 export { sendPhoto, sendVoice, sendDocument, sendAudio };
 
 // ---------- per-channel poller ----------------------------------------------
