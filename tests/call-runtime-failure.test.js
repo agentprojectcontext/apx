@@ -10,8 +10,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { ProjectManager } from "../src/host/daemon/db.js";
-import { makeToolHandlers } from "../src/host/daemon/super-agent-tools/index.js";
+import { ProjectManager } from "#host/daemon/db.js";
+import { makeToolHandlers } from "#host/daemon/super-agent-tools/index.js";
 import { makeTempProject, cleanupTempProject } from "./_helpers.js";
 
 function withFakeBinary(name, body, fn) {

@@ -16,7 +16,7 @@ import {
   writeApfMcps,
   runtimeMcpsPath,
   globalMcpsPath,
-} from "../src/core/mcp/sources.js";
+} from "#core/mcp/sources.js";
 
 // Dynamic import is required because sources.js captures HOME at module-load
 // time when computing the global path. We isolate by reassigning HOME and

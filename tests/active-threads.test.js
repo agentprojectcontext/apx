@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { buildActiveThreadsBlock } from "../src/core/memory/active-threads.js";
+import { buildActiveThreadsBlock } from "#core/memory/active-threads.js";
 
 function tmpDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "apx-threads-"));

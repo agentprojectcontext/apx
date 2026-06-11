@@ -18,7 +18,7 @@ const {
   log, logInfo, logWarn, logError,
   formatLogLine, loggerFor, callableLogger,
   APX_LOG_PATH,
-} = await import("../src/core/logging.js");
+} = await import("#core/logging.js");
 
 function readLog() {
   if (!fs.existsSync(APX_LOG_PATH)) return [];

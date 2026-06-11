@@ -1,5 +1,5 @@
-import { callEngine } from "../../../../core/engines/index.js";
-import { readAgents } from "../../../../core/apc/parser.js";
+import { callEngine } from "#core/engines/index.js";
+import { readAgents } from "#core/apc/parser.js";
 import { buildAgentSystem, resolveProject } from "../helpers.js";
 
 export default {

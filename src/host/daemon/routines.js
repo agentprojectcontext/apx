@@ -15,15 +15,15 @@ import { execFile } from "node:child_process";
 import os from "node:os";
 import fs from "node:fs";
 import path from "node:path";
-import { callEngine } from "../../core/engines/index.js";
+import { callEngine } from "#core/engines/index.js";
 import { runSuperAgent } from "./super-agent.js";
-import { computeSuppressedTools } from "../../core/agent/index.js";
-import { readAgents } from "../../core/apc/parser.js";
-import { buildAgentSystem } from "../../core/agent/build-agent-system.js";
-import { resolveAgentName, SUPERAGENT_ACTOR_ID } from "../../core/identity/index.js";
-import { resolveArtifactRef, ARTIFACTS_SKIP_SIGNAL } from "../../core/stores/artifacts.js";
-import { ensureRoutineMemory, readRoutineMemoryForPrompt, routineMemoryPath } from "../../core/stores/routine-memory.js";
-import { CHANNELS } from "../../core/constants/channels.js";
+import { computeSuppressedTools } from "#core/agent/index.js";
+import { readAgents } from "#core/apc/parser.js";
+import { buildAgentSystem } from "#core/agent/build-agent-system.js";
+import { resolveAgentName, SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
+import { resolveArtifactRef, ARTIFACTS_SKIP_SIGNAL } from "#core/stores/artifacts.js";
+import { ensureRoutineMemory, readRoutineMemoryForPrompt, routineMemoryPath } from "#core/stores/routine-memory.js";
+import { CHANNELS } from "#core/constants/channels.js";
 import {
   listRoutines,
   getRoutine,
@@ -34,7 +34,7 @@ import {
   getDueRoutines,
   parseSchedule,
   computeNextRun,
-} from "../../core/stores/routines.js";
+} from "#core/stores/routines.js";
 
 export {
   listRoutines,

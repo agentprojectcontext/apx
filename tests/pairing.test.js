@@ -19,10 +19,10 @@ import path from "node:path";
 const TMP_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "apx-pairing-test-"));
 process.env.HOME = TMP_HOME; // config.js derives APX_HOME from os.homedir()
 
-const { ProjectManager } = await import("../src/host/daemon/db.js");
-const { buildApi } = await import("../src/host/daemon/api.js");
-const { createTokenStore, CLIENTS_PATH } = await import("../src/host/daemon/token-store.js");
-const { _resetSessionsForTest } = await import("../src/host/daemon/api/pairing.js");
+const { ProjectManager } = await import("#host/daemon/db.js");
+const { buildApi } = await import("#host/daemon/api.js");
+const { createTokenStore, CLIENTS_PATH } = await import("#host/daemon/token-store.js");
+const { _resetSessionsForTest } = await import("#host/daemon/api/pairing.js");
 
 function resetClientsFile() {
   try { fs.unlinkSync(CLIENTS_PATH); } catch {}

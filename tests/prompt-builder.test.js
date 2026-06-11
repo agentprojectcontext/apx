@@ -11,7 +11,7 @@ import {
   buildProjectAgentsBlock,
   PROJECT_AGENTS_MAX_CHARS,
   renderPromptTemplate,
-} from "../src/core/agent/prompt-builder.js";
+} from "#core/agent/prompt-builder.js";
 
 function tmpProjectWithAgentsMd(contents) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-pb-agents-"));
@@ -146,7 +146,7 @@ test("renderPromptTemplate: replaces {{vars}}", () => {
 // and silently omits them when absent. Tracked in spec/done backlog for
 // Fase C (channel↔project spawn announce).
 test("telegram channel template includes project pin when present", async () => {
-  const { buildChannelContextBlock } = await import("../src/core/agent/prompt-builder.js");
+  const { buildChannelContextBlock } = await import("#core/agent/prompt-builder.js");
   const out = buildChannelContextBlock("telegram", {
     channelName: "default",
     author: "Manú",
@@ -160,7 +160,7 @@ test("telegram channel template includes project pin when present", async () => 
 });
 
 test("telegram channel template omits both blocks when channelMeta has neither", async () => {
-  const { buildChannelContextBlock } = await import("../src/core/agent/prompt-builder.js");
+  const { buildChannelContextBlock } = await import("#core/agent/prompt-builder.js");
   const out = buildChannelContextBlock("telegram", {
     channelName: "default",
     author: "Manú",
@@ -173,7 +173,7 @@ test("telegram channel template omits both blocks when channelMeta has neither",
 });
 
 test("telegram channel template includes master agent block when set", async () => {
-  const { buildChannelContextBlock } = await import("../src/core/agent/prompt-builder.js");
+  const { buildChannelContextBlock } = await import("#core/agent/prompt-builder.js");
   const out = buildChannelContextBlock("telegram", {
     channelName: "clientes",
     author: "X",

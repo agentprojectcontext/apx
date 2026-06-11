@@ -25,11 +25,11 @@ const {
   setRole,
   removeRole,
   listRoles,
-} = await import("../src/core/config/index.js");
+} = await import("#core/config/index.js");
 const { resolveSender, registerSender, resolveAllowedTools } = await import(
   "../src/core/identity/telegram.js"
 );
-const { buildRelationshipBlock } = await import("../src/core/agent/index.js");
+const { buildRelationshipBlock } = await import("#core/agent/index.js");
 
 function seedChannel(name, patch = {}) {
   const cfg = readConfig();

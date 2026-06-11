@@ -3,14 +3,14 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import readline from "node:readline";
-import { findApfRoot } from "../../../core/apc/parser.js";
+import { findApfRoot } from "#core/apc/parser.js";
 import {
   IDE_TARGETS,
   installIdeSkills,
   installGlobalSkills,
   listBundledSkillSlugs,
   listBundledSkills,
-} from "../../../core/apc/scaffold.js";
+} from "#core/apc/scaffold.js";
 
 // ---------------------------------------------------------------------------
 // Prompt helper

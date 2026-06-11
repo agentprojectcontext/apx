@@ -6,8 +6,8 @@
 //   POST /projects/:pid/send                                   (agent-to-agent)
 import fs from "node:fs";
 import path from "node:path";
-import { readAgents } from "../../../core/apc/parser.js";
-import { callEngine } from "../../../core/engines/index.js";
+import { readAgents } from "#core/apc/parser.js";
+import { callEngine } from "#core/engines/index.js";
 import { listConversations, readConversation } from "../conversations.js";
 import { compactConversation } from "../compact.js";
 import { nowIso } from "./shared.js";

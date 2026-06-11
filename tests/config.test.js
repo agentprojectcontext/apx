@@ -2,7 +2,7 @@
 // These run without touching ~/.apx since mergeDefaults is a pure function.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mergeDefaults } from "../src/core/config/index.js";
+import { mergeDefaults } from "#core/config/index.js";
 
 // ---------------------------------------------------------------------------
 // user.language

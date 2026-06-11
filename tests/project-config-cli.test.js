@@ -5,12 +5,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-const { http } = await import("../src/interfaces/cli/http.js");
+const { http } = await import("#interfaces/cli/http.js");
 const {
   cmdProjectConfigShow,
   cmdProjectConfigSet,
   cmdProjectConfigUnset,
-} = await import("../src/interfaces/cli/commands/project-config.js");
+} = await import("#interfaces/cli/commands/project-config.js");
 
 function installStub({
   projects = [{ id: 7, name: "iacrmar", path: "/tmp/iacrmar" }],

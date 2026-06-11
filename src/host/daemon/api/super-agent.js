@@ -10,12 +10,12 @@ import {
   resolveSuperAgentContext,
   appendSuperAgentErrorTrace,
 } from "./shared.js";
-import { loggerFor } from "../../../core/logging.js";
-import { appendGlobalMessage } from "../../../core/stores/messages.js";
-import { createWebConfirmAdapter } from "../../../core/confirmation/adapters/web.js";
+import { loggerFor } from "#core/logging.js";
+import { appendGlobalMessage } from "#core/stores/messages.js";
+import { createWebConfirmAdapter } from "#core/confirmation/adapters/web.js";
 import { tryResolveSkillCommand } from "../skill-trigger.js";
 import { suggestSkillForPrompt } from "../skill-rag.js";
-import { CHANNELS } from "../../../core/constants/channels.js";
+import { CHANNELS } from "#core/constants/channels.js";
 
 const log = loggerFor("super-agent");
 

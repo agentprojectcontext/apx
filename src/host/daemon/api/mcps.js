@@ -18,7 +18,7 @@ import {
   runtimeMcpsPath,
   globalMcpsPath,
   SOURCES,
-} from "../../../core/mcp/sources.js";
+} from "#core/mcp/sources.js";
 
 // scope alias used by API/CLI -> internal source id used in entry metadata
 const SCOPE_TO_SOURCE = {

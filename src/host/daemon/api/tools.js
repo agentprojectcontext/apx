@@ -4,12 +4,12 @@
 //   search / glob / grep                    → filesystem-bounded
 //   registry                                → /:name wildcard, MOUNT LAST so it
 //                                             doesn't shadow the specific paths
-import { buildBrowserRouter } from "../../../core/tools/browser.js";
-import { buildFetchRouter } from "../../../core/tools/fetch.js";
-import { buildSearchRouter } from "../../../core/tools/search.js";
-import { buildRegistryRouter } from "../../../core/tools/registry.js";
-import { buildGlobRouter } from "../../../core/tools/glob.js";
-import { buildGrepRouter } from "../../../core/tools/grep.js";
+import { buildBrowserRouter } from "#core/tools/browser.js";
+import { buildFetchRouter } from "#core/tools/fetch.js";
+import { buildSearchRouter } from "#core/tools/search.js";
+import { buildRegistryRouter } from "#core/tools/registry.js";
+import { buildGlobRouter } from "#core/tools/glob.js";
+import { buildGrepRouter } from "#core/tools/grep.js";
 
 export function register(app, { express, projects, registries }) {
   app.use("/tools/fetch", buildFetchRouter(express));

@@ -1,5 +1,5 @@
 // eslint-disable-next-line -- import below
-import { CHANNELS } from "../../../core/constants/channels.js";
+import { CHANNELS } from "#core/constants/channels.js";
 // Daemon HTTP routes for the unified "voice" channel.
 //
 //   POST /voice/turn  { audio?: <base64 or path>, format?, text?, agent?,
@@ -21,12 +21,12 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { randomUUID } from "node:crypto";
-import { readConfig } from "../../../core/config/index.js";
-import { synthesize } from "../../../core/voice/tts.js";
+import { readConfig } from "#core/config/index.js";
+import { synthesize } from "#core/voice/tts.js";
 import { transcribe } from "../transcription.js";
 import { runSuperAgent, isSuperAgentEnabled } from "../super-agent.js";
-import { appendGlobalMessage } from "../../../core/stores/messages.js";
-import { appendErrorTrace, previewText } from "../../../core/logging.js";
+import { appendGlobalMessage } from "#core/stores/messages.js";
+import { appendErrorTrace, previewText } from "#core/logging.js";
 
 // ── Channel-aware pre-processor ────────────────────────────────────
 //
@@ -234,7 +234,7 @@ async function tryVoiceTaskIntent({ projects, userText, hintProjectId }) {
     };
   }
   try {
-    const { createTask } = await import("../../../core/stores/tasks.js");
+    const { createTask } = await import("#core/stores/tasks.js");
     const task = createTask(project.storagePath, {
       title,
       source: "voice",

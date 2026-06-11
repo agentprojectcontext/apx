@@ -7,10 +7,10 @@
 //   GET  /projects/:pid/sessions/:id/resume?summarize=true
 import fs from "node:fs";
 import path from "node:path";
-import { readAgents } from "../../../core/apc/parser.js";
-import { readSessionFrontmatter } from "../../../core/stores/sessions.js";
-import { buildAgentSystem } from "../../../core/agent/build-agent-system.js";
-import { CHANNELS } from "../../../core/constants/channels.js";
+import { readAgents } from "#core/apc/parser.js";
+import { readSessionFrontmatter } from "#core/stores/sessions.js";
+import { buildAgentSystem } from "#core/agent/build-agent-system.js";
+import { CHANNELS } from "#core/constants/channels.js";
 import { getRuntime, RUNTIME_IDS } from "../runtimes/index.js";
 import { detectAll } from "../env-detect.js";
 import {

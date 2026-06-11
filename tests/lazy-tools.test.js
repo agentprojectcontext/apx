@@ -7,7 +7,7 @@ import {
   createToolSession,
   buildLazyToolsBlock,
   makeToolHandlers,
-} from "../src/host/daemon/super-agent-tools/index.js";
+} from "#host/daemon/super-agent-tools/index.js";
 
 const nameOf = (s) => s?.function?.name || s?.name;
 

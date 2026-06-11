@@ -5,10 +5,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { appendErrorTrace, previewText } from "../../../core/logging.js";
-import { readAgents } from "../../../core/apc/parser.js";
-import { agentMemoryPath } from "../../../core/agent/memory.js";
-import { CHANNELS } from "../../../core/constants/channels.js";
+import { appendErrorTrace, previewText } from "#core/logging.js";
+import { readAgents } from "#core/apc/parser.js";
+import { agentMemoryPath } from "#core/agent/memory.js";
+import { CHANNELS } from "#core/constants/channels.js";
 
 export const nowIso = () =>
   new Date().toISOString().replace(/\.\d{3}Z$/, "Z");

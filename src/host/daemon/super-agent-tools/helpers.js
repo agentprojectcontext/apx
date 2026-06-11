@@ -1,7 +1,7 @@
 import path from "node:path";
-import { agentSkills, buildAgentSystem as buildCoreAgentSystem } from "../../../core/agent/build-agent-system.js";
-import { buildConfirmDescription } from "../../../core/confirmation/index.js";
-import { PERMISSION_MODES, DEFAULT_PERMISSION_MODE } from "../../../core/constants/permissions.js";
+import { agentSkills, buildAgentSystem as buildCoreAgentSystem } from "#core/agent/build-agent-system.js";
+import { buildConfirmDescription } from "#core/confirmation/index.js";
+import { PERMISSION_MODES, DEFAULT_PERMISSION_MODE } from "#core/constants/permissions.js";
 
 export function projectMeta(projects, entry) {
   const meta = projects.list().find((p) => p.id === entry.id);

@@ -1,4 +1,4 @@
-import { appendSelfMemory } from "../../../../core/agent/self-memory.js";
+import { appendSelfMemory } from "#core/agent/self-memory.js";
 
 // Write a durable note into YOUR OWN notebook (~/.apx/memory.md). This is your
 // personal, cross-session memory — not a project task and not an agent memory.

@@ -30,7 +30,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn, exec } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { logInfo, logWarn, logError } from "../../core/logging.js";
+import { logInfo, logWarn, logError } from "#core/logging.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -76,7 +76,7 @@ export function resolveTranscriptionLanguage(localCfg, userLang) {
 
 async function getConfig() {
   try {
-    const { readConfig } = await import("../core/config/index.js");
+    const { readConfig } = await import("#core/config/index.js");
     const cfg = readConfig() || {};
     const t = cfg.transcription || {};
     const openaiKey = cfg.engines?.openai?.api_key || process.env.OPENAI_API_KEY || "";

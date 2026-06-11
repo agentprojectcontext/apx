@@ -26,7 +26,7 @@ const {
   unsetTelegramChannelFields,
   findTelegramChannel,
   listTelegramChannels,
-} = await import("../src/core/config/index.js");
+} = await import("#core/config/index.js");
 
 test("upsertTelegramChannel creates a channel with default respond_with_engine", () => {
   const cfg = readConfig();
@@ -102,14 +102,14 @@ test("upsertTelegramChannel drops unknown patch keys", () => {
 // to recorders instead of a live daemon. The /admin/reload call is treated as
 // a no-op.
 
-const { http } = await import("../src/interfaces/cli/http.js");
+const { http } = await import("#interfaces/cli/http.js");
 const {
   cmdTelegramChannelList,
   cmdTelegramChannelSet,
   cmdTelegramChannelUnset,
   cmdTelegramChannelRemove,
   cmdTelegramChannelShow,
-} = await import("../src/interfaces/cli/commands/telegram.js");
+} = await import("#interfaces/cli/commands/telegram.js");
 
 function installHttpStub({ channels = [] } = {}) {
   const calls = [];

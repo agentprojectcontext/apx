@@ -8,7 +8,7 @@ import {
   streamLines,
   streamSseDataEvents,
   streamJsonLines,
-} from "../src/core/engines/_streaming.js";
+} from "#core/engines/_streaming.js";
 
 function streamFromChunks(chunks) {
   const enc = new TextEncoder();

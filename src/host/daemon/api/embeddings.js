@@ -8,15 +8,15 @@
 //   POST /embeddings/reindex    → { ok, cleared, indexed }  (rebuild the vector
 //                                   store under the current embedder — needed
 //                                   after switching provider/model)
-import { readConfig } from "../../../core/config/index.js";
+import { readConfig } from "#core/config/index.js";
 import {
   listAvailableEmbedEngines,
   embeddingsConfig,
   resolveMode,
   resolveChainOrder,
-} from "../../../core/memory/embed-engines/index.js";
-import { embedOne } from "../../../core/memory/embeddings.js";
-import { reindexMemory } from "../../../core/memory/index.js";
+} from "#core/memory/embed-engines/index.js";
+import { embedOne } from "#core/memory/embeddings.js";
+import { reindexMemory } from "#core/memory/index.js";
 
 export function register(app) {
   app.get("/embeddings/providers", async (_req, res) => {

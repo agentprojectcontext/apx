@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseSchedule, computeNextRun } from "../src/host/daemon/routines.js";
+import { parseSchedule, computeNextRun } from "#host/daemon/routines.js";
 
 test("parseSchedule — every:<N><unit>", () => {
   assert.deepEqual(parseSchedule("every:60s"), { kind: "every", intervalMs: 60_000 });

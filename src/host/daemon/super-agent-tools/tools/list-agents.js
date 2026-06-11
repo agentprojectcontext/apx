@@ -1,4 +1,4 @@
-import { readAgents } from "../../../../core/apc/parser.js";
+import { readAgents } from "#core/apc/parser.js";
 import { agentRow, resolveProject } from "../helpers.js";
 
 export default {

@@ -1,9 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ProjectManager } from "../src/host/daemon/db.js";
-import { buildApi } from "../src/host/daemon/api.js";
-import { desktopClients } from "../src/host/daemon/desktop-ws.js";
-import desktopPlugin from "../src/host/daemon/plugins/desktop.js";
+import { ProjectManager } from "#host/daemon/db.js";
+import { buildApi } from "#host/daemon/api.js";
+import { desktopClients } from "#host/daemon/desktop-ws.js";
+import desktopPlugin from "#host/daemon/plugins/desktop.js";
 
 async function listen(app) {
   const server = app.listen(0);

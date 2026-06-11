@@ -5,10 +5,10 @@
 // The PATCH variant is intentional: PUT would force the caller to send the
 // whole credentials block, and a UI that forgot one field would wipe secrets.
 // Dotted keys make every edit narrowly-scoped.
-import { readConfig, writeConfig } from "../../../core/config/index.js";
-import { resolveAgentName } from "../../../core/identity/index.js";
+import { readConfig, writeConfig } from "#core/config/index.js";
+import { resolveAgentName } from "#core/identity/index.js";
 import { setDottedKey, unsetDottedKey } from "../project-config.js";
-import { PERMISSION_MODES, DEFAULT_PERMISSION_MODE } from "../../../core/constants/permissions.js";
+import { PERMISSION_MODES, DEFAULT_PERMISSION_MODE } from "#core/constants/permissions.js";
 
 const SECRET_PATHS = [
   "engines.anthropic.api_key",

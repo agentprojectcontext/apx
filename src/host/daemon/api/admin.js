@@ -3,7 +3,7 @@
 // POST /admin/shutdown    — clean exit (50 ms grace so the response flushes).
 //
 // Both are auth-gated (the global middleware applies).
-import { readConfig } from "../../../core/config/index.js";
+import { readConfig } from "#core/config/index.js";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";

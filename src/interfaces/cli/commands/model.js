@@ -1,11 +1,11 @@
-import { readConfig, writeConfig } from "../../../core/config/index.js";
+import { readConfig, writeConfig } from "#core/config/index.js";
 import {
   probeAllProviders,
   resolveActiveModel,
   fallbackModels,
   parseModelId,
   DEFAULT_FALLBACK_ORDER,
-} from "../../../core/agent/model-router.js";
+} from "#core/agent/model-router.js";
 
 function providersFromFallback(cfg) {
   const seen = [];

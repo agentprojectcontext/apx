@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { readConfig, addProject as addProjectInConfig } from "../../../../core/config/index.js";
-import { initApf } from "../../../../core/apc/scaffold.js";
+import { readConfig, addProject as addProjectInConfig } from "#core/config/index.js";
+import { initApf } from "#core/apc/scaffold.js";
 import { projectMeta } from "../helpers.js";
 
 function isApcProject(absPath) {

@@ -5,7 +5,7 @@ import {
   fallbackModels,
   resolveActiveModel,
   checkProviderHealth,
-} from "../src/core/agent/model-router.js";
+} from "#core/agent/model-router.js";
 
 test("parseModelId: groq and openrouter explicit forms", () => {
   assert.deepEqual(parseModelId("groq:llama-3.3-70b-versatile"), {
@@ -185,7 +185,7 @@ test("resolveActiveModel skips Ollama when its configured model isn't pulled", a
 // ── New flat-list format + legacy migration ─────────────────────────────────
 
 test("fallbackModels: reads the new array shape directly", async () => {
-  const { fallbackModels } = await import("../src/core/agent/model-router.js");
+  const { fallbackModels } = await import("#core/agent/model-router.js");
   const cfg = {
     super_agent: {
       model_fallback: {
@@ -200,7 +200,7 @@ test("fallbackModels: reads the new array shape directly", async () => {
 });
 
 test("fallbackModels: array order IS attempt order (no separate `order` needed)", async () => {
-  const { fallbackModels } = await import("../src/core/agent/model-router.js");
+  const { fallbackModels } = await import("#core/agent/model-router.js");
   const cfg = {
     super_agent: {
       model_fallback: {
@@ -216,7 +216,7 @@ test("fallbackModels: array order IS attempt order (no separate `order` needed)"
 });
 
 test("fallbackModels: legacy { order, models{} } shape is normalised in order", async () => {
-  const { fallbackModels } = await import("../src/core/agent/model-router.js");
+  const { fallbackModels } = await import("#core/agent/model-router.js");
   const cfg = {
     super_agent: {
       model: "ollama:gemma4:31b",   // ollama gets a fallback to primary
@@ -237,7 +237,7 @@ test("fallbackModels: legacy { order, models{} } shape is normalised in order", 
 });
 
 test("fallbackModels: drops malformed entries (no provider prefix)", async () => {
-  const { fallbackModels } = await import("../src/core/agent/model-router.js");
+  const { fallbackModels } = await import("#core/agent/model-router.js");
   const cfg = {
     super_agent: {
       model_fallback: {
@@ -294,7 +294,7 @@ test("resolveActiveModel: walks the array in order, primary first then fallback"
 // ── Lazy retry: isRetryableEngineError classifier ───────────────────────────
 
 test("isRetryableEngineError: 429 / 413 / 5xx → retry", async () => {
-  const { isRetryableEngineError } = await import("../src/core/agent/retry.js");
+  const { isRetryableEngineError } = await import("#core/agent/retry.js");
   assert.equal(isRetryableEngineError(new Error("groq 429: Rate limit reached")), true);
   assert.equal(isRetryableEngineError(new Error("groq 413: Request too large for model")), true);
   assert.equal(isRetryableEngineError(new Error("anthropic 529: overloaded")), true);
@@ -303,7 +303,7 @@ test("isRetryableEngineError: 429 / 413 / 5xx → retry", async () => {
 });
 
 test("isRetryableEngineError: auth / not-found / malformed → fatal", async () => {
-  const { isRetryableEngineError } = await import("../src/core/agent/retry.js");
+  const { isRetryableEngineError } = await import("#core/agent/retry.js");
   assert.equal(isRetryableEngineError(new Error("openai 401: unauthorized")), false);
   assert.equal(isRetryableEngineError(new Error("groq 403: forbidden")), false);
   assert.equal(isRetryableEngineError(new Error("groq 400: 'tools.0.type' is missing")), false);
@@ -311,7 +311,7 @@ test("isRetryableEngineError: auth / not-found / malformed → fatal", async () 
 });
 
 test("isRetryableEngineError: 400 'failed to call a function' → retry (model issue)", async () => {
-  const { isRetryableEngineError } = await import("../src/core/agent/retry.js");
+  const { isRetryableEngineError } = await import("#core/agent/retry.js");
   assert.equal(
     isRetryableEngineError(new Error("groq 400: Failed to call a function. Please adjust your prompt.")),
     true
@@ -319,7 +319,7 @@ test("isRetryableEngineError: 400 'failed to call a function' → retry (model i
 });
 
 test("isRetryableEngineError: phrase fallback when no status code", async () => {
-  const { isRetryableEngineError } = await import("../src/core/agent/retry.js");
+  const { isRetryableEngineError } = await import("#core/agent/retry.js");
   assert.equal(isRetryableEngineError(new Error("connection reset by peer")), true);
   assert.equal(isRetryableEngineError(new Error("upstream timeout")), true);
   assert.equal(isRetryableEngineError(new Error("absolutely nothing wrong here")), false);

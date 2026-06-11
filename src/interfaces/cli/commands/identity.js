@@ -1,5 +1,5 @@
 import readline from "node:readline";
-import { readIdentity, writeIdentity } from "../../../core/identity/index.js";
+import { readIdentity, writeIdentity } from "#core/identity/index.js";
 
 function ask(rl, question, defaultVal) {
   return new Promise((resolve) => {
@@ -22,7 +22,7 @@ export async function cmdIdentity(args) {
       console.log("No identity configured. Run: apx identity wizard");
       return;
     }
-    const { readConfig } = await import("../../../core/config/index.js");
+    const { readConfig } = await import("#core/config/index.js");
     const cfg = readConfig();
     console.log("");
     console.log(`  Agent name  : ${id.agent_name}`);

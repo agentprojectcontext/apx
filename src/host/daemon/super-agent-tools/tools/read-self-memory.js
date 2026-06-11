@@ -1,4 +1,4 @@
-import { readSelfMemory } from "../../../../core/agent/self-memory.js";
+import { readSelfMemory } from "#core/agent/self-memory.js";
 
 // Read your OWN full notebook (~/.apx/memory.md). A bounded slice is already in
 // your system prompt; call this when you need the complete history beyond it.

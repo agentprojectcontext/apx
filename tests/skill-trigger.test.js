@@ -9,7 +9,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { tryResolveSkillCommand } from "../src/host/daemon/skill-trigger.js";
+import { tryResolveSkillCommand } from "#host/daemon/skill-trigger.js";
 
 function withTempProjectSkill(slug, body, fn) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-skill-"));

@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import readline from "node:readline";
 import { fileURLToPath } from "node:url";
-import { getLatestVersion } from "../../../core/update-check.js";
+import { getLatestVersion } from "#core/update-check.js";
 
 const PACKAGE_NAME = "@agentprojectcontext/apx";
 
