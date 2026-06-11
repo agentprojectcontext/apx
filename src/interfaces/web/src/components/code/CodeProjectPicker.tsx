@@ -26,7 +26,7 @@ export function CodeProjectPicker({ projects, value, onChange, disabled }: Props
   });
 
   return (
-    <div className="w-60" data-testid="code-project-select">
+    <div className="w-full" data-testid="code-project-select">
       <UiSelect
         value={value}
         onChange={onChange}
