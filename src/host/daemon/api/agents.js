@@ -7,6 +7,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { readAgents, readVaultAgents, readVaultAgent } from "#core/apc/parser.js";
+import { apcAgentFile, apcDir, apcMemoryFile } from "#core/apc/paths.js";
 import {
   writeAgentFile,
   writeVaultAgentFile,
@@ -202,7 +203,7 @@ export function register(app, { projects, project }) {
     const p = project(req, res);
     if (!p) return;
     const slug = req.params.slug;
-    const file = path.join(p.path, ".apc", "agents", `${slug}.md`);
+    const file = apcAgentFile(p.path, slug);
     const runtimeDir = path.dirname(agentMemoryPath(p, slug));
     const legacyDir = path.dirname(legacyAgentMemoryPath(p.path, slug));
     if (!fs.existsSync(file) && !fs.existsSync(runtimeDir) && !fs.existsSync(legacyDir))
@@ -222,7 +223,7 @@ export function register(app, { projects, project }) {
   app.get("/projects/:pid/memory", (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    const memPath = path.join(p.path, ".apc", "memory.md");
+    const memPath = apcMemoryFile(p.path);
     const body = fs.existsSync(memPath) ? fs.readFileSync(memPath, "utf8") : "";
     res.json({ body, path: memPath });
   });
@@ -233,9 +234,8 @@ export function register(app, { projects, project }) {
     const { body } = req.body || {};
     if (typeof body !== "string")
       return res.status(400).json({ error: "body must be string" });
-    const apcDir = path.join(p.path, ".apc");
-    fs.mkdirSync(apcDir, { recursive: true });
-    const memPath = path.join(apcDir, "memory.md");
+    fs.mkdirSync(apcDir(p.path), { recursive: true });
+    const memPath = apcMemoryFile(p.path);
     fs.writeFileSync(memPath, body);
     try { projects.rebuild(p.id); } catch {}
     res.json({ ok: true, bytes: Buffer.byteLength(body, "utf8") });

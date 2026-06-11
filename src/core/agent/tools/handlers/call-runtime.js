@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { loggerFor } from "#core/logging.js";
 import { readAgents } from "#core/apc/parser.js";
+import { apcProjectFile } from "#core/apc/paths.js";
 import {
   closeRuntimeSession,
   createRuntimeSession,
@@ -88,7 +89,7 @@ function resolveProjectForAgent(projects, project, slug) {
 
 function projectName(project) {
   try {
-    const meta = JSON.parse(fs.readFileSync(path.join(project.path, ".apc", "project.json"), "utf8"));
+    const meta = JSON.parse(fs.readFileSync(apcProjectFile(project.path), "utf8"));
     if (meta.name) return meta.name;
   } catch {}
   return path.basename(project.path);

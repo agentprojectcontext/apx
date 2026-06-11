@@ -8,6 +8,7 @@ import { randomUUID } from "node:crypto";
 import { appendErrorTrace, previewText } from "#core/logging.js";
 import { readAgents } from "#core/apc/parser.js";
 import { agentMemoryPath } from "#core/agent/memory.js";
+import { apcMemoryFile } from "#core/apc/paths.js";
 import { CHANNELS } from "#core/constants/channels.js";
 
 export const nowIso = () =>
@@ -117,7 +118,7 @@ export function makeTopProjectResolver(projects) {
 export function resolveMemoryPath(p) {
   const firstAgent = readAgents(p.path)[0];
   if (firstAgent) return agentMemoryPath(p, firstAgent.slug);
-  return path.join(p.path, ".apc", "memory.md");
+  return apcMemoryFile(p.path);
 }
 
 // Channel context passed to the super-agent loop. `api` is the default when

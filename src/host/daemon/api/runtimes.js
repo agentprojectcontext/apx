@@ -8,6 +8,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { readAgents } from "#core/apc/parser.js";
+import { apcProjectFile, apcAgentsDir } from "#core/apc/paths.js";
 import { readSessionFrontmatter } from "#core/stores/sessions.js";
 import { buildAgentSystem } from "#core/agent/build-agent-system.js";
 import { CHANNELS } from "#core/constants/channels.js";
@@ -52,7 +53,7 @@ export function register(app, { projects, registries, plugins, project, config }
     let projectName = path.basename(p.path);
     try {
       const meta = JSON.parse(
-        fs.readFileSync(path.join(p.path, ".apc", "project.json"), "utf8")
+        fs.readFileSync(apcProjectFile(p.path), "utf8")
       );
       if (meta.name) projectName = meta.name;
     } catch {}
@@ -152,7 +153,7 @@ export function register(app, { projects, registries, plugins, project, config }
 
     const sessionRoots = [
       path.join(p.storagePath || p.path, "agents"),
-      path.join(p.path, ".apc", "agents"),
+      apcAgentsDir(p.path),
     ];
     let sessionFile = null;
     let agentSlug = null;

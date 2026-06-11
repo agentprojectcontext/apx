@@ -5,6 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { readAgents } from "#core/apc/parser.js";
+import { apcAgentsDir } from "#core/apc/paths.js";
 import { compactConversation } from "#core/stores/conversations-compactor.js";
 
 export function register(app, { projects, config }) {
@@ -32,7 +33,7 @@ export function register(app, { projects, config }) {
       if (!p) continue;
 
       // 1) Legacy session files in the repo (.apc/agents/<slug>/sessions/)
-      const sessionAgentsDir = path.join(p.path, ".apc", "agents");
+      const sessionAgentsDir = apcAgentsDir(p.path);
       if (fs.existsSync(sessionAgentsDir)) {
         for (const slug of fs.readdirSync(sessionAgentsDir)) {
           const sessionsDir = path.join(sessionAgentsDir, slug, "sessions");

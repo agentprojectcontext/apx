@@ -36,6 +36,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { apcMcpsFile } from "#core/apc/paths.js";
 
 const APX_HOME = path.join(os.homedir(), ".apx");
 const GLOBAL_MCPS_FILE = path.join(APX_HOME, "mcps.json");
@@ -175,7 +176,7 @@ function normalize(name, server, sourceId) {
 // ---------------------------------------------------------------------------
 
 export function readApfMcps(projectRoot) {
-  const p = path.join(projectRoot, ".apc", "mcps.json");
+  const p = apcMcpsFile(projectRoot);
   if (!fs.existsSync(p)) return { mcpServers: {} };
   try {
     const json = JSON.parse(fs.readFileSync(p, "utf8"));
@@ -187,7 +188,7 @@ export function readApfMcps(projectRoot) {
 }
 
 export function writeApfMcps(projectRoot, json) {
-  const p = path.join(projectRoot, ".apc", "mcps.json");
+  const p = apcMcpsFile(projectRoot);
   fs.mkdirSync(path.dirname(p), { recursive: true });
   fs.writeFileSync(p, JSON.stringify(json, null, 2) + "\n");
 }

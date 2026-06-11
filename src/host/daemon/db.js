@@ -5,6 +5,7 @@ import path from "node:path";
 import { appendMessageToFs } from "#core/stores/messages.js";
 import { effectiveConfig } from "./project-config.js";
 import { readAgents } from "#core/apc/parser.js";
+import { apcDir, apcProjectFile, apcAgentsDir, apcCommandsDir } from "#core/apc/paths.js";
 import { getOrCreateApxId } from "#core/apc/scaffold.js";
 import {
   ensureProjectStorage,
@@ -30,12 +31,12 @@ export class ProjectManager {
   register(projectPath) {
     const abs = path.resolve(projectPath);
     if (this.byPath.has(abs)) return this.byPath.get(abs);
-    const projectJson = path.join(abs, ".apc", "project.json");
+    const projectJson = apcProjectFile(abs);
     if (!fs.existsSync(projectJson)) {
       throw new Error(`not an APC project: ${abs}`);
     }
     // Ensure directories exist for projects initialized before they were added.
-    fs.mkdirSync(path.join(abs, ".apc", "commands"), { recursive: true });
+    fs.mkdirSync(apcCommandsDir(abs), { recursive: true });
 
     // Resolve stable APX storage ID (read from .apc/project.json).
     const apxId = getOrCreateApxId(abs);
@@ -72,9 +73,8 @@ export class ProjectManager {
     if (this.byId.has(0)) return this.byId.get(0);
     // Create a minimal APC-compatible structure inside the storage root so that
     // readAgents() and other parser functions work without a separate project dir.
-    const apcDir = path.join(DEFAULT_PROJECT_STORE, ".apc");
-    fs.mkdirSync(path.join(apcDir, "agents"), { recursive: true });
-    const projectJson = path.join(apcDir, "project.json");
+    fs.mkdirSync(apcAgentsDir(DEFAULT_PROJECT_STORE), { recursive: true });
+    const projectJson = apcProjectFile(DEFAULT_PROJECT_STORE);
     if (!fs.existsSync(projectJson)) {
       fs.writeFileSync(
         projectJson,
@@ -113,7 +113,7 @@ export class ProjectManager {
       let kind = e.id === 0 ? "default" : "other";
       try {
         const meta = JSON.parse(
-          fs.readFileSync(path.join(e.path, ".apc", "project.json"), "utf8")
+          fs.readFileSync(apcProjectFile(e.path), "utf8")
         );
         if (meta.name) name = meta.name;
         if (typeof meta.kind === "string" && meta.kind.trim()) {
