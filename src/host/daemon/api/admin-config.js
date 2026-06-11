@@ -9,88 +9,11 @@ import { readConfig, writeConfig } from "#core/config/index.js";
 import { resolveAgentName } from "#core/identity/index.js";
 import { setDottedKey, unsetDottedKey } from "../project-config.js";
 import { PERMISSION_MODES, DEFAULT_PERMISSION_MODE } from "#core/constants/permissions.js";
-
-const SECRET_PATHS = [
-  "engines.anthropic.api_key",
-  "engines.openai.api_key",
-  "engines.groq.api_key",
-  "engines.openrouter.api_key",
-  "engines.gemini.api_key",
-  "voice.tts.elevenlabs.api_key",
-  "voice.tts.openai.api_key",
-  "voice.tts.gemini.api_key",
-  "memory.embeddings.openai.api_key",
-  "memory.embeddings.gemini.api_key",
-  "telegram.channels.*.bot_token",
-];
-
-function getDotted(obj, dotted) {
-  const parts = dotted.split(".");
-  let cur = obj;
-  for (const p of parts) {
-    if (cur == null) return undefined;
-    cur = cur[p];
-  }
-  return cur;
-}
-
-function secretMarker(value) {
-  if (typeof value !== "string" || !value.length) return value;
-  const suffix = value.slice(-5);
-  return `*** set *** (...${suffix})`;
-}
-
-function isSecretMarker(value) {
-  return typeof value === "string" && value.startsWith("*** set ***");
-}
-
-// Returns a deep copy with `*** set ***` for every present secret value.
-function redact(cfg) {
-  const out = JSON.parse(JSON.stringify(cfg || {}));
-  const mark = (val) => (typeof val === "string" && val.length ? secretMarker(val) : val);
-
-  // Engine api keys + voice tts keys
-  for (const path of SECRET_PATHS) {
-    if (path.includes("*")) continue;
-    const parts = path.split(".");
-    let cur = out;
-    for (let i = 0; i < parts.length - 1; i++) {
-      if (!cur[parts[i]] || typeof cur[parts[i]] !== "object") { cur = null; break; }
-      cur = cur[parts[i]];
-    }
-    if (cur && cur[parts[parts.length - 1]]) {
-      cur[parts[parts.length - 1]] = mark(cur[parts[parts.length - 1]]);
-    }
-  }
-  // Telegram channels — array, redact bot_token per item (keep the suffix so
-  // the UI can show which token is set, e.g. "*** set *** (...AB12)").
-  const channels = out?.telegram?.channels;
-  if (Array.isArray(channels)) {
-    for (const ch of channels) {
-      if (ch && typeof ch.bot_token === "string" && ch.bot_token.length) {
-        ch.bot_token = mark(ch.bot_token);
-      }
-    }
-  }
-  return out;
-}
-
-function mergeRedactedChannels(nextChannels, priorChannels) {
-  if (!Array.isArray(nextChannels)) return nextChannels;
-  const priorByName = new Map(
-    (Array.isArray(priorChannels) ? priorChannels : [])
-      .filter((c) => c && typeof c.name === "string")
-      .map((c) => [c.name, c])
-  );
-  return nextChannels.map((channel) => {
-    if (!channel || typeof channel !== "object") return channel;
-    const prior = priorByName.get(channel.name);
-    if (prior?.bot_token && (channel.bot_token === undefined || isSecretMarker(channel.bot_token))) {
-      return { ...channel, bot_token: prior.bot_token };
-    }
-    return channel;
-  });
-}
+import {
+  redactConfig as redact,
+  isSecretMarker,
+  mergeRedactedChannels,
+} from "#core/config/redact.js";
 
 export function register(app, { config, scheduler, plugins }) {
   app.get("/admin/config", (_req, res) => {

@@ -39,17 +39,7 @@ import {
   removeRole,
 } from "#core/config/index.js";
 
-function redactChannel(channel) {
-  if (!channel?.bot_token) return channel;
-  return {
-    ...channel,
-    bot_token: `*** set *** (...${String(channel.bot_token).slice(-5)})`,
-  };
-}
-
-function isSecretMarker(value) {
-  return typeof value === "string" && value.startsWith("*** set ***");
-}
+import { redactChannel, isSecretMarker } from "#core/config/redact.js";
 
 export function register(app, { telegram }) {
   app.get("/telegram/status", (_req, res) => {
