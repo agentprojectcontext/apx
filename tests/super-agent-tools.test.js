@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import { ProjectManager } from "#host/daemon/db.js";
-import { makeToolHandlers, TOOL_SCHEMAS } from "#host/daemon/super-agent-tools/index.js";
+import { makeToolHandlers, TOOL_SCHEMAS } from "#core/agent/tools/registry.js";
 import { makeTempProject, cleanupTempProject } from "./_helpers.js";
 
 function setup() {

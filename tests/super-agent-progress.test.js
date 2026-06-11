@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { ProjectManager } from "#host/daemon/db.js";
-import { runSuperAgent } from "#host/daemon/super-agent.js";
+import { runSuperAgent } from "#core/agent/super-agent.js";
 import { makeTempProject, cleanupTempProject } from "./_helpers.js";
 
 test("runSuperAgent emits progress events as tools execute", async () => {

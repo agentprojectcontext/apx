@@ -31,7 +31,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { TELEGRAM_STATE_PATH, APX_HOME } from "#core/config/index.js";
 import { callEngine } from "#core/engines/index.js";
-import { runSuperAgent, isSuperAgentEnabled } from "../../super-agent.js";
+import { runSuperAgent, isSuperAgentEnabled } from "#core/agent/super-agent.js";
 import { stripThinking } from "../../thinking.js";
 import { getRecentTelegramTurnsFromFs, appendGlobalMessage } from "#core/stores/messages.js";
 import { compactChannelIfNeeded } from "#core/memory/index.js";
