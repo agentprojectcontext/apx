@@ -1,6 +1,6 @@
 // discover_tools — lazy tool discovery + activation.
 //
-// Roby (and any super-agent surface) only carries a small "base" set of tool
+// The super-agent only carries a small "base" set of tool
 // schemas on lightweight channels (Telegram/desktop/deck) to stay under
 // cheap-tier TPM caps. The rest (browser/Puppeteer, fetch, web_search, runtime,
 // voice, …) exist but are NOT sent to the model by default. This tool is how

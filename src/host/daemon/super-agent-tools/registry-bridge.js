@@ -25,7 +25,7 @@ import { TOKEN_PATH } from "../../../core/config/index.js";
 // The bridge POSTs to the daemon's OWN HTTP server, which is behind the bearer
 // auth middleware (see api/shared.js). Without a token every bridged tool call
 // (web_search, browser_*, http_*, glob, grep) comes back 401 "unauthorized" —
-// which is exactly what Roby hit. We read the daemon's master token from
+// which is exactly what the super-agent hit. We read the daemon's master token from
 // ~/.apx/daemon.token (the same file the CLI authenticates with) and cache it.
 let cachedToken = null;
 function daemonToken() {

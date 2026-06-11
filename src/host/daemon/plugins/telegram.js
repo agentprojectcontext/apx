@@ -43,6 +43,7 @@ import { registerSender, resolveAllowedTools } from "../../../core/identity/tele
 import { buildRelationshipBlock } from "../../../core/agent/index.js";
 import { getConfirmationStore as getConfirmStore } from "../../../core/confirmation/pending-store.js";
 import { CHANNELS } from "../../../core/constants/channels.js";
+import { tryResolveSkillCommand } from "../skill-trigger.js";
 import { createTelegramConfirmAdapter } from "../../../core/confirmation/adapters/telegram.js";
 import * as askFlow from "./telegram-ask.js";
 
@@ -704,7 +705,7 @@ class ChannelPoller {
     let replyActorId;   // stable id: super_agent | agent slug
     let replyKind;      // actor_kind: superagent | agent
     const projectCfg = target.config || this.globalConfig;
-    // Display name for the super-agent persona on this channel (Roby / APX).
+    // Display name for the super-agent persona on this channel (from identity.json).
     const agentDisplay = resolveAgentName(this.globalConfig);
 
     // Try the project's chosen agent first (skipped if the legacy
@@ -847,17 +848,24 @@ class ChannelPoller {
         pendingStore: getConfirmStore(),
       });
 
+      // `/slug ...` shortcut: load the matching skill body into contextNote
+      // and strip the prefix from the user prompt before sending to the loop.
+      const slashed = tryResolveSkillCommand(text, { projectPath: target?.path });
+      const slashedPrompt = slashed.handled ? slashed.prompt : text;
+      const slashedContextNote = slashed.handled ? slashed.contextNote : "";
+
       try {
         const sa = await runSuperAgent({
           globalConfig: this.globalConfig,
           projects: this.projects,
           plugins: this.plugins,
           registries: this.registries,
-          prompt: text,
+          prompt: slashedPrompt,
           previousMessages,
           channel: CHANNELS.TELEGRAM,
           relationshipBlock,
           allowedTools,
+          contextNote: slashedContextNote || undefined,
           channelMeta: buildTelegramMeta({
             channelName: this.channel.name,
             author,
