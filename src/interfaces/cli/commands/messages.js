@@ -4,10 +4,10 @@ import { CHANNELS } from "#core/constants/channels.js";
 
 // Channels that live in ~/.apx/messages/<channel>/ (global, cross-project).
 // Everything else is project-scoped.
-// "direct" and "whatsapp" are placeholder names for not-yet-implemented
-// channels — keep them in the global set so when they land, message lookup
-// already knows they're project-less.
-const GLOBAL_CHANNELS = new Set([CHANNELS.TELEGRAM, "direct", "whatsapp"]);
+// DIRECT and WHATSAPP are still placeholders (no plugin lives behind them
+// yet) but they're real channel ids — when those plugins land, message
+// lookup already routes them as project-less / global.
+const GLOBAL_CHANNELS = new Set([CHANNELS.TELEGRAM, CHANNELS.DIRECT, CHANNELS.WHATSAPP]);
 
 function isGlobalChannel(channel) {
   return channel && GLOBAL_CHANNELS.has(channel);

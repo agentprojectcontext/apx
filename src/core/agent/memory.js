@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { projectStorageRoot } from "../config/index.js";
 import { getOrCreateApxId } from "../apc/scaffold.js";
+import { apcAgentMemoryFile } from "../apc/paths.js";
 
 const EMPTY_MEMORY = (slug) =>
   `# Memory — ${slug}\n\n` +
@@ -27,7 +28,7 @@ export function agentMemoryPath(projectOrRoot, slug) {
 }
 
 export function legacyAgentMemoryPath(projectRoot, slug) {
-  return path.join(projectRoot, ".apc", "agents", slug, "memory.md");
+  return apcAgentMemoryFile(projectRoot, slug);
 }
 
 export function ensureAgentRuntimeDir(projectOrRoot, slug, { createMemory = false } = {}) {

@@ -1,6 +1,13 @@
 // Core parsers for APC — pure ESM, no deps.
 import fs from "node:fs";
 import path from "node:path";
+import {
+  apcAgentsDir,
+  apcAgentFile,
+  apcProjectFile,
+  agentsMdFile,
+  isApcProject,
+} from "./paths.js";
 
 export const SLUG_RE = /^[a-z][a-z0-9_-]*$/;
 const H1_RE = /^#\s+Agents\s*$/i;
@@ -91,7 +98,7 @@ export function parseAgentFile(slug, text) {
 
 // Read all .apc/agents/<slug>.md files. Returns [] if none exist.
 export function readAgentsFromDir(root) {
-  const dir = path.join(root, ".apc", "agents");
+  const dir = apcAgentsDir(root);
   if (!fs.existsSync(dir)) return [];
   return fs
     .readdirSync(dir)
@@ -189,7 +196,7 @@ function readVaultAgent(slug, { includeRemoved = false } = {}) {
 
 // Resolve a single agent for a project: local file → vault (layered) → null.
 export function resolveAgent(root, slug) {
-  const localPath = path.join(root, ".apc", "agents", `${slug}.md`);
+  const localPath = apcAgentFile(root, slug);
   if (fs.existsSync(localPath)) {
     const agent = parseAgentFile(slug, fs.readFileSync(localPath, "utf8"));
     return { ...agent, source: "local" };
@@ -203,7 +210,7 @@ export { readVaultAgent };
 
 // Return slugs imported from vault in this project (from project.json)
 export function importedVaultSlugs(root) {
-  const p = path.join(root, ".apc", "project.json");
+  const p = apcProjectFile(root);
   if (!fs.existsSync(p)) return [];
   try {
     const cfg = JSON.parse(fs.readFileSync(p, "utf8"));
@@ -235,7 +242,7 @@ export function readAgents(root) {
   const all = [...fromFiles, ...vaultAgents];
   const allSlugs = new Set(all.map((a) => a.slug));
 
-  const agentsMdPath = path.join(root, "AGENTS.md");
+  const agentsMdPath = agentsMdFile(root);
   if (!fs.existsSync(agentsMdPath)) return all;
 
   const mdText = fs.readFileSync(agentsMdPath, "utf8");
@@ -255,7 +262,7 @@ export function readAgents(root) {
 export function findApfRoot(start = process.cwd()) {
   let cur = path.resolve(start);
   while (true) {
-    if (fs.existsSync(path.join(cur, ".apc", "project.json"))) return cur;
+    if (isApcProject(cur)) return cur;
     const parent = path.dirname(cur);
     if (parent === cur) return null;
     cur = parent;

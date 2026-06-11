@@ -2,12 +2,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { readConfig, addProject as addProjectInConfig } from "#core/config/index.js";
 import { initApf } from "#core/apc/scaffold.js";
+import { agentsMdFile, apcProjectFile } from "#core/apc/paths.js";
 import { projectMeta } from "../helpers.js";
 
+// Stricter than core/apc/paths.js::isApcProject — `add_project` also requires
+// AGENTS.md at the root, matching the gate that config.addProject() enforces.
 function isApcProject(absPath) {
   return (
-    fs.existsSync(path.join(absPath, "AGENTS.md")) &&
-    fs.existsSync(path.join(absPath, ".apc", "project.json"))
+    fs.existsSync(agentsMdFile(absPath)) &&
+    fs.existsSync(apcProjectFile(absPath))
   );
 }
 

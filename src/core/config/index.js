@@ -6,6 +6,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { APX_HOME, CONFIG_PATH } from "./paths.js";
 import { PERMISSION_MODES, DEFAULT_PERMISSION_MODE } from "../constants/permissions.js";
+import { agentsMdFile, apcProjectFile } from "../apc/paths.js";
 
 export {
   APX_HOME,
@@ -395,10 +396,10 @@ export function effectiveHost(cfg) {
 
 export function addProject(cfg, projectPath) {
   const abs = path.resolve(projectPath);
-  if (!fs.existsSync(path.join(abs, "AGENTS.md"))) {
+  if (!fs.existsSync(agentsMdFile(abs))) {
     throw new Error(`not an APC project: ${abs} (no AGENTS.md)`);
   }
-  if (!fs.existsSync(path.join(abs, ".apc", "project.json"))) {
+  if (!fs.existsSync(apcProjectFile(abs))) {
     throw new Error(`not an APC project: ${abs} (no .apc/project.json)`);
   }
   const exists = cfg.projects.find((p) => path.resolve(p.path) === abs);

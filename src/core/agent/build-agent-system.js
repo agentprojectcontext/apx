@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readAgentMemory } from "./memory.js";
+import { apcProjectFile, apcSkillFile } from "../apc/paths.js";
 
 // Anti-ghost-response rules injected into every agent system prompt. The text
 // lives next to the agent prompts (src/core/agent/prompts/action-discipline.md)
@@ -19,7 +20,7 @@ function listField(value) {
 function projectName(project) {
   if (project?.name) return project.name;
   try {
-    const meta = JSON.parse(fs.readFileSync(path.join(project.path, ".apc", "project.json"), "utf8"));
+    const meta = JSON.parse(fs.readFileSync(apcProjectFile(project.path), "utf8"));
     return meta.name || path.basename(project.path);
   } catch {
     return path.basename(project?.path || "");
@@ -64,11 +65,11 @@ export function buildAgentSystem(project, agent, {
   const memory = readAgentMemory(project, agent.slug);
   if (memory) parts.push("## Memory\n" + memory);
 
-  const apxSkill = path.join(project.path, ".apc", "skills", "apx.md");
+  const apxSkill = apcSkillFile(project.path, "apx");
   if (fs.existsSync(apxSkill)) parts.push("## APX\n" + fs.readFileSync(apxSkill, "utf8"));
 
   for (const skill of agentSkills(agent)) {
-    const skillPath = path.join(project.path, ".apc", "skills", `${skill}.md`);
+    const skillPath = apcSkillFile(project.path, skill);
     if (fs.existsSync(skillPath)) parts.push(`## Skill: ${skill}\n` + fs.readFileSync(skillPath, "utf8"));
   }
 
