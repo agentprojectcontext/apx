@@ -8,8 +8,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { readAgents } from "#core/apc/parser.js";
 import { callEngine } from "#core/engines/index.js";
-import { listConversations, readConversation } from "../conversations.js";
-import { compactConversation } from "../compact.js";
+import { listConversations, readConversation } from "#core/stores/conversations.js";
+import { compactConversation } from "#core/stores/conversations-compactor.js";
 import { nowIso } from "./shared.js";
 
 export function register(app, { project, config }) {

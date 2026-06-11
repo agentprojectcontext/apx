@@ -12,7 +12,7 @@ import { readSessionFrontmatter } from "#core/stores/sessions.js";
 import { buildAgentSystem } from "#core/agent/build-agent-system.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { getRuntime, RUNTIME_IDS } from "../runtimes/index.js";
-import { detectAll } from "../env-detect.js";
+import { detectAll } from "#core/runtimes/detect.js";
 import { buildRuntimeBridgeHint as buildApfHint } from "#core/agent/runtime-bridge.js";
 import {
   createRuntimeSession,
