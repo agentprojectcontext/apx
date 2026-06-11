@@ -1,10 +1,9 @@
-// daemon/super-agent-tools/registry-bridge.js
 //
 // Generic bridge that exposes registry-backed HTTP tools (browser, fetch,
 // search, glob, grep, etc.) to the super-agent — no per-tool import boilerplate.
 //
 // How it works:
-//   1. Read TOOL_DEFINITIONS from daemon/tools/registry.js
+//   1. Read TOOL_DEFINITIONS from core/http-tools/registry.js
 //   2. Drop entries whose names collide with native super-agent tools (those
 //      win — they touch in-process state directly).
 //   3. For each remaining entry, produce { name, schema, makeHandler } in the
@@ -19,7 +18,7 @@
 // super-agent-tools/tools/, no import in index.js.
 
 import fs from "node:fs";
-import { TOOL_DEFINITIONS } from "#core/tools/registry.js";
+import { TOOL_DEFINITIONS } from "#core/http-tools/registry.js";
 import { TOKEN_PATH } from "#core/config/index.js";
 import { NATIVE_TOOL_NAMES } from "./names.js";
 

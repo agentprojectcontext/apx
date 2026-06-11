@@ -1,4 +1,3 @@
-// daemon/tools/registry.js
 // Tool Registry on-demand for APX.
 //
 // Endpoints registered by api.js:

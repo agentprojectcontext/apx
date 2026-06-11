@@ -1,4 +1,3 @@
-// daemon/tools/search.js
 // WebSearch tool for APX — 3 modes:
 //   1. DuckDuckGo HTML scraping (no API key, uses node-fetch)
 //   2. Brave Search API (requires BRAVE_API_KEY env)

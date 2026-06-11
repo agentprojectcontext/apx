@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isContextDestroyed, withContextRetry } from "#core/tools/browser.js";
+import { isContextDestroyed, withContextRetry } from "#core/http-tools/browser.js";
 
 test("isContextDestroyed matches the Puppeteer redirect-teardown errors", () => {
   for (const msg of [
