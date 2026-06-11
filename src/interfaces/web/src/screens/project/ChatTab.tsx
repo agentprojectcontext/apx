@@ -12,6 +12,7 @@ import { InlineAskPanel, pendingAskQuestions } from "../../components/chat/Inlin
 import { useChat } from "../../hooks/useChat";
 import { useToast } from "../../components/Toast";
 import { t } from "../../i18n";
+import { usePersonaName } from "../../hooks/usePersonaName";
 import type { AgentEntry } from "../../types/daemon";
 
 // Virtual entry slug used in the agent dropdown to address the daemon-level
@@ -28,18 +29,19 @@ export function ChatTab({ pid }: { pid: string }) {
   const [model, setModel] = useState("");
   const [dismissedAskKey, setDismissedAskKey] = useState<string | null>(null);
   const { msgs, send: sendChat, stop, clear, streaming } = useChat(pid, (m) => toast.error(m));
+  const persona = usePersonaName();
 
   const agentList = agents.data || [];
-  // Virtual options shown in the dropdown — Roby is always first, then the
-  // real project agents. Roby works on every project (calls /projects/:pid
-  // /super-agent/chat) so we expose it everywhere, not just /base.
+  // Virtual options shown in the dropdown — the super-agent is always first,
+  // then the real project agents. It works on every project (calls
+  // /projects/:pid/super-agent/chat) so we expose it everywhere, not just /base.
   const isRoby = (slug: string | null | undefined) => slug === ROBY_SLUG;
   const dropdownOptions = useMemo(
     () => [
-      { value: ROBY_SLUG, label: "Roby (super-agent)" },
+      { value: ROBY_SLUG, label: `${persona} (super-agent)` },
       ...agentList.map((a) => ({ value: a.slug, label: a.slug })),
     ],
-    [agentList],
+    [agentList, persona],
   );
   const activeAgent = useMemo(
     () => agentList.find((a) => a.slug === activeSlug) || agentList[0],
@@ -75,10 +77,11 @@ export function ChatTab({ pid }: { pid: string }) {
 
   if (agents.isLoading) return <Loading />;
 
-  // Header subtitle differs: with Roby selected the chat goes through the
-  // super-agent (it CAN call tools); a project agent is a direct LLM call.
+  // Header subtitle differs: with the super-agent selected the chat goes
+  // through the super-agent loop (it CAN call tools); a project agent is a
+  // direct LLM call.
   const headerSubtitle = activeIsRoby
-    ? t("project.chat.roby_subtitle")
+    ? t("project.chat.roby_subtitle", { persona })
     : t("project.chat.subtitle");
 
   return (
@@ -86,7 +89,7 @@ export function ChatTab({ pid }: { pid: string }) {
       <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold">
-            {activeIsRoby ? t("project.chat.roby_title") : t("project.chat.title")}
+            {activeIsRoby ? t("project.chat.roby_title", { persona }) : t("project.chat.title")}
           </h2>
           <p className="truncate text-[11px] text-muted-fg">{headerSubtitle}</p>
         </div>

@@ -22,6 +22,7 @@ import { SuperAgent } from "../lib/api";
 import { STORAGE } from "../constants";
 import { useToast } from "./Toast";
 import { t } from "../i18n";
+import { usePersonaName } from "../hooks/usePersonaName";
 import type { ChatStreamEvent, ConversationMessage } from "../types/daemon";
 
 // Load any persisted conversation, dropping half-finished (pending) turns.
@@ -44,6 +45,7 @@ export function RobyBubble({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const persona = usePersonaName();
   const toast = useToast();
   const [msgs, setMsgs] = useState<ChatMsg[]>(loadStored);
   const [draft, setDraft] = useState("");
@@ -170,7 +172,7 @@ export function RobyBubble({
       >
         <SheetHeader className="pr-12">
           <SheetTitle className="flex items-center gap-2">
-            <Bot size={18} /> {t("roby.title")}
+            <Bot size={18} /> {t("roby.title", { persona })}
             <span className="text-xs font-normal text-muted-fg">{t("roby.badge")}</span>
           </SheetTitle>
           <SheetDescription>{t("roby.desc")}</SheetDescription>
@@ -178,7 +180,7 @@ export function RobyBubble({
 
         <div className="flex-1 overflow-y-auto">
           {msgs.length === 0 ? (
-            <p className="mt-6 text-center text-sm text-muted-fg">{t("roby.empty")}</p>
+            <p className="mt-6 text-center text-sm text-muted-fg">{t("roby.empty", { persona })}</p>
           ) : (
             <MessageList msgs={msgs} onCopy={copyToClipboard} />
           )}
