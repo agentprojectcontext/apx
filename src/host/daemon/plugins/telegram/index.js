@@ -31,13 +31,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { TELEGRAM_STATE_PATH, APX_HOME } from "#core/config/index.js";
 import { callEngine } from "#core/engines/index.js";
-import { runSuperAgent, isSuperAgentEnabled } from "../super-agent.js";
-import { stripThinking } from "../thinking.js";
+import { runSuperAgent, isSuperAgentEnabled } from "../../super-agent.js";
+import { stripThinking } from "../../thinking.js";
 import { getRecentTelegramTurnsFromFs, appendGlobalMessage } from "#core/stores/messages.js";
 import { compactChannelIfNeeded } from "#core/memory/index.js";
 import { readAgents } from "#core/apc/parser.js";
 import { buildAgentSystem } from "#core/agent/build-agent-system.js";
-import { transcribe as transcribeAudioFile } from "../transcription.js";
+import { transcribe as transcribeAudioFile } from "../../transcription.js";
 import { resolveAgentName, SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
 import { registerSender, resolveAllowedTools } from "#core/identity/telegram.js";
 import { buildRelationshipBlock } from "#core/agent/index.js";
@@ -45,7 +45,7 @@ import { getConfirmationStore as getConfirmStore } from "#core/confirmation/pend
 import { CHANNELS } from "#core/constants/channels.js";
 import { tryResolveSkillCommand } from "#core/agent/skills/trigger.js";
 import { createTelegramConfirmAdapter } from "#core/confirmation/adapters/telegram.js";
-import * as askFlow from "./telegram-ask.js";
+import * as askFlow from "./ask.js";
 
 const API_BASE = "https://api.telegram.org";
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");

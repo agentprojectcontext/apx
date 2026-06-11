@@ -12,8 +12,8 @@
 //
 // Plugins are discovered by static import here. Adding a new plugin = importing
 // it and pushing into PLUGINS.
-import telegramPlugin from "./telegram.js";
-import desktopPlugin from "./desktop.js";
+import telegramPlugin from "./telegram/index.js";
+import desktopPlugin from "./desktop/index.js";
 
 export const PLUGINS = [telegramPlugin, desktopPlugin];
 

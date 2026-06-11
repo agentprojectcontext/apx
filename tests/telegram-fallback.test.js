@@ -16,7 +16,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SRC = fs.readFileSync(
-  path.join(__dirname, "..", "src", "host", "daemon", "plugins", "telegram.js"),
+  path.join(__dirname, "..", "src", "host", "daemon", "plugins", "telegram", "index.js"),
   "utf8",
 );
 
