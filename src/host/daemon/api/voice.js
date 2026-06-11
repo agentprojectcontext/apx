@@ -23,7 +23,7 @@ import os from "node:os";
 import { randomUUID } from "node:crypto";
 import { readConfig } from "#core/config/index.js";
 import { synthesize } from "#core/voice/tts.js";
-import { transcribe } from "../transcription.js";
+import { transcribe } from "#core/voice/transcription.js";
 import { runSuperAgent, isSuperAgentEnabled } from "#core/agent/super-agent.js";
 import { appendGlobalMessage } from "#core/stores/messages.js";
 import { appendErrorTrace, previewText } from "#core/logging.js";

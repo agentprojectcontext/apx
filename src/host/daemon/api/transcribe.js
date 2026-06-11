@@ -11,7 +11,7 @@ export function register(app) {
   // the first real utterance doesn't pay the cold-load cost.
   app.get("/transcribe/warmup", async (_req, res) => {
     try {
-      const { warmupWhisper } = await import("../transcription.js");
+      const { warmupWhisper } = await import("../whisper-server.js");
       res.json(await warmupWhisper());
     } catch (e) {
       res.status(500).json({ ok: false, error: e.message });
@@ -29,7 +29,7 @@ export function register(app) {
       const language = req.headers["x-language"] || "auto";
       const provider = req.headers["x-provider"];
       try {
-        const { transcribeBuffer } = await import("../transcription.js");
+        const { transcribeBuffer } = await import("#core/voice/transcription.js");
         const result = await transcribeBuffer(buf, format, {
           language: language === "auto" ? undefined : language,
           beam_size: 3,

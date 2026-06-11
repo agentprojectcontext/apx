@@ -37,7 +37,7 @@ import { getRecentTelegramTurnsFromFs, appendGlobalMessage } from "#core/stores/
 import { compactChannelIfNeeded } from "#core/memory/index.js";
 import { readAgents } from "#core/apc/parser.js";
 import { buildAgentSystem } from "#core/agent/build-agent-system.js";
-import { transcribe as transcribeAudioFile } from "../../transcription.js";
+import { transcribe as transcribeAudioFile } from "#core/voice/transcription.js";
 import { resolveAgentName, SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
 import { registerSender, resolveAllowedTools } from "#core/identity/telegram.js";
 import { buildRelationshipBlock } from "#core/agent/index.js";

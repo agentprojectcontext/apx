@@ -222,7 +222,7 @@ async function main() {
     setTimeout(() => triggerWakeup(cfg, log), 3000);
     // Preload whisper-server in the background so first desktop transcription is fast.
     // Adopts an existing one if already on the port; otherwise spawns fresh.
-    import("./transcription.js").then(({ preloadWhisperServer }) => {
+    import("./whisper-server.js").then(({ preloadWhisperServer }) => {
       preloadWhisperServer((m) => log(m));
     }).catch(() => {});
   });
@@ -257,7 +257,7 @@ async function main() {
     stopMemory();
     registries.shutdown();
     // Best-effort shutdown of whisper-server subprocess.
-    import("./transcription.js").then(({ shutdownWhisperServer }) => {
+    import("./whisper-server.js").then(({ shutdownWhisperServer }) => {
       shutdownWhisperServer().catch(() => {});
     }).catch(() => {});
     server.close(() => {
