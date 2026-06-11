@@ -1,3 +1,10 @@
+# [1.32.0](https://github.com/agentprojectcontext/apx/compare/v1.31.2...v1.32.0) (2026-06-10)
+
+
+### Features
+
+* **ask:** rich ask_questions UX across web, telegram, desktop + artifacts run ([1abc804](https://github.com/agentprojectcontext/apx/commit/1abc804d4b8e674c5cfe4a03e832ae77d881b135))
+
 ## [1.31.2](https://github.com/agentprojectcontext/apx/compare/v1.31.1...v1.31.2) (2026-06-09)
 
 
