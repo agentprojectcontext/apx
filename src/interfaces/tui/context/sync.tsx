@@ -40,7 +40,8 @@ export const { use: useSync, provider: SyncProvider } = createSimpleContext({
     const apxModelKey = () => args.model || "apx-default"
     const apxProvider = () => ({
       id: "apx",
-      name: "APX",
+      // Shown as the gray label in the prompt status line: "Build · model · APX Code".
+      name: "APX Code",
       models: {
         [apxModelKey()]: {
           id: apxModelKey(),

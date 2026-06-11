@@ -20,12 +20,11 @@ apx project add /path/to/repo          # registers; reads AGENTS.md + .apc/proje
 apx project add .                       # current dir
 
 # Inspect
-apx project list                        # name, id, path, agents count
-apx project list -l                     # long form, includes storagePath
+apx project list                        # id, name, agents count, path
 
-# Remove / rebuild
-apx project remove <id|name|path>
-apx project rebuild <id|name|path>      # force re-scan of .apc/ on disk
+# Remove / rebuild (id or exact path only — these do NOT resolve by name)
+apx project remove <id|path>
+apx project rebuild <id|path>           # force re-scan of .apc/ on disk
 
 # Per-project config — dotted keys, lives in <repo>/.apc/config.json
 apx project config show <project>                                  # effective + project_only

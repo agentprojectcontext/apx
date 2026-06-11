@@ -41,16 +41,16 @@ apx mcp add brave --scope global \
   --command npx --env BRAVE_API_KEY=BSAxxx \
   -- -y @modelcontextprotocol/server-brave-search
 
-# Remove (--scope optional; defaults to where the MCP lives)
+# Remove (pass --scope when the MCP isn't in the default scope:
+# shared inside an APC project, else global)
 apx mcp remove filesystem --project iacrmar
 apx mcp remove github     --scope runtime --project iacrmar
 
-# Toggle (modifies whichever scope owns it)
+# Toggle (defaults to the scope that owns the MCP)
 apx mcp enable  filesystem --project iacrmar
 apx mcp disable filesystem --project iacrmar
 
 # Call a tool through the daemon (useful for debugging)
-apx mcp tools <name>                            # list tools the server exposes
 apx mcp run filesystem read_file '{"path":"README.md"}'
 ```
 
@@ -100,11 +100,13 @@ apx mcp remove github          # if github lives in runtime, this errors with a 
 
 ```bash
 apx mcp check --project iacrmar             # what scopes APX sees + which files exist
-apx mcp tools <name>                         # forces the daemon to actually spawn the server
+apx mcp run <name> <tool> '{...}'            # spawn the server and call a tool for real
 apx log -f                                   # tail unified log for spawn errors
 ```
 
 A server that "doesn't show tools" usually means: the command failed to start (env vars missing, package not found), or the server crashed during initialize. The unified log has the stderr buffer.
+
+> `apx mcp tools <name>` is a placeholder stub (prints a "coming in v0.2" notice, lists nothing). To verify a server actually spawns, call a tool with `apx mcp run`.
 
 ## Don't
 

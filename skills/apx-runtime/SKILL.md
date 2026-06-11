@@ -1,6 +1,6 @@
 ---
 name: apx-runtime
-description: How to call external coding CLIs (claude-code, codex, opencode, aider, cursor-agent, gemini-cli, qwen-code) from APX. Load when the user wants to delegate a task to another AI tool — APX builds the system prompt, spawns the CLI, captures the result.
+description: Delegate a task to an external coding CLI (claude-code, codex, opencode, aider, cursor-agent, gemini-cli, qwen-code) via `apx run`. APX builds the system prompt, spawns the CLI, and captures the result. Load when delegating work to another AI tool.
 ---
 
 # apx-runtime
@@ -25,13 +25,15 @@ A "runtime" in APX is an external AI coding CLI that APX can invoke headlessly. 
 
 ```bash
 # What's available on this machine
-apx env detect
-apx runtime list
+apx env detect          # which runtimes are installed and reachable
+apx env list            # alias of `apx env detect`
 
 # Run an agent through an external CLI
 apx run reviewer --runtime claude-code "Review the diff in src/host/daemon/api/ for memory leaks"
 apx run scratch  --runtime codex       "Refactor parseAgentsMd to use a state machine"
 apx run scratch  --runtime opencode    "<prompt>"
+apx run scratch  --runtime codex --timeout 300 "<prompt>"   # cap the run (seconds)
+apx run scratch  --runtime codex -      # read the prompt from stdin (large prompts)
 ```
 
 Behavior:

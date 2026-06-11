@@ -10,18 +10,18 @@
  *
  * The APX-tailored sidebar shows session / agent / model / context usage.
  */
-import { For, Show, createMemo, createSignal, createEffect, onCleanup } from "solid-js"
-import { TextareaRenderable, MouseButton } from "@opentui/core"
+import { For, Show, createMemo, createEffect, onCleanup } from "solid-js"
+import { MouseButton } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/solid"
 import { useTheme } from "@tui/context/theme"
 import { useRoute } from "@tui/context/route"
 import { useApxSync } from "@tui/context/sync-apx"
 import { useSDK } from "@tui/context/sdk-apx"
 import { useLocal } from "@tui/context/local"
-import { useToast, Toast } from "@tui/ui/toast"
+import { Toast } from "@tui/ui/toast"
 import { useDialog } from "@tui/ui/dialog"
-import { useExit } from "@tui/context/exit"
 import { usePromptRef } from "@tui/context/prompt"
+import { Prompt, type PromptRef } from "@tui/component/prompt"
 import type { ApxMessage, ApxPart } from "@tui/context/sync-apx"
 import { SidebarApx } from "./sidebar-apx"
 import { MessageActions } from "./message-actions"
@@ -38,6 +38,10 @@ function parseError(raw: string): { message: string; trace?: string; hint?: stri
   else if (/\b401\b|unauthorized|api[_ ]?key/i.test(message)) hint = "Revisá la API key del proveedor en ~/.apx/config.json."
   return { message, trace, hint }
 }
+
+// Coding modes (mirrors web Code). Only Build is wired today; Plan/Zen are
+// shown as the active label is "Build" until a mode toggle lands.
+const MODES = ["Build", "Plan", "Zen"] as const
 
 /** One-line summary of a tool call, e.g. `read src/app.tsx` or `glob "**​/*.ts"`. */
 function toolSummary(part: Extract<ApxPart, { kind: "tool" }>): string {
@@ -68,7 +72,13 @@ function ToolPart(props: { part: Extract<ApxPart, { kind: "tool" }> }) {
   )
 }
 
-function AssistantBubble(props: { msg: ApxMessage; onActivate: () => void }) {
+function AssistantBubble(props: {
+  msg: ApxMessage
+  onActivate: () => void
+  agentName: string
+  modelLabel: string
+  mode: string
+}) {
   const { theme, syntax } = useTheme()
   const parts = createMemo<ApxPart[]>(() => {
     const p = props.msg.parts
@@ -77,9 +87,19 @@ function AssistantBubble(props: { msg: ApxMessage; onActivate: () => void }) {
     return props.msg.text ? [{ kind: "text", text: props.msg.text }] : []
   })
   const empty = () => parts().length === 0
+  // OpenCode-style meta line shown after the answer: mode · model · response time.
+  const elapsed = () => {
+    if (!props.msg.completedAt) return ""
+    return `${((props.msg.completedAt - props.msg.createdAt) / 1000).toFixed(1)}s`
+  }
+  const meta = () => {
+    const parts = [props.mode, props.msg.model || props.modelLabel, elapsed()].filter(Boolean)
+    return parts.join("  ·  ")
+  }
   return (
     <box
       flexDirection="column"
+      marginTop={1}
       marginBottom={1}
       paddingLeft={2}
       paddingRight={2}
@@ -88,8 +108,8 @@ function AssistantBubble(props: { msg: ApxMessage; onActivate: () => void }) {
         if (e?.button === undefined || e.button === MouseButton.LEFT) props.onActivate()
       }}
     >
-      <text color={theme.success} bold>
-        {props.msg.streaming ? `${props.msg.role === "assistant" ? "Assistant" : "Assistant"} ▸` : "Assistant"}
+      <text color={theme.success} bold marginBottom={1}>
+        {props.msg.streaming ? `${props.agentName} ▸` : props.agentName}
       </text>
       <Show when={!empty()} fallback={<text color={theme.textMuted}>…</text>}>
         <box flexDirection="column">
@@ -120,6 +140,12 @@ function AssistantBubble(props: { msg: ApxMessage; onActivate: () => void }) {
           </For>
         </box>
       </Show>
+      <Show when={!props.msg.streaming && !props.msg.error}>
+        <box flexDirection="row" marginTop={1}>
+          <text color={theme.primary}>■ </text>
+          <text color={theme.textMuted}>{meta()}</text>
+        </box>
+      </Show>
     </box>
   )
 }
@@ -127,19 +153,31 @@ function AssistantBubble(props: { msg: ApxMessage; onActivate: () => void }) {
 function UserBubble(props: { msg: ApxMessage; onActivate: () => void }) {
   const { theme } = useTheme()
   const queued = () => props.msg.queued === true
+  const accent = () => (queued() ? theme.textMuted : theme.primary)
   return (
     <box
       flexDirection="row"
+      marginTop={1}
       marginBottom={1}
+      paddingLeft={2}
       paddingRight={2}
       onMouseDown={(e: any) => {
         // Left click (or plain click w/o button info) opens Message Actions.
         if (e?.button === undefined || e.button === MouseButton.LEFT) props.onActivate()
       }}
     >
-      {/* left accent bar */}
-      <box width={1} backgroundColor={queued() ? theme.textMuted : theme.primary} flexShrink={0} />
-      <box flexDirection="column" flexGrow={1} paddingLeft={1} backgroundColor={theme.backgroundElement}>
+      {/* single colored accent bar on the left + filled background (OpenCode style) */}
+      <box width={1} backgroundColor={accent()} flexShrink={0} />
+      <box
+        flexDirection="column"
+        flexGrow={1}
+        minWidth={0}
+        paddingLeft={2}
+        paddingRight={2}
+        paddingTop={1}
+        paddingBottom={1}
+        backgroundColor={theme.backgroundElement}
+      >
         <text color={queued() ? theme.textMuted : theme.text} wrap>
           {props.msg.text}
         </text>
@@ -197,12 +235,12 @@ export function Session() {
   const sync = useApxSync()
   const sdk = useSDK()
   const local = useLocal()
-  const toast = useToast()
   const dialog = useDialog()
-  const exit = useExit()
   const promptRef = usePromptRef()
-  const [sending, setSending] = createSignal(false)
-  let inputEl: TextareaRenderable | undefined
+
+  // Show the sidebar only on wide terminals; on narrow ones the chat keeps
+  // full width (the directory/branch live in the sidebar, shown when wide).
+  const wide = createMemo(() => dims().width >= 100)
 
   // Bridge the user's /models selection into the SDK so the next turn uses it.
   createEffect(() => {
@@ -215,7 +253,26 @@ export function Session() {
     return sync.session.current() ?? ""
   })
 
+  // Keep the sync store's "current session" pinned to the session we're viewing
+  // so the sidebar/usage track the right bucket.
+  createEffect(() => {
+    const id = sessionID()
+    if (id) sync.session.setCurrent(id)
+  })
+
   const messages = createMemo(() => sync.session.messages(sessionID()))
+
+  // Active mode + model, shown after each answer (mode · model · response time).
+  const mode = createMemo(() => MODES[0]) // Build (Plan/Zen toggle: future work)
+  const modelLabel = createMemo(() => {
+    const parsed = local.model?.parsed?.()
+    if (parsed?.modelID) return parsed.providerID ? `${parsed.providerID}:${parsed.modelID}` : parsed.modelID
+    return sdk.model || "—"
+  })
+  const agentName = createMemo(() => {
+    const a = sdk.agent || "Assistant"
+    return a.charAt(0).toUpperCase() + a.slice(1)
+  })
 
   onCleanup(() => {
     promptRef.set(undefined)
@@ -223,78 +280,6 @@ export function Session() {
 
   function openActions(msg: ApxMessage) {
     dialog.replace(() => <MessageActions sessionID={sessionID()} message={msg} />)
-  }
-
-  function makeRef(r: TextareaRenderable) {
-    return {
-      get focused() {
-        return r.focused
-      },
-      get current() {
-        return { input: r.plainText, parts: [] as any[] }
-      },
-      set(prompt: { input: string; parts: any[] }) {
-        r.setText(prompt.input)
-      },
-      reset() {
-        r.clear()
-      },
-      blur() {
-        r.blur()
-      },
-      focus() {
-        r.focus()
-      },
-      submit() {
-        void handleSubmit()
-      },
-    }
-  }
-
-  async function handleSubmit() {
-    if (!inputEl) return
-    const text = inputEl.plainText.trim()
-    if (!text) return
-
-    if (text === "exit" || text === "quit" || text === ":q") {
-      void exit()
-      return
-    }
-
-    inputEl.clear()
-
-    // Shell command
-    if (text.startsWith("!") && text.length > 1) {
-      try {
-        await sync.runShell(text.slice(1).trim())
-      } catch (e) {
-        toast.error(e instanceof Error ? e : new Error(String(e)))
-      }
-      return
-    }
-
-    // A turn is already in flight → queue it (OpenCode behaviour).
-    if (sending()) {
-      const id = sync.queueMessage(text)
-      if (!id) toast.show({ message: "No hay sesión activa todavía", variant: "warning" })
-      else toast.show({ message: "Mensaje en cola", variant: "info" })
-      return
-    }
-
-    setSending(true)
-    try {
-      await sync.sendMessage(text)
-      // Flush any messages queued while this turn was streaming.
-      let next = messages().find((m) => m.queued)
-      while (next) {
-        await sync.sendQueued(sessionID(), next.id)
-        next = messages().find((m) => m.queued)
-      }
-    } catch (e) {
-      toast.error(e instanceof Error ? e : new Error(String(e)))
-    } finally {
-      setSending(false)
-    }
   }
 
   return (
@@ -319,7 +304,15 @@ export function Session() {
                     if (msg.role === "user") return <UserBubble msg={msg} onActivate={() => openActions(msg)} />
                     if (msg.role === "shell") return <ShellBubble msg={msg} />
                     if (msg.error) return <ErrorBubble msg={msg} />
-                    return <AssistantBubble msg={msg} onActivate={() => openActions(msg)} />
+                    return (
+                      <AssistantBubble
+                        msg={msg}
+                        onActivate={() => openActions(msg)}
+                        agentName={agentName()}
+                        modelLabel={modelLabel()}
+                        mode={mode()}
+                      />
+                    )
                   }}
                 </For>
               </Show>
@@ -327,40 +320,28 @@ export function Session() {
             </box>
           </scrollbox>
 
-          {/* Input area */}
-          <box flexShrink={0} flexDirection="column" borderTop={1} borderColor={theme.border} backgroundColor={theme.backgroundElement}>
-            <box paddingLeft={2} paddingRight={2} paddingTop={1}>
-              <textarea
-                ref={(r: TextareaRenderable) => {
-                  inputEl = r
-                  promptRef.set(makeRef(r))
-                }}
-                placeholder={sending() ? "Streaming… (enter to queue)" : "Ask anything... (prefix ! to run shell, e.g. !ls)"}
-                placeholderColor={theme.textMuted}
-                textColor={theme.text}
-                focusedTextColor={theme.text}
-                minHeight={1}
-                maxHeight={6}
-                onSubmit={() => {
-                  setTimeout(() => setTimeout(() => handleSubmit(), 0), 0)
-                }}
-              />
-            </box>
-            <box height={1} paddingLeft={2} paddingRight={2} justifyContent="space-between" flexDirection="row">
-              <Show
-                when={sending()}
-                fallback={<text color={theme.textMuted}>enter send · ! shell · click msg for actions · exit quit</text>}
-              >
-                <text color={theme.warning ?? theme.primary} italic>
-                  ▸ Streaming… (enter queues your next message)
-                </text>
-              </Show>
-            </box>
+          {/* Input — the OpenCode prompt component (colored box, Build/Plan mode
+              selector, model label, Enter-to-send). With sessionID set it streams
+              to the *current* session via session.prompt instead of creating a
+              new one. This is also what fixes Enter submission and focus, since
+              the prompt owns the keymap submit wiring. */}
+          <box flexShrink={0} paddingLeft={1} paddingRight={1} paddingTop={1} paddingBottom={1}>
+            <Prompt
+              sessionID={sessionID()}
+              visible={true}
+              ref={(r?: PromptRef) => promptRef.set(r)}
+              placeholders={{
+                normal: ["Ask anything…", "Fix a TODO in the codebase", "Explain this code"],
+                shell: ["ls -la", "git status", "pwd"],
+              }}
+            />
           </box>
         </box>
 
-        {/* Sidebar */}
-        <SidebarApx sessionID={sessionID()} />
+        {/* Sidebar — only on wide terminals; carries the directory + branch */}
+        <Show when={wide()}>
+          <SidebarApx sessionID={sessionID()} />
+        </Show>
       </box>
       <Toast />
     </box>

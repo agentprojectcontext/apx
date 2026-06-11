@@ -18,6 +18,7 @@ function hasFlag(flag: string): boolean {
 const pid = getFlag("--pid") ?? ""
 const agent = getFlag("--agent")
 const model = getFlag("--model")
+const cwd = getFlag("--cwd")
 const promptText = getFlag("--prompt")
 const sessionID = getFlag("--session")
 const continueSession = hasFlag("--continue") || hasFlag("-c")
@@ -70,6 +71,7 @@ await tui({
   pid,
   agent,
   model,
+  directory: cwd,
   args: {
     prompt: promptText,
     continue: continueSession,

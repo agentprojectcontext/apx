@@ -1,6 +1,6 @@
 ---
 name: apx-agency-agents
-description: "Manage the APX agent vault — a library of reusable agent templates (Roby, Cody, Rocky, Tessa, Max, Arch, Sid, Vera, Finn, plus generic specialists: development, marketing, ops, qa, support). Load this when the user wants to: spawn a specialized agent, look up which templates are available, import a template into a project, create a new vault template, delete/hide a bundled default, or restore a previously hidden one. Trigger on: 'lanzar agente', 'spawn agent', 'usar a Cody/Rocky/Tessa/Max/Arch/Sid/Vera/Roby', 'qué agentes hay', 'agent vault list', 'apx agent vault', 'importar agente', 'nuevo agente', 'crear agente nuevo', 'borrar agente default', 'restaurar agente'."
+description: "Manage the APX agent vault — reusable agent templates (Roby, Cody, Rocky, Tessa, Max, Arch, Sid, Vera, Finn + generic dev/marketing/ops/qa/support). Load to spawn a specialist, list templates, import one into a project, create a template, or hide/restore a bundled default. Triggers: 'spawn agent', 'use Cody/Rocky/Tessa', 'list agents', 'agent vault', 'import agent', 'new agent'."
 ---
 
 # apx-agency-agents — the APX agent vault
@@ -45,7 +45,7 @@ Plain functional roles — useful when you want capabilities without a persona:
 | `qa` | Quality assurance & testing |
 | `support` | Customer support & escalations |
 
-Both families default to `model: openrouter:meta-llama/llama-3.3-70b-instruct` and `language: es`. Override on import or by editing the vault file directly.
+Bundled templates ship with `language: es` and **no `model:` set** — they inherit the project/global default model. Set a model on import or by editing the vault file directly.
 
 ## Concrete commands
 
@@ -84,14 +84,14 @@ import_agent({ slug: "cody-developer", project: "<name-or-path>" })
 
 ## The web equivalents
 
-The Agent defaults tab (`/p/0/agent-defaults`) has the same CRUD: a "Nuevo" button (POST `/agents/vault`), "Editar" per card (PATCH `/agents/vault/:slug`, copy-on-write for bundled), "Borrar"/"Ocultar" (DELETE), and a "Mostrar removidos" toggle that surfaces tombstoned bundled defaults with a "Restaurar" button.
+The Agent defaults tab (`/p/0/agent-defaults`) has the same CRUD: a "New" button (POST `/agents/vault`), "Edit" per card (PATCH `/agents/vault/:slug`, copy-on-write for bundled), "Delete"/"Hide" (DELETE), and a "Show removed" toggle that surfaces tombstoned bundled defaults with a "Restore" button.
 
 ## When to use which agent
 
-- **User says "lanzar a Cody/Rocky/Tessa/Max/Arch/Sid/Vera/Roby/Finn"** → that exact slug exists in the named team. Import it.
+- **User says "spawn/use Cody/Rocky/Tessa/Max/Arch/Sid/Vera/Roby/Finn"** → that exact slug exists in the named team. Import it.
 - **User wants a "developer" / "QA" / "marketing" agent without a persona** → use the generic specialists (`development`, `qa`, `marketing`, …).
 - **User wants something not in the vault** → either `apx agent vault add <slug>` to create a blank one, or `apx agent add <slug>` directly inside a project for a one-off.
-- **The vault is empty on a fresh install** → suggest `apx agent vault sync` first.
+- **Fresh install** → bundled defaults are always present (no sync step); they appear in `apx agent vault list` immediately.
 
 ## Where the files live
 

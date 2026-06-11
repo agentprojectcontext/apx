@@ -1,6 +1,6 @@
 ---
 name: apx-sessions
-description: "APX session management across engines (apx, claude, codex). Use when: finding a session by its title/topic without knowing the id (`apx session find`), listing sessions of one or every engine for a project, resuming a session by id without remembering which engine owns it, summarizing a Claude/Codex/APX transcript (`apx session summary`), asking a question about what happened in a past session (`apx session ask`), pulling a full transcript by id (useful when you want to read another tool's session from inside Claude), spawning the native CLI to continue a session (`claude --resume`, `codex resume`), or seeding a brand-new APX session with the summary of an old one. Triggers on: 'apx session find', 'find a session', 'buscar sesión', 'qué sesión era la de…', 'apx session ask', 'preguntale a la sesión', 'apx session summary', 'apx session resume', 'apx session get', 'apx sessions list', 'continue codex session', 'resume claude session', 'summarize session', 'get session transcript', 'continue session in apx', 'qué sesiones hay', 'traer sesión de codex', 'leer sesión de claude'. Do NOT activate for generic agent orchestration or `apx run` — that belongs to the parent `apx` skill."
+description: "Manage APX sessions across engines (apx, claude, codex). Find a session by title, list, resume, summarize, ask about, or pull a transcript — without knowing which engine owns it. Triggers: 'apx session find/ask/summary/resume/get', 'find a session', 'resume claude/codex session', 'summarize session', 'get session transcript', 'continue session in apx'. Not for `apx run` orchestration (that's the apx skill)."
 ---
 
 # APX Sessions — cross-engine resume, summary, and continuation
@@ -26,13 +26,13 @@ You almost never start with a session id — you start with a vague memory of a 
 
 ```bash
 # 1. Turn a remembered title into an id (cross-engine, newest first)
-apx session find "mejorar interfaz web"
+apx session find "improve web UI"
 
 # 2. Get the gist of that session
 apx session summary <id>
 
 # 3. Ask something specific about it
-apx session ask <id> "¿qué cambios al sidebar quedaron pendientes?"
+apx session ask <id> "what sidebar changes were left pending?"
 ```
 
 `find` prints a "Next:" block with the exact `summary`/`ask`/`resume` commands pre-filled with the top hit's id, so you can copy-paste straight through. **If you're tempted to grep session lists, use `find` instead.**
@@ -72,7 +72,7 @@ This is the discoverable alias for `apx session resume <id> --summary`. It resol
 ## Asking questions about a session (`apx session ask`)
 
 ```bash
-apx session ask <id> "¿qué decidimos sobre el sidebar?"
+apx session ask <id> "what did we decide about the sidebar?"
 apx session ask <id> "what files were changed?" --max-chunks 30
 ```
 
@@ -248,7 +248,7 @@ Pick one with `--engine claude` or `--engine codex` and run again.
 3. **`summary` for the gist, `ask` for specifics.** Use `apx session summary <id>` to orient; use `apx session ask <id> "<q>"` when the user has a concrete question. Both need the daemon + `super_agent.enabled`.
 4. **`ask` on a huge transcript is slow and capped.** If the output warns about truncation and the user needs full coverage, re-run with a higher `--max-chunks`.
 5. **Prefer `--tail N` over `--full`** when feeding a raw transcript into another model — JSONL is verbose, the tail is dense.
-6. **`--into apx:slug` is the bridge** between an external runtime's session and an APX agent. Use it when the user says "continuamos esto en apx con el agente reviewer".
+6. **`--into apx:slug` is the bridge** between an external runtime's session and an APX agent. Use it when the user says "let's continue this in apx with the reviewer agent".
 7. **Don't invent ids.** Discover them via `apx session find` or `apx sessions list`.
 8. **`apx session get --any --full`** is the simplest way to import an arbitrary engine session into your context, with no daemon dependency.
 

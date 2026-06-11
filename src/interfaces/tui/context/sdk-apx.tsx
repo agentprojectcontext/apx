@@ -4,9 +4,22 @@ import { onCleanup } from "solid-js"
 import fs from "node:fs"
 import os from "node:os"
 import path from "node:path"
-import { spawn } from "node:child_process"
+import { spawn, execSync } from "node:child_process"
 
 const TOKEN_PATH = path.join(os.homedir(), ".apx", "daemon.token")
+
+/** Current git branch for `dir`, or "" when not a repo. Cheap, best-effort. */
+function gitBranch(dir: string): string {
+  try {
+    return execSync("git rev-parse --abbrev-ref HEAD", {
+      cwd: dir,
+      stdio: ["ignore", "pipe", "ignore"],
+      encoding: "utf8",
+    }).trim()
+  } catch {
+    return ""
+  }
+}
 
 function readToken(): string {
   try {
@@ -101,7 +114,12 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
       const reader = res.body.getReader()
       const dec = new TextDecoder()
       let buf = ""
-      while (true) {
+      // The daemon may keep the HTTP connection open after the final event, so
+      // we can't rely on stream-close to know the turn is done. Resolve as soon
+      // as we see `final` or `error` — otherwise the caller's `await` hangs and
+      // the next message queues forever.
+      let finished = false
+      while (!finished) {
         const { done, value } = await reader.read()
         if (done) break
         buf += dec.decode(value, { stream: true })
@@ -158,15 +176,24 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
                   usage: ev.result?.usage,
                   name: ev.result?.name,
                 })
+                finished = true
                 break
               case "error":
                 emitter.emit("event", { type: "error", sessionID, error: ev.error })
+                finished = true
                 break
             }
           } catch {
             // ignore parse errors for partial lines
           }
+          if (finished) break
         }
+      }
+      // Stop reading and release the connection so the awaiting caller resumes.
+      try {
+        await reader.cancel()
+      } catch {
+        /* already closed */
       }
     }
 
@@ -296,8 +323,10 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
       // passed, show "APX" in the sidebar.
       agent: props.agent ?? "APX",
       model: props.model ?? "claude-3-5-sonnet",
-      // Legacy opencode compat
+      // Working directory (the user's project root, passed via --cwd) and its
+      // current git branch — shown in the sidebar / footer like OpenCode.
       directory: props.directory ?? process.cwd(),
+      branch: gitBranch(props.directory ?? process.cwd()),
       event: emitter,
       client,
       streamChat,

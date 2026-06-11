@@ -10,8 +10,8 @@ A project agent is a named persona inside an APC project. Canonical definition: 
 ## Concrete CLI calls
 
 ```bash
-# List agents in a project
-apx agent list --project iacrmar
+# List agents in the current project (agent commands are cwd-scoped — run from the project root)
+apx agent list
 
 # Create a new agent (writes .apc/agents/<slug>.md, creates runtime dir, regenerates AGENTS.md)
 apx agent add reviewer \
@@ -31,10 +31,10 @@ apx agent import <slug> --force      # overwrite existing local definition
 # Show details (config + memory)
 apx agent get <slug>                 # alias: apx agent show <slug>
 
-# Per-agent memory (drives system prompt for that agent)
-apx memory <slug> --project iacrmar                          # read
-apx memory <slug> --project iacrmar --append "fact"          # append a line
-apx memory <slug> --project iacrmar --replace < file.md       # full replace from stdin
+# Per-agent memory (drives system prompt for that agent; cwd-scoped — run from the project root)
+apx memory <slug>                          # read
+apx memory <slug> --append "fact"          # append a line under "## Recent context"
+apx memory <slug> --replace < file.md      # full replace from stdin
 ```
 
 ## What the agent's system prompt looks like
@@ -54,7 +54,7 @@ That's the prompt the engine sees on every `apx exec <agent>` or `apx chat <agen
 
 ## Models per agent
 
-Each agent can set `Model:` in its `AGENT.md` to override the global super-agent model. Leave it empty when the agent should follow the project/global default.
+Each agent can set `Model:` in its `.apc/agents/<slug>.md` definition to override the global super-agent model. Leave it empty when the agent should follow the project/global default.
 
 ```markdown
 # .apc/agents/reviewer.md

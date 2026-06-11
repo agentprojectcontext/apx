@@ -1,6 +1,6 @@
 ---
 name: apx
-description: "APX CLI umbrella skill — what APX is, when to call it, and which sub-skill to use for each operation. Activate when the user mentions `apx`, asks to coordinate / run / delegate agents, brings up the APX daemon, or wants any APX-managed surface (sessions, MCPs, routines, tasks, telegram, projects, agents). Do NOT activate just because `.apc/` exists — that is handled by the apc-context skill. Triggers: 'apx', 'apx run', 'apx exec', 'apx daemon', 'coordinate agents', 'run an agent in codex', 'apx memory', 'apx help'."
+description: "APX CLI umbrella — which sub-skill handles each operation (sessions, MCPs, routines, tasks, telegram, projects, agents, runtimes). Activate when the user mentions `apx`, the APX daemon, or wants to coordinate/run/delegate agents. Not for `.apc/` alone (use apc-context). Triggers: 'apx', 'apx run', 'apx daemon', 'coordinate agents', 'apx help'."
 homepage: https://github.com/agentprojectcontext/apx
 ---
 
@@ -28,11 +28,11 @@ Use APX when:
 | Topic | Sub-skill | When |
 |-------|-----------|------|
 | Delegate to an external coding CLI | **apx-runtime** | `apx run <agent> --runtime claude-code\|codex\|...` |
-| List / read / resume / summarise / continue sessions across engines | **apx-sessions** | `apx session resume`, `apx sessions list`, "traer sesión de codex" |
+| List / read / resume / summarise / continue sessions across engines | **apx-sessions** | `apx session resume`, `apx sessions list`, "import a codex session" |
 | Use a registered MCP tool | **apx-mcp** | `apx mcp run`, "call MCP filesystem", "the MCP is failing" |
 | Add / configure / use a project agent | **apx-agent** | "add an agent", "import from vault", per-agent model, agent memory |
 | Register / list / configure a project | **apx-project** | "register this project", `apx project list`, per-project config |
-| Per-project TODO list | **apx-task** | "anotame", "recordame que…", "qué tengo pendiente" |
+| Per-project TODO list | **apx-task** | "add a task", "remind me to…", "what's pending" |
 | Scheduled / recurring agents | **apx-routine** | `apx routine add`, every-5m, cron-like jobs |
 | Telegram I/O | **apx-telegram** | configure bot, channels, send a message |
 | Voice channel (TTS, speech) — *optional* | **apx-voice** | only if voice is being set up |
