@@ -4,9 +4,15 @@
 //   GET  /projects/:pid/sessions/:sid              by filename (cross-agent lookup)
 import fs from "node:fs";
 import path from "node:path";
-import { parseSessionFrontmatter, readAgents } from "#core/apc/parser.js";
+import { readAgents } from "#core/apc/parser.js";
+import {
+  parseSessionFrontmatter,
+} from "#core/apc/parser.js";
+import {
+  agentSessionsDir,
+  createAgentSessionFile,
+} from "#core/stores/sessions.js";
 import { collectAllSessions } from "#interfaces/cli/commands/sessions.js";
-import { nowIso } from "./shared.js";
 
 export function register(app, { projects, project }) {
   // Cross-engine sessions (apx · claude · codex), newest first.
@@ -29,12 +35,7 @@ export function register(app, { projects, project }) {
     const agents = readAgents(p.path);
     if (!agents.find((a) => a.slug === req.params.slug))
       return res.status(404).json({ error: "agent not found" });
-    const sessionsDir = path.join(
-      p.storagePath,
-      "agents",
-      req.params.slug,
-      "sessions"
-    );
+    const sessionsDir = agentSessionsDir(p.storagePath, req.params.slug);
     if (!fs.existsSync(sessionsDir)) return res.json([]);
     const sessions = fs
       .readdirSync(sessionsDir)
@@ -62,32 +63,13 @@ export function register(app, { projects, project }) {
     if (!p) return;
     const { title, body = "" } = req.body || {};
     if (!title) return res.status(400).json({ error: "title required" });
-    const sessionsDir = path.join(
+    const { filename, path: filePath } = createAgentSessionFile(
       p.storagePath,
-      "agents",
       req.params.slug,
-      "sessions"
+      { title, body }
     );
-    fs.mkdirSync(sessionsDir, { recursive: true });
-    const titleSlug =
-      title
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-|-$/g, "") || "session";
-    const today = new Date().toISOString().slice(0, 10);
-    let candidate = path.join(sessionsDir, `${today}-${titleSlug}.md`);
-    let n = 2;
-    while (fs.existsSync(candidate)) {
-      candidate = path.join(sessionsDir, `${today}-${titleSlug}-${n}.md`);
-      n++;
-    }
-    const started = nowIso();
-    const content = `---\ntitle: ${title}\nstarted: ${started}\n---\n\n# ${title}\n\n${body}\n`;
-    fs.writeFileSync(candidate, content);
     projects.rebuild(p.id);
-    res
-      .status(201)
-      .json({ filename: path.basename(candidate), path: candidate });
+    res.status(201).json({ filename, path: filePath });
   });
 
   // GET session by filename (sid may include or omit the .md extension)
