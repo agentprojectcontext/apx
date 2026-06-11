@@ -43,32 +43,66 @@ function parseError(raw: string): { message: string; trace?: string; hint?: stri
 // shown as the active label is "Build" until a mode toggle lands.
 const MODES = ["Build", "Plan", "Zen"] as const
 
-/** One-line summary of a tool call, e.g. `read src/app.tsx` or `glob "**​/*.ts"`. */
-function toolSummary(part: Extract<ApxPart, { kind: "tool" }>): string {
-  const a = part.args
-  let detail = ""
-  if (a && typeof a === "object") {
-    detail =
-      a.filePath ?? a.path ?? a.file ?? a.pattern ?? a.query ?? a.command ?? a.url ?? a.description ?? ""
-    if (!detail) {
-      const first = Object.values(a).find((v) => typeof v === "string") as string | undefined
-      detail = first ?? ""
-    }
-  } else if (typeof a === "string") {
-    detail = a
+const TOOL_LABELS: Record<string, string> = {
+  read_file: "Read",
+  write_file: "Write",
+  edit_file: "Edit",
+  search_files: "Search",
+  list_files: "List",
+  run_shell: "Shell",
+  load_skill: "Skill",
+}
+
+const MAX_DIFF_LINES = 24
+
+/** Git-style diff block: removed lines in red (-), added lines in green (+). */
+function DiffBlock(props: { search?: string; replace?: string; content?: string }) {
+  const { theme } = useTheme()
+  const removed = () => (props.search ? props.search.replace(/\n$/, "").split("\n") : [])
+  const added = () => ((props.replace ?? props.content) ? (props.replace ?? props.content ?? "").replace(/\n$/, "").split("\n") : [])
+  const shown = () => {
+    const r = removed().map((t) => ({ sign: "-", t, color: theme.error }))
+    const a = added().map((t) => ({ sign: "+", t, color: theme.success }))
+    const all = [...r, ...a]
+    return all.length > MAX_DIFF_LINES
+      ? [...all.slice(0, MAX_DIFF_LINES), { sign: " ", t: `… ${all.length - MAX_DIFF_LINES} more lines`, color: theme.textMuted }]
+      : all
   }
-  if (detail.length > 60) detail = detail.slice(0, 57) + "…"
-  return detail ? `${part.name} ${detail}` : part.name
+  return (
+    <box flexDirection="column" marginLeft={2} marginTop={0} backgroundColor={theme.backgroundPanel} paddingLeft={1} paddingRight={1}>
+      <For each={shown()}>
+        {(line) => (
+          <text color={line.color}>
+            {line.sign} {line.t}
+          </text>
+        )}
+      </For>
+    </box>
+  )
 }
 
 function ToolPart(props: { part: Extract<ApxPart, { kind: "tool" }> }) {
   const { theme } = useTheme()
   const color = () => (props.part.running ? theme.warning ?? theme.primary : props.part.ok === false ? theme.error : theme.success)
   const marker = () => (props.part.running ? "▸" : props.part.ok === false ? "✗" : "→")
+  const label = () => TOOL_LABELS[props.part.name] ?? props.part.name
+  const a = () => (props.part.args && typeof props.part.args === "object" ? (props.part.args as any) : {})
+  const target = () => a().path ?? a().filePath ?? a().file ?? a().pattern ?? a().query ?? a().command ?? ""
+  const isEdit = () => props.part.name === "edit_file" && (a().search || a().replace)
+  const isWrite = () => props.part.name === "write_file" && a().content
   return (
-    <text color={color()}>
-      {marker()} {toolSummary(props.part)}
-    </text>
+    <box flexDirection="column">
+      <text color={color()}>
+        {marker()} {label()}
+        {target() ? " " + (String(target()).length > 60 ? String(target()).slice(0, 57) + "…" : target()) : ""}
+      </text>
+      <Show when={isEdit()}>
+        <DiffBlock search={a().search} replace={a().replace} />
+      </Show>
+      <Show when={isWrite()}>
+        <DiffBlock content={a().content} />
+      </Show>
+    </box>
   )
 }
 
