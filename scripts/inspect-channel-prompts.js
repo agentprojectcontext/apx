@@ -21,7 +21,7 @@ import {
 import {
   schemasForChannel,
   TOOL_SCHEMAS,
-  CORE_TOOL_SCHEMAS,
+  BASE_TOOL_SCHEMAS,
 } from "../src/core/agent/tools/registry.js";
 import { listSkills } from "../src/core/agent/skills/loader.js";
 import { readConfig, mergeDefaults } from "../src/core/config/index.js";
@@ -159,7 +159,7 @@ function printSummaryTable(cfg) {
     );
   }
   console.log(
-    `\nFULL registry = ${TOOL_SCHEMAS.length} tools · CORE subset = ${CORE_TOOL_SCHEMAS.length} tools`
+    `\nFULL registry = ${TOOL_SCHEMAS.length} tools · BASE subset = ${BASE_TOOL_SCHEMAS.length} tools`
   );
 }
 
