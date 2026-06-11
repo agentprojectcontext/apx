@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { t } from "../../i18n";
 import { Empty } from "../ui";
+import { Tip } from "../ui/tip";
 import { computeMetrics, computeBreakdown } from "../../lib/code-context";
 import type { CodeTurn } from "../../lib/api/code";
 
@@ -78,12 +79,12 @@ export function CodeContextTab({ turns, session }: Props) {
           <>
             <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted">
               {breakdown.map((s) => (
-                <div
-                  key={s.key}
-                  className={SEG_COLOR[s.key]}
-                  style={{ width: `${s.percent}%` }}
-                  title={`${s.key}: ${s.tokens} (${s.percent}%)`}
-                />
+                <Tip key={s.key} content={`${s.key}: ${s.tokens} (${s.percent}%)`}>
+                  <div
+                    className={SEG_COLOR[s.key]}
+                    style={{ width: `${s.percent}%` }}
+                  />
+                </Tip>
               ))}
             </div>
             <ul className="mt-2 space-y-1">

@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import { File, Folder, FolderOpen, ChevronRight, ChevronsUpDown, RefreshCw } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { Empty, Spinner } from "../ui";
+import { Tip } from "../ui/tip";
 import { http } from "../../lib/http";
 
 interface FileNode {
@@ -163,23 +164,25 @@ export function CodeFileTree({
       <div className="flex shrink-0 items-center justify-between border-b border-border px-3 py-2">
         <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Archivos</span>
         <div className="flex items-center gap-0.5">
-          <button
-            type="button"
-            onClick={collapseAll}
-            disabled={!anyOpen}
-            title="Colapsar todo"
-            className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent"
-          >
-            <ChevronsUpDown className="size-3" />
-          </button>
-          <button
-            type="button"
-            onClick={() => void loadFiles()}
-            title="Recargar"
-            className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-          >
-            {loading ? <Spinner size={12} /> : <RefreshCw className="size-3" />}
-          </button>
+          <Tip content="Colapsar todo">
+            <button
+              type="button"
+              onClick={collapseAll}
+              disabled={!anyOpen}
+              className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent"
+            >
+              <ChevronsUpDown className="size-3" />
+            </button>
+          </Tip>
+          <Tip content="Recargar">
+            <button
+              type="button"
+              onClick={() => void loadFiles()}
+              className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              {loading ? <Spinner size={12} /> : <RefreshCw className="size-3" />}
+            </button>
+          </Tip>
         </div>
       </div>
 

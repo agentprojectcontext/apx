@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Gauge, GitCompare, Package } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../ui/tabs";
+import { Tip } from "../ui/tip";
 import { t } from "../../i18n";
 import { CodeContextTab } from "./CodeContextTab";
 import { CodeChangesTab } from "./CodeChangesTab";
@@ -36,22 +37,22 @@ export function CodeSidePanel({ pid, turns, changes, changesLoading, onRefreshCh
             const isActive = active === value;
             const fullLabel = t(`code_module.${label}` as never);
             return (
-              <TabsTrigger
-                key={value}
-                value={value}
-                title={fullLabel}
-                className={isActive ? "flex-1 min-w-0" : "w-8 shrink-0"}
-              >
-                <Icon className="size-3.5 shrink-0" />
-                {isActive && (
-                  <span className="truncate text-xs">{fullLabel}</span>
-                )}
-                {value === "changes" && changeCount > 0 && (
-                  <span className="ml-0.5 rounded-full bg-muted px-1 text-[10px] text-muted-foreground leading-none py-0.5">
-                    {changeCount}
-                  </span>
-                )}
-              </TabsTrigger>
+              <Tip key={value} content={fullLabel}>
+                <TabsTrigger
+                  value={value}
+                  className={isActive ? "flex-1 min-w-0" : "w-8 shrink-0"}
+                >
+                  <Icon className="size-3.5 shrink-0" />
+                  {isActive && (
+                    <span className="truncate text-xs">{fullLabel}</span>
+                  )}
+                  {value === "changes" && changeCount > 0 && (
+                    <span className="ml-0.5 rounded-full bg-muted px-1 text-[10px] text-muted-foreground leading-none py-0.5">
+                      {changeCount}
+                    </span>
+                  )}
+                </TabsTrigger>
+              </Tip>
             );
           })}
         </TabsList>

@@ -14,6 +14,7 @@ import {
   DialogFooter,
   DialogClose,
 } from "../ui/dialog";
+import { Tip } from "../ui/tip";
 
 interface Props {
   pid: string;
@@ -136,14 +137,15 @@ function ArtifactRow({
         ) : (
           <span className="min-w-0 flex-1 truncate font-mono">{entry.name}</span>
         )}
-        <button
-          type="button"
-          onClick={startRename}
-          title="Renombrar"
-          className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-        >
-          <Pencil className="size-3" />
-        </button>
+        <Tip content="Renombrar">
+          <button
+            type="button"
+            onClick={startRename}
+            className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+          >
+            <Pencil className="size-3" />
+          </button>
+        </Tip>
         <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
           {entry.size}b
         </span>
@@ -155,27 +157,29 @@ function ArtifactRow({
           <code className="min-w-0 flex-1 truncate font-mono text-[10px] text-muted-foreground">
             {entry.path}
           </code>
-          <button
-            type="button"
-            onClick={() => void copy(entry.path)}
-            title={t("code_module.artifacts_copy_path")}
-            className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-          >
-            <Copy className="size-3" />
-          </button>
+          <Tip content={t("code_module.artifacts_copy_path")}>
+            <button
+              type="button"
+              onClick={() => void copy(entry.path)}
+              className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+            >
+              <Copy className="size-3" />
+            </button>
+          </Tip>
         </div>
         <div className="flex flex-wrap items-center gap-1 mt-1">
           {/* Ver button */}
           <Dialog open={viewOpen} onOpenChange={setViewOpen}>
-            <button
-              type="button"
-              onClick={() => setViewOpen(true)}
-              title="Ver contenido"
-              className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-[10px] font-medium bg-blue-500/15 text-blue-700 hover:bg-blue-500/25 dark:text-blue-300"
-            >
-              <Eye className="size-3" />
-              Ver
-            </button>
+            <Tip content="Ver contenido">
+              <button
+                type="button"
+                onClick={() => setViewOpen(true)}
+                className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-[10px] font-medium bg-blue-500/15 text-blue-700 hover:bg-blue-500/25 dark:text-blue-300"
+              >
+                <Eye className="size-3" />
+                Ver
+              </button>
+            </Tip>
             <DialogContent className="sm:max-w-lg">
               <DialogHeader>
                 <DialogTitle className="font-mono text-sm">{entry.name}</DialogTitle>
@@ -194,39 +198,42 @@ function ArtifactRow({
           </Dialog>
 
           {/* Editar — opens as a file tab in the main panel */}
-          <button
-            type="button"
-            onClick={() => onEditArtifact?.(entry.name)}
-            title="Editar contenido"
-            className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-[10px] font-medium bg-violet-500/15 text-violet-700 hover:bg-violet-500/25 dark:text-violet-300"
-          >
-            <SquarePen className="size-3" />
-            Editar
-          </button>
+          <Tip content="Editar contenido">
+            <button
+              type="button"
+              onClick={() => onEditArtifact?.(entry.name)}
+              className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-[10px] font-medium bg-violet-500/15 text-violet-700 hover:bg-violet-500/25 dark:text-violet-300"
+            >
+              <SquarePen className="size-3" />
+              Editar
+            </button>
+          </Tip>
 
           {/* Run button */}
           {looksRunnable && (
-            <button
-              type="button"
-              onClick={() => onRunInTerminal?.(`apx artifact run ${entry.name}`)}
-              title={t("code_module.artifacts_run")}
-              className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-[10px] font-medium bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-300"
-            >
-              <Play className="size-3" />
-              {t("code_module.artifacts_run")}
-            </button>
+            <Tip content={t("code_module.artifacts_run")}>
+              <button
+                type="button"
+                onClick={() => onRunInTerminal?.(`apx artifact run ${entry.name}`)}
+                className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-[10px] font-medium bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-300"
+              >
+                <Play className="size-3" />
+                {t("code_module.artifacts_run")}
+              </button>
+            </Tip>
           )}
 
           {/* Eliminar — confirmation dialog */}
           <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-            <button
-              type="button"
-              onClick={() => setDeleteOpen(true)}
-              title={t("code_module.artifacts_delete")}
-              className="ml-auto rounded p-1 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950"
-            >
-              <Trash2 className="size-3" />
-            </button>
+            <Tip content={t("code_module.artifacts_delete")}>
+              <button
+                type="button"
+                onClick={() => setDeleteOpen(true)}
+                className="ml-auto rounded p-1 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950"
+              >
+                <Trash2 className="size-3" />
+              </button>
+            </Tip>
             <DialogContent className="sm:max-w-sm">
               <DialogHeader>
                 <DialogTitle className="font-mono text-sm">
@@ -331,14 +338,15 @@ export function CodeArtifactsTab({ pid, onRunInTerminal, onEditArtifact }: Props
             ? t("code_module.artifacts_count", { n: entries.length })
             : ""}
         </span>
-        <button
-          type="button"
-          onClick={() => void list.mutate()}
-          title="↻"
-          className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-        >
-          {list.isLoading ? <Spinner size={12} /> : <RefreshCw className="size-3" />}
-        </button>
+        <Tip content="Recargar">
+          <button
+            type="button"
+            onClick={() => void list.mutate()}
+            className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+          >
+            {list.isLoading ? <Spinner size={12} /> : <RefreshCw className="size-3" />}
+          </button>
+        </Tip>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
         {entries.length === 0 ? (
