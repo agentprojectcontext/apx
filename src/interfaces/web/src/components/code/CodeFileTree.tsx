@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { File, Folder, FolderOpen, ChevronRight, RefreshCw } from "lucide-react";
+import { File, Folder, FolderOpen, ChevronRight, ChevronsUpDown, RefreshCw } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { Empty, Spinner } from "../ui";
 import { http } from "../../lib/http";
@@ -43,18 +43,22 @@ function TreeNode({
   node,
   depth,
   onOpenFile,
+  openDirs,
+  toggleDir,
 }: {
   node: FileNode;
   depth: number;
   onOpenFile: (path: string) => void;
+  openDirs: Set<string>;
+  toggleDir: (path: string) => void;
 }) {
-  const [open, setOpen] = useState(depth === 0);
   const isDir = node.type === "dir";
+  const open = isDir && openDirs.has(node.path);
   return (
     <li>
       <button
         type="button"
-        onClick={() => isDir ? setOpen((v) => !v) : onOpenFile(node.path)}
+        onClick={() => isDir ? toggleDir(node.path) : onOpenFile(node.path)}
         style={{ paddingLeft: `${depth * 12 + 6}px` }}
         className={cn(
           "flex w-full items-center gap-1.5 py-0.5 pr-2 text-left text-[11px] rounded transition-colors",
@@ -78,7 +82,14 @@ function TreeNode({
       {isDir && open && node.children && node.children.length > 0 && (
         <ul>
           {node.children.map((child) => (
-            <TreeNode key={child.path} node={child} depth={depth + 1} onOpenFile={onOpenFile} />
+            <TreeNode
+              key={child.path}
+              node={child}
+              depth={depth + 1}
+              onOpenFile={onOpenFile}
+              openDirs={openDirs}
+              toggleDir={toggleDir}
+            />
           ))}
         </ul>
       )}
@@ -100,6 +111,8 @@ export function CodeFileTree({
   const [files, setFiles] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  // Open-dir state lifted out of TreeNode so the parent can collapse all at once.
+  const [openDirs, setOpenDirs] = useState<Set<string>>(() => new Set());
 
   const loadFiles = useCallback(async () => {
     setLoading(true);
@@ -121,24 +134,53 @@ export function CodeFileTree({
     }
   }, [pid]);
 
-  // Load on first render and whenever the project changes.
-  useEffect(() => { void loadFiles(); }, [loadFiles]);
+  // Load on first render and whenever the project changes. Also reset the
+  // expanded set so a fresh project starts fully collapsed.
+  useEffect(() => {
+    setOpenDirs(new Set());
+    void loadFiles();
+  }, [loadFiles]);
+
+  const toggleDir = useCallback((path: string) => {
+    setOpenDirs((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+  }, []);
+
+  const collapseAll = useCallback(() => {
+    setOpenDirs(new Set());
+  }, []);
 
   const tree = buildTree(files);
+  const anyOpen = openDirs.size > 0;
 
   return (
     <div className={cn("flex h-full flex-col", className)} data-testid="code-file-tree">
       {/* Header */}
       <div className="flex shrink-0 items-center justify-between border-b border-border px-3 py-2">
         <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Archivos</span>
-        <button
-          type="button"
-          onClick={() => void loadFiles()}
-          title="Recargar"
-          className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-        >
-          {loading ? <Spinner size={12} /> : <RefreshCw className="size-3" />}
-        </button>
+        <div className="flex items-center gap-0.5">
+          <button
+            type="button"
+            onClick={collapseAll}
+            disabled={!anyOpen}
+            title="Colapsar todo"
+            className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent"
+          >
+            <ChevronsUpDown className="size-3" />
+          </button>
+          <button
+            type="button"
+            onClick={() => void loadFiles()}
+            title="Recargar"
+            className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+          >
+            {loading ? <Spinner size={12} /> : <RefreshCw className="size-3" />}
+          </button>
+        </div>
       </div>
 
       {/* File tree */}
@@ -150,7 +192,14 @@ export function CodeFileTree({
         ) : (
           <ul>
             {tree.map((node) => (
-              <TreeNode key={node.path} node={node} depth={0} onOpenFile={onOpenFile ?? (() => {})} />
+              <TreeNode
+                key={node.path}
+                node={node}
+                depth={0}
+                onOpenFile={onOpenFile ?? (() => {})}
+                openDirs={openDirs}
+                toggleDir={toggleDir}
+              />
             ))}
           </ul>
         )}

@@ -15,6 +15,7 @@ interface Props {
   onRefreshChanges: () => void;
   session?: { title: string; mode: string; createdAt: string; updatedAt: string; agentSlug: string | null } | null;
   onRunInTerminal?: (cmd: string) => void;
+  onEditArtifact?: (name: string) => void;
 }
 
 const TABS = [
@@ -23,7 +24,7 @@ const TABS = [
   { value: "artifacts", icon: Package, label: "tab_artifacts" },
 ] as const;
 
-export function CodeSidePanel({ pid, turns, changes, changesLoading, onRefreshChanges, session, onRunInTerminal }: Props) {
+export function CodeSidePanel({ pid, turns, changes, changesLoading, onRefreshChanges, session, onRunInTerminal, onEditArtifact }: Props) {
   const [active, setActive] = useState<string>("context");
   const changeCount = changes?.files.length || 0;
 
@@ -62,7 +63,7 @@ export function CodeSidePanel({ pid, turns, changes, changesLoading, onRefreshCh
         <CodeChangesTab changes={changes} loading={changesLoading} onRefresh={onRefreshChanges} />
       </TabsContent>
       <TabsContent value="artifacts" className="min-h-0 flex-1 overflow-hidden">
-        <CodeArtifactsTab pid={pid} onRunInTerminal={onRunInTerminal} />
+        <CodeArtifactsTab pid={pid} onRunInTerminal={onRunInTerminal} onEditArtifact={onEditArtifact} />
       </TabsContent>
     </Tabs>
   );
