@@ -1,4 +1,3 @@
-// daemon/tools/glob.js
 // Glob tool for APX — lists files matching a glob pattern.
 // Backends, in order of preference:
 //   1. fast-glob (npm)  — full glob spec, brace expansion, negation patterns

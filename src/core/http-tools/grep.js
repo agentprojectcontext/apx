@@ -1,4 +1,3 @@
-// daemon/tools/grep.js
 // Native Grep tool for APX — searches file contents by regex pattern.
 // Tries ripgrep (rg) first for speed, falls back to pure Node.js walk.
 //

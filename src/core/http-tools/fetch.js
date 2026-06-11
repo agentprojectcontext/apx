@@ -1,4 +1,3 @@
-// daemon/tools/fetch.js
 // Lightweight HTTP fetch tools — no Puppeteer, no Chromium. Starts in
 // milliseconds. Use this when you only need to hit an HTTP endpoint
 // (REST API, raw page HTML, JSON). For JS-rendered pages, real clicks,

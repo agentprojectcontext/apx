@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { unwrapDdgUrl, parseDdgResults } from "#core/tools/search.js";
+import { unwrapDdgUrl, parseDdgResults } from "#core/http-tools/search.js";
 
 test("unwrapDdgUrl decodes the //duckduckgo.com/l/?uddg= redirect", () => {
   const wrapped =

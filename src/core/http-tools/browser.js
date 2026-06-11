@@ -1,4 +1,3 @@
-// daemon/tools/browser.js
 // Puppeteer-backed browser automation tools for APX.
 //
 // Logic adapted from the puppeteer-server MCP server
