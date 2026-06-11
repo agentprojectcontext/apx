@@ -1,3 +1,10 @@
+## [1.32.2](https://github.com/agentprojectcontext/apx/compare/v1.32.1...v1.32.2) (2026-06-11)
+
+
+### Bug Fixes
+
+* **telegram:** drop duplicate paraphrased text segments within a turn ([748c0b9](https://github.com/agentprojectcontext/apx/commit/748c0b980aa79a5e1b8159a3c0c99b6a9e221b05))
+
 ## [1.32.1](https://github.com/agentprojectcontext/apx/compare/v1.32.0...v1.32.1) (2026-06-11)
 
 
