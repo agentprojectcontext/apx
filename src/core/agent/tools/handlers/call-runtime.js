@@ -8,7 +8,7 @@ import {
   extractRuntimeResult as extractApfResult,
 } from "#core/stores/runtime-sessions.js";
 import { buildRuntimeBridgeHint as buildApfHint } from "#core/agent/runtime-bridge.js";
-import { detectAll } from "#host/daemon/env-detect.js";
+import { detectAll } from "#core/runtimes/detect.js";
 import {
   findEngineSessionById,
   readEngineSessionContext,

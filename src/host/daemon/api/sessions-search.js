@@ -5,7 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { readAgents } from "#core/apc/parser.js";
-import { compactConversation } from "../compact.js";
+import { compactConversation } from "#core/stores/conversations-compactor.js";
 
 export function register(app, { projects, config }) {
   app.get("/sessions/search", (req, res) => {

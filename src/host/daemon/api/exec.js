@@ -13,7 +13,7 @@ import {
   appendTurn,
   readConversation,
   setStatus,
-} from "../conversations.js";
+} from "#core/stores/conversations.js";
 
 // Pick a model for a direct agent chat: explicit override → agent's own model →
 // super-agent default (resolved via the same router the super-agent uses, so

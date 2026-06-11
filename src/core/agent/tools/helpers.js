@@ -1,12 +1,12 @@
 // Pure / config-only helpers used by tool handlers. Anything that needs the
 // running daemon's projects registry (projectMeta, resolveProject) lives in
-// host/daemon/projects-helpers.js and is re-exported here for back-compat.
+// core/apc/projects-helpers.js and is re-exported here for back-compat.
 import path from "node:path";
 import { agentSkills, buildAgentSystem as buildCoreAgentSystem } from "#core/agent/build-agent-system.js";
 import { buildConfirmDescription } from "#core/confirmation/index.js";
 import { PERMISSION_MODES, DEFAULT_PERMISSION_MODE } from "#core/constants/permissions.js";
 
-export { projectMeta, resolveProject } from "#host/daemon/projects-helpers.js";
+export { projectMeta, resolveProject } from "#core/apc/projects-helpers.js";
 
 export function safePathJoin(root, sub = ".") {
   const target = path.resolve(root, sub || ".");
