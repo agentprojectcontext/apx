@@ -2,6 +2,7 @@ import { Hammer, ClipboardList } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 import { ChatInput } from "../ui/chat-input";
+import { Tip } from "../ui/tip";
 import { ModelPicker } from "../chat/ModelPicker";
 import type { CodeMode } from "../../lib/api/code";
 
@@ -29,22 +30,23 @@ function ModeToggle({
   disabled?: boolean;
 }) {
   const item = (m: CodeMode, label: string, hint: string, Icon: typeof Hammer) => (
-    <button
-      type="button"
-      disabled={disabled}
-      title={hint}
-      data-testid={`code-mode-${m}`}
-      aria-pressed={mode === m}
-      onClick={() => onChange(m)}
-      className={cn(
-        "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50",
-        mode === m
-          ? "bg-background text-foreground shadow-sm"
-          : "text-muted-foreground hover:text-foreground",
-      )}
-    >
-      <Icon className="size-3.5" /> {label}
-    </button>
+    <Tip content={hint}>
+      <button
+        type="button"
+        disabled={disabled}
+        data-testid={`code-mode-${m}`}
+        aria-pressed={mode === m}
+        onClick={() => onChange(m)}
+        className={cn(
+          "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50",
+          mode === m
+            ? "bg-background text-foreground shadow-sm"
+            : "text-muted-foreground hover:text-foreground",
+        )}
+      >
+        <Icon className="size-3.5" /> {label}
+      </button>
+    </Tip>
   );
   return (
     <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/60 p-0.5">

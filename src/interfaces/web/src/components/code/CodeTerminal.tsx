@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { Terminal as TerminalIcon, X } from "lucide-react";
+import { Terminal as TerminalIcon, Eraser, X } from "lucide-react";
 import { cn } from "../../lib/cn";
+import { Tip } from "../ui/tip";
 import { http } from "../../lib/http";
 
 interface Line {
@@ -8,7 +9,18 @@ interface Line {
   text: string;
 }
 
-export function CodeTerminal({ pid, className, initCmd }: { pid: string; className?: string; initCmd?: string }) {
+export function CodeTerminal({
+  pid,
+  className,
+  initCmd,
+  onClose,
+}: {
+  pid: string;
+  className?: string;
+  initCmd?: string;
+  /** Click handler for the header × button. Closes the terminal panel. */
+  onClose?: () => void;
+}) {
   const [lines, setLines] = useState<Line[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -71,14 +83,24 @@ export function CodeTerminal({ pid, className, initCmd }: { pid: string; classNa
       <div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-1">
         <TerminalIcon className="size-3 text-muted-foreground" />
         <span className="flex-1 text-[11px] text-muted-foreground">Terminal</span>
-        <button
-          type="button"
-          onClick={() => setLines([])}
-          title="Limpiar"
-          className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-        >
-          <X className="size-3" />
-        </button>
+        <Tip content="Limpiar">
+          <button
+            type="button"
+            onClick={() => setLines([])}
+            className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+          >
+            <Eraser className="size-3" />
+          </button>
+        </Tip>
+        <Tip content="Cerrar terminal">
+          <button
+            type="button"
+            onClick={() => onClose?.()}
+            className="rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+          >
+            <X className="size-3" />
+          </button>
+        </Tip>
       </div>
       <div
         className="min-h-0 flex-1 overflow-y-auto px-3 py-1 font-mono text-[11px] leading-snug cursor-text"

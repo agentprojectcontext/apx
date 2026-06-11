@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Save, RotateCcw } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { Spinner } from "../ui";
+import { Tip } from "../ui/tip";
 
 export function CodeFileViewer({
   path,
@@ -46,31 +47,33 @@ export function CodeFileViewer({
         </span>
         {editable && (
           <>
-            <button
-              type="button"
-              onClick={() => setDraft(content)}
-              disabled={!dirty || saving}
-              title="Descartar cambios"
-              className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-40"
-            >
-              <RotateCcw className="size-3" />
-              Descartar
-            </button>
-            <button
-              type="button"
-              onClick={() => void save()}
-              disabled={!dirty || saving}
-              title="Guardar (Cmd/Ctrl+S)"
-              className={cn(
-                "inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium transition-colors",
-                dirty && !saving
-                  ? "bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-300"
-                  : "bg-muted text-muted-foreground",
-              )}
-            >
-              {saving ? <Spinner size={10} /> : <Save className="size-3" />}
-              Guardar
-            </button>
+            <Tip content="Descartar cambios">
+              <button
+                type="button"
+                onClick={() => setDraft(content)}
+                disabled={!dirty || saving}
+                className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-40"
+              >
+                <RotateCcw className="size-3" />
+                Descartar
+              </button>
+            </Tip>
+            <Tip content="Guardar (Cmd/Ctrl+S)">
+              <button
+                type="button"
+                onClick={() => void save()}
+                disabled={!dirty || saving}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-medium transition-colors",
+                  dirty && !saving
+                    ? "bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-300"
+                    : "bg-muted text-muted-foreground",
+                )}
+              >
+                {saving ? <Spinner size={10} /> : <Save className="size-3" />}
+                Guardar
+              </button>
+            </Tip>
           </>
         )}
       </div>

@@ -6,6 +6,7 @@ import { Code, Projects, Agents } from "../../lib/api";
 import { Artifacts } from "../../lib/api/artifacts";
 import { http } from "../../lib/http";
 import { Empty, Loading } from "../../components/ui";
+import { Tip } from "../../components/ui/tip";
 import { UiSelect } from "../../components/UiSelect";
 import { useSetPageLabel, useSetPageActions } from "../../hooks/useNavCollapseCtx";
 import { MessageList } from "../../components/chat/MessageList";
@@ -410,16 +411,16 @@ export function CodeScreen() {
             { Icon: Terminal, open: termOpen, toggle: toggleTerm, title: "Terminal" },
             { Icon: PanelRight, open: rightOpen, toggle: toggleRight, title: "Panel de contexto" },
           ].map(({ Icon, open, toggle, title }) => (
-            <button
-              key={title}
-              type="button"
-              onClick={toggle}
-              title={title}
-              data-active={open}
-              className="rounded p-1 text-muted-fg hover:bg-accent hover:text-accent-fg data-[active=true]:text-foreground"
-            >
-              <Icon className="size-3.5" />
-            </button>
+            <Tip key={title} content={title}>
+              <button
+                type="button"
+                onClick={toggle}
+                data-active={open}
+                className="rounded p-1 text-muted-fg transition-colors hover:bg-accent hover:text-accent-fg data-[active=true]:bg-accent data-[active=true]:text-accent-fg"
+              >
+                <Icon className="size-3.5" />
+              </button>
+            </Tip>
           ))}
         </div>
       ) : null,
@@ -457,15 +458,17 @@ export function CodeScreen() {
                           disabled={busy}
                         />
                       </div>
-                      <CodeSessionList
-                        sessions={sessions.data || []}
-                        activeId={sid}
-                        busy={busy}
-                        onSelect={onSelectSession}
-                        onCreate={onCreateSession}
-                        onRename={onRenameSession}
-                        onDelete={onDeleteSession}
-                      />
+                      <div className="min-h-0 flex-1 overflow-hidden">
+                        <CodeSessionList
+                          sessions={sessions.data || []}
+                          activeId={sid}
+                          busy={busy}
+                          onSelect={onSelectSession}
+                          onCreate={onCreateSession}
+                          onRename={onRenameSession}
+                          onDelete={onDeleteSession}
+                        />
+                      </div>
                       <div className="shrink-0 border-t border-border p-2">
                         <UiSelect
                           value={agentSlug}
@@ -519,22 +522,24 @@ export function CodeScreen() {
                             data-active={isActive}
                             className="group flex shrink-0 items-center gap-1 border-r border-border px-2 py-2 text-[11px] text-muted-foreground transition-colors hover:bg-accent/40 data-[active=true]:text-foreground"
                           >
-                            <button
-                              type="button"
-                              onClick={() => setActiveTab(f.path)}
-                              className="min-w-0 max-w-[140px] truncate font-mono"
-                              title={f.path}
-                            >
-                              {name}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => closeFile(f.path)}
-                              className="shrink-0 rounded p-0.5 opacity-60 hover:bg-accent hover:opacity-100"
-                              title="Cerrar"
-                            >
-                              <X className="size-2.5" />
-                            </button>
+                            <Tip content={f.path}>
+                              <button
+                                type="button"
+                                onClick={() => setActiveTab(f.path)}
+                                className="min-w-0 max-w-[140px] truncate font-mono"
+                              >
+                                {name}
+                              </button>
+                            </Tip>
+                            <Tip content="Cerrar">
+                              <button
+                                type="button"
+                                onClick={() => closeFile(f.path)}
+                                className="shrink-0 rounded p-0.5 opacity-60 hover:bg-accent hover:opacity-100"
+                              >
+                                <X className="size-2.5" />
+                              </button>
+                            </Tip>
                           </div>
                         );
                       })}
@@ -644,7 +649,7 @@ export function CodeScreen() {
             <>
               <ResizeHandleH />
               <Panel id="terminal" defaultSize="45%" minSize="10%" maxSize="80%">
-                <CodeTerminal pid={pid} initCmd={termInitCmd} className="h-full" />
+                <CodeTerminal pid={pid} initCmd={termInitCmd} onClose={toggleTerm} className="h-full" />
               </Panel>
             </>
           )}

@@ -2,6 +2,7 @@ import { Plus, MessageSquare, Trash2, Pencil } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 import { Empty } from "../ui";
+import { Tip } from "../ui/tip";
 import type { CodeSessionRow } from "../../lib/api/code";
 
 interface Props {
@@ -30,16 +31,17 @@ export function CodeSessionList({
         <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
           {t("code_module.sessions")}
         </span>
-        <button
-          type="button"
-          onClick={onCreate}
-          disabled={busy}
-          title={t("code_module.new_session")}
-          data-testid="code-new-session"
-          className="flex items-center gap-1 rounded-md border border-border px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
-        >
-          <Plus className="size-3" /> {t("code_module.new_session")}
-        </button>
+        <Tip content={t("code_module.new_session")}>
+          <button
+            type="button"
+            onClick={onCreate}
+            disabled={busy}
+            data-testid="code-new-session"
+            className="flex items-center gap-1 rounded-md border border-border px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
+          >
+            <Plus className="size-3" /> {t("code_module.new_session")}
+          </button>
+        </Tip>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
@@ -70,22 +72,24 @@ export function CodeSessionList({
                   </span>
                 </button>
                 <div className="absolute right-1 top-1 hidden items-center gap-0.5 group-hover/item:flex">
-                  <button
-                    type="button"
-                    onClick={() => onRename(s.id, s.title)}
-                    title={t("code_module.rename")}
-                    className="rounded p-1 text-muted-foreground hover:bg-background hover:text-foreground"
-                  >
-                    <Pencil className="size-3" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onDelete(s.id)}
-                    title={t("code_module.delete")}
-                    className="rounded p-1 text-muted-foreground hover:bg-background hover:text-rose-500"
-                  >
-                    <Trash2 className="size-3" />
-                  </button>
+                  <Tip content={t("code_module.rename")}>
+                    <button
+                      type="button"
+                      onClick={() => onRename(s.id, s.title)}
+                      className="rounded p-1 text-muted-foreground hover:bg-background hover:text-foreground"
+                    >
+                      <Pencil className="size-3" />
+                    </button>
+                  </Tip>
+                  <Tip content={t("code_module.delete")}>
+                    <button
+                      type="button"
+                      onClick={() => onDelete(s.id)}
+                      className="rounded p-1 text-muted-foreground hover:bg-background hover:text-rose-500"
+                    >
+                      <Trash2 className="size-3" />
+                    </button>
+                  </Tip>
                 </div>
               </li>
             ))}

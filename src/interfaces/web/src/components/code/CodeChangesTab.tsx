@@ -3,6 +3,7 @@ import { ChevronRight, FilePlus2, FilePen, FileX2, RefreshCw } from "lucide-reac
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 import { Empty, Spinner } from "../ui";
+import { Tip } from "../ui/tip";
 import { DiffView } from "./DiffView";
 import type { CodeChanges, CodeFileChange } from "../../lib/api/code";
 
@@ -60,14 +61,15 @@ export function CodeChangesTab({ changes, loading, onRefresh }: Props) {
         <span className="text-[11px] text-muted-foreground">
           {files.length > 0 ? t("code_module.changes_files", { n: files.length }) : ""}
         </span>
-        <button
-          type="button"
-          onClick={onRefresh}
-          title="↻"
-          className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-        >
-          {loading ? <Spinner size={12} /> : <RefreshCw className="size-3" />}
-        </button>
+        <Tip content="Recargar">
+          <button
+            type="button"
+            onClick={onRefresh}
+            className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+          >
+            {loading ? <Spinner size={12} /> : <RefreshCw className="size-3" />}
+          </button>
+        </Tip>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3">
         {changes && !changes.git ? (
