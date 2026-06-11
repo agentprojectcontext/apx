@@ -43,7 +43,7 @@ import { registerSender, resolveAllowedTools } from "#core/identity/telegram.js"
 import { buildRelationshipBlock } from "#core/agent/index.js";
 import { getConfirmationStore as getConfirmStore } from "#core/confirmation/pending-store.js";
 import { CHANNELS } from "#core/constants/channels.js";
-import { tryResolveSkillCommand } from "../skill-trigger.js";
+import { tryResolveSkillCommand } from "#core/agent/skills/trigger.js";
 import { createTelegramConfirmAdapter } from "#core/confirmation/adapters/telegram.js";
 import * as askFlow from "./telegram-ask.js";
 

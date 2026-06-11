@@ -21,7 +21,7 @@
 //   - Project-scoped skills (.apc/skills/) win when projectPath is provided.
 //   - An unknown slug falls through ({ handled: false }) so callers can choose
 //     to surface a "no such skill" message or pass through unchanged.
-import { listSkills, loadSkill } from "./skills-loader.js";
+import { listSkills, loadSkill } from "./loader.js";
 
 const SLASH_RE = /^\/([A-Za-z][A-Za-z0-9_-]*)\b/;
 

@@ -1,4 +1,4 @@
-import { loadSkill } from "../../skills-loader.js";
+import { loadSkill } from "#core/agent/skills/loader.js";
 
 export default {
   name: "load_skill",

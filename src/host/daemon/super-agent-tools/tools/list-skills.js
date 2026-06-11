@@ -1,5 +1,5 @@
-import { listSkills, SKILL_LOCATIONS } from "../../skills-loader.js";
-import { condenseSkillDescription } from "#core/agent/skills.js";
+import { listSkills, SKILL_LOCATIONS } from "#core/agent/skills/loader.js";
+import { condenseSkillDescription } from "#core/agent/skills/index.js";
 
 export default {
   name: "list_skills",

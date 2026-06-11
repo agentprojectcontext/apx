@@ -9,7 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readIdentity } from "../identity/index.js";
 import { readSelfMemoryForPrompt } from "./self-memory.js";
-import { buildSkillsHintBlock } from "./skills.js";
+import { buildSkillsHintBlock } from "./skills/catalog.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROMPTS_DIR = path.join(__dirname, "prompts");
