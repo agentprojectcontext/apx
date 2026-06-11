@@ -25,6 +25,7 @@ import {
 import { runSuperAgent, isSuperAgentEnabled } from "../super-agent.js";
 import { appendGlobalMessage } from "../../../core/stores/messages.js";
 import { CHANNELS } from "../../../core/constants/channels.js";
+import { tryResolveSkillCommand } from "../skill-trigger.js";
 
 const CHANNEL = CHANNELS.DESKTOP;
 
@@ -129,12 +130,15 @@ async function _handleMessage({ ws, text, previousMessages }, { projects, config
 
     log(`desktop: super-agent turn start — model=${cfg.model || config?.super_agent?.model || "(default)"} text="${text.slice(0, 60)}"`);
     const t0 = Date.now();
+    const slashed = tryResolveSkillCommand(text);
+    const slashedPrompt = slashed.handled ? slashed.prompt : text;
     const result = await runSuperAgent({
       globalConfig: config,
       projects,
       plugins,
-      prompt: text,
+      prompt: slashedPrompt,
       channel: CHANNELS.DESKTOP,
+      ...(slashed.handled ? { contextNote: slashed.contextNote } : {}),
       channelMeta: { voice: true }, // desktop module is voice-first → spoken mode
       previousMessages: history.slice(0, -1),
       overrideModel: cfg.model || null,
