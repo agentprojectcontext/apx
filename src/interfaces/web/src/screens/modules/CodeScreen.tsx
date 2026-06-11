@@ -226,15 +226,17 @@ export function CodeScreen() {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden p-4" data-testid="screen-code">
+    <div className="flex h-full min-h-0" data-testid="screen-code">
       {projects.isLoading ? (
         <Loading />
       ) : !hasProjects ? (
-        <Empty>{t("code_module.no_projects")}</Empty>
+        <div className="grid flex-1 place-items-center">
+          <Empty>{t("code_module.no_projects")}</Empty>
+        </div>
       ) : (
-        <div className="flex min-h-0 flex-1 overflow-hidden rounded-xl border border-border bg-card/40">
-          {/* Left rail: project picker + session list */}
-          <aside className="flex w-60 shrink-0 flex-col border-r border-border">
+        <>
+          {/* Left: project picker + session list */}
+          <aside className="flex w-52 shrink-0 flex-col border-r border-border">
             <div className="shrink-0 border-b border-border p-2">
               <CodeProjectPicker
                 projects={projectList}
@@ -298,7 +300,7 @@ export function CodeScreen() {
           </main>
 
           {/* Right: context + changes */}
-          <aside className="hidden w-80 shrink-0 flex-col border-l border-border lg:flex">
+          <aside className="hidden w-72 shrink-0 flex-col border-l border-border lg:flex">
             <CodeSidePanel
               pid={pid}
               turns={turns}
@@ -307,7 +309,7 @@ export function CodeScreen() {
               onRefreshChanges={() => void changes.mutate()}
             />
           </aside>
-        </div>
+        </>
       )}
     </div>
   );

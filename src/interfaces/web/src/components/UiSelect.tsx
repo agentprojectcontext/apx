@@ -48,7 +48,7 @@ export function UiSelect({
         sideOffset={6}
         align="start"
         alignItemWithTrigger={false}
-        className="max-w-[min(20rem,var(--available-width))] p-1.5"
+        className="w-[var(--anchor-width)] p-1.5"
       >
         {options.map((o) => {
           const Icon = o.icon;
