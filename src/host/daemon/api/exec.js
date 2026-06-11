@@ -7,12 +7,27 @@
 import { callEngine } from "#core/engines/index.js";
 import { readAgents } from "#core/apc/parser.js";
 import { buildAgentSystem } from "#core/agent/build-agent-system.js";
+import { resolveActiveModel } from "#core/agent/model-router.js";
 import {
   startConversation,
   appendTurn,
   readConversation,
   setStatus,
 } from "../conversations.js";
+
+// Pick a model for a direct agent chat: explicit override → agent's own model →
+// super-agent default (resolved via the same router the super-agent uses, so
+// it walks the fallback chain when the primary is empty/unhealthy).
+async function pickAgentModel({ modelOverride, agent, config }) {
+  if (modelOverride) return modelOverride;
+  if (agent.fields?.Model) return agent.fields.Model;
+  try {
+    const routing = await resolveActiveModel(config);
+    return routing?.modelId || null;
+  } catch {
+    return null;
+  }
+}
 
 export function register(app, { projects, project, config }) {
   app.post("/projects/:pid/agents/:slug/exec", async (req, res) => {
@@ -28,7 +43,7 @@ export function register(app, { projects, project, config }) {
     const agents = readAgents(p.path);
     const agent = agents.find((a) => a.slug === req.params.slug);
     if (!agent) return res.status(404).json({ error: "agent not found" });
-    const modelId = modelOverride || agent.fields.Model;
+    const modelId = await pickAgentModel({ modelOverride, agent, config });
     if (!modelId)
       return res
         .status(400)
@@ -106,7 +121,7 @@ export function register(app, { projects, project, config }) {
     const agents = readAgents(p.path);
     const agent = agents.find((a) => a.slug === req.params.slug);
     if (!agent) return res.status(404).json({ error: "agent not found" });
-    const modelId = modelOverride || agent.fields.Model;
+    const modelId = await pickAgentModel({ modelOverride, agent, config });
     if (!modelId)
       return res
         .status(400)

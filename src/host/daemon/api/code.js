@@ -26,6 +26,7 @@ import {
 } from "#core/stores/code-sessions.js";
 import { captureBaseline, diffAgainstBaseline, initGitRepo } from "#core/git-baseline.js";
 import { loggerFor } from "#core/logging.js";
+import { readAgents } from "#core/apc/parser.js";
 
 const log = loggerFor("code");
 
@@ -212,7 +213,7 @@ export function register(app, { projects, project, config, registries, plugins }
   app.post("/projects/:pid/code/sessions", (req, res) => {
     const p = findProject(req, res);
     if (!p) return;
-    const { title, model, mode } = req.body || {};
+    const { title, model, mode, agentSlug } = req.body || {};
     let git = captureBaseline(p.path);
     // No baseline because the project isn't a git repo yet. For real projects
     // (not the default apx home, id 0) init one so the "changes" diff works —
@@ -230,6 +231,7 @@ export function register(app, { projects, project, config, registries, plugins }
       title,
       model,
       mode,
+      agentSlug: agentSlug || null,
       git,
     });
     res.status(201).json(session);
@@ -291,6 +293,15 @@ export function register(app, { projects, project, config, registries, plugins }
     const mode = session.mode === "plan" ? "plan" : "build";
     const previousMessages = historyFrom(session);
 
+    // If a project agent is selected, inject its system prompt as a suffix so
+    // the super-agent's tool loop runs with the agent's personality/context.
+    let agentSystemSuffix = "";
+    if (session.agentSlug) {
+      const agents = readAgents(p.path);
+      const agent = agents.find((a) => a.slug === session.agentSlug);
+      if (agent?.body) agentSystemSuffix = `\n\n## Agente seleccionado: ${session.agentSlug}\n${agent.body}`;
+    }
+
     // Persist the user turn immediately so a crash mid-stream still records it.
     appendTurn(p.storagePath, session.id, {
       role: "user",
@@ -324,8 +335,10 @@ export function register(app, { projects, project, config, registries, plugins }
           projectPath: p.path,
           mode,
           modeGuidance: modeGuidanceFor(mode),
+          agentSlug: session.agentSlug || null,
         },
         previousMessages,
+        systemSuffix: agentSystemSuffix,
         overrideModel: session.model || undefined,
         allowedTools: mode === "plan" ? PLAN_TOOLS : "*",
         // Coding tasks are multi-step: give the loop a high safety ceiling so it

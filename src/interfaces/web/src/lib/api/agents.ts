@@ -10,7 +10,7 @@ export const Agents = {
     http.patch<AgentEntry>(`/projects/${pid}/agents/${encodeURIComponent(slug)}`, body),
   remove: (pid: string, slug: string) =>
     http.del<{ ok: boolean }>(`/projects/${pid}/agents/${encodeURIComponent(slug)}`),
-  chat: (pid: string, slug: string, body: { prompt: string; conversation_id?: string }) =>
+  chat: (pid: string, slug: string, body: { prompt: string; conversation_id?: string; model?: string }) =>
     http.post<{ conversation_id: string; text: string; usage?: unknown; engine: string }>(
       `/projects/${pid}/agents/${encodeURIComponent(slug)}/chat`,
       body,

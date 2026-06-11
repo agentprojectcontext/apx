@@ -1,18 +1,36 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
-import { Code, Projects } from "../../lib/api";
-import { Badge, Empty, Loading } from "../../components/ui";
-import { useSetPageLabel } from "../../hooks/useNavCollapseCtx";
+import { Bot, FolderTree, MessageSquare, PanelLeft, PanelRight, Terminal, X } from "lucide-react";
+import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from "react-resizable-panels";
+import { Code, Projects, Agents } from "../../lib/api";
+import { http } from "../../lib/http";
+import { Empty, Loading } from "../../components/ui";
+import { UiSelect } from "../../components/UiSelect";
+import { useSetPageLabel, useSetPageActions } from "../../hooks/useNavCollapseCtx";
 import { MessageList } from "../../components/chat/MessageList";
 import { CodeProjectPicker } from "../../components/code/CodeProjectPicker";
 import { CodeSessionList } from "../../components/code/CodeSessionList";
 import { CodeComposer } from "../../components/code/CodeComposer";
 import { CodeSidePanel } from "../../components/code/CodeSidePanel";
+import { CodeFileTree } from "../../components/code/CodeFileTree";
+import { CodeFileViewer } from "../../components/code/CodeFileViewer";
+import { CodeTerminal } from "../../components/code/CodeTerminal";
 import { InlineAskPanel, pendingAskQuestions } from "../../components/chat/InlineAskPanel";
 import { useToast } from "../../components/Toast";
 import { t } from "../../i18n";
 import { applyStreamEvent, textOf, type ChatMsg } from "../../hooks/useChat";
 import type { CodeMode, CodeStreamEvent, CodeTurn } from "../../lib/api/code";
+
+// Suppress unused import warning for textOf (kept for consumers)
+void textOf;
+
+const SUPER_AGENT_VALUE = "super-agent";
+
+function ResizeHandle() {
+  return (
+    <PanelResizeHandle className="relative z-10 w-px shrink-0 cursor-col-resize bg-border transition-colors hover:bg-primary/40 active:bg-primary/60" />
+  );
+}
 
 // Code module — OpenCode-style coding sessions in the APX web admin. Each
 // project owns a list of persistent sessions; the daemon keeps the transcript
@@ -26,10 +44,26 @@ export function CodeScreen() {
 
   const [pid, setPid] = useState<string>("");
   const [sid, setSid] = useState<string | null>(null);
+  const [agentSlug, setAgentSlug] = useState<string>(SUPER_AGENT_VALUE);
   const [msgs, setMsgs] = useState<ChatMsg[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  const [leftOpen, setLeftOpen] = useState(true);
+  const [rightOpen, setRightOpen] = useState(true);
+  const [termOpen, setTermOpen] = useState(false);
+  const [termInitCmd, setTermInitCmd] = useState("");
+  const [worktreeOpen, setWorktreeOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+
+  // Open file tabs: path → content (empty string while loading)
+  const [openFiles, setOpenFiles] = useState<Array<{ path: string; content: string; loading?: boolean }>>([]);
+  // "chat" is the permanent tab, otherwise a file path
+  const [activeTab, setActiveTab] = useState<string>("chat");
+
+  const runInTerminal = useCallback((cmd: string) => {
+    setTermOpen(true);
+    setTermInitCmd(cmd);
+  }, []);
 
   // Default to the first registered project once the list loads.
   useEffect(() => {
@@ -40,6 +74,9 @@ export function CodeScreen() {
   const sessions = useSWR(pid ? ["code-sessions", pid] : null, () =>
     Code.sessions.list(pid),
   );
+
+  // Agents for the active project.
+  const agentsData = useSWR(pid ? ["agents", pid] : null, () => Agents.list(pid));
 
   // Full transcript of the active session.
   const session = useSWR(pid && sid ? ["code-session", pid, sid] : null, () =>
@@ -57,6 +94,11 @@ export function CodeScreen() {
     if (!sid && list.length) setSid(list[0].id);
     if (sid && list.length && !list.some((s) => s.id === sid)) setSid(list[0]?.id ?? null);
   }, [sessions.data, sid]);
+
+  // Sync agentSlug from the active session when it loads.
+  useEffect(() => {
+    if (session.data) setAgentSlug(session.data.agentSlug || SUPER_AGENT_VALUE);
+  }, [session.data]);
 
   // Hydrate the message list whenever the active session's transcript loads.
   // (Not while streaming — we own the array then.)
@@ -89,7 +131,10 @@ export function CodeScreen() {
   const onCreateSession = async () => {
     if (!pid || busy) return;
     try {
-      const created = await Code.sessions.create(pid, { title: t("code_module.untitled") });
+      const created = await Code.sessions.create(pid, {
+        title: t("code_module.untitled"),
+        agentSlug: agentSlug !== SUPER_AGENT_VALUE ? agentSlug : null,
+      });
       await sessions.mutate();
       setSid(created.id);
       setMsgs([]);
@@ -126,6 +171,19 @@ export function CodeScreen() {
   };
 
   // Persist mode / model changes to the session (PATCH) + keep SWR in sync.
+  const onAgentChange = async (slug: string) => {
+    setAgentSlug(slug);
+    if (!sid) return;
+    try {
+      await Code.sessions.update(pid, sid, {
+        agentSlug: slug !== SUPER_AGENT_VALUE ? slug : null,
+      });
+      await Promise.all([session.mutate(), sessions.mutate()]);
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  };
+
   const patchSession = useCallback(
     async (patch: { mode?: CodeMode; model?: string | null }) => {
       if (!sid) return;
@@ -207,12 +265,60 @@ export function CodeScreen() {
     }
   };
 
+  const openFile = useCallback(
+    (path: string) => {
+      setActiveTab(path);
+      setOpenFiles((prev) => {
+        if (prev.some((f) => f.path === path)) return prev; // already open
+        return [...prev, { path, content: "", loading: true }];
+      });
+      // Fetch content async
+      http
+        .post<{ ok: boolean; stdout: string; stderr: string }>("/run", {
+          cmd: `cat "${path}"`,
+          project: pid,
+        })
+        .then((r) => {
+          const content = r.stdout || r.stderr || "(vacío)";
+          setOpenFiles((prev) =>
+            prev.map((f) => (f.path === path ? { ...f, content, loading: false } : f)),
+          );
+        })
+        .catch((e: Error) => {
+          setOpenFiles((prev) =>
+            prev.map((f) =>
+              f.path === path ? { ...f, content: `Error: ${e.message}`, loading: false } : f,
+            ),
+          );
+        });
+    },
+    [pid],
+  );
+
+  const closeFile = useCallback((path: string) => {
+    setOpenFiles((prev) => prev.filter((f) => f.path !== path));
+    setActiveTab((prev) => (prev === path ? "chat" : prev));
+  }, []);
+
   const hasProjects = !projects.isLoading && projectList.length > 0;
+
+  const agentOptions = useMemo(() => {
+    const base = [{ value: SUPER_AGENT_VALUE, label: "super-agent", icon: Bot, description: "Agente principal con todas las herramientas" }];
+    const project = (agentsData.data || []).map((a) => ({
+      value: a.slug,
+      label: a.slug,
+      icon: Bot,
+      description: a.description || a.role || undefined,
+    }));
+    return [...base, ...project];
+  }, [agentsData.data]);
+
   const turns: CodeTurn[] = useMemo(() => msgs as unknown as CodeTurn[], [msgs]);
   const activeTitle = useMemo(
     () => sessions.data?.find((s) => s.id === sid)?.title || "",
     [sessions.data, sid],
   );
+  const activeProject = useMemo(() => projectList.find((p) => String(p.id) === pid), [projectList, pid]);
   useSetPageLabel(activeTitle);
 
   // Detect unanswered ask_questions in the last assistant turn. Local "dismissed"
@@ -225,8 +331,42 @@ export function CodeScreen() {
     void send(compiled);
   };
 
+  // Stable toggle callbacks
+  const toggleLeft = useCallback(() => setLeftOpen((v) => !v), []);
+  const toggleTree = useCallback(() => setWorktreeOpen((v) => !v), []);
+  const toggleTerm = useCallback(() => setTermOpen((v) => !v), []);
+  const toggleRight = useCallback(() => setRightOpen((v) => !v), []);
+
+  // Inject panel toggle icons into TopBar
+  const pageActions = useMemo(
+    () =>
+      sid ? (
+        <div className="flex items-center gap-0.5">
+          {[
+            { Icon: PanelLeft, open: leftOpen, toggle: toggleLeft, title: "Lista de sesiones" },
+            { Icon: FolderTree, open: worktreeOpen, toggle: toggleTree, title: "Árbol de archivos" },
+            { Icon: Terminal, open: termOpen, toggle: toggleTerm, title: "Terminal" },
+            { Icon: PanelRight, open: rightOpen, toggle: toggleRight, title: "Panel de contexto" },
+          ].map(({ Icon, open, toggle, title }) => (
+            <button
+              key={title}
+              type="button"
+              onClick={toggle}
+              title={title}
+              data-active={open}
+              className="rounded p-1 text-muted-fg hover:bg-accent hover:text-accent-fg data-[active=true]:text-foreground"
+            >
+              <Icon className="size-3.5" />
+            </button>
+          ))}
+        </div>
+      ) : null,
+    [sid, leftOpen, worktreeOpen, termOpen, rightOpen, toggleLeft, toggleTree, toggleTerm, toggleRight],
+  );
+  useSetPageActions(pageActions);
+
   return (
-    <div className="flex h-full min-h-0" data-testid="screen-code">
+    <div className="flex h-full min-h-0 flex-col" data-testid="screen-code">
       {projects.isLoading ? (
         <Loading />
       ) : !hasProjects ? (
@@ -234,82 +374,189 @@ export function CodeScreen() {
           <Empty>{t("code_module.no_projects")}</Empty>
         </div>
       ) : (
-        <>
-          {/* Left: project picker + session list */}
-          <aside className="flex w-52 shrink-0 flex-col border-r border-border">
-            <div className="shrink-0 border-b border-border p-2">
-              <CodeProjectPicker
-                projects={projectList}
-                value={pid}
-                onChange={onPickProject}
-                disabled={busy}
-              />
-            </div>
-            <CodeSessionList
-              sessions={sessions.data || []}
-              activeId={sid}
-              busy={busy}
-              onSelect={onSelectSession}
-              onCreate={onCreateSession}
-              onRename={onRenameSession}
-              onDelete={onDeleteSession}
-            />
-            <div className="shrink-0 border-t border-border px-3 py-2">
-              <Badge tone="success">{t("code_module.badge")}</Badge>
-            </div>
-          </aside>
+        <PanelGroup orientation="horizontal" id="code-layout" className="min-h-0 flex-1">
+          {/* Left panel: session list + agent selector */}
+          {leftOpen && (
+            <>
+              <Panel id="left" defaultSize={14} minSize={8}>
+                <aside className="flex h-full flex-col border-r border-border">
+                  <div className="shrink-0 border-b border-border p-2">
+                    <CodeProjectPicker
+                      projects={projectList}
+                      value={pid}
+                      onChange={onPickProject}
+                      disabled={busy}
+                    />
+                  </div>
+                  <CodeSessionList
+                    sessions={sessions.data || []}
+                    activeId={sid}
+                    busy={busy}
+                    onSelect={onSelectSession}
+                    onCreate={onCreateSession}
+                    onRename={onRenameSession}
+                    onDelete={onDeleteSession}
+                  />
+                  <div className="shrink-0 border-t border-border p-2">
+                    <UiSelect
+                      value={agentSlug}
+                      onChange={onAgentChange}
+                      options={agentOptions}
+                      disabled={busy}
+                      showIcon={true}
+                    />
+                  </div>
+                </aside>
+              </Panel>
+              <ResizeHandle />
+            </>
+          )}
 
-          {/* Center: transcript + composer */}
-          <main className="flex min-w-0 flex-1 flex-col">
-            <div className="min-h-0 flex-1 overflow-y-auto" data-testid="code-transcript">
-              {!sid ? (
-                <div className="grid h-full place-items-center p-6">
-                  <Empty>{t("code_module.pick_project")}</Empty>
+          {/* File tree panel */}
+          {worktreeOpen && (
+            <>
+              <Panel id="tree" defaultSize={13} minSize={8}>
+                <div className="h-full border-r border-border">
+                  <CodeFileTree pid={pid} projectPath={activeProject?.path} onOpenFile={openFile} />
                 </div>
-              ) : msgs.length ? (
-                <MessageList msgs={msgs} onCopy={copyToClipboard} />
+              </Panel>
+              <ResizeHandle />
+            </>
+          )}
+
+          {/* Main panel: tab bar + transcript + terminal + composer */}
+          <Panel id="main" defaultSize={50} minSize={20}>
+            <div className="flex h-full flex-col">
+              {/* Tab bar */}
+              <div className="flex shrink-0 items-center gap-0 overflow-x-auto border-b border-border bg-muted/30">
+                {/* Chat tab (permanent) */}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("chat")}
+                  data-active={activeTab === "chat"}
+                  className="flex shrink-0 items-center gap-1.5 border-r border-border px-3 py-2 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-accent/40 data-[active=true]:bg-background data-[active=true]:text-foreground"
+                >
+                  <MessageSquare className="size-3 shrink-0" />
+                  Chat
+                </button>
+                {/* File tabs */}
+                {openFiles.map((f) => {
+                  const name = f.path.split("/").pop() ?? f.path;
+                  const isActive = activeTab === f.path;
+                  return (
+                    <div
+                      key={f.path}
+                      data-active={isActive}
+                      className="group flex shrink-0 items-center gap-1 border-r border-border px-2 py-2 text-[11px] text-muted-foreground transition-colors hover:bg-accent/40 data-[active=true]:bg-background data-[active=true]:text-foreground"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab(f.path)}
+                        className="min-w-0 max-w-[120px] truncate font-mono"
+                        title={f.path}
+                      >
+                        {name}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => closeFile(f.path)}
+                        className="shrink-0 rounded p-0.5 opacity-0 hover:bg-accent group-hover:opacity-100 data-[active=true]:opacity-100"
+                        data-active={isActive}
+                        title="Cerrar"
+                      >
+                        <X className="size-2.5" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Tab content */}
+              {activeTab === "chat" ? (
+                <>
+                  <div className="min-h-0 flex-1 overflow-y-auto" data-testid="code-transcript">
+                    {!sid ? (
+                      <div className="grid h-full place-items-center p-6">
+                        <Empty>{t("code_module.pick_project")}</Empty>
+                      </div>
+                    ) : msgs.length ? (
+                      <MessageList msgs={msgs} onCopy={copyToClipboard} />
+                    ) : (
+                      <div className="grid h-full place-items-center p-6">
+                        <Empty>{t("code_module.empty_chat")}</Empty>
+                      </div>
+                    )}
+                  </div>
+                  {askVisible && pending && (
+                    <InlineAskPanel
+                      turnKey={pending.turnKey}
+                      questions={pending.questions}
+                      onSubmit={submitAnswers}
+                      onDismiss={() => setDismissedKey(pending.turnKey)}
+                      disabled={busy}
+                    />
+                  )}
+                  {termOpen && pid && (
+                    <CodeTerminal pid={pid} initCmd={termInitCmd} className="shrink-0 border-t border-border" />
+                  )}
+                </>
               ) : (
-                <div className="grid h-full place-items-center p-6">
-                  <Empty>{t("code_module.empty_chat")}</Empty>
-                </div>
+                (() => {
+                  const file = openFiles.find((f) => f.path === activeTab);
+                  return file ? (
+                    <CodeFileViewer path={file.path} content={file.content} loading={file.loading} />
+                  ) : null;
+                })()
               )}
-            </div>
-            {askVisible && pending && (
-              <InlineAskPanel
-                turnKey={pending.turnKey}
-                questions={pending.questions}
-                onSubmit={submitAnswers}
-                onDismiss={() => setDismissedKey(pending.turnKey)}
-                disabled={busy}
-              />
-            )}
-            <div className="border-t border-border bg-card/60 p-3" data-testid="code-input">
-              <CodeComposer
-                value={draft}
-                onValueChange={setDraft}
-                onSubmit={() => void send()}
-                onStop={stop}
-                busy={busy}
-                disabled={!sid}
-                mode={mode}
-                onModeChange={(m) => void patchSession({ mode: m })}
-                model={model}
-                onModelChange={(m) => void patchSession({ model: m || null })}
-              />
-            </div>
-          </main>
 
-          {/* Right: context + changes */}
-          <aside className="hidden w-72 shrink-0 flex-col border-l border-border lg:flex">
-            <CodeSidePanel
-              pid={pid}
-              turns={turns}
-              changes={changes.data}
-              changesLoading={changes.isLoading}
-              onRefreshChanges={() => void changes.mutate()}
-            />
-          </aside>
-        </>
+              {/* Composer — always visible */}
+              <div className="shrink-0 border-t border-border bg-card/60 p-3" data-testid="code-input">
+                <CodeComposer
+                  value={draft}
+                  onValueChange={setDraft}
+                  onSubmit={() => void send()}
+                  onStop={stop}
+                  busy={busy}
+                  disabled={!sid}
+                  mode={mode}
+                  onModeChange={(m) => void patchSession({ mode: m })}
+                  model={model}
+                  onModelChange={(m) => void patchSession({ model: m || null })}
+                />
+              </div>
+            </div>
+          </Panel>
+
+          {/* Right panel: context + changes + artifacts */}
+          {rightOpen && (
+            <>
+              <ResizeHandle />
+              <Panel id="right" defaultSize={22} minSize={15}>
+                <aside className="flex h-full flex-col border-l border-border">
+                  <CodeSidePanel
+                    pid={pid}
+                    turns={turns}
+                    changes={changes.data}
+                    changesLoading={changes.isLoading}
+                    onRefreshChanges={() => void changes.mutate()}
+                    session={
+                      session.data
+                        ? {
+                            title: session.data.title,
+                            mode: session.data.mode,
+                            createdAt: session.data.createdAt,
+                            updatedAt: session.data.updatedAt,
+                            agentSlug: session.data.agentSlug ?? null,
+                          }
+                        : null
+                    }
+                    onRunInTerminal={runInTerminal}
+                  />
+                </aside>
+              </Panel>
+            </>
+          )}
+        </PanelGroup>
       )}
     </div>
   );

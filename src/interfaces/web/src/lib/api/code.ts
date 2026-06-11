@@ -39,6 +39,7 @@ export interface CodeSessionRow {
   title: string;
   mode: CodeMode;
   model: string | null;
+  agentSlug: string | null;
   createdAt: string;
   updatedAt: string;
   messageCount: number;
@@ -53,6 +54,7 @@ export interface CodeSession {
   createdAt: string;
   updatedAt: string;
   model: string | null;
+  agentSlug: string | null;
   mode: CodeMode;
   git: { baselineCommit: string | null; baselineTree: string } | null;
   messages: CodeTurn[];
@@ -89,13 +91,13 @@ export const Code = {
 
     create: (
       pid: string | number,
-      body: { title?: string; model?: string | null; mode?: CodeMode } = {},
+      body: { title?: string; model?: string | null; mode?: CodeMode; agentSlug?: string | null } = {},
     ) => http.post<CodeSession>(base(pid), body),
 
     update: (
       pid: string | number,
       sid: string,
-      patch: { title?: string; model?: string | null; mode?: CodeMode },
+      patch: { title?: string; model?: string | null; mode?: CodeMode; agentSlug?: string | null },
     ) => http.patch<CodeSession>(`${base(pid)}/${sid}`, patch),
 
     remove: (pid: string | number, sid: string) =>

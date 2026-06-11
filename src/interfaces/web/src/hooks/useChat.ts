@@ -263,6 +263,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
           const out = await Agents.chat(pid, opts.agentSlug, {
             prompt: trimmed,
             conversation_id: convoRef.current,
+            model: opts.model || undefined,
           });
           convoRef.current = out.conversation_id;
           patchLast((m) => ({

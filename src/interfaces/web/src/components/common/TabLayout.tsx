@@ -35,13 +35,13 @@ export function TabLayout({
   return (
     <div className="flex h-full">
       <TabNav sections={sections} active={active} onChange={onChange} collapsed={collapsed} />
-      <div className="flex min-w-0 flex-1 flex-col overflow-y-auto">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {actions ? (
-          <div className="flex items-center justify-end gap-2 px-6 pt-3">
+          <div className="flex shrink-0 items-center justify-end gap-2 px-6 pt-3">
             {actions}
           </div>
         ) : null}
-        <div className={cn(contentClassName)} data-testid={testId}>
+        <div className={cn("flex-1 min-h-0 overflow-y-auto", contentClassName)} data-testid={testId}>
           {children}
         </div>
       </div>

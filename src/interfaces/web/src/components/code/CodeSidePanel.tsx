@@ -13,6 +13,8 @@ interface Props {
   changes: CodeChanges | undefined;
   changesLoading: boolean;
   onRefreshChanges: () => void;
+  session?: { title: string; mode: string; createdAt: string; updatedAt: string; agentSlug: string | null } | null;
+  onRunInTerminal?: (cmd: string) => void;
 }
 
 const TABS = [
@@ -21,7 +23,7 @@ const TABS = [
   { value: "artifacts", icon: Package, label: "tab_artifacts" },
 ] as const;
 
-export function CodeSidePanel({ pid, turns, changes, changesLoading, onRefreshChanges }: Props) {
+export function CodeSidePanel({ pid, turns, changes, changesLoading, onRefreshChanges, session, onRunInTerminal }: Props) {
   const [active, setActive] = useState<string>("context");
   const changeCount = changes?.files.length || 0;
 
@@ -54,13 +56,13 @@ export function CodeSidePanel({ pid, turns, changes, changesLoading, onRefreshCh
         </TabsList>
       </div>
       <TabsContent value="context" className="min-h-0 flex-1 overflow-y-auto">
-        <CodeContextTab turns={turns} />
+        <CodeContextTab turns={turns} session={session} />
       </TabsContent>
       <TabsContent value="changes" className="min-h-0 flex-1 overflow-hidden">
         <CodeChangesTab changes={changes} loading={changesLoading} onRefresh={onRefreshChanges} />
       </TabsContent>
       <TabsContent value="artifacts" className="min-h-0 flex-1 overflow-hidden">
-        <CodeArtifactsTab pid={pid} />
+        <CodeArtifactsTab pid={pid} onRunInTerminal={onRunInTerminal} />
       </TabsContent>
     </Tabs>
   );

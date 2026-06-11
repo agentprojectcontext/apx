@@ -4,8 +4,17 @@ import { Empty } from "../ui";
 import { computeMetrics, computeBreakdown } from "../../lib/code-context";
 import type { CodeTurn } from "../../lib/api/code";
 
+interface SessionInfo {
+  title: string;
+  mode: string;
+  createdAt: string;
+  updatedAt: string;
+  agentSlug: string | null;
+}
+
 interface Props {
   turns: CodeTurn[];
+  session?: SessionInfo | null;
 }
 
 const SEG_COLOR: Record<string, string> = {
@@ -14,18 +23,25 @@ const SEG_COLOR: Record<string, string> = {
   tool: "bg-amber-500",
 };
 
-function Stat({ label, value }: { label: string; value: string | number }) {
+function Row({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="rounded-md border border-border bg-background/50 px-2.5 py-2">
-      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="mt-0.5 truncate font-mono text-sm">{value}</div>
+    <div className="flex items-baseline justify-between gap-2 py-0.5">
+      <span className="shrink-0 text-[10px] uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className="min-w-0 truncate text-right font-mono text-xs text-foreground">{value}</span>
     </div>
   );
 }
 
+function fmtDate(iso: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(d.getDate())} ${d.toLocaleString("es", { month: "short" })} ${d.getFullYear()}, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 // Context tab: real token totals from the last assistant turn + a char/4
 // estimate of where the conversation's weight sits.
-export function CodeContextTab({ turns }: Props) {
+export function CodeContextTab({ turns, session }: Props) {
   const m = useMemo(() => computeMetrics(turns), [turns]);
   const breakdown = useMemo(() => computeBreakdown(turns), [turns]);
 
@@ -38,13 +54,21 @@ export function CodeContextTab({ turns }: Props) {
   }
 
   return (
-    <div className="space-y-3 p-3" data-testid="code-context-tab">
-      <div className="grid grid-cols-2 gap-2">
-        <Stat label={t("code_module.ctx_model")} value={m.model || "auto"} />
-        <Stat label={t("code_module.ctx_messages")} value={`${m.userMsgs}/${m.assistantMsgs}`} />
-        <Stat label={t("code_module.ctx_input")} value={m.input.toLocaleString()} />
-        <Stat label={t("code_module.ctx_output")} value={m.output.toLocaleString()} />
-      </div>
+    <div className="space-y-1 p-3" data-testid="code-context-tab">
+      <Row label={t("code_module.ctx_model")} value={m.model || "auto"} />
+      {session?.mode && <Row label="Modo" value={session.mode} />}
+      {session?.agentSlug && <Row label="Agente" value={session.agentSlug} />}
+      <Row
+        label={t("code_module.ctx_messages")}
+        value={`${m.userMsgs} usuario · ${m.assistantMsgs} asistente`}
+      />
+      <Row label={t("code_module.ctx_input")} value={m.input.toLocaleString()} />
+      <Row label={t("code_module.ctx_output")} value={m.output.toLocaleString()} />
+      <Row label="Tokens Total" value={(m.input + m.output).toLocaleString()} />
+      {session?.createdAt && <Row label="Creado" value={fmtDate(session.createdAt)} />}
+      {session?.updatedAt && <Row label="Actividad" value={fmtDate(session.updatedAt)} />}
+
+      <hr className="border-border my-2" />
 
       <div>
         <div className="mb-1 text-[11px] font-semibold text-muted-foreground">
