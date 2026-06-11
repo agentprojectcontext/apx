@@ -1,7 +1,7 @@
 ---
 name: apx-mcp-builder
 scope: internal
-description: How to build a Model Context Protocol (MCP) server from scratch and wire it into APX. Load when the user asks "creame un MCP server", "necesito una herramienta para X", or you need to expose a new tool surface to agents. Covers the JSON-RPC stdio protocol, FastMCP Python / TypeScript SDK shapes, and APX-specific registration.
+description: How to build a Model Context Protocol (MCP) server from scratch and register it in APX. Load when authoring a new MCP / exposing a new tool surface to agents. Covers the JSON-RPC stdio protocol, FastMCP (Python) / TypeScript SDK shapes, and APX registration.
 ---
 
 # apx-mcp-builder
@@ -165,16 +165,13 @@ apx mcp add github \
 ## Common debugging path
 
 ```bash
-# 1. Does the server start?
-apx mcp tools my-server                # forces a spawn + tools/list
+# 1. Does the server start + does a tool work? (apx mcp tools is a v0.2 stub — don't rely on it)
+apx mcp run my-server search_inventory '{"query":"shoes"}'
 
 # 2. Are there spawn errors?
 apx log -f                              # tail the daemon log — stderr lands here
 
-# 3. Does a tool work in isolation?
-apx mcp run my-server search_inventory '{"query":"shoes"}'
-
-# 4. Are env vars set?
+# 3. What scopes/files + env does APX see?
 apx mcp check --project iacrmar
 ```
 

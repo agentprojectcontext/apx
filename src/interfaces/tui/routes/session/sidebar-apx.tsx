@@ -54,6 +54,17 @@ export function SidebarApx(props: { sessionID: string }) {
   const totalTokens = createMemo(() => usage().input + usage().output)
   const pctUsed = createMemo(() => Math.min(99, Math.round((usage().input / DEFAULT_WINDOW) * 100)))
 
+  // Directory shown as a muted parent path + a bold basename (OpenCode style).
+  const dirBase = createMemo(() => {
+    const segs = (sdk.directory || "").split("/").filter(Boolean)
+    return segs.length ? segs[segs.length - 1] : sdk.directory || "—"
+  })
+  const dirParent = createMemo(() => {
+    const dir = sdk.directory || ""
+    const base = dirBase()
+    return dir.endsWith("/" + base) ? dir.slice(0, dir.length - base.length) : ""
+  })
+
   return (
     <box
       flexDirection="column"
@@ -65,46 +76,57 @@ export function SidebarApx(props: { sessionID: string }) {
       paddingRight={1}
       paddingTop={1}
     >
-      <Section title="Sesión">
+      <Section title="Session">
         <text color={theme.text} wrap>
-          {title() || (props.sessionID ? "Nueva sesión" : "—")}
+          {title() || (props.sessionID ? "New session" : "—")}
         </text>
       </Section>
 
-      <Section title="Agente">
+      <Section title="Agent">
         <text color={theme.text}>{titlecase(sdk.agent || "APX")}</text>
       </Section>
 
-      <Section title="Modelo">
+      <Section title="Model">
         <text color={theme.text}>{modelLabel()}</text>
-        <text color={theme.textMuted}>ctrl+p → Switch model</text>
+        <text color={theme.textMuted}>ctrl+p → switch model</text>
       </Section>
 
-      <Section title="Contexto">
+      <Section title="Context">
         <Show
           when={totalTokens() > 0}
-          fallback={<text color={theme.textMuted}>{msgCount()} mensajes</text>}
+          fallback={<text color={theme.textMuted}>{msgCount()} messages</text>}
         >
           <text color={theme.text}>
-            {fmt(totalTokens())} tokens · {pctUsed()}% usado
+            {fmt(totalTokens())} tokens · {pctUsed()}% used
           </text>
           <text color={theme.textMuted}>
             {fmt(usage().input)} in · {fmt(usage().output)} out
           </text>
           <Show when={usage().cost > 0}>
-            <text color={theme.textMuted}>${usage().cost.toFixed(4)} gastado</text>
+            <text color={theme.textMuted}>${usage().cost.toFixed(4)} spent</text>
           </Show>
-          <text color={theme.textMuted}>{msgCount()} mensajes</text>
+          <text color={theme.textMuted}>{msgCount()} messages</text>
         </Show>
       </Section>
 
-      <Section title="Directorio">
-        <text color={theme.text} wrap>
-          {sdk.directory}
-        </text>
+      {/* spacer pushes the directory + version to the bottom, OpenCode-style */}
+      <box flexGrow={1} />
+
+      <Section title="Directory">
+        <Show when={dirParent()}>
+          <text color={theme.textMuted} wrap>
+            {dirParent()}
+          </text>
+        </Show>
+        {/* folder name + branch in white; the path above stays muted/grey */}
+        <box flexDirection="row" flexWrap="wrap">
+          <text color={theme.text}>{dirBase()}</text>
+          <Show when={sdk.branch}>
+            <text color={theme.text}>:{sdk.branch}</text>
+          </Show>
+        </box>
       </Section>
 
-      <box flexGrow={1} />
       <box flexDirection="row">
         <text color={theme.success}>•</text>
         <text color={theme.textMuted}> APX {pkg.version}</text>

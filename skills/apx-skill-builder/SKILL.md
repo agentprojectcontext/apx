@@ -1,7 +1,7 @@
 ---
 name: apx-skill-builder
 scope: internal
-description: How to author a new APX skill. Load when the user asks "creame una skill X", "necesito una skill que enseñe Y", or you (the agent) decide a recurring instruction set deserves to be a skill. Covers file location, frontmatter, body style, and how the super-agent finds it on demand.
+description: How to author a new APX skill — file location, frontmatter (name, description, scope), body style, and how the super-agent loads it on demand. Load when creating or adding a skill to APX.
 ---
 
 # apx-skill-builder
@@ -32,11 +32,14 @@ The file MUST open with YAML frontmatter:
 ```yaml
 ---
 name: my-skill
-description: One-sentence trigger for the super-agent. Include the user-phrases that should cause it to load. Keep under 220 chars — appears in skill listings.
+description: One-sentence trigger for the super-agent. Include the user-phrases that should cause it to load. Keep it short — appears in skill listings.
+scope: public   # public (pushed to IDE skill dirs by default) | internal (repo/dev-only) | optional
 ---
 ```
 
 `description` is what the model sees when deciding whether to call `load_skill`. Write it as the *trigger condition*, not a summary of the body.
+
+`scope` controls distribution: `public` skills are installed globally by `apx skills sync` / `--global`; `internal` ones stay in the APX repo (dev guides like this one); `optional` ones are available but not pushed by default. Omit it and the skill is treated as public.
 
 **Good**: `"How to register an MCP server. Load BEFORE running 'apx mcp add' — three scopes, gotchas with stdio commands, secrets handling."`
 
@@ -65,8 +68,9 @@ That returns the full body. The agent uses the content in-context for that turn;
 
 The user can list installed skills with:
 ```bash
-apx skills list
-apx skills list --project iacrmar
+apx skills list          # lists this project's .apc/skills/ (cwd-scoped — run from the project root)
+apx skills sync          # push bundled/public skills to the global skill dir
+apx skills status        # show what's installed vs available
 ```
 
 ## Workflow: create + register
@@ -85,8 +89,8 @@ $EDITOR skills/my-thing/SKILL.md
 #    you've changed the scaffold sync. Confirm:
 apx skills list | grep my-thing
 
-# 4. Inside the super-agent, you can pre-test:
-apx exec super-agent "Cargá la skill my-thing y resumime en 3 bullets"
+# 4. Pre-test with the super-agent (it's the default target — no agent name needed):
+apx exec "Load the my-thing skill and summarize it in 3 bullets"
 ```
 
 ## Anti-examples

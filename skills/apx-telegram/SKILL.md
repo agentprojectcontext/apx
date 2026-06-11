@@ -23,9 +23,12 @@ APX runs a Telegram plugin that polls `getUpdates` and routes messages. Config l
         "chat_id": "<your numeric chat id>",
         "project": "iacrmar",        // optional: pin this channel to that project
         "route_to_agent": "reviewer", // optional: this agent handles messages on this channel
-        "respond_with_engine": true   // optional: override the global default
+        "respond_with_engine": true,  // optional: override the global default
+        "owner_user_id": "123456789"  // optional: per-channel owner (set via `apx telegram owner`)
       }
-    ]
+    ],
+    "contacts": [],                   // global roster (user_id → role); see `apx telegram contacts`
+    "roles": {}                       // role → allowed tools; see `apx telegram roles`
   }
 }
 ```
@@ -35,16 +38,28 @@ The old `telegram.bot_token` / `telegram.chat_id` at the root are **legacy**. Do
 ## Concrete CLI calls
 
 ```bash
+# Print the config template to get started
+apx telegram setup            # note: still emits root bot_token/chat_id — prefer channels[] below
+
 # Channels CRUD
 apx telegram channel add               # interactive wizard
 apx telegram channel add clientes --bot-token <T> --chat-id <C> --project iacrmar --agent reviewer
-apx telegram channel list
-apx telegram channel show clientes
+apx telegram channel list              # alias: ls
+apx telegram channel show clientes     # alias: get
 apx telegram channel set    clientes --project iacrmar
 apx telegram channel set    clientes --agent reviewer
 apx telegram channel set    clientes --respond-engine false
 apx telegram channel unset  clientes --project --agent
-apx telegram channel remove clientes
+apx telegram channel remove clientes   # alias: rm
+apx telegram owner          clientes <user_id>   # set the per-channel owner
+
+# Contacts roster + roles (global; gate which tools a sender may trigger)
+apx telegram contacts                  # list the global roster
+apx telegram contacts rm <user_id>
+apx telegram role  <user_id> <role>    # assign a role to a contact
+apx telegram roles                     # list role → tools mappings
+apx telegram roles set <name> --tools a,b,c   # or --tools '*' for all
+apx telegram roles rm  <name>
 
 # Polling lifecycle (rarely needed — autostart with daemon)
 apx telegram start
@@ -52,8 +67,9 @@ apx telegram stop
 apx telegram status
 
 # Sending (defaults to first configured channel; use --chat for explicit chat id)
-apx telegram send "texto"
-apx telegram send "texto" --chat 123456789
+apx telegram send "text"
+apx telegram send "text" --chat 123456789
+apx telegram send "text" --interrupt        # bypass the pending-agent queue (also: --force)
 
 # Media (daemon HTTP API — no dedicated CLI subcommand yet)
 curl -X POST http://127.0.0.1:7430/telegram/send_photo \

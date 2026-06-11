@@ -27,13 +27,15 @@ APX has a Text-to-Speech (TTS) facade in `core/voice/` with five engines. STT (s
 apx voice providers
 
 # Synthesize and play
-apx voice say "Hola Manú" --provider piper
-apx voice say "Hola Manú" --provider gemini
+apx voice say "Hello from APX" --provider piper
+apx voice say "Hello from APX" --provider gemini
+apx voice say "Hello from APX" --provider gemini --voice Aoede   # pick a specific voice
 apx voice say "..." --no-play          # generate WAV, don't play
 
 # Listen (mic → STT)
 apx voice listen                       # records until silence (sox) or Ctrl+C
 apx voice listen --seconds 5           # fixed-duration capture
+apx voice listen --provider <id>       # override the STT/transcription provider
 ```
 
 Playback uses system binaries (`afplay`, `paplay`, `aplay`, `play`, `ffplay`) — APX doesn't bundle an audio runtime. If none is found, you get the file path and no playback.
@@ -68,7 +70,7 @@ curl -L https://github.com/rhasspy/piper/releases/latest/download/piper_macos_aa
   -o /tmp/piper.tar.gz
 sudo tar xzf /tmp/piper.tar.gz -C /usr/local/bin --strip-components=1
 
-# 2. Voice model (es_AR — Argentine Spanish, daughter)
+# 2. Voice model (es_AR — Argentine Spanish, voice "daniela")
 mkdir -p ~/.apx/voices
 cd ~/.apx/voices
 curl -LO https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_AR/daniela/high/es_AR-daniela-high.onnx
@@ -79,7 +81,7 @@ apx config set voice.tts.provider piper
 apx config set voice.tts.piper.model "$HOME/.apx/voices/es_AR-daniela-high.onnx"
 
 # 4. Test
-apx voice say "hola Manú" --provider piper
+apx voice say "hola, soy APX" --provider piper   # Spanish text exercises the es_AR voice
 ```
 
 ### Gemini cloud (quick if you already have a key)
@@ -88,7 +90,7 @@ apx voice say "hola Manú" --provider piper
 apx config set voice.tts.provider gemini
 apx config set voice.tts.gemini.api_key '<GEMINI_KEY>'
 apx config set engines.gemini.api_key   '<GEMINI_KEY>'    # reuse for LLM router
-apx voice say "hola Manú" --provider gemini
+apx voice say "Hello from APX" --provider gemini
 ```
 
 ## The unified voice channel
@@ -100,7 +102,7 @@ apx voice say "hola Manú" --provider gemini
 curl -X POST http://127.0.0.1:7430/voice/turn \
   -H "Authorization: Bearer $(cat ~/.apx/daemon.token)" \
   -H "Content-Type: application/json" \
-  -d '{"text":"Hola APX","channel":"voice"}'
+  -d '{"text":"Hello APX","channel":"voice"}'
 ```
 
 Telegram voice messages and the overlay mascot still have their own STT pipelines today — they don't go through `/voice/turn` (yet). The endpoint exists for callers that want one-shot bidirectional voice.

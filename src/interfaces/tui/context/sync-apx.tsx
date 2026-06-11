@@ -45,6 +45,10 @@ export interface ApxMessage {
   /** shell: process exit code (undefined while running) */
   exitCode?: number | null
   createdAt: number
+  /** assistant: model that produced the turn (from model_start). */
+  model?: string
+  /** assistant: when the final answer landed (for response-time display). */
+  completedAt?: number
 }
 
 export interface ApxUsage {
@@ -133,9 +137,11 @@ export const { use: useApxSync, provider: ApxSyncProvider } = createSimpleContex
           pushUser(event.sessionID, event.text)
           break
 
-        case "model_start":
-          ensureAssistant(event.sessionID)
+        case "model_start": {
+          const id = ensureAssistant(event.sessionID)
+          if (event.model) patchAssistant(event.sessionID, id, (msg) => { if (!msg.model) msg.model = event.model })
           break
+        }
 
         case "assistant_text": {
           if (!event.text) break
@@ -205,6 +211,7 @@ export const { use: useApxSync, provider: ApxSyncProvider } = createSimpleContex
             const id = activeAssistant.id
             patchAssistant(sessionID, id, (msg) => {
               msg.streaming = false
+              msg.completedAt = Date.now()
               const parts = msg.parts ?? (msg.parts = [])
               const finalText = (event.text ?? "").trim()
               const lastText = [...parts].reverse().find((p) => p.kind === "text") as
@@ -376,6 +383,17 @@ export const { use: useApxSync, provider: ApxSyncProvider } = createSimpleContex
     }
 
     return {
+      // The opencode sync shim (context/sync.tsx) reads these. apx has no async
+      // bootstrap / message-fetch, so we're always "ready". `data.messages` is
+      // only consumed by the Prompt's cost footer, which expects opencode's
+      // Message shape (item.tokens, providerID, …) that ApxMessage doesn't have.
+      // We render our own message list from session.messages(), so an empty map
+      // here is correct and avoids the Prompt crashing on missing fields.
+      status: "ready" as const,
+      ready: true,
+      data: {
+        messages: {} as Record<string, ApxMessage[]>,
+      },
       session: {
         current: currentSession,
         messages: messagesFor,

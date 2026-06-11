@@ -1569,7 +1569,9 @@ export function Prompt(props: PromptProps) {
                   {(agent) => (
                     <>
                       <text fg={fadeColor(highlight(), agentMetaAlpha())}>
-                        {store.mode === "shell" ? "Shell" : Locale.titlecase(agent().name)}
+                        {/* APX: show the coding mode (Build) here, not the agent —
+                            the agent (Roby) is shown in the sidebar. */}
+                        {store.mode === "shell" ? "Shell" : "Build"}
                       </text>
                       <Show when={store.mode === "normal"}>
                         <box flexDirection="row" gap={1}>

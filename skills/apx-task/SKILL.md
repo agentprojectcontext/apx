@@ -1,6 +1,6 @@
 ---
 name: apx-task
-description: Per-project TODO list. Load when the user says "anotame", "recordame que…", "qué tengo pendiente", "marca como hecho". Tasks are project-scoped, event-sourced, and addressable by short id prefix.
+description: Per-project TODO list. Load when the user wants to note, remind, list, or complete a task. Tasks are project-scoped, event-sourced, and addressable by short id prefix. Triggers: 'add a task', 'remind me to…', 'what's pending', 'mark as done'.
 ---
 
 # apx-task
@@ -11,9 +11,9 @@ A `task` is a per-project TODO. Append-only JSONL event log per month under `~/.
 
 ```bash
 # Add — most common
-apx task add "Revisar bug de auth" --project iacrmar
-apx task add "Llamar al cliente" --project iacrmar --due 2026-05-30 --tag urgent
-apx task add "Demo a tester X"   --project iacrmar --agent reviewer --tag demo --tag external
+apx task add "Review the auth bug" --project iacrmar
+apx task add "Call the client" --project iacrmar --due 2026-05-30 --tag urgent
+apx task add "Demo for tester X" --project iacrmar --agent reviewer --tag demo --tag external --source cli
 
 # List (defaults to open)
 apx task list --project iacrmar
@@ -29,7 +29,7 @@ apx task show abc       --project iacrmar    # prefix match (≥3 chars), unique
 apx task done    t_abc123 --project iacrmar --by manuel
 apx task drop    t_abc123 --project iacrmar               # archived (not "done")
 apx task reopen  t_abc123 --project iacrmar
-apx task patch   t_abc123 --project iacrmar --title "Nuevo título" --due 2026-06-10
+apx task patch   t_abc123 --project iacrmar --title "New title" --due 2026-06-10
 apx task patch   t_abc123 --project iacrmar --tag bug --tag blocker   # replaces tags
 ```
 
@@ -51,14 +51,14 @@ apx task patch   t_abc123 --project iacrmar --tag bug --tag blocker   # replaces
 
 ## Super-agent tools
 
-The super-agent has `create_task` and `list_tasks` tools. So a user message like "Anotame que mañana hay que cerrar el bug de auth en iacrmar" makes the model call:
+The super-agent has `create_task` and `list_tasks` tools. So a user message like "note that we need to close the auth bug in iacrmar tomorrow" makes the model call:
 
 ```json
 { "name": "create_task",
-  "arguments": { "project": "iacrmar", "title": "Cerrar bug de auth", "due": "<tomorrow>", "tags": ["bug"] } }
+  "arguments": { "project": "iacrmar", "title": "Close the auth bug", "due": "<tomorrow>", "tags": ["bug"] } }
 ```
 
-When the user asks "qué tengo pendiente en iacrmar?", the model calls `list_tasks({ project: "iacrmar" })`.
+When the user asks "what's pending in iacrmar?", the model calls `list_tasks({ project: "iacrmar" })`.
 
 If the user doesn't say which project, the model should `list_projects` first and ask which one — never assume. If the conversation has a project context (Telegram channel pinned to project), the model uses that.
 

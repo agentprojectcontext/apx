@@ -36,7 +36,7 @@ A routine is a scheduled APX task. APX runs the scheduler tick every 5s and fire
   "name": "weather-bariloche",
   "kind": "exec_agent",
   "schedule": "every:24h",
-  "spec": { "agent": "default", "prompt": "Escribí un saludo breve..." },
+  "spec": { "agent": "default", "prompt": "Write a short greeting..." },
   "pre_commands":  ["curl -s 'https://wttr.in/Bariloche?format=...'"],
   "post_commands": ["apx telegram send \"$APX_LLM_OUTPUT\""],
   "enabled": true,
@@ -54,7 +54,7 @@ A routine is a scheduled APX task. APX runs the scheduler tick every 5s and fire
 ```json
 {
   "kind": "super_agent",   ← DON'T
-  "spec": { "prompt": "El clima es {{pre_output}}. Mandalo por Telegram." },
+  "spec": { "prompt": "The weather is {{pre_output}}. Send it via Telegram." },
   "post_commands": ["apx telegram send \"$APX_LLM_OUTPUT\""]
 }
 ```
@@ -64,7 +64,7 @@ This sends **two** Telegram messages: one from the super-agent's `send_telegram`
 ```json
 {
   "kind": "exec_agent",
-  "spec": { "agent": "default", "prompt": "El clima es {{pre_output}}. Una frase amigable, sin saludos." },
+  "spec": { "agent": "default", "prompt": "The weather is {{pre_output}}. One friendly sentence, no greeting." },
   "post_commands": ["apx telegram send \"$APX_LLM_OUTPUT\""]
 }
 ```
@@ -85,7 +85,7 @@ apx routine add weather-bariloche \
   --project iacrmar \
   --kind exec_agent \
   --schedule "every:24h" \
-  --spec '{"agent":"default","prompt":"El clima es {{pre_output}}. Una frase amigable."}' \
+  --spec '{"agent":"default","prompt":"The weather is {{pre_output}}. One friendly sentence."}' \
   --pre-commands "curl -s 'https://wttr.in/Bariloche?format=%t+%C+viento+%w'" \
   --post-commands 'apx telegram send "$APX_LLM_OUTPUT"'
 
@@ -94,7 +94,7 @@ apx routine add daily-status \
   --project iacrmar \
   --kind super_agent \
   --schedule "0 9 * * *" \
-  --spec '{"prompt":"Listame proyectos con tasks pendientes y mandame por Telegram un resumen corto."}' \
+  --spec '{"prompt":"List projects with pending tasks and send me a short summary via Telegram."}' \
   --permission-mode automatico
 
 # Toggle, run, remove
@@ -110,15 +110,17 @@ Routines live in `~/.apx/projects/<apxId>/routines.json`. Without `--project`, t
 
 ## `skip_prompt_on`
 
-Controls what happens when `pre_commands` exit non-zero:
+Controls whether the LLM call is skipped based on the `pre_commands` result (`shouldSkipPrompt` in `host/daemon/routines.js`):
 
-| Value | Behavior |
+| Value | Skips the LLM when… |
 |---|---|
-| `signal` (default) | Skip the LLM only on SIGINT/SIGTERM; non-zero exit still runs the LLM. |
-| `pre_failure` | Skip LLM + post on any non-zero exit. |
-| `pre_success` | Only run LLM if every pre command exits 0. Same as `pre_failure` for most cases. |
-| `always` | Skip LLM unconditionally — useful when you want pure pre→post pipelines. |
-| `never` | Always run, even if pre crashes. |
+| `signal` (default) | a pre_command prints the literal marker `APX_SKIP` to stdout. A non-zero exit alone does **not** skip. |
+| `pre_failure` | any pre_command exits non-zero. |
+| `pre_success` | the pre_commands exit 0 (i.e. run the LLM only on pre failure). |
+| `always` | unconditionally — pure pre→post pipeline, no LLM. |
+| `never` | never — the LLM always runs, even if pre crashes. |
+
+Post-commands run regardless of the skip decision. The skip only gates the `kind` handler (the LLM call).
 
 ## Debugging a routine
 
