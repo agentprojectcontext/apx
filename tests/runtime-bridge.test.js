@@ -3,11 +3,11 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import {
-  buildApfHint,
   createRuntimeSession,
   closeRuntimeSession,
   extractApfResult,
-} from "#host/daemon/apc-runtime-context.js";
+} from "#core/stores/runtime-sessions.js";
+import { buildApfHint } from "#core/agent/runtime-bridge.js";
 import { readSessionFrontmatter } from "#core/stores/sessions.js";
 import { makeTempProject, cleanupTempProject } from "./_helpers.js";
 

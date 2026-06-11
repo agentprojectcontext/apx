@@ -13,12 +13,12 @@ import { buildAgentSystem } from "#core/agent/build-agent-system.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { getRuntime, RUNTIME_IDS } from "../runtimes/index.js";
 import { detectAll } from "../env-detect.js";
+import { buildRuntimeBridgeHint as buildApfHint } from "#core/agent/runtime-bridge.js";
 import {
-  buildApfHint,
   createRuntimeSession,
   closeRuntimeSession,
-  extractApfResult,
-} from "../apc-runtime-context.js";
+  extractRuntimeResult as extractApfResult,
+} from "#core/stores/runtime-sessions.js";
 import { runSuperAgent, isSuperAgentEnabled } from "#core/agent/super-agent.js";
 
 export function register(app, { projects, registries, plugins, project, config }) {
