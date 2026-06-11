@@ -10,16 +10,23 @@
 ## Repo layout
 
 - `src/core/` — engine-agnostic core, grouped into subfolders:
-  - `agent/` (prompt building, run-agent loop, model-router, retry, pseudo-tools, skills, build-agent-system)
+  - `agent/`:
+    - `super-agent.js` — the daemon-level action loop (runs when no project agent is named)
+    - `run-agent.js`, `build-agent-system.js`, `prompt-builder.js`, `model-router.js`, `retry.js`, `self-memory.js`, `memory.js`, `tools-overlap.js`
+    - `prompts/` (channels/*, modes/voice, super-agent-base, action-discipline)
+    - `skills/` (catalog, loader, trigger, rag — everything skills-related)
+    - `tools/` — tool-calling infra + concrete handlers
+      - `registry.js`, `registry-bridge.js`, `helpers.js`, `pseudo-tools.js`, `tool-call-parser.js`
+      - `handlers/` — one file per tool implementation (read-file, write-file, send-telegram, …)
   - `apc/` (scaffold, AGENTS.md parser, skill-sync)
-  - `config/` (entrypoint + paths split)
-  - `confirmation/`, `desktop/`, `engines/`, `mcp/`, `memory/`, `runtime-skills/`, `tools/`, `voice/`
-  - `identity/` (super-agent persona + telegram sender resolution)
+  - `config/` (index + paths)
+  - `confirmation/`, `desktop/`, `engines/` (with `_health.js` + `_streaming.js` shared utils), `mcp/`, `memory/`, `runtime-skills/`, `voice/`
+  - `identity/` (self.js for super-agent persona + telegram.js for sender resolution)
   - `stores/` (artifacts, code-sessions, messages, routines, routine-memory, sessions, tasks)
   - `constants/` (channels, permissions, roles, actors — never inline literals)
   - `util/` (time, ids — shared primitives)
-- `src/host/daemon/` — the daemon: HTTP API (`api/*.js` mounted by `buildApi`), plugins (telegram, desktop), super-agent loop, skill-trigger, skill-rag, WebSocket hubs.
-- `src/interfaces/` — `cli/`, `web/` (React + Vite admin panel), `tui/` (OpenTUI + Solid), `desktop/` (Electron floating voice window), `mcp-server/` (stdio MCP).
+- `src/host/daemon/` — thin **adapter** over `core/`: HTTP API (`api/*.js` mounted by `buildApi`), plugins (`telegram/`, `desktop/` — each a folder), WebSocket hubs, env-detect, runtimes. **No domain logic lives here** — when an api/* file is more than a body→core→response adapter, move the work into `core/`.
+- `src/interfaces/` — `cli/`, `web/` (React + Vite admin panel), `tui/` (OpenTUI + Solid), `desktop/` (Electron floating voice window), `mcp-server/` (stdio MCP that exposes APX capabilities **to other LLMs** — distinct from `apx mcp …` which consumes other MCPs).
 - `tests/` — backend suite (Node's built-in test runner). `src/interfaces/web/e2e/` — Playwright.
 - `skills/` — bundled `SKILL.md` instructions. `scripts/` — build-web, sync, git hooks.
 - `docs/` — the public documentation site (Astro + Starlight, bilingual EN/ES). Self-contained: its own `package.json`/`node_modules`, **not** part of the npm package. See the "Docs site" section below.
@@ -36,6 +43,10 @@
 8. **Channel rules live in ONE place; watch the prompt budget.** Per-channel formatting belongs in `src/core/agent/prompts/channels/<ch>.md` (+ `modes/voice.md`) — NOT inline in callers (`api/voice.js` used to duplicate this; don't reintroduce it). The base prompt `super-agent-base.md` ships on **every** turn on **every** channel, so it's the most expensive text in the system — keep it lean (~2.5k tok target). Measure before/after any prompt change with `node scripts/inspect-channel-prompts.js [channel] [--full]`. Don't recite a tool catalog in the prompt (the runtime sends real schemas); operational syntax (cron, ports, flags) belongs in on-demand `apx-*` skills, not always-on.
 9. **ESM + tooling baseline.** The package is ESM (`"type":"module"`, Node ≥18): import with explicit `.js` extensions; there is no `__dirname` — derive it via `fileURLToPath(import.meta.url)`. **pnpm only** (`packageManager` is pinned; npm fails). Only `src/`, `skills/`, `README.md` ship to npm (the `files` field) — don't rely on `tests/`/`scripts/` at runtime.
 10. **Never hardcode `~/.apx` paths OR identity/channel/permission strings.** Paths come from `src/core/config/` (`APX_HOME`, `CONFIG_PATH`, `GLOBAL_MESSAGES_DIR`, `projectStorageRoot()`, …). Channel ids come from `src/core/constants/channels.js` (`CHANNELS.WEB_CODE`, etc.), permission modes from `constants/permissions.js`, the super-agent actor id from `constants/actors.js`. Read/write global config only via `readConfig()`/`writeConfig()`; `writeConfig` **refuses to silently clear credentials** (`CREDENTIAL_PATHS`: engine/TTS/embeddings `api_key`s, `telegram.channels`) — pass `_allowClear:true` for an intentional reset. Per-project overrides live in `.apc/config.json`, deep-merged via `effectiveConfig()` (arrays replace, they don't merge).
+
+13. **Imports use `#aliases`, not `../../../` chains.** The package.json `imports` field maps `#core/*` → `src/core/*`, `#host/*` → `src/host/*`, `#interfaces/*` → `src/interfaces/*`. Same-folder neighbors stay relative (`./foo.js`). Tests live under `tests/` and import with the same aliases; `jsconfig.json` mirrors the map so IDE jump-to-definition works. Reason: when we move a file between folders, only the alias target changes, not every caller.
+
+14. **One domain function — one home.** When the same operation appears in both an `api/<x>.js` route AND a CLI `commands/<x>.js`, that logic belongs in `core/` (typically `core/stores/<x>.js` or `core/<domain>/<x>.js`). The api and the cli are **adapters** — they parse their own input (HTTP body vs flags), call the core function, and shape the response (JSON vs stdout). Never duplicate the body of the operation between them. The model is: **core → adapter → surface**.
 11. **Adding a daemon API route.** Export `register(app, ctx)` from `src/host/daemon/api/<x>.js` and mount it in `buildApi()` (`api.js`) **before** the 404 catch-all; return errors as `{ error }` + a real status code; `ctx` carries `projects`, `plugins`, `config`, `token`, resolvers, etc. **Footgun:** add the path prefix to `API_PREFIXES` in `api/shared.js`, or an authenticated GET route is mistaken for an SPA asset and served **without** auth.
 12. **Web panel = Base UI, hand-built.** No Radix/shadcn/installers — primitives live in `src/interfaces/web/src/components/ui/*` behind the `components/ui.tsx` facade (CVA variants). All requests go through `src/lib/api/*` (bearer auto-fetched from `/admin/web-token`); no raw `fetch`. Every user-facing string exists in **both** `i18n/en.ts` and `i18n/es.ts` under the same key. The web is an **isolated pnpm workspace** (its own `node_modules`) — a root install doesn't cover it; its `tsc --noEmit` is part of `preflight`. New screens/modules get a Playwright spec in `e2e/`.
 
