@@ -28,6 +28,7 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { fileURLToPath } from "node:url";
+import { apcSkillsDir } from "#core/apc/paths.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
@@ -119,7 +120,7 @@ export function listSkills({ projectPath } = {}) {
 
   // priority 1: project-scoped
   if (projectPath) {
-    const apcSkills = path.join(projectPath, ".apc", "skills");
+    const apcSkills = apcSkillsDir(projectPath);
     found.push(...scanDirStyle(apcSkills, "project"));
     found.push(...scanFlatStyle(apcSkills, "project"));
   }

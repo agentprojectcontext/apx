@@ -5,6 +5,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { apcProjectFile } from "#core/apc/paths.js";
 
 // ── shared helpers ───────────────────────────────────────────────────────────
 
@@ -124,7 +125,7 @@ function readApxProjects(opts) {
       const proj = { path: path.resolve(e.path), name: null, apxId: null };
       try {
         const pj = JSON.parse(
-          fs.readFileSync(path.join(proj.path, ".apc", "project.json"), "utf8")
+          fs.readFileSync(apcProjectFile(proj.path), "utf8")
         );
         if (pj.name) proj.name = pj.name;
         if (pj.apx_id) proj.apxId = pj.apx_id;
@@ -608,7 +609,7 @@ const apxEngine = {
     let apxId = null;
     try {
       const pj = JSON.parse(
-        fs.readFileSync(path.join(dir, ".apc", "project.json"), "utf8")
+        fs.readFileSync(apcProjectFile(dir), "utf8")
       );
       apxId = pj.apx_id || null;
     } catch {}

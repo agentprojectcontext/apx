@@ -1,6 +1,7 @@
 // APX Deck bootstrap surface.
 // It exposes read-only context for companion clients without making external
 // services first-class APX daemon dependencies.
+import { apcNotesDir } from "#core/apc/paths.js";
 
 const CORE_WIDGETS = [
   {
@@ -498,7 +499,7 @@ async function copyToClipboard(text) {
 async function appendProjectNote(projectPath, { title, body }) {
   const fs = await import("node:fs/promises");
   const path = await import("node:path");
-  const notesDir = path.join(projectPath, ".apc", "notes");
+  const notesDir = apcNotesDir(projectPath);
   await fs.mkdir(notesDir, { recursive: true });
   const today = new Date().toISOString().slice(0, 10);
   const file = path.join(notesDir, `${today}.md`);

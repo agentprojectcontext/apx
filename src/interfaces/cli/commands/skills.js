@@ -4,6 +4,7 @@ import path from "node:path";
 import os from "node:os";
 import readline from "node:readline";
 import { findApfRoot } from "#core/apc/parser.js";
+import { apcSkillsDir } from "#core/apc/paths.js";
 import { http } from "../http.js";
 import {
   IDE_TARGETS,
@@ -205,7 +206,7 @@ export async function cmdSkillsList(args = {}) {
   }
 
   const root = findApfRoot();
-  const skillsDir = root ? path.join(root, ".apc", "skills") : null;
+  const skillsDir = root ? apcSkillsDir(root) : null;
   const files = skillsDir && fs.existsSync(skillsDir)
     ? fs.readdirSync(skillsDir).filter((f) => f.endsWith(".md"))
     : [];

@@ -9,6 +9,7 @@ import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { ProjectManager } from "./db.js";
 import { McpRegistry } from "#core/mcp/runner.js";
+import { agentsMdFile, apcProjectFile } from "#core/apc/paths.js";
 import { readAgents } from "#core/apc/parser.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -23,8 +24,8 @@ const EXAMPLE_CANDIDATES = [
   path.resolve(__dirname, "..", "..", "..", "..", "apc", "examples", "my-first-project"),
 ];
 const EXAMPLE = EXAMPLE_CANDIDATES.find((p) =>
-  fs.existsSync(path.join(p, "AGENTS.md")) &&
-  fs.existsSync(path.join(p, ".apc", "project.json"))
+  fs.existsSync(agentsMdFile(p)) &&
+  fs.existsSync(apcProjectFile(p))
 );
 
 function assert(cond, msg) {

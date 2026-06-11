@@ -2,12 +2,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import { findApfRoot } from "#core/apc/parser.js";
+import { apcCommandsDir } from "#core/apc/paths.js";
 import { http } from "../http.js";
 import { resolveProjectId } from "./project.js";
 
-function commandsDir(root) {
-  return path.join(root, ".apc", "commands");
-}
+const commandsDir = apcCommandsDir;
 
 function listCommandFiles(root) {
   const dir = commandsDir(root);

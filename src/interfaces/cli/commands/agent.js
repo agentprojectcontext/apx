@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { findApfRoot, readAgents, readVaultAgents, readVaultAgent, VAULT_DIR, SLUG_RE } from "#core/apc/parser.js";
+import { apcAgentFile } from "#core/apc/paths.js";
 import { writeAgentFile, writeVaultAgentFile, removeVaultAgent, restoreVaultAgent, addImportedAgent, ensureAgentDir } from "#core/apc/scaffold.js";
 import { ensureAgentRuntimeDir, agentMemoryPath } from "#core/agent/memory.js";
 import { http } from "../http.js";
@@ -194,7 +195,7 @@ export async function cmdAgentImport(args) {
     throw new Error(`"${slug}" not found in vault. Available: ${available}`);
   }
 
-  const alreadyLocal = fs.existsSync(path.join(root, ".apc", "agents", `${slug}.md`));
+  const alreadyLocal = fs.existsSync(apcAgentFile(root, slug));
   if (alreadyLocal && !args.flags.force) {
     console.log(dim(`  "${slug}" already has a local definition. Use --force to overwrite.`));
     return;
@@ -202,7 +203,7 @@ export async function cmdAgentImport(args) {
 
   if (args.flags.copy) {
     // Copy .md into project so user can edit locally
-    fs.copyFileSync(vaultPath, path.join(root, ".apc", "agents", `${slug}.md`));
+    fs.copyFileSync(vaultPath, apcAgentFile(root, slug));
     console.log(`\n  ${bold(slug)} copied from vault to project (now local)\n`);
   } else {
     // Just register as imported — reads from vault at runtime

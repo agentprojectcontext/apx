@@ -7,6 +7,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { readAgents } from "#core/apc/parser.js";
+import { apcAgentMemoryFile } from "#core/apc/paths.js";
 import { callEngine } from "#core/engines/index.js";
 import { listConversations, readConversation } from "#core/stores/conversations.js";
 import { compactConversation } from "#core/stores/conversations-compactor.js";
@@ -110,13 +111,7 @@ export function register(app, { project, config }) {
         parts.push(
           `You are ${toAgent.slug}. You just received a message from ${fromAgent.slug}. Reply concisely.`
         );
-        const memPath = path.join(
-          p.path,
-          ".apc",
-          "agents",
-          toAgent.slug,
-          "memory.md"
-        );
+        const memPath = apcAgentMemoryFile(p.path, toAgent.slug);
         if (fs.existsSync(memPath))
           parts.push("## Memory\n" + fs.readFileSync(memPath, "utf8"));
 

@@ -12,8 +12,12 @@ import path from "node:path";
 export const APC_DIR = ".apc";
 export const APC_PROJECT_FILE = "project.json";
 export const APC_PROJECT_CONFIG_FILE = "config.json";
+export const APC_PROJECT_MEMORY_FILE = "memory.md";
 export const APC_AGENTS_DIR = "agents";
 export const APC_SKILLS_DIR = "skills";
+export const APC_COMMANDS_DIR = "commands";
+export const APC_NOTES_DIR = "notes";
+export const APC_MCPS_FILE = "mcps.json";
 export const APC_REMOVED_FILE = ".removed.json";
 export const AGENTS_MD = "AGENTS.md";
 
@@ -53,6 +57,24 @@ export function apcSkillsDir(root) {
 
 export function apcSkillFile(root, slug) {
   return path.join(root, APC_DIR, APC_SKILLS_DIR, `${slug}.md`);
+}
+
+export function apcCommandsDir(root) {
+  return path.join(root, APC_DIR, APC_COMMANDS_DIR);
+}
+
+export function apcNotesDir(root) {
+  return path.join(root, APC_DIR, APC_NOTES_DIR);
+}
+
+// Project-level memory (super-agent / project-wide), distinct from the
+// per-agent memory.md that lives under .apc/agents/<slug>/.
+export function apcMemoryFile(root) {
+  return path.join(root, APC_DIR, APC_PROJECT_MEMORY_FILE);
+}
+
+export function apcMcpsFile(root) {
+  return path.join(root, APC_DIR, APC_MCPS_FILE);
 }
 
 export function agentsMdFile(root) {
