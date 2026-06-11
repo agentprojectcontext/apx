@@ -15,7 +15,7 @@ import {
   LINUX_DESKTOP_PATH,
   WIN_RUN_KEY,
   WIN_RUN_NAME,
-} from "../../../core/desktop/autostart.js";
+} from "#core/desktop/autostart.js";
 
 // Re-exports — kept so existing tests (tests/desktop-autostart.test.js)
 // can still import these directly from the CLI module.

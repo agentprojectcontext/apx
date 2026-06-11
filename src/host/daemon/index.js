@@ -14,17 +14,17 @@ import {
   LOG_PATH,
   APX_HOME,
   TOKEN_PATH,
-} from "../../core/config/index.js";
+} from "#core/config/index.js";
 import { ProjectManager } from "./db.js";
-import { McpRegistry } from "../../core/mcp/runner.js";
+import { McpRegistry } from "#core/mcp/runner.js";
 import { PluginManager } from "./plugins/index.js";
 import { RoutineScheduler } from "./routines.js";
 import { buildApi } from "./api.js";
 import { createTokenStore } from "./token-store.js";
 import { triggerWakeup } from "./wakeup.js";
 import { registerDesktopClient } from "./desktop-ws.js";
-import { log as logToUnified } from "../../core/logging.js";
-import { initMemory, stopMemory } from "../../core/memory/index.js";
+import { log as logToUnified } from "#core/logging.js";
+import { initMemory, stopMemory } from "#core/memory/index.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

@@ -8,7 +8,7 @@
 // Promise in the agent loop, unblocking it to continue with confirmed: true
 // or to return a cancelled error.
 
-import { getConfirmationStore } from "../../../core/confirmation/pending-store.js";
+import { getConfirmationStore } from "#core/confirmation/pending-store.js";
 
 export function register(app) {
   app.post("/super-agent/confirm/:correlationId", async (req, res) => {

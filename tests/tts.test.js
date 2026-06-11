@@ -11,7 +11,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { synthesize, listProviders, TTS_TMP_DIR } from "../src/core/voice/tts.js";
+import { synthesize, listProviders, TTS_TMP_DIR } from "#core/voice/tts.js";
 import {
   selectTtsEngine,
   listAvailableTtsEngines,
@@ -19,12 +19,12 @@ import {
   resolveChainOrder,
   TTS_ENGINE_IDS,
   AUTO_PREFERENCE,
-} from "../src/core/voice/engines/index.js";
-import mockEngine from "../src/core/voice/engines/mock.js";
-import piperEngine from "../src/core/voice/engines/piper.js";
-import elevenlabsEngine from "../src/core/voice/engines/elevenlabs.js";
-import openaiEngine from "../src/core/voice/engines/openai.js";
-import geminiEngine from "../src/core/voice/engines/gemini.js";
+} from "#core/voice/engines/index.js";
+import mockEngine from "#core/voice/engines/mock.js";
+import piperEngine from "#core/voice/engines/piper.js";
+import elevenlabsEngine from "#core/voice/engines/elevenlabs.js";
+import openaiEngine from "#core/voice/engines/openai.js";
+import geminiEngine from "#core/voice/engines/gemini.js";
 
 // ---------------------------------------------------------------------------
 // Engine registry surface

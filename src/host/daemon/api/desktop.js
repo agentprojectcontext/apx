@@ -15,7 +15,7 @@ import {
   autostartIsOn,
   autostartInstall,
   autostartUninstall,
-} from "../../../core/desktop/autostart.js";
+} from "#core/desktop/autostart.js";
 
 export function register(app, { plugins }) {
   app.get("/desktop/status", (_req, res) => {

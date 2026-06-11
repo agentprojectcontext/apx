@@ -37,7 +37,7 @@ import {
   listRoles,
   setRole,
   removeRole,
-} from "../../../core/config/index.js";
+} from "#core/config/index.js";
 
 function redactChannel(channel) {
   if (!channel?.bot_token) return channel;

@@ -21,7 +21,7 @@ import {
   buildElectronSpawn,
   findElectron,
   autostartIsOn,
-} from "../src/interfaces/cli/commands/desktop.js";
+} from "#interfaces/cli/commands/desktop.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);

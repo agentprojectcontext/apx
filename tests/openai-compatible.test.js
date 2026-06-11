@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { createOpenAiCompatibleEngine } from "../src/core/engines/openai-compatible.js";
+import { createOpenAiCompatibleEngine } from "#core/engines/openai-compatible.js";
 
 test("openai-compatible: uses config.base_url override", async () => {
   const engine = createOpenAiCompatibleEngine({

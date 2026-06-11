@@ -12,9 +12,9 @@ process.env.APX_MEMORY_FORCE_JSON = "1";
 const { tfEmbed, cosineSim, embedOne, embedBatch } = await import(
   "../src/core/memory/embeddings.js"
 );
-const { openMemoryStore, JsonStore } = await import("../src/core/memory/store.js");
-const { indexNewMessages } = await import("../src/core/memory/indexer.js");
-const { buildMemoryBlock } = await import("../src/core/memory/broker.js");
+const { openMemoryStore, JsonStore } = await import("#core/memory/store.js");
+const { indexNewMessages } = await import("#core/memory/indexer.js");
+const { buildMemoryBlock } = await import("#core/memory/broker.js");
 
 function tmpdir(tag) {
   return fs.mkdtempSync(path.join(os.tmpdir(), `apx-${tag}-`));

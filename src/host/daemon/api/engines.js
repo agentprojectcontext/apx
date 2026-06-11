@@ -1,8 +1,8 @@
 // GET  /engines            — list engine adapter ids known to core/engines.
 // POST /engines/models      — live model catalog from a provider.
 // GET  /engines/models      — legacy (Ollama only, no auth).
-import { ENGINE_IDS } from "../../../core/engines/index.js";
-import { fetchJsonWithTimeout } from "../../../core/engines/_health.js";
+import { ENGINE_IDS } from "#core/engines/index.js";
+import { fetchJsonWithTimeout } from "#core/engines/_health.js";
 
 const DEFAULT_BASE = {
   openai:     "https://api.openai.com/v1",

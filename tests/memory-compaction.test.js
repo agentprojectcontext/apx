@@ -12,10 +12,10 @@ process.env.HOME = tmpHome;
 process.env.USERPROFILE = tmpHome;
 
 const { appendSelfMemory, parseSelfMemoryEntries, readSelfMemory, ensureSelfMemoryFile, SELF_MEMORY_PATH } =
-  await import("../src/core/agent/self-memory.js");
+  await import("#core/agent/self-memory.js");
 const { appendGlobalMessage, getRecentChannelTurnsFromFs, getRecentTelegramTurnsFromFs } =
-  await import("../src/core/stores/messages.js");
-const { compactChannelIfNeeded } = await import("../src/core/memory/compactor.js");
+  await import("#core/stores/messages.js");
+const { compactChannelIfNeeded } = await import("#core/memory/compactor.js");
 
 // --- Pieza 1: notebook ------------------------------------------------------
 

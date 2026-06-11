@@ -6,21 +6,21 @@
 //   PUT  /projects/:pid/agents/:slug/memory
 import fs from "node:fs";
 import path from "node:path";
-import { readAgents, readVaultAgents, readVaultAgent } from "../../../core/apc/parser.js";
+import { readAgents, readVaultAgents, readVaultAgent } from "#core/apc/parser.js";
 import {
   writeAgentFile,
   writeVaultAgentFile,
   removeVaultAgent,
   restoreVaultAgent,
   ensureAgentDir,
-} from "../../../core/apc/scaffold.js";
+} from "#core/apc/scaffold.js";
 import {
   ensureAgentRuntimeDir,
   readAgentMemory,
   writeAgentMemory,
   agentMemoryPath,
   legacyAgentMemoryPath,
-} from "../../../core/agent/memory.js";
+} from "#core/agent/memory.js";
 import { agentToResponse } from "./shared.js";
 
 // Lowercase the patch keys we accept on the vault and turn skills/tools into

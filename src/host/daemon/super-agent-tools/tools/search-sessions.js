@@ -3,7 +3,7 @@ import {
   ENGINES,
   collectAllSessions,
   findSessionAcrossEngines,
-} from "../../../../interfaces/cli/commands/sessions.js";
+} from "#interfaces/cli/commands/sessions.js";
 
 // Your own work sessions. This is how you remember what you did — never tell
 // the user to run `apx session ...`; call this and answer from the result.

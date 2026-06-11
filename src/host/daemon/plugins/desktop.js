@@ -23,8 +23,8 @@ import {
   setDesktopMessageHandler,
 } from "../desktop-ws.js";
 import { runSuperAgent, isSuperAgentEnabled } from "../super-agent.js";
-import { appendGlobalMessage } from "../../../core/stores/messages.js";
-import { CHANNELS } from "../../../core/constants/channels.js";
+import { appendGlobalMessage } from "#core/stores/messages.js";
+import { CHANNELS } from "#core/constants/channels.js";
 import { tryResolveSkillCommand } from "../skill-trigger.js";
 
 const CHANNEL = CHANNELS.DESKTOP;

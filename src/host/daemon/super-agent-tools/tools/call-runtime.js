@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
-import { loggerFor } from "../../../../core/logging.js";
-import { readAgents } from "../../../../core/apc/parser.js";
+import { loggerFor } from "#core/logging.js";
+import { readAgents } from "#core/apc/parser.js";
 import {
   buildApfHint,
   closeRuntimeSession,

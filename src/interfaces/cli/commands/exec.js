@@ -1,6 +1,6 @@
 import { http } from "../http.js";
 import { resolveProjectId } from "./project.js";
-import { CHANNELS } from "../../../core/constants/channels.js";
+import { CHANNELS } from "#core/constants/channels.js";
 
 /**
  * Resolve exec target from CLI args.

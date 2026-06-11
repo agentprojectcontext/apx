@@ -1,7 +1,7 @@
 import { http } from "../http.js";
 import { resolveProjectId } from "./project.js";
-import { readConfig, writeConfig } from "../../../core/config/index.js";
-import { PERMISSION_MODES, DEFAULT_PERMISSION_MODE } from "../../../core/constants/permissions.js";
+import { readConfig, writeConfig } from "#core/config/index.js";
+import { PERMISSION_MODES, DEFAULT_PERMISSION_MODE } from "#core/constants/permissions.js";
 
 function parseValue(raw) {
   // best-effort: try JSON first (covers numbers, bools, objects, arrays, null,

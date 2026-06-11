@@ -1,5 +1,5 @@
 import path from "node:path";
-import { findApfRoot } from "../../../core/apc/parser.js";
+import { findApfRoot } from "#core/apc/parser.js";
 import { http } from "../http.js";
 
 function requireRoot() {

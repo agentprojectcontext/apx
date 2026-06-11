@@ -25,7 +25,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { parseConversation } from "./conversations.js";
-import { callEngine } from "../../core/engines/index.js";
+import { callEngine } from "#core/engines/index.js";
 
 const KEEP_LAST = 6;
 

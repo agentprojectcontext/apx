@@ -9,7 +9,7 @@ import {
   readGlobalMessages,
   readProjectMessages,
   searchProjectMessages,
-} from "../../../core/stores/messages.js";
+} from "#core/stores/messages.js";
 
 export function register(app, { project }) {
   app.get("/projects/:pid/messages", (req, res) => {

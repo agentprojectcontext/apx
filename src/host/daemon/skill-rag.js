@@ -18,8 +18,8 @@
 // Costs: one extra embedOne(promptText) per turn. Skill description
 // embeddings are cached in-process by (slug, source) so the cold cost is
 // O(skills) once per process start.
-import { embedOne, cosineSim } from "../../core/memory/embeddings.js";
-import { condenseSkillDescription } from "../../core/agent/skills.js";
+import { embedOne, cosineSim } from "#core/memory/embeddings.js";
+import { condenseSkillDescription } from "#core/agent/skills.js";
 import { listSkills } from "./skills-loader.js";
 
 const SIM_THRESHOLD = 0.45;        // below this, no suggestion

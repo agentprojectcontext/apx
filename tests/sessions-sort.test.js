@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { ENGINES } from "../src/interfaces/cli/commands/sessions.js";
+import { ENGINES } from "#interfaces/cli/commands/sessions.js";
 
 function encode(p) {
   return String(p).replace(/[^A-Za-z0-9]/g, "-");

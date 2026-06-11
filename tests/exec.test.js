@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { resolveExecRequest } from "../src/interfaces/cli/commands/exec.js";
+import { resolveExecRequest } from "#interfaces/cli/commands/exec.js";
 
 test("resolveExecRequest: no agent → super-agent", () => {
   const r = resolveExecRequest({ _: ["decime qué hora es"], flags: {} });

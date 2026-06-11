@@ -1,14 +1,14 @@
 import fs from "node:fs";
 import { http } from "../http.js";
 import { resolveProjectId } from "./project.js";
-import { listRoutines } from "../../../core/stores/routines.js";
-import { projectStorageRoot } from "../../../core/config/index.js";
+import { listRoutines } from "#core/stores/routines.js";
+import { projectStorageRoot } from "#core/config/index.js";
 import {
   routineMemoryPath,
   readRoutineMemory,
   appendRoutineMemory,
   ensureRoutineMemory,
-} from "../../../core/stores/routine-memory.js";
+} from "#core/stores/routine-memory.js";
 
 function parseSpec(args) {
   // Build spec from --spec '<json>' or from --K=V pairs

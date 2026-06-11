@@ -7,6 +7,11 @@
   },
   "license": "MIT",
   "type": "module",
+  "imports": {
+    "#core/*": "./src/core/*",
+    "#host/*": "./src/host/*",
+    "#interfaces/*": "./src/interfaces/*"
+  },
   "bin": {
     "apx": "./src/interfaces/cli/index.js",
     "apx-daemon": "./src/host/daemon/index.js",

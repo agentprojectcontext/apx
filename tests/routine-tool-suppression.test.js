@@ -6,7 +6,7 @@ import {
   POSTCMD_TOOL_OVERLAP,
   computeSuppressedTools,
   filterToolSchemas,
-} from "../src/core/agent/tools-overlap.js";
+} from "#core/agent/tools-overlap.js";
 
 test("POSTCMD_TOOL_OVERLAP is a frozen, non-empty map", () => {
   assert.ok(Object.isFrozen(POSTCMD_TOOL_OVERLAP));

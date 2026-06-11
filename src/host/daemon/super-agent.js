@@ -7,9 +7,9 @@ import {
   isSuperAgentEnabled,
   buildIdentityBlock,
   loadDefaultSystemPrompt,
-} from "../../core/agent/index.js";
-import { resolveAgentName } from "../../core/identity/index.js";
-import { memoryBlockFor } from "../../core/memory/index.js";
+} from "#core/agent/index.js";
+import { resolveAgentName } from "#core/identity/index.js";
+import { memoryBlockFor } from "#core/memory/index.js";
 
 export {
   buildIdentityBlock,

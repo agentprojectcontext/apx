@@ -18,8 +18,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildSuperAgentSystem } from "../src/core/agent/prompt-builder.js";
-import { buildAgentSystem } from "../src/core/agent/build-agent-system.js";
+import { buildSuperAgentSystem } from "#core/agent/prompt-builder.js";
+import { buildAgentSystem } from "#core/agent/build-agent-system.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const RULE_PATH = path.join(

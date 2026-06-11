@@ -1,4 +1,4 @@
-import { readIdentity, writeIdentity } from "../../../../core/identity/index.js";
+import { readIdentity, writeIdentity } from "#core/identity/index.js";
 
 export default {
   name: "set_identity",

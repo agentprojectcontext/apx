@@ -3,7 +3,7 @@
 // Uses the daemon's tools/search.js module directly (no HTTP roundtrip,
 // no need to have `apx daemon start` running).
 
-import { webSearch } from "../../../core/tools/search.js";
+import { webSearch } from "#core/tools/search.js";
 
 const DIM   = "\x1b[2m";
 const BOLD  = "\x1b[1m";

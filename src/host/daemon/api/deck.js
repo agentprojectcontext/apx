@@ -226,7 +226,7 @@ export function register(app, ctx) {
     // the override we're about to set; we mutate ONLY the override and
     // leave everything else intact.
     try {
-      const { readConfig, writeConfig } = await import("../../../core/config/index.js");
+      const { readConfig, writeConfig } = await import("#core/config/index.js");
       const fresh = readConfig();
       fresh.deck = fresh.deck && typeof fresh.deck === "object" ? fresh.deck : {};
       fresh.deck.widget_overrides =

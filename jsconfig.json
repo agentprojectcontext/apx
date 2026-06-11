@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "#core/*": ["./src/core/*"],
+      "#host/*": ["./src/host/*"],
+      "#interfaces/*": ["./src/interfaces/*"]
+    },
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "target": "ES2022",
+    "checkJs": false,
+    "allowJs": true
+  },
+  "exclude": ["node_modules", "dist", "src/interfaces/web"]
+}

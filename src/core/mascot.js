@@ -1,5 +1,5 @@
 // APX mascot — a panda that appears in different moods across the CLI.
-// Usage: import { mascot } from '../core/mascot.js'; mascot('happy');
+// Usage: import { mascot } from '#core/mascot.js'; mascot('happy');
 
 const R = "\x1b[0m";
 const B = "\x1b[1m";

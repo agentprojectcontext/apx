@@ -15,7 +15,7 @@ import {
   dropTask,
   reopenTask,
   countTasks,
-} from "../../../core/stores/tasks.js";
+} from "#core/stores/tasks.js";
 
 export function register(app, { project, projects }) {
   // Global tasks across every project.

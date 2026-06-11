@@ -14,8 +14,8 @@
 // + per-mode tool gating), then persists the rich assistant turn.
 import { runSuperAgent } from "../super-agent.js";
 import { appendSuperAgentErrorTrace } from "./shared.js";
-import { createWebConfirmAdapter } from "../../../core/confirmation/adapters/web.js";
-import { CHANNELS } from "../../../core/constants/channels.js";
+import { createWebConfirmAdapter } from "#core/confirmation/adapters/web.js";
+import { CHANNELS } from "#core/constants/channels.js";
 import {
   listCodeSessions,
   getCodeSession,
@@ -23,9 +23,9 @@ import {
   updateCodeSession,
   removeCodeSession,
   appendTurn,
-} from "../../../core/stores/code-sessions.js";
-import { captureBaseline, diffAgainstBaseline, initGitRepo } from "../../../core/git-baseline.js";
-import { loggerFor } from "../../../core/logging.js";
+} from "#core/stores/code-sessions.js";
+import { captureBaseline, diffAgainstBaseline, initGitRepo } from "#core/git-baseline.js";
+import { loggerFor } from "#core/logging.js";
 
 const log = loggerFor("code");
 

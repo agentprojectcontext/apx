@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mascot } from "../src/core/mascot.js";
+import { mascot } from "#core/mascot.js";
 
 function captureStderr(fn) {
   const originalWrite = process.stderr.write;

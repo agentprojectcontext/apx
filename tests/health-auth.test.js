@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ProjectManager } from "../src/host/daemon/db.js";
-import { buildApi } from "../src/host/daemon/api.js";
+import { ProjectManager } from "#host/daemon/db.js";
+import { buildApi } from "#host/daemon/api.js";
 
 const TOKEN = "s3cret-token";
 

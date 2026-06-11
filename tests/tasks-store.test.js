@@ -14,7 +14,7 @@ import {
   dropTask,
   reopenTask,
   countTasks,
-} from "../src/core/stores/tasks.js";
+} from "#core/stores/tasks.js";
 
 let storagePath;
 

@@ -6,7 +6,7 @@ import {
   registerDesktopClient,
   broadcastDesktop,
   sendToClient,
-} from "../src/host/daemon/desktop-ws.js";
+} from "#host/daemon/desktop-ws.js";
 
 // Minimal stand-in for a `ws` WebSocket: records sent payloads and lets the
 // test fire lifecycle/message events synchronously.

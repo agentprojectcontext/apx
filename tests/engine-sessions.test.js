@@ -9,7 +9,7 @@ import {
   findApxSessionById,
   findEngineSessionById,
   readEngineSessionContext,
-} from "../src/host/daemon/engine-sessions.js";
+} from "#host/daemon/engine-sessions.js";
 
 function encode(p) {
   return String(p).replace(/[^A-Za-z0-9]/g, "-");

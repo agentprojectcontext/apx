@@ -108,8 +108,8 @@ import { cmdSetup } from "./commands/setup.js";
 import { cmdStatus } from "./commands/status.js";
 import { cmdModel } from "./commands/model.js";
 import { cmdPair, cmdPairWeb, cmdPairList, cmdPairRevoke } from "./commands/pair.js";
-import { checkForUpdate } from "../../core/update-check.js";
-import { mascot } from "../../core/mascot.js";
+import { checkForUpdate } from "#core/update-check.js";
+import { mascot } from "#core/mascot.js";
 import {
   cmdRoutineList,
   cmdRoutineGet,
