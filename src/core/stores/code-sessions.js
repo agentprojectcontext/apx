@@ -13,6 +13,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { nowIso } from "../util/time.js";
 import { shortId as makeShortId } from "../util/ids.js";
+import { CODE_MODES, DEFAULT_CODE_MODE } from "../constants/code-modes.js";
 
 function sessionsDir(storagePath) {
   return path.join(storagePath, "code-sessions");
@@ -91,7 +92,7 @@ export function createCodeSession(storagePath, fields = {}) {
     createdAt: ts,
     updatedAt: ts,
     model: fields.model || null,
-    mode: fields.mode === "plan" ? "plan" : "build",
+    mode: fields.mode === CODE_MODES.PLAN ? CODE_MODES.PLAN : DEFAULT_CODE_MODE,
     agentSlug: fields.agentSlug || null,
     git: fields.git && typeof fields.git === "object" ? fields.git : null,
     messages: [],
@@ -109,7 +110,7 @@ export function updateCodeSession(storagePath, id, patch = {}) {
   if (!session) return null;
   if (patch.title != null) session.title = String(patch.title).trim() || session.title;
   if (patch.model !== undefined) session.model = patch.model || null;
-  if (patch.mode === "plan" || patch.mode === "build") session.mode = patch.mode;
+  if (patch.mode === CODE_MODES.PLAN || patch.mode === CODE_MODES.BUILD) session.mode = patch.mode;
   if (patch.agentSlug !== undefined) session.agentSlug = patch.agentSlug || null;
   if (patch.git !== undefined) session.git = patch.git;
   session.updatedAt = nowIso();

@@ -7,6 +7,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { CODE_MODES } from "#core/constants/code-modes.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -23,5 +24,5 @@ const CODE_BUILD_GUIDANCE = load("code-build.md");
  * is the safer default for the Code module (no mid-edit "do nothing" stall).
  */
 export function codeModeGuidance(mode) {
-  return mode === "plan" ? CODE_PLAN_GUIDANCE : CODE_BUILD_GUIDANCE;
+  return mode === CODE_MODES.PLAN ? CODE_PLAN_GUIDANCE : CODE_BUILD_GUIDANCE;
 }

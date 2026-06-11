@@ -8,6 +8,7 @@
 import os from "node:os";
 import qrcode from "qrcode-terminal";
 import { http } from "../http.js";
+import { CHANNELS } from "#core/constants/channels.js";
 
 const c = {
   reset:  "\x1b[0m",
@@ -88,10 +89,10 @@ async function runPairing(args, channel) {
   // 2. QR payload differs per channel — no mixing.
   //    deck: JSON {v,url,pid,fp} that the Deck app parses.
   //    web : the scan-to-login URL the browser understands.
-  const qrData = channel === "web"
+  const qrData = channel === CHANNELS.WEB
     ? webLink
     : JSON.stringify({ v: 1, url: baseUrl, pid: init.pairing_id, fp: init.fingerprint });
-  const title = channel === "web" ? "APX pairing (web)" : "APX pairing (deck)";
+  const title = channel === CHANNELS.WEB ? "APX pairing (web)" : "APX pairing (deck)";
 
   console.log("");
   console.log(`  ${fmt.bold(title)}  ${fmt.gray("·")}  ${fmt.dim(`expires in ${ttlSec}s`)}`);
@@ -100,7 +101,7 @@ async function runPairing(args, channel) {
     console.log(qr);
   });
 
-  if (channel === "web") {
+  if (channel === CHANNELS.WEB) {
     console.log(`  ${fmt.gray("scan with the phone camera — opens the web already linked")}`);
     console.log(`  ${fmt.gray("link:")} ${fmt.cyan(webLink)}`);
     console.log(`  ${fmt.gray("code:")} ${fmt.bold(init.pairing_id)}  ${fmt.dim("(or paste it in the web pairing screen)")}`);
@@ -111,7 +112,7 @@ async function runPairing(args, channel) {
   console.log("");
 
   // 3. Poll /pair/status until confirmed or expired.
-  const reRun = channel === "web" ? "apx pair web" : "apx pair";
+  const reRun = channel === CHANNELS.WEB ? "apx pair web" : "apx pair";
   const deadline = Date.now() + (init.ttl_ms || 90_000) + 5_000;
   while (Date.now() < deadline) {
     await sleep(1500);

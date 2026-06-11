@@ -1,9 +1,13 @@
 import { http } from "../http.js";
 import { resolveProjectId } from "./project.js";
+import { CHANNELS } from "#core/constants/channels.js";
 
 // Channels that live in ~/.apx/messages/<channel>/ (global, cross-project).
 // Everything else is project-scoped.
-const GLOBAL_CHANNELS = new Set(["telegram", "direct", "whatsapp"]);
+// "direct" and "whatsapp" are placeholder names for not-yet-implemented
+// channels — keep them in the global set so when they land, message lookup
+// already knows they're project-less.
+const GLOBAL_CHANNELS = new Set([CHANNELS.TELEGRAM, "direct", "whatsapp"]);
 
 function isGlobalChannel(channel) {
   return channel && GLOBAL_CHANNELS.has(channel);
@@ -71,7 +75,7 @@ function printChatRows(rows) {
 }
 
 export async function cmdMessagesChat(args) {
-  const channel = args.flags.channel && args.flags.channel !== true ? args.flags.channel : "telegram";
+  const channel = args.flags.channel && args.flags.channel !== true ? args.flags.channel : CHANNELS.TELEGRAM;
   const n = args.flags.n || args.flags.last || "50";
   const isGlobal = args.flags.global || isGlobalChannel(channel);
 

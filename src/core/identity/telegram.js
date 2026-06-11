@@ -17,6 +17,7 @@ import {
   upsertContact,
   upsertTelegramChannel,
 } from "../config/index.js";
+import { SENDER_ROLES } from "../constants/roles.js";
 
 function telegramDisplayName(from) {
   const full = [from?.first_name, from?.last_name].filter(Boolean).join(" ").trim();
@@ -62,7 +63,7 @@ export function resolveAllowedTools(cfg, sender) {
   if (sender?.isOwner) return "*";
   const def = cfg?.telegram?.roles?.[sender?.role];
   if (def && def.tools !== undefined) return def.tools;
-  if (sender?.role === "guest") return [];
+  if (sender?.role === SENDER_ROLES.GUEST) return [];
   return "*";
 }
 
