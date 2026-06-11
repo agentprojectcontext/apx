@@ -1,10 +1,38 @@
 // Inbound Telegram update dispatcher.
 //
-// Extracted from the ChannelPoller class so the index.js stays under ~800
-// lines and the routing logic for text/photo/voice/document updates lives in
-// its own module. The function takes the poller instance as `self`; every
-// `this.X` in the original method becomes `self.X` here. The poller exposes
-// _handleUpdate as a thin facade that delegates to this function.
+// Extracted from the ChannelPoller class so index.js stays under ~800 lines
+// and the routing logic for text/photo/voice/document updates lives on its
+// own. Takes the poller instance as `self`; every `this.X` in the original
+// method becomes `self.X` here. The poller exposes _handleUpdate as a thin
+// facade that delegates to handleUpdate(this, u).
+//
+// IMPORTANT: this module needs the same imports the original index.js had
+// in module scope, because the extracted body references identifiers like
+// `appendGlobalMessage`, `CHANNELS`, `nowIso`, etc. Top-level imports here
+// keep that scope intact — earlier splits forgot them and the bug only
+// surfaced when a real telegram update arrived (ReferenceError at runtime).
+import path from "node:path";
+import { callEngine } from "#core/engines/index.js";
+import { runSuperAgent, isSuperAgentEnabled } from "#core/agent/super-agent.js";
+import { stripThinking } from "../../thinking.js";
+import { getRecentTelegramTurnsFromFs, appendGlobalMessage } from "#core/stores/messages.js";
+import { compactChannelIfNeeded } from "#core/memory/index.js";
+import { readAgents } from "#core/apc/parser.js";
+import { buildAgentSystem } from "#core/agent/build-agent-system.js";
+import { transcribe as transcribeAudioFile } from "../../transcription.js";
+import { resolveAgentName, SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
+import { registerSender, resolveAllowedTools } from "#core/identity/telegram.js";
+import { buildRelationshipBlock } from "#core/agent/index.js";
+import { getConfirmationStore as getConfirmStore } from "#core/confirmation/pending-store.js";
+import { CHANNELS } from "#core/constants/channels.js";
+import { tryResolveSkillCommand } from "#core/agent/skills/trigger.js";
+import { createTelegramConfirmAdapter } from "#core/confirmation/adapters/telegram.js";
+import * as askFlow from "./ask.js";
+import { buildTelegramMeta, resolveBotToken, sleep } from "./helpers.js";
+import { sendPhoto, sendVoice, sendDocument, sendAudio, downloadTelegramFile, API_BASE } from "./media.js";
+import { t, resolveLang } from "#core/i18n/index.js";
+
+const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 
 export async function handleUpdate(self, u) {
     self.lastUpdateAt = nowIso();
@@ -259,7 +287,7 @@ export async function handleUpdate(self, u) {
     // honor it for future messages.
     if (isReset) {
       try {
-        const ack = "Done, context cleared. Starting fresh. What do you need?";
+        const ack = t("telegram.reset_ack", { lang: resolveLang(self.globalConfig) });
         await self._send({ chat_id, text: ack });
         appendGlobalMessage({
           channel: CHANNELS.TELEGRAM,
@@ -343,15 +371,7 @@ export async function handleUpdate(self, u) {
     // short localized heads-up the moment real work starts (first tool_start),
     // but only if the agent didn't already write its own "on it" line.
     let sentHeadsUp = false;
-    const headsUpPhrase = () => {
-      const lang = (self.globalConfig?.user?.language || "es").slice(0, 2);
-      const byLang = {
-        es: "Dale, estoy con eso… 🛠️",
-        en: "On it — working on that… 🛠️",
-        pt: "Já estou nisso… 🛠️",
-      };
-      return byLang[lang] || byLang.es;
-    };
+    const headsUpPhrase = () => t("telegram.heads_up", { lang: resolveLang(self.globalConfig) });
     if (!replyText && isSuperAgentEnabled(self.globalConfig)) {
       const onEvent = async (ev) => {
         try {
@@ -523,7 +543,9 @@ export async function handleUpdate(self, u) {
     const finalClean = replyText ? stripThinking(replyText).trim() : "";
     let toSend = "";
     if (finalClean && finalClean !== lastStreamedText) toSend = finalClean;
-    else if (!finalClean && streamedCount === 0) toSend = "Listo.";
+    else if (!finalClean && streamedCount === 0) {
+      toSend = t("telegram.fallback_listo", { lang: resolveLang(self.globalConfig) });
+    }
 
     stopTyping();
     if (!toSend) return; // everything was already streamed — nothing left to send
