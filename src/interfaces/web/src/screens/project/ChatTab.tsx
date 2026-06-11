@@ -81,7 +81,7 @@ export function ChatTab({ pid }: { pid: string }) {
   // through the super-agent loop (it CAN call tools); a project agent is a
   // direct LLM call.
   const headerSubtitle = activeIsRoby
-    ? t("project.chat.roby_subtitle", { persona })
+    ? t("project.chat.superagent_subtitle", { persona })
     : t("project.chat.subtitle");
 
   return (
@@ -89,7 +89,7 @@ export function ChatTab({ pid }: { pid: string }) {
       <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold">
-            {activeIsRoby ? t("project.chat.roby_title", { persona }) : t("project.chat.title")}
+            {activeIsRoby ? t("project.chat.superagent_title", { persona }) : t("project.chat.title")}
           </h2>
           <p className="truncate text-[11px] text-muted-fg">{headerSubtitle}</p>
         </div>

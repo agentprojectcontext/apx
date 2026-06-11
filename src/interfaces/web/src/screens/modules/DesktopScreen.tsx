@@ -96,15 +96,8 @@ export function DesktopScreen() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-6" data-testid="screen-desktop">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight">Escritorio</h1>
-        <p className="text-sm text-muted-fg">
-          Ventana flotante de voz (Electron): atajo global, escucha por micrófono y muestra el chat.
-        </p>
-      </header>
-
       {/* ── Two-column layout: config on the left, last conversation on the right. ── */}
-      <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
+      <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
         {/* ── LEFT: configuration + status ─────────────────────────────── */}
         <div className="space-y-6">
           <Section title="Estado" description="La ventana se lanza desde la terminal o por autostart.">

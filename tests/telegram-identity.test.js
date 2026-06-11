@@ -1,5 +1,5 @@
 // Unit tests for Telegram sender identity resolution
-// (src/core/telegram-identity.js) and the relationship block it feeds into
+// (src/core/identity/telegram.js) and the relationship block it feeds into
 // the agent prompt (src/core/agent buildRelationshipBlock).
 //
 // The unit of identity is the person, keyed by their Telegram user_id. A

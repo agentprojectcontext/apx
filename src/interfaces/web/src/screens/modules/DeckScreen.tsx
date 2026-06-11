@@ -76,24 +76,6 @@ export function DeckScreen() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-6" data-testid="screen-deck">
-      <header className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Deck</h1>
-          <p className="text-sm text-muted-fg">
-            App companion · widgets y escritorios.
-          </p>
-        </div>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => mutate()}
-          disabled={isLoading}
-          title="Recargar manifest"
-        >
-          <RefreshCw size={14} className={isLoading ? "animate-spin" : ""} />
-        </Button>
-      </header>
-
       {/* Daemon info card */}
       {data && <DaemonCard manifest={data} />}
 
@@ -106,6 +88,11 @@ export function DeckScreen() {
             : error
             ? "Error al cargar el manifest."
             : `${widgets.length} widgets · ${enabledCount} externos habilitados`
+        }
+        action={
+          <Button size="sm" variant="ghost" onClick={() => mutate()} disabled={isLoading} title="Recargar manifest">
+            <RefreshCw size={14} className={isLoading ? "animate-spin" : ""} />
+          </Button>
         }
       >
         {isLoading && <Loading label="Cargando manifest del Deck…" />}

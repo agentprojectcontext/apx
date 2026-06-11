@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
-import { Code2 } from "lucide-react";
 import { Code, Projects } from "../../lib/api";
 import { Badge, Empty, Loading } from "../../components/ui";
+import { useSetPageLabel } from "../../hooks/useNavCollapseCtx";
 import { MessageList } from "../../components/chat/MessageList";
 import { CodeProjectPicker } from "../../components/code/CodeProjectPicker";
 import { CodeSessionList } from "../../components/code/CodeSessionList";
@@ -209,6 +209,11 @@ export function CodeScreen() {
 
   const hasProjects = !projects.isLoading && projectList.length > 0;
   const turns: CodeTurn[] = useMemo(() => msgs as unknown as CodeTurn[], [msgs]);
+  const activeTitle = useMemo(
+    () => sessions.data?.find((s) => s.id === sid)?.title || "",
+    [sessions.data, sid],
+  );
+  useSetPageLabel(activeTitle);
 
   // Detect unanswered ask_questions in the last assistant turn. Local "dismissed"
   // ref keys off the turn id so the panel re-appears for a fresh batch.
@@ -222,16 +227,6 @@ export function CodeScreen() {
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden p-4" data-testid="screen-code">
-      <header className="mb-3 flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-            <Code2 size={22} /> {t("code_module.title")}
-          </h1>
-          <p className="text-sm text-muted-fg">{t("code_module.desc")}</p>
-        </div>
-        <Badge tone="success">{t("code_module.badge")}</Badge>
-      </header>
-
       {projects.isLoading ? (
         <Loading />
       ) : !hasProjects ? (
@@ -257,6 +252,9 @@ export function CodeScreen() {
               onRename={onRenameSession}
               onDelete={onDeleteSession}
             />
+            <div className="shrink-0 border-t border-border px-3 py-2">
+              <Badge tone="success">{t("code_module.badge")}</Badge>
+            </div>
           </aside>
 
           {/* Center: transcript + composer */}

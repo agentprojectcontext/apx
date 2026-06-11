@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { refreshApcContextSkill } from "../src/core/apc-skill-sync.js";
+import { refreshApcContextSkill } from "../src/core/apc/skill-sync.js";
 
 const result = await refreshApcContextSkill();
 if (!result.ok) {

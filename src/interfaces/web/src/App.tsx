@@ -17,7 +17,7 @@ import { TooltipProvider } from "./components/ui/tooltip";
 import { useTheme } from "./hooks/useTheme";
 import { useProjects } from "./hooks/useProjects";
 import { useTokenBootstrap } from "./hooks/useTokenBootstrap";
-import { NavCollapseProvider, useNavCollapseCtx } from "./hooks/useNavCollapseCtx";
+import { NavCollapseProvider, useNavCollapseCtx, usePageLabel } from "./hooks/useNavCollapseCtx";
 import { NavToggle } from "./components/common/TabNav";
 import { t } from "./i18n";
 
@@ -100,6 +100,7 @@ function TopBar({
   pathname: string;
 }) {
   const { projects } = useProjects();
+  const pageLabel = usePageLabel();
   const parts = pathname.split("/").filter(Boolean);
   const project = parts[0] === "p" ? projects.find((p) => String(p.id) === parts[1]) : undefined;
   const section = parts[0] === "settings"
@@ -113,11 +114,13 @@ function TopBar({
     ? t("topbar.breadcrumb_root")
     : parts[0] === "settings"
       ? [t("topbar.breadcrumb_root"), t("nav.settings"), section].filter(Boolean).join(" › ")
-      : parts[0] === "p"
-        ? (isDefault
-            ? [t("topbar.breadcrumb_root"), t("topbar.breadcrumb_base"), section].filter(Boolean).join(" › ")
-            : [t("topbar.breadcrumb_root"), t("topbar.breadcrumb_projects"), projName, section].filter(Boolean).join(" › "))
-        : t("topbar.breadcrumb_root");
+      : parts[0] === "m"
+        ? [t("topbar.breadcrumb_root"), moduleLabel(parts[1]), pageLabel].filter(Boolean).join(" › ")
+        : parts[0] === "p"
+          ? (isDefault
+              ? [t("topbar.breadcrumb_root"), t("topbar.breadcrumb_base"), section].filter(Boolean).join(" › ")
+              : [t("topbar.breadcrumb_root"), t("topbar.breadcrumb_projects"), projName, section].filter(Boolean).join(" › "))
+          : t("topbar.breadcrumb_root");
   const subtitle = pathname === "/"
     ? ""
     : parts[0] === "settings"
@@ -145,6 +148,16 @@ function TopBar({
       </button>
     </header>
   );
+}
+
+function moduleLabel(key?: string) {
+  switch (key) {
+    case "voice":   return t("nav.modules.voice");
+    case "desktop": return t("nav.modules.desktop");
+    case "deck":    return t("nav.modules.deck");
+    case "code":    return t("nav.modules.code");
+    default: return key || "";
+  }
 }
 
 function settingsLabel(key?: string) {

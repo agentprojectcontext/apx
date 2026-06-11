@@ -119,48 +119,47 @@ export function VoiceScreen() {
   };
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-6" data-testid="screen-voice">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight">Voces</h1>
-        <p className="text-sm text-muted-fg">
-          Configurá el texto a voz (TTS) y la transcripción (STT), elegí el motor por defecto y probá la voz.
-        </p>
-      </header>
+    <div className="mx-auto max-w-6xl p-6" data-testid="screen-voice">
+      <div className="grid gap-6 xl:grid-cols-2">
+        {/* Left: TTS providers */}
+        <Section
+          title="Proveedores de voz (TTS)"
+          description="Motores de síntesis. El estado lo reporta el daemon en vivo. Elegí cuál usar por defecto."
+        >
+          {provLoading || cfgLoading ? (
+            <Loading />
+          ) : provError ? (
+            <Empty>No se pudieron cargar los proveedores: {(provError as Error).message}</Empty>
+          ) : (
+            <VoiceProviderList
+              engines={engines}
+              order={order}
+              mode={mode}
+              configuredProvider={configuredProvider}
+              onSetMode={setMode}
+              onSetDefault={setDefault}
+              onToggleEnabled={toggleEnabled}
+              onReorder={reorder}
+              onConfigure={(id) => setEditing(id)}
+              busy={busyDefault}
+            />
+          )}
+        </Section>
 
-      <Section
-        title="Proveedores de voz (TTS)"
-        description="Motores de síntesis. El estado lo reporta el daemon en vivo. Elegí cuál usar por defecto."
-      >
-        {provLoading || cfgLoading ? (
-          <Loading />
-        ) : provError ? (
-          <Empty>No se pudieron cargar los proveedores: {(provError as Error).message}</Empty>
-        ) : (
-          <VoiceProviderList
-            engines={engines}
-            order={order}
-            mode={mode}
-            configuredProvider={configuredProvider}
-            onSetMode={setMode}
-            onSetDefault={setDefault}
-            onToggleEnabled={toggleEnabled}
-            onReorder={reorder}
-            onConfigure={(id) => setEditing(id)}
-            busy={busyDefault}
-          />
-        )}
-      </Section>
+        {/* Right: test + STT */}
+        <div className="space-y-6">
+          <Section title="Probar voz" description='Elegí con qué motor sintetizar y, si aplica, cómo querés que hable.'>
+            <VoiceTestCard engines={engines} defaultProvider={configuredProvider} mode={mode} />
+          </Section>
 
-      <Section title="Probar voz" description='Elegí con qué motor sintetizar y, si aplica, cómo querés que hable.'>
-        <VoiceTestCard engines={engines} defaultProvider={configuredProvider} mode={mode} />
-      </Section>
-
-      <Section
-        title="Transcripción (STT)"
-        description="Motor de voz a texto que usan el deck, Telegram y la CLI al escuchar."
-      >
-        {cfgLoading ? <Loading /> : <VoiceSttCard config={transcriptionCfg} onPatch={patchStt} />}
-      </Section>
+          <Section
+            title="Transcripción (STT)"
+            description="Motor de voz a texto que usan el deck, Telegram y la CLI al escuchar."
+          >
+            {cfgLoading ? <Loading /> : <VoiceSttCard config={transcriptionCfg} onPatch={patchStt} />}
+          </Section>
+        </div>
+      </div>
 
       <VoiceProviderModal
         open={!!editing}

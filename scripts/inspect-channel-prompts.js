@@ -22,9 +22,9 @@ import {
   schemasForChannel,
   TOOL_SCHEMAS,
   CORE_TOOL_SCHEMAS,
-} from "../src/host/daemon/super-agent-tools/index.js";
-import { listSkills } from "../src/host/daemon/skills-loader.js";
-import { readConfig, mergeDefaults } from "../src/core/config.js";
+} from "../src/core/agent/tools/registry.js";
+import { listSkills } from "../src/core/agent/skills/loader.js";
+import { readConfig, mergeDefaults } from "../src/core/config/index.js";
 
 // ---- rough token estimate (chars/4 — good enough for relative comparison) ----
 const tok = (s) => Math.round((s || "").length / 4);
