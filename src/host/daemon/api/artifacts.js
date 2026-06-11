@@ -119,6 +119,31 @@ export function register(app, { project }) {
     }
   });
 
+  app.patch("/projects/:pid/artifacts/:name", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const name = decodeURIComponent(req.params.name);
+    const { content, newName } = req.body || {};
+    try {
+      const absPath = artifactPath(p.storagePath, name);
+      if (!fs.existsSync(absPath)) {
+        return res.status(404).json({ error: `artifact "${name}" not found` });
+      }
+      if (typeof content === "string") {
+        fs.writeFileSync(absPath, content, "utf8");
+      }
+      let finalName = name;
+      if (newName && newName !== name) {
+        const newAbsPath = artifactPath(p.storagePath, newName);
+        fs.renameSync(absPath, newAbsPath);
+        finalName = newName;
+      }
+      res.json({ ok: true, name: finalName });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
   app.delete("/projects/:pid/artifacts/:name", (req, res) => {
     const p = project(req, res);
     if (!p) return;

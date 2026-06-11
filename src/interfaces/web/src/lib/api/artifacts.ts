@@ -44,4 +44,14 @@ export const Artifacts = {
     http.del<void>(
       `/projects/${encodeURIComponent(pid)}/artifacts/${encodeURIComponent(name)}`,
     ),
+  write: (pid: string, name: string, content: string) =>
+    http.patch<{ ok: boolean; name: string }>(
+      `/projects/${encodeURIComponent(pid)}/artifacts/${encodeURIComponent(name)}`,
+      { content },
+    ),
+  rename: (pid: string, name: string, newName: string) =>
+    http.patch<{ ok: boolean; name: string }>(
+      `/projects/${encodeURIComponent(pid)}/artifacts/${encodeURIComponent(name)}`,
+      { newName },
+    ),
 };

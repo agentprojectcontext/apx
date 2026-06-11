@@ -17,7 +17,7 @@ import { TooltipProvider } from "./components/ui/tooltip";
 import { useTheme } from "./hooks/useTheme";
 import { useProjects } from "./hooks/useProjects";
 import { useTokenBootstrap } from "./hooks/useTokenBootstrap";
-import { NavCollapseProvider, useNavCollapseCtx, usePageLabel } from "./hooks/useNavCollapseCtx";
+import { NavCollapseProvider, useNavCollapseCtx, usePageActions, usePageLabel } from "./hooks/useNavCollapseCtx";
 import { NavToggle } from "./components/common/TabNav";
 import { t } from "./i18n";
 
@@ -131,6 +131,7 @@ function TopBar({
             : project ? `${projectKindLabel(project.kind)} · ${project.path}` : "")
         : "";
   const nav = useNavCollapseCtx();
+  const pageActions = usePageActions();
   return (
     <header className="flex h-10 shrink-0 items-center gap-2 border-b border-border/50 px-3">
       {nav && <NavToggle collapsed={nav.collapsed} onToggle={nav.toggle} />}
@@ -138,6 +139,7 @@ function TopBar({
         {crumb}
         {subtitle && <span className="text-muted-fg/50"> · {subtitle}</span>}
       </span>
+      {pageActions}
       <button
         type="button"
         onClick={onToggleTheme}

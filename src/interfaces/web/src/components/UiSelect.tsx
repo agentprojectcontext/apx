@@ -25,6 +25,7 @@ export function UiSelect({
   placeholder = "— elegir —",
   disabled,
   className,
+  showIcon = false,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -32,13 +33,22 @@ export function UiSelect({
   placeholder?: string;
   disabled?: boolean;
   className?: string;
+  showIcon?: boolean;
 }) {
   return (
     <Select value={value} onValueChange={(v) => onChange((v as string) ?? "")} disabled={disabled}>
       <SelectTrigger className={cn("h-9 w-full", className)}>
-        {/* Show the option's label in the trigger, not the raw value key. */}
         <SelectValue placeholder={placeholder}>
-          {(val) => options.find((o) => o.value === val)?.label ?? (val as string)}
+          {(val) => {
+            const opt = options.find((o) => o.value === val);
+            const Icon = showIcon ? opt?.icon : undefined;
+            return (
+              <span className="flex min-w-0 items-center gap-1.5">
+                {Icon && <Icon className="size-3.5 shrink-0" />}
+                <span className="truncate">{opt?.label ?? (val as string)}</span>
+              </span>
+            );
+          }}
         </SelectValue>
       </SelectTrigger>
       {/* side=bottom + alignItemWithTrigger=false → dropdown sits BELOW the

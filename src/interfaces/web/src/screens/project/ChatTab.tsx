@@ -61,11 +61,9 @@ export function ChatTab({ pid }: { pid: string }) {
   const resetConversation = () => clear();
 
   const send = async (text: string) => {
-    // Roby (super-agent) is always available; a real project agent requires
-    // that the project actually has one configured.
     if (!activeIsRoby && !activeAgent) return;
     await sendChat(text, {
-      model: activeIsRoby ? model : undefined,
+      model: model || undefined,
       agentSlug: activeIsRoby ? undefined : activeAgent!.slug,
     });
   };
@@ -77,15 +75,12 @@ export function ChatTab({ pid }: { pid: string }) {
 
   if (agents.isLoading) return <Loading />;
 
-  // Header subtitle differs: with the super-agent selected the chat goes
-  // through the super-agent loop (it CAN call tools); a project agent is a
-  // direct LLM call.
   const headerSubtitle = activeIsRoby
     ? t("project.chat.superagent_subtitle", { persona })
     : t("project.chat.subtitle");
 
   return (
-    <div className="flex h-[calc(100vh-11rem)] flex-col overflow-hidden rounded-xl border border-border bg-card/40">
+    <div className="flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card/40">
       <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div className="min-w-0">
           <h2 className="text-sm font-semibold">
@@ -118,7 +113,9 @@ export function ChatTab({ pid }: { pid: string }) {
         {msgs.length ? (
           <MessageList msgs={msgs} onCopy={copyToClipboard} />
         ) : (
-          <Empty>{t("project.chat.empty")}</Empty>
+          <div className="flex h-full items-center justify-center p-8">
+            <p className="text-sm text-muted-fg">{t("project.chat.empty")}</p>
+          </div>
         )}
       </div>
       <ContextBar msgs={msgs} />
@@ -139,8 +136,8 @@ export function ChatTab({ pid }: { pid: string }) {
         onSend={send}
         onStop={stop}
         streaming={streaming}
-        model={activeIsRoby ? model : undefined}
-        onModelChange={activeIsRoby ? setModel : undefined}
+        model={model}
+        onModelChange={setModel}
       />
       <CreateAgentDialog
         open={creating}

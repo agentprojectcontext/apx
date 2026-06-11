@@ -49,6 +49,7 @@ function toRow(s) {
     title: s.title,
     mode: s.mode,
     model: s.model || null,
+    agentSlug: s.agentSlug || null,
     createdAt: s.createdAt,
     updatedAt: s.updatedAt,
     messageCount: Array.isArray(s.messages) ? s.messages.length : 0,
@@ -78,7 +79,7 @@ export function getCodeSession(storagePath, id) {
 
 /**
  * Create a new session.
- * fields: { projectId, title?, model?, mode?, git? }
+ * fields: { projectId, title?, model?, mode?, git?, agentSlug? }
  */
 export function createCodeSession(storagePath, fields = {}) {
   const id = shortId();
@@ -91,6 +92,7 @@ export function createCodeSession(storagePath, fields = {}) {
     updatedAt: ts,
     model: fields.model || null,
     mode: fields.mode === "plan" ? "plan" : "build",
+    agentSlug: fields.agentSlug || null,
     git: fields.git && typeof fields.git === "object" ? fields.git : null,
     messages: [],
   };
@@ -108,6 +110,7 @@ export function updateCodeSession(storagePath, id, patch = {}) {
   if (patch.title != null) session.title = String(patch.title).trim() || session.title;
   if (patch.model !== undefined) session.model = patch.model || null;
   if (patch.mode === "plan" || patch.mode === "build") session.mode = patch.mode;
+  if (patch.agentSlug !== undefined) session.agentSlug = patch.agentSlug || null;
   if (patch.git !== undefined) session.git = patch.git;
   session.updatedAt = nowIso();
   writeJson(sessionFile(storagePath, id), session);

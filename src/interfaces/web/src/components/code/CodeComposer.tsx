@@ -37,13 +37,13 @@ function ModeToggle({
       aria-pressed={mode === m}
       onClick={() => onChange(m)}
       className={cn(
-        "flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-medium transition-colors disabled:opacity-50",
+        "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50",
         mode === m
           ? "bg-background text-foreground shadow-sm"
           : "text-muted-foreground hover:text-foreground",
       )}
     >
-      <Icon className="size-3" /> {label}
+      <Icon className="size-3.5" /> {label}
     </button>
   );
   return (

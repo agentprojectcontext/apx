@@ -44,7 +44,6 @@ import { buildRelationshipBlock } from "#core/agent/index.js";
 import { getConfirmationStore as getConfirmStore } from "#core/confirmation/pending-store.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { tryResolveSkillCommand } from "#core/agent/skills/trigger.js";
-import { isLikelyDuplicate } from "#core/util/text-similarity.js";
 import { createTelegramConfirmAdapter } from "#core/confirmation/adapters/telegram.js";
 import * as askFlow from "./ask.js";
 
@@ -645,12 +644,6 @@ class ChannelPoller {
           if (ev.type === "assistant_text" && ev.text) {
             const piece = stripThinking(ev.text).trim();
             if (!piece) return;
-            // Skip post-tool segments that just restate the pre-tool intro —
-            // weaker models (gemini-flash et al.) frequently paraphrase the
-            // same content twice within a single turn.
-            if (lastStreamedText && isLikelyDuplicate(piece, lastStreamedText)) {
-              return;
-            }
             await this._send({ chat_id, text: piece });
             lastStreamedText = piece;
             streamedCount += 1;
@@ -798,13 +791,8 @@ class ChannelPoller {
     // turn isn't silently empty.
     const finalClean = replyText ? stripThinking(replyText).trim() : "";
     let toSend = "";
-    // Fuzzy dedupe against the last streamed segment: catches paraphrases
-    // (Jaccard ≥ 0.4 or short-mostly-inside-long), not just exact matches.
-    if (finalClean && !isLikelyDuplicate(finalClean, lastStreamedText) && finalClean !== lastStreamedText) {
-      toSend = finalClean;
-    } else if (!finalClean && streamedCount === 0) {
-      toSend = "Listo.";
-    }
+    if (finalClean && finalClean !== lastStreamedText) toSend = finalClean;
+    else if (!finalClean && streamedCount === 0) toSend = "Listo.";
 
     stopTyping();
     if (!toSend) return; // everything was already streamed — nothing left to send

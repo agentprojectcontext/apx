@@ -12,17 +12,27 @@ const CollapseSetCtx = createContext<((s: CollapseState) => void) | null>(null);
 const LabelReadCtx = createContext<string>("");
 const LabelSetCtx = createContext<((s: string) => void) | null>(null);
 
+// ── Page actions (buttons screens can inject into the TopBar) ─────────────────
+
+const ActionsReadCtx = createContext<ReactNode>(null);
+const ActionsSetCtx = createContext<((a: ReactNode) => void) | null>(null);
+
 // ── Combined provider (one wrapper in Shell) ──────────────────────────────────
 
 export function NavCollapseProvider({ children }: { children: ReactNode }) {
   const [collapse, setCollapse] = useState<CollapseState>(null);
   const [label, setLabel] = useState("");
+  const [actions, setActions] = useState<ReactNode>(null);
   return (
     <CollapseSetCtx.Provider value={setCollapse}>
       <CollapseReadCtx.Provider value={collapse}>
         <LabelSetCtx.Provider value={setLabel}>
           <LabelReadCtx.Provider value={label}>
-            {children}
+            <ActionsSetCtx.Provider value={setActions}>
+              <ActionsReadCtx.Provider value={actions}>
+                {children}
+              </ActionsReadCtx.Provider>
+            </ActionsSetCtx.Provider>
           </LabelReadCtx.Provider>
         </LabelSetCtx.Provider>
       </CollapseReadCtx.Provider>
@@ -56,4 +66,18 @@ export function useSetPageLabel(label: string) {
     set?.(label);
     return () => set?.("");
   }, [label, set]);
+}
+
+// ── Page actions hooks ────────────────────────────────────────────────────────
+
+export function usePageActions() {
+  return useContext(ActionsReadCtx);
+}
+
+export function useSetPageActions(actions: ReactNode) {
+  const set = useContext(ActionsSetCtx);
+  useEffect(() => {
+    set?.(actions);
+    return () => set?.(null);
+  }, [actions, set]);
 }

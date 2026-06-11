@@ -286,7 +286,7 @@ export const es = {
 
     chat: {
       title:       "Chat con agente",
-      subtitle:    "Conversaciones directas con agentes del proyecto. El super-agent no interviene.",
+      subtitle:    "Chat directo con el agente del proyecto.",
       superagent_title:  "Chat con {persona}",
       superagent_subtitle: "Chat con {persona} — el super-agente APX. Puede usar tools (proyectos, tasks, mcps, agentes).",
       empty:       "Mandá un mensaje para arrancar la conversación.",
