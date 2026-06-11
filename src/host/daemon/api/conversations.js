@@ -4,13 +4,10 @@
 //   POST /projects/:pid/agents/:slug/compact
 //   POST /projects/:pid/agents/:slug/conversations/:id/compact
 //   POST /projects/:pid/send                                   (agent-to-agent)
-import fs from "node:fs";
-import path from "node:path";
 import { readAgents } from "#core/apc/parser.js";
-import { apcAgentMemoryFile } from "#core/apc/paths.js";
-import { callEngine } from "#core/engines/index.js";
 import { listConversations, readConversation } from "#core/stores/conversations.js";
 import { compactConversation } from "#core/stores/conversations-compactor.js";
+import { replyAsAgent } from "#core/agent/a2a/reply.js";
 import { nowIso } from "./shared.js";
 
 export function register(app, { project, config }) {
@@ -103,24 +100,11 @@ export function register(app, { project, config }) {
     let reply = null;
     if (deliver && toAgent.fields.Model) {
       try {
-        const tf = toAgent.fields;
-        const parts = [];
-        if (tf.Description) parts.push(tf.Description);
-        if (tf.Role) parts.push(`Role: ${tf.Role}`);
-        if (tf.Language) parts.push(`Default language: ${tf.Language}`);
-        parts.push(
-          `You are ${toAgent.slug}. You just received a message from ${fromAgent.slug}. Reply concisely.`
-        );
-        const memPath = apcAgentMemoryFile(p.path, toAgent.slug);
-        if (fs.existsSync(memPath))
-          parts.push("## Memory\n" + fs.readFileSync(memPath, "utf8"));
-
-        const result = await callEngine({
-          modelId: toAgent.fields.Model,
-          system: parts.join("\n\n"),
-          messages: [
-            { role: "user", content: `From ${fromAgent.slug}:\n\n${body}` },
-          ],
+        const result = await replyAsAgent({
+          projectPath: p.path,
+          toAgent,
+          fromAgent,
+          body,
           config: p.config || config,
         });
 
