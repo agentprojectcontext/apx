@@ -1,3 +1,11 @@
+# [1.33.0](https://github.com/agentprojectcontext/apx/compare/v1.32.2...v1.33.0) (2026-06-11)
+
+
+### Features
+
+* **artifacts:** add edit functionality for artifacts in CodeArtifactsTab and CodeScreen ([f793e59](https://github.com/agentprojectcontext/apx/commit/f793e597ab024d9931b4ef0e928ced8365b8b4ab))
+* **code:** IDE-style resizable layout with file tabs, terminal, and tooltips ([333a45a](https://github.com/agentprojectcontext/apx/commit/333a45a10b95e0469c46833bbaedeeb59de04564))
+
 ## [1.32.2](https://github.com/agentprojectcontext/apx/compare/v1.32.1...v1.32.2) (2026-06-11)
 
 
