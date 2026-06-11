@@ -21,6 +21,7 @@
 import fs from "node:fs";
 import { TOOL_DEFINITIONS } from "#core/tools/registry.js";
 import { TOKEN_PATH } from "#core/config/index.js";
+import { NATIVE_TOOL_NAMES } from "./names.js";
 
 // The bridge POSTs to the daemon's OWN HTTP server, which is behind the bearer
 // auth middleware (see api/shared.js). Without a token every bridged tool call
@@ -42,17 +43,9 @@ function daemonToken() {
   return cachedToken;
 }
 
-// Native handlers in super-agent-tools/tools/ that own these names. The bridge
-// MUST skip them or the registry version (HTTP roundtrip) would shadow the
-// native one with possibly different semantics.
-const NATIVE_NAMES = new Set([
-  "list_projects", "list_agents", "list_vault_agents", "import_agent",
-  "add_project", "list_mcps", "read_agent_memory",
-  "list_files", "read_file", "write_file", "edit_file", "search_files",
-  "run_shell", "tail_messages", "search_messages",
-  "call_agent", "call_mcp", "call_runtime",
-  "send_telegram", "set_identity", "set_permission_mode",
-]);
+// Native handler list lives in ./names.js so the bridge skip-set and the
+// allow-lists in api/code.js share one source of truth.
+const NATIVE_NAMES = NATIVE_TOOL_NAMES;
 
 // Default allow-list of categories the bridge will expose. The NATIVE_NAMES
 // filter handles duplicates inside these categories (e.g. "file" contains
