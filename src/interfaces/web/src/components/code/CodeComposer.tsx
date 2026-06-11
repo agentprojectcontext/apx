@@ -75,7 +75,8 @@ export function CodeComposer({
       busy={busy}
       disabled={disabled}
       placeholder={t("code_module.placeholder")}
-      maxRows={12}
+      minRows={1}
+      maxRows={6}
       footer={
         <div className="flex items-center gap-2">
           <ModeToggle mode={mode} onChange={onModeChange} disabled={busy} />

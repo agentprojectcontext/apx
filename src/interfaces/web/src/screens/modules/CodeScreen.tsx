@@ -3,6 +3,7 @@ import useSWR from "swr";
 import { Bot, FolderTree, MessageSquare, PanelLeft, PanelRight, Terminal, X } from "lucide-react";
 import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from "react-resizable-panels";
 import { Code, Projects, Agents } from "../../lib/api";
+import { Artifacts } from "../../lib/api/artifacts";
 import { http } from "../../lib/http";
 import { Empty, Loading } from "../../components/ui";
 import { UiSelect } from "../../components/UiSelect";
@@ -26,9 +27,17 @@ void textOf;
 
 const SUPER_AGENT_VALUE = "super-agent";
 
+// Hit area is wider than the visible line so the handle is comfortable to
+// grab — the inner ::before line is what the user sees.
 function ResizeHandle() {
   return (
-    <PanelResizeHandle className="relative z-10 w-px shrink-0 cursor-col-resize bg-border transition-colors hover:bg-primary/40 active:bg-primary/60" />
+    <PanelResizeHandle className="relative z-10 w-px shrink-0 cursor-col-resize bg-border transition-colors hover:bg-primary/50 active:bg-primary/70" />
+  );
+}
+
+function ResizeHandleH() {
+  return (
+    <PanelResizeHandle className="relative z-10 h-px shrink-0 cursor-row-resize bg-border transition-colors hover:bg-primary/50 active:bg-primary/70" />
   );
 }
 
@@ -55,8 +64,15 @@ export function CodeScreen() {
   const [worktreeOpen, setWorktreeOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
-  // Open file tabs: path → content (empty string while loading)
-  const [openFiles, setOpenFiles] = useState<Array<{ path: string; content: string; loading?: boolean }>>([]);
+  // Open file tabs. `artifactName` marks an artifact opened for editing;
+  // saves route through Artifacts.write instead of being read-only.
+  type OpenFile = {
+    path: string;
+    content: string;
+    loading?: boolean;
+    artifactName?: string;
+  };
+  const [openFiles, setOpenFiles] = useState<OpenFile[]>([]);
   // "chat" is the permanent tab, otherwise a file path
   const [activeTab, setActiveTab] = useState<string>("chat");
 
@@ -300,6 +316,52 @@ export function CodeScreen() {
     setActiveTab((prev) => (prev === path ? "chat" : prev));
   }, []);
 
+  // Open an artifact as an EDITABLE tab. Reuses the file-tab UI but routes
+  // saves through Artifacts.write so the daemon persists the change.
+  const openArtifact = useCallback(
+    (name: string) => {
+      const tabPath = `artifacts/${name}`;
+      setActiveTab(tabPath);
+      setOpenFiles((prev) => {
+        if (prev.some((f) => f.path === tabPath)) return prev;
+        return [...prev, { path: tabPath, content: "", loading: true, artifactName: name }];
+      });
+      Artifacts.read(pid, name)
+        .then((r) => {
+          setOpenFiles((prev) =>
+            prev.map((f) =>
+              f.path === tabPath ? { ...f, content: r.content, loading: false } : f,
+            ),
+          );
+        })
+        .catch((e: Error) => {
+          setOpenFiles((prev) =>
+            prev.map((f) =>
+              f.path === tabPath ? { ...f, content: `Error: ${e.message}`, loading: false } : f,
+            ),
+          );
+        });
+    },
+    [pid],
+  );
+
+  const saveOpenFile = useCallback(
+    async (path: string, content: string) => {
+      const file = openFiles.find((f) => f.path === path);
+      if (!file?.artifactName) return;
+      try {
+        await Artifacts.write(pid, file.artifactName, content);
+        setOpenFiles((prev) =>
+          prev.map((f) => (f.path === path ? { ...f, content } : f)),
+        );
+        toast.info("Guardado.");
+      } catch (e) {
+        toast.error((e as Error).message);
+      }
+    },
+    [openFiles, pid, toast],
+  );
+
   const hasProjects = !projects.isLoading && projectList.length > 0;
 
   const agentOptions = useMemo(() => {
@@ -374,185 +436,215 @@ export function CodeScreen() {
           <Empty>{t("code_module.no_projects")}</Empty>
         </div>
       ) : (
-        <PanelGroup orientation="horizontal" id="code-layout" className="min-h-0 flex-1">
-          {/* Left panel: session list + agent selector */}
-          {leftOpen && (
-            <>
-              <Panel id="left" defaultSize={14} minSize={8}>
-                <aside className="flex h-full flex-col border-r border-border">
-                  <div className="shrink-0 border-b border-border p-2">
-                    <CodeProjectPicker
-                      projects={projectList}
-                      value={pid}
-                      onChange={onPickProject}
-                      disabled={busy}
-                    />
-                  </div>
-                  <CodeSessionList
-                    sessions={sessions.data || []}
-                    activeId={sid}
-                    busy={busy}
-                    onSelect={onSelectSession}
-                    onCreate={onCreateSession}
-                    onRename={onRenameSession}
-                    onDelete={onDeleteSession}
-                  />
-                  <div className="shrink-0 border-t border-border p-2">
-                    <UiSelect
-                      value={agentSlug}
-                      onChange={onAgentChange}
-                      options={agentOptions}
-                      disabled={busy}
-                      showIcon={true}
-                    />
-                  </div>
-                </aside>
-              </Panel>
-              <ResizeHandle />
-            </>
-          )}
-
-          {/* File tree panel */}
-          {worktreeOpen && (
-            <>
-              <Panel id="tree" defaultSize={13} minSize={8}>
-                <div className="h-full border-r border-border">
-                  <CodeFileTree pid={pid} projectPath={activeProject?.path} onOpenFile={openFile} />
-                </div>
-              </Panel>
-              <ResizeHandle />
-            </>
-          )}
-
-          {/* Main panel: tab bar + transcript + terminal + composer */}
-          <Panel id="main" defaultSize={50} minSize={20}>
-            <div className="flex h-full flex-col">
-              {/* Tab bar */}
-              <div className="flex shrink-0 items-center gap-0 overflow-x-auto border-b border-border bg-muted/30">
-                {/* Chat tab (permanent) */}
-                <button
-                  type="button"
-                  onClick={() => setActiveTab("chat")}
-                  data-active={activeTab === "chat"}
-                  className="flex shrink-0 items-center gap-1.5 border-r border-border px-3 py-2 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-accent/40 data-[active=true]:bg-background data-[active=true]:text-foreground"
-                >
-                  <MessageSquare className="size-3 shrink-0" />
-                  Chat
-                </button>
-                {/* File tabs */}
-                {openFiles.map((f) => {
-                  const name = f.path.split("/").pop() ?? f.path;
-                  const isActive = activeTab === f.path;
-                  return (
-                    <div
-                      key={f.path}
-                      data-active={isActive}
-                      className="group flex shrink-0 items-center gap-1 border-r border-border px-2 py-2 text-[11px] text-muted-foreground transition-colors hover:bg-accent/40 data-[active=true]:bg-background data-[active=true]:text-foreground"
-                    >
-                      <button
-                        type="button"
-                        onClick={() => setActiveTab(f.path)}
-                        className="min-w-0 max-w-[120px] truncate font-mono"
-                        title={f.path}
-                      >
-                        {name}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => closeFile(f.path)}
-                        className="shrink-0 rounded p-0.5 opacity-0 hover:bg-accent group-hover:opacity-100 data-[active=true]:opacity-100"
-                        data-active={isActive}
-                        title="Cerrar"
-                      >
-                        <X className="size-2.5" />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Tab content */}
-              {activeTab === "chat" ? (
+        <PanelGroup
+          orientation="vertical"
+          id="code-layout-v"
+          className="min-h-0 flex-1"
+        >
+          {/* TOP: horizontal split across [left | tree | main | right] */}
+          <Panel id="top" defaultSize={termOpen ? "55%" : "100%"} minSize="20%">
+            <PanelGroup orientation="horizontal" id="code-layout" className="h-full">
+              {/* Left panel: session list + agent selector */}
+              {leftOpen && (
                 <>
-                  <div className="min-h-0 flex-1 overflow-y-auto" data-testid="code-transcript">
-                    {!sid ? (
-                      <div className="grid h-full place-items-center p-6">
-                        <Empty>{t("code_module.pick_project")}</Empty>
+                  <Panel id="left" defaultSize="14%" minSize="8%">
+                    <aside className="flex h-full flex-col">
+                      <div className="shrink-0 border-b border-border p-2">
+                        <CodeProjectPicker
+                          projects={projectList}
+                          value={pid}
+                          onChange={onPickProject}
+                          disabled={busy}
+                        />
                       </div>
-                    ) : msgs.length ? (
-                      <MessageList msgs={msgs} onCopy={copyToClipboard} />
-                    ) : (
-                      <div className="grid h-full place-items-center p-6">
-                        <Empty>{t("code_module.empty_chat")}</Empty>
+                      <CodeSessionList
+                        sessions={sessions.data || []}
+                        activeId={sid}
+                        busy={busy}
+                        onSelect={onSelectSession}
+                        onCreate={onCreateSession}
+                        onRename={onRenameSession}
+                        onDelete={onDeleteSession}
+                      />
+                      <div className="shrink-0 border-t border-border p-2">
+                        <UiSelect
+                          value={agentSlug}
+                          onChange={onAgentChange}
+                          options={agentOptions}
+                          disabled={busy}
+                          showIcon={true}
+                        />
                       </div>
-                    )}
-                  </div>
-                  {askVisible && pending && (
-                    <InlineAskPanel
-                      turnKey={pending.turnKey}
-                      questions={pending.questions}
-                      onSubmit={submitAnswers}
-                      onDismiss={() => setDismissedKey(pending.turnKey)}
-                      disabled={busy}
-                    />
-                  )}
-                  {termOpen && pid && (
-                    <CodeTerminal pid={pid} initCmd={termInitCmd} className="shrink-0 border-t border-border" />
-                  )}
+                    </aside>
+                  </Panel>
+                  <ResizeHandle />
                 </>
-              ) : (
-                (() => {
-                  const file = openFiles.find((f) => f.path === activeTab);
-                  return file ? (
-                    <CodeFileViewer path={file.path} content={file.content} loading={file.loading} />
-                  ) : null;
-                })()
               )}
 
-              {/* Composer — always visible */}
-              <div className="shrink-0 border-t border-border bg-card/60 p-3" data-testid="code-input">
-                <CodeComposer
-                  value={draft}
-                  onValueChange={setDraft}
-                  onSubmit={() => void send()}
-                  onStop={stop}
-                  busy={busy}
-                  disabled={!sid}
-                  mode={mode}
-                  onModeChange={(m) => void patchSession({ mode: m })}
-                  model={model}
-                  onModelChange={(m) => void patchSession({ model: m || null })}
-                />
-              </div>
-            </div>
+              {/* File tree panel */}
+              {worktreeOpen && (
+                <>
+                  <Panel id="tree" defaultSize="13%" minSize="8%">
+                    <div className="h-full">
+                      <CodeFileTree pid={pid} projectPath={activeProject?.path} onOpenFile={openFile} />
+                    </div>
+                  </Panel>
+                  <ResizeHandle />
+                </>
+              )}
+
+              {/* Main panel: tab bar (only with files) + transcript/file viewer + composer */}
+              <Panel id="main" defaultSize="50%" minSize="20%">
+                <div className="flex h-full flex-col">
+                  {/* Tab bar — only when files are open */}
+                  {openFiles.length > 0 && (
+                    <div className="flex shrink-0 items-center gap-0 overflow-x-auto border-b border-border">
+                      {/* Chat tab */}
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("chat")}
+                        data-active={activeTab === "chat"}
+                        className="flex shrink-0 items-center gap-1.5 border-r border-border px-3 py-2 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-accent/40 data-[active=true]:text-foreground"
+                      >
+                        <MessageSquare className="size-3 shrink-0" />
+                        Chat
+                      </button>
+                      {/* File tabs */}
+                      {openFiles.map((f) => {
+                        const name = f.path.split("/").pop() ?? f.path;
+                        const isActive = activeTab === f.path;
+                        return (
+                          <div
+                            key={f.path}
+                            data-active={isActive}
+                            className="group flex shrink-0 items-center gap-1 border-r border-border px-2 py-2 text-[11px] text-muted-foreground transition-colors hover:bg-accent/40 data-[active=true]:text-foreground"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => setActiveTab(f.path)}
+                              className="min-w-0 max-w-[140px] truncate font-mono"
+                              title={f.path}
+                            >
+                              {name}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => closeFile(f.path)}
+                              className="shrink-0 rounded p-0.5 opacity-60 hover:bg-accent hover:opacity-100"
+                              title="Cerrar"
+                            >
+                              <X className="size-2.5" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Tab content */}
+                  {activeTab === "chat" ? (
+                    <>
+                      <div className="min-h-0 flex-1 overflow-y-auto" data-testid="code-transcript">
+                        {!sid ? (
+                          <div className="grid h-full place-items-center p-6">
+                            <Empty>{t("code_module.pick_project")}</Empty>
+                          </div>
+                        ) : msgs.length ? (
+                          <MessageList msgs={msgs} onCopy={copyToClipboard} />
+                        ) : (
+                          <div className="grid h-full place-items-center p-6">
+                            <Empty>{t("code_module.empty_chat")}</Empty>
+                          </div>
+                        )}
+                      </div>
+                      {askVisible && pending && (
+                        <InlineAskPanel
+                          turnKey={pending.turnKey}
+                          questions={pending.questions}
+                          onSubmit={submitAnswers}
+                          onDismiss={() => setDismissedKey(pending.turnKey)}
+                          disabled={busy}
+                        />
+                      )}
+                    </>
+                  ) : (
+                    <div className="min-h-0 flex-1 overflow-hidden">
+                      {(() => {
+                        const file = openFiles.find((f) => f.path === activeTab);
+                        if (!file) return null;
+                        return (
+                          <CodeFileViewer
+                            path={file.path}
+                            content={file.content}
+                            loading={file.loading}
+                            onSave={
+                              file.artifactName
+                                ? (content) => saveOpenFile(file.path, content)
+                                : undefined
+                            }
+                          />
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  {/* Composer — always visible at the bottom of the main column */}
+                  <div className="shrink-0 border-t border-border p-2" data-testid="code-input">
+                    <CodeComposer
+                      value={draft}
+                      onValueChange={setDraft}
+                      onSubmit={() => void send()}
+                      onStop={stop}
+                      busy={busy}
+                      disabled={!sid}
+                      mode={mode}
+                      onModeChange={(m) => void patchSession({ mode: m })}
+                      model={model}
+                      onModelChange={(m) => void patchSession({ model: m || null })}
+                    />
+                  </div>
+                </div>
+              </Panel>
+
+              {/* Right panel: context + changes + artifacts */}
+              {rightOpen && (
+                <>
+                  <ResizeHandle />
+                  <Panel id="right" defaultSize="22%" minSize="15%">
+                    <aside className="flex h-full flex-col">
+                      <CodeSidePanel
+                        pid={pid}
+                        turns={turns}
+                        changes={changes.data}
+                        changesLoading={changes.isLoading}
+                        onRefreshChanges={() => void changes.mutate()}
+                        session={
+                          session.data
+                            ? {
+                                title: session.data.title,
+                                mode: session.data.mode,
+                                createdAt: session.data.createdAt,
+                                updatedAt: session.data.updatedAt,
+                                agentSlug: session.data.agentSlug ?? null,
+                              }
+                            : null
+                        }
+                        onRunInTerminal={runInTerminal}
+                        onEditArtifact={openArtifact}
+                      />
+                    </aside>
+                  </Panel>
+                </>
+              )}
+            </PanelGroup>
           </Panel>
 
-          {/* Right panel: context + changes + artifacts */}
-          {rightOpen && (
+          {/* BOTTOM: terminal spanning the full width below all columns */}
+          {termOpen && pid && (
             <>
-              <ResizeHandle />
-              <Panel id="right" defaultSize={22} minSize={15}>
-                <aside className="flex h-full flex-col border-l border-border">
-                  <CodeSidePanel
-                    pid={pid}
-                    turns={turns}
-                    changes={changes.data}
-                    changesLoading={changes.isLoading}
-                    onRefreshChanges={() => void changes.mutate()}
-                    session={
-                      session.data
-                        ? {
-                            title: session.data.title,
-                            mode: session.data.mode,
-                            createdAt: session.data.createdAt,
-                            updatedAt: session.data.updatedAt,
-                            agentSlug: session.data.agentSlug ?? null,
-                          }
-                        : null
-                    }
-                    onRunInTerminal={runInTerminal}
-                  />
-                </aside>
+              <ResizeHandleH />
+              <Panel id="terminal" defaultSize="45%" minSize="10%" maxSize="80%">
+                <CodeTerminal pid={pid} initCmd={termInitCmd} className="h-full" />
               </Panel>
             </>
           )}

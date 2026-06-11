@@ -18,6 +18,7 @@ import {
 interface Props {
   pid: string;
   onRunInTerminal?: (cmd: string) => void;
+  onEditArtifact?: (name: string) => void;
 }
 
 function ArtifactRow({
@@ -26,12 +27,14 @@ function ArtifactRow({
   onDeleted,
   onRenamed,
   onRunInTerminal,
+  onEditArtifact,
 }: {
   pid: string;
   entry: ArtifactEntry;
   onDeleted: () => void;
   onRenamed: () => void;
   onRunInTerminal?: (cmd: string) => void;
+  onEditArtifact?: (name: string) => void;
 }) {
   const [running, setRunning] = useState(false);
   const [runResult, setRunResult] = useState<ArtifactRunResult | null>(null);
@@ -44,13 +47,12 @@ function ArtifactRow({
 
   // View dialog state
   const [viewOpen, setViewOpen] = useState(false);
-  // Edit dialog state
-  const [editOpen, setEditOpen] = useState(false);
-  const [editContent, setEditContent] = useState("");
-  const [saving, setSaving] = useState(false);
+  // Delete confirmation dialog
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
-  // Load detail only when a dialog is open
-  const detailKey = viewOpen || editOpen ? ["artifact", pid, entry.name] : null;
+  // Load detail only when the view dialog is open
+  const detailKey = viewOpen ? ["artifact", pid, entry.name] : null;
   const detail = useSWR(detailKey, () => Artifacts.read(pid, entry.name), {
     revalidateOnFocus: false,
   });
@@ -82,12 +84,15 @@ function ArtifactRow({
   };
 
   const remove = async () => {
-    if (!window.confirm(t("code_module.artifacts_delete_confirm"))) return;
+    setDeleting(true);
     try {
       await Artifacts.remove(pid, entry.name);
+      setDeleteOpen(false);
       onDeleted();
     } catch (e) {
       toast.error((e as Error).message);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -107,34 +112,6 @@ function ArtifactRow({
       onRenamed();
     } catch (e) {
       toast.error((e as Error).message);
-    }
-  };
-
-  const openEdit = () => {
-    setEditContent(detail.data?.content ?? "");
-    setEditOpen(true);
-  };
-
-  // When view dialog opens and data arrives, nothing extra needed.
-  // When edit dialog opens, sync content from fetched detail.
-  const handleEditOpen = (open: boolean) => {
-    if (open) {
-      setEditContent(detail.data?.content ?? "");
-    }
-    setEditOpen(open);
-  };
-
-  const saveEdit = async () => {
-    setSaving(true);
-    try {
-      await Artifacts.write(pid, entry.name, editContent);
-      toast.info("Guardado.");
-      setEditOpen(false);
-      onRenamed(); // refresh list (size may have changed)
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -174,9 +151,19 @@ function ArtifactRow({
 
       {/* Action bar — always visible */}
       <div className="space-y-2 border-t border-border p-2">
-        <code className="block min-w-0 truncate rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground w-full">
-          {entry.path}
-        </code>
+        <div className="flex w-full min-w-0 items-center gap-1 rounded bg-muted px-1.5 py-0.5">
+          <code className="min-w-0 flex-1 truncate font-mono text-[10px] text-muted-foreground">
+            {entry.path}
+          </code>
+          <button
+            type="button"
+            onClick={() => void copy(entry.path)}
+            title={t("code_module.artifacts_copy_path")}
+            className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+          >
+            <Copy className="size-3" />
+          </button>
+        </div>
         <div className="flex flex-wrap items-center gap-1 mt-1">
           {/* Ver button */}
           <Dialog open={viewOpen} onOpenChange={setViewOpen}>
@@ -206,64 +193,16 @@ function ArtifactRow({
             </DialogContent>
           </Dialog>
 
-          {/* Editar button */}
-          <Dialog open={editOpen} onOpenChange={handleEditOpen}>
-            <button
-              type="button"
-              onClick={() => {
-                setEditContent(detail.data?.content ?? "");
-                setEditOpen(true);
-              }}
-              title="Editar contenido"
-              className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-[10px] font-medium bg-violet-500/15 text-violet-700 hover:bg-violet-500/25 dark:text-violet-300"
-            >
-              <SquarePen className="size-3" />
-              Editar
-            </button>
-            <DialogContent className="sm:max-w-lg">
-              <DialogHeader>
-                <DialogTitle className="font-mono text-sm">Editar — {entry.name}</DialogTitle>
-              </DialogHeader>
-              {detail.isLoading ? (
-                <div className="flex justify-center py-6">
-                  <Spinner size={16} />
-                </div>
-              ) : (
-                <textarea
-                  value={editContent}
-                  onChange={(e) => setEditContent(e.target.value)}
-                  className="h-72 w-full resize-y rounded border border-border bg-background p-2 font-mono text-[11px] leading-tight outline-none focus:ring-1 focus:ring-ring"
-                  spellCheck={false}
-                />
-              )}
-              <DialogFooter>
-                <DialogClose
-                  render={
-                    <button
-                      type="button"
-                      className="rounded px-3 py-1.5 text-xs font-medium hover:bg-accent"
-                    />
-                  }
-                >
-                  Cancelar
-                </DialogClose>
-                <button
-                  type="button"
-                  onClick={() => void saveEdit()}
-                  disabled={saving || detail.isLoading}
-                  className={cn(
-                    "inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium",
-                    saving || detail.isLoading
-                      ? "bg-muted text-muted-foreground"
-                      : "bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-300",
-                  )}
-                >
-                  {saving && <Spinner size={10} />}
-                  Guardar
-                </button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          {/* Editar — opens as a file tab in the main panel */}
+          <button
+            type="button"
+            onClick={() => onEditArtifact?.(entry.name)}
+            title="Editar contenido"
+            className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-[10px] font-medium bg-violet-500/15 text-violet-700 hover:bg-violet-500/25 dark:text-violet-300"
+          >
+            <SquarePen className="size-3" />
+            Editar
+          </button>
 
           {/* Run button */}
           {looksRunnable && (
@@ -278,22 +217,53 @@ function ArtifactRow({
             </button>
           )}
 
-          <button
-            type="button"
-            onClick={() => void copy(entry.path)}
-            title={t("code_module.artifacts_copy_path")}
-            className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-          >
-            <Copy className="size-3" />
-          </button>
-          <button
-            type="button"
-            onClick={() => void remove()}
-            title={t("code_module.artifacts_delete")}
-            className="rounded p-1 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950"
-          >
-            <Trash2 className="size-3" />
-          </button>
+          {/* Eliminar — confirmation dialog */}
+          <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+            <button
+              type="button"
+              onClick={() => setDeleteOpen(true)}
+              title={t("code_module.artifacts_delete")}
+              className="ml-auto rounded p-1 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950"
+            >
+              <Trash2 className="size-3" />
+            </button>
+            <DialogContent className="sm:max-w-sm">
+              <DialogHeader>
+                <DialogTitle className="font-mono text-sm">
+                  {t("code_module.artifacts_delete")} — {entry.name}
+                </DialogTitle>
+              </DialogHeader>
+              <p className="px-1 text-sm text-muted-foreground">
+                {t("code_module.artifacts_delete_confirm")}
+              </p>
+              <DialogFooter>
+                <DialogClose
+                  render={
+                    <button
+                      type="button"
+                      className="rounded px-3 py-1.5 text-xs font-medium hover:bg-accent"
+                    />
+                  }
+                >
+                  Cancelar
+                </DialogClose>
+                <button
+                  type="button"
+                  onClick={() => void remove()}
+                  disabled={deleting}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded px-3 py-1.5 text-xs font-medium",
+                    deleting
+                      ? "bg-muted text-muted-foreground"
+                      : "bg-rose-500/15 text-rose-700 hover:bg-rose-500/25 dark:text-rose-300",
+                  )}
+                >
+                  {deleting && <Spinner size={10} />}
+                  Eliminar
+                </button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
 
         <div className="mt-1 text-[10px] text-muted-foreground">
@@ -350,7 +320,7 @@ function ArtifactRow({
 
 // Artifacts tab: managed files stored under <project>/artifacts/. The agent
 // puts reusable scripts here so the user can run them from a terminal.
-export function CodeArtifactsTab({ pid, onRunInTerminal }: Props) {
+export function CodeArtifactsTab({ pid, onRunInTerminal, onEditArtifact }: Props) {
   const list = useSWR(pid ? ["artifacts", pid] : null, () => Artifacts.list(pid));
   const entries = list.data || [];
   return (
@@ -383,6 +353,7 @@ export function CodeArtifactsTab({ pid, onRunInTerminal }: Props) {
                 onDeleted={() => void list.mutate()}
                 onRenamed={() => void list.mutate()}
                 onRunInTerminal={onRunInTerminal}
+                onEditArtifact={onEditArtifact}
               />
             ))}
           </ul>

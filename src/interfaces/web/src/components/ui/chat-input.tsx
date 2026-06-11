@@ -49,12 +49,23 @@ export function ChatInput({
   React.useLayoutEffect(() => {
     const el = ref.current
     if (!el) return
-    el.style.height = "auto"
-    const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 20
-    const min = lineHeight * minRows
-    const max = lineHeight * maxRows
-    el.style.height = `${Math.min(Math.max(el.scrollHeight, min), max)}px`
-    el.style.overflowY = el.scrollHeight > max ? "auto" : "hidden"
+    const resize = () => {
+      el.style.height = "auto"
+      // Force a reflow before reading scrollHeight so the "auto" reset takes
+      // effect — without this, scrollHeight can return the stale prior height.
+      void el.offsetHeight
+      const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 20
+      const min = lineHeight * minRows
+      const max = lineHeight * maxRows
+      el.style.height = `${Math.min(Math.max(el.scrollHeight, min), max)}px`
+      el.style.overflowY = el.scrollHeight > max ? "auto" : "hidden"
+    }
+    resize()
+    // Re-run after the next paint to catch cases where the parent layout
+    // wasn't ready on the initial sync pass (e.g. inside a resizable panel
+    // that's just been mounted).
+    const raf = requestAnimationFrame(resize)
+    return () => cancelAnimationFrame(raf)
   }, [value, minRows, maxRows])
 
   const canSend = value.trim().length > 0 && !disabled
