@@ -142,7 +142,7 @@ export function buildIdentityBlock(identity, userLang = "en") {
 }
 
 // "Who you're talking to" block. Agent-agnostic: built once from the resolved
-// sender (see core/telegram-identity.js) and injected into BOTH the super-agent
+// sender (see core/identity/telegram.js) and injected into BOTH the super-agent
 // prompt and any routed project-agent prompt, so identification doesn't depend
 // on which agent answers. Returns "" when there's no sender info.
 export function buildRelationshipBlock(sender) {

@@ -18,9 +18,13 @@ test("buildApfHint substitutes the placeholders", () => {
     agentSlug: "sofia",
     sessionId: "2026-05-08-01",
   });
-  assert.match(hint, /\*\*Project\*\*: Test  \(\/tmp\/foo\)/);
-  assert.match(hint, /\*\*Agent\*\*: sofia/);
-  assert.match(hint, /\*\*APC session id\*\*: 2026-05-08-01/);
+  // Slim hint: only the values the runtime needs — APX-as-parent framing,
+  // delegating agent slug, session id. We no longer repeat the APC project
+  // story (each runtime has the apc-context skill for that).
+  assert.match(hint, /APX runtime delegation/);
+  assert.match(hint, /Project: Test/);
+  assert.match(hint, /Delegating agent: sofia/);
+  assert.match(hint, /APX session id: 2026-05-08-01/);
   assert.match(hint, /apx session close 2026-05-08-01/);
   // Should not contain any leftover {{...}} mustache markers
   assert.doesNotMatch(hint, /\{\{/);

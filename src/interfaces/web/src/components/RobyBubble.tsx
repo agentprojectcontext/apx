@@ -173,15 +173,15 @@ export function RobyBubble({
       >
         <SheetHeader className="pr-12">
           <SheetTitle className="flex items-center gap-2">
-            <Bot size={18} /> {t("roby.title", { persona })}
-            <span className="text-xs font-normal text-muted-fg">{t("roby.badge")}</span>
+            <Bot size={18} /> {t("superagent.title", { persona })}
+            <span className="text-xs font-normal text-muted-fg">{t("superagent.badge")}</span>
           </SheetTitle>
-          <SheetDescription>{t("roby.desc")}</SheetDescription>
+          <SheetDescription>{t("superagent.desc")}</SheetDescription>
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto">
           {msgs.length === 0 ? (
-            <p className="mt-6 text-center text-sm text-muted-fg">{t("roby.empty", { persona })}</p>
+            <p className="mt-6 text-center text-sm text-muted-fg">{t("superagent.empty", { persona })}</p>
           ) : (
             <MessageList msgs={msgs} onCopy={copyToClipboard} />
           )}
@@ -199,7 +199,7 @@ export function RobyBubble({
             onSubmit={() => void send()}
             onStop={stop}
             busy={busy}
-            placeholder={t("roby.placeholder")}
+            placeholder={t("superagent.placeholder")}
             footer={<ModelPicker value={model} onChange={setModel} disabled={busy} />}
           />
           <div className="mt-1.5 flex justify-end">
@@ -209,7 +209,7 @@ export function RobyBubble({
               onClick={newChat}
               disabled={busy || msgs.length === 0}
             >
-              <Plus className="size-3" /> {t("roby.new_chat")}
+              <Plus className="size-3" /> {t("superagent.new_chat")}
             </Button>
           </div>
         </div>

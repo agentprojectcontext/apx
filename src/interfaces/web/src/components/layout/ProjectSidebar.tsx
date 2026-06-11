@@ -124,12 +124,12 @@ export function ProjectSidebar({ onSelect, onOpenRoby }: Props) {
       />
       {/* Roby launcher — subtle (not a loud floating bubble), pinned under the
           gear so it doesn't overlap the chat composer. */}
-      <Tip content={t("roby.talk", { persona })} side="right">
+      <Tip content={t("superagent.talk", { persona })} side="right">
         <button
           type="button"
           onClick={onOpenRoby}
           data-testid="nav-roby"
-          aria-label={t("roby.talk", { persona })}
+          aria-label={t("superagent.talk", { persona })}
           className="mt-1 flex size-10 items-center justify-center rounded-xl border border-border/60 bg-muted/30 text-muted-fg transition-colors hover:bg-accent hover:text-foreground"
         >
           <Bot size={18} />

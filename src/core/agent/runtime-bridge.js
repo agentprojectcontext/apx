@@ -1,40 +1,37 @@
-// Prompt-shaped helpers that bridge APX into external runtimes (Claude Code,
-// Codex, OpenCode, Aider, Cursor Agent, Gemini CLI, Qwen Code). The returned
-// text is injected into the runtime's system prompt so it knows it's running
-// inside an APC project with an APX session id, and knows the `apx …`
-// commands it can shell out to.
+// Prompt-shaped hint injected into external runtimes when APX delegates work
+// to them (Claude Code, Codex, OpenCode, Aider, Cursor Agent, Gemini CLI,
+// Qwen Code). Tells the runtime two things only:
+//
+//   1. "You're being orchestrated by APX as the super-agent (or as agent X
+//      via APX delegation)" — equivalent to a one-shot a2a hand-off.
+//   2. The session id APX created on disk so the runtime can echo it back
+//      via `apx session close <id> --result "..."` if its shell allows it.
+//
+// We intentionally do NOT re-explain APC: every runtime that can read this
+// hint already has the apc-context skill (or equivalent rule) installed in
+// its own config, and that rule covers the project context. Repeating it
+// here just bloats the prompt. The bridge is APX-specific glue.
 //
 // (Was `buildApfHint` in host/daemon/apc-runtime-context.js. "APF" was the
-// old name for what's now APC — renamed here and the lifecycle helpers moved
-// to core/stores/runtime-sessions.js.)
+// old internal name; renamed for clarity. Lifecycle helpers
+// — createRuntimeSession / closeRuntimeSession — live in
+// core/stores/runtime-sessions.js.)
 
-const APC_RUNTIME_HINT = `
-# APC Runtime Context
+const RUNTIME_BRIDGE_HINT = `
+# APX runtime delegation
 
-You are running inside an APC (Agent Project Context) project. APC gives you portable project context. APX gives you local runtime session state.
+You are being run by APX. The APX super-agent (or the named agent below) handed this turn to you as a one-shot delegation — think of it as an a2a (agent-to-agent) call where you are the callee. APX is the parent process; the project's apc-context already explains the codebase.
 
-- **Project**: {{name}}  ({{path}})
-- **Agent**: {{agent}}
-- **APC session id**: {{session_id}}
-  (stored in APX local runtime storage, outside .apc/)
+- Project: {{name}}
+- Delegating agent: {{agent}}
+- APX session id: {{session_id}}
 
-## Commands you can use during this run
-
-- \`apx memory {{agent}} --append "<note>"\`        save a long-term fact for this agent
-- \`apx session update {{session_id}} --status "..."\`   update the session status
-- \`apx session update {{session_id}} --task-ref TASK-...\`  link to an external task
-
-## When you finish
-
-Close the session with a one-line result so a future operator (or apx session resume) can summarize:
-
-  apx session close {{session_id}} --result "<one-line summary of what you did>"
-
-If you cannot run apx (sandboxed shell), just print the result on the last line of your output prefixed with "APC_RESULT:" and APX will capture it automatically.
+When you finish, if you can shell out, leave a short trace for APX:
+  apx session close {{session_id}} --result "<one-line summary>"
 `.trim();
 
 export function buildRuntimeBridgeHint({ projectName, projectPath, agentSlug, sessionId }) {
-  return APC_RUNTIME_HINT
+  return RUNTIME_BRIDGE_HINT
     .replace(/\{\{name\}\}/g, projectName)
     .replace(/\{\{path\}\}/g, projectPath)
     .replace(/\{\{agent\}\}/g, agentSlug)
