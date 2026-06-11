@@ -1,5 +1,5 @@
 // Singleton WebSocket hub for the desktop channel.
-// Imported by api.js (to register connections) and by plugins/desktop.js (to broadcast).
+// Imported by api.js (to register connections) and by plugins/desktop/index.js (to broadcast).
 
 const _clients = new Set(); // Set<WebSocket>
 let _messageHandler = null; // (ws, data) => void — set by desktop plugin

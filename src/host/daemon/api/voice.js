@@ -513,8 +513,8 @@ export function register(app, { projects, plugins, registries }) {
 }
 
 // Note for plugin authors:
-//   Desktop (src/host/daemon/plugins/desktop.js) and Telegram
-//   (src/host/daemon/plugins/telegram.js) currently implement their own
+//   Desktop (src/host/daemon/plugins/desktop/index.js) and Telegram
+//   (src/host/daemon/plugins/telegram/index.js) currently implement their own
 //   STT → agent → render pipelines. To get spoken replies via APX they can
 //   POST to /voice/turn (or call `synthesize()` directly) instead of
 //   re-implementing TTS. This module intentionally does NOT migrate them —

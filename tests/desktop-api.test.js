@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { ProjectManager } from "#host/daemon/db.js";
 import { buildApi } from "#host/daemon/api.js";
 import { desktopClients } from "#host/daemon/desktop-ws.js";
-import desktopPlugin from "#host/daemon/plugins/desktop.js";
+import desktopPlugin from "#host/daemon/plugins/desktop/index.js";
 
 async function listen(app) {
   const server = app.listen(0);
