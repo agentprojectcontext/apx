@@ -40,7 +40,7 @@ test("telegram session starts on base and lists everything else as not-loaded", 
 });
 
 test("full channels load everything and produce no lazy block", () => {
-  for (const ch of ["web", "code", "terminal", "routine", "api"]) {
+  for (const ch of ["web", "code", "routine", "api"]) {
     const s = createToolSession(ch);
     assert.equal(s.initialSchemas.length, TOOL_SCHEMAS.length, `${ch} should be full`);
     assert.equal(s.notLoaded().length, 0, `${ch} should have nothing on-demand`);

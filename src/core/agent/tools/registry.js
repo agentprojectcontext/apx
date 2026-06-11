@@ -31,6 +31,8 @@ import listTasks from "./handlers/list-tasks.js";
 import discoverTools from "./handlers/discover-tools.js";
 import { createPermissionGuard } from "./helpers.js";
 import { buildBridgedTools, DEFAULT_CATEGORIES } from "./registry-bridge.js";
+import { TOOLS } from "./names.js";
+import { CHANNELS } from "#core/constants/channels.js";
 
 const NATIVE_TOOLS = [
   listProjects,
@@ -76,9 +78,9 @@ function resolveBridgeCategories() {
 }
 
 const BRIDGED_TOOLS = buildBridgedTools({ categories: resolveBridgeCategories() });
-const TOOLS = [...NATIVE_TOOLS, ...BRIDGED_TOOLS];
+const ALL_TOOLS = [...NATIVE_TOOLS, ...BRIDGED_TOOLS];
 
-export const TOOL_SCHEMAS = TOOLS.map((tool) => tool.schema);
+export const TOOL_SCHEMAS = ALL_TOOLS.map((tool) => tool.schema);
 
 // ---------------------------------------------------------------------------
 // Lazy tools: base set (always loaded) + on-demand set (revealed via
@@ -93,78 +95,83 @@ export const TOOL_SCHEMAS = TOOLS.map((tool) => tool.schema);
 // sessions, projects/inventory, basic shell, tasks, skills, and discovery.
 export const BASE_TOOL_NAMES = new Set([
   // Discovery — the entry point to everything not loaded here.
-  "discover_tools",
+  TOOLS.DISCOVER_TOOLS,
   // Inventory — the model needs these to know what exists.
-  "list_projects",
-  "list_agents",
-  "list_mcps",
-  "list_skills",
-  "load_skill",
+  TOOLS.LIST_PROJECTS,
+  TOOLS.LIST_AGENTS,
+  TOOLS.LIST_MCPS,
+  TOOLS.LIST_SKILLS,
+  TOOLS.LOAD_SKILL,
   // Memory + identity.
-  "read_agent_memory",
-  "read_self_memory",
-  "remember",
-  "set_identity",
+  TOOLS.READ_AGENT_MEMORY,
+  TOOLS.READ_SELF_MEMORY,
+  TOOLS.REMEMBER,
+  TOOLS.SET_IDENTITY,
   // Sessions + messages (self-recall + channel history).
-  "search_sessions",
-  "search_messages",
-  "tail_messages",
+  TOOLS.SEARCH_SESSIONS,
+  TOOLS.SEARCH_MESSAGES,
+  TOOLS.TAIL_MESSAGES,
   // Channels + conversation control + lightweight delegation.
-  "send_telegram",
-  "ask_questions",
-  "call_agent",
+  TOOLS.SEND_TELEGRAM,
+  TOOLS.ASK_QUESTIONS,
+  TOOLS.CALL_AGENT,
   // Tasks (very common ask via chat).
-  "create_task",
-  "list_tasks",
+  TOOLS.CREATE_TASK,
+  TOOLS.LIST_TASKS,
   // Files + basic shell — frequent enough on chat to keep hot.
-  "read_file",
-  "write_file",
-  "edit_file",
-  "list_files",
-  "search_files",
-  "run_shell",
+  TOOLS.READ_FILE,
+  TOOLS.WRITE_FILE,
+  TOOLS.EDIT_FILE,
+  TOOLS.LIST_FILES,
+  TOOLS.SEARCH_FILES,
+  TOOLS.RUN_SHELL,
 ]);
 
 // Channels that get the FULL registry up front (deliberate, user-picked model,
 // no cheap-tier TPM cap). Everything else is a "lightweight" channel and starts
 // on BASE_TOOL_NAMES with discover_tools to expand.
-const FULL_CHANNELS = new Set(["routine", "api", "web", "code", "terminal"]);
+const FULL_CHANNELS = new Set([
+  CHANNELS.ROUTINE,
+  CHANNELS.API,
+  CHANNELS.WEB,
+  CHANNELS.CODE,
+]);
 
 // Category labels for grouping the discover_tools catalog. Native tools have no
 // registry category, so we assign one here; bridged tools carry their own
 // (browser/fetch/search/file) from registry-bridge.js.
 const NATIVE_CATEGORY = {
-  discover_tools: "system",
-  set_permission_mode: "system",
-  list_projects: "inventory",
-  list_agents: "inventory",
-  list_vault_agents: "inventory",
-  list_mcps: "inventory",
-  list_skills: "inventory",
-  load_skill: "skills",
-  import_agent: "agents",
-  add_project: "projects",
-  call_agent: "agents",
-  call_runtime: "runtime",
-  call_mcp: "mcp",
-  read_agent_memory: "memory",
-  read_self_memory: "memory",
-  remember: "memory",
-  set_identity: "identity",
-  search_sessions: "sessions",
-  search_messages: "messages",
-  tail_messages: "messages",
-  send_telegram: "messages",
-  ask_questions: "conversation",
-  create_task: "tasks",
-  list_tasks: "tasks",
-  transcribe_audio: "voice",
-  read_file: "files",
-  write_file: "files",
-  edit_file: "files",
-  list_files: "files",
-  search_files: "files",
-  run_shell: "shell",
+  [TOOLS.DISCOVER_TOOLS]:      "system",
+  [TOOLS.SET_PERMISSION_MODE]: "system",
+  [TOOLS.LIST_PROJECTS]:       "inventory",
+  [TOOLS.LIST_AGENTS]:         "inventory",
+  [TOOLS.LIST_VAULT_AGENTS]:   "inventory",
+  [TOOLS.LIST_MCPS]:           "inventory",
+  [TOOLS.LIST_SKILLS]:         "inventory",
+  [TOOLS.LOAD_SKILL]:          "skills",
+  [TOOLS.IMPORT_AGENT]:        "agents",
+  [TOOLS.ADD_PROJECT]:         "projects",
+  [TOOLS.CALL_AGENT]:          "agents",
+  [TOOLS.CALL_RUNTIME]:        "runtime",
+  [TOOLS.CALL_MCP]:            "mcp",
+  [TOOLS.READ_AGENT_MEMORY]:   "memory",
+  [TOOLS.READ_SELF_MEMORY]:    "memory",
+  [TOOLS.REMEMBER]:            "memory",
+  [TOOLS.SET_IDENTITY]:        "identity",
+  [TOOLS.SEARCH_SESSIONS]:     "sessions",
+  [TOOLS.SEARCH_MESSAGES]:     "messages",
+  [TOOLS.TAIL_MESSAGES]:       "messages",
+  [TOOLS.SEND_TELEGRAM]:       "messages",
+  [TOOLS.ASK_QUESTIONS]:       "conversation",
+  [TOOLS.CREATE_TASK]:         "tasks",
+  [TOOLS.LIST_TASKS]:          "tasks",
+  [TOOLS.TRANSCRIBE_AUDIO]:    "voice",
+  [TOOLS.READ_FILE]:           "files",
+  [TOOLS.WRITE_FILE]:          "files",
+  [TOOLS.EDIT_FILE]:           "files",
+  [TOOLS.LIST_FILES]:          "files",
+  [TOOLS.SEARCH_FILES]:        "files",
+  [TOOLS.RUN_SHELL]:           "shell",
 };
 
 function categoryOf(tool) {
@@ -179,7 +186,7 @@ function oneLine(desc = "") {
 
 // Static metadata index for every tool — name, schema, category, short blurb.
 // Used by the per-turn tool session for the catalog and activation lookups.
-const TOOL_META = TOOLS.map((t) => ({
+const TOOL_META = ALL_TOOLS.map((t) => ({
   name: t.name,
   schema: t.schema,
   category: categoryOf(t),
@@ -187,13 +194,9 @@ const TOOL_META = TOOLS.map((t) => ({
 }));
 const META_BY_NAME = new Map(TOOL_META.map((m) => [m.name, m]));
 
-export const BASE_TOOL_SCHEMAS = TOOLS
+export const BASE_TOOL_SCHEMAS = ALL_TOOLS
   .filter((t) => BASE_TOOL_NAMES.has(t.name))
   .map((t) => t.schema);
-
-// Back-compat alias: a few callers/tests historically referenced the "core"
-// subset. The base set supersedes it.
-export const CORE_TOOL_SCHEMAS = BASE_TOOL_SCHEMAS;
 
 const schemaName = (s) => s?.function?.name || s?.name;
 
@@ -337,7 +340,7 @@ export function makeToolHandlers(ctx) {
       requestConfirmation: ctx.requestConfirmation || null,
     }),
   };
-  return Object.fromEntries(TOOLS.map((tool) => [tool.name, tool.makeHandler(toolCtx)]));
+  return Object.fromEntries(ALL_TOOLS.map((tool) => [tool.name, tool.makeHandler(toolCtx)]));
 }
 
 // Diagnostic helper — useful for `apx daemon status` or debug logging.
