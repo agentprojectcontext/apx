@@ -16,6 +16,7 @@ import { runSuperAgent } from "#core/agent/super-agent.js";
 import { appendSuperAgentErrorTrace } from "./shared.js";
 import { createWebConfirmAdapter } from "#core/confirmation/adapters/web.js";
 import { CHANNELS } from "#core/constants/channels.js";
+import { CODE_MODES, DEFAULT_CODE_MODE } from "#core/constants/code-modes.js";
 import {
   listCodeSessions,
   getCodeSession,
@@ -242,7 +243,7 @@ export function register(app, { projects, project, config, registries, plugins }
     const { prompt } = req.body || {};
     if (!prompt) return res.status(400).json({ error: "prompt required" });
 
-    const mode = session.mode === "plan" ? "plan" : "build";
+    const mode = session.mode === CODE_MODES.PLAN ? CODE_MODES.PLAN : DEFAULT_CODE_MODE;
     const previousMessages = historyFrom(session);
 
     // If a project agent is selected, inject its system prompt as a suffix so
@@ -292,7 +293,7 @@ export function register(app, { projects, project, config, registries, plugins }
         previousMessages,
         systemSuffix: agentSystemSuffix,
         overrideModel: session.model || undefined,
-        allowedTools: mode === "plan" ? CODE_PLAN_TOOLS : CODE_BUILD_TOOLS,
+        allowedTools: mode === CODE_MODES.PLAN ? CODE_PLAN_TOOLS : CODE_BUILD_TOOLS,
         // Coding tasks are multi-step: give the loop a high safety ceiling so it
         // can chain 20-30+ tools (read → edit → run → verify …) and a real
         // output budget for substantial code / explanations per turn. The
@@ -303,7 +304,7 @@ export function register(app, { projects, project, config, registries, plugins }
         // Build mode = the model must keep calling tools until it calls `finish`.
         // Plan mode is read-only investigation that ends with a written plan, so
         // it keeps the normal "text ends the turn" behavior.
-        completionContract: mode === "build",
+        completionContract: mode === CODE_MODES.BUILD,
         onEvent,
         requestConfirmation: createWebConfirmAdapter({ onEvent }),
       });
