@@ -1,5 +1,6 @@
 // Anthropic Messages API adapter (https://docs.anthropic.com/en/api/messages).
 // No SDK dependency — direct fetch, keeps the daemon lean.
+import { streamSseDataEvents } from "./_streaming.js";
 
 const API_BASE = "https://api.anthropic.com/v1/messages";
 const API_VERSION = "2023-06-01";
@@ -74,33 +75,21 @@ export default {
         throw new Error(`anthropic ${res.status}: ${err.slice(0, 200)}`);
       }
 
-      const decoder = new TextDecoder();
       let text = "";
       let inputTokens = 0;
       let outputTokens = 0;
       let stopReason = null;
-      let buf = "";
 
-      for await (const chunk of res.body) {
-        buf += decoder.decode(chunk, { stream: true });
-        const lines = buf.split("\n");
-        buf = lines.pop(); // keep incomplete last line
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const raw = line.slice(6).trim();
-          if (raw === "[DONE]") continue;
-          let evt;
-          try { evt = JSON.parse(raw); } catch { continue; }
-          if (evt.type === "content_block_delta" && evt.delta?.type === "text_delta") {
-            const t = evt.delta.text || "";
-            if (t) { text += t; onToken(t); }
-          } else if (evt.type === "message_delta") {
-            stopReason = evt.delta?.stop_reason || stopReason;
-            outputTokens = evt.usage?.output_tokens || outputTokens;
-          } else if (evt.type === "message_start") {
-            inputTokens = evt.message?.usage?.input_tokens || 0;
-            outputTokens = evt.message?.usage?.output_tokens || 0;
-          }
+      for await (const evt of streamSseDataEvents(res)) {
+        if (evt.type === "content_block_delta" && evt.delta?.type === "text_delta") {
+          const t = evt.delta.text || "";
+          if (t) { text += t; onToken(t); }
+        } else if (evt.type === "message_delta") {
+          stopReason = evt.delta?.stop_reason || stopReason;
+          outputTokens = evt.usage?.output_tokens || outputTokens;
+        } else if (evt.type === "message_start") {
+          inputTokens = evt.message?.usage?.input_tokens || 0;
+          outputTokens = evt.message?.usage?.output_tokens || 0;
         }
       }
 

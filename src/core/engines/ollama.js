@@ -1,6 +1,7 @@
 // Ollama adapter (https://github.com/ollama/ollama/blob/main/docs/api.md#generate-a-chat-completion).
 // Local-only. No API key. Default base_url http://localhost:11434.
 import { pingUrl, fetchJsonWithTimeout, modelInOllamaTags } from "./_health.js";
+import { streamJsonLines } from "./_streaming.js";
 
 function baseUrl(config) {
   return config.base_url || process.env.OLLAMA_HOST || "http://localhost:11434";
@@ -102,25 +103,15 @@ export default {
         const t = await res.text();
         throw new Error(`ollama ${res.status}: ${t}`);
       }
-      const decoder = new TextDecoder();
       let text = "";
       let inputTokens = 0;
       let outputTokens = 0;
-      let buf = "";
-      for await (const chunk of res.body) {
-        buf += decoder.decode(chunk, { stream: true });
-        const lines = buf.split("\n");
-        buf = lines.pop();
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          let evt;
-          try { evt = JSON.parse(line); } catch { continue; }
-          const t = evt.message?.content || "";
-          if (t) { text += t; onToken(t); }
-          if (evt.done) {
-            inputTokens = evt.prompt_eval_count || 0;
-            outputTokens = evt.eval_count || 0;
-          }
+      for await (const evt of streamJsonLines(res)) {
+        const t = evt.message?.content || "";
+        if (t) { text += t; onToken(t); }
+        if (evt.done) {
+          inputTokens = evt.prompt_eval_count || 0;
+          outputTokens = evt.eval_count || 0;
         }
       }
       return {
