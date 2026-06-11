@@ -13,6 +13,11 @@ const DEFAULT_BASE = {
   ollama:     "http://localhost:11434",
 };
 
+// Gemini's native models endpoint returns a much richer catalog than the
+// OpenAI-compat shim (which only echoes back a handful). We always query the
+// native URL regardless of the user's configured base_url.
+const GEMINI_NATIVE_BASE = "https://generativelanguage.googleapis.com/v1beta";
+
 // Returns { models } or { error }. Reads the right /models endpoint per engine.
 async function listModels(engine, baseUrl, apiKey) {
   const base = String(baseUrl || DEFAULT_BASE[engine] || "").replace(/\/$/, "");
@@ -37,7 +42,32 @@ async function listModels(engine, baseUrl, apiKey) {
     return { models: data.map((m) => m?.id).filter(Boolean) };
   }
 
-  // openai-compatible family: openai, groq, openrouter, gemini, azure, custom
+  if (engine === "gemini") {
+    if (!apiKey) return { error: "falta api_key" };
+    // Native Gemini API: returns a `models` array with rich metadata, including
+    // `supportedGenerationMethods` so we can drop embeddings/vision-only entries.
+    // Names come back as "models/<id>"; strip the prefix for display.
+    const r = await fetchJsonWithTimeout(
+      `${GEMINI_NATIVE_BASE}/models?key=${encodeURIComponent(apiKey)}&pageSize=200`,
+      { timeoutMs: 5000 },
+    );
+    if (!r.ok) return { error: r.reason || `HTTP ${r.status}` };
+    const data = Array.isArray(r.json?.models) ? r.json.models : [];
+    const models = data
+      .filter((m) => {
+        const methods = m?.supportedGenerationMethods;
+        if (!Array.isArray(methods)) return true;
+        return methods.includes("generateContent");
+      })
+      .map((m) => {
+        const name = typeof m?.name === "string" ? m.name : "";
+        return name.startsWith("models/") ? name.slice("models/".length) : name;
+      })
+      .filter(Boolean);
+    return { models };
+  }
+
+  // openai-compatible family: openai, groq, openrouter, azure, custom
   if (!apiKey) return { error: "falta api_key" };
   if (!base) return { error: "falta base_url" };
   const r = await fetchJsonWithTimeout(`${base}/models`, {
