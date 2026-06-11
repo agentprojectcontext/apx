@@ -87,10 +87,21 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
       prompt: string,
       previousMessages: Array<{ role: string; content: string }> = [],
     ) {
-      // Send the live model selection as `body.model` so the daemon's
-      // super-agent honours the model the user picked via /models. When unset
-      // the daemon falls back to ~/.apx/config.json (super_agent.model).
-      const body: Record<string, unknown> = { prompt, previousMessages }
+      // Run on the `code` channel and hand the daemon our working directory so
+      // the agent knows WHERE it is (CWD/project) — otherwise it falls back to
+      // the generic API channel with no cwd and asks "which file? which project?".
+      // maxIters gives room to chain read→edit→verify; the code.md prompt already
+      // carries the "keep going until done" guidance. We deliberately do NOT send
+      // completionContract here — on weaker models (e.g. gemini-flash) the hard
+      // loop-until-finish contract causes runaway edit/rewrite loops.
+      const body: Record<string, unknown> = {
+        prompt,
+        previousMessages,
+        channel: "code",
+        channelMeta: { cwd: props.directory ?? process.cwd() },
+        maxIters: 40,
+        maxTokens: 8192,
+      }
       if (currentModel) body.model = currentModel
       const res = await fetch(`${props.url}/projects/${props.pid}/super-agent/chat/stream`, {
         method: "POST",

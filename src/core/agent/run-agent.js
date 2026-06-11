@@ -33,6 +33,19 @@ function fallbackFinalText(trace, error) {
   return lines.join("\n");
 }
 
+// A leading greeting clause: "¡Hola Manu!", "Hola,", "Hi there!", "Buenas tardes…".
+// Intentionally narrow — only the opening salutation up to its first terminator —
+// so we never eat real content.
+const LEADING_GREETING_RE =
+  /^\s*[¡!]*\s*(hola+|holis?|buenas|buen[oa]s?\s+(d[ií]as|tardes|noches)|hey|hi|hello)\b[^.!?¡\n]*[.!?¡]*[\s,]*/i;
+
+/** If `text` opens with a greeting, return it with that greeting removed; else null. */
+function stripLeadingGreeting(text) {
+  const m = String(text).match(LEADING_GREETING_RE);
+  if (!m) return null;
+  return String(text).slice(m[0].length).replace(/^\s+/, "");
+}
+
 function previewTraceResult(result) {
   if (result === null || result === undefined) return "ok";
   if (typeof result === "string") return result.slice(0, 180);
@@ -191,6 +204,22 @@ export async function runAgent({
   const trace = [];
   let totalUsage = { input_tokens: 0, output_tokens: 0 };
   let lastText = "";
+
+  // Collapse repeated greetings within a single turn. A turn can produce several
+  // text segments (pre-tool narration + final answer) and weaker models greet in
+  // each one, so the user sees "¡Hola Manu!" twice. Keep the first greeting,
+  // strip any later one. Belt-and-suspenders over the action-discipline prompt
+  // rule (which strong models follow but gemini-flash et al. often ignore).
+  let greetedThisTurn = false;
+  const dedupeGreeting = (text) => {
+    if (!text) return text;
+    if (greetedThisTurn) {
+      const stripped = stripLeadingGreeting(text);
+      return stripped == null ? text : stripped;
+    }
+    if (LEADING_GREETING_RE.test(text)) greetedThisTurn = true;
+    return text;
+  };
   let usePseudoTools = false;
   let ackOnlyStreak = 0;
   // Side-effect dedupe. Weaker models (Gemini especially) sometimes
@@ -307,7 +336,7 @@ export async function runAgent({
       break;
     }
 
-    const visibleText = cleanTextOfPseudoToolCalls(lastText).trim();
+    const visibleText = dedupeGreeting(cleanTextOfPseudoToolCalls(lastText).trim());
     if (visibleText) {
       await emitProgress(onEvent, { type: "assistant_text", text: visibleText, iteration: iter + 1 });
     }
@@ -402,8 +431,8 @@ export async function runAgent({
     // assistant text and exit the loop.
     if (finishSummary !== null) {
       if (finishSummary) {
-        lastText = finishSummary;
-        await emitProgress(onEvent, { type: "assistant_text", text: finishSummary, iteration: iter + 1 });
+        lastText = dedupeGreeting(finishSummary) || "";
+        if (lastText) await emitProgress(onEvent, { type: "assistant_text", text: lastText, iteration: iter + 1 });
       }
       break;
     }
@@ -434,7 +463,8 @@ export async function runAgent({
   }
 
   return {
-    text: lastText,
+    // Strip a final greeting if an earlier segment in this turn already greeted.
+    text: dedupeGreeting(lastText),
     usage: totalUsage,
     name: agentName,
     trace,
