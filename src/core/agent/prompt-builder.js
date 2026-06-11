@@ -8,6 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readIdentity } from "../identity/index.js";
+import { agentsMdFile } from "../apc/paths.js";
 import { readSelfMemoryForPrompt } from "./self-memory.js";
 import { buildSkillsHintBlock } from "./skills/catalog.js";
 
@@ -97,7 +98,7 @@ export const PROJECT_AGENTS_MAX_CHARS = 6000;
 export function buildProjectAgentsBlock(projectPath) {
   if (!projectPath) return "";
   try {
-    const file = path.join(projectPath, "AGENTS.md");
+    const file = agentsMdFile(projectPath);
     if (!fs.existsSync(file)) return "";
     let text = fs.readFileSync(file, "utf8").trim();
     if (!text) return "";

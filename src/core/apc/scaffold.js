@@ -11,6 +11,13 @@ import {
 } from "./parser.js";
 import { readApcContextSkill } from "./skill-sync.js";
 import { nowIso } from "../util/time.js";
+import {
+  apcDir,
+  apcProjectFile,
+  apcAgentsDir,
+  apcAgentFile,
+  agentsMdFile,
+} from "./paths.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Now under src/core/apc/ — one more "../" to escape than before.
@@ -423,7 +430,7 @@ function writeMigrateMd(apfDir, found) {
 // Get the stable APX storage ID for a project, generating one if it doesn't exist.
 // Called by the daemon when registering a project.
 export function getOrCreateApxId(root) {
-  const p = path.join(root, ".apc", "project.json");
+  const p = apcProjectFile(root);
   if (!fs.existsSync(p)) return null;
   let cfg;
   try { cfg = JSON.parse(fs.readFileSync(p, "utf8")); } catch { return null; }
@@ -439,7 +446,7 @@ export function initApf(directory, { name } = {}) {
   const root = path.resolve(directory);
   fs.mkdirSync(root, { recursive: true });
 
-  const apfDir = path.join(root, ".apc");
+  const apfDir = apcDir(root);
   fs.mkdirSync(path.join(apfDir, "agents"), { recursive: true });
   fs.mkdirSync(path.join(apfDir, "skills"), { recursive: true });
   fs.mkdirSync(path.join(apfDir, "commands"), { recursive: true });
@@ -469,7 +476,7 @@ export function initApf(directory, { name } = {}) {
     fs.writeFileSync(gitignore, APC_GITIGNORE);
   }
 
-  const agentsMd = path.join(root, "AGENTS.md");
+  const agentsMd = agentsMdFile(root);
   if (!fs.existsSync(agentsMd)) {
     fs.writeFileSync(agentsMd, AGENTS_MD_TEMPLATE);
   }
@@ -485,13 +492,13 @@ export function initApf(directory, { name } = {}) {
 }
 
 export function ensureAgentDir(root, slug) {
-  fs.mkdirSync(path.join(root, ".apc", "agents"), { recursive: true });
-  return path.join(root, ".apc", "agents");
+  fs.mkdirSync(apcAgentsDir(root), { recursive: true });
+  return apcAgentsDir(root);
 }
 
 // Write .apc/agents/<slug>.md — the canonical agent definition file.
 export function writeAgentFile(root, slug, fields, body = "") {
-  const dest = path.join(root, ".apc", "agents", `${slug}.md`);
+  const dest = apcAgentFile(root, slug);
   const lines = ["---"];
   const order = ["role", "model", "language", "description", "skills", "tools"];
   const written = new Set();
@@ -579,7 +586,7 @@ export function restoreVaultAgent(slug) {
 
 // Add a slug to the project's agents.imported list in project.json
 export function addImportedAgent(root, slug) {
-  const p = path.join(root, ".apc", "project.json");
+  const p = apcProjectFile(root);
   let cfg = {};
   try { cfg = JSON.parse(fs.readFileSync(p, "utf8")); } catch {}
   if (!cfg.agents) cfg.agents = {};

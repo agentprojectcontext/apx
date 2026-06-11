@@ -10,10 +10,9 @@ import {
   setDottedKey,
   unsetDottedKey,
 } from "../project-config.js";
+import { apcProjectFile, apcProjectConfigFile } from "#core/apc/paths.js";
 
-function projectJsonPath(root) {
-  return path.join(root, ".apc", "project.json");
-}
+const projectJsonPath = apcProjectFile;
 
 function readProjectJson(root) {
   const p = projectJsonPath(root);
@@ -34,7 +33,7 @@ export function register(app, { projects, project }) {
     res.json({
       effective: p.config || {},
       project_only: readProjectConfig(p.path),
-      project_config_path: path.join(p.path, ".apc", "config.json"),
+      project_config_path: apcProjectConfigFile(p.path),
       apc_project: readProjectJson(p.path),
       project_json_path: projectJsonPath(p.path),
     });
