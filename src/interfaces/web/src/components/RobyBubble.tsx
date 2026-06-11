@@ -15,6 +15,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Button } from "./ui/button";
 import { ChatInput } from "./ui/chat-input";
 import { ModelPicker } from "./chat/ModelPicker";
+import { SkillPicker } from "./chat/SkillPicker";
 import { MessageList } from "./chat/MessageList";
 import { ContextBar } from "./chat/ContextBar";
 import { applyStreamEvent, textOf, type ChatMsg } from "../hooks/useChat";
@@ -189,6 +190,9 @@ export function RobyBubble({
         <ContextBar msgs={msgs} />
 
         <div className="border-t border-border p-3">
+          <div className="mb-1.5">
+            <SkillPicker value={draft} onPick={(slug) => setDraft(`/${slug} `)} />
+          </div>
           <ChatInput
             value={draft}
             onValueChange={setDraft}

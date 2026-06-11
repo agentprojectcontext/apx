@@ -31,9 +31,9 @@ import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
-// Three levels up: __dirname = src/host/daemon/ → src/host/ → src/ → repo root.
-// Used to find the bundled skills/ folder at the repo root.
-const PACKAGE_ROOT = path.resolve(__dirname, "..", "..", "..");
+// Four levels up: __dirname = src/core/agent/skills/ → agent/ → core/ → src/
+// → repo root. Used to find the bundled skills/ folder at the repo root.
+const PACKAGE_ROOT = path.resolve(__dirname, "..", "..", "..", "..");
 
 const RUNTIME_SKILLS_DIR = path.join(PACKAGE_ROOT, "src", "core", "runtime-skills");
 const BUNDLED_SKILLS_DIR = path.join(PACKAGE_ROOT, "skills");
