@@ -11,7 +11,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { ProjectManager } from "#host/daemon/db.js";
-import { makeToolHandlers } from "#host/daemon/super-agent-tools/index.js";
+import { makeToolHandlers } from "#core/agent/tools/registry.js";
 import { makeTempProject, cleanupTempProject } from "./_helpers.js";
 
 function withFakeBinary(name, body, fn) {

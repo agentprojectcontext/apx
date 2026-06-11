@@ -16,7 +16,7 @@ import os from "node:os";
 import fs from "node:fs";
 import path from "node:path";
 import { callEngine } from "#core/engines/index.js";
-import { runSuperAgent } from "./super-agent.js";
+import { runSuperAgent } from "#core/agent/super-agent.js";
 import { computeSuppressedTools } from "#core/agent/index.js";
 import { readAgents } from "#core/apc/parser.js";
 import { buildAgentSystem } from "#core/agent/build-agent-system.js";

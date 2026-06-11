@@ -12,7 +12,7 @@
 // stateful: the turn handler rebuilds `previousMessages` from the stored
 // transcript, runs the super-agent on the `code` channel (with plan/build mode
 // + per-mode tool gating), then persists the rich assistant turn.
-import { runSuperAgent } from "../super-agent.js";
+import { runSuperAgent } from "#core/agent/super-agent.js";
 import { appendSuperAgentErrorTrace } from "./shared.js";
 import { createWebConfirmAdapter } from "#core/confirmation/adapters/web.js";
 import { CHANNELS } from "#core/constants/channels.js";

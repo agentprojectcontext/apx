@@ -5,7 +5,7 @@
 //
 //   POST /projects/:pid/super-agent/chat/stream    NDJSON event stream
 //   POST /projects/:pid/super-agent/chat            blocking JSON response
-import { runSuperAgent } from "../super-agent.js";
+import { runSuperAgent } from "#core/agent/super-agent.js";
 import {
   resolveSuperAgentContext,
   appendSuperAgentErrorTrace,

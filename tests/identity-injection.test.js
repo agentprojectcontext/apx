@@ -7,8 +7,8 @@
 //   If language is not wired correctly the agent replies in the wrong language.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildIdentityBlock } from "#host/daemon/super-agent.js";
-import { TOOL_SCHEMAS } from "#host/daemon/super-agent-tools/index.js";
+import { buildIdentityBlock } from "#core/agent/super-agent.js";
+import { TOOL_SCHEMAS } from "#core/agent/tools/registry.js";
 
 // ---------------------------------------------------------------------------
 // buildIdentityBlock — pure identity → system prompt section

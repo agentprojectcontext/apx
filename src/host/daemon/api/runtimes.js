@@ -19,7 +19,7 @@ import {
   closeRuntimeSession,
   extractApfResult,
 } from "../apc-runtime-context.js";
-import { runSuperAgent, isSuperAgentEnabled } from "../super-agent.js";
+import { runSuperAgent, isSuperAgentEnabled } from "#core/agent/super-agent.js";
 
 export function register(app, { projects, registries, plugins, project, config }) {
   app.get("/runtimes", (_req, res) =>

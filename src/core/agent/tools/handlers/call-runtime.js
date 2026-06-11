@@ -7,14 +7,14 @@ import {
   closeRuntimeSession,
   createRuntimeSession,
   extractApfResult,
-} from "../../apc-runtime-context.js";
-import { detectAll } from "../../env-detect.js";
+} from "#host/daemon/apc-runtime-context.js";
+import { detectAll } from "#host/daemon/env-detect.js";
 import {
   findEngineSessionById,
   readEngineSessionContext,
-} from "../../engine-sessions.js";
-import { runProcess } from "../../runtimes/_spawn.js";
-import { getRuntime, RUNTIME_IDS } from "../../runtimes/index.js";
+} from "#host/daemon/engine-sessions.js";
+import { runProcess } from "#host/daemon/runtimes/_spawn.js";
+import { getRuntime, RUNTIME_IDS } from "#host/daemon/runtimes/index.js";
 import { buildAgentSystem, resolveProject } from "../helpers.js";
 
 const log = loggerFor("call_runtime");
