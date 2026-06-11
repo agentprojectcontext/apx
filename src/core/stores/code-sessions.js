@@ -148,3 +148,50 @@ export function appendTurn(storagePath, id, turn) {
   writeJson(sessionFile(storagePath, id), session);
   return session;
 }
+
+// ---------------------------------------------------------------------------
+// Transcript → engine history
+// ---------------------------------------------------------------------------
+
+// One-line summary of an ask_questions tool call. Without it the next turn's
+// history shows only "user answered X" with no record that the model had
+// asked something — which makes the model ask again forever.
+function summarizeAskQuestionsPart(part) {
+  const raw = part?.args?.questions;
+  if (!Array.isArray(raw) || raw.length === 0) return null;
+  const lines = raw
+    .map((q) => {
+      if (typeof q === "string") return `- ${q}`;
+      if (!q || typeof q !== "object" || typeof q.question !== "string") return null;
+      const opts = Array.isArray(q.options) ? q.options : [];
+      const optStr = opts
+        .map((o) => (typeof o === "string" ? o : (o && typeof o.label === "string" ? o.label : "")))
+        .filter(Boolean)
+        .join(", ");
+      return optStr ? `- ${q.question} (opciones: ${optStr})` : `- ${q.question}`;
+    })
+    .filter(Boolean);
+  if (lines.length === 0) return null;
+  return `[ask_questions]\n${lines.join("\n")}`;
+}
+
+/**
+ * Flatten a stored rich transcript into the [{role, content}] history the
+ * super-agent loop expects. Text parts are concatenated; tool parts are
+ * normally internal, except ask_questions which is surfaced as a one-line
+ * summary so the model doesn't lose track of what it already asked.
+ */
+export function codeSessionHistory(session) {
+  return (session?.messages || []).map((m) => {
+    const chunks = [];
+    for (const p of m.parts || []) {
+      if (!p) continue;
+      if (p.kind === "text" && p.text) chunks.push(p.text);
+      else if (p.kind === "tool" && p.tool === "ask_questions") {
+        const summary = summarizeAskQuestionsPart(p);
+        if (summary) chunks.push(summary);
+      }
+    }
+    return { role: m.role, content: chunks.join("\n\n").trim() };
+  });
+}

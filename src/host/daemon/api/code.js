@@ -24,7 +24,9 @@ import {
   updateCodeSession,
   removeCodeSession,
   appendTurn,
+  codeSessionHistory,
 } from "#core/stores/code-sessions.js";
+import { makeTurnAccumulator } from "#core/agent/stream/turn-accumulator.js";
 import { captureBaseline, diffAgainstBaseline, initGitRepo } from "#core/git-baseline.js";
 import { loggerFor } from "#core/logging.js";
 import { readAgents } from "#core/apc/parser.js";
@@ -41,116 +43,9 @@ function modeGuidanceFor(mode) {
   return codeModeGuidance(mode);
 }
 
-// Build the [{role, content}] history the super-agent expects from the stored
-// rich transcript: flatten each turn's text parts. Tool parts are normally
-// internal, but ask_questions is special — without surfacing it the model
-// loses track that it ALREADY asked, sees the user's compiled-answer reply
-// as a fresh request, and asks again forever. We render a one-line synthetic
-// summary of each ask_questions call so the next turn's context shows
-// "I asked X, the user replied Y" naturally.
-function summarizeAskQuestionsPart(part) {
-  const raw = part?.args?.questions;
-  if (!Array.isArray(raw) || raw.length === 0) return null;
-  const lines = raw
-    .map((q) => {
-      if (typeof q === "string") return `- ${q}`;
-      if (!q || typeof q !== "object" || typeof q.question !== "string") return null;
-      const opts = Array.isArray(q.options) ? q.options : [];
-      const optStr = opts
-        .map((o) => (typeof o === "string" ? o : (o && typeof o.label === "string" ? o.label : "")))
-        .filter(Boolean)
-        .join(", ");
-      return optStr ? `- ${q.question} (opciones: ${optStr})` : `- ${q.question}`;
-    })
-    .filter(Boolean);
-  if (lines.length === 0) return null;
-  return `[ask_questions]\n${lines.join("\n")}`;
-}
-
-function historyFrom(session) {
-  return (session.messages || []).map((m) => {
-    const chunks = [];
-    for (const p of m.parts || []) {
-      if (!p) continue;
-      if (p.kind === "text" && p.text) chunks.push(p.text);
-      else if (p.kind === "tool" && p.tool === "ask_questions") {
-        const summary = summarizeAskQuestionsPart(p);
-        if (summary) chunks.push(summary);
-      }
-    }
-    return { role: m.role, content: chunks.join("\n\n").trim() };
-  });
-}
-
-// Accumulate stream events into the rich ChatPart shape so the persisted
-// assistant turn matches exactly what the UI rendered live. Mirrors the
-// front-end reducer in hooks/useChat.ts (applyStreamEvent).
-function makeTurnAccumulator() {
-  const parts = [];
-  const notes = [];
-  let model = null;
-  let usage = null;
-  const findTool = (id) => parts.find((p) => p.kind === "tool" && p.id === id);
-  return {
-    apply(ev) {
-      switch (ev?.type) {
-        case "model_start":
-          if (ev.model) model = ev.model;
-          break;
-        case "model_routed":
-          if (ev.model) model = ev.model;
-          if (ev.from_fallback) notes.push(`routing fell back → ${ev.model}`);
-          break;
-        case "engine_failed":
-          notes.push(`engine ${ev.model || "?"} failed → ${ev.retry_with || "retry"}`);
-          break;
-        case "model_retry":
-          notes.push(`retry (${ev.reason || "?"})`);
-          break;
-        case "tools_suppressed":
-          notes.push(`tools suppressed: ${(ev.tools || []).join(", ")}`);
-          break;
-        case "assistant_text":
-          if (ev.text) parts.push({ kind: "text", text: ev.text });
-          break;
-        case "tool_start":
-          if (ev.trace)
-            parts.push({
-              kind: "tool",
-              id: ev.trace.id,
-              tool: ev.trace.tool,
-              args: ev.trace.args,
-              status: "running",
-            });
-          break;
-        case "tool_deduped": {
-          const t = ev.trace && findTool(ev.trace.id);
-          if (t) t.status = "deduped";
-          break;
-        }
-        case "tool_result": {
-          const t = ev.trace && findTool(ev.trace.id);
-          if (t) {
-            t.result = ev.trace.result;
-            const errored =
-              ev.trace.result && typeof ev.trace.result === "object" && ev.trace.result.error;
-            t.status = errored ? "error" : t.status === "deduped" ? "deduped" : "done";
-          }
-          break;
-        }
-        case "final":
-          usage = ev.result?.usage ?? usage;
-          if (!model) model = ev.result?.name || null;
-          break;
-        default:
-          break;
-      }
-    },
-    build() {
-      return { parts, notes, model, usage };
-    },
-  };
-}
+// History flattening + stream-event accumulator now live in core/ — see
+// codeSessionHistory() (transcript → engine messages) and makeTurnAccumulator()
+// (stream events → persistable ChatParts) imported above.
 
 export function register(app, { projects, project, config, registries, plugins }) {
   const findProject = (req, res) => project(req, res);
@@ -244,7 +139,7 @@ export function register(app, { projects, project, config, registries, plugins }
     if (!prompt) return res.status(400).json({ error: "prompt required" });
 
     const mode = session.mode === CODE_MODES.PLAN ? CODE_MODES.PLAN : DEFAULT_CODE_MODE;
-    const previousMessages = historyFrom(session);
+    const previousMessages = codeSessionHistory(session);
 
     // If a project agent is selected, inject its system prompt as a suffix so
     // the super-agent's tool loop runs with the agent's personality/context.
