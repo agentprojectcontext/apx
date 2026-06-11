@@ -286,8 +286,8 @@ export const en = {
     chat: {
       title:       "Chat with agent",
       subtitle:    "Direct conversations with project agents. The super-agent does not intervene.",
-      roby_title:  "Chat with Roby",
-      roby_subtitle: "Chat with Roby — the APX super-agent. Can use tools (projects, tasks, mcps, agents).",
+      roby_title:  "Chat with {persona}",
+      roby_subtitle: "Chat with {persona} — the APX super-agent. Can use tools (projects, tasks, mcps, agents).",
       empty:       "Send a message to start the conversation.",
       placeholder: "Type something and press enter to send (shift+enter = new line)",
       send:        "Send",
@@ -711,12 +711,12 @@ export const en = {
   },
 
   roby: {
-    title:          "Roby",
+    title:          "{persona}",
     badge:          "super-agent · APX",
     desc:           "Quick chat with your super-agent. Has access to tools (projects, tasks, mcps, agents); for a longer persistent thread, open Chats.",
-    empty:          "Send Roby a message to get started.",
-    thinking:       "Roby is thinking…",
-    talk:           "Talk to Roby",
+    empty:          "Send {persona} a message to get started.",
+    thinking:       "{persona} is thinking…",
+    talk:           "Talk to {persona}",
     new_chat:       "New chat",
     placeholder:    "Type and press enter to send (shift+enter = new line)…",
   },
