@@ -22,28 +22,7 @@ import {
   legacyAgentMemoryPath,
 } from "#core/agent/memory.js";
 import { agentToResponse } from "./shared.js";
-
-// Lowercase the patch keys we accept on the vault and turn skills/tools into
-// arrays. The writer takes either case but normalizes; passing this through
-// it keeps the on-disk format consistent.
-const VAULT_PATCH_FIELDS = ["role", "model", "language", "description", "skills", "tools", "is_master"];
-function normalizeVaultPatch(input = {}) {
-  const out = {};
-  for (const k of VAULT_PATCH_FIELDS) {
-    const lower = k;
-    const title = k.charAt(0).toUpperCase() + k.slice(1);
-    const v = input[lower] ?? input[title];
-    if (v === undefined || v === null) continue;
-    if (k === "skills" || k === "tools") {
-      out[title] = Array.isArray(v)
-        ? v.map(String).map((s) => s.trim()).filter(Boolean)
-        : String(v).split(",").map((s) => s.trim()).filter(Boolean);
-    } else {
-      out[title] = v;
-    }
-  }
-  return out;
-}
+import { normalizeVaultPatch } from "#core/apc/agents-vault.js";
 
 export function register(app, { projects, project }) {
   // Vault = global agent templates. Two-layer: bundled defaults shipped with
