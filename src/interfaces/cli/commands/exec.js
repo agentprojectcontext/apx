@@ -1,5 +1,6 @@
 import { http } from "../http.js";
 import { resolveProjectId } from "./project.js";
+import { CHANNELS } from "../../../core/constants/channels.js";
 
 /**
  * Resolve exec target from CLI args.
@@ -63,7 +64,7 @@ export async function cmdExec(args) {
   const pid = await resolveProjectId(args?.flags?.project);
   const body = {
     prompt,
-    channel: "cli",
+    channel: CHANNELS.CLI,
     channelMeta: { cwd: process.cwd() },
   };
   if (args.flags.model && args.flags.model !== true) body.model = args.flags.model;

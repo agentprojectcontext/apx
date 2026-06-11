@@ -119,6 +119,7 @@ import {
   cmdRoutineDisable,
   cmdRoutineRun,
   cmdRoutineHistory,
+  cmdRoutineMemory,
 } from "./commands/routine.js";
 import {
   cmdArtifactCreate,
@@ -2479,6 +2480,7 @@ async function dispatch(cmd, rest) {
         else if (sub === "disable") await cmdRoutineDisable(a);
         else if (sub === "run") await cmdRoutineRun(a);
         else if (sub === "history" || sub === "hist") await cmdRoutineHistory(a);
+        else if (sub === "memory" || sub === "mem") await cmdRoutineMemory(a);
         else die(`unknown routine subcommand: ${sub}`);
         break;
       }

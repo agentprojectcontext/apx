@@ -1,8 +1,9 @@
 import readline from "node:readline";
 import { http } from "../http.js";
 import { resolveProjectId } from "./project.js";
-import { readConfig } from "../../../core/config.js";
-import { readIdentity } from "../../../core/identity.js";
+import { readConfig } from "../../../core/config/index.js";
+import { readIdentity } from "../../../core/identity/index.js";
+import { CHANNELS } from "../../../core/constants/channels.js";
 import {
   C,
   MODES,
@@ -431,7 +432,7 @@ async function handlePaletteKey(key, pid, cfg, state, renderScreen, close) {
     !selected.startsWith("No ")
   ) {
     state.activeModel = selected;
-    const configModule = await import("../../../core/config.js");
+    const configModule = await import("../../../core/config/index.js");
     const currentCfg = configModule.readConfig();
     if (!currentCfg.super_agent) currentCfg.super_agent = {};
     currentCfg.super_agent.model = selected;
@@ -710,7 +711,7 @@ async function runPrompt(
     const currentMode = MODES[state.currentModeIdx];
     const body = {
       prompt: `[Mode: ${currentMode}]\n${text}`,
-      channel: "code",
+      channel: CHANNELS.CODE,
       channelMeta: { cwd },
       previousMessages,
       model: state.activeModel,

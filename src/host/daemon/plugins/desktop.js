@@ -24,8 +24,9 @@ import {
 } from "../desktop-ws.js";
 import { runSuperAgent, isSuperAgentEnabled } from "../super-agent.js";
 import { appendGlobalMessage } from "../../../core/stores/messages.js";
+import { CHANNELS } from "../../../core/constants/channels.js";
 
-const CHANNEL = "desktop";
+const CHANNEL = CHANNELS.DESKTOP;
 
 export default {
   id: "desktop",
@@ -133,7 +134,7 @@ async function _handleMessage({ ws, text, previousMessages }, { projects, config
       projects,
       plugins,
       prompt: text,
-      channel: "desktop",
+      channel: CHANNELS.DESKTOP,
       channelMeta: { voice: true }, // desktop module is voice-first → spoken mode
       previousMessages: history.slice(0, -1),
       overrideModel: cfg.model || null,

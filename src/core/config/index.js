@@ -5,6 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { APX_HOME, CONFIG_PATH } from "./paths.js";
+import { PERMISSION_MODES, DEFAULT_PERMISSION_MODE } from "../constants/permissions.js";
 
 export {
   APX_HOME,
@@ -53,7 +54,7 @@ const DEFAULT_CONFIG = {
     name: "apx",
     model: "",                          // e.g. "ollama:llama3.2:3b"
     system: "",                         // optional override; defaults in src/core/agent/prompts/
-    permission_mode: "automatico",       // total | automatico | permiso
+    permission_mode: PERMISSION_MODES.AUTOMATICO,       // total | automatico | permiso
     allowed_tools: [],                   // used by permission_mode="permiso"
     // Model fallback: ordered list. Each item carries its own provider
     // prefix; the array order IS the attempt order. The router tries the

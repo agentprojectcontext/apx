@@ -1,5 +1,14 @@
+import fs from "node:fs";
 import { http } from "../http.js";
 import { resolveProjectId } from "./project.js";
+import { listRoutines } from "../../../core/stores/routines.js";
+import { projectStorageRoot } from "../../../core/config/index.js";
+import {
+  routineMemoryPath,
+  readRoutineMemory,
+  appendRoutineMemory,
+  ensureRoutineMemory,
+} from "../../../core/stores/routine-memory.js";
 
 function parseSpec(args) {
   // Build spec from --spec '<json>' or from --K=V pairs
@@ -118,6 +127,55 @@ export async function cmdRoutineRun(args) {
   const pid = await resolveProjectId(args?.flags?.project);
   const r = await http.post(`/projects/${pid}/routines/${name}/run`);
   console.log(JSON.stringify(r, null, 2));
+}
+
+// Resolve a routine by name OR id to its { id, name, storagePath } so the
+// memory subcommand accepts either argument transparently.
+async function resolveRoutineRef(pid, refRaw) {
+  const ref = String(refRaw || "").trim();
+  if (!ref) throw new Error("missing <name|id>");
+  const projects = await http.get("/projects");
+  const project = projects.find((p) => String(p.id) === String(pid));
+  if (!project) throw new Error(`project #${pid} not found`);
+  const storagePath = project.storage_path || projectStorageRoot(project.apx_id);
+  const routines = listRoutines(storagePath);
+  const match = routines.find((r) => r.id === ref || r.name === ref);
+  if (!match) throw new Error(`routine "${ref}" not found in project #${pid}`);
+  return { id: match.id, name: match.name, storagePath };
+}
+
+export async function cmdRoutineMemory(args) {
+  const sub = args._[0];
+  const ref = args._[1];
+  const pid = await resolveProjectId(args?.flags?.project);
+
+  if (!sub || (sub !== "show" && sub !== "add" && sub !== "path")) {
+    throw new Error("usage: apx routine memory <show|add|path> <name|id> [note]");
+  }
+
+  const { id, name, storagePath } = await resolveRoutineRef(pid, ref);
+  const file = routineMemoryPath(storagePath, id);
+
+  if (sub === "path") {
+    console.log(file);
+    return;
+  }
+  if (sub === "show") {
+    ensureRoutineMemory(storagePath, id, name);
+    const body = readRoutineMemory(storagePath, id);
+    if (!body.trim()) {
+      console.log(`(empty — ${file})`);
+      return;
+    }
+    process.stdout.write(body);
+    if (!body.endsWith("\n")) console.log("");
+    return;
+  }
+  // add
+  const note = args._.slice(2).join(" ").trim();
+  if (!note) throw new Error("apx routine memory add: missing <note>");
+  const result = appendRoutineMemory(storagePath, id, note, { routineName: name });
+  console.log(`appended to ${result.path}`);
 }
 
 export async function cmdRoutineHistory(args) {

@@ -19,8 +19,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { GLOBAL_MESSAGES_DIR } from "../config/index.js";
+import { CHANNELS } from "../constants/channels.js";
+import { SUPERAGENT_ACTOR_ID } from "../constants/actors.js";
 
-const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
+import { nowIso } from "../util/time.js";
 
 function dayPathJsonl(projectRoot, ts) {
   const day = (ts || nowIso()).slice(0, 10);
@@ -63,7 +65,7 @@ function inferActorKind({ actor_kind, type, actor_id, meta = {} } = {}) {
   if (explicit) return explicit;
   if (type === "compact") return "compact";
   if (type === "user" || type === "tool" || type === "system") return type;
-  if (type === "agent") return actor_id === "super_agent" ? "superagent" : "agent";
+  if (type === "agent") return actor_id === SUPERAGENT_ACTOR_ID ? "superagent" : "agent";
   return null;
 }
 
@@ -531,7 +533,7 @@ export function getRecentChannelTurnsFromFs({
 
 // Telegram-specific wrapper kept for back-compat with existing call sites.
 export function getRecentTelegramTurnsFromFs(opts = {}) {
-  return getRecentChannelTurnsFromFs({ ...opts, channel: "telegram" });
+  return getRecentChannelTurnsFromFs({ ...opts, channel: CHANNELS.TELEGRAM });
 }
 
 // ---------------------------------------------------------------------------

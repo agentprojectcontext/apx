@@ -23,6 +23,7 @@ import { buildAgentSystem } from "../../core/agent/build-agent-system.js";
 import { resolveAgentName, SUPERAGENT_ACTOR_ID } from "../../core/identity/index.js";
 import { resolveArtifactRef, ARTIFACTS_SKIP_SIGNAL } from "../../core/stores/artifacts.js";
 import { ensureRoutineMemory, readRoutineMemoryForPrompt, routineMemoryPath } from "../../core/stores/routine-memory.js";
+import { CHANNELS } from "../../core/constants/channels.js";
 import {
   listRoutines,
   getRoutine,
@@ -90,7 +91,7 @@ async function handleExecAgent(ctx, routine) {
 
   project.logMessage({
     agent_slug: slug,
-    channel: "routine",
+    channel: CHANNELS.ROUTINE,
     direction: "out",
     type: "agent",
     actor_id: slug,
@@ -130,7 +131,7 @@ async function handleSuperAgent(ctx, routine) {
     plugins,
     registries,
     prompt,
-    channel: "routine",
+    channel: CHANNELS.ROUTINE,
     channelMeta: {
       routineName: routine.name,
       routineId: routine.id || "",
@@ -153,7 +154,7 @@ async function handleSuperAgent(ctx, routine) {
   });
 
   project.logMessage({
-    channel: "routine",
+    channel: CHANNELS.ROUTINE,
     direction: "out",
     type: "agent",
     actor_id: SUPERAGENT_ACTOR_ID,
@@ -361,7 +362,7 @@ export async function runRoutineNow(ctx, routine) {
     disable: isOnce,
   });
   ctx.project.logMessage?.({
-    channel: "routine",
+    channel: CHANNELS.ROUTINE,
     direction: "out",
     type: "system",
     actor_id: "apx:routine",
