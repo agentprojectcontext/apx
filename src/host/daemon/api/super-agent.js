@@ -190,7 +190,8 @@ export function register(app, { projects, registries, plugins, project, config }
   app.post("/projects/:pid/super-agent/chat", async (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    const { prompt, previousMessages, model } = req.body || {};
+    const { prompt, previousMessages, model, maxIters, maxTokens, completionContract } =
+      req.body || {};
     if (!prompt) return res.status(400).json({ error: "prompt required" });
     const ctx = resolveSuperAgentContext(req, p);
     try {
@@ -205,6 +206,9 @@ export function register(app, { projects, registries, plugins, project, config }
         contextNote: ctx.contextNote,
         previousMessages: previousMessages || [],
         overrideModel: model,
+        ...(Number.isFinite(Number(maxIters)) ? { maxIters: Number(maxIters) } : {}),
+        ...(Number.isFinite(Number(maxTokens)) ? { maxTokens: Number(maxTokens) } : {}),
+        ...(completionContract ? { completionContract: true } : {}),
         onEvent: wrapOnEventForLog(null, {
           trace_id: req.apxTraceId,
           channel: ctx.channel,
