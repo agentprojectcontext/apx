@@ -1,6 +1,7 @@
 import path from "node:path";
 import { agentSkills, buildAgentSystem as buildCoreAgentSystem } from "../../../core/agent/build-agent-system.js";
 import { buildConfirmDescription } from "../../../core/confirmation/index.js";
+import { PERMISSION_MODES, DEFAULT_PERMISSION_MODE } from "../../../core/constants/permissions.js";
 
 export function projectMeta(projects, entry) {
   const meta = projects.list().find((p) => p.id === entry.id);
@@ -83,7 +84,7 @@ export function buildAgentSystem(project, agent, opts = {}) {
 export function createPermissionGuard(globalConfig = {}, {
   requestConfirmation = null,
 } = {}) {
-  const permissionMode = globalConfig.super_agent?.permission_mode || "automatico";
+  const permissionMode = globalConfig.super_agent?.permission_mode || DEFAULT_PERMISSION_MODE;
   const allowedTools = new Set(globalConfig.super_agent?.allowed_tools || []);
 
   // async so tools can `await requirePermission(...)` and the confirmation
@@ -91,11 +92,11 @@ export function createPermissionGuard(globalConfig = {}, {
   // self-approves: the only path past a blocked call is the interface's own
   // confirmation dialog via the requestConfirmation callback.
   return async function requirePermission(tool, { dangerous = false, args } = {}) {
-    if (permissionMode === "total") return;
+    if (permissionMode === PERMISSION_MODES.TOTAL) return;
 
     const blocked =
-      (permissionMode === "permiso" && !allowedTools.has(tool)) ||
-      (permissionMode === "automatico" && dangerous);
+      (permissionMode === PERMISSION_MODES.PERMISO && !allowedTools.has(tool)) ||
+      (permissionMode === PERMISSION_MODES.AUTOMATICO && dangerous);
 
     if (!blocked) return;
 

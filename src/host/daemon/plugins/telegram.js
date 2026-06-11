@@ -42,6 +42,7 @@ import { resolveAgentName, SUPERAGENT_ACTOR_ID } from "../../../core/identity/in
 import { registerSender, resolveAllowedTools } from "../../../core/identity/telegram.js";
 import { buildRelationshipBlock } from "../../../core/agent/index.js";
 import { getConfirmationStore as getConfirmStore } from "../../../core/confirmation/pending-store.js";
+import { CHANNELS } from "../../../core/constants/channels.js";
 import { createTelegramConfirmAdapter } from "../../../core/confirmation/adapters/telegram.js";
 import * as askFlow from "./telegram-ask.js";
 
@@ -485,7 +486,7 @@ class ChannelPoller {
         const localPath = await downloadTelegramFile(token, bestPhoto.file_id, mediaDir);
         this.log(`telegram[${this.channel.name}] photo saved: ${localPath}`);
         appendGlobalMessage({
-          channel: "telegram",
+          channel: CHANNELS.TELEGRAM,
           direction: "in",
           type: "photo",
           actor_id: msg.from?.id ? String(msg.from.id) : author,
@@ -551,7 +552,7 @@ class ChannelPoller {
         : `[audio] (transcription unavailable${transcribeError ? ": " + transcribeError : ""})`;
 
       appendGlobalMessage({
-        channel: "telegram",
+        channel: CHANNELS.TELEGRAM,
         direction: "in",
         type: "audio",
         actor_id: msg.from?.id ? String(msg.from.id) : author,
@@ -584,7 +585,7 @@ class ChannelPoller {
     if (chat_id && text && await this._maybeConsumeAskTextAnswer({ chat_id, text })) {
       // Still log the inbound so the chat history records what the user said.
       appendGlobalMessage({
-        channel: "telegram",
+        channel: CHANNELS.TELEGRAM,
         direction: "in",
         type: "user",
         actor_id: msg.from?.id ? String(msg.from.id) : author,
@@ -623,7 +624,7 @@ class ChannelPoller {
       // the next turn reads a [RESUMEN COMPACTADO] instead of raw history. Never
       // awaited — adds zero latency to this reply, degrades gracefully.
       compactChannelIfNeeded({
-        channel: "telegram",
+        channel: CHANNELS.TELEGRAM,
         chat_id,
         config: this.globalConfig,
         log: this.log,
@@ -647,7 +648,7 @@ class ChannelPoller {
 
     // Always log inbound to global store (~/.apx/messages/telegram/)
     appendGlobalMessage({
-      channel: "telegram",
+      channel: CHANNELS.TELEGRAM,
       direction: "in",
       type: "user",
       actor_id: msg.from?.id ? String(msg.from.id) : author,
@@ -679,7 +680,7 @@ class ChannelPoller {
         const ack = "Done, context cleared. Starting fresh. What do you need?";
         await this._send({ chat_id, text: ack });
         appendGlobalMessage({
-          channel: "telegram",
+          channel: CHANNELS.TELEGRAM,
           direction: "out",
           type: "agent",
           actor_id: SUPERAGENT_ACTOR_ID,
@@ -777,7 +778,7 @@ class ChannelPoller {
             const heads = headsUpPhrase();
             await this._send({ chat_id, text: heads });
             appendGlobalMessage({
-              channel: "telegram",
+              channel: CHANNELS.TELEGRAM,
               direction: "out",
               type: "agent",
               actor_id: SUPERAGENT_ACTOR_ID,
@@ -796,7 +797,7 @@ class ChannelPoller {
             lastStreamedText = piece;
             streamedCount += 1;
             appendGlobalMessage({
-              channel: "telegram",
+              channel: CHANNELS.TELEGRAM,
               direction: "out",
               type: "agent",
               actor_id: SUPERAGENT_ACTOR_ID,
@@ -816,7 +817,7 @@ class ChannelPoller {
             // Logged for the audit trail / other channels — NOT sent to Telegram.
             const t = ev.trace;
             appendGlobalMessage({
-              channel: "telegram",
+              channel: CHANNELS.TELEGRAM,
               direction: "out",
               type: "tool",
               actor_id: t.tool,
@@ -854,7 +855,7 @@ class ChannelPoller {
           registries: this.registries,
           prompt: text,
           previousMessages,
-          channel: "telegram",
+          channel: CHANNELS.TELEGRAM,
           relationshipBlock,
           allowedTools,
           channelMeta: buildTelegramMeta({
@@ -949,7 +950,7 @@ class ChannelPoller {
       if (replyText && stripThinking(replyText) !== replyText) meta.thinking_stripped = true;
       if (saUsage) meta.usage = saUsage;
       appendGlobalMessage({
-        channel: "telegram",
+        channel: CHANNELS.TELEGRAM,
         direction: "out",
         type: "agent",
         actor_id: replyActorId || SUPERAGENT_ACTOR_ID,
@@ -962,7 +963,7 @@ class ChannelPoller {
     } catch (e) {
       this.log(`telegram[${this.channel.name}] send-back error: ${e.message}`);
       appendGlobalMessage({
-        channel: "telegram",
+        channel: CHANNELS.TELEGRAM,
         direction: "out",
         type: "agent",
         actor_id: replyActorId || SUPERAGENT_ACTOR_ID,
@@ -1138,7 +1139,7 @@ class ChannelPoller {
     // it up on the NEXT inbound. Mirrors how a normal text reply would be
     // recorded.
     appendGlobalMessage({
-      channel: "telegram",
+      channel: CHANNELS.TELEGRAM,
       direction: "in",
       type: "user",
       actor_id: authorId ? String(authorId) : (author || "ask_flow"),
@@ -1168,10 +1169,10 @@ class ChannelPoller {
         registries: this.registries,
         prompt: compiled,
         previousMessages,
-        channel: "telegram",
+        channel: CHANNELS.TELEGRAM,
         relationshipBlock,
         allowedTools,
-        channelMeta: { channel: "telegram", chat_id, author, route_to_agent: this.channel.route_to_agent },
+        channelMeta: { channel: CHANNELS.TELEGRAM, chat_id, author, route_to_agent: this.channel.route_to_agent },
       });
       stopTyping();
 
@@ -1198,7 +1199,7 @@ class ChannelPoller {
       if (replyText) {
         await this._send({ chat_id, text: replyText });
         appendGlobalMessage({
-          channel: "telegram",
+          channel: CHANNELS.TELEGRAM,
           direction: "out",
           type: "agent",
           actor_id: SUPERAGENT_ACTOR_ID,
@@ -1401,7 +1402,7 @@ export default {
         if (!p) throw new Error("no telegram channel available");
         const result = await p._send({ chat_id, text });
         appendGlobalMessage({
-          channel: "telegram",
+          channel: CHANNELS.TELEGRAM,
           direction: "out",
           type: "agent",
           actor_id: SUPERAGENT_ACTOR_ID,
@@ -1431,7 +1432,7 @@ export default {
         if (!p) throw new Error("no telegram channel available");
         const result = await p._sendPhoto({ chat_id, photo, caption, parse_mode });
         appendGlobalMessage({
-          channel: "telegram",
+          channel: CHANNELS.TELEGRAM,
           direction: "out",
           type: "photo",
           actor_id: SUPERAGENT_ACTOR_ID,
@@ -1455,7 +1456,7 @@ export default {
         if (!p) throw new Error("no telegram channel available");
         const result = await p._sendVoice({ chat_id, audio, caption, duration });
         appendGlobalMessage({
-          channel: "telegram",
+          channel: CHANNELS.TELEGRAM,
           direction: "out",
           type: "voice",
           actor_id: SUPERAGENT_ACTOR_ID,
@@ -1479,7 +1480,7 @@ export default {
         if (!p) throw new Error("no telegram channel available");
         const result = await p._sendDocument({ chat_id, document, caption, filename, mime_type });
         appendGlobalMessage({
-          channel: "telegram",
+          channel: CHANNELS.TELEGRAM,
           direction: "out",
           type: "document",
           actor_id: SUPERAGENT_ACTOR_ID,
@@ -1503,7 +1504,7 @@ export default {
         if (!p) throw new Error("no telegram channel available");
         const result = await p._sendAudio({ chat_id, audio, caption, title, performer });
         appendGlobalMessage({
-          channel: "telegram",
+          channel: CHANNELS.TELEGRAM,
           direction: "out",
           type: "audio",
           actor_id: SUPERAGENT_ACTOR_ID,

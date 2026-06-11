@@ -10,6 +10,7 @@ import {
   writeVaultTombstones,
 } from "./parser.js";
 import { readApcContextSkill } from "./skill-sync.js";
+import { nowIso } from "../util/time.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Now under src/core/apc/ — one more "../" to escape than before.
@@ -382,9 +383,6 @@ migrate.md
 .DS_Store
 `;
 
-function nowIso() {
-  return new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
-}
 
 // Files that carry project context but are IDE-specific — candidates for APC migration.
 const SCATTERED_CONTEXT_FILES = [

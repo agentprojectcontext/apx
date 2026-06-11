@@ -1,6 +1,7 @@
 import { http } from "../http.js";
 import { resolveProjectId } from "./project.js";
 import { readConfig, writeConfig } from "../../../core/config/index.js";
+import { PERMISSION_MODES, DEFAULT_PERMISSION_MODE } from "../../../core/constants/permissions.js";
 
 function parseValue(raw) {
   // best-effort: try JSON first (covers numbers, bools, objects, arrays, null,
@@ -61,7 +62,7 @@ export function cmdPermission(args = {}) {
   const cfg = readConfig();
   cfg.super_agent = cfg.super_agent || {};
   if (sub === "show" || sub === "get" || sub === "ls") {
-    console.log(`permission_mode=${cfg.super_agent.permission_mode || "automatico"}`);
+    console.log(`permission_mode=${cfg.super_agent.permission_mode || DEFAULT_PERMISSION_MODE}`);
     console.log(`allowed_tools=${(cfg.super_agent.allowed_tools || []).join(",") || "(none)"}`);
     return;
   }

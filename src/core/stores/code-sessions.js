@@ -11,7 +11,8 @@
 // translation.
 import fs from "node:fs";
 import path from "node:path";
-import { randomUUID } from "node:crypto";
+import { nowIso } from "../util/time.js";
+import { shortId as makeShortId } from "../util/ids.js";
 
 function sessionsDir(storagePath) {
   return path.join(storagePath, "code-sessions");
@@ -21,13 +22,8 @@ function sessionFile(storagePath, id) {
   return path.join(sessionsDir(storagePath), `${id}.json`);
 }
 
-function nowIso() {
-  return new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
-}
-
 function shortId() {
-  const hex = randomUUID().replace(/-/g, "").slice(0, 8);
-  return "cs_" + parseInt(hex, 16).toString(36).padStart(6, "0").slice(-6);
+  return makeShortId("cs");
 }
 
 // Atomic write: tmp file + rename so a crash mid-write can't corrupt a session.

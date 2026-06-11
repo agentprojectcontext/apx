@@ -15,6 +15,7 @@
 import { runSuperAgent } from "../super-agent.js";
 import { appendSuperAgentErrorTrace } from "./shared.js";
 import { createWebConfirmAdapter } from "../../../core/confirmation/adapters/web.js";
+import { CHANNELS } from "../../../core/constants/channels.js";
 import {
   listCodeSessions,
   getCodeSession,
@@ -316,7 +317,7 @@ export function register(app, { projects, project, config, registries, plugins }
         plugins,
         registries,
         prompt,
-        channel: "web_code",
+        channel: CHANNELS.WEB_CODE,
         channelMeta: {
           projectId: String(p.id),
           projectName: p.name,
@@ -380,7 +381,7 @@ export function register(app, { projects, project, config, registries, plugins }
       });
       appendSuperAgentErrorTrace(req, e, {
         prompt,
-        channel: "web_code",
+        channel: CHANNELS.WEB_CODE,
         previousMessages,
         model: session.model,
         stream: true,

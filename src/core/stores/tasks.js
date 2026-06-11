@@ -16,7 +16,8 @@
 // caller explicitly re-opens with op="reopen".
 import fs from "node:fs";
 import path from "node:path";
-import { randomUUID } from "node:crypto";
+import { nowIso } from "../util/time.js";
+import { shortId as makeShortId } from "../util/ids.js";
 
 function tasksDir(storagePath) {
   return path.join(storagePath, "tasks");
@@ -27,14 +28,8 @@ function monthlyFile(storagePath, date = new Date()) {
   return path.join(tasksDir(storagePath), `${ym}.jsonl`);
 }
 
-function nowIso() {
-  return new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
-}
-
 function shortId() {
-  // 6 base36 chars from randomUUID's first 8 hex chars → 32 bits → ~4B keyspace.
-  const hex = randomUUID().replace(/-/g, "").slice(0, 8);
-  return "t_" + parseInt(hex, 16).toString(36).padStart(6, "0").slice(-6);
+  return makeShortId("t");
 }
 
 function appendEvent(storagePath, event) {

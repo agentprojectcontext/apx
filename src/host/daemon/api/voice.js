@@ -1,3 +1,5 @@
+// eslint-disable-next-line -- import below
+import { CHANNELS } from "../../../core/constants/channels.js";
 // Daemon HTTP routes for the unified "voice" channel.
 //
 //   POST /voice/turn  { audio?: <base64 or path>, format?, text?, agent?,
@@ -84,14 +86,14 @@ function buildChannelContext(channel, { projectId, language = "es" } = {}) {
   const dynamicNote = `${langDirective}${projectHint}`;
   switch (channel) {
     case "voice":
-      return { ...base, contextNote: dynamicNote, systemSuffix: SUGGESTIONS_INSTRUCTION, wantsSuggestions: true, channel: "deck", channelMeta: { voice: true } };
+      return { ...base, contextNote: dynamicNote, systemSuffix: SUGGESTIONS_INSTRUCTION, wantsSuggestions: true, channel: CHANNELS.DECK, channelMeta: { voice: true } };
     case "deck":
-      return { ...base, contextNote: dynamicNote, systemSuffix: SUGGESTIONS_INSTRUCTION, wantsSuggestions: true, channel: "deck", channelMeta: {} };
+      return { ...base, contextNote: dynamicNote, systemSuffix: SUGGESTIONS_INSTRUCTION, wantsSuggestions: true, channel: CHANNELS.DECK, channelMeta: {} };
     case "desktop":
-      return { ...base, contextNote: dynamicNote, systemSuffix: SUGGESTIONS_INSTRUCTION, wantsSuggestions: true, channel: "desktop", channelMeta: { voice: true } };
+      return { ...base, contextNote: dynamicNote, systemSuffix: SUGGESTIONS_INSTRUCTION, wantsSuggestions: true, channel: CHANNELS.DESKTOP, channelMeta: { voice: true } };
     case "telegram":
       // Format rules live in channels/telegram.md; keep only the dynamic note.
-      return { ...base, contextNote: dynamicNote, channel: "telegram", channelMeta: {} };
+      return { ...base, contextNote: dynamicNote, channel: CHANNELS.TELEGRAM, channelMeta: {} };
     default:
       return { ...base, contextNote: dynamicNote, channel: channel || "api", channelMeta: {} };
   }

@@ -3,9 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import cronParser from "cron-parser";
-
-const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
-const isoToMs = (iso) => (iso ? Date.parse(iso) : 0);
+import { nowIso, isoToMs } from "../util/time.js";
 
 function routinesPath(storagePath) {
   // storagePath is always ~/.apx/projects/{apxId}/ — flat, no .apc subdir needed.

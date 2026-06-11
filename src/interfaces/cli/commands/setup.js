@@ -10,6 +10,7 @@ import { spawnSync } from "node:child_process";
 import { readConfig, writeConfig } from "../../../core/config/index.js";
 import { mascot } from "../../../core/mascot.js";
 import { setupClaudePermissions } from "../claude-permissions.js";
+import { PERMISSION_MODES, DEFAULT_PERMISSION_MODE } from "../../../core/constants/permissions.js";
 
 // ── ANSI helpers ──────────────────────────────────────────────────────────────
 const c = {
@@ -295,7 +296,7 @@ export async function cmdSetup() {
   cfg.super_agent.enabled = true;
   cfg.super_agent.model = chosenModel;
   cfg.super_agent.system = "";
-  cfg.super_agent.permission_mode = cfg.super_agent.permission_mode || "automatico";
+  cfg.super_agent.permission_mode = cfg.super_agent.permission_mode || DEFAULT_PERMISSION_MODE;
 
   if (provider.id === "ollama") {
     cfg.engines.ollama.base_url = ollamaUrl;

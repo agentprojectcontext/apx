@@ -15,6 +15,7 @@ import { appendGlobalMessage } from "../../../core/stores/messages.js";
 import { createWebConfirmAdapter } from "../../../core/confirmation/adapters/web.js";
 import { tryResolveSkillCommand } from "../skill-trigger.js";
 import { suggestSkillForPrompt } from "../skill-rag.js";
+import { CHANNELS } from "../../../core/constants/channels.js";
 
 const log = loggerFor("super-agent");
 
@@ -22,7 +23,7 @@ const log = loggerFor("super-agent");
 // RAG index, search_messages, and the "active threads" awareness block. Only
 // the human surfaces (web big chat + sidebar) — not generic "api"/automation
 // callers. Best-effort: a logging failure never breaks the reply.
-const WEB_LOGGED_CHANNELS = new Set(["web", "web_sidebar"]);
+const WEB_LOGGED_CHANNELS = new Set([CHANNELS.WEB, CHANNELS.WEB_SIDEBAR]);
 function logWebTurn(channel, { prompt, replyText }) {
   if (!WEB_LOGGED_CHANNELS.has(channel)) return;
   try {
@@ -166,7 +167,7 @@ export function register(app, { projects, registries, plugins, project, config }
         registries,
         prompt,
         contextNote,
-        channel: "api",
+        channel: CHANNELS.API,
         overrideModel: model,
         maxTokens:
           max_tokens && Number.isFinite(Number(max_tokens))

@@ -8,6 +8,7 @@
 import { readConfig, writeConfig } from "../../../core/config/index.js";
 import { resolveAgentName } from "../../../core/identity/index.js";
 import { setDottedKey, unsetDottedKey } from "../project-config.js";
+import { PERMISSION_MODES, DEFAULT_PERMISSION_MODE } from "../../../core/constants/permissions.js";
 
 const SECRET_PATHS = [
   "engines.anthropic.api_key",
@@ -148,7 +149,7 @@ export function register(app, { config, scheduler, plugins }) {
         name: resolveAgentName(fresh),
         model: sa.model || "",
         system: sa.system || "",
-        permission_mode: sa.permission_mode || "permiso",
+        permission_mode: sa.permission_mode || PERMISSION_MODES.PERMISO,
         allowed_tools: sa.allowed_tools || [],
         model_fallback: sa.model_fallback || { enabled: false, models: [], order: [] },
       });
