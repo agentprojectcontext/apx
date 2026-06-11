@@ -6,7 +6,7 @@
 //   is "auto" (the default), and must respect an explicit override when set.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { resolveTranscriptionLanguage } from "#host/daemon/transcription.js";
+import { resolveTranscriptionLanguage } from "#core/voice/transcription.js";
 
 // ---------------------------------------------------------------------------
 // Language priority: explicit local > config.user.language > "auto"
