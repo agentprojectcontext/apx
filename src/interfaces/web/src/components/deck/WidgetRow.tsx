@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Badge, Switch } from "../ui";
 import { cn } from "../../lib/cn";
 import type { DeckWidget } from "../../lib/api/deck";
+import { t } from "../../i18n";
 
 // Status badge tone mapping.
 function statusTone(s: DeckWidget["status"]): "success" | "muted" | "warning" | "info" {
@@ -63,7 +64,7 @@ export function WidgetRow({ widget, onToggle }: WidgetRowProps) {
     >
       {/* Source dot */}
       <span
-        title={widget.source === "apx" ? "Widget nativo APX" : "Widget externo"}
+        title={widget.source === "apx" ? t("deck_screen.widget_native") : t("deck_screen.widget_external")}
         className={cn(
           "size-2 shrink-0 rounded-full",
           widget.source === "apx" ? "bg-emerald-500" : "bg-sky-400"

@@ -61,7 +61,7 @@ export function CodeChangesTab({ changes, loading, onRefresh }: Props) {
         <span className="text-[11px] text-muted-foreground">
           {files.length > 0 ? t("code_module.changes_files", { n: files.length }) : ""}
         </span>
-        <Tip content="Recargar">
+        <Tip content={t("code_module.reload")}>
           <button
             type="button"
             onClick={onRefresh}

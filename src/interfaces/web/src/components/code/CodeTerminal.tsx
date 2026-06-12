@@ -3,6 +3,7 @@ import { Terminal as TerminalIcon, Eraser, X } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { Tip } from "../ui/tip";
 import { http } from "../../lib/http";
+import { t } from "../../i18n";
 
 interface Line {
   type: "cmd" | "out" | "err";
@@ -83,7 +84,7 @@ export function CodeTerminal({
       <div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-1">
         <TerminalIcon className="size-3 text-muted-foreground" />
         <span className="flex-1 text-[11px] text-muted-foreground">Terminal</span>
-        <Tip content="Limpiar">
+        <Tip content={t("code_module.terminal_clear")}>
           <button
             type="button"
             onClick={() => setLines([])}
@@ -92,7 +93,7 @@ export function CodeTerminal({
             <Eraser className="size-3" />
           </button>
         </Tip>
-        <Tip content="Cerrar terminal">
+        <Tip content={t("code_module.terminal_close")}>
           <button
             type="button"
             onClick={() => onClose?.()}

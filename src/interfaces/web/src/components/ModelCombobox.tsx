@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AlertTriangle, ChevronDown } from "lucide-react";
 import { cn } from "../lib/cn";
+import { t } from "../i18n";
 
 // Editable combobox: type freely, matching options appear below; click one to
 // pick it, or keep your own text. Behaves like a text input that is also a
@@ -82,7 +83,7 @@ export function ModelCombobox({
         )}
       >
         {invalid && (
-          <span title={invalidHint || "Modelo/proveedor no disponible"}>
+          <span title={invalidHint || t("models_ui.invalid_hint")}>
             <AlertTriangle className="size-3.5 shrink-0 text-amber-400" />
           </span>
         )}

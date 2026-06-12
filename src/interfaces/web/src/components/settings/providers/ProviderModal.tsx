@@ -7,6 +7,7 @@ import { Engines } from "../../../lib/api";
 import { isSecretMarker, secretSuffix } from "../../../lib/secrets";
 import { ENGINE_ICONS, ENGINE_OPTIONS, ENGINE_PRESETS, type EngineType } from "./typeStyles";
 import type { Provider } from "./types";
+import { t } from "../../../i18n";
 
 export interface ProviderSaveResult {
   provider: Provider;
@@ -269,7 +270,7 @@ export function ProviderModal({ open, initial, existingSlugs, onClose, onSave }:
     <Dialog
       open={open}
       onClose={onClose}
-      title={isEdit ? `Editar ${initial?.name || initial?.slug}` : "Nuevo provider"}
+      title={isEdit ? t("providers_modal.edit_title", { name: initial?.name || initial?.slug || "" }) : t("providers_modal.new_title")}
       description="Proveedor LLM. El motor (engine) define qué adapter usa (openai, ollama, …)."
       size="lg"
       footer={
@@ -362,7 +363,7 @@ export function ProviderModal({ open, initial, existingSlugs, onClose, onSave }:
                     options={modelOptions}
                     className="flex-1"
                   />
-                  <Button size="sm" variant="secondary" onClick={loadModels} disabled={loadingModels} title="Lista los modelos reales del proveedor">
+                  <Button size="sm" variant="secondary" onClick={loadModels} disabled={loadingModels} title={t("providers_modal.list_models_hint")} aria-label={t("providers_modal.list_models_hint")}>
                     {loadingModels ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
                     Cargar modelos
                   </Button>

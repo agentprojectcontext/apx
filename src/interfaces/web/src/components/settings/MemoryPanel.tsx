@@ -7,6 +7,7 @@ import { UiSelect } from "../UiSelect";
 import { useToast } from "../Toast";
 import { useGlobalConfig } from "../../hooks/useGlobalConfig";
 import { Embeddings, type EmbedMode } from "../../lib/api/embeddings";
+import { t } from "../../i18n";
 
 // Memory / RAG embeddings configuration. Mirrors the Voice (TTS/STT) panel:
 // pick the provider + model for the cross-channel memory retriever. Persists
@@ -98,7 +99,7 @@ export function MemoryPanel() {
   return (
     <div className="space-y-6">
       <Section
-        title="Embeddings (RAG)"
+        title={t("memory_panel.embeddings_title")}
         description="Modelo que vectoriza el historial de todos los canales para la memoria relevante. Igual que TTS/STT: elegí proveedor y modelo. 'Automático' prueba local primero y cae al offline si no hay nada."
       >
         <div className="space-y-3">
@@ -142,7 +143,7 @@ export function MemoryPanel() {
         </div>
       </Section>
 
-      <Section title="Ollama (local)" description="Sin API key. Corre nomic-embed-text en tu Ollama local o cloud.">
+      <Section title={t("memory_panel.ollama_title")} description="Sin API key. Corre nomic-embed-text en tu Ollama local o cloud.">
         <Field label="Modelo">
           <Input
             defaultValue={emb.ollama?.model || "nomic-embed-text"}
@@ -166,7 +167,7 @@ export function MemoryPanel() {
         </Field>
       </Section>
 
-      <Section title="OpenAI" description="text-embedding-3-small (1536 dims) u otro modelo compatible.">
+      <Section title={t("memory_panel.openai_title")} description="text-embedding-3-small (1536 dims) u otro modelo compatible.">
         <Field label="Modelo">
           <Input
             defaultValue={emb.openai?.model || "text-embedding-3-small"}
@@ -194,7 +195,7 @@ export function MemoryPanel() {
         </Field>
       </Section>
 
-      <Section title="Gemini" description="text-embedding-004 (768 dims). Free tier con API key de Google.">
+      <Section title={t("memory_panel.gemini_title")} description="text-embedding-004 (768 dims). Free tier con API key de Google.">
         <Field label="Modelo">
           <Input
             defaultValue={emb.gemini?.model || "text-embedding-004"}

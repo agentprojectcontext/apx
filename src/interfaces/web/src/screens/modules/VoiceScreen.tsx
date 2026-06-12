@@ -9,6 +9,7 @@ import { VoiceProviderModal, type VoiceProviderSave } from "../../components/voi
 import { VoiceTestCard } from "../../components/voice/VoiceTestCard";
 import { VoiceSttCard } from "../../components/voice/VoiceSttCard";
 import { Voice, type TranscriptionConfig, type TtsMode, type VoiceTtsConfig } from "../../lib/api/voice";
+import { t } from "../../i18n";
 
 // Voices module — configure TTS/STT providers, pick the default engine, and
 // test playback. TTS provider availability comes from the daemon
@@ -123,7 +124,7 @@ export function VoiceScreen() {
       <div className="grid gap-6 xl:grid-cols-2">
         {/* Left: TTS providers */}
         <Section
-          title="Proveedores de voz (TTS)"
+          title={t("voice_screen.providers_title")}
           description="Motores de síntesis. El estado lo reporta el daemon en vivo. Elegí cuál usar por defecto."
         >
           {provLoading || cfgLoading ? (
@@ -148,12 +149,12 @@ export function VoiceScreen() {
 
         {/* Right: test + STT */}
         <div className="space-y-6">
-          <Section title="Probar voz" description='Elegí con qué motor sintetizar y, si aplica, cómo querés que hable.'>
+          <Section title={t("voice_screen.test_title")} description='Elegí con qué motor sintetizar y, si aplica, cómo querés que hable.'>
             <VoiceTestCard engines={engines} defaultProvider={configuredProvider} mode={mode} />
           </Section>
 
           <Section
-            title="Transcripción (STT)"
+            title={t("voice_screen.stt_title")}
             description="Motor de voz a texto que usan el deck, Telegram y la CLI al escuchar."
           >
             {cfgLoading ? <Loading /> : <VoiceSttCard config={transcriptionCfg} onPatch={patchStt} />}

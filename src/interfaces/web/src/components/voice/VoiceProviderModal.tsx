@@ -13,6 +13,7 @@ import {
   type OpenAiTtsConfig,
   type PiperConfig,
 } from "../../lib/api/voice";
+import { t } from "../../i18n";
 
 // Per-provider settings. Saved as dotted-key patches under voice.tts.<id>.
 // Secrets (api_key) follow the EnginesPanel convention: a blank field keeps
@@ -124,7 +125,7 @@ export function VoiceProviderModal({ open, providerId, config, onClose, onSave }
     <Dialog
       open={open}
       onClose={onClose}
-      title={`Configurar ${meta?.name || providerId}`}
+      title={t("voice_screen.configure_provider", { name: meta?.name || providerId || "" })}
       description={meta?.note}
       size="md"
       footer={

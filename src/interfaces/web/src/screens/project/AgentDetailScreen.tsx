@@ -128,7 +128,7 @@ export function AgentDetailScreen({ pid }: { pid: string }) {
             <Stat label="Heartbeats" value={myRoutines.length} icon={Heart} />
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Section title="Skills & tools" description="">
+            <Section title={t("agent_detail_extra.skills_title")} description="">
               <div className="flex flex-wrap gap-1">
                 {a.skills?.map((s) => <Badge key={s} tone="info"><Sparkles size={10} /> {s}</Badge>)}
                 {a.tools?.map((t) => <Badge key={t}><Wrench size={10} /> {t}</Badge>)}

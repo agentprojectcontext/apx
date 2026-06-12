@@ -19,6 +19,27 @@ export interface McpAddBody {
   enabled?: boolean;
 }
 
+export interface McpTestResult {
+  ok: boolean;
+  tool_count?: number;
+  tools?: Array<{ name: string; description: string }>;
+  error?: string;
+}
+
+export interface McpLogsResult {
+  transport: "stdio" | "http";
+  running?: boolean;
+  command?: string;
+  args?: string[];
+  url?: string;
+  started_at?: string | null;
+  last_exit_code?: number | null;
+  last_error?: string | null;
+  stderr_tail?: string;
+  events: Array<{ ts: string; level: string; msg: string }>;
+  note?: string;
+}
+
 export const Mcps = {
   list:   (pid: string) => http.get<McpEntry[]>(`/projects/${pid}/mcps`),
   check:  (pid: string) => http.get<McpCheck>(`/projects/${pid}/mcps/check`),
@@ -26,4 +47,8 @@ export const Mcps = {
     http.post<{ ok: true; name: string }>(`/projects/${pid}/mcps?scope=${scope}`, body),
   remove: (pid: string, name: string, scope: McpScope = "shared") =>
     http.del<void>(`/projects/${pid}/mcps/${encodeURIComponent(name)}?scope=${scope}`),
+  test:   (pid: string, name: string) =>
+    http.post<McpTestResult>(`/projects/${pid}/mcps/${encodeURIComponent(name)}/test`, {}),
+  logs:   (pid: string, name: string) =>
+    http.get<McpLogsResult>(`/projects/${pid}/mcps/${encodeURIComponent(name)}/logs`),
 };

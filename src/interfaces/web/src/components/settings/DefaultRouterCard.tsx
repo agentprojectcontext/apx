@@ -7,6 +7,7 @@ import { ModelCombobox } from "../ModelCombobox";
 import { useToast } from "../Toast";
 import { useGlobalConfig, useSuperAgentConfig } from "../../hooks/useGlobalConfig";
 import { ENGINE_ICONS, ENGINE_PRESETS, type EngineType } from "./providers/typeStyles";
+import { t } from "../../i18n";
 
 interface ProviderInfo {
   slug: string;
@@ -151,7 +152,7 @@ export function DefaultRouterCard() {
 
   return (
     <Section
-      title="Router de modelos"
+      title={t("router_panel.title")}
       description="Un solo router general (sin casos por tarea). Elegí proveedor y modelo; si el activo falla, prueba la cadena de fallback en orden."
     >
       <div className="space-y-4">

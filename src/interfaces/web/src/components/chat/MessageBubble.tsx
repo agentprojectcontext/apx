@@ -2,7 +2,9 @@ import { Bot, Copy, User, Info } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { ToolCall } from "./ToolCall";
 import { AskQuestionsCard } from "./AskQuestionsCard";
+import { AskAnswersCard, parseAskAnswerText } from "./AskAnswersCard";
 import { textOf, type ChatMsg } from "../../hooks/useChat";
+import { t } from "../../i18n";
 
 interface Props {
   msg: ChatMsg;
@@ -10,13 +12,23 @@ interface Props {
    *  ask_questions tool call is still waiting for the user vs already answered
    *  (a later user message would push this assistant turn off the bottom). */
   isLast?: boolean;
+  /** True when this user message is the reply to a preceding `ask_questions`
+   *  call. Renders as a full-width centered card instead of the user bubble. */
+  isAskAnswer?: boolean;
   onCopy?: (text: string) => void;
 }
 
-export function MessageBubble({ msg, isLast, onCopy }: Props) {
+export function MessageBubble({ msg, isLast, isAskAnswer, onCopy }: Props) {
   const mine = msg.role === "user";
   const copyText = textOf(msg);
   const hasTools = msg.parts.some((p) => p.kind === "tool");
+
+  if (mine && isAskAnswer) {
+    const text = textOf(msg);
+    if (parseAskAnswerText(text)) {
+      return <AskAnswersCard text={text} />;
+    }
+  }
 
   return (
     <div className={cn("group flex items-start gap-2", mine ? "justify-end" : "justify-start")}>
@@ -82,9 +94,10 @@ export function MessageBubble({ msg, isLast, onCopy }: Props) {
               type="button"
               onClick={() => onCopy(copyText)}
               className="inline-flex items-center gap-1 hover:text-foreground"
-              title="Copiar"
+              title={t("chat_ui.copy")}
+              aria-label={t("chat_ui.copy")}
             >
-              <Copy size={10} /> copiar
+              <Copy size={10} /> {t("chat_ui.copy")}
             </button>
           )}
         </div>

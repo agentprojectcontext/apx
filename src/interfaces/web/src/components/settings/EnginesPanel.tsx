@@ -93,9 +93,9 @@ export function EnginesPanel() {
 
   return (
     <Section
-      title="Proveedores"
+      title={t("engines_panel.title")}
       description="Proveedores LLM (API). Cada provider usa un engine/adapter (openai, ollama, …) con su key y URL."
-      action={<Button size="sm" variant="primary" onClick={openCreate}><Plus size={14} /> Nuevo provider</Button>}
+      action={<Button size="sm" variant="primary" onClick={openCreate}><Plus size={14} /> {t("engines_panel.new_btn")}</Button>}
     >
       {providers.length === 0 ? (
         <Empty>Sin providers. Agregá uno con el botón de arriba.</Empty>

@@ -202,4 +202,36 @@ export function register(app, { projects, registries, project }) {
       res.status(500).json({ error: e.message });
     }
   });
+
+  // Smoke test — calls tools/list and reports either the tool catalog or a
+  // clean error message. Used by the "Test" button in the MCP card so the
+  // user can sanity-check a freshly-saved MCP without firing a real tool.
+  app.post("/projects/:pid/mcps/:name/test", async (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    try {
+      const result = await registries.for(p).listTools(req.params.name);
+      const tools = Array.isArray(result?.tools) ? result.tools : [];
+      res.json({
+        ok: true,
+        tool_count: tools.length,
+        tools: tools.map((t) => ({
+          name: t.name,
+          description: t.description || "",
+        })),
+      });
+    } catch (e) {
+      res.status(200).json({ ok: false, error: e.message });
+    }
+  });
+
+  // In-memory log buffer for one MCP — stderr tail (stdio) or fetch summary
+  // (http) plus a ring of recent events.
+  app.get("/projects/:pid/mcps/:name/logs", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const logs = registries.for(p).getLogs(req.params.name);
+    if (!logs) return res.status(404).json({ error: "MCP not found" });
+    res.json(logs);
+  });
 }

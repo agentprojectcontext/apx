@@ -3,6 +3,7 @@ import { Save, RotateCcw } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { Spinner } from "../ui";
 import { Tip } from "../ui/tip";
+import { t } from "../../i18n";
 
 export function CodeFileViewer({
   path,
@@ -47,7 +48,7 @@ export function CodeFileViewer({
         </span>
         {editable && (
           <>
-            <Tip content="Descartar cambios">
+            <Tip content={t("code_module.discard_changes")}>
               <button
                 type="button"
                 onClick={() => setDraft(content)}
@@ -58,7 +59,7 @@ export function CodeFileViewer({
                 Descartar
               </button>
             </Tip>
-            <Tip content="Guardar (Cmd/Ctrl+S)">
+            <Tip content={t("code_module.save_shortcut_hint")}>
               <button
                 type="button"
                 onClick={() => void save()}

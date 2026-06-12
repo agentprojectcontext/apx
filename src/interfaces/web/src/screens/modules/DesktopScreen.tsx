@@ -7,6 +7,7 @@ import { UiSelect } from "../../components/UiSelect";
 import { useToast } from "../../components/Toast";
 import { useGlobalConfig } from "../../hooks/useGlobalConfig";
 import { Desktop, fetchDesktopMessages, type GlobalMessage } from "../../lib/api/desktop";
+import { t } from "../../i18n";
 
 const DEFAULT_SHORTCUT = "CommandOrControl+G";
 const POSITION_OPTS = [
@@ -100,7 +101,7 @@ export function DesktopScreen() {
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
         {/* ── LEFT: configuration + status ─────────────────────────────── */}
         <div className="space-y-6">
-          <Section title="Estado" description="La ventana se lanza desde la terminal o por autostart.">
+          <Section title={t("desktop_screen.status_title")} description="La ventana se lanza desde la terminal o por autostart.">
             {stLoading ? <Loading /> : (
               <div className="flex items-center gap-2 text-sm">
                 <StatusDot ok={running} />
@@ -120,7 +121,7 @@ export function DesktopScreen() {
           </Section>
 
           <Section
-            title="Arranque automático"
+            title={t("desktop_screen.autostart_title")}
             description="Lanza la ventana al iniciar sesión del usuario. Equivalente a `apx desktop install` (no requiere sudo)."
           >
             {!autostart ? <Loading /> : (
@@ -137,7 +138,7 @@ export function DesktopScreen() {
           </Section>
 
           <Section
-            title="Atajo de teclado"
+            title={t("desktop_screen.shortcut_title")}
             description="Botón de acceso rápido global que muestra/oculta la ventana y arranca a escuchar."
           >
             {cfgLoading ? <Loading /> : (
@@ -169,7 +170,7 @@ export function DesktopScreen() {
             )}
           </Section>
 
-          <Section title="Apariencia" description="Tema y posición de la ventana en la pantalla.">
+          <Section title={t("desktop_screen.appearance_title")} description="Tema y posición de la ventana en la pantalla.">
             {cfgLoading ? <Loading /> : (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Field label="Tema" hint="Reiniciá la ventana para aplicar.">
@@ -193,7 +194,7 @@ export function DesktopScreen() {
           </Section>
 
           <Section
-            title="Activación + transcripción"
+            title={t("desktop_screen.activation_title")}
             description="El plugin del daemon procesa los mensajes. STT se configura en Voces."
           >
             {cfgLoading ? <Loading /> : (
@@ -216,7 +217,7 @@ export function DesktopScreen() {
         {/* ── RIGHT: last conversation preview ─────────────────────────── */}
         <div>
           <Section
-            title="Última conversación"
+            title={t("desktop_screen.last_conv_title")}
             description="Lo último charlado con el agente desde la ventana flotante."
             action={
               <button

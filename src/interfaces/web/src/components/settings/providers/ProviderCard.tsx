@@ -4,6 +4,7 @@ import { Tip } from "../../ui/tip";
 import { secretSuffix } from "../../../lib/secrets";
 import { ENGINE_BADGES, ENGINE_GRADIENTS, ENGINE_ICONS, ENGINE_OPTIONS, engineStyle } from "./typeStyles";
 import type { Provider } from "./types";
+import { t } from "../../../i18n";
 
 export function ProviderCard({
   provider,
@@ -42,7 +43,7 @@ export function ProviderCard({
           </span>
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          <Tip content={active ? "Activo · click para desactivar" : "Inactivo · click para activar"}>
+          <Tip content={active ? t("providers_modal.toggle_active") : t("providers_modal.toggle_inactive")}>
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onToggle(); }}
@@ -57,7 +58,7 @@ export function ProviderCard({
               {active ? "Active" : "Off"}
             </button>
           </Tip>
-          <Tip content="Borrar">
+          <Tip content={t("providers_modal.delete")}>
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onDelete(); }}

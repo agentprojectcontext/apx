@@ -4,6 +4,7 @@ import { cn } from "../../lib/cn";
 import { Empty, Spinner } from "../ui";
 import { Tip } from "../ui/tip";
 import { http } from "../../lib/http";
+import { t } from "../../i18n";
 
 interface FileNode {
   name: string;
@@ -164,7 +165,7 @@ export function CodeFileTree({
       <div className="flex shrink-0 items-center justify-between border-b border-border px-3 py-2">
         <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Archivos</span>
         <div className="flex items-center gap-0.5">
-          <Tip content="Colapsar todo">
+          <Tip content={t("code_module.tree_collapse_all")}>
             <button
               type="button"
               onClick={collapseAll}
@@ -174,7 +175,7 @@ export function CodeFileTree({
               <ChevronsUpDown className="size-3" />
             </button>
           </Tip>
-          <Tip content="Recargar">
+          <Tip content={t("code_module.reload")}>
             <button
               type="button"
               onClick={() => void loadFiles()}
