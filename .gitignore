@@ -32,3 +32,5 @@ opencode_ref/
 
 # Claude Code worktrees / local state
 .claude/
+
+/tmp
