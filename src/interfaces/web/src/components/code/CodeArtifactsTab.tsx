@@ -137,7 +137,7 @@ function ArtifactRow({
         ) : (
           <span className="min-w-0 flex-1 truncate font-mono">{entry.name}</span>
         )}
-        <Tip content="Renombrar">
+        <Tip content={t("code_module.artifacts_rename")}>
           <button
             type="button"
             onClick={startRename}
@@ -170,7 +170,7 @@ function ArtifactRow({
         <div className="flex flex-wrap items-center gap-1 mt-1">
           {/* Ver button */}
           <Dialog open={viewOpen} onOpenChange={setViewOpen}>
-            <Tip content="Ver contenido">
+            <Tip content={t("code_module.artifacts_view")}>
               <button
                 type="button"
                 onClick={() => setViewOpen(true)}
@@ -198,7 +198,7 @@ function ArtifactRow({
           </Dialog>
 
           {/* Editar — opens as a file tab in the main panel */}
-          <Tip content="Editar contenido">
+          <Tip content={t("code_module.artifacts_edit")}>
             <button
               type="button"
               onClick={() => onEditArtifact?.(entry.name)}
@@ -338,7 +338,7 @@ export function CodeArtifactsTab({ pid, onRunInTerminal, onEditArtifact }: Props
             ? t("code_module.artifacts_count", { n: entries.length })
             : ""}
         </span>
-        <Tip content="Recargar">
+        <Tip content={t("code_module.reload")}>
           <button
             type="button"
             onClick={() => void list.mutate()}

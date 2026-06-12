@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Server, ChevronDown, X, Check } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { Engines } from "../../lib/api";
+import { t } from "../../i18n";
 
 // Compact model picker for the chat composer (the panda.project pattern): a
 // small "Server · <model>" button that opens a dropdown to pick a model
@@ -79,7 +80,8 @@ export function ModelPicker({
           "hover:bg-accent/60 hover:text-foreground",
           value && "text-foreground",
         )}
-        title="Elegir modelo (o Auto)"
+        title={t("chat_ui.pick_model")}
+        aria-label={t("chat_ui.pick_model")}
       >
         <Server className="size-3 shrink-0" />
         <span className="truncate font-mono">{label}</span>

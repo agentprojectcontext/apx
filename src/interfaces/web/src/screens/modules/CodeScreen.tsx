@@ -531,7 +531,7 @@ export function CodeScreen() {
                                 {name}
                               </button>
                             </Tip>
-                            <Tip content="Cerrar">
+                            <Tip content={t("code_module.close")}>
                               <button
                                 type="button"
                                 onClick={() => closeFile(f.path)}

@@ -9,6 +9,7 @@ export * from "./api/conversations";
 export * from "./api/routines";
 export * from "./api/tasks";
 export * from "./api/mcps";
+export * from "./api/vars";
 export * from "./api/messages";
 export * from "./api/sessions";
 export * from "./api/tools";

@@ -5,6 +5,7 @@ import { useGlobalConfig } from "../../hooks/useGlobalConfig";
 import { flattenObject } from "../../lib/config-values";
 import { isSecretMarker } from "../../lib/secrets";
 import { Loading } from "../ui";
+import { t } from "../../i18n";
 
 export function GlobalConfigEditor() {
   const { config, isLoading, patch, mutate } = useGlobalConfig();
@@ -23,7 +24,7 @@ export function GlobalConfigEditor() {
 
   return (
     <Section
-      title="Config APX"
+      title={t("global_config.title")}
       description="Config general en ~/.apx/config.json. Editable por tabs; JSON queda separado."
     >
       <ConfigTabsEditor

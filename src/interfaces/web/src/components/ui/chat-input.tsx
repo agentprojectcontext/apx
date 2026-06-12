@@ -5,6 +5,7 @@ import { ArrowUp, Square } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { t } from "@/i18n"
 
 interface ChatInputProps {
   value: string
@@ -109,8 +110,8 @@ export function ChatInput({
             size="icon-sm"
             variant="destructive"
             onClick={onStop}
-            aria-label="Detener"
-            title="Detener"
+            aria-label={t("chat_ui.stop")}
+            title={t("chat_ui.stop")}
           >
             <Square className="size-3.5" fill="currentColor" />
           </Button>
@@ -121,8 +122,8 @@ export function ChatInput({
             variant="default"
             onClick={onSubmit}
             disabled={!canSend}
-            aria-label="Enviar"
-            title="Enviar"
+            aria-label={t("chat_ui.send")}
+            title={t("chat_ui.send")}
           >
             <ArrowUp className="size-4" />
           </Button>

@@ -1,13 +1,10 @@
 import { useMemo } from "react";
-import { useNavigate, useParams, Routes, Route, useLocation } from "react-router-dom";
+import { useParams, Routes, Route, useLocation, useNavigate } from "react-router-dom";
 import {
   Bot, Heart, Zap, Puzzle, FolderKanban, Settings,
-  RefreshCw, MessagesSquare, Send,
+  MessagesSquare, Send, KeyRound,
   LayoutDashboard, Boxes, Cpu, ScrollText, History, Brain,
 } from "lucide-react";
-import { Projects } from "../lib/api";
-import { Button } from "../components/ui";
-import { useToast } from "../components/Toast";
 import { useNavCollapse, type TabSection } from "../components/common/TabNav";
 import { TabLayout } from "../components/common/TabLayout";
 import { useProject } from "../hooks/useProjects";
@@ -25,6 +22,7 @@ import { AgentsTab } from "./project/AgentsTab";
 import { RoutinesTab } from "./project/RoutinesTab";
 import { TasksTab } from "./project/TasksTab";
 import { McpsTab } from "./project/McpsTab";
+import { VarsTab } from "./project/VarsTab";
 import { ThreadsTab } from "./project/ThreadsTab";
 import { ChatTab } from "./project/ChatTab";
 import { TelegramTab } from "./project/TelegramTab";
@@ -33,14 +31,13 @@ import { AgentDetailScreen } from "./project/AgentDetailScreen";
 
 type NavKey =
   | "" | "chat" | "config" | "telegram"
-  | "agents" | "routines" | "tasks" | "mcps" | "threads" | "logs" | "memories";
+  | "agents" | "routines" | "tasks" | "mcps" | "vars" | "threads" | "logs" | "memories";
 
 export function ProjectScreen() {
   const navigate = useNavigate();
   const location = useLocation();
-  const toast = useToast();
   const { pid = "" } = useParams();
-  const { project, mutate } = useProject(pid);
+  const { project } = useProject(pid);
   const { collapsed, toggle } = useNavCollapse(STORAGE.sidebarCollapsed + ".project");
 
   const isBase = String(pid) === "0";
@@ -73,6 +70,7 @@ export function ProjectScreen() {
             { key: "memories", label: t("project.nav.memories"), icon: Brain },
             { key: "routines", label: t("project.nav.routines"), icon: Heart },
             { key: "mcps",     label: t("project.nav.mcps"),     icon: Puzzle },
+            { key: "vars",     label: t("project.nav.vars"),     icon: KeyRound },
             { key: "config",   label: t("project.nav.config"),   icon: Settings },
           ],
         },
@@ -96,6 +94,7 @@ export function ProjectScreen() {
           { key: "routines", label: t("project.nav.routines"),  icon: Heart },
           { key: "tasks",    label: t("project.nav.tasks"),     icon: Zap },
           { key: "mcps",     label: t("project.nav.mcps"),      icon: Puzzle },
+          { key: "vars",     label: t("project.nav.vars"),      icon: KeyRound },
           { key: "logs",     label: t("project.nav.logs"),      icon: ScrollText },
         ],
       },
@@ -116,32 +115,10 @@ export function ProjectScreen() {
     return <div className="p-8 text-muted-fg">{t("project.not_found", { pid })}</div>;
   }
 
-  const rebuild = async () => {
-    try { await Projects.rebuild(pid); toast.success(t("project.rebuild_done")); }
-    catch (e) { toast.error((e as Error).message); }
-  };
-  const unregister = async () => {
-    const label = project.name || project.path;
-    if (!confirm(t("project.unregister_confirm", { label }))) return;
-    try { await Projects.remove(pid); toast.success(t("project.unregistered")); mutate(); navigate("/"); }
-    catch (e) { toast.error((e as Error).message); }
-  };
-
   const onTabChange = (key: string) => {
     const url = key ? `/p/${pid}/${key}` : `/p/${pid}`;
     navigate(url);
   };
-
-  const actions = Number(pid) !== 0 ? (
-    <>
-      <Button size="sm" variant="secondary" onClick={rebuild}>
-        <RefreshCw size={13} /> {t("project.rebuild")}
-      </Button>
-      <Button size="sm" variant="destructive" onClick={unregister}>
-        {t("admin.unregister")}
-      </Button>
-    </>
-  ) : undefined;
 
   return (
     <TabLayout
@@ -150,7 +127,6 @@ export function ProjectScreen() {
       onChange={onTabChange}
       collapsed={collapsed}
       onToggleCollapse={toggle}
-      actions={actions}
       contentClassName="w-full space-y-6 p-6 pt-3"
       testId={`project-tab-${active || "overview"}`}
     >
@@ -169,6 +145,7 @@ export function ProjectScreen() {
         <Route path="routines"     element={<RoutinesTab pid={pid} />} />
         <Route path="tasks"        element={isBase ? <GlobalTasksTab /> : <TasksTab pid={pid} />} />
         <Route path="mcps"         element={<McpsTab pid={pid} />} />
+        <Route path="vars"         element={<VarsTab pid={pid} />} />
         <Route path="threads"      element={<ThreadsTab pid={pid} />} />
         <Route path="chat"         element={<ChatTab pid={pid} />} />
         <Route path="*"            element={<Overview pid={pid} />} />

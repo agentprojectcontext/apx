@@ -43,7 +43,7 @@ export function TelegramChannelDialog({ channel, onClose, onSaved }: Props) {
     <Dialog
       open={!!channel}
       onClose={onClose}
-      title={channel?.name ? `Editar canal: ${channel.name}` : "Nuevo canal de Telegram"}
+      title={channel?.name ? t("telegram_channel_dialog.edit_title", { name: channel.name }) : t("telegram_channel_dialog.new_title")}
       description="POST /telegram/channels (upsert) — PATCH /telegram/channels/:name (parcial)."
       footer={
         <>

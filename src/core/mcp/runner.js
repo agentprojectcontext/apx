@@ -1,9 +1,22 @@
-// MCP runner: spawn child MCP processes and proxy JSON-RPC tools/call.
-// Speaks the stdio transport: newline-delimited JSON-RPC 2.0 messages.
+// MCP runner: spawn child MCP processes (stdio) or talk to remote MCP
+// servers (HTTP). Speaks JSON-RPC 2.0 either way.
+//
+// Variables referenced as `${var.NAME}` in args/env/url/headers are resolved
+// at process/client construction time against project + global vars. Missing
+// references surface as a MissingVarError with the full list so the UI can
+// report "missing TOKEN_A, TOKEN_B" instead of one-at-a-time.
 import { spawn } from "node:child_process";
 import { loadAll } from "./sources.js";
+import { interpolate, MissingVarError } from "#core/vars/interpolate.js";
+import { loadAllVars } from "#core/vars/sources.js";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
+const LOG_CAP = 64;            // entries per MCP we keep in memory
+const STDERR_BUF_CAP = 4096;   // bytes of stderr tail we hand back
+
+function nowIso() {
+  return new Date().toISOString();
+}
 
 class McpProcess {
   constructor({ name, command, args = [], env = {} }) {
@@ -11,6 +24,7 @@ class McpProcess {
     this.command = command;
     this.args = args;
     this.env = env;
+    this.transport = "stdio";
     this.proc = null;
     this.buffer = "";
     this.pending = new Map(); // id -> { resolve, reject, timer }
@@ -18,14 +32,24 @@ class McpProcess {
     this._initPromise = null;
     this._initialized = false;
     this._stderrBuf = "";
+    this.logs = []; // { ts, level, msg }
+    this.startedAt = null;
+    this.lastExitCode = null;
+  }
+
+  _log(level, msg) {
+    this.logs.push({ ts: nowIso(), level, msg });
+    if (this.logs.length > LOG_CAP) this.logs.shift();
   }
 
   start() {
     if (this.proc) return;
+    this._log("info", `spawn ${this.command} ${(this.args || []).join(" ")}`);
     this.proc = spawn(this.command, this.args, {
       env: { ...process.env, ...this.env },
       stdio: ["pipe", "pipe", "pipe"],
     });
+    this.startedAt = nowIso();
 
     this.proc.stdout.setEncoding("utf8");
     this.proc.stderr.setEncoding("utf8");
@@ -33,12 +57,16 @@ class McpProcess {
     this.proc.stdout.on("data", (chunk) => this._onStdout(chunk));
     this.proc.stderr.on("data", (chunk) => {
       this._stderrBuf += chunk;
-      if (this._stderrBuf.length > 4096) {
-        this._stderrBuf = this._stderrBuf.slice(-4096);
+      if (this._stderrBuf.length > STDERR_BUF_CAP) {
+        this._stderrBuf = this._stderrBuf.slice(-STDERR_BUF_CAP);
       }
+      const trimmed = chunk.trim();
+      if (trimmed) this._log("stderr", trimmed.slice(-512));
     });
 
     this.proc.on("exit", (code) => {
+      this.lastExitCode = code;
+      this._log("info", `exit code=${code}`);
       const err = new Error(
         `MCP "${this.name}" exited with code ${code}. stderr: ${this._stderrBuf.trim()}`
       );
@@ -133,6 +161,19 @@ class McpProcess {
     return this._send("tools/call", { name, arguments: args || {} });
   }
 
+  getLogs() {
+    return {
+      transport: "stdio",
+      command: this.command,
+      args: this.args,
+      started_at: this.startedAt,
+      running: !!this.proc,
+      last_exit_code: this.lastExitCode,
+      stderr_tail: this._stderrBuf,
+      events: this.logs.slice(),
+    };
+  }
+
   stop() {
     if (this.proc) {
       try {
@@ -141,6 +182,190 @@ class McpProcess {
       this.proc = null;
     }
   }
+}
+
+// HTTP MCP client. Posts JSON-RPC 2.0 to the configured URL with the
+// configured headers. Each call is a fresh fetch — we do not maintain a
+// long-lived SSE stream. This works for servers that implement the simple
+// JSON-RPC response style (which is most third-party MCP HTTP servers,
+// including Asana's mcp.asana.com endpoint).
+// Header values must be Latin1 — fetch throws "Cannot convert argument to a
+// ByteString" on any code point above 255. We also normalize whitespace that
+// the web editor's contentEditable injects: zero-width chars + non-breaking
+// spaces (U+00A0 — the silent space substitute that makes Asana reject
+// `Bearer\xA0token` with "Authorization header must be in format Bearer
+// <token>"). One spot of sanitization covers every header value the runner
+// sends, regardless of where the poisoned char originated.
+function sanitizeHeaderValue(v) {
+  return String(v)
+    .replace(/[\u200B-\u200F\u202A-\u202E\u2060\uFEFF]/g, "")
+    .replace(/\u00A0/g, " ");
+}
+
+function sanitizeHeaders(h) {
+  if (!h) return {};
+  const out = {};
+  for (const [k, v] of Object.entries(h)) {
+    out[sanitizeHeaderValue(k)] = sanitizeHeaderValue(v);
+  }
+  return out;
+}
+
+class HttpMcpClient {
+  constructor({ name, url, headers = {} }) {
+    this.name = name;
+    this.url = sanitizeHeaderValue(url);
+    this.headers = sanitizeHeaders(headers);
+    this.transport = "http";
+    this._nextId = 1;
+    this._initialized = false;
+    this._initPromise = null;
+    this.logs = [];
+    this.startedAt = null;
+    this.lastError = null;
+  }
+
+  _log(level, msg) {
+    this.logs.push({ ts: nowIso(), level, msg });
+    if (this.logs.length > LOG_CAP) this.logs.shift();
+  }
+
+  async _rpc(method, params, timeoutMs = DEFAULT_TIMEOUT_MS) {
+    if (!this.startedAt) this.startedAt = nowIso();
+    const id = this._nextId++;
+    const body = JSON.stringify({ jsonrpc: "2.0", id, method, params });
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    this._log("info", `POST ${method}`);
+    let res;
+    try {
+      res = await fetch(this.url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+          "MCP-Protocol-Version": "2024-11-05",
+          ...this.headers,
+        },
+        body,
+        signal: ctrl.signal,
+      });
+    } catch (e) {
+      this.lastError = e.message;
+      this._log("error", `fetch failed: ${e.message}`);
+      throw new Error(`MCP "${this.name}" HTTP error: ${e.message}`);
+    } finally {
+      clearTimeout(timer);
+    }
+    const contentType = res.headers.get("content-type") || "";
+    const text = await res.text();
+    if (!res.ok) {
+      this.lastError = `HTTP ${res.status}`;
+      this._log("error", `HTTP ${res.status} ${text.slice(0, 200)}`);
+      throw new Error(
+        `MCP "${this.name}" HTTP ${res.status}: ${text.slice(0, 300)}`
+      );
+    }
+    // text/event-stream — pluck the first JSON-RPC payload from the SSE frames.
+    let payload;
+    if (contentType.includes("text/event-stream")) {
+      payload = parseFirstSseJson(text);
+      if (!payload) {
+        this.lastError = "no JSON in SSE stream";
+        throw new Error(`MCP "${this.name}" returned empty SSE stream`);
+      }
+    } else {
+      try {
+        payload = JSON.parse(text);
+      } catch (e) {
+        this.lastError = `non-JSON response: ${e.message}`;
+        throw new Error(
+          `MCP "${this.name}" non-JSON response: ${text.slice(0, 300)}`
+        );
+      }
+    }
+    if (payload.error) {
+      this.lastError = payload.error.message || "rpc error";
+      throw new Error(payload.error.message || "MCP error");
+    }
+    return payload.result;
+  }
+
+  async _ensureInitialized() {
+    if (this._initialized) return;
+    if (!this._initPromise) {
+      this._initPromise = (async () => {
+        await this._rpc(
+          "initialize",
+          {
+            protocolVersion: "2024-11-05",
+            capabilities: {},
+            clientInfo: { name: "apx-daemon", version: "0.1.0" },
+          },
+          10_000
+        );
+        // Best-effort notification — many servers ignore this for HTTP.
+        try {
+          await fetch(this.url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+              "MCP-Protocol-Version": "2024-11-05",
+              ...this.headers,
+            },
+            body: JSON.stringify({
+              jsonrpc: "2.0",
+              method: "notifications/initialized",
+            }),
+          });
+        } catch {}
+        this._initialized = true;
+      })();
+    }
+    return this._initPromise;
+  }
+
+  async listTools() {
+    await this._ensureInitialized();
+    return this._rpc("tools/list", {});
+  }
+
+  async callTool(name, args) {
+    await this._ensureInitialized();
+    return this._rpc("tools/call", { name, arguments: args || {} });
+  }
+
+  getLogs() {
+    return {
+      transport: "http",
+      url: this.url,
+      started_at: this.startedAt,
+      last_error: this.lastError,
+      events: this.logs.slice(),
+    };
+  }
+
+  stop() {
+    this._initialized = false;
+    this._initPromise = null;
+  }
+}
+
+function parseFirstSseJson(raw) {
+  for (const block of raw.split(/\r?\n\r?\n/)) {
+    const dataLines = [];
+    for (const line of block.split(/\r?\n/)) {
+      if (line.startsWith("data:")) dataLines.push(line.slice(5).trimStart());
+    }
+    if (!dataLines.length) continue;
+    try {
+      return JSON.parse(dataLines.join("\n"));
+    } catch {
+      continue;
+    }
+  }
+  return null;
 }
 
 function entryToMeta(e) {
@@ -158,8 +383,6 @@ function entryToMeta(e) {
 }
 
 export class McpRegistry {
-  // Accepts either the project path string (back-compat) or an object
-  // { projectPath, storagePath } so the runtime scope can be aggregated.
   constructor(arg) {
     if (typeof arg === "string" || arg == null) {
       this.projectPath = arg || null;
@@ -168,7 +391,7 @@ export class McpRegistry {
       this.projectPath = arg.projectPath || null;
       this.storagePath = arg.storagePath || null;
     }
-    this.processes = new Map(); // mcp name -> McpProcess
+    this.processes = new Map(); // mcp name -> McpProcess | HttpMcpClient
   }
 
   _load() {
@@ -196,19 +419,40 @@ export class McpRegistry {
     return e ? entryToMeta(e) : null;
   }
 
+  _resolveVars() {
+    return loadAllVars({ storagePath: this.storagePath }).effective;
+  }
+
+  _resolveMeta(meta) {
+    try {
+      return interpolate(meta, this._resolveVars());
+    } catch (e) {
+      if (e instanceof MissingVarError) {
+        const list = e.missing.map((n) => `\${var.${n}}`).join(", ");
+        throw new Error(
+          `MCP "${meta.name}" has undefined variable${e.missing.length > 1 ? "s" : ""}: ${list}. Define them at /p/<id>/vars (or globally at /p/0/vars).`
+        );
+      }
+      throw e;
+    }
+  }
+
   _ensureProcess(name) {
     let proc = this.processes.get(name);
-    if (proc && proc.proc) return proc;
+    if (proc) {
+      if (proc.transport === "stdio" && proc.proc) return proc;
+      if (proc.transport === "http") return proc;
+    }
     const meta = this.getByName(name);
     if (!meta) throw new Error(`MCP "${name}" not registered`);
     if (!meta.enabled) throw new Error(`MCP "${name}" is disabled`);
-    if (meta.transport === "http" || meta.url) {
-      throw new Error(
-        `MCP "${name}" uses HTTP transport (url=${meta.url}); HTTP/SSE transport arrives in v0.2. Use a stdio MCP for now.`
-      );
+    const resolved = this._resolveMeta(meta);
+    if (resolved.transport === "http" || resolved.url) {
+      proc = new HttpMcpClient(resolved);
+    } else {
+      if (!resolved.command) throw new Error(`MCP "${name}" has no command — invalid registration`);
+      proc = new McpProcess(resolved);
     }
-    if (!meta.command) throw new Error(`MCP "${name}" has no command — invalid registration`);
-    proc = new McpProcess(meta);
     this.processes.set(name, proc);
     return proc;
   }
@@ -221,6 +465,20 @@ export class McpRegistry {
   async listTools(name) {
     const proc = this._ensureProcess(name);
     return proc.listTools();
+  }
+
+  getLogs(name) {
+    const proc = this.processes.get(name);
+    if (proc) return proc.getLogs();
+    const meta = this.getByName(name);
+    if (!meta) return null;
+    return {
+      transport: meta.transport || "stdio",
+      running: false,
+      started_at: null,
+      events: [],
+      note: "MCP not started yet — open the Test or Call panel to spawn it.",
+    };
   }
 
   shutdown() {

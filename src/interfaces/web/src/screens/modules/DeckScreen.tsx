@@ -7,6 +7,7 @@ import { useToast } from "../../components/Toast";
 import { DaemonCard } from "../../components/deck/DaemonCard";
 import { DesktopGroup } from "../../components/deck/DesktopGroup";
 import type { DeckWidget } from "../../lib/api/deck";
+import { t } from "../../i18n";
 
 // Deck module — configure the companion "Deck" app: enable/disable widgets,
 // view desktops, inspect the daemon manifest.
@@ -81,7 +82,7 @@ export function DeckScreen() {
 
       {/* Widgets section */}
       <Section
-        title="Widgets"
+        title={t("deck_screen.widgets_title")}
         description={
           isLoading
             ? "Cargando manifest…"
@@ -90,7 +91,7 @@ export function DeckScreen() {
             : `${widgets.length} widgets · ${enabledCount} externos habilitados`
         }
         action={
-          <Button size="sm" variant="ghost" onClick={() => mutate()} disabled={isLoading} title="Recargar manifest">
+          <Button size="sm" variant="ghost" onClick={() => mutate()} disabled={isLoading} title={t("deck_screen.reload_manifest")} aria-label={t("deck_screen.reload_manifest")}>
             <RefreshCw size={14} className={isLoading ? "animate-spin" : ""} />
           </Button>
         }
@@ -132,7 +133,7 @@ export function DeckScreen() {
 
       {/* Active project + stats (read-only context) */}
       {data?.apx && (
-        <Section title="Contexto APX" description="Información que el Deck ve del daemon.">
+        <Section title={t("deck_screen.context_title")} description="Información que el Deck ve del daemon.">
           <div className="space-y-2 text-sm" data-testid="deck-apx-context">
             <div className="flex items-center gap-2">
               <span className="text-muted-fg">Proyecto activo:</span>

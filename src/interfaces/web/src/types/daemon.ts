@@ -70,6 +70,11 @@ export interface McpEntry {
   source: "apc" | "runtime" | "global" | string;
   transport: string;
   enabled: boolean;
+  command?: string | null;
+  args?: string[];
+  env?: Record<string, string>;
+  url?: string | null;
+  headers?: Record<string, string>;
 }
 
 export interface MessageEntry {
