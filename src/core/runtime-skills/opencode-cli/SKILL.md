@@ -1,4 +1,5 @@
 ---
+scope: internal
 name: opencode-cli
 description: "Activate ONLY when the user explicitly mentions OpenCode, opencode command, installing OpenCode, using OpenCode, OpenCode provider setup, or APX runtime opencode."
 homepage: https://opencode.ai/docs

@@ -1,95 +1,83 @@
 ---
 name: apx
-description: "APX CLI umbrella — which sub-skill handles each operation (sessions, MCPs, routines, tasks, telegram, projects, agents, runtimes). Activate when the user mentions `apx`, the APX daemon, or wants to coordinate/run/delegate agents. Not for `.apc/` alone (use apc-context). Triggers: 'apx', 'apx run', 'apx daemon', 'coordinate agents', 'apx help'."
+description: >-
+  APX CLI — local daemon that orchestrates agents, sessions, MCPs, and channels across CLIs.
+  Use `apx exec "prompt"` for the local super-agent, or `apx run <agent> --runtime <claude-code|codex|opencode|aider|cursor-agent|gemini-cli|qwen-code> "prompt"` to hand the task to another CLI.
+  Activate on: 'apx', 'apx exec', 'apx run', 'apx daemon', 'pedile a codex/claude/opencode/gemini', 'que codex haga …', 'delegar a otro engine', 'ejecutar en codex/claude', 'run this in <runtime>'.
 homepage: https://github.com/agentprojectcontext/apx
 ---
 
-# APX — Agent Project Context Runtime
+# APX — Agent Project Context Runtime (engine view)
 
-APX is a daemon (`127.0.0.1:7430`, auto-starts on first call) that turns external coding CLIs (Claude Code, Codex, OpenCode, Aider, …) and configurable agents into a unified orchestration surface.
+APX is a local daemon (`127.0.0.1:7430`, auto-starts on first call) that turns external coding CLIs (Claude Code, Codex, OpenCode, …) and configurable agents into a unified orchestration surface.
 
-It reads APC project context from `.apc/` (committed) but keeps runtime state outside the repo under `~/.apx/projects/<project-id>/`. The super-agent has a default workspace at `~/.apx/projects/default` for system-level work.
-
----
-
-## When to use APX (vs. spawning a subagent natively)
-
-If you can spawn a subagent natively in the IDE you're in (Claude Code, Cursor, …) — **do that**. No APX needed.
-
-Use APX when:
-- The user explicitly asks for a specific external runtime ("run this in Codex", "delegate to OpenCode").
-- You need to run an agent in a runtime different from the one you're in.
-- You're orchestrating from outside any IDE (a script, Telegram bot, CI, routine).
+This is the **engine-side** skill: a slim reference for runtimes invoked by APX. The full umbrella skill (with all sub-skills) lives in APX itself.
 
 ---
 
-## Sub-skill index — open the one that matches the task
+## When you (as an engine) interact with APX
 
-| Topic | Sub-skill | When |
-|-------|-----------|------|
-| Delegate to an external coding CLI | **apx-runtime** | `apx run <agent> --runtime claude-code\|codex\|...` |
-| List / read / resume / summarise / continue sessions across engines | **apx-sessions** | `apx session resume`, `apx sessions list`, "import a codex session" |
-| Use a registered MCP tool | **apx-mcp** | `apx mcp run`, "call MCP filesystem", "the MCP is failing" |
-| Add / configure / use a project agent | **apx-agent** | "add an agent", "import from vault", per-agent model, agent memory |
-| Register / list / configure a project | **apx-project** | "register this project", `apx project list`, per-project config |
-| Per-project TODO list | **apx-task** | "add a task", "remind me to…", "what's pending" |
-| Scheduled / recurring agents | **apx-routine** | `apx routine add`, every-5m, cron-like jobs |
-| Telegram I/O | **apx-telegram** | configure bot, channels, send a message |
-| Voice channel (TTS, speech) — *optional* | **apx-voice** | only if voice is being set up |
-| Build a new MCP server — *internal/dev* | **apx-mcp-builder** | when developing a brand-new MCP from scratch |
-| Author a new APX skill — *internal/dev* | **apx-skill-builder** | when adding to APX itself |
+- You were spawned by `apx run` — your CWD is a project and APX is reachable on `127.0.0.1:7430`.
+- The user asks you to call APX from inside your session ("send a telegram via apx", "list apx sessions").
+- You're inside an `.apc/` project and want to consult APX-managed state.
 
-> Sub-skills marked *internal/dev* are not pushed to IDE skill dirs by default. They live in the APX repo and are loaded by APX itself; install one to your IDE with `apx skills add <slug> --global` if you want it there.
+If you can do the task natively (you're an IDE/CLI with your own tools), prefer that. Only shell out to `apx` when the task is APX-specific.
 
 ---
 
-## Generic patterns (apply to every sub-skill)
+## Verify before recommending
 
-### Verify commands before recommending them
+Do not invent subcommands. Confirm exact form with:
 
-Do not invent APX subcommands. Confirm exact CLI form with `apx --help` or `apx <command> --help` before telling another runtime to invoke APX. Avoid guessed aliases (e.g. `apx send-telegram` is *not* a thing — see apx-telegram).
+```bash
+apx --help
+apx <command> --help
+```
 
-### `APC_RESULT` contract — structured return values
+---
 
-When you want APX to capture a structured value from an agent (any runtime), instruct the agent to print on its last meaningful line:
+## Core commands you'll actually use
+
+```bash
+# Project + daemon
+apx status                      # daemon health
+apx project list                # registered projects
+apx project current             # which project resolves from CWD
+
+# Sessions (cross-engine)
+apx sessions list --engine <claude|codex|opencode> --project <name>
+apx sessions list --dir <path>
+
+# MCPs — see the apx-mcp skill for the full guide
+apx mcp list
+apx mcp run <name> <tool> '{"...":"..."}'
+
+# Memory (curated, durable facts only)
+apx memory <agent-slug>
+apx memory <agent-slug> --append "<fact>"
+
+# Observe activity
+apx messages tail
+apx messages chat --channel <name> -n 20
+```
+
+---
+
+## APC_RESULT contract
+
+When APX captures a structured value from your run, end with:
 
 ```
 APC_RESULT: <one-line value>
 ```
 
-APX's `extractApfResult()` parses that and stores it as the session's `result` field. Useful for automation, routines, and CI.
-
-### Tool permissions
-
-```bash
-apx permission show
-apx permission set automatico   # total | automatico | permiso
-```
-
-`automatico` runs read/list/safe shell checks directly and asks before destructive shell, MCP, runtime, outbound, config, or filesystem mutation actions.
-
-### Memory
-
-Write memory only for durable, safe project facts. Do not store raw transcripts or secrets.
-
-```bash
-apx memory <slug>                       # read agent's memory.md
-apx memory <slug> --append "<fact>"     # append a durable note
-apx memory <slug> --replace < file.md  # replace entire memory from stdin
-```
-
-### Observe activity
-
-```bash
-apx messages tail                               # last 50 messages, all channels
-apx messages chat --channel telegram -n 20      # readable chat view
-apx messages tail --channel runtime --agent <slug> -n 20
-```
+`extractApfResult()` parses that and stores it as the session's `result`. Use it for routines, CI, automation.
 
 ---
 
 ## Anti-patterns
 
-- Don't activate APX-sessions inside a request that's purely about `apx run` orchestration — use apx-runtime.
-- Don't activate apx-mcp-builder unless the user is actually authoring a new MCP server (it's a deep developer guide, not a usage guide).
-- Don't push state to `.apc/` that belongs in `~/.apx/projects/<id>/` (sessions, conversations, runtime logs).
+- Don't write raw transcripts, sessions, or secrets into `.apc/` — they belong in `~/.apx/projects/<id>/`.
+- Don't guess subcommands. If `apx --help` doesn't show it, it doesn't exist.
+- Don't activate this skill for pure `.apc/` reading — that's [[apc-context]].
+- For MCP details (scopes, secrets, add/remove), open [[apx-mcp]] instead of guessing flags here.

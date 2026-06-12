@@ -1,4 +1,5 @@
 ---
+scope: internal
 name: claude-code
 description: "Activate ONLY when the user explicitly mentions Claude Code, Claude CLI, claude command, Anthropic Claude Code, installing Claude Code, using Claude Code, or APX runtime claude-code. Do not activate for generic Claude model discussion."
 homepage: https://docs.anthropic.com/en/docs/claude-code
