@@ -12,6 +12,8 @@ import {
   installGlobalSkills,
   listBundledSkillSlugs,
   listBundledSkills,
+  listEngineSkills,
+  listLegacyPruneSlugs,
 } from "#core/apc/scaffold.js";
 
 // ---------------------------------------------------------------------------
@@ -101,37 +103,27 @@ export async function cmdSkillsAdd(args) {
 // ---------------------------------------------------------------------------
 
 export async function cmdSkillsSync(args) {
-  const includeOptional = !!args?.flags?.["include-optional"] || !!args?.flags?.optional;
-  const includeInternal = !!args?.flags?.["include-internal"] || !!args?.flags?.internal;
   const prune = args?.flags?.["no-prune"] ? false : true;
 
-  const results = installGlobalSkills({ includeOptional, includeInternal, prune });
+  const results = installGlobalSkills({ prune });
   const home = os.homedir();
 
-  // Group by skill so the output is dense and scannable.
   const bySkill = {};
-  const scopeOf = {};
   for (const r of results) {
     if (!bySkill[r.skill]) bySkill[r.skill] = [];
-    bySkill[r.skill].push({ dir: r.dir.replace(home, "~"), status: r.status });
-    scopeOf[r.skill] = r.scope;
+    bySkill[r.skill].push({ dir: r.dir.replace(home, "~"), status: r.status, scope: r.scope });
   }
 
-  const slugs = Object.keys(bySkill).sort();
-  if (slugs.length === 0) {
-    console.log("(no bundled skills found in skills/)");
+  const engineSet = listEngineSkills().map((s) => s.slug);
+  if (engineSet.length === 0) {
+    console.log("(no engine skills found in skills/engines/)");
     return;
   }
 
-  const filters = [];
-  if (includeOptional) filters.push("+optional");
-  if (includeInternal) filters.push("+internal");
-  console.log(
-    `Syncing ${slugs.length} bundled skill(s) to global skill dirs` +
-      (filters.length ? ` [${filters.join(" ")}]` : "") + ":\n"
-  );
+  console.log(`Syncing engine skill set (${engineSet.join(", ")}) to global dirs:\n`);
 
-  const sw = Math.max(...slugs.map((s) => s.length));
+  const slugs = Object.keys(bySkill).sort();
+  const sw = Math.max(...slugs.map((s) => s.length), 8);
   const totals = { unchanged: 0, updated: 0, created: 0, pruned: 0 };
   for (const slug of slugs) {
     const entries = bySkill[slug];
@@ -142,9 +134,8 @@ export async function cmdSkillsSync(args) {
     for (const k of ["created", "updated", "unchanged", "pruned"]) {
       if (counts[k]) parts.push(`${counts[k]} ${k}`);
     }
-    const scope = scopeOf[slug];
-    const tag = scope === "public" ? "" : ` [${scope}]`;
-    console.log(`  ${slug.padEnd(sw)}${tag.padEnd(11)}  ${parts.join(", ")}`);
+    const tag = entries[0]?.scope === "legacy" ? " [legacy]" : "";
+    console.log(`  ${slug.padEnd(sw)}${tag.padEnd(10)}  ${parts.join(", ")}`);
   }
   console.log("");
   console.log(`Targets: .claude/skills, .cursor/skills, .codex/skills, .agents/skills`);
@@ -153,21 +144,6 @@ export async function cmdSkillsSync(args) {
     if (totals[k]) totalParts.push(`${totals[k]} ${k}`);
   }
   console.log(`Totals:  ${totalParts.join(", ") || "(no changes)"}`);
-
-  // Hint about non-default tiers.
-  const skipped = listBundledSkills().filter(
-    (s) =>
-      (s.scope === "internal" && !includeInternal) ||
-      (s.scope === "optional" && !includeOptional)
-  );
-  if (skipped.length > 0) {
-    console.log("");
-    console.log("Skipped (not pushed by default):");
-    for (const s of skipped) console.log(`  ${s.slug.padEnd(sw)}  scope=${s.scope}`);
-    console.log("");
-    console.log("Re-run with --include-optional / --include-internal to push them too,");
-    console.log("or `apx skills add <slug> --global` for one-off install.");
-  }
 
   if (args?.flags?.verbose) {
     console.log("");
@@ -185,8 +161,8 @@ export async function cmdSkillsSync(args) {
 // ---------------------------------------------------------------------------
 
 export async function cmdSkillsList(args = {}) {
-  // --all queries the daemon, which returns project + global + bundled +
-  // runtime-skills (same catalog the super-agent sees and the web picker uses).
+  // --all queries the daemon, which returns project + global + bundled
+  // (the same catalog the super-agent sees and the web picker uses).
   // Without --all we only list `.apc/skills/` (what the user installed in
   // THIS project), matching the historical behaviour.
   if (args?.flags?.all) {
@@ -225,17 +201,15 @@ export async function cmdSkillsList(args = {}) {
 export async function cmdSkillsStatus() {
   const root = findApfRoot();
 
-  // Global — discovered list of every bundled skill with its scope.
-  const bundled = listBundledSkills();
-  const byScope = {
-    public: bundled.filter((s) => s.scope === "public"),
-    optional: bundled.filter((s) => s.scope === "optional"),
-    internal: bundled.filter((s) => s.scope === "internal"),
-  };
+  const engineSet = listEngineSkills();        // what we publish to engines
+  const bundled = listBundledSkills();          // what stays in-repo for the super-agent
+  const legacy = listLegacyPruneSlugs();        // slugs APX shipped historically — pruned on sync
+
   console.log(
-    `Bundled skills: ${bundled.length} total (${byScope.public.length} public, ` +
-      `${byScope.optional.length} optional, ${byScope.internal.length} internal)`
+    `Engine skill set (replicated to global dirs): ${engineSet.length} ` +
+      `(${engineSet.map((s) => s.slug).join(", ") || "—"})`
   );
+  console.log(`In-repo bundled skills (super-agent only): ${bundled.length}`);
   console.log("");
   console.log(`Global skill dirs:`);
   const GLOBAL_DIRS = [
@@ -244,17 +218,23 @@ export async function cmdSkillsStatus() {
     { label: "Codex",                       dir: path.join(os.homedir(), ".codex",  "skills") },
     { label: "Antigravity / others",        dir: path.join(os.homedir(), ".agents", "skills") },
   ];
-  const sw = Math.max(...bundled.map((s) => s.slug.length));
+  const allSlugs = [...engineSet.map((s) => s.slug), ...legacy];
+  const sw = Math.max(...allSlugs.map((s) => s.length), 8);
   for (const { label, dir } of GLOBAL_DIRS) {
     console.log(`\n  ${label} — ${dir.replace(os.homedir(), "~")}`);
-    for (const { slug, scope } of bundled) {
+    for (const { slug } of engineSet) {
       const dest = path.join(dir, slug, "SKILL.md");
       const present = fs.existsSync(dest);
-      const tag = scope === "public" ? "" : ` [${scope}]`;
-      const state = present
-        ? "✓ installed"
-        : (scope === "public" ? "✗ MISSING (run `apx skills sync`)" : "—");
-      console.log(`    ${slug.padEnd(sw)}${tag.padEnd(11)}  ${state}`);
+      const state = present ? "✓ installed" : "✗ MISSING (run `apx skills sync`)";
+      console.log(`    ${slug.padEnd(sw)}             ${state}`);
+    }
+    const stale = legacy.filter((slug) =>
+      fs.existsSync(path.join(dir, slug, "SKILL.md"))
+    );
+    if (stale.length) {
+      for (const slug of stale) {
+        console.log(`    ${slug.padEnd(sw)} [legacy]    ⚠ stale (run \`apx skills sync\` to prune)`);
+      }
     }
   }
 

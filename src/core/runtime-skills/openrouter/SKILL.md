@@ -1,4 +1,5 @@
 ---
+scope: internal
 name: openrouter
 description: "Activate ONLY when the user explicitly mentions OpenRouter, OPENROUTER_API_KEY, OpenRouter models, installing OpenRouter provider config, or using OpenRouter with APX, OpenCode, LiteLLM, or an OpenAI-compatible client."
 homepage: https://openrouter.ai/docs

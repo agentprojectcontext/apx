@@ -22,10 +22,11 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Now under src/core/apc/ — one more "../" to escape than before.
 const PACKAGE_ROOT = path.resolve(__dirname, "..", "..", "..");
+// <packageRoot>/skills/<slug>/SKILL.md — the SLIM engine-side set: every skill
+// here is replicated verbatim into project IDE rule files (`apx skills add`) and
+// into ~/.<host>/skills/ (`apx skills sync`). The rich super-agent catalog lives
+// at src/core/runtime-skills/ and is intentionally NOT copied out.
 const BUNDLED_SKILLS_DIR = path.join(PACKAGE_ROOT, "skills");
-// runtime-skills lives at src/core/runtime-skills/, one level up from this
-// file's new home in src/core/apc/ (was a sibling before the Phase 3 move).
-const RUNTIME_SKILLS_DIR = path.join(__dirname, "..", "runtime-skills");
 
 export const SPEC_VERSION = "0.1.0";
 
@@ -35,12 +36,12 @@ export const SPEC_VERSION = "0.1.0";
 // install/update from the canonical APC repo (see src/interfaces/cli/postinstall.js).
 // ---------------------------------------------------------------------------
 
-// Bundled skills — apx lives in skills/apx/. apc-context is synced from
-// the canonical APC repo (../apc or GitHub) — never edited in APX.
+// Read one slim skill from <packageRoot>/skills/<slug>/SKILL.md. `apc-context`
+// is special-cased to refresh from the canonical APC repo if available.
 function readBundledSkill(slug) {
   if (slug === "apc-context") {
     const synced = readApcContextSkill();
-    return synced?.text || null;
+    if (synced?.text) return synced.text;
   }
   const file = path.join(BUNDLED_SKILLS_DIR, slug, "SKILL.md");
   if (!fs.existsSync(file)) return null;
@@ -141,19 +142,11 @@ const GLOBAL_SKILL_DIRS = [
   path.join(os.homedir(), ".agents", "skills"),    // Antigravity/other skills.sh adopters
 ];
 
-function readRuntimeSkillFiles() {
-  if (!fs.existsSync(RUNTIME_SKILLS_DIR)) return [];
-  return fs.readdirSync(RUNTIME_SKILLS_DIR)
-    .filter((name) => name.endsWith(".md"))
-    .sort()
-    .map((name) => ({
-      slug: path.basename(name, ".md"),
-      md: fs.readFileSync(path.join(RUNTIME_SKILLS_DIR, name), "utf8").trim(),
-    }));
-}
-
 // Install APX + APC context skills into IDE rule files. Returns an array of result objects.
 // targetIds: array of target ids to install; null = all project targets.
+// Writes the slim engine-side skill from <packageRoot>/skills/. The rich
+// super-agent set in src/core/runtime-skills/ is intentionally never written
+// into project IDE files.
 export function installIdeSkills(root, targetIds = null) {
   const apxRaw = readBundledSkill("apx");
   const apcRaw = readBundledSkill("apc-context");
@@ -204,36 +197,27 @@ export function installIdeSkills(root, targetIds = null) {
 // on the user's machine after `npm install -g .` (or `npm update -g apx`)
 // without anyone having to touch this file.
 //
-// Excluded: directory names starting with "." (e.g. .DS_Store), and any
-// runtime-only CLI skill that lives under src/core/runtime-skills/ — those
-// are loaded in-process at daemon startup and are NOT for IDE consumption.
-// Public: bundled skill slugs grouped by scope.
-//   public   → pushed to every global skill dir on install / sync (default).
-//   optional → not pushed by default; user opts in with --include-optional
-//              or `apx skills add <slug> --global` for one-off install.
-//   internal → APX-developer skills (mcp-builder, skill-builder, etc.); never
-//              pushed globally, only available to APX itself via the bundled
-//              copy. Avoids cluttering other IDEs with stuff their users won't
-//              run.
+// Excluded: directory names starting with "." (e.g. .DS_Store).
+// Every slug under <packageRoot>/skills/ is part of the slim engine set and
+// gets pushed to global dirs on `apx skills sync`. No scope filtering — the
+// dir IS the contract.
 export function listBundledSkillSlugs() {
   return discoverBundledSkills().map((s) => s.slug);
 }
 
 export function listBundledSkills() {
-  return discoverBundledSkills().map(({ slug, scope }) => ({ slug, scope }));
+  return discoverBundledSkills().map(({ slug }) => ({ slug }));
 }
 
-// Tiny frontmatter peek — we only need the `scope:` field. Avoids pulling in
-// a full YAML parser for one optional line.
-function parseFrontmatterScope(md) {
-  if (!md.startsWith("---\n")) return "public";
-  const end = md.indexOf("\n---", 4);
-  if (end === -1) return "public";
-  const m = md.slice(4, end).match(/^scope:\s*(\w+)/m);
-  if (!m) return "public";
-  const s = m[1].toLowerCase();
-  if (s === "internal" || s === "optional" || s === "public") return s;
-  return "public";
+// Backwards-compat alias — every bundled slug here IS an engine slug now.
+export function listEngineSkills() {
+  return listBundledSkills();
+}
+
+// Legacy slugs APX used to ship to global dirs but no longer does — exposed so
+// the CLI can report what `installGlobalSkills` will prune.
+export function listLegacyPruneSlugs() {
+  return [...PRUNE_LEGACY_SLUGS];
 }
 
 function discoverBundledSkills() {
@@ -246,65 +230,80 @@ function discoverBundledSkills() {
     const skillFile = path.join(root, entry.name, "SKILL.md");
     if (!fs.existsSync(skillFile)) continue;
     const md = fs.readFileSync(skillFile, "utf8");
-    out.push({ slug: entry.name, md, scope: parseFrontmatterScope(md) });
+    out.push({ slug: entry.name, md });
   }
   return out.sort((a, b) => a.slug.localeCompare(b.slug));
 }
 
-// Install bundled skills to every global ~/.../skills/ dir so Claude Code,
-// Cursor, Codex, and other IDEs see them.
+// Install the slim engine skill set to every global ~/.../skills/ dir
+// (Claude Code, Cursor, Codex, Antigravity/skills.sh). External engines only
+// need to know how to talk TO apx — not the full APX sub-skill catalog. The
+// rich bundled set in skills/<slug>/ stays in-repo for the APX super-agent.
 //
-// By default only `scope: public` skills land globally. Pass
-// includeOptional / includeInternal to push the other tiers (or call
-// `apx skills add <slug> --global` for a single one).
+// The set lives at skills/engines/<slug>/SKILL.md and is currently:
+//   apx, apx-mcp, apc-context.
 //
-// Pruning: if a slug that was previously installed has since been demoted to
-// internal/optional (or marked as non-public for the current call), we remove
-// the stale global copy unless prune=false. Keeps IDE skill lists clean.
+// `includeOptional` / `includeInternal` are kept as no-op flags for backward
+// compatibility with `apx skills sync --include-…`; the slim set has no tiers.
+//
+// Pruning: removes stale APX-shipped slugs that are no longer in the engine
+// set (the catalog of slugs APX has ever published, see PRUNE_LEGACY_SLUGS).
+// Skills the user installed themselves are NOT touched.
 //
 // Returns an array of { dir, skill, file, status, scope }.
-//   status ∈ {created, updated, unchanged, pruned, skipped}
+//   status ∈ {created, updated, unchanged, pruned}
+const PRUNE_LEGACY_SLUGS = [
+  "apx-agency-agents",
+  "apx-agent",
+  "apx-mcp-builder",
+  "apx-project",
+  "apx-routine",
+  "apx-runtime",
+  "apx-sessions",
+  "apx-skill-builder",
+  "apx-task",
+  "apx-telegram",
+  "apx-voice",
+  // Runtime CLI docs that previously leaked into global dirs — these are
+  // loaded in-process by the daemon and should NOT live on disk in IDE skill
+  // dirs.
+  "claude-code",
+  "codex-cli",
+  "opencode-cli",
+  "openrouter",
+];
+
 export function installGlobalSkills({
-  includeOptional = false,
-  includeInternal = false,
   prune = true,
+  // No-ops kept for CLI backward compatibility (the slim engine set has no tiers).
+  includeOptional: _includeOptional = false,
+  includeInternal: _includeInternal = false,
 } = {}) {
-  const all = discoverBundledSkills();
-  const wanted = all.filter((s) => {
-    if (s.scope === "internal") return includeInternal;
-    if (s.scope === "optional") return includeOptional;
-    return true; // public
-  });
+  const wanted = discoverBundledSkills();
   const wantedSlugs = new Set(wanted.map((s) => s.slug));
-  const knownSlugs = new Set(all.map((s) => s.slug));
 
   const results = [];
   for (const base of GLOBAL_SKILL_DIRS) {
-    // Push the wanted set.
-    for (const { slug, md, scope } of wanted) {
+    for (const { slug, md } of wanted) {
       const dest = path.join(base, slug, "SKILL.md");
       fs.mkdirSync(path.dirname(dest), { recursive: true });
       const existed = fs.existsSync(dest);
       const previous = existed ? fs.readFileSync(dest, "utf8") : null;
       if (previous === md) {
-        results.push({ dir: base, skill: slug, file: dest, status: "unchanged", scope });
+        results.push({ dir: base, skill: slug, file: dest, status: "unchanged", scope: "engine" });
         continue;
       }
       fs.writeFileSync(dest, md, "utf8");
-      results.push({ dir: base, skill: slug, file: dest, status: existed ? "updated" : "created", scope });
+      results.push({ dir: base, skill: slug, file: dest, status: existed ? "updated" : "created", scope: "engine" });
     }
-    // Prune anything WE shipped previously but should no longer be there
-    // (slug exists in the bundle but isn't `wanted` this run).
     if (prune) {
-      for (const { slug, scope } of all) {
+      for (const slug of PRUNE_LEGACY_SLUGS) {
         if (wantedSlugs.has(slug)) continue;
-        if (!knownSlugs.has(slug)) continue;
         const dest = path.join(base, slug, "SKILL.md");
         if (!fs.existsSync(dest)) continue;
         fs.unlinkSync(dest);
-        // Best-effort: drop the now-empty <slug>/ dir too.
         try { fs.rmdirSync(path.dirname(dest)); } catch {}
-        results.push({ dir: base, skill: slug, file: dest, status: "pruned", scope });
+        results.push({ dir: base, skill: slug, file: dest, status: "pruned", scope: "legacy" });
       }
     }
   }

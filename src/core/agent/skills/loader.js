@@ -10,15 +10,19 @@
 //   1. <projectPath>/.apc/skills/<slug>.md           ← project-scoped (flat)
 //   1b.<projectPath>/.apc/skills/<slug>/SKILL.md     ← project-scoped (dir)
 //   2. ~/.apx/skills/<slug>/SKILL.md                 ← user-installed global
-//   3. <packageRoot>/skills/<slug>/SKILL.md          ← bundled core skills
-//                                                     (apx, apc-context)
-//   4. <packageRoot>/src/core/runtime-skills/<slug>.md
-//                                                     (claude-code, codex-cli,
-//                                                      opencode-cli, openrouter)
+//   3. <packageRoot>/src/core/runtime-skills/<slug>/SKILL.md
+//                                                     ← runtime-internal set
+//                                                       (rich apx-*, apc-context,
+//                                                       claude-code, codex-cli,
+//                                                       opencode-cli, openrouter)
 //
-// A slug found in a higher-priority location SHADOWS lower ones. A user can
-// override the bundled apc-context by dropping `~/.apx/skills/apc-context/SKILL.md`,
-// but the bundled copy stays in the package as a safety net.
+// A slug found in a higher-priority location SHADOWS lower ones. The user can
+// override any runtime skill by dropping `~/.apx/skills/<slug>/SKILL.md`; the
+// in-repo copy stays as a safety net.
+//
+// NOTE: <packageRoot>/skills/<slug>/SKILL.md is intentionally NOT in this chain.
+// That dir holds the engine-side slim set replicated to external CLIs/IDEs
+// (~/.claude/skills/, ~/.codex/skills/, ...) — it's not for the super-agent.
 //
 // Note: the bundled `apc-context` skill is REFRESHED from the canonical apc
 // repo on every npm install / update (see src/interfaces/cli/postinstall.js). APC is a
@@ -36,8 +40,10 @@ const __dirname  = path.dirname(__filename);
 // → repo root. Used to find the bundled skills/ folder at the repo root.
 const PACKAGE_ROOT = path.resolve(__dirname, "..", "..", "..", "..");
 
-const RUNTIME_SKILLS_DIR = path.join(PACKAGE_ROOT, "src", "core", "runtime-skills");
-const BUNDLED_SKILLS_DIR = path.join(PACKAGE_ROOT, "skills");
+// Runtime-internal skills — full apx-* catalog + CLI docs. Lives outside
+// <packageRoot>/skills/ so external tools that copy "skills/" from the repo
+// don't accidentally pull the rich set or the runtime CLI docs.
+const BUILTIN_SKILLS_DIR = path.join(PACKAGE_ROOT, "src", "core", "runtime-skills");
 const GLOBAL_DIR         = path.join(os.homedir(), ".apx", "skills");
 
 // ---------------------------------------------------------------------------
@@ -128,11 +134,9 @@ export function listSkills({ projectPath } = {}) {
   // priority 2: user-installed global
   found.push(...scanDirStyle(GLOBAL_DIR, "global"));
 
-  // priority 3: bundled core skills (apx, apc-context)
-  found.push(...scanDirStyle(BUNDLED_SKILLS_DIR, "builtin"));
-
-  // priority 4: runtime docs (claude-code, codex-cli, opencode-cli, openrouter)
-  found.push(...scanFlatStyle(RUNTIME_SKILLS_DIR, "builtin"));
+  // priority 3: runtime-internal builtin set
+  // (rich apx-*, apc-context, plus claude-code, codex-cli, opencode-cli, openrouter)
+  found.push(...scanDirStyle(BUILTIN_SKILLS_DIR, "builtin"));
 
   // dedupe by slug (first-wins = higher priority shadows lower)
   const seen = new Set();
@@ -190,7 +194,6 @@ export function loadSkill(slug, { projectPath } = {}) {
 
 // Useful for diagnostics
 export const SKILL_LOCATIONS = {
-  runtime_skills: RUNTIME_SKILLS_DIR,
-  bundled: BUNDLED_SKILLS_DIR,
+  builtin: BUILTIN_SKILLS_DIR,
   global: GLOBAL_DIR,
 };

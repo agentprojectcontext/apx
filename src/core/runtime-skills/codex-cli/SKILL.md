@@ -1,4 +1,5 @@
 ---
+scope: internal
 name: codex-cli
 description: "Activate ONLY when the user explicitly mentions Codex CLI, OpenAI Codex, @openai/codex, codex command, codex exec, installing Codex, using Codex, ~/.codex, or APX runtime codex."
 homepage: https://developers.openai.com/codex

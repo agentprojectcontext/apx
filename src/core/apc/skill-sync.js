@@ -8,7 +8,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Repo root is three levels up, not two.
 export const PACKAGE_ROOT = path.resolve(__dirname, "..", "..", "..");
 
+// Engine-side slim copy (replicated to ~/.<host>/skills/ by apx skills sync).
 export const APC_SKILL_REL = path.join("skills", "apc-context", "SKILL.md");
+// Runtime-internal copy (loaded by the super-agent — never published outside).
+export const APC_BUILTIN_SKILL_REL = path.join("src", "core", "runtime-skills", "apc-context", "SKILL.md");
 export const APC_SKILL_REMOTE =
   "https://raw.githubusercontent.com/agentprojectcontext/agentprojectcontext/main/skills/apc-context/SKILL.md";
 
@@ -95,5 +98,12 @@ export async function refreshApcContextSkill({ packageRoot = PACKAGE_ROOT, timeo
 
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   fs.writeFileSync(dest, text, "utf8");
+
+  // Keep the runtime-internal copy (src/core/runtime-skills/apc-context/) in
+  // sync — that's where the super-agent loads it from.
+  const builtinDest = path.join(packageRoot, APC_BUILTIN_SKILL_REL);
+  fs.mkdirSync(path.dirname(builtinDest), { recursive: true });
+  fs.writeFileSync(builtinDest, text, "utf8");
+
   return { ok: true, source, refreshed: true };
 }
