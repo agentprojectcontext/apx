@@ -1,16 +1,16 @@
 ---
 name: apx-task
-description: Per-project TODO list. Load when the user wants to note, remind, list, or complete a task. Tasks are project-scoped, event-sourced, and addressable by short id prefix. Triggers: 'add a task', 'remind me to…', 'what's pending', 'mark as done'.
+description: Per-project TODO list. Event-sourced, project-scoped, addressable by short id prefix. Load when user wants to note, remind, list, or complete a task. Triggers: 'add a task', 'remind me to…', 'what's pending', 'mark as done', 'open tasks'.
 ---
 
 # apx-task
 
-A `task` is a per-project TODO. Append-only JSONL event log per month under `~/.apx/projects/<apxId>/tasks/YYYY-MM.jsonl`. State is the fold of the event stream. Once created, a task lives forever — `done` and `drop` don't delete events, they record a state transition. `reopen` flips back to `open`.
+A `task` is a per-project TODO. Append-only JSONL event log per month at `~/.apx/projects/<apxId>/tasks/YYYY-MM.jsonl`. State is the fold of the event stream. Once created a task lives forever — `done` and `drop` record state transitions, don't delete events. `reopen` flips back to `open`.
 
 ## Concrete CLI calls
 
 ```bash
-# Add — most common
+# Add
 apx task add "Review the auth bug" --project iacrmar
 apx task add "Call the client" --project iacrmar --due 2026-05-30 --tag urgent
 apx task add "Demo for tester X" --project iacrmar --agent reviewer --tag demo --tag external --source cli
@@ -25,7 +25,7 @@ apx task list --project iacrmar --limit 5
 
 # Inspect / mutate
 apx task show t_abc123 --project iacrmar
-apx task show abc       --project iacrmar    # prefix match (≥3 chars), unique
+apx task show abc       --project iacrmar    # prefix match (≥3 chars, unique)
 apx task done    t_abc123 --project iacrmar --by manuel
 apx task drop    t_abc123 --project iacrmar               # archived (not "done")
 apx task reopen  t_abc123 --project iacrmar
@@ -35,7 +35,7 @@ apx task patch   t_abc123 --project iacrmar --tag bug --tag blocker   # replaces
 
 ## ID format
 
-`t_` + 6 base36 chars (32-bit entropy → ~4B keyspace). Prefix matching works once you have ≥ 3 chars and the prefix uniquely identifies a task. If two tasks share a prefix, you get null — use a longer one.
+`t_` + 6 base36 chars (~4B keyspace). Prefix matching works at ≥3 chars when the prefix is unique. If two tasks share a prefix you get null — use a longer one.
 
 ## Fields
 
@@ -43,36 +43,33 @@ apx task patch   t_abc123 --project iacrmar --tag bug --tag blocker   # replaces
 |---|---|---|
 | `title` | always | One imperative line. Required. |
 | `body` | optional | Longer notes. Markdown OK. |
-| `tags` | optional | Free-form strings. Used by `--tag` filter. |
-| `due` | optional | ISO date `YYYY-MM-DD`. Listing supports `--due-before`. |
-| `agent` | optional | Slug of an agent responsible. Used by `--agent` filter. |
-| `source` | auto/optional | Where the task came from (cli, telegram, super-agent). |
-| `state` | derived | `open` after create, `done` / `dropped` after their respective ops. |
+| `tags` | optional | Free-form. Used by `--tag` filter. |
+| `due` | optional | ISO `YYYY-MM-DD`. Supports `--due-before`. |
+| `agent` | optional | Slug of responsible agent. Used by `--agent` filter. |
+| `source` | auto/optional | Origin (cli, telegram, super-agent). |
+| `state` | derived | `open` after create, `done`/`dropped` after ops. |
 
 ## Super-agent tools
 
-The super-agent has `create_task` and `list_tasks` tools. So a user message like "note that we need to close the auth bug in iacrmar tomorrow" makes the model call:
+The super-agent has `create_task` and `list_tasks`. "Note that we need to close the auth bug in iacrmar tomorrow" → model calls:
 
 ```json
 { "name": "create_task",
   "arguments": { "project": "iacrmar", "title": "Close the auth bug", "due": "<tomorrow>", "tags": ["bug"] } }
 ```
 
-When the user asks "what's pending in iacrmar?", the model calls `list_tasks({ project: "iacrmar" })`.
-
-If the user doesn't say which project, the model should `list_projects` first and ask which one — never assume. If the conversation has a project context (Telegram channel pinned to project), the model uses that.
+"What's pending in iacrmar?" → `list_tasks({ project: "iacrmar" })`. If user doesn't say which project, `list_projects` first and ask — never assume. If the channel has pinned project context (Telegram), use that.
 
 ## Anti-examples
 
 ```bash
 # DON'T add tasks without --project for real work.
 apx task add "Stuff"            # falls back to first registered project (or default=0)
-# ↑ Will dump into a project you may not have meant. Always --project.
 
 # DON'T use `done` when the task is no longer relevant. Use `drop`.
-apx task done t_abc            # implies "I completed this work"
-apx task drop t_abc            # implies "this is no longer needed; archive without completion"
-# Reporting / metrics distinguish them.
+apx task done t_abc            # "I completed this work"
+apx task drop t_abc            # "no longer needed; archive without completion"
+# Reporting/metrics distinguish them.
 ```
 
 ## Endpoint surface
@@ -90,6 +87,6 @@ GET    /projects/:pid/tasks-summary          → { open, done, dropped, overdue,
 
 ## Don't
 
-- Don't use tasks for reminders that need to *fire* — that's a future routine kind (`task-due-notify`, not built yet). Tasks are a list, not a scheduler.
-- Don't depend on `done` deleting the task. It doesn't. The event log stays.
-- Don't grep `~/.apx/projects/<id>/tasks/*.jsonl` for state — use `apx task list` or `getTask()`. The fold logic isn't trivial (later events can override fields).
+- Don't use tasks for reminders that need to *fire* — that's a future routine kind (`task-due-notify`, not built). Tasks are a list, not a scheduler.
+- Don't depend on `done` deleting the task. It doesn't. Event log stays.
+- Don't grep `~/.apx/projects/<id>/tasks/*.jsonl` for state — use `apx task list` or `getTask()`. Fold logic isn't trivial (later events override fields).
