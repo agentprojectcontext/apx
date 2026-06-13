@@ -15,6 +15,20 @@ import {
   listEngineSkills,
   listLegacyPruneSlugs,
 } from "#core/apc/scaffold.js";
+import {
+  ensureIndex,
+  planIndex,
+  readIndex,
+  clearIndex,
+  indexPath,
+} from "#core/agent/skills/index-store.js";
+import { isInspectorEnabled } from "#core/agent/skills/inspector.js";
+import {
+  inspectPromptForSkills,
+  summarizeTrace,
+  INSPECTOR_DEFAULTS,
+} from "#core/agent/skills/inspector.js";
+import { readConfig, writeConfig } from "#core/config/index.js";
 
 // ---------------------------------------------------------------------------
 // Prompt helper
@@ -28,6 +42,31 @@ function ask(question) {
       resolve(answer.trim().toLowerCase());
     });
   });
+}
+
+// When the Skill Inspector is on, the catalog it scores against must stay in
+// sync with what's installed. Called after add/sync so a freshly available
+// skill is searchable immediately, without a separate `apx skills index`.
+// No-op (silent) when the inspector is disabled — nothing reads the index then.
+async function reindexInspectorIfEnabled() {
+  let config;
+  try {
+    config = readConfig();
+  } catch {
+    return;
+  }
+  if (!isInspectorEnabled(config)) return;
+  try {
+    const plan = planIndex({});
+    const work = plan.missing.length + plan.stale.length + plan.gone.length;
+    if (work === 0) return;
+    process.stdout.write(`\n  Skill Inspector on — reindexing ${work} changed skill(s)… `);
+    const out = await ensureIndex({ embedOpts: { globalConfig: config } });
+    const c = out.changed;
+    console.log(`done (${out.embedder}: +${c.added.length} ~${c.refreshed.length} -${c.removed.length}).`);
+  } catch (e) {
+    console.log(`\n  (skill index refresh failed: ${e.message})`);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -65,6 +104,7 @@ export async function cmdSkillsAdd(args) {
     }
     console.log("\n  Loaded by: Claude Code, Cursor, Codex (OpenAI), Antigravity, and skills.sh-compatible tools.");
     console.log("  Activates automatically when working in a project with AGENTS.md or .apc/");
+    await reindexInspectorIfEnabled();
     return;
   }
 
@@ -93,6 +133,7 @@ export async function cmdSkillsAdd(args) {
     console.log("");
     for (const t of notes) console.log(`  note: ${t.note}`);
   }
+  await reindexInspectorIfEnabled();
 }
 
 // ---------------------------------------------------------------------------
@@ -154,6 +195,7 @@ export async function cmdSkillsSync(args) {
       }
     }
   }
+  await reindexInspectorIfEnabled();
 }
 
 // ---------------------------------------------------------------------------
@@ -260,4 +302,216 @@ export async function cmdSkillsStatus() {
 
   console.log("\n  Tip: run `apx skills add` for an interactive install.");
   console.log("  Claude Desktop has no project-file support (use apx-mcp instead).");
+}
+
+// ---------------------------------------------------------------------------
+// apx skills index [--reset] [--force]
+//
+// Build the persistent vector index that powers the skill Inspector. Runs the
+// configured embedding provider (defaults to local: ollama → tf fallback) over
+// every skill's condensed description and writes ~/.apx/skills/.index.json.
+// ---------------------------------------------------------------------------
+
+function renderBar(done, total, width = 24) {
+  if (!Number.isFinite(total) || total <= 0) return "";
+  const ratio = Math.max(0, Math.min(1, done / total));
+  const filled = Math.round(ratio * width);
+  return "[" + "█".repeat(filled) + " ".repeat(width - filled) + "]";
+}
+
+export async function cmdSkillsIndex(args = {}) {
+  const reset = !!args?.flags?.reset;
+  const force = !!args?.flags?.force;
+  if (reset) clearIndex();
+
+  const config = readConfig();
+  const root = findApfRoot();
+  const projectPath = root || undefined;
+
+  const plan = planIndex({ projectPath });
+  if (plan.total === 0) {
+    console.log("(no skills available — install some first with `apx skills sync` or drop a SKILL.md in ~/.apx/skills/<slug>/)");
+    return;
+  }
+
+  const headline = force
+    ? `Rebuilding index for ${plan.total} skills (force).`
+    : `Indexing ${plan.total} skills (${plan.existing.length} cached · ${plan.missing.length} new · ${plan.stale.length} stale · ${plan.gone.length} gone).`;
+  console.log(headline);
+
+  const t0 = Date.now();
+  let lastLine = "";
+  const out = await ensureIndex({
+    projectPath,
+    embedOpts: { globalConfig: config },
+    force,
+    onProgress: ({ done, total, slug, action }) => {
+      const bar = renderBar(done, total);
+      const tag = action.padEnd(9);
+      const line = `\r${bar} ${done}/${total}  ${tag}  ${slug}`.padEnd(lastLine.length, " ");
+      process.stdout.write(line);
+      lastLine = line;
+    },
+  });
+
+  const elapsedMs = Date.now() - t0;
+  process.stdout.write("\r" + " ".repeat(lastLine.length) + "\r");
+
+  const c = out.changed;
+  console.log(
+    `Done in ${(elapsedMs / 1000).toFixed(1)}s using ${out.embedder} (dim ${out.dim}).\n` +
+    `  added:     ${c.added.length}\n` +
+    `  refreshed: ${c.refreshed.length}\n` +
+    `  removed:   ${c.removed.length}\n` +
+    `  kept:      ${c.kept.length}\n` +
+    `  index:     ${indexPath()}`
+  );
+  if (c.added.length || c.refreshed.length) {
+    const sample = [...c.added, ...c.refreshed].slice(0, 6).join(", ");
+    if (sample) console.log(`  changes:   ${sample}${(c.added.length + c.refreshed.length) > 6 ? ", …" : ""}`);
+  }
+  if (out.embedder === "tf") {
+    console.log("  note:      using offline TF fallback (no embedding provider reachable). Configure one in config.memory.embeddings for better recall.");
+  }
+}
+
+// ---------------------------------------------------------------------------
+// apx skills inspect <prompt>
+//
+// Show what the Inspector would inject for a given user prompt. Doesn't touch
+// the model — pure middleware debug. Useful to tune thresholds and to see why
+// a skill did or didn't fire.
+// ---------------------------------------------------------------------------
+
+export async function cmdSkillsInspect(args) {
+  const promptParts = args?._ || [];
+  const prompt = promptParts.join(" ").trim();
+  if (!prompt) {
+    console.error("usage: apx skills inspect \"<prompt text>\"");
+    process.exitCode = 2;
+    return;
+  }
+
+  const config = readConfig();
+  const root = findApfRoot();
+  const projectPath = root || undefined;
+
+  // Force the inspector on for this command even if config has it off — the
+  // operator is explicitly asking "what WOULD the inspector do?".
+  const probedConfig = structuredClone(config);
+  probedConfig.skills = probedConfig.skills || {};
+  probedConfig.skills.inspector = {
+    ...INSPECTOR_DEFAULTS,
+    ...(probedConfig.skills.inspector || {}),
+    enabled: true,
+  };
+
+  const out = await inspectPromptForSkills({
+    prompt,
+    projectPath,
+    globalConfig: probedConfig,
+  });
+
+  console.log(`prompt:    ${prompt}`);
+  console.log(`embedder:  ${out.trace.embedder || "(none)"}`);
+  console.log(`decision:  ${summarizeTrace(out.trace)}`);
+  if (out.trace.scored?.length) {
+    console.log("scores:");
+    for (const s of out.trace.scored) console.log(`  ${s.sim.toFixed(3)}  ${s.slug}`);
+  }
+  if (out.contextNote) {
+    console.log("");
+    console.log("--- contextNote that would be injected ---");
+    console.log(out.contextNote);
+    console.log("--- end ---");
+  }
+}
+
+// ---------------------------------------------------------------------------
+// apx skills inspector [enable|disable|status|set <key> <value>]
+//
+// Manage config.skills.inspector. All keys live under that namespace; this
+// command is a thin shortcut so you don't have to remember the path.
+// ---------------------------------------------------------------------------
+
+const KNOWN_INSPECTOR_KEYS = Object.keys(INSPECTOR_DEFAULTS);
+
+function ensureInspectorBlock(cfg) {
+  cfg.skills = cfg.skills || {};
+  cfg.skills.inspector = { ...INSPECTOR_DEFAULTS, ...(cfg.skills.inspector || {}) };
+  return cfg;
+}
+
+function printInspectorStatus(cfg) {
+  const insp = cfg.skills?.inspector || {};
+  const merged = { ...INSPECTOR_DEFAULTS, ...insp };
+  console.log(`Skill Inspector: ${merged.enabled ? "ENABLED" : "disabled"}`);
+  for (const k of KNOWN_INSPECTOR_KEYS) {
+    if (k === "enabled") continue;
+    console.log(`  ${k.padEnd(16)} ${merged[k]}`);
+  }
+  const idx = readIndex();
+  const count = Object.keys(idx.items || {}).length;
+  console.log("");
+  console.log(`Index: ${count} skills (${idx.embedder || "—"}, dim ${idx.dim || "—"})`);
+  console.log(`File:  ${indexPath()}`);
+}
+
+export async function cmdSkillsInspector(args) {
+  const sub = (args?._ || [])[0];
+  const cfg = readConfig();
+
+  if (!sub || sub === "status") {
+    printInspectorStatus(cfg);
+    return;
+  }
+  if (sub === "enable" || sub === "on") {
+    ensureInspectorBlock(cfg).skills.inspector.enabled = true;
+    writeConfig(cfg);
+    console.log("Skill Inspector ENABLED. The catalog-wide hint block will be suppressed; per-turn RAG decides what skills go into context.");
+    console.log("Tip: run `apx skills index` once so the inspector has cached vectors to score against.");
+    return;
+  }
+  if (sub === "disable" || sub === "off") {
+    ensureInspectorBlock(cfg).skills.inspector.enabled = false;
+    writeConfig(cfg);
+    console.log("Skill Inspector disabled. Falling back to the legacy slug hint + passive RAG nudge.");
+    return;
+  }
+  if (sub === "set") {
+    const key = args._[1];
+    const value = args._[2];
+    if (!key || value === undefined) {
+      console.error("usage: apx skills inspector set <key> <value>");
+      console.error(`keys: ${KNOWN_INSPECTOR_KEYS.join(", ")}`);
+      process.exitCode = 2;
+      return;
+    }
+    if (!KNOWN_INSPECTOR_KEYS.includes(key)) {
+      console.error(`unknown key "${key}". Known: ${KNOWN_INSPECTOR_KEYS.join(", ")}`);
+      process.exitCode = 2;
+      return;
+    }
+    ensureInspectorBlock(cfg);
+    const def = INSPECTOR_DEFAULTS[key];
+    let coerced = value;
+    if (typeof def === "boolean") coerced = value === "true" || value === "1" || value === "on";
+    else if (typeof def === "number") {
+      const n = Number(value);
+      if (!Number.isFinite(n)) {
+        console.error(`value for "${key}" must be a number; got "${value}"`);
+        process.exitCode = 2;
+        return;
+      }
+      coerced = n;
+    }
+    cfg.skills.inspector[key] = coerced;
+    writeConfig(cfg);
+    console.log(`skills.inspector.${key} = ${coerced}`);
+    return;
+  }
+
+  console.error(`unknown inspector subcommand: ${sub}`);
+  console.error("usage: apx skills inspector [status|enable|disable|set <key> <value>]");
+  process.exitCode = 2;
 }

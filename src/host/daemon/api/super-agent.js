@@ -15,9 +15,29 @@ import { appendGlobalMessage } from "#core/stores/messages.js";
 import { createWebConfirmAdapter } from "#core/confirmation/adapters/web.js";
 import { tryResolveSkillCommand } from "#core/agent/skills/trigger.js";
 import { suggestSkillForPrompt } from "#core/agent/skills/rag.js";
+import { inspectPromptForSkills, isInspectorEnabled, summarizeTrace } from "#core/agent/skills/inspector.js";
 import { CHANNELS } from "#core/constants/channels.js";
 
 const log = loggerFor("super-agent");
+
+// Emit a single, readable line so `apx log -f` shows exactly what the skill
+// inspector decided this turn (which skills it loaded/hinted, the embedder, and
+// the top similarity). Best-effort: logging must never break a reply.
+function logInspectorDecision(trace, { trace_id, channel } = {}) {
+  if (!trace) return;
+  try {
+    const top = trace.scored?.[0];
+    const topStr = top ? ` top=${top.slug}@${top.sim}` : "";
+    log.info(`skill inspector: ${summarizeTrace(trace)} [${trace.embedder || "?"}]${topStr}`, {
+      trace_id,
+      channel,
+      loaded: trace.loaded || [],
+      hinted: trace.hinted || [],
+    });
+  } catch {
+    /* logging is best-effort */
+  }
+}
 
 // Persist human web turns to the cross-channel message store so they feed the
 // RAG index, search_messages, and the "active threads" awareness block. Only
@@ -79,10 +99,25 @@ export function register(app, { projects, registries, plugins, project, config }
     // slug is unknown.
     const slashed = tryResolveSkillCommand(rawPrompt, { projectPath: p.path });
     const prompt = slashed.handled ? slashed.prompt : rawPrompt;
+    const inspectorOn = isInspectorEnabled(config);
+    let inspectorTrace = null;
     if (slashed.handled) {
       ctx.contextNote = [ctx.contextNote, slashed.contextNote].filter(Boolean).join("\n\n");
+    } else if (inspectorOn) {
+      // Inspector middleware: per-turn semantic RAG. Replaces both the passive
+      // suggestSkillForPrompt nudge AND the static slug-dump in the system
+      // prompt — see runSuperAgent({ skipSkillsHint }).
+      const out = await inspectPromptForSkills({
+        prompt,
+        projectPath: p.path,
+        globalConfig: config,
+      });
+      inspectorTrace = out.trace;
+      if (out.contextNote) {
+        ctx.contextNote = [ctx.contextNote, out.contextNote].filter(Boolean).join("\n\n");
+      }
     } else {
-      // Semantic skill nudge — only when there was no explicit /slug.
+      // Legacy path — passive nudge, still works when inspector is off.
       const hint = await suggestSkillForPrompt(prompt, { projectPath: p.path });
       if (hint) ctx.contextNote = [ctx.contextNote, hint].filter(Boolean).join("\n\n");
     }
@@ -100,6 +135,14 @@ export function register(app, { projects, registries, plugins, project, config }
       trace_id: req.apxTraceId,
       channel: ctx.channel,
     });
+
+    // Surface the inspector decision to clients before model_start so the web
+    // debug panel / TUI can render "loaded: X" the moment the turn begins.
+    if (inspectorTrace) {
+      try { onEvent({ type: "skill_inspector", inspector: inspectorTrace }); }
+      catch { /* trace is best-effort */ }
+      logInspectorDecision(inspectorTrace, { trace_id: req.apxTraceId, channel: ctx.channel });
+    }
 
     // Web/TUI channels receive a "confirmation_required" SSE event and respond
     // via POST /super-agent/confirm/:correlationId (see api/confirm.js).
@@ -122,6 +165,7 @@ export function register(app, { projects, registries, plugins, project, config }
         ...(completionContract ? { completionContract: true } : {}),
         onEvent,
         requestConfirmation,
+        skipSkillsHint: inspectorOn,
       });
       projects.rebuild(p.id);
       logWebTurn(ctx.channel, { prompt, replyText: saResult.text });
@@ -194,6 +238,16 @@ export function register(app, { projects, registries, plugins, project, config }
       req.body || {};
     if (!prompt) return res.status(400).json({ error: "prompt required" });
     const ctx = resolveSuperAgentContext(req, p);
+    const inspectorOn = isInspectorEnabled(config);
+    if (inspectorOn) {
+      try {
+        const out = await inspectPromptForSkills({ prompt, projectPath: p.path, globalConfig: config });
+        if (out.contextNote) {
+          ctx.contextNote = [ctx.contextNote, out.contextNote].filter(Boolean).join("\n\n");
+        }
+        logInspectorDecision(out.trace, { trace_id: req.apxTraceId, channel: ctx.channel });
+      } catch { /* inspector failure must not block the turn */ }
+    }
     try {
       const saResult = await runSuperAgent({
         globalConfig: config,
@@ -213,6 +267,7 @@ export function register(app, { projects, registries, plugins, project, config }
           trace_id: req.apxTraceId,
           channel: ctx.channel,
         }),
+        skipSkillsHint: inspectorOn,
       });
       projects.rebuild(p.id);
       logWebTurn(ctx.channel, { prompt, replyText: saResult.text });

@@ -32,6 +32,13 @@ export interface ChatMsg {
   usage?: ChatUsage;
   /** Operational notes (engine fallbacks, retries, suppressions). */
   notes?: string[];
+  /** Skill Inspector decision for this turn (when the feature is on): which
+   *  skills the per-turn RAG loaded inline vs merely hinted. */
+  inspector?: {
+    embedder?: string;
+    loaded?: string[];
+    hinted?: string[];
+  };
 }
 
 export interface SendOptions {
@@ -138,6 +145,18 @@ export function applyStreamEvent(turn: ChatMsg, ev: ChatStreamEvent): ChatMsg {
       return withNote(`retry (${ev.reason || "?"})`);
     case "tools_suppressed":
       return withNote(`tools suppressed: ${(ev.tools || []).join(", ")}`);
+    case "skill_inspector": {
+      const insp = ev.inspector;
+      if (!insp || (!insp.loaded?.length && !insp.hinted?.length)) return turn;
+      return {
+        ...turn,
+        inspector: {
+          embedder: insp.embedder,
+          loaded: insp.loaded || [],
+          hinted: insp.hinted || [],
+        },
+      };
+    }
     case "assistant_text":
       return ev.text ? { ...turn, parts: [...turn.parts, { kind: "text", text: ev.text }] } : turn;
     case "tool_start":

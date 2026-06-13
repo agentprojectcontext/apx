@@ -1,13 +1,14 @@
 import { type ReactElement } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
-  Bot, Cpu, Database, KeyRound, MessageCircle, Palette, ScrollText, Send, Smartphone, User,
+  Bot, Cpu, Database, KeyRound, MessageCircle, Palette, ScrollText, Send, Smartphone, Sparkles, User,
 } from "lucide-react";
 import { useNavCollapse, type TabSection } from "../components/common/TabNav";
 import { TabLayout } from "../components/common/TabLayout";
 import { IdentityPanel } from "../components/settings/IdentityPanel";
 import { SuperAgentPanel } from "../components/settings/SuperAgentPanel";
 import { MemoryPanel } from "../components/settings/MemoryPanel";
+import { SkillsInspectorPanel } from "../components/settings/SkillsInspectorPanel";
 import { ModelsTab } from "./base/ModelsTab";
 import { TelegramSettingsTabs } from "../components/settings/TelegramSettingsTabs";
 import { DevicesPanel } from "../components/settings/DevicesPanel";
@@ -17,7 +18,7 @@ import { STORAGE } from "../constants";
 import { t } from "../i18n";
 
 type TabKey =
-  | "identity" | "super_agent" | "engines" | "memory" | "telegram" | "devices" | "appearance" | "advanced";
+  | "identity" | "super_agent" | "engines" | "memory" | "skills" | "telegram" | "devices" | "appearance" | "advanced";
 
 const SECTIONS: TabSection[] = [
   {
@@ -33,6 +34,7 @@ const SECTIONS: TabSection[] = [
       { key: "super_agent", label: t("settings.tabs.super_agent"), icon: Bot },
       { key: "engines",     label: t("settings.tabs.engines"),     icon: Cpu },
       { key: "memory",      label: "Memoria (RAG)",                icon: Database },
+      { key: "skills",      label: "Skills (RAG)",                 icon: Sparkles },
     ],
   },
   {
@@ -59,6 +61,7 @@ const PANELS: Record<TabKey, () => ReactElement> = {
   super_agent: () => <SuperAgentPanel />,
   engines:     () => <ModelsTab />,
   memory:      () => <MemoryPanel />,
+  skills:      () => <SkillsInspectorPanel />,
   telegram:    () => <TelegramSettingsTabs />,
   devices:     () => <DevicesPanel />,
   appearance:  () => <AppearancePanel />,
@@ -95,6 +98,7 @@ function tabFromPath(pathname: string): TabKey {
     case "super-agent": return "super_agent";
     case "engines": return "engines";
     case "memory": return "memory";
+    case "skills": return "skills";
     case "telegram": return "telegram";
     case "devices": return "devices";
     case "appearance": return "appearance";

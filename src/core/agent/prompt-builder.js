@@ -257,6 +257,12 @@ export function buildSuperAgentSystem({
   activeThreadsBlock = "",
   // Compact "tools you can activate" hint (names of not-loaded tools).
   lazyToolsBlock = "",
+  // When the skill inspector middleware is active, the daemon already injected
+  // the right skill bodies/hints into contextNote — and the catalog-wide slug
+  // dump becomes counterproductive (it nudges the model to load skills the
+  // inspector explicitly decided not to surface). Setting this to true removes
+  // buildSkillsHintBlock from the prompt.
+  skipSkillsHint = false,
 }) {
   const sa = globalConfig.super_agent || {};
   const identity = (() => {
@@ -294,7 +300,7 @@ export function buildSuperAgentSystem({
     extraContext,
     buildProjectIndex(projects),
     buildProjectAgentsBlock(channelMeta?.projectPath),
-    buildSkillsHintBlock(listSkills),
+    skipSkillsHint ? "" : buildSkillsHintBlock(listSkills),
     lazyToolsBlock,
     voiceBlock,
     ACTION_DISCIPLINE,

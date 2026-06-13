@@ -117,6 +117,27 @@ const DEFAULT_CONFIG = {
     compact_model: "ollama:gemma4:31b-cloud", // light LLM for compaction (Ollama, local endpoint)
     compact_fallback_model: "",        // "" → falls back to super_agent.model (APX default)
   },
+  skills: {
+    // Skill Inspector — opt-in test feature. When enabled, the static
+    // "Available skills" hint block (slug dump) is removed from the system
+    // prompt; instead a local RAG inspects each turn's user prompt and
+    // injects either the matching skill's body (high confidence) or a hint
+    // to call load_skill (mid confidence). Below threshold → nothing.
+    // Re-evaluated every turn → natural decay (a skill that stopped matching
+    // disappears next turn).
+    // Embedding provider is whatever memory.embeddings resolves to (defaults
+    // to local: ollama → gemini → openai → offline TF). No paid keys needed.
+    inspector: {
+      enabled: false,
+      load_threshold: 0.55,
+      hint_threshold: 0.40,
+      margin: 0.04,
+      max_loaded: 1,
+      max_hints: 2,
+      prompt_floor: 8,
+      body_char_cap: 6000,
+    },
+  },
   voice: {
     // Text-to-speech configuration. Selector reads voice.tts.provider; "auto"
     // probes engines in preference order (piper → elevenlabs → openai →

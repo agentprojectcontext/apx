@@ -1,4 +1,4 @@
-import { Bot, Copy, User, Info } from "lucide-react";
+import { Bot, Copy, User, Info, Sparkles } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { ToolCall } from "./ToolCall";
 import { AskQuestionsCard } from "./AskQuestionsCard";
@@ -48,6 +48,26 @@ export function MessageBubble({ msg, isLast, isAskAnswer, onCopy }: Props) {
             ))}
           </div>
         )}
+
+        {/* Skill Inspector: which skills the per-turn RAG injected for this turn. */}
+        {!mine && msg.inspector && (msg.inspector.loaded?.length || msg.inspector.hinted?.length) ? (
+          <div
+            className="flex flex-wrap items-center gap-1 text-[10px] text-sky-400/90"
+            title={`Skill Inspector (${msg.inspector.embedder || "RAG"}) eligió estas skills para este turno`}
+          >
+            <Sparkles size={10} />
+            {msg.inspector.loaded?.map((s) => (
+              <span key={`l-${s}`} className="rounded bg-sky-500/15 px-1 py-0.5 font-mono">
+                {s}
+              </span>
+            ))}
+            {msg.inspector.hinted?.map((s) => (
+              <span key={`h-${s}`} className="rounded border border-sky-500/30 px-1 py-0.5 font-mono opacity-70">
+                {s}?
+              </span>
+            ))}
+          </div>
+        ) : null}
 
         {/* Ordered parts: interleaved assistant text + tool calls. */}
         {msg.parts.map((part, i) =>
