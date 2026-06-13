@@ -1,3 +1,10 @@
+# [1.34.0](https://github.com/agentprojectcontext/apx/compare/v1.33.1...v1.34.0) (2026-06-13)
+
+
+### Features
+
+* implement variable management for projects and global scope ([41d013d](https://github.com/agentprojectcontext/apx/commit/41d013d83a2f5616a339b57d3169f7080b5e8eab))
+
 ## [1.33.1](https://github.com/agentprojectcontext/apx/compare/v1.33.0...v1.33.1) (2026-06-11)
 
 
