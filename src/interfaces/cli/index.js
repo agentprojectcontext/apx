@@ -100,7 +100,7 @@ import {
 import { cmdPluginsList, cmdPluginStatus } from "./commands/plugins.js";
 import { cmdDesktopStart, cmdDesktopStop, cmdDesktopStatus, cmdDesktopInstall, cmdDesktopUninstall } from "./commands/desktop.js";
 import { cmdVoiceSay, cmdVoiceListen, cmdVoiceProviders } from "./commands/voice.js";
-import { cmdSkillsAdd, cmdSkillsList, cmdSkillsStatus, cmdSkillsSync } from "./commands/skills.js";
+import { cmdSkillsAdd, cmdSkillsList, cmdSkillsStatus, cmdSkillsSync, cmdSkillsIndex, cmdSkillsInspect, cmdSkillsInspector } from "./commands/skills.js";
 import { cmdIdentity } from "./commands/identity.js";
 import { cmdCommandList, cmdCommandShow } from "./commands/command.js";
 import { cmdUpdate } from "./commands/update.js";
@@ -110,6 +110,7 @@ import { cmdModel } from "./commands/model.js";
 import { cmdPair, cmdPairWeb, cmdPairList, cmdPairRevoke } from "./commands/pair.js";
 import { checkForUpdate } from "#core/update-check.js";
 import { mascot } from "#core/mascot.js";
+import { apxHeader, apxBanner } from "./branding.js";
 import {
   cmdRoutineList,
   cmdRoutineGet,
@@ -1350,12 +1351,23 @@ const HELP_TOPICS = new Map(Object.entries({
   skills: topic({
     title: "apx skills",
     summary: "Install and inspect APX skill files for IDEs and agent tools.",
-    usage: ["apx skills [add] [targets] [--global]", "apx skills sync", "apx skills list", "apx skills status"],
+    usage: [
+      "apx skills [add] [targets] [--global]",
+      "apx skills sync",
+      "apx skills list",
+      "apx skills status",
+      "apx skills index [--reset] [--force]",
+      "apx skills inspect \"<prompt>\"",
+      "apx skills inspector [status|enable|disable|set <key> <value>]",
+    ],
     commands: [
       ["add [targets]", "Install APX skills into selected targets."],
       ["sync | refresh", "Re-install every bundled skill to every global skill dir (idempotent)."],
       ["list | ls", "List skills installed in this project's .apc/skills/."],
       ["status", "Show which bundled skills are present in each global dir."],
+      ["index", "Build/refresh the local RAG vector index used by the Skill Inspector."],
+      ["inspect", "Show which skills the Inspector would surface for a given prompt (debug)."],
+      ["inspector", "Toggle and tune the Skill Inspector (per-turn skill RAG middleware)."],
     ],
     examples: [
       "apx skills add claude-code cursor",
@@ -1402,6 +1414,40 @@ const HELP_TOPICS = new Map(Object.entries({
     summary: "Show which APX skill targets are installed.",
     usage: ["apx skills status"],
     examples: ["apx skills status"],
+  }),
+  "skills index": topic({
+    title: "apx skills index",
+    summary:
+      "Build or refresh the local vector index that powers the Skill Inspector. Embeds each skill's condensed description with the configured embeddings provider (defaults to local: ollama → tf fallback). Idempotent: skills with unchanged file+description are kept. Use --force to re-embed everything; --reset to also delete the on-disk index first.",
+    usage: ["apx skills index [--reset] [--force]"],
+    options: [
+      ["--force", "Re-embed every skill, ignoring cached vectors."],
+      ["--reset", "Delete the index file before rebuilding."],
+    ],
+    examples: ["apx skills index", "apx skills index --force", "apx skills index --reset"],
+  }),
+  "skills inspect": topic({
+    title: "apx skills inspect",
+    summary:
+      "Dry-run the Skill Inspector against a prompt. Shows top similarity scores, which skill (if any) would be loaded inline, which would be hinted, and the actual contextNote that would be injected into the next turn's system prompt. The model is NOT called.",
+    usage: ["apx skills inspect \"<prompt text>\""],
+    examples: [
+      "apx skills inspect \"crear un video promocional\"",
+      "apx skills inspect \"profile the slow endpoint\"",
+    ],
+  }),
+  "skills inspector": topic({
+    title: "apx skills inspector",
+    summary:
+      "Toggle and tune the Skill Inspector (per-turn skill RAG). When ON: the static slug-dump in the system prompt is suppressed and a local RAG picks 0–N skills per turn — loading the body of high-confidence matches, hinting mid-confidence ones, injecting nothing below threshold. When OFF: legacy behaviour (full slug list + passive suggestion). Opt-in test feature.",
+    usage: ["apx skills inspector [status|enable|disable|set <key> <value>]"],
+    examples: [
+      "apx skills inspector enable",
+      "apx skills inspector disable",
+      "apx skills inspector status",
+      "apx skills inspector set load_threshold 0.5",
+      "apx skills inspector set max_loaded 2",
+    ],
   }),
   plugins: topic({
     title: "apx plugins",
@@ -2530,6 +2576,9 @@ async function dispatch(cmd, rest) {
         else if (sub === "list" || sub === "ls") await cmdSkillsList(a);
         else if (sub === "status") await cmdSkillsStatus();
         else if (sub === "sync" || sub === "refresh") await cmdSkillsSync(a);
+        else if (sub === "index") await cmdSkillsIndex(a);
+        else if (sub === "inspect") await cmdSkillsInspect(a);
+        else if (sub === "inspector") await cmdSkillsInspector(a);
         else die(`unknown skills subcommand: ${sub}`);
         break;
       }
@@ -2583,8 +2632,41 @@ async function dispatch(cmd, rest) {
 }
 
 const [topCmd, ...topRest] = argv;
+
+// ── CLI branding ────────────────────────────────────────────────────────────
+// Every command prints an "APX CLI · vX · <command>" mark to stderr (so stdout
+// pipes stay clean). Two exceptions:
+//   - SELF_BRANDED: commands that already render their own logo/mascot/status
+//     block — re-stamping them would double up.
+//   - BANNERED: branding-heavy moments that get the big ASCII wordmark instead
+//     of the compact line.
+// Suppress everything with APX_QUIET=1 / APX_NO_BANNER=1 (see branding.js).
+const SELF_BRANDED = new Set([
+  "status", "setup", "install", "daemon", "update", "upgrade", "help",
+]);
+const BANNERED = new Set(["init"]);
+
+function brandFor(cmd, rest) {
+  if (SELF_BRANDED.has(cmd)) return;
+  // Subtitle = the command path only (cmd + leading subcommand tokens), never
+  // free-form args. Stop at the first token that looks like an argument: a flag,
+  // something with spaces (a quoted prompt), or anything long. So
+  // `skills inspector status` shows fully, but `exec "long prompt…"` shows just
+  // `exec`.
+  const path = [cmd];
+  for (const tok of rest) {
+    if (!tok || tok.startsWith("-") || /\s/.test(tok) || tok.length > 24) break;
+    path.push(tok);
+    if (path.length >= 3) break;
+  }
+  const subtitle = path.join(" ");
+  if (BANNERED.has(cmd)) apxBanner(VERSION, subtitle);
+  else apxHeader(VERSION, subtitle);
+}
+
 (async () => {
   try {
+    brandFor(topCmd, topRest);
     await dispatch(topCmd, topRest);
     checkForUpdate(VERSION);
   } catch (err) {

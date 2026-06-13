@@ -59,6 +59,10 @@ export async function runSuperAgent({
   // Null disables human-in-the-loop (tools that need confirmation fail
   // immediately instead of waiting for user input).
   requestConfirmation = null,
+  // When true, suppress the static "Available skills" slug-dump hint block
+  // because a per-turn skill inspector already injected the right context.
+  // Set by the daemon's super-agent endpoint when config.skills.inspector is on.
+  skipSkillsHint = false,
 }) {
   if (!isSuperAgentEnabled(globalConfig)) {
     throw new Error("super-agent not enabled (set super_agent.enabled and .model in ~/.apx/config.json)");
@@ -107,6 +111,7 @@ export async function runSuperAgent({
     // Compact "tools you can activate" block (names only, no schemas). Empty on
     // full channels and tool-free callers, where it's omitted from the prompt.
     lazyToolsBlock: buildLazyToolsBlock(toolSession),
+    skipSkillsHint,
   });
 
   const toolSchemas = noTools ? [] : toolSession.initialSchemas;

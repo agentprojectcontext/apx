@@ -284,6 +284,16 @@ export interface ChatStreamEvent {
   streak?: number;
   // tool_start / tool_result / tool_deduped
   trace?: ToolTrace;
+  // skill_inspector: which skills the per-turn RAG loaded/hinted this turn
+  inspector?: {
+    enabled?: boolean;
+    reason?: string;
+    embedder?: string;
+    scored?: { slug: string; sim: number }[];
+    loaded?: string[];
+    hinted?: string[];
+    jit?: boolean;
+  };
   // final
   result?: {
     text?: string;

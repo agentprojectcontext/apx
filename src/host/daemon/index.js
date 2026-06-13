@@ -218,6 +218,23 @@ async function main() {
     // store, and start the incremental RAG indexer. Best-effort — never blocks
     // boot and never throws into the daemon.
     initMemory({ config: cfg, log }).catch((e) => log(`memory: init failed: ${e?.message || e}`));
+    // Skill Inspector: if enabled, refresh its vector index in the background so
+    // any SKILL.md added/edited while the daemon was down is picked up without a
+    // manual `apx skills index`. Best-effort; never blocks boot.
+    (async () => {
+      try {
+        const { isInspectorEnabled } = await import("#core/agent/skills/inspector.js");
+        if (!isInspectorEnabled(cfg)) return;
+        const { backgroundRefreshIfStale } = await import("#core/agent/skills/index-store.js");
+        const r = backgroundRefreshIfStale({
+          embedOpts: { globalConfig: cfg },
+          onDone: (out) => log(`skill inspector: index refreshed (${out.embedder}, +${out.changed.added.length} -${out.changed.removed.length} ~${out.changed.refreshed.length})`),
+        });
+        if (r.started) log(`skill inspector: reindexing ${r.missing} new / ${r.stale} stale / ${r.gone} gone skills…`);
+      } catch (e) {
+        log(`skill inspector: index refresh skipped (${e?.message || e})`);
+      }
+    })();
     // Fire wake-up message after a short delay so plugins (Telegram) are ready
     setTimeout(() => triggerWakeup(cfg, log), 3000);
     // Preload whisper-server in the background so first desktop transcription is fast.
