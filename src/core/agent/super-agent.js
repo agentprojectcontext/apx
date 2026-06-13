@@ -10,6 +10,7 @@ import {
 } from "#core/agent/index.js";
 import { resolveAgentName } from "#core/identity/index.js";
 import { memoryBlockFor } from "#core/memory/index.js";
+import { CHANNELS } from "#core/constants/channels.js";
 
 export {
   buildIdentityBlock,
@@ -74,7 +75,7 @@ export async function runSuperAgent({
     memoryBlock = await memoryBlockFor(prompt, { config: globalConfig, channel });
     // "Hilos activos en otros canales" — pure-recency cross-channel awareness.
     // Skipped for autonomous routines (no human to reference other threads).
-    if (channel !== "routine") {
+    if (channel !== CHANNELS.ROUTINE) {
       try {
         activeThreadsBlock = buildActiveThreadsBlock(channel, { config: globalConfig });
       } catch {

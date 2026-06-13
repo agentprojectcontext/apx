@@ -44,7 +44,49 @@ export function readSelfMemoryForPrompt(limit = SELF_MEMORY_PROMPT_LIMIT) {
   const body = readSelfMemory().trim();
   if (!body) return "";
   if (body.length <= limit) return body;
-  return body.slice(0, limit).trimEnd() + "\n… (truncated — call read_self_memory for the full notebook)";
+
+  // The notebook grows chronologically (oldest day first), so a naive head
+  // slice injects the OLDEST notes and truncates the most recent — exactly
+  // backwards for "what's relevant now". Keep the file header + the NEWEST
+  // entries that fit `limit`, re-grouped under their date headings. The full
+  // file is always available via read_self_memory.
+  const firstLine = body.split("\n", 1)[0];
+  const header = firstLine.startsWith("# ") ? firstLine : notebookHeader();
+  const notice =
+    "_(most recent notes — older history truncated; call read_self_memory for the full notebook)_";
+
+  const entries = parseSelfMemoryEntries(body); // oldest → newest
+  if (!entries.length) {
+    // No structured bullets (free-form prose notebook) — fall back to the tail.
+    const tail = body.slice(-(limit - notice.length - 2)).replace(/^\S*\n/, "");
+    return `${notice}\n${tail.trim()}`;
+  }
+
+  let budget = limit - header.length - notice.length - 4;
+  const picked = [];
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const e = entries[i];
+    const tag =
+      (e.time ? `[${e.time}]` : "") +
+      (e.channel && e.channel !== "memory" ? `[${e.channel}]` : "");
+    const bullet = `- ${tag ? tag + " " : ""}${e.text}`.replace(/\s+/g, " ").trim();
+    const cost = bullet.length + 14; // headroom for an occasional date heading
+    if (budget - cost < 0 && picked.length) break;
+    picked.push({ date: e.date, bullet });
+    budget -= cost;
+  }
+  picked.reverse(); // back to chronological order (newest at the bottom)
+
+  const out = [header, notice];
+  let lastDate = "";
+  for (const p of picked) {
+    if (p.date && p.date !== lastDate) {
+      out.push("", `## ${p.date}`);
+      lastDate = p.date;
+    }
+    out.push(p.bullet);
+  }
+  return out.join("\n").trim();
 }
 
 // HH:MM (UTC) for the current time — used to tag notes per the cross-channel

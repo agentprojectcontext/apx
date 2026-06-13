@@ -1,9 +1,18 @@
-// Prompt builder for the APX default agent — known internally as the
-// "super-agent". That name is a MODE descriptor (the daemon-level tool-using
-// loop that runs when no project agent is named), not a persona the user
-// should ever see. The model is told its real display name comes from
-// ~/.apx/identity.json; "super-agent" only appears in code, file paths, CLI
-// flags, and channel meta.
+// Unified prompt builder for ANY agent (super-agent OR project agent).
+//
+// The system prompt is assembled from layered fragments:
+//
+//   1. core/agent-base.md      common: tool usage, memory, hard rules — applies to every agent
+//   2. core/super-agent.md     OR  core/project-agent.md  — the role delta
+//   3. # Agent profile         identity (name, personality, owner, language)
+//   4. # Project / context     project pin, registered projects index, AGENTS.md
+//   5. # Memory                self-memory or relevant memory block, active threads
+//   6. # Channel               channel-specific formatting rules
+//   7. # Discipline            action.md + (two-segment OR single-segment) + voice mode
+//   8. # Suffix                channel-specific format directives (suggestions JSON, etc.)
+//
+// Sections are dropped when empty (no project context for super-agent on a
+// generic CLI call, no self-memory for project agents, etc.).
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,42 +20,84 @@ import { readIdentity } from "../identity/index.js";
 import { agentsMdFile } from "../apc/paths.js";
 import { readSelfMemoryForPrompt } from "./self-memory.js";
 import { buildSkillsHintBlock } from "./skills/catalog.js";
+import { CHANNELS } from "#core/constants/channels.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROMPTS_DIR = path.join(__dirname, "prompts");
-const BASE_PROMPT_PATH = path.join(PROMPTS_DIR, "super-agent-base.md");
 
-// Action discipline + chit-chat rules — same file used by project agents
-// (buildAgentSystem in agent-system.js), loaded once here for the super-agent.
-const ACTION_DISCIPLINE = fs
-  .readFileSync(path.join(PROMPTS_DIR, "action-discipline.md"), "utf8")
-  .trimEnd();
+// Channels are SURFACES. Voice is NOT a channel — it's a MODE that layers on
+// top of a surface (see buildVoiceModeBlock); a spoken deck turn is channel
+// "deck" + voice mode, not its own channel.
+const CHANNEL_PROMPT_FILES = {
+  [CHANNELS.TELEGRAM]: "channels/telegram.md",
+  [CHANNELS.CLI]: "channels/cli.md",
+  [CHANNELS.ROUTINE]: "channels/routine.md",
+  [CHANNELS.API]: "channels/api.md",
+  [CHANNELS.WEB]: "channels/web.md",
+  [CHANNELS.WEB_SIDEBAR]: "channels/web_sidebar.md",
+  [CHANNELS.WEB_CODE]: "channels/web_code.md",
+  [CHANNELS.DECK]: "channels/deck.md",
+  [CHANNELS.DESKTOP]: "channels/desktop.md",
+  [CHANNELS.CODE]: "channels/code.md",
+};
+
+// Channels where the user CAN see two text segments per turn (chat history is
+// visible). Voice / single-surface channels get single-segment discipline.
+const TWO_SEGMENT_CHANNELS = new Set([
+  CHANNELS.TELEGRAM,
+  CHANNELS.WEB,
+  CHANNELS.WEB_SIDEBAR,
+  CHANNELS.WEB_CODE,
+  CHANNELS.CODE,
+  CHANNELS.API,
+  CHANNELS.CLI,
+]);
+
+const VOICE_MODE_FILE = "modes/voice.md";
+
+// ---------------------------------------------------------------------------
+// Prompt loading
+// ---------------------------------------------------------------------------
 
 const promptCache = new Map();
 
-/** @deprecated use super-agent-base.md */
-const LEGACY_PROMPT_PATH = path.join(PROMPTS_DIR, "super-agent-default.md");
+export function loadPrompt(relativePath) {
+  const key = relativePath.replace(/\\/g, "/");
+  if (promptCache.has(key)) return promptCache.get(key);
+  const text = fs.readFileSync(path.join(PROMPTS_DIR, key), "utf8").trimEnd();
+  promptCache.set(key, text);
+  return text;
+}
 
-// Channels are SURFACES (where the user is). Voice is NOT a channel — it's a
-// MODE that layers on top of a surface (see buildVoiceModeBlock); a spoken deck
-// turn is channel "deck" + voice mode, not its own channel.
-const CHANNEL_PROMPT_FILES = {
-  telegram: "channels/telegram.md",
-  cli: "channels/cli.md",
-  routine: "channels/routine.md",
-  api: "channels/api.md",
-  web: "channels/web.md",                 // web big chat (long-form, full tools)
-  web_sidebar: "channels/web_sidebar.md", // web quick chat (short, lightweight)
-  web_code: "channels/web_code.md",       // web Code module (rich coding session)
-  deck: "channels/deck.md",               // cockpit dashboard
-  desktop: "channels/desktop.md",         // PC floating module (was "overlay")
-  code: "channels/code.md",               // `apx code` — terminal coding session
-};
+const AGENT_BASE         = loadPrompt("core/agent-base.md");
+const SUPER_AGENT_ROLE   = loadPrompt("core/super-agent.md");
+const PROJECT_AGENT_ROLE = loadPrompt("core/project-agent.md");
+const ACTION_DISCIPLINE  = loadPrompt("discipline/action.md");
+const TWO_SEGMENT        = loadPrompt("discipline/two-segment.md");
+const SINGLE_SEGMENT     = loadPrompt("discipline/single-segment.md");
 
-// Voice mode: spoken-reply rules layered on any surface when the turn will be
-// read aloud by TTS (deck voice overlay, desktop module, etc). Injected with
-// high recency (right before systemSuffix) so weaker models don't bury it.
-const VOICE_MODE_FILE = "modes/voice.md";
+// Back-compat shim — a few callers/tests still want the raw default prompt.
+export function loadDefaultSystemPrompt() {
+  return [AGENT_BASE, SUPER_AGENT_ROLE].join("\n\n");
+}
+export const DEFAULT_SYSTEM = loadDefaultSystemPrompt();
+
+export function renderPromptTemplate(template, vars = {}) {
+  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => {
+    const value = vars[key];
+    return value == null || value === "" ? "" : String(value);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Channel + mode blocks
+// ---------------------------------------------------------------------------
+
+export function buildChannelContextBlock(channel, meta = {}) {
+  const rel = CHANNEL_PROMPT_FILES[String(channel || "").toLowerCase()];
+  if (!rel) return "";
+  return renderPromptTemplate(loadPrompt(rel), meta);
+}
 
 export function buildVoiceModeBlock(active) {
   if (!active) return "";
@@ -57,44 +108,21 @@ export function buildVoiceModeBlock(active) {
   }
 }
 
-export function loadPrompt(relativePath) {
-  const key = relativePath.replace(/\\/g, "/");
-  if (promptCache.has(key)) return promptCache.get(key);
-  const full = path.join(PROMPTS_DIR, key);
-  const text = fs.readFileSync(full, "utf8");
-  promptCache.set(key, text);
-  return text;
+// Pick the right segmenting discipline for the channel (and whether voice
+// mode overrides it).
+function buildSegmentDiscipline({ channel, voice }) {
+  if (voice) return SINGLE_SEGMENT;
+  if (TWO_SEGMENT_CHANNELS.has(String(channel || "").toLowerCase())) return TWO_SEGMENT;
+  // routine / deck / desktop / unknown → single-segment (single visible reply)
+  return SINGLE_SEGMENT;
 }
 
-export function loadDefaultSystemPrompt() {
-  if (fs.existsSync(BASE_PROMPT_PATH)) return loadPrompt("super-agent-base.md");
-  if (fs.existsSync(LEGACY_PROMPT_PATH)) return loadPrompt("super-agent-default.md");
-  throw new Error("super-agent base prompt not found");
-}
+// ---------------------------------------------------------------------------
+// Project guidance — AGENTS.md of the pinned project, size-capped.
+// ---------------------------------------------------------------------------
 
-/** @deprecated use loadDefaultSystemPrompt — kept for tests/imports */
-export const DEFAULT_SYSTEM = loadDefaultSystemPrompt();
-
-export function renderPromptTemplate(template, vars = {}) {
-  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => {
-    const value = vars[key];
-    return value == null || value === "" ? "" : String(value);
-  });
-}
-
-export function buildChannelContextBlock(channel, meta = {}) {
-  const rel = CHANNEL_PROMPT_FILES[String(channel || "").toLowerCase()];
-  if (!rel) return "";
-  return renderPromptTemplate(loadPrompt(rel), meta);
-}
-
-// Project startup rules. When APX runs its OWN loop inside a project, load that
-// project's AGENTS.md into the prompt — the same convention Claude/Codex follow
-// with CLAUDE.md/AGENTS.md. `projectPath` flows in via channelMeta.projectPath
-// (set by the super-agent API, the code module, and routines). This is wired
-// ONLY into the super-agent prompt: when APX delegates to an external engine,
-// that engine reads AGENTS.md itself. Size-capped to protect the prompt budget.
 export const PROJECT_AGENTS_MAX_CHARS = 6000;
+
 export function buildProjectAgentsBlock(projectPath) {
   if (!projectPath) return "";
   try {
@@ -111,13 +139,17 @@ export function buildProjectAgentsBlock(projectPath) {
   }
 }
 
-export function buildUserContextBlock(identity, globalConfig = {}) {
+// ---------------------------------------------------------------------------
+// Identity / user / relationship blocks (shared across agents)
+// ---------------------------------------------------------------------------
+
+export function buildUserContextBlock(identity, globalConfig = {}, { agentName } = {}) {
   const user = globalConfig?.user || {};
   const lang = user.language || identity?.language || "en";
-  const lines = ["# User & identity"];
+  const lines = ["# Agent profile"];
 
-  const agentName = identity?.agent_name || globalConfig?.super_agent?.name;
-  if (agentName) lines.push(`Your name is ${agentName}.`);
+  const name = agentName || identity?.agent_name || globalConfig?.super_agent?.name;
+  if (name) lines.push(`Your name is ${name}.`);
   if (identity?.personality) lines.push(`Your personality: ${identity.personality}.`);
   if (identity?.owner_name) lines.push(`Your owner is ${identity.owner_name}.`);
   if (identity?.owner_context) lines.push(`Owner context: ${identity.owner_context}`);
@@ -125,9 +157,7 @@ export function buildUserContextBlock(identity, globalConfig = {}) {
   lines.push(
     `Reply in the language with ISO 639-1 code "${lang}" unless the user explicitly switches language for that turn.`
   );
-  if (user.locale) {
-    lines.push(`Preferred locale or dialect: ${user.locale}.`);
-  }
+  if (user.locale) lines.push(`Preferred locale or dialect: ${user.locale}.`);
   if (user.timezone) {
     lines.push(
       `User timezone: ${user.timezone}. Use it for local time and schedules unless the user specifies otherwise.`
@@ -137,15 +167,13 @@ export function buildUserContextBlock(identity, globalConfig = {}) {
   return lines.join("\n");
 }
 
-/** Back-compat wrapper — second arg is ISO language only (no full config). */
+/** Back-compat wrapper — second arg is ISO language only. */
 export function buildIdentityBlock(identity, userLang = "en") {
   return buildUserContextBlock(identity, { user: { language: userLang } });
 }
 
-// "Who you're talking to" block. Agent-agnostic: built once from the resolved
-// sender (see core/identity/telegram.js) and injected into BOTH the super-agent
-// prompt and any routed project-agent prompt, so identification doesn't depend
-// on which agent answers. Returns "" when there's no sender info.
+// "Who you're talking to" block — agent-agnostic, built once from the resolved
+// sender (see core/identity/telegram.js). Returns "" when there's no sender.
 export function buildRelationshipBlock(sender) {
   if (!sender || sender.userId == null) return "";
   const handle = sender.username ? ` (@${sender.username})` : "";
@@ -155,41 +183,30 @@ export function buildRelationshipBlock(sender) {
     lines.push(
       "This is a Telegram GROUP chat with multiple people — do NOT assume a single owner."
     );
-    lines.push(
-      `Sender of this message: ${sender.name}${handle}, role: ${sender.role}.`
-    );
+    lines.push(`Sender of this message: ${sender.name}${handle}, role: ${sender.role}.`);
   } else if (sender.isOwner) {
     lines.push(
-      `You are talking to your owner, ${sender.name}. Treat them as the owner — ` +
-        "never ask their name or who they are; you already know them."
+      `You are talking to your owner, ${sender.name}. Treat them as the owner — never ask their name or who they are.`
     );
   } else if (sender.role && sender.role !== "guest") {
     lines.push(`You are talking to ${sender.name}${handle}, role: ${sender.role}.`);
   } else {
     lines.push(
-      `You are talking to ${sender.name}${handle}, who is NOT a recognized contact ` +
-        "(role: guest, no permissions)."
-    );
-    lines.push(
-      "Politely say you don't know them yet and ask who they are; tell them you'll " +
-        "note it down, but that you cannot grant any role or permissions yourself — " +
-        "only the owner or someone via terminal/web can assign a role. Do not perform " +
-        "privileged or destructive actions on their behalf."
+      `You are talking to ${sender.name}${handle} (role: guest, no permissions). Politely ask who they are — you'll note it down but cannot grant any role yourself.`
     );
   }
   if (sender.note) lines.push(`Notes on this contact: ${sender.note}`);
   return lines.join("\n");
 }
 
-// The super-agent's own notebook (~/.apx/memory.md), bounded for the prompt.
-// Returns "" when empty so the block is dropped entirely.
+// Super-agent notebook (~/.apx/memory.md), bounded. Returns "" when empty.
+// Project agents have their own per-agent memory.md handled in buildAgentSystem.
 export function buildSelfMemoryBlock() {
   const slice = readSelfMemoryForPrompt();
   if (!slice) return "";
   return [
-    "# Your notebook (self-memory)",
-    "Durable things you chose to remember across sessions. Treat as known facts;",
-    "update with the `remember` tool. Call read_self_memory if this looks truncated.",
+    "# Notebook",
+    "Durable facts you chose to remember. Update with the `remember` tool. Read full with `read_self_memory` if truncated.",
     "",
     slice,
   ].join("\n");
@@ -201,6 +218,26 @@ export function isSuperAgentEnabled(cfg) {
   return sa.enabled !== false;
 }
 
+// ---------------------------------------------------------------------------
+// Project index — renders the registered-project list cleanly when relevant.
+// Omits the [kind] prefix when kind="default" so we don't get `[default] "default"`.
+// ---------------------------------------------------------------------------
+
+function buildProjectIndex(projects) {
+  const list = projects?.list?.() || [];
+  if (!list.length) return "";
+  const lines = list.map((p) => {
+    if (p.id === 0) return `  ${p.id}: "${p.name}" (global workspace, ${p.path})`;
+    const kindTag = p.kind && p.kind !== "default" && p.kind !== "other" ? ` [${p.kind}]` : "";
+    return `  ${p.id}:${kindTag} "${p.name}" (${p.path})`;
+  });
+  return ["# Registered projects (index only — call tools for details)", ...lines].join("\n");
+}
+
+// ---------------------------------------------------------------------------
+// Super-agent system prompt
+// ---------------------------------------------------------------------------
+
 export function buildSuperAgentSystem({
   globalConfig,
   projects,
@@ -208,67 +245,77 @@ export function buildSuperAgentSystem({
   contextNote = "",
   channel = "",
   channelMeta = {},
-  // Pre-rendered "who you're talking to" block (see buildRelationshipBlock).
-  // Injected right after the user/identity block so the model knows the
-  // sender's identity and role before anything else.
+  // Pre-rendered "who you're talking to" block.
   relationshipBlock = "",
-  // Channel-specific addendum the super-agent caller can inject —
-  // e.g. voice.js asks for a trailing ```suggestions``` JSON block on
-  // voice/deck surfaces. Kept separate from contextNote so it lives
-  // at the end of the system prompt (where format directives belong),
-  // not mixed in with situational context.
+  // Channel-specific format directive appended at the very end (e.g.
+  // ```suggestions``` block for voice/deck).
   systemSuffix = "",
-  // Pre-rendered output of the Memory Broker (Pieza 4): a [RELEVANT MEMORY]
-  // block built from the RAG retriever + recent memory.md entries. When
-  // provided it REPLACES the always-on self-memory slice (it already includes
-  // the latest notebook entries). "" falls back to the plain notebook slice.
+  // Pre-rendered Memory Broker output ([RELEVANT MEMORY] block). When set, it
+  // REPLACES the plain self-memory slice (it already includes the latest entries).
   memoryBlock = "",
-  // Pre-rendered "# Active threads on other channels" block (recency-based
-  // cross-channel awareness; see core/memory/active-threads.js). "" → omitted.
+  // Pre-rendered "# Active threads on other channels" block.
   activeThreadsBlock = "",
-  // Compact "# Tools adicionales (activación on-demand)" block: instructions +
-  // the NAMES (no schemas) of tools that exist but aren't loaded on this
-  // channel, so the model knows they're reachable via discover_tools without
-  // paying for their schemas. "" → omitted (full channels load everything).
+  // Compact "tools you can activate" hint (names of not-loaded tools).
   lazyToolsBlock = "",
 }) {
-  const sa = globalConfig.super_agent;
-  const projectIndex = projects
-    .list()
-    .map((p) => `  ${p.id}: ${p.id === 0 ? "[default]" : "[project]"} "${p.name}" (${p.path})`)
-    .join("\n");
-
+  const sa = globalConfig.super_agent || {};
   const identity = (() => {
-    try {
-      return readIdentity();
-    } catch {
-      return null;
-    }
+    try { return readIdentity(); } catch { return null; }
   })();
+
+  const channelLow = String(channel || "").toLowerCase();
+  const voice = !!channelMeta?.voice || channelLow === "voice";
+
+  // The super-agent's identity from config overrides the file-based delta when
+  // sa.system is set explicitly (user tweaked the system prompt). Otherwise
+  // we layer agent-base + super-agent role.
+  const roleBlock = sa.system || [AGENT_BASE, SUPER_AGENT_ROLE].join("\n\n");
+
+  // Additive personalization layered ON TOP of the role (unlike sa.system,
+  // which fully replaces it). Lets the owner give the super-agent durable
+  // custom instructions without rewriting the whole base prompt.
+  const customInstructions =
+    sa.instructions && String(sa.instructions).trim()
+      ? `# Custom instructions\n${String(sa.instructions).trim()}`
+      : "";
 
   const channelBlock = buildChannelContextBlock(channel, channelMeta);
   const extraContext = [channelBlock, contextNote].filter(Boolean).join("\n\n");
-  // Voice is a mode, not a channel: the caller flags a spoken turn via
-  // channelMeta.voice (or the legacy channel === "voice"). The block goes last,
-  // next to systemSuffix, so format directives keep recency.
-  const voiceModeBlock = buildVoiceModeBlock(channelMeta?.voice || channel === "voice");
+  const voiceBlock = buildVoiceModeBlock(voice);
+  const segmentDiscipline = buildSegmentDiscipline({ channel: channelLow, voice });
 
   return [
-    sa.system || loadDefaultSystemPrompt(),
+    roleBlock,
     buildUserContextBlock(identity, globalConfig),
+    customInstructions,
     memoryBlock || buildSelfMemoryBlock(),
     activeThreadsBlock,
     relationshipBlock,
     extraContext,
-    "# Registered projects (just the index — call tools for details)",
-    projectIndex || "(no projects registered)",
+    buildProjectIndex(projects),
     buildProjectAgentsBlock(channelMeta?.projectPath),
     buildSkillsHintBlock(listSkills),
     lazyToolsBlock,
-    voiceModeBlock,
+    voiceBlock,
     ACTION_DISCIPLINE,
+    segmentDiscipline,
     systemSuffix,
   ]
     .filter(Boolean)
     .join("\n\n");
 }
+
+// ---------------------------------------------------------------------------
+// Shared exports re-used by build-agent-system.js
+// ---------------------------------------------------------------------------
+
+export const PROMPTS = {
+  AGENT_BASE,
+  SUPER_AGENT_ROLE,
+  PROJECT_AGENT_ROLE,
+  ACTION_DISCIPLINE,
+  TWO_SEGMENT,
+  SINGLE_SEGMENT,
+};
+
+export { buildSegmentDiscipline };

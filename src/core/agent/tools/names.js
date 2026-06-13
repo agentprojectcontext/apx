@@ -56,6 +56,12 @@ export const TOOLS = Object.freeze({
   SET_PERMISSION_MODE: "set_permission_mode",
   TRANSCRIBE_AUDIO:    "transcribe_audio",
 
+  // Git — code-channel tools, lazy on chat
+  GIT_STATUS:          "git_status",
+  GIT_DIFF:            "git_diff",
+  GIT_LOG:             "git_log",
+  GIT_SHOW:            "git_show",
+
   // HTTP-bridged registry tools (not native handlers; served via
   // core/tools/registry.js so the regular generic tools work the same way).
   GREP:                "grep",
@@ -101,6 +107,25 @@ export const NATIVE_TOOL_NAMES = new Set([
   TOOLS.SEARCH_SESSIONS,
   TOOLS.TRANSCRIBE_AUDIO,
   TOOLS.DISCOVER_TOOLS,
+  TOOLS.GIT_STATUS,
+  TOOLS.GIT_DIFF,
+  TOOLS.GIT_LOG,
+  TOOLS.GIT_SHOW,
+]);
+
+/**
+ * Tools that belong in code-shaped channels (apx code, web_code) but should
+ * stay lazy on chat surfaces (telegram, web_sidebar, deck, desktop) — there's
+ * no point loading `git_diff` schemas in a Telegram chat.
+ *
+ * Listed separately so registry.js can promote them into the base set when
+ * the channel is a coding surface, without touching the chat base.
+ */
+export const CODE_CHANNEL_TOOLS = Object.freeze([
+  TOOLS.GIT_STATUS,
+  TOOLS.GIT_DIFF,
+  TOOLS.GIT_LOG,
+  TOOLS.GIT_SHOW,
 ]);
 
 /**
@@ -128,6 +153,12 @@ export const CODE_PLAN_TOOLS = Object.freeze([
   TOOLS.ASK_QUESTIONS,
   TOOLS.FETCH,
   TOOLS.SEARCH,
+  // Git tools are read-only on plan mode and let the agent inspect the
+  // working state before proposing edits.
+  TOOLS.GIT_STATUS,
+  TOOLS.GIT_DIFF,
+  TOOLS.GIT_LOG,
+  TOOLS.GIT_SHOW,
 ]);
 
 /**

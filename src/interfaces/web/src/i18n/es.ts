@@ -906,6 +906,7 @@ export const es = {
     ollama_title:        "Ollama (local)",
     openai_title:        "OpenAI",
     gemini_title:        "Gemini",
+    compaction_title:    "Compactación de historial",
   },
 
   router_panel: {

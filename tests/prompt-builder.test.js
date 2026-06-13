@@ -23,7 +23,11 @@ test("loadDefaultSystemPrompt: base prompt has no hardcoded owner names", () => 
   const base = loadDefaultSystemPrompt();
   assert.ok(!/Manuel/i.test(base), "base prompt must not contain hardcoded owner name");
   assert.ok(!/rioplatense/i.test(base), "base prompt must not hardcode dialect");
-  assert.ok(base.includes("User & identity"), "base should reference dynamic identity section");
+  // Base prompt (agent-base + super-agent role) doesn't render identity itself
+  // — identity is layered later as the "Agent profile" block. Just check the
+  // base doesn't leak personal details and DOES tell the agent where its name
+  // comes from.
+  assert.match(base, /display name/i);
 });
 
 test("buildUserContextBlock: injects language, locale, and timezone from config", () => {
@@ -44,10 +48,10 @@ test("buildChannelContextBlock: telegram template substitutes metadata", () => {
     author: "alice",
     chatId: "12345",
   });
-  assert.ok(block.includes("telegram"));
-  assert.ok(block.includes("default"));
-  assert.ok(block.includes("alice"));
-  assert.ok(block.includes("12345"));
+  assert.match(block, /Telegram/i);
+  assert.match(block, /default/);
+  assert.match(block, /alice/);
+  assert.match(block, /12345/);
 });
 
 test("buildChannelContextBlock: unknown channel returns empty string", () => {
@@ -60,7 +64,7 @@ test("buildSuperAgentSystem: composes base + user + channel layers", () => {
   };
   const system = buildSuperAgentSystem({
     globalConfig: {
-      super_agent: { model: "mock:mock", permission_mode: "automatico", allowed_tools: [] },
+      super_agent: { model: "mock:mock", permission_mode: "auto", allowed_tools: [] },
       user: { language: "en" },
     },
     projects,
@@ -68,12 +72,12 @@ test("buildSuperAgentSystem: composes base + user + channel layers", () => {
     channel: "cli",
     channelMeta: { cwd: "/tmp/work" },
   });
-  // Base prompt was reworded in AGENTS.md rule 7: "super-agent" is the mode,
-  // not the name. The base prompt now identifies the agent as "APX itself".
-  assert.ok(system.includes("APX itself"));
-  assert.ok(system.includes("super-agent")); // term still appears as mode descriptor
-  assert.ok(system.includes("# User & identity"));
-  assert.ok(system.includes("Channel: **cli**"));
+  // After the refactor the super-agent role lives in core/super-agent.md.
+  // It identifies the agent as the always-on voice for an APX install.
+  assert.match(system, /always-on/i);
+  assert.match(system, /APX/);
+  assert.match(system, /# Agent profile/);
+  assert.match(system, /cli/i); // channel content
   assert.ok(system.includes("/tmp/work"));
   assert.ok(!system.includes("Manuel"));
 });
@@ -169,7 +173,7 @@ test("telegram channel template omits both blocks when channelMeta has neither",
   assert.equal(/Project pin/.test(out), false);
   assert.equal(/Master agent/.test(out), false);
   // Still has the base channel header.
-  assert.match(out, /telegram/);
+  assert.match(out, /Telegram/i);
 });
 
 test("telegram channel template includes master agent block when set", async () => {
