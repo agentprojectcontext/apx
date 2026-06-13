@@ -1,3 +1,10 @@
+# [1.35.0](https://github.com/agentprojectcontext/apx/compare/v1.34.0...v1.35.0) (2026-06-13)
+
+
+### Features
+
+* **skills:** Skill Inspector — per-turn skill RAG middleware (opt-in) ([ebb81cd](https://github.com/agentprojectcontext/apx/commit/ebb81cd5a83e9f567feb9c51c617d22c495872d9))
+
 # [1.34.0](https://github.com/agentprojectcontext/apx/compare/v1.33.1...v1.34.0) (2026-06-13)
 
 
