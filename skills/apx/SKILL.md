@@ -3,7 +3,7 @@ name: apx
 description: >-
   APX CLI — local daemon that orchestrates agents, sessions, MCPs, and channels across CLIs.
   Use `apx exec "prompt"` for the local super-agent, or `apx run <agent> --runtime <claude-code|codex|opencode|aider|cursor-agent|gemini-cli|qwen-code> "prompt"` to hand the task to another CLI.
-  Activate on: 'apx', 'apx exec', 'apx run', 'apx daemon', 'pedile a codex/claude/opencode/gemini', 'que codex haga …', 'delegar a otro engine', 'ejecutar en codex/claude', 'run this in <runtime>'.
+  Activate on: 'apx', 'apx exec', 'apx run', 'apx daemon', 'ask codex/claude/opencode/gemini to …', 'have <runtime> do …', 'delegate to another runtime', 'run this in <runtime>', 'route this task to <runtime>'.
 homepage: https://github.com/agentprojectcontext/apx
 ---
 

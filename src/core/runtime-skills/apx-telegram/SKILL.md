@@ -1,13 +1,13 @@
 ---
 name: apx-telegram
-description: How APX talks to Telegram — channels, project pinning, master agents, media. Load BEFORE configuring a new bot or routing — multi-channel is the only mode now, the root bot_token/chat_id fields are legacy.
+description: APX Telegram plugin — channels, project pinning, master agents, media. Load BEFORE configuring a new bot or routing — multi-channel is the only mode, root bot_token/chat_id are legacy.
 ---
 
 # apx-telegram
 
-APX runs a Telegram plugin that polls `getUpdates` and routes messages. Config lives in `~/.apx/config.json → telegram`. The relationship to remember: **each channel can be pinned to a project and to a master agent**. Messages arriving on a pinned channel automatically run inside that project, optionally handled by a specific agent instead of the default APX super-agent.
+APX polls `getUpdates` and routes messages. Config: `~/.apx/config.json → telegram`. Key model: **each channel can be pinned to a project and a master agent**. Messages on a pinned channel run inside that project, optionally handled by a specific agent instead of the default super-agent.
 
-## The shape
+## Shape
 
 ```json
 {
@@ -15,61 +15,60 @@ APX runs a Telegram plugin that polls `getUpdates` and routes messages. Config l
     "enabled": true,
     "poll_interval_ms": 1500,
     "route_to_agent": "",          // global default master agent (empty = super-agent)
-    "respond_with_engine": true,   // global default for "should the LLM auto-reply?"
+    "respond_with_engine": true,   // global default auto-reply flag
     "channels": [
       {
         "name": "default",
         "bot_token": "<from BotFather>",
-        "chat_id": "<your numeric chat id>",
-        "project": "iacrmar",        // optional: pin this channel to that project
-        "route_to_agent": "reviewer", // optional: this agent handles messages on this channel
-        "respond_with_engine": true,  // optional: override the global default
-        "owner_user_id": "123456789"  // optional: per-channel owner (set via `apx telegram owner`)
+        "chat_id": "<numeric chat id>",
+        "project": "iacrmar",          // optional: pin to project
+        "route_to_agent": "reviewer",  // optional: per-channel agent
+        "respond_with_engine": true,   // optional: override global
+        "owner_user_id": "123456789"   // optional: via `apx telegram owner`
       }
     ],
-    "contacts": [],                   // global roster (user_id → role); see `apx telegram contacts`
-    "roles": {}                       // role → allowed tools; see `apx telegram roles`
+    "contacts": [],   // global roster (user_id → role)
+    "roles": {}       // role → allowed tools
   }
 }
 ```
 
-The old `telegram.bot_token` / `telegram.chat_id` at the root are **legacy**. Don't write to them. If a config still has them and `channels[]` is empty, APX migrates them into `channels[0]` automatically with a warning on first read.
+Root `telegram.bot_token` / `telegram.chat_id` are **legacy**. Don't write them. If a config still has them and `channels[]` is empty, APX migrates them into `channels[0]` automatically on first read.
 
 ## Concrete CLI calls
 
 ```bash
-# Print the config template to get started
-apx telegram setup            # note: still emits root bot_token/chat_id — prefer channels[] below
+apx telegram setup            # template (still emits legacy root fields — prefer channels[])
 
 # Channels CRUD
-apx telegram channel add               # interactive wizard
+apx telegram channel add                  # interactive
 apx telegram channel add clientes --bot-token <T> --chat-id <C> --project iacrmar --agent reviewer
-apx telegram channel list              # alias: ls
-apx telegram channel show clientes     # alias: get
+apx telegram channel list                 # alias: ls
+apx telegram channel show clientes        # alias: get
 apx telegram channel set    clientes --project iacrmar
 apx telegram channel set    clientes --agent reviewer
 apx telegram channel set    clientes --respond-engine false
 apx telegram channel unset  clientes --project --agent
-apx telegram channel remove clientes   # alias: rm
-apx telegram owner          clientes <user_id>   # set the per-channel owner
+apx telegram channel remove clientes      # alias: rm
+apx telegram owner          clientes <user_id>
 
 # Contacts roster + roles (global; gate which tools a sender may trigger)
-apx telegram contacts                  # list the global roster
+apx telegram contacts
 apx telegram contacts rm <user_id>
-apx telegram role  <user_id> <role>    # assign a role to a contact
-apx telegram roles                     # list role → tools mappings
-apx telegram roles set <name> --tools a,b,c   # or --tools '*' for all
+apx telegram role  <user_id> <role>
+apx telegram roles
+apx telegram roles set <name> --tools a,b,c     # or --tools '*'
 apx telegram roles rm  <name>
 
-# Polling lifecycle (rarely needed — autostart with daemon)
+# Polling lifecycle (autostarts with daemon)
 apx telegram start
 apx telegram stop
 apx telegram status
 
-# Sending (defaults to first configured channel; use --chat for explicit chat id)
+# Sending (defaults to first configured channel)
 apx telegram send "text"
 apx telegram send "text" --chat 123456789
-apx telegram send "text" --interrupt        # bypass the pending-agent queue (also: --force)
+apx telegram send "text" --interrupt            # bypass pending-agent queue (also: --force)
 
 # Media (daemon HTTP API — no dedicated CLI subcommand yet)
 curl -X POST http://127.0.0.1:7430/telegram/send_photo \
@@ -82,50 +81,40 @@ curl -X POST http://127.0.0.1:7430/telegram/send_voice \
   -d '{"audio":"/abs/path.ogg","duration":5,"channel":"default"}'
 ```
 
-Every `channel` CRUD write triggers `POST /admin/reload` so the polling plugin picks up the new wiring without a daemon restart.
+Every `channel` CRUD write triggers `POST /admin/reload` so polling picks up the new wiring without restart.
 
-## What "pin to project" actually does
+## What "pin to project" does
 
-When a message arrives on a channel with `project: "iacrmar"`:
+On a message to a channel with `project: "iacrmar"`:
 1. The super-agent invocation gets `channelMeta.projectId = <iacrmar's id>`.
-2. The system prompt resolves project-scoped data (agents, MCPs, memory) for that turn.
-3. The agent can call tools (`list_agents`, `list_tasks`, `create_task`, …) and they default to that project — the user doesn't have to say "in iacrmar" every message.
+2. The system prompt resolves project-scoped agents, MCPs, memory.
+3. Tools (`list_agents`, `list_tasks`, `create_task`, …) default to that project — no need to repeat "in iacrmar" each message.
 
-## What "master agent" actually does
+## What "master agent" does
 
-With `route_to_agent: "reviewer"` on the channel, incoming messages go through `/projects/:pid/agents/reviewer/chat` instead of `/super-agent/chat`. The agent's `AGENT.md` system prompt + memory is used. No tools (project agents are `exec_agent`-shaped — text in, text out). Single LLM call.
-
-Use this when you want a Telegram channel to feel like talking to a specific persona (a reviewer, a sales agent, a customer support agent) instead of the general APX assistant.
-
-If `route_to_agent` is empty: the channel goes through the super-agent (default APX mode).
+With `route_to_agent: "reviewer"`, messages go through `/projects/:pid/agents/reviewer/chat` instead of `/super-agent/chat`. The agent's `AGENT.md` + memory is used. No tools (project agents are `exec_agent`-shaped — text in, text out). Single LLM call. Use this for persona channels (reviewer, sales, support) instead of the general assistant. Empty = super-agent (default).
 
 ## Anti-examples
 
 ```bash
-# DON'T write to telegram.bot_token / telegram.chat_id directly.
-apx config set telegram.bot_token "<T>"
-# ↑ Those fields are legacy. Use channels[] via `apx telegram channel`.
+# DON'T write to legacy root fields.
+apx config set telegram.bot_token "<T>"   # ← use channels[] via `apx telegram channel`
 
-# DON'T add the same project to two channels expecting routing magic.
-# A channel pins messages TO a project, not the other way around. The same
-# project can be addressed from multiple channels — fine. But that doesn't
-# unify the conversation contexts; each channel has its own message log.
+# DON'T expect routing magic from same project on two channels.
+# A channel pins messages TO a project, not vice-versa. Same project from multiple
+# channels is fine, but each channel has its own message log — no unified context.
 
 # DON'T set route_to_agent to a non-existent slug.
-apx telegram channel set default --agent nope
-# ↑ Will silently route to a 404 — the channel's messages won't get a reply
-# until you fix it. `apx telegram channel show <name>` to verify.
+apx telegram channel set default --agent nope    # silently 404s; verify with channel show
 ```
 
 ## Multiple bots, one APX
 
-`channels[]` supports multiple `{bot_token, chat_id}` pairs. Each can be a different bot OR the same bot with different chats. The plugin polls each in parallel. Project / agent pinning is per-channel.
-
-This is how you wire "I have a client A bot, a personal bot, and a notifications-only bot": three channels, three (possibly) different bots, distinct project pins.
+`channels[]` supports multiple `{bot_token, chat_id}` pairs — different bots OR the same bot with different chats. Plugin polls each in parallel; project/agent pinning is per-channel. Wire "client A bot, personal bot, notifications-only bot" as three channels.
 
 ## Don't
 
-- Don't write to `telegram.bot_token` / `telegram.chat_id` at root.
-- Don't expect `apx telegram send` to target a project — it sends to a *chat id* (or the channel's configured `chat_id`). Use `apx telegram channel show <name>` to verify wiring.
-- Don't set `respond_with_engine: false` and then wonder why messages aren't getting replies. That flag turns auto-reply off for the channel.
-- Don't forget that the Telegram plugin only fires on chat IDs you've listed. Messages from other chats are ignored.
+- Write to `telegram.bot_token` / `telegram.chat_id` at root.
+- Expect `apx telegram send` to target a project — it targets a *chat id*. Verify wiring with `apx telegram channel show <name>`.
+- Set `respond_with_engine: false` and then wonder why replies stop. That flag disables auto-reply for the channel.
+- Forget the plugin only fires on listed chat IDs. Other chats are ignored.
