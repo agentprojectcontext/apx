@@ -86,13 +86,13 @@ export function buildVoiceChannelContext(channel, { projectId, language = "es" }
   switch (channel) {
     case "voice":
       return { ...base, contextNote: dynamicNote, systemSuffix: SUGGESTIONS_INSTRUCTION, wantsSuggestions: true, channel: CHANNELS.DECK, channelMeta: { voice: true } };
-    case "deck":
+    case CHANNELS.DECK:
       return { ...base, contextNote: dynamicNote, systemSuffix: SUGGESTIONS_INSTRUCTION, wantsSuggestions: true, channel: CHANNELS.DECK, channelMeta: {} };
-    case "desktop":
+    case CHANNELS.DESKTOP:
       return { ...base, contextNote: dynamicNote, systemSuffix: SUGGESTIONS_INSTRUCTION, wantsSuggestions: true, channel: CHANNELS.DESKTOP, channelMeta: { voice: true } };
-    case "telegram":
+    case CHANNELS.TELEGRAM:
       return { ...base, contextNote: dynamicNote, channel: CHANNELS.TELEGRAM, channelMeta: {} };
     default:
-      return { ...base, contextNote: dynamicNote, channel: channel || "api", channelMeta: {} };
+      return { ...base, contextNote: dynamicNote, channel: channel || CHANNELS.API, channelMeta: {} };
   }
 }

@@ -134,8 +134,11 @@ test("buildRelationshipBlock: guest gets the 'I don't know you' instruction", ()
     isOwner: false,
     isGroup: false,
   });
-  assert.match(block, /NOT a recognized contact/);
-  assert.match(block, /only the owner or someone via terminal/i);
+  // Phrasing changed in the prompt refactor but the rule must still flag the
+  // sender as a guest with no permissions and tell the agent to ask politely.
+  assert.match(block, /guest/i);
+  assert.match(block, /no permissions/i);
+  assert.match(block, /politely/i);
 });
 
 test("buildRelationshipBlock: group says do not assume a single owner", () => {

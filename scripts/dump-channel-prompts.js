@@ -22,6 +22,7 @@ import {
   buildSuperAgentSystem,
   buildChannelContextBlock,
 } from "../src/core/agent/prompt-builder.js";
+import { buildAgentSystem } from "../src/core/agent/build-agent-system.js";
 import {
   TOOL_SCHEMAS,
   createToolSession,
@@ -105,6 +106,75 @@ const CHANNELS = {
 
 const projects = {
   list: () => [{ id: 0, name: "default", path: "~/.apx/projects/default" }],
+};
+
+// ---- project agent (April) — what a dedicated project agent receives --------
+// The super-agent (Roby) is built by buildSuperAgentSystem; a project agent is
+// built by buildAgentSystem and looks quite different (project-agent role,
+// agent profile, the agent's authored body as "Custom instructions", per-agent
+// memory, invocation context). This is a representative stub mirroring a real
+// `.apc/agents/<slug>.md` so the dump is deterministic regardless of disk state.
+// storagePath is set so per-agent memory resolution skips apx-id lookup on disk
+// (the dump is deterministic — no memory.md exists at this path, so the agent
+// renders with an empty memory block, same as a brand-new agent).
+const SAMPLE_PROJECT = {
+  id: 0,
+  name: "default",
+  path: "~/.apx/projects/default",
+  storagePath: path.join(OUT_DIR, ".sample-storage"),
+};
+const SAMPLE_AGENT = {
+  slug: "april",
+  fields: {
+    Description: "APC/APX social presence on Moltbook. Posts and engages with the community.",
+    Role: "Community / social",
+    Language: "en",
+    Tools: ["http_get", "http_post"],
+  },
+  body: [
+    "# April",
+    "",
+    "You are April, the Moltbook presence for Agent Project Context (APC/APX) —",
+    "an open standard that gives AI agent projects a shared, readable context file.",
+    "Participate genuinely. Share ideas, comment on relevant posts. Never spam.",
+    "",
+    "## Tone",
+    "Curious, direct, a bit nerdy. Mention APC only when genuinely relevant.",
+    "",
+    "## Hard limits",
+    "- 1 post / 30 min minimum gap (prefer 24h between posts)",
+    "- Max 50 comments/day",
+  ].join("\n"),
+};
+
+// Surfaces a project agent actually answers through. Unlike the super-agent it
+// has no APX tool registry of its own — callable tools come from the invocation
+// surface / external runtime — so these dumps show the system prompt only.
+const AGENT_SURFACES = {
+  engine: {
+    use: "`call_agent` — direct LLM engine call, no user surface",
+    invocation: "engine",
+  },
+  telegram: {
+    use: "Project agent answering its owner on Telegram",
+    invocation: "telegram",
+    channel: "telegram",
+    meta: { channelName: "april-bot", author: "Manu", chatId: "123456789" },
+    sender: { userId: 1, name: "Manu", isOwner: true, role: "owner" },
+  },
+  deck: {
+    use: "Project agent on the cockpit deck",
+    invocation: "engine",
+    channel: "deck",
+    meta: {},
+  },
+  routine: {
+    use: "Project agent run by a scheduled routine",
+    invocation: "routine",
+    channel: "routine",
+    routine: "daily-moltbook",
+    meta: { routineName: "daily-moltbook" },
+  },
 };
 
 function loadCfg() {
@@ -260,6 +330,44 @@ function dumpChannel(channelKey, spec, cfg, skills) {
   };
 }
 
+function dumpAgent(key, spec, cfg) {
+  const sys = buildAgentSystem(SAMPLE_PROJECT, SAMPLE_AGENT, {
+    invocation: spec.invocation || "engine",
+    channel: spec.channel || null,
+    channelMeta: spec.meta || {},
+    sender: spec.sender || null,
+    routine: spec.routine || null,
+    globalConfig: cfg,
+  });
+  const md = [
+    `# Project agent: \`${SAMPLE_AGENT.slug}\` — surface \`${key}\``,
+    "",
+    `> ${spec.use}`,
+    "",
+    "_Representative stub agent (mirrors a real `.apc/agents/<slug>.md`). A project",
+    "agent gets its callable tools from the invocation surface / external runtime,",
+    "not the APX tool registry, so there are no tool tables here — only the prompt._",
+    "",
+    "## Stats",
+    "",
+    "| metric | value |",
+    "|---|---|",
+    `| system prompt | ${sys.length.toLocaleString()} chars · ≈${tok(sys).toLocaleString()} tokens |`,
+    `| invocation | ${spec.invocation || "engine"} |`,
+    `| channel | ${spec.channel || "— (none)"} |`,
+    "",
+    "---",
+    "",
+    "## Full system prompt",
+    "",
+    "```text",
+    sys,
+    "```",
+    "",
+  ].join("\n");
+  return { md, sysTok: tok(sys) };
+}
+
 function renderSummary(rows, real) {
   const lines = [
     "# Channel-prompts comparison",
@@ -325,6 +433,19 @@ function main() {
   const summaryFile = path.join(OUT_DIR, "_summary.md");
   fs.writeFileSync(summaryFile, summary, "utf8");
   console.log(`\nsummary → ${path.relative(process.cwd(), summaryFile)}`);
+
+  // Project-agent dumps (only on a full run — i.e. no specific channels asked).
+  if (wantedKeys.length === 0) {
+    const agentDir = path.join(OUT_DIR, "agent");
+    fs.mkdirSync(agentDir, { recursive: true });
+    console.log("");
+    for (const [key, spec] of Object.entries(AGENT_SURFACES)) {
+      const { md, sysTok } = dumpAgent(key, spec, cfg);
+      const file = path.join(agentDir, `${key}.md`);
+      fs.writeFileSync(file, md, "utf8");
+      console.log(`wrote ${path.relative(process.cwd(), file)}  (sys ≈${sysTok}tok)`);
+    }
+  }
 }
 
 main();

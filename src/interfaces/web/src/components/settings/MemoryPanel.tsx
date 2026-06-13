@@ -36,6 +36,10 @@ interface MemoryCfg {
     openai?: { api_key?: string; model?: string; base_url?: string };
     gemini?: { api_key?: string; model?: string };
   };
+  compact_threshold?: number;
+  keep_recent?: number;
+  compact_model?: string;
+  compact_fallback_model?: string;
 }
 
 const isMarker = (v: string) => v.startsWith("***");
@@ -217,6 +221,70 @@ export function MemoryPanel() {
             onBlur={(ev) => {
               const v = ev.target.value;
               if (v && !isMarker(v)) apply({ "memory.embeddings.gemini.api_key": v });
+            }}
+            className="max-w-md"
+          />
+        </Field>
+      </Section>
+
+      <Section
+        title={t("memory_panel.compaction_title")}
+        description="Cuando un chat supera el umbral de turnos, los más viejos se resumen con un LLM liviano (local) y se guardan como [RESUMEN COMPACTADO], manteniendo el contexto acotado. Corre fuera del hot-path: el turno actual usa el resumen que ya exista."
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Umbral de compactación" hint="Compactar una vez que el chat supera estos turnos (por defecto 60).">
+            <Input
+              type="number"
+              min={1}
+              defaultValue={mem.compact_threshold ?? 60}
+              placeholder="60"
+              disabled={busy}
+              onBlur={(ev) => {
+                const n = parseInt(ev.target.value, 10);
+                if (Number.isFinite(n) && n > 0 && n !== mem.compact_threshold) {
+                  apply({ "memory.compact_threshold": n });
+                }
+              }}
+              className="max-w-[10rem]"
+            />
+          </Field>
+          <Field label="Turnos recientes a preservar" hint="Turnos verbatim que NUNCA se compactan (por defecto 40). Debe ser menor al umbral.">
+            <Input
+              type="number"
+              min={1}
+              defaultValue={mem.keep_recent ?? 40}
+              placeholder="40"
+              disabled={busy}
+              onBlur={(ev) => {
+                const n = parseInt(ev.target.value, 10);
+                if (Number.isFinite(n) && n > 0 && n !== mem.keep_recent) {
+                  apply({ "memory.keep_recent": n });
+                }
+              }}
+              className="max-w-[10rem]"
+            />
+          </Field>
+        </div>
+        <Field label="Modelo de compactación" hint="LLM liviano para resumir. Ideal uno local (Ollama) para no gastar. Formato proveedor:modelo.">
+          <Input
+            defaultValue={mem.compact_model || "ollama:gemma4:31b-cloud"}
+            placeholder="ollama:gemma4:31b-cloud"
+            disabled={busy}
+            onBlur={(ev) => {
+              const v = ev.target.value.trim();
+              if (v && v !== mem.compact_model) apply({ "memory.compact_model": v });
+            }}
+            className="max-w-md"
+          />
+        </Field>
+        <Field label="Modelo de fallback" hint="Se usa si el de compactación falla. Vacío cae al modelo del super-agente.">
+          <Input
+            defaultValue={mem.compact_fallback_model || ""}
+            placeholder="(vacío → modelo del super-agente)"
+            disabled={busy}
+            onBlur={(ev) => {
+              const v = ev.target.value.trim();
+              if (v !== (mem.compact_fallback_model || "")) apply({ "memory.compact_fallback_model": v });
             }}
             className="max-w-md"
           />

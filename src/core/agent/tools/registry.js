@@ -29,9 +29,13 @@ import askQuestions from "./handlers/ask-questions.js";
 import createTask from "./handlers/create-task.js";
 import listTasks from "./handlers/list-tasks.js";
 import discoverTools from "./handlers/discover-tools.js";
+import gitStatus from "./handlers/git-status.js";
+import gitDiff from "./handlers/git-diff.js";
+import gitLog from "./handlers/git-log.js";
+import gitShow from "./handlers/git-show.js";
 import { createPermissionGuard } from "./helpers.js";
 import { buildBridgedTools, DEFAULT_CATEGORIES } from "./registry-bridge.js";
-import { TOOLS } from "./names.js";
+import { TOOLS, CODE_CHANNEL_TOOLS } from "./names.js";
 import { CHANNELS } from "#core/constants/channels.js";
 
 const NATIVE_TOOLS = [
@@ -66,6 +70,10 @@ const NATIVE_TOOLS = [
   createTask,
   listTasks,
   discoverTools,
+  gitStatus,
+  gitDiff,
+  gitLog,
+  gitShow,
 ];
 
 // Registry-backed bridges. Categories can be overridden per-process via env
@@ -135,6 +143,15 @@ const FULL_CHANNELS = new Set([
   CHANNELS.API,
   CHANNELS.WEB,
   CHANNELS.CODE,
+  CHANNELS.WEB_CODE,
+]);
+
+// Coding surfaces — even on the lightweight set, these channels get the
+// git_* tools promoted into the base so the model can inspect the repo
+// without round-tripping through discover_tools every turn.
+const CODE_CHANNELS = new Set([
+  CHANNELS.CODE,
+  CHANNELS.WEB_CODE,
 ]);
 
 // Category labels for grouping the discover_tools catalog. Native tools have no
@@ -172,6 +189,10 @@ const NATIVE_CATEGORY = {
   [TOOLS.LIST_FILES]:          "files",
   [TOOLS.SEARCH_FILES]:        "files",
   [TOOLS.RUN_SHELL]:           "shell",
+  [TOOLS.GIT_STATUS]:          "code",
+  [TOOLS.GIT_DIFF]:            "code",
+  [TOOLS.GIT_LOG]:             "code",
+  [TOOLS.GIT_SHOW]:            "code",
 };
 
 function categoryOf(tool) {
@@ -200,14 +221,24 @@ export const BASE_TOOL_SCHEMAS = ALL_TOOLS
 
 const schemaName = (s) => s?.function?.name || s?.name;
 
+// Code-channel base = BASE + git_* tools. Pre-computed once.
+const CODE_BASE_TOOL_NAMES = new Set([...BASE_TOOL_NAMES, ...CODE_CHANNEL_TOOLS]);
+const CODE_BASE_TOOL_SCHEMAS = ALL_TOOLS
+  .filter((t) => CODE_BASE_TOOL_NAMES.has(t.name))
+  .map((t) => t.schema);
+
 /**
- * Choose the INITIAL tool schema list for a channel. Full channels get the
- * whole registry; lightweight channels (telegram/desktop/deck/web_sidebar) get
- * the base set and expand on demand via discover_tools. `full: true` forces the
- * complete registry regardless of channel.
+ * Choose the INITIAL tool schema list for a channel.
+ *   - FULL_CHANNELS (api, web, code, web_code, routine) get the whole registry.
+ *   - CODE_CHANNELS overlap with FULL, but when something forces a smaller set
+ *     (CODE_PLAN_TOOLS allowlist) the git_* tools are still in their base.
+ *   - Everything else is "lightweight" and starts on BASE_TOOL_NAMES.
+ *
+ * `full: true` forces the complete registry regardless of channel.
  */
 export function schemasForChannel(channel, { full = false } = {}) {
   if (full || FULL_CHANNELS.has(channel)) return TOOL_SCHEMAS;
+  if (CODE_CHANNELS.has(channel)) return CODE_BASE_TOOL_SCHEMAS;
   return BASE_TOOL_SCHEMAS;
 }
 
