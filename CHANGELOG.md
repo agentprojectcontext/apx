@@ -1,3 +1,11 @@
+## [1.38.1](https://github.com/agentprojectcontext/apx/compare/v1.38.0...v1.38.1) (2026-06-14)
+
+
+### Bug Fixes
+
+* **ci:** bump Pages workflow Node to 22 for Astro 6 ([c30e084](https://github.com/agentprojectcontext/apx/commit/c30e0843bc5cfa65c6397a110be62f35d76726dd))
+* **ci:** drop pnpm version pin in Pages workflow ([e961dfe](https://github.com/agentprojectcontext/apx/commit/e961dfe3daec543c2b4c236d1443c073d8f2bf2b))
+
 # [1.38.0](https://github.com/agentprojectcontext/apx/compare/v1.37.0...v1.38.0) (2026-06-14)
 
 
