@@ -22,7 +22,7 @@ import { RoutineScheduler } from "./routines-scheduler.js";
 import { buildApi } from "./api.js";
 import { createTokenStore } from "./token-store.js";
 import { triggerWakeup } from "./wakeup.js";
-import { registerDesktopClient } from "./desktop-ws.js";
+import { registerDesktopClient, isDesktopUpgradePath, isDesktopUpgradeAuthorized } from "./desktop-ws.js";
 import { log as logToUnified } from "#core/logging.js";
 import { initMemory, stopMemory } from "#core/memory/index.js";
 
@@ -247,7 +247,17 @@ async function main() {
   // Attach WebSocket upgrade for the desktop channel on /desktop/ws
   // (legacy /overlay/ws still accepted for one release).
   server.on("upgrade", async (req, socket, head) => {
-    if (req.url !== "/desktop/ws" && req.url !== "/overlay/ws") { socket.destroy(); return; }
+    if (!isDesktopUpgradePath(req.url)) { socket.destroy(); return; }
+    // Auth: the WS upgrade must carry a valid token (master or paired client),
+    // matching the HTTP /desktop/* routes. Without this, any client that can
+    // reach the daemon (host binds 0.0.0.0 → the LAN) could open the desktop
+    // channel and drive the super-agent (permission_mode "total"). The
+    // legitimate desktop window already sends the bearer token. See QA BUG-WS-AUTH.
+    if (!isDesktopUpgradeAuthorized(req, tokenStore)) {
+      socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
+      socket.destroy();
+      return;
+    }
     // Lazy-import ws to avoid hard dep on startup
     let WebSocketServer;
     try { ({ WebSocketServer } = await import("ws")); } catch {

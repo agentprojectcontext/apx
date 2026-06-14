@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import readline from "node:readline";
 import { fileURLToPath } from "node:url";
 import { getLatestVersion } from "#core/update-check.js";
+import { apxBanner } from "../branding.js";
 
 const PACKAGE_NAME = "@agentprojectcontext/apx";
 
@@ -58,6 +59,7 @@ function daemonRunning() {
 export async function cmdUpdate(args, currentVersion) {
   const force = args.flags.force || args.flags.yes || args.flags.y;
 
+  apxBanner(currentVersion, "update");
   console.log("Checking for updates...");
   const latest = await getLatestVersion();
 

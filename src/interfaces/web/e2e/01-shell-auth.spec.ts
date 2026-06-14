@@ -22,8 +22,10 @@ test.describe("shell & auth", () => {
     await expect(page.getByTestId("settings-tab-identity")).toBeVisible();
     const html = page.locator("html");
     const before = await html.getAttribute("class");
-    // theme toggle is the lone button in the TopBar header (direct child of <main>)
-    await page.locator("main > header button").first().click();
+    // Use the dedicated test-id: the header also renders a NavToggle (and may
+    // render page actions) BEFORE the theme button, so the old positional
+    // `button.first()` selector clicked the wrong button. See QA BUG-WEB-1.
+    await page.getByTestId("theme-toggle").click();
     await expect(html).not.toHaveClass(before ?? "");
   });
 });

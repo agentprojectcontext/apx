@@ -13,6 +13,7 @@ import { AddProjectDialog } from "./components/AddProjectDialog";
 import { PairingScreen } from "./screens/PairingScreen";
 import { RobyBubble } from "./components/RobyBubble";
 import { ToastProvider } from "./components/Toast";
+import { Button } from "./components/ui/button";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { useTheme } from "./hooks/useTheme";
 import { useProjects } from "./hooks/useProjects";
@@ -142,6 +143,7 @@ function TopBar({
       {pageActions}
       <button
         type="button"
+        data-testid="theme-toggle"
         onClick={onToggleTheme}
         title={isDark ? t("topbar.light") : t("topbar.dark")}
         className="shrink-0 rounded-md p-1.5 text-muted-fg hover:bg-accent hover:text-accent-fg"
@@ -210,10 +212,28 @@ function Splash({ text, sub }: { text: string; sub?: string }) {
 }
 
 function NotFound() {
+  const navigate = useNavigate();
+  // Roby, but lost — a confused riff on the Splash mascot (asymmetric eyes,
+  // little "o" mouth, a floating "?"). Tinted with the APX brand green.
+  const robyLost =
+    "      ?\n  ▄███████▄\n █ ██   ██ █\n █  ◑   ◐  █\n █    o    █\n  ▀███████▀";
   return (
-    <div className="p-8">
-      <h1 className="text-2xl">{t("not_found.title")}</h1>
-      <p className="text-muted-fg">{t("not_found.message")}</p>
+    <div className="grid h-full place-items-center p-8" data-testid="screen-not-found">
+      <div className="flex flex-col items-center text-center">
+        <pre
+          aria-hidden
+          className="mb-6 select-none whitespace-pre font-mono text-xs leading-none text-emerald-500"
+        >
+          {robyLost}
+        </pre>
+        <div className="font-mono text-7xl font-semibold leading-none tracking-tight text-foreground">
+          {t("not_found.title")}
+        </div>
+        <p className="mt-4 max-w-sm text-sm text-muted-fg">{t("not_found.message")}</p>
+        <Button variant="outline" className="mt-6" onClick={() => navigate("/")}>
+          {t("not_found.home")}
+        </Button>
+      </div>
     </div>
   );
 }

@@ -11,11 +11,18 @@ import { replyAsAgent } from "#core/agent/a2a/reply.js";
 import { nowIso } from "./shared.js";
 
 export function register(app, { project, config }) {
+  // The super-agent (default name "apx") is a pseudo-agent: it owns
+  // conversations per project but is NOT listed in AGENTS.md. Resolve its slug
+  // so `apx conversations list` (which defaults to the super-agent) works
+  // instead of 404-ing on the AGENTS.md check.
+  const superAgentSlug = () => config?.super_agent?.name || "apx";
+  const agentResolvable = (p, slug) =>
+    slug === superAgentSlug() || readAgents(p.path).some((a) => a.slug === slug);
+
   app.get("/projects/:pid/agents/:slug/conversations", (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    const agents = readAgents(p.path);
-    if (!agents.find((a) => a.slug === req.params.slug))
+    if (!agentResolvable(p, req.params.slug))
       return res.status(404).json({ error: "agent not found" });
     res.json(listConversations(p.storagePath, req.params.slug));
   });

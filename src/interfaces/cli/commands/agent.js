@@ -5,6 +5,7 @@ import { apcAgentFile } from "#core/apc/paths.js";
 import { writeAgentFile, writeVaultAgentFile, removeVaultAgent, restoreVaultAgent, addImportedAgent, ensureAgentDir } from "#core/apc/scaffold.js";
 import { ensureAgentRuntimeDir, agentMemoryPath } from "#core/agent/memory.js";
 import { http } from "../http.js";
+import { resolveProjectId } from "./project.js";
 
 // ── ANSI ──────────────────────────────────────────────────────────────────────
 const c = { reset:"\x1b[0m", bold:"\x1b[1m", dim:"\x1b[2m", cyan:"\x1b[36m", green:"\x1b[32m", yellow:"\x1b[33m", gray:"\x1b[90m" };
@@ -98,6 +99,25 @@ export function cmdAgentGet(args) {
   }
   if (a.body) console.log(`\n${dim(a.body)}`);
   console.log();
+}
+
+export async function cmdAgentRemove(args) {
+  const slug = args._[0];
+  if (!slug) throw new Error("apx agent remove: missing <slug> — usage: apx agent remove <slug>");
+  // Resolve locally first so we can give a clear message + suggestions instead
+  // of a bare 404 when the slug is wrong.
+  const root = findApfRoot();
+  if (root) {
+    const local = readAgents(root).find((a) => a.slug === slug);
+    if (!local) {
+      const inVault = readVaultAgents().find((v) => v.slug === slug);
+      if (inVault) throw new Error(`agent "${slug}" is in the vault but not in this project — nothing to remove here (use \`apx agent vault rm ${slug}\` to delete the template)`);
+      throw new Error(`agent "${slug}" not found in this project — run \`apx agent list\` to see the agents you can remove`);
+    }
+  }
+  const pid = await resolveProjectId(args?.flags?.project);
+  await http.delete(`/projects/${pid}/agents/${slug}`);
+  console.log(`${tag("removed")}  ${bold(slug)}  ${gray("(agent file + runtime memory deleted)")}`);
 }
 
 // ── Vault commands ────────────────────────────────────────────────────────────

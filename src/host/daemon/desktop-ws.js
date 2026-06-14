@@ -10,6 +10,37 @@ export function setDesktopMessageHandler(fn) {
   _messageHandler = fn;
 }
 
+// --- WS upgrade auth helpers (shared by the daemon upgrade handler + tests) ---
+//
+// The desktop WS channel must authenticate the same way the HTTP /desktop/*
+// routes do: a bearer token (master or paired client) carried on the upgrade
+// request. The legitimate desktop window sends `Authorization: Bearer <token>`
+// (src/interfaces/desktop/main.js); browser clients can pass `?token=`. Without
+// this the daemon (which binds 0.0.0.0 by default) would let any LAN client open
+// the channel and drive the super-agent. See QA BUG-WS-AUTH.
+
+/** Path-gate: is this upgrade for the desktop (or legacy overlay) WS channel? */
+export function isDesktopUpgradePath(url) {
+  let pathname = url || "";
+  try { pathname = new URL(url, "http://localhost").pathname; } catch { /* keep raw */ }
+  return pathname === "/desktop/ws" || pathname === "/overlay/ws";
+}
+
+/** Extract the bearer token from the upgrade request (header first, ?token= fallback). */
+export function extractWsToken(req) {
+  const auth = (req && req.headers && req.headers["authorization"]) || "";
+  if (auth.startsWith("Bearer ")) return auth.slice(7);
+  try {
+    return new URL((req && req.url) || "", "http://localhost").searchParams.get("token") || "";
+  } catch { return ""; }
+}
+
+/** True iff the upgrade request carries a token the store recognizes. */
+export function isDesktopUpgradeAuthorized(req, tokenStore) {
+  if (!tokenStore || typeof tokenStore.has !== "function") return false;
+  return tokenStore.has(extractWsToken(req));
+}
+
 export function registerDesktopClient(ws) {
   _clients.add(ws);
   ws.on("close", () => _clients.delete(ws));

@@ -27,11 +27,27 @@ const API_PREFIXES = [
   "/super-agent", "/identity",
 ];
 
-function isApiPath(p) {
+export function isApiPath(p) {
   for (const prefix of API_PREFIXES) {
     if (p === prefix || p.startsWith(prefix + "/")) return true;
   }
   return false;
+}
+
+// Client-side routes the SPA actually knows how to render. Must mirror the
+// <Routes> registry in src/interfaces/web/src/App.tsx. Anything else still
+// gets the SPA shell (so React Router shows the styled 404 page) but with an
+// HTTP 404 status, so curl/crawlers/health-checks see the right code instead
+// of a misleading 200.
+const SPA_ROUTES = [
+  /^\/$/,
+  /^\/settings(\/.*)?$/,
+  /^\/m\/(voice|desktop|deck|code)(\/.*)?$/,
+  /^\/p\/[^/]+(\/.*)?$/,
+];
+
+export function isKnownSpaRoute(p) {
+  return SPA_ROUTES.some((re) => re.test(p));
 }
 
 export function register(app, { express, token }) {
@@ -118,6 +134,9 @@ export function register(app, { express, token }) {
     if (req.method !== "GET") return next();
     if (isApiPath(req.path)) return next();
     if (path.extname(req.path)) return next(); // let static handle 404 of /foo.png
+    // Always serve the shell so the SPA can render, but set 404 for routes the
+    // app doesn't recognize so the HTTP status matches what the user sees.
+    res.status(isKnownSpaRoute(req.path) ? 200 : 404);
     res.sendFile(path.join(WEB_DIST, "index.html"));
   });
 }

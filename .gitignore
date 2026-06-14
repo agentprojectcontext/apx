@@ -34,3 +34,6 @@ opencode_ref/
 .claude/
 
 /tmp
+
+# QA artifacts — local only (raw logs may contain config dumps with secrets)
+qa/

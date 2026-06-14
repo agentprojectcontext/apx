@@ -16,6 +16,7 @@ import {
   cmdAgentAdd,
   cmdAgentList,
   cmdAgentGet,
+  cmdAgentRemove,
   cmdAgentImport,
   cmdAgentVaultList,
   cmdAgentVaultAdd,
@@ -307,6 +308,7 @@ const HELP_TOPICS = new Map(Object.entries({
       ["add <slug>", "Create a project-local agent."],
       ["list | ls", "List project agents."],
       ["get | show <slug>", "Print one agent definition."],
+      ["remove | rm <slug>", "Delete a project agent (file + runtime memory)."],
       ["import <slug>", "Import an agent template from ~/.apx/agents."],
       ["vault list | ls", "List vault templates (bundled defaults + your overrides)."],
       ["vault add <slug>", "Create a new vault template in the user layer (~/.apx/agents/)."],
@@ -340,6 +342,12 @@ const HELP_TOPICS = new Map(Object.entries({
     summary: "Print one project agent definition.",
     usage: ["apx agent get <slug>", "apx agent show <slug>"],
     examples: ["apx agent get reviewer"],
+  }),
+  "agent remove": topic({
+    title: "apx agent remove",
+    summary: "Delete a project agent (its .apc file + runtime memory).",
+    usage: ["apx agent remove <slug>", "apx agent rm <slug>"],
+    examples: ["apx agent remove reviewer"],
   }),
   "agent import": topic({
     title: "apx agent import",
@@ -1968,6 +1976,7 @@ function buildHelp(version) {
     hCmd("apx agent add <slug>",       36, "--role R  --model M  --skills a,b  --language es-AR  --description D"),
     hCmd("apx agent list",             36, ""),
     hCmd("apx agent get <slug>",       36, ""),
+    hCmd("apx agent remove <slug>",    36, "delete a project agent (file + runtime memory)"),
     hCmd("apx agent import",           36, ""),
     hCmd("apx agent vault list",       36, ""),
     hCmd("apx agent vault add",        36, ""),
@@ -2252,6 +2261,10 @@ if (helpRequest?.topic) {
 }
 
 if (argv[0] === "--version" || argv[0] === "-v") {
+  // Big wordmark to stderr (branding), bare version to stdout so
+  // `apx --version` stays parseable in scripts. apxBanner self-suppresses
+  // under APX_QUIET / APX_NO_BANNER.
+  apxBanner(VERSION, "version");
   console.log(VERSION);
   process.exit(0);
 }
@@ -2302,6 +2315,7 @@ async function dispatch(cmd, rest) {
         if (sub === "add") await cmdAgentAdd(a);
         else if (sub === "list" || sub === "ls") cmdAgentList();
         else if (sub === "get" || sub === "show") cmdAgentGet(a);
+        else if (sub === "remove" || sub === "rm" || sub === "delete") await cmdAgentRemove(a);
         else if (sub === "import") await cmdAgentImport(a);
         else if (sub === "vault") {
           const vsub = a._[0];
