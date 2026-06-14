@@ -1,3 +1,10 @@
+# [1.36.0](https://github.com/agentprojectcontext/apx/compare/v1.35.0...v1.36.0) (2026-06-14)
+
+
+### Features
+
+* **conversations:** enhance conversation management with channel support and summary functionality ([398a35c](https://github.com/agentprojectcontext/apx/commit/398a35c2caa310152452e387bdbd5ee421641291))
+
 # [1.35.0](https://github.com/agentprojectcontext/apx/compare/v1.34.0...v1.35.0) (2026-06-13)
 
 
