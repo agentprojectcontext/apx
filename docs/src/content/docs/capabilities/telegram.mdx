@@ -7,6 +7,7 @@ sidebar:
 
 import { Aside, Steps } from '@astrojs/starlight/components';
 import Screenshot from '../../../components/Screenshot.astro';
+import Terminal from '../../../components/Terminal.astro';
 
 APX runs a Telegram plugin that polls `getUpdates` and routes inbound messages to agents. You
 can attach multiple bots (channels), pin each channel to a specific project, and optionally
@@ -81,10 +82,21 @@ fall back to the global defaults.
    apx telegram status
    ```
 
-   <Screenshot
-     surface="terminal"
-     caption="apx telegram status showing active channels and polling state"
-     hint="Run: apx telegram status" />
+   <Terminal command="apx telegram status" caption="apx telegram status showing active channels and polling state">
+   {`enabled: true
+
+   channel:             default
+     polling:           true
+     bot_token:         ✓ (source: config)
+     chat_id:           84217553
+     project:           First Project
+     route_to_agent:    (none → super-agent fallback)
+     respond_w/engine:  false
+     last_update_at:    2026-06-14 09:31:58
+     last_error:        (none)
+
+   ✅ telegram polling (1/1 channel)`}
+   </Terminal>
 
 </Steps>
 

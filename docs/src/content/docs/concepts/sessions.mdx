@@ -7,6 +7,7 @@ sidebar:
 
 import { Aside } from '@astrojs/starlight/components';
 import Screenshot from '../../../components/Screenshot.astro';
+import Terminal from '../../../components/Terminal.astro';
 
 A **session** is a record of one agent invocation or work thread. APX-native sessions are Markdown
 files stored locally — never committed. APX also understands sessions created by Claude Code and
@@ -60,10 +61,18 @@ apx sessions list --project my-app            # all engines, one registered proj
 apx sessions list --dir /path/to/repo         # all engines, one directory
 ```
 
-<Screenshot
-  surface="terminal"
-  caption="apx sessions list — grouped by engine with DATE | SESSION ID | TITLE rows"
-  hint="Run: apx sessions list" />
+<Terminal command="apx sessions list" caption="apx sessions list — grouped by engine with DATE | SESSION ID | TITLE rows">
+{`Claude Code   ~/code/acme-store
+  06-14 09:32   a1f3c92e   Review open PRs and summarize them
+  06-13 17:04   7b20de54   Wire checkout API to Stripe
+  06-12 11:48   d9c81a07   Fix flaky cart total test
+
+Codex   ~/code/data-pipeline
+  06-14 08:15   c4e7f1a2   Refactor ingestion retry loop
+  06-11 20:39   8a3b6d50   Add backfill CLI flag
+
+• 5 sessions across 2 engines`}
+</Terminal>
 
 ## APX-native session commands
 

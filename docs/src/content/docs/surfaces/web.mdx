@@ -7,6 +7,7 @@ sidebar:
 
 import { Steps, Tabs, TabItem, Aside, FileTree, Badge } from '@astrojs/starlight/components';
 import Screenshot from '../../../components/Screenshot.astro';
+import Terminal from '../../../components/Terminal.astro';
 
 The web admin panel is APX's browser-based UI. It runs entirely in your browser,
 talks to the daemon over its HTTP API, and requires no public server. Any browser
@@ -49,10 +50,24 @@ apx pair web
 Scan the QR with your phone camera (no app needed) or share the URL. The
 `#token=…` fragment carries the bearer token — the panel uses it automatically.
 
-<Screenshot
-  surface="terminal"
-  caption="apx pair web — QR code and LAN link printed to the terminal"
-  hint="Run: apx pair web" />
+<Terminal command="apx pair web" caption="apx pair web — QR code and LAN link printed to the terminal">
+{`  APX pairing (web)  ·  expires in 90s
+
+    █▀▀▀▀▀█ ▀▄█▀▄ █▀▀▀▀▀█
+    █ ███ █ ▀█▄▀  █ ███ █
+    █ ▀▀▀ █ █▄▀█▀ █ ▀▀▀ █
+    ▀▀▀▀▀▀▀ █ ▀ █ ▀▀▀▀▀▀▀
+    ██▀▄ ▀▀▄▀█▄▀▄█▀ ▄█▀▄█
+    ▀ ▀▀▀▀▀ █▄▀ ▄██▀▀▄ ▄▀
+    █▀▀▀▀▀█ ▄▀█▄▀▀█▄▀ █▄█
+    █ ███ █ ▀█▄ ▀▄█▀▄▀▀▀▀
+    █ ▀▀▀ █ ▀▄█▀█ ▄▀▄█▄ ▄
+    ▀▀▀▀▀▀▀ ▀▀ ▀▀▀▀ ▀ ▀▀▀
+
+  scan with the phone camera — opens the web already linked
+  link: http://192.168.1.42:7430/#token=8f3a…d10c
+  code: pr_7QF2K  (or paste it in the web pairing screen)`}
+</Terminal>
 
 To see all currently paired clients or revoke one:
 

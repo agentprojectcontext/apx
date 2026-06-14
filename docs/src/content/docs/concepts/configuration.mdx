@@ -7,6 +7,7 @@ sidebar:
 
 import { Tabs, TabItem, Aside } from '@astrojs/starlight/components';
 import Screenshot from '../../../components/Screenshot.astro';
+import Terminal from '../../../components/Terminal.astro';
 
 APX uses two configuration layers — global (machine-local, never committed) and project-local
 (committed to the repo, no secrets). Commands at both layers use dotted-key syntax and are
@@ -137,10 +138,24 @@ the global config for that project only. **Never put secrets here** — this fil
   </TabItem>
 </Tabs>
 
-<Screenshot
-  surface="terminal"
-  caption="apx config show — full effective configuration as JSON"
-  hint="Run: apx config show" />
+<Terminal command="apx config show" caption="apx config show — full effective configuration as JSON">
+{`{
+  "port": 7430,
+  "host": "127.0.0.1",
+  "log_level": "info",
+  "super_agent": {
+    "enabled": true,
+    "model": "anthropic:claude-sonnet-4-5",
+    "permission_mode": "automatico"
+  },
+  "engines": {
+    "anthropic": { "api_key": "sk-ant-••••a91f" },
+    "openai":    { "api_key": "sk-••••7c2d" },
+    "ollama":    { "base_url": "http://localhost:11434" }
+  },
+  "telegram": { "enabled": true, "channels": [ { "name": "default" } ] }
+}`}
+</Terminal>
 
 ### Set and unset values
 
@@ -177,10 +192,21 @@ apx model enable                                    # enable the fallback router
 apx model disable                                   # disable (primary only, no fallback)
 ```
 
-<Screenshot
-  surface="terminal"
-  caption="apx model status — provider probes, API key presence, and active model"
-  hint="Run: apx model status" />
+<Terminal command="apx model status" caption="apx model status — provider probes, API key presence, and active model">
+{`Model router
+  primary:   anthropic:claude-sonnet-4-5
+  fallback:  on
+  order:     anthropic → openrouter → groq → ollama
+  active:    anthropic:claude-sonnet-4-5
+
+  ✓ anthropic    claude-sonnet-4-5                up    key:config
+  ✓ openrouter   meta-llama/llama-3.3-70b         up    key:config
+  ✗ groq         llama-3.3-70b-versatile          down  (no key)
+  ✓ ollama       llama3.2:3b                      up    key:config
+
+Keys → ~/.apx/config.json engines.{groq,openrouter}.api_key
+Or env: GROQ_API_KEY, OPENROUTER_API_KEY`}
+</Terminal>
 
 ## Permission commands
 

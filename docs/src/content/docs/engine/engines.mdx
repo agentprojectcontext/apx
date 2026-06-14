@@ -7,6 +7,7 @@ sidebar:
 
 import { Aside, Steps } from '@astrojs/starlight/components';
 import Screenshot from '../../../components/Screenshot.astro';
+import Terminal from '../../../components/Terminal.astro';
 
 An **engine** is a direct LLM adapter inside APX. When you call `apx exec` or `apx chat`, APX
 resolves the target model, selects the matching adapter, and calls the provider API — no external
@@ -145,10 +146,21 @@ apx model enable                        # enable the fallback router
 apx model disable                       # disable (primary model only)
 ```
 
-<Screenshot
-  surface="terminal"
-  caption="apx model status — shows provider health, fallback order, and currently active model"
-  hint="Run: apx model status" />
+<Terminal command="apx model status" caption="apx model status — shows provider health, fallback order, and currently active model">
+{`Model router
+  primary:   anthropic:claude-sonnet-4-5
+  fallback:  on
+  order:     ollama → openrouter → groq
+  active:    anthropic:claude-sonnet-4-5
+
+  ✓ ollama       llama3.2:3b                      up    key:config
+  ✓ openrouter   meta-llama/llama-3.3-70b         up    key:config
+  ✗ groq         llama-3.3-70b-versatile          down  (no key)
+  ✓ anthropic    claude-sonnet-4-5                up    key:config
+
+Keys → ~/.apx/config.json engines.{groq,openrouter}.api_key
+Or env: GROQ_API_KEY, OPENROUTER_API_KEY`}
+</Terminal>
 
 <Aside type="tip">
   `apx model status` is the fastest way to diagnose why the super-agent is using an unexpected

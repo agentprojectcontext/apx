@@ -7,6 +7,7 @@ sidebar:
 
 import { Aside, FileTree } from '@astrojs/starlight/components';
 import Screenshot from '../../../components/Screenshot.astro';
+import Terminal from '../../../components/Terminal.astro';
 
 The **agent vault** is a machine-wide library of agent templates. It ships with a set of
 bundled defaults (named personas and generic specialists) and lets you add your own. Templates
@@ -67,10 +68,15 @@ Plain functional roles — useful when you want the capability without a persona
 apx agent vault list
 ```
 
-<Screenshot
-  surface="terminal"
-  caption="apx agent vault list showing bundled and user templates with their source tags"
-  hint="Run: apx agent vault list" />
+<Terminal command="apx agent vault list" caption="apx agent vault list showing bundled and user templates with their source tags">
+{`  vault: ~/.apx/agents
+
+  cody-developer    developer            openrouter:meta-llama/llama-3.3-70b-instruct  [bundled]
+  tessa-tester      qa                   openrouter:meta-llama/llama-3.3-70b-instruct  [bundled]
+  rocky-architect   architecture         openrouter:meta-llama/llama-3.3-70b-instruct  [bundled]
+  sofia             backend reviewer     ollama:llama3.2:3b                            [user]
+  cody-developer    developer            anthropic:claude-sonnet-4-5                   [override]`}
+</Terminal>
 
 Each entry is tagged `[bundled]`, `[user]`, or `[override]` (a user file that shadows a bundled
 slug).

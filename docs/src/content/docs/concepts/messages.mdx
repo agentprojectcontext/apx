@@ -7,6 +7,7 @@ sidebar:
 
 import { Aside } from '@astrojs/starlight/components';
 import Screenshot from '../../../components/Screenshot.astro';
+import Terminal from '../../../components/Terminal.astro';
 
 APX logs every interaction — agent runs, Telegram chats, direct calls — as JSONL messages. These
 logs are local to your machine and never committed.
@@ -61,10 +62,13 @@ apx messages tail --channel telegram           # only Telegram messages
 apx messages tail -n 100                       # increase the limit
 ```
 
-<Screenshot
-  surface="terminal"
-  caption="apx messages tail — recent messages with type, actor, and content"
-  hint="Run: apx messages tail" />
+<Terminal command="apx messages tail" caption="apx messages tail — recent messages with type, actor, and content">
+{`2026-06-14 09:30:51  ← telegram  manuel: deploy the staging branch
+2026-06-14 09:30:52  → telegram  roby: on it — handing this to backend
+2026-06-14 09:31:02  → runtime   sofia: spawned claude-code (exit 0, 4.2s)
+2026-06-14 09:31:48  ← web       manuel: any failing tests?
+2026-06-14 09:31:50  → agent     backend: cart total test is flaky, retrying`}
+</Terminal>
 
 ### Chat view
 
@@ -77,10 +81,13 @@ apx messages chat --channel telegram           # Telegram conversation
 apx messages chat --channel runtime -n 20
 ```
 
-<Screenshot
-  surface="terminal"
-  caption="apx messages chat --channel telegram — formatted conversation view"
-  hint="Run: apx messages chat --channel telegram -n 20" />
+<Terminal command="apx messages chat --channel telegram -n 20" caption="apx messages chat --channel telegram — formatted conversation view">
+{`[2026-06-14 09:30:51] user manuel: deploy the staging branch
+[2026-06-14 09:30:52] super-agent roby: On it — handing this to the backend agent.
+[2026-06-14 09:31:50] agent backend: Deploy queued. The cart total test is flaky;
+  retrying once before I promote the build.
+[2026-06-14 09:32:31] super-agent roby: Done — staging is live on commit a1f3c92.`}
+</Terminal>
 
 ### Search
 

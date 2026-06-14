@@ -7,6 +7,7 @@ sidebar:
 
 import { Aside } from '@astrojs/starlight/components';
 import Screenshot from '../../../components/Screenshot.astro';
+import Terminal from '../../../components/Terminal.astro';
 
 APX has a per-project **TODO list** backed by an append-only event log. Tasks are scoped to a
 project, addressable by short-id prefix, and never truly deleted — state transitions (`done`,
@@ -64,10 +65,13 @@ apx task list --project myapp --due-before 2026-06-01
 apx task list --project myapp --agent reviewer --limit 10
 ```
 
-<Screenshot
-  surface="terminal"
-  caption="apx task list — open tasks with id, title, tags, due date, and agent"
-  hint="Run: apx task list --project myapp" />
+<Terminal command="apx task list --project myapp" caption="apx task list — open tasks with id, title, tags, due date, and agent">
+{`ID    STATE    DUE         TAGS                TITLE
+t-1a  open     2026-06-16  checkout,urgent     Wire Stripe webhooks before merge
+t-2b  open     2026-06-18  tests               Retry-guard the flaky cart-total test
+t-3c  open     —           docs                Document the pairing flow for the web panel
+t-4d  open     2026-06-20  infra               Backfill ingestion CLI flag`}
+</Terminal>
 
 ## `apx task show`
 

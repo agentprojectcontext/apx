@@ -7,6 +7,7 @@ sidebar:
 
 import { Aside, FileTree, Steps } from '@astrojs/starlight/components';
 import Screenshot from '../../../components/Screenshot.astro';
+import Terminal from '../../../components/Terminal.astro';
 
 APX gives every agent access to [Model Context Protocol](https://modelcontextprotocol.io) (MCP)
 servers. You register a server once and agents call its tools automatically during inference —
@@ -89,10 +90,13 @@ apx mcp remove filesystem --project my-app
 apx mcp remove github --scope runtime --project my-app
 ```
 
-<Screenshot
-  surface="terminal"
-  caption="apx mcp list showing servers across all three scopes"
-  hint="Run: apx mcp list" />
+<Terminal command="apx mcp list" caption="apx mcp list showing servers across all three scopes">
+{`NAME                     EN  SOURCE   TRANSPORT  COMMAND/URL
+filesystem               ✓   apc      stdio      npx -y @modelcontextprotocol/server-filesystem ~/code
+github                   ✓   runtime  stdio      npx -y @modelcontextprotocol/server-github
+postgres                 ✗   global   stdio      npx -y @modelcontextprotocol/server-postgres
+linear                   ✓   apc      http       https://mcp.linear.app/sse`}
+</Terminal>
 
 ## Call a tool directly
 

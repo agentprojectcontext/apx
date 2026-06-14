@@ -7,14 +7,30 @@ sidebar:
 
 import { Aside, LinkCard, CardGrid } from '@astrojs/starlight/components';
 import Screenshot from '../../../components/Screenshot.astro';
+import Terminal from '../../../components/Terminal.astro';
 
 A dense reference of every `apx` command. One line per command, organized to match `apx --help`.
 For deep dives, follow the links at the bottom.
 
-<Screenshot
-  surface="terminal"
-  caption="apx --help showing all command groups"
-  hint="Run: apx --help" />
+<Terminal command="apx --help" caption="apx --help showing all command groups">
+{`apx 0.4.2 — orchestrate agents, sessions, and channels across CLIs
+
+  Usage: apx <command> [subcommand] [options]
+
+  Bootstrap   init · setup · status · update
+  Projects    project add|list|remove|rebuild|config
+  Agents      agent add|list|get|import · agent vault …
+  Config      config show|set|unset · model · permission
+  Sessions    session new|list|resume|find · sessions list
+  MCPs        mcp list|add|remove|enable|run|check
+  Daemon      daemon start|stop|reload|status · log
+  Channels    telegram … · messages tail|chat|search
+  Runtimes    run · exec · chat · env detect
+  Routines    routine add|list|run · task add|list|done
+  Voice       voice say|listen|providers · desktop · pair
+
+  Run 'apx <command> --help' for details.`}
+</Terminal>
 
 ---
 
