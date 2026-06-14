@@ -22,10 +22,12 @@ const SURFACES = [
   CHANNELS.WEB_SIDEBAR, CHANNELS.WEB, CHANNELS.DECK, CHANNELS.CODE,
 ];
 
-test("the super-agent identity/role is present on every channel", () => {
+test("the super-agent role is present on every channel", () => {
+  // Assert against the always-present base ROLE (agent-base.md), not the
+  // identity — identity comes from ~/.apx/identity.json, which is absent in CI.
   for (const ch of SURFACES) {
     const sys = build(ch, ch === CHANNELS.DESKTOP ? { voice: true } : {});
-    assert.match(sys, /Agent Project|super-?agent/i, `identity missing on channel "${ch}"`);
+    assert.match(sys, /tool-using action agent|USE TOOLS/i, `base role missing on channel "${ch}"`);
     assert.ok(sys.length > 500, `channel "${ch}" prompt suspiciously short`);
   }
 });
@@ -53,5 +55,5 @@ test("voice mode layers extra content on desktop but not on text channels", () =
 
 test("unknown channel still builds (no channel block, no crash)", () => {
   const sys = build("totally-unknown-surface", {});
-  assert.match(sys, /Agent Project|super-?agent/i);
+  assert.match(sys, /tool-using action agent|USE TOOLS/i);
 });
