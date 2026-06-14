@@ -7,7 +7,7 @@ import { Section } from "../../components/Section";
 import { Button, Dialog, Empty, Loading } from "../../components/ui";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { ConfigTabsEditor } from "../../components/config/ConfigTabsEditor";
-import { APC_PROJECT_SECTIONS, PROJECT_OVERRIDE_SECTIONS } from "../../components/config/project-config-sections";
+import { apcProjectSections, projectOverrideSections } from "../../components/config/project-config-sections";
 import { useToast } from "../../components/Toast";
 import { useProject } from "../../hooks/useProjects";
 import { flattenObject } from "../../lib/config-values";
@@ -48,7 +48,7 @@ export function ConfigTab({ pid }: { pid: string }) {
 
           <TabsContent value="override">
             <ConfigTabsEditor
-              sections={PROJECT_OVERRIDE_SECTIONS}
+              sections={projectOverrideSections()}
               source={cfg.data.project_only}
               placeholderSource={cfg.data.effective}
               jsonTitle={cfg.data.project_config_path}
@@ -65,7 +65,7 @@ export function ConfigTab({ pid }: { pid: string }) {
 
           <TabsContent value="project">
             <ConfigTabsEditor
-              sections={APC_PROJECT_SECTIONS}
+              sections={apcProjectSections()}
               source={cfg.data.apc_project || {}}
               jsonTitle={cfg.data.project_json_path}
               jsonDescription=".apc/project.json. Metadata APC portable."

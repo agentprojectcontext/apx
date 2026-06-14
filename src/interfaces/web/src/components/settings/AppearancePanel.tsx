@@ -53,7 +53,7 @@ export function AppearancePanel() {
       </Section>
 
       <Section title={t("settings.token")} description={t("settings.token_sub")}>
-        <Field label="Bearer">
+        <Field label={t("settings_ui.bearer_label")}>
           <Input
             type="password"
             placeholder={getToken() ? t("settings.token_active") : t("settings.token_paste")}

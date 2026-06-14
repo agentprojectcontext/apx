@@ -11,7 +11,7 @@ export function AdvancedPanel() {
   const { health, isUp } = useDaemonStatus();
 
   const reload = async () => {
-    try { await Admin.reload(); toast.success("Config recargada."); }
+    try { await Admin.reload(); toast.success(t("settings.advanced.reload_success")); }
     catch (e) { toast.error((e as Error).message); }
   };
 

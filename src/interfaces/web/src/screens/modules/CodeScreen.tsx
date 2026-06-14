@@ -243,7 +243,7 @@ export function CodeScreen() {
     abortRef.current = ctrl;
     const onEvent = (ev: CodeStreamEvent) => {
       if (ev.type === "error") {
-        toast.error(ev.error || "error");
+        toast.error(ev.error || t("modules_ui.code_stream_error"));
         return;
       }
       patchLast((m) => applyStreamEvent(m, ev));
@@ -276,7 +276,7 @@ export function CodeScreen() {
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      toast.info("Copiado.");
+      toast.info(t("modules_ui.code_copied"));
     } catch {
       /* ignore */
     }
@@ -296,7 +296,7 @@ export function CodeScreen() {
           project: pid,
         })
         .then((r) => {
-          const content = r.stdout || r.stderr || "(vacío)";
+          const content = r.stdout || r.stderr || t("modules_ui.code_file_empty");
           setOpenFiles((prev) =>
             prev.map((f) => (f.path === path ? { ...f, content, loading: false } : f)),
           );
@@ -304,7 +304,7 @@ export function CodeScreen() {
         .catch((e: Error) => {
           setOpenFiles((prev) =>
             prev.map((f) =>
-              f.path === path ? { ...f, content: `Error: ${e.message}`, loading: false } : f,
+              f.path === path ? { ...f, content: t("modules_ui.code_file_error", { msg: e.message }), loading: false } : f,
             ),
           );
         });
@@ -338,7 +338,7 @@ export function CodeScreen() {
         .catch((e: Error) => {
           setOpenFiles((prev) =>
             prev.map((f) =>
-              f.path === tabPath ? { ...f, content: `Error: ${e.message}`, loading: false } : f,
+              f.path === tabPath ? { ...f, content: t("modules_ui.code_file_error", { msg: e.message }), loading: false } : f,
             ),
           );
         });
@@ -355,7 +355,7 @@ export function CodeScreen() {
         setOpenFiles((prev) =>
           prev.map((f) => (f.path === path ? { ...f, content } : f)),
         );
-        toast.info("Guardado.");
+        toast.info(t("modules_ui.code_saved"));
       } catch (e) {
         toast.error((e as Error).message);
       }
@@ -366,7 +366,7 @@ export function CodeScreen() {
   const hasProjects = !projects.isLoading && projectList.length > 0;
 
   const agentOptions = useMemo(() => {
-    const base = [{ value: SUPER_AGENT_VALUE, label: "super-agent", icon: Bot, description: "Agente principal con todas las herramientas" }];
+    const base = [{ value: SUPER_AGENT_VALUE, label: t("modules_ui.code_super_agent"), icon: Bot, description: t("modules_ui.code_super_agent_desc") }];
     const project = (agentsData.data || []).map((a) => ({
       value: a.slug,
       label: a.slug,
@@ -406,10 +406,10 @@ export function CodeScreen() {
       sid ? (
         <div className="flex items-center gap-0.5">
           {[
-            { Icon: PanelLeft, open: leftOpen, toggle: toggleLeft, title: "Lista de sesiones" },
-            { Icon: FolderTree, open: worktreeOpen, toggle: toggleTree, title: "Árbol de archivos" },
-            { Icon: Terminal, open: termOpen, toggle: toggleTerm, title: "Terminal" },
-            { Icon: PanelRight, open: rightOpen, toggle: toggleRight, title: "Panel de contexto" },
+            { Icon: PanelLeft, open: leftOpen, toggle: toggleLeft, title: t("modules_ui.code_panel_sessions") },
+            { Icon: FolderTree, open: worktreeOpen, toggle: toggleTree, title: t("modules_ui.code_panel_tree") },
+            { Icon: Terminal, open: termOpen, toggle: toggleTerm, title: t("modules_ui.code_panel_terminal") },
+            { Icon: PanelRight, open: rightOpen, toggle: toggleRight, title: t("modules_ui.code_panel_context") },
           ].map(({ Icon, open, toggle, title }) => (
             <Tip key={title} content={title}>
               <button
@@ -510,7 +510,7 @@ export function CodeScreen() {
                         className="flex shrink-0 items-center gap-1.5 border-r border-border px-3 py-2 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-accent/40 data-[active=true]:text-foreground"
                       >
                         <MessageSquare className="size-3 shrink-0" />
-                        Chat
+                        {t("modules_ui.code_chat_tab")}
                       </button>
                       {/* File tabs */}
                       {openFiles.map((f) => {

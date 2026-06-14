@@ -97,7 +97,7 @@ export function TelegramTab({ pid }: { pid: string }) {
         {enabled && (
           <>
             <div className="grid grid-cols-2 gap-3">
-              <Field label={t("project.telegram.bot_token")} hint={existing?.bot_token ? `${secretHint(existing.bot_token)} — vacío = mantener` : t("project.telegram.bot_hint_none")}>
+              <Field label={t("project.telegram.bot_token")} hint={existing?.bot_token ? `${secretHint(existing.bot_token)} ${t("telegram_ui.empty_keep")}` : t("project.telegram.bot_hint_none")}>
                 <Input type="password" value={botToken} onChange={(e) => setBotToken(e.target.value)} placeholder={existing?.bot_token ? secretHint(existing.bot_token) : ""} />
               </Field>
               <Field label={t("project.telegram.chat_id")}>

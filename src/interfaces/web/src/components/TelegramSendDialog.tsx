@@ -20,7 +20,7 @@ export function TelegramSendDialog({ channel, onClose }: Props) {
     setBusy(true);
     try {
       await Telegram.send({ text, channel: channel.name });
-      toast.success("Mensaje enviado.");
+      toast.success(t("telegram_ui.message_sent"));
       onClose();
     } catch (e) {
       toast.error((e as Error).message);
@@ -31,16 +31,16 @@ export function TelegramSendDialog({ channel, onClose }: Props) {
     <Dialog
       open={!!channel}
       onClose={onClose}
-      title={channel ? `${t("admin.telegram_send_test_title")} ${channel.name}` : ""}
-      description={channel ? `chat_id: ${channel.chat_id || "—"}` : ""}
+      title={channel ? t("telegram_send_dialog.title", { name: channel.name }) : ""}
+      description={channel ? t("telegram_ui.send_chat_id", { id: channel.chat_id || "—" }) : ""}
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={busy}>{t("common.cancel")}</Button>
-          <Button variant="primary" onClick={submit} loading={busy}>Enviar</Button>
+          <Button variant="primary" onClick={submit} loading={busy}>{t("chat_ui.send")}</Button>
         </>
       }
     >
-      <Field label="Texto">
+      <Field label={t("telegram_ui.message_label")}>
         <Textarea rows={4} value={text} onChange={(e) => setText(e.target.value)} />
       </Field>
     </Dialog>

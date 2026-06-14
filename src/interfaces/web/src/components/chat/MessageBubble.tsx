@@ -53,7 +53,7 @@ export function MessageBubble({ msg, isLast, isAskAnswer, onCopy }: Props) {
         {!mine && msg.inspector && (msg.inspector.loaded?.length || msg.inspector.hinted?.length) ? (
           <div
             className="flex flex-wrap items-center gap-1 text-[10px] text-sky-400/90"
-            title={`Skill Inspector (${msg.inspector.embedder || "RAG"}) eligió estas skills para este turno`}
+            title={t("shared_ui.skill_inspector_title", { embedder: msg.inspector.embedder || "RAG" })}
           >
             <Sparkles size={10} />
             {msg.inspector.loaded?.map((s) => (
@@ -107,7 +107,7 @@ export function MessageBubble({ msg, isLast, isAskAnswer, onCopy }: Props) {
           <span>{formatTs(msg.ts)}</span>
           {!mine && msg.model && <span className="font-mono">· {msg.model}</span>}
           {!mine && hasTools && (
-            <span>· {msg.parts.filter((p) => p.kind === "tool").length} tools</span>
+            <span>· {t("shared_ui.tools_count", { n: msg.parts.filter((p) => p.kind === "tool").length })}</span>
           )}
           {onCopy && copyText && (
             <button

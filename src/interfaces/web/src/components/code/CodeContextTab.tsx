@@ -56,18 +56,18 @@ export function CodeContextTab({ turns, session }: Props) {
 
   return (
     <div className="space-y-1 p-3" data-testid="code-context-tab">
-      <Row label={t("code_module.ctx_model")} value={m.model || "auto"} />
-      {session?.mode && <Row label="Modo" value={session.mode} />}
-      {session?.agentSlug && <Row label="Agente" value={session.agentSlug} />}
+      <Row label={t("code_module.ctx_model")} value={m.model || t("modules_ui.code_ctx_auto")} />
+      {session?.mode && <Row label={t("modules_ui.code_ctx_mode")} value={session.mode} />}
+      {session?.agentSlug && <Row label={t("modules_ui.code_ctx_agent")} value={session.agentSlug} />}
       <Row
         label={t("code_module.ctx_messages")}
-        value={`${m.userMsgs} usuario · ${m.assistantMsgs} asistente`}
+        value={t("modules_ui.code_ctx_msgs_value", { user: m.userMsgs, assistant: m.assistantMsgs })}
       />
       <Row label={t("code_module.ctx_input")} value={m.input.toLocaleString()} />
       <Row label={t("code_module.ctx_output")} value={m.output.toLocaleString()} />
-      <Row label="Tokens Total" value={(m.input + m.output).toLocaleString()} />
-      {session?.createdAt && <Row label="Creado" value={fmtDate(session.createdAt)} />}
-      {session?.updatedAt && <Row label="Actividad" value={fmtDate(session.updatedAt)} />}
+      <Row label={t("modules_ui.code_ctx_tokens_total")} value={(m.input + m.output).toLocaleString()} />
+      {session?.createdAt && <Row label={t("modules_ui.code_ctx_created")} value={fmtDate(session.createdAt)} />}
+      {session?.updatedAt && <Row label={t("modules_ui.code_ctx_activity")} value={fmtDate(session.updatedAt)} />}
 
       <hr className="border-border my-2" />
 

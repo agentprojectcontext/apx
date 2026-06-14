@@ -63,7 +63,7 @@ function ArtifactRow({
   const copy = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      toast.info("Copiado.");
+      toast.info(t("modules_ui.code_copied"));
     } catch {
       /* ignore */
     }
@@ -75,8 +75,8 @@ function ArtifactRow({
     try {
       const r = await Artifacts.run(pid, entry.name);
       setRunResult(r);
-      if (r.ok) toast.info(`exit 0 — ${r.durationMs}ms`);
-      else toast.error(`exit ${r.exitCode ?? r.signal ?? "?"}${r.timedOut ? " (timeout)" : ""}`);
+      if (r.ok) toast.info(t("modules_ui.code_artifact_exit_ok", { ms: r.durationMs ?? 0 }));
+      else toast.error(t("modules_ui.code_artifact_exit_fail", { code: r.exitCode ?? r.signal ?? "?", timeout: r.timedOut ? t("modules_ui.code_artifact_timeout_suffix") : "" }));
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -177,7 +177,7 @@ function ArtifactRow({
                 className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-[10px] font-medium bg-blue-500/15 text-blue-700 hover:bg-blue-500/25 dark:text-blue-300"
               >
                 <Eye className="size-3" />
-                Ver
+                {t("modules_ui.code_artifact_view_short")}
               </button>
             </Tip>
             <DialogContent className="sm:max-w-lg">
@@ -205,7 +205,7 @@ function ArtifactRow({
               className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-[10px] font-medium bg-violet-500/15 text-violet-700 hover:bg-violet-500/25 dark:text-violet-300"
             >
               <SquarePen className="size-3" />
-              Editar
+              {t("modules_ui.code_artifact_edit_short")}
             </button>
           </Tip>
 
@@ -252,7 +252,7 @@ function ArtifactRow({
                     />
                   }
                 >
-                  Cancelar
+                  {t("common.cancel")}
                 </DialogClose>
                 <button
                   type="button"
@@ -266,7 +266,7 @@ function ArtifactRow({
                   )}
                 >
                   {deleting && <Spinner size={10} />}
-                  Eliminar
+                  {t("code_module.delete")}
                 </button>
               </DialogFooter>
             </DialogContent>
@@ -292,16 +292,16 @@ function ArtifactRow({
                     : "bg-rose-500/15 text-rose-700 dark:text-rose-300",
                 )}
               >
-                exit {runResult.exitCode ?? runResult.signal ?? "?"}
+                {t("modules_ui.code_artifact_exit_badge", { code: runResult.exitCode ?? runResult.signal ?? "?" })}
               </span>
               {runResult.timedOut && (
                 <span className="rounded bg-amber-500/15 px-1.5 py-0.5 font-mono text-amber-700 dark:text-amber-300">
-                  timeout
+                  {t("modules_ui.code_artifact_timeout")}
                 </span>
               )}
               {runResult.truncated && (
                 <span className="rounded bg-amber-500/15 px-1.5 py-0.5 font-mono text-amber-700 dark:text-amber-300">
-                  truncated
+                  {t("modules_ui.code_artifact_truncated")}
                 </span>
               )}
               <span className="font-mono text-muted-foreground">

@@ -105,7 +105,7 @@ export function ChatTab({ pid }: { pid: string }) {
         pid={pid}
         agents={agentList}
         superAgentSlug={ROBY_SLUG}
-        superAgentLabel={`${persona} (super-agent)`}
+        superAgentLabel={t("agents_ui.super_agent_label", { persona })}
         selected={selected}
         onSelect={setSelected}
         onNewChat={onNewChat}
@@ -119,7 +119,7 @@ export function ChatTab({ pid }: { pid: string }) {
           </div>
           <div className="flex items-center gap-2">
             {activeIsRoby ? (
-              <Badge tone="success">super-agent</Badge>
+              <Badge tone="success">{t("agents_ui.super_agent_badge")}</Badge>
             ) : (
               activeAgent?.model && <Badge tone="info">{activeAgent.model}</Badge>
             )}

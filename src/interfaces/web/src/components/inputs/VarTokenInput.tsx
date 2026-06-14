@@ -366,13 +366,13 @@ function VarPickerPopover({
           ref={inputRef}
           value={query}
           onChange={(e) => onQuery(e.target.value)}
-          placeholder="buscar variable…"
+          placeholder={t("shared_ui.search_variable_ph")}
           className="w-full rounded bg-muted/40 px-2 py-1 text-xs font-mono outline-none"
         />
       </div>
       <ul className="max-h-44 overflow-auto p-1 text-xs">
         {varNames.length === 0 && (
-          <li className="px-2 py-1.5 text-muted-foreground">sin coincidencias</li>
+          <li className="px-2 py-1.5 text-muted-foreground">{t("shared_ui.no_matches")}</li>
         )}
         {varNames.map((n) => (
           <li key={n}>
@@ -399,7 +399,7 @@ function VarPickerPopover({
             }}
             className="flex w-full items-center gap-1 rounded px-2 py-1.5 text-left text-xs hover:bg-muted/60"
           >
-            <Plus size={12} /> Crear nueva variable…
+            <Plus size={12} /> {t("shared_ui.create_variable")}
           </button>
         </div>
       )}

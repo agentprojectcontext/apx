@@ -1,6 +1,7 @@
 import { Plus, Trash2 } from "lucide-react";
 import { Button, Input } from "../ui";
 import { VarTokenInput } from "./VarTokenInput";
+import { t } from "../../i18n";
 
 // Editable list of {key,value} pairs. Used for MCP env (stdio) and headers
 // (http). Values are run through VarTokenInput so `${var.X}` references
@@ -38,8 +39,8 @@ interface KeyValueListProps {
 export function KeyValueList({
   rows,
   onChange,
-  keyPlaceholder = "KEY",
-  valuePlaceholder = "value",
+  keyPlaceholder = t("shared_ui.kv_key_ph"),
+  valuePlaceholder = t("shared_ui.kv_value_ph"),
   varNames,
   onCreateVar,
   emptyLabel,
@@ -79,14 +80,14 @@ export function KeyValueList({
             size="sm"
             variant="ghost"
             onClick={() => remove(i)}
-            aria-label="quitar fila"
+            aria-label={t("shared_ui.remove_row")}
           >
             <Trash2 size={13} />
           </Button>
         </div>
       ))}
       <Button type="button" size="sm" variant="ghost" onClick={add}>
-        <Plus size={12} /> Agregar fila
+        <Plus size={12} /> {t("shared_ui.add_row")}
       </Button>
     </div>
   );

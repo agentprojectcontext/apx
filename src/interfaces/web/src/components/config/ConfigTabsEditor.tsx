@@ -4,6 +4,7 @@ import { UiSelect } from "../UiSelect";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { getDotted, parseConfigJson } from "../../lib/config-values";
 import { isSecretMarker, secretHint } from "../../lib/secrets";
+import { t } from "../../i18n";
 
 export type ConfigField = {
   path: string;
@@ -27,7 +28,7 @@ export function ConfigTabsEditor({
   placeholderSource,
   jsonTitle,
   jsonDescription,
-  saveLabel = "Guardar",
+  saveLabel = t("common.save"),
   onSaveFields,
   onSaveJson,
   busy,
@@ -133,7 +134,7 @@ export function ConfigTabsEditor({
             onChange={(event) => setRaw(event.target.value)}
           />
           {jsonError && <p className="text-xs text-destructive">{jsonError}</p>}
-          <Button variant="primary" loading={busy} onClick={saveJson}>Guardar JSON</Button>
+          <Button variant="primary" loading={busy} onClick={saveJson}>{t("settings_ui.save_json")}</Button>
         </div>
       </TabsContent>
     </Tabs>

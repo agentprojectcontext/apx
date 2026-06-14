@@ -77,7 +77,7 @@ export function VoiceProviderModal({ open, providerId, config, onClose, onSave }
 
   const hasSecret = providerId !== "piper" && providerId !== "mock";
   const existingKey = hasSecret && isSecretMarker((config as { api_key?: unknown })?.api_key);
-  const keyPlaceholder = existingKey ? `…${secretSuffix((config as { api_key?: unknown })?.api_key) ?? ""} (ya seteada)` : "API key";
+  const keyPlaceholder = existingKey ? t("voice_ui.api_key_set", { suffix: secretSuffix((config as { api_key?: unknown })?.api_key) ?? "" }) : t("voice_ui.api_key_label");
 
   const submit = async () => {
     setBusy(true);
@@ -115,7 +115,7 @@ export function VoiceProviderModal({ open, providerId, config, onClose, onSave }
       await onSave({ set, unset });
       onClose();
     } catch (e) {
-      setError((e as Error).message || "Error al guardar.");
+      setError((e as Error).message || t("voice_ui.err_save"));
     } finally {
       setBusy(false);
     }
@@ -130,21 +130,21 @@ export function VoiceProviderModal({ open, providerId, config, onClose, onSave }
       size="md"
       footer={
         <>
-          <Button variant="ghost" onClick={onClose} disabled={busy}>Cancelar</Button>
-          <Button variant="primary" onClick={submit} loading={busy} data-testid="voice-provider-save">Guardar</Button>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>{t("common.cancel")}</Button>
+          <Button variant="primary" onClick={submit} loading={busy} data-testid="voice-provider-save">{t("common.save")}</Button>
         </>
       }
     >
       <div className="space-y-3">
         {providerId === "piper" && (
           <>
-            <Field label="Binario (bin)" hint="Ruta o nombre del CLI piper (PATH).">
+            <Field label={t("voice_ui.piper_bin_label")} hint={t("voice_ui.piper_bin_hint")}>
               <Input value={f.bin} onChange={(e) => up({ bin: e.target.value })} placeholder="piper" />
             </Field>
-            <Field label="Modelo (.onnx)" hint="Ruta absoluta al modelo de voz piper.">
-              <Input value={f.model} onChange={(e) => up({ model: e.target.value })} placeholder="/abs/path/voz.onnx" />
+            <Field label={t("voice_ui.piper_model_label")} hint={t("voice_ui.piper_model_hint")}>
+              <Input value={f.model} onChange={(e) => up({ model: e.target.value })} placeholder="/abs/path/voice.onnx" />
             </Field>
-            <Field label="Speaker (opcional)" hint="Id de hablante para modelos multi-voz.">
+            <Field label={t("voice_ui.piper_speaker_label")} hint={t("voice_ui.piper_speaker_hint")}>
               <Input value={f.speaker} onChange={(e) => up({ speaker: e.target.value })} placeholder="0" />
             </Field>
           </>
@@ -152,16 +152,16 @@ export function VoiceProviderModal({ open, providerId, config, onClose, onSave }
 
         {providerId === "elevenlabs" && (
           <>
-            <Field label="API key" hint={existingKey ? "Dejá en blanco para mantener la actual." : "Se guarda como secreto. Env: ELEVENLABS_API_KEY"}>
+            <Field label={t("voice_ui.api_key_label")} hint={existingKey ? t("voice_ui.api_key_keep_hint") : t("voice_ui.api_key_secret_hint", { env: "ELEVENLABS_API_KEY" })}>
               <Input type="password" autoComplete="new-password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={keyPlaceholder} />
             </Field>
-            <Field label="Modelo">
+            <Field label={t("voice_ui.model_label")}>
               <UiSelect value={f.model || ""} onChange={(v) => up({ model: v })} options={ELEVENLABS_MODELS.map((m) => ({ value: m, label: m }))} placeholder="eleven_multilingual_v2" />
             </Field>
-            <Field label="Voice ID" hint="Id de la voz de ElevenLabs (vacío = default).">
+            <Field label={t("voice_ui.voice_id_label")} hint={t("voice_ui.voice_id_hint")}>
               <Input value={f.voice_id} onChange={(e) => up({ voice_id: e.target.value })} placeholder="EXAVITQu4vr4xnSDxMaL" />
             </Field>
-            <Field label="Formato de salida">
+            <Field label={t("voice_ui.output_format_label")}>
               <Input value={f.output_format} onChange={(e) => up({ output_format: e.target.value })} placeholder="mp3_44100_128" />
             </Field>
           </>
@@ -169,16 +169,16 @@ export function VoiceProviderModal({ open, providerId, config, onClose, onSave }
 
         {providerId === "openai" && (
           <>
-            <Field label="API key" hint={existingKey ? "Dejá en blanco para mantener la actual." : "Se reusa engines.openai.api_key si la dejás en blanco. Env: OPENAI_API_KEY"}>
+            <Field label={t("voice_ui.api_key_label")} hint={existingKey ? t("voice_ui.api_key_keep_hint") : t("voice_ui.api_key_reuse_hint", { engine: "engines.openai.api_key", env: "OPENAI_API_KEY" })}>
               <Input type="password" autoComplete="new-password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={keyPlaceholder} />
             </Field>
-            <Field label="Modelo">
+            <Field label={t("voice_ui.model_label")}>
               <UiSelect value={f.model || "tts-1"} onChange={(v) => up({ model: v })} options={OPENAI_TTS_MODELS.map((m) => ({ value: m, label: m }))} />
             </Field>
-            <Field label="Voz">
+            <Field label={t("voice_ui.voice_label")}>
               <UiSelect value={f.voice || "alloy"} onChange={(v) => up({ voice: v })} options={OPENAI_TTS_VOICES.map((m) => ({ value: m, label: m }))} />
             </Field>
-            <Field label="Formato">
+            <Field label={t("voice_ui.format_label")}>
               <UiSelect value={f.format || "mp3"} onChange={(v) => up({ format: v })} options={["mp3", "opus", "aac", "flac", "wav"].map((m) => ({ value: m, label: m }))} />
             </Field>
           </>
@@ -186,24 +186,24 @@ export function VoiceProviderModal({ open, providerId, config, onClose, onSave }
 
         {providerId === "gemini" && (
           <>
-            <Field label="API key" hint={existingKey ? "Dejá en blanco para mantener la actual." : "Se reusa engines.gemini.api_key si la dejás en blanco. Env: GEMINI_API_KEY"}>
+            <Field label={t("voice_ui.api_key_label")} hint={existingKey ? t("voice_ui.api_key_keep_hint") : t("voice_ui.api_key_reuse_hint", { engine: "engines.gemini.api_key", env: "GEMINI_API_KEY" })}>
               <Input type="password" autoComplete="new-password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={keyPlaceholder} />
             </Field>
-            <Field label="Modelo" hint="TTS de Gemini sigue en preview.">
+            <Field label={t("voice_ui.model_label")} hint={t("voice_ui.gemini_model_hint")}>
               <Input value={f.model} onChange={(e) => up({ model: e.target.value })} placeholder="gemini-2.5-flash-preview-tts" />
             </Field>
-            <Field label="Voz">
+            <Field label={t("voice_ui.voice_label")}>
               <UiSelect value={f.voice || "Kore"} onChange={(v) => up({ voice: v })} options={GEMINI_TTS_VOICES.map((m) => ({ value: m, label: m }))} />
             </Field>
-            <Field label="Estilo (cómo querés que hable)" hint="Instrucción en lenguaje natural. Vacío = sin estilo. Ej: 'hablá en tono alegre y pausado'.">
-              <Textarea rows={2} value={f.style || ""} onChange={(e) => up({ style: e.target.value })} placeholder="hablá en tono alegre y enérgico" />
+            <Field label={t("voice_ui.style_label")} hint={t("voice_ui.style_hint")}>
+              <Textarea rows={2} value={f.style || ""} onChange={(e) => up({ style: e.target.value })} placeholder={t("voice_ui.style_ph")} />
             </Field>
           </>
         )}
 
         {providerId === "mock" && (
           <p className="text-sm text-muted-fg">
-            El motor <strong>mock</strong> genera un WAV silencioso de prueba. No tiene parámetros: sirve como fallback garantizado cuando no hay otro motor configurado.
+            {t("voice_ui.mock_desc")}
           </p>
         )}
 

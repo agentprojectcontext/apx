@@ -3,7 +3,7 @@
 // projects column, finally add + settings. The default workspace (id=0) is
 // pinned first.
 import { useLocation } from "react-router-dom";
-import { Plus, Settings, Mic, Monitor, LayoutGrid, Terminal, Bot, type LucideIcon } from "lucide-react";
+import { Plus, Settings, Mic, Monitor, LayoutGrid, Terminal, Bot, BookOpen, type LucideIcon } from "lucide-react";
 import { Logo } from "./Logo";
 import { ProjectAvatar } from "./ProjectAvatar";
 import { Tip } from "../ui/tip";
@@ -103,7 +103,7 @@ export function ProjectSidebar({ onSelect, onOpenRoby }: Props) {
       })}
 
       <ProjectAvatar
-        label="Add"
+        label={t("nav.add_project")}
         isAdd
         testId="nav-add-project"
         icon={<Plus size={18} />}
@@ -114,7 +114,7 @@ export function ProjectSidebar({ onSelect, onOpenRoby }: Props) {
 
       <div className="flex-1" />
       <ProjectAvatar
-        label="Settings"
+        label={t("nav.settings")}
         isSettings
         testId="nav-settings"
         icon={<Settings size={16} />}
@@ -122,6 +122,19 @@ export function ProjectSidebar({ onSelect, onOpenRoby }: Props) {
         onClick={() => onSelect("/settings")}
         title={t("nav.settings")}
       />
+      {/* Docs — opens the hosted documentation site in a new tab. */}
+      <Tip content={t("settings_ui.documentation")} side="right">
+        <a
+          href="https://agentprojectcontext.github.io/apx/docs/"
+          target="_blank"
+          rel="noopener noreferrer"
+          data-testid="nav-docs"
+          aria-label={t("settings_ui.documentation")}
+          className="mt-1 flex size-10 items-center justify-center rounded-xl border border-border/60 bg-muted/30 text-muted-fg transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <BookOpen size={18} />
+        </a>
+      </Tip>
       {/* Roby launcher — subtle (not a loud floating bubble), pinned under the
           gear so it doesn't overlap the chat composer. */}
       <Tip content={t("superagent.talk", { persona })} side="right">
@@ -142,12 +155,12 @@ export function ProjectSidebar({ onSelect, onOpenRoby }: Props) {
 // Re-export for screens that still import projectKindLabel here.
 export function projectKindLabel(kind?: string): string {
   switch (kind) {
-    case "personal": return "Personal";
-    case "company":  return "Company";
-    case "app":      return "App";
-    case "software": return "Software";
-    case "default":  return "Default";
-    case "other":    return "Other";
+    case "personal": return t("settings_ui.kind_personal");
+    case "company":  return t("settings_ui.kind_company");
+    case "app":      return t("settings_ui.kind_app");
+    case "software": return t("settings_ui.kind_software");
+    case "default":  return t("settings_ui.kind_default");
+    case "other":    return t("settings_ui.kind_other");
     default:         return t("nav.project");
   }
 }

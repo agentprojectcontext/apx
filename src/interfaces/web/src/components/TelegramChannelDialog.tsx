@@ -23,7 +23,7 @@ export function TelegramChannelDialog({ channel, onClose, onSaved }: Props) {
   }, [channel?.name]);
 
   const submit = async () => {
-    if (!draft.name?.trim()) { toast.error("name requerido"); return; }
+    if (!draft.name?.trim()) { toast.error(t("telegram_channel_dialog.name_required")); return; }
     setBusy(true);
     try {
       const isExisting = channel && channel.name !== "";
@@ -32,7 +32,7 @@ export function TelegramChannelDialog({ channel, onClose, onSaved }: Props) {
       } else {
         await Telegram.channels.upsert(draft);
       }
-      toast.success("Canal guardado.");
+      toast.success(t("telegram_channel_dialog.saved"));
       onSaved();
     } catch (e) {
       toast.error((e as Error).message);
@@ -44,7 +44,7 @@ export function TelegramChannelDialog({ channel, onClose, onSaved }: Props) {
       open={!!channel}
       onClose={onClose}
       title={channel?.name ? t("telegram_channel_dialog.edit_title", { name: channel.name }) : t("telegram_channel_dialog.new_title")}
-      description="POST /telegram/channels (upsert) — PATCH /telegram/channels/:name (parcial)."
+      description={t("telegram_ui.channel_dialog_desc")}
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={busy}>{t("common.cancel")}</Button>
@@ -53,10 +53,10 @@ export function TelegramChannelDialog({ channel, onClose, onSaved }: Props) {
       }
     >
       <div className="space-y-3">
-        <Field label="name (slug interno)">
+        <Field label={t("telegram_channel_dialog.name_label")}>
           <Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} disabled={!!channel?.name} />
         </Field>
-        <Field label="bot_token" hint={channel?.bot_token ? secretHint(channel.bot_token) : "Token del BotFather. Se guarda en ~/.apx/config.json."}>
+        <Field label={t("telegram_channel_dialog.token_label")} hint={channel?.bot_token ? secretHint(channel.bot_token) : t("telegram_ui.bot_token_hint")}>
           <Input
             type="password"
             value={draft.bot_token || ""}
@@ -64,18 +64,18 @@ export function TelegramChannelDialog({ channel, onClose, onSaved }: Props) {
             placeholder={channel?.bot_token ? secretHint(channel.bot_token) : ""}
           />
         </Field>
-        <Field label="chat_id">
+        <Field label={t("telegram_channel_dialog.chat_id")}>
           <Input value={draft.chat_id || ""} onChange={(e) => setDraft({ ...draft, chat_id: e.target.value })} />
         </Field>
-        <Field label="project" hint="Slug o id del proyecto al que pinear este canal (opcional).">
+        <Field label={t("telegram_channel_dialog.project_label")} hint={t("telegram_channel_dialog.project_hint")}>
           <Input value={draft.project || ""} onChange={(e) => setDraft({ ...draft, project: e.target.value })} />
         </Field>
-        <Field label="route_to_agent" hint="Agente que contesta; vacío = super-agent APX.">
+        <Field label={t("telegram_channel_dialog.route_label")} hint={t("telegram_channel_dialog.route_hint")}>
           <Input value={draft.route_to_agent || ""} onChange={(e) => setDraft({ ...draft, route_to_agent: e.target.value })} />
         </Field>
         <Field
-          label="owner_user_id"
-          hint="user_id de Telegram del dueño de este canal. Override del rol global a 'owner' acá. Si lo dejás vacío, el primer mensaje privado lo reclama."
+          label={t("telegram_channel_dialog.owner_label")}
+          hint={t("telegram_channel_dialog.owner_hint")}
         >
           <Input
             value={draft.owner_user_id != null ? String(draft.owner_user_id) : ""}
@@ -89,7 +89,7 @@ export function TelegramChannelDialog({ channel, onClose, onSaved }: Props) {
         <Switch
           checked={!!draft.respond_with_engine}
           onChange={(v) => setDraft({ ...draft, respond_with_engine: v })}
-          label="Responder con engine (no echo)"
+          label={t("telegram_channel_dialog.respond_label")}
         />
       </div>
     </Dialog>

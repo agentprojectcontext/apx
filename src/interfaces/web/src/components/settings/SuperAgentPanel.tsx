@@ -53,20 +53,20 @@ export function SuperAgentPanel() {
   };
 
   return (
-    <Section title={t("settings.super_agent.title")} description="Comportamiento del super-agente. El modelo y la cadena de fallback se configuran en el Router de modelos.">
+    <Section title={t("settings.super_agent.title")} description={t("settings.super_agent.behavior_subtitle")}>
       <div className="space-y-4">
         <div className="flex items-center gap-3">
-          <Switch checked={enabled} onChange={setEnabled} label="Super-agente habilitado" />
+          <Switch checked={enabled} onChange={setEnabled} label={t("settings.super_agent.enabled_label")} />
         </div>
 
         {/* Model lives in the Router now — single source of truth. */}
         <div className="flex items-center justify-between rounded-lg border border-border bg-muted/20 p-3">
           <div className="min-w-0">
-            <div className="text-sm font-medium">Modelo activo (router)</div>
+            <div className="text-sm font-medium">{t("settings.super_agent.model_active")}</div>
             <div className="truncate font-mono text-xs text-muted-fg">{superAgent.model || "—"}</div>
           </div>
           <Button size="sm" variant="secondary" onClick={() => navigate("/p/0/models")}>
-            <Cpu size={13} /> Configurar en Modelos
+            <Cpu size={13} /> {t("settings.super_agent.model_configure")}
           </Button>
         </div>
 
@@ -82,7 +82,7 @@ export function SuperAgentPanel() {
             className="font-mono text-xs"
             value={system}
             onChange={(e) => setSystem(e.target.value)}
-            placeholder="(Vacío = se usa el prompt base de core/agent/prompts/super-agent-base.md)"
+            placeholder={t("settings.super_agent.system_ph")}
           />
         </Field>
 

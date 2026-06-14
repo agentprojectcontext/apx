@@ -1,58 +1,65 @@
 import type { ConfigSection } from "./ConfigTabsEditor";
 import { PERMISSION_MODES } from "../../constants";
+import { t } from "../../i18n";
 
-export const PROJECT_OVERRIDE_SECTIONS: ConfigSection[] = [
-  {
-    key: "routing",
-    label: "Overrides",
-    description: ".apc/config.json. Sólo valores propios del proyecto; vacío hereda global/effective.",
-    fields: [
-      { path: "route_to_agent", label: "Route to agent", placeholder: "master" },
-      { path: "super_agent.model", label: "Super-agent model" },
-      {
-        path: "super_agent.permission_mode",
-        label: "Permission mode",
-        kind: "select",
-        options: PERMISSION_MODES.map((mode) => ({ value: mode, label: mode })),
-      },
-      { path: "super_agent.system", label: "Prompt extra", kind: "textarea" },
-    ],
-  },
-  {
-    key: "telegram",
-    label: "Telegram",
-    fields: [
-      { path: "telegram.route_to_agent", label: "Route to agent" },
-      { path: "telegram.chat_id", label: "Chat ID" },
-      { path: "telegram.bot_token", label: "Bot token", kind: "password" },
-      { path: "telegram.respond_with_engine", label: "Responder con engine", kind: "boolean" },
-    ],
-  },
-  {
-    key: "engines",
-    label: "Engines",
-    fields: [
-      { path: "engines.ollama.base_url", label: "Ollama URL" },
-      { path: "engines.anthropic.api_key", label: "Anthropic API key", kind: "password" },
-      { path: "engines.openai.api_key", label: "OpenAI API key", kind: "password" },
-      { path: "engines.groq.api_key", label: "Groq API key", kind: "password" },
-      { path: "engines.openrouter.api_key", label: "OpenRouter API key", kind: "password" },
-      { path: "engines.gemini.api_key", label: "Gemini API key", kind: "password" },
-    ],
-  },
-];
+// These are functions (not module-level consts) so t() runs per-render with the
+// active locale — a frozen const would lock the strings to the locale at import.
+export function projectOverrideSections(): ConfigSection[] {
+  return [
+    {
+      key: "routing",
+      label: t("settings_ui.cfg_overrides_label"),
+      description: t("settings_ui.cfg_overrides_desc"),
+      fields: [
+        { path: "route_to_agent", label: t("settings_ui.cfg_route_to_agent"), placeholder: "master" },
+        { path: "super_agent.model", label: t("settings_ui.cfg_super_agent_model") },
+        {
+          path: "super_agent.permission_mode",
+          label: t("settings_ui.cfg_permission_mode"),
+          kind: "select",
+          options: PERMISSION_MODES.map((mode) => ({ value: mode, label: mode })),
+        },
+        { path: "super_agent.system", label: t("settings_ui.cfg_extra_prompt"), kind: "textarea" },
+      ],
+    },
+    {
+      key: "telegram",
+      label: t("settings_ui.cfg_telegram_label"),
+      fields: [
+        { path: "telegram.route_to_agent", label: t("settings_ui.cfg_route_to_agent") },
+        { path: "telegram.chat_id", label: t("settings_ui.cfg_chat_id") },
+        { path: "telegram.bot_token", label: t("settings_ui.cfg_bot_token"), kind: "password" },
+        { path: "telegram.respond_with_engine", label: t("settings_ui.cfg_respond_with_engine"), kind: "boolean" },
+      ],
+    },
+    {
+      key: "engines",
+      label: t("settings_ui.cfg_engines_label"),
+      fields: [
+        { path: "engines.ollama.base_url", label: t("settings_ui.cfg_ollama_url") },
+        { path: "engines.anthropic.api_key", label: t("settings_ui.cfg_anthropic_key"), kind: "password" },
+        { path: "engines.openai.api_key", label: t("settings_ui.cfg_openai_key"), kind: "password" },
+        { path: "engines.groq.api_key", label: t("settings_ui.cfg_groq_key"), kind: "password" },
+        { path: "engines.openrouter.api_key", label: t("settings_ui.cfg_openrouter_key"), kind: "password" },
+        { path: "engines.gemini.api_key", label: t("settings_ui.cfg_gemini_key"), kind: "password" },
+      ],
+    },
+  ];
+}
 
-export const APC_PROJECT_SECTIONS: ConfigSection[] = [
-  {
-    key: "identity",
-    label: "Proyecto",
-    description: ".apc/project.json. Metadata APC portable; no secrets, no runtime.",
-    fields: [
-      { path: "name", label: "Name" },
-      { path: "version", label: "Version" },
-      { path: "apf", label: "APC spec" },
-      { path: "apx", label: "APX install state" },
-      { path: "apx_id", label: "APX storage id" },
-    ],
-  },
-];
+export function apcProjectSections(): ConfigSection[] {
+  return [
+    {
+      key: "identity",
+      label: t("settings_ui.cfg_project_label"),
+      description: t("settings_ui.cfg_project_desc"),
+      fields: [
+        { path: "name", label: t("settings_ui.cfg_name") },
+        { path: "version", label: t("settings_ui.cfg_version") },
+        { path: "apf", label: t("settings_ui.cfg_apc_spec") },
+        { path: "apx", label: t("settings_ui.cfg_apx_install") },
+        { path: "apx_id", label: t("settings_ui.cfg_apx_storage_id") },
+      ],
+    },
+  ];
+}

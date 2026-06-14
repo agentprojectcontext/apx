@@ -1,6 +1,7 @@
 import { Field } from "../ui";
 import { UiSelect } from "../UiSelect";
 import { WHISPER_MODELS, type TranscriptionConfig } from "../../lib/api/voice";
+import { t } from "../../i18n";
 
 // STT (speech-to-text) configuration. Persisted under config.transcription.
 // The actual capture happens in the deck overlay / Telegram / CLI; here the
@@ -12,20 +13,20 @@ interface Props {
   busy?: boolean;
 }
 
-const PROVIDER_OPTIONS = [
-  { value: "auto", label: "Automático (local, luego OpenAI)" },
-  { value: "local", label: "Local — faster-whisper (offline)" },
-  { value: "openai", label: "OpenAI — Whisper-1 (cloud)" },
+const providerOptions = () => [
+  { value: "auto", label: t("voice_ui.stt_provider_auto") },
+  { value: "local", label: t("voice_ui.stt_provider_local") },
+  { value: "openai", label: t("voice_ui.stt_provider_openai") },
 ];
 
-const LANG_OPTIONS = [
-  { value: "auto", label: "Auto-detectar" },
-  { value: "es", label: "Español" },
-  { value: "en", label: "Inglés" },
-  { value: "pt", label: "Portugués" },
-  { value: "fr", label: "Francés" },
-  { value: "it", label: "Italiano" },
-  { value: "de", label: "Alemán" },
+const langOptions = () => [
+  { value: "auto", label: t("voice_ui.lang_auto") },
+  { value: "es", label: t("voice_ui.lang_es") },
+  { value: "en", label: t("voice_ui.lang_en") },
+  { value: "pt", label: t("voice_ui.lang_pt") },
+  { value: "fr", label: t("voice_ui.lang_fr") },
+  { value: "it", label: t("voice_ui.lang_it") },
+  { value: "de", label: t("voice_ui.lang_de") },
 ];
 
 export function VoiceSttCard({ config, onPatch, busy }: Props) {
@@ -37,11 +38,11 @@ export function VoiceSttCard({ config, onPatch, busy }: Props) {
 
   return (
     <div className="space-y-3">
-      <Field label="Motor de transcripción" hint="Local usa faster-whisper (requiere python3 + faster-whisper). OpenAI usa la key de engines.openai.">
+      <Field label={t("voice_ui.stt_engine_label")} hint={t("voice_ui.stt_engine_hint")}>
         <UiSelect
           value={provider}
           onChange={(v) => onPatch({ "transcription.provider": v })}
-          options={PROVIDER_OPTIONS}
+          options={providerOptions()}
           disabled={busy}
           className="max-w-md"
         />
@@ -49,7 +50,7 @@ export function VoiceSttCard({ config, onPatch, busy }: Props) {
 
       {usesLocal && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field label="Modelo local (whisper)" hint="Más grande = más preciso y más lento.">
+          <Field label={t("voice_ui.stt_model_label")} hint={t("voice_ui.stt_model_hint")}>
             <UiSelect
               value={model}
               onChange={(v) => onPatch({ "transcription.local.model": v })}
@@ -57,11 +58,11 @@ export function VoiceSttCard({ config, onPatch, busy }: Props) {
               disabled={busy}
             />
           </Field>
-          <Field label="Idioma" hint='Para español, fijá "Español" mejora la precisión.'>
+          <Field label={t("voice_ui.stt_language_label")} hint={t("voice_ui.stt_language_hint")}>
             <UiSelect
               value={language}
               onChange={(v) => onPatch({ "transcription.local.language": v })}
-              options={LANG_OPTIONS}
+              options={langOptions()}
               disabled={busy}
             />
           </Field>

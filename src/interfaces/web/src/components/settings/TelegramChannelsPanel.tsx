@@ -49,7 +49,7 @@ export function TelegramChannelsPanel() {
       <ul className="space-y-2 text-sm">
         {channels.map((c) => {
           const ownerLabel = c.owner_user_id != null
-            ? (nameByUserId.get(String(c.owner_user_id)) || `user_id ${c.owner_user_id}`)
+            ? (nameByUserId.get(String(c.owner_user_id)) || t("telegram_ui.user_id_fallback", { id: c.owner_user_id }))
             : t("telegram_channels.no_owner");
           return (
             <li key={c.name} className="rounded-md border border-border bg-muted/30 px-3 py-2">
@@ -67,8 +67,8 @@ export function TelegramChannelsPanel() {
               <div className="mt-1 grid grid-cols-2 gap-2 text-xs text-muted-fg">
                 <span>chat_id: {c.chat_id || "—"}</span>
                 <span>bot_token: {c.bot_token ? `…${secretSuffix(c.bot_token) ?? ""}` : "—"}</span>
-                <span>route_to_agent: {c.route_to_agent || "default APX"}</span>
-                <span>engine: {c.respond_with_engine ? "sí" : "no"}</span>
+                <span>route_to_agent: {c.route_to_agent || t("telegram_ui.default_apx")}</span>
+                <span>engine: {c.respond_with_engine ? t("telegram_ui.yes") : t("telegram_ui.no")}</span>
                 <span className="col-span-2">{t("telegram_channels.owner_label")} {ownerLabel}</span>
               </div>
             </li>

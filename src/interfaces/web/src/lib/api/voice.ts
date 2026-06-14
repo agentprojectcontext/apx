@@ -114,11 +114,11 @@ export const WHISPER_MODELS = ["tiny", "base", "small", "medium", "large-v2", "l
 // Friendly labels + ordering for the provider list. The daemon is the source
 // of truth for availability; this only adds display names + a stable order.
 export const TTS_PROVIDER_META: Record<string, { name: string; note: string; local?: boolean }> = {
-  piper:      { name: "Piper",       note: "Local, offline (CLI + modelo .onnx). Sin API key.", local: true },
-  elevenlabs: { name: "ElevenLabs",  note: "Cloud, multilingüe. Requiere API key." },
-  openai:     { name: "OpenAI",      note: "Cloud (tts-1 / tts-1-hd). Usa la key de OpenAI." },
-  gemini:     { name: "Gemini",      note: "Cloud (preview). Usa la key de Gemini." },
-  mock:       { name: "Mock",        note: "Silencio de prueba. Fallback siempre disponible.", local: true },
+  piper:      { name: "Piper",       note: "Local, offline (CLI + .onnx model). No API key.", local: true },
+  elevenlabs: { name: "ElevenLabs",  note: "Cloud, multilingual. Requires an API key." },
+  openai:     { name: "OpenAI",      note: "Cloud (tts-1 / tts-1-hd). Uses your OpenAI key." },
+  gemini:     { name: "Gemini",      note: "Cloud (preview). Uses your Gemini key." },
+  mock:       { name: "Mock",        note: "Silent test engine. Always available as a fallback.", local: true },
 };
 
 export const TTS_PROVIDER_ORDER: TtsProviderId[] = ["piper", "elevenlabs", "openai", "gemini", "mock"];

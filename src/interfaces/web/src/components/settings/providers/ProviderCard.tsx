@@ -55,7 +55,7 @@ export function ProviderCard({
               )}
             >
               <span className={cn("size-1.5 rounded-full", active ? "bg-emerald-400" : "bg-muted-fg/40")} />
-              {active ? "Active" : "Off"}
+              {active ? t("providers_card.active") : t("providers_card.off")}
             </button>
           </Tip>
           <Tip content={t("providers_modal.delete")}>
@@ -72,14 +72,14 @@ export function ProviderCard({
 
       {/* Body */}
       <div className="mt-auto space-y-1 text-xs">
-        <Row label="Modelo" value={provider.default_model || "—"} mono />
-        {provider.base_url && <Row label="Base URL" value={provider.base_url} mono truncate />}
-        <Row label="API key" value={hasKey ? (keySuffix ? `…${keySuffix}` : "✓ seteada") : "—"} mono={!!keySuffix} />
+        <Row label={t("providers_card.model")} value={provider.default_model || "—"} mono />
+        {provider.base_url && <Row label={t("providers_card.base_url")} value={provider.base_url} mono truncate />}
+        <Row label={t("providers_card.api_key")} value={hasKey ? (keySuffix ? `…${keySuffix}` : t("providers_card.key_set")) : "—"} mono={!!keySuffix} />
         {provider.default_temperature !== undefined && (
-          <Row label="Temp" value={provider.default_temperature.toFixed(1)} />
+          <Row label={t("providers_card.temp")} value={provider.default_temperature.toFixed(1)} />
         )}
         {provider.pricing?.input_per_million !== undefined && (
-          <Row label="$ in/out (1M)" value={`${provider.pricing.input_per_million ?? 0} / ${provider.pricing.output_per_million ?? 0}`} />
+          <Row label={t("providers_card.price_io")} value={`${provider.pricing.input_per_million ?? 0} / ${provider.pricing.output_per_million ?? 0}`} />
         )}
       </div>
     </div>
