@@ -1,0 +1,330 @@
+---
+title: Chuletario de CLI
+description: Cada comando de apx en una referencia escaneables — organizado por categoría con descripciones de una línea.
+sidebar:
+  order: 1
+---
+
+import { Aside, LinkCard, CardGrid } from '@astrojs/starlight/components';
+import Screenshot from '../../../../components/Screenshot.astro';
+import Terminal from '../../../../components/Terminal.astro';
+
+Una referencia densa de cada comando de `apx`. Una línea por comando, organizada para coincidir con `apx --help`.
+Para profundizar, seguí los enlaces del final.
+
+<Terminal command="apx --help" caption="apx --help mostrando todos los grupos de comandos">
+{`apx 0.4.2 — orchestrate agents, sessions, and channels across CLIs
+
+  Usage: apx <command> [subcommand] [options]
+
+  Bootstrap   init · setup · status · update
+  Projects    project add|list|remove|rebuild|config
+  Agents      agent add|list|get|import · agent vault …
+  Config      config show|set|unset · model · permission
+  Sessions    session new|list|resume|find · sessions list
+  MCPs        mcp list|add|remove|enable|run|check
+  Daemon      daemon start|stop|reload|status · log
+  Channels    telegram … · messages tail|chat|search
+  Runtimes    run · exec · chat · env detect
+  Routines    routine add|list|run · task add|list|done
+  Voice       voice say|listen|providers · desktop · pair
+
+  Run 'apx <command> --help' for details.`}
+</Terminal>
+
+---
+
+## Bootstrap
+
+| Comando | Qué hace |
+|---|---|
+| `apx init [path]` | Inicializa un nuevo proyecto APC (crea `AGENTS.md` + `.apc/`) |
+| `apx setup` | Asistente interactivo: proveedor → modelo → canales → daemon (alias: `install`) |
+| `apx status` | Estado completo del sistema: daemon, super-agente, motores, Telegram, proyectos |
+| `apx update` | Busca actualizaciones y actualiza (alias: `upgrade`) |
+
+---
+
+## Proyectos
+
+| Comando | Qué hace |
+|---|---|
+| `apx project add [path]` | Registra un proyecto con el daemon |
+| `apx project list` | Lista los proyectos registrados |
+| `apx project remove <id>` | Desregistra un proyecto |
+| `apx project rebuild [id]` | Reconstruye el índice del proyecto desde el sistema de archivos |
+
+---
+
+## Agentes
+
+| Comando | Qué hace |
+|---|---|
+| `apx agent add <slug>` | Crea un agente local del proyecto (`--role R --model M --skills a,b --language L --description D`) |
+| `apx agent list` | Lista los agentes del proyecto |
+| `apx agent get <slug>` | Imprime la definición de un agente |
+| `apx agent import` | Importa una plantilla de agente desde `~/.apx/agents/` |
+| `apx agent vault list` | Lista las plantillas del vault (defaults incluidos + tus overrides) |
+| `apx agent vault add` | Crea una nueva plantilla de vault |
+
+---
+
+## Perfil de APX
+
+| Comando | Qué hace |
+|---|---|
+| `apx identity show` | Imprime la identidad actual de APX (nombre, dueño, personalidad) |
+| `apx identity set <k> <v>` | Define un campo de identidad |
+| `apx identity wizard` | Configuración interactiva de identidad |
+
+---
+
+## Config
+
+| Comando | Qué hace |
+|---|---|
+| `apx config show` | Imprime la config del proyecto (`--effective` para la vista combinada, `--only-overrides` para las diferencias) |
+| `apx config set <key.path> <value>` | Define un valor con reconocimiento de JSON en `.apc/config.json` |
+| `apx config unset <key.path>` | Elimina una clave |
+| `apx model status` | Salud del proveedor + modelo activo (enrutador de fallback) |
+| `apx model order <p1> <p2> …` | Define el orden de fallback — p. ej. `ollama openrouter groq` |
+| `apx model key <provider> <api-key>` | Guarda una API key en `~/.apx/config.json` |
+| `apx model set <provider> <model-id>` | Fija un id de modelo específico para un proveedor |
+| `apx model test` | Resuelve qué modelo elige el enrutador ahora mismo |
+| `apx model enable` | Habilita el enrutador de fallback |
+| `apx model disable` | Deshabilita el enrutador de fallback (solo primario) |
+| `apx permission show` | Muestra el modo de permisos de herramientas de APX |
+| `apx permission set <mode>` | Define el modo: `total` \| `automatico` \| `permiso` |
+
+---
+
+## Memoria
+
+| Comando | Qué hace |
+|---|---|
+| `apx memory <slug>` | Imprime el `memory.md` de un agente |
+| `apx memory <slug> --append "<note>"` | Agrega una nota bajo `## Recent context` |
+| `apx memory <slug> --replace` | Reemplaza la memoria desde stdin |
+
+---
+
+## Sesiones
+
+| Comando | Qué hace |
+|---|---|
+| `apx session new <slug>` | Crea un archivo de sesión (`--title T --task-ref REF --body -\|"text"`) |
+| `apx session list [slug]` | Lista las sesiones (`--last N`) |
+| `apx session get <id>` | Imprime los metadatos o el cuerpo de la sesión (`--body`) |
+| `apx session update <id>` | Actualiza el frontmatter de la sesión (`--status S --result R --title T`) |
+| `apx session close <id>` | Marca una sesión como completa (`--result "text"`) |
+| `apx session check` | Sale con código distinto de cero si ya existe una sesión activa |
+| `apx session close-stale` | Cierra automáticamente las sesiones de más de 1 h |
+| `apx session resume <id>` | Muestra la sesión APC + transcript opcional (`--summary --full`) |
+| `apx session compact <slug>` | Colapsa el historial de conversación en un resumen |
+| `apx session find <text>` | Busca sesiones por título entre motores (`--deep --engine X`) |
+| `apx session summary <id>` | Resumen LLM de cualquier sesión por id |
+| `apx session ask <id> "<q>"` | Hace una pregunta sobre una sesión (`--max-chunks N`) |
+| `apx sessions list` | Lista las sesiones de los motores de IA (`--engine claude\|codex\|apx --project P`) |
+
+---
+
+## MCPs
+
+| Comando | Qué hace |
+|---|---|
+| `apx mcp list` | Lista los servidores MCP del proyecto |
+| `apx mcp add <name>` | Agrega un servidor MCP propio del proyecto (`--command <cmd> --env KEY=VAL`) |
+| `apx mcp remove <name>` | Elimina un servidor MCP propio del proyecto |
+| `apx mcp enable <name>` | Habilita un servidor MCP propio del proyecto |
+| `apx mcp disable <name>` | Deshabilita un servidor MCP propio del proyecto |
+| `apx mcp run <name> <tool>` | Llama a una herramienta MCP (`[<json-args>]`) |
+| `apx mcp tools <name>` | Lista las herramientas disponibles de un servidor |
+| `apx mcp check` | Audita el merge multi-fuente y los conflictos |
+
+---
+
+## Servicio del daemon
+
+| Comando | Qué hace |
+|---|---|
+| `apx daemon start` | Inicia el daemon |
+| `apx daemon stop` | Detiene el daemon |
+| `apx daemon restart` | Detiene y luego inicia — toma cambios de código, prompt y herramientas |
+| `apx daemon reload` | Solo relee `~/.apx/config.json` (sin reinicio, sin recarga de código) |
+| `apx daemon status` | Muestra la salud del daemon |
+| `apx daemon logs` | Imprime el final del log del daemon (`--tail N`) |
+| `apx log` | Log unificado de todos los módulos (`-f` seguir, `--tail N`, `--errors` solo) |
+
+<Aside type="tip">
+  `apx log -f --errors` transmite solo las líneas `[ERROR]` en tiempo real — la forma más rápida de ver qué anda mal.
+</Aside>
+
+---
+
+## Telegram
+
+| Comando | Qué hace |
+|---|---|
+| `apx telegram send "text"` | Envía un mensaje (`--chat <id>`) |
+| `apx telegram status` | Muestra el estado del plugin de Telegram |
+| `apx telegram start` | Inicia el polling en cada canal configurado |
+| `apx telegram stop` | Detiene el polling (la config queda intacta) |
+| `apx telegram setup` | Imprime la guía de configuración |
+| `apx telegram channel <sub>` | Gestiona canales: `add \| list \| show \| set \| unset \| remove` |
+| `apx telegram contacts` | Lista el roster de personas conocidas |
+| `apx telegram role <user_id> <role>` | Asigna un rol a un contacto |
+| `apx telegram roles <sub>` | Define rol→herramientas: `list \| set <name> --tools a,b \| rm <name>` |
+| `apx telegram owner <channel> <user_id>` | Define quién es dueño de un canal |
+
+---
+
+## Mensajes
+
+| Comando | Qué hace |
+|---|---|
+| `apx messages tail` | Imprime los mensajes recientes (`--agent <slug> --channel <ch> -n 50 --global`) |
+| `apx messages chat` | Transcript de chat con tipos de actor (`--channel telegram -n 50`) |
+| `apx messages search "q"` | Busca en los logs de mensajes |
+
+---
+
+## LLM / Código
+
+| Comando | Qué hace |
+|---|---|
+| `apx code` | Asistente de codificación de terminal de APX (TUI) |
+| `apx exec "prompt"` | Llamada LLM one-shot al super-agente (`--model <id> -a <agent>`) |
+| `apx chat <agent>` | REPL interactivo de agente (`--conversation <id>`) |
+| `apx search "query"` | Búsqueda web vía DDG / Brave / navegador (`--mode <m> -n N`) |
+| `apx conversations list` | Lista las conversaciones de exec/chat almacenadas |
+| `apx conversations get <agent> <id>` | Imprime una conversación almacenada |
+
+---
+
+## Runtimes
+
+| Comando | Qué hace |
+|---|---|
+| `apx run <agent>` | Lanza una sesión de runtime externo completa (`--runtime <id> "prompt" --timeout <s>`) |
+| `apx env detect` | Muestra qué CLIs de runtime están instalados |
+
+**Runtimes disponibles:** `claude-code` · `codex` · `opencode` · `aider` · `cursor-agent` · `gemini-cli` · `qwen-code`
+
+---
+
+## Agente a agente
+
+| Comando | Qué hace |
+|---|---|
+| `apx send <from> <to> "msg"` | Registra un mensaje A2A (`--deliver` ejecuta el motor de destino) |
+| `apx connections <agent>` | Mapa mental: con quién, cómo y cuándo se comunicó este agente |
+
+---
+
+## Rutinas
+
+| Comando | Qué hace |
+|---|---|
+| `apx routine list` | Lista las rutinas con la próxima y la última ejecución |
+| `apx routine add <name>` | Crea una rutina |
+| `apx routine get <name>` | Imprime la definición de la rutina |
+| `apx routine history <name>` | Muestra el historial de ejecución |
+| `apx routine run <name>` | Dispara manualmente (ignora la programación) |
+| `apx routine enable <name>` | Habilita una rutina |
+| `apx routine disable <name>` | Deshabilita una rutina |
+| `apx routine remove <name>` | Elimina una rutina |
+
+---
+
+## Tareas
+
+| Comando | Qué hace |
+|---|---|
+| `apx task add "<title>"` | Crea una tarea (`--tag t --due 2026-06-01 --agent A --body "..."`) |
+| `apx task list` | Lista las tareas (`--state open\|done\|dropped\|all --tag X --agent Y --limit N`) |
+| `apx task show <id>` | Imprime una tarea como JSON |
+| `apx task done <id>` | Marca la tarea como hecha (`--by <name>`) |
+| `apx task drop <id>` | Descarta / archiva una tarea |
+| `apx task reopen <id>` | Reabre una tarea hecha o descartada |
+| `apx task patch <id>` | Edita campos (`--title T --body B --due D --agent A --tag t`) |
+
+---
+
+## Artefactos
+
+| Comando | Qué hace |
+|---|---|
+| `apx artifact create <name>` | Crea un archivo gestionado en el almacenamiento del proyecto (`--content '...' --project 0`) |
+| `apx artifact list` | Lista los artefactos |
+| `apx artifact show <name>` | Imprime el contenido del artefacto |
+| `apx artifact remove <name>` | Elimina un artefacto |
+
+---
+
+## Comandos y Skills
+
+| Comando | Qué hace |
+|---|---|
+| `apx command list` | Lista los comandos de workflow en `.apc/commands/` |
+| `apx command show <name>` | Imprime el contenido del comando |
+| `apx skills add [targets]` | Instala skills en los archivos de reglas del IDE (`claude-code cursor windsurf copilot trae`) |
+| `apx skills add --global` | Instala en `~/.claude/skills/` etc. |
+| `apx skills list` | Lista las skills en el `.apc/skills/` de este proyecto |
+| `apx skills status` | Muestra qué targets de IDE tienen skills incluidas instaladas |
+| `apx skills sync` | Fuerza el refresco de todas las skills incluidas a cada dir global de skills |
+
+---
+
+## Plugins
+
+| Comando | Qué hace |
+|---|---|
+| `apx plugins list` | Muestra los plugins cargados y su estado |
+| `apx plugins status <id>` | Estado detallado de un plugin (p. ej. `telegram`) |
+
+---
+
+## Voz y Escritorio
+
+| Comando | Qué hace |
+|---|---|
+| `apx voice say "text"` | TTS vía daemon (`--provider <id> --voice <name> --no-play`) |
+| `apx voice listen` | Micrófono → `/voice/turn` → respuesta (`--seconds N --no-play`) |
+| `apx voice providers` | Lista los proveedores de TTS / STT configurados |
+| `apx desktop start` | Lanza la ventana de voz flotante de Electron (`--debug`) |
+| `apx desktop stop` | Detiene la ventana de escritorio |
+| `apx desktop status` | Muestra el estado del proceso, PID y estado de autostart |
+| `apx desktop install` | Activa el autostart al iniciar sesión (no necesita sudo) |
+| `apx desktop uninstall` | Desactiva el autostart |
+
+---
+
+## Pair (Dispositivos compañeros)
+
+| Comando | Qué hace |
+|---|---|
+| `apx pair [label]` | Emparejamiento por QR para la app Deck / clientes compañeros |
+| `apx pair web` | QR + enlace para emparejar un navegador en la LAN |
+| `apx pair list` | Lista los clientes emparejados |
+| `apx pair revoke <id>` | Revoca el token de un cliente emparejado |
+
+---
+
+## Flags globales
+
+| Flag | Efecto |
+|---|---|
+| `--project <name\|id\|path>` | Fija un comando a un proyecto específico |
+| `--help` | Muestra la ayuda de cualquier comando |
+| `--version` | Imprime la versión |
+
+---
+
+## Páginas para profundizar
+
+<CardGrid>
+  <LinkCard title="Superficie de CLI" href="/apx/docs/es/surfaces/cli/" description="Autocompletado de shell, archivo de config y patrones de uso interactivo." />
+  <LinkCard title="Motores y runtimes" href="/apx/docs/es/engine/runtimes/" description="Guía completa de runtimes (claude-code, codex, …) y apx run." />
+  <LinkCard title="Configuración" href="/apx/docs/es/concepts/configuration/" description="Referencia de ~/.apx/config.json — motores, proveedores, fallback de modelos." />
+  <LinkCard title="Resolución de problemas" href="/apx/docs/es/reference/troubleshooting/" description="Problemas del daemon, proveedores fallidos, conflictos de Telegram y más." />
+</CardGrid>

@@ -44,6 +44,7 @@ export default defineConfig({
 			defaultLocale: 'root',
 			locales: {
 				root: { label: 'English', lang: 'en' },
+				es: { label: 'Español', lang: 'es' },
 			},
 			editLink: {
 				baseUrl:
@@ -53,29 +54,36 @@ export default defineConfig({
 			sidebar: [
 				{
 					label: 'Start Here',
+					translations: { es: 'Empezar' },
 					items: [{ autogenerate: { directory: 'start' } }],
 				},
 				{
 					label: 'Concepts',
+					translations: { es: 'Conceptos' },
 					items: [{ autogenerate: { directory: 'concepts' } }],
 				},
 				{
 					label: 'Surfaces',
+					translations: { es: 'Interfaces' },
 					items: [{ autogenerate: { directory: 'surfaces' } }],
 				},
 				{
 					label: 'Engine',
+					translations: { es: 'Motor' },
 					items: [{ autogenerate: { directory: 'engine' } }],
 				},
 				{
 					label: 'Capabilities',
+					translations: { es: 'Capacidades' },
 					items: [{ autogenerate: { directory: 'capabilities' } }],
 				},
 				{
 					label: 'Reference',
+					translations: { es: 'Referencia' },
 					items: [{ autogenerate: { directory: 'reference' } }],
 				},
 			],
+
 		}),
 	],
 });

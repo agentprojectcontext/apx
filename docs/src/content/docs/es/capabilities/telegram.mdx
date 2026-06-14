@@ -1,0 +1,243 @@
+---
+title: Telegram
+description: Conectá APX a uno o más bots de Telegram — ruteo multicanal, fijado de proyectos, agentes maestros y control de la identidad del remitente.
+sidebar:
+  order: 6
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import Screenshot from '../../../../components/Screenshot.astro';
+import Terminal from '../../../../components/Terminal.astro';
+
+APX corre un plugin de Telegram que hace polling de `getUpdates` y rutea los mensajes entrantes a los agentes. Podés
+adjuntar varios bots (canales), fijar cada canal a un proyecto específico, y opcionalmente
+rutear los mensajes a un agente dedicado en lugar del super-agent por defecto.
+
+## Canales
+
+La unidad fundamental es un **canal** — un bot de Telegram emparejado con un chat ID. Una sola instancia de APX
+puede gestionar muchos canales, cada uno con su propio token de bot, fijado de proyecto y ruteo de agente.
+
+<Aside type="note">
+  Los campos raíz legacy `telegram.bot_token` y `telegram.chat_id` en `~/.apx/config.json`
+  siguen funcionando para configuraciones de un solo bot, pero APX los migra a `channels[]` automáticamente. No
+  escribas directamente en los campos legacy — usá los comandos `apx telegram channel` en su lugar.
+</Aside>
+
+### Forma de la config
+
+```json
+{
+  "telegram": {
+    "enabled": true,
+    "poll_interval_ms": 1500,
+    "route_to_agent": "",
+    "respond_with_engine": true,
+    "channels": [
+      {
+        "name": "default",
+        "bot_token": "<from BotFather>",
+        "chat_id": "<numeric chat id>",
+        "project": "my-app",
+        "route_to_agent": "support",
+        "respond_with_engine": true
+      }
+    ]
+  }
+}
+```
+
+Todos los campos por canal (`project`, `route_to_agent`, `respond_with_engine`) son opcionales y
+caen por defecto a los valores globales.
+
+## Configuración
+
+<Steps>
+
+1. Creá un bot en Telegram vía [@BotFather](https://t.me/BotFather) y copiá el token.
+
+2. Pedile guía de configuración a APX:
+
+   ```bash
+   apx telegram setup
+   ```
+
+3. Agregá tu primer canal de forma interactiva:
+
+   ```bash
+   apx telegram channel add
+   ```
+
+   O de forma no interactiva:
+
+   ```bash
+   apx telegram channel add default \
+     --bot-token <TOKEN> \
+     --chat-id <CHAT_ID>
+   ```
+
+4. Verificá el estado:
+
+   ```bash
+   apx telegram status
+   ```
+
+   <Terminal command="apx telegram status" caption="apx telegram status mostrando los canales activos y el estado del polling">
+   {`enabled: true
+
+   channel:             default
+     polling:           true
+     bot_token:         ✓ (source: config)
+     chat_id:           84217553
+     project:           First Project
+     route_to_agent:    (none → super-agent fallback)
+     respond_w/engine:  false
+     last_update_at:    2026-06-14 09:31:58
+     last_error:        (none)
+
+   ✅ telegram polling (1/1 channel)`}
+   </Terminal>
+
+</Steps>
+
+## Comandos de canales
+
+```bash
+# Agregar (asistente interactivo)
+apx telegram channel add
+
+# Agregar con todas las opciones de una
+apx telegram channel add clientes \
+  --bot-token <TOKEN> \
+  --chat-id <CHAT_ID> \
+  --project my-app \
+  --agent support
+
+# Listar todos los canales
+apx telegram channel list
+
+# Inspeccionar un canal
+apx telegram channel show clientes
+
+# Parchear campos individuales
+apx telegram channel set clientes --project my-app
+apx telegram channel set clientes --agent reviewer
+apx telegram channel set clientes --respond-engine false
+
+# Limpiar campos opcionales
+apx telegram channel unset clientes --project --agent
+
+# Borrar un canal
+apx telegram channel remove clientes
+```
+
+Cada escritura de canal dispara una recarga del daemon automáticamente — no hace falta reiniciar.
+
+## Enviar mensajes
+
+```bash
+# Enviar al primer canal configurado
+apx telegram send "text"
+
+# Enviar a un chat ID específico
+apx telegram send "text" --chat 123456789
+```
+
+Los medios (fotos, notas de voz) se envían directamente a través de la API HTTP del daemon:
+
+```bash
+# Foto
+curl -X POST http://127.0.0.1:7430/telegram/send_photo \
+  -H "Authorization: Bearer $(cat ~/.apx/daemon.token)" \
+  -H "Content-Type: application/json" \
+  -d '{"photo":"/abs/path/image.png","caption":"caption text","channel":"clientes"}'
+
+# Voz
+curl -X POST http://127.0.0.1:7430/telegram/send_voice \
+  -H "Authorization: Bearer $(cat ~/.apx/daemon.token)" \
+  -H "Content-Type: application/json" \
+  -d '{"audio":"/abs/path/note.ogg","duration":5,"channel":"default"}'
+```
+
+## Fijado de proyecto
+
+Cuando un canal tiene `project` configurado, cada mensaje entrante queda automáticamente con alcance de ese
+proyecto:
+
+- El system prompt resuelve los agentes, MCPs y memoria de ese proyecto.
+- Herramientas como `list_tasks`, `create_task` y `list_agents` usan ese proyecto por defecto sin que el
+  usuario tenga que decir "en my-app" en cada turno.
+- Cada canal mantiene su propio log de mensajes — varios canales pueden fijar el mismo proyecto sin
+  compartir el historial de conversación.
+
+## Agentes maestros
+
+Configurá `route_to_agent` en un canal para enviar todos los mensajes entrantes a un agente específico en lugar del
+super-agent. Se usan el system prompt `AGENT.md` y la memoria del agente; recibe el
+mensaje del usuario y responde con una sola llamada al LLM.
+
+Este es el modelo correcto para personas de Telegram dedicadas: un bot de soporte al cliente, un agente de ventas,
+un revisor de código — un personaje específico en lugar del asistente general APX.
+
+```bash
+apx telegram channel set support-line --agent sofia
+```
+
+Dejá `route_to_agent` vacío (o sin configurar) para usar el super-agent (el valor por defecto).
+
+## Identidad del remitente y roles
+
+APX reconoce a cada remitente por su `user_id` estable de Telegram — no por el chat ID o el número de
+teléfono. La misma persona es reconocida en todos los canales y bots.
+
+| Rol | Quién | Acceso a herramientas |
+|---|---|---|
+| `owner` | El `owner_user_id` configurado en el canal | Todas las herramientas (`*`) |
+| Rol nombrado | Cualquier `user_id` asignado vía `apx telegram role` | Las herramientas definidas para ese rol |
+| `guest` | Cualquier remitente desconocido | Solo texto (sin herramientas) |
+
+El primer mensaje enviado a un chat privado en un canal sin owner configurado se reclama automáticamente
+como owner. Después de eso, usá la CLI para gestionar los roles:
+
+```bash
+# Asignar un rol a un contacto
+apx telegram role 889721252 editor
+
+# Listar todos los contactos conocidos
+apx telegram contacts
+
+# Configurar el owner de un canal explícitamente
+apx telegram owner default 889721252
+```
+
+### Roles personalizados y sus allowlists de herramientas
+
+```bash
+# Ver los roles definidos
+apx telegram roles list
+
+# Crear o actualizar un rol con un allowlist de herramientas específico
+apx telegram roles set editor --tools list_agents,list_tasks,create_task
+
+# Quitar una definición de rol
+apx telegram roles rm editor
+```
+
+Un rol sin definición pero con remitentes asignados cae por defecto a acceso total a herramientas (`*`) —
+APX lo trata como un contacto promovido deliberadamente.
+
+## Ciclo de vida del polling
+
+El plugin arranca automáticamente con el daemon. Usá estos comandos solo si necesitás control
+manual:
+
+```bash
+apx telegram start   # arrancar el polling de todos los canales
+apx telegram stop    # detener el polling (la config queda sin cambios)
+apx telegram status  # mostrar el estado del plugin y la lista de canales
+```
+
+## Ver también
+
+- [Concepts — Agents](/apx/docs/es/concepts/agents/) — cómo los agentes manejan los mensajes entrantes
+- [Capabilities — Super-agent](/apx/docs/es/capabilities/super-agent/) — el handler por defecto para los mensajes de Telegram

@@ -1,0 +1,159 @@
+---
+title: Sesiones
+description: Qué son las sesiones de APX, dónde viven, y el conjunto completo de comandos de sesión en cada engine soportado.
+sidebar:
+  order: 3
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import Screenshot from '../../../../components/Screenshot.astro';
+import Terminal from '../../../../components/Terminal.astro';
+
+Una **sesión** es un registro de una invocación de agente o un hilo de trabajo. Las sesiones nativas de APX son archivos
+Markdown almacenados localmente — nunca commiteados. APX también entiende las sesiones creadas por Claude Code y
+Codex, dándote una única interfaz para encontrar y reanudar trabajo sin importar qué engine lo arrancó.
+
+## Sesiones vs. conversaciones
+
+| Concepto | Qué es | Dónde vive |
+|---|---|---|
+| Sesión | Registro de alto nivel — título, estado, resultado, timestamps | `~/.apx/projects/<id>/agents/<slug>/sessions/` |
+| Conversación | El hilo crudo de mensajes del LLM | `~/.apx/projects/<id>/agents/<slug>/conversations/` |
+| Sesión externa | Archivo de sesión de propiedad de Claude o Codex | `~/.claude/` o `~/.codex/` |
+
+Las sesiones son el artefacto durable al que volvés; las conversaciones son el log de bajo nivel turno a turno
+que lee el engine.
+
+## Cobertura de engines
+
+Los comandos cross-engine de APX escanean estas ubicaciones:
+
+| Engine | Dónde busca APX |
+|---|---|
+| `apx` | `~/.apx/projects/<apx_id>/agents/<slug>/sessions/*.md` |
+| `claude` | `~/.claude/projects/<encoded-cwd>/<id>.jsonl` |
+| `codex` | `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl` |
+
+Los engines que no están instalados se saltean en silencio.
+
+## Encontrar sesiones
+
+Arrancá con `apx session find` cada vez que recuerdes el tema pero no el id:
+
+```bash
+apx session find "mejorar interfaz web"        # title search, cross-engine, newest first
+apx session find "sidebar" --deep              # also search transcript content
+apx session find "deploy" --engine codex       # restrict to one engine
+apx session find "api" --dir /path/to/repo     # scope to one directory
+apx session find "login" --limit 5 --json      # machine-readable output
+```
+
+La salida incluye un bloque listo para correr de comandos `summary`/`ask`/`resume` precargados con el
+id del primer resultado — copiá y pegá de corrido sin tocar el id a mano.
+
+## Listar sesiones
+
+```bash
+apx sessions list                              # every engine, every known project
+apx sessions list --engine claude              # Claude sessions only
+apx sessions list --engine codex --limit 10
+apx sessions list --project my-app            # all engines, one registered project
+apx sessions list --dir /path/to/repo         # all engines, one directory
+```
+
+<Terminal command="apx sessions list" caption="apx sessions list — agrupadas por engine con filas DATE | SESSION ID | TITLE">
+{`Claude Code   ~/code/acme-store
+  06-14 09:32   a1f3c92e   Review open PRs and summarize them
+  06-13 17:04   7b20de54   Wire checkout API to Stripe
+  06-12 11:48   d9c81a07   Fix flaky cart total test
+
+Codex   ~/code/data-pipeline
+  06-14 08:15   c4e7f1a2   Refactor ingestion retry loop
+  06-11 20:39   8a3b6d50   Add backfill CLI flag
+
+• 5 sesiones en 2 engines`}
+</Terminal>
+
+## Comandos de sesión nativos de APX
+
+Estos gestionan los archivos de sesión `.md` que APX escribe bajo `~/.apx/`:
+
+```bash
+apx session new <slug> --title "Investigate bug X"    # create a session file
+apx session list                                       # all agents in the current project
+apx session list <slug>                               # one agent's sessions
+apx session get <id>                                  # metadata
+apx session get <id> --body                           # full markdown body
+apx session update <id> --status "in progress"
+apx session close <id> --result "Fixed in PR #42"
+apx session check                                     # exit 1 if any active session exists
+apx session close-stale                               # auto-close sessions older than 1 hour
+apx session compact <slug>                            # summarize a conversation to disk
+```
+
+## Reanudación cross-engine
+
+```bash
+apx session resume <id>                    # auto-detect engine, show metadata
+apx session resume <id> --tail 32k         # print last 32 KB of transcript (no daemon needed)
+apx session resume <id> --full             # dump entire transcript
+apx session resume <id> --summary          # LLM summary via super-agent (daemon required)
+apx session resume <id> --continue         # spawn native CLI (claude --resume / codex resume)
+apx session resume <id> --into apx:slug    # seed a new APX session from the summary
+apx session resume <id> --engine claude    # skip auto-detect, use one engine
+```
+
+Si el mismo id aparece en varios engines, APX imprime todas las coincidencias y te pide volver a correrlo con
+`--engine <id>` para desambiguar.
+
+## Leer el contenido de una sesión
+
+```bash
+# Local APX sessions
+apx session get <id>                       # metadata
+apx session get <id> --body               # full markdown
+
+# Any engine
+apx session get <id> --engine claude --full    # full Claude JSONL
+apx session get <id> --engine codex --tail 16k
+apx session get <id> --any --full             # search every engine, error on collision
+```
+
+## Resumir y preguntar
+
+Estos dos comandos requieren el daemon y `super_agent.enabled: true` en `~/.apx/config.json`:
+
+```bash
+apx session summary <id>                           # 4-bullet LLM summary
+apx session summary <id> --max-chunks 8            # bound cost on large transcripts
+
+apx session ask <id> "¿qué cambios al sidebar?"   # Q&A over the transcript
+apx session ask <id> "what files changed?" --max-chunks 30
+```
+
+Las transcripciones grandes se procesan con map-reduce: cada chunk de ~48 KB se minea en busca de notas relevantes, y una pasada
+final sintetiza la respuesta. El ruido binario (payloads de imágenes en base64) se elimina antes del chunking.
+
+<Aside type="tip">
+  Usá `apx session summary` para orientarte, y después `apx session ask` para preguntas específicas. Para
+  rollouts de Codex muy grandes, subí `--max-chunks` si la salida advierte sobre truncamiento.
+</Aside>
+
+## Requisitos del daemon
+
+| Comando | ¿Requiere daemon? |
+|---|---|
+| `apx session find` | No |
+| `apx sessions list` | No |
+| `apx session get` (cualquier modo) | No |
+| `apx session resume` (metadata, tail, full, continue) | No |
+| `apx session resume --summary` / `apx session summary` | Sí |
+| `apx session ask` | Sí |
+| `apx session resume --into apx:slug` (sólo la parte de resumen) | Sí |
+
+El daemon arranca automáticamente cuando hace falta — no tenés que lanzarlo a mano.
+
+## Próximo
+
+- [Memoria](/apx/docs/es/concepts/memory/) — persistir hechos durables entre sesiones.
+- [Proyectos](/apx/docs/es/concepts/projects/) — de dónde viene el path `~/.apx/projects/<id>/`.

@@ -1,0 +1,385 @@
+---
+title: Resolución de problemas
+description: Soluciones para los problemas más comunes de APX — arranque del daemon, fallos de proveedores, reseteo de API keys, conflictos de Telegram y dependencias opcionales faltantes.
+sidebar:
+  order: 2
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import Screenshot from '../../../../components/Screenshot.astro';
+import Terminal from '../../../../components/Terminal.astro';
+
+Esta página cubre los problemas con los que es más probable que te topes al ejecutar APX. Cada entrada sigue una
+estructura **Problema → Causa → Solución**. Arrancá con `apx status` y `apx log -f --errors` para acotar
+qué está fallando antes de meterte en una sección específica.
+
+<Terminal command="apx log -f --errors" caption="apx log -f --errors transmitiendo solo las líneas de error en tiempo real">
+{`[2026-06-14 09:18:02.551] [ERROR] [engine  ] anthropic 401 — invalid x-api-key (sk-ant-••••a91f)
+[2026-06-14 09:18:02.560] [ERROR] [super-agent] no healthy provider — all 3 candidates failed
+[2026-06-14 09:22:41.013] [ERROR] [telegram] getUpdates conflict 409 — another poller is running
+[2026-06-14 09:25:10.778] [ERROR] [daemon  ] EADDRINUSE 127.0.0.1:7430 — port already in use`}
+</Terminal>
+
+---
+
+## El daemon no arranca
+
+### Puerto ya en uso
+
+**Problema:** `apx daemon start` sale de inmediato o `apx status` muestra el daemon como detenido incluso
+después de un intento de arranque.
+
+**Causa:** Algo más — o un proceso APX obsoleto — ya está escuchando en el puerto `7430` (el
+predeterminado). El daemon registra `fatal: listen 127.0.0.1:7430 failed: address already in use`.
+
+**Solución:**
+
+```bash
+# Encontrar qué retiene el puerto
+lsof -i :7430
+
+# Si es un apx-daemon obsoleto, matalo
+pkill -f apx-daemon
+
+# Después arrancá de cero
+apx daemon start
+```
+
+Para ejecutar en un puerto distinto de forma permanente, definí `APX_PORT` en tu entorno o definí `"port"` en
+`~/.apx/config.json`:
+
+```json
+{ "port": 7431 }
+```
+
+<Aside type="caution">
+  Después de cambiar el puerto, todas las superficies (panel web, Escritorio, TUI) necesitan reiniciarse para que tomen
+  la nueva dirección. El token del daemon vive en `~/.apx/daemon.token` y no cambia con el
+  puerto.
+</Aside>
+
+### El daemon arranca pero `apx status` lo muestra como inalcanzable
+
+**Causa:** El daemon está enlazado a `127.0.0.1` por defecto. El acceso remoto requiere definir
+`"host": "0.0.0.0"` en `~/.apx/config.json`. En la mayoría de las configuraciones locales el culpable es un firewall o una
+VPN que intercepta el tráfico de loopback.
+
+**Solución:** Revisá `apx daemon logs --tail 20` para ver la dirección de enlace real. Si la línea dice
+`listening on http://127.0.0.1:7430` el daemon está sano — el problema está en el cliente.
+
+---
+
+## Fallos de motor / proveedor
+
+### El proveedor reporta sano pero las llamadas fallan
+
+**Problema:** `apx model status` muestra un proveedor como `active`, pero `apx exec "hello"` devuelve texto
+vacío o un error.
+
+**Causa:** El health check de los proveedores en la nube (OpenRouter, Groq, OpenAI) solo pega a `/models` — un
+200 OK significa que el catálogo es alcanzable, **no** que tu modelo específico sea invocable, que tu clave tenga
+cuota o que el modelo no esté limitado por rate. Para Anthropic y Gemini el check solo confirma que hay una clave
+presente.
+
+Modo de fallo observado: el enrutador elige `openrouter:free` como sano, la llamada de chat real devuelve
+`429 Provider returned error` y el super-agente devuelve `text: ""`.
+
+**Solución:**
+
+<Steps>
+
+1. Ejecutá `apx model test` — resuelve *qué modelo* elegiría el enrutador ahora mismo y hace ping a ese
+   endpoint.
+
+2. Si el proveedor primario está fallando, movelo más atrás en la cadena de fallback:
+
+   ```bash
+   apx model order ollama groq openrouter
+   ```
+
+3. Si todos los proveedores fallan, revisá las claves:
+
+   ```bash
+   apx model status   # muestra la presencia de clave + resultado del sondeo por proveedor
+   ```
+
+</Steps>
+
+<Aside type="note">
+  APX tiene una funcionalidad de reintento lazy en desarrollo (spec #13): cuando un proveedor que parece sano falla en
+  runtime con un 429 o 5xx, el enrutador avanzará automáticamente al siguiente candidato de la
+  cadena. Hasta que eso salga, usá `apx model order` para ajustar la prioridad manualmente.
+</Aside>
+
+<Terminal command="apx model status" caption="apx model status mostrando un proveedor que falla y el fallback activo">
+{`Model router
+  primary:   anthropic:claude-sonnet-4-5
+  fallback:  on
+  order:     anthropic → openrouter → groq → ollama
+  active:    openrouter:meta-llama/llama-3.3-70b (fallback)
+
+  ✗ anthropic    claude-sonnet-4-5                down  401 invalid key  key:config
+  ✓ openrouter   meta-llama/llama-3.3-70b         up    key:config
+  ✗ groq         llama-3.3-70b-versatile          down  (no key)
+  ✓ ollama       llama3.2:3b                      up    key:config
+
+Keys → ~/.apx/config.json engines.{groq,openrouter}.api_key
+Or env: GROQ_API_KEY, OPENROUTER_API_KEY`}
+</Terminal>
+
+### El super-agente devuelve texto vacío
+
+**Problema:** `apx exec "hello"` o un mensaje de Telegram devuelve una respuesta vacía sin error.
+
+**Causa (modelo de Ollama no cargado):** Ollama está corriendo pero el modelo configurado no está descargado.
+El health check confirma que Ollama está arriba pero no verifica que el modelo específico exista — así que el
+enrutador elige Ollama, la llamada al motor falla silenciosamente y la cadena nunca avanza. Mirá spec #11.
+
+**Solución:**
+
+```bash
+# Revisar qué está realmente cargado
+ollama list
+
+# Descargar el modelo faltante
+ollama pull <model-name>
+
+# O cambiar el super-agente a otro primario
+apx model order openrouter groq ollama
+```
+
+**Causa (bucle de modelo en la nube):** En algunos proveedores que no son Anthropic, si la política de forzado de
+herramientas del super-agente empuja a un modelo a una llamada de herramienta en cada iteración, la respuesta final puede
+quedar vacía. Mirá spec #12.
+
+**Solución:** Cambiar a un modelo de Anthropic (`claude-*`) evita esto de forma confiable hasta que spec #12 esté
+resuelto:
+
+```bash
+apx model key anthropic sk-ant-...
+apx model order anthropic openrouter groq
+```
+
+---
+
+## Las API keys se borran inesperadamente
+
+**Problema:** Las claves en `engines.groq.api_key`, `engines.openrouter.api_key` o campos similares se resetean
+a cadenas vacías sin que las hayas tocado. Esto se observó el 2026-05-27 (spec #14).
+
+**Causa:** Una llamada parcial a `writeConfig()` (desde `apx config set`, una reejecución del wizard o una recarga
+del daemon después de una edición estructural) puede sobrescribir un subárbol con defaults, borrando silenciosamente
+campos hermanos.
+
+**Solución:**
+
+<Steps>
+
+1. Volvé a agregar las claves faltantes de inmediato — no hace falta reiniciar:
+
+   ```bash
+   apx model key groq sk-xxxx
+   apx model key openrouter sk-or-...
+   apx model key gemini AIza...
+   ```
+
+2. Si ejecutaste recientemente `apx config set engines.<something>`, verificá que el bloque completo todavía se vea
+   bien:
+
+   ```bash
+   apx config show --effective | grep -A 20 '"engines"'
+   ```
+
+3. Después de restaurar las claves, recargá el daemon para que las tome sin un reinicio completo:
+
+   ```bash
+   apx daemon reload
+   ```
+
+</Steps>
+
+<Aside type="caution">
+  Evitá `apx config set engines` con un valor JSON parcial — definí siempre las claves hoja (p. ej.
+  `engines.groq.api_key`) en lugar del objeto `engines` entero. Este es un problema conocido (#14)
+  que se está abordando en la capa `writeConfig`.
+</Aside>
+
+---
+
+## Salud estricta del modelo de Ollama
+
+**Problema:** `apx model status` muestra Ollama como `active` pero el super-agente falla silenciosamente.
+
+**Causa:** El sondeo de salud actual de Ollama pega a `/api/tags` pero no verifica que el modelo
+nombrado en `super_agent.model` esté realmente en la lista de descargados. Mirá spec #11.
+
+**Solución:**
+
+```bash
+# Confirmar qué modelos están descargados
+ollama list
+
+# El valor en tu config
+apx model status   # buscá super_agent.model
+
+# Si el modelo configurado no está descargado, descargalo o cambialo
+ollama pull <model>
+# o
+apx model set ollama llama3.2   # cambiá a un modelo que tengas
+```
+
+Hasta que spec #11 se arregle, también podés asegurar que la cadena de fallback sea robusta:
+
+```bash
+apx model order ollama openrouter groq
+# Ahora, si el modelo de Ollama falta, el siguiente proveedor toma el relevo
+```
+
+---
+
+## Conflicto de slot del bot de Telegram
+
+**Problema:** El plugin de Telegram deja de responder. `apx log --errors` muestra líneas repetidas como:
+
+```text
+[WARN] [telegram] getUpdates 409; backing off 30000ms
+```
+
+**Causa:** Telegram permite exactamente **un** cliente de long-poll por token de bot. Un segundo proceso reclamando
+el mismo bot — común con `mcp-telegram-agent`, `mcp_telegram_notify` o procesos `npx` zombi
+de una sesión anterior — gana la carrera y el daemon de APX queda bloqueado afuera. Mirá spec #15.
+
+**Solución:**
+
+<Steps>
+
+1. Encontrá el proceso que compite:
+
+   ```bash
+   ps aux | grep -iE 'telegram|mcp.telegram'
+   lsof -i -P -n | grep 149.154.
+   ```
+
+2. Matalo:
+
+   ```bash
+   pkill -f "mcp-telegram-agent"
+   pkill -f "mcp_telegram_notify"
+   ```
+
+3. Detené el daemon de APX, esperá a que expire la caché de long-poll del lado del servidor de Telegram, después reiniciá:
+
+   ```bash
+   apx telegram stop
+   apx daemon stop
+   sleep 30
+   apx daemon start
+   ```
+
+4. Confirmá que el polling se reanudó:
+
+   ```bash
+   apx telegram status
+   ```
+
+</Steps>
+
+<Aside type="caution">
+  La espera de 30 segundos no es opcional. Reiniciar el daemon inmediatamente después de matar al competidor
+  todavía puede disparar un 409 porque el servidor de Telegram mantiene la sesión anterior abierta ~30 s.
+</Aside>
+
+<Aside type="note">
+  Un comando `apx telegram doctor` planificado (spec #15) automatizará este diagnóstico — comprobará
+  `getMe`, confirmará que no exista otro retenedor de long-poll y listará los PIDs locales que compiten.
+</Aside>
+
+---
+
+## Dependencias nativas opcionales no instaladas
+
+APX tiene tres dependencias nativas opcionales. El daemon arranca y la mayoría de las funciones andan sin ellas,
+pero la capacidad que respaldan se degrada con gracia.
+
+### `better-sqlite3` + `sqlite-vec` (RAG / memoria semántica)
+
+**Problema:** `apx log` muestra `memory: sqlite-vec unavailable` y la búsqueda de memoria entre agentes recae
+en un store JSON plano.
+
+**Causa:** `better-sqlite3` es un addon nativo que requiere una cadena de herramientas de compilación. En algunos sistemas
+falla al compilar o no está pre-compilado para tu versión de Node.js.
+
+**Solución:**
+
+```bash
+npm install -g better-sqlite3 sqlite-vec
+```
+
+Si la compilación falla, asegurate de tener un compilador de C++:
+
+- **macOS:** `xcode-select --install`
+- **Linux:** `apt install build-essential` (Debian/Ubuntu) o equivalente
+- **Windows/WSL:** instalá las Windows Build Tools
+
+Después de una instalación exitosa, reiniciá el daemon:
+
+```bash
+apx daemon restart
+```
+
+La línea de log cambia a `memory: sqlite-vec backend active` una vez que la extensión carga.
+
+### `puppeteer` (búsqueda web basada en navegador)
+
+**Problema:** `apx search "query" --mode browser` falla con:
+
+```text
+Error: Puppeteer not installed. Run: npm install puppeteer
+```
+
+**Causa:** Puppeteer no viene incluido con APX. Los modos de búsqueda `ddg` y `brave` no lo necesitan —
+solo `--mode browser` lo necesita.
+
+**Solución:**
+
+```bash
+npm install -g puppeteer
+```
+
+Puppeteer descarga un Chromium incluido en la primera instalación (~300 MB). Si querés usar un
+Chrome del sistema en su lugar, instalá `puppeteer-core` y definí `PUPPETEER_EXECUTABLE_PATH`.
+
+---
+
+## Leer los logs
+
+Tres comandos cubren distintas vistas de los logs:
+
+| Comando | Qué ves |
+|---|---|
+| `apx log` | Últimas 100 líneas del log unificado (`~/.apx/logs/apx.log`) |
+| `apx log -f` | Tail en vivo — todos los módulos |
+| `apx log -f --errors` | Tail en vivo — solo líneas `[ERROR]` |
+| `apx log --tail 50` | Últimas N líneas |
+| `apx daemon logs --tail 100` | Stdout legacy del daemon (formato más viejo) |
+
+El log unificado (`apx log`) cubre cada módulo: telegram, whisper, super-agent, tools, desktop.
+Preferilo por sobre `apx daemon logs` para depurar.
+
+<Aside type="tip">
+  Pipeá a través de `grep` para enfocarte en un módulo específico:
+
+  ```bash
+  apx log --tail 200 | grep '\[telegram\]'
+  apx log --tail 200 | grep '\[super-agent\]'
+  ```
+</Aside>
+
+---
+
+## ¿Seguís trabado?
+
+- `apx status` — la vista general de un solo comando del daemon, super-agente, motores y estado de Telegram.
+- [Referencia de configuración](/apx/docs/es/concepts/configuration/) — esquema completo de `~/.apx/config.json`.
+- [Superficie de CLI](/apx/docs/es/surfaces/cli/) — integración de shell, variables de entorno y uso avanzado.
+- [Chuletario de CLI](/apx/docs/es/reference/cli-cheatsheet/) — cada comando de un vistazo.

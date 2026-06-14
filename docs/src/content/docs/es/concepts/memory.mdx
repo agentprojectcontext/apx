@@ -1,0 +1,102 @@
+---
+title: Memoria
+description: Archivos memory.md curados por agente — qué poner en ellos, qué dejar afuera, y los comandos para leerlos, agregar y reemplazarlos.
+sidebar:
+  order: 4
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import Screenshot from '../../../../components/Screenshot.astro';
+import Terminal from '../../../../components/Terminal.astro';
+
+Cada agente puede llevar un archivo `memory.md` que APX inyecta en su system prompt en cada llamada.
+Esta es la **memoria de largo plazo curada** del agente — un lugar para hechos durables que siempre deberían
+estar en contexto, no para el historial crudo de la conversación.
+
+## Dónde vive
+
+```text
+~/.apx/projects/<apx_id>/agents/<slug>/memory.md
+```
+
+Este archivo es estado de runtime local, fuera del repositorio. El repositorio commiteado guarda la definición
+del agente en `.apc/agents/<slug>.md`; APX guarda la memoria bajo `~/.apx` para que las notas privadas, el contexto del
+dueño y los detalles operativos no se filtren a repos públicos. El legacy
+`.apc/agents/<slug>/memory.md` sólo se lee como fallback de migración.
+
+## Qué corresponde a la memoria
+
+La memoria debería contener hechos estables y durables — cosas que el agente siempre debería saber:
+
+- Las convenciones del proyecto ("usamos pnpm, nunca npm")
+- Las preferencias del agente ("prefiere resúmenes de PR cortos, presiona contra diffs vagos")
+- Decisiones arquitectónicas clave ("la API es REST sobre HTTP, sin GraphQL")
+- Responsabilidades en curso ("gestiona el pipeline de deploy de staging")
+
+**Qué no corresponde:**
+
+- Transcripciones crudas de conversaciones (inflan el prompt y quedan obsoletas)
+- Secretos o API keys (la memoria de runtime es local, pero las credenciales igual no corresponden en los prompts)
+- Contexto temporal de tareas (usá sesiones para eso)
+
+<Aside type="caution">
+  Nunca escribas secretos, tokens ni contraseñas en `memory.md`. Incluso la memoria local de prompt puede
+  copiarse, exportarse o enviarse a un modelo.
+</Aside>
+
+## Comandos
+
+### Leer la memoria de un agente
+
+```bash
+apx memory reviewer                              # print to stdout
+apx memory reviewer --project my-app            # explicit project
+```
+
+<Terminal command="apx memory reviewer" caption="apx memory reviewer — imprime el contenido actual de memory.md">
+{`# reviewer — memory
+
+## Conventions
+- Prefers short PR summaries (3 bullets max).
+- Uses es-AR locale for all user-facing output.
+- Never approves a diff without a passing test run.
+
+## Recent context
+- 2026-06-13: Flagged the cart-total test as flaky; asked backend to retry-guard it.
+- 2026-06-12: Owner wants Stripe webhooks reviewed before any checkout merge.`}
+</Terminal>
+
+### Agregar una nota
+
+```bash
+apx memory reviewer --append "Prefers short PR summaries"
+apx memory reviewer --append "Uses es-AR locale for all output"
+```
+
+La nota se agrega bajo un encabezado `## Recent context` (que se crea si no existe). Esta es la
+forma recomendada de agregar un único hecho sin tocar el resto del archivo.
+
+### Reemplazar la memoria
+
+```bash
+apx memory reviewer --replace < new-memory.md   # full replace from stdin
+```
+
+Usá esto para hacer una reescritura limpia — por ejemplo después de una pasada de compactación, o para importar en bloque un
+documento de memoria estructurado.
+
+## La memoria y el system prompt
+
+Cuando APX construye el system prompt de un agente (`apx exec <slug>` o cualquier llamada de rutina), el
+archivo de memoria se inyecta en la posición 5 del stack del prompt — después de los campos de rol/idioma y
+antes de los skills. Esto significa que el contenido de la memoria siempre es visible para el modelo dentro de la
+ventana de contexto.
+
+Para el sistema de RAG entre canales que recupera mensajes pasados semánticamente relevantes (no sólo el
+archivo de memoria curado), mirá [Sistema de memoria](/apx/docs/es/capabilities/memory-system/).
+
+## Próximo
+
+- [Agentes](/apx/docs/es/concepts/agents/) — cómo funcionan las definiciones de agentes.
+- [Sistema de memoria](/apx/docs/es/capabilities/memory-system/) — la capa más profunda de RAG, compactación y broker
+  que funciona en todos los canales.

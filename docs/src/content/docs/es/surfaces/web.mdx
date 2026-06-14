@@ -1,0 +1,287 @@
+---
+title: Panel de administración Web
+description: El panel de administración React local — cómo abrirlo, vincular dispositivos remotos y usar cada módulo del riel.
+sidebar:
+  order: 4
+---
+
+import { Steps, Tabs, TabItem, Aside, FileTree, Badge } from '@astrojs/starlight/components';
+import Screenshot from '../../../../components/Screenshot.astro';
+import Terminal from '../../../../components/Terminal.astro';
+
+El panel de administración web es la UI de APX basada en navegador. Corre enteramente en tu navegador,
+habla con el daemon sobre su API HTTP y no requiere ningún servidor público. Cualquier navegador
+en la misma máquina — o en la misma LAN tras la vinculación — puede usarlo.
+
+![Panel web de APX — pantalla de inicio mostrando la salud del daemon y la lista de proyectos](../../../../assets/shots/01-dashboard.png)
+
+## Abrir en la máquina local
+
+El daemon sirve el panel compilado en `http://127.0.0.1:7430/`. Arrancá el daemon
+y abrí esa URL:
+
+```bash
+apx status          # boots the daemon if it isn't running yet
+# then open http://127.0.0.1:7430 in your browser
+```
+
+En la primera carga el panel obtiene su token de autenticación automáticamente desde
+`/admin/web-token` (endpoint solo loopback). No necesitás copiar un token
+a mano cuando lo abrís desde la misma máquina.
+
+<Aside type="note">
+  Si el panel muestra "The admin panel hasn't been built on this install", ejecutá
+  `node scripts/build-web.js` (o `npm run build:web`) desde la raíz del repo para
+  compilar el bundle en `src/interfaces/web/dist/`.
+</Aside>
+
+## Abrir desde otro dispositivo (vinculación por LAN)
+
+Para abrir el panel en tu teléfono u otra computadora en la misma LAN, usá
+`apx pair web`. El comando imprime un código QR y una URL directa:
+
+```bash
+apx pair web
+# Prints:
+#   http://192.168.1.42:7430/#token=<token>
+#   [QR code for scanning with a phone camera]
+```
+
+Escaneá el QR con la cámara de tu teléfono (no hace falta ninguna app) o compartí la URL. El
+fragmento `#token=…` lleva el token bearer — el panel lo usa automáticamente.
+
+<Terminal command="apx pair web" caption="apx pair web — código QR y enlace de LAN impresos en la terminal">
+{`  APX pairing (web)  ·  expires in 90s
+
+    █▀▀▀▀▀█ ▀▄█▀▄ █▀▀▀▀▀█
+    █ ███ █ ▀█▄▀  █ ███ █
+    █ ▀▀▀ █ █▄▀█▀ █ ▀▀▀ █
+    ▀▀▀▀▀▀▀ █ ▀ █ ▀▀▀▀▀▀▀
+    ██▀▄ ▀▀▄▀█▄▀▄█▀ ▄█▀▄█
+    ▀ ▀▀▀▀▀ █▄▀ ▄██▀▀▄ ▄▀
+    █▀▀▀▀▀█ ▄▀█▄▀▀█▄▀ █▄█
+    █ ███ █ ▀█▄ ▀▄█▀▄▀▀▀▀
+    █ ▀▀▀ █ ▀▄█▀█ ▄▀▄█▄ ▄
+    ▀▀▀▀▀▀▀ ▀▀ ▀▀▀▀ ▀ ▀▀▀
+
+  escaneá con la cámara del teléfono — abre la web ya vinculada
+  link: http://192.168.1.42:7430/#token=8f3a…d10c
+  code: pr_7QF2K  (o pegalo en la pantalla de vinculación de la web)`}
+</Terminal>
+
+Para ver todos los clientes vinculados actualmente o revocar uno:
+
+```bash
+apx pair list
+apx pair revoke <id>
+```
+
+<Aside type="caution">
+  El daemon se enlaza a `127.0.0.1` por defecto. Para el acceso por LAN tenés que optar
+  por entrar: `apx config set remote.bind 0.0.0.0` y luego reiniciá el daemon. Este es un
+  paso explícito para que no expongas el daemon accidentalmente en una red compartida
+  sin la intención de hacerlo.
+</Aside>
+
+## Compilar el bundle web
+
+El panel es una app de Vite + React + TypeScript bajo `src/interfaces/web/`. La
+salida compilada cae en `src/interfaces/web/dist/` y es servida por el daemon.
+
+```bash
+# Build once (from repo root)
+node scripts/build-web.js
+
+# Or rebuild manually
+cd src/interfaces/web
+pnpm install
+pnpm build
+
+# Development with hot reload (proxies API calls to :7430)
+pnpm dev
+```
+
+El script npm `build:web` y el hook `prepack` llaman ambos a
+`node scripts/build-web.js`, así que un `npm install -g .` global siempre envía un
+bundle fresco. Configurá `APX_SKIP_WEB_BUILD=1` para saltearlo durante flujos de dev que
+no tocan la UI.
+
+## Modelo de navegación
+
+El panel tiene dos niveles de navegación:
+
+- **Base** (`/p/0/…`) — el espacio global del daemon: workspaces, modelos, sesiones,
+  logs y configuración global. El chat en Base habla con el super-agente.
+- **Proyecto** (`/p/:pid/…`) — un único workspace de proyecto: agentes, chat, tareas,
+  rutinas, MCPs, memorias y configuración.
+
+Un riel izquierdo muestra todos los proyectos registrados más accesos directos a los módulos (Voces, Desktop,
+Deck, Code). Debajo del riel hay un botón **Roby** que abre una hoja flotante de chat
+conectada al super-agente.
+
+![Riel izquierdo — lista de proyectos más accesos directos a módulos](../../../../assets/shots/10-project-overview.png)
+
+## Workspace de proyecto
+
+Abrir un proyecto te lleva a su **Resumen** con conteos en vivo y enlaces rápidos a
+cada pestaña. Cada pestaña de abajo mapea a un namespace de la API del daemon.
+
+### Chat
+
+La pestaña **Chat** habla con el super-agente (Roby) y con cada agente del proyecto. Cada
+hilo es una sesión en vivo, en memoria, que podés iniciar, buscar y de la que podés ramificar.
+
+![Pestaña Chat — hilos del super-agente y por agente](../../../../assets/shots/11-chat.png)
+
+### Tasks
+
+La pestaña **Tasks** es el backlog del proyecto. Las tareas llevan un id, título, tags, fecha
+de vencimiento y un agente asignado; se pueden crear desde la web, la CLI, Telegram,
+o por un agente mismo.
+
+![Pestaña Tasks — tareas abiertas con tags, fechas de vencimiento y agentes asignados](../../../../assets/shots/14-tasks.png)
+
+### Routines
+
+La pestaña **Routines** programa trabajo recurrente — un prompt del super-agente, un comando de
+shell, un mensaje de Telegram, o un heartbeat — en una expresión cron.
+
+![Pestaña Routines — rutinas programadas de super-agente, shell, Telegram y heartbeat](../../../../assets/shots/15-routines.png)
+
+### MCPs
+
+La pestaña **MCPs** lista los servidores Model Context Protocol disponibles para el
+proyecto en los tres scopes (shared, runtime, global), con un panel de logs en vivo.
+
+![Servidores MCP — filesystem, GitHub, Postgres y un servidor HTTP a través de los scopes](../../../../assets/shots/16-mcps.png)
+
+### Memories
+
+La pestaña **Memories** edita el `.apc/memory.md` del proyecto y la memoria de runtime
+de cada agente, el contexto de larga vida que los agentes leen en cada turno.
+
+![Pestaña Memories — el editor del memory.md del proyecto](../../../../assets/shots/17-memories.png)
+
+### Config
+
+La pestaña **Config** muestra la configuración efectiva del proyecto fusionada desde los
+archivos `.apc/` del proyecto y los defaults globales.
+
+![Pestaña Config — configuración efectiva del proyecto y sus fuentes](../../../../assets/shots/18-config.png)
+
+## Módulos del riel
+
+### Projects
+
+La pestaña Projects (Base → Workspaces) lista todos los proyectos registrados como tarjetas.
+Hacé clic en una tarjeta para entrar a ese proyecto. El botón "New project" abre un diálogo
+inline (`?action=add-project`).
+
+![Pestaña Workspaces — tarjetas de proyecto con nombre, tipo y ruta](../../../../assets/shots/02-workspaces.png)
+
+### Agents
+
+Cada proyecto tiene una pestaña Agents. Podés crear, editar y eliminar agentes; ver
+y editar el `memory.md` de cada agente; y asignar skills. En el espacio Base la
+pestaña Agents muestra la configuración del super-agente (resumen de solo lectura).
+
+![Pestaña Agents — lista de agentes con conteos de memoria y skills](../../../../assets/shots/12-agents.png)
+
+Abrí un agente para inspeccionar su memoria, skills, herramientas, sub-agentes y grafo cerebral.
+
+![Detalle de agente — pestañas de memoria, skills, sub-agentes y el grafo cerebral](../../../../assets/shots/13-agent-detail.png)
+
+### Voices
+
+El módulo Voices (`/m/voice`) configura TTS y STT globalmente. Muestra el
+estado en vivo de cada motor TTS configurado (Piper, ElevenLabs, OpenAI, Gemini,
+mock), te deja elegir un default o un modo de cadena-con-fallback, reordenar la cadena,
+configurar credenciales por motor y correr una reproducción de prueba en vivo. La sección STT
+configura el modelo y el idioma de Whisper para la entrada de micrófono.
+
+Mirá [Voz](/apx/docs/es/surfaces/voice/) para la referencia completa de la CLI.
+
+![Módulo Voices — lista de proveedores TTS con badges de estado y selector de default](../../../../assets/shots/30-voice.png)
+
+### Desktop
+
+El módulo Desktop (`/m/desktop`) muestra si la ventana flotante de Electron está
+corriendo (clientes WebSocket conectados), te deja editar el atajo global y
+alternar si el daemon responde a los mensajes de desktop. No podés iniciar ni detener
+el proceso de Electron desde el panel web — usá `apx desktop start / stop`.
+
+Mirá [Desktop](/apx/docs/es/surfaces/desktop/) para la referencia completa de la CLI.
+
+### Deck <Badge text="Vista previa" variant="caution" />
+
+El módulo Deck (`/m/deck`) expondrá el payload de `GET /deck/manifest`: salud del daemon,
+proyecto activo, plugins registrados y la grilla de widgets/desktop, y te dejará
+habilitar o deshabilitar widgets individuales desde esta vista.
+
+Mirá [Deck](/apx/docs/es/surfaces/deck/) para la referencia de la CLI de vinculación.
+
+<Aside type="note">
+  La superficie de administración de Deck es una **demo por ahora** — la vista del manifiesto y la grilla
+  de widgets están por llegar. La CLI de vinculación (`apx deck …`) ya es funcional hoy.
+</Aside>
+
+### Code
+
+El módulo Code (`/m/code`) es la superficie de administración del asistente de codificación de APX
+(`apx code`). Te deja elegir un proyecto e inspeccionar el rastro de herramientas de sesiones
+recientes.
+
+### Config
+
+La configuración global vive bajo **Settings** (`/settings/*`). Sub-secciones:
+
+| Ruta | Qué edita |
+|---|---|
+| `/settings/identity` | Nombre del asistente, persona |
+| `/settings/appearance` | Tema (claro/oscuro) |
+| `/settings/super-agent` | Modelo del super-agente, system prompt, canales |
+| `/settings/engines` | Proveedores de modelos (agregar, editar, alternar) |
+| `/settings/telegram` | Token del bot de Telegram y canales |
+| `/settings/devices` | Lista de dispositivos vinculados |
+| `/settings/advanced` | Editor crudo de `~/.apx/config.json` |
+
+![Settings — panel de proveedores de modelos](../../../../assets/shots/21-settings-engines.png)
+
+El panel **Super-agent** define el modo de permisos de Roby, su personalidad y su system
+prompt; el modelo activo y la cadena de fallback se configuran en el router de modelos.
+
+![Settings — comportamiento del super-agente, modo de permisos y system prompt](../../../../assets/shots/20-settings-super-agent.png)
+
+El panel **Telegram** gestiona los canales del bot, los contactos y los permisos de herramientas
+por rol.
+
+![Settings — canales, contactos y roles de Telegram](../../../../assets/shots/22-settings-telegram.png)
+
+El panel **Devices** lista cada navegador o teléfono vinculado y te deja revocar un
+token.
+
+![Settings — dispositivos vinculados con última conexión y revocación](../../../../assets/shots/23-settings-devices.png)
+
+## Arquitectura
+
+El panel es un cliente liviano: no tiene estado local más allá de la sesión actual.
+Cada lectura es un GET contra la API HTTP del daemon; cada escritura es un PATCH o
+POST. El daemon es la única fuente de verdad.
+
+```text
+Browser  →  GET/POST  →  http://127.0.0.1:7430/<route>
+                              ↓
+                         APX daemon (host/daemon/)
+                              ↓
+                         core/ (logic, memory, agents…)
+```
+
+El bundle web es servido por `src/host/daemon/api/web.js`. Las rutas de la API siempre
+tienen prioridad sobre el catch-all de la SPA, así que una petición a `/projects/1/agents` pega
+en el endpoint real, no en `index.html`.
+
+## Próximos pasos
+
+- [Desktop](/apx/docs/es/surfaces/desktop/) — la ventana flotante de Electron
+- [Voz](/apx/docs/es/surfaces/voice/) — CLI y proveedores de TTS/STT
+- [Deck](/apx/docs/es/surfaces/deck/) — vinculación de la app companion

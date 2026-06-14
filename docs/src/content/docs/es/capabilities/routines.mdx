@@ -1,0 +1,212 @@
+---
+title: Rutinas
+description: Rutinas APX programadas — tipos, gramática de programación, pipeline pre/post y todos los subcomandos de la CLI.
+sidebar:
+  order: 3
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import Screenshot from '../../../../components/Screenshot.astro';
+import Terminal from '../../../../components/Terminal.astro';
+
+Una **rutina** es una tarea APX programada. El daemon corre un tick del scheduler cada 5 segundos y dispara
+cualquier rutina que esté vencida. Cada rutina tiene un `kind`, un `schedule`, un blob JSON `spec` opcional,
+y arrays de hooks de shell opcionales (`pre_commands` / `post_commands`).
+
+## Tipos
+
+| Tipo | ¿LLM? | ¿Herramientas? | Descripción |
+|---|---|---|---|
+| `heartbeat` | No | — | Registra un marcador. Útil como ping de "sigo vivo". |
+| `shell` | No | — | Corre un comando de shell. Captura el stdout. |
+| `exec_agent` | Sí | Ninguna | Carga el prompt de un agente del proyecto, envía `spec.prompt`, devuelve texto plano. Una sola llamada. |
+| `super_agent` | Sí | Todas | Corre el agente APX por defecto con el registro completo de herramientas. Bucle multi-iteración. |
+| `telegram` | No | — | Envía un `spec.text` fijo vía el plugin de Telegram. |
+
+**Regla general para elegir:**
+
+- ¿Necesitás texto de un modelo, sin llamadas a herramientas? → `exec_agent`.
+- ¿Necesitás orquestación (escribir archivos, llamar MCPs, crear tareas, enviar Telegram dinámico)? → `super_agent`.
+- ¿Shell puro sin LLM? → `shell`.
+- ¿Mensaje fijo de Telegram en un horario? → `telegram`.
+
+## Gramática de programación
+
+| Formato | Ejemplos | Notas |
+|---|---|---|
+| `every:<N><unit>` | `every:30s`, `every:5m`, `every:24h`, `every:7d` | El más común. |
+| `once:<iso-8601>` | `once:2026-12-01T08:00:00Z` | Dispara una vez, después se deshabilita solo. |
+| Expresión cron | `*/5 * * * *`, `0 8 * * *` | Cron estándar de 5 campos. |
+
+## `apx routine add`
+
+```bash
+apx routine add <name> \
+  --kind <kind> \
+  --schedule <schedule> \
+  [--spec '<json>'] \
+  [--pre-commands 'cmd1,cmd2'] \
+  [--post-commands 'cmd'] \
+  [--skip-prompt-on signal|pre_failure|pre_success|always|never] \
+  [--permission-mode total|automatico|permiso] \
+  [--allowed-tools tool1,tool2] \
+  [--project <name|id|path>]
+```
+
+<Aside type="caution">
+  Pasá siempre `--project`. Sin eso la rutina cae en el workspace scratch por defecto (id=0),
+  no en tu proyecto real.
+</Aside>
+
+### `--spec`
+
+Configuración JSON específica del tipo:
+
+| Tipo | Claves de spec requeridas | Opcionales |
+|---|---|---|
+| `exec_agent` | `prompt` | `agent` (slug, por defecto `default`) |
+| `super_agent` | `prompt` | — |
+| `shell` | `cmd` | — |
+| `telegram` | `text` | — |
+| `heartbeat` | _(ninguna)_ | — |
+
+### `--pre-commands` y `--post-commands`
+
+Comandos de shell separados por comas. Forman un pipeline alrededor de la llamada al LLM:
+
+<Steps>
+
+1. **`pre_commands`** corren secuencialmente. Su stdout combinado queda disponible como:
+   - `{{pre_output}}` — sustituido en `spec.prompt` antes de la llamada al LLM.
+   - `$APX_PRE_OUTPUT` — variable de entorno para `post_commands`.
+   - `$APX_PRE_OUTPUT_FILE` — ruta a un archivo temporal con la salida completa (para payloads grandes).
+
+2. Corre el **handler del tipo**. Su resultado de texto se expone como `$APX_LLM_OUTPUT`.
+
+3. **`post_commands`** corren secuencialmente con `$APX_LLM_OUTPUT`, `$APX_PRE_OUTPUT`, y
+   `$APX_STATUS` en el entorno.
+
+</Steps>
+
+### `--skip-prompt-on`
+
+Controla qué pasa cuando `pre_commands` sale con código distinto de cero:
+
+| Valor | Comportamiento |
+|---|---|
+| `signal` _(por defecto)_ | Saltea el LLM solo en SIGINT/SIGTERM; una salida distinta de cero igual corre el LLM. |
+| `pre_failure` | Saltea LLM + post en cualquier salida distinta de cero. |
+| `pre_success` | Saltea LLM + post salvo que cada comando pre salga 0. Mismo efecto que `pre_failure` en la mayoría de los casos. |
+| `always` | Siempre saltea el LLM — útil para pipelines pre→post puros. |
+| `never` | Siempre corre el LLM, incluso si los comandos pre crashean. |
+
+### `--permission-mode`
+
+Sobreescribe el `super_agent.permission_mode` global para esta rutina:
+`total` | `automatico` | `permiso`.
+
+## Otros subcomandos
+
+```bash
+apx routine list [--project <name|id|path>]
+apx routine get  <name> [--project <name|id|path>]
+apx routine history <name> [--project <name|id|path>]
+apx routine run  <name> [--project <name|id|path>]    # forzar disparo ahora
+apx routine enable  <name> [--project <name|id|path>]
+apx routine disable <name> [--project <name|id|path>]
+apx routine remove  <name> [--project <name|id|path>]
+```
+
+<Terminal command="apx routine list --project myapp" caption="apx routine list — nombre, tipo, programación, habilitada, próxima ejecución, última ejecución">
+{`project #2 routines:
+NAME                EN KIND        SCHEDULE         NEXT_RUN              LAST
+morning-standup     ✓  exec_agent  every:1h          2026-06-14 10:00:00   ✓ 2026-06-14 09:00:02
+daily-weather       ✓  telegram    once:08:00        2026-06-15 08:00:00   ✓ 2026-06-14 08:00:01
+healthcheck         ✓  heartbeat   every:5m          2026-06-14 09:35:00   ✓ 2026-06-14 09:30:00
+nightly-backup      ✗  shell       once:02:00        —                     ✗ 2026-06-13 02:00:04`}
+</Terminal>
+
+## Ejemplos
+
+### Texto plano + entrega por Telegram
+
+```bash
+apx routine add daily-weather \
+  --project myapp \
+  --kind exec_agent \
+  --schedule "every:24h" \
+  --spec '{"agent":"default","prompt":"El clima es {{pre_output}}. Una frase amigable, sin saludos."}' \
+  --pre-commands "curl -s 'https://wttr.in/London?format=%t+%C+viento+%w'" \
+  --post-commands 'apx telegram send "$APX_LLM_OUTPUT"'
+```
+
+### Super-agente con herramientas, horario de mañana
+
+```bash
+apx routine add morning-standup \
+  --project myapp \
+  --kind super_agent \
+  --schedule "0 9 * * *" \
+  --spec '{"prompt":"List open tasks across projects and send me a short summary via Telegram."}' \
+  --permission-mode automatico
+```
+
+### Shell puro, sin LLM
+
+```bash
+apx routine add db-backup \
+  --project myapp \
+  --kind shell \
+  --schedule "every:24h" \
+  --spec '{"cmd":"pg_dump mydb > /backups/mydb-$(date +%F).sql"}'
+```
+
+### Ejecución única a futuro
+
+```bash
+apx routine add deploy-prod \
+  --project myapp \
+  --kind super_agent \
+  --schedule "once:2026-07-01T10:00:00Z" \
+  --spec '{"prompt":"Run the production deploy checklist and report status."}'
+```
+
+## El gotcha de la doble respuesta
+
+<Aside type="caution">
+  Cuando usás el tipo `super_agent` con un `post_commands` que llama a `apx telegram send`,
+  se envían **dos** mensajes de Telegram: uno desde la propia llamada a la herramienta `send_telegram` del agente, otro
+  desde `post_commands`. El runner auto-suprime `send_telegram` cuando detecta
+  `apx telegram send` en `post_commands`, pero el arreglo limpio es usar `exec_agent` en su lugar:
+  el modelo escribe la prosa, `post_commands` la envía. Un solo mensaje.
+</Aside>
+
+```bash
+# ✗ Frágil — depende de la heurística de supresión
+--kind super_agent \
+--spec '{"prompt":"El clima es {{pre_output}}. Mandalo por Telegram."}' \
+--post-commands 'apx telegram send "$APX_LLM_OUTPUT"'
+
+# ✓ Limpio — el modelo escribe el texto, la shell lo entrega
+--kind exec_agent \
+--spec '{"prompt":"El clima es {{pre_output}}. Una frase amigable, sin saludos."}' \
+--post-commands 'apx telegram send "$APX_LLM_OUTPUT"'
+```
+
+## Debugging
+
+```bash
+apx routine history <name> --project myapp   # últimas N ejecuciones con estado y salida
+apx log -f                                   # seguir el log unificado del daemon
+apx messages tail --channel routine -n 20    # últimos 20 mensajes del canal routine
+```
+
+Una rutina que "no envía nada" lo más frecuente es que signifique: `enabled: false`, `next_run_at` está en el
+futuro, o el LLM devolvió texto vacío. Revisá `apx routine history` primero — el campo `result.text`
+muestra exactamente lo que produjo el modelo.
+
+## Siguiente
+
+- [Tareas](/apx/docs/es/capabilities/tasks/) — lista de TODO por proyecto que las rutinas pueden leer y escribir.
+- [Super-agente](/apx/docs/es/capabilities/super-agent/) — el modo bajo el cual corren las rutinas `super_agent`.
+- [Configuración](/apx/docs/es/concepts/configuration/) — fallback de modelo global y configuración de permisos.

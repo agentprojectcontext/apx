@@ -1,0 +1,189 @@
+---
+title: Agentes
+description: Definiciones de agentes en .apc/agents/, cómo se autogenera AGENTS.md, y los comandos para crear, listar e importar agentes.
+sidebar:
+  order: 2
+---
+
+import { Aside, FileTree } from '@astrojs/starlight/components';
+import Screenshot from '../../../../components/Screenshot.astro';
+import Terminal from '../../../../components/Terminal.astro';
+
+Un **agente** es una persona con nombre que vive dentro de un proyecto APC. Tiene un nombre, una descripción, un
+override opcional de modelo, una preferencia de idioma y un conjunto opcional de skills. Su definición
+canónica es un único archivo Markdown en `.apc/agents/<slug>.md`.
+
+## El archivo de definición del agente
+
+```markdown
+---
+name: reviewer
+model: inherit
+description: Reviews PRs and pushes back on hand-wavy diffs.
+role: Code reviewer
+language: es
+tools: read,write,run
+skills: code-review,git
+color: indigo
+emoji: 🔍
+vibe: Concrete feedback, no hand-waving.
+---
+```
+
+`name` y `description` son obligatorios. Usá `model: inherit` salvo que el proyecto realmente requiera un
+modelo específico — esto le permite a cada runtime (Codex, Claude Code, Cursor, APX) aplicar su propio
+default configurado.
+
+<FileTree>
+- .apc/
+  - agents/
+    - reviewer.md           definición del agente
+</FileTree>
+
+Los datos de runtime del agente son locales y no se commitean:
+
+```text
+~/.apx/projects/<project_id>/agents/reviewer/memory.md
+```
+
+<Aside type="note">
+  `AGENTS.md` en la raíz del repo se **autogenera** con `apx agent add` y `apx agent remove`.
+  No lo edites a mano — tus cambios se van a sobrescribir en la próxima escritura de `apx agent`.
+  Su propósito es el descubrimiento: herramientas como Codex, Claude Code y otros runtimes compatibles con APC lo leen
+  para saber qué agentes existen en un proyecto.
+</Aside>
+
+## Campos obligatorios y opcionales
+
+| Campo | Obligatorio | Propósito |
+|---|---:|---|
+| `name` | Sí | Slug estable del agente usado en comandos y nombre de archivo |
+| `model` | Sí | Usá `inherit` salvo que el proyecto realmente requiera un modelo específico |
+| `description` | Sí | Disparador semántico de activación y resumen de responsabilidad |
+| `role` | No | Título legible mostrado en prompts y listados |
+| `language` | No | Preferencia de idioma de las respuestas (p. ej. `es`, `en`) |
+| `tools` | No | Permisos de herramientas separados por coma |
+| `skills` | No | Skills de APC que el agente suele usar |
+| `is_background` | No | Si los runtimes compatibles pueden correr el agente de forma asíncrona |
+| `color`, `emoji`, `vibe` | No | Pistas de UI y personalidad para los runtimes que las soportan |
+
+APC no debería atar el modelo de un proveedor como default. Usá `inherit` y dejá que cada runtime (Codex,
+Claude Code, Cursor, APX) aplique su default configurado. Un `provider:model-id` específico sólo es
+apropiado cuando es una parte explícita del contrato del proyecto.
+
+## Comandos
+
+### Listar agentes
+
+```bash
+apx agent list                       # agents in the current directory's project
+apx agent list --project my-app      # agents in a named project
+```
+
+<Terminal command="apx agent list" caption="apx agent list — slug, rol y modelo de cada agente del proyecto">
+{`  orchestrator   super-agent (Roby)   inherit
+  frontend       UI engineer          inherit
+  backend        API engineer         inherit
+  researcher     web researcher       openai:gpt-4o
+  sofia          backend reviewer     ollama:llama3.2:3b`}
+</Terminal>
+
+### Agregar un agente
+
+```bash
+apx agent add reviewer \
+  --description "Reviews PRs and pushes back on hand-wavy diffs." \
+  --role "Code reviewer" \
+  --model inherit \
+  --language es \
+  --tools read,write,run \
+  --skills code-review,git
+```
+
+Esto escribe `.apc/agents/reviewer.md` y regenera `AGENTS.md`.
+
+### Inspeccionar un agente
+
+```bash
+apx agent get reviewer              # full definition + memory excerpt
+apx agent show reviewer             # alias
+```
+
+### Importar desde el vault
+
+El **vault** es una biblioteca global de plantillas de agentes reutilizables que se guarda en `~/.apx/agents/`. APX trae
+defaults incluidos (un asistente de código `cody`, un escritor `doc`, etc.); podés agregar los tuyos.
+
+```bash
+apx agent vault list                 # see bundled defaults + your overrides
+apx agent import cody                # register the vault template in this project
+apx agent import cody --copy         # copy the .md into .apc/agents/ for local edits
+apx agent import cody --force        # overwrite an existing local definition
+```
+
+Gestión del vault:
+
+```bash
+apx agent vault add <slug>           # create a new template in ~/.apx/agents/
+apx agent vault rm <slug>            # hide a bundled default (tombstone)
+apx agent vault restore <slug>       # un-hide a tombstoned bundled default
+```
+
+## Override de modelo por agente
+
+El valor recomendado es `model: inherit` — el agente usa el modelo que el runtime tenga
+configurado como default. Configurá un `provider:model-id` específico sólo cuando el contrato del proyecto
+lo requiera explícitamente:
+
+```markdown
+---
+name: reviewer
+model: inherit
+---
+```
+
+```markdown
+---
+name: cheap-summarizer
+model: ollama:llama3.2:3b
+---
+```
+
+Cualquier string `provider:model-id` que soporten tus engines configurados funciona acá — por ejemplo
+`openai:gpt-4o` u `ollama:llama3.2:3b`.
+
+<Aside type="caution">
+  Asegurate de que el proveedor que indiques tenga una API key configurada en `~/.apx/config.json`. Un agente
+  con `model: openai:gpt-4o` va a fallar en la primera llamada si `engines.openai.api_key` está vacío.
+</Aside>
+
+## Cómo se construye el system prompt
+
+Cuando llamás a `apx exec <slug>` o un agente corre dentro de una rutina, APX compone el system prompt
+en este orden:
+
+1. Bloque de identidad — `You are <slug>` + nombre del proyecto
+2. Descripción desde `AGENTS.md`
+3. Campos de rol e idioma
+4. Canal de invocación — `engine | telegram | routine | runtime`
+5. Memoria desde `~/.apx/projects/<project_id>/agents/<slug>/memory.md` (si existe)
+6. Skills declarados en el campo `skills:` del agente
+7. La meta-skill `apx`
+8. Footer fijo de disciplina de acción
+
+## Agentes vs. el super-agente
+
+| Aspecto | Super-agente (APX en sí) | Agente del proyecto |
+|---|---|---|
+| ¿Tiene herramientas? | Sí — registro completo de herramientas | No — sólo texto de entrada / texto de salida |
+| Loop de ejecución | Loop de herramientas multi-iteración | Una única llamada al LLM |
+| System prompt | `super-agent-base.md` + plantilla de canal + identidad | Construido por agente como arriba |
+| Configurado vía | `super_agent.*` en la config | `.apc/agents/<slug>.md` |
+
+Ante la duda: el super-agente es APX en sí; los agentes del proyecto son personas especializadas que vos definís.
+
+## Próximo
+
+- [Memoria](/apx/docs/es/concepts/memory/) — curar hechos durables para un agente.
+- [Sesiones](/apx/docs/es/concepts/sessions/) — cómo se rastrean las invocaciones de los agentes.
+- [Vault de agentes](/apx/docs/es/capabilities/agent-vault/) — análisis profundo de las plantillas incluidas.

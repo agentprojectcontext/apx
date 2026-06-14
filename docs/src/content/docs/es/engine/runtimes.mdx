@@ -1,0 +1,194 @@
+---
+title: Runtimes
+description: Delegá tareas de agentes a CLIs de codificación externos — Claude Code, Codex, OpenCode, Aider, Cursor Agent, Gemini CLI y Qwen Code — vía apx run.
+sidebar:
+  order: 1
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import Screenshot from '../../../../components/Screenshot.astro';
+import Terminal from '../../../../components/Terminal.astro';
+
+Un **runtime** es un CLI de codificación con IA externo que APX puede invocar sin interfaz (headless) en nombre de un agente.
+Usás `apx run` para delegar un prompt a una de estas herramientas; APX construye el system prompt, lanza
+el CLI, captura su salida y almacena un registro de sesión. La herramienta externa maneja la interacción real
+con el modelo, las ediciones de archivos y los comandos de shell — APX registra el envoltorio.
+
+Esto es distinto de `apx exec`, que llama a un motor LLM directamente dentro de APX sin lanzar
+ningún proceso externo. Mirá [Motores](/apx/docs/es/engine/engines/) para ese camino.
+
+## Runtimes soportados
+
+| ID del runtime | Binario | Qué lanza APX |
+|------------|--------|-----------------|
+| `claude-code` | `claude` | Modo headless `-p`; recibe el system prompt del agente vía `--append-system-prompt`; devuelve JSON estructurado que incluye un `session_id` que enlaza al transcript de Claude Code |
+| `codex` | `codex` | `codex exec --sandbox workspace-write --skip-git-repo-check`; el system prompt se antepone al prompt del usuario (sin flag `--system` dedicado en modo exec) |
+| `opencode` | `opencode` | `opencode run`; system prompt antepuesto al cuerpo del prompt |
+| `aider` | `aider` | `aider --message --yes-always --no-auto-commits`; no interactivo, sin auto-commits |
+| `cursor-agent` | `cursor-agent` | `--print --output-format text --trust --force`; modo print headless |
+| `gemini-cli` | `gemini` | `--prompt --output-format text --approval-mode yolo`; modo prompt headless |
+| `qwen-code` | `qwen` | `--output-format text --approval-mode yolo`; system prompt vía `--append-system-prompt` |
+
+<Aside type="note">
+  APX pasa el system prompt del agente y el prompt del usuario. **No** selecciona ni sobrescribe el
+  modelo dentro del CLI externo — la propia configuración del CLI (p. ej. los defaults de `CLAUDE.md` para Claude
+  Code, o el archivo de config de Codex) controla eso.
+</Aside>
+
+## Comprobar qué está instalado
+
+Antes de elegir un runtime, confirmá qué CLIs están disponibles en la máquina actual:
+
+```bash
+apx env detect
+```
+
+<Terminal command="apx env detect" caption="apx env detect — muestra runtimes instalados, ejecutores de LLM locales y herramientas">
+{`RUNTIME:
+  ✓ claude-code    claude         1.0.44
+  ✓ codex          codex          0.12.3
+  ✓ opencode       opencode       0.3.1
+  · aider          aider          (not found)
+  · cursor-agent   cursor-agent   (not found)
+  ✓ gemini-cli     gemini         0.2.0
+
+ENGINE:
+  ✓ ollama         ollama         0.5.4
+
+TOOL:
+  ✓ git            git            2.45.2
+  ✓ rg             rg             14.1.0`}
+</Terminal>
+
+La salida agrupa los resultados por categoría: `runtime`, `engine` y `tool`. Un runtime ausente de
+la lista no está instalado — instalá su binario primero, después volvé a ejecutar `apx env detect`.
+
+## Ejecutar un agente
+
+```bash
+apx run <agent> --runtime <id> "<prompt>" [--timeout <seconds>] [--project <name|id|path>]
+```
+
+**Ejemplos:**
+
+```bash
+# Revisión de código completa vía Claude Code
+apx run reviewer --runtime claude-code "Review the diff in src/ for memory leaks"
+
+# Tarea de refactorización vía Codex con un timeout más largo
+apx run cody --runtime codex "Refactor parseAgentsMd to use a state machine" --timeout 600
+
+# One-liner con OpenCode
+apx run sofia --runtime opencode "Add JSDoc to every exported function in lib/"
+```
+
+<Terminal command="apx run reviewer --runtime claude-code 'Review this diff'" caption="apx run en progreso — sesión externa de Claude Code con system prompt inyectado">
+{`• inyectando el system prompt de reviewer en claude-code
+• project: Acme Store (#2)   cwd: ~/code/acme-store
+
+I reviewed the diff. Three findings:
+  1. cart.js:42 — total is recomputed inside the render loop; hoist it.
+  2. checkout.js:88 — Stripe webhook signature is never verified.
+  3. tests are missing for the empty-cart path.
+
+I'd block the merge on #2 until the signature check lands.
+
+# claude-code | exit 0 | session: ~/.claude/projects/...../a1f3c92e.jsonl`}
+</Terminal>
+
+### Opciones
+
+| Flag | Descripción |
+|------|-------------|
+| `--runtime <id>` | Obligatorio. Uno de los IDs de runtime de la tabla de arriba |
+| `--timeout <seconds>` | Tiempo de reloj máximo antes de que APX mate el subproceso |
+| `--project <name\|id\|path>` | Fija a un proyecto específico; por defecto el directorio actual |
+
+## Cómo APX inyecta el system prompt
+
+Cuando ejecutás `apx run`, APX:
+
+<Steps>
+
+1. Lee la definición del agente desde `.apc/agents/<slug>.md` más la memoria de runtime desde
+   `~/.apx/projects/<apx_id>/agents/<slug>/memory.md` y cualquier skill cargada para construir el
+   system prompt completo.
+
+2. Llama a `buildAgentSystem({ invocation: "runtime", runtime: "<id>" })` — el mismo builder usado por
+   `apx exec` y `apx chat`, pero con la etiqueta de invocación `runtime` para que los prompts puedan ramificarse.
+
+3. Pasa el resultado al mecanismo de inyección de system prompt del CLI (p. ej.
+   `--append-system-prompt` para `claude-code` y `qwen-code`, o antepuesto al cuerpo del prompt
+   para los runtimes que carecen de un flag dedicado).
+
+4. Captura stdout. Si la salida incluye una línea que empieza con `APC_RESULT:`, ese valor se
+   almacena como el campo de resultado estructurado de la sesión.
+
+5. Escribe un archivo de sesión en
+   `~/.apx/projects/<apx-id>/agents/<slug>/sessions/<date>-<runtime>-<id>.md` con un enlace en el frontmatter
+   de vuelta al propio path del transcript de la herramienta externa (cuando el runtime lo provee).
+
+</Steps>
+
+## Registros de sesión y reanudación
+
+Después de que `apx run` termina, APX crea un registro de sesión:
+
+```yaml
+# ~/.apx/projects/<apx-id>/agents/reviewer/sessions/2026-05-27-claude-code-abc123.md
+---
+runtime: claude-code
+session_id: abc123
+external_session_path: /Users/me/.claude/projects/<encoded-cwd>/abc123.jsonl
+---
+```
+
+El `external_session_path` apunta al propio transcript de la herramienta externa. Podés leerlo, resumirlo
+o continuarlo usando los comandos de sesión:
+
+```bash
+# Listar las sesiones de runtime recientes de un agente
+apx session list reviewer
+
+# Resumir lo que pasó en una sesión
+apx session resume <id> --summary
+
+# Leer el transcript en crudo
+apx session get <id> --full
+
+# Continuar la sesión en el CLI nativo de Claude Code
+apx session resume <id> --continue
+```
+
+## Resultados estructurados con APC_RESULT
+
+Si querés que APX capture un valor legible por máquina del runtime externo, instruí al modelo
+(vía el prompt) para que imprima en su última línea:
+
+```text
+APC_RESULT: <one-line value>
+```
+
+APX parsea esto y lo almacena como el campo `result` de la sesión, que otras rutinas o el
+super-agente pueden leer.
+
+## run vs. exec
+
+| | `apx run` | `apx exec` |
+|---|---|---|
+| **Qué se ejecuta** | CLI externo (claude, codex, …) | Llamada LLM directa dentro de APX |
+| **Ediciones de archivos / shell** | Sí — el CLI externo puede escribir archivos y ejecutar comandos | No — respuesta LLM de solo lectura |
+| **Elección de modelo** | Controlado por la propia config del CLI externo | Controlado por `--model` o el modelo configurado del agente |
+| **Transcript de sesión** | Almacenado tanto en APX como en el propio path de la herramienta externa | Almacenado solo en las conversaciones de APX |
+| **Usalo cuando** | Necesitás capacidades completas de agente de código (ediciones, terminal) | Necesitás una respuesta rápida o una generación one-shot |
+
+<Aside type="caution">
+  `apx run` es siempre **headless** — el CLI externo se ejecuta de forma no interactiva. Para sesiones de
+  codificación interactivas, invocá el CLI directamente (p. ej. `claude` para Claude Code). Además, evitá prompts muy
+  grandes vía la línea de comandos; aplican los límites de argumentos del shell.
+</Aside>
+
+## Relacionado
+
+- [Motores](/apx/docs/es/engine/engines/) — llamadas LLM directas con `apx exec` y `apx chat`
+- [Configuración](/apx/docs/es/concepts/configuration/) — referencia de `~/.apx/config.json`
