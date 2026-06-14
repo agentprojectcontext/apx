@@ -71,4 +71,4 @@ Assembled by `buildSuperAgentSystem()` (`prompt-builder.js`), run by `runAgent()
 
 ## Agents (dogfood)
 
-apx registers itself as an APC project with demo agents in `.apc/agents/` (cody, doc, ops) to exercise multi-engine routing. Source of truth per agent is `.apc/agents/<slug>.md`; this root `AGENTS.md` is not regenerated from them.
+apx registers itself as an APC project to exercise multi-engine routing. Any project agents live in `.apc/agents/<slug>.md` (that dir is the source of truth); this root `AGENTS.md` is never regenerated from them.

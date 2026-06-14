@@ -37,3 +37,8 @@ opencode_ref/
 
 # QA artifacts — local only (raw logs may contain config dumps with secrets)
 qa/
+# Build artifacts (root) — compiled CLI/TUI, not shipped to npm
+/dist/
+
+# Internal planning docs — local only (ADRs, roadmap, PRDs, backlog)
+/spec/
