@@ -43,6 +43,8 @@ jobs:
           cp assets/logo.png            _site/assets/ 2>/dev/null || true
           cp assets/hero.png            _site/assets/ 2>/dev/null || true
           cp assets/preview-*.webm      _site/assets/ 2>/dev/null || true
+          # Favicons — same vibrant mark as the web admin (adaptive light/dark).
+          cp -R assets/favicon          _site/assets/ 2>/dev/null || true
 
       - uses: actions/configure-pages@v5
         with:
