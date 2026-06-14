@@ -1,8 +1,30 @@
 <p align="center">
-  <img src="assets/hero.png" alt="APX — Local Runtime for AI Agents" width="600">
+  <img src="assets/banner.svg" alt="APX — Agent Project eXecutable" width="820">
 </p>
 
-> The reference implementation of the [APC protocol](https://github.com/agentprojectcontext/agentprojectcontext).
+<p align="center">
+  <b>APX</b> &mdash; <b>A</b>gent <b>P</b>roject e<b>X</b>ecutable.<br>
+  A local runtime, CLI and web admin for AI agents, built on the
+  <a href="https://github.com/agentprojectcontext/agentprojectcontext">APC protocol</a>.
+</p>
+
+<p align="center">
+  <a href="https://agentprojectcontext.github.io/apx/"><img src="https://img.shields.io/badge/Website-agentprojectcontext.github.io-3fb950?style=flat-square&logo=googlechrome&logoColor=white" alt="Website"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-3fb950?style=flat-square" alt="License: MIT"></a>
+  <img src="https://img.shields.io/badge/Node.js-20%2B-3fb950?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node.js 20+">
+  <a href="https://github.com/agentprojectcontext/agentprojectcontext"><img src="https://img.shields.io/badge/Protocol-APC-3fb950?style=flat-square" alt="APC protocol"></a>
+</p>
+
+<p align="center">
+  <b><a href="https://agentprojectcontext.github.io/apx/">🌐 Visit the website</a></b> &nbsp;&middot;&nbsp;
+  <a href="#quick-start">Quick start</a> &middot;
+  <a href="#examples">Examples</a> &middot;
+  <a href="#web-admin">Web admin</a> &middot;
+  <a href="#use-cases">Use cases</a> &middot;
+  <a href="https://github.com/agentprojectcontext/agentprojectcontext">APC spec</a>
+</p>
+
+> APX is the reference implementation of the [APC protocol](https://github.com/agentprojectcontext/agentprojectcontext).
 > APX is to APC what a language SDK is to a protocol spec.
 
 ## What APX is
@@ -11,6 +33,7 @@ APX is a daemon + CLI that brings the APC convention to life:
 
 - **Daemon** — a local HTTP server that manages projects, agents, sessions, and message logs
 - **CLI** (`apx`) — commands for running agents, reading memory, tailing messages, managing sessions
+- **Web admin** — a local web UI served by the daemon to browse projects, agents, sessions, and MCPs from the browser
 - **Runtimes** — bridges to Claude Code, Codex, OpenCode, Aider
 - **Engines** — direct LLM calls via Anthropic, OpenAI, Gemini, Ollama, or a mock
 - **Plugins** — Telegram bot integration out of the box
@@ -21,9 +44,13 @@ APX is opinionated about storage: the filesystem is the source of truth. Project
 ## Quick start
 
 ```bash
+# 1 · Install
 npm install -g apx
 
-# In any directory with an AGENTS.md
+# 2 · Set up — interactive wizard (provider → model → channels → daemon)
+apx setup
+
+# In any directory with an AGENTS.md, register the project
 apx init
 
 # Spawn an agent with a full external runtime
@@ -36,6 +63,27 @@ apx exec sofia "What is my role in this project?"
 apx messages tail
 ```
 
+## Examples
+
+Real commands — copy one, point it at an agent like `sofia`, and APX routes it to the right
+runtime. The session and memory land in `.apc/`.
+
+| What | Command |
+|------|---------|
+| Register a project | `apx init` |
+| Spawn an agent (full runtime) | `apx run sofia --runtime claude-code "Review the open PRs and summarize them"` |
+| Ask a quick question (one-shot) | `apx exec sofia "What is my role in this project?"` |
+| Read an agent's memory | `apx memory sofia` |
+| Switch runtime, same context | `apx run sofia --runtime codex "Add tests for the parser"` |
+| Watch what's happening | `apx messages tail` |
+
+## Use cases
+
+- **Review PRs across any runtime** — point an agent at your repo; APX routes to Claude Code and falls back to Codex or OpenCode if one isn't installed. The session and its summary land in `.apc/`.
+- **Operate your agents from Telegram** — talk to project agents from your phone. Identity roles gate who can do what, and every message is logged per channel for a full audit trail.
+- **Memory that lives in your repo** — curated, per-agent memory is plain markdown, committed and reviewable alongside your code. No vendor database, no hidden state, no lock-in.
+- **Run the same prompt across engines** — send one prompt through Anthropic, OpenAI, Gemini or a local Ollama model with `apx exec`, configured per project or globally.
+
 ## Installation
 
 ```bash
@@ -43,6 +91,25 @@ npm install -g apx
 ```
 
 Requires Node.js 20+. The daemon starts automatically on first `apx` call.
+
+## Web admin
+
+APX ships a local **web admin** — the same runtime, in your browser. The daemon serves a
+single-page app so you can browse and manage everything the CLI does without leaving the UI:
+
+- **Projects & agents** — see registered projects, open agents, edit roles, models, and skills
+- **Sessions & messages** — read past sessions and tail live activity across every channel
+- **MCPs, engines & channels** — review MCP servers, configure engines, and manage Telegram/desktop
+
+It runs entirely on your machine. Start the daemon (any `apx` call does this) and open:
+
+```bash
+apx            # ensures the daemon is up
+open http://localhost:7430   # macOS — or just visit it in any browser
+```
+
+The web admin is served from `src/interfaces/web/dist` at the daemon port (`7430` by default,
+override with `APX_PORT`). Nothing is sent anywhere — it talks to the local daemon only.
 
 ## Project layout
 

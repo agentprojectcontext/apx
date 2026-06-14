@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="APX — a local runtime for AI agents. One portable context layer across any IDE or AI coding tool: route, orchestrate, and bridge Claude Code, Codex, OpenCode and more. Filesystem-first. No lock-in.">
-<meta property="og:title" content="APX — Local Runtime for AI Agents">
-<meta property="og:description" content="One context layer. Any AI coding tool. Your projects stay yours.">
+<meta name="description" content="APX — Agent Project eXecutable. A local runtime, CLI and web admin for AI agents: one portable project context across any IDE or coding tool. Route, orchestrate and bridge Claude Code, Codex, OpenCode and more. Filesystem-first. No lock-in.">
+<meta property="og:title" content="APX — Agent Project eXecutable">
+<meta property="og:description" content="A local runtime for AI agents. One context layer, any AI coding tool. Your projects stay yours.">
 <meta property="og:image" content="https://agentprojectcontext.github.io/apx/assets/hero.png">
 <meta property="og:url" content="https://agentprojectcontext.github.io/apx/">
 <meta name="twitter:card" content="summary_large_image">
-<title>APX — Local Runtime for AI Agents</title>
+<title>APX — Agent Project eXecutable · Local runtime for AI agents</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cg fill='%233fb950'%3E%3Cpath d='M16 2l4 4-4 4-4-4z'/%3E%3Cpath d='M30 16l-4 4-4-4 4-4z'/%3E%3Cpath d='M16 30l-4-4 4-4 4 4z'/%3E%3Cpath d='M2 16l4-4 4 4-4 4z'/%3E%3Ccircle cx='16' cy='16' r='3'/%3E%3C/g%3E%3C/svg%3E">
 <style>
   :root {
@@ -31,8 +31,9 @@
     --nav-h: 64px;            /* keep in sync with nav .wrap height */
   }
   * { box-sizing: border-box; }
-  html { scroll-behavior: smooth; scroll-padding-top: var(--nav-h); scroll-snap-type: y proximity; }
-  @media (prefers-reduced-motion: reduce) { html { scroll-snap-type: none; } }
+  /* Smooth anchor scrolling + sticky-nav offset. No scroll-snap — free scrolling, no magnetism. */
+  html { scroll-behavior: smooth; scroll-padding-top: var(--nav-h); }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
   body {
     margin: 0;
     background:
@@ -60,7 +61,6 @@
     min-height: calc(100vh - var(--nav-h));
     min-height: calc(100dvh - var(--nav-h));   /* mobile address-bar aware */
     display: flex; flex-direction: column; justify-content: center;
-    scroll-snap-align: start;
     position: relative;
   }
   /* Domino reveal — sections (not the hero) fade/slide up as they scroll in.
@@ -93,9 +93,10 @@
     border-bottom: 1px solid var(--border);
   }
   nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 64px; }
-  .brand { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 17px; letter-spacing: 0.3px; color: var(--heading); }
+  .brand { display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 17px; letter-spacing: 0.3px; color: var(--heading); cursor: pointer; transition: opacity .12s ease; }
+  .brand:hover { opacity: 0.82; }
   .brand img { width: 26px; height: 26px; flex-shrink: 0; }
-  .nav-links { display: flex; align-items: center; gap: 22px; }
+  .nav-links { display: flex; align-items: center; gap: 16px; }
   .nav-links a { color: var(--muted); font-size: 14px; font-weight: 500; }
   .nav-links a:hover { color: var(--fg); }
   .btn {
@@ -128,6 +129,11 @@
   .hamburger-menu a { color: var(--muted); padding: 8px 10px; border-radius: 6px; }
   .hamburger-menu a:hover { color: var(--fg); }
   .nav-links-hamburger.open .hamburger-menu { display: flex; }
+  /* Full section list is long — fall back to the hamburger before the row can crowd. */
+  @media (max-width: 1080px) {
+    .nav-links { display: none; }
+    .nav-links-hamburger { display: block; }
+  }
 
   /* Hero */
   /* Balanced vertical padding so flex-center actually centers the content. */
@@ -192,6 +198,69 @@
     0%   { box-shadow: 0 0 0 0 rgba(63,185,80,0.6); }
     70%  { box-shadow: 0 0 0 10px rgba(63,185,80,0); }
     100% { box-shadow: 0 0 0 0 rgba(63,185,80,0); }
+  }
+
+  /* Hero two-column split (cline-style): copy on the left, install card on the right. */
+  .hero { text-align: left; }
+  .hero-grid { display: grid; grid-template-columns: 1.06fr 0.94fr; gap: 48px; align-items: center; }
+  .hero-copy { min-width: 0; text-align: left; }
+  .hero-copy .hero-logo { justify-content: flex-start; }
+  .hero-copy .hero-cta { justify-content: flex-start; }
+  .hero-copy p.lede { margin: 0 0 24px; max-width: 560px; }
+  /* "Agent Project eXecutable" — spells out APX, capitals in green. */
+  .hero-acronym { margin: 10px 0 0; font-size: clamp(15px, 2vw, 19px); font-weight: 600; letter-spacing: 0.01em; color: var(--muted); }
+  .hero-acronym b { color: var(--accent2); font-weight: 800; }
+
+  /* Install card */
+  .hero-install { min-width: 0; }
+  .install-card {
+    position: relative; overflow: hidden;
+    background: linear-gradient(180deg, var(--panel), var(--bg2));
+    border: 1px solid var(--border); border-radius: 16px;
+    box-shadow: 0 30px 70px rgba(0,0,0,0.45), 0 0 50px rgba(63,185,80,0.08);
+    transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+  }
+  .install-card:hover { transform: translateY(-3px); border-color: var(--accent); box-shadow: 0 36px 80px rgba(0,0,0,0.5), 0 0 60px rgba(63,185,80,0.16); }
+  .install-card::before {
+    content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 0;
+    background: radial-gradient(120% 70% at 50% -10%, rgba(63,185,80,0.12), transparent 58%);
+  }
+  .ic-bar { position: relative; z-index: 1; display: flex; align-items: center; gap: 8px; padding: 11px 14px; border-bottom: 1px solid var(--border); background: #161b22; }
+  .ic-bar .dots { display: flex; gap: 7px; }
+  .ic-bar .dots i { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+  .ic-bar .dots .r { background: #ff5f57; } .ic-bar .dots .y { background: #febc2e; } .ic-bar .dots .g { background: #28c840; }
+  .ic-bar .ttl { margin-left: auto; color: var(--muted); font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .ic-body { position: relative; z-index: 1; padding: 22px 20px; }
+  .ic-step-label { margin: 0 0 9px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; letter-spacing: 0.03em; color: var(--muted); }
+  .ic-step-label b { color: var(--accent); font-weight: 700; }
+  .ic-cmd {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 14px 14px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: clamp(14px, 1.7vw, 16px); color: var(--fg);
+  }
+  .ic-cmd .pr { color: var(--accent2); font-weight: 700; }
+  .ic-cmd .cmd-txt { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ic-copy {
+    display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; cursor: pointer;
+    font-size: 12.5px; font-weight: 500; color: var(--muted); background: transparent; border: none;
+    border-radius: 7px; padding: 6px 8px; font-family: inherit; transition: color .12s ease, background .12s ease;
+  }
+  .ic-copy:hover { color: var(--accent); background: rgba(63,185,80,0.10); }
+  .ic-copy svg { width: 14px; height: 14px; }
+  .ic-divider { height: 1px; background: var(--border-soft); margin: 18px 0; }
+  .ic-hint { margin: 11px 0 0; font-size: 12.5px; color: var(--muted); line-height: 1.55; }
+  .ic-foot { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--border-soft); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .ic-foot .os { font-size: 12px; color: var(--muted); }
+  .ic-foot a { font-size: 13px; font-weight: 600; color: var(--accent); }
+  .ic-foot a:hover { color: var(--accent2); }
+
+  @media (max-width: 880px) {
+    .hero-grid { grid-template-columns: 1fr; gap: 30px; }
+    .hero-copy { text-align: center; }
+    .hero-copy .hero-logo { justify-content: center; }
+    .hero-copy .hero-cta { justify-content: center; }
+    .hero-copy p.lede { margin: 0 auto 24px; }
+    .hero-acronym { text-align: center; }
   }
 
   /* Sections */
@@ -280,6 +349,34 @@
   .feature p { margin: 0; color: var(--muted); font-size: 14px; }
   .feature code { color: var(--accent2); background: rgba(63,185,80,0.08); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; }
   .tag { font-size: 10.5px; font-weight: 700; color: var(--accent); border: 1px solid var(--border); border-radius: 999px; padding: 1px 7px; margin-left: 4px; vertical-align: middle; }
+
+  /* Examples — copyable agent commands */
+  .examples-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 38px; }
+  .ex-card {
+    background: var(--panel); border: 1px solid var(--border-soft); border-radius: var(--radius);
+    padding: 20px; display: flex; flex-direction: column; gap: 14px;
+    transition: border-color .14s ease, transform .14s ease;
+  }
+  .ex-card:hover { border-color: var(--accent); transform: translateY(-3px); }
+  .ex-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .ex-title h3 { margin: 0 0 3px; font-size: 15.5px; color: var(--heading); }
+  .ex-title p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+  .ex-copy {
+    display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; cursor: pointer;
+    font-size: 12px; font-weight: 500; color: var(--muted); background: transparent;
+    border: 1px solid var(--border-soft); border-radius: 7px; padding: 5px 9px; font-family: inherit;
+    transition: color .12s ease, background .12s ease, border-color .12s ease;
+  }
+  .ex-copy:hover { color: var(--accent); background: rgba(63,185,80,0.10); border-color: var(--border); }
+  .ex-copy svg { width: 13px; height: 13px; }
+  .ex-cmd {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 9px; padding: 12px 13px; margin-top: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; color: var(--fg);
+    line-height: 1.65; white-space: pre-wrap; word-break: break-word;
+  }
+  .ex-cmd .pr { color: var(--accent2); font-weight: 700; margin-right: 8px; }
+  .ex-cmd .hl { color: var(--accent); }
+  @media (max-width: 760px) { .examples-grid { grid-template-columns: 1fr; } }
 
   /* Previews — hover to expand */
   .previews { display: flex; align-items: center; gap: 10px; height: 460px; max-width: 1100px; margin: 36px auto 0; }
@@ -490,8 +587,9 @@
   .stage-track {
     position: relative; margin: 50px auto 0; max-width: 980px; padding: 0 8px;
   }
+  /* Rail connects the icon centres only (4 equal columns → centres at 12.5% and 87.5%). */
   .stage-rail {
-    position: absolute; left: 4%; right: 4%; top: 41px; height: 2px;
+    position: absolute; left: 12.5%; right: 12.5%; top: 40px; height: 2px;
     background: linear-gradient(90deg, rgba(63,185,80,0.18), rgba(63,185,80,0.45), rgba(63,185,80,0.18));
     border-radius: 2px; overflow: hidden;
   }
@@ -515,8 +613,10 @@
   .stage-icon {
     width: 82px; height: 82px; border-radius: 22px; margin: 0 auto 16px;
     display: flex; align-items: center; justify-content: center; color: var(--accent);
-    background: linear-gradient(135deg, rgba(63,185,80,0.18), rgba(63,185,80,0.04));
-    border: 1px solid var(--border); position: relative;
+    /* Opaque base so the connector rail stays hidden BEHIND the icon (visible only in the gaps). */
+    background-color: var(--bg);
+    background-image: linear-gradient(135deg, rgba(63,185,80,0.18), rgba(63,185,80,0.04));
+    border: 1px solid var(--border); position: relative; z-index: 1;
     transition: border-color .3s ease, box-shadow .3s ease, transform .3s ease;
   }
   .stage.on .stage-icon {
@@ -605,6 +705,28 @@
   footer .wrap { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
   footer a { color: var(--muted); } footer a:hover { color: var(--accent); }
 
+  /* Cookie consent — small, local, no third parties. Slides up once, remembers the choice. */
+  .cookie {
+    position: fixed; left: 16px; right: 16px; bottom: 16px; z-index: 80;
+    max-width: 720px; margin: 0 auto;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    background: rgba(13,17,23,0.96); border: 1px solid var(--border); border-radius: 14px;
+    padding: 14px 18px; box-shadow: 0 18px 50px rgba(0,0,0,0.5);
+    -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+    transform: translateY(180%); opacity: 0; pointer-events: none;
+    transition: transform .45s cubic-bezier(.2,.7,.2,1), opacity .3s ease;
+  }
+  .cookie.show { transform: none; opacity: 1; pointer-events: auto; }
+  @media (prefers-reduced-motion: reduce) { .cookie { transition: opacity .2s ease; } }
+  .cookie-txt { margin: 0; flex: 1 1 300px; font-size: 13px; color: var(--muted); line-height: 1.5; }
+  .cookie-txt b { color: var(--fg); font-weight: 600; }
+  .cookie-actions { display: flex; gap: 10px; flex-shrink: 0; }
+  .cookie .btn { padding: 8px 16px; font-size: 13px; }
+  @media (max-width: 520px) {
+    .cookie-actions { width: 100%; }
+    .cookie-actions .btn { flex: 1; justify-content: center; }
+  }
+
   @media (max-width: 820px) {
     .grid { grid-template-columns: repeat(2, 1fr); }
     .nav-links { display: none; }
@@ -628,14 +750,17 @@
 
   <nav>
     <div class="wrap">
-      <div class="brand">
+      <a class="brand" href="#top" aria-label="APX — back to top">
         <img src="assets/logo.png" alt="APX logo">
         APX
-      </div>
+      </a>
       <div class="nav-links">
         <a href="#how-it-works">How it works</a>
+        <a href="#examples">Examples</a>
         <a href="#features">Features</a>
+        <a href="#use-cases">Use cases</a>
         <a href="#channels">Channels</a>
+        <a href="#previews">Previews</a>
         <a href="#runtimes">APC</a>
         <a href="#start">Quick start</a>
         <a class="btn" href="https://github.com/agentprojectcontext/apx" target="_blank" rel="noopener">
@@ -649,8 +774,11 @@
         </button>
         <div class="hamburger-menu">
           <a href="#how-it-works">How it works</a>
+          <a href="#examples">Examples</a>
           <a href="#features">Features</a>
+          <a href="#use-cases">Use cases</a>
           <a href="#channels">Channels</a>
+          <a href="#previews">Previews</a>
           <a href="#runtimes">APC</a>
           <a href="#start">Quick start</a>
           <a class="btn" href="https://github.com/agentprojectcontext/apx" target="_blank" rel="noopener">GitHub</a>
@@ -660,28 +788,76 @@
   </nav>
 
   <!-- HERO -->
-  <header class="hero">
+  <header class="hero" id="top">
     <div class="wrap">
-      <div class="badge"><span class="dot"></span> Local runtime for AI agents</div>
-      <div class="hero-logo">
-        <img src="assets/logo.png" alt="APX">
-        <span class="wordmark">APX</span>
+      <div class="hero-grid">
+
+        <!-- LEFT: the pitch -->
+        <div class="hero-copy">
+          <div class="hero-logo">
+            <img src="assets/logo.png" alt="APX">
+            <span class="wordmark">APX</span>
+          </div>
+          <p class="hero-acronym"><b>A</b>gent <b>P</b>roject e<b>X</b>ecutable</p>
+          <h1>One context layer.<br><span class="grad">Any AI coding tool.</span></h1>
+          <p class="lede">
+            A local daemon, CLI and web admin that runs your AI agents against a single, portable
+            project context. Route to Claude Code, Codex, OpenCode or Aider &mdash; keep every
+            agent&rsquo;s memory and sessions in plain files. No database. No lock-in.
+          </p>
+          <div class="hero-cta">
+            <a class="btn primary" href="#start">Get started</a>
+            <a class="btn" href="https://github.com/agentprojectcontext/apx" target="_blank" rel="noopener">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5C5.7.5.5 5.7.5 12c0 5.1 3.3 9.4 7.9 10.9.6.1.8-.2.8-.6v-2c-3.2.7-3.9-1.5-3.9-1.5-.5-1.3-1.3-1.7-1.3-1.7-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.7 1.3 3.4 1 .1-.8.4-1.3.7-1.6-2.6-.3-5.3-1.3-5.3-5.7 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.7 18.3 5 18.3 5c.6 1.6.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3.1 0 4.4-2.7 5.4-5.3 5.7.4.4.8 1.1.8 2.2v3.3c0 .4.2.7.8.6 4.6-1.5 7.9-5.8 7.9-10.9C23.5 5.7 18.3.5 12 .5z"/></svg>
+              View on GitHub
+            </a>
+          </div>
+          <a class="apc-badge" href="https://github.com/agentprojectcontext/agentprojectcontext" target="_blank" rel="noopener">
+            <span class="dot-anim"></span>
+            Built on <b>APC</b> &mdash; the Agent Project Context protocol &rarr;
+          </a>
+        </div>
+
+        <!-- RIGHT: quick install card -->
+        <div class="hero-install">
+          <div class="install-card">
+            <div class="ic-bar">
+              <span class="dots"><i class="r"></i><i class="y"></i><i class="g"></i></span>
+              <span class="ttl">apx &mdash; terminal</span>
+            </div>
+            <div class="ic-body">
+              <p class="ic-step-label"><b># 1</b> &middot; Install</p>
+              <div class="ic-cmd">
+                <span class="pr">$</span>
+                <span class="cmd-txt">npm install -g apx</span>
+                <button class="copy ic-copy" type="button" data-copy="npm install -g apx" aria-label="Copy install command">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+                  <span class="copy-label">Copy</span>
+                </button>
+              </div>
+
+              <div class="ic-divider"></div>
+
+              <p class="ic-step-label"><b># 2</b> &middot; Set up</p>
+              <div class="ic-cmd">
+                <span class="pr">$</span>
+                <span class="cmd-txt">apx setup</span>
+                <button class="copy ic-copy" type="button" data-copy="apx setup" aria-label="Copy setup command">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+                  <span class="copy-label">Copy</span>
+                </button>
+              </div>
+              <p class="ic-hint">Interactive wizard &mdash; pick your provider, model and channels, then APX starts the local daemon.</p>
+
+              <div class="ic-foot">
+                <span class="os">Requires Node.js 20+ &middot; macOS &middot; Linux &middot; Windows</span>
+                <a href="#examples">See examples &rarr;</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
-      <p class="slogan">Discover · Orchestrate · Bridge</p>
-      <h1>One context layer.<br><span class="grad">Any AI coding tool.</span></h1>
-      <p class="lede">
-        APX is a local daemon + CLI that runs your AI agents against a single, portable project
-        context. Route to Claude Code, Codex, OpenCode or Aider, fall back automatically, and keep
-        every agent&rsquo;s memory and sessions in plain files. No database. No lock-in. Your projects stay yours.
-      </p>
-      <div class="hero-cta">
-        <a class="btn primary" href="#start">Get started</a>
-        <a class="btn" href="https://github.com/agentprojectcontext/apx" target="_blank" rel="noopener">View on GitHub</a>
-      </div>
-      <a class="apc-badge" href="https://github.com/agentprojectcontext/agentprojectcontext" target="_blank" rel="noopener">
-        <span class="dot-anim"></span>
-        Built on <b>APC</b> &mdash; the Agent Project Context protocol &rarr;
-      </a>
     </div>
   </header>
 
@@ -748,6 +924,87 @@
           <span class="sp"></span>
         </div>
         <pre id="term-pre"></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- EXAMPLES — copyable agent commands -->
+  <section id="examples">
+    <div class="wrap">
+      <div class="center">
+        <div class="eyebrow">Examples</div>
+        <h2 class="h">Talk to your agents</h2>
+        <p class="sub center">Real commands &mdash; copy one, point it at an agent like <code>sofia</code>, and APX
+          routes it to the right runtime. The session and memory land in <code>.apc/</code>.</p>
+      </div>
+      <div class="examples-grid">
+
+        <div class="ex-card">
+          <div class="ex-head">
+            <div class="ex-title"><h3>Register a project</h3><p>Detect <code>AGENTS.md</code> and write the <code>.apc/</code> context.</p></div>
+            <button class="copy ex-copy" type="button" data-copy="apx init" aria-label="Copy command">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+              <span class="copy-label">Copy</span>
+            </button>
+          </div>
+          <div class="ex-cmd"><span class="pr">$</span>apx init</div>
+        </div>
+
+        <div class="ex-card">
+          <div class="ex-head">
+            <div class="ex-title"><h3>Spawn an agent</h3><p>A full runtime session, routed and logged end to end.</p></div>
+            <button class="copy ex-copy" type="button" data-copy='apx run sofia --runtime claude-code "Review the open PRs and summarize them"' aria-label="Copy command">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+              <span class="copy-label">Copy</span>
+            </button>
+          </div>
+          <div class="ex-cmd"><span class="pr">$</span>apx run sofia --runtime <span class="hl">claude-code</span> &ldquo;Review the open PRs and summarize them&rdquo;</div>
+        </div>
+
+        <div class="ex-card">
+          <div class="ex-head">
+            <div class="ex-title"><h3>Ask a quick question</h3><p>A one-shot LLM call &mdash; no full session needed.</p></div>
+            <button class="copy ex-copy" type="button" data-copy='apx exec sofia "What is my role in this project?"' aria-label="Copy command">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+              <span class="copy-label">Copy</span>
+            </button>
+          </div>
+          <div class="ex-cmd"><span class="pr">$</span>apx exec sofia &ldquo;What is my role in this project?&rdquo;</div>
+        </div>
+
+        <div class="ex-card">
+          <div class="ex-head">
+            <div class="ex-title"><h3>Read an agent&rsquo;s memory</h3><p>Plain markdown you can read &mdash; and append to.</p></div>
+            <button class="copy ex-copy" type="button" data-copy="apx memory sofia" aria-label="Copy command">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+              <span class="copy-label">Copy</span>
+            </button>
+          </div>
+          <div class="ex-cmd"><span class="pr">$</span>apx memory sofia</div>
+        </div>
+
+        <div class="ex-card">
+          <div class="ex-head">
+            <div class="ex-title"><h3>Switch runtime, same context</h3><p>The same agent, handed to a different coding tool.</p></div>
+            <button class="copy ex-copy" type="button" data-copy='apx run sofia --runtime codex "Add tests for the parser"' aria-label="Copy command">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+              <span class="copy-label">Copy</span>
+            </button>
+          </div>
+          <div class="ex-cmd"><span class="pr">$</span>apx run sofia --runtime <span class="hl">codex</span> &ldquo;Add tests for the parser&rdquo;</div>
+        </div>
+
+        <div class="ex-card">
+          <div class="ex-head">
+            <div class="ex-title"><h3>Watch what&rsquo;s happening</h3><p>Tail live activity across every channel.</p></div>
+            <button class="copy ex-copy" type="button" data-copy="apx messages tail" aria-label="Copy command">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+              <span class="copy-label">Copy</span>
+            </button>
+          </div>
+          <div class="ex-cmd"><span class="pr">$</span>apx messages tail</div>
+        </div>
+
       </div>
     </div>
   </section>
@@ -1071,6 +1328,18 @@
     </div>
   </footer>
 
+  <!-- COOKIE CONSENT — minimal, local-only, remembers the choice -->
+  <div class="cookie" id="cookie" role="dialog" aria-label="Cookie notice" aria-hidden="true">
+    <p class="cookie-txt">
+      <b>No tracking here.</b> APX is a static site &mdash; we only store your choice locally so this
+      notice stays gone. No analytics, no third-party cookies.
+    </p>
+    <div class="cookie-actions">
+      <button class="btn cookie-btn" type="button" data-consent="declined">Decline</button>
+      <button class="btn primary cookie-btn" type="button" data-consent="accepted">Accept</button>
+    </div>
+  </div>
+
   <script>
     // Typewriter terminal: type real apx commands + output, loop.
     (function () {
@@ -1205,15 +1474,39 @@
       } else { paint(0); timer = setTimeout(tick, 1800); }
     })();
 
-    // Copy install command.
+    // Copy commands. Icon-safe: only the label span changes, so SVG icons survive.
     (function () {
       document.querySelectorAll('.copy').forEach(function (b) {
         b.addEventListener('click', function () {
           var txt = b.getAttribute('data-copy');
-          if (navigator.clipboard) navigator.clipboard.writeText(txt).then(function () {
-            var old = b.textContent; b.textContent = 'copied!';
-            setTimeout(function () { b.textContent = old; }, 1400);
-          });
+          var label = b.querySelector('.copy-label') || b;
+          function feedback() {
+            var old = label.textContent; label.textContent = 'Copied!';
+            setTimeout(function () { label.textContent = old; }, 1400);
+          }
+          try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(txt).then(feedback).catch(feedback);
+            } else { feedback(); }
+          } catch (e) { feedback(); }
+        });
+      });
+    })();
+
+    // Cookie consent — show once, remember the choice in localStorage.
+    (function () {
+      var KEY = 'apx-cookie-consent';
+      var el = document.getElementById('cookie');
+      if (!el) return;
+      var stored = null;
+      try { stored = localStorage.getItem(KEY); } catch (e) {}
+      if (stored) return; // already chose — never show again
+      // Reveal after a beat so the slide-up reads as intentional.
+      setTimeout(function () { el.classList.add('show'); el.setAttribute('aria-hidden', 'false'); }, 700);
+      el.querySelectorAll('[data-consent]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          try { localStorage.setItem(KEY, b.getAttribute('data-consent')); } catch (e) {}
+          el.classList.remove('show'); el.setAttribute('aria-hidden', 'true');
         });
       });
     })();
@@ -1225,6 +1518,22 @@
       var button = container.querySelector('.hamburger-btn');
       button.addEventListener('click', function (e) { e.stopPropagation(); container.classList.toggle('open'); });
       document.addEventListener('click', function () { container.classList.remove('open'); });
+    })();
+
+    // Logo → back to the hero top (smooth, and clear the #top hash for a tidy URL).
+    (function () {
+      var brand = document.querySelector('.brand');
+      if (!brand) return;
+      var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      brand.addEventListener('click', function (e) {
+        e.preventDefault();
+        if ('scrollBehavior' in document.documentElement.style) {
+          window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
+        } else {
+          window.scrollTo(0, 0); // legacy browsers (no smooth support)
+        }
+        if (history.replaceState) history.replaceState(null, '', location.pathname + location.search);
+      });
     })();
   </script>
 
