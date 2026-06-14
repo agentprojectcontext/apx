@@ -1,0 +1,263 @@
+---
+title: Voz
+description: Texto a voz y voz a texto en APX — proveedores, comandos de CLI y rutas de configuración.
+sidebar:
+  order: 6
+---
+
+import { Steps, Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+import Screenshot from '../../../../components/Screenshot.astro';
+import Terminal from '../../../../components/Terminal.astro';
+
+APX tiene una capa de voz unificada: una fachada TTS (texto a voz) para hablar texto
+y un sidecar STT (voz a texto) basado en Whisper para transcribir el audio del micrófono.
+La CLI `apx voice` expone ambos. La [ventana de Desktop](/apx/docs/es/surfaces/desktop/)
+y el [Deck](/apx/docs/es/surfaces/deck/) usan los mismos motores subyacentes.
+
+## Comandos
+
+```bash
+# Synthesize and play
+apx voice say "Hello, world!"
+apx voice say "Hello" --provider piper
+apx voice say "Hello" --provider gemini --voice Aoede
+apx voice say "Hello" --no-play          # generate file, skip playback
+
+# Listen (mic → STT → super-agent → TTS reply)
+apx voice listen                          # stop on silence (sox required)
+apx voice listen --seconds 5             # fixed-duration capture
+apx voice listen --seconds 5 --no-play  # transcribe + agent, no audio playback
+
+# List configured providers
+apx voice providers
+```
+
+`--provider` sobrescribe el default configurado solo para esa llamada. `--voice`
+sobrescribe el ID de voz dentro de un proveedor (soportado por OpenAI, ElevenLabs
+y Gemini). `--no-play` escribe el archivo de audio en `~/.apx/tmp/tts/` e imprime
+la ruta sin reproducirlo.
+
+<Terminal command="apx voice providers" caption="apx voice providers — estado en vivo de cada motor">
+{`  TTS providers                          default: piper
+
+  ✓ piper        local    es_AR-daniela-high.onnx
+  ✓ elevenlabs   cloud    eleven_multilingual_v2   key ••••a91f
+  ✓ openai       cloud    tts-1                     key ••••7c2d
+  ⚠ gemini       cloud    no key — run apx config set voice.tts.gemini.api_key
+  • mock         local    silent WAV (tests only)
+
+  STT
+  ✓ whisper      local    model base   lang es`}
+</Terminal>
+
+## Proveedores
+
+| ID | ¿Local? | ¿Clave necesaria? | Calidad | Notas |
+|---|---|---|---|---|
+| `piper` | sí | no | Buena | Recomendación por defecto. Requiere el binario `piper` + modelo `.onnx`. |
+| `elevenlabs` | no | sí | Excelente | Tier gratuito: 10 k caracteres/mes. Modelo `eleven_multilingual_v2`. |
+| `openai` | no | sí | Buena | Reutiliza `engines.openai.api_key`. Modelo `tts-1`. |
+| `gemini` | no | sí | Buena | Devuelve L16 PCM crudo — APX lo envuelve en WAV automáticamente. |
+| `mock` | sí | no | Silencioso | Placeholder de WAV silencioso. Útil solo para tests. |
+
+El proveedor `auto` prueba en orden: `piper → elevenlabs → openai → gemini → mock`.
+En una instalación nueva sin ningún proveedor configurado, `auto` cae hasta `mock`
+(silencio). Configurá al menos un proveedor real antes de esperar audio.
+
+<Aside type="tip">
+  **Piper es el default recomendado** para voz local, offline y sin clave.
+  Mirá la decisión `spec/decisions/004-piper-default-local-tts.md`. La
+  voz de español argentino `es_AR-daniela-high` tiene la mayor calidad
+  publicada para es-AR.
+</Aside>
+
+## Configuración
+
+La configuración de los proveedores vive en `~/.apx/config.json` bajo `voice.tts`:
+
+```json
+{
+  "voice": {
+    "tts": {
+      "provider": "piper",
+      "piper": {
+        "bin": "piper",
+        "model": "/home/you/.apx/voices/es_AR-daniela-high.onnx"
+      },
+      "elevenlabs": {
+        "api_key": "...",
+        "model": "eleven_multilingual_v2",
+        "voice_id": "..."
+      },
+      "openai": {
+        "api_key": "...",
+        "model": "tts-1",
+        "voice": "alloy",
+        "format": "mp3"
+      },
+      "gemini": {
+        "api_key": "...",
+        "model": "gemini-2.5-flash-preview-tts",
+        "voice": "Aoede"
+      }
+    }
+  }
+}
+```
+
+Cambiá el proveedor activo con:
+
+```bash
+apx config set voice.tts.provider piper
+```
+
+También podés gestionar los proveedores desde el [panel Web](/apx/docs/es/surfaces/web/)
+bajo **Voces** (`/m/voice`).
+
+## Rutas de configuración
+
+### Piper (local, sin internet)
+
+Piper corre totalmente offline. Necesitás el binario `piper` y un modelo de voz `.onnx`.
+
+<Steps>
+
+1. Instalá el binario de Piper:
+
+   <Tabs syncKey="os">
+     <TabItem label="macOS (arm64)">
+       ```bash
+       curl -L https://github.com/rhasspy/piper/releases/latest/download/piper_macos_aarch64.tar.gz \
+         -o /tmp/piper.tar.gz
+       sudo tar xzf /tmp/piper.tar.gz -C /usr/local/bin --strip-components=1
+       ```
+     </TabItem>
+     <TabItem label="Linux (x86_64)">
+       ```bash
+       curl -L https://github.com/rhasspy/piper/releases/latest/download/piper_linux_x86_64.tar.gz \
+         -o /tmp/piper.tar.gz
+       sudo tar xzf /tmp/piper.tar.gz -C /usr/local/bin --strip-components=1
+       ```
+     </TabItem>
+   </Tabs>
+
+2. Descargá un modelo de voz. Para español argentino (recomendado):
+
+   ```bash
+   mkdir -p ~/.apx/voices
+   cd ~/.apx/voices
+   curl -LO https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_AR/daniela/high/es_AR-daniela-high.onnx
+   curl -LO https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_AR/daniela/high/es_AR-daniela-high.onnx.json
+   ```
+
+3. Apuntá APX hacia él:
+
+   ```bash
+   apx config set voice.tts.provider piper
+   apx config set voice.tts.piper.model "$HOME/.apx/voices/es_AR-daniela-high.onnx"
+   ```
+
+4. Probá:
+
+   ```bash
+   apx voice say "hola mundo" --provider piper
+   ```
+
+</Steps>
+
+### Gemini cloud (lo más rápido con una clave existente)
+
+```bash
+apx config set voice.tts.provider gemini
+apx config set voice.tts.gemini.api_key '<YOUR_GEMINI_KEY>'
+apx voice say "hola mundo" --provider gemini
+```
+
+<Aside type="note">
+  Gemini TTS devuelve L16 PCM crudo, no MP3. APX lo envuelve en un header WAV
+  automáticamente. Los archivos de salida son `.wav`; si necesitás MP3 usá `ffmpeg` para
+  convertir.
+</Aside>
+
+### ElevenLabs
+
+```bash
+apx config set voice.tts.provider elevenlabs
+apx config set voice.tts.elevenlabs.api_key '<YOUR_11L_KEY>'
+apx config set voice.tts.elevenlabs.voice_id '<VOICE_ID>'
+apx voice say "hola mundo" --provider elevenlabs
+```
+
+## El endpoint unificado de turno de voz
+
+`POST /voice/turn` es un único round-trip bidireccional:
+
+1. STT — transcribe el audio entrante (o acepta `text` directamente, salteando el STT).
+2. Agente — corre el super-agente sobre el texto transcrito.
+3. TTS — sintetiza la respuesta y devuelve una ruta a un archivo de audio.
+
+```bash
+# Drive from curl with pre-transcribed text
+curl -X POST http://127.0.0.1:7430/voice/turn \
+  -H "Authorization: Bearer $(cat ~/.apx/daemon.token)" \
+  -H "Content-Type: application/json" \
+  -d '{"text": "What tasks are open?", "channel": "voice"}'
+```
+
+Respuesta:
+
+```json
+{
+  "user_text": "What tasks are open?",
+  "reply_text": "You have 3 open tasks…",
+  "reply_audio_path": "/home/you/.apx/tmp/tts/reply-abc123.wav",
+  "reply_duration_s": 4.1,
+  "reply_mime": "audio/wav",
+  "provider": "piper"
+}
+```
+
+La [ventana de Desktop](/apx/docs/es/surfaces/desktop/) y el Deck
+usan internamente este endpoint. El campo `channel` (`voice`, `deck`,
+`desktop`, `telegram`) controla el formato de la respuesta: los canales voice/deck reciben
+respuestas cortas y aptas para hablar; telegram recibe texto formateado en Markdown.
+
+## Reproducción
+
+`apx voice say` usa el primer reproductor del sistema disponible:
+`afplay` (macOS) → `paplay` → `aplay` → `play` (sox) → `ffplay`.
+
+Si no se encuentra ninguno, el archivo se escribe y se imprime la ruta — sin error, pero
+sin sonido. Instalá cualquiera de los anteriores para tener reproducción.
+
+## Solución de problemas
+
+**`apx voice providers` muestra solo `mock`**
+
+No hay ningún proveedor real configurado. Seguí una de las rutas de configuración de arriba.
+
+**El archivo se genera pero no hay sonido**
+
+No hay ningún reproductor de audio del sistema en tu PATH. En macOS `afplay` está siempre presente.
+En Linux instalá `sox` (`apt install sox`) o `pulseaudio-utils`.
+
+**La salida de Gemini suena distorsionada o no se reproduce**
+
+Las versiones más viejas de APX no envolvían el L16 PCM crudo en un header WAV. Actualizá APX o
+convertí con `ffmpeg -f s16le -ar 24000 -ac 1 -i raw.pcm out.wav`.
+
+**`apx voice listen` devuelve texto vacío**
+
+`sox` es requerido para la grabación con detección de silencio. Instalalo o usá
+`--seconds N` para especificar una duración fija en su lugar.
+
+<Screenshot
+  surface="voice"
+  caption="apx voice say — sintetizando y reproduciendo una frase de prueba"
+  hint='Run: apx voice say "hello" --provider piper' />
+
+## Relacionado
+
+- [Desktop](/apx/docs/es/surfaces/desktop/) — ventana flotante que usa TTS/STT
+- [Deck](/apx/docs/es/surfaces/deck/) — modo de voz de la app companion
+- [Panel Web → módulo Voces](/apx/docs/es/surfaces/web/#voices) — UI para la configuración de proveedores

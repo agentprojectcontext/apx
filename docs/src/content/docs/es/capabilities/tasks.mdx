@@ -1,0 +1,172 @@
+---
+title: Tasks
+description: Lista de TODO por proyecto con event sourcing — apx task add/list/done/drop/patch, direccionamiento por short-id y cómo el super-agent la alimenta.
+sidebar:
+  order: 4
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import Screenshot from '../../../../components/Screenshot.astro';
+import Terminal from '../../../../components/Terminal.astro';
+
+APX tiene una **lista de TODO** por proyecto respaldada por un log de eventos solo-agregado. Las tasks tienen alcance de
+proyecto, se direccionan por prefijo de short-id, y nunca se borran de verdad — las transiciones de estado (`done`,
+`drop`) se registran como eventos y la task persiste para siempre.
+
+## Almacenamiento
+
+Las tasks viven en `~/.apx/projects/<apxId>/tasks/YYYY-MM.jsonl`, un archivo por mes. El estado es el
+fold del stream de eventos: crear, completar, descartar, reabrir y parchear, todos agregan
+eventos. No hagas grep del JSONL directamente para conocer el estado — usá `apx task list` o la API.
+
+## `apx task add`
+
+```bash
+apx task add "<title>" \
+  [--project <name|id|path>] \
+  [--body <text>] \
+  [--tag <name>]... \
+  [--due <YYYY-MM-DD>] \
+  [--agent <slug>] \
+  [--source <label>]
+```
+
+`--tag` es repetible. Ejemplos:
+
+```bash
+apx task add "Review PR #42" --project myapp --agent reviewer --tag review
+apx task add "Release notes" --project myapp --tag release --tag docs --due 2026-06-01
+apx task add "Call client"   --project myapp --due 2026-05-31 --tag urgent
+```
+
+<Aside type="caution">
+  Pasá siempre `--project`. Sin eso, la task cae en el primer proyecto registrado (o el id=0 por
+  defecto), que probablemente no es lo que querías.
+</Aside>
+
+## `apx task list`
+
+```bash
+apx task list \
+  [--state open|done|dropped|all] \   # por defecto: open
+  [--tag <name>] \
+  [--agent <slug>] \
+  [--due-before <iso>] \
+  [--limit <N>] \
+  [--project <name|id|path>]
+```
+
+```bash
+apx task list --project myapp                          # tasks abiertas
+apx task list --project myapp --state all
+apx task list --project myapp --state done
+apx task list --project myapp --tag urgent
+apx task list --project myapp --due-before 2026-06-01
+apx task list --project myapp --agent reviewer --limit 10
+```
+
+<Terminal command="apx task list --project myapp" caption="apx task list — tasks abiertas con id, título, tags, fecha de vencimiento y agente">
+{`ID    STATE    DUE         TAGS                TITLE
+t-1a  open     2026-06-16  checkout,urgent     Wire Stripe webhooks before merge
+t-2b  open     2026-06-18  tests               Retry-guard the flaky cart-total test
+t-3c  open     —           docs                Document the pairing flow for the web panel
+t-4d  open     2026-06-20  infra               Backfill ingestion CLI flag`}
+</Terminal>
+
+## `apx task show`
+
+```bash
+apx task show <id> [--project <name|id|path>]
+apx task show abc  [--project <name|id|path>]   # coincidencia por prefijo (≥ 3 chars, debe ser único)
+```
+
+Imprime la task completa como JSON, incluyendo todos los campos y el estado actual.
+
+## Transiciones de estado
+
+```bash
+apx task done   <id> [--project P] [--by <name>]   # marcar como completada
+apx task drop   <id> [--project P]                  # archivar (ya no hace falta)
+apx task reopen <id> [--project P]                  # volver a open
+```
+
+`done` significa "completé este trabajo". `drop` significa "esto ya no hace falta". Las métricas y
+los reportes los distinguen — usá el correcto.
+
+## `apx task patch`
+
+```bash
+apx task patch <id> \
+  [--title <text>] \
+  [--body <text>] \
+  [--due <date>] \
+  [--agent <slug>] \
+  [--tag <name>]... \
+  [--project <name|id|path>]
+```
+
+`--tag` _reemplaza_ la lista de tags cuando se provee; no pasar ningún flag `--tag` deja los tags sin cambios.
+
+```bash
+apx task patch t_abc123 --project myapp --title "New title"
+apx task patch t_abc123 --project myapp --tag review --tag urgent   # reemplaza los tags
+apx task patch t_abc123 --project myapp --due 2026-06-10
+```
+
+## Formato de ID y direccionamiento por prefijo
+
+Los IDs de task tienen la forma `t_` + 6 caracteres base36 (entropía de 32 bits, ~4 mil millones de keyspace). Podés
+direccionar una task por cualquier prefijo de ≥ 3 caracteres mientras identifique de forma única a una sola task. Si dos
+tasks comparten un prefijo, el comando devuelve un error — usá un prefijo más largo.
+
+```bash
+apx task done t_abc123 --project myapp     # id completo
+apx task done abc      --project myapp     # prefijo, resuelve si es único
+```
+
+## Campos de una task
+
+| Campo | Cuándo | Notas |
+|---|---|---|
+| `title` | Requerido | Línea imperativa corta. |
+| `body` | Opcional | Notas más largas. Se acepta Markdown. |
+| `tags` | Opcional | Cadenas libres. Filtrables con `--tag`. |
+| `due` | Opcional | Fecha ISO `YYYY-MM-DD`. Filtrable con `--due-before`. |
+| `agent` | Opcional | Slug del agente responsable de la task. |
+| `source` | Auto / opcional | Origen: `cli`, `telegram`, `super-agent`, … |
+| `state` | Derivado | `open` → `done` o `dropped`. Reabrible. |
+
+## Cómo el super-agent alimenta las tasks
+
+El super-agent tiene las herramientas `create_task` y `list_tasks` registradas en su conjunto core de herramientas,
+disponibles en todos los canales. Cuando decís "recordame cerrar el bug de auth en myapp", el modelo
+llama a `create_task` con el proyecto correcto, el título y los campos opcionales. Cuando preguntás "qué está
+pendiente en myapp?", llama a `list_tasks`.
+
+Ejemplo de la llamada a herramienta que emite el modelo:
+
+```json
+{
+  "name": "create_task",
+  "arguments": {
+    "project": "myapp",
+    "title": "Close auth bug",
+    "due": "2026-06-01",
+    "tags": ["bug"]
+  }
+}
+```
+
+Si el proyecto es ambiguo (el usuario no dijo cuál), el modelo llama primero a `list_projects` y
+pregunta — nunca asume. En un canal de Telegram fijado a un proyecto, el modelo usa ese proyecto como
+contexto por defecto.
+
+<Aside type="note">
+  Las tasks no son un scheduler — no disparan notificaciones al vencer. Son una lista. Hay un futuro
+  tipo de routine (`task-due-notify`) planeado pero todavía no construido.
+</Aside>
+
+## Siguiente
+
+- [Routines](/apx/docs/es/capabilities/routines/) — programá el super-agent para crear o reportar tasks.
+- [Super-agent](/apx/docs/es/capabilities/super-agent/) — el tool loop que puede crear y consultar tasks conversacionalmente.

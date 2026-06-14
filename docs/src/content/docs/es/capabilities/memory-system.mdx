@@ -1,0 +1,177 @@
+---
+title: Sistema de memoria
+description: La memoria RAG entre canales — notas autoescritas, recuperación vectorial, compactación progresiva, el broker de memoria y el proveedor de embeddings configurable.
+sidebar:
+  order: 2
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+import Screenshot from '../../../../components/Screenshot.astro';
+
+El sistema de memoria de APX es una capa de cuatro piezas que le da al super-agente contexto durable y entre
+canales sin ninguna curación manual. Opera en segundo plano en cada turno y se degrada
+con gracia — si una pieza falla, el resto sigue funcionando.
+
+<Aside type="note">
+  Esta página cubre el sistema de memoria automático y entre canales. Para el archivo
+  `memory.md` curado por agente que escribís a mano, mirá [Memoria (conceptos)](/apx/docs/es/concepts/memory/).
+</Aside>
+
+## Las cuatro piezas
+
+### Pieza 1 — Notas autoescritas (`~/.apx/memory.md`)
+
+Cuando el super-agente llama a su herramienta `remember`, el dato se agrega a
+`~/.apx/memory.md` bajo una entrada con fecha. Este archivo también lo lee directamente el broker
+(Pieza 4) así que las notas manuales recientes siempre salen a la superficie.
+
+```bash
+# Desde una conversación: "recordá que la dirección del servidor de staging cambió a 10.0.1.5"
+# El agente llama a la herramienta `remember` — esto no lo ejecutás vos.
+```
+
+El archivo se crea al arrancar el daemon si no existe. _No_ se committea al repo — es
+estado global local de la máquina.
+
+### Pieza 2 — Recuperación RAG (búsqueda vectorial)
+
+Cada mensaje que pasa por cualquier canal se indexa de forma asíncrona en un almacén vectorial en
+`~/.apx/memory.db` (SQLite vía `better-sqlite3`). El indexador corre en segundo plano cada
+60 segundos por defecto y embebe los mensajes nuevos desde la posición de su último cursor.
+
+En tiempo de consulta, el broker embebe el mensaje entrante y corre una búsqueda de similitud por coseno para
+recuperar los top-K fragmentos más relevantes de todo el historial entre canales.
+
+#### Proveedor de embeddings
+
+El proveedor de embeddings se configura en `config.memory.embeddings` y se resuelve mediante el mismo
+patrón de registro de motores que TTS/STT. Proveedores soportados:
+
+| Proveedor | Notas |
+|---|---|
+| `ollama` | Local, preferencia por defecto. Modelo: `nomic-embed-text`. |
+| `openai` | En la nube. Modelo: `text-embedding-3-small` por defecto. |
+| `gemini` | En la nube. Usa el endpoint de embeddings de Gemini. |
+| `tf` | Fallback offline. Vector TF determinístico por feature-hashing. Siempre disponible. |
+
+El modo de selección por defecto es `"auto"` (router en cadena): APX prueba `ollama → gemini → openai →
+tf` en orden y usa el primero disponible. Podés fijar un único proveedor:
+
+```json
+{
+  "memory": {
+    "embeddings": {
+      "provider": "openai",
+      "openai": {
+        "model": "text-embedding-3-small",
+        "api_key": "sk-..."
+      }
+    }
+  }
+}
+```
+
+<Aside type="caution">
+  Cambiar el proveedor de embeddings invalida el índice viejo — los vectores de modelos distintos no son
+  comparables. Después de cambiar, ejecutá:
+
+  ```bash
+  apx memory reindex
+  ```
+
+  Esto limpia el almacén y vuelve a embeber cada mensaje con el nuevo proveedor.
+</Aside>
+
+#### El fallback `tf`
+
+Cuando ningún proveedor es alcanzable, APX cae silenciosamente a un vector determinístico de frecuencia de
+términos por feature-hashing, sin dependencias (256-dim, normalizado L2). La calidad de recuperación es menor que la de un
+embedding neuronal real pero mantiene el sistema funcional offline. La etiqueta de embedder en cada vector almacenado
+asegura que la similitud por coseno solo se calcule dentro del mismo espacio de embedder.
+
+### Pieza 3 — Compactación progresiva
+
+Las conversaciones largas hacen crecer la ventana de contexto. Cuando un chat de canal acumula más de 60
+turnos conversacionales (configurable), los turnos más viejos más allá de los 40 más recientes se colapsan en
+un resumen denso escrito por el LLM (registro `type: "compact"` en el log JSONL). Los turnos futuros anteponen
+ese resumen como un turno de sistema `[RESUMEN COMPACTADO]`, manteniendo el contexto acotado mientras se preservan
+decisiones, asignaciones de tareas y resultados de herramientas.
+
+La compactación corre _fuera del camino crítico de respuesta_ — el turno actual usa el último compact existente;
+el próximo turno se beneficia del nuevo.
+
+El modelo de compactación es configurable:
+
+```json
+{
+  "memory": {
+    "compact_model": "ollama:gemma4:31b-cloud",
+    "compact_fallback_model": "",
+    "compact_threshold": 60,
+    "keep_recent": 40
+  }
+}
+```
+
+Si tanto `compact_model` como `compact_fallback_model` no están disponibles, la compactación se omite
+silenciosamente — los turnos crudos se preservan y no se bloquea ninguna respuesta.
+
+### Pieza 4 — Broker de memoria
+
+Antes de cada turno del super-agente (en llamadas sin herramientas como `summarize`/`ask`), el broker
+arma un bloque `[MEMORIA RELEVANTE]` que se inyecta en el prompt de sistema. El broker:
+
+1. Lee las últimas 10 entradas de `~/.apx/memory.md` (síncrono, siempre rápido).
+2. Compite una consulta RAG contra un presupuesto de 800 ms — si Ollama está lento, el bloque igual se devuelve
+   con lo que sea que haya provisto `memory.md`.
+3. Deduplica los hits por texto normalizado.
+4. Formatea una lista con viñetas con fecha, canal y un extracto de 160 caracteres por entrada.
+
+El bloque se omite por completo cuando no hay nada útil para mostrar (`memory.md` vacío y sin
+hits de RAG).
+
+#### Bloque de hilos activos
+
+Además del bloque de memoria, en canales interactivos (no `routine`) el broker agrega un
+bloque separado "# Hilos activos en otros canales" — el turno más reciente de cada otro canal
+dentro de una ventana de tiempo configurable (por defecto: 6 horas, hasta 3 viñetas). Esto ayuda al agente a
+notar referencias como "lo de antes en Telegram" sin una coincidencia semántica.
+
+## Referencia de configuración
+
+Todas las claves viven bajo `config.memory`:
+
+| Clave | Por defecto | Descripción |
+|---|---|---|
+| `enabled` | `true` | Poné `false` para deshabilitar todo el subsistema RAG. |
+| `index_interval_s` | `60` | Cada cuánto corre el indexador en segundo plano (segundos). |
+| `broker_budget_ms` | `800` | Tiempo máximo que el broker espera por RAG antes de devolver. |
+| `rag_top_k` | `5` | Cantidad de hits de RAG inyectados por turno. |
+| `compact_threshold` | `60` | Turnos antes de que se dispare la compactación. |
+| `keep_recent` | `40` | Turnos que quedan textuales después de la compactación. |
+| `compact_model` | `ollama:gemma4:31b-cloud` | Modelo primario para la generación de resúmenes. |
+| `compact_fallback_model` | _(super_agent.model)_ | Fallback si el primario está caído. |
+| `embeddings.provider` | `"auto"` | `auto`, `ollama`, `openai`, `gemini`, o `tf`. |
+| `active_threads.enabled` | `true` | Mostrar turnos recientes de otros canales. |
+| `active_threads.window_hours` | `6` | Qué tan atrás mirar turnos de otros canales. |
+| `active_threads.max_lines` | `3` | Máximo de viñetas en el bloque de hilos activos. |
+
+## En qué se diferencia del memory.md por agente
+
+| | `memory.md` por agente | Sistema de memoria entre canales |
+|---|---|---|
+| **Ubicación** | `~/.apx/projects/<apx_id>/agents/<slug>/memory.md` | `~/.apx/memory.md` + `~/.apx/memory.db` |
+| **¿Committeado?** | Nunca | Nunca |
+| **Alcance** | Un agente | Todos los canales, todos los agentes |
+| **Escrito por** | Vos, a mano | La herramienta `remember` (auto) |
+| **Recuperación** | Inyección completa en cada llamada | RAG (top-K, puntuado) + últimas 10 notas |
+| **Compactación** | No aplica | Progresiva (Pieza 3) |
+
+Usá el archivo por agente para datos estables y curados sobre el rol del agente en el proyecto. El sistema
+entre canales maneja el contexto dinámico, turno a turno, que abarca superficies.
+
+## Siguiente
+
+- [Memoria (conceptos)](/apx/docs/es/concepts/memory/) — archivos memory.md curados por agente.
+- [Super-agente](/apx/docs/es/capabilities/super-agent/) — cómo el broker se enchufa al bucle de turnos.
+- [Configuración](/apx/docs/es/concepts/configuration/) — referencia completa de `config.json`.

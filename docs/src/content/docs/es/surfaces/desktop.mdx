@@ -1,0 +1,182 @@
+---
+title: Desktop (ventana flotante)
+description: La ventana flotante de voz en Electron — cómo lanzarla, autoarrancarla, el atajo y qué hace.
+sidebar:
+  order: 5
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components';
+import Screenshot from '../../../../components/Screenshot.astro';
+
+La superficie **Desktop** es una pequeña app de Electron que flota por encima de todas tus
+ventanas. Te da una cápsula de voz persistente y accesible por teclado: presioná el
+atajo global y empezá a hablar. La respuesta llega de vuelta en streaming como texto y (si hay un proveedor de
+TTS configurado) como audio hablado.
+
+<Screenshot
+  surface="desktop"
+  caption="APX Desktop — cápsula en reposo con botón de micrófono"
+  hint="Ejecutá: apx desktop start, y luego presioná Cmd+G (Mac) o Ctrl+G (Win/Linux)" />
+
+## Comandos
+
+```bash
+apx desktop start           # launch the floating window
+apx desktop start --debug   # launch with verbose start-up logs
+apx desktop stop            # terminate the window
+apx desktop status          # print process state, PID, autostart flag
+apx desktop install         # register autostart at user login (no sudo)
+apx desktop uninstall       # remove autostart entry
+```
+
+`start` es idempotente: si la ventana ya está corriendo, reporta el estado actual
+en lugar de lanzar una segunda copia.
+
+## Autoarranque al iniciar sesión
+
+`apx desktop install` registra un ítem de login por usuario para que la ventana se lance
+automáticamente cuando iniciás sesión. No hace falta contraseña de administrador ni sudo.
+
+```bash
+apx desktop install
+# Autostart registered.
+
+apx desktop status
+# state: running | pid: 12345 | autostart: enabled
+```
+
+Para eliminarlo:
+
+```bash
+apx desktop uninstall
+```
+
+El mecanismo usado por plataforma:
+
+| Plataforma | Mecanismo |
+|---|---|
+| macOS | `~/Library/LaunchAgents/<plist>` |
+| Linux | `~/.config/autostart/<desktop>` |
+| Windows | Clave run del registro (HKCU) |
+
+## Qué hace la ventana
+
+La ventana es una **cápsula** — una barra flotante angosta con un solo trabajo: enviar un mensaje
+al super-agente y reproducir la respuesta.
+
+### Máquina de estados
+
+La cápsula cicla por cinco estados:
+
+| Estado | Qué ves |
+|---|---|
+| `idle` | Campo de entrada + botón de micrófono. Presioná Enter para enviar texto, hacé clic en el micrófono (o mantené el atajo) para grabar. |
+| `listening` | Forma de onda de audio en vivo impulsada por la amplitud real del micrófono. Cancelá o tocá Enviar para confirmar. |
+| `transcribing` | Puntos animados — el audio WebM/OGG está siendo decodificado por el sidecar STT de Whisper. |
+| `thinking` | Puntos + brillo — el super-agente está produciendo tokens, mostrados a medida que llegan. |
+| `speaking` | Avatar del agente + brillo — el audio de TTS se está reproduciendo. Aparece un scrubber en la transcripción. |
+
+<Screenshot
+  surface="desktop"
+  caption="Desktop — estado de escucha con forma de onda en vivo"
+  hint="Presioná el atajo global y hablá unos segundos" />
+
+### Transcripción de la conversación
+
+Cuando un turno se completa, la tarjeta de transcripción se expande debajo de la cápsula. Cada
+turno del agente muestra el texto con animación de entrada de palabras y, cuando hay TTS configurado, un
+scrubber de forma de onda con play/pause y clic-para-saltar. Las llamadas a herramientas aparecen como pills
+con un spinner mientras corren y un tilde al completarse.
+
+<Screenshot
+  surface="desktop"
+  caption="Desktop — tarjeta de conversación con respuesta del agente y scrubber de audio"
+  hint="Completá un turno de voz; desplazá la tarjeta de transcripción" />
+
+### Atajo global
+
+El atajo por defecto es `Cmd+G` en macOS y `Ctrl+G` en Windows/Linux.
+Sobrescribilo en `~/.apx/config.json`:
+
+```json
+{
+  "desktop": {
+    "shortcut": "CommandOrControl+Shift+Space"
+  }
+}
+```
+
+También podés editar el atajo en el [Panel web](/apx/docs/es/surfaces/web/)
+bajo **Desktop** (`/m/desktop`) sin editar JSON. Reiniciá la ventana para que
+el nuevo atajo tenga efecto.
+
+### Posición y tema
+
+```json
+{
+  "desktop": {
+    "position": "right",
+    "theme": "light"
+  }
+}
+```
+
+`position` puede ser `"left"`, `"center"` o `"right"` (por defecto `"right"`).
+`theme` puede ser `"light"` o `"dark"` (por defecto `"light"`).
+
+## Cómo se comunica la ventana con el daemon
+
+El proceso principal de Electron abre un WebSocket a `ws://127.0.0.1:7430` y publica
+texto vía `POST /desktop/message`. El plugin desktop del daemon rutea el mensaje
+a través del super-agente y devuelve los tokens en streaming sobre el WebSocket:
+
+```text
+Desktop (Electron)
+  │
+  ├── POST /desktop/message { text }  →  daemon acknowledges immediately
+  │
+  └── WebSocket ← daemon streams:
+        { type: "thinking" }
+        { type: "token", text: "…" }
+        { type: "tool_start", name: "create_task" }
+        { type: "tool_done",  name: "create_task" }
+        { type: "done", text: "full reply" }
+        { type: "tts-ready", url: "/voice/tts?path=…", duration: 3.2 }
+```
+
+El TTS lo sintetiza el daemon después de que el agente termina, y luego la URL se
+sirve de vuelta vía `GET /voice/tts?path=…`. La ventana descarga esa URL y
+la reproduce con la Web Audio API.
+
+<Aside type="tip">
+  La calidad del TTS depende de tu proveedor configurado. Mirá [Voz](/apx/docs/es/surfaces/voice/)
+  para configurar Piper (local, sin clave) o un motor en la nube.
+</Aside>
+
+## Insignia de conexión del daemon
+
+Un pequeño punto rojo aparece en la esquina superior derecha de la ventana cuando el WebSocket
+al daemon está caído. Desaparece apenas se restablece la conexión (la
+ventana se reconecta automáticamente).
+
+## Resolución de problemas
+
+**La ventana no se abre después de `apx desktop start`**
+- Verificá que Electron esté instalado: `npx electron --version`
+- Probá `apx desktop start --debug` para ver logs detallados
+- Confirmá que el daemon sea alcanzable: `apx status`
+
+**No hay reproducción de audio**
+- La ventana requiere un proveedor de TTS. Ejecutá `apx voice providers` para ver
+  qué está configurado, y luego seguí la [guía de configuración de Voz](/apx/docs/es/surfaces/voice/).
+
+**El atajo no funciona**
+- Otra app puede ser dueña de esa combinación de teclas. Cambiala en la config y reiniciá.
+- En macOS, verificá Configuración del Sistema → Privacidad y Seguridad → Accesibilidad para
+  Electron.
+
+## Relacionado
+
+- [Voz](/apx/docs/es/surfaces/voice/) — proveedores de TTS/STT y la CLI `apx voice`
+- [Panel web](/apx/docs/es/surfaces/web/) — administrá el módulo Desktop desde el navegador
+- [Deck](/apx/docs/es/surfaces/deck/) — app compañera para tu teléfono

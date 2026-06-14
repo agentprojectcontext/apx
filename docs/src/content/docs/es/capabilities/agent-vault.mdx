@@ -1,0 +1,181 @@
+---
+title: Bóveda de agentes
+description: Una biblioteca global de plantillas de agentes reutilizables — personas con nombre y especialistas genéricos — que podés importar a cualquier proyecto.
+sidebar:
+  order: 7
+---
+
+import { Aside, FileTree } from '@astrojs/starlight/components';
+import Screenshot from '../../../../components/Screenshot.astro';
+import Terminal from '../../../../components/Terminal.astro';
+
+La **bóveda de agentes** es una biblioteca de plantillas de agentes a nivel de toda la máquina. Viene con un conjunto de
+valores predeterminados incluidos (personas con nombre y especialistas genéricos) y te deja agregar los tuyos. Las plantillas
+son agnósticas al proyecto — importás una plantilla a un proyecto cuando querés usarla ahí.
+
+Para el CRUD de agentes por proyecto (agregar, editar, memoria) mirá [Conceptos — Agentes](/apx/docs/es/concepts/agents/).
+
+## Dos capas
+
+| Capa | Ubicación | Mutabilidad |
+|---|---|---|
+| Incluida | `<APX package>/assets/agent-vault-defaults/<slug>.md` | Solo lectura en disco. Siempre visible salvo que esté marcada como eliminada (tombstone). |
+| Usuario | `~/.apx/agents/<slug>.md` | Lectura-escritura. Un archivo de usuario con el mismo slug eclipsa al incluido. |
+
+Editar una plantilla incluida es **copia al escribir (copy-on-write)** — APX materializa una copia en tu capa de usuario
+en el momento en que guardás. Eliminar una plantilla incluida la **marca como eliminada (tombstone)** así queda oculta hasta que la
+restaures. Eliminar una plantilla que solo existe en la capa de usuario borra el archivo.
+
+## Plantillas incluidas
+
+### Equipo con nombre
+
+Una tripulación con personalidad ya usada en producción por NichoApps:
+
+| Slug | Rol | Fortalezas |
+|---|---|---|
+| `roby-orchestrator` | Orquestador de pipeline | Enrutamiento autónomo de tareas, coordinación multiagente |
+| `arch-architect` | Arquitecto de software | Diseño de sistemas, tradeoffs, ADRs |
+| `cody-developer` | Desarrollador senior | Código, refactors, liderazgo técnico |
+| `tessa-qa` | QA / tester | Reality checks, planes de prueba, empatía con el usuario real |
+| `max-marketing` | Growth hacker | Contenido, campañas, SEO, copy |
+| `sid-security` | Especialista en seguridad | Auditorías, modelos de amenazas, hardening |
+| `rocky-pm` | PM senior | Listas de tareas, roadmaps, comunicación con stakeholders |
+| `vera-ui` | Revisor de UI/UX | Auditorías visuales, usabilidad |
+| `finn-billing` | Facturación / operaciones comerciales | Stripe, facturación, lógica de planes |
+
+### Especialistas genéricos
+
+Roles funcionales simples — útiles cuando querés la capacidad sin una persona:
+
+| Slug | Rol |
+|---|---|
+| `development` | Ingeniería y código |
+| `marketing` | Marketing y growth |
+| `ops` | Ops, deployments e incidentes |
+| `qa` | Aseguramiento de calidad y testing |
+| `support` | Soporte al cliente y escalamientos |
+
+<Aside type="note">
+  Todas las plantillas incluidas usan por defecto `model: openrouter:meta-llama/llama-3.3-70b-instruct` y
+  `language: es`. Sobreescribí estos valores al importar o editando el archivo de la bóveda.
+</Aside>
+
+## Listar la bóveda
+
+```bash
+# Todas las plantillas visibles (incluidas + overrides de usuario)
+apx agent vault list
+```
+
+<Terminal command="apx agent vault list" caption="apx agent vault list mostrando plantillas incluidas y de usuario con sus etiquetas de origen">
+{`  vault: ~/.apx/agents
+
+  cody-developer    developer            openrouter:meta-llama/llama-3.3-70b-instruct  [bundled]
+  tessa-tester      qa                   openrouter:meta-llama/llama-3.3-70b-instruct  [bundled]
+  rocky-architect   architecture         openrouter:meta-llama/llama-3.3-70b-instruct  [bundled]
+  sofia             backend reviewer     ollama:llama3.2:3b                            [user]
+  cody-developer    developer            anthropic:claude-sonnet-4-5                   [override]`}
+</Terminal>
+
+Cada entrada está etiquetada como `[bundled]`, `[user]`, o `[override]` (un archivo de usuario que eclipsa un slug
+incluido).
+
+## Importar una plantilla a un proyecto
+
+```bash
+# Vincula la plantilla de la bóveda (la lee desde ~/.apx/agents/ en tiempo de ejecución)
+apx agent import cody-developer
+
+# Copia el archivo a .apc/agents/ para ediciones locales
+apx agent import tessa-qa --copy
+
+# Sobreescribe una definición local del proyecto ya existente
+apx agent import roby-orchestrator --copy --force
+```
+
+Después de importar, el agente aparece en `apx agent list` y queda disponible para el proyecto.
+
+<Aside type="tip">
+  Usá `--copy` cuando querés personalizar el agente solo para este proyecto sin afectar la
+  plantilla compartida de la bóveda.
+</Aside>
+
+## Crear una plantilla nueva
+
+```bash
+apx agent vault add reviewer \
+  --role "Code reviewer" \
+  --model ollama:llama3.2:3b \
+  --language es \
+  --skills code-review,git \
+  --description "Reviews PRs and pushes back on hand-wavy diffs."
+```
+
+Esto escribe `~/.apx/agents/reviewer.md`. La nueva plantilla queda visible inmediatamente en
+`apx agent vault list` e importable a cualquier proyecto.
+
+## Ocultar y restaurar una plantilla incluida
+
+```bash
+# Ocultar (tombstone) un valor predeterminado incluido que no querés ver
+apx agent vault rm tessa-qa
+
+# Traerlo de vuelta
+apx agent vault restore tessa-qa
+
+# Listar todo, incluidas las plantillas marcadas como eliminadas (tombstoned)
+apx agent vault list --all
+```
+
+Marcar como eliminada (tombstone) solo afecta los listados y las importaciones — el archivo incluido en disco nunca se elimina.
+
+## Formato del archivo de plantilla
+
+Las plantillas de la bóveda usan el mismo formato que los agentes de proyecto:
+
+```markdown
+---
+role: Code reviewer
+model: openrouter:meta-llama/llama-3.3-70b-instruct
+description: Reviews PRs and pushes back on hand-wavy diffs.
+language: es
+skills: code-review, git
+tools: read_file, list_agents
+is_master: false
+---
+
+<!-- The agent's system prompt extension goes here. Plain markdown. -->
+```
+
+### Campos del frontmatter
+
+| Campo | Efecto |
+|---|---|
+| `role` | Se muestra en la CLI y en la interfaz web. Se agrega al prompt de sistema del agente como "Role: …". |
+| `model` | Modelo por defecto para el enrutamiento de motores. |
+| `description` | Se muestra en los listados de la bóveda y en la grilla web de Agent Defaults. |
+| `language` | Agrega "Default language: \<code\>" al prompt de sistema. |
+| `skills` | Slugs de skills cargadas para los turnos de este agente. |
+| `tools` | Sugerencias de herramientas; las herramientas realmente invocables dependen de la superficie de invocación. |
+| `is_master` | Si es `true`, se marca como agente maestro en el proyecto (badge + ordenamiento). |
+
+## Dónde viven los archivos
+
+```text
+<APX package>/assets/agent-vault-defaults/<slug>.md   ← incluida (committeada al repo de APX)
+~/.apx/agents/<slug>.md                                ← bóveda de usuario (tus overrides)
+<project>/.apc/agents/<slug>.md                        ← copia local del proyecto (después de --copy)
+~/.apx/agents/.removed.json                            ← lista de tombstones
+```
+
+<Aside type="note">
+  El slug `roby-orchestrator` intencionalmente no es solo `roby`. La persona del super-agente de APX
+  ya se llama "Roby" vía `~/.apx/identity.json`. Importar un agente de proyecto llamado `roby`
+  lo eclipsaría. Usá `roby-orchestrator` para un orquestador a nivel de proyecto.
+</Aside>
+
+## Ver también
+
+- [Conceptos — Agentes](/apx/docs/es/concepts/agents/) — CRUD de agentes por proyecto, memoria, y el formato `AGENT.md`
+- [Capacidades — Skills](/apx/docs/es/capabilities/skills/) — conjuntos de instrucciones reutilizables que podés adjuntar a los agentes

@@ -1,0 +1,55 @@
+---
+title: APX
+description: Runtime local + CLI para el estándar Agent Project Context (APC).
+template: splash
+hero:
+  tagline: Un daemon local + CLI que ejecuta, coordina y recuerda tus agentes de IA — a través de la terminal, la web, la voz y Telegram.
+  image:
+    file: ../../../assets/logo.webp
+  actions:
+    - text: Empezar
+      link: /apx/docs/es/start/introduction/
+      icon: right-arrow
+      variant: primary
+    - text: Ver en GitHub
+      link: https://github.com/agentprojectcontext/apx
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
+
+## ¿Qué es APX?
+
+APX es la implementación de referencia del [protocolo APC](https://github.com/agentprojectcontext/agentprojectcontext):
+un **daemon local + CLI `apx`** que gestiona proyectos, agentes, sesiones, memoria y registros de
+mensajes. El sistema de archivos es la fuente de verdad — el contexto del proyecto vive en tu repo, el
+estado del runtime vive en `~/.apx/`.
+
+<CardGrid stagger>
+	<Card title="Un CLI, muchos motores" icon="laptop">
+		Ejecutá agentes a través de Claude Code, Codex, OpenCode, Aider, Cursor — o llamá a
+		LLMs directamente vía los motores Anthropic, OpenAI, Gemini y Ollama.
+	</Card>
+	<Card title="Multi-superficie" icon="puzzle">
+		Los mismos agentes accesibles desde la terminal, un panel de administración web, una TUI, una
+		ventana de escritorio Electron, voz, deck y un bot de Telegram.
+	</Card>
+	<Card title="Memoria que persiste" icon="open-book">
+		Memoria entre canales: notas escritas automáticamente, recuperación RAG, compactación
+		progresiva — tus agentes recuerdan entre sesiones y superficies.
+	</Card>
+	<Card title="Nativo de MCP" icon="setting">
+		Cada agente puede exponer o consumir servidores MCP, con alcance por proyecto,
+		runtime o de forma global.
+	</Card>
+</CardGrid>
+
+## Explorá la documentación
+
+<CardGrid>
+	<LinkCard title="Instalación" href="/apx/docs/es/start/installation/" description="Instalá APX y arrancá el daemon." />
+	<LinkCard title="Inicio rápido" href="/apx/docs/es/start/quick-start/" description="Desde apx init hasta tu primera ejecución de un agente." />
+	<LinkCard title="Arquitectura" href="/apx/docs/es/start/architecture/" description="Core, host e interfaces — cómo encaja todo." />
+	<LinkCard title="Referencia del CLI" href="/apx/docs/es/surfaces/cli/" description="Cada comando apx, agrupado por tarea." />
+</CardGrid>

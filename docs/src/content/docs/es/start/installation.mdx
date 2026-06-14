@@ -1,0 +1,94 @@
+---
+title: Instalación
+description: Instalá el CLI de APX, arrancá el daemon y verificá tu configuración.
+sidebar:
+  order: 2
+---
+
+import { Steps, Tabs, TabItem, Aside } from '@astrojs/starlight/components';
+import Screenshot from '../../../../components/Screenshot.astro';
+import Terminal from '../../../../components/Terminal.astro';
+
+APX se distribuye como un único paquete npm que provee tres binarios: `apx` (CLI), `apx-daemon`
+(el servidor local) y `apx-mcp` (el puente del servidor MCP).
+
+## Requisitos
+
+- **Node.js 20+** (el campo engines del paquete permite 18+, pero se recomienda 20+).
+- macOS, Linux o WSL. Algunas superficies (Desktop, Voice) tienen dependencias extra a nivel del SO cubiertas en
+  sus propias páginas.
+
+## Instalar
+
+<Tabs syncKey="pkg">
+	<TabItem label="npm">
+		```bash
+		npm install -g apx
+		```
+	</TabItem>
+	<TabItem label="pnpm">
+		```bash
+		pnpm add -g apx
+		```
+	</TabItem>
+</Tabs>
+
+<Aside type="tip">
+	El daemon arranca automáticamente en tu primera llamada a `apx` — no necesitás lanzarlo a mano.
+</Aside>
+
+## Verificar
+
+<Steps>
+
+1. Comprobá que el CLI esté en tu PATH:
+
+   ```bash
+   apx --version
+   ```
+
+2. Ejecutá cualquier comando para arrancar el daemon, luego confirmá que esté sano:
+
+   ```bash
+   apx status
+   ```
+
+   <Terminal command="apx status" caption="apx status mostrando el daemon en ejecución y su puerto">
+   {`  Daemon
+     ✓ running   port 7430   v0.4.2   uptime 3m
+
+   Super-agent
+     ✓ enabled
+       model           anthropic:claude-sonnet-4-5
+
+   Engines
+     ✓ Anthropic     ← active
+     ✓ OpenAI
+     ✓ Gemini
+     ✓ Ollama        http://localhost:11434
+
+   Projects
+     #1  First Project    5 agents   ~/code/first-project
+     #2  Acme Store        4 agents   ~/code/acme-store
+     #3  Data Pipeline     3 agents   ~/code/data-pipeline`}
+   </Terminal>
+
+</Steps>
+
+## Qué se crea
+
+La primera ejecución crea el directorio local del runtime:
+
+```text
+~/.apx/
+├── config.json        ← engines, providers, global settings
+├── identity.json      ← the assistant's user-facing name (default "APX")
+└── projects/          ← per-project runtime state (sessions, messages, caches)
+```
+
+Nada de esto se commitea — es local a tu máquina. Mirá
+[Configuración](/apx/docs/es/concepts/configuration/) para la referencia completa.
+
+## Siguiente
+
+Andá al [Inicio rápido](/apx/docs/es/start/quick-start/) para inicializar un proyecto y ejecutar tu primer agente.

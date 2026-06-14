@@ -1,0 +1,205 @@
+---
+title: Daemon
+description: El daemon local de APX — qué es, cómo se autoarranca y cómo administrarlo.
+sidebar:
+  order: 2
+---
+
+import { Aside, FileTree } from '@astrojs/starlight/components';
+import Screenshot from '../../../../components/Screenshot.astro';
+import Terminal from '../../../../components/Terminal.astro';
+
+El daemon de APX (`apx-daemon`) es la **capa host** del sistema — un servidor HTTP local de larga duración
+en `127.0.0.1:7430` que posee todo lo que necesita persistir entre comandos: el estado de los proyectos,
+el ciclo de vida de los plugins, el scheduler, los archivos de conversación y el endpoint del super-agente.
+
+Cada superficie — la CLI `apx`, la TUI, el panel de administración web, el puente MCP, la ventana de Desktop — se comunica con
+el daemon sobre HTTP. Mirá [Arquitectura](/apx/docs/es/start/architecture/) para el panorama completo.
+
+<Terminal command="apx daemon status" caption="apx daemon status — puerto, pid, uptime, plugins, proyectos">
+{`✓ daemon running
+    pid        48213
+    port       7430        http://127.0.0.1:7430
+    version    0.4.2
+    uptime     2h 14m
+    pid file   ~/.apx/daemon.pid
+
+  plugins
+    ● telegram   running   1 channel polling
+    ● desktop    running   0 clients
+
+  • 3 proyectos cargados`}
+</Terminal>
+
+---
+
+## Autoarranque
+
+Nunca necesitás iniciar el daemon manualmente. La primera llamada `apx` que lo necesita lo arranca en
+segundo plano y espera un momento a que esté saludable. Las llamadas siguientes reutilizan el proceso en ejecución.
+
+El daemon es un **singleton**: un archivo PID en `~/.apx/daemon.pid` evita arranques dobles. Si el archivo
+existe pero el proceso está muerto, el siguiente arranque lo limpia automáticamente.
+
+<Aside type="tip">
+  Ejecutá `apx status` en cualquier momento para ver si el daemon está corriendo, qué plugins están activos y
+  cuántos proyectos están cargados.
+</Aside>
+
+---
+
+## Administrar el daemon
+
+```bash
+apx daemon start      # boot the daemon explicitly
+apx daemon stop       # send SIGTERM and wait
+apx daemon reload     # re-read ~/.apx/config.json only — does NOT restart the process
+apx daemon status     # print health: port, pid, uptime, plugins, projects
+apx daemon logs       # legacy stdout log tail
+apx daemon logs --tail 200
+```
+
+`apx daemon reload` es la opción liviana: toma los cambios de config (canales de Telegram,
+claves de modelo, modo de permisos) sin descartar las requests en vuelo. Usá `apx daemon restart` (un
+stop + start) cuando cambiás código fuente o prompts.
+
+---
+
+## Logs
+
+APX escribe en dos lugares:
+
+| Ruta | Qué | Comando |
+|------|------|---------|
+| `~/.apx/daemon.log` | Redirección legacy de stdout (salida del proceso del daemon) | `apx daemon logs --tail N` |
+| `~/.apx/logs/apx.log` | Log estructurado unificado — todos los módulos escriben acá | `apx log` |
+
+**`apx log` es la forma recomendada de seguir el sistema:**
+
+```bash
+apx log              # print the last 200 lines
+apx log -f           # follow (tail -f style)
+apx log --tail 500
+apx log --errors     # only ERROR-level lines
+```
+
+<Terminal command="apx log -f" caption="apx log -f — flujo de log unificado en vivo de todos los módulos">
+{`[2026-06-14 09:31:58.004] [INFO ] [daemon  ] apx-daemon 0.4.2 listening on http://127.0.0.1:7430
+[2026-06-14 09:31:58.061] [INFO ] [telegram] plugin telegram initialized
+[2026-06-14 09:31:58.088] [INFO ] [telegram] polling channel "default" (chat 84217553)
+[2026-06-14 09:32:14.220] [INFO ] [scheduler] routine "morning-standup" due → exec_agent
+[2026-06-14 09:32:16.733] [INFO ] [super-agent] roby routed 1 task to sofia
+[2026-06-14 09:32:19.510] [WARN ] [engine  ] anthropic 429 — backing off 2s, retry 1/3
+[2026-06-14 09:32:21.998] [INFO ] [engine  ] anthropic ok — 612 tok in / 248 out`}
+</Terminal>
+
+El formato del log unificado es:
+
+```text
+[2026-05-30 14:22:01.123] [INFO ] [telegram] plugin telegram initialized
+[2026-05-30 14:22:01.456] [INFO ] [daemon  ] apx-daemon 1.22.2 listening on http://127.0.0.1:7430
+```
+
+Los secretos (tokens, API keys) se redactan automáticamente antes de escribir.
+
+---
+
+## Ciclo de vida de los plugins
+
+Al arrancar, el daemon descubre dos plugins integrados:
+
+| Plugin | Qué hace |
+|--------|--------------|
+| `telegram` | Gateway de bot de Telegram por long-poll, ruteo de entrada, roster de contactos |
+| `desktop` | Puente WebSocket para la ventana flotante de Electron |
+
+El `PluginManager` llama una vez al `init()` de cada plugin, y luego a `start()` después de que el servidor HTTP esté
+escuchando. Ante `SIGTERM` / `SIGINT` llama a `stop()` en cada plugin antes de cerrar el servidor.
+
+Los plugins también pueden instalar sus propias rutas Express (hook `routes(app)`). El daemon las registra
+inmediatamente después de las rutas core de la API, así que las rutas de plugin quedan disponibles en la misma URL base.
+
+Podés inspeccionar el estado de los plugins en cualquier momento:
+
+```bash
+apx plugins list            # all loaded plugins + running/stopped
+apx plugins status telegram # detailed status for one plugin
+```
+
+---
+
+## Ticks del scheduler
+
+El daemon corre un `RoutineScheduler` que hace un tick cada 5 segundos y verifica qué rutinas están vencidas.
+Cuando una rutina se dispara, el scheduler:
+
+1. Lee la definición de la rutina desde `.apc/routines.json`.
+2. Resuelve el handler del kind (`heartbeat`, `exec_agent`, `super_agent`, `telegram`, `shell`).
+3. Ejecuta cualquier `pre_commands` configurado, evalúa la condición `skip_prompt_on`, ejecuta la acción
+   principal y luego ejecuta los `post_commands`.
+4. Escribe de vuelta los timestamps actualizados `last_run` / `next_run` en el store de rutinas.
+
+Mirá [Rutinas](/apx/docs/es/capabilities/routines/) para conocer la spec completa y los flags de `apx routine add`.
+
+---
+
+## Archivos de conversación
+
+Cada hilo de conversación de un agente se almacena como un archivo Markdown en disco — sin base de datos para
+los datos core, solo para el índice regenerable. El layout:
+
+<FileTree>
+- ~/.apx/
+  - config.json
+  - identity.json
+  - daemon.pid
+  - daemon.token
+  - daemon.log
+  - logs/
+    - apx.log
+    - errors.jsonl
+  - messages/
+    - telegram/
+      - YYYY-MM-DD.jsonl
+  - projects/
+    - \<project-id\>/
+      - messages/
+      - agents/
+        - \<slug\>/
+          - sessions/   ← una .md por invocación de runtime
+          - conversations/  ← hilos de conversación con el LLM
+        - default/
+          - sessions/
+</FileTree>
+
+<Aside type="note">
+  Nada de lo que está bajo `~/.apx/` se commitea a git. Las definiciones de proyecto y la memoria curada viven en el
+  repo bajo `.apc/`. Mirá [Arquitectura](/apx/docs/es/start/architecture/) para el razonamiento de la división de almacenamiento.
+</Aside>
+
+---
+
+## Configuración
+
+El daemon lee `~/.apx/config.json` al arrancar. Campos clave:
+
+```json
+{
+  "port": 7430,
+  "host": "127.0.0.1",
+  "log_level": "info",
+  "super_agent": {
+    "enabled": true,
+    "model": "claude-3-5-sonnet",
+    "permission_mode": "automatico"
+  },
+  "telegram": { "enabled": true, "channels": [] },
+  "engines": {
+    "anthropic": { "api_key": "sk-ant-..." }
+  }
+}
+```
+
+Después de editar la config, ejecutá `apx daemon reload` (para cambios solo de config) o `apx daemon restart`
+(para cambios de código/prompts). Los comandos `apx config set` y `apx model key` escriben este archivo y
+llaman al endpoint de reload automáticamente.

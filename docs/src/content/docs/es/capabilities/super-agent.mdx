@@ -1,0 +1,184 @@
+---
+title: Super-agent
+description: El modo por defecto que usa herramientas y se ejecuta cuando no se nombra ningún agente de proyecto — qué es, cómo invocarlo con apx exec, su tool loop y cómo configurar el nombre visible del asistente.
+sidebar:
+  order: 1
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import Screenshot from '../../../../components/Screenshot.astro';
+import Terminal from '../../../../components/Terminal.astro';
+
+El **super-agent** es un _modo_, no el nombre de una persona. Cuando ejecutás `apx exec` sin apuntar a un
+agente de proyecto específico, APX activa este modo: el loop a nivel del daemon, que usa herramientas y puede alcanzar
+cada herramienta registrada — operaciones de archivos, llamadas MCP, Telegram, shell, tasks, sesiones y más.
+
+El nombre que usa el asistente cuando habla con vos viene de `~/.apx/identity.json` (por defecto
+**"APX"**). Las referencias a "super-agent" son un término técnico interno para el modo. Lo configurás
+con las claves `super_agent.*` en `~/.apx/config.json`, y los tipos de routine todavía pueden decir
+`super_agent` — pero los usuarios nunca ven esa etiqueta.
+
+<Aside type="note">
+  Este diseño está registrado en `spec/decisions/002-super-agent-is-mode-not-name.md`.
+  Mirá [Configuration](/apx/docs/es/concepts/configuration/) para la referencia completa de las claves `super_agent.*`.
+</Aside>
+
+## Habilitarlo
+
+El modo está deshabilitado por defecto. Configurá ambas claves antes de llamarlo por primera vez:
+
+```bash
+apx config set super_agent.enabled true
+apx config set super_agent.model "anthropic:claude-sonnet-4-5"
+```
+
+Una vez habilitado, cada llamada a `apx exec` sin `-a <agent>` pasa por este modo.
+
+## `apx exec` — el punto de entrada de una sola vez
+
+```bash
+apx exec "<prompt>"                         # modo super-agent (por defecto)
+apx exec -- "<prompt>"                      # igual; -- evita problemas de parseo de flags
+apx exec -a reviewer "<prompt>"            # un agente de proyecto nombrado en su lugar
+apx exec "<prompt>" --model gpt-5          # sobrescribe el modelo configurado para esta llamada
+apx exec "<prompt>" --max-tokens 2000      # limita los tokens de salida
+apx exec "<prompt>" --project my-app       # fija un contexto de proyecto específico
+```
+
+<Terminal command="apx exec 'list my open tasks across all projects'" caption="apx exec en acción — modo super-agent con las llamadas a herramientas visibles">
+{`Roby (super-agent) · anthropic:claude-sonnet-4-5
+
+  → tool  tasks.list { project: "First Project", state: "open" }
+  → tool  tasks.list { project: "Acme Store", state: "open" }
+  → tool  tasks.list { project: "Data Pipeline", state: "open" }
+
+Tenés 4 tasks abiertas:
+  • First Project  — Wire Stripe webhooks before merge (vence 06-16)
+  • Acme Store     — Retry-guard the flaky cart-total test (vence 06-18)
+  • Acme Store     — Document the pairing flow for the web panel
+  • Data Pipeline  — Backfill ingestion CLI flag (vence 06-20)
+
+# 612 tok in / 198 out · 2.4s`}
+</Terminal>
+
+Cuando el modo super-agent está activo, el daemon resuelve el nombre del asistente desde
+`~/.apx/identity.json` y lo muestra en las líneas de estado, los headers de la TUI y las respuestas de Telegram —
+nunca la cadena "super-agent".
+
+## El tool loop
+
+Por debajo, `runSuperAgent()` arma un system prompt (bloque de identidad + inventario de proyectos +
+bloque de memoria + bloque de threads activos), selecciona un subconjunto del schema de herramientas apropiado para el canal,
+y después llama al engine vía el loop estándar `runAgent()`. El loop continúa hasta que el modelo deja
+de llamar herramientas o una señal lo aborta.
+
+### Registro de herramientas
+
+El registro completo tiene alrededor de 30 herramientas nativas más herramientas puenteadas desde registries (browser, fetch, search,
+glob, grep). El daemon elige un subconjunto según el canal para mantenerse dentro de los presupuestos de TPM de los tiers baratos:
+
+| Canal | Conjunto de herramientas | Justificación |
+|---|---|---|
+| `api` / `apx exec` | Completo | Deliberado, modelo elegido por el usuario |
+| `routine` | Completo | Programado, autónomo, modelo elegido por el usuario |
+| `web` / `code` | Completo | Workspace de formato largo |
+| `telegram` | Core (~700 tokens) | Tiers baratos, respuestas ágiles |
+| `desktop` / `deck` | Core | Igual |
+
+El modelo siempre puede expandir su superficie llamando a `load_skill`.
+
+### Herramientas nativas seleccionadas
+
+| Herramienta | Qué hace |
+|---|---|
+| `create_task` / `list_tasks` | Agregar y leer items de TODO por proyecto |
+| `call_agent` | Delegar a un agente de proyecto nombrado sin lanzar un proceso nuevo |
+| `call_mcp` | Llamar cualquier herramienta de un servidor MCP registrado |
+| `call_runtime` | Ejecutar una sesión de Claude Code / Codex |
+| `run_shell` | Ejecutar un comando de shell (limitado por el modo de permisos) |
+| `send_telegram` | Enviar un mensaje vía el plugin de Telegram |
+| `remember` | Escribir un hecho durable en `~/.apx/memory.md` |
+| `search_sessions` | Recuperar transcripciones de sesiones pasadas |
+| `set_identity` | Actualizar campos de `~/.apx/identity.json` |
+
+## Brokering entre canales
+
+El modo super-agent es el handler común detrás de cada superficie: mensajes de Telegram, prompts de la ventana
+de Desktop, llamadas a `apx exec`, chat web y corridas de routines convergen todos en `runSuperAgent()`. Cada
+superficie pasa un identificador de `channel` (`telegram`, `desktop`, `web`, `routine`, `api`, …) que
+determina:
+
+- Qué subconjunto de herramientas es visible para el modelo.
+- Si se inyecta un bloque de "active threads" (turnos recientes en _otros_ canales).
+- Qué identidad de remitente de Telegram y qué reglas de role-gating aplican.
+
+El broker de memoria corre antes de cada llamada que no sea tool-free e inyecta un bloque `[MEMORIA RELEVANTE]`
+en el system prompt. Mirá [Memory system](/apx/docs/es/capabilities/memory-system/) para los detalles.
+
+## Identidad — `apx identity`
+
+El nombre visible del asistente se guarda en `~/.apx/identity.json`:
+
+```json
+{
+  "agent_name": "APX",
+  "owner_name": ""
+}
+```
+
+Tres comandos lo gestionan:
+
+```bash
+apx identity show                 # imprime los campos de identidad actuales
+apx identity set agent_name Ada   # cambia el nombre visible a "Ada"
+apx identity set owner_name Sam   # configura el nombre del owner/usuario
+apx identity wizard               # prompt de configuración interactivo
+```
+
+<Terminal command="apx identity show" caption="apx identity show — nombre actual del agente y del owner">
+{`  Agent name  : Roby
+  Personality : pragmatic, concise, a little playful
+  Owner       : Manuel
+  Context     : prefers es-AR, ships fast, hates ceremony
+  Language    : en  (apx config set user.language <code>)
+  Last wakeup : 2026-06-14 09:31
+  File        : ~/.apx/identity.json`}
+</Terminal>
+
+<Aside type="tip">
+  Cambiar `agent_name` se propaga de inmediato a las respuestas de Telegram, la burbuja de Desktop, el sidebar
+  de la TUI y el chat web. No hace falta reiniciar.
+</Aside>
+
+## Modo de permisos
+
+`permission_mode` en `super_agent` controla qué puede hacer el tool loop sin preguntar:
+
+| Modo | Comportamiento |
+|---|---|
+| `total` | Todas las herramientas corren sin confirmación |
+| `automatico` | APX decide automáticamente (recomendado) |
+| `permiso` | Solo las herramientas en `allowed_tools`; todo lo demás pregunta |
+
+```bash
+apx permission set automatico
+```
+
+## Fallback de modelo
+
+Si el modelo primario no está disponible, APX recorre una lista ordenada y configurable de proveedores de fallback.
+Configurá el orden y habilitá el router:
+
+```bash
+apx model enable
+apx model order ollama openrouter groq
+apx model status          # prueba todos los proveedores; muestra cuál se usaría ahora
+```
+
+Mirá [Configuration](/apx/docs/es/concepts/configuration/) para el schema completo de `super_agent.model_fallback`.
+
+## Siguiente
+
+- [Memory system](/apx/docs/es/capabilities/memory-system/) — cómo el agente recupera contexto relevante entre canales.
+- [Routines](/apx/docs/es/capabilities/routines/) — programá el super-agent o un `exec_agent` simple en un cron.
+- [Configuration](/apx/docs/es/concepts/configuration/) — referencia completa de `super_agent.*` e `identity.json`.
