@@ -1,4 +1,0 @@
----
-role: code refactor
-model: claude-sonnet-4.5
----
