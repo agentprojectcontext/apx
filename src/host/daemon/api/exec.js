@@ -116,6 +116,7 @@ export function register(app, { projects, project, config }) {
       model: modelOverride,
       temperature,
       maxTokens,
+      channel,
     } = req.body || {};
     if (!prompt) return res.status(400).json({ error: "prompt required" });
     const agents = readAgents(p.path);
@@ -171,6 +172,7 @@ export function register(app, { projects, project, config }) {
           agentSlug: agent.slug,
           engine: modelId,
           system,
+          channel,
         });
         convPath = conv.path;
         convId = conv.id;

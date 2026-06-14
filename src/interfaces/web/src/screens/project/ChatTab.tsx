@@ -4,11 +4,11 @@ import useSWR from "swr";
 import { Plus, Trash2 } from "lucide-react";
 import { Agents } from "../../lib/api";
 import { Badge, Button, Dialog, Empty, Field, Input, Loading, Switch } from "../../components/ui";
-import { UiSelect } from "../../components/UiSelect";
 import { Composer } from "../../components/chat/Composer";
 import { MessageList } from "../../components/chat/MessageList";
 import { ContextBar } from "../../components/chat/ContextBar";
 import { InlineAskPanel, pendingAskQuestions } from "../../components/chat/InlineAskPanel";
+import { ChatList, type ChatKey } from "../../components/chat/ChatList";
 import { useChat } from "../../hooks/useChat";
 import { useToast } from "../../components/Toast";
 import { t } from "../../i18n";
@@ -24,48 +24,56 @@ export function ChatTab({ pid }: { pid: string }) {
   const toast = useToast();
   const [params] = useSearchParams();
   const agents = useSWR(`/projects/${pid}/agents`, () => Agents.list(pid));
-  const [activeSlug, setActiveSlug] = useState(params.get("agent") || "");
   const [creating, setCreating] = useState(false);
   const [model, setModel] = useState("");
   const [dismissedAskKey, setDismissedAskKey] = useState<string | null>(null);
-  const { msgs, send: sendChat, stop, clear, streaming } = useChat(pid, (m) => toast.error(m));
+  const { msgs, send: sendChat, stop, clear, load, streaming, conversationId } =
+    useChat(pid, (m) => toast.error(m));
   const persona = usePersonaName();
 
+  // Selection state — drives both the sidebar highlight and the right-pane
+  // header. Defaults to a live session with the super-agent so the chat works
+  // even on a brand-new project with zero agents and zero conversations.
+  const initialFromUrl = params.get("agent");
+  const [selected, setSelected] = useState<ChatKey>(
+    initialFromUrl
+      ? { kind: "live", agentSlug: initialFromUrl }
+      : { kind: "live", agentSlug: ROBY_SLUG },
+  );
+
   const agentList = agents.data || [];
-  // Virtual options shown in the dropdown — the super-agent is always first,
-  // then the real project agents. It works on every project (calls
-  // /projects/:pid/super-agent/chat) so we expose it everywhere, not just /base.
   const isRoby = (slug: string | null | undefined) => slug === ROBY_SLUG;
-  const dropdownOptions = useMemo(
-    () => [
-      { value: ROBY_SLUG, label: `${persona} (super-agent)` },
-      ...agentList.map((a) => ({ value: a.slug, label: a.slug })),
-    ],
-    [agentList, persona],
-  );
+
+  // The agent whose dropdown badge / model we show on the right header.
   const activeAgent = useMemo(
-    () => agentList.find((a) => a.slug === activeSlug) || agentList[0],
-    [agentList, activeSlug],
+    () =>
+      selected.kind === "live"
+        ? agentList.find((a) => a.slug === selected.agentSlug)
+        : agentList.find((a) => a.slug === selected.agentSlug),
+    [agentList, selected],
   );
-  // Effective slug we'll send with: Roby if explicitly selected, or the first
-  // real agent, or Roby when the project has no agents at all.
-  const effectiveSlug = isRoby(activeSlug)
-    ? ROBY_SLUG
-    : (activeAgent?.slug || ROBY_SLUG);
-  const activeIsRoby = effectiveSlug === ROBY_SLUG;
+  const activeIsRoby = isRoby(selected.agentSlug);
 
+  // Whenever the user picks a stored conversation, reload the in-memory chat
+  // with its persisted history. The hook itself binds the conversation_id so
+  // subsequent sends append to the same file.
   useEffect(() => {
-    if (!activeSlug && activeAgent?.slug) setActiveSlug(activeAgent.slug);
-  }, [activeAgent?.slug, activeSlug]);
-
-  const resetConversation = () => clear();
+    if (selected.kind === "conv") {
+      void load(selected.agentSlug, selected.convId);
+    } else {
+      // Switching to a live session = drop any previously bound conversation.
+      if (conversationId) clear();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected.kind, selected.kind === "conv" ? selected.convId : selected.agentSlug]);
 
   const send = async (text: string) => {
-    if (!activeIsRoby && !activeAgent) return;
-    await sendChat(text, {
-      model: model || undefined,
-      agentSlug: activeIsRoby ? undefined : activeAgent!.slug,
-    });
+    if (activeIsRoby) {
+      await sendChat(text, { model: model || undefined });
+      return;
+    }
+    if (!activeAgent) return;
+    await sendChat(text, { model: model || undefined, agentSlug: activeAgent.slug });
   };
 
   const copyToClipboard = async (text: string) => {
@@ -73,72 +81,97 @@ export function ChatTab({ pid }: { pid: string }) {
     catch { /* ignore */ }
   };
 
-  if (agents.isLoading) return <Loading />;
+  const onNewChat = () => {
+    setSelected({ kind: "live", agentSlug: ROBY_SLUG });
+    clear();
+  };
 
+  const headerTitle = activeIsRoby
+    ? t("project.chat.superagent_title", { persona })
+    : selected.kind === "conv"
+      ? selected.convId
+      : t("project.chat.title");
   const headerSubtitle = activeIsRoby
     ? t("project.chat.superagent_subtitle", { persona })
-    : t("project.chat.subtitle");
+    : selected.kind === "conv"
+      ? t("project.chat.loaded_subtitle", { slug: selected.agentSlug })
+      : t("project.chat.subtitle");
+
+  if (agents.isLoading) return <Loading />;
 
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card/40">
-      <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
-        <div className="min-w-0">
-          <h2 className="text-sm font-semibold">
-            {activeIsRoby ? t("project.chat.superagent_title", { persona }) : t("project.chat.title")}
-          </h2>
-          <p className="truncate text-[11px] text-muted-fg">{headerSubtitle}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="w-52">
-            <UiSelect
-              value={effectiveSlug}
-              onChange={(v) => { setActiveSlug(v); resetConversation(); }}
-              options={dropdownOptions}
-            />
-          </div>
-          {activeIsRoby
-            ? <Badge tone="success">super-agent</Badge>
-            : activeAgent?.model && <Badge tone="info">{activeAgent.model}</Badge>}
-          {!agentList.length && !activeIsRoby && (
-            <Button variant="primary" size="sm" onClick={() => setCreating(true)}>
-              <Plus size={14} /> {t("project.chat.create_agent")}
-            </Button>
-          )}
-          <Button variant="ghost" size="sm" disabled={streaming || msgs.length === 0} onClick={resetConversation}>
-            <Trash2 size={13} /> {t("project.chat.clear")}
-          </Button>
-        </div>
-      </header>
-      <div className="flex-1 overflow-y-auto">
-        {msgs.length ? (
-          <MessageList msgs={msgs} onCopy={copyToClipboard} />
-        ) : (
-          <div className="flex h-full items-center justify-center p-8">
-            <p className="text-sm text-muted-fg">{t("project.chat.empty")}</p>
-          </div>
-        )}
-      </div>
-      <ContextBar msgs={msgs} />
-      {(() => {
-        const pending = !streaming ? pendingAskQuestions(msgs) : null;
-        if (!pending || pending.turnKey === dismissedAskKey) return null;
-        return (
-          <InlineAskPanel
-            turnKey={pending.turnKey}
-            questions={pending.questions}
-            onSubmit={(compiled) => void send(compiled)}
-            onDismiss={() => setDismissedAskKey(pending.turnKey)}
-            disabled={streaming}
-          />
-        );
-      })()}
-      <Composer
-        onSend={send}
-        onStop={stop}
-        streaming={streaming}
-        model={model}
-        onModelChange={setModel}
+    <div className="flex h-full overflow-hidden rounded-xl border border-border bg-card/40">
+      <ChatList
+        pid={pid}
+        agents={agentList}
+        superAgentSlug={ROBY_SLUG}
+        superAgentLabel={`${persona} (super-agent)`}
+        selected={selected}
+        onSelect={setSelected}
+        onNewChat={onNewChat}
       />
+
+      <section className="flex min-w-0 flex-1 flex-col">
+        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
+          <div className="min-w-0">
+            <h2 className="truncate text-sm font-semibold">{headerTitle}</h2>
+            <p className="truncate text-[11px] text-muted-fg">{headerSubtitle}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            {activeIsRoby ? (
+              <Badge tone="success">super-agent</Badge>
+            ) : (
+              activeAgent?.model && <Badge tone="info">{activeAgent.model}</Badge>
+            )}
+            {selected.kind === "conv" && <Badge tone="info">{conversationId || "…"}</Badge>}
+            {!agentList.length && !activeIsRoby && (
+              <Button variant="primary" size="sm" onClick={() => setCreating(true)}>
+                <Plus size={14} /> {t("project.chat.create_agent")}
+              </Button>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={streaming || msgs.length === 0}
+              onClick={onNewChat}
+            >
+              <Trash2 size={13} /> {t("project.chat.clear")}
+            </Button>
+          </div>
+        </header>
+
+        <div className="flex-1 overflow-y-auto">
+          {msgs.length ? (
+            <MessageList msgs={msgs} onCopy={copyToClipboard} />
+          ) : (
+            <div className="flex h-full items-center justify-center p-8">
+              <p className="text-sm text-muted-fg">{t("project.chat.empty")}</p>
+            </div>
+          )}
+        </div>
+        <ContextBar msgs={msgs} />
+        {(() => {
+          const pending = !streaming ? pendingAskQuestions(msgs) : null;
+          if (!pending || pending.turnKey === dismissedAskKey) return null;
+          return (
+            <InlineAskPanel
+              turnKey={pending.turnKey}
+              questions={pending.questions}
+              onSubmit={(compiled) => void send(compiled)}
+              onDismiss={() => setDismissedAskKey(pending.turnKey)}
+              disabled={streaming}
+            />
+          );
+        })()}
+        <Composer
+          onSend={send}
+          onStop={stop}
+          streaming={streaming}
+          model={model}
+          onModelChange={setModel}
+        />
+      </section>
+
       <CreateAgentDialog
         open={creating}
         pid={pid}

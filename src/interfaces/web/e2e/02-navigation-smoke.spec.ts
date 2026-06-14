@@ -34,7 +34,6 @@ const PROJECT_TABS: Array<[navKey: string, active: string]> = [
   ["index", "overview"],
   ["telegram", "telegram"],
   ["chat", "chat"],
-  ["threads", "threads"],
   ["agents", "agents"],
   ["memories", "memories"],
   ["routines", "routines"],

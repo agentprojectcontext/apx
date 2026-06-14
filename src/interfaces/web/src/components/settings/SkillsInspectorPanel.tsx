@@ -88,7 +88,7 @@ export function SkillsInspectorPanel() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
       <Section
         title="Skill Inspector (RAG por turno)"
         description="Función experimental. Cuando está activa, el agente NO recibe la lista completa de skills en su prompt; en cada mensaje un RAG local decide qué skill(s) cargar — el cuerpo completo si hay match fuerte, una sugerencia si hay match medio, nada si no aplica. Se reevalúa cada turno: una skill que dejó de ser relevante desaparece del contexto."
