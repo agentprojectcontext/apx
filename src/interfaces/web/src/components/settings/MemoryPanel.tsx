@@ -101,7 +101,7 @@ export function MemoryPanel() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
       <Section
         title={t("memory_panel.embeddings_title")}
         description="Modelo que vectoriza el historial de todos los canales para la memoria relevante. Igual que TTS/STT: elegí proveedor y modelo. 'Automático' prueba local primero y cae al offline si no hay nada."

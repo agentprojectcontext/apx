@@ -276,7 +276,6 @@ export const es = {
       tasks:    "Tasks",
       mcps:     "MCPs",
       vars:     "Variables",
-      threads:  "Chats",
       logs:     "Logs",
       memories: "Memorias",
     },
@@ -302,6 +301,7 @@ export const es = {
       subtitle:    "Chat directo con el agente del proyecto.",
       superagent_title:  "Chat con {persona}",
       superagent_subtitle: "Chat con {persona} — el super-agente APX. Puede usar tools (proyectos, tasks, mcps, agentes).",
+      loaded_subtitle: "Conversación cargada con {slug}. Lo que mandes se agrega a este chat.",
       empty:       "Mandá un mensaje para arrancar la conversación.",
       placeholder: "Escribí algo y enter para enviar (shift+enter = nueva línea)",
       send:        "Enviar",
@@ -317,6 +317,16 @@ export const es = {
       model_label: "modelo",
       model_hint:  "ej. openai:gpt-5, groq:llama-3.3-70b-versatile",
       master_label: "Agente master",
+      list: {
+        title:         "Chats",
+        new:           "Nuevo",
+        search:        "Buscar chats…",
+        all_agents:    "Todos los agentes",
+        empty:         "No hay conversaciones todavía. Arrancá una desde la derecha.",
+        count:         "{n} en total",
+        live_with:     "Live · {slug}",
+        live_subtitle: "Sesión en memoria",
+      },
     },
 
     tasks: {

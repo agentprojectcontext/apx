@@ -27,7 +27,7 @@ export function conversationPath(storagePath, agentSlug, idOrFilename) {
   return path.join(storagePath, "agents", agentSlug, "conversations", filename);
 }
 
-export function startConversation({ storagePath, agentSlug, engine, system }) {
+export function startConversation({ storagePath, agentSlug, engine, system, channel }) {
   const dir = path.join(storagePath, "agents", agentSlug, "conversations");
   fs.mkdirSync(dir, { recursive: true });
   const id = generateConversationId(storagePath, agentSlug);
@@ -38,6 +38,7 @@ export function startConversation({ storagePath, agentSlug, engine, system }) {
     `id: ${id}\n` +
     `agent: ${agentSlug}\n` +
     `engine: ${engine}\n` +
+    (channel ? `channel: ${channel}\n` : "") +
     `started: ${started}\n` +
     `last_turn: \n` +
     `status: open\n` +
@@ -98,7 +99,31 @@ export function listConversations(storagePath, agentSlug) {
     .filter((f) => f.endsWith(".md"))
     .sort()
     .reverse()
-    .map((f) => ({ filename: f, id: f.replace(/\.md$/, "") }));
+    .map((f) => summarizeConversation(path.join(dir, f), agentSlug, f))
+    .filter(Boolean);
+}
+
+// Lightweight summary used by the chat list sidebar — reads frontmatter and
+// counts turns without loading the whole conversation into memory beyond what
+// `fs.readFileSync` already does. The fields match `ConversationListEntry` on
+// the frontend so the sidebar can group + filter without a second roundtrip.
+function summarizeConversation(filePath, agentSlug, filename) {
+  let text;
+  try { text = fs.readFileSync(filePath, "utf8"); } catch { return null; }
+  const { fm, turns } = parseConversation(text);
+  const messages = turns.filter((t) => t.role !== "system" && t.role !== "compact").length;
+  const firstUser = turns.find((t) => t.role === "user");
+  const title = (firstUser?.content || "").split("\n")[0].slice(0, 80).trim() || undefined;
+  return {
+    id: filename.replace(/\.md$/, ""),
+    filename,
+    agent_slug: agentSlug,
+    started_at: fm.started || fm.last_turn || "",
+    ended_at: fm.status === "closed" ? (fm.last_turn || undefined) : undefined,
+    channel: fm.channel || undefined,
+    messages,
+    title,
+  };
 }
 
 export function setStatus(filePath, status) {

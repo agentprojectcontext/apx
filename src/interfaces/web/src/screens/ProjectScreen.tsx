@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useParams, Routes, Route, useLocation, useNavigate } from "react-router-dom";
+import { useParams, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import {
   Bot, Heart, Zap, Puzzle, FolderKanban, Settings,
   MessagesSquare, Send, KeyRound,
@@ -23,7 +23,6 @@ import { RoutinesTab } from "./project/RoutinesTab";
 import { TasksTab } from "./project/TasksTab";
 import { McpsTab } from "./project/McpsTab";
 import { VarsTab } from "./project/VarsTab";
-import { ThreadsTab } from "./project/ThreadsTab";
 import { ChatTab } from "./project/ChatTab";
 import { TelegramTab } from "./project/TelegramTab";
 import { MemoriesTab } from "./project/MemoriesTab";
@@ -31,7 +30,7 @@ import { AgentDetailScreen } from "./project/AgentDetailScreen";
 
 type NavKey =
   | "" | "chat" | "config" | "telegram"
-  | "agents" | "routines" | "tasks" | "mcps" | "vars" | "threads" | "logs" | "memories";
+  | "agents" | "routines" | "tasks" | "mcps" | "vars" | "logs" | "memories";
 
 export function ProjectScreen() {
   const navigate = useNavigate();
@@ -83,7 +82,6 @@ export function ProjectScreen() {
           { key: "",         label: t("project.nav.overview"),  icon: FolderKanban },
           { key: "telegram", label: t("project.nav.telegram"),  icon: Send },
           { key: "chat",     label: t("project.nav.chat"),      icon: MessagesSquare },
-          { key: "threads",  label: t("project.nav.threads"),   icon: MessagesSquare },
           { key: "agents",   label: t("project.nav.agents"),    icon: Bot },
           { key: "memories", label: t("project.nav.memories"),  icon: Brain },
         ],
@@ -146,7 +144,7 @@ export function ProjectScreen() {
         <Route path="tasks"        element={isBase ? <GlobalTasksTab /> : <TasksTab pid={pid} />} />
         <Route path="mcps"         element={<McpsTab pid={pid} />} />
         <Route path="vars"         element={<VarsTab pid={pid} />} />
-        <Route path="threads"      element={<ThreadsTab pid={pid} />} />
+        <Route path="threads"      element={<Navigate to={`/p/${pid}/chat`} replace />} />
         <Route path="chat"         element={<ChatTab pid={pid} />} />
         <Route path="*"            element={<Overview pid={pid} />} />
       </Routes>

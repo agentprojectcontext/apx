@@ -179,7 +179,6 @@ function settingsLabel(key?: string) {
 function projectLabel(key?: string) {
   switch (key) {
     case "chat": return t("project.nav.chat");
-    case "threads": return t("project.nav.threads");
     case "telegram": return t("project.nav.telegram");
     case "agents": return t("project.nav.agents");
     case "routines": return t("project.nav.routines");

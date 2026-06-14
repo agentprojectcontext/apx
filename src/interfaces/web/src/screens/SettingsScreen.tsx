@@ -52,9 +52,11 @@ const SECTIONS: TabSection[] = [
   },
 ];
 
-// Tabs whose content (model router + provider grid, telegram tabs) benefits
-// from a wider container; the rest keep the cosier 3xl reading width.
-const WIDE_TABS = new Set<TabKey>(["engines", "telegram"]);
+// Tabs whose content lays out multiple top-level sections in a two-column grid
+// on xl (and so wants full available width). Single-section panels (identity,
+// super agent, devices, advanced) keep a cosier reading width so wide displays
+// don't blow form fields up to absurd widths.
+const WIDE_TABS = new Set<TabKey>(["engines", "telegram", "memory", "skills", "appearance"]);
 
 const PANELS: Record<TabKey, () => ReactElement> = {
   identity:    () => <IdentityPanel />,
@@ -84,7 +86,7 @@ export function SettingsScreen() {
       onChange={(k) => navigate(k === "identity" ? "/settings" : `/settings/${pathFromTab(k as TabKey)}`)}
       collapsed={collapsed}
       onToggleCollapse={toggle}
-      contentClassName={`mx-auto w-full ${WIDE_TABS.has(active) ? "max-w-6xl" : "max-w-3xl"} space-y-6 p-6 pt-3`}
+      contentClassName={`w-full ${WIDE_TABS.has(active) ? "" : "mx-auto max-w-3xl"} space-y-6 p-6 pt-3`}
       testId={`settings-tab-${active}`}
     >
       <Panel />

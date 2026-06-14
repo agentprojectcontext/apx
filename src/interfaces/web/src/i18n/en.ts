@@ -275,7 +275,6 @@ export const en = {
       tasks:    "Tasks",
       mcps:     "MCPs",
       vars:     "Variables",
-      threads:  "Chats",
       logs:     "Logs",
       memories: "Memories",
     },
@@ -301,6 +300,7 @@ export const en = {
       subtitle:    "Direct conversations with project agents. The super-agent does not intervene.",
       superagent_title:  "Chat with {persona}",
       superagent_subtitle: "Chat with {persona} — the APX super-agent. Can use tools (projects, tasks, mcps, agents).",
+      loaded_subtitle: "Loaded conversation with {slug}. Sending will append to this thread.",
       empty:       "Send a message to start the conversation.",
       placeholder: "Type something and press enter to send (shift+enter = new line)",
       send:        "Send",
@@ -316,6 +316,16 @@ export const en = {
       model_label: "model",
       model_hint:  "e.g. openai:gpt-5, groq:llama-3.3-70b-versatile",
       master_label: "Master agent",
+      list: {
+        title:         "Chats",
+        new:           "New",
+        search:        "Search chats…",
+        all_agents:    "All agents",
+        empty:         "No conversations yet. Start one from the right.",
+        count:         "{n} total",
+        live_with:     "Live · {slug}",
+        live_subtitle: "In-memory session",
+      },
     },
 
     tasks: {

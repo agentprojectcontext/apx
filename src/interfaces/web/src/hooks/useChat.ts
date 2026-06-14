@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { SuperAgent, Agents } from "../lib/api";
+import { SuperAgent, Agents, Conversations } from "../lib/api";
 import type { ChatStreamEvent, ChatUsage, ConversationMessage } from "../types/daemon";
 
 export type ToolStatus = "running" | "done" | "error" | "deduped";
@@ -53,7 +53,14 @@ export interface UseChatResult {
   send: (text: string, opts?: SendOptions) => Promise<void>;
   stop: () => void;
   clear: () => void;
+  /** Load a persisted conversation as history and bind subsequent sends to it.
+   *  Only supported for project agents (super-agent conversations aren't
+   *  persisted per-file). Pass `null` to drop the binding without clearing. */
+  load: (agentSlug: string, conversationId: string) => Promise<void>;
   streaming: boolean;
+  /** Conversation id we're bound to, if any. Lets callers reflect "live vs
+   *  loaded" state in the UI. */
+  conversationId: string | undefined;
 }
 
 /** Concatenate the text parts of a message (for clipboard). */
@@ -235,6 +242,7 @@ export function applyStreamEvent(turn: ChatMsg, ev: ChatStreamEvent): ChatMsg {
 export function useChat(pid: string, onError?: (msg: string) => void): UseChatResult {
   const [msgs, setMsgs] = useState<ChatMsg[]>([]);
   const [streaming, setStreaming] = useState(false);
+  const [conversationId, setConversationId] = useState<string | undefined>(undefined);
   const abortRef = useRef<AbortController | null>(null);
   const convoRef = useRef<string | undefined>(undefined);
 
@@ -283,8 +291,10 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
             prompt: trimmed,
             conversation_id: convoRef.current,
             model: opts.model || undefined,
+            channel: "web",
           });
           convoRef.current = out.conversation_id;
+          setConversationId(out.conversation_id);
           patchLast((m) => ({
             ...m,
             pending: false,
@@ -334,8 +344,31 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
   const clear = useCallback(() => {
     if (streaming) return;
     convoRef.current = undefined;
+    setConversationId(undefined);
     setMsgs([]);
   }, [streaming]);
 
-  return { msgs, send, stop, clear, streaming };
+  const load = useCallback(
+    async (agentSlug: string, conversationId: string) => {
+      if (streaming) return;
+      try {
+        const detail = await Conversations.get(pid, agentSlug, conversationId);
+        const loaded: ChatMsg[] = detail.messages
+          .filter((m) => m.role === "user" || m.role === "assistant")
+          .map((m) => ({
+            role: m.role as "user" | "assistant",
+            parts: [{ kind: "text", text: m.content }],
+            ts: m.ts || new Date().toISOString(),
+          }));
+        convoRef.current = conversationId;
+        setConversationId(conversationId);
+        setMsgs(loaded);
+      } catch (e) {
+        onError?.((e as Error)?.message || "could not load conversation");
+      }
+    },
+    [pid, streaming, onError],
+  );
+
+  return { msgs, send, stop, clear, load, streaming, conversationId };
 }
