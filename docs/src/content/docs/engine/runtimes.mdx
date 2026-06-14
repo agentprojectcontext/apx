@@ -7,6 +7,7 @@ sidebar:
 
 import { Aside, Steps } from '@astrojs/starlight/components';
 import Screenshot from '../../../components/Screenshot.astro';
+import Terminal from '../../../components/Terminal.astro';
 
 A **runtime** is an external AI coding CLI that APX can invoke headlessly on behalf of an agent.
 You use `apx run` to delegate a prompt to one of these tools; APX builds the system prompt, spawns
@@ -42,10 +43,22 @@ Before picking a runtime, confirm which CLIs are available on the current machin
 apx env detect
 ```
 
-<Screenshot
-  surface="terminal"
-  caption="apx env detect — shows installed runtimes, local LLM runners, and tools"
-  hint="Run: apx env detect" />
+<Terminal command="apx env detect" caption="apx env detect — shows installed runtimes, local LLM runners, and tools">
+{`RUNTIME:
+  ✓ claude-code    claude         1.0.44
+  ✓ codex          codex          0.12.3
+  ✓ opencode       opencode       0.3.1
+  · aider          aider          (not found)
+  · cursor-agent   cursor-agent   (not found)
+  ✓ gemini-cli     gemini         0.2.0
+
+ENGINE:
+  ✓ ollama         ollama         0.5.4
+
+TOOL:
+  ✓ git            git            2.45.2
+  ✓ rg             rg             14.1.0`}
+</Terminal>
 
 The output groups results by category: `runtime`, `engine`, and `tool`. A runtime missing from
 the list is not installed — install its binary first, then re-run `apx env detect`.
@@ -69,10 +82,19 @@ apx run cody --runtime codex "Refactor parseAgentsMd to use a state machine" --t
 apx run sofia --runtime opencode "Add JSDoc to every exported function in lib/"
 ```
 
-<Screenshot
-  surface="terminal"
-  caption="apx run in progress — external Claude Code session with injected system prompt"
-  hint="Run: apx run reviewer --runtime claude-code 'Review this diff'" />
+<Terminal command="apx run reviewer --runtime claude-code 'Review this diff'" caption="apx run in progress — external Claude Code session with injected system prompt">
+{`• injecting reviewer system prompt into claude-code
+• project: Acme Store (#2)   cwd: ~/code/acme-store
+
+I reviewed the diff. Three findings:
+  1. cart.js:42 — total is recomputed inside the render loop; hoist it.
+  2. checkout.js:88 — Stripe webhook signature is never verified.
+  3. tests are missing for the empty-cart path.
+
+I'd block the merge on #2 until the signature check lands.
+
+# claude-code | exit 0 | session: ~/.claude/projects/...../a1f3c92e.jsonl`}
+</Terminal>
 
 ### Options
 

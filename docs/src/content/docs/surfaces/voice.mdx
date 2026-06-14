@@ -7,6 +7,7 @@ sidebar:
 
 import { Steps, Tabs, TabItem, Aside } from '@astrojs/starlight/components';
 import Screenshot from '../../../components/Screenshot.astro';
+import Terminal from '../../../components/Terminal.astro';
 
 APX has a unified voice layer: a TTS (text-to-speech) facade for speaking text
 and a Whisper-based STT (speech-to-text) sidecar for transcribing mic audio.
@@ -36,10 +37,18 @@ overrides the voice ID within a provider (supported by OpenAI, ElevenLabs,
 and Gemini). `--no-play` writes the audio file to `~/.apx/tmp/tts/` and prints
 the path without playing it.
 
-<Screenshot
-  surface="terminal"
-  caption="apx voice providers — live status of each engine"
-  hint="Run: apx voice providers" />
+<Terminal command="apx voice providers" caption="apx voice providers — live status of each engine">
+{`  TTS providers                          default: piper
+
+  ✓ piper        local    es_AR-daniela-high.onnx
+  ✓ elevenlabs   cloud    eleven_multilingual_v2   key ••••a91f
+  ✓ openai       cloud    tts-1                     key ••••7c2d
+  ⚠ gemini       cloud    no key — run apx config set voice.tts.gemini.api_key
+  • mock         local    silent WAV (tests only)
+
+  STT
+  ✓ whisper      local    model base   lang es`}
+</Terminal>
 
 ## Providers
 

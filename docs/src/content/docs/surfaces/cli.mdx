@@ -13,10 +13,25 @@ The `apx` binary is the main entry point for everything APX does. It talks to th
 [daemon](/apx/docs/surfaces/daemon/) over HTTP (`127.0.0.1:7430`) and auto-starts it on first use, so
 you never need to boot the daemon separately.
 
-<Screenshot
-  surface="terminal"
-  caption="apx --help — all command groups at a glance"
-  hint="Run: apx --help" />
+<Terminal command="apx --help" caption="apx --help — all command groups at a glance">
+{`apx 0.4.2 — orchestrate agents, sessions, and channels across CLIs
+
+  Usage: apx <command> [subcommand] [options]
+
+  Bootstrap   init · setup · status · update
+  Projects    project add|list|remove|rebuild|config
+  Agents      agent add|list|get|import · agent vault …
+  Config      config show|set|unset · model · permission
+  Sessions    session new|list|resume|find · sessions list
+  MCPs        mcp list|add|remove|enable|run|check
+  Daemon      daemon start|stop|reload|status · log
+  Channels    telegram … · messages tail|chat|search
+  Runtimes    run · exec · chat · env detect
+  Routines    routine add|list|run · task add|list|done
+  Voice       voice say|listen|providers · desktop · pair
+
+  Run 'apx <command> --help' for details.`}
+</Terminal>
 
 ## Global flags
 
@@ -31,10 +46,30 @@ you never need to boot the daemon separately.
   a filesystem path. Run `apx project list` to see the registered ids.
 </Aside>
 
-<Screenshot
-  surface="terminal"
-  caption="apx status — daemon health, engines, Telegram, and active projects"
-  hint="Run: apx status" />
+<Terminal command="apx status" caption="apx status — daemon health, engines, Telegram, and active projects">
+{`  Daemon
+    ✓ running   port 7430   v0.4.2   uptime 2h 14m
+
+  Super-agent
+    ✓ enabled
+      model           anthropic:claude-sonnet-4-5
+      identity        Roby  for Manuel
+
+  Engines
+    ✓ Anthropic     ← active
+    ✓ OpenAI
+    ✓ Gemini
+    ✓ Ollama        http://localhost:11434
+
+  Telegram
+    ✓ polling   1/1 channel
+      default         ● chat 84217553
+
+  Projects
+    #1  First Project    5 agents   ~/code/first-project
+    #2  Acme Store        4 agents   ~/code/acme-store
+    #3  Data Pipeline     3 agents   ~/code/data-pipeline`}
+</Terminal>
 
 ---
 

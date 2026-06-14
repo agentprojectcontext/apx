@@ -7,6 +7,7 @@ sidebar:
 
 import { Aside } from '@astrojs/starlight/components';
 import Screenshot from '../../../components/Screenshot.astro';
+import Terminal from '../../../components/Terminal.astro';
 
 Each agent can carry a `memory.md` file that APX injects into its system prompt on every call.
 This is the agent's **curated long-term memory** — a place for durable facts that should always be
@@ -52,10 +53,18 @@ apx memory reviewer                              # print to stdout
 apx memory reviewer --project my-app            # explicit project
 ```
 
-<Screenshot
-  surface="terminal"
-  caption="apx memory reviewer — prints the current memory.md contents"
-  hint="Run: apx memory reviewer" />
+<Terminal command="apx memory reviewer" caption="apx memory reviewer — prints the current memory.md contents">
+{`# reviewer — memory
+
+## Conventions
+- Prefers short PR summaries (3 bullets max).
+- Uses es-AR locale for all user-facing output.
+- Never approves a diff without a passing test run.
+
+## Recent context
+- 2026-06-13: Flagged the cart-total test as flaky; asked backend to retry-guard it.
+- 2026-06-12: Owner wants Stripe webhooks reviewed before any checkout merge.`}
+</Terminal>
 
 ### Append a note
 

@@ -7,6 +7,7 @@ sidebar:
 
 import { FileTree, Aside, Steps } from '@astrojs/starlight/components';
 import Screenshot from '../../../components/Screenshot.astro';
+import Terminal from '../../../components/Terminal.astro';
 
 A **project** is any directory that contains an `AGENTS.md` file and a `.apc/project.json` file.
 Once registered with `apx project add`, the daemon tracks it and APX keeps all runtime state for it
@@ -104,10 +105,13 @@ apx project list                    # name, id, path, agent count
 apx project list -l                 # long form — also shows storagePath
 ```
 
-<Screenshot
-  surface="terminal"
-  caption="apx project list — registered projects with id, path and agent count"
-  hint="Run: apx project list -l" />
+<Terminal command="apx project list -l" caption="apx project list — registered projects with id, path and agent count">
+{`ID  NAME            AGENTS  PATH                    STORAGE
+0   Base            1       —                       ~/.apx/projects/0
+1   First Project   5       ~/code/first-project    ~/.apx/projects/1
+2   Acme Store      4       ~/code/acme-store       ~/.apx/projects/2
+3   Data Pipeline   3       ~/code/data-pipeline    ~/.apx/projects/3`}
+</Terminal>
 
 ### Remove and rebuild
 

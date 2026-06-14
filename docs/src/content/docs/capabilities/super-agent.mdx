@@ -7,6 +7,7 @@ sidebar:
 
 import { Aside, Steps } from '@astrojs/starlight/components';
 import Screenshot from '../../../components/Screenshot.astro';
+import Terminal from '../../../components/Terminal.astro';
 
 The **super-agent** is a _mode_, not a persona name. When you run `apx exec` without targeting a
 specific project agent, APX activates this mode: the daemon-level, tool-using loop that can reach
@@ -44,10 +45,21 @@ apx exec "<prompt>" --max-tokens 2000      # cap output tokens
 apx exec "<prompt>" --project my-app       # pin to a specific project context
 ```
 
-<Screenshot
-  surface="terminal"
-  caption="apx exec in action — super-agent mode with tool calls visible"
-  hint="Run: apx exec 'list my open tasks across all projects'" />
+<Terminal command="apx exec 'list my open tasks across all projects'" caption="apx exec in action — super-agent mode with tool calls visible">
+{`Roby (super-agent) · anthropic:claude-sonnet-4-5
+
+  → tool  tasks.list { project: "First Project", state: "open" }
+  → tool  tasks.list { project: "Acme Store", state: "open" }
+  → tool  tasks.list { project: "Data Pipeline", state: "open" }
+
+You have 4 open tasks:
+  • First Project  — Wire Stripe webhooks before merge (due 06-16)
+  • Acme Store     — Retry-guard the flaky cart-total test (due 06-18)
+  • Acme Store     — Document the pairing flow for the web panel
+  • Data Pipeline  — Backfill ingestion CLI flag (due 06-20)
+
+# 612 tok in / 198 out · 2.4s`}
+</Terminal>
 
 When the super-agent mode is active the daemon resolves the assistant's name from
 `~/.apx/identity.json` and displays it in status lines, TUI headers, and Telegram replies —
@@ -123,10 +135,15 @@ apx identity set owner_name Sam   # set the owner/user name
 apx identity wizard               # interactive setup prompt
 ```
 
-<Screenshot
-  surface="terminal"
-  caption="apx identity show — current agent and owner name"
-  hint="Run: apx identity show" />
+<Terminal command="apx identity show" caption="apx identity show — current agent and owner name">
+{`  Agent name  : Roby
+  Personality : pragmatic, concise, a little playful
+  Owner       : Manuel
+  Context     : prefers es-AR, ships fast, hates ceremony
+  Language    : en  (apx config set user.language <code>)
+  Last wakeup : 2026-06-14 09:31
+  File        : ~/.apx/identity.json`}
+</Terminal>
 
 <Aside type="tip">
   Changing `agent_name` propagates immediately to Telegram replies, the Desktop bubble, TUI

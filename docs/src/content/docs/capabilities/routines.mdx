@@ -7,6 +7,7 @@ sidebar:
 
 import { Aside, Steps } from '@astrojs/starlight/components';
 import Screenshot from '../../../components/Screenshot.astro';
+import Terminal from '../../../components/Terminal.astro';
 
 A **routine** is a scheduled APX task. The daemon runs a scheduler tick every 5 seconds and fires
 any routine that is due. Each routine has a `kind`, a `schedule`, an optional `spec` JSON blob,
@@ -116,10 +117,14 @@ apx routine disable <name> [--project <name|id|path>]
 apx routine remove  <name> [--project <name|id|path>]
 ```
 
-<Screenshot
-  surface="terminal"
-  caption="apx routine list — name, kind, schedule, enabled, next run, last run"
-  hint="Run: apx routine list --project myapp" />
+<Terminal command="apx routine list --project myapp" caption="apx routine list — name, kind, schedule, enabled, next run, last run">
+{`project #2 routines:
+NAME                EN KIND        SCHEDULE         NEXT_RUN              LAST
+morning-standup     ✓  exec_agent  every:1h          2026-06-14 10:00:00   ✓ 2026-06-14 09:00:02
+daily-weather       ✓  telegram    once:08:00        2026-06-15 08:00:00   ✓ 2026-06-14 08:00:01
+healthcheck         ✓  heartbeat   every:5m          2026-06-14 09:35:00   ✓ 2026-06-14 09:30:00
+nightly-backup      ✗  shell       once:02:00        —                     ✗ 2026-06-13 02:00:04`}
+</Terminal>
 
 ## Examples
 

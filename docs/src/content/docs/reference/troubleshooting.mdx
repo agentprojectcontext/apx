@@ -7,15 +7,18 @@ sidebar:
 
 import { Aside, Steps } from '@astrojs/starlight/components';
 import Screenshot from '../../../components/Screenshot.astro';
+import Terminal from '../../../components/Terminal.astro';
 
 This page covers the issues you're most likely to hit when running APX. Each entry follows a
 **Problem → Cause → Fix** structure. Start with `apx status` and `apx log -f --errors` to narrow
 down what's failing before diving into a specific section.
 
-<Screenshot
-  surface="terminal"
-  caption="apx log -f --errors streaming only error lines in real time"
-  hint="Run: apx log -f --errors" />
+<Terminal command="apx log -f --errors" caption="apx log -f --errors streaming only error lines in real time">
+{`[2026-06-14 09:18:02.551] [ERROR] [engine  ] anthropic 401 — invalid x-api-key (sk-ant-••••a91f)
+[2026-06-14 09:18:02.560] [ERROR] [super-agent] no healthy provider — all 3 candidates failed
+[2026-06-14 09:22:41.013] [ERROR] [telegram] getUpdates conflict 409 — another poller is running
+[2026-06-14 09:25:10.778] [ERROR] [daemon  ] EADDRINUSE 127.0.0.1:7430 — port already in use`}
+</Terminal>
 
 ---
 
@@ -108,10 +111,21 @@ Observed failure mode: the router picks `openrouter:free` as healthy, the actual
   chain. Until that ships, use `apx model order` to manually adjust priority.
 </Aside>
 
-<Screenshot
-  surface="terminal"
-  caption="apx model status showing a failing provider and the active fallback"
-  hint="Run: apx model status" />
+<Terminal command="apx model status" caption="apx model status showing a failing provider and the active fallback">
+{`Model router
+  primary:   anthropic:claude-sonnet-4-5
+  fallback:  on
+  order:     anthropic → openrouter → groq → ollama
+  active:    openrouter:meta-llama/llama-3.3-70b (fallback)
+
+  ✗ anthropic    claude-sonnet-4-5                down  401 invalid key  key:config
+  ✓ openrouter   meta-llama/llama-3.3-70b         up    key:config
+  ✗ groq         llama-3.3-70b-versatile          down  (no key)
+  ✓ ollama       llama3.2:3b                      up    key:config
+
+Keys → ~/.apx/config.json engines.{groq,openrouter}.api_key
+Or env: GROQ_API_KEY, OPENROUTER_API_KEY`}
+</Terminal>
 
 ### Super-agent returns empty text
 

@@ -7,6 +7,7 @@ sidebar:
 
 import { Aside, FileTree } from '@astrojs/starlight/components';
 import Screenshot from '../../../components/Screenshot.astro';
+import Terminal from '../../../components/Terminal.astro';
 
 A **skill** is a Markdown file that teaches an agent how to do something. The super-agent
 loads skills on demand — only the ones relevant to the current conversation. APX ships a set of
@@ -77,10 +78,15 @@ apx skills list
 apx skills status
 ```
 
-<Screenshot
-  surface="terminal"
-  caption="apx skills status showing installed and missing skills across global dirs"
-  hint="Run: apx skills status" />
+<Terminal command="apx skills status" caption="apx skills status showing installed and missing skills across global dirs">
+{`  Claude Code     ✓ installed       ~/.claude/skills/apx/SKILL.md
+  Cursor          ✓ installed       ~/.cursor/rules/apx.mdc
+  Windsurf        ✗ not installed   ~/.windsurf/rules/apx.md
+  Copilot         ✓ installed       ~/.github/copilot-instructions.md
+  Trae            ✗ not installed   ~/.trae/rules/apx.md
+
+  note: run apx skills add --global to install the missing targets`}
+</Terminal>
 
 ## Sync bundled skills
 

@@ -7,6 +7,7 @@ sidebar:
 
 import { Aside, FileTree } from '@astrojs/starlight/components';
 import Screenshot from '../../../components/Screenshot.astro';
+import Terminal from '../../../components/Terminal.astro';
 
 An **agent** is a named persona living inside an APC project. It has a name, a description, an
 optional model override, a language preference, and an optional set of skills. Its canonical
@@ -79,10 +80,13 @@ apx agent list                       # agents in the current directory's project
 apx agent list --project my-app      # agents in a named project
 ```
 
-<Screenshot
-  surface="terminal"
-  caption="apx agent list — slug, role, model for every agent in the project"
-  hint="Run: apx agent list" />
+<Terminal command="apx agent list" caption="apx agent list — slug, role, model for every agent in the project">
+{`  orchestrator   super-agent (Roby)   inherit
+  frontend       UI engineer          inherit
+  backend        API engineer         inherit
+  researcher     web researcher       openai:gpt-4o
+  sofia          backend reviewer     ollama:llama3.2:3b`}
+</Terminal>
 
 ### Add an agent
 
