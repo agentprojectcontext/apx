@@ -1,3 +1,15 @@
+# [1.37.0](https://github.com/agentprojectcontext/apx/compare/v1.36.0...v1.37.0) (2026-06-14)
+
+
+### Bug Fixes
+
+* QA-pass fixes (WS auth, banner, 404, agent rm, conversations, memory) ([4413eee](https://github.com/agentprojectcontext/apx/commit/4413eee4683babfad25eea2fccf35e977b0379cc))
+
+
+### Features
+
+* **brand:** banner wordmark + landing/README refresh ([5d28ccf](https://github.com/agentprojectcontext/apx/commit/5d28ccf706938bd82d336cc5732d5118ca33e3de))
+
 # [1.36.0](https://github.com/agentprojectcontext/apx/compare/v1.35.0...v1.36.0) (2026-06-14)
 
 
