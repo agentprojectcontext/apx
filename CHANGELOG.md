@@ -1,3 +1,11 @@
+# [1.38.0](https://github.com/agentprojectcontext/apx/compare/v1.37.0...v1.38.0) (2026-06-14)
+
+
+### Features
+
+* **landing:** adopt the web-admin favicon (adaptive light/dark) + theme-color ([07a5a63](https://github.com/agentprojectcontext/apx/commit/07a5a63b1134523465612f63901365e7c780eb14))
+* **web:** complete i18n coverage across the admin UI ([864c84a](https://github.com/agentprojectcontext/apx/commit/864c84afee008f976cac38a207067694bd013fbc))
+
 # [1.37.0](https://github.com/agentprojectcontext/apx/compare/v1.36.0...v1.37.0) (2026-06-14)
 
 
