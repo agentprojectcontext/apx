@@ -7,6 +7,7 @@ sidebar:
 
 import { Steps, Aside } from '@astrojs/starlight/components';
 import Screenshot from '../../../../components/Screenshot.astro';
+import Terminal from '../../../../components/Terminal.astro';
 
 **APX Deck** es una app compañera (Android, repo separado: `apx-deck`) que te permite
 manejar el daemon local de APX desde tu teléfono. Los mismos agentes, las mismas herramientas, la misma
@@ -50,10 +51,25 @@ El comando imprime un código QR que lleva un payload JSON. Abrí APX Deck en tu
 teléfono y escaneá el QR. La app completa el emparejamiento, recibe un token bearer
 por dispositivo y lo almacena localmente para futuras requests.
 
-<Screenshot
-  surface="deck"
-  caption="apx pair — código QR para la app compañera APX Deck"
-  hint="Ejecutá: apx pair (sin argumentos)" />
+<Terminal command="apx pair" caption="apx pair — código QR para la app companion APX Deck">
+{`  APX pairing (deck)  ·  expires in 90s
+
+    █▀▀▀▀▀█ ▀▀▄█▀▄ █▀▀▀▀▀█
+    █ ███ █ █▀▄ ▄  █ ███ █
+    █ ▀▀▀ █ ▀▀█▄█▀ █ ▀▀▀ █
+    ▀▀▀▀▀▀▀ █ ▀ ▀ █ ▀▀▀▀▀▀▀
+    ▀█▄▀█▀▀▄ ▄▀█▄▀▀▄██▀▄ ▄
+    █ ▄▀▀ ▀▄▀▄ ▀█▄ ▀▄▀█▀▀▄
+    ▀ ▀▀ ▀▀▀ ██▀▄▀█▄█▀▀▀█▄
+    █▀▀▀▀▀█ ▄▄██ ▀▄▀ █▄█ ▀
+    █ ███ █ █▀▄▀▄██▀▄▀▀ ▄█
+    █ ▀▀▀ █ ▀█▀ ▄▀▄▀█▄▀▄▀
+    ▀▀▀▀▀▀▀ ▀▀▀ ▀ ▀▀ ▀▀▀▀
+
+  escaneá con APX Deck en tu teléfono para vincular la app companion
+  payload: { host: "192.168.1.42:7430", token: "dk_4M…b21" }
+  • esperando a que el dispositivo complete la vinculación…`}
+</Terminal>
 
 <Aside type="note">
   El QR de `apx pair` (deck) lleva un payload JSON que solo la app APX Deck
@@ -104,10 +120,11 @@ Después de inicializarse desde el manifest, la app Deck usa la misma API REST q
 usa el panel web (`/projects/…`, `/voice/turn`, `/messages`, etc.) con su
 token bearer de dispositivo.
 
-<Screenshot
-  surface="deck"
-  caption="Módulo Deck en el panel web — manifest, grilla de widgets, contexto de APX"
-  hint="Navegá a /m/deck en el panel web" />
+<Aside type="note">
+  La vista del módulo Deck en el panel web — el manifest, la grilla de widgets y
+  la card de contexto APX — es una **vista previa** (coming soon). El flujo de
+  vinculación de arriba y el endpoint de solo lectura `GET /deck/manifest` ya funcionan.
+</Aside>
 
 ## Widgets y desktops
 

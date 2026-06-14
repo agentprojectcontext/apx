@@ -251,10 +251,13 @@ convertí con `ffmpeg -f s16le -ar 24000 -ac 1 -i raw.pcm out.wav`.
 `sox` es requerido para la grabación con detección de silencio. Instalalo o usá
 `--seconds N` para especificar una duración fija en su lugar.
 
-<Screenshot
-  surface="voice"
-  caption="apx voice say — sintetizando y reproduciendo una frase de prueba"
-  hint='Run: apx voice say "hello" --provider piper' />
+<Terminal command={'apx voice say "hello" --provider piper'} caption="apx voice say — sintetizando y reproduciendo una frase de prueba">
+{`✓ provider  piper (local)
+✓ voice     en_US-amy-medium
+• sintetizando 1 oración … 0.4s
+♪ reproduciendo 1.2s de audio
+✓ listo`}
+</Terminal>
 
 ## Relacionado
 

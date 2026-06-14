@@ -1,0 +1,208 @@
+---
+/**
+ * Capsule.astro — a mockup of the APX Desktop floating voice capsule.
+ *
+ * Used in the docs where a real screenshot of the Electron window would go. It
+ * renders the rounded "capsule" pill in one of three states so the page shows
+ * the surface without shipping a binary screenshot.
+ *
+ * Usage in .mdx:
+ *   import Capsule from '../../../components/Capsule.astro';
+ *   <Capsule variant="idle" caption="APX Desktop — idle capsule" />
+ *   <Capsule variant="listening" caption="Listening with live waveform" />
+ *   <Capsule variant="conversation" reply="Here's a summary of the 3 open PRs…"
+ *     caption="Conversation card with agent reply and audio scrubber" />
+ */
+interface Props {
+	variant?: 'idle' | 'listening' | 'conversation';
+	caption?: string;
+	/** Status label for the pill (defaults per variant). */
+	label?: string;
+	/** Agent reply text, shown above the pill in the conversation variant. */
+	reply?: string;
+	/** Agent display name in the conversation card. */
+	who?: string;
+}
+const { variant = 'idle', caption, label, reply, who = 'APX' } = Astro.props;
+const status =
+	label ??
+	(variant === 'idle' ? 'Press ⌘G to talk' : variant === 'listening' ? 'Listening…' : who);
+const bars = Array.from({ length: 11 });
+---
+
+<figure class="apx-cap">
+	<div class={`apx-cap__stage apx-cap__stage--${variant}`}>
+		{variant === 'conversation' && reply && (
+			<div class="apx-cap__card">
+				<div class="apx-cap__who">{who}</div>
+				<p class="apx-cap__reply">{reply}</p>
+				<div class="apx-cap__scrub">
+					<span class="apx-cap__play">▶</span>
+					<span class="apx-cap__track"><span class="apx-cap__fill"></span></span>
+					<span class="apx-cap__time">0:06</span>
+				</div>
+			</div>
+		)}
+		<div class={`apx-cap__pill apx-cap__pill--${variant}`}>
+			<span class="apx-cap__mic" aria-hidden="true"></span>
+			{variant === 'listening' ? (
+				<span class="apx-cap__wave">{bars.map((_, i) => <i style={`--i:${i}`}></i>)}</span>
+			) : (
+				<span class="apx-cap__label">{status}</span>
+			)}
+		</div>
+	</div>
+	{caption && <figcaption>{caption}</figcaption>}
+</figure>
+
+<style>
+	.apx-cap {
+		margin: 1.5rem 0;
+	}
+	.apx-cap__stage {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.7rem;
+		padding: 1.6rem 1rem;
+		border-radius: 0.9rem;
+		background:
+			radial-gradient(120% 80% at 50% 0%, #16233a 0%, #0b1220 70%);
+		border: 1px solid rgba(52, 211, 153, 0.16);
+	}
+	/* The pill */
+	.apx-cap__pill {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.7rem;
+		padding: 0.5rem 1rem 0.5rem 0.5rem;
+		border-radius: 999px;
+		background: linear-gradient(180deg, #1b2740 0%, #131c2e 100%);
+		border: 1px solid rgba(255, 255, 255, 0.08);
+		box-shadow: 0 12px 30px -16px rgba(0, 0, 0, 0.8);
+		color: #cdd9e5;
+		font-family: var(--sl-font, system-ui, sans-serif);
+		font-size: 0.9rem;
+	}
+	.apx-cap__mic {
+		position: relative;
+		width: 2rem;
+		height: 2rem;
+		flex: none;
+		border-radius: 999px;
+		background: radial-gradient(circle at 50% 35%, #34d399 0%, #15966c 100%);
+		box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.18);
+	}
+	/* mic glyph drawn with pseudo-elements */
+	.apx-cap__mic::before {
+		content: '';
+		position: absolute;
+		left: 50%;
+		top: 28%;
+		width: 0.42rem;
+		height: 0.7rem;
+		transform: translateX(-50%);
+		border-radius: 999px;
+		background: #06281d;
+	}
+	.apx-cap__mic::after {
+		content: '';
+		position: absolute;
+		left: 50%;
+		bottom: 26%;
+		width: 0.7rem;
+		height: 0.35rem;
+		transform: translateX(-50%);
+		border-bottom: 2px solid #06281d;
+		border-radius: 0 0 999px 999px;
+	}
+	.apx-cap__pill--listening .apx-cap__mic {
+		animation: apx-cap-pulse 1.4s ease-in-out infinite;
+	}
+	@keyframes apx-cap-pulse {
+		0%, 100% { box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.18); }
+		50% { box-shadow: 0 0 0 7px rgba(52, 211, 153, 0.06); }
+	}
+	.apx-cap__label {
+		padding-right: 0.4rem;
+		white-space: nowrap;
+	}
+	/* Waveform */
+	.apx-cap__wave {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.18rem;
+		height: 1.4rem;
+		padding-right: 0.4rem;
+	}
+	.apx-cap__wave i {
+		width: 0.18rem;
+		height: 0.5rem;
+		border-radius: 999px;
+		background: #34d399;
+		animation: apx-cap-wave 0.9s ease-in-out infinite;
+		animation-delay: calc(var(--i) * -0.08s);
+	}
+	@keyframes apx-cap-wave {
+		0%, 100% { height: 0.4rem; opacity: 0.55; }
+		50% { height: 1.3rem; opacity: 1; }
+	}
+	/* Conversation card */
+	.apx-cap__card {
+		width: min(100%, 22rem);
+		padding: 0.85rem 1rem;
+		border-radius: 0.8rem;
+		background: #0f1830;
+		border: 1px solid rgba(255, 255, 255, 0.07);
+		box-shadow: 0 14px 32px -20px rgba(0, 0, 0, 0.8);
+		text-align: left;
+	}
+	.apx-cap__who {
+		font-size: 0.7rem;
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: #34d399;
+		margin-bottom: 0.3rem;
+	}
+	.apx-cap__reply {
+		margin: 0 0 0.7rem;
+		color: #dbe6f1;
+		font-size: 0.9rem;
+		line-height: 1.5;
+		font-family: var(--sl-font, system-ui, sans-serif);
+	}
+	.apx-cap__scrub {
+		display: flex;
+		align-items: center;
+		gap: 0.55rem;
+		color: #8aa0b8;
+		font-size: 0.78rem;
+	}
+	.apx-cap__play { color: #34d399; }
+	.apx-cap__track {
+		flex: 1;
+		height: 0.28rem;
+		border-radius: 999px;
+		background: rgba(255, 255, 255, 0.1);
+		overflow: hidden;
+	}
+	.apx-cap__fill {
+		display: block;
+		width: 42%;
+		height: 100%;
+		border-radius: 999px;
+		background: linear-gradient(90deg, #34d399, #5e9bff);
+	}
+	.apx-cap figcaption {
+		text-align: center;
+		font-size: 0.85rem;
+		color: var(--sl-color-gray-3);
+		margin-top: 0.5rem;
+	}
+	@media (prefers-reduced-motion: reduce) {
+		.apx-cap__wave i,
+		.apx-cap__pill--listening .apx-cap__mic { animation: none; }
+		.apx-cap__wave i { height: 0.9rem; }
+	}
+</style>

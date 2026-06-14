@@ -7,16 +7,14 @@ sidebar:
 
 import { Steps, Aside } from '@astrojs/starlight/components';
 import Screenshot from '../../../components/Screenshot.astro';
+import Capsule from '../../../components/Capsule.astro';
 
 The **Desktop** surface is a small Electron app that floats above all your
 windows. It gives you a persistent, keyboard-accessible voice capsule: press the
 global shortcut and start talking. The reply streams back as text and (if a TTS
 provider is configured) as spoken audio.
 
-<Screenshot
-  surface="desktop"
-  caption="APX Desktop — idle capsule with mic button"
-  hint="Run: apx desktop start, then press Cmd+G (Mac) or Ctrl+G (Win/Linux)" />
+<Capsule variant="idle" caption="APX Desktop — idle capsule with mic button" />
 
 ## Commands
 
@@ -76,10 +74,7 @@ The capsule cycles through five states:
 | `thinking` | Dots + shimmer — the super-agent is producing tokens, shown as they arrive. |
 | `speaking` | Agent avatar + shimmer — TTS audio is playing back. A scrubber appears in the transcript. |
 
-<Screenshot
-  surface="desktop"
-  caption="Desktop — listening state with live waveform"
-  hint="Press the global shortcut, speak for a few seconds" />
+<Capsule variant="listening" caption="Desktop — listening state with live waveform" />
 
 ### Conversation transcript
 
@@ -88,10 +83,10 @@ agent turn shows the text with word-in animation and, when TTS is configured, a
 waveform scrubber with play/pause and click-to-seek. Tool calls appear as pills
 with a spinner while running and a checkmark on completion.
 
-<Screenshot
-  surface="desktop"
-  caption="Desktop — conversation card with agent reply and audio scrubber"
-  hint="Complete a voice turn; scroll the transcript card" />
+<Capsule
+  variant="conversation"
+  reply="Sure — the 3 open PRs: #42 checkout retry, #44 cart totals, #45 Stripe webhook. Two are ready to merge; #44 still has a failing test."
+  caption="Desktop — conversation card with agent reply and audio scrubber" />
 
 ### Global shortcut
 

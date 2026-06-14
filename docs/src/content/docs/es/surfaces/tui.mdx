@@ -7,6 +7,7 @@ sidebar:
 
 import { Aside } from '@astrojs/starlight/components';
 import Screenshot from '../../../../components/Screenshot.astro';
+import Terminal from '../../../../components/Terminal.astro';
 
 APX trae dos modos interactivos de terminal que van más allá de las llamadas one-shot de `apx exec`:
 
@@ -31,10 +32,18 @@ apx code --project my-project     # pin to a specific project
 apx code --agent reviewer         # route chat to a project agent
 ```
 
-<Screenshot
-  surface="tui"
-  caption="apx code — TUI a pantalla completa con la transcripción del chat y la barra de entrada"
-  hint="Run: apx code" />
+<Terminal command="apx code" caption="apx code — TUI a pantalla completa con transcript de chat y barra de entrada">
+{`apx code · First Project                  orchestrator ▸ claude-code
+─────────────────────────────────────────────────────────────────────
+› Revisá los PRs abiertos y resumilos
+
+⏺ leyendo 3 archivos cambiados
+  cart.js · checkout.js · api/stripe.js
+✓ resumen listo — 2 riesgos, 1 detalle
+
+─────────────────────────────────────────────────────────────────────
+› escribí un mensaje…                     ⌃P paleta · ⌃C salir · ? ayuda`}
+</Terminal>
 
 ### Qué ofrece la TUI
 
@@ -91,10 +100,17 @@ apx chat reviewer --conversation abc123    # continue an existing thread
 apx chat reviewer --model gpt-5.2         # override model for this session
 ```
 
-<Screenshot
-  surface="tui"
-  caption="apx chat reviewer — REPL de readline con el prompt del agente"
-  hint="Run: apx chat reviewer" />
+<Terminal command="apx chat reviewer" caption="apx chat reviewer — REPL readline con prompt del agente">
+{`apx chat · reviewer  (backend reviewer · ollama:llama3.2:3b)
+escribí un mensaje · /help para comandos · ⌃D para salir
+
+vos ▸ ¿cuál es mi rol en este proyecto?
+reviewer ▸ Sos el backend reviewer — reviso PRs por
+           correctitud, manejo de errores y cobertura de tests
+           antes de que se mergeen.
+
+vos ▸ _`}
+</Terminal>
 
 El prompt muestra el slug del agente seguido de `>`. Escribí tu mensaje y presioná `Enter`. Salí con
 `Ctrl+D`, `exit`, o `quit`.

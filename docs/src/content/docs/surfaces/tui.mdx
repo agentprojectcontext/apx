@@ -7,6 +7,7 @@ sidebar:
 
 import { Aside } from '@astrojs/starlight/components';
 import Screenshot from '../../../components/Screenshot.astro';
+import Terminal from '../../../components/Terminal.astro';
 
 APX ships two interactive terminal modes that go beyond one-shot `apx exec` calls:
 
@@ -31,10 +32,18 @@ apx code --project my-project     # pin to a specific project
 apx code --agent reviewer         # route chat to a project agent
 ```
 
-<Screenshot
-  surface="tui"
-  caption="apx code — full-screen TUI with chat transcript and input bar"
-  hint="Run: apx code" />
+<Terminal command="apx code" caption="apx code — full-screen TUI with chat transcript and input bar">
+{`apx code · First Project                  orchestrator ▸ claude-code
+─────────────────────────────────────────────────────────────────────
+› Review the open PRs and summarize them
+
+⏺ reading 3 changed files
+  cart.js · checkout.js · api/stripe.js
+✓ summary ready — 2 risks, 1 nit
+
+─────────────────────────────────────────────────────────────────────
+› type a message…                        ⌃P palette · ⌃C quit · ? help`}
+</Terminal>
 
 ### What the TUI provides
 
@@ -91,10 +100,17 @@ apx chat reviewer --conversation abc123    # continue an existing thread
 apx chat reviewer --model gpt-5.2         # override model for this session
 ```
 
-<Screenshot
-  surface="tui"
-  caption="apx chat reviewer — readline REPL with agent prompt"
-  hint="Run: apx chat reviewer" />
+<Terminal command="apx chat reviewer" caption="apx chat reviewer — readline REPL with agent prompt">
+{`apx chat · reviewer  (backend reviewer · ollama:llama3.2:3b)
+type a message · /help for commands · ⌃D to exit
+
+you ▸ what's my role in this project?
+reviewer ▸ You're the backend reviewer — I check PRs for
+           correctness, error handling, and test coverage
+           before they merge.
+
+you ▸ _`}
+</Terminal>
 
 The prompt shows the agent slug followed by `>`. Type your message and press `Enter`. Exit with
 `Ctrl+D`, `exit`, or `quit`.
