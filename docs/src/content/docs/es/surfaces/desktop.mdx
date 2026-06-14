@@ -7,16 +7,14 @@ sidebar:
 
 import { Steps, Aside } from '@astrojs/starlight/components';
 import Screenshot from '../../../../components/Screenshot.astro';
+import Capsule from '../../../../components/Capsule.astro';
 
 La superficie **Desktop** es una pequeña app de Electron que flota por encima de todas tus
 ventanas. Te da una cápsula de voz persistente y accesible por teclado: presioná el
 atajo global y empezá a hablar. La respuesta llega de vuelta en streaming como texto y (si hay un proveedor de
 TTS configurado) como audio hablado.
 
-<Screenshot
-  surface="desktop"
-  caption="APX Desktop — cápsula en reposo con botón de micrófono"
-  hint="Ejecutá: apx desktop start, y luego presioná Cmd+G (Mac) o Ctrl+G (Win/Linux)" />
+<Capsule variant="idle" caption="APX Desktop — cápsula en reposo con botón de micrófono" />
 
 ## Comandos
 
@@ -76,10 +74,7 @@ La cápsula cicla por cinco estados:
 | `thinking` | Puntos + brillo — el super-agente está produciendo tokens, mostrados a medida que llegan. |
 | `speaking` | Avatar del agente + brillo — el audio de TTS se está reproduciendo. Aparece un scrubber en la transcripción. |
 
-<Screenshot
-  surface="desktop"
-  caption="Desktop — estado de escucha con forma de onda en vivo"
-  hint="Presioná el atajo global y hablá unos segundos" />
+<Capsule variant="listening" caption="Desktop — estado escuchando con forma de onda en vivo" />
 
 ### Transcripción de la conversación
 
@@ -88,10 +83,10 @@ turno del agente muestra el texto con animación de entrada de palabras y, cuand
 scrubber de forma de onda con play/pause y clic-para-saltar. Las llamadas a herramientas aparecen como pills
 con un spinner mientras corren y un tilde al completarse.
 
-<Screenshot
-  surface="desktop"
-  caption="Desktop — tarjeta de conversación con respuesta del agente y scrubber de audio"
-  hint="Completá un turno de voz; desplazá la tarjeta de transcripción" />
+<Capsule
+  variant="conversation"
+  reply="Dale — los 3 PRs abiertos: #42 reintento de checkout, #44 totales del carrito, #45 webhook de Stripe. Dos están listos para mergear; #44 todavía tiene un test fallando."
+  caption="Desktop — card de conversación con respuesta del agente y scrubber de audio" />
 
 ### Atajo global
 

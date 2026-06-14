@@ -7,6 +7,7 @@ sidebar:
 
 import { Steps, Aside } from '@astrojs/starlight/components';
 import Screenshot from '../../../components/Screenshot.astro';
+import Terminal from '../../../components/Terminal.astro';
 
 **APX Deck** is a companion app (Android, separate repo: `apx-deck`) that lets
 you drive the local APX daemon from your phone. Same agents, same tools, same
@@ -50,10 +51,25 @@ The command prints a QR code that carries a JSON payload. Open APX Deck on your
 phone and scan the QR. The app completes the pairing, receives a per-device
 bearer token, and stores it locally for future requests.
 
-<Screenshot
-  surface="deck"
-  caption="apx pair — QR code for the APX Deck companion app"
-  hint="Run: apx pair (no arguments)" />
+<Terminal command="apx pair" caption="apx pair — QR code for the APX Deck companion app">
+{`  APX pairing (deck)  ·  expires in 90s
+
+    █▀▀▀▀▀█ ▀▀▄█▀▄ █▀▀▀▀▀█
+    █ ███ █ █▀▄ ▄  █ ███ █
+    █ ▀▀▀ █ ▀▀█▄█▀ █ ▀▀▀ █
+    ▀▀▀▀▀▀▀ █ ▀ ▀ █ ▀▀▀▀▀▀▀
+    ▀█▄▀█▀▀▄ ▄▀█▄▀▀▄██▀▄ ▄
+    █ ▄▀▀ ▀▄▀▄ ▀█▄ ▀▄▀█▀▀▄
+    ▀ ▀▀ ▀▀▀ ██▀▄▀█▄█▀▀▀█▄
+    █▀▀▀▀▀█ ▄▄██ ▀▄▀ █▄█ ▀
+    █ ███ █ █▀▄▀▄██▀▄▀▀ ▄█
+    █ ▀▀▀ █ ▀█▀ ▄▀▄▀█▄▀▄▀
+    ▀▀▀▀▀▀▀ ▀▀▀ ▀ ▀▀ ▀▀▀▀
+
+  scan with APX Deck on your phone to pair the companion app
+  payload: { host: "192.168.1.42:7430", token: "dk_4M…b21" }
+  • waiting for the device to complete pairing…`}
+</Terminal>
 
 <Aside type="note">
   The `apx pair` (deck) QR carries a JSON payload that only the APX Deck app
@@ -104,10 +120,11 @@ After bootstrapping from the manifest, the Deck app uses the same REST API that
 the web panel uses (`/projects/…`, `/voice/turn`, `/messages`, etc.) with its
 device bearer token.
 
-<Screenshot
-  surface="deck"
-  caption="Deck module in the web panel — manifest, widget grid, APX context"
-  hint="Navigate to /m/deck in the web panel" />
+<Aside type="note">
+  The Deck module view in the web panel — the manifest, widget grid, and APX
+  context card — is a **preview** (coming soon). The pairing flow and the
+  read-only `GET /deck/manifest` endpoint above work today.
+</Aside>
 
 ## Widgets and desktops
 

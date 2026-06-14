@@ -7,6 +7,7 @@ sidebar:
 
 import { Aside } from '@astrojs/starlight/components';
 import Screenshot from '../../../components/Screenshot.astro';
+import Terminal from '../../../components/Terminal.astro';
 
 APX is organized into **three top-level layers** under `src/`. The boundary between shared logic and
 transport is strict — it's what keeps adding a new engine, tool, or surface a one-place change.
@@ -35,10 +36,27 @@ Every surface a human or external client uses to talk to APX:
 - `web/` — the admin panel
 - `mcp-server/` — the `apx-mcp` binary
 
-<Screenshot
-  surface="code"
-  caption="src/ tree showing core / host / interfaces layers"
-  hint="Run: find src -maxdepth 2 -type d" />
+<Terminal command="find src -maxdepth 2 -type d" caption="src/ tree — the core / host / interfaces layers">
+{`src
+src/core           # pure logic — no transports
+src/core/agent
+src/core/engines
+src/core/mcp
+src/core/memory
+src/core/routines
+src/core/runtimes
+src/core/voice
+src/host            # long-running processes
+src/host/daemon
+src/interfaces      # surfaces
+src/interfaces/cli
+src/interfaces/tui
+src/interfaces/desktop
+src/interfaces/web
+src/interfaces/mcp-server
+src/skills
+src/skills/apc-context`}
+</Terminal>
 
 ## The import rules
 
