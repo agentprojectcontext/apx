@@ -1,0 +1,34 @@
+/* APX brand — green accent over Starlight's defaults.
+   Recolors links, active sidebar items, focus rings, and badges to match the
+   green brand mark and the landing page. Only the accent ramp is overridden
+   so the rest of the Starlight theme (typography, grays) stays intact. */
+
+:root {
+	/* Dark theme (default). */
+	--sl-color-accent-low: #07310f;
+	--sl-color-accent: #1f9d3a;
+	--sl-color-accent-high: #aef0bd;
+	--sl-color-text-accent: #3fd163;
+}
+
+:root[data-theme='light'] {
+	--sl-color-accent-low: #cdf3d6;
+	--sl-color-accent: #189a35;
+	--sl-color-accent-high: #06351a;
+	--sl-color-text-accent: #15803d;
+}
+
+/* Hero "primary" call-to-action button on the splash/index page. */
+.hero .actions a[data-variant='primary'] {
+	background: linear-gradient(180deg, #2fd24e, #1f9d3a);
+	border-color: #1f9d3a;
+	color: #04220c;
+}
+
+/* Screenshot frames: a subtle brand-tinted border so captures read as part of
+   the product, not floating images. */
+.apx-shot img,
+.apx-shot__box {
+	border-radius: 0.75rem;
+	border: 1px solid color-mix(in srgb, var(--sl-color-accent) 35%, transparent);
+}

@@ -10,8 +10,8 @@ import Screenshot from '../../../components/Screenshot.astro';
 
 APX has a unified voice layer: a TTS (text-to-speech) facade for speaking text
 and a Whisper-based STT (speech-to-text) sidecar for transcribing mic audio.
-The `apx voice` CLI exposes both. The [Desktop window](/apx/surfaces/desktop/)
-and the [Deck](/apx/surfaces/deck/) use the same underlying engines.
+The `apx voice` CLI exposes both. The [Desktop window](/apx/docs/surfaces/desktop/)
+and the [Deck](/apx/docs/surfaces/deck/) use the same underlying engines.
 
 ## Commands
 
@@ -102,7 +102,7 @@ Switch the active provider with:
 apx config set voice.tts.provider piper
 ```
 
-You can also manage providers from the [Web panel](/apx/surfaces/web/)
+You can also manage providers from the [Web panel](/apx/docs/surfaces/web/)
 under **Voices** (`/m/voice`).
 
 ## Setup paths
@@ -208,7 +208,7 @@ Response:
 }
 ```
 
-The [Desktop window](/apx/surfaces/desktop/) and the Deck
+The [Desktop window](/apx/docs/surfaces/desktop/) and the Deck
 both use this endpoint internally. The `channel` field (`voice`, `deck`,
 `desktop`, `telegram`) controls response formatting: voice/deck channels get
 short, spoken-friendly replies; telegram gets Markdown-formatted text.
@@ -249,6 +249,6 @@ convert with `ffmpeg -f s16le -ar 24000 -ac 1 -i raw.pcm out.wav`.
 
 ## Related
 
-- [Desktop](/apx/surfaces/desktop/) — floating window that uses TTS/STT
-- [Deck](/apx/surfaces/deck/) — companion app voice mode
-- [Web panel → Voices module](/apx/surfaces/web/#voices) — UI for provider config
+- [Desktop](/apx/docs/surfaces/desktop/) — floating window that uses TTS/STT
+- [Deck](/apx/docs/surfaces/deck/) — companion app voice mode
+- [Web panel → Voices module](/apx/docs/surfaces/web/#voices) — UI for provider config

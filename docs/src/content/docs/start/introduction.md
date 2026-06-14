@@ -46,6 +46,6 @@ many surfaces.
 
 ## Where to go next
 
-- [Installation](/apx/start/installation/) — get APX on your machine.
-- [Quick start](/apx/start/quick-start/) — from `apx init` to your first run.
-- [Architecture](/apx/start/architecture/) — the core / host / interfaces layering.
+- [Installation](/apx/docs/start/installation/) — get APX on your machine.
+- [Quick start](/apx/docs/start/quick-start/) — from `apx init` to your first run.
+- [Architecture](/apx/docs/start/architecture/) — the core / host / interfaces layering.
