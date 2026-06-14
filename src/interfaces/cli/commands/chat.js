@@ -1,6 +1,13 @@
 import readline from "node:readline";
 import { http } from "../http.js";
 import { resolveProjectId } from "./project.js";
+import { readConfig } from "#core/config/index.js";
+
+// The super-agent (default name "apx") is the default conversational agent, so
+// `apx conversations list` (no slug) targets it — no need to spell it out.
+function superAgentSlug() {
+  try { return readConfig()?.super_agent?.name || "apx"; } catch { return "apx"; }
+}
 
 export async function cmdChat(args) {
   const slug = args._[0];
@@ -51,12 +58,12 @@ export async function cmdChat(args) {
 }
 
 export async function cmdConversationsList(args) {
-  const slug = args._[0];
-  if (!slug) throw new Error("apx conversations list: missing <agent-slug>");
+  // No slug → the super-agent (default conversational agent).
+  const slug = args._[0] || superAgentSlug();
   const pid = await resolveProjectId(args?.flags?.project);
   const rows = await http.get(`/projects/${pid}/agents/${slug}/conversations`);
   if (rows.length === 0) {
-    console.log("(no conversations)");
+    console.log(`(no conversations for ${slug})`);
     return;
   }
   console.log("ID".padEnd(16) + " ENGINE".padEnd(35) + " TURNS  STATUS");
@@ -72,9 +79,11 @@ export async function cmdConversationsList(args) {
 }
 
 export async function cmdConversationsGet(args) {
-  const slug = args._[0];
-  const id = args._[1];
-  if (!slug || !id) throw new Error("apx conversations get: usage: apx conversations get <agent> <id>");
+  // Two forms: `get <agent> <id>` or `get <id>` (→ super-agent).
+  let slug, id;
+  if (args._.length >= 2) { slug = args._[0]; id = args._[1]; }
+  else { slug = superAgentSlug(); id = args._[0]; }
+  if (!id) throw new Error("apx conversations get: usage: apx conversations get [<agent>] <id>");
   const pid = await resolveProjectId(args?.flags?.project);
   const conv = await http.get(`/projects/${pid}/agents/${slug}/conversations/${id}`);
   process.stdout.write(`# Conversation ${id} (${slug})\n`);

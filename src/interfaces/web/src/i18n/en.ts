@@ -817,7 +817,8 @@ export const en = {
 
   not_found: {
     title:   "404",
-    message: "That route does not exist.",
+    message: "Roby got lost: this page doesn't exist or has moved.",
+    home:    "Back to home",
   },
 
   ask_panel: {

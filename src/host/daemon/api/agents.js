@@ -245,12 +245,18 @@ export function register(app, { projects, project }) {
   app.get("/projects/:pid/agents/:slug/memory", (req, res) => {
     const p = project(req, res);
     if (!p) return;
+    // Validate the agent exists — otherwise an unknown slug returned 200 with an
+    // empty body, masking typos (QA BUG-API-1).
+    if (!readAgents(p.path).some((a) => a.slug === req.params.slug))
+      return res.status(404).json({ error: "agent not found" });
     res.json({ body: readAgentMemory(p, req.params.slug) });
   });
 
   app.put("/projects/:pid/agents/:slug/memory", (req, res) => {
     const p = project(req, res);
     if (!p) return;
+    if (!readAgents(p.path).some((a) => a.slug === req.params.slug))
+      return res.status(404).json({ error: "agent not found" });
     const { body } = req.body || {};
     if (typeof body !== "string")
       return res.status(400).json({ error: "body must be string" });

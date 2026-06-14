@@ -46,8 +46,27 @@ export async function cmdIdentity(args) {
     if (args.flags.personality && args.flags.personality !== true) fields.personality = args.flags.personality;
     if (args.flags.language && args.flags.language !== true) fields.language = args.flags.language;
 
+    // Positional form documented in help: `apx identity set <key> <value>`.
+    const KEY_TO_FIELD = {
+      name: "agent_name", owner: "owner_name", context: "owner_context",
+      personality: "personality", language: "language",
+      agent_name: "agent_name", owner_name: "owner_name", owner_context: "owner_context",
+    };
+    const pKey = args._[1];
+    const pVal = args._.slice(2).join(" ");
+    if (pKey && pVal) {
+      const field = KEY_TO_FIELD[pKey];
+      if (!field) {
+        console.error(`unknown identity key "${pKey}". Known: name, owner, context, personality, language`);
+        process.exitCode = 2;
+        return;
+      }
+      fields[field] = pVal;
+    }
+
     if (Object.keys(fields).length === 0) {
-      console.log("Usage: apx identity set --name <name> --owner <name> --context <text> --personality <text> --language <lang>");
+      console.log("Usage: apx identity set <key> <value>   (keys: name, owner, context, personality, language)");
+      console.log("   or: apx identity set --name <name> --owner <name> --context <text> --personality <text> --language <lang>");
       return;
     }
 
