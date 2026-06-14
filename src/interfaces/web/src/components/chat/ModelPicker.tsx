@@ -64,7 +64,7 @@ export function ModelPicker({
 
   const q = query.trim().toLowerCase();
   const filtered = q ? options.filter((o) => o.toLowerCase().includes(q)) : options;
-  const label = value || "Auto";
+  const label = value || t("shared_ui.auto");
 
   const pick = (m: string) => { onChange(m); setOpen(false); setQuery(""); };
 
@@ -93,7 +93,7 @@ export function ModelPicker({
           <input
             autoFocus
             value={query}
-            placeholder="filtrar o escribir modelo…"
+            placeholder={t("shared_ui.model_filter_ph")}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && query.trim()) pick(query.trim()); }}
             className="mb-1 w-full rounded-md border border-border bg-background px-2 py-1 text-xs outline-none focus:border-foreground/30"
@@ -108,11 +108,11 @@ export function ModelPicker({
                   !value && "bg-accent/50",
                 )}
               >
-                <span className="flex items-center gap-1.5"><X className="size-3" /> Auto (router decide)</span>
+                <span className="flex items-center gap-1.5"><X className="size-3" /> {t("shared_ui.auto_router")}</span>
                 {!value && <Check className="size-3" />}
               </button>
             </li>
-            {!loaded && <li className="px-2 py-1 text-[11px] text-muted-fg">cargando modelos…</li>}
+            {!loaded && <li className="px-2 py-1 text-[11px] text-muted-fg">{t("shared_ui.loading_models")}</li>}
             {loaded && filtered.length === 0 && query.trim() && (
               <li>
                 <button
@@ -120,7 +120,7 @@ export function ModelPicker({
                   onMouseDown={(e) => { e.preventDefault(); pick(query.trim()); }}
                   className="w-full rounded-md px-2 py-1 text-left font-mono text-xs hover:bg-accent hover:text-accent-fg"
                 >
-                  usar “{query.trim()}”
+                  {t("shared_ui.use_value", { value: query.trim() })}
                 </button>
               </li>
             )}

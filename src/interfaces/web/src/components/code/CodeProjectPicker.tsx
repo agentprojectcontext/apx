@@ -1,5 +1,6 @@
 import { FolderGit2 } from "lucide-react";
 import { UiSelect } from "../UiSelect";
+import { t } from "../../i18n";
 import type { ProjectEntry } from "../../types/daemon";
 
 interface Props {
@@ -16,7 +17,7 @@ interface Props {
 // their path) so the dropdown is human-readable.
 export function CodeProjectPicker({ projects, value, onChange, disabled }: Props) {
   const options = projects.map((p) => {
-    const base = p.path?.split("/").filter(Boolean).pop() || `proyecto ${p.id}`;
+    const base = p.path?.split("/").filter(Boolean).pop() || t("modules_ui.code_project_fallback", { id: p.id });
     return {
       value: String(p.id),
       label: p.name || base,
@@ -31,7 +32,7 @@ export function CodeProjectPicker({ projects, value, onChange, disabled }: Props
         value={value}
         onChange={onChange}
         options={options}
-        placeholder="Elegí un proyecto…"
+        placeholder={t("modules_ui.code_pick_project_ph")}
         disabled={disabled}
       />
     </div>

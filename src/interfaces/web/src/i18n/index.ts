@@ -23,7 +23,7 @@ function readLocale(): Locale {
     const saved = localStorage.getItem(STORAGE.language);
     if (saved && saved in dictionaries) return saved as Locale;
   } catch { /* ignore */ }
-  return "es";
+  return "en";
 }
 
 let activeLocale: Locale = readLocale();

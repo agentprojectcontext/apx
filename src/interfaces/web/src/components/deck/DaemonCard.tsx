@@ -1,4 +1,5 @@
 import { Badge } from "../ui";
+import { t } from "../../i18n";
 import type { DeckManifest } from "../../lib/api/deck";
 
 function uptimeHuman(s: number): string {
@@ -26,7 +27,7 @@ export function DaemonCard({ manifest }: DaemonCardProps) {
         </span>
         <div className="flex items-center gap-1.5">
           <span className="size-2 rounded-full bg-emerald-500" />
-          <span className="text-muted-fg">activo · {uptimeHuman(d.uptime_s)}</span>
+          <span className="text-muted-fg">{t("modules_ui.deck_daemon_active", { uptime: uptimeHuman(d.uptime_s) })}</span>
         </div>
       </div>
 
@@ -36,7 +37,7 @@ export function DaemonCard({ manifest }: DaemonCardProps) {
         </span>
         <span className="text-muted-fg">·</span>
         <span className="text-muted-fg">
-          iniciado{" "}
+          {t("modules_ui.deck_daemon_started")}{" "}
           {new Date(d.started_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         </span>
       </div>
@@ -44,13 +45,13 @@ export function DaemonCard({ manifest }: DaemonCardProps) {
       {/* Safety summary */}
       <div className="mt-2.5 flex flex-wrap gap-1.5">
         {s.direct_shell === false && (
-          <Badge tone="success">sin shell directo</Badge>
+          <Badge tone="success">{t("modules_ui.deck_safety_no_shell")}</Badge>
         )}
         {s.arbitrary_commands === false && (
-          <Badge tone="success">comandos arbitrarios bloqueados</Badge>
+          <Badge tone="success">{t("modules_ui.deck_safety_no_arbitrary")}</Badge>
         )}
         {s.dangerous_actions_require_confirmation && (
-          <Badge tone="info">acciones peligrosas requieren confirmación</Badge>
+          <Badge tone="info">{t("modules_ui.deck_safety_confirm")}</Badge>
         )}
       </div>
     </div>

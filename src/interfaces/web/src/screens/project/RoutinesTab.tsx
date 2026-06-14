@@ -16,14 +16,19 @@ function splitLines(v: string): string[] {
 type Kind = RoutineEntry["kind"];
 
 // Friendly action types (maps to routines.js kinds).
-const KIND_META: Record<Kind, { label: string; desc: string; icon: typeof Bot }> = {
-  exec_agent:  { label: "Agente del proyecto", desc: "Ejecuta un agente del proyecto con un prompt. Elegís cuál.", icon: Bot },
-  super_agent: { label: "Super-agente",        desc: "Llama al super-agente de APX con un prompt.", icon: Crown },
-  telegram:    { label: "Telegram",            desc: "Manda un mensaje fijo a un canal de Telegram. No usa modelo ni agente.", icon: Send },
-  shell:       { label: "Shell",               desc: "Corre un comando de shell. Sin prompt ni pre/post — el comando es la acción.", icon: Terminal },
-  heartbeat:   { label: "Latido (heartbeat)",  desc: "No hace nada salvo escribir una línea en los logs cada vez que corre. Sirve para confirmar que el scheduler está vivo. Si no sabés si lo necesitás, no lo uses.", icon: Heart },
-};
-const KIND_OPTIONS = (Object.keys(KIND_META) as Kind[]).map((k) => ({ value: k, label: KIND_META[k].label, description: KIND_META[k].desc, icon: KIND_META[k].icon }));
+function kindMeta(): Record<Kind, { label: string; desc: string; icon: typeof Bot }> {
+  return {
+    exec_agent:  { label: t("agents_ui.kind_exec_agent"),  desc: t("agents_ui.kind_exec_agent_desc"), icon: Bot },
+    super_agent: { label: t("agents_ui.kind_super_agent"), desc: t("agents_ui.kind_super_agent_desc"), icon: Crown },
+    telegram:    { label: t("agents_ui.kind_telegram"),    desc: t("agents_ui.kind_telegram_desc"), icon: Send },
+    shell:       { label: t("agents_ui.kind_shell"),       desc: t("agents_ui.kind_shell_desc"), icon: Terminal },
+    heartbeat:   { label: t("agents_ui.kind_heartbeat"),   desc: t("agents_ui.kind_heartbeat_desc"), icon: Heart },
+  };
+}
+function kindOptions() {
+  const meta = kindMeta();
+  return (Object.keys(meta) as Kind[]).map((k) => ({ value: k, label: meta[k].label, description: meta[k].desc, icon: meta[k].icon }));
+}
 
 // "every:10m" → "cada 10 minutos", cron/once → legible.
 function scheduleHuman(s?: string): string {
@@ -33,42 +38,51 @@ function scheduleHuman(s?: string): string {
     const m = v.match(/^(\d+)(s|m|h|d)$/);
     if (m) {
       const n = m[1];
-      const unit = { s: "segundos", m: "minutos", h: "horas", d: "días" }[m[2]] || m[2];
-      return `cada ${n} ${unit}`;
+      const unit = {
+        s: t("agents_ui.unit_seconds"),
+        m: t("agents_ui.unit_minutes"),
+        h: t("agents_ui.unit_hours"),
+        d: t("agents_ui.unit_days"),
+      }[m[2]] || m[2];
+      return t("agents_ui.every_n_unit", { n, unit });
     }
-    return `cada ${v}`;
+    return t("agents_ui.every_v", { v });
   }
-  if (s.startsWith("once:")) return `una vez · ${new Date(s.slice(5)).toLocaleString()}`;
+  if (s.startsWith("once:")) return `once · ${new Date(s.slice(5)).toLocaleString()}`;
   if (s.startsWith("cron ")) return `cron · ${s.slice(5)}`;
   return s;
 }
 
-const SCHED_PRESETS = [
-  { label: "cada 10 min", value: "every:10m" },
-  { label: "cada hora", value: "every:1h" },
-  { label: "diario 9am", value: "cron 0 9 * * *" },
-  { label: "días hábiles 9am", value: "cron 0 9 * * 1-5" },
-];
+function schedPresets() {
+  return [
+    { label: t("agents_ui.preset_every_10m"), value: "every:10m" },
+    { label: t("agents_ui.preset_hourly"), value: "every:1h" },
+    { label: t("agents_ui.preset_daily_9am"), value: "cron 0 9 * * *" },
+    { label: t("agents_ui.preset_weekdays_9am"), value: "cron 0 9 * * 1-5" },
+  ];
+}
 
 // Template/env vars the routine runner exposes (src/core/routines/runner.js).
-const VARS = [
-  { v: "{{pre_output}}", where: "prompt", desc: "Salida de los pre-commands, inyectada en el prompt." },
-  { v: "$APX_LLM_OUTPUT", where: "post", desc: "Respuesta del agente / super-agente." },
-  { v: "$APX_STATUS", where: "post", desc: "ok | error." },
-  { v: "$APX_SKIPPED", where: "post", desc: "1 si la acción se salteó." },
-  { v: "$APX_PRE_OUTPUT", where: "post", desc: "Salida de los pre-commands." },
-  { v: "$APX_PRE_OUTPUT_FILE", where: "post", desc: "Archivo con la salida de pre (para outputs grandes)." },
-  { v: "$APX_PRE_EXIT", where: "post", desc: "Exit code de los pre-commands." },
-  { v: "$APX_ROUTINE", where: "pre/post", desc: "Nombre de la rutina." },
-];
+function routineVars() {
+  return [
+    { v: "{{pre_output}}", where: "prompt", desc: t("agents_ui.var_pre_output_prompt") },
+    { v: "$APX_LLM_OUTPUT", where: "post", desc: t("agents_ui.var_llm_output") },
+    { v: "$APX_STATUS", where: "post", desc: t("agents_ui.var_status") },
+    { v: "$APX_SKIPPED", where: "post", desc: t("agents_ui.var_skipped") },
+    { v: "$APX_PRE_OUTPUT", where: "post", desc: t("agents_ui.var_pre_output") },
+    { v: "$APX_PRE_OUTPUT_FILE", where: "post", desc: t("agents_ui.var_pre_output_file") },
+    { v: "$APX_PRE_EXIT", where: "post", desc: t("agents_ui.var_pre_exit") },
+    { v: "$APX_ROUTINE", where: "pre/post", desc: t("agents_ui.var_routine") },
+  ];
+}
 
 function actionSummary(kind: Kind, spec: Record<string, unknown>): string {
   switch (kind) {
-    case "exec_agent": return spec.agent ? `Ejecuta el agente "${spec.agent}"` : "Ejecuta un agente (falta elegir)";
-    case "super_agent": return "Llama al super-agente";
-    case "telegram": return `Envía Telegram a "${spec.channel || "default"}"`;
-    case "shell": return spec.command ? `Corre: ${String(spec.command).slice(0, 40)}` : "Corre un comando shell";
-    case "heartbeat": return "Deja un latido en logs";
+    case "exec_agent": return spec.agent ? t("agents_ui.summary_runs_agent", { agent: String(spec.agent) }) : t("agents_ui.summary_runs_agent_none");
+    case "super_agent": return t("agents_ui.summary_super_agent");
+    case "telegram": return t("agents_ui.summary_telegram", { channel: String(spec.channel || "default") });
+    case "shell": return spec.command ? t("agents_ui.summary_runs_cmd", { cmd: String(spec.command).slice(0, 40) }) : t("agents_ui.summary_shell");
+    case "heartbeat": return t("agents_ui.summary_heartbeat");
   }
 }
 
@@ -103,7 +117,7 @@ export function RoutinesTab({ pid }: { pid: string }) {
       {!list.isLoading && (list.data?.length ?? 0) === 0 && <Empty>{t("project.routines.empty")}</Empty>}
       <ul className="space-y-2 text-sm">
         {(list.data || []).map((row) => {
-          const meta = KIND_META[row.kind];
+          const meta = kindMeta()[row.kind];
           const Icon = meta?.icon || Zap;
           const err = row.last_status === "error";
           return (
@@ -123,7 +137,7 @@ export function RoutinesTab({ pid }: { pid: string }) {
                 </div>
                 <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                   <Switch checked={row.enabled} onChange={() => toggle(row)} />
-                  <Button size="sm" variant="secondary" onClick={() => runNow(row)}><Play size={13} /> Run</Button>
+                  <Button size="sm" variant="secondary" onClick={() => runNow(row)}><Play size={13} /> {t("common.run")}</Button>
                   <Button size="sm" variant="destructive" onClick={() => remove(row)}><Trash2 size={13} /></Button>
                 </div>
               </div>
@@ -132,7 +146,7 @@ export function RoutinesTab({ pid }: { pid: string }) {
                 <span>{actionSummary(row.kind, row.spec || {})}</span>
                 {row.next_run_at && <span>{t("project.routines.next_run")} {new Date(row.next_run_at).toLocaleString()}</span>}
                 <span className={cn(row.last_status === "ok" && "text-emerald-500", err && "text-destructive")}>
-                  última: {row.last_status || "—"}
+                  {t("agents_ui.last_label")} {row.last_status || "—"}
                 </span>
               </div>
               {row.last_error && <div className="mt-2 rounded-md bg-destructive/10 px-2 py-1 text-xs text-destructive">{row.last_error}</div>}
@@ -228,20 +242,20 @@ function RoutineEditor({
   const postSteps = usesPrePost ? splitLines(post) : [];
   const actionLabel = (() => {
     switch (kind) {
-      case "exec_agent": return agent ? `Agente "${agent}" responde el prompt` : "Agente (elegí cuál) responde el prompt";
-      case "super_agent": return "El super-agente responde el prompt";
-      case "telegram": return `Manda Telegram al canal "${tgChannel}"`;
-      case "shell": return command ? `Corre: ${command.slice(0, 48)}` : "Corre el comando shell";
-      case "heartbeat": return "Deja un latido en logs";
+      case "exec_agent": return agent ? t("agents_ui.action_agent_answers", { agent }) : t("agents_ui.action_agent_pick_answers");
+      case "super_agent": return t("agents_ui.action_super_answers");
+      case "telegram": return t("agents_ui.action_telegram_channel", { channel: tgChannel });
+      case "shell": return command ? t("agents_ui.summary_runs_cmd", { cmd: command.slice(0, 48) }) : t("agents_ui.action_runs_shell");
+      case "heartbeat": return t("agents_ui.summary_heartbeat");
     }
   })();
   const usesPrompt = usesPrePost;
 
-  const ActionIcon = KIND_META[kind].icon;
+  const ActionIcon = kindMeta()[kind].icon;
   const steps = [
-    ...preSteps.map((c, i) => ({ id: `pre-${i}`, icon: Terminal, label: "Pre", detail: c, action: false })),
+    ...preSteps.map((c, i) => ({ id: `pre-${i}`, icon: Terminal, label: t("agents_ui.step_pre"), detail: c, action: false })),
     { id: "action", icon: ActionIcon, label: actionLabel, detail: usesPrompt && prompt ? prompt.slice(0, 90) : undefined, action: true },
-    ...postSteps.map((c, i) => ({ id: `post-${i}`, icon: Terminal, label: "Post", detail: c, action: false })),
+    ...postSteps.map((c, i) => ({ id: `post-${i}`, icon: Terminal, label: t("agents_ui.step_post"), detail: c, action: false })),
   ];
 
   return (
@@ -272,9 +286,9 @@ function RoutineEditor({
               <Input value={name} disabled={!!draft?.name} onChange={(e) => setName(e.target.value)} placeholder="resumen-diario" />
             </Field>
             <Field label={t("project.routines.kind_field")}>
-              <UiSelect value={kind} onChange={(v) => setKind(v as Kind)} options={KIND_OPTIONS} />
+              <UiSelect value={kind} onChange={(v) => setKind(v as Kind)} options={kindOptions()} />
             </Field>
-            <p className="-mt-1 text-[11px] text-muted-fg">{KIND_META[kind].desc}</p>
+            <p className="-mt-1 text-[11px] text-muted-fg">{kindMeta()[kind].desc}</p>
             {kind === "exec_agent" && (
               <Field label={t("project.routines.agent_field")} hint={t("project.routines.agent_hint")}>
                 <UiSelect value={agent} onChange={setAgent} placeholder={agentsList.isLoading ? t("project.routines.agent_loading") : t("project.routines.agent_pick")}
@@ -284,7 +298,7 @@ function RoutineEditor({
             <Field label={t("project.routines.schedule_field")} hint={t("project.routines.schedule_hint")}>
               <div className="space-y-2">
                 <div className="flex flex-wrap gap-1">
-                  {SCHED_PRESETS.map((s) => (
+                  {schedPresets().map((s) => (
                     <button key={s.value} type="button" onClick={() => setSchedule(s.value)}
                       className={cn("rounded-md border px-2 py-0.5 text-[11px]", schedule === s.value ? "border-emerald-500/50 text-emerald-400" : "border-border text-muted-fg hover:text-foreground")}>
                       {s.label}
@@ -292,7 +306,7 @@ function RoutineEditor({
                   ))}
                   <button type="button" onClick={() => setSchedule("manual")}
                     className={cn("rounded-md border px-2 py-0.5 text-[11px]", schedule === "manual" ? "border-emerald-500/50 text-emerald-400" : "border-border text-muted-fg hover:text-foreground")}>
-                    Manual
+                    {t("agents_ui.preset_manual")}
                   </button>
                 </div>
                 <Input value={schedule} onChange={(e) => setSchedule(e.target.value)} placeholder="every:10m · cron 0 9 * * 1-5 · once:ISO · manual" />
@@ -320,10 +334,10 @@ function RoutineEditor({
               <>
                 <div className="grid grid-cols-2 gap-3">
                   <Field label={t("project.routines.tg_channel")}><Input value={tgChannel} onChange={(e) => setTgChannel(e.target.value)} placeholder="default" /></Field>
-                  <Field label={t("project.routines.tg_chat_id")}><Input value={tgChatId} onChange={(e) => setTgChatId(e.target.value)} placeholder="(usa el del canal)" /></Field>
+                  <Field label={t("project.routines.tg_chat_id")}><Input value={tgChatId} onChange={(e) => setTgChatId(e.target.value)} placeholder={t("agents_ui.tg_chat_id_ph")} /></Field>
                 </div>
                 <Field label={t("project.routines.tg_text")} hint={t("project.routines.tg_text_hint")}>
-                  <Textarea rows={8} value={tgText} onChange={(e) => setTgText(e.target.value)} placeholder="mensaje a enviar" />
+                  <Textarea rows={8} value={tgText} onChange={(e) => setTgText(e.target.value)} placeholder={t("agents_ui.tg_text_ph")} />
                 </Field>
               </>
             )}
@@ -339,7 +353,7 @@ function RoutineEditor({
             {kind === "heartbeat" && (
               <div className="grid grid-cols-2 gap-3">
                 <Field label={t("project.routines.hb_channel")}><Input value={hbChannel} onChange={(e) => setHbChannel(e.target.value)} placeholder="heartbeat" /></Field>
-                <Field label={t("project.routines.hb_message")}><Input value={hbMessage} onChange={(e) => setHbMessage(e.target.value)} placeholder="sigo vivo" /></Field>
+                <Field label={t("project.routines.hb_message")}><Input value={hbMessage} onChange={(e) => setHbMessage(e.target.value)} placeholder={t("agents_ui.hb_message_ph")} /></Field>
               </div>
             )}
 
@@ -355,7 +369,7 @@ function RoutineEditor({
         <div className="rounded-lg border border-border bg-muted/10 p-3">
           <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-fg">{t("project.routines.vars_title")}</div>
           <div className="flex flex-wrap gap-1.5">
-            {VARS.map((v) => (
+            {routineVars().map((v) => (
               <span key={v.v} title={v.desc} className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-1.5 py-0.5 font-mono text-[10px]">
                 {v.v}<span className="not-italic text-muted-fg">· {v.where}</span>
               </span>

@@ -25,13 +25,13 @@ export function GlobalConfigEditor() {
   return (
     <Section
       title={t("global_config.title")}
-      description="Config general en ~/.apx/config.json. Editable por tabs; JSON queda separado."
+      description={t("settings_ui.global_config_desc")}
     >
       <ConfigTabsEditor
         sections={GLOBAL_CONFIG_SECTIONS}
         source={config as Record<string, unknown>}
         jsonTitle="~/.apx/config.json"
-        jsonDescription="Secretos redacted no se sobrescriben."
+        jsonDescription={t("settings_ui.global_json_desc")}
         onSaveFields={async (set, unset) => {
           await patch(set, unset);
           mutate();

@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { SuperAgent, Agents, Conversations } from "../lib/api";
 import type { ChatStreamEvent, ChatUsage, ConversationMessage } from "../types/daemon";
+import { t } from "../i18n";
 
 export type ToolStatus = "running" | "done" | "error" | "deduped";
 
@@ -259,7 +260,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
   const applyEvent = useCallback(
     (ev: ChatStreamEvent) => {
       if (ev.type === "error") {
-        onError?.(ev.error || "stream error");
+        onError?.(ev.error || t("shared_ui.err_stream"));
         return;
       }
       patchLast((m) => applyStreamEvent(m, ev));
@@ -302,7 +303,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
             parts: [{ kind: "text", text: out.text }],
           }));
         } catch (e) {
-          onError?.((e as Error)?.message || "fallo");
+          onError?.((e as Error)?.message || t("shared_ui.err_chat_failed"));
           setMsgs((curr) => curr.filter((_, i) => i !== curr.length - 1));
         } finally {
           setStreaming(false);
@@ -326,10 +327,10 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
           patchLast((m) => ({
             ...m,
             pending: false,
-            parts: [...m.parts, { kind: "text", text: "[detenido]" }],
+            parts: [...m.parts, { kind: "text", text: t("code_module.stopped") }],
           }));
         } else {
-          onError?.((e as Error)?.message || "stream falló");
+          onError?.((e as Error)?.message || t("shared_ui.err_stream_failed"));
           setMsgs((curr) => curr.filter((_, i) => i !== curr.length - 1));
         }
       } finally {
@@ -364,7 +365,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
         setConversationId(conversationId);
         setMsgs(loaded);
       } catch (e) {
-        onError?.((e as Error)?.message || "could not load conversation");
+        onError?.((e as Error)?.message || t("shared_ui.err_load_conversation"));
       }
     },
     [pid, streaming, onError],

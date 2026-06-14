@@ -5,6 +5,7 @@ import { UiSelect } from "../UiSelect";
 import { useToast } from "../Toast";
 import { useTtsPlayer } from "./useTtsPlayer";
 import { Voice, TTS_PROVIDER_META, type TtsEngineInfo, type TtsMode, type TtsSayResult } from "../../lib/api/voice";
+import { t } from "../../i18n";
 
 // "Decir esto" tester. Lets you pick which engine to synthesize with (overriding
 // the saved default) and add a free-text speaking-style instruction, then plays
@@ -21,7 +22,7 @@ interface Props {
 export function VoiceTestCard({ engines, defaultProvider, mode }: Props) {
   const toast = useToast();
   const { play, stop, playing, loading: playLoading } = useTtsPlayer();
-  const [text, setText] = useState("Hola, soy APX. Esto es una prueba de voz.");
+  const [text, setText] = useState(t("voice_ui.test_default_text"));
   // "" = use the saved default; otherwise force a specific engine.
   const [engine, setEngine] = useState("");
   const [style, setStyle] = useState("");
@@ -30,34 +31,34 @@ export function VoiceTestCard({ engines, defaultProvider, mode }: Props) {
 
   const defaultLabel =
     mode === "single" && defaultProvider && defaultProvider !== "auto"
-      ? `Por defecto (${TTS_PROVIDER_META[defaultProvider]?.name || defaultProvider})`
-      : "Por defecto (cadena)";
+      ? t("voice_ui.test_default_engine", { name: TTS_PROVIDER_META[defaultProvider]?.name || defaultProvider })
+      : t("voice_ui.test_default_chain");
 
   const options = [
     { value: "", label: defaultLabel },
     ...engines.map((e) => ({
       value: e.id,
-      label: `${TTS_PROVIDER_META[e.id]?.name || e.id}${e.available ? "" : " · no disponible"}`,
+      label: `${TTS_PROVIDER_META[e.id]?.name || e.id}${e.available ? "" : t("voice_ui.test_unavailable_suffix")}`,
     })),
   ];
 
   const say = async () => {
-    const t = text.trim();
-    if (!t) {
-      toast.error("Escribí algo para decir.");
+    const txt = text.trim();
+    if (!txt) {
+      toast.error(t("voice_ui.test_empty_error"));
       return;
     }
     setBusy(true);
     try {
       const res = await Voice.say({
-        text: t,
+        text: txt,
         provider: engine || undefined,
         style: style.trim() || undefined,
       });
       setLast(res);
       await play(res.audio_path);
     } catch (e) {
-      toast.error((e as Error).message || "No se pudo sintetizar.");
+      toast.error((e as Error).message || t("voice_ui.test_synth_error"));
     } finally {
       setBusy(false);
     }
@@ -66,43 +67,43 @@ export function VoiceTestCard({ engines, defaultProvider, mode }: Props) {
   return (
     <div className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Motor" hint="Override del por defecto para probar.">
+        <Field label={t("voice_ui.test_engine_label")} hint={t("voice_ui.test_engine_hint")}>
           <UiSelect value={engine} onChange={setEngine} options={options} />
         </Field>
-        <Field label="Estilo (solo Gemini)" hint="Cómo querés que hable. Vacío = sin estilo.">
+        <Field label={t("voice_ui.test_style_label")} hint={t("voice_ui.test_style_hint")}>
           <Input
             value={style}
             onChange={(e) => setStyle(e.target.value)}
-            placeholder="hablá en tono alegre y enérgico"
+            placeholder={t("voice_ui.style_ph")}
             data-testid="voice-test-style"
           />
         </Field>
       </div>
-      <Field label="Texto a decir">
+      <Field label={t("voice_ui.test_text_label")}>
         <Textarea
           rows={2}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Escribí lo que querés que diga…"
+          placeholder={t("voice_ui.test_text_ph")}
           data-testid="voice-test-input"
         />
       </Field>
       <div className="flex items-center gap-2">
         <Button variant="primary" onClick={say} loading={busy} disabled={playLoading} data-testid="voice-test-say">
-          <Volume2 className="size-4" /> Decir esto
+          <Volume2 className="size-4" /> {t("voice_ui.say_this")}
         </Button>
         {playing ? (
           <Button variant="secondary" onClick={stop} data-testid="voice-test-stop">
-            <Square className="size-4" /> Parar
+            <Square className="size-4" /> {t("voice_ui.stop")}
           </Button>
         ) : last ? (
           <Button variant="secondary" onClick={() => play(last.audio_path)} loading={playLoading} data-testid="voice-test-replay">
-            <Play className="size-4" /> Repetir
+            <Play className="size-4" /> {t("voice_ui.replay")}
           </Button>
         ) : null}
         {last && (
           <span className="text-xs text-muted-fg">
-            Motor: <strong>{last.provider}</strong>
+            {t("voice_ui.engine_result")}: <strong>{last.provider}</strong>
             {last.duration_s ? ` · ${last.duration_s.toFixed(1)}s` : ""}
           </span>
         )}

@@ -10,14 +10,14 @@ import { Desktop, fetchDesktopMessages, type GlobalMessage } from "../../lib/api
 import { t } from "../../i18n";
 
 const DEFAULT_SHORTCUT = "CommandOrControl+G";
-const POSITION_OPTS = [
-  { value: "left",   label: "Izquierda" },
-  { value: "center", label: "Centro" },
-  { value: "right",  label: "Derecha" },
+const positionOpts = () => [
+  { value: "left",   label: t("modules_ui.desktop_pos_left") },
+  { value: "center", label: t("modules_ui.desktop_pos_center") },
+  { value: "right",  label: t("modules_ui.desktop_pos_right") },
 ];
-const THEME_OPTS = [
-  { value: "light", label: "Claro" },
-  { value: "dark",  label: "Oscuro" },
+const themeOpts = () => [
+  { value: "light", label: t("modules_ui.desktop_theme_light") },
+  { value: "dark",  label: t("modules_ui.desktop_theme_dark") },
 ];
 
 // Desktop module — manage the floating voice window (the Electron app launched
@@ -71,7 +71,7 @@ export function DesktopScreen() {
     setBusy(true);
     try {
       await patch({ "desktop.shortcut": next });
-      toast.success("Atajo guardado. Reiniciá la ventana (apx desktop stop && start) para aplicarlo.");
+      toast.success(t("modules_ui.desktop_shortcut_saved"));
     } catch (e) { toast.error((e as Error).message); }
     finally { setBusy(false); }
   };
@@ -90,7 +90,7 @@ export function DesktopScreen() {
     try {
       await Desktop.autostartSet(v);
       await mutateAutostart();
-      toast.success(v ? "Autostart activado para el próximo login." : "Autostart desactivado.");
+      toast.success(v ? t("modules_ui.desktop_autostart_on") : t("modules_ui.desktop_autostart_off"));
     } catch (e) { toast.error((e as Error).message); }
     finally { setAutostartBusy(false); }
   };
@@ -101,28 +101,28 @@ export function DesktopScreen() {
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
         {/* ── LEFT: configuration + status ─────────────────────────────── */}
         <div className="space-y-6">
-          <Section title={t("desktop_screen.status_title")} description="La ventana se lanza desde la terminal o por autostart.">
+          <Section title={t("desktop_screen.status_title")} description={t("modules_ui.desktop_status_desc")}>
             {stLoading ? <Loading /> : (
               <div className="flex items-center gap-2 text-sm">
                 <StatusDot ok={running} />
-                <span className="font-medium">{running ? "En ejecución" : "Detenida"}</span>
+                <span className="font-medium">{running ? t("modules_ui.desktop_running") : t("modules_ui.desktop_stopped")}</span>
                 <button
                   type="button"
                   onClick={() => mutateStatus()}
                   className="ml-2 text-xs text-muted-fg underline-offset-2 hover:underline"
                 >
-                  refrescar
+                  {t("modules_ui.desktop_refresh")}
                 </button>
               </div>
             )}
             <p className="mt-3 text-xs text-muted-fg">
-              Desde terminal: <Kbd>apx desktop start</Kbd> · <Kbd>apx desktop --debug</Kbd>
+              {t("modules_ui.desktop_from_terminal")} <Kbd>apx desktop start</Kbd> · <Kbd>apx desktop --debug</Kbd>
             </p>
           </Section>
 
           <Section
             title={t("desktop_screen.autostart_title")}
-            description="Lanza la ventana al iniciar sesión del usuario. Equivalente a `apx desktop install` (no requiere sudo)."
+            description={t("modules_ui.desktop_autostart_desc")}
           >
             {!autostart ? <Loading /> : (
               <div className="flex items-center justify-between gap-3">
@@ -130,23 +130,23 @@ export function DesktopScreen() {
                   checked={autostart.enabled}
                   onChange={toggleAutostart}
                   disabled={autostartBusy}
-                  label={autostart.enabled ? "Activado" : "Desactivado"}
+                  label={autostart.enabled ? t("common.enabled") : t("common.disabled")}
                 />
-                <span className="text-xs text-muted-fg">platform: {autostart.platform}</span>
+                <span className="text-xs text-muted-fg">{t("modules_ui.desktop_platform", { platform: autostart.platform })}</span>
               </div>
             )}
           </Section>
 
           <Section
             title={t("desktop_screen.shortcut_title")}
-            description="Botón de acceso rápido global que muestra/oculta la ventana y arranca a escuchar."
+            description={t("modules_ui.desktop_shortcut_desc")}
           >
             {cfgLoading ? <Loading /> : (
               <div className="flex items-end gap-3">
                 <div className="flex-1">
                   <Field
-                    label="Acelerador"
-                    hint='Formato Electron, p. ej. "CommandOrControl+G" o "CommandOrControl+Shift+Space". Reiniciá la ventana para aplicar.'
+                    label={t("modules_ui.desktop_accelerator")}
+                    hint={t("modules_ui.desktop_accelerator_hint")}
                   >
                     <Input
                       value={shortcut}
@@ -164,28 +164,28 @@ export function DesktopScreen() {
                   loading={busy}
                   disabled={!shortcut.trim() || shortcut.trim() === savedShortcut}
                 >
-                  Guardar
+                  {t("common.save")}
                 </Button>
               </div>
             )}
           </Section>
 
-          <Section title={t("desktop_screen.appearance_title")} description="Tema y posición de la ventana en la pantalla.">
+          <Section title={t("desktop_screen.appearance_title")} description={t("modules_ui.desktop_appearance_desc")}>
             {cfgLoading ? <Loading /> : (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <Field label="Tema" hint="Reiniciá la ventana para aplicar.">
+                <Field label={t("modules_ui.desktop_theme")} hint={t("modules_ui.desktop_restart_apply")}>
                   <UiSelect
                     value={theme}
-                    onChange={(v) => patchKey("desktop.theme", v, `Tema: ${v}.`)}
-                    options={THEME_OPTS}
+                    onChange={(v) => patchKey("desktop.theme", v, t("modules_ui.desktop_theme_set", { value: v }))}
+                    options={themeOpts()}
                     disabled={busy}
                   />
                 </Field>
-                <Field label="Posición" hint='"izquierda" / "centro" / "derecha" del borde superior.'>
+                <Field label={t("modules_ui.desktop_position")} hint={t("modules_ui.desktop_position_hint")}>
                   <UiSelect
                     value={position}
-                    onChange={(v) => patchKey("desktop.position", v, `Posición: ${v}.`)}
-                    options={POSITION_OPTS}
+                    onChange={(v) => patchKey("desktop.position", v, t("modules_ui.desktop_position_set", { value: v }))}
+                    options={positionOpts()}
                     disabled={busy}
                   />
                 </Field>
@@ -195,19 +195,19 @@ export function DesktopScreen() {
 
           <Section
             title={t("desktop_screen.activation_title")}
-            description="El plugin del daemon procesa los mensajes. STT se configura en Voces."
+            description={t("modules_ui.desktop_activation_desc")}
           >
             {cfgLoading ? <Loading /> : (
               <div className="space-y-3">
                 <Switch
                   checked={enabled}
-                  onChange={(v) => patchKey("desktop.enabled", v, v ? "Desktop activado." : "Desktop desactivado.")}
+                  onChange={(v) => patchKey("desktop.enabled", v, v ? t("modules_ui.desktop_enabled_toast") : t("modules_ui.desktop_disabled_toast"))}
                   disabled={busy}
-                  label={enabled ? "Plugin activado (responde mensajes)" : "Plugin desactivado"}
+                  label={enabled ? t("modules_ui.desktop_plugin_on") : t("modules_ui.desktop_plugin_off")}
                 />
                 <p className="text-xs text-muted-fg">
-                  Motor de voz a texto: <Link to="/m/voice" className="font-medium text-fg underline underline-offset-2">Voces</Link>{" "}
-                  (whisper local, idioma, modelo).
+                  {t("modules_ui.desktop_stt_engine")} <Link to="/m/voice" className="font-medium text-fg underline underline-offset-2">{t("nav.modules.voice")}</Link>{" "}
+                  {t("modules_ui.desktop_stt_engine_suffix")}
                 </p>
               </div>
             )}
@@ -218,14 +218,14 @@ export function DesktopScreen() {
         <div>
           <Section
             title={t("desktop_screen.last_conv_title")}
-            description="Lo último charlado con el agente desde la ventana flotante."
+            description={t("modules_ui.desktop_last_conv_desc")}
             action={
               <button
                 type="button"
                 onClick={() => mutateMsgs()}
                 className="text-xs text-muted-fg underline-offset-2 hover:underline"
               >
-                refrescar
+                {t("modules_ui.desktop_refresh")}
               </button>
             }
           >
@@ -248,7 +248,7 @@ function DesktopLastConversation({ messages, loading }: { messages: GlobalMessag
   const groups = useMemo(() => groupExchanges(messages), [messages]);
 
   if (loading) return <Loading />;
-  if (!messages.length) return <Empty>Sin mensajes todavía. Mandale algo a la ventana de escritorio para que aparezca aquí.</Empty>;
+  if (!messages.length) return <Empty>{t("modules_ui.desktop_no_messages")}</Empty>;
 
   return (
     <div className="space-y-3 max-h-[560px] overflow-y-auto pr-1">
@@ -267,11 +267,11 @@ function MessageLine({ m }: { m: GlobalMessage }) {
   return (
     <div className="py-1">
       <div className="flex items-baseline gap-2 text-[11px] text-muted-fg">
-        <span className="font-semibold">{isUser ? "Vos" : "Roby"}</span>
+        <span className="font-semibold">{isUser ? t("modules_ui.desktop_you") : t("modules_ui.desktop_roby")}</span>
         <span>{when}</span>
       </div>
       <div className={"mt-0.5 text-sm leading-snug whitespace-pre-wrap " + (isUser ? "text-muted-fg" : "text-fg")}>
-        {(m.body || "").trim() || <span className="italic opacity-50">(vacío)</span>}
+        {(m.body || "").trim() || <span className="italic opacity-50">{t("modules_ui.desktop_empty_msg")}</span>}
       </div>
     </div>
   );

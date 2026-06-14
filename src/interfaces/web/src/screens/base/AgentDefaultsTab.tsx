@@ -97,7 +97,7 @@ export function AgentDefaultsTab() {
               </div>
               {a.model
                 ? <Badge tone="info">{a.model}</Badge>
-                : <span className="text-[10px] text-muted-fg">modelo: default del router</span>}
+                : <span className="text-[10px] text-muted-fg">{t("agents_ui.model_router_default")}</span>}
               {a.description && <p className="line-clamp-3 text-xs text-muted-fg">{a.description}</p>}
               <div className="flex flex-wrap gap-1">
                 {a.role && <Badge>{a.role}</Badge>}
@@ -121,9 +121,9 @@ export function AgentDefaultsTab() {
 }
 
 function SourceBadge({ source }: { source?: VaultAgent["source"] }) {
-  if (source === "user")          return <Badge tone="success">user</Badge>;
-  if (source === "user-override") return <Badge tone="warning">override</Badge>;
-  return <Badge tone="muted">bundled</Badge>;
+  if (source === "user")          return <Badge tone="success">{t("agents_ui.source_user")}</Badge>;
+  if (source === "user-override") return <Badge tone="warning">{t("agents_ui.source_override")}</Badge>;
+  return <Badge tone="muted">{t("agents_ui.source_bundled")}</Badge>;
 }
 
 // Small square icon button with a tooltip; keeps the card header compact.
@@ -231,7 +231,7 @@ function VaultAgentDialog({
     >
       <div className="space-y-3">
         {isNew && (
-          <Field label="slug" hint="kebab-case, ej. reviewer, my-agent, content-writer">
+          <Field label="slug" hint={t("agents_ui.slug_kebab_hint")}>
             <Input autoFocus value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="reviewer" />
           </Field>
         )}
@@ -254,13 +254,13 @@ function VaultAgentDialog({
         <Field label="description">
           <Input value={description} onChange={(e) => setDescription(e.target.value)} />
         </Field>
-        <Field label="skills" hint="separadas por coma">
+        <Field label="skills" hint={t("agents_ui.comma_separated")}>
           <Input value={skills} onChange={(e) => setSkills(e.target.value)} placeholder="code-review, git" />
         </Field>
-        <Field label="tools" hint="separadas por coma">
+        <Field label="tools" hint={t("agents_ui.comma_separated")}>
           <Input value={tools} onChange={(e) => setTools(e.target.value)} placeholder="read, write, run" />
         </Field>
-        <Field label="body" hint="markdown — extiende el system prompt del agente">
+        <Field label="body" hint={t("agents_ui.body_hint")}>
           <Textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}

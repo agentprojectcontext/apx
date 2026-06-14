@@ -15,17 +15,17 @@ import { t } from "../../i18n";
 // provider/model changes the embedder space, so a "Reindexar" action rebuilds
 // the vector store under the new embedder.
 
-const PROVIDER_OPTIONS = [
-  { value: "auto", label: "Automático (cadena: Ollama → Gemini → OpenAI → offline)" },
-  { value: "ollama", label: "Ollama — local, sin API key (nomic-embed-text)" },
-  { value: "gemini", label: "Gemini — free tier con key (text-embedding-004)" },
-  { value: "openai", label: "OpenAI — text-embedding-3-small (cloud)" },
-  { value: "tf", label: "Offline (term-frequency, sin modelo — degradado)" },
+const providerOptions = () => [
+  { value: "auto", label: t("memory_panel.provider_auto") },
+  { value: "ollama", label: t("memory_panel.provider_ollama") },
+  { value: "gemini", label: t("memory_panel.provider_gemini") },
+  { value: "openai", label: t("memory_panel.provider_openai") },
+  { value: "tf", label: t("memory_panel.provider_tf") },
 ];
 
-const MODE_OPTIONS = [
-  { value: "chain", label: "Cadena (fallback automático)" },
-  { value: "single", label: "Único (usa solo el elegido)" },
+const modeOptions = () => [
+  { value: "chain", label: t("memory_panel.mode_chain") },
+  { value: "single", label: t("memory_panel.mode_single") },
 ];
 
 interface MemoryCfg {
@@ -68,7 +68,7 @@ export function MemoryPanel() {
       await patch(set);
       await mutateProviders();
     } catch (e) {
-      toast.error(`No se pudo guardar: ${(e as Error).message}`);
+      toast.error(t("memory_panel.save_failed", { msg: (e as Error).message }));
     } finally {
       setBusy(false);
     }
@@ -80,9 +80,9 @@ export function MemoryPanel() {
     try {
       const r = await Embeddings.test({});
       setTestResult(`${r.embedder} · dim ${r.dim} · ${r.ms}ms`);
-      toast.success(`Embedding OK con ${r.embedder}`);
+      toast.success(t("memory_panel.test_ok", { embedder: r.embedder }));
     } catch (e) {
-      toast.error(`Falló el test: ${(e as Error).message}`);
+      toast.error(t("memory_panel.test_failed", { msg: (e as Error).message }));
     } finally {
       setBusy(false);
     }
@@ -92,9 +92,9 @@ export function MemoryPanel() {
     setBusy(true);
     try {
       const r = await Embeddings.reindex();
-      toast.success(`Reindexado: ${r.indexed} chunks (limpiados ${r.cleared}).`);
+      toast.success(t("memory_panel.reindexed", { indexed: r.indexed, cleared: r.cleared }));
     } catch (e) {
-      toast.error(`Falló el reindex: ${(e as Error).message}`);
+      toast.error(t("memory_panel.reindex_failed", { msg: (e as Error).message }));
     } finally {
       setBusy(false);
     }
@@ -104,24 +104,24 @@ export function MemoryPanel() {
     <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
       <Section
         title={t("memory_panel.embeddings_title")}
-        description="Modelo que vectoriza el historial de todos los canales para la memoria relevante. Igual que TTS/STT: elegí proveedor y modelo. 'Automático' prueba local primero y cae al offline si no hay nada."
+        description={t("memory_panel.embeddings_desc")}
       >
         <div className="space-y-3">
-          <Field label="Proveedor" hint="Ollama es local y gratis. Gemini/OpenAI usan la API key de su sección en Modelos (o la de acá abajo).">
+          <Field label={t("memory_panel.provider_label")} hint={t("memory_panel.provider_hint")}>
             <UiSelect
               value={provider}
               onChange={(v) => apply({ "memory.embeddings.provider": v })}
-              options={PROVIDER_OPTIONS}
+              options={providerOptions()}
               disabled={busy}
               className="max-w-xl"
             />
           </Field>
 
-          <Field label="Modo de selección" hint="Cadena cae al siguiente si uno falla; Único usa exactamente el proveedor elegido.">
+          <Field label={t("memory_panel.mode_label")} hint={t("memory_panel.mode_hint")}>
             <UiSelect
               value={mode}
               onChange={(v) => apply({ "memory.embeddings.mode": v })}
-              options={MODE_OPTIONS}
+              options={modeOptions()}
               disabled={busy}
               className="max-w-md"
             />
@@ -130,25 +130,25 @@ export function MemoryPanel() {
           <div className="flex flex-wrap items-center gap-2 pt-1">
             {engines.map((e) => (
               <Badge key={e.id} tone={e.available ? "success" : "muted"}>
-                {e.id}: {e.available ? "disponible" : "no disp."}
+                {e.id}: {e.available ? t("memory_panel.available") : t("memory_panel.unavailable")}
               </Badge>
             ))}
           </div>
 
           <div className="flex flex-wrap items-center gap-3 pt-1">
             <Button variant="secondary" onClick={runTest} loading={busy}>
-              <Sparkles size={14} /> Probar embedding
+              <Sparkles size={14} /> {t("memory_panel.test_btn")}
             </Button>
             <Button variant="secondary" onClick={runReindex} loading={busy}>
-              <Database size={14} /> Reindexar memoria
+              <Database size={14} /> {t("memory_panel.reindex_btn")}
             </Button>
             {testResult && <span className="text-sm text-muted-foreground">{testResult}</span>}
           </div>
         </div>
       </Section>
 
-      <Section title={t("memory_panel.ollama_title")} description="Sin API key. Corre nomic-embed-text en tu Ollama local o cloud.">
-        <Field label="Modelo">
+      <Section title={t("memory_panel.ollama_title")} description={t("memory_panel.ollama_desc")}>
+        <Field label={t("memory_panel.model_label")}>
           <Input
             defaultValue={emb.ollama?.model || "nomic-embed-text"}
             placeholder="nomic-embed-text"
@@ -160,7 +160,7 @@ export function MemoryPanel() {
             className="max-w-md"
           />
         </Field>
-        <Field label="Base URL" hint='Vacío usa engines.ollama.base_url (por defecto http://localhost:11434).'>
+        <Field label={t("memory_panel.base_url_label")} hint={t("memory_panel.ollama_base_url_hint")}>
           <Input
             defaultValue={emb.ollama?.base_url || ""}
             placeholder="http://localhost:11434"
@@ -171,8 +171,8 @@ export function MemoryPanel() {
         </Field>
       </Section>
 
-      <Section title={t("memory_panel.openai_title")} description="text-embedding-3-small (1536 dims) u otro modelo compatible.">
-        <Field label="Modelo">
+      <Section title={t("memory_panel.openai_title")} description={t("memory_panel.openai_desc")}>
+        <Field label={t("memory_panel.model_label")}>
           <Input
             defaultValue={emb.openai?.model || "text-embedding-3-small"}
             placeholder="text-embedding-3-small"
@@ -184,7 +184,7 @@ export function MemoryPanel() {
             className="max-w-md"
           />
         </Field>
-        <Field label="API key" hint="Vacío reusa engines.openai.api_key. Dejalo en blanco para no tocar la guardada.">
+        <Field label={t("memory_panel.api_key_label")} hint={t("memory_panel.openai_key_hint")}>
           <Input
             type="password"
             defaultValue={emb.openai?.api_key || ""}
@@ -199,8 +199,8 @@ export function MemoryPanel() {
         </Field>
       </Section>
 
-      <Section title={t("memory_panel.gemini_title")} description="text-embedding-004 (768 dims). Free tier con API key de Google.">
-        <Field label="Modelo">
+      <Section title={t("memory_panel.gemini_title")} description={t("memory_panel.gemini_desc")}>
+        <Field label={t("memory_panel.model_label")}>
           <Input
             defaultValue={emb.gemini?.model || "text-embedding-004"}
             placeholder="text-embedding-004"
@@ -212,7 +212,7 @@ export function MemoryPanel() {
             className="max-w-md"
           />
         </Field>
-        <Field label="API key" hint="Vacío reusa engines.gemini.api_key.">
+        <Field label={t("memory_panel.api_key_label")} hint={t("memory_panel.gemini_key_hint")}>
           <Input
             type="password"
             defaultValue={emb.gemini?.api_key || ""}
@@ -229,10 +229,10 @@ export function MemoryPanel() {
 
       <Section
         title={t("memory_panel.compaction_title")}
-        description="Cuando un chat supera el umbral de turnos, los más viejos se resumen con un LLM liviano (local) y se guardan como [RESUMEN COMPACTADO], manteniendo el contexto acotado. Corre fuera del hot-path: el turno actual usa el resumen que ya exista."
+        description={t("memory_panel.compaction_desc")}
       >
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Umbral de compactación" hint="Compactar una vez que el chat supera estos turnos (por defecto 60).">
+          <Field label={t("memory_panel.threshold_label")} hint={t("memory_panel.threshold_hint")}>
             <Input
               type="number"
               min={1}
@@ -248,7 +248,7 @@ export function MemoryPanel() {
               className="max-w-[10rem]"
             />
           </Field>
-          <Field label="Turnos recientes a preservar" hint="Turnos verbatim que NUNCA se compactan (por defecto 40). Debe ser menor al umbral.">
+          <Field label={t("memory_panel.keep_recent_label")} hint={t("memory_panel.keep_recent_hint")}>
             <Input
               type="number"
               min={1}
@@ -265,7 +265,7 @@ export function MemoryPanel() {
             />
           </Field>
         </div>
-        <Field label="Modelo de compactación" hint="LLM liviano para resumir. Ideal uno local (Ollama) para no gastar. Formato proveedor:modelo.">
+        <Field label={t("memory_panel.compact_model_label")} hint={t("memory_panel.compact_model_hint")}>
           <Input
             defaultValue={mem.compact_model || "ollama:gemma4:31b-cloud"}
             placeholder="ollama:gemma4:31b-cloud"
@@ -277,10 +277,10 @@ export function MemoryPanel() {
             className="max-w-md"
           />
         </Field>
-        <Field label="Modelo de fallback" hint="Se usa si el de compactación falla. Vacío cae al modelo del super-agente.">
+        <Field label={t("memory_panel.compact_fallback_label")} hint={t("memory_panel.compact_fallback_hint")}>
           <Input
             defaultValue={mem.compact_fallback_model || ""}
-            placeholder="(vacío → modelo del super-agente)"
+            placeholder={t("memory_panel.compact_fallback_ph")}
             disabled={busy}
             onBlur={(ev) => {
               const v = ev.target.value.trim();

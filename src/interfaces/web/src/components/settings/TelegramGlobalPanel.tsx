@@ -76,14 +76,14 @@ export function TelegramGlobalPanel() {
           <Field
             label={t("settings.telegram_global.bot_token")}
             hint={channel?.bot_token
-              ? `…${secretSuffix(channel.bot_token) ?? ""} (seteado — escribí para reemplazar)`
-              : "Token del BotFather."}
+              ? `…${secretSuffix(channel.bot_token) ?? ""} ${t("telegram_ui.secret_set_replace")}`
+              : t("telegram_ui.bot_token_hint_short")}
           >
             <Input
               type="password"
               value={botToken}
               onChange={(e) => setBotToken(e.target.value)}
-              placeholder={channel?.bot_token ? `…${secretSuffix(channel.bot_token) ?? ""} (ya seteado)` : ""}
+              placeholder={channel?.bot_token ? `…${secretSuffix(channel.bot_token) ?? ""} ${t("telegram_ui.secret_already_set")}` : ""}
             />
           </Field>
           <Field label={t("settings.telegram_global.chat_id")}>

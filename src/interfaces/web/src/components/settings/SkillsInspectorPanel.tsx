@@ -5,6 +5,7 @@ import { Section } from "../Section";
 import { Button, Field, Input, Loading, Badge, Switch } from "../ui";
 import { useToast } from "../Toast";
 import { Skills, type InspectTrace } from "../../lib/api/skills";
+import { t } from "../../i18n";
 
 // Skill Inspector — per-turn skill RAG middleware. When ON, the static
 // "available skills" slug-dump is removed from the agent's system prompt and a
@@ -19,15 +20,17 @@ import { Skills, type InspectTrace } from "../../lib/api/skills";
 // Numeric knobs with human labels + sane ranges. We keep them as plain number
 // inputs (same idiom as the embeddings model fields) rather than sliders so the
 // values are explicit and copy-pasteable.
-const KNOBS: { key: keyof NumericKnobs; label: string; hint: string; step: number; min: number; max: number }[] = [
-  { key: "load_threshold", label: "Umbral de carga", hint: "Similitud mínima para inyectar el CUERPO de la skill (alto = más estricto).", step: 0.01, min: 0, max: 1 },
-  { key: "hint_threshold", label: "Umbral de sugerencia", hint: "Similitud mínima para solo SUGERIR la skill (que el agente la cargue si quiere).", step: 0.01, min: 0, max: 1 },
-  { key: "margin", label: "Margen sobre el 2º", hint: "El top debe superar al segundo por este margen para cargar su cuerpo (evita empates flojos).", step: 0.01, min: 0, max: 1 },
-  { key: "max_loaded", label: "Máx. cuerpos cargados", hint: "Cuántas skills se inyectan completas por turno.", step: 1, min: 0, max: 5 },
-  { key: "max_hints", label: "Máx. sugerencias", hint: "Cuántas skills extra se nombran como sugerencia.", step: 1, min: 0, max: 8 },
-  { key: "prompt_floor", label: "Largo mínimo del prompt", hint: "Mensajes más cortos que esto se ignoran (evita 'ok', 'hola').", step: 1, min: 0, max: 40 },
-  { key: "body_char_cap", label: "Tope de chars del cuerpo", hint: "Recorta cuerpos de skill largos para no inflar el contexto.", step: 500, min: 500, max: 20000 },
-];
+function knobs(): { key: keyof NumericKnobs; label: string; hint: string; step: number; min: number; max: number }[] {
+  return [
+    { key: "load_threshold", label: t("settings_ui.knob_load_threshold"), hint: t("settings_ui.knob_load_threshold_hint"), step: 0.01, min: 0, max: 1 },
+    { key: "hint_threshold", label: t("settings_ui.knob_hint_threshold"), hint: t("settings_ui.knob_hint_threshold_hint"), step: 0.01, min: 0, max: 1 },
+    { key: "margin", label: t("settings_ui.knob_margin"), hint: t("settings_ui.knob_margin_hint"), step: 0.01, min: 0, max: 1 },
+    { key: "max_loaded", label: t("settings_ui.knob_max_loaded"), hint: t("settings_ui.knob_max_loaded_hint"), step: 1, min: 0, max: 5 },
+    { key: "max_hints", label: t("settings_ui.knob_max_hints"), hint: t("settings_ui.knob_max_hints_hint"), step: 1, min: 0, max: 8 },
+    { key: "prompt_floor", label: t("settings_ui.knob_prompt_floor"), hint: t("settings_ui.knob_prompt_floor_hint"), step: 1, min: 0, max: 40 },
+    { key: "body_char_cap", label: t("settings_ui.knob_body_char_cap"), hint: t("settings_ui.knob_body_char_cap_hint"), step: 500, min: 500, max: 20000 },
+  ];
+}
 
 type NumericKnobs = {
   load_threshold: number; hint_threshold: number; margin: number;
@@ -52,7 +55,7 @@ export function SkillsInspectorPanel() {
       await Skills.updateInspector(patch);
       await mutate();
     } catch (e) {
-      toast.error(`No se pudo guardar: ${(e as Error).message}`);
+      toast.error(t("settings_ui.could_not_save", { msg: (e as Error).message }));
     } finally {
       setBusy(false);
     }
@@ -63,11 +66,17 @@ export function SkillsInspectorPanel() {
     try {
       const r = await Skills.index({ force });
       toast.success(
-        `Indexado con ${r.embedder} (dim ${r.dim}): +${r.changed.added} ~${r.changed.refreshed} -${r.changed.removed}.`,
+        t("settings_ui.indexed_with", {
+          embedder: r.embedder,
+          dim: r.dim,
+          added: r.changed.added,
+          refreshed: r.changed.refreshed,
+          removed: r.changed.removed,
+        }),
       );
       await mutate();
     } catch (e) {
-      toast.error(`Falló el index: ${(e as Error).message}`);
+      toast.error(t("settings_ui.index_failed", { msg: (e as Error).message }));
     } finally {
       setBusy(false);
     }
@@ -81,7 +90,7 @@ export function SkillsInspectorPanel() {
       const r = await Skills.inspect(probe.trim());
       setProbeResult(r.trace);
     } catch (e) {
-      toast.error(`Falló el dry-run: ${(e as Error).message}`);
+      toast.error(t("settings_ui.dry_run_failed", { msg: (e as Error).message }));
     } finally {
       setBusy(false);
     }
@@ -90,55 +99,55 @@ export function SkillsInspectorPanel() {
   return (
     <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
       <Section
-        title="Skill Inspector (RAG por turno)"
-        description="Función experimental. Cuando está activa, el agente NO recibe la lista completa de skills en su prompt; en cada mensaje un RAG local decide qué skill(s) cargar — el cuerpo completo si hay match fuerte, una sugerencia si hay match medio, nada si no aplica. Se reevalúa cada turno: una skill que dejó de ser relevante desaparece del contexto."
+        title={t("settings_ui.inspector_title")}
+        description={t("settings_ui.inspector_desc")}
       >
         <div className="space-y-4">
           <Field
-            label="Activar inspector"
-            hint="Apagado = comportamiento clásico (lista de slugs + sugerencia pasiva). Encendido = el RAG decide por turno."
+            label={t("settings_ui.enable_inspector")}
+            hint={t("settings_ui.enable_inspector_hint")}
           >
             <Switch
               checked={cfg.enabled}
               disabled={busy}
               onChange={(v) => apply({ enabled: v })}
-              label={cfg.enabled ? "Encendido" : "Apagado"}
+              label={cfg.enabled ? t("settings_ui.on") : t("settings_ui.off")}
             />
           </Field>
 
           <div className="flex flex-wrap items-center gap-2 pt-1">
             <Badge tone={idx.count > 0 ? "success" : "warning"}>
-              Índice: {idx.count} skills
+              {t("settings_ui.index_count", { n: idx.count })}
             </Badge>
-            <Badge tone="muted">{idx.embedder || "sin indexar"}</Badge>
-            {idx.dim ? <Badge tone="muted">dim {idx.dim}</Badge> : null}
+            <Badge tone="muted">{idx.embedder || t("settings_ui.not_indexed")}</Badge>
+            {idx.dim ? <Badge tone="muted">{t("settings_ui.dim", { dim: idx.dim })}</Badge> : null}
             {idx.updated_at ? (
               <span className="text-xs text-muted-foreground">
-                actualizado {new Date(idx.updated_at).toLocaleString()}
+                {t("settings_ui.updated_at", { date: new Date(idx.updated_at).toLocaleString() })}
               </span>
             ) : null}
           </div>
 
           <div className="flex flex-wrap items-center gap-3 pt-1">
             <Button variant="secondary" onClick={() => runIndex(false)} loading={busy}>
-              <RefreshCw size={14} /> Reindexar
+              <RefreshCw size={14} /> {t("settings_ui.reindex")}
             </Button>
             <Button variant="secondary" onClick={() => runIndex(true)} loading={busy}>
-              <RefreshCw size={14} /> Reindexar (forzado)
+              <RefreshCw size={14} /> {t("settings_ui.reindex_forced")}
             </Button>
             <span className="text-xs text-muted-foreground">
-              El embedder sale de Memoria (RAG). Local con Ollama, u offline si no hay proveedor.
+              {t("settings_ui.embedder_source")}
             </span>
           </div>
         </div>
       </Section>
 
       <Section
-        title="Umbrales y límites"
-        description="Ajustá qué tan agresivo es el inspector. Subir los umbrales = menos falsos positivos pero más riesgo de perderse una skill; bajarlos = lo contrario."
+        title={t("settings_ui.thresholds_title")}
+        description={t("settings_ui.thresholds_desc")}
       >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {KNOBS.map((k) => (
+          {knobs().map((k) => (
             <Field key={k.key} label={k.label} hint={k.hint}>
               <Input
                 type="number"
@@ -159,21 +168,21 @@ export function SkillsInspectorPanel() {
       </Section>
 
       <Section
-        title="Probar (dry-run)"
-        description="Escribí un mensaje como lo haría un usuario y mirá qué skills cargaría/sugeriría el inspector — sin llamar al modelo. Fuerza el inspector activo aunque esté apagado arriba."
+        title={t("settings_ui.test_title")}
+        description={t("settings_ui.test_desc")}
       >
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <Input
               value={probe}
-              placeholder="ej: necesito crear un video promocional con voz en off"
+              placeholder={t("settings_ui.test_placeholder")}
               disabled={busy}
               onChange={(ev) => setProbe(ev.target.value)}
               onKeyDown={(ev) => { if (ev.key === "Enter") runProbe(); }}
               className="max-w-xl flex-1"
             />
             <Button variant="primary" onClick={runProbe} loading={busy}>
-              <Wand2 size={14} /> Probar
+              <Wand2 size={14} /> {t("settings_ui.test_btn")}
             </Button>
           </div>
 
@@ -182,7 +191,7 @@ export function SkillsInspectorPanel() {
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <Sparkles size={14} className="text-muted-foreground" />
                 <span className="text-muted-foreground">{probeResult.embedder || "—"}</span>
-                {probeResult.jit ? <Badge tone="warning">JIT (índice vacío)</Badge> : null}
+                {probeResult.jit ? <Badge tone="warning">{t("settings_ui.jit_empty_index")}</Badge> : null}
                 {probeResult.reason && !probeResult.loaded?.length && !probeResult.hinted?.length ? (
                   <Badge tone="muted">{probeResult.reason}</Badge>
                 ) : null}
@@ -190,7 +199,7 @@ export function SkillsInspectorPanel() {
 
               {probeResult.loaded?.length ? (
                 <div className="mb-1">
-                  <span className="text-muted-foreground">Cargadas: </span>
+                  <span className="text-muted-foreground">{t("settings_ui.loaded_label")} </span>
                   {probeResult.loaded.map((s) => (
                     <Badge key={s} tone="success" className="mr-1">{s}</Badge>
                   ))}
@@ -199,7 +208,7 @@ export function SkillsInspectorPanel() {
 
               {probeResult.hinted?.length ? (
                 <div className="mb-1">
-                  <span className="text-muted-foreground">Sugeridas: </span>
+                  <span className="text-muted-foreground">{t("settings_ui.suggested_label")} </span>
                   {probeResult.hinted.map((s) => (
                     <Badge key={s} tone="info" className="mr-1">{s}</Badge>
                   ))}

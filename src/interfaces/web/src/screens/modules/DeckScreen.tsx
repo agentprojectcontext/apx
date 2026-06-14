@@ -51,13 +51,13 @@ export function DeckScreen() {
       );
       toast.success(
         enabled
-          ? `Widget ${widgetId} habilitado.`
-          : `Widget ${widgetId} deshabilitado.`
+          ? t("modules_ui.deck_widget_enabled", { id: widgetId })
+          : t("modules_ui.deck_widget_disabled", { id: widgetId })
       );
       // Re-validate after a short delay to get the server's persisted state.
       setTimeout(() => mutate(), 800);
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : "Error al guardar";
+      const msg = e instanceof Error ? e.message : t("modules_ui.deck_save_error");
       toast.error(msg);
     }
   };
@@ -85,10 +85,10 @@ export function DeckScreen() {
         title={t("deck_screen.widgets_title")}
         description={
           isLoading
-            ? "Cargando manifest…"
+            ? t("modules_ui.deck_loading_manifest")
             : error
-            ? "Error al cargar el manifest."
-            : `${widgets.length} widgets · ${enabledCount} externos habilitados`
+            ? t("modules_ui.deck_manifest_error")
+            : t("modules_ui.deck_widgets_summary", { count: widgets.length, enabled: enabledCount })
         }
         action={
           <Button size="sm" variant="ghost" onClick={() => mutate()} disabled={isLoading} title={t("deck_screen.reload_manifest")} aria-label={t("deck_screen.reload_manifest")}>
@@ -96,23 +96,23 @@ export function DeckScreen() {
           </Button>
         }
       >
-        {isLoading && <Loading label="Cargando manifest del Deck…" />}
+        {isLoading && <Loading label={t("modules_ui.deck_loading_manifest_full")} />}
 
         {!isLoading && error && (
           <Empty>
-            No se pudo cargar el manifest del Deck.{" "}
+            {t("modules_ui.deck_manifest_load_failed")}{" "}
             <button
               type="button"
               className="ml-1 underline"
               onClick={() => mutate()}
             >
-              Reintentar
+              {t("modules_ui.deck_retry")}
             </button>
           </Empty>
         )}
 
         {!isLoading && !error && widgets.length === 0 && (
-          <Empty>No hay widgets en el manifest.</Empty>
+          <Empty>{t("modules_ui.deck_no_widgets")}</Empty>
         )}
 
         {!isLoading && !error && widgets.length > 0 && (
@@ -133,22 +133,22 @@ export function DeckScreen() {
 
       {/* Active project + stats (read-only context) */}
       {data?.apx && (
-        <Section title={t("deck_screen.context_title")} description="Información que el Deck ve del daemon.">
+        <Section title={t("deck_screen.context_title")} description={t("modules_ui.deck_context_desc")}>
           <div className="space-y-2 text-sm" data-testid="deck-apx-context">
             <div className="flex items-center gap-2">
-              <span className="text-muted-fg">Proyecto activo:</span>
+              <span className="text-muted-fg">{t("modules_ui.deck_active_project")}</span>
               <span className="font-medium">
                 {data.apx.active_project
                   ? data.apx.active_project.name
-                  : "ninguno"}
+                  : t("modules_ui.deck_none")}
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-muted-fg">Proyectos registrados:</span>
+              <span className="text-muted-fg">{t("modules_ui.deck_registered_projects")}</span>
               <span className="font-medium">{data.apx.projects.length}</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-muted-fg">Plugins activos:</span>
+              <span className="text-muted-fg">{t("modules_ui.deck_active_plugins")}</span>
               <span className="font-medium">
                 {Object.keys(data.apx.plugins).join(", ") || "—"}
               </span>

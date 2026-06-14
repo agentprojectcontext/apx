@@ -144,9 +144,9 @@ export function ProviderModal({ open, initial, existingSlugs, onClose, onSave }:
       });
       if (r.error) { setModelError(r.error); return; }
       setAvailableModels(r.models);
-      if (r.models.length === 0) setModelError("Sin modelos. ¿Key/URL correctas?");
+      if (r.models.length === 0) setModelError(t("providers_modal.err_no_models"));
     } catch (e) {
-      setModelError((e as Error).message || "No se pudo listar modelos.");
+      setModelError((e as Error).message || t("providers_modal.err_list_models"));
     } finally { setLoadingModels(false); }
   };
 
@@ -158,8 +158,8 @@ export function ProviderModal({ open, initial, existingSlugs, onClose, onSave }:
 
   const buildProvider = (): { provider: Provider; modelLimits?: Record<string, number> } | null => {
     const slug = (f.slug || slugify(f.name)).trim();
-    if (!slug) { setError("Slug requerido."); return null; }
-    if (!isEdit && existingSlugs.includes(slug)) { setError(`Ya existe un provider "${slug}".`); return null; }
+    if (!slug) { setError(t("providers_modal.err_slug_required")); return null; }
+    if (!isEdit && existingSlugs.includes(slug)) { setError(t("providers_modal.err_slug_exists", { slug })); return null; }
 
     let modelLimits: Record<string, number> | undefined;
     if (f.model_context_limits_json.trim()) {
@@ -167,7 +167,7 @@ export function ProviderModal({ open, initial, existingSlugs, onClose, onSave }:
         const parsed = JSON.parse(f.model_context_limits_json);
         if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error();
         modelLimits = parsed;
-      } catch { setError("Límites de contexto por modelo: JSON inválido."); return null; }
+      } catch { setError(t("providers_modal.err_model_limits_json")); return null; }
     }
 
     const pricingVals = [f.p_input, f.p_output, f.p_cache_read, f.p_cache_write].map((x) => x.trim());
@@ -227,16 +227,16 @@ export function ProviderModal({ open, initial, existingSlugs, onClose, onSave }:
     try {
       if (jsonMode) {
         const slug = (f.slug || slugify(f.name)).trim();
-        if (!slug) { setError("Slug requerido (en el formulario)."); return; }
+        if (!slug) { setError(t("providers_modal.err_slug_required_form")); return; }
         let parsed: unknown;
         try { parsed = JSON.parse(jsonText); }
-        catch { setError("JSON inválido: revisá la sintaxis."); return; }
+        catch { setError(t("providers_modal.err_json_invalid")); return; }
         if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-          setError("El JSON debe ser un objeto con la config del provider."); return;
+          setError(t("providers_modal.err_json_object")); return;
         }
         const raw = parsed as Record<string, unknown>;
         if (!raw.engine || typeof raw.engine !== "string") {
-          setError('Falta "engine" (ej. "anthropic", "ollama").'); return;
+          setError(t("providers_modal.err_engine_missing")); return;
         }
         const provider: Provider = {
           slug,
@@ -256,13 +256,13 @@ export function ProviderModal({ open, initial, existingSlugs, onClose, onSave }:
       await onSave({ provider: built.provider, apiKeyValue: f.api_key_value.trim() || undefined, originalSlug: initial?.slug });
       onClose();
     } catch (e) {
-      setError((e as Error).message || "Error al guardar.");
+      setError((e as Error).message || t("providers_modal.err_save"));
     } finally { setBusy(false); }
   };
 
   const existingKey = isEdit && isSecretMarker(initial?.api_key);
   const keySuffix = secretSuffix(initial?.api_key);
-  const keyPlaceholder = existingKey ? `…${keySuffix ?? ""} (ya seteada)` : "sk-…";
+  const keyPlaceholder = existingKey ? t("providers_modal.api_key_set", { suffix: keySuffix ?? "" }) : "sk-…";
   const isOllama = f.engine === "ollama";
   const apiKeyEnv = ENGINE_PRESETS[f.engine]?.api_key_env;
 
@@ -271,12 +271,12 @@ export function ProviderModal({ open, initial, existingSlugs, onClose, onSave }:
       open={open}
       onClose={onClose}
       title={isEdit ? t("providers_modal.edit_title", { name: initial?.name || initial?.slug || "" }) : t("providers_modal.new_title")}
-      description="Proveedor LLM. El motor (engine) define qué adapter usa (openai, ollama, …)."
+      description={t("providers_modal.description")}
       size="lg"
       footer={
         <>
-          <Button variant="ghost" onClick={onClose} disabled={busy}>Cancelar</Button>
-          <Button variant="primary" onClick={submit} loading={busy}>{isEdit ? "Guardar" : "Crear"}</Button>
+          <Button variant="ghost" onClick={onClose} disabled={busy}>{t("common.cancel")}</Button>
+          <Button variant="primary" onClick={submit} loading={busy}>{isEdit ? t("common.save") : t("common.create")}</Button>
         </>
       }
     >
@@ -286,7 +286,7 @@ export function ProviderModal({ open, initial, existingSlugs, onClose, onSave }:
             <div className="flex flex-wrap gap-1.5">
               {PRESET_PILLS.map((eng) => {
                 const Icon = ENGINE_ICONS[eng];
-                const label = eng === "custom" ? "Custom" : (ENGINE_OPTIONS.find((o) => o.value === eng)?.label || eng);
+                const label = eng === "custom" ? t("providers_modal.custom") : (ENGINE_OPTIONS.find((o) => o.value === eng)?.label || eng);
                 const selected = f.engine === eng;
                 return (
                   <button
@@ -312,13 +312,13 @@ export function ProviderModal({ open, initial, existingSlugs, onClose, onSave }:
               jsonMode ? "border-sky-500/50 bg-sky-500/10 text-sky-400" : "border-border text-muted-fg hover:text-foreground"
             }`}
           >
-            <Braces className="size-3.5" /> {jsonMode ? "Volver al formulario" : "JSON"}
+            <Braces className="size-3.5" /> {jsonMode ? t("providers_modal.form_mode") : t("providers_modal.json_mode")}
           </button>
         </div>
 
         {jsonMode ? (
           <div className="space-y-2">
-            <Field label="Config del provider (JSON)" hint={`Se guarda como engines.${(f.slug || slugify(f.name)) || "<slug>"} en config.json`}>
+            <Field label={t("providers_modal.json_label")} hint={t("providers_modal.json_hint", { slug: (f.slug || slugify(f.name)) || "<slug>" })}>
               <Textarea
                 rows={14}
                 className="font-mono text-xs"
@@ -327,15 +327,15 @@ export function ProviderModal({ open, initial, existingSlugs, onClose, onSave }:
                 spellCheck={false}
               />
             </Field>
-            <p className="text-[11px] text-muted-fg">Debe ser un objeto JSON válido con al menos <code>engine</code>. El slug se toma del formulario.</p>
+            <p className="text-[11px] text-muted-fg">{t("providers_modal.json_help")}</p>
           </div>
         ) : (
           <>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Nombre">
-                <Input value={f.name} onChange={(e) => up({ name: e.target.value, slug: isEdit ? f.slug : slugify(e.target.value) })} placeholder="Mi provider" />
+              <Field label={t("providers_modal.name_label")}>
+                <Input value={f.name} onChange={(e) => up({ name: e.target.value, slug: isEdit ? f.slug : slugify(e.target.value) })} placeholder={t("providers_modal.name_ph")} />
               </Field>
-              <Field label="Motor (engine)">
+              <Field label={t("providers_modal.engine_label")}>
                 <UiSelect
                   value={f.engine}
                   onChange={(v) => changeEngine(v as EngineType)}
@@ -344,17 +344,17 @@ export function ProviderModal({ open, initial, existingSlugs, onClose, onSave }:
               </Field>
             </div>
 
-            <Field label="URL base (base_url)" hint="Se completa sola al elegir un proveedor.">
-              <Input value={f.base_url} onChange={(e) => up({ base_url: e.target.value })} placeholder="https://api.openai.com/v1" />
+            <Field label={t("providers_modal.base_url_label")} hint={t("providers_modal.base_url_hint")}>
+              <Input value={f.base_url} onChange={(e) => up({ base_url: e.target.value })} placeholder={t("providers_modal.base_url_ph")} />
             </Field>
 
             {!isOllama && (
-              <Field label="API key" hint={existingKey ? "Dejá en blanco para mantener la actual." : apiKeyEnv ? `Se guarda como secreto. Env sugerida: ${apiKeyEnv}` : "Se guarda como secreto."}>
+              <Field label={t("providers_modal.api_key_label")} hint={existingKey ? t("providers_modal.api_key_hint_existing") : apiKeyEnv ? t("providers_modal.api_key_hint_env", { env: apiKeyEnv }) : t("providers_modal.api_key_hint")}>
                 <Input type="password" autoComplete="new-password" value={f.api_key_value} onChange={(e) => up({ api_key_value: e.target.value })} placeholder={keyPlaceholder} />
               </Field>
             )}
 
-            <Field label="Modelo por defecto">
+            <Field label={t("providers_modal.model_label")}>
               <div className="space-y-2">
                 <div className="flex items-start gap-2">
                   <ModelCombobox
@@ -365,7 +365,7 @@ export function ProviderModal({ open, initial, existingSlugs, onClose, onSave }:
                   />
                   <Button size="sm" variant="secondary" onClick={loadModels} disabled={loadingModels} title={t("providers_modal.list_models_hint")} aria-label={t("providers_modal.list_models_hint")}>
                     {loadingModels ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
-                    Cargar modelos
+                    {t("providers_modal.load_models")}
                   </Button>
                 </div>
                 {modelError && <p className="text-[11px] text-amber-400">{modelError}</p>}
@@ -373,29 +373,29 @@ export function ProviderModal({ open, initial, existingSlugs, onClose, onSave }:
             </Field>
 
             <div className="grid grid-cols-2 gap-3">
-              <Field label="Máx. tokens (max_tokens)"><Input type="number" min={256} step={256} value={f.default_max_tokens} onChange={(e) => up({ default_max_tokens: parseInt(e.target.value) || 4096 })} /></Field>
-              <Field label={`Temperatura: ${f.default_temperature.toFixed(1)}`}>
+              <Field label={t("providers_modal.max_tokens_label")}><Input type="number" min={256} step={256} value={f.default_max_tokens} onChange={(e) => up({ default_max_tokens: parseInt(e.target.value) || 4096 })} /></Field>
+              <Field label={t("providers_modal.temperature_label", { value: f.default_temperature.toFixed(1) })}>
                 <input type="range" min={0} max={2} step={0.1} value={f.default_temperature} onChange={(e) => up({ default_temperature: parseFloat(e.target.value) })} className="mt-2 w-full accent-foreground" />
               </Field>
             </div>
 
             <details className="rounded-md border border-border bg-muted/20 p-3">
-              <summary className="cursor-pointer text-xs font-medium text-muted-fg">Análisis de tokens / pricing (opcional)</summary>
+              <summary className="cursor-pointer text-xs font-medium text-muted-fg">{t("providers_modal.pricing_summary")}</summary>
               <div className="mt-3 space-y-3">
-                <Field label="Límite de contexto (tokens)"><Input type="number" min={0} step={1024} value={f.context_limit_tokens} onChange={(e) => up({ context_limit_tokens: parseInt(e.target.value) || 0 })} /></Field>
+                <Field label={t("providers_modal.context_limit_label")}><Input type="number" min={0} step={1024} value={f.context_limit_tokens} onChange={(e) => up({ context_limit_tokens: parseInt(e.target.value) || 0 })} /></Field>
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="$ entrada / 1M"><Input type="number" min={0} step={0.0001} value={f.p_input} onChange={(e) => up({ p_input: e.target.value })} placeholder="0.15" /></Field>
-                  <Field label="$ salida / 1M"><Input type="number" min={0} step={0.0001} value={f.p_output} onChange={(e) => up({ p_output: e.target.value })} placeholder="0.60" /></Field>
-                  <Field label="$ cache read / 1M"><Input type="number" min={0} step={0.0001} value={f.p_cache_read} onChange={(e) => up({ p_cache_read: e.target.value })} placeholder="0.03" /></Field>
-                  <Field label="$ cache write / 1M"><Input type="number" min={0} step={0.0001} value={f.p_cache_write} onChange={(e) => up({ p_cache_write: e.target.value })} placeholder="0.00" /></Field>
+                  <Field label={t("providers_modal.price_input")}><Input type="number" min={0} step={0.0001} value={f.p_input} onChange={(e) => up({ p_input: e.target.value })} placeholder="0.15" /></Field>
+                  <Field label={t("providers_modal.price_output")}><Input type="number" min={0} step={0.0001} value={f.p_output} onChange={(e) => up({ p_output: e.target.value })} placeholder="0.60" /></Field>
+                  <Field label={t("providers_modal.price_cache_read")}><Input type="number" min={0} step={0.0001} value={f.p_cache_read} onChange={(e) => up({ p_cache_read: e.target.value })} placeholder="0.03" /></Field>
+                  <Field label={t("providers_modal.price_cache_write")}><Input type="number" min={0} step={0.0001} value={f.p_cache_write} onChange={(e) => up({ p_cache_write: e.target.value })} placeholder="0.00" /></Field>
                 </div>
-                <Field label="Límites de contexto por modelo (JSON)" hint='{"gpt-4o-mini":128000}'>
+                <Field label={t("providers_modal.model_limits_label")} hint='{"gpt-4o-mini":128000}'>
                   <Textarea rows={3} className="font-mono text-xs" value={f.model_context_limits_json} onChange={(e) => up({ model_context_limits_json: e.target.value })} />
                 </Field>
               </div>
             </details>
 
-            <Switch checked={f.is_active} onChange={(v) => up({ is_active: v })} label="Activo (los agentes pueden usarlo)" />
+            <Switch checked={f.is_active} onChange={(v) => up({ is_active: v })} label={t("providers_modal.active_label")} />
           </>
         )}
 

@@ -11,7 +11,7 @@ export function ModelCombobox({
   value,
   onChange,
   options,
-  placeholder = "elegí o escribí un modelo…",
+  placeholder = t("shared_ui.model_combobox_ph"),
   invalid,
   invalidHint,
   className,

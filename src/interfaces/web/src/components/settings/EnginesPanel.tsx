@@ -49,7 +49,7 @@ export function EnginesPanel() {
     // JSON mode: replace the whole engines.<slug> block with the parsed object.
     if (raw) {
       await patch({ [`engines.${provider.slug}`]: raw });
-      toast.success("Provider guardado (JSON).");
+      toast.success(t("engines_panel.saved_json"));
       mutate();
       return;
     }
@@ -71,7 +71,7 @@ export function EnginesPanel() {
     if (apiKeyValue) set[`${base}.api_key`] = apiKeyValue;
 
     await patch(set, unset);
-    toast.success("Provider guardado.");
+    toast.success(t("engines_panel.saved"));
     mutate();
   };
 
@@ -83,10 +83,10 @@ export function EnginesPanel() {
   };
 
   const remove = async (p: Provider) => {
-    if (!confirm(`Borrar provider ${p.name || p.slug}?`)) return;
+    if (!confirm(t("engines_panel.delete_confirm", { name: p.name || p.slug }))) return;
     try {
       await patch(undefined, [`engines.${p.slug}`]);
-      toast.success("Provider borrado.");
+      toast.success(t("engines_panel.deleted"));
       mutate();
     } catch (e) { toast.error((e as Error).message); }
   };
@@ -94,11 +94,11 @@ export function EnginesPanel() {
   return (
     <Section
       title={t("engines_panel.title")}
-      description="Proveedores LLM (API). Cada provider usa un engine/adapter (openai, ollama, …) con su key y URL."
+      description={t("engines_panel.description")}
       action={<Button size="sm" variant="primary" onClick={openCreate}><Plus size={14} /> {t("engines_panel.new_btn")}</Button>}
     >
       {providers.length === 0 ? (
-        <Empty>Sin providers. Agregá uno con el botón de arriba.</Empty>
+        <Empty>{t("engines_panel.empty")}</Empty>
       ) : (
         <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {providers.map((p) => (
@@ -110,7 +110,7 @@ export function EnginesPanel() {
             className="flex min-h-[120px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border text-muted-fg transition-colors hover:border-muted-fg/60 hover:text-foreground"
           >
             <Plus size={20} />
-            <span className="text-sm font-medium">Agregar provider</span>
+            <span className="text-sm font-medium">{t("engines_panel.add_card")}</span>
           </button>
         </div>
       )}

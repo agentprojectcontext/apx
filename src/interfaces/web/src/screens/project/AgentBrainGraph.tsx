@@ -3,6 +3,7 @@ import {
   forceSimulation, forceLink, forceManyBody, forceCenter, forceCollide,
   type Simulation,
 } from "d3-force";
+import { t } from "../../i18n";
 
 // Animated relational "brain" graph (d3-force + SVG), inspired by panda's
 // AgentBrainGraphCanvas. Center = agent; items are real project data
@@ -26,10 +27,12 @@ const KIND_COLOR: Record<BrainNode["kind"], string> = {
   agent: "#a78bfa", memory: "#38bdf8", thread: "#34d399",
   task: "#fbbf24", routine: "#f472b6", agentlink: "#c084fc",
 };
-const KIND_LABEL: Record<BrainNode["kind"], string> = {
-  agent: "agente", memory: "memoria", thread: "thread",
-  task: "task", routine: "rutina", agentlink: "jerarquía",
-};
+function kindLabels(): Record<BrainNode["kind"], string> {
+  return {
+    agent: t("agents_ui.kind_agent"), memory: t("agents_ui.kind_memory"), thread: t("agents_ui.kind_thread"),
+    task: t("agents_ui.kind_task"), routine: t("agents_ui.kind_routine"), agentlink: t("agents_ui.kind_hierarchy"),
+  };
+}
 
 const W = 760, H = 460;
 
@@ -130,12 +133,15 @@ export function AgentBrainGraph({ center, nodes }: { center: string; nodes: Brai
       </div>
 
       <div className="flex flex-wrap items-center gap-3 text-[11px] text-muted-fg">
-        {(Object.keys(KIND_LABEL) as BrainNode["kind"][]).filter((k) => k !== "agent").map((k) => (
-          <span key={k} className="inline-flex items-center gap-1">
-            <span className="size-2 rounded-full" style={{ background: KIND_COLOR[k] }} /> {KIND_LABEL[k]}
-          </span>
-        ))}
-        <span className="ml-auto">{nodes.length} nodos · arrastrá para reacomodar</span>
+        {(() => {
+          const labels = kindLabels();
+          return (Object.keys(labels) as BrainNode["kind"][]).filter((k) => k !== "agent").map((k) => (
+            <span key={k} className="inline-flex items-center gap-1">
+              <span className="size-2 rounded-full" style={{ background: KIND_COLOR[k] }} /> {labels[k]}
+            </span>
+          ));
+        })()}
+        <span className="ml-auto">{t("agents_ui.nodes_drag_hint", { n: String(nodes.length) })}</span>
       </div>
       {selected && (
         <div className="rounded-lg border border-border bg-card p-3 text-xs">

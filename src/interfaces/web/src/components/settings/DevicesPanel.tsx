@@ -17,7 +17,7 @@ export function DevicesPanel() {
     if (!confirm(t("settings.devices_revoke_confirm", { id }))) return;
     try {
       await Pair.revoke(id);
-      toast.success("Cliente revocado.");
+      toast.success(t("settings.devices_revoke_success"));
       mutate();
     } catch (e) {
       toast.error((e as Error).message);
@@ -46,9 +46,9 @@ export function DevicesPanel() {
               <Badge tone={c.kind === "web" ? "info" : c.kind === "deck" ? "success" : "muted"}>{c.kind}</Badge>
               <span className="font-mono text-xs text-muted-fg">…{c.token_suffix}</span>
               <span className="ml-auto text-xs text-muted-fg">
-                visto: {c.last_seen ? new Date(c.last_seen).toLocaleString() : "nunca"}
+                {t("settings.devices_last_seen")} {c.last_seen ? new Date(c.last_seen).toLocaleString() : t("settings.devices_never")}
               </span>
-              <Button size="sm" variant="destructive" onClick={() => revoke(c.id)}>Revocar</Button>
+              <Button size="sm" variant="destructive" onClick={() => revoke(c.id)}>{t("settings.devices_revoke")}</Button>
             </li>
           ))}
         </ul>

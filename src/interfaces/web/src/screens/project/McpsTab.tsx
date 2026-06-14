@@ -18,12 +18,6 @@ type DialogMode =
   | { kind: "new" }
   | { kind: "edit"; entry: McpEntry };
 
-const SOURCE_LABEL: Record<string, string> = {
-  apc: "Shared",
-  runtime: "Runtime",
-  global: "Global",
-};
-
 const SOURCE_TONE: Record<string, "info" | "muted" | "success"> = {
   apc: "info",
   runtime: "success",
@@ -37,7 +31,10 @@ function sourceToScope(source: string): McpScope {
 }
 
 function sourceLabel(source: string): string {
-  return SOURCE_LABEL[source] ?? source;
+  if (source === "apc") return t("project.mcps.scope_shared");
+  if (source === "runtime") return t("project.mcps.scope_runtime");
+  if (source === "global") return t("project.mcps.scope_global");
+  return source;
 }
 
 export function McpsTab({ pid }: { pid: string }) {
@@ -505,12 +502,12 @@ function ArgsList({
             <VarTokenInput
               value={a}
               onChange={(v) => update(i, v)}
-              placeholder="--flag o valor"
+              placeholder={t("agents_ui.arg_placeholder")}
               varNames={varNames}
               onCreateVar={onCreateVar}
             />
           </div>
-          <Button type="button" size="sm" variant="ghost" onClick={() => remove(i)} aria-label="quitar arg">
+          <Button type="button" size="sm" variant="ghost" onClick={() => remove(i)} aria-label={t("agents_ui.remove_arg")}>
             <Trash2 size={13} />
           </Button>
         </div>

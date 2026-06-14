@@ -7,6 +7,7 @@ import {
   type TtsEngineInfo,
   type TtsMode,
 } from "../../lib/api/voice";
+import { t } from "../../i18n";
 
 // TTS engine selector. Two modes:
 //   chain  — ordered fallback router; toggles enable/disable engines and the
@@ -63,11 +64,11 @@ export function VoiceProviderList({
       <div className="rounded-lg border border-border p-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="min-w-0">
-            <div className="text-sm font-medium">Modo de selección</div>
+            <div className="text-sm font-medium">{t("voice_ui.selection_mode")}</div>
             <div className="text-xs text-muted-fg">
               {isChain
-                ? "Cadena con fallback: usa el primer motor disponible según el orden de abajo."
-                : "Solo el motor por defecto: usa siempre el elegido; los demás quedan configurados para otras cosas."}
+                ? t("voice_ui.mode_chain_desc")
+                : t("voice_ui.mode_single_desc")}
             </div>
           </div>
           <div className="flex shrink-0 overflow-hidden rounded-md border border-border" role="group">
@@ -81,7 +82,7 @@ export function VoiceProviderList({
                 isChain ? "bg-emerald-500/15 text-emerald-300" : "text-muted-fg hover:text-fg",
               )}
             >
-              Cadena (router)
+              {t("voice_ui.mode_chain_btn")}
             </button>
             <button
               type="button"
@@ -93,7 +94,7 @@ export function VoiceProviderList({
                 !isChain ? "bg-emerald-500/15 text-emerald-300" : "text-muted-fg hover:text-fg",
               )}
             >
-              Solo el motor por defecto
+              {t("voice_ui.mode_single_btn")}
             </button>
           </div>
         </div>
@@ -122,7 +123,7 @@ export function VoiceProviderList({
                     type="button"
                     onClick={() => move(id, -1)}
                     disabled={busy || idx === 0}
-                    aria-label="Subir"
+                    aria-label={t("voice_ui.move_up")}
                     data-testid={`voice-provider-${id}-up`}
                     className="text-muted-fg hover:text-fg disabled:opacity-30"
                   >
@@ -132,7 +133,7 @@ export function VoiceProviderList({
                     type="button"
                     onClick={() => move(id, 1)}
                     disabled={busy || idx === ids.length - 1}
-                    aria-label="Bajar"
+                    aria-label={t("voice_ui.move_down")}
                     data-testid={`voice-provider-${id}-down`}
                     className="text-muted-fg hover:text-fg disabled:opacity-30"
                   >
@@ -145,15 +146,15 @@ export function VoiceProviderList({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium">{meta.name}</span>
-                  {meta.local && <Badge tone="info">local</Badge>}
+                  {meta.local && <Badge tone="info">{t("voice_ui.badge_local")}</Badge>}
                   {e.available ? (
-                    <Badge tone="success">disponible</Badge>
+                    <Badge tone="success">{t("voice_ui.badge_available")}</Badge>
                   ) : e.configured ? (
-                    <Badge tone="warning">configurado, no disponible</Badge>
+                    <Badge tone="warning">{t("voice_ui.badge_unavailable")}</Badge>
                   ) : (
-                    <Badge tone="muted">sin configurar</Badge>
+                    <Badge tone="muted">{t("voice_ui.badge_not_configured")}</Badge>
                   )}
-                  {isDefault && <Badge tone="success">por defecto</Badge>}
+                  {isDefault && <Badge tone="success">{t("voice_ui.badge_default")}</Badge>}
                 </div>
                 <div className="truncate text-xs text-muted-fg">{meta.note}</div>
               </div>
@@ -174,7 +175,7 @@ export function VoiceProviderList({
                       disabled={busy}
                       data-testid={`voice-provider-${id}-default`}
                     >
-                      <Circle className="size-3.5" /> Usar por defecto
+                      <Circle className="size-3.5" /> {t("voice_ui.set_as_default")}
                     </Button>
                   )
                 )}
@@ -185,7 +186,7 @@ export function VoiceProviderList({
                   onClick={() => onConfigure(id)}
                   data-testid={`voice-provider-${id}-config`}
                 >
-                  <Settings2 className="size-3.5" /> Configurar
+                  <Settings2 className="size-3.5" /> {t("voice_ui.configure")}
                 </Button>
               </div>
             </div>

@@ -12,6 +12,7 @@ import { CodeScreen } from "./screens/modules/CodeScreen";
 import { AddProjectDialog } from "./components/AddProjectDialog";
 import { PairingScreen } from "./screens/PairingScreen";
 import { RobyBubble } from "./components/RobyBubble";
+import { Roby, RobyEmpty, type RobyMood } from "./components/Roby";
 import { ToastProvider } from "./components/Toast";
 import { Button } from "./components/ui/button";
 import { TooltipProvider } from "./components/ui/tooltip";
@@ -31,6 +32,7 @@ export function App() {
   if (auth.status === "error") {
     return (
       <Splash
+        mood="sad"
         text={t("daemon.unreachable")}
         sub={`${t("daemon.unreachable_hint")}\n\n${auth.reason}`}
       />
@@ -197,13 +199,11 @@ function projectLabel(key?: string) {
   }
 }
 
-function Splash({ text, sub }: { text: string; sub?: string }) {
+function Splash({ text, sub, mood = "happy" }: { text: string; sub?: string; mood?: RobyMood }) {
   return (
     <div className="grid h-screen w-screen place-items-center bg-background text-foreground">
-      <div className="text-center">
-        <div className="font-mono text-xs text-muted-fg whitespace-pre leading-none mb-4">
-          {"  ▄███████▄\n █ ██   ██ █\n █  ◔   ◔  █\n █   ╰~╯   █\n  ▀███████▀"}
-        </div>
+      <div className="flex flex-col items-center text-center">
+        <Roby mood={mood} className="mb-4 text-xs" />
         <div className="text-foreground">{text}</div>
         {sub && <pre className="mt-2 max-w-xl whitespace-pre-wrap text-sm text-muted-fg">{sub}</pre>}
       </div>
@@ -213,27 +213,18 @@ function Splash({ text, sub }: { text: string; sub?: string }) {
 
 function NotFound() {
   const navigate = useNavigate();
-  // Roby, but lost — a confused riff on the Splash mascot (asymmetric eyes,
-  // little "o" mouth, a floating "?"). Tinted with the APX brand green.
-  const robyLost =
-    "      ?\n  ▄███████▄\n █ ██   ██ █\n █  ◑   ◐  █\n █    o    █\n  ▀███████▀";
   return (
-    <div className="grid h-full place-items-center p-8" data-testid="screen-not-found">
-      <div className="flex flex-col items-center text-center">
-        <pre
-          aria-hidden
-          className="mb-6 select-none whitespace-pre font-mono text-xs leading-none text-emerald-500"
-        >
-          {robyLost}
-        </pre>
-        <div className="font-mono text-7xl font-semibold leading-none tracking-tight text-foreground">
-          {t("not_found.title")}
-        </div>
-        <p className="mt-4 max-w-sm text-sm text-muted-fg">{t("not_found.message")}</p>
-        <Button variant="outline" className="mt-6" onClick={() => navigate("/")}>
+    <RobyEmpty
+      testId="screen-not-found"
+      mood="confused"
+      title={t("not_found.title")}
+      titleClassName="text-7xl"
+      message={t("not_found.message")}
+      action={
+        <Button variant="outline" onClick={() => navigate("/")}>
           {t("not_found.home")}
         </Button>
-      </div>
-    </div>
+      }
+    />
   );
 }

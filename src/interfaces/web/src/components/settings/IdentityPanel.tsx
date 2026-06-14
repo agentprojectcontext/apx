@@ -48,12 +48,12 @@ export function IdentityPanel() {
             options={LANGS.map((l) => ({ value: l, label: l }))}
           />
         </Field>
-        <Field label={t("settings.identity.timezone")} hint="ej. America/Argentina/Buenos_Aires">
+        <Field label={t("settings.identity.timezone")} hint={t("settings.identity.timezone_hint")}>
           <Input value={draft.timezone || ""} onChange={(e) => setDraft({ ...draft, timezone: e.target.value })} />
         </Field>
       </div>
       <div className="mt-3">
-        <Field label={t("settings.identity.owner_context")} hint="Quién sos, en qué trabajás, qué le interesa al agente saber de vos.">
+        <Field label={t("settings.identity.owner_context")} hint={t("settings.identity.owner_context_hint")}>
           <Textarea
             rows={3}
             value={draft.owner_context || ""}

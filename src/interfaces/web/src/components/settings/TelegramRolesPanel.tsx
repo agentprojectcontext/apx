@@ -71,7 +71,7 @@ export function TelegramRolesPanel() {
                     <Button size="sm" variant="destructive" onClick={() => remove(n)}>{t("telegram_roles.delete_btn")}</Button>
                   )}
                 </div>
-                <div className="mt-1 text-xs text-muted-fg">tools: {toolsLabel}</div>
+                <div className="mt-1 text-xs text-muted-fg">{t("telegram_contacts.tools_label")} {toolsLabel}</div>
               </li>
             );
           })}

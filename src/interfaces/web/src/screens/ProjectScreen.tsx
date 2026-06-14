@@ -7,6 +7,8 @@ import {
 } from "lucide-react";
 import { useNavCollapse, type TabSection } from "../components/common/TabNav";
 import { TabLayout } from "../components/common/TabLayout";
+import { RobyEmpty } from "../components/Roby";
+import { Button } from "../components/ui/button";
 import { useProject } from "../hooks/useProjects";
 import { STORAGE } from "../constants";
 import { t } from "../i18n";
@@ -110,7 +112,18 @@ export function ProjectScreen() {
   const active = (location.pathname.replace(`/p/${pid}`, "").replace(/^\//, "").split("/")[0]) as NavKey;
 
   if (!project) {
-    return <div className="p-8 text-muted-fg">{t("project.not_found", { pid })}</div>;
+    return (
+      <RobyEmpty
+        testId="screen-project-not-found"
+        mood="confused"
+        message={t("project.not_found", { pid })}
+        action={
+          <Button variant="outline" onClick={() => navigate("/")}>
+            {t("not_found.home")}
+          </Button>
+        }
+      />
+    );
   }
 
   const onTabChange = (key: string) => {

@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback, Fragment, type ElementType } from "re
 import { PanelLeft } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { Tip } from "../ui/tip";
+import { t } from "../../i18n";
 
 export interface TabItem {
   key: string;
@@ -46,11 +47,11 @@ export function useNavCollapse(storageKey: string) {
 
 export function NavToggle({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   return (
-    <Tip content={collapsed ? "Expandir menú" : "Colapsar menú"} side="bottom">
+    <Tip content={collapsed ? t("settings_ui.expand_menu") : t("settings_ui.collapse_menu")} side="bottom">
       <button
         type="button"
         onClick={onToggle}
-        aria-label={collapsed ? "Expandir menú" : "Colapsar menú"}
+        aria-label={collapsed ? t("settings_ui.expand_menu") : t("settings_ui.collapse_menu")}
         className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted-fg transition-colors hover:bg-accent hover:text-foreground"
       >
         <PanelLeft className={cn("size-4 transition-transform", collapsed && "rotate-180")} />

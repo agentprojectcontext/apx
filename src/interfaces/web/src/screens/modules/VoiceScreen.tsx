@@ -51,7 +51,7 @@ export function VoiceScreen() {
     try {
       await patch({ "voice.tts.provider": id, "voice.tts.mode": "single" });
       await mutateProviders();
-      toast.success(`Motor por defecto: ${id}.`);
+      toast.success(t("voice_ui.toast_default_engine", { id }));
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -71,7 +71,7 @@ export function VoiceScreen() {
       }
       await patch(set);
       await mutateProviders();
-      toast.success(next === "chain" ? "Modo: cadena con fallback." : "Modo: solo el motor por defecto.");
+      toast.success(next === "chain" ? t("voice_ui.toast_mode_chain") : t("voice_ui.toast_mode_single"));
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -107,13 +107,13 @@ export function VoiceScreen() {
     await patch(set, unset.length ? unset : undefined);
     await mutateProviders();
     await mutateCfg();
-    toast.success("Configuración de voz guardada.");
+    toast.success(t("voice_ui.toast_config_saved"));
   };
 
   const patchStt = async (set: Record<string, unknown>, unset?: string[]) => {
     try {
       await patch(set, unset);
-      toast.success("Transcripción actualizada.");
+      toast.success(t("voice_ui.toast_transcription_updated"));
     } catch (e) {
       toast.error((e as Error).message);
     }
@@ -125,12 +125,12 @@ export function VoiceScreen() {
         {/* Left: TTS providers */}
         <Section
           title={t("voice_screen.providers_title")}
-          description="Motores de síntesis. El estado lo reporta el daemon en vivo. Elegí cuál usar por defecto."
+          description={t("voice_ui.providers_desc")}
         >
           {provLoading || cfgLoading ? (
             <Loading />
           ) : provError ? (
-            <Empty>No se pudieron cargar los proveedores: {(provError as Error).message}</Empty>
+            <Empty>{t("voice_ui.providers_load_error", { msg: (provError as Error).message })}</Empty>
           ) : (
             <VoiceProviderList
               engines={engines}
@@ -149,13 +149,13 @@ export function VoiceScreen() {
 
         {/* Right: test + STT */}
         <div className="space-y-6">
-          <Section title={t("voice_screen.test_title")} description='Elegí con qué motor sintetizar y, si aplica, cómo querés que hable.'>
+          <Section title={t("voice_screen.test_title")} description={t("voice_ui.test_desc")}>
             <VoiceTestCard engines={engines} defaultProvider={configuredProvider} mode={mode} />
           </Section>
 
           <Section
             title={t("voice_screen.stt_title")}
-            description="Motor de voz a texto que usan el deck, Telegram y la CLI al escuchar."
+            description={t("voice_ui.stt_desc")}
           >
             {cfgLoading ? <Loading /> : <VoiceSttCard config={transcriptionCfg} onPatch={patchStt} />}
           </Section>

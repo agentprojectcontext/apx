@@ -33,7 +33,7 @@ const SECTIONS: TabSection[] = [
     items: [
       { key: "super_agent", label: t("settings.tabs.super_agent"), icon: Bot },
       { key: "engines",     label: t("settings.tabs.engines"),     icon: Cpu },
-      { key: "memory",      label: "Memoria (RAG)",                icon: Database },
+      { key: "memory",      label: "Memory (RAG)",                 icon: Database },
       { key: "skills",      label: "Skills (RAG)",                 icon: Sparkles },
     ],
   },

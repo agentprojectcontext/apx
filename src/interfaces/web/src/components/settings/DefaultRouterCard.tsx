@@ -55,7 +55,7 @@ function ProviderModelPicker({
       <UiSelect
         value={provider}
         onChange={setProvider}
-        placeholder={providerInvalid ? `⚠ ${provider} (no existe)` : "— proveedor —"}
+        placeholder={providerInvalid ? t("router_panel.provider_not_found", { name: provider }) : t("router_panel.provider_ph")}
         options={providers.map((p) => ({ value: p.slug, label: p.slug, icon: ENGINE_ICONS[p.engine] }))}
       />
       <ModelCombobox
@@ -63,7 +63,7 @@ function ProviderModelPicker({
         onChange={setModel}
         options={modelOptions}
         invalid={providerInvalid}
-        invalidHint={`El proveedor "${provider}" no está configurado.`}
+        invalidHint={t("router_panel.provider_not_configured", { name: provider })}
       />
     </div>
   );
@@ -119,7 +119,7 @@ export function DefaultRouterCard() {
         "super_agent.model_fallback.enabled": fallback.length > 0,
         "super_agent.model_fallback.models": fallback,
       });
-      toast.success("Router guardado.");
+      toast.success(t("router_panel.saved_toast"));
       setSaved({ model, fallback });
       mutate();
     } catch (e) {
@@ -153,12 +153,12 @@ export function DefaultRouterCard() {
   return (
     <Section
       title={t("router_panel.title")}
-      description="Un solo router general (sin casos por tarea). Elegí proveedor y modelo; si el activo falla, prueba la cadena de fallback en orden."
+      description={t("router_panel.description")}
     >
       <div className="space-y-4">
         {/* Resolution preview */}
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/20 p-3">
-          <Badge tone="success"><GitBranch size={11} /> default</Badge>
+          <Badge tone="success"><GitBranch size={11} /> {t("router_panel.badge_default")}</Badge>
           <span className={`font-mono text-xs ${!providerExists(model) && model ? "text-amber-400" : ""}`}>{model || "—"}</span>
           {fallback.map((m) => (
             <span key={m} className="flex items-center gap-2 text-muted-fg">
@@ -169,17 +169,17 @@ export function DefaultRouterCard() {
         </div>
 
         {providers.length === 0 ? (
-          <p className="text-xs text-muted-fg">Agregá un proveedor abajo para poder elegir modelos.</p>
+          <p className="text-xs text-muted-fg">{t("router_panel.no_providers")}</p>
         ) : (
-          <Field label="Modelo activo (default)" hint="Proveedor + modelo. Se guarda como provider:model.">
+          <Field label={t("router_panel.active_model_label")} hint={t("router_panel.active_model_hint")}>
             <ProviderModelPicker value={model} onChange={setModel} providers={providers} />
           </Field>
         )}
 
         <div className="rounded-lg border border-border bg-muted/20 p-3">
           <div className="mb-2">
-            <div className="text-sm font-medium">Cadena de fallback</div>
-            <div className="text-xs text-muted-fg">Si el modelo activo falla, prueba estos en orden. Click en uno para editarlo.</div>
+            <div className="text-sm font-medium">{t("router_panel.fallback_title")}</div>
+            <div className="text-xs text-muted-fg">{t("router_panel.fallback_desc")}</div>
           </div>
           <ul className="mb-3 space-y-1">
             {fallback.map((m, i) => {
@@ -200,7 +200,7 @@ export function DefaultRouterCard() {
                       </button>
                     )}
                     {editing ? (
-                      <Button size="sm" variant="secondary" onClick={() => setEditIdx(null)}>listo</Button>
+                      <Button size="sm" variant="secondary" onClick={() => setEditIdx(null)}>{t("router_panel.done")}</Button>
                     ) : (
                       <Button size="sm" variant="ghost" onClick={() => setEditIdx(i)}><Pencil size={12} /></Button>
                     )}
@@ -211,21 +211,21 @@ export function DefaultRouterCard() {
                 </li>
               );
             })}
-            {fallback.length === 0 && <li className="text-xs text-muted-fg">Sin fallback configurado.</li>}
+            {fallback.length === 0 && <li className="text-xs text-muted-fg">{t("router_panel.fallback_empty")}</li>}
           </ul>
           {providers.length > 0 && (
             <div className="space-y-2">
-              <div className="text-xs text-muted-fg">Agregar a la cadena</div>
+              <div className="text-xs text-muted-fg">{t("router_panel.add_to_chain")}</div>
               <ProviderModelPicker value={newFallback} onChange={setNewFallback} providers={providers} />
               <Button size="sm" variant="secondary" onClick={addFallback} disabled={!newFallback.includes(":") || newFallback.endsWith(":")}>
-                <Plus size={13} /> Agregar a la cadena
+                <Plus size={13} /> {t("router_panel.add_to_chain")}
               </Button>
             </div>
           )}
         </div>
 
         <Button variant="primary" loading={busy} disabled={!dirty} onClick={submit}>
-          {dirty ? "Guardar router" : "Guardado"}
+          {dirty ? t("router_panel.save") : t("router_panel.saved")}
         </Button>
       </div>
     </Section>

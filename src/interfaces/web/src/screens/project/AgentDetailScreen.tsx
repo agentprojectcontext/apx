@@ -18,7 +18,7 @@ import { AgentBrainGraph, type BrainNode } from "./AgentBrainGraph";
 type TabKey = "overview" | "memories" | "records" | "sleep" | "brain" | "config";
 function buildTabs(): { key: TabKey; label: string; icon: typeof Bot }[] {
   return [
-    { key: "overview", label: "Explorer",                         icon: Gauge },
+    { key: "overview", label: t("agents_ui.tab_explorer"),        icon: Gauge },
     { key: "memories", label: t("project.nav.memories"),          icon: Brain },
     { key: "records",  label: t("project.agent_detail.records_title"), icon: Activity },
     { key: "sleep",    label: t("project.agent_detail.sleep_title"),   icon: Heart },
@@ -27,15 +27,16 @@ function buildTabs(): { key: TabKey; label: string; icon: typeof Bot }[] {
   ];
 }
 
-const TYPE_OPTIONS = [
-  { value: "", label: "— sin tipo —" },
-  { value: "orchestrator", label: "Orchestrator", description: "Coordina al equipo y delega." },
-  { value: "specialist",   label: "Specialist",   description: "Experto en un dominio; ejecuta tareas." },
-  { value: "assistant",    label: "Assistant",    description: "Ayudante conversacional." },
-  { value: "worker",       label: "Worker",       description: "Corre tareas autónomas." },
-  { value: "monitor",      label: "Monitor",      description: "Observa estado y reporta." },
-];
-// Note: TYPE_OPTIONS labels are intentionally not externalized — they are proper nouns / technical terms
+function typeOptions() {
+  return [
+    { value: "", label: t("agents_ui.type_none") },
+    { value: "orchestrator", label: t("agents_ui.type_orchestrator"), description: t("agents_ui.type_orchestrator_desc") },
+    { value: "specialist",   label: t("agents_ui.type_specialist"),   description: t("agents_ui.type_specialist_desc") },
+    { value: "assistant",    label: t("agents_ui.type_assistant"),    description: t("agents_ui.type_assistant_desc") },
+    { value: "worker",       label: t("agents_ui.type_worker"),       description: t("agents_ui.type_worker_desc") },
+    { value: "monitor",      label: t("agents_ui.type_monitor"),      description: t("agents_ui.type_monitor_desc") },
+  ];
+}
 const csv = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
 
 const routinesForAgent = (rs: RoutineEntry[], slug: string) =>
@@ -122,10 +123,10 @@ export function AgentDetailScreen({ pid }: { pid: string }) {
       {tab === "overview" && (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Stat label="Threads" value={threads.data?.length ?? 0} icon={MessagesSquare} />
-            <Stat label="Records" value={records.data?.length ?? 0} icon={Activity} />
-            <Stat label="Tasks" value={myTasks.length} icon={Gauge} />
-            <Stat label="Heartbeats" value={myRoutines.length} icon={Heart} />
+            <Stat label={t("agents_ui.stat_threads")} value={threads.data?.length ?? 0} icon={MessagesSquare} />
+            <Stat label={t("agents_ui.stat_records")} value={records.data?.length ?? 0} icon={Activity} />
+            <Stat label={t("agents_ui.stat_tasks")} value={myTasks.length} icon={Gauge} />
+            <Stat label={t("agents_ui.stat_heartbeats")} value={myRoutines.length} icon={Heart} />
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <Section title={t("agent_detail_extra.skills_title")} description="">
@@ -243,10 +244,10 @@ function AgentConfigForm({
   };
 
   return (
-    <Section title={t("project.agent_detail.config_title")} description={`.apc/agents/${agent.slug}.md — definición (frontmatter + system prompt).`}>
+    <Section title={t("project.agent_detail.config_title")} description={`.apc/agents/${agent.slug}.md — ${t("agents_ui.config_def_desc")}`}>
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
-          <Field label={t("project.agent_detail.type_label")}><UiSelect value={type} onChange={setType} options={TYPE_OPTIONS} /></Field>
+          <Field label={t("project.agent_detail.type_label")}><UiSelect value={type} onChange={setType} options={typeOptions()} /></Field>
           <Field label={t("project.agent_detail.area_label")} hint={t("project.agent_detail.area_hint")}><Input value={area} onChange={(e) => setArea(e.target.value)} placeholder={t("project.agent_detail.area_ph")} /></Field>
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -302,7 +303,7 @@ function MemoryEditor({ pid, slug, initial, onSaved }: { pid: string; slug: stri
     finally { setBusy(false); }
   };
   return (
-    <Section title={t("project.agent_detail.memory_title")} description={`~/.apx/projects/<id>/agents/${slug}/memory.md — hechos durables que el agente recuerda.`}>
+    <Section title={t("project.agent_detail.memory_title")} description={`~/.apx/projects/<id>/agents/${slug}/memory.md — ${t("agents_ui.memory_durable_desc")}`}>
       <Textarea rows={16} className="font-mono text-xs" value={value} onChange={(e) => setValue(e.target.value)} placeholder={t("project.agent_detail.memory_empty")} />
       <div className="mt-2 flex items-center justify-between">
         <span className="text-[11px] text-muted-fg">{value.length} {t("project.memories.chars")}</span>
@@ -361,14 +362,14 @@ function SleepView({ routines }: { routines: RoutineEntry[] }) {
               <div className="flex items-center gap-2">
                 <span className={cn("size-2 rounded-full", err ? "bg-destructive" : running ? "bg-emerald-400" : "bg-muted-fg/40")} />
                 <span className="text-sm font-medium">{r.name}</span>
-                <Badge tone={running ? "success" : "muted"}>{running ? "running" : "paused"}</Badge>
-                {err && <Badge tone="danger">last: error</Badge>}
+                <Badge tone={running ? "success" : "muted"}>{running ? t("agents_ui.running") : t("agents_ui.paused")}</Badge>
+                {err && <Badge tone="danger">{t("agents_ui.last_error")}</Badge>}
               </div>
               <div className="mt-2 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-                <Field2 label="Tick" value={r.schedule} />
-                <Field2 label="Next tick" value={r.next_run_at ? new Date(r.next_run_at).toLocaleString() : "—"} />
-                <Field2 label="Last tick" value={r.last_run_at ? new Date(r.last_run_at).toLocaleString() : "—"} />
-                <Field2 label="Last run" value={r.last_status || "—"} />
+                <Field2 label={t("agents_ui.field_tick")} value={r.schedule} />
+                <Field2 label={t("agents_ui.field_next_tick")} value={r.next_run_at ? new Date(r.next_run_at).toLocaleString() : "—"} />
+                <Field2 label={t("agents_ui.field_last_tick")} value={r.last_run_at ? new Date(r.last_run_at).toLocaleString() : "—"} />
+                <Field2 label={t("agents_ui.field_last_run")} value={r.last_status || "—"} />
               </div>
               {r.last_error && <p className="mt-2 rounded-md bg-destructive/10 px-2 py-1 text-[11px] text-destructive">{r.last_error}</p>}
             </div>
@@ -399,7 +400,7 @@ function ToolsPicker({ value, onChange }: { value: string; onChange: (v: string)
   };
   const custom = selected.filter((s) => !catalog.some((tool) => tool.name === s));
   return (
-    <Field label="Tools" hint={t("project.agent_detail.tools_hint")}>
+    <Field label={t("agents_ui.tools_label")} hint={t("project.agent_detail.tools_hint")}>
       <div className="flex flex-wrap gap-1.5">
         {catalog.map((tool) => {
           const on = selected.includes(tool.name);

@@ -28,7 +28,7 @@ export function TelegramContactsPanel({ bare = false }: Props) {
   const setRole = async (c: TelegramContact, role: string) => {
     try {
       await Telegram.contacts.patch(c.user_id, { role });
-      toast.success(`${c.name || c.user_id} → ${role}`);
+      toast.success(t("telegram_ui.role_assigned", { name: c.name || c.user_id, role }));
       mutate();
     } catch (e) { toast.error((e as Error).message); }
   };

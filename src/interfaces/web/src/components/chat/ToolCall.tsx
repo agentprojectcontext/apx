@@ -19,28 +19,32 @@ import {
 } from "lucide-react";
 import { cn } from "../../lib/cn";
 import type { ToolPart } from "../../hooks/useChat";
+import { t } from "../../i18n";
 
 // Map registered tool names (core/agent tools) to an icon + friendly label.
-const TOOL_META: Record<string, { icon: typeof Wrench; label: string }> = {
-  read_file: { icon: FileText, label: "Leer archivo" },
-  write_file: { icon: FilePlus, label: "Escribir archivo" },
-  edit_file: { icon: FilePen, label: "Editar archivo" },
-  list_files: { icon: FolderTree, label: "Listar archivos" },
-  search_files: { icon: Search, label: "Buscar en archivos" },
-  search_messages: { icon: Search, label: "Buscar mensajes" },
-  tail_messages: { icon: Search, label: "Últimos mensajes" },
-  run_shell: { icon: Terminal, label: "Ejecutar shell" },
-  send_telegram: { icon: Send, label: "Enviar Telegram" },
-  call_agent: { icon: Bot, label: "Llamar agente" },
-  call_mcp: { icon: Plug, label: "Llamar MCP" },
-  call_runtime: { icon: Bot, label: "Llamar runtime" },
-  create_task: { icon: ListTodo, label: "Crear tarea" },
-};
+// Built per-call so t() runs against the active locale at render time.
+function toolMeta(): Record<string, { icon: typeof Wrench; label: string }> {
+  return {
+    read_file: { icon: FileText, label: t("shared_ui.tool_read_file") },
+    write_file: { icon: FilePlus, label: t("shared_ui.tool_write_file") },
+    edit_file: { icon: FilePen, label: t("shared_ui.tool_edit_file") },
+    list_files: { icon: FolderTree, label: t("shared_ui.tool_list_files") },
+    search_files: { icon: Search, label: t("shared_ui.tool_search_files") },
+    search_messages: { icon: Search, label: t("shared_ui.tool_search_messages") },
+    tail_messages: { icon: Search, label: t("shared_ui.tool_tail_messages") },
+    run_shell: { icon: Terminal, label: t("shared_ui.tool_run_shell") },
+    send_telegram: { icon: Send, label: t("shared_ui.tool_send_telegram") },
+    call_agent: { icon: Bot, label: t("shared_ui.tool_call_agent") },
+    call_mcp: { icon: Plug, label: t("shared_ui.tool_call_mcp") },
+    call_runtime: { icon: Bot, label: t("shared_ui.tool_call_runtime") },
+    create_task: { icon: ListTodo, label: t("shared_ui.tool_create_task") },
+  };
+}
 
 const FILE_TOOLS = new Set(["write_file", "edit_file"]);
 
 function metaFor(tool: string) {
-  return TOOL_META[tool] || { icon: Wrench, label: tool };
+  return toolMeta()[tool] || { icon: Wrench, label: tool };
 }
 
 // Best-effort one-line argument summary shown next to the tool title.
@@ -104,7 +108,7 @@ export function ToolCall({ part }: { part: ToolPart }) {
         <span className="shrink-0 font-medium">{label}</span>
         {summary && <span className="truncate font-mono text-muted-foreground">{summary}</span>}
         <span className="ml-auto flex items-center gap-1">
-          {part.status === "deduped" && <span className="text-[10px] text-amber-400">dedup</span>}
+          {part.status === "deduped" && <span className="text-[10px] text-amber-400">{t("shared_ui.dedup")}</span>}
           <StatusIcon status={part.status} />
         </span>
       </button>
@@ -113,7 +117,7 @@ export function ToolCall({ part }: { part: ToolPart }) {
         <div className="space-y-2 border-t border-border/60 px-2.5 py-2">
           {part.args && Object.keys(part.args).length > 0 && (
             <div>
-              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">args</div>
+              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">{t("shared_ui.args")}</div>
               <pre className="max-h-48 overflow-auto rounded-md bg-background/60 p-2 font-mono text-[11px] leading-relaxed text-foreground">
                 {pretty(part.args)}
               </pre>
@@ -121,7 +125,7 @@ export function ToolCall({ part }: { part: ToolPart }) {
           )}
           {part.result !== undefined && (
             <div>
-              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">result</div>
+              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">{t("shared_ui.result")}</div>
               <pre
                 className={cn(
                   "max-h-64 overflow-auto rounded-md bg-background/60 p-2 font-mono text-[11px] leading-relaxed",
