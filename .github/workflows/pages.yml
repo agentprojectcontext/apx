@@ -1,9 +1,11 @@
-name: Deploy landing to GitHub Pages
+name: Deploy site to GitHub Pages
 
-# Publishes landing.html (+ the assets it needs) to GitHub Pages as the
-# site's index.html, so the landing is viewable at
-# https://agentprojectcontext.github.io/apx/
-# (The repo's root index.html is the web-admin SPA — Vite needs it there.)
+# Publishes TWO things to one GitHub Pages site:
+#   /apx/        → landing.html (the site's index)
+#   /apx/docs/   → the Astro Starlight docs (built from ./docs)
+# so the docs live at https://agentprojectcontext.github.io/apx/docs/ and the
+# landing links to them. (The repo's root index.html is the web-admin SPA —
+# Vite needs it there, it is NOT published here.)
 # One-time setup: Repo Settings → Pages → Source: "GitHub Actions".
 
 on:
@@ -12,6 +14,7 @@ on:
     paths:
       - 'landing.html'
       - 'assets/**'
+      - 'docs/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -33,6 +36,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: docs/pnpm-lock.yaml
+
+      - name: Build docs (Astro Starlight, base=/apx/docs)
+        working-directory: docs
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+
       - name: Assemble static site
         run: |
           mkdir -p _site/assets
@@ -45,6 +63,9 @@ jobs:
           cp assets/preview-*.webm      _site/assets/ 2>/dev/null || true
           # Favicons — same vibrant mark as the web admin (adaptive light/dark).
           cp -R assets/favicon          _site/assets/ 2>/dev/null || true
+          # Docs build → /apx/docs/ (base path is baked in by Astro).
+          mkdir -p _site/docs
+          cp -R docs/dist/.             _site/docs/
 
       - uses: actions/configure-pages@v5
         with:

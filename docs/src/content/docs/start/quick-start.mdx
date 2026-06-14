@@ -7,6 +7,7 @@ sidebar:
 
 import { Steps, Aside } from '@astrojs/starlight/components';
 import Screenshot from '../../../components/Screenshot.astro';
+import Terminal from '../../../components/Terminal.astro';
 
 This walkthrough takes you from an empty project to a running agent in a few minutes.
 
@@ -19,7 +20,7 @@ This walkthrough takes you from an empty project to a running agent in a few min
    ```
 
    This creates the `.apc/` folder and an `AGENTS.md`. See
-   [Projects](/apx/concepts/projects/) for what lands on disk.
+   [Projects](/apx/docs/concepts/projects/) for what lands on disk.
 
 2. **Add an agent.** Give it a slug, a role, and a model:
 
@@ -27,10 +28,14 @@ This walkthrough takes you from an empty project to a running agent in a few min
    apx agent add sofia --role "backend reviewer" --model ollama:llama3.2:3b
    ```
 
-   <Screenshot
-     surface="terminal"
-     caption="apx agent add creating the sofia agent and writing .apc/agents/sofia.md"
-     hint="Run: apx agent add sofia --role 'backend reviewer' --model ollama:llama3.2:3b" />
+   <Terminal command="apx agent add sofia --role 'backend reviewer' --model ollama:llama3.2:3b" caption="apx agent add creating the sofia agent and writing .apc/agents/sofia.md">
+   {`Added agent sofia
+     Role: backend reviewer
+     Model: ollama:llama3.2:3b
+   ✓ wrote .apc/agents/sofia.md
+   ✓ created runtime dir .apc/runtime/agents/sofia/
+   • rebuilt project #1 (5 agents)`}
+   </Terminal>
 
 3. **Run the agent through a full runtime.** This spawns an external coding CLI (here, Claude
    Code) with the agent's system prompt injected:
@@ -51,10 +56,13 @@ This walkthrough takes you from an empty project to a running agent in a few min
    apx messages tail
    ```
 
-   <Screenshot
-     surface="terminal"
-     caption="apx messages tail showing runtime and exec activity with actor types"
-     hint="Run: apx messages tail" />
+   <Terminal command="apx messages tail" caption="apx messages tail showing runtime and exec activity with actor types">
+   {`2026-06-14 09:31:02  → runtime    sofia: spawned claude-code (exit 0, 4.2s)
+   2026-06-14 09:31:06  ← user       manuel: What is my role in this project?
+   2026-06-14 09:31:08  → agent      sofia: I'm the backend reviewer — I check PRs
+   2026-06-14 09:32:14  → super-agent roby: routed 1 task to sofia
+   • 4 messages · channel: all`}
+   </Terminal>
 
 </Steps>
 
@@ -67,18 +75,40 @@ flow:
 apx setup
 ```
 
-<Screenshot
-  surface="terminal"
-  caption="apx setup wizard: choosing a provider and model"
-  hint="Run: apx setup" />
+<Terminal command="apx setup" caption="apx setup wizard: choosing a provider and model">
+{`  Setup Wizard — configure daemon, model, and channels
+
+  Enable super-agent? [Y/n] y
+
+  AI Provider:
+    1. Anthropic (Claude)
+    2. OpenAI (GPT)
+    3. Ollama (local / self-hosted)
+    4. Gemini (Google)
+
+  Choose [1-4]: 1
+  Anthropic API key (sk-ant-...): ••••••••••••
+
+  Model:
+    1. claude-sonnet-4-5
+    2. claude-haiku-4-5
+    3. claude-opus-4-5
+
+  Choose [1-4]: 1
+  › claude-sonnet-4-5
+
+✓ Config saved to ~/.apx/config.json
+  Starting daemon... running ✓
+✅ APX is ready! — http://127.0.0.1:7430`}
+</Terminal>
 
 <Aside type="note">
 	`apx run` uses external **runtimes** (full coding CLIs). `apx exec` uses **engines** (direct LLM
-	calls). The difference is covered in [Runtimes](/apx/engine/runtimes/) and
-	[Engines](/apx/engine/engines/).
+	calls). The difference is covered in [Runtimes](/apx/docs/engine/runtimes/) and
+	[Engines](/apx/docs/engine/engines/).
 </Aside>
 
 ## Next
 
-- [Architecture](/apx/start/architecture/) — understand the layering before going deeper.
-- [CLI reference](/apx/surfaces/cli/) — the full command surface.
+- [Architecture](/apx/docs/start/architecture/) — understand the layering before going deeper.
+- [CLI reference](/apx/docs/surfaces/cli/) — the full command surface.

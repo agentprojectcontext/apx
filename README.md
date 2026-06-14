@@ -41,6 +41,17 @@ APX is a daemon + CLI that brings the APC convention to life:
 
 APX is opinionated about storage: the filesystem is the source of truth. Project definitions and curated memory live in the repo. Runtime state such as sessions, conversations, messages, and caches lives in `~/.apx/` and is never committed.
 
+<div align="center">
+<pre>
+   ▄███████▄
+  █ ██   ██ █
+  █  ◕   ◕  █
+  █    ‿    █
+   ▀███████▀
+</pre>
+<sub>Meet <b>Roby</b> — your project's super-agent. He greets you across the <code>apx</code> CLI and the web admin.</sub>
+</div>
+
 ## Quick start
 
 ```bash

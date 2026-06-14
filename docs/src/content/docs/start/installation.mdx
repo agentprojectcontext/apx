@@ -7,6 +7,7 @@ sidebar:
 
 import { Steps, Tabs, TabItem, Aside } from '@astrojs/starlight/components';
 import Screenshot from '../../../components/Screenshot.astro';
+import Terminal from '../../../components/Terminal.astro';
 
 APX ships as a single npm package that provides three binaries: `apx` (CLI), `apx-daemon`
 (the local server), and `apx-mcp` (the MCP server bridge).
@@ -52,10 +53,25 @@ APX ships as a single npm package that provides three binaries: `apx` (CLI), `ap
    apx status
    ```
 
-   <Screenshot
-     surface="terminal"
-     caption="apx status showing the daemon running and its port"
-     hint="Run: apx status" />
+   <Terminal command="apx status" caption="apx status showing the daemon running and its port">
+   {`  Daemon
+     ✓ running   port 7430   v0.4.2   uptime 3m
+
+   Super-agent
+     ✓ enabled
+       model           anthropic:claude-sonnet-4-5
+
+   Engines
+     ✓ Anthropic     ← active
+     ✓ OpenAI
+     ✓ Gemini
+     ✓ Ollama        http://localhost:11434
+
+   Projects
+     #1  First Project    5 agents   ~/code/first-project
+     #2  Acme Store        4 agents   ~/code/acme-store
+     #3  Data Pipeline     3 agents   ~/code/data-pipeline`}
+   </Terminal>
 
 </Steps>
 
@@ -71,8 +87,8 @@ The first run creates the local runtime directory:
 ```
 
 None of this is committed — it's local to your machine. See
-[Configuration](/apx/concepts/configuration/) for the full reference.
+[Configuration](/apx/docs/concepts/configuration/) for the full reference.
 
 ## Next
 
-Head to the [Quick start](/apx/start/quick-start/) to initialize a project and run your first agent.
+Head to the [Quick start](/apx/docs/start/quick-start/) to initialize a project and run your first agent.

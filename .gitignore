@@ -42,3 +42,6 @@ qa/
 
 # Internal planning docs — local only (ADRs, roadmap, PRDs, backlog)
 /spec/
+
+# Screenshot harness — local dev tool, not shipped
+src/interfaces/web/scripts/shots.mjs

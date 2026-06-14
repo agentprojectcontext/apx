@@ -5,17 +5,14 @@ sidebar:
   order: 4
 ---
 
-import { Steps, Tabs, TabItem, Aside, FileTree } from '@astrojs/starlight/components';
+import { Steps, Tabs, TabItem, Aside, FileTree, Badge } from '@astrojs/starlight/components';
 import Screenshot from '../../../components/Screenshot.astro';
 
 The web admin panel is APX's browser-based UI. It runs entirely in your browser,
 talks to the daemon over its HTTP API, and requires no public server. Any browser
 on the same machine — or on the same LAN after pairing — can use it.
 
-<Screenshot
-  surface="web"
-  caption="APX web panel — home screen showing daemon health and project list"
-  hint="Open http://127.0.0.1:7430 after apx daemon start" />
+![APX web panel — home screen showing daemon health and project list](../../../assets/shots/01-dashboard.png)
 
 ## Open on the local machine
 
@@ -107,10 +104,55 @@ A left rail shows all registered projects plus module shortcuts (Voices, Desktop
 Deck, Code). Below the rail is a **Roby** button that opens a floating chat
 sheet connected to the super-agent.
 
-<Screenshot
-  surface="web"
-  caption="Left rail — project list plus module shortcuts"
-  hint="Open any project; note the rail on the left with module icons" />
+![Left rail — project list plus module shortcuts](../../../assets/shots/10-project-overview.png)
+
+## Project workspace
+
+Opening a project lands on its **Overview** with live counts and quick links into
+every tab. Each tab below maps to a daemon API namespace.
+
+### Chat
+
+The **Chat** tab talks to the super-agent (Roby) and to each project agent. Every
+thread is a live, in-memory session you can start, search, and branch from.
+
+![Chat tab — super-agent and per-agent threads](../../../assets/shots/11-chat.png)
+
+### Tasks
+
+The **Tasks** tab is the project's backlog. Tasks carry an id, title, tags, due
+date, and an assigned agent; they can be created from the web, the CLI, Telegram,
+or by an agent itself.
+
+![Tasks tab — open tasks with tags, due dates, and assigned agents](../../../assets/shots/14-tasks.png)
+
+### Routines
+
+The **Routines** tab schedules recurring work — a super-agent prompt, a shell
+command, a Telegram message, or a heartbeat — on a cron expression.
+
+![Routines tab — scheduled super-agent, shell, Telegram, and heartbeat routines](../../../assets/shots/15-routines.png)
+
+### MCPs
+
+The **MCPs** tab lists the Model Context Protocol servers available to the
+project across all three scopes (shared, runtime, global), with a live log pane.
+
+![MCP servers — filesystem, GitHub, Postgres, and an HTTP server across scopes](../../../assets/shots/16-mcps.png)
+
+### Memories
+
+The **Memories** tab edits the project's `.apc/memory.md` and each agent's
+runtime memory, the long-lived context the agents read on every turn.
+
+![Memories tab — the project memory.md editor](../../../assets/shots/17-memories.png)
+
+### Config
+
+The **Config** tab shows the effective project configuration merged from the
+project's `.apc/` files and the global defaults.
+
+![Config tab — effective project configuration and its sources](../../../assets/shots/18-config.png)
 
 ## Rail modules
 
@@ -120,10 +162,7 @@ The Projects tab (Base → Workspaces) lists all registered projects as cards.
 Click a card to enter that project. The "New project" button opens an inline
 dialog (`?action=add-project`).
 
-<Screenshot
-  surface="web"
-  caption="Workspaces tab — project cards with name, kind, and path"
-  hint="Navigate to /p/0/workspaces" />
+![Workspaces tab — project cards with name, kind, and path](../../../assets/shots/02-workspaces.png)
 
 ### Agents
 
@@ -131,10 +170,11 @@ Each project has an Agents tab. You can create, edit, and delete agents; view
 and edit each agent's `memory.md`; and assign skills. In the Base space the
 Agents tab shows the super-agent configuration (read-only summary).
 
-<Screenshot
-  surface="web"
-  caption="Agents tab — agent list with memory and skill counts"
-  hint="Navigate to /p/:pid/agents" />
+![Agents tab — agent list with memory and skill counts](../../../assets/shots/12-agents.png)
+
+Open an agent to inspect its memory, skills, tools, sub-agents, and brain graph.
+
+![Agent detail — memory, skills, sub-agents, and the brain graph tabs](../../../assets/shots/13-agent-detail.png)
 
 ### Voices
 
@@ -144,12 +184,9 @@ mock), lets you pick a default or chain-with-fallback mode, reorder the chain,
 configure per-engine credentials, and run a live test playback. The STT section
 configures the Whisper model and language for mic input.
 
-See [Voice](/apx/surfaces/voice/) for the full CLI reference.
+See [Voice](/apx/docs/surfaces/voice/) for the full CLI reference.
 
-<Screenshot
-  surface="web"
-  caption="Voices module — TTS provider list with status badges and default picker"
-  hint="Navigate to /m/voice" />
+![Voices module — TTS provider list with status badges and default picker](../../../assets/shots/30-voice.png)
 
 ### Desktop
 
@@ -158,20 +195,20 @@ running (connected WebSocket clients), lets you edit the global shortcut, and
 toggle whether the daemon responds to desktop messages. You cannot start or stop
 the Electron process from the web panel — use `apx desktop start / stop`.
 
-See [Desktop](/apx/surfaces/desktop/) for the full CLI reference.
+See [Desktop](/apx/docs/surfaces/desktop/) for the full CLI reference.
 
-### Deck
+### Deck <Badge text="Preview" variant="caution" />
 
-The Deck module (`/m/deck`) shows the `GET /deck/manifest` payload: daemon
-health, active project, registered plugins, and the widget/desktop grid. You
-can enable or disable individual widgets from this view.
+The Deck module (`/m/deck`) will surface the `GET /deck/manifest` payload: daemon
+health, active project, registered plugins, and the widget/desktop grid, and let
+you enable or disable individual widgets from this view.
 
-See [Deck](/apx/surfaces/deck/) for the pairing CLI reference.
+See [Deck](/apx/docs/surfaces/deck/) for the pairing CLI reference.
 
-<Screenshot
-  surface="web"
-  caption="Deck module — manifest view with widget grid and APX context card"
-  hint="Navigate to /m/deck" />
+<Aside type="note">
+  The Deck admin surface is a **demo for now** — the manifest view and widget
+  grid are coming soon. The pairing CLI (`apx deck …`) is functional today.
+</Aside>
 
 ### Code
 
@@ -193,10 +230,22 @@ Global config lives under **Settings** (`/settings/*`). Sub-sections:
 | `/settings/devices` | Paired devices list |
 | `/settings/advanced` | Raw `~/.apx/config.json` editor |
 
-<Screenshot
-  surface="web"
-  caption="Settings — model providers panel"
-  hint="Navigate to /settings/engines" />
+![Settings — model providers panel](../../../assets/shots/21-settings-engines.png)
+
+The **Super-agent** panel sets Roby's permission mode, personality, and system
+prompt; the active model and fallback chain are configured in the model router.
+
+![Settings — super-agent behavior, permission mode, and system prompt](../../../assets/shots/20-settings-super-agent.png)
+
+The **Telegram** panel manages the bot's channels, contacts, and per-role tool
+permissions.
+
+![Settings — Telegram channels, contacts, and roles](../../../assets/shots/22-settings-telegram.png)
+
+The **Devices** panel lists every paired browser or phone and lets you revoke a
+token.
+
+![Settings — paired devices with last-seen and revoke](../../../assets/shots/23-settings-devices.png)
 
 ## Architecture
 
@@ -218,6 +267,6 @@ the real endpoint, not `index.html`.
 
 ## Next steps
 
-- [Desktop](/apx/surfaces/desktop/) — the Electron floating window
-- [Voice](/apx/surfaces/voice/) — TTS/STT CLI and providers
-- [Deck](/apx/surfaces/deck/) — companion app pairing
+- [Desktop](/apx/docs/surfaces/desktop/) — the Electron floating window
+- [Voice](/apx/docs/surfaces/voice/) — TTS/STT CLI and providers
+- [Deck](/apx/docs/surfaces/deck/) — companion app pairing

@@ -7,9 +7,10 @@ sidebar:
 
 import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
 import Screenshot from '../../../components/Screenshot.astro';
+import Terminal from '../../../components/Terminal.astro';
 
 The `apx` binary is the main entry point for everything APX does. It talks to the local
-[daemon](/apx/surfaces/daemon/) over HTTP (`127.0.0.1:7430`) and auto-starts it on first use, so
+[daemon](/apx/docs/surfaces/daemon/) over HTTP (`127.0.0.1:7430`) and auto-starts it on first use, so
 you never need to boot the daemon separately.
 
 <Screenshot
@@ -61,7 +62,7 @@ you never need to boot the daemon separately.
 | `apx project config unset <project> <key>` | Remove a dotted key from `.apc/config.json`. |
 | `apx project config edit <project>` | Open project config in `$EDITOR` for a full replace on save. |
 
-See [Projects](/apx/concepts/projects/) for the full `.apc/` layout.
+See [Projects](/apx/docs/concepts/projects/) for the full `.apc/` layout.
 
 ---
 
@@ -78,7 +79,7 @@ See [Projects](/apx/concepts/projects/) for the full `.apc/` layout.
 | `apx agent vault rm <slug>` | Tombstone a vault template (bundled defaults are hidden, not erased). |
 | `apx agent vault restore <slug>` | Lift a tombstone so a previously-removed bundled default reappears. |
 
-See [Agents](/apx/concepts/agents/).
+See [Agents](/apx/docs/concepts/agents/).
 
 ---
 
@@ -106,7 +107,7 @@ See [Agents](/apx/concepts/agents/).
 | `apx permission show` | Show the current APX tool permission mode. |
 | `apx permission set <mode>` | Set permission mode: `total`, `automatico`, or `permiso`. |
 
-See [Configuration](/apx/concepts/configuration/).
+See [Configuration](/apx/docs/concepts/configuration/).
 
 ---
 
@@ -140,7 +141,7 @@ APX sessions are local Markdown files under `~/.apx/projects/<id>/agents/<slug>/
 | `apx session ask <id> "<q>"` | Ask a free-form question about a session transcript. `--max-chunks N`. |
 | `apx sessions list` | Cross-engine session list. `--engine claude\|codex\|apx`, `--project P`, `--dir D`. |
 
-See [Sessions](/apx/concepts/sessions/).
+See [Sessions](/apx/docs/concepts/sessions/).
 
 ---
 
@@ -157,7 +158,7 @@ See [Sessions](/apx/concepts/sessions/).
 | `apx mcp tools <name>` | List available tools for an MCP server. |
 | `apx mcp check` | Audit multi-source merge order and conflicts. |
 
-See [MCPs](/apx/capabilities/mcp/).
+See [MCPs](/apx/docs/capabilities/mcp/).
 
 ---
 
@@ -172,7 +173,7 @@ See [MCPs](/apx/capabilities/mcp/).
 | `apx daemon logs [--tail N]` | Print the daemon stdout log tail. |
 | `apx log [-f] [--tail N] [--errors]` | Unified log for all modules (recommended over `daemon logs`). |
 
-See [Daemon](/apx/surfaces/daemon/).
+See [Daemon](/apx/docs/surfaces/daemon/).
 
 ---
 
@@ -196,7 +197,7 @@ See [Daemon](/apx/surfaces/daemon/).
 | `apx telegram roles` | List or manage role→tools capability maps. |
 | `apx telegram owner <channel> <user_id>` | Set who owns a channel. |
 
-See [Telegram](/apx/capabilities/telegram/).
+See [Telegram](/apx/docs/capabilities/telegram/).
 
 ---
 
@@ -221,7 +222,7 @@ See [Telegram](/apx/capabilities/telegram/).
 | `apx conversations list <agent>` | List stored exec/chat conversations for an agent. |
 | `apx conversations get <agent> <id>` | Print one conversation. |
 
-See [TUI](/apx/surfaces/tui/).
+See [TUI](/apx/docs/surfaces/tui/).
 
 ---
 
@@ -234,7 +235,7 @@ See [TUI](/apx/surfaces/tui/).
 
 Supported runtimes: `claude-code`, `codex`, `opencode`, `aider`, `cursor-agent`, `gemini-cli`, `qwen-code`.
 
-See [Runtimes](/apx/engine/runtimes/).
+See [Runtimes](/apx/docs/engine/runtimes/).
 
 ---
 
@@ -264,7 +265,7 @@ See [Runtimes](/apx/engine/runtimes/).
 
 **Schedules:** `every:60s`, `every:5m`, `every:1h`, `once:<iso-8601>`.
 
-See [Routines](/apx/capabilities/routines/).
+See [Routines](/apx/docs/capabilities/routines/).
 
 ---
 
@@ -280,7 +281,7 @@ See [Routines](/apx/capabilities/routines/).
 | `apx task reopen <id>` | Reopen a done or dropped task. |
 | `apx task patch <id>` | Update fields: `--title T`, `--body B`, `--due D`, `--agent A`, `--tag t`. |
 
-See [Tasks](/apx/capabilities/tasks/).
+See [Tasks](/apx/docs/capabilities/tasks/).
 
 ---
 

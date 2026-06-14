@@ -1,0 +1,143 @@
+---
+/**
+ * Terminal.astro — a styled, auto-colorized terminal window for docs.
+ *
+ * Renders a mac-style window (traffic lights + title bar) with a prompt line,
+ * the command, and simulated output passed as children. Use this instead of
+ * <Screenshot surface="terminal"> so terminal examples render as crisp, themeable,
+ * selectable text (no image to maintain) rather than an empty placeholder.
+ *
+ * Output lines are colorized automatically by their leading marker:
+ *   ✓ / ✔   → green (success)      ✗ / ✘ / error → red
+ *   ⚠ / !   → yellow (warning)     # / //        → dim (comment)
+ *   • / › / → → blue accent (bullet / step)
+ *
+ * Usage in .mdx:
+ *   import Terminal from '../../../components/Terminal.astro';
+ *   <Terminal command="apx status" caption="apx status — daemon health and port">
+ *   {`✓ daemon   running   pid 48213   http://127.0.0.1:7430
+ * ✓ engines  anthropic, openai, gemini
+ * • projects 3 registered`}
+ *   </Terminal>
+ *
+ * Write the template literal so the first output row sits on the line after the
+ * opening backtick; indentation inside the literal is preserved verbatim.
+ */
+interface Props {
+	/** The command typed at the prompt (without the leading $). */
+	command: string;
+	/** Descriptive caption rendered under the window. */
+	caption?: string;
+	/** Window title shown in the title bar. Defaults to "apx". */
+	title?: string;
+}
+const { command, caption, title = 'apx' } = Astro.props;
+
+// The children are a plain (HTML-escaped) string. Strip any MDX <p> wrapping,
+// drop leading blank lines and trailing whitespace, but keep inner indentation.
+let raw = await Astro.slots.render('default');
+raw = raw.replace(/<\/?p>/g, '');
+raw = raw.replace(/^[ \t]*\n+/, '').replace(/\s+$/, '');
+
+function colorize(line) {
+	const t = line.replace(/^\s+/, '');
+	if (/^(✓|✔)/.test(t)) return `<span class="ok">${line}</span>`;
+	if (/^(✗|✘|✖|×|error[: ]|failed)/i.test(t)) return `<span class="err">${line}</span>`;
+	if (/^(⚠|!)/.test(t)) return `<span class="warn">${line}</span>`;
+	if (/^(#|\/\/)/.test(t)) return `<span class="dim">${line}</span>`;
+	if (/^(•|›|»|▸|→|-\s)/.test(t)) return `<span class="accent">${line}</span>`;
+	return line;
+}
+const body = raw.length ? raw.split('\n').map(colorize).join('\n') : '';
+---
+
+<figure class="apx-term">
+	<div class="apx-term__win">
+		<div class="apx-term__bar">
+			<span class="apx-term__dots">
+				<span class="apx-term__dot apx-term__dot--r"></span>
+				<span class="apx-term__dot apx-term__dot--y"></span>
+				<span class="apx-term__dot apx-term__dot--g"></span>
+			</span>
+			<span class="apx-term__title">{title}</span>
+		</div>
+<pre class="apx-term__body"><span class="apx-term__prompt">$</span> <span class="apx-term__cmd">{command}</span>
+<span set:html={body} /></pre>
+	</div>
+	{caption && <figcaption>{caption}</figcaption>}
+</figure>
+
+<style>
+	.apx-term {
+		margin: 1.5rem 0;
+	}
+	.apx-term__win {
+		border-radius: 0.7rem;
+		overflow: hidden;
+		border: 1px solid rgba(52, 211, 153, 0.18);
+		box-shadow:
+			0 1px 0 rgba(255, 255, 255, 0.03) inset,
+			0 18px 40px -24px rgba(0, 0, 0, 0.7);
+		background: #0b1220;
+	}
+	.apx-term__bar {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		padding: 0.55rem 0.85rem;
+		background: linear-gradient(180deg, #151d2b 0%, #111827 100%);
+		border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+	}
+	.apx-term__dots {
+		display: inline-flex;
+		gap: 0.4rem;
+	}
+	.apx-term__dot {
+		width: 0.7rem;
+		height: 0.7rem;
+		border-radius: 999px;
+		display: inline-block;
+	}
+	.apx-term__dot--r { background: #ff5f57; }
+	.apx-term__dot--y { background: #febc2e; }
+	.apx-term__dot--g { background: #28c840; }
+	.apx-term__title {
+		font-size: 0.78rem;
+		font-weight: 600;
+		letter-spacing: 0.02em;
+		color: #8aa0b8;
+		font-family: var(--sl-font-mono, ui-monospace, monospace);
+	}
+	.apx-term__body {
+		margin: 0;
+		padding: 1rem 1.1rem 1.15rem;
+		background: #0b1220;
+		color: #cdd9e5;
+		font-family: var(--sl-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+		font-size: 0.84rem;
+		line-height: 1.55;
+		overflow-x: auto;
+		white-space: pre;
+		tab-size: 2;
+	}
+	.apx-term__prompt {
+		color: #34d399;
+		font-weight: 700;
+		user-select: none;
+	}
+	.apx-term__cmd {
+		color: #e8f0f8;
+		font-weight: 600;
+	}
+	.apx-term figcaption {
+		text-align: center;
+		font-size: 0.85rem;
+		color: var(--sl-color-gray-3);
+		margin-top: 0.5rem;
+	}
+	.apx-term__body :global(.ok) { color: #34d399; }
+	.apx-term__body :global(.warn) { color: #febc2e; }
+	.apx-term__body :global(.err) { color: #ff6b6b; }
+	.apx-term__body :global(.dim) { color: #6b7d92; }
+	.apx-term__body :global(.accent) { color: #5e9bff; }
+</style>

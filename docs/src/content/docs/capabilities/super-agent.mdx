@@ -19,7 +19,7 @@ it with `super_agent.*` keys in `~/.apx/config.json`, and routine kinds may stil
 
 <Aside type="note">
   This design is recorded in `spec/decisions/002-super-agent-is-mode-not-name.md`.
-  See [Configuration](/apx/concepts/configuration/) for the full `super_agent.*` key reference.
+  See [Configuration](/apx/docs/concepts/configuration/) for the full `super_agent.*` key reference.
 </Aside>
 
 ## Enabling it
@@ -101,7 +101,7 @@ drives:
 - Which Telegram sender identity and role-gating rules apply.
 
 The memory broker runs before every non-tool-free call and injects a `[MEMORIA RELEVANTE]` block
-into the system prompt. See [Memory system](/apx/capabilities/memory-system/) for details.
+into the system prompt. See [Memory system](/apx/docs/capabilities/memory-system/) for details.
 
 ## Identity — `apx identity`
 
@@ -158,10 +158,10 @@ apx model order ollama openrouter groq
 apx model status          # probe all providers; show which would be used now
 ```
 
-See [Configuration](/apx/concepts/configuration/) for the full `super_agent.model_fallback` schema.
+See [Configuration](/apx/docs/concepts/configuration/) for the full `super_agent.model_fallback` schema.
 
 ## Next
 
-- [Memory system](/apx/capabilities/memory-system/) — how the agent retrieves relevant context across channels.
-- [Routines](/apx/capabilities/routines/) — schedule the super-agent or a plain `exec_agent` on a cron.
-- [Configuration](/apx/concepts/configuration/) — full `super_agent.*` and `identity.json` reference.
+- [Memory system](/apx/docs/capabilities/memory-system/) — how the agent retrieves relevant context across channels.
+- [Routines](/apx/docs/capabilities/routines/) — schedule the super-agent or a plain `exec_agent` on a cron.
+- [Configuration](/apx/docs/concepts/configuration/) — full `super_agent.*` and `identity.json` reference.
