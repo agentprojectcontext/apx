@@ -60,6 +60,15 @@ export function isRetryableEngineError(err) {
     // → model couldn't pick a tool → retry on a different model.
     if (status === 400) {
       if (/failed to call a function|did not produce a (valid )?tool/i.test(msg)) return true;
+      // Ollama tool-call grammar failure: small / cloud models that can't emit
+      // structured tool JSON return a 400 with a parse error like
+      //   "Value looks like object, but can't find closing '}' symbol"
+      // That's the model failing to produce tools, not our payload being
+      // malformed — advance to a tool-capable model instead of dying here.
+      if (/ollama/i.test(msg) &&
+          /looks like (object|array)|can'?t find closing|unexpected end of json|invalid (json|grammar)/i.test(msg)) {
+        return true;
+      }
       // explicit schema / param errors are our bug, not transient
       return false;
     }

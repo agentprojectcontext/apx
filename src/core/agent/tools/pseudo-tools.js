@@ -35,6 +35,18 @@ export function pseudoToolSystem(system, toolSchemas) {
 
 export function shouldRetryWithPseudoTools(modelId, error, alreadyPseudo) {
   if (alreadyPseudo) return false;
+  if (!/^ollama:/i.test(String(modelId || ""))) return false;
   const message = String(error?.message || "");
-  return /^ollama:/i.test(String(modelId || "")) && /ollama\s+500/i.test(message);
+  // Ollama can't always do native/structured tool-calling. Two failure shapes,
+  // same fix — drop structured tools and re-run with text-based pseudo-tools
+  // (parsed from the prompt, no grammar required):
+  //   • 5xx mid-call (model timeout / server error)
+  //   • 400 with a JSON/grammar parse error, e.g.
+  //     "Value looks like object, but can't find closing '}' symbol"
+  if (/ollama\s+5\d\d/i.test(message)) return true;
+  if (/ollama\s+400/i.test(message) &&
+      /looks like (object|array)|can'?t find closing|unexpected end of json|invalid (json|grammar)/i.test(message)) {
+    return true;
+  }
+  return false;
 }
