@@ -16,7 +16,11 @@ import es from "./es.js";
 import pt from "./pt.js";
 
 const DICTS = Object.freeze({ en, es, pt });
-const DEFAULT_LANG = "es";
+// English is the universal fallback: any unrecognized language code resolves
+// to "en" rather than forcing a per-country dict. Real agent replies are
+// model-authored and already come back in the user's language; these dicts
+// only cover the few host-emitted strings that never pass through the model.
+const DEFAULT_LANG = "en";
 
 /**
  * Pull the user's preferred language code from a globalConfig snapshot.

@@ -22,7 +22,7 @@ test("t() returns the localized string when the key exists in the locale", () =>
 });
 
 test("t() falls back to DEFAULT_LANG when the requested locale is unknown", () => {
-  // "fr" is not in DICTS, must fall back to the default-lang value (es).
+  // "fr" is not in DICTS, must fall back to the default-lang value (en).
   assert.equal(t("telegram.heads_up", { lang: "fr" }), DICTS[DEFAULT_LANG]["telegram.heads_up"]);
 });
 
