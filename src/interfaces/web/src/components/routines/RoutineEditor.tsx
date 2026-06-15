@@ -2,13 +2,14 @@ import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { ArrowRight, Terminal } from "lucide-react";
 import { Routines, Agents, Telegram, type RoutineEntry } from "../../lib/api";
-import { Button, Dialog, Field, Input, Switch, Textarea } from "../ui";
+import { Button, Dialog, Field, Input, Switch } from "../ui";
 import { UiSelect } from "../UiSelect";
 import { useToast } from "../Toast";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 import { type Kind, kindMeta, kindOptions, schedPresets, scheduleHuman, splitLines, varsFor } from "./shared";
 import { VarTextarea } from "./VarTextarea";
+import { AvailableVarsCard } from "./AvailableVarsCard";
 
 export function RoutineEditor({
   draft, onClose, onSaved, pid,
@@ -122,7 +123,7 @@ export function RoutineEditor({
   const ActionIcon = kindMeta()[kind].icon;
   const steps = [
     ...preSteps.map((c, i) => ({ id: `pre-${i}`, icon: Terminal, label: t("agents_ui.step_pre"), detail: c, action: false })),
-    { id: "action", icon: ActionIcon, label: actionLabel, detail: actionDetail ? actionDetail.slice(0, 90) : undefined, action: true },
+    { id: "action", icon: ActionIcon, label: actionLabel, detail: actionDetail ? actionDetail.slice(0, 90) : t("project.routines.block_empty"), action: true },
     ...postSteps.map((c, i) => ({ id: `post-${i}`, icon: Terminal, label: t("agents_ui.step_post"), detail: c, action: false })),
   ];
 
@@ -141,15 +142,13 @@ export function RoutineEditor({
       }
     >
       <div className="space-y-4">
-        {/* status */}
-        <div className="flex items-center justify-between rounded-lg border border-border bg-muted/20 px-3 py-2">
-          <Switch checked={enabled} onChange={setEnabled} label={t("project.routines.enabled_label")} />
-          <span className="text-[11px] text-muted-fg">{enabled ? t("project.routines.enabled_hint") : t("project.routines.disabled_hint")}</span>
-        </div>
-
         <div className="grid gap-6 md:grid-cols-2">
-          {/* LEFT — qué y cuándo */}
+          {/* LEFT — opciones + enabled + variables disponibles */}
           <div className="space-y-3">
+            <div className="flex items-center justify-between rounded-lg border border-border bg-muted/20 px-3 py-2">
+              <Switch checked={enabled} onChange={setEnabled} label={t("project.routines.enabled_label")} />
+              <span className="text-[11px] text-muted-fg">{enabled ? t("project.routines.enabled_hint") : t("project.routines.disabled_hint")}</span>
+            </div>
             <Field label={t("project.routines.name_field")} hint={draft?.name ? t("project.routines.name_no_edit") : undefined}>
               <Input value={name} disabled={!!draft?.name} onChange={(e) => setName(e.target.value)} placeholder="resumen-diario" />
             </Field>
@@ -180,6 +179,7 @@ export function RoutineEditor({
                 <Input value={schedule} onChange={(e) => setSchedule(e.target.value)} placeholder="every:10m · cron 0 9 * * 1-5 · once:ISO · manual" />
               </div>
             </Field>
+            <AvailableVarsCard />
           </div>
 
           {/* RIGHT — lo que ejecuta, según el tipo. Cada textarea trae sus
@@ -218,9 +218,8 @@ export function RoutineEditor({
 
             {/* Shell: un comando, sin variables */}
             {kind === "shell" && (
-              <Field label={t("project.routines.shell_field")} hint={t("project.routines.shell_hint")}>
-                <Textarea rows={11} className="font-mono text-xs" value={command} onChange={(e) => setCommand(e.target.value)} placeholder="cd /repo && git pull && npm test" />
-              </Field>
+              <VarTextarea label={t("project.routines.shell_field")} hint={t("project.routines.shell_hint")}
+                rows={11} mono value={command} onChange={setCommand} vars={[]} placeholder="cd /repo && git pull && npm test" />
             )}
 
             {/* Heartbeat: solo loguea (no se ofrece para rutinas nuevas) */}

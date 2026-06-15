@@ -157,7 +157,8 @@ async function handleTelegram(ctx, routine) {
   const { channel, chat_id, text } = routine.spec;
   if (!text) throw new Error("telegram routine needs spec.text");
   await tg.send({ channel, chat_id, text });
-  return { status: "ok" };
+  // Return the (interpolated) text so the run detail can show what was sent.
+  return { status: "ok", text };
 }
 
 function handleShell(ctx, routine) {
@@ -325,6 +326,7 @@ export async function runRoutineNow(ctx, routine) {
   }
 
   // ── Phase 3: post_commands ────────────────────────────────────────────────
+  const postRuns = [];
   if (hasPostCmds) {
     const llmOutput = result?.reply || result?.text || "";
     const postEnv = {
@@ -335,7 +337,8 @@ export async function runRoutineNow(ctx, routine) {
     };
     for (const rawCmd of routine.post_commands) {
       const cmd = resolveArtifactRef(rawCmd, storagePath);
-      await runShellCmd(cmd, postEnv, cwd);
+      const r = await runShellCmd(cmd, postEnv, cwd);
+      postRuns.push({ cmd: rawCmd, exit: r.exitCode, stdout: (r.stdout || "").slice(0, 4000), stderr: (r.stderr || "").slice(0, 2000) });
     }
   }
 
@@ -360,7 +363,14 @@ export async function runRoutineNow(ctx, routine) {
     body: status === "ok"
       ? `routine ${routine.name} ok${skip ? " (skipped LLM)" : ""}`
       : `routine ${routine.name} error: ${errMsg}`,
-    meta: { routine: routine.name, status, skipped: skip, result },
+    meta: {
+      routine: routine.name, status, skipped: skip, result,
+      // Persisted run flow so the UI can replay pre → action → post.
+      flow: {
+        pre: hasPreCmds ? { output: preStdout.slice(0, 8000), exit: preExitCode } : null,
+        post: postRuns.length ? postRuns : null,
+      },
+    },
   });
   return { ...result, last_run_at: lastRun, next_run_at: next };
 }
