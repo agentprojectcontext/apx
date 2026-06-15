@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import useSWR from "swr";
+import useSWR, { mutate as globalMutate } from "swr";
 import { Plus } from "lucide-react";
 import { Routines, type RoutineEntry } from "../../lib/api";
 import { Button, Dialog, Empty, Loading } from "../../components/ui";
@@ -20,6 +20,8 @@ export function RoutinesTab({ pid }: { pid: string }) {
   const [editing, setEditing] = useState<Partial<RoutineEntry> | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<RoutineEntry | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [confirmRun, setConfirmRun] = useState<RoutineEntry | null>(null);
+  const [running, setRunning] = useState<string | null>(null);
 
   const rows = list.data || [];
   const selectedName = params.get("r_id");
@@ -43,9 +45,21 @@ export function RoutinesTab({ pid }: { pid: string }) {
     try { await (r.enabled ? Routines.disable : Routines.enable)(pid, r.name); list.mutate(); }
     catch (e: any) { toast.error(e?.message || t("project.routines.toggle_error")); }
   };
-  const runNow = async (r: RoutineEntry) => {
-    try { await Routines.run(pid, r.name); toast.success(t("project.routines.run_success", { name: r.name })); }
-    catch (e: any) { toast.error(e?.message || t("project.routines.run_error")); }
+  const doRun = async () => {
+    if (!confirmRun) return;
+    const r = confirmRun;
+    setConfirmRun(null);
+    setRunning(r.name);
+    try {
+      await Routines.run(pid, r.name);
+      toast.success(t("project.routines.run_success", { name: r.name }));
+      // Refresh the routine list (last status) and its executions list.
+      await Promise.all([
+        list.mutate(),
+        globalMutate(`/projects/${pid}/routines/${r.name}/runs`),
+      ]);
+    } catch (e: any) { toast.error(e?.message || t("project.routines.run_error")); }
+    finally { setRunning(null); }
   };
   const doDelete = async () => {
     if (!confirmDelete) return;
@@ -86,9 +100,10 @@ export function RoutinesTab({ pid }: { pid: string }) {
                   pid={pid}
                   routine={selected}
                   onEdit={() => setEditing({ ...selected })}
-                  onRun={() => runNow(selected)}
+                  onRun={() => setConfirmRun(selected)}
                   onToggle={() => toggle(selected)}
                   onDelete={() => setConfirmDelete(selected)}
+                  running={running === selected.name}
                 />
               : <div className="flex h-full items-center justify-center p-8">
                   <p className="text-sm text-muted-fg">{t("project.routines.detail_empty")}</p>
@@ -117,6 +132,21 @@ export function RoutinesTab({ pid }: { pid: string }) {
         }
       >
         <p className="text-sm text-muted-fg">{t("project.routines.delete_confirm_body")}</p>
+      </Dialog>
+
+      <Dialog
+        open={!!confirmRun}
+        onClose={() => setConfirmRun(null)}
+        title={t("project.routines.run_confirm", { name: confirmRun?.name || "" })}
+        size="sm"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setConfirmRun(null)}>{t("common.cancel")}</Button>
+            <Button variant="primary" onClick={doRun}>{t("common.run")}</Button>
+          </>
+        }
+      >
+        <p className="text-sm text-muted-fg">{t("project.routines.run_confirm_body")}</p>
       </Dialog>
     </div>
   );

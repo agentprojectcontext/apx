@@ -3,7 +3,7 @@ import useSWR from "swr";
 import { Ban, Check, X } from "lucide-react";
 import { Messages } from "../../lib/api";
 import type { MessageEntry } from "../../types/daemon";
-import { Loading } from "../ui";
+import { Loading, Spinner } from "../ui";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 
@@ -118,7 +118,7 @@ function RunDetailPanel({ m, onClose }: { m: MessageEntry; onClose: () => void }
 
 /** Bottom pane of the detail view: scrollable list of past runs; clicking one
  *  opens a side grid column with that run's details. */
-export function ExecutionsList({ pid, name }: { pid: string; name: string }) {
+export function ExecutionsList({ pid, name, running }: { pid: string; name: string; running?: boolean }) {
   const runs = useSWR(
     `/projects/${pid}/routines/${name}/runs`,
     async () => {
@@ -147,6 +147,14 @@ export function ExecutionsList({ pid, name }: { pid: string; name: string }) {
             <div className="text-xs text-muted-fg">{t("project.routines.runs_empty")}</div>
           )}
           <ul className="space-y-1">
+            {running && (
+              <li>
+                <div className="flex w-full items-center gap-2 rounded-md border border-primary/40 bg-primary/5 px-3 py-1.5 text-xs">
+                  <Spinner size={12} />
+                  <span className="text-muted-fg">{t("project.routines.running")}</span>
+                </div>
+              </li>
+            )}
             {rows.map((m, i) => {
               const st = runStatus(m);
               const active = selTs === m.ts;

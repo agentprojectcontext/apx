@@ -11,7 +11,7 @@ import { ExecutionsList } from "./ExecutionsList";
 // the data (header + meta + content blocks) takes the space it needs, and the
 // executions list below fills the rest and scrolls. Editing is behind a button.
 export function RoutineDetail({
-  pid, routine, onEdit, onRun, onToggle, onDelete,
+  pid, routine, onEdit, onRun, onToggle, onDelete, running,
 }: {
   pid: string;
   routine: RoutineEntry;
@@ -19,6 +19,7 @@ export function RoutineDetail({
   onRun: () => void;
   onToggle: () => void;
   onDelete: () => void;
+  running?: boolean;
 }) {
   const meta = kindMeta()[routine.kind];
   const Icon = meta?.icon || Zap;
@@ -55,7 +56,7 @@ export function RoutineDetail({
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <Switch checked={routine.enabled} onChange={onToggle} />
-            <Tip content={t("common.run")}><Button size="sm" variant="secondary" onClick={onRun}><Play size={13} /></Button></Tip>
+            <Tip content={t("common.run")}><Button size="sm" variant="secondary" onClick={onRun} loading={running}><Play size={13} /></Button></Tip>
             <Tip content={t("project.routines.edit_hint")}><Button size="sm" variant="secondary" onClick={onEdit}><Pencil size={13} /> {t("project.routines.edit_btn")}</Button></Tip>
             <Tip content={t("common.delete")}><Button size="sm" variant="destructive" onClick={onDelete}><Trash2 size={13} /></Button></Tip>
           </div>
@@ -79,7 +80,7 @@ export function RoutineDetail({
       </div>
 
       {/* EXECUTIONS — fills the remaining height and scrolls */}
-      <ExecutionsList pid={pid} name={routine.name} />
+      <ExecutionsList pid={pid} name={routine.name} running={running} />
     </div>
   );
 }
