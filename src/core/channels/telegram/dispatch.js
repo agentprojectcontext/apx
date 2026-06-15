@@ -436,6 +436,17 @@ export async function handleUpdate(self, u) {
                 iteration: ev.iteration,
               },
             });
+          } else if (ev.type === "engine_failed") {
+            // A model in the fallback chain errored; the loop is rotating to
+            // the next one. Log it so a mid-turn provider failure (rate limit,
+            // tool-grammar 400, …) is diagnosable instead of invisible.
+            self.log(
+              `telegram[${self.channel.name}] engine_failed: ${ev.model || "?"} (${ev.reason || "?"}) → ${ev.retry_with || "end of chain"}`,
+            );
+          } else if (ev.type === "model_routed" || ev.type === "model_retry") {
+            self.log(
+              `telegram[${self.channel.name}] ${ev.type}: model=${ev.model || "?"}${ev.reason ? ` reason=${ev.reason}` : ""}${ev.from_fallback ? " (fallback)" : ""}`,
+            );
           }
         } catch (e) {
           // A failed intermediate send must not abort the whole run.
@@ -542,9 +553,18 @@ export async function handleUpdate(self, u) {
     // turn isn't silently empty.
     const finalClean = replyText ? stripThinking(replyText).trim() : "";
     let toSend = "";
-    if (finalClean && finalClean !== lastStreamedText) toSend = finalClean;
-    else if (!finalClean && streamedCount === 0) {
-      toSend = t("telegram.fallback_listo", { lang: resolveLang(self.globalConfig) });
+    if (finalClean && finalClean !== lastStreamedText) {
+      toSend = finalClean;
+    } else if (!finalClean) {
+      // Never end a turn on silence. The loop's tool-free wrap-up normally
+      // fills finalClean with a model-authored closing (handled above); this is
+      // the last-resort floor for the rare case it still came back empty. A
+      // pure chit-chat turn that did nothing gets the short ack; a turn that
+      // streamed/acted but produced no closing gets a neutral "continue?" that
+      // does NOT claim completion.
+      toSend = streamedCount === 0
+        ? t("telegram.fallback_listo", { lang: resolveLang(self.globalConfig) })
+        : t("telegram.fallback_continue", { lang: resolveLang(self.globalConfig) });
     }
 
     stopTyping();

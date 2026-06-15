@@ -10,15 +10,44 @@ export default {
     return { ok: true, soft: true };
   },
 
-  async chat({ system, messages, model = "mock" }) {
+  async chat({ system, messages, model = "mock", tools }) {
     const last = [...messages].reverse().find((m) => m.role === "user");
     const userText = last?.content || "";
+    // Mirror real engines: tool calls are only possible when the caller offers
+    // tools. The loop withholds them on its tool-free wrap-up step, and we must
+    // honor that here — otherwise the mock would keep "calling" tools the model
+    // can't actually reach.
+    const toolsAvailable = Array.isArray(tools) && tools.length > 0;
     const requestedTool = userText.match(/\[mock:tool:([a-z_]+)\]/)?.[1];
+    const loopTool = userText.match(/\[mock:loop:([a-z_]+)\]/)?.[1];
     const finishSummary = userText.match(/\[mock:finish:([^\]]*)\]/)?.[1];
     const hasToolResult = messages.some((m) => m.role === "tool");
+    // `[mock:empty]` → a dud turn (no text, no tools) to exercise the loop's
+    // empty-retry / never-end-silent guard.
+    if (/\[mock:empty\]/.test(userText)) {
+      return {
+        text: "",
+        usage: { input_tokens: userText.length, output_tokens: 0 },
+        raw: { model, mock: true },
+      };
+    }
+    const mkToolCall = (name, id) => {
+      const toolCall = {
+        id,
+        type: "function",
+        function: { name, arguments: "{}" },
+      };
+      return {
+        text: "",
+        tool_calls: [toolCall],
+        message: { tool_calls: [toolCall] },
+        usage: { input_tokens: userText.length, output_tokens: 4 },
+        raw: { model, mock: true },
+      };
+    };
     // Completion-contract path: once a tool has run, emit a `finish` call with
     // the requested summary so tests can exercise the loop's graceful exit.
-    if (finishSummary != null && hasToolResult) {
+    if (finishSummary != null && hasToolResult && toolsAvailable) {
       const toolCall = {
         id: "mock-finish-1",
         type: "function",
@@ -32,19 +61,13 @@ export default {
         raw: { model, mock: true },
       };
     }
-    if (requestedTool && !hasToolResult) {
-      const toolCall = {
-        id: "mock-call-1",
-        type: "function",
-        function: { name: requestedTool, arguments: "{}" },
-      };
-      return {
-        text: "",
-        tool_calls: [toolCall],
-        message: { tool_calls: [toolCall] },
-        usage: { input_tokens: userText.length, output_tokens: 4 },
-        raw: { model, mock: true },
-      };
+    // `[mock:loop:<tool>]` → re-fire the tool every step it's offered, modeling
+    // a model that never stops on its own (drives the loop to its cap).
+    if (loopTool && toolsAvailable) {
+      return mkToolCall(loopTool, "mock-loop-1");
+    }
+    if (requestedTool && !hasToolResult && toolsAvailable) {
+      return mkToolCall(requestedTool, "mock-call-1");
     }
 
     const sysHint = system ? ` (system: ${system.slice(0, 40)}…)` : "";

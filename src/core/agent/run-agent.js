@@ -84,6 +84,21 @@ export const FINISH_TOOL_SCHEMA = {
   },
 };
 
+// Behavioral nudge appended to the system prompt for the ONE tool-free wrap-up
+// step at the end of a turn (see the loop's `isFinalWrapUp`). This shapes
+// BEHAVIOR only — it never dictates wording or supplies a canned/templated
+// sentence. The reply the user sees is 100% model-authored and varies with
+// what the model actually did this turn. We do NOT mention any "tool limit":
+// the model just speaks from where it is. Critically it must not claim work it
+// didn't do (weak models otherwise fabricate "all done").
+const WRAPUP_NUDGE =
+  "\n\n[Internal note — last step of this turn. No more tools will run now. " +
+  "Reply in plain prose, in the user's language, from your own context: briefly " +
+  "say what you actually accomplished so far (check the tool results above — do " +
+  "NOT claim anything you didn't do), and if work is still pending, name what's " +
+  "left and ask the user whether you should continue. Do not mention limits, " +
+  "steps, or iterations — just talk naturally.]";
+
 /**
  * Shared tool-calling agent loop used by super-agent and future surfaces.
  */
@@ -222,6 +237,12 @@ export async function runAgent({
   };
   let usePseudoTools = false;
   let ackOnlyStreak = 0;
+  // "Never end on silence": a model call that returns no tool calls AND no
+  // usable text is a dud (weak models do this). We re-prompt instead of ending
+  // the turn empty, and the retry does NOT consume an iteration of the tool
+  // budget. Bounded so a model that only ever returns empty can't spin forever.
+  let emptyRetries = 0;
+  const MAX_EMPTY_RETRIES = 2;
   // Side-effect dedupe. Weaker models (Gemini especially) sometimes
   // re-emit the SAME tool call across iterations — e.g. send_telegram
   // three times with identical args, spamming the user. For tools
@@ -276,25 +297,44 @@ export async function runAgent({
   for (let iter = 0; iter < maxIters; iter++) {
     // Merge any tools activated via discover_tools on the previous iteration.
     drainPendingTools();
-    await emitProgress(onEvent, { type: "model_start", iteration: iter + 1, model: activeModel });
+    // Final iteration of a non-contract turn: the model is out of action steps.
+    // Rather than cut off silently mid-tool-call, we run ONE tool-free step so
+    // the model writes a natural closing in its OWN words — what it did, what's
+    // left, and (if anything remains) whether to continue. We change only the
+    // STRUCTURE (no tools this step) + a behavioral nudge; the wording is
+    // entirely the model's. Coding surfaces keep their finish-tool flow, so
+    // this never applies under completionContract.
+    const isFinalWrapUp =
+      !useContract && effectiveSchemas.length > 0 && iter === maxIters - 1;
+    await emitProgress(onEvent, {
+      type: isFinalWrapUp ? "final_wrapup" : "model_start",
+      iteration: iter + 1,
+      model: activeModel,
+    });
     const forceTool =
+      !isFinalWrapUp &&
       effectiveSchemas.length > 0 &&
       (useContract ||
         (ackOnlyStreak > 0 && ackOnlyStreak <= MAX_CONSECUTIVE_ACKS));
+    const baseSystem = usePseudoTools
+      ? pseudoToolSystem(system, effectiveSchemas)
+      : system;
     let result;
     try {
       result = await tryCallEngine({
-        system: usePseudoTools ? pseudoToolSystem(system, effectiveSchemas) : system,
+        system: isFinalWrapUp ? baseSystem + WRAPUP_NUDGE : baseSystem,
         messages: conversation,
         config: globalConfig,
-        tools: usePseudoTools ? null : effectiveSchemas,
-        toolChoice: usePseudoTools ? null : (forceTool ? "required" : "auto"),
+        // On the wrap-up step we withhold tools entirely so the model must
+        // answer in prose — same as a real engine called with tools omitted.
+        tools: (usePseudoTools || isFinalWrapUp) ? null : effectiveSchemas,
+        toolChoice: (usePseudoTools || isFinalWrapUp) ? null : (forceTool ? "required" : "auto"),
         // Smaller cap by default: 1024 ate too much of the cheap-tier TPM
         // budget. The super-agent rarely emits long replies; tool args are
         // small. Summarization callers raise it via the maxTokens arg.
         maxTokens,
         signal,
-        onToken: (!forceTool && onToken) ? onToken : null,
+        onToken: ((!forceTool || isFinalWrapUp) && onToken) ? onToken : null,
       });
     } catch (e) {
       if (usePseudoTools && /^ollama:/i.test(String(activeModel || "")) && /ollama\s+500/i.test(String(e?.message || "")) && trace.length > 0) {
@@ -333,6 +373,17 @@ export async function runAgent({
 
     if (!toolCalls || toolCalls.length === 0) {
       lastText = cleanTextOfPseudoToolCalls(lastText) || lastText;
+      // Dud turn (no tools, no text): re-prompt instead of ending empty, and
+      // don't let it cost an iteration of the tool budget. `iter -= 1` cancels
+      // the loop's `iter++`; the emptyRetries cap stops an all-empty model from
+      // looping forever (after which we break and the surface's last-resort
+      // floor sends a non-silent reply).
+      if (!String(lastText).trim() && emptyRetries < MAX_EMPTY_RETRIES) {
+        emptyRetries += 1;
+        await emitProgress(onEvent, { type: "empty_retry", iteration: iter + 1, attempt: emptyRetries });
+        iter -= 1;
+        continue;
+      }
       break;
     }
 

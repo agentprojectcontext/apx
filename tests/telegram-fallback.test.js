@@ -43,6 +43,25 @@ test("telegram: super-agent catch surfaces a reply on non-abort errors", () => {
   );
 });
 
+test("telegram: empty final text never ends the turn silently", () => {
+  // The final-send floor must cover EVERY empty-final case, not just
+  // streamedCount === 0. A turn that streamed prose / acted but produced no
+  // closing (e.g. the loop hit its cap) must still send something — a neutral
+  // "continue?" that does not claim completion.
+  const floor = SRC.match(/}\s*else if \(!finalClean\) \{[\s\S]{0,1200}?\n {4}\}/);
+  assert.ok(floor, "final-send must have an `else if (!finalClean)` floor branch");
+  assert.match(
+    floor[0],
+    /telegram\.fallback_continue/,
+    "a cut-off turn that streamed/acted gets the neutral continue prompt",
+  );
+  assert.match(
+    floor[0],
+    /telegram\.fallback_listo/,
+    "a pure chit-chat turn (nothing streamed) still gets the short ack",
+  );
+});
+
 test("telegram: aborted requests still short-circuit silently", () => {
   // The abort path must remain a silent return — interrupting the user's own
   // request shouldn't generate a "could not reply" message. We assert the
