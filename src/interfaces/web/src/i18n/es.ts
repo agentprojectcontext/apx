@@ -72,6 +72,10 @@ export const es = {
     settings:     "Settings",
     project:      "Proyecto",
     add_project:  "Agregar proyecto",
+    all_projects:      "Todos los proyectos",
+    more_projects:     "{count} más",
+    collapse_projects: "Ocultar proyectos",
+    expand_projects:   "Mostrar proyectos",
     modules: {
       voice:   "Voces",
       desktop: "Escritorio",
