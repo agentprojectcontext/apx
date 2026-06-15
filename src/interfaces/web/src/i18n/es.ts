@@ -129,6 +129,7 @@ export const es = {
     path_required: "Ruta requerida.",
     registered:  "Proyecto #{id} registrado.",
     search_btn:  "Buscar",
+    picker_prompt: "Elegí la carpeta del proyecto",
     browser_unavailable: "Explorador no disponible hasta reiniciar daemon. Pegá ruta manual.",
     no_folders:  "Sin carpetas.",
   },
@@ -439,8 +440,8 @@ export const es = {
 
     agents: {
       title:       "Agents",
-      subtitle:    "Definidos en AGENTS.md + .apc/agents/<slug>.md.",
-      subtitle_full: "Definidos en AGENTS.md + .apc/agents/<slug>.md. La memoria runtime vive en ~/.apx/projects/<id>/agents/<slug>/.",
+      subtitle:    "Definidos en .apc/agents/<slug>.md.",
+      subtitle_full: "Definidos en .apc/agents/<slug>.md. La memoria runtime vive en ~/.apx/projects/<id>/agents/<slug>/.",
       empty:       "Sin agents. Agregá uno con <code>apx agent add</code> o el botón.",
       empty_text:  "Sin agents. Agregá uno con `apx agent add` o el botón de arriba.",
       new:         "Agente",
