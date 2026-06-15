@@ -3,6 +3,7 @@ import { RefreshCw } from "lucide-react";
 import { Deck } from "../../lib/api/deck";
 import { Section } from "../../components/Section";
 import { Button, Empty, Loading } from "../../components/ui";
+import { Tip } from "../../components/ui/tip";
 import { useToast } from "../../components/Toast";
 import { DaemonCard } from "../../components/deck/DaemonCard";
 import { DesktopGroup } from "../../components/deck/DesktopGroup";
@@ -91,9 +92,11 @@ export function DeckScreen() {
             : t("modules_ui.deck_widgets_summary", { count: widgets.length, enabled: enabledCount })
         }
         action={
-          <Button size="sm" variant="ghost" onClick={() => mutate()} disabled={isLoading} title={t("deck_screen.reload_manifest")} aria-label={t("deck_screen.reload_manifest")}>
-            <RefreshCw size={14} className={isLoading ? "animate-spin" : ""} />
-          </Button>
+          <Tip content={t("deck_screen.reload_manifest")}>
+            <Button size="sm" variant="ghost" onClick={() => mutate()} disabled={isLoading} aria-label={t("deck_screen.reload_manifest")}>
+              <RefreshCw size={14} className={isLoading ? "animate-spin" : ""} />
+            </Button>
+          </Tip>
         }
       >
         {isLoading && <Loading label={t("modules_ui.deck_loading_manifest_full")} />}

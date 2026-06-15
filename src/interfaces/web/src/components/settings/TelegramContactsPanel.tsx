@@ -4,6 +4,7 @@
 
 import { Section } from "../Section";
 import { Badge, Button, Empty, Loading, Select } from "../ui";
+import { Tip } from "../ui/tip";
 import { useToast } from "../Toast";
 import { useTelegramContacts } from "../../hooks/useTelegram";
 import { Telegram } from "../../lib/api";
@@ -58,14 +59,15 @@ export function TelegramContactsPanel({ bare = false }: Props) {
                     {isOwner && <Badge tone="success">{t("telegram_contacts.owner_badge")}</Badge>}
                   </div>
                   <div className="flex items-center gap-2">
-                    <Select
-                      value={effectiveRole}
-                      disabled={isOwner}
-                      onChange={(e) => setRole(c, e.target.value)}
-                      title={isOwner ? t("telegram_contacts.owner_hint") : t("telegram_contacts.assign_role")}
-                    >
-                      {roleNames.map((r) => <option key={r} value={r}>{r}</option>)}
-                    </Select>
+                    <Tip content={isOwner ? t("telegram_contacts.owner_hint") : t("telegram_contacts.assign_role")}>
+                      <Select
+                        value={effectiveRole}
+                        disabled={isOwner}
+                        onChange={(e) => setRole(c, e.target.value)}
+                      >
+                        {roleNames.map((r) => <option key={r} value={r}>{r}</option>)}
+                      </Select>
+                    </Tip>
                     <Button size="sm" variant="destructive" onClick={() => remove(c)}>{t("common.delete")}</Button>
                   </div>
                 </div>

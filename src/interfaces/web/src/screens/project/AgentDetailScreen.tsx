@@ -9,6 +9,7 @@ import { Agents, Conversations, Messages, Routines, Tasks, Tools } from "../../l
 import type { AgentDetail, AgentEntry, MessageEntry, RoutineEntry } from "../../types/daemon";
 import { Section } from "../../components/Section";
 import { Badge, Button, Field, Input, Loading, Switch, Textarea } from "../../components/ui";
+import { Tip } from "../../components/ui/tip";
 import { UiSelect } from "../../components/UiSelect";
 import { useToast } from "../../components/Toast";
 import { cn } from "../../lib/cn";
@@ -405,11 +406,13 @@ function ToolsPicker({ value, onChange }: { value: string; onChange: (v: string)
         {catalog.map((tool) => {
           const on = selected.includes(tool.name);
           return (
-            <button key={tool.name} type="button" title={tool.description || tool.name} onClick={() => toggle(tool.name)}
-              className={cn("rounded-md border px-2 py-0.5 font-mono text-[11px] transition-colors",
-                on ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-400" : "border-border text-muted-fg hover:text-foreground")}>
-              {tool.name}
-            </button>
+            <Tip key={tool.name} content={tool.description || tool.name}>
+              <button type="button" onClick={() => toggle(tool.name)}
+                className={cn("rounded-md border px-2 py-0.5 font-mono text-[11px] transition-colors",
+                  on ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-400" : "border-border text-muted-fg hover:text-foreground")}>
+                {tool.name}
+              </button>
+            </Tip>
           );
         })}
         {custom.map((s) => (

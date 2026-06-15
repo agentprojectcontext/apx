@@ -296,7 +296,9 @@ export async function runRoutineNow(ctx, routine) {
           ...routine,
           spec: {
             ...routine.spec,
+            // {{pre_output}} works in both the LLM prompt and the telegram text.
             prompt: injectPreOutput(routine.spec?.prompt, preStdout),
+            text: injectPreOutput(routine.spec?.text, preStdout),
           },
         }
       : routine;

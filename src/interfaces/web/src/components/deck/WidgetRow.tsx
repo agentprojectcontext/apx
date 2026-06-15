@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Badge, Switch } from "../ui";
+import { Tip } from "../ui/tip";
 import { cn } from "../../lib/cn";
 import type { DeckWidget } from "../../lib/api/deck";
 import { t } from "../../i18n";
@@ -63,13 +64,14 @@ export function WidgetRow({ widget, onToggle }: WidgetRowProps) {
       )}
     >
       {/* Source dot */}
-      <span
-        title={widget.source === "apx" ? t("deck_screen.widget_native") : t("deck_screen.widget_external")}
-        className={cn(
-          "size-2 shrink-0 rounded-full",
-          widget.source === "apx" ? "bg-emerald-500" : "bg-sky-400"
-        )}
-      />
+      <Tip content={widget.source === "apx" ? t("deck_screen.widget_native") : t("deck_screen.widget_external")}>
+        <span
+          className={cn(
+            "size-2 shrink-0 rounded-full",
+            widget.source === "apx" ? "bg-emerald-500" : "bg-sky-400"
+          )}
+        />
+      </Tip>
 
       {/* Title + desktop */}
       <div className="min-w-0 flex-1">

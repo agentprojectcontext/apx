@@ -120,6 +120,11 @@
   * {
     @apply border-border outline-ring/50;
   }
+  /* Tailwind v4 Preflight resets buttons to cursor:default — restore the hand. */
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
 }
 
 /* Subtle scrollbar that doesn't fight the dark theme. */

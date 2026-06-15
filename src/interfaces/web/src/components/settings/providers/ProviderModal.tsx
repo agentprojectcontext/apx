@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Braces, Loader2, RefreshCw } from "lucide-react";
 import { Button, Dialog, Field, Input, Switch, Textarea } from "../../ui";
+import { Tip } from "../../ui/tip";
 import { UiSelect } from "../../UiSelect";
 import { ModelCombobox } from "../../ModelCombobox";
 import { Engines } from "../../../lib/api";
@@ -363,10 +364,12 @@ export function ProviderModal({ open, initial, existingSlugs, onClose, onSave }:
                     options={modelOptions}
                     className="flex-1"
                   />
-                  <Button size="sm" variant="secondary" onClick={loadModels} disabled={loadingModels} title={t("providers_modal.list_models_hint")} aria-label={t("providers_modal.list_models_hint")}>
-                    {loadingModels ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
-                    {t("providers_modal.load_models")}
-                  </Button>
+                  <Tip content={t("providers_modal.list_models_hint")}>
+                    <Button size="sm" variant="secondary" onClick={loadModels} disabled={loadingModels} aria-label={t("providers_modal.list_models_hint")}>
+                      {loadingModels ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
+                      {t("providers_modal.load_models")}
+                    </Button>
+                  </Tip>
                 </div>
                 {modelError && <p className="text-[11px] text-amber-400">{modelError}</p>}
               </div>
