@@ -41,7 +41,6 @@
     "prepack": "node scripts/sync-apc-skill.js && node scripts/build-web.js",
     "postinstall": "node src/interfaces/cli/postinstall.js"
   },
-  "packageManager": "pnpm@10.25.0",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@opentui/core": "^0.2.16",
