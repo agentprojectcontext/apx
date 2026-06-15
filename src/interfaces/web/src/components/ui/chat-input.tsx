@@ -5,6 +5,7 @@ import { ArrowUp, Square } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { Tip } from "./tip"
 import { t } from "@/i18n"
 
 interface ChatInputProps {
@@ -105,28 +106,30 @@ export function ChatInput({
           {footer}
         </div>
         {busy && onStop ? (
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="destructive"
-            onClick={onStop}
-            aria-label={t("chat_ui.stop")}
-            title={t("chat_ui.stop")}
-          >
-            <Square className="size-3.5" fill="currentColor" />
-          </Button>
+          <Tip content={t("chat_ui.stop")}>
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="destructive"
+              onClick={onStop}
+              aria-label={t("chat_ui.stop")}
+            >
+              <Square className="size-3.5" fill="currentColor" />
+            </Button>
+          </Tip>
         ) : (
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="default"
-            onClick={onSubmit}
-            disabled={!canSend}
-            aria-label={t("chat_ui.send")}
-            title={t("chat_ui.send")}
-          >
-            <ArrowUp className="size-4" />
-          </Button>
+          <Tip content={t("chat_ui.send")}>
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="default"
+              onClick={onSubmit}
+              disabled={!canSend}
+              aria-label={t("chat_ui.send")}
+            >
+              <ArrowUp className="size-4" />
+            </Button>
+          </Tip>
         )}
       </div>
     </div>

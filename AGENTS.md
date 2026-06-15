@@ -38,6 +38,15 @@
 - **MCP scopes** (`core/mcp/`): `runtime` (`~/.apx/projects/<id>/mcps.json`, secrets, chmod 600, never committed) ▶ `apc` (`.apc/mcps.json`, committed, no secrets) ▶ `global` (`~/.apx/mcps.json`). First-by-name wins; secrets go to runtime only.
 - **Telegram identity** (`plugins/telegram.js`): global roster keyed by `user_id`, roles owner/contact/guest — unknown senders are guests with no tools. `telegram.channels[]` is canonical; root `bot_token`/`chat_id` are legacy fallbacks.
 
+## Web UI (`src/interfaces/web`, React 19 + Vite + Tailwind v4)
+
+- **Run/verify**: `pnpm dev` (port 7431, proxies daemon 7430) hot-reloads; `pnpm build` regenerates `dist/`, which the daemon serves. Verify with `npx tsc --noEmit` — `vite build` does NOT type-check.
+- **i18n is es-typed**: `t()` keys derive from `i18n/es.ts` (`TKey = DeepKeys<EsStrings>`). Add every key to BOTH `es.ts` and `en.ts` or `tsc` fails.
+- **Tooltips**: wrap the element in `<Tip content={…}>` (`components/ui/tip`), never native `title`. Provider is global in `App.tsx` (delay 0). Leave `<img alt>` alone — that's a11y, not a tooltip.
+- **Confirm/delete**: reuse the shared `<Dialog>` (`components/ui`) with a Cancel + destructive footer (see `ConfigTab`, `RoutinesTab`). Don't use native `confirm()` or hand-roll a modal.
+- **Componentize screens**: thin screen in `screens/`, its own parts under `components/<feature>/` (e.g. `components/routines/`, `components/code/`).
+- **Full-height tabs**: `TabLayout` content is `flex-1 min-h-0 overflow-y-auto`, so use `h-full` + per-pane `overflow-y-auto` (see `ChatTab`, `RoutinesTab`).
+
 ## Super-agent prompt & channels
 
 Assembled by `buildSuperAgentSystem()` (`prompt-builder.js`), run by `runAgent()` (`run-agent.js`), driven by `runSuperAgent()` (`host/daemon/super-agent.js`). Block order (each dropped when empty): base → user/identity → memory (broker `[RELEVANT MEMORY]` or notebook) → active threads → relationship → channel block + contextNote → projects index → **project AGENTS.md** → skills (hint or inspector) → lazy-tools hint → **voice mode** → suffix. Format directives sit LAST for recency.

@@ -4,6 +4,7 @@ import { ToolCall } from "./ToolCall";
 import { AskQuestionsCard } from "./AskQuestionsCard";
 import { AskAnswersCard, parseAskAnswerText } from "./AskAnswersCard";
 import { textOf, type ChatMsg } from "../../hooks/useChat";
+import { Tip } from "../ui/tip";
 import { t } from "../../i18n";
 
 interface Props {
@@ -51,22 +52,23 @@ export function MessageBubble({ msg, isLast, isAskAnswer, onCopy }: Props) {
 
         {/* Skill Inspector: which skills the per-turn RAG injected for this turn. */}
         {!mine && msg.inspector && (msg.inspector.loaded?.length || msg.inspector.hinted?.length) ? (
-          <div
-            className="flex flex-wrap items-center gap-1 text-[10px] text-sky-400/90"
-            title={t("shared_ui.skill_inspector_title", { embedder: msg.inspector.embedder || "RAG" })}
-          >
-            <Sparkles size={10} />
-            {msg.inspector.loaded?.map((s) => (
-              <span key={`l-${s}`} className="rounded bg-sky-500/15 px-1 py-0.5 font-mono">
-                {s}
-              </span>
-            ))}
-            {msg.inspector.hinted?.map((s) => (
-              <span key={`h-${s}`} className="rounded border border-sky-500/30 px-1 py-0.5 font-mono opacity-70">
-                {s}?
-              </span>
-            ))}
-          </div>
+          <Tip content={t("shared_ui.skill_inspector_title", { embedder: msg.inspector.embedder || "RAG" })}>
+            <div
+              className="flex flex-wrap items-center gap-1 text-[10px] text-sky-400/90"
+            >
+              <Sparkles size={10} />
+              {msg.inspector.loaded?.map((s) => (
+                <span key={`l-${s}`} className="rounded bg-sky-500/15 px-1 py-0.5 font-mono">
+                  {s}
+                </span>
+              ))}
+              {msg.inspector.hinted?.map((s) => (
+                <span key={`h-${s}`} className="rounded border border-sky-500/30 px-1 py-0.5 font-mono opacity-70">
+                  {s}?
+                </span>
+              ))}
+            </div>
+          </Tip>
         ) : null}
 
         {/* Ordered parts: interleaved assistant text + tool calls. */}
@@ -110,15 +112,16 @@ export function MessageBubble({ msg, isLast, isAskAnswer, onCopy }: Props) {
             <span>· {t("shared_ui.tools_count", { n: msg.parts.filter((p) => p.kind === "tool").length })}</span>
           )}
           {onCopy && copyText && (
-            <button
-              type="button"
-              onClick={() => onCopy(copyText)}
-              className="inline-flex items-center gap-1 hover:text-foreground"
-              title={t("chat_ui.copy")}
-              aria-label={t("chat_ui.copy")}
-            >
-              <Copy size={10} /> {t("chat_ui.copy")}
-            </button>
+            <Tip content={t("chat_ui.copy")}>
+              <button
+                type="button"
+                onClick={() => onCopy(copyText)}
+                className="inline-flex items-center gap-1 hover:text-foreground"
+                aria-label={t("chat_ui.copy")}
+              >
+                <Copy size={10} /> {t("chat_ui.copy")}
+              </button>
+            </Tip>
           )}
         </div>
       </div>

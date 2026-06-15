@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Plus, Send } from "lucide-react";
 import { Section, StatusDot } from "../components/Section";
 import { Badge, Button, Empty, Loading, Switch } from "../components/ui";
+import { Tip } from "../components/ui/tip";
 import { Admin, Projects, Telegram } from "../lib/api";
 import { useToast } from "../components/Toast";
 import { useDaemonStatus } from "../hooks/useDaemonStatus";
@@ -57,7 +58,9 @@ export function ApxAdminScreen() {
           <p className="text-sm text-muted-fg">{t("admin.subtitle")}</p>
         </div>
         <div className="flex gap-2">
-          <Button size="sm" onClick={reload} title={t("daemon.reload_hint")}>{t("common.reload")} config</Button>
+          <Tip content={t("daemon.reload_hint")}>
+            <Button size="sm" onClick={reload}>{t("common.reload")} config</Button>
+          </Tip>
           <Button size="sm" variant="primary" onClick={() => navigate("/?action=add-project")}>
             <Plus size={14} /> {t("nav.project")}
           </Button>

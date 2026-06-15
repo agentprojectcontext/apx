@@ -8,6 +8,7 @@ import {
 } from "react";
 import { Plus } from "lucide-react";
 import { cn } from "../../lib/cn";
+import { Tip } from "../ui/tip";
 import { t } from "../../i18n";
 
 // VarTokenInput
@@ -285,25 +286,26 @@ export const VarTokenInput = forwardRef<VarTokenInputHandle, VarTokenInputProps>
           )}
         </div>
         <div className="relative flex">
-          <button
-            type="button"
-            // onMouseDown prevents the editor from blurring before we capture
-            // the saved range — that's what kept the caret jumping to start.
-            onMouseDown={(e) => {
-              e.preventDefault();
-              saveSelection();
-            }}
-            onClick={() => setPickerOpen((v) => !v)}
-            aria-label={t("chat_ui.insert_variable")}
-            title={t("chat_ui.insert_variable")}
-            className={cn(
-              "flex items-center justify-center px-2 min-w-8 border-l border-input text-muted-foreground rounded-r-lg",
-              "hover:bg-muted/60 hover:text-foreground transition-colors",
-              pickerOpen && "bg-muted/60 text-foreground",
-            )}
-          >
-            <Plus size={14} />
-          </button>
+          <Tip content={t("chat_ui.insert_variable")}>
+            <button
+              type="button"
+              // onMouseDown prevents the editor from blurring before we capture
+              // the saved range — that's what kept the caret jumping to start.
+              onMouseDown={(e) => {
+                e.preventDefault();
+                saveSelection();
+              }}
+              onClick={() => setPickerOpen((v) => !v)}
+              aria-label={t("chat_ui.insert_variable")}
+              className={cn(
+                "flex items-center justify-center px-2 min-w-8 border-l border-input text-muted-foreground rounded-r-lg",
+                "hover:bg-muted/60 hover:text-foreground transition-colors",
+                pickerOpen && "bg-muted/60 text-foreground",
+              )}
+            >
+              <Plus size={14} />
+            </button>
+          </Tip>
           {pickerOpen && (
             <VarPickerPopover
               query={pickerQuery}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Copy } from "lucide-react";
 import { Dialog, Button, Spinner } from "../ui";
+import { Tip } from "../ui/tip";
 import { Qr } from "../common/Qr";
 import { useToast } from "../Toast";
 import { Pair, HttpError } from "../../lib/api";
@@ -138,14 +139,15 @@ export function PairDeviceDialog({
                     <code className="min-w-0 flex-1 break-all rounded-md bg-muted px-3 py-2 text-xs">
                       {scanUrl}
                     </code>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => copy(scanUrl, t("settings.devices_pair_copied"))}
-                      title={t("settings.devices_pair_copy")}
-                    >
-                      <Copy size={14} />
-                    </Button>
+                    <Tip content={t("settings.devices_pair_copy")}>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => copy(scanUrl, t("settings.devices_pair_copied"))}
+                      >
+                        <Copy size={14} />
+                      </Button>
+                    </Tip>
                   </div>
                 </div>
 
@@ -155,14 +157,15 @@ export function PairDeviceDialog({
                     <code className="min-w-0 flex-1 break-all rounded-md bg-muted px-3 py-2 text-center text-sm">
                       {init.pairing_id}
                     </code>
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() => copy(init.pairing_id, t("settings.devices_pair_copied_code"))}
-                      title={t("settings.devices_pair_copy")}
-                    >
-                      <Copy size={14} />
-                    </Button>
+                    <Tip content={t("settings.devices_pair_copy")}>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => copy(init.pairing_id, t("settings.devices_pair_copied_code"))}
+                      >
+                        <Copy size={14} />
+                      </Button>
+                    </Tip>
                   </div>
                 </div>
               </div>

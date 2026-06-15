@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Server, ChevronDown, X, Check } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { Engines } from "../../lib/api";
+import { Tip } from "../ui/tip";
 import { t } from "../../i18n";
 
 // Compact model picker for the chat composer (the panda.project pattern): a
@@ -70,23 +71,24 @@ export function ModelPicker({
 
   return (
     <div ref={wrapRef} className="relative">
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={() => setOpen((v) => !v)}
-        data-testid="chat-model-picker"
-        className={cn(
-          "flex max-w-[200px] items-center gap-1 rounded-md border border-transparent px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors",
-          "hover:bg-accent/60 hover:text-foreground",
-          value && "text-foreground",
-        )}
-        title={t("chat_ui.pick_model")}
-        aria-label={t("chat_ui.pick_model")}
-      >
-        <Server className="size-3 shrink-0" />
-        <span className="truncate font-mono">{label}</span>
-        <ChevronDown className="size-3 shrink-0 opacity-60" />
-      </button>
+      <Tip content={t("chat_ui.pick_model")}>
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => setOpen((v) => !v)}
+          data-testid="chat-model-picker"
+          className={cn(
+            "flex max-w-[200px] items-center gap-1 rounded-md border border-transparent px-1.5 py-0.5 text-[11px] text-muted-foreground transition-colors",
+            "hover:bg-accent/60 hover:text-foreground",
+            value && "text-foreground",
+          )}
+          aria-label={t("chat_ui.pick_model")}
+        >
+          <Server className="size-3 shrink-0" />
+          <span className="truncate font-mono">{label}</span>
+          <ChevronDown className="size-3 shrink-0 opacity-60" />
+        </button>
+      </Tip>
 
       {open && (
         <div className="absolute bottom-full left-0 z-50 mb-1.5 w-64 rounded-lg border border-border bg-popover p-1.5 shadow-md ring-1 ring-foreground/10">

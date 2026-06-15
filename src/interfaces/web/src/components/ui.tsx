@@ -12,6 +12,10 @@ import { Switch as SSwitch } from "./ui/switch";
 import { Spinner as SSpinner } from "./ui/spinner";
 import { Dialog as DialogRoot, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "./ui/dialog";
 
+// Re-export the tooltip convenience wrapper so call sites can grab it from the
+// same barrel as Button/Field/etc.: `import { Button, Tip } from "../ui"`.
+export { Tip } from "./ui/tip";
+
 // ── Button ──────────────────────────────────────────────────────────────────
 type Variant = "primary" | "secondary" | "ghost" | "destructive";
 type Size = "sm" | "md";

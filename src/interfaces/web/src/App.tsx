@@ -15,6 +15,7 @@ import { RobyBubble } from "./components/RobyBubble";
 import { Roby, RobyEmpty, type RobyMood } from "./components/Roby";
 import { ToastProvider } from "./components/Toast";
 import { Button } from "./components/ui/button";
+import { Tip } from "./components/ui/tip";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { useTheme } from "./hooks/useTheme";
 import { useProjects } from "./hooks/useProjects";
@@ -51,7 +52,7 @@ export function App() {
 
   return (
     <ToastProvider>
-      <TooltipProvider delay={300}>
+      <TooltipProvider delay={0}>
         <Shell />
       </TooltipProvider>
     </ToastProvider>
@@ -151,15 +152,16 @@ function TopBar({
       </span>
       {pageActions}
       <LanguageMenu />
-      <button
-        type="button"
-        data-testid="theme-toggle"
-        onClick={onToggleTheme}
-        title={isDark ? t("topbar.light") : t("topbar.dark")}
-        className="shrink-0 rounded-md p-1.5 text-muted-fg hover:bg-accent hover:text-accent-fg"
-      >
-        {isDark ? <Sun size={14} /> : <Moon size={14} />}
-      </button>
+      <Tip content={isDark ? t("topbar.light") : t("topbar.dark")}>
+        <button
+          type="button"
+          data-testid="theme-toggle"
+          onClick={onToggleTheme}
+          className="shrink-0 rounded-md p-1.5 text-muted-fg hover:bg-accent hover:text-accent-fg"
+        >
+          {isDark ? <Sun size={14} /> : <Moon size={14} />}
+        </button>
+      </Tip>
     </header>
   );
 }

@@ -7,6 +7,7 @@ import { Mcps, Vars, type McpAddBody, type McpScope, type McpTestResult, type Mc
 import type { McpEntry } from "../../types/daemon";
 import { Section } from "../../components/Section";
 import { Badge, Button, Dialog, Empty, Field, Input, Loading, Switch } from "../../components/ui";
+import { Tip } from "../../components/ui/tip";
 import { UiSelect } from "../../components/UiSelect";
 import { VarTokenInput } from "../../components/inputs/VarTokenInput";
 import { KeyValueList, recordFromRows, rowsFromRecord, type KvRow } from "../../components/inputs/KeyValueList";
@@ -122,16 +123,22 @@ export function McpsTab({ pid }: { pid: string }) {
                         label=""
                       />
                     </div>
-                    <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); runTest(m.name); }} aria-label={t("project.mcps.test_btn")} title={t("project.mcps.test_btn")}>
-                      <FlaskConical size={13} />
-                    </Button>
-                    <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setActiveMcp(m.name); }} aria-label={t("project.mcps.logs_btn")} title={t("project.mcps.logs_btn")}>
-                      <ScrollText size={13} />
-                    </Button>
-                    {writable && (
-                      <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setDialog({ kind: "edit", entry: m }); }} aria-label={t("project.mcps.edit_btn")} title={t("project.mcps.edit_btn")}>
-                        <Pencil size={13} />
+                    <Tip content={t("project.mcps.test_btn")}>
+                      <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); runTest(m.name); }} aria-label={t("project.mcps.test_btn")}>
+                        <FlaskConical size={13} />
                       </Button>
+                    </Tip>
+                    <Tip content={t("project.mcps.logs_btn")}>
+                      <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setActiveMcp(m.name); }} aria-label={t("project.mcps.logs_btn")}>
+                        <ScrollText size={13} />
+                      </Button>
+                    </Tip>
+                    {writable && (
+                      <Tip content={t("project.mcps.edit_btn")}>
+                        <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setDialog({ kind: "edit", entry: m }); }} aria-label={t("project.mcps.edit_btn")}>
+                          <Pencil size={13} />
+                        </Button>
+                      </Tip>
                     )}
                     {writable && (
                       <Button size="sm" variant="destructive" onClick={(e) => { e.stopPropagation(); remove(m.name, scopeForRemove); }}>
