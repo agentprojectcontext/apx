@@ -34,12 +34,12 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # No `version:` here — it's read from package.json's "packageManager"
-      # field (pnpm@10.25.0). Pinning both makes action-setup@v4 error out.
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      # field (pnpm@10.25.0). Pinning both makes action-setup error out.
+      - uses: pnpm/action-setup@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22 # Astro 6 requires Node >=22.12.0
           cache: pnpm
@@ -67,11 +67,11 @@ jobs:
           mkdir -p _site/docs
           cp -R docs/dist/.             _site/docs/
 
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
         with:
           enablement: true
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
