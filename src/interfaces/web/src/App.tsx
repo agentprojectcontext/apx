@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Route, Routes, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { Moon, Sun } from "lucide-react";
+import { Languages, Moon, Sun } from "lucide-react";
 import { ProjectSidebar, projectKindLabel } from "./components/layout/ProjectSidebar";
 import { ApxAdminScreen } from "./screens/ApxAdminScreen";
 import { ProjectScreen } from "./screens/ProjectScreen";
@@ -21,7 +21,14 @@ import { useProjects } from "./hooks/useProjects";
 import { useTokenBootstrap } from "./hooks/useTokenBootstrap";
 import { NavCollapseProvider, useNavCollapseCtx, usePageActions, usePageLabel } from "./hooks/useNavCollapseCtx";
 import { NavToggle } from "./components/common/TabNav";
-import { t } from "./i18n";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "./components/ui/dropdown-menu";
+import { t, getLocale, setLocale, LOCALES, type Locale } from "./i18n";
 
 export function App() {
   const auth = useTokenBootstrap();
@@ -143,6 +150,7 @@ function TopBar({
         {subtitle && <span className="text-muted-fg/50"> · {subtitle}</span>}
       </span>
       {pageActions}
+      <LanguageMenu />
       <button
         type="button"
         data-testid="theme-toggle"
@@ -153,6 +161,37 @@ function TopBar({
         {isDark ? <Sun size={14} /> : <Moon size={14} />}
       </button>
     </header>
+  );
+}
+
+function LanguageMenu() {
+  const current = getLocale();
+  const change = (l: Locale) => {
+    if (l === current) return;
+    setLocale(l);
+    // Reload so every rendered string picks up the new locale — t() is not reactive.
+    window.location.reload();
+  };
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        data-testid="lang-menu"
+        title={t("topbar.lang_toggle")}
+        className="flex shrink-0 items-center gap-1 rounded-md p-1.5 text-muted-fg hover:bg-accent hover:text-accent-fg"
+      >
+        <Languages size={14} />
+        <span className="text-[11px] font-medium uppercase">{current}</span>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuRadioGroup value={current} onValueChange={(v) => change(v as Locale)}>
+          {LOCALES.map((lo) => (
+            <DropdownMenuRadioItem key={lo.value} value={lo.value}>
+              {lo.label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 

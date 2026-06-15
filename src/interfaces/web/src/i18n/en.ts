@@ -71,6 +71,10 @@ export const en = {
     settings:     "Settings",
     project:      "Project",
     add_project:  "Add project",
+    all_projects:      "All projects",
+    more_projects:     "{count} more",
+    collapse_projects: "Hide projects",
+    expand_projects:   "Show projects",
     modules: {
       voice:   "Voices",
       desktop: "Desktop",

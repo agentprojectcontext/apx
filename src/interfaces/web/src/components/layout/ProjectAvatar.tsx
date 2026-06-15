@@ -114,3 +114,11 @@ const TONE_ACTIVE: Record<ProjectTone, string> = {
 };
 function toneIdle(t: ProjectTone)   { return TONE_IDLE[t]; }
 function toneActive(t: ProjectTone) { return TONE_ACTIVE[t]; }
+
+/** Compact avatar tokens for list rows (overflow / collapsed menus). Reuses
+ *  the same initials + tone as the rail so a project reads identically in both
+ *  the rail and the popover. */
+export function projectTone(name: string): { initials: string; idleClass: string } {
+  const { initials } = computeInitialsAndSub(name);
+  return { initials, idleClass: TONE_IDLE[pickTone(name)] };
+}
