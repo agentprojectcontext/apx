@@ -1,3 +1,19 @@
+# [1.40.0](https://github.com/agentprojectcontext/apx/compare/v1.39.1...v1.40.0) (2026-06-15)
+
+
+### Bug Fixes
+
+* **i18n:** default fallback to English and drop unused backend keys ([72bad83](https://github.com/agentprojectcontext/apx/commit/72bad83246e1d46d3512d54400dc774f6af5167d))
+* **super-agent:** never end a turn silent — contextual wrap-up + resilient model fallback ([17cfb5f](https://github.com/agentprojectcontext/apx/commit/17cfb5f78ec9614bef147e6e272022a5b939d829))
+
+
+### Features
+
+* **web:** confirm dialog + loading feedback for routine Run ([6106341](https://github.com/agentprojectcontext/apx/commit/6106341ef85e985830e9001a0a4e186544f68eb7))
+* **web:** implement OS-native folder picker for project directory selection ([d6599e1](https://github.com/agentprojectcontext/apx/commit/d6599e18ce36740406e72b23a34e2f7c18c47e9e))
+* **web:** routines master-detail redesign + tooltip migration ([835ca85](https://github.com/agentprojectcontext/apx/commit/835ca859c78d886ebdaddcb6fa4a351bbafa1191))
+* **web:** run-flow detail panel + editor layout refinements ([e137777](https://github.com/agentprojectcontext/apx/commit/e137777d645091d9846c0ad76d312880fb6dd202))
+
 ## [1.39.1](https://github.com/agentprojectcontext/apx/compare/v1.39.0...v1.39.1) (2026-06-15)
 
 
