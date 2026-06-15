@@ -430,6 +430,9 @@ export const en = {
       toggle_error: "toggle failed",
       delete_error: "delete failed",
       run_success:  "{name} fired.",
+      run_confirm:  "Run routine {name} now?",
+      run_confirm_body: "Runs the action once, regardless of the schedule.",
+      running:      "Running…",
       delete_success: "deleted.",
     },
 

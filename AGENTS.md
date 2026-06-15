@@ -43,7 +43,7 @@
 - **Run/verify**: `pnpm dev` (port 7431, proxies daemon 7430) hot-reloads; `pnpm build` regenerates `dist/`, which the daemon serves. Verify with `npx tsc --noEmit` — `vite build` does NOT type-check.
 - **i18n is es-typed**: `t()` keys derive from `i18n/es.ts` (`TKey = DeepKeys<EsStrings>`). Add every key to BOTH `es.ts` and `en.ts` or `tsc` fails.
 - **Tooltips**: wrap the element in `<Tip content={…}>` (`components/ui/tip`), never native `title`. Provider is global in `App.tsx` (delay 0). Leave `<img alt>` alone — that's a11y, not a tooltip.
-- **Confirm/delete**: reuse the shared `<Dialog>` (`components/ui`) with a Cancel + destructive footer (see `ConfigTab`, `RoutinesTab`). Don't use native `confirm()` or hand-roll a modal.
+- **Confirm before acting**: any button that triggers an execution or a destructive change (Run, Delete, rebuild, …) opens a confirm `<Dialog>` (`components/ui`) with a Cancel + action footer (see `RoutinesTab`, `ConfigTab`). Never native `confirm()` or a hand-rolled modal. Show a loading state while the action runs (button `loading`, optimistic row) and revalidate the affected SWR keys after.
 - **Componentize screens**: thin screen in `screens/`, its own parts under `components/<feature>/` (e.g. `components/routines/`, `components/code/`).
 - **Full-height tabs**: `TabLayout` content is `flex-1 min-h-0 overflow-y-auto`, so use `h-full` + per-pane `overflow-y-auto` (see `ChatTab`, `RoutinesTab`).
 

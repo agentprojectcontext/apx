@@ -431,6 +431,9 @@ export const es = {
       toggle_error: "toggle falló",
       delete_error: "delete falló",
       run_success:  "{name} disparada.",
+      run_confirm:  "¿Ejecutar la rutina {name} ahora?",
+      run_confirm_body: "Corre la acción una vez, sin esperar al horario.",
+      running:      "Ejecutando…",
       delete_success: "borrada.",
     },
 
