@@ -1,3 +1,10 @@
+# [1.39.0](https://github.com/agentprojectcontext/apx/compare/v1.38.1...v1.39.0) (2026-06-15)
+
+
+### Features
+
+* add project rail overflow tests and implement language selection menu ([bb1850c](https://github.com/agentprojectcontext/apx/commit/bb1850c92ab82ce61f888846f5978597f1df5a59))
+
 ## [1.38.1](https://github.com/agentprojectcontext/apx/compare/v1.38.0...v1.38.1) (2026-06-14)
 
 
