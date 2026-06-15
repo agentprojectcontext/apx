@@ -5,9 +5,8 @@ sidebar:
   order: 4
 ---
 
-import { Aside } from '@astrojs/starlight/components';
+import { Aside, FileTree } from '@astrojs/starlight/components';
 import Screenshot from '../../../components/Screenshot.astro';
-import Terminal from '../../../components/Terminal.astro';
 
 APX is organized into **three top-level layers** under `src/`. The boundary between shared logic and
 transport is strict — it's what keeps adding a new engine, tool, or surface a one-place change.
@@ -36,27 +35,27 @@ Every surface a human or external client uses to talk to APX:
 - `web/` — the admin panel
 - `mcp-server/` — the `apx-mcp` binary
 
-<Terminal command="find src -maxdepth 2 -type d" caption="src/ tree — the core / host / interfaces layers">
-{`src
-src/core           # pure logic — no transports
-src/core/agent
-src/core/engines
-src/core/mcp
-src/core/memory
-src/core/routines
-src/core/runtimes
-src/core/voice
-src/host            # long-running processes
-src/host/daemon
-src/interfaces      # surfaces
-src/interfaces/cli
-src/interfaces/tui
-src/interfaces/desktop
-src/interfaces/web
-src/interfaces/mcp-server
-src/skills
-src/skills/apc-context`}
-</Terminal>
+<FileTree>
+- src/
+  - core/ pure logic — no transports, no Express, no Electron
+    - agent/
+    - engines/
+    - mcp/
+    - memory/
+    - routines/
+    - runtimes/
+    - voice/
+  - host/ long-running processes
+    - daemon/
+  - interfaces/ the surfaces
+    - cli/
+    - tui/
+    - desktop/
+    - web/
+    - mcp-server/
+  - skills/
+    - apc-context/
+</FileTree>
 
 ## The import rules
 

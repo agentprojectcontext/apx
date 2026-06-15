@@ -63,10 +63,10 @@ apx messages tail -n 100                       # increase the limit
 ```
 
 <Terminal command="apx messages tail" caption="apx messages tail — mensajes recientes con tipo, actor y contenido">
-{`2026-06-14 09:30:51  ← telegram  manuel: deploy the staging branch
+{`2026-06-14 09:30:51  ← telegram  alex: deploy the staging branch
 2026-06-14 09:30:52  → telegram  roby: on it — handing this to backend
 2026-06-14 09:31:02  → runtime   sofia: spawned claude-code (exit 0, 4.2s)
-2026-06-14 09:31:48  ← web       manuel: any failing tests?
+2026-06-14 09:31:48  ← web       alex: any failing tests?
 2026-06-14 09:31:50  → agent     backend: cart total test is flaky, retrying`}
 </Terminal>
 
@@ -82,7 +82,7 @@ apx messages chat --channel runtime -n 20
 ```
 
 <Terminal command="apx messages chat --channel telegram -n 20" caption="apx messages chat --channel telegram — vista de conversación formateada">
-{`[2026-06-14 09:30:51] user manuel: deploy the staging branch
+{`[2026-06-14 09:30:51] user alex: deploy the staging branch
 [2026-06-14 09:30:52] super-agent roby: On it — handing this to the backend agent.
 [2026-06-14 09:31:50] agent backend: Deploy queued. The cart total test is flaky;
   retrying once before I promote the build.

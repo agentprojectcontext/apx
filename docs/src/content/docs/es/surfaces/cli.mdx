@@ -14,21 +14,24 @@ El binario `apx` es el punto de entrada principal para todo lo que hace APX. Se 
 nunca necesitás iniciar el daemon por separado.
 
 <Terminal command="apx --help" caption="apx --help — todos los grupos de comandos de un vistazo">
-{`apx 0.4.2 — orchestrate agents, sessions, and channels across CLIs
+{`  apx  Agent Project Context  v1.38.0
+  Docs: https://agentprojectcontext.com
 
-  Usage: apx <command> [subcommand] [options]
+  Usage:  apx <command> [subcommand] [args] [--flags]
 
-  Bootstrap   init · setup · status · update
-  Projects    project add|list|remove|rebuild|config
-  Agents      agent add|list|get|import · agent vault …
-  Config      config show|set|unset · model · permission
-  Sessions    session new|list|resume|find · sessions list
-  MCPs        mcp list|add|remove|enable|run|check
-  Daemon      daemon start|stop|reload|status · log
-  Channels    telegram … · messages tail|chat|search
-  Runtimes    run · exec · chat · env detect
-  Routines    routine add|list|run · task add|list|done
-  Voice       voice say|listen|providers · desktop · pair
+  Bootstrap     init · setup · status · update
+  Projects      project add|list|remove|rebuild
+  Agents        agent add|list|get|remove · agent vault …
+  APX Profile   identity show|set|wizard
+  Config        config show|set · model · permission
+  Sessions      session new|list|resume|find · sessions list
+  MCPs          mcp list|add|remove|enable|run|tools|check
+  Daemon        daemon start|stop|reload|status · log
+  Telegram      telegram send|status · messages tail|chat|search
+  LLM / Code    exec · chat · code · search
+  Runtimes      run --runtime … · env detect
+  Routines      routine add|list|run · task add|list|done
+  Voice         voice say|listen|providers · desktop · pair
 
   Run 'apx <command> --help' for details.`}
 </Terminal>
@@ -48,12 +51,12 @@ nunca necesitás iniciar el daemon por separado.
 
 <Terminal command="apx status" caption="apx status — salud del daemon, motores, Telegram y proyectos activos">
 {`  Daemon
-    ✓ running   port 7430   v0.4.2   uptime 2h 14m
+    ✓ running   port 7430   v1.38.0   uptime 2h 14m
 
   Super-agent
     ✓ enabled
       model           anthropic:claude-sonnet-4-5
-      identity        Roby  for Manuel
+      identity        Roby  for Alex
 
   Engines
     ✓ Anthropic     ← active
