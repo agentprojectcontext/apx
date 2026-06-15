@@ -36,9 +36,11 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      # No `version:` here — it's read from package.json's "packageManager"
-      # field (pnpm@10.25.0). Pinning both makes action-setup error out.
-      - uses: pnpm/action-setup@v5
+      # pnpm is only used by the docs subproject, so its version lives in
+      # docs/package.json's "packageManager" field — read it from there.
+      - uses: pnpm/action-setup@v6
+        with:
+          package_json_file: docs/package.json
       - uses: actions/setup-node@v5
         with:
           node-version: 22 # Astro 6 requires Node >=22.12.0

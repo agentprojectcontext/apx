@@ -22,11 +22,6 @@ jobs:
               with:
                   node-version: 22
                   registry-url: https://registry.npmjs.org/
-                  # This job uses npm. Root package.json declares pnpm only so the
-                  # Pages workflow's action-setup can read it; setup-node@v5 would
-                  # otherwise auto-detect pnpm for caching and fail (pnpm isn't
-                  # installed in this job). Disable the v5 default package cache.
-                  package-manager-cache: false
 
             # --legacy-peer-deps: opentui-spinner@0.0.6 pins @opentui/core@^0.1.49
             # but the project uses ^0.2.8; without this flag npm 10+ refuses
