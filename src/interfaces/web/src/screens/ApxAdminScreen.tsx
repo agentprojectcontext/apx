@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Plus, Send } from "lucide-react";
 import { Section, StatusDot } from "../components/Section";
 import { Badge, Button, Empty, Loading, Switch } from "../components/ui";
@@ -18,6 +18,7 @@ import type { TelegramChannel } from "../types/daemon";
 
 export function ApxAdminScreen() {
   const navigate = useNavigate();
+  const [params, setParams] = useSearchParams();
   const toast = useToast();
   const { health, isUp } = useDaemonStatus();
   const { projects, isLoading: projLoading, mutate: mutateProjects } = useProjects();
@@ -61,7 +62,11 @@ export function ApxAdminScreen() {
           <Tip content={t("daemon.reload_hint")}>
             <Button size="sm" onClick={reload}>{t("common.reload")} config</Button>
           </Tip>
-          <Button size="sm" variant="primary" onClick={() => navigate("/?action=add-project")}>
+          <Button size="sm" variant="primary" onClick={() => {
+            const next = new URLSearchParams(params);
+            next.set("action", "add-project");
+            setParams(next);
+          }}>
             <Plus size={14} /> {t("nav.project")}
           </Button>
         </div>

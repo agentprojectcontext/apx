@@ -72,11 +72,20 @@ function Shell() {
     next.delete("action");
     setParams(next, { replace: true });
   };
+  const openAdd = () => {
+    const next = new URLSearchParams(params);
+    next.set("action", "add-project");
+    setParams(next);
+  };
 
   return (
     <NavCollapseProvider>
       <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground" data-testid="app-shell">
-        <ProjectSidebar onSelect={(href) => navigate(href)} onOpenRoby={() => setRobyOpen(true)} />
+        <ProjectSidebar
+          onSelect={(href) => navigate(href)}
+          onOpenRoby={() => setRobyOpen(true)}
+          onOpenAddProject={openAdd}
+        />
         <main className="m-2 ml-0 flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
           <TopBar onToggleTheme={toggle} isDark={theme === "dark"} pathname={location.pathname} />
           <div className="flex-1 overflow-y-auto">

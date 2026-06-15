@@ -128,6 +128,7 @@ export const en = {
     path_required: "Path required.",
     registered:  "Project #{id} registered.",
     search_btn:  "Browse",
+    picker_prompt: "Pick the project folder",
     browser_unavailable: "Browser unavailable until daemon restarts. Paste path manually.",
     no_folders:  "No folders.",
   },
@@ -438,8 +439,8 @@ export const en = {
 
     agents: {
       title:       "Agents",
-      subtitle:    "Defined in AGENTS.md + .apc/agents/<slug>.md.",
-      subtitle_full: "Defined in AGENTS.md + .apc/agents/<slug>.md. Runtime memory lives under ~/.apx/projects/<id>/agents/<slug>/.",
+      subtitle:    "Defined in .apc/agents/<slug>.md.",
+      subtitle_full: "Defined in .apc/agents/<slug>.md. Runtime memory lives under ~/.apx/projects/<id>/agents/<slug>/.",
       empty:       "No agents. Add one with <code>apx agent add</code> or the button.",
       empty_text:  "No agents. Add one with `apx agent add` or the button above.",
       new:         "Agent",

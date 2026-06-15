@@ -31,6 +31,7 @@ import type { ProjectEntry } from "../../types/daemon";
 interface Props {
   onSelect: (href: string) => void;
   onOpenRoby: () => void;
+  onOpenAddProject?: () => void;
 }
 
 interface ModuleItem {
@@ -158,7 +159,7 @@ function RailProjectMenu({
   );
 }
 
-export function ProjectSidebar({ onSelect, onOpenRoby }: Props) {
+export function ProjectSidebar({ onSelect, onOpenRoby, onOpenAddProject }: Props) {
   const { projects, isLoading } = useProjects();
   const location = useLocation();
   const MODULES = buildModules();
@@ -303,7 +304,7 @@ export function ProjectSidebar({ onSelect, onOpenRoby }: Props) {
             testId="nav-add-project"
             icon={<Plus size={18} />}
             active={false}
-            onClick={() => onSelect("/?action=add-project")}
+            onClick={() => (onOpenAddProject ? onOpenAddProject() : onSelect("/?action=add-project"))}
             title={t("nav.add_project")}
           />
         </div>
