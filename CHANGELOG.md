@@ -1,3 +1,10 @@
+## [1.39.1](https://github.com/agentprojectcontext/apx/compare/v1.39.0...v1.39.1) (2026-06-15)
+
+
+### Bug Fixes
+
+* **build:** scope pnpm to the docs subproject ([3227a2e](https://github.com/agentprojectcontext/apx/commit/3227a2e433ccd012ff257145390074c35b39b9f9))
+
 # [1.39.0](https://github.com/agentprojectcontext/apx/compare/v1.38.1...v1.39.0) (2026-06-15)
 
 
