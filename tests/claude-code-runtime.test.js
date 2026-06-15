@@ -10,8 +10,8 @@ import {
 
 test("encodeClaudeProjectPath matches Claude Code project directory naming", () => {
   assert.equal(
-    encodeClaudeProjectPath("/Users/wizardgpt/.apx/projects/default"),
-    "-Users-wizardgpt--apx-projects-default"
+    encodeClaudeProjectPath("/Users/user/.apx/projects/default"),
+    "-Users-user--apx-projects-default"
   );
   assert.equal(
     encodeClaudeProjectPath("/Volumes/SSDT7Shield/proyectos_varios/nicho-apps"),
@@ -30,7 +30,7 @@ test("resolveClaudeSessionPath finds a moved or differently encoded transcript",
 
     assert.equal(
       resolveClaudeSessionPath({
-        cwd: "/Users/wizardgpt/.apx/projects/default",
+        cwd: "/Users/user/.apx/projects/default",
         sessionId,
         home,
       }),
