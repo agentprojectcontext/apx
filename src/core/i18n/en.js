@@ -1,9 +1,6 @@
-// Backend strings — English (en).
+// Backend strings — English (en). This is also the default fallback locale.
 export default {
   "telegram.heads_up": "On it — working on that… 🛠️",
   "telegram.reset_ack": "Done, context cleared. Starting fresh. What do you need?",
-  "telegram.error_generic": "Something broke on my side — already logged.",
   "telegram.fallback_listo": "Done.",
-
-  "common.unknown_error": "Something went wrong.",
 };
