@@ -27,23 +27,15 @@
 //     "poll_interval_ms": 1500
 //   }
 
-import fs from "node:fs";
-import path from "node:path";
-import { TELEGRAM_STATE_PATH, APX_HOME } from "#core/config/index.js";
-import { callEngine } from "#core/engines/index.js";
-import { runSuperAgent, isSuperAgentEnabled } from "#core/agent/super-agent.js";
-import { stripThinking } from "#core/util/thinking.js";
+// This poller is intentionally thin: per-update logic lives in core/channels/
+// telegram/ (dispatch + reply + ask + inbound). It keeps only what the *running
+// process* needs — lifecycle, the poll loop, offset state and the inline-keyboard
+// callbacks. The earlier dispatch extraction left a pile of now-dead imports
+// here; only what's actually referenced below remains.
 import { getRecentTelegramTurnsFromFs, appendGlobalMessage } from "#core/stores/messages.js";
-import { compactChannelIfNeeded } from "#core/memory/index.js";
-import { readAgents } from "#core/apc/parser.js";
-import { buildAgentSystem } from "#core/agent/build-agent-system.js";
-import { transcribe as transcribeAudioFile } from "#core/voice/transcription.js";
 import { resolveAgentName, SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
-import { registerSender, resolveAllowedTools } from "#core/identity/telegram.js";
-import { buildRelationshipBlock } from "#core/agent/index.js";
 import { getConfirmationStore as getConfirmStore } from "#core/confirmation/pending-store.js";
 import { CHANNELS } from "#core/constants/channels.js";
-import { tryResolveSkillCommand } from "#core/agent/skills/trigger.js";
 import { createTelegramConfirmAdapter } from "#core/confirmation/adapters/telegram.js";
 import * as askFlow from "#core/channels/telegram/ask.js";
 
@@ -53,7 +45,6 @@ const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 // All non-class-bound channel logic lives in core/channels/telegram/ — this
 // file stays focused on the poller class + plugin lifecycle wiring.
 import {
-  buildTelegramMeta,
   loadState,
   saveState,
   resolveBotToken,
@@ -63,9 +54,10 @@ import {
   sleep,
 } from "#core/channels/telegram/helpers.js";
 import { handleUpdate } from "#core/channels/telegram/dispatch.js";
+import { buildStreamHandler, runTelegramSuperAgent, telegramErrorText, sendFinalReply } from "#core/channels/telegram/reply.js";
 
 // ---------- media sending helpers (re-exports) ------------------------------
-import { sendPhoto, sendVoice, sendDocument, sendAudio, downloadTelegramFile, API_BASE } from "#core/channels/telegram/media.js";
+import { sendPhoto, sendVoice, sendDocument, sendAudio, API_BASE } from "#core/channels/telegram/media.js";
 export { sendPhoto, sendVoice, sendDocument, sendAudio };
 
 // ---------- per-channel poller ----------------------------------------------
@@ -328,9 +320,9 @@ class ChannelPoller {
   }
 
   // Run a follow-up super-agent turn with the compiled answers as the user
-  // prompt. Mirrors the post-runSuperAgent reply path in _handleUpdate but
-  // skipped of the photo/audio/reset preamble. Re-enters the ask flow if the
-  // model decides to ask again.
+  // prompt. Shares the exact reply path as a normal inbound turn (core/channels/
+  // telegram/reply.js) — only the photo/audio/reset preamble is skipped.
+  // Re-enters the ask flow if the model decides to ask again.
   async _runResumedTurn(ctx) {
     const { chat_id, compiled, target, relationshipBlock, allowedTools, author, agentDisplay, update_id, sender, authorId } = ctx;
     if (!chat_id) return;
@@ -359,25 +351,32 @@ class ChannelPoller {
       max_age_hours: 24,
     });
 
+    // Drive the resume through the SAME shared reply path as a normal inbound
+    // turn (see core/channels/telegram/reply.js): streaming, the autonomy budget
+    // (maxIters), the never-silent floor, localized errors and rich channelMeta.
+    // This used to be a hand-rolled copy that silently lagged behind the main
+    // path — now there's one source of truth.
+    const { onEvent, state } = buildStreamHandler(this, { chat_id, update_id, agentDisplay });
     const stopTyping = this._startTyping(chat_id);
+    let replyText;
+    let replyAuthor;
+    let saUsage = null;
     try {
-      const sa = await runSuperAgent({
-        globalConfig: this.globalConfig,
-        projects: this.projects,
-        plugins: this.plugins,
-        registries: this.registries,
+      const sa = await runTelegramSuperAgent(this, {
+        chat_id,
         prompt: compiled,
         previousMessages,
-        channel: CHANNELS.TELEGRAM,
+        target,
+        author,
         relationshipBlock,
         allowedTools,
-        channelMeta: { channel: CHANNELS.TELEGRAM, chat_id, author, route_to_agent: this.channel.route_to_agent },
+        onEvent,
       });
-      stopTyping();
 
       // Did the model ask again? Restart the flow instead of replying.
       const followupAsk = askFlow.extractAskQuestionsFromTrace(sa.trace);
       if (followupAsk) {
+        stopTyping();
         await this._startAskFlow({
           chat_id,
           projectId: target?.id,
@@ -393,36 +392,29 @@ class ChannelPoller {
         });
         return;
       }
-
-      const replyText = sa.text ? stripThinking(sa.text).trim() : "";
-      if (replyText) {
-        await this._send({ chat_id, text: replyText });
-        appendGlobalMessage({
-          channel: CHANNELS.TELEGRAM,
-          direction: "out",
-          type: "agent",
-          actor_id: SUPERAGENT_ACTOR_ID,
-          actor_kind: "superagent",
-          agent_slug: SUPERAGENT_ACTOR_ID,
-          author: sa.name || agentDisplay,
-          body: replyText,
-          meta: {
-            chat_id,
-            tg_channel: this.channel.name,
-            in_reply_to: update_id,
-            final: true,
-            ask_resume: true,
-            ...(sa.usage ? { usage: sa.usage } : {}),
-          },
-        });
-      }
+      replyText = sa.text;
+      replyAuthor = sa.name || agentDisplay;
+      saUsage = sa.usage;
     } catch (e) {
-      stopTyping();
       this.log(`telegram[${this.channel.name}] ask resume failed: ${e.message}`);
-      try {
-        await this._send({ chat_id, text: `⚠️ Error procesando tus respuestas (${e.message}).` });
-      } catch { /* best-effort */ }
+      replyText = telegramErrorText(this, e);
+      replyAuthor = agentDisplay;
     }
+
+    stopTyping();
+    await sendFinalReply(this, {
+      chat_id,
+      update_id,
+      replyText,
+      replyAuthor,
+      replyActorId: SUPERAGENT_ACTOR_ID,
+      replyKind: "superagent",
+      saUsage,
+      streamedCount: state.streamedCount,
+      lastStreamedText: state.lastStreamedText,
+      agentDisplay,
+      extraMeta: { ask_resume: true },
+    });
   }
 
   // Show "typing..." indicator in the chat. Telegram clears it automatically
