@@ -52,8 +52,38 @@ async function request<T>(
   return (await res.json()) as T;
 }
 
+// GET that also surfaces the total-row count for server-side pagination. The
+// daemon returns the full count in the X-Total-Count header (the body keeps its
+// normal shape); we fall back to the payload length when the header is absent
+// (e.g. an older daemon) so pagination degrades gracefully instead of breaking.
+async function getWithTotal<T>(path: string): Promise<{ data: T; total: number }> {
+  const headers: Record<string, string> = token ? { authorization: `Bearer ${token}` } : {};
+  const res = await fetch(path, { method: "GET", headers });
+  if (!res.ok) {
+    let detail = "";
+    let parsed: unknown = null;
+    try {
+      parsed = await res.json();
+      detail = (parsed as { error?: string })?.error || JSON.stringify(parsed);
+    } catch {
+      detail = await res.text();
+    }
+    throw new HttpError(res.status, `GET ${path} → ${res.status}: ${detail}`, parsed);
+  }
+  const data = (await res.json()) as T;
+  const header = res.headers.get("X-Total-Count");
+  const total =
+    header != null && header !== ""
+      ? parseInt(header, 10)
+      : Array.isArray(data)
+        ? data.length
+        : 0;
+  return { data, total };
+}
+
 export const http = {
   get:   <T>(p: string)              => request<T>("GET", p),
+  getWithTotal,
   post:  <T>(p: string, b?: unknown) => request<T>("POST", p, b),
   put:   <T>(p: string, b?: unknown) => request<T>("PUT", p, b),
   patch: <T>(p: string, b?: unknown) => request<T>("PATCH", p, b),

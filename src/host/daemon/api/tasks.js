@@ -18,9 +18,14 @@ import {
 } from "#core/stores/tasks.js";
 
 export function register(app, { project, projects }) {
-  // Global tasks across every project.
+  // Global tasks across every project, newest first. Paginated via
+  // ?limit & ?offset; X-Total-Count carries the full count. Body stays an
+  // array for backward compatibility (offset defaults to 0, so callers that
+  // omit pagination get the same first-N behavior).
   app.get("/tasks", (req, res) => {
     const state = req.query.state || "open";
+    const limit = req.query.limit ? Math.min(parseInt(req.query.limit, 10) || 0, 1000) : undefined;
+    const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
     const out = [];
     for (const entry of projects.list()) {
       const p = projects.get(entry.id);
@@ -29,27 +34,32 @@ export function register(app, { project, projects }) {
       try {
         tasks = listTasks(p.storagePath, {
           state: state === "all" ? undefined : state,
-          limit: 500,
         });
       } catch { /* skip project */ }
       for (const t of tasks) out.push({ ...t, project_id: entry.id, project_name: entry.name || entry.path });
     }
-    res.json(out);
+    out.sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
+    res.set("X-Total-Count", String(out.length));
+    res.set("Access-Control-Expose-Headers", "X-Total-Count");
+    res.json(limit != null ? out.slice(offset, offset + limit) : out.slice(offset));
   });
 
   app.get("/projects/:pid/tasks", (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    const { state, tag, agent, due_before, due_after, limit } = req.query;
-    const out = listTasks(p.storagePath, {
+    const { state, tag, agent, due_before, due_after } = req.query;
+    const limit = req.query.limit ? Math.min(parseInt(req.query.limit, 10) || 0, 1000) : undefined;
+    const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
+    const all = listTasks(p.storagePath, {
       state: state || undefined,
       tag: tag || undefined,
       agent: agent || undefined,
       due_before: due_before || undefined,
       due_after: due_after || undefined,
-      limit: limit ? Math.min(parseInt(limit, 10) || 0, 1000) : undefined,
     });
-    res.json(out);
+    res.set("X-Total-Count", String(all.length));
+    res.set("Access-Control-Expose-Headers", "X-Total-Count");
+    res.json(limit != null ? all.slice(offset, offset + limit) : all.slice(offset));
   });
 
   app.post("/projects/:pid/tasks", (req, res) => {

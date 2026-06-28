@@ -1,9 +1,8 @@
 import { useState } from "react";
-import useSWR from "swr";
 import { Check, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { Tasks } from "../../lib/api";
 import { Section } from "../../components/Section";
-import { Pager, usePaged } from "../../components/Pager";
+import { PagedList, usePagedQuery } from "../../components/Pager";
 import { Badge, Button, Empty, Field, Input, Loading } from "../../components/ui";
 import { useToast } from "../../components/Toast";
 import { t } from "../../i18n";
@@ -12,13 +11,13 @@ export function TasksTab({ pid }: { pid: string }) {
   const [state, setState] = useState<"open" | "done" | "dropped">("open");
   const toast = useToast();
   // dedupingInterval:0 so switching the state filter always revalidates the
-  // target list instead of showing the stale cached page from a prior switch.
-  const list = useSWR(
-    `/projects/${pid}/tasks?state=${state}`,
-    () => Tasks.list(pid, state),
-    { dedupingInterval: 0, revalidateOnFocus: true },
-  );
-  const paged = usePaged(list.data || [], state);
+  // target page instead of showing the stale cached one from a prior switch.
+  const paged = usePagedQuery({
+    key: `/projects/${pid}/tasks?state=${state}`,
+    fetchPage: (limit, offset) => Tasks.listPage(pid, { state, limit, offset }),
+    resetKey: state,
+    swr: { dedupingInterval: 0, revalidateOnFocus: true },
+  });
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -29,7 +28,7 @@ export function TasksTab({ pid }: { pid: string }) {
       await Tasks.add(pid, { title: draft.trim() });
       setDraft("");
       toast.success(t("project.tasks.created"));
-      list.mutate();
+      paged.mutate();
     } catch (e: any) {
       toast.error(e?.message || t("project.tasks.create_error"));
     } finally {
@@ -37,12 +36,13 @@ export function TasksTab({ pid }: { pid: string }) {
     }
   };
   const mark = async (fn: () => Promise<unknown>, label: string) => {
-    try { await fn(); toast.success(label); list.mutate(); }
+    try { await fn(); toast.success(label); paged.mutate(); }
     catch (e: any) { toast.error(e?.message || t("common.error_generic")); }
   };
 
   return (
     <Section
+      fullHeight
       title={t("project.tasks.title")}
       description={t("project.tasks.subtitle")}
       action={
@@ -55,7 +55,7 @@ export function TasksTab({ pid }: { pid: string }) {
         </div>
       }
     >
-      <div className="mb-4 flex items-end gap-2">
+      <div className="mb-4 flex shrink-0 items-end gap-2">
         <Field label={t("project.tasks.add_label")}>
           <Input
             data-testid="task-input"
@@ -70,8 +70,8 @@ export function TasksTab({ pid }: { pid: string }) {
         </Button>
       </div>
 
-      {list.isLoading && <Loading />}
-      {!list.isLoading && (list.data?.length ?? 0) === 0 && (
+      {paged.isLoading && <Loading />}
+      {!paged.isLoading && paged.total === 0 && (
         <Empty>
           {state === "open"
             ? t("project.tasks.empty_open")
@@ -80,9 +80,10 @@ export function TasksTab({ pid }: { pid: string }) {
         </Empty>
       )}
 
-      <ul className="space-y-2 text-sm" data-testid="task-list">
-        {paged.slice.map((task) => (
-          <li key={task.id} data-testid={`task-${task.id}`} className="flex items-start gap-3 rounded-md border border-border bg-muted/30 px-3 py-2">
+      <PagedList paged={paged} fullHeight>
+        <ul className="space-y-2 text-sm" data-testid="task-list">
+          {paged.items.map((task) => (
+            <li key={task.id} data-testid={`task-${task.id}`} className="flex items-start gap-3 rounded-md border border-border bg-muted/30 px-3 py-2">
             <span className="mt-0.5 font-mono text-[10px] text-muted-fg">{task.id}</span>
             <div className="flex-1">
               <div className="font-medium">{task.title}</div>
@@ -112,8 +113,8 @@ export function TasksTab({ pid }: { pid: string }) {
             </div>
           </li>
         ))}
-      </ul>
-      <Pager page={paged.page} pageCount={paged.pageCount} total={paged.total} start={paged.start} end={paged.end} pageSize={paged.pageSize} onPage={paged.setPage} onPageSize={paged.setPageSize} />
+        </ul>
+      </PagedList>
     </Section>
   );
 }

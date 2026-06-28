@@ -1,9 +1,8 @@
 import { useState } from "react";
-import useSWR from "swr";
 import { RefreshCw } from "lucide-react";
 import { Sessions } from "../../lib/api";
 import { Section } from "../../components/Section";
-import { Pager, usePaged } from "../../components/Pager";
+import { PagedList, usePagedQuery } from "../../components/Pager";
 import { Badge, Button, Empty, Loading } from "../../components/ui";
 import { UiSelect } from "../../components/UiSelect";
 import { t } from "../../i18n";
@@ -14,12 +13,15 @@ const ENGINE_TONE: Record<string, "success" | "info" | "warning" | "muted"> = {
 
 export function SessionsTab() {
   const [engine, setEngine] = useState("");
-  const list = useSWR(`/sessions?engine=${engine}`, () => Sessions.global(engine || undefined));
-  const rows = list.data?.sessions || [];
-  const paged = usePaged(rows, engine);
+  const paged = usePagedQuery({
+    key: `/sessions?engine=${engine}`,
+    fetchPage: (limit, offset) => Sessions.page({ engine: engine || undefined, limit, offset }),
+    resetKey: engine,
+  });
 
   return (
     <Section
+      fullHeight
       title={t("base.sessions_title")}
       description={t("base.sessions_desc")}
       action={
@@ -36,26 +38,27 @@ export function SessionsTab() {
               ]}
             />
           </div>
-          <Button size="sm" variant="secondary" onClick={() => list.mutate()}><RefreshCw size={13} /></Button>
+          <Button size="sm" variant="secondary" onClick={() => paged.mutate()}><RefreshCw size={13} /></Button>
         </div>
       }
     >
-      {list.isLoading && <Loading />}
-      {list.error && <Empty>{t("base.sessions_error", { msg: (list.error as Error).message })}</Empty>}
-      {!list.isLoading && !list.error && rows.length === 0 && <Empty>{t("base.sessions_empty")}</Empty>}
-      <ul className="space-y-1 text-sm">
-        {paged.slice.map((s, i) => (
-          <li key={`${s.engine}-${s.id}-${i}`} className="flex items-center gap-3 rounded-md border border-border bg-muted/30 px-3 py-2">
-            <Badge tone={ENGINE_TONE[s.engine] || "muted"}>{s.engine}</Badge>
-            <div className="min-w-0 flex-1">
-              <div className="truncate">{s.title || s.id}</div>
-              <div className="truncate font-mono text-[10px] text-muted-fg">{s.cwd}</div>
-            </div>
-            {s.mtime > 0 && <span className="shrink-0 text-[11px] text-muted-fg">{new Date(s.mtime).toLocaleString()}</span>}
-          </li>
-        ))}
-      </ul>
-      <Pager page={paged.page} pageCount={paged.pageCount} total={paged.total} start={paged.start} end={paged.end} pageSize={paged.pageSize} onPage={paged.setPage} onPageSize={paged.setPageSize} />
+      {paged.isLoading && <Loading />}
+      {paged.error && <Empty>{t("base.sessions_error", { msg: (paged.error as Error).message })}</Empty>}
+      {!paged.isLoading && !paged.error && paged.total === 0 && <Empty>{t("base.sessions_empty")}</Empty>}
+      <PagedList paged={paged} fullHeight>
+        <ul className="space-y-1 text-sm">
+          {paged.items.map((s, i) => (
+            <li key={`${s.engine}-${s.id}-${i}`} className="flex items-center gap-3 rounded-md border border-border bg-muted/30 px-3 py-2">
+              <Badge tone={ENGINE_TONE[s.engine] || "muted"}>{s.engine}</Badge>
+              <div className="min-w-0 flex-1">
+                <div className="truncate">{s.title || s.id}</div>
+                <div className="truncate font-mono text-[10px] text-muted-fg">{s.cwd}</div>
+              </div>
+              {s.mtime > 0 && <span className="shrink-0 text-[11px] text-muted-fg">{new Date(s.mtime).toLocaleString()}</span>}
+            </li>
+          ))}
+        </ul>
+      </PagedList>
     </Section>
   );
 }

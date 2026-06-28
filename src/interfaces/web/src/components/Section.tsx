@@ -7,19 +7,30 @@ interface SectionProps {
   action?: ReactNode;
   className?: string;
   children: ReactNode;
+  // Fill the available height and let the body manage its own scroll instead of
+  // growing the page. The card becomes a flex column (header pinned, body
+  // flex-1); pair with a <PagedList fullHeight> child for an internal scroller
+  // with a pinned pager. Needs a bounded-height parent (the tab content area is).
+  fullHeight?: boolean;
 }
 
-export function Section({ title, description, action, className, children }: SectionProps) {
+export function Section({ title, description, action, className, children, fullHeight }: SectionProps) {
   return (
-    <section className={cn("rounded-xl border border-border bg-card p-5", className)}>
-      <header className="mb-4 flex items-start justify-between gap-4">
+    <section
+      className={cn(
+        "rounded-xl border border-border bg-card p-5",
+        fullHeight && "flex h-full min-h-0 flex-col",
+        className
+      )}
+    >
+      <header className={cn("mb-4 flex items-start justify-between gap-4", fullHeight && "shrink-0")}>
         <div>
           <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
           {description && <p className="mt-0.5 text-sm text-muted-fg">{description}</p>}
         </div>
         {action}
       </header>
-      <div>{children}</div>
+      <div className={cn(fullHeight && "flex min-h-0 flex-1 flex-col")}>{children}</div>
     </section>
   );
 }

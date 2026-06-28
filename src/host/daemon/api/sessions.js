@@ -16,9 +16,13 @@ import { collectAllSessions } from "#interfaces/cli/commands/sessions.js";
 
 export function register(app, { projects, project }) {
   // Cross-engine sessions (apx · claude · codex), newest first.
+  // Paginated via ?limit & ?offset; the full count is returned in the
+  // X-Total-Count header so the UI can compute page counts. The body shape
+  // ({ sessions }) is unchanged for backward compatibility.
   app.get("/sessions", (req, res) => {
     const engineId = req.query.engine ? String(req.query.engine) : null;
     const limit = Math.min(parseInt(req.query.limit, 10) || 200, 1000);
+    const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
     let rows = [];
     try {
       rows = collectAllSessions({}, { engineId });
@@ -26,7 +30,9 @@ export function register(app, { projects, project }) {
       return res.status(500).json({ error: e.message, sessions: [] });
     }
     rows.sort((a, b) => (b.mtime || 0) - (a.mtime || 0));
-    res.json({ sessions: rows.slice(0, limit) });
+    res.set("X-Total-Count", String(rows.length));
+    res.set("Access-Control-Expose-Headers", "X-Total-Count");
+    res.json({ sessions: rows.slice(offset, offset + limit) });
   });
 
   app.get("/projects/:pid/agents/:slug/sessions", (req, res) => {
