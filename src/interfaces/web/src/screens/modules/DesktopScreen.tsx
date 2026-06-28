@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import useSWR from "swr";
 import { Section, Kbd, StatusDot } from "../../components/Section";
-import { Button, Field, Input, Switch, Loading, Empty } from "../../components/ui";
+import { Button, Field, Switch, Loading, Empty } from "../../components/ui";
 import { UiSelect } from "../../components/UiSelect";
+import { ShortcutInput } from "../../components/ShortcutInput";
 import { useToast } from "../../components/Toast";
 import { useGlobalConfig } from "../../hooks/useGlobalConfig";
 import { Desktop, fetchDesktopMessages, type GlobalMessage } from "../../lib/api/desktop";
@@ -16,8 +17,9 @@ const positionOpts = () => [
   { value: "right",  label: t("modules_ui.desktop_pos_right") },
 ];
 const themeOpts = () => [
-  { value: "light", label: t("modules_ui.desktop_theme_light") },
-  { value: "dark",  label: t("modules_ui.desktop_theme_dark") },
+  { value: "system", label: t("modules_ui.desktop_theme_system") },
+  { value: "light",  label: t("modules_ui.desktop_theme_light") },
+  { value: "dark",   label: t("modules_ui.desktop_theme_dark") },
 ];
 
 // Desktop module — manage the floating voice window (the Electron app launched
@@ -32,14 +34,16 @@ export function DesktopScreen() {
   const cfgView = config as unknown as {
     desktop?: {
       shortcut?: string; enabled?: boolean;
-      theme?: "light" | "dark";
+      theme?: "light" | "dark" | "system";
       position?: "left" | "center" | "right";
     };
     overlay?: { shortcut?: string }; // legacy fallback
   };
   const savedShortcut = cfgView.desktop?.shortcut || cfgView.overlay?.shortcut || DEFAULT_SHORTCUT;
   const enabled  = cfgView.desktop?.enabled !== false;
-  const theme    = cfgView.desktop?.theme    || "light";
+  // Default to "system" so the window follows the OS appearance until the
+  // user explicitly pins light/dark.
+  const theme    = cfgView.desktop?.theme    || "system";
   const position = cfgView.desktop?.position || "right";
 
   const { data: status, isLoading: stLoading, mutate: mutateStatus } = useSWR(
@@ -63,7 +67,34 @@ export function DesktopScreen() {
   const [shortcut, setShortcut] = useState(savedShortcut);
   const [busy, setBusy] = useState(false);
   const [autostartBusy, setAutostartBusy] = useState(false);
+  // Which lifecycle action (start/stop/restart) is in flight — drives the
+  // per-button spinner and disables its siblings while one runs.
+  const [lifeAction, setLifeAction] = useState<"start" | "stop" | "restart" | null>(null);
   useEffect(() => setShortcut(savedShortcut), [savedShortcut]);
+
+  // Start/Stop launch or kill the Electron window (daemon spawns/SIGTERMs it);
+  // Restart tells a live window to reload + re-read config (theme, position,
+  // shortcut) — the "apply now" the static status-poll never did. All three
+  // re-poll status shortly after so the dot + buttons settle.
+  const runLifecycle = async (action: "start" | "stop" | "restart", fn: () => Promise<void>) => {
+    setLifeAction(action);
+    try { await fn(); }
+    catch (e) { toast.error((e as Error).message); }
+    finally { setLifeAction(null); setTimeout(() => mutateStatus(), 1200); }
+  };
+  const startDesktop = () => runLifecycle("start", async () => {
+    const r = await Desktop.start();
+    toast.success(r.already ? t("modules_ui.desktop_start_already") : t("modules_ui.desktop_start_done"));
+  });
+  const stopDesktop = () => runLifecycle("stop", async () => {
+    const r = await Desktop.stop();
+    toast.success(r.stopped ? t("modules_ui.desktop_stop_done") : t("modules_ui.desktop_stop_none"));
+  });
+  const restartDesktop = () => runLifecycle("restart", async () => {
+    const r = await Desktop.restart();
+    if (r.reloaded > 0) toast.success(t("modules_ui.desktop_restart_done"));
+    else toast.info(t("modules_ui.desktop_restart_none"));
+  });
 
   const saveShortcut = async () => {
     const next = shortcut.trim();
@@ -101,23 +132,58 @@ export function DesktopScreen() {
       <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
         {/* ── LEFT: configuration + status ─────────────────────────────── */}
         <div className="space-y-6">
-          <Section title={t("desktop_screen.status_title")} description={t("modules_ui.desktop_status_desc")}>
+          <Section
+            title={t("desktop_screen.status_title")}
+            description={t("modules_ui.desktop_status_desc")}
+            action={
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={startDesktop}
+                  loading={lifeAction === "start"}
+                  disabled={running || (lifeAction !== null && lifeAction !== "start")}
+                >
+                  {t("modules_ui.desktop_start")}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={stopDesktop}
+                  loading={lifeAction === "stop"}
+                  disabled={!running || (lifeAction !== null && lifeAction !== "stop")}
+                >
+                  {t("modules_ui.desktop_stop")}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={restartDesktop}
+                  loading={lifeAction === "restart"}
+                  disabled={!running || (lifeAction !== null && lifeAction !== "restart")}
+                  title={t("modules_ui.desktop_restart_hint")}
+                >
+                  {t("modules_ui.desktop_restart")}
+                </Button>
+              </div>
+            }
+          >
             {stLoading ? <Loading /> : (
-              <div className="flex items-center gap-2 text-sm">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
                 <StatusDot ok={running} />
                 <span className="font-medium">{running ? t("modules_ui.desktop_running") : t("modules_ui.desktop_stopped")}</span>
                 <button
                   type="button"
                   onClick={() => mutateStatus()}
-                  className="ml-2 text-xs text-muted-fg underline-offset-2 hover:underline"
+                  className="text-xs text-muted-fg underline-offset-2 hover:underline"
                 >
                   {t("modules_ui.desktop_refresh")}
                 </button>
+                <span className="text-xs text-muted-fg">
+                  ({t("modules_ui.desktop_from_terminal")} <Kbd>apx desktop start</Kbd> · <Kbd>apx desktop --debug</Kbd>)
+                </span>
               </div>
             )}
-            <p className="mt-3 text-xs text-muted-fg">
-              {t("modules_ui.desktop_from_terminal")} <Kbd>apx desktop start</Kbd> · <Kbd>apx desktop --debug</Kbd>
-            </p>
           </Section>
 
           <Section
@@ -142,31 +208,27 @@ export function DesktopScreen() {
             description={t("modules_ui.desktop_shortcut_desc")}
           >
             {cfgLoading ? <Loading /> : (
-              <div className="flex items-end gap-3">
-                <div className="flex-1">
-                  <Field
-                    label={t("modules_ui.desktop_accelerator")}
-                    hint={t("modules_ui.desktop_accelerator_hint")}
-                  >
-                    <Input
-                      value={shortcut}
-                      onChange={(e) => setShortcut(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") saveShortcut(); }}
-                      placeholder={DEFAULT_SHORTCUT}
-                      className="max-w-md font-mono"
-                      disabled={busy}
-                    />
-                  </Field>
-                </div>
-                <Button
-                  variant="primary"
-                  onClick={saveShortcut}
-                  loading={busy}
-                  disabled={!shortcut.trim() || shortcut.trim() === savedShortcut}
-                >
-                  {t("common.save")}
-                </Button>
-              </div>
+              <Field
+                label={t("modules_ui.desktop_accelerator")}
+                hint={t("modules_ui.desktop_accelerator_hint")}
+              >
+                <ShortcutInput
+                  value={shortcut}
+                  onChange={setShortcut}
+                  disabled={busy}
+                  trailing={
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={saveShortcut}
+                      loading={busy}
+                      disabled={!shortcut.trim() || shortcut.trim() === savedShortcut}
+                    >
+                      {t("common.save")}
+                    </Button>
+                  }
+                />
+              </Field>
             )}
           </Section>
 

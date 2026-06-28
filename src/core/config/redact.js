@@ -18,6 +18,8 @@ export const SECRET_PATHS = [
   "voice.tts.elevenlabs.api_key",
   "voice.tts.openai.api_key",
   "voice.tts.gemini.api_key",
+  "transcription.openai.api_key",
+  "transcription.custom.api_key",
   "memory.embeddings.openai.api_key",
   "memory.embeddings.gemini.api_key",
   // Telegram bot tokens live inside an array — handled separately in redact()
