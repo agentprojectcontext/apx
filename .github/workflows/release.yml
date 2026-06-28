@@ -4,6 +4,13 @@ on:
     push:
         branches: [main]
 
+# Serialize releases: if a release is already running, queue this one
+# instead of running it in parallel. Prevents the "cannot lock ref
+# 'refs/heads/main'" push race when two pushes hit main close together.
+concurrency:
+    group: release
+    cancel-in-progress: false
+
 permissions:
     id-token: write
     pull-requests: write
