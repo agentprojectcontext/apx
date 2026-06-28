@@ -1,3 +1,10 @@
+## [1.48.1](https://github.com/agentprojectcontext/apx/compare/v1.48.0...v1.48.1) (2026-06-28)
+
+
+### Bug Fixes
+
+* **web:** { meta, data } pagination envelope + robust list reception ([7be189b](https://github.com/agentprojectcontext/apx/commit/7be189becfb5615fc9f305f414740cb55bb83109))
+
 # [1.48.0](https://github.com/agentprojectcontext/apx/compare/v1.47.0...v1.48.0) (2026-06-28)
 
 
