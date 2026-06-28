@@ -1,3 +1,10 @@
+# [1.41.0](https://github.com/agentprojectcontext/apx/compare/v1.40.1...v1.41.0) (2026-06-28)
+
+
+### Features
+
+* **desktop:** add "Cerrar ventana" pill to the empty-idle capsule ([43b5c4f](https://github.com/agentprojectcontext/apx/commit/43b5c4fc9a73baefd91c0b3b255c9b26217e697f)), closes [#caption-slot](https://github.com/agentprojectcontext/apx/issues/caption-slot)
+
 ## [1.40.1](https://github.com/agentprojectcontext/apx/compare/v1.40.0...v1.40.1) (2026-06-28)
 
 
