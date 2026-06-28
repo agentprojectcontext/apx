@@ -12,9 +12,7 @@
 // keep that scope intact — earlier splits forgot them and the bug only
 // surfaced when a real telegram update arrived (ReferenceError at runtime).
 import { callEngine } from "#core/engines/index.js";
-import { runSuperAgent, isSuperAgentEnabled } from "#core/agent/super-agent.js";
-import { TELEGRAM_TOOL_ITERS } from "#core/agent/constants.js";
-import { stripThinking } from "#core/util/thinking.js";
+import { isSuperAgentEnabled } from "#core/agent/super-agent.js";
 import { getRecentTelegramTurnsFromFs, appendGlobalMessage } from "#core/stores/messages.js";
 import { compactChannelIfNeeded } from "#core/memory/index.js";
 import { readAgents } from "#core/apc/parser.js";
@@ -22,14 +20,13 @@ import { buildAgentSystem } from "#core/agent/build-agent-system.js";
 import { resolveAgentName, SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
 import { registerSender, resolveAllowedTools } from "#core/identity/telegram.js";
 import { buildRelationshipBlock } from "#core/agent/index.js";
-import { getConfirmationStore as getConfirmStore } from "#core/confirmation/pending-store.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { tryResolveSkillCommand } from "#core/agent/skills/trigger.js";
-import { createTelegramConfirmAdapter } from "#core/confirmation/adapters/telegram.js";
 import * as askFlow from "./ask.js";
-import { buildTelegramMeta, resolveBotToken, sleep, telegramAuthorLabel } from "./helpers.js";
+import { telegramAuthorLabel } from "./helpers.js";
 import { handleIncomingPhoto } from "./inbound/photo.js";
 import { handleIncomingAudio } from "./inbound/audio.js";
+import { buildStreamHandler, runTelegramSuperAgent, telegramErrorText, sendFinalReply } from "./reply.js";
 import { t, resolveLang } from "#core/i18n/index.js";
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -268,147 +265,33 @@ export async function handleUpdate(self, u) {
       }
     }
 
-    // Fallback: super-agent — STREAMED.
-    // Each iteration's assistant text is sent to Telegram as its own message
-    // the moment the model produces it (its running commentary), so the user
-    // sees a real back-and-forth instead of one giant final dump. Tool calls
-    // are logged to the message store — visible via apx log / apx search and
-    // to channels that render tools — but NEVER sent to Telegram; tools are
-    // internal. The conversation saved on disk is the full, real exchange;
-    // Telegram is just the prose-only view of it.
+    // Fallback: super-agent — STREAMED. Each iteration's assistant text is sent
+    // to Telegram as its own message the moment the model produces it; tool
+    // calls are logged but never sent (internal). The streamed turn + its final
+    // send live in ./reply.js so this dispatcher and the ask-flow resume
+    // (_runResumedTurn in the host poller) share ONE reply path — no drift.
     let saUsage = null;
     let streamedCount = 0;
     let lastStreamedText = "";
-    // Telegram shows the user ONLY prose — never the tool calls. On an action
-    // request the model often jumps straight to a tool with no preamble text,
-    // so the user would stare at a silent chat until the final reply. Send one
-    // short localized heads-up the moment real work starts (first tool_start),
-    // but only if the agent didn't already write its own "on it" line.
-    let sentHeadsUp = false;
-    const headsUpPhrase = () => t("telegram.heads_up", { lang: resolveLang(self.globalConfig) });
     if (!replyText && isSuperAgentEnabled(self.globalConfig)) {
-      const onEvent = async (ev) => {
-        try {
-          if (ev.type === "tool_start" && !sentHeadsUp && streamedCount === 0) {
-            sentHeadsUp = true;
-            const heads = headsUpPhrase();
-            await self._send({ chat_id, text: heads });
-            appendGlobalMessage({
-              channel: CHANNELS.TELEGRAM,
-              direction: "out",
-              type: "agent",
-              actor_id: SUPERAGENT_ACTOR_ID,
-              actor_kind: "superagent",
-              agent_slug: SUPERAGENT_ACTOR_ID,
-              author: agentDisplay,
-              body: heads,
-              meta: { chat_id, tg_channel: self.channel.name, in_reply_to: u.update_id, heads_up: true },
-            });
-            return;
-          }
-          if (ev.type === "assistant_text" && ev.text) {
-            const piece = stripThinking(ev.text).trim();
-            if (!piece) return;
-            await self._send({ chat_id, text: piece });
-            lastStreamedText = piece;
-            streamedCount += 1;
-            appendGlobalMessage({
-              channel: CHANNELS.TELEGRAM,
-              direction: "out",
-              type: "agent",
-              actor_id: SUPERAGENT_ACTOR_ID,
-              actor_kind: "superagent",
-              agent_slug: SUPERAGENT_ACTOR_ID,
-              author: agentDisplay,
-              body: piece,
-              meta: {
-                chat_id,
-                tg_channel: self.channel.name,
-                in_reply_to: u.update_id,
-                streamed: true,
-                iteration: ev.iteration,
-              },
-            });
-          } else if (ev.type === "tool_result" && ev.trace) {
-            // Logged for the audit trail / other channels — NOT sent to Telegram.
-            const t = ev.trace;
-            appendGlobalMessage({
-              channel: CHANNELS.TELEGRAM,
-              direction: "out",
-              type: "tool",
-              actor_id: t.tool,
-              actor_kind: "tool",
-              author: agentDisplay,
-              body: `${t.tool}(${JSON.stringify(t.args || {}).slice(0, 200)})`,
-              meta: {
-                chat_id,
-                tg_channel: self.channel.name,
-                in_reply_to: u.update_id,
-                tool: t.tool,
-                args: t.args,
-                result: t.result,
-                iteration: ev.iteration,
-              },
-            });
-          } else if (ev.type === "engine_failed") {
-            // A model in the fallback chain errored; the loop is rotating to
-            // the next one. Log it so a mid-turn provider failure (rate limit,
-            // tool-grammar 400, …) is diagnosable instead of invisible.
-            self.log(
-              `telegram[${self.channel.name}] engine_failed: ${ev.model || "?"} (${ev.reason || "?"}) → ${ev.retry_with || "end of chain"}`,
-            );
-          } else if (ev.type === "model_routed" || ev.type === "model_retry") {
-            self.log(
-              `telegram[${self.channel.name}] ${ev.type}: model=${ev.model || "?"}${ev.reason ? ` reason=${ev.reason}` : ""}${ev.from_fallback ? " (fallback)" : ""}`,
-            );
-          }
-        } catch (e) {
-          // A failed intermediate send must not abort the whole run.
-          self.log(`telegram[${self.channel.name}] stream event failed: ${e.message}`);
-        }
-      };
+      const { onEvent, state } = buildStreamHandler(self, { chat_id, update_id: u.update_id, agentDisplay });
 
-      const confirmAdapter = createTelegramConfirmAdapter({
-        token: resolveBotToken(self.channel),
-        chatId: chat_id,
-        pendingStore: getConfirmStore(),
-      });
-
-      // `/slug ...` shortcut: load the matching skill body into contextNote
-      // and strip the prefix from the user prompt before sending to the loop.
+      // `/slug ...` shortcut: load the matching skill body into contextNote and
+      // strip the prefix from the user prompt before sending to the loop.
       const slashed = tryResolveSkillCommand(text, { projectPath: target?.path });
-      const slashedPrompt = slashed.handled ? slashed.prompt : text;
-      const slashedContextNote = slashed.handled ? slashed.contextNote : "";
 
       try {
-        const sa = await runSuperAgent({
-          globalConfig: self.globalConfig,
-          projects: self.projects,
-          plugins: self.plugins,
-          registries: self.registries,
-          prompt: slashedPrompt,
+        const sa = await runTelegramSuperAgent(self, {
+          chat_id,
+          prompt: slashed.handled ? slashed.prompt : text,
           previousMessages,
-          channel: CHANNELS.TELEGRAM,
+          target,
+          author,
           relationshipBlock,
           allowedTools,
-          contextNote: slashedContextNote || undefined,
-          channelMeta: buildTelegramMeta({
-            channelName: self.channel.name,
-            author,
-            chatId: chat_id,
-            target,
-            routeToAgent: self.channel.route_to_agent,
-          }),
+          contextNote: slashed.handled ? slashed.contextNote : "",
           signal: abortCtrl.signal,
           onEvent,
-          requestConfirmation: confirmAdapter.requestConfirmation,
-          // Autonomy budget: Telegram is the "do the whole task for me" surface,
-          // so it gets a real multi-step budget instead of the conversational
-          // default (which cut tasks off after ~9 actions to ask "continue?").
-          // Tunable via config.super_agent.telegram_max_iters.
-          maxIters:
-            Number(self.globalConfig?.super_agent?.telegram_max_iters) ||
-            TELEGRAM_TOOL_ITERS,
         });
         replyText = sa.text;
         replyAuthor = sa.name || agentDisplay;
@@ -417,13 +300,13 @@ export async function handleUpdate(self, u) {
         saUsage = sa.usage;
 
         // ── ask_questions integration ────────────────────────────────────
-        // If the super-agent ended this turn by calling ask_questions, hand
-        // off to the inline-keyboard flow instead of sending the bare
-        // assistant text. The flow keeps state per chat_id and re-runs the
-        // super-agent once every answer is collected.
+        // If the super-agent ended this turn by calling ask_questions, hand off
+        // to the inline-keyboard flow instead of sending the bare assistant
+        // text. The flow keeps state per chat_id and re-runs the super-agent
+        // (via _runResumedTurn) once every answer is collected.
         const askQuestions = askFlow.extractAskQuestionsFromTrace(sa.trace);
         if (askQuestions && chat_id) {
-          if (chat_id) self.activeRequests.delete(chat_id);
+          self.activeRequests.delete(chat_id);
           stopTyping();
           try {
             await self._startAskFlow({
@@ -444,24 +327,20 @@ export async function handleUpdate(self, u) {
           }
           return; // The reply for this turn IS the ask flow.
         }
+        streamedCount = state.streamedCount;
+        lastStreamedText = state.lastStreamedText;
       } catch (e) {
         if (abortCtrl.signal.aborted) {
           // A newer message superseded this one. Whatever streamed so far is
-          // already sent + logged; the newer message's run continues the
-          // thread from that history.
+          // already sent + logged; the newer message's run continues the thread.
           self.log(`telegram[${self.channel.name}] request aborted for chat ${chat_id}`);
           if (chat_id) self.activeRequests.delete(chat_id);
           stopTyping();
           return;
         }
         self.log(`telegram[${self.channel.name}] super-agent failed: ${e.message}`);
-        // Surface the failure to the user instead of silently dropping the
-        // turn — otherwise from the chat side it looks like the bot ignored
-        // the message. Keep the message short and non-leaking.
-        replyText = t("telegram.error_generic", {
-          lang: resolveLang(self.globalConfig),
-          vars: { error: e.message || "internal error" },
-        });
+        // Surface the failure to the user instead of silently dropping the turn.
+        replyText = telegramErrorText(self, e);
         replyAuthor = agentDisplay;
         replyActorId = SUPERAGENT_ACTOR_ID;
         replyKind = "superagent";
@@ -469,71 +348,18 @@ export async function handleUpdate(self, u) {
     }
 
     if (chat_id) self.activeRequests.delete(chat_id);
-
-    // Final answer. The intermediate prose was already streamed; only send the
-    // final text if it's non-empty AND not a duplicate of the last streamed
-    // piece (the loop can end on an iteration whose text was already sent).
-    // If nothing streamed and there's no final text, send a minimal ack so the
-    // turn isn't silently empty.
-    const finalClean = replyText ? stripThinking(replyText).trim() : "";
-    let toSend = "";
-    if (finalClean && finalClean !== lastStreamedText) {
-      toSend = finalClean;
-    } else if (!finalClean) {
-      // Never end a turn on silence. The loop's tool-free wrap-up normally
-      // fills finalClean with a model-authored closing (handled above); this is
-      // the last-resort floor for the rare case it still came back empty. A
-      // pure chit-chat turn that did nothing gets the short ack; a turn that
-      // streamed/acted but produced no closing gets a neutral "continue?" that
-      // does NOT claim completion.
-      toSend = streamedCount === 0
-        ? t("telegram.fallback_listo", { lang: resolveLang(self.globalConfig) })
-        : t("telegram.fallback_continue", { lang: resolveLang(self.globalConfig) });
-    }
-
     stopTyping();
-    if (!toSend) return; // everything was already streamed — nothing left to send
-
-    try {
-      await self._send({ chat_id, text: toSend });
-      const meta = {
-        chat_id,
-        tg_channel: self.channel.name,
-        in_reply_to: u.update_id,
-        final: true,
-      };
-      if (replyText && stripThinking(replyText) !== replyText) meta.thinking_stripped = true;
-      if (saUsage) meta.usage = saUsage;
-      appendGlobalMessage({
-        channel: CHANNELS.TELEGRAM,
-        direction: "out",
-        type: "agent",
-        actor_id: replyActorId || SUPERAGENT_ACTOR_ID,
-        actor_kind: replyKind || "superagent",
-        agent_slug: replyActorId || SUPERAGENT_ACTOR_ID,
-        author: replyAuthor || agentDisplay,
-        body: toSend,
-        meta,
-      });
-    } catch (e) {
-      self.log(`telegram[${self.channel.name}] send-back error: ${e.message}`);
-      appendGlobalMessage({
-        channel: CHANNELS.TELEGRAM,
-        direction: "out",
-        type: "agent",
-        actor_id: replyActorId || SUPERAGENT_ACTOR_ID,
-        actor_kind: replyKind || "superagent",
-        agent_slug: replyActorId || SUPERAGENT_ACTOR_ID,
-        author: replyAuthor || agentDisplay,
-        body: `[send_failed] ${toSend}`,
-        meta: {
-          chat_id,
-          tg_channel: self.channel.name,
-          in_reply_to: u.update_id,
-          send_error: e.message,
-          ...(saUsage ? { usage: saUsage } : {}),
-        },
-      });
-    }
+    await sendFinalReply(self, {
+      chat_id,
+      update_id: u.update_id,
+      replyText,
+      replyAuthor,
+      replyActorId,
+      replyKind,
+      saUsage,
+      streamedCount,
+      lastStreamedText,
+      agentDisplay,
+    });
   }
 

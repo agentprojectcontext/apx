@@ -1,12 +1,12 @@
-// Regression test for the Telegram inbound handler. When the super-agent
-// throws for any reason OTHER than an explicit abort, the bot used to drop
-// the turn silently — looking like it ignored the user. Now it surfaces a
-// short error reply via the same channel.
+// Regression tests for the Telegram reply path. When the super-agent throws
+// (non-abort), the bot must surface a localized error instead of dropping the
+// turn silently; and an empty final turn must never end on silence. Both the
+// inbound dispatcher AND the ask-flow resume drive the SAME shared reply path
+// (core/channels/telegram/reply.js) — these tests guard that the behavior lives
+// there and that both entry points actually use it (it drifted once already).
 //
 // We don't exercise the real plugin (needs a live Telegram channel + many
-// stubs). We instead read the source and assert the surface-the-error code
-// path is present near the super-agent catch block. This guards against a
-// silent regression to the old "return without reply" behaviour.
+// stubs). We read the source and assert the code paths are present.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -15,66 +15,56 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const SRC = fs.readFileSync(
-  // _handleUpdate body lives in dispatch.js, now under core/channels/telegram/.
-  path.join(__dirname, "..", "src", "core", "channels", "telegram", "dispatch.js"),
-  "utf8",
-);
+const read = (...p) => fs.readFileSync(path.join(__dirname, "..", "src", ...p), "utf8");
+
+const DISPATCH = read("core", "channels", "telegram", "dispatch.js");
+const REPLY = read("core", "channels", "telegram", "reply.js");
+const HOST = read("host", "daemon", "plugins", "telegram", "index.js");
 
 test("telegram: super-agent catch surfaces a reply on non-abort errors", () => {
-  // Locate the super-agent catch block. The contract:
-  //   - if abortCtrl.signal.aborted → return (silent, expected)
-  //   - otherwise → assign replyText so the user gets a notification
-  const block = SRC.match(
-    /super-agent failed: \$\{e\.message\}[\s\S]{0,500}/,
-  );
+  // The dispatcher's super-agent catch must assign replyText (not just log +
+  // return), delegating the wording to the shared localized error helper.
+  const block = DISPATCH.match(/super-agent failed: \$\{e\.message\}[\s\S]{0,400}/);
   assert.ok(block, "super-agent failed log line must be present");
-  // The catch block should assign replyText (not just log + return).
   assert.match(
     block[0],
-    /replyText\s*=/,
-    "non-abort errors must set replyText so the user sees the failure",
+    /replyText\s*=\s*telegramErrorText\(/,
+    "non-abort errors must set replyText via the shared localized error helper",
   );
-  // And the assigned text should be a clear, localized user-facing message —
-  // routed through i18n (telegram.error_generic) rather than a hardcoded
-  // English literal, so it follows the user's language.
+  // And that helper must route through i18n, not a hardcoded English literal.
   assert.match(
-    block[0],
-    /telegram\.error_generic/,
-    "fallback reply should use the localized error key, not a hardcoded string",
+    REPLY,
+    /telegramErrorText[\s\S]{0,200}telegram\.error_generic/,
+    "telegramErrorText must use the localized error key",
   );
 });
 
 test("telegram: empty final text never ends the turn silently", () => {
-  // The final-send floor must cover EVERY empty-final case, not just
-  // streamedCount === 0. A turn that streamed prose / acted but produced no
-  // closing (e.g. the loop hit its cap) must still send something — a neutral
-  // "continue?" that does not claim completion.
-  const floor = SRC.match(/}\s*else if \(!finalClean\) \{[\s\S]{0,1200}?\n {4}\}/);
-  assert.ok(floor, "final-send must have an `else if (!finalClean)` floor branch");
-  assert.match(
-    floor[0],
-    /telegram\.fallback_continue/,
-    "a cut-off turn that streamed/acted gets the neutral continue prompt",
-  );
-  assert.match(
-    floor[0],
-    /telegram\.fallback_listo/,
-    "a pure chit-chat turn (nothing streamed) still gets the short ack",
-  );
+  // The never-silent floor lives in sendFinalReply (reply.js): a turn that
+  // streamed/acted but produced no closing gets a neutral "continue?"; a pure
+  // chit-chat turn that did nothing gets the short ack.
+  const floor = REPLY.match(/}\s*else if \(!finalClean\) \{[\s\S]{0,600}?\n {2}\}/);
+  assert.ok(floor, "sendFinalReply must have an `else if (!finalClean)` floor branch");
+  assert.match(floor[0], /telegram\.fallback_continue/, "cut-off turn gets the neutral continue prompt");
+  assert.match(floor[0], /telegram\.fallback_listo/, "pure chit-chat turn still gets the short ack");
+});
+
+test("telegram: both entry points share the reply path (no drift)", () => {
+  // The whole point of reply.js: the inbound dispatcher and the ask-flow resume
+  // must BOTH run the super-agent through runTelegramSuperAgent and close with
+  // sendFinalReply — so the autonomy budget, streaming and never-silent floor
+  // can't silently lag behind in one of them (the resume path drifted before).
+  for (const [name, src] of [["dispatch.js", DISPATCH], ["host index.js (_runResumedTurn)", HOST]]) {
+    assert.match(src, /runTelegramSuperAgent\(/, `${name} must run via the shared runTelegramSuperAgent`);
+    assert.match(src, /sendFinalReply\(/, `${name} must close via the shared sendFinalReply`);
+  }
 });
 
 test("telegram: aborted requests still short-circuit silently", () => {
   // The abort path must remain a silent return — interrupting the user's own
-  // request shouldn't generate a "could not reply" message. We assert the
-  // contract (the abort branch returns and never assigns replyText) rather
-  // than an exact comment string, so wording changes don't break the test.
-  const abortBlock = SRC.match(/if \(abortCtrl\.signal\.aborted\) \{[\s\S]{0,400}?\n {8}\}/);
+  // request shouldn't generate a "could not reply" message.
+  const abortBlock = DISPATCH.match(/if \(abortCtrl\.signal\.aborted\) \{[\s\S]{0,400}?\n {8}\}/);
   assert.ok(abortBlock, "abort branch must exist");
   assert.match(abortBlock[0], /return;/, "abort path must return");
-  assert.doesNotMatch(
-    abortBlock[0],
-    /replyText\s*=/,
-    "abort path must NOT set a reply — interrupting is silent",
-  );
+  assert.doesNotMatch(abortBlock[0], /replyText\s*=/, "abort path must NOT set a reply — interrupting is silent");
 });
