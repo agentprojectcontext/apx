@@ -24,7 +24,10 @@
 // keyboard but before the user tapped, pendingStore.wasKnown() detects the
 // SQLite row with no memory entry and we show "Expirado" instead of an error.
 
-const API_BASE = "https://api.telegram.org";
+// Raw Bot API calls go through the shared client so endpoint boilerplate lives
+// in one place (these used to be hand-rolled fetch calls duplicated here).
+import { sendMessage, answerCallbackQuery as apiAnswerCallbackQuery, editMessageReplyMarkup } from "#core/channels/telegram/api.js";
+
 const TIMEOUT_MS = 60_000; // 60 s — long enough for a human, short enough to not block forever
 
 /**
@@ -81,51 +84,31 @@ export function createTelegramConfirmAdapter({ token, chatId, pendingStore }) {
 
 async function sendConfirmKeyboard(token, chatId, description, correlationId, timeoutMs) {
   const timeoutSec = Math.round(timeoutMs / 1000);
-  await fetch(`${API_BASE}/bot${token}/sendMessage`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text:
-        `⚠️ *Confirm action*\n\n${escapeMarkdown(description)}\n\n` +
-        `_Expires in ${timeoutSec}s. No response → cancelled._`,
-      parse_mode: "Markdown",
-      reply_markup: {
-        inline_keyboard: [[
-          { text: "✅ Yes", callback_data: `apx:confirm:${correlationId}:yes` },
-          { text: "❌ No",  callback_data: `apx:confirm:${correlationId}:no` },
-        ]],
-      },
-    }),
+  await sendMessage(token, chatId, {
+    text:
+      `⚠️ *Confirm action*\n\n${escapeMarkdown(description)}\n\n` +
+      `_Expires in ${timeoutSec}s. No response → cancelled._`,
+    parse_mode: "Markdown",
+    reply_markup: {
+      inline_keyboard: [[
+        { text: "✅ Yes", callback_data: `apx:confirm:${correlationId}:yes` },
+        { text: "❌ No",  callback_data: `apx:confirm:${correlationId}:no` },
+      ]],
+    },
   });
 }
 
+// best-effort — Telegram gives only ~30s to answer; after that it's already cleared
 async function answerCallbackQuery(token, callbackQueryId, text) {
   try {
-    await fetch(`${API_BASE}/bot${token}/answerCallbackQuery`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ callback_query_id: callbackQueryId, text }),
-    });
-  } catch {
-    // best-effort — Telegram gives only 30s to answer; after that it's already cleared
-  }
+    await apiAnswerCallbackQuery(token, callbackQueryId, text);
+  } catch { /* best-effort */ }
 }
 
 async function editMessageButtons(token, chatId, messageId, inlineKeyboard) {
   try {
-    await fetch(`${API_BASE}/bot${token}/editMessageReplyMarkup`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        chat_id: chatId,
-        message_id: messageId,
-        reply_markup: { inline_keyboard: inlineKeyboard },
-      }),
-    });
-  } catch {
-    // best-effort
-  }
+    await editMessageReplyMarkup(token, chatId, messageId, { inline_keyboard: inlineKeyboard });
+  } catch { /* best-effort */ }
 }
 
 // Escape Markdown special chars so description text doesn't break Telegram markup.

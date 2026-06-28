@@ -19,7 +19,8 @@ const read = (...p) => fs.readFileSync(path.join(__dirname, "..", "src", ...p), 
 
 const DISPATCH = read("core", "channels", "telegram", "dispatch.js");
 const REPLY = read("core", "channels", "telegram", "reply.js");
-const HOST = read("host", "daemon", "plugins", "telegram", "index.js");
+// The ask-flow resume (the second entry point into the reply path) lives here.
+const ASK_CALLBACKS = read("core", "channels", "telegram", "ask-callbacks.js");
 
 test("telegram: super-agent catch surfaces a reply on non-abort errors", () => {
   // The dispatcher's super-agent catch must assign replyText (not just log +
@@ -54,7 +55,7 @@ test("telegram: both entry points share the reply path (no drift)", () => {
   // must BOTH run the super-agent through runTelegramSuperAgent and close with
   // sendFinalReply — so the autonomy budget, streaming and never-silent floor
   // can't silently lag behind in one of them (the resume path drifted before).
-  for (const [name, src] of [["dispatch.js", DISPATCH], ["host index.js (_runResumedTurn)", HOST]]) {
+  for (const [name, src] of [["dispatch.js", DISPATCH], ["ask-callbacks.js (runResumedTurn)", ASK_CALLBACKS]]) {
     assert.match(src, /runTelegramSuperAgent\(/, `${name} must run via the shared runTelegramSuperAgent`);
     assert.match(src, /sendFinalReply\(/, `${name} must close via the shared sendFinalReply`);
   }
