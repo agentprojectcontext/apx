@@ -1,3 +1,10 @@
+## [1.40.1](https://github.com/agentprojectcontext/apx/compare/v1.40.0...v1.40.1) (2026-06-28)
+
+
+### Bug Fixes
+
+* **desktop:** re-read daemon token on WS reconnect + add restart commands ([027ec20](https://github.com/agentprojectcontext/apx/commit/027ec2042d647e0a9a5e631548965e4fbef04bf1))
+
 # [1.40.0](https://github.com/agentprojectcontext/apx/compare/v1.39.1...v1.40.0) (2026-06-15)
 
 
