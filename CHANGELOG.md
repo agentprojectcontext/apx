@@ -1,3 +1,10 @@
+# [1.43.0](https://github.com/agentprojectcontext/apx/compare/v1.42.2...v1.43.0) (2026-06-28)
+
+
+### Features
+
+* **desktop:** system theme default, lifecycle controls, badge shortcut field ([75acc5b](https://github.com/agentprojectcontext/apx/commit/75acc5baffc7663646665f778937afb0bedd8d85))
+
 ## [1.42.2](https://github.com/agentprojectcontext/apx/compare/v1.42.1...v1.42.2) (2026-06-28)
 
 
