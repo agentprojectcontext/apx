@@ -1,34 +1,77 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import useSWR, { type SWRConfiguration } from "swr";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "./ui";
 import { UiSelect } from "./UiSelect";
+import { cn } from "../lib/cn";
 import { t } from "../i18n";
 
 const DEFAULT_PAGE_SIZE = 20;
 export const PAGE_SIZES = [10, 20, 50, 100];
 
-// Client-side pagination over an already-fetched array. The list endpoints
-// return the full set (sessions/tasks are bounded), so we page in the browser
-// rather than round-trip the daemon. Pass `resetKey` (e.g. the active filter)
-// to jump back to page 1 whenever the source set changes; the window is also
-// clamped so a shrinking list never strands the user on an empty page.
-export function usePaged<T>(items: T[], resetKey?: unknown, initialPageSize = DEFAULT_PAGE_SIZE) {
+// The pager-facing slice of usePagedQuery's return value. PagedList/Pager only
+// need these fields, so call sites can pass the whole query result structurally.
+export interface PagerState {
+  page: number;
+  pageCount: number;
+  total: number;
+  start: number;
+  end: number;
+  pageSize: number;
+  setPage: (p: number) => void;
+  setPageSize: (n: number) => void;
+}
+
+// Server-side pagination. The daemon paginates by ?limit&?offset and returns
+// the full count, so we fetch only the current page (real API pagination, not a
+// client-side slice of everything). `fetchPage` is called with (limit, offset)
+// and must return { items, total }. Pass `resetKey` (e.g. the active filter) to
+// jump back to page 1 when the query changes; the page is also clamped so
+// removing the last row on a page never strands the user on an empty page.
+//
+// Returns the page `items` plus SWR state (isLoading/error/mutate) and the
+// PagerState fields consumed by <PagedList> / <Pager>.
+export function usePagedQuery<T>({
+  key,
+  fetchPage,
+  resetKey,
+  initialPageSize = DEFAULT_PAGE_SIZE,
+  swr,
+}: {
+  key: string | null;
+  fetchPage: (limit: number, offset: number) => Promise<{ items: T[]; total: number }>;
+  resetKey?: unknown;
+  initialPageSize?: number;
+  swr?: SWRConfiguration;
+}) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(initialPageSize);
 
   useEffect(() => { setPage(1); }, [resetKey]);
 
-  const pageCount = Math.max(1, Math.ceil(items.length / pageSize));
+  const offset = (page - 1) * pageSize;
+  const res = useSWR(
+    key == null ? null : [key, pageSize, offset],
+    () => fetchPage(pageSize, offset),
+    { keepPreviousData: true, ...swr },
+  );
+
+  const total = res.data?.total ?? 0;
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  // Clamp once totals are known (e.g. after the last row on a page is removed).
   const safePage = Math.min(page, pageCount);
   useEffect(() => { if (page !== safePage) setPage(safePage); }, [page, safePage]);
 
-  const start = (safePage - 1) * pageSize;
-  const end = Math.min(start + pageSize, items.length);
+  const start = total === 0 ? 0 : offset;
+  const end = Math.min(offset + pageSize, total);
   return {
-    slice: items.slice(start, end),
+    items: (res.data?.items ?? []) as T[],
+    isLoading: res.isLoading,
+    error: res.error as Error | undefined,
+    mutate: res.mutate,
     page: safePage,
     pageCount,
-    total: items.length,
+    total,
     start,
     end,
     pageSize,
@@ -83,6 +126,53 @@ export function Pager({
           <ChevronRight size={14} />
         </Button>
       </div>
+    </div>
+  );
+}
+
+// Reusable list + pager wrapper. `children` is the list markup (built from
+// `paged.slice`); the Pager is wired from `paged` automatically.
+//
+// With `fullHeight`, the list area becomes an internal scroller and the pager
+// is pinned at the bottom, so the whole block fits one viewport with no outer
+// page scroll. This requires the parent to give it a bounded height — render it
+// inside <Section fullHeight> (which lays out as a flex column). Without the
+// flag it falls back to normal document flow (list, then pager, page scrolls).
+export function PagedList({
+  paged,
+  fullHeight,
+  className,
+  children,
+}: {
+  paged: PagerState;
+  fullHeight?: boolean;
+  className?: string;
+  children: ReactNode;
+}) {
+  const pager = (
+    <Pager
+      page={paged.page}
+      pageCount={paged.pageCount}
+      total={paged.total}
+      start={paged.start}
+      end={paged.end}
+      pageSize={paged.pageSize}
+      onPage={paged.setPage}
+      onPageSize={paged.setPageSize}
+    />
+  );
+  if (!fullHeight) {
+    return (
+      <div className={className}>
+        {children}
+        {pager}
+      </div>
+    );
+  }
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className={cn("min-h-0 flex-1 overflow-y-auto", className)}>{children}</div>
+      <div className="shrink-0">{pager}</div>
     </div>
   );
 }
