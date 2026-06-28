@@ -31,19 +31,28 @@ export function detectHardware() {
   const platform = os.platform();           // "darwin" | "linux" | "win32"
   const arch = os.arch();                    // "arm64" | "x64" | ...
   const appleSilicon = platform === "darwin" && arch === "arm64";
+  const mem_gb = Math.round((os.totalmem() / 1024 ** 3) * 10) / 10;
 
   if (appleSilicon) {
-    return { platform, arch, appleSilicon: true, gpu: "metal", gpuName: cpuBrand() };
+    // Unified memory: the GPU shares system RAM, so mem_gb is also the VRAM ceiling.
+    return { platform, arch, appleSilicon: true, gpu: "metal", gpuName: cpuBrand(), mem_gb, unified_memory: true };
   }
   // NVIDIA: nvidia-smi exits 0 when a CUDA GPU + driver are present.
   if (cmdOk("nvidia-smi", ["-L"])) {
-    return { platform, arch, appleSilicon: false, gpu: "cuda" };
+    return { platform, arch, appleSilicon: false, gpu: "cuda", gpuName: nvidiaName(), mem_gb };
   }
   // AMD/Radeon: rocminfo (ROCm stack) is the clearest signal on Linux.
   if (platform === "linux" && cmdOk("rocminfo")) {
-    return { platform, arch, appleSilicon: false, gpu: "rocm" };
+    return { platform, arch, appleSilicon: false, gpu: "rocm", mem_gb };
   }
-  return { platform, arch, appleSilicon: false, gpu: "none" };
+  return { platform, arch, appleSilicon: false, gpu: "none", gpuName: cpuBrand(), mem_gb };
+}
+
+function nvidiaName() {
+  try {
+    const r = spawnSync("nvidia-smi", ["--query-gpu=name", "--format=csv,noheader"], { timeout: 1500, encoding: "utf8" });
+    return r.status === 0 ? (r.stdout || "").split("\n")[0].trim() || undefined : undefined;
+  } catch { return undefined; }
 }
 
 function cpuBrand() {
