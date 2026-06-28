@@ -1,3 +1,11 @@
+# [1.44.0](https://github.com/agentprojectcontext/apx/compare/v1.43.0...v1.44.0) (2026-06-28)
+
+
+### Features
+
+* **web/deck:** gate Deck module behind non-dismissable "coming soon" modal ([40ec521](https://github.com/agentprojectcontext/apx/commit/40ec52193dde4fd3d23e9ece0e6b2561f935b4ed))
+* **web:** paginate sessions and tasks lists ([#8](https://github.com/agentprojectcontext/apx/issues/8)) ([763ef8c](https://github.com/agentprojectcontext/apx/commit/763ef8c6760b40a1dc4abad37b02eca9c88e2aa0))
+
 # [1.43.0](https://github.com/agentprojectcontext/apx/compare/v1.42.2...v1.43.0) (2026-06-28)
 
 
