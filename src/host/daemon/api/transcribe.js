@@ -70,7 +70,11 @@ export function register(app) {
       try {
         const { transcribeBuffer } = await import("#core/voice/transcription.js");
         const result = await transcribeBuffer(buf, format, {
-          language: language === "auto" ? undefined : language,
+          // Only override the language when the caller pins a real one. An
+          // "auto" header must NOT clobber the configured language (e.g. the
+          // desktop always sends "auto", which used to override config.user
+          // .language="es" with detection — hurting accuracy on short clips).
+          ...(language && language !== "auto" ? { language } : {}),
           beam_size: 3,
           ...(provider ? { provider } : {}),
         });

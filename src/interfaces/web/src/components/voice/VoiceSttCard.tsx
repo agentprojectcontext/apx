@@ -1,8 +1,35 @@
+import { useEffect, useState } from "react";
 import { Field, Input } from "../ui";
 import { UiSelect } from "../UiSelect";
-import { WHISPER_MODELS, type TranscriptionConfig } from "../../lib/api/voice";
+import { Voice, WHISPER_MODELS, type TranscriptionConfig, type SttHardwareResponse, type SttModelEntry } from "../../lib/api/voice";
 import { isSecretMarker, secretSuffix } from "../../lib/secrets";
 import { t } from "../../i18n";
+
+// Acceleration badge — each compute backend gets its own colour so the user can
+// tell at a glance what the local engine runs on (Metal on Apple Silicon, CUDA
+// on NVIDIA, Vulkan/ROCm on AMD, plain CPU otherwise).
+const ACCEL: Record<string, { label: string; cls: string }> = {
+  metal: { label: "Metal",         cls: "text-emerald-400 border-emerald-500/40 bg-emerald-500/10" },
+  cuda:  { label: "CUDA",          cls: "text-lime-400 border-lime-500/40 bg-lime-500/10" },
+  rocm:  { label: "Vulkan / ROCm", cls: "text-orange-400 border-orange-500/40 bg-orange-500/10" },
+  none:  { label: "CPU",           cls: "text-muted-fg border-border bg-muted" },
+};
+
+function AccelBadge({ gpu }: { gpu: string }) {
+  const a = ACCEL[gpu] ?? ACCEL.none;
+  return (
+    <span className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-[11px] font-medium ${a.cls}`}>
+      {a.label}
+    </span>
+  );
+}
+
+// Human label for the recommended backend (engine + where it runs).
+function backendLabel(rec: SttHardwareResponse["recommended"]): string {
+  if (rec.backend === "mlx") return "Metal · mlx-whisper";
+  if (rec.backend === "faster") return (rec.device === "cuda" ? "CUDA" : "CPU") + " · faster-whisper";
+  return rec.backend;
+}
 
 // STT (speech-to-text) configuration. Persisted under config.transcription.
 // The actual capture happens in the desktop window / Telegram / CLI; here the
@@ -36,6 +63,13 @@ const langOptions = () => [
 ];
 
 export function VoiceSttCard({ config, onPatch, busy }: Props) {
+  const [hw, setHw] = useState<SttHardwareResponse | null>(null);
+  useEffect(() => {
+    let alive = true;
+    Voice.sttHardware().then((r) => { if (alive) setHw(r); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
   const provider = config.provider || "auto";
   const local = config.local || {};
   const openai = config.openai || {};
@@ -63,8 +97,63 @@ export function VoiceSttCard({ config, onPatch, busy }: Props) {
       ? t("voice_ui.api_key_set", { suffix: secretSuffix(marker) ?? "" })
       : t("voice_ui.api_key_label");
 
+  // ── Local engine: acceleration backend + model (hardware-adaptive) ─────────
+  const localBackend = local.backend || "auto";
+  const accel = hw?.hardware.gpu || "none";
+  // What "auto" actually resolves to on this machine (mlx on Metal, faster else).
+  const effectiveBackend = localBackend === "auto" ? (hw?.recommended.backend || "faster") : localBackend;
+  const isMlx = effectiveBackend === "mlx";
+  // The accel a chosen backend runs on — drives the badge next to the selector.
+  const selectedAccel = isMlx ? "metal" : (effectiveBackend === "faster" && accel === "cuda" ? "cuda" : "none");
+
+  const backendOptions = () => {
+    const opts = [{ value: "auto", label: t("voice_ui.stt_backend_auto") }];
+    if (accel === "metal") opts.push({ value: "mlx", label: "Metal — mlx-whisper" });
+    opts.push({ value: "faster", label: accel === "cuda" ? "CUDA — faster-whisper" : "CPU — faster-whisper" });
+    return opts;
+  };
+
+  // Model list for the effective backend, with on-disk status in the label.
+  const [models, setModels] = useState<SttModelEntry[]>([]);
+  useEffect(() => {
+    let alive = true;
+    Voice.sttModels(effectiveBackend).then((r) => { if (alive) setModels(r.models); }).catch(() => { if (alive) setModels([]); });
+    return () => { alive = false; };
+  }, [effectiveBackend]);
+
+  const fmtModel = (m: SttModelEntry) => `${m.id} · ${m.downloaded ? "✓ " + m.size : m.size}`;
+  const modelOptions = () =>
+    models.length
+      ? models.map((m) => ({ value: isMlx ? m.repo : m.id, label: fmtModel(m) }))
+      : WHISPER_MODELS.map((m) => ({ value: m, label: m }));
+  const modelValue = isMlx ? (local.mlx_model || hw?.recommended.model || "") : model;
+  const modelPatchKey = isMlx ? "transcription.local.mlx_model" : "transcription.local.model";
+  const selectedModel = models.find((m) => (isMlx ? m.repo : m.id) === modelValue);
+  const needsDownload = !!selectedModel && !selectedModel.downloaded;
+
   return (
     <div className="space-y-3">
+      {hw && (
+        <div className="rounded-lg border border-border bg-muted px-3 py-2 text-sm">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-muted-fg">{t("voice_ui.stt_hw_label")}:</span>
+            <AccelBadge gpu={hw.hardware.gpu} />
+            <span className="font-medium text-fg">{hw.hardware.gpuName || hw.hardware.platform}</span>
+            {hw.hardware.mem_gb ? (
+              <span className="text-muted-fg">
+                · {hw.hardware.mem_gb} GB{hw.hardware.unified_memory ? " unified" : ""}
+              </span>
+            ) : null}
+          </div>
+          <div className="mt-1 text-xs text-muted-fg">
+            {t("voice_ui.stt_hw_recommended")}:{" "}
+            <span className="text-fg">{hw.recommended.model}</span>
+            {" "}({backendLabel(hw.recommended)})
+            {hw.recommended.limited ? ` — ${t("voice_ui.stt_hw_limited")}` : ""}
+          </div>
+        </div>
+      )}
+
       <Field label={t("voice_ui.stt_engine_label")} hint={t("voice_ui.stt_engine_hint")}>
         <UiSelect
           value={provider}
@@ -76,23 +165,40 @@ export function VoiceSttCard({ config, onPatch, busy }: Props) {
       </Field>
 
       {showLocal && (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field label={t("voice_ui.stt_model_label")} hint={t("voice_ui.stt_model_hint")}>
-            <UiSelect
-              value={model}
-              onChange={(v) => onPatch({ "transcription.local.model": v })}
-              options={WHISPER_MODELS.map((m) => ({ value: m, label: m }))}
-              disabled={busy}
-            />
+        <div className="space-y-3">
+          <Field label={t("voice_ui.stt_backend_label")} hint={t("voice_ui.stt_backend_hint")}>
+            <div className="flex items-center gap-2">
+              <UiSelect
+                value={localBackend}
+                onChange={(v) => onPatch({ "transcription.local.backend": v })}
+                options={backendOptions()}
+                disabled={busy}
+                className="max-w-xs"
+              />
+              <AccelBadge gpu={selectedAccel} />
+            </div>
           </Field>
-          <Field label={t("voice_ui.stt_language_label")} hint={t("voice_ui.stt_language_hint")}>
-            <UiSelect
-              value={language}
-              onChange={(v) => onPatch({ "transcription.local.language": v })}
-              options={langOptions()}
-              disabled={busy}
-            />
-          </Field>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field
+              label={t("voice_ui.stt_model_label")}
+              hint={needsDownload ? t("voice_ui.stt_model_needs_download", { size: selectedModel!.size }) : t("voice_ui.stt_model_hint")}
+            >
+              <UiSelect
+                value={modelValue}
+                onChange={(v) => onPatch({ [modelPatchKey]: v })}
+                options={modelOptions()}
+                disabled={busy}
+              />
+            </Field>
+            <Field label={t("voice_ui.stt_language_label")} hint={t("voice_ui.stt_language_hint")}>
+              <UiSelect
+                value={language}
+                onChange={(v) => onPatch({ "transcription.local.language": v })}
+                options={langOptions()}
+                disabled={busy}
+              />
+            </Field>
+          </div>
         </div>
       )}
 

@@ -92,7 +92,9 @@ export interface VoiceTtsConfig {
 }
 
 export interface TranscriptionLocalConfig {
-  model?: string;        // tiny | base | small | medium | large | large-v2 | large-v3
+  backend?: string;      // auto | faster | mlx  (auto adapts to the hardware)
+  model?: string;        // faster-whisper model id (tiny | base | small | …)
+  mlx_model?: string;    // mlx repo (e.g. mlx-community/whisper-large-v3-turbo)
   device?: string;       // cpu | cuda
   compute_type?: string; // int8 | int8_float16 | float16 | float32
   language?: string;     // ISO code or "auto"
@@ -115,6 +117,34 @@ export interface TranscriptionConfig {
   local?: TranscriptionLocalConfig;
   openai?: TranscriptionOpenAIConfig;
   custom?: TranscriptionCustomConfig;
+}
+
+/** Detected machine + recommended local backend (GET /transcribe/hardware). */
+export interface SttHardware {
+  platform: string;
+  arch: string;
+  appleSilicon: boolean;
+  gpu: "metal" | "cuda" | "rocm" | "none";
+  gpuName?: string;
+  mem_gb?: number;
+  unified_memory?: boolean;
+}
+export interface SttHardwareResponse {
+  hardware: SttHardware;
+  recommended: { backend: string; device?: string; model: string; reason?: string; tier?: string; limited?: boolean };
+}
+
+/** One model row from GET /transcribe/models. */
+export interface SttModelEntry {
+  id: string;
+  repo: string;
+  downloaded: boolean;
+  size: string;        // "1.6 GB" when present, "~1.6 GB" when not yet downloaded
+  size_bytes: number;
+}
+export interface SttModelsResponse {
+  backend: string;
+  models: SttModelEntry[];
 }
 
 /** One STT engine entry as reported by GET /transcribe/providers. */
@@ -168,6 +198,12 @@ export async function fetchTtsAudioUrl(audioPath: string): Promise<string> {
 export const Voice = {
   /** List TTS engines + availability + the configured default provider. */
   providers: () => http.get<TtsProvidersResponse>("/tts/providers"),
+
+  /** Detected hardware + the recommended local STT backend (Metal/CUDA/CPU). */
+  sttHardware: () => http.get<SttHardwareResponse>("/transcribe/hardware"),
+
+  /** Model catalog + on-disk status for a local backend ("faster" | "mlx"). */
+  sttModels: (backend: string) => http.get<SttModelsResponse>(`/transcribe/models?backend=${backend}`),
 
   /**
    * Synthesize speech. Returns the audio file path (server-side); the web
