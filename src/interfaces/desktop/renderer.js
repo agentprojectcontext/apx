@@ -210,10 +210,17 @@
 
   function initialCaption(shortcut) {
     const sc = formatShortcut(shortcut);
+    // Empty-idle state has no other affordance to dismiss the floating window
+    // (the session bar's "Cerrar" only shows once a conversation exists, and
+    // the window doesn't auto-hide on blur). Pair the hint with a translucent
+    // "Cerrar ventana" pill in the same glass language so the user can always
+    // close it without hunting for the tray icon.
     $captionSlot.innerHTML = `
       <div class="caption">Mantené <span class="kbd">${sc}</span> para hablar
         <span class="kbd">⌥ /</span> para escribir</div>
+      <button class="cap-pill" id="btn-close-idle" title="Cerrar ventana">${ICON.close()}<span>Cerrar ventana</span></button>
     `;
+    $captionSlot.querySelector("#btn-close-idle")?.addEventListener("click", closeWindow);
   }
 
   // ── Render: capsule center + actions vary by mode ────────────────────────
