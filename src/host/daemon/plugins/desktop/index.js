@@ -140,7 +140,12 @@ async function _handleMessage({ ws, text, previousMessages }, { projects, config
       channel: CHANNELS.DESKTOP,
       ...(slashed.handled ? { contextNote: slashed.contextNote } : {}),
       channelMeta: { voice: true }, // desktop module is voice-first → spoken mode
-      previousMessages: history.slice(0, -1),
+      // WS path: history was just appended with the current user turn (line 87),
+      // so drop it. HTTP path: `previousMessages` came in already excluding the
+      // current user turn (the renderer slices it off before POSTing), so
+      // dropping again would silently strip the last assistant reply — making
+      // every turn look like a fresh conversation to the model.
+      previousMessages: ws ? history.slice(0, -1) : history,
       overrideModel: cfg.model || null,
       signal: controller.signal,
       onToken: (chunk) => { liveBuf += chunk; },
