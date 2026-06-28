@@ -1,3 +1,10 @@
+# [1.50.0](https://github.com/agentprojectcontext/apx/compare/v1.49.0...v1.50.0) (2026-06-28)
+
+
+### Features
+
+* **web:** reorder settings modules — Voices, Desktop, Deck ([2825928](https://github.com/agentprojectcontext/apx/commit/2825928829931335f38301ae7a7012c9c8b4a0b3))
+
 # [1.49.0](https://github.com/agentprojectcontext/apx/compare/v1.48.2...v1.49.0) (2026-06-28)
 
 
