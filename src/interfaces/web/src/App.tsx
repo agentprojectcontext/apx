@@ -5,9 +5,7 @@ import { ProjectSidebar, projectKindLabel } from "./components/layout/ProjectSid
 import { ApxAdminScreen } from "./screens/ApxAdminScreen";
 import { ProjectScreen } from "./screens/ProjectScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
-import { VoiceScreen } from "./screens/modules/VoiceScreen";
 import { DesktopScreen } from "./screens/modules/DesktopScreen";
-import { DeckScreen } from "./screens/modules/DeckScreen";
 import { CodeScreen } from "./screens/modules/CodeScreen";
 import { AddProjectDialog } from "./components/AddProjectDialog";
 import { PairingScreen } from "./screens/PairingScreen";
@@ -92,9 +90,7 @@ function Shell() {
             <Routes>
               <Route path="/"           element={<ApxAdminScreen />} />
               <Route path="/settings/*" element={<SettingsScreen />} />
-              <Route path="/m/voice/*"   element={<VoiceScreen />} />
               <Route path="/m/desktop/*" element={<DesktopScreen />} />
-              <Route path="/m/deck/*"   element={<DeckScreen />} />
               <Route path="/m/code/*"   element={<CodeScreen />} />
               <Route path="/p/:pid/*"   element={<ProjectScreen />} />
               <Route path="*"           element={<NotFound />} />
@@ -208,9 +204,7 @@ function LanguageMenu() {
 
 function moduleLabel(key?: string) {
   switch (key) {
-    case "voice":   return t("nav.modules.voice");
     case "desktop": return t("nav.modules.desktop");
-    case "deck":    return t("nav.modules.deck");
     case "code":    return t("nav.modules.code");
     default: return key || "";
   }
@@ -222,6 +216,9 @@ function settingsLabel(key?: string) {
     case "engines": return t("settings.tabs.engines");
     case "telegram": return t("settings.tabs.telegram");
     case "devices": return t("settings.tabs.devices");
+    case "voice": return t("nav.modules.voice");
+    case "deck": return t("nav.modules.deck");
+    case "desktop": return t("nav.modules.desktop");
     case "appearance": return t("settings.appearance");
     case "config":
     case "advanced": return t("settings.tabs.advanced");
