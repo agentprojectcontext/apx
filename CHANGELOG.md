@@ -1,3 +1,10 @@
+# [1.46.0](https://github.com/agentprojectcontext/apx/compare/v1.45.0...v1.46.0) (2026-06-28)
+
+
+### Features
+
+* **web:** single-column desktop module layout ([453b37b](https://github.com/agentprojectcontext/apx/commit/453b37b3b48dc7a364ca7e5348200f0b4c72661e))
+
 # [1.45.0](https://github.com/agentprojectcontext/apx/compare/v1.44.0...v1.45.0) (2026-06-28)
 
 
