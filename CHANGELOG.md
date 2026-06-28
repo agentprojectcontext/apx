@@ -1,3 +1,10 @@
+## [1.48.2](https://github.com/agentprojectcontext/apx/compare/v1.48.1...v1.48.2) (2026-06-28)
+
+
+### Bug Fixes
+
+* **stt:** force configured language on desktop path + hardware-aware engine UI ([c09cc10](https://github.com/agentprojectcontext/apx/commit/c09cc10b195c85615abadae6ecbafb4a56ac0500))
+
 ## [1.48.1](https://github.com/agentprojectcontext/apx/compare/v1.48.0...v1.48.1) (2026-06-28)
 
 
