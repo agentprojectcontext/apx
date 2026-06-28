@@ -4,4 +4,8 @@ export default {
   "telegram.reset_ack": "Done, context cleared. Starting fresh. What do you need?",
   "telegram.fallback_listo": "Done.",
   "telegram.fallback_continue": "Made some headway. Want me to keep going?",
+  // Host-emitted error floors (the model itself failed, so it can't author
+  // these — they stay templated, but at least follow the user's language).
+  "telegram.error_agent": "⚠️ The agent hit an error ({error}).",
+  "telegram.error_generic": "⚠️ Couldn't reply right now ({error}).",
 };

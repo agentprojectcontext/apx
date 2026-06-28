@@ -57,6 +57,11 @@ const DEFAULT_CONFIG = {
     system: "",                         // optional override; defaults in src/core/agent/prompts/
     permission_mode: PERMISSION_MODES.AUTOMATICO,       // total | automatico | permiso
     allowed_tools: [],                   // used by permission_mode="permiso"
+    // Per-turn tool-loop budget for the Telegram super-agent. Higher = more
+    // autonomous (chains explore→edit→verify→close before replying); lower =
+    // snappier but more "want me to continue?" hand-backs. 0/unset → built-in
+    // default (TELEGRAM_TOOL_ITERS in src/core/agent/constants.js).
+    telegram_max_iters: 0,
     // Model fallback: ordered list. Each item carries its own provider
     // prefix; the array order IS the attempt order. The router tries the
     // primary (super_agent.model) first, then walks this list, skipping

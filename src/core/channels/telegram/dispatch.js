@@ -11,15 +11,14 @@
 // `appendGlobalMessage`, `CHANNELS`, `nowIso`, etc. Top-level imports here
 // keep that scope intact — earlier splits forgot them and the bug only
 // surfaced when a real telegram update arrived (ReferenceError at runtime).
-import path from "node:path";
 import { callEngine } from "#core/engines/index.js";
 import { runSuperAgent, isSuperAgentEnabled } from "#core/agent/super-agent.js";
+import { TELEGRAM_TOOL_ITERS } from "#core/agent/constants.js";
 import { stripThinking } from "#core/util/thinking.js";
 import { getRecentTelegramTurnsFromFs, appendGlobalMessage } from "#core/stores/messages.js";
 import { compactChannelIfNeeded } from "#core/memory/index.js";
 import { readAgents } from "#core/apc/parser.js";
 import { buildAgentSystem } from "#core/agent/build-agent-system.js";
-import { transcribe as transcribeAudioFile } from "#core/voice/transcription.js";
 import { resolveAgentName, SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
 import { registerSender, resolveAllowedTools } from "#core/identity/telegram.js";
 import { buildRelationshipBlock } from "#core/agent/index.js";
@@ -28,8 +27,9 @@ import { CHANNELS } from "#core/constants/channels.js";
 import { tryResolveSkillCommand } from "#core/agent/skills/trigger.js";
 import { createTelegramConfirmAdapter } from "#core/confirmation/adapters/telegram.js";
 import * as askFlow from "./ask.js";
-import { buildTelegramMeta, resolveBotToken, sleep } from "./helpers.js";
-import { sendPhoto, sendVoice, sendDocument, sendAudio, downloadTelegramFile, API_BASE } from "./media.js";
+import { buildTelegramMeta, resolveBotToken, sleep, telegramAuthorLabel } from "./helpers.js";
+import { handleIncomingPhoto } from "./inbound/photo.js";
+import { handleIncomingAudio } from "./inbound/audio.js";
 import { t, resolveLang } from "#core/i18n/index.js";
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -50,10 +50,7 @@ export async function handleUpdate(self, u) {
       self.log(`telegram[${self.channel.name}] update ${u.update_id} ignored — no target project`);
       return;
     }
-    const author =
-      msg.from?.username
-        ? "@" + msg.from.username
-        : `${msg.from?.first_name || ""} ${msg.from?.last_name || ""}`.trim() || "unknown";
+    const author = telegramAuthorLabel(msg.from);
     const chat_id = msg.chat?.id;
 
     // Resolve WHO is writing (owner / known contact / guest), keyed by the
@@ -85,108 +82,18 @@ export async function handleUpdate(self, u) {
 
     let text = msg.text || msg.caption || "";
 
-    // ── Incoming photo handling ───────────────────────────────────────────
+    // ── Incoming media ────────────────────────────────────────────────────
+    // Photo and voice/audio each download + archive the file and rewrite `text`
+    // so the rest of the pipeline treats them like a typed message. The handlers
+    // live in ./inbound/ to keep this dispatcher focused on routing. Photos have
+    // no vision yet, so the handler injects an `[image]` marker (never silent);
+    // audio injects its `[audio]` transcript.
     if (msg.photo && msg.photo.length > 0) {
-      // Telegram sends multiple sizes; pick the largest
-      const bestPhoto = msg.photo.reduce((a, b) => (b.file_size > a.file_size ? b : a));
-      const token = resolveBotToken(self.channel);
-      const mediaDir = path.join(APX_HOME, "media");
-      fs.mkdirSync(mediaDir, { recursive: true });
-      try {
-        const localPath = await downloadTelegramFile(token, bestPhoto.file_id, mediaDir);
-        self.log(`telegram[${self.channel.name}] photo saved: ${localPath}`);
-        appendGlobalMessage({
-          channel: CHANNELS.TELEGRAM,
-          direction: "in",
-          type: "photo",
-          actor_id: msg.from?.id ? String(msg.from.id) : author,
-          external_id: String(u.update_id),
-          author,
-          body: text || "[photo]",
-          meta: {
-            chat_id,
-            user_id: msg.from?.id || null,
-            message_id: msg.message_id,
-            tg_channel: self.channel.name,
-            local_path: localPath,
-            file_id: bestPhoto.file_id,
-            width: bestPhoto.width,
-            height: bestPhoto.height,
-          },
-        });
-      } catch (e) {
-        self.log(`telegram[${self.channel.name}] photo download failed: ${e.message}`);
-      }
-      // If there's a caption, continue to handle it as text; otherwise return
-      if (!text) return;
+      ({ text } = await handleIncomingPhoto(self, { msg, u, author, chat_id, text }));
     }
-
-    // ── Incoming voice / audio handling ──────────────────────────────────
-    // Telegram sends `voice` for the press-and-hold mic recording (.oga/opus)
-    // and `audio` for uploaded audio files (mp3/m4a/etc.). Either way we
-    // download, run it through Whisper, prefix the result with `[audio] `
-    // and let the rest of the message flow handle it as plain text.
     const incomingAudio = msg.voice || msg.audio;
     if (incomingAudio && incomingAudio.file_id) {
-      const token = resolveBotToken(self.channel);
-      const mediaDir = path.join(APX_HOME, "media");
-      fs.mkdirSync(mediaDir, { recursive: true });
-      // Show "typing…" right away — download + transcription is the slow part of
-      // a voice message, and the reply-path typing (below) only starts after it,
-      // so without this the chat sits silent for seconds with no feedback.
-      const stopVoiceTyping = self._startTyping(chat_id);
-      let localPath = null;
-      let transcript = "";
-      let transcribeError = null;
-      let transcribeBackend = null;
-      try {
-        localPath = await downloadTelegramFile(token, incomingAudio.file_id, mediaDir);
-        self.log(`telegram[${self.channel.name}] audio saved: ${localPath}`);
-      } catch (e) {
-        self.log(`telegram[${self.channel.name}] audio download failed: ${e.message}`);
-      }
-      if (localPath) {
-        try {
-          const result = await transcribeAudioFile(localPath);
-          transcript = result.text || "";
-          transcribeBackend = result.backend;
-          self.log(`telegram[${self.channel.name}] audio transcribed via ${transcribeBackend} (${transcript.length} chars, lang=${result.language || "?"})`);
-        } catch (e) {
-          transcribeError = e.message;
-          self.log(`telegram[${self.channel.name}] audio transcription failed: ${e.message}`);
-        }
-      }
-      stopVoiceTyping(); // reply-path typing takes over from here
-      const audioBody = transcript
-        ? `[audio] ${transcript}`
-        : `[audio] (transcription unavailable${transcribeError ? ": " + transcribeError : ""})`;
-
-      appendGlobalMessage({
-        channel: CHANNELS.TELEGRAM,
-        direction: "in",
-        type: "audio",
-        actor_id: msg.from?.id ? String(msg.from.id) : author,
-        external_id: String(u.update_id),
-        author,
-        body: audioBody,
-        meta: {
-          chat_id,
-          user_id: msg.from?.id || null,
-          message_id: msg.message_id,
-          tg_channel: self.channel.name,
-          local_path: localPath,
-          file_id: incomingAudio.file_id,
-          duration: incomingAudio.duration,
-          mime_type: incomingAudio.mime_type,
-          transcription_backend: transcribeBackend,
-          transcription_error: transcribeError,
-        },
-      });
-
-      // Inject the transcribed text into `text` so the rest of the agent
-      // pipeline treats it identically to a typed message. If there was a
-      // caption alongside the audio, prepend the audio marker to it.
-      text = text ? `${audioBody}\n${text}` : audioBody;
+      ({ text } = await handleIncomingAudio(self, { msg, u, author, chat_id, text, incomingAudio }));
     }
 
     // If there's a pending ask_questions flow for this chat AND the current
@@ -309,10 +216,14 @@ export async function handleUpdate(self, u) {
     // Start "typing..." indicator. Stops when we send the reply (or fail).
     const stopTyping = self._startTyping(chat_id);
 
+    // Preset to the super-agent defaults so every exit path (including one where
+    // neither the routed-agent nor the super-agent branch runs) has a valid
+    // actor — the routed-agent / super-agent branches override these on success,
+    // and their catch blocks reset all four together (no partial-overwrite gap).
     let replyText;
     let replyAuthor;
-    let replyActorId;   // stable id: super_agent | agent slug
-    let replyKind;      // actor_kind: superagent | agent
+    let replyActorId = SUPERAGENT_ACTOR_ID;   // stable id: super_agent | agent slug
+    let replyKind = "superagent";             // actor_kind: superagent | agent
     const projectCfg = target.config || self.globalConfig;
     // Display name for the super-agent persona on this channel (from identity.json).
     const agentDisplay = resolveAgentName(self.globalConfig);
@@ -342,7 +253,10 @@ export async function handleUpdate(self, u) {
           replyKind = "agent";
         } catch (e) {
           self.log(`telegram[${self.channel.name}] agent reply failed: ${e.message}`);
-          replyText = `[apx error] ${e.message.slice(0, 200)}`;
+          replyText = t("telegram.error_agent", {
+            lang: resolveLang(self.globalConfig),
+            vars: { error: e.message.slice(0, 200) },
+          });
           replyAuthor = agentDisplay;
           replyActorId = SUPERAGENT_ACTOR_ID;
           replyKind = "superagent";
@@ -488,6 +402,13 @@ export async function handleUpdate(self, u) {
           signal: abortCtrl.signal,
           onEvent,
           requestConfirmation: confirmAdapter.requestConfirmation,
+          // Autonomy budget: Telegram is the "do the whole task for me" surface,
+          // so it gets a real multi-step budget instead of the conversational
+          // default (which cut tasks off after ~9 actions to ask "continue?").
+          // Tunable via config.super_agent.telegram_max_iters.
+          maxIters:
+            Number(self.globalConfig?.super_agent?.telegram_max_iters) ||
+            TELEGRAM_TOOL_ITERS,
         });
         replyText = sa.text;
         replyAuthor = sa.name || agentDisplay;
@@ -537,7 +458,10 @@ export async function handleUpdate(self, u) {
         // Surface the failure to the user instead of silently dropping the
         // turn — otherwise from the chat side it looks like the bot ignored
         // the message. Keep the message short and non-leaking.
-        replyText = `⚠️ Could not generate a reply right now (${e.message || "internal error"}).`;
+        replyText = t("telegram.error_generic", {
+          lang: resolveLang(self.globalConfig),
+          vars: { error: e.message || "internal error" },
+        });
         replyAuthor = agentDisplay;
         replyActorId = SUPERAGENT_ACTOR_ID;
         replyKind = "superagent";
