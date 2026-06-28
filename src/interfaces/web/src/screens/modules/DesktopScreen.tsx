@@ -18,15 +18,15 @@ export function DesktopScreen() {
   );
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 p-6" data-testid="screen-desktop">
-      {/* ── Two-column layout: status on the left, last conversation on the right. ── */}
-      <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-        {/* ── LEFT: live status + lifecycle + link to configuration ─────── */}
+    <div className="mx-auto max-w-3xl space-y-6 p-6" data-testid="screen-desktop">
+      {/* ── Single-column layout: status on top, conversation list below. ── */}
+      <div className="space-y-6">
+        {/* ── TOP: live status + lifecycle + link to configuration ─────── */}
         <div>
           <DesktopStatusCard showConfigLink />
         </div>
 
-        {/* ── RIGHT: last conversation preview ─────────────────────────── */}
+        {/* ── BOTTOM: last conversation preview ────────────────────────── */}
         <div>
           <Section
             title={t("desktop_screen.last_conv_title")}
