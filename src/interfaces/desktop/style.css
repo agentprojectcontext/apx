@@ -193,6 +193,27 @@ button { font-family: inherit; }
 }
 [data-theme="dark"] .kbd { color: color-mix(in oklch, var(--accent) 60%, white); }
 
+/* Stack the hint + the close pill, centered, in the empty-idle state.
+   render() toggles this slot's display between "" (→ flex) and "none". */
+#caption-slot { display: flex; flex-direction: column; align-items: center; gap: 7px; }
+
+/* Translucent "Cerrar ventana" pill — same glass language as .caption so the
+   empty-idle state always has a way to dismiss the window. */
+.cap-pill {
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  font: inherit; font-size: 11px; font-weight: 600; color: rgba(255,255,255,.92);
+  padding: 5px 12px; border-radius: 9px;
+  background: rgba(20,22,32,.28); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,.14);
+  text-shadow: 0 0.5px 1.5px rgba(0,0,0,.3);
+  transition: transform .14s ease, background .15s ease;
+  animation: captionIn .4s ease both;
+}
+.cap-pill svg { width: 13px; height: 13px; opacity: .9; }
+.cap-pill:hover  { transform: translateY(-1px); background: rgba(20,22,32,.42); }
+.cap-pill:active { transform: scale(.96); }
+[data-theme="dark"] .cap-pill { background: rgba(0,0,0,.34); }
+
 /* ============================================================
    Conversation card
    ============================================================ */
