@@ -39,6 +39,9 @@ def _touch():
     _last_used = time.monotonic()
 
 
+_mlx_loaded = False  # mlx_whisper caches models internally; we just track readiness
+
+
 def _load_model_if_needed(model_name, device, compute_type):
     global _model, _model_name
     if _model is not None and _model_name == model_name:
@@ -51,11 +54,61 @@ def _load_model_if_needed(model_name, device, compute_type):
     return m
 
 
+def _warmup_model():
+    """Eagerly load the active backend's model into RAM. Returns True if loaded."""
+    global _mlx_loaded
+    if _Handler.backend == "mlx":
+        import mlx_whisper  # noqa: F401  (raises ImportError if the stack is missing)
+        try:
+            from mlx_whisper.load_models import load_model
+            load_model(_Handler.model_name)
+            _mlx_loaded = True
+        except Exception:
+            pass  # first transcribe will load it lazily
+        return _mlx_loaded
+    _load_model_if_needed(_Handler.model_name, _Handler.device, _Handler.compute_type)
+    return _model is not None
+
+
+def _transcribe_file(audio_path, language, beam_size):
+    """Backend-agnostic transcription → result dict. Raises on failure."""
+    global _mlx_loaded
+    if _Handler.backend == "mlx":
+        import mlx_whisper
+        kw = {"path_or_hf_repo": _Handler.model_name}
+        if language:
+            kw["language"] = language
+        r = mlx_whisper.transcribe(audio_path, **kw)
+        _mlx_loaded = True
+        return {
+            "ok": True,
+            "text": (r.get("text") or "").strip(),
+            "language": r.get("language"),
+            "language_probability": None,
+            "duration": None,
+            "model": _Handler.model_name,
+            "compute_type": "mlx-metal",
+        }
+    m = _load_model_if_needed(_Handler.model_name, _Handler.device, _Handler.compute_type)
+    segments, info = m.transcribe(audio_path, beam_size=beam_size, language=language)
+    text = " ".join(seg.text.strip() for seg in segments).strip()
+    return {
+        "ok": True,
+        "text": text,
+        "language": info.language,
+        "language_probability": round(info.language_probability, 4),
+        "duration": round(info.duration, 2) if hasattr(info, "duration") else None,
+        "model": _model_name,
+        "compute_type": _Handler.compute_type,
+    }
+
+
 # ---------------------------------------------------------------------------
 # HTTP handler
 # ---------------------------------------------------------------------------
 
 class _Handler(BaseHTTPRequestHandler):
+    backend = "faster"   # "faster" (CTranslate2, CPU/CUDA) | "mlx" (Apple Metal)
     model_name = "small"
     device = "cpu"
     compute_type = "int8"
@@ -89,10 +142,12 @@ class _Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/health":
             _touch()
+            loaded = _mlx_loaded if _Handler.backend == "mlx" else (_model is not None)
             self._send_json(200, {
                 "ok": True,
+                "backend": _Handler.backend,
                 "model": _model_name or _Handler.model_name,
-                "loaded": _model is not None,
+                "loaded": loaded,
             })
         elif self.path == "/warmup":
             # Eagerly load the model into RAM (no audio needed) and reset the
@@ -101,8 +156,10 @@ class _Handler(BaseHTTPRequestHandler):
             _touch()
             with _model_lock:
                 try:
-                    _load_model_if_needed(_Handler.model_name, _Handler.device, _Handler.compute_type)
-                    self._send_json(200, {"ok": True, "loaded": _model is not None, "model": _model_name})
+                    loaded = _warmup_model()
+                    self._send_json(200, {"ok": True, "loaded": loaded, "model": _Handler.model_name, "backend": _Handler.backend})
+                except ImportError as e:
+                    self._send_json(500, {"ok": False, "error": f"{_Handler.backend} backend not installed: {e}"})
                 except Exception as e:
                     self._send_json(500, {"ok": False, "error": f"model load failed: {e}"})
         else:
@@ -124,29 +181,14 @@ class _Handler(BaseHTTPRequestHandler):
             beam_size = int(self.headers.get("X-Beam-Size") or 3)
 
             with _model_lock:
-                try:
-                    m = _load_model_if_needed(_Handler.model_name, _Handler.device, _Handler.compute_type)
-                except ImportError:
-                    self._send_json(500, {"ok": False, "error": "faster-whisper not installed"})
-                    return
-                except Exception as e:
-                    self._send_json(500, {"ok": False, "error": f"model load failed: {e}"})
-                    return
-
                 import tempfile
                 tmp = tempfile.NamedTemporaryFile(suffix=f".{audio_format}", delete=False)
                 try:
                     tmp.write(audio_bytes)
                     tmp.close()
-                    segments, info = m.transcribe(tmp.name, beam_size=beam_size, language=language)
-                    text = " ".join(seg.text.strip() for seg in segments).strip()
-                    self._send_json(200, {
-                        "ok": True, "text": text,
-                        "language": info.language,
-                        "language_probability": round(info.language_probability, 4),
-                        "duration": round(info.duration, 2) if hasattr(info, "duration") else None,
-                        "model": _model_name,
-                    })
+                    self._send_json(200, _transcribe_file(tmp.name, language, beam_size))
+                except ImportError as e:
+                    self._send_json(500, {"ok": False, "error": f"{_Handler.backend} backend not installed: {e}"})
                 except Exception as e:
                     self._send_json(500, {"ok": False, "error": f"chunk transcription failed: {e}"})
                 finally:
@@ -168,29 +210,11 @@ class _Handler(BaseHTTPRequestHandler):
 
             with _model_lock:
                 try:
-                    m = _load_model_if_needed(_Handler.model_name, _Handler.device, _Handler.compute_type)
-                except ImportError:
-                    self._send_json(500, {
-                        "ok": False,
-                        "error": "faster-whisper not installed — run: pip3 install faster-whisper",
-                    })
-                    return
-                except Exception as e:
-                    self._send_json(500, {"ok": False, "error": f"model load failed: {e}"})
-                    return
-
-                try:
-                    segments, info = m.transcribe(audio_path, beam_size=beam_size, language=language)
-                    text = " ".join(seg.text.strip() for seg in segments).strip()
-                    self._send_json(200, {
-                        "ok": True,
-                        "text": text,
-                        "language": info.language,
-                        "language_probability": round(info.language_probability, 4),
-                        "duration": round(info.duration, 2),
-                        "model": _model_name,
-                        "compute_type": _Handler.compute_type,
-                    })
+                    self._send_json(200, _transcribe_file(audio_path, language, beam_size))
+                except ImportError as e:
+                    hint = ("pip3 install faster-whisper" if _Handler.backend == "faster"
+                            else "pip3 install mlx-whisper")
+                    self._send_json(500, {"ok": False, "error": f"{_Handler.backend} backend not installed — run: {hint} ({e})"})
                 except Exception as e:
                     self._send_json(500, {"ok": False, "error": f"transcription failed: {e}"})
 
@@ -231,12 +255,14 @@ def main():
 
     parser = argparse.ArgumentParser(description="Persistent APX Whisper server")
     parser.add_argument("--port", type=int, default=18765)
+    parser.add_argument("--backend", default="faster", choices=["faster", "mlx"])
     parser.add_argument("--model", default="small")
     parser.add_argument("--device", default="cpu")
     parser.add_argument("--compute-type", dest="compute_type", default="int8")
     parser.add_argument("--idle-minutes", dest="idle_minutes", type=int, default=10)
     args = parser.parse_args()
 
+    _Handler.backend = args.backend
     _Handler.model_name = args.model
     _Handler.device = args.device
     _Handler.compute_type = args.compute_type
@@ -252,6 +278,7 @@ def main():
     print(json.dumps({
         "status": "ready",
         "port": args.port,
+        "backend": args.backend,
         "model": args.model,
         "idle_minutes": args.idle_minutes,
     }), flush=True)

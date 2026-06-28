@@ -23,6 +23,7 @@ const WHISPER_SERVER = path.join(__dirname, "whisper-server.py");
 
 let _serverProcess = null;
 let _serverModel = null;
+let _serverBackend = null;   // "faster" | "mlx" — restart when this changes too
 
 function _sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
@@ -39,14 +40,14 @@ async function _isServerHealthy() {
   }
 }
 
-async function _serverModelName() {
+async function _serverHealthInfo() {
   try {
     const res = await fetch(`http://127.0.0.1:${WHISPER_LOCAL_PORT}/health`, {
       signal: AbortSignal.timeout(800),
     });
     if (!res.ok) return null;
     const j = await res.json();
-    return j?.model || null;
+    return { model: j?.model || null, backend: j?.backend || "faster" };
   } catch {
     return null;
   }
@@ -82,17 +83,20 @@ async function _killOrphanWhisper() {
 
 export async function ensureWhisperServer(opts) {
   const model = opts.model || DEFAULT_LOCAL.model;
+  const backend = opts.backend || "faster";
 
-  if (_serverProcess && _serverModel === model) {
+  if (_serverProcess && _serverModel === model && _serverBackend === backend) {
     if (await _isServerHealthy()) return;
     _serverProcess = null;
     _serverModel = null;
+    _serverBackend = null;
   }
 
   if (!_serverProcess) {
-    const existing = await _serverModelName();
-    if (existing === model) {
+    const existing = await _serverHealthInfo();
+    if (existing && existing.model === model && existing.backend === backend) {
       _serverModel = model;
+      _serverBackend = backend;
       return;
     }
     if (existing) {
@@ -104,16 +108,18 @@ export async function ensureWhisperServer(opts) {
     try { _serverProcess.kill(); } catch {}
     _serverProcess = null;
     _serverModel = null;
+    _serverBackend = null;
     await _sleep(300);
   }
 
-  await _spawnWhisper(opts, model, /* retried */ false);
+  await _spawnWhisper(opts, model, backend, /* retried */ false);
 }
 
-async function _spawnWhisper(opts, model, retried) {
+async function _spawnWhisper(opts, model, backend, retried) {
   const args = [
     WHISPER_SERVER,
     "--port", String(WHISPER_LOCAL_PORT),
+    "--backend", String(backend || "faster"),
     "--model", model,
     "--device", String(opts.device || DEFAULT_LOCAL.device),
     "--compute-type", String(opts.compute_type || DEFAULT_LOCAL.compute_type),
@@ -127,11 +133,13 @@ async function _spawnWhisper(opts, model, retried) {
 
   _serverProcess = proc;
   _serverModel = model;
+  _serverBackend = backend;
 
   proc.on("exit", () => {
     if (_serverProcess === proc) {
       _serverProcess = null;
       _serverModel = null;
+      _serverBackend = null;
     }
   });
 
@@ -167,8 +175,9 @@ async function _spawnWhisper(opts, model, retried) {
     if (!retried && /address already in use|errno 48|eaddrinuse/i.test(msg)) {
       _serverProcess = null;
       _serverModel = null;
+      _serverBackend = null;
       await _killOrphanWhisper();
-      return _spawnWhisper(opts, model, /* retried */ true);
+      return _spawnWhisper(opts, model, backend, /* retried */ true);
     }
     throw e;
   }
@@ -210,6 +219,7 @@ export async function shutdownWhisperServer() {
     try { _serverProcess.kill(); } catch {}
     _serverProcess = null;
     _serverModel = null;
+    _serverBackend = null;
   } else {
     try {
       await fetch(`http://127.0.0.1:${WHISPER_LOCAL_PORT}/shutdown`, {
