@@ -3,6 +3,7 @@ import useSWR from "swr";
 import { Check, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { Tasks } from "../../lib/api";
 import { Section } from "../../components/Section";
+import { Pager, usePaged } from "../../components/Pager";
 import { Badge, Button, Empty, Field, Input, Loading } from "../../components/ui";
 import { useToast } from "../../components/Toast";
 import { t } from "../../i18n";
@@ -17,6 +18,7 @@ export function TasksTab({ pid }: { pid: string }) {
     () => Tasks.list(pid, state),
     { dedupingInterval: 0, revalidateOnFocus: true },
   );
+  const paged = usePaged(list.data || [], state);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -79,7 +81,7 @@ export function TasksTab({ pid }: { pid: string }) {
       )}
 
       <ul className="space-y-2 text-sm" data-testid="task-list">
-        {(list.data || []).map((task) => (
+        {paged.slice.map((task) => (
           <li key={task.id} data-testid={`task-${task.id}`} className="flex items-start gap-3 rounded-md border border-border bg-muted/30 px-3 py-2">
             <span className="mt-0.5 font-mono text-[10px] text-muted-fg">{task.id}</span>
             <div className="flex-1">
@@ -111,6 +113,7 @@ export function TasksTab({ pid }: { pid: string }) {
           </li>
         ))}
       </ul>
+      <Pager page={paged.page} pageCount={paged.pageCount} total={paged.total} start={paged.start} end={paged.end} pageSize={paged.pageSize} onPage={paged.setPage} onPageSize={paged.setPageSize} />
     </Section>
   );
 }

@@ -99,9 +99,33 @@ export interface TranscriptionLocalConfig {
   beam_size?: number;
   idle_minutes?: number;
 }
+export interface TranscriptionOpenAIConfig {
+  base_url?: string;     // defaults to https://api.openai.com/v1
+  api_key?: string;      // may carry a redacted "*** set ***" marker
+  model?: string;        // defaults to whisper-1
+}
+export interface TranscriptionCustomConfig {
+  base_url?: string;     // OpenAI-compatible server, e.g. http://localhost:8000/v1
+  api_key?: string;      // optional; may carry a redacted marker
+  model?: string;        // e.g. mlx-community/whisper-large-v3-turbo
+  language?: string;     // ISO code or "auto"
+}
 export interface TranscriptionConfig {
-  provider?: string;     // "auto" | "local" | "openai"
+  provider?: string;     // "auto" | "local" | "openai" | "custom"
   local?: TranscriptionLocalConfig;
+  openai?: TranscriptionOpenAIConfig;
+  custom?: TranscriptionCustomConfig;
+}
+
+/** One STT engine entry as reported by GET /transcribe/providers. */
+export interface SttProviderEntry {
+  id: string;             // "local" | "openai" | "custom"
+  available: boolean;
+  configured: boolean;
+}
+export interface SttProvidersResponse {
+  configured_provider: string;
+  engines: SttProviderEntry[];
 }
 
 // Known engine voice presets used to fill selects without a daemon round-trip.
@@ -109,7 +133,7 @@ export const OPENAI_TTS_VOICES = ["alloy", "echo", "fable", "onyx", "nova", "shi
 export const GEMINI_TTS_VOICES = ["Kore", "Puck", "Charon", "Fenrir", "Aoede"];
 export const ELEVENLABS_MODELS = ["eleven_multilingual_v2", "eleven_turbo_v2_5", "eleven_flash_v2_5"];
 export const OPENAI_TTS_MODELS = ["tts-1", "tts-1-hd"];
-export const WHISPER_MODELS = ["tiny", "base", "small", "medium", "large-v2", "large-v3"];
+export const WHISPER_MODELS = ["tiny", "base", "small", "medium", "large-v2", "large-v3", "large-v3-turbo"];
 
 // Friendly labels + ordering for the provider list. The daemon is the source
 // of truth for availability; this only adds display names + a stable order.
