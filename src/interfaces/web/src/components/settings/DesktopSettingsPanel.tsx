@@ -5,6 +5,7 @@ import { Section } from "../Section";
 import { Button, Field, Switch, Loading } from "../ui";
 import { UiSelect } from "../UiSelect";
 import { ShortcutInput } from "../ShortcutInput";
+import { DesktopStatusCard } from "../desktop/DesktopStatusCard";
 import { useToast } from "../Toast";
 import { useGlobalConfig } from "../../hooks/useGlobalConfig";
 import { Desktop } from "../../lib/api/desktop";
@@ -89,6 +90,8 @@ export function DesktopSettingsPanel() {
 
   return (
     <div className="space-y-6" data-testid="settings-desktop">
+      <DesktopStatusCard />
+
       <Section
         title={t("desktop_screen.autostart_title")}
         description={t("modules_ui.desktop_autostart_desc")}
