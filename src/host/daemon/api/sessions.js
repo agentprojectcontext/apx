@@ -12,22 +12,31 @@ import {
   agentSessionsDir,
   createAgentSessionFile,
 } from "#core/stores/sessions.js";
-import { collectAllSessions } from "#interfaces/cli/commands/sessions.js";
+import { collectAllSessions, filterSessionsByQuery } from "#interfaces/cli/commands/sessions.js";
 import { pageEnvelope } from "./shared.js";
 
 export function register(app, { projects, project }) {
   // Cross-engine sessions (apx · claude · codex), newest first. Returns a
   // { meta, data } envelope (meta = pagination info, data = rows). Paginated
   // via ?limit & ?offset; with no limit, data is the full set as one page.
+  // Optional ?q= filters via the same core as `apx session find` (title match,
+  // + transcript content when ?deep=1) so terminal and web search are identical.
   app.get("/sessions", (req, res) => {
     const engineId = req.query.engine ? String(req.query.engine) : null;
+    const q = req.query.q ? String(req.query.q) : "";
+    const deep = req.query.deep === "1" || req.query.deep === "true";
     let rows = [];
     try {
       rows = collectAllSessions({}, { engineId });
     } catch (e) {
       return res.status(500).json({ error: e.message, meta: { total: 0, offset: 0, limit: null, pageSize: 0, page: 1, pageCount: 1 }, data: [] });
     }
-    rows.sort((a, b) => (b.mtime || 0) - (a.mtime || 0));
+    if (q.trim()) {
+      // filterSessionsByQuery already de-dupes and sorts newest-first.
+      rows = filterSessionsByQuery(rows, { query: q, deep });
+    } else {
+      rows.sort((a, b) => (b.mtime || 0) - (a.mtime || 0));
+    }
     res.json(pageEnvelope(rows, req.query));
   });
 

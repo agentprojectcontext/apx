@@ -774,6 +774,30 @@ function sessionContainsText(row, needle) {
   return text.toLowerCase().includes(needle);
 }
 
+// Filter collected session rows by a free-text query. Always matches the
+// title; with deep=true also scans transcript content (slower). De-dupes by
+// engine:id and returns full rows + a `match` field ("title"|"content"),
+// newest first. Shared core for the CLI (apx session find) and the daemon
+// (GET /sessions?q=…) so terminal and web search behave identically.
+export function filterSessionsByQuery(rows, { query, deep = false, limit = 0 } = {}) {
+  const needle = String(query || "").trim().toLowerCase();
+  if (!needle) return [];
+  const seen = new Set();
+  const matches = [];
+  for (const row of rows) {
+    const titleHit = String(row.title).toLowerCase().includes(needle);
+    let where = titleHit ? "title" : null;
+    if (!titleHit && deep && sessionContainsText(row, needle)) where = "content";
+    if (!where) continue;
+    const key = `${row.engine}:${row.id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    matches.push({ ...row, match: where });
+  }
+  matches.sort((a, b) => b.mtime - a.mtime);
+  return limit > 0 ? matches.slice(0, limit) : matches;
+}
+
 export function cmdSessionFind(args, opts = {}) {
   const query = (args._ || []).join(" ").trim();
   if (!query) {
@@ -781,7 +805,6 @@ export function cmdSessionFind(args, opts = {}) {
       'apx session find: missing search text — e.g. apx session find "mejorar interfaz web"'
     );
   }
-  const needle = query.toLowerCase();
   const deep = !!(args.flags.deep || args.flags.content);
   const asJson = !!args.flags.json;
   const engineFlag =
@@ -799,20 +822,7 @@ export function cmdSessionFind(args, opts = {}) {
 
   const dir = resolveTargetDir(args, opts);
   const rows = collectAllSessions(opts, { dir, engineId: engineFlag });
-
-  const seen = new Set();
-  const matches = [];
-  for (const row of rows) {
-    const titleHit = String(row.title).toLowerCase().includes(needle);
-    let where = titleHit ? "title" : null;
-    if (!titleHit && deep && sessionContainsText(row, needle)) where = "content";
-    if (!where) continue;
-    const key = `${row.engine}:${row.id}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    matches.push({ ...row, match: where });
-  }
-  matches.sort((a, b) => b.mtime - a.mtime);
+  const matches = filterSessionsByQuery(rows, { query, deep });
   const shown = matches.slice(0, limit);
 
   if (asJson) {
