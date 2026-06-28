@@ -84,20 +84,32 @@ export const FINISH_TOOL_SCHEMA = {
   },
 };
 
-// Behavioral nudge appended to the system prompt for the ONE tool-free wrap-up
-// step at the end of a turn (see the loop's `isFinalWrapUp`). This shapes
-// BEHAVIOR only — it never dictates wording or supplies a canned/templated
-// sentence. The reply the user sees is 100% model-authored and varies with
-// what the model actually did this turn. We do NOT mention any "tool limit":
-// the model just speaks from where it is. Critically it must not claim work it
-// didn't do (weak models otherwise fabricate "all done").
-const WRAPUP_NUDGE =
-  "\n\n[Internal note — last step of this turn. No more tools will run now. " +
-  "Reply in plain prose, in the user's language, from your own context: briefly " +
-  "say what you actually accomplished so far (check the tool results above — do " +
-  "NOT claim anything you didn't do), and if work is still pending, name what's " +
-  "left and ask the user whether you should continue. Do not mention limits, " +
-  "steps, or iterations — just talk naturally.]";
+// In-band signal injected as a CONVERSATION turn (not a system suffix) for the
+// ONE tool-free wrap-up step at the end of a turn (see the loop's
+// `isFinalWrapUp`). Delivering it through the message channel — the way a tool
+// result arrives — makes weak models reliably author a reply instead of
+// returning empty, because they always answer the latest turn. It shapes
+// BEHAVIOR only: it never dictates wording or supplies a canned sentence. The
+// reply the user sees is 100% model-authored and varies with what the model
+// actually did this turn. Critically it must not claim work it didn't do (weak
+// models otherwise fabricate "all done").
+//
+// Unlike a hard "iteration limit" message, it asks the model to surface the
+// situation NATURALLY ("this is taking more steps than I expected") plus a
+// concrete recap of what it found and did NOT find — so the closing reads like
+// a human status update, never robotic system jargon.
+const WRAPUP_SIGNAL =
+  "[Internal turn note — this is NOT from the user. You've taken several tool " +
+  "steps this turn and the task isn't finished; no more tools will run now. " +
+  "Write the user ONE short, natural closing message, in their language, " +
+  "entirely in your own words:\n" +
+  "- Concretely recap what you actually did and what you found so far — and be " +
+  "honest about what you did NOT find or couldn't resolve yet. Read the tool " +
+  "results above; do not claim anything you didn't do.\n" +
+  "- Mention plainly that this is taking more steps than expected and isn't done.\n" +
+  "- Ask whether they want you to keep going.\n" +
+  "Talk like a person giving a quick status update. Do NOT emit a tool call, " +
+  "JSON, or system jargon like \"iteration\" or \"limit\".]";
 
 /**
  * Shared tool-calling agent loop used by super-agent and future surfaces.
@@ -301,8 +313,8 @@ export async function runAgent({
     // Rather than cut off silently mid-tool-call, we run ONE tool-free step so
     // the model writes a natural closing in its OWN words — what it did, what's
     // left, and (if anything remains) whether to continue. We change only the
-    // STRUCTURE (no tools this step) + a behavioral nudge; the wording is
-    // entirely the model's. Coding surfaces keep their finish-tool flow, so
+    // STRUCTURE (no tools this step) + an in-band directive turn (WRAPUP_SIGNAL);
+    // the wording is entirely the model's. Coding surfaces keep their finish-tool flow, so
     // this never applies under completionContract.
     const isFinalWrapUp =
       !useContract && effectiveSchemas.length > 0 && iter === maxIters - 1;
@@ -322,8 +334,14 @@ export async function runAgent({
     let result;
     try {
       result = await tryCallEngine({
-        system: isFinalWrapUp ? baseSystem + WRAPUP_NUDGE : baseSystem,
-        messages: conversation,
+        system: baseSystem,
+        // Wrap-up: deliver the "you're out of steps, summarize + ask" directive
+        // as the latest CONVERSATION turn so the model treats it like any other
+        // turn it must answer — far more reliable than a system suffix on weak
+        // models. Ephemeral: built fresh here, never persisted to history.
+        messages: isFinalWrapUp
+          ? [...conversation, { role: "user", content: WRAPUP_SIGNAL }]
+          : conversation,
         config: globalConfig,
         // On the wrap-up step we withhold tools entirely so the model must
         // answer in prose — same as a real engine called with tools omitted.

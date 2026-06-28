@@ -2,9 +2,36 @@
 // big poller class stays focused on lifecycle + message dispatch. Each
 // function is pure (no `this`) — instances import them and call as needed.
 import fs from "node:fs";
-import { TELEGRAM_STATE_PATH } from "#core/config/index.js";
+import path from "node:path";
+import { TELEGRAM_STATE_PATH, APX_HOME } from "#core/config/index.js";
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
+
+/**
+ * Display label for a Telegram sender used as the `author` / actor fallback:
+ *   @username  →  "First Last"  →  "unknown".
+ * Single source of truth so every inbound branch (text/photo/audio) and the
+ * message store agree. NOTE: this is the raw handle; the *resolved contact
+ * name* (which prefers a saved roster name) is `resolveSender().name` in
+ * core/identity/telegram.js — different purpose, don't conflate them.
+ */
+export function telegramAuthorLabel(from) {
+  if (from?.username) return "@" + from.username;
+  const full = `${from?.first_name || ""} ${from?.last_name || ""}`.trim();
+  return full || "unknown";
+}
+
+/**
+ * Ensure and return the shared media-download directory (~/.apx/media).
+ * Owns BOTH the path and the mkdir so callers never touch `fs`/`APX_HOME`
+ * directly — the inbound dispatcher used to inline this and a module split
+ * dropped its `fs`/`APX_HOME` imports, silently breaking every photo/voice.
+ */
+export function telegramMediaDir() {
+  const dir = path.join(APX_HOME, "media");
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
 
 /**
  * Build the channelMeta block the super-agent loop receives for a Telegram

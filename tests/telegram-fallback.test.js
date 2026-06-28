@@ -35,11 +35,13 @@ test("telegram: super-agent catch surfaces a reply on non-abort errors", () => {
     /replyText\s*=/,
     "non-abort errors must set replyText so the user sees the failure",
   );
-  // And the assigned text should look user-facing (warning emoji or 'Could not').
+  // And the assigned text should be a clear, localized user-facing message —
+  // routed through i18n (telegram.error_generic) rather than a hardcoded
+  // English literal, so it follows the user's language.
   assert.match(
     block[0],
-    /Could not generate a reply|⚠️/,
-    "fallback reply should be a clear user-facing message",
+    /telegram\.error_generic/,
+    "fallback reply should use the localized error key, not a hardcoded string",
   );
 });
 
