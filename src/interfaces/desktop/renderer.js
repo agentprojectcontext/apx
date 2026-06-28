@@ -132,9 +132,8 @@
       <div class="center" id="cap-center"></div>
       <div class="cap-actions" id="cap-actions"></div>
     </div>
-    <div id="caption-slot"></div>
     <div id="conv-slot"></div>
-    <div id="session-slot"></div>
+    <div id="footer-slot"></div>
   `;
   const $cap        = $root.querySelector("#cap");
   const $capBadge   = $root.querySelector("#cap-badge");
@@ -142,9 +141,14 @@
   const $badgeTxt   = $root.querySelector("#badge-txt");
   const $capCenter  = $root.querySelector("#cap-center");
   const $capActions = $root.querySelector("#cap-actions");
-  const $captionSlot = $root.querySelector("#caption-slot");
   const $convSlot   = $root.querySelector("#conv-slot");
-  const $sessionSlot = $root.querySelector("#session-slot");
+  const $footerSlot = $root.querySelector("#footer-slot");
+
+  // Footer (hint + session actions) state: the shortcut to display and a
+  // signature guard so render() doesn't rebuild the bar (and re-trigger the
+  // pill animation) on every keystroke.
+  let captionShortcut = "CommandOrControl+G";
+  let footerSig = "";
 
   $badgeMic.innerHTML = ICON.mic();
   $badgeTxt.innerHTML = ICON.text();
@@ -172,7 +176,7 @@
     }
     document.documentElement.setAttribute("data-theme", theme);
     setPosition(position);
-    initialCaption(shortcut);
+    captionShortcut = shortcut || "CommandOrControl+G";
     configReady = true;
     // If render() already fired the bootstrap paint (because the IPC was
     // slow), the existing input has the stale placeholder. Patch it in
@@ -184,7 +188,7 @@
   }).catch(() => {
     document.documentElement.setAttribute("data-theme", "light");
     setPosition("right");
-    initialCaption("CommandOrControl+G");
+    captionShortcut = "CommandOrControl+G";
     configReady = true;
     render();
   });
@@ -208,19 +212,36 @@
       .replace(/\+/g, "");
   }
 
-  function initialCaption(shortcut) {
-    const sc = formatShortcut(shortcut);
-    // Empty-idle state has no other affordance to dismiss the floating window
-    // (the session bar's "Cerrar" only shows once a conversation exists, and
-    // the window doesn't auto-hide on blur). Pair the hint with a translucent
-    // "Cerrar ventana" pill in the same glass language so the user can always
-    // close it without hunting for the tray icon.
-    $captionSlot.innerHTML = `
-      <div class="caption">Mantené <span class="kbd">${sc}</span> para hablar
-        <span class="kbd">⌥ /</span> para escribir</div>
-      <button class="cap-pill" id="btn-close-idle" title="Cerrar ventana">${ICON.close()}<span>Cerrar ventana</span></button>
+  function captionHtml() {
+    const sc = formatShortcut(captionShortcut);
+    return `<div class="caption">Mantené <span class="kbd">${sc}</span> para hablar
+      <span class="kbd">⌥ /</span> para escribir</div>`;
+  }
+
+  // Unified bottom bar: the "Mantené ⌘G…" hint on the LEFT, session actions on
+  // the RIGHT — small translucent pills in the same glass language as the hint
+  // (not the old big white buttons). "Cerrar ventana" is always present so the
+  // empty-idle window can be dismissed; "Nueva sesión" joins once a session
+  // exists. The conversation card sits above this bar (input → messages → bar).
+  function renderFooter() {
+    const hasSession = messages.length > 0;
+    // "Cerrar ventana" while it's alone (empty state); shortened to "Cerrar"
+    // once "Nueva sesión" joins so all three pills fit on one line.
+    const closeLabel = hasSession ? "Cerrar" : "Cerrar ventana";
+    const sig = `${hasSession}|${captionShortcut}`;
+    if (sig === footerSig && $footerSlot.firstChild) return; // no churn per keystroke
+    footerSig = sig;
+    $footerSlot.innerHTML = `
+      <div class="footer-bar">
+        ${captionHtml()}
+        <div class="footer-actions">
+          ${hasSession ? `<button class="cap-pill act-new" id="btn-new"><span class="ic">${ICON.plus()}</span> Nueva sesión</button>` : ""}
+          <button class="cap-pill act-close" id="btn-close"><span class="ic">${ICON.close()}</span> ${closeLabel}</button>
+        </div>
+      </div>
     `;
-    $captionSlot.querySelector("#btn-close-idle")?.addEventListener("click", closeWindow);
+    $footerSlot.querySelector("#btn-new")?.addEventListener("click", newSession);
+    $footerSlot.querySelector("#btn-close")?.addEventListener("click", closeWindow);
   }
 
   // ── Render: capsule center + actions vary by mode ────────────────────────
@@ -345,15 +366,9 @@
       addBtn("ghost", "Detener", ICON.stop(), () => stopSpeaking());
     }
 
-    // caption visible only when idle AND no messages yet
-    $captionSlot.style.display = (mode === "idle" && messages.length === 0) ? "" : "none";
-
-    // session bar visible when there are messages
-    if (messages.length > 0 || mode !== "idle") {
-      renderSessionBar();
-    } else {
-      $sessionSlot.innerHTML = "";
-    }
+    // Unified bottom bar (hint on the left + session actions on the right) —
+    // always present, so there's always a way to close the window.
+    renderFooter();
 
     // conv card visible when there's any content
     const wantConv = messages.length > 0 || mode === "transcribing" || mode === "thinking" || mode === "speaking";
@@ -361,18 +376,6 @@
     else $convSlot.innerHTML = "";
 
     requestWindowResize();
-  }
-
-  function renderSessionBar() {
-    if ($sessionSlot.querySelector(".session-bar")) return; // keep DOM stable
-    $sessionSlot.innerHTML = `
-      <div class="session-bar">
-        <button class="sbtn new" id="btn-new"><span class="ic">${ICON.plus()}</span> Nueva sesión</button>
-        <button class="sbtn close" id="btn-close"><span class="ic">${ICON.close()}</span> Cerrar</button>
-      </div>
-    `;
-    $sessionSlot.querySelector("#btn-new").addEventListener("click", newSession);
-    $sessionSlot.querySelector("#btn-close").addEventListener("click", closeWindow);
   }
 
   // ── Conversation card ────────────────────────────────────────────────────
@@ -1122,9 +1125,8 @@
     toolPillsByName = {};
     pendingUserText = "";
     $convSlot.innerHTML = "";
-    $sessionSlot.innerHTML = "";
     mode = "idle";
-    render();
+    render();   // footer rebuilds (drops "Nueva sesión" now that there's no session)
   }
   function closeWindow() { window.apx?.close?.(); }
 
