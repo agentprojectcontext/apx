@@ -146,7 +146,7 @@ test("unknown desktop subcommand fails with a usage hint listing install/uninsta
   const err = stripAnsi(r.stderr + r.stdout);
   assert.notEqual(r.status, 0);
   assert.match(err, /unknown desktop sub-command/i);
-  assert.match(err, /start\|stop\|status\|install\|uninstall/);
+  assert.match(err, /start\|stop\|restart\|status\|install\|uninstall/);
 });
 
 test("`apx desktop install` is a no-op on unsupported platforms (graceful exit)", { skip: process.platform !== "freebsd" && process.platform !== "sunos" }, () => {
