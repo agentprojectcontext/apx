@@ -99,7 +99,7 @@ import {
   cmdPermission,
 } from "./commands/config.js";
 import { cmdPluginsList, cmdPluginStatus } from "./commands/plugins.js";
-import { cmdDesktopStart, cmdDesktopStop, cmdDesktopStatus, cmdDesktopInstall, cmdDesktopUninstall } from "./commands/desktop.js";
+import { cmdDesktopStart, cmdDesktopStop, cmdDesktopRestart, cmdDesktopStatus, cmdDesktopInstall, cmdDesktopUninstall, desktopRunning } from "./commands/desktop.js";
 import { cmdVoiceSay, cmdVoiceListen, cmdVoiceProviders } from "./commands/voice.js";
 import { cmdSkillsAdd, cmdSkillsList, cmdSkillsStatus, cmdSkillsSync, cmdSkillsIndex, cmdSkillsInspect, cmdSkillsInspector } from "./commands/skills.js";
 import { cmdIdentity } from "./commands/identity.js";
@@ -2615,6 +2615,18 @@ async function dispatch(cmd, rest) {
         await cmdUpdate(parseArgs(rest), VERSION);
         return; // skip checkForUpdate after an update
 
+      // Refresh everything held in memory after a code change (e.g. a `git
+      // pull` in a dev checkout): restart the daemon, and restart the desktop
+      // too if it was running. The daemon picks up new code/prompts; the
+      // desktop picks up its new renderer/main.js. Token re-sync is automatic
+      // (the desktop WS re-reads daemon.token on reconnect).
+      case "restart": {
+        const a = parseArgs(rest);
+        await cmdDaemonRestart(a);
+        if (desktopRunning()) await cmdDesktopRestart(a);
+        return;
+      }
+
       case "overlay":
         console.error("  apx overlay has been renamed to apx desktop — forwarding.");
         /* falls through */
@@ -2623,10 +2635,11 @@ async function dispatch(cmd, rest) {
         const oArgs = parseArgs(oRest);
         if (!sub || sub === "start")  { await cmdDesktopStart(oArgs); return; }
         if (sub === "stop")           { await cmdDesktopStop(oArgs);  return; }
+        if (sub === "restart")        { await cmdDesktopRestart(oArgs); return; }
         if (sub === "status")         { await cmdDesktopStatus(oArgs);return; }
         if (sub === "install")        { await cmdDesktopInstall(oArgs);  return; }
         if (sub === "uninstall")      { await cmdDesktopUninstall(oArgs);return; }
-        die(`unknown desktop sub-command: ${sub}\nUsage: apx desktop <start|stop|status|install|uninstall>`);
+        die(`unknown desktop sub-command: ${sub}\nUsage: apx desktop <start|stop|restart|status|install|uninstall>`);
         return;
       }
 
@@ -2656,7 +2669,7 @@ const [topCmd, ...topRest] = argv;
 //     of the compact line.
 // Suppress everything with APX_QUIET=1 / APX_NO_BANNER=1 (see branding.js).
 const SELF_BRANDED = new Set([
-  "status", "setup", "install", "daemon", "update", "upgrade", "help",
+  "status", "setup", "install", "daemon", "update", "upgrade", "help", "restart",
 ]);
 const BANNERED = new Set(["init"]);
 
