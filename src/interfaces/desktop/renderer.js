@@ -84,7 +84,7 @@
   let turnWatchdog = null;        // flushes the queue if a segment's TTS hangs
 
   let history = [];               // [{role:'user'|'assistant', content}] sent to daemon for context
-  let theme = "light";
+  let theme = "system";           // "light" | "dark" | "system" (config value, pre-resolution)
   let position = "right";
   let agentName = "Superagente";  // overwritten from config on first render
 
@@ -161,20 +161,20 @@
   // the agent name stays wrong until the user changes mode.
   let configReady = false;
   Promise.all([
-    window.apx?.getTheme?.()     ?? "light",
+    window.apx?.getTheme?.()     ?? "system",
     window.apx?.getPosition?.()  ?? "right",
     window.apx?.getShortcut?.()  ?? "CommandOrControl+G",
     window.apx?.getAgentName?.() ?? "Superagente",
     window.apx?.getVoiceTiming?.() ?? null,
   ]).then(([th, pos, shortcut, name, timing]) => {
-    theme = th || "light";
+    theme = th || "system";
     position = pos || "right";
     agentName = (name && String(name).trim()) || "Superagente";
     if (timing) {
       if (typeof timing.silence_ms === "number") SILENCE_MS = timing.silence_ms;
       if (typeof timing.voice_rms === "number")  VOICE_RMS  = timing.voice_rms;
     }
-    document.documentElement.setAttribute("data-theme", theme);
+    applyTheme(theme);
     setPosition(position);
     captionShortcut = shortcut || "CommandOrControl+G";
     configReady = true;
@@ -186,12 +186,33 @@
     if (input) input.placeholder = `Hablá o escribí a ${agentName}…`;
     render();
   }).catch(() => {
-    document.documentElement.setAttribute("data-theme", "light");
+    applyTheme("system");
     setPosition("right");
     captionShortcut = "CommandOrControl+G";
     configReady = true;
     render();
   });
+
+  // Resolve the configured theme to a concrete data-theme value. "system"
+  // follows the OS appearance via prefers-color-scheme; "light"/"dark" are
+  // used verbatim. We also subscribe to OS changes so a window left on
+  // "system" flips live when the user toggles macOS/Windows dark mode.
+  function prefersDark() {
+    try { return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches); }
+    catch { return false; }
+  }
+  function resolveTheme(pref) {
+    return pref === "system" ? (prefersDark() ? "dark" : "light") : (pref || "light");
+  }
+  function applyTheme(pref) {
+    theme = pref || "system";
+    document.documentElement.setAttribute("data-theme", resolveTheme(theme));
+  }
+  try {
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+      if (theme === "system") document.documentElement.setAttribute("data-theme", resolveTheme("system"));
+    });
+  } catch {}
 
   function setPosition(p) {
     $root.classList.remove("pos-left", "pos-center", "pos-right");

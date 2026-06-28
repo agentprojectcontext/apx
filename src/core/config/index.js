@@ -190,6 +190,8 @@ const CREDENTIAL_PATHS = [
   ["voice", "tts", "elevenlabs", "api_key"],
   ["voice", "tts", "openai", "api_key"],
   ["voice", "tts", "gemini", "api_key"],
+  ["transcription", "openai", "api_key"],
+  ["transcription", "custom", "api_key"],
   ["memory", "embeddings", "openai", "api_key"],
   ["memory", "embeddings", "gemini", "api_key"],
   ["telegram", "channels"], // entire array — losing it is also a regression
