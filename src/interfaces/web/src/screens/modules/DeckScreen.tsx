@@ -77,7 +77,7 @@ export function DeckScreen() {
   const enabledCount = externalWidgets.filter((w) => w.user_enabled === true).length;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-6" data-testid="screen-deck">
+    <div className="space-y-6" data-testid="screen-deck">
       {/* Daemon info card */}
       {data && <DaemonCard manifest={data} />}
 

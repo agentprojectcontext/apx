@@ -1,7 +1,7 @@
-// Discord-style left rail. Logo on top (APX admin), then Base, then the
-// rail-level MODULES (Voice/Deck/Code) that sit alongside Base, then the
-// projects column, finally add + settings. The default workspace (id=0) is
-// pinned first.
+// Discord-style left rail. Logo on top (APX admin), then Base together with the
+// rail-level MODULES (Desktop/Code) as one group, then the projects column,
+// finally add + settings. The default workspace (id=0) is pinned first.
+// Voice and Deck used to live here too — they now live inside Settings.
 //
 // The projects column is the only flexible zone: top (logo/base/modules) and
 // bottom (add/settings/docs/roby) stay pinned. Projects are listed newest-first
@@ -10,7 +10,7 @@
 // also be collapsed into a single folder button (state persisted per browser).
 import { useLayoutEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { Plus, Settings, Mic, Monitor, LayoutGrid, Terminal, Bot, BookOpen, ChevronDown, Folders, type LucideIcon } from "lucide-react";
+import { Plus, Settings, Monitor, Terminal, Bot, BookOpen, ChevronDown, Folders, type LucideIcon } from "lucide-react";
 import { Logo } from "./Logo";
 import { ProjectAvatar, projectTone } from "./ProjectAvatar";
 import { Tip } from "../ui/tip";
@@ -45,10 +45,8 @@ interface ModuleItem {
 // top-level entry next to Base rather than living inside Settings.
 function buildModules(): ModuleItem[] {
   return [
-    { id: "voice",   label: t("nav.modules.voice"),   href: "/m/voice",   icon: Mic },
     { id: "desktop", label: t("nav.modules.desktop"), href: "/m/desktop", icon: Monitor },
-    { id: "deck",  label: t("nav.modules.deck"),  href: "/m/deck",  icon: LayoutGrid },
-    { id: "code",  label: t("nav.modules.code"),  href: "/m/code",  icon: Terminal },
+    { id: "code",    label: t("nav.modules.code"),    href: "/m/code",    icon: Terminal },
   ];
 }
 
@@ -207,8 +205,7 @@ export function ProjectSidebar({ onSelect, onOpenRoby, onOpenAddProject }: Props
         />
       )}
 
-      {/* Modules — rail-level surfaces alongside Base. */}
-      <div className="my-0.5 h-px w-8 rounded-full bg-border" />
+      {/* Modules — rail-level surfaces grouped with Base (no divider). */}
       {MODULES.map((m) => (
         <ProjectAvatar
           key={m.id}

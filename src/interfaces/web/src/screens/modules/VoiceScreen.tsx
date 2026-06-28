@@ -120,7 +120,7 @@ export function VoiceScreen() {
   };
 
   return (
-    <div className="p-6" data-testid="screen-voice">
+    <div data-testid="screen-voice">
       <div className="grid gap-6 xl:grid-cols-2">
         {/* Left: TTS providers */}
         <Section
