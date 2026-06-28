@@ -13,26 +13,22 @@ import {
   createAgentSessionFile,
 } from "#core/stores/sessions.js";
 import { collectAllSessions } from "#interfaces/cli/commands/sessions.js";
+import { pageEnvelope } from "./shared.js";
 
 export function register(app, { projects, project }) {
-  // Cross-engine sessions (apx · claude · codex), newest first.
-  // Paginated via ?limit & ?offset; the full count is returned in the
-  // X-Total-Count header so the UI can compute page counts. The body shape
-  // ({ sessions }) is unchanged for backward compatibility.
+  // Cross-engine sessions (apx · claude · codex), newest first. Returns a
+  // { meta, data } envelope (meta = pagination info, data = rows). Paginated
+  // via ?limit & ?offset; with no limit, data is the full set as one page.
   app.get("/sessions", (req, res) => {
     const engineId = req.query.engine ? String(req.query.engine) : null;
-    const limit = Math.min(parseInt(req.query.limit, 10) || 200, 1000);
-    const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
     let rows = [];
     try {
       rows = collectAllSessions({}, { engineId });
     } catch (e) {
-      return res.status(500).json({ error: e.message, sessions: [] });
+      return res.status(500).json({ error: e.message, meta: { total: 0, offset: 0, limit: null, pageSize: 0, page: 1, pageCount: 1 }, data: [] });
     }
     rows.sort((a, b) => (b.mtime || 0) - (a.mtime || 0));
-    res.set("X-Total-Count", String(rows.length));
-    res.set("Access-Control-Expose-Headers", "X-Total-Count");
-    res.json({ sessions: rows.slice(offset, offset + limit) });
+    res.json(pageEnvelope(rows, req.query));
   });
 
   app.get("/projects/:pid/agents/:slug/sessions", (req, res) => {

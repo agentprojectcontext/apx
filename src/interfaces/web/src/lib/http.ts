@@ -52,38 +52,36 @@ async function request<T>(
   return (await res.json()) as T;
 }
 
-// GET that also surfaces the total-row count for server-side pagination. The
-// daemon returns the full count in the X-Total-Count header (the body keeps its
-// normal shape); we fall back to the payload length when the header is absent
-// (e.g. an older daemon) so pagination degrades gracefully instead of breaking.
-async function getWithTotal<T>(path: string): Promise<{ data: T; total: number }> {
-  const headers: Record<string, string> = token ? { authorization: `Bearer ${token}` } : {};
-  const res = await fetch(path, { method: "GET", headers });
-  if (!res.ok) {
-    let detail = "";
-    let parsed: unknown = null;
-    try {
-      parsed = await res.json();
-      detail = (parsed as { error?: string })?.error || JSON.stringify(parsed);
-    } catch {
-      detail = await res.text();
-    }
-    throw new HttpError(res.status, `GET ${path} → ${res.status}: ${detail}`, parsed);
+// Pagination metadata returned by list endpoints in the { meta, data } envelope.
+export interface PageMeta {
+  total: number;
+  offset: number;
+  limit: number | null;
+  pageSize: number;
+  page: number;
+  pageCount: number;
+}
+
+// Normalize any list response into { items, total }. Accepts the { meta, data }
+// envelope (current daemon), a bare array, or the legacy { sessions } object, so
+// the UI keeps working across a daemon that hasn't been restarted yet (it just
+// degrades to a single page when no meta.total is present).
+export function unwrapPage<T>(body: unknown): { items: T[]; total: number } {
+  const b = body as { data?: unknown; meta?: { total?: number }; sessions?: unknown };
+  if (Array.isArray(body)) return { items: body as T[], total: body.length };
+  if (b && Array.isArray(b.data)) {
+    const items = b.data as T[];
+    return { items, total: typeof b.meta?.total === "number" ? b.meta.total : items.length };
   }
-  const data = (await res.json()) as T;
-  const header = res.headers.get("X-Total-Count");
-  const total =
-    header != null && header !== ""
-      ? parseInt(header, 10)
-      : Array.isArray(data)
-        ? data.length
-        : 0;
-  return { data, total };
+  if (b && Array.isArray(b.sessions)) {
+    const items = b.sessions as T[];
+    return { items, total: items.length };
+  }
+  return { items: [], total: 0 };
 }
 
 export const http = {
   get:   <T>(p: string)              => request<T>("GET", p),
-  getWithTotal,
   post:  <T>(p: string, b?: unknown) => request<T>("POST", p, b),
   put:   <T>(p: string, b?: unknown) => request<T>("PUT", p, b),
   patch: <T>(p: string, b?: unknown) => request<T>("PATCH", p, b),

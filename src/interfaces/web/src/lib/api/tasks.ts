@@ -1,4 +1,4 @@
-import { http } from "../http";
+import { http, unwrapPage } from "../http";
 import type { TaskEntry } from "../../types/daemon";
 
 export interface GlobalTaskEntry extends TaskEntry {
@@ -7,20 +7,17 @@ export interface GlobalTaskEntry extends TaskEntry {
 }
 
 export const Tasks = {
+  // Full sets (no pagination) — unwrapped to plain arrays for non-paged callers.
   list:   (pid: string, state: TaskEntry["state"] | "all" = "open") =>
-    http.get<TaskEntry[]>(`/projects/${pid}/tasks?state=${state}`),
+    http.get<unknown>(`/projects/${pid}/tasks?state=${state}`).then((b) => unwrapPage<TaskEntry>(b).items),
   global: (state: TaskEntry["state"] | "all" = "open") =>
-    http.get<GlobalTaskEntry[]>(`/tasks?state=${state}`),
+    http.get<unknown>(`/tasks?state=${state}`).then((b) => unwrapPage<GlobalTaskEntry>(b).items),
   // Server-paginated variants: one project (listPage) or all projects
   // (globalPage). Each returns the requested window plus the full total.
   listPage: (pid: string, { state, limit, offset }: { state: TaskEntry["state"] | "all"; limit: number; offset: number }) =>
-    http
-      .getWithTotal<TaskEntry[]>(`/projects/${pid}/tasks?state=${state}&limit=${limit}&offset=${offset}`)
-      .then((r) => ({ items: r.data, total: r.total })),
+    http.get<unknown>(`/projects/${pid}/tasks?state=${state}&limit=${limit}&offset=${offset}`).then((b) => unwrapPage<TaskEntry>(b)),
   globalPage: ({ state, limit, offset }: { state: TaskEntry["state"] | "all"; limit: number; offset: number }) =>
-    http
-      .getWithTotal<GlobalTaskEntry[]>(`/tasks?state=${state}&limit=${limit}&offset=${offset}`)
-      .then((r) => ({ items: r.data, total: r.total })),
+    http.get<unknown>(`/tasks?state=${state}&limit=${limit}&offset=${offset}`).then((b) => unwrapPage<GlobalTaskEntry>(b)),
   add:    (pid: string, body: Partial<TaskEntry>) =>
     http.post<TaskEntry>(`/projects/${pid}/tasks`, body),
   done:   (pid: string, id: string) => http.post<TaskEntry>(`/projects/${pid}/tasks/${id}/done`),

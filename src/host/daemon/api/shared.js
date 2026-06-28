@@ -14,6 +14,30 @@ import { CHANNELS } from "#core/constants/channels.js";
 export const nowIso = () =>
   new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 
+// Build a { meta, data } pagination envelope from an already-sorted array.
+// Reads ?limit & ?offset from the request query. With no `limit`, returns the
+// full set as a single page (data = 100% of rows) so non-paginated callers get
+// the same shape — meta just reports one page covering everything.
+//   meta: { total, offset, limit, pageSize, page, pageCount }
+export function pageEnvelope(rows, query = {}) {
+  const total = rows.length;
+  const hasLimit = query.limit != null && query.limit !== "";
+  const limit = hasLimit ? Math.min(Math.max(parseInt(query.limit, 10) || 0, 0), 1000) : null;
+  const offset = Math.max(parseInt(query.offset, 10) || 0, 0);
+  const data = limit != null ? rows.slice(offset, offset + limit) : rows.slice(offset);
+  return {
+    meta: {
+      total,
+      offset,
+      limit,
+      pageSize: limit != null ? limit : total,
+      page: limit ? Math.floor(offset / limit) + 1 : 1,
+      pageCount: limit ? Math.max(1, Math.ceil(total / limit)) : 1,
+    },
+    data,
+  };
+}
+
 // Trace id middleware — populates req.apxTraceId and echoes it on the response.
 export function traceIdMiddleware(req, res, next) {
   req.apxTraceId = req.get("x-apx-trace-id") || randomUUID();
