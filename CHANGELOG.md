@@ -1,3 +1,10 @@
+# [1.45.0](https://github.com/agentprojectcontext/apx/compare/v1.44.0...v1.45.0) (2026-06-28)
+
+
+### Features
+
+* **web/desktop:** share status+lifecycle card between module and settings ([1d02b4a](https://github.com/agentprojectcontext/apx/commit/1d02b4ab4444a9f67c2bb631fd44a950912ef3e6))
+
 # [1.44.0](https://github.com/agentprojectcontext/apx/compare/v1.43.0...v1.44.0) (2026-06-28)
 
 
