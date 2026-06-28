@@ -10,6 +10,9 @@ const SETTINGS_TABS = [
   "engines",
   "telegram",
   "devices",
+  "voice",
+  "deck",
+  "desktop",
   "advanced",
 ] as const;
 
