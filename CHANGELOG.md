@@ -1,3 +1,10 @@
+## [1.42.1](https://github.com/agentprojectcontext/apx/compare/v1.42.0...v1.42.1) (2026-06-28)
+
+
+### Bug Fixes
+
+* **telegram:** restore super-agent autonomy + repair media crash + naturalize cut-off replies ([577d5f6](https://github.com/agentprojectcontext/apx/commit/577d5f6a822d8d2b6315b1e07d2fa35237134a79))
+
 # [1.42.0](https://github.com/agentprojectcontext/apx/compare/v1.41.0...v1.42.0) (2026-06-28)
 
 
