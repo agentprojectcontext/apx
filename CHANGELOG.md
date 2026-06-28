@@ -1,3 +1,10 @@
+## [1.50.1](https://github.com/agentprojectcontext/apx/compare/v1.50.0...v1.50.1) (2026-06-28)
+
+
+### Bug Fixes
+
+* **web:** return ConversationDetail shape so loading a past chat doesn't crash ([61def23](https://github.com/agentprojectcontext/apx/commit/61def23be0bc8566e8f67c56b517524839ecf649))
+
 # [1.50.0](https://github.com/agentprojectcontext/apx/compare/v1.49.0...v1.50.0) (2026-06-28)
 
 
