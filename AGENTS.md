@@ -46,6 +46,7 @@
 - **Confirm before acting**: any button that triggers an execution or a destructive change (Run, Delete, rebuild, …) opens a confirm `<Dialog>` (`components/ui`) with a Cancel + action footer (see `RoutinesTab`, `ConfigTab`). Never native `confirm()` or a hand-rolled modal. Show a loading state while the action runs (button `loading`, optimistic row) and revalidate the affected SWR keys after.
 - **Componentize screens**: thin screen in `screens/`, its own parts under `components/<feature>/` (e.g. `components/routines/`, `components/code/`).
 - **Full-height tabs**: `TabLayout` content is `flex-1 min-h-0 overflow-y-auto`, so use `h-full` + per-pane `overflow-y-auto` (see `ChatTab`, `RoutinesTab`).
+- **The web is a GUI over the system — reuse, don't re-implement.** A web feature must call the SAME core/daemon function the CLI uses, never a parallel reimplementation. Before building anything, find the existing function (`core/stores/*`, `commands/*`, an `api/*` route) and wire the UI to it. If the logic lives only inside a CLI command (coupled to console output), extract it to `core/` (or a shared exported helper) so both surfaces call one implementation — per rule 8 (core → adapter → surface). **If no function exists for what's asked, do NOT invent a web-only version: stop, say so, and ask how to proceed — the capability should be added to the daemon/CLI too so terminal and web stay at parity.**
 
 ## Super-agent prompt & channels
 

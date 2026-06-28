@@ -7,6 +7,8 @@ export interface SessionRow {
   mtime: number;
   cwd: string;
   path: string | null;
+  // Present only on search results: where the query matched.
+  match?: "title" | "content";
 }
 
 export const Sessions = {
@@ -15,10 +17,13 @@ export const Sessions = {
     http
       .get<unknown>(`/sessions${engine ? `?engine=${encodeURIComponent(engine)}` : ""}`)
       .then((b) => ({ sessions: unwrapPage<SessionRow>(b).items })),
-  // Server-paginated page: returns the requested window plus the full total.
-  page: ({ engine, limit, offset }: { engine?: string; limit: number; offset: number }) => {
-    const q = new URLSearchParams({ limit: String(limit), offset: String(offset) });
-    if (engine) q.set("engine", engine);
-    return http.get<unknown>(`/sessions?${q.toString()}`).then((b) => unwrapPage<SessionRow>(b));
+  // Server-paginated page. Optional `q` runs the same search core as
+  // `apx session find` (title; + transcript content when `deep`).
+  page: ({ engine, q, deep, limit, offset }: { engine?: string; q?: string; deep?: boolean; limit: number; offset: number }) => {
+    const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+    if (engine) params.set("engine", engine);
+    if (q?.trim()) params.set("q", q.trim());
+    if (deep) params.set("deep", "1");
+    return http.get<unknown>(`/sessions?${params.toString()}`).then((b) => unwrapPage<SessionRow>(b));
   },
 };

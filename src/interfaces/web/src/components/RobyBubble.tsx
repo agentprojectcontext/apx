@@ -79,6 +79,21 @@ export function RobyBubble({
   // Abort any in-flight stream on unmount.
   useEffect(() => () => abortRef.current?.abort(), []);
 
+  // Open the quick chat with a pre-filled prompt when another screen asks for
+  // it (e.g. the Sessions tab's "ask {persona} to continue this session"). The
+  // dispatcher passes the text; we open and load it without auto-sending so the
+  // user can add their own instructions first.
+  useEffect(() => {
+    const onPreload = (e: Event) => {
+      const text = (e as CustomEvent<{ prompt?: string }>).detail?.prompt;
+      if (typeof text !== "string") return;
+      onOpenChange(true);
+      setDraft(text);
+    };
+    window.addEventListener("apx:roby-prompt", onPreload);
+    return () => window.removeEventListener("apx:roby-prompt", onPreload);
+  }, [onOpenChange]);
+
   const stop = () => {
     abortRef.current?.abort();
     setBusy(false);
