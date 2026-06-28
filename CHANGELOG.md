@@ -1,3 +1,10 @@
+# [1.49.0](https://github.com/agentprojectcontext/apx/compare/v1.48.2...v1.49.0) (2026-06-28)
+
+
+### Features
+
+* **web:** session search + per-row actions; share session-find core ([e835376](https://github.com/agentprojectcontext/apx/commit/e835376a0464fe38eee36bc669a2f7f2c129ef3b))
+
 ## [1.48.2](https://github.com/agentprojectcontext/apx/compare/v1.48.1...v1.48.2) (2026-06-28)
 
 
