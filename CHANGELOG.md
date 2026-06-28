@@ -1,3 +1,10 @@
+# [1.48.0](https://github.com/agentprojectcontext/apx/compare/v1.47.0...v1.48.0) (2026-06-28)
+
+
+### Features
+
+* **web:** real server-side pagination + full-height list views ([be6bd99](https://github.com/agentprojectcontext/apx/commit/be6bd990ab17ea19b0f4bcd6c9c93fffa148700c))
+
 # [1.47.0](https://github.com/agentprojectcontext/apx/compare/v1.46.0...v1.47.0) (2026-06-28)
 
 
