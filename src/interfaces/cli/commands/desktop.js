@@ -16,18 +16,25 @@ import {
   WIN_RUN_KEY,
   WIN_RUN_NAME,
 } from "#core/desktop/autostart.js";
+import {
+  DESKTOP_MAIN,
+  readPid, writePid, clearPid, pidAlive, isDesktopRunning,
+  findElectron as _findElectron,
+  buildElectronSpawn as _buildElectronSpawn,
+  startDesktopDetached,
+  stopDesktop,
+} from "#core/desktop/process.js";
 
 // Re-exports — kept so existing tests (tests/desktop-autostart.test.js)
 // can still import these directly from the CLI module.
 export const getApxRunner = _getApxRunner;
 export const buildPlist   = _buildPlist;
 export const autostartIsOn = _autostartIsOn;
+export const findElectron = _findElectron;
+export const buildElectronSpawn = _buildElectronSpawn;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
-
-const DESKTOP_MAIN  = path.resolve(__dirname, "../../desktop/main.js");
-const DESKTOP_PID   = path.join(os.homedir(), ".apx", "desktop.pid");
 
 // ── ANSI ─────────────────────────────────────────────────────────────────────
 const c = { reset:"\x1b[0m", bold:"\x1b[1m", dim:"\x1b[2m", green:"\x1b[32m",
@@ -38,71 +45,9 @@ const fmt = {
   cyan:(s)=>`${c.cyan}${s}${c.reset}`,  gray:(s)=>`${c.gray}${s}${c.reset}`,
 };
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function readPid() {
-  try { return parseInt(fs.readFileSync(DESKTOP_PID, "utf8").trim(), 10); } catch { return null; }
-}
-function writePid(pid) {
-  fs.mkdirSync(path.dirname(DESKTOP_PID), { recursive: true });
-  fs.writeFileSync(DESKTOP_PID, String(pid));
-}
-function clearPid() { try { fs.unlinkSync(DESKTOP_PID); } catch {} }
-function pidAlive(pid) {
-  if (!pid) return false;
-  try { process.kill(pid, 0); return true; } catch { return false; }
-}
-
-// Validate that an electron candidate actually runs (a pnpm shim can exist as a
-// file while its underlying package was never built — `--version` smokes that out).
-function electronRuns(cmd, argv) {
-  try {
-    execFileSync(cmd, argv, { stdio: "ignore", timeout: 5000 });
-    return true;
-  } catch { return false; }
-}
-
-// Returns a descriptor used by buildElectronSpawn():
-//   absolute path to a real electron binary,
-//   absolute path to electron's cli.js (".js" → run via node),
-//   "npx" as a last-resort fallback (downloads/uses electron via npx).
-// Never returns null — npx is always attempted so the user gets a real error
-// from the spawn (and a one-time download) rather than a silent no-op.
-export function findElectron() {
-  // commands/ is 4 levels under the project root: src/interfaces/cli/commands/
-  const root = path.resolve(__dirname, "..", "..", "..", "..");
-  const bin  = path.join(root, "node_modules", ".bin", "electron");
-  // The .bin shim is a shell wrapper that `exec node …`. Under launchd's
-  // minimal PATH (`/usr/bin:/bin:/usr/sbin:/sbin`) `node` isn't found, so the
-  // shim fails. We try it first (cheap, works for terminal use) and then fall
-  // back to invoking electron's cli.js directly with process.execPath, which
-  // is launchd-safe.
-  if (fs.existsSync(bin) && electronRuns(bin, ["--version"])) return bin;
-
-  const cli = path.join(root, "node_modules", "electron", "cli.js");
-  if (fs.existsSync(cli) && electronRuns(process.execPath, [cli, "--version"])) return cli;
-
-  // Global electron on PATH (works from terminal, usually not from launchd)
-  try {
-    const which = execFileSync("which", ["electron"], { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
-    if (which && electronRuns(which, ["--version"])) return which;
-  } catch {}
-
-  // Last resort: npx (pulls electron if absent). Will ENOENT under launchd if
-  // npx isn't on PATH — that's why we try cli.js BEFORE this.
-  return "npx";
-}
-
-// Turn a findElectron() descriptor + the app entry into a { cmd, argv } pair.
-export function buildElectronSpawn(descriptor, mainPath, port) {
-  if (descriptor === "npx") {
-    return { cmd: "npx", argv: ["-y", "electron", mainPath, "--port", port] };
-  }
-  if (descriptor.endsWith(".js")) {
-    return { cmd: process.execPath, argv: [descriptor, mainPath, "--port", port] };
-  }
-  return { cmd: descriptor, argv: [mainPath, "--port", port] };
-}
+// PID + electron-resolution helpers live in #core/desktop/process.js (shared
+// with the daemon's /desktop/{start,stop} endpoints). findElectron and
+// buildElectronSpawn are re-exported above for the existing tests.
 
 // ── Commands ──────────────────────────────────────────────────────────────────
 
