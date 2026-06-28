@@ -1,3 +1,10 @@
+## [1.42.2](https://github.com/agentprojectcontext/apx/compare/v1.42.1...v1.42.2) (2026-06-28)
+
+
+### Bug Fixes
+
+* **desktop:** preserve conversation history on the HTTP message path ([08f0117](https://github.com/agentprojectcontext/apx/commit/08f01175725ff673f2020a34d30b2542f7986133))
+
 ## [1.42.1](https://github.com/agentprojectcontext/apx/compare/v1.42.0...v1.42.1) (2026-06-28)
 
 
