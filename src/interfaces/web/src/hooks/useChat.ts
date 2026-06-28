@@ -354,7 +354,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
       if (streaming) return;
       try {
         const detail = await Conversations.get(pid, agentSlug, conversationId);
-        const loaded: ChatMsg[] = detail.messages
+        const loaded: ChatMsg[] = (detail.messages ?? [])
           .filter((m) => m.role === "user" || m.role === "assistant")
           .map((m) => ({
             role: m.role as "user" | "assistant",
