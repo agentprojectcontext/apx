@@ -16,6 +16,7 @@ import {
   DEFAULT_LOCAL,
   getConfig,
 } from "#core/voice/transcription.js";
+import { pythonForWhisper } from "./stt-venv.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -126,7 +127,9 @@ async function _spawnWhisper(opts, model, backend, retried) {
     "--idle-minutes", String(opts.idle_minutes ?? DEFAULT_LOCAL.idle_minutes),
   ];
 
-  const proc = spawn("python3", args, {
+  // Prefer APX's dedicated venv interpreter (isolated mlx/faster-whisper);
+  // fall back to system python3 for the legacy user-site install.
+  const proc = spawn(pythonForWhisper(), args, {
     stdio: ["ignore", "pipe", "inherit"],
     detached: false,
   });
