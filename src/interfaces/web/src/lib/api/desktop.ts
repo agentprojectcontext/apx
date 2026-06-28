@@ -16,6 +16,25 @@ export interface DesktopStatus {
   running: boolean;
 }
 
+export interface DesktopRestartResult {
+  ok: boolean;
+  /** How many connected windows were told to reload (0 = none connected). */
+  reloaded: number;
+}
+
+export interface DesktopStartResult {
+  ok: boolean;
+  pid?: number;
+  /** True when a window was already running (start was a no-op). */
+  already?: boolean;
+}
+
+export interface DesktopStopResult {
+  ok: boolean;
+  /** False when nothing was running. */
+  stopped?: boolean;
+}
+
 export interface AutostartStatus {
   ok: boolean;
   enabled: boolean;
@@ -25,6 +44,15 @@ export interface AutostartStatus {
 export const Desktop = {
   /** GET /desktop/status — connected window count + running flag (live probe). */
   status: () => http.get<DesktopStatus>("/desktop/status"),
+
+  /** POST /desktop/start — launch the floating window (detached Electron). */
+  start: () => http.post<DesktopStartResult>("/desktop/start", {}),
+
+  /** POST /desktop/stop — terminate the running window. */
+  stop: () => http.post<DesktopStopResult>("/desktop/stop", {}),
+
+  /** POST /desktop/restart — tell every live window to reload + re-read config. */
+  restart: () => http.post<DesktopRestartResult>("/desktop/restart", {}),
 
   /** GET /desktop/autostart — current login-item state for this platform. */
   autostartGet: () => http.get<AutostartStatus>("/desktop/autostart"),

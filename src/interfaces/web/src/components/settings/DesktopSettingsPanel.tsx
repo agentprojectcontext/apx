@@ -2,8 +2,9 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import useSWR from "swr";
 import { Section } from "../Section";
-import { Button, Field, Input, Switch, Loading } from "../ui";
+import { Button, Field, Switch, Loading } from "../ui";
 import { UiSelect } from "../UiSelect";
+import { ShortcutInput } from "../ShortcutInput";
 import { useToast } from "../Toast";
 import { useGlobalConfig } from "../../hooks/useGlobalConfig";
 import { Desktop } from "../../lib/api/desktop";
@@ -16,8 +17,9 @@ const positionOpts = () => [
   { value: "right",  label: t("modules_ui.desktop_pos_right") },
 ];
 const themeOpts = () => [
-  { value: "light", label: t("modules_ui.desktop_theme_light") },
-  { value: "dark",  label: t("modules_ui.desktop_theme_dark") },
+  { value: "system", label: t("modules_ui.desktop_theme_system") },
+  { value: "light",  label: t("modules_ui.desktop_theme_light") },
+  { value: "dark",   label: t("modules_ui.desktop_theme_dark") },
 ];
 
 // Desktop configuration — the persisted settings for the floating voice window
@@ -33,14 +35,16 @@ export function DesktopSettingsPanel() {
   const cfgView = config as unknown as {
     desktop?: {
       shortcut?: string; enabled?: boolean;
-      theme?: "light" | "dark";
+      theme?: "light" | "dark" | "system";
       position?: "left" | "center" | "right";
     };
     overlay?: { shortcut?: string }; // legacy fallback
   };
   const savedShortcut = cfgView.desktop?.shortcut || cfgView.overlay?.shortcut || DEFAULT_SHORTCUT;
   const enabled  = cfgView.desktop?.enabled !== false;
-  const theme    = cfgView.desktop?.theme    || "light";
+  // Default to "system" so the window follows the OS appearance until the
+  // user explicitly pins light/dark.
+  const theme    = cfgView.desktop?.theme    || "system";
   const position = cfgView.desktop?.position || "right";
 
   const { data: autostart, mutate: mutateAutostart } = useSWR(
@@ -107,31 +111,27 @@ export function DesktopSettingsPanel() {
         description={t("modules_ui.desktop_shortcut_desc")}
       >
         {cfgLoading ? <Loading /> : (
-          <div className="flex items-end gap-3">
-            <div className="flex-1">
-              <Field
-                label={t("modules_ui.desktop_accelerator")}
-                hint={t("modules_ui.desktop_accelerator_hint")}
-              >
-                <Input
-                  value={shortcut}
-                  onChange={(e) => setShortcut(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") saveShortcut(); }}
-                  placeholder={DEFAULT_SHORTCUT}
-                  className="max-w-md font-mono"
-                  disabled={busy}
-                />
-              </Field>
-            </div>
-            <Button
-              variant="primary"
-              onClick={saveShortcut}
-              loading={busy}
-              disabled={!shortcut.trim() || shortcut.trim() === savedShortcut}
-            >
-              {t("common.save")}
-            </Button>
-          </div>
+          <Field
+            label={t("modules_ui.desktop_accelerator")}
+            hint={t("modules_ui.desktop_accelerator_hint")}
+          >
+            <ShortcutInput
+              value={shortcut}
+              onChange={setShortcut}
+              disabled={busy}
+              trailing={
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={saveShortcut}
+                  loading={busy}
+                  disabled={!shortcut.trim() || shortcut.trim() === savedShortcut}
+                >
+                  {t("common.save")}
+                </Button>
+              }
+            />
+          </Field>
         )}
       </Section>
 

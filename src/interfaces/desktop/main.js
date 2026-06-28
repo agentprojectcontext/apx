@@ -99,9 +99,12 @@ function getTheme() {
   try {
     const cfg = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf8"));
     const t = cfg?.desktop?.theme;
-    if (t === "light" || t === "dark") return t;
+    if (t === "light" || t === "dark" || t === "system") return t;
   } catch {}
-  return "light";
+  // "system" follows the OS appearance (the renderer resolves it via
+  // prefers-color-scheme). It's the default so a fresh install matches the
+  // user's macOS/Windows light/dark setting out of the box.
+  return "system";
 }
 
 // Resolve the agent's display name from ~/.apx/identity.json + config.
@@ -316,6 +319,25 @@ function hideOverlay() {
   if (isRecording) stopRecording();
 }
 
+// Soft-restart the floating window: re-read ~/.apx/config.json, move the window
+// to the (possibly new) configured position, and reload the renderer so it
+// re-applies theme/position/shortcut. Triggered by the web admin's Restart
+// button via a "reload" WS event — far cheaper than killing + relaunching the
+// Electron process (which would drop the tray + global shortcut). Recreates the
+// window if it was closed.
+function reloadDesktopWindow() {
+  try {
+    if (!mainWindow) { createWindow(); showOverlay(); return; }
+    const [, currentH] = mainWindow.getSize();
+    const origin = getWindowOrigin(currentH);
+    mainWindow.setPosition(origin.x, origin.y);
+    mainWindow.webContents.reload();
+    showOverlay();
+  } catch (e) {
+    console.warn("desktop: reload failed —", e.message);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Global shortcut: Cmd/Ctrl+Shift+Space toggles recording
 // ---------------------------------------------------------------------------
@@ -527,8 +549,10 @@ function transcribeChunk(buf, format, language) {
         "Content-Length": buf.length,
         "X-Audio-Format": format,
         "X-Language": language,
-        // Overlay is real-time → local whisper only. Never fall back to OpenAI.
-        "X-Provider": "local",
+        // No X-Provider override: the desktop honours the configured STT engine
+        // (transcription.provider in ~/.apx/config.json) — local faster-whisper,
+        // OpenAI cloud, or a custom OpenAI-compatible server (mlx-audio / a
+        // Radeon/NVIDIA box on the LAN). Set it in the web admin → /m/voice.
         ...(token ? { "Authorization": `Bearer ${token}` } : {}),
       },
     };
@@ -585,6 +609,10 @@ function connectDaemon() {
       wsConn.on("message", (raw) => {
         let msg;
         try { msg = JSON.parse(raw.toString()); } catch { return; }
+        // "reload" is a control event from the web admin's Restart button (POST
+        // /desktop/restart). Re-read config, reposition, and soft-reload the
+        // renderer so theme/position changes apply without killing the process.
+        if (msg && msg.type === "reload") { reloadDesktopWindow(); return; }
         // Forward all daemon events to the renderer
         mainWindow?.webContents.send("daemon-event", msg);
       });
