@@ -561,10 +561,16 @@ function connectDaemon() {
     return;
   }
 
-  const token = readToken();
   const url = `ws://${DAEMON_HOST}:${DAEMON_PORT}/desktop/ws`;
 
   function connect() {
+    // Re-read the token on EVERY attempt — the daemon regenerates
+    // ~/.apx/daemon.token on each restart, so a token captured once at
+    // startup goes stale the moment the daemon is restarted (e.g. after a
+    // pull / `apx daemon restart`) and every reconnect 401s forever. Reading
+    // it fresh here lets the desktop self-heal: the next retry picks up the
+    // new token and reconnects on its own.
+    const token = readToken();
     try {
       wsConn = new WS(url, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},

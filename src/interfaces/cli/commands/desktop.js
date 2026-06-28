@@ -277,6 +277,32 @@ export async function cmdDesktopStop(_args = {}) {
   }
 }
 
+// True when the desktop Electron process is alive. Used by `apx restart` so it
+// only re-launches the desktop if the user already had it running.
+export function desktopRunning() {
+  return pidAlive(readPid());
+}
+
+// Stop (if running) then start — the only way the desktop picks up new
+// renderer/main.js code after a pull, since the Electron process holds the
+// old bundle in memory. Token re-sync after a daemon restart is handled
+// automatically by the WS reconnect (it re-reads daemon.token), so this is
+// purely about refreshing stale desktop CODE.
+export async function cmdDesktopRestart(args = {}) {
+  const pid = readPid();
+  if (pidAlive(pid)) {
+    try { process.kill(pid, "SIGTERM"); } catch {}
+    clearPid();
+    // Give Electron a moment to release the tray/shortcut before relaunch.
+    await new Promise((r) => setTimeout(r, 600));
+    process.stderr.write("apx: restarting desktop...\n");
+  } else {
+    clearPid();
+    process.stderr.write("apx: desktop not running — starting...\n");
+  }
+  await cmdDesktopStart(args);
+}
+
 export async function cmdDesktopStatus(_args = {}) {
   const pid = readPid();
   const alive = pidAlive(pid);
