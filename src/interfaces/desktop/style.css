@@ -193,12 +193,17 @@ button { font-family: inherit; }
 }
 [data-theme="dark"] .kbd { color: color-mix(in oklch, var(--accent) 60%, white); }
 
-/* Stack the hint + the close pill, centered, in the empty-idle state.
-   render() toggles this slot's display between "" (→ flex) and "none". */
-#caption-slot { display: flex; flex-direction: column; align-items: center; gap: 7px; }
+/* Bottom bar: the "Mantené ⌘G…" hint on the left, small session-action pills
+   on the right. The conversation card (when present) sits above this bar. */
+.footer-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; flex-wrap: wrap;
+}
+.footer-bar .caption { align-self: auto; }
+.footer-actions { display: flex; align-items: center; gap: 7px; flex-shrink: 0; margin-left: auto; }
 
-/* Translucent "Cerrar ventana" pill — same glass language as .caption so the
-   empty-idle state always has a way to dismiss the window. */
+/* Translucent action pill — same glass language as .caption so the bar reads
+   as one hint layer rather than the old big white buttons. */
 .cap-pill {
   display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
   font: inherit; font-size: 11px; font-weight: 600; color: rgba(255,255,255,.92);
@@ -206,12 +211,16 @@ button { font-family: inherit; }
   background: rgba(20,22,32,.28); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(255,255,255,.14);
   text-shadow: 0 0.5px 1.5px rgba(0,0,0,.3);
-  transition: transform .14s ease, background .15s ease;
+  transition: transform .14s ease, background .15s ease, border-color .15s ease, color .15s ease;
   animation: captionIn .4s ease both;
+  white-space: nowrap;
 }
+.cap-pill .ic { display: inline-flex; align-items: center; }
 .cap-pill svg { width: 13px; height: 13px; opacity: .9; }
 .cap-pill:hover  { transform: translateY(-1px); background: rgba(20,22,32,.42); }
 .cap-pill:active { transform: scale(.96); }
+.cap-pill.act-new:hover   { border-color: color-mix(in oklch, var(--accent) 55%, transparent); }
+.cap-pill.act-close:hover { border-color: rgba(255,120,110,.5); color: #fff; }
 [data-theme="dark"] .cap-pill { background: rgba(0,0,0,.34); }
 
 /* ============================================================
