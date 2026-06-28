@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import useSWR from "swr";
 import { Tasks } from "../../lib/api";
 import { Section } from "../../components/Section";
+import { Pager, usePaged } from "../../components/Pager";
 import { Badge, Button, Empty, Loading } from "../../components/ui";
 import { t } from "../../i18n";
 
@@ -11,6 +12,7 @@ export function GlobalTasksTab() {
   const navigate = useNavigate();
   const [state, setState] = useState<"open" | "done" | "dropped" | "all">("open");
   const list = useSWR(`/tasks?state=${state}`, () => Tasks.global(state));
+  const paged = usePaged(list.data || [], state);
 
   return (
     <Section
@@ -27,7 +29,7 @@ export function GlobalTasksTab() {
       {list.isLoading && <Loading />}
       {!list.isLoading && (list.data?.length ?? 0) === 0 && <Empty>{t("project.global_tasks.empty")}</Empty>}
       <ul className="space-y-2 text-sm">
-        {(list.data || []).map((task) => (
+        {paged.slice.map((task) => (
           <li key={`${task.project_id}-${task.id}`} className="flex items-start gap-3 rounded-md border border-border bg-muted/30 px-3 py-2">
             <button
               type="button"
@@ -48,6 +50,7 @@ export function GlobalTasksTab() {
           </li>
         ))}
       </ul>
+      <Pager page={paged.page} pageCount={paged.pageCount} total={paged.total} start={paged.start} end={paged.end} pageSize={paged.pageSize} onPage={paged.setPage} onPageSize={paged.setPageSize} />
     </Section>
   );
 }

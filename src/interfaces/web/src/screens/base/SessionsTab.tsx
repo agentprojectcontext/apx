@@ -3,6 +3,7 @@ import useSWR from "swr";
 import { RefreshCw } from "lucide-react";
 import { Sessions } from "../../lib/api";
 import { Section } from "../../components/Section";
+import { Pager, usePaged } from "../../components/Pager";
 import { Badge, Button, Empty, Loading } from "../../components/ui";
 import { UiSelect } from "../../components/UiSelect";
 import { t } from "../../i18n";
@@ -15,6 +16,7 @@ export function SessionsTab() {
   const [engine, setEngine] = useState("");
   const list = useSWR(`/sessions?engine=${engine}`, () => Sessions.global(engine || undefined));
   const rows = list.data?.sessions || [];
+  const paged = usePaged(rows, engine);
 
   return (
     <Section
@@ -42,7 +44,7 @@ export function SessionsTab() {
       {list.error && <Empty>{t("base.sessions_error", { msg: (list.error as Error).message })}</Empty>}
       {!list.isLoading && !list.error && rows.length === 0 && <Empty>{t("base.sessions_empty")}</Empty>}
       <ul className="space-y-1 text-sm">
-        {rows.map((s, i) => (
+        {paged.slice.map((s, i) => (
           <li key={`${s.engine}-${s.id}-${i}`} className="flex items-center gap-3 rounded-md border border-border bg-muted/30 px-3 py-2">
             <Badge tone={ENGINE_TONE[s.engine] || "muted"}>{s.engine}</Badge>
             <div className="min-w-0 flex-1">
@@ -53,6 +55,7 @@ export function SessionsTab() {
           </li>
         ))}
       </ul>
+      <Pager page={paged.page} pageCount={paged.pageCount} total={paged.total} start={paged.start} end={paged.end} pageSize={paged.pageSize} onPage={paged.setPage} onPageSize={paged.setPageSize} />
     </Section>
   );
 }
