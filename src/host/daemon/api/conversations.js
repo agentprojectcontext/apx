@@ -32,7 +32,20 @@ export function register(app, { project, config }) {
     if (!p) return;
     const conv = readConversation(p.storagePath, req.params.slug, req.params.id);
     if (!conv) return res.status(404).json({ error: "conversation not found" });
-    res.json(conv);
+    // Shape the response as the `ConversationDetail` the web client expects:
+    // `messages[]` (mapped from the parsed `turns`) + id/agent/channel. Without
+    // this the client's `detail.messages.filter(...)` throws on every load.
+    res.json({
+      id: req.params.id,
+      agent_slug: req.params.slug,
+      channel: conv.fm?.channel,
+      messages: (conv.turns || []).map((t) => ({
+        role: t.role,
+        content: t.content,
+        ts: t.ts,
+      })),
+      meta: conv.fm || {},
+    });
   });
 
   async function handleCompact(req, res, filename) {
