@@ -1,7 +1,7 @@
 import { type ReactElement } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
-  Bot, Cpu, Database, KeyRound, MessageCircle, Palette, ScrollText, Send, Smartphone, Sparkles, User,
+  Bot, Cpu, Database, KeyRound, LayoutGrid, MessageCircle, Mic, Monitor, Palette, ScrollText, Send, Smartphone, Sparkles, User,
 } from "lucide-react";
 import { useNavCollapse, type TabSection } from "../components/common/TabNav";
 import { TabLayout } from "../components/common/TabLayout";
@@ -14,11 +14,15 @@ import { TelegramSettingsTabs } from "../components/settings/TelegramSettingsTab
 import { DevicesPanel } from "../components/settings/DevicesPanel";
 import { AdvancedPanel } from "../components/settings/AdvancedPanel";
 import { AppearancePanel } from "../components/settings/AppearancePanel";
+import { DesktopSettingsPanel } from "../components/settings/DesktopSettingsPanel";
+import { VoiceScreen } from "./modules/VoiceScreen";
+import { DeckScreen } from "./modules/DeckScreen";
 import { STORAGE } from "../constants";
 import { t } from "../i18n";
 
 type TabKey =
-  | "identity" | "super_agent" | "engines" | "memory" | "skills" | "telegram" | "devices" | "appearance" | "advanced";
+  | "identity" | "super_agent" | "engines" | "memory" | "skills" | "telegram" | "devices"
+  | "voice" | "deck" | "desktop" | "appearance" | "advanced";
 
 const SECTIONS: TabSection[] = [
   {
@@ -45,6 +49,14 @@ const SECTIONS: TabSection[] = [
     ],
   },
   {
+    title: t("settings.modules_section"),
+    items: [
+      { key: "voice",       label: t("nav.modules.voice"),         icon: Mic },
+      { key: "deck",        label: t("nav.modules.deck"),          icon: LayoutGrid },
+      { key: "desktop",     label: t("nav.modules.desktop"),       icon: Monitor },
+    ],
+  },
+  {
     title: t("settings.advanced_section"),
     items: [
       { key: "advanced",    label: t("settings.tabs.advanced"),    icon: ScrollText },
@@ -56,7 +68,7 @@ const SECTIONS: TabSection[] = [
 // on xl (and so wants full available width). Single-section panels (identity,
 // super agent, devices, advanced) keep a cosier reading width so wide displays
 // don't blow form fields up to absurd widths.
-const WIDE_TABS = new Set<TabKey>(["engines", "telegram", "memory", "skills", "appearance"]);
+const WIDE_TABS = new Set<TabKey>(["engines", "telegram", "memory", "skills", "appearance", "voice"]);
 
 const PANELS: Record<TabKey, () => ReactElement> = {
   identity:    () => <IdentityPanel />,
@@ -66,6 +78,9 @@ const PANELS: Record<TabKey, () => ReactElement> = {
   skills:      () => <SkillsInspectorPanel />,
   telegram:    () => <TelegramSettingsTabs />,
   devices:     () => <DevicesPanel />,
+  voice:       () => <VoiceScreen />,
+  deck:        () => <DeckScreen />,
+  desktop:     () => <DesktopSettingsPanel />,
   appearance:  () => <AppearancePanel />,
   advanced:    () => <AdvancedPanel />,
 };
@@ -103,6 +118,9 @@ function tabFromPath(pathname: string): TabKey {
     case "skills": return "skills";
     case "telegram": return "telegram";
     case "devices": return "devices";
+    case "voice": return "voice";
+    case "deck": return "deck";
+    case "desktop": return "desktop";
     case "appearance": return "appearance";
     case "config":
     case "advanced": return "advanced";

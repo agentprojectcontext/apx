@@ -175,6 +175,7 @@ export const en = {
     account_section:     "Account",
     agents_section:      "Agents & models",
     channels_section:    "Channels & devices",
+    modules_section:     "Modules",
     advanced_section:    "Advanced",
 
     tabs: {
@@ -925,6 +926,7 @@ export const en = {
     appearance_title:    "Appearance",
     activation_title:    "Activation + transcription",
     last_conv_title:     "Last conversation",
+    open_config:         "Configuration",
   },
 
   voice_screen: {
