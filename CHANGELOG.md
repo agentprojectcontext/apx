@@ -1,3 +1,10 @@
+# [1.47.0](https://github.com/agentprojectcontext/apx/compare/v1.46.0...v1.47.0) (2026-06-28)
+
+
+### Features
+
+* **stt:** run whisper-server under a dedicated venv (isolate mlx) ([7445879](https://github.com/agentprojectcontext/apx/commit/744587917856b276c5501ddd453716541a73947f))
+
 # [1.46.0](https://github.com/agentprojectcontext/apx/compare/v1.45.0...v1.46.0) (2026-06-28)
 
 
