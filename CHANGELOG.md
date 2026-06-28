@@ -1,3 +1,10 @@
+# [1.42.0](https://github.com/agentprojectcontext/apx/compare/v1.41.0...v1.42.0) (2026-06-28)
+
+
+### Features
+
+* **desktop:** unified bottom bar — hint left, session pills right ([57d749a](https://github.com/agentprojectcontext/apx/commit/57d749aeb3ff250e16262a45c96207cc78a72f3a))
+
 # [1.41.0](https://github.com/agentprojectcontext/apx/compare/v1.40.1...v1.41.0) (2026-06-28)
 
 
