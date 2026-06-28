@@ -23,7 +23,11 @@ import { logInfo, logWarn } from "#core/logging.js";
 export const WHISPER_LOCAL_PORT = 18765;
 
 export const DEFAULT_LOCAL = {
-  model: "small",
+  // "auto" = adapt to the machine (mlx/Metal on Apple Silicon, faster-whisper
+  // cuda on NVIDIA, else faster-whisper cpu). Override with "faster" | "mlx".
+  backend: "auto",
+  model: "small",          // faster-whisper model id (tiny|base|small|…)
+  mlx_model: "",           // mlx repo (defaults to the hardware recommendation)
   device: "cpu",
   compute_type: "int8",
   language: "auto",
@@ -33,6 +37,28 @@ export const DEFAULT_LOCAL = {
   // CPU. 20 minutes covers ~60-minute notes on a small int8 model.
   timeout_ms: 20 * 60_000,
 };
+
+// OpenAI's official cloud Whisper. `base_url` is overridable so the same
+// client can target any OpenAI-compatible server (see `custom`).
+export const DEFAULT_OPENAI = {
+  base_url: "https://api.openai.com/v1",
+  model: "whisper-1",
+  language: "auto",
+};
+
+// A user-supplied, OpenAI-compatible STT server reachable over the network:
+// mlx-audio on this Mac's Metal GPU (localhost:8000), a Radeon/NVIDIA box on
+// the LAN, or anyone's remote endpoint. All expose POST /audio/transcriptions,
+// so they share the exact client as `openai` — only base_url/key/model differ.
+export const DEFAULT_CUSTOM = {
+  base_url: "",   // e.g. http://localhost:8000/v1  or  http://192.168.1.50:9000/v1
+  api_key: "",    // optional — most local servers don't require one
+  model: "",      // e.g. mlx-community/whisper-large-v3-turbo  or  Systran/faster-whisper-large-v3
+  language: "auto",
+};
+
+/** STT engine ids surfaced to the web admin, in display/fallback order. */
+export const STT_ENGINE_IDS = ["local", "openai", "custom"];
 
 /**
  * Resolve the effective transcription language. Priority:
@@ -44,27 +70,108 @@ export function resolveTranscriptionLanguage(localCfg, userLang) {
   return "auto";
 }
 
+/**
+ * Resolve the local engine's effective backend + model in place.
+ *   backend "auto" → mlx (Apple Silicon/Metal), faster-whisper cuda (NVIDIA),
+ *   else faster-whisper cpu.
+ * Safety net: if the chosen mlx model isn't downloaded yet, fall back to
+ * faster-whisper so a live voice turn never stalls on a multi-GB download —
+ * the model-manager UI handles the explicit download.
+ */
+async function resolveLocalBackend(local) {
+  let backend = local.backend || "auto";
+  let rec;
+  try {
+    const { recommendStt } = await import("#core/voice/stt-hardware.js");
+    rec = recommendStt();
+  } catch {
+    rec = { backend: "faster", model: "small", device: "cpu", compute_type: "int8" };
+  }
+  if (backend === "auto") backend = rec.backend;
+
+  if (backend === "mlx") {
+    const mlxModel = local.mlx_model || rec.model;
+    let downloaded = false;
+    try {
+      const { modelStatusByRepo } = await import("#core/voice/stt-models.js");
+      downloaded = modelStatusByRepo(mlxModel).downloaded;
+    } catch {}
+    if (downloaded) {
+      local.backend = "mlx";
+      local.model = mlxModel;       // whisper-server.js passes this as --model
+      local.device = "metal";
+      local.compute_type = "mlx";
+      return;
+    }
+    backend = "faster";             // not present → don't block voice
+  }
+
+  // faster-whisper path. On an NVIDIA box, prefer CUDA + float16 unless the
+  // user pinned something explicit.
+  if (rec.backend === "faster" && rec.device === "cuda") {
+    if (!local.device || local.device === "cpu") local.device = "cuda";
+    if (local.compute_type === "int8") local.compute_type = rec.compute_type || "float16";
+  }
+  local.backend = "faster";
+}
+
 export async function getConfig() {
   try {
     const { readConfig } = await import("#core/config/index.js");
     const cfg = readConfig() || {};
     const t = cfg.transcription || {};
-    const openaiKey = cfg.engines?.openai?.api_key || process.env.OPENAI_API_KEY || "";
     const userLang = cfg.user?.language || "";
+
     const localBase = { ...DEFAULT_LOCAL, ...(t.local || {}) };
     localBase.language = resolveTranscriptionLanguage(localBase, userLang);
+    await resolveLocalBackend(localBase);
+
+    // OpenAI cloud: key can live in transcription.openai, the shared
+    // engines.openai block, or the env. base_url defaults to the official API.
+    const openai = { ...DEFAULT_OPENAI, ...(t.openai || {}) };
+    openai.api_key = t.openai?.api_key || cfg.engines?.openai?.api_key || process.env.OPENAI_API_KEY || "";
+    openai.language = resolveTranscriptionLanguage(openai, userLang);
+
+    // Custom OpenAI-compatible server (mlx-audio / Radeon / NVIDIA / remote).
+    const custom = { ...DEFAULT_CUSTOM, ...(t.custom || {}) };
+    custom.language = resolveTranscriptionLanguage(custom, userLang);
+
     return {
       provider: t.provider || "auto",
       local: localBase,
-      openaiKey,
+      openai,
+      custom,
+      // kept for backward-compat with callers that read `.openaiKey`
+      openaiKey: openai.api_key,
     };
   } catch {
     return {
       provider: "auto",
       local: { ...DEFAULT_LOCAL },
+      openai: { ...DEFAULT_OPENAI, api_key: process.env.OPENAI_API_KEY || "" },
+      custom: { ...DEFAULT_CUSTOM },
       openaiKey: process.env.OPENAI_API_KEY || "",
     };
   }
+}
+
+/**
+ * List STT engines + availability for the web admin (mirrors tts listProviders).
+ * @returns {{configured_provider:string, engines:Array<{id,available,configured}>}}
+ */
+export function listSttProviders(rawConfig = {}) {
+  const t = rawConfig.transcription || {};
+  const provider = t.provider || "auto";
+  const openaiKey = t.openai?.api_key || rawConfig.engines?.openai?.api_key || process.env.OPENAI_API_KEY || "";
+  const customUrl = (t.custom?.base_url || "").trim();
+  const engines = [
+    // local whisper is embedded (daemon spawns the subprocess on demand) →
+    // always usable, no credentials needed.
+    { id: "local",  available: true,            configured: true },
+    { id: "openai", available: Boolean(openaiKey), configured: Boolean(openaiKey) },
+    { id: "custom", available: Boolean(customUrl), configured: Boolean(customUrl) },
+  ];
+  return { configured_provider: provider, engines };
 }
 
 /**
@@ -138,9 +245,14 @@ export async function transcribeViaLocalServer(filePath, opts) {
   throw lastErr || new Error("transcribeViaLocalServer: unknown failure");
 }
 
-/** OpenAI Whisper-1 cloud API. Needs an api_key. */
-export async function transcribeOpenAI(filePath, apiKey) {
-  if (!apiKey) throw new Error("openai transcription: no api_key");
+/**
+ * OpenAI-compatible transcription (POST {base_url}/audio/transcriptions with a
+ * multipart `file` + `model`). Works against OpenAI itself and any server that
+ * speaks the same contract: mlx-audio, faster-whisper-server, whisper.cpp
+ * server, etc. `backend` is just the label returned to the caller.
+ */
+export async function transcribeViaOpenAICompatible(filePath, { base_url, api_key, model, language, backend = "openai", timeout_ms = 120_000 } = {}) {
+  const baseUrl = (base_url || DEFAULT_OPENAI.base_url).replace(/\/+$/, "");
   const buf = fs.readFileSync(filePath);
   const ext = path.extname(filePath).slice(1).toLowerCase() || "webm";
   const fileType = ext === "ogg" || ext === "oga" ? "audio/ogg"
@@ -151,26 +263,38 @@ export async function transcribeOpenAI(filePath, apiKey) {
     : "application/octet-stream";
 
   const form = new FormData();
-  form.append("model", "whisper-1");
+  form.append("model", model || DEFAULT_OPENAI.model);
+  if (language && language !== "auto") form.append("language", language);
   form.append("file", new Blob([buf], { type: fileType }), path.basename(filePath));
 
-  const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+  const t0 = Date.now();
+  const res = await fetch(`${baseUrl}/audio/transcriptions`, {
     method: "POST",
-    headers: { authorization: `Bearer ${apiKey}` },
+    // Auth header only when a key is set — local servers usually need none.
+    headers: api_key ? { authorization: `Bearer ${api_key}` } : {},
     body: form,
-    signal: AbortSignal.timeout(60_000),
+    signal: AbortSignal.timeout(timeout_ms),
   });
   if (!res.ok) {
     const errBody = await res.text().catch(() => "");
-    throw new Error(`openai whisper ${res.status}: ${errBody.slice(0, 240)}`);
+    throw new Error(`${backend} stt ${res.status}: ${errBody.slice(0, 240)}`);
   }
   const json = await res.json();
+  logInfo("whisper", `transcribeViaOpenAICompatible(${backend}) ok in ${Date.now() - t0}ms`, {
+    chars: (json.text || "").length, base_url: baseUrl, model: model || DEFAULT_OPENAI.model,
+  });
   return {
     ok: true,
-    backend: "openai",
+    backend,
     text: json.text || "",
     language: json.language || null,
   };
+}
+
+/** Back-compat shim: OpenAI Whisper-1 cloud API by key. */
+export async function transcribeOpenAI(filePath, apiKey) {
+  if (!apiKey) throw new Error("openai transcription: no api_key");
+  return transcribeViaOpenAICompatible(filePath, { ...DEFAULT_OPENAI, api_key: apiKey, backend: "openai" });
 }
 
 /**
@@ -188,17 +312,24 @@ export async function transcribe(filePath, overrides = {}) {
   const localOpts = { ...cfg.local, ...overrides };
 
   if (provider === "openai") {
-    return transcribeOpenAI(filePath, cfg.openaiKey);
+    return transcribeViaOpenAICompatible(filePath, { ...cfg.openai, backend: "openai" });
+  }
+  if (provider === "custom") {
+    if (!cfg.custom.base_url) throw new Error("custom transcription: set transcription.custom.base_url");
+    return transcribeViaOpenAICompatible(filePath, { ...cfg.custom, backend: "custom" });
   }
   if (provider === "local") {
     return transcribeViaLocalServer(filePath, localOpts);
   }
-  // auto: local first, fall back to openai if a key is configured
+  // auto: local first, then a configured remote (custom preferred over openai).
   try {
     return await transcribeViaLocalServer(filePath, localOpts);
   } catch (localErr) {
-    if (cfg.openaiKey) {
-      return transcribeOpenAI(filePath, cfg.openaiKey);
+    if (cfg.custom.base_url) {
+      return transcribeViaOpenAICompatible(filePath, { ...cfg.custom, backend: "custom" });
+    }
+    if (cfg.openai.api_key) {
+      return transcribeViaOpenAICompatible(filePath, { ...cfg.openai, backend: "openai" });
     }
     throw new Error(`local transcription failed: ${localErr.message}`);
   }

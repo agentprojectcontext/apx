@@ -2,10 +2,49 @@
 // Raw audio bytes in the body. Headers:
 //   X-Audio-Format  webm | ogg | wav | mp3 (defaults to webm)
 //   X-Language      ISO code or "auto"
-//   X-Provider      auto | local | openai   (overrides config)
+//   X-Provider      auto | local | openai | custom   (overrides config)
 //
 // Shared by overlay, telegram voice messages, and any external caller.
 export function register(app) {
+  // GET /transcribe/providers — STT engine list + availability for the web
+  // admin (mirror of /tts/providers). local = embedded faster-whisper;
+  // openai = cloud Whisper; custom = any OpenAI-compatible server (mlx-audio
+  // on Metal, a Radeon/NVIDIA box on the LAN, a remote endpoint).
+  app.get("/transcribe/providers", async (_req, res) => {
+    try {
+      const { readConfig } = await import("#core/config/index.js");
+      const { listSttProviders } = await import("#core/voice/transcription.js");
+      res.json(listSttProviders(readConfig()));
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // GET /transcribe/hardware — detected machine + the recommended local backend
+  // (mlx on Apple Silicon, faster-whisper cuda on NVIDIA, else CPU). Drives the
+  // "engine adapts itself" UX in the web admin.
+  app.get("/transcribe/hardware", async (_req, res) => {
+    try {
+      const { detectHardware, recommendStt } = await import("#core/voice/stt-hardware.js");
+      const hw = detectHardware();
+      res.json({ hardware: hw, recommended: recommendStt(hw) });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // GET /transcribe/models?backend=faster|mlx — model catalog with on-disk
+  // status (downloaded? size) for the model-manager UI.
+  app.get("/transcribe/models", async (req, res) => {
+    try {
+      const backend = String(req.query.backend || "faster");
+      const { listSttModels } = await import("#core/voice/stt-models.js");
+      res.json({ backend, models: listSttModels(backend) });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+
   // GET /transcribe/warmup — load the local whisper model (if needed) and reset
   // its idle watchdog. Callers (e.g. the desktop window) ping this while open so
   // the first real utterance doesn't pay the cold-load cost.

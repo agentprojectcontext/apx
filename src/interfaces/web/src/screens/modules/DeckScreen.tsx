@@ -68,7 +68,11 @@ export function DeckScreen() {
       // Re-validate after a short delay to get the server's persisted state.
       setTimeout(() => mutate(), 800);
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : t("modules_ui.deck_save_error");
+      // `e` reads as `unknown` here because the early `return` above makes this
+      // catch unreachable while Deck is pre-release — TS skips control-flow
+      // narrowing in dead code. Cast so the kept-for-later body still
+      // typechecks; behaviour is unchanged (this block never runs today).
+      const msg = e instanceof Error ? (e as Error).message : t("modules_ui.deck_save_error");
       toast.error(msg);
     }
   };
