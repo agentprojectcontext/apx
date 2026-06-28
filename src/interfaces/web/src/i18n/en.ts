@@ -32,6 +32,11 @@ export const en = {
     hide:         "Hide",
     copy:         "Copy",
     run:          "Run",
+    pager_prev:   "Previous",
+    pager_next:   "Next",
+    pager_page:   "Page {page} of {total}",
+    pager_range:  "{from}–{to} of {total}",
+    pager_per_page:"Per page",
   },
   daemon: {
     connecting:    "Connecting to the daemon…",
