@@ -52,8 +52,8 @@ const SECTIONS: TabSection[] = [
     title: t("settings.modules_section"),
     items: [
       { key: "voice",       label: t("nav.modules.voice"),         icon: Mic },
-      { key: "deck",        label: t("nav.modules.deck"),          icon: LayoutGrid },
       { key: "desktop",     label: t("nav.modules.desktop"),       icon: Monitor },
+      { key: "deck",        label: t("nav.modules.deck"),          icon: LayoutGrid },
     ],
   },
   {
