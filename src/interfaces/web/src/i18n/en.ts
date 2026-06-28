@@ -940,6 +940,9 @@ export const en = {
     reload_manifest:     "Reload manifest",
     widget_native:       "Native APX widget",
     widget_external:     "External widget",
+    preview_badge:       "Preview",
+    preview_title:       "Deck — Coming soon",
+    preview_body:        "The Deck module is still in development and not released yet. We'll re-enable it once Deck ships in a stable release. For now everything here is read-only and no changes will be saved.",
   },
 
   memory_panel: {

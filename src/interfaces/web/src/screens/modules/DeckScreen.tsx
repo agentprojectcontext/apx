@@ -1,5 +1,5 @@
 import useSWR from "swr";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, Construction } from "lucide-react";
 import { Deck } from "../../lib/api/deck";
 import { Section } from "../../components/Section";
 import { Button, Empty, Loading } from "../../components/ui";
@@ -21,7 +21,17 @@ export function DeckScreen() {
     { refreshInterval: 30_000 }
   );
 
+  // ── Deck is NOT released yet ───────────────────────────────────────────
+  // The whole module is shown behind a non-dismissable "coming soon" modal
+  // (see the overlay at the bottom of this component) and the UI underneath is
+  // made inert. As defense-in-depth, the real widget mutation is disabled here
+  // too: if someone forces the modal out of the DOM, toggling a widget does
+  // NOTHING — no request ever hits the daemon, so nothing breaks.
+  // 👉 Re-enable the body below (remove this guard) when Deck ships in a stable
+  //    release. The original implementation is kept intact, just unreachable.
   const handleToggle = async (widgetId: string, enabled: boolean) => {
+    return; // no-op while Deck is pre-release — see note above.
+    // eslint-disable-next-line no-unreachable
     try {
       await Deck.setWidget(widgetId, { enabled });
       // Optimistically update local data so the switch flips immediately.
@@ -77,7 +87,18 @@ export function DeckScreen() {
   const enabledCount = externalWidgets.filter((w) => w.user_enabled === true).length;
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 p-6" data-testid="screen-deck">
+    <div className="relative min-h-full" data-testid="screen-deck">
+      {/* ── Underlying Deck UI ──────────────────────────────────────────────
+          Shown for context only while Deck is pre-release. It is made fully
+          inert (no focus, no pointer events) and blurred behind the overlay
+          below. All real actions are also neutralized in code (see
+          handleToggle), so nothing runs even if this layer is re-enabled by
+          hand. Remove the `inert`/blur wrapper when Deck ships. */}
+    <div
+      className="mx-auto max-w-4xl space-y-6 p-6 pointer-events-none select-none blur-[2px] opacity-60"
+      aria-hidden
+      inert
+    >
       {/* Daemon info card */}
       {data && <DaemonCard manifest={data} />}
 
@@ -159,6 +180,33 @@ export function DeckScreen() {
           </div>
         </Section>
       )}
+    </div>
+
+      {/* ── "Coming soon" overlay ───────────────────────────────────────────
+          Non-dismissable: there is no close button and clicking the backdrop
+          does nothing. It floats over the inert Deck UI above. Remove this
+          whole block (and the inert wrapper / handleToggle guard) when Deck is
+          released. */}
+      <div
+        className="absolute inset-0 z-10 flex items-center justify-center p-6 backdrop-blur-[1px]"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="deck-coming-soon-title"
+        data-testid="deck-coming-soon"
+      >
+        <div className="w-full max-w-md rounded-2xl border border-border bg-card/95 p-8 text-center shadow-2xl">
+          <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-muted">
+            <Construction className="size-6 text-muted-fg" />
+          </div>
+          <span className="inline-block rounded-full bg-muted px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-fg">
+            {t("deck_screen.preview_badge")}
+          </span>
+          <h2 id="deck-coming-soon-title" className="mt-3 text-lg font-semibold">
+            {t("deck_screen.preview_title")}
+          </h2>
+          <p className="mt-2 text-sm text-muted-fg">{t("deck_screen.preview_body")}</p>
+        </div>
+      </div>
     </div>
   );
 }
