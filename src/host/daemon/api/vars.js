@@ -37,7 +37,7 @@ function maskAll(obj) {
   return out;
 }
 
-export function register(app, { project }) {
+export function register(app, { project, registries }) {
   app.get("/projects/:pid/vars", (req, res) => {
     const p = project(req, res);
     if (!p) return;
@@ -107,6 +107,7 @@ export function register(app, { project }) {
     } catch (e) {
       return res.status(400).json({ error: e.message });
     }
+    if (registries) registries.shutdown();
     res.status(201).json({ ok: true, name, scope });
   });
 
@@ -132,6 +133,7 @@ export function register(app, { project }) {
       return res.status(400).json({ error: e.message });
     }
     if (!removed) return res.status(404).end();
+    if (registries) registries.shutdown();
     res.status(204).end();
   });
 }
