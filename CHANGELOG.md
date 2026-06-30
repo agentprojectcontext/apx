@@ -1,3 +1,10 @@
+## [1.53.2](https://github.com/agentprojectcontext/apx/compare/v1.53.1...v1.53.2) (2026-06-30)
+
+
+### Bug Fixes
+
+* **mcp:** preserve HTTP session id ([3d67d8f](https://github.com/agentprojectcontext/apx/commit/3d67d8f2f23f7ec103cbe70cf8a3f7aca2e815d6))
+
 ## [1.53.1](https://github.com/agentprojectcontext/apx/compare/v1.53.0...v1.53.1) (2026-06-30)
 
 
