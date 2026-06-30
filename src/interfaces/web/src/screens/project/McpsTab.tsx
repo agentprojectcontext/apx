@@ -32,8 +32,14 @@ function sourceToScope(source: string): McpScope {
 }
 
 function sourceLabel(source: string): string {
-  if (source === "apc") return t("project.mcps.scope_shared");
-  if (source === "runtime") return t("project.mcps.scope_runtime");
+  if (source === "runtime") return t("project.mcps.source_runtime");
+  if (source === "apc") return t("project.mcps.source_apc");
+  if (source === "claude") return t("project.mcps.source_claude");
+  if (source === "codex") return t("project.mcps.source_codex");
+  if (source === "cursor") return t("project.mcps.source_cursor");
+  if (source === "vscode") return t("project.mcps.source_vscode");
+  if (source === "roo") return t("project.mcps.source_roo");
+  if (source === "gemini") return t("project.mcps.source_gemini");
   if (source === "global") return t("project.mcps.scope_global");
   return source;
 }
@@ -88,7 +94,23 @@ export function McpsTab({ pid }: { pid: string }) {
         >
           {conflicts.data?.conflicts?.length ? (
             <div className="mb-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs">
-              {t("project.mcps.conflicts", { names: conflicts.data.conflicts.map((c: any) => c.name).join(", ") })}
+              <div className="font-medium">
+                {t("project.mcps.conflicts", { names: conflicts.data.conflicts.map((c) => c.name).join(", ") })}
+              </div>
+              <ul className="mt-1 space-y-1 text-muted-fg">
+                {conflicts.data.conflicts.map((c) => (
+                  <li key={`${c.name}-${c.winner}-${c.loser}`} className="flex gap-2">
+                    <span aria-hidden="true">•</span>
+                    <span>
+                      {t("project.mcps.conflict_detail", {
+                        name: c.name,
+                        winner: sourceLabel(c.winner),
+                        loser: sourceLabel(c.loser),
+                      })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </div>
           ) : null}
 
