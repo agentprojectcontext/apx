@@ -1,3 +1,10 @@
+# [1.53.0](https://github.com/agentprojectcontext/apx/compare/v1.52.0...v1.53.0) (2026-06-30)
+
+
+### Features
+
+* **web:** Web settings module (theme + language + timezone) ([815489e](https://github.com/agentprojectcontext/apx/commit/815489eea7672c4fce4f1ad82aa39825747dab16))
+
 # [1.52.0](https://github.com/agentprojectcontext/apx/compare/v1.51.1...v1.52.0) (2026-06-30)
 
 
