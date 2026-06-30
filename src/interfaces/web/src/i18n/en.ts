@@ -1158,6 +1158,7 @@ export const en = {
     style_ph:             "speak in a cheerful, energetic tone",
     temperature_label:    "Temperature (optional)",
     temperature_hint:     "Sampling temperature for custom endpoints. Empty = server default.",
+    emotions_short:       "Emotions",
     emotions_label:       "Inline emotion tags",
     emotions_hint:        "When this engine speaks, let the agent drop [happy]/[whisper]-style tags into voice replies to color the delivery. Only enable it if this engine understands the tags (e.g. a QVox/Qwen3-TTS endpoint) — otherwise they're stripped before synthesis.",
     emotions_tags_label:  "Allowed tags",

@@ -16,6 +16,7 @@ interface Props {
   engines: TtsEngineInfo[];
   order: string[];            // effective chain order from the daemon
   onToggleEnabled: (id: string, enabled: boolean) => void;
+  onToggleEmotions: (id: string, enabled: boolean) => void;
   onReorder: (nextOrder: string[]) => void;
   onConfigure: (id: string) => void;
   onRemove: (id: string) => void;
@@ -27,6 +28,7 @@ export function VoiceProviderList({
   engines,
   order,
   onToggleEnabled,
+  onToggleEmotions,
   onReorder,
   onConfigure,
   onRemove,
@@ -108,6 +110,23 @@ export function VoiceProviderList({
             </div>
 
             <div className="flex shrink-0 items-center gap-2">
+              {e.emotionsApplicable && (
+                <button
+                  type="button"
+                  onClick={() => onToggleEmotions(id, !e.emotionsOn)}
+                  disabled={busy}
+                  title={t("voice_ui.emotions_hint")}
+                  data-testid={`voice-provider-${id}-emotions`}
+                  className={cn(
+                    "rounded-md border px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50",
+                    e.emotionsOn
+                      ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-300"
+                      : "border-border text-muted-fg hover:text-fg",
+                  )}
+                >
+                  {t("voice_ui.emotions_short")}
+                </button>
+              )}
               <Switch
                 checked={e.enabled}
                 onChange={(v) => onToggleEnabled(id, v)}
