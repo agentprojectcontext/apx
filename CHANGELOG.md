@@ -1,3 +1,10 @@
+# [1.52.0](https://github.com/agentprojectcontext/apx/compare/v1.51.1...v1.52.0) (2026-06-30)
+
+
+### Features
+
+* **voice:** in-row Emotions on/off toggle for tag-aware engines ([b52f420](https://github.com/agentprojectcontext/apx/commit/b52f4206a144c90262abe514a096942bd849b09b))
+
 ## [1.51.1](https://github.com/agentprojectcontext/apx/compare/v1.51.0...v1.51.1) (2026-06-30)
 
 
