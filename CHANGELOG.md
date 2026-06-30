@@ -1,3 +1,10 @@
+## [1.53.4](https://github.com/agentprojectcontext/apx/compare/v1.53.3...v1.53.4) (2026-06-30)
+
+
+### Bug Fixes
+
+* **mcp:** refresh clients after config changes ([22fbd19](https://github.com/agentprojectcontext/apx/commit/22fbd1992ff88a5e10dedd7d85b758eac741b52c))
+
 ## [1.53.3](https://github.com/agentprojectcontext/apx/compare/v1.53.2...v1.53.3) (2026-06-30)
 
 
