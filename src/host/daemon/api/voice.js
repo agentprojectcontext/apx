@@ -22,6 +22,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { readConfig } from "#core/config/index.js";
 import { synthesize } from "#core/voice/tts.js";
+import { stripEmotionTags } from "#core/voice/emotions.js";
 import { transcribe } from "#core/voice/transcription.js";
 import { decodeAudioInput } from "#core/voice/audio-decode.js";
 import { runSuperAgent, isSuperAgentEnabled } from "#core/agent/super-agent.js";
@@ -174,6 +175,12 @@ export function register(app, { projects, plugins, registries }) {
         replyText = userText;
       }
 
+      // Emotion tags ([excited], [whisper], …) are a TTS-only signal: keep them
+      // for synthesis (engines that support them split on them), but strip them
+      // from everything the user reads — the chat bubble, history, RAG.
+      const audioText = replyText;
+      replyText = stripEmotionTags(replyText);
+
       // Persist the turn to the cross-channel store (feeds RAG index,
       // search_messages, and the "active threads" block). channelCtx.channel is
       // the resolved surface ("deck"/"desktop"). Best-effort.
@@ -190,7 +197,7 @@ export function register(app, { projects, plugins, registries }) {
       if (replyText) {
         try {
           tts = await synthesize({
-            text: replyText,
+            text: audioText,
             voice: body.voice,
             language: body.language,
             provider: body.provider,

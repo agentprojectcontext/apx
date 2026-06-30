@@ -62,7 +62,10 @@ export function emotionConfigFor(globalConfig, providerId) {
  * the intent of selectTtsEngine without the async availability probes:
  *   - explicit provider arg wins
  *   - single mode → voice.tts.provider
- *   - chain mode → first enabled engine with emotions on, else first enabled
+ *   - chain mode → the FIRST enabled engine in order (what selectTtsEngine
+ *     would speak with). We deliberately do NOT prefer an emotion-capable
+ *     engine here: the guide must reflect the engine that will actually speak,
+ *     otherwise the agent emits tags a different engine never asked for.
  */
 export function resolveSpeakingProvider(globalConfig, provider) {
   if (provider && provider !== "auto") return provider;
@@ -72,8 +75,7 @@ export function resolveSpeakingProvider(globalConfig, provider) {
   const order = resolveChainOrder(cfg).filter(
     (id) => id !== "mock" && enabledOf(cfg, id)
   );
-  const withEmotion = order.find((id) => emotionConfigFor(globalConfig, id).enabled);
-  return withEmotion || order[0] || cfg.provider || undefined;
+  return order[0] || cfg.provider || undefined;
 }
 
 /**

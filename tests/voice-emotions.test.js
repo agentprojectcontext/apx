@@ -101,7 +101,9 @@ test("resolveSpeakingProvider: single mode picks configured provider", () => {
   assert.equal(resolveSpeakingProvider(cfg), "openai");
 });
 
-test("resolveSpeakingProvider: chain mode prefers an emotion-capable engine", () => {
+test("resolveSpeakingProvider: chain mode returns the first enabled engine (what speaks)", () => {
+  // Even though openai has emotions on, piper speaks first → the guide must
+  // reflect piper (no spurious tags an engine never asked for).
   const cfg = {
     voice: {
       tts: {
@@ -111,7 +113,8 @@ test("resolveSpeakingProvider: chain mode prefers an emotion-capable engine", ()
       },
     },
   };
-  assert.equal(resolveSpeakingProvider(cfg), "openai");
+  assert.equal(resolveSpeakingProvider(cfg), "piper");
+  assert.equal(activeEmotionGuide(cfg), null); // piper has no emotion support
 });
 
 test("activeEmotionGuide: null when speaking engine lacks tag support", () => {
