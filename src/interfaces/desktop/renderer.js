@@ -1187,8 +1187,10 @@
         appendTurn(m, true);
         queueRegisterSegment(m);
         // Synthesize THIS segment; tts-ready(seg=id) attaches its audio + queues
-        // it for gapless sequential playback.
-        window.apx?.requestTts?.(text, id);
+        // it for gapless sequential playback. `speak` carries the inline emotion
+        // tags (the bubble `text` has them stripped) so a tag-aware engine like
+        // QVox can act on them; falls back to the visible text.
+        window.apx?.requestTts?.(msg.speak || text, id);
         requestWindowResize();
         scrollConvToBottom();
         break;

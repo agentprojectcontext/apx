@@ -24,6 +24,7 @@ import {
 } from "../../desktop-ws.js";
 import { runSuperAgent, isSuperAgentEnabled } from "#core/agent/super-agent.js";
 import { appendGlobalMessage } from "#core/stores/messages.js";
+import { stripEmotionTags } from "#core/voice/emotions.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { tryResolveSkillCommand } from "#core/agent/skills/trigger.js";
 
@@ -120,7 +121,9 @@ async function _handleMessage({ ws, text, previousMessages }, { projects, config
     if (!seg || seg === lastSegText) return;
     lastSegText = seg;
     emittedSegments.push(seg);
-    _send(ws, { type: "segment", seq: ++segSeq, text: seg });
+    // `text` is what the bubble shows (no [tags]); `speak` keeps the inline
+    // emotion tags so the renderer's per-segment TTS can use them.
+    _send(ws, { type: "segment", seq: ++segSeq, text: stripEmotionTags(seg), speak: seg });
   };
 
   try {
@@ -178,7 +181,9 @@ async function _handleMessage({ ws, text, previousMessages }, { projects, config
     // the closing segment (deduped against the last one).
     emitSegment((result.text || "").trim() || liveBuf.trim());
 
-    const finalText = emittedSegments.join("\n\n");
+    // Emotion tags are a TTS-only signal — strip them from the text we display,
+    // persist, and feed back as conversation context.
+    const finalText = stripEmotionTags(emittedSegments.join("\n\n"));
     log(`desktop: super-agent turn done in ${Date.now() - t0}ms segments=${segSeq} text_len=${finalText.length} tools=${toolsExecuted.length}`);
 
     // Turn end. `segments` lets the renderer know how many bubbles to expect.
