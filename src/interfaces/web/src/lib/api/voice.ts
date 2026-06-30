@@ -25,6 +25,9 @@ export interface TtsEngineInfo {
   custom?: boolean;     // user-added OpenAI-compatible provider ("custom:<slug>")
   label?: string;       // display name for custom providers
   note?: string;        // e.g. the custom base_url
+  // UI-enriched (computed client-side from config, not reported by the daemon):
+  emotionsApplicable?: boolean; // engine can parse inline [tags] (custom/gemini)
+  emotionsOn?: boolean;         // voice.tts.<...>.emotions.enabled
 }
 
 export interface TtsProvidersResponse {

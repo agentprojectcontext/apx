@@ -40,8 +40,19 @@ export function VoiceScreen() {
   const transcriptionCfg = (cfgView.transcription || {}) as TranscriptionConfig;
   const configuredProvider = providersData?.configured_provider || voiceCfg.provider || "auto";
   const mode: TtsMode = providersData?.mode || voiceCfg.mode || "chain";
-  const engines = providersData?.engines || [];
   const order = providersData?.order || [];
+
+  // Enrich the daemon's engine list with the emotion-tags state read straight
+  // from config (so the in-row toggle is live without a daemon round-trip).
+  // Only custom + Gemini parse inline [tags].
+  const engines = (providersData?.engines || []).map((e) => {
+    const applicable = !!e.custom || e.id === "gemini";
+    if (!applicable) return e;
+    const block = e.custom
+      ? voiceCfg.custom?.[e.id.slice(7)]
+      : voiceCfg.gemini;
+    return { ...e, emotionsApplicable: true, emotionsOn: !!block?.emotions?.enabled };
+  });
 
   const editingConfig = useMemo<Record<string, unknown>>(() => {
     if (!editing || editing === "__new__") return {};
@@ -60,6 +71,22 @@ export function VoiceScreen() {
         : `voice.tts.${id}.enabled`;
       await patch({ [key]: enabled });
       await mutateProviders();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusyDefault(false);
+    }
+  };
+
+  const toggleEmotions = async (id: string, enabled: boolean) => {
+    setBusyDefault(true);
+    try {
+      const key = id.startsWith("custom:")
+        ? `voice.tts.custom.${id.slice(7)}.emotions.enabled`
+        : `voice.tts.${id}.emotions.enabled`;
+      await patch({ [key]: enabled });
+      await mutateProviders();
+      await mutateCfg();
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -130,6 +157,7 @@ export function VoiceScreen() {
               engines={engines}
               order={order}
               onToggleEnabled={toggleEnabled}
+              onToggleEmotions={toggleEmotions}
               onReorder={reorder}
               onConfigure={(id) => setEditing(id)}
               onRemove={removeCustom}

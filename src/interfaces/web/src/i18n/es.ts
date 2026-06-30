@@ -1156,6 +1156,7 @@ export const es = {
     style_ph:             "hablá en un tono alegre y enérgico",
     temperature_label:    "Temperatura (opcional)",
     temperature_hint:     "Temperatura de sampleo para endpoints custom. Vacío = default del servidor.",
+    emotions_short:       "Emociones",
     emotions_label:       "Tags de emoción inline",
     emotions_hint:        "Cuando hable este motor, deja que el agente meta tags tipo [happy]/[whisper] en las respuestas de voz para darles color. Activalo solo si este motor entiende los tags (ej. un endpoint QVox/Qwen3-TTS) — si no, se quitan antes de sintetizar.",
     emotions_tags_label:  "Tags permitidos",
