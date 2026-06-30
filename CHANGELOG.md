@@ -1,3 +1,10 @@
+# [1.51.0](https://github.com/agentprojectcontext/apx/compare/v1.50.1...v1.51.0) (2026-06-30)
+
+
+### Features
+
+* **voice:** QVox/custom OpenAI-compatible TTS providers + per-engine emotion tags ([e0cacdf](https://github.com/agentprojectcontext/apx/commit/e0cacdf10075b928c3aa520bad54898c35cbdcb3))
+
 ## [1.50.1](https://github.com/agentprojectcontext/apx/compare/v1.50.0...v1.50.1) (2026-06-28)
 
 
