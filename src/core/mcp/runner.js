@@ -211,6 +211,37 @@ function sanitizeHeaders(h) {
   return out;
 }
 
+function redactHeaderValue(key, value) {
+  const k = String(key || "").toLowerCase();
+  if (
+    k === "authorization" ||
+    k === "proxy-authorization" ||
+    k.includes("token") ||
+    k.includes("secret") ||
+    k.includes("key")
+  ) {
+    return "[redacted]";
+  }
+  const s = String(value ?? "");
+  return s.length > 96 ? `${s.slice(0, 24)}...${s.slice(-12)}` : s;
+}
+
+function redactHeaders(headers) {
+  const out = {};
+  for (const [k, v] of Object.entries(headers || {})) {
+    out[k] = redactHeaderValue(k, v);
+  }
+  return out;
+}
+
+function summarizeRpcBody(method, params) {
+  return JSON.stringify({
+    jsonrpc: "2.0",
+    method,
+    params_keys: params && typeof params === "object" ? Object.keys(params) : [],
+  });
+}
+
 class HttpMcpClient {
   constructor({ name, url, headers = {} }) {
     this.name = name;
@@ -220,6 +251,7 @@ class HttpMcpClient {
     this._nextId = 1;
     this._initialized = false;
     this._initPromise = null;
+    this.sessionId = null;
     this.logs = [];
     this.startedAt = null;
     this.lastError = null;
@@ -230,23 +262,32 @@ class HttpMcpClient {
     if (this.logs.length > LOG_CAP) this.logs.shift();
   }
 
+  _requestHeaders({ accept = "application/json, text/event-stream" } = {}) {
+    return {
+      "Content-Type": "application/json",
+      Accept: accept,
+      "MCP-Protocol-Version": "2024-11-05",
+      ...(this.sessionId ? { "Mcp-Session-Id": this.sessionId } : {}),
+      ...this.headers,
+    };
+  }
+
   async _rpc(method, params, timeoutMs = DEFAULT_TIMEOUT_MS) {
     if (!this.startedAt) this.startedAt = nowIso();
     const id = this._nextId++;
     const body = JSON.stringify({ jsonrpc: "2.0", id, method, params });
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-    this._log("info", `POST ${method}`);
+    const headers = this._requestHeaders();
+    this._log(
+      "info",
+      `POST ${method} headers=${JSON.stringify(redactHeaders(headers))} body=${summarizeRpcBody(method, params)}`
+    );
     let res;
     try {
       res = await fetch(this.url, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json, text/event-stream",
-          "MCP-Protocol-Version": "2024-11-05",
-          ...this.headers,
-        },
+        headers,
         body,
         signal: ctrl.signal,
       });
@@ -258,6 +299,11 @@ class HttpMcpClient {
       clearTimeout(timer);
     }
     const contentType = res.headers.get("content-type") || "";
+    const sessionId = res.headers.get("mcp-session-id");
+    if (sessionId) {
+      this.sessionId = sessionId;
+      this._log("info", `session ${sessionId}`);
+    }
     const text = await res.text();
     if (!res.ok) {
       this.lastError = `HTTP ${res.status}`;
@@ -306,14 +352,14 @@ class HttpMcpClient {
         );
         // Best-effort notification — many servers ignore this for HTTP.
         try {
+          const headers = this._requestHeaders({ accept: "application/json" });
+          this._log(
+            "info",
+            `POST notifications/initialized headers=${JSON.stringify(redactHeaders(headers))} body=${summarizeRpcBody("notifications/initialized", {})}`
+          );
           await fetch(this.url, {
             method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Accept: "application/json",
-              "MCP-Protocol-Version": "2024-11-05",
-              ...this.headers,
-            },
+            headers,
             body: JSON.stringify({
               jsonrpc: "2.0",
               method: "notifications/initialized",
@@ -349,6 +395,7 @@ class HttpMcpClient {
   stop() {
     this._initialized = false;
     this._initPromise = null;
+    this.sessionId = null;
   }
 }
 
