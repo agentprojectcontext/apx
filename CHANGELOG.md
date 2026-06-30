@@ -1,3 +1,10 @@
+## [1.51.1](https://github.com/agentprojectcontext/apx/compare/v1.51.0...v1.51.1) (2026-06-30)
+
+
+### Bug Fixes
+
+* **voice:** strip emotion tags from displayed text; match guide to speaking engine ([d8ae3b1](https://github.com/agentprojectcontext/apx/commit/d8ae3b1f831ae5193eb013a4b528636d7c102788))
+
 # [1.51.0](https://github.com/agentprojectcontext/apx/compare/v1.50.1...v1.51.0) (2026-06-30)
 
 
