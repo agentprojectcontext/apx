@@ -13,6 +13,7 @@ export interface UiSelectOption {
   label: string;
   icon?: ElementType;
   description?: string;
+  disabled?: boolean;
 }
 
 // Thin, app-friendly wrapper over the base-ui Select primitive so call sites
@@ -63,7 +64,7 @@ export function UiSelect({
         {options.map((o) => {
           const Icon = o.icon;
           return (
-            <SelectItem key={o.value} value={o.value}>
+            <SelectItem key={o.value} value={o.value} disabled={o.disabled}>
               <span className="flex min-w-0 items-center gap-2">
                 {Icon ? <Icon className="size-4 shrink-0 text-muted-fg" /> : null}
                 {o.description ? (

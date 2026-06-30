@@ -25,6 +25,8 @@ export function VoiceScreen() {
     mutate: mutateProviders,
   } = useSWR("/tts/providers", () => Voice.providers());
 
+  // editing holds the engine id being configured. "__new__" opens the modal in
+  // "create custom provider" mode.
   const [editing, setEditing] = useState<string | null>(null);
   const [busyDefault, setBusyDefault] = useState(false);
 
@@ -42,47 +44,21 @@ export function VoiceScreen() {
   const order = providersData?.order || [];
 
   const editingConfig = useMemo<Record<string, unknown>>(() => {
-    if (!editing) return {};
+    if (!editing || editing === "__new__") return {};
+    if (editing.startsWith("custom:")) {
+      return (voiceCfg.custom?.[editing.slice(7)] as unknown as Record<string, unknown>) || {};
+    }
     return (voiceCfg as Record<string, unknown>)[editing] as Record<string, unknown> || {};
   }, [editing, voiceCfg]);
-
-  const setDefault = async (id: string) => {
-    setBusyDefault(true);
-    try {
-      await patch({ "voice.tts.provider": id, "voice.tts.mode": "single" });
-      await mutateProviders();
-      toast.success(t("voice_ui.toast_default_engine", { id }));
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setBusyDefault(false);
-    }
-  };
-
-  const setMode = async (next: TtsMode) => {
-    setBusyDefault(true);
-    try {
-      const set: Record<string, unknown> = { "voice.tts.mode": next };
-      // Switching to single needs a concrete default; pick the first available
-      // (or first listed) engine when none is set yet.
-      if (next === "single" && (configuredProvider === "auto" || !configuredProvider)) {
-        const pick = engines.find((e) => e.available)?.id || order[0] || "mock";
-        set["voice.tts.provider"] = pick;
-      }
-      await patch(set);
-      await mutateProviders();
-      toast.success(next === "chain" ? t("voice_ui.toast_mode_chain") : t("voice_ui.toast_mode_single"));
-    } catch (e) {
-      toast.error((e as Error).message);
-    } finally {
-      setBusyDefault(false);
-    }
-  };
 
   const toggleEnabled = async (id: string, enabled: boolean) => {
     setBusyDefault(true);
     try {
-      await patch({ [`voice.tts.${id}.enabled`]: enabled });
+      // custom:<slug> lives under voice.tts.custom.<slug>; built-ins are flat.
+      const key = id.startsWith("custom:")
+        ? `voice.tts.custom.${id.slice(7)}.enabled`
+        : `voice.tts.${id}.enabled`;
+      await patch({ [key]: enabled });
       await mutateProviders();
     } catch (e) {
       toast.error((e as Error).message);
@@ -110,6 +86,24 @@ export function VoiceScreen() {
     toast.success(t("voice_ui.toast_config_saved"));
   };
 
+  const removeCustom = async (id: string) => {
+    if (!id.startsWith("custom:")) return;
+    if (!window.confirm(t("voice_ui.remove_confirm"))) return;
+    setBusyDefault(true);
+    try {
+      const slug = id.slice(7);
+      // Drop the config block and any reference to it in the chain order.
+      await patch({ "voice.tts.order": order.filter((x) => x !== id) }, [`voice.tts.custom.${slug}`]);
+      await mutateProviders();
+      await mutateCfg();
+      toast.success(t("voice_ui.toast_provider_removed"));
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusyDefault(false);
+    }
+  };
+
   const patchStt = async (set: Record<string, unknown>, unset?: string[]) => {
     try {
       await patch(set, unset);
@@ -135,13 +129,11 @@ export function VoiceScreen() {
             <VoiceProviderList
               engines={engines}
               order={order}
-              mode={mode}
-              configuredProvider={configuredProvider}
-              onSetMode={setMode}
-              onSetDefault={setDefault}
               onToggleEnabled={toggleEnabled}
               onReorder={reorder}
               onConfigure={(id) => setEditing(id)}
+              onRemove={removeCustom}
+              onAddNew={() => setEditing("__new__")}
               busy={busyDefault}
             />
           )}

@@ -22,6 +22,9 @@ export interface TtsEngineInfo {
   available: boolean;   // probe says it can synthesize right now
   configured: boolean;  // has a non-empty voice.tts.<id> config block
   enabled: boolean;     // included in the fallback chain (voice.tts.<id>.enabled)
+  custom?: boolean;     // user-added OpenAI-compatible provider ("custom:<slug>")
+  label?: string;       // display name for custom providers
+  note?: string;        // e.g. the custom base_url
 }
 
 export interface TtsProvidersResponse {
@@ -67,17 +70,41 @@ export interface ElevenLabsConfig {
   voice_id?: string;
   output_format?: string;
 }
+/** Inline emotion-tags capability (generic; add it to any tag-aware engine). */
+export interface EmotionsConfig {
+  enabled?: boolean;
+  tags?: string[];      // empty → canonical default set
+}
 export interface OpenAiTtsConfig {
   api_key?: string;
-  model?: string;       // tts-1 | tts-1-hd
-  voice?: string;       // alloy | echo | fable | onyx | nova | shimmer
+  base_url?: string;    // custom OpenAI-compatible endpoint (e.g. a local QVox)
+  model?: string;       // tts-1 | tts-1-hd  (optional for custom endpoints)
+  voice?: string;       // alloy | echo | fable | onyx | nova | shimmer | preset
   format?: string;      // mp3 | opus | aac | flac | wav
+  style?: string;       // base voice / "instruct" (custom endpoints)
+  temperature?: number; // custom endpoints
+  emotions?: EmotionsConfig;
 }
 export interface GeminiTtsConfig {
   api_key?: string;
   model?: string;       // gemini-2.5-flash-preview-tts
   voice?: string;       // e.g. Kore
   style?: string;       // natural-language speaking-style instruction
+  enabled?: boolean;
+  emotions?: EmotionsConfig;
+}
+
+/** A user-added OpenAI-compatible provider (voice.tts.custom.<slug>). */
+export interface CustomTtsConfig {
+  label?: string;       // display name
+  base_url: string;     // OpenAI-compatible endpoint (required)
+  api_key?: string;
+  model?: string;
+  voice?: string;
+  format?: string;
+  style?: string;       // base voice / instruct
+  temperature?: number;
+  emotions?: EmotionsConfig;
   enabled?: boolean;
 }
 
@@ -89,6 +116,7 @@ export interface VoiceTtsConfig {
   elevenlabs?: ElevenLabsConfig;
   openai?: OpenAiTtsConfig;
   gemini?: GeminiTtsConfig;
+  custom?: Record<string, CustomTtsConfig>;  // user-added providers, by slug
 }
 
 export interface TranscriptionLocalConfig {
@@ -163,6 +191,11 @@ export const OPENAI_TTS_VOICES = ["alloy", "echo", "fable", "onyx", "nova", "shi
 export const GEMINI_TTS_VOICES = ["Kore", "Puck", "Charon", "Fenrir", "Aoede"];
 export const ELEVENLABS_MODELS = ["eleven_multilingual_v2", "eleven_turbo_v2_5", "eleven_flash_v2_5"];
 export const OPENAI_TTS_MODELS = ["tts-1", "tts-1-hd"];
+// Canonical inline emotion-tag set (mirrors the daemon's DEFAULT_EMOTION_TAGS).
+export const DEFAULT_EMOTION_TAGS = [
+  "happy", "sad", "excited", "angry", "calm",
+  "whisper", "shout", "laugh", "cry", "narrator", "neutral",
+];
 export const WHISPER_MODELS = ["tiny", "base", "small", "medium", "large-v2", "large-v3", "large-v3-turbo"];
 
 // Friendly labels + ordering for the provider list. The daemon is the source
@@ -170,7 +203,7 @@ export const WHISPER_MODELS = ["tiny", "base", "small", "medium", "large-v2", "l
 export const TTS_PROVIDER_META: Record<string, { name: string; note: string; local?: boolean }> = {
   piper:      { name: "Piper",       note: "Local, offline (CLI + .onnx model). No API key.", local: true },
   elevenlabs: { name: "ElevenLabs",  note: "Cloud, multilingual. Requires an API key." },
-  openai:     { name: "OpenAI",      note: "Cloud (tts-1 / tts-1-hd). Uses your OpenAI key." },
+  openai:     { name: "OpenAI",      note: "Cloud (tts-1 / tts-1-hd) or any OpenAI-compatible endpoint (set a base URL for a local server, e.g. QVox)." },
   gemini:     { name: "Gemini",      note: "Cloud (preview). Uses your Gemini key." },
   mock:       { name: "Mock",        note: "Silent test engine. Always available as a fallback.", local: true },
 };

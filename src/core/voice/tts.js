@@ -17,6 +17,7 @@ import {
   resolveMode,
   resolveChainOrder,
 } from "./engines/index.js";
+import { emotionConfigFor, stripEmotionTags } from "./emotions.js";
 
 export const TTS_TMP_DIR = path.join(os.homedir(), ".apx", "tmp", "tts");
 
@@ -61,9 +62,15 @@ export async function synthesize({
     provider,
   });
 
+  // Safety net: if the engine that will speak does NOT support inline emotion
+  // tags, scrub any stray [tag] markers so they're never read aloud literally.
+  const speakText = emotionConfigFor(cfg, selectedProvider).enabled
+    ? text
+    : stripEmotionTags(text);
+
   const outDir = ensureTtsTmpDir();
   return adapter.synthesize({
-    text,
+    text: speakText,
     voice,
     language,
     format,
@@ -72,7 +79,7 @@ export async function synthesize({
     config: engineConfig,
     parentEnginesCfg: cfg.engines,
     signal,
-  }).then((r) => ({ ...r, provider: r.provider || selectedProvider }));
+  }).then((r) => ({ ...r, provider: selectedProvider || r.provider }));
 }
 
 /** List engines and whether they look usable right now. */
