@@ -1,21 +1,27 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Section } from "../Section";
 import { Button, Empty, Field, Input, Loading, Textarea } from "../ui";
 import { UiSelect } from "../UiSelect";
+import { TimezoneSelect } from "../TimezoneSelect";
 import { useToast } from "../Toast";
 import { useIdentity } from "../../hooks/useIdentity";
 import { t } from "../../i18n";
+import { languageOptions } from "../../i18n/languages";
+import { timezoneOptions, detectTimezone } from "../../i18n/timezones";
 import type { Identity } from "../../types/daemon";
-
-const LANGS = ["es", "en", "pt", "fr", "it", "de"] as const;
 
 export function IdentityPanel() {
   const toast = useToast();
   const { identity, isLoading, save } = useIdentity();
   const [draft, setDraft] = useState<Identity>({});
   const [busy, setBusy] = useState(false);
+  const tzOptions = useMemo(() => timezoneOptions(), []);
 
-  useEffect(() => { setDraft(identity); }, [identity]);
+  // Default the timezone to the detected OS zone (e.g. Buenos Aires) when the
+  // identity has none saved yet, so the field starts on a sensible pick.
+  useEffect(() => {
+    setDraft({ ...identity, timezone: identity?.timezone || detectTimezone() });
+  }, [identity]);
 
   if (isLoading) return <Loading />;
 
@@ -45,11 +51,15 @@ export function IdentityPanel() {
           <UiSelect
             value={draft.language || "es"}
             onChange={(v) => setDraft({ ...draft, language: v })}
-            options={LANGS.map((l) => ({ value: l, label: l }))}
+            options={languageOptions()}
           />
         </Field>
         <Field label={t("settings.identity.timezone")} hint={t("settings.identity.timezone_hint")}>
-          <Input value={draft.timezone || ""} onChange={(e) => setDraft({ ...draft, timezone: e.target.value })} />
+          <TimezoneSelect
+            value={draft.timezone || detectTimezone()}
+            onChange={(v) => setDraft({ ...draft, timezone: v })}
+            options={tzOptions}
+          />
         </Field>
       </div>
       <div className="mt-3">
