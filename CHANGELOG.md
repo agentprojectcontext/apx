@@ -1,3 +1,10 @@
+## [1.53.1](https://github.com/agentprojectcontext/apx/compare/v1.53.0...v1.53.1) (2026-06-30)
+
+
+### Bug Fixes
+
+* **desktop:** strip emotion tags from spoken-reply bubbles (keep them for TTS) ([4701454](https://github.com/agentprojectcontext/apx/commit/470145443cfc66a6317ea301d2bd2ce4d652067f))
+
 # [1.53.0](https://github.com/agentprojectcontext/apx/compare/v1.52.0...v1.53.0) (2026-06-30)
 
 
