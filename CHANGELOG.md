@@ -1,3 +1,10 @@
+## [1.53.3](https://github.com/agentprojectcontext/apx/compare/v1.53.2...v1.53.3) (2026-06-30)
+
+
+### Bug Fixes
+
+* **mcp:** explain source conflicts in web UI ([529e654](https://github.com/agentprojectcontext/apx/commit/529e654e1f36595eb4c02d46ff9ded785fd85fc1))
+
 ## [1.53.2](https://github.com/agentprojectcontext/apx/compare/v1.53.1...v1.53.2) (2026-06-30)
 
 
