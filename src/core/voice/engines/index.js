@@ -28,7 +28,28 @@ export const TTS_ENGINE_IDS = Object.keys(ADAPTERS);
 
 export const AUTO_PREFERENCE = ["piper", "elevenlabs", "openai", "gemini", "mock"];
 
+// ── Custom providers ────────────────────────────────────────────────────────
+// Users can add any number of OpenAI-compatible endpoints (e.g. a local QVox /
+// Qwen3-TTS server). They live under voice.tts.custom.<slug> and surface with
+// engine id "custom:<slug>". They're all backed by the openai adapter.
+export const CUSTOM_PREFIX = "custom:";
+
+export function isCustomId(id) {
+  return typeof id === "string" && id.startsWith(CUSTOM_PREFIX);
+}
+function slugOf(id) {
+  return isCustomId(id) ? id.slice(CUSTOM_PREFIX.length) : id;
+}
+function customEngineIds(ttsCfg) {
+  return Object.keys(ttsCfg?.custom || {}).map((slug) => CUSTOM_PREFIX + slug);
+}
+function knownIds(ttsCfg) {
+  return [...TTS_ENGINE_IDS, ...customEngineIds(ttsCfg)];
+}
+
 export function getTtsAdapter(provider) {
+  // All custom providers are OpenAI-compatible → openai adapter.
+  if (isCustomId(provider)) return ADAPTERS.openai;
   const a = ADAPTERS[provider];
   if (!a) {
     throw new Error(
@@ -43,10 +64,13 @@ function ttsConfig(globalConfig) {
 }
 
 function providerConfig(globalConfig, provider) {
-  return ttsConfig(globalConfig)?.[provider] || {};
+  const tts = ttsConfig(globalConfig);
+  if (isCustomId(provider)) return tts?.custom?.[slugOf(provider)] || {};
+  return tts?.[provider] || {};
 }
 
 function isEnabled(ttsCfg, id) {
+  if (isCustomId(id)) return ttsCfg?.custom?.[slugOf(id)]?.enabled !== false;
   return ttsCfg?.[id]?.enabled !== false;
 }
 
@@ -63,11 +87,14 @@ export function resolveMode(ttsCfg) {
  * so the UI can render + reorder every row; filtering happens at selection time.
  */
 export function resolveChainOrder(ttsCfg) {
-  const custom = Array.isArray(ttsCfg?.order)
-    ? ttsCfg.order.filter((id) => TTS_ENGINE_IDS.includes(id))
+  const known = knownIds(ttsCfg);
+  const ordered = Array.isArray(ttsCfg?.order)
+    ? ttsCfg.order.filter((id) => known.includes(id))
     : [];
-  const rest = AUTO_PREFERENCE.filter((id) => !custom.includes(id));
-  const full = [...custom, ...rest];
+  const rest = [...AUTO_PREFERENCE, ...customEngineIds(ttsCfg)].filter(
+    (id) => !ordered.includes(id)
+  );
+  const full = [...ordered, ...rest];
   // Guarantee mock is present as the ultimate fallback.
   if (!full.includes("mock")) full.push("mock");
   return full;
@@ -101,7 +128,7 @@ export async function selectTtsEngine({ globalConfig, provider }) {
   // 3. Chain mode: probe the (enabled) order, first available wins.
   for (const id of resolveChainOrder(ttsCfg)) {
     if (id !== "mock" && !isEnabled(ttsCfg, id)) continue;
-    const adapter = ADAPTERS[id];
+    const adapter = getTtsAdapter(id);
     const cfg = providerConfig(globalConfig, id);
     try {
       if (await adapter.isAvailable(cfg, globalConfig?.engines)) {
@@ -124,20 +151,23 @@ export async function selectTtsEngine({ globalConfig, provider }) {
 export async function listAvailableTtsEngines(globalConfig) {
   const ttsCfg = ttsConfig(globalConfig);
   const out = [];
-  for (const id of TTS_ENGINE_IDS) {
-    const adapter = ADAPTERS[id];
+  for (const id of knownIds(ttsCfg)) {
+    const adapter = getTtsAdapter(id);
     const cfg = providerConfig(globalConfig, id);
     let available = false;
     try {
       available = await adapter.isAvailable(cfg, globalConfig?.engines);
     } catch { available = false; }
+    const custom = isCustomId(id);
     out.push({
       id,
       available,
       // `enabled` is a routing flag, not real config — exclude it from the
       // "configured" heuristic so toggling on/off doesn't fake-mark an engine.
-      configured: Object.keys(cfg).filter((k) => k !== "enabled").length > 0,
+      // For custom engines `label` is descriptive metadata, not config either.
+      configured: Object.keys(cfg).filter((k) => k !== "enabled" && k !== "label").length > 0,
       enabled: isEnabled(ttsCfg, id),
+      ...(custom ? { custom: true, label: cfg.label || slugOf(id), note: cfg.base_url || "" } : {}),
     });
   }
   return out;

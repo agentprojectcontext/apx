@@ -1,16 +1,16 @@
 import { useState } from "react";
 import { Play, Square, Volume2 } from "lucide-react";
-import { Button, Field, Input, Textarea } from "../ui";
+import { Button, Field, Textarea } from "../ui";
 import { UiSelect } from "../UiSelect";
 import { useToast } from "../Toast";
 import { useTtsPlayer } from "./useTtsPlayer";
 import { Voice, TTS_PROVIDER_META, type TtsEngineInfo, type TtsMode, type TtsSayResult } from "../../lib/api/voice";
 import { t } from "../../i18n";
 
-// "Decir esto" tester. Lets you pick which engine to synthesize with (overriding
-// the saved default) and add a free-text speaking-style instruction, then plays
-// the resulting audio in-browser via /tts/say. Style only affects engines that
-// support it (today: Gemini); other engines ignore it.
+// "Say this" tester. Lets you pick which engine to synthesize with (overriding
+// the saved default), then plays the resulting audio in-browser via /tts/say.
+// The base voice / emotions are configured per-engine now, so there's no
+// free-text style field here — pick the engine and hear it.
 
 interface Props {
   engines: TtsEngineInfo[];
@@ -25,7 +25,6 @@ export function VoiceTestCard({ engines, defaultProvider, mode }: Props) {
   const [text, setText] = useState(t("voice_ui.test_default_text"));
   // "" = use the saved default; otherwise force a specific engine.
   const [engine, setEngine] = useState("");
-  const [style, setStyle] = useState("");
   const [busy, setBusy] = useState(false);
   const [last, setLast] = useState<TtsSayResult | null>(null);
 
@@ -36,10 +35,15 @@ export function VoiceTestCard({ engines, defaultProvider, mode }: Props) {
 
   const options = [
     { value: "", label: defaultLabel },
-    ...engines.map((e) => ({
-      value: e.id,
-      label: `${TTS_PROVIDER_META[e.id]?.name || e.id}${e.available ? "" : t("voice_ui.test_unavailable_suffix")}`,
-    })),
+    ...engines
+      .filter((e) => e.id !== "mock")
+      .map((e) => ({
+        value: e.id,
+        label: e.custom ? e.label || e.id : TTS_PROVIDER_META[e.id]?.name || e.id,
+        // Unavailable engines stay listed (so the user sees they exist) but
+        // can't be picked.
+        disabled: !e.available,
+      })),
   ];
 
   const say = async () => {
@@ -53,7 +57,6 @@ export function VoiceTestCard({ engines, defaultProvider, mode }: Props) {
       const res = await Voice.say({
         text: txt,
         provider: engine || undefined,
-        style: style.trim() || undefined,
       });
       setLast(res);
       await play(res.audio_path);
@@ -66,19 +69,9 @@ export function VoiceTestCard({ engines, defaultProvider, mode }: Props) {
 
   return (
     <div className="space-y-3">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label={t("voice_ui.test_engine_label")} hint={t("voice_ui.test_engine_hint")}>
-          <UiSelect value={engine} onChange={setEngine} options={options} />
-        </Field>
-        <Field label={t("voice_ui.test_style_label")} hint={t("voice_ui.test_style_hint")}>
-          <Input
-            value={style}
-            onChange={(e) => setStyle(e.target.value)}
-            placeholder={t("voice_ui.style_ph")}
-            data-testid="voice-test-style"
-          />
-        </Field>
-      </div>
+      <Field label={t("voice_ui.test_engine_label")} hint={t("voice_ui.test_engine_hint")}>
+        <UiSelect value={engine} onChange={setEngine} options={options} />
+      </Field>
       <Field label={t("voice_ui.test_text_label")}>
         <Textarea
           rows={2}

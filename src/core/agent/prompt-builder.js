@@ -21,6 +21,7 @@ import { agentsMdFile } from "../apc/paths.js";
 import { readSelfMemoryForPrompt } from "./self-memory.js";
 import { buildSkillsHintBlock } from "./skills/catalog.js";
 import { CHANNELS } from "#core/constants/channels.js";
+import { activeEmotionGuide, buildEmotionGuide } from "../voice/emotions.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROMPTS_DIR = path.join(__dirname, "prompts");
@@ -99,13 +100,16 @@ export function buildChannelContextBlock(channel, meta = {}) {
   return renderPromptTemplate(loadPrompt(rel), meta);
 }
 
-export function buildVoiceModeBlock(active) {
+export function buildVoiceModeBlock(active, emotionGuide = "") {
   if (!active) return "";
+  let base = "";
   try {
-    return loadPrompt(VOICE_MODE_FILE);
+    base = loadPrompt(VOICE_MODE_FILE);
   } catch {
-    return "";
+    base = "";
   }
+  if (!emotionGuide) return base;
+  return base ? `${base}\n\n${emotionGuide}` : emotionGuide;
 }
 
 // Pick the right segmenting discipline for the channel (and whether voice
@@ -287,7 +291,14 @@ export function buildSuperAgentSystem({
 
   const channelBlock = buildChannelContextBlock(channel, channelMeta);
   const extraContext = [channelBlock, contextNote].filter(Boolean).join("\n\n");
-  const voiceBlock = buildVoiceModeBlock(voice);
+  // In voice mode, if the engine that will speak supports inline emotion tags
+  // (a per-engine config toggle), teach the agent the syntax. channelMeta
+  // .ttsProvider optionally forces which engine's capability to honor.
+  const emotion = voice ? activeEmotionGuide(globalConfig, channelMeta?.ttsProvider) : null;
+  const voiceBlock = buildVoiceModeBlock(
+    voice,
+    emotion ? buildEmotionGuide(emotion.tags) : ""
+  );
   const segmentDiscipline = buildSegmentDiscipline({ channel: channelLow, voice });
 
   return [

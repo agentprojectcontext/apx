@@ -194,6 +194,7 @@ export function register(app, { projects, plugins, registries }) {
             voice: body.voice,
             language: body.language,
             provider: body.provider,
+            style: body.style,
             format: body.format_out,
             globalConfig: cfg,
           });
