@@ -1,7 +1,7 @@
 import { type ReactElement } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
-  Bot, Cpu, Database, KeyRound, LayoutGrid, MessageCircle, Mic, Monitor, Palette, ScrollText, Send, Smartphone, Sparkles, User,
+  Bot, Cpu, Database, Globe, KeyRound, LayoutGrid, MessageCircle, Mic, Monitor, ScrollText, Send, Smartphone, Sparkles, User,
 } from "lucide-react";
 import { useNavCollapse, type TabSection } from "../components/common/TabNav";
 import { TabLayout } from "../components/common/TabLayout";
@@ -13,7 +13,7 @@ import { ModelsTab } from "./base/ModelsTab";
 import { TelegramSettingsTabs } from "../components/settings/TelegramSettingsTabs";
 import { DevicesPanel } from "../components/settings/DevicesPanel";
 import { AdvancedPanel } from "../components/settings/AdvancedPanel";
-import { AppearancePanel } from "../components/settings/AppearancePanel";
+import { WebPanel } from "../components/settings/WebPanel";
 import { DesktopSettingsPanel } from "../components/settings/DesktopSettingsPanel";
 import { VoiceScreen } from "./modules/VoiceScreen";
 import { DeckScreen } from "./modules/DeckScreen";
@@ -22,14 +22,13 @@ import { t } from "../i18n";
 
 type TabKey =
   | "identity" | "super_agent" | "engines" | "memory" | "skills" | "telegram" | "devices"
-  | "voice" | "deck" | "desktop" | "appearance" | "advanced";
+  | "voice" | "deck" | "desktop" | "web" | "advanced";
 
 const SECTIONS: TabSection[] = [
   {
     title: t("settings.account_section"),
     items: [
       { key: "identity",    label: t("settings.tabs.identity"),    icon: User },
-      { key: "appearance",  label: t("settings.appearance"),       icon: Palette },
     ],
   },
   {
@@ -54,6 +53,7 @@ const SECTIONS: TabSection[] = [
       { key: "voice",       label: t("nav.modules.voice"),         icon: Mic },
       { key: "desktop",     label: t("nav.modules.desktop"),       icon: Monitor },
       { key: "deck",        label: t("nav.modules.deck"),          icon: LayoutGrid },
+      { key: "web",         label: t("nav.modules.web"),           icon: Globe },
     ],
   },
   {
@@ -68,7 +68,7 @@ const SECTIONS: TabSection[] = [
 // on xl (and so wants full available width). Single-section panels (identity,
 // super agent, devices, advanced) keep a cosier reading width so wide displays
 // don't blow form fields up to absurd widths.
-const WIDE_TABS = new Set<TabKey>(["engines", "telegram", "memory", "skills", "appearance", "voice"]);
+const WIDE_TABS = new Set<TabKey>(["engines", "telegram", "memory", "skills", "web", "voice"]);
 
 const PANELS: Record<TabKey, () => ReactElement> = {
   identity:    () => <IdentityPanel />,
@@ -81,7 +81,7 @@ const PANELS: Record<TabKey, () => ReactElement> = {
   voice:       () => <VoiceScreen />,
   deck:        () => <DeckScreen />,
   desktop:     () => <DesktopSettingsPanel />,
-  appearance:  () => <AppearancePanel />,
+  web:         () => <WebPanel />,
   advanced:    () => <AdvancedPanel />,
 };
 
@@ -121,7 +121,8 @@ function tabFromPath(pathname: string): TabKey {
     case "voice": return "voice";
     case "deck": return "deck";
     case "desktop": return "desktop";
-    case "appearance": return "appearance";
+    case "web": return "web";
+    case "appearance": return "web"; // legacy route → Web module
     case "config":
     case "advanced": return "advanced";
     default: return "identity";
