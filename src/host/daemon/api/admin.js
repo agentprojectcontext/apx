@@ -9,7 +9,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-export function register(app, { scheduler, plugins, config }) {
+export function register(app, { scheduler, plugins, config, registries }) {
   // Daemon logs: errors.jsonl (structured) or apx.log (plain), newest first.
   app.get("/admin/logs", (req, res) => {
     const dir = path.join(os.homedir(), ".apx", "logs");
@@ -35,6 +35,7 @@ export function register(app, { scheduler, plugins, config }) {
       Object.assign(config, fresh);
       if (scheduler) scheduler.globalConfig = config;
       if (plugins) plugins.config = config;
+      if (registries) registries.shutdown();
       res.json({
         ok: true,
         super_agent_model: config.super_agent?.model || null,

@@ -6,7 +6,7 @@ export type McpScope = "shared" | "runtime" | "global";
 export interface McpCheck {
   sources: Array<{ name: string; path: string }>;
   entries: McpEntry[];
-  conflicts: Array<{ name: string; sources: string[] }>;
+  conflicts: Array<{ name: string; winner: string; loser: string }>;
 }
 
 export interface McpAddBody {
