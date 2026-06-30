@@ -70,8 +70,6 @@ export function register(app, { projects, registries, project }) {
     }
     const { name, command, args, env, url, headers, enabled } = req.body || {};
     if (!name) return res.status(400).json({ error: "name required" });
-    if (!command && !url)
-      return res.status(400).json({ error: "either command or url required" });
 
     let json;
     try {
@@ -81,6 +79,8 @@ export function register(app, { projects, registries, project }) {
     }
     json.mcpServers = json.mcpServers || {};
     const existing = json.mcpServers[name] || {};
+    if (!existing.command && !existing.url && !command && !url)
+      return res.status(400).json({ error: "either command or url required" });
     json.mcpServers[name] = {
       ...existing,
       ...(command !== undefined ? { command } : {}),
@@ -95,7 +95,7 @@ export function register(app, { projects, registries, project }) {
     } catch (e) {
       return res.status(400).json({ error: e.message });
     }
-    registries.for(p).evict(name);
+    registries.shutdown();
     projects.rebuild(p.id);
     const entry = registries.for(p).getByName(name);
     res.status(201).json(entry);
@@ -149,7 +149,7 @@ export function register(app, { projects, registries, project }) {
     } catch (e) {
       return res.status(400).json({ error: e.message });
     }
-    registries.for(p).evict(req.params.name);
+    registries.shutdown();
     projects.rebuild(p.id);
     res.status(204).end();
   });
