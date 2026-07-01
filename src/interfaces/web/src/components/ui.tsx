@@ -84,8 +84,10 @@ export function Field({
   badge?: string;
   children: ReactNode;
 }) {
+  // Do not wrap controls in <label>: complex fields (contentEditable +
+  // buttons/popovers) can redirect clicks to the wrong nested control.
   return (
-    <label className="block space-y-1">
+    <div className="block space-y-1">
       <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
         {label}
         {badge && (
@@ -94,7 +96,7 @@ export function Field({
       </span>
       {children}
       {hint && <span className="block text-[11px] text-muted-foreground/70">{hint}</span>}
-    </label>
+    </div>
   );
 }
 
