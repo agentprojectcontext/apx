@@ -1,3 +1,10 @@
+## [1.53.5](https://github.com/agentprojectcontext/apx/compare/v1.53.4...v1.53.5) (2026-07-01)
+
+
+### Bug Fixes
+
+* **web:** keep field clicks inside complex inputs ([#13](https://github.com/agentprojectcontext/apx/issues/13)) ([1613186](https://github.com/agentprojectcontext/apx/commit/1613186e93a47712e402193e2ed63f58abd20902))
+
 ## [1.53.4](https://github.com/agentprojectcontext/apx/compare/v1.53.3...v1.53.4) (2026-06-30)
 
 
