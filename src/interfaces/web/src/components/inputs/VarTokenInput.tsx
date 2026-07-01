@@ -1,11 +1,15 @@
 import {
+  type CSSProperties,
   forwardRef,
+  type RefObject,
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import { Plus } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { Tip } from "../ui/tip";
@@ -133,6 +137,7 @@ interface VarTokenInputProps {
 export const VarTokenInput = forwardRef<VarTokenInputHandle, VarTokenInputProps>(
   function VarTokenInput({ value, onChange, placeholder, className, varNames = [], onCreateVar }, ref) {
     const editorRef = useRef<HTMLDivElement>(null);
+    const pickerAnchorRef = useRef<HTMLDivElement>(null);
     const savedRange = useRef<Range | null>(null);
     const [pickerOpen, setPickerOpen] = useState(false);
     const [pickerQuery, setPickerQuery] = useState("");
@@ -285,7 +290,7 @@ export const VarTokenInput = forwardRef<VarTokenInputHandle, VarTokenInputProps>
             </span>
           )}
         </div>
-        <div className="relative flex">
+        <div ref={pickerAnchorRef} className="relative flex">
           <Tip content={t("chat_ui.insert_variable")}>
             <button
               type="button"
@@ -308,6 +313,7 @@ export const VarTokenInput = forwardRef<VarTokenInputHandle, VarTokenInputProps>
           </Tip>
           {pickerOpen && (
             <VarPickerPopover
+              anchorRef={pickerAnchorRef}
               query={pickerQuery}
               onQuery={setPickerQuery}
               varNames={filtered}
@@ -330,6 +336,7 @@ export const VarTokenInput = forwardRef<VarTokenInputHandle, VarTokenInputProps>
 );
 
 function VarPickerPopover({
+  anchorRef,
   query,
   onQuery,
   varNames,
@@ -337,6 +344,7 @@ function VarPickerPopover({
   onClose,
   onCreateVar,
 }: {
+  anchorRef: RefObject<HTMLElement | null>;
   query: string;
   onQuery: (s: string) => void;
   varNames: string[];
@@ -346,6 +354,40 @@ function VarPickerPopover({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [rect, setRect] = useState<CSSProperties | null>(null);
+
+  const updatePosition = useCallback(() => {
+    const anchor = anchorRef.current;
+    if (!anchor) return;
+    const r = anchor.getBoundingClientRect();
+    const width = 256;
+    const gap = 4;
+    const margin = 8;
+    const maxLeft = window.innerWidth - width - margin;
+    const left = Math.max(margin, Math.min(r.right - width, maxLeft));
+    const below = r.bottom + gap;
+    const popoverHeight = ref.current?.offsetHeight ?? 260;
+    const top =
+      below + popoverHeight <= window.innerHeight - margin
+        ? below
+        : Math.max(margin, r.top - popoverHeight - gap);
+    setRect({ left, top, width });
+  }, [anchorRef]);
+
+  useLayoutEffect(() => {
+    updatePosition();
+  }, [updatePosition, query, varNames.length]);
+
+  useEffect(() => {
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [updatePosition]);
+
   // Focus the search field once on open, then never again — re-focus on every
   // render is what made the editor click "bounce" back to the picker.
   useEffect(() => {
@@ -353,15 +395,19 @@ function VarPickerPopover({
   }, []);
   useEffect(() => {
     function onDoc(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+      const target = e.target as Node;
+      if (ref.current?.contains(target) || anchorRef.current?.contains(target)) return;
+      onClose();
     }
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
-  }, [onClose]);
-  return (
+  }, [anchorRef, onClose]);
+  if (!rect) return null;
+  return createPortal(
     <div
       ref={ref}
-      className="absolute right-0 top-full z-50 mt-1 w-64 rounded-md border border-border bg-popover shadow-lg"
+      style={rect}
+      className="fixed z-[1000] rounded-md border border-border bg-popover shadow-lg"
     >
       <div className="border-b border-border p-2">
         <input
@@ -405,7 +451,8 @@ function VarPickerPopover({
           </button>
         </div>
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }
 
