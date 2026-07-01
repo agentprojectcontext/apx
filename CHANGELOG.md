@@ -1,3 +1,10 @@
+## [1.53.6](https://github.com/agentprojectcontext/apx/compare/v1.53.5...v1.53.6) (2026-07-01)
+
+
+### Bug Fixes
+
+* **web:** portal variable token picker ([#14](https://github.com/agentprojectcontext/apx/issues/14)) ([00a5890](https://github.com/agentprojectcontext/apx/commit/00a589044c68f8d8505e2bdab71d8e8ab35fd638))
+
 ## [1.53.5](https://github.com/agentprojectcontext/apx/compare/v1.53.4...v1.53.5) (2026-07-01)
 
 
