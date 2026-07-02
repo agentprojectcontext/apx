@@ -25,7 +25,7 @@ you never need to boot the daemon separately.
   APX Profile   identity show|set|wizard
   Config        config show|set · model · permission
   Sessions      session new|list|resume|find · sessions list
-  MCPs          mcp list|add|remove|enable|run|tools|check
+  MCPs          mcp list|add|remove|enable|run|tools|logs|check
   Daemon        daemon start|stop|reload|status · log
   Telegram      telegram send|status · messages tail|chat|search
   LLM / Code    exec · chat · code · search
@@ -193,7 +193,8 @@ See [Sessions](/apx/docs/concepts/sessions/).
 | `apx mcp enable <name>` | Enable a disabled MCP server. |
 | `apx mcp disable <name>` | Disable an MCP server without removing it. |
 | `apx mcp run <name> <tool> ['<json-args>']` | Call an MCP tool through the daemon. |
-| `apx mcp tools <name>` | List available tools for an MCP server. |
+| `apx mcp tools <name> [<tool>] [--json]` | List a server's tools; with `<tool>`, show its param schema plus a ready-to-run example. |
+| `apx mcp logs <name>` | Show a server's spawn/init event log and stderr tail. |
 | `apx mcp check` | Audit multi-source merge order and conflicts. |
 
 See [MCPs](/apx/docs/capabilities/mcp/).
