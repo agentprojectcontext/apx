@@ -1,3 +1,10 @@
+# [1.54.0](https://github.com/agentprojectcontext/apx/compare/v1.53.7...v1.54.0) (2026-07-02)
+
+
+### Features
+
+* **mcp:** implement apx mcp tools + apx mcp logs, tools endpoint with pagination ([87f9636](https://github.com/agentprojectcontext/apx/commit/87f96365ff6209fb42cd732e7ba5c7968650e9c6))
+
 ## [1.53.7](https://github.com/agentprojectcontext/apx/compare/v1.53.6...v1.53.7) (2026-07-02)
 
 
