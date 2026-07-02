@@ -56,12 +56,17 @@ export async function handleUpdate(self, u) {
     // in-memory globalConfig in place so later messages in this daemon session
     // see the update. The resulting block is injected into whichever agent
     // answers (super-agent OR a routed project agent).
-    const { sender } = registerSender({
+    const { sender, claimedOwner } = registerSender({
       cfg: self.globalConfig,
       channelName: self.channel.name,
       from: msg.from,
       chatType: msg.chat?.type,
     });
+    if (claimedOwner) {
+      // Trust-on-first-use: this sender just became owner of a previously
+      // ownerless private channel. Log it so an unexpected claim is visible.
+      self.log(`telegram[${self.channel.name}] owner claimed by user_id=${msg.from?.id} (${author}) — verify this is you`);
+    }
     const relationshipBlock = buildRelationshipBlock(sender);
     // Role-based tool gating for the super-agent path (guests → no tools).
     const allowedTools = resolveAllowedTools(self.globalConfig, sender);
@@ -287,6 +292,7 @@ export async function handleUpdate(self, u) {
           previousMessages,
           target,
           author,
+          authorId: msg.from?.id,
           relationshipBlock,
           allowedTools,
           contextNote: slashed.handled ? slashed.contextNote : "",

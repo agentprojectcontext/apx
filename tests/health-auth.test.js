@@ -76,13 +76,19 @@ test("an API route accepts the correct bearer token", async () => {
   }
 });
 
-test("GET requests to non-API paths pass auth (SPA asset passthrough)", async () => {
+test("GET passthrough is scoped to static assets and known SPA routes", async () => {
   const { server, baseUrl } = await listen(makeApp());
   try {
-    // No token: a client-router path must NOT be gated behind 401 — it should
+    // No token: genuine bundle assets (extension) and known client-router routes
     // fall through to the SPA / 404, never the auth wall.
-    const res = await fetch(`${baseUrl}/some/spa/route`);
-    assert.notEqual(res.status, 401);
+    for (const p of ["/assets/app-abc123.js", "/settings"]) {
+      const res = await fetch(`${baseUrl}${p}`);
+      assert.notEqual(res.status, 401, `${p} should pass the auth wall`);
+    }
+    // But an unknown, extension-less GET is treated as a potential data route
+    // and MUST require a token — the hardened allowlist (no more denylist drift).
+    const guarded = await fetch(`${baseUrl}/some/unknown/route`);
+    assert.equal(guarded.status, 401);
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
