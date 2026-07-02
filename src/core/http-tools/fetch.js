@@ -15,6 +15,9 @@
 // Fetch resolver
 // ---------------------------------------------------------------------------
 
+import dns from "node:dns/promises";
+import net from "node:net";
+
 let _fetch = null;
 
 async function getFetch() {
@@ -32,18 +35,65 @@ async function getFetch() {
 const DEFAULT_TIMEOUT = 30000;
 const MAX_BODY_BYTES  = 5 * 1024 * 1024; // 5MB
 
-// Block private/link-local ranges and cloud metadata endpoints to prevent SSRF.
-const BLOCKED_HOST_RE = /^(localhost|metadata\.google\.internal\.?)$/i;
-const PRIVATE_IP_RE   = /^(127\.\d+\.\d+\.\d+|0\.0\.0\.0|::1|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|192\.168\.\d+\.\d+|169\.254\.\d+\.\d+|fd[0-9a-f]{2}:)/i;
+// Block cloud metadata endpoints by name (they may resolve to public-looking
+// IPs on some providers). IP-range blocking is done on the RESOLVED address
+// below, not on the literal host string.
+const BLOCKED_HOST_RE = /^(metadata\.google\.internal\.?|metadata\.goog\.?)$/i;
 
-function validateUrl(rawUrl) {
+// True for an IPv4 string in a loopback / private / link-local / CGNAT range.
+// Malformed input returns true (fail closed) — validateUrl only feeds this
+// addresses from dns.lookup / net.isIP, so a non-parse means "don't trust it".
+function isPrivateIpv4(ip) {
+  const parts = ip.split(".").map((n) => Number(n));
+  if (parts.length !== 4 || parts.some((n) => !Number.isInteger(n) || n < 0 || n > 255)) return true;
+  const [a, b] = parts;
+  if (a === 0 || a === 127) return true;                 // this-host / loopback
+  if (a === 10) return true;                             // private
+  if (a === 172 && b >= 16 && b <= 31) return true;      // private
+  if (a === 192 && b === 168) return true;               // private
+  if (a === 169 && b === 254) return true;               // link-local (incl. cloud metadata 169.254.169.254)
+  if (a === 100 && b >= 64 && b <= 127) return true;     // CGNAT
+  return false;
+}
+
+function isBlockedAddress(addr) {
+  if (!addr) return true;
+  const ip = String(addr).toLowerCase();
+  const mapped = ip.match(/^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/); // IPv4-mapped IPv6
+  if (mapped) return isPrivateIpv4(mapped[1]);
+  const fam = net.isIP(ip);
+  if (fam === 4) return isPrivateIpv4(ip);
+  if (fam === 6) {
+    if (ip === "::1" || ip === "::") return true;                // loopback / unspecified
+    if (ip.startsWith("fc") || ip.startsWith("fd")) return true; // ULA fc00::/7
+    if (/^fe[89ab]/.test(ip)) return true;                       // link-local fe80::/10
+    return false;
+  }
+  return true; // not a recognizable IP → fail closed
+}
+
+// SSRF guard. Resolving the host to concrete IPs (rather than pattern-matching
+// the literal string) defeats DNS names that point at internal ranges AND
+// numeric encodings like http://2130706433 (= 127.0.0.1) that a regex misses.
+// Residual: a rebind between this lookup and the actual connect is still
+// theoretically possible; pinning the resolved IP would need a custom agent.
+async function validateUrl(rawUrl) {
   let parsed;
   try { parsed = new URL(rawUrl); } catch { throw new Error("Invalid URL"); }
   if (!["http:", "https:"].includes(parsed.protocol)) {
     throw new Error(`Protocol "${parsed.protocol}" is not allowed; use http or https`);
   }
   const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, "");
-  if (BLOCKED_HOST_RE.test(host) || PRIVATE_IP_RE.test(host)) {
+  if (BLOCKED_HOST_RE.test(host)) {
+    throw new Error(`Requests to private or link-local addresses are blocked`);
+  }
+  let addresses;
+  try {
+    addresses = await dns.lookup(host, { all: true });
+  } catch {
+    throw new Error("Could not resolve host");
+  }
+  if (!addresses.length || addresses.some(({ address }) => isBlockedAddress(address))) {
     throw new Error(`Requests to private or link-local addresses are blocked`);
   }
 }
@@ -72,7 +122,7 @@ async function readBody(response, jsonHint) {
 
 async function doRequest({ url, method = "GET", headers = {}, body = null, timeout_ms = DEFAULT_TIMEOUT, json = false } = {}) {
   if (!url) throw new Error("url required");
-  validateUrl(url);
+  await validateUrl(url);
   const fetch = await getFetch();
 
   const controller = new AbortController();

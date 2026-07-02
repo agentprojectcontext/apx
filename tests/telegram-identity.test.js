@@ -176,8 +176,10 @@ test("resolveAllowedTools: a defined custom role returns its tool list", () => {
   );
 });
 
-test("resolveAllowedTools: an assigned-but-undefined role defaults to '*'", () => {
-  assert.equal(resolveAllowedTools({ telegram: { roles: {} } }, { role: "vip" }), "*");
+test("resolveAllowedTools: an assigned-but-undefined role fails closed (no tools)", () => {
+  // A typo'd or removed role must NOT silently grant every tool. Define the
+  // role in telegram.roles to grant access.
+  assert.deepEqual(resolveAllowedTools({ telegram: { roles: {} } }, { role: "vip" }), []);
 });
 
 test("resolveAllowedTools: a role can be defined with '*' for all tools", () => {

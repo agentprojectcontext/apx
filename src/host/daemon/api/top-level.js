@@ -62,8 +62,9 @@ export function register(app, { projects, registries, resolveTopProject }) {
         return res.status(500).json({ error: e.message });
       }
     }
+    const root = path.resolve(p.path);
     const abs = path.resolve(p.path, rel);
-    if (!abs.startsWith(path.resolve(p.path)))
+    if (abs !== root && !abs.startsWith(root + path.sep))
       return res.status(403).json({ error: "path escapes project root" });
     if (!fs.existsSync(abs))
       return res.status(404).json({ error: "not found" });
@@ -96,8 +97,9 @@ export function register(app, { projects, registries, resolveTopProject }) {
     if (!rel) return res.status(400).json({ error: "path required" });
     if (typeof content !== "string")
       return res.status(400).json({ error: "content must be string" });
+    const root = path.resolve(p.path);
     const abs = path.resolve(p.path, rel);
-    if (!abs.startsWith(path.resolve(p.path)))
+    if (abs !== root && !abs.startsWith(root + path.sep))
       return res.status(403).json({ error: "path escapes project root" });
     fs.mkdirSync(path.dirname(abs), { recursive: true });
     fs.writeFileSync(abs, content);
