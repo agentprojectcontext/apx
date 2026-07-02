@@ -188,6 +188,7 @@ export async function runResumedTurn(self, ctx) {
       previousMessages,
       target,
       author,
+      authorId,
       relationshipBlock,
       allowedTools,
       onEvent,

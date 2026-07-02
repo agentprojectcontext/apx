@@ -16,8 +16,9 @@ export function setDesktopMessageHandler(fn) {
 // routes do: a bearer token (master or paired client) carried on the upgrade
 // request. The legitimate desktop window sends `Authorization: Bearer <token>`
 // (src/interfaces/desktop/main.js); browser clients can pass `?token=`. Without
-// this the daemon (which binds 0.0.0.0 by default) would let any LAN client open
-// the channel and drive the super-agent. See QA BUG-WS-AUTH.
+// this, any client that can reach the daemon (loopback by default, but the LAN
+// when host is set to 0.0.0.0) could open the channel and drive the
+// super-agent. See QA BUG-WS-AUTH.
 
 /** Path-gate: is this upgrade for the desktop (or legacy overlay) WS channel? */
 export function isDesktopUpgradePath(url) {
