@@ -107,9 +107,18 @@ and scripting.
 # List the tools a server exposes (also forces the daemon to spawn it)
 apx mcp tools filesystem
 
+# Inspect one tool: param types, required fields, and a copy-paste run example
+apx mcp tools filesystem read_file
+
+# Raw JSON with full input schemas (for scripting)
+apx mcp tools filesystem --json
+
 # Call a specific tool with JSON arguments
 apx mcp run filesystem read_file '{"path":"README.md"}'
 ```
+
+The per-tool view prints each parameter with its type and whether it is required, plus a
+ready-to-run `apx mcp run` command with the required parameters stubbed in.
 
 ## Audit: check
 
@@ -163,12 +172,17 @@ apx mcp check --project my-app
 # Force the daemon to spawn the server and list its tools
 apx mcp tools <name>
 
+# Spawn/init event log + stderr tail for one server
+apx mcp logs <name>
+
 # Tail the unified log for spawn errors and stderr output
 apx log -f
 ```
 
 A server that "doesn't show tools" usually means the command failed to start — missing package,
-wrong binary name, or env vars not set. The unified log captures the server's stderr.
+wrong binary name, or env vars not set. `apx mcp logs <name>` shows that server's stderr tail;
+the unified log captures the rest. Note that stdio MCP servers log to stderr by design (stdout
+is reserved for JSON-RPC), so stderr lines are normal server logging, not necessarily errors.
 
 ## See also
 

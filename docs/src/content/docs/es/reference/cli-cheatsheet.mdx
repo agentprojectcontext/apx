@@ -24,7 +24,7 @@ Para profundizar, seguí los enlaces del final.
   APX Profile   identity show|set|wizard
   Config        config show|set · model · permission
   Sessions      session new|list|resume|find · sessions list
-  MCPs          mcp list|add|remove|enable|run|tools|check
+  MCPs          mcp list|add|remove|enable|run|tools|logs|check
   Daemon        daemon start|stop|reload|status · log
   Telegram      telegram send|status · messages tail|chat|search
   LLM / Code    exec · chat · code · search
@@ -141,7 +141,8 @@ Para profundizar, seguí los enlaces del final.
 | `apx mcp enable <name>` | Habilita un servidor MCP propio del proyecto |
 | `apx mcp disable <name>` | Deshabilita un servidor MCP propio del proyecto |
 | `apx mcp run <name> <tool>` | Llama a una herramienta MCP (`[<json-args>]`) |
-| `apx mcp tools <name>` | Lista las herramientas disponibles de un servidor |
+| `apx mcp tools <name> [<tool>]` | Lista las herramientas de un servidor; con `<tool>`, muestra schema + ejemplo listo (`--json` para schemas crudos) |
+| `apx mcp logs <name>` | Log de arranque/init + cola de stderr |
 | `apx mcp check` | Audita el merge multi-fuente y los conflictos |
 
 ---

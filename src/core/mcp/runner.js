@@ -153,7 +153,9 @@ class McpProcess {
 
   async listTools() {
     await this._ensureInitialized();
-    return this._send("tools/list", {});
+    return collectToolPages((cursor) =>
+      this._send("tools/list", cursor ? { cursor } : {})
+    );
   }
 
   async callTool(name, args) {
@@ -374,7 +376,9 @@ class HttpMcpClient {
 
   async listTools() {
     await this._ensureInitialized();
-    return this._rpc("tools/list", {});
+    return collectToolPages((cursor) =>
+      this._rpc("tools/list", cursor ? { cursor } : {})
+    );
   }
 
   async callTool(name, args) {
@@ -397,6 +401,21 @@ class HttpMcpClient {
     this._initPromise = null;
     this.sessionId = null;
   }
+}
+
+// tools/list is paginated (nextCursor). Follow every page and hand back a
+// single merged { tools } result so callers never see partial catalogs.
+const MAX_TOOL_PAGES = 32;
+async function collectToolPages(fetchPage) {
+  const tools = [];
+  let cursor;
+  for (let i = 0; i < MAX_TOOL_PAGES; i++) {
+    const result = await fetchPage(cursor);
+    if (Array.isArray(result?.tools)) tools.push(...result.tools);
+    cursor = result?.nextCursor;
+    if (!cursor) break;
+  }
+  return { tools };
 }
 
 function parseFirstSseJson(raw) {

@@ -46,6 +46,7 @@ import {
   cmdMcpDisable,
   cmdMcpRun,
   cmdMcpTools,
+  cmdMcpLogs,
   cmdMcpCheck,
 } from "./commands/mcp.js";
 import {
@@ -713,7 +714,8 @@ const HELP_TOPICS = new Map(Object.entries({
       ["enable <name>", "Enable a project-owned MCP server."],
       ["disable <name>", "Disable a project-owned MCP server."],
       ["run <name> <tool>", "Call one MCP tool."],
-      ["tools <name>", "Show tool-list hint."],
+      ["tools <name> [<tool>]", "List a server's tools, or show one tool's schema."],
+      ["logs <name>", "Show spawn/init logs and stderr tail for a server."],
       ["check", "Audit source files, merge order, and conflicts."],
     ],
     options: [["--project <name|id|path>", "Pin command to a specific project."]],
@@ -785,10 +787,27 @@ const HELP_TOPICS = new Map(Object.entries({
   }),
   "mcp tools": topic({
     title: "apx mcp tools",
-    summary: "Show MCP tool-list guidance for a server.",
-    usage: ["apx mcp tools <name> [--project <name|id|path>]"],
-    options: [["--project <name|id|path>", "Pin command to a specific project."]],
-    examples: ["apx mcp tools filesystem"],
+    summary: "List an MCP server's tools, or show one tool's input schema with a ready-to-run example.",
+    usage: ["apx mcp tools <name> [<tool>] [--json] [--project <name|id|path>]"],
+    options: [
+      ["--json", "Raw JSON output (full tool objects with inputSchema)."],
+      ["--project <name|id|path>", "Pin command to a specific project."],
+    ],
+    examples: [
+      "apx mcp tools filesystem",
+      "apx mcp tools filesystem read_file",
+      "apx mcp tools dokploy-mcp --json",
+    ],
+  }),
+  "mcp logs": topic({
+    title: "apx mcp logs",
+    summary: "Show an MCP server's spawn/init event log and stderr tail — first stop when a server doesn't list tools.",
+    usage: ["apx mcp logs <name> [--json] [--project <name|id|path>]"],
+    options: [
+      ["--json", "Raw JSON output."],
+      ["--project <name|id|path>", "Pin command to a specific project."],
+    ],
+    examples: ["apx mcp logs dokploy-mcp"],
   }),
   "mcp check": topic({
     title: "apx mcp check",
@@ -2022,7 +2041,8 @@ function buildHelp(version) {
     hCmd("apx mcp remove <name>",      36, ""),
     hCmd("apx mcp enable/disable",     36, "<name>"),
     hCmd("apx mcp run <name> <tool>",  36, "[<json-args>]  call a tool through the daemon"),
-    hCmd("apx mcp tools <name>",       36, "list available tools"),
+    hCmd("apx mcp tools <name>",       36, "[<tool>]  list tools, or one tool's schema + run example"),
+    hCmd("apx mcp logs <name>",        36, "spawn/init log + stderr tail"),
     hCmd("apx mcp check",              36, "audit multi-source merge"),
 
     hSec("Daemon Service"),
@@ -2372,6 +2392,7 @@ async function dispatch(cmd, rest) {
         else if (sub === "disable") await cmdMcpDisable(a);
         else if (sub === "run") await cmdMcpRun(a);
         else if (sub === "tools") await cmdMcpTools(a);
+        else if (sub === "logs") await cmdMcpLogs(a);
         else if (sub === "check") await cmdMcpCheck(a);
         else die(`unknown mcp subcommand: ${sub || "(none)"}`);
         break;
