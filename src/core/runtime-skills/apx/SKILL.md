@@ -21,7 +21,7 @@ If you can spawn a subagent natively in the current IDE (Claude Code, Cursor, â€
 |-------|-----------|------|
 | Delegate to external coding CLI | **apx-runtime** | `apx run <agent> --runtime claude-code\|codex\|...` |
 | List/read/resume/summarise/continue sessions | **apx-sessions** | `apx session resume`, `apx sessions list`, "import a codex session" |
-| Use a registered MCP tool | **apx-mcp** | `apx mcp run`, "call MCP filesystem", "MCP failing" |
+| Use a registered MCP tool | **apx-mcp** | `apx mcp tools`, `apx mcp run`, "call MCP filesystem", "MCP failing" |
 | Add/configure/use a project agent | **apx-agent** | "add an agent", vault import, per-agent model, agent memory |
 | Register/list/configure a project | **apx-project** | "register this project", `apx project list`, per-project config |
 | Per-project TODO list | **apx-task** | "add a task", "remind me toâ€¦", "what's pending" |
