@@ -159,13 +159,130 @@ export async function cmdMcpRun(args) {
   process.stdout.write(JSON.stringify(result.result, null, 2) + "\n");
 }
 
+// Turn a JSON-Schema type into a short placeholder for the run-example JSON.
+function placeholderFor(schema) {
+  const t = Array.isArray(schema?.type) ? schema.type[0] : schema?.type;
+  if (schema?.enum?.length) return schema.enum[0];
+  if (t === "number" || t === "integer") return 0;
+  if (t === "boolean") return false;
+  if (t === "array") return [];
+  if (t === "object") return {};
+  return `<${t || "string"}>`;
+}
+
+function schemaTypeLabel(schema) {
+  if (schema?.enum?.length) return schema.enum.join("|");
+  const t = Array.isArray(schema?.type) ? schema.type.join("|") : schema?.type;
+  return t || "any";
+}
+
+function firstLine(s) {
+  return String(s || "").split("\n")[0].trim();
+}
+
+function printToolDetail(mcpName, tool) {
+  console.log(`${mcpName} · ${tool.name}`);
+  if (tool.description) console.log(`  ${tool.description.trim().replace(/\n/g, "\n  ")}`);
+
+  const props = tool.inputSchema?.properties || {};
+  const required = new Set(tool.inputSchema?.required || []);
+  const keys = Object.keys(props);
+  console.log("");
+  if (keys.length === 0) {
+    console.log("  Params: (none)");
+  } else {
+    console.log("  Params:");
+    const nameW = Math.max(...keys.map((k) => k.length), 4) + 2;
+    const typeW = Math.max(...keys.map((k) => schemaTypeLabel(props[k]).length), 4) + 2;
+    for (const k of keys) {
+      const req = required.has(k) ? "(required)" : "(optional)";
+      console.log(
+        `    ${k.padEnd(nameW)}${schemaTypeLabel(props[k]).padEnd(typeW)}${req}  ${firstLine(props[k]?.description)}`
+      );
+    }
+  }
+
+  // Example invocation with the required params stubbed in.
+  const example = {};
+  for (const k of keys) {
+    if (required.has(k)) example[k] = placeholderFor(props[k]);
+  }
+  console.log("");
+  console.log("  Run:");
+  console.log(`    apx mcp run ${mcpName} ${tool.name} '${JSON.stringify(example)}'`);
+}
+
 export async function cmdMcpTools(args) {
   const name = args._[0];
-  if (!name) throw new Error("apx mcp tools: missing <name>");
-  // Daemon doesn't have a dedicated tools/list endpoint yet; we'd extend it in v0.2.
-  // For now, print a hint:
-  console.log(`(apx mcp tools — list of tools/list will arrive in v0.2)`);
-  console.log(`To call a tool: apx mcp run ${name} <tool> '<json>'`);
+  if (!name) throw new Error("apx mcp tools: usage: apx mcp tools <name> [<tool>] [--json]");
+  const toolFilter = args._[1];
+  const pid = await resolveProjectId(args?.flags?.project);
+  const data = await http.get(`/projects/${pid}/mcps/${name}/tools`);
+  const tools = data.tools || [];
+
+  if (toolFilter) {
+    const tool = tools.find((t) => t.name === toolFilter);
+    if (!tool) {
+      const hint = tools.length
+        ? `Available: ${tools.map((t) => t.name).join(", ")}`
+        : "(server reported no tools)";
+      throw new Error(`MCP "${name}" has no tool "${toolFilter}". ${hint}`);
+    }
+    if (args?.flags?.json) {
+      process.stdout.write(JSON.stringify(tool, null, 2) + "\n");
+      return;
+    }
+    printToolDetail(name, tool);
+    return;
+  }
+
+  if (args?.flags?.json) {
+    process.stdout.write(JSON.stringify(tools, null, 2) + "\n");
+    return;
+  }
+  if (tools.length === 0) {
+    console.log(`(MCP "${name}" reported no tools)`);
+    return;
+  }
+  const nameW = Math.max(...tools.map((t) => t.name.length), 4) + 2;
+  console.log(`${tools.length} tool${tools.length === 1 ? "" : "s"} — apx mcp tools ${name} <tool> for schema\n`);
+  console.log("TOOL".padEnd(nameW) + " DESCRIPTION");
+  for (const t of tools) {
+    console.log(t.name.padEnd(nameW) + " " + firstLine(t.description).slice(0, 100));
+  }
+}
+
+export async function cmdMcpLogs(args) {
+  const name = args._[0];
+  if (!name) throw new Error("apx mcp logs: missing <name>");
+  const pid = await resolveProjectId(args?.flags?.project);
+  const logs = await http.get(`/projects/${pid}/mcps/${name}/logs`);
+  if (args?.flags?.json) {
+    process.stdout.write(JSON.stringify(logs, null, 2) + "\n");
+    return;
+  }
+  const target = logs.transport === "http"
+    ? logs.url
+    : [logs.command, ...(logs.args || [])].filter(Boolean).join(" ");
+  console.log(`${name} (${logs.transport})${target ? " — " + target : ""}`);
+  if (logs.transport === "stdio") {
+    console.log(`  running: ${logs.running ? "yes" : "no"}  started: ${logs.started_at || "-"}  last exit: ${logs.last_exit_code ?? "-"}`);
+  } else {
+    console.log(`  started: ${logs.started_at || "-"}  last error: ${logs.last_error || "-"}`);
+  }
+  if (logs.note) console.log(`  ${logs.note}`);
+  if (logs.events?.length) {
+    console.log("\nEvents:");
+    for (const e of logs.events) {
+      console.log(`  ${e.ts}  [${e.level}] ${e.msg}`);
+    }
+  }
+  if (logs.stderr_tail?.trim()) {
+    console.log("\nstderr tail:");
+    for (const line of logs.stderr_tail.trim().split("\n")) {
+      console.log(`  ${line}`);
+    }
+  }
 }
 
 export async function cmdMcpCheck(args = {}) {
