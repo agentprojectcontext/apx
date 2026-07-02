@@ -107,9 +107,18 @@ y scripting.
 # Listar las herramientas que expone un servidor (también fuerza al daemon a levantarlo)
 apx mcp tools filesystem
 
+# Inspeccionar una herramienta: tipos de parámetros, campos requeridos y un ejemplo listo para copiar
+apx mcp tools filesystem read_file
+
+# JSON crudo con los schemas de entrada completos (para scripting)
+apx mcp tools filesystem --json
+
 # Llamar una herramienta específica con argumentos JSON
 apx mcp run filesystem read_file '{"path":"README.md"}'
 ```
+
+La vista por herramienta imprime cada parámetro con su tipo y si es requerido, más un comando
+`apx mcp run` listo para ejecutar con los parámetros requeridos ya esbozados.
 
 ## Auditoría: check
 
@@ -163,12 +172,18 @@ apx mcp check --project my-app
 # Forzar al daemon a levantar el servidor y listar sus herramientas
 apx mcp tools <name>
 
+# Log de eventos de arranque/init + cola de stderr de un servidor
+apx mcp logs <name>
+
 # Seguir el log unificado para ver errores de arranque y salida de stderr
 apx log -f
 ```
 
 Un servidor que "no muestra herramientas" normalmente significa que el comando no arrancó — paquete faltante,
-nombre de binario equivocado, o variables de entorno no seteadas. El log unificado captura el stderr del servidor.
+nombre de binario equivocado, o variables de entorno no seteadas. `apx mcp logs <name>` muestra la cola de
+stderr de ese servidor; el log unificado captura el resto. Tené en cuenta que los servidores MCP stdio
+loguean a stderr por diseño (stdout está reservado para JSON-RPC), así que las líneas de stderr son el
+logging normal del servidor, no necesariamente errores.
 
 ## Ver también
 

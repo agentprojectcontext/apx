@@ -151,10 +151,17 @@ apx mcp add github \
 ## Debugging
 
 ```bash
-# Smoke test (apx mcp tools is a v0.2 stub — don't rely on it)
+# Smoke test — spawn the server and list its tool catalog
+apx mcp tools my-server
+
+# Inspect one tool's schema + copy-paste run example
+apx mcp tools my-server search_inventory
+
+# Call it for real
 apx mcp run my-server search_inventory '{"query":"shoes"}'
 
-# Spawn errors / stderr
+# Spawn errors / stderr tail
+apx mcp logs my-server
 apx log -f
 
 # Scopes / files / env APX sees
