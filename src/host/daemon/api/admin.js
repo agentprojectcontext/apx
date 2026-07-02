@@ -4,7 +4,7 @@
 //
 // Both are auth-gated (the global middleware applies).
 import { readConfig } from "#core/config/index.js";
-import { exec } from "node:child_process";
+import { execFile } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -57,22 +57,52 @@ export function register(app, { scheduler, plugins, config, registries }) {
   // platform lacks a usable picker — or none is installed — the endpoint
   // returns 501 so the frontend can fall back to the inline directory list.
   app.get("/admin/fs/pick-dir", (req, res) => {
-    const prompt = String(req.query.prompt || "Select a folder").replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    // The prompt is attacker-controllable (query string). NEVER interpolate it
+    // into a shell string — use execFile (no shell) with an argv array, and
+    // pass the prompt out-of-band via an env var so it can't break out of any
+    // quoting context in the picker's own scripting language.
+    const prompt = String(req.query.prompt || "Select a folder");
     const platform = process.platform;
-    let cmd;
+    const env = { ...process.env, APX_PICK_PROMPT: prompt };
+    let file;
+    let args;
     if (platform === "darwin") {
       // try/end-try makes cancel exit with code 0 + empty stdout so we can
-      // distinguish "cancelled" from "no picker available".
-      cmd = `osascript -e 'try' -e 'POSIX path of (choose folder with prompt "${prompt}")' -e 'on error' -e 'return ""' -e 'end try'`;
+      // distinguish "cancelled" from "no picker available". `system attribute`
+      // reads the env var, so the prompt never touches the AppleScript source.
+      file = "osascript";
+      args = [
+        "-e", "try",
+        "-e", 'POSIX path of (choose folder with prompt (system attribute "APX_PICK_PROMPT"))',
+        "-e", "on error",
+        "-e", 'return ""',
+        "-e", "end try",
+      ];
     } else if (platform === "linux") {
-      cmd = `command -v zenity >/dev/null && zenity --file-selection --directory --title="${prompt}" 2>/dev/null || true`;
+      // zenity takes the title as a plain argv value — no shell, no escaping.
+      file = "zenity";
+      args = ["--file-selection", "--directory", `--title=${prompt}`];
     } else if (platform === "win32") {
-      cmd = `powershell -NoProfile -Command "$f = (New-Object -ComObject Shell.Application).BrowseForFolder(0, '${prompt.replace(/'/g, "''")}', 0, 0); if ($f) { $f.Self.Path }"`;
+      // Reference the prompt via $env: inside PowerShell rather than splicing it
+      // into the -Command string.
+      file = "powershell";
+      args = [
+        "-NoProfile",
+        "-Command",
+        "$f = (New-Object -ComObject Shell.Application).BrowseForFolder(0, $env:APX_PICK_PROMPT, 0, 0); if ($f) { $f.Self.Path }",
+      ];
     } else {
       return res.status(501).json({ error: "Native folder picker not supported on this platform" });
     }
-    exec(cmd, { timeout: 5 * 60 * 1000 }, (err, stdout) => {
-      if (err) return res.status(500).json({ error: err.message });
+    execFile(file, args, { timeout: 5 * 60 * 1000, env }, (err, stdout) => {
+      if (err) {
+        // Picker binary absent (e.g. no zenity) → let the frontend fall back to
+        // the inline directory list instead of surfacing a hard 500.
+        if (err.code === "ENOENT") {
+          return res.status(501).json({ error: "Native folder picker not available" });
+        }
+        return res.status(500).json({ error: err.message });
+      }
       const picked = (stdout || "").trim().replace(/[\r\n]+$/g, "");
       if (!picked) return res.json({ cancelled: true });
       res.json({ path: picked.replace(/\/+$/, "") });

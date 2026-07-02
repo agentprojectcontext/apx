@@ -31,12 +31,15 @@ import { sendMessage, answerCallbackQuery as apiAnswerCallbackQuery, editMessage
 const TIMEOUT_MS = 60_000; // 60 s — long enough for a human, short enough to not block forever
 
 /**
- * @param {{ token: string, chatId: string|number, pendingStore: ConfirmationPendingStore }} opts
+ * @param {{ token: string, chatId: string|number, pendingStore: ConfirmationPendingStore, guardActorId?: string|number|null }} opts
  * @returns {{ requestConfirmation, handleCallbackQuery }}
  */
-export function createTelegramConfirmAdapter({ token, chatId, pendingStore }) {
+export function createTelegramConfirmAdapter({ token, chatId, pendingStore, guardActorId = null }) {
   async function requestConfirmation(tool, _args, description) {
-    const { correlationId, promise } = pendingStore.create({ timeoutMs: TIMEOUT_MS });
+    // Bind this confirmation to the user who triggered the turn. In a group
+    // chat the keyboard is visible to everyone, so without this any member
+    // could tap "Yes" and approve the initiator's destructive action.
+    const { correlationId, promise } = pendingStore.create({ timeoutMs: TIMEOUT_MS, guardActorId });
 
     await sendConfirmKeyboard(token, chatId, description, correlationId, TIMEOUT_MS);
 
@@ -52,12 +55,21 @@ export function createTelegramConfirmAdapter({ token, chatId, pendingStore }) {
 
     const [, correlationId, answer] = match;
     const confirmed = answer === "yes";
+    const presserId = callbackQuery.from?.id ?? null;
+
+    // Reject a bystander's press without consuming the pending entry or wiping
+    // the keyboard — the authorized initiator can still answer. We still return
+    // true (the callback matched our namespace and is handled).
+    if (!pendingStore.isActorAllowed(correlationId, presserId)) {
+      await answerCallbackQuery(token, callbackQuery.id, "⛔ Not your confirmation");
+      return true;
+    }
 
     // ACK the callback immediately to clear the loading spinner on the button.
     // Fire-and-forget — a slow ACK is annoying but not fatal.
     await answerCallbackQuery(token, callbackQuery.id, confirmed ? "✅ Confirmed" : "❌ Cancelled");
 
-    const resolved = pendingStore.resolve(correlationId, confirmed);
+    const resolved = pendingStore.resolve(correlationId, confirmed, presserId);
 
     // If not resolved, the entry timed out or the process restarted — show "Expired"
     // so the user knows the button is no longer actionable.

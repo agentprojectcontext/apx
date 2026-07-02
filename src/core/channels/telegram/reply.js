@@ -99,13 +99,15 @@ export function buildStreamHandler(self, { chat_id, update_id, agentDisplay }) {
  * inherit it. Throws on failure (caller decides abort-vs-error handling).
  */
 export function runTelegramSuperAgent(self, {
-  chat_id, prompt, previousMessages, target, author, relationshipBlock,
+  chat_id, prompt, previousMessages, target, author, authorId, relationshipBlock,
   allowedTools, contextNote, signal, onEvent,
 }) {
   const confirmAdapter = createTelegramConfirmAdapter({
     token: resolveBotToken(self.channel),
     chatId: chat_id,
     pendingStore: getConfirmStore(),
+    // Only the user who triggered this turn may answer its confirmations.
+    guardActorId: authorId ?? null,
   });
   return runSuperAgent({
     globalConfig: self.globalConfig,

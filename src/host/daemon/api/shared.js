@@ -10,6 +10,7 @@ import { readAgents } from "#core/apc/parser.js";
 import { agentMemoryPath } from "#core/agent/memory.js";
 import { apcMemoryFile } from "#core/apc/paths.js";
 import { CHANNELS } from "#core/constants/channels.js";
+import { isKnownSpaRoute } from "./web.js";
 
 export const nowIso = () =>
   new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -51,34 +52,29 @@ export function traceIdMiddleware(req, res, next) {
 // /pair/init and /admin/web-token both enforce localhost-only checks of
 // their own — the auth middleware just gets out of their way.
 const UNAUTHENTICATED_PREFIXES = ["/health", "/pair/", "/admin/web-token"];
-// API prefixes that MUST stay authenticated. Anything not in this list,
-// requested with GET, is treated as a static SPA asset (HTML/CSS/JS/font)
-// or a client-router path and served without auth — the bundle itself
-// fetches /admin/web-token to obtain a bearer for the subsequent API
-// calls. This is safe because all data-bearing routes start with one of
-// the API prefixes below.
-const API_PREFIXES = [
-  "/health", "/admin", "/projects", "/telegram", "/engines", "/runtimes",
-  "/messages", "/sessions", "/tools", "/mcp", "/voice", "/tts", "/desktop", "/overlay",
-  "/transcribe", "/run", "/files", "/memory", "/env", "/pair", "/deck",
-  "/super-agent", "/identity", "/agents", "/tasks",
-];
-function isApiPath(p) {
-  for (const prefix of API_PREFIXES) {
-    if (p === prefix || p.startsWith(prefix + "/")) return true;
-  }
-  return false;
+
+// Does this path look like a static asset (has a file extension)? Vite emits
+// hashed, extension-bearing filenames (index-abc123.js, logo.svg, font.woff2),
+// so an extension is a reliable "this is a bundle asset, not a data route"
+// signal. Data routes (/skills, /projects, /p/0/tasks) have no extension.
+function isStaticAssetPath(p) {
+  return path.extname(p) !== "";
 }
+
 function isUnauthenticatedPath(p, method = "GET") {
   if (p === "/health") return true;
   if (p === "/admin/web-token") return true;
   for (const prefix of UNAUTHENTICATED_PREFIXES) {
     if (p === prefix.replace(/\/$/, "") || p.startsWith(prefix)) return true;
   }
-  // GET requests that don't hit an API prefix are SPA assets / client-router
-  // paths; let them through so the admin bundle can load before it has a
-  // bearer.
-  if (method === "GET" && !isApiPath(p)) return true;
+  // SPA bootstrap: the admin bundle loads before it holds a bearer, so a GET
+  // for a static asset or a known client-router route is served without auth —
+  // the bundle then fetches /admin/web-token. Everything else, including every
+  // data GET (/skills, /plugins, /embeddings, …), REQUIRES a token. This is an
+  // allowlist by construction: a new data route can never silently become
+  // public just because someone forgot to register its prefix (the old
+  // denylist failure mode).
+  if (method === "GET" && (isStaticAssetPath(p) || isKnownSpaRoute(p))) return true;
   return false;
 }
 

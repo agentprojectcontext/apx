@@ -55,16 +55,18 @@ export function resolveSender({ cfg, channelName, from, chatType }) {
  *  - owner → "*" (all tools)
  *  - guest → [] (no tools; text only)
  *  - a role defined in telegram.roles → its `tools` ("*" or an array)
- *  - any other named role with no definition → "*" (an admin assigned it
- *    deliberately; default permissive rather than silently muting it)
+ *  - any other named role with no definition → [] (fail closed: a typo'd or
+ *    removed role must NOT silently grant every tool. Define the role in
+ *    telegram.roles to grant access.)
  * Returns "*" or an array of tool names.
  */
 export function resolveAllowedTools(cfg, sender) {
   if (sender?.isOwner) return "*";
   const def = cfg?.telegram?.roles?.[sender?.role];
   if (def && def.tools !== undefined) return def.tools;
-  if (sender?.role === SENDER_ROLES.GUEST) return [];
-  return "*";
+  // Fail closed: guests and any sender whose role isn't explicitly defined get
+  // no tools. Only the owner and configured roles receive capabilities.
+  return [];
 }
 
 /**
@@ -108,7 +110,7 @@ export function registerSender({ cfg, channelName, from, chatType }) {
   else if (!existing) kind = "guest";
   else if (existing.last_seen?.slice(0, 10) !== now.slice(0, 10)) kind = "touch";
 
-  if (!kind) return { sender: base(), mutated: false };
+  if (!kind) return { sender: base(), mutated: false, claimedOwner: false };
 
   if (kind === "claim") {
     upsertTelegramChannel(disk, channelName, { owner_user_id: userId });
@@ -123,5 +125,8 @@ export function registerSender({ cfg, channelName, from, chatType }) {
     upsertContact(disk, userId, { last_seen: now });
   }
 
-  return { sender: base(), mutated: true };
+  // Signal an owner-claim (trust-on-first-use) so the caller can surface it —
+  // whoever messages a fresh private channel first becomes owner, and that
+  // event must be auditable rather than silent.
+  return { sender: base(), mutated: true, claimedOwner: kind === "claim" };
 }

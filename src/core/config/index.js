@@ -218,6 +218,10 @@ function backupConfigBeforeLoss() {
     const ts = new Date().toISOString().replace(/[:.]/g, "-");
     const backup = `${CONFIG_PATH}.${ts}.bak`;
     fs.copyFileSync(CONFIG_PATH, backup);
+    // config.json holds API keys + bot tokens — the backup must not be more
+    // permissive than the original. copyFileSync inherits the source mode on
+    // some platforms but not reliably, so pin it.
+    try { fs.chmodSync(backup, 0o600); } catch {}
     return backup;
   } catch {
     return null;
@@ -280,8 +284,14 @@ export function writeConfig(cfg) {
   if (cfg?._allowClear) delete cfg._allowClear;
 
   const tmp = `${CONFIG_PATH}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(cfg, null, 2) + "\n");
+  // 0o600: config.json stores provider API keys and the Telegram bot token.
+  // Without an explicit mode it lands at 0o644 (world-readable) — any local
+  // user could read the secrets. Match daemon.token / clients.json.
+  fs.writeFileSync(tmp, JSON.stringify(cfg, null, 2) + "\n", { mode: 0o600 });
   fs.renameSync(tmp, CONFIG_PATH);
+  // writeFileSync's mode only applies when the tmp file is created; if it
+  // pre-existed with looser perms the bits stick. Pin it after the rename.
+  try { fs.chmodSync(CONFIG_PATH, 0o600); } catch {}
 }
 
 // Normalise `model_fallback` to the new format (`models` as an ordered array
