@@ -47,7 +47,12 @@ apx mcp remove github     --scope runtime --project iacrmar
 apx mcp enable  filesystem --project iacrmar
 apx mcp disable filesystem --project iacrmar
 
-# Call a tool through the daemon (debugging)
+# Discover tools — list catalog, then inspect one tool's schema
+apx mcp tools filesystem                     # table: tool name + description
+apx mcp tools filesystem read_file           # params (types, required) + run example
+apx mcp tools filesystem --json              # raw JSON with full inputSchema
+
+# Call a tool through the daemon
 apx mcp run filesystem read_file '{"path":"README.md"}'
 ```
 
@@ -95,13 +100,15 @@ apx mcp remove github          # errors if github lives in runtime
 
 ```bash
 apx mcp check --project iacrmar      # scopes seen + which files exist
-apx mcp run <name> <tool> '{...}'    # spawn server, call a tool
+apx mcp tools <name>                 # spawn server + list its tools (proves init works)
+apx mcp logs <name>                  # spawn/init event log + stderr tail
+apx mcp run <name> <tool> '{...}'    # call a tool for real
 apx log -f                           # tail unified log for spawn errors
 ```
 
-"Doesn't show tools" = command failed to start (missing env vars, package not found) or crashed during initialize. Unified log holds the stderr buffer.
+"Doesn't show tools" = command failed to start (missing env vars, package not found) or crashed during initialize. `apx mcp logs <name>` shows the stderr tail; the unified log has the rest.
 
-> `apx mcp tools <name>` is a placeholder stub ("coming in v0.2"). Use `apx mcp run` to verify spawn.
+Standard workflow to use any MCP: `apx mcp tools <name>` → `apx mcp tools <name> <tool>` (copy the run example) → `apx mcp run <name> <tool> '<json>'`.
 
 ## Don't
 

@@ -5,6 +5,7 @@
 //   POST   /projects/:pid/mcps?scope=shared|runtime|global    (default: shared)
 //   DELETE /projects/:pid/mcps/:name?scope=…                   (default: shared)
 //   GET    /projects/:pid/mcps/check
+//   GET    /projects/:pid/mcps/:name/tools
 //   POST   /projects/:pid/mcps/:name/call
 import fs from "node:fs";
 import path from "node:path";
@@ -188,6 +189,20 @@ export function register(app, { projects, registries, project }) {
       })),
       conflicts: reg.conflicts(),
     });
+  });
+
+  // Full tool catalog — tools/list with input schemas, all pages merged.
+  // This is what `apx mcp tools` renders; /test below stays as the
+  // lightweight smoke check for the web UI card.
+  app.get("/projects/:pid/mcps/:name/tools", async (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    try {
+      const result = await registries.for(p).listTools(req.params.name);
+      res.json({ tools: Array.isArray(result?.tools) ? result.tools : [] });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
   });
 
   app.post("/projects/:pid/mcps/:name/call", async (req, res) => {
