@@ -1,3 +1,10 @@
+## [1.53.7](https://github.com/agentprojectcontext/apx/compare/v1.53.6...v1.53.7) (2026-07-02)
+
+
+### Bug Fixes
+
+* **security:** harden daemon auth, path handling, secrets, SSRF & Telegram confirms ([d649192](https://github.com/agentprojectcontext/apx/commit/d6491924fb7e04cd5c6fa4920af0bb6a7e861dd9))
+
 ## [1.53.6](https://github.com/agentprojectcontext/apx/compare/v1.53.5...v1.53.6) (2026-07-01)
 
 
