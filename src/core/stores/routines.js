@@ -2,7 +2,7 @@
 // Replaces the SQLite `routines` table for project-scoped scheduled tasks.
 import fs from "node:fs";
 import path from "node:path";
-import cronParser from "cron-parser";
+import { CronExpressionParser } from "cron-parser";
 import { nowIso, isoToMs } from "../util/time.js";
 
 function routinesPath(storagePath) {
@@ -50,7 +50,7 @@ export function parseSchedule(s, baseMs = Date.now()) {
 
   // Fallback: Try parsing as standard cron expression using cron-parser
   try {
-    const interval = cronParser.parseExpression(s, { currentDate: new Date(baseMs) });
+    const interval = CronExpressionParser.parse(s, { currentDate: new Date(baseMs) });
     return { kind: "cron", parser: interval };
   } catch (err) {
     return { kind: "invalid" };
