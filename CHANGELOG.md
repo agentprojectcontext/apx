@@ -1,3 +1,10 @@
+## [1.55.1](https://github.com/agentprojectcontext/apx/compare/v1.55.0...v1.55.1) (2026-07-03)
+
+
+### Bug Fixes
+
+* **web:** keep active project ring from clipping in rail ([a57923f](https://github.com/agentprojectcontext/apx/commit/a57923f7ff55302ee423c41e9f4f80a298f68db6))
+
 # [1.55.0](https://github.com/agentprojectcontext/apx/compare/v1.54.0...v1.55.0) (2026-07-03)
 
 
