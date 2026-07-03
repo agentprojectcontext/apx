@@ -1,11 +1,14 @@
 // Per-agent conversation surface: list, fetch, compact, and a2a /send.
 //   GET  /projects/:pid/agents/:slug/conversations
 //   GET  /projects/:pid/agents/:slug/conversations/:id
+//   GET  /projects/:pid/super-agent/threads                    (channel ledger)
+//   GET  /projects/:pid/super-agent/threads/:channel/:id
 //   POST /projects/:pid/agents/:slug/compact
 //   POST /projects/:pid/agents/:slug/conversations/:id/compact
 //   POST /projects/:pid/send                                   (agent-to-agent)
 import { readAgents } from "#core/apc/parser.js";
 import { listConversations, readConversation } from "#core/stores/conversations.js";
+import { listGlobalThreads, readGlobalThread } from "#core/stores/messages.js";
 import { compactConversation } from "#core/stores/conversations-compactor.js";
 import { replyAsAgent } from "#core/agent/a2a/reply.js";
 import { nowIso } from "./shared.js";
@@ -46,6 +49,28 @@ export function register(app, { project, config }) {
       })),
       meta: conv.fm || {},
     });
+  });
+
+  // ---- Super-agent channel threads ----
+  // The super-agent's chats (telegram, web quick-chat, desktop, deck …) live
+  // in the global per-channel ledger, not in per-agent conversation files.
+  // These endpoints surface that ledger as day-threads so the web Chats
+  // sidebar can list and reopen them.
+  app.get("/projects/:pid/super-agent/threads", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    res.json(listGlobalThreads());
+  });
+
+  app.get("/projects/:pid/super-agent/threads/:channel/:id", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const thread = readGlobalThread({
+      channel: req.params.channel,
+      date: req.params.id,
+    });
+    if (!thread) return res.status(404).json({ error: "thread not found" });
+    res.json(thread);
   });
 
   async function handleCompact(req, res, filename) {

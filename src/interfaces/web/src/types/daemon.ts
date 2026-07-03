@@ -153,6 +153,22 @@ export interface ConversationDetail {
   meta?: Record<string, unknown>;
 }
 
+/** Super-agent channel thread (one per channel+day of the global ledger). */
+export interface ThreadListEntry {
+  id: string;         // YYYY-MM-DD
+  channel: string;    // telegram | web | desktop | deck | …
+  title: string;
+  messages: number;
+  started_at: string;
+  last_ts: string;
+}
+
+export interface ThreadDetail {
+  id: string;
+  channel: string;
+  messages: ConversationMessage[];
+}
+
 export interface PairedClient {
   id: string;
   label: string;
