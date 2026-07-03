@@ -591,6 +591,75 @@ export function readGlobalMessages({ channel, limit = 100, since } = {}) {
   return all.slice(-limit);
 }
 
+// ---------------------------------------------------------------------------
+// Global channel threads (super-agent chats surfaced in the web Chats sidebar)
+// ---------------------------------------------------------------------------
+// The global ledger is the source of truth for every super-agent turn outside
+// exec (telegram, web quick-chat, desktop, deck …). A "thread" is one
+// channel+day JSONL file — the same granularity the context window reads.
+
+const CHANNEL_NAME_RE = /^[a-z0-9_-]+$/i;
+
+// List every non-empty channel+day thread, newest-last-activity first.
+export function listGlobalThreads({ channels, _globalMessagesDir } = {}) {
+  const base = _globalMessagesDir || GLOBAL_MESSAGES_DIR;
+  if (!fs.existsSync(base)) return [];
+  const chans = (channels && channels.length
+    ? channels
+    : fs.readdirSync(base).filter((f) => {
+        try { return fs.statSync(path.join(base, f)).isDirectory(); } catch { return false; }
+      })
+  ).filter((c) => CHANNEL_NAME_RE.test(c));
+
+  const out = [];
+  for (const ch of chans) {
+    const dir = path.join(base, ch);
+    let files;
+    try { files = fs.readdirSync(dir); } catch { continue; }
+    for (const f of files) {
+      const m = f.match(/^(\d{4}-\d{2}-\d{2})\.jsonl$/);
+      if (!m) continue;
+      const msgs = parseDayJsonl(fs.readFileSync(path.join(dir, f), "utf8")).filter(
+        (r) => r.type === "user" || r.type === "agent"
+      );
+      if (!msgs.length) continue;
+      const firstUser = msgs.find((r) => r.type === "user");
+      const title = String((firstUser || msgs[0]).body || "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 80);
+      out.push({
+        id: m[1],
+        channel: ch,
+        title: title || `${ch} · ${m[1]}`,
+        messages: msgs.length,
+        started_at: msgs[0].ts,
+        last_ts: msgs[msgs.length - 1].ts,
+      });
+    }
+  }
+  out.sort((a, b) => (b.last_ts || "").localeCompare(a.last_ts || ""));
+  return out;
+}
+
+// Read one channel+day thread shaped for the web chat viewer:
+// { id, channel, messages: [{ role, content, ts }] } — or null when missing.
+export function readGlobalThread({ channel, date, _globalMessagesDir } = {}) {
+  if (!CHANNEL_NAME_RE.test(String(channel || ""))) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ""))) return null;
+  const base = _globalMessagesDir || GLOBAL_MESSAGES_DIR;
+  const file = path.join(base, channel, `${date}.jsonl`);
+  if (!fs.existsSync(file)) return null;
+  const messages = parseDayJsonl(fs.readFileSync(file, "utf8"))
+    .filter((r) => r.type === "user" || r.type === "agent")
+    .map((r) => ({
+      role: r.type === "user" ? "user" : "assistant",
+      content: r.body || "",
+      ts: r.ts,
+    }));
+  return { id: date, channel, messages };
+}
+
 // Wipe the cache and re-populate from APX project messages. Reads BOTH `.jsonl`
 // (current format) and `.md` (legacy). Called by rebuild.
 export function rebuildMessagesFromFs(db, projectRoot) {
