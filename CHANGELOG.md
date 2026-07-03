@@ -1,3 +1,10 @@
+## [1.56.1](https://github.com/agentprojectcontext/apx/compare/v1.56.0...v1.56.1) (2026-07-03)
+
+
+### Bug Fixes
+
+* **routines:** migrate cron parsing to cron-parser v5 API ([acb11a7](https://github.com/agentprojectcontext/apx/commit/acb11a7a23a4b430ce31f1c141e168f59c45ff5e))
+
 # [1.56.0](https://github.com/agentprojectcontext/apx/compare/v1.55.2...v1.56.0) (2026-07-03)
 
 
