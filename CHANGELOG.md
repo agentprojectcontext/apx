@@ -1,3 +1,10 @@
+# [1.56.0](https://github.com/agentprojectcontext/apx/compare/v1.55.2...v1.56.0) (2026-07-03)
+
+
+### Features
+
+* **web:** surface project artifacts in dashboard + system nav ([3a90843](https://github.com/agentprojectcontext/apx/commit/3a90843ef78690647ebd3a20887f3c2155c04829))
+
 ## [1.55.2](https://github.com/agentprojectcontext/apx/compare/v1.55.1...v1.55.2) (2026-07-03)
 
 
