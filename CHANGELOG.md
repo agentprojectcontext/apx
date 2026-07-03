@@ -1,3 +1,10 @@
+## [1.55.2](https://github.com/agentprojectcontext/apx/compare/v1.55.1...v1.55.2) (2026-07-03)
+
+
+### Bug Fixes
+
+* **web:** correct stale chat content on switch + scope chats per project ([b3189ee](https://github.com/agentprojectcontext/apx/commit/b3189ee4027b8c9045b839d3bc4a6142f12b7df0))
+
 ## [1.55.1](https://github.com/agentprojectcontext/apx/compare/v1.55.0...v1.55.1) (2026-07-03)
 
 
