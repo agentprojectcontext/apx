@@ -1,3 +1,10 @@
+## [1.56.2](https://github.com/agentprojectcontext/apx/compare/v1.56.1...v1.56.2) (2026-07-03)
+
+
+### Bug Fixes
+
+* **web:** move Artifacts nav item after Variables ([04642e9](https://github.com/agentprojectcontext/apx/commit/04642e9fb997804ba798b36963854b1f54194900))
+
 ## [1.56.1](https://github.com/agentprojectcontext/apx/compare/v1.56.0...v1.56.1) (2026-07-03)
 
 
