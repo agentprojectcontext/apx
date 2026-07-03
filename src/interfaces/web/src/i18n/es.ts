@@ -316,6 +316,7 @@ export const es = {
       superagent_title:  "Chat con {persona}",
       superagent_subtitle: "Chat con {persona} — el super-agente APX. Puede usar tools (proyectos, tasks, mcps, agentes).",
       loaded_subtitle: "Conversación cargada con {slug}. Lo que mandes se agrega a este chat.",
+      thread_subtitle: "Historial con {persona} en {channel}. Si respondés acá, la conversación sigue desde la web.",
       empty:       "Mandá un mensaje para arrancar la conversación.",
       placeholder: "Escribí algo y enter para enviar (shift+enter = nueva línea)",
       send:        "Enviar",
