@@ -65,8 +65,11 @@ export function ChatTab({ pid }: { pid: string }) {
     } else if (selected.kind === "thread") {
       void loadThread(selected.channel, selected.threadId);
     } else {
-      // Switching to a live session = drop any previously bound conversation.
-      if (conversationId) clear();
+      // Live session selected → always start from a clean slate. (Threads leave
+      // conversationId undefined, so an `if (conversationId)` guard would skip
+      // clearing and the previous chat's messages would linger under the new
+      // header — the "title changes but content stays" bug.)
+      clear();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
