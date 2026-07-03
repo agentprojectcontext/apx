@@ -90,7 +90,7 @@ import {
   cmdConversationsList,
   cmdConversationsGet,
 } from "./commands/chat.js";
-import { cmdSys as cmdCode } from "./commands/sys.js";
+import { cmdCode } from "./commands/code.js";
 import { cmdRun, cmdEnvDetect } from "./commands/runtime.js";
 import { cmdSend, cmdConnections } from "./commands/a2a.js";
 import {
