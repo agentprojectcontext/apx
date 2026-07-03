@@ -126,10 +126,13 @@ export function ChatList({
   const [collapsed, setCollapsed] = useState<Partial<Record<ChannelGroupKey, boolean>>>({});
   const [byAgent, setByAgent] = useState<Record<string, ConversationListEntry[]>>({});
 
-  // Super-agent channel threads (telegram, web quick-chat, desktop …) from the
-  // global message ledger — the chats that don't live in conversation files.
+  // Super-agent channel threads (telegram, web quick-chat, desktop …) come from
+  // the global message ledger, which is daemon-level and NOT project-scoped.
+  // Only surface them in the Base workspace (pid "0"); inside a real project the
+  // sidebar shows just that project's own agent conversations.
+  const isBase = String(pid) === "0";
   const threadsQ = useSWR(
-    `/projects/${pid}/super-agent/threads`,
+    isBase ? `/projects/${pid}/super-agent/threads` : null,
     () => Conversations.threads(pid),
     { revalidateOnFocus: false },
   );
