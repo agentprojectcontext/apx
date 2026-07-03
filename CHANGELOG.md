@@ -1,3 +1,10 @@
+# [1.55.0](https://github.com/agentprojectcontext/apx/compare/v1.54.0...v1.55.0) (2026-07-03)
+
+
+### Features
+
+* **web:** surface super-agent channel threads in the Chats sidebar ([929be8f](https://github.com/agentprojectcontext/apx/commit/929be8f263364262640a65fd9fcc975c6a48ba50))
+
 # [1.54.0](https://github.com/agentprojectcontext/apx/compare/v1.53.7...v1.54.0) (2026-07-02)
 
 
