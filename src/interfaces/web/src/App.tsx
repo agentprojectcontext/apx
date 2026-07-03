@@ -235,6 +235,7 @@ function projectLabel(key?: string) {
     case "routines": return t("project.nav.routines");
     case "tasks": return t("project.nav.tasks");
     case "mcps": return t("project.nav.mcps");
+    case "artifacts": return t("project.nav.artifacts");
     case "config": return t("project.nav.config");
     case "workspaces": return t("base.workspaces_title");
     case "models": return t("settings.tabs.engines");

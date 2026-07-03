@@ -1,7 +1,7 @@
 import useSWR from "swr";
 import { NavLink } from "react-router-dom";
-import { Bot, Heart, MessagesSquare, Puzzle, Zap } from "lucide-react";
-import { Agents, Mcps, Routines, Tasks } from "../../lib/api";
+import { Bot, FileCode2, Heart, MessagesSquare, Puzzle, Zap } from "lucide-react";
+import { Agents, Artifacts, Mcps, Routines, Tasks } from "../../lib/api";
 import { t } from "../../i18n";
 
 export function Overview({ pid }: { pid: string }) {
@@ -9,12 +9,14 @@ export function Overview({ pid }: { pid: string }) {
   const routines = useSWR(`/projects/${pid}/routines`,         () => Routines.list(pid));
   const agents   = useSWR(`/projects/${pid}/agents`,           () => Agents.list(pid));
   const mcps     = useSWR(`/projects/${pid}/mcps`,             () => Mcps.list(pid));
+  const artifacts = useSWR(`/projects/${pid}/artifacts`,       () => Artifacts.list(pid));
   return (
     <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
       <Card title={t("project.overview.tasks_open")} value={tasks.data?.length ?? "…"}    href={`/p/${pid}/tasks`}    icon={Zap} />
       <Card title={t("project.overview.routines")}   value={routines.data?.length ?? "…"} href={`/p/${pid}/routines`} icon={Heart} />
       <Card title={t("project.overview.agents")}     value={agents.data?.length ?? "…"}   href={`/p/${pid}/agents`}   icon={Bot} />
       <Card title={t("project.overview.mcps")}       value={mcps.data?.length ?? "…"}     href={`/p/${pid}/mcps`}     icon={Puzzle} />
+      <Card title={t("project.overview.artifacts")}  value={artifacts.data?.length ?? "…"} href={`/p/${pid}/artifacts`} icon={FileCode2} />
       <Card title={t("project.overview.chat")}       value={t("project.overview.chat_value")} href={`/p/${pid}/chat`}  icon={MessagesSquare} />
     </div>
   );

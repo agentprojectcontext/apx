@@ -197,27 +197,36 @@ function ArtifactRow({
             </DialogContent>
           </Dialog>
 
-          {/* Editar — opens as a file tab in the main panel */}
-          <Tip content={t("code_module.artifacts_edit")}>
-            <button
-              type="button"
-              onClick={() => onEditArtifact?.(entry.name)}
-              className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-[10px] font-medium bg-violet-500/15 text-violet-700 hover:bg-violet-500/25 dark:text-violet-300"
-            >
-              <SquarePen className="size-3" />
-              {t("modules_ui.code_artifact_edit_short")}
-            </button>
-          </Tip>
+          {/* Editar — opens as a file tab in the main panel. Only available when
+              a host editor (the Code screen) is wired in. */}
+          {onEditArtifact && (
+            <Tip content={t("code_module.artifacts_edit")}>
+              <button
+                type="button"
+                onClick={() => onEditArtifact(entry.name)}
+                className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-[10px] font-medium bg-violet-500/15 text-violet-700 hover:bg-violet-500/25 dark:text-violet-300"
+              >
+                <SquarePen className="size-3" />
+                {t("modules_ui.code_artifact_edit_short")}
+              </button>
+            </Tip>
+          )}
 
-          {/* Run button */}
+          {/* Run button — hand off to the terminal when there is one (Code
+              screen), otherwise execute in place and show the captured output. */}
           {looksRunnable && (
             <Tip content={t("code_module.artifacts_run")}>
               <button
                 type="button"
-                onClick={() => onRunInTerminal?.(`apx artifact run ${entry.name}`)}
-                className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-[10px] font-medium bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-300"
+                disabled={running}
+                onClick={() =>
+                  onRunInTerminal
+                    ? onRunInTerminal(`apx artifact run ${entry.name}`)
+                    : void run()
+                }
+                className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-[10px] font-medium bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 disabled:opacity-60 dark:text-emerald-300"
               >
-                <Play className="size-3" />
+                {running ? <Spinner size={10} /> : <Play className="size-3" />}
                 {t("code_module.artifacts_run")}
               </button>
             </Tip>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import useSWR from "swr";
 import { Bot, FolderTree, MessageSquare, PanelLeft, PanelRight, Terminal, X } from "lucide-react";
 import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from "react-resizable-panels";
@@ -64,6 +65,8 @@ export function CodeScreen() {
   const [termInitCmd, setTermInitCmd] = useState("");
   const [worktreeOpen, setWorktreeOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const deepLinkDone = useRef(false);
 
   // Open file tabs. `artifactName` marks an artifact opened for editing;
   // saves route through Artifacts.write instead of being read-only.
@@ -345,6 +348,27 @@ export function CodeScreen() {
     },
     [pid],
   );
+
+  // Deep-link from the project Artifacts tab (/m/code?pid=..&cmd=.. or &edit=..).
+  // Select the requested project, then prefill the terminal with the artifact
+  // command (so args like a URL can be typed) or open the file for editing.
+  useEffect(() => {
+    if (deepLinkDone.current) return;
+    const wantPid = searchParams.get("pid");
+    const cmd = searchParams.get("cmd");
+    const edit = searchParams.get("edit");
+    if (!wantPid || (!cmd && !edit)) return;
+    // Wait until the requested project is active so the command/edit targets it.
+    if (String(pid) !== String(wantPid)) {
+      setPid(String(wantPid));
+      return;
+    }
+    deepLinkDone.current = true;
+    if (edit) openArtifact(edit);
+    if (cmd) runInTerminal(cmd.endsWith(" ") ? cmd : cmd + " ");
+    // Clear params so a refresh/back doesn't retrigger the handoff.
+    setSearchParams({}, { replace: true });
+  }, [searchParams, pid, openArtifact, runInTerminal, setSearchParams]);
 
   const saveOpenFile = useCallback(
     async (path: string, content: string) => {
