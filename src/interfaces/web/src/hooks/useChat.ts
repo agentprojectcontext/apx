@@ -58,6 +58,10 @@ export interface UseChatResult {
    *  Only supported for project agents (super-agent conversations aren't
    *  persisted per-file). Pass `null` to drop the binding without clearing. */
   load: (agentSlug: string, conversationId: string) => Promise<void>;
+  /** Load a super-agent channel thread (telegram/desktop/…) as history. Not
+   *  bound to a conversation file — continuing sends go out as fresh web
+   *  turns with the thread as previousMessages context. */
+  loadThread: (channel: string, threadId: string) => Promise<void>;
   streaming: boolean;
   /** Conversation id we're bound to, if any. Lets callers reflect "live vs
    *  loaded" state in the UI. */
@@ -371,5 +375,29 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
     [pid, streaming, onError],
   );
 
-  return { msgs, send, stop, clear, load, streaming, conversationId };
+  const loadThread = useCallback(
+    async (channel: string, threadId: string) => {
+      if (streaming) return;
+      try {
+        const detail = await Conversations.thread(pid, channel, threadId);
+        const loaded: ChatMsg[] = (detail.messages ?? [])
+          .filter((m) => m.role === "user" || m.role === "assistant")
+          .map((m) => ({
+            role: m.role as "user" | "assistant",
+            parts: [{ kind: "text", text: m.content }],
+            ts: m.ts || new Date().toISOString(),
+          }));
+        // Ledger threads have no conversation file — sends continue as fresh
+        // web turns with this history as previousMessages.
+        convoRef.current = undefined;
+        setConversationId(undefined);
+        setMsgs(loaded);
+      } catch (e) {
+        onError?.((e as Error)?.message || t("shared_ui.err_load_conversation"));
+      }
+    },
+    [pid, streaming, onError],
+  );
+
+  return { msgs, send, stop, clear, load, loadThread, streaming, conversationId };
 }
