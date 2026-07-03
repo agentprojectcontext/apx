@@ -289,6 +289,7 @@ export const es = {
       routines: "Rutinas",
       tasks:    "Tasks",
       mcps:     "MCPs",
+      artifacts: "Artifacts",
       vars:     "Variables",
       logs:     "Logs",
       memories: "Memorias",
@@ -306,8 +307,14 @@ export const es = {
       routines:   "Rutinas",
       agents:     "Agents",
       mcps:       "MCPs",
+      artifacts:  "Artifacts",
       chat:       "Chat (super-agent)",
       chat_value: "abrir",
+    },
+
+    artifacts: {
+      title:    "Artifacts",
+      subtitle: "Scripts y archivos reutilizables guardados en el proyecto. Los crean los agentes; podés verlos, ejecutarlos, renombrarlos o eliminarlos.",
     },
 
     chat: {

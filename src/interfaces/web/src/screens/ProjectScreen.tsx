@@ -3,7 +3,7 @@ import { useParams, Routes, Route, Navigate, useLocation, useNavigate } from "re
 import {
   Bot, Heart, Zap, Puzzle, FolderKanban, Settings,
   MessagesSquare, Send, KeyRound,
-  LayoutDashboard, Boxes, Cpu, ScrollText, History, Brain,
+  LayoutDashboard, Boxes, Cpu, ScrollText, History, Brain, FileCode2,
 } from "lucide-react";
 import { useNavCollapse, type TabSection } from "../components/common/TabNav";
 import { TabLayout } from "../components/common/TabLayout";
@@ -28,11 +28,12 @@ import { VarsTab } from "./project/VarsTab";
 import { ChatTab } from "./project/ChatTab";
 import { TelegramTab } from "./project/TelegramTab";
 import { MemoriesTab } from "./project/MemoriesTab";
+import { ArtifactsTab } from "./project/ArtifactsTab";
 import { AgentDetailScreen } from "./project/AgentDetailScreen";
 
 type NavKey =
   | "" | "chat" | "config" | "telegram"
-  | "agents" | "routines" | "tasks" | "mcps" | "vars" | "logs" | "memories";
+  | "agents" | "routines" | "tasks" | "mcps" | "vars" | "logs" | "memories" | "artifacts";
 
 export function ProjectScreen() {
   const navigate = useNavigate();
@@ -69,10 +70,11 @@ export function ProjectScreen() {
           items: [
             { key: "agents",   label: t("project.nav.agents"),   icon: Bot },
             { key: "memories", label: t("project.nav.memories"), icon: Brain },
-            { key: "routines", label: t("project.nav.routines"), icon: Heart },
-            { key: "mcps",     label: t("project.nav.mcps"),     icon: Puzzle },
-            { key: "vars",     label: t("project.nav.vars"),     icon: KeyRound },
-            { key: "config",   label: t("project.nav.config"),   icon: Settings },
+            { key: "routines",  label: t("project.nav.routines"),  icon: Heart },
+            { key: "mcps",      label: t("project.nav.mcps"),      icon: Puzzle },
+            { key: "artifacts", label: t("project.nav.artifacts"), icon: FileCode2 },
+            { key: "vars",      label: t("project.nav.vars"),      icon: KeyRound },
+            { key: "config",    label: t("project.nav.config"),    icon: Settings },
           ],
         },
       ];
@@ -91,11 +93,12 @@ export function ProjectScreen() {
       {
         title: t("project.sections.automation"),
         items: [
-          { key: "routines", label: t("project.nav.routines"),  icon: Heart },
-          { key: "tasks",    label: t("project.nav.tasks"),     icon: Zap },
-          { key: "mcps",     label: t("project.nav.mcps"),      icon: Puzzle },
-          { key: "vars",     label: t("project.nav.vars"),      icon: KeyRound },
-          { key: "logs",     label: t("project.nav.logs"),      icon: ScrollText },
+          { key: "routines",  label: t("project.nav.routines"),  icon: Heart },
+          { key: "tasks",     label: t("project.nav.tasks"),     icon: Zap },
+          { key: "mcps",      label: t("project.nav.mcps"),      icon: Puzzle },
+          { key: "artifacts", label: t("project.nav.artifacts"), icon: FileCode2 },
+          { key: "vars",      label: t("project.nav.vars"),      icon: KeyRound },
+          { key: "logs",      label: t("project.nav.logs"),      icon: ScrollText },
         ],
       },
       {
@@ -156,6 +159,7 @@ export function ProjectScreen() {
         <Route path="routines"     element={<RoutinesTab pid={pid} />} />
         <Route path="tasks"        element={isBase ? <GlobalTasksTab /> : <TasksTab pid={pid} />} />
         <Route path="mcps"         element={<McpsTab pid={pid} />} />
+        <Route path="artifacts"    element={<ArtifactsTab pid={pid} />} />
         <Route path="vars"         element={<VarsTab pid={pid} />} />
         <Route path="threads"      element={<Navigate to={`/p/${pid}/chat`} replace />} />
         <Route path="chat"         element={<ChatTab pid={pid} />} />
