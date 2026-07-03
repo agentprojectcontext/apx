@@ -65,9 +65,13 @@ function useVisibleCount(
     const el = listRef.current;
     if (!el || !enabled) return;
     const measure = () => {
-      const h = el.clientHeight;
-      if (!h) return;
-      const gap = parseFloat(getComputedStyle(el).rowGap) || 12;
+      const cs = getComputedStyle(el);
+      // clientHeight includes vertical padding; items lay out in the content box,
+      // so subtract the padding we added to give the active ring breathing room.
+      const padY = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+      const h = el.clientHeight - padY;
+      if (h <= 0) return;
+      const gap = parseFloat(cs.rowGap) || 12;
       // A hidden, always-present probe gives an accurate item height even on the
       // first paint or when zero real items currently fit.
       const probe = el.querySelector<HTMLElement>("[data-rail-probe]");
@@ -242,7 +246,7 @@ export function ProjectSidebar({ onSelect, onOpenRoby, onOpenAddProject }: Props
 
         <div
           ref={listRef}
-          className="flex min-h-0 w-full flex-1 flex-col items-center gap-3 overflow-hidden"
+          className="flex min-h-0 w-full flex-1 flex-col items-center gap-3 overflow-hidden py-1.5"
         >
           {rest.length > 0 && collapsed && (
             <RailProjectMenu
