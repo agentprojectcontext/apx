@@ -20,7 +20,7 @@ import { Conversations } from "../../lib/api";
 import { Input, Loading } from "../ui";
 import { UiSelect } from "../UiSelect";
 import { t } from "../../i18n";
-import type { AgentEntry, ConversationListEntry } from "../../types/daemon";
+import type { AgentEntry, ConversationListEntry, ThreadListEntry } from "../../types/daemon";
 
 // Channel taxonomy — same channels the daemon writes ("web", "voice",
 // "desktop", "telegram", …) folded into 8 sidebar groups. Each group has an
@@ -64,14 +64,18 @@ function channelGroup(channel?: string): ChannelGroupKey {
   return "other";
 }
 
-// Composite key identifying a sidebar selection: either a "live" agent session
-// (no conversation file yet) or a persisted conversation tied to an agent.
+// Composite key identifying a sidebar selection: a "live" agent session (no
+// conversation file yet), a persisted conversation tied to an agent, or a
+// super-agent channel thread from the global message ledger.
 export type ChatKey =
   | { kind: "live"; agentSlug: string }
-  | { kind: "conv"; agentSlug: string; convId: string };
+  | { kind: "conv"; agentSlug: string; convId: string }
+  | { kind: "thread"; channel: string; threadId: string };
 
 export function chatKeyToString(k: ChatKey): string {
-  return k.kind === "live" ? `live:${k.agentSlug}` : `conv:${k.agentSlug}:${k.convId}`;
+  if (k.kind === "live") return `live:${k.agentSlug}`;
+  if (k.kind === "conv") return `conv:${k.agentSlug}:${k.convId}`;
+  return `thread:${k.channel}:${k.threadId}`;
 }
 
 interface Props {
@@ -122,6 +126,14 @@ export function ChatList({
   const [collapsed, setCollapsed] = useState<Partial<Record<ChannelGroupKey, boolean>>>({});
   const [byAgent, setByAgent] = useState<Record<string, ConversationListEntry[]>>({});
 
+  // Super-agent channel threads (telegram, web quick-chat, desktop …) from the
+  // global message ledger — the chats that don't live in conversation files.
+  const threadsQ = useSWR(
+    `/projects/${pid}/super-agent/threads`,
+    () => Conversations.threads(pid),
+    { revalidateOnFocus: false },
+  );
+
   const handleLoaded = (slug: string, data: ConversationListEntry[] | undefined) => {
     if (!data) return;
     setByAgent((prev) => {
@@ -153,24 +165,45 @@ export function ChatList({
     });
   }, [allConvs, query, agentFilter]);
 
-  // Group: live entries (one per applicable agent) + stored conversations by channel.
+  // Threads belong to the super-agent: visible with no agent filter or when
+  // the filter is the super-agent itself.
+  const filteredThreads = useMemo<ThreadListEntry[]>(() => {
+    if (agentFilter && agentFilter !== superAgentSlug) return [];
+    const q = query.trim().toLowerCase();
+    return (threadsQ.data || []).filter((th) => {
+      if (!q) return true;
+      return `${th.title} ${th.id} ${th.channel}`.toLowerCase().includes(q);
+    });
+  }, [threadsQ.data, query, agentFilter, superAgentSlug]);
+
+  // Group: live entries (one per applicable agent) + stored conversations and
+  // super-agent channel threads, folded together by channel.
+  type GroupItem =
+    | { type: "conv"; conv: ConversationListEntry; sortTs: string }
+    | { type: "thread"; thread: ThreadListEntry; sortTs: string };
+
   const groups = useMemo(() => {
-    const byKey = new Map<ChannelGroupKey, ConversationListEntry[]>();
-    for (const c of filteredConvs) {
-      const key = channelGroup(c.channel);
+    const byKey = new Map<ChannelGroupKey, GroupItem[]>();
+    const push = (key: ChannelGroupKey, item: GroupItem) => {
       const bucket = byKey.get(key);
-      if (bucket) bucket.push(c);
-      else byKey.set(key, [c]);
+      if (bucket) bucket.push(item);
+      else byKey.set(key, [item]);
+    };
+    for (const c of filteredConvs) {
+      push(channelGroup(c.channel), { type: "conv", conv: c, sortTs: c.started_at || "" });
+    }
+    for (const th of filteredThreads) {
+      push(channelGroup(th.channel), { type: "thread", thread: th, sortTs: th.last_ts || th.started_at || "" });
     }
     return Array.from(byKey.entries())
       .map(([key, items]) => ({
         key,
         items: items.sort(
-          (a, b) => new Date(b.started_at || 0).getTime() - new Date(a.started_at || 0).getTime(),
+          (a, b) => new Date(b.sortTs || 0).getTime() - new Date(a.sortTs || 0).getTime(),
         ),
       }))
       .sort((a, b) => GROUP_META[a.key].order - GROUP_META[b.key].order);
-  }, [filteredConvs]);
+  }, [filteredConvs, filteredThreads]);
 
   // "Live" agents shown at the top: super-agent + project agents matching the
   // current agent filter (so "filter by foo" hides the others everywhere).
@@ -196,8 +229,9 @@ export function ChatList({
     [agents, superAgentSlug, superAgentLabel],
   );
 
-  const totalCount = allConvs.length + liveAgents.length;
-  const anyLoaded = Object.keys(byAgent).length > 0 || agents.length === 0;
+  const totalCount = allConvs.length + (threadsQ.data?.length || 0) + liveAgents.length;
+  const anyLoaded =
+    Object.keys(byAgent).length > 0 || agents.length === 0 || !!threadsQ.data;
 
   return (
     <aside className="flex h-full w-72 shrink-0 flex-col border-r border-border bg-card/30">
@@ -265,7 +299,7 @@ export function ChatList({
           </ChannelGroup>
         )}
 
-        {/* Stored conversations, grouped by channel. */}
+        {/* Stored conversations + super-agent channel threads, grouped by channel. */}
         {groups.map((g) => (
           <ChannelGroup
             key={g.key}
@@ -274,7 +308,28 @@ export function ChatList({
             collapsed={!!collapsed[g.key]}
             onToggle={() => setCollapsed((p) => ({ ...p, [g.key]: !p[g.key] }))}
           >
-            {g.items.map((c) => {
+            {g.items.map((item) => {
+              if (item.type === "thread") {
+                const th = item.thread;
+                const active =
+                  selected.kind === "thread" &&
+                  selected.channel === th.channel &&
+                  selected.threadId === th.id;
+                return (
+                  <ChatListItem
+                    key={`thread-${th.channel}-${th.id}`}
+                    title={th.title}
+                    subtitle={[th.channel, `${th.messages} msg`].join(" · ")}
+                    badge="super"
+                    timeAgo={th.last_ts}
+                    selected={active}
+                    onClick={() =>
+                      onSelect({ kind: "thread", channel: th.channel, threadId: th.id })
+                    }
+                  />
+                );
+              }
+              const c = item.conv;
               const active =
                 selected.kind === "conv" &&
                 selected.agentSlug === c.agent_slug &&
@@ -298,7 +353,7 @@ export function ChatList({
           </ChannelGroup>
         ))}
 
-        {anyLoaded && allConvs.length === 0 && (
+        {anyLoaded && allConvs.length === 0 && filteredThreads.length === 0 && (
           <p className="px-3 py-6 text-center text-xs text-muted-fg">
             {t("project.chat.list.empty")}
           </p>

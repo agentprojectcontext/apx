@@ -27,7 +27,7 @@ export function ChatTab({ pid }: { pid: string }) {
   const [creating, setCreating] = useState(false);
   const [model, setModel] = useState("");
   const [dismissedAskKey, setDismissedAskKey] = useState<string | null>(null);
-  const { msgs, send: sendChat, stop, clear, load, streaming, conversationId } =
+  const { msgs, send: sendChat, stop, clear, load, loadThread, streaming, conversationId } =
     useChat(pid, (m) => toast.error(m));
   const persona = usePersonaName();
 
@@ -45,27 +45,38 @@ export function ChatTab({ pid }: { pid: string }) {
   const isRoby = (slug: string | null | undefined) => slug === ROBY_SLUG;
 
   // The agent whose dropdown badge / model we show on the right header.
+  // Channel threads always belong to the super-agent, so no project agent.
   const activeAgent = useMemo(
     () =>
-      selected.kind === "live"
-        ? agentList.find((a) => a.slug === selected.agentSlug)
+      selected.kind === "thread"
+        ? undefined
         : agentList.find((a) => a.slug === selected.agentSlug),
     [agentList, selected],
   );
-  const activeIsRoby = isRoby(selected.agentSlug);
+  const activeIsRoby = selected.kind === "thread" || isRoby(selected.agentSlug);
 
-  // Whenever the user picks a stored conversation, reload the in-memory chat
-  // with its persisted history. The hook itself binds the conversation_id so
-  // subsequent sends append to the same file.
+  // Whenever the user picks a stored conversation or a channel thread, reload
+  // the in-memory chat with its persisted history. Conversations bind the
+  // conversation_id (sends append to the file); threads stay unbound —
+  // continuing sends fresh web turns with the thread as context.
   useEffect(() => {
     if (selected.kind === "conv") {
       void load(selected.agentSlug, selected.convId);
+    } else if (selected.kind === "thread") {
+      void loadThread(selected.channel, selected.threadId);
     } else {
       // Switching to a live session = drop any previously bound conversation.
       if (conversationId) clear();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected.kind, selected.kind === "conv" ? selected.convId : selected.agentSlug]);
+  }, [
+    selected.kind,
+    selected.kind === "conv"
+      ? selected.convId
+      : selected.kind === "thread"
+        ? `${selected.channel}:${selected.threadId}`
+        : selected.agentSlug,
+  ]);
 
   const send = async (text: string) => {
     if (activeIsRoby) {
@@ -86,16 +97,22 @@ export function ChatTab({ pid }: { pid: string }) {
     clear();
   };
 
-  const headerTitle = activeIsRoby
-    ? t("project.chat.superagent_title", { persona })
-    : selected.kind === "conv"
-      ? selected.convId
-      : t("project.chat.title");
-  const headerSubtitle = activeIsRoby
-    ? t("project.chat.superagent_subtitle", { persona })
-    : selected.kind === "conv"
-      ? t("project.chat.loaded_subtitle", { slug: selected.agentSlug })
-      : t("project.chat.subtitle");
+  const headerTitle =
+    selected.kind === "thread"
+      ? `${selected.channel} · ${selected.threadId}`
+      : activeIsRoby
+        ? t("project.chat.superagent_title", { persona })
+        : selected.kind === "conv"
+          ? selected.convId
+          : t("project.chat.title");
+  const headerSubtitle =
+    selected.kind === "thread"
+      ? t("project.chat.thread_subtitle", { channel: selected.channel, persona })
+      : activeIsRoby
+        ? t("project.chat.superagent_subtitle", { persona })
+        : selected.kind === "conv"
+          ? t("project.chat.loaded_subtitle", { slug: selected.agentSlug })
+          : t("project.chat.subtitle");
 
   if (agents.isLoading) return <Loading />;
 
