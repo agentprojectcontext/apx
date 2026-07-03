@@ -250,6 +250,11 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
   const [conversationId, setConversationId] = useState<string | undefined>(undefined);
   const abortRef = useRef<AbortController | null>(null);
   const convoRef = useRef<string | undefined>(undefined);
+  // Monotonic token guarding async history loads. Every load()/loadThread()/
+  // clear() bumps it; a load only applies its result if it's still the latest.
+  // Without this, clicking chat A then B could land A's (slower) response last
+  // and paint A's messages under B's header.
+  const loadSeqRef = useRef(0);
 
   // Mutate the trailing assistant turn in place.
   const patchLast = useCallback((fn: (m: ChatMsg) => ChatMsg) => {
@@ -348,6 +353,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
   const stop = useCallback(() => abortRef.current?.abort(), []);
   const clear = useCallback(() => {
     if (streaming) return;
+    loadSeqRef.current++; // cancel any in-flight history load
     convoRef.current = undefined;
     setConversationId(undefined);
     setMsgs([]);
@@ -356,8 +362,13 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
   const load = useCallback(
     async (agentSlug: string, conversationId: string) => {
       if (streaming) return;
+      const seq = ++loadSeqRef.current;
+      // Blank the pane up front so it never shows the previous chat under the
+      // new header while the fetch is in flight.
+      setMsgs([]);
       try {
         const detail = await Conversations.get(pid, agentSlug, conversationId);
+        if (seq !== loadSeqRef.current) return; // superseded by a newer pick
         const loaded: ChatMsg[] = (detail.messages ?? [])
           .filter((m) => m.role === "user" || m.role === "assistant")
           .map((m) => ({
@@ -369,6 +380,10 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
         setConversationId(conversationId);
         setMsgs(loaded);
       } catch (e) {
+        if (seq !== loadSeqRef.current) return;
+        convoRef.current = undefined;
+        setConversationId(undefined);
+        setMsgs([]);
         onError?.((e as Error)?.message || t("shared_ui.err_load_conversation"));
       }
     },
@@ -378,8 +393,11 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
   const loadThread = useCallback(
     async (channel: string, threadId: string) => {
       if (streaming) return;
+      const seq = ++loadSeqRef.current;
+      setMsgs([]);
       try {
         const detail = await Conversations.thread(pid, channel, threadId);
+        if (seq !== loadSeqRef.current) return; // superseded by a newer pick
         const loaded: ChatMsg[] = (detail.messages ?? [])
           .filter((m) => m.role === "user" || m.role === "assistant")
           .map((m) => ({
@@ -393,6 +411,10 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
         setConversationId(undefined);
         setMsgs(loaded);
       } catch (e) {
+        if (seq !== loadSeqRef.current) return;
+        convoRef.current = undefined;
+        setConversationId(undefined);
+        setMsgs([]);
         onError?.((e as Error)?.message || t("shared_ui.err_load_conversation"));
       }
     },
