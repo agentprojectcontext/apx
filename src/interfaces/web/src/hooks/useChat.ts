@@ -130,6 +130,44 @@ function isErrorResult(result: unknown): boolean {
   return "error" in r && !!r.error;
 }
 
+/** Reconstruct chat turns from a persisted channel thread (global ledger).
+ *  User rows start a new turn; consecutive assistant/tool rows collapse into a
+ *  single assistant bubble with interleaved text + tool parts — mirroring how a
+ *  live streamed turn is shaped, so tool executions render the same on reload as
+ *  they did in real time. Persisted rows carry no live status, so it's derived
+ *  from the stored result (error → "error", else "done"). */
+function threadToChatMsgs(messages: ConversationMessage[]): ChatMsg[] {
+  const out: ChatMsg[] = [];
+  let turn: ChatMsg | null = null;
+  let toolSeq = 0;
+  for (const m of messages) {
+    const ts = m.ts || new Date().toISOString();
+    if (m.role === "user") {
+      turn = null;
+      out.push({ role: "user", parts: userPart(m.content), ts });
+    } else if (m.role === "assistant" || m.role === "tool") {
+      if (!turn) {
+        turn = { role: "assistant", parts: [], ts };
+        out.push(turn);
+      }
+      if (m.role === "tool") {
+        turn.parts.push({
+          kind: "tool",
+          id: `hist-${toolSeq++}`,
+          tool: m.tool || "tool",
+          args: m.args,
+          result: m.result,
+          status: isErrorResult(m.result) ? "error" : "done",
+        });
+      } else if (m.content) {
+        turn.parts.push({ kind: "text", text: m.content });
+      }
+    }
+    // system/compact rows are context-only; not rendered in the thread viewer.
+  }
+  return out;
+}
+
 /**
  * Pure reducer: apply one NDJSON stream event to an assistant turn and return
  * the next turn. Every surface that consumes the super-agent stream (ChatTab,
@@ -398,13 +436,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
       try {
         const detail = await Conversations.thread(pid, channel, threadId);
         if (seq !== loadSeqRef.current) return; // superseded by a newer pick
-        const loaded: ChatMsg[] = (detail.messages ?? [])
-          .filter((m) => m.role === "user" || m.role === "assistant")
-          .map((m) => ({
-            role: m.role as "user" | "assistant",
-            parts: [{ kind: "text", text: m.content }],
-            ts: m.ts || new Date().toISOString(),
-          }));
+        const loaded = threadToChatMsgs(detail.messages ?? []);
         // Ledger threads have no conversation file — sends continue as fresh
         // web turns with this history as previousMessages.
         convoRef.current = undefined;
