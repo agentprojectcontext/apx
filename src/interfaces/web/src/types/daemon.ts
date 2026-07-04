@@ -143,6 +143,11 @@ export interface ConversationMessage {
   content: string;
   ts?: string;
   name?: string;
+  /** Present on role:"tool" rows from the global ledger — the tool name and its
+   *  structured args/result, so the viewer can render a ToolCall part. */
+  tool?: string;
+  args?: Record<string, unknown>;
+  result?: unknown;
 }
 
 export interface ConversationDetail {
