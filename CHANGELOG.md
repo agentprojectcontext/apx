@@ -1,3 +1,10 @@
+# [1.58.0](https://github.com/agentprojectcontext/apx/compare/v1.57.0...v1.58.0) (2026-07-05)
+
+
+### Features
+
+* **web:** migrate PandaProject UX — floor, structure, docs/files, agent editor, task workflow ([f6a4f04](https://github.com/agentprojectcontext/apx/commit/f6a4f041a4bae2619e27168176ba4db023bef620))
+
 # [1.57.0](https://github.com/agentprojectcontext/apx/compare/v1.56.2...v1.57.0) (2026-07-05)
 
 
