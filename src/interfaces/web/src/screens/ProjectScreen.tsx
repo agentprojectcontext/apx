@@ -3,7 +3,7 @@ import { useParams, Routes, Route, Navigate, useLocation, useNavigate } from "re
 import {
   Bot, Heart, Zap, Puzzle, FolderKanban, Settings,
   MessagesSquare, Send, KeyRound,
-  LayoutDashboard, Boxes, Cpu, ScrollText, History, Brain, FileCode2,
+  LayoutDashboard, Boxes, Cpu, ScrollText, History, Brain, FileCode2, Cable,
 } from "lucide-react";
 import { useNavCollapse, type TabSection } from "../components/common/TabNav";
 import { TabLayout } from "../components/common/TabLayout";
@@ -24,6 +24,7 @@ import { AgentsTab } from "./project/AgentsTab";
 import { RoutinesTab } from "./project/RoutinesTab";
 import { TasksTab } from "./project/TasksTab";
 import { McpsTab } from "./project/McpsTab";
+import { IntegrationsTab } from "./project/IntegrationsTab";
 import { VarsTab } from "./project/VarsTab";
 import { ChatTab } from "./project/ChatTab";
 import { TelegramTab } from "./project/TelegramTab";
@@ -33,7 +34,7 @@ import { AgentDetailScreen } from "./project/AgentDetailScreen";
 
 type NavKey =
   | "" | "chat" | "config" | "telegram"
-  | "agents" | "routines" | "tasks" | "mcps" | "vars" | "logs" | "memories" | "artifacts";
+  | "agents" | "routines" | "tasks" | "mcps" | "integrations" | "vars" | "logs" | "memories" | "artifacts";
 
 export function ProjectScreen() {
   const navigate = useNavigate();
@@ -72,6 +73,7 @@ export function ProjectScreen() {
             { key: "memories", label: t("project.nav.memories"), icon: Brain },
             { key: "routines",  label: t("project.nav.routines"),  icon: Heart },
             { key: "mcps",      label: t("project.nav.mcps"),      icon: Puzzle },
+            { key: "integrations", label: "Integrations",          icon: Cable },
             { key: "vars",      label: t("project.nav.vars"),      icon: KeyRound },
             { key: "artifacts", label: t("project.nav.artifacts"), icon: FileCode2 },
             { key: "config",    label: t("project.nav.config"),    icon: Settings },
@@ -96,6 +98,7 @@ export function ProjectScreen() {
           { key: "routines",  label: t("project.nav.routines"),  icon: Heart },
           { key: "tasks",     label: t("project.nav.tasks"),     icon: Zap },
           { key: "mcps",      label: t("project.nav.mcps"),      icon: Puzzle },
+          { key: "integrations", label: "Integrations",          icon: Cable },
           { key: "vars",      label: t("project.nav.vars"),      icon: KeyRound },
           { key: "artifacts", label: t("project.nav.artifacts"), icon: FileCode2 },
           { key: "logs",      label: t("project.nav.logs"),      icon: ScrollText },
@@ -159,6 +162,7 @@ export function ProjectScreen() {
         <Route path="routines"     element={<RoutinesTab pid={pid} />} />
         <Route path="tasks"        element={isBase ? <GlobalTasksTab /> : <TasksTab pid={pid} />} />
         <Route path="mcps"         element={<McpsTab pid={pid} />} />
+        <Route path="integrations" element={<IntegrationsTab pid={pid} />} />
         <Route path="artifacts"    element={<ArtifactsTab pid={pid} />} />
         <Route path="vars"         element={<VarsTab pid={pid} />} />
         <Route path="threads"      element={<Navigate to={`/p/${pid}/chat`} replace />} />
