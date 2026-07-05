@@ -8,8 +8,11 @@ import { Section } from "../../components/Section";
 import { Badge, Button, Dialog, Empty, Field, Input, Loading, Switch, Textarea } from "../../components/ui";
 import { UiSelect } from "../../components/UiSelect";
 import { useToast } from "../../components/Toast";
+import { EmojiInput, AutonomyPicker, AreaRoleFields } from "../../components/agents/AgentFormFields";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
+import type { AgentAutonomy } from "../../types/daemon";
+import { typeOptions } from "./AgentDetailScreen";
 
 const LANGS = ["", "es", "en", "pt", "fr", "it", "de"];
 const csv = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
@@ -224,7 +227,7 @@ function AgentCard({
     >
       <div className="flex items-center gap-2">
         <div className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br", gradient)}>
-          <Icon className="size-4 text-white" />
+          {agent.emoji ? <span className="text-base leading-none">{agent.emoji}</span> : <Icon className="size-4 text-white" />}
         </div>
         <span className="truncate text-sm font-semibold">{agent.slug}</span>
       </div>
@@ -250,7 +253,7 @@ function ListView({ agents, onOpen, onChat }: { agents: AgentEntry[]; onOpen: (s
         return (
           <div key={a.slug} data-testid={`agent-card-${a.slug}`} className="flex cursor-pointer items-center gap-4 rounded-xl border border-border bg-muted/30 p-3 hover:border-muted-fg/50" onClick={() => onOpen(a.slug)}>
             <div className={cn("flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br", gradient)}>
-              <Icon className="size-4 text-white" />
+              {a.emoji ? <span className="text-lg leading-none">{a.emoji}</span> : <Icon className="size-4 text-white" />}
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
@@ -282,7 +285,11 @@ function CreateAgentDialog({
 }: { open: boolean; onClose: () => void; onCreated: () => void; pid: string; agents: AgentEntry[] }) {
   const toast = useToast();
   const [slug, setSlug] = useState("");
+  const [emoji, setEmoji] = useState("");
+  const [type, setType] = useState("");
   const [role, setRole] = useState("");
+  const [area, setArea] = useState("");
+  const [autonomy, setAutonomy] = useState<AgentAutonomy | "">("");
   const [model, setModel] = useState("");
   const [language, setLanguage] = useState("");
   const [description, setDescription] = useState("");
@@ -293,8 +300,9 @@ function CreateAgentDialog({
   const [busy, setBusy] = useState(false);
 
   const reset = () => {
-    setSlug(""); setRole(""); setModel(""); setLanguage("");
-    setDescription(""); setSkills(""); setTools(""); setIsMaster(false); setParent("");
+    setSlug(""); setEmoji(""); setType(""); setRole(""); setArea(""); setAutonomy("");
+    setModel(""); setLanguage(""); setDescription(""); setSkills(""); setTools("");
+    setIsMaster(false); setParent("");
   };
 
   const submit = async () => {
@@ -303,13 +311,17 @@ function CreateAgentDialog({
     try {
       await Agents.create(pid, {
         slug,
+        emoji: emoji || undefined,
+        type: type || undefined,
         role: role || undefined,
+        area: area || undefined,
+        autonomy: autonomy || undefined,
         model: model || undefined,
         language: language || undefined,
         description: description || undefined,
         skills: csv(skills),
         tools: csv(tools),
-        is_master: isMaster,
+        is_master: isMaster || type === "orchestrator",
         parent: parent || undefined,
       });
       toast.success(t("project.agents.create_success", { slug }));
@@ -334,10 +346,15 @@ function CreateAgentDialog({
       }
     >
       <div className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-[80px_1fr_1fr] gap-3">
+          <Field label={t("agents_form.emoji")}><EmojiInput value={emoji} onChange={setEmoji} /></Field>
           <Field label={t("project.agents.slug_label")}><Input autoFocus data-testid="agent-slug" value={slug} onChange={(e) => setSlug(e.target.value)} placeholder={t("project.agents.slug_ph")} /></Field>
-          <Field label={t("project.agents.role_label")}><Input value={role} onChange={(e) => setRole(e.target.value)} placeholder={t("project.agents.role_ph")} /></Field>
+          <Field label={t("project.agent_detail.type_label")}><UiSelect value={type} onChange={setType} options={typeOptions()} /></Field>
         </div>
+        <AreaRoleFields pid={pid} area={area} role={role} onArea={setArea} onRole={setRole} />
+        <Field label={t("agents_form.autonomy")} hint={t("agents_form.autonomy_hint")}>
+          <AutonomyPicker value={autonomy} onChange={setAutonomy} />
+        </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label={t("project.agents.model_label")} hint={t("project.agents.model_hint")}><Input value={model} onChange={(e) => setModel(e.target.value)} /></Field>
           <Field label={t("project.agents.lang_label")}><UiSelect value={language} onChange={setLanguage} options={LANGS.map((l) => ({ value: l, label: l || "—" }))} /></Field>
