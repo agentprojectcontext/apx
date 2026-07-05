@@ -644,6 +644,11 @@ export function listGlobalThreads({ channels, _globalMessagesDir } = {}) {
 
 // Read one channel+day thread shaped for the web chat viewer:
 // { id, channel, messages: [{ role, content, ts }] } — or null when missing.
+// Tool records are INCLUDED (role:"tool" with structured tool/args/result from
+// meta) so the web viewer can render tool executions the same way the live
+// stream does. They're persisted by every channel (e.g. telegram reply.js) but
+// never sent to the channel itself; dropping them here is what made Telegram
+// tool calls invisible in the web chat even though they were on disk.
 export function readGlobalThread({ channel, date, _globalMessagesDir } = {}) {
   if (!CHANNEL_NAME_RE.test(String(channel || ""))) return null;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ""))) return null;
@@ -651,13 +656,39 @@ export function readGlobalThread({ channel, date, _globalMessagesDir } = {}) {
   const file = path.join(base, channel, `${date}.jsonl`);
   if (!fs.existsSync(file)) return null;
   const messages = parseDayJsonl(fs.readFileSync(file, "utf8"))
-    .filter((r) => r.type === "user" || r.type === "agent")
-    .map((r) => ({
-      role: r.type === "user" ? "user" : "assistant",
-      content: r.body || "",
-      ts: r.ts,
-    }));
+    .filter((r) => r.type === "user" || r.type === "agent" || r.type === "tool")
+    .map((r) => {
+      if (r.type === "tool") {
+        return {
+          role: "tool",
+          content: r.body || "",
+          ts: r.ts,
+          tool: r.meta?.tool || r.meta?.tool_name || r.actor_id || "tool",
+          args: r.meta?.args,
+          result: r.meta?.result,
+        };
+      }
+      return {
+        role: r.type === "user" ? "user" : "assistant",
+        content: r.body || "",
+        ts: r.ts,
+      };
+    });
   return { id: date, channel, messages };
+}
+
+// Delete one channel+day thread by removing its JSONL file. The global ledger
+// is FS-backed (listGlobalThreads/readGlobalThread read files directly), so
+// unlinking the day-file drops the thread from the sidebar. Returns false for a
+// bad channel/date or a file that is already gone.
+export function deleteGlobalThread({ channel, date, _globalMessagesDir } = {}) {
+  if (!CHANNEL_NAME_RE.test(String(channel || ""))) return false;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ""))) return false;
+  const base = _globalMessagesDir || GLOBAL_MESSAGES_DIR;
+  const file = path.join(base, channel, `${date}.jsonl`);
+  if (!fs.existsSync(file)) return false;
+  fs.unlinkSync(file);
+  return true;
 }
 
 // Wipe the cache and re-populate from APX project messages. Reads BOTH `.jsonl`

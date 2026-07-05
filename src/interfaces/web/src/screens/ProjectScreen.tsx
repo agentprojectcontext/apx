@@ -141,7 +141,7 @@ export function ProjectScreen() {
       onChange={onTabChange}
       collapsed={collapsed}
       onToggleCollapse={toggle}
-      contentClassName="w-full space-y-6 p-6 pt-3"
+      contentClassName="w-full space-y-6 py-6 pt-3 pr-6 pl-1"
       testId={`project-tab-${active || "overview"}`}
     >
       <Routes>

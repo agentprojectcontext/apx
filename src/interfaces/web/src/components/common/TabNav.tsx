@@ -65,7 +65,7 @@ export function TabNav({ sections, active, onChange, collapsed = false }: TabNav
     <nav
       className={cn(
         "hidden md:flex shrink-0 flex-col gap-1 py-3 transition-all",
-        collapsed ? "w-12 items-center px-1" : "w-52 px-2",
+        collapsed ? "w-12 items-center px-1" : "w-44 px-2",
       )}
     >
       {sections.map((section, si) => (

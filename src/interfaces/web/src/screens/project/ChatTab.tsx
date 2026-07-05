@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import useSWR from "swr";
-import { Plus, Trash2 } from "lucide-react";
-import { Agents } from "../../lib/api";
+import useSWR, { mutate } from "swr";
+import { Plus, RotateCcw, Trash2 } from "lucide-react";
+import { Agents, Conversations } from "../../lib/api";
 import { Badge, Button, Dialog, Empty, Field, Input, Loading, Switch } from "../../components/ui";
 import { Composer } from "../../components/chat/Composer";
 import { MessageList } from "../../components/chat/MessageList";
 import { ContextBar } from "../../components/chat/ContextBar";
 import { InlineAskPanel, pendingAskQuestions } from "../../components/chat/InlineAskPanel";
-import { ChatList, type ChatKey } from "../../components/chat/ChatList";
+import { ChatList, type ChatKey, type ChatSelectionMeta } from "../../components/chat/ChatList";
 import { useChat } from "../../hooks/useChat";
 import { useToast } from "../../components/Toast";
 import { t } from "../../i18n";
@@ -22,24 +22,52 @@ const ROBY_SLUG = "__super_agent__";
 
 export function ChatTab({ pid }: { pid: string }) {
   const toast = useToast();
-  const [params] = useSearchParams();
+  const [params, setSearchParams] = useSearchParams();
   const agents = useSWR(`/projects/${pid}/agents`, () => Agents.list(pid));
   const [creating, setCreating] = useState(false);
   const [model, setModel] = useState("");
   const [dismissedAskKey, setDismissedAskKey] = useState<string | null>(null);
-  const { msgs, send: sendChat, stop, clear, load, loadThread, streaming, conversationId } =
+  const { msgs, send: sendChat, stop, clear, load, loadThread, streaming } =
     useChat(pid, (m) => toast.error(m));
   const persona = usePersonaName();
 
   // Selection state — drives both the sidebar highlight and the right-pane
-  // header. Defaults to a live session with the super-agent so the chat works
-  // even on a brand-new project with zero agents and zero conversations.
-  const initialFromUrl = params.get("agent");
-  const [selected, setSelected] = useState<ChatKey>(
-    initialFromUrl
-      ? { kind: "live", agentSlug: initialFromUrl }
-      : { kind: "live", agentSlug: ROBY_SLUG },
-  );
+  // header. Restored from the URL query on mount (so a chat is deep-linkable),
+  // defaulting to a live session with the super-agent so the chat works even on
+  // a brand-new project with zero agents and zero conversations.
+  const [selected, setSelected] = useState<ChatKey>(() => {
+    const agent = params.get("agent");
+    const conv = params.get("conv");
+    const channel = params.get("channel");
+    const thread = params.get("thread");
+    if (channel && thread) return { kind: "thread", channel, threadId: thread };
+    if (agent && conv) return { kind: "conv", agentSlug: agent, convId: conv };
+    if (agent) return { kind: "live", agentSlug: agent };
+    return { kind: "live", agentSlug: ROBY_SLUG };
+  });
+  // Display metadata for the current selection (channel/created date/title),
+  // carried from the sidebar so the header can show it without a second fetch.
+  const [selectedMeta, setSelectedMeta] = useState<ChatSelectionMeta | undefined>(undefined);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  // Select a chat and mirror its id into the URL query so the current chat is
+  // shareable/deep-linkable. `replace` keeps navigation history clean.
+  const selectChat = (key: ChatKey, meta?: ChatSelectionMeta) => {
+    setSelected(key);
+    setSelectedMeta(meta);
+    const next = new URLSearchParams();
+    if (key.kind === "conv") {
+      next.set("agent", key.agentSlug);
+      next.set("conv", key.convId);
+    } else if (key.kind === "thread") {
+      next.set("channel", key.channel);
+      next.set("thread", key.threadId);
+    } else {
+      next.set("agent", key.agentSlug);
+    }
+    setSearchParams(next, { replace: true });
+  };
 
   const agentList = agents.data || [];
   const isRoby = (slug: string | null | undefined) => slug === ROBY_SLUG;
@@ -95,27 +123,61 @@ export function ChatTab({ pid }: { pid: string }) {
     catch { /* ignore */ }
   };
 
-  const onNewChat = () => {
-    setSelected({ kind: "live", agentSlug: ROBY_SLUG });
+  // "+ New" from the sidebar: start a fresh in-memory session with the picked
+  // agent (super-agent or a project agent). It materialises in the Web group
+  // once the first message is sent.
+  const onNewChat = (agentSlug: string) => {
+    selectChat({ kind: "live", agentSlug });
     clear();
   };
 
+  // "New session" header button: reset the pane but stay with the current
+  // agent (Roby for channel threads / the super-agent, else the project agent).
+  const newSession = () => {
+    const agentSlug = activeIsRoby ? ROBY_SLUG : activeAgent?.slug ?? selected.agentSlug;
+    selectChat({ kind: "live", agentSlug });
+    clear();
+  };
+
+  // "Delete" header button: permanently remove the persisted conversation
+  // (agent `.md` file) or channel thread (ledger day-file), then reset the pane
+  // and revalidate the sidebar list so the entry disappears.
+  const doDelete = async () => {
+    setDeleting(true);
+    try {
+      if (selected.kind === "conv") {
+        await Conversations.remove(pid, selected.agentSlug, selected.convId);
+        void mutate(`/projects/${pid}/agents/${selected.agentSlug}/conversations`);
+      } else if (selected.kind === "thread") {
+        await Conversations.removeThread(pid, selected.channel, selected.threadId);
+        void mutate(`/projects/${pid}/super-agent/threads`);
+      }
+      toast.success(t("project.chat.deleted"));
+      setConfirmDelete(false);
+      newSession();
+    } catch (e) {
+      toast.error((e as Error)?.message || t("shared_ui.err_chat_failed"));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // Header shows "Created {date} · {channel} · {agent}" (or "New chat · …" for a
+  // fresh session with no persisted date yet), per the sidebar redesign.
+  const agentLabel = activeIsRoby ? persona : activeAgent?.slug ?? selected.agentSlug;
+  const channelLabel =
+    selected.kind === "thread" ? selected.channel : selectedMeta?.channel || "web";
+  const createdIso =
+    selected.kind === "thread" ? selected.threadId : selectedMeta?.createdAt;
+
   const headerTitle =
-    selected.kind === "thread"
-      ? `${selected.channel} · ${selected.threadId}`
-      : activeIsRoby
-        ? t("project.chat.superagent_title", { persona })
-        : selected.kind === "conv"
-          ? selected.convId
-          : t("project.chat.title");
-  const headerSubtitle =
-    selected.kind === "thread"
-      ? t("project.chat.thread_subtitle", { channel: selected.channel, persona })
-      : activeIsRoby
-        ? t("project.chat.superagent_subtitle", { persona })
-        : selected.kind === "conv"
-          ? t("project.chat.loaded_subtitle", { slug: selected.agentSlug })
-          : t("project.chat.subtitle");
+    selected.kind === "live"
+      ? t("project.chat.live_title", { agent: agentLabel })
+      : selectedMeta?.title ||
+        (selected.kind === "thread" ? selected.threadId : selected.convId);
+  const headerSubtitle = createdIso
+    ? t("project.chat.meta_created", { date: formatDate(createdIso), channel: channelLabel })
+    : t("project.chat.meta_new", { channel: channelLabel });
 
   if (agents.isLoading) return <Loading />;
 
@@ -127,7 +189,7 @@ export function ChatTab({ pid }: { pid: string }) {
         superAgentSlug={ROBY_SLUG}
         superAgentLabel={t("agents_ui.super_agent_label", { persona })}
         selected={selected}
-        onSelect={setSelected}
+        onSelect={selectChat}
         onNewChat={onNewChat}
       />
 
@@ -141,9 +203,8 @@ export function ChatTab({ pid }: { pid: string }) {
             {activeIsRoby ? (
               <Badge tone="success">{t("agents_ui.super_agent_badge")}</Badge>
             ) : (
-              activeAgent?.model && <Badge tone="info">{activeAgent.model}</Badge>
+              <Badge tone="info">{agentLabel}</Badge>
             )}
-            {selected.kind === "conv" && <Badge tone="info">{conversationId || "…"}</Badge>}
             {!agentList.length && !activeIsRoby && (
               <Button variant="primary" size="sm" onClick={() => setCreating(true)}>
                 <Plus size={14} /> {t("project.chat.create_agent")}
@@ -153,10 +214,20 @@ export function ChatTab({ pid }: { pid: string }) {
               variant="ghost"
               size="sm"
               disabled={streaming || msgs.length === 0}
-              onClick={onNewChat}
+              onClick={newSession}
             >
-              <Trash2 size={13} /> {t("project.chat.clear")}
+              <RotateCcw size={13} /> {t("project.chat.new_session")}
             </Button>
+            {(selected.kind === "conv" || selected.kind === "thread") && (
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={streaming}
+                onClick={() => setConfirmDelete(true)}
+              >
+                <Trash2 size={13} /> {t("project.chat.delete")}
+              </Button>
+            )}
           </div>
         </header>
 
@@ -198,8 +269,37 @@ export function ChatTab({ pid }: { pid: string }) {
         onClose={() => setCreating(false)}
         onCreated={() => { setCreating(false); agents.mutate(); }}
       />
+
+      <Dialog
+        open={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        title={t("project.chat.delete_confirm_title")}
+        description={t("project.chat.delete_confirm_desc")}
+        size="sm"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setConfirmDelete(false)} disabled={deleting}>
+              {t("common.cancel")}
+            </Button>
+            <Button variant="destructive" onClick={doDelete} loading={deleting}>
+              <Trash2 size={14} /> {t("project.chat.delete")}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-muted-fg">{headerTitle}</p>
+      </Dialog>
     </div>
   );
+}
+
+// Localised short date for the header "Created {date}" line. Falls back to the
+// raw string for anything Date can't parse.
+function formatDate(iso?: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString();
 }
 
 function CreateAgentDialog({
