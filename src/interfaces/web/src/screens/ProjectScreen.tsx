@@ -4,6 +4,7 @@ import {
   Bot, Heart, Zap, Puzzle, FolderKanban, Settings,
   MessagesSquare, Send, KeyRound,
   LayoutDashboard, Boxes, Cpu, ScrollText, History, Brain, FileCode2,
+  Building2, FileText, FolderTree,
 } from "lucide-react";
 import { useNavCollapse, type TabSection } from "../components/common/TabNav";
 import { TabLayout } from "../components/common/TabLayout";
@@ -30,10 +31,14 @@ import { TelegramTab } from "./project/TelegramTab";
 import { MemoriesTab } from "./project/MemoriesTab";
 import { ArtifactsTab } from "./project/ArtifactsTab";
 import { AgentDetailScreen } from "./project/AgentDetailScreen";
+import { StructureTab } from "./project/StructureTab";
+import { DocsTab } from "./project/DocsTab";
+import { FilesTab } from "./project/FilesTab";
 
 type NavKey =
   | "" | "chat" | "config" | "telegram"
-  | "agents" | "routines" | "tasks" | "mcps" | "vars" | "logs" | "memories" | "artifacts";
+  | "agents" | "routines" | "tasks" | "mcps" | "vars" | "logs" | "memories" | "artifacts"
+  | "structure" | "docs" | "files";
 
 export function ProjectScreen() {
   const navigate = useNavigate();
@@ -79,6 +84,9 @@ export function ProjectScreen() {
         },
       ];
     }
+    // Structure (org roles/areas) is only meaningful for company/enterprise
+    // projects — gate it on the project kind.
+    const isCompany = project?.kind === "company";
     return [
       {
         title: t("project.sections.workspace"),
@@ -87,7 +95,15 @@ export function ProjectScreen() {
           { key: "telegram", label: t("project.nav.telegram"),  icon: Send },
           { key: "chat",     label: t("project.nav.chat"),      icon: MessagesSquare },
           { key: "agents",   label: t("project.nav.agents"),    icon: Bot },
+          ...(isCompany ? [{ key: "structure", label: t("project.nav.structure"), icon: Building2 }] : []),
           { key: "memories", label: t("project.nav.memories"),  icon: Brain },
+        ],
+      },
+      {
+        title: t("project.sections.content"),
+        items: [
+          { key: "docs",  label: t("project.nav.docs"),  icon: FileText },
+          { key: "files", label: t("project.nav.files"), icon: FolderTree },
         ],
       },
       {
@@ -108,7 +124,7 @@ export function ProjectScreen() {
         ],
       },
     ];
-  }, [isBase]);
+  }, [isBase, project?.kind]);
 
   // First path segment after /p/:pid — so deep routes like agents/:slug still
   // highlight the "agents" nav item.
@@ -155,6 +171,9 @@ export function ProjectScreen() {
         <Route path="telegram"     element={<TelegramTab pid={pid} />} />
         <Route path="agents"       element={<AgentsTab pid={pid} />} />
         <Route path="agents/:slug" element={<AgentDetailScreen pid={pid} />} />
+        <Route path="structure"    element={<StructureTab pid={pid} />} />
+        <Route path="docs"         element={<DocsTab pid={pid} />} />
+        <Route path="files"        element={<FilesTab pid={pid} />} />
         <Route path="memories"     element={<MemoriesTab pid={pid} />} />
         <Route path="routines"     element={<RoutinesTab pid={pid} />} />
         <Route path="tasks"        element={isBase ? <GlobalTasksTab /> : <TasksTab pid={pid} />} />

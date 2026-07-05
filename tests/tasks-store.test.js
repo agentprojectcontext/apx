@@ -13,6 +13,7 @@ import {
   doneTask,
   dropTask,
   reopenTask,
+  setTaskStatus,
   countTasks,
 } from "#core/stores/tasks.js";
 
@@ -49,6 +50,39 @@ test("listTasks defaults to open only", () => {
   const open = listTasks(storagePath);
   assert.equal(open.length, 1);
   assert.equal(open[0].id, a.id);
+});
+
+test("createTask defaults status to pending and carries thread + created_by", () => {
+  const t = createTask(storagePath, { title: "x", thread: "th_1", created_by: "manu" });
+  assert.equal(t.status, "pending");
+  assert.equal(t.thread, "th_1");
+  assert.equal(t.created_by, "manu");
+});
+
+test("createTask honors a valid status and rejects a bogus one to pending", () => {
+  assert.equal(createTask(storagePath, { title: "a", status: "running" }).status, "running");
+  assert.equal(createTask(storagePath, { title: "b", status: "nope" }).status, "pending");
+});
+
+test("setTaskStatus moves an open task through its workflow", () => {
+  const t = createTask(storagePath, { title: "work" });
+  assert.equal(setTaskStatus(storagePath, t.id, "in_review").status, "in_review");
+  // Invalid falls back to pending rather than persisting garbage.
+  assert.equal(setTaskStatus(storagePath, t.id, "bogus").status, "pending");
+  assert.equal(setTaskStatus(storagePath, "missing", "running"), null);
+});
+
+test("countTasks reports a per-status breakdown of open tasks", () => {
+  createTask(storagePath, { title: "a", status: "pending" });
+  createTask(storagePath, { title: "b", status: "running" });
+  const c = createTask(storagePath, { title: "c" });
+  doneTask(storagePath, c.id);
+  const counts = countTasks(storagePath);
+  assert.equal(counts.open, 2);
+  assert.equal(counts.done, 1);
+  assert.equal(counts.status.pending, 1);
+  assert.equal(counts.status.running, 1);
+  assert.equal(counts.status.in_review, 0);
 });
 
 test("listTasks --state all returns everything", () => {
