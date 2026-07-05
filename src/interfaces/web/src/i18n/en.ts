@@ -1748,6 +1748,8 @@ export const en = {
     imported_ok:         "Skill \"{slug}\" imported.",
     import_failed:       "Could not import: {msg}",
     cancel:              "Cancel",
+    manager_tab:         "Skills",
+    rag_tab:             "Config (RAG)",
   },
 
   shared_ui: {
