@@ -101,7 +101,7 @@ export function SettingsScreen() {
       onChange={(k) => navigate(k === "identity" ? "/settings" : `/settings/${pathFromTab(k as TabKey)}`)}
       collapsed={collapsed}
       onToggleCollapse={toggle}
-      contentClassName={`w-full ${WIDE_TABS.has(active) ? "" : "mx-auto max-w-3xl"} space-y-6 p-6 pt-3`}
+      contentClassName={`w-full ${WIDE_TABS.has(active) ? "" : "mx-auto max-w-3xl"} space-y-6 py-6 pt-3 pr-6 pl-4`}
       testId={`settings-tab-${active}`}
     >
       <Panel />

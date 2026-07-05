@@ -7,8 +7,8 @@
 //   POST /projects/:pid/agents/:slug/conversations/:id/compact
 //   POST /projects/:pid/send                                   (agent-to-agent)
 import { readAgents } from "#core/apc/parser.js";
-import { listConversations, readConversation } from "#core/stores/conversations.js";
-import { listGlobalThreads, readGlobalThread } from "#core/stores/messages.js";
+import { listConversations, readConversation, deleteConversation } from "#core/stores/conversations.js";
+import { listGlobalThreads, readGlobalThread, deleteGlobalThread } from "#core/stores/messages.js";
 import { compactConversation } from "#core/stores/conversations-compactor.js";
 import { replyAsAgent } from "#core/agent/a2a/reply.js";
 import { nowIso } from "./shared.js";
@@ -51,6 +51,16 @@ export function register(app, { project, config }) {
     });
   });
 
+  app.delete("/projects/:pid/agents/:slug/conversations/:id", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    if (!agentResolvable(p, req.params.slug))
+      return res.status(404).json({ error: "agent not found" });
+    const ok = deleteConversation(p.storagePath, req.params.slug, req.params.id);
+    if (!ok) return res.status(404).json({ error: "conversation not found" });
+    res.json({ ok: true });
+  });
+
   // ---- Super-agent channel threads ----
   // The super-agent's chats (telegram, web quick-chat, desktop, deck …) live
   // in the global per-channel ledger, not in per-agent conversation files.
@@ -71,6 +81,14 @@ export function register(app, { project, config }) {
     });
     if (!thread) return res.status(404).json({ error: "thread not found" });
     res.json(thread);
+  });
+
+  app.delete("/projects/:pid/super-agent/threads/:channel/:id", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const ok = deleteGlobalThread({ channel: req.params.channel, date: req.params.id });
+    if (!ok) return res.status(404).json({ error: "thread not found" });
+    res.json({ ok: true });
   });
 
   async function handleCompact(req, res, filename) {

@@ -12,6 +12,12 @@ export const Conversations = {
     http.get<ThreadListEntry[]>(`/projects/${pid}/super-agent/threads`),
   thread: (pid: string, channel: string, id: string) =>
     http.get<ThreadDetail>(`/projects/${pid}/super-agent/threads/${channel}/${id}`),
+  // Delete a persisted agent conversation (its `.md` file).
+  remove: (pid: string, slug: string, id: string) =>
+    http.del<{ ok: boolean }>(`/projects/${pid}/agents/${slug}/conversations/${id}`),
+  // Delete a super-agent channel thread (its channel+day ledger file).
+  removeThread: (pid: string, channel: string, id: string) =>
+    http.del<{ ok: boolean }>(`/projects/${pid}/super-agent/threads/${channel}/${id}`),
   compact: (pid: string, slug: string, id?: string) =>
     http.post<{ ok?: boolean }>(
       id
