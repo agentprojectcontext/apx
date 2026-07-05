@@ -1,5 +1,5 @@
 import { listSkills, SKILL_LOCATIONS } from "#core/agent/skills/loader.js";
-import { condenseSkillDescription } from "#core/agent/skills/index.js";
+import { condenseSkillDescription, filterEnabledSkills } from "#core/agent/skills/index.js";
 
 export default {
   name: "list_skills",
@@ -20,8 +20,11 @@ export default {
       },
     },
   },
-  makeHandler: () => ({ project_path } = {}) => {
-    const skills = listSkills({ projectPath: project_path });
+  makeHandler: (ctx = {}) => ({ project_path } = {}) => {
+    const skills = filterEnabledSkills(
+      listSkills({ projectPath: project_path }),
+      { config: ctx.globalConfig, projectPath: project_path },
+    );
     return {
       ok: true,
       count: skills.length,

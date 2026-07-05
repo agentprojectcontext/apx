@@ -8,7 +8,7 @@ import { TabLayout } from "../components/common/TabLayout";
 import { IdentityPanel } from "../components/settings/IdentityPanel";
 import { SuperAgentPanel } from "../components/settings/SuperAgentPanel";
 import { MemoryPanel } from "../components/settings/MemoryPanel";
-import { SkillsInspectorPanel } from "../components/settings/SkillsInspectorPanel";
+import { SkillsPanel } from "../components/settings/SkillsPanel";
 import { ModelsTab } from "./base/ModelsTab";
 import { TelegramSettingsTabs } from "../components/settings/TelegramSettingsTabs";
 import { DevicesPanel } from "../components/settings/DevicesPanel";
@@ -37,7 +37,7 @@ const SECTIONS: TabSection[] = [
       { key: "super_agent", label: t("settings.tabs.super_agent"), icon: Bot },
       { key: "engines",     label: t("settings.tabs.engines"),     icon: Cpu },
       { key: "memory",      label: "Memory (RAG)",                 icon: Database },
-      { key: "skills",      label: "Skills (RAG)",                 icon: Sparkles },
+      { key: "skills",      label: t("skills_page.title"),         icon: Sparkles },
     ],
   },
   {
@@ -75,7 +75,7 @@ const PANELS: Record<TabKey, () => ReactElement> = {
   super_agent: () => <SuperAgentPanel />,
   engines:     () => <ModelsTab />,
   memory:      () => <MemoryPanel />,
-  skills:      () => <SkillsInspectorPanel />,
+  skills:      () => <SkillsPanel />,
   telegram:    () => <TelegramSettingsTabs />,
   devices:     () => <DevicesPanel />,
   voice:       () => <VoiceScreen />,
