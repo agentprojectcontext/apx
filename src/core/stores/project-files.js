@@ -23,6 +23,10 @@ const SKIP_DIRS = new Set([
   "node_modules", ".git", "dist", "build", ".next", ".turbo", ".nuxt",
   "coverage", ".cache", ".venv", "venv", "__pycache__", ".pytest_cache",
   ".idea", ".vscode", ".DS_Store",
+  // Dependency / build caches from other ecosystems — these dominate the tree
+  // (a Composer `vendor/` alone can be tens of thousands of files) and would
+  // otherwise exhaust the node budget before the project's own files list.
+  "vendor", "bower_components", "Pods", ".terraform", ".gradle",
 ]);
 
 const TEXT_EXTS = new Set([
@@ -103,19 +107,34 @@ function walk(absDir, relPrefix, budget) {
   dirs.sort((a, b) => a.name.localeCompare(b.name));
   files.sort((a, b) => a.name.localeCompare(b.name));
 
+  // Two passes so a folder's OWN contents are never hidden by a deep subtree:
+  // 1) list every direct child (dirs + files) of this level, then
+  // 2) descend into the subdirs. Without this, a huge branch (e.g. `vendor/`)
+  //    consumed the whole node budget depth-first and the sibling files that
+  //    sort after the dirs — the project's root files — never got listed.
   const out = [];
+  const pending = []; // dir nodes to recurse into after the direct listing
   for (const ent of [...dirs, ...files]) {
     if (budget.count >= MAX_NODES) {
       budget.truncated = true;
-      break;
+      return out;
     }
     budget.count += 1;
     const rel = relPrefix ? `${relPrefix}/${ent.name}` : ent.name;
     if (ent.isDirectory()) {
-      out.push({ name: ent.name, path: rel, type: "dir", children: walk(path.join(absDir, ent.name), rel, budget) });
+      const node = { name: ent.name, path: rel, type: "dir", children: [] };
+      out.push(node);
+      pending.push({ node, abs: path.join(absDir, ent.name), rel });
     } else {
       out.push({ name: ent.name, path: rel, type: "file", kind: classifyKind(ent.name) });
     }
+  }
+  for (const { node, abs, rel } of pending) {
+    if (budget.count >= MAX_NODES) {
+      budget.truncated = true;
+      break;
+    }
+    node.children = walk(abs, rel, budget);
   }
   return out;
 }
