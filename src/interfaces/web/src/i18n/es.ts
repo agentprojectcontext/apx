@@ -1746,6 +1746,8 @@ export const es = {
     imported_ok:         "Skill \"{slug}\" importada.",
     import_failed:       "No se pudo importar: {msg}",
     cancel:              "Cancelar",
+    manager_tab:         "Skills",
+    rag_tab:             "Config (RAG)",
   },
 
   shared_ui: {
