@@ -210,6 +210,8 @@ export function agentToResponse(a) {
     "Parent",
     "Type",
     "Area",
+    "Emoji",
+    "Autonomy",
   ]);
   const extra = {};
   for (const [k, v] of Object.entries(f)) {
@@ -229,6 +231,11 @@ export function agentToResponse(a) {
     // definitional, kept in APC frontmatter.
     type: f.Type || null,
     area: f.Area || null,
+    // Display emoji (avatar) + autonomy (permission mode: total/automatico/
+    // permiso). Definitional, kept in APC frontmatter so they travel with the
+    // project and stay diffable.
+    emoji: f.Emoji || null,
+    autonomy: f.Autonomy || null,
     skills: Array.isArray(f.Skills) ? f.Skills : [],
     tools: Array.isArray(f.Tools) ? f.Tools : [],
     extra,

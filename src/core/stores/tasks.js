@@ -19,6 +19,16 @@ import path from "node:path";
 import { nowIso } from "../util/time.js";
 import { shortId as makeShortId } from "../util/ids.js";
 
+// Workflow sub-status for an *open* task. Orthogonal to `state`
+// (open/done/dropped): `state` is the storage lifecycle, `status` is how an
+// open task is progressing. `blocked` means it's waiting on a human/agent.
+export const TASK_STATUSES = Object.freeze(["pending", "running", "in_review", "blocked"]);
+export const DEFAULT_TASK_STATUS = "pending";
+
+function normalizeStatus(v) {
+  return TASK_STATUSES.includes(v) ? v : DEFAULT_TASK_STATUS;
+}
+
 function tasksDir(storagePath) {
   return path.join(storagePath, "tasks");
 }
@@ -72,12 +82,15 @@ function projectState(events) {
           created_at: ev.ts,
           updated_at: ev.ts,
           state: "open",
+          status: normalizeStatus(ev.status),
           title: ev.title || "",
           body: ev.body || null,
           tags: Array.isArray(ev.tags) ? [...ev.tags] : [],
           due: ev.due || null,
           agent: ev.agent || null,
           source: ev.source || null,
+          created_by: ev.created_by || null,
+          thread: ev.thread || null,
           meta: ev.meta && typeof ev.meta === "object" ? { ...ev.meta } : {},
         });
         break;
@@ -87,7 +100,7 @@ function projectState(events) {
         const patch = ev.patch && typeof ev.patch === "object" ? ev.patch : {};
         for (const k of Object.keys(patch)) {
           if (k === "id" || k === "state" || k === "created_at") continue;
-          existing[k] = patch[k];
+          existing[k] = k === "status" ? normalizeStatus(patch[k]) : patch[k];
         }
         existing.updated_at = ev.ts;
         break;
@@ -141,10 +154,13 @@ export function createTask(storagePath, fields) {
     op: "create",
     title: fields.title.trim(),
     body: fields.body || null,
+    status: normalizeStatus(fields.status),
     tags: Array.isArray(fields.tags) ? fields.tags.filter((t) => typeof t === "string") : [],
     due: fields.due || null,
     agent: fields.agent || null,
     source: fields.source || null,
+    created_by: fields.created_by || null,
+    thread: fields.thread || null,
     meta: fields.meta && typeof fields.meta === "object" ? fields.meta : {},
   };
   appendEvent(storagePath, ev);
@@ -207,6 +223,19 @@ export function patchTask(storagePath, idOrPrefix, patch) {
   return getTask(storagePath, existing.id);
 }
 
+/** Set the workflow status (pending/running/in_review/blocked) of an open task. */
+export function setTaskStatus(storagePath, idOrPrefix, status) {
+  const existing = getTask(storagePath, idOrPrefix);
+  if (!existing) return null;
+  appendEvent(storagePath, {
+    id: existing.id,
+    ts: nowIso(),
+    op: "update",
+    patch: { status: normalizeStatus(status) },
+  });
+  return getTask(storagePath, existing.id);
+}
+
 /** Mark done. */
 export function doneTask(storagePath, idOrPrefix, by = null) {
   const existing = getTask(storagePath, idOrPrefix);
@@ -249,11 +278,15 @@ export function reopenTask(storagePath, idOrPrefix) {
 export function countTasks(storagePath) {
   const tasks = [...projectState(readAllEvents(storagePath)).values()];
   const today = new Date().toISOString().slice(0, 10);
+  const open = tasks.filter((t) => t.state === "open");
+  const byStatus = {};
+  for (const s of TASK_STATUSES) byStatus[s] = open.filter((t) => t.status === s).length;
   return {
-    open: tasks.filter((t) => t.state === "open").length,
+    open: open.length,
     done: tasks.filter((t) => t.state === "done").length,
     dropped: tasks.filter((t) => t.state === "dropped").length,
-    overdue: tasks.filter((t) => t.state === "open" && t.due && t.due < today).length,
+    overdue: open.filter((t) => t.due && t.due < today).length,
     total: tasks.length,
+    status: byStatus,
   };
 }
