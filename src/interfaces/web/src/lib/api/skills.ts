@@ -21,6 +21,24 @@ export type SkillsList = {
   skills: SkillEntry[];
 };
 
+export interface SkillDetail {
+  slug: string;
+  source: SkillSource;
+  description: string;
+  frontmatter: Record<string, string>;
+  body: string;
+  file: string;
+  enabled: boolean;
+  private: boolean;
+  overridden: boolean;
+}
+
+export interface CreateResult {
+  ok: boolean;
+  slug: string;
+  source: string;
+}
+
 export interface InspectorConfig {
   enabled: boolean;
   load_threshold: number;
@@ -87,6 +105,12 @@ export const Skills = {
     return http.get<SkillsList>(q ? `/skills?${q}` : "/skills");
   },
 
+  /** Full body + frontmatter of a skill, for the viewer. */
+  detail: (slug: string, projectPath?: string) => {
+    const qs = projectPath ? `?project_path=${encodeURIComponent(projectPath)}` : "";
+    return http.get<SkillDetail>(`/skills/${encodeURIComponent(slug)}/detail${qs}`);
+  },
+
   /**
    * Enable/disable a skill for a scope. `enabled: null` clears the override so
    * the skill inherits the super-agent default again. `scope` is "default" or a
@@ -98,13 +122,26 @@ export const Skills = {
       body,
     ),
 
-  /** Create a user skill under ~/.apx/skills/<slug>/SKILL.md. */
-  create: (body: { slug: string; description?: string; body?: string }) =>
-    http.post<{ ok: boolean; slug: string; source: string }>("/skills", body),
+  /**
+   * Create a user skill from the online editor. With `project_path` it lands in
+   * that project's .apc/skills/; otherwise in ~/.apx/skills/.
+   */
+  create: (body: { slug: string; description?: string; body?: string; project_path?: string }) =>
+    http.post<CreateResult>("/skills", body),
 
-  /** Delete a user (global) skill. */
-  remove: (slug: string) =>
-    http.del<{ ok: boolean; slug: string }>(`/skills/${encodeURIComponent(slug)}`),
+  /** Import a skill from an uploaded .zip (base64-encoded). */
+  importZip: (body: { data: string; project_path?: string }) =>
+    http.post<CreateResult>("/skills/import/zip", body),
+
+  /** Import a skill by cloning a git repo. */
+  importRepo: (body: { url: string; project_path?: string }) =>
+    http.post<CreateResult>("/skills/import/repo", body),
+
+  /** Delete a user skill (global or project-scoped). */
+  remove: (slug: string, projectPath?: string) => {
+    const qs = projectPath ? `?project_path=${encodeURIComponent(projectPath)}` : "";
+    return http.del<{ ok: boolean; slug: string }>(`/skills/${encodeURIComponent(slug)}${qs}`);
+  },
 
   /** Skill Inspector config + index status. */
   inspector: () => http.get<InspectorState>("/skills/inspector"),

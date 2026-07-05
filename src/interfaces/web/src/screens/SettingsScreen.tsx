@@ -1,14 +1,15 @@
 import { type ReactElement } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
-  Bot, Cpu, Database, Globe, KeyRound, LayoutGrid, MessageCircle, Mic, Monitor, ScrollText, Send, Smartphone, Sparkles, User,
+  Bot, Cpu, Database, Globe, KeyRound, LayoutGrid, MessageCircle, Mic, Monitor, ScrollText, Send, SlidersHorizontal, Smartphone, Sparkles, User,
 } from "lucide-react";
 import { useNavCollapse, type TabSection } from "../components/common/TabNav";
 import { TabLayout } from "../components/common/TabLayout";
 import { IdentityPanel } from "../components/settings/IdentityPanel";
 import { SuperAgentPanel } from "../components/settings/SuperAgentPanel";
 import { MemoryPanel } from "../components/settings/MemoryPanel";
-import { SkillsPanel } from "../components/settings/SkillsPanel";
+import { SkillsInspectorPanel } from "../components/settings/SkillsInspectorPanel";
+import { SkillsManager } from "../components/settings/SkillsManager";
 import { ModelsTab } from "./base/ModelsTab";
 import { TelegramSettingsTabs } from "../components/settings/TelegramSettingsTabs";
 import { DevicesPanel } from "../components/settings/DevicesPanel";
@@ -21,7 +22,7 @@ import { STORAGE } from "../constants";
 import { t } from "../i18n";
 
 type TabKey =
-  | "identity" | "super_agent" | "engines" | "memory" | "skills" | "telegram" | "devices"
+  | "identity" | "super_agent" | "engines" | "memory" | "skills_manager" | "skills" | "telegram" | "devices"
   | "voice" | "deck" | "desktop" | "web" | "advanced";
 
 const SECTIONS: TabSection[] = [
@@ -37,7 +38,8 @@ const SECTIONS: TabSection[] = [
       { key: "super_agent", label: t("settings.tabs.super_agent"), icon: Bot },
       { key: "engines",     label: t("settings.tabs.engines"),     icon: Cpu },
       { key: "memory",      label: "Memory (RAG)",                 icon: Database },
-      { key: "skills",      label: t("skills_page.title"),         icon: Sparkles },
+      { key: "skills_manager", label: t("skills_page.title"),      icon: Sparkles },
+      { key: "skills",      label: "Skills (RAG)",                 icon: SlidersHorizontal },
     ],
   },
   {
@@ -68,14 +70,15 @@ const SECTIONS: TabSection[] = [
 // on xl (and so wants full available width). Single-section panels (identity,
 // super agent, devices, advanced) keep a cosier reading width so wide displays
 // don't blow form fields up to absurd widths.
-const WIDE_TABS = new Set<TabKey>(["engines", "telegram", "memory", "skills", "web", "voice"]);
+const WIDE_TABS = new Set<TabKey>(["engines", "telegram", "memory", "skills", "skills_manager", "web", "voice"]);
 
 const PANELS: Record<TabKey, () => ReactElement> = {
   identity:    () => <IdentityPanel />,
   super_agent: () => <SuperAgentPanel />,
   engines:     () => <ModelsTab />,
   memory:      () => <MemoryPanel />,
-  skills:      () => <SkillsPanel />,
+  skills_manager: () => <SkillsManager selectable />,
+  skills:      () => <SkillsInspectorPanel />,
   telegram:    () => <TelegramSettingsTabs />,
   devices:     () => <DevicesPanel />,
   voice:       () => <VoiceScreen />,
@@ -115,6 +118,7 @@ function tabFromPath(pathname: string): TabKey {
     case "super-agent": return "super_agent";
     case "engines": return "engines";
     case "memory": return "memory";
+    case "skills-manager": return "skills_manager";
     case "skills": return "skills";
     case "telegram": return "telegram";
     case "devices": return "devices";
@@ -131,6 +135,7 @@ function tabFromPath(pathname: string): TabKey {
 
 function pathFromTab(tab: TabKey): string {
   if (tab === "super_agent") return "super-agent";
+  if (tab === "skills_manager") return "skills-manager";
   if (tab === "advanced") return "config";
   return tab;
 }

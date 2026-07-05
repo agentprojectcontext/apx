@@ -1,8 +1,11 @@
 // `/skills` listing + enable/disable + Skill Inspector control surface.
 //
 //   GET    /skills                     catalog annotated with enabled/private per scope
+//   GET    /skills/:slug/detail        full body + frontmatter for the viewer
 //   PUT    /skills/enabled             toggle a skill on/off (or clear) for a scope
-//   POST   /skills                     create a user skill (~/.apx/skills/<slug>/)
+//   POST   /skills                     create a user skill (online editor)
+//   POST   /skills/import/zip          import a skill from an uploaded .zip
+//   POST   /skills/import/repo         import a skill by cloning a git repo
 //   DELETE /skills/:slug               delete a user skill
 //   GET    /skills/inspector           inspector config + index status
 //   PUT    /skills/inspector           toggle / tune inspector config
@@ -10,13 +13,18 @@
 //   POST   /skills/inspect             dry-run the inspector for a prompt
 //
 // A "scope" is either "default" (the super-agent / no-project baseline) or a
-// project's absolute path. Built-in skills are private: always active, never
-// disableable or deletable. The inspector routes mirror /embeddings/* so the web
-// admin can configure the skill RAG exactly like it configures the memory RAG.
+// project's absolute path. Creating/importing with a project_path targets that
+// project's <project>/.apc/skills/ (source "project"); without it, skills land
+// in ~/.apx/skills/ (source "global"). Built-in skills are private: always
+// active, never disableable or deletable. The inspector routes mirror
+// /embeddings/* so the web admin configures the skill RAG like the memory RAG.
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { listSkills, loadSkill, SKILL_LOCATIONS } from "#core/agent/skills/loader.js";
 import { condenseSkillDescription } from "#core/agent/skills/catalog.js";
+import { apcSkillsDir } from "#core/apc/paths.js";
 import {
   annotateSkills,
   setSkillEnabled,
@@ -35,8 +43,61 @@ import {
 import { readConfig, writeConfig } from "#core/config/index.js";
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]*$/;
+// Only http(s)/ssh/git git remotes — never a local path or shell metachar.
+const REPO_URL_RE = /^(https?:\/\/|git@|ssh:\/\/|git:\/\/)[\w.@:/\-~]+$/;
 
 const KNOWN_KEYS = Object.keys(INSPECTOR_DEFAULTS);
+
+// Where a newly created/imported skill lands, given a scope. A project_path
+// targets that project's .apc/skills/ (source "project"); otherwise the global
+// ~/.apx/skills/ (source "global").
+function targetSkillsDir(projectPath) {
+  return projectPath ? apcSkillsDir(projectPath) : SKILL_LOCATIONS.global;
+}
+
+function skillExists(slug, projectPath) {
+  return listSkills({ projectPath }).some((s) => s.slug === slug);
+}
+
+function writeSkillFile(dir, slug, description, body) {
+  fs.mkdirSync(dir, { recursive: true });
+  const fmDesc = String(description || "").replace(/\r?\n/g, " ").trim();
+  const content =
+    `---\nname: ${slug}\ndescription: ${fmDesc}\n---\n\n${String(body || "").trim()}\n`;
+  fs.writeFileSync(path.join(dir, "SKILL.md"), content, "utf8");
+}
+
+// Find the skill root inside an extracted/cloned tree: the dir that directly
+// contains a SKILL.md (the tree itself, or its single top-level subdir).
+function findSkillRoot(root) {
+  if (fs.existsSync(path.join(root, "SKILL.md"))) return root;
+  let entries;
+  try { entries = fs.readdirSync(root, { withFileTypes: true }); } catch { return null; }
+  const dirs = entries.filter((e) => e.isDirectory() && e.name !== "__MACOSX");
+  for (const d of dirs) {
+    const sub = path.join(root, d.name);
+    if (fs.existsSync(path.join(sub, "SKILL.md"))) return sub;
+  }
+  return null;
+}
+
+function readSlugFromSkill(dir, fallback) {
+  try {
+    const raw = fs.readFileSync(path.join(dir, "SKILL.md"), "utf8");
+    const m = raw.match(/^---[\s\S]*?\bname\s*:\s*(.+?)\s*$/m);
+    if (m && SLUG_RE.test(m[1].trim())) return m[1].trim();
+  } catch { /* ignore */ }
+  return fallback;
+}
+
+// Copy an extracted skill dir into the target skills location under <slug>/.
+function installSkillDir(srcDir, slug, projectPath) {
+  const destBase = targetSkillsDir(projectPath);
+  const dest = path.join(destBase, slug);
+  fs.mkdirSync(destBase, { recursive: true });
+  fs.cpSync(srcDir, dest, { recursive: true });
+  return dest;
+}
 
 function mergedInspectorConfig(cfg) {
   return { ...INSPECTOR_DEFAULTS, ...(cfg?.skills?.inspector || {}) };
@@ -86,6 +147,32 @@ export function register(app /*, ctx */) {
     }
   });
 
+  // ---- Full detail (viewer) ----------------------------------------------
+
+  app.get("/skills/:slug/detail", (req, res) => {
+    try {
+      const projectPath = typeof req.query?.project_path === "string" && req.query.project_path
+        ? req.query.project_path
+        : undefined;
+      const skill = loadSkill(req.params.slug, { projectPath });
+      const cfg = readConfig();
+      const [annotated] = annotateSkills([skill], { config: cfg, projectPath });
+      res.json({
+        slug: skill.slug,
+        source: skill.source,
+        description: skill.description,
+        frontmatter: skill.frontmatter,
+        body: skill.body,
+        file: skill.file,
+        enabled: annotated?.enabled ?? true,
+        private: annotated?.private ?? false,
+        overridden: annotated?.overridden ?? false,
+      });
+    } catch (e) {
+      res.status(404).json({ error: e.message });
+    }
+  });
+
   // ---- Enable / disable per scope ----------------------------------------
 
   app.put("/skills/enabled", (req, res) => {
@@ -112,27 +199,97 @@ export function register(app /*, ctx */) {
     }
   });
 
-  // ---- Create / delete user skills ---------------------------------------
+  // ---- Create / import user skills ---------------------------------------
 
+  // Online editor: write a SKILL.md from slug + description + body.
   app.post("/skills", (req, res) => {
     try {
-      const { slug, description, body } = req.body || {};
+      const { slug, description, body, project_path } = req.body || {};
       if (!slug || typeof slug !== "string" || !SLUG_RE.test(slug)) {
         return res.status(400).json({ error: "slug required (lowercase letters, digits, dashes)" });
       }
-      if (listSkills().some((s) => s.slug === slug)) {
-        return res.status(409).json({ error: `a skill named "${slug}" already exists` });
+      if (skillExists(slug, project_path)) {
+        return res.status(409).json({ error: `a skill named "${slug}" already exists in this scope` });
       }
-      const dir = path.join(SKILL_LOCATIONS.global, slug);
-      fs.mkdirSync(dir, { recursive: true });
-      const fmDesc = String(description || "").replace(/\n/g, " ").trim();
-      const content =
-        `---\nname: ${slug}\ndescription: ${fmDesc}\n---\n\n` +
-        `${String(body || "").trim()}\n`;
-      fs.writeFileSync(path.join(dir, "SKILL.md"), content, "utf8");
-      res.status(201).json({ ok: true, slug, source: "global" });
+      const dir = path.join(targetSkillsDir(project_path), slug);
+      writeSkillFile(dir, slug, description, body);
+      res.status(201).json({ ok: true, slug, source: project_path ? "project" : "global" });
     } catch (e) {
       res.status(500).json({ error: e.message });
+    }
+  });
+
+  // Import from an uploaded .zip (sent as base64 in JSON — skills are tiny).
+  app.post("/skills/import/zip", (req, res) => {
+    let tmp;
+    try {
+      const { data, project_path } = req.body || {};
+      if (!data || typeof data !== "string") {
+        return res.status(400).json({ error: "zip data (base64) required" });
+      }
+      const buf = Buffer.from(data.replace(/^data:.*;base64,/, ""), "base64");
+      if (!buf.length) return res.status(400).json({ error: "empty zip" });
+
+      tmp = fs.mkdtempSync(path.join(os.tmpdir(), "apx-skill-zip-"));
+      const zipPath = path.join(tmp, "skill.zip");
+      fs.writeFileSync(zipPath, buf);
+      const out = path.join(tmp, "out");
+      fs.mkdirSync(out);
+      const unzip = spawnSync("unzip", ["-qq", "-o", zipPath, "-d", out], { encoding: "utf8" });
+      if (unzip.status !== 0) {
+        return res.status(400).json({ error: `unzip failed: ${(unzip.stderr || "bad archive").trim()}` });
+      }
+      const root = findSkillRoot(out);
+      if (!root) return res.status(400).json({ error: "no SKILL.md found in the zip" });
+      const slug = readSlugFromSkill(root, path.basename(root));
+      if (!SLUG_RE.test(slug)) return res.status(400).json({ error: `invalid skill name "${slug}"` });
+      if (skillExists(slug, project_path)) {
+        return res.status(409).json({ error: `a skill named "${slug}" already exists in this scope` });
+      }
+      installSkillDir(root, slug, project_path);
+      res.status(201).json({ ok: true, slug, source: project_path ? "project" : "global" });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    } finally {
+      if (tmp) fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
+
+  // Import by cloning a git repo. The repo root (or its single skill subdir)
+  // must contain a SKILL.md.
+  app.post("/skills/import/repo", (req, res) => {
+    let tmp;
+    try {
+      const { url, project_path } = req.body || {};
+      if (!url || typeof url !== "string" || !REPO_URL_RE.test(url.trim())) {
+        return res.status(400).json({ error: "a valid git URL (https/ssh/git) is required" });
+      }
+      tmp = fs.mkdtempSync(path.join(os.tmpdir(), "apx-skill-repo-"));
+      const clone = path.join(tmp, "repo");
+      // Array args (no shell) — url is regex-validated above.
+      const git = spawnSync("git", ["clone", "--depth", "1", url.trim(), clone], {
+        encoding: "utf8",
+        timeout: 60_000,
+        env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
+      });
+      if (git.status !== 0) {
+        return res.status(400).json({ error: `git clone failed: ${(git.stderr || "").trim().slice(0, 300)}` });
+      }
+      const root = findSkillRoot(clone);
+      if (!root) return res.status(400).json({ error: "no SKILL.md found in the repo" });
+      const slug = readSlugFromSkill(root, path.basename(root));
+      if (!SLUG_RE.test(slug)) return res.status(400).json({ error: `invalid skill name "${slug}"` });
+      if (skillExists(slug, project_path)) {
+        return res.status(409).json({ error: `a skill named "${slug}" already exists in this scope` });
+      }
+      // Strip the repo's .git before installing so we don't nest a git dir.
+      fs.rmSync(path.join(root, ".git"), { recursive: true, force: true });
+      installSkillDir(root, slug, project_path);
+      res.status(201).json({ ok: true, slug, source: project_path ? "project" : "global" });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    } finally {
+      if (tmp) fs.rmSync(tmp, { recursive: true, force: true });
     }
   });
 
@@ -142,16 +299,24 @@ export function register(app /*, ctx */) {
       if (!slug || !SLUG_RE.test(slug)) {
         return res.status(400).json({ error: "invalid slug" });
       }
+      const projectPath = typeof req.query?.project_path === "string" && req.query.project_path
+        ? req.query.project_path
+        : undefined;
       let entry;
-      try { entry = loadSkill(slug); } catch { entry = null; }
+      try { entry = loadSkill(slug, { projectPath }); } catch { entry = null; }
       if (!entry) return res.status(404).json({ error: `skill "${slug}" not found` });
-      if (entry.source !== "global") {
-        return res.status(403).json({ error: `only user-installed (global) skills can be deleted; "${slug}" is ${entry.source}` });
+      // Only user-managed skills (global ~/.apx/skills or project .apc/skills)
+      // can be deleted; built-in ones ship with apx.
+      if (entry.source !== "global" && entry.source !== "project") {
+        return res.status(403).json({ error: `built-in skill "${slug}" cannot be deleted (it ships with apx)` });
       }
       // The skill dir is the parent of its SKILL.md (dir-style) — never the
-      // shared global root itself.
+      // shared skills root itself.
       const dir = path.dirname(entry.file);
-      if (path.resolve(dir) === path.resolve(SKILL_LOCATIONS.global)) {
+      const roots = [SKILL_LOCATIONS.global, projectPath ? apcSkillsDir(projectPath) : null]
+        .filter(Boolean)
+        .map((p) => path.resolve(p));
+      if (roots.includes(path.resolve(dir))) {
         // Flat-style <slug>.md — remove just the file.
         fs.rmSync(entry.file, { force: true });
       } else {
