@@ -1,3 +1,12 @@
+# [1.59.0](https://github.com/agentprojectcontext/apx/compare/v1.58.0...v1.59.0) (2026-07-05)
+
+
+### Features
+
+* **skills:** Claude-Desktop-style manager — list+viewer, add dropdown, per-scope ([49fb082](https://github.com/agentprojectcontext/apx/commit/49fb0827dc711fddedcd3eb19abbc34dc5d12751))
+* **skills:** merge the two settings entries into one "Skills" with inner tabs ([a8c0478](https://github.com/agentprojectcontext/apx/commit/a8c0478064471da6855520f4a21cecc744df7dcf))
+* **skills:** scope-aware enable/disable + private built-ins + web manager ([85fad19](https://github.com/agentprojectcontext/apx/commit/85fad19ba02675d89707cffdd19f175185cd1c49))
+
 # [1.58.0](https://github.com/agentprojectcontext/apx/compare/v1.57.0...v1.58.0) (2026-07-05)
 
 
