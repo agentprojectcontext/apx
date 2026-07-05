@@ -1,3 +1,15 @@
+# [1.57.0](https://github.com/agentprojectcontext/apx/compare/v1.56.2...v1.57.0) (2026-07-05)
+
+
+### Bug Fixes
+
+* **chat:** show tool executions in web thread history ([5ea5cc4](https://github.com/agentprojectcontext/apx/commit/5ea5cc4c7fe18682ed13d66cb854e85603e437fd))
+
+
+### Features
+
+* **web/chat:** agent-picker New flow, channel-first sidebar, real delete ([f508cfc](https://github.com/agentprojectcontext/apx/commit/f508cfcfef9ad0ff4a8f5936454f55fbcd7c41da))
+
 ## [1.56.2](https://github.com/agentprojectcontext/apx/compare/v1.56.1...v1.56.2) (2026-07-03)
 
 
