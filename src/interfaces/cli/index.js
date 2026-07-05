@@ -140,6 +140,13 @@ import {
   cmdTaskReopen,
   cmdTaskPatch,
 } from "./commands/task.js";
+import {
+  cmdOrgShow,
+  cmdOrgAreaAdd,
+  cmdOrgAreaRm,
+  cmdOrgRoleAdd,
+  cmdOrgRoleRm,
+} from "./commands/org.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -1531,6 +1538,24 @@ const HELP_TOPICS = new Map(Object.entries({
     usage: ["apx tasks <subcommand> [args] [--flags]"],
     examples: ["apx tasks list"],
   }),
+  org: topic({
+    title: "apx org",
+    summary: "Organization structure (areas + roles) for a project — the org chart companies/enterprises use to group agents.",
+    usage: ["apx org <show|area|role> [args] [--flags]"],
+    commands: [
+      ["show | list", "Print the project's areas and roles."],
+      ["area add \"<name>\"", "Create an area. --slug, --goal optional."],
+      ["area rm <slug>", "Remove an area (its roles are detached, not deleted)."],
+      ["role add \"<name>\"", "Create a role. --slug, --area, --desc optional."],
+      ["role rm <slug>", "Remove a role."],
+    ],
+    options: [["--project <name|id|path>", "Pin command to a specific project."]],
+    examples: [
+      "apx org area add \"Engineering\" --goal \"Build the product\"",
+      "apx org role add \"Tech Lead\" --area engineering",
+      "apx org show",
+    ],
+  }),
   "task add": topic({
     title: "apx task add",
     summary: "Create a task on a project's TODO list.",
@@ -2601,6 +2626,29 @@ async function dispatch(cmd, rest) {
         if (!sub || sub === "list" || sub === "ls") await cmdCommandList(a);
         else if (sub === "show" || sub === "get") await cmdCommandShow(a);
         else die(`unknown command subcommand: ${sub}`);
+        break;
+      }
+
+      case "org":
+      case "organization": {
+        const sub = rest[0];
+        const a = parseArgs(rest.slice(1));
+        // `apx org area add ...` / `apx org role rm ...` — the resource verb is
+        // the first positional, the action the second.
+        if (!sub || sub === "show" || sub === "list") await cmdOrgShow(a);
+        else if (sub === "area") {
+          const action = rest[1];
+          const aa = parseArgs(rest.slice(1)); // keep `area` as _[0] for name parsing
+          if (action === "add" || action === "new") await cmdOrgAreaAdd(aa);
+          else if (action === "rm" || action === "remove" || action === "delete") await cmdOrgAreaRm(aa);
+          else die("usage: apx org area <add|rm> ...");
+        } else if (sub === "role") {
+          const action = rest[1];
+          const ra = parseArgs(rest.slice(1));
+          if (action === "add" || action === "new") await cmdOrgRoleAdd(ra);
+          else if (action === "rm" || action === "remove" || action === "delete") await cmdOrgRoleRm(ra);
+          else die("usage: apx org role <add|rm> ...");
+        } else die(`unknown org subcommand: ${sub}\nUsage: apx org <show|area|role> ...`);
         break;
       }
 

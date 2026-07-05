@@ -18,6 +18,7 @@ export const APC_SKILLS_DIR = "skills";
 export const APC_COMMANDS_DIR = "commands";
 export const APC_NOTES_DIR = "notes";
 export const APC_MCPS_FILE = "mcps.json";
+export const APC_ORGANIZATION_FILE = "organization.json";
 export const APC_REMOVED_FILE = ".removed.json";
 export const AGENTS_MD = "AGENTS.md";
 
@@ -75,6 +76,12 @@ export function apcMemoryFile(root) {
 
 export function apcMcpsFile(root) {
   return path.join(root, APC_DIR, APC_MCPS_FILE);
+}
+
+// Org structure (areas + roles) for company/enterprise projects. Committed,
+// no secrets — travels with the project like agents do.
+export function apcOrganizationFile(root) {
+  return path.join(root, APC_DIR, APC_ORGANIZATION_FILE);
 }
 
 export function agentsMdFile(root) {
