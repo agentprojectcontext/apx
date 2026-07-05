@@ -1,6 +1,7 @@
 // Super-agent: daemon-level action agent for Telegram, TUI, desktop, routines.
 import { createToolSession, buildLazyToolsBlock, makeToolHandlers } from "#core/agent/tools/registry.js";
 import { listSkills } from "#core/agent/skills/loader.js";
+import { filterEnabledSkills } from "#core/agent/skills/policy.js";
 import {
   runAgent,
   buildSuperAgentSystem,
@@ -97,10 +98,16 @@ export async function runSuperAgent({
   // noTools callers (summarize/ask) get no session — text only.
   const toolSession = noTools ? null : createToolSession(channel, { allowedTools });
 
+  // Scope the catalog hint to the skills enabled for this project (or the
+  // super-agent baseline when no project). Built-in/private skills always pass.
+  const projectPath = channelMeta?.projectPath;
+  const scopedListSkills = (opts = {}) =>
+    filterEnabledSkills(listSkills(opts), { config: globalConfig, projectPath });
+
   const system = buildSuperAgentSystem({
     globalConfig,
     projects,
-    listSkills,
+    listSkills: scopedListSkills,
     contextNote,
     channel,
     channelMeta,

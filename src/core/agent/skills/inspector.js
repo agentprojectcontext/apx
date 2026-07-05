@@ -25,6 +25,7 @@
 
 import { embedOne, cosineSim } from "#core/memory/embeddings.js";
 import { listSkills, loadSkill } from "./loader.js";
+import { filterEnabledSkills, isSkillEnabled } from "./policy.js";
 import { readIndex, backgroundRefreshIfStale } from "./index-store.js";
 
 // Defaults — exported so the CLI/web can render them.
@@ -187,7 +188,8 @@ export async function inspectPromptForSkills({ prompt, projectPath, globalConfig
     };
   }
 
-  const scored = scoreAgainstIndex(probe.vector, items);
+  const scored = scoreAgainstIndex(probe.vector, items).filter((s) =>
+    isSkillEnabled(s, { config: globalConfig, projectPath }));
   return await pickAndRender({ scored, projectPath, probe, cfg });
 }
 
@@ -196,7 +198,10 @@ export async function inspectPromptForSkills({ prompt, projectPath, globalConfig
 // ---------------------------------------------------------------------------
 
 async function inspectFromLive({ text, projectPath, cfg, globalConfig, embedOpts }) {
-  const skills = listSkills({ projectPath });
+  const skills = filterEnabledSkills(listSkills({ projectPath }), {
+    config: globalConfig,
+    projectPath,
+  });
   if (!skills.length) {
     return { contextNote: "", trace: { enabled: true, reason: "no_skills" } };
   }
