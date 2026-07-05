@@ -53,19 +53,26 @@ test("listGlobalThreads: skips days with no conversational turns", () => {
   assert.deepEqual(listGlobalThreads({ _globalMessagesDir: base }), []);
 });
 
-test("readGlobalThread: maps user/agent to chat roles, drops tool/system", () => {
+test("readGlobalThread: maps user/agent to chat roles, includes tool, drops system", () => {
   const base = tmpLedger();
   writeDay(base, "telegram", "2026-07-01", [
     { ts: "2026-07-01T10:00:00Z", channel: "telegram", direction: "in", type: "user", body: "hola" },
-    { ts: "2026-07-01T10:00:02Z", channel: "telegram", direction: "out", type: "tool", body: "tool noise" },
+    { ts: "2026-07-01T10:00:02Z", channel: "telegram", direction: "out", type: "tool", body: "tool noise", meta: { tool: "search", args: { q: "x" }, result: { ok: true } } },
+    { ts: "2026-07-01T10:00:03Z", channel: "telegram", direction: "out", type: "system", author: "system", body: "sys noise" },
     { ts: "2026-07-01T10:00:05Z", channel: "telegram", direction: "out", type: "agent", body: "buenas!" },
   ]);
   const thread = readGlobalThread({ channel: "telegram", date: "2026-07-01", _globalMessagesDir: base });
   assert.equal(thread.channel, "telegram");
+  // Tool rows are surfaced so the web viewer can render tool executions the
+  // same way the live stream does; system rows stay dropped (context-only).
   assert.deepEqual(
     thread.messages.map((m) => [m.role, m.content]),
-    [["user", "hola"], ["assistant", "buenas!"]]
+    [["user", "hola"], ["tool", "tool noise"], ["assistant", "buenas!"]]
   );
+  const toolMsg = thread.messages.find((m) => m.role === "tool");
+  assert.equal(toolMsg.tool, "search");
+  assert.deepEqual(toolMsg.args, { q: "x" });
+  assert.deepEqual(toolMsg.result, { ok: true });
 });
 
 test("readGlobalThread: rejects traversal-shaped channel and bad dates", () => {
