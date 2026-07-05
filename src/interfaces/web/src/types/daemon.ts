@@ -18,6 +18,9 @@ export interface ProjectEntry {
   storagePath?: string;
 }
 
+// Autonomy mirrors the super-agent permission modes.
+export type AgentAutonomy = "total" | "automatico" | "permiso";
+
 export interface AgentEntry {
   slug: string;
   role: string | null;
@@ -28,6 +31,8 @@ export interface AgentEntry {
   parent?: string | null;
   type?: string | null;
   area?: string | null;
+  emoji?: string | null;
+  autonomy?: AgentAutonomy | null;
   skills: string[];
   tools: string[];
 }
@@ -52,17 +57,75 @@ export interface RoutineEntry {
   post_commands?: string[];
 }
 
+// Workflow sub-status for an open task (orthogonal to `state`).
+export type TaskStatus = "pending" | "running" | "in_review" | "blocked";
+
 export interface TaskEntry {
   id: string;
   state: "open" | "done" | "dropped";
+  status?: TaskStatus;
   title: string;
   body: string | null;
   tags: string[];
   due: string | null;
   agent: string | null;
   source: string | null;
+  created_by?: string | null;
+  thread?: string | null;
+  done_at?: string | null;
+  done_by?: string | null;
+  dropped_at?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface OrgArea {
+  slug: string;
+  name: string;
+  goal: string | null;
+}
+
+export interface OrgRole {
+  slug: string;
+  name: string;
+  area: string | null;
+  description: string | null;
+}
+
+export interface Organization {
+  areas: OrgArea[];
+  roles: OrgRole[];
+}
+
+// Project file browser (core/stores/project-files.js).
+export type FileKind = "markdown" | "text" | "image" | "binary";
+
+export interface FileNode {
+  name: string;
+  path: string;
+  type: "dir" | "file";
+  kind?: FileKind;
+  children?: FileNode[];
+}
+
+export interface FileTreeResponse {
+  scope: "project" | "docs";
+  root: string;
+  subdir: string;
+  tree: FileNode[];
+  truncated: boolean;
+}
+
+export interface FileContent {
+  path: string;
+  name: string;
+  kind: FileKind;
+  size: number;
+  modified: string;
+  encoding: "utf8" | "base64" | "binary";
+  mime?: string;
+  content: string | null;
+  too_large?: boolean;
 }
 
 export interface McpEntry {

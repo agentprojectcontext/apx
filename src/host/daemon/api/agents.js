@@ -24,6 +24,17 @@ import {
 } from "#core/agent/memory.js";
 import { agentToResponse } from "./shared.js";
 import { normalizeVaultPatch } from "#core/apc/agents-vault.js";
+import { PERMISSION_MODES } from "#core/constants/permissions.js";
+
+// Autonomy mirrors the super-agent permission modes (total/automatico/permiso).
+// An invalid value is dropped rather than persisted so a typo can't silently
+// widen an agent's autonomy.
+const AUTONOMY_VALUES = new Set(Object.values(PERMISSION_MODES));
+function normalizeAutonomy(v) {
+  if (v === undefined) return undefined;
+  if (v === null || v === "") return null;
+  return AUTONOMY_VALUES.has(v) ? v : undefined;
+}
 
 export function register(app, { projects, project }) {
   // Vault = global agent templates. Two-layer: bundled defaults shipped with
@@ -128,14 +139,17 @@ export function register(app, { projects, project }) {
   app.post("/projects/:pid/agents", (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    const { slug, role, model, skills, language, description, tools, is_master, parent } =
-      req.body || {};
+    const {
+      slug, role, model, skills, language, description, tools, is_master,
+      parent, type, area, emoji, autonomy,
+    } = req.body || {};
     if (!slug) return res.status(400).json({ error: "slug required" });
     if (!/^[a-z][a-z0-9_-]*$/.test(slug))
       return res.status(400).json({ error: "invalid slug" });
     const existing = readAgents(p.path).find((a) => a.slug === slug);
     if (existing)
       return res.status(400).json({ error: `agent ${slug} already exists` });
+    const autonomyVal = normalizeAutonomy(autonomy);
     try {
       writeAgentFile(p.path, slug, {
         Role: role || null,
@@ -146,6 +160,10 @@ export function register(app, { projects, project }) {
         Tools: tools || [],
         Master: is_master ? true : null,
         Parent: parent || null,
+        Type: type || null,
+        Area: area || null,
+        Emoji: emoji || null,
+        Autonomy: autonomyVal || null,
       });
       ensureAgentDir(p.path, slug);
       ensureAgentRuntimeDir(p, slug);
@@ -179,6 +197,8 @@ export function register(app, { projects, project }) {
     setStr("Parent", b.parent);
     setStr("Type", b.type);
     setStr("Area", b.area);
+    setStr("Emoji", b.emoji);
+    setStr("Autonomy", normalizeAutonomy(b.autonomy));
     if (b.skills !== undefined) fields.Skills = Array.isArray(b.skills) ? b.skills : [];
     if (b.tools !== undefined) fields.Tools = Array.isArray(b.tools) ? b.tools : [];
     if (b.is_master !== undefined) {
