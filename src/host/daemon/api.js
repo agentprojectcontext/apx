@@ -18,6 +18,7 @@ import { register as registerProjects } from "./api/projects.js";
 import { register as registerAgents } from "./api/agents.js";
 import { register as registerSessions } from "./api/sessions.js";
 import { register as registerMcps } from "./api/mcps.js";
+import { register as registerIntegrations } from "./api/integrations.js";
 import { register as registerVars } from "./api/vars.js";
 import { register as registerMessages } from "./api/messages.js";
 import { register as registerTelegram } from "./api/telegram.js";
@@ -109,6 +110,7 @@ export function buildApi({
   registerAgents(app, ctx);
   registerSessions(app, ctx);
   registerMcps(app, ctx);
+  registerIntegrations(app, ctx);
   registerVars(app, ctx);
   registerMessages(app, ctx);
   registerEngines(app, ctx);

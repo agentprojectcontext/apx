@@ -33,6 +33,10 @@ import gitStatus from "./handlers/git-status.js";
 import gitDiff from "./handlers/git-diff.js";
 import gitLog from "./handlers/git-log.js";
 import gitShow from "./handlers/git-show.js";
+import asanaListProjects from "./handlers/asana-list-projects.js";
+import asanaListTasks from "./handlers/asana-list-tasks.js";
+import asanaCreateTask from "./handlers/asana-create-task.js";
+import asanaUpdateTask from "./handlers/asana-update-task.js";
 import { createPermissionGuard } from "./helpers.js";
 import { buildBridgedTools, DEFAULT_CATEGORIES } from "./registry-bridge.js";
 import { TOOLS, CODE_CHANNEL_TOOLS } from "./names.js";
@@ -74,6 +78,13 @@ const NATIVE_TOOLS = [
   gitDiff,
   gitLog,
   gitShow,
+  // Integration plugin tools (Asana). Each carries its own `category`, so it
+  // lands in the "integrations" group of the discover_tools catalog and stays
+  // lazy on chat channels until activated.
+  asanaListProjects,
+  asanaListTasks,
+  asanaCreateTask,
+  asanaUpdateTask,
 ];
 
 // Registry-backed bridges. Categories can be overridden per-process via env

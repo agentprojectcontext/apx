@@ -50,6 +50,12 @@ export const TOOLS = Object.freeze({
   CALL_MCP:            "call_mcp",
   CALL_RUNTIME:        "call_runtime",
 
+  // Integrations — Asana plugin (see core/integrations/plugins/asana.js)
+  ASANA_LIST_PROJECTS: "asana_list_projects",
+  ASANA_LIST_TASKS:    "asana_list_tasks",
+  ASANA_CREATE_TASK:   "asana_create_task",
+  ASANA_UPDATE_TASK:   "asana_update_task",
+
   // Side-effects
   SEND_TELEGRAM:       "send_telegram",
   SET_IDENTITY:        "set_identity",
@@ -94,6 +100,10 @@ export const NATIVE_TOOL_NAMES = new Set([
   TOOLS.CALL_AGENT,
   TOOLS.CALL_MCP,
   TOOLS.CALL_RUNTIME,
+  TOOLS.ASANA_LIST_PROJECTS,
+  TOOLS.ASANA_LIST_TASKS,
+  TOOLS.ASANA_CREATE_TASK,
+  TOOLS.ASANA_UPDATE_TASK,
   TOOLS.SEND_TELEGRAM,
   TOOLS.SET_IDENTITY,
   TOOLS.SET_PERMISSION_MODE,
