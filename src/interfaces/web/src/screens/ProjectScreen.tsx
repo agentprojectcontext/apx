@@ -4,7 +4,7 @@ import {
   Bot, Heart, Zap, Puzzle, FolderKanban, Settings,
   MessagesSquare, Send, KeyRound,
   LayoutDashboard, Boxes, Cpu, ScrollText, History, Brain, FileCode2,
-  Building2, FileText, FolderTree,
+  Building2, FileText, FolderTree, Sparkles,
 } from "lucide-react";
 import { useNavCollapse, type TabSection } from "../components/common/TabNav";
 import { TabLayout } from "../components/common/TabLayout";
@@ -34,11 +34,12 @@ import { AgentDetailScreen } from "./project/AgentDetailScreen";
 import { StructureTab } from "./project/StructureTab";
 import { DocsTab } from "./project/DocsTab";
 import { FilesTab } from "./project/FilesTab";
+import { SkillsTab } from "./project/SkillsTab";
 
 type NavKey =
   | "" | "chat" | "config" | "telegram"
   | "agents" | "routines" | "tasks" | "mcps" | "vars" | "logs" | "memories" | "artifacts"
-  | "structure" | "docs" | "files";
+  | "structure" | "docs" | "files" | "skills";
 
 export function ProjectScreen() {
   const navigate = useNavigate();
@@ -75,6 +76,7 @@ export function ProjectScreen() {
           items: [
             { key: "agents",   label: t("project.nav.agents"),   icon: Bot },
             { key: "memories", label: t("project.nav.memories"), icon: Brain },
+            { key: "skills",   label: t("skills_page.title"),    icon: Sparkles },
             { key: "routines",  label: t("project.nav.routines"),  icon: Heart },
             { key: "mcps",      label: t("project.nav.mcps"),      icon: Puzzle },
             { key: "vars",      label: t("project.nav.vars"),      icon: KeyRound },
@@ -97,6 +99,7 @@ export function ProjectScreen() {
           { key: "agents",   label: t("project.nav.agents"),    icon: Bot },
           ...(isCompany ? [{ key: "structure", label: t("project.nav.structure"), icon: Building2 }] : []),
           { key: "memories", label: t("project.nav.memories"),  icon: Brain },
+          { key: "skills",   label: t("skills_page.title"),     icon: Sparkles },
         ],
       },
       {
@@ -175,6 +178,7 @@ export function ProjectScreen() {
         <Route path="docs"         element={<DocsTab pid={pid} />} />
         <Route path="files"        element={<FilesTab pid={pid} />} />
         <Route path="memories"     element={<MemoriesTab pid={pid} />} />
+        <Route path="skills"       element={<SkillsTab pid={pid} />} />
         <Route path="routines"     element={<RoutinesTab pid={pid} />} />
         <Route path="tasks"        element={isBase ? <GlobalTasksTab /> : <TasksTab pid={pid} />} />
         <Route path="mcps"         element={<McpsTab pid={pid} />} />
