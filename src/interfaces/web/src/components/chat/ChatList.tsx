@@ -12,7 +12,6 @@ import {
   Monitor,
   Plus,
   Send,
-  Sparkles,
   Timer,
   User,
 } from "lucide-react";
@@ -23,14 +22,15 @@ import { t } from "../../i18n";
 import type { AgentEntry, ConversationListEntry, ThreadListEntry } from "../../types/daemon";
 
 // Channel taxonomy — same channels the daemon writes ("web", "voice",
-// "desktop", "telegram", …) folded into 8 sidebar groups. Each group has an
-// icon + a fixed display order so the sidebar is stable across reloads.
+// "desktop", "telegram", …) folded into sidebar groups. Each group has an
+// icon + a fixed display order so the sidebar is stable across reloads. Web is
+// pinned first (it's where chats started from this UI land), then the remote
+// channels, with the catch-all "other" last.
 export type ChannelGroupKey =
-  | "live"
-  | "telegram"
-  | "voice"
-  | "desktop"
   | "web"
+  | "telegram"
+  | "desktop"
+  | "voice"
   | "a2a"
   | "schedule"
   | "other";
@@ -42,14 +42,13 @@ interface GroupMeta {
 }
 
 const GROUP_META: Record<ChannelGroupKey, GroupMeta> = {
-  live:     { label: "Live", icon: Sparkles, order: 0 },
+  web:      { label: "Web", icon: MessageSquare, order: 0 },
   telegram: { label: "Telegram", icon: Send, order: 1 },
-  voice:    { label: "Voice", icon: Mic, order: 2 },
-  desktop:  { label: "Desktop", icon: Monitor, order: 3 },
-  web:      { label: "Web", icon: MessageSquare, order: 4 },
-  a2a:      { label: "Agent ↔ Agent", icon: Bot, order: 5 },
-  schedule: { label: "Schedule", icon: Timer, order: 6 },
-  other:    { label: "Other", icon: FolderOpen, order: 7 },
+  desktop:  { label: "Desktop", icon: Monitor, order: 2 },
+  voice:    { label: "Voice", icon: Mic, order: 3 },
+  a2a:      { label: "Agent ↔ Agent", icon: Bot, order: 4 },
+  schedule: { label: "Schedule", icon: Timer, order: 5 },
+  other:    { label: "Other", icon: FolderOpen, order: 6 },
 };
 
 function channelGroup(channel?: string): ChannelGroupKey {
@@ -78,6 +77,14 @@ export function chatKeyToString(k: ChatKey): string {
   return `thread:${k.channel}:${k.threadId}`;
 }
 
+/** Display metadata carried alongside a selection so the right-pane header can
+ *  show "Created {date} · {channel} · {agent}" without a second fetch. */
+export interface ChatSelectionMeta {
+  channel?: string;
+  createdAt?: string;
+  title?: string;
+}
+
 interface Props {
   pid: string;
   agents: AgentEntry[];
@@ -85,8 +92,10 @@ interface Props {
   superAgentSlug: string;
   superAgentLabel: string;
   selected: ChatKey;
-  onSelect: (key: ChatKey) => void;
-  onNewChat: () => void;
+  onSelect: (key: ChatKey, meta?: ChatSelectionMeta) => void;
+  /** Start a fresh in-memory session with the chosen agent (super-agent or a
+   *  project agent). It materialises in the Web group on the first message. */
+  onNewChat: (agentSlug: string) => void;
 }
 
 // Per-agent SWR fetcher. Lives in a child so adding/removing agents doesn't
@@ -125,6 +134,7 @@ export function ChatList({
   const [agentFilter, setAgentFilter] = useState("");
   const [collapsed, setCollapsed] = useState<Partial<Record<ChannelGroupKey, boolean>>>({});
   const [byAgent, setByAgent] = useState<Record<string, ConversationListEntry[]>>({});
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   // Super-agent channel threads (telegram, web quick-chat, desktop …) come from
   // the global message ledger, which is daemon-level and NOT project-scoped.
@@ -208,20 +218,16 @@ export function ChatList({
       .sort((a, b) => GROUP_META[a.key].order - GROUP_META[b.key].order);
   }, [filteredConvs, filteredThreads]);
 
-  // "Live" agents shown at the top: super-agent + project agents matching the
-  // current agent filter (so "filter by foo" hides the others everywhere).
-  const liveAgents = useMemo(() => {
-    if (agentFilter === superAgentSlug) {
-      return [{ slug: superAgentSlug, label: superAgentLabel }];
-    }
-    const out: { slug: string; label: string }[] = [];
-    if (!agentFilter) out.push({ slug: superAgentSlug, label: superAgentLabel });
-    for (const a of agents) {
-      if (agentFilter && a.slug !== agentFilter) continue;
-      out.push({ slug: a.slug, label: a.slug });
-    }
-    return out;
-  }, [agents, agentFilter, superAgentSlug, superAgentLabel]);
+  // Agents offered by the "+ New" picker: the super-agent (always available,
+  // listed first) followed by this project's own agents. Not affected by the
+  // sidebar filter — you can always start a fresh chat with any of them.
+  const newChatAgents = useMemo(
+    () => [
+      { slug: superAgentSlug, label: superAgentLabel },
+      ...agents.map((a) => ({ slug: a.slug, label: a.slug })),
+    ],
+    [agents, superAgentSlug, superAgentLabel],
+  );
 
   const agentOptions = useMemo(
     () => [
@@ -232,7 +238,7 @@ export function ChatList({
     [agents, superAgentSlug, superAgentLabel],
   );
 
-  const totalCount = allConvs.length + (threadsQ.data?.length || 0) + liveAgents.length;
+  const totalCount = allConvs.length + (threadsQ.data?.length || 0);
   const anyLoaded =
     Object.keys(byAgent).length > 0 || agents.length === 0 || !!threadsQ.data;
 
@@ -251,13 +257,48 @@ export function ChatList({
             {t("project.chat.list.count", { n: totalCount })}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onNewChat}
-          className="inline-flex items-center gap-1 rounded-md border border-border bg-accent/60 px-2 py-1 text-[11px] font-medium hover:bg-accent"
-        >
-          <Plus className="size-3" /> {t("project.chat.list.new")}
-        </button>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setPickerOpen((o) => !o)}
+            className="inline-flex items-center gap-1 rounded-md border border-border bg-accent/60 px-2 py-1 text-[11px] font-medium hover:bg-accent"
+          >
+            <Plus className="size-3" /> {t("project.chat.list.new")}
+          </button>
+          {pickerOpen && (
+            <>
+              {/* Click-away layer. */}
+              <button
+                type="button"
+                aria-hidden
+                tabIndex={-1}
+                className="fixed inset-0 z-10 cursor-default"
+                onClick={() => setPickerOpen(false)}
+              />
+              <div className="absolute right-0 top-full z-20 mt-1 w-56 rounded-md border border-border bg-card p-1 shadow-lg">
+                <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-fg">
+                  {t("project.chat.list.pick_agent")}
+                </p>
+                <div className="max-h-64 overflow-y-auto">
+                  {newChatAgents.map((a) => (
+                    <button
+                      key={`new-${a.slug}`}
+                      type="button"
+                      onClick={() => {
+                        setPickerOpen(false);
+                        onNewChat(a.slug);
+                      }}
+                      className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs hover:bg-accent/50"
+                    >
+                      <Bot className="size-3 shrink-0 text-muted-fg" />
+                      <span className="truncate">{a.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </header>
 
       <div className="space-y-2 border-b border-border p-2">
@@ -274,32 +315,6 @@ export function ChatList({
           <div className="px-2 py-1">
             <Loading />
           </div>
-        )}
-
-        {/* Live group — synthetic, always first. */}
-        {liveAgents.length > 0 && (
-          <ChannelGroup
-            keyName="live"
-            count={liveAgents.length}
-            collapsed={!!collapsed.live}
-            onToggle={() => setCollapsed((p) => ({ ...p, live: !p.live }))}
-          >
-            {liveAgents.map((a) => {
-              const isRoby = a.slug === superAgentSlug;
-              const active =
-                selected.kind === "live" && selected.agentSlug === a.slug;
-              return (
-                <ChatListItem
-                  key={`live-${a.slug}`}
-                  title={isRoby ? a.label : t("project.chat.list.live_with", { slug: a.slug })}
-                  subtitle={t("project.chat.list.live_subtitle")}
-                  badge={isRoby ? "super" : a.slug}
-                  selected={active}
-                  onClick={() => onSelect({ kind: "live", agentSlug: a.slug })}
-                />
-              );
-            })}
-          </ChannelGroup>
         )}
 
         {/* Stored conversations + super-agent channel threads, grouped by channel. */}
@@ -327,7 +342,10 @@ export function ChatList({
                     timeAgo={th.last_ts}
                     selected={active}
                     onClick={() =>
-                      onSelect({ kind: "thread", channel: th.channel, threadId: th.id })
+                      onSelect(
+                        { kind: "thread", channel: th.channel, threadId: th.id },
+                        { channel: th.channel, createdAt: th.started_at, title: th.title },
+                      )
                     }
                   />
                 );
@@ -348,7 +366,10 @@ export function ChatList({
                   timeAgo={c.started_at}
                   selected={active}
                   onClick={() =>
-                    onSelect({ kind: "conv", agentSlug: c.agent_slug, convId: c.id })
+                    onSelect(
+                      { kind: "conv", agentSlug: c.agent_slug, convId: c.id },
+                      { channel: c.channel, createdAt: c.started_at, title: c.title },
+                    )
                   }
                 />
               );

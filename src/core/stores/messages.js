@@ -677,6 +677,20 @@ export function readGlobalThread({ channel, date, _globalMessagesDir } = {}) {
   return { id: date, channel, messages };
 }
 
+// Delete one channel+day thread by removing its JSONL file. The global ledger
+// is FS-backed (listGlobalThreads/readGlobalThread read files directly), so
+// unlinking the day-file drops the thread from the sidebar. Returns false for a
+// bad channel/date or a file that is already gone.
+export function deleteGlobalThread({ channel, date, _globalMessagesDir } = {}) {
+  if (!CHANNEL_NAME_RE.test(String(channel || ""))) return false;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ""))) return false;
+  const base = _globalMessagesDir || GLOBAL_MESSAGES_DIR;
+  const file = path.join(base, channel, `${date}.jsonl`);
+  if (!fs.existsSync(file)) return false;
+  fs.unlinkSync(file);
+  return true;
+}
+
 // Wipe the cache and re-populate from APX project messages. Reads BOTH `.jsonl`
 // (current format) and `.md` (legacy). Called by rebuild.
 export function rebuildMessagesFromFs(db, projectRoot) {

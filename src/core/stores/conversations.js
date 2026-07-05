@@ -91,6 +91,16 @@ export function readConversation(storagePath, agentSlug, idOrFilename) {
   return { ...parseConversation(fs.readFileSync(p, "utf8")), path: p };
 }
 
+// Delete a conversation file. Filesystem is source of truth, so unlinking the
+// markdown removes it from the sidebar list on the next fetch. Returns false
+// when there is nothing to delete (already gone / bad id).
+export function deleteConversation(storagePath, agentSlug, idOrFilename) {
+  const p = conversationPath(storagePath, agentSlug, idOrFilename);
+  if (!fs.existsSync(p)) return false;
+  fs.unlinkSync(p);
+  return true;
+}
+
 export function listConversations(storagePath, agentSlug) {
   const dir = path.join(storagePath, "agents", agentSlug, "conversations");
   if (!fs.existsSync(dir)) return [];
