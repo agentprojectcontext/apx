@@ -1,4 +1,5 @@
 import { loadSkill } from "#core/agent/skills/loader.js";
+import { isSkillEnabled } from "#core/agent/skills/policy.js";
 
 export default {
   name: "load_skill",
@@ -24,8 +25,14 @@ export default {
       },
     },
   },
-  makeHandler: () => ({ slug, project_path } = {}) => {
+  makeHandler: (ctx = {}) => ({ slug, project_path } = {}) => {
     if (!slug) throw new Error("load_skill: slug required");
-    return loadSkill(slug, { projectPath: project_path });
+    const skill = loadSkill(slug, { projectPath: project_path });
+    if (!isSkillEnabled(skill, { config: ctx.globalConfig, projectPath: project_path })) {
+      throw new Error(
+        `skill "${slug}" is disabled for this scope. Enable it in Settings → Skills, or pick another.`,
+      );
+    }
+    return skill;
   },
 };
