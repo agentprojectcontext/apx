@@ -12,8 +12,11 @@ import { Badge, Button, Field, Input, Loading, Switch, Textarea } from "../../co
 import { Tip } from "../../components/ui/tip";
 import { UiSelect } from "../../components/UiSelect";
 import { useToast } from "../../components/Toast";
+import { ConfirmDialog } from "../../components/common/ConfirmDialog";
+import { EmojiInput, AutonomyPicker, AreaRoleFields } from "../../components/agents/AgentFormFields";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
+import type { AgentAutonomy } from "../../types/daemon";
 import { AgentBrainGraph, type BrainNode } from "./AgentBrainGraph";
 
 type TabKey = "overview" | "memories" | "records" | "sleep" | "brain" | "config";
@@ -28,7 +31,7 @@ function buildTabs(): { key: TabKey; label: string; icon: typeof Bot }[] {
   ];
 }
 
-function typeOptions() {
+export function typeOptions() {
   return [
     { value: "", label: t("agents_ui.type_none") },
     { value: "orchestrator", label: t("agents_ui.type_orchestrator"), description: t("agents_ui.type_orchestrator_desc") },
@@ -205,9 +208,11 @@ function AgentConfigForm({
   onDeleted: () => void;
 }) {
   const toast = useToast();
+  const [emoji, setEmoji] = useState(agent.emoji || "");
   const [type, setType] = useState(agent.type || "");
   const [area, setArea] = useState(agent.area || "");
   const [role, setRole] = useState(agent.role || "");
+  const [autonomy, setAutonomy] = useState<AgentAutonomy | "">(agent.autonomy || "");
   const [model, setModel] = useState(agent.model || "");
   const [parent, setParent] = useState(agent.parent || "");
   const [isMaster, setIsMaster] = useState(!!agent.is_master);
@@ -216,14 +221,17 @@ function AgentConfigForm({
   const [description, setDescription] = useState(agent.description || "");
   const [system, setSystem] = useState(agent.system || "");
   const [busy, setBusy] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const save = async () => {
     setBusy(true);
     try {
       await Agents.update(pid, agent.slug, {
+        emoji: emoji || null,
         type: type || null,
         area: area || null,
         role: role || null,
+        autonomy: autonomy || null,
         model: model || null,
         parent: parent || null,
         is_master: isMaster || type === "orchestrator",
@@ -239,20 +247,23 @@ function AgentConfigForm({
   };
 
   const del = async () => {
-    if (!confirm(t("project.agent_detail.delete_confirm", { slug: agent.slug }))) return;
-    try { await Agents.remove(pid, agent.slug); toast.success(t("project.agent_detail.delete_success")); onDeleted(); }
-    catch (e) { toast.error((e as Error).message); }
+    await Agents.remove(pid, agent.slug);
+    toast.success(t("project.agent_detail.delete_success"));
+    onDeleted();
   };
 
   return (
     <Section title={t("project.agent_detail.config_title")} description={`.apc/agents/${agent.slug}.md — ${t("agents_ui.config_def_desc")}`}>
       <div className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-[80px_1fr] gap-3">
+          <Field label={t("agents_form.emoji")}><EmojiInput value={emoji} onChange={setEmoji} /></Field>
           <Field label={t("project.agent_detail.type_label")}><UiSelect value={type} onChange={setType} options={typeOptions()} /></Field>
-          <Field label={t("project.agent_detail.area_label")} hint={t("project.agent_detail.area_hint")}><Input value={area} onChange={(e) => setArea(e.target.value)} placeholder={t("project.agent_detail.area_ph")} /></Field>
         </div>
+        <AreaRoleFields pid={pid} area={area} role={role} onArea={setArea} onRole={setRole} />
+        <Field label={t("agents_form.autonomy")} hint={t("agents_form.autonomy_hint")}>
+          <AutonomyPicker value={autonomy} onChange={setAutonomy} />
+        </Field>
         <div className="grid grid-cols-2 gap-3">
-          <Field label={t("project.agent_detail.role_label")}><Input value={role} onChange={(e) => setRole(e.target.value)} placeholder="Operations Lead" /></Field>
           <Field label={t("project.agent_detail.parent_label")}>
             <UiSelect
               value={parent}
@@ -261,10 +272,10 @@ function AgentConfigForm({
               options={[{ value: "", label: t("project.agent_detail.none_parent") }, ...agents.filter((x) => x.slug !== agent.slug).map((x) => ({ value: x.slug, label: x.slug }))]}
             />
           </Field>
+          <Field label={t("project.agent_detail.model_label")} hint={t("project.agent_detail.model_hint")}>
+            <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder={t("project.agent_detail.model_ph")} />
+          </Field>
         </div>
-        <Field label={t("project.agent_detail.model_label")} hint={t("project.agent_detail.model_hint")}>
-          <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder={t("project.agent_detail.model_ph")} />
-        </Field>
         <Field label={t("project.agent_detail.skills_label")}><Input value={skills} onChange={(e) => setSkills(e.target.value)} placeholder="skill-a, skill-b" /></Field>
         <ToolsPicker value={tools} onChange={setTools} />
         <Field label={t("project.agent_detail.bio_label")}><Textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
@@ -274,10 +285,19 @@ function AgentConfigForm({
         <Switch checked={isMaster} onChange={setIsMaster} label={t("project.agent_detail.master_label")} />
 
         <div className="flex items-center justify-between border-t border-border pt-3">
-          <Button variant="destructive" onClick={del}><Trash2 size={13} /> {t("project.agent_detail.delete_btn")}</Button>
+          <Button variant="destructive" onClick={() => setConfirmDelete(true)}><Trash2 size={13} /> {t("project.agent_detail.delete_btn")}</Button>
           <Button variant="primary" loading={busy} onClick={save}><Save size={13} /> {t("project.agent_detail.save_btn")}</Button>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        onConfirm={del}
+        title={t("project.agent_detail.delete_btn")}
+        description={t("project.agent_detail.delete_confirm", { slug: agent.slug })}
+        confirmLabel={t("project.agent_detail.delete_btn")}
+      />
     </Section>
   );
 }

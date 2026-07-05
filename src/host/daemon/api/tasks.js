@@ -14,7 +14,9 @@ import {
   doneTask,
   dropTask,
   reopenTask,
+  setTaskStatus,
   countTasks,
+  TASK_STATUSES,
 } from "#core/stores/tasks.js";
 import { pageEnvelope } from "./shared.js";
 
@@ -109,6 +111,18 @@ export function register(app, { project, projects }) {
     const p = project(req, res);
     if (!p) return;
     const updated = reopenTask(p.storagePath, req.params.id);
+    if (!updated) return res.status(404).json({ error: "task not found" });
+    res.json(updated);
+  });
+
+  // Move an open task through its workflow (pending → running → in_review …).
+  app.post("/projects/:pid/tasks/:id/status", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const { status } = req.body || {};
+    if (!TASK_STATUSES.includes(status))
+      return res.status(400).json({ error: `status must be one of ${TASK_STATUSES.join(", ")}` });
+    const updated = setTaskStatus(p.storagePath, req.params.id, status);
     if (!updated) return res.status(404).json({ error: "task not found" });
     res.json(updated);
   });
