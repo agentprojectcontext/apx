@@ -84,7 +84,7 @@ function Shell() {
           onOpenRoby={() => setRobyOpen(true)}
           onOpenAddProject={openAdd}
         />
-        <main className="m-2 ml-0 flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+        <main className="m-2 flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
           <TopBar onToggleTheme={toggle} isDark={theme === "dark"} pathname={location.pathname} />
           <div className="flex-1 overflow-y-auto">
             <Routes>
