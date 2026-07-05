@@ -215,10 +215,11 @@ export async function cmdSkillsList(args = {}) {
       console.log("(no skills available)");
       return;
     }
-    console.log(`SLUG`.padEnd(28) + "SOURCE".padEnd(10) + "DESCRIPTION");
+    console.log(`SLUG`.padEnd(28) + "SOURCE".padEnd(10) + "STATE".padEnd(10) + "DESCRIPTION");
     for (const s of out.skills) {
       const desc = (s.description || "").slice(0, 70);
-      console.log(s.slug.padEnd(28) + (s.source || "?").padEnd(10) + desc);
+      const state = s.private ? "private" : s.enabled === false ? "off" : "on";
+      console.log(s.slug.padEnd(28) + (s.source || "?").padEnd(10) + state.padEnd(10) + desc);
     }
     return;
   }

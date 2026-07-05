@@ -38,6 +38,8 @@ const PROJECT_TABS: Array<[navKey: string, active: string]> = [
   ["telegram", "telegram"],
   ["chat", "chat"],
   ["agents", "agents"],
+  ["docs", "docs"],
+  ["files", "files"],
   ["memories", "memories"],
   ["routines", "routines"],
   ["tasks", "tasks"],
