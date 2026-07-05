@@ -56,16 +56,46 @@ test("listTree hides heavy dirs and dotfiles", () => {
     fs.writeFileSync(path.join(root, "src", "a.ts"), "export const a = 1;");
     fs.mkdirSync(path.join(root, "node_modules", "x"), { recursive: true });
     fs.writeFileSync(path.join(root, "node_modules", "x", "index.js"), "x");
+    fs.mkdirSync(path.join(root, "vendor", "laravel"), { recursive: true });
+    fs.writeFileSync(path.join(root, "vendor", "laravel", "framework.php"), "<?php");
     fs.writeFileSync(path.join(root, ".secret"), "nope");
 
     const { tree } = listTree(root);
     const names = tree.map((n) => n.name);
     assert.ok(names.includes("src"));
     assert.ok(!names.includes("node_modules"));
+    assert.ok(!names.includes("vendor"));
     assert.ok(!names.includes(".secret"));
     const src = tree.find((n) => n.name === "src");
     assert.equal(src.type, "dir");
     assert.equal(src.children[0].name, "a.ts");
+  } finally {
+    cleanupTempProject(root);
+  }
+});
+
+test("listTree lists a folder's own files, not just its subdirs", () => {
+  // Regression: root-level files must appear even when directories (which sort
+  // first) contain nested content. Mirrors a Laravel layout where composer.json
+  // and artisan live beside app/, config/, vendor/, …
+  const root = makeTempProject({ name: "FilesRoot" });
+  try {
+    for (const d of ["app", "config", "routes"]) {
+      fs.mkdirSync(path.join(root, d, "sub"), { recursive: true });
+      fs.writeFileSync(path.join(root, d, "sub", "nested.php"), "<?php");
+    }
+    fs.writeFileSync(path.join(root, "composer.json"), "{}");
+    fs.writeFileSync(path.join(root, "artisan"), "#!/usr/bin/env php");
+
+    const { tree } = listTree(root);
+    const names = tree.map((n) => n.name);
+    assert.ok(names.includes("composer.json"), "root file composer.json listed");
+    assert.ok(names.includes("artisan"), "root file artisan listed");
+    // Dirs still sort before files at each level.
+    assert.deepEqual(
+      tree.filter((n) => n.type === "dir").map((n) => n.name),
+      ["app", "config", "routes"],
+    );
   } finally {
     cleanupTempProject(root);
   }
