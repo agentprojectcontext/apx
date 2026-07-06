@@ -142,6 +142,48 @@ export const asanaPlugin = {
     { slug: "asana_update_task", desc: "Actualizar estado o campos de una tarea" },
   ],
 
+  // Declarative UI descriptor consumed by the generic PluginConnect component
+  // (see web/components/integrations/PluginConnect.tsx). configFields render as
+  // inputs; `select` is a post-validate picker sourced from an action; and
+  // connectedFields are the status keys shown once connected.
+  ui: {
+    accent: "rose",
+    configFields: [
+      {
+        key: "personal_access_token",
+        label: "Personal Access Token",
+        type: "password",
+        placeholder: "1/1234567890abcdef:...",
+        help: {
+          label: "¿Cómo obtener el token?",
+          url: "https://app.asana.com/0/my-apps",
+          urlLabel: "app.asana.com/0/my-apps",
+          steps: [
+            "Abrí app.asana.com/0/my-apps en el navegador.",
+            'Bajá hasta la sección "Personal access tokens" (no tus apps OAuth).',
+            'Hacé clic en "+ New access token".',
+            "Dale un nombre y confirmá.",
+            'Copiá el token completo — empieza con "1/..." y tiene un ":" en el medio.',
+            "Pegalo en el campo de abajo.",
+          ],
+        },
+      },
+    ],
+    select: {
+      key: "workspace_gid",
+      label: "Seleccioná el workspace a usar",
+      action: "workspaces",
+      listKey: "workspaces",
+      valueKey: "gid",
+      labelKey: "name",
+    },
+    connectedFields: [
+      { key: "user_name", label: "Conectado como" },
+      { key: "user_email", label: "Email" },
+      { key: "workspace_name", label: "Workspace" },
+    ],
+  },
+
   // Save the PAT and/or the target workspace. Returns a patch to persist.
   configure(record, body = {}) {
     const pat = (body.personal_access_token || "").trim();
