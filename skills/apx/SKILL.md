@@ -39,6 +39,11 @@ apx <command> --help
 ## Core commands you'll actually use
 
 ```bash
+# One-shot super-agent call
+apx exec "prompt"               # default 'cli' channel
+apx exec --code "prompt"        # 'code' channel: coding system prompt + git/code tools
+apx exec --channel <name> "…"   # explicit channel (cli, code, api, …)
+
 # Project + daemon
 apx status                      # daemon health
 apx project list                # registered projects

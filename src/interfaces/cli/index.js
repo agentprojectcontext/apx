@@ -1100,12 +1100,15 @@ const HELP_TOPICS = new Map(Object.entries({
     summary: "One-shot LLM call. Default target is the APX super-agent (daemon); use -a for an APC agent slug.",
     usage: [
       "apx exec \"<prompt>\" [--model <id>] [--project <name|id|path>]",
+      "apx exec --code \"<prompt>\"   (coding channel: code system prompt + git tools)",
       "apx exec -- \"<prompt>\"",
       "apx exec -a <agent> \"<prompt>\" [--model <id>]",
       "apx exec <agent> \"<prompt>\"  (legacy positional agent)",
     ],
     options: [
       ["-a, --agent <slug>", "APC agent slug (omit for super-agent default)."],
+      ["-c, --code", "Run on the 'code' channel (coding system prompt + code tools)."],
+      ["--channel <name>", "Explicit channel (cli, code, api, …). Default cli."],
       ["--model <id>", "Override configured model."],
       ["--max-tokens N", "Output token limit."],
       ["--temperature T", "Sampling temperature."],
@@ -1113,6 +1116,7 @@ const HELP_TOPICS = new Map(Object.entries({
     ],
     examples: [
       "apx exec \"What time is it in UTC?\"",
+      "apx exec --code \"refactor the auth middleware\"",
       "apx exec -- \"decime qué hora es\"",
       "apx exec -a reviewer \"Summarize your role\"",
       "apx exec reviewer \"Summarize your role\" --model gpt-5.2",
@@ -2090,7 +2094,7 @@ function buildHelp(version) {
 
     hSec("LLM / Code"),
     hCmd("apx code",                   36, "APX terminal coding assistant"),
-    hCmd("apx exec \"prompt\"",         36, "super-agent (default)  --model <id>  -a <agent> for APC slug"),
+    hCmd("apx exec \"prompt\"",         36, "super-agent (default)  --code coding channel  -a <agent> for APC slug"),
     hCmd("apx chat <agent>",           36, "interactive agent REPL  --conversation <id>"),
     hCmd("apx search \"query\"",       36, "web search (ddg | brave | browser)  --mode <m>  -n N"),
     hCmd("apx conversations list",     36, "stored exec/chat conversations for <agent>"),
@@ -2241,6 +2245,11 @@ function findHelpTopic(argv) {
   return { global: true };
 }
 
+// Flags that never take a value. Without this the parser would greedily
+// swallow the following positional (e.g. `apx exec --code "hi"` would set
+// flags.code = "hi" and drop the prompt). Boolean flags always resolve to true.
+const BOOLEAN_FLAGS = new Set(["code", "verbose"]);
+
 function parseArgs(argv) {
   const args = { _: [], flags: {} };
   for (let i = 0; i < argv.length; i++) {
@@ -2253,7 +2262,9 @@ function parseArgs(argv) {
     if (a.startsWith("--")) {
       const key = a.slice(2);
       const next = argv[i + 1];
-      if (next === undefined || next.startsWith("--")) {
+      if (BOOLEAN_FLAGS.has(key)) {
+        args.flags[key] = true;
+      } else if (next === undefined || next.startsWith("--")) {
         args.flags[key] = true;
       } else {
         // support repeated flags (e.g. --env A=1 --env B=2)
@@ -2269,6 +2280,8 @@ function parseArgs(argv) {
       args.flags.n = argv[++i];
     } else if (a === "-a") {
       args.flags.agent = argv[++i];
+    } else if (a === "-c") {
+      args.flags.code = true;
     } else {
       args._.push(a);
     }
