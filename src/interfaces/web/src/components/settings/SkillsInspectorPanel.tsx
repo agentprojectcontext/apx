@@ -97,7 +97,8 @@ export function SkillsInspectorPanel() {
   };
 
   return (
-    <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
+    <div className="space-y-6">
+      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
       <Section
         title={t("settings_ui.inspector_title")}
         description={t("settings_ui.inspector_desc")}
@@ -139,31 +140,6 @@ export function SkillsInspectorPanel() {
               {t("settings_ui.embedder_source")}
             </span>
           </div>
-        </div>
-      </Section>
-
-      <Section
-        title={t("settings_ui.thresholds_title")}
-        description={t("settings_ui.thresholds_desc")}
-      >
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {knobs().map((k) => (
-            <Field key={k.key} label={k.label} hint={k.hint}>
-              <Input
-                type="number"
-                step={k.step}
-                min={k.min}
-                max={k.max}
-                defaultValue={String(cfg[k.key])}
-                disabled={busy}
-                onBlur={(ev) => {
-                  const n = Number(ev.target.value);
-                  if (Number.isFinite(n) && n !== cfg[k.key]) apply({ [k.key]: n });
-                }}
-                className="max-w-[12rem]"
-              />
-            </Field>
-          ))}
         </div>
       </Section>
 
@@ -224,6 +200,32 @@ export function SkillsInspectorPanel() {
               ) : null}
             </div>
           )}
+        </div>
+      </Section>
+      </div>
+
+      <Section
+        title={t("settings_ui.thresholds_title")}
+        description={t("settings_ui.thresholds_desc")}
+      >
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
+          {knobs().map((k) => (
+            <Field key={k.key} label={k.label} hint={k.hint}>
+              <Input
+                type="number"
+                step={k.step}
+                min={k.min}
+                max={k.max}
+                defaultValue={String(cfg[k.key])}
+                disabled={busy}
+                onBlur={(ev) => {
+                  const n = Number(ev.target.value);
+                  if (Number.isFinite(n) && n !== cfg[k.key]) apply({ [k.key]: n });
+                }}
+                className="max-w-[12rem]"
+              />
+            </Field>
+          ))}
         </div>
       </Section>
     </div>
