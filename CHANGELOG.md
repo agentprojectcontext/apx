@@ -1,3 +1,10 @@
+# [1.65.0](https://github.com/agentprojectcontext/apx/compare/v1.64.0...v1.65.0) (2026-07-06)
+
+
+### Features
+
+* **runtimes:** add Antigravity runtime adapter (agy headless + IDE fallback) ([3e90f96](https://github.com/agentprojectcontext/apx/commit/3e90f969002f1c6791a1d8fb85921049d2460b33))
+
 # [1.64.0](https://github.com/agentprojectcontext/apx/compare/v1.63.0...v1.64.0) (2026-07-06)
 
 
