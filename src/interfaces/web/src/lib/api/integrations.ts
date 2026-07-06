@@ -6,20 +6,46 @@ import { http } from "../http";
 export type IntegrationScope = "project" | "global";
 
 // Status returned by a plugin's status endpoint. Common fields plus
-// plugin-specific extras (Asana adds user/workspace metadata).
+// plugin-specific extras (Asana adds user/workspace, GitHub adds user_login…),
+// so it carries an index signature for the generic component to read.
 export interface IntegrationStatus {
   slug: string;
   status: string;
   is_enabled: boolean;
-  user_name?: string | null;
-  user_email?: string | null;
-  workspace_gid?: string | null;
-  workspace_name?: string | null;
+  [key: string]: unknown;
 }
 
 export interface PluginTool {
   slug: string;
   desc: string;
+}
+
+// Declarative UI descriptor (mirrors the plugin's `ui` in core). Lets the
+// generic PluginConnect component render each plugin's config form.
+export interface PluginConfigField {
+  key: string;
+  label: string;
+  type: "password" | "text";
+  placeholder?: string;
+  help?: { label: string; url: string; urlLabel: string; steps: string[] };
+}
+export interface PluginSelect {
+  key: string;
+  label: string;
+  action: string;
+  listKey: string;
+  valueKey: string;
+  labelKey: string;
+}
+export interface PluginConnectedField {
+  key: string;
+  label: string;
+}
+export interface PluginUi {
+  accent?: string;
+  configFields: PluginConfigField[];
+  select?: PluginSelect;
+  connectedFields?: PluginConnectedField[];
 }
 
 // One entry of the plugin catalog with its resolved status for this project.
@@ -30,6 +56,7 @@ export interface CatalogEntry {
   description: string;
   auth: string;
   tools?: PluginTool[];
+  ui?: PluginUi | null;
   coming_soon: boolean;
   status: IntegrationStatus;
   resolved_scope: IntegrationScope | null;

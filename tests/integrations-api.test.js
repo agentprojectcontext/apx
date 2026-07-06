@@ -65,7 +65,8 @@ test("catalog lists asana (implemented) + coming-soon plugins", async () => {
     const asana = json.find((c) => c.slug === "asana");
     assert.ok(asana && asana.coming_soon === false);
     assert.equal(asana.status.status, "disconnected");
-    assert.ok(json.find((c) => c.slug === "github" && c.coming_soon));
+    assert.ok(json.find((c) => c.slug === "github" && c.coming_soon === false), "github is implemented");
+    assert.ok(json.find((c) => c.slug === "whatsapp" && c.coming_soon), "whatsapp is coming soon");
   } finally {
     close();
   }

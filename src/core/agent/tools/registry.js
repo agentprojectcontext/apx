@@ -37,6 +37,8 @@ import asanaListProjects from "./handlers/asana-list-projects.js";
 import asanaListTasks from "./handlers/asana-list-tasks.js";
 import asanaCreateTask from "./handlers/asana-create-task.js";
 import asanaUpdateTask from "./handlers/asana-update-task.js";
+import githubListRepos from "./handlers/github-list-repos.js";
+import githubCreateIssue from "./handlers/github-create-issue.js";
 import { createPermissionGuard } from "./helpers.js";
 import { buildBridgedTools, DEFAULT_CATEGORIES } from "./registry-bridge.js";
 import { TOOLS, CODE_CHANNEL_TOOLS } from "./names.js";
@@ -85,6 +87,8 @@ const NATIVE_TOOLS = [
   asanaListTasks,
   asanaCreateTask,
   asanaUpdateTask,
+  githubListRepos,
+  githubCreateIssue,
 ];
 
 // Registry-backed bridges. Categories can be overridden per-process via env
