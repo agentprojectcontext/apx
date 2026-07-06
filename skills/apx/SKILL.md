@@ -1,9 +1,6 @@
 ---
 name: apx
-description: >-
-  APX CLI — local daemon that orchestrates agents, sessions, MCPs, and channels across CLIs.
-  Use `apx exec "prompt"` for the local super-agent, or `apx run <agent> --runtime <claude-code|codex|opencode|aider|cursor-agent|gemini-cli|qwen-code> "prompt"` to hand the task to another CLI.
-  Activate on: 'apx', 'apx exec', 'apx run', 'apx daemon', 'ask codex/claude/opencode/gemini to …', 'have <runtime> do …', 'delegate to another runtime', 'run this in <runtime>', 'route this task to <runtime>'.
+description: Orchestrates agents, sessions, routines, and channels through the APX CLI and local daemon — run the super-agent locally or delegate a task to another coding CLI (Claude Code, Codex, OpenCode, Aider, Cursor, Gemini, Qwen). Triggers: 'apx', 'apx exec', 'apx run', 'apx daemon', 'apx routine', 'delegate to a runtime'.
 homepage: https://github.com/agentprojectcontext/apx
 ---
 
@@ -21,7 +18,7 @@ This is the **engine-side** skill: a slim reference for runtimes invoked by APX.
 - The user asks you to call APX from inside your session ("send a telegram via apx", "list apx sessions").
 - You're inside an `.apc/` project and want to consult APX-managed state.
 
-If you can do the task natively (you're an IDE/CLI with your own tools), prefer that. Only shell out to `apx` when the task is APX-specific.
+If you can do the task natively (you're an IDE/CLI with your own tools), prefer that. Only shell out to `apx` when the task is APX-specific. For anything MCP-related, use the [[apx-mcp]] skill — it's the MCP entry point for agents.
 
 ---
 
@@ -52,10 +49,6 @@ apx project current             # which project resolves from CWD
 # Sessions (cross-engine)
 apx sessions list --engine <claude|codex|opencode> --project <name>
 apx sessions list --dir <path>
-
-# MCPs — see the apx-mcp skill for the full guide
-apx mcp list
-apx mcp run <name> <tool> '{"...":"..."}'
 
 # Memory (curated, durable facts only)
 apx memory <agent-slug>

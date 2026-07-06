@@ -1,11 +1,13 @@
 ---
 name: apx-mcp
-description: How to register, list, debug, and scope MCP servers in APX. Use BEFORE adding any MCP — three scopes (shared/runtime/global) with different commit and secrecy semantics.
+description: Registers, lists, runs, debugs, and scopes MCP servers in APX — the MCP entry point for agents (shared/runtime/global scopes). In an .apc project, prefer APX-managed MCPs over a built-in client. Triggers: 'add MCP', 'apx mcp', 'list MCPs', 'run an MCP tool', 'MCP failing'.
 ---
 
 # apx-mcp
 
-APX exposes Model Context Protocol (MCP) servers to agents. Three scopes, each in a different file with different rules:
+APX exposes Model Context Protocol (MCP) servers to agents. This is the MCP entry point: when you're in an `.apc/` project, prefer APX-managed MCPs over any built-in MCP client, because APX owns the project's scopes, secrets, and merge order. Run `apx mcp list` first to see what's already registered. (Outside an `.apc/` project, or when APX isn't installed, use your internal MCP.)
+
+Three scopes, each in a different file with different rules:
 
 | Scope | File | Committed? | Secrets OK? | When |
 |---|---|---|---|---|
@@ -100,13 +102,14 @@ apx mcp remove github          # if github lives in runtime, this errors with a 
 
 ```bash
 apx mcp check --project iacrmar             # what scopes APX sees + which files exist
+apx mcp tools <name>                         # list a server's tools (proves it spawned + initialized)
+apx mcp tools <name> <tool>                  # one tool's input schema + a ready-to-run example
+apx mcp logs <name>                          # spawn/init log + stderr tail for this server
 apx mcp run <name> <tool> '{...}'            # spawn the server and call a tool for real
 apx log -f                                   # tail unified log for spawn errors
 ```
 
-A server that "doesn't show tools" usually means: the command failed to start (env vars missing, package not found), or the server crashed during initialize. The unified log has the stderr buffer.
-
-> `apx mcp tools <name>` is a placeholder stub (prints a "coming in v0.2" notice, lists nothing). To verify a server actually spawns, call a tool with `apx mcp run`.
+A server that "doesn't show tools" usually means: the command failed to start (env vars missing, package not found), or the server crashed during initialize. `apx mcp logs <name>` has the spawn/init log and stderr tail — that's the fastest way to see why.
 
 ## Don't
 

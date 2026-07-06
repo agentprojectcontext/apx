@@ -1,6 +1,6 @@
 ---
 name: apx-agency-agents
-description: "APX agent vault — reusable templates (Roby, Cody, Rocky, Tessa, Max, Arch, Sid, Vera, Finn + generic dev/marketing/ops/qa/support). Spawn a specialist, list, import into a project, create, or hide/restore a bundled default. Triggers: 'spawn agent', 'use Cody/Rocky/Tessa', 'list agents', 'agent vault', 'import agent', 'new agent'."
+description: "APX agent vault — reusable templates (generic dev/marketing/ops/qa/support). Spawn a specialist, list, import into a project, create, or hide/restore a bundled default. Triggers: 'spawn agent', 'use Cody/Rocky/Tessa', 'list agents', 'agent vault', 'import agent', 'new agent'."
 ---
 
 # apx-agency-agents — the APX agent vault
