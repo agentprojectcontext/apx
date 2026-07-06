@@ -156,4 +156,9 @@ APX can provide a local daemon, MCP management, Telegram bridge, routines, and r
 across Codex, Claude Code, OpenCode, Aider, or direct LLM engines. Those are APX runtime features,
 not APC portable-core requirements.
 
+**MCP in an `.apc/` project:** if APX is installed, prefer `apx mcp` over your own built-in MCP
+client — APX owns the project's MCP scopes, secrets, and merge order. Run `apx mcp list` to see the
+registered servers and `apx mcp run <name> <tool> '{…}'` to call one. Without `.apc/` (or when APX
+is not installed), keep using your internal MCP.
+
 Never use APX to write secrets or raw sessions into `.apc/`.

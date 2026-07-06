@@ -2,6 +2,7 @@
 // We just probe the binary with `--version` (or equivalent) and don't fail if
 // it isn't there — caller decides what to do with absence.
 import { runProcess } from "#host/daemon/runtimes/_spawn.js";
+import { resolveAntigravityCli } from "#host/daemon/runtimes/antigravity.js";
 
 const PROBES = [
   // Coding-agent CLIs (runtimes/)
@@ -12,6 +13,9 @@ const PROBES = [
   { id: "gemini-cli",  binary: "gemini",    args: ["--version"], category: "runtime" },
   { id: "cursor-agent",binary: "cursor-agent", args: ["--version"], category: "runtime" },
   { id: "qwen-code",   binary: "qwen",      args: ["--version"], category: "runtime" },
+  // Antigravity IDE ships its CLI inside the app bundle (not on PATH), so we
+  // resolve the absolute path rather than relying on the bare binary name.
+  { id: "antigravity", binary: "antigravity-ide", args: ["--version"], category: "runtime", resolve: resolveAntigravityCli },
 
   // Local LLM runners (engines/)
   { id: "ollama",      binary: "ollama",    args: ["--version"], category: "engine" },
@@ -36,8 +40,24 @@ export async function detectAll() {
 async function probe(p) {
   const start = Date.now();
   try {
+    // Some runtimes (e.g. Antigravity) aren't on PATH — resolve an absolute
+    // path first; if the resolver finds nothing, report not-installed early.
+    let command = p.binary;
+    if (typeof p.resolve === "function") {
+      const resolved = p.resolve();
+      if (!resolved) {
+        return {
+          id: p.id,
+          binary: p.binary,
+          category: p.category,
+          installed: false,
+          reason: "not found",
+        };
+      }
+      command = resolved;
+    }
     const r = await runProcess({
-      command: p.binary,
+      command,
       args: p.args,
       timeoutMs: 3000,
     });
