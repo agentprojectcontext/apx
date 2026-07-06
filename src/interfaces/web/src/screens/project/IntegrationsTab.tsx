@@ -1,28 +1,26 @@
 import { useState } from "react";
 import useSWR from "swr";
-import { Network, Puzzle, Wrench } from "lucide-react";
+import { Puzzle, Wrench } from "lucide-react";
 import { Integrations, type CatalogEntry, type IntegrationScope } from "../../lib/api";
 import { cn } from "../../lib/cn";
 import { Section } from "../../components/Section";
 import { Empty, Loading } from "../../components/ui";
-import { AsanaPlugin } from "../../components/integrations/AsanaPlugin";
+import { PluginConnect } from "../../components/integrations/PluginConnect";
 import { ComingSoonPlugin } from "../../components/integrations/ComingSoonPlugin";
-import { McpsTab } from "./McpsTab";
 
-type SubTab = "plugins" | "mcp" | "tools";
+type SubTab = "plugins" | "tools";
 
 const SUBTABS: { value: SubTab; label: string; icon: typeof Puzzle }[] = [
   { value: "plugins", label: "Plugins", icon: Puzzle },
-  { value: "mcp", label: "MCP Servers", icon: Network },
   { value: "tools", label: "Tools", icon: Wrench },
 ];
 
-// Renders the live plugin (Asana) or a coming-soon placeholder per catalog entry.
+// Renders a connectable plugin (via the generic PluginConnect, driven by its
+// `ui` descriptor) or a coming-soon placeholder. MCP servers are NOT shown here
+// — they have their own top-level "MCPs" nav item.
 function PluginRow({ pid, scope, entry }: { pid: string; scope: IntegrationScope; entry: CatalogEntry }) {
-  if (entry.coming_soon) return <ComingSoonPlugin entry={entry} />;
-  if (entry.slug === "asana") return <AsanaPlugin pid={pid} scope={scope} />;
-  // Implemented plugin without a bespoke UI yet — fall back to the placeholder.
-  return <ComingSoonPlugin entry={entry} />;
+  if (entry.coming_soon || !entry.ui) return <ComingSoonPlugin entry={entry} />;
+  return <PluginConnect pid={pid} scope={scope} entry={entry} />;
 }
 
 function PluginsSection({ pid, scope }: { pid: string; scope: IntegrationScope }) {
@@ -95,7 +93,7 @@ export function IntegrationsTab({ pid }: { pid: string }) {
   return (
     <Section
       title="Integrations"
-      description="Plugins, MCP servers y tools disponibles para este proyecto"
+      description="Plugins y tools disponibles para este proyecto"
     >
       {/* Scope selector — a real project can use its own integrations or the
           global (default-project) ones. */}
@@ -139,7 +137,6 @@ export function IntegrationsTab({ pid }: { pid: string }) {
       </div>
 
       {tab === "plugins" && <PluginsSection pid={pid} scope={scope} />}
-      {tab === "mcp" && <McpsTab pid={pid} />}
       {tab === "tools" && <ToolsSection pid={pid} />}
     </Section>
   );

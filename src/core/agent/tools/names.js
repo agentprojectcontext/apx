@@ -56,6 +56,10 @@ export const TOOLS = Object.freeze({
   ASANA_CREATE_TASK:   "asana_create_task",
   ASANA_UPDATE_TASK:   "asana_update_task",
 
+  // Integrations — GitHub plugin (see core/integrations/plugins/github.js)
+  GITHUB_LIST_REPOS:   "github_list_repos",
+  GITHUB_CREATE_ISSUE: "github_create_issue",
+
   // Side-effects
   SEND_TELEGRAM:       "send_telegram",
   SET_IDENTITY:        "set_identity",
@@ -104,6 +108,8 @@ export const NATIVE_TOOL_NAMES = new Set([
   TOOLS.ASANA_LIST_TASKS,
   TOOLS.ASANA_CREATE_TASK,
   TOOLS.ASANA_UPDATE_TASK,
+  TOOLS.GITHUB_LIST_REPOS,
+  TOOLS.GITHUB_CREATE_ISSUE,
   TOOLS.SEND_TELEGRAM,
   TOOLS.SET_IDENTITY,
   TOOLS.SET_PERMISSION_MODE,
