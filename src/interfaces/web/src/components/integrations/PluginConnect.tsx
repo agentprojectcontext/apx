@@ -3,12 +3,17 @@ import useSWR from "swr";
 import { AlertCircle, CheckCircle2, ChevronDown, ExternalLink, Eye, EyeOff, Github, Loader2, WifiOff, X } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { Integrations, type CatalogEntry, type IntegrationScope, type IntegrationStatus } from "../../lib/api";
+import { t } from "../../i18n";
+import type { TKey } from "../../i18n";
 import { PluginCard } from "./PluginCard";
 import { PluginToolsSection } from "./PluginToolsSection";
 
 // One generic component that renders any token-based plugin's config form from
-// its `ui` descriptor (configFields + optional post-validate select). Asana and
-// GitHub share it; each keeps its own independent config + credentials.
+// its `ui` descriptor (structure) + i18n (all display text, keyed by slug). Asana
+// and GitHub share it; each keeps its own independent config + credentials.
+
+// Dynamic i18n lookup for computed per-slug keys (t is typed to known keys).
+const tk = (key: string, vars?: Record<string, string | number>) => t(key as TKey, vars);
 
 function AsanaLogo({ className }: { className?: string }) {
   return (
@@ -75,7 +80,7 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
       setStep("done");
       setValues({});
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al conectar");
+      setError(err instanceof Error ? err.message : t("integrations.err_connect"));
       setStep("idle");
     }
   }
@@ -91,7 +96,7 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
       setSelectOptions([]);
       setStep("done");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al seleccionar");
+      setError(err instanceof Error ? err.message : t("integrations.err_generic"));
       setStep("idle");
     }
   }
@@ -102,9 +107,17 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
       await Integrations.deactivate(pid, entry.slug, scope);
       await mutate();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error al desactivar");
+      setError(err instanceof Error ? err.message : t("integrations.err_generic"));
     }
   }
+
+  const badgeLabel = isLoading
+    ? "…"
+    : isActive
+      ? t("integrations.status_active")
+      : status?.status === "error"
+        ? t("integrations.status_error")
+        : t("integrations.status_unconfigured");
 
   return (
     <PluginCard
@@ -124,7 +137,7 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
           )}
         >
           <span className={cn("h-1.5 w-1.5 rounded-full", isActive ? "bg-emerald-400" : "bg-muted-foreground")} />
-          {isLoading ? "..." : isActive ? "Activo" : status?.status === "error" ? "Error" : "No configurado"}
+          {badgeLabel}
         </span>
       }
       expanded={expanded}
@@ -144,14 +157,14 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
           <div className="space-y-1 rounded-xl border border-emerald-700/30 bg-emerald-900/10 p-3">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-              <span className="text-xs font-medium text-emerald-300">Conectado</span>
+              <span className="text-xs font-medium text-emerald-300">{t("integrations.connected")}</span>
             </div>
-            {(ui.connectedFields || []).map((f) => {
-              const v = status?.[f.key];
+            {(ui.connectedFields || []).map((key) => {
+              const v = status?.[key];
               if (!v) return null;
               return (
-                <p key={f.key} className="pl-5 text-[10px] text-muted-foreground">
-                  {f.label}: {String(v)}
+                <p key={key} className="pl-5 text-[10px] text-muted-foreground">
+                  {tk(`integrations.${entry.slug}.connected.${key}`)}: {String(v)}
                 </p>
               );
             })}
@@ -161,14 +174,14 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
         {/* Post-validate selection (e.g. Asana workspace) */}
         {selectOptions.length > 1 && ui.select && (
           <div className="space-y-2">
-            <p className="text-[11px] text-muted-foreground">{ui.select.label}:</p>
+            <p className="text-[11px] text-muted-foreground">{tk(`integrations.${entry.slug}.select_label`)}:</p>
             <div className="flex gap-2">
               <select
                 value={selectValue}
                 onChange={(e) => setSelectValue(e.target.value)}
                 className={cn("flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-xs outline-none", accent.ring)}
               >
-                <option value="">Seleccionar...</option>
+                <option value="">{t("integrations.select_placeholder")}</option>
                 {selectOptions.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
@@ -178,7 +191,7 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
                 disabled={!selectValue || busy}
                 className={cn("rounded-lg border px-3 py-1.5 text-xs transition-all disabled:cursor-not-allowed disabled:opacity-50", accent.border, accent.text, accent.hover)}
               >
-                {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Confirmar"}
+                {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t("integrations.confirm")}
               </button>
             </div>
           </div>
@@ -187,10 +200,10 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
         {/* Config form */}
         {showForm && (
           <div className="space-y-3">
-            <p className="text-xs font-semibold text-foreground">Credenciales {entry.name}</p>
+            <p className="text-xs font-semibold text-foreground">{t("integrations.credentials", { name: entry.name })}</p>
             {ui.configFields.map((field) => (
               <div key={field.key} className="space-y-2">
-                {field.help && (
+                {field.help_url && (
                   <div className="overflow-hidden rounded-lg border border-border">
                     <button
                       type="button"
@@ -198,22 +211,22 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
                       className="flex w-full items-center justify-between px-3 py-2 text-left transition-colors hover:bg-muted/40"
                     >
                       <span className="text-[11px] text-muted-foreground">
-                        {field.help.label} ·{" "}
+                        {tk(`integrations.${entry.slug}.fields.${field.key}.help_label`)} ·{" "}
                         <a
-                          href={field.help.url}
+                          href={field.help_url}
                           target="_blank"
                           rel="noreferrer"
                           onClick={(e) => e.stopPropagation()}
                           className={cn("inline-flex items-center gap-0.5 hover:underline", accent.text)}
                         >
-                          {field.help.urlLabel} <ExternalLink className="h-2.5 w-2.5" />
+                          {field.help_url_label} <ExternalLink className="h-2.5 w-2.5" />
                         </a>
                       </span>
                       <ChevronDown className={cn("h-3.5 w-3.5 flex-shrink-0 text-muted-foreground transition-transform", showHelp === field.key && "rotate-180")} />
                     </button>
                     {showHelp === field.key && (
                       <div className="space-y-1.5 border-t border-border px-3 pb-3 pt-2.5">
-                        {field.help.steps.map((s, i) => (
+                        {tk(`integrations.${entry.slug}.fields.${field.key}.help_steps`).split("\n").map((s, i) => (
                           <div key={i} className="flex items-start gap-2">
                             <span className={cn("mt-0.5 flex-shrink-0 font-mono text-[10px]", accent.text)}>{i + 1}.</span>
                             <p className="text-[11px] text-muted-foreground">{s}</p>
@@ -224,7 +237,7 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
                   </div>
                 )}
                 <div>
-                  <label className="mb-1 block text-[10px] text-muted-foreground">{field.label}</label>
+                  <label className="mb-1 block text-[10px] text-muted-foreground">{tk(`integrations.${entry.slug}.fields.${field.key}.label`)}</label>
                   <div className="relative">
                     <input
                       type={field.type === "password" && !reveal[field.key] ? "password" : "text"}
@@ -241,7 +254,7 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
                         className="absolute right-2.5 top-1/2 flex -translate-y-1/2 items-center gap-0.5 text-[10px] text-muted-foreground transition-colors hover:text-foreground"
                       >
                         {reveal[field.key] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                        {reveal[field.key] ? "Ocultar" : "Ver"}
+                        {reveal[field.key] ? t("integrations.hide") : t("integrations.reveal")}
                       </button>
                     )}
                   </div>
@@ -251,7 +264,7 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
 
             {step === "validating" && (
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Verificando...
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t("integrations.verifying")}
               </div>
             )}
 
@@ -261,8 +274,8 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
               className={cn("flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs transition-all disabled:cursor-not-allowed disabled:opacity-50", accent.border, accent.text, accent.hover)}
             >
               {busy ? (
-                <><Loader2 className="h-3.5 w-3.5 animate-spin" />{step === "saving" ? "Guardando..." : "Validando..."}</>
-              ) : "Conectar"}
+                <><Loader2 className="h-3.5 w-3.5 animate-spin" />{step === "saving" ? t("integrations.saving") : t("integrations.validating")}</>
+              ) : t("integrations.connect")}
             </button>
           </div>
         )}
@@ -277,7 +290,7 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
               onClick={handleDeactivate}
               className="flex items-center gap-1.5 rounded-lg border border-red-700/50 px-3 py-1.5 text-xs text-red-400 transition-all hover:bg-red-900/20"
             >
-              <WifiOff className="h-3.5 w-3.5" /> Desactivar
+              <WifiOff className="h-3.5 w-3.5" /> {t("integrations.deactivate")}
             </button>
           </div>
         )}

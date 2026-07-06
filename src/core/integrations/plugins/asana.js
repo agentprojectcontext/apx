@@ -143,45 +143,25 @@ export const asanaPlugin = {
   ],
 
   // Declarative UI descriptor consumed by the generic PluginConnect component
-  // (see web/components/integrations/PluginConnect.tsx). configFields render as
-  // inputs; `select` is a post-validate picker sourced from an action; and
-  // connectedFields are the status keys shown once connected.
+  // (see web/components/integrations/PluginConnect.tsx). STRUCTURE ONLY — all
+  // display text lives in the web i18n dictionaries under integrations.<slug>.*
+  // (keyed by field key). configFields render as inputs; `select` is a
+  // post-validate picker sourced from an action; connectedFields are the status
+  // keys shown once connected. `help_url`/`help_url_label` are non-translatable
+  // data kept here.
   ui: {
     accent: "rose",
     configFields: [
       {
         key: "personal_access_token",
-        label: "Personal Access Token",
         type: "password",
         placeholder: "1/1234567890abcdef:...",
-        help: {
-          label: "¿Cómo obtener el token?",
-          url: "https://app.asana.com/0/my-apps",
-          urlLabel: "app.asana.com/0/my-apps",
-          steps: [
-            "Abrí app.asana.com/0/my-apps en el navegador.",
-            'Bajá hasta la sección "Personal access tokens" (no tus apps OAuth).',
-            'Hacé clic en "+ New access token".',
-            "Dale un nombre y confirmá.",
-            'Copiá el token completo — empieza con "1/..." y tiene un ":" en el medio.',
-            "Pegalo en el campo de abajo.",
-          ],
-        },
+        help_url: "https://app.asana.com/0/my-apps",
+        help_url_label: "app.asana.com/0/my-apps",
       },
     ],
-    select: {
-      key: "workspace_gid",
-      label: "Seleccioná el workspace a usar",
-      action: "workspaces",
-      listKey: "workspaces",
-      valueKey: "gid",
-      labelKey: "name",
-    },
-    connectedFields: [
-      { key: "user_name", label: "Conectado como" },
-      { key: "user_email", label: "Email" },
-      { key: "workspace_name", label: "Workspace" },
-    ],
+    select: { key: "workspace_gid", action: "workspaces", listKey: "workspaces", valueKey: "gid", labelKey: "name" },
+    connectedFields: ["user_name", "user_email", "workspace_name"],
   },
 
   // Save the PAT and/or the target workspace. Returns a patch to persist.

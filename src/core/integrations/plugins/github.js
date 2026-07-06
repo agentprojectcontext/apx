@@ -90,31 +90,19 @@ export const githubPlugin = {
     { slug: "github_list_repos", desc: "Listar repositorios accesibles" },
     { slug: "github_create_issue", desc: "Crear un issue en un repo" },
   ],
+  // Structure only — display text lives in web i18n (integrations.github.*).
   ui: {
     accent: "slate",
     configFields: [
       {
         key: "token",
-        label: "Personal Access Token",
         type: "password",
         placeholder: "ghp_... o github_pat_...",
-        help: {
-          label: "¿Cómo obtener el token?",
-          url: "https://github.com/settings/tokens",
-          urlLabel: "github.com/settings/tokens",
-          steps: [
-            "Abrí github.com/settings/tokens.",
-            'Generá un token (classic o fine-grained) con scope "repo".',
-            "Copiá el token — empieza con ghp_ o github_pat_.",
-            "Pegalo en el campo de abajo.",
-          ],
-        },
+        help_url: "https://github.com/settings/tokens",
+        help_url_label: "github.com/settings/tokens",
       },
     ],
-    connectedFields: [
-      { key: "user_login", label: "Conectado como" },
-      { key: "user_name", label: "Nombre" },
-    ],
+    connectedFields: ["user_login", "user_name"],
   },
 
   configure(record, body = {}) {

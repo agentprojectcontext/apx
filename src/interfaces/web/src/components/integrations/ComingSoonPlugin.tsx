@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Github, MessageCircle, Mic, Puzzle } from "lucide-react";
 import type { CatalogEntry } from "../../lib/api";
+import { t } from "../../i18n";
 import { PluginCard } from "./PluginCard";
 
 const ICONS: Record<string, { icon: typeof Puzzle; className: string; wrap: string }> = {
@@ -28,17 +29,13 @@ export function ComingSoonPlugin({ entry }: { entry: CatalogEntry }) {
       description={entry.description}
       badges={
         <span className="rounded-full border border-border bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-          Próximamente
+          {t("integrations.coming_soon")}
         </span>
       }
       expanded={expanded}
       onToggle={() => setExpanded((v) => !v)}
     >
-      <div className="p-4 text-xs text-muted-foreground">
-        Este plugin está declarado en el catálogo pero todavía no está conectable en APX. La
-        infraestructura de <span className="font-mono">{entry.slug}</span> se va a portar de forma
-        nativa en una próxima iteración.
-      </div>
+      <div className="p-4 text-xs text-muted-foreground">{t("integrations.coming_soon_body")}</div>
     </PluginCard>
   );
 }
