@@ -1,3 +1,10 @@
+# [1.62.0](https://github.com/agentprojectcontext/apx/compare/v1.61.0...v1.62.0) (2026-07-06)
+
+
+### Features
+
+* **runtime:** async background call_runtime with A2A + durable callbacks ([9401316](https://github.com/agentprojectcontext/apx/commit/94013166ab7c1e31e35204e0839d7623b0f9e8cc))
+
 # [1.61.0](https://github.com/agentprojectcontext/apx/compare/v1.60.1...v1.61.0) (2026-07-06)
 
 
