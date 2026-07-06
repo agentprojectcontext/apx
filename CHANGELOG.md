@@ -1,3 +1,10 @@
+# [1.60.0](https://github.com/agentprojectcontext/apx/compare/v1.59.0...v1.60.0) (2026-07-05)
+
+
+### Features
+
+* **integrations:** add plugins/connectors subsystem with Asana ([5fec6ca](https://github.com/agentprojectcontext/apx/commit/5fec6ca97a4cd2470c2842faa18a34cd4f3a1a76))
+
 # [1.59.0](https://github.com/agentprojectcontext/apx/compare/v1.58.0...v1.59.0) (2026-07-05)
 
 
