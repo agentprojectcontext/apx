@@ -8,7 +8,7 @@
 import { runSuperAgent } from "#core/agent/super-agent.js";
 import { TELEGRAM_TOOL_ITERS } from "#core/agent/constants.js";
 import { stripThinking } from "#core/util/thinking.js";
-import { appendGlobalMessage } from "#core/stores/messages.js";
+import { appendGlobalMessage, getRecentTelegramTurnsFromFs } from "#core/stores/messages.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
 import { createTelegramConfirmAdapter } from "#core/confirmation/adapters/telegram.js";
@@ -100,7 +100,7 @@ export function buildStreamHandler(self, { chat_id, update_id, agentDisplay }) {
  */
 export function runTelegramSuperAgent(self, {
   chat_id, prompt, previousMessages, target, author, authorId, relationshipBlock,
-  allowedTools, contextNote, signal, onEvent,
+  allowedTools, contextNote, signal, onEvent, backgroundResultSink = null,
 }) {
   const confirmAdapter = createTelegramConfirmAdapter({
     token: resolveBotToken(self.channel),
@@ -130,12 +130,89 @@ export function runTelegramSuperAgent(self, {
     signal,
     onEvent,
     requestConfirmation: confirmAdapter.requestConfirmation,
+    backgroundResultSink,
     // Autonomy budget: Telegram is the "do the whole task for me" surface, so it
     // gets a real multi-step budget instead of the conversational default (which
     // cut tasks off after ~9 actions to ask "continue?"). Tunable via
     // config.super_agent.telegram_max_iters.
     maxIters: Number(self.globalConfig?.super_agent?.telegram_max_iters) || TELEGRAM_TOOL_ITERS,
   });
+}
+
+/**
+ * Run a follow-up super-agent turn triggered internally (not by an inbound
+ * message) — the A2A callback path. A background tool (call_runtime) finished
+ * out of band; `reportText` is the sub-agent/runtime result phrased as an
+ * internal report. We log it as a synthetic inbound so it lands in history,
+ * then run a normal streamed turn so Roby relays it to the user in its own
+ * voice (and can chain the next step). The same `backgroundResultSink` is
+ * forwarded so a relay turn that delegates again keeps the A2A loop intact.
+ * Best-effort: never throws (nothing awaits it).
+ */
+export async function runFollowupTurn(self, {
+  chat_id, reportText, target, author, authorId, relationshipBlock,
+  allowedTools, agentDisplay, update_id, backgroundResultSink = null,
+}) {
+  if (!chat_id || !reportText) return;
+  try {
+    // Synthetic inbound so the report is part of the rolling history. Tagged
+    // a2a_callback + a distinct author so it reads as an internal hand-off, not
+    // a user turn.
+    appendGlobalMessage({
+      channel: CHANNELS.TELEGRAM,
+      direction: "in",
+      type: "user",
+      actor_id: "a2a",
+      external_id: `a2a-${update_id}-${chat_id}`,
+      author: "a2a",
+      body: reportText,
+      meta: { chat_id, tg_channel: self.channel.name, a2a_callback: true },
+    });
+
+    const previousMessages = getRecentTelegramTurnsFromFs({ chat_id, keepRecent: 40, max_age_hours: 24 });
+    const { onEvent, state } = buildStreamHandler(self, { chat_id, update_id, agentDisplay });
+    const stopTyping = self._startTyping(chat_id);
+    let replyText;
+    let replyAuthor;
+    let saUsage = null;
+    try {
+      const sa = await runTelegramSuperAgent(self, {
+        chat_id,
+        prompt: reportText,
+        previousMessages,
+        target,
+        author,
+        authorId,
+        relationshipBlock,
+        allowedTools,
+        onEvent,
+        backgroundResultSink,
+      });
+      replyText = sa.text;
+      replyAuthor = sa.name || agentDisplay;
+      saUsage = sa.usage;
+    } catch (e) {
+      self.log(`telegram[${self.channel.name}] a2a followup failed: ${e.message}`);
+      replyText = telegramErrorText(self, e);
+      replyAuthor = agentDisplay;
+    }
+    stopTyping();
+    await sendFinalReply(self, {
+      chat_id,
+      update_id,
+      replyText,
+      replyAuthor,
+      replyActorId: SUPERAGENT_ACTOR_ID,
+      replyKind: "superagent",
+      saUsage,
+      streamedCount: state.streamedCount,
+      lastStreamedText: state.lastStreamedText,
+      agentDisplay,
+      extraMeta: { a2a_relay: true },
+    });
+  } catch (e) {
+    self.log(`telegram[${self.channel.name}] a2a followup crashed: ${e.message}`);
+  }
 }
 
 /** Localized "couldn't reply" text for a failed super-agent turn (model itself

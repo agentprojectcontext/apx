@@ -60,6 +60,12 @@ export async function runSuperAgent({
   // Null disables human-in-the-loop (tools that need confirmation fail
   // immediately instead of waiting for user input).
   requestConfirmation = null,
+  // A2A callback sink: when a background tool (call_runtime) finishes out of
+  // band, it feeds the result back into the super-agent via this function so
+  // the agent — not a raw dump — relays it to the user. Channel-specific
+  // (telegram wires it to a follow-up streamed turn). Null → tools fall back to
+  // a direct channel send. See call-runtime.js.
+  backgroundResultSink = null,
   // When true, suppress the static "Available skills" slug-dump hint block
   // because a per-turn skill inspector already injected the right context.
   // Set by the daemon's super-agent endpoint when config.skills.inspector is on.
@@ -131,7 +137,7 @@ export async function runSuperAgent({
     overrideModel,
     toolSchemas,
     makeToolHandlers,
-    toolHandlerCtx: { projects, plugins, registries, globalConfig, channel, toolSession, requestConfirmation },
+    toolHandlerCtx: { projects, plugins, registries, globalConfig, channel, channelMeta, toolSession, requestConfirmation, backgroundResultSink },
     onEvent,
     signal,
     onToken,
