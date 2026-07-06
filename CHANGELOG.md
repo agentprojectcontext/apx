@@ -1,3 +1,10 @@
+# [1.64.0](https://github.com/agentprojectcontext/apx/compare/v1.63.0...v1.64.0) (2026-07-06)
+
+
+### Features
+
+* **integrations:** add comprehensive documentation for integrations and skills management ([8b0d678](https://github.com/agentprojectcontext/apx/commit/8b0d678688cde4ada763763ee07113697b4ef47c))
+
 # [1.63.0](https://github.com/agentprojectcontext/apx/compare/v1.62.0...v1.63.0) (2026-07-06)
 
 
