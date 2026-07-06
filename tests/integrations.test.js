@@ -6,6 +6,7 @@ import path from "node:path";
 
 import { IntegrationStore, resolveIntegration, redactRecord } from "../src/core/integrations/store.js";
 import { asanaPlugin } from "../src/core/integrations/plugins/asana.js";
+import { githubPlugin } from "../src/core/integrations/plugins/github.js";
 import { listCatalog, getPluginService } from "../src/core/integrations/catalog.js";
 
 function tmpStore() {
@@ -104,12 +105,35 @@ test("asanaPlugin.deactivate: disables without dropping config", () => {
   assert.equal(patch.config, undefined); // config untouched
 });
 
-test("catalog: asana is implemented, others are coming soon", () => {
+test("catalog: asana + github implemented (with ui), whatsapp coming soon, no telegram/transcription", () => {
   const catalog = listCatalog();
   const asana = catalog.find((c) => c.slug === "asana");
   assert.equal(asana.coming_soon, false);
   assert.ok(asana.tools.length >= 4);
+  assert.ok(asana.ui && asana.ui.configFields.length >= 1, "asana carries a ui descriptor");
   assert.equal(getPluginService("asana"), asanaPlugin);
-  assert.equal(getPluginService("github"), null);
-  assert.ok(catalog.find((c) => c.slug === "github").coming_soon);
+
+  const github = catalog.find((c) => c.slug === "github");
+  assert.equal(github.coming_soon, false);
+  assert.ok(github.ui && github.ui.configFields.some((f) => f.key === "token"));
+  assert.ok(getPluginService("github"));
+
+  assert.ok(catalog.find((c) => c.slug === "whatsapp").coming_soon);
+  // Telegram is a channel, transcription lives with desktop STT — neither belongs here.
+  assert.equal(catalog.find((c) => c.slug === "telegram"), undefined);
+  assert.equal(catalog.find((c) => c.slug === "local-transcription"), undefined);
+});
+
+test("githubPlugin.configure: stores token + marks pending validation", () => {
+  const { patch } = githubPlugin.configure(null, { token: "  ghp_secret  " });
+  assert.equal(patch.config.token, "ghp_secret");
+  assert.equal(patch.status, "pending_validation");
+  assert.equal(patch.name, "GitHub");
+});
+
+test("githubPlugin.status: disconnected shape for null record", () => {
+  const s = githubPlugin.status(null);
+  assert.equal(s.slug, "github");
+  assert.equal(s.status, "disconnected");
+  assert.equal(s.is_enabled, false);
 });

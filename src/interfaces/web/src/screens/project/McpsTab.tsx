@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import {
-  CheckCircle2, FlaskConical, Pencil, Plus, ScrollText, Terminal, Trash2, X, XCircle,
+  ChevronDown, FlaskConical, Globe, Network, Pencil, Plus, ScrollText,
+  Terminal, Trash2, Wrench, X, XCircle,
 } from "lucide-react";
-import { Mcps, Vars, type McpAddBody, type McpScope, type McpTestResult, type McpLogsResult, type VarsList } from "../../lib/api";
+import { Mcps, Vars, type McpAddBody, type McpScope, type McpLogsResult, type VarsList } from "../../lib/api";
 import type { McpEntry } from "../../types/daemon";
+import { cn } from "../../lib/cn";
 import { Section } from "../../components/Section";
 import { Badge, Button, Dialog, Empty, Field, Input, Loading, Switch } from "../../components/ui";
 import { Tip } from "../../components/ui/tip";
@@ -18,6 +20,31 @@ type DialogMode =
   | null
   | { kind: "new" }
   | { kind: "edit"; entry: McpEntry };
+
+// Per-row live test state: mirrors PandaProject's MCP cards — a colored dot +
+// tool count come from the last on-demand test (tools/list) of each server.
+type McpResult = { busy?: boolean; ok?: boolean; error?: string; tools?: { name: string; description: string }[] };
+
+// Short one-liner describing how a server connects (http url or stdio command),
+// shown under the name like Panda's config summary. Prefers an explicit
+// description in the raw config when present.
+function mcpSummary(m: McpEntry): string {
+  const raw = (m as unknown as { raw?: Record<string, unknown> }).raw || {};
+  if (typeof raw.description === "string" && raw.description.trim()) return raw.description.trim();
+  if (m.transport === "http" && m.url) return m.url.length > 64 ? m.url.slice(0, 61) + "…" : m.url;
+  const cmd = [m.command, ...(m.args || [])].filter(Boolean).join(" ");
+  if (cmd) return "$ " + (cmd.length > 64 ? cmd.slice(0, 61) + "…" : cmd);
+  return "";
+}
+
+// Colored status dot: red on a failed test, emerald when tested-ok or enabled,
+// muted when disabled, amber while testing.
+function dotClass(enabled: boolean, res?: McpResult): string {
+  if (res?.busy) return "bg-amber-400 animate-pulse";
+  if (res?.ok === false) return "bg-red-400";
+  if (res?.ok) return "bg-emerald-400";
+  return enabled ? "bg-emerald-500/70" : "bg-slate-500";
+}
 
 const SOURCE_TONE: Record<string, "info" | "muted" | "success"> = {
   apc: "info",
@@ -51,7 +78,8 @@ export function McpsTab({ pid }: { pid: string }) {
   const vars = useSWR<VarsList>(`/projects/${pid}/vars`, () => Vars.list(pid));
   const [dialog, setDialog] = useState<DialogMode>(null);
   const [activeMcp, setActiveMcp] = useState<string | null>(null);
-  const [testFor, setTestFor] = useState<{ name: string; result?: McpTestResult; busy?: boolean } | null>(null);
+  const [results, setResults] = useState<Record<string, McpResult>>({});
+  const [expandedTools, setExpandedTools] = useState<Record<string, boolean>>({});
 
   const varNames = useMemo(
     () => (vars.data ? Object.keys(vars.data.effective).sort() : []),
@@ -75,14 +103,19 @@ export function McpsTab({ pid }: { pid: string }) {
 
   const runTest = async (name: string) => {
     setActiveMcp(name);
-    setTestFor({ name, busy: true });
+    setResults((prev) => ({ ...prev, [name]: { busy: true } }));
+    setExpandedTools((prev) => ({ ...prev, [name]: true }));
     try {
       const result = await Mcps.test(pid, name);
-      setTestFor({ name, result });
+      setResults((prev) => ({ ...prev, [name]: { ok: result.ok, error: result.error, tools: result.tools } }));
     } catch (e: any) {
-      setTestFor({ name, result: { ok: false, error: e?.message || "error" } });
+      setResults((prev) => ({ ...prev, [name]: { ok: false, error: e?.message || "error" } }));
     }
   };
+
+  const testedValues = Object.values(results);
+  const okCount = testedValues.filter((r) => r.ok).length;
+  const errCount = testedValues.filter((r) => r.ok === false).length;
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
@@ -117,11 +150,32 @@ export function McpsTab({ pid }: { pid: string }) {
           {list.isLoading && <Loading />}
           {!list.isLoading && (list.data?.length ?? 0) === 0 && <Empty>{t("project.mcps.empty")}</Empty>}
 
+          {(okCount > 0 || errCount > 0) && (
+            <div className="mb-2 flex items-center gap-4 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs">
+              {okCount > 0 && (
+                <span className="flex items-center gap-1.5 text-emerald-400">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400" /> {okCount} conectados
+                </span>
+              )}
+              {errCount > 0 && (
+                <span className="flex items-center gap-1.5 text-red-400">
+                  <span className="h-2 w-2 rounded-full bg-red-400" /> {errCount} con error
+                </span>
+              )}
+            </div>
+          )}
+
           <ul className="space-y-2 text-sm">
             {(list.data || []).map((m) => {
               const writable = m.source === "apc" || m.source === "runtime" || m.source === "global";
               const scopeForRemove: McpScope = sourceToScope(m.source);
               const isActive = activeMcp === m.name;
+              const enabled = m.enabled !== false;
+              const res = results[m.name];
+              const tools = res?.tools || [];
+              const open = !!expandedTools[m.name];
+              const summary = mcpSummary(m);
+              const Icon = m.transport === "http" ? Globe : Network;
               return (
                 <li
                   key={`${m.source}-${m.name}`}
@@ -132,45 +186,79 @@ export function McpsTab({ pid }: { pid: string }) {
                   onClick={() => setActiveMcp(m.name)}
                   role="button"
                 >
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span className="font-medium">{m.name}</span>
-                    <Badge tone={SOURCE_TONE[m.source] ?? "muted"} >{sourceLabel(m.source)}</Badge>
-                    <span className="ml-auto text-xs text-muted-fg">
-                      {(m.transport || "stdio").toUpperCase()}
-                    </span>
-                    <div onClick={(e) => e.stopPropagation()}>
-                      <Switch
-                        checked={m.enabled !== false}
-                        onChange={() => toggleEnabled(m)}
-                        label=""
-                      />
+                  <div className="flex items-start gap-3">
+                    {/* Icon + colored status dot */}
+                    <div className="relative mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-border bg-background">
+                      <Icon size={16} className="text-muted-fg" />
+                      <span className={cn("absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-card", dotClass(enabled, res))} />
                     </div>
-                    <Tip content={t("project.mcps.test_btn")}>
-                      <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); runTest(m.name); }} aria-label={t("project.mcps.test_btn")}>
-                        <FlaskConical size={13} />
-                      </Button>
-                    </Tip>
-                    <Tip content={t("project.mcps.logs_btn")}>
-                      <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setActiveMcp(m.name); }} aria-label={t("project.mcps.logs_btn")}>
-                        <ScrollText size={13} />
-                      </Button>
-                    </Tip>
-                    {writable && (
-                      <Tip content={t("project.mcps.edit_btn")}>
-                        <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setDialog({ kind: "edit", entry: m }); }} aria-label={t("project.mcps.edit_btn")}>
-                          <Pencil size={13} />
-                        </Button>
-                      </Tip>
-                    )}
-                    {writable && (
-                      <Button size="sm" variant="destructive" onClick={(e) => { e.stopPropagation(); remove(m.name, scopeForRemove); }}>
-                        <Trash2 size={13} />
-                      </Button>
-                    )}
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-medium">{m.name}</span>
+                        <Badge tone={SOURCE_TONE[m.source] ?? "muted"}>{sourceLabel(m.source)}</Badge>
+                        <span className="ml-auto text-xs text-muted-fg">{(m.transport || "stdio").toUpperCase()}</span>
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <Switch checked={enabled} onChange={() => toggleEnabled(m)} label="" />
+                        </div>
+                        <Tip content={t("project.mcps.test_btn")}>
+                          <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); runTest(m.name); }} aria-label={t("project.mcps.test_btn")}>
+                            {res?.busy ? <FlaskConical size={13} className="animate-pulse" /> : <FlaskConical size={13} />}
+                          </Button>
+                        </Tip>
+                        <Tip content={t("project.mcps.logs_btn")}>
+                          <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setActiveMcp(m.name); }} aria-label={t("project.mcps.logs_btn")}>
+                            <ScrollText size={13} />
+                          </Button>
+                        </Tip>
+                        {writable && (
+                          <Tip content={t("project.mcps.edit_btn")}>
+                            <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); setDialog({ kind: "edit", entry: m }); }} aria-label={t("project.mcps.edit_btn")}>
+                              <Pencil size={13} />
+                            </Button>
+                          </Tip>
+                        )}
+                        {writable && (
+                          <Button size="sm" variant="destructive" onClick={(e) => { e.stopPropagation(); remove(m.name, scopeForRemove); }}>
+                            <Trash2 size={13} />
+                          </Button>
+                        )}
+                      </div>
+
+                      {summary && <p className="mt-0.5 truncate font-mono text-xs text-muted-fg">{summary}</p>}
+
+                      {res?.ok === false && res.error && (
+                        <p className="mt-1 flex items-start gap-1 text-xs text-red-400">
+                          <XCircle size={12} className="mt-0.5 flex-shrink-0" /> <span className="break-words">{res.error}</span>
+                        </p>
+                      )}
+
+                      {tools.length > 0 && (
+                        <div className="mt-1.5" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            onClick={() => setExpandedTools((prev) => ({ ...prev, [m.name]: !prev[m.name] }))}
+                            className="flex items-center gap-1 text-xs text-muted-fg transition-colors hover:text-fg"
+                          >
+                            <Wrench size={12} /> {tools.length} tools
+                            <ChevronDown size={12} className={cn("transition-transform", open && "rotate-180")} />
+                          </button>
+                          {open && (
+                            <div className="mt-1.5 flex flex-wrap gap-1.5">
+                              {tools.slice(0, 40).map((tool) => (
+                                <Tip key={tool.name} content={tool.description || "—"}>
+                                  <span className="inline-flex items-center gap-1 rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] text-muted-fg">
+                                    <Terminal size={10} /> {tool.name}
+                                  </span>
+                                </Tip>
+                              ))}
+                              {tools.length > 40 && <span className="text-[10px] text-muted-fg">… +{tools.length - 40}</span>}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  {testFor?.name === m.name && (
-                    <TestResultRow result={testFor.result} busy={!!testFor.busy} onClose={() => setTestFor(null)} />
-                  )}
                 </li>
               );
             })}
@@ -190,49 +278,12 @@ export function McpsTab({ pid }: { pid: string }) {
       </div>
 
       <div className="lg:col-span-1">
-        <LogsPanel pid={pid} mcpName={activeMcp} runningTest={!!testFor?.busy} />
+        <LogsPanel pid={pid} mcpName={activeMcp} runningTest={!!(activeMcp && results[activeMcp]?.busy)} />
       </div>
     </div>
   );
 }
 
-function TestResultRow({
-  result,
-  busy,
-  onClose,
-}: { result?: McpTestResult; busy: boolean; onClose: () => void }) {
-  return (
-    <div className="mt-2 rounded border border-border/60 bg-background/40 p-2 text-xs">
-      <div className="mb-1 flex items-center gap-2">
-        {busy && <span className="text-muted-fg">{t("project.mcps.testing")}</span>}
-        {!busy && result?.ok && (
-          <span className="flex items-center gap-1 text-emerald-400">
-            <CheckCircle2 size={12} /> {t("project.mcps.test_ok", { n: String(result.tool_count ?? 0) })}
-          </span>
-        )}
-        {!busy && result && !result.ok && (
-          <span className="flex items-center gap-1 text-red-400">
-            <XCircle size={12} /> {result.error}
-          </span>
-        )}
-        <button className="ml-auto text-muted-fg hover:text-fg" onClick={onClose}>×</button>
-      </div>
-      {!busy && result?.ok && result.tools && result.tools.length > 0 && (
-        <ul className="space-y-0.5 font-mono">
-          {result.tools.slice(0, 10).map((tool) => (
-            <li key={tool.name} className="truncate">
-              <span className="text-primary">{tool.name}</span>
-              {tool.description && <span className="ml-2 text-muted-fg">— {tool.description}</span>}
-            </li>
-          ))}
-          {result.tools.length > 10 && (
-            <li className="text-muted-fg">… +{result.tools.length - 10}</li>
-          )}
-        </ul>
-      )}
-    </div>
-  );
-}
 
 // Right-side terminal-style live logs panel. Polls the daemon every 1.5s
 // while a test is running (or every 4s when idle and an MCP is pinned) so
