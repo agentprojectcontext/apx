@@ -113,10 +113,6 @@ export function McpsTab({ pid }: { pid: string }) {
     }
   };
 
-  const testedValues = Object.values(results);
-  const okCount = testedValues.filter((r) => r.ok).length;
-  const errCount = testedValues.filter((r) => r.ok === false).length;
-
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
       <div className="lg:col-span-3">
@@ -149,21 +145,6 @@ export function McpsTab({ pid }: { pid: string }) {
 
           {list.isLoading && <Loading />}
           {!list.isLoading && (list.data?.length ?? 0) === 0 && <Empty>{t("project.mcps.empty")}</Empty>}
-
-          {(okCount > 0 || errCount > 0) && (
-            <div className="mb-2 flex items-center gap-4 rounded-md border border-border bg-muted/30 px-3 py-2 text-xs">
-              {okCount > 0 && (
-                <span className="flex items-center gap-1.5 text-emerald-400">
-                  <span className="h-2 w-2 rounded-full bg-emerald-400" /> {okCount} conectados
-                </span>
-              )}
-              {errCount > 0 && (
-                <span className="flex items-center gap-1.5 text-red-400">
-                  <span className="h-2 w-2 rounded-full bg-red-400" /> {errCount} con error
-                </span>
-              )}
-            </div>
-          )}
 
           <ul className="space-y-2 text-sm">
             {(list.data || []).map((m) => {
@@ -240,7 +221,7 @@ export function McpsTab({ pid }: { pid: string }) {
                             onClick={() => setExpandedTools((prev) => ({ ...prev, [m.name]: !prev[m.name] }))}
                             className="flex items-center gap-1 text-xs text-muted-fg transition-colors hover:text-fg"
                           >
-                            <Wrench size={12} /> {tools.length} tools
+                            <Wrench size={12} /> {t("project.mcps.tools_count", { n: tools.length })}
                             <ChevronDown size={12} className={cn("transition-transform", open && "rotate-180")} />
                           </button>
                           {open && (
