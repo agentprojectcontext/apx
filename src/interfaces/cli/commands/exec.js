@@ -31,6 +31,33 @@ export function resolveExecRequest(args) {
   };
 }
 
+// Valid channel strings the daemon knows how to route.
+const KNOWN_CHANNELS = new Set(Object.values(CHANNELS));
+
+/**
+ * Resolve which channel `apx exec` should tag the turn with.
+ * Default: CHANNELS.CLI (unchanged behaviour).
+ *   --code / -c        → CHANNELS.CODE (coding system prompt + code tools)
+ *   --channel <name>   → explicit channel (must be a known channel string)
+ */
+export function resolveExecChannel(args) {
+  const flags = args?.flags || {};
+  if (flags.code) return CHANNELS.CODE;
+
+  const raw = flags.channel;
+  if (raw && raw !== true) {
+    const channel = String(raw).toLowerCase();
+    if (!KNOWN_CHANNELS.has(channel)) {
+      throw new Error(
+        `apx exec: unknown channel "${raw}". Known channels: ${[...KNOWN_CHANNELS].join(", ")}`
+      );
+    }
+    return channel;
+  }
+
+  return CHANNELS.CLI;
+}
+
 async function readPromptFromStdin() {
   const fs = await import("node:fs");
   if (process.stdin.isTTY) return "";
@@ -57,14 +84,14 @@ export async function cmdExec(args) {
   }
   if (!prompt) {
     throw new Error(
-      'apx exec: prompt is empty. Usage: apx exec "prompt" | apx exec -a <agent> "prompt" | apx exec -- "prompt"'
+      'apx exec: prompt is empty. Usage: apx exec "prompt" | apx exec --code "prompt" | apx exec -a <agent> "prompt" | apx exec -- "prompt"'
     );
   }
 
   const pid = await resolveProjectId(args?.flags?.project);
   const body = {
     prompt,
-    channel: CHANNELS.CLI,
+    channel: resolveExecChannel(args),
     channelMeta: { cwd: process.cwd() },
   };
   if (args.flags.model && args.flags.model !== true) body.model = args.flags.model;
