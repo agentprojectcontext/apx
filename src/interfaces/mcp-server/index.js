@@ -95,7 +95,7 @@ server.tool(
   {
     slug: z.string().describe("Agent slug"),
     prompt: z.string().describe("Prompt / task for the agent"),
-    runtime: z.string().optional().describe("Runtime: claude-code | codex | opencode | aider | cursor-agent | gemini-cli | qwen-code (default: claude-code)"),
+    runtime: z.string().optional().describe("Runtime: claude-code | codex | opencode | aider | cursor-agent | gemini-cli | qwen-code | antigravity (default: claude-code)"),
   },
   async ({ slug, prompt, runtime }) => {
     const proj = await resolveProject();

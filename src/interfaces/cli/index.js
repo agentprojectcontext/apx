@@ -1177,9 +1177,9 @@ const HELP_TOPICS = new Map(Object.entries({
   run: topic({
     title: "apx run",
     summary: "Launch a full external runtime session for an agent.",
-    usage: ["apx run <agent> --runtime <claude-code|codex|opencode|aider|cursor-agent|gemini-cli|qwen-code> \"<prompt>\" [--timeout <seconds>] [--project <name|id|path>]"],
+    usage: ["apx run <agent> --runtime <claude-code|codex|opencode|aider|cursor-agent|gemini-cli|qwen-code|antigravity> \"<prompt>\" [--timeout <seconds>] [--project <name|id|path>]"],
     options: [
-      ["--runtime <id>", "Runtime CLI to launch: claude-code, codex, opencode, aider, cursor-agent, gemini-cli, qwen-code."],
+      ["--runtime <id>", "Runtime CLI to launch: claude-code, codex, opencode, aider, cursor-agent, gemini-cli, qwen-code, antigravity."],
       ["--timeout <seconds>", "Runtime timeout."],
       ["--project <name|id|path>", "Pin command to a specific project."],
     ],
@@ -2102,7 +2102,7 @@ function buildHelp(version) {
 
     hSec("Runtimes"),
     hCmd("apx run <agent>",            36, "--runtime <id> \"prompt\"  --timeout <s>"),
-    `                                        ${H.DI}runtimes: claude-code | codex | opencode | aider | cursor-agent | gemini-cli | qwen-code${H.R}`,
+    `                                        ${H.DI}runtimes: claude-code | codex | opencode | aider | cursor-agent | gemini-cli | qwen-code | antigravity${H.R}`,
     hCmd("apx env detect",             36, "which agent CLIs are installed"),
 
     hSec("Agent-to-Agent"),
