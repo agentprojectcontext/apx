@@ -1,3 +1,10 @@
+# [1.63.0](https://github.com/agentprojectcontext/apx/compare/v1.62.0...v1.63.0) (2026-07-06)
+
+
+### Features
+
+* **exec:** apx exec --code / --channel selector ([642de53](https://github.com/agentprojectcontext/apx/commit/642de534da3e991f228119de21b6f3e23318011a))
+
 # [1.62.0](https://github.com/agentprojectcontext/apx/compare/v1.61.0...v1.62.0) (2026-07-06)
 
 
