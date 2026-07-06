@@ -1,3 +1,15 @@
+# [1.61.0](https://github.com/agentprojectcontext/apx/compare/v1.60.1...v1.61.0) (2026-07-06)
+
+
+### Bug Fixes
+
+* **skills:** tidy Config (RAG) layout — pair Inspector+Test, Thresholds full-width ([5e64a1a](https://github.com/agentprojectcontext/apx/commit/5e64a1a09d3a54a35b371c2647bf531638d18993))
+
+
+### Features
+
+* **integrations:** generic plugin config, GitHub connector, MCP view polish ([5e61c36](https://github.com/agentprojectcontext/apx/commit/5e61c361657e6827b6635f67e731a86a8a5e1f00))
+
 ## [1.60.1](https://github.com/agentprojectcontext/apx/compare/v1.60.0...v1.60.1) (2026-07-06)
 
 
