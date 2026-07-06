@@ -26,7 +26,7 @@ import * as askFlow from "./ask.js";
 import { telegramAuthorLabel } from "./helpers.js";
 import { handleIncomingPhoto } from "./inbound/photo.js";
 import { handleIncomingAudio } from "./inbound/audio.js";
-import { buildStreamHandler, runTelegramSuperAgent, telegramErrorText, sendFinalReply } from "./reply.js";
+import { buildStreamHandler, runTelegramSuperAgent, telegramErrorText, sendFinalReply, runFollowupTurn } from "./reply.js";
 import { t, resolveLang } from "#core/i18n/index.js";
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -285,6 +285,28 @@ export async function handleUpdate(self, u) {
       // strip the prefix from the user prompt before sending to the loop.
       const slashed = tryResolveSkillCommand(text, { projectPath: target?.path });
 
+      // A2A callback sink: when a background call_runtime finishes out of band,
+      // it invokes this to feed the sub-agent/runtime result back into a fresh
+      // super-agent turn — so Roby relays it in its own voice instead of dumping
+      // raw output. Self-referential so a relay turn that delegates again keeps
+      // the loop. Only wired when we have a chat to stream back to.
+      let backgroundResultSink = null;
+      if (chat_id) {
+        backgroundResultSink = async (reportText) =>
+          runFollowupTurn(self, {
+            chat_id,
+            reportText,
+            target,
+            author,
+            authorId: msg.from?.id,
+            relationshipBlock,
+            allowedTools,
+            agentDisplay,
+            update_id: u.update_id,
+            backgroundResultSink,
+          });
+      }
+
       try {
         const sa = await runTelegramSuperAgent(self, {
           chat_id,
@@ -298,6 +320,7 @@ export async function handleUpdate(self, u) {
           contextNote: slashed.handled ? slashed.contextNote : "",
           signal: abortCtrl.signal,
           onEvent,
+          backgroundResultSink,
         });
         replyText = sa.text;
         replyAuthor = sa.name || agentDisplay;

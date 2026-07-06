@@ -8,6 +8,7 @@ import {
   createRuntimeSession,
   extractRuntimeResult as extractApfResult,
 } from "#core/stores/runtime-sessions.js";
+import { writePendingCallback, deletePendingCallback } from "#core/stores/runtime-callbacks.js";
 import { buildRuntimeBridgeHint as buildApfHint } from "#core/agent/runtime-bridge.js";
 import { detectAll } from "#core/runtimes/detect.js";
 import {
@@ -167,14 +168,37 @@ export default {
             type: "string",
             description: "Optional prior session id (claude/codex/apx) — APX prepends that session's title + last prompt to the prompt so the runtime has context.",
           },
-          timeout_s: { type: "integer", description: "seconds before SIGTERM; default 300" },
+          timeout_s: { type: "integer", description: "seconds before SIGTERM. Foreground default 300; background runs default to 3600 (1h)." },
+          background: {
+            type: "boolean",
+            description: "Run detached instead of blocking this turn. On Telegram this is the DEFAULT (runtimes like claude-code can take many minutes to an hour; blocking would freeze the super-agent). Returns immediately with status:\"launched\"; when the runtime finishes, its result is delivered to this same chat as an automatic message. Set false ONLY when you genuinely need the runtime's output within THIS turn for an immediate follow-up (short tasks).",
+          },
         },
         required: ["runtime", "prompt"],
       },
     },
   },
-  makeHandler: ({ projects, requirePermission }) => async ({ project, agent: slug, runtime, prompt, resume_session_id = null, timeout_s = 300, confirmed = false }) => {
+  makeHandler: ({ projects, requirePermission, plugins, channel, channelMeta, backgroundResultSink = null }) => async ({ project, agent: slug, runtime, prompt, resume_session_id = null, timeout_s = null, background = null, confirmed = false }) => {
     await requirePermission("call_runtime", { dangerous: true, confirmed, args: { runtime } });
+
+    // Async delivery sink: on Telegram we can push the runtime's result back to
+    // the originating chat when it finishes, so the call doesn't have to block
+    // the turn. channelMeta.chatId + the telegram plugin are what make that
+    // possible; without them there's nowhere to deliver a late result, so we
+    // stay synchronous (web/desktop/exec keep their current behavior).
+    const chatId = channelMeta?.chatId ?? null;
+    const tgChannelName = channelMeta?.channelName ?? null;
+    const telegramPlugin = channel === "telegram" && chatId != null ? plugins?.get?.("telegram") : null;
+    // We can report a late result either by re-entering the super-agent (A2A,
+    // preferred — the agent relays in its own voice) or by a direct channel
+    // send (fallback). Either makes background mode viable.
+    const canCallback = !!backgroundResultSink || !!telegramPlugin;
+    // Background by default when we can call back; the model opts out with
+    // background:false when it needs the output inside this same turn.
+    const runInBackground = canCallback && background !== false;
+    // Long runtimes (claude-code sessions) can run for an hour; a detached run
+    // must not be SIGTERM'd at the 5-min foreground default.
+    const effectiveTimeoutS = Number(timeout_s) || (runInBackground ? 3600 : 300);
 
     const p = slug ? resolveProjectForAgent(projects, project, slug) : resolveProject(projects, project);
     const agent = slug ? readAgents(p.path).find((a) => a.slug === slug) : null;
@@ -226,106 +250,191 @@ export default {
       project: p.path,
       resume_session_id: resume_session_id || null,
       resume_resolved: resume.meta ? `${resume.meta.engine}:${resume.meta.id}` : null,
-      timeout_s,
+      timeout_s: effectiveTimeoutS,
+      background: runInBackground,
     });
 
-    try {
-      const r = await rt.run({
-        system: buildRuntimeSystem(p, agent, runtime, session.id, "super_agent_tool"),
-        prompt: effectivePrompt,
-        cwd: p.path,
-        timeoutMs: timeout_s * 1000,
-      });
+    // Run the runtime to completion and finalize (close the session record, log
+    // the transcript, shape the result object). NEVER throws — a thrown spawn is
+    // caught and returned as an error object, so the background path can deliver
+    // it as a callback instead of crashing an un-awaited promise.
+    const runToCompletion = async () => {
+      try {
+        const r = await rt.run({
+          system: buildRuntimeSystem(p, agent, runtime, session.id, "super_agent_tool"),
+          prompt: effectivePrompt,
+          cwd: p.path,
+          timeoutMs: effectiveTimeoutS * 1000,
+        });
 
-      const failure = runtimeLooksLikeFailure(r);
-      const result = extractApfResult(r.output) || (r.output || "").slice(0, 200);
-      closeRuntimeSession({
-        filePath: session.path,
-        externalSessionPath: r.externalSessionPath || null,
-        exitCode: failure.failed && r.exitCode === 0 ? -1 : r.exitCode,
-        result: failure.failed ? `failed: ${failure.reason}` : result,
-      });
+        const failure = runtimeLooksLikeFailure(r);
+        const result = extractApfResult(r.output) || (r.output || "").slice(0, 200);
+        closeRuntimeSession({
+          filePath: session.path,
+          externalSessionPath: r.externalSessionPath || null,
+          exitCode: failure.failed && r.exitCode === 0 ? -1 : r.exitCode,
+          result: failure.failed ? `failed: ${failure.reason}` : result,
+        });
 
-      p.logMessage({
-        agent_slug: actor,
-        channel: "runtime",
-        direction: "in",
-        author: "user",
-        body: effectivePrompt,
-        meta: { runtime, invoked_by: "super_agent_tool", apc_session: session.id, resume_session_id: resume_session_id || null },
-      });
-      p.logMessage({
-        agent_slug: actor,
-        channel: "runtime",
-        direction: "out",
-        type: "agent",
-        actor_id: agent?.slug || runtime,
-        actor_kind: agent?.slug ? "agent" : "engine",
-        author: agent?.slug || runtime,
-        body: r.output || "",
-        meta: {
-          runtime,
+        p.logMessage({
+          agent_slug: actor,
+          channel: "runtime",
+          direction: "in",
+          author: "user",
+          body: effectivePrompt,
+          meta: { runtime, invoked_by: "super_agent_tool", apc_session: session.id, resume_session_id: resume_session_id || null },
+        });
+        p.logMessage({
+          agent_slug: actor,
+          channel: "runtime",
+          direction: "out",
+          type: "agent",
+          actor_id: agent?.slug || runtime,
+          actor_kind: agent?.slug ? "agent" : "engine",
+          author: agent?.slug || runtime,
+          body: r.output || "",
+          meta: {
+            runtime,
+            exit_code: r.exitCode,
+            external_session_path: r.externalSessionPath || null,
+            session_id: r.sessionId || null,
+            apc_session: session.id,
+            invoked_by: "super_agent_tool",
+            failed: failure.failed || false,
+            failure_reason: failure.failed ? failure.reason : null,
+          },
+        });
+
+        if (failure.failed) {
+          log.error(`${runtime} run failed: ${failure.reason}`, {
+            apc_session: session.id,
+            exit_code: r.exitCode,
+            stderr: String(r.stderr || "").slice(0, 500),
+            external_session_path: r.externalSessionPath || null,
+          });
+          return {
+            error: `runtime "${runtime}" did not complete successfully: ${failure.reason}`,
+            runtime,
+            agent: agent?.slug || null,
+            apc_session: session.id,
+            exit_code: r.exitCode,
+            stderr: (r.stderr || "").slice(0, 2000),
+            output: (r.output || "").slice(0, 2000),
+            external_session_path: r.externalSessionPath || null,
+            session_id: r.sessionId || null,
+          };
+        }
+
+        log.info(`${runtime} run ok`, {
+          apc_session: session.id,
           exit_code: r.exitCode,
           external_session_path: r.externalSessionPath || null,
           session_id: r.sessionId || null,
-          apc_session: session.id,
-          invoked_by: "super_agent_tool",
-          failed: failure.failed || false,
-          failure_reason: failure.failed ? failure.reason : null,
-        },
-      });
-
-      if (failure.failed) {
-        log.error(`${runtime} run failed: ${failure.reason}`, {
-          apc_session: session.id,
-          exit_code: r.exitCode,
-          stderr: String(r.stderr || "").slice(0, 500),
-          external_session_path: r.externalSessionPath || null,
+          output_bytes: (r.output || "").length,
         });
+
         return {
-          error: `runtime "${runtime}" did not complete successfully: ${failure.reason}`,
           runtime,
           agent: agent?.slug || null,
           apc_session: session.id,
           exit_code: r.exitCode,
+          result,
+          output: (r.output || "").slice(0, 4000),
           stderr: (r.stderr || "").slice(0, 2000),
-          output: (r.output || "").slice(0, 2000),
+          truncated: (r.output || "").length > 4000,
           external_session_path: r.externalSessionPath || null,
           session_id: r.sessionId || null,
         };
+      } catch (e) {
+        log.error(`${runtime} run threw: ${e.message}`, { apc_session: session.id });
+        try {
+          closeRuntimeSession({
+            filePath: session.path,
+            exitCode: -1,
+            result: `error: ${e.message.slice(0, 200)}`,
+          });
+        } catch {}
+        return { error: `runtime "${runtime}" threw: ${e.message}`, runtime, agent: agent?.slug || null, apc_session: session.id };
+      }
+    };
+
+    // Deliver a finished background run. Preferred path (A2A): feed the result
+    // back into the super-agent so it relays in its own voice / chains the next
+    // step — an internal agent-to-agent hand-off. Fallback: a direct channel
+    // send of the raw result. Best-effort: never throws (nothing awaits it).
+    const who = `${runtime}${agent ? ` (agente ${agent.slug})` : ""}`;
+    const deliverCallback = async (res) => {
+      // Take ownership of delivery: drop the durable IOU so the reconciler in
+      // another/next daemon can't also deliver this one. Fallbacks below still
+      // run in-process, so a delete here doesn't risk losing the callback.
+      deletePendingCallback(session.id);
+      const body = res.error ? "" : String(res.result || res.output || "").trim();
+
+      if (backgroundResultSink) {
+        // A2A report phrased for Roby (not the end user). Roby decides how to
+        // relay it and whether a next step is needed.
+        const report = res.error
+          ? `[callback A2A] La tarea que delegaste a ${who} (sesión ${session.id}) FALLÓ: ${res.error}. ` +
+            `Avisale al usuario en tu voz y proponé cómo seguir.`
+          : `[callback A2A] Terminó la tarea que delegaste a ${who} (sesión ${session.id}). ` +
+            `Resultado del agente:\n${body.slice(0, 6000)}\n\n` +
+            `Contale al usuario el resultado en tu voz, breve y claro. No vuelvas a delegar salvo que falte un paso siguiente.`;
+        try {
+          await backgroundResultSink(report);
+          log.info(`${runtime} callback relayed via A2A sink`, { apc_session: session.id });
+          return;
+        } catch (e) {
+          log.error(`${runtime} A2A sink failed, falling back to direct send: ${e.message}`, { apc_session: session.id });
+        }
       }
 
-      log.info(`${runtime} run ok`, {
-        apc_session: session.id,
-        exit_code: r.exitCode,
-        external_session_path: r.externalSessionPath || null,
-        session_id: r.sessionId || null,
-        output_bytes: (r.output || "").length,
-      });
+      if (!telegramPlugin) return;
+      const head = res.error
+        ? `⚠️ La sesión de ${who} terminó con error (sesión \`${session.id}\`): ${res.error}`
+        : `✅ Terminó la sesión de ${who} (\`${session.id}\`).`;
+      const text = body ? `${head}\n\n${body.slice(0, 3500)}` : head;
+      try {
+        await telegramPlugin.send({ channel: tgChannelName, chat_id: chatId, text });
+        log.info(`${runtime} callback delivered (direct)`, { apc_session: session.id, chat_id: chatId });
+      } catch (e) {
+        log.error(`${runtime} callback send failed: ${e.message}`, { apc_session: session.id });
+      }
+    };
 
+    if (runInBackground) {
+      // Durable IOU: if this daemon dies before the run finishes (crash, pull,
+      // or a task that restarts the daemon), the reconciler on the next daemon
+      // delivers the result from the session record. The in-process path below
+      // deletes it the moment it takes over. Only telegram delivery is wired.
+      if (chatId != null) {
+        writePendingCallback({
+          session_id: session.id,
+          session_path: session.path,
+          channel: "telegram",
+          chat_id: chatId,
+          tg_channel: tgChannelName,
+          runtime,
+          agent: agent?.slug || null,
+          who,
+        });
+      }
+      // Fire-and-forget: don't await into the turn. runToCompletion never
+      // rejects, so this promise is safe un-awaited; the result is pushed to the
+      // chat when the runtime exits.
+      runToCompletion().then(deliverCallback);
       return {
         runtime,
         agent: agent?.slug || null,
         apc_session: session.id,
-        exit_code: r.exitCode,
-        output: (r.output || "").slice(0, 4000),
-        stderr: (r.stderr || "").slice(0, 2000),
-        truncated: (r.output || "").length > 4000,
-        external_session_path: r.externalSessionPath || null,
-        session_id: r.sessionId || null,
+        status: "launched",
+        background: true,
+        note:
+          `La sesión de ${runtime} arrancó en segundo plano y puede tardar varios minutos u horas. ` +
+          `NO esperes ni vuelvas a llamar a call_runtime para esto: el resultado llegará AUTOMÁTICAMENTE a este chat cuando termine. ` +
+          `Respondé al usuario ahora, en una línea, avisándole que la lanzaste y que le vas a avisar acá cuando esté lista.`,
       };
-    } catch (e) {
-      log.error(`${runtime} run threw: ${e.message}`, {
-        apc_session: session.id,
-      });
-      try {
-        closeRuntimeSession({
-          filePath: session.path,
-          exitCode: -1,
-          result: `error: ${e.message.slice(0, 200)}`,
-        });
-      } catch {}
-      throw e;
     }
+
+    return await runToCompletion();
   },
 };
