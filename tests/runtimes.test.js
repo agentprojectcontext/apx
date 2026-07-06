@@ -44,10 +44,12 @@ test("runtime registry includes external CLI adapters", () => {
     "cursor-agent",
     "gemini-cli",
     "qwen-code",
+    "antigravity",
   ]);
   assert.equal(getRuntime("cursor-agent").binary, "cursor-agent");
   assert.equal(getRuntime("gemini-cli").binary, "gemini");
   assert.equal(getRuntime("qwen-code").binary, "qwen");
+  assert.equal(getRuntime("antigravity").binary, "agy");
 });
 
 test("codex runtime uses exec mode that works outside git repos", async () => {

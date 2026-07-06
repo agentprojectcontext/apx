@@ -49,6 +49,7 @@ test("call_runtime schema allows APX runtime without an explicit agent", () => {
     "cursor-agent",
     "gemini-cli",
     "qwen-code",
+    "antigravity",
   ]);
 });
 
@@ -70,7 +71,13 @@ test("call_runtime reports missing runtime before creating a blank run", async (
     assert.match(r.error, /runtime "aider" is not installed or not runnable/);
     assert.equal(r.runtime, "aider");
     assert.equal(r.binary, "aider");
-    assert.deepEqual(r.installed_runtimes, []);
+    // The requested-but-missing runtime must not appear as installed. We avoid
+    // asserting an exact empty list: `antigravity` resolves its binary (agy /
+    // the IDE bundle) from absolute filesystem locations rather than PATH, so
+    // on a machine with Antigravity installed it stays detected even with an
+    // empty PATH. Assert the real intent instead.
+    assert.ok(Array.isArray(r.installed_runtimes));
+    assert.ok(!r.installed_runtimes.includes("aider"));
   } finally {
     process.env.PATH = oldPath;
     cleanupTempProject(root);

@@ -22,6 +22,7 @@ import aider from "./aider.js";
 import cursorAgent from "./cursor-agent.js";
 import geminiCli from "./gemini-cli.js";
 import qwenCode from "./qwen-code.js";
+import antigravity from "./antigravity.js";
 
 const REGISTRY = {
   "claude-code": claudeCode,
@@ -31,6 +32,7 @@ const REGISTRY = {
   "cursor-agent": cursorAgent,
   "gemini-cli": geminiCli,
   "qwen-code": qwenCode,
+  antigravity,
 };
 
 export const RUNTIME_IDS = Object.keys(REGISTRY);
