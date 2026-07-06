@@ -1,3 +1,10 @@
+## [1.60.1](https://github.com/agentprojectcontext/apx/compare/v1.60.0...v1.60.1) (2026-07-06)
+
+
+### Bug Fixes
+
+* **files:** always list a folder's own files; skip vendor & dep caches ([3211838](https://github.com/agentprojectcontext/apx/commit/3211838d0ef81e368d5a20541e169d6c8d350cab))
+
 # [1.60.0](https://github.com/agentprojectcontext/apx/compare/v1.59.0...v1.60.0) (2026-07-05)
 
 
