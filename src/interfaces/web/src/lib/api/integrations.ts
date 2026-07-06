@@ -20,32 +20,28 @@ export interface PluginTool {
   desc: string;
 }
 
-// Declarative UI descriptor (mirrors the plugin's `ui` in core). Lets the
-// generic PluginConnect component render each plugin's config form.
+// Declarative UI descriptor (mirrors the plugin's `ui` in core). STRUCTURE ONLY
+// — display text is resolved from i18n keys (integrations.<slug>.*) by the
+// generic PluginConnect component. help_url/help_url_label are non-translatable.
 export interface PluginConfigField {
   key: string;
-  label: string;
   type: "password" | "text";
   placeholder?: string;
-  help?: { label: string; url: string; urlLabel: string; steps: string[] };
+  help_url?: string;
+  help_url_label?: string;
 }
 export interface PluginSelect {
   key: string;
-  label: string;
   action: string;
   listKey: string;
   valueKey: string;
   labelKey: string;
 }
-export interface PluginConnectedField {
-  key: string;
-  label: string;
-}
 export interface PluginUi {
   accent?: string;
   configFields: PluginConfigField[];
   select?: PluginSelect;
-  connectedFields?: PluginConnectedField[];
+  connectedFields?: string[];
 }
 
 // One entry of the plugin catalog with its resolved status for this project.
