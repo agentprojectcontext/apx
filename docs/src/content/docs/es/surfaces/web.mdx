@@ -123,23 +123,46 @@ conectada al super-agente.
 
 ## Workspace de proyecto
 
-Abrir un proyecto te lleva a su **Resumen** con conteos en vivo y enlaces rápidos a
-cada pestaña. Cada pestaña de abajo mapea a un namespace de la API del daemon.
+Abrir un proyecto te lleva a su **Resumen** — un "mission control" con tarjetas
+de conteo en vivo (agentes, tareas abiertas, rutinas activas, artifacts), una
+franja de flujo de tareas desglosada por estado, el roster de agentes
+(orquestadores vs. especialistas) y las tareas abiertas más recientes. Cada
+pestaña de abajo mapea a un namespace de la API del daemon.
+
+<Screenshot
+  surface="web"
+  caption="Resumen del proyecto — tarjetas de conteo, franja de flujo de tareas y roster de agentes"
+  hint="apx web, luego abrí cualquier proyecto (su pestaña de aterrizaje)" />
 
 ### Chat
 
-La pestaña **Chat** habla con el super-agente (Roby) y con cada agente del proyecto. Cada
-hilo es una sesión en vivo, en memoria, que podés iniciar, buscar y de la que podés ramificar.
+La pestaña **Chat** habla con el super-agente (Roby) y con cada agente del proyecto. La
+barra lateral es channel-first, agrupada como **Web, Telegram, Desktop, Voice, Agent ↔
+Agent, Schedule, Other** — en ese orden. Además de tus propias conversaciones web,
+también muestra los hilos por día del super-agente de cualquier otro canal (Telegram,
+Desktop, Deck), así una conversación que pasó por Telegram queda visible y se puede
+continuar desde la web.
 
-![Pestaña Chat — hilos del super-agente y por agente](../../../../assets/shots/11-chat.png)
+El botón **"+ New"** abre un selector de agente (super-agente o cualquier agente del
+proyecto) e inicia una sesión nueva que recién se materializa bajo el grupo Web cuando
+mandás el primer mensaje. Cada conversación abierta tiene una acción **"New session"**
+(reinicia en el lugar) y una acción **"Delete"** (detrás de un diálogo de confirmación)
+que elimina permanentemente el archivo de conversación o el hilo del canal.
+
+![Pestaña Chat — barra lateral channel-first con hilos del super-agente y por agente](../../../../assets/shots/11-chat.png)
 
 ### Tasks
 
-La pestaña **Tasks** es el backlog del proyecto. Las tareas llevan un id, título, tags, fecha
-de vencimiento y un agente asignado; se pueden crear desde la web, la CLI, Telegram,
-o por un agente mismo.
+La pestaña **Tasks** es el backlog del proyecto. Además de los campos clásicos de
+id/título/tags/fecha de vencimiento/agente asignado, las tareas ahora llevan un
+**estado de flujo de trabajo** — `pending`, `running`, `in_review` o `blocked` mientras
+están abiertas, y `done`/`dropped` una vez cerradas — mostrado con un ícono y color de
+estado. Al abrir una tarea aparece un **panel de detalle** con estado y cuerpo editables,
+y un enlace **"View thread"** cuando la tarea está vinculada a un hilo de chat. La lista
+tiene paginación de servidor (ver más abajo) y se puede filtrar por estado (open / done
+/ dropped).
 
-![Pestaña Tasks — tareas abiertas con tags, fechas de vencimiento y agentes asignados](../../../../assets/shots/14-tasks.png)
+![Pestaña Tasks — tareas abiertas con estado de flujo de trabajo, tags, fechas de vencimiento y agentes asignados](../../../../assets/shots/14-tasks.png)
 
 ### Routines
 
@@ -152,6 +175,8 @@ shell, un mensaje de Telegram, o un heartbeat — en una expresión cron.
 
 La pestaña **MCPs** lista los servidores Model Context Protocol disponibles para el
 proyecto en los tres scopes (shared, runtime, global), con un panel de logs en vivo.
+Los valores de header/config en el editor de MCP soportan el selector de tokens de
+variables — mirá [Variables](#variables) más abajo.
 
 ![Servidores MCP — filesystem, GitHub, Postgres y un servidor HTTP a través de los scopes](../../../../assets/shots/16-mcps.png)
 
@@ -162,12 +187,71 @@ de cada agente, el contexto de larga vida que los agentes leen en cada turno.
 
 ![Pestaña Memories — el editor del memory.md del proyecto](../../../../assets/shots/17-memories.png)
 
+### Skills
+
+La pestaña **Skills** incrusta el mismo gestor de skills que se usa en Settings (mirá
+[Skills](/apx/docs/es/capabilities/skills/)), fijado al scope de este proyecto — habilitar,
+deshabilitar, agregar e inspeccionar skills sin salir del proyecto.
+
+### Structure <Badge text="Proyectos de empresa" variant="note" />
+
+Para proyectos con `kind: "company"`, aparece una pestaña **Structure** para gestionar
+el modelo organizacional detrás de la asignación de agentes: **Areas** (por ejemplo
+"Engineering", "Sales") y **Roles** dentro o fuera de un área. Las áreas y roles se
+pueden crear, editar y eliminar acá, y están respaldados por `.apc/organization.json`.
+Los mismos diálogos de creación rápida son accesibles desde los selectores de Area/Role
+del editor de agentes.
+
+<Screenshot
+  surface="web"
+  caption="Pestaña Structure — Areas y Roles para un proyecto de tipo empresa"
+  hint="apx web, luego abrí un proyecto de empresa → Structure" />
+
+### Docs y Files
+
+Dos pestañas navegan los archivos del proyecto con el mismo componente visor:
+
+- **Docs** — editable. Enraizado en la carpeta de docs configurada del proyecto
+  (`docs.root`, default `docs/`). Soporta crear, editar (un editor de markdown split
+  sin dependencias con preview en vivo) y eliminar archivos.
+- **Files** — de solo lectura. Navega todo el árbol del proyecto. Consciente del tipo:
+  Markdown se renderiza, el código se muestra con números de línea, las imágenes se
+  previsualizan inline.
+
+<Screenshot
+  surface="web"
+  caption="Pestaña Docs — editor de markdown split con preview en vivo"
+  hint="apx web, luego abrí un proyecto → Docs → creá o abrí un archivo" />
+
+### Artifacts
+
+La pestaña **Artifacts** lista los artifacts guardados bajo `<project>/artifacts/` —
+la misma lista que usa el panel lateral del módulo Code, ahora accesible desde la
+navegación propia del proyecto. **Run** y **Edit** delegan al [módulo Code](#code)
+para que puedas pasar argumentos (por ejemplo una URL) en la terminal o editar el
+archivo directamente, en lugar de ejecutar sin cabeza en el lugar.
+
 ### Config
 
 La pestaña **Config** muestra la configuración efectiva del proyecto fusionada desde los
 archivos `.apc/` del proyecto y los defaults globales.
 
 ![Pestaña Config — configuración efectiva del proyecto y sus fuentes](../../../../assets/shots/18-config.png)
+
+### Variables
+
+La pestaña **Variables** (`vars`) gestiona valores secretos/de config nombrados y
+enmascarados, en scope de proyecto o global (por ejemplo `MY_API_KEY`). Los valores
+están ocultos por default con un toggle de revelar por fila y uno global. Donde sea
+que un valor pueda referenciar una variable — por ejemplo los headers de un servidor
+MCP — un **selector de tokens** (el botón "+" junto al campo) te deja buscar e
+insertar `${var.NAME}`, renderizado inline como un badge `$NAME` para que la
+referencia se lea como parte de la línea en vez de un string de template crudo.
+
+<Screenshot
+  surface="web"
+  caption="Pestaña Variables — valores enmascarados con el selector de tokens usado para referenciarlos en otro lado"
+  hint="apx web, luego abrí un proyecto → Variables, y MCPs → campo de header" />
 
 ## Módulos del riel
 
@@ -188,8 +272,25 @@ pestaña Agents muestra la configuración del super-agente (resumen de solo lect
 ![Pestaña Agents — lista de agentes con conteos de memoria y skills](../../../../assets/shots/12-agents.png)
 
 Abrí un agente para inspeccionar su memoria, skills, herramientas, sub-agentes y grafo cerebral.
+El editor también define un **emoji** (que se muestra junto al agente en toda la UI, incluido
+el roster del Resumen), un nivel de **autonomy** — un selector de tres opciones para los mismos
+modos de permiso que la CLI/config (`total`, `automatico`, `permiso`, etiquetados Total / Auto /
+Permission) — y, para proyectos de tipo empresa, un **Area** y **Role** tomados de
+[Structure](#structure), con botones de creación rápida junto a cada selector.
 
 ![Detalle de agente — pestañas de memoria, skills, sub-agentes y el grafo cerebral](../../../../assets/shots/13-agent-detail.png)
+
+### Sessions
+
+La pestaña Base **Sessions** (`/p/0/sessions`) lista todas las sesiones grabadas a través de
+los engines. Un buscador (coincidencia por título por default, con un toggle "Deep" para
+escanear el contenido de la transcripción) reutiliza la misma lógica de matching que
+`apx session find`, más un filtro de engine y un botón Clear. Cada fila expone cuatro
+acciones: copiar el comando `apx session resume <id> --continue`, pedirle al asistente que
+continúe esa sesión desde una burbuja de chat rápido, abrir la carpeta de trabajo de la
+sesión, y copiar su ruta.
+
+![Pestaña Sessions — búsqueda, filtro de engine y acciones por fila](../../../../assets/shots/04-sessions.png)
 
 ### Voices
 
@@ -233,17 +334,25 @@ recientes.
 
 ### Config
 
-La configuración global vive bajo **Settings** (`/settings/*`). Sub-secciones:
+La configuración global vive bajo **Settings** (`/settings/*`), agrupada en secciones.
+Sub-secciones:
 
-| Ruta | Qué edita |
-|---|---|
-| `/settings/identity` | Nombre del asistente, persona |
-| `/settings/appearance` | Tema (claro/oscuro) |
-| `/settings/super-agent` | Modelo del super-agente, system prompt, canales |
-| `/settings/engines` | Proveedores de modelos (agregar, editar, alternar) |
-| `/settings/telegram` | Token del bot de Telegram y canales |
-| `/settings/devices` | Lista de dispositivos vinculados |
-| `/settings/advanced` | Editor crudo de `~/.apx/config.json` |
+| Ruta | Sección | Qué edita |
+|---|---|---|
+| `/settings/identity` | Account | Nombre del asistente, persona, zona horaria |
+| `/settings/super-agent` | Agents | Modelo del super-agente, system prompt, canales |
+| `/settings/engines` | Agents | Proveedores de modelos (agregar, editar, alternar) |
+| `/settings/memory` | Agents | Memory (RAG) — config de embeddings y retrieval |
+| `/settings/skills` | Agents | Gestor de skills + RAG (Skill Inspector) — mirá [Skills](/apx/docs/es/capabilities/skills/) |
+| `/settings/telegram` | Channels | Token del bot de Telegram y canales |
+| `/settings/devices` | Channels | Lista de dispositivos vinculados |
+| `/settings/voice` | Modules | TTS/STT — igual que el módulo Voices del riel |
+| `/settings/desktop` | Modules | Configuración de la ventana Desktop |
+| `/settings/deck` | Modules | Configuración del companion Deck |
+| `/settings/web` | Modules | **Web** — tema, idioma y (vía Identity) zona horaria propios del panel |
+| `/settings/advanced` | Advanced | Editor crudo de `~/.apx/config.json` |
+
+La vieja ruta `/settings/appearance` sigue funcionando — ahora abre `/settings/web`.
 
 ![Settings — panel de proveedores de modelos](../../../../assets/shots/21-settings-engines.png)
 
@@ -251,6 +360,16 @@ El panel **Super-agent** define el modo de permisos de Roby, su personalidad y s
 prompt; el modelo activo y la cadena de fallback se configuran en el router de modelos.
 
 ![Settings — comportamiento del super-agente, modo de permisos y system prompt](../../../../assets/shots/20-settings-super-agent.png)
+
+El panel **Web** controla la UX propia del panel en vez de la identidad del agente: elegí
+**Light**, **Dark** o **System** (sigue el esquema de color del sistema operativo) para el
+tema, y cambiá el idioma de la UI — la página se recarga una vez para que todos los strings
+renderizados tomen el nuevo locale.
+
+<Screenshot
+  surface="web"
+  caption="Settings → Web — selectores de tema (light/dark/system) e idioma"
+  hint="apx web, luego Settings → Modules → Web" />
 
 El panel **Telegram** gestiona los canales del bot, los contactos y los permisos de herramientas
 por rol.
@@ -261,6 +380,16 @@ El panel **Devices** lista cada navegador o teléfono vinculado y te deja revoca
 token.
 
 ![Settings — dispositivos vinculados con última conexión y revocación](../../../../assets/shots/23-settings-devices.png)
+
+## Vistas de lista: paginación y layout de altura completa
+
+Las listas de Sessions, Tasks globales y Tasks por proyecto usan paginación real de
+servidor: el daemon pagina por `?limit` y `?offset` y devuelve el conteo total de filas
+en un header `X-Total-Count`, así el panel solo trae la página actual y muestra un rango
+real ("1–20 of 485") y un conteo de páginas en vez de estar topeado a un tamaño de fetch
+fijo. El tamaño de página es seleccionable (10/20/50/100, default 20). Estas pestañas de
+lista también usan un layout de altura completa: la lista scrollea internamente mientras
+el paginador queda fijo abajo, así toda la vista entra en una pantalla.
 
 ## Arquitectura
 
@@ -285,3 +414,4 @@ en el endpoint real, no en `index.html`.
 - [Desktop](/apx/docs/es/surfaces/desktop/) — la ventana flotante de Electron
 - [Voz](/apx/docs/es/surfaces/voice/) — CLI y proveedores de TTS/STT
 - [Deck](/apx/docs/es/surfaces/deck/) — vinculación de la app companion
+- [Skills](/apx/docs/es/capabilities/skills/) — el gestor de skills, los scopes y el Skill Inspector (RAG)

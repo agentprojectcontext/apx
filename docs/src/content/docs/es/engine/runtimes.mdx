@@ -172,6 +172,74 @@ APC_RESULT: <one-line value>
 APX parsea esto y lo almacena como el campo `result` de la sesión, que otras rutinas o el
 super-agente pueden leer.
 
+## Delegar desde el super-agente (`call_runtime`)
+
+`apx run` es un comando que escribís vos. Pero el super-agente también puede decidir, en medio de
+una conversación, delegarle una tarea a un runtime externo — tiene una tool `call_runtime` para
+eso exactamente (los mismos IDs de runtime, la misma lógica de lanzamiento de arriba). Esto es lo
+que pasa cuando le pedís al agente por Telegram, web, o `apx exec` que "hagas que Claude Code
+refactorice esto" o "corras esto por Codex".
+
+<Aside type="note">
+  `call_runtime` y `apx run` terminan lanzando los mismos runtimes de la misma manera. La
+  diferencia es *quién* inicia el llamado: vos, desde el CLI (`apx run`), o el super-agente, como
+  una tool call durante una conversación (`call_runtime`).
+</Aside>
+
+### Delegación síncrona vs. en segundo plano
+
+Un llamado a `call_runtime` puede bloquear el turno actual hasta que el runtime termine, o lanzar
+el runtime **desacoplado (detached)** y dejar que el turno termine de inmediato:
+
+- **Síncrona (bloqueante)** — el default en superficies sin forma de entregar un resultado tardío
+  (web, desktop, `apx exec`). El tool call no retorna hasta que el proceso del runtime termina, y
+  la salida del runtime vuelve como el resultado de la tool call de este turno.
+- **En segundo plano (async)** — el default en **Telegram**, porque un runtime como `claude-code`
+  puede tardar minutos o más de una hora, y bloquear congelaría al super-agente y mantendría el
+  indicador de "escribiendo…" todo ese tiempo. En modo background, `call_runtime` lanza el runtime
+  desacoplado y retorna de inmediato con `{ status: "launched", background: true, apc_session:
+  "<id>" }`. El agente responde enseguida (p. ej. "lo lancé, te aviso") y el turno termina — el
+  runtime sigue trabajando en segundo plano.
+
+El modo background solo está disponible cuando hay un canal al cual entregarle el resultado más
+tarde (ver [Entrega de callback (A2A)](#entrega-de-callback-a2a) más abajo); hoy eso significa un
+chat de Telegram. El modelo igual puede forzar un llamado bloqueante en Telegram pasando
+`background: false` — útil cuando necesita la salida del runtime dentro del mismo turno para un
+seguimiento inmediato.
+
+El timeout también cambia según el modo: un llamado en foreground usa 300s por defecto antes de
+que APX mande `SIGTERM`; un llamado en background usa 3600s (1 hora) por defecto, ya que se espera
+que las corridas desacopladas tarden más. Ambos se pueden sobrescribir por llamado.
+
+### Entrega de callback (A2A)
+
+Cuando una corrida en background termina, su resultado tiene que llegar al usuario sin que nadie
+se quede esperándolo. APX lo entrega de una de dos formas:
+
+1. **Reporte A2A (preferido)** — el resultado se reinyecta en un turno nuevo del super-agente como
+   un reporte interno (etiquetado para que se lea como un traspaso agente-a-agente, no como un
+   mensaje del usuario). El super-agente se lo cuenta al usuario en su propia voz, y puede
+   encadenar un próximo paso si la tarea no terminó. Esto es lo que pasa en Telegram: la corrida
+   terminada reingresa a la conversación y el agente manda un mensaje nuevo resumiéndola.
+2. **Envío directo al canal (fallback)** — si el camino A2A no está disponible o falla, APX manda
+   un mensaje simple al chat de origen: una línea de "✅ terminó" o "⚠️ falló" seguida del
+   resultado del runtime, sin que el super-agente lo reformule.
+
+### Entrega durable a través de reinicios del daemon
+
+Lanzar una corrida en background también escribe un pequeño registro de callback pendiente
+(`~/.apx/pending-callbacks/<apc_session>.json`) — una IOU que anota qué chat espera el resultado.
+Si el daemon que lanzó la corrida muere antes de que el runtime termine (un crash, un `git pull` +
+reinicio, o una tarea delegada que reinicia el daemon), ese callback en memoria normalmente se
+perdería. En cambio, un reconciliador corre al arrancar el daemon y en un intervalo de 30
+segundos, revisa el registro de sesión de cada callback pendiente, y una vez que la sesión muestra
+que la corrida terminó, entrega el resultado como un envío directo al canal y borra la IOU. Esto
+también cubre el caso en que el propio runtime externo cerró proactivamente su sesión de APX (p.
+ej. vía `apx session close`) en lugar de que la espera del proceso de APX detecte la salida.
+
+Los dos caminos de entrega no se duplican: el reconciliador le da una ventana de gracia a la
+entrega en proceso en vivo antes de entregar él mismo el mismo callback.
+
 ## run vs. exec
 
 | | `apx run` | `apx exec` |

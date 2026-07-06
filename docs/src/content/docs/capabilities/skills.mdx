@@ -19,14 +19,24 @@ and the super-agent discovers them automatically from registered directories.
 
 ## Where skills live
 
-APX scans three locations, in priority order:
+The **super-agent's own catalog** (what it loads on demand, and what the web Skills
+manager shows) scans three locations, in priority order:
 
-1. `<repo>/.apc/skills/<slug>/SKILL.md` — project-scoped (visible only in this project)
+1. `<project>/.apc/skills/<slug>/SKILL.md` (or `<slug>.md`) — project-scoped (visible only in
+   this project)
 2. `~/.apx/skills/<slug>/SKILL.md` — user-global (all projects on this machine)
-3. `<APX package>/skills/<slug>/SKILL.md` — bundled (ships with APX, available everywhere)
+3. `<APX package>/src/core/runtime-skills/<slug>/SKILL.md` — built-in (ships with APX,
+   immutable, always available; source `"builtin"`)
 
-The first match by slug wins. A project skill silently overrides a user or bundled skill with
-the same slug.
+The first match by slug wins. A project skill silently overrides a user-global or
+built-in skill with the same slug.
+
+<Aside type="note">
+  `<APX package>/skills/<slug>/SKILL.md` (the folder `apx skills add`/`sync` reads from
+  below) is a **separate**, slimmer catalog meant for external IDE tools — it's not the
+  set the super-agent loads at runtime. Don't confuse the two: the runtime catalog lives
+  under `src/core/runtime-skills/`.
+</Aside>
 
 ## Install into IDE tools
 
@@ -74,6 +84,9 @@ Codex and Antigravity read `AGENTS.md` automatically — no separate install nee
 # List skills installed in this project's .apc/skills/
 apx skills list
 
+# List the full catalog (project + global + built-in), with on/off/private state
+apx skills list --all
+
 # Show which bundled skills are present in each global dir
 apx skills status
 ```
@@ -100,6 +113,60 @@ apx skills sync --verbose
 ```
 
 `sync` is idempotent and is also run automatically during `npm install -g apx`.
+
+## Manage skills from the web panel
+
+The web admin panel has a Claude-Desktop-style **Skills manager**: a left list of
+installed skills plus a right viewer that renders the selected `SKILL.md`, with an
+**Add** dropdown (create online, upload a `.zip`, or import from a git repo) and a
+per-skill on/off switch.
+
+You'll find it in two places:
+
+- **Settings → Agents → Skills** (`/settings/skills`) — the global entry, with a scope
+  picker (see below) and two inner tabs: **Skills** (the manager) and **Config (RAG)**
+  (the Skill Inspector settings — thresholds, index status, and a prompt dry-run probe).
+- **A project's own Skills tab** — the same manager embedded and locked to that
+  project's scope, so you can enable, disable, add, or inspect skills without leaving
+  the project.
+
+<Screenshot
+  surface="web"
+  caption="Skills manager — installed skills list with source badges, and the SKILL.md viewer"
+  hint="apx web, then Settings → Skills (or a project's Skills tab)" />
+
+## Scope-aware enable/disable
+
+Any skill (except built-ins — see below) can be turned off per **scope**. A scope is
+either:
+
+- **`default`** — the super-agent / no-project baseline, labeled "Super-agent (global)"
+  in the web picker, or
+- a specific **project**, keyed by its absolute path.
+
+An explicit project-scope override wins over a `default`-scope override, which wins
+over the fallback (enabled). Toggling a skill off in one project does not affect any
+other project or the super-agent baseline unless you also toggle it there.
+
+```bash
+apx skills list --all   # STATE column shows on / off / private per this project's scope
+```
+
+<Aside type="note">
+  The scope picker (global Settings entry only) lists "Super-agent (global)" plus every
+  registered project. The per-project Skills tab has no picker — it's always scoped to
+  that project.
+</Aside>
+
+### Private built-in skills
+
+Skills sourced from APX's own built-in catalog (`src/core/runtime-skills/`, shown with
+source badge "APX") are **private**: always active, and can never be disabled or
+deleted from any scope. The manager shows them with a lock icon and a disabled toggle.
+This guarantees APX's own runtime knowledge (apx-*, apc-context, CLI-runtime docs) is
+always available regardless of what a user disables elsewhere. Skills sourced from
+`~/.apx/skills/` (source "Global") or a project's `.apc/skills/` (source "Project") are
+always toggleable and deletable.
 
 ## The skills-stay-in-sync rule
 
@@ -139,3 +206,4 @@ No daemon restart needed — `listSkills()` re-scans on every call.
 
 - [Capabilities — Agent Vault](/apx/docs/capabilities/agent-vault/) — reusable agent templates
 - [Concepts — Agents](/apx/docs/concepts/agents/) — attaching skills to agents via frontmatter
+- [Web admin panel](/apx/docs/surfaces/web/) — the Skills manager and per-project Skills tab

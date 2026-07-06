@@ -19,14 +19,24 @@ y el super-agent los descubre automáticamente a partir de los directorios regis
 
 ## Dónde viven los skills
 
-APX escanea tres ubicaciones, en orden de prioridad:
+El **catálogo propio del super-agent** (lo que carga a demanda, y lo que muestra el
+gestor de Skills de la web) escanea tres ubicaciones, en orden de prioridad:
 
-1. `<repo>/.apc/skills/<slug>/SKILL.md` — alcance de proyecto (visible solo en este proyecto)
+1. `<proyecto>/.apc/skills/<slug>/SKILL.md` (o `<slug>.md`) — alcance de proyecto (visible
+   solo en este proyecto)
 2. `~/.apx/skills/<slug>/SKILL.md` — global de usuario (todos los proyectos de esta máquina)
-3. `<APX package>/skills/<slug>/SKILL.md` — incluido (viene con APX, disponible en todos lados)
+3. `<APX package>/src/core/runtime-skills/<slug>/SKILL.md` — incluido (viene con APX,
+   inmutable, siempre disponible; source `"builtin"`)
 
-Gana la primera coincidencia por slug. Un skill de proyecto sobrescribe en silencio a un skill de usuario o incluido con
-el mismo slug.
+Gana la primera coincidencia por slug. Un skill de proyecto sobrescribe en silencio a un skill
+global de usuario o incluido con el mismo slug.
+
+<Aside type="note">
+  `<APX package>/skills/<slug>/SKILL.md` (la carpeta de la que leen `apx skills add`/`sync`,
+  más abajo) es un catálogo **separado**, más liviano, pensado para herramientas de IDE
+  externas — no es el set que el super-agent carga en runtime. No confundas los dos: el
+  catálogo de runtime vive bajo `src/core/runtime-skills/`.
+</Aside>
 
 ## Instalar en herramientas de IDE
 
@@ -74,6 +84,9 @@ Codex y Antigravity leen `AGENTS.md` automáticamente — no hace falta una inst
 # Listar los skills instalados en .apc/skills/ de este proyecto
 apx skills list
 
+# Listar el catálogo completo (proyecto + global + incluidos), con estado on/off/private
+apx skills list --all
+
 # Mostrar qué skills incluidos están presentes en cada dir global
 apx skills status
 ```
@@ -100,6 +113,63 @@ apx skills sync --verbose
 ```
 
 `sync` es idempotente y también se ejecuta automáticamente durante `npm install -g apx`.
+
+## Gestionar skills desde el panel web
+
+El panel web tiene un **gestor de Skills** al estilo Claude Desktop: una lista a la
+izquierda de los skills instalados más un visor a la derecha que renderiza el `SKILL.md`
+seleccionado, con un dropdown **Add** (crear online, subir un `.zip`, o importar desde un
+repo git) y un switch de encendido/apagado por skill.
+
+Lo vas a encontrar en dos lugares:
+
+- **Settings → Agents → Skills** (`/settings/skills`) — la entrada global, con un selector
+  de scope (ver más abajo) y dos pestañas internas: **Skills** (el gestor) y **Config
+  (RAG)** (la configuración del Skill Inspector — umbrales, estado del índice y una prueba
+  de dry-run de un prompt).
+- **La pestaña Skills propia de un proyecto** — el mismo gestor incrustado y fijado al
+  scope de ese proyecto, para que puedas habilitar, deshabilitar, agregar o inspeccionar
+  skills sin salir del proyecto.
+
+<Screenshot
+  surface="web"
+  caption="Gestor de Skills — lista de skills instalados con badges de source, y el visor de SKILL.md"
+  hint="apx web, luego Settings → Skills (o la pestaña Skills de un proyecto)" />
+
+## Habilitar/deshabilitar por scope
+
+Cualquier skill (excepto los incluidos — ver abajo) se puede apagar por **scope**. Un
+scope es:
+
+- **`default`** — la base del super-agent / sin proyecto, etiquetado "Super-agent
+  (global)" en el selector web, o
+- un **proyecto** específico, identificado por su ruta absoluta.
+
+Un override explícito en scope de proyecto gana sobre un override en scope `default`,
+que a su vez gana sobre el fallback (habilitado). Apagar un skill en un proyecto no
+afecta a ningún otro proyecto ni a la base del super-agent, a menos que también lo
+apagues ahí.
+
+```bash
+apx skills list --all   # la columna STATE muestra on / off / private para el scope de este proyecto
+```
+
+<Aside type="note">
+  El selector de scope (solo en la entrada global de Settings) lista "Super-agent
+  (global)" más cada proyecto registrado. La pestaña Skills de un proyecto no tiene
+  selector — siempre está fijada a ese proyecto.
+</Aside>
+
+### Skills incluidos privados
+
+Los skills que vienen del catálogo incluido propio de APX (`src/core/runtime-skills/`,
+mostrado con el badge de source "APX") son **privados**: siempre activos, y nunca se
+pueden deshabilitar ni eliminar desde ningún scope. El gestor los muestra con un ícono
+de candado y el switch deshabilitado. Esto garantiza que el conocimiento propio de
+runtime de APX (apx-*, apc-context, docs de runtime de la CLI) esté siempre disponible
+sin importar qué deshabilite un usuario en otro lado. Los skills que vienen de
+`~/.apx/skills/` (source "Global") o del `.apc/skills/` de un proyecto (source
+"Project") siempre se pueden alternar y eliminar.
 
 ## La regla de los skills-siempre-sincronizados
 
@@ -139,3 +209,4 @@ No hace falta reiniciar el daemon — `listSkills()` re-escanea en cada llamada.
 
 - [Capabilities — Agent Vault](/apx/docs/es/capabilities/agent-vault/) — plantillas de agentes reutilizables
 - [Concepts — Agents](/apx/docs/es/concepts/agents/) — cómo adjuntar skills a los agentes vía frontmatter
+- [Panel de administración Web](/apx/docs/es/surfaces/web/) — el gestor de Skills y la pestaña Skills por proyecto

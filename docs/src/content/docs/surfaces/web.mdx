@@ -123,23 +123,44 @@ sheet connected to the super-agent.
 
 ## Project workspace
 
-Opening a project lands on its **Overview** with live counts and quick links into
-every tab. Each tab below maps to a daemon API namespace.
+Opening a project lands on its **Overview** — a "mission control" floor with live
+stat cards (agents, open tasks, active routines, artifacts), a task-workflow strip
+broken down by status, the agent roster (orchestrators vs. specialists), and the
+most recent open tasks. Each tab below maps to a daemon API namespace.
+
+<Screenshot
+  surface="web"
+  caption="Project Overview — stat cards, task workflow strip, and agent roster"
+  hint="apx web, then open any project (its landing tab)" />
 
 ### Chat
 
-The **Chat** tab talks to the super-agent (Roby) and to each project agent. Every
-thread is a live, in-memory session you can start, search, and branch from.
+The **Chat** tab talks to the super-agent (Roby) and to each project agent. The
+sidebar is channel-first, grouped as **Web, Telegram, Desktop, Voice, Agent ↔
+Agent, Schedule, Other** — in that order. Besides your own web conversations, it
+also surfaces the super-agent's day-threads from every other channel (Telegram,
+Desktop, Deck), so a conversation that happened over Telegram is visible and
+continuable from the web.
 
-![Chat tab — super-agent and per-agent threads](../../../assets/shots/11-chat.png)
+The **"+ New"** button opens an agent picker (super-agent or any project agent)
+and starts a fresh session that only materializes under the Web group once you
+send the first message. Each open conversation has a **"New session"** action
+(resets in place) and a **"Delete"** action (behind a confirmation dialog) that
+permanently removes the conversation file or the channel thread.
+
+![Chat tab — channel-first sidebar with super-agent and per-agent threads](../../../assets/shots/11-chat.png)
 
 ### Tasks
 
-The **Tasks** tab is the project's backlog. Tasks carry an id, title, tags, due
-date, and an assigned agent; they can be created from the web, the CLI, Telegram,
-or by an agent itself.
+The **Tasks** tab is the project's backlog. Besides the classic id/title/tags/due
+date/assigned-agent fields, tasks now carry a **workflow status** — `pending`,
+`running`, `in_review`, or `blocked` while open, and `done`/`dropped` once closed
+— shown with a status icon and color. Opening a task shows a **detail panel**
+with an editable status and body, and a **"View thread"** link when the task is
+linked to a chat thread. The list is server-paginated (see below) and can be
+filtered by state (open / done / dropped).
 
-![Tasks tab — open tasks with tags, due dates, and assigned agents](../../../assets/shots/14-tasks.png)
+![Tasks tab — open tasks with workflow status, tags, due dates, and assigned agents](../../../assets/shots/14-tasks.png)
 
 ### Routines
 
@@ -152,6 +173,8 @@ command, a Telegram message, or a heartbeat — on a cron expression.
 
 The **MCPs** tab lists the Model Context Protocol servers available to the
 project across all three scopes (shared, runtime, global), with a live log pane.
+Header/config values in the MCP editor support the variable token picker — see
+[Variables](#variables) below.
 
 ![MCP servers — filesystem, GitHub, Postgres, and an HTTP server across scopes](../../../assets/shots/16-mcps.png)
 
@@ -162,12 +185,69 @@ runtime memory, the long-lived context the agents read on every turn.
 
 ![Memories tab — the project memory.md editor](../../../assets/shots/17-memories.png)
 
+### Skills
+
+The **Skills** tab embeds the same skills manager used in Settings (see
+[Skills](/apx/docs/capabilities/skills/)), locked to this project's scope — enable,
+disable, add, and inspect skills without leaving the project.
+
+### Structure <Badge text="Company projects" variant="note" />
+
+For projects with `kind: "company"`, a **Structure** tab appears to manage the
+org model behind agent assignment: **Areas** (e.g. "Engineering", "Sales") and
+**Roles** within or outside an area. Areas and roles can be created, edited, and
+deleted here, and are backed by `.apc/organization.json`. The same quick-create
+dialogs are reachable from the agent editor's Area/Role pickers.
+
+<Screenshot
+  surface="web"
+  caption="Structure tab — Areas and Roles for a company-kind project"
+  hint="apx web, then open a company project → Structure" />
+
+### Docs and Files
+
+Two tabs browse the project's files with the same viewer component:
+
+- **Docs** — editable. Rooted at the project's configured docs folder
+  (`docs.root`, default `docs/`). Supports creating, editing (a dependency-free
+  markdown split editor with live preview), and deleting files.
+- **Files** — read-only. Browses the whole project tree. Type-aware: Markdown
+  renders, code shows with line numbers, images preview inline.
+
+<Screenshot
+  surface="web"
+  caption="Docs tab — markdown split editor with live preview"
+  hint="apx web, then open a project → Docs → create or open a file" />
+
+### Artifacts
+
+The **Artifacts** tab lists the artifacts stored under `<project>/artifacts/` —
+the same list used by the Code module's side panel, now reachable from the
+project's own navigation. **Run** and **Edit** hand off to the
+[Code module](#code) so you can pass arguments (e.g. a URL) in the terminal or
+edit the file directly, instead of running headlessly in place.
+
 ### Config
 
 The **Config** tab shows the effective project configuration merged from the
 project's `.apc/` files and the global defaults.
 
 ![Config tab — effective project configuration and its sources](../../../assets/shots/18-config.png)
+
+### Variables
+
+The **Variables** tab (`vars`) manages named, masked secret/config values at
+project or global scope (e.g. `MY_API_KEY`). Values are hidden by default with a
+per-row and a global reveal toggle. Anywhere a value can reference a variable —
+for example an MCP server's headers — a **token picker** (the "+" button next to
+the field) lets you search and insert `${var.NAME}`, rendered inline as a `$NAME`
+badge so the reference reads as part of the line instead of a raw template
+string.
+
+<Screenshot
+  surface="web"
+  caption="Variables tab — masked values with the token picker used to reference them elsewhere"
+  hint="apx web, then open a project → Variables, and MCPs → header field" />
 
 ## Rail modules
 
@@ -188,8 +268,26 @@ Agents tab shows the super-agent configuration (read-only summary).
 ![Agents tab — agent list with memory and skill counts](../../../assets/shots/12-agents.png)
 
 Open an agent to inspect its memory, skills, tools, sub-agents, and brain graph.
+The editor also sets an **emoji** (shown next to the agent everywhere in the UI,
+including the Overview roster), an **autonomy** level — a three-way toggle for
+the same permission modes as the CLI/config (`total`, `automatico`, `permiso`,
+labeled Total / Auto / Permission) — and, for company-kind projects, an
+**Area** and **Role** pulled from [Structure](#structure), with
+quick-create buttons next to each picker.
 
 ![Agent detail — memory, skills, sub-agents, and the brain graph tabs](../../../assets/shots/13-agent-detail.png)
+
+### Sessions
+
+The Base **Sessions** tab (`/p/0/sessions`) lists every recorded session across
+engines. A search box (title match by default, with a "Deep" toggle to scan
+transcript content) reuses the same matching logic as `apx session find`, plus an
+engine filter and a Clear button. Each row exposes four actions: copy the
+`apx session resume <id> --continue` command, ask the assistant to continue that
+session from a quick-chat bubble, open the session's working folder, and copy its
+path.
+
+![Sessions tab — search, engine filter, and per-row actions](../../../assets/shots/04-sessions.png)
 
 ### Voices
 
@@ -233,17 +331,25 @@ sessions.
 
 ### Config
 
-Global config lives under **Settings** (`/settings/*`). Sub-sections:
+Global config lives under **Settings** (`/settings/*`), grouped into sections.
+Sub-sections:
 
-| Path | What it edits |
-|---|---|
-| `/settings/identity` | Assistant name, persona |
-| `/settings/appearance` | Theme (light/dark) |
-| `/settings/super-agent` | Super-agent model, system prompt, channels |
-| `/settings/engines` | Model providers (add, edit, toggle) |
-| `/settings/telegram` | Telegram bot token and channels |
-| `/settings/devices` | Paired devices list |
-| `/settings/advanced` | Raw `~/.apx/config.json` editor |
+| Path | Section | What it edits |
+|---|---|---|
+| `/settings/identity` | Account | Assistant name, persona, timezone |
+| `/settings/super-agent` | Agents | Super-agent model, system prompt, channels |
+| `/settings/engines` | Agents | Model providers (add, edit, toggle) |
+| `/settings/memory` | Agents | Memory (RAG) — embeddings + retrieval config |
+| `/settings/skills` | Agents | Skills manager + RAG (Skill Inspector) — see [Skills](/apx/docs/capabilities/skills/) |
+| `/settings/telegram` | Channels | Telegram bot token and channels |
+| `/settings/devices` | Channels | Paired devices list |
+| `/settings/voice` | Modules | TTS/STT — same as the Voices rail module |
+| `/settings/desktop` | Modules | Desktop window settings |
+| `/settings/deck` | Modules | Deck companion settings |
+| `/settings/web` | Modules | **Web** — this panel's own theme, language, and (via Identity) timezone |
+| `/settings/advanced` | Advanced | Raw `~/.apx/config.json` editor |
+
+The old `/settings/appearance` route still works — it now opens `/settings/web`.
 
 ![Settings — model providers panel](../../../assets/shots/21-settings-engines.png)
 
@@ -251,6 +357,16 @@ The **Super-agent** panel sets Roby's permission mode, personality, and system
 prompt; the active model and fallback chain are configured in the model router.
 
 ![Settings — super-agent behavior, permission mode, and system prompt](../../../assets/shots/20-settings-super-agent.png)
+
+The **Web** panel controls the panel's own UX rather than the agent's identity:
+pick **Light**, **Dark**, or **System** (follows the OS color scheme) for theme,
+and switch the UI language — the page reloads once so every rendered string
+picks up the new locale.
+
+<Screenshot
+  surface="web"
+  caption="Settings → Web — theme (light/dark/system) and language pickers"
+  hint="apx web, then Settings → Modules → Web" />
 
 The **Telegram** panel manages the bot's channels, contacts, and per-role tool
 permissions.
@@ -261,6 +377,16 @@ The **Devices** panel lists every paired browser or phone and lets you revoke a
 token.
 
 ![Settings — paired devices with last-seen and revoke](../../../assets/shots/23-settings-devices.png)
+
+## List views: pagination and full-height layout
+
+The Sessions, global Tasks, and per-project Tasks lists use real server-side
+pagination: the daemon pages by `?limit` & `?offset` and returns the total row
+count in an `X-Total-Count` header, so the panel only fetches the current page
+and shows a true range ("1–20 of 485") and page count instead of being capped at
+a fixed fetch size. Page size is selectable (10/20/50/100, default 20). These
+list tabs also use a full-height layout: the list scrolls internally while the
+pager stays pinned at the bottom, so the whole view fits one screen.
 
 ## Architecture
 
@@ -285,3 +411,4 @@ the real endpoint, not `index.html`.
 - [Desktop](/apx/docs/surfaces/desktop/) — the Electron floating window
 - [Voice](/apx/docs/surfaces/voice/) — TTS/STT CLI and providers
 - [Deck](/apx/docs/surfaces/deck/) — companion app pairing
+- [Skills](/apx/docs/capabilities/skills/) — the skills manager, scopes, and the Skill Inspector (RAG)

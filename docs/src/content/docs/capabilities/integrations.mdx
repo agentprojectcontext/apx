@@ -1,0 +1,125 @@
+---
+title: Integrations
+description: Connect third-party services like Asana and GitHub as plugins that agents can call as tools — project-scoped, with a global fallback.
+sidebar:
+  order: 9
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import Screenshot from '../../../components/Screenshot.astro';
+
+APX ships an **Integrations** panel in the web admin: a catalog of third-party service plugins
+that agents can call as tools once you connect them. This is different from [MCP](/apx/docs/capabilities/mcp/) —
+an integration owns a credential and a small typed lifecycle (configure, validate, status,
+deactivate), while an MCP server is a raw tool endpoint you point APX at.
+
+<Aside type="note">
+  Integrations are configured entirely from the web admin panel today — there is no `apx
+  integration` CLI subcommand. Everything below happens under **Project → Integrations**.
+</Aside>
+
+## Plugin vs MCP server
+
+| | Integration plugin | MCP server |
+|---|---|---|
+| What it is | A credential + lifecycle for one named service (Asana, GitHub) | A generic tool endpoint (stdio or HTTP) |
+| Where configured | Web admin, per project (or global) | `apx mcp add`, three scopes |
+| Auth | Built into the plugin (token today) | Whatever the server needs (env vars, headers) |
+| Tools exposed | A small fixed set per plugin (e.g. `asana_list_projects`) | Whatever the server's `tools/list` returns |
+
+If the service you want already has an MCP server, use MCP — it's more general. Integrations exist
+for services APX has first-class, credential-aware support for.
+
+## The catalog
+
+Open **Project → Integrations → Plugins**. Each entry is one of:
+
+- **Connected / connectable** — has a real plugin implementation. You can enter credentials and
+  the plugin validates them against the provider.
+- **Coming soon** — declared in the catalog so you know it's on the roadmap, but not wired to a
+  live service yet. The card is present but disabled; there's nothing to configure.
+
+<Screenshot
+  surface="web"
+  caption="Integrations tab — Plugins sub-tab showing Asana, GitHub, and a coming-soon card"
+  hint="apx web, then open a project → Integrations → Plugins" />
+
+### Implemented today
+
+| Plugin | Auth | Agent tools |
+|---|---|---|
+| **Asana** | Personal Access Token | `asana_list_projects`, `asana_list_tasks`, `asana_create_task`, `asana_update_task` |
+| **GitHub** | Personal Access Token | `github_list_repos`, `github_create_issue` |
+
+### Coming soon
+
+| Plugin | Why it's not live yet |
+|---|---|
+| **WhatsApp** | Needs a WhatsApp Web bridge (QR pairing) APX doesn't ship yet |
+
+<Aside type="tip">
+  Telegram is intentionally **not** in this catalog — it's a channel, configured under its own
+  [Telegram](/apx/docs/capabilities/telegram/) surface, not a service plugin.
+</Aside>
+
+## Connecting a plugin
+
+<Steps>
+
+1. Open **Project → Integrations → Plugins** and find the plugin card (e.g. GitHub).
+
+2. Paste the token. Each plugin's card links to where to generate one:
+   - Asana → `app.asana.com/0/my-apps` (Personal access tokens section, not OAuth apps)
+   - GitHub → `github.com/settings/tokens` (classic or fine-grained, needs the `repo` scope)
+
+3. Click **Connect**. APX saves the token, then validates it against the provider
+   (`GET /users/me` for Asana, `GET /user` for GitHub). A bad token surfaces the provider's error
+   inline — the record is kept but marked `error` so you can retry without re-entering everything.
+
+4. Once validated, the card shows the resolved identity (Asana: user name, email, workspace;
+   GitHub: login, name) and status flips to **Active**. Asana additionally lets you pick a
+   workspace from a dropdown populated by the plugin's own `workspaces` action, auto-selecting it
+   when the token only has access to one.
+
+</Steps>
+
+You can **Deactivate** a plugin without deleting its stored credentials (status becomes
+`inactive`, tools stop being usable), or remove the record entirely.
+
+## Scope: project vs global
+
+Every integration record lives in one project's `integrations.json`. A non-base project can pick
+which scope it reads/writes from in the UI:
+
+- **This project** — the record lives under that project's own storage.
+- **Global (default)** — the record lives under APX's default project and is shared by any
+  project that hasn't configured its own.
+
+Resolution when an agent needs the integration: **the project's own enabled record wins; otherwise
+APX falls back to the default project's enabled record.** This makes "which Asana account is this
+agent using?" unambiguous — a project either has its own connection or inherits the global one, never
+both at once.
+
+<Aside type="caution">
+  Tokens are stored in `integrations.json` under the project's storage directory (same file
+  permission discipline as `mcps.json`) and are **redacted** before being sent to the browser — the
+  UI only ever sees a `<field>_set: true/false` flag, never the raw value.
+</Aside>
+
+## Tools sub-tab
+
+**Project → Integrations → Tools** lists every tool exposed by plugins in the catalog (not just
+connected ones), showing which plugin it belongs to and whether it's currently active (i.e. the
+owning plugin is connected and enabled for this project/scope). Inactive tools are shown greyed
+out so you can see what connecting a plugin would unlock.
+
+Agents pick these up the same way they pick up any other tool: they're grouped under the
+`integrations` category and surface via `discover_tools` like other lazily-loaded tool groups, or
+directly if a specific agent's allow-list includes them.
+
+## See also
+
+- [Capabilities — MCP Servers](/apx/docs/capabilities/mcp/) — the more general way to give agents
+  tool access to an external service
+- [Concepts — Agents](/apx/docs/concepts/agents/) — how agents declare and consume tools
+- [Capabilities — Telegram](/apx/docs/capabilities/telegram/) — the channel surface, not a plugin

@@ -57,11 +57,13 @@ la ruta sin reproducirlo.
 | `piper` | sí | no | Buena | Recomendación por defecto. Requiere el binario `piper` + modelo `.onnx`. |
 | `elevenlabs` | no | sí | Excelente | Tier gratuito: 10 k caracteres/mes. Modelo `eleven_multilingual_v2`. |
 | `openai` | no | sí | Buena | Reutiliza `engines.openai.api_key`. Modelo `tts-1`. |
-| `gemini` | no | sí | Buena | Devuelve L16 PCM crudo — APX lo envuelve en WAV automáticamente. |
+| `gemini` | no | sí | Buena | Devuelve L16 PCM crudo — APX lo envuelve en WAV automáticamente. Soporta tags de emoción. |
+| `custom:<slug>` | depende | opcional | Depende | Cualquier servidor de voz compatible con OpenAI (ej. una instancia local de QVox/Qwen3-TTS). Soporta tags de emoción. |
 | `mock` | sí | no | Silencioso | Placeholder de WAV silencioso. Útil solo para tests. |
 
 El proveedor `auto` prueba en orden: `piper → elevenlabs → openai → gemini → mock`.
-En una instalación nueva sin ningún proveedor configurado, `auto` cae hasta `mock`
+Los proveedores custom solo se usan si los agregás al orden de la cadena. En una
+instalación nueva sin ningún proveedor configurado, `auto` cae hasta `mock`
 (silencio). Configurá al menos un proveedor real antes de esperar audio.
 
 <Aside type="tip">
@@ -188,6 +190,102 @@ apx config set voice.tts.elevenlabs.voice_id '<VOICE_ID>'
 apx voice say "hola mundo" --provider elevenlabs
 ```
 
+### Proveedores custom compatibles con OpenAI (QVox / Qwen3-TTS)
+
+Además de los proveedores incorporados, podés apuntar APX a cualquier servidor
+de voz compatible con OpenAI — por ejemplo una instancia local de QVox /
+Qwen3-TTS. Los proveedores custom viven bajo `voice.tts.custom.<slug>` y se
+sirven todos a través del mismo adaptador `openai`; cada uno aparece en la
+cadena con el id de motor `custom:<slug>`.
+
+```json
+{
+  "voice": {
+    "tts": {
+      "custom": {
+        "qvox": {
+          "base_url": "http://127.0.0.1:5111/v1",
+          "api_key": "",
+          "model": "qwen3-tts",
+          "voice": "default",
+          "label": "QVox (local)"
+        }
+      }
+    }
+  }
+}
+```
+
+`base_url` es solo configuración — nunca está hardcodeado, así que
+`custom:<slug>` funciona con cualquier servidor compatible con OpenAI, no solo
+QVox. El manejo de claves y de los requests difiere del OpenAI estándar cuando
+hay `base_url` configurado:
+
+- El motor usa **únicamente** su propia `api_key` (a menudo vacía para un
+  servidor local/abierto) — nunca cae hacia `engines.openai.api_key` ni
+  `OPENAI_API_KEY`, así que tu clave de OpenAI nunca se filtra a un endpoint
+  de terceros.
+- Campos extra que la API estándar de OpenAI no acepta — `instruct` (la voz/
+  estilo base), `language` y `temperature` — se envían solo a los endpoints
+  custom.
+- El formato de respuesta por defecto para endpoints custom es `wav` (OpenAI
+  estándar usa `mp3` por defecto).
+
+Agregá y gestioná proveedores custom desde el [panel Web](/apx/docs/es/surfaces/web/)
+bajo **Voces** (`/m/voice`) — Agregar/Quitar un proveedor custom, editar
+`base_url` y los campos avanzados de modelo/voz ahí en vez de editar el JSON a mano.
+
+## Tags de emoción (capacidad por motor)
+
+Algunos backends de TTS — hoy los proveedores `custom:<slug>` y `gemini` —
+pueden interpretar marcadores `[tag]` inline en el texto y cambiar la emoción
+hablada por segmento (ej. `[excited] ¡Listo! [calm] Lo dejé anotado.`). Esto es
+una **capacidad por motor, opt-in**, no una feature hardcodeada de QVox:
+activala con `voice.tts.<id>.emotions.enabled` (o
+`voice.tts.custom.<slug>.emotions.enabled` para proveedores custom).
+
+```json
+{
+  "voice": {
+    "tts": {
+      "custom": {
+        "qvox": {
+          "base_url": "http://127.0.0.1:5111/v1",
+          "emotions": {
+            "enabled": true,
+            "tags": ["happy", "sad", "excited", "angry", "calm", "whisper", "shout", "laugh", "cry", "narrator", "neutral"]
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+`tags` es opcional — si se omite, cae al conjunto canónico de arriba (refleja
+el set de tags por defecto de QVox).
+
+Cuando las emociones están habilitadas para **el motor que efectivamente va a
+hablar** la respuesta, APX inyecta una guía breve en el system prompt del modo
+voz para que el agente conozca la sintaxis `[tag]` y la use con moderación. La
+guía siempre coincide con el primer motor habilitado en la cadena configurada
+— no cualquier motor con capacidad de tags — así el agente nunca emite tags
+que termine hablando un motor distinto (sin soporte de tags).
+
+Los tags son una señal exclusiva de TTS:
+
+- Se mantienen en el texto que recibe el motor de TTS, para que un motor con
+  soporte de tags pueda actuar sobre ellos.
+- Se quitan de todo lo que el usuario lee — el bubble del chat, el historial
+  de mensajes y el índice de RAG — vía `stripEmotionTags()`. En un motor que
+  no soporta tags, esta misma función limpia cualquier marcador suelto antes
+  de la síntesis para que nunca se lean en voz alta literalmente.
+
+Desde el módulo **Voces** del [panel Web](/apx/docs/es/surfaces/web/), cada
+fila de proveedor con capacidad de tags muestra un toggle compacto de
+**Emotions** para activar/desactivar la capacidad por motor sin abrir el
+diálogo completo de configuración.
+
 ## El endpoint unificado de turno de voz
 
 `POST /voice/turn` es un único round-trip bidireccional:
@@ -221,6 +319,48 @@ La [ventana de Desktop](/apx/docs/es/surfaces/desktop/) y el Deck
 usan internamente este endpoint. El campo `channel` (`voice`, `deck`,
 `desktop`, `telegram`) controla el formato de la respuesta: los canales voice/deck reciben
 respuestas cortas y aptas para hablar; telegram recibe texto formateado en Markdown.
+
+## Voz a texto (STT)
+
+El motor STT local está basado en Whisper y se adapta a tu hardware en vez de
+obligarte a elegir entre CTranslate2/MLX/whisper.cpp vos mismo:
+
+| Hardware | Backend recomendado | Modelo |
+|---|---|---|
+| Apple Silicon (Metal) | `mlx` (mlx-whisper, GPU/Neural Engine) | `mlx-community/whisper-large-v3-turbo` |
+| NVIDIA (CUDA) | `faster` (faster-whisper, CUDA) | `large-v3` |
+| AMD / Radeon | `faster` (CPU — CTranslate2 no soporta ROCm) | `small` |
+| Solo CPU | `faster` (CPU) | `small` |
+
+`transcription.local.backend` puede ser `auto` (default, usa la tabla de
+arriba), `mlx` o `faster`. Desde el módulo **Voces** del [panel Web](/apx/docs/es/surfaces/web/),
+la card de STT muestra un bloque de **Hardware detectado** (badge de
+aceleración — Metal/CUDA/Vulkan-ROCm/CPU — más nombre de GPU y memoria total)
+y un selector de **Aceleración/Motor** para elegir el backend explícitamente;
+la lista de modelos se adapta al backend elegido y muestra el estado de
+descarga en disco por modelo.
+
+### Venv dedicado (aísla mlx de tu Python de sistema)
+
+`mlx-whisper` trae consigo `torch`/`scipy`/`numba`, lo que puede contaminar o
+generar conflictos con tus otros proyectos de Python si se instala en el
+intérprete de sistema o user-site. APX en cambio es dueño de un virtualenv
+dedicado en `~/.apx/runtime/whisper-venv`: lo crea, instala
+`faster-whisper`/`mlx-whisper` ahí adentro, y el proceso del servidor whisper
+arranca usando el intérprete de ese venv. Si el venv todavía no existe (ej.
+una instalación vieja), APX cae al `python3` del sistema — el camino legacy
+que instala los paquetes de Whisper en el user-site.
+
+### El idioma se fuerza desde la config, no se autodetecta
+
+STT resuelve el idioma efectivo de transcripción con esta prioridad: un
+`transcription.local.language` explícito, si no `config.user.language`, si no
+`"auto"` (Whisper autodetecta). El camino de captura de Desktop antes siempre
+mandaba un header de idioma `auto` a `/transcribe/chunk`, lo que sobreescribía
+tu idioma configurado y perjudicaba la precisión en clips cortos y nombres
+propios. `/transcribe/chunk` ahora solo sobreescribe el idioma resuelto cuando
+quien llama fija uno real (no `"auto"`) — así que tu idioma configurado siempre
+se mantiene salvo que pidas autodetección explícitamente.
 
 ## Reproducción
 
