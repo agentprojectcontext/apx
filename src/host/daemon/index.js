@@ -19,6 +19,7 @@ import { ProjectManager } from "./db.js";
 import { McpRegistry } from "#core/mcp/runner.js";
 import { PluginManager } from "./plugins/index.js";
 import { RoutineScheduler } from "./routines-scheduler.js";
+import { startCallbackReconciler } from "./callback-reconciler.js";
 import { buildApi } from "./api.js";
 import { createTokenStore } from "./token-store.js";
 import { triggerWakeup } from "./wakeup.js";
@@ -208,12 +209,17 @@ async function main() {
 
   plugins.installRoutes(app);
 
+  let callbackReconciler = null;
   const server = app.listen(port, host, () => {
     writePid();
     log(`apx-daemon ${PKG.version} listening on http://${host}:${port}`);
     log(`projects: ${projects.list().length} | plugins: ${Object.keys(plugins.status()).join(", ") || "(none)"}`);
     plugins.startAll();
     scheduler.start();
+    // Durable background-runtime callbacks: deliver any results whose spawning
+    // daemon died before it could (crash, pull, or a task that restarted the
+    // daemon). Runs once now to recover prior IOUs, then on an interval.
+    callbackReconciler = startCallbackReconciler({ plugins, log });
     // Cross-channel memory: ensure ~/.apx/memory.md exists, open the vector
     // store, and start the incremental RAG indexer. Best-effort — never blocks
     // boot and never throws into the daemon.
@@ -280,6 +286,7 @@ async function main() {
   function shutdown(signal) {
     log(`received ${signal}, shutting down...`);
     scheduler.stop();
+    callbackReconciler?.stop();
     plugins.stopAll();
     stopMemory();
     registries.shutdown();
