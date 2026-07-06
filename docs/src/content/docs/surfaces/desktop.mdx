@@ -88,6 +88,14 @@ with a spinner while running and a checkmark on completion.
   reply="Sure — the 3 open PRs: #42 checkout retry, #44 cart totals, #45 Stripe webhook. Two are ready to merge; #44 still has a failing test."
   caption="Desktop — conversation card with agent reply and audio scrubber" />
 
+<Aside type="note">
+  When the configured TTS engine supports [inline emotion tags](/apx/docs/surfaces/voice/#emotion-tags-per-engine-capability)
+  (a `custom:<slug>` provider or `gemini`), the agent's reply is synthesized
+  per-segment with the `[tag]` markers intact so the speaking engine can act
+  on them — but the bubble text you read is always stripped of the markers.
+  Tags are a TTS-only signal; they never show up in the transcript.
+</Aside>
+
 ### Global shortcut
 
 The default shortcut is `Cmd+G` on macOS and `Ctrl+G` on Windows/Linux.

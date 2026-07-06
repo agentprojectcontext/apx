@@ -1,0 +1,131 @@
+---
+title: Integraciones
+description: Conectá servicios de terceros como Asana y GitHub como plugins que los agentes pueden usar como herramientas — con alcance por proyecto y fallback global.
+sidebar:
+  order: 9
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+import Screenshot from '../../../../components/Screenshot.astro';
+
+APX incluye un panel de **Integraciones** en el admin web: un catálogo de plugins de servicios de
+terceros que los agentes pueden usar como herramientas una vez que los conectás. Esto es distinto
+de [MCP](/apx/docs/es/capabilities/mcp/) — una integración tiene una credencial y un pequeño ciclo
+de vida tipado (configure, validate, status, deactivate), mientras que un servidor MCP es un
+endpoint de herramientas crudo al que apuntás APX.
+
+<Aside type="note">
+  Hoy las integraciones se configuran completamente desde el panel de administración web — no hay
+  un subcomando `apx integration` en la CLI. Todo lo que sigue pasa dentro de **Proyecto →
+  Integraciones**.
+</Aside>
+
+## Plugin vs servidor MCP
+
+| | Plugin de integración | Servidor MCP |
+|---|---|---|
+| Qué es | Una credencial + ciclo de vida para un servicio nombrado (Asana, GitHub) | Un endpoint de herramientas genérico (stdio o HTTP) |
+| Dónde se configura | Admin web, por proyecto (o global) | `apx mcp add`, tres alcances |
+| Autenticación | Incorporada en el plugin (hoy, token) | Lo que necesite el servidor (env vars, headers) |
+| Herramientas expuestas | Un conjunto chico y fijo por plugin (ej. `asana_list_projects`) | Lo que devuelva el `tools/list` del servidor |
+
+Si el servicio que querés ya tiene un servidor MCP, usá MCP — es más general. Las integraciones
+existen para servicios donde APX tiene soporte de primera clase, consciente de credenciales.
+
+## El catálogo
+
+Abrí **Proyecto → Integraciones → Plugins**. Cada entrada es una de estas:
+
+- **Conectada / conectable** — tiene una implementación de plugin real. Podés ingresar credenciales
+  y el plugin las valida contra el proveedor.
+- **Próximamente** — declarada en el catálogo para que sepas que está en el roadmap, pero todavía
+  no está cableada a un servicio real. La tarjeta está presente pero deshabilitada; no hay nada que
+  configurar.
+
+<Screenshot
+  surface="web"
+  caption="Tab de Integraciones — sub-tab Plugins mostrando Asana, GitHub y una tarjeta próximamente"
+  hint="apx web, después abrí un proyecto → Integraciones → Plugins" />
+
+### Implementadas hoy
+
+| Plugin | Autenticación | Herramientas de agente |
+|---|---|---|
+| **Asana** | Personal Access Token | `asana_list_projects`, `asana_list_tasks`, `asana_create_task`, `asana_update_task` |
+| **GitHub** | Personal Access Token | `github_list_repos`, `github_create_issue` |
+
+### Próximamente
+
+| Plugin | Por qué todavía no está |
+|---|---|
+| **WhatsApp** | Necesita un puente de WhatsApp Web (emparejamiento por QR) que APX todavía no incluye |
+
+<Aside type="tip">
+  Telegram intencionalmente **no** está en este catálogo — es un canal, configurado bajo su propia
+  superficie de [Telegram](/apx/docs/es/capabilities/telegram/), no un plugin de servicio.
+</Aside>
+
+## Conectar un plugin
+
+<Steps>
+
+1. Abrí **Proyecto → Integraciones → Plugins** y buscá la tarjeta del plugin (ej. GitHub).
+
+2. Pegá el token. Cada tarjeta de plugin enlaza a dónde generarlo:
+   - Asana → `app.asana.com/0/my-apps` (sección Personal access tokens, no las apps OAuth)
+   - GitHub → `github.com/settings/tokens` (classic o fine-grained, necesita el scope `repo`)
+
+3. Hacé clic en **Connect**. APX guarda el token y después lo valida contra el proveedor
+   (`GET /users/me` para Asana, `GET /user` para GitHub). Un token inválido muestra el error del
+   proveedor en el momento — el registro se mantiene pero queda marcado `error` para que puedas
+   reintentar sin volver a completar todo.
+
+4. Una vez validado, la tarjeta muestra la identidad resuelta (Asana: nombre de usuario, email,
+   workspace; GitHub: login, nombre) y el estado pasa a **Active**. Asana además te deja elegir un
+   workspace de un desplegable poblado por la acción `workspaces` del propio plugin, seleccionándolo
+   automáticamente cuando el token solo tiene acceso a uno.
+
+</Steps>
+
+Podés **Deactivate** un plugin sin borrar sus credenciales guardadas (el estado pasa a `inactive`,
+las herramientas dejan de estar disponibles), o eliminar el registro por completo.
+
+## Alcance: proyecto vs global
+
+Cada registro de integración vive en el `integrations.json` de un proyecto. Un proyecto no-base
+puede elegir de qué alcance lee/escribe en la UI:
+
+- **Este proyecto** — el registro vive en el almacenamiento propio de ese proyecto.
+- **Global (default)** — el registro vive en el proyecto default de APX y lo comparte cualquier
+  proyecto que no haya configurado el suyo propio.
+
+Resolución cuando un agente necesita la integración: **el registro propio y habilitado del
+proyecto gana; si no, APX cae al registro habilitado del proyecto default.** Esto hace inequívoco
+"¿qué cuenta de Asana está usando este agente?" — un proyecto tiene su propia conexión o hereda la
+global, nunca ambas a la vez.
+
+<Aside type="caution">
+  Los tokens se guardan en `integrations.json` bajo el directorio de almacenamiento del proyecto
+  (la misma disciplina de permisos que `mcps.json`) y se **redactan** antes de enviarse al
+  navegador — la UI solo ve un flag `<field>_set: true/false`, nunca el valor crudo.
+</Aside>
+
+## Sub-tab de Herramientas
+
+**Proyecto → Integraciones → Tools** lista cada herramienta expuesta por los plugins del catálogo
+(no solo las conectadas), mostrando a qué plugin pertenece y si está activa actualmente (es decir,
+el plugin dueño está conectado y habilitado para este proyecto/alcance). Las herramientas
+inactivas se muestran atenuadas para que veas qué desbloquearía conectar un plugin.
+
+Los agentes las consumen igual que cualquier otra herramienta: quedan agrupadas bajo la categoría
+`integrations` y aparecen vía `discover_tools` como otros grupos de herramientas de carga diferida,
+o directamente si la lista de permitidos de un agente en particular las incluye.
+
+## Ver también
+
+- [Capacidades — Servidores MCP](/apx/docs/es/capabilities/mcp/) — la forma más general de darle a
+  los agentes acceso a herramientas de un servicio externo
+- [Conceptos — Agentes](/apx/docs/es/concepts/agents/) — cómo los agentes declaran y consumen
+  herramientas
+- [Capacidades — Telegram](/apx/docs/es/capabilities/telegram/) — la superficie de canal, no un
+  plugin

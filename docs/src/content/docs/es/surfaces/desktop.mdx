@@ -88,6 +88,15 @@ con un spinner mientras corren y un tilde al completarse.
   reply="Dale — los 3 PRs abiertos: #42 reintento de checkout, #44 totales del carrito, #45 webhook de Stripe. Dos están listos para mergear; #44 todavía tiene un test fallando."
   caption="Desktop — card de conversación con respuesta del agente y scrubber de audio" />
 
+<Aside type="note">
+  Cuando el motor de TTS configurado soporta [tags de emoción inline](/apx/docs/es/surfaces/voice/#tags-de-emoción-capacidad-por-motor)
+  (un proveedor `custom:<slug>` o `gemini`), la respuesta del agente se sintetiza
+  por segmento con los marcadores `[tag]` intactos para que el motor que habla
+  pueda usarlos — pero el texto del bubble que leés siempre tiene esos
+  marcadores quitados. Los tags son una señal exclusiva de TTS; nunca aparecen
+  en la transcripción.
+</Aside>
+
 ### Atajo global
 
 El atajo por defecto es `Cmd+G` en macOS y `Ctrl+G` en Windows/Linux.

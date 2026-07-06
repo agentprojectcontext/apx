@@ -172,6 +172,71 @@ APC_RESULT: <one-line value>
 APX parses this and stores it as the session's `result` field, which other routines or the
 super-agent can read.
 
+## Delegating from the super-agent (`call_runtime`)
+
+`apx run` is a command you type. But the super-agent itself can also decide, mid-conversation, to
+hand a task off to an external runtime — it has a `call_runtime` tool for exactly that (same
+runtime IDs, same spawn logic as above). This is what happens when you ask the agent on Telegram,
+web, or `apx exec` to "have Claude Code refactor this" or "run this through Codex".
+
+<Aside type="note">
+  `call_runtime` and `apx run` both end up spawning the same runtimes the same way. The difference
+  is *who* initiates the call: you, from the CLI (`apx run`), or the super-agent, as a tool call
+  during a conversation (`call_runtime`).
+</Aside>
+
+### Synchronous vs. background delegation
+
+A `call_runtime` call can either block the current turn until the runtime finishes, or launch the
+runtime **detached** and let the turn end immediately:
+
+- **Synchronous (blocking)** — the default on surfaces with no way to deliver a late result (web,
+  desktop, `apx exec`). The tool call doesn't return until the runtime process exits, and the
+  runtime's output comes back as this turn's tool result.
+- **Background (async)** — the default on **Telegram**, because a runtime like `claude-code` can
+  run for minutes to over an hour, and blocking would freeze the super-agent and hold the
+  "typing…" indicator the whole time. In background mode, `call_runtime` spawns the runtime
+  detached and returns immediately with `{ status: "launched", background: true, apc_session:
+  "<id>" }`. The agent replies right away (e.g. "lo lancé, te aviso") and the turn ends — the
+  runtime keeps working in the background.
+
+Background mode is only available when there's a channel to deliver the result to later (see
+[Callback delivery (A2A)](#callback-delivery-a2a) below); today that means a Telegram chat. The
+model can still force a blocking call on Telegram by passing `background: false` — useful when it
+needs the runtime's output inside the same turn for an immediate follow-up.
+
+Timeout also shifts with the mode: a foreground call defaults to 300s before APX sends `SIGTERM`;
+a background call defaults to 3600s (1 hour), since detached runs are expected to take longer.
+Either can be overridden per call.
+
+### Callback delivery (A2A)
+
+When a background run finishes, its result has to reach the user without anyone waiting on it.
+APX delivers it in one of two ways:
+
+1. **A2A report (preferred)** — the result is fed back into a fresh super-agent turn as an
+   internal report (tagged so it reads as an agent-to-agent hand-off, not a user message). The
+   super-agent relays it to the user in its own voice, and can chain a next step if the task isn't
+   done. This is what happens on Telegram: the finished run re-enters the conversation and the
+   agent sends a new message summarizing it.
+2. **Direct channel send (fallback)** — if the A2A path isn't wired up or fails, APX sends a plain
+   message to the originating chat instead: a "✅ finished" or "⚠️ failed" line followed by the
+   runtime's result, with no super-agent rephrasing.
+
+### Durable delivery across daemon restarts
+
+Launching a background run also writes a small pending-callback record (`~/.apx/pending-callbacks/
+<apc_session>.json`) — an IOU noting which chat is owed the result. If the daemon that launched the
+run dies before the runtime finishes (a crash, a `git pull` + restart, or a delegated task that
+restarts the daemon), that in-memory callback would normally be lost. Instead, a reconciler runs at
+daemon boot and on a 30-second interval, checks each pending callback's session record, and once the
+session shows the run completed, delivers the result as a direct channel send and removes the IOU.
+This also covers the case where the external runtime itself proactively closed its APX session
+(e.g. via `apx session close`) rather than APX's own process wait detecting the exit.
+
+The two delivery paths don't double up: the reconciler gives the live in-process delivery a grace
+window before it will deliver the same callback itself.
+
 ## run vs. exec
 
 | | `apx run` | `apx exec` |
