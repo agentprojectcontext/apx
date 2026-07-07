@@ -88,7 +88,7 @@ const PROVIDERS = [
     needsKey: true,
     keyLabel: "Gemini API key",
     keyHint: "AIza...",
-    models: ["gemini-2.0-flash", "gemini-1.5-pro"],
+    models: ["gemini-3.5-flash", "gemini-3.1-pro-preview", "gemini-2.5-flash"],
   },
 ];
 
@@ -254,7 +254,7 @@ export async function cmdSetup() {
     console.log(`    ${cy("2")}. piper      ${di("(local, offline; needs piper CLI + voice model)")}`);
     console.log(`    ${cy("3")}. elevenlabs ${di("(cloud; eleven_multilingual_v2)")}`);
     console.log(`    ${cy("4")}. openai     ${di("(cloud; tts-1, reuses your openai key)")}`);
-    console.log(`    ${cy("5")}. gemini     ${di("(experimental, best-effort)")}`);
+    console.log(`    ${cy("5")}. gemini     ${di("(cloud; gemini-2.5-flash-tts, 30 voices)")}`);
     console.log(`    ${cy("6")}. mock       ${di("(silent WAV; useful for tests)")}`);
     console.log();
     const choice = (await ask(`  Choose [1-6, default 1]: `)).trim() || "1";
