@@ -1,3 +1,10 @@
+# [1.66.0](https://github.com/agentprojectcontext/apx/compare/v1.65.3...v1.66.0) (2026-07-07)
+
+
+### Features
+
+* **engines:** shared model catalog reused by CLI + web ([c2532da](https://github.com/agentprojectcontext/apx/commit/c2532da560cccca0962b06b74db77a724b1363a7))
+
 ## [1.65.3](https://github.com/agentprojectcontext/apx/compare/v1.65.2...v1.65.3) (2026-07-07)
 
 
