@@ -56,7 +56,7 @@ APX is opinionated about storage: the filesystem is the source of truth. Project
 
 ```bash
 # 1 · Install
-npm install -g apx
+npm install -g @agentprojectcontext/apx
 
 # 2 · Set up — interactive wizard (provider → model → channels → daemon)
 apx setup
@@ -98,7 +98,7 @@ runtime. The session and memory land in `.apc/`.
 ## Installation
 
 ```bash
-npm install -g apx
+npm install -g @agentprojectcontext/apx
 ```
 
 Requires Node.js 20+. The daemon starts automatically on first `apx` call.
