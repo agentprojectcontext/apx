@@ -1,3 +1,10 @@
+## [1.65.2](https://github.com/agentprojectcontext/apx/compare/v1.65.1...v1.65.2) (2026-07-07)
+
+
+### Bug Fixes
+
+* **seo:** regenerate hero/og images with corrected scoped install command ([ad5e62a](https://github.com/agentprojectcontext/apx/commit/ad5e62a282228391e4074d1304af73ebb9c3edfe))
+
 ## [1.65.1](https://github.com/agentprojectcontext/apx/compare/v1.65.0...v1.65.1) (2026-07-07)
 
 
