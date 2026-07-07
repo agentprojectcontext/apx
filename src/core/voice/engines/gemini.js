@@ -1,13 +1,12 @@
 // Gemini TTS adapter.
-// At the time of writing the Gemini TTS surface is gated and not stable across
-// SDK versions: some models (gemini-2.5-flash-preview-tts) expose synthesize
-// via the v1beta REST surface, others require Vertex. To keep APX engine-
-// agnostic, this adapter performs a best-effort call against the documented
-// REST shape, but flags itself as not-implemented when the response does not
-// include inline audio data.
+// The Gemini TTS surface can vary across SDK versions: some models
+// (gemini-2.5-flash-tts) expose synthesize via the v1beta REST surface, others
+// require Vertex. To keep APX engine-agnostic, this adapter performs a
+// best-effort call against the documented REST shape, but flags itself as
+// not-implemented when the response does not include inline audio data.
 //
 // Config (~/.apx/config.json → voice.tts.gemini):
-//   { "api_key": "...", "model": "gemini-2.5-flash-preview-tts", "voice": "Kore",
+//   { "api_key": "...", "model": "gemini-2.5-flash-tts", "voice": "Kore",
 //     "style": "habla en tono alegre y enérgico" }
 //
 // `style` is an optional natural-language instruction describing HOW the voice
@@ -22,7 +21,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 
-const DEFAULT_MODEL = "gemini-2.5-flash-preview-tts";
+const DEFAULT_MODEL = "gemini-2.5-flash-tts";
 
 function getKey(config, parentEnginesCfg) {
   return (
