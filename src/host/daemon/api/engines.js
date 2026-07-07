@@ -1,11 +1,17 @@
 // GET  /engines            — list engine adapter ids known to core/engines.
+// GET  /engines/presets     — curated catalog (known models, defaults) per engine.
 // POST /engines/models      — live model catalog from a provider.
 // GET  /engines/models      — legacy (Ollama only, no auth).
 import { ENGINE_IDS } from "#core/engines/index.js";
 import { listModels } from "#core/engines/catalog.js";
+import { ENGINE_PRESETS } from "#core/engines/presets.js";
 
 export function register(app, { config }) {
   app.get("/engines", (_req, res) => res.json({ engines: ENGINE_IDS }));
+
+  // Curated fallback catalog shared with the CLI wizard. The web hydrates its
+  // provider forms from here so model lists never drift between surfaces.
+  app.get("/engines/presets", (_req, res) => res.json({ presets: ENGINE_PRESETS }));
 
   app.post("/engines/models", async (req, res) => {
     const b = req.body || {};

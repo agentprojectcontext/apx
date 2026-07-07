@@ -152,7 +152,7 @@ const DEFAULT_CONFIG = {
       piper:      { bin: "piper", model: "", speaker: "", extra_args: [] },
       elevenlabs: { api_key: "", model: "eleven_multilingual_v2", voice_id: "", output_format: "mp3_44100_128" },
       openai:     { api_key: "", model: "tts-1", voice: "alloy", format: "mp3" },
-      gemini:     { api_key: "", model: "gemini-2.5-flash-preview-tts", voice: "Kore" },
+      gemini:     { api_key: "", model: "gemini-2.5-flash-tts", voice: "Kore" },
     },
   },
 };
