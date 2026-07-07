@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Runs automatically after `npm install -g apx` and `npm update -g apx`.
+// Runs automatically after `npm install -g @agentprojectcontext/apx` and `npm update -g @agentprojectcontext/apx`.
 import os from "node:os";
 import { refreshApcContextSkill } from "#core/apc/skill-sync.js";
 import { installGlobalSkills } from "#core/apc/scaffold.js";

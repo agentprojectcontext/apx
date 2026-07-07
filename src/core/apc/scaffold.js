@@ -194,7 +194,7 @@ export function installIdeSkills(root, targetIds = null) {
 
 // Discover every bundled skill under skills/<slug>/SKILL.md. Used by
 // installGlobalSkills() so a new skill added to the repo automatically lands
-// on the user's machine after `npm install -g .` (or `npm update -g apx`)
+// on the user's machine after `npm install -g .` (or `npm update -g @agentprojectcontext/apx`)
 // without anyone having to touch this file.
 //
 // Excluded: directory names starting with "." (e.g. .DS_Store).
