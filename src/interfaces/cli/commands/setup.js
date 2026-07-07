@@ -8,6 +8,7 @@ import http from "node:http";
 import readline from "node:readline";
 import { spawnSync } from "node:child_process";
 import { readConfig, writeConfig } from "#core/config/index.js";
+import { ENGINE_PRESETS } from "#core/engines/presets.js";
 import { mascot } from "#core/mascot.js";
 import { setupClaudePermissions } from "../claude-permissions.js";
 import { PERMISSION_MODES, DEFAULT_PERMISSION_MODE } from "#core/constants/permissions.js";
@@ -59,6 +60,8 @@ async function fetchOllamaModels(baseUrl) {
 }
 
 // ── Provider definitions ──────────────────────────────────────────────────────
+// Model lists come from the shared catalog (#core/engines/presets.js) so the CLI
+// and the web admin panel never drift. Ollama stays dynamic (fetched at runtime).
 const PROVIDERS = [
   {
     id: "anthropic",
@@ -66,7 +69,7 @@ const PROVIDERS = [
     needsKey: true,
     keyLabel: "Anthropic API key",
     keyHint: "sk-ant-...",
-    models: ["claude-sonnet-4-5", "claude-haiku-4-5", "claude-opus-4-5"],
+    models: ENGINE_PRESETS.anthropic.known_models,
   },
   {
     id: "openai",
@@ -74,7 +77,7 @@ const PROVIDERS = [
     needsKey: true,
     keyLabel: "OpenAI API key",
     keyHint: "sk-...",
-    models: ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"],
+    models: ENGINE_PRESETS.openai.known_models,
   },
   {
     id: "ollama",
@@ -88,7 +91,7 @@ const PROVIDERS = [
     needsKey: true,
     keyLabel: "Gemini API key",
     keyHint: "AIza...",
-    models: ["gemini-3.5-flash", "gemini-3.1-pro-preview", "gemini-2.5-flash"],
+    models: ENGINE_PRESETS.gemini.known_models,
   },
 ];
 

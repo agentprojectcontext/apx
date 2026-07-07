@@ -65,6 +65,11 @@ export const ENGINE_ICONS: Record<EngineType, LucideIcon> = {
 // Sensible defaults per engine so the form auto-fills base_url, suggests
 // models, and hints the api-key env var. base_url "" = adapter has a built-in
 // default (e.g. Anthropic SDK).
+//
+// NOTE: the values below are only an OFFLINE FALLBACK. The source of truth is
+// src/core/engines/presets.js, served by `GET /engines/presets`. Call
+// `loadEnginePresets()` once at app boot to hydrate this object in place so the
+// model lists stay in sync with the CLI wizard and never drift.
 export interface EnginePreset {
   base_url: string;
   default_model: string;
@@ -73,34 +78,32 @@ export interface EnginePreset {
 }
 
 export const ENGINE_PRESETS: Record<EngineType, EnginePreset> = {
+  // Keep these in sync with src/core/engines/presets.js. They are the offline
+  // fallback only — loadEnginePresets() overrides them from the daemon at boot.
   anthropic: {
     base_url: "",
-    default_model: "claude-sonnet-4.6",
+    default_model: "claude-sonnet-5",
     api_key_env: "ANTHROPIC_API_KEY",
     known_models: [
-      "claude-opus-4.8",
-      "claude-opus-4.7",
-      "claude-opus-4.6",
-      "claude-sonnet-4.6",
-      "claude-sonnet-4.5",
-      "claude-haiku-4.5",
+      "claude-opus-4-8",
+      "claude-sonnet-5",
+      "claude-haiku-4-5",
+      "claude-fable-5",
     ],
   },
   openai: {
     base_url: "https://api.openai.com/v1",
-    default_model: "gpt-4o-mini",
+    default_model: "gpt-5.4-mini",
     api_key_env: "OPENAI_API_KEY",
-    known_models: ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "o3-mini"],
+    known_models: ["gpt-5.5", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5.1", "gpt-4.1-mini"],
   },
   gemini: {
     base_url: "https://generativelanguage.googleapis.com/v1beta/openai",
     default_model: "gemini-2.5-flash",
     api_key_env: "GEMINI_API_KEY",
     known_models: [
-      "gemini-3.5-pro",
       "gemini-3.5-flash",
-      "gemini-3.1-pro",
-      "gemini-3.1-flash",
+      "gemini-3.1-pro-preview",
       "gemini-2.5-pro",
       "gemini-2.5-flash",
       "gemini-2.5-flash-lite",
@@ -108,17 +111,14 @@ export const ENGINE_PRESETS: Record<EngineType, EnginePreset> = {
   },
   groq: {
     base_url: "https://api.groq.com/openai/v1",
-    default_model: "llama-3.3-70b-versatile",
+    default_model: "openai/gpt-oss-20b",
     api_key_env: "GROQ_API_KEY",
     known_models: [
-      "llama-3.3-70b-versatile",
-      "llama-3.1-8b-instant",
-      "meta-llama/llama-4-scout-17b-16e-instruct",
       "openai/gpt-oss-120b",
       "openai/gpt-oss-20b",
+      "qwen/qwen3.6-27b",
       "groq/compound",
       "groq/compound-mini",
-      "qwen/qwen3-32b",
       "whisper-large-v3-turbo",
     ],
   },
@@ -130,12 +130,9 @@ export const ENGINE_PRESETS: Record<EngineType, EnginePreset> = {
     known_models: [
       "openrouter/auto",
       "openrouter/free",
-      "deepseek/deepseek-r1:free",
-      "meta-llama/llama-3.3-70b-instruct:free",
-      "google/gemini-2.0-flash-exp:free",
-      "qwen/qwen3-235b-a22b:free",
-      "anthropic/claude-sonnet-4.5",
-      "openai/gpt-4o-mini",
+      "anthropic/claude-sonnet-5",
+      "openai/gpt-5.4-mini",
+      "google/gemini-2.5-flash",
     ],
   },
   ollama: {
@@ -146,10 +143,32 @@ export const ENGINE_PRESETS: Record<EngineType, EnginePreset> = {
   },
   azure: {
     base_url: "",
-    default_model: "gpt-4o-mini",
+    default_model: "",
     api_key_env: "AZURE_OPENAI_API_KEY",
-    known_models: ["gpt-4o", "gpt-4o-mini"],
+    known_models: [],
   },
   mock: { base_url: "", default_model: "mock", api_key_env: "", known_models: ["mock"] },
   custom: { base_url: "", default_model: "", api_key_env: "", known_models: [] },
 };
+
+// Hydrate ENGINE_PRESETS from the daemon's shared catalog (GET /engines/presets,
+// backed by src/core/engines/presets.js). Mutates the object in place so every
+// consumer that reads ENGINE_PRESETS[engine] lazily (form handlers, model
+// dropdowns) picks up the fresh lists. Best-effort: on failure we keep the
+// baked-in fallback above. Call once at app boot.
+let presetsLoaded = false;
+export async function loadEnginePresets(): Promise<void> {
+  if (presetsLoaded) return;
+  try {
+    const { Engines } = await import("../../../lib/api/engines");
+    const { presets } = await Engines.presets();
+    for (const [engine, preset] of Object.entries(presets || {})) {
+      if (engine in ENGINE_PRESETS && preset) {
+        Object.assign(ENGINE_PRESETS[engine as EngineType], preset);
+      }
+    }
+    presetsLoaded = true;
+  } catch {
+    // Daemon unreachable or old build without the endpoint — keep the fallback.
+  }
+}
