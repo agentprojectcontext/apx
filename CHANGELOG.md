@@ -1,3 +1,10 @@
+## [1.65.1](https://github.com/agentprojectcontext/apx/compare/v1.65.0...v1.65.1) (2026-07-07)
+
+
+### Bug Fixes
+
+* **banner:** widen terminal so scoped install command fits on one line ([7970139](https://github.com/agentprojectcontext/apx/commit/7970139c98f57d286e972825be8a383c80a944a1))
+
 # [1.65.0](https://github.com/agentprojectcontext/apx/compare/v1.64.0...v1.65.0) (2026-07-06)
 
 
