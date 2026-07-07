@@ -1,3 +1,10 @@
+## [1.65.3](https://github.com/agentprojectcontext/apx/compare/v1.65.2...v1.65.3) (2026-07-07)
+
+
+### Bug Fixes
+
+* **gemini:** update TTS model references and improve comments ([d1164f0](https://github.com/agentprojectcontext/apx/commit/d1164f01a7168fa2c8ac2a1cbbb4824d1387baab))
+
 ## [1.65.2](https://github.com/agentprojectcontext/apx/compare/v1.65.1...v1.65.2) (2026-07-07)
 
 
