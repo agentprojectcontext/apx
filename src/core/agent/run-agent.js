@@ -8,6 +8,14 @@ import { MAX_TOOL_ITERS, ACK_ONLY_TOOLS, MAX_CONSECUTIVE_ACKS, TURN_ENDING_TOOLS
 import { pseudoToolSystem, shouldRetryWithPseudoTools } from "./tools/pseudo-tools.js";
 import { filterToolSchemas } from "./tools-overlap.js";
 import { isRetryableEngineError, shortRetryReason } from "./retry.js";
+import {
+  securityRiskConfig,
+  withSecurityRiskField,
+  popSecurityRisk,
+  shouldConfirmRisk,
+} from "./security.js";
+import { buildConfirmDescription } from "../confirmation/index.js";
+import { PERMISSION_MODES } from "../constants/permissions.js";
 
 async function emitProgress(onEvent, event) {
   if (typeof onEvent !== "function") return;
@@ -194,6 +202,21 @@ export async function runAgent({
     effectiveSchemas = [...effectiveSchemas, FINISH_TOOL_SCHEMA];
   }
 
+  // Inline security-risk analysis: every eligible tool schema gains a required
+  // `security_risk` enum the model fills as part of the call itself (no second
+  // LLM pass). The loop extracts the grade below and the ConfirmRisky policy
+  // decides whether the call pauses for human approval.
+  const riskCfg = securityRiskConfig(globalConfig);
+  const permissionMode = globalConfig?.super_agent?.permission_mode || "";
+  // Risk gating never overrides the user's explicit "total" trust mode.
+  const riskGateOn = riskCfg.enabled && permissionMode !== PERMISSION_MODES.TOTAL;
+  if (riskGateOn) {
+    effectiveSchemas = withSecurityRiskField(effectiveSchemas);
+    // Handshake with createPermissionGuard: the analyzer owns dangerous-call
+    // gating this run, so the static dangerous-flag branch stands down.
+    if (toolHandlerCtx) toolHandlerCtx.securityRiskActive = true;
+  }
+
   const rawHandlers = makeToolHandlers(toolHandlerCtx);
   const handlers = suppressed.size > 0
     ? new Proxy(rawHandlers, {
@@ -224,7 +247,11 @@ export async function runAgent({
       if (n && !seen.has(n)) { additions.push(sc); seen.add(n); }
     }
     toolSession.pending = [];
-    if (additions.length > 0) effectiveSchemas = effectiveSchemas.concat(additions);
+    if (additions.length > 0) {
+      effectiveSchemas = effectiveSchemas.concat(
+        riskGateOn ? withSecurityRiskField(additions) : additions
+      );
+    }
   };
 
   const conversation = [...previousMessages, { role: "user", content: prompt }];
@@ -426,6 +453,9 @@ export async function runAgent({
         try { args = JSON.parse(args); } catch { args = {}; }
       }
       args = args || {};
+      // Pop the model's own risk grade BEFORE the handler sees the args — the
+      // field belongs to the loop, not to any tool's contract.
+      const securityRisk = riskGateOn ? popSecurityRisk(args) : null;
 
       // Completion contract: `finish` declares the task done. Capture its
       // summary as the final text and stop processing the rest of this turn.
@@ -438,7 +468,13 @@ export async function runAgent({
       const traceId = `${iter + 1}:${trace.length + 1}`;
       await emitProgress(onEvent, {
         type: "tool_start",
-        trace: { id: traceId, tool: name, args, pending: true },
+        trace: {
+          id: traceId,
+          tool: name,
+          args,
+          pending: true,
+          ...(securityRisk ? { security_risk: securityRisk } : {}),
+        },
         iteration: iter + 1,
       });
       // Dedupe identical side-effecting calls within this turn.
@@ -456,16 +492,55 @@ export async function runAgent({
           iteration: iter + 1,
         });
       } else {
-        try {
-          const handler = handlers[name];
-          toolResult = handler ? await handler(args) : { error: `unknown tool: ${name}` };
-        } catch (e) {
-          toolResult = { error: e.message };
+        // ConfirmRisky gate: pause on the model's own grade before executing.
+        // A decline becomes a normal error observation — the model sees the
+        // rejection and can re-plan, mirroring OpenHands' rejection flow.
+        let riskDenied = null;
+        if (riskGateOn && shouldConfirmRisk(securityRisk, riskCfg)) {
+          const description = buildConfirmDescription(name, args);
+          const requestConfirmation = toolHandlerCtx?.requestConfirmation;
+          if (typeof requestConfirmation !== "function") {
+            riskDenied = `Action requires user confirmation (security risk ${securityRisk}): ${description}`;
+          } else {
+            await emitProgress(onEvent, {
+              type: "security_confirmation",
+              trace: { id: traceId, tool: name, risk: securityRisk },
+              iteration: iter + 1,
+            });
+            let approved = false;
+            try {
+              approved = await requestConfirmation(name, args, `[risk: ${securityRisk}] ${description}`);
+            } catch {
+              approved = false;
+            }
+            if (approved && toolHandlerCtx) toolHandlerCtx.securityGateCleared = true;
+            if (!approved) {
+              riskDenied = `User did not confirm (security risk ${securityRisk}): ${description}`;
+            }
+          }
+        }
+        if (riskDenied) {
+          toolResult = { error: riskDenied };
+        } else {
+          try {
+            const handler = handlers[name];
+            toolResult = handler ? await handler(args) : { error: `unknown tool: ${name}` };
+          } catch (e) {
+            toolResult = { error: e.message };
+          } finally {
+            if (toolHandlerCtx) toolHandlerCtx.securityGateCleared = false;
+          }
         }
         if (sig) sideEffectExecuted.set(sig, summarizeForTrace(toolResult));
       }
 
-      const traceItem = { id: traceId, tool: name, args, result: summarizeForTrace(toolResult) };
+      const traceItem = {
+        id: traceId,
+        tool: name,
+        args,
+        result: summarizeForTrace(toolResult),
+        ...(securityRisk ? { security_risk: securityRisk } : {}),
+      };
       trace.push(traceItem);
       await emitProgress(onEvent, { type: "tool_result", trace: traceItem, iteration: iter + 1 });
 
