@@ -1,10 +1,13 @@
 import { useRef, useState } from "react";
 import useSWR from "swr";
-import { Copy, RefreshCw, Trash2, FileCode2, Play, Pencil, Eye, SquarePen } from "lucide-react";
+import { Copy, RefreshCw, Trash2, FileCode2, Play, Pencil, Eye, SquarePen, ExternalLink, Share2, Square } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 import { Empty, Spinner } from "../ui";
-import { Artifacts, type ArtifactEntry, type ArtifactRunResult } from "../../lib/api/artifacts";
+import { Artifacts, type ArtifactEntry, type ArtifactRunResult, type ArtifactPreview } from "../../lib/api/artifacts";
+
+// Artifacts we can render in a browser via an ephemeral preview server.
+const PREVIEWABLE = /\.(html?|jsx|tsx|js)$/i;
 import { useToast } from "../Toast";
 import {
   Dialog,
@@ -40,6 +43,12 @@ function ArtifactRow({
   const [running, setRunning] = useState(false);
   const [runResult, setRunResult] = useState<ArtifactRunResult | null>(null);
   const toast = useToast();
+
+  // Preview / share state
+  const [preview, setPreview] = useState<ArtifactPreview | null>(null);
+  const [previewing, setPreviewing] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const previewable = PREVIEWABLE.test(entry.name);
 
   // Rename state
   const [renaming, setRenaming] = useState(false);
@@ -82,6 +91,45 @@ function ArtifactRow({
     } finally {
       setRunning(false);
     }
+  };
+
+  // Start (or reuse) an ephemeral preview server and open it in a new tab.
+  const startPreview = async () => {
+    setPreviewing(true);
+    try {
+      const p = await Artifacts.preview(pid, entry.name);
+      setPreview(p);
+      window.open(p.url, "_blank", "noopener,noreferrer");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setPreviewing(false);
+    }
+  };
+
+  // Expose the running preview through a public tunnel and open it.
+  const share = async () => {
+    if (!preview) return;
+    setSharing(true);
+    try {
+      const tn = await Artifacts.openTunnel(preview.id);
+      setPreview({ ...preview, tunnel: { id: tn.id, url: tn.url, provider: tn.provider } });
+      window.open(tn.url, "_blank", "noopener,noreferrer");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const stopPreview = async () => {
+    if (!preview) return;
+    try {
+      await Artifacts.stopPreview(preview.id);
+    } catch {
+      /* ignore — already gone */
+    }
+    setPreview(null);
   };
 
   const remove = async () => {
@@ -232,6 +280,37 @@ function ArtifactRow({
             </Tip>
           )}
 
+          {/* Preview — serve on an ephemeral local server and open in a tab.
+              Only for browser-renderable artifacts (HTML / React / JS). */}
+          {previewable && (
+            <Tip content={t("code_module.artifacts_preview_hint")}>
+              <button
+                type="button"
+                disabled={previewing}
+                onClick={() => void startPreview()}
+                className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-[10px] font-medium bg-sky-500/15 text-sky-700 hover:bg-sky-500/25 disabled:opacity-60 dark:text-sky-300"
+              >
+                {previewing ? <Spinner size={10} /> : <ExternalLink className="size-3" />}
+                {t("code_module.artifacts_preview")}
+              </button>
+            </Tip>
+          )}
+
+          {/* Share — open a public tunnel to the running preview. */}
+          {preview && !preview.tunnel && (
+            <Tip content={t("code_module.artifacts_share_hint")}>
+              <button
+                type="button"
+                disabled={sharing}
+                onClick={() => void share()}
+                className="inline-flex items-center gap-1 rounded px-1.5 py-1 text-[10px] font-medium bg-amber-500/15 text-amber-700 hover:bg-amber-500/25 disabled:opacity-60 dark:text-amber-300"
+              >
+                {sharing ? <Spinner size={10} /> : <Share2 className="size-3" />}
+                {t("code_module.artifacts_share")}
+              </button>
+            </Tip>
+          )}
+
           {/* Eliminar — confirmation dialog */}
           <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
             <Tip content={t("code_module.artifacts_delete")}>
@@ -288,6 +367,70 @@ function ArtifactRow({
             apx artifact run {entry.name}
           </code>
         </div>
+
+        {/* Running preview: local + optional public URL, with a stop button. */}
+        {preview && (
+          <div className="space-y-1 rounded border border-sky-500/30 bg-sky-500/5 p-2">
+            <div className="flex items-center gap-2">
+              <span className="shrink-0 text-[10px] font-medium text-muted-foreground">
+                {t("code_module.artifacts_preview_local")}
+              </span>
+              <a
+                href={preview.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="min-w-0 flex-1 truncate font-mono text-[10px] text-sky-700 underline hover:text-sky-900 dark:text-sky-300"
+              >
+                {preview.url}
+              </a>
+              <Tip content={t("code_module.artifacts_copy_url")}>
+                <button
+                  type="button"
+                  onClick={() => void copy(preview.url)}
+                  className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                >
+                  <Copy className="size-3" />
+                </button>
+              </Tip>
+              <Tip content={t("code_module.artifacts_stop_preview")}>
+                <button
+                  type="button"
+                  onClick={() => void stopPreview()}
+                  className="shrink-0 rounded p-0.5 text-rose-600 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950"
+                >
+                  <Square className="size-3" />
+                </button>
+              </Tip>
+            </div>
+            {preview.tunnel && (
+              <div className="flex items-center gap-2">
+                <span className="shrink-0 text-[10px] font-medium text-amber-700 dark:text-amber-300">
+                  {t("code_module.artifacts_preview_public")}
+                </span>
+                <a
+                  href={preview.tunnel.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="min-w-0 flex-1 truncate font-mono text-[10px] text-amber-700 underline hover:text-amber-900 dark:text-amber-300"
+                >
+                  {preview.tunnel.url}
+                </a>
+                <span className="shrink-0 font-mono text-[9px] text-muted-foreground">
+                  {preview.tunnel.provider}
+                </span>
+                <Tip content={t("code_module.artifacts_copy_url")}>
+                  <button
+                    type="button"
+                    onClick={() => void copy(preview.tunnel!.url)}
+                    className="shrink-0 rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                  >
+                    <Copy className="size-3" />
+                  </button>
+                </Tip>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Run result display */}
         {runResult && (
