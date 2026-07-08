@@ -95,6 +95,7 @@ The model can always expand its surface by calling `load_skill`.
 | `call_agent` | Delegate to a named project agent without spawning a new process |
 | `call_mcp` | Call any registered MCP server tool |
 | `call_runtime` | Delegate to an external [runtime](/apx/docs/engine/runtimes/#delegating-from-the-super-agent-call_runtime) (Claude Code / Codex …), synchronously or in the background |
+| `run_subagent` | Spawn an isolated sub-agent (fresh context, same tools minus user-interaction ones) that works a self-contained task to completion and returns its result — one nesting level max |
 | `run_shell` | Execute a shell command (gated by permission mode) |
 | `send_telegram` | Send a message via the Telegram plugin |
 | `remember` | Write a durable fact to `~/.apx/memory.md` |
