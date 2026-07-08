@@ -25,30 +25,22 @@
 import fs from "node:fs";
 import path from "node:path";
 import { parseConversation } from "./conversations.js";
-import { callEngine } from "#core/engines/index.js";
+import {
+  renderEvents,
+  buildCondenserPrompt,
+  summarizeStructured,
+} from "#core/memory/summarizer.js";
 
 const KEEP_LAST = 6;
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 
-const COMPACT_SYSTEM =
-  "You summarize conversations for AI agent context continuity. " +
-  "Be dense and factual — another AI will read this to continue the work.";
-
-const COMPACT_PROMPT = `Summarize this conversation for future context.
-
-Cover:
-- Main task or goal being worked on
-- Key decisions made and why
-- Files, code, commands modified (exact paths where relevant)
-- Current state: what's done, what's pending or unresolved
-- Errors encountered and how they were resolved
-
-Style: dense and factual. No pleasantries. No meta-commentary. Just the facts.
-
----
-
-`;
+// Map a parsed conversation role to the summarizer's normalized event role.
+function toEventRole(role) {
+  if (role === "user") return "user";
+  if (role === "tool") return "tool";
+  return "assistant"; // assistant / system → assistant side
+}
 
 // Resolve the most-recent conversation file for an agent, or the one explicitly
 // named. Returns the full filepath.
@@ -90,19 +82,21 @@ export async function compactConversation({
   const realTurns = turns.filter((t) => t.role !== "compact");
   if (realTurns.length === 0) throw new Error("nothing to compact — no user/assistant turns");
 
-  // Build a readable transcript for the model.
-  const transcript = realTurns
-    .map((t) => `[${t.role.toUpperCase()}]\n${t.content}`)
-    .join("\n\n---\n\n");
-
-  const result = await callEngine({
-    modelId,
-    system: COMPACT_SYSTEM,
-    messages: [{ role: "user", content: COMPACT_PROMPT + transcript }],
+  // Same summarizer service as the automatic condenser (structured state),
+  // just a different store/entry point. The whole conversation is condensed
+  // (no previous-summary threading here — a fresh compact per call).
+  const eventsBlock = renderEvents(
+    realTurns.map((t) => ({ role: toEventRole(t.role), content: t.content }))
+  );
+  const prompt = buildCondenserPrompt({ eventsBlock });
+  const out = await summarizeStructured({
+    prompt,
+    models: { primary: modelId, fallback: config?.super_agent?.model || "" },
     config,
   });
+  if (!out) throw new Error("compaction failed — no model produced a summary");
 
-  const summary = result.text.trim();
+  const summary = out.text;
   const ts = nowIso();
   const turnCount = realTurns.length;
 
@@ -133,8 +127,7 @@ export async function compactConversation({
     filename: path.basename(filepath),
     compacted_turns: turnCount,
     kept_turns: recentTurns.length,
-    model: modelId,
+    model: out.model,
     summary,
-    usage: result.usage,
   };
 }

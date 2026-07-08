@@ -24,68 +24,18 @@ import fs from "node:fs";
 import path from "node:path";
 import { GLOBAL_MESSAGES_DIR } from "../config/index.js";
 import { parseDayJsonl, appendGlobalMessage } from "../stores/messages.js";
-import { callEngine } from "../engines/index.js";
+import {
+  resolveCompactModels,
+  buildCondenserPrompt,
+  summarizeStructured,
+} from "./summarizer.js";
+
+// Re-export so existing importers (tests, callers) keep working.
+export { resolveCompactModels };
 
 const DEFAULT_MAX_TURNS = 60;
 const DEFAULT_KEEP_RECENT = 40;
 const DEFAULT_KEEP_FIRST = 2;
-// Structured state summaries carry several labelled sections, so they need
-// more room than the old ~800-token narrative recap.
-const COMPACT_MAX_TOKENS = 1200;
-
-const COMPACT_SYSTEM =
-  "You are maintaining a context-aware state summary for an interactive agent. " +
-  "Another model will read your summary to continue the work: be dense, factual, and structured.";
-
-// Structured-state instructions adapted from OpenHands' LLMSummarizingCondenser.
-// They live in the USER prompt (not the system prompt) so offline tests can
-// capture the full instruction set through the echoing mock engine.
-const CONDENSER_INSTRUCTIONS = `You will be given a list of events from an agent conversation as <EVENT> blocks. If the first event is a PREVIOUS STATE SUMMARY, your new summary must fully subsume it — carry forward all still-relevant state.
-
-Maintain this structured state, one section per line group:
-
-USER_CONTEXT: (essential user requirements, goals, and clarifications, in concise form)
-TASK_TRACKING: (active tasks and their statuses; preserve exact task IDs)
-COMPLETED: (tasks completed so far, with brief results)
-PENDING: (tasks that still need to be done)
-CURRENT_STATE: (current variables, data structures, or other relevant state)
-
-For code-related tasks, also maintain:
-CODE_STATE: (file paths, function signatures, data structures)
-TESTS: (failing cases, error messages, outputs)
-CHANGES: (code edits and their effects)
-DEPS: (dependencies, imports, external calls)
-VERSION_CONTROL_STATUS: (repository state, current branch, PR status, commits)
-
-PRIORITIZE:
-1. Adapt the format to the actual task type — omit sections that do not apply.
-2. Capture key user requirements and goals.
-3. Distinguish completed work from pending work.
-4. Keep every section concise and relevant.
-
-SKIP: greetings, meta-commentary, failed operations without semantic importance, repetitive details.
-
-Output ONLY the summary sections (max ~900 tokens).`;
-
-function compactPrompt({ eventsBlock, openingBlock }) {
-  const opening = openingBlock
-    ? "The following opening turns of the conversation are quoted verbatim. They carry the ORIGINAL GOAL — preserve their intent (near-verbatim) under USER_CONTEXT:\n\n" +
-      `<CONVERSATION_OPENING>\n${openingBlock}\n</CONVERSATION_OPENING>\n\n`
-    : "";
-  return `${CONDENSER_INSTRUCTIONS}\n\n${opening}${eventsBlock}`;
-}
-
-export function resolveCompactModels(config = {}) {
-  const mem = config.memory || {};
-  // Primary: a light, local-endpoint model (Ollama, incl. *-cloud models served
-  // via localhost). Fallback: whatever the user configured, else the APX
-  // default super-agent model — never silently a paid service the user didn't
-  // pick. A blank fallback resolves to super_agent.model at call time.
-  return {
-    primary: mem.compact_model || "ollama:gemma4:31b-cloud",
-    fallback: mem.compact_fallback_model || config.super_agent?.model || "",
-  };
-}
 
 // Read every record for a chat in the rolling window, oldest first.
 function readChatRecords({ channel, chat_id, max_age_hours, messagesDir }) {
@@ -129,27 +79,6 @@ function renderEvent(m, id) {
   }
   const role = m.type === "user" ? "user" : "assistant";
   return `<EVENT id=${id} role=${role}>\n${String(m.body || "")}\n</EVENT>`;
-}
-
-async function summarize({ prompt, models, config }) {
-  for (const modelId of [models.primary, models.fallback]) {
-    if (!modelId) continue;
-    try {
-      const r = await callEngine({
-        modelId,
-        system: COMPACT_SYSTEM,
-        messages: [{ role: "user", content: prompt }],
-        config,
-        maxTokens: COMPACT_MAX_TOKENS,
-        temperature: 0.2,
-      });
-      const text = String(r.text || "").trim();
-      if (text) return { text, model: modelId };
-    } catch {
-      /* try next model */
-    }
-  }
-  return null;
 }
 
 // Compact one channel chat if it's over threshold. Returns a small status obj.
@@ -226,13 +155,13 @@ export async function compactChannelIfNeeded(opts = {}) {
   }
   for (const m of eventRecords) events.push(renderEvent(m, events.length));
 
-  const prompt = compactPrompt({
+  const prompt = buildCondenserPrompt({
     eventsBlock: events.join("\n\n"),
     openingBlock: openingTurns.map(renderTurn).join("\n\n"),
   });
 
   const models = resolveCompactModels(config);
-  const summary = await summarize({ prompt, models, config });
+  const summary = await summarizeStructured({ prompt, models, config });
   if (!summary) {
     log(`memory: compaction for ${channel}/${chat_id} skipped — no model available`);
     return { skipped: "no model" };
