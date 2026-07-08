@@ -57,6 +57,9 @@ apx memory <agent-slug> --append "<fact>"
 # Observe activity
 apx messages tail
 apx messages chat --channel <name> -n 20
+
+# Protocol bridges (spawned by clients, not run interactively)
+apx acp                         # Agent Client Protocol server on stdio (Zed, JetBrains, ...)
 ```
 
 ---

@@ -1,0 +1,79 @@
+---
+title: ACP (agentes de IDE)
+description: Serví el super-agente de APX por el Agent Client Protocol para que editores como Zed lo manejen nativamente.
+sidebar:
+  order: 8
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+El [Agent Client Protocol](https://agentclientprotocol.com) (ACP) es un estándar abierto que
+permite que editores e IDEs hablen con agentes de código por JSON-RPC sobre stdio — el cliente
+lanza al agente como subproceso y transmite prompts, actividad de herramientas y pedidos de
+permiso a través de él. Zed, los IDEs de JetBrains y una lista creciente de clientes (marimo,
+Toad, extensiones de VS Code) hablan ACP.
+
+`apx acp` convierte al super-agente de APX en un agente ACP. Sea cual sea tu editor, el agente de
+atrás es el mismo que responde por Telegram, el panel web y `apx code` — mismos engines, mismas
+herramientas, misma memoria.
+
+```bash
+apx acp
+```
+
+El comando sirve el protocolo por stdin/stdout hasta que el cliente cierra el pipe. Nunca lo
+ejecutás a mano en una terminal — lo lanza tu editor. Como toda superficie, es un adaptador fino
+sobre el [daemon](/apx/docs/es/surfaces/daemon/) local (que arranca solo en el primer uso): cada prompt
+se vuelve un turno streaming del super-agente en el canal `code`, así que las sesiones ACP reciben
+el system prompt de codificación y el set de herramientas de git/código.
+
+## Conectar desde Zed
+
+<Steps>
+
+1. Instalá APX global para que `apx` esté en tu PATH.
+
+2. Agregá una entrada `agent_servers` a tu `settings.json` de Zed:
+
+   ```json
+   {
+     "agent_servers": {
+       "APX": {
+         "command": "apx",
+         "args": ["acp"]
+       }
+     }
+   }
+   ```
+
+3. Abrí el Agent Panel, elegí **APX** y chateá. Las llamadas a herramientas se transmiten al
+   panel, y cualquier acción que necesite confirmación muestra el diálogo nativo de Zed de
+   Permitir / Rechazar.
+
+</Steps>
+
+<Aside type="tip">
+Las sesiones resuelven el proyecto APC desde la carpeta de trabajo que reporta el cliente
+(`cwd`), subiendo hasta la raíz `.apc/` más cercana — igual que el puente MCP. Si la carpeta
+todavía no es un proyecto APC, corré `apx init` ahí primero.
+</Aside>
+
+## Qué implementa la superficie
+
+| Concepto ACP | Comportamiento en APX |
+|--------------|-----------------------|
+| `initialize` | Versión de protocolo `1`; declara `loadSession: false`, sin prompts de imagen/audio/embeddedContext, sin passthrough de MCP |
+| `session/new` | Resuelve el proyecto APC para el `cwd` del cliente y lo registra en el daemon si hace falta |
+| `session/prompt` | Transmite un turno del super-agente; las respuestas resuelven con `stopReason: "end_turn"` |
+| `session/update` | `agent_message_chunk` para texto, `tool_call` / `tool_call_update` para actividad de herramientas |
+| `session/request_permission` | Se emite cuando el [modo de permisos](/apx/docs/es/capabilities/super-agent/) de APX exige confirmación; Permitir/Rechazar responde la acción pendiente |
+| `session/cancel` | Aborta el turno en vuelo y lo resuelve con `stopReason: "cancelled"` |
+
+El contexto multi-turno se guarda en memoria por sesión: cada turno completado alimenta al
+siguiente como historial de conversación, así que los prompts de seguimiento recuerdan el hilo
+sin configuración extra.
+
+<Aside type="note">
+stdout transporta el protocolo, así que el servidor nunca loguea ahí. Los diagnósticos van a
+stderr (la vista de logs de agente de tu editor) y al log unificado — `apx log -f`.
+</Aside>
