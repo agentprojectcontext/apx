@@ -31,11 +31,14 @@ export default {
         raw: { model, mock: true },
       };
     }
+    // `[mock:risk:HIGH]` → the emitted tool call carries a security_risk grade,
+    // so the inline security analyzer / confirmation gate can be exercised.
+    const riskGrade = userText.match(/\[mock:risk:(LOW|MEDIUM|HIGH|UNKNOWN)\]/)?.[1];
     const mkToolCall = (name, id) => {
       const toolCall = {
         id,
         type: "function",
-        function: { name, arguments: "{}" },
+        function: { name, arguments: riskGrade ? JSON.stringify({ security_risk: riskGrade }) : "{}" },
       };
       return {
         text: "",

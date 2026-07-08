@@ -95,14 +95,14 @@ test("shouldConfirmRisk honors threshold and confirm_unknown", () => {
   assert.equal(shouldConfirmRisk("HIGH", off), false);
 });
 
-async function runMockAgent({ globalConfig, requestConfirmation, handler }) {
+async function runMockAgent({ globalConfig, requestConfirmation, handler, riskArg }) {
   const events = [];
   const toolHandlerCtx = { globalConfig, requestConfirmation };
   const executed = [];
   const result = await runAgent({
     globalConfig,
     system: "sys",
-    prompt: "[mock:tool:test_tool] do it",
+    prompt: `[mock:tool:test_tool]${riskArg ? ` [mock:risk:${riskArg}]` : ""} do it`,
     toolSchemas: [TEST_TOOL_SCHEMA],
     makeToolHandlers: () => ({
       test_tool: handler || (async (args) => { executed.push(args); return { ok: true }; }),
@@ -154,14 +154,27 @@ test("run-agent gate: no confirmation channel → blocked with a clear error", a
   assert.match(String(item.result.error), /requires user confirmation/);
 });
 
-test("run-agent gate: permission_mode total bypasses the risk gate", async () => {
-  const confirmations = [];
-  const { executed } = await runMockAgent({
+test("run-agent gate: in total mode the risk gate is a HIGH-only safety floor", async () => {
+  // Mock emits no grade → UNKNOWN. In total, confirm_unknown is forced off and
+  // confirm_at forced to HIGH, so an ungraded/low call runs free…
+  const c1 = [];
+  const r1 = await runMockAgent({
     globalConfig: baseConfig({ permission_mode: "total" }),
-    requestConfirmation: async () => { confirmations.push(1); return true; },
+    requestConfirmation: async () => { c1.push(1); return true; },
   });
-  assert.equal(confirmations.length, 0);
-  assert.equal(executed.length, 1);
+  assert.equal(c1.length, 0, "ungraded call runs free under total");
+  assert.equal(r1.executed.length, 1);
+
+  // …but a HIGH-graded call still stops even in total (the safety floor).
+  const c2 = [];
+  const r2 = await runMockAgent({
+    globalConfig: baseConfig({ permission_mode: "total" }),
+    requestConfirmation: async (t, _a, d) => { c2.push(d); return false; },
+    handler: async () => ({ ok: true }),
+    riskArg: "HIGH",
+  });
+  assert.equal(c2.length, 1, "HIGH action confirms even under total");
+  assert.equal(r2.executed.length, 0, "declined HIGH action is blocked");
 });
 
 test("run-agent gate: disabled analyzer leaves calls ungated", async () => {

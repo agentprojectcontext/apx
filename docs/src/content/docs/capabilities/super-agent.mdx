@@ -185,8 +185,17 @@ call comes back to the model as an error observation so it can re-plan.
 
 - `confirm_at` — minimum grade that pauses (`LOW` confirms everything, `HIGH` only destructive/outward actions).
 - `confirm_unknown` — also pause when the model didn't grade the call (weak models sometimes omit the field).
-- With the analyzer on, the risk grade replaces the static dangerous-tool confirmation of
-  `automatico`; `permiso` allowlists still apply, and `total` mode bypasses the gate entirely.
+
+It's not a duplicate of the permission mode — it gates by a different axis. Permission mode
+decides by *tool identity* (is this tool dangerous / on the allowlist); the risk analyzer decides
+by the model's judgment of *this specific action's severity*. So it adds a guard the permission
+mode can't:
+
+- In **`automatico`** the risk grade replaces the static dangerous-tool confirmation.
+- In **`permiso`** the allowlist still applies and the risk gate composes on top.
+- In **`total`** it becomes a **safety floor**: everything runs free *except* a `HIGH`-graded
+  action, which still stops for confirmation even under full trust. That's the point — a
+  catastrophic action gets caught no matter how much you trust the agent.
 
 ## Goal-completion judge
 
