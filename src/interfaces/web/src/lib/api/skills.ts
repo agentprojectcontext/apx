@@ -73,27 +73,6 @@ export interface IndexResult {
   index: IndexStatus;
 }
 
-export interface KeywordTriggerConfig {
-  enabled: boolean;
-  max_matches: number;
-  body_char_cap: number;
-}
-
-export interface KeywordTriggerSkill {
-  slug: string;
-  source: SkillSource;
-  triggers: string[];
-  enabled: boolean;
-  private: boolean;
-}
-
-export interface KeywordTriggerState {
-  config: KeywordTriggerConfig;
-  defaults: KeywordTriggerConfig;
-  keys: string[];
-  skills: KeywordTriggerSkill[];
-}
-
 export interface InspectTrace {
   enabled: boolean;
   reason?: string;
@@ -171,19 +150,6 @@ export const Skills = {
   updateInspector: (patch: Partial<InspectorConfig>) =>
     http.put<{ ok: boolean; config: InspectorConfig; index: IndexStatus }>(
       "/skills/inspector",
-      patch,
-    ),
-
-  /** Keyword-trigger config + the skills that declare `triggers:`. */
-  keywordTriggers: (projectPath?: string) => {
-    const qs = projectPath ? `?project_path=${encodeURIComponent(projectPath)}` : "";
-    return http.get<KeywordTriggerState>(`/skills/keyword-triggers${qs}`);
-  },
-
-  /** Patch keyword-trigger config (toggle / tune caps). */
-  updateKeywordTriggers: (patch: Partial<KeywordTriggerConfig>) =>
-    http.put<{ ok: boolean; config: KeywordTriggerConfig }>(
-      "/skills/keyword-triggers",
       patch,
     ),
 
