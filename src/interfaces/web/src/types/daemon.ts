@@ -293,6 +293,22 @@ export interface SuperAgentConfig {
     models?: string[];
     order?: string[];
   };
+  // Content-based routing (RouterLLM pattern): prefer a model per turn by
+  // features. Composes with model_fallback (failover) — see RoutingPanel.
+  routing?: {
+    enabled?: boolean;
+    rules?: Array<{
+      model: string;
+      when?: {
+        has_image?: boolean;
+        min_prompt_chars?: number;
+        max_prompt_chars?: number;
+        min_context_chars?: number;
+        channels?: string[];
+        keywords?: string[];
+      };
+    }>;
+  };
 }
 
 /** ~/.apx/config.json shape (partial — only what we read/write today). */

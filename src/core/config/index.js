@@ -99,8 +99,11 @@ const DEFAULT_CONFIG = {
     // down the regular chain). Rule shape: { model: "<provider>:<model>",
     // when: { has_image?, min_prompt_chars?, max_prompt_chars?,
     // min_context_chars?, channels?: [], keywords?: [] } }.
+    // Enabled by default but a NO-OP until the user adds rules (empty rules →
+    // nothing reroutes), so it's safe to ship on and configure from the web
+    // Routing panel.
     routing: {
-      enabled: false,
+      enabled: true,
       rules: [],
     },
     // Goal-completion judge (OpenHands critic pattern): after a
