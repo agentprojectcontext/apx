@@ -86,6 +86,14 @@ const DEFAULT_CONFIG = {
       confirm_at: "HIGH",     // LOW | MEDIUM | HIGH
       confirm_unknown: true,  // ungraded calls (weak models) also pause
     },
+    // Stuck detection (OpenHands pattern): same call + same result
+    // `action_repeat` times, or same call erroring `error_repeat` times in a
+    // row → in-band nudge, then a forced wrap-up if it keeps looping.
+    stuck_detection: {
+      enabled: true,
+      action_repeat: 4,
+      error_repeat: 3,
+    },
   },
   engines: {
     anthropic: { api_key: "" },
@@ -394,6 +402,10 @@ export function mergeDefaults(cfg) {
       security_risk: {
         ...DEFAULT_CONFIG.super_agent.security_risk,
         ...(cfg.super_agent?.security_risk || {}),
+      },
+      stuck_detection: {
+        ...DEFAULT_CONFIG.super_agent.stuck_detection,
+        ...(cfg.super_agent?.stuck_detection || {}),
       },
     },
     engines: {
