@@ -1,6 +1,11 @@
 // Public entrypoint for skills.
 export { condenseSkillDescription, buildSkillsHintBlock } from "./catalog.js";
-export { tryResolveSkillCommand } from "./trigger.js";
+export {
+  tryResolveSkillCommand,
+  matchSkillKeywordTriggers,
+  areKeywordTriggersEnabled,
+  KEYWORD_TRIGGER_DEFAULTS,
+} from "./trigger.js";
 export { suggestSkillForPrompt, clearSkillVectorCache } from "./rag.js";
 export { listSkills, loadSkill, SKILL_LOCATIONS } from "./loader.js";
 export {

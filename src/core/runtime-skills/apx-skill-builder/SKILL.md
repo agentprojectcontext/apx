@@ -30,10 +30,13 @@ Layouts: `<slug>/SKILL.md` (dir-style, preferred — supports `references/`, `as
 name: my-skill
 description: One-sentence trigger for the super-agent. Include user-phrases that should cause it to load. Short — appears in skill listings.
 scope: public   # public (synced globally) | internal (repo/dev-only) | optional (not pushed by default)
+triggers: [deploy, release]   # OPTIONAL keyword triggers (inline or dash-list)
 ---
 ```
 
 `description` is what the model sees when deciding `load_skill`. Write it as the *trigger condition*, not a body summary. Omit `scope` → treated as public.
+
+`triggers` (optional) lists keywords for the opt-in keyword activation (`apx skills triggers on`, config `skills.keyword_triggers`, default OFF). When enabled, a case-insensitive substring match of any keyword against the user message auto-injects the skill body for that turn. Keywords under 3 chars are ignored. Skills without `triggers` are unaffected.
 
 **Good**: `"How to register an MCP server. Load BEFORE running 'apx mcp add' — three scopes, gotchas with stdio commands, secrets handling."`
 **Bad**: `"This skill describes APX's MCP system."` (no trigger).
@@ -63,6 +66,7 @@ Returns the full body for the current turn; not persisted.
 apx skills list          # this project's .apc/skills/ (run from project root)
 apx skills sync          # push bundled/public skills to global skill dir
 apx skills status        # what's installed vs available
+apx skills triggers      # show/toggle keyword triggers (show|on|off)
 ```
 
 ## Workflow

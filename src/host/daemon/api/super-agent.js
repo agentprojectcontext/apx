@@ -13,7 +13,7 @@ import {
 import { loggerFor } from "#core/logging.js";
 import { appendGlobalMessage } from "#core/stores/messages.js";
 import { createWebConfirmAdapter } from "#core/confirmation/adapters/web.js";
-import { tryResolveSkillCommand } from "#core/agent/skills/trigger.js";
+import { tryResolveSkillCommand, matchSkillKeywordTriggers } from "#core/agent/skills/trigger.js";
 import { suggestSkillForPrompt } from "#core/agent/skills/rag.js";
 import { inspectPromptForSkills, isInspectorEnabled, summarizeTrace } from "#core/agent/skills/inspector.js";
 import { CHANNELS } from "#core/constants/channels.js";
@@ -33,6 +33,22 @@ function logInspectorDecision(trace, { trace_id, channel } = {}) {
       channel,
       loaded: trace.loaded || [],
       hinted: trace.hinted || [],
+    });
+  } catch {
+    /* logging is best-effort */
+  }
+}
+
+// One readable log line per keyword-trigger match so `apx log -f` shows which
+// skill(s) a keyword auto-injected. Best-effort, mirrors logInspectorDecision.
+function logKeywordTriggerDecision(keyword, { trace_id, channel } = {}) {
+  if (!keyword?.matched?.length) return;
+  try {
+    const summary = keyword.matched.map((m) => `${m.slug}("${m.keyword}")`).join(", ");
+    log.info(`skill keyword trigger: injected ${summary}`, {
+      trace_id,
+      channel,
+      matched: keyword.matched,
     });
   } catch {
     /* logging is best-effort */
@@ -101,8 +117,16 @@ export function register(app, { projects, registries, plugins, project, config }
     const prompt = slashed.handled ? slashed.prompt : rawPrompt;
     const inspectorOn = isInspectorEnabled(config);
     let inspectorTrace = null;
+    // Keyword triggers ("option B") — checked after the slash shortcut. On a
+    // match the body is already injected, so the inspector/RAG step is skipped
+    // for this turn.
+    const keyword = slashed.handled
+      ? { matched: [] }
+      : matchSkillKeywordTriggers(prompt, { projectPath: p.path, config });
     if (slashed.handled) {
       ctx.contextNote = [ctx.contextNote, slashed.contextNote].filter(Boolean).join("\n\n");
+    } else if (keyword.matched.length) {
+      ctx.contextNote = [ctx.contextNote, keyword.contextNote].filter(Boolean).join("\n\n");
     } else if (inspectorOn) {
       // Inspector middleware: per-turn semantic RAG. Replaces both the passive
       // suggestSkillForPrompt nudge AND the static slug-dump in the system
@@ -142,6 +166,13 @@ export function register(app, { projects, registries, plugins, project, config }
       try { onEvent({ type: "skill_inspector", inspector: inspectorTrace }); }
       catch { /* trace is best-effort */ }
       logInspectorDecision(inspectorTrace, { trace_id: req.apxTraceId, channel: ctx.channel });
+    }
+    // Same idea for keyword triggers: tell the client which skills a keyword
+    // match auto-injected this turn.
+    if (keyword.matched.length) {
+      try { onEvent({ type: "skill_keyword_trigger", matched: keyword.matched }); }
+      catch { /* trace is best-effort */ }
+      logKeywordTriggerDecision(keyword, { trace_id: req.apxTraceId, channel: ctx.channel });
     }
 
     // Web/TUI channels receive a "confirmation_required" SSE event and respond
@@ -239,7 +270,13 @@ export function register(app, { projects, registries, plugins, project, config }
     if (!prompt) return res.status(400).json({ error: "prompt required" });
     const ctx = resolveSuperAgentContext(req, p);
     const inspectorOn = isInspectorEnabled(config);
-    if (inspectorOn) {
+    // Keyword triggers first — a match injects the body directly and skips the
+    // inspector for this turn (same precedence as the stream endpoint).
+    const keyword = matchSkillKeywordTriggers(prompt, { projectPath: p.path, config });
+    if (keyword.matched.length) {
+      ctx.contextNote = [ctx.contextNote, keyword.contextNote].filter(Boolean).join("\n\n");
+      logKeywordTriggerDecision(keyword, { trace_id: req.apxTraceId, channel: ctx.channel });
+    } else if (inspectorOn) {
       try {
         const out = await inspectPromptForSkills({ prompt, projectPath: p.path, globalConfig: config });
         if (out.contextNote) {
