@@ -95,6 +95,7 @@ El modelo siempre puede expandir su superficie llamando a `load_skill`.
 | `call_agent` | Delegar a un agente de proyecto nombrado sin lanzar un proceso nuevo |
 | `call_mcp` | Llamar cualquier herramienta de un servidor MCP registrado |
 | `call_runtime` | Delegar a un [runtime](/apx/docs/es/engine/runtimes/#delegar-desde-el-super-agente-call_runtime) externo (Claude Code / Codex …), de forma síncrona o en segundo plano |
+| `run_subagent` | Lanzar un sub-agente aislado (contexto fresco, mismas tools menos las de interacción con el usuario) que trabaja una tarea auto-contenida hasta completarla y devuelve el resultado — máximo un nivel de anidamiento |
 | `run_shell` | Ejecutar un comando de shell (limitado por el modo de permisos) |
 | `send_telegram` | Enviar un mensaje vía el plugin de Telegram |
 | `remember` | Escribir un hecho durable en `~/.apx/memory.md` |

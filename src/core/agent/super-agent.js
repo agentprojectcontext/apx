@@ -70,6 +70,9 @@ export async function runSuperAgent({
   // because a per-turn skill inspector already injected the right context.
   // Set by the daemon's super-agent endpoint when config.skills.inspector is on.
   skipSkillsHint = false,
+  // Nesting depth of this run. 0 = user-facing turn; the run_subagent tool
+  // spawns children with depth+1 and refuses past its MAX_DEPTH.
+  subagentDepth = 0,
 }) {
   if (!isSuperAgentEnabled(globalConfig)) {
     throw new Error("super-agent not enabled (set super_agent.enabled and .model in ~/.apx/config.json)");
@@ -137,7 +140,7 @@ export async function runSuperAgent({
     overrideModel,
     toolSchemas,
     makeToolHandlers,
-    toolHandlerCtx: { projects, plugins, registries, globalConfig, channel, channelMeta, toolSession, requestConfirmation, backgroundResultSink },
+    toolHandlerCtx: { projects, plugins, registries, globalConfig, channel, channelMeta, toolSession, requestConfirmation, backgroundResultSink, subagentDepth },
     onEvent,
     signal,
     onToken,

@@ -49,6 +49,7 @@ export const TOOLS = Object.freeze({
   CALL_AGENT:          "call_agent",
   CALL_MCP:            "call_mcp",
   CALL_RUNTIME:        "call_runtime",
+  RUN_SUBAGENT:        "run_subagent",
 
   // Integrations — Asana plugin (see core/integrations/plugins/asana.js)
   ASANA_LIST_PROJECTS: "asana_list_projects",
@@ -104,6 +105,7 @@ export const NATIVE_TOOL_NAMES = new Set([
   TOOLS.CALL_AGENT,
   TOOLS.CALL_MCP,
   TOOLS.CALL_RUNTIME,
+  TOOLS.RUN_SUBAGENT,
   TOOLS.ASANA_LIST_PROJECTS,
   TOOLS.ASANA_LIST_TASKS,
   TOOLS.ASANA_CREATE_TASK,
