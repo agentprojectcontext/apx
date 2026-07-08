@@ -22,12 +22,12 @@ const CHILD_SUPPRESSED_TOOLS = [
 ];
 
 export default {
-  name: TOOLS.RUN_SUBAGENT,
+  name: "run_subagent",
 
   schema: {
     type: "function",
     function: {
-      name: TOOLS.RUN_SUBAGENT,
+      name: "run_subagent",
       description:
         "Spawn an isolated sub-agent for a self-contained task and return its " +
         "result. The sub-agent starts with a FRESH context (it does not see " +
