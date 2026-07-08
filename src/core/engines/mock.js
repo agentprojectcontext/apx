@@ -66,6 +66,17 @@ export default {
     if (loopTool && toolsAvailable) {
       return mkToolCall(loopTool, "mock-loop-1");
     }
+    // `[mock:loopany:<tool>]` → like loop, but sticky: matched against ANY
+    // user turn, so the model keeps looping even after the agent loop injects
+    // in-band user notes (exercises stuck-detection escalation, which needs a
+    // model that ignores the nudge).
+    const loopAnyTool = messages
+      .filter((m) => m.role === "user")
+      .map((m) => String(m.content || "").match(/\[mock:loopany:([a-z_]+)\]/)?.[1])
+      .find(Boolean);
+    if (loopAnyTool && toolsAvailable) {
+      return mkToolCall(loopAnyTool, "mock-loopany-1");
+    }
     if (requestedTool && !hasToolResult && toolsAvailable) {
       return mkToolCall(requestedTool, "mock-call-1");
     }

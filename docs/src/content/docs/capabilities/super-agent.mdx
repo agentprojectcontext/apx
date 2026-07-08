@@ -187,6 +187,20 @@ call comes back to the model as an error observation so it can re-plan.
 - With the analyzer on, the risk grade replaces the static dangerous-tool confirmation of
   `automatico`; `permiso` allowlists still apply, and `total` mode bypasses the gate entirely.
 
+## Stuck detection
+
+The tool loop watches for two loop shapes: the same call returning the same result
+`action_repeat` times, and the same call erroring `error_repeat` times in a row. On the first
+detection the model gets an in-band nudge ("you appear stuck — change approach or explain the
+blocker"); if it keeps looping, the turn is closed early with a model-authored wrap-up instead of
+burning the rest of the iteration budget. On by default:
+
+```json
+"super_agent": {
+  "stuck_detection": { "enabled": true, "action_repeat": 4, "error_repeat": 3 }
+}
+```
+
 ## Model fallback
 
 If the primary model is unavailable, APX walks a configurable ordered list of fallback providers.

@@ -16,6 +16,11 @@ import {
 } from "./security.js";
 import { buildConfirmDescription } from "../confirmation/index.js";
 import { PERMISSION_MODES } from "../constants/permissions.js";
+import {
+  stuckDetectionConfig,
+  createStuckDetector,
+  stuckNudgeSignal,
+} from "./stuck-detector.js";
 
 async function emitProgress(onEvent, event) {
   if (typeof onEvent !== "function") return;
@@ -308,6 +313,23 @@ export async function runAgent({
     }
   };
 
+  // Stuck detection: catches the loops the side-effect dedupe can't — a
+  // read-only call repeated with identical results, or the same call erroring
+  // over and over. First trigger = in-band nudge; second = force the tool-free
+  // wrap-up so the turn closes with a model-authored status instead of burning
+  // the rest of the budget.
+  const stuckCfg = stuckDetectionConfig(globalConfig);
+  const stuckDetector = createStuckDetector(stuckCfg);
+  let stuckNudged = false;
+  let forceWrapUp = false;
+  const safeSig = (v) => {
+    try {
+      return JSON.stringify(v) ?? "";
+    } catch {
+      return "<unserializable>";
+    }
+  };
+
   // Engine call wrapped with lazy retry: on 413/429/5xx/rate-limit/etc, try
   // the next model in `retryChain` instead of bubbling. Stops when the chain
   // is exhausted; non-retryable errors (auth, bad payload) throw immediately.
@@ -343,8 +365,12 @@ export async function runAgent({
     // STRUCTURE (no tools this step) + an in-band directive turn (WRAPUP_SIGNAL);
     // the wording is entirely the model's. Coding surfaces keep their finish-tool flow, so
     // this never applies under completionContract.
+    // forceWrapUp (stuck abort) overrides the contract: a stuck model under
+    // toolChoice:"required" would only repeat itself, so we withhold tools and
+    // make it close the turn in prose either way.
     const isFinalWrapUp =
-      !useContract && effectiveSchemas.length > 0 && iter === maxIters - 1;
+      effectiveSchemas.length > 0 &&
+      ((!useContract && iter === maxIters - 1) || forceWrapUp);
     await emitProgress(onEvent, {
       type: isFinalWrapUp ? "final_wrapup" : "model_start",
       iteration: iter + 1,
@@ -544,6 +570,13 @@ export async function runAgent({
       trace.push(traceItem);
       await emitProgress(onEvent, { type: "tool_result", trace: traceItem, iteration: iter + 1 });
 
+      stuckDetector.record({
+        tool: name,
+        argsSig: safeSig(args),
+        resultSig: safeSig(traceItem.result),
+        isError: !!(toolResult && typeof toolResult === "object" && toolResult.error),
+      });
+
       // Groq (and strict OpenAI) require tool_call_id to be present and
       // match the id of the tool_call in the previous assistant message.
       // Real engines populate it; the pseudo-tool parser also assigns one
@@ -603,6 +636,22 @@ export async function runAgent({
       await emitProgress(onEvent, { type: "ack_only_iter", iteration: iter + 1, streak: ackOnlyStreak });
     } else {
       ackOnlyStreak = 0;
+    }
+
+    // Stuck escalation: first detection nudges (in-band note, detector reset so
+    // only FRESH repetitions count again); a second detection means the nudge
+    // didn't land — stop spending budget and force the wrap-up close.
+    const stuck = stuckDetector.check();
+    if (stuck) {
+      if (!stuckNudged) {
+        stuckNudged = true;
+        stuckDetector.reset();
+        await emitProgress(onEvent, { type: "stuck_detected", ...stuck, iteration: iter + 1 });
+        conversation.push({ role: "user", content: stuckNudgeSignal(stuck) });
+      } else {
+        await emitProgress(onEvent, { type: "stuck_abort", ...stuck, iteration: iter + 1 });
+        forceWrapUp = true;
+      }
     }
   }
 

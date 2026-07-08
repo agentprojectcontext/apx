@@ -189,6 +189,20 @@ como una observación de error para que re-planifique.
   herramienta peligrosa de `automatico`; las allowlists de `permiso` siguen aplicando, y el modo
   `total` saltea el gate por completo.
 
+## Detección de loops (stuck detection)
+
+El tool loop vigila dos formas de quedarse trabado: el mismo call devolviendo el mismo resultado
+`action_repeat` veces, y el mismo call fallando `error_repeat` veces seguidas. En la primera
+detección el modelo recibe una nota in-band ("parecés trabado — cambiá de enfoque o explicá el
+bloqueo"); si sigue loopeando, el turno se cierra antes con un wrap-up escrito por el modelo en
+vez de quemar el resto del presupuesto de iteraciones. Activado por defecto:
+
+```json
+"super_agent": {
+  "stuck_detection": { "enabled": true, "action_repeat": 4, "error_repeat": 3 }
+}
+```
+
 ## Fallback de modelo
 
 Si el modelo primario no está disponible, APX recorre una lista ordenada y configurable de proveedores de fallback.
