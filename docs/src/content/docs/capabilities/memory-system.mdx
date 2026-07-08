@@ -93,14 +93,28 @@ vector ensures cosine similarity is only computed within the same embedder space
 
 Long conversations grow the context window. When a channel chat accumulates more than 60
 conversational turns (configurable), the oldest turns beyond the most recent 40 are collapsed into
-a dense LLM-written summary (`type: "compact"` record in the JSONL log). Future turns prepend
+an LLM-written summary (`type: "compact"` record in the JSONL log). Future turns prepend
 that summary as a `[RESUMEN COMPACTADO]` system turn, keeping context bounded while preserving
 decisions, task assignments, and tool results.
+
+The summarizer follows the OpenHands _condenser_ mechanics (recorded as `condenser: "v2"` in the
+compact record's metadata):
+
+- **Structured state, not a recap.** The summary tracks labelled sections — `USER_CONTEXT`,
+  `TASK_TRACKING`, `COMPLETED`, `PENDING`, `CURRENT_STATE`, plus `CODE_STATE`/`TESTS`/`CHANGES`/
+  `DEPS`/`VERSION_CONTROL_STATUS` for code work — so the next model resumes from explicit state
+  instead of a narrative.
+- **Previous-summary threading.** When a chat is compacted again, the previous summary is fed to
+  the condenser as the first event and subsumed by the new one — tracked state never silently
+  drops across compactions (the new record links back via `prev_compact_ts`).
+- **`keep_first` opening turns.** The first turns of a conversation hold the original goal. On the
+  first compaction they are quoted verbatim into the condenser prompt with an instruction to
+  preserve that goal in `USER_CONTEXT`; later compactions inherit it through the threaded summary.
 
 Compaction runs _out of the reply hot path_ — the current turn uses the latest existing compact;
 the next turn benefits from the new one.
 
-The compact model is configurable:
+The compact model and window sizes are configurable:
 
 ```json
 {
@@ -108,7 +122,8 @@ The compact model is configurable:
     "compact_model": "ollama:gemma4:31b-cloud",
     "compact_fallback_model": "",
     "compact_threshold": 60,
-    "keep_recent": 40
+    "keep_recent": 40,
+    "keep_first": 2
   }
 }
 ```
@@ -149,6 +164,7 @@ All keys live under `config.memory`:
 | `rag_top_k` | `5` | Number of RAG hits injected per turn. |
 | `compact_threshold` | `60` | Turns before compaction triggers. |
 | `keep_recent` | `40` | Turns left verbatim after compaction. |
+| `keep_first` | `2` | Opening turns quoted verbatim into the condenser prompt (original goal). |
 | `compact_model` | `ollama:gemma4:31b-cloud` | Primary model for summarisation. |
 | `compact_fallback_model` | _(super_agent.model)_ | Fallback if primary is down. |
 | `embeddings.provider` | `"auto"` | `auto`, `ollama`, `openai`, `gemini`, or `tf`. |
