@@ -8,6 +8,7 @@ import {
   isSuperAgentEnabled,
   buildIdentityBlock,
   loadDefaultSystemPrompt,
+  selectModelByRules,
 } from "#core/agent/index.js";
 import { resolveAgentName } from "#core/identity/index.js";
 import { memoryBlockFor, buildActiveThreadsBlock } from "#core/memory/index.js";
@@ -132,12 +133,21 @@ export async function runSuperAgent({
 
   const toolSchemas = noTools ? [] : toolSession.initialSchemas;
 
+  // Content-based routing (RouterLLM pattern): rules in super_agent.routing
+  // inspect THIS turn (images, size, channel, keywords) and prefer a model for
+  // it. An explicit overrideModel always wins; the preferred model is
+  // health-checked in runAgent and falls back down the regular chain.
+  const contentRoute = overrideModel
+    ? null
+    : selectModelByRules({ prompt, previousMessages, channel, channelMeta }, globalConfig);
+
   return runAgent({
     globalConfig,
     system,
     prompt,
     previousMessages,
     overrideModel,
+    preferredModel: contentRoute?.model || null,
     toolSchemas,
     makeToolHandlers,
     toolHandlerCtx: { projects, plugins, registries, globalConfig, channel, channelMeta, toolSession, requestConfirmation, backgroundResultSink, subagentDepth },

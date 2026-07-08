@@ -217,6 +217,32 @@ apx model status          # prueba todos los proveedores; muestra cuál se usar�
 
 Mirá [Configuration](/apx/docs/es/concepts/configuration/) para el schema completo de `super_agent.model_fallback`.
 
+### Routing por contenido
+
+Encima de la cadena estática de fallback, reglas opt-in de routing por turno (inspiradas en el
+`RouterLLM` de OpenHands) inspeccionan el mensaje real — imágenes, tamaño del prompt/contexto,
+canal, keywords — y prefieren otro modelo para ese turno. Las reglas se evalúan en orden; gana la
+primera que matchea completa. El modelo preferido igual pasa por el health-check y cae por la
+cadena normal si no está disponible, y un override explícito por request siempre le gana a las
+reglas.
+
+```json
+"super_agent": {
+  "routing": {
+    "enabled": true,
+    "rules": [
+      { "model": "anthropic:claude-sonnet-5", "when": { "has_image": true } },
+      { "model": "groq:llama-3.3-70b-versatile", "when": { "max_prompt_chars": 200, "channels": ["telegram"] } },
+      { "model": "anthropic:claude-opus-4-8", "when": { "keywords": ["refactor", "arquitectura"] } }
+    ]
+  }
+}
+```
+
+Condiciones de `when` (todas deben cumplirse): `has_image`, `min_prompt_chars` /
+`max_prompt_chars`, `min_context_chars`, `channels` (lista), `keywords` (lista, substring
+case-insensitive). Un `when` vacío matchea todos los turnos — útil como catch-all final.
+
 ## Siguiente
 
 - [Memory system](/apx/docs/es/capabilities/memory-system/) — cómo el agente recupera contexto relevante entre canales.

@@ -133,6 +133,9 @@ export async function runAgent({
   prompt,
   previousMessages = [],
   overrideModel = null,
+  // Content-routed model for this turn (selectModelByRules). Unlike
+  // overrideModel it is health-checked and falls back down the chain.
+  preferredModel = null,
   toolSchemas,
   makeToolHandlers,
   toolHandlerCtx,
@@ -157,7 +160,7 @@ export async function runAgent({
   // never end the turn by narrating the next step. Language-agnostic by design.
   completionContract = false,
 }) {
-  const routing = await resolveActiveModel(globalConfig, { overrideModel });
+  const routing = await resolveActiveModel(globalConfig, { overrideModel, preferredModel });
   // Mutable: lazy-retry can rotate to a different model mid-loop on 429/413/5xx.
   let activeModel = routing.modelId;
 
@@ -174,12 +177,13 @@ export async function runAgent({
     return true;
   });
 
-  if (routing.fromFallback) {
+  if (routing.fromFallback || routing.routedBy) {
     await emitProgress(onEvent, {
       type: "model_routed",
       model: activeModel,
       provider: routing.provider,
-      from_fallback: true,
+      from_fallback: routing.fromFallback === true,
+      ...(routing.routedBy ? { routed_by: routing.routedBy } : {}),
       tried: routing.tried,
     });
   }
