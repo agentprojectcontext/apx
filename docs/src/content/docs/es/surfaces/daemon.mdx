@@ -100,7 +100,23 @@ El formato del log unificado es:
 [2026-05-30 14:22:01.456] [INFO ] [daemon  ] apx-daemon 1.22.2 listening on http://127.0.0.1:7430
 ```
 
-Los secretos (tokens, API keys) se redactan automáticamente antes de escribir.
+### Enmascarado de secretos
+
+Los secretos se limpian de cada línea de log antes de tocar el disco, en dos capas:
+
+1. **Por clave** — los campos de metadata estructurada cuyo nombre parece secreto (`token`,
+   `api_key`, `authorization`, `bot_token`, …) se reemplazan por `[redacted]`.
+2. **Por valor** — al arrancar (y de nuevo cada vez que cambia la config) el daemon registra
+   cada *valor* secreto conocido: API keys de engines, claves de TTS/transcripción/embeddings,
+   tokens de bots de Telegram y tokens en env/headers de MCPs. Cualquiera de esos valores que
+   aparezca **en cualquier parte** de una línea de log — un error del provider que hace eco de
+   tu key, salida de una tool, un stack trace — se reemplaza por un marcador `***…XXXX` (se
+   conservan los últimos 4 caracteres para que sepas qué secreto era).
+
+Las dos capas aplican a `~/.apx/logs/apx.log` y a los traces de error en
+`~/.apx/logs/errors.jsonl`. El enmascarado está siempre activo — no hay clave de config para
+desactivarlo — y nunca hace fallar una escritura de log: si el enmascarado mismo falla, la
+línea se escribe tal cual en vez de perderse.
 
 ---
 

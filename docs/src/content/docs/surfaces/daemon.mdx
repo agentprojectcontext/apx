@@ -100,7 +100,22 @@ The unified log format is:
 [2026-05-30 14:22:01.456] [INFO ] [daemon  ] apx-daemon 1.22.2 listening on http://127.0.0.1:7430
 ```
 
-Secrets (tokens, API keys) are automatically redacted before writing.
+### Secret masking
+
+Secrets are scrubbed from every log line before it hits disk, in two layers:
+
+1. **By key** — structured metadata fields whose name looks secret (`token`, `api_key`,
+   `authorization`, `bot_token`, …) are replaced with `[redacted]`.
+2. **By value** — at boot (and again whenever the config changes) the daemon registers every
+   known secret *value*: engine API keys, TTS/transcription/embeddings keys, Telegram bot
+   tokens, and MCP env/header tokens. Any of those values appearing **anywhere** in a log
+   line — a provider error that echoes your key, tool output, a stack trace — is replaced
+   with a `***…XXXX` marker (last 4 characters kept so you can tell which secret it was).
+
+Both layers apply to `~/.apx/logs/apx.log` and to the error traces in
+`~/.apx/logs/errors.jsonl`. Masking is always on — there is no config key to disable it —
+and it never fails a log write: if masking itself errors, the line is written as-is rather
+than dropped.
 
 ---
 
