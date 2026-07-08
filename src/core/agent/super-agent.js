@@ -10,7 +10,7 @@ import {
   loadDefaultSystemPrompt,
 } from "#core/agent/index.js";
 import { resolveAgentName } from "#core/identity/index.js";
-import { memoryBlockFor } from "#core/memory/index.js";
+import { memoryBlockFor, buildActiveThreadsBlock } from "#core/memory/index.js";
 import { CHANNELS } from "#core/constants/channels.js";
 
 export {
