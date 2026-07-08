@@ -76,6 +76,16 @@ const DEFAULT_CONFIG = {
       ],
       health_timeout_ms: 800,
     },
+    // Inline security-risk analysis (OpenHands LLMSecurityAnalyzer pattern):
+    // every tool schema gains a required `security_risk` enum the model must
+    // fill; calls at/above `confirm_at` pause for user confirmation. Opt-in.
+    // When enabled it REPLACES the static dangerous-flag confirmation of
+    // permission_mode "automatico" (permiso/total semantics are unchanged).
+    security_risk: {
+      enabled: false,
+      confirm_at: "HIGH",     // LOW | MEDIUM | HIGH
+      confirm_unknown: true,  // ungraded calls (weak models) also pause
+    },
   },
   engines: {
     anthropic: { api_key: "" },
@@ -381,6 +391,10 @@ export function mergeDefaults(cfg) {
       ...DEFAULT_CONFIG.super_agent,
       ...(cfg.super_agent || {}),
       model_fallback: mergeModelFallback(cfg.super_agent?.model_fallback),
+      security_risk: {
+        ...DEFAULT_CONFIG.super_agent.security_risk,
+        ...(cfg.super_agent?.security_risk || {}),
+      },
     },
     engines: {
       ...DEFAULT_CONFIG.engines,

@@ -164,6 +164,31 @@ apx identity wizard               # prompt de configuración interactivo
 apx permission set automatico
 ```
 
+### Análisis de riesgo inline
+
+Una capa opt-in encima del modo de permisos (inspirada en el `LLMSecurityAnalyzer` de OpenHands).
+Cuando está habilitada, cada schema de herramienta gana un campo obligatorio `security_risk`
+(`LOW` / `MEDIUM` / `HIGH`) que el modelo completa como parte del mismo call — sin ninguna
+llamada extra al LLM. Los calls calificados en `confirm_at` o más alto pausan y piden tu
+confirmación en la superficie activa (diálogo web, Telegram); un call rechazado vuelve al modelo
+como una observación de error para que re-planifique.
+
+```json
+"super_agent": {
+  "security_risk": {
+    "enabled": true,
+    "confirm_at": "HIGH",
+    "confirm_unknown": true
+  }
+}
+```
+
+- `confirm_at` — calificación mínima que pausa (`LOW` confirma todo, `HIGH` solo acciones destructivas o hacia afuera).
+- `confirm_unknown` — también pausa cuando el modelo no calificó el call (los modelos débiles a veces omiten el campo).
+- Con el analizador activo, la calificación de riesgo reemplaza la confirmación estática por
+  herramienta peligrosa de `automatico`; las allowlists de `permiso` siguen aplicando, y el modo
+  `total` saltea el gate por completo.
+
 ## Fallback de modelo
 
 Si el modelo primario no está disponible, APX recorre una lista ordenada y configurable de proveedores de fallback.

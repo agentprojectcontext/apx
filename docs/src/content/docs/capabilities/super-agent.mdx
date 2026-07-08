@@ -164,6 +164,29 @@ apx identity wizard               # interactive setup prompt
 apx permission set automatico
 ```
 
+### Inline security-risk analysis
+
+An opt-in layer on top of the permission mode (inspired by OpenHands' `LLMSecurityAnalyzer`).
+When enabled, every tool schema gains a required `security_risk` field (`LOW` / `MEDIUM` / `HIGH`)
+that the model must fill as part of the call itself — no extra LLM pass. Calls graded at or above
+`confirm_at` pause for your confirmation on the active surface (web dialog, Telegram); a declined
+call comes back to the model as an error observation so it can re-plan.
+
+```json
+"super_agent": {
+  "security_risk": {
+    "enabled": true,
+    "confirm_at": "HIGH",
+    "confirm_unknown": true
+  }
+}
+```
+
+- `confirm_at` — minimum grade that pauses (`LOW` confirms everything, `HIGH` only destructive/outward actions).
+- `confirm_unknown` — also pause when the model didn't grade the call (weak models sometimes omit the field).
+- With the analyzer on, the risk grade replaces the static dangerous-tool confirmation of
+  `automatico`; `permiso` allowlists still apply, and `total` mode bypasses the gate entirely.
+
 ## Model fallback
 
 If the primary model is unavailable, APX walks a configurable ordered list of fallback providers.

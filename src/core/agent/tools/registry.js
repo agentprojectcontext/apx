@@ -384,6 +384,13 @@ export function makeToolHandlers(ctx) {
     ...ctx,
     requirePermission: createPermissionGuard(ctx.globalConfig || {}, {
       requestConfirmation: ctx.requestConfirmation || null,
+      // Live view of the risk-gate state for the CURRENT tool call. Reads the
+      // original ctx object (not the spread copy) because run-agent.js mutates
+      // it per call — see the security-risk section of the loop.
+      securityGate: () => ({
+        active: ctx.securityRiskActive === true,
+        cleared: ctx.securityGateCleared === true,
+      }),
     }),
   };
   return Object.fromEntries(ALL_TOOLS.map((tool) => [tool.name, tool.makeHandler(toolCtx)]));
