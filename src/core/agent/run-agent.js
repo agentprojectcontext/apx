@@ -217,12 +217,21 @@ export async function runAgent({
   // decides whether the call pauses for human approval.
   const riskCfg = securityRiskConfig(globalConfig);
   const permissionMode = globalConfig?.super_agent?.permission_mode || "";
-  // Risk gating never overrides the user's explicit "total" trust mode.
-  const riskGateOn = riskCfg.enabled && permissionMode !== PERMISSION_MODES.TOTAL;
+  const riskGateOn = riskCfg.enabled;
+  // In `total` (full trust) the risk gate acts ONLY as a safety floor: HIGH-risk
+  // actions still confirm, everything below runs free. That's the value the
+  // permission mode alone can't give — it gates by tool identity, this gates by
+  // the model's own judgment of THIS action's severity. In automatico/permiso
+  // the configured confirm_at applies.
+  const effectiveRiskCfg =
+    permissionMode === PERMISSION_MODES.TOTAL
+      ? { ...riskCfg, confirm_at: "HIGH", confirm_unknown: false }
+      : riskCfg;
   if (riskGateOn) {
     effectiveSchemas = withSecurityRiskField(effectiveSchemas);
-    // Handshake with createPermissionGuard: the analyzer owns dangerous-call
-    // gating this run, so the static dangerous-flag branch stands down.
+    // Handshake with createPermissionGuard: outside `total`, the analyzer owns
+    // dangerous-call gating so the static dangerous-flag branch stands down.
+    // (In `total` the guard returns early anyway, so this is a no-op there.)
     if (toolHandlerCtx) toolHandlerCtx.securityRiskActive = true;
   }
 
@@ -526,7 +535,7 @@ export async function runAgent({
         // A decline becomes a normal error observation — the model sees the
         // rejection and can re-plan, mirroring OpenHands' rejection flow.
         let riskDenied = null;
-        if (riskGateOn && shouldConfirmRisk(securityRisk, riskCfg)) {
+        if (riskGateOn && shouldConfirmRisk(securityRisk, effectiveRiskCfg)) {
           const description = buildConfirmDescription(name, args);
           const requestConfirmation = toolHandlerCtx?.requestConfirmation;
           if (typeof requestConfirmation !== "function") {

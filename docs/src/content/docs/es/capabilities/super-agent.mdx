@@ -186,9 +186,17 @@ como una observación de error para que re-planifique.
 
 - `confirm_at` — calificación mínima que pausa (`LOW` confirma todo, `HIGH` solo acciones destructivas o hacia afuera).
 - `confirm_unknown` — también pausa cuando el modelo no calificó el call (los modelos débiles a veces omiten el campo).
-- Con el analizador activo, la calificación de riesgo reemplaza la confirmación estática por
-  herramienta peligrosa de `automatico`; las allowlists de `permiso` siguen aplicando, y el modo
-  `total` saltea el gate por completo.
+
+No es un duplicado del modo de permisos — filtra por otro eje. El modo de permisos decide por
+*identidad de la tool* (¿es peligrosa / está en la allowlist?); el analizador de riesgo decide por
+el juicio del modelo sobre *la gravedad de esta acción concreta*. Por eso agrega una barrera que el
+modo de permisos no puede dar:
+
+- En **`automatico`** la calificación de riesgo reemplaza la confirmación estática por herramienta peligrosa.
+- En **`permiso`** la allowlist sigue aplicando y el gate de riesgo se compone encima.
+- En **`total`** se vuelve un **piso de seguridad**: todo corre libre *excepto* una acción calificada
+  `HIGH`, que igual se detiene para confirmación aun con confianza total. Ese es el punto — una
+  acción catastrófica se atrapa por más que confíes en el agente.
 
 ## Judge de completitud
 
