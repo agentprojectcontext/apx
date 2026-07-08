@@ -188,6 +188,23 @@ call comes back to the model as an error observation so it can re-plan.
 - With the analyzer on, the risk grade replaces the static dangerous-tool confirmation of
   `automatico`; `permiso` allowlists still apply, and `total` mode bypasses the gate entirely.
 
+## Goal-completion judge
+
+Opt-in verification loop (OpenHands critic pattern) for completion-contract turns (coding
+surfaces): after the agent declares done, an LLM judge scores the probability that the *original*
+request is fully satisfied. Below `success_threshold` the agent receives an internal verification
+note (what looks unmet, per the judge) and continues — up to `max_iterations` rounds. An
+unusable judge (engine down, unparseable reply) accepts the result rather than blocking it.
+
+```json
+"super_agent": {
+  "judge": { "enabled": true, "success_threshold": 0.6, "max_iterations": 2, "model": "" }
+}
+```
+
+`model` empty → the judge runs on `super_agent.model`; set a cheap model to keep verification
+overhead low. Verdicts surface as `judge_verdict` events and on the result as `result.judge`.
+
 ## Stuck detection
 
 The tool loop watches for two loop shapes: the same call returning the same result
