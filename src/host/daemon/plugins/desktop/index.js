@@ -26,7 +26,7 @@ import { runSuperAgent, isSuperAgentEnabled } from "#core/agent/super-agent.js";
 import { appendGlobalMessage } from "#core/stores/messages.js";
 import { stripEmotionTags } from "#core/voice/emotions.js";
 import { CHANNELS } from "#core/constants/channels.js";
-import { tryResolveSkillCommand, matchSkillKeywordTriggers } from "#core/agent/skills/trigger.js";
+import { tryResolveSkillCommand } from "#core/agent/skills/trigger.js";
 
 const CHANNEL = CHANNELS.DESKTOP;
 
@@ -135,27 +135,13 @@ async function _handleMessage({ ws, text, previousMessages }, { projects, config
     const t0 = Date.now();
     const slashed = tryResolveSkillCommand(text);
     const slashedPrompt = slashed.handled ? slashed.prompt : text;
-    // Keyword triggers ("option B") — only when the slash shortcut didn't fire.
-    const keyword = slashed.handled
-      ? { matched: [] }
-      : matchSkillKeywordTriggers(text, { config });
-    if (keyword.matched.length) {
-      log(
-        `desktop: skill keyword trigger: injected ` +
-          keyword.matched.map((m) => `${m.slug}("${m.keyword}")`).join(", ")
-      );
-    }
     const result = await runSuperAgent({
       globalConfig: config,
       projects,
       plugins,
       prompt: slashedPrompt,
       channel: CHANNELS.DESKTOP,
-      ...(slashed.handled
-        ? { contextNote: slashed.contextNote }
-        : keyword.matched.length
-          ? { contextNote: keyword.contextNote }
-          : {}),
+      ...(slashed.handled ? { contextNote: slashed.contextNote } : {}),
       channelMeta: { voice: true }, // desktop module is voice-first → spoken mode
       // WS path: history was just appended with the current user turn (line 87),
       // so drop it. HTTP path: `previousMessages` came in already excluding the

@@ -28,8 +28,6 @@ import {
   summarizeTrace,
   INSPECTOR_DEFAULTS,
 } from "#core/agent/skills/inspector.js";
-import { KEYWORD_TRIGGER_DEFAULTS } from "#core/agent/skills/trigger.js";
-import { listSkills } from "#core/agent/skills/loader.js";
 import { readConfig, writeConfig } from "#core/config/index.js";
 
 // ---------------------------------------------------------------------------
@@ -516,67 +514,5 @@ export async function cmdSkillsInspector(args) {
 
   console.error(`unknown inspector subcommand: ${sub}`);
   console.error("usage: apx skills inspector [status|enable|disable|set <key> <value>]");
-  process.exitCode = 2;
-}
-
-// ---------------------------------------------------------------------------
-// apx skills triggers [show|on|off]
-//
-// Manage config.skills.keyword_triggers — the opt-in "option B" keyword
-// activation (OpenHands-style). Mirrors `apx skills inspector`: writes the
-// global config directly, no daemon round-trip needed.
-// ---------------------------------------------------------------------------
-
-function ensureKeywordTriggersBlock(cfg) {
-  cfg.skills = cfg.skills || {};
-  cfg.skills.keyword_triggers = { ...KEYWORD_TRIGGER_DEFAULTS, ...(cfg.skills.keyword_triggers || {}) };
-  return cfg;
-}
-
-function printKeywordTriggersStatus(cfg) {
-  const merged = { ...KEYWORD_TRIGGER_DEFAULTS, ...(cfg.skills?.keyword_triggers || {}) };
-  console.log(`Skill keyword triggers: ${merged.enabled ? "ENABLED" : "disabled"}`);
-  console.log(`  ${"max_matches".padEnd(16)} ${merged.max_matches}`);
-  console.log(`  ${"body_char_cap".padEnd(16)} ${merged.body_char_cap}`);
-
-  const root = findApfRoot();
-  const declaring = listSkills({ projectPath: root || undefined })
-    .filter((s) => Array.isArray(s.triggers) && s.triggers.length > 0);
-  console.log("");
-  if (!declaring.length) {
-    console.log("No skill declares `triggers:` in its frontmatter yet.");
-    return;
-  }
-  console.log(`Skills declaring triggers (${declaring.length}):`);
-  const sw = Math.max(...declaring.map((s) => s.slug.length), 8);
-  for (const s of declaring) {
-    console.log(`  ${s.slug.padEnd(sw)}  [${s.source}]  ${s.triggers.join(", ")}`);
-  }
-}
-
-export async function cmdSkillsTriggers(args) {
-  const sub = (args?._ || [])[0];
-  const cfg = readConfig();
-
-  if (!sub || sub === "show") {
-    printKeywordTriggersStatus(cfg);
-    return;
-  }
-  if (sub === "on") {
-    ensureKeywordTriggersBlock(cfg).skills.keyword_triggers.enabled = true;
-    writeConfig(cfg);
-    console.log("Skill keyword triggers ENABLED. Skills with `triggers:` in their frontmatter are auto-injected when a keyword appears in the user message.");
-    console.log("Tip: run `apx skills triggers` to see which skills declare triggers.");
-    return;
-  }
-  if (sub === "off") {
-    ensureKeywordTriggersBlock(cfg).skills.keyword_triggers.enabled = false;
-    writeConfig(cfg);
-    console.log("Skill keyword triggers disabled. Skills activate via /slug, the inspector, or the passive suggestion as before.");
-    return;
-  }
-
-  console.error(`unknown triggers subcommand: ${sub}`);
-  console.error("usage: apx skills triggers [show|on|off]");
   process.exitCode = 2;
 }

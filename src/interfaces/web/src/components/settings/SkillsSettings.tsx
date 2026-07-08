@@ -2,7 +2,6 @@ import { useSearchParams } from "react-router-dom";
 import { Sparkles, SlidersHorizontal } from "lucide-react";
 import { SkillsManager } from "./SkillsManager";
 import { SkillsInspectorPanel } from "./SkillsInspectorPanel";
-import { SkillsKeywordTriggersPanel } from "./SkillsKeywordTriggersPanel";
 import { t } from "../../i18n";
 
 // One settings entry ("Skills") with two inner tabs, deep-linkable via ?tab=:
@@ -29,14 +28,7 @@ export function SkillsSettings() {
           icon={SlidersHorizontal} label={t("skills_page.rag_tab")} />
       </div>
 
-      {tab === "manager" ? (
-        <SkillsManager selectable />
-      ) : (
-        <div className="space-y-6">
-          <SkillsInspectorPanel />
-          <SkillsKeywordTriggersPanel />
-        </div>
-      )}
+      {tab === "manager" ? <SkillsManager selectable /> : <SkillsInspectorPanel />}
     </div>
   );
 }

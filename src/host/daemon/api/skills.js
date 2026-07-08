@@ -11,8 +11,6 @@
 //   PUT    /skills/inspector           toggle / tune inspector config
 //   POST   /skills/index               (re)build the inspector vector index
 //   POST   /skills/inspect             dry-run the inspector for a prompt
-//   GET    /skills/keyword-triggers    keyword-trigger config + declaring skills
-//   PUT    /skills/keyword-triggers    toggle / tune keyword triggers
 //
 // A "scope" is either "default" (the super-agent / no-project baseline) or a
 // project's absolute path. Creating/importing with a project_path targets that
@@ -37,7 +35,6 @@ import {
   inspectPromptForSkills,
   INSPECTOR_DEFAULTS,
 } from "#core/agent/skills/inspector.js";
-import { KEYWORD_TRIGGER_DEFAULTS } from "#core/agent/skills/trigger.js";
 import {
   ensureIndex,
   planIndex,
@@ -104,26 +101,6 @@ function installSkillDir(srcDir, slug, projectPath) {
 
 function mergedInspectorConfig(cfg) {
   return { ...INSPECTOR_DEFAULTS, ...(cfg?.skills?.inspector || {}) };
-}
-
-const KEYWORD_TRIGGER_KEYS = Object.keys(KEYWORD_TRIGGER_DEFAULTS);
-
-function mergedKeywordTriggerConfig(cfg) {
-  return { ...KEYWORD_TRIGGER_DEFAULTS, ...(cfg?.skills?.keyword_triggers || {}) };
-}
-
-// Skills declaring `triggers:` in their frontmatter, annotated with the
-// enabled state for the requested scope — what the web toggle card lists.
-function skillsWithTriggers(cfg, projectPath) {
-  return annotateSkills(listSkills({ projectPath }), { config: cfg, projectPath })
-    .filter((s) => Array.isArray(s.triggers) && s.triggers.length > 0)
-    .map((s) => ({
-      slug: s.slug,
-      source: s.source,
-      triggers: s.triggers,
-      enabled: s.enabled,
-      private: s.private,
-    }));
 }
 
 function indexStatus() {
@@ -404,53 +381,6 @@ export function register(app /*, ctx */) {
       cfg.skills.inspector = next;
       writeConfig(cfg);
       res.json({ ok: true, config: next, index: indexStatus() });
-    } catch (e) {
-      res.status(500).json({ error: e.message });
-    }
-  });
-
-  // ---- Keyword triggers config + declaring skills --------------------------
-
-  app.get("/skills/keyword-triggers", (req, res) => {
-    try {
-      const projectPath = typeof req.query?.project_path === "string" && req.query.project_path
-        ? req.query.project_path
-        : undefined;
-      const cfg = readConfig();
-      res.json({
-        config: mergedKeywordTriggerConfig(cfg),
-        defaults: KEYWORD_TRIGGER_DEFAULTS,
-        keys: KEYWORD_TRIGGER_KEYS,
-        skills: skillsWithTriggers(cfg, projectPath),
-      });
-    } catch (e) {
-      res.status(500).json({ error: e.message });
-    }
-  });
-
-  app.put("/skills/keyword-triggers", (req, res) => {
-    try {
-      const patch = req.body || {};
-      const cfg = readConfig();
-      cfg.skills = cfg.skills || {};
-      const current = mergedKeywordTriggerConfig(cfg);
-      const next = { ...current };
-
-      for (const [k, v] of Object.entries(patch)) {
-        if (!KEYWORD_TRIGGER_KEYS.includes(k)) continue;
-        const def = KEYWORD_TRIGGER_DEFAULTS[k];
-        if (typeof def === "boolean") next[k] = !!v;
-        else if (typeof def === "number") {
-          const n = Number(v);
-          if (Number.isFinite(n)) next[k] = n;
-        } else {
-          next[k] = v;
-        }
-      }
-
-      cfg.skills.keyword_triggers = next;
-      writeConfig(cfg);
-      res.json({ ok: true, config: next });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
