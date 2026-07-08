@@ -102,7 +102,7 @@ import {
 import { cmdPluginsList, cmdPluginStatus } from "./commands/plugins.js";
 import { cmdDesktopStart, cmdDesktopStop, cmdDesktopRestart, cmdDesktopStatus, cmdDesktopInstall, cmdDesktopUninstall, desktopRunning } from "./commands/desktop.js";
 import { cmdVoiceSay, cmdVoiceListen, cmdVoiceProviders } from "./commands/voice.js";
-import { cmdSkillsAdd, cmdSkillsList, cmdSkillsStatus, cmdSkillsSync, cmdSkillsIndex, cmdSkillsInspect, cmdSkillsInspector } from "./commands/skills.js";
+import { cmdSkillsAdd, cmdSkillsList, cmdSkillsStatus, cmdSkillsSync, cmdSkillsIndex, cmdSkillsInspect, cmdSkillsInspector, cmdSkillsTriggers } from "./commands/skills.js";
 import { cmdIdentity } from "./commands/identity.js";
 import { cmdCommandList, cmdCommandShow } from "./commands/command.js";
 import { cmdUpdate } from "./commands/update.js";
@@ -1397,6 +1397,7 @@ const HELP_TOPICS = new Map(Object.entries({
       "apx skills index [--reset] [--force]",
       "apx skills inspect \"<prompt>\"",
       "apx skills inspector [status|enable|disable|set <key> <value>]",
+      "apx skills triggers [show|on|off]",
     ],
     commands: [
       ["add [targets]", "Install APX skills into selected targets."],
@@ -1406,6 +1407,7 @@ const HELP_TOPICS = new Map(Object.entries({
       ["index", "Build/refresh the local RAG vector index used by the Skill Inspector."],
       ["inspect", "Show which skills the Inspector would surface for a given prompt (debug)."],
       ["inspector", "Toggle and tune the Skill Inspector (per-turn skill RAG middleware)."],
+      ["triggers", "Toggle keyword triggers (auto-inject skills whose frontmatter `triggers:` match the message)."],
     ],
     examples: [
       "apx skills add claude-code cursor",
@@ -1485,6 +1487,17 @@ const HELP_TOPICS = new Map(Object.entries({
       "apx skills inspector status",
       "apx skills inspector set load_threshold 0.5",
       "apx skills inspector set max_loaded 2",
+    ],
+  }),
+  "skills triggers": topic({
+    title: "apx skills triggers",
+    summary:
+      "Toggle skill keyword triggers (opt-in, OpenHands-style). Skills that declare `triggers:` (a keyword list) in their SKILL.md frontmatter get their body auto-injected into the turn when a keyword appears in the user message (case-insensitive substring). Coexists with the Skill Inspector: on a keyword match the inspector/RAG step is skipped for that turn. `show` (default) prints the config plus every skill declaring triggers. Tune max_matches/body_char_cap under config.skills.keyword_triggers.",
+    usage: ["apx skills triggers [show|on|off]"],
+    examples: [
+      "apx skills triggers",
+      "apx skills triggers on",
+      "apx skills triggers off",
     ],
   }),
   plugins: topic({
@@ -2675,6 +2688,7 @@ async function dispatch(cmd, rest) {
         else if (sub === "index") await cmdSkillsIndex(a);
         else if (sub === "inspect") await cmdSkillsInspect(a);
         else if (sub === "inspector") await cmdSkillsInspector(a);
+        else if (sub === "triggers") await cmdSkillsTriggers(a);
         else die(`unknown skills subcommand: ${sub}`);
         break;
       }

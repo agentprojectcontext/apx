@@ -161,6 +161,17 @@ const DEFAULT_CONFIG = {
       prompt_floor: 8,
       body_char_cap: 6000,
     },
+    // Keyword triggers — opt-in "option B" (OpenHands-style). Skills that
+    // declare `triggers:` in their frontmatter get their body auto-injected
+    // when a keyword appears (case-insensitive substring) in the user message.
+    // Coexists with the inspector: on a keyword match, the inspector/RAG step
+    // is skipped for that turn (the body is already in context). Default OFF —
+    // APX's semantic inspector remains the primary mechanism.
+    keyword_triggers: {
+      enabled: false,
+      max_matches: 2,       // at most this many skills injected per turn
+      body_char_cap: 6000,  // hard cap per injected body (token guard)
+    },
   },
   voice: {
     // Text-to-speech configuration. Selector reads voice.tts.provider; "auto"

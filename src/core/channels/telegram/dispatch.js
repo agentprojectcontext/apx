@@ -21,7 +21,7 @@ import { resolveAgentName, SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
 import { registerSender, resolveAllowedTools } from "#core/identity/telegram.js";
 import { buildRelationshipBlock } from "#core/agent/index.js";
 import { CHANNELS } from "#core/constants/channels.js";
-import { tryResolveSkillCommand } from "#core/agent/skills/trigger.js";
+import { tryResolveSkillCommand, matchSkillKeywordTriggers } from "#core/agent/skills/trigger.js";
 import * as askFlow from "./ask.js";
 import { telegramAuthorLabel } from "./helpers.js";
 import { handleIncomingPhoto } from "./inbound/photo.js";
@@ -285,6 +285,18 @@ export async function handleUpdate(self, u) {
       // strip the prefix from the user prompt before sending to the loop.
       const slashed = tryResolveSkillCommand(text, { projectPath: target?.path });
 
+      // Keyword triggers ("option B") — only when the slash shortcut didn't
+      // fire. A match auto-injects the skill body for this turn.
+      const keyword = slashed.handled
+        ? { matched: [] }
+        : matchSkillKeywordTriggers(text, { projectPath: target?.path, config: self.globalConfig });
+      if (keyword.matched.length) {
+        self.log(
+          `telegram[${self.channel.name}] skill keyword trigger: injected ` +
+            keyword.matched.map((m) => `${m.slug}("${m.keyword}")`).join(", ")
+        );
+      }
+
       // A2A callback sink: when a background call_runtime finishes out of band,
       // it invokes this to feed the sub-agent/runtime result back into a fresh
       // super-agent turn — so Roby relays it in its own voice instead of dumping
@@ -317,7 +329,11 @@ export async function handleUpdate(self, u) {
           authorId: msg.from?.id,
           relationshipBlock,
           allowedTools,
-          contextNote: slashed.handled ? slashed.contextNote : "",
+          contextNote: slashed.handled
+            ? slashed.contextNote
+            : keyword.matched.length
+              ? keyword.contextNote
+              : "",
           signal: abortCtrl.signal,
           onEvent,
           backgroundResultSink,

@@ -50,6 +50,27 @@ const GLOBAL_DIR         = path.join(os.homedir(), ".apx", "skills");
 // Frontmatter parsing (minimal — handles the YAML we ship)
 // ---------------------------------------------------------------------------
 
+// Keys whose value is a YAML list (inline `[a, b]` or dash-list). Everything
+// else stays a scalar string — the parser must not regress existing SKILL.md
+// frontmatter, so list handling is opt-in per key.
+const LIST_KEYS = new Set(["triggers"]);
+
+function stripQuotes(val) {
+  if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+    return val.slice(1, -1);
+  }
+  return val;
+}
+
+function parseInlineList(val) {
+  // "[a, b, "c d"]" → ["a", "b", "c d"]
+  const inner = val.slice(1, -1);
+  return inner
+    .split(",")
+    .map((s) => stripQuotes(s.trim()))
+    .filter(Boolean);
+}
+
 function parseFrontmatter(raw) {
   if (!raw.startsWith("---")) return { fm: {}, body: raw };
   const end = raw.indexOf("\n---", 3);
@@ -59,16 +80,47 @@ function parseFrontmatter(raw) {
   const body = raw.slice(end + 4).replace(/^\n/, "");
 
   const fm = {};
-  for (const line of fmBlock.split("\n")) {
-    const m = line.match(/^([a-zA-Z_][a-zA-Z0-9_-]*)\s*:\s*(.*)$/);
+  const lines = fmBlock.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(/^([a-zA-Z_][a-zA-Z0-9_-]*)\s*:\s*(.*)$/);
     if (!m) continue;
+    const key = m[1];
     let val = m[2].trim();
-    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
-      val = val.slice(1, -1);
+
+    if (LIST_KEYS.has(key)) {
+      if (val.startsWith("[") && val.endsWith("]")) {
+        fm[key] = parseInlineList(val);
+        continue;
+      }
+      if (val === "") {
+        // Dash-list: consume following "  - item" lines (must be indented so
+        // they can't be confused with a top-level key).
+        const items = [];
+        while (i + 1 < lines.length) {
+          const dm = lines[i + 1].match(/^\s+-\s+(.+)$/);
+          if (!dm) break;
+          items.push(stripQuotes(dm[1].trim()));
+          i++;
+        }
+        fm[key] = items;
+        continue;
+      }
+      // A scalar under a list key ("triggers: deploy") — treat as 1-item list.
+      fm[key] = [stripQuotes(val)];
+      continue;
     }
-    fm[m[1]] = val;
+
+    fm[key] = stripQuotes(val);
   }
   return { fm, body };
+}
+
+/** Normalize a frontmatter `triggers` value to a clean array of strings. */
+function normalizeTriggers(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((t) => String(t || "").trim())
+    .filter(Boolean);
 }
 
 // ---------------------------------------------------------------------------
@@ -119,7 +171,7 @@ function scanFlatStyle(baseDir, source) {
  *
  * @param {object} opts
  * @param {string=} opts.projectPath  optional project root to also scan
- * @returns {Array<{slug, source, description, file}>}
+ * @returns {Array<{slug, source, description, triggers, file}>}
  */
 export function listSkills({ projectPath } = {}) {
   const found = [];
@@ -146,16 +198,19 @@ export function listSkills({ projectPath } = {}) {
     seen.add(entry.slug);
 
     let description = "";
+    let triggers = [];
     try {
       const raw = fs.readFileSync(entry.file, "utf8");
       const { fm } = parseFrontmatter(raw);
       description = fm.description || "";
+      triggers = normalizeTriggers(fm.triggers);
     } catch { /* unreadable — skip description */ }
 
     result.push({
       slug: entry.slug,
       source: entry.source,
       description,
+      triggers,
       file: entry.file,
     });
   }
@@ -169,7 +224,7 @@ export function listSkills({ projectPath } = {}) {
  * @param {string} slug
  * @param {object} opts
  * @param {string=} opts.projectPath
- * @returns {{slug, source, file, description, body, frontmatter}}
+ * @returns {{slug, source, file, description, triggers, body, frontmatter}}
  */
 export function loadSkill(slug, { projectPath } = {}) {
   if (!slug) throw new Error("loadSkill: slug required");
@@ -187,6 +242,7 @@ export function loadSkill(slug, { projectPath } = {}) {
     source: entry.source,
     file: entry.file,
     description: entry.description || fm.description || "",
+    triggers: normalizeTriggers(fm.triggers),
     frontmatter: fm,
     body: body.trim(),
   };
