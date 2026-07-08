@@ -1,11 +1,18 @@
-// Progressive history compaction (Pieza 3).
+// Progressive history compaction (Pieza 3) — condenser v2.
 //
 // When a channel chat accumulates more than `maxTurns` (60) conversational
 // turns in the rolling window, the oldest turns beyond `keepRecent` (40) are
-// collapsed into a dense summary by a light LLM (ollama:gemma2 → haiku
-// fallback) and persisted as a `type:"compact"` record in the channel JSONL.
+// collapsed by a light LLM into a STRUCTURED STATE summary (OpenHands
+// LLMSummarizingCondenser mechanics) and persisted as a `type:"compact"`
+// record in the channel JSONL. Two condenser behaviors on top of the original
+// narrative recap:
+//   - previous-summary threading: the latest compact record (if any) is fed
+//     into the prompt as the FIRST event so the new summary subsumes it —
+//     state tracked across compactions never silently drops;
+//   - keep_first: the conversation's opening turns (original goal) get special
+//     treatment — see the keep_first comment in compactChannelIfNeeded.
 //
-// The reader (getRecentChannelTurnsFromFs) then prepends that summary as a
+// The reader (getRecentChannelTurnsFromFs) then prepends the summary as a
 // [RESUMEN COMPACTADO] system turn and drops the raw turns it covers, keeping
 // the model context bounded while preserving decisions / tasks / tool results.
 //
@@ -21,20 +28,51 @@ import { callEngine } from "../engines/index.js";
 
 const DEFAULT_MAX_TURNS = 60;
 const DEFAULT_KEEP_RECENT = 40;
-const COMPACT_MAX_TOKENS = 1000; // ~800-token target + headroom
+const DEFAULT_KEEP_FIRST = 2;
+// Structured state summaries carry several labelled sections, so they need
+// more room than the old ~800-token narrative recap.
+const COMPACT_MAX_TOKENS = 1200;
 
 const COMPACT_SYSTEM =
-  "Compactás conversaciones para continuidad de contexto de un agente. " +
-  "Otro modelo va a leer esto para seguir el trabajo: sé denso y factual.";
+  "You are maintaining a context-aware state summary for an interactive agent. " +
+  "Another model will read your summary to continue the work: be dense, factual, and structured.";
 
-function compactPrompt(transcript) {
-  return (
-    "Compactá estos turnos en un resumen estructurado de máximo 800 tokens, " +
-    "preservando: decisiones tomadas, tareas asignadas, resultados de tools, y " +
-    "datos acordados. Sin saludos ni meta-comentarios. Sólo los hechos.\n\n" +
-    "---\n\n" +
-    transcript
-  );
+// Structured-state instructions adapted from OpenHands' LLMSummarizingCondenser.
+// They live in the USER prompt (not the system prompt) so offline tests can
+// capture the full instruction set through the echoing mock engine.
+const CONDENSER_INSTRUCTIONS = `You will be given a list of events from an agent conversation as <EVENT> blocks. If the first event is a PREVIOUS STATE SUMMARY, your new summary must fully subsume it — carry forward all still-relevant state.
+
+Maintain this structured state, one section per line group:
+
+USER_CONTEXT: (essential user requirements, goals, and clarifications, in concise form)
+TASK_TRACKING: (active tasks and their statuses; preserve exact task IDs)
+COMPLETED: (tasks completed so far, with brief results)
+PENDING: (tasks that still need to be done)
+CURRENT_STATE: (current variables, data structures, or other relevant state)
+
+For code-related tasks, also maintain:
+CODE_STATE: (file paths, function signatures, data structures)
+TESTS: (failing cases, error messages, outputs)
+CHANGES: (code edits and their effects)
+DEPS: (dependencies, imports, external calls)
+VERSION_CONTROL_STATUS: (repository state, current branch, PR status, commits)
+
+PRIORITIZE:
+1. Adapt the format to the actual task type — omit sections that do not apply.
+2. Capture key user requirements and goals.
+3. Distinguish completed work from pending work.
+4. Keep every section concise and relevant.
+
+SKIP: greetings, meta-commentary, failed operations without semantic importance, repetitive details.
+
+Output ONLY the summary sections (max ~900 tokens).`;
+
+function compactPrompt({ eventsBlock, openingBlock }) {
+  const opening = openingBlock
+    ? "The following opening turns of the conversation are quoted verbatim. They carry the ORIGINAL GOAL — preserve their intent (near-verbatim) under USER_CONTEXT:\n\n" +
+      `<CONVERSATION_OPENING>\n${openingBlock}\n</CONVERSATION_OPENING>\n\n`
+    : "";
+  return `${CONDENSER_INSTRUCTIONS}\n\n${opening}${eventsBlock}`;
 }
 
 export function resolveCompactModels(config = {}) {
@@ -84,14 +122,23 @@ function renderTurn(m) {
   return `[${who}]\n${String(m.body || "")}`;
 }
 
-async function summarize({ transcript, models, config }) {
+function renderEvent(m, id) {
+  if (m.type === "tool") {
+    const name = m.meta?.tool_name || m.meta?.tool || "tool";
+    return `<EVENT id=${id} role=tool name=${name}>\n${String(m.body || "").slice(0, 600)}\n</EVENT>`;
+  }
+  const role = m.type === "user" ? "user" : "assistant";
+  return `<EVENT id=${id} role=${role}>\n${String(m.body || "")}\n</EVENT>`;
+}
+
+async function summarize({ prompt, models, config }) {
   for (const modelId of [models.primary, models.fallback]) {
     if (!modelId) continue;
     try {
       const r = await callEngine({
         modelId,
         system: COMPACT_SYSTEM,
-        messages: [{ role: "user", content: compactPrompt(transcript) }],
+        messages: [{ role: "user", content: prompt }],
         config,
         maxTokens: COMPACT_MAX_TOKENS,
         temperature: 0.2,
@@ -106,8 +153,8 @@ async function summarize({ transcript, models, config }) {
 }
 
 // Compact one channel chat if it's over threshold. Returns a small status obj.
-// opts: { channel, chat_id, config, log, maxTurns, keepRecent, max_age_hours,
-//         messagesDir }  (messagesDir overridable for tests)
+// opts: { channel, chat_id, config, log, maxTurns, keepRecent, keepFirst,
+//         max_age_hours, messagesDir }  (messagesDir overridable for tests)
 export async function compactChannelIfNeeded(opts = {}) {
   const channel = opts.channel || "telegram";
   const chat_id = opts.chat_id;
@@ -115,6 +162,7 @@ export async function compactChannelIfNeeded(opts = {}) {
   const log = typeof opts.log === "function" ? opts.log : () => {};
   const maxTurns = opts.maxTurns ?? config.memory?.compact_threshold ?? DEFAULT_MAX_TURNS;
   const keepRecent = opts.keepRecent ?? config.memory?.keep_recent ?? DEFAULT_KEEP_RECENT;
+  const keepFirst = opts.keepFirst ?? config.memory?.keep_first ?? DEFAULT_KEEP_FIRST;
   const max_age_hours = opts.max_age_hours ?? 24;
   const messagesDir = opts.messagesDir || GLOBAL_MESSAGES_DIR;
   if (!chat_id) return { skipped: "no chat_id" };
@@ -147,14 +195,44 @@ export async function compactChannelIfNeeded(opts = {}) {
   const compactedReal = toCompact.filter((m) => m.type === "user" || m.type === "agent").length;
   if (compactedReal === 0) return { skipped: "nothing to compact" };
 
-  let transcript = toCompact.map(renderTurn).join("\n\n");
-  if (prevCompact && String(prevCompact.body || "").trim()) {
-    transcript =
-      `[RESUMEN PREVIO]\n${String(prevCompact.body).trim()}\n\n---\n\n` + transcript;
+  // keep_first (OpenHands): the first K events of a conversation are never
+  // condensed because they hold the original goal. Our JSONL model has a
+  // single covers_until_ts boundary and the reader drops EVERYTHING at or
+  // before it, so leaving those turns verbatim on disk reads would need a
+  // second boundary plus an intrusive reader change. We take the documented
+  // simplification instead: on the FIRST condensation (no previous compact —
+  // i.e. these really are the conversation's opening turns) the first
+  // `keepFirst` real turns are pulled out of the <EVENT> stream and quoted
+  // verbatim in the prompt with an instruction to preserve the original goal
+  // in USER_CONTEXT. On later condensations the goal already lives in the
+  // threaded previous summary, so keep_first no longer applies.
+  let openingTurns = [];
+  let eventRecords = toCompact;
+  if (!prevCompact && keepFirst > 0) {
+    openingTurns = toCompact
+      .filter((m) => m.type === "user" || m.type === "agent")
+      .slice(0, keepFirst);
+    const openingSet = new Set(openingTurns);
+    eventRecords = toCompact.filter((m) => !openingSet.has(m));
   }
 
+  // Previous-summary threading: the last summary rides along as the first
+  // event so the new summary subsumes it (continuity across compactions).
+  const events = [];
+  if (prevCompact && String(prevCompact.body || "").trim()) {
+    events.push(
+      `<EVENT id=0 role=summary>\n[PREVIOUS STATE SUMMARY]\n${String(prevCompact.body).trim()}\n</EVENT>`
+    );
+  }
+  for (const m of eventRecords) events.push(renderEvent(m, events.length));
+
+  const prompt = compactPrompt({
+    eventsBlock: events.join("\n\n"),
+    openingBlock: openingTurns.map(renderTurn).join("\n\n"),
+  });
+
   const models = resolveCompactModels(config);
-  const summary = await summarize({ transcript, models, config });
+  const summary = await summarize({ prompt, models, config });
   if (!summary) {
     log(`memory: compaction for ${channel}/${chat_id} skipped — no model available`);
     return { skipped: "no model" };
@@ -177,6 +255,8 @@ export async function compactChannelIfNeeded(opts = {}) {
       covers_until_ts: boundaryTs,
       compacted_turns: compactedReal,
       model: summary.model,
+      condenser: "v2",
+      ...(prevCompact ? { prev_compact_ts: prevCompact.ts } : {}),
     },
   });
   log(

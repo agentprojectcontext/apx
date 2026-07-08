@@ -119,6 +119,7 @@ const DEFAULT_CONFIG = {
     broker_budget_ms: 800,            // hard cap on the Memory Broker
     compact_threshold: 60,            // compact once a chat exceeds this many turns
     keep_recent: 40,                  // verbatim turns always kept after compaction
+    keep_first: 2,                    // opening turns quoted verbatim into the condenser prompt (they hold the original goal)
     compact_model: "ollama:gemma4:31b-cloud", // light LLM for compaction (Ollama, local endpoint)
     compact_fallback_model: "",        // "" → falls back to super_agent.model (APX default)
   },
