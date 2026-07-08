@@ -133,10 +133,91 @@ export function isFallbackEnabled(globalConfig) {
   return fb.enabled !== false;
 }
 
+// ---------------------------------------------------------------------------
+// Content-based routing (OpenHands RouterLLM pattern). Static engine routing
+// picks ONE model per deployment; these rules inspect the actual turn —
+// images, prompt/context size, channel, keywords — and prefer a different
+// model for it. The preferred model still goes through the same health check
+// and falls back down the regular chain when unavailable, so a routing rule
+// can never strand a turn on a dead provider.
+// ---------------------------------------------------------------------------
+
+export function routingConfig(globalConfig) {
+  const raw = globalConfig?.super_agent?.routing || {};
+  return {
+    enabled: raw.enabled === true,
+    rules: Array.isArray(raw.rules) ? raw.rules : [],
+  };
+}
+
+// Multimodal content shows up as parts arrays on message content (engine
+// adapters and the Telegram photo flow use type "image"/"image_url").
+function contentHasImage(content) {
+  if (!Array.isArray(content)) return false;
+  return content.some(
+    (p) => p && (p.type === "image" || p.type === "image_url" || p.type === "input_image")
+  );
+}
+
+/**
+ * Evaluate `super_agent.routing.rules` in order against the turn's features;
+ * first full match wins. Each rule: `{ model: "<provider>:<model>", when: {
+ * has_image?, min_prompt_chars?, max_prompt_chars?, min_context_chars?,
+ * channels?: [], keywords?: [] } }`. All conditions in `when` must hold
+ * (AND); an empty `when` matches every turn. Returns `{model, ruleIndex}` or
+ * null (no rules, disabled, or nothing matched).
+ */
+export function selectModelByRules(
+  { prompt = "", previousMessages = [], channel = "", channelMeta = {} } = {},
+  globalConfig
+) {
+  const cfg = routingConfig(globalConfig);
+  if (!cfg.enabled || cfg.rules.length === 0) return null;
+
+  const promptText = typeof prompt === "string" ? prompt : "";
+  const messages = Array.isArray(previousMessages) ? previousMessages : [];
+  const hasImage =
+    channelMeta?.has_image === true ||
+    contentHasImage(prompt) ||
+    messages.some((m) => contentHasImage(m?.content));
+  let contextChars = 0;
+  for (const m of messages) {
+    const c = m?.content;
+    if (typeof c === "string") contextChars += c.length;
+    else if (c != null) {
+      try { contextChars += JSON.stringify(c).length; } catch { /* unserializable — skip */ }
+    }
+  }
+
+  for (let i = 0; i < cfg.rules.length; i++) {
+    const rule = cfg.rules[i] || {};
+    const model = rule.model;
+    if (typeof model !== "string" || !model.includes(":")) continue;
+    const when = rule.when || {};
+
+    if (when.has_image === true && !hasImage) continue;
+    if (when.has_image === false && hasImage) continue;
+    if (Number.isFinite(when.min_prompt_chars) && promptText.length < when.min_prompt_chars) continue;
+    if (Number.isFinite(when.max_prompt_chars) && promptText.length > when.max_prompt_chars) continue;
+    if (Number.isFinite(when.min_context_chars) && contextChars < when.min_context_chars) continue;
+    if (Array.isArray(when.channels) && when.channels.length > 0 && !when.channels.includes(channel)) continue;
+    if (Array.isArray(when.keywords) && when.keywords.length > 0) {
+      const low = promptText.toLowerCase();
+      const hit = when.keywords.some(
+        (k) => typeof k === "string" && k.trim().length >= 2 && low.includes(k.toLowerCase())
+      );
+      if (!hit) continue;
+    }
+
+    return { model, ruleIndex: i };
+  }
+  return null;
+}
+
 /**
  * Pick first healthy model following configured provider order.
  */
-export async function resolveActiveModel(globalConfig, { overrideModel = null, timeoutMs } = {}) {
+export async function resolveActiveModel(globalConfig, { overrideModel = null, preferredModel = null, timeoutMs } = {}) {
   if (overrideModel) {
     const { provider } = parseModelId(overrideModel);
     return {
@@ -152,12 +233,20 @@ export async function resolveActiveModel(globalConfig, { overrideModel = null, t
   const fb = sa.model_fallback || {};
   const healthMs = timeoutMs ?? fb.health_timeout_ms ?? 800;
   const tried = [];
+  // Content routing (selectModelByRules) prefers a model for THIS turn. It
+  // leads the chain but is not forced: unhealthy → regular chain takes over.
+  const preferred =
+    typeof preferredModel === "string" && preferredModel.includes(":") ? preferredModel : null;
 
   if (isFallbackEnabled(globalConfig)) {
-    // Build the full chain: primary first, then the fallback list, deduped.
-    // Each entry is a fully-qualified "<provider>:<model>" string.
+    // Build the full chain: preferred (content-routed) first, then primary,
+    // then the fallback list, deduped. Each entry is a fully-qualified
+    // "<provider>:<model>" string.
     const chain = [];
-    if (typeof sa.model === "string" && sa.model.includes(":")) chain.push(sa.model);
+    if (preferred) chain.push(preferred);
+    if (typeof sa.model === "string" && sa.model.includes(":") && !chain.includes(sa.model)) {
+      chain.push(sa.model);
+    }
     for (const m of fallbackModels(globalConfig)) {
       if (!chain.includes(m)) chain.push(m);
     }
@@ -185,11 +274,24 @@ export async function resolveActiveModel(globalConfig, { overrideModel = null, t
         return {
           modelId,
           provider,
-          fromFallback: !isPrimary,
+          fromFallback: !isPrimary && modelId !== preferred,
+          ...(modelId === preferred ? { routedBy: "content_rules" } : {}),
           tried,
         };
       }
     }
+  } else if (preferred) {
+    // No fallback router: honor the routing rule directly (same trust level
+    // as the primary model, which is also unchecked in this branch).
+    const { provider } = parseModelId(preferred);
+    return {
+      modelId: preferred,
+      provider,
+      fromFallback: false,
+      forced: true,
+      routedBy: "content_rules",
+      tried: [{ provider, modelId: preferred, healthy: true, reason: "content_rules" }],
+    };
   }
 
   if (sa.model) {

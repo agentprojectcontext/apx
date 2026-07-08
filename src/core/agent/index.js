@@ -22,6 +22,8 @@ export {
   probeAllProviders,
   fallbackModels,
   isFallbackEnabled,
+  routingConfig,
+  selectModelByRules,
   DEFAULT_FALLBACK_ORDER,
   DEFAULT_FALLBACK_MODELS,
 } from "./model-router.js";

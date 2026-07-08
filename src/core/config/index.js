@@ -94,6 +94,15 @@ const DEFAULT_CONFIG = {
       action_repeat: 4,
       error_repeat: 3,
     },
+    // Content-based routing (RouterLLM pattern): ordered rules inspected per
+    // turn; first match prefers a model for it (health-checked, falls back
+    // down the regular chain). Rule shape: { model: "<provider>:<model>",
+    // when: { has_image?, min_prompt_chars?, max_prompt_chars?,
+    // min_context_chars?, channels?: [], keywords?: [] } }.
+    routing: {
+      enabled: false,
+      rules: [],
+    },
   },
   engines: {
     anthropic: { api_key: "" },
@@ -417,6 +426,13 @@ export function mergeDefaults(cfg) {
       stuck_detection: {
         ...DEFAULT_CONFIG.super_agent.stuck_detection,
         ...(cfg.super_agent?.stuck_detection || {}),
+      },
+      routing: {
+        ...DEFAULT_CONFIG.super_agent.routing,
+        ...(cfg.super_agent?.routing || {}),
+        rules: Array.isArray(cfg.super_agent?.routing?.rules)
+          ? cfg.super_agent.routing.rules
+          : [],
       },
     },
     engines: {
