@@ -190,6 +190,25 @@ como una observación de error para que re-planifique.
   herramienta peligrosa de `automatico`; las allowlists de `permiso` siguen aplicando, y el modo
   `total` saltea el gate por completo.
 
+## Judge de completitud
+
+Loop de verificación opt-in (patrón critic de OpenHands) para turnos con completion contract
+(superficies de código): cuando el agente declara que terminó, un LLM juez puntúa la probabilidad
+de que el pedido *original* esté completamente satisfecho. Por debajo de `success_threshold`, el
+agente recibe una nota interna de verificación (qué parece faltar, según el juez) y sigue
+trabajando — hasta `max_iterations` rondas. Un juez inutilizable (engine caído, respuesta no
+parseable) acepta el resultado en vez de bloquearlo.
+
+```json
+"super_agent": {
+  "judge": { "enabled": true, "success_threshold": 0.6, "max_iterations": 2, "model": "" }
+}
+```
+
+`model` vacío → el juez corre sobre `super_agent.model`; poné un modelo barato para mantener bajo
+el overhead de verificación. Los veredictos salen como eventos `judge_verdict` y en el resultado
+como `result.judge`.
+
 ## Detección de loops (stuck detection)
 
 El tool loop vigila dos formas de quedarse trabado: el mismo call devolviendo el mismo resultado

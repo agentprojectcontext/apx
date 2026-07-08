@@ -103,6 +103,17 @@ const DEFAULT_CONFIG = {
       enabled: false,
       rules: [],
     },
+    // Goal-completion judge (OpenHands critic pattern): after a
+    // completion-contract turn declares done, an LLM judge scores goal
+    // completion (0..1); below success_threshold the agent gets a
+    // verification follow-up and continues, up to max_iterations rounds.
+    // model "" → judge runs on super_agent.model.
+    judge: {
+      enabled: false,
+      success_threshold: 0.6,
+      max_iterations: 2,
+      model: "",
+    },
   },
   engines: {
     anthropic: { api_key: "" },
@@ -433,6 +444,10 @@ export function mergeDefaults(cfg) {
         rules: Array.isArray(cfg.super_agent?.routing?.rules)
           ? cfg.super_agent.routing.rules
           : [],
+      },
+      judge: {
+        ...DEFAULT_CONFIG.super_agent.judge,
+        ...(cfg.super_agent?.judge || {}),
       },
     },
     engines: {
