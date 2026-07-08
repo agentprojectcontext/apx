@@ -15,7 +15,8 @@
   "bin": {
     "apx": "./src/interfaces/cli/index.js",
     "apx-daemon": "./src/host/daemon/index.js",
-    "apx-mcp": "./src/interfaces/mcp-server/index.js"
+    "apx-mcp": "./src/interfaces/mcp-server/index.js",
+    "apx-acp": "./src/interfaces/acp/index.js"
   },
   "files": [
     "src/",
