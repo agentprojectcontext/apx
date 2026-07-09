@@ -35,6 +35,16 @@ export interface AgentEntry {
   autonomy?: AgentAutonomy | null;
   skills: string[];
   tools: string[];
+  // Optional per-agent activity summary; only present when the list is
+  // requested with `?stats=1` (see AgentsTab).
+  stats?: AgentStats;
+}
+
+export interface AgentStats {
+  threads: number;
+  records: number;
+  tasks: number;
+  heartbeats: number;
 }
 
 export interface AgentDetail extends AgentEntry {
