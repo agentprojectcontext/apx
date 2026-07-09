@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import useSWR from "swr";
 import {
@@ -6,7 +6,7 @@ import {
   Heart, MessagesSquare, Save, Send, Settings, Sparkles, Trash2, Wrench, Activity,
 } from "lucide-react";
 import { Agents, Conversations, Messages, Routines, Tasks, Tools } from "../../lib/api";
-import type { AgentDetail, AgentEntry, MessageEntry, RoutineEntry } from "../../types/daemon";
+import type { AgentDetail, AgentEntry, FileContent, MessageEntry, RoutineEntry } from "../../types/daemon";
 import { Section } from "../../components/Section";
 import { Badge, Button, Field, Input, Loading, Switch, Textarea } from "../../components/ui";
 import { Tip } from "../../components/ui/tip";
@@ -14,10 +14,11 @@ import { UiSelect } from "../../components/UiSelect";
 import { useToast } from "../../components/Toast";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import { EmojiInput, AutonomyPicker, AreaRoleFields } from "../../components/agents/AgentFormFields";
+import { FileViewer } from "../../components/files/FileViewer";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 import type { AgentAutonomy } from "../../types/daemon";
-import { AgentBrainGraph, type BrainNode } from "./AgentBrainGraph";
+import { BrainGraph, type BrainNode, type BrainEdge } from "./AgentBrainGraph";
 
 type TabKey = "overview" | "memories" | "records" | "sleep" | "brain" | "config";
 function buildTabs(): { key: TabKey; label: string; icon: typeof Bot }[] {
@@ -167,7 +168,7 @@ export function AgentDetailScreen({ pid }: { pid: string }) {
         </div>
       )}
 
-      {tab === "memories" && <MemoryEditor pid={pid} slug={slug} initial={a.memory || ""} onSaved={() => detail.mutate()} />}
+      {tab === "memories" && <MemoryEditor pid={pid} slug={slug} onSaved={() => detail.mutate()} />}
 
       {tab === "records" && <RecordsList records={records.data || []} loading={records.isLoading} />}
 
@@ -176,6 +177,7 @@ export function AgentDetailScreen({ pid }: { pid: string }) {
       {tab === "brain" && (
         <BrainTab
           slug={slug}
+          emoji={a.emoji || undefined}
           memory={a.memory || ""}
           threads={(threads.data || []).map((t) => ({ id: t.id, label: t.title || t.filename }))}
           tasks={myTasks.map((t) => ({ id: t.id, label: t.title, detail: t.body || undefined }))}
@@ -311,26 +313,38 @@ function Stat({ label, value, icon: I }: { label: string; value: number; icon: t
   );
 }
 
-function MemoryEditor({ pid, slug, initial, onSaved }: { pid: string; slug: string; initial: string; onSaved: () => void }) {
+// Durable memory for a single agent, using the same docs-style editor as the
+// project /memories surface (markdown edit / split-preview / save) instead of a
+// bare textarea.
+function MemoryEditor({ pid, slug, onSaved }: { pid: string; slug: string; onSaved: () => void }) {
   const toast = useToast();
-  const [value, setValue] = useState(initial);
-  const [busy, setBusy] = useState(false);
-  useEffect(() => { setValue(initial); }, [initial]);
-  const dirty = value !== initial;
-  const save = async () => {
-    setBusy(true);
-    try { await Agents.memory.put(pid, slug, value); toast.success(t("project.agent_detail.memory_saved")); onSaved(); }
-    catch (e) { toast.error((e as Error).message); }
-    finally { setBusy(false); }
+  const body = useSWR(`/memory/${pid}/agent:${slug}`, () => Agents.memory.get(pid, slug).then((r) => r.body));
+
+  const file = useMemo<FileContent | null>(() => {
+    if (body.data === undefined) return null;
+    const content = body.data ?? "";
+    return {
+      path: `agents/${slug}/memory.md`,
+      name: "memory.md",
+      kind: "markdown",
+      size: content.length,
+      modified: "",
+      encoding: "utf8",
+      content,
+    };
+  }, [body.data, slug]);
+
+  const onSave = async (content: string) => {
+    await Agents.memory.put(pid, slug, content);
+    toast.success(t("project.agent_detail.memory_saved"));
+    void body.mutate(content, { revalidate: false });
+    onSaved();
   };
+
   return (
-    <Section title={t("project.agent_detail.memory_title")} description={`~/.apx/projects/<id>/agents/${slug}/memory.md — ${t("agents_ui.memory_durable_desc")}`}>
-      <Textarea rows={16} className="font-mono text-xs" value={value} onChange={(e) => setValue(e.target.value)} placeholder={t("project.agent_detail.memory_empty")} />
-      <div className="mt-2 flex items-center justify-between">
-        <span className="text-[11px] text-muted-fg">{value.length} {t("project.memories.chars")}</span>
-        <Button size="sm" variant="primary" loading={busy} disabled={!dirty} onClick={save}><Save size={12} /> {t("project.memories.save_btn")}</Button>
-      </div>
-    </Section>
+    <div className="flex h-[65vh] min-h-[420px] flex-col overflow-hidden rounded-xl border border-border bg-card">
+      <FileViewer file={file} loading={body.isLoading} onSave={onSave} />
+    </div>
   );
 }
 
@@ -447,10 +461,28 @@ function ToolsPicker({ value, onChange }: { value: string; onChange: (v: string)
   );
 }
 
+// Cross-link heuristic: two items are "related" when their titles share a
+// meaningful word (ignoring short/stop words). Used to wire tasks↔threads so
+// the brain reads as a web, not a wheel.
+const STOP = new Set([
+  "the", "and", "for", "with", "from", "into", "your", "that", "this", "una", "las", "los",
+  "del", "por", "con", "para", "post", "posts", "demo", "week", "weekly",
+]);
+function keywords(s: string): Set<string> {
+  return new Set(
+    s.toLowerCase().split(/[^a-záéíóúñ0-9]+/).filter((w) => w.length > 3 && !STOP.has(w)),
+  );
+}
+function shareKeyword(a: Set<string>, b: Set<string>): boolean {
+  for (const w of a) if (b.has(w)) return true;
+  return false;
+}
+
 function BrainTab({
-  slug, memory, threads, tasks, routines, parent, children,
+  slug, emoji, memory, threads, tasks, routines, parent, children,
 }: {
   slug: string;
+  emoji?: string;
   memory: string;
   threads: { id: string; label: string }[];
   tasks: { id: string; label: string; detail?: string }[];
@@ -458,22 +490,64 @@ function BrainTab({
   parent: string | null;
   children: string[];
 }) {
-  const nodes: BrainNode[] = useMemo(() => {
-    const out: BrainNode[] = [];
-    memoryFacts(memory).forEach((f, i) => out.push({ id: `m${i}`, label: f, kind: "memory", relation: "knows", detail: f }));
-    threads.slice(0, 8).forEach((t) => out.push({ id: `th-${t.id}`, label: t.label, kind: "thread", relation: "in_thread" }));
-    tasks.slice(0, 8).forEach((t) => out.push({ id: `ts-${t.id}`, label: t.label, kind: "task", relation: "handles_task", detail: t.detail }));
-    routines.forEach((r) => out.push({ id: `rt-${r.name}`, label: r.name, kind: "routine", relation: "ticks", detail: `schedule: ${r.schedule}` }));
-    if (parent) out.push({ id: `p-${parent}`, label: parent, kind: "agentlink", relation: "reports_to" });
-    children.forEach((c) => out.push({ id: `c-${c}`, label: c, kind: "agentlink", relation: "orchestrates" }));
-    return out;
-  }, [memory, threads, tasks, routines, parent, children]);
+  const { nodes, edges } = useMemo(() => {
+    const nodes: BrainNode[] = [];
+    const edges: BrainEdge[] = [];
+    const CORE = "__core";
+    nodes.push({ id: CORE, label: slug, kind: "agent", role: "core", emoji, relation: "self" });
+
+    // A category hub groups its items so items hang off the hub (a two-level
+    // tree) instead of all wiring straight to the core.
+    const hub = (id: string, label: string, kind: BrainNode["kind"]) => {
+      nodes.push({ id, label, kind, role: "hub", relation: "cluster" });
+      edges.push({ source: CORE, target: id });
+    };
+
+    const mem = memoryFacts(memory);
+    const th = threads.slice(0, 8);
+    const ts = tasks.slice(0, 8);
+
+    if (mem.length) {
+      hub("hub-mem", t("agents_ui.kind_memory"), "memory");
+      mem.forEach((f, i) => { nodes.push({ id: `m${i}`, label: f, kind: "memory", relation: "knows", detail: f }); edges.push({ source: "hub-mem", target: `m${i}` }); });
+    }
+    if (th.length) {
+      hub("hub-thread", t("agents_ui.kind_thread"), "thread");
+      th.forEach((x) => { nodes.push({ id: `th-${x.id}`, label: x.label, kind: "thread", relation: "in_thread" }); edges.push({ source: "hub-thread", target: `th-${x.id}` }); });
+    }
+    if (ts.length) {
+      hub("hub-task", t("agents_ui.kind_task"), "task");
+      ts.forEach((x) => { nodes.push({ id: `ts-${x.id}`, label: x.label, kind: "task", relation: "handles_task", detail: x.detail }); edges.push({ source: "hub-task", target: `ts-${x.id}` }); });
+    }
+    if (routines.length) {
+      hub("hub-routine", t("agents_ui.kind_routine"), "routine");
+      routines.forEach((r) => { nodes.push({ id: `rt-${r.name}`, label: r.name, kind: "routine", relation: "ticks", detail: `schedule: ${r.schedule}` }); edges.push({ source: "hub-routine", target: `rt-${r.name}` }); });
+    }
+    if (children.length) {
+      hub("hub-team", t("agents_ui.kind_hierarchy"), "agentlink");
+      children.forEach((c) => { nodes.push({ id: `c-${c}`, label: c, kind: "agentlink", role: "hub", relation: "orchestrates", slug: c }); edges.push({ source: "hub-team", target: `c-${c}` }); });
+    }
+    if (parent) {
+      nodes.push({ id: `p-${parent}`, label: parent, kind: "agentlink", role: "hub", relation: "reports_to", slug: parent });
+      edges.push({ source: `p-${parent}`, target: CORE });
+    }
+
+    // Cross-links: wire a task to a thread that shares a keyword (first match).
+    const thKw = th.map((x) => ({ id: `th-${x.id}`, kw: keywords(x.label) }));
+    ts.forEach((x) => {
+      const kw = keywords(x.label);
+      const hit = thKw.find((tk) => shareKeyword(kw, tk.kw));
+      if (hit) edges.push({ source: `ts-${x.id}`, target: hit.id });
+    });
+
+    return { nodes, edges };
+  }, [slug, emoji, memory, threads, tasks, routines, parent, children]);
 
   return (
     <Section title={t("project.agent_detail.brain_title")} description={t("project.agent_detail.brain_desc")}>
-      {nodes.length === 0
+      {nodes.length <= 1
         ? <p className="text-xs text-muted-fg">{t("project.agent_detail.brain_empty")}</p>
-        : <AgentBrainGraph center={slug} nodes={nodes} />}
+        : <BrainGraph nodes={nodes} edges={edges} />}
     </Section>
   );
 }

@@ -25,6 +25,40 @@ import {
 import { agentToResponse } from "./shared.js";
 import { normalizeVaultPatch } from "#core/apc/agents-vault.js";
 import { PERMISSION_MODES } from "#core/constants/permissions.js";
+import { listConversations } from "#core/stores/conversations.js";
+import { listTasks } from "#core/stores/tasks.js";
+import { listRoutines } from "#core/stores/routines.js";
+import { readProjectMessages } from "#core/stores/messages.js";
+
+// Attach a per-agent activity summary ({ threads, records, tasks, heartbeats })
+// to a list of agent responses. Reads each store once and tallies by agent, so
+// the whole list costs O(stores) rather than O(agents × stores). Gated behind
+// `?stats=1` on the list endpoint since it touches the message ledger.
+function attachAgentStats(p, agents) {
+  const store = p.storagePath || p.path;
+  const tally = (rows, key) => {
+    const m = Object.create(null);
+    for (const r of rows) {
+      const a = typeof key === "function" ? key(r) : r?.[key];
+      if (a) m[a] = (m[a] || 0) + 1;
+    }
+    return m;
+  };
+  let tasksByAgent = {}, hbByAgent = {}, recByAgent = {};
+  try { tasksByAgent = tally(listTasks(store, { state: "all" }), "agent"); } catch { /* no task store */ }
+  try { hbByAgent = tally(listRoutines(store), (r) => r?.spec?.agent); } catch { /* no routines */ }
+  try { recByAgent = tally(readProjectMessages(store, { limit: 1000 }), "agent_slug"); } catch { /* no ledger */ }
+  for (const a of agents) {
+    let threads = 0;
+    try { threads = listConversations(store, a.slug).length; } catch { /* none */ }
+    a.stats = {
+      threads,
+      records: recByAgent[a.slug] || 0,
+      tasks: tasksByAgent[a.slug] || 0,
+      heartbeats: hbByAgent[a.slug] || 0,
+    };
+  }
+}
 
 // Autonomy mirrors the super-agent permission modes (total/automatico/permiso).
 // An invalid value is dropped rather than persisted so a typo can't silently
@@ -123,7 +157,9 @@ export function register(app, { projects, project }) {
   app.get("/projects/:pid/agents", (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    res.json(readAgents(p.path).map(agentToResponse));
+    const agents = readAgents(p.path).map(agentToResponse);
+    if (req.query.stats === "1") attachAgentStats(p, agents);
+    res.json(agents);
   });
 
   app.get("/projects/:pid/agents/:slug", (req, res) => {

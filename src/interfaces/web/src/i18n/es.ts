@@ -325,6 +325,9 @@ export const es = {
       specialists: "Especialistas",
       recent_tasks: "Tasks recientes",
       no_activity: "No hay tasks abiertas.",
+      brain_title: "Cerebro del equipo",
+      brain_desc: "El mapa completo de agentes — los orquestadores en el núcleo y sus especialistas en racimo alrededor. Clic en un nodo para abrirlo.",
+      brain_core: "Equipo",
     },
 
     artifacts: {
@@ -1481,6 +1484,7 @@ export const es = {
     stat_records:            "Records",
     stat_tasks:              "Tasks",
     stat_heartbeats:         "Heartbeats",
+    uncategorized:           "Sin categoría",
     config_def_desc:         "definición (frontmatter + system prompt).",
     memory_durable_desc:     "hechos durables que el agente recuerda.",
     running:                 "running",

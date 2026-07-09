@@ -2,7 +2,8 @@ import { http } from "../http";
 import type { AgentDetail, AgentEntry } from "../../types/daemon";
 
 export const Agents = {
-  list:   (pid: string) => http.get<AgentEntry[]>(`/projects/${pid}/agents`),
+  list:   (pid: string, opts?: { stats?: boolean }) =>
+    http.get<AgentEntry[]>(`/projects/${pid}/agents${opts?.stats ? "?stats=1" : ""}`),
   get:    (pid: string, slug: string) => http.get<AgentDetail>(`/projects/${pid}/agents/${slug}`),
   create: (pid: string, body: Partial<AgentEntry> & { slug: string }) =>
     http.post<AgentEntry>(`/projects/${pid}/agents`, body),
