@@ -96,7 +96,7 @@ export function register(app, { projects, registries, project }) {
     } catch (e) {
       return res.status(400).json({ error: e.message });
     }
-    registries.shutdown();
+    registries.evictName(name);
     projects.rebuild(p.id);
     const entry = registries.for(p).getByName(name);
     res.status(201).json(entry);
@@ -150,7 +150,7 @@ export function register(app, { projects, registries, project }) {
     } catch (e) {
       return res.status(400).json({ error: e.message });
     }
-    registries.shutdown();
+    registries.evictName(req.params.name);
     projects.rebuild(p.id);
     res.status(204).end();
   });
