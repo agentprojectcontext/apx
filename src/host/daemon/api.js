@@ -33,6 +33,7 @@ import { register as registerConnections } from "./api/connections.js";
 import { register as registerRuntimes } from "./api/runtimes.js";
 import { register as registerRoutines } from "./api/routines.js";
 import { register as registerArtifacts } from "./api/artifacts.js";
+import { register as registerArtifactPreview } from "./api/artifact-preview.js";
 import { register as registerTasks } from "./api/tasks.js";
 import { register as registerOrganization } from "./api/organization.js";
 import { register as registerProjectFiles } from "./api/files-project.js";
@@ -124,6 +125,7 @@ export function buildApi({
   registerRuntimes(app, ctx);
   registerRoutines(app, ctx);
   registerArtifacts(app, ctx);
+  registerArtifactPreview(app, ctx);
   registerTasks(app, ctx);
   registerOrganization(app, ctx);
   registerProjectFiles(app, ctx);

@@ -131,6 +131,10 @@ import {
   cmdArtifactShow,
   cmdArtifactRemove,
   cmdArtifactRun,
+  cmdArtifactPreview,
+  cmdArtifactShare,
+  cmdArtifactPreviews,
+  cmdArtifactStop,
 } from "./commands/artifact.js";
 import {
   cmdTaskAdd,
@@ -1327,6 +1331,10 @@ const HELP_TOPICS = new Map(Object.entries({
       ["list | ls", "List artifacts in the project."],
       ["show <name>", "Print artifact content."],
       ["run <name> [args...]", "Execute a runnable artifact (shebang or +x). Stdio is inherited."],
+      ["preview <name> [--open] [--share]", "Serve HTML/React/static artifacts on an ephemeral local server with live-reload."],
+      ["share <name> [--open]", "Preview + open a public tunnel URL (cloudflared/localtunnel)."],
+      ["previews", "List running preview servers."],
+      ["stop <id> | --all", "Stop a preview server."],
       ["remove | rm <name>", "Delete an artifact."],
     ],
     examples: [
@@ -1334,7 +1342,48 @@ const HELP_TOPICS = new Map(Object.entries({
       "apx artifact list",
       "apx artifact show check_asana.sh",
       "apx artifact run check_asana.sh",
+      "apx artifact preview dashboard.html --open",
+      "apx artifact share report.jsx",
     ],
+  }),
+  "artifact preview": topic({
+    title: "apx artifact preview",
+    summary: "Serve an artifact on an ephemeral local web server and print an interactive link. HTML, single-file React (.jsx/.tsx), static dirs, and text are all rendered; the page auto-reloads when the file changes.",
+    usage: ["apx artifact preview <name> [--open] [--share] [--no-watch] [--project <name|id|path>]"],
+    options: [
+      ["--open", "Open the local URL in your default browser."],
+      ["--share", "Also create a public tunnel URL for quick sharing."],
+      ["--no-watch", "Disable live-reload on file change."],
+      ["--project <name|id|path>", "Pin command to a specific project."],
+    ],
+    examples: [
+      "apx artifact preview dashboard.html --open",
+      "apx artifact preview app.jsx --share",
+    ],
+  }),
+  "artifact share": topic({
+    title: "apx artifact share",
+    summary: "Preview an artifact and expose it through a secure public tunnel (cloudflared, falling back to localtunnel). Prints a temporary public URL anyone can open.",
+    usage: ["apx artifact share <name> [--open] [--no-watch] [--project <name|id|path>]"],
+    options: [
+      ["--open", "Open the public URL in your default browser."],
+      ["--no-watch", "Disable live-reload on file change."],
+      ["--project <name|id|path>", "Pin command to a specific project."],
+    ],
+    examples: ["apx artifact share report.jsx --open"],
+  }),
+  "artifact previews": topic({
+    title: "apx artifact previews",
+    summary: "List running artifact preview servers (id, name, kind, local + public URLs).",
+    usage: ["apx artifact previews"],
+    examples: ["apx artifact previews"],
+  }),
+  "artifact stop": topic({
+    title: "apx artifact stop",
+    summary: "Stop a running preview server (and its tunnel).",
+    usage: ["apx artifact stop <id>", "apx artifact stop --all"],
+    options: [["--all", "Stop every running preview."]],
+    examples: ["apx artifact stop 3f9a1c2b", "apx artifact stop --all"],
   }),
   "artifact create": topic({
     title: "apx artifact create",
@@ -2150,6 +2199,9 @@ function buildHelp(version) {
     hCmd("apx artifact create <name>", 36, "create managed file in project storage  [--content '...'] [--project 0]"),
     hCmd("apx artifact list",          36, "list artifacts"),
     hCmd("apx artifact show <name>",   36, "print artifact content"),
+    hCmd("apx artifact preview <name>",36, "serve HTML/React on a local URL w/ live-reload  [--open] [--share]"),
+    hCmd("apx artifact share <name>",  36, "preview + public tunnel URL"),
+    hCmd("apx artifact previews",      36, "list running previews  (stop with: apx artifact stop <id>)"),
     hCmd("apx artifact remove <name>", 36, ""),
 
     hSec("Commands & Skills"),
@@ -2631,6 +2683,10 @@ async function dispatch(cmd, rest) {
         else if (sub === "show" || sub === "get") await cmdArtifactShow(a);
         else if (sub === "remove" || sub === "rm") await cmdArtifactRemove(a);
         else if (sub === "run") await cmdArtifactRun(a);
+        else if (sub === "preview" || sub === "serve") await cmdArtifactPreview(a);
+        else if (sub === "share") await cmdArtifactShare(a);
+        else if (sub === "previews") await cmdArtifactPreviews(a);
+        else if (sub === "stop") await cmdArtifactStop(a);
         else die(`unknown artifact subcommand: ${sub}`);
         break;
       }
