@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import { useParams, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import {
-  Bot, Heart, Zap, Puzzle, FolderKanban, Settings,
-  MessagesSquare, Send, KeyRound,
+  Bot, Heart, Zap, Puzzle, Settings,
+  MessagesSquare, KeyRound,
   LayoutDashboard, Boxes, Cpu, ScrollText, History, Brain, FileCode2, Cable,
   Building2, FileText, FolderTree, Sparkles,
 } from "lucide-react";
@@ -40,7 +40,7 @@ import { SkillsTab } from "./project/SkillsTab";
 type NavKey =
   | "" | "chat" | "config" | "telegram"
   | "agents" | "routines" | "tasks" | "mcps" | "integrations" | "vars" | "logs" | "memories" | "artifacts"
-  | "structure" | "docs" | "files" | "skills";
+  | "structure" | "docs" | "files" | "skills" | "sessions";
 
 export function ProjectScreen() {
   const navigate = useNavigate();
@@ -51,85 +51,75 @@ export function ProjectScreen() {
 
   const isBase = String(pid) === "0";
   const sections: TabSection[] = useMemo(() => {
-    if (isBase) {
-      // Base = menú global / admin del daemon (distinto al de un proyecto).
-      return [
-        {
-          title: t("base.nav_general"),
-          items: [
-            { key: "",               label: "Dashboard",                    icon: LayoutDashboard },
-            { key: "workspaces",     label: t("base.workspaces_title"),     icon: Boxes },
-            { key: "models",         label: t("settings.tabs.engines"),     icon: Cpu },
-            { key: "agent-defaults", label: t("base.defaults_title"),       icon: Bot },
-          ],
-        },
-        {
-          title: t("base.nav_activity"),
-          items: [
-            { key: "chat",     label: t("project.nav.chat"),     icon: MessagesSquare },
-            { key: "sessions", label: t("base.sessions_title"),  icon: History },
-            { key: "tasks",    label: t("project.nav.tasks"),    icon: Zap },
-            { key: "logs",     label: t("project.nav.logs"),     icon: ScrollText },
-          ],
-        },
-        {
-          title: t("base.nav_system"),
-          items: [
-            { key: "agents",   label: t("project.nav.agents"),   icon: Bot },
-            { key: "memories", label: t("project.nav.memories"), icon: Brain },
-            { key: "skills",   label: t("skills_page.title"),    icon: Sparkles },
-            { key: "routines",  label: t("project.nav.routines"),  icon: Heart },
-            { key: "mcps",      label: t("project.nav.mcps"),      icon: Puzzle },
-            { key: "integrations", label: "Integrations",          icon: Cable },
-            { key: "vars",      label: t("project.nav.vars"),      icon: KeyRound },
-            { key: "artifacts", label: t("project.nav.artifacts"), icon: FileCode2 },
-            { key: "config",    label: t("project.nav.config"),    icon: Settings },
-          ],
-        },
-      ];
-    }
-    // Structure (org roles/areas) is only meaningful for company/enterprise
-    // projects — gate it on the project kind.
-    const isCompany = project?.kind === "company";
-    return [
+    // One shared taxonomy for both Base and projects, in the same order, so the
+    // two menus mirror each other. Base additionally gets a "General" admin
+    // section (workspaces / engines / agent defaults) and drops "Content"
+    // (no docs/files surface). "Workspace" and "Automation" are identical on
+    // both. Structure (org roles/areas) only makes sense for company projects.
+    const isCompany = !isBase && project?.kind === "company";
+
+    const out: (TabSection | null)[] = [
+      // General — Base-only daemon admin.
+      isBase ? {
+        title: t("base.nav_general"),
+        items: [
+          { key: "workspaces",     label: t("base.workspaces_title"), icon: Boxes },
+          { key: "models",         label: t("settings.tabs.engines"), icon: Cpu },
+          { key: "agent-defaults", label: t("base.defaults_title"),   icon: Bot },
+        ],
+      } : null,
+      // Workspace — the overview plus the team's own building blocks
+      // (agents / memories / skills / artifacts). "Overview" on both sides.
       {
         title: t("project.sections.workspace"),
         items: [
-          { key: "",         label: t("project.nav.overview"),  icon: FolderKanban },
-          { key: "telegram", label: t("project.nav.telegram"),  icon: Send },
-          { key: "chat",     label: t("project.nav.chat"),      icon: MessagesSquare },
-          { key: "agents",   label: t("project.nav.agents"),    icon: Bot },
+          { key: "", label: t("project.nav.overview"), icon: LayoutDashboard },
           ...(isCompany ? [{ key: "structure", label: t("project.nav.structure"), icon: Building2 }] : []),
-          { key: "memories", label: t("project.nav.memories"),  icon: Brain },
-          { key: "skills",   label: t("skills_page.title"),     icon: Sparkles },
+          { key: "agents",    label: t("project.nav.agents"),    icon: Bot },
+          { key: "memories",  label: t("project.nav.memories"),  icon: Brain },
+          { key: "skills",    label: t("skills_page.title"),     icon: Sparkles },
+          { key: "artifacts", label: t("project.nav.artifacts"), icon: FileCode2 },
         ],
       },
+      // Activity — chat / sessions / logs.
       {
+        title: t("base.nav_activity"),
+        items: [
+          { key: "chat", label: t("project.nav.chat"), icon: MessagesSquare },
+          { key: "sessions", label: t("base.sessions_title"), icon: History },
+          { key: "logs", label: t("project.nav.logs"), icon: ScrollText },
+        ],
+      },
+      // Content — docs / files. Project-only (Base has no such surface).
+      !isBase ? {
         title: t("project.sections.content"),
         items: [
           { key: "docs",  label: t("project.nav.docs"),  icon: FileText },
           { key: "files", label: t("project.nav.files"), icon: FolderTree },
         ],
-      },
+      } : null,
+      // Automation — routines / tasks / mcps / integrations / vars.
+      // Identical on both sides.
       {
         title: t("project.sections.automation"),
         items: [
-          { key: "routines",  label: t("project.nav.routines"),  icon: Heart },
-          { key: "tasks",     label: t("project.nav.tasks"),     icon: Zap },
-          { key: "mcps",      label: t("project.nav.mcps"),      icon: Puzzle },
-          { key: "integrations", label: "Integrations",          icon: Cable },
-          { key: "vars",      label: t("project.nav.vars"),      icon: KeyRound },
-          { key: "artifacts", label: t("project.nav.artifacts"), icon: FileCode2 },
-          { key: "logs",      label: t("project.nav.logs"),      icon: ScrollText },
+          { key: "routines",     label: t("project.nav.routines"),  icon: Heart },
+          { key: "tasks",        label: t("project.nav.tasks"),     icon: Zap },
+          { key: "mcps",         label: t("project.nav.mcps"),      icon: Puzzle },
+          { key: "integrations", label: "Integrations",             icon: Cable },
+          { key: "vars",         label: t("project.nav.vars"),      icon: KeyRound },
         ],
       },
+      // Config — the general project/daemon config.
       {
         title: t("project.sections.config"),
         items: [
-          { key: "config",   label: t("project.nav.config"),    icon: Settings },
+          { key: "config", label: t("project.nav.config"), icon: Settings },
         ],
       },
     ];
+
+    return out.filter(Boolean) as TabSection[];
   }, [isBase, project?.kind]);
 
   // First path segment after /p/:pid — so deep routes like agents/:slug still
@@ -171,7 +161,7 @@ export function ProjectScreen() {
         <Route path="workspaces"   element={<WorkspacesTab />} />
         <Route path="models"       element={<ModelsTab />} />
         <Route path="agent-defaults" element={<AgentDefaultsTab />} />
-        <Route path="sessions"     element={<SessionsTab />} />
+        <Route path="sessions"     element={<SessionsTab pid={pid} />} />
         <Route path="logs"         element={<LogsTab pid={pid} />} />
         <Route path="config"       element={<ConfigTab pid={pid} />} />
         <Route path="telegram"     element={<TelegramTab pid={pid} />} />

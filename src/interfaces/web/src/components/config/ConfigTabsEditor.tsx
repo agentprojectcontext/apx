@@ -32,6 +32,7 @@ export function ConfigTabsEditor({
   onSaveFields,
   onSaveJson,
   busy,
+  hideJson = false,
 }: {
   sections: ConfigSection[];
   source: Record<string, unknown>;
@@ -42,6 +43,8 @@ export function ConfigTabsEditor({
   onSaveFields: (set: Record<string, unknown>, unset: string[]) => Promise<void>;
   onSaveJson: (next: Record<string, unknown>) => Promise<void>;
   busy?: boolean;
+  /** Hide the raw-JSON tab (used when JSON editing lives in its own top tab). */
+  hideJson?: boolean;
 }) {
   const firstKey = sections[0]?.key || "json";
   const [draft, setDraft] = useState<Record<string, unknown>>({});
@@ -92,51 +95,63 @@ export function ConfigTabsEditor({
     }
   };
 
+  const sectionBody = (section: ConfigSection) => (
+    <div className="space-y-4">
+      {section.description && <p className="text-sm text-muted-fg">{section.description}</p>}
+      <div className="grid gap-3 md:grid-cols-2">
+        {section.fields.map((field) => (
+          <ConfigFieldControl
+            key={field.path}
+            field={field}
+            value={draft[field.path]}
+            inherited={getDotted(placeholderSource, field.path)}
+            onChange={(value) => setDraft((prev) => ({ ...prev, [field.path]: value }))}
+          />
+        ))}
+      </div>
+      <Button variant="primary" loading={busy} onClick={saveFields}>{saveLabel}</Button>
+    </div>
+  );
+
+  // Single section with no JSON tab → render the fields flat (no inner tab bar),
+  // so the parent's top-level tab is the only tab the user sees.
+  if (hideJson && sections.length <= 1) {
+    return sections[0] ? sectionBody(sections[0]) : null;
+  }
+
   return (
     <Tabs defaultValue={firstKey} className="space-y-4">
       <TabsList className="flex flex-wrap">
         {sections.map((section) => (
           <TabsTrigger key={section.key} value={section.key}>{section.label}</TabsTrigger>
         ))}
-        <TabsTrigger value="json">JSON</TabsTrigger>
+        {!hideJson && <TabsTrigger value="json">JSON</TabsTrigger>}
       </TabsList>
 
       {sections.map((section) => (
         <TabsContent key={section.key} value={section.key}>
-          <div className="space-y-4">
-            {section.description && <p className="text-sm text-muted-fg">{section.description}</p>}
-            <div className="grid gap-3 md:grid-cols-2">
-              {section.fields.map((field) => (
-                <ConfigFieldControl
-                  key={field.path}
-                  field={field}
-                  value={draft[field.path]}
-                  inherited={getDotted(placeholderSource, field.path)}
-                  onChange={(value) => setDraft((prev) => ({ ...prev, [field.path]: value }))}
-                />
-              ))}
-            </div>
-            <Button variant="primary" loading={busy} onClick={saveFields}>{saveLabel}</Button>
-          </div>
+          {sectionBody(section)}
         </TabsContent>
       ))}
 
-      <TabsContent value="json">
-        <div className="space-y-3">
-          <div>
-            <h3 className="text-sm font-medium">{jsonTitle}</h3>
-            {jsonDescription && <p className="text-xs text-muted-fg">{jsonDescription}</p>}
+      {!hideJson && (
+        <TabsContent value="json">
+          <div className="space-y-3">
+            <div>
+              <h3 className="text-sm font-medium">{jsonTitle}</h3>
+              {jsonDescription && <p className="text-xs text-muted-fg">{jsonDescription}</p>}
+            </div>
+            <Textarea
+              rows={18}
+              className="font-mono text-xs"
+              value={raw}
+              onChange={(event) => setRaw(event.target.value)}
+            />
+            {jsonError && <p className="text-xs text-destructive">{jsonError}</p>}
+            <Button variant="primary" loading={busy} onClick={saveJson}>{t("settings_ui.save_json")}</Button>
           </div>
-          <Textarea
-            rows={18}
-            className="font-mono text-xs"
-            value={raw}
-            onChange={(event) => setRaw(event.target.value)}
-          />
-          {jsonError && <p className="text-xs text-destructive">{jsonError}</p>}
-          <Button variant="primary" loading={busy} onClick={saveJson}>{t("settings_ui.save_json")}</Button>
-        </div>
-      </TabsContent>
+        </TabsContent>
+      )}
     </Tabs>
   );
 }
