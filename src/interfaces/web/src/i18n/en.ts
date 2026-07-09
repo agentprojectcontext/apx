@@ -711,6 +711,8 @@ export const en = {
       save_fields_success: "Overrides saved.",
       save_meta_success: "Project metadata saved.",
       no_data:     "No data.",
+      tab_settings: "Settings",
+      tab_project:  "Project",
     },
 
     telegram: {
@@ -731,6 +733,9 @@ export const en = {
     },
 
     memories: {
+      sidebar_title:   "Memories",
+      general_group:   "General",
+      general_item:    "Project memory",
       project_title:   "Project memory",
       project_desc:    "Durable facts at the project level. .apc/memory.md — read by agents and the super-agent.",
       project_ph:      "# Project Memory\n\nStable facts that any agent should know…",
@@ -756,6 +761,7 @@ export const en = {
     workspaces_empty:   "No projects. Add one with the button above.",
     sessions_title:     "Sessions",
     sessions_desc:      "Sessions from all engines (apx · claude · codex), newest first.",
+    sessions_desc_scoped: "Sessions in this project's folder ({path}), all engines, newest first.",
     sessions_all:       "All engines",
     sessions_empty:     "No sessions.",
     sessions_error:     "Could not read sessions: {msg}",

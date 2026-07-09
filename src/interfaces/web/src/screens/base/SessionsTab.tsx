@@ -7,15 +7,21 @@ import { Badge, Button, Empty, Input, Loading, Tip } from "../../components/ui";
 import { UiSelect } from "../../components/UiSelect";
 import { useToast } from "../../components/Toast";
 import { usePersonaName } from "../../hooks/usePersonaName";
+import { useProject } from "../../hooks/useProjects";
 import { t } from "../../i18n";
 
 const ENGINE_TONE: Record<string, "success" | "info" | "warning" | "muted"> = {
   apx: "success", claude: "info", codex: "warning",
 };
 
-export function SessionsTab() {
+// `pid` present + not base → scope to that project's local folder. Base (or no
+// pid) shows every session across engines and folders.
+export function SessionsTab({ pid }: { pid?: string } = {}) {
   const toast = useToast();
   const persona = usePersonaName();
+  const isBase = !pid || String(pid) === "0";
+  const { project } = useProject(isBase ? "" : pid);
+  const cwd = isBase ? undefined : project?.path || undefined;
   const [engine, setEngine] = useState("");
   const [input, setInput] = useState("");
   const [query, setQuery] = useState("");
@@ -28,10 +34,10 @@ export function SessionsTab() {
   }, [input]);
 
   const paged = usePagedQuery<SessionRow>({
-    key: `/sessions?engine=${engine}&q=${query}&deep=${deep ? 1 : 0}`,
+    key: `/sessions?engine=${engine}&q=${query}&deep=${deep ? 1 : 0}&cwd=${cwd || ""}`,
     fetchPage: (limit, offset) =>
-      Sessions.page({ engine: engine || undefined, q: query || undefined, deep, limit, offset }),
-    resetKey: `${engine}|${query}|${deep ? 1 : 0}`,
+      Sessions.page({ engine: engine || undefined, q: query || undefined, deep, cwd, limit, offset }),
+    resetKey: `${engine}|${query}|${deep ? 1 : 0}|${cwd || ""}`,
   });
 
   const clear = () => { setInput(""); setQuery(""); setEngine(""); setDeep(false); };
@@ -72,7 +78,7 @@ export function SessionsTab() {
     <Section
       fullHeight
       title={t("base.sessions_title")}
-      description={t("base.sessions_desc")}
+      description={isBase ? t("base.sessions_desc") : t("base.sessions_desc_scoped", { path: cwd || "…" })}
       action={
         <Tip content={t("base.sessions_refresh")}>
           <Button size="sm" variant="secondary" onClick={() => paged.mutate()}><RefreshCw size={13} /></Button>
