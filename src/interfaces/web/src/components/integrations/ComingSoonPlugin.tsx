@@ -1,12 +1,13 @@
-import { useState } from "react";
-import { Github, MessageCircle, Mic, Puzzle } from "lucide-react";
+import { useState, type ComponentType } from "react";
+import { Github, Mic, Puzzle } from "lucide-react";
 import type { CatalogEntry } from "../../lib/api";
 import { t } from "../../i18n";
 import { PluginCard } from "./PluginCard";
+import { WhatsAppLogo } from "./BrandLogos";
 
-const ICONS: Record<string, { icon: typeof Puzzle; className: string; wrap: string }> = {
+const ICONS: Record<string, { icon: ComponentType<{ className?: string }>; className: string; wrap: string }> = {
   github: { icon: Github, className: "text-slate-200", wrap: "border-slate-500/30 from-slate-500/20 to-slate-700/20" },
-  whatsapp: { icon: MessageCircle, className: "text-[#25D366]", wrap: "border-[#25D366]/30 from-[#25D366]/20 to-[#128C7E]/20" },
+  whatsapp: { icon: WhatsAppLogo, className: "text-[#25D366]", wrap: "border-[#25D366]/30 from-[#25D366]/20 to-[#128C7E]/20" },
   "local-transcription": { icon: Mic, className: "text-orange-400", wrap: "border-orange-500/30 from-orange-500/20 to-amber-500/20" },
 };
 

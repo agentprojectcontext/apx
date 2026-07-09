@@ -61,6 +61,12 @@ export const TOOLS = Object.freeze({
   GITHUB_LIST_REPOS:   "github_list_repos",
   GITHUB_CREATE_ISSUE: "github_create_issue",
 
+  // Integrations — Obsidian plugin (see core/integrations/plugins/obsidian.js)
+  OBSIDIAN_SEARCH_NOTES: "obsidian_search_notes",
+  OBSIDIAN_READ_NOTE:    "obsidian_read_note",
+  OBSIDIAN_WRITE_NOTE:   "obsidian_write_note",
+  OBSIDIAN_LIST_NOTES:   "obsidian_list_notes",
+
   // Side-effects
   SEND_TELEGRAM:       "send_telegram",
   SET_IDENTITY:        "set_identity",
@@ -112,6 +118,10 @@ export const NATIVE_TOOL_NAMES = new Set([
   TOOLS.ASANA_UPDATE_TASK,
   TOOLS.GITHUB_LIST_REPOS,
   TOOLS.GITHUB_CREATE_ISSUE,
+  TOOLS.OBSIDIAN_SEARCH_NOTES,
+  TOOLS.OBSIDIAN_READ_NOTE,
+  TOOLS.OBSIDIAN_WRITE_NOTE,
+  TOOLS.OBSIDIAN_LIST_NOTES,
   TOOLS.SEND_TELEGRAM,
   TOOLS.SET_IDENTITY,
   TOOLS.SET_PERMISSION_MODE,

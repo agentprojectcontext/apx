@@ -23,6 +23,7 @@ import {
   defaultIntegrationsStorage,
   listCatalog,
   getPluginService,
+  reconcilePluginMcp,
 } from "#core/integrations/index.js";
 
 function normalizeScope(raw) {
@@ -43,7 +44,23 @@ function storagePathForScope(scope, p, projects) {
   return p.storagePath || null;
 }
 
-export function register(app, { projects, project }) {
+export function register(app, { projects, project, registries }) {
+  // Keep a plugin's optional auto-registered MCP server (svc.mcpServer hook) in
+  // lockstep with its stored state. Best-effort: a failure here must not break
+  // the configure/validate/deactivate/delete response. `storagePath` is the one
+  // the handler wrote to (so global-scope records resolve from the default
+  // store), `scope` is the integration scope ("project" | "global").
+  function reconcileMcp(svc, storagePath, scope, p) {
+    if (typeof svc?.mcpServer !== "function") return;
+    try {
+      const record = storagePath ? new IntegrationStore(storagePath).get(svc.slug) : null;
+      const desired = svc.mcpServer(record);
+      reconcilePluginMcp({ desired, integrationScope: scope, project: p, projects, registries });
+    } catch {
+      /* best-effort MCP reconcile — ignore */
+    }
+  }
+
   // List stored integrations in the chosen scope (secrets redacted).
   app.get("/projects/:pid/integrations", (req, res) => {
     const p = project(req, res);
@@ -107,6 +124,7 @@ export function register(app, { projects, project }) {
     try {
       const { patch } = svc.configure(store.get(req.params.slug), req.body || {});
       const record = store.upsert(req.params.slug, patch);
+      reconcileMcp(svc, storagePath, scope, p);
       res.status(201).json(redactRecord(record));
     } catch (e) {
       res.status(400).json({ error: e.message });
@@ -129,6 +147,7 @@ export function register(app, { projects, project }) {
     try {
       const { patch, result } = await svc.validate(record);
       store.upsert(req.params.slug, patch);
+      reconcileMcp(svc, storagePath, scope, p);
       if (result && result.ok === false) return res.status(400).json(result);
       res.json(result);
     } catch (e) {
@@ -150,6 +169,7 @@ export function register(app, { projects, project }) {
     if (!store.get(req.params.slug)) return res.status(404).json({ error: "integration not configured" });
     const { patch } = svc.deactivate(store.get(req.params.slug));
     const record = store.upsert(req.params.slug, patch);
+    reconcileMcp(svc, storagePath, scope, p);
     res.json(svc.status(record));
   });
 
@@ -170,7 +190,10 @@ export function register(app, { projects, project }) {
     const record = new IntegrationStore(storagePath).get(req.params.slug);
     if (!record) return res.status(404).json({ error: "integration not configured" });
     try {
-      res.json(await fn.call(svc.actions, record));
+      // Actions get a 2nd ctx arg (existing plugins ignore it). Obsidian's
+      // sync_memory uses it to reach every project's memory.md.
+      const actionCtx = { storagePath, scope, project: p, projects, registries };
+      res.json(await fn.call(svc.actions, record, actionCtx));
     } catch (e) {
       res.status(400).json({ error: e.message });
     }
@@ -186,6 +209,8 @@ export function register(app, { projects, project }) {
     if (!storagePath) return res.status(400).json({ error: "project has no storage path" });
     const removed = new IntegrationStore(storagePath).remove(req.params.slug);
     if (!removed) return res.status(404).end();
+    // Record is gone → svc.mcpServer(null) yields def:null → drop any auto MCP.
+    reconcileMcp(getPluginService(req.params.slug), storagePath, scope, p);
     res.status(204).end();
   });
 }

@@ -1,12 +1,14 @@
 import { useState, type ReactNode } from "react";
 import useSWR from "swr";
-import { AlertCircle, CheckCircle2, ChevronDown, ExternalLink, Eye, EyeOff, Github, Loader2, WifiOff, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, ChevronDown, ExternalLink, Eye, EyeOff, Github, Loader2, RefreshCw, WifiOff, X } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { Integrations, type CatalogEntry, type IntegrationScope, type IntegrationStatus } from "../../lib/api";
 import { t } from "../../i18n";
 import type { TKey } from "../../i18n";
 import { PluginCard } from "./PluginCard";
 import { PluginToolsSection } from "./PluginToolsSection";
+import { FolderInput } from "./FolderInput";
+import { AsanaLogo, ObsidianLogo } from "./BrandLogos";
 
 // One generic component that renders any token-based plugin's config form from
 // its `ui` descriptor (structure) + i18n (all display text, keyed by slug). Asana
@@ -15,11 +17,22 @@ import { PluginToolsSection } from "./PluginToolsSection";
 // Dynamic i18n lookup for computed per-slug keys (t is typed to known keys).
 const tk = (key: string, vars?: Record<string, string | number>) => t(key as TKey, vars);
 
-function AsanaLogo({ className }: { className?: string }) {
+// Minimal on/off switch matching the hand-rolled styling of this component.
+function Toggle({ on, onChange, disabled, accent }: { on: boolean; onChange: (next: boolean) => void; disabled?: boolean; accent: Accent }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-      <path d="M18.833 9.637a4.167 4.167 0 1 1 0 8.333 4.167 4.167 0 0 1 0-8.333zm-13.666 0a4.167 4.167 0 1 1 0 8.333 4.167 4.167 0 0 1 0-8.333zM12 2a4.167 4.167 0 1 1 0 8.333A4.167 4.167 0 0 1 12 2z" />
-    </svg>
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      disabled={disabled}
+      onClick={() => onChange(!on)}
+      className={cn(
+        "relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full border transition-colors disabled:cursor-not-allowed disabled:opacity-50",
+        on ? cn("bg-emerald-500/30", accent.border) : "border-border bg-muted",
+      )}
+    >
+      <span className={cn("inline-block h-3.5 w-3.5 transform rounded-full bg-foreground transition-transform", on ? "translate-x-4" : "translate-x-0.5")} />
+    </button>
   );
 }
 
@@ -27,11 +40,13 @@ type Accent = { text: string; border: string; hover: string; ring: string; wrap:
 const ACCENTS: Record<string, Accent> = {
   rose: { text: "text-rose-400", border: "border-rose-700/50", hover: "hover:bg-rose-900/20", ring: "focus:border-rose-500/50", wrap: "border-rose-500/30 from-rose-500/20 to-pink-500/20" },
   slate: { text: "text-slate-200", border: "border-slate-600/60", hover: "hover:bg-slate-700/30", ring: "focus:border-slate-400/60", wrap: "border-slate-500/30 from-slate-500/20 to-slate-700/20" },
+  purple: { text: "text-purple-400", border: "border-purple-700/50", hover: "hover:bg-purple-900/20", ring: "focus:border-purple-500/50", wrap: "border-purple-500/30 from-purple-500/20 to-violet-500/20" },
 };
 
 function iconFor(slug: string, accent: Accent): ReactNode {
   if (slug === "github") return <Github className={cn("h-6 w-6", accent.text)} />;
   if (slug === "asana") return <AsanaLogo className={cn("h-6 w-6", accent.text)} />;
+  if (slug === "obsidian") return <ObsidianLogo className={cn("h-6 w-6", accent.text)} />;
   return <span className={cn("text-lg", accent.text)}>◆</span>;
 }
 
@@ -50,6 +65,8 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
   const [error, setError] = useState<string | null>(null);
   const [selectOptions, setSelectOptions] = useState<Opt[]>([]);
   const [selectValue, setSelectValue] = useState("");
+  const [actionBusy, setActionBusy] = useState<string | null>(null);
+  const [actionMsg, setActionMsg] = useState<string | null>(null);
 
   const { data: status, mutate, isLoading } = useSWR<IntegrationStatus>(
     `integration-status-${entry.slug}-${pid}-${scope}`,
@@ -60,13 +77,22 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
   const isActive = status?.status === "active" && status.is_enabled === true;
   const busy = step === "saving" || step === "validating";
   const showForm = !isActive && selectOptions.length === 0;
+  // Toggle fields (boolean switches) vs. required text/password inputs.
+  const toggleFields = ui.configFields.filter((f) => f.type === "toggle");
+  const requiredFields = ui.configFields.filter((f) => f.type !== "toggle");
+  const missingRequired = requiredFields.some((f) => !values[f.key]?.trim());
 
   async function handleConnect() {
-    if (ui.configFields.some((f) => !values[f.key]?.trim())) return;
+    if (missingRequired) return;
     setStep("saving");
     setError(null);
     try {
-      await Integrations.configure(pid, entry.slug, scope, { ...values });
+      // Seed toggle defaults so the plugin gets an explicit boolean on first save.
+      const payload: Record<string, unknown> = { ...values };
+      for (const f of toggleFields) {
+        if (payload[f.key] === undefined) payload[f.key] = f.default ? "true" : "false";
+      }
+      await Integrations.configure(pid, entry.slug, scope, payload);
       setStep("validating");
       const result = (await Integrations.validate(pid, entry.slug, scope)) as unknown as Record<string, unknown>;
       await mutate();
@@ -108,6 +134,40 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
       await mutate();
     } catch (err) {
       setError(err instanceof Error ? err.message : t("integrations.err_generic"));
+    }
+  }
+
+  // Flip a boolean toggle while the plugin is already connected (re-configures +
+  // re-validates so side effects like the auto-MCP reconcile run).
+  async function handleToggleLive(key: string, next: boolean) {
+    setError(null);
+    setActionMsg(null);
+    try {
+      await Integrations.configure(pid, entry.slug, scope, { [key]: next ? "true" : "false" });
+      await Integrations.validate(pid, entry.slug, scope);
+      await mutate();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("integrations.err_generic"));
+    }
+  }
+
+  // Run a plugin action (e.g. Obsidian sync_memory) from the connected view.
+  async function handleAction(action: string) {
+    setError(null);
+    setActionMsg(null);
+    setActionBusy(action);
+    try {
+      const r = (await Integrations.action(pid, entry.slug, action, scope)) as Record<string, unknown>;
+      if (typeof r?.count === "number") {
+        setActionMsg(tk(`integrations.${entry.slug}.actions.${action}_done`, { count: r.count, changed: Number(r.changed ?? 0) }));
+      } else {
+        setActionMsg(t("integrations.action_done"));
+      }
+      await mutate();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("integrations.err_generic"));
+    } finally {
+      setActionBusy(null);
     }
   }
 
@@ -171,6 +231,40 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
           </div>
         )}
 
+        {/* Options (live toggles) + actions — shown once connected */}
+        {isActive && selectOptions.length === 0 && toggleFields.length > 0 && (
+          <div className="space-y-2 rounded-xl border border-border p-3">
+            {toggleFields.map((field) => (
+              <div key={field.key} className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-medium text-foreground">{tk(`integrations.${entry.slug}.fields.${field.key}.label`)}</p>
+                  <p className="text-[10px] text-muted-foreground">{tk(`integrations.${entry.slug}.fields.${field.key}.hint`)}</p>
+                </div>
+                <Toggle on={!!status?.[field.key]} accent={accent} onChange={(next) => handleToggleLive(field.key, next)} />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {isActive && selectOptions.length === 0 && (ui.actions?.length ?? 0) > 0 && (
+          <div className="space-y-2">
+            {actionMsg && <p className="text-[11px] text-emerald-400">{actionMsg}</p>}
+            <div className="flex flex-wrap gap-2">
+              {ui.actions!.map((a) => (
+                <button
+                  key={a.action}
+                  onClick={() => handleAction(a.action)}
+                  disabled={actionBusy === a.action}
+                  className={cn("flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs transition-all disabled:cursor-not-allowed disabled:opacity-50", accent.border, accent.text, accent.hover)}
+                >
+                  {actionBusy === a.action ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                  {tk(`integrations.${entry.slug}.actions.${a.action}`)}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Post-validate selection (e.g. Asana workspace) */}
         {selectOptions.length > 1 && ui.select && (
           <div className="space-y-2">
@@ -201,7 +295,20 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
         {showForm && (
           <div className="space-y-3">
             <p className="text-xs font-semibold text-foreground">{t("integrations.credentials", { name: entry.name })}</p>
-            {ui.configFields.map((field) => (
+            {ui.configFields.map((field) => {
+              if (field.type === "toggle") {
+                const on = values[field.key] !== undefined ? values[field.key] === "true" : !!field.default;
+                return (
+                  <div key={field.key} className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
+                    <div>
+                      <p className="text-[11px] font-medium text-foreground">{tk(`integrations.${entry.slug}.fields.${field.key}.label`)}</p>
+                      <p className="text-[10px] text-muted-foreground">{tk(`integrations.${entry.slug}.fields.${field.key}.hint`)}</p>
+                    </div>
+                    <Toggle on={on} accent={accent} onChange={(next) => setValues((v) => ({ ...v, [field.key]: next ? "true" : "false" }))} />
+                  </div>
+                );
+              }
+              return (
               <div key={field.key} className="space-y-2">
                 {field.help_url && (
                   <div className="overflow-hidden rounded-lg border border-border">
@@ -238,6 +345,16 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
                 )}
                 <div>
                   <label className="mb-1 block text-[10px] text-muted-foreground">{tk(`integrations.${entry.slug}.fields.${field.key}.label`)}</label>
+                  {field.type === "path" ? (
+                    <FolderInput
+                      value={values[field.key] || ""}
+                      onChange={(next) => setValues((v) => ({ ...v, [field.key]: next }))}
+                      onEnter={handleConnect}
+                      placeholder={field.placeholder}
+                      ringClassName={accent.ring}
+                      btnClassName={cn(accent.border, accent.text, accent.hover)}
+                    />
+                  ) : (
                   <div className="relative">
                     <input
                       type={field.type === "password" && !reveal[field.key] ? "password" : "text"}
@@ -258,9 +375,11 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
                       </button>
                     )}
                   </div>
+                  )}
                 </div>
               </div>
-            ))}
+              );
+            })}
 
             {step === "validating" && (
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -270,7 +389,7 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
 
             <button
               onClick={handleConnect}
-              disabled={ui.configFields.some((f) => !values[f.key]?.trim()) || busy}
+              disabled={missingRequired || busy}
               className={cn("flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs transition-all disabled:cursor-not-allowed disabled:opacity-50", accent.border, accent.text, accent.hover)}
             >
               {busy ? (
