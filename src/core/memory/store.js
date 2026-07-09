@@ -8,17 +8,29 @@
 //
 // Both expose the same interface:
 //   upsert(rows)              rows: {id, source, channel, ts, tag, text, embedder, dim, vector}
-//   search(vector, {embedder, k, channel}) -> [{...row, score}]
+//   search(vector, {embedder, k, channel, scope}) -> [{...row, score}]
 //   hasId(id) / count()
 //   close()
 //
 // Cosine is only meaningful within one embedder space, so search() filters to
 // rows whose `embedder` matches the query's embedder. Everything here is
 // best-effort: open() never throws — on any failure it returns a JsonStore.
+//
+// Scope isolation (memory belongs to whoever wrote it):
+//   - project/agent memory rows carry a scoped `channel` ("project:<id>" or
+//     "agent:<projdir>:<slug>"). Global conversational rows use the channel name
+//     (telegram/web/…) or "memory".
+//   - search({scope}) keeps retrieval from leaking across scopes:
+//       scope === "global"  → EXCLUDE project:/agent: rows (super-agent recall)
+//       scope === "<value>" → ONLY rows whose channel equals that value
+//       scope omitted        → no scope filter (back-compat)
 
 import fs from "node:fs";
 import path from "node:path";
 import { cosineSim } from "./embeddings.js";
+
+export const SCOPE_PREFIXES = ["project:", "agent:"];
+const isScopedChannel = (c) => SCOPE_PREFIXES.some((p) => String(c || "").startsWith(p));
 
 function vecToBlob(vec) {
   const f = new Float32Array(vec);
@@ -87,11 +99,13 @@ export class JsonStore {
     this._flush();
   }
 
-  search(vector, { embedder, k = 5, channel } = {}) {
+  search(vector, { embedder, k = 5, channel, scope } = {}) {
     const scored = [];
     for (const row of this.rows.values()) {
       if (embedder && row.embedder !== embedder) continue;
       if (channel && row.channel !== channel) continue;
+      if (scope === "global" && isScopedChannel(row.channel)) continue;
+      if (scope && scope !== "global" && row.channel !== scope) continue;
       if (!Array.isArray(row.vector) || row.vector.length !== vector.length) continue;
       scored.push({ ...row, score: cosineSim(vector, row.vector) });
     }
@@ -171,13 +185,19 @@ class SqliteVecStore {
     this.db.prepare("DELETE FROM chunks").run();
   }
 
-  search(vector, { embedder, k = 5, channel } = {}) {
+  search(vector, { embedder, k = 5, channel, scope } = {}) {
     const blob = vecToBlob(vector);
     const where = ["embedder = ?", "dim = ?"];
     const params = [embedder, vector.length];
     if (channel) {
       where.push("channel = ?");
       params.push(channel);
+    }
+    if (scope === "global") {
+      where.push("(channel NOT LIKE 'project:%' AND channel NOT LIKE 'agent:%')");
+    } else if (scope) {
+      where.push("channel = ?");
+      params.push(scope);
     }
     const rows = this.db
       .prepare(

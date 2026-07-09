@@ -21,12 +21,14 @@ import fs from "node:fs";
 import path from "node:path";
 import { GLOBAL_MESSAGES_DIR, APX_HOME } from "../config/index.js";
 import { SELF_MEMORY_PATH, parseSelfMemoryEntries } from "../agent/self-memory.js";
+import { apcMemoryFile } from "../apc/paths.js";
 import { embedBatch, embedOne } from "./embeddings.js";
 
 export const CURSOR_PATH = path.join(APX_HOME, "memory-cursor.json");
 
 const BODY_CAP = 1200; // chars kept per user/agent chunk
 const TOOL_CAP = 400; // chars kept per tool-result chunk
+const SCOPED_CAP = 800; // chars kept per project/agent memory block
 
 function fnv1aHex(str) {
   let h = 0x811c9dc5;
@@ -35,6 +37,14 @@ function fnv1aHex(str) {
     h = Math.imul(h, 0x01000193);
   }
   return (h >>> 0).toString(16);
+}
+
+function readIfExists(p) {
+  try {
+    return fs.readFileSync(p, "utf8");
+  } catch {
+    return null;
+  }
 }
 
 function readCursor(cursorPath) {
@@ -177,6 +187,78 @@ function collectMemoryChunks(store, memoryPath) {
   return fresh;
 }
 
+// Split free-form markdown (project/agent memory — NOT the dated-notebook
+// format) into meaningful blocks: blank-line separated, whitespace-collapsed,
+// capped, and filtered so empty template sections ("## Identity\n- ") never
+// pollute the store. Each block becomes one scoped chunk.
+function chunkFreeMarkdown(text) {
+  return String(text || "")
+    .split(/\n\s*\n/)
+    .map((block) => {
+      // Drop pure-heading blocks (a "# Title" with no body under it) — they add
+      // noise to retrieval. Keep blocks that have at least one non-heading line.
+      const lines = block.split("\n").map((l) => l.trim()).filter(Boolean);
+      if (!lines.some((l) => !l.startsWith("#"))) return "";
+      return block.replace(/\s+/g, " ").trim();
+    })
+    .filter((b) => meaningfulBody(b))
+    .map((b) => b.slice(0, SCOPED_CAP));
+}
+
+// Per-agent memory lives at ~/.apx/projects/<projdir>/agents/<slug>/memory.md.
+// Walkable straight off the filesystem — no registry needed. Scoped by channel
+// "agent:<projdir>:<slug>" so retrieval never leaks between agents.
+function collectAgentMemoryChunks(store, apxHome) {
+  const fresh = [];
+  const projectsRoot = path.join(apxHome, "projects");
+  let projDirs;
+  try {
+    projDirs = fs.readdirSync(projectsRoot);
+  } catch {
+    return fresh;
+  }
+  for (const projDir of projDirs) {
+    const agentsDir = path.join(projectsRoot, projDir, "agents");
+    let slugs;
+    try {
+      slugs = fs.readdirSync(agentsDir);
+    } catch {
+      continue;
+    }
+    for (const slug of slugs) {
+      const body = readIfExists(path.join(agentsDir, slug, "memory.md"));
+      if (body == null) continue;
+      const channel = `agent:${projDir}:${slug}`;
+      for (const block of chunkFreeMarkdown(body)) {
+        const id = `agentmem:${projDir}:${slug}:${fnv1aHex(block)}`;
+        if (store.hasId(id)) continue;
+        fresh.push({ id, source: "agent-memory", channel, ts: "", tag: "agent-memory", text: block });
+      }
+    }
+  }
+  return fresh;
+}
+
+// Project memory (.apc/memory.md) for every registered project. Needs the
+// registry to map id → repo path. Scoped by channel "project:<id>".
+function collectProjectMemoryChunks(store, projects) {
+  const fresh = [];
+  const list = typeof projects?.list === "function" ? projects.list() : Array.isArray(projects) ? projects : [];
+  for (const entry of list) {
+    const root = entry?.path;
+    if (!root) continue; // the default project (id 0) has no repo root
+    const body = readIfExists(apcMemoryFile(root));
+    if (body == null) continue;
+    const channel = `project:${entry.id}`;
+    for (const block of chunkFreeMarkdown(body)) {
+      const id = `projmem:${entry.id}:${fnv1aHex(block)}`;
+      if (store.hasId(id)) continue;
+      fresh.push({ id, source: "project-memory", channel, ts: "", tag: "project-memory", text: block });
+    }
+  }
+  return fresh;
+}
+
 // Run one incremental indexing pass. Returns { indexed, backend }.
 // `opts.embed` overrides embedding options (baseUrl/model/timeoutMs) for tests.
 export async function indexNewMessages(store, opts = {}) {
@@ -220,7 +302,12 @@ export async function indexNewMessages(store, opts = {}) {
 
   const { fresh: msgChunks, maxTsByChannel } = collectMessageChunks(store, cursor, messagesDir);
   const memChunks = collectMemoryChunks(store, memoryPath);
-  let chunks = [...msgChunks, ...memChunks];
+  // Scoped memory (Pieza 5): per-agent + per-project notebooks, tagged with a
+  // scoped channel so retrieval can be isolated. Idempotent by content hash, so
+  // re-derived every pass like memory.md (cheap, few blocks).
+  const agentChunks = collectAgentMemoryChunks(store, opts.apxHome || APX_HOME);
+  const projChunks = collectProjectMemoryChunks(store, opts.projects);
+  let chunks = [...msgChunks, ...memChunks, ...agentChunks, ...projChunks];
   if (chunks.length === 0) return { indexed: 0, backend: store.backend };
 
   // Cap per-run work so a huge first index doesn't block; the rest is picked

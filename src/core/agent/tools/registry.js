@@ -40,6 +40,10 @@ import asanaCreateTask from "./handlers/asana-create-task.js";
 import asanaUpdateTask from "./handlers/asana-update-task.js";
 import githubListRepos from "./handlers/github-list-repos.js";
 import githubCreateIssue from "./handlers/github-create-issue.js";
+import obsidianSearchNotes from "./handlers/obsidian-search-notes.js";
+import obsidianReadNote from "./handlers/obsidian-read-note.js";
+import obsidianWriteNote from "./handlers/obsidian-write-note.js";
+import obsidianListNotes from "./handlers/obsidian-list-notes.js";
 import { createPermissionGuard } from "./helpers.js";
 import { buildBridgedTools, DEFAULT_CATEGORIES } from "./registry-bridge.js";
 import { TOOLS, CODE_CHANNEL_TOOLS } from "./names.js";
@@ -91,6 +95,10 @@ const NATIVE_TOOLS = [
   asanaUpdateTask,
   githubListRepos,
   githubCreateIssue,
+  obsidianSearchNotes,
+  obsidianReadNote,
+  obsidianWriteNote,
+  obsidianListNotes,
 ];
 
 // Registry-backed bridges. Categories can be overridden per-process via env

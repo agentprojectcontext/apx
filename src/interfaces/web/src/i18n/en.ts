@@ -1881,6 +1881,7 @@ export const en = {
     tools_available_note: "Available to agents that allow them, or via discover_tools.",
     err_connect:         "Failed to connect",
     err_generic:         "Something went wrong",
+    action_done:         "Done",
     asana: {
       select_label: "Select the workspace to use",
       connected: { user_name: "Connected as", user_email: "Email", workspace_name: "Workspace" },
@@ -1900,6 +1901,26 @@ export const en = {
           help_label: "How to get the token?",
           help_steps: "Open github.com/settings/tokens.\nGenerate a token (classic or fine-grained) with the \"repo\" scope.\nCopy the token — it starts with ghp_ or github_pat_.\nPaste it in the field below.",
         },
+      },
+    },
+    obsidian: {
+      connected: { vault_path: "Vault", vault_name: "Name", note_count: "Notes" },
+      fields: {
+        vault_path: {
+          label: "Vault path",
+        },
+        auto_mcp: {
+          label: "Auto-register Obsidian MCP",
+          hint: "Adds an 'obsidian' MCP server pointing at this vault, in this scope.",
+        },
+        memory_sync: {
+          label: "Sync APX memory",
+          hint: "Enable mirroring APX memory into the vault, then use the button below.",
+        },
+      },
+      actions: {
+        sync_memory: "Sync memory now",
+        sync_memory_done: "Synced {count} file(s) · {changed} changed",
       },
     },
   },
