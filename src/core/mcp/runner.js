@@ -18,6 +18,20 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+// Serializes cold-starts that share an npm/npx cache dir. Two MCP processes
+// with the same command+args but different env — e.g. the same
+// `npx @ahdev/dokploy-mcp@1.6.0` registered in two projects pointing at
+// different DOKPLOY_URLs — resolve to ONE shared npm cache dir
+// (~/.npm/_npx/<hash>). npm does not guard that dir against concurrent writes,
+// so overlapping cold-starts corrupt it (ENOTEMPTY / partial node_modules) and
+// the server dies on start, which respawns and corrupts it again. Chaining
+// start-ups by spec keeps the cache-touching phase from ever overlapping.
+const startGates = new Map(); // spec key -> promise resolved when current starter finishes
+
+function startKey(command, args) {
+  return JSON.stringify([command, args || []]);
+}
+
 class McpProcess {
   constructor({ name, command, args = [], env = {} }) {
     this.name = name;
@@ -127,28 +141,48 @@ class McpProcess {
   async _ensureInitialized() {
     if (this._initialized) return;
     if (!this._initPromise) {
-      this._initPromise = (async () => {
-        await this._send(
-          "initialize",
-          {
-            protocolVersion: "2024-11-05",
-            capabilities: {},
-            clientInfo: { name: "apx-daemon", version: "0.1.0" },
-          },
-          10_000
-        );
-        try {
-          this.proc.stdin.write(
-            JSON.stringify({
-              jsonrpc: "2.0",
-              method: "notifications/initialized",
-            }) + "\n"
-          );
-        } catch {}
-        this._initialized = true;
-      })();
+      this._initPromise = this._gatedInit();
     }
     return this._initPromise;
+  }
+
+  // Acquire the per-spec start gate around the whole (spawn + npm cache work +
+  // JSON-RPC initialize) sequence so processes sharing an npx cache never
+  // cold-start concurrently. See startGates.
+  async _gatedInit() {
+    const key = startKey(this.command, this.args);
+    const prev = startGates.get(key) || Promise.resolve();
+    let release;
+    const gate = new Promise((r) => (release = r));
+    // The next starter of this spec waits on us — whether we succeed or fail.
+    startGates.set(key, prev.then(() => gate, () => gate));
+    try {
+      await prev.catch(() => {});
+      await this._doInitialize();
+    } finally {
+      release();
+    }
+  }
+
+  async _doInitialize() {
+    await this._send(
+      "initialize",
+      {
+        protocolVersion: "2024-11-05",
+        capabilities: {},
+        clientInfo: { name: "apx-daemon", version: "0.1.0" },
+      },
+      10_000
+    );
+    try {
+      this.proc.stdin.write(
+        JSON.stringify({
+          jsonrpc: "2.0",
+          method: "notifications/initialized",
+        }) + "\n"
+      );
+    } catch {}
+    this._initialized = true;
   }
 
   async listTools() {
