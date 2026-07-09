@@ -14,6 +14,7 @@ import {
   isSecretMarker,
   mergeRedactedChannels,
 } from "#core/config/redact.js";
+import { collectSecretValues, registerSecretValues } from "#core/config/secret-values.js";
 
 export function register(app, { config, scheduler, plugins }) {
   app.get("/admin/config", (_req, res) => {
@@ -57,6 +58,10 @@ export function register(app, { config, scheduler, plugins }) {
     const fresh = readConfig();
     for (const key of Object.keys(config)) delete config[key];
     Object.assign(config, fresh);
+    // Keep the log-masking registry current: any secret just added via PATCH
+    // must be masked from this point on (registry is additive — removed
+    // secrets stay masked, which is the safe direction).
+    registerSecretValues(collectSecretValues(fresh));
     if (scheduler) scheduler.globalConfig = config;
     if (plugins) plugins.config = config;
     res.json({ ok: true, config: redact(fresh) });

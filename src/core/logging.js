@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { APX_HOME } from "./config/index.js";
+import { maskSecretValues } from "./config/secret-values.js";
 
 export const LOG_DIR = path.join(APX_HOME, "logs");
 export const ERROR_TRACE_PATH = path.join(LOG_DIR, "errors.jsonl");
@@ -32,7 +33,10 @@ export function appendErrorTrace(record) {
     ts: new Date().toISOString(),
     ...redact(record),
   };
-  fs.appendFileSync(ERROR_TRACE_PATH, JSON.stringify(entry) + "\n", "utf8");
+  // Second layer: registered secret VALUES are scrubbed from the serialized
+  // record too — error strings often echo a key the key-based redact above
+  // can't see (it only inspects object keys, not free text).
+  fs.appendFileSync(ERROR_TRACE_PATH, maskSecretValues(JSON.stringify(entry)) + "\n", "utf8");
 }
 
 export function previewText(text, max = 500) {
@@ -68,10 +72,13 @@ export function formatLogLine(level, module, message, meta) {
     ? String(level).toUpperCase()
     : "INFO";
   const mod = String(module || "apx").slice(0, 24);
-  const msg = String(message ?? "").replace(/\n/g, " ");
+  // Key-based redact (meta) + value-based mask (message AND meta): a secret
+  // value embedded in a free-text message or under an innocuous meta key
+  // ("detail", "stderr") only the value registry can catch.
+  const msg = maskSecretValues(String(message ?? "").replace(/\n/g, " "));
   let suffix = "";
   if (meta && typeof meta === "object" && Object.keys(meta).length > 0) {
-    try { suffix = " " + JSON.stringify(redact(meta)); }
+    try { suffix = " " + maskSecretValues(JSON.stringify(redact(meta))); }
     catch { suffix = " {meta:unserializable}"; }
   }
   return `[${fmtTs()}] [${lvl.padEnd(5)}] [${mod}] ${msg}${suffix}`;

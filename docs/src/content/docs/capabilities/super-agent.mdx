@@ -95,6 +95,7 @@ The model can always expand its surface by calling `load_skill`.
 | `call_agent` | Delegate to a named project agent without spawning a new process |
 | `call_mcp` | Call any registered MCP server tool |
 | `call_runtime` | Delegate to an external [runtime](/apx/docs/engine/runtimes/#delegating-from-the-super-agent-call_runtime) (Claude Code / Codex …), synchronously or in the background |
+| `run_subagent` | Spawn an isolated sub-agent (fresh context, same tools minus user-interaction ones) that works a self-contained task to completion and returns its result — one nesting level max |
 | `run_shell` | Execute a shell command (gated by permission mode) |
 | `send_telegram` | Send a message via the Telegram plugin |
 | `remember` | Write a durable fact to `~/.apx/memory.md` |
@@ -164,6 +165,69 @@ apx identity wizard               # interactive setup prompt
 apx permission set automatico
 ```
 
+### Inline security-risk analysis
+
+An opt-in layer on top of the permission mode (inspired by OpenHands' `LLMSecurityAnalyzer`).
+When enabled, every tool schema gains a required `security_risk` field (`LOW` / `MEDIUM` / `HIGH`)
+that the model must fill as part of the call itself — no extra LLM pass. Calls graded at or above
+`confirm_at` pause for your confirmation on the active surface (web dialog, Telegram); a declined
+call comes back to the model as an error observation so it can re-plan.
+
+```json
+"super_agent": {
+  "security_risk": {
+    "enabled": true,
+    "confirm_at": "HIGH",
+    "confirm_unknown": true
+  }
+}
+```
+
+- `confirm_at` — minimum grade that pauses (`LOW` confirms everything, `HIGH` only destructive/outward actions).
+- `confirm_unknown` — also pause when the model didn't grade the call (weak models sometimes omit the field).
+
+It's not a duplicate of the permission mode — it gates by a different axis. Permission mode
+decides by *tool identity* (is this tool dangerous / on the allowlist); the risk analyzer decides
+by the model's judgment of *this specific action's severity*. So it adds a guard the permission
+mode can't:
+
+- In **`automatico`** the risk grade replaces the static dangerous-tool confirmation.
+- In **`permiso`** the allowlist still applies and the risk gate composes on top.
+- In **`total`** it becomes a **safety floor**: everything runs free *except* a `HIGH`-graded
+  action, which still stops for confirmation even under full trust. That's the point — a
+  catastrophic action gets caught no matter how much you trust the agent.
+
+## Goal-completion judge
+
+Opt-in verification loop (OpenHands critic pattern) for completion-contract turns (coding
+surfaces): after the agent declares done, an LLM judge scores the probability that the *original*
+request is fully satisfied. Below `success_threshold` the agent receives an internal verification
+note (what looks unmet, per the judge) and continues — up to `max_iterations` rounds. An
+unusable judge (engine down, unparseable reply) accepts the result rather than blocking it.
+
+```json
+"super_agent": {
+  "judge": { "enabled": true, "success_threshold": 0.6, "max_iterations": 2, "model": "" }
+}
+```
+
+`model` empty → the judge runs on `super_agent.model`; set a cheap model to keep verification
+overhead low. Verdicts surface as `judge_verdict` events and on the result as `result.judge`.
+
+## Stuck detection
+
+The tool loop watches for two loop shapes: the same call returning the same result
+`action_repeat` times, and the same call erroring `error_repeat` times in a row. On the first
+detection the model gets an in-band nudge ("you appear stuck — change approach or explain the
+blocker"); if it keeps looping, the turn is closed early with a model-authored wrap-up instead of
+burning the rest of the iteration budget. On by default:
+
+```json
+"super_agent": {
+  "stuck_detection": { "enabled": true, "action_repeat": 4, "error_repeat": 3 }
+}
+```
+
 ## Model fallback
 
 If the primary model is unavailable, APX walks a configurable ordered list of fallback providers.
@@ -176,6 +240,31 @@ apx model status          # probe all providers; show which would be used now
 ```
 
 See [Configuration](/apx/docs/concepts/configuration/) for the full `super_agent.model_fallback` schema.
+
+### Content-based routing
+
+On top of the static fallback chain, opt-in per-turn routing rules (inspired by OpenHands'
+`RouterLLM`) inspect the actual message — images, prompt/context size, channel, keywords — and
+prefer a different model for that turn. Rules are evaluated in order; the first full match wins.
+The preferred model is still health-checked and falls back down the regular chain if unavailable,
+and an explicit per-request model override always beats the rules.
+
+```json
+"super_agent": {
+  "routing": {
+    "enabled": true,
+    "rules": [
+      { "model": "anthropic:claude-sonnet-5", "when": { "has_image": true } },
+      { "model": "groq:llama-3.3-70b-versatile", "when": { "max_prompt_chars": 200, "channels": ["telegram"] } },
+      { "model": "anthropic:claude-opus-4-8", "when": { "keywords": ["refactor", "architecture"] } }
+    ]
+  }
+}
+```
+
+`when` conditions (all must hold): `has_image`, `min_prompt_chars` / `max_prompt_chars`,
+`min_context_chars`, `channels` (list), `keywords` (case-insensitive substring list). An empty
+`when` matches every turn — useful as a final catch-all.
 
 ## Next
 

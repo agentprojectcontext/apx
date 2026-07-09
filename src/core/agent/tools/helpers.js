@@ -38,6 +38,13 @@ export function buildAgentSystem(project, agent, opts = {}) {
 
 export function createPermissionGuard(globalConfig = {}, {
   requestConfirmation = null,
+  // Inline security-risk gate handshake (see run-agent.js). A callable that
+  // returns `{active, cleared}` for the tool call currently executing:
+  //   active  — the risk analyzer owns dangerous-call gating this session, so
+  //             the static dangerous-flag branch of "automatico" stands down.
+  //   cleared — the user already approved THIS call at the risk gate; asking
+  //             again here would double-prompt.
+  securityGate = null,
 } = {}) {
   const permissionMode = globalConfig.super_agent?.permission_mode || DEFAULT_PERMISSION_MODE;
   const allowedTools = new Set(globalConfig.super_agent?.allowed_tools || []);
@@ -49,9 +56,12 @@ export function createPermissionGuard(globalConfig = {}, {
   return async function requirePermission(tool, { dangerous = false, args } = {}) {
     if (permissionMode === PERMISSION_MODES.TOTAL) return;
 
+    const gate = typeof securityGate === "function" ? securityGate() : null;
+    if (gate?.cleared) return;
+
     const blocked =
       (permissionMode === PERMISSION_MODES.PERMISO && !allowedTools.has(tool)) ||
-      (permissionMode === PERMISSION_MODES.AUTOMATICO && dangerous);
+      (permissionMode === PERMISSION_MODES.AUTOMATICO && dangerous && !gate?.active);
 
     if (!blocked) return;
 

@@ -8,10 +8,12 @@ import {
   isSuperAgentEnabled,
   buildIdentityBlock,
   loadDefaultSystemPrompt,
+  selectModelByRules,
 } from "#core/agent/index.js";
 import { resolveAgentName } from "#core/identity/index.js";
-import { memoryBlockFor } from "#core/memory/index.js";
+import { memoryBlockFor, buildActiveThreadsBlock } from "#core/memory/index.js";
 import { CHANNELS } from "#core/constants/channels.js";
+import { judgeConfig, judgeCompletion, applyJudgeLoop } from "#core/agent/judge.js";
 
 export {
   buildIdentityBlock,
@@ -70,6 +72,9 @@ export async function runSuperAgent({
   // because a per-turn skill inspector already injected the right context.
   // Set by the daemon's super-agent endpoint when config.skills.inspector is on.
   skipSkillsHint = false,
+  // Nesting depth of this run. 0 = user-facing turn; the run_subagent tool
+  // spawns children with depth+1 and refuses past its MAX_DEPTH.
+  subagentDepth = 0,
 }) {
   if (!isSuperAgentEnabled(globalConfig)) {
     throw new Error("super-agent not enabled (set super_agent.enabled and .model in ~/.apx/config.json)");
@@ -129,22 +134,58 @@ export async function runSuperAgent({
 
   const toolSchemas = noTools ? [] : toolSession.initialSchemas;
 
-  return runAgent({
-    globalConfig,
-    system,
-    prompt,
-    previousMessages,
-    overrideModel,
-    toolSchemas,
-    makeToolHandlers,
-    toolHandlerCtx: { projects, plugins, registries, globalConfig, channel, channelMeta, toolSession, requestConfirmation, backgroundResultSink },
+  // Content-based routing (RouterLLM pattern): rules in super_agent.routing
+  // inspect THIS turn (images, size, channel, keywords) and prefer a model for
+  // it. An explicit overrideModel always wins; the preferred model is
+  // health-checked in runAgent and falls back down the regular chain.
+  const contentRoute = overrideModel
+    ? null
+    : selectModelByRules({ prompt, previousMessages, channel, channelMeta }, globalConfig);
+
+  const runOnce = (turnPrompt, history) =>
+    runAgent({
+      globalConfig,
+      system,
+      prompt: turnPrompt,
+      previousMessages: history,
+      overrideModel,
+      preferredModel: contentRoute?.model || null,
+      toolSchemas,
+      makeToolHandlers,
+      toolHandlerCtx: { projects, plugins, registries, globalConfig, channel, channelMeta, toolSession, requestConfirmation, backgroundResultSink, subagentDepth },
+      onEvent,
+      signal,
+      onToken,
+      agentName: resolveAgentName(globalConfig),
+      suppressTools,
+      ...(maxTokens ? { maxTokens } : {}),
+      ...(maxIters ? { maxIters } : {}),
+      ...(completionContract ? { completionContract: true } : {}),
+    });
+
+  const result = await runOnce(prompt, previousMessages);
+
+  // Goal-completion judge (OpenHands critic pattern): opt-in, and only where
+  // "done" is a checkable claim — completion-contract turns at the top level.
+  // Sub-agent runs are excluded (the parent already judges the overall turn);
+  // tool-free callers (summarize/ask) have nothing to verify.
+  const jCfg = judgeConfig(globalConfig);
+  if (!jCfg.enabled || !completionContract || noTools || subagentDepth > 0) {
+    return result;
+  }
+  // Rolling refinement history: each round sees the original goal, its own
+  // prior reply, and the judge's follow-up as ordinary conversation turns.
+  const history = [...previousMessages, { role: "user", content: prompt }];
+  return applyJudgeLoop({
+    initialResult: result,
+    cfg: jCfg,
     onEvent,
-    signal,
-    onToken,
-    agentName: resolveAgentName(globalConfig),
-    suppressTools,
-    ...(maxTokens ? { maxTokens } : {}),
-    ...(maxIters ? { maxIters } : {}),
-    ...(completionContract ? { completionContract: true } : {}),
+    judgeFn: (r) => judgeCompletion({ goal: prompt, result: r, globalConfig }),
+    runFollowup: async (followup, prior) => {
+      history.push({ role: "assistant", content: prior.text || "" });
+      const next = await runOnce(followup, [...history]);
+      history.push({ role: "user", content: followup });
+      return next;
+    },
   });
 }
