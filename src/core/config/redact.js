@@ -67,6 +67,50 @@ export function redactConfig(cfg) {
   return out;
 }
 
+/** Walk a dotted path on an object, returning the value or undefined. */
+function getDotted(obj, dotted) {
+  let cur = obj;
+  for (const part of dotted.split(".")) {
+    if (!cur || typeof cur !== "object") return undefined;
+    cur = cur[part];
+  }
+  return cur;
+}
+
+/** Set a dotted path on an object, creating intermediate objects. */
+function setDotted(obj, dotted, value) {
+  const parts = dotted.split(".");
+  let cur = obj;
+  for (let i = 0; i < parts.length - 1; i++) {
+    if (!cur[parts[i]] || typeof cur[parts[i]] !== "object") cur[parts[i]] = {};
+    cur = cur[parts[i]];
+  }
+  cur[parts[parts.length - 1]] = value;
+}
+
+/**
+ * Merge a possibly-redacted config `next` against the prior on-disk config.
+ * Anywhere a secret path in `next` holds a marker (the value a redacted view
+ * echoes back), restore the prior real secret — so saving the redacted view
+ * never clobbers a real key with the literal "*** set ***" string. Mutates and
+ * returns `next`.
+ */
+export function mergeRedactedSecrets(next, prior) {
+  if (!next || typeof next !== "object") return next;
+  for (const dotted of SECRET_PATHS) {
+    if (dotted.includes("*")) continue;
+    if (isSecretMarker(getDotted(next, dotted))) {
+      const priorVal = getDotted(prior, dotted);
+      if (typeof priorVal === "string" && priorVal.length) setDotted(next, dotted, priorVal);
+    }
+  }
+  const nextChannels = next?.telegram?.channels;
+  if (Array.isArray(nextChannels)) {
+    next.telegram.channels = mergeRedactedChannels(nextChannels, prior?.telegram?.channels);
+  }
+  return next;
+}
+
 /** Redact a single Telegram channel record. */
 export function redactChannel(channel) {
   if (!channel?.bot_token) return channel;

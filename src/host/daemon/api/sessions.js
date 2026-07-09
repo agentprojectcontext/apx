@@ -25,11 +25,20 @@ export function register(app, { projects, project }) {
     const engineId = req.query.engine ? String(req.query.engine) : null;
     const q = req.query.q ? String(req.query.q) : "";
     const deep = req.query.deep === "1" || req.query.deep === "true";
+    // Optional ?cwd= scopes to sessions whose working dir is that folder (or a
+    // child of it) — used by the per-project Sessions view. Omitted = all.
+    const cwd = req.query.cwd ? String(req.query.cwd).replace(/\/+$/, "") : "";
     let rows = [];
     try {
       rows = collectAllSessions({}, { engineId });
     } catch (e) {
       return res.status(500).json({ error: e.message, meta: { total: 0, offset: 0, limit: null, pageSize: 0, page: 1, pageCount: 1 }, data: [] });
+    }
+    if (cwd) {
+      rows = rows.filter((r) => {
+        const c = (r.cwd || "").replace(/\/+$/, "");
+        return c === cwd || c.startsWith(cwd + "/");
+      });
     }
     if (q.trim()) {
       // filterSessionsByQuery already de-dupes and sorts newest-first.

@@ -35,8 +35,9 @@ export function Overview({ pid }: { pid: string }) {
         <Card title={t("project.overview.artifacts")}   value={artifacts.data?.length ?? "…"} href={`/p/${pid}/artifacts`} icon={FileCode2} />
       </div>
 
-      {/* Task workflow strip */}
-      {summary.data && summary.data.open > 0 && (
+      {/* Task workflow strip — always shown once the summary loads, so every
+          status reads at least 0 (parity with the base dashboard). */}
+      {summary.data && (
         <div className="flex flex-wrap gap-2">
           {TASK_STATUS_ORDER.map((s) => (
             <NavLink
