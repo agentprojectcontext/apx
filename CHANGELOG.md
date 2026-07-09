@@ -1,3 +1,10 @@
+# [1.69.0](https://github.com/agentprojectcontext/apx/compare/v1.68.0...v1.69.0) (2026-07-09)
+
+
+### Features
+
+* **web:** lively brain graph, memory doc editor, agent org map & stats ([6e9b917](https://github.com/agentprojectcontext/apx/commit/6e9b91749a3af3f17e0b05a38801e6234bc1c7a7))
+
 # [1.68.0](https://github.com/agentprojectcontext/apx/compare/v1.67.0...v1.68.0) (2026-07-09)
 
 
