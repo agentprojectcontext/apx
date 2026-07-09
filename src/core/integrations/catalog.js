@@ -7,16 +7,19 @@
 // rest carry `coming_soon: true`. Adding a plugin = drop a module in ./plugins/
 // + register it in PLUGIN_SERVICES (open/closed) — no API/route changes.
 //
-// Scope of this catalog (per product decision): Asana, GitHub, WhatsApp only.
-// Telegram is intentionally absent — it's a channel, configured under its own
-// surface, not a service plugin. Transcription lives with the desktop STT stack.
+// Scope of this catalog (per product decision): Asana, GitHub, Obsidian,
+// WhatsApp. Telegram is intentionally absent — it's a channel, configured under
+// its own surface, not a service plugin. Transcription lives with the desktop
+// STT stack. Obsidian is path-based (a local Vault) rather than token-based.
 import { asanaPlugin } from "./plugins/asana.js";
 import { githubPlugin } from "./plugins/github.js";
+import { obsidianPlugin } from "./plugins/obsidian.js";
 
 // slug -> live plugin service (must implement the lifecycle contract).
 export const PLUGIN_SERVICES = Object.freeze({
   asana: asanaPlugin,
   github: githubPlugin,
+  obsidian: obsidianPlugin,
 });
 
 // Static descriptors for plugins that are declared but not yet connectable.
