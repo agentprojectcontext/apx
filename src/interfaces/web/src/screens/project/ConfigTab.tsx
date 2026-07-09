@@ -1,16 +1,17 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import useSWR from "swr";
 import { RefreshCw, Trash2 } from "lucide-react";
 import { Projects } from "../../lib/api";
 import { Section } from "../../components/Section";
-import { Button, Dialog, Empty, Loading } from "../../components/ui";
+import { Button, Dialog, Empty, Loading, Textarea } from "../../components/ui";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { ConfigTabsEditor } from "../../components/config/ConfigTabsEditor";
-import { apcProjectSections, projectOverrideSections } from "../../components/config/project-config-sections";
+import { apcProjectSections, projectSettingsSections, projectEnginesSections } from "../../components/config/project-config-sections";
+import { TelegramTab } from "./TelegramTab";
 import { useToast } from "../../components/Toast";
 import { useProject } from "../../hooks/useProjects";
-import { flattenObject } from "../../lib/config-values";
+import { flattenObject, parseConfigJson } from "../../lib/config-values";
 import { isSecretMarker } from "../../lib/secrets";
 import { t } from "../../i18n";
 
@@ -36,54 +37,91 @@ export function ConfigTab({ pid }: { pid: string }) {
     cfg.mutate();
   };
 
+  const saveOverrideFields = async (set: Record<string, unknown>, unset: string[]) => {
+    await Projects.config.set(pid, set);
+    if (unset.length) await Projects.config.unset(pid, unset);
+    toast.success(t("project.config.save_fields_success"));
+    cfg.mutate();
+  };
+
   return (
     <div className="space-y-6">
       <Section title={t("project.config.section_title")} description={t("project.config.section_desc")}>
-        <Tabs defaultValue="override" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="override">Override</TabsTrigger>
-            <TabsTrigger value="project">APC project</TabsTrigger>
-            <TabsTrigger value="effective">Effective</TabsTrigger>
+        {/* Organized by concept: Settings · Engines · Telegram · Project · JSON. */}
+        <Tabs defaultValue="settings" className="space-y-4">
+          <TabsList className="flex flex-wrap">
+            <TabsTrigger value="settings">{t("project.config.tab_settings")}</TabsTrigger>
+            <TabsTrigger value="engines">{t("settings_ui.cfg_engines_label")}</TabsTrigger>
+            {!isBase && <TabsTrigger value="telegram">{t("project.nav.telegram")}</TabsTrigger>}
+            <TabsTrigger value="project">{t("project.config.tab_project")}</TabsTrigger>
+            <TabsTrigger value="json">JSON</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="override">
+          <TabsContent value="settings">
             <ConfigTabsEditor
-              sections={projectOverrideSections()}
+              sections={projectSettingsSections()}
               source={cfg.data.project_only}
               placeholderSource={cfg.data.effective}
               jsonTitle={cfg.data.project_config_path}
-              jsonDescription=".apc/config.json. Overrides del proyecto."
-              onSaveFields={async (set, unset) => {
-                await Projects.config.set(pid, set);
-                if (unset.length) await Projects.config.unset(pid, unset);
-                toast.success(t("project.config.save_fields_success"));
-                cfg.mutate();
-              }}
+              onSaveFields={saveOverrideFields}
               onSaveJson={saveOverrideJson}
+              hideJson
             />
           </TabsContent>
+
+          <TabsContent value="engines">
+            <ConfigTabsEditor
+              sections={projectEnginesSections()}
+              source={cfg.data.project_only}
+              placeholderSource={cfg.data.effective}
+              jsonTitle={cfg.data.project_config_path}
+              onSaveFields={saveOverrideFields}
+              onSaveJson={saveOverrideJson}
+              hideJson
+            />
+          </TabsContent>
+
+          {!isBase && (
+            <TabsContent value="telegram">
+              <TelegramTab pid={pid} />
+            </TabsContent>
+          )}
 
           <TabsContent value="project">
             <ConfigTabsEditor
               sections={apcProjectSections()}
               source={cfg.data.apc_project || {}}
               jsonTitle={cfg.data.project_json_path}
-              jsonDescription=".apc/project.json. Metadata APC portable."
               onSaveFields={async (set, unset) => {
                 await Projects.apcProject.set(pid, cleanSet(set), unset);
                 toast.success(t("project.config.save_meta_success"));
                 cfg.mutate();
               }}
               onSaveJson={saveProjectJson}
+              hideJson
             />
           </TabsContent>
 
-          <TabsContent value="effective">
-            <div className="space-y-2">
-              <p className="text-xs text-muted-fg">{t("project.config.effective_read")}</p>
-              <pre className="max-h-96 overflow-auto rounded-lg border border-border bg-muted/40 p-3 text-xs">
-                {JSON.stringify(cfg.data.effective, null, 2)}
-              </pre>
+          <TabsContent value="json">
+            <div className="space-y-6">
+              <JsonEditor
+                title={cfg.data.project_config_path}
+                description=".apc/config.json — overrides del proyecto."
+                source={cfg.data.project_only}
+                onSave={saveOverrideJson}
+              />
+              <JsonEditor
+                title={cfg.data.project_json_path}
+                description=".apc/project.json — metadata APC portable."
+                source={cfg.data.apc_project || {}}
+                onSave={saveProjectJson}
+              />
+              <div className="space-y-2">
+                <p className="text-xs text-muted-fg">{t("project.config.effective_read")}</p>
+                <pre className="max-h-96 overflow-auto rounded-lg border border-border bg-muted/40 p-3 text-xs">
+                  {JSON.stringify(cfg.data.effective, null, 2)}
+                </pre>
+              </div>
             </div>
           </TabsContent>
         </Tabs>
@@ -213,6 +251,53 @@ function DangerZone({
         <p className="text-sm text-muted-fg">{t("project.danger.unregister_long")}</p>
       </Dialog>
     </>
+  );
+}
+
+// Raw JSON editor for one config file (redacted secrets echo back untouched —
+// the daemon restores real values on save).
+function JsonEditor({
+  title,
+  description,
+  source,
+  onSave,
+}: {
+  title: string;
+  description?: string;
+  source: Record<string, unknown>;
+  onSave: (next: Record<string, unknown>) => Promise<void>;
+}) {
+  const [raw, setRaw] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    setRaw(JSON.stringify(source || {}, null, 2));
+    setError("");
+  }, [source]);
+
+  const save = async () => {
+    setError("");
+    setBusy(true);
+    try {
+      await onSave(parseConfigJson(raw));
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <div>
+        <h3 className="text-sm font-medium">{title}</h3>
+        {description && <p className="text-xs text-muted-fg">{description}</p>}
+      </div>
+      <Textarea rows={14} className="font-mono text-xs" value={raw} onChange={(e) => setRaw(e.target.value)} />
+      {error && <p className="text-xs text-destructive">{error}</p>}
+      <Button variant="primary" loading={busy} onClick={save}>{t("settings_ui.save_json")}</Button>
+    </div>
   );
 }
 

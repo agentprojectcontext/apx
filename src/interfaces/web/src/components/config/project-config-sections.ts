@@ -4,7 +4,10 @@ import { t } from "../../i18n";
 
 // These are functions (not module-level consts) so t() runs per-render with the
 // active locale — a frozen const would lock the strings to the locale at import.
-export function projectOverrideSections(): ConfigSection[] {
+// Config is organized by concept: Settings (routing / super-agent behaviour) and
+// Engines (provider keys) are separate top-level tabs. Telegram is edited on its
+// own channel page (the canonical mechanism), not here.
+export function projectSettingsSections(): ConfigSection[] {
   return [
     {
       key: "routing",
@@ -22,16 +25,11 @@ export function projectOverrideSections(): ConfigSection[] {
         { path: "super_agent.system", label: t("settings_ui.cfg_extra_prompt"), kind: "textarea" },
       ],
     },
-    {
-      key: "telegram",
-      label: t("settings_ui.cfg_telegram_label"),
-      fields: [
-        { path: "telegram.route_to_agent", label: t("settings_ui.cfg_route_to_agent") },
-        { path: "telegram.chat_id", label: t("settings_ui.cfg_chat_id") },
-        { path: "telegram.bot_token", label: t("settings_ui.cfg_bot_token"), kind: "password" },
-        { path: "telegram.respond_with_engine", label: t("settings_ui.cfg_respond_with_engine"), kind: "boolean" },
-      ],
-    },
+  ];
+}
+
+export function projectEnginesSections(): ConfigSection[] {
+  return [
     {
       key: "engines",
       label: t("settings_ui.cfg_engines_label"),

@@ -11,6 +11,7 @@ import {
   unsetDottedKey,
 } from "../project-config.js";
 import { apcProjectFile, apcProjectConfigFile } from "#core/apc/paths.js";
+import { redactConfig, mergeRedactedSecrets, isSecretMarker } from "#core/config/redact.js";
 
 const projectJsonPath = apcProjectFile;
 
@@ -30,9 +31,12 @@ export function register(app, { projects, project }) {
   app.get("/projects/:pid/config", (req, res) => {
     const p = project(req, res);
     if (!p) return;
+    // Redact secrets (engine api_keys, telegram bot tokens) the same way the
+    // global admin config does — the UI shows "…XXXXX" and echoes the marker
+    // back unchanged, which the write paths below restore from disk.
     res.json({
-      effective: p.config || {},
-      project_only: readProjectConfig(p.path),
+      effective: redactConfig(p.config || {}),
+      project_only: redactConfig(readProjectConfig(p.path)),
       project_config_path: apcProjectConfigFile(p.path),
       apc_project: readProjectJson(p.path),
       project_json_path: projectJsonPath(p.path),
@@ -45,7 +49,10 @@ export function register(app, { projects, project }) {
     const body = req.body || {};
     if (typeof body !== "object" || Array.isArray(body))
       return res.status(400).json({ error: "body must be a JSON object" });
-    writeProjectConfig(p.path, body);
+    // A redacted secret echoed back means "keep the real value" — restore it
+    // from disk so a full replace of the redacted view can't wipe secrets.
+    const merged = mergeRedactedSecrets(body, readProjectConfig(p.path));
+    writeProjectConfig(p.path, merged);
     projects.rebuild(p.id);
     res.json({ ok: true });
   });
@@ -56,14 +63,19 @@ export function register(app, { projects, project }) {
     const { set, unset } = req.body || {};
     const cfg = readProjectConfig(p.path);
     if (set && typeof set === "object") {
-      for (const [k, v] of Object.entries(set)) setDottedKey(cfg, k, v);
+      // Skip echoed secret markers so a redacted field left untouched keeps its
+      // real value instead of being overwritten with the marker string.
+      for (const [k, v] of Object.entries(set)) {
+        if (isSecretMarker(v)) continue;
+        setDottedKey(cfg, k, v);
+      }
     }
     if (Array.isArray(unset)) {
       for (const k of unset) unsetDottedKey(cfg, k);
     }
     writeProjectConfig(p.path, cfg);
     projects.rebuild(p.id);
-    res.json({ ok: true, project_only: cfg });
+    res.json({ ok: true, project_only: redactConfig(cfg) });
   });
 
   app.put("/projects/:pid/apc-project", (req, res) => {
