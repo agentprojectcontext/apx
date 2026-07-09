@@ -1,3 +1,10 @@
+# [1.68.0](https://github.com/agentprojectcontext/apx/compare/v1.67.0...v1.68.0) (2026-07-09)
+
+
+### Features
+
+* **web:** docs-style memory editor, unified nav, config-by-concept, project sessions ([fe8c52d](https://github.com/agentprojectcontext/apx/commit/fe8c52dd7b826e20bfaa32b42ad9f32861c4d26b))
+
 # [1.67.0](https://github.com/agentprojectcontext/apx/compare/v1.66.0...v1.67.0) (2026-07-09)
 
 
