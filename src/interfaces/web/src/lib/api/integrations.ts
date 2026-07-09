@@ -25,10 +25,13 @@ export interface PluginTool {
 // generic PluginConnect component. help_url/help_url_label are non-translatable.
 export interface PluginConfigField {
   key: string;
-  type: "password" | "text";
+  // "toggle" renders a switch (boolean); text/password render inputs; "path"
+  // renders a text input plus a folder-picker button (OS-native + inline fallback).
+  type: "password" | "text" | "toggle" | "path";
   placeholder?: string;
   help_url?: string;
   help_url_label?: string;
+  default?: boolean;
 }
 export interface PluginSelect {
   key: string;
@@ -37,11 +40,17 @@ export interface PluginSelect {
   valueKey: string;
   labelKey: string;
 }
+// A plugin read/side-effect action surfaced as a button in the connected view
+// (label from i18n integrations.<slug>.actions.<action>).
+export interface PluginAction {
+  action: string;
+}
 export interface PluginUi {
   accent?: string;
   configFields: PluginConfigField[];
   select?: PluginSelect;
   connectedFields?: string[];
+  actions?: PluginAction[];
 }
 
 // One entry of the plugin catalog with its resolved status for this project.

@@ -101,6 +101,12 @@ import {
   cmdPermission,
 } from "./commands/config.js";
 import { cmdPluginsList, cmdPluginStatus } from "./commands/plugins.js";
+import {
+  cmdObsidianSet,
+  cmdObsidianStatus,
+  cmdObsidianSync,
+  cmdObsidianRemove,
+} from "./commands/obsidian.js";
 import { cmdDesktopStart, cmdDesktopStop, cmdDesktopRestart, cmdDesktopStatus, cmdDesktopInstall, cmdDesktopUninstall, desktopRunning } from "./commands/desktop.js";
 import { cmdVoiceSay, cmdVoiceListen, cmdVoiceProviders } from "./commands/voice.js";
 import { cmdSkillsAdd, cmdSkillsList, cmdSkillsStatus, cmdSkillsSync, cmdSkillsIndex, cmdSkillsInspect, cmdSkillsInspector } from "./commands/skills.js";
@@ -713,6 +719,30 @@ const HELP_TOPICS = new Map(Object.entries({
       "apx sessions list                                            # every engine, every project",
       "apx sessions list --engine claude --project iacrmar",
       "apx sessions list --engine codex --dir /Volumes/work/iacrmar",
+    ],
+  }),
+  obsidian: topic({
+    title: "apx obsidian",
+    summary: "Connect an Obsidian vault so agents can read, search and write notes; mirror APX memory into it.",
+    usage: ["apx obsidian <subcommand> [--global | --project <name|id|path>]"],
+    commands: [
+      ["set <vault-path>", "Connect a vault (validates the path). Add --mcp / --memory to enable extras."],
+      ["status", "Show the configured vault, note count and toggles for the scope."],
+      ["sync", "Mirror APX memory (global + projects) into the vault, without duplicates."],
+      ["remove | rm", "Disconnect the vault (also removes any auto-registered MCP)."],
+    ],
+    options: [
+      ["--global", "Target the default space (shared by all projects) instead of the current project."],
+      ["--scope <project|global>", "Explicit scope (alias of --global)."],
+      ["--mcp", "On `set`: auto-register an 'obsidian' MCP server pointing at the vault."],
+      ["--memory", "On `set`: enable memory sync (then run `apx obsidian sync`)."],
+      ["--project <name|id|path>", "Pin command to a specific project."],
+    ],
+    examples: [
+      "apx obsidian set ~/Obsidian/Work --project appsi",
+      "apx obsidian set ~/Obsidian/Personal --global --mcp --memory",
+      "apx obsidian sync --global",
+      "apx obsidian status",
     ],
   }),
   mcp: topic({
@@ -2135,6 +2165,12 @@ function buildHelp(version) {
     hCmd("apx mcp logs <name>",        36, "spawn/init log + stderr tail"),
     hCmd("apx mcp check",              36, "audit multi-source merge"),
 
+    hSec("Obsidian"),
+    hCmd("apx obsidian set <path>",    36, "connect a vault  --global  --project P  --mcp  --memory"),
+    hCmd("apx obsidian status",        36, "show configured vault + toggles"),
+    hCmd("apx obsidian sync",          36, "mirror APX memory into the vault (no duplicates)"),
+    hCmd("apx obsidian remove",        36, "disconnect the vault"),
+
     hSec("Daemon Service"),
     hCmd("apx daemon start",           36, ""),
     hCmd("apx daemon reload",          36, "reload ~/.apx/config.json without restart"),
@@ -2313,7 +2349,7 @@ function findHelpTopic(argv) {
 // Flags that never take a value. Without this the parser would greedily
 // swallow the following positional (e.g. `apx exec --code "hi"` would set
 // flags.code = "hi" and drop the prompt). Boolean flags always resolve to true.
-const BOOLEAN_FLAGS = new Set(["code", "verbose"]);
+const BOOLEAN_FLAGS = new Set(["code", "verbose", "global", "mcp", "memory"]);
 
 function parseArgs(argv) {
   const args = { _: [], flags: {} };
@@ -2498,6 +2534,17 @@ async function dispatch(cmd, rest) {
         else if (sub === "logs") await cmdMcpLogs(a);
         else if (sub === "check") await cmdMcpCheck(a);
         else die(`unknown mcp subcommand: ${sub || "(none)"}`);
+        break;
+      }
+
+      case "obsidian": {
+        const sub = rest[0];
+        const a = parseArgs(rest.slice(1));
+        if (!sub || sub === "status" || sub === "show") await cmdObsidianStatus(a);
+        else if (sub === "set" || sub === "connect" || sub === "add") await cmdObsidianSet(a);
+        else if (sub === "sync") await cmdObsidianSync(a);
+        else if (sub === "remove" || sub === "rm" || sub === "disconnect") await cmdObsidianRemove(a);
+        else die(`unknown obsidian subcommand: ${sub}\nUsage: apx obsidian <set|status|sync|remove> [--global|--project <p>]`);
         break;
       }
 

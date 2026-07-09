@@ -1869,6 +1869,7 @@ export const es = {
     tools_available_note: "Disponibles para los agentes que las tengan permitidas, o vía discover_tools.",
     err_connect:         "Error al conectar",
     err_generic:         "Ocurrió un error",
+    action_done:         "Listo",
     asana: {
       select_label: "Seleccioná el workspace a usar",
       connected: { user_name: "Conectado como", user_email: "Email", workspace_name: "Workspace" },
@@ -1888,6 +1889,26 @@ export const es = {
           help_label: "¿Cómo obtener el token?",
           help_steps: "Abrí github.com/settings/tokens.\nGenerá un token (classic o fine-grained) con scope \"repo\".\nCopiá el token — empieza con ghp_ o github_pat_.\nPegalo en el campo de abajo.",
         },
+      },
+    },
+    obsidian: {
+      connected: { vault_path: "Vault", vault_name: "Nombre", note_count: "Notas" },
+      fields: {
+        vault_path: {
+          label: "Ruta del Vault",
+        },
+        auto_mcp: {
+          label: "Registrar MCP de Obsidian",
+          hint: "Agrega un MCP 'obsidian' apuntando a este vault, en este scope.",
+        },
+        memory_sync: {
+          label: "Sincronizar memoria de APX",
+          hint: "Habilita el respaldo de la memoria de APX en el vault; luego usá el botón de abajo.",
+        },
+      },
+      actions: {
+        sync_memory: "Sincronizar memoria",
+        sync_memory_done: "Sincronizados {count} archivo(s) · {changed} cambiados",
       },
     },
   },
