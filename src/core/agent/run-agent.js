@@ -8,6 +8,19 @@ import { MAX_TOOL_ITERS, ACK_ONLY_TOOLS, MAX_CONSECUTIVE_ACKS, TURN_ENDING_TOOLS
 import { pseudoToolSystem, shouldRetryWithPseudoTools } from "./tools/pseudo-tools.js";
 import { filterToolSchemas } from "./tools-overlap.js";
 import { isRetryableEngineError, shortRetryReason } from "./retry.js";
+import {
+  securityRiskConfig,
+  withSecurityRiskField,
+  popSecurityRisk,
+  shouldConfirmRisk,
+} from "./security.js";
+import { buildConfirmDescription } from "../confirmation/index.js";
+import { PERMISSION_MODES } from "../constants/permissions.js";
+import {
+  stuckDetectionConfig,
+  createStuckDetector,
+  stuckNudgeSignal,
+} from "./stuck-detector.js";
 
 async function emitProgress(onEvent, event) {
   if (typeof onEvent !== "function") return;
@@ -120,6 +133,9 @@ export async function runAgent({
   prompt,
   previousMessages = [],
   overrideModel = null,
+  // Content-routed model for this turn (selectModelByRules). Unlike
+  // overrideModel it is health-checked and falls back down the chain.
+  preferredModel = null,
   toolSchemas,
   makeToolHandlers,
   toolHandlerCtx,
@@ -144,7 +160,7 @@ export async function runAgent({
   // never end the turn by narrating the next step. Language-agnostic by design.
   completionContract = false,
 }) {
-  const routing = await resolveActiveModel(globalConfig, { overrideModel });
+  const routing = await resolveActiveModel(globalConfig, { overrideModel, preferredModel });
   // Mutable: lazy-retry can rotate to a different model mid-loop on 429/413/5xx.
   let activeModel = routing.modelId;
 
@@ -161,12 +177,13 @@ export async function runAgent({
     return true;
   });
 
-  if (routing.fromFallback) {
+  if (routing.fromFallback || routing.routedBy) {
     await emitProgress(onEvent, {
       type: "model_routed",
       model: activeModel,
       provider: routing.provider,
-      from_fallback: true,
+      from_fallback: routing.fromFallback === true,
+      ...(routing.routedBy ? { routed_by: routing.routedBy } : {}),
       tried: routing.tried,
     });
   }
@@ -192,6 +209,30 @@ export async function runAgent({
   const useContract = completionContract && effectiveSchemas.length > 0;
   if (useContract) {
     effectiveSchemas = [...effectiveSchemas, FINISH_TOOL_SCHEMA];
+  }
+
+  // Inline security-risk analysis: every eligible tool schema gains a required
+  // `security_risk` enum the model fills as part of the call itself (no second
+  // LLM pass). The loop extracts the grade below and the ConfirmRisky policy
+  // decides whether the call pauses for human approval.
+  const riskCfg = securityRiskConfig(globalConfig);
+  const permissionMode = globalConfig?.super_agent?.permission_mode || "";
+  const riskGateOn = riskCfg.enabled;
+  // In `total` (full trust) the risk gate acts ONLY as a safety floor: HIGH-risk
+  // actions still confirm, everything below runs free. That's the value the
+  // permission mode alone can't give — it gates by tool identity, this gates by
+  // the model's own judgment of THIS action's severity. In automatico/permiso
+  // the configured confirm_at applies.
+  const effectiveRiskCfg =
+    permissionMode === PERMISSION_MODES.TOTAL
+      ? { ...riskCfg, confirm_at: "HIGH", confirm_unknown: false }
+      : riskCfg;
+  if (riskGateOn) {
+    effectiveSchemas = withSecurityRiskField(effectiveSchemas);
+    // Handshake with createPermissionGuard: outside `total`, the analyzer owns
+    // dangerous-call gating so the static dangerous-flag branch stands down.
+    // (In `total` the guard returns early anyway, so this is a no-op there.)
+    if (toolHandlerCtx) toolHandlerCtx.securityRiskActive = true;
   }
 
   const rawHandlers = makeToolHandlers(toolHandlerCtx);
@@ -224,7 +265,11 @@ export async function runAgent({
       if (n && !seen.has(n)) { additions.push(sc); seen.add(n); }
     }
     toolSession.pending = [];
-    if (additions.length > 0) effectiveSchemas = effectiveSchemas.concat(additions);
+    if (additions.length > 0) {
+      effectiveSchemas = effectiveSchemas.concat(
+        riskGateOn ? withSecurityRiskField(additions) : additions
+      );
+    }
   };
 
   const conversation = [...previousMessages, { role: "user", content: prompt }];
@@ -281,6 +326,23 @@ export async function runAgent({
     }
   };
 
+  // Stuck detection: catches the loops the side-effect dedupe can't — a
+  // read-only call repeated with identical results, or the same call erroring
+  // over and over. First trigger = in-band nudge; second = force the tool-free
+  // wrap-up so the turn closes with a model-authored status instead of burning
+  // the rest of the budget.
+  const stuckCfg = stuckDetectionConfig(globalConfig);
+  const stuckDetector = createStuckDetector(stuckCfg);
+  let stuckNudged = false;
+  let forceWrapUp = false;
+  const safeSig = (v) => {
+    try {
+      return JSON.stringify(v) ?? "";
+    } catch {
+      return "<unserializable>";
+    }
+  };
+
   // Engine call wrapped with lazy retry: on 413/429/5xx/rate-limit/etc, try
   // the next model in `retryChain` instead of bubbling. Stops when the chain
   // is exhausted; non-retryable errors (auth, bad payload) throw immediately.
@@ -316,8 +378,12 @@ export async function runAgent({
     // STRUCTURE (no tools this step) + an in-band directive turn (WRAPUP_SIGNAL);
     // the wording is entirely the model's. Coding surfaces keep their finish-tool flow, so
     // this never applies under completionContract.
+    // forceWrapUp (stuck abort) overrides the contract: a stuck model under
+    // toolChoice:"required" would only repeat itself, so we withhold tools and
+    // make it close the turn in prose either way.
     const isFinalWrapUp =
-      !useContract && effectiveSchemas.length > 0 && iter === maxIters - 1;
+      effectiveSchemas.length > 0 &&
+      ((!useContract && iter === maxIters - 1) || forceWrapUp);
     await emitProgress(onEvent, {
       type: isFinalWrapUp ? "final_wrapup" : "model_start",
       iteration: iter + 1,
@@ -426,6 +492,9 @@ export async function runAgent({
         try { args = JSON.parse(args); } catch { args = {}; }
       }
       args = args || {};
+      // Pop the model's own risk grade BEFORE the handler sees the args — the
+      // field belongs to the loop, not to any tool's contract.
+      const securityRisk = riskGateOn ? popSecurityRisk(args) : null;
 
       // Completion contract: `finish` declares the task done. Capture its
       // summary as the final text and stop processing the rest of this turn.
@@ -438,7 +507,13 @@ export async function runAgent({
       const traceId = `${iter + 1}:${trace.length + 1}`;
       await emitProgress(onEvent, {
         type: "tool_start",
-        trace: { id: traceId, tool: name, args, pending: true },
+        trace: {
+          id: traceId,
+          tool: name,
+          args,
+          pending: true,
+          ...(securityRisk ? { security_risk: securityRisk } : {}),
+        },
         iteration: iter + 1,
       });
       // Dedupe identical side-effecting calls within this turn.
@@ -456,18 +531,64 @@ export async function runAgent({
           iteration: iter + 1,
         });
       } else {
-        try {
-          const handler = handlers[name];
-          toolResult = handler ? await handler(args) : { error: `unknown tool: ${name}` };
-        } catch (e) {
-          toolResult = { error: e.message };
+        // ConfirmRisky gate: pause on the model's own grade before executing.
+        // A decline becomes a normal error observation — the model sees the
+        // rejection and can re-plan, mirroring OpenHands' rejection flow.
+        let riskDenied = null;
+        if (riskGateOn && shouldConfirmRisk(securityRisk, effectiveRiskCfg)) {
+          const description = buildConfirmDescription(name, args);
+          const requestConfirmation = toolHandlerCtx?.requestConfirmation;
+          if (typeof requestConfirmation !== "function") {
+            riskDenied = `Action requires user confirmation (security risk ${securityRisk}): ${description}`;
+          } else {
+            await emitProgress(onEvent, {
+              type: "security_confirmation",
+              trace: { id: traceId, tool: name, risk: securityRisk },
+              iteration: iter + 1,
+            });
+            let approved = false;
+            try {
+              approved = await requestConfirmation(name, args, `[risk: ${securityRisk}] ${description}`);
+            } catch {
+              approved = false;
+            }
+            if (approved && toolHandlerCtx) toolHandlerCtx.securityGateCleared = true;
+            if (!approved) {
+              riskDenied = `User did not confirm (security risk ${securityRisk}): ${description}`;
+            }
+          }
+        }
+        if (riskDenied) {
+          toolResult = { error: riskDenied };
+        } else {
+          try {
+            const handler = handlers[name];
+            toolResult = handler ? await handler(args) : { error: `unknown tool: ${name}` };
+          } catch (e) {
+            toolResult = { error: e.message };
+          } finally {
+            if (toolHandlerCtx) toolHandlerCtx.securityGateCleared = false;
+          }
         }
         if (sig) sideEffectExecuted.set(sig, summarizeForTrace(toolResult));
       }
 
-      const traceItem = { id: traceId, tool: name, args, result: summarizeForTrace(toolResult) };
+      const traceItem = {
+        id: traceId,
+        tool: name,
+        args,
+        result: summarizeForTrace(toolResult),
+        ...(securityRisk ? { security_risk: securityRisk } : {}),
+      };
       trace.push(traceItem);
       await emitProgress(onEvent, { type: "tool_result", trace: traceItem, iteration: iter + 1 });
+
+      stuckDetector.record({
+        tool: name,
+        argsSig: safeSig(args),
+        resultSig: safeSig(traceItem.result),
+        isError: !!(toolResult && typeof toolResult === "object" && toolResult.error),
+      });
 
       // Groq (and strict OpenAI) require tool_call_id to be present and
       // match the id of the tool_call in the previous assistant message.
@@ -528,6 +649,22 @@ export async function runAgent({
       await emitProgress(onEvent, { type: "ack_only_iter", iteration: iter + 1, streak: ackOnlyStreak });
     } else {
       ackOnlyStreak = 0;
+    }
+
+    // Stuck escalation: first detection nudges (in-band note, detector reset so
+    // only FRESH repetitions count again); a second detection means the nudge
+    // didn't land — stop spending budget and force the wrap-up close.
+    const stuck = stuckDetector.check();
+    if (stuck) {
+      if (!stuckNudged) {
+        stuckNudged = true;
+        stuckDetector.reset();
+        await emitProgress(onEvent, { type: "stuck_detected", ...stuck, iteration: iter + 1 });
+        conversation.push({ role: "user", content: stuckNudgeSignal(stuck) });
+      } else {
+        await emitProgress(onEvent, { type: "stuck_abort", ...stuck, iteration: iter + 1 });
+        forceWrapUp = true;
+      }
     }
   }
 

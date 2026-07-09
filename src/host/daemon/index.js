@@ -15,6 +15,12 @@ import {
   APX_HOME,
   TOKEN_PATH,
 } from "#core/config/index.js";
+import {
+  collectSecretValues,
+  collectMcpSecretValues,
+  registerSecretValues,
+} from "#core/config/secret-values.js";
+import { readGlobalMcps, readRuntimeMcps } from "#core/mcp/sources.js";
 import { ProjectManager } from "./db.js";
 import { McpRegistry } from "#core/mcp/runner.js";
 import { PluginManager } from "./plugins/index.js";
@@ -156,17 +162,26 @@ async function main() {
   const host = effectiveHost(cfg);
   const port = effectivePort(cfg);
 
+  // Value-based secret masking: register every known secret VALUE (engine
+  // keys, telegram tokens, MCP env/header tokens) so core/logging.js can
+  // scrub them from any log text they leak into. Refreshed on config PATCH
+  // in api/admin-config.js.
+  registerSecretValues(collectSecretValues(cfg));
+  registerSecretValues(collectMcpSecretValues(readGlobalMcps()));
+
   const projects = new ProjectManager(cfg);
   const registries = new RegistryCache();
 
   // Default project (id=0) is always available — no local .apc/ required.
-  projects.registerDefault();
+  const defaultProject = projects.registerDefault();
+  registerSecretValues(collectMcpSecretValues(readRuntimeMcps(defaultProject.storagePath)));
 
   // Load registered projects from config.
   for (const entry of cfg.projects) {
     try {
       const p = projects.register(entry.path);
       registries.ensure(p);
+      registerSecretValues(collectMcpSecretValues(readRuntimeMcps(p.storagePath)));
       log(`loaded project #${p.id} ${p.path}`);
     } catch (e) {
       log(`skipping project ${entry.path}: ${e.message}`);

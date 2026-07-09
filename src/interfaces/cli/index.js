@@ -91,6 +91,7 @@ import {
   cmdConversationsGet,
 } from "./commands/chat.js";
 import { cmdCode } from "./commands/code.js";
+import { cmdAcp } from "./commands/acp.js";
 import { cmdRun, cmdEnvDetect } from "./commands/runtime.js";
 import { cmdSend, cmdConnections } from "./commands/a2a.js";
 import {
@@ -1133,6 +1134,17 @@ const HELP_TOPICS = new Map(Object.entries({
     ],
     examples: ["apx chat reviewer", "apx chat reviewer --conversation abc123"],
   }),
+  acp: topic({
+    title: "apx acp",
+    summary: "Serve the APX super-agent over the Agent Client Protocol (ACP) on stdio.",
+    usage: ["apx acp"],
+    notes: [
+      "For ACP clients (Zed, JetBrains, marimo, …) that spawn agents as subprocesses.",
+      "stdout carries the protocol — logs go to stderr and ~/.apx/logs/apx.log.",
+      "Sessions resolve the APC project from the client's workspace cwd.",
+    ],
+    examples: ["apx acp"],
+  }),
   code: topic({
     title: "apx code",
     summary: "Start the APX terminal coding assistant with system and workspace context.",
@@ -2099,6 +2111,7 @@ function buildHelp(version) {
     hCmd("apx search \"query\"",       36, "web search (ddg | brave | browser)  --mode <m>  -n N"),
     hCmd("apx conversations list",     36, "stored exec/chat conversations for <agent>"),
     hCmd("apx conversations get",      36, "<agent> <id>"),
+    hCmd("apx acp",                    36, "serve the super-agent over the Agent Client Protocol (stdio, for IDEs)"),
 
     hSec("Runtimes"),
     hCmd("apx run <agent>",            36, "--runtime <id> \"prompt\"  --timeout <s>"),
@@ -2515,6 +2528,11 @@ async function dispatch(cmd, rest) {
       case "exec":
         await cmdExec(parseArgs(rest));
         break;
+
+      case "acp":
+        // ACP server owns stdio until the client closes the pipe.
+        await cmdAcp(parseArgs(rest));
+        return;
 
       case "search":
         await cmdSearch(parseArgs(rest));

@@ -93,14 +93,29 @@ asegura que la similitud por coseno solo se calcule dentro del mismo espacio de 
 
 Las conversaciones largas hacen crecer la ventana de contexto. Cuando un chat de canal acumula más de 60
 turnos conversacionales (configurable), los turnos más viejos más allá de los 40 más recientes se colapsan en
-un resumen denso escrito por el LLM (registro `type: "compact"` en el log JSONL). Los turnos futuros anteponen
+un resumen escrito por el LLM (registro `type: "compact"` en el log JSONL). Los turnos futuros anteponen
 ese resumen como un turno de sistema `[RESUMEN COMPACTADO]`, manteniendo el contexto acotado mientras se preservan
 decisiones, asignaciones de tareas y resultados de herramientas.
+
+El resumidor sigue la mecánica de _condenser_ de OpenHands (registrada como `condenser: "v2"` en la
+metadata del registro compact):
+
+- **Estado estructurado, no un recuento.** El resumen mantiene secciones etiquetadas —
+  `USER_CONTEXT`, `TASK_TRACKING`, `COMPLETED`, `PENDING`, `CURRENT_STATE`, más
+  `CODE_STATE`/`TESTS`/`CHANGES`/`DEPS`/`VERSION_CONTROL_STATUS` para trabajo de código — así el
+  próximo modelo retoma desde un estado explícito en vez de una narrativa.
+- **Encadenado del resumen previo.** Cuando un chat se compacta de nuevo, el resumen anterior se le
+  pasa al condenser como primer evento y el nuevo lo subsume — el estado trackeado nunca se pierde
+  en silencio entre compactaciones (el nuevo registro enlaza al anterior vía `prev_compact_ts`).
+- **Turnos iniciales `keep_first`.** Los primeros turnos de una conversación contienen el objetivo
+  original. En la primera compactación se citan textuales dentro del prompt del condenser con la
+  instrucción de preservar ese objetivo en `USER_CONTEXT`; las compactaciones siguientes lo heredan
+  a través del resumen encadenado.
 
 La compactación corre _fuera del camino crítico de respuesta_ — el turno actual usa el último compact existente;
 el próximo turno se beneficia del nuevo.
 
-El modelo de compactación es configurable:
+El modelo de compactación y los tamaños de ventana son configurables:
 
 ```json
 {
@@ -108,7 +123,8 @@ El modelo de compactación es configurable:
     "compact_model": "ollama:gemma4:31b-cloud",
     "compact_fallback_model": "",
     "compact_threshold": 60,
-    "keep_recent": 40
+    "keep_recent": 40,
+    "keep_first": 2
   }
 }
 ```
@@ -149,6 +165,7 @@ Todas las claves viven bajo `config.memory`:
 | `rag_top_k` | `5` | Cantidad de hits de RAG inyectados por turno. |
 | `compact_threshold` | `60` | Turnos antes de que se dispare la compactación. |
 | `keep_recent` | `40` | Turnos que quedan textuales después de la compactación. |
+| `keep_first` | `2` | Turnos iniciales citados textuales en el prompt del condenser (objetivo original). |
 | `compact_model` | `ollama:gemma4:31b-cloud` | Modelo primario para la generación de resúmenes. |
 | `compact_fallback_model` | _(super_agent.model)_ | Fallback si el primario está caído. |
 | `embeddings.provider` | `"auto"` | `auto`, `ollama`, `openai`, `gemini`, o `tf`. |

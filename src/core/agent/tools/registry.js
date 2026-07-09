@@ -18,6 +18,7 @@ import searchSessions from "./handlers/search-sessions.js";
 import callAgent from "./handlers/call-agent.js";
 import callMcp from "./handlers/call-mcp.js";
 import callRuntime from "./handlers/call-runtime.js";
+import runSubagent from "./handlers/run-subagent.js";
 import sendTelegram from "./handlers/send-telegram.js";
 import setIdentity from "./handlers/set-identity.js";
 import setPermissionMode from "./handlers/set-permission-mode.js";
@@ -65,6 +66,7 @@ const NATIVE_TOOLS = [
   callAgent,
   callMcp,
   callRuntime,
+  runSubagent,
   sendTelegram,
   setIdentity,
   setPermissionMode,
@@ -184,6 +186,7 @@ const NATIVE_CATEGORY = {
   [TOOLS.IMPORT_AGENT]:        "agents",
   [TOOLS.ADD_PROJECT]:         "projects",
   [TOOLS.CALL_AGENT]:          "agents",
+  [TOOLS.RUN_SUBAGENT]:        "agents",
   [TOOLS.CALL_RUNTIME]:        "runtime",
   [TOOLS.CALL_MCP]:            "mcp",
   [TOOLS.READ_AGENT_MEMORY]:   "memory",
@@ -384,6 +387,13 @@ export function makeToolHandlers(ctx) {
     ...ctx,
     requirePermission: createPermissionGuard(ctx.globalConfig || {}, {
       requestConfirmation: ctx.requestConfirmation || null,
+      // Live view of the risk-gate state for the CURRENT tool call. Reads the
+      // original ctx object (not the spread copy) because run-agent.js mutates
+      // it per call — see the security-risk section of the loop.
+      securityGate: () => ({
+        active: ctx.securityRiskActive === true,
+        cleared: ctx.securityGateCleared === true,
+      }),
     }),
   };
   return Object.fromEntries(ALL_TOOLS.map((tool) => [tool.name, tool.makeHandler(toolCtx)]));

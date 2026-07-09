@@ -31,11 +31,14 @@ export default {
         raw: { model, mock: true },
       };
     }
+    // `[mock:risk:HIGH]` → the emitted tool call carries a security_risk grade,
+    // so the inline security analyzer / confirmation gate can be exercised.
+    const riskGrade = userText.match(/\[mock:risk:(LOW|MEDIUM|HIGH|UNKNOWN)\]/)?.[1];
     const mkToolCall = (name, id) => {
       const toolCall = {
         id,
         type: "function",
-        function: { name, arguments: "{}" },
+        function: { name, arguments: riskGrade ? JSON.stringify({ security_risk: riskGrade }) : "{}" },
       };
       return {
         text: "",
@@ -65,6 +68,17 @@ export default {
     // a model that never stops on its own (drives the loop to its cap).
     if (loopTool && toolsAvailable) {
       return mkToolCall(loopTool, "mock-loop-1");
+    }
+    // `[mock:loopany:<tool>]` → like loop, but sticky: matched against ANY
+    // user turn, so the model keeps looping even after the agent loop injects
+    // in-band user notes (exercises stuck-detection escalation, which needs a
+    // model that ignores the nudge).
+    const loopAnyTool = messages
+      .filter((m) => m.role === "user")
+      .map((m) => String(m.content || "").match(/\[mock:loopany:([a-z_]+)\]/)?.[1])
+      .find(Boolean);
+    if (loopAnyTool && toolsAvailable) {
+      return mkToolCall(loopAnyTool, "mock-loopany-1");
     }
     if (requestedTool && !hasToolResult && toolsAvailable) {
       return mkToolCall(requestedTool, "mock-call-1");

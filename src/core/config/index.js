@@ -76,6 +76,47 @@ const DEFAULT_CONFIG = {
       ],
       health_timeout_ms: 800,
     },
+    // Inline security-risk analysis (OpenHands LLMSecurityAnalyzer pattern):
+    // every tool schema gains a required `security_risk` enum the model must
+    // fill; calls at/above `confirm_at` pause for user confirmation. Opt-in.
+    // When enabled it REPLACES the static dangerous-flag confirmation of
+    // permission_mode "automatico" (permiso/total semantics are unchanged).
+    security_risk: {
+      enabled: false,
+      confirm_at: "HIGH",     // LOW | MEDIUM | HIGH
+      confirm_unknown: true,  // ungraded calls (weak models) also pause
+    },
+    // Stuck detection (OpenHands pattern): same call + same result
+    // `action_repeat` times, or same call erroring `error_repeat` times in a
+    // row → in-band nudge, then a forced wrap-up if it keeps looping.
+    stuck_detection: {
+      enabled: true,
+      action_repeat: 4,
+      error_repeat: 3,
+    },
+    // Content-based routing (RouterLLM pattern): ordered rules inspected per
+    // turn; first match prefers a model for it (health-checked, falls back
+    // down the regular chain). Rule shape: { model: "<provider>:<model>",
+    // when: { has_image?, min_prompt_chars?, max_prompt_chars?,
+    // min_context_chars?, channels?: [], keywords?: [] } }.
+    // Enabled by default but a NO-OP until the user adds rules (empty rules →
+    // nothing reroutes), so it's safe to ship on and configure from the web
+    // Routing panel.
+    routing: {
+      enabled: true,
+      rules: [],
+    },
+    // Goal-completion judge (OpenHands critic pattern): after a
+    // completion-contract turn declares done, an LLM judge scores goal
+    // completion (0..1); below success_threshold the agent gets a
+    // verification follow-up and continues, up to max_iterations rounds.
+    // model "" → judge runs on super_agent.model.
+    judge: {
+      enabled: false,
+      success_threshold: 0.6,
+      max_iterations: 2,
+      model: "",
+    },
   },
   engines: {
     anthropic: { api_key: "" },
@@ -119,6 +160,7 @@ const DEFAULT_CONFIG = {
     broker_budget_ms: 800,            // hard cap on the Memory Broker
     compact_threshold: 60,            // compact once a chat exceeds this many turns
     keep_recent: 40,                  // verbatim turns always kept after compaction
+    keep_first: 2,                    // opening turns quoted verbatim into the condenser prompt (they hold the original goal)
     compact_model: "ollama:gemma4:31b-cloud", // light LLM for compaction (Ollama, local endpoint)
     compact_fallback_model: "",        // "" → falls back to super_agent.model (APX default)
   },
@@ -380,6 +422,25 @@ export function mergeDefaults(cfg) {
       ...DEFAULT_CONFIG.super_agent,
       ...(cfg.super_agent || {}),
       model_fallback: mergeModelFallback(cfg.super_agent?.model_fallback),
+      security_risk: {
+        ...DEFAULT_CONFIG.super_agent.security_risk,
+        ...(cfg.super_agent?.security_risk || {}),
+      },
+      stuck_detection: {
+        ...DEFAULT_CONFIG.super_agent.stuck_detection,
+        ...(cfg.super_agent?.stuck_detection || {}),
+      },
+      routing: {
+        ...DEFAULT_CONFIG.super_agent.routing,
+        ...(cfg.super_agent?.routing || {}),
+        rules: Array.isArray(cfg.super_agent?.routing?.rules)
+          ? cfg.super_agent.routing.rules
+          : [],
+      },
+      judge: {
+        ...DEFAULT_CONFIG.super_agent.judge,
+        ...(cfg.super_agent?.judge || {}),
+      },
     },
     engines: {
       ...DEFAULT_CONFIG.engines,

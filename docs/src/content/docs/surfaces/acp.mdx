@@ -1,0 +1,76 @@
+---
+title: ACP (IDE agents)
+description: Serve the APX super-agent over the Agent Client Protocol so editors like Zed can drive it natively.
+sidebar:
+  order: 8
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+The [Agent Client Protocol](https://agentclientprotocol.com) (ACP) is an open standard that lets
+editors and IDEs talk to coding agents over JSON-RPC on stdio — the client spawns the agent as a
+subprocess and streams prompts, tool activity, and permission requests through it. Zed, the
+JetBrains IDEs, and a growing list of clients (marimo, Toad, VS Code extensions) speak ACP.
+
+`apx acp` turns the APX super-agent into an ACP agent. Whatever your editor, the agent behind it
+is the same one that answers on Telegram, the web panel, and `apx code` — same engines, same
+tools, same memory.
+
+```bash
+apx acp
+```
+
+The command serves the protocol on stdin/stdout until the client closes the pipe. You never run it
+by hand in a terminal — your editor launches it. Like every surface, it is a thin adapter over the
+local [daemon](/apx/docs/surfaces/daemon/) (auto-started on first use): each prompt becomes a streaming
+super-agent turn on the `code` channel, so ACP sessions get the coding system prompt and the
+git/code tool set.
+
+## Connecting from Zed
+
+<Steps>
+
+1. Install APX globally so `apx` is on your PATH.
+
+2. Add an `agent_servers` entry to your Zed `settings.json`:
+
+   ```json
+   {
+     "agent_servers": {
+       "APX": {
+         "command": "apx",
+         "args": ["acp"]
+       }
+     }
+   }
+   ```
+
+3. Open the Agent Panel, pick **APX**, and chat. Tool calls stream into the panel, and any action
+   that needs confirmation shows Zed's native Allow / Reject dialog.
+
+</Steps>
+
+<Aside type="tip">
+Sessions resolve the APC project from the workspace folder the client reports (`cwd`), walking up
+to the nearest `.apc/` root — exactly like the MCP bridge. If the folder isn't an APC project yet,
+run `apx init` there first.
+</Aside>
+
+## What the surface implements
+
+| ACP concept | APX behavior |
+|-------------|--------------|
+| `initialize` | Protocol version `1`; declares `loadSession: false`, no image/audio/embeddedContext prompts, no MCP passthrough |
+| `session/new` | Resolves the APC project for the client's `cwd`, registers it with the daemon if needed |
+| `session/prompt` | Streams a super-agent turn; replies resolve with `stopReason: "end_turn"` |
+| `session/update` | `agent_message_chunk` for text, `tool_call` / `tool_call_update` for tool activity |
+| `session/request_permission` | Emitted when APX's [permission mode](/apx/docs/capabilities/super-agent/) requires confirmation; Allow/Reject answers the pending action |
+| `session/cancel` | Aborts the in-flight turn and resolves it with `stopReason: "cancelled"` |
+
+Multi-turn context is kept in-process per session: every completed turn feeds the next one as
+conversation history, so follow-up prompts remember the thread without any extra setup.
+
+<Aside type="note">
+stdout carries the protocol, so the server never logs there. Diagnostics go to stderr (your
+editor's agent log view) and to the unified log — `apx log -f`.
+</Aside>

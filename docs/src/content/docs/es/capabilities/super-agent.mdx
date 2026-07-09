@@ -95,6 +95,7 @@ El modelo siempre puede expandir su superficie llamando a `load_skill`.
 | `call_agent` | Delegar a un agente de proyecto nombrado sin lanzar un proceso nuevo |
 | `call_mcp` | Llamar cualquier herramienta de un servidor MCP registrado |
 | `call_runtime` | Delegar a un [runtime](/apx/docs/es/engine/runtimes/#delegar-desde-el-super-agente-call_runtime) externo (Claude Code / Codex …), de forma síncrona o en segundo plano |
+| `run_subagent` | Lanzar un sub-agente aislado (contexto fresco, mismas tools menos las de interacción con el usuario) que trabaja una tarea auto-contenida hasta completarla y devuelve el resultado — máximo un nivel de anidamiento |
 | `run_shell` | Ejecutar un comando de shell (limitado por el modo de permisos) |
 | `send_telegram` | Enviar un mensaje vía el plugin de Telegram |
 | `remember` | Escribir un hecho durable en `~/.apx/memory.md` |
@@ -164,6 +165,72 @@ apx identity wizard               # prompt de configuración interactivo
 apx permission set automatico
 ```
 
+### Análisis de riesgo inline
+
+Una capa opt-in encima del modo de permisos (inspirada en el `LLMSecurityAnalyzer` de OpenHands).
+Cuando está habilitada, cada schema de herramienta gana un campo obligatorio `security_risk`
+(`LOW` / `MEDIUM` / `HIGH`) que el modelo completa como parte del mismo call — sin ninguna
+llamada extra al LLM. Los calls calificados en `confirm_at` o más alto pausan y piden tu
+confirmación en la superficie activa (diálogo web, Telegram); un call rechazado vuelve al modelo
+como una observación de error para que re-planifique.
+
+```json
+"super_agent": {
+  "security_risk": {
+    "enabled": true,
+    "confirm_at": "HIGH",
+    "confirm_unknown": true
+  }
+}
+```
+
+- `confirm_at` — calificación mínima que pausa (`LOW` confirma todo, `HIGH` solo acciones destructivas o hacia afuera).
+- `confirm_unknown` — también pausa cuando el modelo no calificó el call (los modelos débiles a veces omiten el campo).
+
+No es un duplicado del modo de permisos — filtra por otro eje. El modo de permisos decide por
+*identidad de la tool* (¿es peligrosa / está en la allowlist?); el analizador de riesgo decide por
+el juicio del modelo sobre *la gravedad de esta acción concreta*. Por eso agrega una barrera que el
+modo de permisos no puede dar:
+
+- En **`automatico`** la calificación de riesgo reemplaza la confirmación estática por herramienta peligrosa.
+- En **`permiso`** la allowlist sigue aplicando y el gate de riesgo se compone encima.
+- En **`total`** se vuelve un **piso de seguridad**: todo corre libre *excepto* una acción calificada
+  `HIGH`, que igual se detiene para confirmación aun con confianza total. Ese es el punto — una
+  acción catastrófica se atrapa por más que confíes en el agente.
+
+## Judge de completitud
+
+Loop de verificación opt-in (patrón critic de OpenHands) para turnos con completion contract
+(superficies de código): cuando el agente declara que terminó, un LLM juez puntúa la probabilidad
+de que el pedido *original* esté completamente satisfecho. Por debajo de `success_threshold`, el
+agente recibe una nota interna de verificación (qué parece faltar, según el juez) y sigue
+trabajando — hasta `max_iterations` rondas. Un juez inutilizable (engine caído, respuesta no
+parseable) acepta el resultado en vez de bloquearlo.
+
+```json
+"super_agent": {
+  "judge": { "enabled": true, "success_threshold": 0.6, "max_iterations": 2, "model": "" }
+}
+```
+
+`model` vacío → el juez corre sobre `super_agent.model`; poné un modelo barato para mantener bajo
+el overhead de verificación. Los veredictos salen como eventos `judge_verdict` y en el resultado
+como `result.judge`.
+
+## Detección de loops (stuck detection)
+
+El tool loop vigila dos formas de quedarse trabado: el mismo call devolviendo el mismo resultado
+`action_repeat` veces, y el mismo call fallando `error_repeat` veces seguidas. En la primera
+detección el modelo recibe una nota in-band ("parecés trabado — cambiá de enfoque o explicá el
+bloqueo"); si sigue loopeando, el turno se cierra antes con un wrap-up escrito por el modelo en
+vez de quemar el resto del presupuesto de iteraciones. Activado por defecto:
+
+```json
+"super_agent": {
+  "stuck_detection": { "enabled": true, "action_repeat": 4, "error_repeat": 3 }
+}
+```
+
 ## Fallback de modelo
 
 Si el modelo primario no está disponible, APX recorre una lista ordenada y configurable de proveedores de fallback.
@@ -176,6 +243,32 @@ apx model status          # prueba todos los proveedores; muestra cuál se usar�
 ```
 
 Mirá [Configuration](/apx/docs/es/concepts/configuration/) para el schema completo de `super_agent.model_fallback`.
+
+### Routing por contenido
+
+Encima de la cadena estática de fallback, reglas opt-in de routing por turno (inspiradas en el
+`RouterLLM` de OpenHands) inspeccionan el mensaje real — imágenes, tamaño del prompt/contexto,
+canal, keywords — y prefieren otro modelo para ese turno. Las reglas se evalúan en orden; gana la
+primera que matchea completa. El modelo preferido igual pasa por el health-check y cae por la
+cadena normal si no está disponible, y un override explícito por request siempre le gana a las
+reglas.
+
+```json
+"super_agent": {
+  "routing": {
+    "enabled": true,
+    "rules": [
+      { "model": "anthropic:claude-sonnet-5", "when": { "has_image": true } },
+      { "model": "groq:llama-3.3-70b-versatile", "when": { "max_prompt_chars": 200, "channels": ["telegram"] } },
+      { "model": "anthropic:claude-opus-4-8", "when": { "keywords": ["refactor", "arquitectura"] } }
+    ]
+  }
+}
+```
+
+Condiciones de `when` (todas deben cumplirse): `has_image`, `min_prompt_chars` /
+`max_prompt_chars`, `min_context_chars`, `channels` (lista), `keywords` (lista, substring
+case-insensitive). Un `when` vacío matchea todos los turnos — útil como catch-all final.
 
 ## Siguiente
 
