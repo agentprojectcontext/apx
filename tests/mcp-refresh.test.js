@@ -12,11 +12,11 @@ async function listen(app) {
   return { server, baseUrl: `http://127.0.0.1:${port}` };
 }
 
-test("POST /projects/:pid/mcps clears cached registries after writing MCP config", async () => {
+test("POST /projects/:pid/mcps evicts only the written MCP from cached registries", async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-mcp-refresh-project-"));
   fs.mkdirSync(path.join(root, ".apc"), { recursive: true });
 
-  let shutdowns = 0;
+  const evicts = [];
   let rebuilds = 0;
   const projectEntry = { id: "p1", path: root, storagePath: null };
   const app = express();
@@ -27,7 +27,7 @@ test("POST /projects/:pid/mcps clears cached registries after writing MCP config
     projects: { rebuild: () => { rebuilds += 1; } },
     project: () => projectEntry,
     registries: {
-      shutdown: () => { shutdowns += 1; },
+      evictName: (name) => { evicts.push(name); },
       for: () => ({
         getByName: (name) => ({ name, source: "apc", transport: "stdio", enabled: true }),
         list: () => [],
@@ -43,7 +43,7 @@ test("POST /projects/:pid/mcps clears cached registries after writing MCP config
       body: JSON.stringify({ name: "example", command: "node", args: ["server.js"] }),
     });
     assert.equal(res.status, 201);
-    assert.equal(shutdowns, 1);
+    assert.deepEqual(evicts, ["example"]);
     assert.equal(rebuilds, 1);
   } finally {
     await new Promise((resolve) => server.close(resolve));
@@ -63,7 +63,7 @@ test("POST /projects/:pid/mcps allows partial updates for existing MCP config", 
     }, null, 2)
   );
 
-  let shutdowns = 0;
+  const evicts = [];
   const projectEntry = { id: "p1", path: root, storagePath: null };
   const app = express();
   app.use(express.json());
@@ -73,7 +73,7 @@ test("POST /projects/:pid/mcps allows partial updates for existing MCP config", 
     projects: { rebuild: () => {} },
     project: () => projectEntry,
     registries: {
-      shutdown: () => { shutdowns += 1; },
+      evictName: (name) => { evicts.push(name); },
       for: () => ({
         getByName: (name) => ({ name, source: "apc", transport: "stdio", enabled: false }),
         list: () => [],
@@ -89,7 +89,7 @@ test("POST /projects/:pid/mcps allows partial updates for existing MCP config", 
       body: JSON.stringify({ name: "example", enabled: false }),
     });
     assert.equal(res.status, 201);
-    assert.equal(shutdowns, 1);
+    assert.deepEqual(evicts, ["example"]);
 
     const saved = JSON.parse(fs.readFileSync(path.join(root, ".apc", "mcps.json"), "utf8"));
     assert.equal(saved.mcpServers.example.command, "node");
