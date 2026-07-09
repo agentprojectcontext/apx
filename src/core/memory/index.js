@@ -30,14 +30,17 @@ let _store = null;
 let _ready = null;
 let _timer = null;
 let _cfg = {};
+let _projects = null;
 let _indexing = false;
 
 // Run one index pass unless one is already in flight (a full re-embed can take
 // longer than the timer interval — overlapping passes would race on clear()).
+// `_projects` (the daemon registry) lets the indexer reach each project's
+// .apc/memory.md; agent memory is walked straight off the filesystem.
 function indexOnce(note) {
   if (_indexing || !_store) return Promise.resolve();
   _indexing = true;
-  return indexNewMessages(_store, { embed: embedOptsFromConfig(_cfg), log: note })
+  return indexNewMessages(_store, { embed: embedOptsFromConfig(_cfg), projects: _projects, log: note })
     .catch(() => {})
     .finally(() => {
       _indexing = false;
@@ -58,7 +61,7 @@ function embedOptsFromConfig(config) {
 
 // Boot the subsystem (Pieza 1 file creation + Pieza 2 store/index). Safe to
 // call once from the daemon. Never throws.
-export async function initMemory({ config, log } = {}) {
+export async function initMemory({ config, log, projects } = {}) {
   const note = typeof log === "function" ? log : () => {};
   try {
     const created = ensureSelfMemoryFile();
@@ -71,6 +74,7 @@ export async function initMemory({ config, log } = {}) {
     return null;
   }
   _cfg = config || {};
+  _projects = projects || null;
   _ready = (async () => {
     try {
       _store = await openMemoryStore({ dbPath: DB_PATH, jsonPath: JSON_PATH, log: note });
@@ -151,6 +155,29 @@ export async function memoryBlockFor(message, { config, channel, budgetMs } = {}
       store,
       config,
       channel,
+      scope: "global", // super-agent recall — never pulls project/agent rows
+      budgetMs: budgetMs || config?.memory?.broker_budget_ms || 800,
+      topK: config?.memory?.rag_top_k || 5,
+      embed: embedOptsFromConfig(config),
+    });
+  } catch {
+    return "";
+  }
+}
+
+// Scoped recall for a specific project or agent turn. `scope` is the row channel
+// key: "project:<id>" or "agent:<projdir>:<slug>". `memoryPath` (optional) is
+// that scope's own notebook, read as the always-included flat slice. Returns ""
+// on any failure so the prompt builder can drop the block.
+export async function scopedMemoryBlockFor(message, { scope, memoryPath, config, budgetMs } = {}) {
+  try {
+    if (!scope || !memoryEnabled(config)) return "";
+    const store = await getMemoryStore();
+    return await buildMemoryBlock(message, {
+      store,
+      config,
+      scope,
+      memoryPath,
       budgetMs: budgetMs || config?.memory?.broker_budget_ms || 800,
       topK: config?.memory?.rag_top_k || 5,
       embed: embedOptsFromConfig(config),

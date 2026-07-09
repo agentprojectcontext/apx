@@ -98,7 +98,7 @@ test("indexer: incremental — only new chunks each pass, tools truncated, memor
   fs.writeFileSync(memoryPath, "# Roby\n\n## 2026-05-29\n- [10:01][telegram] el deck quedó pendiente\n");
 
   const store = new JsonStore(path.join(dir, "idx.jsonl"));
-  const r1 = await indexNewMessages(store, { messagesDir, cursorPath, memoryPath, embed: { forceTf: true } });
+  const r1 = await indexNewMessages(store, { messagesDir, cursorPath, memoryPath, apxHome: dir, embed: { forceTf: true } });
   assert.equal(r1.indexed, 4, "2 turns + 1 tool + 1 memory entry");
 
   // Tool chunk is truncated to 400 chars and prefixed.
@@ -109,7 +109,7 @@ test("indexer: incremental — only new chunks each pass, tools truncated, memor
   assert.ok([...store.rows.values()].some((r) => r.tag === "memory"));
 
   // Second pass with no new data indexes nothing (incremental cursor).
-  const r2 = await indexNewMessages(store, { messagesDir, cursorPath, memoryPath, embed: { forceTf: true } });
+  const r2 = await indexNewMessages(store, { messagesDir, cursorPath, memoryPath, apxHome: dir, embed: { forceTf: true } });
   assert.equal(r2.indexed, 0);
 
   // A new message is picked up on the next pass.
@@ -117,7 +117,7 @@ test("indexer: incremental — only new chunks each pass, tools truncated, memor
     path.join(messagesDir, "telegram", "2026-05-29.jsonl"),
     JSON.stringify({ ts: "2026-05-29T11:00:00Z", channel: "telegram", direction: "in", type: "user", body: "seguimos con el deck hoy?", meta: { chat_id: 1, message_id: 3 } }) + "\n"
   );
-  const r3 = await indexNewMessages(store, { messagesDir, cursorPath, memoryPath, embed: { forceTf: true } });
+  const r3 = await indexNewMessages(store, { messagesDir, cursorPath, memoryPath, apxHome: dir, embed: { forceTf: true } });
   assert.equal(r3.indexed, 1);
 });
 
@@ -137,7 +137,7 @@ test("indexer: embedder downgrade (Ollama down) skips the pass and preserves the
   writeJsonl(path.join(messagesDir, "telegram", "2026-05-29.jsonl"), [
     { ts: "2026-05-29T10:00:00Z", channel: "telegram", direction: "in", type: "user", body: "mensaje nuevo", meta: { chat_id: 1, message_id: 5 } },
   ]);
-  const r = await indexNewMessages(store, { messagesDir, cursorPath, memoryPath, embed: { forceTf: true } });
+  const r = await indexNewMessages(store, { messagesDir, cursorPath, memoryPath, apxHome: dir, embed: { forceTf: true } });
   assert.equal(r.skipped, "embedder-downgrade");
   assert.equal(store.count(), 1, "nomic store untouched — not cleared, not polluted with TF rows");
 });
