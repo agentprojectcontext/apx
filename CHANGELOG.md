@@ -1,3 +1,16 @@
+# [1.70.0](https://github.com/agentprojectcontext/apx/compare/v1.69.0...v1.70.0) (2026-07-09)
+
+
+### Bug Fixes
+
+* **mcp:** stop npx MCPs from reinstalling & racing their npm cache ([67ac46b](https://github.com/agentprojectcontext/apx/commit/67ac46b9143059ee8b6dd172a64877207667925c))
+
+
+### Features
+
+* **integrations:** Obsidian vault integration + shared brand logos & folder picker ([9b1699d](https://github.com/agentprojectcontext/apx/commit/9b1699d68b599b767b2c44cfe8ff909e95d3a115))
+* **memory:** scoped RAG for per-agent & per-project memory ([aadda10](https://github.com/agentprojectcontext/apx/commit/aadda10d8b290099dc6b12e138fceb6c232e39fd))
+
 # [1.69.0](https://github.com/agentprojectcontext/apx/compare/v1.68.0...v1.69.0) (2026-07-09)
 
 
