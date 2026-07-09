@@ -28,6 +28,29 @@ export interface ArtifactRunResult {
   error?: string;
 }
 
+// A running ephemeral preview server for an artifact. `url` is the local
+// http://localhost:<port>/ address; `tunnel` is set once shared publicly.
+export interface ArtifactPreview {
+  id: string;
+  projectId: string | number | null;
+  name: string;
+  kind: "html" | "react" | "static" | "text";
+  port: number;
+  url: string;
+  watch: boolean;
+  createdAt: string;
+  hits: number;
+  tunnel: { id: string; url: string; provider: string } | null;
+}
+
+export interface ArtifactTunnel {
+  id: string;
+  url: string;
+  provider: string;
+  port: number;
+  createdAt: string;
+}
+
 export const Artifacts = {
   list: (pid: string) =>
     http.get<ArtifactEntry[]>(`/projects/${encodeURIComponent(pid)}/artifacts`),
@@ -54,4 +77,19 @@ export const Artifacts = {
       `/projects/${encodeURIComponent(pid)}/artifacts/${encodeURIComponent(name)}`,
       { newName },
     ),
+
+  // Start (or reuse) an ephemeral local preview server for an artifact.
+  preview: (pid: string, name: string, watch = true) =>
+    http.post<ArtifactPreview>(
+      `/projects/${encodeURIComponent(pid)}/artifacts/${encodeURIComponent(name)}/preview`,
+      { watch },
+    ),
+  // List running preview servers for a project.
+  previews: (pid: string) =>
+    http.get<ArtifactPreview[]>(`/projects/${encodeURIComponent(pid)}/previews`),
+  stopPreview: (id: string) => http.del<void>(`/previews/${encodeURIComponent(id)}`),
+  // Open / close a public tunnel to a running preview.
+  openTunnel: (id: string, provider?: string) =>
+    http.post<ArtifactTunnel>(`/previews/${encodeURIComponent(id)}/tunnel`, { provider }),
+  closeTunnel: (id: string) => http.del<void>(`/previews/${encodeURIComponent(id)}/tunnel`),
 };

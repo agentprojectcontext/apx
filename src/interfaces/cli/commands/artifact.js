@@ -1,8 +1,19 @@
 import fs from "node:fs";
 import { spawn } from "node:child_process";
 import path from "node:path";
+import open from "open";
 import { http } from "../http.js";
 import { resolveProjectId } from "./project.js";
+
+// Emit an OSC 8 terminal hyperlink when stdout is a TTY that likely supports
+// it (iTerm2, modern VS Code, kitty, WezTerm, …). Falls back to the raw URL
+// elsewhere so the link is always at least copy-pasteable.
+function hyperlink(url, label = url) {
+  if (process.stdout.isTTY) {
+    return `\x1b]8;;${url}\x07${label}\x1b]8;;\x07`;
+  }
+  return label === url ? url : `${label} (${url})`;
+}
 
 // First two bytes of an executable script. Used as a hint when the file
 // doesn't have the exec bit but clearly intends to run (shebang line).
@@ -141,4 +152,108 @@ export async function cmdArtifactRun(args) {
       process.exit(1);
     });
   });
+}
+
+// `apx artifact preview <name> [--open] [--share] [--no-watch]`
+//
+// Asks the daemon to spin up an ephemeral local web server that renders the
+// artifact (HTML / React / static) and prints an interactive localhost link.
+// The page auto-reloads when the artifact file changes (unless --no-watch).
+// With --open the link is opened in the default browser; with --share a public
+// tunnel URL is created too.
+export async function cmdArtifactPreview(args) {
+  const name = args._[0];
+  if (!name) throw new Error("apx artifact preview: missing <name>");
+  const pid = await resolveProjectId(args?.flags?.project);
+  const watch = args.flags["no-watch"] ? false : true;
+
+  let view;
+  try {
+    view = await http.post(
+      `/projects/${pid}/artifacts/${encodeURIComponent(name)}/preview`,
+      { watch }
+    );
+  } catch (e) {
+    throw new Error(`could not preview "${name}": ${e.message}`);
+  }
+
+  console.log(`preview ready — ${view.kind} artifact "${view.name}"`);
+  console.log(`  local:  ${hyperlink(view.url)}`);
+  if (view.watch) console.log("  (auto-reloads on change — edit the artifact and the tab refreshes)");
+  console.log(`  stop:   apx artifact stop ${view.id}`);
+
+  if (args.flags.share) {
+    await sharePreview(view.id, { open: !!args.flags.open });
+  } else if (args.flags.open) {
+    await open(view.url);
+    console.log("  opened in your browser.");
+  } else {
+    console.log(`  open:   apx artifact preview ${name} --open`);
+  }
+}
+
+// Shared helper: open a tunnel for an existing preview id and print the URL.
+async function sharePreview(previewId, { open: doOpen = false } = {}) {
+  let tunnel;
+  try {
+    tunnel = await http.post(`/previews/${previewId}/tunnel`, {});
+  } catch (e) {
+    throw new Error(`could not create tunnel: ${e.message}`);
+  }
+  console.log(`  public: ${hyperlink(tunnel.url)}  (${tunnel.provider})`);
+  console.log("  ⚠ anyone with this URL can reach the preview while it's open.");
+  if (doOpen) {
+    await open(tunnel.url);
+    console.log("  opened public URL in your browser.");
+  }
+}
+
+// `apx artifact share <name> [--open] [--no-watch]`
+// Convenience: preview + tunnel in one shot.
+export async function cmdArtifactShare(args) {
+  const name = args._[0];
+  if (!name) throw new Error("apx artifact share: missing <name>");
+  const pid = await resolveProjectId(args?.flags?.project);
+  const watch = args.flags["no-watch"] ? false : true;
+
+  const view = await http.post(
+    `/projects/${pid}/artifacts/${encodeURIComponent(name)}/preview`,
+    { watch }
+  );
+  console.log(`sharing ${view.kind} artifact "${view.name}"`);
+  console.log(`  local:  ${hyperlink(view.url)}`);
+  await sharePreview(view.id, { open: !!args.flags.open });
+  console.log(`  stop:   apx artifact stop ${view.id}`);
+}
+
+// `apx artifact previews` — list running preview servers.
+export async function cmdArtifactPreviews(args = {}) {
+  const rows = await http.get(`/previews`);
+  if (!rows.length) {
+    console.log("(no running previews)");
+    return;
+  }
+  console.log("ID".padEnd(10) + "NAME".padEnd(24) + "KIND".padEnd(8) + "URL");
+  for (const r of rows) {
+    console.log(
+      r.id.padEnd(10) +
+      String(r.name).slice(0, 22).padEnd(24) +
+      String(r.kind).padEnd(8) +
+      r.url + (r.tunnel ? `  → ${r.tunnel.url}` : "")
+    );
+  }
+}
+
+// `apx artifact stop <id> | --all` — stop preview server(s).
+export async function cmdArtifactStop(args) {
+  if (args.flags.all) {
+    const rows = await http.get(`/previews`);
+    for (const r of rows) await http.delete(`/previews/${r.id}`);
+    console.log(`stopped ${rows.length} preview(s)`);
+    return;
+  }
+  const id = args._[0];
+  if (!id) throw new Error("apx artifact stop: missing <id> (or --all)");
+  await http.delete(`/previews/${encodeURIComponent(id)}`);
+  console.log(`stopped preview ${id}`);
 }
