@@ -238,7 +238,7 @@ async function main() {
     // Cross-channel memory: ensure ~/.apx/memory.md exists, open the vector
     // store, and start the incremental RAG indexer. Best-effort — never blocks
     // boot and never throws into the daemon.
-    initMemory({ config: cfg, log }).catch((e) => log(`memory: init failed: ${e?.message || e}`));
+    initMemory({ config: cfg, log, projects }).catch((e) => log(`memory: init failed: ${e?.message || e}`));
     // Skill Inspector: if enabled, refresh its vector index in the background so
     // any SKILL.md added/edited while the daemon was down is picked up without a
     // manual `apx skills index`. Best-effort; never blocks boot.

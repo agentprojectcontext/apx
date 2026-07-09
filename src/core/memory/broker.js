@@ -87,6 +87,9 @@ export async function buildMemoryBlock(message, opts = {}) {
   const budgetMs = opts.budgetMs || DEFAULT_BUDGET_MS;
   const topK = opts.topK || DEFAULT_TOP_K;
   const store = opts.store || null;
+  // Scope isolation: the super-agent recalls only global rows ("global"), a
+  // project/agent turn recalls only its own ("project:<id>" / "agent:…").
+  const scope = opts.scope || "global";
   const query = clean(message);
 
   // memory.md entries are read synchronously and always make the deadline.
@@ -99,7 +102,7 @@ export async function buildMemoryBlock(message, opts = {}) {
       const { vector, embedder, dim } = await embedOne(query, opts.embed || {});
       const family = embedder.startsWith("ollama") ? "ollama" : "tf";
       const floor = MIN_SCORE[family] ?? 0;
-      const results = store.search(vector, { embedder, k: topK + 3 });
+      const results = store.search(vector, { embedder, k: topK + 3, scope });
       return results.filter((r) => r.score >= floor && (r.dim ?? dim) === dim);
     })();
     hits = await withTimeout(rag, budgetMs, []);
