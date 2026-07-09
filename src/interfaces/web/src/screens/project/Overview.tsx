@@ -1,9 +1,11 @@
+import { useMemo } from "react";
 import useSWR from "swr";
 import { NavLink, useNavigate } from "react-router-dom";
-import { Bot, FileCode2, Heart, MessagesSquare, Puzzle, Zap, Crown, Activity } from "lucide-react";
+import { Bot, Briefcase, FileCode2, Heart, MessagesSquare, Puzzle, Zap, Crown, Activity } from "lucide-react";
 import { Agents, Artifacts, Mcps, Routines, Tasks } from "../../lib/api";
 import { Section } from "../../components/Section";
 import { StatusIcon, StatusBadge, effectiveStatus, statusLabel, TASK_STATUS_ORDER } from "../../components/tasks/taskStatus";
+import { BrainGraph, type BrainNode, type BrainEdge } from "./AgentBrainGraph";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 import type { AgentEntry } from "../../types/daemon";
@@ -22,6 +24,10 @@ export function Overview({ pid }: { pid: string }) {
   const agentList = agents.data ?? [];
   const orchestrators = agentList.filter((a) => a.is_master || a.type === "orchestrator");
   const specialists = agentList.filter((a) => !(a.is_master || a.type === "orchestrator"));
+  // When agents carry an area, the project reads as a company: group the roster
+  // by area instead of the flat orchestrator/specialist split.
+  const areaGroups = groupByArea(agentList);
+  const hasAreas = areaGroups.some((g) => g.area);
   const activeRoutines = (routines.data ?? []).filter((r) => r.enabled).length;
   const openTasks = [...(tasks.data ?? [])].sort((a, b) => (b.created_at || "").localeCompare(a.created_at || "")).slice(0, 6);
 
@@ -53,11 +59,32 @@ export function Overview({ pid }: { pid: string }) {
         </div>
       )}
 
+      {/* Team brain — the whole agent map: orchestrators at the core, their
+          specialists clustered around them as satellites, all connected. */}
+      {agentList.length > 0 && (
+        <Section title={t("project.overview.brain_title")} description={t("project.overview.brain_desc")} className="!p-4">
+          <TeamBrain pid={pid} agents={agentList} navigate={navigate} />
+        </Section>
+      )}
+
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Agent roster */}
         <Section title={t("project.overview.roster")} className="!p-4">
           {agentList.length === 0 ? (
             <p className="text-sm text-muted-fg">{t("project.overview.no_agents")}</p>
+          ) : hasAreas ? (
+            <div className="space-y-3">
+              {areaGroups.map((g) => (
+                <RosterRow
+                  key={g.area ?? "__none"}
+                  label={g.area || t("agents_ui.uncategorized")}
+                  icon={Briefcase}
+                  agents={g.agents}
+                  pid={pid}
+                  navigate={navigate}
+                />
+              ))}
+            </div>
           ) : (
             <div className="space-y-3">
               {orchestrators.length > 0 && (
@@ -106,6 +133,67 @@ export function Overview({ pid }: { pid: string }) {
   );
 }
 
+// Group agents by area (category); named areas first (alphabetical), the
+// uncategorized bucket last.
+function groupByArea(agents: AgentEntry[]): { area: string | null; agents: AgentEntry[] }[] {
+  const map = new Map<string | null, AgentEntry[]>();
+  for (const a of agents) {
+    const k = a.area || null;
+    if (!map.has(k)) map.set(k, []);
+    map.get(k)!.push(a);
+  }
+  return [...map.entries()]
+    .sort(([a], [b]) => (a === null ? 1 : b === null ? -1 : a.localeCompare(b)))
+    .map(([area, agents]) => ({ area, agents }));
+}
+
+// Whole-project agent map. The core is the team; orchestrators hang off it as
+// hubs, and each specialist connects to its parent orchestrator (or the core if
+// unparented) — so teams read as satellite clusters. Click a node to open it.
+function TeamBrain({
+  pid, agents, navigate,
+}: {
+  pid: string; agents: AgentEntry[]; navigate: (to: string) => void;
+}) {
+  const { nodes, edges } = useMemo(() => {
+    const nodes: BrainNode[] = [];
+    const edges: BrainEdge[] = [];
+    const ROOT = "__root";
+    nodes.push({ id: ROOT, label: t("project.overview.brain_core"), kind: "agent", role: "core", emoji: "🧠" });
+
+    const slugs = new Set(agents.map((a) => a.slug));
+    const hasKids = (slug: string) => agents.some((x) => x.parent === slug);
+
+    for (const a of agents) {
+      const isOrch = !!a.is_master || a.type === "orchestrator";
+      nodes.push({
+        id: a.slug,
+        label: a.slug,
+        slug: a.slug,
+        kind: isOrch ? "agent" : "agentlink",
+        role: isOrch || hasKids(a.slug) ? "hub" : "leaf",
+        emoji: a.emoji || undefined,
+        relation: a.role || (isOrch ? t("project.agents.orchestrator") : t("project.overview.specialists")),
+        detail: a.description || undefined,
+      });
+    }
+    for (const a of agents) {
+      const parent = a.parent && slugs.has(a.parent) ? a.parent : ROOT;
+      edges.push({ source: parent, target: a.slug });
+    }
+    return { nodes, edges };
+  }, [agents]);
+
+  return (
+    <BrainGraph
+      nodes={nodes}
+      edges={edges}
+      height={520}
+      onNodeClick={(n) => { if (n.slug) navigate(`/p/${pid}/agents/${n.slug}`); }}
+    />
+  );
+}
+
 function RosterRow({
   label, icon: Icon, agents, pid, navigate,
 }: {
@@ -128,6 +216,7 @@ function RosterRow({
           >
             <span className="text-sm leading-none">{a.emoji || "🤖"}</span>
             <span className="truncate">{a.slug}</span>
+            {a.role && <span className="truncate text-[10px] text-muted-fg">· {a.role}</span>}
           </button>
         ))}
       </div>

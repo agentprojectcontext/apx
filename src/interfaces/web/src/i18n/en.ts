@@ -324,6 +324,9 @@ export const en = {
       specialists: "Specialists",
       recent_tasks: "Recent tasks",
       no_activity: "No open tasks.",
+      brain_title: "Team brain",
+      brain_desc: "The whole agent map — orchestrators at the core, their specialists clustered around them. Click a node to open it.",
+      brain_core: "Team",
     },
 
     artifacts: {
@@ -1483,6 +1486,7 @@ export const en = {
     stat_records:            "Records",
     stat_tasks:              "Tasks",
     stat_heartbeats:         "Heartbeats",
+    uncategorized:           "Uncategorized",
     config_def_desc:         "definition (frontmatter + system prompt).",
     memory_durable_desc:     "durable facts the agent remembers.",
     running:                 "running",

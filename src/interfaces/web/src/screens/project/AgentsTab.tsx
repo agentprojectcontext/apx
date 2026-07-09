@@ -1,11 +1,12 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import useSWR from "swr";
-import { Bot, Crown, Eye, GitBranch, List, Plus, Send, Sparkles, Upload, Wrench } from "lucide-react";
+import { Activity, Bot, Crown, Eye, GitBranch, Heart, List, MessagesSquare, Plus, Send, Sparkles, Upload, Wrench, Zap } from "lucide-react";
 import { Agents } from "../../lib/api";
-import type { AgentEntry } from "../../types/daemon";
+import type { AgentEntry, AgentStats } from "../../types/daemon";
 import { Section } from "../../components/Section";
 import { Badge, Button, Dialog, Empty, Field, Input, Loading, Switch, Textarea } from "../../components/ui";
+import { Tip } from "../../components/ui/tip";
 import { UiSelect } from "../../components/UiSelect";
 import { useToast } from "../../components/Toast";
 import { EmojiInput, AutonomyPicker, AreaRoleFields } from "../../components/agents/AgentFormFields";
@@ -21,6 +22,44 @@ function agentVisual(a: AgentEntry) {
   return a.is_master
     ? { gradient: "from-violet-600 to-indigo-600", Icon: Crown }
     : { gradient: "from-slate-600 to-gray-600", Icon: Bot };
+}
+
+// Icon + count summary (threads / records / tasks / heartbeats) mirroring the
+// agent Explorer, with an i18n tooltip on each so the icons are self-describing.
+const STAT_META: { key: keyof AgentStats; icon: typeof Bot; i18n: Parameters<typeof t>[0] }[] = [
+  { key: "threads",    icon: MessagesSquare, i18n: "agents_ui.stat_threads" },
+  { key: "records",    icon: Activity,       i18n: "agents_ui.stat_records" },
+  { key: "tasks",      icon: Zap,            i18n: "agents_ui.stat_tasks" },
+  { key: "heartbeats", icon: Heart,          i18n: "agents_ui.stat_heartbeats" },
+];
+
+function AgentStatRow({ stats, className }: { stats?: AgentStats; className?: string }) {
+  if (!stats) return null;
+  return (
+    <div className={cn("flex items-center gap-3 text-[11px] text-muted-fg", className)}>
+      {STAT_META.map(({ key, icon: I, i18n }) => (
+        <Tip key={key} content={t(i18n)}>
+          <span className="inline-flex items-center gap-1 tabular-nums">
+            <I size={12} /> {stats[key]}
+          </span>
+        </Tip>
+      ))}
+    </div>
+  );
+}
+
+// Group agents by their area (category). Named areas sort alphabetically;
+// uncategorized agents fall to the end.
+function groupByArea(agents: AgentEntry[]): { area: string | null; agents: AgentEntry[] }[] {
+  const map = new Map<string | null, AgentEntry[]>();
+  for (const a of agents) {
+    const k = a.area || null;
+    if (!map.has(k)) map.set(k, []);
+    map.get(k)!.push(a);
+  }
+  return [...map.entries()]
+    .sort(([a], [b]) => (a === null ? 1 : b === null ? -1 : a.localeCompare(b)))
+    .map(([area, agents]) => ({ area, agents }));
 }
 
 // Build parent→children map with panda's single-orchestrator fallback: if there
@@ -50,7 +89,7 @@ function buildTree(agents: AgentEntry[]) {
 export function AgentsTab({ pid }: { pid: string }) {
   const navigate = useNavigate();
   const toast = useToast();
-  const list = useSWR(`/projects/${pid}/agents`, () => Agents.list(pid));
+  const list = useSWR(`/projects/${pid}/agents?stats=1`, () => Agents.list(pid, { stats: true }));
   const [view, setView] = useState<"hierarchy" | "list">("hierarchy");
   const [creating, setCreating] = useState(false);
 
@@ -174,26 +213,41 @@ function HierarchyView({
     <div className="space-y-8">
       {roots.map((root) => {
         const kids = childrenByParent.get(root.slug) || [];
+        const groups = groupByArea(kids);
+        const categorized = groups.some((g) => g.area);
         return (
           <div key={root.slug} className="flex flex-col items-center">
             <AgentCard agent={root} onOpen={onOpen} onChat={onChat} wide />
             {kids.length > 0 && (
               <>
                 <div className="h-5 w-px bg-border" />
-                <div className="flex flex-wrap items-start justify-center gap-4 border-t border-border pt-5">
-                  {kids.map((k) => (
-                    <div key={k.slug} className="flex flex-col items-center">
-                      <AgentCard agent={k} onOpen={onOpen} onChat={onChat} />
-                      {(childrenByParent.get(k.slug) || []).length > 0 && (
-                        <>
-                          <div className="h-4 w-px bg-border" />
-                          <div className="flex flex-wrap justify-center gap-3 border-t border-border pt-4">
-                            {(childrenByParent.get(k.slug) || []).map((g) => (
-                              <AgentCard key={g.slug} agent={g} onOpen={onOpen} onChat={onChat} compact />
-                            ))}
-                          </div>
-                        </>
+                {/* When children carry a category (area), lay them out grouped
+                    under a heading per category; otherwise keep the flat row. */}
+                <div className="flex flex-col gap-6 border-t border-border pt-5">
+                  {groups.map((g) => (
+                    <div key={g.area ?? "__none"} className="flex flex-col items-center gap-3">
+                      {categorized && (
+                        <span className="rounded-full border border-border bg-muted/40 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-fg">
+                          {g.area || t("agents_ui.uncategorized")} · {g.agents.length}
+                        </span>
                       )}
+                      <div className="flex flex-wrap items-start justify-center gap-4">
+                        {g.agents.map((k) => (
+                          <div key={k.slug} className="flex flex-col items-center">
+                            <AgentCard agent={k} onOpen={onOpen} onChat={onChat} />
+                            {(childrenByParent.get(k.slug) || []).length > 0 && (
+                              <>
+                                <div className="h-4 w-px bg-border" />
+                                <div className="flex flex-wrap justify-center gap-3 border-t border-border pt-4">
+                                  {(childrenByParent.get(k.slug) || []).map((gc) => (
+                                    <AgentCard key={gc.slug} agent={gc} onOpen={onOpen} onChat={onChat} compact />
+                                  ))}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -236,6 +290,7 @@ function AgentCard({
         {agent.role && <Badge>{agent.role}</Badge>}
         {agent.model && !compact && <Badge tone="info">{agent.model}</Badge>}
       </div>
+      <AgentStatRow stats={agent.stats} className="mt-2" />
       <div className="mt-2 flex items-center gap-3 border-t border-border pt-2 text-xs text-muted-fg" onClick={(e) => e.stopPropagation()}>
         <button onClick={() => onOpen(agent.slug)} className="flex items-center gap-1 hover:text-foreground"><Eye size={12} /> {t("project.agents.view")}</button>
         <button onClick={() => onChat(agent.slug)} className="flex items-center gap-1 text-emerald-500 hover:text-emerald-400"><Send size={12} /> {t("project.agents.chat")}</button>
@@ -269,6 +324,7 @@ function ListView({ agents, onOpen, onChat }: { agents: AgentEntry[]; onOpen: (s
                 {a.tools?.map((tl) => <span key={tl} className="inline-flex items-center gap-0.5 rounded bg-muted px-1 py-0.5 text-[9px] text-muted-fg"><Wrench size={9} /> {tl}</span>)}
               </div>
             </div>
+            <AgentStatRow stats={a.stats} className="hidden shrink-0 sm:flex" />
             <div className="flex shrink-0 items-center gap-3 text-xs text-muted-fg" onClick={(e) => e.stopPropagation()}>
               <button onClick={() => onOpen(a.slug)} className="flex items-center gap-1 hover:text-foreground"><Eye size={12} /> {t("project.agents.view")}</button>
               <button onClick={() => onChat(a.slug)} className="flex items-center gap-1 text-emerald-500 hover:text-emerald-400"><Send size={12} /> {t("project.agents.chat")}</button>
