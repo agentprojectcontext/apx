@@ -147,6 +147,12 @@ class RegistryCache {
   for(projectEntry) {
     return this.ensure(projectEntry);
   }
+  // Evict one MCP by name from every cached registry so its live process
+  // respawns with fresh config on next use. Used after add/remove instead of
+  // shutting down (and cold-restarting) every MCP across every project.
+  evictName(name) {
+    for (const r of this.byProjectId.values()) r.evict(name);
+  }
   shutdown() {
     for (const r of this.byProjectId.values()) r.shutdown();
     this.byProjectId.clear();
