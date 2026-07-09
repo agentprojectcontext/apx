@@ -1,3 +1,32 @@
+# [1.67.0](https://github.com/agentprojectcontext/apx/compare/v1.66.0...v1.67.0) (2026-07-09)
+
+
+### Bug Fixes
+
+* **agent:** import buildActiveThreadsBlock so the active-threads block actually renders ([32900ff](https://github.com/agentprojectcontext/apx/commit/32900ff371e08df7a2f7c59db42dcfb6c50fb6e8))
+* **tools:** declare run_subagent name as a literal per handler convention ([096f49a](https://github.com/agentprojectcontext/apx/commit/096f49a3767176c64d67319c69167026a11ce18d))
+
+
+### Features
+
+* **acp:** Agent Client Protocol server surface (apx acp) ([b3bf8c5](https://github.com/agentprojectcontext/apx/commit/b3bf8c5cac085c585931caec1b06ac24908a1c4a))
+* **agent:** goal-completion judge loop for completion-contract turns ([66af5d8](https://github.com/agentprojectcontext/apx/commit/66af5d8ba6fd119eec289d1d8d4022e4c76aafaa))
+* **agent:** run_subagent — sub-agents as a composable tool ([3666b85](https://github.com/agentprojectcontext/apx/commit/3666b8543b6486e9fd821dfb89473ba282d23e62))
+* **agent:** stuck detection with nudge-then-wrapup escalation ([bd5243a](https://github.com/agentprojectcontext/apx/commit/bd5243acbad728ed42ad53f0a7abb3a2adcc86dc))
+* **artifacts:** live preview servers, quick tunnels & interactive links ([4c6f571](https://github.com/agentprojectcontext/apx/commit/4c6f571544c1469fd3ad145ca69e9412e24f51dc))
+* **memory:** condenser v2 — structured state summaries with previous-summary threading ([47ab8d4](https://github.com/agentprojectcontext/apx/commit/47ab8d4897c6f20ac6693cf459617bceffcf57c1))
+* **routing:** content-based model routing rules (RouterLLM pattern) ([b14b5a4](https://github.com/agentprojectcontext/apx/commit/b14b5a4e639c4d35156505e74e0e46bef9a32d28))
+* **routing:** web Routing panel + enable content routing by default ([070012d](https://github.com/agentprojectcontext/apx/commit/070012dd6c9b72c9ed408501eef9e5d9c562c51b))
+* **security:** inline security_risk grading with ConfirmRisky confirmation policy ([5663275](https://github.com/agentprojectcontext/apx/commit/5663275ee29235d1ff55ddfb6c4ed4ebffe49867))
+* **security:** make security_risk a cross-mode safety floor ([5edcf6f](https://github.com/agentprojectcontext/apx/commit/5edcf6f84b4ef5818535b683bdcb9142024d0e04)), closes [HI#graded](https://github.com/HI/issues/graded)
+* **security:** value-based secret auto-masking in logs ([b036e82](https://github.com/agentprojectcontext/apx/commit/b036e8259a60b8d127daa80428db03f330fc7e48))
+* **skills:** keyword-triggered activation as a switchable option B ([fc27d96](https://github.com/agentprojectcontext/apx/commit/fc27d96baaf604b11b3d654f3bfa0cb762bf8cbe))
+
+
+### Reverts
+
+* **skills:** remove keyword-triggered activation feature entirely ([ec8a754](https://github.com/agentprojectcontext/apx/commit/ec8a754a43ad4168563bf072f6d71e7ae21c8cef))
+
 # [1.66.0](https://github.com/agentprojectcontext/apx/compare/v1.65.3...v1.66.0) (2026-07-07)
 
 
