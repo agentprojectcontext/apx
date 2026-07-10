@@ -1,3 +1,10 @@
+# [1.73.0](https://github.com/agentprojectcontext/apx/compare/v1.72.0...v1.73.0) (2026-07-10)
+
+
+### Features
+
+* **web:** structured brain node detail panel ([c334a4a](https://github.com/agentprojectcontext/apx/commit/c334a4a7a948c713d5e48a294520f897fe677956))
+
 # [1.72.0](https://github.com/agentprojectcontext/apx/compare/v1.71.0...v1.72.0) (2026-07-10)
 
 
