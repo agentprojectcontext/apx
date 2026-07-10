@@ -53,6 +53,12 @@ function kindLabel(k: BrainKind): string {
 const RADIUS: Record<BrainRole, number> = { core: 24, hub: 12, leaf: 6 };
 const roleOf = (n: BrainNode): BrainRole => n.role ?? "leaf";
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+const uniqById = <T extends { id: string }>(arr: T[]): T[] => {
+  const m = new Map<string, T>();
+  for (const n of arr) m.set(n.id, n);
+  return [...m.values()];
+};
+const clip = (s: string, n = 26) => (s.length > n ? `${s.slice(0, n)}…` : s);
 
 export function BrainGraph({
   nodes, edges, height = 520, onNodeClick, toolbar,
@@ -223,6 +229,13 @@ export function BrainGraph({
   const legendKinds = [...new Set(nodes.map((n) => n.kind))].filter((k) => k !== "agent" && k !== "hub");
   const pick = (n: SimNode) => { setSelected(n); onNodeClick?.(n); };
 
+  // For the detail panel: what the selected node hangs off (parents) and the
+  // branches that hang off it (children), derived from the live edges.
+  const selParents = selected ? uniqById(links.filter((l) => l.target.id === selected.id).map((l) => l.source)) : [];
+  const selChildren = selected ? uniqById(links.filter((l) => l.source.id === selected.id).map((l) => l.target)) : [];
+  // The detail line is only meaningful when it adds something beyond the title.
+  const selDetail = selected?.detail && selected.detail.trim() !== selected.label.trim() ? selected.detail : null;
+
   const CtrlBtn = ({ onClick, title, children }: { onClick: () => void; title: string; children: React.ReactNode }) => (
     <button type="button" title={title} onClick={onClick}
       className="grid size-7 place-items-center rounded-md border border-border bg-card/80 text-muted-fg backdrop-blur hover:text-foreground">
@@ -364,16 +377,63 @@ export function BrainGraph({
       </div>
 
       {selected && (
-        <div className="rounded-lg border border-border bg-card p-3 text-xs">
-          <div className="flex items-center gap-2">
-            <span className="size-2 rounded-full" style={{ background: KIND_COLOR[selected.kind] }} />
-            {selected.emoji && <span>{selected.emoji}</span>}
-            <span className="font-medium">{selected.label}</span>
+        <div className="space-y-2.5 rounded-lg border border-border bg-card p-3 text-xs">
+          {/* The clicked node: title, type, relation */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="size-2.5 rounded-full" style={{ background: KIND_COLOR[selected.kind] }} />
+            {selected.emoji && <span className="text-sm leading-none">{selected.emoji}</span>}
+            <span className="text-[13px] font-semibold">{selected.label}</span>
+            <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-fg">
+              {kindLabel(selected.kind)}
+            </span>
             {selected.relation && <span className="text-muted-fg">· {selected.relation}</span>}
+            <div className="ml-auto flex items-center gap-2">
+              {selected.slug && onNodeClick && (
+                <button type="button" onClick={() => onNodeClick(selected)} className="text-primary hover:underline">
+                  {t("agents_ui.brain_open")}
+                </button>
+              )}
+              <button type="button" onClick={() => setSelected(null)} className="text-muted-fg hover:text-foreground">✕</button>
+            </div>
           </div>
-          {selected.detail && <p className="mt-1 whitespace-pre-wrap text-muted-fg">{selected.detail}</p>}
+
+          {/* Internal info — only when it adds something beyond the title */}
+          {selDetail && <p className="whitespace-pre-wrap text-muted-fg">{selDetail}</p>}
+
+          {/* Where it hangs from */}
+          {selParents.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] uppercase tracking-wide text-muted-fg/70">{t("agents_ui.brain_part_of")}</span>
+              {selParents.map((p) => <NeighborChip key={p.id} node={p} onClick={() => setSelected(p)} />)}
+            </div>
+          )}
+
+          {/* Branches that follow it */}
+          {selChildren.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] uppercase tracking-wide text-muted-fg/70">
+                {t("agents_ui.brain_branches")} · {selChildren.length}
+              </span>
+              {selChildren.map((c) => <NeighborChip key={c.id} node={c} onClick={() => setSelected(c)} />)}
+            </div>
+          )}
         </div>
       )}
     </div>
+  );
+}
+
+// A clickable chip for a connected node in the detail panel.
+function NeighborChip({ node, onClick }: { node: BrainNode; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex max-w-[220px] items-center gap-1 rounded-md border border-border bg-muted/40 px-1.5 py-0.5 text-[11px] hover:border-muted-fg/50 hover:bg-muted"
+    >
+      <span className="size-1.5 shrink-0 rounded-full" style={{ background: KIND_COLOR[node.kind] }} />
+      {node.emoji && <span className="leading-none">{node.emoji}</span>}
+      <span className="truncate">{clip(node.label, 28)}</span>
+    </button>
   );
 }
