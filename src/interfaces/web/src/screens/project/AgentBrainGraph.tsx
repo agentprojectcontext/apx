@@ -78,6 +78,9 @@ export function BrainGraph({
   const linksRef = useRef<SimLink[]>([]);
   const dragRef = useRef<SimNode | null>(null);
   const panRef = useRef<{ x: number; y: number } | null>(null);
+  // Press bookkeeping so a drag is never mistaken for a click (which navigates).
+  const downRef = useRef<{ x: number; y: number } | null>(null);
+  const movedRef = useRef(false);
   const viewRef = useRef({ tx: 0, ty: 0, k: 1 });
   const fitRef = useRef<() => void>(() => {});
   const [, setVersion] = useState(0);
@@ -194,6 +197,8 @@ export function BrainGraph({
     if (roleOf(n) === "core") return;
     e.stopPropagation();
     dragRef.current = n;
+    downRef.current = { x: e.clientX, y: e.clientY };
+    movedRef.current = false;
     (e.target as Element).setPointerCapture?.(e.pointerId);
     simRef.current?.alphaTarget(0.3).restart();
   };
@@ -203,6 +208,8 @@ export function BrainGraph({
   };
   const onMove = (e: React.PointerEvent) => {
     if (dragRef.current) {
+      const d = downRef.current;
+      if (d && !movedRef.current && Math.hypot(e.clientX - d.x, e.clientY - d.y) > 4) movedRef.current = true;
       const w = worldFromClient(e.clientX, e.clientY);
       dragRef.current.fx = w.x; dragRef.current.fy = w.y;
       return;
@@ -222,6 +229,8 @@ export function BrainGraph({
     panRef.current = null;
     simRef.current?.alphaTarget(0);
   };
+  // Native click fires reliably on pointerup; skip it when the press was a drag.
+  const onNodeClickGuarded = (n: SimNode) => () => { if (!movedRef.current) pick(n); };
 
   const simNodes = nodesRef.current;
   const links = linksRef.current;
@@ -342,7 +351,7 @@ export function BrainGraph({
                 const showLabel = isHub || isSel || !hideLeafLabels;
                 return (
                   <g key={n.id} transform={`translate(${n.x},${n.y})`} className="cursor-grab active:cursor-grabbing"
-                     onPointerDown={onNodeDown(n)} onClick={() => pick(n)}>
+                     onPointerDown={onNodeDown(n)} onClick={onNodeClickGuarded(n)}>
                     <circle r={r} fill={color} filter="url(#brain-glow)" opacity={0.3}>
                       <animate attributeName="r" values={`${r};${r + 6};${r}`} dur={`${beat}s`} begin={begin} repeatCount="indefinite" />
                       <animate attributeName="opacity" values="0.32;0.08;0.32" dur={`${beat}s`} begin={begin} repeatCount="indefinite" />
