@@ -13,6 +13,7 @@ import {
   isObsidianVault,
   resolveVaultPath,
   expandHome,
+  ensureProjectVault,
 } from "../src/core/integrations/plugins/obsidian.js";
 import { collectMemorySources, syncMemoryToVault } from "../src/core/integrations/obsidian-memory.js";
 import { reconcilePluginMcp } from "../src/core/integrations/mcp-sync.js";
@@ -190,6 +191,33 @@ test("syncMemoryToVault mirrors sources idempotently (no duplicates)", () => {
   sources[0].body = "global facts v2";
   const third = syncMemoryToVault({ vaultPath: dir, folder: "APX", sources });
   assert.equal(third.changed, 1);
+
+  // An index MOC connects every note with wikilinks (graph/backlinks), and each
+  // note backlinks to it — but the index is NOT counted as a mirrored source.
+  const idx = readNote(dir, "APX/APX Memory Index.md");
+  assert.match(idx, /# APX Memory Index/);
+  assert.match(idx, /\[\[APX Global Memory\]\]/);
+  assert.match(idx, /\[\[projects\/App\/memory\|App\]\]/);
+  assert.match(readNote(dir, "APX/projects/App/memory.md"), /Part of \[\[APX Memory Index\]\]/);
+  assert.match(readNote(dir, "APX/projects/App/memory.md"), /#apx\/memory/);
+});
+
+test("ensureProjectVault: makes a folder a vault + gitignores .obsidian, idempotently", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-vaultify-"));
+  assert.equal(isObsidianVault(dir), false);
+
+  const first = ensureProjectVault(dir);
+  assert.equal(first.created, true);
+  assert.equal(first.gitignored, true);
+  assert.equal(isObsidianVault(dir), true, ".obsidian created → recognized as a vault");
+  assert.match(fs.readFileSync(path.join(dir, ".gitignore"), "utf8"), /^\.obsidian\/$/m);
+
+  // Idempotent — a second call creates nothing and doesn't duplicate the ignore.
+  const second = ensureProjectVault(dir);
+  assert.equal(second.created, false);
+  assert.equal(second.gitignored, false);
+  const gi = fs.readFileSync(path.join(dir, ".gitignore"), "utf8");
+  assert.equal(gi.match(/\.obsidian\//g).length, 1, "no duplicate .gitignore entry");
 });
 
 test("collectMemorySources reads each project's .apc/memory.md", () => {
