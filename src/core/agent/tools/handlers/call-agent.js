@@ -1,5 +1,6 @@
 import { callEngine } from "#core/engines/index.js";
 import { readAgents } from "#core/apc/parser.js";
+import { agentScopedMemoryBlock } from "#core/memory/index.js";
 import { buildAgentSystem, resolveProject } from "../helpers.js";
 
 export default {
@@ -26,14 +27,19 @@ export default {
     if (!agent) throw new Error(`agent ${slug} not found`);
     if (!agent.fields.Model) throw new Error(`agent ${slug} has no model`);
 
+    const config = p.config || globalConfig;
+    // Scoped RAG recall for this agent + its project, grounded in the prompt.
+    const scopedMemory = await agentScopedMemoryBlock(prompt, { project: p, agent, config });
+
     const result = await callEngine({
       modelId: agent.fields.Model,
       system: buildAgentSystem(p, agent, {
         invocation: "engine",
         caller: "super_agent_tool",
+        extraParts: scopedMemory ? [scopedMemory] : [],
       }),
       messages: [{ role: "user", content: prompt }],
-      config: p.config || globalConfig,
+      config,
     });
     p.logMessage({
       agent_slug: slug,

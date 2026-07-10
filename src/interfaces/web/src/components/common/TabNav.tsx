@@ -1,7 +1,7 @@
 // Left-rail tab nav used inside Settings + per-project screens. Mirrors
 // the panda.project sectioned-nav pattern: optional section title above
 // each group, icon + label rows, active state in the section's tone.
-import { useState, useEffect, useCallback, Fragment, type ElementType } from "react";
+import { useState, useEffect, useCallback, Fragment, type ElementType, type ReactNode } from "react";
 import { PanelLeft } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { Tip } from "../ui/tip";
@@ -12,6 +12,9 @@ export interface TabItem {
   label: string;
   icon: ElementType;
   badge?: string | number;
+  // Small decoration (e.g. an Obsidian mark on "Memories" when the vault is
+  // wired) — trailing when expanded, a corner overlay when collapsed.
+  mark?: ReactNode;
 }
 
 export interface TabSection {
@@ -76,7 +79,7 @@ export function TabNav({ sections, active, onChange, collapsed = false }: TabNav
             </p>
           )}
           <div className="space-y-0.5">
-            {section.items.map(({ key, label, icon: Icon, badge }) => {
+            {section.items.map(({ key, label, icon: Icon, badge, mark }) => {
               const isActive = active === key;
               const btn = (
                 <button
@@ -84,7 +87,7 @@ export function TabNav({ sections, active, onChange, collapsed = false }: TabNav
                   onClick={() => onChange(key)}
                   data-testid={`tabnav-${key || "index"}`}
                   className={cn(
-                    "flex cursor-pointer items-center rounded-lg transition-colors",
+                    "relative flex cursor-pointer items-center rounded-lg transition-colors",
                     collapsed ? "size-9 justify-center" : "w-full gap-2 px-2.5 py-1.5",
                     isActive
                       ? "bg-accent text-accent-fg"
@@ -92,9 +95,13 @@ export function TabNav({ sections, active, onChange, collapsed = false }: TabNav
                   )}
                 >
                   <Icon className="size-4 shrink-0" />
+                  {collapsed && mark && (
+                    <span className="absolute -bottom-0.5 -right-0.5 flex items-center justify-center rounded-full bg-card">{mark}</span>
+                  )}
                   {!collapsed && (
                     <>
                       <span className="flex-1 truncate text-left text-xs">{label}</span>
+                      {mark && <span className="flex shrink-0 items-center">{mark}</span>}
                       {badge !== undefined && (
                         <span className="rounded-full bg-muted px-1.5 text-[9px] text-muted-fg">{badge}</span>
                       )}
