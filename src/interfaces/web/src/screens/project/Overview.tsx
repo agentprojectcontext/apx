@@ -1,14 +1,14 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import useSWR from "swr";
 import { NavLink, useNavigate } from "react-router-dom";
-import { Bot, Briefcase, FileCode2, Heart, MessagesSquare, Puzzle, Zap, Crown, Activity } from "lucide-react";
-import { Agents, Artifacts, Mcps, Routines, Tasks } from "../../lib/api";
+import { Bot, Briefcase, Brain, FileCode2, Heart, MessagesSquare, Puzzle, Zap, Crown, Activity } from "lucide-react";
+import { Agents, Artifacts, Conversations, Mcps, Routines, Tasks } from "../../lib/api";
 import { Section } from "../../components/Section";
 import { StatusIcon, StatusBadge, effectiveStatus, statusLabel, TASK_STATUS_ORDER } from "../../components/tasks/taskStatus";
 import { BrainGraph, type BrainNode, type BrainEdge } from "./AgentBrainGraph";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
-import type { AgentEntry } from "../../types/daemon";
+import type { AgentEntry, RoutineEntry, TaskEntry } from "../../types/daemon";
 
 // Floor / mission control: a live per-project summary — what's here (agents,
 // automation), what's in flight (task workflow), and what just happened.
@@ -57,14 +57,6 @@ export function Overview({ pid }: { pid: string }) {
             </NavLink>
           ))}
         </div>
-      )}
-
-      {/* Team brain — the whole agent map: orchestrators at the core, their
-          specialists clustered around them as satellites, all connected. */}
-      {agentList.length > 0 && (
-        <Section title={t("project.overview.brain_title")} description={t("project.overview.brain_desc")} className="!p-4">
-          <TeamBrain pid={pid} agents={agentList} navigate={navigate} />
-        </Section>
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -129,6 +121,15 @@ export function Overview({ pid }: { pid: string }) {
         <Card title={t("project.overview.mcps")} value={mcps.data?.length ?? "…"} href={`/p/${pid}/mcps`} icon={Puzzle} />
         <Card title={t("project.overview.routines")} value={routines.data?.length ?? "…"} href={`/p/${pid}/routines`} icon={Heart} />
       </div>
+
+      {/* Team brain — full-width at the bottom. Collapsed: the agent map.
+          Expanded: every agent's full sub-brain (memory / threads / tasks /
+          heartbeats), all connected by hierarchy. */}
+      {agentList.length > 0 && (
+        <Section title={t("project.overview.brain_title")} description={t("project.overview.brain_desc")} className="!p-4">
+          <TeamBrain pid={pid} agents={agentList} routines={routines.data ?? []} navigate={navigate} />
+        </Section>
+      )}
     </div>
   );
 }
@@ -147,14 +148,54 @@ function groupByArea(agents: AgentEntry[]): { area: string | null; agents: Agent
     .map(([area, agents]) => ({ area, agents }));
 }
 
-// Whole-project agent map. The core is the team; orchestrators hang off it as
-// hubs, and each specialist connects to its parent orchestrator (or the core if
-// unparented) — so teams read as satellite clusters. Click a node to open it.
+// One memory-fact-per-line, trimmed of markdown noise (mirrors the per-agent brain).
+function memoryFacts(text: string): string[] {
+  return text
+    .split("\n")
+    .map((l) => l.replace(/^[-*#>\s]+/, "").trim())
+    .filter((l) => l.length > 2 && !l.startsWith("```"))
+    .slice(0, 5);
+}
+
+interface TeamDetail {
+  tasks: TaskEntry[];
+  perAgent: Record<string, { memory: string; threads: { title: string; id: string }[] }>;
+}
+
+// Whole-project agent map. Collapsed, the core is the team and every agent hangs
+// off its parent (orchestrators → specialists) as satellite clusters. Expanded,
+// each agent becomes a hub with its own sub-brain — memory / threads / tasks /
+// heartbeats — so the whole company reads as one connected brain-of-brains.
 function TeamBrain({
-  pid, agents, navigate,
+  pid, agents, routines, navigate,
 }: {
-  pid: string; agents: AgentEntry[]; navigate: (to: string) => void;
+  pid: string; agents: AgentEntry[]; routines: RoutineEntry[]; navigate: (to: string) => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
+
+  // Only fetch the heavy per-agent data when the user asks to expand.
+  const detail = useSWR<TeamDetail | null>(
+    expanded ? `/team-brain/${pid}/${agents.map((a) => a.slug).join(",")}` : null,
+    async () => {
+      const tasks = await Tasks.list(pid, "all");
+      const entries = await Promise.all(
+        agents.map(async (a) => {
+          const [d, threads] = await Promise.all([
+            Agents.get(pid, a.slug).catch(() => null),
+            Conversations.list(pid, a.slug).catch(() => []),
+          ]);
+          return [a.slug, {
+            memory: d?.memory || "",
+            threads: (threads || []).slice(0, 4).map((th) => ({ title: th.title || th.filename, id: th.id })),
+          }] as const;
+        }),
+      );
+      return { tasks, perAgent: Object.fromEntries(entries) };
+    },
+  );
+
+  const showFull = expanded && !!detail.data;
+
   const { nodes, edges } = useMemo(() => {
     const nodes: BrainNode[] = [];
     const edges: BrainEdge[] = [];
@@ -171,7 +212,8 @@ function TeamBrain({
         label: a.slug,
         slug: a.slug,
         kind: isOrch ? "agent" : "agentlink",
-        role: isOrch || hasKids(a.slug) ? "hub" : "leaf",
+        // In full mode every agent is a hub (it carries its own sub-brain).
+        role: showFull || isOrch || hasKids(a.slug) ? "hub" : "leaf",
         emoji: a.emoji || undefined,
         relation: a.role || (isOrch ? t("project.agents.orchestrator") : t("project.overview.specialists")),
         detail: a.description || undefined,
@@ -181,14 +223,47 @@ function TeamBrain({
       const parent = a.parent && slugs.has(a.parent) ? a.parent : ROOT;
       edges.push({ source: parent, target: a.slug });
     }
+
+    // Expanded: graft each agent's own items as leaves off the agent node.
+    if (showFull && detail.data) {
+      const { tasks, perAgent } = detail.data;
+      const push = (id: string, label: string, kind: BrainNode["kind"], parent: string, detailText?: string) => {
+        nodes.push({ id, label, kind, detail: detailText });
+        edges.push({ source: parent, target: id });
+      };
+      for (const a of agents) {
+        const info = perAgent[a.slug];
+        memoryFacts(info?.memory || "").forEach((f, i) => push(`${a.slug}:m${i}`, f, "memory", a.slug, f));
+        (info?.threads || []).forEach((th, i) => push(`${a.slug}:th${i}`, th.title, "thread", a.slug));
+        tasks.filter((tk) => tk.agent === a.slug).slice(0, 4)
+          .forEach((tk, i) => push(`${a.slug}:ts${i}`, tk.title, "task", a.slug, tk.body || undefined));
+        routines.filter((r) => (r.spec as { agent?: string })?.agent === a.slug).slice(0, 2)
+          .forEach((r, i) => push(`${a.slug}:rt${i}`, r.name, "routine", a.slug, `schedule: ${r.schedule}`));
+      }
+    }
     return { nodes, edges };
-  }, [agents]);
+  }, [agents, routines, showFull, detail.data]);
+
+  const toggle = (
+    <button
+      type="button"
+      onClick={() => setExpanded((e) => !e)}
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] font-medium backdrop-blur transition-colors",
+        expanded ? "border-primary/40 bg-primary/15 text-foreground" : "border-border bg-card/80 text-muted-fg hover:text-foreground",
+      )}
+    >
+      <Brain className={cn("size-3.5", detail.isLoading && "animate-pulse")} />
+      {expanded ? t("agents_ui.brain_collapse") : t("agents_ui.brain_expand")}
+    </button>
+  );
 
   return (
     <BrainGraph
       nodes={nodes}
       edges={edges}
-      height={520}
+      height={620}
+      toolbar={toggle}
       onNodeClick={(n) => { if (n.slug) navigate(`/p/${pid}/agents/${n.slug}`); }}
     />
   );
