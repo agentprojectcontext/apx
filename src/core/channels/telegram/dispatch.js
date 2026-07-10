@@ -14,7 +14,7 @@
 import { callEngine } from "#core/engines/index.js";
 import { isSuperAgentEnabled } from "#core/agent/super-agent.js";
 import { getRecentTelegramTurnsFromFs, appendGlobalMessage } from "#core/stores/messages.js";
-import { compactChannelIfNeeded } from "#core/memory/index.js";
+import { compactChannelIfNeeded, agentScopedMemoryBlock } from "#core/memory/index.js";
 import { readAgents } from "#core/apc/parser.js";
 import { buildAgentSystem } from "#core/agent/build-agent-system.js";
 import { resolveAgentName, SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
@@ -237,11 +237,12 @@ export async function handleUpdate(self, u) {
       const agent = readAgents(target.path).find((a) => a.slug === routeSlug);
       if (agent && agent.fields.Model) {
         try {
+          const scopedMemory = await agentScopedMemoryBlock(text, { project: target, agent, config: projectCfg });
           const system = buildAgentSystem(target, agent, {
             invocation: "telegram",
             channel: self.channel.name,
             caller: author,
-            extraParts: [relationshipBlock],
+            extraParts: [relationshipBlock, scopedMemory].filter(Boolean),
           });
           const result = await callEngine({
             modelId: agent.fields.Model,

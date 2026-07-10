@@ -121,3 +121,33 @@ test("hybrid: broker builds a scoped [RELEVANT MEMORY] block for one agent", asy
   assert.match(block, /DNS/);
   assert.ok(!/release notes/.test(block), "writer content does not bleed into scout's block");
 });
+
+test("multi-scope: an agent turn recalls its OWN memory + its project's, isolated", async () => {
+  const { store } = await seed();
+  // The consumer queries [agent:<id>:<slug>, project:<id>] in one shot.
+  const scope = ["agent:proj-a:scout", "project:10"];
+  const dns = store.search(tfEmbed("verify DNS before deploy"), { embedder: "tf", k: 10, scope });
+  const billing = store.search(tfEmbed("subscription renewals via Stripe"), { embedder: "tf", k: 10, scope });
+  // Both the agent's note and its project's note are reachable under the pair…
+  assert.ok(dns.some((h) => h.channel === "agent:proj-a:scout" && /DNS/.test(h.text)));
+  assert.ok(billing.some((h) => h.channel === "project:10" && /Stripe/.test(h.text)));
+  // …and nothing from OUTSIDE the pair (other agent / other project) leaks in.
+  const all = [...dns, ...billing];
+  assert.ok(all.every((h) => scope.includes(h.channel)), "no writer or project:20 row leaks");
+});
+
+test("RAG-only: includeFlat:false drops the flat notebook slice", async () => {
+  const { store } = await seed();
+  const memoryPath = path.join(tmpdir("flat"), "memory.md");
+  fs.mkdirSync(path.dirname(memoryPath), { recursive: true });
+  fs.writeFileSync(memoryPath, "# Notebook\n\n## 2026-07-09\n- [10:00][web] a flat notebook fact that should NOT appear\n");
+  const block = await buildMemoryBlock("verify DNS before deploy", {
+    store,
+    scope: "agent:proj-a:scout",
+    includeFlat: false,
+    embed: { forceTf: true },
+    memoryPath,
+  });
+  assert.match(block, /DNS/, "RAG hit still present");
+  assert.ok(!/flat notebook fact/.test(block), "flat slice excluded when includeFlat:false");
+});
