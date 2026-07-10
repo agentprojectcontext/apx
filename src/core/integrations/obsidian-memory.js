@@ -76,33 +76,104 @@ export function collectMemorySources(ctx = {}) {
   return sources;
 }
 
+// The wikilink map (MOC) that connects every mirrored note so Obsidian's graph
+// + backlinks light up. Lives alongside the notes inside <folder>/.
+const INDEX_REL = "APX Memory Index.md";
+
+const noteLink = (rel) => rel.replace(/\.md$/i, "");
+
+// Friendly display for a note in the index: "projects/App/memory" → "App".
+function noteDisplay(rel) {
+  const parts = noteLink(rel).split("/");
+  const leaf = parts[parts.length - 1];
+  return parts.length >= 2 && leaf === "memory" ? parts[parts.length - 2] : leaf;
+}
+
+function sourceTags(src) {
+  const tags = ["#apx/memory"];
+  if (src.id === "global" || /Global/i.test(src.rel)) tags.push("#apx/global");
+  else if (String(src.id).startsWith("project:") || String(src.rel).startsWith("projects/")) tags.push("#apx/project");
+  return tags.join(" ");
+}
+
+// One mirrored note: managed markers + tags + a backlink to the index (so the
+// graph connects) + the body. Deterministic → idempotent.
+function sourceContent(src) {
+  return [
+    MANAGED_MARK,
+    `<!-- source: ${src.from} -->`,
+    "",
+    sourceTags(src),
+    "",
+    `> Part of [[${noteLink(INDEX_REL)}]]`,
+    "",
+    String(src.body).trimEnd(),
+    "",
+  ].join("\n");
+}
+
+function indexContent(sources) {
+  const links = sources.map((s) => {
+    const link = noteLink(s.rel);
+    const disp = noteDisplay(s.rel);
+    return link === disp ? `- [[${link}]]` : `- [[${link}|${disp}]]`;
+  });
+  return [
+    MANAGED_MARK,
+    "",
+    "#apx/memory #apx/index",
+    "",
+    "# APX Memory Index",
+    "",
+    "Map of content for APX-managed memory mirrored into this vault.",
+    "",
+    ...links,
+    "",
+  ].join("\n");
+}
+
 // Mirror the collected sources into <vault>/<folder>/. Idempotent: identical
 // input → byte-identical output; each source overwrites its own single note.
+// Also writes an index MOC linking every note (not counted in count/changed —
+// it's derived meta, not a source).
 export function syncMemoryToVault({ vaultPath, folder = "APX", sources = [] }) {
   assertVaultDir(vaultPath);
   const root = path.resolve(vaultPath);
   const base = path.resolve(root, folder);
-  const written = [];
-  for (const src of sources) {
-    const abs = path.resolve(base, src.rel.split("/").join(path.sep));
-    // Guard: never escape the target folder.
-    if (abs !== base && !abs.startsWith(base + path.sep)) continue;
-    const content = `${MANAGED_MARK}\n<!-- source: ${src.from} -->\n\n${String(src.body).trimEnd()}\n`;
+  const inBase = (abs) => abs === base || abs.startsWith(base + path.sep);
+  const writeIdempotent = (abs, content) => {
     fs.mkdirSync(path.dirname(abs), { recursive: true });
     const prev = readIfExists(abs);
     const changed = prev !== content;
     if (changed) fs.writeFileSync(abs, content);
-    written.push({
-      id: src.id,
-      note: path.relative(root, abs).split(path.sep).join("/"),
-      changed,
-    });
+    return changed;
+  };
+
+  const written = [];
+  const okSources = [];
+  for (const src of sources) {
+    const abs = path.resolve(base, src.rel.split("/").join(path.sep));
+    if (!inBase(abs)) continue; // never escape the target folder
+    const changed = writeIdempotent(abs, sourceContent(src));
+    written.push({ id: src.id, note: path.relative(root, abs).split(path.sep).join("/"), changed });
+    okSources.push(src);
   }
+
+  let index = null;
+  if (okSources.length) {
+    const idxAbs = path.resolve(base, INDEX_REL.split("/").join(path.sep));
+    index = {
+      note: path.relative(root, idxAbs).split(path.sep).join("/"),
+      changed: writeIdempotent(idxAbs, indexContent(okSources)),
+    };
+  }
+
   return {
     ok: true,
     folder,
     count: written.length,
     changed: written.filter((w) => w.changed).length,
     notes: written,
+    index,
   };
 }
