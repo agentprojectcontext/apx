@@ -1,3 +1,12 @@
+# [1.71.0](https://github.com/agentprojectcontext/apx/compare/v1.70.0...v1.71.0) (2026-07-10)
+
+
+### Features
+
+* **memory:** wire scoped RAG into project-agent prompts ([fafbda4](https://github.com/agentprojectcontext/apx/commit/fafbda419941fdeeb0ebd2c133ced8f18720c2b9)), closes [#32](https://github.com/agentprojectcontext/apx/issues/32)
+* **obsidian:** graph-aware memory mirror + vault building block ([8a1e293](https://github.com/agentprojectcontext/apx/commit/8a1e293c30a8057860f0039adc57cf995ecf17b0)), closes [#tags](https://github.com/agentprojectcontext/apx/issues/tags)
+* **web:** Obsidian mark on the Memories nav item when the vault is active ([1a6894a](https://github.com/agentprojectcontext/apx/commit/1a6894a5097d8c30eeee9840ca30ccdc92f2f554))
+
 # [1.70.0](https://github.com/agentprojectcontext/apx/compare/v1.69.0...v1.70.0) (2026-07-09)
 
 
