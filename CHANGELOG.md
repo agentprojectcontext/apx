@@ -1,3 +1,10 @@
+## [1.73.1](https://github.com/agentprojectcontext/apx/compare/v1.73.0...v1.73.1) (2026-07-10)
+
+
+### Bug Fixes
+
+* **web:** brain node — drag no longer fires a click/navigation ([32c3694](https://github.com/agentprojectcontext/apx/commit/32c36940d626687868ff4a2294d5e7ba851d86c1))
+
 # [1.73.0](https://github.com/agentprojectcontext/apx/compare/v1.72.0...v1.73.0) (2026-07-10)
 
 
