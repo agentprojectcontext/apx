@@ -88,12 +88,17 @@ export async function buildMemoryBlock(message, opts = {}) {
   const topK = opts.topK || DEFAULT_TOP_K;
   const store = opts.store || null;
   // Scope isolation: the super-agent recalls only global rows ("global"), a
-  // project/agent turn recalls only its own ("project:<id>" / "agent:…").
+  // project/agent turn recalls only its own — a single channel or an array of
+  // channels (["agent:…","project:…"]).
   const scope = opts.scope || "global";
+  // The flat notebook slice is always included for the super-agent, but a
+  // project-agent turn already gets its own memory.md injected elsewhere, so it
+  // opts out (includeFlat:false) to keep this block RAG-only.
+  const includeFlat = opts.includeFlat !== false;
   const query = clean(message);
 
   // memory.md entries are read synchronously and always make the deadline.
-  const memEntries = lastMemoryEntries(memoryPath, 10);
+  const memEntries = includeFlat ? lastMemoryEntries(memoryPath, 10) : [];
 
   // RAG retrieval is the slow part — race it against the budget.
   let hits = [];
@@ -135,7 +140,7 @@ export async function buildMemoryBlock(message, opts = {}) {
   if (bullets.length === 0) return "";
 
   return [
-    "# Relevant memory (cross-channel)",
+    `# ${opts.heading || "Relevant memory (cross-channel)"}`,
     "Context recovered from your notebook and from the message log across channels.",
     "Treat these as known facts. If a fresh session opens and something here is still",
     "open, bring it up naturally in the user's language (e.g. \"yesterday we were on X — shall we continue?\") without being asked.",

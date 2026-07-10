@@ -14,6 +14,7 @@
 import path from "node:path";
 import { APX_HOME } from "../config/index.js";
 import { ensureSelfMemoryFile } from "../agent/self-memory.js";
+import { agentRuntimeDir } from "../agent/memory.js";
 import fs from "node:fs";
 import { openMemoryStore } from "./store.js";
 import { indexNewMessages, CURSOR_PATH } from "./indexer.js";
@@ -166,9 +167,9 @@ export async function memoryBlockFor(message, { config, channel, budgetMs } = {}
 }
 
 // Scoped recall for a specific project or agent turn. `scope` is the row channel
-// key: "project:<id>" or "agent:<projdir>:<slug>". `memoryPath` (optional) is
-// that scope's own notebook, read as the always-included flat slice. Returns ""
-// on any failure so the prompt builder can drop the block.
+// key: "project:<id>" or "agent:<projdir>:<slug>" (or an array of them).
+// `memoryPath` (optional) is that scope's own notebook, read as the flat slice.
+// Returns "" on any failure so the prompt builder can drop the block.
 export async function scopedMemoryBlockFor(message, { scope, memoryPath, config, budgetMs } = {}) {
   try {
     if (!scope || !memoryEnabled(config)) return "";
@@ -178,6 +179,38 @@ export async function scopedMemoryBlockFor(message, { scope, memoryPath, config,
       config,
       scope,
       memoryPath,
+      budgetMs: budgetMs || config?.memory?.broker_budget_ms || 800,
+      topK: config?.memory?.rag_top_k || 5,
+      embed: embedOptsFromConfig(config),
+    });
+  } catch {
+    return "";
+  }
+}
+
+// Consumer for a project-agent turn (Pieza 5). Retrieves the agent's OWN memory
+// plus its project's memory in one scoped query, isolated from every other
+// agent/project and from the super-agent's global recall. RAG-only (the agent's
+// flat memory.md is already injected by buildAgentSystem). Returns a `# Relevant
+// memory (this agent & project)` block, or "" on disabled/empty/error — so the
+// caller can just append it to `extraParts`.
+export async function agentScopedMemoryBlock(message, { project, agent, config, budgetMs } = {}) {
+  try {
+    if (!message || !agent?.slug || !memoryEnabled(config)) return "";
+    const store = await getMemoryStore();
+    if (!store) return "";
+    // The storage root is <APX_HOME>/projects/<apxId>; agent rows are indexed
+    // under channel "agent:<apxId>:<slug>" — derive apxId the same way the
+    // indexer's filesystem walk names it, straight from agentRuntimeDir.
+    const apxId = path.basename(path.dirname(path.dirname(agentRuntimeDir(project, agent.slug))));
+    const scope = [`agent:${apxId}:${agent.slug}`];
+    if (project?.id != null && String(project.id) !== "0") scope.push(`project:${project.id}`);
+    return await buildMemoryBlock(message, {
+      store,
+      config,
+      scope,
+      includeFlat: false,
+      heading: "Relevant memory (this agent & project)",
       budgetMs: budgetMs || config?.memory?.broker_budget_ms || 800,
       topK: config?.memory?.rag_top_k || 5,
       embed: embedOptsFromConfig(config),
