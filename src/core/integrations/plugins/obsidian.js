@@ -53,6 +53,46 @@ export function assertVaultDir(vaultPath) {
   return true;
 }
 
+// Append `entry` to <root>/.gitignore unless already present. Idempotent.
+function ensureGitignore(root, entry) {
+  const gi = path.join(root, ".gitignore");
+  let text = "";
+  try {
+    text = fs.readFileSync(gi, "utf8");
+  } catch {
+    /* no .gitignore yet */
+  }
+  const bare = entry.replace(/\/$/, "");
+  const present = text.split("\n").some((l) => {
+    const t = l.trim();
+    return t === entry || t === bare;
+  });
+  if (present) return false;
+  const prefix = text && !text.endsWith("\n") ? `${text}\n` : text;
+  fs.writeFileSync(gi, `${prefix}${entry}\n`);
+  return true;
+}
+
+// Turn a project folder into an Obsidian vault so "the project IS the vault":
+// create a minimal `.obsidian/` config (makes the app recognize it) and
+// gitignore that config so per-machine vault settings never land in the repo.
+// Idempotent — safe to call on every activation. Returns { created, gitignored }.
+// NOTE: building block for auto-vault-on-activate — not yet wired into the
+// plugin lifecycle (that changes the configure contract + writes into repos;
+// pending an explicit product call on global-vs-per-project).
+export function ensureProjectVault(projectRoot) {
+  const root = path.resolve(projectRoot);
+  assertVaultDir(root);
+  const dot = path.join(root, ".obsidian");
+  let created = false;
+  if (!fs.existsSync(dot)) {
+    fs.mkdirSync(dot, { recursive: true });
+    fs.writeFileSync(path.join(dot, "app.json"), "{}\n");
+    created = true;
+  }
+  return { created, gitignored: ensureGitignore(root, ".obsidian/") };
+}
+
 // Normalize a user-supplied note reference to an absolute `.md` path inside the
 // vault, refusing anything that escapes the vault root (path-traversal guard).
 function noteAbs(vaultPath, note) {

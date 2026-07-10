@@ -100,12 +100,17 @@ export class JsonStore {
   }
 
   search(vector, { embedder, k = 5, channel, scope } = {}) {
+    const scopeArr = Array.isArray(scope) ? scope : null;
     const scored = [];
     for (const row of this.rows.values()) {
       if (embedder && row.embedder !== embedder) continue;
       if (channel && row.channel !== channel) continue;
       if (scope === "global" && isScopedChannel(row.channel)) continue;
-      if (scope && scope !== "global" && row.channel !== scope) continue;
+      if (scopeArr) {
+        if (!scopeArr.includes(row.channel)) continue;
+      } else if (scope && scope !== "global" && row.channel !== scope) {
+        continue;
+      }
       if (!Array.isArray(row.vector) || row.vector.length !== vector.length) continue;
       scored.push({ ...row, score: cosineSim(vector, row.vector) });
     }
@@ -195,6 +200,13 @@ class SqliteVecStore {
     }
     if (scope === "global") {
       where.push("(channel NOT LIKE 'project:%' AND channel NOT LIKE 'agent:%')");
+    } else if (Array.isArray(scope)) {
+      if (scope.length === 0) {
+        where.push("0"); // no scopes → match nothing
+      } else {
+        where.push(`channel IN (${scope.map(() => "?").join(",")})`);
+        params.push(...scope);
+      }
     } else if (scope) {
       where.push("channel = ?");
       params.push(scope);

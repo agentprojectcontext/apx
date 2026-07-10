@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import useSWR from "swr";
 import { useParams, Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 import {
   Bot, Heart, Zap, Puzzle, Settings,
@@ -8,6 +9,8 @@ import {
 } from "lucide-react";
 import { useNavCollapse, type TabSection } from "../components/common/TabNav";
 import { TabLayout } from "../components/common/TabLayout";
+import { Integrations } from "../lib/api";
+import { ObsidianLogo } from "../components/integrations/BrandLogos";
 import { RobyEmpty } from "../components/Roby";
 import { Button } from "../components/ui/button";
 import { useProject } from "../hooks/useProjects";
@@ -50,7 +53,14 @@ export function ProjectScreen() {
   const { collapsed, toggle } = useNavCollapse(STORAGE.sidebarCollapsed + ".project");
 
   const isBase = String(pid) === "0";
+  // Obsidian-backed memory: when the vault integration is active, mark the
+  // Memories nav item so it's clear memory is mirrored through the vault.
+  const { data: catalog } = useSWR(`integrations-catalog-${pid}`, () => Integrations.catalog(pid), { shouldRetryOnError: false });
+  const obsidianEntry = catalog?.find((e) => e.slug === "obsidian");
+  const obsidianActive = obsidianEntry?.status?.status === "active" && !!obsidianEntry?.status?.is_enabled;
+
   const sections: TabSection[] = useMemo(() => {
+    const memoriesMark = obsidianActive ? <ObsidianLogo className="size-3 text-purple-400" /> : undefined;
     // One shared taxonomy for both Base and projects, in the same order, so the
     // two menus mirror each other. Base additionally gets a "General" admin
     // section (workspaces / engines / agent defaults) and drops "Content"
@@ -76,7 +86,7 @@ export function ProjectScreen() {
           { key: "", label: t("project.nav.overview"), icon: LayoutDashboard },
           ...(isCompany ? [{ key: "structure", label: t("project.nav.structure"), icon: Building2 }] : []),
           { key: "agents",    label: t("project.nav.agents"),    icon: Bot },
-          { key: "memories",  label: t("project.nav.memories"),  icon: Brain },
+          { key: "memories",  label: t("project.nav.memories"),  icon: Brain, mark: memoriesMark },
           { key: "skills",    label: t("skills_page.title"),     icon: Sparkles },
           { key: "artifacts", label: t("project.nav.artifacts"), icon: FileCode2 },
         ],
@@ -120,7 +130,7 @@ export function ProjectScreen() {
     ];
 
     return out.filter(Boolean) as TabSection[];
-  }, [isBase, project?.kind]);
+  }, [isBase, project?.kind, obsidianActive]);
 
   // First path segment after /p/:pid — so deep routes like agents/:slug still
   // highlight the "agents" nav item.
