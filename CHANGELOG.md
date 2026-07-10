@@ -1,3 +1,10 @@
+# [1.72.0](https://github.com/agentprojectcontext/apx/compare/v1.71.0...v1.72.0) (2026-07-10)
+
+
+### Features
+
+* **web:** brain zoom/pan/fullscreen + connected team brain-of-brains ([320a25b](https://github.com/agentprojectcontext/apx/commit/320a25b63e101006ca85c04843605b2bfcfcc5cd))
+
 # [1.71.0](https://github.com/agentprojectcontext/apx/compare/v1.70.0...v1.71.0) (2026-07-10)
 
 
