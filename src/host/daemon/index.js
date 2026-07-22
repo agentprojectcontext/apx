@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 // APX daemon entry point. Boots config + projects + Express + plugins.
+// Must run before any outbound fetch — see the module header for why.
+import "#core/net/ipv4-first.js";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

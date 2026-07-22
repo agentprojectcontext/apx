@@ -58,6 +58,69 @@ export function resolveExecChannel(args) {
   return CHANNELS.CLI;
 }
 
+// Braille spinner frames for the live "pensando…" indicator.
+const SPINNER = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+const dim = (s) => `\x1b[2m${s}\x1b[0m`;
+
+/**
+ * A single-line progress indicator drawn on stderr while the super-agent turn
+ * runs, so `apx exec` never looks frozen. Renders only on an interactive stderr
+ * (TTY); when piped/redirected it is a no-op so stdout stays clean for scripts.
+ * Set APX_NO_SPINNER=1 to disable.
+ */
+function createExecStatus() {
+  const active =
+    process.stderr.isTTY && process.env.APX_NO_SPINNER !== "1" && !process.env.NO_COLOR;
+  let label = "pensando…";
+  let frame = 0;
+  let timer = null;
+  const t0 = Date.now();
+
+  const draw = () => {
+    const secs = Math.floor((Date.now() - t0) / 1000);
+    process.stderr.write(`\r\x1b[2K${dim(SPINNER[frame])} ${label} ${dim(secs + "s")}`);
+    frame = (frame + 1) % SPINNER.length;
+  };
+
+  return {
+    start() {
+      if (!active || timer) return;
+      draw();
+      timer = setInterval(draw, 90);
+      timer.unref?.();
+    },
+    set(next) {
+      if (next) label = next;
+    },
+    clear() {
+      if (timer) {
+        clearInterval(timer);
+        timer = null;
+      }
+      if (active) process.stderr.write("\r\x1b[2K");
+    },
+  };
+}
+
+/** Map a stream event to the label shown next to the spinner. */
+function labelForEvent(event) {
+  switch (event?.type) {
+    case "skill_inspector":
+      return "cargando skills…";
+    case "model_routed":
+    case "model_start": {
+      const m = event.model || event.to || event.engine;
+      return m ? `pensando… ${dim(m)}` : "pensando…";
+    }
+    case "tool_start":
+      return `${event.trace?.tool || event.tool || "herramienta"}…`;
+    case "tool_result":
+      return "pensando…";
+    default:
+      return null;
+  }
+}
+
 async function readPromptFromStdin() {
   const fs = await import("node:fs");
   if (process.stdin.isTTY) return "";
@@ -99,11 +162,26 @@ export async function cmdExec(args) {
   if (args.flags["max-tokens"]) body.maxTokens = parseInt(args.flags["max-tokens"], 10);
 
   if (useSuperAgent) {
-    const result = await http.post(`/projects/${pid}/super-agent/chat`, body);
-    process.stdout.write(result.text + "\n");
+    // Stream the turn so we can render a live progress indicator instead of a
+    // silent hang. `confirm: false` opts out of the interactive confirmation
+    // round-trip (which the CLI can't answer), keeping the same semantics as the
+    // blocking POST /super-agent/chat endpoint.
+    const status = createExecStatus();
+    status.start();
+    let result;
+    try {
+      result = await http.streamPost(
+        `/projects/${pid}/super-agent/chat/stream`,
+        { ...body, confirm: false },
+        (event) => status.set(labelForEvent(event))
+      );
+    } finally {
+      status.clear();
+    }
+    process.stdout.write((result?.text ?? "") + "\n");
     if (process.stderr.isTTY || args.flags.verbose) {
       process.stderr.write(
-        `\n— ${result.name || "super-agent"} | model=${result.trace ? "tools" : "engine"} | in=${result.usage?.input_tokens || "?"} out=${result.usage?.output_tokens || "?"}${result.model ? ` | ${result.model}` : ""}\n`
+        `\n— ${result?.name || "super-agent"} | model=${result?.trace ? "tools" : "engine"} | in=${result?.usage?.input_tokens || "?"} out=${result?.usage?.output_tokens || "?"}${result?.model ? ` | ${result.model}` : ""}\n`
       );
     }
     return;
