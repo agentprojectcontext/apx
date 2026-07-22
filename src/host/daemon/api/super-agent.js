@@ -146,7 +146,12 @@ export function register(app, { projects, registries, plugins, project, config }
 
     // Web/TUI channels receive a "confirmation_required" SSE event and respond
     // via POST /super-agent/confirm/:correlationId (see api/confirm.js).
-    const requestConfirmation = createWebConfirmAdapter({ onEvent });
+    // Non-interactive callers (e.g. `apx exec`, which streams only to render a
+    // progress indicator) send `confirm: false` to opt out: they have no way to
+    // answer the round-trip, so they fall back to the default permission policy —
+    // exactly matching the blocking POST /super-agent/chat endpoint's semantics.
+    const requestConfirmation =
+      req.body?.confirm === false ? undefined : createWebConfirmAdapter({ onEvent });
 
     try {
       const saResult = await runSuperAgent({
