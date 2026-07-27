@@ -29,6 +29,10 @@ export interface ChatMsg {
   pending?: boolean;
   /** Model that produced an assistant turn (after routing). */
   model?: string;
+  /** Who answered: display name of the agent/persona (Roby, a project agent…). */
+  agent?: string;
+  /** Stable id of that actor (super_agent | agent slug). Turns are split on it. */
+  agentId?: string;
   /** Token accounting from the `final` event. */
   usage?: ChatUsage;
   /** Operational notes (engine fallbacks, retries, suppressions). */
@@ -135,19 +139,31 @@ function isErrorResult(result: unknown): boolean {
  *  single assistant bubble with interleaved text + tool parts — mirroring how a
  *  live streamed turn is shaped, so tool executions render the same on reload as
  *  they did in real time. Persisted rows carry no live status, so it's derived
- *  from the stored result (error → "error", else "done"). */
+ *  from the stored result (error → "error", else "done").
+ *
+ *  A change of ACTOR also breaks the bubble: if Roby answers and then a project
+ *  agent does, they're two turns, not one — otherwise the footer would credit
+ *  the whole block to whichever one happened to be last. Token usage is summed
+ *  across the rows of a turn (streamed channels write several agent rows and
+ *  only the final one carries `usage`). */
 function threadToChatMsgs(messages: ConversationMessage[]): ChatMsg[] {
   const out: ChatMsg[] = [];
   let turn: ChatMsg | null = null;
+  let turnActor: string | undefined;
   let toolSeq = 0;
   for (const m of messages) {
     const ts = m.ts || new Date().toISOString();
     if (m.role === "user") {
       turn = null;
+      turnActor = undefined;
       out.push({ role: "user", parts: userPart(m.content), ts });
     } else if (m.role === "assistant" || m.role === "tool") {
-      if (!turn) {
+      // Tool rows inherit the current actor (they're logged by whoever is
+      // running); only assistant rows can start a new one.
+      const actor = m.role === "assistant" ? m.agent : turnActor;
+      if (!turn || (m.role === "assistant" && actor !== turnActor)) {
         turn = { role: "assistant", parts: [], ts };
+        turnActor = actor;
         out.push(turn);
       }
       if (m.role === "tool") {
@@ -159,8 +175,17 @@ function threadToChatMsgs(messages: ConversationMessage[]): ChatMsg[] {
           result: m.result,
           status: isErrorResult(m.result) ? "error" : "done",
         });
-      } else if (m.content) {
-        turn.parts.push({ kind: "text", text: m.content });
+      } else {
+        if (m.agent) turn.agentId = m.agent;
+        if (m.agent_name) turn.agent = m.agent_name;
+        if (m.model) turn.model = m.model;
+        if (m.usage) {
+          turn.usage = {
+            input_tokens: (turn.usage?.input_tokens || 0) + (m.usage.input_tokens || 0),
+            output_tokens: (turn.usage?.output_tokens || 0) + (m.usage.output_tokens || 0),
+          };
+        }
+        if (m.content) turn.parts.push({ kind: "text", text: m.content });
       }
     }
     // system/compact rows are context-only; not rendered in the thread viewer.
@@ -256,7 +281,11 @@ export function applyStreamEvent(turn: ChatMsg, ev: ChatStreamEvent): ChatMsg {
         ...turn,
         pending: false,
         usage: ev.result?.usage ?? turn.usage,
-        model: turn.model ?? ev.result?.name,
+        // `model` is the engine (from model_start/model_routed, or the final
+        // event); `name` is the persona that answered — they are not the same
+        // thing and must not fall back to each other.
+        model: turn.model ?? ev.result?.model,
+        agent: turn.agent ?? ev.result?.name,
         parts:
           ev.result?.text && !turn.parts.some((p) => p.kind === "text")
             ? [...turn.parts, { kind: "text", text: ev.result.text }]
@@ -347,6 +376,9 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
             ...m,
             pending: false,
             model: out.engine,
+            agent: opts.agentSlug,
+            agentId: opts.agentSlug,
+            usage: out.usage,
             parts: [{ kind: "text", text: out.text }],
           }));
         } catch (e) {

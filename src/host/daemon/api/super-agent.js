@@ -44,12 +44,21 @@ function logInspectorDecision(trace, { trace_id, channel } = {}) {
 // the human surfaces (web big chat + sidebar) — not generic "api"/automation
 // callers. Best-effort: a logging failure never breaks the reply.
 const WEB_LOGGED_CHANNELS = new Set([CHANNELS.WEB, CHANNELS.WEB_SIDEBAR]);
-function logWebTurn(channel, { prompt, replyText }) {
+function logWebTurn(channel, { prompt, replyText, name, model, usage }) {
   if (!WEB_LOGGED_CHANNELS.has(channel)) return;
   try {
     appendGlobalMessage({ channel, direction: "in", type: "user", author: "user", body: prompt });
     if (replyText) {
-      appendGlobalMessage({ channel, direction: "out", type: "agent", body: replyText });
+      // Attribution rides along on the record: which model answered and what the
+      // turn cost. Without it a reloaded thread renders "0 tok" and no model.
+      appendGlobalMessage({
+        channel,
+        direction: "out",
+        type: "agent",
+        author: name || undefined,
+        body: replyText,
+        meta: { ...(model ? { model } : {}), ...(usage ? { usage } : {}) },
+      });
     }
   } catch {
     /* best-effort */
@@ -173,13 +182,22 @@ export function register(app, { projects, registries, plugins, project, config }
         skipSkillsHint: inspectorOn,
       });
       projects.rebuild(p.id);
-      logWebTurn(ctx.channel, { prompt, replyText: saResult.text });
+      logWebTurn(ctx.channel, {
+        prompt,
+        replyText: saResult.text,
+        name: saResult.name,
+        model: saResult.model,
+        usage: saResult.usage,
+      });
       send({
         type: "final",
         result: {
           text: saResult.text,
           usage: saResult.usage,
+          // `name` is the agent persona; `model` is the engine that answered
+          // (it can differ from the configured one after a routing fallback).
           name: saResult.name,
+          model: saResult.model,
           trace: saResult.trace,
         },
       });
@@ -275,11 +293,18 @@ export function register(app, { projects, registries, plugins, project, config }
         skipSkillsHint: inspectorOn,
       });
       projects.rebuild(p.id);
-      logWebTurn(ctx.channel, { prompt, replyText: saResult.text });
+      logWebTurn(ctx.channel, {
+        prompt,
+        replyText: saResult.text,
+        name: saResult.name,
+        model: saResult.model,
+        usage: saResult.usage,
+      });
       res.json({
         text: saResult.text,
         usage: saResult.usage,
         name: saResult.name,
+        model: saResult.model,
         trace: saResult.trace,
       });
     } catch (e) {

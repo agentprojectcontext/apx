@@ -1211,6 +1211,9 @@ export const en = {
     send:                "Send",
     pick_model:          "Pick model (or Auto)",
     insert_variable:     "Insert variable",
+    ctx_files:           "files",
+    ctx_actors:          "{n} agents/models",
+    ctx_turns:           "{n} turns",
   },
 
   sidebar_ui: {

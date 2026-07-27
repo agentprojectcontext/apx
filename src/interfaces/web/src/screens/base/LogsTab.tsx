@@ -23,10 +23,27 @@ function actorLabel(m: MessageEntry): string {
   return m.agent_slug || m.actor_id || m.author || m.actor_kind || "—";
 }
 
+/** Model that produced this record — persisted in meta by every channel that
+ *  runs an agent turn. Absent on user/system rows and on pre-1.74 history. */
+function modelOf(m: MessageEntry): string | null {
+  const v = m.meta?.model;
+  return typeof v === "string" && v ? v : null;
+}
+
+/** Total tokens for this record, when the channel recorded usage. */
+function tokensOf(m: MessageEntry): number | null {
+  const u = m.meta?.usage as { input_tokens?: number; output_tokens?: number } | undefined;
+  if (!u || typeof u !== "object") return null;
+  const total = (u.input_tokens || 0) + (u.output_tokens || 0);
+  return total > 0 ? total : null;
+}
+
 function LogRow({ m }: { m: MessageEntry }) {
   const [expanded, setExpanded] = useState(false);
   const long = (m.body?.length || 0) > CLAMP;
   const shown = !long || expanded ? m.body : `${m.body.slice(0, CLAMP)}…`;
+  const model = modelOf(m);
+  const tokens = tokensOf(m);
   return (
     <li className="flex items-start gap-3 rounded-md border border-border bg-muted/30 px-3 py-2">
       <span className="mt-0.5 shrink-0">
@@ -40,6 +57,8 @@ function LogRow({ m }: { m: MessageEntry }) {
           <Badge tone="info">{m.channel}</Badge>
           {m.type && <Badge>{m.type}</Badge>}
           <span className="font-medium text-foreground">{actorLabel(m)}</span>
+          {model && <span className="font-mono text-[11px] text-sky-400/90">{model}</span>}
+          {tokens !== null && <span className="font-mono text-[11px]">{tokens} tok</span>}
         </div>
         {m.body && (
           <p className="mt-1 whitespace-pre-wrap break-words text-xs">{shown}</p>

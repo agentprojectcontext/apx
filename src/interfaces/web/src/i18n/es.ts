@@ -1209,6 +1209,9 @@ export const es = {
     send:                "Enviar",
     pick_model:          "Elegir modelo (o Auto)",
     insert_variable:     "Insertar variable",
+    ctx_files:           "archivos",
+    ctx_actors:          "{n} agentes/modelos",
+    ctx_turns:           "{n} turnos",
   },
 
   sidebar_ui: {

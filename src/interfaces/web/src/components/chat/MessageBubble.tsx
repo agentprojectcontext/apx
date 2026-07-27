@@ -105,9 +105,31 @@ export function MessageBubble({ msg, isLast, isAskAnswer, onCopy }: Props) {
           </div>
         )}
 
+        {/* Attribution: who answered and on which engine. Always visible (not
+            hover-gated) — in a thread where several agents/models take turns,
+            this is the only way to tell them apart at a glance. */}
+        {!mine && (msg.agent || msg.model) && (
+          <div className="flex flex-wrap items-center gap-1 text-[10px]">
+            {msg.agent && (
+              <span className="rounded bg-emerald-500/15 px-1 py-0.5 font-medium text-emerald-300">
+                {msg.agent}
+              </span>
+            )}
+            {msg.model && (
+              <span className="rounded border border-border px-1 py-0.5 font-mono text-muted-foreground">
+                {msg.model}
+              </span>
+            )}
+          </div>
+        )}
+
         <div className="flex items-center gap-2 text-[10px] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100">
           <span>{formatTs(msg.ts)}</span>
-          {!mine && msg.model && <span className="font-mono">· {msg.model}</span>}
+          {!mine && msg.usage && (msg.usage.input_tokens || msg.usage.output_tokens) ? (
+            <span className="font-mono">
+              · {(msg.usage.input_tokens || 0) + (msg.usage.output_tokens || 0)} tok
+            </span>
+          ) : null}
           {!mine && hasTools && (
             <span>· {t("shared_ui.tools_count", { n: msg.parts.filter((p) => p.kind === "tool").length })}</span>
           )}

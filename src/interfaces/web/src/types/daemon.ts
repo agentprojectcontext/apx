@@ -221,6 +221,13 @@ export interface ConversationMessage {
   tool?: string;
   args?: Record<string, unknown>;
   result?: unknown;
+  /** Attribution on role:"assistant" rows from the global ledger: who answered
+   *  (stable id + display name + kind), on which model, and what it cost. */
+  agent?: string;
+  agent_name?: string;
+  actor_kind?: string;
+  model?: string;
+  usage?: ChatUsage;
 }
 
 export interface ConversationDetail {
@@ -408,7 +415,11 @@ export interface ChatStreamEvent {
   result?: {
     text?: string;
     usage?: ChatUsage;
+    /** Agent persona that answered (identity.json name / agent slug). */
     name?: string;
+    /** Engine that actually produced the reply — may differ from the configured
+     *  one when routing fell back mid-turn. */
+    model?: string;
     trace?: ToolTrace[];
   };
 }

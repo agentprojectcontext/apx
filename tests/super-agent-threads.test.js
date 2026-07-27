@@ -75,6 +75,52 @@ test("readGlobalThread: maps user/agent to chat roles, includes tool, drops syst
   assert.deepEqual(toolMsg.result, { ok: true });
 });
 
+test("readGlobalThread: assistant rows carry model, usage and agent attribution", () => {
+  const base = tmpLedger();
+  writeDay(base, "telegram", "2026-07-01", [
+    { ts: "2026-07-01T10:00:00Z", channel: "telegram", direction: "in", type: "user", body: "hola" },
+    {
+      ts: "2026-07-01T10:00:05Z", channel: "telegram", direction: "out", type: "agent",
+      author: "Roby", actor_id: "super_agent",
+      body: "buenas!",
+      meta: { actor_kind: "superagent", agent: "super_agent", model: "anthropic:claude-haiku-4-5", usage: { input_tokens: 120, output_tokens: 30 } },
+    },
+    {
+      ts: "2026-07-01T10:01:00Z", channel: "telegram", direction: "out", type: "agent",
+      author: "sofia", actor_id: "sofia",
+      body: "y esto lo respondo yo",
+      meta: { actor_kind: "agent", agent: "sofia", model: "ollama:llama3.2:3b" },
+    },
+  ]);
+  const thread = readGlobalThread({ channel: "telegram", date: "2026-07-01", _globalMessagesDir: base });
+  const [roby, sofia] = thread.messages.filter((m) => m.role === "assistant");
+  assert.equal(roby.agent, "super_agent");
+  assert.equal(roby.agent_name, "Roby");
+  assert.equal(roby.actor_kind, "superagent");
+  assert.equal(roby.model, "anthropic:claude-haiku-4-5");
+  assert.deepEqual(roby.usage, { input_tokens: 120, output_tokens: 30 });
+  // A different agent on the same day keeps its own attribution.
+  assert.equal(sofia.agent, "sofia");
+  assert.equal(sofia.actor_kind, "agent");
+  assert.equal(sofia.model, "ollama:llama3.2:3b");
+  assert.equal(sofia.usage, undefined);
+});
+
+test("readGlobalThread: legacy rows with no model/usage stay clean", () => {
+  const base = tmpLedger();
+  writeDay(base, "telegram", "2026-07-01", [
+    { ts: "2026-07-01T10:00:00Z", channel: "telegram", direction: "in", type: "user", body: "hola" },
+    { ts: "2026-07-01T10:00:05Z", channel: "telegram", direction: "out", type: "agent", body: "buenas!" },
+  ]);
+  const thread = readGlobalThread({ channel: "telegram", date: "2026-07-01", _globalMessagesDir: base });
+  const assistant = thread.messages.find((m) => m.role === "assistant");
+  assert.equal(assistant.model, undefined);
+  assert.equal(assistant.usage, undefined);
+  assert.equal(assistant.agent_name, undefined);
+  // inferActorId still fills a stable actor for legacy rows.
+  assert.equal(assistant.agent, "agent");
+});
+
 test("readGlobalThread: rejects traversal-shaped channel and bad dates", () => {
   const base = tmpLedger();
   writeDay(base, "telegram", "2026-07-01", [
