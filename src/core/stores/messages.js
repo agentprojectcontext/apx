@@ -643,12 +643,18 @@ export function listGlobalThreads({ channels, _globalMessagesDir } = {}) {
 }
 
 // Read one channel+day thread shaped for the web chat viewer:
-// { id, channel, messages: [{ role, content, ts }] } — or null when missing.
+// { id, channel, messages: [{ role, content, ts, … }] } — or null when missing.
 // Tool records are INCLUDED (role:"tool" with structured tool/args/result from
 // meta) so the web viewer can render tool executions the same way the live
 // stream does. They're persisted by every channel (e.g. telegram reply.js) but
 // never sent to the channel itself; dropping them here is what made Telegram
 // tool calls invisible in the web chat even though they were on disk.
+//
+// Assistant rows also carry their ATTRIBUTION — which agent answered
+// (agent/agent_name/actor_kind) and on which model, plus the turn's token
+// usage. All of it is already on disk in `meta`; dropping it here is what made
+// a reloaded thread render "0 tok" with no model, even though the live stream
+// showed both.
 export function readGlobalThread({ channel, date, _globalMessagesDir } = {}) {
   if (!CHANNEL_NAME_RE.test(String(channel || ""))) return null;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ""))) return null;
@@ -668,10 +674,21 @@ export function readGlobalThread({ channel, date, _globalMessagesDir } = {}) {
           result: r.meta?.result,
         };
       }
+      if (r.type === "user") {
+        return { role: "user", content: r.body || "", ts: r.ts };
+      }
+      const usage = r.meta?.usage;
       return {
-        role: r.type === "user" ? "user" : "assistant",
+        role: "assistant",
         content: r.body || "",
         ts: r.ts,
+        // Stable id of who answered (super_agent | project-agent slug) plus the
+        // display name that was shown on the channel.
+        ...(r.agent_slug || r.actor_id ? { agent: r.agent_slug || r.actor_id } : {}),
+        ...(r.author ? { agent_name: r.author } : {}),
+        ...(r.actor_kind ? { actor_kind: r.actor_kind } : {}),
+        ...(r.meta?.model ? { model: r.meta.model } : {}),
+        ...(usage && typeof usage === "object" ? { usage } : {}),
       };
     });
   return { id: date, channel, messages };

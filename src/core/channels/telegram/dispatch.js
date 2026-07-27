@@ -226,6 +226,8 @@ export async function handleUpdate(self, u) {
     let replyAuthor;
     let replyActorId = SUPERAGENT_ACTOR_ID;   // stable id: super_agent | agent slug
     let replyKind = "superagent";             // actor_kind: superagent | agent
+    let replyModel = null;                    // model that actually produced the reply
+    let replyUsage = null;                    // token accounting for this turn
     const projectCfg = target.config || self.globalConfig;
     // Display name for the super-agent persona on this channel (from identity.json).
     const agentDisplay = resolveAgentName(self.globalConfig);
@@ -254,6 +256,10 @@ export async function handleUpdate(self, u) {
           replyAuthor = agent.slug;
           replyActorId = agent.slug;
           replyKind = "agent";
+          // Fully-qualified id from the agent card (provider:model) — callEngine
+          // resolves it internally and doesn't hand it back.
+          replyModel = agent.fields.Model;
+          replyUsage = result.usage || null;
         } catch (e) {
           self.log(`telegram[${self.channel.name}] agent reply failed: ${e.message}`);
           replyText = t("telegram.error_agent", {
@@ -263,6 +269,8 @@ export async function handleUpdate(self, u) {
           replyAuthor = agentDisplay;
           replyActorId = SUPERAGENT_ACTOR_ID;
           replyKind = "superagent";
+          replyModel = null;
+          replyUsage = null;
         }
       } else {
         self.log(
@@ -276,7 +284,6 @@ export async function handleUpdate(self, u) {
     // calls are logged but never sent (internal). The streamed turn + its final
     // send live in ./reply.js so this dispatcher and the ask-flow resume
     // (_runResumedTurn in the host poller) share ONE reply path — no drift.
-    let saUsage = null;
     let streamedCount = 0;
     let lastStreamedText = "";
     if (!replyText && isSuperAgentEnabled(self.globalConfig)) {
@@ -327,7 +334,8 @@ export async function handleUpdate(self, u) {
         replyAuthor = sa.name || agentDisplay;
         replyActorId = SUPERAGENT_ACTOR_ID;
         replyKind = "superagent";
-        saUsage = sa.usage;
+        replyUsage = sa.usage;
+        replyModel = sa.model || state.model || null;
 
         // ── ask_questions integration ────────────────────────────────────
         // If the super-agent ended this turn by calling ask_questions, hand off
@@ -374,6 +382,7 @@ export async function handleUpdate(self, u) {
         replyAuthor = agentDisplay;
         replyActorId = SUPERAGENT_ACTOR_ID;
         replyKind = "superagent";
+        replyModel = state.model || null;
       }
     }
 
@@ -386,7 +395,8 @@ export async function handleUpdate(self, u) {
       replyAuthor,
       replyActorId,
       replyKind,
-      saUsage,
+      saUsage: replyUsage,
+      saModel: replyModel,
       streamedCount,
       lastStreamedText,
       agentDisplay,

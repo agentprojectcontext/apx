@@ -199,9 +199,20 @@ async function _handleMessage({ ws, text, previousMessages }, { projects, config
       }
     }
 
-    // Persist assistant response
+    // Persist assistant response, stamped with the model that answered and the
+    // turn's token usage so the web thread viewer can attribute it.
     try {
-      await appendGlobalMessage({ channel: CHANNEL, direction: "out", type: "agent", body: finalText });
+      await appendGlobalMessage({
+        channel: CHANNEL,
+        direction: "out",
+        type: "agent",
+        author: result?.name || undefined,
+        body: finalText,
+        meta: {
+          ...(result?.model ? { model: result.model } : {}),
+          ...(result?.usage ? { usage: result.usage } : {}),
+        },
+      });
     } catch {}
 
   } catch (e) {

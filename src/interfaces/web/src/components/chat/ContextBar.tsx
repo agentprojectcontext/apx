@@ -1,12 +1,25 @@
 import { useMemo, useState } from "react";
-import { ChevronDown, FilePen, Gauge, Wrench } from "lucide-react";
+import { Bot, ChevronDown, FilePen, Gauge, Wrench } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { FILE_TOOLS } from "./ToolCall";
+import { t } from "../../i18n";
 import type { ChatMsg, ToolPart } from "../../hooks/useChat";
 
 interface ChangedFile {
   path: string;
   tool: string;
+}
+
+/** One (agent, model) pair that contributed to this conversation, with what it
+ *  spent. A turn where the router fell back mid-conversation produces two rows
+ *  for the same agent — that's the point: you see WHICH model cost what. */
+interface ActorUsage {
+  key: string;
+  agent?: string;
+  model?: string;
+  inTok: number;
+  outTok: number;
+  turns: number;
 }
 
 // Pull the file path out of a write_file/edit_file invocation's args.
@@ -18,26 +31,37 @@ function filePathOf(args?: Record<string, unknown>): string | undefined {
 
 /**
  * Compact, opencode-style strip summarising the conversation: token usage,
- * tool count, and an expandable list of files the agent wrote or edited.
- * Renders nothing until the agent has actually done something.
+ * tool count, an expandable list of files the agent wrote or edited, and the
+ * per-actor breakdown (which agent answered on which model, and what each
+ * spent). Renders nothing until the agent has actually done something.
  */
 export function ContextBar({ msgs }: { msgs: ChatMsg[] }) {
   const [open, setOpen] = useState(false);
 
-  const { inTok, outTok, toolCount, changed, model } = useMemo(() => {
+  const { inTok, outTok, toolCount, changed, actors } = useMemo(() => {
     let inTok = 0;
     let outTok = 0;
     let toolCount = 0;
-    let model: string | undefined;
     const seen = new Set<string>();
     const changed: ChangedFile[] = [];
+    const byActor = new Map<string, ActorUsage>();
     for (const m of msgs) {
       if (m.role !== "assistant") continue;
-      if (m.usage) {
-        inTok += m.usage.input_tokens || 0;
-        outTok += m.usage.output_tokens || 0;
+      const mIn = m.usage?.input_tokens || 0;
+      const mOut = m.usage?.output_tokens || 0;
+      inTok += mIn;
+      outTok += mOut;
+      if (m.agent || m.model) {
+        const key = `${m.agent || ""}::${m.model || ""}`;
+        const prev = byActor.get(key);
+        if (prev) {
+          prev.inTok += mIn;
+          prev.outTok += mOut;
+          prev.turns += 1;
+        } else {
+          byActor.set(key, { key, agent: m.agent, model: m.model, inTok: mIn, outTok: mOut, turns: 1 });
+        }
       }
-      if (m.model) model = m.model;
       for (const part of m.parts) {
         if (part.kind !== "tool") continue;
         toolCount += 1;
@@ -50,20 +74,21 @@ export function ContextBar({ msgs }: { msgs: ChatMsg[] }) {
         }
       }
     }
-    return { inTok, outTok, toolCount, changed, model };
+    return { inTok, outTok, toolCount, changed, actors: [...byActor.values()] };
   }, [msgs]);
 
   const totalTok = inTok + outTok;
-  if (totalTok === 0 && toolCount === 0) return null;
+  const expandable = changed.length > 0 || actors.length > 1;
+  if (totalTok === 0 && toolCount === 0 && actors.length === 0) return null;
 
   return (
     <div className="shrink-0 border-t border-border bg-card/40 text-[11px]">
       <button
         type="button"
-        onClick={() => changed.length > 0 && setOpen((v) => !v)}
+        onClick={() => expandable && setOpen((v) => !v)}
         className={cn(
           "flex w-full items-center gap-3 px-4 py-1.5 text-muted-foreground",
-          changed.length > 0 && "hover:text-foreground",
+          expandable && "hover:text-foreground",
         )}
       >
         <span className="flex items-center gap-1">
@@ -79,27 +104,57 @@ export function ContextBar({ msgs }: { msgs: ChatMsg[] }) {
         )}
         {changed.length > 0 && (
           <span className="flex items-center gap-1 text-violet-400">
-            <FilePen size={12} /> {changed.length} archivos
+            <FilePen size={12} /> {changed.length} {t("chat_ui.ctx_files")}
           </span>
         )}
-        {model && <span className="ml-auto font-mono text-muted-foreground/70">{model}</span>}
-        {changed.length > 0 && (
+        {/* One actor → show it inline. Several → say how many and let the user
+            expand for the split. */}
+        {actors.length === 1 && (
+          <span className="ml-auto truncate font-mono text-muted-foreground/70">
+            {[actors[0].agent, actors[0].model].filter(Boolean).join(" · ")}
+          </span>
+        )}
+        {actors.length > 1 && (
+          <span className="ml-auto flex items-center gap-1 text-sky-400">
+            <Bot size={12} /> {t("chat_ui.ctx_actors", { n: actors.length })}
+          </span>
+        )}
+        {expandable && (
           <ChevronDown className={cn("size-3 shrink-0 transition-transform", open && "rotate-180")} />
         )}
       </button>
 
-      {open && changed.length > 0 && (
-        <ul className="max-h-40 space-y-0.5 overflow-y-auto border-t border-border/60 px-4 py-2">
-          {changed.map((f) => (
-            <li key={f.path} className="flex items-center gap-2 font-mono text-[11px]">
-              <FilePen size={11} className="shrink-0 text-violet-400" />
-              <span className="truncate">{f.path}</span>
-              <span className="ml-auto shrink-0 text-[10px] text-muted-foreground/60">
-                {f.tool === "write_file" ? "write" : "edit"}
-              </span>
-            </li>
-          ))}
-        </ul>
+      {open && (
+        <div className="max-h-52 space-y-2 overflow-y-auto border-t border-border/60 px-4 py-2">
+          {actors.length > 1 && (
+            <ul className="space-y-0.5">
+              {actors.map((a) => (
+                <li key={a.key} className="flex items-center gap-2 text-[11px]">
+                  <Bot size={11} className="shrink-0 text-sky-400" />
+                  <span className="shrink-0 font-medium text-emerald-300">{a.agent || "—"}</span>
+                  <span className="truncate font-mono text-muted-foreground/70">{a.model || "—"}</span>
+                  <span className="ml-auto shrink-0 font-mono text-[10px] text-muted-foreground/60">
+                    {fmt(a.inTok + a.outTok)} tok ({fmt(a.inTok)}↑ / {fmt(a.outTok)}↓) ·{" "}
+                    {t("chat_ui.ctx_turns", { n: a.turns })}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {changed.length > 0 && (
+            <ul className="space-y-0.5">
+              {changed.map((f) => (
+                <li key={f.path} className="flex items-center gap-2 font-mono text-[11px]">
+                  <FilePen size={11} className="shrink-0 text-violet-400" />
+                  <span className="truncate">{f.path}</span>
+                  <span className="ml-auto shrink-0 text-[10px] text-muted-foreground/60">
+                    {f.tool === "write_file" ? "write" : "edit"}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
     </div>
   );

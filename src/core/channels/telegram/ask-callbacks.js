@@ -181,6 +181,7 @@ export async function runResumedTurn(self, ctx) {
   let replyText;
   let replyAuthor;
   let saUsage = null;
+  let saModel = null;
   try {
     const sa = await runTelegramSuperAgent(self, {
       chat_id,
@@ -216,10 +217,12 @@ export async function runResumedTurn(self, ctx) {
     replyText = sa.text;
     replyAuthor = sa.name || agentDisplay;
     saUsage = sa.usage;
+    saModel = sa.model || state.model || null;
   } catch (e) {
     self.log(`telegram[${self.channel.name}] ask resume failed: ${e.message}`);
     replyText = telegramErrorText(self, e);
     replyAuthor = agentDisplay;
+    saModel = state.model || null;
   }
 
   stopTyping();
@@ -231,6 +234,7 @@ export async function runResumedTurn(self, ctx) {
     replyActorId: SUPERAGENT_ACTOR_ID,
     replyKind: "superagent",
     saUsage,
+    saModel,
     streamedCount: state.streamedCount,
     lastStreamedText: state.lastStreamedText,
     agentDisplay,

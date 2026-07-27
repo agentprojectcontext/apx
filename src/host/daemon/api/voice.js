@@ -104,6 +104,10 @@ export function register(app, { projects, plugins, registries }) {
       const channel = body.channel || "voice";
       let suggestions = [];
       let toolsUsed = [];
+      // Attribution for the persisted turn (see the appendGlobalMessage below).
+      let replyModel = null;
+      let replyUsage = null;
+      let replyName = null;
 
       const channelCtx = buildVoiceChannelContext(channel, {
         projectId: body.projectId,
@@ -125,6 +129,9 @@ export function register(app, { projects, plugins, registries }) {
             previousMessages,
           });
           const raw = (result?.text || "").trim();
+          replyModel = result?.model || null;
+          replyUsage = result?.usage || null;
+          replyName = result?.name || null;
           // Surface the tools the agent actually executed this turn so
           // the overlay can show "lo que APX hizo" instead of echoing
           // the transcript. Dedup by name (a list_tasks before+after
@@ -188,7 +195,19 @@ export function register(app, { projects, plugins, registries }) {
         const logCh = channelCtx.channel || channel;
         if (logCh && logCh !== "api") {
           appendGlobalMessage({ channel: logCh, direction: "in", type: "user", author: "user", body: userText });
-          if (replyText) appendGlobalMessage({ channel: logCh, direction: "out", type: "agent", body: replyText });
+          if (replyText) {
+            appendGlobalMessage({
+              channel: logCh,
+              direction: "out",
+              type: "agent",
+              author: replyName || undefined,
+              body: replyText,
+              meta: {
+                ...(replyModel ? { model: replyModel } : {}),
+                ...(replyUsage ? { usage: replyUsage } : {}),
+              },
+            });
+          }
         }
       } catch { /* best-effort */ }
 

@@ -23,12 +23,19 @@ import { buildTelegramMeta, resolveBotToken } from "./helpers.js";
  * (audit trail / other channels — never sent to Telegram). Returns the handler
  * plus a live `state` the caller reads AFTER the run to drive the final send.
  *
- * @returns {{ onEvent: Function, state: { streamedCount: number, lastStreamedText: string } }}
+ * `state.model` tracks the model actually answering RIGHT NOW (it can rotate
+ * mid-turn on a fallback), so every record this handler writes is stamped with
+ * the model that produced it — not with the one the turn happened to end on.
+ *
+ * @returns {{ onEvent: Function, state: { streamedCount: number, lastStreamedText: string, model: string } }}
  */
 export function buildStreamHandler(self, { chat_id, update_id, agentDisplay }) {
-  const state = { streamedCount: 0, lastStreamedText: "", sentHeadsUp: false };
+  const state = { streamedCount: 0, lastStreamedText: "", sentHeadsUp: false, model: "" };
   const onEvent = async (ev) => {
     try {
+      if ((ev.type === "model_start" || ev.type === "model_routed" || ev.type === "final_wrapup") && ev.model) {
+        state.model = ev.model;
+      }
       if (ev.type === "tool_start" && !state.sentHeadsUp && state.streamedCount === 0) {
         state.sentHeadsUp = true;
         const heads = t("telegram.heads_up", { lang: resolveLang(self.globalConfig) });
@@ -42,7 +49,7 @@ export function buildStreamHandler(self, { chat_id, update_id, agentDisplay }) {
           agent_slug: SUPERAGENT_ACTOR_ID,
           author: agentDisplay,
           body: heads,
-          meta: { chat_id, tg_channel: self.channel.name, in_reply_to: update_id, heads_up: true },
+          meta: { chat_id, tg_channel: self.channel.name, in_reply_to: update_id, heads_up: true, ...(state.model ? { model: state.model } : {}) },
         });
         return;
       }
@@ -61,7 +68,7 @@ export function buildStreamHandler(self, { chat_id, update_id, agentDisplay }) {
           agent_slug: SUPERAGENT_ACTOR_ID,
           author: agentDisplay,
           body: piece,
-          meta: { chat_id, tg_channel: self.channel.name, in_reply_to: update_id, streamed: true, iteration: ev.iteration },
+          meta: { chat_id, tg_channel: self.channel.name, in_reply_to: update_id, streamed: true, iteration: ev.iteration, ...(state.model ? { model: state.model } : {}) },
         });
       } else if (ev.type === "tool_result" && ev.trace) {
         // Logged for the audit trail / other channels — NOT sent to Telegram.
@@ -74,7 +81,7 @@ export function buildStreamHandler(self, { chat_id, update_id, agentDisplay }) {
           actor_kind: "tool",
           author: agentDisplay,
           body: `${tr.tool}(${JSON.stringify(tr.args || {}).slice(0, 200)})`,
-          meta: { chat_id, tg_channel: self.channel.name, in_reply_to: update_id, tool: tr.tool, args: tr.args, result: tr.result, iteration: ev.iteration },
+          meta: { chat_id, tg_channel: self.channel.name, in_reply_to: update_id, tool: tr.tool, args: tr.args, result: tr.result, iteration: ev.iteration, ...(state.model ? { model: state.model } : {}) },
         });
       } else if (ev.type === "engine_failed") {
         // A model in the fallback chain errored; the loop is rotating to the
@@ -175,6 +182,7 @@ export async function runFollowupTurn(self, {
     let replyText;
     let replyAuthor;
     let saUsage = null;
+    let saModel = null;
     try {
       const sa = await runTelegramSuperAgent(self, {
         chat_id,
@@ -191,10 +199,12 @@ export async function runFollowupTurn(self, {
       replyText = sa.text;
       replyAuthor = sa.name || agentDisplay;
       saUsage = sa.usage;
+      saModel = sa.model || state.model || null;
     } catch (e) {
       self.log(`telegram[${self.channel.name}] a2a followup failed: ${e.message}`);
       replyText = telegramErrorText(self, e);
       replyAuthor = agentDisplay;
+      saModel = state.model || null;
     }
     stopTyping();
     await sendFinalReply(self, {
@@ -205,6 +215,7 @@ export async function runFollowupTurn(self, {
       replyActorId: SUPERAGENT_ACTOR_ID,
       replyKind: "superagent",
       saUsage,
+      saModel,
       streamedCount: state.streamedCount,
       lastStreamedText: state.lastStreamedText,
       agentDisplay,
@@ -233,7 +244,7 @@ export function telegramErrorText(self, e) {
  */
 export async function sendFinalReply(self, {
   chat_id, update_id, replyText, replyAuthor, replyActorId, replyKind,
-  saUsage = null, streamedCount = 0, lastStreamedText = "", agentDisplay,
+  saUsage = null, saModel = null, streamedCount = 0, lastStreamedText = "", agentDisplay,
   extraMeta = {},
 }) {
   const finalClean = replyText ? stripThinking(replyText).trim() : "";
@@ -255,6 +266,7 @@ export async function sendFinalReply(self, {
     const meta = { chat_id, tg_channel: self.channel.name, in_reply_to: update_id, final: true, ...extraMeta };
     if (replyText && stripThinking(replyText) !== replyText) meta.thinking_stripped = true;
     if (saUsage) meta.usage = saUsage;
+    if (saModel) meta.model = saModel;
     appendGlobalMessage({
       channel: CHANNELS.TELEGRAM,
       direction: "out",
@@ -277,7 +289,7 @@ export async function sendFinalReply(self, {
       agent_slug: actorId,
       author: replyAuthor || agentDisplay,
       body: `[send_failed] ${toSend}`,
-      meta: { chat_id, tg_channel: self.channel.name, in_reply_to: update_id, send_error: e.message, ...(saUsage ? { usage: saUsage } : {}) },
+      meta: { chat_id, tg_channel: self.channel.name, in_reply_to: update_id, send_error: e.message, ...(saUsage ? { usage: saUsage } : {}), ...(saModel ? { model: saModel } : {}) },
     });
   }
 }

@@ -1,5 +1,5 @@
 import { http } from "../http";
-import type { AgentDetail, AgentEntry } from "../../types/daemon";
+import type { AgentDetail, AgentEntry, ChatUsage } from "../../types/daemon";
 
 export const Agents = {
   list:   (pid: string, opts?: { stats?: boolean }) =>
@@ -12,7 +12,7 @@ export const Agents = {
   remove: (pid: string, slug: string) =>
     http.del<{ ok: boolean }>(`/projects/${pid}/agents/${encodeURIComponent(slug)}`),
   chat: (pid: string, slug: string, body: { prompt: string; conversation_id?: string; model?: string; channel?: string }) =>
-    http.post<{ conversation_id: string; text: string; usage?: unknown; engine: string }>(
+    http.post<{ conversation_id: string; text: string; usage?: ChatUsage; engine: string }>(
       `/projects/${pid}/agents/${encodeURIComponent(slug)}/chat`,
       body,
     ),
