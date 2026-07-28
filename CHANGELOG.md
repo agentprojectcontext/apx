@@ -1,3 +1,15 @@
+# [1.74.0](https://github.com/agentprojectcontext/apx/compare/v1.73.1...v1.74.0) (2026-07-28)
+
+
+### Bug Fixes
+
+* **net:** prefer IPv4 at daemon boot; stream apx exec with a live indicator ([ff17eb5](https://github.com/agentprojectcontext/apx/commit/ff17eb521cedce8c348cb8020752f60227482598))
+
+
+### Features
+
+* **chat:** attribute every turn to its agent and model, and count its tokens ([f1bfd02](https://github.com/agentprojectcontext/apx/commit/f1bfd0278dd270768be1de5b0a971eda847972fd))
+
 ## [1.73.1](https://github.com/agentprojectcontext/apx/compare/v1.73.0...v1.73.1) (2026-07-10)
 
 
