@@ -1,3 +1,10 @@
+## [1.74.1](https://github.com/agentprojectcontext/apx/compare/v1.74.0...v1.74.1) (2026-08-11)
+
+
+### Bug Fixes
+
+* **voice:** revive whisper on demand and stop losing PATH under launchd ([aab2674](https://github.com/agentprojectcontext/apx/commit/aab267402a0f1e4db4ad103f8bcd0f2372bad1d3))
+
 # [1.74.0](https://github.com/agentprojectcontext/apx/compare/v1.73.1...v1.74.0) (2026-07-28)
 
 
