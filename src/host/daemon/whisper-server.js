@@ -15,7 +15,9 @@ import {
   WHISPER_LOCAL_PORT,
   DEFAULT_LOCAL,
   getConfig,
+  setLocalServerEnsure,
 } from "#core/voice/transcription.js";
+import { envWithPath } from "#core/util/path-env.js";
 import { pythonForWhisper } from "./stt-venv.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -82,7 +84,21 @@ async function _killOrphanWhisper() {
   }
 }
 
+// Serializes concurrent ensures. Two voice messages arriving together (or a
+// desktop utterance racing a Telegram note) would otherwise each see a dead
+// port and spawn their own python, and the loser then trips
+// "address already in use".
+let _ensureInFlight = null;
+
 export async function ensureWhisperServer(opts) {
+  if (_ensureInFlight) return _ensureInFlight;
+  _ensureInFlight = _ensureWhisperServer(opts).finally(() => {
+    _ensureInFlight = null;
+  });
+  return _ensureInFlight;
+}
+
+async function _ensureWhisperServer(opts) {
   const model = opts.model || DEFAULT_LOCAL.model;
   const backend = opts.backend || "faster";
 
@@ -129,9 +145,15 @@ async function _spawnWhisper(opts, model, backend, retried) {
 
   // Prefer APX's dedicated venv interpreter (isolated mlx/faster-whisper);
   // fall back to system python3 for the legacy user-site install.
+  //
+  // envWithPath: both whisper backends shell out to `ffmpeg` to decode
+  // .oga/.webm. Booted from launchd the daemon's PATH is /usr/bin:/bin:
+  // /usr/sbin:/sbin, so a Homebrew ffmpeg is invisible and every transcription
+  // dies with "[Errno 2] No such file or directory: 'ffmpeg'".
   const proc = spawn(pythonForWhisper(), args, {
     stdio: ["ignore", "pipe", "inherit"],
     detached: false,
+    env: envWithPath(),
   });
 
   _serverProcess = proc;
@@ -236,3 +258,8 @@ export const WHISPER_PATHS = {
   whisper_server: WHISPER_SERVER,
   port: WHISPER_LOCAL_PORT,
 };
+
+// Hand core the ability to revive the subprocess on demand. Importing this
+// module (the daemon does, to preload at boot) is what wires it up — core
+// itself never reaches into host/.
+setLocalServerEnsure(ensureWhisperServer);

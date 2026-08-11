@@ -9,6 +9,7 @@ import { spawn } from "node:child_process";
 import { loadAll } from "./sources.js";
 import { interpolate, MissingVarError } from "#core/vars/interpolate.js";
 import { loadAllVars } from "#core/vars/sources.js";
+import { envWithPath } from "#core/util/path-env.js";
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 const LOG_CAP = 64;            // entries per MCP we keep in memory
@@ -59,8 +60,12 @@ class McpProcess {
   start() {
     if (this.proc) return;
     this._log("info", `spawn ${this.command} ${(this.args || []).join(" ")}`);
+    // envWithPath, not a bare process.env spread: most stdio MCPs are launched
+    // via `npx`/`node`, which live in the nvm/pnpm bin dir. Booted from launchd
+    // the daemon only has /usr/bin:/bin:/usr/sbin:/sbin and every one of them
+    // fails with "spawn npx ENOENT".
     this.proc = spawn(this.command, this.args, {
-      env: { ...process.env, ...this.env },
+      env: envWithPath(this.env),
       stdio: ["pipe", "pipe", "pipe"],
     });
     this.startedAt = nowIso();

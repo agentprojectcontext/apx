@@ -174,12 +174,37 @@ export function listSttProviders(rawConfig = {}) {
   return { configured_provider: provider, engines };
 }
 
+// Host-injected "make sure the whisper subprocess is alive" hook. Core must
+// not import from host/daemon, so host/daemon/whisper-server.js registers
+// ensureWhisperServer() here at module load instead. Stays null in contexts
+// that have no subprocess to manage (tests, CLI talking to a remote daemon),
+// where transcribeViaLocalServer just fetches as before.
+let _ensureLocalServer = null;
+
+/** @param {((opts:object)=>Promise<void>)|null} fn */
+export function setLocalServerEnsure(fn) {
+  _ensureLocalServer = typeof fn === "function" ? fn : null;
+}
+
 /**
- * Call the local whisper-server.py over HTTP. Does NOT spawn or check the
- * subprocess — that's host/daemon/whisper-server.js's job. If the server is
- * down, this throws a clear "ECONNREFUSED" the caller can surface.
+ * Call the local whisper-server.py over HTTP.
+ *
+ * The server shuts itself down after `idle_minutes` (10 by default), so on any
+ * request that isn't back-to-back with the last one the port is simply dead.
+ * We therefore ask the host to (re)spawn it first — ensureWhisperServer() is a
+ * cheap health check when the process is already up. Without this, the first
+ * voice message after an idle gap always failed with a bare "fetch failed".
  */
 export async function transcribeViaLocalServer(filePath, opts) {
+  if (_ensureLocalServer) {
+    try {
+      await _ensureLocalServer(opts);
+    } catch (e) {
+      // Not fatal: the server may still be reachable (e.g. an orphan listener
+      // this process doesn't own). Let the fetch below decide.
+      logWarn("whisper", `ensure local server failed, trying anyway: ${e.message}`);
+    }
+  }
   const language = (opts.language || DEFAULT_LOCAL.language) === "auto"
     ? null
     : (opts.language || null);

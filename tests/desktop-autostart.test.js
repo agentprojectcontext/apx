@@ -22,6 +22,14 @@ import {
   findElectron,
   autostartIsOn,
 } from "#interfaces/cli/commands/desktop.js";
+// install/uninstall aren't re-exported by the CLI module — they're only used
+// internally there — so the unsupported-platform tests reach for the source.
+import {
+  autostartInstall,
+  autostartUninstall,
+  MAC_PLIST_PATH,
+  LINUX_DESKTOP_PATH,
+} from "#core/desktop/autostart.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
@@ -149,11 +157,36 @@ test("unknown desktop subcommand fails with a usage hint listing install/uninsta
   assert.match(err, /start\|stop\|restart\|status\|install\|uninstall/);
 });
 
-test("`apx desktop install` is a no-op on unsupported platforms (graceful exit)", { skip: process.platform !== "freebsd" && process.platform !== "sunos" }, () => {
-  // Only runs on platforms we explicitly don't support — confirms graceful path.
-  const r = run(["desktop", "install"]);
-  assert.notEqual(r.status, 0);
-  assert.match(stripAnsi(r.stderr + r.stdout), /no soportado/i);
+// ── unsupported platforms ────────────────────────────────────────────────
+// Driven through the injected `platform` arg rather than the real CLI: the
+// unsupported branch is the one path with no filesystem/registry side effect,
+// so passing a fake platform exercises it on a dev Mac without writing a
+// plist. (This used to shell out to `apx desktop install` and could only ever
+// run on freebsd/sunos, i.e. never.)
+
+for (const platform of ["freebsd", "sunos", "aix"]) {
+  test(`autostart install/uninstall degrade gracefully on ${platform}`, () => {
+    const inst = autostartInstall(platform);
+    assert.equal(inst.ok, false, "install must not claim success");
+    assert.match(inst.error, /not supported on platform/i);
+    assert.match(inst.error, new RegExp(escapeRe(platform)),
+      "error must name the offending platform");
+
+    const uninst = autostartUninstall(platform);
+    assert.equal(uninst.ok, false, "uninstall must not claim success");
+    assert.match(uninst.error, /not supported on platform/i);
+
+    // Never throws, and nothing is ever reported as installed there.
+    assert.equal(autostartIsOn(platform), false);
+  });
+}
+
+test("unsupported-platform install writes nothing to disk", () => {
+  const before = [MAC_PLIST_PATH, LINUX_DESKTOP_PATH].map((p) => fs.existsSync(p));
+  autostartInstall("freebsd");
+  autostartUninstall("freebsd");
+  const after = [MAC_PLIST_PATH, LINUX_DESKTOP_PATH].map((p) => fs.existsSync(p));
+  assert.deepEqual(after, before, "the graceful path must have no side effects");
 });
 
 // ── helpers ──────────────────────────────────────────────────────────────
