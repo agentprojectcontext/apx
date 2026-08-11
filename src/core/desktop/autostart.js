@@ -18,6 +18,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { augmentedPath } from "#core/util/path-env.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
@@ -55,6 +56,12 @@ function escapeXml(s) {
 export function buildPlist(runner, logFile) {
   const args = [...runner, "desktop", "start"];
   const argsXml = args.map((a) => `    <string>${escapeXml(a)}</string>`).join("\n");
+  // Absolute ProgramArguments (see getApxRunner) only save the *first* hop.
+  // Everything the daemon spawns below itself — ffmpeg for whisper, npx/node
+  // for stdio MCPs — still resolves through PATH, and launchd's is
+  // /usr/bin:/bin:/usr/sbin:/sbin. Baking the installing shell's augmented
+  // PATH in makes the whole tree behave the same at login as in a terminal.
+  const pathEnv = augmentedPath();
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -64,6 +71,10 @@ export function buildPlist(runner, logFile) {
   <array>
 ${argsXml}
   </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key><string>${escapeXml(pathEnv)}</string>
+  </dict>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><false/>
   <key>ProcessType</key><string>Interactive</string>
@@ -76,12 +87,18 @@ ${argsXml}
 
 // ── public API ───────────────────────────────────────────────────────────
 
+// The three functions below take `platform` instead of reading process.platform
+// inline so the unsupported-platform branch is reachable from a test on any
+// machine — it's the only branch with no filesystem/registry side effect, and
+// hard-coding process.platform meant it could only ever be exercised on a
+// freebsd/sunos box. Callers always omit it.
+
 /** Boolean: is the autostart entry currently registered on this platform? */
-export function autostartIsOn() {
+export function autostartIsOn(platform = process.platform) {
   try {
-    if (process.platform === "darwin") return fs.existsSync(MAC_PLIST_PATH);
-    if (process.platform === "linux")  return fs.existsSync(LINUX_DESKTOP_PATH);
-    if (process.platform === "win32") {
+    if (platform === "darwin") return fs.existsSync(MAC_PLIST_PATH);
+    if (platform === "linux")  return fs.existsSync(LINUX_DESKTOP_PATH);
+    if (platform === "win32") {
       const out = execFileSync("reg", ["query", WIN_RUN_KEY, "/v", WIN_RUN_NAME], {
         stdio: ["ignore", "pipe", "ignore"],
       }).toString();
@@ -95,12 +112,12 @@ export function autostartIsOn() {
  * Enable autostart. Idempotent — running twice is safe.
  * @returns {{ ok: boolean, message?: string, error?: string, runs?: string, path?: string }}
  */
-export function autostartInstall() {
+export function autostartInstall(platform = process.platform) {
   const runner = getApxRunner();
   const sh = (s) => `"${String(s).replace(/"/g, '\\"')}"`;
   const cmdline = [...runner, "desktop", "start"].map(sh).join(" ");
 
-  if (process.platform === "darwin") {
+  if (platform === "darwin") {
     try {
       fs.mkdirSync(path.dirname(MAC_PLIST_PATH), { recursive: true });
       fs.mkdirSync(path.dirname(AUTOSTART_LOG_PATH), { recursive: true });
@@ -110,7 +127,7 @@ export function autostartInstall() {
       return { ok: true, runs: cmdline, path: MAC_PLIST_PATH };
     } catch (e) { return { ok: false, error: e.message }; }
   }
-  if (process.platform === "win32") {
+  if (platform === "win32") {
     try {
       execFileSync("reg", [
         "add", WIN_RUN_KEY, "/v", WIN_RUN_NAME, "/t", "REG_SZ", "/d", cmdline, "/f",
@@ -118,7 +135,7 @@ export function autostartInstall() {
       return { ok: true, runs: cmdline, path: `${WIN_RUN_KEY}\\${WIN_RUN_NAME}` };
     } catch (e) { return { ok: false, error: e.message }; }
   }
-  if (process.platform === "linux") {
+  if (platform === "linux") {
     try {
       fs.mkdirSync(path.dirname(LINUX_DESKTOP_PATH), { recursive: true });
       fs.writeFileSync(LINUX_DESKTOP_PATH,
@@ -127,15 +144,15 @@ export function autostartInstall() {
       return { ok: true, runs: cmdline, path: LINUX_DESKTOP_PATH };
     } catch (e) { return { ok: false, error: e.message }; }
   }
-  return { ok: false, error: `autostart not supported on platform: ${process.platform}` };
+  return { ok: false, error: `autostart not supported on platform: ${platform}` };
 }
 
 /**
  * Disable autostart. Idempotent — no-op if not installed.
  * @returns {{ ok: boolean, removed?: boolean, path?: string, error?: string }}
  */
-export function autostartUninstall() {
-  if (process.platform === "darwin") {
+export function autostartUninstall(platform = process.platform) {
+  if (platform === "darwin") {
     if (!fs.existsSync(MAC_PLIST_PATH)) return { ok: true, removed: false };
     try {
       try { execFileSync("launchctl", ["unload", "-w", MAC_PLIST_PATH], { stdio: "ignore" }); } catch {}
@@ -143,7 +160,7 @@ export function autostartUninstall() {
       return { ok: true, removed: true, path: MAC_PLIST_PATH };
     } catch (e) { return { ok: false, error: e.message }; }
   }
-  if (process.platform === "win32") {
+  if (platform === "win32") {
     try {
       execFileSync("reg", ["delete", WIN_RUN_KEY, "/v", WIN_RUN_NAME, "/f"], { stdio: "ignore" });
       return { ok: true, removed: true, path: `${WIN_RUN_KEY}\\${WIN_RUN_NAME}` };
@@ -151,12 +168,12 @@ export function autostartUninstall() {
       return { ok: true, removed: false };
     }
   }
-  if (process.platform === "linux") {
+  if (platform === "linux") {
     if (!fs.existsSync(LINUX_DESKTOP_PATH)) return { ok: true, removed: false };
     try {
       fs.unlinkSync(LINUX_DESKTOP_PATH);
       return { ok: true, removed: true, path: LINUX_DESKTOP_PATH };
     } catch (e) { return { ok: false, error: e.message }; }
   }
-  return { ok: false, error: `autostart not supported on platform: ${process.platform}` };
+  return { ok: false, error: `autostart not supported on platform: ${platform}` };
 }

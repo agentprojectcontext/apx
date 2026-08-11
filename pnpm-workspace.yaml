@@ -1,0 +1,13 @@
+# pnpm >= 11 no longer reads `pnpm.onlyBuiltDependencies` from package.json.
+# Same list, new home: these three need their install scripts (native builds /
+# binary downloads) or better-sqlite3, the Electron desktop and puppeteer break.
+# esbuild is left false — the TUI build resolves it without a postinstall.
+#
+# The `pnpm` field in package.json is kept on purpose, NOT dead weight: there is
+# no `packageManager` pin, so contributors on pnpm 10 still read it from there.
+# Change both or neither.
+allowBuilds:
+  better-sqlite3: true
+  electron: true
+  esbuild: false
+  puppeteer: true
