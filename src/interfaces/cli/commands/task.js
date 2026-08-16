@@ -1,7 +1,8 @@
 // apx task — per-project TODO list. Backed by /projects/:pid/tasks.
 //
 //   apx task add "<title>" [--project X] [--body Y] [--tag t] [--due 2026-05-30] [--agent A]
-//   apx task list          [--project X] [--state open|done|dropped|all] [--tag X] [--agent Y] [--due-before ISO] [--limit N]
+//   apx task list          [--all | --project X] [--state ...] [--status ...] [--tag X] [--agent Y]
+//                          [--due-before ISO] [--due-after ISO] [--updated-since ISO] [--limit N]
 //   apx task show <id>     [--project X]
 //   apx task done <id>     [--project X] [--by name]
 //   apx task drop <id>     [--project X] [--by name]
@@ -18,7 +19,7 @@ import { resolveProjectId } from "./project.js";
 // ── Usage strings (also used by index.js help topics) ────────────────────────
 export const TASK_USAGE = {
   add:    'apx task add "<title>" [--project X] [--body Y] [--tag t]... [--due 2026-05-30] [--agent A]',
-  list:   "apx task list [--project X] [--state open|done|dropped|all] [--tag X] [--agent Y] [--due-before ISO] [--limit N]",
+  list:   "apx task list [--all | --project X] [--state open|done|dropped|all] [--status pending|running|in_review|blocked] [--tag X] [--agent Y] [--due-before ISO] [--due-after ISO] [--updated-since ISO] [--limit N]",
   show:   "apx task show <id> [--project X]",
   done:   "apx task done <id> [--project X] [--by name]",
   drop:   "apx task drop <id> [--project X] [--by name]",
@@ -44,14 +45,20 @@ function shortTs(iso) {
   return String(iso).replace(/T/, " ").replace(/Z$/, "").slice(0, 16);
 }
 
-function renderTable(rows) {
+function renderTable(rows, { showProject = false } = {}) {
   if (!rows.length) {
     console.log("(no tasks)");
     return;
   }
-  const idW = Math.max(...rows.map((r) => r.id.length), 4);
+  const idW = Math.max(...rows.map((r) => String(r.id).length), 4);
+  const projW = showProject
+    ? Math.min(Math.max(...rows.map((r) => String(r.project_name || "").length), 7), 20)
+    : 0;
+  const proj = (t) => (showProject ? String(t.project_name || "").slice(0, projW).padEnd(projW) + "  " : "");
+
   console.log(
     "ID".padEnd(idW) + "  " +
+    (showProject ? "PROJECT".padEnd(projW) + "  " : "") +
     "STATE".padEnd(7) + "  " +
     "DUE".padEnd(10) + "  " +
     "TAGS".padEnd(18) + "  " +
@@ -61,7 +68,8 @@ function renderTable(rows) {
     const tags = (t.tags || []).join(",").slice(0, 18).padEnd(18);
     const title = (t.title || "").slice(0, 60);
     console.log(
-      t.id.padEnd(idW) + "  " +
+      String(t.id).padEnd(idW) + "  " +
+      proj(t) +
       (t.state || "open").padEnd(7) + "  " +
       (t.due || "—").padEnd(10) + "  " +
       tags + "  " +
@@ -105,17 +113,40 @@ export async function cmdTaskAdd(args) {
 }
 
 // ── list ──────────────────────────────────────────────────────────────────────
+// The list endpoints answer with a { meta, data } envelope. Older callers here
+// treated the response as a bare array, which made `apx task list` print
+// "(no tasks)" no matter what — the rows were sitting in `.data`.
+function unwrap(res) {
+  if (Array.isArray(res)) return { rows: res, meta: null };
+  return { rows: Array.isArray(res?.data) ? res.data : [], meta: res?.meta || null };
+}
+
 export async function cmdTaskList(args) {
-  const pid = await resolveProjectId(args?.flags?.project);
   const params = new URLSearchParams();
-  if (args.flags?.state)          params.set("state", args.flags.state);
-  if (args.flags?.tag)            params.set("tag", args.flags.tag);
-  if (args.flags?.agent)          params.set("agent", args.flags.agent);
-  if (args.flags?.["due-before"]) params.set("due_before", args.flags["due-before"]);
-  if (args.flags?.limit)          params.set("limit", String(args.flags.limit));
+  if (args.flags?.state)             params.set("state", args.flags.state);
+  if (args.flags?.tag)               params.set("tag", args.flags.tag);
+  if (args.flags?.agent)             params.set("agent", args.flags.agent);
+  if (args.flags?.status)            params.set("status", args.flags.status);
+  if (args.flags?.["due-before"])    params.set("due_before", args.flags["due-before"]);
+  if (args.flags?.["due-after"])     params.set("due_after", args.flags["due-after"]);
+  if (args.flags?.["updated-since"]) params.set("updated_since", args.flags["updated-since"]);
+  if (args.flags?.limit)             params.set("limit", String(args.flags.limit));
   const qs = params.toString();
-  const rows = await http.get(`/projects/${pid}/tasks${qs ? "?" + qs : ""}`);
-  renderTable(rows);
+
+  // --all folds every registered project into one list, each row carrying the
+  // project it came from. Without it, behaviour is exactly as before.
+  const all = !!args.flags?.all;
+  const path = all
+    ? `/tasks${qs ? "?" + qs : ""}`
+    : `/projects/${await resolveProjectId(args?.flags?.project)}/tasks${qs ? "?" + qs : ""}`;
+
+  const { rows, meta } = unwrap(await http.get(path));
+  renderTable(rows, { showProject: all });
+
+  // A project whose task log could not be read is reported, never swallowed.
+  for (const s of meta?.skipped || []) {
+    console.error(`warning: project #${s.id} skipped — ${s.error}`);
+  }
 }
 
 // ── show ──────────────────────────────────────────────────────────────────────

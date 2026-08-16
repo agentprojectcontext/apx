@@ -167,6 +167,20 @@ export function createTask(storagePath, fields) {
   return getTask(storagePath, id);
 }
 
+/**
+ * Newest first, with `id` as a tiebreak.
+ *
+ * The tiebreak is not cosmetic: nowIso() strips milliseconds, so every task
+ * created within the same SECOND shares a created_at — which is the norm when a
+ * routine files several at once. Without a second key the order of those rows
+ * is whatever the sort happened to do, and a list that reshuffles between two
+ * identical calls is worse than one that is merely arbitrary.
+ */
+function byNewest(a, b) {
+  const t = (b.created_at || "").localeCompare(a.created_at || "");
+  return t !== 0 ? t : String(b.id || "").localeCompare(String(a.id || ""));
+}
+
 /** List tasks with optional filters. */
 export function listTasks(storagePath, opts = {}) {
   const events = readAllEvents(storagePath);
@@ -190,11 +204,66 @@ export function listTasks(storagePath, opts = {}) {
   if (opts.due_after) {
     out = out.filter((t) => t.due && t.due >= opts.due_after);
   }
-  out.sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
+  // Workflow sub-status of an OPEN task (pending/running/in_review/blocked).
+  // Orthogonal to `state` — "what is blocked right now" is a different question
+  // from "what is open".
+  if (opts.status) {
+    out = out.filter((t) => t.status === opts.status);
+  }
+  // Everything touched since a moment. The cheapest way to ask "what moved?".
+  if (opts.updated_since) {
+    out = out.filter((t) => (t.updated_at || t.created_at || "") >= opts.updated_since);
+  }
+  out.sort(byNewest);
   if (opts.limit && Number.isFinite(opts.limit)) {
     out = out.slice(0, opts.limit);
   }
   return out;
+}
+
+/**
+ * The same query, folded across every registered project.
+ *
+ * Lives in core rather than in the daemon route because the CLI, the HTTP API
+ * and the panel all need it, and AGENTS.md rule 8 puts a shared operation in
+ * one home with the surfaces as adapters. The caller supplies the project list
+ * so this stays free of daemon and config imports.
+ *
+ * A project whose task log is unreadable is SKIPPED, not fatal: one corrupt
+ * JSONL file must not blank out the cross-project view. Skipped ids are
+ * returned so a surface can say so instead of quietly showing less.
+ *
+ * @param {{id: any, name?: string, path?: string, storagePath: string}[]} projects
+ * @param {object} opts  Same filters as listTasks, plus `limit` applied AFTER
+ *                       the merge (a per-project limit would silently favour
+ *                       whichever project sorts first).
+ * @returns {{ tasks: object[], skipped: {id: any, error: string}[] }}
+ */
+export function listTasksAcrossProjects(projects, opts = {}) {
+  const { limit, ...perProject } = opts || {};
+  const tasks = [];
+  const skipped = [];
+
+  for (const entry of projects || []) {
+    if (!entry?.storagePath) continue;
+    try {
+      for (const t of listTasks(entry.storagePath, perProject)) {
+        tasks.push({
+          ...t,
+          project_id: entry.id,
+          project_name: entry.name || entry.path || String(entry.id),
+        });
+      }
+    } catch (e) {
+      skipped.push({ id: entry.id, error: e?.message || String(e) });
+    }
+  }
+
+  tasks.sort(byNewest);
+  return {
+    tasks: Number.isFinite(limit) && limit > 0 ? tasks.slice(0, limit) : tasks,
+    skipped,
+  };
 }
 
 /** Get a single task by id or by id prefix (≥ 3 chars, must be unique). */

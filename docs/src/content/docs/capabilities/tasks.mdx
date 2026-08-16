@@ -49,11 +49,14 @@ apx task add "Call client"   --project myapp --due 2026-05-31 --tag urgent
 ```bash
 apx task list \
   [--state open|done|dropped|all] \   # default: open
+  [--status pending|running|in_review|blocked] \
   [--tag <name>] \
   [--agent <slug>] \
   [--due-before <iso>] \
+  [--due-after <iso>] \
+  [--updated-since <iso>] \
   [--limit <N>] \
-  [--project <name|id|path>]
+  [--all | --project <name|id|path>]
 ```
 
 ```bash
@@ -63,7 +66,27 @@ apx task list --project myapp --state done
 apx task list --project myapp --tag urgent
 apx task list --project myapp --due-before 2026-06-01
 apx task list --project myapp --agent reviewer --limit 10
+apx task list --project myapp --status blocked         # stuck, in this project
 ```
+
+### Across every project
+
+`--all` folds every registered project into one list, newest first, with each row labelled
+by the project it came from. Every other filter still applies.
+
+```bash
+apx task list --all                                    # everything open, everywhere
+apx task list --all --status blocked                   # what is stuck, everywhere
+apx task list --all --updated-since 2026-08-01T00:00:00Z   # what moved since
+apx task list --all --due-before 2026-09-01 --limit 20
+```
+
+`--state` is the storage lifecycle (`open` / `done` / `dropped`). `--status` is how an
+**open** task is progressing (`pending` / `running` / `in_review` / `blocked`). They are
+different questions: "what is blocked right now" is not "what is open".
+
+If a project's task log cannot be read, that project is skipped and a warning names it —
+one unreadable file never blanks out the whole view.
 
 <Terminal command="apx task list --project myapp" caption="apx task list — open tasks with id, title, tags, due date, and agent">
 {`ID    STATE    DUE         TAGS                TITLE

@@ -426,6 +426,7 @@ export const en = {
     },
 
     global_tasks: {
+      any_status: "any status",
       title:       "Tasks (all projects)",
       subtitle:    "Aggregated tasks from all registered projects.",
       empty:       "No tasks.",

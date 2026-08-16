@@ -49,11 +49,14 @@ apx task add "Call client"   --project myapp --due 2026-05-31 --tag urgent
 ```bash
 apx task list \
   [--state open|done|dropped|all] \   # por defecto: open
-  [--tag <name>] \
+  [--status pending|running|in_review|blocked] \
+  [--tag <nombre>] \
   [--agent <slug>] \
   [--due-before <iso>] \
+  [--due-after <iso>] \
+  [--updated-since <iso>] \
   [--limit <N>] \
-  [--project <name|id|path>]
+  [--all | --project <nombre|id|ruta>]
 ```
 
 ```bash
@@ -63,7 +66,27 @@ apx task list --project myapp --state done
 apx task list --project myapp --tag urgent
 apx task list --project myapp --due-before 2026-06-01
 apx task list --project myapp --agent reviewer --limit 10
+apx task list --project myapp --status blocked         # trabadas, en este proyecto
 ```
+
+### En todos los proyectos
+
+`--all` junta todos los proyectos registrados en una sola lista, más reciente primero, y cada
+fila queda etiquetada con el proyecto del que salió. El resto de los filtros sigue aplicando.
+
+```bash
+apx task list --all                                    # todo lo abierto, en todos lados
+apx task list --all --status blocked                   # qué está trabado, en todos lados
+apx task list --all --updated-since 2026-08-01T00:00:00Z   # qué se movió
+apx task list --all --due-before 2026-09-01 --limit 20
+```
+
+`--state` es el ciclo de vida en el almacenamiento (`open` / `done` / `dropped`). `--status`
+es cómo avanza una tarea **abierta** (`pending` / `running` / `in_review` / `blocked`). Son
+preguntas distintas: "qué está trabado ahora" no es "qué está abierto".
+
+Si el log de tareas de un proyecto no se puede leer, ese proyecto se saltea y un aviso lo
+nombra — un archivo ilegible nunca deja la vista entera en blanco.
 
 <Terminal command="apx task list --project myapp" caption="apx task list — tasks abiertas con id, título, tags, fecha de vencimiento y agente">
 {`ID    STATE    DUE         TAGS                TITLE
