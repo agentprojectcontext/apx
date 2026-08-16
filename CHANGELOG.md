@@ -1,3 +1,10 @@
+# [1.75.0](https://github.com/agentprojectcontext/apx/compare/v1.74.2...v1.75.0) (2026-08-16)
+
+
+### Features
+
+* **profiles:** installable agent profiles for the super-agent ([#39](https://github.com/agentprojectcontext/apx/issues/39)) ([4ba0216](https://github.com/agentprojectcontext/apx/commit/4ba0216293bc6974dcdf58c9c780fc587d5cb5c8))
+
 ## [1.74.2](https://github.com/agentprojectcontext/apx/compare/v1.74.1...v1.74.2) (2026-08-16)
 
 
