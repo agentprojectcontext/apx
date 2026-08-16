@@ -22,6 +22,8 @@ import { readSelfMemoryForPrompt } from "./self-memory.js";
 import { buildSkillsHintBlock } from "./skills/catalog.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { activeEmotionGuide, buildEmotionGuide } from "../voice/emotions.js";
+import { renderPromptTemplate } from "./render-template.js";
+import { buildProfileBlock, buildProfileChannelBlock } from "../profiles/block.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROMPTS_DIR = path.join(__dirname, "prompts");
@@ -83,12 +85,10 @@ export function loadDefaultSystemPrompt() {
 }
 export const DEFAULT_SYSTEM = loadDefaultSystemPrompt();
 
-export function renderPromptTemplate(template, vars = {}) {
-  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => {
-    const value = vars[key];
-    return value == null || value === "" ? "" : String(value);
-  });
-}
+// Re-exported so the many callers importing it from here keep working; the
+// implementation lives in render-template.js to avoid an import cycle with the
+// modules that build prompt blocks.
+export { renderPromptTemplate };
 
 // ---------------------------------------------------------------------------
 // Channel + mode blocks
@@ -290,7 +290,20 @@ export function buildSuperAgentSystem({
       : "";
 
   const channelBlock = buildChannelContextBlock(channel, channelMeta);
-  const extraContext = [channelBlock, contextNote].filter(Boolean).join("\n\n");
+  // An active profile may add its own guidance for THIS surface, appended after
+  // the core channel file (which keeps owning the channel's formatting rules).
+  // It is how a profile gets a deterministic rule loaded exactly where the
+  // decision it governs is taken — see core/profiles/block.js. "" when there is
+  // no profile or no overlay for this channel.
+  const profileChannelBlock = buildProfileChannelBlock(
+    channelLow,
+    identity,
+    globalConfig,
+    channelMeta
+  );
+  const extraContext = [channelBlock, profileChannelBlock, contextNote]
+    .filter(Boolean)
+    .join("\n\n");
   // In voice mode, if the engine that will speak supports inline emotion tags
   // (a per-engine config toggle), teach the agent the syntax. channelMeta
   // .ttsProvider optionally forces which engine's capability to honor.
@@ -304,6 +317,12 @@ export function buildSuperAgentSystem({
   return [
     roleBlock,
     buildUserContextBlock(identity, globalConfig),
+    // Installed agent profile, when one is active. "" for vanilla — and an
+    // empty block is filtered out below, so a vanilla prompt is byte-identical
+    // to what it was before profiles existed. Sits after identity (the profile
+    // needs to know who it serves) and before customInstructions (whatever the
+    // owner writes themselves must win on recency).
+    buildProfileBlock(identity, globalConfig),
     customInstructions,
     memoryBlock || buildSelfMemoryBlock(),
     activeThreadsBlock,

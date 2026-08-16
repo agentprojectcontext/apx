@@ -283,3 +283,68 @@ tasks dir)`, and the daemon is the only process that should hold it.
 - **`optional_integrations` / `requires.capabilities` semantics** — there is no existing
   capability registry in the codebase to check against. These fields would be inventing a new
   concept, not describing an existing one. Fine, but they are greenfield: nothing to verify.
+
+---
+
+## 8. Decisions taken (resolved after review)
+
+Recorded here because they correct the specs, and a correction that lives only in a chat
+log is a correction that gets undone in six months.
+
+**Naming — the subsystem is `profile`, not `persona`.** Finding F is resolved by renaming
+the new thing rather than the old one. `persona` keeps its existing meaning (the
+super-agent's visible name, `identity.json.agent_name`, AGENTS.md rule 4). An **agent
+profile** is the installable package. Where the bare word could be read as a configuration
+profile, write "agent profile". Noted in AGENTS.md rule 4.
+
+**A — bundled packages live in `src/core/profiles/bundled/`.** `assets/` does not ship to
+npm. The pre-existing `assets/agent-vault-defaults` bug is real but **degrades rather than
+throwing**: `readVaultDirRaw` (parser.js:137) returns `[]` for a missing directory, so an
+npm user silently gets only their own vault agents, and every consumer handles the empty
+case. Medium severity, separate PR, not a blocker for this work. How many npm installs are
+affected is not knowable from here — there is no telemetry and no way to distinguish an npm
+install from a repo checkout.
+
+**B — layered read, and only a local path copies.** Resolving bundled ∪ user at read time
+(the vault's model) is what keeps a bundled package improvable by `npm update`. The
+refinement on top of the original decision: a package installed from a **local path** *is*
+copied into `~/.apx/profiles/`, because that source lives outside APX and can move or
+vanish; a **bundled** package is not, because it cannot. Two consequences are contractual:
+user settings in `config.profile` survive a bundled version bump untouched, and a new
+schema field added by an update is filled from its default silently — the user learns about
+it from `apx profile doctor`, never from a prompt.
+
+**C — the prompt budget is split three ways, not two.** The original proposal (lean core
+block + on-demand skill) was wrong in a specific way: an on-demand skill loads *at the
+model's discretion*, and "should I interrupt?" is a decision the model may not know it is
+about to take. A guardrail cannot depend on the guarded party fetching it. So:
+
+1. **Core block** — always on, hard ceiling ~600 tokens. Identity, condensed
+   responsibilities, capture, never-invent-state, tone, one line each on delegation and
+   permissions.
+2. **Channel overlay** — `profiles/<id>/channels/<ch>.md`, rendered and appended after the
+   core channel file, only on that surface. The interruption gates, signal catalogue,
+   budget and rejection-learning go in `channels/routine.md`: loaded deterministically when
+   a routine fires, free everywhere else. Verified feasible against
+   `buildChannelContextBlock` (prompt-builder.js:97-101, called at :292) — implemented as a
+   sibling function, that one is untouched.
+3. **On-demand skill** — genuinely operational procedures (how to assemble a briefing, how
+   to capture to tasks, how to do project re-entry). This is what rule 12 means by
+   on-demand.
+
+Channel overlays are a **core capability**, available to any profile.
+
+**D/E — the install gate is the defence; the renderer is only the net.** Stripping orphan
+`{{…}}` at render time stays, but installation now **fails, naming the variable**, when a
+template uses one that cannot resolve: a non-`\w+` placeholder, a name that is neither a
+built-in nor a schema property, or a schema property declared without a default. A visible
+`{{…}}` or a "You are 's chief of staff" in production is severity-high, and the point is
+to make it unreachable rather than survivable.
+
+**L — the C5 gate does not go in the transport.** Confirmed as a spec correction: a
+chokepoint in `_send` would throttle solicited replies too. The gate belongs in the four
+callers, with an explicit `unsolicited` flag. The Phase 6 PR must carry the grep audit
+proving all four pass through it.
+
+**Not adopted:** nothing. Every finding above was reviewed and either accepted or corrected
+into something better.

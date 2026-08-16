@@ -192,10 +192,41 @@ export const en = {
     tabs: {
       identity: "Identity",
       super_agent: "Super-agent",
+      profile: "Agent profile",
       engines: "Engines & models",
       telegram: "Telegram",
       devices: "Devices",
       advanced: "Advanced",
+    },
+
+    profile: {
+      title: "Agent profile",
+      subtitle:
+        "An installable line of work for the super-agent: what it does with its day and when it speaks to you. Distinct from the agent's name (that lives under Identity).",
+      vanilla_hint:
+        "No profile is active. APX behaves exactly as it always has — the super-agent prompt is identical to a clean install.",
+      none_available: "No profiles available yet.",
+      active: "active",
+      activate: "Activate",
+      replace_active: "Replace the active one",
+      deactivate: "Deactivate",
+      deactivate_title: "Deactivate the profile?",
+      deactivate_confirm:
+        "APX goes back to vanilla. The profile's routines are disabled but not deleted, and your settings, tasks and memory are untouched — activating it again restores everything.",
+      activated: "Profile active",
+      deactivated: "Profile off — APX is back to vanilla",
+      token_cost: "Prompt cost",
+      over_budget: "over its declared budget",
+      settings_title: "Profile settings",
+      settings_subtitle:
+        "Blank fields fall back to the package default. Changing a time really reschedules the routine.",
+      saved: "Settings saved",
+      saved_with_routines: "Settings saved and routines rescheduled",
+      doctor_title: "Doctor",
+      doctor_clean: "All good.",
+      preview_title: "Prompt block",
+      preview_subtitle: "Exactly what reaches the model, with your values substituted.",
+      preview_empty: "(empty)",
     },
 
     identity: {
