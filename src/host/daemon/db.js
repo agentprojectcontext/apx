@@ -126,6 +126,12 @@ export class ProjectManager {
         name,
         kind,
         agents: readAgents(e.path).length,
+        // Where this project's runtime state lives. The CLI needs it to reach
+        // per-routine memory and anything else stored outside the repo — it has
+        // no other way to resolve it, and `apx routine memory` was silently
+        // broken for want of these two fields.
+        apx_id: e.apxId || null,
+        storage_path: e.storagePath || null,
       };
     });
   }
