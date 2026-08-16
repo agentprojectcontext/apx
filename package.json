@@ -78,12 +78,14 @@
     "sqlite-vec": "^0.1.6"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/git": "^10.0.1",
     "@types/node": "^25.7.0",
     "conventional-changelog-conventionalcommits": "^9.3.1",
     "electron": "^33.4.11",
     "esbuild": "^0.28.0",
+    "eslint": "^9.39.5",
     "typescript": "^6.0.3"
   },
   "keywords": [

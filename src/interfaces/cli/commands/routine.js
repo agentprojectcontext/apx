@@ -1,4 +1,3 @@
-import fs from "node:fs";
 import { http } from "../http.js";
 import { resolveProjectId } from "./project.js";
 import { listRoutines } from "#core/stores/routines.js";

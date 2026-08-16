@@ -490,7 +490,7 @@ export function initApf(directory, { name } = {}) {
   return { root, agentsMd, projectJson, pendingMigration: scattered };
 }
 
-export function ensureAgentDir(root, slug) {
+export function ensureAgentDir(root, _slug) {
   fs.mkdirSync(apcAgentsDir(root), { recursive: true });
   return apcAgentsDir(root);
 }

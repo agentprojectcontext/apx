@@ -23,7 +23,7 @@ function repoCacheName(repoId) {
 
 function dirSizeBytes(dir) {
   let total = 0;
-  let stack = [dir];
+  const stack = [dir];
   while (stack.length) {
     const d = stack.pop();
     let entries;

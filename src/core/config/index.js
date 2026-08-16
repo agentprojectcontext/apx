@@ -5,7 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { APX_HOME, CONFIG_PATH } from "./paths.js";
-import { PERMISSION_MODES, DEFAULT_PERMISSION_MODE } from "../constants/permissions.js";
+import { PERMISSION_MODES } from "../constants/permissions.js";
 import { agentsMdFile, apcProjectFile } from "../apc/paths.js";
 
 export {

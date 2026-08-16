@@ -10,7 +10,6 @@ import {
   IDE_TARGETS,
   installIdeSkills,
   installGlobalSkills,
-  listBundledSkillSlugs,
   listBundledSkills,
   listEngineSkills,
   listLegacyPruneSlugs,

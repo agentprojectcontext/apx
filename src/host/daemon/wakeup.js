@@ -18,7 +18,7 @@ export function detectLanguage(identity, config) {
   if (cfgLang) return ISO_TO_LANGUAGE[cfgLang.toLowerCase()] || cfgLang;
   if (identity?.language) return identity.language;
   const lang = process.env.LANG || process.env.LC_MESSAGES || process.env.LC_ALL || "";
-  const code = lang.split(/[_\.]/)[0].toLowerCase();
+  const code = lang.split(/[_.]/)[0].toLowerCase();
   return ISO_TO_LANGUAGE[code] || "English";
 }
 

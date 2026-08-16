@@ -13,10 +13,6 @@ import path from "node:path";
 
 const homeDir = (opts) => (opts && opts.home) || os.homedir();
 
-function encodeClaudeProjectPath(cwd) {
-  return String(cwd || "").replace(/[^A-Za-z0-9]/g, "-");
-}
-
 function safeStatMtime(p) {
   try {
     return fs.statSync(p).mtimeMs;

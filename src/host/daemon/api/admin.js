@@ -8,11 +8,12 @@ import { execFile } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { LOG_DIR } from "#core/config/paths.js";
 
 export function register(api, { scheduler, plugins, config, registries }) {
   // Daemon logs: errors.jsonl (structured) or apx.log (plain), newest first.
   api.get("/admin/logs", (req, res) => {
-    const dir = path.join(os.homedir(), ".apx", "logs");
+    const dir = LOG_DIR;
     const which = req.query.file === "apx" ? "apx.log" : "errors.jsonl";
     const file = path.join(dir, which);
     const limit = Math.min(parseInt(req.query.limit, 10) || 200, 2000);

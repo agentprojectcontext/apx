@@ -124,7 +124,7 @@ function getAgentName() {
   return "Superagente";
 }
 
-function getWindowOrigin(height) {
+function getWindowOrigin(_height) {
   const display = screen.getPrimaryDisplay();
   const { workArea } = display;
   const pos = getPosition();
@@ -151,7 +151,6 @@ let overlayVisible = false;
 // Asset paths — real PNG logos (apx/assets/favicon/dark/*) copied to
 // src/interfaces/desktop/assets/ at install time.
 const TRAY_ICON_PATH      = path.join(__dirname, "assets", "tray-icon.png");      // 180×180 apple-touch
-const TRAY_ICON_REC_PATH  = path.join(__dirname, "assets", "tray-icon.png");      // same; tinted in JS
 const APP_ICON_PATH       = path.join(__dirname, "assets", "app-icon-180.png");   // dock / window icon
 
 // On macOS, hide from the dock AND from Cmd+Tab. "accessory" is the modern

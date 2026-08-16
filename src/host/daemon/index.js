@@ -12,12 +12,10 @@ import { randomBytes } from "node:crypto";
 const LOOPBACK_HOST = "127.0.0.1";
 import {
   readConfig,
-  writeConfig,
   effectiveHost,
   effectivePort,
   addProject as addProjectInConfig,
   PID_PATH,
-  LOG_PATH,
   APX_HOME,
   TOKEN_PATH,
 } from "#core/config/index.js";

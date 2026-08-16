@@ -24,8 +24,6 @@ import { ensureDaemon, http } from "../../cli/http.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const PORT = parseInt(process.env.APX_PORT || "7430", 10);
-
 // ---------------------------------------------------------------------------
 // Resolve current project
 // ---------------------------------------------------------------------------

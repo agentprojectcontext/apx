@@ -10,8 +10,8 @@
 // themselves.
 
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
+import { RECORDINGS_TMP_DIR } from "#core/config/paths.js";
 import { spawn, spawnSync, execFileSync } from "node:child_process";
 import { http } from "../http.js";
 
@@ -78,7 +78,7 @@ function recordToFile(outPath, { seconds, recorder }) {
   // the recorder cleanly (we forward SIGINT to the child).
   return new Promise((resolve, reject) => {
     let args;
-    let bin = recorder.bin;
+    const bin = recorder.bin;
     if (bin === "rec" || bin === "sox") {
       // SoX:
       //   rec -q -c 1 -r 16000 out.wav silence 1 0.1 1% 1 1.5 1%
@@ -183,7 +183,7 @@ export async function cmdVoiceListen(args) {
     process.exit(1);
   }
 
-  const tmpDir = path.join(os.homedir(), ".apx", "tmp", "recordings");
+  const tmpDir = RECORDINGS_TMP_DIR;
   fs.mkdirSync(tmpDir, { recursive: true });
   const inFile = path.join(tmpDir, `listen-${Date.now()}.wav`);
 

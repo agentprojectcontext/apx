@@ -595,7 +595,7 @@ function getTool(name) {
 // Inline call handlers for tools without a dedicated HTTP endpoint
 // ---------------------------------------------------------------------------
 
-function makeInlineHandlers({ projects, registries }) {
+function makeInlineHandlers({ projects }) {
   return {
     memory_append: async (body) => {
       const { default: fetch } = await import("node-fetch");
@@ -617,7 +617,6 @@ function makeInlineHandlers({ projects, registries }) {
 
     memory_list: async (body) => {
       const { default: fs } = await import("node:fs");
-      const { default: path } = await import("node:path");
       const { readAgents } = await import("../parser.js");
       const { agentMemoryPath } = await import("../agent-memory.js");
       // Find the project
@@ -703,7 +702,7 @@ export function buildRegistryRouter(express, ctx) {
       const method = toolDef.endpoint.method || "GET";
       let fetchUrl = `${base}${urlPath}`;
 
-      let fetchOpts = { method, headers: { "content-type": "application/json" } };
+      const fetchOpts = { method, headers: { "content-type": "application/json" } };
 
       if (method === "GET") {
         // Append body fields as query params

@@ -1,13 +1,15 @@
 import fs from "node:fs";
 import path from "node:path";
-import os from "node:os";
+import { IDENTITY_PATH } from "../config/paths.js";
+
+export { IDENTITY_PATH };
 import { SUPERAGENT_ACTOR_ID } from "../constants/actors.js";
 
 // Re-export so callers that already imported the actor id from here keep
 // working. The single source of truth lives in core/constants/actors.js.
 export { SUPERAGENT_ACTOR_ID };
 
-export const IDENTITY_PATH = path.join(os.homedir(), ".apx", "identity.json");
+
 
 // Shown when no persona is configured yet. Brand of the app, not a persona.
 export const SUPERAGENT_DISPLAY_FALLBACK = "APX";

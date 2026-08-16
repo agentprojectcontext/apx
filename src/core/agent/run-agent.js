@@ -274,7 +274,7 @@ export async function runAgent({
 
   const conversation = [...previousMessages, { role: "user", content: prompt }];
   const trace = [];
-  let totalUsage = { input_tokens: 0, output_tokens: 0 };
+  const totalUsage = { input_tokens: 0, output_tokens: 0 };
   let lastText = "";
 
   // Collapse repeated greetings within a single turn. A turn can produce several

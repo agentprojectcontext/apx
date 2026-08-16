@@ -30,7 +30,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import os from "node:os";
+import { SKILLS_DIR } from "#core/config/paths.js";
 import { fileURLToPath } from "node:url";
 import { apcSkillsDir } from "#core/apc/paths.js";
 
@@ -44,7 +44,7 @@ const PACKAGE_ROOT = path.resolve(__dirname, "..", "..", "..", "..");
 // <packageRoot>/skills/ so external tools that copy "skills/" from the repo
 // don't accidentally pull the rich set or the runtime CLI docs.
 const BUILTIN_SKILLS_DIR = path.join(PACKAGE_ROOT, "src", "core", "runtime-skills");
-const GLOBAL_DIR         = path.join(os.homedir(), ".apx", "skills");
+const GLOBAL_DIR         = SKILLS_DIR;
 
 // ---------------------------------------------------------------------------
 // Frontmatter parsing (minimal — handles the YAML we ship)

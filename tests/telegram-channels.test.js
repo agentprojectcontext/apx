@@ -20,7 +20,6 @@ process.env.USERPROFILE = tmpHome; // Windows safety net
 
 const {
   readConfig,
-  writeConfig,
   upsertTelegramChannel,
   removeTelegramChannel,
   unsetTelegramChannelFields,

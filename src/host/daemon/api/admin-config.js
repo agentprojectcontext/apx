@@ -8,7 +8,7 @@
 import { readConfig, writeConfig } from "#core/config/index.js";
 import { resolveAgentName } from "#core/identity/index.js";
 import { setDottedKey, unsetDottedKey } from "../project-config.js";
-import { PERMISSION_MODES, DEFAULT_PERMISSION_MODE } from "#core/constants/permissions.js";
+import { PERMISSION_MODES } from "#core/constants/permissions.js";
 import {
   redactConfig as redact,
   isSecretMarker,
