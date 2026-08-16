@@ -286,3 +286,100 @@ test("a user package overrides a bundled one of the same id", () => {
     removeTestProfile(bundled.id);
   }
 });
+
+// --------------------------------------------------------------------------
+// Channel overlays
+// --------------------------------------------------------------------------
+
+function addChannelOverlay(id, channel, body) {
+  const dir = path.join(PROFILES_DIR, id, "channels");
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, `${channel}.md`), body);
+  clearProfileBlockCache();
+}
+
+test("a channel overlay loads only on its own channel", () => {
+  try {
+    installTestProfile("overlay", { prompt: "# Role: Tester\nCORE_MARKER" });
+    addChannelOverlay("overlay", "routine", "ROUTINE_ONLY_MARKER");
+
+    const globalConfig = { user: { language: "en" }, profile: { active: "overlay" } };
+
+    const onRoutine = buildSuperAgentSystem({ ...BASE_ARGS, channel: "routine", globalConfig });
+    assert.ok(onRoutine.includes("CORE_MARKER"), "the always-on block is still there");
+    assert.ok(onRoutine.includes("ROUTINE_ONLY_MARKER"), "the overlay loads on its channel");
+
+    for (const channel of ["telegram", "cli", "web", "desktop"]) {
+      const system = buildSuperAgentSystem({ ...BASE_ARGS, channel, globalConfig });
+      assert.ok(system.includes("CORE_MARKER"), `${channel}: core block missing`);
+      assert.ok(
+        !system.includes("ROUTINE_ONLY_MARKER"),
+        `${channel} must not pay for the routine overlay`
+      );
+    }
+  } finally {
+    removeTestProfile("overlay");
+  }
+});
+
+test("the overlay follows the core channel file, which keeps owning formatting", () => {
+  try {
+    installTestProfile("overlay", { prompt: "# Role: Tester\nCORE_MARKER" });
+    addChannelOverlay("overlay", "routine", "OVERLAY_MARKER");
+
+    const system = buildSuperAgentSystem({
+      ...BASE_ARGS,
+      channel: "routine",
+      globalConfig: { user: { language: "en" }, profile: { active: "overlay" } },
+    });
+
+    // channels/routine.md opens with the shared "# Channel context" heading.
+    const coreAt = system.indexOf("# Channel context");
+    const overlayAt = system.indexOf("OVERLAY_MARKER");
+    assert.ok(coreAt >= 0, "core channel block missing");
+    assert.ok(coreAt < overlayAt, "the overlay must be appended after the core channel file");
+  } finally {
+    removeTestProfile("overlay");
+  }
+});
+
+test("an overlay renders profile settings and channel metadata", () => {
+  try {
+    installTestProfile("overlay", {
+      prompt: "# Role: Tester\nbody",
+      schema: { type: "object", properties: { nudge_budget_per_day: { type: "integer", default: 3 } } },
+    });
+    addChannelOverlay("overlay", "routine", "Budget {{nudge_budget_per_day}} for {{routineName}}.");
+
+    const system = buildSuperAgentSystem({
+      ...BASE_ARGS,
+      channel: "routine",
+      channelMeta: { routineName: "day-open" },
+      globalConfig: {
+        user: { language: "en" },
+        profile: { active: "overlay", config: { nudge_budget_per_day: 5 } },
+      },
+    });
+
+    assert.ok(system.includes("Budget 5 for day-open."), "settings and channelMeta both render");
+    assert.ok(!system.includes("{{"), "no orphan braces reach the prompt");
+  } finally {
+    removeTestProfile("overlay");
+  }
+});
+
+test("VANILLA: an overlay on disk changes nothing while no profile is active", () => {
+  const baseline = buildSuperAgentSystem({ ...BASE_ARGS, channel: "routine" });
+  try {
+    installTestProfile("overlay", { prompt: "# Role: Tester\nCORE_MARKER" });
+    addChannelOverlay("overlay", "routine", "ROUTINE_ONLY_MARKER");
+
+    assert.equal(
+      buildSuperAgentSystem({ ...BASE_ARGS, channel: "routine" }),
+      baseline,
+      "an inactive profile's overlay must not touch the vanilla prompt"
+    );
+  } finally {
+    removeTestProfile("overlay");
+  }
+});

@@ -422,3 +422,52 @@ test("estimateTokens is the same 4-chars-per-token rule used elsewhere", () => {
   assert.equal(estimateTokens("a".repeat(400)), 100);
   assert.equal(estimateTokens(""), 0);
 });
+
+// --------------------------------------------------------------------------
+// The install gate on template variables
+// --------------------------------------------------------------------------
+
+test("install FAILS on a template variable with no default and no fallback", () => {
+  resetState();
+  const pkg = makePackage({ prompt: "# Role\nGreet {{owner_name}} about {{undeclared_thing}}." });
+
+  assert.throws(() => installProfile(pkg.dir), /\{\{undeclared_thing\}\}/);
+  assert.ok(
+    !fs.existsSync(path.join(PROFILES_DIR, pkg.id)),
+    "a rejected package must not be left behind"
+  );
+});
+
+test("install FAILS on a dotted variable the renderer cannot substitute", () => {
+  resetState();
+  const pkg = makePackage({ prompt: "# Role: {{profile.name}}\nBody." });
+  assert.throws(() => installProfile(pkg.dir), /only flat \{\{single_word\}\} names/);
+});
+
+test("install FAILS on a schema property declared without a default", () => {
+  resetState();
+  const pkg = makePackage({
+    prompt: "# Role\nTone is {{tone}}.",
+    schema: { type: "object", properties: { tone: { type: "string" } } }, // no default
+  });
+  assert.throws(() => installProfile(pkg.dir), /no default — it would render as an empty string/);
+});
+
+test("built-in variables always resolve, even with an empty schema", () => {
+  resetState();
+  const pkg = makePackage({
+    prompt: "# Role\n{{owner_name}} / {{agent_name}} / {{profile_name}} / {{owner_context}}",
+    schema: null,
+  });
+  const { profile } = installProfile(pkg.dir);
+  assert.equal(profile.id, pkg.id);
+});
+
+test("the gate also covers channel overlays, not just PROFILE.md", () => {
+  resetState();
+  const pkg = makePackage();
+  fs.mkdirSync(path.join(pkg.dir, "channels"));
+  fs.writeFileSync(path.join(pkg.dir, "channels", "routine.md"), "Budget {{not_a_setting}}.");
+
+  assert.throws(() => installProfile(pkg.dir), /routine\.md — .*\{\{not_a_setting\}\}/s);
+});

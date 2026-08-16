@@ -23,7 +23,7 @@ import { buildSkillsHintBlock } from "./skills/catalog.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { activeEmotionGuide, buildEmotionGuide } from "../voice/emotions.js";
 import { renderPromptTemplate } from "./render-template.js";
-import { buildProfileBlock } from "../profiles/block.js";
+import { buildProfileBlock, buildProfileChannelBlock } from "../profiles/block.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROMPTS_DIR = path.join(__dirname, "prompts");
@@ -290,7 +290,20 @@ export function buildSuperAgentSystem({
       : "";
 
   const channelBlock = buildChannelContextBlock(channel, channelMeta);
-  const extraContext = [channelBlock, contextNote].filter(Boolean).join("\n\n");
+  // An active profile may add its own guidance for THIS surface, appended after
+  // the core channel file (which keeps owning the channel's formatting rules).
+  // It is how a profile gets a deterministic rule loaded exactly where the
+  // decision it governs is taken — see core/profiles/block.js. "" when there is
+  // no profile or no overlay for this channel.
+  const profileChannelBlock = buildProfileChannelBlock(
+    channelLow,
+    identity,
+    globalConfig,
+    channelMeta
+  );
+  const extraContext = [channelBlock, profileChannelBlock, contextNote]
+    .filter(Boolean)
+    .join("\n\n");
   // In voice mode, if the engine that will speak supports inline emotion tags
   // (a per-engine config toggle), teach the agent the syntax. channelMeta
   // .ttsProvider optionally forces which engine's capability to honor.

@@ -45,7 +45,12 @@ import {
   writeProfileTombstones,
   resolvePromptFile,
 } from "./store.js";
-import { renderProfilePrompt, clearProfileBlockCache } from "./block.js";
+import {
+  renderProfilePrompt,
+  clearProfileBlockCache,
+  validateTemplateVars,
+  profileChannelFile,
+} from "./block.js";
 
 /** Rough token estimate. Same 4-chars-per-token rule scripts/ uses. */
 export function estimateTokens(text) {
@@ -178,6 +183,17 @@ function copyDirSync(from, to) {
   }
 }
 
+/** Channel ids a profile ships an overlay for (profiles/<id>/channels/<ch>.md). */
+export function listProfileChannels(profile) {
+  const dir = path.join(profile.dir, "channels");
+  if (!fs.existsSync(dir)) return [];
+  return fs
+    .readdirSync(dir)
+    .filter((f) => f.endsWith(".md"))
+    .map((f) => f.slice(0, -3))
+    .sort();
+}
+
 // --------------------- validation -------------------------------------------
 
 /**
@@ -205,6 +221,23 @@ export function validateProfilePackage(profile, { globalConfig = null } = {}) {
   if (!promptFile) {
     errors.push(`profile "${profile.id}": no PROFILE.md found in ${profile.dir}`);
   } else {
+    // The install gate. The renderer strips a stray {{…}} at runtime as a
+    // safety net, but by then the package is installed and a broken sentence
+    // has already reached somebody's phone. Every variable a template uses must
+    // resolve to something before we let the package in.
+    const templateFiles = profile.prompts.map((f) => path.join(profile.dir, f));
+    for (const ch of listProfileChannels(profile)) {
+      templateFiles.push(profileChannelFile(profile.dir, ch));
+    }
+    for (const file of templateFiles.filter(Boolean)) {
+      let body = "";
+      try { body = fs.readFileSync(file, "utf8"); } catch { continue; }
+      const check = validateTemplateVars(body, profile.schema);
+      for (const e of check.errors) {
+        errors.push(`profile "${profile.id}": ${path.basename(file)} — ${e}`);
+      }
+    }
+
     const rendered = renderProfilePrompt(profile, {
       identity,
       globalConfig: { ...cfg, profile: { active: profile.id, config: schemaDefaults(profile.schema) } },
