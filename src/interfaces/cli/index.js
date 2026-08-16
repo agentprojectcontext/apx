@@ -152,6 +152,16 @@ import {
   cmdTaskPatch,
 } from "./commands/task.js";
 import {
+  cmdPersonaList,
+  cmdPersonaShow,
+  cmdPersonaInstall,
+  cmdPersonaUse,
+  cmdPersonaOff,
+  cmdPersonaConfig,
+  cmdPersonaDoctor,
+  cmdPersonaUninstall,
+} from "./commands/persona.js";
+import {
   cmdOrgShow,
   cmdOrgAreaAdd,
   cmdOrgAreaRm,
@@ -1607,6 +1617,42 @@ const HELP_TOPICS = new Map(Object.entries({
     examples: ["apx plugins status telegram"],
   }),
 
+  persona: topic({
+    title: "apx persona",
+    summary:
+      "Install, activate and configure the super-agent's personality. With no persona active, APX behaves exactly as it always has.",
+    usage: ["apx persona <subcommand> [args] [--flags]"],
+    commands: [
+      ["list | ls", "Show every available persona and which one is active."],
+      ["show | get <id>", "Details, settings and token cost of one persona."],
+      ["install | add <id|path>", "Validate and install a persona. Does NOT activate it."],
+      ["use | activate <id>", "Make a persona active and install its routines."],
+      ["off | deactivate", "Go back to vanilla. Disables its routines, deletes nothing."],
+      ["config", "Show or change the active persona's settings."],
+      ["doctor [<id>]", "What is missing for this persona to do its job."],
+      ["uninstall | remove <id>", "Remove a persona, keeping anything you edited."],
+    ],
+    options: [
+      ["--preview", "show: also print the rendered prompt block."],
+      ["--set <key=value>", "config: set one setting. Repeatable."],
+      ["--interactive", "config: walk through every setting."],
+      ["--force", "install: overwrite. use: replace the active persona."],
+    ],
+    examples: [
+      "apx persona list",
+      "apx persona install secretary",
+      "apx persona use secretary",
+      "apx persona config --set day_open_at=08:30 --set nudge_budget_per_day=3",
+      "apx persona show secretary --preview",
+      "apx persona off",
+    ],
+  }),
+  personas: topic({
+    title: "apx personas",
+    summary: "Alias for apx persona.",
+    usage: ["apx personas <subcommand>"],
+    examples: ["apx personas list"],
+  }),
   task: topic({
     title: "apx task",
     summary: "Per-project TODO list backed by the daemon (/projects/:pid/tasks).",
@@ -2750,6 +2796,22 @@ async function dispatch(cmd, rest) {
         else if (sub === "reopen") await cmdTaskReopen(a);
         else if (sub === "patch" || sub === "edit") await cmdTaskPatch(a);
         else die(`unknown task subcommand: ${sub}\nUsage: apx task <list|add|show|done|drop|reopen|patch>`);
+        break;
+      }
+
+      case "persona":
+      case "personas": {
+        const sub = rest[0];
+        const a = parseArgs(rest.slice(1));
+        if (!sub || sub === "list" || sub === "ls") await cmdPersonaList(a);
+        else if (sub === "show" || sub === "get") await cmdPersonaShow(a);
+        else if (sub === "install" || sub === "add") await cmdPersonaInstall(a);
+        else if (sub === "use" || sub === "activate") await cmdPersonaUse(a);
+        else if (sub === "off" || sub === "deactivate") await cmdPersonaOff(a);
+        else if (sub === "config") await cmdPersonaConfig(a);
+        else if (sub === "doctor") await cmdPersonaDoctor(a);
+        else if (sub === "uninstall" || sub === "remove" || sub === "rm") await cmdPersonaUninstall(a);
+        else die(`unknown persona subcommand: ${sub}\nUsage: apx persona <list|show|install|use|off|config|doctor|uninstall>`);
         break;
       }
 
