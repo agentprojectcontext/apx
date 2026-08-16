@@ -142,6 +142,16 @@ export const en = {
     browser_unavailable: "Browser unavailable until daemon restarts. Paste path manually.",
     no_folders:  "No folders.",
   },
+  inbox: {
+    title: "Agent inbox",
+    subtitle:
+      "Every agent as a conversation, most recent first. Project navigation is untouched — this is the way in, not a replacement.",
+    empty: "You have not talked to any agent yet.",
+    pinned: "lead",
+    show_quiet: "Show quiet agents",
+    no_reply_yet: "(no replies yet)",
+  },
+
   settings: {
     title:       "Settings",
     subtitle:    "Panel preferences + local daemon diagnostics.",

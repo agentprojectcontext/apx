@@ -143,6 +143,16 @@ export const es = {
     browser_unavailable: "Explorador no disponible hasta reiniciar daemon. Pegá ruta manual.",
     no_folders:  "Sin carpetas.",
   },
+  inbox: {
+    title: "Bandeja de agentes",
+    subtitle:
+      "Cada agente como una conversación, lo más reciente primero. La navegación por proyectos sigue intacta — esta es la puerta de entrada, no un reemplazo.",
+    empty: "Todavía no hablaste con ningún agente.",
+    pinned: "principal",
+    show_quiet: "Ver los que no hablaron",
+    no_reply_yet: "(sin respuestas todavía)",
+  },
+
   settings: {
     title:       "Settings",
     subtitle:    "Preferencias del panel + diagnóstico del daemon local.",

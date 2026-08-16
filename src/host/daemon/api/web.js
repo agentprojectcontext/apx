@@ -42,7 +42,7 @@ export function isApiPath(p) {
 const SPA_ROUTES = [
   /^\/$/,
   /^\/settings(\/.*)?$/,
-  /^\/m\/(voice|desktop|deck|code)(\/.*)?$/,
+  /^\/m\/(voice|desktop|deck|code|inbox)(\/.*)?$/,
   /^\/p\/[^/]+(\/.*)?$/,
 ];
 

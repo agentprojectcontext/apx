@@ -3,6 +3,7 @@ import { Route, Routes, useLocation, useNavigate, useSearchParams } from "react-
 import { Languages, Moon, Sun } from "lucide-react";
 import { ProjectSidebar, projectKindLabel } from "./components/layout/ProjectSidebar";
 import { ApxAdminScreen } from "./screens/ApxAdminScreen";
+import { InboxScreen } from "./screens/InboxScreen";
 import { ProjectScreen } from "./screens/ProjectScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import { DesktopScreen } from "./screens/modules/DesktopScreen";
@@ -89,6 +90,7 @@ function Shell() {
           <div className="flex-1 overflow-y-auto">
             <Routes>
               <Route path="/"           element={<ApxAdminScreen />} />
+              <Route path="/m/inbox"    element={<InboxScreen />} />
               <Route path="/settings/*" element={<SettingsScreen />} />
               <Route path="/m/desktop/*" element={<DesktopScreen />} />
               <Route path="/m/code/*"   element={<CodeScreen />} />
