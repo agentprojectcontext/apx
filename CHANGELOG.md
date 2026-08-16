@@ -1,3 +1,10 @@
+# [1.77.0](https://github.com/agentprojectcontext/apx/compare/v1.76.0...v1.77.0) (2026-08-16)
+
+
+### Features
+
+* **inbox:** agent inbox + CI fix + English-only profiles ([#41](https://github.com/agentprojectcontext/apx/issues/41)) ([d762b04](https://github.com/agentprojectcontext/apx/commit/d762b04487fb44943ecd03ae24d4f0160806fe32))
+
 # [1.76.0](https://github.com/agentprojectcontext/apx/compare/v1.75.0...v1.76.0) (2026-08-16)
 
 
