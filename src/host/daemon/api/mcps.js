@@ -45,7 +45,11 @@ function writeScope(scope, projectEntry, json) {
   return writeApfMcps(projectEntry.path, json);
 }
 
-function normalizeScope(raw) {
+// MCP scope vocabulary: shared | runtime | global (with "apc" as a friendly
+// alias for shared). NOT interchangeable with the var or integration scopes —
+// each subsystem has its own set and its own default, and collapsing them into
+// one helper would silently reroute writes to the wrong store.
+function normalizeMcpScope(raw) {
   if (!raw) return "shared";
   const s = String(raw).toLowerCase();
   if (s === "apc") return "shared"; // friendly alias
@@ -65,7 +69,7 @@ export function register(api, { projects, registries, project }) {
   api.post("/projects/:pid/mcps", (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    const scope = normalizeScope(req.query?.scope);
+    const scope = normalizeMcpScope(req.query?.scope);
     if (scope === null) {
       return res.status(400).json({ error: `unknown scope "${req.query?.scope}" (use shared|runtime|global)` });
     }
@@ -105,7 +109,7 @@ export function register(api, { projects, registries, project }) {
   api.delete("/projects/:pid/mcps/:name", (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    const scope = normalizeScope(req.query?.scope);
+    const scope = normalizeMcpScope(req.query?.scope);
     if (scope === null) {
       return res.status(400).json({ error: `unknown scope "${req.query?.scope}" (use shared|runtime|global)` });
     }

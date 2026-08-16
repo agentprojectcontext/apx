@@ -24,7 +24,10 @@ import {
   maskValue,
 } from "#core/vars/index.js";
 
-function normalizeScope(raw, { isBase }) {
+// Var scope vocabulary: project | global. The default depends on whether the
+// request targets the base store. See the note in api/mcps.js: these scope
+// helpers share a shape but not a vocabulary.
+function normalizeVarScope(raw, { isBase }) {
   if (!raw) return isBase ? "global" : "project";
   const s = String(raw).toLowerCase();
   if (s === "project" || s === "global") return s;
@@ -91,7 +94,7 @@ export function register(api, { project, registries }) {
       return res.status(400).json({ error: "value required" });
     }
     const isBase = String(p.id) === "0";
-    const scope = normalizeScope(req.body?.scope, { isBase });
+    const scope = normalizeVarScope(req.body?.scope, { isBase });
     if (scope === null) {
       return res
         .status(400)
@@ -115,7 +118,7 @@ export function register(api, { project, registries }) {
     const p = project(req, res);
     if (!p) return;
     const isBase = String(p.id) === "0";
-    const scope = normalizeScope(req.query?.scope, { isBase });
+    const scope = normalizeVarScope(req.query?.scope, { isBase });
     if (scope === null) {
       return res
         .status(400)
