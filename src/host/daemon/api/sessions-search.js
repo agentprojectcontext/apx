@@ -6,6 +6,7 @@ import path from "node:path";
 import { readAgents } from "#core/apc/parser.js";
 import { compactConversation } from "#core/stores/conversations-compactor.js";
 import { searchSessions, findSessionFile } from "#core/stores/sessions-search.js";
+import { asyncRoute } from "./shared.js";
 
 function resolveProjects(projects, projectRef) {
   const all = projects.list();
@@ -27,7 +28,7 @@ export function register(api, { projects, config }) {
     res.json({ q, count: results.length, results });
   });
 
-  api.post("/sessions/:id/compact", async (req, res) => {
+  api.post("/sessions/:id/compact", asyncRoute(async (req, res) => {
     const { id } = req.params;
     const { model: modelOverride, project: projectRef } = req.body || {};
     const candidates = resolveProjects(projects, projectRef);
@@ -57,5 +58,5 @@ export function register(api, { projects, config }) {
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
-  });
+  }));
 }

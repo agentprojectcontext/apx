@@ -13,12 +13,14 @@
 import express from "express";
 
 import { API_PREFIX } from "./api/prefix.js";
+import { logError } from "#core/logging.js";
 
 import {
   traceIdMiddleware,
   buildAuthMiddleware,
   makeProjectResolver,
   makeTopProjectResolver,
+  errorMiddleware,
 } from "./api/shared.js";
 
 import { register as registerTools } from "./api/tools.js";
@@ -186,6 +188,12 @@ export function buildApi({
   app.use((req, res) =>
     res.status(404).json({ error: `no route ${req.method} ${req.path}` })
   );
+
+  // ---- Error handler (MUST be after everything) --------------------
+  // Express only recognises the 4-argument shape, and only when it is mounted
+  // last. Anything an asyncRoute() rejects lands here as JSON instead of an
+  // unhandled rejection that kills the daemon.
+  app.use(errorMiddleware(logError));
 
   return app;
 }

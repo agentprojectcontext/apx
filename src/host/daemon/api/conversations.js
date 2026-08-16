@@ -11,7 +11,7 @@ import { listConversations, readConversation, deleteConversation } from "#core/s
 import { listGlobalThreads, readGlobalThread, deleteGlobalThread } from "#core/stores/messages.js";
 import { compactConversation } from "#core/stores/conversations-compactor.js";
 import { replyAsAgent } from "#core/agent/a2a/reply.js";
-import { nowIso } from "./shared.js";
+import { nowIso, asyncRoute } from "./shared.js";
 
 export function register(api, { project, config }) {
   // The super-agent (default name "apx") is a pseudo-agent: it owns
@@ -123,7 +123,7 @@ export function register(api, { project, config }) {
   );
 
   // ---- Agent-to-agent routing ----
-  api.post("/projects/:pid/send", async (req, res) => {
+  api.post("/projects/:pid/send", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const { from, to, body, deliver = false, _depth = 0 } = req.body || {};
@@ -199,5 +199,5 @@ export function register(api, { project, config }) {
     }
 
     res.json({ from, to, body, ts, reply });
-  });
+  }));
 }

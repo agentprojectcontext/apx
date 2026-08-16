@@ -20,6 +20,44 @@ export const nowIso = () =>
 // full set as a single page (data = 100% of rows) so non-paginated callers get
 // the same shape — meta just reports one page covering everything.
 //   meta: { total, offset, limit, pageSize, page, pageCount }
+/**
+ * Wrap an async route handler so a rejected promise becomes a 500 instead of
+ * an unhandled rejection.
+ *
+ * Express 4 does not await handlers: if one throws asynchronously, the error
+ * never reaches the error middleware, the request hangs, and on Node >= 15 the
+ * unhandled rejection takes the whole daemon down. Several routes awaited work
+ * with no try/catch, so a single failing preview or engine probe could kill a
+ * process serving the SPA, Telegram polling and voice at the same time.
+ *
+ *   api.get("/things", asyncRoute(async (req, res) => { ... }))
+ */
+export function asyncRoute(handler) {
+  return (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
+}
+
+/**
+ * Terminal error middleware. Mounted after every route; turns anything that
+ * reached `next(err)` into a JSON `{ error }` with a real status code.
+ */
+export function errorMiddleware(log = () => {}) {
+  // eslint-disable-next-line no-unused-vars -- Express detects the 4-arg shape.
+  return (err, req, res, _next) => {
+    const status = Number(err?.status || err?.statusCode) || 500;
+    const message = err?.message || "internal error";
+    log(`error: ${req.method} ${req.originalUrl} → ${status}: ${err?.stack || message}`);
+    try {
+      appendErrorTrace({
+        where: `${req.method} ${req.originalUrl}`,
+        error: message,
+        trace_id: req.apxTraceId,
+      });
+    } catch { /* tracing must never mask the original error */ }
+    if (res.headersSent) return;
+    res.status(status).json({ error: message });
+  };
+}
+
 export function pageEnvelope(rows, query = {}) {
   const total = rows.length;
   const hasLimit = query.limit != null && query.limit !== "";

@@ -25,6 +25,7 @@ import {
   getPluginService,
   reconcilePluginMcp,
 } from "#core/integrations/index.js";
+import { asyncRoute } from "./shared.js";
 
 function normalizeScope(raw) {
   if (!raw) return "project";
@@ -132,7 +133,7 @@ export function register(api, { projects, project, registries }) {
   });
 
   // Verify the stored credentials against the provider, then persist the result.
-  api.post("/projects/:pid/integrations/:slug/validate", async (req, res) => {
+  api.post("/projects/:pid/integrations/:slug/validate", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const svc = getPluginService(req.params.slug);
@@ -153,7 +154,7 @@ export function register(api, { projects, project, registries }) {
     } catch (e) {
       res.status(400).json({ error: e.message });
     }
-  });
+  }));
 
   // Disable a plugin without deleting its stored credentials.
   api.post("/projects/:pid/integrations/:slug/deactivate", (req, res) => {
@@ -174,7 +175,7 @@ export function register(api, { projects, project, registries }) {
   });
 
   // Plugin-specific read action (e.g. Asana → list workspaces for the token).
-  api.post("/projects/:pid/integrations/:slug/action/:action", async (req, res) => {
+  api.post("/projects/:pid/integrations/:slug/action/:action", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const svc = getPluginService(req.params.slug);
@@ -197,7 +198,7 @@ export function register(api, { projects, project, registries }) {
     } catch (e) {
       res.status(400).json({ error: e.message });
     }
-  });
+  }));
 
   // Remove a stored integration entirely.
   api.delete("/projects/:pid/integrations/:slug", (req, res) => {
