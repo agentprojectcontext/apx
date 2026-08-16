@@ -487,8 +487,11 @@ export function offProfile() {
 
   const routines = disableProfileRoutines(state.active);
 
-  // Settings are kept, so `use` again restores exactly what the user had.
-  cfg.profile = { ...(cfg.profile || {}), active: null };
+  // Settings are kept in `configs`, so `use` again restores exactly what the
+  // user had. The `config` mirror describes the ACTIVE profile, so it empties
+  // out — leaving a deactivated profile's settings sitting there would make
+  // config.json read as though something were still active.
+  cfg.profile = { ...(cfg.profile || {}), active: null, config: {} };
   writeConfig(cfg);
   clearProfileBlockCache();
 
@@ -645,7 +648,7 @@ export function uninstallProfile(id) {
 
   if (state.active === id) {
     disableProfileRoutines(id);
-    cfg.profile = { ...(cfg.profile || {}), active: null };
+    cfg.profile = { ...(cfg.profile || {}), active: null, config: {} };
     writeConfig(cfg);
   }
 

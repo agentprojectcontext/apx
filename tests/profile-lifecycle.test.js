@@ -471,3 +471,33 @@ test("the gate also covers channel overlays, not just PROFILE.md", () => {
 
   assert.throws(() => installProfile(pkg.dir), /routine\.md — .*\{\{not_a_setting\}\}/s);
 });
+
+test("off and uninstall clear the active-profile mirror but keep the settings", () => {
+  resetState();
+  const pkg = makePackage();
+  installProfile(pkg.dir);
+  useProfile(pkg.id);
+  setProfileConfig({ day_open_at: "07:15" });
+
+  offProfile();
+  let cfg = readConfig();
+  assert.equal(cfg.profile.active, null);
+  assert.deepEqual(
+    cfg.profile.config,
+    {},
+    "the mirror describes the ACTIVE profile — it must not keep a deactivated one's settings"
+  );
+  assert.equal(
+    cfg.profile.configs[pkg.id].day_open_at,
+    "07:15",
+    "the settings themselves survive, so `use` restores them"
+  );
+
+  useProfile(pkg.id);
+  assert.equal(readConfig().profile.config.day_open_at, "07:15");
+
+  uninstallProfile(pkg.id);
+  cfg = readConfig();
+  assert.equal(cfg.profile.active, null);
+  assert.deepEqual(cfg.profile.config, {});
+});

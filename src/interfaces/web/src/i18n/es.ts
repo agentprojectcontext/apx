@@ -193,10 +193,41 @@ export const es = {
     tabs: {
       identity: "Identidad",
       super_agent: "Super-agente",
+      profile: "Perfil del agente",
       engines: "Engines & modelos",
       telegram: "Telegram",
       devices: "Dispositivos",
       advanced: "Avanzado",
+    },
+
+    profile: {
+      title: "Perfil del agente",
+      subtitle:
+        "Un oficio instalable para el super-agente: qué hace con su día y cuándo te habla. Distinto del nombre del agente (eso está en Identidad).",
+      vanilla_hint:
+        "No hay ningún perfil activo. APX se comporta exactamente como siempre — el prompt del super-agente es idéntico al de una instalación limpia.",
+      none_available: "No hay perfiles disponibles todavía.",
+      active: "activo",
+      activate: "Activar",
+      replace_active: "Reemplazar el activo",
+      deactivate: "Desactivar",
+      deactivate_title: "¿Desactivar el perfil?",
+      deactivate_confirm:
+        "APX vuelve a vanilla. Las rutinas del perfil se deshabilitan pero no se borran, y tu configuración, tareas y memoria quedan intactas: volver a activarlo restaura todo.",
+      activated: "Perfil activo",
+      deactivated: "Perfil desactivado — APX está en vanilla",
+      token_cost: "Costo de prompt",
+      over_budget: "excede su presupuesto declarado",
+      settings_title: "Configuración del perfil",
+      settings_subtitle:
+        "Los valores en blanco toman el default del paquete. Cambiar un horario reprograma la rutina de verdad.",
+      saved: "Configuración guardada",
+      saved_with_routines: "Configuración guardada y rutinas reprogramadas",
+      doctor_title: "Diagnóstico",
+      doctor_clean: "Todo en orden.",
+      preview_title: "Bloque de prompt",
+      preview_subtitle: "Exactamente lo que recibe el modelo, con tus valores ya sustituidos.",
+      preview_empty: "(vacío)",
     },
 
     identity: {
