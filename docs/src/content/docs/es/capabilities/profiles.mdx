@@ -1,0 +1,182 @@
+---
+title: Perfiles de agente
+description: Oficios instalables para el super-agente — instalar, activar, configurar y quitar un perfil sin forkear su prompt base.
+sidebar:
+  order: 8
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+Un **perfil de agente** es un paquete instalable que le da al super-agente un oficio: qué
+hace con su día y cuándo decide hablarte. Una secretaria, un jefe de proyecto, un analista,
+un tutor.
+
+APX viene **vanilla**. Sin ningún perfil activo, el prompt de sistema del super-agente es
+idéntico byte a byte al de una instalación limpia — los perfiles suman comportamiento,
+nunca forkean el prompt base.
+
+<Aside type="note" title="Tres cosas que se llaman parecido">
+- **Perfil de agente** — un paquete instalable con un oficio. Esta página.
+- **Persona** — el *nombre visible* del super-agente, en `~/.apx/identity.json`
+  (`agent_name`). Se configura en **Ajustes → Identidad**.
+- **Config del proyecto** — overrides por proyecto en `.apc/config.json`.
+</Aside>
+
+## Arranque rápido
+
+<Steps>
+
+1. Ver qué hay disponible.
+
+   ```bash
+   apx profile list
+   ```
+
+2. Instalar uno. Esto valida el paquete y siembra su configuración — **todavía no** cambia
+   el comportamiento del agente.
+
+   ```bash
+   apx profile install secretary
+   ```
+
+3. Activarlo. Acá sí cambia el comportamiento: se recarga el prompt y se instalan las
+   rutinas del perfil.
+
+   ```bash
+   apx profile use secretary
+   ```
+
+4. Hacerlo tuyo. Todo tiene un default sensato, así que este paso es opcional.
+
+   ```bash
+   apx profile config --interactive
+   ```
+
+5. Ver qué le falta para hacer bien su trabajo.
+
+   ```bash
+   apx profile doctor
+   ```
+
+</Steps>
+
+Para volver exactamente a como se comportaba APX antes:
+
+```bash
+apx profile off
+```
+
+`off` deshabilita las rutinas del perfil y **no borra nada**. Tu configuración, tus tareas y
+tu memoria quedan intactas, así que `apx profile use` restaura todo.
+
+## Comandos
+
+| Comando | Qué hace |
+|---|---|
+| `apx profile list` | Todos los perfiles disponibles y cuál está activo |
+| `apx profile show <id>` | Configuración, costo de tokens y de dónde salió el paquete |
+| `apx profile show <id> --preview` | …más el bloque de prompt renderizado |
+| `apx profile install <id\|ruta>` | Valida e instala. **No** activa |
+| `apx profile use <id>` | Activa e instala las rutinas del perfil |
+| `apx profile off` | Vuelve a vanilla |
+| `apx profile config` | Muestra la configuración |
+| `apx profile config --set k=v` | Cambia un valor (se puede repetir) |
+| `apx profile config --interactive` | Recorre toda la configuración |
+| `apx profile doctor` | Qué falta, con el comando que lo arregla |
+| `apx profile uninstall <id>` | Lo quita, conservando lo que hayas editado |
+
+Sólo hay un perfil activo a la vez. Activar un segundo requiere `--force`.
+
+## Configuración
+
+Cada paquete declara su configuración en `config.schema.json`, y **todo campo tiene
+default** — instalar un perfil y no configurar nada te da un sistema que funciona, no un
+cuestionario.
+
+```bash
+apx profile config --set day_open_at="30 8 * * 1-5"
+apx profile config --set nudge_budget_per_day=3
+```
+
+Cambiar un horario **reprograma de verdad**: las rutinas del perfil se vuelven a renderizar
+y el cron se mueve.
+
+La configuración se guarda por perfil, así que cambiar de uno a otro y volver le devuelve a
+cada uno la suya en vez de pasarle la del otro.
+
+## Dónde viven los paquetes
+
+| Capa | Ubicación | Notas |
+|---|---|---|
+| Bundled | adentro de APX | Sólo lectura; mejora con `npm update` |
+| Usuario | `~/.apx/profiles/<id>/` | Los que instalaste desde una ruta local, y tus overrides |
+| Removidos | `~/.apx/profiles/.removed.json` | Ids bundled que desinstalaste |
+
+Las dos capas se resuelven al leer y gana la tuya — el mismo modelo que usa el
+[vault de agentes](/apx/es/capabilities/agent-vault/). Instalar un perfil **bundled** no lo
+copia, así que una actualización de APX lo mejora en vez de quedar tapada por una copia
+vieja. Instalar desde una **ruta local** sí copia, porque esa fuente vive afuera de APX y
+se puede mover o desaparecer.
+
+Desinstalar un perfil bundled lo esconde con un tombstone en vez de borrarlo; lo podés
+reinstalar cuando quieras.
+
+## Anatomía del paquete
+
+```
+<id>/
+  profile.json            # manifiesto: id, name, version, requires, prompt_budget_tokens
+  PROFILE.md              # el bloque de prompt siempre activo (una plantilla)
+  PROFILE.es.md           # traducciones opcionales: PROFILE.<lang>.md
+  config.schema.json      # la configuración, todo con default
+  channels/<ch>.md        # overlay opcional por canal
+  routines/*.json         # rutinas que instala
+  agents/*.md             # especialistas que suma al vault
+  skills/<slug>/SKILL.md  # sus propios procedimientos operativos
+```
+
+### Reglas de plantilla
+
+`PROFILE.md` es una plantilla. Sólo se sustituyen placeholders planos `{{una_palabra}}`, y
+**la instalación falla, nombrando la variable**, si la plantilla usa una que no puede
+resolverse:
+
+- `{{profile.name}}` — las rutas con punto no se pueden sustituir.
+- `{{algo_no_declarado}}` — no es built-in ni está en el schema.
+- una propiedad del schema declarada **sin default** — renderizaría como string vacío.
+
+Built-ins disponibles para toda plantilla: `owner_name`, `agent_name`, `owner_context`,
+`profile_name`. `owner_name` sale de `identity.json` y cae a una redacción neutra cuando no
+lo configuraste, así que una instalación sin configurar nunca produce una frase rota.
+
+### Overlays por canal
+
+Un paquete puede traer `channels/<ch>.md`, que se renderiza y se concatena después del
+archivo de canal propio de APX para esa superficie — y **sólo** en esa superficie. Es la
+forma de que un perfil cargue una regla exactamente donde se toma la decisión que gobierna:
+el criterio sobre cuándo hablarte sin que se lo pidan va en `channels/routine.md`, y no
+cuesta nada en Telegram, CLI, web ni desktop.
+
+## El presupuesto de prompt
+
+El bloque de un perfil viaja en **cada turno de cada canal**, encima de un prompt base de
+unos 2.500 tokens. El paquete declara `prompt_budget_tokens`; pasarse avisa, y pasarse 1,5×
+directamente no instala.
+
+Podés ver el número real cuando quieras:
+
+```bash
+apx profile show secretary
+```
+
+## Panel web
+
+**Ajustes → Perfil del agente** muestra el catálogo, un formulario generado desde el schema
+del paquete, la salida del doctor, y el bloque de prompt renderizado con tus valores ya
+sustituidos — la forma más rápida de ver exactamente qué le están diciendo al modelo.
+
+## API HTTP
+
+`GET /profiles` · `GET /profiles/:id` (incluye `preview`) · `GET /profiles/doctor` ·
+`POST /profiles/install` · `POST /profiles/use` · `POST /profiles/off` ·
+`PATCH /profiles/config` · `DELETE /profiles/:id`
