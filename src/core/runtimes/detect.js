@@ -1,8 +1,8 @@
 // Best-effort detection of installed agent CLIs and LLM runners.
 // We just probe the binary with `--version` (or equivalent) and don't fail if
 // it isn't there — caller decides what to do with absence.
-import { runProcess } from "#host/daemon/runtimes/_spawn.js";
-import { resolveAntigravityCli } from "#host/daemon/runtimes/antigravity.js";
+import { runProcess } from "./_spawn.js";
+import { resolveAntigravityCli } from "./antigravity.js";
 
 const PROBES = [
   // Coding-agent CLIs (runtimes/)

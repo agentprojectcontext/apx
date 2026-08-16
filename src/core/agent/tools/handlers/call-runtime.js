@@ -15,8 +15,8 @@ import {
   findEngineSessionById,
   readEngineSessionContext,
 } from "#core/stores/engine-sessions.js";
-import { runProcess } from "#host/daemon/runtimes/_spawn.js";
-import { getRuntime, RUNTIME_IDS } from "#host/daemon/runtimes/index.js";
+import { runProcess } from "#core/runtimes/_spawn.js";
+import { getRuntime, RUNTIME_IDS } from "#core/runtimes/index.js";
 import { buildAgentSystem, resolveProject } from "../helpers.js";
 
 const log = loggerFor("call_runtime");

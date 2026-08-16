@@ -12,7 +12,7 @@ import {
   agentSessionsDir,
   createAgentSessionFile,
 } from "#core/stores/sessions.js";
-import { collectAllSessions, filterSessionsByQuery } from "#interfaces/cli/commands/sessions.js";
+import { collectAllSessions, filterSessionsByQuery } from "#core/sessions/index.js";
 import { pageEnvelope } from "./shared.js";
 
 export function register(api, { projects, project }) {
