@@ -3,7 +3,7 @@
 > Written so a fresh session can continue without reading the originating chat.
 > Keep it current: update it at the end of every phase, not at the end of the work.
 
-**Last updated:** 2026-08-16 · **Branch:** `main` (all merged) · **Base:** `main` @ 1.75.0
+**Last updated:** 2026-08-16 · **Branch:** `feat/agent-inbox` (PR #41 open, NOT merged) · **Base:** `main` @ 1.75.0
 
 ---
 
@@ -17,15 +17,32 @@
 | 2.5 — rename, install gate, channel overlays | ✅ merged (in #39) |
 | 4 — bundled Secretary profile | ✅ merged (in #39) |
 | 3 — C2 cross-project tasks | ✅ **merged to main**, PR #40 |
-| Inbox → responsive → LAN bind | ⬜ **next**, see `04-BACKLOG-agent-inbox.md` |
+| Inbox — core + `GET /inbox` | ✅ PR #41 open |
+| Inbox — panel UI (`/m/inbox`) | ✅ PR #41 |
+| Inbox — responsive | ✅ PR #41 (one known gap, below) |
+| LAN bind — `apx panel share` | ✅ PR #41 |
 | 5-9 (commitments, nudge budget, signals, calendar, service) | ⬜ per `03-BACKLOG.md` |
 
-`npm run preflight` green at 760 tests. Docs site builds (`cd docs && pnpm build`).
+`npm run preflight` green at 778 tests. Docs site builds (`cd docs && pnpm build`).
 
 **Note the phase numbers are out of order on purpose.** Phase 4 was pulled forward ahead of
 Phase 3 because the owner asked to see a profile working end to end. Phase 3 is next.
 
 ---
+
+## Owner corrections applied late (do not undo)
+
+- **System prompts are English, always.** Spanish is a UI language only. A translated
+  `PROFILE.<lang>.md` is a second prompt that drifts; the agent is told to reply in the
+  owner's language instead. The bundled Secretary is English-only and a test pins it.
+  The multi-language machinery stays for third-party packages.
+- **`.apc/` no longer carries `commands/`**, and whether `config.json` belongs there is an
+  open question — check the canonical layout in
+  `/Volumes/SSDT7Shield/proyectos_varios/agentprojectcontext/apc`. The uncommitted edit in
+  `skills/apc-context/SKILL.md` is RECOVERED content, not a regression; it is the owner's to
+  land and must not be reverted. (`scripts/sync-apc-skill.js` runs on `prepack`, which is
+  why it keeps appearing in unrelated diffs after any `npm pack`.)
+- **Remote access means LAN, not a public tunnel.** See "Answers already given" below.
 
 ## Decisions that are NOT in 01/02-SPEC
 
@@ -66,6 +83,29 @@ in the daemon route rather than core (so the CLI could not reuse it), and the su
 It also missed that **`apx task list` was broken outright**: the endpoints answer a
 `{meta, data}` envelope and the CLI still treated it as an array, so it printed "(no tasks)"
 regardless. Only live verification found it.
+
+## 🔴 Live finding the owner must decide on
+
+**This machine's daemon is bound to `0.0.0.0` right now** — `config.host` is
+`"0.0.0.0"`, and `lsof` confirms `TCP *:7430 (LISTEN)`. It is pre-existing config, not
+something this work introduced, and it was deliberately NOT changed: it may be what the
+owner already relies on to reach the panel from their phone, and silently narrowing it
+could break that.
+
+It is worth a decision, because it is wider than it needs to be — a wildcard bind also
+covers interfaces that appear later (a VPN, a hotspot, a container bridge). `apx panel
+status` now reports this case separately from ordinary sharing and points at the narrower
+option:
+
+    apx panel share      # bind one specific LAN address instead
+    apx panel unshare    # back to loopback only
+
+## Known gap
+
+`line-clamp-2` has no effect in this Tailwind build, so a long inbox preview renders in
+full on a phone rather than clamped to two lines. Bounded anyway — the preview is capped at
+160 chars server-side — and the full short reply arguably reads better on mobile. Worth
+resolving with the wider responsive pass.
 
 ## Scope deliberately cut
 
@@ -130,10 +170,36 @@ conversation, not as something the inbox replaces.
 
 ---
 
+## Bugs found and fixed along the way (none were in the specs)
+
+| Bug | Where |
+|---|---|
+| `apx task list` printed "(no tasks)" always — CLI treated a `{meta,data}` envelope as an array | merged, PR #40 |
+| `parseConversation` truncated every multi-line turn to its first line (`$` under `/m`) | PR #41 |
+| Pages deploy failed on every docs change — `pnpm install` in `docs/` installed the root project | PR #41 |
+| Profile config mirror went stale on `off`/`uninstall` | merged, PR #39 |
+| Prompt budget only checked English | merged, PR #39 |
+| Neutral fallback was English-only, and followed the requested language rather than the resolved file | merged, PR #39 |
+
+Every one was found by running against the live daemon, not by unit tests.
+
 ## What to do next
 
-**The agent inbox** — see `04-BACKLOG-agent-inbox.md § A`, then B (responsive), then C1
-(LAN bind).
+Everything the owner queued is built and on PR #41, which is **deliberately unmerged** —
+they asked to review and merge it themselves at the end.
+
+Still not built, both explicitly wanted:
+
+1. **The tool-run summary in a thread**, rendered from `tool_trace` in message meta
+   (`✓ Salesforce → 52 accounts`). The data is already on disk; this is a rendering job.
+2. **The "routine created" chip** when a recurring request turns into a routine. APX
+   already creates the routine — showing it closes the loop at the moment it happens.
+
+Then the remaining phases in `03-BACKLOG.md`: 5 (commitments), 6 (nudge budget — **before**
+7, non-negotiable), 7 (signals/watch), 8 (calendar), 9 (service + memory consolidation).
+
+**Do not break:** each project agent has its own Telegram line, a direct channel that
+bypasses the super-agent. Never used so far, but the inbox must not remove or degrade it.
 
 C2 is done and is the foundation: `listTasksAcrossProjects()` in `core/stores/tasks.js` is
 the shape the inbox's "all agents, most recent first" reader should follow — walk the

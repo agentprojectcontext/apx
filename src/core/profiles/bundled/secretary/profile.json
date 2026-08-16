@@ -5,16 +5,29 @@
   "description": "Chief of staff for someone running several projects at once. Keeps their state alive, captures what is said, and warns before something breaks.",
   "author": "apx",
   "apx_min_version": "1.74.1",
-  "languages": ["en", "es"],
+  "languages": [
+    "en"
+  ],
   "provides": {
-    "routines": ["day-open", "day-close"],
-    "channels": ["routine"]
+    "routines": [
+      "day-open",
+      "day-close"
+    ],
+    "channels": [
+      "routine"
+    ]
   },
   "requires": {
-    "capabilities": ["routine.memory"],
+    "capabilities": [
+      "routine.memory"
+    ],
     "integrations": [],
-    "optional_integrations": ["calendar"],
-    "channels": ["telegram"]
+    "optional_integrations": [
+      "calendar"
+    ],
+    "channels": [
+      "telegram"
+    ]
   },
   "prompt_budget_tokens": 600
 }

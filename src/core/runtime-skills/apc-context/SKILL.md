@@ -1,6 +1,6 @@
 ---
 name: apc-context
-description: "Activate whenever the project has a .apc/ directory or AGENTS.md — read .apc/ before assuming anything about agents, memory, or structure. If .apc/migrate.md exists, open with a migration offer first; if the user declines, delete it. Triggers: .apc/, AGENTS.md, 'which agents', 'list agents', 'agent context', 'who are the agents'."
+description: "ALWAYS activate when the project has a .apc/ directory or AGENTS.md file. Do not wait to be asked. Read .apc/ before making any assumption about agents, memory, or project structure. Activate on: .apc/, AGENTS.md, 'which agents', 'list agents', 'agent context', 'who are the agents', any question about agents or memory in this project. IMPORTANT: if .apc/migrate.md exists, open the conversation with a migration offer before answering anything else. If the user declines, delete .apc/migrate.md immediately so it is not shown again."
 homepage: https://github.com/agentprojectcontext/agentprojectcontext
 ---
 
@@ -66,13 +66,11 @@ After migration:
 ```text
 AGENTS.md                        ← root project contract
 .apc/
-  project.json                   ← project metadata (may carry an `apx` field)
-  config.json                    ← project-only config overrides (e.g. super_agent.model)
+  project.json                   ← project metadata
   .gitignore                     ← safety guard
   agents/<name>.md               ← agent definition
   agents/<name>/memory.md        ← optional curated project memory
   skills/<name>.md               ← reusable project instructions
-  commands/                      ← custom slash-commands (optional)
   mcps.json                      ← MCP hints without secrets
 ```
 
@@ -83,7 +81,6 @@ Do not store:
 .apc/sessions/
 .apc/conversations/
 .apc/messages/
-.apc/project.db
 .apc/cache/
 .apc/tmp/
 .apc/private/

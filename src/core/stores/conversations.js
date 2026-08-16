@@ -73,7 +73,13 @@ export function parseConversation(text) {
     body = text.slice(fmEnd + 4);
   }
   const turns = [];
-  const re = /^##\s+(user|assistant|system|tool|compact)\s+—\s+(\S+)\s*\n([\s\S]*?)(?=\n##\s+(?:user|assistant|system|tool|compact)\s+—\s|\n*$)/gm;
+  // The terminator is "the next turn header, or the true end of input".
+  //
+  // It used to be `\n*$`, and with the /m flag `$` matches the end of any LINE
+  // — so the lazy body stopped at the first newline and every multi-line turn
+  // was silently truncated to its first line. `(?![\s\S])` is end-of-input and
+  // nothing else. /m is still needed for the `^` on the header.
+  const re = /^##\s+(user|assistant|system|tool|compact)\s+—\s+(\S+)\s*\n([\s\S]*?)(?=\n##\s+(?:user|assistant|system|tool|compact)\s+—\s|\s*(?![\s\S]))/gm;
   let m;
   while ((m = re.exec(body)) !== null) {
     turns.push({
@@ -124,15 +130,29 @@ function summarizeConversation(filePath, agentSlug, filename) {
   const messages = turns.filter((t) => t.role !== "system" && t.role !== "compact").length;
   const firstUser = turns.find((t) => t.role === "user");
   const title = (firstUser?.content || "").split("\n")[0].slice(0, 80).trim() || undefined;
+
+  // What the AGENT last said, not what the user last asked. An inbox row that
+  // echoes your own prompt back tells you nothing; the reply is the thing you
+  // want to see without opening the thread ("report filed, nothing over policy").
+  const lastReply = [...turns].reverse().find((t) => t.role === "assistant");
+  const preview = (lastReply?.content || "")
+    .replace(/```[\s\S]*?```/g, " ")   // code fences read as noise at one line
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 160) || undefined;
+
   return {
     id: filename.replace(/\.md$/, ""),
     filename,
     agent_slug: agentSlug,
     started_at: fm.started || fm.last_turn || "",
+    last_turn_at: fm.last_turn || fm.started || "",
     ended_at: fm.status === "closed" ? (fm.last_turn || undefined) : undefined,
     channel: fm.channel || undefined,
     messages,
     title,
+    preview,
+    preview_at: lastReply?.ts || undefined,
   };
 }
 

@@ -162,6 +162,11 @@ import {
   cmdProfileUninstall,
 } from "./commands/profile.js";
 import {
+  cmdPanelStatus,
+  cmdPanelShare,
+  cmdPanelUnshare,
+} from "./commands/panel.js";
+import {
   cmdOrgShow,
   cmdOrgAreaAdd,
   cmdOrgAreaRm,
@@ -1617,6 +1622,19 @@ const HELP_TOPICS = new Map(Object.entries({
     examples: ["apx plugins status telegram"],
   }),
 
+  panel: topic({
+    title: "apx panel",
+    summary:
+      "Reach the admin panel from another device on the same network. Not a tunnel — nothing leaves your LAN, and loopback stays the default.",
+    usage: ["apx panel <status|share|unshare>"],
+    commands: [
+      ["status", "Whether the panel is local only or shared, and on what address."],
+      ["share", "Bind a LAN address and print the URL to open on your phone."],
+      ["unshare", "Go back to local only."],
+    ],
+    options: [["--host <ip>", "share: bind this address instead of the detected one."]],
+    examples: ["apx panel status", "apx panel share", "apx panel unshare"],
+  }),
   profile: topic({
     title: "apx profile",
     summary:
@@ -2802,6 +2820,16 @@ async function dispatch(cmd, rest) {
         else if (sub === "reopen") await cmdTaskReopen(a);
         else if (sub === "patch" || sub === "edit") await cmdTaskPatch(a);
         else die(`unknown task subcommand: ${sub}\nUsage: apx task <list|add|show|done|drop|reopen|patch>`);
+        break;
+      }
+
+      case "panel": {
+        const sub = rest[0];
+        const a = parseArgs(rest.slice(1));
+        if (!sub || sub === "status") await cmdPanelStatus(a);
+        else if (sub === "share") await cmdPanelShare(a);
+        else if (sub === "unshare") await cmdPanelUnshare(a);
+        else die(`unknown panel subcommand: ${sub}\nUsage: apx panel <status|share|unshare>`);
         break;
       }
 

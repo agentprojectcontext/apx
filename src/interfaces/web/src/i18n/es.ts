@@ -143,6 +143,16 @@ export const es = {
     browser_unavailable: "Explorador no disponible hasta reiniciar daemon. Pegá ruta manual.",
     no_folders:  "Sin carpetas.",
   },
+  inbox: {
+    title: "Bandeja de agentes",
+    subtitle:
+      "Cada agente como una conversación, lo más reciente primero.",
+    empty: "Todavía no hablaste con ningún agente.",
+    pinned: "principal",
+    show_quiet: "Ver los que no hablaron",
+    no_reply_yet: "(sin respuestas todavía)",
+  },
+
   settings: {
     title:       "Settings",
     subtitle:    "Preferencias del panel + diagnóstico del daemon local.",
@@ -204,6 +214,8 @@ export const es = {
       title: "Perfil del agente",
       subtitle:
         "Un oficio instalable para el super-agente: qué hace con su día y cuándo te habla. Distinto del nombre del agente (eso está en Identidad).",
+      active_hint:
+        "Hay un perfil activo: su bloque viaja en cada turno de cada canal. Desactivalo para volver a vanilla.",
       vanilla_hint:
         "No hay ningún perfil activo. APX se comporta exactamente como siempre — el prompt del super-agente es idéntico al de una instalación limpia.",
       none_available: "No hay perfiles disponibles todavía.",
@@ -228,6 +240,10 @@ export const es = {
       preview_title: "Bloque de prompt",
       preview_subtitle: "Exactamente lo que recibe el modelo, con tus valores ya sustituidos.",
       preview_empty: "(vacío)",
+      preview_inactive: "Esto es lo que recibiría el modelo si activaras este perfil.",
+      no_settings: "Este perfil no tiene nada configurable.",
+      settings_locked: "Activá el perfil para poder cambiar su configuración.",
+      doctor_vanilla: "Sin perfil activo. APX se comporta como siempre.",
     },
 
     identity: {

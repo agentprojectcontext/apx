@@ -52,6 +52,7 @@ import { register as registerAdmin } from "./api/admin.js";
 import { register as registerAdminConfig } from "./api/admin-config.js";
 import { register as registerIdentity } from "./api/identity.js";
 import { register as registerProfiles } from "./api/profiles.js";
+import { register as registerInbox } from "./api/inbox.js";
 import { register as registerWeb } from "./api/web.js";
 import { register as registerConfirm } from "./api/confirm.js";
 
@@ -153,6 +154,7 @@ export function buildApi({
   registerAdminConfig(app, ctx);
   registerIdentity(app, ctx);
   registerProfiles(app, ctx);
+  registerInbox(app, ctx);
 
   // ---- Web admin panel (static SPA, must mount before 404) ---------
   // Serves src/interfaces/web/dist when present + the /admin/web-token

@@ -89,26 +89,33 @@ export function ProfilePanel() {
   const props: Record<string, ProfileSchemaProp> = profile?.schema?.properties || {};
   const overBudget = !!profile?.budget && !!profile?.tokens && profile.tokens > profile.budget;
 
+  // Settings are editable only for the ACTIVE profile — changing them
+  // reschedules its routines, which is meaningless for one that is not running.
+  const canEdit = !!profile?.active;
+
   return (
     <div className="flex flex-col gap-4" data-testid="profile-panel">
       <Section
         title={t("settings.profile.title")}
         description={t("settings.profile.subtitle")}
       >
-        {!active ? (
-          <div
-            data-testid="profile-vanilla-hint"
-            className="mb-3 flex items-start gap-2 rounded-md border border-border bg-muted/40 p-3 text-sm"
-          >
-            <Info size={16} className="mt-0.5 shrink-0 opacity-70" />
-            <span>{t("settings.profile.vanilla_hint")}</span>
-          </div>
-        ) : null}
+        {/* Always rendered, in both states. A banner that only appears when
+            inactive would push every card below it down the moment you
+            activate — the exact reflow this layout is built to avoid. */}
+        <div
+          data-testid="profile-vanilla-hint"
+          className="mb-3 flex items-start gap-2 rounded-md border border-border bg-muted/40 p-3 text-sm"
+        >
+          <Info size={16} className="mt-0.5 shrink-0 opacity-70" />
+          <span>
+            {active ? t("settings.profile.active_hint") : t("settings.profile.vanilla_hint")}
+          </span>
+        </div>
 
         {!profiles.length ? (
           <Empty>{t("settings.profile.none_available")}</Empty>
         ) : (
-          <div className="flex flex-col gap-2">
+          <div className="grid gap-2 lg:grid-cols-2">
             {profiles.map((p) => (
               <button
                 key={p.id}
@@ -120,7 +127,7 @@ export function ProfilePanel() {
                 }`}
               >
                 <span className="min-w-0">
-                  <span className="flex items-center gap-2">
+                  <span className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">{p.name}</span>
                     <Badge>{p.source}</Badge>
                     {p.active ? <Badge tone="success">{t("settings.profile.active")}</Badge> : null}
@@ -155,75 +162,101 @@ export function ProfilePanel() {
         ) : null}
       </Section>
 
-      {profile && Object.keys(props).length ? (
+      {/* Settings, Doctor and the prompt block are ALWAYS mounted, in the same
+          places, whether or not a profile is active. Activating one must not
+          make cards appear and push the rest of the page down — a layout that
+          reflows under you is disorienting, and it hides the fact that the
+          prompt block is the thing that just changed. Inactive simply means
+          disabled. */}
+      <div className="grid items-start gap-4 xl:grid-cols-2">
         <Section
           title={t("settings.profile.settings_title")}
           description={t("settings.profile.settings_subtitle")}
         >
-          <div className="grid grid-cols-2 gap-3">
-            {Object.entries(props).map(([key, def]) => (
-              <Field key={key} label={def.title || key} hint={def.description}>
-                {def.enum ? (
-                  <UiSelect
-                    value={draft[key] ?? String(def.default ?? "")}
-                    onChange={(v) => setDraft({ ...draft, [key]: v })}
-                    options={def.enum.map((o) => ({ value: String(o), label: String(o) }))}
-                  />
-                ) : (
-                  <Input
-                    value={draft[key] ?? ""}
-                    onChange={(e) => setDraft({ ...draft, [key]: e.target.value })}
-                  />
-                )}
-              </Field>
-            ))}
-          </div>
-          <div className="mt-4">
-            <Button variant="primary" loading={busy} onClick={saveConfig}>
-              {t("common.save")}
-            </Button>
-          </div>
-        </Section>
-      ) : null}
-
-      {active && doctor ? (
-        <Section title={t("settings.profile.doctor_title")} description={doctor.summary}>
-          {!doctor.checks.length ? (
-            <div className="flex items-center gap-2 text-sm">
-              <CheckCircle2 size={16} className="text-emerald-500" />
-              {t("settings.profile.doctor_clean")}
-            </div>
+          {!Object.keys(props).length ? (
+            <Empty>{t("settings.profile.no_settings")}</Empty>
           ) : (
-            <ul className="flex flex-col gap-2">
-              {doctor.checks.map((c, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm">
-                  <AlertTriangle
-                    size={16}
-                    className={`mt-0.5 shrink-0 ${c.level === "error" ? "text-red-500" : "text-amber-500"}`}
-                  />
-                  <span className="min-w-0">
-                    <span className="opacity-60">[{c.label}]</span> {c.detail}
-                    {c.fix ? (
-                      <code className="mt-1 block rounded bg-muted px-1.5 py-0.5 text-xs">{c.fix}</code>
-                    ) : null}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            <>
+              {!canEdit ? (
+                <p className="mb-3 text-sm opacity-60">{t("settings.profile.settings_locked")}</p>
+              ) : null}
+              <div className="grid gap-3 sm:grid-cols-2">
+                {Object.entries(props).map(([key, def]) => (
+                  <Field key={key} label={def.title || key} hint={def.description}>
+                    {def.enum ? (
+                      <UiSelect
+                        value={draft[key] ?? String(def.default ?? "")}
+                        onChange={(v) => setDraft({ ...draft, [key]: v })}
+                        options={def.enum.map((o) => ({ value: String(o), label: String(o) }))}
+                        disabled={!canEdit}
+                      />
+                    ) : (
+                      <Input
+                        value={draft[key] ?? ""}
+                        disabled={!canEdit}
+                        onChange={(e) => setDraft({ ...draft, [key]: e.target.value })}
+                      />
+                    )}
+                  </Field>
+                ))}
+              </div>
+              <div className="mt-4">
+                <Button variant="primary" loading={busy} disabled={!canEdit} onClick={saveConfig}>
+                  {t("common.save")}
+                </Button>
+              </div>
+            </>
           )}
         </Section>
-      ) : null}
 
-      {profile ? (
-        <Section
-          title={t("settings.profile.preview_title")}
-          description={t("settings.profile.preview_subtitle")}
-        >
-          <pre data-testid="profile-preview" className="max-h-96 overflow-auto whitespace-pre-wrap rounded-md border border-border bg-muted/30 p-3 text-xs leading-relaxed">
-            {profile.preview || t("settings.profile.preview_empty")}
-          </pre>
-        </Section>
-      ) : null}
+        <div className="flex flex-col gap-4">
+          <Section title={t("settings.profile.doctor_title")} description={doctor?.summary || ""}>
+            {!doctor?.checks?.length ? (
+              <div className="flex items-center gap-2 text-sm">
+                <CheckCircle2 size={16} className="text-emerald-500" />
+                {active ? t("settings.profile.doctor_clean") : t("settings.profile.doctor_vanilla")}
+              </div>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {doctor.checks.map((c, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm">
+                    <AlertTriangle
+                      size={16}
+                      className={`mt-0.5 shrink-0 ${c.level === "error" ? "text-red-500" : "text-amber-500"}`}
+                    />
+                    <span className="min-w-0">
+                      <span className="opacity-60">[{c.label}]</span> {c.detail}
+                      {c.fix ? (
+                        <code className="mt-1 block overflow-x-auto rounded bg-muted px-1.5 py-0.5 text-xs">
+                          {c.fix}
+                        </code>
+                      ) : null}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Section>
+
+          <Section
+            title={t("settings.profile.preview_title")}
+            description={
+              profile?.active
+                ? t("settings.profile.preview_subtitle")
+                : t("settings.profile.preview_inactive")
+            }
+          >
+            <pre
+              data-testid="profile-preview"
+              className={`max-h-[32rem] overflow-auto whitespace-pre-wrap rounded-md border border-border bg-muted/30 p-3 text-xs leading-relaxed ${
+                profile?.active ? "" : "opacity-60"
+              }`}
+            >
+              {profile?.preview || t("settings.profile.preview_empty")}
+            </pre>
+          </Section>
+        </div>
+      </div>
 
       <Dialog
         open={confirmOff}

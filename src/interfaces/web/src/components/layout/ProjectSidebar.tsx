@@ -10,7 +10,7 @@
 // also be collapsed into a single folder button (state persisted per browser).
 import { useLayoutEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { Plus, Settings, Monitor, Terminal, Bot, BookOpen, ChevronDown, Folders, type LucideIcon } from "lucide-react";
+import { Plus, Settings, Monitor, Terminal, Bot, BookOpen, ChevronDown, Folders, MessagesSquare, type LucideIcon } from "lucide-react";
 import { Logo } from "./Logo";
 import { ProjectAvatar, projectTone } from "./ProjectAvatar";
 import { Tip } from "../ui/tip";
@@ -192,6 +192,25 @@ export function ProjectSidebar({ onSelect, onOpenRoby, onOpenAddProject }: Props
           className="mb-2 cursor-pointer"
         >
           <Logo size={36} />
+        </button>
+      </Tip>
+
+      {/* The conversational way in. Sits above the project rail because it is
+          the daily entry point — but the rail below it is untouched, and stays
+          the structural axis. */}
+      <Tip content={t("inbox.title")} side="right">
+        <button
+          type="button"
+          onClick={() => onSelect("/m/inbox")}
+          data-testid="nav-inbox"
+          className={`flex size-10 cursor-pointer items-center justify-center rounded-xl border transition ${
+            isActive("/m/inbox")
+              ? "border-primary bg-primary/10"
+              : "border-border bg-muted/40 hover:bg-muted"
+          }`}
+          aria-label={t("inbox.title")}
+        >
+          <MessagesSquare size={18} />
         </button>
       </Tip>
 
