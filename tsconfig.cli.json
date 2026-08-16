@@ -1,0 +1,27 @@
+{
+  // Shared TypeScript base for the Node-side TS surfaces (currently the TUI).
+  //
+  // This file was referenced by src/interfaces/tui/tsconfig.json but had never
+  // been committed, so `tsc -p src/interfaces/tui` failed to load its config at
+  // all — ~24k lines across 152 files were unverifiable, and because nothing
+  // ran the check the breakage stayed invisible. The TUI is a vendored fork
+  // with its own `_shims/` of deliberately-`any` stubs, so the gate here is
+  // "the config resolves and the check runs", then ratchet strictness up.
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ESNext"],
+    "types": ["node"],
+    "allowJs": false,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": false,
+    "noImplicitAny": false
+  }
+}
