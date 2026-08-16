@@ -65,4 +65,48 @@ Rules and conventions that must hold from now on: [conventions](./00-conventions
 
 ## Progress
 
-Tracked in the harness task list; each phase spec carries its own checklist.
+| Phase | State | Notes |
+|---|---|---|
+| P0 | **done** | `4c00430` |
+| P1 | **done** | `b20edfe`, `4fbb243` |
+| P2 | **partial** | `21b9060`, `83a86a4`, `71a6e6e` — see below |
+| P3 | **partial** | paths + tool-name sets done in `b20edfe` / `83a86a4`; see below |
+| P4 | **done** | `6bb419b` |
+| P5 | **partial** | `624bfca` — dangerous handlers covered; see below |
+| P6 | not started | |
+
+Verified at this point: `npm run preflight` green (lint + 817 tests + web build
++ web tsc + TUI ratchet), 0 skipped, daemon restarts and answers on `/api`, and
+the project's own `AGENTS.md` reaches the prompt whole (19,547 chars, no
+truncation marker).
+
+### What is deliberately still open
+
+**P2 — `dispatch()` in `cli/index.js`.** The file went 3001 → 768 lines by
+moving the help surface out, which was the bulk of it. The remaining 458-line
+`dispatch()` still spells subcommand aliases inline (`sub === "list" || sub ===
+"ls"` ×17). A single global alias table would be *wrong*: the aliases conflict
+across commands (`rm` = remove under `agent`, unset under `project config`,
+revoke under `pair`). The correct fix is a per-command alias declaration — the
+command registry in [P2](./P2-long-files.md) — which is a separate change with
+its own risk profile.
+
+**P2 — `runAgent` decomposition.** The safety-critical part is done (the
+behavioural tool sets no longer live as literals inside the loop). Splitting the
+remaining ~12 concerns into `core/agent/loop/` collaborators is still worth
+doing and is the riskiest refactor in the plan; it should land on its own, with
+the linter and CI now in place to catch a mistake.
+
+**P3 — `core/util/json-file.js`, scopes, frontmatter, project resolution.** The
+`~/.apx` path duplication is gone and enforced by ESLint. The remaining four
+dedups (35 inline `JSON.parse(readFileSync)` sites, `normalizeScope` ×5,
+`parseFrontmatter` ×4, `resolveProject` ×7) are unstarted.
+
+**P5 — coverage tooling and the remaining blind spots.** The dangerous handlers
+and the confirmation path now have tests; engines, embed-engines, the Telegram
+channel layer, `config/redact` and 9 daemon routes do not. No coverage
+threshold yet.
+
+**P6 — cleanup.** Untouched: ~150 remaining dead exports, the 7 unused runtime
+deps, the orphaned root `index.html`, the stale README channel table, the
+glossary.
