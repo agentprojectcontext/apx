@@ -1,31 +1,31 @@
-// Persona package resolution — the layered read.
+// Profile package resolution — the layered read.
 //
 // This mirrors readVaultAgents() in core/apc/parser.js: bundled and user
 // packages are resolved at READ time, user wins per id, tombstones hide bundled
 // ids the user removed. Nothing is copied at install time.
 //
-// That distinction matters. If installing a bundled persona copied it into
-// ~/.apx/personas/, the user would be frozen at that version forever — a later
-// `npm update` would ship an improved PERSONA.md that their copy shadows. So a
+// That distinction matters. If installing a bundled profile copied it into
+// ~/.apx/profiles/, the user would be frozen at that version forever — a later
+// `npm update` would ship an improved PROFILE.md that their copy shadows. So a
 // user-layer directory exists only when the user genuinely owns that package:
 // they installed it from a local path, or they explicitly ejected a bundled one
 // to edit it.
 //
 // The user's *settings* are not part of the package. They live in
-// ~/.apx/config.json under `persona.config`, so they survive package updates,
+// ~/.apx/config.json under `profile.config`, so they survive package updates,
 // `off` → `use` round-trips, and uninstall/reinstall.
 import fs from "node:fs";
 import path from "node:path";
 
 import {
-  BUNDLED_PERSONAS_DIR,
-  PERSONAS_DIR,
-  PERSONAS_TOMBSTONE_PATH,
+  BUNDLED_PROFILES_DIR,
+  PROFILES_DIR,
+  PROFILES_TOMBSTONE_PATH,
   MANIFEST_FILE,
   CONFIG_SCHEMA_FILE,
-  PERSONA_ID_RE,
-  bundledPersonaDir,
-  userPersonaDir,
+  PROFILE_ID_RE,
+  bundledProfileDir,
+  userProfileDir,
   promptFileFor,
 } from "./paths.js";
 import { schemaDefaults } from "./manifest.js";
@@ -42,22 +42,22 @@ function readDirIds(dir) {
   if (!fs.existsSync(dir)) return [];
   return fs
     .readdirSync(dir, { withFileTypes: true })
-    .filter((e) => e.isDirectory() && PERSONA_ID_RE.test(e.name))
+    .filter((e) => e.isDirectory() && PROFILE_ID_RE.test(e.name))
     .map((e) => e.name)
     .sort();
 }
 
 // --------------------- tombstones -------------------------------------------
 
-export function readPersonaTombstones() {
-  const raw = readJson(PERSONAS_TOMBSTONE_PATH);
+export function readProfileTombstones() {
+  const raw = readJson(PROFILES_TOMBSTONE_PATH);
   return new Set(Array.isArray(raw?.ids) ? raw.ids : []);
 }
 
-export function writePersonaTombstones(ids) {
-  fs.mkdirSync(PERSONAS_DIR, { recursive: true });
+export function writeProfileTombstones(ids) {
+  fs.mkdirSync(PROFILES_DIR, { recursive: true });
   fs.writeFileSync(
-    PERSONAS_TOMBSTONE_PATH,
+    PROFILES_TOMBSTONE_PATH,
     JSON.stringify({ ids: [...ids].sort() }, null, 2) + "\n"
   );
 }
@@ -65,14 +65,14 @@ export function writePersonaTombstones(ids) {
 // --------------------- resolution -------------------------------------------
 
 /**
- * Where a persona's files actually come from, honouring the layering.
+ * Where a profile's files actually come from, honouring the layering.
  * @returns {{ dir: string, source: "user"|"user-override"|"bundled" }|null}
  */
-export function resolvePersonaDir(id) {
-  if (!PERSONA_ID_RE.test(String(id || ""))) return null;
+export function resolveProfileDir(id) {
+  if (!PROFILE_ID_RE.test(String(id || ""))) return null;
 
-  const user = userPersonaDir(id);
-  const bundled = bundledPersonaDir(id);
+  const user = userProfileDir(id);
+  const bundled = bundledProfileDir(id);
   const hasUser = fs.existsSync(path.join(user, MANIFEST_FILE));
   const hasBundled = fs.existsSync(path.join(bundled, MANIFEST_FILE));
 
@@ -82,13 +82,13 @@ export function resolvePersonaDir(id) {
 }
 
 /**
- * Load one persona package.
+ * Load one profile package.
  * @returns {{
  *   id, dir, source, manifest, schema, defaults, prompts: string[]
  * }|null}
  */
-export function readPersona(id) {
-  const resolved = resolvePersonaDir(id);
+export function readProfile(id) {
+  const resolved = resolveProfileDir(id);
   if (!resolved) return null;
 
   const manifest = readJson(path.join(resolved.dir, MANIFEST_FILE));
@@ -96,7 +96,7 @@ export function readPersona(id) {
 
   const schema = readJson(path.join(resolved.dir, CONFIG_SCHEMA_FILE));
   const prompts = fs.existsSync(resolved.dir)
-    ? fs.readdirSync(resolved.dir).filter((f) => /^PERSONA(\.[\w-]+)?\.md$/.test(f)).sort()
+    ? fs.readdirSync(resolved.dir).filter((f) => /^PROFILE(\.[\w-]+)?\.md$/.test(f)).sort()
     : [];
 
   return {
@@ -111,27 +111,27 @@ export function readPersona(id) {
 }
 
 /**
- * Every persona visible to the user: bundled ∪ user, user wins, tombstones
+ * Every profile visible to the user: bundled ∪ user, user wins, tombstones
  * filtered out.
  */
-export function listPersonas({ includeRemoved = false } = {}) {
-  const tombstones = readPersonaTombstones();
-  const ids = new Set([...readDirIds(BUNDLED_PERSONAS_DIR), ...readDirIds(PERSONAS_DIR)]);
+export function listProfiles({ includeRemoved = false } = {}) {
+  const tombstones = readProfileTombstones();
+  const ids = new Set([...readDirIds(BUNDLED_PROFILES_DIR), ...readDirIds(PROFILES_DIR)]);
 
   const out = [];
   for (const id of [...ids].sort()) {
     if (!includeRemoved && tombstones.has(id)) continue;
-    const persona = readPersona(id);
-    if (persona) out.push({ ...persona, removed: tombstones.has(id) });
+    const profile = readProfile(id);
+    if (profile) out.push({ ...profile, removed: tombstones.has(id) });
   }
   return out;
 }
 
 /**
- * Resolve the prompt file for a language, falling back to the base PERSONA.md.
+ * Resolve the prompt file for a language, falling back to the base PROFILE.md.
  * Returns the file path, or null when the package has no prompt at all.
  */
-export function resolvePromptFile(personaDir, lang) {
+export function resolvePromptFile(profileDir, lang) {
   const candidates = [promptFileFor(lang)];
 
   // "pt-BR" → also try "pt" before giving up on the base file.
@@ -140,13 +140,13 @@ export function resolvePromptFile(personaDir, lang) {
   candidates.push(promptFileFor("en"));
 
   for (const name of candidates) {
-    const file = path.join(personaDir, name);
+    const file = path.join(profileDir, name);
     if (fs.existsSync(file)) return file;
   }
   return null;
 }
 
-// --------------------- active persona state ---------------------------------
+// --------------------- active profile state ---------------------------------
 
 /**
  * The activation record from global config. Shape:
@@ -155,8 +155,8 @@ export function resolvePromptFile(personaDir, lang) {
  * A missing key, or `active: null`, means vanilla — and vanilla is the default
  * of a clean install.
  */
-export function readPersonaState(globalConfig) {
-  const p = globalConfig?.persona;
+export function readProfileState(globalConfig) {
+  const p = globalConfig?.profile;
   if (!p || typeof p !== "object") return { active: null, config: {} };
   return {
     active: p.active || null,
@@ -166,19 +166,19 @@ export function readPersonaState(globalConfig) {
   };
 }
 
-/** The persona package that is currently active, or null. */
-export function readActivePersona(globalConfig) {
-  const { active } = readPersonaState(globalConfig);
+/** The profile package that is currently active, or null. */
+export function readActiveProfile(globalConfig) {
+  const { active } = readProfileState(globalConfig);
   if (!active) return null;
-  return readPersona(active);
+  return readProfile(active);
 }
 
 /**
- * Effective settings for a persona: schema defaults with the user's saved
+ * Effective settings for a profile: schema defaults with the user's saved
  * values layered on top. Callers render prompts from this, never from the raw
  * saved config — a package that gains a new setting must not leave a hole.
  */
-export function effectivePersonaConfig(persona, globalConfig) {
-  const saved = readPersonaState(globalConfig).config || {};
-  return { ...(persona?.defaults || {}), ...saved };
+export function effectiveProfileConfig(profile, globalConfig) {
+  const saved = readProfileState(globalConfig).config || {};
+  return { ...(profile?.defaults || {}), ...saved };
 }

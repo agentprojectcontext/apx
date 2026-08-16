@@ -1,35 +1,35 @@
-// apx persona — install, activate and configure the super-agent's personality.
+// apx profile — install, activate and configure the super-agent's personality.
 //
-//   apx persona list
-//   apx persona show <id>       [--preview]
-//   apx persona install <id|path> [--force]
-//   apx persona use <id>        [--force]
-//   apx persona off
-//   apx persona config          [--set k=v]... [--interactive]
-//   apx persona doctor          [<id>]
-//   apx persona uninstall <id>
+//   apx profile list
+//   apx profile show <id>       [--preview]
+//   apx profile install <id|path> [--force]
+//   apx profile use <id>        [--force]
+//   apx profile off
+//   apx profile config          [--set k=v]... [--interactive]
+//   apx profile doctor          [<id>]
+//   apx profile uninstall <id>
 //
-// Everything goes through the daemon: activating a persona changes the live
+// Everything goes through the daemon: activating a profile changes the live
 // system prompt and rewrites the routine schedule, so the process that owns
 // both has to apply it. Writing config from here would leave the running
 // daemon out of date.
 import readline from "node:readline/promises";
 import { http } from "../http.js";
 
-export const PERSONA_USAGE = {
-  list:      "apx persona list",
-  show:      "apx persona show <id> [--preview]",
-  install:   "apx persona install <id|path> [--force]",
-  use:       "apx persona use <id> [--force]",
-  off:       "apx persona off",
-  config:    "apx persona config [--set key=value]... [--interactive]",
-  doctor:    "apx persona doctor [<id>]",
-  uninstall: "apx persona uninstall <id>",
+export const PROFILE_USAGE = {
+  list:      "apx profile list",
+  show:      "apx profile show <id> [--preview]",
+  install:   "apx profile install <id|path> [--force]",
+  use:       "apx profile use <id> [--force]",
+  off:       "apx profile off",
+  config:    "apx profile config [--set key=value]... [--interactive]",
+  doctor:    "apx profile doctor [<id>]",
+  uninstall: "apx profile uninstall <id>",
 };
 
 function fail(sub, msg) {
-  console.error(`apx persona ${sub}: ${msg}`);
-  console.error(`Usage: ${PERSONA_USAGE[sub]}`);
+  console.error(`apx profile ${sub}: ${msg}`);
+  console.error(`Usage: ${PROFILE_USAGE[sub]}`);
   process.exit(1);
 }
 
@@ -45,7 +45,7 @@ function parseSetFlags(flags) {
     const s = String(raw);
     const eq = s.indexOf("=");
     if (eq < 1) {
-      console.error(`apx persona config: --set expects key=value — got "${s}"`);
+      console.error(`apx profile config: --set expects key=value — got "${s}"`);
       process.exit(1);
     }
     out[s.slice(0, eq).trim()] = s.slice(eq + 1);
@@ -72,13 +72,13 @@ function printDoctor(report) {
 
 // ── list ────────────────────────────────────────────────────────────────────
 
-export async function cmdPersonaList() {
-  const { active, personas } = await http.get("/personas");
-  if (!personas.length) {
-    console.log("(no personas available)");
+export async function cmdProfileList() {
+  const { active, profiles } = await http.get("/profiles");
+  if (!profiles.length) {
+    console.log("(no profiles available)");
     return;
   }
-  for (const p of personas) {
+  for (const p of profiles) {
     const mark = p.active ? "*" : " ";
     const version = p.version ? ` v${p.version}` : "";
     console.log(`${mark} ${p.id.padEnd(16)} ${p.name}${version}  [${p.source}]`);
@@ -90,11 +90,11 @@ export async function cmdPersonaList() {
 
 // ── show ────────────────────────────────────────────────────────────────────
 
-export async function cmdPersonaShow(args) {
+export async function cmdProfileShow(args) {
   const id = args._[0];
   if (!id) fail("show", "missing <id>");
 
-  const p = await http.get(`/personas/${encodeURIComponent(id)}`);
+  const p = await http.get(`/profiles/${encodeURIComponent(id)}`);
   console.log(`${p.name} (${p.id}) v${p.version || "?"} — ${p.source}${p.active ? " — ACTIVE" : ""}`);
   if (p.description) console.log(p.description);
   console.log(`languages: ${p.languages.join(", ") || "en"}`);
@@ -115,26 +115,26 @@ export async function cmdPersonaShow(args) {
 
 // ── install ─────────────────────────────────────────────────────────────────
 
-export async function cmdPersonaInstall(args) {
+export async function cmdProfileInstall(args) {
   const source = args._[0];
   if (!source) fail("install", "missing <id|path>");
 
-  const r = await http.post("/personas/install", { source, force: !!args?.flags?.force });
-  console.log(`installed ${r.persona.name} (${r.persona.id}) v${r.persona.version || "?"}`);
+  const r = await http.post("/profiles/install", { source, force: !!args?.flags?.force });
+  console.log(`installed ${r.profile.name} (${r.profile.id}) v${r.profile.version || "?"}`);
   console.log(`  prompt: ~${r.tokens} tokens`);
   printWarnings(r.warnings);
   console.log("");
-  console.log(`Not active yet — run: apx persona use ${r.persona.id}`);
+  console.log(`Not active yet — run: apx profile use ${r.profile.id}`);
 }
 
 // ── use / off ───────────────────────────────────────────────────────────────
 
-export async function cmdPersonaUse(args) {
+export async function cmdProfileUse(args) {
   const id = args._[0];
   if (!id) fail("use", "missing <id>");
 
-  const r = await http.post("/personas/use", { id, force: !!args?.flags?.force });
-  console.log(`active persona: ${r.persona.name} (${r.persona.id})`);
+  const r = await http.post("/profiles/use", { id, force: !!args?.flags?.force });
+  console.log(`active profile: ${r.profile.name} (${r.profile.id})`);
   printWarnings(r.warnings);
 
   const { installed = [], skipped = [] } = r.routines || {};
@@ -142,37 +142,37 @@ export async function cmdPersonaUse(args) {
   for (const s of skipped) {
     console.log(`  routine "${s.name}" left alone (${s.reason.replace(/_/g, " ")})`);
   }
-  if (!r.persona.active) console.log("  (warning: persona did not activate)");
+  if (!r.profile.active) console.log("  (warning: profile did not activate)");
 }
 
-export async function cmdPersonaOff() {
-  const r = await http.post("/personas/off", {});
+export async function cmdProfileOff() {
+  const r = await http.post("/profiles/off", {});
   if (!r.was) {
-    console.log("no persona was active — nothing to do");
+    console.log("no profile was active — nothing to do");
     return;
   }
-  console.log(`persona "${r.was}" is off — APX is back to vanilla`);
+  console.log(`profile "${r.was}" is off — APX is back to vanilla`);
   if (r.routines?.length) console.log(`  routines disabled (not deleted): ${r.routines.join(", ")}`);
-  console.log("  settings, tasks and memory were kept — `apx persona use` restores them");
+  console.log("  settings, tasks and memory were kept — `apx profile use` restores them");
 }
 
 // ── config ──────────────────────────────────────────────────────────────────
 
-async function interactiveConfig(persona) {
-  const props = persona.schema?.properties || {};
+async function interactiveConfig(profile) {
+  const props = profile.schema?.properties || {};
   const keys = Object.keys(props);
   if (!keys.length) {
-    console.log(`persona "${persona.id}" has no configurable settings`);
+    console.log(`profile "${profile.id}" has no configurable settings`);
     return {};
   }
 
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   const values = {};
   try {
-    console.log(`Configuring ${persona.name}. Press enter to keep the current value.\n`);
+    console.log(`Configuring ${profile.name}. Press enter to keep the current value.\n`);
     for (const key of keys) {
       const def = props[key];
-      const current = persona.config?.[key];
+      const current = profile.config?.[key];
       const hint = def.enum ? ` (${def.enum.join(" | ")})` : def.type ? ` (${def.type})` : "";
       const label = def.title || key;
       const answer = (await rl.question(`${label}${hint} [${current ?? ""}]: `)).trim();
@@ -184,40 +184,40 @@ async function interactiveConfig(persona) {
   return values;
 }
 
-export async function cmdPersonaConfig(args) {
-  const { active } = await http.get("/personas");
-  const id = args?.flags?.persona || active;
+export async function cmdProfileConfig(args) {
+  const { active } = await http.get("/profiles");
+  const id = args?.flags?.profile || active;
   if (!id) {
-    console.error("apx persona config: no persona is active — run: apx persona use <id>");
+    console.error("apx profile config: no profile is active — run: apx profile use <id>");
     process.exit(1);
   }
 
-  const persona = await http.get(`/personas/${encodeURIComponent(id)}?preview=0`);
+  const profile = await http.get(`/profiles/${encodeURIComponent(id)}?preview=0`);
 
   let values = parseSetFlags(args?.flags);
   if (args?.flags?.interactive) {
-    values = { ...values, ...(await interactiveConfig(persona)) };
+    values = { ...values, ...(await interactiveConfig(profile)) };
   }
 
   // No changes asked for → show the current settings.
   if (!Object.keys(values).length) {
-    const props = persona.schema?.properties || {};
-    const keys = Object.keys(persona.config || {});
+    const props = profile.schema?.properties || {};
+    const keys = Object.keys(profile.config || {});
     if (!keys.length) {
-      console.log(`persona "${id}" has no settings`);
+      console.log(`profile "${id}" has no settings`);
       return;
     }
-    console.log(`settings for ${persona.name} (${id}):`);
+    console.log(`settings for ${profile.name} (${id}):`);
     for (const k of keys.sort()) {
       const def = props[k] || {};
       const allowed = def.enum ? `  [${def.enum.join(" | ")}]` : "";
-      console.log(`  ${k.padEnd(24)} ${persona.config[k]}${allowed}`);
+      console.log(`  ${k.padEnd(24)} ${profile.config[k]}${allowed}`);
     }
-    console.log("\nchange one with: apx persona config --set key=value");
+    console.log("\nchange one with: apx profile config --set key=value");
     return;
   }
 
-  const r = await http.patch("/personas/config", { values, id });
+  const r = await http.patch("/profiles/config", { values, id });
   console.log(`updated: ${r.changed.join(", ")}`);
   for (const k of r.changed) console.log(`  ${k.padEnd(24)} ${r.config[k]}`);
 
@@ -230,23 +230,23 @@ export async function cmdPersonaConfig(args) {
 
 // ── doctor / uninstall ──────────────────────────────────────────────────────
 
-export async function cmdPersonaDoctor(args) {
+export async function cmdProfileDoctor(args) {
   const id = args._[0];
   const q = id ? `?id=${encodeURIComponent(id)}` : "";
-  printDoctor(await http.get(`/personas/doctor${q}`));
+  printDoctor(await http.get(`/profiles/doctor${q}`));
 }
 
-export async function cmdPersonaUninstall(args) {
+export async function cmdProfileUninstall(args) {
   const id = args._[0];
   if (!id) fail("uninstall", "missing <id>");
 
-  const r = await http.delete(`/personas/${encodeURIComponent(id)}`);
+  const r = await http.delete(`/profiles/${encodeURIComponent(id)}`);
   console.log(`uninstalled "${r.id}" (${r.source})`);
   if (r.routines?.removed?.length) console.log(`  routines removed: ${r.routines.removed.join(", ")}`);
   if (r.routines?.kept?.length) {
     console.log(`  kept (you edited these): ${r.routines.kept.join(", ")}`);
   }
   if (r.source === "bundled") {
-    console.log("  bundled package hidden — reinstall it any time with: apx persona install " + r.id);
+    console.log("  bundled package hidden — reinstall it any time with: apx profile install " + r.id);
   }
 }

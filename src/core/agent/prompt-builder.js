@@ -23,7 +23,7 @@ import { buildSkillsHintBlock } from "./skills/catalog.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { activeEmotionGuide, buildEmotionGuide } from "../voice/emotions.js";
 import { renderPromptTemplate } from "./render-template.js";
-import { buildPersonaBlock } from "../personas/block.js";
+import { buildProfileBlock } from "../profiles/block.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROMPTS_DIR = path.join(__dirname, "prompts");
@@ -304,12 +304,12 @@ export function buildSuperAgentSystem({
   return [
     roleBlock,
     buildUserContextBlock(identity, globalConfig),
-    // Installed persona, when one is active. "" for vanilla — and an empty
-    // block is filtered out below, so a vanilla prompt is byte-identical to
-    // what it was before personas existed. Sits after identity (the persona
+    // Installed agent profile, when one is active. "" for vanilla — and an
+    // empty block is filtered out below, so a vanilla prompt is byte-identical
+    // to what it was before profiles existed. Sits after identity (the profile
     // needs to know who it serves) and before customInstructions (whatever the
     // owner writes themselves must win on recency).
-    buildPersonaBlock(identity, globalConfig),
+    buildProfileBlock(identity, globalConfig),
     customInstructions,
     memoryBlock || buildSelfMemoryBlock(),
     activeThreadsBlock,

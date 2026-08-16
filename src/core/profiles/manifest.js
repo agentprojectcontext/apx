@@ -1,10 +1,10 @@
-// persona.json + config.schema.json validation.
+// profile.json + config.schema.json validation.
 //
 // The schema support is a deliberate subset — type / enum / default / title /
-// description / required — so a persona package can describe its white-label
+// description / required — so a profile package can describe its white-label
 // variables without APX taking on a JSON Schema dependency. Anything richer
-// belongs in the persona's own logic, not in the manifest.
-import { PERSONA_ID_RE } from "./paths.js";
+// belongs in the profile's own logic, not in the manifest.
+import { PROFILE_ID_RE } from "./paths.js";
 
 const REQUIRED_FIELDS = ["id", "name", "version"];
 const SUPPORTED_TYPES = new Set(["string", "integer", "number", "boolean"]);
@@ -25,7 +25,7 @@ export function compareVersions(a, b) {
 }
 
 /**
- * Validate a persona manifest.
+ * Validate a profile manifest.
  * @returns {{ ok: boolean, errors: string[], warnings: string[] }}
  */
 export function validateManifest(manifest, { apxVersion = null } = {}) {
@@ -33,29 +33,29 @@ export function validateManifest(manifest, { apxVersion = null } = {}) {
   const warnings = [];
 
   if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) {
-    return { ok: false, errors: ["persona.json must be a JSON object"], warnings };
+    return { ok: false, errors: ["profile.json must be a JSON object"], warnings };
   }
 
   for (const field of REQUIRED_FIELDS) {
     if (!manifest[field] || typeof manifest[field] !== "string") {
-      errors.push(`persona.json: "${field}" is required and must be a string`);
+      errors.push(`profile.json: "${field}" is required and must be a string`);
     }
   }
 
-  if (manifest.id && !PERSONA_ID_RE.test(manifest.id)) {
+  if (manifest.id && !PROFILE_ID_RE.test(manifest.id)) {
     errors.push(
-      `persona.json: "id" must be a lowercase slug (a-z, 0-9, dashes) — got "${manifest.id}"`
+      `profile.json: "id" must be a lowercase slug (a-z, 0-9, dashes) — got "${manifest.id}"`
     );
   }
 
   if (manifest.languages != null && !Array.isArray(manifest.languages)) {
-    errors.push('persona.json: "languages" must be an array of language codes');
+    errors.push('profile.json: "languages" must be an array of language codes');
   }
 
   if (manifest.prompt_budget_tokens != null) {
     const n = manifest.prompt_budget_tokens;
     if (!Number.isInteger(n) || n <= 0) {
-      errors.push('persona.json: "prompt_budget_tokens" must be a positive integer');
+      errors.push('profile.json: "prompt_budget_tokens" must be a positive integer');
     }
   }
 
@@ -68,7 +68,7 @@ export function validateManifest(manifest, { apxVersion = null } = {}) {
       );
     } else if (compareVersions(apxVersion, manifest.apx_min_version) < 0) {
       errors.push(
-        `persona "${manifest.id}" needs APX >= ${manifest.apx_min_version}, ` +
+        `profile "${manifest.id}" needs APX >= ${manifest.apx_min_version}, ` +
         `this is ${apxVersion}`
       );
     }
@@ -79,7 +79,7 @@ export function validateManifest(manifest, { apxVersion = null } = {}) {
 
 /**
  * Validate a config.schema.json (the white-label variable declaration).
- * Every property must carry a default — installing a persona and configuring
+ * Every property must carry a default — installing a profile and configuring
  * nothing has to yield a working system, not a questionnaire.
  */
 export function validateConfigSchema(schema) {
@@ -115,7 +115,7 @@ export function validateConfigSchema(schema) {
     }
     if (def.default === undefined) {
       warnings.push(
-        `config.schema.json: property "${key}" has no default — a persona should work ` +
+        `config.schema.json: property "${key}" has no default — a profile should work ` +
         `before the user configures anything`
       );
     } else if (def.enum && !def.enum.includes(def.default)) {
@@ -173,7 +173,7 @@ export function validateConfigValues(schema, values = {}) {
       const known = Object.keys(props);
       errors.push(
         `unknown setting "${key}"` +
-        (known.length ? ` — this persona accepts: ${known.join(", ")}` : "")
+        (known.length ? ` — this profile accepts: ${known.join(", ")}` : "")
       );
       continue;
     }

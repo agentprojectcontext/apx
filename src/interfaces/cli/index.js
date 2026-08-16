@@ -152,15 +152,15 @@ import {
   cmdTaskPatch,
 } from "./commands/task.js";
 import {
-  cmdPersonaList,
-  cmdPersonaShow,
-  cmdPersonaInstall,
-  cmdPersonaUse,
-  cmdPersonaOff,
-  cmdPersonaConfig,
-  cmdPersonaDoctor,
-  cmdPersonaUninstall,
-} from "./commands/persona.js";
+  cmdProfileList,
+  cmdProfileShow,
+  cmdProfileInstall,
+  cmdProfileUse,
+  cmdProfileOff,
+  cmdProfileConfig,
+  cmdProfileDoctor,
+  cmdProfileUninstall,
+} from "./commands/profile.js";
 import {
   cmdOrgShow,
   cmdOrgAreaAdd,
@@ -1617,41 +1617,41 @@ const HELP_TOPICS = new Map(Object.entries({
     examples: ["apx plugins status telegram"],
   }),
 
-  persona: topic({
-    title: "apx persona",
+  profile: topic({
+    title: "apx profile",
     summary:
-      "Install, activate and configure the super-agent's personality. With no persona active, APX behaves exactly as it always has.",
-    usage: ["apx persona <subcommand> [args] [--flags]"],
+      "Install, activate and configure the super-agent's line of work. With no profile active, APX behaves exactly as it always has.",
+    usage: ["apx profile <subcommand> [args] [--flags]"],
     commands: [
-      ["list | ls", "Show every available persona and which one is active."],
-      ["show | get <id>", "Details, settings and token cost of one persona."],
-      ["install | add <id|path>", "Validate and install a persona. Does NOT activate it."],
-      ["use | activate <id>", "Make a persona active and install its routines."],
+      ["list | ls", "Show every available profile and which one is active."],
+      ["show | get <id>", "Details, settings and token cost of one profile."],
+      ["install | add <id|path>", "Validate and install a profile. Does NOT activate it."],
+      ["use | activate <id>", "Make a profile active and install its routines."],
       ["off | deactivate", "Go back to vanilla. Disables its routines, deletes nothing."],
-      ["config", "Show or change the active persona's settings."],
-      ["doctor [<id>]", "What is missing for this persona to do its job."],
-      ["uninstall | remove <id>", "Remove a persona, keeping anything you edited."],
+      ["config", "Show or change the active profile's settings."],
+      ["doctor [<id>]", "What is missing for this profile to do its job."],
+      ["uninstall | remove <id>", "Remove a profile, keeping anything you edited."],
     ],
     options: [
       ["--preview", "show: also print the rendered prompt block."],
       ["--set <key=value>", "config: set one setting. Repeatable."],
       ["--interactive", "config: walk through every setting."],
-      ["--force", "install: overwrite. use: replace the active persona."],
+      ["--force", "install: overwrite. use: replace the active profile."],
     ],
     examples: [
-      "apx persona list",
-      "apx persona install secretary",
-      "apx persona use secretary",
-      "apx persona config --set day_open_at=08:30 --set nudge_budget_per_day=3",
-      "apx persona show secretary --preview",
-      "apx persona off",
+      "apx profile list",
+      "apx profile install secretary",
+      "apx profile use secretary",
+      "apx profile config --set day_open_at=08:30 --set nudge_budget_per_day=3",
+      "apx profile show secretary --preview",
+      "apx profile off",
     ],
   }),
-  personas: topic({
-    title: "apx personas",
-    summary: "Alias for apx persona.",
-    usage: ["apx personas <subcommand>"],
-    examples: ["apx personas list"],
+  profiles: topic({
+    title: "apx profiles",
+    summary: "Alias for apx profile.",
+    usage: ["apx profiles <subcommand>"],
+    examples: ["apx profiles list"],
   }),
   task: topic({
     title: "apx task",
@@ -2799,19 +2799,19 @@ async function dispatch(cmd, rest) {
         break;
       }
 
-      case "persona":
-      case "personas": {
+      case "profile":
+      case "profiles": {
         const sub = rest[0];
         const a = parseArgs(rest.slice(1));
-        if (!sub || sub === "list" || sub === "ls") await cmdPersonaList(a);
-        else if (sub === "show" || sub === "get") await cmdPersonaShow(a);
-        else if (sub === "install" || sub === "add") await cmdPersonaInstall(a);
-        else if (sub === "use" || sub === "activate") await cmdPersonaUse(a);
-        else if (sub === "off" || sub === "deactivate") await cmdPersonaOff(a);
-        else if (sub === "config") await cmdPersonaConfig(a);
-        else if (sub === "doctor") await cmdPersonaDoctor(a);
-        else if (sub === "uninstall" || sub === "remove" || sub === "rm") await cmdPersonaUninstall(a);
-        else die(`unknown persona subcommand: ${sub}\nUsage: apx persona <list|show|install|use|off|config|doctor|uninstall>`);
+        if (!sub || sub === "list" || sub === "ls") await cmdProfileList(a);
+        else if (sub === "show" || sub === "get") await cmdProfileShow(a);
+        else if (sub === "install" || sub === "add") await cmdProfileInstall(a);
+        else if (sub === "use" || sub === "activate") await cmdProfileUse(a);
+        else if (sub === "off" || sub === "deactivate") await cmdProfileOff(a);
+        else if (sub === "config") await cmdProfileConfig(a);
+        else if (sub === "doctor") await cmdProfileDoctor(a);
+        else if (sub === "uninstall" || sub === "remove" || sub === "rm") await cmdProfileUninstall(a);
+        else die(`unknown profile subcommand: ${sub}\nUsage: apx profile <list|show|install|use|off|config|doctor|uninstall>`);
         break;
       }
 
