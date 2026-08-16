@@ -1,3 +1,10 @@
+# [1.76.0](https://github.com/agentprojectcontext/apx/compare/v1.75.0...v1.76.0) (2026-08-16)
+
+
+### Features
+
+* **tasks:** cross-project view in core, and fix apx task list ([#40](https://github.com/agentprojectcontext/apx/issues/40)) ([d454f61](https://github.com/agentprojectcontext/apx/commit/d454f61861276089eb2ebc2af57dba5d128e0dad))
+
 # [1.75.0](https://github.com/agentprojectcontext/apx/compare/v1.74.2...v1.75.0) (2026-08-16)
 
 
