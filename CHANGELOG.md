@@ -1,3 +1,10 @@
+## [1.74.2](https://github.com/agentprojectcontext/apx/compare/v1.74.1...v1.74.2) (2026-08-16)
+
+
+### Bug Fixes
+
+* **routines:** give every routine a stable id so per-routine memory works ([#38](https://github.com/agentprojectcontext/apx/issues/38)) ([4e17068](https://github.com/agentprojectcontext/apx/commit/4e17068473a5f089bfdcdde8ca602dbf13b859a5))
+
 ## [1.74.1](https://github.com/agentprojectcontext/apx/compare/v1.74.0...v1.74.1) (2026-08-11)
 
 
