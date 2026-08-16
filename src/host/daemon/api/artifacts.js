@@ -89,14 +89,14 @@ function runArtifact({ absPath, cwd, args, timeoutMs = RUN_TIMEOUT_MS }) {
   });
 }
 
-export function register(app, { project }) {
-  app.get("/projects/:pid/artifacts", (req, res) => {
+export function register(api, { project }) {
+  api.get("/projects/:pid/artifacts", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     res.json(listArtifacts(p.storagePath));
   });
 
-  app.post("/projects/:pid/artifacts", (req, res) => {
+  api.post("/projects/:pid/artifacts", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const { name, content = "" } = req.body || {};
@@ -109,7 +109,7 @@ export function register(app, { project }) {
     }
   });
 
-  app.get("/projects/:pid/artifacts/:name", (req, res) => {
+  api.get("/projects/:pid/artifacts/:name", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     try {
@@ -119,7 +119,7 @@ export function register(app, { project }) {
     }
   });
 
-  app.patch("/projects/:pid/artifacts/:name", (req, res) => {
+  api.patch("/projects/:pid/artifacts/:name", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const name = decodeURIComponent(req.params.name);
@@ -144,7 +144,7 @@ export function register(app, { project }) {
     }
   });
 
-  app.delete("/projects/:pid/artifacts/:name", (req, res) => {
+  api.delete("/projects/:pid/artifacts/:name", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const ok = removeArtifact(
@@ -158,7 +158,7 @@ export function register(app, { project }) {
   // its own local spawn (stdio inherited) so it can run interactively. Output
   // is captured up to MAX_CAPTURE_BYTES and the call is bounded by
   // RUN_TIMEOUT_MS — anything longer should go through the terminal.
-  app.post("/projects/:pid/artifacts/:name/run", async (req, res) => {
+  api.post("/projects/:pid/artifacts/:name/run", async (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const name = decodeURIComponent(req.params.name);

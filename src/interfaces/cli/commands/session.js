@@ -576,7 +576,7 @@ async function summarizeSession(meta, args) {
   if (meta.engine === "apx") {
     const pid = await resolveProjectId(args?.flags?.project);
     const r = await http.get(
-      `/projects/${pid}/sessions/${meta.id}/resume?summarize=true`
+      `/api/projects/${pid}/sessions/${meta.id}/resume?summarize=true`
     );
     return r.summary || null;
   }
@@ -678,7 +678,7 @@ async function mapReduceSession(meta, { mapInstruction, reduceInstruction, oneSh
       : MR_MAX_CHUNKS;
 
   if (text.length <= MR_CHUNK_BYTES) {
-    const r = await http.post(`/super-agent/summarize`, {
+    const r = await http.post(`/api/super-agent/summarize`, {
       prompt: `${oneShot(text)}`,
       context_note: `${note} (one-shot) ${meta.engine}:${meta.id}`,
       max_tokens: MR_MAX_OUTPUT_TOKENS,
@@ -692,7 +692,7 @@ async function mapReduceSession(meta, { mapInstruction, reduceInstruction, oneSh
 
   const notes = [];
   for (let i = 0; i < chunks.length; i++) {
-    const r = await http.post(`/super-agent/summarize`, {
+    const r = await http.post(`/api/super-agent/summarize`, {
       prompt: mapInstruction(chunks[i], i + 1, chunks.length),
       context_note: `${note} map ${i + 1}/${chunks.length} ${meta.engine}:${meta.id}`,
       max_tokens: MR_MAX_OUTPUT_TOKENS,
@@ -705,7 +705,7 @@ async function mapReduceSession(meta, { mapInstruction, reduceInstruction, oneSh
     return { text: "(no relevant content found in the transcript)", chunks: chunks.length, truncated };
   }
 
-  const r = await http.post(`/super-agent/summarize`, {
+  const r = await http.post(`/api/super-agent/summarize`, {
     prompt: reduceInstruction(notes),
     context_note: `${note} reduce ${meta.engine}:${meta.id}`,
     max_tokens: MR_MAX_OUTPUT_TOKENS,
@@ -870,8 +870,8 @@ export async function cmdSessionCompact(args) {
   const pid = await resolveProjectId(args?.flags?.project);
 
   const url = convId
-    ? `/projects/${pid}/agents/${slug}/conversations/${convId}/compact`
-    : `/projects/${pid}/agents/${slug}/compact`;
+    ? `/api/projects/${pid}/agents/${slug}/conversations/${convId}/compact`
+    : `/api/projects/${pid}/agents/${slug}/compact`;
 
   const body = model ? { model } : {};
 

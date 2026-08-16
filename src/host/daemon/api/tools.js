@@ -11,11 +11,11 @@ import { buildRegistryRouter } from "#core/http-tools/registry.js";
 import { buildGlobRouter } from "#core/http-tools/glob.js";
 import { buildGrepRouter } from "#core/http-tools/grep.js";
 
-export function register(app, { express, projects, registries }) {
-  app.use("/tools/fetch", buildFetchRouter(express));
-  app.use("/tools/browser", buildBrowserRouter(express));
-  app.use("/tools/search", buildSearchRouter(express));
-  app.use("/tools/glob", buildGlobRouter(express));
-  app.use("/tools/grep", buildGrepRouter(express));
-  app.use("/tools", buildRegistryRouter(express, { projects, registries }));
+export function register(api, { express, projects, registries }) {
+  api.use("/tools/fetch", buildFetchRouter(express));
+  api.use("/tools/browser", buildBrowserRouter(express));
+  api.use("/tools/search", buildSearchRouter(express));
+  api.use("/tools/glob", buildGlobRouter(express));
+  api.use("/tools/grep", buildGrepRouter(express));
+  api.use("/tools", buildRegistryRouter(express, { projects, registries }));
 }

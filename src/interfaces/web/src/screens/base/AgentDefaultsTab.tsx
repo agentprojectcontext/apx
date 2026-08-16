@@ -21,7 +21,7 @@ type VaultAgent = AgentEntry & { source?: "bundled" | "user" | "user-override" }
 export function AgentDefaultsTab() {
   const toast = useToast();
   const [showRemoved, setShowRemoved] = useState(false);
-  const swrKey = showRemoved ? "/agents/vault?include_removed=1" : "/agents/vault";
+  const swrKey = showRemoved ? "/api/agents/vault?include_removed=1" : "/api/agents/vault";
   const vault = useSWR(swrKey, () => Agents.vault({ includeRemoved: showRemoved }));
   const items = (vault.data || []) as VaultAgent[];
 

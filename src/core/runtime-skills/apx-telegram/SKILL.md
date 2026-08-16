@@ -71,17 +71,17 @@ apx telegram send "text" --chat 123456789
 apx telegram send "text" --interrupt            # bypass pending-agent queue (also: --force)
 
 # Media (daemon HTTP API — no dedicated CLI subcommand yet)
-curl -X POST http://127.0.0.1:7430/telegram/send_photo \
+curl -X POST http://127.0.0.1:7430/api/telegram/send_photo \
   -H "Authorization: Bearer $(cat ~/.apx/daemon.token)" \
   -H "Content-Type: application/json" \
   -d '{"photo":"/abs/path.png","caption":"...","channel":"clientes"}'
-curl -X POST http://127.0.0.1:7430/telegram/send_voice \
+curl -X POST http://127.0.0.1:7430/api/telegram/send_voice \
   -H "Authorization: Bearer $(cat ~/.apx/daemon.token)" \
   -H "Content-Type: application/json" \
   -d '{"audio":"/abs/path.ogg","duration":5,"channel":"default"}'
 ```
 
-Every `channel` CRUD write triggers `POST /admin/reload` so polling picks up the new wiring without restart.
+Every `channel` CRUD write triggers `POST /api/admin/reload` so polling picks up the new wiring without restart.
 
 ## What "pin to project" does
 
@@ -92,7 +92,7 @@ On a message to a channel with `project: "iacrmar"`:
 
 ## What "master agent" does
 
-With `route_to_agent: "reviewer"`, messages go through `/projects/:pid/agents/reviewer/chat` instead of `/super-agent/chat`. The agent's `AGENT.md` + memory is used. No tools (project agents are `exec_agent`-shaped — text in, text out). Single LLM call. Use this for persona channels (reviewer, sales, support) instead of the general assistant. Empty = super-agent (default).
+With `route_to_agent: "reviewer"`, messages go through `/api/projects/:pid/agents/reviewer/chat` instead of `/api/super-agent/chat`. The agent's `AGENT.md` + memory is used. No tools (project agents are `exec_agent`-shaped — text in, text out). Single LLM call. Use this for persona channels (reviewer, sales, support) instead of the general assistant. Empty = super-agent (default).
 
 ## Anti-examples
 

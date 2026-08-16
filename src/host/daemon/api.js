@@ -1,9 +1,18 @@
 // Express REST API for APX. See APC docs reference/apx-daemon.
 //
 // Routes are split by domain under ./api/*.js — each module exports
-// `register(app, ctx)`. This file is purely orchestration: middlewares,
+// `register(router, ctx)`. This file is purely orchestration: middlewares,
 // context construction, mount order, 404 catch-all.
+//
+// EVERY data route lives under /api. Domain modules still declare their paths
+// root-relative (`/projects/:pid/tasks`); they register on an express.Router()
+// that is mounted at API_PREFIX, so the effective URL is /api/projects/:pid/
+// tasks. The root namespace belongs exclusively to the admin panel (static
+// bundle + client-side routes), which is why the "is this an API path?" test
+// is now a single startsWith instead of a hand-maintained prefix list.
 import express from "express";
+
+import { API_PREFIX } from "./api/prefix.js";
 
 import {
   traceIdMiddleware,
@@ -53,7 +62,7 @@ import { register as registerAdminConfig } from "./api/admin-config.js";
 import { register as registerIdentity } from "./api/identity.js";
 import { register as registerProfiles } from "./api/profiles.js";
 import { register as registerInbox } from "./api/inbox.js";
-import { register as registerWeb } from "./api/web.js";
+import { register as registerWeb, registerWebToken } from "./api/web.js";
 import { register as registerConfirm } from "./api/confirm.js";
 
 export function buildApi({
@@ -70,6 +79,9 @@ export function buildApi({
 }) {
   const telegram = plugins?.get("telegram");
   const app = express();
+  // Every domain module registers on this router; it is mounted at /api at the
+  // bottom of this function. Modules keep declaring root-relative paths.
+  const api = express.Router();
 
   // ---- Global middleware -------------------------------------------
   app.use(express.json({ limit: "2mb" }));
@@ -103,62 +115,71 @@ export function buildApi({
   };
 
   // ---- Tool routers — must mount BEFORE wildcard registry below ----
-  registerTools(app, ctx);
+  registerTools(api, ctx);
 
   // ---- Health (unauthenticated) ------------------------------------
-  registerHealth(app, ctx);
+  registerHealth(api, ctx);
 
   // ---- Projects + per-project surfaces -----------------------------
-  registerProjects(app, ctx);
-  registerAgents(app, ctx);
-  registerSessions(app, ctx);
-  registerMcps(app, ctx);
-  registerIntegrations(app, ctx);
-  registerVars(app, ctx);
-  registerMessages(app, ctx);
-  registerEngines(app, ctx);
-  registerSkills(app, ctx);
-  registerExec(app, ctx);
-  registerSuperAgent(app, ctx);
-  registerConfirm(app, ctx);
-  registerCode(app, ctx);
-  registerConversations(app, ctx);
-  registerConnections(app, ctx);
-  registerRuntimes(app, ctx);
-  registerRoutines(app, ctx);
-  registerArtifacts(app, ctx);
-  registerArtifactPreview(app, ctx);
-  registerTasks(app, ctx);
-  registerOrganization(app, ctx);
-  registerProjectFiles(app, ctx);
-  registerConfig(app, ctx);
+  registerProjects(api, ctx);
+  registerAgents(api, ctx);
+  registerSessions(api, ctx);
+  registerMcps(api, ctx);
+  registerIntegrations(api, ctx);
+  registerVars(api, ctx);
+  registerMessages(api, ctx);
+  registerEngines(api, ctx);
+  registerSkills(api, ctx);
+  registerExec(api, ctx);
+  registerSuperAgent(api, ctx);
+  registerConfirm(api, ctx);
+  registerCode(api, ctx);
+  registerConversations(api, ctx);
+  registerConnections(api, ctx);
+  registerRuntimes(api, ctx);
+  registerRoutines(api, ctx);
+  registerArtifacts(api, ctx);
+  registerArtifactPreview(api, ctx);
+  registerTasks(api, ctx);
+  registerOrganization(api, ctx);
+  registerProjectFiles(api, ctx);
+  registerConfig(api, ctx);
 
   // ---- Top-level shortcuts (MCP server clients) --------------------
-  registerRun(app, ctx);
-  registerTopLevel(app, ctx);
-  registerSessionsSearch(app, ctx);
+  registerRun(api, ctx);
+  registerTopLevel(api, ctx);
+  registerSessionsSearch(api, ctx);
 
   // ---- Channels & plugin surfaces ----------------------------------
-  registerTelegram(app, ctx);
-  registerPlugins(app, ctx);
-  registerTranscribe(app, ctx);
-  registerTts(app, ctx);
-  registerEmbeddings(app, ctx);
-  registerVoice(app, ctx);
-  registerDesktop(app, ctx);
-  registerDeck(app, ctx);
-  registerPairing(app, ctx);
+  registerTelegram(api, ctx);
+  registerPlugins(api, ctx);
+  registerTranscribe(api, ctx);
+  registerTts(api, ctx);
+  registerEmbeddings(api, ctx);
+  registerVoice(api, ctx);
+  registerDesktop(api, ctx);
+  registerDeck(api, ctx);
+  registerPairing(api, ctx);
 
   // ---- Admin -------------------------------------------------------
-  registerAdmin(app, ctx);
-  registerAdminConfig(app, ctx);
-  registerIdentity(app, ctx);
-  registerProfiles(app, ctx);
-  registerInbox(app, ctx);
+  registerAdmin(api, ctx);
+  registerAdminConfig(api, ctx);
+  registerIdentity(api, ctx);
+  registerProfiles(api, ctx);
+  registerInbox(api, ctx);
+  registerWebToken(api, ctx);
 
-  // ---- Web admin panel (static SPA, must mount before 404) ---------
-  // Serves src/interfaces/web/dist when present + the /admin/web-token
-  // localhost-only token endpoint. No-op until the panel is built.
+  // ---- API 404 (MUST be last on the router) ------------------------
+  // Terminal for the /api namespace: an unknown /api/* path answers JSON here
+  // instead of falling through to the SPA shell below.
+  api.use((req, res) =>
+    res.status(404).json({ error: `no route ${req.method} ${req.baseUrl}${req.path}` })
+  );
+
+  app.use(API_PREFIX, api);
+
+  // ---- Web admin panel (static SPA, must mount after /api) ---------
+  // Serves src/interfaces/web/dist when present. No-op until the panel is built.
   registerWeb(app, ctx);
 
   // ---- 404 catch-all (MUST be last) --------------------------------

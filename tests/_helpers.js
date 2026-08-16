@@ -59,3 +59,17 @@ export function makeTempProject({ name = "tmp", agents = [], skills = [], mcps =
 export function cleanupTempProject(root) {
   try { fs.rmSync(root, { recursive: true, force: true }); } catch {}
 }
+
+// Router mounted at /api, matching what buildApi does in production. Tests that
+// register a route module straight onto a bare express app would otherwise
+// serve it at the root and silently stop matching real URLs.
+//
+//   register(apiRouter(express, app), ctx)   // routes land under /api/…
+//
+// Express routers are mutable after mounting, so returning the router before
+// the module registers on it is fine.
+export function apiRouter(express, app) {
+  const router = express.Router();
+  app.use("/api", router);
+  return router;
+}

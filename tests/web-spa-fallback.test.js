@@ -11,14 +11,14 @@ import { isApiPath, isKnownSpaRoute } from "#host/daemon/api/web.js";
 // in src/interfaces/web/src/App.tsx respectively.
 
 test("isApiPath matches API prefixes and their subpaths", () => {
-  for (const p of ["/health", "/projects", "/admin/web-token", "/sessions/1", "/mcp"]) {
+  for (const p of ["/api/health", "/api/projects", "/api/admin/web-token", "/api/sessions/1", "/api/mcp"]) {
     assert.equal(isApiPath(p), true, `${p} should be an API path`);
   }
 });
 
 test("isApiPath does not match SPA or unknown paths", () => {
   // /settings is a SPA route, not an API one — must NOT be treated as API even
-  // though "/sessions" shares no prefix with it.
+  // though "/api/sessions" shares no prefix with it.
   for (const p of ["/", "/settings", "/settingsasdas", "/p/0/tasks", "/healthz"]) {
     assert.equal(isApiPath(p), false, `${p} should not be an API path`);
   }

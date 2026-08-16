@@ -11,6 +11,7 @@ import { agentMemoryPath } from "#core/agent/memory.js";
 import { apcMemoryFile } from "#core/apc/paths.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { isKnownSpaRoute } from "./web.js";
+import { apiPath, isApiPath } from "./prefix.js";
 
 export const nowIso = () =>
   new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -46,12 +47,19 @@ export function traceIdMiddleware(req, res, next) {
   next();
 }
 
-// Paths that bypass auth: /health for liveness probes, /pair/* so a fresh
-// client can bootstrap a token without already having one, and
-// /admin/web-token so the local same-origin admin panel can self-bootstrap.
-// /pair/init and /admin/web-token both enforce localhost-only checks of
+// Paths that bypass auth: /api/health for liveness probes, /api/pair/* so a
+// fresh client can bootstrap a token without already having one, and
+// /api/admin/web-token so the local same-origin admin panel can self-bootstrap.
+// /api/pair/init and /api/admin/web-token both enforce localhost-only checks of
 // their own — the auth middleware just gets out of their way.
-const UNAUTHENTICATED_PREFIXES = ["/health", "/pair/", "/admin/web-token"];
+//
+// These are full paths: the middleware runs at app level (before the /api
+// router), so req.path is the complete URL path.
+const UNAUTHENTICATED_PREFIXES = [
+  apiPath("/health"),
+  apiPath("/pair/"),
+  apiPath("/admin/web-token"),
+];
 
 // Does this path look like a static asset (has a file extension)? Vite emits
 // hashed, extension-bearing filenames (index-abc123.js, logo.svg, font.woff2),
@@ -62,18 +70,19 @@ function isStaticAssetPath(p) {
 }
 
 function isUnauthenticatedPath(p, method = "GET") {
-  if (p === "/health") return true;
-  if (p === "/admin/web-token") return true;
   for (const prefix of UNAUTHENTICATED_PREFIXES) {
     if (p === prefix.replace(/\/$/, "") || p.startsWith(prefix)) return true;
   }
+  // Everything else under /api needs a token, full stop. Checked BEFORE the
+  // SPA-bootstrap exemption below, which would otherwise let a data route pass
+  // simply because its last segment happens to carry a file extension —
+  // GET /api/projects/0/artifacts/report.html is a data route, not an asset.
+  if (isApiPath(p)) return false;
   // SPA bootstrap: the admin bundle loads before it holds a bearer, so a GET
   // for a static asset or a known client-router route is served without auth —
-  // the bundle then fetches /admin/web-token. Everything else, including every
-  // data GET (/skills, /plugins, /embeddings, …), REQUIRES a token. This is an
-  // allowlist by construction: a new data route can never silently become
-  // public just because someone forgot to register its prefix (the old
-  // denylist failure mode).
+  // the bundle then fetches /api/admin/web-token. Since every data route now
+  // lives under /api and returned false above, this exemption can only ever
+  // reach panel assets and client-router paths.
   if (method === "GET" && (isStaticAssetPath(p) || isKnownSpaRoute(p))) return true;
   return false;
 }

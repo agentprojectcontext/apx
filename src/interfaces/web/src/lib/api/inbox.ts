@@ -21,6 +21,6 @@ export interface InboxRow {
 export const Inbox = {
   list: (includeEmpty = false) =>
     http
-      .get<unknown>(`/inbox${includeEmpty ? "?include_empty=1" : ""}`)
+      .get<unknown>(`/api/inbox${includeEmpty ? "?include_empty=1" : ""}`)
       .then((b) => unwrapPage<InboxRow>(b).items),
 };

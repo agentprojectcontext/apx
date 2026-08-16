@@ -1,6 +1,6 @@
 // APX Deck manifest — the data model the companion clients (deck, desktop
 // capsule) read on boot. Pure data + decoration; no HTTP or filesystem.
-// host/daemon/api/deck.js wraps this for the /deck/manifest endpoint.
+// host/daemon/api/deck.js wraps this for the /api/deck/manifest endpoint.
 
 export const CORE_WIDGETS = [
   {
@@ -75,19 +75,19 @@ export const SAFE_ACTIONS = [
     id: "apx.copy_context",
     title: "Copiar contexto APX",
     risk: "safe",
-    endpoint: "/projects/:pid/agents",
+    endpoint: "/api/projects/:pid/agents",
   },
   {
     id: "apx.voice_turn",
     title: "Hablar con APX",
     risk: "safe",
-    endpoint: "/voice/turn",
+    endpoint: "/api/voice/turn",
   },
   {
     id: "apx.super_agent",
     title: "Pedir acción a APX",
     risk: "confirm",
-    endpoint: "/projects/:pid/super-agent/chat",
+    endpoint: "/api/projects/:pid/super-agent/chat",
   },
 ];
 
@@ -131,7 +131,7 @@ export function decorateExternalWidgets(pluginStatus = {}, overrides = {}) {
 }
 
 /**
- * Build the full /deck/manifest response body.
+ * Build the full /api/deck/manifest response body.
  *
  * Inputs are *resolved* runtime values, not the live managers — caller is
  * responsible for catching errors in projects.list()/plugins.status() and
@@ -167,13 +167,13 @@ export function buildDeckManifest({
       projects: projectList,
       plugins: pluginStatus,
       endpoints: {
-        health: "/health",
-        projects: "/projects",
-        plugins: "/plugins",
-        voice_turn: "/voice/turn",
-        transcribe_chunk: "/transcribe/chunk",
-        super_agent_chat: "/projects/:pid/super-agent/chat",
-        super_agent_stream: "/projects/:pid/super-agent/chat/stream",
+        health: "/api/health",
+        projects: "/api/projects",
+        plugins: "/api/plugins",
+        voice_turn: "/api/voice/turn",
+        transcribe_chunk: "/api/transcribe/chunk",
+        super_agent_chat: "/api/projects/:pid/super-agent/chat",
+        super_agent_stream: "/api/projects/:pid/super-agent/chat/stream",
       },
     },
     safety: {

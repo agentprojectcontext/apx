@@ -108,7 +108,7 @@ export async function cmdTaskAdd(args) {
     source: args.flags?.source || "cli",
     tags: asArray(args.flags?.tag).filter(Boolean),
   };
-  const task = await http.post(`/projects/${pid}/tasks`, body);
+  const task = await http.post(`/api/projects/${pid}/tasks`, body);
   console.log(`added task ${task.id}: ${task.title}`);
 }
 
@@ -137,8 +137,8 @@ export async function cmdTaskList(args) {
   // project it came from. Without it, behaviour is exactly as before.
   const all = !!args.flags?.all;
   const path = all
-    ? `/tasks${qs ? "?" + qs : ""}`
-    : `/projects/${await resolveProjectId(args?.flags?.project)}/tasks${qs ? "?" + qs : ""}`;
+    ? `/api/tasks${qs ? "?" + qs : ""}`
+    : `/api/projects/${await resolveProjectId(args?.flags?.project)}/tasks${qs ? "?" + qs : ""}`;
 
   const { rows, meta } = unwrap(await http.get(path));
   renderTable(rows, { showProject: all });
@@ -154,7 +154,7 @@ export async function cmdTaskShow(args) {
   const id = (args._ || [])[0];
   if (!id) return fail("show", "id required");
   const pid = await resolveProjectId(args?.flags?.project);
-  const t = await http.get(`/projects/${pid}/tasks/${encodeURIComponent(id)}`);
+  const t = await http.get(`/api/projects/${pid}/tasks/${encodeURIComponent(id)}`);
   renderDetail(t);
 }
 
@@ -164,7 +164,7 @@ export async function cmdTaskDone(args) {
   if (!id) return fail("done", "id required");
   const pid = await resolveProjectId(args?.flags?.project);
   const t = await http.post(
-    `/projects/${pid}/tasks/${encodeURIComponent(id)}/done`,
+    `/api/projects/${pid}/tasks/${encodeURIComponent(id)}/done`,
     { by: args.flags?.by || null }
   );
   console.log(`done: ${t.id} — ${t.title}`);
@@ -176,7 +176,7 @@ export async function cmdTaskDrop(args) {
   if (!id) return fail("drop", "id required");
   const pid = await resolveProjectId(args?.flags?.project);
   const t = await http.post(
-    `/projects/${pid}/tasks/${encodeURIComponent(id)}/drop`,
+    `/api/projects/${pid}/tasks/${encodeURIComponent(id)}/drop`,
     { by: args.flags?.by || null }
   );
   console.log(`dropped: ${t.id} — ${t.title}`);
@@ -187,7 +187,7 @@ export async function cmdTaskReopen(args) {
   const id = (args._ || [])[0];
   if (!id) return fail("reopen", "id required");
   const pid = await resolveProjectId(args?.flags?.project);
-  const t = await http.post(`/projects/${pid}/tasks/${encodeURIComponent(id)}/reopen`);
+  const t = await http.post(`/api/projects/${pid}/tasks/${encodeURIComponent(id)}/reopen`);
   console.log(`reopened: ${t.id} — ${t.title}`);
 }
 
@@ -205,6 +205,6 @@ export async function cmdTaskPatch(args) {
   if (Object.keys(patch).length === 0) {
     return fail("patch", "at least one --title|--body|--due|--agent|--tag required");
   }
-  const t = await http.patch(`/projects/${pid}/tasks/${encodeURIComponent(id)}`, { patch });
+  const t = await http.patch(`/api/projects/${pid}/tasks/${encodeURIComponent(id)}`, { patch });
   renderDetail(t);
 }

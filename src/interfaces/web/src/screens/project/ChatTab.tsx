@@ -23,7 +23,7 @@ const ROBY_SLUG = "__super_agent__";
 export function ChatTab({ pid }: { pid: string }) {
   const toast = useToast();
   const [params, setSearchParams] = useSearchParams();
-  const agents = useSWR(`/projects/${pid}/agents`, () => Agents.list(pid));
+  const agents = useSWR(`/api/projects/${pid}/agents`, () => Agents.list(pid));
   const [creating, setCreating] = useState(false);
   const [model, setModel] = useState("");
   const [dismissedAskKey, setDismissedAskKey] = useState<string | null>(null);
@@ -147,10 +147,10 @@ export function ChatTab({ pid }: { pid: string }) {
     try {
       if (selected.kind === "conv") {
         await Conversations.remove(pid, selected.agentSlug, selected.convId);
-        void mutate(`/projects/${pid}/agents/${selected.agentSlug}/conversations`);
+        void mutate(`/api/projects/${pid}/agents/${selected.agentSlug}/conversations`);
       } else if (selected.kind === "thread") {
         await Conversations.removeThread(pid, selected.channel, selected.threadId);
-        void mutate(`/projects/${pid}/super-agent/threads`);
+        void mutate(`/api/projects/${pid}/super-agent/threads`);
       }
       toast.success(t("project.chat.deleted"));
       setConfirmDelete(false);

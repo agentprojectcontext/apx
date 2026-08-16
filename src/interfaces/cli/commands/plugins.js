@@ -1,7 +1,7 @@
 import { http } from "../http.js";
 
 export async function cmdPluginsList() {
-  const data = await http.get("/plugins");
+  const data = await http.get("/api/plugins");
   const ids = Object.keys(data);
   if (ids.length === 0) {
     console.log("(no plugins loaded)");
@@ -18,6 +18,6 @@ export async function cmdPluginsList() {
 export async function cmdPluginStatus(args) {
   const id = args._[0];
   if (!id) throw new Error("apx plugins status: missing <plugin-id>");
-  const s = await http.get(`/plugins/${id}/status`);
+  const s = await http.get(`/api/plugins/${id}/status`);
   console.log(JSON.stringify(s, null, 2));
 }

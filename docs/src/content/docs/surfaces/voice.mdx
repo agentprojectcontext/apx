@@ -285,7 +285,7 @@ the capability on/off per engine without opening the full configure dialog.
 
 ## The unified voice turn endpoint
 
-`POST /voice/turn` is a single bidirectional round-trip:
+`POST /api/voice/turn` is a single bidirectional round-trip:
 
 1. STT — transcribes incoming audio (or accepts `text` directly, skipping STT).
 2. Agent — runs the super-agent on the transcribed text.
@@ -353,9 +353,9 @@ installs Whisper packages into the user-site.
 STT resolves the effective transcription language with this priority: an
 explicit `transcription.local.language`, else `config.user.language`, else
 `"auto"` (Whisper auto-detects). The Desktop capture path used to always send
-an `auto` language header to `/transcribe/chunk`, which overrode your
+an `auto` language header to `/api/transcribe/chunk`, which overrode your
 configured language and hurt accuracy on short clips and proper nouns.
-`/transcribe/chunk` now only overrides the resolved language when the caller
+`/api/transcribe/chunk` now only overrides the resolved language when the caller
 pins a real one (not `"auto"`) — so your configured language always stands
 unless you explicitly ask for auto-detection.
 

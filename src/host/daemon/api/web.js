@@ -2,9 +2,10 @@
 //
 // The web bundle is built into src/interfaces/web/dist. When that folder
 // exists, this module mounts it at `/` so users can open
-// http://127.0.0.1:7430 and get the UI. SPA fallback: anything that isn't an
-// /api/* / /projects/* / etc. route falls through to index.html so React
-// Router can resolve client-side paths like /p/1/tasks.
+// http://127.0.0.1:7430 and get the UI. The root namespace belongs to the
+// panel alone — every data route lives under /api (see ./prefix.js) — so the
+// SPA fallback only has to step aside for that single prefix instead of a
+// hand-maintained list that drifts away from the route registry.
 //
 // During development the user runs `vite dev` on :7431 with proxy → :7430,
 // so this mount is a no-op (dist/ doesn't exist yet).
@@ -12,28 +13,16 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { isApiPath } from "./prefix.js";
+
+// Re-exported so the SPA/API seam keeps a single import site for callers that
+// reason about "which side of the seam is this path on?" (tests, auth).
+export { isApiPath };
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 // host/daemon/api/web.js → ../../..  = src/   then interfaces/web/dist
 const WEB_DIST = path.resolve(__dirname, "..", "..", "..", "interfaces", "web", "dist");
-
-// Paths the panel is NOT allowed to swallow with its SPA fallback. These are
-// the real API surfaces; we keep the list flat so it doesn't drift away from
-// the actual route registry.
-const API_PREFIXES = [
-  "/health", "/admin", "/projects", "/telegram", "/engines", "/runtimes",
-  "/messages", "/sessions", "/tools", "/mcp", "/voice", "/tts", "/desktop", "/overlay",
-  "/transcribe", "/run", "/files", "/memory", "/env", "/pair", "/deck",
-  "/super-agent", "/identity", "/skills", "/profiles", "/inbox",
-  "/tasks", "/agents", "/plugins", "/previews", "/embeddings",
-];
-
-export function isApiPath(p) {
-  for (const prefix of API_PREFIXES) {
-    if (p === prefix || p.startsWith(prefix + "/")) return true;
-  }
-  return false;
-}
 
 // Client-side routes the SPA actually knows how to render. Must mirror the
 // <Routes> registry in src/interfaces/web/src/App.tsx. Anything else still
@@ -51,15 +40,18 @@ export function isKnownSpaRoute(p) {
   return SPA_ROUTES.some((re) => re.test(p));
 }
 
-export function register(app, { express, token }) {
-  // /admin/web-token: localhost-only endpoint that returns the daemon token
-  // so the same-origin admin panel can authenticate every subsequent call.
-  // Refuses if the request didn't come from loopback. Also refuses if the
-  // request was tunneled in via Cloudflare/ngrok/etc. — those connect from
-  // a local agent so the socket IP IS loopback, but tunnel-specific headers
-  // give them away. When tunneled, the SPA must instead receive the token
-  // via URL fragment (#token=…) that the operator shares out-of-band.
-  app.get("/admin/web-token", (req, res) => {
+// /api/admin/web-token: localhost-only endpoint that returns the daemon token
+// so the same-origin admin panel can authenticate every subsequent call.
+// Refuses if the request didn't come from loopback. Also refuses if the
+// request was tunneled in via Cloudflare/ngrok/etc. — those connect from
+// a local agent so the socket IP IS loopback, but tunnel-specific headers
+// give them away. When tunneled, the SPA must instead receive the token
+// via URL fragment (#token=…) that the operator shares out-of-band.
+//
+// Registered on the API router (not the static mount below) so the panel's
+// bootstrap call is a normal /api/* request like every other.
+export function registerWebToken(api, { token }) {
+  api.get("/admin/web-token", (req, res) => {
     const ra = req.ip || req.socket?.remoteAddress || "";
     const isLocal =
       ra === "127.0.0.1" ||
@@ -86,7 +78,11 @@ export function register(app, { express, token }) {
     }
     res.json({ token });
   });
+}
 
+// Static admin panel at the root. Mounted after `app.use("/api", api)` in
+// api.js, so a stray /api/* request can never reach the SPA fallback.
+export function register(app, { express }) {
   if (!fs.existsSync(WEB_DIST)) {
     // No build present. Expose a hint endpoint so users hitting the daemon
     // root know what to do.
@@ -112,8 +108,8 @@ export function register(app, { express, token }) {
     return;
   }
 
-  // Serve static assets. NB: we mount AFTER the API routes are registered
-  // in api.js so /projects, /admin/*, etc. always win over the catch-all.
+  // Serve static assets. NB: we mount AFTER the /api router is mounted in
+  // api.js so data routes always win over this catch-all.
   app.use(
     express.static(WEB_DIST, {
       index: false,

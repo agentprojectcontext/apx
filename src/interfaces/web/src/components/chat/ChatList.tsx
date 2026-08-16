@@ -110,7 +110,7 @@ function AgentConvFetcher({
   onLoaded: (slug: string, data: ConversationListEntry[] | undefined) => void;
 }) {
   const { data } = useSWR(
-    `/projects/${pid}/agents/${slug}/conversations`,
+    `/api/projects/${pid}/agents/${slug}/conversations`,
     () => Conversations.list(pid, slug),
     { revalidateOnFocus: false },
   );
@@ -142,7 +142,7 @@ export function ChatList({
   // sidebar shows just that project's own agent conversations.
   const isBase = String(pid) === "0";
   const threadsQ = useSWR(
-    isBase ? `/projects/${pid}/super-agent/threads` : null,
+    isBase ? `/api/projects/${pid}/super-agent/threads` : null,
     () => Conversations.threads(pid),
     { revalidateOnFocus: false },
   );

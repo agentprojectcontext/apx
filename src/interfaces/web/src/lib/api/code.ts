@@ -79,7 +79,7 @@ export type CodeStreamEvent = ChatStreamEvent & {
   tool?: string;
 };
 
-const base = (pid: string | number) => `/projects/${pid}/code/sessions`;
+const base = (pid: string | number) => `/api/projects/${pid}/code/sessions`;
 
 export const Code = {
   sessions: {

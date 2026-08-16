@@ -12,9 +12,9 @@ function requireRoot() {
 async function nudgeDaemon(root) {
   try {
     if (!(await http.ping())) return;
-    const projects = await http.get("/projects", { autoStart: false });
+    const projects = await http.get("/api/projects", { autoStart: false });
     const me = projects.find((p) => p.path === root);
-    if (me) await http.post(`/projects/${me.id}/rebuild`, undefined, { autoStart: false });
+    if (me) await http.post(`/api/projects/${me.id}/rebuild`, undefined, { autoStart: false });
   } catch {}
 }
 

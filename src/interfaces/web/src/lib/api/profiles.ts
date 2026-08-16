@@ -61,26 +61,26 @@ export type ProfileRoutineSync = {
 };
 
 export const ProfilesApi = {
-  list: () => http.get<{ active: string | null; profiles: ProfileSummary[] }>("/profiles"),
-  get: (id: string) => http.get<ProfileDetail>(`/profiles/${encodeURIComponent(id)}`),
+  list: () => http.get<{ active: string | null; profiles: ProfileSummary[] }>("/api/profiles"),
+  get: (id: string) => http.get<ProfileDetail>(`/api/profiles/${encodeURIComponent(id)}`),
   doctor: (id?: string) =>
-    http.get<ProfileDoctor>(`/profiles/doctor${id ? `?id=${encodeURIComponent(id)}` : ""}`),
+    http.get<ProfileDoctor>(`/api/profiles/doctor${id ? `?id=${encodeURIComponent(id)}` : ""}`),
   install: (source: string, force = false) =>
     http.post<{ ok: true; profile: ProfileDetail; warnings: string[]; tokens: number }>(
-      "/profiles/install",
+      "/api/profiles/install",
       { source, force }
     ),
   use: (id: string, force = false) =>
     http.post<{ ok: true; profile: ProfileDetail; routines: ProfileRoutineSync; warnings: string[] }>(
-      "/profiles/use",
+      "/api/profiles/use",
       { id, force }
     ),
-  off: () => http.post<{ ok: true; was: string | null; routines: string[] }>("/profiles/off", {}),
+  off: () => http.post<{ ok: true; was: string | null; routines: string[] }>("/api/profiles/off", {}),
   setConfig: (values: Record<string, unknown>, id?: string) =>
     http.patch<{ ok: true; config: Record<string, unknown>; changed: string[]; routines: ProfileRoutineSync }>(
-      "/profiles/config",
+      "/api/profiles/config",
       { values, id }
     ),
   uninstall: (id: string) =>
-    http.del<{ ok: true; id: string; source: string }>(`/profiles/${encodeURIComponent(id)}`),
+    http.del<{ ok: true; id: string; source: string }>(`/api/profiles/${encodeURIComponent(id)}`),
 };

@@ -32,7 +32,7 @@ function makeApp(root) {
 }
 
 async function pidFor(baseUrl, root) {
-  const list = await (await fetch(`${baseUrl}/projects`)).json();
+  const list = await (await fetch(`${baseUrl}/api/projects`)).json();
   const p = list.find((x) => x.path === root) || list[list.length - 1];
   return p.id;
 }
@@ -44,22 +44,22 @@ test("create then DELETE an agent removes it; a second delete 404s", async () =>
   try {
     const pid = await pidFor(baseUrl, root);
     // create via the real path (writes .apc/agents/<slug>/agent.md)
-    let r = await fetch(`${baseUrl}/projects/${pid}/agents`, {
+    let r = await fetch(`${baseUrl}/api/projects/${pid}/agents`, {
       method: "POST", headers: json, body: JSON.stringify({ slug: "victim", role: "QA" }),
     });
     assert.equal(r.status, 201);
     // present
-    r = await fetch(`${baseUrl}/projects/${pid}/agents/victim`);
+    r = await fetch(`${baseUrl}/api/projects/${pid}/agents/victim`);
     assert.equal(r.status, 200);
     // delete
-    r = await fetch(`${baseUrl}/projects/${pid}/agents/victim`, { method: "DELETE" });
+    r = await fetch(`${baseUrl}/api/projects/${pid}/agents/victim`, { method: "DELETE" });
     assert.equal(r.status, 200);
     assert.equal((await r.json()).ok, true);
     // gone
-    r = await fetch(`${baseUrl}/projects/${pid}/agents/victim`);
+    r = await fetch(`${baseUrl}/api/projects/${pid}/agents/victim`);
     assert.equal(r.status, 404);
     // second delete → 404 (not a silent 200)
-    r = await fetch(`${baseUrl}/projects/${pid}/agents/victim`, { method: "DELETE" });
+    r = await fetch(`${baseUrl}/api/projects/${pid}/agents/victim`, { method: "DELETE" });
     assert.equal(r.status, 404);
   } finally {
     await new Promise((res) => server.close(res));
@@ -73,13 +73,13 @@ test("agent-memory GET/PUT 404 for an unknown slug (no 200-empty masking) — BU
   try {
     const pid = await pidFor(baseUrl, root);
     // real agent → 200
-    let r = await fetch(`${baseUrl}/projects/${pid}/agents/real/memory`);
+    let r = await fetch(`${baseUrl}/api/projects/${pid}/agents/real/memory`);
     assert.equal(r.status, 200);
     // unknown agent → 404 (was 200 {"body":""})
-    r = await fetch(`${baseUrl}/projects/${pid}/agents/ghost/memory`);
+    r = await fetch(`${baseUrl}/api/projects/${pid}/agents/ghost/memory`);
     assert.equal(r.status, 404);
     // PUT to unknown agent → 404 (no orphan write)
-    r = await fetch(`${baseUrl}/projects/${pid}/agents/ghost/memory`, {
+    r = await fetch(`${baseUrl}/api/projects/${pid}/agents/ghost/memory`, {
       method: "PUT",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ body: "x" }),
@@ -97,11 +97,11 @@ test("conversations accept the super-agent pseudo-slug; unknown agents 404", asy
   try {
     const pid = await pidFor(baseUrl, root);
     // super-agent slug "apx" is NOT in AGENTS.md but must still resolve (→ []).
-    let r = await fetch(`${baseUrl}/projects/${pid}/agents/apx/conversations`);
+    let r = await fetch(`${baseUrl}/api/projects/${pid}/agents/apx/conversations`);
     assert.equal(r.status, 200);
     assert.ok(Array.isArray(await r.json()));
     // a genuinely unknown agent still 404s.
-    r = await fetch(`${baseUrl}/projects/${pid}/agents/ghost/conversations`);
+    r = await fetch(`${baseUrl}/api/projects/${pid}/agents/ghost/conversations`);
     assert.equal(r.status, 404);
   } finally {
     await new Promise((res) => server.close(res));

@@ -61,7 +61,7 @@ function purgeExpired(now = Date.now()) {
   }
 }
 
-export function register(app, ctx) {
+export function register(api, ctx) {
   const { tokenStore, config } = ctx;
   if (!tokenStore) {
     // Pairing requires the multi-token store; if running with legacy
@@ -72,7 +72,7 @@ export function register(app, ctx) {
 
   // ── POST /pair/init ───────────────────────────────────────────────
   // Localhost-only. Returns { pairing_id, expires_at }. No body needed.
-  app.post("/pair/init", (req, res) => {
+  api.post("/pair/init", (req, res) => {
     if (!isLocalhost(req)) {
       return res.status(403).json({ error: "pair/init: localhost only" });
     }
@@ -104,7 +104,7 @@ export function register(app, ctx) {
   // ── POST /pair/confirm ────────────────────────────────────────────
   // App side. Body: { pairing_id, label?, fingerprint? }. Returns the
   // new client token. Nonce is one-shot.
-  app.post("/pair/confirm", (req, res) => {
+  api.post("/pair/confirm", (req, res) => {
     purgeExpired();
     const { pairing_id, label, fingerprint, kind } = req.body || {};
     if (!pairing_id || typeof pairing_id !== "string") {
@@ -146,7 +146,7 @@ export function register(app, ctx) {
   // ── GET /pair/status/:pairing_id ──────────────────────────────────
   // For the CLI to poll while showing the QR. Returns pending|confirmed
   // |expired. Never leaks the token.
-  app.get("/pair/status/:pairing_id", (req, res) => {
+  api.get("/pair/status/:pairing_id", (req, res) => {
     purgeExpired();
     const s = sessions.get(req.params.pairing_id);
     if (!s) return res.json({ status: "unknown" });
@@ -168,13 +168,13 @@ export function register(app, ctx) {
   // ── GET /pair/list ────────────────────────────────────────────────
   // Authenticated (auth middleware exempts /pair/*, so we re-check by
   // hand here — only the master or an existing client can list peers).
-  app.get("/pair/list", (req, res) => {
+  api.get("/pair/list", (req, res) => {
     if (!checkBearer(req, tokenStore)) return res.status(401).json({ error: "unauthorized" });
     res.json({ clients: tokenStore.list() });
   });
 
   // ── DELETE /pair/revoke/:id ───────────────────────────────────────
-  app.delete("/pair/revoke/:id", (req, res) => {
+  api.delete("/pair/revoke/:id", (req, res) => {
     if (!checkBearer(req, tokenStore)) return res.status(401).json({ error: "unauthorized" });
     const ok = tokenStore.revoke(req.params.id);
     if (!ok) return res.status(404).json({ error: "no such client" });

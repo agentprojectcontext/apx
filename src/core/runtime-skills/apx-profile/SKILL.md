@@ -113,9 +113,9 @@ install. Check the real number with `apx profile show <id>` or
 
 ## HTTP
 
-`GET /profiles` · `GET /profiles/:id` (includes `preview`) · `GET /profiles/doctor` ·
-`POST /profiles/install` · `POST /profiles/use` · `POST /profiles/off` ·
-`PATCH /profiles/config` · `DELETE /profiles/:id`
+`GET /api/profiles` · `GET /api/profiles/:id` (includes `preview`) · `GET /api/profiles/doctor` ·
+`POST /api/profiles/install` · `POST /api/profiles/use` · `POST /api/profiles/off` ·
+`PATCH /api/profiles/config` · `DELETE /api/profiles/:id`
 
 ## Gotchas
 

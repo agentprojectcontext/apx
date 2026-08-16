@@ -34,9 +34,9 @@ export async function cmdObsidianSet(args) {
   if (args.flags.memory || args.flags["memory-sync"]) body.memory_sync = true;
 
   const q = scopeQuery(scope);
-  await http.post(`/projects/${pid}/integrations/${SLUG}/configure${q}`, body);
+  await http.post(`/api/projects/${pid}/integrations/${SLUG}/configure${q}`, body);
   try {
-    const r = await http.post(`/projects/${pid}/integrations/${SLUG}/validate${q}`, {});
+    const r = await http.post(`/api/projects/${pid}/integrations/${SLUG}/validate${q}`, {});
     const badge = r.is_vault ? "Obsidian vault" : "folder (no .obsidian)";
     console.log(`✓ Obsidian connected (${scope}) — ${r.vault_name} · ${r.note_count} notes · ${badge}`);
     console.log(`  ${r.vault_path}`);
@@ -50,7 +50,7 @@ export async function cmdObsidianSet(args) {
 export async function cmdObsidianStatus(args) {
   const scope = resolveScope(args.flags);
   const pid = await resolveProjectId(args?.flags?.project);
-  const s = await http.get(`/projects/${pid}/integrations/${SLUG}${scopeQuery(scope)}`);
+  const s = await http.get(`/api/projects/${pid}/integrations/${SLUG}${scopeQuery(scope)}`);
   if (!s || s.status === "disconnected") {
     console.log(`(Obsidian not configured in scope "${scope}")`);
     return;
@@ -66,7 +66,7 @@ export async function cmdObsidianStatus(args) {
 export async function cmdObsidianSync(args) {
   const scope = resolveScope(args.flags);
   const pid = await resolveProjectId(args?.flags?.project);
-  const r = await http.post(`/projects/${pid}/integrations/${SLUG}/action/sync_memory${scopeQuery(scope)}`, {});
+  const r = await http.post(`/api/projects/${pid}/integrations/${SLUG}/action/sync_memory${scopeQuery(scope)}`, {});
   console.log(`✓ Synced ${r.count} memory file(s) → vault folder "${r.folder}" (${r.changed} changed)`);
   for (const n of r.notes || []) console.log(`  ${n.changed ? "↑" : "="} ${n.note}`);
 }
@@ -74,6 +74,6 @@ export async function cmdObsidianSync(args) {
 export async function cmdObsidianRemove(args) {
   const scope = resolveScope(args.flags);
   const pid = await resolveProjectId(args?.flags?.project);
-  await http.delete(`/projects/${pid}/integrations/${SLUG}${scopeQuery(scope)}`);
+  await http.delete(`/api/projects/${pid}/integrations/${SLUG}${scopeQuery(scope)}`);
   console.log(`Removed Obsidian integration (scope: ${scope})`);
 }

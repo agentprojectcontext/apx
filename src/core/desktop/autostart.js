@@ -1,6 +1,6 @@
 // Per-user "launch APX Desktop at login" wiring. Used by BOTH the CLI
 // (`apx desktop install` / `uninstall`) and the daemon's
-// /desktop/autostart endpoint so the web admin can toggle the same setting
+// /api/desktop/autostart endpoint so the web admin can toggle the same setting
 // without shelling out.
 //
 // Per-user, never sudo, fully reversible. Three platforms supported:

@@ -29,8 +29,8 @@ async function pickAgentModel({ modelOverride, agent, config }) {
   }
 }
 
-export function register(app, { projects, project, config }) {
-  app.post("/projects/:pid/agents/:slug/exec", async (req, res) => {
+export function register(api, { projects, project, config }) {
+  api.post("/projects/:pid/agents/:slug/exec", async (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const {
@@ -107,7 +107,7 @@ export function register(app, { projects, project, config }) {
     }
   });
 
-  app.post("/projects/:pid/agents/:slug/chat", async (req, res) => {
+  api.post("/projects/:pid/agents/:slug/chat", async (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const {

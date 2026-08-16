@@ -89,7 +89,7 @@ function buildTree(agents: AgentEntry[]) {
 export function AgentsTab({ pid }: { pid: string }) {
   const navigate = useNavigate();
   const toast = useToast();
-  const list = useSWR(`/projects/${pid}/agents?stats=1`, () => Agents.list(pid, { stats: true }));
+  const list = useSWR(`/api/projects/${pid}/agents?stats=1`, () => Agents.list(pid, { stats: true }));
   const [view, setView] = useState<"hierarchy" | "list">("hierarchy");
   const [creating, setCreating] = useState(false);
 
@@ -154,7 +154,7 @@ function ImportVaultDialog({
   open, onClose, onImported, pid, existing,
 }: { open: boolean; onClose: () => void; onImported: () => void; pid: string; existing: string[] }) {
   const toast = useToast();
-  const vault = useSWR(open ? "/agents/vault" : null, () => Agents.vault());
+  const vault = useSWR(open ? "/api/agents/vault" : null, () => Agents.vault());
   const [busy, setBusy] = useState("");
   const items = vault.data || [];
 

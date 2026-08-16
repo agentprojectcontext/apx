@@ -28,7 +28,7 @@ export async function cmdStatus() {
   let daemonOk = false;
   let daemonInfo = {};
   try {
-    daemonInfo = await http.get("/health");
+    daemonInfo = await http.get("/api/health");
     daemonOk = true;
   } catch {}
 
@@ -94,7 +94,7 @@ export async function cmdStatus() {
   const tg = cfg.telegram || {};
   let tgLive = null;
   if (daemonOk) {
-    try { tgLive = await http.get("/telegram/status"); } catch {}
+    try { tgLive = await http.get("/api/telegram/status"); } catch {}
   }
 
   if (tgLive) {
@@ -130,7 +130,7 @@ export async function cmdStatus() {
   console.log(sec("Projects"));
   let projects = [];
   if (daemonOk) {
-    try { projects = await http.get("/projects"); } catch {}
+    try { projects = await http.get("/api/projects"); } catch {}
   } else {
     projects = (cfg.projects || []).map((p, i) => ({ id: i + 1, path: p.path, name: p.path?.split("/").pop() || "?", agents: "?" }));
   }

@@ -1,5 +1,6 @@
 // Singleton WebSocket hub for the desktop channel.
 // Imported by api.js (to register connections) and by plugins/desktop/index.js (to broadcast).
+import { apiPath } from "./api/prefix.js";
 
 const _clients = new Set(); // Set<WebSocket>
 let _messageHandler = null; // (ws, data) => void — set by desktop plugin
@@ -12,7 +13,7 @@ export function setDesktopMessageHandler(fn) {
 
 // --- WS upgrade auth helpers (shared by the daemon upgrade handler + tests) ---
 //
-// The desktop WS channel must authenticate the same way the HTTP /desktop/*
+// The desktop WS channel must authenticate the same way the HTTP /api/desktop/*
 // routes do: a bearer token (master or paired client) carried on the upgrade
 // request. The legitimate desktop window sends `Authorization: Bearer <token>`
 // (src/interfaces/desktop/main.js); browser clients can pass `?token=`. Without
@@ -20,11 +21,14 @@ export function setDesktopMessageHandler(fn) {
 // when host is set to 0.0.0.0) could open the channel and drive the
 // super-agent. See QA BUG-WS-AUTH.
 
-/** Path-gate: is this upgrade for the desktop (or legacy overlay) WS channel? */
+/** The desktop channel's upgrade path. Lives under /api like every other route. */
+export const DESKTOP_WS_PATH = apiPath("/desktop/ws");
+
+/** Path-gate: is this upgrade for the desktop WS channel? */
 export function isDesktopUpgradePath(url) {
   let pathname = url || "";
   try { pathname = new URL(url, "http://localhost").pathname; } catch { /* keep raw */ }
-  return pathname === "/desktop/ws" || pathname === "/overlay/ws";
+  return pathname === DESKTOP_WS_PATH;
 }
 
 /** Extract the bearer token from the upgrade request (header first, ?token= fallback). */

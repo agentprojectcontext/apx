@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { apiRouter } from "./_helpers.js";
 import express from "express";
 import fs from "node:fs";
 import os from "node:os";
@@ -23,7 +24,7 @@ test("POST /projects/:pid/mcps evicts only the written MCP from cached registrie
   app.use(express.json());
 
   const { register } = await import("../src/host/daemon/api/mcps.js");
-  register(app, {
+  register(apiRouter(express, app), {
     projects: { rebuild: () => { rebuilds += 1; } },
     project: () => projectEntry,
     registries: {
@@ -37,7 +38,7 @@ test("POST /projects/:pid/mcps evicts only the written MCP from cached registrie
 
   const { server, baseUrl } = await listen(app);
   try {
-    const res = await fetch(`${baseUrl}/projects/p1/mcps?scope=shared`, {
+    const res = await fetch(`${baseUrl}/api/projects/p1/mcps?scope=shared`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ name: "example", command: "node", args: ["server.js"] }),
@@ -69,7 +70,7 @@ test("POST /projects/:pid/mcps allows partial updates for existing MCP config", 
   app.use(express.json());
 
   const { register } = await import("../src/host/daemon/api/mcps.js");
-  register(app, {
+  register(apiRouter(express, app), {
     projects: { rebuild: () => {} },
     project: () => projectEntry,
     registries: {
@@ -83,7 +84,7 @@ test("POST /projects/:pid/mcps allows partial updates for existing MCP config", 
 
   const { server, baseUrl } = await listen(app);
   try {
-    const res = await fetch(`${baseUrl}/projects/p1/mcps?scope=shared`, {
+    const res = await fetch(`${baseUrl}/api/projects/p1/mcps?scope=shared`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ name: "example", enabled: false }),
@@ -114,14 +115,14 @@ test("POST /projects/:pid/vars clears cached registries after writing a variable
     let shutdowns = 0;
     const app = express();
     app.use(express.json());
-    register(app, {
+    register(apiRouter(express, app), {
       project: () => ({ id: "p1", storagePath: storage }),
       registries: { shutdown: () => { shutdowns += 1; } },
     });
 
     const { server, baseUrl } = await listen(app);
     try {
-      const res = await fetch(`${baseUrl}/projects/p1/vars`, {
+      const res = await fetch(`${baseUrl}/api/projects/p1/vars`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ name: "TOKEN", value: "new-value", scope: "project" }),

@@ -32,7 +32,7 @@ export function TaskDetailPanel({
 }) {
   const toast = useToast();
   const navigate = useNavigate();
-  const { data: task, isLoading, mutate } = useSWR(`/projects/${pid}/tasks/${taskId}`, () => Tasks.get(pid, taskId));
+  const { data: task, isLoading, mutate } = useSWR(`/api/projects/${pid}/tasks/${taskId}`, () => Tasks.get(pid, taskId));
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
 

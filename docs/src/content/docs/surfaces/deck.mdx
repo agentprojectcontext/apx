@@ -100,7 +100,7 @@ It exposes a single read-only endpoint that the Deck app calls on startup to
 bootstrap its state:
 
 ```text
-GET /deck/manifest
+GET /api/deck/manifest
 ```
 
 The manifest returns:
@@ -117,13 +117,13 @@ This endpoint is **read-only and intentionally limited**. It does not execute
 shell commands or trigger external plugin actions.
 
 After bootstrapping from the manifest, the Deck app uses the same REST API that
-the web panel uses (`/projects/…`, `/voice/turn`, `/messages`, etc.) with its
+the web panel uses (`/api/projects/…`, `/api/voice/turn`, `/api/messages`, etc.) with its
 device bearer token.
 
 <Aside type="note">
   The Deck module view in the web panel — the manifest, widget grid, and APX
   context card — is a **preview** (coming soon). The pairing flow and the
-  read-only `GET /deck/manifest` endpoint above work today.
+  read-only `GET /api/deck/manifest` endpoint above work today.
 </Aside>
 
 ## Widgets and desktops
@@ -140,7 +140,7 @@ Toggle a widget from the [Web panel → Deck module](/apx/docs/surfaces/web/#dec
 via the API:
 
 ```bash
-# PATCH /deck/widgets/:id  { enabled: true|false }
+# PATCH /api/deck/widgets/:id  { enabled: true|false }
 curl -X PATCH http://127.0.0.1:7430/deck/widgets/my-widget \
   -H "Authorization: Bearer $(cat ~/.apx/daemon.token)" \
   -H "Content-Type: application/json" \
@@ -172,7 +172,7 @@ they work if you wire them yourself.
 
 ## Voice mode on the Deck
 
-The Deck app's voice mic sends audio to `POST /voice/turn` with
+The Deck app's voice mic sends audio to `POST /api/voice/turn` with
 `"channel": "voice"`. The daemon:
 
 1. Transcribes the audio with Whisper (STT)
@@ -190,7 +190,7 @@ See [Voice](/apx/docs/surfaces/voice/) for TTS provider setup.
 
 - Each paired device gets a unique bearer token stored in `~/.apx/remote/devices.json`.
 - Tokens are listable with `apx pair list` and revocable with `apx pair revoke <id>`.
-- The web-token endpoint (`/admin/web-token`) refuses non-loopback and tunneled requests.
+- The web-token endpoint (`/api/admin/web-token`) refuses non-loopback and tunneled requests.
   For remote browsers, the token must arrive via the `#token=…` URL fragment.
 - The manifest endpoint is read-only; it does not expose sensitive credentials
   or execute actions.

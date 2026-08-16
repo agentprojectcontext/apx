@@ -79,14 +79,14 @@ apx task drop t_abc            # "no longer needed; archive without completion"
 ## Endpoint surface
 
 ```
-GET    /projects/:pid/tasks                  ?state=open|done|dropped|all&tag=X&agent=Y&due_before=ISO&limit=N
-POST   /projects/:pid/tasks                  { title, body?, tags?, due?, agent?, source?, meta? }
-GET    /projects/:pid/tasks/:id
-PATCH  /projects/:pid/tasks/:id              { patch: {...} }
-POST   /projects/:pid/tasks/:id/done         { by? }
-POST   /projects/:pid/tasks/:id/drop         { by? }
-POST   /projects/:pid/tasks/:id/reopen
-GET    /projects/:pid/tasks-summary          → { open, done, dropped, overdue, total }
+GET    /api/projects/:pid/tasks                  ?state=open|done|dropped|all&tag=X&agent=Y&due_before=ISO&limit=N
+POST   /api/projects/:pid/tasks                  { title, body?, tags?, due?, agent?, source?, meta? }
+GET    /api/projects/:pid/tasks/:id
+PATCH  /api/projects/:pid/tasks/:id              { patch: {...} }
+POST   /api/projects/:pid/tasks/:id/done         { by? }
+POST   /api/projects/:pid/tasks/:id/drop         { by? }
+POST   /api/projects/:pid/tasks/:id/reopen
+GET    /api/projects/:pid/tasks-summary          → { open, done, dropped, overdue, total }
 ```
 
 ## Don't

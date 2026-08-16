@@ -3,10 +3,10 @@
 //   POST   /projects               register a project by path
 //   DELETE /projects/:id           unregister
 //   POST   /projects/:id/rebuild   force a context rebuild from disk
-export function register(app, { projects, registries, addProjectGlobally }) {
-  app.get("/projects", (_req, res) => res.json(projects.list()));
+export function register(api, { projects, registries, addProjectGlobally }) {
+  api.get("/projects", (_req, res) => res.json(projects.list()));
 
-  app.post("/projects", (req, res) => {
+  api.post("/projects", (req, res) => {
     const { path: p } = req.body || {};
     if (!p) return res.status(400).json({ error: "path required" });
     try {
@@ -19,12 +19,12 @@ export function register(app, { projects, registries, addProjectGlobally }) {
     }
   });
 
-  app.delete("/projects/:id", (req, res) => {
+  api.delete("/projects/:id", (req, res) => {
     const ok = projects.unregister(req.params.id);
     res.status(ok ? 204 : 404).end();
   });
 
-  app.post("/projects/:id/rebuild", (req, res) => {
+  api.post("/projects/:id/rebuild", (req, res) => {
     try {
       const result = projects.rebuild(req.params.id);
       res.json({ ok: true, ...result });

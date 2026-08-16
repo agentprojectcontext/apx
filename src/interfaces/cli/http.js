@@ -1,4 +1,9 @@
 // Tiny HTTP client to talk to the APX daemon. Auto-starts the daemon if down.
+//
+// Callers pass the full daemon path including the /api mount point
+// (`http.get("/api/projects")`), so a route grepped in a command matches the
+// route registered in src/host/daemon/api/ verbatim. baseUrl() is the origin
+// only — it deliberately does NOT bake in the prefix.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -25,7 +30,7 @@ async function ping(timeoutMs = 400) {
   try {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), timeoutMs);
-    const res = await fetch(`${baseUrl()}/health`, { signal: ctrl.signal });
+    const res = await fetch(`${baseUrl()}/api/health`, { signal: ctrl.signal });
     clearTimeout(t);
     return res.ok;
   } catch {

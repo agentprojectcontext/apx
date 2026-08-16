@@ -5,7 +5,7 @@ import { http } from "../http";
 //
 // The desktop window is an Electron app spawned by the CLI (`apx desktop start`),
 // NOT by the daemon — so the daemon can only report how many windows are
-// currently connected over the /desktop/ws WebSocket. The web admin shows that
+// currently connected over the /api/desktop/ws WebSocket. The web admin shows that
 // status, edits persisted config (desktop.shortcut, desktop.enabled,
 // desktop.theme, desktop.position), and toggles login-item autostart via the
 // shared autostart helpers (core/desktop/autostart.js).
@@ -43,23 +43,23 @@ export interface AutostartStatus {
 
 export const Desktop = {
   /** GET /desktop/status — connected window count + running flag (live probe). */
-  status: () => http.get<DesktopStatus>("/desktop/status"),
+  status: () => http.get<DesktopStatus>("/api/desktop/status"),
 
   /** POST /desktop/start — launch the floating window (detached Electron). */
-  start: () => http.post<DesktopStartResult>("/desktop/start", {}),
+  start: () => http.post<DesktopStartResult>("/api/desktop/start", {}),
 
   /** POST /desktop/stop — terminate the running window. */
-  stop: () => http.post<DesktopStopResult>("/desktop/stop", {}),
+  stop: () => http.post<DesktopStopResult>("/api/desktop/stop", {}),
 
   /** POST /desktop/restart — tell every live window to reload + re-read config. */
-  restart: () => http.post<DesktopRestartResult>("/desktop/restart", {}),
+  restart: () => http.post<DesktopRestartResult>("/api/desktop/restart", {}),
 
   /** GET /desktop/autostart — current login-item state for this platform. */
-  autostartGet: () => http.get<AutostartStatus>("/desktop/autostart"),
+  autostartGet: () => http.get<AutostartStatus>("/api/desktop/autostart"),
 
   /** POST /desktop/autostart {enable} — toggle the login-item on or off. */
   autostartSet: (enable: boolean) =>
-    http.post<AutostartStatus>("/desktop/autostart", { enable }),
+    http.post<AutostartStatus>("/api/desktop/autostart", { enable }),
 };
 
 // Last-N messages for the "desktop" global channel (preview the latest
@@ -78,5 +78,5 @@ export interface GlobalMessage {
 }
 
 export function fetchDesktopMessages(limit = 30) {
-  return http.get<GlobalMessage[]>(`/messages/global?channel=desktop&limit=${limit}`);
+  return http.get<GlobalMessage[]>(`/api/messages/global?channel=desktop&limit=${limit}`);
 }

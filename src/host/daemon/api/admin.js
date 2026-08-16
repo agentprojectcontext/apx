@@ -9,9 +9,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-export function register(app, { scheduler, plugins, config, registries }) {
+export function register(api, { scheduler, plugins, config, registries }) {
   // Daemon logs: errors.jsonl (structured) or apx.log (plain), newest first.
-  app.get("/admin/logs", (req, res) => {
+  api.get("/admin/logs", (req, res) => {
     const dir = path.join(os.homedir(), ".apx", "logs");
     const which = req.query.file === "apx" ? "apx.log" : "errors.jsonl";
     const file = path.join(dir, which);
@@ -26,7 +26,7 @@ export function register(app, { scheduler, plugins, config, registries }) {
     res.json({ file: which, lines: tail });
   });
 
-  app.post("/admin/reload", (_req, res) => {
+  api.post("/admin/reload", (_req, res) => {
     try {
       const fresh = readConfig();
       // Mutate in place so every closure that captured `config` sees the new
@@ -46,7 +46,7 @@ export function register(app, { scheduler, plugins, config, registries }) {
     }
   });
 
-  app.post("/admin/shutdown", (_req, res) => {
+  api.post("/admin/shutdown", (_req, res) => {
     res.json({ ok: true });
     setTimeout(() => process.exit(0), 50);
   });
@@ -56,7 +56,7 @@ export function register(app, { scheduler, plugins, config, registries }) {
   // zenity (if present); Windows uses PowerShell's Shell.Application. If the
   // platform lacks a usable picker — or none is installed — the endpoint
   // returns 501 so the frontend can fall back to the inline directory list.
-  app.get("/admin/fs/pick-dir", (req, res) => {
+  api.get("/admin/fs/pick-dir", (req, res) => {
     // The prompt is attacker-controllable (query string). NEVER interpolate it
     // into a shell string — use execFile (no shell) with an argv array, and
     // pass the prompt out-of-band via an env var so it can't break out of any
@@ -109,7 +109,7 @@ export function register(app, { scheduler, plugins, config, registries }) {
     });
   });
 
-  app.get("/admin/fs/dirs", (req, res) => {
+  api.get("/admin/fs/dirs", (req, res) => {
     const requested = String(req.query.path || os.homedir());
     const base = path.resolve(requested.replace(/^~(?=$|\/)/, os.homedir()));
     try {

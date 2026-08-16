@@ -14,12 +14,12 @@ import type { AgentEntry, RoutineEntry, TaskEntry } from "../../types/daemon";
 // automation), what's in flight (task workflow), and what just happened.
 export function Overview({ pid }: { pid: string }) {
   const navigate = useNavigate();
-  const tasks    = useSWR(`/projects/${pid}/tasks?state=open`, () => Tasks.list(pid), { refreshInterval: 20_000 });
-  const summary  = useSWR(`/projects/${pid}/tasks-summary`,    () => Tasks.summary(pid), { refreshInterval: 20_000 });
-  const routines = useSWR(`/projects/${pid}/routines`,         () => Routines.list(pid));
-  const agents   = useSWR(`/projects/${pid}/agents`,           () => Agents.list(pid));
-  const mcps     = useSWR(`/projects/${pid}/mcps`,             () => Mcps.list(pid));
-  const artifacts = useSWR(`/projects/${pid}/artifacts`,       () => Artifacts.list(pid));
+  const tasks    = useSWR(`/api/projects/${pid}/tasks?state=open`, () => Tasks.list(pid), { refreshInterval: 20_000 });
+  const summary  = useSWR(`/api/projects/${pid}/tasks-summary`,    () => Tasks.summary(pid), { refreshInterval: 20_000 });
+  const routines = useSWR(`/api/projects/${pid}/routines`,         () => Routines.list(pid));
+  const agents   = useSWR(`/api/projects/${pid}/agents`,           () => Agents.list(pid));
+  const mcps     = useSWR(`/api/projects/${pid}/mcps`,             () => Mcps.list(pid));
+  const artifacts = useSWR(`/api/projects/${pid}/artifacts`,       () => Artifacts.list(pid));
 
   const agentList = agents.data ?? [];
   const orchestrators = agentList.filter((a) => a.is_master || a.type === "orchestrator");

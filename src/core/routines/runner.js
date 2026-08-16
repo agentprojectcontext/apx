@@ -1,5 +1,5 @@
 // Routine execution — the domain logic any caller can invoke (daemon
-// scheduler, CLI `apx routine run`, HTTP `/projects/:pid/routines/:name/run`,
+// scheduler, CLI `apx routine run`, HTTP `/api/projects/:pid/routines/:name/run`,
 // MCP server, future scripts). The runner orchestrates a 3-phase pipeline:
 //   1. pre_commands  (shell)
 //   2. handler       (heartbeat / exec_agent / super_agent / telegram / shell)

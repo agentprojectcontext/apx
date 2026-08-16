@@ -11,8 +11,8 @@
 import { synthesize, listProviders } from "#core/voice/tts.js";
 import { readConfig } from "#core/config/index.js";
 
-export function register(app) {
-  app.post("/tts/say", async (req, res) => {
+export function register(api) {
+  api.post("/tts/say", async (req, res) => {
     try {
       const { text, voice, language, provider, format, style } = req.body || {};
       if (typeof text !== "string" || !text.trim()) {
@@ -33,7 +33,7 @@ export function register(app) {
     }
   });
 
-  app.get("/tts/providers", async (_req, res) => {
+  api.get("/tts/providers", async (_req, res) => {
     try {
       const info = await listProviders(readConfig());
       res.json(info);

@@ -18,7 +18,7 @@ import { resolveProjectId } from "./project.js";
 
 async function reloadDaemon() {
   try {
-    await http.post("/admin/reload", {});
+    await http.post("/api/admin/reload", {});
   } catch (e) {
     console.log(`⚠️  reload failed: ${e.message} (changes saved, restart daemon to apply)`);
   }
@@ -65,7 +65,7 @@ async function projectIdFromArg(target) {
 export async function cmdProjectConfigShow(args) {
   const target = args._[0];
   const id = await projectIdFromArg(target);
-  const data = await http.get(`/projects/${id}/config`);
+  const data = await http.get(`/api/projects/${id}/config`);
   const key = args.flags.key;
   if (key) {
     const eff = readDotted(data.effective || {}, key);
@@ -89,7 +89,7 @@ export async function cmdProjectConfigSet(args) {
   if (raw === undefined) throw new Error("apx project config set: missing <value>");
   const id = await projectIdFromArg(target);
   const value = coerceValue(raw);
-  await http.patch(`/projects/${id}/config`, { set: { [dotted]: value } });
+  await http.patch(`/api/projects/${id}/config`, { set: { [dotted]: value } });
   await reloadDaemon();
   console.log(`✅ set ${dotted} = ${JSON.stringify(value)}`);
 }
@@ -99,7 +99,7 @@ export async function cmdProjectConfigUnset(args) {
   const dotted = args._[1];
   if (!dotted) throw new Error("apx project config unset: missing <dotted.key>");
   const id = await projectIdFromArg(target);
-  await http.patch(`/projects/${id}/config`, { unset: [dotted] });
+  await http.patch(`/api/projects/${id}/config`, { unset: [dotted] });
   await reloadDaemon();
   console.log(`✅ unset ${dotted}`);
 }
@@ -107,7 +107,7 @@ export async function cmdProjectConfigUnset(args) {
 export async function cmdProjectConfigEdit(args) {
   const target = args._[0];
   const id = await projectIdFromArg(target);
-  const data = await http.get(`/projects/${id}/config`);
+  const data = await http.get(`/api/projects/${id}/config`);
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-cfg-"));
   const tmpFile = path.join(tmpDir, "config.json");
   fs.writeFileSync(tmpFile, JSON.stringify(data.project_only || {}, null, 2) + "\n");
@@ -125,7 +125,7 @@ export async function cmdProjectConfigEdit(args) {
     throw new Error(`invalid JSON after edit: ${e.message}`);
   }
   fs.rmSync(tmpDir, { recursive: true, force: true });
-  await http.put(`/projects/${id}/config`, updated);
+  await http.put(`/api/projects/${id}/config`, updated);
   await reloadDaemon();
   console.log(`✅ saved project_only config for #${id}`);
 }

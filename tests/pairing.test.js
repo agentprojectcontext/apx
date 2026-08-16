@@ -60,7 +60,7 @@ test("POST /pair/init mints a pairing_id with TTL and fingerprint", async () => 
   const { app, tokenStore } = buildHarness();
   const { server, baseUrl } = await listen(app);
   try {
-    const res = await fetch(`${baseUrl}/pair/init`, { method: "POST" });
+    const res = await fetch(`${baseUrl}/api/pair/init`, { method: "POST" });
     assert.equal(res.status, 200);
     const body = await res.json();
     assert.match(body.pairing_id, /^[0-9a-f-]{36}$/i);
@@ -76,10 +76,10 @@ test("POST /pair/confirm issues a usable token", async () => {
   const { app, tokenStore } = buildHarness();
   const { server, baseUrl } = await listen(app);
   try {
-    const initRes = await fetch(`${baseUrl}/pair/init`, { method: "POST" });
+    const initRes = await fetch(`${baseUrl}/api/pair/init`, { method: "POST" });
     const init = await initRes.json();
 
-    const confirmRes = await fetch(`${baseUrl}/pair/confirm`, {
+    const confirmRes = await fetch(`${baseUrl}/api/pair/confirm`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -95,7 +95,7 @@ test("POST /pair/confirm issues a usable token", async () => {
     assert.equal(confirm.fingerprint_match, true);
 
     // Token can now reach an authenticated endpoint.
-    const manifest = await fetch(`${baseUrl}/deck/manifest`, {
+    const manifest = await fetch(`${baseUrl}/api/deck/manifest`, {
       headers: { authorization: `Bearer ${confirm.token}` },
     });
     assert.equal(manifest.status, 200);
@@ -113,7 +113,7 @@ test("POST /pair/confirm rejects unknown pairing_id", async () => {
   const { app } = buildHarness();
   const { server, baseUrl } = await listen(app);
   try {
-    const res = await fetch(`${baseUrl}/pair/confirm`, {
+    const res = await fetch(`${baseUrl}/api/pair/confirm`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ pairing_id: "00000000-0000-0000-0000-000000000000" }),
@@ -128,15 +128,15 @@ test("POST /pair/confirm is one-shot", async () => {
   const { app } = buildHarness();
   const { server, baseUrl } = await listen(app);
   try {
-    const init = await (await fetch(`${baseUrl}/pair/init`, { method: "POST" })).json();
-    const ok = await fetch(`${baseUrl}/pair/confirm`, {
+    const init = await (await fetch(`${baseUrl}/api/pair/init`, { method: "POST" })).json();
+    const ok = await fetch(`${baseUrl}/api/pair/confirm`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ pairing_id: init.pairing_id, label: "A" }),
     });
     assert.equal(ok.status, 200);
 
-    const dup = await fetch(`${baseUrl}/pair/confirm`, {
+    const dup = await fetch(`${baseUrl}/api/pair/confirm`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ pairing_id: init.pairing_id, label: "A again" }),
@@ -151,19 +151,19 @@ test("GET /pair/status reports pending → confirmed", async () => {
   const { app } = buildHarness();
   const { server, baseUrl } = await listen(app);
   try {
-    const init = await (await fetch(`${baseUrl}/pair/init`, { method: "POST" })).json();
+    const init = await (await fetch(`${baseUrl}/api/pair/init`, { method: "POST" })).json();
 
-    const pendingRes = await fetch(`${baseUrl}/pair/status/${init.pairing_id}`);
+    const pendingRes = await fetch(`${baseUrl}/api/pair/status/${init.pairing_id}`);
     const pending = await pendingRes.json();
     assert.equal(pending.status, "pending");
 
-    await fetch(`${baseUrl}/pair/confirm`, {
+    await fetch(`${baseUrl}/api/pair/confirm`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ pairing_id: init.pairing_id, label: "Phone" }),
     });
 
-    const confirmedRes = await fetch(`${baseUrl}/pair/status/${init.pairing_id}`);
+    const confirmedRes = await fetch(`${baseUrl}/api/pair/status/${init.pairing_id}`);
     const confirmed = await confirmedRes.json();
     assert.equal(confirmed.status, "confirmed");
     assert.equal(confirmed.device_label, "Phone");
@@ -177,24 +177,24 @@ test("auth middleware rejects unknown tokens but accepts paired ones", async () 
   const { server, baseUrl } = await listen(app);
   try {
     // Unauthenticated request → 401
-    const bad = await fetch(`${baseUrl}/deck/manifest`);
+    const bad = await fetch(`${baseUrl}/api/deck/manifest`);
     assert.equal(bad.status, 401);
 
     // Master token still works.
-    const m = await fetch(`${baseUrl}/deck/manifest`, {
+    const m = await fetch(`${baseUrl}/api/deck/manifest`, {
       headers: { authorization: "Bearer MASTER" },
     });
     assert.equal(m.status, 200);
 
     // Pair, then the new token also works.
-    const init = await (await fetch(`${baseUrl}/pair/init`, { method: "POST" })).json();
-    const c = await (await fetch(`${baseUrl}/pair/confirm`, {
+    const init = await (await fetch(`${baseUrl}/api/pair/init`, { method: "POST" })).json();
+    const c = await (await fetch(`${baseUrl}/api/pair/confirm`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ pairing_id: init.pairing_id }),
     })).json();
 
-    const okClient = await fetch(`${baseUrl}/deck/manifest`, {
+    const okClient = await fetch(`${baseUrl}/api/deck/manifest`, {
       headers: { authorization: `Bearer ${c.token}` },
     });
     assert.equal(okClient.status, 200);
@@ -208,19 +208,19 @@ test("GET /pair/list and DELETE /pair/revoke require auth", async () => {
   const { server, baseUrl } = await listen(app);
   try {
     // Without auth header → 401.
-    const noAuth = await fetch(`${baseUrl}/pair/list`);
+    const noAuth = await fetch(`${baseUrl}/api/pair/list`);
     assert.equal(noAuth.status, 401);
 
     // Mint a client first.
-    const init = await (await fetch(`${baseUrl}/pair/init`, { method: "POST" })).json();
-    const c = await (await fetch(`${baseUrl}/pair/confirm`, {
+    const init = await (await fetch(`${baseUrl}/api/pair/init`, { method: "POST" })).json();
+    const c = await (await fetch(`${baseUrl}/api/pair/confirm`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ pairing_id: init.pairing_id, label: "X" }),
     })).json();
 
     // List with master.
-    const listRes = await fetch(`${baseUrl}/pair/list`, {
+    const listRes = await fetch(`${baseUrl}/api/pair/list`, {
       headers: { authorization: "Bearer MASTER" },
     });
     const list = await listRes.json();
@@ -228,13 +228,13 @@ test("GET /pair/list and DELETE /pair/revoke require auth", async () => {
     assert.equal(list.clients[0].label, "X");
 
     // Revoke and confirm token stops working.
-    const rev = await fetch(`${baseUrl}/pair/revoke/${list.clients[0].id}`, {
+    const rev = await fetch(`${baseUrl}/api/pair/revoke/${list.clients[0].id}`, {
       method: "DELETE",
       headers: { authorization: "Bearer MASTER" },
     });
     assert.equal(rev.status, 200);
 
-    const dead = await fetch(`${baseUrl}/deck/manifest`, {
+    const dead = await fetch(`${baseUrl}/api/deck/manifest`, {
       headers: { authorization: `Bearer ${c.token}` },
     });
     assert.equal(dead.status, 401);

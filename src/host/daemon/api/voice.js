@@ -31,13 +31,13 @@ import { extractSuggestions } from "#core/agent/suggestions.js";
 import { appendGlobalMessage } from "#core/stores/messages.js";
 import { appendErrorTrace, previewText } from "#core/logging.js";
 
-export function register(app, { projects, plugins, registries }) {
+export function register(api, { projects, plugins, registries }) {
   // GET /voice/tts?path=<abs>
   //
   // Streams a TTS audio file back to the caller. Sandboxed to the
   // ~/.apx/tmp/tts directory so a client can't request arbitrary
   // filesystem paths through a manifest-leaked reply_audio_path.
-  app.get("/voice/tts", async (req, res) => {
+  api.get("/voice/tts", async (req, res) => {
     const rawPath = String(req.query.path || "");
     if (!rawPath) return res.status(400).json({ error: "path required" });
     try {
@@ -65,7 +65,7 @@ export function register(app, { projects, plugins, registries }) {
     }
   });
 
-  app.post("/voice/turn", async (req, res) => {
+  api.post("/voice/turn", async (req, res) => {
     const body = req.body || {};
     const cfg = readConfig();
     let userText = (body.text || "").trim();

@@ -1,9 +1,9 @@
 // Tool Registry on-demand for APX.
 //
-// Endpoints registered by api.js:
-//   GET  /tools              → lightweight list [{name, description, category, schema_url}]
-//   GET  /tools/:name        → full schema + examples
-//   POST /tools/:name/call   → execute the tool (proxy to internal handler)
+// Endpoints registered by api.js (mounted under /api):
+//   GET  /api/tools              → lightweight list [{name, description, category, schema_url}]
+//   GET  /api/tools/:name        → full schema + examples
+//   POST /api/tools/:name/call   → execute the tool (proxy to internal handler)
 //
 // Tools that already exist as HTTP endpoints are listed here with their
 // endpoint targets — no code duplication.
@@ -18,7 +18,7 @@ const TOOL_DEFINITIONS = [
     name: "read_file",
     category: "file",
     description: "Read the contents of a file inside the project.",
-    endpoint: { method: "GET", path: "/files", query: ["path", "project"] },
+    endpoint: { method: "GET", path: "/api/files", query: ["path", "project"] },
     parameters: {
       type: "object",
       properties: {
@@ -33,7 +33,7 @@ const TOOL_DEFINITIONS = [
     name: "write_file",
     category: "file",
     description: "Write or overwrite a file inside the project.",
-    endpoint: { method: "POST", path: "/files" },
+    endpoint: { method: "POST", path: "/api/files" },
     parameters: {
       type: "object",
       properties: {
@@ -49,7 +49,7 @@ const TOOL_DEFINITIONS = [
     name: "list_files",
     category: "file",
     description: "List files and directories inside a project path.",
-    endpoint: { method: "GET", path: "/files" },
+    endpoint: { method: "GET", path: "/api/files" },
     parameters: {
       type: "object",
       properties: {
@@ -63,7 +63,7 @@ const TOOL_DEFINITIONS = [
     name: "search_files",
     category: "file",
     description: "Search for files by name glob or content pattern in the project.",
-    endpoint: { method: "GET", path: "/files/search" },
+    endpoint: { method: "GET", path: "/api/files/search" },
     parameters: {
       type: "object",
       properties: {
@@ -80,7 +80,7 @@ const TOOL_DEFINITIONS = [
     name: "run_command",
     category: "shell",
     description: "Execute a shell command in the project directory. Returns stdout, stderr, exit_code.",
-    endpoint: { method: "POST", path: "/run" },
+    endpoint: { method: "POST", path: "/api/run" },
     parameters: {
       type: "object",
       properties: {
@@ -99,7 +99,7 @@ const TOOL_DEFINITIONS = [
     name: "memory_get",
     category: "memory",
     description: "Read the memory.md of the default agent in a project.",
-    endpoint: { method: "GET", path: "/memory" },
+    endpoint: { method: "GET", path: "/api/memory" },
     parameters: {
       type: "object",
       properties: {
@@ -112,7 +112,7 @@ const TOOL_DEFINITIONS = [
     name: "memory_set",
     category: "memory",
     description: "Overwrite the memory.md of the default agent in a project.",
-    endpoint: { method: "POST", path: "/memory" },
+    endpoint: { method: "POST", path: "/api/memory" },
     parameters: {
       type: "object",
       properties: {
@@ -155,7 +155,7 @@ const TOOL_DEFINITIONS = [
     name: "session_list",
     category: "session",
     description: "List sessions for an agent in a project.",
-    endpoint: { method: "GET", path: "/projects/:pid/agents/:slug/sessions" },
+    endpoint: { method: "GET", path: "/api/projects/:pid/agents/:slug/sessions" },
     parameters: {
       type: "object",
       properties: {
@@ -170,7 +170,7 @@ const TOOL_DEFINITIONS = [
     name: "session_get",
     category: "session",
     description: "Get a session by filename.",
-    endpoint: { method: "GET", path: "/projects/:pid/sessions/:sid" },
+    endpoint: { method: "GET", path: "/api/projects/:pid/sessions/:sid" },
     parameters: {
       type: "object",
       properties: {
@@ -185,7 +185,7 @@ const TOOL_DEFINITIONS = [
     name: "session_search",
     category: "session",
     description: "Search session content by text query across all agents in a project.",
-    endpoint: { method: "GET", path: "/sessions/search" },
+    endpoint: { method: "GET", path: "/api/sessions/search" },
     parameters: {
       type: "object",
       properties: {
@@ -201,7 +201,7 @@ const TOOL_DEFINITIONS = [
     name: "session_compact",
     category: "session",
     description: "Compact (summarise and compress) a session conversation.",
-    endpoint: { method: "POST", path: "/sessions/:id/compact" },
+    endpoint: { method: "POST", path: "/api/sessions/:id/compact" },
     parameters: {
       type: "object",
       properties: {
@@ -220,7 +220,7 @@ const TOOL_DEFINITIONS = [
     name: "mcp_list",
     category: "mcp",
     description: "List all MCP servers registered in a project.",
-    endpoint: { method: "GET", path: "/mcp" },
+    endpoint: { method: "GET", path: "/api/mcp" },
     parameters: {
       type: "object",
       properties: { project: { type: "string" } },
@@ -231,7 +231,7 @@ const TOOL_DEFINITIONS = [
     name: "mcp_run",
     category: "mcp",
     description: "Call a tool on an MCP server.",
-    endpoint: { method: "POST", path: "/mcp/run" },
+    endpoint: { method: "POST", path: "/api/mcp/run" },
     parameters: {
       type: "object",
       properties: {
@@ -250,7 +250,7 @@ const TOOL_DEFINITIONS = [
     name: "glob",
     category: "file",
     description: "List files matching a glob pattern (e.g. **/*.js). Uses native Node.js glob.",
-    endpoint: { method: "POST", path: "/tools/glob" },
+    endpoint: { method: "POST", path: "/api/tools/glob" },
     parameters: {
       type: "object",
       properties: {
@@ -271,7 +271,7 @@ const TOOL_DEFINITIONS = [
     name: "grep",
     category: "file",
     description: "Search file contents by regex pattern. Uses ripgrep when available, pure Node.js fallback.",
-    endpoint: { method: "POST", path: "/tools/grep" },
+    endpoint: { method: "POST", path: "/api/tools/grep" },
     parameters: {
       type: "object",
       properties: {
@@ -295,7 +295,7 @@ const TOOL_DEFINITIONS = [
     name: "http_get",
     category: "fetch",
     description: "Native HTTP GET — fast, no headless browser. Use for REST APIs, raw HTML, JSON endpoints.",
-    endpoint: { method: "POST", path: "/tools/fetch/get" },
+    endpoint: { method: "POST", path: "/api/tools/fetch/get" },
     parameters: {
       type: "object",
       properties: {
@@ -311,7 +311,7 @@ const TOOL_DEFINITIONS = [
     name: "http_post",
     category: "fetch",
     description: "Native HTTP POST — sends body as JSON when body is an object. Use for REST APIs.",
-    endpoint: { method: "POST", path: "/tools/fetch/post" },
+    endpoint: { method: "POST", path: "/api/tools/fetch/post" },
     parameters: {
       type: "object",
       properties: {
@@ -329,7 +329,7 @@ const TOOL_DEFINITIONS = [
     name: "http_request",
     category: "fetch",
     description: "Generic HTTP request with full control over method, headers, body, timeout.",
-    endpoint: { method: "POST", path: "/tools/fetch/request" },
+    endpoint: { method: "POST", path: "/api/tools/fetch/request" },
     parameters: {
       type: "object",
       properties: {
@@ -350,7 +350,7 @@ const TOOL_DEFINITIONS = [
     name: "browser_navigate",
     category: "browser",
     description: "Navigate the headless browser to a URL. Launches Chromium lazily on first call. Auto-retries and falls back to a more permissive wait strategy on redirect-heavy sites.",
-    endpoint: { method: "POST", path: "/tools/browser/navigate" },
+    endpoint: { method: "POST", path: "/api/tools/browser/navigate" },
     parameters: {
       type: "object",
       properties: {
@@ -371,7 +371,7 @@ const TOOL_DEFINITIONS = [
     name: "browser_screenshot",
     category: "browser",
     description: "Take a screenshot of the current browser page (or an element via selector). Returns { base64, path?, bytes, url }. To send via Telegram, prefer `save_to_tmp: true` and pass the returned `path` to send_telegram({photo_path}); otherwise pass `base64` straight to send_telegram({photo_base64}). NEVER include the base64 in any text field — Telegram does not render it.",
-    endpoint: { method: "POST", path: "/tools/browser/screenshot" },
+    endpoint: { method: "POST", path: "/api/tools/browser/screenshot" },
     parameters: {
       type: "object",
       properties: {
@@ -390,7 +390,7 @@ const TOOL_DEFINITIONS = [
     name: "browser_click",
     category: "browser",
     description: "Click a CSS selector on the current browser page.",
-    endpoint: { method: "POST", path: "/tools/browser/click" },
+    endpoint: { method: "POST", path: "/api/tools/browser/click" },
     parameters: {
       type: "object",
       properties: { selector: { type: "string" } },
@@ -402,7 +402,7 @@ const TOOL_DEFINITIONS = [
     name: "browser_type",
     category: "browser",
     description: "Type text into a CSS selector. Uses focus + Ctrl+A + Backspace to clear, then types with realistic delay.",
-    endpoint: { method: "POST", path: "/tools/browser/type" },
+    endpoint: { method: "POST", path: "/api/tools/browser/type" },
     parameters: {
       type: "object",
       properties: {
@@ -418,7 +418,7 @@ const TOOL_DEFINITIONS = [
     name: "browser_select",
     category: "browser",
     description: "Choose an option in a <select> element by its value.",
-    endpoint: { method: "POST", path: "/tools/browser/select" },
+    endpoint: { method: "POST", path: "/api/tools/browser/select" },
     parameters: {
       type: "object",
       properties: {
@@ -433,7 +433,7 @@ const TOOL_DEFINITIONS = [
     name: "browser_hover",
     category: "browser",
     description: "Hover the cursor over an element (triggers tooltips, dropdowns, hover states).",
-    endpoint: { method: "POST", path: "/tools/browser/hover" },
+    endpoint: { method: "POST", path: "/api/tools/browser/hover" },
     parameters: {
       type: "object",
       properties: { selector: { type: "string" } },
@@ -445,7 +445,7 @@ const TOOL_DEFINITIONS = [
     name: "browser_evaluate",
     category: "browser",
     description: "Execute JavaScript in the page context. Captures the script's console.log/info/warn/error output and returns it alongside the result.",
-    endpoint: { method: "POST", path: "/tools/browser/evaluate" },
+    endpoint: { method: "POST", path: "/api/tools/browser/evaluate" },
     parameters: {
       type: "object",
       properties: { code: { type: "string", description: "JS code to eval (function body)." } },
@@ -457,7 +457,7 @@ const TOOL_DEFINITIONS = [
     name: "browser_get_text",
     category: "browser",
     description: "Extract readable text from the current page (or a single element). Strips script/style/nav/header/footer.",
-    endpoint: { method: "POST", path: "/tools/browser/get_text" },
+    endpoint: { method: "POST", path: "/api/tools/browser/get_text" },
     parameters: {
       type: "object",
       properties: { selector: { type: "string", description: "Optional CSS selector." } },
@@ -468,7 +468,7 @@ const TOOL_DEFINITIONS = [
     name: "browser_get_content",
     category: "browser",
     description: "Return raw innerHTML of the page or a single element (truncated at 1MB).",
-    endpoint: { method: "POST", path: "/tools/browser/get_content" },
+    endpoint: { method: "POST", path: "/api/tools/browser/get_content" },
     parameters: {
       type: "object",
       properties: { selector: { type: "string" } },
@@ -479,7 +479,7 @@ const TOOL_DEFINITIONS = [
     name: "browser_wait_for_selector",
     category: "browser",
     description: "Wait until a CSS selector appears on the page.",
-    endpoint: { method: "POST", path: "/tools/browser/wait_for_selector" },
+    endpoint: { method: "POST", path: "/api/tools/browser/wait_for_selector" },
     parameters: {
       type: "object",
       properties: {
@@ -494,7 +494,7 @@ const TOOL_DEFINITIONS = [
     name: "browser_close",
     category: "browser",
     description: "Close the headless browser and free resources.",
-    endpoint: { method: "POST", path: "/tools/browser/close" },
+    endpoint: { method: "POST", path: "/api/tools/browser/close" },
     parameters: { type: "object", properties: {} },
     examples: [{}],
   },
@@ -504,7 +504,7 @@ const TOOL_DEFINITIONS = [
     name: "web_search",
     category: "search",
     description: "Search the web. Modes: auto (tries DDG → Brave → Browser), ddg, brave, browser.",
-    endpoint: { method: "POST", path: "/tools/search" },
+    endpoint: { method: "POST", path: "/api/tools/search" },
     parameters: {
       type: "object",
       properties: {
@@ -525,7 +525,7 @@ const TOOL_DEFINITIONS = [
     name: "agent_list",
     category: "agents",
     description: "List all agents in a project.",
-    endpoint: { method: "GET", path: "/projects/:pid/agents" },
+    endpoint: { method: "GET", path: "/api/projects/:pid/agents" },
     parameters: {
       type: "object",
       properties: { project: { type: "string" } },
@@ -537,7 +537,7 @@ const TOOL_DEFINITIONS = [
     name: "agent_get",
     category: "agents",
     description: "Get details + memory for a specific agent.",
-    endpoint: { method: "GET", path: "/projects/:pid/agents/:slug" },
+    endpoint: { method: "GET", path: "/api/projects/:pid/agents/:slug" },
     parameters: {
       type: "object",
       properties: {
@@ -554,7 +554,7 @@ const TOOL_DEFINITIONS = [
     name: "project_info",
     category: "project",
     description: "List all registered projects and their metadata.",
-    endpoint: { method: "GET", path: "/projects" },
+    endpoint: { method: "GET", path: "/api/projects" },
     parameters: { type: "object", properties: {} },
     examples: [{}],
   },
@@ -571,7 +571,7 @@ function listTools() {
     name,
     description,
     category,
-    schema_url: `/tools/${name}`,
+    schema_url: `/api/tools/${name}`,
     endpoint_method: endpoint?.method || "inline",
     endpoint_path: endpoint?.path || null,
   }));
@@ -587,7 +587,7 @@ function getTool(name) {
     parameters: t.parameters,
     examples: t.examples || [],
     endpoint: t.endpoint || null,
-    schema_url: `/tools/${name}`,
+    schema_url: `/api/tools/${name}`,
   };
 }
 
@@ -601,12 +601,12 @@ function makeInlineHandlers({ projects, registries }) {
       const { default: fetch } = await import("node-fetch");
       const base = `http://localhost:${process.env.APX_PORT || 7430}`;
       // GET current
-      const getRes = await fetch(`${base}/memory${body.project ? `?project=${body.project}` : ""}`);
+      const getRes = await fetch(`${base}/api/memory${body.project ? `?project=${body.project}` : ""}`);
       if (!getRes.ok) throw new Error(`memory_get failed: ${getRes.status}`);
       const { body: current } = await getRes.json();
       // POST updated
       const text = body.text || "";
-      const postRes = await fetch(`${base}/memory${body.project ? `?project=${body.project}` : ""}`, {
+      const postRes = await fetch(`${base}/api/memory${body.project ? `?project=${body.project}` : ""}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ body: current + text }),
@@ -651,19 +651,19 @@ export function buildRegistryRouter(express, ctx) {
   const router = express.Router();
   const inlineHandlers = makeInlineHandlers({ projects, registries });
 
-  // GET /tools — lightweight list
+  // GET /api/tools — lightweight list
   router.get("/", (_req, res) => {
     res.json(listTools());
   });
 
-  // GET /tools/:name — full schema
+  // GET /api/tools/:name — full schema
   router.get("/:name", (req, res) => {
     const tool = getTool(req.params.name);
     if (!tool) return res.status(404).json({ error: `tool "${req.params.name}" not found` });
     res.json(tool);
   });
 
-  // POST /tools/:name/call — execute tool
+  // POST /api/tools/:name/call — execute tool
   router.post("/:name/call", async (req, res) => {
     const { name } = req.params;
     const toolDef = TOOL_MAP.get(name);

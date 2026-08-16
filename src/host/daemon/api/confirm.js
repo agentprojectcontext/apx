@@ -10,8 +10,8 @@
 
 import { getConfirmationStore } from "#core/confirmation/pending-store.js";
 
-export function register(app) {
-  app.post("/super-agent/confirm/:correlationId", async (req, res) => {
+export function register(api) {
+  api.post("/super-agent/confirm/:correlationId", async (req, res) => {
     const { correlationId } = req.params;
     const { confirmed } = req.body;
 

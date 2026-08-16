@@ -25,8 +25,8 @@ import {
   stopDesktop,
 } from "#core/desktop/process.js";
 
-export function register(app, { plugins, config }) {
-  app.get("/desktop/status", (_req, res) => {
+export function register(api, { plugins, config }) {
+  api.get("/desktop/status", (_req, res) => {
     // `running` is the live Electron process (pid file) — the source of truth
     // for the Start/Stop/Restart controls. `connected_clients` is how many of
     // those windows have an open WS to the daemon (a window can be running but
@@ -41,7 +41,7 @@ export function register(app, { plugins, config }) {
 
   // POST /desktop/start — launch the floating window (detached Electron). Same
   // helper the CLI's `apx desktop start` uses. No-op-safe if already running.
-  app.post("/desktop/start", async (_req, res) => {
+  api.post("/desktop/start", async (_req, res) => {
     try {
       const r = await startDesktopDetached({ port: config?.port });
       if (!r.ok) return res.status(500).json({ ok: false, error: r.error });
@@ -53,7 +53,7 @@ export function register(app, { plugins, config }) {
 
   // POST /desktop/stop — terminate the running window (SIGTERM). `stopped` is
   // false when nothing was running.
-  app.post("/desktop/stop", (_req, res) => {
+  api.post("/desktop/stop", (_req, res) => {
     const r = stopDesktop();
     if (!r.ok) return res.status(500).json({ ok: false, error: r.error });
     res.json({ ok: true, stopped: r.stopped });
@@ -66,7 +66,7 @@ export function register(app, { plugins, config }) {
   // the renderer (main.js repositions + reloads webContents), NOT a process
   // kill — the Electron app keeps its tray/shortcut. Returns how many windows
   // were signalled so the UI can tell "reloaded" from "nothing connected".
-  app.post("/desktop/restart", (_req, res) => {
+  api.post("/desktop/restart", (_req, res) => {
     import("../desktop-ws.js")
       .then(({ desktopClients, broadcastDesktop }) => {
         const reloaded = desktopClients.size;
@@ -76,7 +76,7 @@ export function register(app, { plugins, config }) {
       .catch((e) => res.status(500).json({ ok: false, error: e.message }));
   });
 
-  app.post("/desktop/message", async (req, res) => {
+  api.post("/desktop/message", async (req, res) => {
     const { text, previousMessages = [] } = req.body || {};
     if (!text) return res.status(400).json({ error: "text required" });
     // Respond immediately — the real reply goes over WebSocket.
@@ -101,11 +101,11 @@ export function register(app, { plugins, config }) {
   // `apx desktop install/uninstall` CLI commands manage. Web admin uses
   // these so the user can flip the setting without dropping to a terminal.
 
-  app.get("/desktop/autostart", (_req, res) => {
+  api.get("/desktop/autostart", (_req, res) => {
     res.json({ ok: true, enabled: autostartIsOn(), platform: process.platform });
   });
 
-  app.post("/desktop/autostart", (req, res) => {
+  api.post("/desktop/autostart", (req, res) => {
     const { enable } = req.body || {};
     if (typeof enable !== "boolean") {
       return res.status(400).json({ ok: false, error: "body.enable must be a boolean" });
