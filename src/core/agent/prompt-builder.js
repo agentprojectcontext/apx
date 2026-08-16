@@ -22,6 +22,8 @@ import { readSelfMemoryForPrompt } from "./self-memory.js";
 import { buildSkillsHintBlock } from "./skills/catalog.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { activeEmotionGuide, buildEmotionGuide } from "../voice/emotions.js";
+import { renderPromptTemplate } from "./render-template.js";
+import { buildPersonaBlock } from "../personas/block.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROMPTS_DIR = path.join(__dirname, "prompts");
@@ -83,12 +85,10 @@ export function loadDefaultSystemPrompt() {
 }
 export const DEFAULT_SYSTEM = loadDefaultSystemPrompt();
 
-export function renderPromptTemplate(template, vars = {}) {
-  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => {
-    const value = vars[key];
-    return value == null || value === "" ? "" : String(value);
-  });
-}
+// Re-exported so the many callers importing it from here keep working; the
+// implementation lives in render-template.js to avoid an import cycle with the
+// modules that build prompt blocks.
+export { renderPromptTemplate };
 
 // ---------------------------------------------------------------------------
 // Channel + mode blocks
@@ -304,6 +304,12 @@ export function buildSuperAgentSystem({
   return [
     roleBlock,
     buildUserContextBlock(identity, globalConfig),
+    // Installed persona, when one is active. "" for vanilla — and an empty
+    // block is filtered out below, so a vanilla prompt is byte-identical to
+    // what it was before personas existed. Sits after identity (the persona
+    // needs to know who it serves) and before customInstructions (whatever the
+    // owner writes themselves must win on recency).
+    buildPersonaBlock(identity, globalConfig),
     customInstructions,
     memoryBlock || buildSelfMemoryBlock(),
     activeThreadsBlock,

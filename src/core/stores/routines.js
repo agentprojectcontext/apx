@@ -138,7 +138,7 @@ export function getRoutine(projectPath, name) {
   return readFile(projectPath).find((r) => r.name === name) || null;
 }
 
-export function upsertRoutine(storagePath, { name, kind, schedule, spec, enabled = true, permission_mode, allowed_tools, pre_commands, post_commands, skip_prompt_on }) {
+export function upsertRoutine(storagePath, { name, kind, schedule, spec, enabled = true, permission_mode, allowed_tools, pre_commands, post_commands, skip_prompt_on, origin, origin_hash }) {
   if (!name || !kind || !schedule) throw new Error("routine requires name, kind, schedule");
   const now = nowIso();
   const routines = readFile(storagePath);
@@ -166,6 +166,14 @@ export function upsertRoutine(storagePath, { name, kind, schedule, spec, enabled
     //   "always"      — never run the LLM (shell-only routine)
     //   "never"       — always run the LLM regardless of pre_commands
     skip_prompt_on: skip_prompt_on || prev?.skip_prompt_on || "signal",
+    // Provenance. A routine installed by a persona package carries
+    // origin: "persona:<id>" so it can be disabled or removed with that
+    // package without touching the user's own routines. `origin_hash` is the
+    // hash of the spec as the package rendered it: when the record no longer
+    // matches, the user has edited it and the package must never overwrite or
+    // delete it again.
+    origin: origin ?? prev?.origin ?? null,
+    origin_hash: origin_hash ?? prev?.origin_hash ?? null,
     enabled: enabled !== false,
     last_run_at: prev?.last_run_at ?? null,
     last_status: prev?.last_status ?? null,
