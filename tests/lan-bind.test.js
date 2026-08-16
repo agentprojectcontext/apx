@@ -82,3 +82,17 @@ test("link-local addresses sort last so they are never the default pick", () => 
   const lastReal = ordered.reduce((acc, a, i) => (isLinkLocal(a.address) ? acc : i), -1);
   assert.ok(firstLinkLocal > lastReal, "a link-local address must not precede a routable one");
 });
+
+// Regression: `apx panel share` binding a single LAN address used to EXCLUDE
+// loopback, which took the CLI, the desktop app and /admin/web-token down with
+// it — sharing the panel with a phone killed the local toolchain. The daemon
+// now binds loopback plus the configured host, so this asserts the rule the
+// bind logic depends on: a shared host is an ADDITIONAL address, never a move.
+test("a shareable host is always distinct from loopback", () => {
+  // Anything `share` can select must be a second address, not a replacement —
+  // if it could pick loopback there would be nothing to add.
+  for (const a of detectLanAddresses()) {
+    assert.equal(isLoopback(a.address), false, `${a.address} must not be loopback`);
+    assert.equal(isWildcard(a.address), false, `${a.address} must not be a wildcard`);
+  }
+});
