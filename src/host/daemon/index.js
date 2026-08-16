@@ -3,9 +3,13 @@
 // Must run before any outbound fetch — see the module header for why.
 import "#core/net/ipv4-first.js";
 import fs from "node:fs";
+import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomBytes } from "node:crypto";
+
+// Loopback is always bound, no matter what `host` is configured to.
+const LOOPBACK_HOST = "127.0.0.1";
 import {
   readConfig,
   writeConfig,
@@ -233,9 +237,29 @@ async function main() {
   plugins.installRoutes(app);
 
   let callbackReconciler = null;
-  const server = app.listen(port, host, () => {
+
+  // Loopback is ALWAYS bound, whatever `host` says.
+  //
+  // Binding a single specific LAN address (what `apx panel share` configures)
+  // excludes 127.0.0.1 — and the CLI, the desktop app and /admin/web-token all
+  // reach the daemon over loopback. Sharing the panel with the phone must not
+  // take the local toolchain down with it, so a non-loopback host means TWO
+  // listeners on one app, not a move.
+  const extraHosts =
+    host && host !== LOOPBACK_HOST && host !== "0.0.0.0" && host !== "::" ? [host] : [];
+  const secondary = [];
+
+  const server = app.listen(port, extraHosts.length ? LOOPBACK_HOST : host, () => {
     writePid();
-    log(`apx-daemon ${PKG.version} listening on http://${host}:${port}`);
+    for (const h of extraHosts) {
+      // A secondary bind failing must never take the daemon down — the local
+      // one is already up and is the one everything depends on.
+      const s2 = http.createServer(app);
+      s2.on("error", (e) => log(`bind ${h}:${port} failed (${e.code || e.message}) — local access unaffected`));
+      s2.listen(port, h, () => log(`apx-daemon also listening on http://${h}:${port}`));
+      secondary.push(s2);
+    }
+    log(`apx-daemon ${PKG.version} listening on http://${extraHosts.length ? LOOPBACK_HOST : host}:${port}`);
     log(`projects: ${projects.list().length} | plugins: ${Object.keys(plugins.status()).join(", ") || "(none)"}`);
     plugins.startAll();
     scheduler.start();
@@ -317,6 +341,11 @@ async function main() {
     import("./whisper-server.js").then(({ shutdownWhisperServer }) => {
       shutdownWhisperServer().catch(() => {});
     }).catch(() => {});
+    // Close the LAN listener(s) too, or the port stays held after SIGTERM and
+    // the next `apx restart` fails with "already running".
+    for (const s2 of secondary) {
+      try { s2.close(); } catch { /* already down */ }
+    }
     server.close(() => {
       clearPid();
       process.exit(0);
