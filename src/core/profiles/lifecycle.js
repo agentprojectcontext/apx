@@ -183,6 +183,23 @@ function copyDirSync(from, to) {
   }
 }
 
+/**
+ * Token cost of every language variant a package ships.
+ * @returns {{ lang: string, tokens: number }[]}
+ */
+export function measureProfilePrompts(profile, globalConfig, identity = null) {
+  const base = {
+    ...globalConfig,
+    profile: { active: profile.id, config: schemaDefaults(profile.schema) },
+  };
+  return (profile.prompts || []).map((file) => {
+    const m = file.match(/^PROFILE\.([\w-]+)\.md$/);
+    const lang = m ? m[1] : "en";
+    const rendered = renderProfilePrompt(profile, { identity, globalConfig: base, lang });
+    return { lang, tokens: estimateTokens(rendered) };
+  });
+}
+
 /** Channel ids a profile ships an overlay for (profiles/<id>/channels/<ch>.md). */
 export function listProfileChannels(profile) {
   const dir = path.join(profile.dir, "channels");
@@ -251,18 +268,24 @@ export function validateProfilePackage(profile, { globalConfig = null } = {}) {
     }
     tokens = estimateTokens(rendered);
 
+    // The budget applies to EVERY translation, not just English. A Spanish
+    // speaker pays for PROFILE.es.md, so checking only the base file would let
+    // a translation ship over budget for exactly the people who read it.
     const budget = profile.manifest?.prompt_budget_tokens;
     if (budget) {
-      if (tokens > budget * 1.5) {
-        errors.push(
-          `profile "${profile.id}": prompt is ~${tokens} tokens, more than 1.5x its declared ` +
-          `budget of ${budget}. Trim PROFILE.md or raise prompt_budget_tokens.`
-        );
-      } else if (tokens > budget) {
-        warnings.push(
-          `profile "${profile.id}": prompt is ~${tokens} tokens against a declared budget of ` +
-          `${budget}. It ships on every turn of every channel.`
-        );
+      for (const { lang, tokens: n } of measureProfilePrompts(profile, cfg, identity)) {
+        const which = lang === "en" ? "PROFILE.md" : `PROFILE.${lang}.md`;
+        if (n > budget * 1.5) {
+          errors.push(
+            `profile "${profile.id}": ${which} is ~${n} tokens, more than 1.5x its declared ` +
+            `budget of ${budget}. Trim it or raise prompt_budget_tokens.`
+          );
+        } else if (n > budget) {
+          warnings.push(
+            `profile "${profile.id}": ${which} is ~${n} tokens against a declared budget of ` +
+            `${budget}. It ships on every turn of every channel.`
+          );
+        }
       }
     }
   }

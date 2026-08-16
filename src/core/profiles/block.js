@@ -25,11 +25,38 @@ import {
 // number of profiles × languages, which is tiny.
 const cache = new Map();
 
-/** Neutral stand-ins, so an unconfigured install never renders broken prose. */
-const NEUTRAL = {
-  owner_name: "the owner",
-  agent_name: "the agent",
+// Neutral stand-ins, so an unconfigured install never renders broken prose.
+//
+// Language-aware on purpose: these are substituted INTO the template's own
+// prose, so an English fallback inside a Spanish sentence ("Sos el jefe de
+// gabinete de the owner") is a white-label bug, not a cosmetic one. Unknown
+// languages fall back to English, same as prompt selection does.
+const NEUTRAL_BY_LANG = {
+  en: { owner_name: "the owner", agent_name: "the agent" },
+  es: { owner_name: "tu responsable", agent_name: "el agente" },
+  pt: { owner_name: "o responsável", agent_name: "o agente" },
+  fr: { owner_name: "le responsable", agent_name: "l'agent" },
+  it: { owner_name: "il responsabile", agent_name: "l'agente" },
+  de: { owner_name: "die verantwortliche Person", agent_name: "der Agent" },
 };
+
+function neutralFor(lang) {
+  const code = String(lang || "en").toLowerCase();
+  return NEUTRAL_BY_LANG[code] || NEUTRAL_BY_LANG[code.split("-")[0]] || NEUTRAL_BY_LANG.en;
+}
+
+/**
+ * The language of the prompt file that was actually selected — which is NOT
+ * always the one asked for. Requesting `fr` on a package that ships only
+ * English resolves to PROFILE.md, and the fallback words have to follow the
+ * file, not the request, or you get "You are le responsable's chief of staff".
+ */
+function langOfPromptFile(file) {
+  const m = String(file || "").match(/PROFILE\.([\w-]+)\.md$/);
+  return m ? m[1] : "en";
+}
+
+const NEUTRAL = NEUTRAL_BY_LANG.en;
 
 /**
  * Variables every profile template can rely on, whether or not the user has
@@ -112,14 +139,15 @@ export function validateTemplateVars(template, schema) {
  * `owner_name` is therefore read from identity, never duplicated into the
  * profile's config.
  */
-export function profileTemplateVars(profile, identity, globalConfig) {
+export function profileTemplateVars(profile, identity, globalConfig, lang = "en") {
   const settings = effectiveProfileConfig(profile, globalConfig);
+  const neutral = neutralFor(lang);
   return {
     ...settings,
-    owner_name: identity?.owner_name || NEUTRAL.owner_name,
+    owner_name: identity?.owner_name || neutral.owner_name,
     owner_context: identity?.owner_context || "",
     agent_name:
-      identity?.agent_name || globalConfig?.super_agent?.name || NEUTRAL.agent_name,
+      identity?.agent_name || globalConfig?.super_agent?.name || neutral.agent_name,
     profile_name: profile?.manifest?.name || profile?.id || "",
   };
 }
@@ -142,7 +170,7 @@ export function renderProfilePrompt(profile, { identity = null, globalConfig = {
   }
   if (!template) return "";
 
-  const vars = profileTemplateVars(profile, identity, globalConfig);
+  const vars = profileTemplateVars(profile, identity, globalConfig, langOfPromptFile(file));
   let rendered = renderPromptTemplate(template, vars);
 
   // renderPromptTemplate only understands {{word}}. Anything else — a dotted
@@ -182,7 +210,7 @@ export function buildProfileBlock(identity, globalConfig = {}) {
     return "";
   }
 
-  const vars = profileTemplateVars(profile, identity, globalConfig);
+  const vars = profileTemplateVars(profile, identity, globalConfig, langOfPromptFile(file));
   const key = `${profile.id}|${file}|${mtime}|${JSON.stringify(vars)}`;
   if (cache.has(key)) return cache.get(key);
 
@@ -245,7 +273,9 @@ export function buildProfileChannelBlock(channel, identity, globalConfig = {}, c
   }
   if (!raw) return "";
 
-  const vars = { ...profileTemplateVars(profile, identity, globalConfig), ...channelMeta };
+  const lang = globalConfig?.user?.language || identity?.language || "en";
+  const effective = langOfPromptFile(resolvePromptFile(profile.dir, lang) || "");
+  const vars = { ...profileTemplateVars(profile, identity, globalConfig, effective), ...channelMeta };
   const key = `ch|${profile.id}|${file}|${mtime}|${JSON.stringify(vars)}`;
   if (cache.has(key)) return cache.get(key);
 

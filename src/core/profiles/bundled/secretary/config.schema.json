@@ -1,0 +1,49 @@
+{
+  "type": "object",
+  "properties": {
+    "day_open_schedule": {
+      "type": "string",
+      "default": "30 8 * * 1-5",
+      "title": "Day opens (cron)",
+      "description": "When the morning anchor runs. Five-field cron, in the machine's local time."
+    },
+    "day_close_schedule": {
+      "type": "string",
+      "default": "30 18 * * 1-5",
+      "title": "Day closes (cron)",
+      "description": "When the evening anchor runs."
+    },
+    "nudge_budget_per_day": {
+      "type": "integer",
+      "default": 3,
+      "title": "Unrequested messages per day",
+      "description": "The ceiling outside the anchors. Lower is usually better."
+    },
+    "quiet_hours": {
+      "type": "string",
+      "default": "22:00-07:30",
+      "title": "Quiet hours",
+      "description": "No unrequested messages in this window."
+    },
+    "stale_project_days": {
+      "type": "integer",
+      "default": 7,
+      "title": "A project is stale after (days)",
+      "description": "Days without recorded activity before it is worth mentioning."
+    },
+    "primary_channel": {
+      "type": "string",
+      "enum": ["telegram", "desktop", "cli", "web"],
+      "default": "telegram",
+      "title": "Primary channel",
+      "description": "Where unrequested messages go by default."
+    },
+    "formality": {
+      "type": "string",
+      "enum": ["tu", "vos", "usted", "neutral"],
+      "default": "neutral",
+      "title": "Form of address",
+      "description": "Only meaningful in languages that distinguish it."
+    }
+  }
+}

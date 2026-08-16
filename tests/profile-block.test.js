@@ -383,3 +383,50 @@ test("VANILLA: an overlay on disk changes nothing while no profile is active", (
     removeTestProfile("overlay");
   }
 });
+
+// --------------------------------------------------------------------------
+// Neutral fallbacks are language-aware
+// --------------------------------------------------------------------------
+
+test("the neutral fallback matches the language of the file that was selected", () => {
+  try {
+    const dir = installTestProfile("fallback", { prompt: "Serving {{owner_name}} today." });
+    fs.writeFileSync(path.join(dir, "PROFILE.es.md"), "Trabajás para {{owner_name}} hoy.");
+    clearProfileBlockCache();
+
+    const profile = readProfile("fallback");
+    const noIdentity = { identity: null, globalConfig: {} };
+
+    // A Spanish template must not get an English fallback word.
+    const es = renderProfilePrompt(profile, { ...noIdentity, lang: "es" });
+    assert.match(es, /Trabajás para tu responsable hoy\./);
+
+    const en = renderProfilePrompt(profile, { ...noIdentity, lang: "en" });
+    assert.match(en, /Serving the owner today\./);
+
+    // French has no PROFILE.fr.md, so it resolves to the ENGLISH file — and the
+    // fallback has to follow the file, not the request, or the sentence ends up
+    // half French ("Serving le responsable today").
+    const fr = renderProfilePrompt(profile, { ...noIdentity, lang: "fr" });
+    assert.match(fr, /Serving the owner today\./);
+    assert.ok(!fr.includes("responsable"));
+  } finally {
+    removeTestProfile("fallback");
+  }
+});
+
+test("a real owner name always wins over any fallback", () => {
+  try {
+    const dir = installTestProfile("named", { prompt: "Serving {{owner_name}}." });
+    fs.writeFileSync(path.join(dir, "PROFILE.es.md"), "Trabajás para {{owner_name}}.");
+    clearProfileBlockCache();
+
+    const block = buildProfileBlock(
+      { owner_name: "Ada", language: "es" },
+      { user: { language: "es" }, profile: { active: "named" } },
+    );
+    assert.match(block, /Trabajás para Ada\./);
+  } finally {
+    removeTestProfile("named");
+  }
+});

@@ -501,3 +501,72 @@ test("off and uninstall clear the active-profile mirror but keep the settings", 
   assert.equal(cfg.profile.active, null);
   assert.deepEqual(cfg.profile.config, {});
 });
+
+// A Spanish speaker pays for PROFILE.es.md, so checking only the base file
+// would let a translation ship over budget for exactly the people who read it.
+test("the prompt budget is enforced on every translation, not just English", () => {
+  resetState();
+  const pkg = makePackage({
+    prompt: "word ".repeat(200),          // ~250 tokens, inside the budget
+    manifest: { prompt_budget_tokens: 300 },
+  });
+  // ~350 tokens: over the 300 budget but under the 1.5x hard-fail line.
+  fs.writeFileSync(path.join(pkg.dir, "PROFILE.es.md"), "palabra ".repeat(175));
+
+  const { warnings } = installProfile(pkg.dir);
+  assert.equal(warnings.length, 1, "the oversized translation must be reported");
+  assert.match(warnings[0], /PROFILE\.es\.md is ~\d+ tokens/);
+});
+
+test("a translation more than 1.5x over budget fails the install", () => {
+  resetState();
+  const pkg = makePackage({
+    prompt: "word ".repeat(100),
+    manifest: { prompt_budget_tokens: 300 },
+  });
+  fs.writeFileSync(path.join(pkg.dir, "PROFILE.es.md"), "palabra ".repeat(600)); // ~1200
+
+  assert.throws(() => installProfile(pkg.dir), /PROFILE\.es\.md is ~\d+ tokens, more than 1\.5x/);
+});
+
+// --------------------------------------------------------------------------
+// The bundled secretary package
+// --------------------------------------------------------------------------
+
+test("the bundled secretary package is valid and within its declared budget", async () => {
+  const { readProfile, measureProfilePrompts, validateProfilePackage } =
+    await import("#core/profiles/index.js");
+
+  const secretary = readProfile("secretary");
+  assert.ok(secretary, "secretary should resolve from the bundled layer");
+  assert.equal(secretary.source, "bundled");
+
+  const report = validateProfilePackage(secretary);
+  assert.equal(report.ok, true, report.errors.join("; "));
+
+  const budget = secretary.manifest.prompt_budget_tokens;
+  for (const { lang, tokens } of measureProfilePrompts(secretary, readConfig())) {
+    assert.ok(tokens <= budget, `PROFILE (${lang}) is ${tokens} tokens, over the ${budget} budget`);
+  }
+});
+
+test("the secretary's routines carry schedules the scheduler can actually parse", async () => {
+  const { readProfile, renderProfileRoutines } = await import("#core/profiles/index.js");
+  const { parseSchedule } = await import("#core/stores/routines.js");
+
+  const secretary = readProfile("secretary");
+  const routines = renderProfileRoutines(secretary, {
+    profile: { active: "secretary", config: secretary.defaults },
+  });
+
+  assert.ok(routines.length >= 2, "expected the day-open and day-close anchors");
+  for (const r of routines) {
+    // A schedule that stores fine but does not parse is a routine that silently
+    // never runs — getDueRoutines drops anything parseSchedule calls invalid.
+    assert.notEqual(
+      parseSchedule(r.schedule).kind,
+      "invalid",
+      `${r.name} has an unparseable schedule: ${JSON.stringify(r.schedule)}`
+    );
+  }
+});
