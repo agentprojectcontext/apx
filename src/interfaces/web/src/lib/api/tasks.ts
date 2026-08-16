@@ -25,8 +25,12 @@ export const Tasks = {
   // (globalPage). Each returns the requested window plus the full total.
   listPage: (pid: string, { state, limit, offset }: { state: TaskEntry["state"] | "all"; limit: number; offset: number }) =>
     http.get<unknown>(`/projects/${pid}/tasks?state=${state}&limit=${limit}&offset=${offset}`).then((b) => unwrapPage<TaskEntry>(b)),
-  globalPage: ({ state, limit, offset }: { state: TaskEntry["state"] | "all"; limit: number; offset: number }) =>
-    http.get<unknown>(`/tasks?state=${state}&limit=${limit}&offset=${offset}`).then((b) => unwrapPage<GlobalTaskEntry>(b)),
+  globalPage: ({ state, limit, offset, status }: { state: TaskEntry["state"] | "all"; limit: number; offset: number; status?: TaskStatus | "" }) =>
+    http
+      .get<unknown>(
+        `/tasks?state=${state}&limit=${limit}&offset=${offset}` + (status ? `&status=${status}` : ""),
+      )
+      .then((b) => unwrapPage<GlobalTaskEntry>(b)),
   get:    (pid: string, id: string) => http.get<TaskEntry>(`/projects/${pid}/tasks/${id}`),
   add:    (pid: string, body: Partial<TaskEntry>) =>
     http.post<TaskEntry>(`/projects/${pid}/tasks`, body),

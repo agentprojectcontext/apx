@@ -1666,10 +1666,16 @@ const HELP_TOPICS = new Map(Object.entries({
       ["reopen <id>", "Reopen a done or dropped task."],
       ["patch | edit <id>", "Edit fields on an existing task."],
     ],
-    options: [["--project <name|id|path>", "Pin command to a specific project."]],
+    options: [
+      ["--project <name|id|path>", "Pin command to a specific project."],
+      ["--all", "list: fold every registered project into one list, each row labelled."],
+      ["--status <s>", "list: workflow sub-status — pending | running | in_review | blocked."],
+      ["--updated-since <ISO>", "list: only what moved since that moment."],
+    ],
     examples: [
       "apx task add \"Ship release notes\" --tag release --due 2026-06-01",
       "apx task list --state open --tag release",
+      "apx task list --all --status blocked",
       "apx task done t_abc123",
     ],
   }),
