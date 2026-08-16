@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { filterSessionsByQuery } from "#interfaces/cli/commands/sessions.js";
+import { filterSessionsByQuery } from "#core/sessions/index.js";
 
 // Shared search core used by both `apx session find` (CLI) and the daemon's
 // GET /sessions?q= endpoint. These cover the title-match path (no filesystem).
