@@ -55,14 +55,14 @@ function normalizeScope(raw) {
   return s;
 }
 
-export function register(app, { projects, registries, project }) {
-  app.get("/projects/:pid/mcps", (req, res) => {
+export function register(api, { projects, registries, project }) {
+  api.get("/projects/:pid/mcps", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     res.json(registries.for(p).list());
   });
 
-  app.post("/projects/:pid/mcps", (req, res) => {
+  api.post("/projects/:pid/mcps", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const scope = normalizeScope(req.query?.scope);
@@ -102,7 +102,7 @@ export function register(app, { projects, registries, project }) {
     res.status(201).json(entry);
   });
 
-  app.delete("/projects/:pid/mcps/:name", (req, res) => {
+  api.delete("/projects/:pid/mcps/:name", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const scope = normalizeScope(req.query?.scope);
@@ -155,7 +155,7 @@ export function register(app, { projects, registries, project }) {
     res.status(204).end();
   });
 
-  app.get("/projects/:pid/mcps/check", (req, res) => {
+  api.get("/projects/:pid/mcps/check", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const reg = registries.for(p);
@@ -194,7 +194,7 @@ export function register(app, { projects, registries, project }) {
   // Full tool catalog — tools/list with input schemas, all pages merged.
   // This is what `apx mcp tools` renders; /test below stays as the
   // lightweight smoke check for the web UI card.
-  app.get("/projects/:pid/mcps/:name/tools", async (req, res) => {
+  api.get("/projects/:pid/mcps/:name/tools", async (req, res) => {
     const p = project(req, res);
     if (!p) return;
     try {
@@ -205,7 +205,7 @@ export function register(app, { projects, registries, project }) {
     }
   });
 
-  app.post("/projects/:pid/mcps/:name/call", async (req, res) => {
+  api.post("/projects/:pid/mcps/:name/call", async (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const { tool, params } = req.body || {};
@@ -221,7 +221,7 @@ export function register(app, { projects, registries, project }) {
   // Smoke test — calls tools/list and reports either the tool catalog or a
   // clean error message. Used by the "Test" button in the MCP card so the
   // user can sanity-check a freshly-saved MCP without firing a real tool.
-  app.post("/projects/:pid/mcps/:name/test", async (req, res) => {
+  api.post("/projects/:pid/mcps/:name/test", async (req, res) => {
     const p = project(req, res);
     if (!p) return;
     try {
@@ -242,7 +242,7 @@ export function register(app, { projects, registries, project }) {
 
   // In-memory log buffer for one MCP — stderr tail (stdio) or fetch summary
   // (http) plus a ring of recent events.
-  app.get("/projects/:pid/mcps/:name/logs", (req, res) => {
+  api.get("/projects/:pid/mcps/:name/logs", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const logs = registries.for(p).getLogs(req.params.name);

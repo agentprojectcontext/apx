@@ -117,16 +117,16 @@ apx voice say "Hello from APX" --provider gemini
 
 ## Unified voice channel
 
-`POST /voice/turn` is one round-trip: send audio (or text), get back `{ user_text, reply_text, reply_audio_path }`. STT in, agent loop, TTS out. For overlay and future "voice room" clients.
+`POST /api/voice/turn` is one round-trip: send audio (or text), get back `{ user_text, reply_text, reply_audio_path }`. STT in, agent loop, TTS out. For overlay and future "voice room" clients.
 
 ```bash
-curl -X POST http://127.0.0.1:7430/voice/turn \
+curl -X POST http://127.0.0.1:7430/api/voice/turn \
   -H "Authorization: Bearer $(cat ~/.apx/daemon.token)" \
   -H "Content-Type: application/json" \
   -d '{"text":"Hello APX","channel":"voice"}'
 ```
 
-Telegram voice messages and overlay mascot still have their own STT pipelines — they don't go through `/voice/turn` yet.
+Telegram voice messages and overlay mascot still have their own STT pipelines — they don't go through `/api/voice/turn` yet.
 
 ## Anti-examples
 
@@ -146,4 +146,4 @@ Telegram voice messages and overlay mascot still have their own STT pipelines �
 
 - Paste base64 audio into chat. Use file paths or `send_voice` / `send_audio`.
 - Switch providers mid-routine without testing — quality varies a lot across Piper voices and cloud engines.
-- Expect TTS streaming yet — `apx voice say` returns a complete file. `/tts/stream` is open work.
+- Expect TTS streaming yet — `apx voice say` returns a complete file. `/api/tts/stream` is open work.

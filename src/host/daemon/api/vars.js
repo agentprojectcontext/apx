@@ -37,8 +37,8 @@ function maskAll(obj) {
   return out;
 }
 
-export function register(app, { project, registries }) {
-  app.get("/projects/:pid/vars", (req, res) => {
+export function register(api, { project, registries }) {
+  api.get("/projects/:pid/vars", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const reveal = req.query?.reveal === "1" || req.query?.reveal === "true";
@@ -54,7 +54,7 @@ export function register(app, { project, registries }) {
     });
   });
 
-  app.get("/projects/:pid/vars/:name", (req, res) => {
+  api.get("/projects/:pid/vars/:name", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const name = req.params.name;
@@ -80,7 +80,7 @@ export function register(app, { project, registries }) {
     });
   });
 
-  app.post("/projects/:pid/vars", (req, res) => {
+  api.post("/projects/:pid/vars", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const { name, value } = req.body || {};
@@ -111,7 +111,7 @@ export function register(app, { project, registries }) {
     res.status(201).json({ ok: true, name, scope });
   });
 
-  app.delete("/projects/:pid/vars/:name", (req, res) => {
+  api.delete("/projects/:pid/vars/:name", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const isBase = String(p.id) === "0";

@@ -73,9 +73,9 @@ function sourceLabel(source: string): string {
 
 export function McpsTab({ pid }: { pid: string }) {
   const toast = useToast();
-  const list = useSWR(`/projects/${pid}/mcps`, () => Mcps.list(pid));
-  const conflicts = useSWR(`/projects/${pid}/mcps/check`, () => Mcps.check(pid));
-  const vars = useSWR<VarsList>(`/projects/${pid}/vars`, () => Vars.list(pid));
+  const list = useSWR(`/api/projects/${pid}/mcps`, () => Mcps.list(pid));
+  const conflicts = useSWR(`/api/projects/${pid}/mcps/check`, () => Mcps.check(pid));
+  const vars = useSWR<VarsList>(`/api/projects/${pid}/vars`, () => Vars.list(pid));
   const [dialog, setDialog] = useState<DialogMode>(null);
   const [activeMcp, setActiveMcp] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, McpResult>>({});

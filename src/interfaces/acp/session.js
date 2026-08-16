@@ -129,12 +129,12 @@ export async function resolveProjectForCwd(client, cwd) {
       `No APC project found at or above: ${cwd}. Run \`apx init\` in the workspace first.`
     );
   }
-  const projects = await client.get("/projects");
+  const projects = await client.get("/api/projects");
   const match = (projects || []).find(
     (p) => path.resolve(p.path) === path.resolve(root)
   );
   if (match) return match;
-  return client.post("/projects", { path: root });
+  return client.post("/api/projects", { path: root });
 }
 
 /** Flatten an ACP prompt (ContentBlock[]) into the text the daemon expects. */

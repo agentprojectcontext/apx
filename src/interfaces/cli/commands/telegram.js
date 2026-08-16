@@ -7,7 +7,7 @@ export async function cmdTelegramSend(args) {
   const chat_id = args.flags.chat === true ? undefined : args.flags.chat;
   // --interrupt / --force: send immediately bypassing any pending agent queue
   const interrupt = !!(args.flags.interrupt || args.flags.force);
-  const result = await http.post("/telegram/send", { chat_id, text, interrupt });
+  const result = await http.post("/api/telegram/send", { chat_id, text, interrupt });
   if (interrupt) {
     console.log(`⚡ sent (interrupt, message_id=${result.message_id})`);
   } else {
@@ -16,7 +16,7 @@ export async function cmdTelegramSend(args) {
 }
 
 export async function cmdTelegramStatus() {
-  const s = await http.get("/telegram/status");
+  const s = await http.get("/api/telegram/status");
   console.log(`enabled: ${s.enabled}`);
   if (!s.channels || s.channels.length === 0) {
     console.log("(no channels configured)");
@@ -38,7 +38,7 @@ export async function cmdTelegramStatus() {
 }
 
 export async function cmdTelegramStart() {
-  const r = await http.post("/telegram/start", {});
+  const r = await http.post("/api/telegram/start", {});
   const channels = r.status?.channels || [];
   const polling = channels.filter((c) => c.polling).length;
   if (channels.length === 0) {
@@ -56,7 +56,7 @@ export async function cmdTelegramStart() {
 }
 
 export async function cmdTelegramStop() {
-  await http.post("/telegram/stop", {});
+  await http.post("/api/telegram/stop", {});
   console.log("⏹  telegram polling stopped (config unchanged — apx telegram start to resume)");
 }
 
@@ -71,7 +71,7 @@ function ask(rl, prompt) {
 
 async function reloadDaemon() {
   try {
-    await http.post("/admin/reload", {});
+    await http.post("/api/admin/reload", {});
   } catch (e) {
     console.log(`⚠️  reload failed: ${e.message} (changes saved, restart daemon to apply)`);
   }
@@ -79,7 +79,7 @@ async function reloadDaemon() {
 
 async function listProjects() {
   try {
-    return await http.get("/projects");
+    return await http.get("/api/projects");
   } catch {
     return [];
   }
@@ -87,7 +87,7 @@ async function listProjects() {
 
 async function listAgentsForProject(projectId) {
   try {
-    const ags = await http.get(`/projects/${projectId}/agents`);
+    const ags = await http.get(`/api/projects/${projectId}/agents`);
     return Array.isArray(ags) ? ags : (ags?.agents || []);
   } catch {
     return [];
@@ -113,7 +113,7 @@ function printChannelLine(c) {
 }
 
 export async function cmdTelegramChannelList() {
-  const { channels } = await http.get("/telegram/channels");
+  const { channels } = await http.get("/api/telegram/channels");
   if (!channels || channels.length === 0) {
     console.log("(no channels configured — try `apx telegram channel add`)");
     return;
@@ -125,7 +125,7 @@ export async function cmdTelegramChannelList() {
 export async function cmdTelegramChannelShow(args) {
   const name = args._[0];
   if (!name) throw new Error("apx telegram channel show: missing <name>");
-  const { channels } = await http.get("/telegram/channels");
+  const { channels } = await http.get("/api/telegram/channels");
   const ch = (channels || []).find((c) => c.name === name);
   if (!ch) throw new Error(`no such channel: ${name}`);
   console.log(JSON.stringify(ch, null, 2));
@@ -144,7 +144,7 @@ export async function cmdTelegramChannelAdd(args) {
       const b = parseBool(args.flags["respond-engine"]);
       if (b !== null) patch.respond_with_engine = b;
     }
-    const result = await http.post("/telegram/channels", patch);
+    const result = await http.post("/api/telegram/channels", patch);
     await reloadDaemon();
     console.log(`${result.created ? "✅ created" : "ℹ️  updated"} channel "${name}"`);
     return;
@@ -201,7 +201,7 @@ export async function cmdTelegramChannelAdd(args) {
     if (agent) patch.route_to_agent = agent;
     patch.respond_with_engine = respond;
 
-    const result = await http.post("/telegram/channels", patch);
+    const result = await http.post("/api/telegram/channels", patch);
     await reloadDaemon();
     console.log(`\n${result.created ? "✅ created" : "ℹ️  updated"} channel "${channelName}"`);
   } finally {
@@ -225,7 +225,7 @@ export async function cmdTelegramChannelSet(args) {
   if (Object.keys(patch).length === 0) {
     throw new Error("apx telegram channel set: nothing to update (use --project / --agent / --respond-engine / --bot-token / --chat-id)");
   }
-  await http.patch(`/telegram/channels/${encodeURIComponent(name)}`, patch);
+  await http.patch(`/api/telegram/channels/${encodeURIComponent(name)}`, patch);
   await reloadDaemon();
   console.log(`✅ updated channel "${name}"`);
 }
@@ -243,7 +243,7 @@ export async function cmdTelegramChannelUnset(args) {
     throw new Error("apx telegram channel unset: specify at least one of --project --agent --bot-token --chat-id");
   }
   const body = Object.fromEntries(fields.map((f) => [f, null]));
-  await http.patch(`/telegram/channels/${encodeURIComponent(name)}`, body);
+  await http.patch(`/api/telegram/channels/${encodeURIComponent(name)}`, body);
   await reloadDaemon();
   console.log(`✅ cleared ${fields.join(", ")} on "${name}"`);
 }
@@ -251,7 +251,7 @@ export async function cmdTelegramChannelUnset(args) {
 export async function cmdTelegramChannelRemove(args) {
   const name = args._[0];
   if (!name) throw new Error("apx telegram channel remove: missing <name>");
-  await http.delete(`/telegram/channels/${encodeURIComponent(name)}`);
+  await http.delete(`/api/telegram/channels/${encodeURIComponent(name)}`);
   await reloadDaemon();
   console.log(`🗑  removed channel "${name}"`);
 }
@@ -268,7 +268,7 @@ function roleTag(c, owners) {
 }
 
 export async function cmdTelegramContacts() {
-  const { contacts, channel_owners = [] } = await http.get("/telegram/contacts");
+  const { contacts, channel_owners = [] } = await http.get("/api/telegram/contacts");
   if (!contacts || contacts.length === 0) {
     console.log("(no contacts yet — they're recorded automatically when people message a bot)");
     return;
@@ -289,14 +289,14 @@ export async function cmdTelegramRole(args) {
   if (!userId || !role) {
     throw new Error("apx telegram role <user_id> <role>  (e.g. apx telegram role 123 editor)");
   }
-  const r = await http.patch(`/telegram/contacts/${encodeURIComponent(userId)}`, { role });
+  const r = await http.patch(`/api/telegram/contacts/${encodeURIComponent(userId)}`, { role });
   console.log(`✅ ${r.contact?.name || userId} → role "${role}"`);
 }
 
 export async function cmdTelegramContactRemove(args) {
   const userId = args._[0];
   if (!userId) throw new Error("apx telegram contact rm <user_id>");
-  await http.delete(`/telegram/contacts/${encodeURIComponent(userId)}`);
+  await http.delete(`/api/telegram/contacts/${encodeURIComponent(userId)}`);
   console.log(`🗑  removed contact ${userId}`);
 }
 
@@ -306,7 +306,7 @@ export async function cmdTelegramOwner(args) {
   if (!channel || !userId) {
     throw new Error("apx telegram owner <channel> <user_id>");
   }
-  await http.patch(`/telegram/channels/${encodeURIComponent(channel)}`, {
+  await http.patch(`/api/telegram/channels/${encodeURIComponent(channel)}`, {
     owner_user_id: /^\d+$/.test(String(userId)) ? Number(userId) : userId,
   });
   await reloadDaemon();
@@ -322,19 +322,19 @@ export async function cmdTelegramRoles(args) {
     let tools = [];
     if (raw === "*" || raw === true) tools = "*";
     else if (typeof raw === "string") tools = raw.split(",").map((s) => s.trim()).filter(Boolean);
-    await http.put(`/telegram/roles/${encodeURIComponent(name)}`, { tools });
+    await http.put(`/api/telegram/roles/${encodeURIComponent(name)}`, { tools });
     console.log(`✅ role "${name}" → tools ${tools === "*" ? "*" : `[${tools.join(", ")}]`}`);
     return;
   }
   if (sub === "rm" || sub === "remove") {
     const name = args._[1];
     if (!name) throw new Error("apx telegram roles rm <name>");
-    await http.delete(`/telegram/roles/${encodeURIComponent(name)}`);
+    await http.delete(`/api/telegram/roles/${encodeURIComponent(name)}`);
     console.log(`🗑  removed role "${name}"`);
     return;
   }
   // default: list
-  const { roles } = await http.get("/telegram/roles");
+  const { roles } = await http.get("/api/telegram/roles");
   const names = Object.keys(roles || {});
   if (names.length === 0) {
     console.log("(no roles defined)");

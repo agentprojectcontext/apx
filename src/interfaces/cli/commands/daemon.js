@@ -56,8 +56,8 @@ function debugRaw(label, data) {
 export async function cmdDaemonStart(args = {}) {
   const debug = args.flags?.debug;
   await ensureDaemon();
-  const status = await http.get("/health");
-  if (debug) debugRaw("/health", status);
+  const status = await http.get("/api/health");
+  if (debug) debugRaw("/api/health", status);
   console.log(
     `\n  ${fmt.green("●")} ${fmt.bold("apx daemon")} ${fmt.dim("v" + status.version)}` +
     `  ${fmt.gray("·")}  ${fmt.cyan("port")} ${status.port ?? (process.env.APX_PORT || 7430)}` +
@@ -77,13 +77,13 @@ export async function cmdDaemonStatus(args = {}) {
     process.exit(1);
   }
 
-  const h        = await http.get("/health",   { autoStart: false });
-  const projects = await http.get("/projects", { autoStart: false });
+  const h        = await http.get("/api/health",   { autoStart: false });
+  const projects = await http.get("/api/projects", { autoStart: false });
   const pid      = fs.existsSync(PID_PATH) ? fs.readFileSync(PID_PATH, "utf8").trim() : "?";
 
   if (debug) {
-    debugRaw("/health",   h);
-    debugRaw("/projects", projects);
+    debugRaw("/api/health",   h);
+    debugRaw("/api/projects", projects);
   }
 
   console.log(
@@ -113,8 +113,8 @@ export async function cmdDaemonReload(args = {}) {
     console.log(`\n  ${fmt.yellow("○")} ${fmt.bold("apx daemon")}  ${fmt.dim("not running — start first")}\n`);
     process.exit(1);
   }
-  const res = await http.post("/admin/reload", undefined, { autoStart: false });
-  if (debug) debugRaw("/admin/reload", res);
+  const res = await http.post("/api/admin/reload", undefined, { autoStart: false });
+  if (debug) debugRaw("/api/admin/reload", res);
   console.log(`\n  ${fmt.green("↻")} ${fmt.bold("config reloaded")}`);
   if (res.super_agent_model) console.log(fmt.kv("model", fmt.cyan(res.super_agent_model)));
   if (res.fallback_order?.length) console.log(fmt.kv("fallback", fmt.cyan(res.fallback_order.join(" → "))));
@@ -129,8 +129,8 @@ export async function cmdDaemonRestart(args = {}) {
     // Ask the daemon to shut down cleanly; fall back to a PID kill if the
     // HTTP shutdown route is unreachable (same fallback as `stop`).
     try {
-      const res = await http.post("/admin/shutdown", undefined, { autoStart: false });
-      if (debug) debugRaw("/admin/shutdown", res);
+      const res = await http.post("/api/admin/shutdown", undefined, { autoStart: false });
+      if (debug) debugRaw("/api/admin/shutdown", res);
     } catch {
       if (fs.existsSync(PID_PATH)) {
         try {
@@ -154,8 +154,8 @@ export async function cmdDaemonRestart(args = {}) {
   }
 
   await ensureDaemon({ silent: true });
-  const status = await http.get("/health", { autoStart: false });
-  if (debug) debugRaw("/health", status);
+  const status = await http.get("/api/health", { autoStart: false });
+  if (debug) debugRaw("/api/health", status);
   console.log(
     `\n  ${fmt.green("●")} ${fmt.bold("apx daemon")} ${fmt.dim("v" + status.version)}` +
     `  ${fmt.gray("·")}  ${fmt.green(wasRunning ? "restarted" : "started")}` +
@@ -173,8 +173,8 @@ export async function cmdDaemonStop(args = {}) {
   }
 
   try {
-    const res = await http.post("/admin/shutdown", undefined, { autoStart: false });
-    if (debug) debugRaw("/admin/shutdown", res);
+    const res = await http.post("/api/admin/shutdown", undefined, { autoStart: false });
+    if (debug) debugRaw("/api/admin/shutdown", res);
     console.log(`\n  ${fmt.red("○")} ${fmt.bold("apx daemon")}  ${fmt.dim("stopped")}\n`);
   } catch {
     if (fs.existsSync(PID_PATH)) {

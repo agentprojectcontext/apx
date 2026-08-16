@@ -3,8 +3,8 @@
 import { readAgents } from "#core/apc/parser.js";
 import { readProjectMessages } from "#core/stores/messages.js";
 
-export function register(app, { project }) {
-  app.get("/projects/:pid/agents/:slug/connections", (req, res) => {
+export function register(api, { project }) {
+  api.get("/projects/:pid/agents/:slug/connections", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const agents = readAgents(p.path);

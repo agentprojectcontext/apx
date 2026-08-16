@@ -120,7 +120,7 @@ export function CodeFileTree({
     setLoading(true);
     try {
       const r = await http.post<{ ok: boolean; stdout: string; stderr: string }>(
-        "/run",
+        "/api/run",
         {
           cmd: "find . -type f -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/dist/*' -not -path '*/.claude/*' | sed 's|^\\./||' | sort | head -500",
           project: pid,

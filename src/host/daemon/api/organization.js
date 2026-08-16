@@ -19,14 +19,14 @@ import {
   removeRole,
 } from "#core/stores/organization.js";
 
-export function register(app, { project }) {
-  app.get("/projects/:pid/organization", (req, res) => {
+export function register(api, { project }) {
+  api.get("/projects/:pid/organization", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     res.json(readOrganization(p.path));
   });
 
-  app.post("/projects/:pid/organization/areas", (req, res) => {
+  api.post("/projects/:pid/organization/areas", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     try {
@@ -36,7 +36,7 @@ export function register(app, { project }) {
     }
   });
 
-  app.patch("/projects/:pid/organization/areas/:slug", (req, res) => {
+  api.patch("/projects/:pid/organization/areas/:slug", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     try {
@@ -48,7 +48,7 @@ export function register(app, { project }) {
     }
   });
 
-  app.delete("/projects/:pid/organization/areas/:slug", (req, res) => {
+  api.delete("/projects/:pid/organization/areas/:slug", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     if (!removeArea(p.path, req.params.slug))
@@ -56,7 +56,7 @@ export function register(app, { project }) {
     res.json({ ok: true });
   });
 
-  app.post("/projects/:pid/organization/roles", (req, res) => {
+  api.post("/projects/:pid/organization/roles", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     try {
@@ -66,7 +66,7 @@ export function register(app, { project }) {
     }
   });
 
-  app.patch("/projects/:pid/organization/roles/:slug", (req, res) => {
+  api.patch("/projects/:pid/organization/roles/:slug", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     try {
@@ -78,7 +78,7 @@ export function register(app, { project }) {
     }
   });
 
-  app.delete("/projects/:pid/organization/roles/:slug", (req, res) => {
+  api.delete("/projects/:pid/organization/roles/:slug", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     if (!removeRole(p.path, req.params.slug))

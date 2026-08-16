@@ -17,7 +17,7 @@ export function DesktopStatusCard({ showConfigLink = false }: { showConfigLink?:
   const toast = useToast();
 
   const { data: status, isLoading: stLoading, mutate: mutateStatus } = useSWR(
-    "/desktop/status",
+    "/api/desktop/status",
     () => Desktop.status(),
     { refreshInterval: 5000 },
   );

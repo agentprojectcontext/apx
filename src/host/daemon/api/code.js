@@ -47,18 +47,18 @@ function modeGuidanceFor(mode) {
 // codeSessionHistory() (transcript → engine messages) and makeTurnAccumulator()
 // (stream events → persistable ChatParts) imported above.
 
-export function register(app, { projects, project, config, registries, plugins }) {
+export function register(api, { projects, project, config, registries, plugins }) {
   const findProject = (req, res) => project(req, res);
 
   // ---- List ----------------------------------------------------------------
-  app.get("/projects/:pid/code/sessions", (req, res) => {
+  api.get("/projects/:pid/code/sessions", (req, res) => {
     const p = findProject(req, res);
     if (!p) return;
     res.json({ sessions: listCodeSessions(p.storagePath) });
   });
 
   // ---- Create (captures git baseline) --------------------------------------
-  app.post("/projects/:pid/code/sessions", (req, res) => {
+  api.post("/projects/:pid/code/sessions", (req, res) => {
     const p = findProject(req, res);
     if (!p) return;
     const { title, model, mode, agentSlug } = req.body || {};
@@ -86,7 +86,7 @@ export function register(app, { projects, project, config, registries, plugins }
   });
 
   // ---- Get full transcript -------------------------------------------------
-  app.get("/projects/:pid/code/sessions/:sid", (req, res) => {
+  api.get("/projects/:pid/code/sessions/:sid", (req, res) => {
     const p = findProject(req, res);
     if (!p) return;
     const session = getCodeSession(p.storagePath, req.params.sid);
@@ -95,7 +95,7 @@ export function register(app, { projects, project, config, registries, plugins }
   });
 
   // ---- Patch (rename / model / mode) ---------------------------------------
-  app.patch("/projects/:pid/code/sessions/:sid", (req, res) => {
+  api.patch("/projects/:pid/code/sessions/:sid", (req, res) => {
     const p = findProject(req, res);
     if (!p) return;
     const session = updateCodeSession(p.storagePath, req.params.sid, req.body || {});
@@ -104,7 +104,7 @@ export function register(app, { projects, project, config, registries, plugins }
   });
 
   // ---- Delete --------------------------------------------------------------
-  app.delete("/projects/:pid/code/sessions/:sid", (req, res) => {
+  api.delete("/projects/:pid/code/sessions/:sid", (req, res) => {
     const p = findProject(req, res);
     if (!p) return;
     const ok = removeCodeSession(p.storagePath, req.params.sid);
@@ -113,7 +113,7 @@ export function register(app, { projects, project, config, registries, plugins }
   });
 
   // ---- Changes (diff vs baseline) ------------------------------------------
-  app.get("/projects/:pid/code/sessions/:sid/changes", (req, res) => {
+  api.get("/projects/:pid/code/sessions/:sid/changes", (req, res) => {
     const p = findProject(req, res);
     if (!p) return;
     const session = getCodeSession(p.storagePath, req.params.sid);
@@ -130,7 +130,7 @@ export function register(app, { projects, project, config, registries, plugins }
   });
 
   // ---- Streaming turn ------------------------------------------------------
-  app.post("/projects/:pid/code/sessions/:sid/chat/stream", async (req, res) => {
+  api.post("/projects/:pid/code/sessions/:sid/chat/stream", async (req, res) => {
     const p = findProject(req, res);
     if (!p) return;
     const session = getCodeSession(p.storagePath, req.params.sid);

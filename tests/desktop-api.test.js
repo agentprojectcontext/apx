@@ -37,7 +37,7 @@ test("GET /desktop/status reports the live connected-client count", async () => 
   const fake = { readyState: 1, on() {}, send() {} };
   desktopClients.add(fake);
   try {
-    const res = await fetch(`${baseUrl}/desktop/status`);
+    const res = await fetch(`${baseUrl}/api/desktop/status`);
     assert.equal(res.status, 200);
     const body = await res.json();
     assert.equal(body.ok, true);
@@ -51,7 +51,7 @@ test("GET /desktop/status reports the live connected-client count", async () => 
 test("POST /desktop/message requires text", async () => {
   const { server, baseUrl } = await listen(makeApp());
   try {
-    const res = await fetch(`${baseUrl}/desktop/message`, {
+    const res = await fetch(`${baseUrl}/api/desktop/message`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({}),
@@ -78,7 +78,7 @@ test("POST /desktop/message acks immediately and routes to the desktop plugin", 
   ]);
   const { server, baseUrl } = await listen(makeApp({ instances }));
   try {
-    const res = await fetch(`${baseUrl}/desktop/message`, {
+    const res = await fetch(`${baseUrl}/api/desktop/message`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ text: "hola", previousMessages: [{ role: "user", content: "x" }] }),
@@ -135,7 +135,7 @@ test("handleMessage rejects when the plugin is disabled", async () => {
 test("GET /desktop/autostart returns {ok, enabled:boolean, platform}", async () => {
   const { server, baseUrl } = await listen(makeApp());
   try {
-    const res = await fetch(`${baseUrl}/desktop/autostart`);
+    const res = await fetch(`${baseUrl}/api/desktop/autostart`);
     assert.equal(res.status, 200);
     const body = await res.json();
     assert.equal(body.ok, true);
@@ -149,7 +149,7 @@ test("GET /desktop/autostart returns {ok, enabled:boolean, platform}", async () 
 test("POST /desktop/autostart requires {enable: boolean}", async () => {
   const { server, baseUrl } = await listen(makeApp());
   try {
-    const res = await fetch(`${baseUrl}/desktop/autostart`, {
+    const res = await fetch(`${baseUrl}/api/desktop/autostart`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({}),

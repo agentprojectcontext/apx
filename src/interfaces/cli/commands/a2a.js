@@ -26,7 +26,7 @@ export async function cmdSend(args) {
   if (!body) throw new Error("apx send: body is empty");
 
   const pid = await resolveProjectId(args?.flags?.project);
-  const result = await http.post(`/projects/${pid}/send`, {
+  const result = await http.post(`/api/projects/${pid}/send`, {
     from,
     to,
     body,
@@ -48,7 +48,7 @@ export async function cmdConnections(args) {
   const slug = args._[0];
   if (!slug) throw new Error("apx connections: missing <agent-slug>");
   const pid = await resolveProjectId(args?.flags?.project);
-  const peers = await http.get(`/projects/${pid}/agents/${slug}/connections`);
+  const peers = await http.get(`/api/projects/${pid}/agents/${slug}/connections`);
   if (peers.length === 0) {
     console.log(`(no connections logged for ${slug} yet)`);
     return;

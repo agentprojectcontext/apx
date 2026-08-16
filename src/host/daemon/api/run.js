@@ -4,8 +4,8 @@
 import path from "node:path";
 import { execFile } from "node:child_process";
 
-export function register(app, { projects }) {
-  app.post("/run", (req, res) => {
+export function register(api, { projects }) {
+  api.post("/run", (req, res) => {
     const {
       cmd,
       cwd: cwdOverride,

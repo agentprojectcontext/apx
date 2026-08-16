@@ -23,7 +23,7 @@ export function VoiceScreen() {
     isLoading: provLoading,
     error: provError,
     mutate: mutateProviders,
-  } = useSWR("/tts/providers", () => Voice.providers());
+  } = useSWR("/api/tts/providers", () => Voice.providers());
 
   // editing holds the engine id being configured. "__new__" opens the modal in
   // "create custom provider" mode.

@@ -17,7 +17,7 @@ export default async function globalSetup() {
   const tokenRes = await fetch(`${DAEMON}/admin/web-token`);
   if (!tokenRes.ok) {
     throw new Error(
-      `Could not get /admin/web-token from ${DAEMON} (HTTP ${tokenRes.status}). Is the daemon running? Try: apx daemon status`,
+      `Could not get /api/admin/web-token from ${DAEMON} (HTTP ${tokenRes.status}). Is the daemon running? Try: apx daemon status`,
     );
   }
   const { token } = (await tokenRes.json()) as { token: string };
@@ -35,7 +35,7 @@ export default async function globalSetup() {
   });
   if (!reg.ok) {
     fs.rmSync(tmpDir, { recursive: true, force: true });
-    throw new Error(`POST /projects failed: HTTP ${reg.status} ${await reg.text()}`);
+    throw new Error(`POST /api/projects failed: HTTP ${reg.status} ${await reg.text()}`);
   }
   const { id: projectId, path: projectPath } = (await reg.json()) as { id: number; path: string };
 

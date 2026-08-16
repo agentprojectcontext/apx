@@ -5,7 +5,7 @@
 //
 // All audio files land under ~/.apx/tmp/tts/<uuid>.<ext>. Callers are
 // responsible for cleaning up (Telegram plugin already uses similar temp
-// files via /telegram/send_voice).
+// files via /api/telegram/send_voice).
 
 import fs from "node:fs";
 import path from "node:path";

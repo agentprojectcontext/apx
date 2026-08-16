@@ -510,7 +510,7 @@ ipcMain.handle("warmup-stt", async () => {
     const options = {
       hostname: DAEMON_HOST,
       port: DAEMON_PORT,
-      path: "/transcribe/warmup",
+      path: "/api/transcribe/warmup",
       method: "GET",
       headers: { ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
     };
@@ -542,7 +542,7 @@ function transcribeChunk(buf, format, language) {
     const options = {
       hostname: DAEMON_HOST,
       port: DAEMON_PORT,
-      path: "/transcribe/chunk",
+      path: "/api/transcribe/chunk",
       method: "POST",
       headers: {
         "Content-Type": "application/octet-stream",
@@ -585,7 +585,7 @@ function connectDaemon() {
     return;
   }
 
-  const url = `ws://${DAEMON_HOST}:${DAEMON_PORT}/desktop/ws`;
+  const url = `ws://${DAEMON_HOST}:${DAEMON_PORT}/api/desktop/ws`;
 
   function connect() {
     // Re-read the token on EVERY attempt — the daemon regenerates
@@ -652,7 +652,7 @@ async function sendMessageToDaemon(text, previousMessages) {
     const options = {
       hostname: DAEMON_HOST,
       port: DAEMON_PORT,
-      path: "/desktop/message",
+      path: "/api/desktop/message",
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -699,7 +699,7 @@ function _ttsRequest(text, explicitProvider) {
     const options = {
       hostname: DAEMON_HOST,
       port: DAEMON_PORT,
-      path: "/tts/say",
+      path: "/api/tts/say",
       method: "POST",
       headers: {
         "Content-Type": "application/json",

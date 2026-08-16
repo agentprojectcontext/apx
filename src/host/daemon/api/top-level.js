@@ -12,9 +12,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { resolveMemoryPath } from "./shared.js";
 
-export function register(app, { projects, registries, resolveTopProject }) {
+export function register(api, { projects, registries, resolveTopProject }) {
   // ---- /memory ----
-  app.get("/memory", (req, res) => {
+  api.get("/memory", (req, res) => {
     const p = resolveTopProject(req.query);
     if (!p) return res.status(404).json({ error: "no project registered" });
     const memPath = resolveMemoryPath(p);
@@ -22,7 +22,7 @@ export function register(app, { projects, registries, resolveTopProject }) {
     res.json({ project_id: p.id, path: memPath, body });
   });
 
-  app.post("/memory", (req, res) => {
+  api.post("/memory", (req, res) => {
     const p = resolveTopProject(req.query);
     if (!p) return res.status(404).json({ error: "no project registered" });
     const { body } = req.body || {};
@@ -42,7 +42,7 @@ export function register(app, { projects, registries, resolveTopProject }) {
   });
 
   // ---- /files ----
-  app.get("/files", (req, res) => {
+  api.get("/files", (req, res) => {
     const p = resolveTopProject(req.query);
     if (!p) return res.status(404).json({ error: "no project registered" });
     const rel = req.query.path;
@@ -90,7 +90,7 @@ export function register(app, { projects, registries, resolveTopProject }) {
     });
   });
 
-  app.post("/files", (req, res) => {
+  api.post("/files", (req, res) => {
     const p = resolveTopProject(req.query);
     if (!p) return res.status(404).json({ error: "no project registered" });
     const { path: rel, content } = req.body || {};
@@ -111,13 +111,13 @@ export function register(app, { projects, registries, resolveTopProject }) {
   });
 
   // ---- /mcp ----
-  app.get("/mcp", (req, res) => {
+  api.get("/mcp", (req, res) => {
     const p = resolveTopProject(req.query);
     if (!p) return res.status(404).json({ error: "no project registered" });
     res.json(registries.for(p).list());
   });
 
-  app.post("/mcp/run", async (req, res) => {
+  api.post("/mcp/run", async (req, res) => {
     const { project: projectRef, name, tool, params } = req.body || {};
     if (!name) return res.status(400).json({ error: "name required" });
     if (!tool) return res.status(400).json({ error: "tool required" });

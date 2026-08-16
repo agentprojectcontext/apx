@@ -17,8 +17,8 @@ function resolveProjects(projects, projectRef) {
   return all.map((p) => projects.get(p.id)).filter(Boolean);
 }
 
-export function register(app, { projects, config }) {
-  app.get("/sessions/search", (req, res) => {
+export function register(api, { projects, config }) {
+  api.get("/sessions/search", (req, res) => {
     const { q, project: projectRef, limit = "20" } = req.query;
     if (!q) return res.status(400).json({ error: "q required" });
     const lim = Math.min(parseInt(limit, 10) || 20, 200);
@@ -27,7 +27,7 @@ export function register(app, { projects, config }) {
     res.json({ q, count: results.length, results });
   });
 
-  app.post("/sessions/:id/compact", async (req, res) => {
+  api.post("/sessions/:id/compact", async (req, res) => {
     const { id } = req.params;
     const { model: modelOverride, project: projectRef } = req.body || {};
     const candidates = resolveProjects(projects, projectRef);

@@ -13,7 +13,7 @@ test.describe("usability", () => {
     await expect(sheet).toBeVisible();
     // Composer shows the model picker (not the old "POST /…" route footer).
     await expect(page.getByTestId("chat-model-picker")).toBeVisible();
-    await expect(sheet).not.toContainText("POST /projects");
+    await expect(sheet).not.toContainText("POST /api/projects");
     // Escape is the robust dismiss (the sheet has an overlaying close button).
     await page.keyboard.press("Escape");
     await expect(sheet).toBeHidden();

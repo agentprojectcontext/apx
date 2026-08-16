@@ -297,12 +297,11 @@ async function main() {
     }).catch(() => {});
   });
 
-  // Attach WebSocket upgrade for the desktop channel on /desktop/ws
-  // (legacy /overlay/ws still accepted for one release).
+  // Attach WebSocket upgrade for the desktop channel on /api/desktop/ws.
   server.on("upgrade", async (req, socket, head) => {
     if (!isDesktopUpgradePath(req.url)) { socket.destroy(); return; }
     // Auth: the WS upgrade must carry a valid token (master or paired client),
-    // matching the HTTP /desktop/* routes. Without this, any client that can
+    // matching the HTTP /api/desktop/* routes. Without this, any client that can
     // reach the daemon (host binds 0.0.0.0 → the LAN) could open the desktop
     // channel and drive the super-agent (permission_mode "total"). The
     // legitimate desktop window already sends the bearer token. See QA BUG-WS-AUTH.

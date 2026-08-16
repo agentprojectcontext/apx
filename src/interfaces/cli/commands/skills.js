@@ -210,7 +210,7 @@ export async function cmdSkillsList(args = {}) {
   if (args?.flags?.all) {
     const root = findApfRoot();
     const params = root ? `?project_path=${encodeURIComponent(root)}` : "";
-    const out = await http.get(`/skills${params}`);
+    const out = await http.get(`/api/skills${params}`);
     if (!out.count) {
       console.log("(no skills available)");
       return;

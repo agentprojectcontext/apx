@@ -42,7 +42,7 @@ test("GET /deck/manifest exposes APX Deck bootstrap data", async () => {
 
   const { server, baseUrl } = await listen(app);
   try {
-    const res = await fetch(`${baseUrl}/deck/manifest`);
+    const res = await fetch(`${baseUrl}/api/deck/manifest`);
     assert.equal(res.status, 200);
     const body = await res.json();
 
@@ -82,7 +82,7 @@ test("PATCH /deck/widgets/:id persists enable/disable into the manifest", async 
 
   const { server, baseUrl } = await listen(app);
   try {
-    const patchRes = await fetch(`${baseUrl}/deck/widgets/docker`, {
+    const patchRes = await fetch(`${baseUrl}/api/deck/widgets/docker`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ enabled: false }),
@@ -92,19 +92,19 @@ test("PATCH /deck/widgets/:id persists enable/disable into the manifest", async 
     assert.equal(patched.id, "docker");
     assert.equal(patched.enabled, false);
 
-    const manifest = await (await fetch(`${baseUrl}/deck/manifest`)).json();
+    const manifest = await (await fetch(`${baseUrl}/api/deck/manifest`)).json();
     const docker = manifest.deck.widgets.find((w) => w.id === "docker");
     assert.equal(docker.status, "disabled");
     assert.equal(docker.user_enabled, false);
 
-    const bad = await fetch(`${baseUrl}/deck/widgets/nonsense-xx`, {
+    const bad = await fetch(`${baseUrl}/api/deck/widgets/nonsense-xx`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ enabled: true }),
     });
     assert.equal(bad.status, 404);
 
-    const bad2 = await fetch(`${baseUrl}/deck/widgets/docker`, {
+    const bad2 = await fetch(`${baseUrl}/api/deck/widgets/docker`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ enabled: "yes" }),

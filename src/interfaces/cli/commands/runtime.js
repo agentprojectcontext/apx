@@ -31,7 +31,7 @@ export async function cmdRun(args) {
     : undefined;
 
   const result = await http.post(
-    `/projects/${pid}/agents/${slug}/runtime`,
+    `/api/projects/${pid}/agents/${slug}/runtime`,
     { runtime, prompt, timeoutMs }
   );
 
@@ -47,7 +47,7 @@ export async function cmdRun(args) {
 }
 
 export async function cmdEnvDetect() {
-  const probes = await http.get("/env/detect");
+  const probes = await http.get("/api/env/detect");
   const groups = { runtime: [], engine: [], tool: [] };
   for (const p of probes) {
     (groups[p.category] || groups.tool).push(p);

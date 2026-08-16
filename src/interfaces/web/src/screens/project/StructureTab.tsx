@@ -12,7 +12,7 @@ import type { OrgArea, OrgRole } from "../../types/daemon";
 
 export function StructureTab({ pid }: { pid: string }) {
   const toast = useToast();
-  const org = useSWR(`/projects/${pid}/organization`, () => Org.get(pid));
+  const org = useSWR(`/api/projects/${pid}/organization`, () => Org.get(pid));
 
   const [areaDialog, setAreaDialog] = useState<{ editing?: OrgArea | null } | null>(null);
   const [roleDialog, setRoleDialog] = useState<{ editing?: OrgRole | null; presetArea?: string | null } | null>(null);

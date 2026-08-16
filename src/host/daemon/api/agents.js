@@ -70,12 +70,12 @@ function normalizeAutonomy(v) {
   return AUTONOMY_VALUES.has(v) ? v : undefined;
 }
 
-export function register(app, { projects, project }) {
+export function register(api, { projects, project }) {
   // Vault = global agent templates. Two-layer: bundled defaults shipped with
   // APX (assets/agent-vault-defaults/) + user overrides/new ones in
   // ~/.apx/agents/. The user layer wins per slug; tombstones in .removed.json
   // hide bundled entries. GET merges both with `source` set per item.
-  app.get("/agents/vault", (req, res) => {
+  api.get("/agents/vault", (req, res) => {
     const includeRemoved = req.query?.include_removed === "1";
     res.json(readVaultAgents({ includeRemoved }).map((a) => ({
       ...agentToResponse(a),
@@ -84,7 +84,7 @@ export function register(app, { projects, project }) {
   });
 
   // Create or replace a vault template (user layer / copy-on-write).
-  app.post("/agents/vault", (req, res) => {
+  api.post("/agents/vault", (req, res) => {
     const { slug, fields, body = "" } = req.body || {};
     if (!slug || !/^[a-z][a-z0-9_-]*$/.test(slug)) {
       return res.status(400).json({ error: "valid slug required" });
@@ -100,7 +100,7 @@ export function register(app, { projects, project }) {
 
   // Patch a vault template. If the slug is bundled-only, copy it to the user
   // layer first (the writer already does this), then apply the merged fields.
-  app.patch("/agents/vault/:slug", (req, res) => {
+  api.patch("/agents/vault/:slug", (req, res) => {
     const { slug } = req.params;
     const current = readVaultAgent(slug);
     if (!current) return res.status(404).json({ error: `vault agent ${slug} not found` });
@@ -118,14 +118,14 @@ export function register(app, { projects, project }) {
 
   // Delete a vault template. Tombstones bundled slugs so they stay hidden;
   // deletes the user-layer file otherwise. POST .../restore lifts a tombstone.
-  app.delete("/agents/vault/:slug", (req, res) => {
+  api.delete("/agents/vault/:slug", (req, res) => {
     const { slug } = req.params;
     const out = removeVaultAgent(slug);
     if (!out.removed) return res.status(404).json({ error: `vault agent ${slug} not found` });
     res.json({ ok: true, ...out });
   });
 
-  app.post("/agents/vault/:slug/restore", (req, res) => {
+  api.post("/agents/vault/:slug/restore", (req, res) => {
     const { slug } = req.params;
     const out = restoreVaultAgent(slug);
     if (!out.restored) return res.status(404).json({ error: `slug ${slug} was not tombstoned` });
@@ -134,7 +134,7 @@ export function register(app, { projects, project }) {
   });
 
   // Import a vault template into a project (copies it to .apc/agents/<slug>.md).
-  app.post("/projects/:pid/agents/import", (req, res) => {
+  api.post("/projects/:pid/agents/import", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const { slug } = req.body || {};
@@ -154,7 +154,7 @@ export function register(app, { projects, project }) {
     }
   });
 
-  app.get("/projects/:pid/agents", (req, res) => {
+  api.get("/projects/:pid/agents", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const agents = readAgents(p.path).map(agentToResponse);
@@ -162,7 +162,7 @@ export function register(app, { projects, project }) {
     res.json(agents);
   });
 
-  app.get("/projects/:pid/agents/:slug", (req, res) => {
+  api.get("/projects/:pid/agents/:slug", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const agents = readAgents(p.path);
@@ -172,7 +172,7 @@ export function register(app, { projects, project }) {
     res.json({ ...agentToResponse(a), memory, system: a.body || "" });
   });
 
-  app.post("/projects/:pid/agents", (req, res) => {
+  api.post("/projects/:pid/agents", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const {
@@ -213,7 +213,7 @@ export function register(app, { projects, project }) {
 
   // Edit an existing agent. Merges provided fields into the AGENT.md
   // frontmatter; `system` rewrites the body (the agent's system prompt).
-  app.patch("/projects/:pid/agents/:slug", (req, res) => {
+  api.patch("/projects/:pid/agents/:slug", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const slug = req.params.slug;
@@ -255,7 +255,7 @@ export function register(app, { projects, project }) {
   });
 
   // Delete an agent: removes .apc/agents/<slug>.md and runtime data dir.
-  app.delete("/projects/:pid/agents/:slug", (req, res) => {
+  api.delete("/projects/:pid/agents/:slug", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const slug = req.params.slug;
@@ -276,7 +276,7 @@ export function register(app, { projects, project }) {
   });
 
   // ---- Project-level memory (.apc/memory.md) ----
-  app.get("/projects/:pid/memory", (req, res) => {
+  api.get("/projects/:pid/memory", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const memPath = apcMemoryFile(p.path);
@@ -284,7 +284,7 @@ export function register(app, { projects, project }) {
     res.json({ body, path: memPath });
   });
 
-  app.put("/projects/:pid/memory", (req, res) => {
+  api.put("/projects/:pid/memory", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const { body } = req.body || {};
@@ -298,7 +298,7 @@ export function register(app, { projects, project }) {
   });
 
   // ---- Per-agent memory ----
-  app.get("/projects/:pid/agents/:slug/memory", (req, res) => {
+  api.get("/projects/:pid/agents/:slug/memory", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     // Validate the agent exists — otherwise an unknown slug returned 200 with an
@@ -308,7 +308,7 @@ export function register(app, { projects, project }) {
     res.json({ body: readAgentMemory(p, req.params.slug) });
   });
 
-  app.put("/projects/:pid/agents/:slug/memory", (req, res) => {
+  api.put("/projects/:pid/agents/:slug/memory", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     if (!readAgents(p.path).some((a) => a.slug === req.params.slug))

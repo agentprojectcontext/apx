@@ -9,7 +9,7 @@
 // browser_* tool is actually called. HTTP-only fetching lives in fetch.js
 // (no Chromium needed).
 //
-// Endpoints (mounted at /tools/browser by api.js):
+// Endpoints (mounted at /api/tools/browser by api.js):
 //   POST /navigate          { url, launch_options?, allow_dangerous? }
 //   POST /screenshot        { selector?, full_page?, width?, height?, encoded? }
 //   POST /click             { selector }

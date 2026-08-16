@@ -288,7 +288,7 @@ diálogo completo de configuración.
 
 ## El endpoint unificado de turno de voz
 
-`POST /voice/turn` es un único round-trip bidireccional:
+`POST /api/voice/turn` es un único round-trip bidireccional:
 
 1. STT — transcribe el audio entrante (o acepta `text` directamente, salteando el STT).
 2. Agente — corre el super-agente sobre el texto transcrito.
@@ -356,9 +356,9 @@ que instala los paquetes de Whisper en el user-site.
 STT resuelve el idioma efectivo de transcripción con esta prioridad: un
 `transcription.local.language` explícito, si no `config.user.language`, si no
 `"auto"` (Whisper autodetecta). El camino de captura de Desktop antes siempre
-mandaba un header de idioma `auto` a `/transcribe/chunk`, lo que sobreescribía
+mandaba un header de idioma `auto` a `/api/transcribe/chunk`, lo que sobreescribía
 tu idioma configurado y perjudicaba la precisión en clips cortos y nombres
-propios. `/transcribe/chunk` ahora solo sobreescribe el idioma resuelto cuando
+propios. `/api/transcribe/chunk` ahora solo sobreescribe el idioma resuelto cuando
 quien llama fija uno real (no `"auto"`) — así que tu idioma configurado siempre
 se mantiene salvo que pidas autodetección explícitamente.
 

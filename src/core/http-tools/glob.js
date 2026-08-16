@@ -4,8 +4,8 @@
 //   2. node:fs/promises glob  (Node 22+) — built-in, no extra dep
 //   3. Manual walk + regex   — pure-JS fallback for older Node
 //
-// Endpoint: POST /tools/glob   body: { pattern, cwd?, dot?, absolute?, ignore?, limit? }
-//           GET  /tools/glob?pattern=**/*.js&cwd=/path
+// Endpoint: POST /api/tools/glob   body: { pattern, cwd?, dot?, absolute?, ignore?, limit? }
+//           GET  /api/tools/glob?pattern=**/*.js&cwd=/path
 
 import fs from "node:fs";
 import path from "node:path";

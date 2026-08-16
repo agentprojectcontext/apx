@@ -1,8 +1,8 @@
 // Native Grep tool for APX — searches file contents by regex pattern.
 // Tries ripgrep (rg) first for speed, falls back to pure Node.js walk.
 //
-// Endpoint: POST /tools/grep   body: { pattern, path?, glob?, case_sensitive?, context?, limit? }
-//           GET  /tools/grep?pattern=...&path=...
+// Endpoint: POST /api/tools/grep   body: { pattern, path?, glob?, case_sensitive?, context?, limit? }
+//           GET  /api/tools/grep?pattern=...&path=...
 
 import fs from "node:fs";
 import path from "node:path";

@@ -152,7 +152,7 @@ export async function cmdVoiceSay(args) {
   process.stdout.write(`  ${fmt.d("Synthesizing…")} `);
   let result;
   try {
-    result = await http.post("/tts/say", { text, provider, voice });
+    result = await http.post("/api/tts/say", { text, provider, voice });
   } catch (e) {
     console.log(fmt.r("failed"));
     console.error(`  ${fmt.r("✗")} ${e.message}\n`);
@@ -212,7 +212,7 @@ export async function cmdVoiceListen(args) {
   const audioB64 = fs.readFileSync(inFile).toString("base64");
   let result;
   try {
-    result = await http.post("/voice/turn", {
+    result = await http.post("/api/voice/turn", {
       audio: audioB64,
       format: "wav",
       provider,
@@ -240,7 +240,7 @@ export async function cmdVoiceListen(args) {
 export async function cmdVoiceProviders() {
   let info;
   try {
-    info = await http.get("/tts/providers");
+    info = await http.get("/api/tts/providers");
   } catch (e) {
     console.error(`\n  ${fmt.r("✗")} ${e.message}\n`);
     process.exit(1);

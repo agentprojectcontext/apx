@@ -15,7 +15,7 @@ import { RoutineEditor } from "../../components/routines/RoutineEditor";
 // editing is behind a button, delete uses the shared <Dialog>.
 export function RoutinesTab({ pid }: { pid: string }) {
   const toast = useToast();
-  const list = useSWR(`/projects/${pid}/routines`, () => Routines.list(pid));
+  const list = useSWR(`/api/projects/${pid}/routines`, () => Routines.list(pid));
   const [params, setParams] = useSearchParams();
   const [editing, setEditing] = useState<Partial<RoutineEntry> | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<RoutineEntry | null>(null);
@@ -56,7 +56,7 @@ export function RoutinesTab({ pid }: { pid: string }) {
       // Refresh the routine list (last status) and its executions list.
       await Promise.all([
         list.mutate(),
-        globalMutate(`/projects/${pid}/routines/${r.name}/runs`),
+        globalMutate(`/api/projects/${pid}/routines/${r.name}/runs`),
       ]);
     } catch (e: any) { toast.error(e?.message || t("project.routines.run_error")); }
     finally { setRunning(null); }

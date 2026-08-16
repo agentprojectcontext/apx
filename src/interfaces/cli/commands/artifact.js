@@ -51,13 +51,13 @@ export async function cmdArtifactCreate(args) {
   if (!name) throw new Error("apx artifact create: missing <name>");
   const pid = await resolveProjectId(args?.flags?.project);
   const content = args.flags.content && args.flags.content !== true ? String(args.flags.content) : "";
-  const r = await http.post(`/projects/${pid}/artifacts`, { name, content });
+  const r = await http.post(`/api/projects/${pid}/artifacts`, { name, content });
   console.log(r.path);
 }
 
 export async function cmdArtifactList(args = {}) {
   const pid = await resolveProjectId(args?.flags?.project);
-  const rows = await http.get(`/projects/${pid}/artifacts`);
+  const rows = await http.get(`/api/projects/${pid}/artifacts`);
   if (rows.length === 0) {
     console.log(`(no artifacts in project #${pid})`);
     return;
@@ -77,7 +77,7 @@ export async function cmdArtifactShow(args) {
   const name = args._[0];
   if (!name) throw new Error("apx artifact show: missing <name>");
   const pid = await resolveProjectId(args?.flags?.project);
-  const r = await http.get(`/projects/${pid}/artifacts/${encodeURIComponent(name)}`);
+  const r = await http.get(`/api/projects/${pid}/artifacts/${encodeURIComponent(name)}`);
   process.stdout.write(r.content);
 }
 
@@ -85,7 +85,7 @@ export async function cmdArtifactRemove(args) {
   const name = args._[0];
   if (!name) throw new Error("apx artifact remove: missing <name>");
   const pid = await resolveProjectId(args?.flags?.project);
-  await http.delete(`/projects/${pid}/artifacts/${encodeURIComponent(name)}`);
+  await http.delete(`/api/projects/${pid}/artifacts/${encodeURIComponent(name)}`);
   console.log(`removed artifact "${name}"`);
 }
 
@@ -106,7 +106,7 @@ export async function cmdArtifactRun(args) {
   // Pull the artifact record from the daemon for the absolute path.
   let entry;
   try {
-    entry = await http.get(`/projects/${pid}/artifacts/${encodeURIComponent(name)}`);
+    entry = await http.get(`/api/projects/${pid}/artifacts/${encodeURIComponent(name)}`);
   } catch (e) {
     throw new Error(`artifact "${name}" not found in project #${pid}: ${e.message}`);
   }
@@ -170,7 +170,7 @@ export async function cmdArtifactPreview(args) {
   let view;
   try {
     view = await http.post(
-      `/projects/${pid}/artifacts/${encodeURIComponent(name)}/preview`,
+      `/api/projects/${pid}/artifacts/${encodeURIComponent(name)}/preview`,
       { watch }
     );
   } catch (e) {
@@ -196,7 +196,7 @@ export async function cmdArtifactPreview(args) {
 async function sharePreview(previewId, { open: doOpen = false } = {}) {
   let tunnel;
   try {
-    tunnel = await http.post(`/previews/${previewId}/tunnel`, {});
+    tunnel = await http.post(`/api/previews/${previewId}/tunnel`, {});
   } catch (e) {
     throw new Error(`could not create tunnel: ${e.message}`);
   }
@@ -217,7 +217,7 @@ export async function cmdArtifactShare(args) {
   const watch = args.flags["no-watch"] ? false : true;
 
   const view = await http.post(
-    `/projects/${pid}/artifacts/${encodeURIComponent(name)}/preview`,
+    `/api/projects/${pid}/artifacts/${encodeURIComponent(name)}/preview`,
     { watch }
   );
   console.log(`sharing ${view.kind} artifact "${view.name}"`);
@@ -228,7 +228,7 @@ export async function cmdArtifactShare(args) {
 
 // `apx artifact previews` — list running preview servers.
 export async function cmdArtifactPreviews(args = {}) {
-  const rows = await http.get(`/previews`);
+  const rows = await http.get(`/api/previews`);
   if (!rows.length) {
     console.log("(no running previews)");
     return;
@@ -247,13 +247,13 @@ export async function cmdArtifactPreviews(args = {}) {
 // `apx artifact stop <id> | --all` — stop preview server(s).
 export async function cmdArtifactStop(args) {
   if (args.flags.all) {
-    const rows = await http.get(`/previews`);
-    for (const r of rows) await http.delete(`/previews/${r.id}`);
+    const rows = await http.get(`/api/previews`);
+    for (const r of rows) await http.delete(`/api/previews/${r.id}`);
     console.log(`stopped ${rows.length} preview(s)`);
     return;
   }
   const id = args._[0];
   if (!id) throw new Error("apx artifact stop: missing <id> (or --all)");
-  await http.delete(`/previews/${encodeURIComponent(id)}`);
+  await http.delete(`/api/previews/${encodeURIComponent(id)}`);
   console.log(`stopped preview ${id}`);
 }

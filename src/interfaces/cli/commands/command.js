@@ -18,7 +18,7 @@ async function resolveCommandRoot(args = {}) {
   const explicitProject = args?.flags?.project;
   if (explicitProject !== undefined && explicitProject !== null && explicitProject !== "") {
     const pid = await resolveProjectId(explicitProject);
-    const projects = await http.get("/projects");
+    const projects = await http.get("/api/projects");
     const project = projects.find((p) => p.id === pid);
     if (!project) throw new Error(`project ${pid} not found`);
     return project.path;
@@ -28,7 +28,7 @@ async function resolveCommandRoot(args = {}) {
   if (root) return root;
 
   const pid = await resolveProjectId();
-  const projects = await http.get("/projects");
+  const projects = await http.get("/api/projects");
   const project = projects.find((p) => p.id === pid);
   if (!project) throw new Error(`project ${pid} not found`);
   return project.path;

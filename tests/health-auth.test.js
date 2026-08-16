@@ -29,7 +29,7 @@ function makeApp() {
 test("GET /health is unauthenticated and reports version + uptime", async () => {
   const { server, baseUrl } = await listen(makeApp());
   try {
-    const res = await fetch(`${baseUrl}/health`); // no Authorization header
+    const res = await fetch(`${baseUrl}/api/health`); // no Authorization header
     assert.equal(res.status, 200);
     const body = await res.json();
     assert.equal(body.status, "ok");
@@ -43,7 +43,7 @@ test("GET /health is unauthenticated and reports version + uptime", async () => 
 test("an API route rejects requests without a bearer token", async () => {
   const { server, baseUrl } = await listen(makeApp());
   try {
-    const res = await fetch(`${baseUrl}/projects`);
+    const res = await fetch(`${baseUrl}/api/projects`);
     assert.equal(res.status, 401);
     assert.equal((await res.json()).error, "unauthorized");
   } finally {
@@ -54,7 +54,7 @@ test("an API route rejects requests without a bearer token", async () => {
 test("an API route rejects a wrong bearer token", async () => {
   const { server, baseUrl } = await listen(makeApp());
   try {
-    const res = await fetch(`${baseUrl}/projects`, {
+    const res = await fetch(`${baseUrl}/api/projects`, {
       headers: { authorization: "Bearer nope" },
     });
     assert.equal(res.status, 401);
@@ -66,7 +66,7 @@ test("an API route rejects a wrong bearer token", async () => {
 test("an API route accepts the correct bearer token", async () => {
   const { server, baseUrl } = await listen(makeApp());
   try {
-    const res = await fetch(`${baseUrl}/projects`, {
+    const res = await fetch(`${baseUrl}/api/projects`, {
       headers: { authorization: `Bearer ${TOKEN}` },
     });
     assert.equal(res.status, 200);

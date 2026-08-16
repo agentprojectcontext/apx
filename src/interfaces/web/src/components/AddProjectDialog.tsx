@@ -73,7 +73,7 @@ export function AddProjectDialog({ open, onClose }: { open: boolean; onClose: ()
     try {
       const out = await Projects.register(trimmed);
       toast.success(t("add_project.registered", { id: out.id }));
-      await mutate("/projects");
+      await mutate("/api/projects");
       onClose();
       navigate(`/p/${out.id}`);
     } catch (e) {

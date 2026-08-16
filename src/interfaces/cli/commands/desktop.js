@@ -75,7 +75,7 @@ export async function cmdDesktopStart(args = {}) {
   // Get daemon port from running daemon or env
   let daemonPort = process.env.APX_PORT || "7430";
   try {
-    const health = await http.get("/health").catch(() => null);
+    const health = await http.get("/api/health").catch(() => null);
     if (health?.port) daemonPort = String(health.port);
   } catch {}
 
@@ -254,7 +254,7 @@ export async function cmdDesktopStatus(_args = {}) {
 
   let daemonClients = 0;
   try {
-    const s = await http.get("/desktop/status").catch(() => null);
+    const s = await http.get("/api/desktop/status").catch(() => null);
     daemonClients = s?.connected_clients ?? 0;
   } catch {}
 

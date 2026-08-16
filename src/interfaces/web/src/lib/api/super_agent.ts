@@ -14,7 +14,7 @@ export interface SuperAgentSendBody {
 export const SuperAgent = {
   send: (pid: string | number, body: SuperAgentSendBody) =>
     http.post<{ text: string; usage?: unknown; name?: string }>(
-      `/projects/${pid}/super-agent/chat`,
+      `/api/projects/${pid}/super-agent/chat`,
       body,
     ),
   stream: (
@@ -22,8 +22,8 @@ export const SuperAgent = {
     body: SuperAgentSendBody,
     onEvent: (ev: ChatStreamEvent) => void,
     signal?: AbortSignal,
-  ) => streamNdjson<ChatStreamEvent>(`/projects/${pid}/super-agent/chat/stream`, body, onEvent, signal),
+  ) => streamNdjson<ChatStreamEvent>(`/api/projects/${pid}/super-agent/chat/stream`, body, onEvent, signal),
 
   summarize: (body: { prompt: string; context_note?: string; model?: string }) =>
-    http.post<{ text: string; usage?: unknown; name?: string }>("/super-agent/summarize", body),
+    http.post<{ text: string; usage?: unknown; name?: string }>("/api/super-agent/summarize", body),
 };

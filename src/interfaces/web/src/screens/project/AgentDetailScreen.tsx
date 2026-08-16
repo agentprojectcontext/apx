@@ -61,12 +61,12 @@ export function AgentDetailScreen({ pid }: { pid: string }) {
   const [tab, setTab] = useState<TabKey>("overview");
   const TABS = buildTabs();
 
-  const detail = useSWR(`/projects/${pid}/agents/${slug}`, () => Agents.get(pid, slug));
-  const agents = useSWR(`/projects/${pid}/agents`, () => Agents.list(pid));
-  const routines = useSWR(`/projects/${pid}/routines`, () => Routines.list(pid));
-  const records = useSWR(`/projects/${pid}/messages?agent=${slug}`, () => Messages.project(pid, { agent: slug, limit: 200 }));
-  const threads = useSWR(`/projects/${pid}/agents/${slug}/conversations`, () => Conversations.list(pid, slug));
-  const tasks = useSWR(`/projects/${pid}/tasks?all`, () => Tasks.list(pid, "all"));
+  const detail = useSWR(`/api/projects/${pid}/agents/${slug}`, () => Agents.get(pid, slug));
+  const agents = useSWR(`/api/projects/${pid}/agents`, () => Agents.list(pid));
+  const routines = useSWR(`/api/projects/${pid}/routines`, () => Routines.list(pid));
+  const records = useSWR(`/api/projects/${pid}/messages?agent=${slug}`, () => Messages.project(pid, { agent: slug, limit: 200 }));
+  const threads = useSWR(`/api/projects/${pid}/agents/${slug}/conversations`, () => Conversations.list(pid, slug));
+  const tasks = useSWR(`/api/projects/${pid}/tasks?all`, () => Tasks.list(pid, "all"));
 
   const a = detail.data;
   const myRoutines = routinesForAgent(routines.data || [], slug);
@@ -318,7 +318,7 @@ function Stat({ label, value, icon: I }: { label: string; value: number; icon: t
 // bare textarea.
 function MemoryEditor({ pid, slug, onSaved }: { pid: string; slug: string; onSaved: () => void }) {
   const toast = useToast();
-  const body = useSWR(`/memory/${pid}/agent:${slug}`, () => Agents.memory.get(pid, slug).then((r) => r.body));
+  const body = useSWR(`/api/memory/${pid}/agent:${slug}`, () => Agents.memory.get(pid, slug).then((r) => r.body));
 
   const file = useMemo<FileContent | null>(() => {
     if (body.data === undefined) return null;
@@ -425,7 +425,7 @@ function Field2({ label, value }: { label: string; value: string }) {
 }
 
 function ToolsPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const cat = useSWR("/tools", () => Tools.list());
+  const cat = useSWR("/api/tools", () => Tools.list());
   const selected = csv(value);
   const catalog = cat.data || [];
   const toggle = (name: string) => {

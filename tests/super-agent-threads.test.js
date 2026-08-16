@@ -1,6 +1,7 @@
 // Super-agent channel threads: global ledger → Chats sidebar entries.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { apiRouter } from "./_helpers.js";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -136,7 +137,7 @@ test("GET /projects/:pid/super-agent/threads/:channel/:id returns 404 for missin
   const app = express();
   app.use(express.json());
   const { register } = await import("../src/host/daemon/api/conversations.js");
-  register(app, {
+  register(apiRouter(express, app), {
     project: () => ({ id: "p1", path: "/tmp/none", storagePath: null }),
     config: {},
   });
@@ -144,9 +145,9 @@ test("GET /projects/:pid/super-agent/threads/:channel/:id returns 404 for missin
   await new Promise((r) => server.once("listening", r));
   const { port } = server.address();
   try {
-    const res = await fetch(`http://127.0.0.1:${port}/projects/p1/super-agent/threads/nope-channel/2020-01-01`);
+    const res = await fetch(`http://127.0.0.1:${port}/api/projects/p1/super-agent/threads/nope-channel/2020-01-01`);
     assert.equal(res.status, 404);
-    const list = await fetch(`http://127.0.0.1:${port}/projects/p1/super-agent/threads`);
+    const list = await fetch(`http://127.0.0.1:${port}/api/projects/p1/super-agent/threads`);
     assert.equal(list.status, 200);
     assert.ok(Array.isArray(await list.json()));
   } finally {

@@ -6,7 +6,7 @@ import type { ProjectEntry } from "../types/daemon";
 /** Project list, sorted so the default workspace (id=0) is first. */
 export function useProjects() {
   const { data, error, isLoading, mutate } = useSWR<ProjectEntry[]>(
-    "/projects",
+    "/api/projects",
     () => Projects.list(),
     { refreshInterval: REFRESH.projects },
   );

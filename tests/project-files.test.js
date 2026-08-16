@@ -136,20 +136,20 @@ test("fs API serves tree, file read/write, and docs scope", async () => {
   const { server, baseUrl } = await listen(app);
   try {
     // Whole-project tree.
-    let res = await fetch(`${baseUrl}/projects/${id}/fs/tree?scope=project`);
+    let res = await fetch(`${baseUrl}/api/projects/${id}/fs/tree?scope=project`);
     assert.equal(res.status, 200);
     let body = await res.json();
     assert.equal(body.scope, "project");
     assert.ok(body.tree.find((n) => n.name === "README.md"));
 
     // Read a file.
-    res = await fetch(`${baseUrl}/projects/${id}/fs/file?path=README.md`);
+    res = await fetch(`${baseUrl}/api/projects/${id}/fs/file?path=README.md`);
     assert.equal(res.status, 200);
     body = await res.json();
     assert.equal(body.content, "# Hello\n");
 
     // Write into the docs scope; it should land under <root>/docs/.
-    res = await fetch(`${baseUrl}/projects/${id}/fs/file`, {
+    res = await fetch(`${baseUrl}/api/projects/${id}/fs/file`, {
       method: "PUT",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ scope: "docs", path: "cases/one.md", content: "# Case One\n" }),
@@ -158,18 +158,18 @@ test("fs API serves tree, file read/write, and docs scope", async () => {
     assert.ok(fs.existsSync(path.join(root, "docs", "cases", "one.md")));
 
     // Docs tree sees it.
-    res = await fetch(`${baseUrl}/projects/${id}/fs/tree?scope=docs`);
+    res = await fetch(`${baseUrl}/api/projects/${id}/fs/tree?scope=docs`);
     body = await res.json();
     const cases = body.tree.find((n) => n.name === "cases");
     assert.ok(cases);
     assert.equal(cases.children[0].name, "one.md");
 
     // Traversal is rejected with 400.
-    res = await fetch(`${baseUrl}/projects/${id}/fs/file?path=${encodeURIComponent("../../../etc/passwd")}`);
+    res = await fetch(`${baseUrl}/api/projects/${id}/fs/file?path=${encodeURIComponent("../../../etc/passwd")}`);
     assert.equal(res.status, 400);
 
     // Delete.
-    res = await fetch(`${baseUrl}/projects/${id}/fs/entry?scope=docs&path=${encodeURIComponent("cases/one.md")}`, {
+    res = await fetch(`${baseUrl}/api/projects/${id}/fs/entry?scope=docs&path=${encodeURIComponent("cases/one.md")}`, {
       method: "DELETE",
     });
     assert.equal(res.status, 200);

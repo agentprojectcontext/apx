@@ -1,5 +1,5 @@
 // Snapshot a project's read-aloud context — AGENTS.md + .apc/memory.md —
-// into a single labelled markdown string. Used by /deck/context/copy and
+// into a single labelled markdown string. Used by /api/deck/context/copy and
 // (potentially) any other "give me the context" surface.
 import fs from "node:fs/promises";
 import { AGENTS_MD, apcMemoryFile } from "./paths.js";

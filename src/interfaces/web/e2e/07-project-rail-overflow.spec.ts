@@ -2,7 +2,7 @@ import { test, expect } from "./fixtures";
 
 // The rail must never overflow the viewport: projects beyond what fits collapse
 // into a "+N" popover, and the whole section can be folded into one folder.
-// We mock GET /projects so the test is deterministic regardless of what the
+// We mock GET /api/projects so the test is deterministic regardless of what the
 // user actually has registered.
 const BASE = { id: 0, path: "/tmp/base", name: "Base", kind: "default" };
 const MANY = Array.from({ length: 16 }, (_, i) => ({

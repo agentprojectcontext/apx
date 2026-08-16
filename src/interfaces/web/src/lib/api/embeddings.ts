@@ -37,8 +37,8 @@ export interface EmbedReindexResult {
 }
 
 export const Embeddings = {
-  providers: () => http.get<EmbedProvidersResponse>("/embeddings/providers"),
+  providers: () => http.get<EmbedProvidersResponse>("/api/embeddings/providers"),
   test: (body: { text?: string; provider?: string } = {}) =>
-    http.post<EmbedTestResult>("/embeddings/test", body),
-  reindex: () => http.post<EmbedReindexResult>("/embeddings/reindex", {}),
+    http.post<EmbedTestResult>("/api/embeddings/test", body),
+  reindex: () => http.post<EmbedReindexResult>("/api/embeddings/reindex", {}),
 };

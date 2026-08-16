@@ -1,5 +1,5 @@
 // Desktop (Electron floating window) process control — shared by the CLI
-// (`apx desktop start/stop/restart`) and the daemon's /desktop/{start,stop}
+// (`apx desktop start/stop/restart`) and the daemon's /api/desktop/{start,stop}
 // HTTP endpoints, so both spawn/kill the window the exact same way.
 //
 // The window is a detached Electron process (it must survive the spawner so a

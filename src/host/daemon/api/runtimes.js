@@ -22,17 +22,17 @@ import {
 } from "#core/stores/runtime-sessions.js";
 import { runSuperAgent, isSuperAgentEnabled } from "#core/agent/super-agent.js";
 
-export function register(app, { projects, registries, plugins, project, config }) {
-  app.get("/runtimes", (_req, res) =>
+export function register(api, { projects, registries, plugins, project, config }) {
+  api.get("/runtimes", (_req, res) =>
     res.json({ runtimes: RUNTIME_IDS })
   );
 
-  app.get("/env/detect", async (_req, res) => {
+  api.get("/env/detect", async (_req, res) => {
     const detected = await detectAll();
     res.json(detected);
   });
 
-  app.post("/projects/:pid/agents/:slug/runtime", async (req, res) => {
+  api.post("/projects/:pid/agents/:slug/runtime", async (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const { runtime, prompt, timeoutMs } = req.body || {};
@@ -146,7 +146,7 @@ export function register(app, { projects, registries, plugins, project, config }
   });
 
   // ---- Session resume — reads APC session file + (optionally) external transcript ----
-  app.get("/projects/:pid/sessions/:id/resume", async (req, res) => {
+  api.get("/projects/:pid/sessions/:id/resume", async (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const { id } = req.params;

@@ -4,7 +4,7 @@ import type { Identity } from "../types/daemon";
 
 export function useIdentity() {
   const { data, error, isLoading, mutate } = useSWR<Identity>(
-    "/identity",
+    "/api/identity",
     () => IdentityApi.get(),
   );
   const save = async (patch: Partial<Identity>) => {

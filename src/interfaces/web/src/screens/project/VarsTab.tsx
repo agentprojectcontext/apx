@@ -23,7 +23,7 @@ export function VarsTab({ pid }: { pid: string }) {
   );
   const [revealAll, setRevealAll] = useState(false);
   const list = useSWR<VarsList>(
-    `/projects/${pid}/vars?reveal=${revealAll ? 1 : 0}`,
+    `/api/projects/${pid}/vars?reveal=${revealAll ? 1 : 0}`,
     () => Vars.list(pid, { reveal: revealAll }),
   );
   const [openCreate, setOpenCreate] = useState<{ name?: string; value?: string; scope?: VarScope } | null>(null);

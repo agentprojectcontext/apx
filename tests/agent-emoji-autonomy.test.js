@@ -38,7 +38,7 @@ test("POST persists emoji + autonomy; GET returns them", async () => {
   const { app, id } = makeApp(root);
   const { server, baseUrl } = await listen(app);
   try {
-    let r = await fetch(`${baseUrl}/projects/${id}/agents`, {
+    let r = await fetch(`${baseUrl}/api/projects/${id}/agents`, {
       method: "POST",
       headers: json,
       body: JSON.stringify({
@@ -68,25 +68,25 @@ test("PATCH updates autonomy and rejects an invalid value silently (keeps prior)
   const { app, id } = makeApp(root);
   const { server, baseUrl } = await listen(app);
   try {
-    await fetch(`${baseUrl}/projects/${id}/agents`, {
+    await fetch(`${baseUrl}/api/projects/${id}/agents`, {
       method: "POST", headers: json,
       body: JSON.stringify({ slug: "cody", autonomy: "permiso" }),
     });
     // Valid transition.
-    let r = await fetch(`${baseUrl}/projects/${id}/agents/cody`, {
+    let r = await fetch(`${baseUrl}/api/projects/${id}/agents/cody`, {
       method: "PATCH", headers: json, body: JSON.stringify({ autonomy: "automatico" }),
     });
     assert.equal((await r.json()).autonomy, "automatico");
     // Bogus value is dropped — the prior value stands.
-    r = await fetch(`${baseUrl}/projects/${id}/agents/cody`, {
+    r = await fetch(`${baseUrl}/api/projects/${id}/agents/cody`, {
       method: "PATCH", headers: json, body: JSON.stringify({ autonomy: "yolo" }),
     });
     assert.equal((await r.json()).autonomy, "automatico");
     // Emoji can be cleared with an empty string.
-    await fetch(`${baseUrl}/projects/${id}/agents/cody`, {
+    await fetch(`${baseUrl}/api/projects/${id}/agents/cody`, {
       method: "PATCH", headers: json, body: JSON.stringify({ emoji: "🐼" }),
     });
-    r = await fetch(`${baseUrl}/projects/${id}/agents/cody`, {
+    r = await fetch(`${baseUrl}/api/projects/${id}/agents/cody`, {
       method: "PATCH", headers: json, body: JSON.stringify({ emoji: "" }),
     });
     assert.equal((await r.json()).emoji, null);

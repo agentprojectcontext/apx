@@ -9,5 +9,5 @@ export interface ToolInfo {
 
 export const Tools = {
   // Registry of built-in tools the daemon exposes.
-  list: () => http.get<ToolInfo[]>("/tools"),
+  list: () => http.get<ToolInfo[]>("/api/tools"),
 };

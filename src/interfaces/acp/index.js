@@ -6,7 +6,7 @@
 //
 // Like the mcp-server surface, this is a thin adapter over the daemon HTTP
 // API: each `session/prompt` becomes a POST to the NDJSON stream endpoint
-// `/projects/:pid/super-agent/chat/stream` and the stream events are mapped
+// `/api/projects/:pid/super-agent/chat/stream` and the stream events are mapped
 // onto ACP `session/update` notifications:
 //
 //   assistant_text         → agent_message_chunk
@@ -179,7 +179,7 @@ export class AcpAgentServer {
     session.activeTurn = turn;
     try {
       const final = await this.client.streamPost(
-        `/projects/${session.project.id}/super-agent/chat/stream`,
+        `/api/projects/${session.project.id}/super-agent/chat/stream`,
         {
           prompt: promptText,
           // ACP clients are coding surfaces (IDEs) — the `code` channel gives
@@ -314,7 +314,7 @@ export class AcpAgentServer {
     }
     try {
       await this.client.post(
-        `/super-agent/confirm/${encodeURIComponent(event.correlationId)}`,
+        `/api/super-agent/confirm/${encodeURIComponent(event.correlationId)}`,
         { confirmed }
       );
     } catch (e) {
