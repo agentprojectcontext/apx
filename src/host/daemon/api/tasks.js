@@ -1,5 +1,8 @@
-// Per-project tasks (TODOs). Backed by core/stores/tasks.js (JSONL event log).
-//   GET    /projects/:pid/tasks                  ?state=open|done|dropped|all&tag=X&agent=Y&due_before=ISO&limit=N
+// Tasks (TODOs). Backed by core/stores/tasks.js (JSONL event log).
+//   GET    /tasks                                cross-project; same filters, plus ?offset
+//   GET    /projects/:pid/tasks                  ?state=open|done|dropped|all&tag=X&agent=Y
+//                                                &due_before=ISO&due_after=ISO&limit=N
+//                                                &status=pending|running|in_review|blocked&updated_since=ISO
 //   POST   /projects/:pid/tasks                  { title, body?, tags?, due?, agent?, source?, meta? }
 //   GET    /projects/:pid/tasks/:id              (id or prefix)
 //   PATCH  /projects/:pid/tasks/:id              { patch: {...} }
@@ -9,6 +12,7 @@
 import {
   createTask,
   listTasks,
+  listTasksAcrossProjects,
   getTask,
   patchTask,
   doneTask,
@@ -25,21 +29,36 @@ export function register(app, { project, projects }) {
   // envelope. Paginated via ?limit & ?offset; with no limit, data is the full
   // set as one page.
   app.get("/tasks", (req, res) => {
-    const state = req.query.state || "open";
-    const out = [];
+    const { state, tag, agent, due_before, due_after, status, updated_since } = req.query;
+
+    // Resolve the registered projects to what core needs, dropping any the
+    // manager can no longer open.
+    const entries = [];
     for (const entry of projects.list()) {
       const p = projects.get(entry.id);
-      if (!p) continue;
-      let tasks = [];
-      try {
-        tasks = listTasks(p.storagePath, {
-          state: state === "all" ? undefined : state,
-        });
-      } catch { /* skip project */ }
-      for (const t of tasks) out.push({ ...t, project_id: entry.id, project_name: entry.name || entry.path });
+      if (!p?.storagePath) continue;
+      entries.push({
+        id: entry.id,
+        name: entry.name || entry.path,
+        path: entry.path,
+        storagePath: p.storagePath,
+      });
     }
-    out.sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""));
-    res.json(pageEnvelope(out, req.query));
+
+    const { tasks, skipped } = listTasksAcrossProjects(entries, {
+      state: state === "all" ? undefined : (state || "open"),
+      tag: tag || undefined,
+      agent: agent || undefined,
+      due_before: due_before || undefined,
+      due_after: due_after || undefined,
+      status: status || undefined,
+      updated_since: updated_since || undefined,
+    });
+
+    const envelope = pageEnvelope(tasks, req.query);
+    // Say when a project could not be read rather than quietly showing less.
+    if (skipped.length) envelope.meta = { ...(envelope.meta || {}), skipped };
+    res.json(envelope);
   });
 
   // Per-project tasks. Returns a { meta, data } envelope; with no ?limit the
@@ -47,13 +66,15 @@ export function register(app, { project, projects }) {
   app.get("/projects/:pid/tasks", (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    const { state, tag, agent, due_before, due_after } = req.query;
+    const { state, tag, agent, due_before, due_after, status, updated_since } = req.query;
     const all = listTasks(p.storagePath, {
       state: state || undefined,
       tag: tag || undefined,
       agent: agent || undefined,
       due_before: due_before || undefined,
       due_after: due_after || undefined,
+      status: status || undefined,
+      updated_since: updated_since || undefined,
     });
     res.json(pageEnvelope(all, req.query));
   });

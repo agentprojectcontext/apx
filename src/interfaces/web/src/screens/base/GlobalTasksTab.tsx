@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Tasks } from "../../lib/api";
+import type { TaskStatus } from "../../types/daemon";
 import { Section } from "../../components/Section";
 import { PagedList, usePagedQuery } from "../../components/Pager";
 import { Badge, Button, Empty, Loading } from "../../components/ui";
@@ -10,10 +11,14 @@ import { t } from "../../i18n";
 export function GlobalTasksTab() {
   const navigate = useNavigate();
   const [state, setState] = useState<"open" | "done" | "dropped" | "all">("open");
+  // Workflow sub-status is a different question from state: "what is blocked
+  // right now" is not "what is open". Only meaningful for open tasks.
+  const [status, setStatus] = useState<TaskStatus | "">("");
+  const effectiveStatus = state === "open" ? status : "";
   const paged = usePagedQuery({
-    key: `/tasks?state=${state}`,
-    fetchPage: (limit, offset) => Tasks.globalPage({ state, limit, offset }),
-    resetKey: state,
+    key: `/tasks?state=${state}&status=${effectiveStatus}`,
+    fetchPage: (limit, offset) => Tasks.globalPage({ state, limit, offset, status: effectiveStatus }),
+    resetKey: `${state}|${effectiveStatus}`,
   });
 
   return (
@@ -29,6 +34,19 @@ export function GlobalTasksTab() {
         </div>
       }
     >
+      {state === "open" ? (
+        <div className="mb-3 flex flex-wrap gap-1">
+          <Button size="sm" variant={status === "" ? "primary" : "ghost"} onClick={() => setStatus("")}>
+            {t("project.global_tasks.any_status")}
+          </Button>
+          {(["pending", "running", "in_review", "blocked"] as const).map((s) => (
+            <Button key={s} size="sm" variant={status === s ? "primary" : "ghost"} onClick={() => setStatus(s)}>
+              {s.replace("_", " ")}
+            </Button>
+          ))}
+        </div>
+      ) : null}
+
       {paged.isLoading && <Loading />}
       {!paged.isLoading && paged.total === 0 && <Empty>{t("project.global_tasks.empty")}</Empty>}
       <PagedList paged={paged} fullHeight>

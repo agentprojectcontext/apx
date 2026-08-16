@@ -427,6 +427,7 @@ export const es = {
     },
 
     global_tasks: {
+      any_status: "cualquier estado",
       title:       "Tasks (todos los proyectos)",
       subtitle:    "Tareas agregadas de todos los proyectos registrados.",
       empty:       "Sin tasks.",

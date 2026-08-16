@@ -17,6 +17,10 @@ apx task add "Demo for tester X" --project iacrmar --agent reviewer --tag demo -
 
 # List (defaults to open)
 apx task list --project iacrmar
+apx task list --all                          # every registered project, each row labelled
+apx task list --all --status blocked         # what is stuck, everywhere
+apx task list --all --updated-since 2026-08-01T00:00:00Z   # what moved
+apx task list --project iacrmar --status in_review
 apx task list --project iacrmar --state all
 apx task list --project iacrmar --state done
 apx task list --project iacrmar --tag urgent
