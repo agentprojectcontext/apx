@@ -3,7 +3,7 @@
 > Written so a fresh session can continue without reading the originating chat.
 > Keep it current: update it at the end of every phase, not at the end of the work.
 
-**Last updated:** 2026-08-16 · **Branch:** `feat/agent-inbox` (PR #41 open) · **Base:** `main` @ 1.75.0
+**Last updated:** 2026-08-16 · **Branch:** `feat/agent-inbox` (PR #41 open, NOT merged) · **Base:** `main` @ 1.75.0
 
 ---
 
@@ -18,11 +18,12 @@
 | 4 — bundled Secretary profile | ✅ merged (in #39) |
 | 3 — C2 cross-project tasks | ✅ **merged to main**, PR #40 |
 | Inbox — core + `GET /inbox` | ✅ PR #41 open |
-| Inbox — panel UI | ⬜ **next** |
-| Responsive inbox → LAN bind | ⬜ after the UI |
+| Inbox — panel UI (`/m/inbox`) | ✅ PR #41 |
+| Inbox — responsive | ✅ PR #41 (one known gap, below) |
+| LAN bind — `apx panel share` | ✅ PR #41 |
 | 5-9 (commitments, nudge budget, signals, calendar, service) | ⬜ per `03-BACKLOG.md` |
 
-`npm run preflight` green at 770 tests. Docs site builds (`cd docs && pnpm build`).
+`npm run preflight` green at 778 tests. Docs site builds (`cd docs && pnpm build`).
 
 **Note the phase numbers are out of order on purpose.** Phase 4 was pulled forward ahead of
 Phase 3 because the owner asked to see a profile working end to end. Phase 3 is next.
@@ -82,6 +83,29 @@ in the daemon route rather than core (so the CLI could not reuse it), and the su
 It also missed that **`apx task list` was broken outright**: the endpoints answer a
 `{meta, data}` envelope and the CLI still treated it as an array, so it printed "(no tasks)"
 regardless. Only live verification found it.
+
+## 🔴 Live finding the owner must decide on
+
+**This machine's daemon is bound to `0.0.0.0` right now** — `config.host` is
+`"0.0.0.0"`, and `lsof` confirms `TCP *:7430 (LISTEN)`. It is pre-existing config, not
+something this work introduced, and it was deliberately NOT changed: it may be what the
+owner already relies on to reach the panel from their phone, and silently narrowing it
+could break that.
+
+It is worth a decision, because it is wider than it needs to be — a wildcard bind also
+covers interfaces that appear later (a VPN, a hotspot, a container bridge). `apx panel
+status` now reports this case separately from ordinary sharing and points at the narrower
+option:
+
+    apx panel share      # bind one specific LAN address instead
+    apx panel unshare    # back to loopback only
+
+## Known gap
+
+`line-clamp-2` has no effect in this Tailwind build, so a long inbox preview renders in
+full on a phone rather than clamped to two lines. Bounded anyway — the preview is capped at
+160 chars server-side — and the full short reply arguably reads better on mobile. Worth
+resolving with the wider responsive pass.
 
 ## Scope deliberately cut
 
@@ -161,16 +185,18 @@ Every one was found by running against the live daemon, not by unit tests.
 
 ## What to do next
 
-**The inbox's panel UI** — the core reader and `GET /inbox` are done (PR #41); what is
-missing is the screen. Then B (responsive), then C1 (LAN bind). See
-`04-BACKLOG-agent-inbox.md`.
+Everything the owner queued is built and on PR #41, which is **deliberately unmerged** —
+they asked to review and merge it themselves at the end.
 
-The endpoint returns rows shaped for the UI already: `agent_name`, `agent_emoji`,
-`project_name`, `preview` (the agent's last reply), `last_activity_at`, `channel`,
-`messages`, `pinned`, `kind`. Reuse `components/chat/*` for the thread pane — do not build a
-second chat UI. Two things the owner explicitly wants that are NOT built yet: the tool-run
-summary rendered from `tool_trace`, and a "routine created" chip when a recurring request
-turns into a routine.
+Still not built, both explicitly wanted:
+
+1. **The tool-run summary in a thread**, rendered from `tool_trace` in message meta
+   (`✓ Salesforce → 52 accounts`). The data is already on disk; this is a rendering job.
+2. **The "routine created" chip** when a recurring request turns into a routine. APX
+   already creates the routine — showing it closes the loop at the moment it happens.
+
+Then the remaining phases in `03-BACKLOG.md`: 5 (commitments), 6 (nudge budget — **before**
+7, non-negotiable), 7 (signals/watch), 8 (calendar), 9 (service + memory consolidation).
 
 **Do not break:** each project agent has its own Telegram line, a direct channel that
 bypasses the super-agent. Never used so far, but the inbox must not remove or degrade it.
