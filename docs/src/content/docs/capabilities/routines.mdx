@@ -90,15 +90,25 @@ Comma-separated shell commands. They form a pipeline around the LLM call:
 
 ### `--skip-prompt-on`
 
-Controls what happens when `pre_commands` exit non-zero:
+Controls when the LLM call (phase 2) is skipped, based on what `pre_commands` did:
 
 | Value | Behavior |
 |---|---|
-| `signal` _(default)_ | Skip LLM only on SIGINT/SIGTERM; non-zero exit still runs the LLM. |
-| `pre_failure` | Skip LLM + post on any non-zero exit. |
-| `pre_success` | Skip LLM + post unless every pre command exits 0. Same effect as `pre_failure` in most cases. |
+| `signal` _(default)_ | Skip the LLM when the pre commands' **stdout contains `APX_SKIP`**. Exit codes are ignored. This is a content signal, not an OS signal — the pre command decides. |
+| `pre_failure` | Skip the LLM when the last pre command exits **non-zero**. |
+| `pre_success` | Skip the LLM when the last pre command exits **zero**. The exact opposite of `pre_failure` — useful when the pre command's success means there is nothing left to think about. |
 | `always` | Always skip the LLM — useful for pure pre→post pipelines. |
-| `never` | Always run the LLM, even if pre commands crash. |
+| `never` | Always run the LLM, whatever the pre commands did. |
+
+`post_commands` always run, whether or not the LLM was skipped; `$APX_SKIPPED` is `1` when it was.
+
+Emitting the skip signal from a pre command looks like this:
+
+```bash
+apx routine add digest \
+  --pre 'test -s ~/report.txt || echo APX_SKIP' \
+  --skip-prompt-on signal
+```
 
 ### `--permission-mode`
 

@@ -90,15 +90,25 @@ Comandos de shell separados por comas. Forman un pipeline alrededor de la llamad
 
 ### `--skip-prompt-on`
 
-Controla qué pasa cuando `pre_commands` sale con código distinto de cero:
+Controla cuándo se saltea la llamada al LLM (fase 2), según lo que hicieron los `pre_commands`:
 
 | Valor | Comportamiento |
 |---|---|
-| `signal` _(por defecto)_ | Saltea el LLM solo en SIGINT/SIGTERM; una salida distinta de cero igual corre el LLM. |
-| `pre_failure` | Saltea LLM + post en cualquier salida distinta de cero. |
-| `pre_success` | Saltea LLM + post salvo que cada comando pre salga 0. Mismo efecto que `pre_failure` en la mayoría de los casos. |
+| `signal` _(por defecto)_ | Saltea el LLM cuando el **stdout** de los comandos pre **contiene `APX_SKIP`**. Los códigos de salida se ignoran. Es una señal de contenido, no una señal del sistema operativo — decide el comando pre. |
+| `pre_failure` | Saltea el LLM cuando el último comando pre sale **distinto de cero**. |
+| `pre_success` | Saltea el LLM cuando el último comando pre sale **cero**. Es el opuesto exacto de `pre_failure` — sirve cuando que el comando pre salga bien significa que no queda nada para pensar. |
 | `always` | Siempre saltea el LLM — útil para pipelines pre→post puros. |
-| `never` | Siempre corre el LLM, incluso si los comandos pre crashean. |
+| `never` | Siempre corre el LLM, hagan lo que hagan los comandos pre. |
+
+Los `post_commands` corren siempre, se haya salteado el LLM o no; `$APX_SKIPPED` vale `1` cuando se salteó.
+
+Emitir la señal de skip desde un comando pre se ve así:
+
+```bash
+apx routine add digest \
+  --pre 'test -s ~/report.txt || echo APX_SKIP' \
+  --skip-prompt-on signal
+```
 
 ### `--permission-mode`
 
