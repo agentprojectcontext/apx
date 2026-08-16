@@ -17,13 +17,30 @@ real source of inconsistent behavior, not just duplication.
 Provide `readJson(path, fallback)`, `writeJson(path, value)` (atomic: temp + rename,
 so a crash mid-write cannot corrupt config), and async variants for request paths.
 
-## P3-2 — One scope vocabulary
+## P3-2 — One scope vocabulary — ~~do this~~ **DON'T. Corrected.**
 
-`normalizeScope` exists **5 times**, three of them inside `api/` alone
-(`mcps.js:48`, `vars.js:27`, `integrations.js:29`), plus `cli/commands/mcp.js:9-40`.
-The scope concept (`runtime` ▶ `apc` ▶ `global`) is core domain, not adapter detail.
+> **This item was wrong and is kept as a warning.** The survey saw
+> `normalizeScope` five times and called it duplication. Reading the bodies,
+> the three in `api/` share a *shape* but not a *vocabulary*:
+>
+> | file | accepts | default |
+> |---|---|---|
+> | `mcps.js` | `shared` \| `runtime` \| `global` (`apc` aliases `shared`) | `shared` |
+> | `vars.js` | `project` \| `global` | depends on `isBase` |
+> | `integrations.js` | `project` \| `global` (`default`→global, `shared`/`runtime`→project) | `project` |
+>
+> Collapsing them into one helper would silently reroute writes to the wrong
+> store — an MCP asking for `shared` would land in a project scope that means
+> something else entirely.
+>
+> **Done instead:** renamed to `normalizeMcpScope` / `normalizeVarScope` /
+> `normalizeIntegrationScope`, each carrying a note pointing at the others.
+> The problem was never duplication; it was three distinct domain concepts
+> wearing one name, which is an active invitation to merge them.
 
-`core/constants/scopes.js` + `core/scopes.js` own it; adapters import.
+The general lesson, worth applying to the rest of this file: **identical names
+are not evidence of identical behavior.** Read both bodies before collapsing
+any "duplicate" listed below.
 
 ## P3-3 — One frontmatter parser
 
