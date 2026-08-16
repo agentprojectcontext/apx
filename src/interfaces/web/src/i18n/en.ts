@@ -213,6 +213,8 @@ export const en = {
       title: "Agent profile",
       subtitle:
         "An installable line of work for the super-agent: what it does with its day and when it speaks to you. Distinct from the agent's name (that lives under Identity).",
+      active_hint:
+        "A profile is active: its block ships on every turn of every channel. Deactivate to go back to vanilla.",
       vanilla_hint:
         "No profile is active. APX behaves exactly as it always has — the super-agent prompt is identical to a clean install.",
       none_available: "No profiles available yet.",
@@ -237,6 +239,10 @@ export const en = {
       preview_title: "Prompt block",
       preview_subtitle: "Exactly what reaches the model, with your values substituted.",
       preview_empty: "(empty)",
+      preview_inactive: "This is what the model would receive if you activated this profile.",
+      no_settings: "This profile has nothing to configure.",
+      settings_locked: "Activate the profile to change its settings.",
+      doctor_vanilla: "No profile active. APX behaves as it always has.",
     },
 
     identity: {
