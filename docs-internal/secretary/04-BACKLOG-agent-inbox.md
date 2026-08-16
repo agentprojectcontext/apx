@@ -76,7 +76,30 @@ long-form `web` one — otherwise it will be correct and unreadable.
 
 ## C — Remote access to the panel
 
-**The good news: most of this already exists.** `src/core/artifacts/tunnel.js` wraps
+> **Scope corrected by the owner:** this means **reaching the panel from a phone on the same
+> LAN** (`http://192.168.1.40:7430`), not exposing it to the internet. The public-tunnel
+> design below is **archived, not discarded** — kept because the objection it records still
+> applies the day someone wants it.
+
+### C1 — LAN bind (this is the actual work)
+
+The daemon listens on loopback. The job is to let it also bind the LAN interface and print
+the real URL. `core/config/paths.js` + `effectiveHost()` in `core/config/index.js` already
+model the host, so this is a small change plus a loud command.
+
+Non-negotiable shape:
+
+- `127.0.0.1` stays the **default**. A LAN bind is explicit opt-in, never a side effect.
+- **Never `0.0.0.0` by default.** Bind the specific LAN address.
+- The command is **loud**: it prints the IP, the port, and one line saying exactly what is
+  now reachable to anyone on that network — because a LAN can be a café or a coworking.
+- The existing auth (web token / device pairing, `api/pairing.js`) stays **mandatory**.
+  Never a bind without auth, not even on a LAN.
+- A QR of the URL in the terminal is a nice-to-have. Skip it if it is not cheap.
+
+### C2 — Public tunnel (ARCHIVED)
+
+Kept for the day this is wanted. **The good news: most of it already exists.** `src/core/artifacts/tunnel.js` wraps
 zero-config tunnel providers — **cloudflared** first (`cloudflare tunnel --url
 http://localhost:PORT`), localtunnel as fallback — spawns the provider, scrapes the public
 URL, and is already driven over HTTP by `api/artifact-preview.js`
@@ -100,8 +123,10 @@ and make that safe."** Safety is the whole job:
   now reachable, with `apx panel unshare`. Never on by default, never a silent side effect
   of something else.
 
-**Do this last of the three.** A phone-shaped panel behind a tunnel is worth a lot; a
-desktop-shaped one behind a tunnel is worth little and carries the same risk.
+**The objection that archived this:** an artifact preview is a throwaway page; the panel is
+the whole system, and the threat model of a guessable public hostname is not the threat model
+of a home LAN. That distinction is exactly why the LAN bind is fine and the tunnel is not —
+yet.
 
 ---
 
@@ -113,10 +138,22 @@ desktop-shaped one behind a tunnel is worth little and carries the same risk.
 3. **B** — make the inbox phone-shaped.
 4. **C** — expose it, with the auth question answered first.
 
-## Open questions for the owner
+## Answered by the owner
 
-- Does the inbox **replace** the project-first navigation or sit beside it? Replacing is
-  cleaner and riskier; beside it is safe and leaves two ways to do one thing.
-- Do the super-agent and project agents share one list, or does the super-agent stay pinned
-  at the top the way `Chief` is in the reference?
-- Phone access: is device pairing enough, or does exposure need an explicit second factor?
+- **The inbox coexists with project navigation — two axes, not two versions of one thing.**
+  The inbox is the default entry point: open the panel, see conversations, most recent first.
+  That is how the system gets used daily. **Project-first navigation stays intact and must
+  not degrade.** Projects as a first-class unit with versioned context is APX's differentiator
+  against any personal assistant; if the inbox eats it, the one thing a competitor cannot copy
+  is gone. *Conversational entry, project structure. Both.*
+- **The super-agent is pinned, always first, visually distinct.** It is the only voice that
+  speaks to the owner and the others report to it. The hierarchy should be visible.
+- **LAN access needs no second factor** — the existing pairing/token is enough. The question
+  reopens only if public exposure is ever built.
+
+## Constraint raised late
+
+**Each project agent already has its own Telegram option** — a direct line to that agent
+without going through the super-agent. Never used so far, but it must **not** be removed or
+degraded by this work. Treat it as another entry point into the same conversation, not as
+something the inbox supersedes.
