@@ -8,9 +8,7 @@
 // the local network. Loopback stays the default, sharing is always explicit,
 // and the daemon's auth is untouched — the URL carries the token because
 // /admin/web-token is loopback-only by design, so a phone cannot fetch it.
-import fs from "node:fs";
 import { readConfig, writeConfig, effectivePort, effectiveHost } from "#core/config/index.js";
-import { TOKEN_PATH } from "#core/config/paths.js";
 import { detectLanAddresses, validateBindHost, isLoopback, isWildcard } from "#core/net/lan.js";
 
 export const PANEL_USAGE = {
@@ -18,21 +16,6 @@ export const PANEL_USAGE = {
   share: "apx panel share [--host <ip>]",
   unshare: "apx panel unshare",
 };
-
-function readToken() {
-  try {
-    return fs.readFileSync(TOKEN_PATH, "utf8").trim();
-  } catch {
-    return "";
-  }
-}
-
-function panelUrl(host, port, token) {
-  // /admin/web-token refuses anything that is not loopback, so the panel on a
-  // phone can only authenticate from the fragment. The fragment never reaches
-  // the server or a proxy log — that is why it is a fragment and not a query.
-  return `http://${host}:${port}/` + (token ? `#token=${token}` : "");
-}
 
 export async function cmdPanelStatus() {
   const cfg = readConfig();
@@ -92,18 +75,27 @@ export async function cmdPanelShare(args) {
   cfg.host = host;
   writeConfig(cfg);
 
-  const token = readToken();
   const iface = candidates.find((c) => c.address === host)?.iface;
 
   console.log(`panel shared on ${host}:${port}${iface ? ` (${iface})` : ""}`);
   console.log("");
-  console.log("  Open this on your phone — the token is in the URL:");
-  console.log(`  ${panelUrl(host, port, token)}`);
+  console.log(`  URL for the other device:  http://${host}:${port}/`);
+  console.log("");
+  // Deliberately NOT the daemon's master token. Handing that to a phone gives
+  // it the same power as the CLI, cannot be revoked without rotating the token
+  // every local tool depends on, and leaves no record the device exists —
+  // which is the exact thing pairing was built to avoid (see token-store.js).
+  // It would not even last: the master token is regenerated on every restart.
+  console.log("  Authorise the device by PAIRING it, not by copying a token:");
+  console.log("    the panel → Settings → Devices → Pair device, then scan the QR.");
+  console.log("");
+  console.log("  Pairing gives that device its OWN token, which survives restarts,");
+  console.log("  shows up under Paired devices, and can be revoked on its own without");
+  console.log("  disturbing anything else.");
   console.log("");
   // Say plainly what changed. A LAN can be a café or a coworking space.
   console.log("  What this means: anyone on this network can now REACH the panel.");
-  console.log("  They still need the token above, which is not guessable — treat that");
-  console.log("  URL like a password, and run `apx panel unshare` when you are done.");
+  console.log("  They cannot use it without pairing. Run `apx panel unshare` when done.");
   if (candidates.length > 1) {
     const others = candidates.filter((c) => c.address !== host).map((c) => `${c.address} (${c.iface})`);
     console.log(`  Other addresses on this machine: ${others.join(", ")}`);

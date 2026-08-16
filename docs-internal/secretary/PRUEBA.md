@@ -179,6 +179,31 @@ techo son 600 tokens; si te pasás, el instalador te lo dice.
 
 ---
 
+## Acceso desde el celular
+
+El panel está compartido en `http://192.168.18.125:7430/`, pero **el otro dispositivo hay que
+emparejarlo**, no darle un token copiado:
+
+**Panel → Settings → Devices → Pair device**, y escaneás el QR.
+
+Por qué así y no con un token en la URL:
+
+- el token de `~/.apx/daemon.token` es el **maestro** — le da al celular el mismo poder que
+  al CLI, y **se regenera en cada reinicio del daemon**, así que una URL con él dura hasta
+  el próximo `apx restart`;
+- no se puede revocar solo: revocarlo es rotar el token del que dependen el CLI, el desktop
+  y todo lo demás;
+- no deja registro: el dispositivo no aparece en "Paired devices".
+
+El emparejado le da al celular **su propio** token, guardado en `~/.apx/clients.json`, que
+sobrevive reinicios, aparece en la lista y se revoca solo.
+
+**Por eso "Paired devices" está vacío aunque estés en localhost.** El navegador local no se
+empareja: pide el token maestro a `/admin/web-token`, que sólo responde por loopback. Se
+autentica *como el daemon*, no como un dispositivo. Es correcto que no aparezca.
+
+---
+
 ## Lo que NO vas a poder probar hoy
 
 Sé explícito con esto para que no lo busques:
