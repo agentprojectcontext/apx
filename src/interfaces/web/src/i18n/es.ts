@@ -146,7 +146,7 @@ export const es = {
   inbox: {
     title: "Bandeja de agentes",
     subtitle:
-      "Cada agente como una conversación, lo más reciente primero. La navegación por proyectos sigue intacta — esta es la puerta de entrada, no un reemplazo.",
+      "Cada agente como una conversación, lo más reciente primero.",
     empty: "Todavía no hablaste con ningún agente.",
     pinned: "principal",
     show_quiet: "Ver los que no hablaron",

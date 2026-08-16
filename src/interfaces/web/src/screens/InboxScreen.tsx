@@ -57,22 +57,32 @@ export function InboxScreen() {
               <span className="mt-0.5 text-lg leading-none">{row.agent_emoji || "🤖"}</span>
 
               <span className="min-w-0 flex-1">
-                <span className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium">{row.agent_name || row.agent_slug}</span>
+                <span className="flex min-w-0 items-baseline gap-2">
+                  <span className="truncate font-medium">{row.agent_name || row.agent_slug}</span>
                   {row.pinned ? <Badge tone="info">{t("inbox.pinned")}</Badge> : null}
-                  {row.project_name ? (
-                    <span className="text-xs opacity-60">{row.project_name}</span>
-                  ) : null}
-                  {row.channel ? <span className="text-xs opacity-40">· {row.channel}</span> : null}
+                  {/* On a phone the timestamp rides with the name; there is no
+                      room for a third column. */}
+                  <span className="ml-auto shrink-0 text-xs opacity-50 sm:hidden">
+                    {shortTime(row.last_activity_at)}
+                  </span>
                 </span>
+
+                <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs opacity-55">
+                  {row.project_name ? <span className="truncate">{row.project_name}</span> : null}
+                  {row.channel ? <span className="opacity-70">· {row.channel}</span> : null}
+                </span>
+
                 {/* The agent's own last line. Echoing the user's prompt back
-                    would tell them nothing they do not already know. */}
-                <span className="mt-0.5 block truncate text-sm opacity-70">
+                    would tell them nothing they do not already know. Two lines
+                    on a phone, one on a wide screen. */}
+                <span className="mt-1 block line-clamp-2 text-sm leading-snug opacity-75 sm:line-clamp-1">
                   {row.preview || t("inbox.no_reply_yet")}
                 </span>
               </span>
 
-              <span className="shrink-0 text-xs opacity-50">{shortTime(row.last_activity_at)}</span>
+              <span className="hidden shrink-0 text-xs opacity-50 sm:block">
+                {shortTime(row.last_activity_at)}
+              </span>
             </button>
           </li>
         ))}
