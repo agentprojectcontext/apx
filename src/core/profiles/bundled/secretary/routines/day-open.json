@@ -1,0 +1,10 @@
+{
+  "name": "day-open",
+  "kind": "super_agent",
+  "schedule": "{{day_open_schedule}}",
+  "permission_mode": "automatico",
+  "enabled_by_default": true,
+  "spec": {
+    "prompt": "Open the day. Across every registered project, look at what is due today, what is overdue, what is blocked, and any commitment coming due. Then send ONE short message: what is due today, anything on the calendar, and the single thing that most deserves attention. Not an inventory. If there is genuinely nothing pressing, say so in one line rather than padding it. Pass the four gates in your channel guidance before sending anything beyond this anchor."
+  }
+}

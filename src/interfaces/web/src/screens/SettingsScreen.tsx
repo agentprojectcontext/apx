@@ -1,12 +1,13 @@
 import { type ReactElement } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
-  Bot, Cpu, Database, Globe, KeyRound, LayoutGrid, MessageCircle, Mic, Monitor, ScrollText, Send, Smartphone, Sparkles, User,
+  Bot, Cpu, Database, Globe, IdCard, KeyRound, LayoutGrid, MessageCircle, Mic, Monitor, ScrollText, Send, Smartphone, Sparkles, User,
 } from "lucide-react";
 import { useNavCollapse, type TabSection } from "../components/common/TabNav";
 import { TabLayout } from "../components/common/TabLayout";
 import { IdentityPanel } from "../components/settings/IdentityPanel";
 import { SuperAgentPanel } from "../components/settings/SuperAgentPanel";
+import { ProfilePanel } from "../components/settings/ProfilePanel";
 import { MemoryPanel } from "../components/settings/MemoryPanel";
 import { SkillsSettings } from "../components/settings/SkillsSettings";
 import { ModelsTab } from "./base/ModelsTab";
@@ -21,7 +22,7 @@ import { STORAGE } from "../constants";
 import { t } from "../i18n";
 
 type TabKey =
-  | "identity" | "super_agent" | "engines" | "memory" | "skills" | "telegram" | "devices"
+  | "identity" | "super_agent" | "profile" | "engines" | "memory" | "skills" | "telegram" | "devices"
   | "voice" | "deck" | "desktop" | "web" | "advanced";
 
 const SECTIONS: TabSection[] = [
@@ -35,6 +36,7 @@ const SECTIONS: TabSection[] = [
     title: t("settings.agents_section"),
     items: [
       { key: "super_agent", label: t("settings.tabs.super_agent"), icon: Bot },
+      { key: "profile",     label: t("settings.tabs.profile"),     icon: IdCard },
       { key: "engines",     label: t("settings.tabs.engines"),     icon: Cpu },
       { key: "memory",      label: "Memory (RAG)",                 icon: Database },
       { key: "skills",      label: t("skills_page.title"),         icon: Sparkles },
@@ -73,6 +75,7 @@ const WIDE_TABS = new Set<TabKey>(["engines", "telegram", "memory", "skills", "w
 const PANELS: Record<TabKey, () => ReactElement> = {
   identity:    () => <IdentityPanel />,
   super_agent: () => <SuperAgentPanel />,
+  profile:     () => <ProfilePanel />,
   engines:     () => <ModelsTab />,
   memory:      () => <MemoryPanel />,
   skills:      () => <SkillsSettings />,
@@ -113,6 +116,7 @@ function tabFromPath(pathname: string): TabKey {
   const raw = pathname.split("/").filter(Boolean)[1] || "identity";
   switch (raw) {
     case "super-agent": return "super_agent";
+    case "profile": return "profile";
     case "engines": return "engines";
     case "memory": return "memory";
     case "skills": return "skills";

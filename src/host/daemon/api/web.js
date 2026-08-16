@@ -24,7 +24,7 @@ const API_PREFIXES = [
   "/health", "/admin", "/projects", "/telegram", "/engines", "/runtimes",
   "/messages", "/sessions", "/tools", "/mcp", "/voice", "/tts", "/desktop", "/overlay",
   "/transcribe", "/run", "/files", "/memory", "/env", "/pair", "/deck",
-  "/super-agent", "/identity", "/skills",
+  "/super-agent", "/identity", "/skills", "/profiles",
 ];
 
 export function isApiPath(p) {

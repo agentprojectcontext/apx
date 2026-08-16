@@ -1,0 +1,180 @@
+---
+title: Agent profiles
+description: Installable lines of work for the super-agent — install, activate, configure and remove a profile without forking its base prompt.
+sidebar:
+  order: 8
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+An **agent profile** is an installable package that gives the super-agent a line of work:
+what it does with its day, and when it decides to speak to you. A secretary, a project
+manager, an analyst, a tutor.
+
+APX ships **vanilla**. With no profile active the super-agent's system prompt is
+byte-identical to a clean install — profiles add behaviour, they never fork the base
+prompt.
+
+<Aside type="note" title="Three things called something like &quot;profile&quot;">
+- **Agent profile** — an installable package of a line of work. This page.
+- **Persona** — the super-agent's *visible name*, in `~/.apx/identity.json` (`agent_name`).
+  Set under **Settings → Identity**.
+- **Project config** — per-project overrides in `.apc/config.json`.
+</Aside>
+
+## Quick start
+
+<Steps>
+
+1. See what is available.
+
+   ```bash
+   apx profile list
+   ```
+
+2. Install one. This validates the package and seeds its settings — it does **not**
+   change the agent's behaviour yet.
+
+   ```bash
+   apx profile install secretary
+   ```
+
+3. Activate it. This is the moment behaviour changes: the prompt reloads and the
+   profile's routines are installed.
+
+   ```bash
+   apx profile use secretary
+   ```
+
+4. Make it yours. Every setting has a sensible default, so this step is optional.
+
+   ```bash
+   apx profile config --interactive
+   ```
+
+5. Check what is still missing for it to do its job.
+
+   ```bash
+   apx profile doctor
+   ```
+
+</Steps>
+
+To go back to exactly how APX behaved before:
+
+```bash
+apx profile off
+```
+
+`off` disables the profile's routines and **deletes nothing**. Your settings, tasks and
+memory are untouched, so `apx profile use` restores everything.
+
+## Commands
+
+| Command | What it does |
+|---|---|
+| `apx profile list` | Every available profile and which one is active |
+| `apx profile show <id>` | Settings, token cost and where the package came from |
+| `apx profile show <id> --preview` | …plus the rendered prompt block |
+| `apx profile install <id\|path>` | Validate and install. Does **not** activate |
+| `apx profile use <id>` | Activate, and install the profile's routines |
+| `apx profile off` | Back to vanilla |
+| `apx profile config` | Show settings |
+| `apx profile config --set k=v` | Change one setting (repeatable) |
+| `apx profile config --interactive` | Walk through every setting |
+| `apx profile doctor` | What is missing, with the command that fixes it |
+| `apx profile uninstall <id>` | Remove, keeping anything you edited |
+
+Only one profile is active at a time. Activating a second needs `--force`.
+
+## Settings
+
+Each package declares its settings in `config.schema.json`, and **every one has a
+default** — installing a profile and configuring nothing gives you a working system, not
+a questionnaire.
+
+```bash
+apx profile config --set day_open_at="30 8 * * 1-5"
+apx profile config --set nudge_budget_per_day=3
+```
+
+Changing a schedule setting **really reschedules**: the profile's routines are re-rendered
+and the cron actually moves.
+
+Settings are stored per profile, so switching from one to another and back gives each its
+own values rather than handing them the other's.
+
+## Where packages live
+
+| Layer | Location | Notes |
+|---|---|---|
+| Bundled | shipped inside APX | Read-only; improved by `npm update` |
+| User | `~/.apx/profiles/<id>/` | Packages you installed from a local path, and your overrides |
+| Removed | `~/.apx/profiles/.removed.json` | Bundled ids you uninstalled |
+
+Both layers are resolved when read, and yours wins — the same model the
+[agent vault](/apx/capabilities/agent-vault/) uses. Installing a **bundled** profile does
+not copy it, so a later APX update improves it instead of being shadowed by a stale copy.
+Installing from a **local path** does copy, because that source lives outside APX and
+could move or vanish.
+
+Uninstalling a bundled profile hides it with a tombstone rather than deleting it; reinstall
+it any time.
+
+## Package layout
+
+```
+<id>/
+  profile.json            # manifest: id, name, version, requires, prompt_budget_tokens
+  PROFILE.md              # the always-on prompt block (a template)
+  PROFILE.es.md           # optional translations: PROFILE.<lang>.md
+  config.schema.json      # the settings, every one with a default
+  channels/<ch>.md        # optional per-channel overlay
+  routines/*.json         # routines it installs
+  agents/*.md             # specialists it adds to the vault
+  skills/<slug>/SKILL.md  # its own operational procedures
+```
+
+### Template rules
+
+`PROFILE.md` is a template. Only flat `{{single_word}}` placeholders are substituted, and
+**installation fails, naming the variable**, if a template uses one that cannot resolve:
+
+- `{{profile.name}}` — dotted paths cannot be substituted.
+- `{{something_undeclared}}` — not a built-in and not in the schema.
+- a schema property declared **without a default** — it would render as an empty string.
+
+Built-ins available to every template: `owner_name`, `agent_name`, `owner_context`,
+`profile_name`. `owner_name` comes from `identity.json` and falls back to neutral wording
+when you have not set it, so an unconfigured install never produces a broken sentence.
+
+### Channel overlays
+
+A package can ship `channels/<ch>.md`, rendered and appended after APX's own channel file
+for that surface — and **only** on that surface. It is how a profile loads a rule exactly
+where the decision it governs is taken: guidance about when to message you unprompted
+belongs in `channels/routine.md`, and costs nothing on Telegram, CLI, web or desktop.
+
+## The prompt budget
+
+A profile's block ships on **every turn of every channel**, on top of a base prompt of
+roughly 2,500 tokens. A package declares `prompt_budget_tokens`; exceeding it warns, and
+exceeding 1.5× refuses to install.
+
+Check the real number any time:
+
+```bash
+apx profile show secretary
+```
+
+## Web panel
+
+**Settings → Agent profile** shows the catalogue, a form generated from the package's
+schema, the doctor output, and the rendered prompt block with your settings substituted —
+the fastest way to see exactly what the model is being told.
+
+## HTTP API
+
+`GET /profiles` · `GET /profiles/:id` (includes `preview`) · `GET /profiles/doctor` ·
+`POST /profiles/install` · `POST /profiles/use` · `POST /profiles/off` ·
+`PATCH /profiles/config` · `DELETE /profiles/:id`
