@@ -34,7 +34,7 @@ const fmt = {
 // pointing at 127.0.0.1 works through the USB bridge. For pure WiFi
 // pairing, the user should bind APX_HOST=0.0.0.0 and we'll emit the
 // LAN IP here instead.
-function pickHostForQr({ host, port }) {
+function pickHostForQr({ host }) {
   if (host && host !== "0.0.0.0" && host !== "::" && host !== "127.0.0.1") {
     return host;
   }

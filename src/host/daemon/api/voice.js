@@ -20,6 +20,7 @@
 // core/. This file is just glue: parse request → call core → format response.
 import fs from "node:fs";
 import path from "node:path";
+import { TTS_TMP_DIR } from "#core/config/paths.js";
 import { readConfig } from "#core/config/index.js";
 import { synthesize } from "#core/voice/tts.js";
 import { stripEmotionTags } from "#core/voice/emotions.js";
@@ -41,8 +42,7 @@ export function register(api, { projects, plugins, registries }) {
     const rawPath = String(req.query.path || "");
     if (!rawPath) return res.status(400).json({ error: "path required" });
     try {
-      const os = await import("node:os");
-      const ttsRoot = path.resolve(os.homedir(), ".apx", "tmp", "tts");
+      const ttsRoot = path.resolve(TTS_TMP_DIR);
       const resolved = path.resolve(rawPath);
       if (!resolved.startsWith(ttsRoot + path.sep)) {
         return res.status(403).json({ error: "path outside tts dir" });
@@ -103,7 +103,7 @@ export function register(api, { projects, plugins, registries }) {
         : [];
       const channel = body.channel || "voice";
       let suggestions = [];
-      let toolsUsed = [];
+      const toolsUsed = [];
       // Attribution for the persisted turn (see the appendGlobalMessage below).
       let replyModel = null;
       let replyUsage = null;

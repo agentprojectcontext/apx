@@ -16,13 +16,6 @@ const execFileAsync = promisify(execFile);
 // ---------------------------------------------------------------------------
 
 async function grepWithRg({ pattern, searchPath, glob, caseSensitive, context = 0, limit }) {
-  const args = [
-    "--json",
-    "--max-count", "1",           // max matches per file
-    "--max-filesize", "1M",
-    "-l",                         // list matching files first? No, we want content
-  ];
-  // Actually use full output mode
   const fullArgs = [
     "--json",
     "--max-filesize", "1M",

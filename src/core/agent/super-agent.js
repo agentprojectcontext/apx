@@ -80,8 +80,6 @@ export async function runSuperAgent({
     throw new Error("super-agent not enabled (set super_agent.enabled and .model in ~/.apx/config.json)");
   }
 
-  const sa = globalConfig.super_agent;
-
   // Memory Broker (Pieza 4): assemble the [MEMORIA RELEVANTE] block before the
   // turn. Silent + bounded (≤ broker_budget_ms); skipped for tool-free callers
   // (summarize/ask) where injected context would only confuse the transcript.

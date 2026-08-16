@@ -1,6 +1,5 @@
 import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
+import { PID_PATH, LOG_PATH } from "#core/config/paths.js";
 import { ensureDaemon, http } from "../http.js";
 
 // Wait until nothing answers on the daemon port (old process fully exited and
@@ -13,8 +12,8 @@ async function waitForPortReleased({ tries = 40, intervalMs = 150 } = {}) {
   return false;
 }
 
-const PID_PATH = path.join(os.homedir(), ".apx", "daemon.pid");
-const LOG_PATH = path.join(os.homedir(), ".apx", "daemon.log");
+
+
 
 // ── ANSI helpers ─────────────────────────────────────────────────────────────
 const c = {

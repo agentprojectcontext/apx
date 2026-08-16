@@ -15,7 +15,7 @@ import path from "node:path";
 // ---------------------------------------------------------------------------
 
 function globToRegex(pattern) {
-  let re = pattern
+  const re = pattern
     .replace(/[.+^${}()|[\]\\]/g, "\\$&")
     .replace(/\*\*\//g, "(?:.+/)?")
     .replace(/\*\*/g, ".*")

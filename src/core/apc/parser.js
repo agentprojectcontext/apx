@@ -1,6 +1,7 @@
 // Core parsers for APC — pure ESM, no deps.
 import fs from "node:fs";
 import path from "node:path";
+import { AGENT_VAULT_DIR } from "../config/paths.js";
 import {
   apcAgentsDir,
   apcAgentFile,
@@ -124,12 +125,11 @@ export function readAgentsFromDir(root) {
 // if it's a bundled slug, deletes the user file otherwise.
 // ---------------------------------------------------------------------------
 
-import os from "node:os";
 import { fileURLToPath } from "node:url";
 
 const __parserDir = path.dirname(fileURLToPath(import.meta.url));
 
-export const VAULT_DIR = path.join(os.homedir(), ".apx", "agents");
+export const VAULT_DIR = AGENT_VAULT_DIR;
 export const BUNDLED_VAULT_DIR = path.resolve(__parserDir, "../../../assets/agent-vault-defaults");
 export const VAULT_TOMBSTONE_PATH = path.join(VAULT_DIR, ".removed.json");
 

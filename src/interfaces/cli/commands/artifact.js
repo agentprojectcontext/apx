@@ -227,7 +227,7 @@ export async function cmdArtifactShare(args) {
 }
 
 // `apx artifact previews` — list running preview servers.
-export async function cmdArtifactPreviews(args = {}) {
+export async function cmdArtifactPreviews(_args = {}) {
   const rows = await http.get(`/api/previews`);
   if (!rows.length) {
     console.log("(no running previews)");

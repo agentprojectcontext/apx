@@ -4,7 +4,7 @@ import { spawn } from "node:child_process";
 import { findApfRoot, readAgents } from "#core/apc/parser.js";
 import { getOrCreateApxId } from "#core/apc/scaffold.js";
 import { generateSessionId } from "#core/stores/sessions.js";
-import { projectStorageRoot, ensureProjectStorage } from "#core/config/index.js";
+import { projectStorageRoot } from "#core/config/index.js";
 import { http } from "../http.js";
 import { resolveProjectId } from "./project.js";
 import {
@@ -378,7 +378,7 @@ export function cmdSessionUpdate(args) {
 
   let text = fs.readFileSync(s.path, "utf8");
   const fields = ["status", "result", "title", "task_ref", "completed"];
-  let touched = [];
+  const touched = [];
   for (const k of fields) {
     if (args.flags[k] !== undefined && args.flags[k] !== true) {
       text = setFrontmatterField(text, k, args.flags[k]);
@@ -419,7 +419,7 @@ export function cmdSessionCheck() {
   }
 
   let active = 0;
-  let stale = [];
+  const stale = [];
   for (const s of sessions) {
     const h = hoursSince(s.started);
     if (h >= STALE_HOURS) {
@@ -783,13 +783,13 @@ function spawnContinueSpec(meta) {
 // Create a new APX session whose body is the summary of an existing session.
 // Used by `apx session resume <id> --into apx[:slug]`. Picks a sensible
 // default agent slug when none is given.
-function createApxFollowupSession(meta, slugArg, summary, args) {
+function createApxFollowupSession(meta, slugArg, summary, _args) {
   const root = requireRoot();
   const agents = readAgents(root);
   if (agents.length === 0) {
     throw new Error("no agents in AGENTS.md — `apx agent add <slug>` first");
   }
-  let slug = slugArg || meta.agentSlug || agents[0].slug;
+  const slug = slugArg || meta.agentSlug || agents[0].slug;
   if (!agents.find((a) => a.slug === slug)) {
     throw new Error(
       `agent "${slug}" not in AGENTS.md (known: ${agents.map((a) => a.slug).join(", ")})`

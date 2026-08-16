@@ -38,7 +38,7 @@ test("POST persists emoji + autonomy; GET returns them", async () => {
   const { app, id } = makeApp(root);
   const { server, baseUrl } = await listen(app);
   try {
-    let r = await fetch(`${baseUrl}/api/projects/${id}/agents`, {
+    const r = await fetch(`${baseUrl}/api/projects/${id}/agents`, {
       method: "POST",
       headers: json,
       body: JSON.stringify({

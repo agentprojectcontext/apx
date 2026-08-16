@@ -2,7 +2,6 @@
 //
 // These were inlined in api.js (monolith). They are kept dependency-free so
 // any route module can `import` them without pulling in the world.
-import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { appendErrorTrace, previewText } from "#core/logging.js";

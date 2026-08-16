@@ -5,12 +5,12 @@
 // projects. Instead APX owns ~/.apx/runtime/whisper-venv: create it, install
 // faster-whisper / mlx-whisper into it, and spawn whisper-server.py with its
 // interpreter. "Reset the engine" = delete the folder and recreate it.
-import os from "node:os";
 import path from "node:path";
+import { WHISPER_VENV_DIR } from "#core/config/paths.js";
 import fs from "node:fs";
 import { spawn } from "node:child_process";
 
-export const VENV_DIR = path.join(os.homedir(), ".apx", "runtime", "whisper-venv");
+export const VENV_DIR = WHISPER_VENV_DIR;
 
 /** Path to the venv's python (…/bin/python on POSIX, …/Scripts on Windows). */
 export function venvPython() {

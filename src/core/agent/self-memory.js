@@ -14,11 +14,13 @@
 // The header inside the file picks up the current persona name from identity
 // (resolveAgentName) — never hardcode the agent name here.
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
+import { SELF_MEMORY_PATH } from "../config/paths.js";
+
+export { SELF_MEMORY_PATH };
 import { resolveAgentName } from "../identity/index.js";
 
-export const SELF_MEMORY_PATH = path.join(os.homedir(), ".apx", "memory.md");
+
 
 function notebookHeader() {
   let name = "";

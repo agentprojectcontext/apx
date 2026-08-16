@@ -37,7 +37,7 @@ export function resolveSender({ cfg, channelName, from, chatType }) {
   const isOwner =
     channel?.owner_user_id != null &&
     String(channel.owner_user_id) === String(userId);
-  const role = isOwner ? "owner" : contact?.role || "guest";
+  const role = isOwner ? SENDER_ROLES.OWNER : contact?.role || SENDER_ROLES.GUEST;
   return {
     userId,
     username,
@@ -115,11 +115,11 @@ export function registerSender({ cfg, channelName, from, chatType }) {
   if (kind === "claim") {
     upsertTelegramChannel(disk, channelName, { owner_user_id: userId });
     upsertContact(disk, userId, {
-      name, username, role: "owner", first_seen: now, last_seen: now,
+      name, username, role: SENDER_ROLES.OWNER, first_seen: now, last_seen: now,
     });
   } else if (kind === "guest") {
     upsertContact(disk, userId, {
-      name, username, role: "guest", first_seen: now, last_seen: now,
+      name, username, role: SENDER_ROLES.GUEST, first_seen: now, last_seen: now,
     });
   } else {
     upsertContact(disk, userId, { last_seen: now });

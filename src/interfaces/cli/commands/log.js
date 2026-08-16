@@ -10,11 +10,10 @@
 // here, regardless of which module produced it (telegram, whisper, super-agent…).
 
 import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
+import { APX_LOG_PATH, ERROR_TRACE_PATH } from "#core/config/paths.js";
 
-const APX_LOG_PATH = path.join(os.homedir(), ".apx", "logs", "apx.log");
-const ERROR_TRACE_PATH = path.join(os.homedir(), ".apx", "logs", "errors.jsonl");
+
+
 
 const c = {
   reset: "\x1b[0m", bold: "\x1b[1m", dim: "\x1b[2m",

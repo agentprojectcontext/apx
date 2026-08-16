@@ -36,13 +36,13 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import os from "node:os";
+import { SKILLS_INDEX_PATH } from "#core/config/paths.js";
 
 import { embedOne } from "#core/memory/embeddings.js";
 import { listSkills } from "./loader.js";
 import { condenseSkillDescription } from "./catalog.js";
 
-const INDEX_PATH = path.join(os.homedir(), ".apx", "skills", ".index.json");
+const INDEX_PATH = SKILLS_INDEX_PATH;
 
 // ---------------------------------------------------------------------------
 // Disk I/O

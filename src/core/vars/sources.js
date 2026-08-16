@@ -14,15 +14,15 @@
 // project wins over global when the same name exists in both.
 
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
+import { apxHome } from "#core/config/paths.js";
 
-const APX_HOME = path.join(os.homedir(), ".apx");
-const GLOBAL_VARS_FILE = path.join(APX_HOME, "vars.json");
+
+const globalVarsFile = () => path.join(apxHome(), "vars.json");
 const PROJECT_VARS_FILENAME = "vars.json";
 
 export function globalVarsPath() {
-  return GLOBAL_VARS_FILE;
+  return globalVarsFile();
 }
 
 export function projectVarsPath(storagePath) {
@@ -51,11 +51,11 @@ function writeJsonSecure(absPath, obj) {
 }
 
 export function readGlobalVars() {
-  return readJsonSafe(GLOBAL_VARS_FILE);
+  return readJsonSafe(globalVarsFile());
 }
 
 export function writeGlobalVars(obj) {
-  writeJsonSecure(GLOBAL_VARS_FILE, obj);
+  writeJsonSecure(globalVarsFile(), obj);
 }
 
 export function readProjectVars(storagePath) {
