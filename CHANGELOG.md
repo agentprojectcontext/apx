@@ -1,3 +1,10 @@
+## [1.77.1](https://github.com/agentprojectcontext/apx/compare/v1.77.0...v1.77.1) (2026-08-16)
+
+
+### Bug Fixes
+
+* **daemon:** keep loopback when sharing; smoke-test the adapter seam ([#42](https://github.com/agentprojectcontext/apx/issues/42)) ([6619287](https://github.com/agentprojectcontext/apx/commit/66192872621f5c7e12e91c3db2a9bb305f7ade51))
+
 # [1.77.0](https://github.com/agentprojectcontext/apx/compare/v1.76.0...v1.77.0) (2026-08-16)
 
 
