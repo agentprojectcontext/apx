@@ -17,7 +17,7 @@ const RISK_ORDER = { LOW: 1, MEDIUM: 2, HIGH: 3 };
 
 // Loop-control / interaction tools that never touch the world — grading them
 // only burns tokens and trains the model to rubber-stamp the field.
-const RISK_EXEMPT_TOOLS = new Set(["finish", "ask_questions", "discover_tools"]);
+import { RISK_EXEMPT_TOOLS } from "./tools/names.js";
 
 export function normalizeRisk(value) {
   const v = String(value || "").trim().toUpperCase();

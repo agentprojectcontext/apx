@@ -5,6 +5,7 @@ import {
 } from "./tools/tool-call-parser.js";
 import { resolveActiveModel, fallbackModels } from "./model-router.js";
 import { MAX_TOOL_ITERS, ACK_ONLY_TOOLS, MAX_CONSECUTIVE_ACKS, TURN_ENDING_TOOLS } from "./constants.js";
+import { TOOLS, SIDE_EFFECT_TOOLS } from "./tools/names.js";
 import { pseudoToolSystem, shouldRetryWithPseudoTools } from "./tools/pseudo-tools.js";
 import { filterToolSchemas } from "./tools-overlap.js";
 import { isRetryableEngineError, shortRetryReason } from "./retry.js";
@@ -78,7 +79,7 @@ function previewTraceResult(result) {
 export const FINISH_TOOL_SCHEMA = {
   type: "function",
   function: {
-    name: "finish",
+    name: TOOLS.FINISH,
     description:
       "Call this ONLY when the user's request is fully complete and no step " +
       "remains. Put your final answer / summary of what you did in `summary` " +
@@ -308,16 +309,6 @@ export async function runAgent({
   // instead of re-running. Read-only tools are exempt (idempotent and
   // sometimes legitimately repeated, like list_tasks before/after).
   const sideEffectExecuted = new Map();
-  const SIDE_EFFECT_TOOLS = new Set([
-    "send_telegram",
-    "create_task",
-    "write_file",
-    "edit_file",
-    "run_shell",
-    "call_runtime",
-    "add_project",
-    "set_identity",
-  ]);
   const sideEffectSignature = (name, args) => {
     try {
       return `${name}:${JSON.stringify(args)}`;
@@ -498,7 +489,7 @@ export async function runAgent({
 
       // Completion contract: `finish` declares the task done. Capture its
       // summary as the final text and stop processing the rest of this turn.
-      if (name === "finish") {
+      if (name === TOOLS.FINISH) {
         finishSummary = typeof args.summary === "string" ? args.summary : "";
         break;
       }
