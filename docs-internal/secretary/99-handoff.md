@@ -3,7 +3,7 @@
 > Written so a fresh session can continue without reading the originating chat.
 > Keep it current: update it at the end of every phase, not at the end of the work.
 
-**Last updated:** 2026-08-16 · **Branch:** `feat/profiles` · **Base:** `main` @ 1.74.1
+**Last updated:** 2026-08-16 · **Branch:** `main` (all merged) · **Base:** `main` @ 1.75.0
 
 ---
 
@@ -13,14 +13,14 @@
 |---|---|
 | 0 — recon | ✅ `00-findings.md`, reviewed and accepted |
 | 1 — C1 `routine.id` | ✅ **merged to main**, PR #38 |
-| 2 — profiles subsystem | ✅ PR #39 open on `feat/profiles` |
-| 2.5 — rename, install gate, channel overlays | ✅ on `feat/profiles` |
-| 4 — bundled Secretary profile | ✅ on `feat/profiles` |
-| 3 — C2 cross-project tasks | ⬜ **next** |
-| Inbox → responsive → LAN bind | ⬜ queued, see `04-BACKLOG-agent-inbox.md` |
+| 2 — profiles subsystem | ✅ **merged to main**, PR #39 |
+| 2.5 — rename, install gate, channel overlays | ✅ merged (in #39) |
+| 4 — bundled Secretary profile | ✅ merged (in #39) |
+| 3 — C2 cross-project tasks | ✅ **merged to main**, PR #40 |
+| Inbox → responsive → LAN bind | ⬜ **next**, see `04-BACKLOG-agent-inbox.md` |
 | 5-9 (commitments, nudge budget, signals, calendar, service) | ⬜ per `03-BACKLOG.md` |
 
-`npm run preflight` green at 749 tests. Docs site builds (`cd docs && pnpm build`).
+`npm run preflight` green at 760 tests. Docs site builds (`cd docs && pnpm build`).
 
 **Note the phase numbers are out of order on purpose.** Phase 4 was pulled forward ahead of
 Phase 3 because the owner asked to see a profile working end to end. Phase 3 is next.
@@ -55,6 +55,17 @@ reasoning; this is the short list so nothing gets silently reverted.
     Phase 6 PR must carry a grep audit proving all four pass through it.
 
 ---
+
+## Corrections to 02-SPEC discovered in Phase 3
+
+`§ C2` says cross-project aggregation does not exist. **Outdated** — `GET /tasks` and the
+panel's `GlobalTasksTab` already shipped. What was genuinely missing was that the fold lived
+in the daemon route rather than core (so the CLI could not reuse it), and the sub-status and
+`updated_since` filters. Corrected in place.
+
+It also missed that **`apx task list` was broken outright**: the endpoints answer a
+`{meta, data}` envelope and the CLI still treated it as an array, so it printed "(no tasks)"
+regardless. Only live verification found it.
 
 ## Scope deliberately cut
 
@@ -121,21 +132,24 @@ conversation, not as something the inbox replaces.
 
 ## What to do next
 
-**Phase 3 — C2 cross-project task aggregation** (`02-SPEC-capabilities.md § C2`).
+**The agent inbox** — see `04-BACKLOG-agent-inbox.md § A`, then B (responsive), then C1
+(LAN bind).
 
-Why it is next and not the inbox: the inbox needs a cross-project "all agents, most recent
-first" reader, which is the same aggregation. Doing C2 first makes the inbox a second
-consumer instead of a parallel implementation.
+C2 is done and is the foundation: `listTasksAcrossProjects()` in `core/stores/tasks.js` is
+the shape the inbox's "all agents, most recent first" reader should follow — walk the
+registered projects, attach `project_id`/`project_name`, sort with a deterministic tiebreak,
+cap after the merge.
 
-- Today `listTasks(storagePath)` (`core/stores/tasks.js:171`) folds one project's whole JSONL
-  history per call. There is no cross-project reader anywhere.
-- Add aggregation over registered projects returning tasks with `project_id` and
-  `project_name` attached; filters for state, sub-status, tags, agent, `due_before`,
-  `updated_since`, limit.
-- Surfaces: `apx task list --all`, `GET /tasks?scope=all`, a panel view.
-- Per-project behaviour must not change.
-- Measure before caching. If caching is needed, the natural key is
-  `(storagePath, mtime of the tasks dir)` and only the daemon should hold it.
+Things learned in C2 that apply directly to the inbox:
+
+- **`nowIso()` has second resolution.** Anything sorted by time needs a tiebreak or the list
+  reshuffles between identical calls.
+- **The list endpoints answer `{meta, data}`.** `apx task list` was broken for exactly this
+  reason. Check any new CLI reader against the live daemon, not just core.
+- **Skip, name, and carry on.** One unreadable project must never blank out a cross-project
+  view; return what was skipped so the surface can say so.
+- **Measure before caching.** 24,000 tasks across 10 projects folds in 22ms, so C2 has no
+  cache. The inbox should measure the same way before adding one.
 
 ---
 
