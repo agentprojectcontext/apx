@@ -221,6 +221,8 @@ test("no orphan {{...}} survives, and a missing owner falls back to neutral pros
   }
 });
 
+// The MACHINERY stays (a third party may translate a package), but APX ships
+// system prompts in English only — see docs-internal/secretary/00-findings.md § 9.
 test("language selection prefers PROFILE.<lang>.md and falls back to English", () => {
   try {
     const dir = installTestProfile("multi", { prompt: "ENGLISH BODY" });

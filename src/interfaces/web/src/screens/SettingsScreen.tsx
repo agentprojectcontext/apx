@@ -70,7 +70,7 @@ const SECTIONS: TabSection[] = [
 // on xl (and so wants full available width). Single-section panels (identity,
 // super agent, devices, advanced) keep a cosier reading width so wide displays
 // don't blow form fields up to absurd widths.
-const WIDE_TABS = new Set<TabKey>(["engines", "telegram", "memory", "skills", "web", "voice"]);
+const WIDE_TABS = new Set<TabKey>(["engines", "telegram", "memory", "skills", "web", "voice", "profile"]);
 
 const PANELS: Record<TabKey, () => ReactElement> = {
   identity:    () => <IdentityPanel />,

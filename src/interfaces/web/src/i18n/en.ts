@@ -142,6 +142,16 @@ export const en = {
     browser_unavailable: "Browser unavailable until daemon restarts. Paste path manually.",
     no_folders:  "No folders.",
   },
+  inbox: {
+    title: "Agent inbox",
+    subtitle:
+      "Every agent as a conversation, most recent first.",
+    empty: "You have not talked to any agent yet.",
+    pinned: "lead",
+    show_quiet: "Show quiet agents",
+    no_reply_yet: "(no replies yet)",
+  },
+
   settings: {
     title:       "Settings",
     subtitle:    "Panel preferences + local daemon diagnostics.",
@@ -203,6 +213,8 @@ export const en = {
       title: "Agent profile",
       subtitle:
         "An installable line of work for the super-agent: what it does with its day and when it speaks to you. Distinct from the agent's name (that lives under Identity).",
+      active_hint:
+        "A profile is active: its block ships on every turn of every channel. Deactivate to go back to vanilla.",
       vanilla_hint:
         "No profile is active. APX behaves exactly as it always has — the super-agent prompt is identical to a clean install.",
       none_available: "No profiles available yet.",
@@ -227,6 +239,10 @@ export const en = {
       preview_title: "Prompt block",
       preview_subtitle: "Exactly what reaches the model, with your values substituted.",
       preview_empty: "(empty)",
+      preview_inactive: "This is what the model would receive if you activated this profile.",
+      no_settings: "This profile has nothing to configure.",
+      settings_locked: "Activate the profile to change its settings.",
+      doctor_vanilla: "No profile active. APX behaves as it always has.",
     },
 
     identity: {

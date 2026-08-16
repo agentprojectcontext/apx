@@ -545,9 +545,16 @@ test("the bundled secretary package is valid and within its declared budget", as
   assert.equal(report.ok, true, report.errors.join("; "));
 
   const budget = secretary.manifest.prompt_budget_tokens;
-  for (const { lang, tokens } of measureProfilePrompts(secretary, readConfig())) {
+  const measured = measureProfilePrompts(secretary, readConfig());
+  for (const { lang, tokens } of measured) {
     assert.ok(tokens <= budget, `PROFILE (${lang}) is ${tokens} tokens, over the ${budget} budget`);
   }
+
+  // System prompts ship in English only. A translated PROFILE.<lang>.md would be
+  // a second prompt to keep in sync and drift silently; the agent is told to
+  // reply in the owner's language instead.
+  assert.deepEqual(measured.map((m) => m.lang), ["en"]);
+  assert.deepEqual(secretary.manifest.languages, ["en"]);
 });
 
 test("the secretary's routines carry schedules the scheduler can actually parse", async () => {

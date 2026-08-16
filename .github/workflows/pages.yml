@@ -50,7 +50,13 @@ jobs:
       - name: Build docs (Astro Starlight, base=/apx/docs)
         working-directory: docs
         run: |
-          pnpm install --frozen-lockfile
+          # --ignore-workspace is load-bearing. The repo root has a
+          # pnpm-workspace.yaml (for allowBuilds), so pnpm walks up from docs/,
+          # decides it is inside a workspace, and installs the ROOT project
+          # instead — leaving docs/node_modules empty and `astro build` failing
+          # with "astro: not found". docs/ is deliberately self-contained with
+          # its own lockfile, so it must be installed on its own.
+          pnpm install --frozen-lockfile --ignore-workspace
           pnpm build
 
       - name: Assemble static site
