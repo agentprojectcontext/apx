@@ -32,9 +32,21 @@ skip() { printf "%s· skip%s %s\n" "$C_DIM" "$C_RST" "$1" >&2; }
 
 START="$(date +%s)"
 
+# 0) Lint — the layering rule (core -> adapter -> surface) is enforced here,
+#    not by good intentions. Cheap, so it runs first and fails fast.
+step "linting (npm run lint)"
+if ! npm run lint --silent >/tmp/apx-pre-push-lint.log 2>&1; then
+  printf "%s\n" "── eslint ──" >&2
+  tail -40 /tmp/apx-pre-push-lint.log >&2
+  fail "lint failed (full log: /tmp/apx-pre-push-lint.log)"
+fi
+ok "lint"
+
 # 1) Backend tests — the source of truth for behavior the daemon ships.
-step "running backend tests (npm test)"
-if ! npm test --silent >/tmp/apx-pre-push-test.log 2>&1; then
+#    test:ci also refuses skipped/todo tests; a skipped test is one nobody
+#    is watching.
+step "running backend tests (npm run test:ci)"
+if ! npm run test:ci --silent >/tmp/apx-pre-push-test.log 2>&1; then
   printf "%s\n" "── last 30 lines of npm test ──" >&2
   tail -30 /tmp/apx-pre-push-test.log >&2
   fail "backend tests failed (full log: /tmp/apx-pre-push-test.log)"

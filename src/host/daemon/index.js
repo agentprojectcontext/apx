@@ -355,6 +355,15 @@ async function main() {
   process.on("uncaughtException", (e) => {
     log(`uncaughtException: ${e.stack || e.message}`);
   });
+  // Node >= 15 terminates the process on an unhandled rejection. The CLI has
+  // always registered this; the daemon had not, so one un-awaited failure in a
+  // route or a plugin took down the process serving the SPA, Telegram polling,
+  // voice and the deck at once. Log and keep running — the request-level
+  // errorMiddleware already answers the caller.
+  process.on("unhandledRejection", (reason) => {
+    const e = reason instanceof Error ? reason : new Error(String(reason));
+    log(`unhandledRejection: ${e.stack || e.message}`);
+  });
 }
 
 main().catch((e) => {

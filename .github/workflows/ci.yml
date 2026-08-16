@@ -1,0 +1,58 @@
+name: CI
+
+# Verify code BEFORE it lands.
+#
+# Until this existed, the only workflow that ran tests was release.yml, which
+# triggers on push to main — i.e. after the merge. A red test blocked the
+# release, not the code coming in. Meanwhile package.json already defined a
+# correct composite gate (`preflight`) that nothing invoked.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install (root)
+        run: pnpm install --frozen-lockfile
+
+      # The web panel is a separate workspace with its own lockfile.
+      - name: Install (web panel)
+        run: pnpm install --frozen-lockfile
+        working-directory: src/interfaces/web
+
+      - name: Lint
+        run: pnpm run lint
+
+      # Backend suite. The script also enforces "0 skipped, 0 todo" — a skipped
+      # test is a test nobody is watching.
+      - name: Test
+        run: pnpm run test:ci
+
+      - name: Web build
+        run: node scripts/build-web.js
+
+      - name: Web typecheck
+        run: npx --no-install tsc --noEmit
+        working-directory: src/interfaces/web
+
+      # Ratchet: the vendored TUI fork's error count may fall, never rise.
+      - name: TUI typecheck
+        run: node scripts/typecheck-tui.js

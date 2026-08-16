@@ -14,6 +14,7 @@ import {
   readConversation,
   setStatus,
 } from "#core/stores/conversations.js";
+import { asyncRoute } from "./shared.js";
 
 // Pick a model for a direct agent chat: explicit override → agent's own model →
 // super-agent default (resolved via the same router the super-agent uses, so
@@ -107,7 +108,7 @@ export function register(api, { projects, project, config }) {
     }
   });
 
-  api.post("/projects/:pid/agents/:slug/chat", async (req, res) => {
+  api.post("/projects/:pid/agents/:slug/chat", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const {
@@ -206,5 +207,5 @@ export function register(api, { projects, project, config }) {
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
-  });
+  }));
 }
