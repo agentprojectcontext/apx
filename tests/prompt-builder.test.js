@@ -104,13 +104,74 @@ test("buildProjectAgentsBlock: loads + labels the project's AGENTS.md", () => {
   }
 });
 
-test("buildProjectAgentsBlock: size-caps oversized files with a truncation note", () => {
+test("buildProjectAgentsBlock: size-caps oversized FOREIGN files with a truncation note", () => {
   const big = "x".repeat(PROJECT_AGENTS_MAX_CHARS + 500);
   const root = tmpProjectWithAgentsMd(big);
   try {
     const block = buildProjectAgentsBlock(root);
     assert.match(block, /AGENTS\.md truncated/);
-    assert.ok(block.length < big.length + 200, "content should be capped");
+    assert.match(block, /characters omitted/, "says how much was dropped");
+    assert.ok(block.length < big.length + 400, "content should be capped");
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// Regression: APX sliced any AGENTS.md at 6000 chars — including the one for
+// the project it was running inside. Our own contract is 16k+, so 63% of it
+// never reached the agent and the cut landed mid-rule. A project must always
+// read its own contract whole.
+test("buildProjectAgentsBlock: never truncates the project APX is running inside", () => {
+  const big = "# AGENTS.md\n\n" + "rule line\n".repeat(4000); // ~40k chars
+  const root = tmpProjectWithAgentsMd(big);
+  const cwd = process.cwd();
+  try {
+    process.chdir(root);
+    // fs.realpathSync: macOS temp dirs are symlinked via /var → /private/var,
+    // so compare on the resolved path the process actually reports.
+    const block = buildProjectAgentsBlock(process.cwd());
+    assert.ok(!/truncated/.test(block), "own project must not be truncated");
+    assert.ok(block.length > big.length, "full contract reaches the prompt");
+  } finally {
+    process.chdir(cwd);
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("buildProjectAgentsBlock: config can raise or disable the foreign cap", () => {
+  const big = "x".repeat(PROJECT_AGENTS_MAX_CHARS + 500);
+  const root = tmpProjectWithAgentsMd(big);
+  try {
+    const uncapped = buildProjectAgentsBlock(root, {
+      super_agent: { project_agents_max_chars: 0 },
+    });
+    assert.ok(!/truncated/.test(uncapped), "0 disables the cap");
+
+    const tight = buildProjectAgentsBlock(root, {
+      super_agent: { project_agents_max_chars: 100 },
+    });
+    assert.match(tight, /AGENTS\.md truncated/);
+    assert.ok(tight.length < uncapped.length, "a smaller cap keeps less text");
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+// A contract severed mid-sentence is worse than a short one: the agent cannot
+// tell that the rule it is reading was cut in half.
+test("buildProjectAgentsBlock: truncation lands on a line boundary", () => {
+  const body = "# AGENTS.md\n" + "a rule that must stay whole\n".repeat(200);
+  const root = tmpProjectWithAgentsMd(body);
+  try {
+    const block = buildProjectAgentsBlock(root, {
+      super_agent: { project_agents_max_chars: 500 },
+    });
+    const kept = block.split("…(AGENTS.md truncated")[0].trimEnd();
+    const lastLine = kept.slice(kept.lastIndexOf("\n") + 1);
+    assert.ok(
+      lastLine === "# AGENTS.md" || lastLine === "a rule that must stay whole",
+      `expected a whole line, got: ${JSON.stringify(lastLine)}`
+    );
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

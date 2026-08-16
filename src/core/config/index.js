@@ -62,6 +62,10 @@ const DEFAULT_CONFIG = {
     // snappier but more "want me to continue?" hand-backs. 0/unset → built-in
     // default (TELEGRAM_TOOL_ITERS in src/core/agent/constants.js).
     telegram_max_iters: 0,
+    // Char cap for a FOREIGN project's AGENTS.md in the prompt. 0 = no cap.
+    // The project APX runs inside is never capped regardless of this value —
+    // a project must always read its own contract whole.
+    project_agents_max_chars: 24000,
     // Model fallback: ordered list. Each item carries its own provider
     // prefix; the array order IS the attempt order. The router tries the
     // primary (super_agent.model) first, then walks this list, skipping
