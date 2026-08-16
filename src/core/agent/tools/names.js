@@ -44,6 +44,10 @@ export const TOOLS = Object.freeze({
 
   // Interaction
   ASK_QUESTIONS:       "ask_questions",
+  // Synthesised by run-agent.js rather than living in handlers/ — it is how the
+  // model declares the turn is over. It was missing from this catalog, so
+  // security.js referenced it as a bare "finish" literal.
+  FINISH:              "finish",
 
   // Delegation / external
   CALL_AGENT:          "call_agent",
@@ -195,3 +199,57 @@ export const CODE_PLAN_TOOLS = Object.freeze([
  * "*" as "expose every tool the channel is otherwise allowed to see".
  */
 export const CODE_BUILD_TOOLS = "*";
+
+// ---------------------------------------------------------------------------
+// Behavioural tool sets
+//
+// These drive real user-facing protections, so they belong next to the names
+// they reference rather than as string literals scattered across the loop. The
+// side-effect set in particular was an inline `new Set([...])` inside
+// runAgent(): rename a tool there and the de-duplication below silently stops
+// working, with the only symptom being a user receiving the same Telegram
+// message three times. tests/tool-name-sets.test.js fails if any member here
+// stops being a real tool.
+// ---------------------------------------------------------------------------
+
+/**
+ * Tools that mutate the world. Weak models (Gemini especially) re-emit the
+ * same call across iterations; for these we remember the (name + args)
+ * signature and answer duplicates with a synthetic "already done" instead of
+ * running them again. Read-only tools are exempt — they are idempotent and are
+ * legitimately repeated (list_tasks before and after a change).
+ */
+export const SIDE_EFFECT_TOOLS = new Set([
+  TOOLS.SEND_TELEGRAM,
+  TOOLS.CREATE_TASK,
+  TOOLS.WRITE_FILE,
+  TOOLS.EDIT_FILE,
+  TOOLS.RUN_SHELL,
+  TOOLS.CALL_RUNTIME,
+  TOOLS.ADD_PROJECT,
+  TOOLS.SET_IDENTITY,
+]);
+
+/**
+ * Tools that only acknowledge — the turn has produced no new information for
+ * the user, so a run of them is capped (MAX_CONSECUTIVE_ACKS).
+ */
+export const ACK_ONLY_TOOLS = new Set([TOOLS.SEND_TELEGRAM]);
+
+/**
+ * Tools whose semantics REQUIRE handing control back to a human. The loop
+ * breaks after these even under a completion contract, because the task
+ * cannot advance without a reply. Without it, models under forced toolChoice
+ * ask the same question every iteration.
+ */
+export const TURN_ENDING_TOOLS = new Set([TOOLS.ASK_QUESTIONS]);
+
+/**
+ * Tools exempt from the injected `security_risk` parameter: they cannot touch
+ * anything, so grading them is noise the model has to pay for on every call.
+ */
+export const RISK_EXEMPT_TOOLS = new Set([
+  TOOLS.FINISH,
+  TOOLS.ASK_QUESTIONS,
+  TOOLS.DISCOVER_TOOLS,
+]);
