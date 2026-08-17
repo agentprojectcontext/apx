@@ -9,16 +9,16 @@ import fs from "node:fs";
 import path from "node:path";
 
 // Raw names — exported for the rare caller that needs to glob/match by name.
-export const APC_DIR = ".apc";
-export const APC_PROJECT_FILE = "project.json";
-export const APC_PROJECT_CONFIG_FILE = "config.json";
-export const APC_PROJECT_MEMORY_FILE = "memory.md";
-export const APC_AGENTS_DIR = "agents";
-export const APC_SKILLS_DIR = "skills";
+const APC_DIR = ".apc";
+const APC_PROJECT_FILE = "project.json";
+const APC_PROJECT_CONFIG_FILE = "config.json";
+const APC_PROJECT_MEMORY_FILE = "memory.md";
+const APC_AGENTS_DIR = "agents";
+const APC_SKILLS_DIR = "skills";
 export const APC_COMMANDS_DIR = "commands";
 export const APC_NOTES_DIR = "notes";
-export const APC_MCPS_FILE = "mcps.json";
-export const APC_ORGANIZATION_FILE = "organization.json";
+const APC_MCPS_FILE = "mcps.json";
+const APC_ORGANIZATION_FILE = "organization.json";
 export const APC_REMOVED_FILE = ".removed.json";
 export const AGENTS_MD = "AGENTS.md";
 
