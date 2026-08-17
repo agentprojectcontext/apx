@@ -78,8 +78,8 @@ export async function cmdCommitmentAdd(args) {
   if (!body) fail("add", "what you promised is required");
   if (!to) fail("add", "--to <person> is required — without a counterparty this is a task");
 
-  const pid = await resolveProjectId(args);
-  const created = await http("POST", `/projects/${pid}/commitments`, {
+  const pid = await resolveProjectId(args?.flags?.project);
+  const created = await http.post(`/api/projects/${pid}/commitments`, {
     counterparty: to,
     body,
     due: args?.flags?.due || null,
@@ -100,20 +100,20 @@ export async function cmdCommitmentList(args) {
   if (f.limit) q.set("limit", f.limit);
 
   if (f.all) {
-    const { data } = await http("GET", `/commitments?${q.toString()}`);
+    const { data } = await http.get(`/api/commitments?${q.toString()}`);
     renderTable(data || [], { showProject: true });
     return;
   }
-  const pid = await resolveProjectId(args);
-  const { data } = await http("GET", `/projects/${pid}/commitments?${q.toString()}`);
+  const pid = await resolveProjectId(args?.flags?.project);
+  const { data } = await http.get(`/api/projects/${pid}/commitments?${q.toString()}`);
   renderTable(data || []);
 }
 
 export async function cmdCommitmentShow(args) {
   const id = args?._?.[0];
   if (!id) fail("show", "id required");
-  const pid = await resolveProjectId(args);
-  const c = await http("GET", `/projects/${pid}/commitments/${encodeURIComponent(id)}`);
+  const pid = await resolveProjectId(args?.flags?.project);
+  const c = await http.get(`/api/projects/${pid}/commitments/${encodeURIComponent(id)}`);
   console.log(`${c.id}  [${c.state}${isOverdue(c) ? " · OVERDUE" : ""}]`);
   console.log(`  To:        ${c.counterparty}`);
   console.log(`  What:      ${c.body}`);
@@ -130,8 +130,8 @@ export async function cmdCommitmentShow(args) {
 async function close(args, sub) {
   const id = args?._?.[0];
   if (!id) fail(sub, "id required");
-  const pid = await resolveProjectId(args);
-  const c = await http("POST", `/projects/${pid}/commitments/${encodeURIComponent(id)}/${sub}`, {
+  const pid = await resolveProjectId(args?.flags?.project);
+  const c = await http.post(`/api/projects/${pid}/commitments/${encodeURIComponent(id)}/${sub}`, {
     note: args?.flags?.note || null,
   });
   console.log(`${c.id} → ${c.state}`);
@@ -145,8 +145,8 @@ export async function cmdCommitmentRenegotiate(args) {
   const due = args?.flags?.due;
   if (!id) fail("renegotiate", "id required");
   if (!due) fail("renegotiate", "--due <ISO> is required — a promise with no new date is a promise that vanished");
-  const pid = await resolveProjectId(args);
-  const c = await http("POST", `/projects/${pid}/commitments/${encodeURIComponent(id)}/renegotiate`, {
+  const pid = await resolveProjectId(args?.flags?.project);
+  const c = await http.post(`/api/projects/${pid}/commitments/${encodeURIComponent(id)}/renegotiate`, {
     due,
     note: args?.flags?.note || null,
   });
