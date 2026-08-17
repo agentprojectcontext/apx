@@ -1,6 +1,7 @@
 import { callEngine } from "../engines/index.js";
 import {
   extractPseudoToolCalls,
+  extractBareFunctionCalls,
   cleanTextOfPseudoToolCalls,
 } from "./tools/tool-call-parser.js";
 import { resolveActiveModel, fallbackModels } from "./model-router.js";
@@ -412,16 +413,34 @@ export async function runAgent({
 
     let toolCalls = result.tool_calls || (result.message && result.message.tool_calls) || null;
 
+    // Names callable on THIS turn. Passed to the bare-call parser as an
+    // allow-list: without it, a model merely explaining `create_task({...})`
+    // in prose would have it executed for real.
+    const callableNames = effectiveSchemas
+      .map((s2) => s2?.function?.name || s2?.name)
+      .filter(Boolean);
+
     if ((!toolCalls || toolCalls.length === 0) && lastText) {
       const pseudo = extractPseudoToolCalls(lastText);
-      if (pseudo.length > 0) {
-        toolCalls = pseudo;
-        lastText = cleanTextOfPseudoToolCalls(lastText);
+      // A model that writes `create_task({...})` as prose MEANT to call it. It
+      // then tells the user it did — so either we run it or the user is lied
+      // to. See the header of extractBareFunctionCalls.
+      const bare = pseudo.length ? [] : extractBareFunctionCalls(lastText, callableNames);
+      const recovered = pseudo.length ? pseudo : bare;
+      if (recovered.length > 0) {
+        toolCalls = recovered;
+        lastText = cleanTextOfPseudoToolCalls(lastText, callableNames);
+        await emitProgress(onEvent, {
+          type: "tool_calls_recovered",
+          from: pseudo.length ? "pseudo" : "bare_text",
+          model: activeModel,
+          tools: recovered.map((c) => c.function?.name).filter(Boolean),
+        });
       }
     }
 
     if (!toolCalls || toolCalls.length === 0) {
-      lastText = cleanTextOfPseudoToolCalls(lastText) || lastText;
+      lastText = cleanTextOfPseudoToolCalls(lastText, callableNames) || lastText;
       // Dud turn (no tools, no text): re-prompt instead of ending empty, and
       // don't let it cost an iteration of the tool budget. `iter -= 1` cancels
       // the loop's `iter++`; the emptyRetries cap stops an all-empty model from
@@ -436,7 +455,7 @@ export async function runAgent({
       break;
     }
 
-    const visibleText = dedupeGreeting(cleanTextOfPseudoToolCalls(lastText).trim());
+    const visibleText = dedupeGreeting(cleanTextOfPseudoToolCalls(lastText, callableNames).trim());
     if (visibleText) {
       await emitProgress(onEvent, { type: "assistant_text", text: visibleText, iteration: iter + 1 });
     }

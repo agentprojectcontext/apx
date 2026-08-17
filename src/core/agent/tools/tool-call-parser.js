@@ -162,7 +162,70 @@ function extractLlamaDottedFunctionCalls(text) {
 // trivial wrappers (<tool_call>, ```tool_use, _icall(), etc.) that often sit
 // around them. Used to clean up final answers that the model emitted with
 // leftover textual tool-call gunk.
-export function cleanTextOfPseudoToolCalls(text) {
+/**
+ * The bare `tool_name({...json...})` form.
+ *
+ * WHERE THIS COMES FROM, and why it is not hypothetical: APX renders past tool
+ * results into model context as `[tool result: <name>] <body>`
+ * (stores/messages.js). A weaker model reads that pattern in its own history
+ * and imitates it in PROSE — gemini-3.5-flash produced
+ *
+ *   [tool result: create_task] create_task({"project":"apx","title":"…"})
+ *
+ * and then told the user the task was filed. It was not. That is the worst
+ * failure mode available: a confident false confirmation, with nothing on disk.
+ *
+ * GATED ON KNOWN TOOL NAMES, deliberately. The other two passes key off
+ * unambiguous markers (`<function.` or a `{name, arguments}` pair); a bare
+ * `foo({...})` is ordinary prose about code. Without the allow-list, a model
+ * EXPLAINING `create_task({...})` in an answer would silently create a task.
+ * So: no known names, no matches.
+ *
+ * @param {string} text
+ * @param {Iterable<string>} knownNames  tool names callable on this turn
+ */
+export function extractBareFunctionCalls(text, knownNames) {
+  const allowed = new Set(knownNames || []);
+  if (!text || typeof text !== "string" || allowed.size === 0) return [];
+
+  const out = [];
+  // `name(` where name is a plausible identifier. The `[tool result: x] `
+  // prefix the model copies is left for the cleaner to strip.
+  const re = /(^|[^A-Za-z0-9_.])([a-z][a-z0-9_]{2,63})\s*\(\s*(?=\{)/g;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    const name = m[2];
+    if (!allowed.has(name)) continue;
+    // The '{' the regex already looked ahead to.
+    const i = text.indexOf("{", m.index + m[0].length - 1);
+    if (i < 0) continue;
+    const balanced = readBalancedJson(text, i);
+    if (!balanced.ok) continue;
+    let args;
+    try {
+      args = JSON.parse(text.slice(i, balanced.end));
+    } catch {
+      continue;
+    }
+    if (!args || typeof args !== "object" || Array.isArray(args)) continue;
+
+    // Include the closing paren in the raw span when it is there, so the
+    // cleaner removes the whole call rather than leaving a dangling `)`.
+    let end = balanced.end;
+    const after = text.slice(end).match(/^\s*\)/);
+    if (after) end += after[0].length;
+
+    const rawStart = m.index + (m[1] ? m[1].length : 0);
+    out.push({
+      id: nextId(),
+      type: "function",
+      function: { name, arguments: JSON.stringify(args) },
+      _raw: text.slice(rawStart, end),
+    });
+  }
+  return out;
+}
+export function cleanTextOfPseudoToolCalls(text, knownNames) {
   if (!text || typeof text !== "string") return text;
 
   // Strip explicit XML-like fences first
@@ -179,6 +242,12 @@ export function cleanTextOfPseudoToolCalls(text) {
   for (const call of extractPseudoToolCalls(out)) {
     if (call._raw) out = out.replace(call._raw, "");
   }
+  // The bare `name({...})` form, and the `[tool result: name]` prefix the
+  // model copies out of its own transcript.
+  for (const call of extractBareFunctionCalls(out, knownNames)) {
+    if (call._raw) out = out.replace(call._raw, "");
+  }
+  out = out.replace(/\[tool result:\s*[^\]]+\]\s*/gi, "");
   // Some models emit a stray `</function>` after the args without the
   // opening tag — sweep those too.
   out = out.replace(/<\/?function(?:\.[a-zA-Z_][a-zA-Z0-9_]*)?>/gi, "");

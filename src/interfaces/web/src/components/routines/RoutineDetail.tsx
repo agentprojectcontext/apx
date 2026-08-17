@@ -4,6 +4,7 @@ import { Badge, Button, Switch, Tip } from "../ui";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 import { kindMeta, scheduleHuman } from "./shared";
+import { relativeWhen } from "../../lib/when";
 import { ReadOnlyBlock } from "./ReadOnlyBlock";
 import { ExecutionsList } from "./ExecutionsList";
 
@@ -64,9 +65,20 @@ export function RoutineDetail({
 
         {/* compact meta: schedule / next / last */}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-fg">
-          <span>⏱ {scheduleHuman(routine.schedule)}</span>
-          {routine.next_run_at && <span>{t("project.routines.next_run")} {new Date(routine.next_run_at).toLocaleString()}</span>}
-          {routine.last_run_at && <span>{t("project.routines.last_run")} {new Date(routine.last_run_at).toLocaleString()}</span>}
+          <span title={routine.schedule}>⏱ {scheduleHuman(routine.schedule)}</span>
+          {/* "in 8 hours" answers the question; the absolute time is one hover
+              away for when the exact minute matters. Two full timestamps side
+              by side made the row unreadable and still needed mental arithmetic. */}
+          {routine.next_run_at && (
+            <span title={new Date(routine.next_run_at).toLocaleString()}>
+              {t("project.routines.next_run")} {relativeWhen(routine.next_run_at, t as never)}
+            </span>
+          )}
+          {routine.last_run_at && (
+            <span title={new Date(routine.last_run_at).toLocaleString()}>
+              {t("project.routines.last_run")} {relativeWhen(routine.last_run_at, t as never)}
+            </span>
+          )}
           <span className={cn(routine.last_status === "ok" && "text-emerald-500", routine.last_status === "error" && "text-destructive")}>
             {t("agents_ui.last_label")} {routine.last_status || "—"}
           </span>

@@ -3,6 +3,32 @@
 // will TypeScript-error on unknown keys.
 
 export const es = {
+    cron: {
+      daily:            "todos los días a las {at}",
+      weekdays:         "de lunes a viernes a las {at}",
+      weekends:         "fines de semana a las {at}",
+      on_days:          "{days} a las {at}",
+      monthly:          "el día {day} de cada mes a las {at}",
+      every_hour:       "cada hora, al minuto {minute}",
+      every_n_hours:    "cada {n} horas, al minuto {minute}",
+      every_n_minutes:  "cada {n} minutos",
+      every_minute:     "cada minuto",
+      every_label:      "cada N horas en vez de una hora fija",
+      use_cron:         "editar como cron",
+      use_picker:       "usar el selector",
+      preset_every_day: "todos los días",
+      preset_weekdays:  "días de semana",
+      preset_weekends:  "fin de semana",
+      day_short: { sun: "Dom", mon: "Lun", tue: "Mar", wed: "Mié", thu: "Jue", fri: "Vie", sat: "Sáb" },
+    },
+    when: {
+      now:     "ahora",
+      in:      "en {amount}",
+      ago:     "hace {amount}",
+      minutes: "{n} min",
+      hours:   "{n} h",
+      days:    "{n} d",
+    },
   common: {
     loading:      "Cargando…",
     saving:       "Guardando…",
@@ -1676,6 +1702,7 @@ export const es = {
     preset_every_10m:        "cada 10 min",
     preset_hourly:           "cada hora",
     preset_daily_9am:        "diario 9am",
+    sched_manual:            "solo cuando lo corrés vos",
     preset_weekdays_9am:     "días hábiles 9am",
     preset_manual:           "Manual",
     var_pre_output_prompt:   "Salida de texto de los pre-commands. Se reemplaza dentro del prompt/texto antes de enviarlo. Útil para inyectar datos frescos (clima, una API) en la instrucción.",

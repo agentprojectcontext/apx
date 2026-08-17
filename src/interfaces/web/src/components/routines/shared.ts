@@ -3,6 +3,7 @@
 import { Bot, Crown, Eye, Heart, Send, Terminal } from "lucide-react";
 import type { RoutineEntry } from "../../lib/api";
 import { t } from "../../i18n";
+import { describeCron } from "../../lib/cron";
 
 export type Kind = RoutineEntry["kind"];
 
@@ -50,16 +51,23 @@ export function scheduleHuman(s?: string): string {
     return t("agents_ui.every_v", { v });
   }
   if (s.startsWith("once:")) return `once · ${new Date(s.slice(5)).toLocaleString()}`;
-  if (s.startsWith("cron ")) return `cron · ${s.slice(5)}`;
-  return s;
+  if (s.trim().toLowerCase() === "manual") return t("agents_ui.sched_manual");
+  // Cron, read as a sentence. `cron · 0 9 * * *` was not a translation of
+  // anything — it just moved the expression behind a label. The leading "cron"
+  // word is tolerated because this editor used to write it.
+  const expr = s.replace(/^cron\s+/i, "");
+  return describeCron(expr, t as never) || expr;
 }
 
 export function schedPresets() {
   return [
     { label: t("agents_ui.preset_every_10m"), value: "every:10m" },
     { label: t("agents_ui.preset_hourly"), value: "every:1h" },
-    { label: t("agents_ui.preset_daily_9am"), value: "cron 0 9 * * *" },
-    { label: t("agents_ui.preset_weekdays_9am"), value: "cron 0 9 * * 1-5" },
+    // BARE cron, not `cron <expr>`: core parses the expression itself, and the
+    // labelled form used to come back invalid — so these two presets built
+    // routines that never ran.
+    { label: t("agents_ui.preset_daily_9am"), value: "0 9 * * *" },
+    { label: t("agents_ui.preset_weekdays_9am"), value: "0 9 * * 1-5" },
   ];
 }
 
