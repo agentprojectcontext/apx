@@ -4,6 +4,34 @@
 > and any AGENTS.md-aware tool). APX never regenerates this file — it's created at
 > `apx init` and owned by the project. End-user app usage lives in `docs/`.
 
+## Glossary — read this before guessing
+
+Several words in this repo mean more than one thing. Picking the wrong sense is
+the single most common way work here goes sideways, so they are pinned here.
+
+| Term | In this repo it means | Not to be confused with |
+|---|---|---|
+| **APC** | Agent Project Context — the open standard: `AGENTS.md` + `.apc/`. | **APX**, this program, which implements it. |
+| **engine** | An LLM provider adapter in `core/engines/` (anthropic, openai, groq, openrouter, ollama, gemini, mock). | `runtime`, below. |
+| **provider** | The left half of a model id `provider:model`. Same set as the engines. | — |
+| **runtime** | An **external coding CLI** APX delegates to (`core/runtimes/`: claude-code, codex, opencode, aider, cursor-agent, gemini-cli, qwen-code, antigravity). | `core/runtime-skills/` (skills loaded at run time — unrelated), and the `runtime` **MCP scope** (`~/.apx/projects/<id>/mcps.json`). Three different senses; check which one the code means. |
+| **channel** | A **surface** a turn arrives on: `telegram, cli, routine, api, web, web_sidebar, web_code, deck, desktop, code`. Canonical list in `core/constants/channels.js`. | `mode`, below. There is no `voice` channel. |
+| **mode** | *How* a turn is handled, orthogonal to the channel. `voice` is a mode (`channelMeta.voice`); desktop is always voice. `plan`/`build` are code modes. | `channel`. |
+| **persona** | The agent's **visible name** (`~/.apx/identity.json` → `agent_name`, default "APX"). | **agent profile**, below. |
+| **agent profile** | An installable package that gives the super-agent a line of work (`core/profiles/`, `config.profile`, `apx profile`). | `persona`, and a *config* profile. Always write "agent profile" when the bare word could be misread. |
+| **super-agent** | A **mode of operation**, not a name. The agent that runs across channels with the global tool set. | A persona name. Older docs called it Roby, and an older fallback spelled it in Spanish; both are stale — the display name comes from `resolveAgentName()`. |
+| **agent vault** | Reusable agent definitions at `~/.apx/agents/`, not tied to one project. | A project's `.apc/agents/`. |
+| **broker** | The memory component that assembles the `[RELEVANT MEMORY]` block per turn (`core/memory/broker.js`). | The RAG indexer or the compactor. |
+| **inspector** | Opt-in per-turn skill RAG (`core/agent/skills/inspector.js`). | The skills *catalog* or *loader*. |
+| **deck** | The tablet/phone dashboard surface. | The desktop capsule. |
+| **actor** | Who produced a message (`core/constants/actors.js`). | A channel or a role. |
+| **scope** | Where a setting is stored — **and the vocabulary differs per subsystem.** MCPs: `shared\|runtime\|global`. Vars and integrations: `project\|global`. Never merge these; see `normalizeMcpScope` / `normalizeVarScope` / `normalizeIntegrationScope`. | — |
+
+Two more, in code comments rather than names: **"Pieza 2/3/4"** in `core/memory/*`
+headers refers to the four parts of the cross-channel memory design (notebook,
+RAG, compaction, broker). And `skills/` (3 bundled for npm) is not
+`src/core/runtime-skills/` (the ~19 the super-agent actually loads).
+
 ## Repo layout
 
 - `src/core/` — engine-agnostic core:
