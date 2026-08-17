@@ -56,3 +56,19 @@ test("tagged thinking is still split, and combines with the untagged check", () 
   assert.equal(out.leaked, true);
   assert.match(out.thinking, /first pass/, "tagged reasoning is preserved for the log");
 });
+
+// Coverage, not just Telegram. Any surface that shows model text to a human
+// must route it through the same guard — voice worst of all, since a dump gets
+// read aloud at length in the wrong language.
+test("every human-facing surface strips reasoning", async () => {
+  const fs = await import("node:fs");
+  const surfaces = [
+    "src/core/channels/telegram/reply.js",
+    "src/host/daemon/plugins/desktop/index.js",
+    "src/host/daemon/api/voice.js",
+  ];
+  for (const f of surfaces) {
+    const src = fs.readFileSync(f, "utf8");
+    assert.match(src, /stripReasoning|stripThinking/, `${f} forwards model text without stripping reasoning`);
+  }
+});
