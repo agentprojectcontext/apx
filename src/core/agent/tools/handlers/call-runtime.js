@@ -1,4 +1,3 @@
-import fs from "node:fs";
 import path from "node:path";
 import { loggerFor } from "#core/logging.js";
 import { readAgents } from "#core/apc/parser.js";
@@ -18,6 +17,7 @@ import {
 import { runProcess } from "#core/runtimes/_spawn.js";
 import { getRuntime, RUNTIME_IDS } from "#core/runtimes/index.js";
 import { buildAgentSystem, resolveProject } from "../helpers.js";
+import { readJson } from "#core/util/json-file.js";
 
 const log = loggerFor("call_runtime");
 
@@ -90,7 +90,7 @@ function resolveProjectForAgent(projects, project, slug) {
 
 function projectName(project) {
   try {
-    const meta = JSON.parse(fs.readFileSync(apcProjectFile(project.path), "utf8"));
+    const meta = readJson(apcProjectFile(project.path), {});
     if (meta.name) return meta.name;
   } catch {}
   return path.basename(project.path);

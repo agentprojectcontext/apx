@@ -4,6 +4,7 @@ import { IDENTITY_PATH } from "../config/paths.js";
 
 export { IDENTITY_PATH };
 import { SUPERAGENT_ACTOR_ID } from "../constants/actors.js";
+import { readJson } from "#core/util/json-file.js";
 
 // Re-export so callers that already imported the actor id from here keep
 // working. The single source of truth lives in core/constants/actors.js.
@@ -15,11 +16,7 @@ export { SUPERAGENT_ACTOR_ID };
 export const SUPERAGENT_DISPLAY_FALLBACK = "APX";
 
 export function readIdentity() {
-  try {
-    return JSON.parse(fs.readFileSync(IDENTITY_PATH, "utf8"));
-  } catch {
-    return null;
-  }
+  return readJson(IDENTITY_PATH, null);
 }
 
 // Resolve the super-agent's DISPLAY name (the persona shown to users). Order:

@@ -23,6 +23,7 @@ import { GLOBAL_MESSAGES_DIR, APX_HOME } from "../config/index.js";
 import { SELF_MEMORY_PATH, parseSelfMemoryEntries } from "../agent/self-memory.js";
 import { apcMemoryFile } from "../apc/paths.js";
 import { embedBatch, embedOne } from "./embeddings.js";
+import { readJson } from "#core/util/json-file.js";
 
 export const CURSOR_PATH = path.join(APX_HOME, "memory-cursor.json");
 
@@ -48,11 +49,7 @@ function readIfExists(p) {
 }
 
 function readCursor(cursorPath) {
-  try {
-    return JSON.parse(fs.readFileSync(cursorPath, "utf8"));
-  } catch {
-    return { channels: {} };
-  }
+  return readJson(cursorPath, { channels: {} });
 }
 
 function writeCursor(cursorPath, cursor) {

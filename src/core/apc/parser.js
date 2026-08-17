@@ -127,6 +127,7 @@ export function readAgentsFromDir(root) {
 
 import { fileURLToPath } from "node:url";
 import { parseFrontmatterFields } from "./frontmatter.js";
+import { readJson } from "#core/util/json-file.js";
 
 const __parserDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -145,10 +146,8 @@ function readVaultDirRaw(dir) {
 
 export function readVaultTombstones() {
   if (!fs.existsSync(VAULT_TOMBSTONE_PATH)) return new Set();
-  try {
-    const raw = JSON.parse(fs.readFileSync(VAULT_TOMBSTONE_PATH, "utf8"));
-    return new Set(Array.isArray(raw.slugs) ? raw.slugs : []);
-  } catch { return new Set(); }
+  const raw = readJson(VAULT_TOMBSTONE_PATH, {});
+  return new Set(Array.isArray(raw?.slugs) ? raw.slugs : []);
 }
 
 export function writeVaultTombstones(slugs) {
@@ -213,10 +212,7 @@ export { readVaultAgent };
 export function importedVaultSlugs(root) {
   const p = apcProjectFile(root);
   if (!fs.existsSync(p)) return [];
-  try {
-    const cfg = JSON.parse(fs.readFileSync(p, "utf8"));
-    return cfg.agents?.imported ?? [];
-  } catch { return []; }
+  return readJson(p, {})?.agents?.imported ?? [];
 }
 
 // Primary entry point.

@@ -26,6 +26,20 @@ import path from "node:path";
 /** Mode for files that may contain tokens or credentials. */
 export const SECRET_MODE = 0o600;
 
+// Twelve call sites still parse inline, on purpose. They are the ones whose
+// failure mode is not "fall back to empty":
+//
+//   config/index.js       a corrupt ~/.apx/config.json must THROW, loudly. Its
+//                         silent fallback would be an empty config, i.e. every
+//                         key reset — the worst possible recovery.
+//   mcp/sources.js,       these report *which* file failed and why, so the user
+//   integrations/sources  can fix it; a bare fallback would hide the problem.
+//   profiles/lifecycle,   these read package.json / manifests where a parse
+//   project-config, …     error is a real error, not a missing-file state.
+//
+// If you are adding a new read whose answer on failure is "treat it as empty",
+// use readJson. If it is "tell the user", keep it explicit.
+
 /**
  * Read and parse a JSON file.
  *
