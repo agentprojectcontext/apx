@@ -464,6 +464,12 @@ export async function runAgent({
       role: "assistant",
       content: result.text || "",
       tool_calls: toolCalls,
+      // Gemini thinking-model fidelity: carry the raw parts array from the
+      // engine response so toGeminiContents() can replay the model turn
+      // verbatim (thought parts + thoughtSignatures + functionCalls) on the
+      // next request, avoiding the 400 "missing thought_signature" error.
+      // Other engines return undefined here, so this field is a no-op for them.
+      ...(result._geminiRawParts ? { _geminiRawParts: result._geminiRawParts } : {}),
     });
 
     let finishSummary = null;
