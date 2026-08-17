@@ -3,7 +3,7 @@
 > Written so a fresh session can continue without reading the originating chat.
 > Keep it current: update it at the end of every phase, not at the end of the work.
 
-**Last updated:** 2026-08-16 · **Branch:** `feat/agent-inbox` (PR #41 open, NOT merged) · **Base:** `main` @ 1.75.0
+**Last updated:** 2026-08-17 · **Branch:** `feat/secretary-phases-5-9` (not merged) · **Base:** `main` @ 1.78.0
 
 ---
 
@@ -83,6 +83,26 @@ in the daemon route rather than core (so the CLI could not reuse it), and the su
 It also missed that **`apx task list` was broken outright**: the endpoints answer a
 `{meta, data}` envelope and the CLI still treated it as an array, so it printed "(no tasks)"
 regardless. Only live verification found it.
+
+## 🔴 Open right now — read this first
+
+**1. The model chain degrades to something unusable, many times a day.** From `~/.apx/daemon.log`:
+46 `engine_failed` events — 9 × `gemini 429` (quota exhausted, a billing matter), then 17 ×
+`groq 413` (**request too large**: 17k tokens against a 12,000 TPM limit), landing 22 times
+on `openrouter:openrouter/free`, which answers with raw chain-of-thought.
+
+Telegram turns measured: **average 40,650 input tokens, peak 66,440.** The first fallback
+cannot serve any of them. The Secretary profile is ~600 of that — not the cause, but not
+helping either. The leak is now suppressed in code, but the chain still needs the owner's
+decision: fix Gemini billing, or put a fallback in that can take a 40k prompt, or shrink
+what goes into a turn.
+
+**2. `POST /pair/init` answers `{"error":"unauthorized"}` on this branch.** Reproduced on the
+live daemon at 1.78.0 AND on the smoke test's own fresh daemon, with a token freshly read
+from `/admin/web-token`. It worked before the CLI/route refactor, so the likely cause is
+pairing receiving a different `tokenStore` instance than the one holding the master token —
+unverified. Device pairing is broken until this is fixed. `tests/smoke/seam.smoke.js` fails
+on exactly this, which is what surfaced it.
 
 ## 🔴 Live finding the owner must decide on
 
@@ -185,8 +205,28 @@ Every one was found by running against the live daemon, not by unit tests.
 
 ## What to do next
 
-Everything the owner queued is built and on PR #41, which is **deliberately unmerged** —
-they asked to review and merge it themselves at the end.
+### Done since
+- Phases 0-4, plus C2 (Phase 3), all merged to main.
+- Reasoning-leak guard (`stripReasoning`) — merged on this branch, not on main.
+- Pairing double-confirm fix — **merged to main as PR #44**, and NOT present on the
+  `repair-and-refactoring-code` branch. Pull main in or it will not take effect.
+
+### NOT built — the whole remaining backlog
+
+The owner asked for phases 5-9 plus the two inbox items in one round. That did not fit, and
+splitting attention across five phases would have produced five half-features. What exists
+is the plan below, unstarted:
+
+| Phase | What | Note |
+|---|---|---|
+| 5 | Commitments as a first-class store | `02-SPEC § C3` — separate store, NOT a tag on tasks |
+| 6 | Interruption budget | `§ C5` — **before 7, non-negotiable.** Gate goes in the four push callers, never in `_send` |
+| 7 | Signals + `watch` routine kind | `§ C4` — deterministic detection, LLM only when a signal fires |
+| 8 | Calendar | `§ C6` — MCP first, native adapter later |
+| 9 | Daemon service + memory consolidation | `§ C7`, `§ C8` |
+| — | Inbox: tool summary from `tool_trace` | data is on disk, rendering only |
+| — | Inbox: routine-created chip | |
+| — | Inbox: split view (list + live chat) | The owner is right that it should embed `/p/0/chat`, not navigate away |
 
 Still not built, both explicitly wanted:
 
