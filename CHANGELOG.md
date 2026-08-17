@@ -1,3 +1,10 @@
+## [1.80.2](https://github.com/agentprojectcontext/apx/compare/v1.80.1...v1.80.2) (2026-08-17)
+
+
+### Bug Fixes
+
+* **anchors:** bound the gathering so the message actually gets sent ([3397969](https://github.com/agentprojectcontext/apx/commit/3397969ccc38e8a33dbbfb1a10d26a27977b2c45))
+
 ## [1.80.1](https://github.com/agentprojectcontext/apx/compare/v1.80.0...v1.80.1) (2026-08-17)
 
 
