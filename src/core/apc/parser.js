@@ -126,6 +126,7 @@ export function readAgentsFromDir(root) {
 // ---------------------------------------------------------------------------
 
 import { fileURLToPath } from "node:url";
+import { parseFrontmatterFields } from "./frontmatter.js";
 
 const __parserDir = path.dirname(fileURLToPath(import.meta.url));
 
@@ -273,14 +274,5 @@ export function findApfRoot(start = process.cwd()) {
 // Session / conversation frontmatter
 // ---------------------------------------------------------------------------
 
-export function parseSessionFrontmatter(text) {
-  if (!text.startsWith("---\n")) return {};
-  const end = text.indexOf("\n---", 4);
-  if (end === -1) return {};
-  const out = {};
-  for (const line of text.slice(4, end).split("\n")) {
-    const m = line.match(/^([a-zA-Z_-]+):\s*(.*)$/);
-    if (m) out[m[1]] = m[2].trim();
-  }
-  return out;
-}
+// Kept as the public name; the implementation is the shared parser.
+export const parseSessionFrontmatter = parseFrontmatterFields;
