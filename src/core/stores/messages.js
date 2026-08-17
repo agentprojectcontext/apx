@@ -358,7 +358,12 @@ function sanitizeAssistantForContext(content) {
   ];
   for (const re of FACTUAL_PATTERNS) {
     if (re.test(content)) {
-      return "(I answered with data here. Re-call the tool to get the current values — do not paraphrase from memory.)";
+      // Third person, and visibly an annotation ABOUT the turn rather than the
+      // turn itself. Written in the first person ("I answered with data here…")
+      // this read as something the assistant had said, and after a few of them
+      // in a row the model copied the sentence and sent it to the user as its
+      // reply. History the model can mistake for its own voice gets imitated.
+      return "[omitted: this turn contained data that may be stale — call the tool again instead of repeating it]";
     }
   }
   // Otherwise it's conversational small-talk; keep up to 200 chars.

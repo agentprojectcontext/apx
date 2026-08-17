@@ -64,6 +64,15 @@ export function extractPseudoToolCalls(text) {
   // run-agent loop then treats them identically.
   const llamaCalls = extractLlamaDottedFunctionCalls(text);
 
+  // `[tool call: NAME] {…json…}` — APX's own internal transcription of a tool
+  // call, which used to be written into Gemini history when a turn had no
+  // thought signature to replay. Models copied the format out of their own
+  // history and started writing calls instead of making them, and the line
+  // was delivered to the user verbatim. The history no longer contains it,
+  // but a model that already learned the shape (or any model that invents it)
+  // must have the call EXECUTED rather than printed.
+  const bracketCalls = extractBracketToolCalls(text);
+
   // Second pass: balanced `{name, arguments}` JSON anywhere in the text.
   const jsonCalls = [];
   for (let i = 0; i < text.length; i++) {
@@ -86,11 +95,11 @@ export function extractPseudoToolCalls(text) {
       parsed.arguments !== null &&
       !Array.isArray(parsed.arguments)
     ) {
-      // Skip JSON that is actually the args object inside a dotted-function
-      // wrapper we already captured — otherwise we'd double-fire the tool.
-      const insideLlamaWrap = llamaCalls.some(
-        (lc) => lc._rawStart <= i && balanced.end <= lc._rawEnd
-      );
+      // Skip JSON that is actually the args object inside a wrapper we already
+      // captured — otherwise we'd double-fire the tool.
+      const insideLlamaWrap =
+        llamaCalls.some((lc) => lc._rawStart <= i && balanced.end <= lc._rawEnd) ||
+        bracketCalls.some((bc) => bc._rawStart <= i && balanced.end <= bc._rawEnd);
       if (insideLlamaWrap) {
         i = balanced.end - 1;
         continue;
@@ -108,8 +117,43 @@ export function extractPseudoToolCalls(text) {
   // Strip internal markers used to dedupe against JSON pass.
   return [
     ...llamaCalls.map(({ _rawStart, _rawEnd, ...rest }) => rest),
+    ...bracketCalls.map(({ _rawStart, _rawEnd, ...rest }) => rest),
     ...jsonCalls,
   ];
+}
+
+// Parse `[tool call: NAME] {…}` — see the note in extractPseudoToolCalls.
+// `_raw` spans the bracket AND its argument object so the whole line is
+// removed from the visible text, not just the JSON half.
+function extractBracketToolCalls(text) {
+  const out = [];
+  const re = /\[tool[ _]call:\s*([a-zA-Z_][a-zA-Z0-9_]*)\]\s*/g;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    const argsStart = m.index + m[0].length;
+    let args = {};
+    let end = argsStart;
+    if (text[argsStart] === "{") {
+      const balanced = readBalancedJson(text, argsStart);
+      if (balanced.ok) {
+        try {
+          const parsed = JSON.parse(text.slice(argsStart, balanced.end));
+          if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) args = parsed;
+        } catch { /* keep {} — a malformed arg blob still beats printing it */ }
+        end = balanced.end;
+      }
+    }
+    out.push({
+      id: nextId(),
+      function: { name: m[1], arguments: args },
+      _pseudo: true,
+      _raw: text.slice(m.index, end),
+      _rawStart: m.index,
+      _rawEnd: end,
+    });
+    re.lastIndex = end;
+  }
+  return out;
 }
 
 // Parse the dotted-function format emitted by some Llama instructions:
@@ -248,6 +292,10 @@ export function cleanTextOfPseudoToolCalls(text, knownNames) {
     if (call._raw) out = out.replace(call._raw, "");
   }
   out = out.replace(/\[tool result:\s*[^\]]+\]\s*/gi, "");
+  // …and the history annotation the message store substitutes for a stale
+  // answer (`sanitizeAssistantForContext`). It describes a turn; it is never
+  // something to say to the user.
+  out = out.replace(/\[omitted:[^\]]*\]\s*/gi, "");
   // Some models emit a stray `</function>` after the args without the
   // opening tag — sweep those too.
   out = out.replace(/<\/?function(?:\.[a-zA-Z_][a-zA-Z0-9_]*)?>/gi, "");
