@@ -104,7 +104,19 @@ export function buildRegistryRouter(express, ctx) {
       const method = toolDef.endpoint.method || "GET";
       let fetchUrl = `${base}${urlPath}`;
 
-      const fetchOpts = { method, headers: { "content-type": "application/json" } };
+      // Forward the caller's bearer. Every /api route is authenticated, and
+      // this proxy never sent one — so all 33 endpoint-backed tools answered
+      // 401 and only the 2 inline handlers worked. The tool call is made on
+      // behalf of an already-authenticated caller, so its credential carries.
+      const fetchOpts = {
+        method,
+        headers: {
+          "content-type": "application/json",
+          ...(req.get("authorization")
+            ? { authorization: req.get("authorization") }
+            : {}),
+        },
+      };
 
       if (method === "GET") {
         // Append body fields as query params
