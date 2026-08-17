@@ -29,8 +29,8 @@ function shortTs(iso) {
 }
 
 export async function cmdNudgeStatus() {
-  const { policy, source, user_overrides } = await http("GET", "/nudges/policy");
-  const { meta } = await http("GET", "/nudges?limit=1");
+  const { policy, source, user_overrides } = await http.get("/api/nudges/policy");
+  const { meta } = await http.get("/api/nudges?limit=1");
   const stats = meta?.stats || { total: 0, today: 0, rated: 0, by_kind: [] };
 
   if (!policy.enabled) {
@@ -69,7 +69,7 @@ export async function cmdNudgeList(args) {
   if (args?.flags?.rated) q.set("with_feedback", "1");
   if (args?.flags?.unrated) q.set("with_feedback", "0");
 
-  const { data } = await http("GET", `/nudges?${q.toString()}`);
+  const { data } = await http.get(`/api/nudges?${q.toString()}`);
   if (!data?.length) {
     console.log("(nothing sent unprompted yet)");
     return;
@@ -97,7 +97,7 @@ export async function cmdNudgeSet(args) {
   if (f["kind-cooldown"] !== undefined) body.kind_cooldown_minutes = Number(f["kind-cooldown"]);
   if (!Object.keys(body).length) fail("set", "nothing to set");
 
-  const { policy, source } = await http("PUT", "/nudges/policy", body);
+  const { policy, source } = await http.put("/api/nudges/policy", body);
   console.log(`budget updated (${source.join(" → ")})`);
   console.log(`  enabled: ${policy.enabled} · daily max: ${policy.daily_max || "∞"} · quiet: ${policy.quiet_hours || "none"}`);
   console.log("  Applies to the next unrequested message; nothing to restart.");
@@ -106,7 +106,7 @@ export async function cmdNudgeSet(args) {
 export async function cmdNudgeCheck(args) {
   const kind = args?.flags?.kind;
   if (!kind) fail("check", "--kind required");
-  const r = await http("POST", "/nudges/check", {
+  const r = await http.post("/api/nudges/check", {
     kind,
     severity: args?.flags?.severity || "normal",
     project_id: args?.flags?.project || null,
@@ -122,7 +122,7 @@ export async function cmdNudgeFeedback(args) {
   if (!id) fail("feedback", "nudge id required");
   const f = args?.flags || {};
   if (!f.useful && !f.noise) fail("feedback", "--useful or --noise required");
-  await http("POST", `/nudges/${encodeURIComponent(id)}/feedback`, {
+  await http.post(`/api/nudges/${encodeURIComponent(id)}/feedback`, {
     useful: !!f.useful,
     note: f.note || "",
   });
