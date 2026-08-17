@@ -20,7 +20,10 @@
 import { randomUUID } from "node:crypto";
 import os from "node:os";
 
-const PAIRING_TTL_MS = 90_000;
+// 90s was not enough for the real sequence: pick up the phone, unlock it,
+// open the camera, scan, wait for the browser. Five minutes is still short
+// enough that a nonce left on screen is not a standing invitation.
+const PAIRING_TTL_MS = 5 * 60_000;
 
 // Reachable base URLs a device on the LAN can hit. When the daemon binds to
 // the wildcard (0.0.0.0/::) we enumerate non-internal IPv4s; when it binds to

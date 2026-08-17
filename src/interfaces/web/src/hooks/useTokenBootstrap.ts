@@ -30,6 +30,19 @@ export type AuthState = Status & { reload: () => void };
  * the panel is opened over the LAN or a tunnel there's no auto-token: the
  * operator must pair the browser (see PairingScreen).
  */
+// One in-flight confirm per pairing id. The daemon burns the nonce on first
+// use, so a duplicate call would answer 409 and undo an otherwise successful
+// pairing.
+const inFlightConfirm = new Map<string, ReturnType<typeof Pair.confirm>>();
+
+function confirmOnce(pairingId: string) {
+  const existing = inFlightConfirm.get(pairingId);
+  if (existing) return existing;
+  const p = Pair.confirm({ pairing_id: pairingId, label: deviceLabel(), kind: "web" });
+  inFlightConfirm.set(pairingId, p);
+  return p;
+}
+
 export function useTokenBootstrap(): AuthState {
   const [state, setState] = useState<Status>({ status: "loading" });
   const [nonce, setNonce] = useState(0);
@@ -57,15 +70,25 @@ export function useTokenBootstrap(): AuthState {
       const params = new URLSearchParams(hash);
       const pairId = params.get("pair");
       if (pairId) {
-        history.replaceState(null, "", window.location.pathname + window.location.search);
         try {
-          const res = await Pair.confirm({ pairing_id: pairId, label: deviceLabel(), kind: "web" });
+          // The nonce is ONE-SHOT on the daemon, and StrictMode runs this
+          // effect twice in development — so the second run must reuse the
+          // first call's promise instead of confirming again and getting
+          // "already confirmed" back. Keyed by id, module-level, because the
+          // component remounts between the two runs.
+          const res = await confirmOnce(pairId);
           setToken(res.token);
           try { localStorage.setItem(STORAGE.token, res.token); } catch { /* quota */ }
-          if (!cancelled) setState({ status: "ok" });
+          // Only NOW drop the fragment. Stripping it first meant a failed
+          // confirm left the device with no way to retry: the nonce was spent
+          // and the link that carried it was already gone from the URL.
+          history.replaceState(null, "", window.location.pathname + window.location.search);
+          setState({ status: "ok" });
           return;
         } catch {
-          // Expired/used nonce — fall through to the manual pairing screen.
+          // Genuinely expired or already spent. Keep the fragment so a reload
+          // reports the same thing instead of silently showing a blank
+          // pairing screen, and fall through to the manual path.
         }
       }
 
