@@ -1,6 +1,19 @@
 // Shared OpenAI-compatible chat adapter (OpenAI, Groq, OpenRouter, …).
 import { pingUrl } from "./_health.js";
 
+// Adapters stash provider-private metadata on tool_calls under an underscore
+// prefix (e.g. gemini's `_thoughtSignature`). Strict OpenAI-shaped APIs reject
+// unknown properties, and a retry-chain switch can hand us a turn produced by
+// another engine — so scrub those keys on the way out.
+function stripPrivateFields(tc) {
+  if (!tc || typeof tc !== "object") return tc;
+  const out = {};
+  for (const [k, v] of Object.entries(tc)) {
+    if (!k.startsWith("_")) out[k] = v;
+  }
+  return out;
+}
+
 export function createOpenAiCompatibleEngine({
   id,
   defaultBaseUrl,
@@ -84,7 +97,7 @@ export function createOpenAiCompatibleEngine({
           role: m.role,
           content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
         };
-        if (m.tool_calls)    entry.tool_calls   = m.tool_calls;
+        if (m.tool_calls)    entry.tool_calls   = m.tool_calls.map(stripPrivateFields);
         if (m.tool_call_id)  entry.tool_call_id = m.tool_call_id;
         // Some adapters expect `name` on tool messages; we map from tool_name
         // (what run-agent.js writes) to be safe.
