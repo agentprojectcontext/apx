@@ -1,6 +1,7 @@
 // Core parsers for APC — pure ESM, no deps.
 import fs from "node:fs";
 import path from "node:path";
+import { AGENT_VAULT_DIR } from "../config/paths.js";
 import {
   apcAgentsDir,
   apcAgentFile,
@@ -124,12 +125,13 @@ export function readAgentsFromDir(root) {
 // if it's a bundled slug, deletes the user file otherwise.
 // ---------------------------------------------------------------------------
 
-import os from "node:os";
 import { fileURLToPath } from "node:url";
+import { parseFrontmatterFields } from "./frontmatter.js";
+import { readJson } from "#core/util/json-file.js";
 
 const __parserDir = path.dirname(fileURLToPath(import.meta.url));
 
-export const VAULT_DIR = path.join(os.homedir(), ".apx", "agents");
+export const VAULT_DIR = AGENT_VAULT_DIR;
 export const BUNDLED_VAULT_DIR = path.resolve(__parserDir, "../../../assets/agent-vault-defaults");
 export const VAULT_TOMBSTONE_PATH = path.join(VAULT_DIR, ".removed.json");
 
@@ -144,10 +146,8 @@ function readVaultDirRaw(dir) {
 
 export function readVaultTombstones() {
   if (!fs.existsSync(VAULT_TOMBSTONE_PATH)) return new Set();
-  try {
-    const raw = JSON.parse(fs.readFileSync(VAULT_TOMBSTONE_PATH, "utf8"));
-    return new Set(Array.isArray(raw.slugs) ? raw.slugs : []);
-  } catch { return new Set(); }
+  const raw = readJson(VAULT_TOMBSTONE_PATH, {});
+  return new Set(Array.isArray(raw?.slugs) ? raw.slugs : []);
 }
 
 export function writeVaultTombstones(slugs) {
@@ -212,10 +212,7 @@ export { readVaultAgent };
 export function importedVaultSlugs(root) {
   const p = apcProjectFile(root);
   if (!fs.existsSync(p)) return [];
-  try {
-    const cfg = JSON.parse(fs.readFileSync(p, "utf8"));
-    return cfg.agents?.imported ?? [];
-  } catch { return []; }
+  return readJson(p, {})?.agents?.imported ?? [];
 }
 
 // Primary entry point.
@@ -273,14 +270,5 @@ export function findApfRoot(start = process.cwd()) {
 // Session / conversation frontmatter
 // ---------------------------------------------------------------------------
 
-export function parseSessionFrontmatter(text) {
-  if (!text.startsWith("---\n")) return {};
-  const end = text.indexOf("\n---", 4);
-  if (end === -1) return {};
-  const out = {};
-  for (const line of text.slice(4, end).split("\n")) {
-    const m = line.match(/^([a-zA-Z_-]+):\s*(.*)$/);
-    if (m) out[m[1]] = m[2].trim();
-  }
-  return out;
-}
+// Kept as the public name; the implementation is the shared parser.
+export const parseSessionFrontmatter = parseFrontmatterFields;

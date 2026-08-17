@@ -36,7 +36,7 @@ apx project config unset <project> super_agent.model               # back to glo
 apx project config edit <project>                                  # opens $EDITOR on project_only JSON
 ```
 
-Every `project config` write triggers `POST /admin/reload` so the daemon picks up changes without restart.
+Every `project config` write triggers `POST /api/admin/reload` so the daemon picks up changes without restart.
 
 ## `<project>` argument resolution
 

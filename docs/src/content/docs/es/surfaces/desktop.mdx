@@ -131,13 +131,13 @@ el nuevo atajo tenga efecto.
 ## Cómo se comunica la ventana con el daemon
 
 El proceso principal de Electron abre un WebSocket a `ws://127.0.0.1:7430` y publica
-texto vía `POST /desktop/message`. El plugin desktop del daemon rutea el mensaje
+texto vía `POST /api/desktop/message`. El plugin desktop del daemon rutea el mensaje
 a través del super-agente y devuelve los tokens en streaming sobre el WebSocket:
 
 ```text
 Desktop (Electron)
   │
-  ├── POST /desktop/message { text }  →  daemon acknowledges immediately
+  ├── POST /api/desktop/message { text }  →  daemon acknowledges immediately
   │
   └── WebSocket ← daemon streams:
         { type: "thinking" }
@@ -145,11 +145,11 @@ Desktop (Electron)
         { type: "tool_start", name: "create_task" }
         { type: "tool_done",  name: "create_task" }
         { type: "done", text: "full reply" }
-        { type: "tts-ready", url: "/voice/tts?path=…", duration: 3.2 }
+        { type: "tts-ready", url: "/api/voice/tts?path=…", duration: 3.2 }
 ```
 
 El TTS lo sintetiza el daemon después de que el agente termina, y luego la URL se
-sirve de vuelta vía `GET /voice/tts?path=…`. La ventana descarga esa URL y
+sirve de vuelta vía `GET /api/voice/tts?path=…`. La ventana descarga esa URL y
 la reproduce con la Web Audio API.
 
 <Aside type="tip">

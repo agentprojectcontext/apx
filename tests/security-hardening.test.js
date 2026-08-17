@@ -40,13 +40,13 @@ function makeApp() {
 test("data GET routes NOT in the old prefix list now require a token", async () => {
   const { server, baseUrl } = await listen(makeApp());
   try {
-    for (const route of ["/plugins", "/skills"]) {
+    for (const route of ["/api/plugins", "/api/skills"]) {
       const res = await fetch(`${baseUrl}${route}`); // no Authorization
       assert.equal(res.status, 401, `${route} must require auth`);
     }
     // Same route WITH a token is allowed through to its handler.
-    const ok = await fetch(`${baseUrl}/plugins`, { headers: { authorization: `Bearer ${TOKEN}` } });
-    assert.equal(ok.status, 200, "/plugins with a valid token should be served");
+    const ok = await fetch(`${baseUrl}/api/plugins`, { headers: { authorization: `Bearer ${TOKEN}` } });
+    assert.equal(ok.status, 200, "/api/plugins with a valid token should be served");
   } finally {
     await new Promise((r) => server.close(r));
   }
@@ -60,7 +60,7 @@ test("static assets and known SPA routes stay public (no token)", async () => {
       assert.notEqual(res.status, 401, `${p} should not require auth (asset/SPA shell)`);
     }
     // /health remains explicitly public.
-    assert.equal((await fetch(`${baseUrl}/health`)).status, 200);
+    assert.equal((await fetch(`${baseUrl}/api/health`)).status, 200);
   } finally {
     await new Promise((r) => server.close(r));
   }
@@ -72,16 +72,16 @@ test("GET /files rejects paths escaping the project root", async () => {
   const { server, baseUrl } = await listen(makeApp());
   const auth = { authorization: `Bearer ${TOKEN}` };
   try {
-    const escape = await fetch(`${baseUrl}/files?path=${encodeURIComponent("../../../../../../etc/passwd")}`, { headers: auth });
+    const escape = await fetch(`${baseUrl}/api/files?path=${encodeURIComponent("../../../../../../etc/passwd")}`, { headers: auth });
     assert.equal(escape.status, 403, "traversal outside root must be 403");
 
     // A sibling dir that shares the root's name prefix must NOT bypass the guard
     // (the classic startsWith-without-separator hole).
-    const siblingPrefix = await fetch(`${baseUrl}/files?path=${encodeURIComponent("../default-evil")}`, { headers: auth });
+    const siblingPrefix = await fetch(`${baseUrl}/api/files?path=${encodeURIComponent("../default-evil")}`, { headers: auth });
     assert.equal(siblingPrefix.status, 403, "prefix-sibling traversal must be 403");
 
     // An in-root read still works (proves we didn't over-block).
-    const inRoot = await fetch(`${baseUrl}/files?path=${encodeURIComponent(".apc/project.json")}`, { headers: auth });
+    const inRoot = await fetch(`${baseUrl}/api/files?path=${encodeURIComponent(".apc/project.json")}`, { headers: auth });
     assert.equal(inRoot.status, 200, "in-root file should be readable");
   } finally {
     await new Promise((r) => server.close(r));

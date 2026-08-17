@@ -50,7 +50,7 @@ export function CodeTerminal({
     setBusy(true);
     try {
       const r = await http.post<{ ok: boolean; stdout: string; stderr: string; exit_code: number; cwd: string }>(
-        "/run",
+        "/api/run",
         { cmd: trimmed, project: pid },
       );
       if (r.stdout) setLines((l) => [...l, { type: "out", text: r.stdout }]);

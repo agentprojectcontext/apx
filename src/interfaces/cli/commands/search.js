@@ -8,7 +8,6 @@ import { webSearch } from "#core/http-tools/search.js";
 const DIM   = "\x1b[2m";
 const BOLD  = "\x1b[1m";
 const BLUE  = "\x1b[34m";
-const CYAN  = "\x1b[36m";
 const RESET = "\x1b[0m";
 
 export async function cmdSearch(args) {

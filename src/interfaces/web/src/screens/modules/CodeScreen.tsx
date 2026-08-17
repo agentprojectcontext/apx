@@ -50,7 +50,7 @@ function ResizeHandleH() {
 // what the session changed vs its git baseline.
 export function CodeScreen() {
   const toast = useToast();
-  const projects = useSWR("/projects", () => Projects.list());
+  const projects = useSWR("/api/projects", () => Projects.list());
   const projectList = useMemo(() => projects.data || [], [projects.data]);
 
   const [pid, setPid] = useState<string>("");

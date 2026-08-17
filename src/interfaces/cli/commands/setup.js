@@ -2,7 +2,6 @@
 // Guides the user through provider, model, channels, and language.
 // Starts the daemon and sends a fun wake-up message when done.
 
-import fs from "node:fs";
 import https from "node:https";
 import http from "node:http";
 import readline from "node:readline";
@@ -11,7 +10,9 @@ import { readConfig, writeConfig } from "#core/config/index.js";
 import { ENGINE_PRESETS } from "#core/engines/presets.js";
 import { mascot } from "#core/mascot.js";
 import { setupClaudePermissions } from "../claude-permissions.js";
-import { PERMISSION_MODES, DEFAULT_PERMISSION_MODE } from "#core/constants/permissions.js";
+import { DEFAULT_PERMISSION_MODE } from "#core/constants/permissions.js";
+import { DEFAULT_PROJECT_ID } from "#core/config/paths.js";
+import { http as daemonHttp } from "../http.js";
 
 // ── ANSI helpers ──────────────────────────────────────────────────────────────
 const c = {
@@ -390,7 +391,7 @@ export async function cmdSetup() {
 
 // Send a fun wake-up message via Telegram using super-agent.
 // The prompt is in English so the model knows to reply in the user's language.
-async function sendTelegramWakeup({ botToken, chatId, language, model }) {
+async function sendTelegramWakeup({ botToken, chatId, language }) {
   const prompt =
     `You are APX, an AI agent assistant that just came online for the first time. ` +
     `Write a short, enthusiastic wake-up message in the language with ISO 639-1 code "${language}". ` +
@@ -400,12 +401,21 @@ async function sendTelegramWakeup({ botToken, chatId, language, model }) {
     `3) Ask the user for their own name or what you should call them. ` +
     `Be warm and playful. Do NOT mention configuration or setup.`;
 
-  // Ask the daemon's super-agent
+  // Ask the daemon's super-agent to write it.
+  //
+  // This used to GET a `/super-agent/ask` route that does not exist — and a GET
+  // cannot carry a body, so the prompt above was built and thrown away. The
+  // wake-up always silently fell through to the canned languageFallback()
+  // string. Post the prompt to the real blocking chat route instead, so the
+  // first thing the user hears is model-authored, not a template.
   let text;
   try {
-    const res = await fetchJson("http://127.0.0.1:7430/super-agent/ask", 8000);
+    const res = await daemonHttp.post(
+      `/api/projects/${DEFAULT_PROJECT_ID}/super-agent/chat`,
+      { prompt }
+    );
     text = res?.text;
-  } catch {}
+  } catch { /* daemon unreachable — the fallback below covers it */ }
 
   // Fallback: generate a simple message without daemon
   if (!text) {

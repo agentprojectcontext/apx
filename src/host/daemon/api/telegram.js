@@ -31,7 +31,6 @@ import {
   removeTelegramChannel,
   unsetTelegramChannelFields,
   listContacts,
-  findContact,
   upsertContact,
   removeContact,
   listRoles,
@@ -41,13 +40,13 @@ import {
 
 import { redactChannel, isSecretMarker } from "#core/config/redact.js";
 
-export function register(app, { telegram }) {
-  app.get("/telegram/status", (_req, res) => {
+export function register(api, { telegram }) {
+  api.get("/telegram/status", (_req, res) => {
     if (!telegram) return res.json({ enabled: false, channels: [] });
     res.json(telegram.status());
   });
 
-  app.post("/telegram/start", (_req, res) => {
+  api.post("/telegram/start", (_req, res) => {
     if (!telegram)
       return res.status(503).json({ error: "telegram plugin not loaded" });
     try {
@@ -58,7 +57,7 @@ export function register(app, { telegram }) {
     }
   });
 
-  app.post("/telegram/stop", (_req, res) => {
+  api.post("/telegram/stop", (_req, res) => {
     if (!telegram)
       return res.status(503).json({ error: "telegram plugin not loaded" });
     try {
@@ -69,7 +68,7 @@ export function register(app, { telegram }) {
     }
   });
 
-  app.post("/telegram/send", async (req, res) => {
+  api.post("/telegram/send", async (req, res) => {
     const { chat_id, text, channel } = req.body || {};
     if (!text) return res.status(400).json({ error: "text required" });
     if (!telegram)
@@ -82,7 +81,7 @@ export function register(app, { telegram }) {
     }
   });
 
-  app.post("/telegram/send_photo", async (req, res) => {
+  api.post("/telegram/send_photo", async (req, res) => {
     const { chat_id, photo, caption, parse_mode, channel } = req.body || {};
     if (!photo)
       return res.status(400).json({ error: "photo required (path or url)" });
@@ -102,7 +101,7 @@ export function register(app, { telegram }) {
     }
   });
 
-  app.post("/telegram/send_voice", async (req, res) => {
+  api.post("/telegram/send_voice", async (req, res) => {
     const { chat_id, audio, caption, duration, channel } = req.body || {};
     if (!audio) return res.status(400).json({ error: "audio required (path)" });
     if (!telegram)
@@ -121,7 +120,7 @@ export function register(app, { telegram }) {
     }
   });
 
-  app.post("/telegram/send_audio", async (req, res) => {
+  api.post("/telegram/send_audio", async (req, res) => {
     const { chat_id, audio, caption, title, performer, channel } =
       req.body || {};
     if (!audio) return res.status(400).json({ error: "audio required (path)" });
@@ -145,7 +144,7 @@ export function register(app, { telegram }) {
   // ── Channel CRUD (config-only; caller must POST /admin/reload to apply) ──
   // We read fresh config from disk on each call so concurrent writes from the
   // CLI and the daemon don't clobber one another via stale closures.
-  app.get("/telegram/channels", (_req, res) => {
+  api.get("/telegram/channels", (_req, res) => {
     try {
       const cfg = readConfig();
       res.json({ channels: listTelegramChannels(cfg).map(redactChannel) });
@@ -154,7 +153,7 @@ export function register(app, { telegram }) {
     }
   });
 
-  app.post("/telegram/channels", (req, res) => {
+  api.post("/telegram/channels", (req, res) => {
     const body = req.body || {};
     if (!body.name || typeof body.name !== "string") {
       return res.status(400).json({ error: "name required" });
@@ -173,7 +172,7 @@ export function register(app, { telegram }) {
     }
   });
 
-  app.patch("/telegram/channels/:name", (req, res) => {
+  api.patch("/telegram/channels/:name", (req, res) => {
     const { name } = req.params;
     const body = req.body || {};
     try {
@@ -202,7 +201,7 @@ export function register(app, { telegram }) {
     }
   });
 
-  app.delete("/telegram/channels/:name", (req, res) => {
+  api.delete("/telegram/channels/:name", (req, res) => {
     const { name } = req.params;
     try {
       const cfg = readConfig();
@@ -219,7 +218,7 @@ export function register(app, { telegram }) {
   // channel. These edit ~/.apx/config.json directly; the running poller picks
   // changes up on its next inbound message (it re-reads config per message), so
   // no /admin/reload is required for contact/role edits.
-  app.get("/telegram/contacts", (_req, res) => {
+  api.get("/telegram/contacts", (_req, res) => {
     try {
       const cfg = readConfig();
       res.json({
@@ -235,7 +234,7 @@ export function register(app, { telegram }) {
     }
   });
 
-  app.patch("/telegram/contacts/:user_id", (req, res) => {
+  api.patch("/telegram/contacts/:user_id", (req, res) => {
     const { user_id } = req.params;
     const body = req.body || {};
     try {
@@ -254,7 +253,7 @@ export function register(app, { telegram }) {
     }
   });
 
-  app.delete("/telegram/contacts/:user_id", (req, res) => {
+  api.delete("/telegram/contacts/:user_id", (req, res) => {
     const { user_id } = req.params;
     try {
       const cfg = readConfig();
@@ -267,7 +266,7 @@ export function register(app, { telegram }) {
   });
 
   // ── Roles (role → { tools }) ────────────────────────────────────────────
-  app.get("/telegram/roles", (_req, res) => {
+  api.get("/telegram/roles", (_req, res) => {
     try {
       res.json({ roles: listRoles(readConfig()) });
     } catch (e) {
@@ -275,7 +274,7 @@ export function register(app, { telegram }) {
     }
   });
 
-  app.put("/telegram/roles/:name", (req, res) => {
+  api.put("/telegram/roles/:name", (req, res) => {
     const { name } = req.params;
     const body = req.body || {};
     try {
@@ -288,7 +287,7 @@ export function register(app, { telegram }) {
     }
   });
 
-  app.delete("/telegram/roles/:name", (req, res) => {
+  api.delete("/telegram/roles/:name", (req, res) => {
     const { name } = req.params;
     try {
       const { removed } = removeRole(readConfig(), name);
@@ -300,7 +299,7 @@ export function register(app, { telegram }) {
   });
 
   // Alias for proactive daemon-initiated pushes (routines, error handlers, …).
-  app.post("/telegram/notify", async (req, res) => {
+  api.post("/telegram/notify", async (req, res) => {
     const { chat_id, text, channel } = req.body || {};
     if (!text) return res.status(400).json({ error: "text required" });
     if (!telegram)

@@ -12,12 +12,10 @@ import { randomBytes } from "node:crypto";
 const LOOPBACK_HOST = "127.0.0.1";
 import {
   readConfig,
-  writeConfig,
   effectiveHost,
   effectivePort,
   addProject as addProjectInConfig,
   PID_PATH,
-  LOG_PATH,
   APX_HOME,
   TOKEN_PATH,
 } from "#core/config/index.js";
@@ -297,12 +295,11 @@ async function main() {
     }).catch(() => {});
   });
 
-  // Attach WebSocket upgrade for the desktop channel on /desktop/ws
-  // (legacy /overlay/ws still accepted for one release).
+  // Attach WebSocket upgrade for the desktop channel on /api/desktop/ws.
   server.on("upgrade", async (req, socket, head) => {
     if (!isDesktopUpgradePath(req.url)) { socket.destroy(); return; }
     // Auth: the WS upgrade must carry a valid token (master or paired client),
-    // matching the HTTP /desktop/* routes. Without this, any client that can
+    // matching the HTTP /api/desktop/* routes. Without this, any client that can
     // reach the daemon (host binds 0.0.0.0 → the LAN) could open the desktop
     // channel and drive the super-agent (permission_mode "total"). The
     // legitimate desktop window already sends the bearer token. See QA BUG-WS-AUTH.
@@ -357,6 +354,15 @@ async function main() {
   process.on("SIGTERM", () => shutdown("SIGTERM"));
   process.on("uncaughtException", (e) => {
     log(`uncaughtException: ${e.stack || e.message}`);
+  });
+  // Node >= 15 terminates the process on an unhandled rejection. The CLI has
+  // always registered this; the daemon had not, so one un-awaited failure in a
+  // route or a plugin took down the process serving the SPA, Telegram polling,
+  // voice and the deck at once. Log and keep running — the request-level
+  // errorMiddleware already answers the caller.
+  process.on("unhandledRejection", (reason) => {
+    const e = reason instanceof Error ? reason : new Error(String(reason));
+    log(`unhandledRejection: ${e.stack || e.message}`);
   });
 }
 

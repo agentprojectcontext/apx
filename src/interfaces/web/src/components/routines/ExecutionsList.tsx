@@ -120,7 +120,7 @@ function RunDetailPanel({ m, onClose }: { m: MessageEntry; onClose: () => void }
  *  opens a side grid column with that run's details. */
 export function ExecutionsList({ pid, name, running }: { pid: string; name: string; running?: boolean }) {
   const runs = useSWR(
-    `/projects/${pid}/routines/${name}/runs`,
+    `/api/projects/${pid}/routines/${name}/runs`,
     async () => {
       const msgs = await Messages.project(pid, { channel: "routine", limit: 200 });
       // Keep one row per run: the runner's end-of-run system summary.

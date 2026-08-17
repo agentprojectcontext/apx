@@ -11,9 +11,9 @@ import { listConversations, readConversation, deleteConversation } from "#core/s
 import { listGlobalThreads, readGlobalThread, deleteGlobalThread } from "#core/stores/messages.js";
 import { compactConversation } from "#core/stores/conversations-compactor.js";
 import { replyAsAgent } from "#core/agent/a2a/reply.js";
-import { nowIso } from "./shared.js";
+import { nowIso, asyncRoute } from "./shared.js";
 
-export function register(app, { project, config }) {
+export function register(api, { project, config }) {
   // The super-agent (default name "apx") is a pseudo-agent: it owns
   // conversations per project but is NOT listed in AGENTS.md. Resolve its slug
   // so `apx conversations list` (which defaults to the super-agent) works
@@ -22,7 +22,7 @@ export function register(app, { project, config }) {
   const agentResolvable = (p, slug) =>
     slug === superAgentSlug() || readAgents(p.path).some((a) => a.slug === slug);
 
-  app.get("/projects/:pid/agents/:slug/conversations", (req, res) => {
+  api.get("/projects/:pid/agents/:slug/conversations", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     if (!agentResolvable(p, req.params.slug))
@@ -30,7 +30,7 @@ export function register(app, { project, config }) {
     res.json(listConversations(p.storagePath, req.params.slug));
   });
 
-  app.get("/projects/:pid/agents/:slug/conversations/:id", (req, res) => {
+  api.get("/projects/:pid/agents/:slug/conversations/:id", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const conv = readConversation(p.storagePath, req.params.slug, req.params.id);
@@ -51,7 +51,7 @@ export function register(app, { project, config }) {
     });
   });
 
-  app.delete("/projects/:pid/agents/:slug/conversations/:id", (req, res) => {
+  api.delete("/projects/:pid/agents/:slug/conversations/:id", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     if (!agentResolvable(p, req.params.slug))
@@ -66,13 +66,13 @@ export function register(app, { project, config }) {
   // in the global per-channel ledger, not in per-agent conversation files.
   // These endpoints surface that ledger as day-threads so the web Chats
   // sidebar can list and reopen them.
-  app.get("/projects/:pid/super-agent/threads", (req, res) => {
+  api.get("/projects/:pid/super-agent/threads", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     res.json(listGlobalThreads());
   });
 
-  app.get("/projects/:pid/super-agent/threads/:channel/:id", (req, res) => {
+  api.get("/projects/:pid/super-agent/threads/:channel/:id", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const thread = readGlobalThread({
@@ -83,7 +83,7 @@ export function register(app, { project, config }) {
     res.json(thread);
   });
 
-  app.delete("/projects/:pid/super-agent/threads/:channel/:id", (req, res) => {
+  api.delete("/projects/:pid/super-agent/threads/:channel/:id", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const ok = deleteGlobalThread({ channel: req.params.channel, date: req.params.id });
@@ -113,17 +113,17 @@ export function register(app, { project, config }) {
     }
   }
 
-  app.post("/projects/:pid/agents/:slug/compact", (req, res) =>
+  api.post("/projects/:pid/agents/:slug/compact", (req, res) =>
     handleCompact(req, res, null)
   );
 
-  app.post(
+  api.post(
     "/projects/:pid/agents/:slug/conversations/:id/compact",
     (req, res) => handleCompact(req, res, req.params.id)
   );
 
   // ---- Agent-to-agent routing ----
-  app.post("/projects/:pid/send", async (req, res) => {
+  api.post("/projects/:pid/send", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const { from, to, body, deliver = false, _depth = 0 } = req.body || {};
@@ -199,5 +199,5 @@ export function register(app, { project, config }) {
     }
 
     res.json({ from, to, body, ts, reply });
-  });
+  }));
 }

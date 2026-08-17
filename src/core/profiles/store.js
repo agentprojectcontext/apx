@@ -29,14 +29,9 @@ import {
   promptFileFor,
 } from "./paths.js";
 import { schemaDefaults } from "./manifest.js";
+import { readJson } from "#core/util/json-file.js";
 
-function readJson(file) {
-  try {
-    return JSON.parse(fs.readFileSync(file, "utf8"));
-  } catch {
-    return null;
-  }
-}
+
 
 function readDirIds(dir) {
   if (!fs.existsSync(dir)) return [];

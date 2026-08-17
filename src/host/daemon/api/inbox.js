@@ -8,8 +8,8 @@ import { readConfig } from "#core/config/index.js";
 import { resolveAgentName } from "#core/identity/index.js";
 import { pageEnvelope } from "./shared.js";
 
-export function register(app, { projects }) {
-  app.get("/inbox", (req, res) => {
+export function register(api, { projects }) {
+  api.get("/inbox", (req, res) => {
     try {
       const entries = [];
       for (const entry of projects.list()) {

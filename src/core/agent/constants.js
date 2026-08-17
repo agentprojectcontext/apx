@@ -15,10 +15,11 @@ export const MAX_TOOL_ITERS = 10;
 // genuinely exhausts this budget — a rare safety floor, not the default close.
 // Overridable per-deployment via config.super_agent.telegram_max_iters.
 export const TELEGRAM_TOOL_ITERS = 24;
-export const ACK_ONLY_TOOLS = new Set(["send_telegram"]);
+// Defined in tools/names.js, next to the names they reference.
+export { ACK_ONLY_TOOLS, TURN_ENDING_TOOLS } from "./tools/names.js";
 export const MAX_CONSECUTIVE_ACKS = 2;
 // Tools whose semantics REQUIRE handing control back to the user. After the
 // tool runs we break the loop — even under completionContract — because the
 // task literally cannot advance without a human reply. Without this, models
 // under forced toolChoice spam the same question across iterations.
-export const TURN_ENDING_TOOLS = new Set(["ask_questions"]);
+

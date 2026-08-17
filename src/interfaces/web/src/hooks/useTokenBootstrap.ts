@@ -57,7 +57,7 @@ export function useTokenBootstrap(): AuthState {
     (async () => {
       // 1. Is the daemon even up?
       try {
-        const probe = await fetch("/health");
+        const probe = await fetch("/api/health");
         if (!probe.ok) throw new Error(`HTTP ${probe.status}`);
       } catch (e) {
         if (!cancelled) setState({ status: "error", reason: String(e) });
@@ -107,7 +107,7 @@ export function useTokenBootstrap(): AuthState {
 
       // 3. Loopback endpoint — only succeeds on local same-origin requests.
       try {
-        const t = await fetch("/admin/web-token");
+        const t = await fetch("/api/admin/web-token");
         if (t.ok) {
           const body = await t.json();
           if (body?.token) {
@@ -125,7 +125,7 @@ export function useTokenBootstrap(): AuthState {
 
       // 5. Validate the token with one cheap authenticated call.
       try {
-        await http.get("/projects");
+        await http.get("/api/projects");
         if (!cancelled) setState({ status: "ok" });
       } catch (e) {
         if (e instanceof HttpError && (e.status === 401 || e.status === 403)) {

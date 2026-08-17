@@ -42,7 +42,7 @@ export async function cmdChat(args) {
       if (convId) body.conversation_id = convId;
       if (overrideModel) body.model = overrideModel;
 
-      const result = await http.post(`/projects/${pid}/agents/${slug}/chat`, body);
+      const result = await http.post(`/api/projects/${pid}/agents/${slug}/chat`, body);
       convId = result.conversation_id;
       process.stdout.write("\n" + result.text + "\n\n");
     } catch (e) {
@@ -61,7 +61,7 @@ export async function cmdConversationsList(args) {
   // No slug → the super-agent (default conversational agent).
   const slug = args._[0] || superAgentSlug();
   const pid = await resolveProjectId(args?.flags?.project);
-  const rows = await http.get(`/projects/${pid}/agents/${slug}/conversations`);
+  const rows = await http.get(`/api/projects/${pid}/agents/${slug}/conversations`);
   if (rows.length === 0) {
     console.log(`(no conversations for ${slug})`);
     return;
@@ -85,7 +85,7 @@ export async function cmdConversationsGet(args) {
   else { slug = superAgentSlug(); id = args._[0]; }
   if (!id) throw new Error("apx conversations get: usage: apx conversations get [<agent>] <id>");
   const pid = await resolveProjectId(args?.flags?.project);
-  const conv = await http.get(`/projects/${pid}/agents/${slug}/conversations/${id}`);
+  const conv = await http.get(`/api/projects/${pid}/agents/${slug}/conversations/${id}`);
   process.stdout.write(`# Conversation ${id} (${slug})\n`);
   for (const t of conv.turns) {
     process.stdout.write(`\n## ${t.role} — ${t.ts}\n${t.content}\n`);

@@ -20,12 +20,12 @@ export interface EnginePresets {
 }
 
 export const Engines = {
-  list: () => http.get<EngineSummary>("/engines"),
+  list: () => http.get<EngineSummary>("/api/engines"),
   // Curated catalog (known models + defaults) shared with the CLI wizard. The
   // source of truth is src/core/engines/presets.js.
-  presets: () => http.get<EnginePresets>("/engines/presets"),
+  presets: () => http.get<EnginePresets>("/api/engines/presets"),
   // Live model catalog. api_key optional: falls back to the stored secret for
   // the provider slug (so editing an existing provider works without retyping).
   models: (body: { engine: string; slug?: string; base_url?: string; api_key?: string }) =>
-    http.post<EngineModels>("/engines/models", body),
+    http.post<EngineModels>("/api/engines/models", body),
 };

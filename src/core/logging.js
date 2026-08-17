@@ -1,14 +1,15 @@
 import fs from "node:fs";
-import path from "node:path";
-import { APX_HOME } from "./config/index.js";
 import { maskSecretValues } from "./config/secret-values.js";
+import { LOG_DIR, APX_LOG_PATH, ERROR_TRACE_PATH } from "./config/paths.js";
 
-export const LOG_DIR = path.join(APX_HOME, "logs");
-export const ERROR_TRACE_PATH = path.join(LOG_DIR, "errors.jsonl");
+// Canonical definitions live in config/paths.js; re-exported so the existing
+// `import { APX_LOG_PATH } from "#core/logging.js"` call sites keep working.
+export { LOG_DIR, APX_LOG_PATH, ERROR_TRACE_PATH };
+
 // Unified daemon log. Every module (daemon, telegram, whisper, super-agent,
 // tools, desktop) writes here with one consistent format so the user can
 // follow the whole system from a single tail.
-export const APX_LOG_PATH = path.join(LOG_DIR, "apx.log");
+
 
 const SECRET_KEY_RE = /(token|secret|password|api[_-]?key|authorization|bot[_-]?token)/i;
 

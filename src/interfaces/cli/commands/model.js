@@ -18,24 +18,6 @@ function providersFromFallback(cfg) {
   return seen.length ? seen : [...DEFAULT_FALLBACK_ORDER];
 }
 
-function parseValue(raw) {
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return raw;
-  }
-}
-
-function setNested(obj, keyPath, value) {
-  const parts = keyPath.split(".");
-  let cur = obj;
-  for (let i = 0; i < parts.length - 1; i++) {
-    const p = parts[i];
-    if (!cur[p] || typeof cur[p] !== "object") cur[p] = {};
-    cur = cur[p];
-  }
-  cur[parts[parts.length - 1]] = value;
-}
 
 function ensureFallback(cfg) {
   cfg.super_agent = cfg.super_agent || {};

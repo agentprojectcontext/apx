@@ -5,6 +5,7 @@ import path from "node:path";
 import { CronExpressionParser } from "cron-parser";
 import { nowIso, isoToMs } from "../util/time.js";
 import { shortId } from "../util/ids.js";
+import { readJson, writeJson } from "#core/util/json-file.js";
 
 function routinesPath(storagePath) {
   // storagePath is always ~/.apx/projects/{apxId}/ — flat, no .apc subdir needed.
@@ -12,20 +13,14 @@ function routinesPath(storagePath) {
 }
 
 function readFile(projectPath) {
-  const p = routinesPath(projectPath);
-  if (!fs.existsSync(p)) return [];
-  try {
-    const raw = JSON.parse(fs.readFileSync(p, "utf8"));
-    return Array.isArray(raw.routines) ? raw.routines : [];
-  } catch {
-    return [];
-  }
+  const raw = readJson(routinesPath(projectPath), {});
+  return Array.isArray(raw?.routines) ? raw.routines : [];
 }
 
+// Atomic: a crash mid-write used to leave a truncated routines.json, and since
+// the reader swallows parse errors the next read reported "no routines".
 function writeFile(projectPath, routines) {
-  const p = routinesPath(projectPath);
-  fs.mkdirSync(path.dirname(p), { recursive: true });
-  fs.writeFileSync(p, JSON.stringify({ routines }, null, 2) + "\n");
+  writeJson(routinesPath(projectPath), { routines });
 }
 
 // --------------------- schedule parsing -------------------------------------

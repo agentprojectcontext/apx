@@ -3,7 +3,7 @@
 //   2. Brave Search API (requires BRAVE_API_KEY env)
 //   3. Puppeteer Google fallback (requires puppeteer installed)
 //
-// Endpoint: POST /tools/search
+// Endpoint: POST /api/tools/search
 // Body: { query, mode: "auto"|"ddg"|"brave"|"browser", limit? }
 
 import { browser_navigate, browser_get_text, browser_evaluate } from "./browser.js";
@@ -302,7 +302,7 @@ export function buildSearchRouter(express) {
     }
   });
 
-  // GET convenience: /tools/search?q=...&mode=auto&limit=5
+  // GET convenience: /api/tools/search?q=...&mode=auto&limit=5
   router.get("/", async (req, res) => {
     const { q, query, mode, limit } = req.query;
     try {

@@ -29,10 +29,10 @@ export function FileBrowser({
   const [selected, setSelected] = useState<string | null>(null);
   const [newOpen, setNewOpen] = useState(false);
 
-  const treeKey = `/projects/${pid}/fs/tree?scope=${scope}`;
+  const treeKey = `/api/projects/${pid}/fs/tree?scope=${scope}`;
   const tree = useSWR(treeKey, () => ProjectFiles.tree(pid, scope));
 
-  const fileKey = selected ? `/projects/${pid}/fs/file?scope=${scope}&path=${selected}` : null;
+  const fileKey = selected ? `/api/projects/${pid}/fs/file?scope=${scope}&path=${selected}` : null;
   const file = useSWR<FileContent | null>(fileKey, () => (selected ? ProjectFiles.read(pid, selected, scope) : null));
 
   const onSelect = (node: FileNode) => setSelected(node.path);

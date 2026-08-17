@@ -12,7 +12,7 @@ import { t } from "../../i18n";
 // shortcut, appearance, activation) live in Settings → Desktop.
 export function DesktopScreen() {
   const { data: msgs, isLoading: msgsLoading, mutate: mutateMsgs } = useSWR(
-    "/messages/global?channel=desktop",
+    "/api/messages/global?channel=desktop",
     () => fetchDesktopMessages(40),
     { refreshInterval: 8000 },
   );

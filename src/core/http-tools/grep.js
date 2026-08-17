@@ -1,8 +1,8 @@
 // Native Grep tool for APX — searches file contents by regex pattern.
 // Tries ripgrep (rg) first for speed, falls back to pure Node.js walk.
 //
-// Endpoint: POST /tools/grep   body: { pattern, path?, glob?, case_sensitive?, context?, limit? }
-//           GET  /tools/grep?pattern=...&path=...
+// Endpoint: POST /api/tools/grep   body: { pattern, path?, glob?, case_sensitive?, context?, limit? }
+//           GET  /api/tools/grep?pattern=...&path=...
 
 import fs from "node:fs";
 import path from "node:path";
@@ -16,13 +16,6 @@ const execFileAsync = promisify(execFile);
 // ---------------------------------------------------------------------------
 
 async function grepWithRg({ pattern, searchPath, glob, caseSensitive, context = 0, limit }) {
-  const args = [
-    "--json",
-    "--max-count", "1",           // max matches per file
-    "--max-filesize", "1M",
-    "-l",                         // list matching files first? No, we want content
-  ];
-  // Actually use full output mode
   const fullArgs = [
     "--json",
     "--max-filesize", "1M",

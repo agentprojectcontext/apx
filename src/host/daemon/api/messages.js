@@ -11,8 +11,8 @@ import {
   searchProjectMessages,
 } from "#core/stores/messages.js";
 
-export function register(app, { project }) {
-  app.get("/projects/:pid/messages", (req, res) => {
+export function register(api, { project }) {
+  api.get("/projects/:pid/messages", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const { agent, channel, since, limit = "100" } = req.query;
@@ -25,7 +25,7 @@ export function register(app, { project }) {
     res.json(rows);
   });
 
-  app.post("/projects/:pid/messages", (req, res) => {
+  api.post("/projects/:pid/messages", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const {
@@ -55,7 +55,7 @@ export function register(app, { project }) {
     res.status(201).json({ ok: true, ts: r.ts });
   });
 
-  app.get("/projects/:pid/messages/search", (req, res) => {
+  api.get("/projects/:pid/messages/search", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const { q, limit = "50" } = req.query;
@@ -70,7 +70,7 @@ export function register(app, { project }) {
   });
 
   // Cross-project channels (telegram, direct, …)
-  app.get("/messages/global", (req, res) => {
+  api.get("/messages/global", (req, res) => {
     const { channel, limit = "100", since } = req.query;
     const lim = Math.min(parseInt(limit, 10) || 100, 1000);
     const rows = readGlobalMessages({

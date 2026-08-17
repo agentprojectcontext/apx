@@ -27,7 +27,7 @@ export function SkillPicker({ value, projectPath, onPick }: SkillPickerProps) {
   const query = open ? extractQuery(value) : "";
 
   const { data } = useSWR(
-    open ? ["/skills", projectPath || ""] : null,
+    open ? ["/api/skills", projectPath || ""] : null,
     () => Skills.list(projectPath),
   );
 

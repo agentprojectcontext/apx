@@ -27,8 +27,8 @@ function scopeOpts(p, scope) {
   return { subdir: "", scope: "project" };
 }
 
-export function register(app, { project }) {
-  app.get("/projects/:pid/fs/tree", (req, res) => {
+export function register(api, { project }) {
+  api.get("/projects/:pid/fs/tree", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const { subdir, scope } = scopeOpts(p, req.query?.scope);
@@ -39,7 +39,7 @@ export function register(app, { project }) {
     }
   });
 
-  app.get("/projects/:pid/fs/file", (req, res) => {
+  api.get("/projects/:pid/fs/file", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const rel = req.query?.path;
@@ -54,7 +54,7 @@ export function register(app, { project }) {
     }
   });
 
-  app.put("/projects/:pid/fs/file", (req, res) => {
+  api.put("/projects/:pid/fs/file", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const { path: rel, content, scope } = req.body || {};
@@ -69,7 +69,7 @@ export function register(app, { project }) {
     }
   });
 
-  app.post("/projects/:pid/fs/dir", (req, res) => {
+  api.post("/projects/:pid/fs/dir", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const { path: rel, scope } = req.body || {};
@@ -82,7 +82,7 @@ export function register(app, { project }) {
     }
   });
 
-  app.delete("/projects/:pid/fs/entry", (req, res) => {
+  api.delete("/projects/:pid/fs/entry", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const rel = req.query?.path;

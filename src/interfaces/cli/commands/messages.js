@@ -22,7 +22,7 @@ export async function cmdMessagesTail(args) {
     // Read from global store — no project needed
     const params = new URLSearchParams({ limit: String(n) });
     if (channel) params.set("channel", channel);
-    const rows = await http.get(`/messages/global?${params}`);
+    const rows = await http.get(`/api/messages/global?${params}`);
     if (rows.length === 0) {
       console.log("(no messages)");
       return;
@@ -39,7 +39,7 @@ export async function cmdMessagesTail(args) {
   const params = new URLSearchParams({ limit: String(n) });
   if (args.flags.agent && args.flags.agent !== true) params.set("agent", args.flags.agent);
   if (channel) params.set("channel", channel);
-  const rows = await http.get(`/projects/${pid}/messages?${params}`);
+  const rows = await http.get(`/api/projects/${pid}/messages?${params}`);
   if (rows.length === 0) {
     console.log("(no messages)");
     return;
@@ -82,7 +82,7 @@ export async function cmdMessagesChat(args) {
   if (isGlobal) {
     const params = new URLSearchParams({ limit: String(n) });
     if (channel) params.set("channel", channel);
-    const rows = await http.get(`/messages/global?${params}`);
+    const rows = await http.get(`/api/messages/global?${params}`);
     printChatRows(rows);
     return;
   }
@@ -91,7 +91,7 @@ export async function cmdMessagesChat(args) {
   const params = new URLSearchParams({ limit: String(n) });
   if (args.flags.agent && args.flags.agent !== true) params.set("agent", args.flags.agent);
   if (channel) params.set("channel", channel);
-  const rows = await http.get(`/projects/${pid}/messages?${params}`);
+  const rows = await http.get(`/api/projects/${pid}/messages?${params}`);
   printChatRows(rows.reverse());
 }
 
@@ -99,7 +99,7 @@ export async function cmdMessagesSearch(args) {
   const q = args._[0];
   if (!q) throw new Error("apx messages search: missing <query>");
   const pid = await resolveProjectId(args?.flags?.project);
-  const rows = await http.get(`/projects/${pid}/messages/search?q=${encodeURIComponent(q)}`);
+  const rows = await http.get(`/api/projects/${pid}/messages/search?q=${encodeURIComponent(q)}`);
   if (rows.length === 0) {
     console.log("(no matches)");
     return;

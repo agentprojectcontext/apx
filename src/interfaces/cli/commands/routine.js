@@ -1,4 +1,3 @@
-import fs from "node:fs";
 import { http } from "../http.js";
 import { resolveProjectId } from "./project.js";
 import { listRoutines } from "#core/stores/routines.js";
@@ -33,7 +32,7 @@ function parseSpec(args) {
 
 export async function cmdRoutineList(args = {}) {
   const pid = await resolveProjectId(args?.flags?.project);
-  const rows = await http.get(`/projects/${pid}/routines`);
+  const rows = await http.get(`/api/projects/${pid}/routines`);
   if (rows.length === 0) {
     console.log(`(no routines in project #${pid})`);
     return;
@@ -58,7 +57,7 @@ export async function cmdRoutineGet(args) {
   const name = args._[0];
   if (!name) throw new Error("apx routine get: missing <name>");
   const pid = await resolveProjectId(args?.flags?.project);
-  const r = await http.get(`/projects/${pid}/routines/${name}`);
+  const r = await http.get(`/api/projects/${pid}/routines/${name}`);
   console.log(JSON.stringify(r, null, 2));
 }
 
@@ -88,7 +87,7 @@ export async function cmdRoutineAdd(args) {
     ? args.flags["skip-prompt-on"]
     : undefined;
   const pid = await resolveProjectId(args?.flags?.project);
-  const r = await http.post(`/projects/${pid}/routines`, { name, kind, schedule, spec, permission_mode, allowed_tools, pre_commands, post_commands, skip_prompt_on });
+  const r = await http.post(`/api/projects/${pid}/routines`, { name, kind, schedule, spec, permission_mode, allowed_tools, pre_commands, post_commands, skip_prompt_on });
   console.log(`added routine "${r.name}" (${r.kind}, ${r.schedule}) → next ${r.next_run_at}`);
   if (r.pre_commands?.length)  console.log(`  pre:  ${r.pre_commands.join(", ")}`);
   if (r.post_commands?.length) console.log(`  post: ${r.post_commands.join(", ")}`);
@@ -99,7 +98,7 @@ export async function cmdRoutineRemove(args) {
   const name = args._[0];
   if (!name) throw new Error("apx routine remove: missing <name>");
   const pid = await resolveProjectId(args?.flags?.project);
-  await http.delete(`/projects/${pid}/routines/${name}`);
+  await http.delete(`/api/projects/${pid}/routines/${name}`);
   console.log(`removed routine "${name}"`);
 }
 
@@ -116,7 +115,7 @@ async function toggle(args, enabled) {
   if (!name) throw new Error(`apx routine ${enabled ? "enable" : "disable"}: missing <name>`);
   const pid = await resolveProjectId(args?.flags?.project);
   await http.post(
-    `/projects/${pid}/routines/${name}/${enabled ? "enable" : "disable"}`
+    `/api/projects/${pid}/routines/${name}/${enabled ? "enable" : "disable"}`
   );
   console.log(`${enabled ? "enabled" : "disabled"} routine "${name}"`);
 }
@@ -125,7 +124,7 @@ export async function cmdRoutineRun(args) {
   const name = args._[0];
   if (!name) throw new Error("apx routine run: missing <name>");
   const pid = await resolveProjectId(args?.flags?.project);
-  const r = await http.post(`/projects/${pid}/routines/${name}/run`);
+  const r = await http.post(`/api/projects/${pid}/routines/${name}/run`);
   console.log(JSON.stringify(r, null, 2));
 }
 
@@ -134,7 +133,7 @@ export async function cmdRoutineRun(args) {
 async function resolveRoutineRef(pid, refRaw) {
   const ref = String(refRaw || "").trim();
   if (!ref) throw new Error("missing <name|id>");
-  const projects = await http.get("/projects");
+  const projects = await http.get("/api/projects");
   const project = projects.find((p) => String(p.id) === String(pid));
   if (!project) throw new Error(`project #${pid} not found`);
   const storagePath = project.storage_path || projectStorageRoot(project.apx_id);
@@ -183,7 +182,7 @@ export async function cmdRoutineHistory(args) {
   if (!name) throw new Error("apx routine history: missing <name>");
   const pid = await resolveProjectId(args?.flags?.project);
   const limit = args.flags.n || args.flags.last || "50";
-  const rows = await http.get(`/projects/${pid}/messages?channel=routine&limit=${encodeURIComponent(limit)}`);
+  const rows = await http.get(`/api/projects/${pid}/messages?channel=routine&limit=${encodeURIComponent(limit)}`);
   const filtered = rows
     .filter((r) => r.meta?.routine === name)
     .reverse();

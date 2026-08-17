@@ -1,7 +1,12 @@
 // Tiny HTTP client to talk to the APX daemon. Auto-starts the daemon if down.
+//
+// Callers pass the full daemon path including the /api mount point
+// (`http.get("/api/projects")`), so a route grepped in a command matches the
+// route registered in src/host/daemon/api/ verbatim. baseUrl() is the origin
+// only — it deliberately does NOT bake in the prefix.
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
+import { TOKEN_PATH, LOG_PATH } from "#core/config/paths.js";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
@@ -11,7 +16,7 @@ const __dirname = path.dirname(__filename);
 const DEFAULT_PORT = parseInt(process.env.APX_PORT || "7430", 10);
 const DEFAULT_HOST = process.env.APX_HOST || "127.0.0.1";
 
-const TOKEN_PATH = path.join(os.homedir(), ".apx", "daemon.token");
+
 
 function readToken() {
   try { return fs.readFileSync(TOKEN_PATH, "utf8").trim(); } catch { return ""; }
@@ -25,7 +30,7 @@ async function ping(timeoutMs = 400) {
   try {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), timeoutMs);
-    const res = await fetch(`${baseUrl()}/health`, { signal: ctrl.signal });
+    const res = await fetch(`${baseUrl()}/api/health`, { signal: ctrl.signal });
     clearTimeout(t);
     return res.ok;
   } catch {
@@ -53,7 +58,7 @@ async function autoStart({ silent = false } = {}) {
       "apx daemon not installed and not found at src/host/daemon/index.js. Install with `npm i -g @agentprojectcontext/apx`."
     );
   }
-  const logPath = path.join(os.homedir(), ".apx", "daemon.log");
+  const logPath = LOG_PATH;
   fs.mkdirSync(path.dirname(logPath), { recursive: true });
   const out = fs.openSync(logPath, "a");
   const child = spawn(process.execPath, [entry], {

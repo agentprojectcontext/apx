@@ -12,9 +12,9 @@
 import { previews } from "#core/artifacts/preview.js";
 import { tunnels, detectProviders } from "#core/artifacts/tunnel.js";
 
-export function register(app, { project }) {
+export function register(api, { project }) {
   // Start (or reuse) an ephemeral preview server for an artifact.
-  app.post("/projects/:pid/artifacts/:name/preview", async (req, res) => {
+  api.post("/projects/:pid/artifacts/:name/preview", async (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const name = decodeURIComponent(req.params.name);
@@ -33,24 +33,24 @@ export function register(app, { project }) {
   });
 
   // List preview servers scoped to a project.
-  app.get("/projects/:pid/previews", (req, res) => {
+  api.get("/projects/:pid/previews", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     res.json(previews.list(p.id));
   });
 
   // List every live preview (all projects).
-  app.get("/previews", (_req, res) => {
+  api.get("/previews", (_req, res) => {
     res.json(previews.list());
   });
 
   // Which tunnel providers this host can use, best first.
-  app.get("/previews/tunnel-providers", (_req, res) => {
+  api.get("/previews/tunnel-providers", (_req, res) => {
     res.json({ providers: detectProviders() });
   });
 
   // Stop a preview server (also closes its tunnel).
-  app.delete("/previews/:id", async (req, res) => {
+  api.delete("/previews/:id", async (req, res) => {
     const rec = previews.get(req.params.id);
     if (rec?.tunnel) tunnels.close(rec.tunnel.id);
     const ok = await previews.stop(req.params.id);
@@ -58,7 +58,7 @@ export function register(app, { project }) {
   });
 
   // Open a public tunnel to a preview's local port.
-  app.post("/previews/:id/tunnel", async (req, res) => {
+  api.post("/previews/:id/tunnel", async (req, res) => {
     const rec = previews.get(req.params.id);
     if (!rec) return res.status(404).json({ error: "preview not found" });
     if (rec.tunnel) return res.json(rec.tunnel); // already shared
@@ -72,7 +72,7 @@ export function register(app, { project }) {
   });
 
   // Close a preview's tunnel but keep the local server running.
-  app.delete("/previews/:id/tunnel", (req, res) => {
+  api.delete("/previews/:id/tunnel", (req, res) => {
     const rec = previews.get(req.params.id);
     if (!rec || !rec.tunnel) return res.status(404).end();
     tunnels.close(rec.tunnel.id);

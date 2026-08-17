@@ -83,7 +83,7 @@ export interface WidgetPatchResult {
 
 export const Deck = {
   /** GET /deck/manifest — full companion manifest. */
-  manifest: () => http.get<DeckManifest>("/deck/manifest"),
+  manifest: () => http.get<DeckManifest>("/api/deck/manifest"),
 
   /**
    * PATCH /deck/widgets/:id  { enabled: boolean }
@@ -91,7 +91,7 @@ export const Deck = {
    * Core (source="apx") widgets return 404.
    */
   setWidget: (id: string, body: { enabled: boolean }) =>
-    http.patch<WidgetPatchResult>(`/deck/widgets/${encodeURIComponent(id)}`, body),
+    http.patch<WidgetPatchResult>(`/api/deck/widgets/${encodeURIComponent(id)}`, body),
 
   /**
    * POST /deck/exec
@@ -102,5 +102,5 @@ export const Deck = {
     target?: string;
     app?: string;
     text?: string;
-  }) => http.post<{ ok: boolean; kind: string; [k: string]: unknown }>("/deck/exec", body),
+  }) => http.post<{ ok: boolean; kind: string; [k: string]: unknown }>("/api/deck/exec", body),
 };

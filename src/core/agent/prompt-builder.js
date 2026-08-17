@@ -125,19 +125,60 @@ function buildSegmentDiscipline({ channel, voice }) {
 // Project guidance — AGENTS.md of the pinned project, size-capped.
 // ---------------------------------------------------------------------------
 
-export const PROJECT_AGENTS_MAX_CHARS = 6000;
+// Budget guard for a FOREIGN project's AGENTS.md — a project we were merely
+// pointed at should not be able to blow the prompt budget. It is deliberately
+// generous: a real contract runs well past the old 6k cap, and a contract that
+// arrives half-read is worse than none (the agent follows the rules it can see
+// and silently violates the ones it cannot).
+//
+// Two escape hatches, because truncating a contract is never harmless:
+//   - `super_agent.project_agents_max_chars` overrides it; 0 disables the cap.
+//   - The project APX is *running inside* is never capped (see isOwnProject).
+export const PROJECT_AGENTS_MAX_CHARS = 24000;
 
-export function buildProjectAgentsBlock(projectPath) {
+// The project that owns the running process reads its own contract in full.
+// This is the dogfood case: `apx exec` inside a repo, or the daemon started
+// from it. Capping there truncated APX's own AGENTS.md mid-rule.
+function isOwnProject(projectPath) {
+  try {
+    return path.resolve(projectPath) === path.resolve(process.cwd());
+  } catch {
+    return false;
+  }
+}
+
+function resolveAgentsCap(projectPath, globalConfig) {
+  if (isOwnProject(projectPath)) return 0;
+  const raw = globalConfig?.super_agent?.project_agents_max_chars;
+  if (raw === 0) return 0;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : PROJECT_AGENTS_MAX_CHARS;
+}
+
+// Cut on a line boundary so a rule is never severed mid-sentence, and say what
+// was dropped — a bare "…(truncated)" gives the agent no way to know it is
+// operating on a partial contract.
+function capAgentsText(text, max) {
+  if (!max || text.length <= max) return text;
+  const head = text.slice(0, max);
+  const lastBreak = head.lastIndexOf("\n");
+  const kept = lastBreak > max * 0.5 ? head.slice(0, lastBreak) : head;
+  const dropped = text.length - kept.length;
+  return (
+    `${kept.trimEnd()}\n\n…(AGENTS.md truncated: ${dropped} of ${text.length} characters omitted. ` +
+    `Read the file directly before relying on rules not shown above.)`
+  );
+}
+
+export function buildProjectAgentsBlock(projectPath, globalConfig = {}) {
   if (!projectPath) return "";
   try {
     const file = agentsMdFile(projectPath);
     if (!fs.existsSync(file)) return "";
-    let text = fs.readFileSync(file, "utf8").trim();
+    const text = fs.readFileSync(file, "utf8").trim();
     if (!text) return "";
-    if (text.length > PROJECT_AGENTS_MAX_CHARS) {
-      text = text.slice(0, PROJECT_AGENTS_MAX_CHARS) + "\n\n…(AGENTS.md truncated)";
-    }
-    return `# Project guidance (AGENTS.md)\n\nStartup rules for THIS project — follow them:\n\n${text}`;
+    const capped = capAgentsText(text, resolveAgentsCap(projectPath, globalConfig));
+    return `# Project guidance (AGENTS.md)\n\nStartup rules for THIS project — follow them:\n\n${capped}`;
   } catch {
     return "";
   }
@@ -329,7 +370,7 @@ export function buildSuperAgentSystem({
     relationshipBlock,
     extraContext,
     buildProjectIndex(projects),
-    buildProjectAgentsBlock(channelMeta?.projectPath),
+    buildProjectAgentsBlock(channelMeta?.projectPath, globalConfig),
     skipSkillsHint ? "" : buildSkillsHintBlock(listSkills),
     lazyToolsBlock,
     voiceBlock,

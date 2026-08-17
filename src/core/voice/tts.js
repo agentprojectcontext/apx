@@ -5,11 +5,12 @@
 //
 // All audio files land under ~/.apx/tmp/tts/<uuid>.<ext>. Callers are
 // responsible for cleaning up (Telegram plugin already uses similar temp
-// files via /telegram/send_voice).
+// files via /api/telegram/send_voice).
 
 import fs from "node:fs";
-import path from "node:path";
-import os from "node:os";
+import { TTS_TMP_DIR } from "#core/config/paths.js";
+
+export { TTS_TMP_DIR };
 import { readConfig } from "../config/index.js";
 import {
   selectTtsEngine,
@@ -19,7 +20,7 @@ import {
 } from "./engines/index.js";
 import { emotionConfigFor, stripEmotionTags } from "./emotions.js";
 
-export const TTS_TMP_DIR = path.join(os.homedir(), ".apx", "tmp", "tts");
+
 
 export function ensureTtsTmpDir() {
   fs.mkdirSync(TTS_TMP_DIR, { recursive: true });

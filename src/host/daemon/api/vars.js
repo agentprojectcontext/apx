@@ -24,7 +24,10 @@ import {
   maskValue,
 } from "#core/vars/index.js";
 
-function normalizeScope(raw, { isBase }) {
+// Var scope vocabulary: project | global. The default depends on whether the
+// request targets the base store. See the note in api/mcps.js: these scope
+// helpers share a shape but not a vocabulary.
+function normalizeVarScope(raw, { isBase }) {
   if (!raw) return isBase ? "global" : "project";
   const s = String(raw).toLowerCase();
   if (s === "project" || s === "global") return s;
@@ -37,8 +40,8 @@ function maskAll(obj) {
   return out;
 }
 
-export function register(app, { project, registries }) {
-  app.get("/projects/:pid/vars", (req, res) => {
+export function register(api, { project, registries }) {
+  api.get("/projects/:pid/vars", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const reveal = req.query?.reveal === "1" || req.query?.reveal === "true";
@@ -54,7 +57,7 @@ export function register(app, { project, registries }) {
     });
   });
 
-  app.get("/projects/:pid/vars/:name", (req, res) => {
+  api.get("/projects/:pid/vars/:name", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const name = req.params.name;
@@ -80,7 +83,7 @@ export function register(app, { project, registries }) {
     });
   });
 
-  app.post("/projects/:pid/vars", (req, res) => {
+  api.post("/projects/:pid/vars", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const { name, value } = req.body || {};
@@ -91,7 +94,7 @@ export function register(app, { project, registries }) {
       return res.status(400).json({ error: "value required" });
     }
     const isBase = String(p.id) === "0";
-    const scope = normalizeScope(req.body?.scope, { isBase });
+    const scope = normalizeVarScope(req.body?.scope, { isBase });
     if (scope === null) {
       return res
         .status(400)
@@ -111,11 +114,11 @@ export function register(app, { project, registries }) {
     res.status(201).json({ ok: true, name, scope });
   });
 
-  app.delete("/projects/:pid/vars/:name", (req, res) => {
+  api.delete("/projects/:pid/vars/:name", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const isBase = String(p.id) === "0";
-    const scope = normalizeScope(req.query?.scope, { isBase });
+    const scope = normalizeVarScope(req.query?.scope, { isBase });
     if (scope === null) {
       return res
         .status(400)

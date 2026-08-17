@@ -5,6 +5,7 @@
 // auth, or a browser.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { apiRouter } from "./_helpers.js";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -39,7 +40,7 @@ async function boot() {
   const ctx = makeCtx();
   const app = express();
   app.use(express.json());
-  register(app, ctx);
+  register(apiRouter(express, app), ctx);
   const server = await new Promise((resolve) => {
     const s = app.listen(0, "127.0.0.1", () => resolve(s));
   });
@@ -60,7 +61,7 @@ async function boot() {
 test("catalog lists asana (implemented) + coming-soon plugins", async () => {
   const { call, close } = await boot();
   try {
-    const { status, json } = await call("GET", "/projects/1/integrations/catalog");
+    const { status, json } = await call("GET", "/api/projects/1/integrations/catalog");
     assert.equal(status, 200);
     const asana = json.find((c) => c.slug === "asana");
     assert.ok(asana && asana.coming_soon === false);
@@ -76,7 +77,7 @@ test("configure → list (redacted) → status → deactivate → remove", async
   const { call, close } = await boot();
   try {
     // configure at project scope
-    let r = await call("POST", "/projects/1/integrations/asana/configure?scope=project", {
+    let r = await call("POST", "/api/projects/1/integrations/asana/configure?scope=project", {
       personal_access_token: "1/secret:token",
     });
     assert.equal(r.status, 201);
@@ -86,25 +87,25 @@ test("configure → list (redacted) → status → deactivate → remove", async
     assert.equal(r.json.config.personal_access_token_set, true);
 
     // list shows it, redacted
-    r = await call("GET", "/projects/1/integrations?scope=project");
+    r = await call("GET", "/api/projects/1/integrations?scope=project");
     assert.equal(r.status, 200);
     assert.equal(r.json.length, 1);
     assert.equal(r.json[0].config.personal_access_token, undefined);
 
     // status endpoint
-    r = await call("GET", "/projects/1/integrations/asana?scope=project");
+    r = await call("GET", "/api/projects/1/integrations/asana?scope=project");
     assert.equal(r.status, 200);
     assert.equal(r.json.slug, "asana");
 
     // deactivate
-    r = await call("POST", "/projects/1/integrations/asana/deactivate?scope=project");
+    r = await call("POST", "/api/projects/1/integrations/asana/deactivate?scope=project");
     assert.equal(r.status, 200);
     assert.equal(r.json.is_enabled, false);
 
     // remove
-    r = await call("DELETE", "/projects/1/integrations/asana?scope=project");
+    r = await call("DELETE", "/api/projects/1/integrations/asana?scope=project");
     assert.equal(r.status, 204);
-    r = await call("GET", "/projects/1/integrations?scope=project");
+    r = await call("GET", "/api/projects/1/integrations?scope=project");
     assert.equal(r.json.length, 0);
   } finally {
     close();
@@ -114,13 +115,13 @@ test("configure → list (redacted) → status → deactivate → remove", async
 test("scope=global writes to the default project's store", async () => {
   const { call, close, ctx } = await boot();
   try {
-    await call("POST", "/projects/1/integrations/asana/configure?scope=global", {
+    await call("POST", "/api/projects/1/integrations/asana/configure?scope=global", {
       personal_access_token: "1/global:token",
     });
     // project scope must be empty; global (default project) must have it
-    let r = await call("GET", "/projects/1/integrations?scope=project");
+    let r = await call("GET", "/api/projects/1/integrations?scope=project");
     assert.equal(r.json.length, 0);
-    r = await call("GET", "/projects/1/integrations?scope=global");
+    r = await call("GET", "/api/projects/1/integrations?scope=global");
     assert.equal(r.json.length, 1);
     // and it physically lives under the default project's storage
     assert.ok(fs.existsSync(path.join(ctx.base.storagePath, "integrations.json")));
@@ -132,11 +133,11 @@ test("scope=global writes to the default project's store", async () => {
 test("validate on an unconfigured plugin → 404; unknown plugin → 404; unknown scope → 400", async () => {
   const { call, close } = await boot();
   try {
-    let r = await call("POST", "/projects/1/integrations/asana/validate?scope=project");
+    let r = await call("POST", "/api/projects/1/integrations/asana/validate?scope=project");
     assert.equal(r.status, 404);
-    r = await call("GET", "/projects/1/integrations/nope?scope=project");
+    r = await call("GET", "/api/projects/1/integrations/nope?scope=project");
     assert.equal(r.status, 404);
-    r = await call("GET", "/projects/1/integrations?scope=bogus");
+    r = await call("GET", "/api/projects/1/integrations?scope=bogus");
     assert.equal(r.status, 400);
   } finally {
     close();

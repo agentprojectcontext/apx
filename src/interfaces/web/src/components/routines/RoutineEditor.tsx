@@ -15,7 +15,7 @@ export function RoutineEditor({
   draft, onClose, onSaved, pid,
 }: { draft: Partial<RoutineEntry> | null; onClose: () => void; onSaved: () => void; pid: string }) {
   const toast = useToast();
-  const agentsList = useSWR(draft ? `/projects/${pid}/agents` : null, () => Agents.list(pid));
+  const agentsList = useSWR(draft ? `/api/projects/${pid}/agents` : null, () => Agents.list(pid));
   const [busy, setBusy] = useState(false);
 
   const [name, setName] = useState("");
@@ -35,7 +35,7 @@ export function RoutineEditor({
   const [post, setPost] = useState("");
 
   // Telegram channels for the selector (default + any project/global channels).
-  const tgChannels = useSWR(draft && kind === "telegram" ? "/telegram/channels" : null, () => Telegram.channels.list());
+  const tgChannels = useSWR(draft && kind === "telegram" ? "/api/telegram/channels" : null, () => Telegram.channels.list());
 
   // Load draft → fields.
   useEffect(() => {

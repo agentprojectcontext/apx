@@ -3,24 +3,24 @@ import type { AgentDetail, AgentEntry, ChatUsage } from "../../types/daemon";
 
 export const Agents = {
   list:   (pid: string, opts?: { stats?: boolean }) =>
-    http.get<AgentEntry[]>(`/projects/${pid}/agents${opts?.stats ? "?stats=1" : ""}`),
-  get:    (pid: string, slug: string) => http.get<AgentDetail>(`/projects/${pid}/agents/${slug}`),
+    http.get<AgentEntry[]>(`/api/projects/${pid}/agents${opts?.stats ? "?stats=1" : ""}`),
+  get:    (pid: string, slug: string) => http.get<AgentDetail>(`/api/projects/${pid}/agents/${slug}`),
   create: (pid: string, body: Partial<AgentEntry> & { slug: string }) =>
-    http.post<AgentEntry>(`/projects/${pid}/agents`, body),
+    http.post<AgentEntry>(`/api/projects/${pid}/agents`, body),
   update: (pid: string, slug: string, body: Partial<AgentEntry> & { system?: string }) =>
-    http.patch<AgentEntry>(`/projects/${pid}/agents/${encodeURIComponent(slug)}`, body),
+    http.patch<AgentEntry>(`/api/projects/${pid}/agents/${encodeURIComponent(slug)}`, body),
   remove: (pid: string, slug: string) =>
-    http.del<{ ok: boolean }>(`/projects/${pid}/agents/${encodeURIComponent(slug)}`),
+    http.del<{ ok: boolean }>(`/api/projects/${pid}/agents/${encodeURIComponent(slug)}`),
   chat: (pid: string, slug: string, body: { prompt: string; conversation_id?: string; model?: string; channel?: string }) =>
     http.post<{ conversation_id: string; text: string; usage?: ChatUsage; engine: string }>(
-      `/projects/${pid}/agents/${encodeURIComponent(slug)}/chat`,
+      `/api/projects/${pid}/agents/${encodeURIComponent(slug)}/chat`,
       body,
     ),
   memory: {
     get: (pid: string, slug: string) =>
-      http.get<{ body: string }>(`/projects/${pid}/agents/${slug}/memory`),
+      http.get<{ body: string }>(`/api/projects/${pid}/agents/${slug}/memory`),
     put: (pid: string, slug: string, body: string) =>
-      http.put<{ ok: boolean; bytes: number }>(`/projects/${pid}/agents/${slug}/memory`, { body }),
+      http.put<{ ok: boolean; bytes: number }>(`/api/projects/${pid}/agents/${slug}/memory`, { body }),
   },
   // Vault = global agent templates. Two-layer: bundled defaults shipped with
   // APX + user overrides/new ones in ~/.apx/agents. The API merges both and
@@ -28,20 +28,20 @@ export const Agents = {
   // Tombstones (deleted bundled defaults) are hidden unless includeRemoved=true.
   vault: (opts?: { includeRemoved?: boolean }) =>
     http.get<(AgentEntry & { source?: "bundled" | "user" | "user-override" })[]>(
-      opts?.includeRemoved ? "/agents/vault?include_removed=1" : "/agents/vault",
+      opts?.includeRemoved ? "/api/agents/vault?include_removed=1" : "/api/agents/vault",
     ),
   vaultCreate: (slug: string, fields: Record<string, unknown> = {}, body = "") =>
-    http.post<AgentEntry>("/agents/vault", { slug, fields, body }),
+    http.post<AgentEntry>("/api/agents/vault", { slug, fields, body }),
   vaultPatch: (slug: string, patch: { fields?: Record<string, unknown>; body?: string }) =>
-    http.patch<AgentEntry>(`/agents/vault/${encodeURIComponent(slug)}`, patch),
+    http.patch<AgentEntry>(`/api/agents/vault/${encodeURIComponent(slug)}`, patch),
   vaultRemove: (slug: string) =>
     http.del<{ ok: boolean; removed: "user" | "tomb" | "user+tomb" }>(
-      `/agents/vault/${encodeURIComponent(slug)}`,
+      `/api/agents/vault/${encodeURIComponent(slug)}`,
     ),
   vaultRestore: (slug: string) =>
     http.post<{ ok: boolean; agent: AgentEntry | null }>(
-      `/agents/vault/${encodeURIComponent(slug)}/restore`,
+      `/api/agents/vault/${encodeURIComponent(slug)}/restore`,
     ),
   import: (pid: string, slug: string) =>
-    http.post<AgentEntry>(`/projects/${pid}/agents/import`, { slug }),
+    http.post<AgentEntry>(`/api/projects/${pid}/agents/import`, { slug }),
 };

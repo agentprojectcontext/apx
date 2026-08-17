@@ -7,7 +7,7 @@ export function useProfiles() {
   const { data, error, isLoading, mutate } = useSWR<{
     active: string | null;
     profiles: ProfileSummary[];
-  }>("/profiles", () => ProfilesApi.list());
+  }>("/api/profiles", () => ProfilesApi.list());
 
   return {
     active: data?.active ?? null,
@@ -21,7 +21,7 @@ export function useProfiles() {
 /** One profile, including its schema, settings and rendered prompt preview. */
 export function useProfile(id: string | null) {
   const { data, error, isLoading, mutate } = useSWR<ProfileDetail>(
-    id ? `/profiles/${id}` : null,
+    id ? `/api/profiles/${id}` : null,
     () => ProfilesApi.get(id as string),
   );
   return { profile: data, error, isLoading, mutate };
@@ -30,7 +30,7 @@ export function useProfile(id: string | null) {
 /** Health of the active profile (or a named one). */
 export function useProfileDoctor(id: string | null) {
   const { data, error, isLoading, mutate } = useSWR<ProfileDoctor>(
-    id ? `/profiles/doctor?id=${id}` : "/profiles/doctor",
+    id ? `/api/profiles/doctor?id=${id}` : "/api/profiles/doctor",
     () => ProfilesApi.doctor(id || undefined),
   );
   return { doctor: data, error, isLoading, mutate };

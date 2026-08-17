@@ -49,7 +49,7 @@ export function DesktopSettingsPanel() {
   const position = cfgView.desktop?.position || "right";
 
   const { data: autostart, mutate: mutateAutostart } = useSWR(
-    "/desktop/autostart",
+    "/api/desktop/autostart",
     () => Desktop.autostartGet(),
   );
 

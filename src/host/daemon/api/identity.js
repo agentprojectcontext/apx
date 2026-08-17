@@ -11,12 +11,12 @@ const ALLOWED_KEYS = new Set([
   "timezone",
 ]);
 
-export function register(app) {
-  app.get("/identity", (_req, res) => {
+export function register(api) {
+  api.get("/identity", (_req, res) => {
     res.json(readIdentity() || {});
   });
 
-  app.patch("/identity", (req, res) => {
+  api.patch("/identity", (req, res) => {
     const body = req.body || {};
     const patch = {};
     for (const [k, v] of Object.entries(body)) {

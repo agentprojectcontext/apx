@@ -20,8 +20,8 @@ function installStub({
   const calls = [];
   http.get = async (p) => {
     calls.push(["GET", p, null]);
-    if (p === "/projects") return projects;
-    if (p.startsWith("/projects/") && p.endsWith("/config")) {
+    if (p === "/api/projects") return projects;
+    if (p.startsWith("/api/projects/") && p.endsWith("/config")) {
       return {
         // Default: effective shows the global value; project_only is empty.
         effective: effective || { super_agent: { model: "global:x" } },
@@ -84,7 +84,7 @@ test("cmdProjectConfigSet sends PATCH set with coerced value and reloads", async
   });
   const patch = calls.find((c) => c[0] === "PATCH");
   assert.deepEqual(patch[2], { set: { "super_agent.model": "groq:llama-3.3-70b-versatile" } });
-  assert.ok(calls.find((c) => c[0] === "POST" && c[1] === "/admin/reload"));
+  assert.ok(calls.find((c) => c[0] === "POST" && c[1] === "/api/admin/reload"));
 });
 
 test("cmdProjectConfigSet coerces booleans and numbers", async () => {

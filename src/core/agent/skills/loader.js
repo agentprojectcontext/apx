@@ -30,9 +30,10 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import os from "node:os";
+import { SKILLS_DIR } from "#core/config/paths.js";
 import { fileURLToPath } from "node:url";
 import { apcSkillsDir } from "#core/apc/paths.js";
+import { parseFrontmatter } from "#core/apc/frontmatter.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
@@ -44,32 +45,12 @@ const PACKAGE_ROOT = path.resolve(__dirname, "..", "..", "..", "..");
 // <packageRoot>/skills/ so external tools that copy "skills/" from the repo
 // don't accidentally pull the rich set or the runtime CLI docs.
 const BUILTIN_SKILLS_DIR = path.join(PACKAGE_ROOT, "src", "core", "runtime-skills");
-const GLOBAL_DIR         = path.join(os.homedir(), ".apx", "skills");
+const GLOBAL_DIR         = SKILLS_DIR;
 
 // ---------------------------------------------------------------------------
 // Frontmatter parsing (minimal — handles the YAML we ship)
 // ---------------------------------------------------------------------------
 
-function parseFrontmatter(raw) {
-  if (!raw.startsWith("---")) return { fm: {}, body: raw };
-  const end = raw.indexOf("\n---", 3);
-  if (end < 0) return { fm: {}, body: raw };
-
-  const fmBlock = raw.slice(3, end).trim();
-  const body = raw.slice(end + 4).replace(/^\n/, "");
-
-  const fm = {};
-  for (const line of fmBlock.split("\n")) {
-    const m = line.match(/^([a-zA-Z_][a-zA-Z0-9_-]*)\s*:\s*(.*)$/);
-    if (!m) continue;
-    let val = m[2].trim();
-    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
-      val = val.slice(1, -1);
-    }
-    fm[m[1]] = val;
-  }
-  return { fm, body };
-}
 
 // ---------------------------------------------------------------------------
 // Directory scanners

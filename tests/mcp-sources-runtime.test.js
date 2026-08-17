@@ -10,12 +10,7 @@ import path from "node:path";
 import {
   readRuntimeMcps,
   writeRuntimeMcps,
-  readGlobalMcps,
-  writeGlobalMcps,
-  readApfMcps,
-  writeApfMcps,
   runtimeMcpsPath,
-  globalMcpsPath,
 } from "#core/mcp/sources.js";
 
 // Dynamic import is required because sources.js captures HOME at module-load

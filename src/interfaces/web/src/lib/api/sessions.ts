@@ -15,7 +15,7 @@ export const Sessions = {
   // Cross-engine sessions (apx · claude · codex), newest first — full set.
   global: (engine?: string) =>
     http
-      .get<unknown>(`/sessions${engine ? `?engine=${encodeURIComponent(engine)}` : ""}`)
+      .get<unknown>(`/api/sessions${engine ? `?engine=${encodeURIComponent(engine)}` : ""}`)
       .then((b) => ({ sessions: unwrapPage<SessionRow>(b).items })),
   // Server-paginated page. Optional `q` runs the same search core as
   // `apx session find` (title; + transcript content when `deep`).
@@ -25,6 +25,6 @@ export const Sessions = {
     if (q?.trim()) params.set("q", q.trim());
     if (deep) params.set("deep", "1");
     if (cwd?.trim()) params.set("cwd", cwd.trim());
-    return http.get<unknown>(`/sessions?${params.toString()}`).then((b) => unwrapPage<SessionRow>(b));
+    return http.get<unknown>(`/api/sessions?${params.toString()}`).then((b) => unwrapPage<SessionRow>(b));
   },
 };

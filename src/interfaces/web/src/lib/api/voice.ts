@@ -220,7 +220,7 @@ export const TTS_PROVIDER_ORDER: TtsProviderId[] = ["piper", "elevenlabs", "open
  */
 export async function fetchTtsAudioUrl(audioPath: string): Promise<string> {
   const token = getToken();
-  const res = await fetch(`/voice/tts?path=${encodeURIComponent(audioPath)}`, {
+  const res = await fetch(`/api/voice/tts?path=${encodeURIComponent(audioPath)}`, {
     headers: token ? { authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) {
@@ -233,13 +233,13 @@ export async function fetchTtsAudioUrl(audioPath: string): Promise<string> {
 
 export const Voice = {
   /** List TTS engines + availability + the configured default provider. */
-  providers: () => http.get<TtsProvidersResponse>("/tts/providers"),
+  providers: () => http.get<TtsProvidersResponse>("/api/tts/providers"),
 
   /** Detected hardware + the recommended local STT backend (Metal/CUDA/CPU). */
-  sttHardware: () => http.get<SttHardwareResponse>("/transcribe/hardware"),
+  sttHardware: () => http.get<SttHardwareResponse>("/api/transcribe/hardware"),
 
   /** Model catalog + on-disk status for a local backend ("faster" | "mlx"). */
-  sttModels: (backend: string) => http.get<SttModelsResponse>(`/transcribe/models?backend=${backend}`),
+  sttModels: (backend: string) => http.get<SttModelsResponse>(`/api/transcribe/models?backend=${backend}`),
 
   /**
    * Synthesize speech. Returns the audio file path (server-side); the web
@@ -247,7 +247,7 @@ export const Voice = {
    * is irrelevant for the web (the daemon never plays for HTTP callers).
    */
   say: (body: { text: string; provider?: string; voice?: string; language?: string; format?: string; style?: string }) =>
-    http.post<TtsSayResult>("/tts/say", body),
+    http.post<TtsSayResult>("/api/tts/say", body),
 
   /**
    * One bidirectional voice turn (STT → agent → TTS). The web uses the
@@ -261,5 +261,5 @@ export const Voice = {
     provider?: string;
     voice?: string;
     language?: string;
-  }) => http.post<VoiceTurnResult>("/voice/turn", body),
+  }) => http.post<VoiceTurnResult>("/api/voice/turn", body),
 };

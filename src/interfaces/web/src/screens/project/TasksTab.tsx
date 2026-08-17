@@ -18,7 +18,7 @@ export function TasksTab({ pid }: { pid: string }) {
   // dedupingInterval:0 so switching the state filter always revalidates the
   // target page instead of showing the stale cached one from a prior switch.
   const paged = usePagedQuery({
-    key: `/projects/${pid}/tasks?state=${state}`,
+    key: `/api/projects/${pid}/tasks?state=${state}`,
     fetchPage: (limit, offset) => Tasks.listPage(pid, { state, limit, offset }),
     resetKey: state,
     swr: { dedupingInterval: 0, revalidateOnFocus: true },

@@ -41,14 +41,14 @@ export interface McpLogsResult {
 }
 
 export const Mcps = {
-  list:   (pid: string) => http.get<McpEntry[]>(`/projects/${pid}/mcps`),
-  check:  (pid: string) => http.get<McpCheck>(`/projects/${pid}/mcps/check`),
+  list:   (pid: string) => http.get<McpEntry[]>(`/api/projects/${pid}/mcps`),
+  check:  (pid: string) => http.get<McpCheck>(`/api/projects/${pid}/mcps/check`),
   add:    (pid: string, scope: McpScope, body: McpAddBody) =>
-    http.post<{ ok: true; name: string }>(`/projects/${pid}/mcps?scope=${scope}`, body),
+    http.post<{ ok: true; name: string }>(`/api/projects/${pid}/mcps?scope=${scope}`, body),
   remove: (pid: string, name: string, scope: McpScope = "shared") =>
-    http.del<void>(`/projects/${pid}/mcps/${encodeURIComponent(name)}?scope=${scope}`),
+    http.del<void>(`/api/projects/${pid}/mcps/${encodeURIComponent(name)}?scope=${scope}`),
   test:   (pid: string, name: string) =>
-    http.post<McpTestResult>(`/projects/${pid}/mcps/${encodeURIComponent(name)}/test`, {}),
+    http.post<McpTestResult>(`/api/projects/${pid}/mcps/${encodeURIComponent(name)}/test`, {}),
   logs:   (pid: string, name: string) =>
-    http.get<McpLogsResult>(`/projects/${pid}/mcps/${encodeURIComponent(name)}/logs`),
+    http.get<McpLogsResult>(`/api/projects/${pid}/mcps/${encodeURIComponent(name)}/logs`),
 };

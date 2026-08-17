@@ -25,8 +25,12 @@ import {
   getPluginService,
   reconcilePluginMcp,
 } from "#core/integrations/index.js";
+import { asyncRoute } from "./shared.js";
 
-function normalizeScope(raw) {
+// Integration scope vocabulary: project | global, accepting "default" for
+// global and both "shared" and "runtime" for project. See the note in
+// api/mcps.js — do not merge these three helpers.
+function normalizeIntegrationScope(raw) {
   if (!raw) return "project";
   const s = String(raw).toLowerCase();
   if (s === "global" || s === "default") return "global";
@@ -44,7 +48,7 @@ function storagePathForScope(scope, p, projects) {
   return p.storagePath || null;
 }
 
-export function register(app, { projects, project, registries }) {
+export function register(api, { projects, project, registries }) {
   // Keep a plugin's optional auto-registered MCP server (svc.mcpServer hook) in
   // lockstep with its stored state. Best-effort: a failure here must not break
   // the configure/validate/deactivate/delete response. `storagePath` is the one
@@ -62,10 +66,10 @@ export function register(app, { projects, project, registries }) {
   }
 
   // List stored integrations in the chosen scope (secrets redacted).
-  app.get("/projects/:pid/integrations", (req, res) => {
+  api.get("/projects/:pid/integrations", (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    const scope = normalizeScope(req.query?.scope);
+    const scope = normalizeIntegrationScope(req.query?.scope);
     if (scope === null) return res.status(400).json({ error: `unknown scope "${req.query?.scope}"` });
     const storagePath = storagePathForScope(scope, p, projects);
     if (!storagePath) return res.status(400).json({ error: "project has no storage path" });
@@ -75,7 +79,7 @@ export function register(app, { projects, project, registries }) {
 
   // The full plugin roster with each plugin's resolved status for this project
   // (project record wins over the default/global one).
-  app.get("/projects/:pid/integrations/catalog", (req, res) => {
+  api.get("/projects/:pid/integrations/catalog", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const catalog = listCatalog().map((entry) => {
@@ -97,12 +101,12 @@ export function register(app, { projects, project, registries }) {
   });
 
   // Status for a single plugin in the chosen scope.
-  app.get("/projects/:pid/integrations/:slug", (req, res) => {
+  api.get("/projects/:pid/integrations/:slug", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const svc = getPluginService(req.params.slug);
     if (!svc) return res.status(404).json({ error: `unknown plugin "${req.params.slug}"` });
-    const scope = normalizeScope(req.query?.scope);
+    const scope = normalizeIntegrationScope(req.query?.scope);
     if (scope === null) return res.status(400).json({ error: `unknown scope "${req.query?.scope}"` });
     const storagePath = storagePathForScope(scope, p, projects);
     if (!storagePath) return res.status(400).json({ error: "project has no storage path" });
@@ -111,12 +115,12 @@ export function register(app, { projects, project, registries }) {
   });
 
   // Save credentials / config. Creates the record if missing.
-  app.post("/projects/:pid/integrations/:slug/configure", (req, res) => {
+  api.post("/projects/:pid/integrations/:slug/configure", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const svc = getPluginService(req.params.slug);
     if (!svc) return res.status(404).json({ error: `unknown plugin "${req.params.slug}"` });
-    const scope = normalizeScope(req.query?.scope);
+    const scope = normalizeIntegrationScope(req.query?.scope);
     if (scope === null) return res.status(400).json({ error: `unknown scope "${req.query?.scope}"` });
     const storagePath = storagePathForScope(scope, p, projects);
     if (!storagePath) return res.status(400).json({ error: "project has no storage path" });
@@ -132,12 +136,12 @@ export function register(app, { projects, project, registries }) {
   });
 
   // Verify the stored credentials against the provider, then persist the result.
-  app.post("/projects/:pid/integrations/:slug/validate", async (req, res) => {
+  api.post("/projects/:pid/integrations/:slug/validate", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const svc = getPluginService(req.params.slug);
     if (!svc) return res.status(404).json({ error: `unknown plugin "${req.params.slug}"` });
-    const scope = normalizeScope(req.query?.scope);
+    const scope = normalizeIntegrationScope(req.query?.scope);
     if (scope === null) return res.status(400).json({ error: `unknown scope "${req.query?.scope}"` });
     const storagePath = storagePathForScope(scope, p, projects);
     if (!storagePath) return res.status(400).json({ error: "project has no storage path" });
@@ -153,15 +157,15 @@ export function register(app, { projects, project, registries }) {
     } catch (e) {
       res.status(400).json({ error: e.message });
     }
-  });
+  }));
 
   // Disable a plugin without deleting its stored credentials.
-  app.post("/projects/:pid/integrations/:slug/deactivate", (req, res) => {
+  api.post("/projects/:pid/integrations/:slug/deactivate", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const svc = getPluginService(req.params.slug);
     if (!svc) return res.status(404).json({ error: `unknown plugin "${req.params.slug}"` });
-    const scope = normalizeScope(req.query?.scope);
+    const scope = normalizeIntegrationScope(req.query?.scope);
     if (scope === null) return res.status(400).json({ error: `unknown scope "${req.query?.scope}"` });
     const storagePath = storagePathForScope(scope, p, projects);
     if (!storagePath) return res.status(400).json({ error: "project has no storage path" });
@@ -174,7 +178,7 @@ export function register(app, { projects, project, registries }) {
   });
 
   // Plugin-specific read action (e.g. Asana → list workspaces for the token).
-  app.post("/projects/:pid/integrations/:slug/action/:action", async (req, res) => {
+  api.post("/projects/:pid/integrations/:slug/action/:action", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const svc = getPluginService(req.params.slug);
@@ -183,7 +187,7 @@ export function register(app, { projects, project, registries }) {
     if (typeof fn !== "function") {
       return res.status(404).json({ error: `unknown action "${req.params.action}"` });
     }
-    const scope = normalizeScope(req.query?.scope);
+    const scope = normalizeIntegrationScope(req.query?.scope);
     if (scope === null) return res.status(400).json({ error: `unknown scope "${req.query?.scope}"` });
     const storagePath = storagePathForScope(scope, p, projects);
     if (!storagePath) return res.status(400).json({ error: "project has no storage path" });
@@ -197,13 +201,13 @@ export function register(app, { projects, project, registries }) {
     } catch (e) {
       res.status(400).json({ error: e.message });
     }
-  });
+  }));
 
   // Remove a stored integration entirely.
-  app.delete("/projects/:pid/integrations/:slug", (req, res) => {
+  api.delete("/projects/:pid/integrations/:slug", (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    const scope = normalizeScope(req.query?.scope);
+    const scope = normalizeIntegrationScope(req.query?.scope);
     if (scope === null) return res.status(400).json({ error: `unknown scope "${req.query?.scope}"` });
     const storagePath = storagePathForScope(scope, p, projects);
     if (!storagePath) return res.status(400).json({ error: "project has no storage path" });

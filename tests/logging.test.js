@@ -15,7 +15,7 @@ process.env.HOME = tmpHome;
 process.env.APX_HOME = path.join(tmpHome, ".apx");
 
 const {
-  log, logInfo, logWarn, logError,
+  logInfo, logWarn, logError,
   formatLogLine, loggerFor, callableLogger,
   APX_LOG_PATH,
 } = await import("#core/logging.js");

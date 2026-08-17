@@ -4,7 +4,7 @@ import type { GlobalConfig, SuperAgentConfig } from "../types/daemon";
 
 export function useGlobalConfig() {
   const { data, error, isLoading, mutate } = useSWR(
-    "/admin/config",
+    "/api/admin/config",
     () => Admin.config.get(),
   );
   const patch = async (set?: Record<string, unknown>, unset?: string[]) => {
@@ -17,7 +17,7 @@ export function useGlobalConfig() {
 
 export function useSuperAgentConfig() {
   const { data, error, isLoading, mutate } = useSWR(
-    "/admin/super-agent",
+    "/api/admin/super-agent",
     () => Admin.superAgent(),
   );
   return { superAgent: data as SuperAgentConfig | undefined, error, isLoading, mutate };

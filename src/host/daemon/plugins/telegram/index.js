@@ -311,7 +311,7 @@ export default {
       // that bot; otherwise first available bot-tokened channel. Always logs
       // the outbound on `messages` of the channel's target project so audit
       // trails are complete.
-      async send({ channel: channelName, chat_id, text, author = resolveAgentName(config), project }) {
+      async send({ channel: channelName, chat_id, text, author = resolveAgentName(config) }) {
         const p = pickPoller(pollers, channelName);
         const result = await p._send({ chat_id, text });
         appendGlobalMessage({

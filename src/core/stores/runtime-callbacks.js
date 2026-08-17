@@ -18,6 +18,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { APX_HOME } from "#core/config/paths.js";
 import { nowIso } from "#core/util/time.js";
+import { readJson } from "#core/util/json-file.js";
 
 export const PENDING_CALLBACKS_DIR = path.join(APX_HOME, "pending-callbacks");
 
@@ -63,7 +64,7 @@ export function listPendingCallbacks() {
   const out = [];
   for (const f of files) {
     try {
-      const entry = JSON.parse(fs.readFileSync(path.join(PENDING_CALLBACKS_DIR, f), "utf8"));
+      const entry = readJson(path.join(PENDING_CALLBACKS_DIR, f), null);
       if (entry?.session_id) out.push(entry);
     } catch {
       /* skip corrupt */

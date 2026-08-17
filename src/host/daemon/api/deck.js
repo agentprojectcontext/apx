@@ -30,8 +30,8 @@ function safeProjects(projects) {
   }
 }
 
-export function register(app, ctx) {
-  app.get("/deck/manifest", (_req, res) => {
+export function register(api, ctx) {
+  api.get("/deck/manifest", (_req, res) => {
     const overrides =
       (ctx.config?.deck && typeof ctx.config.deck === "object" && ctx.config.deck.widget_overrides) || {};
     res.json(
@@ -51,7 +51,7 @@ export function register(app, ctx) {
   // Persists the user's enable/disable choice for an external widget into the
   // global config under `deck.widget_overrides[id]`. No-op for unknown widget
   // ids so the deck UI can stay forward-compatible.
-  app.patch("/deck/widgets/:id", async (req, res) => {
+  api.patch("/deck/widgets/:id", async (req, res) => {
     const id = req.params.id;
     if (!TOGGLEABLE_WIDGETS.has(id)) {
       return res.status(404).json({ error: `unknown widget: ${id}` });
@@ -92,7 +92,7 @@ export function register(app, ctx) {
   //
   // Reads the project's AGENTS.md + .apc/memory.md, concatenates them with a
   // small header per file, and ships the result to the daemon-host clipboard.
-  app.post("/projects/:pid/context/copy", async (req, res) => {
+  api.post("/projects/:pid/context/copy", async (req, res) => {
     const project = ctx.project ? ctx.project(req, res) : null;
     if (!project) return; // project() already 404'd
     try {
@@ -106,7 +106,7 @@ export function register(app, ctx) {
   });
 
   // POST /projects/:pid/notes  body: { body: "...", title?: "..." }
-  app.post("/projects/:pid/notes", async (req, res) => {
+  api.post("/projects/:pid/notes", async (req, res) => {
     const project = ctx.project ? ctx.project(req, res) : null;
     if (!project) return;
     const { body, title } = req.body || {};
@@ -129,7 +129,7 @@ export function register(app, ctx) {
   // Light-touch action runner for the deck buttons. Companion clients can't
   // shell out arbitrary commands — body picks from a whitelist of "intent"
   // verbs and the server picks the OS command. See deck-exec.js for the kinds.
-  app.post("/deck/exec", async (req, res) => {
+  api.post("/deck/exec", async (req, res) => {
     const { kind, target, app: appHint, text } = req.body || {};
     if (!kind || typeof kind !== "string") {
       return res.status(400).json({ error: "kind required" });

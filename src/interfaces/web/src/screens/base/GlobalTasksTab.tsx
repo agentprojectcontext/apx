@@ -16,7 +16,7 @@ export function GlobalTasksTab() {
   const [status, setStatus] = useState<TaskStatus | "">("");
   const effectiveStatus = state === "open" ? status : "";
   const paged = usePagedQuery({
-    key: `/tasks?state=${state}&status=${effectiveStatus}`,
+    key: `/api/tasks?state=${state}&status=${effectiveStatus}`,
     fetchPage: (limit, offset) => Tasks.globalPage({ state, limit, offset, status: effectiveStatus }),
     resetKey: `${state}|${effectiveStatus}`,
   });

@@ -5,7 +5,10 @@
     "jsxImportSource": "@opentui/solid",
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "noEmit": true,
-    "types": [],
+    // `types: []` used to be here; combined with the missing base config it
+    // stripped node globals and flooded the check with TS2591.
+    // TS 6 deprecated `baseUrl`; `paths` below resolve relative to this file.
+    "types": ["node"],
     "paths": {
       "@tui/*": ["./*"],
       "@/cli/cmd/tui/*": ["./*"],

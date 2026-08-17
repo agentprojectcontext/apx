@@ -9,7 +9,7 @@ import {
   ENGINES,
   findSessionAcrossEngines,
   findSessionInEngine,
-} from "#interfaces/cli/commands/sessions.js";
+} from "#core/sessions/index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLI = path.join(__dirname, "..", "src", "interfaces", "cli", "index.js");
