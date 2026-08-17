@@ -5,6 +5,8 @@
 //    silently shrink the suite: the summary still says "pass", and a test
 //    nobody runs is a test nobody is watching. The suite must report
 //    `skipped 0` and `todo 0`.
+// 3. A coverage floor that only moves up. There was no coverage tooling at
+//    all, so nothing noticed a module losing its last test.
 // 2. Recursive discovery. package.json ran `tests/*.test.js`, a single-level
 //    glob — the first person to add `tests/core/foo.test.js` would have lost it
 //    with no warning at all.
@@ -32,9 +34,13 @@ if (!files.length) {
   process.exit(1);
 }
 
+// Ratchet. Raise these when coverage improves; never lower them. Node reports
+// line/branch/function percentages over everything it loaded.
+const COVERAGE_FLOOR = { line: 72, branch: 71, function: 64 };
+
 const child = spawn(
   process.execPath,
-  ["--test", "--test-reporter=spec", ...files],
+  ["--test", "--experimental-test-coverage", "--test-reporter=spec", ...files],
   { cwd: REPO, stdio: ["inherit", "pipe", "inherit"] }
 );
 
@@ -65,5 +71,29 @@ child.on("close", (code) => {
     );
     process.exit(1);
   }
+  // "ℹ all files | 72.29 | 71.16 | 64.52 |"
+  const cov = output.match(/^ℹ all files\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)\s*\|\s*([\d.]+)/m);
+  if (!cov) {
+    console.error("\ntest:ci: coverage summary not found — did the reporter change?");
+    process.exit(1);
+  }
+  const got = { line: +cov[1], branch: +cov[2], function: +cov[3] };
+  const below = Object.entries(COVERAGE_FLOOR).filter(([k, min]) => got[k] < min);
+  if (below.length) {
+    console.error(
+      `\ntest:ci: coverage fell below the floor — ` +
+        below.map(([k, min]) => `${k} ${got[k]}% < ${min}%`).join(", ") +
+        "\nAdd a test rather than lowering COVERAGE_FLOOR in scripts/test-ci.js."
+    );
+    process.exit(1);
+  }
+  const gained = Object.entries(COVERAGE_FLOOR)
+    .filter(([k, min]) => got[k] > min + 1)
+    .map(([k, min]) => `${k} ${got[k]}% (floor ${min}%)`);
+
   console.log(`\ntest:ci: ${files.length} files, 0 skipped, 0 todo.`);
+  console.log(
+    `test:ci: coverage line ${got.line}% branch ${got.branch}% function ${got.function}%` +
+      (gained.length ? ` — raise the floor: ${gained.join(", ")}` : " — at floor.")
+  );
 });
