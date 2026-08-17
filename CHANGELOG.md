@@ -1,3 +1,10 @@
+## [1.80.1](https://github.com/agentprojectcontext/apx/compare/v1.80.0...v1.80.1) (2026-08-17)
+
+
+### Bug Fixes
+
+* **routines:** an agent writing its own memory needs no permission ([c73d675](https://github.com/agentprojectcontext/apx/commit/c73d675b530e6ac651b43a529472fdaac8e91768))
+
 # [1.80.0](https://github.com/agentprojectcontext/apx/compare/v1.79.0...v1.80.0) (2026-08-17)
 
 
