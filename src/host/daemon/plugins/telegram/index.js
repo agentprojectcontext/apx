@@ -311,9 +311,13 @@ export default {
       // that bot; otherwise first available bot-tokened channel. Always logs
       // the outbound on `messages` of the channel's target project so audit
       // trails are complete.
-      async send({ channel: channelName, chat_id, text, author = resolveAgentName(config) }) {
+      // `reply_markup` carries the interruption-budget feedback keyboard on
+      // proactive pushes (core/nudge). It is NOT a gate: the gate belongs at
+      // the call sites that decide to speak unprompted, because this method
+      // also carries traffic the user asked for.
+      async send({ channel: channelName, chat_id, text, reply_markup, author = resolveAgentName(config), meta: extraMeta }) {
         const p = pickPoller(pollers, channelName);
-        const result = await p._send({ chat_id, text });
+        const result = await p._send({ chat_id, text, reply_markup });
         appendGlobalMessage({
           channel: CHANNELS.TELEGRAM,
           direction: "out",
@@ -327,6 +331,7 @@ export default {
             chat_id: chat_id || resolveChatId(p.channel),
             tg_channel: p.channel.name,
             via: channelName ? "explicit" : "auto",
+            ...(extraMeta || {}),
           },
         });
         return result;

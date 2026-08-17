@@ -64,6 +64,7 @@ import { register as registerAdminConfig } from "./api/admin-config.js";
 import { register as registerIdentity } from "./api/identity.js";
 import { register as registerProfiles } from "./api/profiles.js";
 import { register as registerInbox } from "./api/inbox.js";
+import { register as registerNudges } from "./api/nudges.js";
 import { register as registerWeb, registerWebToken } from "./api/web.js";
 import { register as registerConfirm } from "./api/confirm.js";
 
@@ -169,6 +170,7 @@ export function buildApi({
   registerIdentity(api, ctx);
   registerProfiles(api, ctx);
   registerInbox(api, ctx);
+  registerNudges(api, ctx);
   registerWebToken(api, ctx);
 
   // ---- API 404 (MUST be last on the router) ------------------------

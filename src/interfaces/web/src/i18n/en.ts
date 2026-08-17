@@ -206,6 +206,7 @@ export const en = {
       engines: "Engines & models",
       telegram: "Telegram",
       devices: "Devices",
+      nudge: "Interruptions",
       advanced: "Advanced",
     },
 
@@ -243,6 +244,34 @@ export const en = {
       no_settings: "This profile has nothing to configure.",
       settings_locked: "Activate the profile to change its settings.",
       doctor_vanilla: "No profile active. APX behaves as it always has.",
+    },
+
+    nudge: {
+      title: "Interruption budget",
+      subtitle:
+        "How often APX may write to you without being asked. Replies to your own messages are never held back.",
+      off_hint:
+        "The budget is off: every unrequested message goes out. Everything is still recorded below.",
+      on_hint: "{{sent}} sent today, {{left}} left.",
+      source: "Set by",
+      enabled: "Enforce the budget",
+      daily_max: "Messages per day",
+      daily_max_hint: "0 means no ceiling.",
+      quiet_hours: "Quiet hours",
+      quiet_hours_hint: "HH:MM-HH:MM. Crosses midnight fine. Leave empty for none.",
+      cooldown: "Minimum gap (minutes)",
+      project_cooldown: "Minimum gap per project (minutes)",
+      kind_cooldown: "Minimum gap per kind (minutes)",
+      critical_bypass: "Critical messages may bypass the budget",
+      critical_bypass_hint: "Bypasses are always recorded and flagged.",
+      log_title: "What it has sent",
+      log_subtitle: "Unrequested messages only, newest first. Your rating feeds back into what it sends next.",
+      log_empty: "Nothing sent unprompted yet.",
+      useful: "Useful",
+      noise: "Not useful",
+      bypass: "bypassed the budget",
+      saved: "Budget updated",
+      unrated: "not rated",
     },
 
     identity: {

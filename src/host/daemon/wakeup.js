@@ -2,6 +2,7 @@
 import fetch from "node-fetch";
 import { readIdentity, writeIdentity } from "#core/identity/index.js";
 import { resolveProvider, getAdapter } from "#core/engines/index.js";
+import { canNudge, recordNudge, nudgeFeedbackKeyboard } from "#core/nudge/index.js";
 
 const WAKEUP_COOLDOWN_MS = 30 * 60 * 1000; // 30 min
 
@@ -50,12 +51,12 @@ async function generateMessage(identity, engineConfig) {
   }
 }
 
-async function sendTelegram(token, chatId, text) {
+async function sendTelegram(token, chatId, text, reply_markup) {
   const url = `https://api.telegram.org/bot${token}/sendMessage`;
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, text }),
+    body: JSON.stringify({ chat_id: chatId, text, ...(reply_markup ? { reply_markup } : {}) }),
   });
   const json = await res.json();
   if (!json.ok) throw new Error(json.description || "telegram send failed");
@@ -75,10 +76,23 @@ export async function triggerWakeup(config, log) {
     if (elapsed < WAKEUP_COOLDOWN_MS) return;
   }
 
+  // PUSH PATH 1 OF 4 — nobody asked for this one. "I restarted" is the least
+  // interesting thing APX can say, so it is also the first thing a budget
+  // should be allowed to swallow.
+  const gate = canNudge(
+    { kind: "wakeup", severity: "low", unsolicited: true, channel: "telegram" },
+    config,
+  );
+  if (!gate.allowed) {
+    log?.(`wakeup: suppressed by the interruption budget — ${gate.reason}`);
+    return;
+  }
+
   try {
     const message = await generateMessage(identity, config);
     const text = message || `${identity.agent_name} online. Ready.`;
-    await sendTelegram(tg.bot_token, tg.chat_id, text);
+    await sendTelegram(tg.bot_token, tg.chat_id, text, nudgeFeedbackKeyboard(gate.nudge_id));
+    recordNudge(gate, { chat_id: tg.chat_id, preview: text });
     writeIdentity({ last_wakeup: new Date().toISOString() });
     log?.(`wakeup: sent to Telegram chat ${tg.chat_id}`);
   } catch (e) {

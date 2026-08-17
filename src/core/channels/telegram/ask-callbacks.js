@@ -12,6 +12,7 @@ import { getConfirmationStore as getConfirmStore } from "#core/confirmation/pend
 import { getRecentTelegramTurnsFromFs, appendGlobalMessage } from "#core/stores/messages.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
+import { applyNudgeCallback } from "#core/nudge/index.js";
 
 /**
  * Route an inbound callback_query. ask_questions button presses are handled
@@ -24,6 +25,10 @@ export async function handleCallbackQuery(self, callbackQuery) {
     await handleAskCallback(self, callbackQuery);
     return;
   }
+  if (data.startsWith("apx:nudge:")) {
+    await handleNudgeCallback(self, callbackQuery);
+    return;
+  }
   const adapter = createTelegramConfirmAdapter({
     token: resolveBotToken(self.channel),
     chatId: callbackQuery.message?.chat?.id,
@@ -33,6 +38,33 @@ export async function handleCallbackQuery(self, callbackQuery) {
   if (!handled) {
     self.log(`telegram[${self.channel.name}] unhandled callback_query: ${callbackQuery.data}`);
   }
+}
+
+/**
+ * "Was that worth interrupting you for?" — the feedback loop on proactive
+ * pushes (core/nudge). One tap, no reply, and the keyboard disappears so the
+ * chat does not accumulate stale buttons. Never re-enters the super-agent: an
+ * opinion about a message is not a new turn to answer.
+ */
+export async function handleNudgeCallback(self, callbackQuery) {
+  const chatId = callbackQuery.message?.chat?.id;
+  const result = applyNudgeCallback(callbackQuery.data || "");
+  await self._answerCallback({
+    callback_query_id: callbackQuery.id,
+    text: result?.ack || "",
+  });
+  if (!result || !chatId) return;
+  try {
+    await self._editKeyboard({
+      chat_id: chatId,
+      message_id: callbackQuery.message?.message_id,
+      reply_markup: { inline_keyboard: [] },
+    });
+  } catch { /* best-effort */ }
+  self.log(
+    `telegram[${self.channel.name}] nudge feedback: ${result.entry?.kind || "?"} → ` +
+    `${result.entry?.feedback?.useful ? "useful" : "noise"}`
+  );
 }
 
 /**

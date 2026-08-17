@@ -17,13 +17,25 @@
       "type": "integer",
       "default": 3,
       "title": "Unrequested messages per day",
-      "description": "The ceiling outside the anchors. Lower is usually better."
+      "description": "The ceiling outside the anchors. Lower is usually better. Declaring this switches the interruption budget on."
     },
     "quiet_hours": {
       "type": "string",
       "default": "22:00-07:30",
       "title": "Quiet hours",
-      "description": "No unrequested messages in this window."
+      "description": "No unrequested messages in this window. Replies are never held back."
+    },
+    "nudge_project_cooldown_minutes": {
+      "type": "integer",
+      "default": 180,
+      "title": "Minimum gap per project (minutes)",
+      "description": "Three separate thoughts about the same project in one hour is one interruption too many."
+    },
+    "nudge_kind_cooldown_minutes": {
+      "type": "integer",
+      "default": 120,
+      "title": "Minimum gap per kind (minutes)",
+      "description": "Stops one repeating condition from filling the day's budget on its own."
     },
     "stale_project_days": {
       "type": "integer",
