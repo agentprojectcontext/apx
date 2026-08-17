@@ -97,12 +97,18 @@ helping either. The leak is now suppressed in code, but the chain still needs th
 decision: fix Gemini billing, or put a fallback in that can take a 40k prompt, or shrink
 what goes into a turn.
 
-**2. `POST /pair/init` answers `{"error":"unauthorized"}` on this branch.** Reproduced on the
-live daemon at 1.78.0 AND on the smoke test's own fresh daemon, with a token freshly read
-from `/admin/web-token`. It worked before the CLI/route refactor, so the likely cause is
-pairing receiving a different `tokenStore` instance than the one holding the master token —
-unverified. Device pairing is broken until this is fixed. `tests/smoke/seam.smoke.js` fails
-on exactly this, which is what surfaced it.
+**2. ~~`POST /pair/init` is broken~~ — RETRACTED. It works.** `POST /api/pair/init` answers
+correctly, with the 5-minute TTL. This branch's refactor moved every data route under
+`/api`; calling the bare `/pair/init` falls through to the SPA, which is why it looked
+unauthorized. My test was wrong, not the product. Recorded because the retraction matters
+more than the original claim.
+
+**3. `tests/smoke/seam.smoke.js` needs adapting and is NOT in CI.** Same root cause: written
+against the pre-refactor layout. The `/api` prefix is applied, but five tests still fail
+against a freshly-booted daemon while the identical calls succeed by hand and against a
+hand-rolled fresh daemon. Unresolved. It must not go into CI until those five pass — a suite
+that fails for its own reasons trains people to ignore it, which is worse than not having
+one.
 
 ## 🔴 Live finding the owner must decide on
 
