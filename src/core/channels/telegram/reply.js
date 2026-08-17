@@ -7,7 +7,7 @@
 // of truth fixes that for good.
 import { runSuperAgent } from "#core/agent/super-agent.js";
 import { TELEGRAM_TOOL_ITERS } from "#core/agent/constants.js";
-import { stripThinking } from "#core/util/thinking.js";
+import { stripThinking, stripReasoning } from "#core/util/thinking.js";
 import { appendGlobalMessage, getRecentTelegramTurnsFromFs } from "#core/stores/messages.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
@@ -54,7 +54,9 @@ export function buildStreamHandler(self, { chat_id, update_id, agentDisplay }) {
         return;
       }
       if (ev.type === "assistant_text" && ev.text) {
-        const piece = stripThinking(ev.text).trim();
+        // Untagged planning is suppressed mid-stream too, or the user
+        // watches the model think in real time.
+        const piece = stripReasoning(ev.text).answer.trim();
         if (!piece) return;
         await self._send({ chat_id, text: piece });
         state.lastStreamedText = piece;
@@ -247,7 +249,19 @@ export async function sendFinalReply(self, {
   saUsage = null, saModel = null, streamedCount = 0, lastStreamedText = "", agentDisplay,
   extraMeta = {},
 }) {
-  const finalClean = replyText ? stripThinking(replyText).trim() : "";
+  // A model that dumps raw planning must never have it forwarded. When that
+  // happens the answer comes back empty and the existing never-silent fallback
+  // below sends a short line instead — a worse reply, but not the model's notes.
+  const stripped = replyText ? stripReasoning(replyText) : { answer: "", leaked: false };
+  const finalClean = stripped.answer.trim();
+  if (stripped.leaked) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[apx] telegram: suppressed an untagged reasoning dump from ${saModel || "the model"} ` +
+      `(${replyText.length} chars). Check the model chain — a router that returns raw ` +
+      `chain-of-thought is not usable on a user-facing channel.`
+    );
+  }
   let toSend = "";
   if (finalClean && finalClean !== lastStreamedText) {
     toSend = finalClean;
@@ -265,6 +279,7 @@ export async function sendFinalReply(self, {
     await self._send({ chat_id, text: toSend });
     const meta = { chat_id, tg_channel: self.channel.name, in_reply_to: update_id, final: true, ...extraMeta };
     if (replyText && stripThinking(replyText) !== replyText) meta.thinking_stripped = true;
+    if (stripped.leaked) meta.reasoning_leak_suppressed = true;
     if (saUsage) meta.usage = saUsage;
     if (saModel) meta.model = saModel;
     appendGlobalMessage({
