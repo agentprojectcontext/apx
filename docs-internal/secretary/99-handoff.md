@@ -265,6 +265,94 @@ Things learned in C2 that apply directly to the inbox:
 
 ---
 
+# ROUND 3 — Phases 5–9 and both inbox items are DONE
+
+Branch `feat/secretary-phases-5-9`, unmerged. Preflight green at 978 tests; the
+coverage ratchet moved from 72/71/64 to 73/71/66.
+
+| Phase | What landed | Commit |
+|---|---|---|
+| 6 · C5 | Interruption budget — `src/core/nudge/` | `a687225` |
+| 5 · C3 | Commitments — `src/core/stores/commitments.js` | `c5aa944` |
+| 7 · C4 | Signals + `watch` kind — `src/core/routines/signals.js` | `9d2d291` |
+| — | Tool summary + routine-created chip | `2852e06` |
+| 8 · C6 | Calendar via MCP (docs, EN+ES) | `ea51f07` |
+| 9 · C7+C8 | Daemon service + memory consolidation | `bd9b9f1` |
+| — | Two CLI seam bugs found by live testing | `832df9d` |
+
+## Decisions worth not re-litigating
+
+**The budget is OFF in vanilla and ON with a profile.** Core defaults are
+permissive and `enabled: false`, so an existing install delivers exactly what it
+delivered before. A profile that declares `nudge_budget_per_day` or
+`quiet_hours` switches enforcement on; an explicit `config.nudge` beats both.
+Turning a ceiling on by default would have silently muted push paths people
+already rely on.
+
+**The gate is at the four call sites, never in `_send`.** `_send` also carries
+replies, and a budget that can swallow an answer reads as a hung bot. Three
+tests hold this: all four import it, the plugin does NOT, and a walk of `src/`
+fails if a fifth path calls `telegram.send` without passing through.
+
+**Severity comes from a detector, never from the model.** Watch routines put
+their peak signal severity in `channelMeta.signalSeverity`, which
+`send_telegram` reads. A model that can grade its own message critical has a
+switch marked "ignore the budget", and it would find it.
+
+**`renegotiate` reopens rather than closes.** A promise with a new date is a
+live promise. Every date it has ever had stays in `history` — moving a date
+twice is a fact about the relationship.
+
+**The stale-project detector says what it measures.** There is no per-project
+activity timestamp in APX, and folding conversations on a five-minute tick would
+defeat a cheap detector. So it reads the newest task/commitment event and phrases
+itself as "no task or commitment activity", not "nothing happened". Callers with
+a real timestamp can pass `last_activity_at` and it wins.
+
+## Verified live, not just by reading
+
+Against the running daemon on 1.78.0, then cleaned up:
+
+- `GET /api/nudges/policy` → `enabled: true`, `source: ["defaults","profile"]` —
+  the installed Secretary switches the budget on by itself.
+- At 23:59, `nudge check --kind signal` → held, 451 min; `--severity critical`
+  → allowed via bypass.
+- Commitments added, listed per-project and cross-project, overdue flagged.
+- A watch sweep over a real store produced
+  `[critical] you owe Ana: … — was due 2020-01-01`.
+
+Done on a **throwaway project** that was registered, used, then unregistered and
+deleted. Nothing was written to a real project, per the standing rule.
+
+## Known gaps — stated, not hidden
+
+- **Linux and Windows service installation is unverified.** Written and
+  unit-tested against generated unit text; never executed on those platforms. The
+  tests deliberately install nothing. Windows is reported as NOT supervised in
+  those words — a Run key starts the daemon and does not restart it.
+- **No consolidation routine ships enabled.** `apx memory consolidate` takes
+  candidates on stdin and proposes; `--apply` writes. The distilling is the
+  caller's job; core owns only the judgement about what survives.
+- **Calendar is not a signal source.** Needs the native adapter, deliberately
+  deferred until the MCP path has a working use case behind it.
+- **The routine-created chip fires on the API and profile-install paths only.**
+  No agent tool creates routines today, so "Roby set one up for you" is not a
+  path that exists.
+- **The smoke suite is still stale** and out of CI (see the note at the top of
+  `tests/smoke/seam.smoke.js`).
+- **The model chain still degrades** (gemini 429 → groq 413 → openrouter free).
+  Unrelated to any of this, and the user's call.
+
+## The seam, again
+
+Two CLI bugs shipped and were caught only by running the commands: `http` is an
+object not a callable, and `resolveProjectId` takes a string not the args object.
+Both invisible to the suite because rule 8 sends tests at core directly. That is
+now **eleven** bugs from this one seam. The next person should assume any new CLI
+reader is broken until they have run it against a live daemon.
+
+---
+
 ## Working notes
 
 - The running daemon serves this checkout; run `apx restart` after JS changes. New **files**
