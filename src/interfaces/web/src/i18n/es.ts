@@ -368,6 +368,7 @@ export const es = {
       agents:   "Agents",
       routines: "Rutinas",
       tasks:    "Tasks",
+      commitments: "Compromisos",
       mcps:     "MCPs",
       artifacts: "Artifacts",
       vars:     "Variables",
@@ -478,6 +479,24 @@ export const es = {
       empty:       "Sin tasks.",
       due:         "vence",
       go_project:  "Ir al proyecto",
+    },
+
+    commitments: {
+      title:    "Compromisos",
+      subtitle: "Qué prometiste, a quién y para cuándo. Aparte de las tareas: acá hay alguien esperando.",
+      empty:    "Nada prometido.",
+      overdue:  "vencía",
+      overdue_only: "Pasados de fecha",
+      no_date:  "sin fecha acordada",
+      moved:    "movido",
+      mark_kept:   "Cumplido",
+      mark_missed: "Incumplido",
+      state: {
+        open:   "abiertos",
+        kept:   "cumplidos",
+        missed: "incumplidos",
+        all:    "todos",
+      },
     },
 
     routines: {

@@ -5,6 +5,6 @@
   "permission_mode": "automatico",
   "enabled_by_default": true,
   "spec": {
-    "prompt": "Close the day. Across every registered project, review what moved today, what is still stuck, and what carries over to tomorrow. Send ONE short message covering those three. Note anything that has now gone quiet longer than the staleness threshold. If the day was quiet, say that plainly and keep it to a line or two. Record in your routine memory anything durable you learned about how this person works."
+    "prompt": "Close the day. Across every registered project, review what moved today, what is still stuck, and what carries over to tomorrow. Check commitments too (list_commitments across every project): if one came due today, ask whether it was kept — do not mark it yourself. Send ONE short message covering those, keeping promises to people separate from ordinary tasks. Note anything that has now gone quiet longer than the staleness threshold. If the day was quiet, say that plainly and keep it to a line or two. Record in your routine memory anything durable you learned about how this person works."
   }
 }

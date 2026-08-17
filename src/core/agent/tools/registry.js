@@ -28,6 +28,8 @@ import loadSkill from "./handlers/load-skill.js";
 import transcribeAudio from "./handlers/transcribe-audio.js";
 import askQuestions from "./handlers/ask-questions.js";
 import createTask from "./handlers/create-task.js";
+import recordCommitment from "./handlers/record-commitment.js";
+import listCommitments from "./handlers/list-commitments.js";
 import listTasks from "./handlers/list-tasks.js";
 import discoverTools from "./handlers/discover-tools.js";
 import gitStatus from "./handlers/git-status.js";
@@ -81,6 +83,8 @@ const NATIVE_TOOLS = [
   askQuestions,
   createTask,
   listTasks,
+  recordCommitment,
+  listCommitments,
   discoverTools,
   gitStatus,
   gitDiff,
@@ -151,6 +155,11 @@ export const BASE_TOOL_NAMES = new Set([
   // Tasks (very common ask via chat).
   TOOLS.CREATE_TASK,
   TOOLS.LIST_TASKS,
+  // Commitments. In the base set on purpose: a promise is caught in passing
+  // ("le dije a Ana que el viernes"), and a tool the model has to discover
+  // first is a tool it will not reach for mid-sentence.
+  TOOLS.RECORD_COMMITMENT,
+  TOOLS.LIST_COMMITMENTS,
   // Files + basic shell — frequent enough on chat to keep hot.
   TOOLS.READ_FILE,
   TOOLS.WRITE_FILE,
