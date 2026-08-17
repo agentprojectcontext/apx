@@ -60,6 +60,7 @@ export function appendNudge(entry) {
     chat_id: entry.chat_id != null ? String(entry.chat_id) : null,
     preview: String(entry.preview || "").slice(0, 200),
     bypassed_budget: entry.bypassed_budget === true,
+    scheduled: entry.scheduled === true,
     feedback: null,
   });
   writeNudgeLedger(ledger);

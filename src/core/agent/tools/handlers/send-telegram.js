@@ -137,6 +137,9 @@ export default {
         // budget" — and it would find it.
         severity: ctx?.channelMeta?.signalSeverity || "normal",
         unsolicited: !solicited,
+        // Set only by an anchor routine (routines/runner.js), never by the
+        // model — it has no way to declare its own message scheduled.
+        scheduled: ctx?.channelMeta?.scheduledByUser === true,
         channel: "telegram",
       },
       globalConfig || {},

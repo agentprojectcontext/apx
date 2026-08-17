@@ -2,9 +2,13 @@
   "name": "day-close",
   "kind": "super_agent",
   "schedule": "{{day_close_schedule}}",
-  "permission_mode": "automatico",
+  "permission_mode": "permiso",
   "enabled_by_default": true,
   "spec": {
-    "prompt": "Close the day. Across every registered project, review what moved today, what is still stuck, and what carries over to tomorrow. Check commitments too (list_commitments across every project): if one came due today, ask whether it was kept — do not mark it yourself. Send ONE short message covering those, keeping promises to people separate from ordinary tasks. Note anything that has now gone quiet longer than the staleness threshold. If the day was quiet, say that plainly and keep it to a line or two. Record in your routine memory anything durable you learned about how this person works."
-  }
+    "prompt": "Close the day. Review what moved today, what is still stuck, and what carries over to tomorrow, across every registered project. Call list_tasks and list_commitments ONCE each, with no project argument — both search every project in a single call. Do not loop over projects. If a commitment came due today, ask whether it was kept — do not mark it yourself.\n\nSend ONE short message covering those, keeping promises to people separate from ordinary tasks. Note anything that has gone quiet longer than the staleness threshold. If the day was quiet, say that plainly in a line or two.\n\nThen record in your routine memory anything durable you learned about how this person works.\n\nDELIVERY: send it with send_telegram. A routine's own output is only written to the log — if you do not call the tool, {{owner_name}} receives nothing at all. Send exactly one message, then stop; do not end the turn by asking whether to keep looking.",
+    "anchor": true
+  },
+  "allowed_tools": [
+    "send_telegram"
+  ]
 }
