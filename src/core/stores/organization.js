@@ -19,6 +19,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { apcOrganizationFile } from "../apc/paths.js";
+import { readJson } from "#core/util/json-file.js";
 
 export const ORG_SLUG_RE = /^[a-z][a-z0-9_-]*$/;
 
@@ -39,17 +40,14 @@ function emptyOrg() {
 
 export function readOrganization(root) {
   const file = apcOrganizationFile(root);
-  if (!fs.existsSync(file)) return emptyOrg();
-  try {
-    const raw = JSON.parse(fs.readFileSync(file, "utf8"));
-    return {
-      areas: Array.isArray(raw.areas) ? raw.areas : [],
-      roles: Array.isArray(raw.roles) ? raw.roles : [],
-    };
-  } catch {
-    // A corrupt file shouldn't take down the whole project view.
-    return emptyOrg();
-  }
+  // A missing or corrupt file shouldn't take down the whole project view —
+  // readJson returns the fallback for both.
+  const raw = readJson(file, null);
+  if (!raw) return emptyOrg();
+  return {
+    areas: Array.isArray(raw.areas) ? raw.areas : [],
+    roles: Array.isArray(raw.roles) ? raw.roles : [],
+  };
 }
 
 function writeOrganization(root, org) {
