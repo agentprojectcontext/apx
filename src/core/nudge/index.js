@@ -36,6 +36,8 @@ const CRITICAL = "critical";
  * @param {string?} req.project_id    which project it concerns, when it concerns one
  * @param {string}  req.severity      "low" | "normal" | "high" | "critical"
  * @param {boolean} req.unsolicited   false for a delivery the user asked for. Be honest here.
+ * @param {boolean} req.scheduled     true when the user themselves put this on the clock (an
+ *                                    anchor routine). Exempt from the ceiling, still recorded.
  * @param {string}  req.channel
  * @param {object}  config            parsed ~/.apx/config.json
  * @param {Date}    now               injectable for tests
@@ -49,12 +51,13 @@ export function canNudge(req = {}, config = {}, now = new Date()) {
   const severity = req.severity || "normal";
   const channel = req.channel || "telegram";
   const unsolicited = req.unsolicited !== false;
+  const scheduled = req.scheduled === true;
   const policy = resolveNudgePolicy(config);
 
   const decision = (allowed, reason, retry_after_ms = null, bypassed_budget = false) => ({
     allowed, reason, retry_after_ms,
     nudge_id: shortId("ndg"),
-    kind, project_id: projectId, severity, channel, unsolicited, bypassed_budget, policy,
+    kind, project_id: projectId, severity, channel, unsolicited, scheduled, bypassed_budget, policy,
   });
 
   // A reply, or a result the user launched and is waiting for. It passes
@@ -63,6 +66,18 @@ export function canNudge(req = {}, config = {}, now = new Date()) {
   if (!unsolicited) return decision(true, "solicited");
 
   if (!policy.enabled) return decision(true, "budget-disabled");
+
+  // An ANCHOR — the morning and evening messages the user themselves put on
+  // the clock. The profile schema calls the daily number "the ceiling OUTSIDE
+  // the anchors", and it means it: a budget of three that two anchors spend
+  // leaves one, which is not what anybody chose. Charging someone's own
+  // schedule against their interruption allowance is the same category of
+  // wrong as gating a reply.
+  //
+  // Quiet hours are skipped too, for the same reason: an anchor scheduled
+  // inside them is a contradiction the USER wrote, and their explicit cron
+  // beats our default window.
+  if (scheduled) return decision(true, "scheduled-by-user");
 
   const isCritical = severity === CRITICAL;
   if (isCritical && policy.critical_bypasses_budget) {
@@ -79,7 +94,10 @@ export function canNudge(req = {}, config = {}, now = new Date()) {
   const ledger = readNudgeLedger();
 
   if (policy.daily_max > 0) {
-    const today = nudgesOnDay(now, ledger).filter((e) => !e.bypassed_budget);
+    // Anchors and audited bypasses are recorded but do not consume the
+    // allowance — otherwise the number the user configured is not the number
+    // they get.
+    const today = nudgesOnDay(now, ledger).filter((e) => !e.bypassed_budget && !e.scheduled);
     if (today.length >= policy.daily_max) {
       return decision(
         false,
@@ -128,6 +146,7 @@ export function recordNudge(decision, { chat_id = null, preview = "" } = {}) {
     chat_id,
     preview,
     bypassed_budget: decision.bypassed_budget,
+    scheduled: decision.scheduled,
   });
 }
 

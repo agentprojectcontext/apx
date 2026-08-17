@@ -70,6 +70,19 @@ RAG, compaction, broker). And `skills/` (3 bundled for npm) is not
 15. **The daemon never blocks the event loop on a request path.** New I/O inside a route handler uses `fs/promises`; sync I/O is for boot only. Every async handler goes through `asyncRoute()` so a rejection becomes a 500 instead of killing the process.
 16. **Never inline a tool name.** Import from `core/agent/tools/names.js`. A renamed tool must not silently disable a safety check — the side-effect de-duplication that stops a Telegram message being sent three times keys off these names.
 
+17. **A code change is not applied until the daemon restarts.** The daemon holds
+    the JS it booted with: adapters, routes, tool handlers, prompt builders. Edit
+    any of them and the running process keeps serving the OLD code, so the next
+    thing you test is the previous version and you conclude the change did not
+    work. Run `apx restart` after every change and BEFORE testing anything by
+    hand — not after, when you have already drawn a wrong conclusion. Verify it
+    took: `curl -s 127.0.0.1:7430/api/health` should show a new uptime, and a
+    route that only exists in your change should answer.
+    The exceptions are data, not code: new **files** a running daemon reads on
+    demand (a bundled profile package, a skill) and `~/.apx/config.json`, which
+    `POST /api/admin/reload` re-reads. When in doubt, restart — it costs two
+    seconds and removes a whole class of wasted debugging.
+
 ## Conventions & recipes
 
 - **Model ids are `provider:model`** (`ENGINE_IDS` = anthropic/openai/groq/openrouter/ollama/gemini/mock). Add an engine: `src/core/engines/<id>.js` exporting `chat()`/`health()`, register in `ADAPTERS`. Degrade chain: `super_agent.model_fallback.models` (ordered full ids). The router (`model-router.js`) health-checks the chain and picks the first healthy; at call time `retry.js` rotates on retryable errors (429/5xx/timeout) but treats 4xx/auth as fatal.

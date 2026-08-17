@@ -136,6 +136,10 @@ async function handleSuperAgent(ctx, routine, extraChannelMeta = {}) {
         } catch { return ""; }
       })(),
       projectPath: project.path,
+      // An ANCHOR is a message the user put on the clock themselves. The
+      // interruption budget exempts it from the daily ceiling — the profile
+      // schema calls that number "the ceiling outside the anchors".
+      ...(routine.spec?.anchor === true ? { scheduledByUser: true } : {}),
       ...extraChannelMeta,
     },
     suppressTools: suppressTools.length > 0 ? suppressTools : null,

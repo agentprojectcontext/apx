@@ -293,3 +293,51 @@ function* walk(dir) {
     }
   }
 }
+
+// --------------------------------------------------------------------------
+// anchors — the messages the user put on the clock themselves
+// --------------------------------------------------------------------------
+
+test("an anchor does not spend the daily allowance", () => {
+  // The profile schema calls the daily number "the ceiling OUTSIDE the
+  // anchors". A budget of three that the morning and evening messages spend
+  // two of leaves one, which is not the number anybody chose.
+  const cfg = budget({ daily_max: 2 });
+  for (const kind of ["routine:day-open", "routine:day-close"]) {
+    const g = canNudge({ kind, scheduled: true }, cfg);
+    assert.equal(g.allowed, true);
+    assert.equal(g.reason, "scheduled-by-user");
+    recordNudge(g, { preview: kind });
+  }
+  // Both anchors sent, and the discretionary allowance is untouched.
+  for (let i = 0; i < 2; i++) {
+    const g = canNudge({ kind: "signal" }, cfg);
+    assert.equal(g.allowed, true, `discretionary nudge ${i + 1} should still fit`);
+    recordNudge(g, { preview: "signal" });
+  }
+  assert.equal(canNudge({ kind: "signal" }, cfg).allowed, false, "and then it is spent");
+});
+
+test("an anchor is still recorded, and still rateable", () => {
+  // Exempt from the ceiling is not the same as invisible. "How often does this
+  // thing message me" must include the anchors.
+  const g = canNudge({ kind: "routine:day-open", scheduled: true }, budget());
+  recordNudge(g, { preview: "good morning" });
+  const [row] = listNudges();
+  assert.equal(row.scheduled, true);
+  assert.ok(applyNudgeCallback(`apx:nudge:${g.nudge_id}:noise`).entry);
+});
+
+test("an anchor scheduled inside quiet hours still fires", () => {
+  // A contradiction the USER wrote. Their explicit cron beats our window;
+  // silently swallowing the morning message would look like a broken agent.
+  const cfg = budget({ quiet_hours: "00:00-23:59" });
+  const at3am = new Date(2026, 0, 15, 3, 0, 0);
+  assert.equal(canNudge({ kind: "signal" }, cfg, at3am).allowed, false);
+  assert.equal(canNudge({ kind: "routine:day-open", scheduled: true }, cfg, at3am).allowed, true);
+});
+
+test("only a routine can claim scheduled — the flag defaults off", () => {
+  const g = canNudge({ kind: "agent_message" }, budget());
+  assert.equal(g.scheduled, false);
+});
