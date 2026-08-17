@@ -1,3 +1,28 @@
+import { canNudge, recordNudge, nudgeFeedbackKeyboard } from "#core/nudge/index.js";
+import { CHANNELS } from "#core/constants/channels.js";
+
+/**
+ * Is the person we are about to message the same person who is talking to us
+ * right now?
+ *
+ * PUSH PATH 3 OF 4, and the only one whose solicited-ness is not fixed. When
+ * the turn came in over Telegram and the text is going back to that same chat,
+ * the user is on the other end waiting — that is a reply, not an interruption,
+ * and spending their daily budget on it would be wrong. Every other case (a
+ * routine, a web turn pushing to the phone, a cron) is APX choosing to speak.
+ */
+function isReplyToTheLiveChat(ctx, chatId) {
+  if (ctx?.channel !== CHANNELS.TELEGRAM) return false;
+  // buildTelegramMeta (channels/telegram/helpers.js:59) spells it `chatId`.
+  // Reading `chat_id` here would have silently made every reply look
+  // unsolicited and started charging the user's budget for their own answers.
+  const origin = ctx?.channelMeta?.chatId ?? ctx?.channelMeta?.chat_id;
+  if (!origin) return false;
+  // No chat_id given means "the channel default", which for a Telegram turn is
+  // the chat it arrived on.
+  if (chatId == null || chatId === "") return true;
+  return String(chatId) === String(origin);
+}
 
 function decodeBase64(b64) {
   const clean = String(b64).replace(/^data:[a-z/-]+;base64,/, "");
@@ -76,7 +101,8 @@ export default {
       },
     },
   },
-  makeHandler: ({ plugins, requirePermission }) => async (args = {}) => {
+  makeHandler: (ctx) => async (args = {}) => {
+    const { plugins, requirePermission, globalConfig } = ctx;
     const {
       channel, chat_id, text,
       photo_base64, photo_path, photo_url,
@@ -100,11 +126,37 @@ export default {
       );
     }
 
+    const solicited = isReplyToTheLiveChat(ctx, chat_id);
+    const gate = canNudge(
+      {
+        kind: "agent_message",
+        project_id: ctx?.channelMeta?.projectId ?? null,
+        severity: "normal",
+        unsolicited: !solicited,
+        channel: "telegram",
+      },
+      globalConfig || {},
+    );
+    if (!gate.allowed) {
+      // Returned as a tool result, not thrown: the model should learn that it
+      // is out of budget and stop trying, which a raw error does not convey.
+      return {
+        ok: false,
+        suppressed: true,
+        reason: gate.reason,
+        retry_after_ms: gate.retry_after_ms,
+        hint:
+          "The interruption budget refused this unrequested message. Do not retry now — " +
+          "say it in your reply instead, or wait until the user writes to you.",
+      };
+    }
+
     const photo = decodePhoto({ photo_base64, photo_path, photo_url });
     if (photo) {
       const result = await telegram.sendPhoto({
         channel, chat_id, photo, caption: text, author: "apx",
       });
+      recordNudge(gate, { chat_id, preview: text });
       return { ok: true, kind: "photo", message_id: result.message_id };
     }
 
@@ -113,10 +165,17 @@ export default {
       const result = await telegram.sendDocument({
         channel, chat_id, document, caption: text, filename, mime_type,
       });
+      recordNudge(gate, { chat_id, preview: text });
       return { ok: true, kind: "document", message_id: result.message_id, filename };
     }
 
-    const result = await telegram.send({ channel, chat_id, text });
+    const result = await telegram.send({
+      channel, chat_id, text,
+      // Only unprompted messages carry the feedback keyboard. Asking "was that
+      // useful?" under an answer the user just asked for is noise itself.
+      reply_markup: gate.unsolicited ? nudgeFeedbackKeyboard(gate.nudge_id) : undefined,
+    });
+    recordNudge(gate, { chat_id, preview: text });
     return { ok: true, kind: "text", message_id: result.message_id };
   },
 };

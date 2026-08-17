@@ -6,7 +6,11 @@
 //   POST   /telegram/send_photo   { chat_id?, photo, caption?, parse_mode?, channel? }
 //   POST   /telegram/send_voice   { chat_id?, audio, caption?, duration?, channel? }
 //   POST   /telegram/send_audio   { chat_id?, audio, caption?, title?, performer?, channel? }
-//   POST   /telegram/notify       (alias of /telegram/send; daemon-initiated pushes)
+//   POST   /telegram/notify       { chat_id?, text, channel?, kind?, project_id?,
+//                                   severity?, unsolicited? }
+//                                 Daemon-initiated pushes. Goes through the
+//                                 interruption budget (core/nudge) and answers
+//                                 429 with a retry_after_ms when suppressed.
 //
 //   GET    /telegram/channels                         — list configured channels
 //   POST   /telegram/channels    { name, ... }        — create or replace one channel
@@ -39,6 +43,7 @@ import {
 } from "#core/config/index.js";
 
 import { redactChannel, isSecretMarker } from "#core/config/redact.js";
+import { canNudge, recordNudge, nudgeFeedbackKeyboard } from "#core/nudge/index.js";
 
 export function register(api, { telegram }) {
   api.get("/telegram/status", (_req, res) => {
@@ -299,14 +304,47 @@ export function register(api, { telegram }) {
   });
 
   // Alias for proactive daemon-initiated pushes (routines, error handlers, …).
+  //
+  // PUSH PATH 2 OF 4 — this endpoint exists FOR unrequested messages, so the
+  // interruption budget applies by default. A caller delivering something the
+  // user is waiting for says so with `unsolicited: false`, and that choice is
+  // then visible in its own diff rather than hidden in this handler.
   api.post("/telegram/notify", async (req, res) => {
-    const { chat_id, text, channel } = req.body || {};
+    const { chat_id, text, channel, kind, project_id, severity, unsolicited } = req.body || {};
     if (!text) return res.status(400).json({ error: "text required" });
     if (!telegram)
       return res.status(503).json({ error: "telegram plugin not loaded" });
+
+    const gate = canNudge(
+      {
+        kind: kind || "notify",
+        project_id: project_id ?? null,
+        severity: severity || "normal",
+        unsolicited: unsolicited !== false,
+        channel: "telegram",
+      },
+      readConfig(),
+    );
+    if (!gate.allowed) {
+      // 429, not 500: nothing failed. The caller is being asked to wait, and
+      // told for how long, so a routine can decide to try again rather than
+      // treating a working guardrail as an outage.
+      return res.status(429).json({
+        ok: false,
+        suppressed: true,
+        reason: gate.reason,
+        retry_after_ms: gate.retry_after_ms,
+      });
+    }
+
     try {
-      const r = await telegram.send({ chat_id, text, channel });
-      res.status(202).json({ ok: true, message_id: r.message_id, via: "notify" });
+      const r = await telegram.send({
+        chat_id, text, channel,
+        reply_markup: gate.unsolicited ? nudgeFeedbackKeyboard(gate.nudge_id) : undefined,
+        meta: { nudge_id: gate.unsolicited ? gate.nudge_id : undefined, nudge_kind: gate.kind },
+      });
+      recordNudge(gate, { chat_id, preview: text });
+      res.status(202).json({ ok: true, message_id: r.message_id, via: "notify", nudge_id: gate.nudge_id });
     } catch (e) {
       res.status(502).json({ error: e.message });
     }

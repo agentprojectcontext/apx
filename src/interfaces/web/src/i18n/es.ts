@@ -207,6 +207,7 @@ export const es = {
       engines: "Engines & modelos",
       telegram: "Telegram",
       devices: "Dispositivos",
+      nudge: "Interrupciones",
       advanced: "Avanzado",
     },
 
@@ -244,6 +245,34 @@ export const es = {
       no_settings: "Este perfil no tiene nada configurable.",
       settings_locked: "Activá el perfil para poder cambiar su configuración.",
       doctor_vanilla: "Sin perfil activo. APX se comporta como siempre.",
+    },
+
+    nudge: {
+      title: "Presupuesto de interrupciones",
+      subtitle:
+        "Cada cuánto puede escribirte APX sin que se lo pidas. Las respuestas a tus propios mensajes nunca se retienen.",
+      off_hint:
+        "El presupuesto está apagado: sale todo mensaje no solicitado. Igual queda registrado acá abajo.",
+      on_hint: "{{sent}} enviados hoy, quedan {{left}}.",
+      source: "Definido por",
+      enabled: "Aplicar el presupuesto",
+      daily_max: "Mensajes por día",
+      daily_max_hint: "0 significa sin techo.",
+      quiet_hours: "Horas de silencio",
+      quiet_hours_hint: "HH:MM-HH:MM. Cruza la medianoche sin problema. Vacío = ninguna.",
+      cooldown: "Espacio mínimo (minutos)",
+      project_cooldown: "Espacio mínimo por proyecto (minutos)",
+      kind_cooldown: "Espacio mínimo por tipo (minutos)",
+      critical_bypass: "Lo crítico puede saltarse el presupuesto",
+      critical_bypass_hint: "Los saltos quedan siempre registrados y marcados.",
+      log_title: "Lo que mandó",
+      log_subtitle: "Sólo mensajes no solicitados, del más nuevo al más viejo. Lo que marques alimenta lo que manda después.",
+      log_empty: "Todavía no mandó nada sin que se lo pidieras.",
+      useful: "Me sirvió",
+      noise: "No me servía",
+      bypass: "se salteó el presupuesto",
+      saved: "Presupuesto actualizado",
+      unrated: "sin calificar",
     },
 
     identity: {
