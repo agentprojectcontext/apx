@@ -5,7 +5,7 @@ import {
 } from "./tools/tool-call-parser.js";
 import { resolveActiveModel, fallbackModels } from "./model-router.js";
 import { MAX_TOOL_ITERS, ACK_ONLY_TOOLS, MAX_CONSECUTIVE_ACKS, TURN_ENDING_TOOLS } from "./constants.js";
-import { TOOLS, SIDE_EFFECT_TOOLS } from "./tools/names.js";
+import { TOOLS } from "./tools/names.js";
 import { pseudoToolSystem, shouldRetryWithPseudoTools } from "./tools/pseudo-tools.js";
 import { filterToolSchemas } from "./tools-overlap.js";
 import { isRetryableEngineError, shortRetryReason } from "./retry.js";
@@ -22,6 +22,8 @@ import {
   createStuckDetector,
   stuckNudgeSignal,
 } from "./stuck-detector.js";
+import { createGreetingGuard } from "./loop/greeting-guard.js";
+import { createSideEffectLedger } from "./loop/side-effects.js";
 
 async function emitProgress(onEvent, event) {
   if (typeof onEvent !== "function") return;
@@ -45,19 +47,6 @@ function fallbackFinalText(trace, error) {
     lines.push(`- ${item.tool}: ${previewTraceResult(item.result)}`);
   }
   return lines.join("\n");
-}
-
-// A leading greeting clause: "¡Hola Manu!", "Hola,", "Hi there!", "Buenas tardes…".
-// Intentionally narrow — only the opening salutation up to its first terminator —
-// so we never eat real content.
-const LEADING_GREETING_RE =
-  /^\s*[¡!]*\s*(hola+|holis?|buenas|buen[oa]s?\s+(d[ií]as|tardes|noches)|hey|hi|hello)\b[^.!?¡\n]*[.!?¡]*[\s,]*/i;
-
-/** If `text` opens with a greeting, return it with that greeting removed; else null. */
-function stripLeadingGreeting(text) {
-  const m = String(text).match(LEADING_GREETING_RE);
-  if (!m) return null;
-  return String(text).slice(m[0].length).replace(/^\s+/, "");
 }
 
 function previewTraceResult(result) {
@@ -283,16 +272,8 @@ export async function runAgent({
   // each one, so the user sees "¡Hola Manu!" twice. Keep the first greeting,
   // strip any later one. Belt-and-suspenders over the action-discipline prompt
   // rule (which strong models follow but gemini-flash et al. often ignore).
-  let greetedThisTurn = false;
-  const dedupeGreeting = (text) => {
-    if (!text) return text;
-    if (greetedThisTurn) {
-      const stripped = stripLeadingGreeting(text);
-      return stripped == null ? text : stripped;
-    }
-    if (LEADING_GREETING_RE.test(text)) greetedThisTurn = true;
-    return text;
-  };
+  const greetingGuard = createGreetingGuard();
+  const dedupeGreeting = (text) => greetingGuard.apply(text);
   let usePseudoTools = false;
   let ackOnlyStreak = 0;
   // "Never end on silence": a model call that returns no tool calls AND no
@@ -308,14 +289,7 @@ export async function runAgent({
   // short-circuit duplicates with a synthetic "already done" result
   // instead of re-running. Read-only tools are exempt (idempotent and
   // sometimes legitimately repeated, like list_tasks before/after).
-  const sideEffectExecuted = new Map();
-  const sideEffectSignature = (name, args) => {
-    try {
-      return `${name}:${JSON.stringify(args)}`;
-    } catch {
-      return `${name}:<unserializable>`;
-    }
-  };
+  const sideEffects = createSideEffectLedger();
 
   // Stuck detection: catches the loops the side-effect dedupe can't — a
   // read-only call repeated with identical results, or the same call erroring
@@ -508,13 +482,13 @@ export async function runAgent({
         iteration: iter + 1,
       });
       // Dedupe identical side-effecting calls within this turn.
-      const sig = SIDE_EFFECT_TOOLS.has(name) ? sideEffectSignature(name, args) : null;
-      if (sig && sideEffectExecuted.has(sig)) {
+      const sig = sideEffects.signature(name, args);
+      if (sideEffects.seen(sig)) {
         toolResult = {
           ok: true,
           deduped: true,
           note: `Ya ejecuté "${name}" con estos mismos argumentos en este turno; no lo repito.`,
-          previous: sideEffectExecuted.get(sig),
+          previous: sideEffects.previous(sig),
         };
         await emitProgress(onEvent, {
           type: "tool_deduped",
@@ -561,7 +535,7 @@ export async function runAgent({
             if (toolHandlerCtx) toolHandlerCtx.securityGateCleared = false;
           }
         }
-        if (sig) sideEffectExecuted.set(sig, summarizeForTrace(toolResult));
+        sideEffects.record(sig, summarizeForTrace(toolResult));
       }
 
       const traceItem = {
