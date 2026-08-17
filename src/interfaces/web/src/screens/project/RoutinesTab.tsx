@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 import { Routines, type RoutineEntry } from "../../lib/api";
 import { Button, Dialog, Empty, Loading } from "../../components/ui";
 import { useToast } from "../../components/Toast";
+import { Section } from "../../components/Section";
 import { t } from "../../i18n";
 import { RoutineList } from "../../components/routines/RoutineList";
 import { RoutineDetail } from "../../components/routines/RoutineDetail";
@@ -75,23 +76,24 @@ export function RoutinesTab({ pid }: { pid: string }) {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3">
-      {/* header (title + new) */}
-      <div className="flex shrink-0 items-start justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-semibold tracking-tight">{t("project.routines.title")}</h2>
-          <p className="mt-0.5 text-sm text-muted-fg">{t("project.routines.subtitle")}</p>
-        </div>
+    // Same frame as every other list page. This one used to draw its own
+    // header outside a card while Tasks and Commitments sat inside one, so
+    // moving between them the whole page shifted.
+    <Section
+      fullHeight
+      title={t("project.routines.title")}
+      description={t("project.routines.subtitle")}
+      action={
         <Button size="sm" variant="primary" onClick={() => setEditing({ kind: "super_agent", schedule: "every:10m", enabled: true })}>
           <Plus size={14} /> {t("project.routines.new_btn")}
         </Button>
-      </div>
-
+      }
+    >
       {list.isLoading && <Loading />}
       {!list.isLoading && rows.length === 0 && <Empty>{t("project.routines.empty")}</Empty>}
 
       {rows.length > 0 && (
-        <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] grid-cols-[minmax(200px,260px)_1fr] overflow-hidden rounded-xl border border-border bg-card/40">
+        <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] grid-cols-[minmax(200px,260px)_1fr] overflow-hidden rounded-lg border border-border">
           <RoutineList routines={rows} selectedName={selected?.name ?? null} onSelect={selectRoutine} />
           <div className="min-h-0 min-w-0 overflow-hidden">
             {selected
@@ -148,6 +150,6 @@ export function RoutinesTab({ pid }: { pid: string }) {
       >
         <p className="text-sm text-muted-fg">{t("project.routines.run_confirm_body")}</p>
       </Dialog>
-    </div>
+    </Section>
   );
 }

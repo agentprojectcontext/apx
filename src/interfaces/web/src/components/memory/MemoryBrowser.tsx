@@ -1,34 +1,43 @@
 import { useMemo, useState } from "react";
 import useSWR from "swr";
-import { Brain, Bot, Crown, RefreshCw } from "lucide-react";
+import { Brain, Bot, Crown, NotebookPen, RefreshCw } from "lucide-react";
 import { Agents, Projects } from "../../lib/api";
+import { Notebook } from "../../lib/api/notebook";
 import type { AgentEntry, FileContent } from "../../types/daemon";
 import { cn } from "../../lib/cn";
 import { Spinner, Empty } from "../ui";
 import { useToast } from "../Toast";
 import { t } from "../../i18n";
+import { usePersonaName } from "../../hooks/usePersonaName";
 import { FileViewer } from "../files/FileViewer";
 
 // Which memory is open in the right pane.
-type Sel = { kind: "project" } | { kind: "agent"; slug: string };
+type Sel = { kind: "notebook" } | { kind: "project" } | { kind: "agent"; slug: string };
 
 function selId(s: Sel): string {
+  if (s.kind === "notebook") return "notebook";
   return s.kind === "project" ? "project" : `agent:${s.slug}`;
 }
 
 // On-disk-ish path shown in the viewer header (mirrors the real memory.md
 // locations so it reads familiarly, like the docs surface).
 function selPath(s: Sel): string {
+  // The notebook is NOT under the project — it is global to the super-agent.
+  // Showing its real absolute-ish path is the whole point: the confusion this
+  // entry fixes was not knowing where it lived.
+  if (s.kind === "notebook") return "~/.apx/memory.md";
   return s.kind === "project" ? ".apc/memory.md" : `agents/${s.slug}/memory.md`;
 }
 
 function loadBody(pid: string, s: Sel): Promise<string> {
+  if (s.kind === "notebook") return Notebook.get().then((r) => r.body);
   return s.kind === "project"
     ? Projects.memory.get(pid).then((r) => r.body)
     : Agents.memory.get(pid, s.slug).then((r) => r.body);
 }
 
 function saveBody(pid: string, s: Sel, body: string): Promise<void> {
+  if (s.kind === "notebook") return Notebook.put(body).then(() => {});
   return s.kind === "project"
     ? Projects.memory.put(pid, body).then(() => {})
     : Agents.memory.put(pid, s.slug, body).then(() => {});
@@ -65,7 +74,12 @@ function SidebarItem({
 // right for markdown edit / split-preview / save — the same surface as /docs.
 export function MemoryBrowser({ pid }: { pid: string }) {
   const toast = useToast();
-  const [sel, setSel] = useState<Sel>({ kind: "project" });
+  // Opens on the notebook. It is the memory that ships in every prompt on
+  // every channel, so it is the one most worth seeing first.
+  const [sel, setSel] = useState<Sel>({ kind: "notebook" });
+  const notebook = useSWR("/api/notebook", () => Notebook.get());
+  // Never hardcode the agent's name (AGENTS.md rule 13) — it is the user's to set.
+  const persona = usePersonaName();
 
   const agents = useSWR(`/api/projects/${pid}/agents`, () => Agents.list(pid));
 
@@ -115,8 +129,24 @@ export function MemoryBrowser({ pid }: { pid: string }) {
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
-          {/* General / project memory */}
+          {/* The super-agent's own notebook. First, and in its own group,
+              because it is global — not a property of this project — and its
+              absence from this list is what made "where is Roby's memory?" an
+              unanswerable question. */}
           <p className="px-1.5 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/60">
+            {t("project.memories.super_agent_group")}
+          </p>
+          <SidebarItem
+            active={sel.kind === "notebook"}
+            onClick={() => setSel({ kind: "notebook" })}
+            icon={NotebookPen}
+            iconClass="text-emerald-400"
+            label={t("project.memories.notebook_item", { persona })}
+            sub={notebook.data ? t("project.memories.tokens", { n: notebook.data.approx_tokens }) : undefined}
+          />
+
+          {/* General / project memory */}
+          <p className="px-1.5 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/60">
             {t("project.memories.general_group")}
           </p>
           <SidebarItem

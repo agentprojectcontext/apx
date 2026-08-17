@@ -4,7 +4,17 @@ import { cn } from "../lib/cn";
 interface SectionProps {
   title: string;
   description?: string;
+  /** Primary action for the page. Sits with the title, top-right. */
   action?: ReactNode;
+  /**
+   * Filters, tabs, segment controls — anything that narrows what is shown.
+   *
+   * Its own row BELOW the header, never in `action`. Mixing them put a
+   * destructive-looking "Add" next to four state chips and made the primary
+   * action just another button in a strip. See the page-layout rule in
+   * AGENTS.md.
+   */
+  filters?: ReactNode;
   className?: string;
   children: ReactNode;
   // Fill the available height and let the body manage its own scroll instead of
@@ -14,7 +24,7 @@ interface SectionProps {
   fullHeight?: boolean;
 }
 
-export function Section({ title, description, action, className, children, fullHeight }: SectionProps) {
+export function Section({ title, description, action, filters, className, children, fullHeight }: SectionProps) {
   return (
     <section
       className={cn(
@@ -23,14 +33,19 @@ export function Section({ title, description, action, className, children, fullH
         className
       )}
     >
-      <header className={cn("mb-4 flex items-start justify-between gap-4", fullHeight && "shrink-0")}>
+      <header className={cn("flex items-start justify-between gap-4", fullHeight && "shrink-0")}>
         <div>
           <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
           {description && <p className="mt-0.5 text-sm text-muted-fg">{description}</p>}
         </div>
         {action}
       </header>
-      <div className={cn(fullHeight && "flex min-h-0 flex-1 flex-col")}>{children}</div>
+      {filters ? (
+        <div className={cn("mt-3 flex flex-wrap items-center gap-1.5", fullHeight && "shrink-0")}>
+          {filters}
+        </div>
+      ) : null}
+      <div className={cn("mt-4", fullHeight && "flex min-h-0 flex-1 flex-col")}>{children}</div>
     </section>
   );
 }

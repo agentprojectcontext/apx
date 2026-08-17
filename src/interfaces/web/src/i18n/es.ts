@@ -896,6 +896,12 @@ export const es = {
     },
 
     memories: {
+
+      super_agent_group: "Super-agente",
+
+      notebook_item: "Libreta de {persona}",
+
+      tokens: "~{n} tok",
       sidebar_title:   "Memorias",
       general_group:   "General",
       general_item:    "Memoria del proyecto",

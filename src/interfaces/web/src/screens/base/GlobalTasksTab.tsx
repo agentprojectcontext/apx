@@ -5,7 +5,7 @@ import { Tasks } from "../../lib/api";
 import type { TaskStatus } from "../../types/daemon";
 import { Section } from "../../components/Section";
 import { PagedList, usePagedQuery } from "../../components/Pager";
-import { Badge, Button, Dialog, Empty, Field, Input, Loading } from "../../components/ui";
+import { Badge, Button, Dialog, Empty, Field, FilterChips, Input, Loading } from "../../components/ui";
 import { UiSelect } from "../../components/UiSelect";
 import { useProjects } from "../../hooks/useProjects";
 import { useToast } from "../../components/Toast";
@@ -57,34 +57,41 @@ export function GlobalTasksTab() {
       title={t("project.global_tasks.title")}
       description={t("project.global_tasks.subtitle")}
       action={
-        <div className="flex items-center gap-1">
-          {(["open", "done", "dropped", "all"] as const).map((s) => (
-            <Button key={s} size="sm" variant={state === s ? "primary" : "ghost"} onClick={() => setState(s)}>{s}</Button>
-          ))}
-          <Button
-            size="sm"
-            variant="primary"
-            className="ml-2"
-            onClick={() => { setTarget(String(projects[0]?.id ?? "")); setAdding(true); }}
-          >
-            <Plus size={14} /> {t("project.global_tasks.add")}
-          </Button>
-        </div>
+        <Button
+          size="sm"
+          variant="primary"
+          onClick={() => { setTarget(String(projects[0]?.id ?? "")); setAdding(true); }}
+        >
+          <Plus size={14} /> {t("project.global_tasks.add")}
+        </Button>
+      }
+      filters={
+        <>
+          <FilterChips
+            value={state}
+            onChange={setState}
+            label={t("project.global_tasks.title")}
+            options={(["open", "done", "dropped", "all"] as const).map((s) => ({ value: s, label: s }))}
+          />
+          {state === "open" ? (
+            <>
+              <span className="mx-1 h-4 w-px bg-border" aria-hidden />
+              <FilterChips
+                value={status}
+                onChange={setStatus}
+                label={t("project.global_tasks.any_status")}
+                options={[
+                  { value: "" as const, label: t("project.global_tasks.any_status") },
+                  ...(["pending", "running", "in_review", "blocked"] as const).map((s) => ({
+                    value: s, label: s.replace("_", " "),
+                  })),
+                ]}
+              />
+            </>
+          ) : null}
+        </>
       }
     >
-      {state === "open" ? (
-        <div className="mb-3 flex flex-wrap gap-1">
-          <Button size="sm" variant={status === "" ? "primary" : "ghost"} onClick={() => setStatus("")}>
-            {t("project.global_tasks.any_status")}
-          </Button>
-          {(["pending", "running", "in_review", "blocked"] as const).map((s) => (
-            <Button key={s} size="sm" variant={status === s ? "primary" : "ghost"} onClick={() => setStatus(s)}>
-              {s.replace("_", " ")}
-            </Button>
-          ))}
-        </div>
-      ) : null}
-
       {paged.isLoading && <Loading />}
       {!paged.isLoading && paged.total === 0 && <Empty>{t("project.global_tasks.empty")}</Empty>}
       <PagedList paged={paged} fullHeight>

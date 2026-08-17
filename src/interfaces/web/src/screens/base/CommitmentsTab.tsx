@@ -4,7 +4,7 @@ import { Plus } from "lucide-react";
 import { Commitments, type CommitmentState } from "../../lib/api/commitments";
 import { Section } from "../../components/Section";
 import { PagedList, usePagedQuery } from "../../components/Pager";
-import { Badge, Button, Dialog, Empty, Field, Input, Loading } from "../../components/ui";
+import { Badge, Button, Dialog, Empty, Field, FilterChips, Input, Loading } from "../../components/ui";
 import { UiSelect } from "../../components/UiSelect";
 import { useProjects } from "../../hooks/useProjects";
 import { useToast } from "../../components/Toast";
@@ -94,28 +94,30 @@ export function CommitmentsTab({ pid }: { pid?: string }) {
       title={t("project.commitments.title")}
       description={t("project.commitments.subtitle")}
       action={
-        <div className="flex items-center gap-1">
-          {(["open", "kept", "missed", "all"] as const).map((s) => (
-            <Button key={s} size="sm" variant={state === s ? "primary" : "ghost"} onClick={() => setState(s)}>
-              {t(`project.commitments.state.${s}`)}
-            </Button>
-          ))}
-          <Button size="sm" variant="primary" className="ml-2" onClick={() => setAdding(true)}>
-            <Plus size={14} /> {t("project.commitments.add")}
+        <Button size="sm" variant="primary" onClick={() => setAdding(true)}>
+          <Plus size={14} /> {t("project.commitments.add")}
+        </Button>
+      }
+      filters={
+        <>
+          <FilterChips
+            value={state}
+            onChange={setState}
+            label={t("project.commitments.title")}
+            options={(["open", "kept", "missed", "all"] as const).map((s) => ({
+              value: s, label: t(`project.commitments.state.${s}`),
+            }))}
+          />
+          <Button
+            size="sm"
+            variant={overdueOnly ? "primary" : "ghost"}
+            onClick={() => setOverdueOnly((v) => !v)}
+          >
+            {t("project.commitments.overdue_only")}
           </Button>
-        </div>
+        </>
       }
     >
-      <div className="mb-3">
-        <Button
-          size="sm"
-          variant={overdueOnly ? "primary" : "ghost"}
-          onClick={() => setOverdueOnly((v) => !v)}
-        >
-          {t("project.commitments.overdue_only")}
-        </Button>
-      </div>
-
       {paged.isLoading && <Loading />}
       {!paged.isLoading && paged.total === 0 && <Empty>{t("project.commitments.empty")}</Empty>}
 
