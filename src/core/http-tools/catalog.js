@@ -13,6 +13,11 @@
 // orientation, JSON has no comments, and Object.freeze costs nothing here.
 
 export const TOOL_DEFINITIONS = Object.freeze([
+  // NOTE: there is no `search_files` here. It pointed at GET /api/files/search,
+  // a route that has never existed, so the HTTP surface advertised a tool that
+  // always 404'd. Search by name with `glob`, by content with `grep` — both
+  // have real routes. The agent keeps its own native search_files handler
+  // (core/agent/tools/handlers/search-files.js), which is unaffected.
   // ── file ──────────────────────────────────────────────────────────────────
   {
     name: "read_file",
@@ -58,21 +63,6 @@ export const TOOL_DEFINITIONS = Object.freeze([
       },
     },
     examples: [{ path: "src" }],
-  },
-  {
-    name: "search_files",
-    category: "file",
-    description: "Search for files by name glob or content pattern in the project.",
-    endpoint: { method: "GET", path: "/api/files/search" },
-    parameters: {
-      type: "object",
-      properties: {
-        q: { type: "string", description: "Search query (filename or content)" },
-        project: { type: "string" },
-      },
-      required: ["q"],
-    },
-    examples: [{ q: "*.config.js" }],
   },
 
   // ── shell ─────────────────────────────────────────────────────────────────
