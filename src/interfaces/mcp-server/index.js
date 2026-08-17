@@ -19,7 +19,10 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { findApfRoot } from "#core/apc/parser.js";
-import { ensureDaemon, http } from "../../cli/http.js";
+// Was "../../cli/http.js", which resolves to src/cli/http.js — a path that
+// does not exist, so this binary could not load at all. Use the alias
+// (AGENTS.md rule 7) so the same mistake cannot recur silently.
+import { ensureDaemon, http } from "#interfaces/cli/http.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
