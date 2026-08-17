@@ -2,7 +2,7 @@
 // scheduler, CLI `apx routine run`, HTTP `/api/projects/:pid/routines/:name/run`,
 // MCP server, future scripts). The runner orchestrates a 3-phase pipeline:
 //   1. pre_commands  (shell)
-//   2. handler       (heartbeat / exec_agent / super_agent / telegram / shell)
+//   2. handler       (heartbeat / exec_agent / super_agent / telegram / shell / watch)
 //   3. post_commands (shell)
 //
 // `runRoutineNow(ctx, routine)` is the single entry point. Pass a ctx with at
@@ -16,6 +16,7 @@ import path from "node:path";
 import { callEngine } from "#core/engines/index.js";
 import { runSuperAgent } from "#core/agent/super-agent.js";
 import { computeSuppressedTools } from "#core/agent/index.js";
+import { summarizeToolTrace } from "#core/agent/tool-summary.js";
 import { readAgents } from "#core/apc/parser.js";
 import { buildAgentSystem } from "#core/agent/build-agent-system.js";
 import { resolveAgentName, SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
@@ -26,6 +27,8 @@ import {
   routineMemoryPath,
 } from "#core/stores/routine-memory.js";
 import { CHANNELS } from "#core/constants/channels.js";
+import { detectSignals, formatSignals, peakSeverity, thresholdsFromConfig } from "#core/routines/signals.js";
+import { readActiveProfile, effectiveProfileConfig } from "#core/profiles/store.js";
 import {
   updateRunState,
   parseSchedule,
@@ -87,7 +90,7 @@ async function handleExecAgent(ctx, routine) {
   return { status: "ok", reply: result.text };
 }
 
-async function handleSuperAgent(ctx, routine) {
+async function handleSuperAgent(ctx, routine, extraChannelMeta = {}) {
   const { project, globalConfig, projects, plugins, registries } = ctx;
   const { prompt } = routine.spec;
   if (!prompt) throw new Error("super_agent: spec needs { prompt }");
@@ -133,6 +136,11 @@ async function handleSuperAgent(ctx, routine) {
         } catch { return ""; }
       })(),
       projectPath: project.path,
+      // An ANCHOR is a message the user put on the clock themselves. The
+      // interruption budget exempts it from the daily ceiling — the profile
+      // schema calls that number "the ceiling outside the anchors".
+      ...(routine.spec?.anchor === true ? { scheduledByUser: true } : {}),
+      ...extraChannelMeta,
     },
     suppressTools: suppressTools.length > 0 ? suppressTools : null,
   });
@@ -145,7 +153,13 @@ async function handleSuperAgent(ctx, routine) {
     actor_kind: "superagent",
     author: result.name || resolveAgentName(globalConfig),
     body: result.text || "",
-    meta: { routine: routine.name, tool_trace: result.trace, usage: result.usage },
+    meta: {
+      routine: routine.name,
+      tool_trace: result.trace,
+      // Compact form too: the viewer renders this without parsing the trace.
+      ...(summarizeToolTrace(result.trace) ? { tool_summary: summarizeToolTrace(result.trace) } : {}),
+      usage: result.usage,
+    },
   });
   return { status: "ok", reply: result.text, trace: result.trace };
 }
@@ -186,12 +200,97 @@ function handleShell(ctx, routine) {
   });
 }
 
+/**
+ * watch — deterministic detection first, model second.
+ *
+ * THE WHOLE POINT: when nothing is happening this returns before any model is
+ * touched. That is what makes it affordable to run every few minutes, and it
+ * is the difference between a watcher and a cron job with a language model
+ * bolted on. `tests/signals.test.js` asserts the no-signal path never reaches
+ * runSuperAgent, because this property is invisible until the bill arrives.
+ *
+ * spec: { prompt, types?, thresholds?, projects? }
+ */
+async function handleWatch(ctx, routine) {
+  const { projects, globalConfig } = ctx;
+  const { prompt, types, thresholds } = routine.spec || {};
+  if (!prompt) throw new Error("watch: spec needs { prompt } for the judgement step");
+
+  // Thresholds come from the active profile — "stale after 7 days" is a
+  // judgement about how someone works, not a constant — with the routine able
+  // to override for its own narrower purpose.
+  let profileConfig = {};
+  try {
+    const active = readActiveProfile(globalConfig);
+    if (active) profileConfig = effectiveProfileConfig(active, globalConfig) || {};
+  } catch { /* a broken profile must not take the watcher down */ }
+
+  const entries = [];
+  for (const entry of projects?.list?.() || []) {
+    const p = projects.get(entry.id);
+    if (!p?.storagePath) continue;
+    entries.push({
+      id: entry.id,
+      name: entry.name || entry.path,
+      path: entry.path,
+      storagePath: p.storagePath,
+    });
+  }
+
+  const { signals, skipped } = detectSignals(entries, {
+    ...thresholdsFromConfig(profileConfig),
+    ...(thresholds && typeof thresholds === "object" ? thresholds : {}),
+    types: Array.isArray(types) ? types : [],
+  });
+
+  if (!signals.length) {
+    // Terminates here. No model, no tokens, nothing sent.
+    return {
+      status: "ok",
+      signals: 0,
+      note: "no signals — did not invoke the model",
+      ...(skipped.length ? { skipped } : {}),
+    };
+  }
+
+  const enriched = {
+    ...routine,
+    spec: {
+      ...routine.spec,
+      prompt:
+        `${prompt}\n\n` +
+        `Signals detected (${signals.length}), highest severity ${peakSeverity(signals)}:\n` +
+        `${formatSignals(signals)}\n\n` +
+        "These were found deterministically — they are facts, not guesses. Your job is " +
+        "judgement: decide whether any of it is worth interrupting for right now, and if " +
+        "so say the one thing that matters. Staying quiet is a valid outcome.",
+    },
+  };
+
+  // Severity travels with the run so the interruption budget can be told how
+  // bad this is by a DETECTOR rather than by the model's own opinion of its
+  // news. A model that can grade its own message as critical has a shouting
+  // backdoor; a deterministic overdue commitment does not.
+  const result = await handleSuperAgent(ctx, enriched, {
+    signalSeverity: peakSeverity(signals),
+    signalCount: signals.length,
+  });
+  return {
+    ...result,
+    signals: signals.length,
+    peak_severity: peakSeverity(signals),
+    signal_types: [...new Set(signals.map((s) => s.type))],
+    ...(skipped.length ? { skipped } : {}),
+  };
+}
+
 const HANDLERS = {
   heartbeat: handleHeartbeat,
   exec_agent: handleExecAgent,
   super_agent: handleSuperAgent,
   telegram: handleTelegram,
   shell: handleShell,
+  watch: handleWatch,
 };
 
 // --------------------- pipeline: pre/post shell commands --------------------

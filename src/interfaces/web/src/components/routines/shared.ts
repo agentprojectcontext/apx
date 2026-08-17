@@ -1,6 +1,6 @@
 // Shared helpers for the Routines screen + its components.
 // Kept framework-free (pure functions + i18n) so list/detail/editor reuse them.
-import { Bot, Crown, Heart, Send, Terminal } from "lucide-react";
+import { Bot, Crown, Eye, Heart, Send, Terminal } from "lucide-react";
 import type { RoutineEntry } from "../../lib/api";
 import { t } from "../../i18n";
 
@@ -17,6 +17,7 @@ export function kindMeta(): Record<Kind, { label: string; desc: string; icon: ty
     super_agent: { label: t("agents_ui.kind_super_agent"), desc: t("agents_ui.kind_super_agent_desc"), icon: Crown },
     telegram:    { label: t("agents_ui.kind_telegram"),    desc: t("agents_ui.kind_telegram_desc"), icon: Send },
     shell:       { label: t("agents_ui.kind_shell"),       desc: t("agents_ui.kind_shell_desc"), icon: Terminal },
+    watch:       { label: t("agents_ui.kind_watch"),       desc: t("agents_ui.kind_watch_desc"), icon: Eye },
     heartbeat:   { label: t("agents_ui.kind_heartbeat"),   desc: t("agents_ui.kind_heartbeat_desc"), icon: Heart },
   };
 }

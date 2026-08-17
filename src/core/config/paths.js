@@ -55,6 +55,9 @@ export const SKILLS_INDEX_PATH = path.join(SKILLS_DIR, ".index.json");
 /** Agent vault — reusable agent definitions, not tied to one project. */
 export const AGENT_VAULT_DIR = path.join(APX_HOME, "agents");
 
+/** Ledger of unrequested outbound messages and the user's feedback on them. */
+export const NUDGES_PATH = path.join(APX_HOME, "nudges.json");
+
 /** Unified log tree. Everything writes here so one tail follows the system. */
 export const LOG_DIR = path.join(APX_HOME, "logs");
 export const APX_LOG_PATH = path.join(LOG_DIR, "apx.log");

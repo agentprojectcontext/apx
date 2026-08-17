@@ -3,7 +3,7 @@
 > Written so a fresh session can continue without reading the originating chat.
 > Keep it current: update it at the end of every phase, not at the end of the work.
 
-**Last updated:** 2026-08-16 · **Branch:** `feat/agent-inbox` (PR #41 open, NOT merged) · **Base:** `main` @ 1.75.0
+**Last updated:** 2026-08-17 · **Branch:** `feat/secretary-phases-5-9` (not merged) · **Base:** `main` @ 1.78.0
 
 ---
 
@@ -83,6 +83,32 @@ in the daemon route rather than core (so the CLI could not reuse it), and the su
 It also missed that **`apx task list` was broken outright**: the endpoints answer a
 `{meta, data}` envelope and the CLI still treated it as an array, so it printed "(no tasks)"
 regardless. Only live verification found it.
+
+## 🔴 Open right now — read this first
+
+**1. The model chain degrades to something unusable, many times a day.** From `~/.apx/daemon.log`:
+46 `engine_failed` events — 9 × `gemini 429` (quota exhausted, a billing matter), then 17 ×
+`groq 413` (**request too large**: 17k tokens against a 12,000 TPM limit), landing 22 times
+on `openrouter:openrouter/free`, which answers with raw chain-of-thought.
+
+Telegram turns measured: **average 40,650 input tokens, peak 66,440.** The first fallback
+cannot serve any of them. The Secretary profile is ~600 of that — not the cause, but not
+helping either. The leak is now suppressed in code, but the chain still needs the owner's
+decision: fix Gemini billing, or put a fallback in that can take a 40k prompt, or shrink
+what goes into a turn.
+
+**2. ~~`POST /pair/init` is broken~~ — RETRACTED. It works.** `POST /api/pair/init` answers
+correctly, with the 5-minute TTL. This branch's refactor moved every data route under
+`/api`; calling the bare `/pair/init` falls through to the SPA, which is why it looked
+unauthorized. My test was wrong, not the product. Recorded because the retraction matters
+more than the original claim.
+
+**3. `tests/smoke/seam.smoke.js` needs adapting and is NOT in CI.** Same root cause: written
+against the pre-refactor layout. The `/api` prefix is applied, but five tests still fail
+against a freshly-booted daemon while the identical calls succeed by hand and against a
+hand-rolled fresh daemon. Unresolved. It must not go into CI until those five pass — a suite
+that fails for its own reasons trains people to ignore it, which is worse than not having
+one.
 
 ## 🔴 Live finding the owner must decide on
 
@@ -185,8 +211,28 @@ Every one was found by running against the live daemon, not by unit tests.
 
 ## What to do next
 
-Everything the owner queued is built and on PR #41, which is **deliberately unmerged** —
-they asked to review and merge it themselves at the end.
+### Done since
+- Phases 0-4, plus C2 (Phase 3), all merged to main.
+- Reasoning-leak guard (`stripReasoning`) — merged on this branch, not on main.
+- Pairing double-confirm fix — **merged to main as PR #44**, and NOT present on the
+  `repair-and-refactoring-code` branch. Pull main in or it will not take effect.
+
+### NOT built — the whole remaining backlog
+
+The owner asked for phases 5-9 plus the two inbox items in one round. That did not fit, and
+splitting attention across five phases would have produced five half-features. What exists
+is the plan below, unstarted:
+
+| Phase | What | Note |
+|---|---|---|
+| 5 | Commitments as a first-class store | `02-SPEC § C3` — separate store, NOT a tag on tasks |
+| 6 | Interruption budget | `§ C5` — **before 7, non-negotiable.** Gate goes in the four push callers, never in `_send` |
+| 7 | Signals + `watch` routine kind | `§ C4` — deterministic detection, LLM only when a signal fires |
+| 8 | Calendar | `§ C6` — MCP first, native adapter later |
+| 9 | Daemon service + memory consolidation | `§ C7`, `§ C8` |
+| — | Inbox: tool summary from `tool_trace` | data is on disk, rendering only |
+| — | Inbox: routine-created chip | |
+| — | Inbox: split view (list + live chat) | The owner is right that it should embed `/p/0/chat`, not navigate away |
 
 Still not built, both explicitly wanted:
 
@@ -216,6 +262,94 @@ Things learned in C2 that apply directly to the inbox:
   view; return what was skipped so the surface can say so.
 - **Measure before caching.** 24,000 tasks across 10 projects folds in 22ms, so C2 has no
   cache. The inbox should measure the same way before adding one.
+
+---
+
+# ROUND 3 — Phases 5–9 and both inbox items are DONE
+
+Branch `feat/secretary-phases-5-9`, unmerged. Preflight green at 978 tests; the
+coverage ratchet moved from 72/71/64 to 73/71/66.
+
+| Phase | What landed | Commit |
+|---|---|---|
+| 6 · C5 | Interruption budget — `src/core/nudge/` | `a687225` |
+| 5 · C3 | Commitments — `src/core/stores/commitments.js` | `c5aa944` |
+| 7 · C4 | Signals + `watch` kind — `src/core/routines/signals.js` | `9d2d291` |
+| — | Tool summary + routine-created chip | `2852e06` |
+| 8 · C6 | Calendar via MCP (docs, EN+ES) | `ea51f07` |
+| 9 · C7+C8 | Daemon service + memory consolidation | `bd9b9f1` |
+| — | Two CLI seam bugs found by live testing | `832df9d` |
+
+## Decisions worth not re-litigating
+
+**The budget is OFF in vanilla and ON with a profile.** Core defaults are
+permissive and `enabled: false`, so an existing install delivers exactly what it
+delivered before. A profile that declares `nudge_budget_per_day` or
+`quiet_hours` switches enforcement on; an explicit `config.nudge` beats both.
+Turning a ceiling on by default would have silently muted push paths people
+already rely on.
+
+**The gate is at the four call sites, never in `_send`.** `_send` also carries
+replies, and a budget that can swallow an answer reads as a hung bot. Three
+tests hold this: all four import it, the plugin does NOT, and a walk of `src/`
+fails if a fifth path calls `telegram.send` without passing through.
+
+**Severity comes from a detector, never from the model.** Watch routines put
+their peak signal severity in `channelMeta.signalSeverity`, which
+`send_telegram` reads. A model that can grade its own message critical has a
+switch marked "ignore the budget", and it would find it.
+
+**`renegotiate` reopens rather than closes.** A promise with a new date is a
+live promise. Every date it has ever had stays in `history` — moving a date
+twice is a fact about the relationship.
+
+**The stale-project detector says what it measures.** There is no per-project
+activity timestamp in APX, and folding conversations on a five-minute tick would
+defeat a cheap detector. So it reads the newest task/commitment event and phrases
+itself as "no task or commitment activity", not "nothing happened". Callers with
+a real timestamp can pass `last_activity_at` and it wins.
+
+## Verified live, not just by reading
+
+Against the running daemon on 1.78.0, then cleaned up:
+
+- `GET /api/nudges/policy` → `enabled: true`, `source: ["defaults","profile"]` —
+  the installed Secretary switches the budget on by itself.
+- At 23:59, `nudge check --kind signal` → held, 451 min; `--severity critical`
+  → allowed via bypass.
+- Commitments added, listed per-project and cross-project, overdue flagged.
+- A watch sweep over a real store produced
+  `[critical] you owe Ana: … — was due 2020-01-01`.
+
+Done on a **throwaway project** that was registered, used, then unregistered and
+deleted. Nothing was written to a real project, per the standing rule.
+
+## Known gaps — stated, not hidden
+
+- **Linux and Windows service installation is unverified.** Written and
+  unit-tested against generated unit text; never executed on those platforms. The
+  tests deliberately install nothing. Windows is reported as NOT supervised in
+  those words — a Run key starts the daemon and does not restart it.
+- **No consolidation routine ships enabled.** `apx memory consolidate` takes
+  candidates on stdin and proposes; `--apply` writes. The distilling is the
+  caller's job; core owns only the judgement about what survives.
+- **Calendar is not a signal source.** Needs the native adapter, deliberately
+  deferred until the MCP path has a working use case behind it.
+- **The routine-created chip fires on the API and profile-install paths only.**
+  No agent tool creates routines today, so "Roby set one up for you" is not a
+  path that exists.
+- **The smoke suite is still stale** and out of CI (see the note at the top of
+  `tests/smoke/seam.smoke.js`).
+- **The model chain still degrades** (gemini 429 → groq 413 → openrouter free).
+  Unrelated to any of this, and the user's call.
+
+## The seam, again
+
+Two CLI bugs shipped and were caught only by running the commands: `http` is an
+object not a callable, and `resolveProjectId` takes a string not the args object.
+Both invisible to the suite because rule 8 sends tests at core directly. That is
+now **eleven** bugs from this one seam. The next person should assume any new CLI
+reader is broken until they have run it against a live daemon.
 
 ---
 

@@ -7,9 +7,10 @@
 // of truth fixes that for good.
 import { runSuperAgent } from "#core/agent/super-agent.js";
 import { TELEGRAM_TOOL_ITERS } from "#core/agent/constants.js";
-import { stripThinking } from "#core/util/thinking.js";
+import { stripThinking, stripReasoning } from "#core/util/thinking.js";
 import { appendGlobalMessage, getRecentTelegramTurnsFromFs } from "#core/stores/messages.js";
 import { CHANNELS } from "#core/constants/channels.js";
+import { summarizeToolTrace } from "#core/agent/tool-summary.js";
 import { SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
 import { createTelegramConfirmAdapter } from "#core/confirmation/adapters/telegram.js";
 import { getConfirmationStore as getConfirmStore } from "#core/confirmation/pending-store.js";
@@ -54,7 +55,9 @@ export function buildStreamHandler(self, { chat_id, update_id, agentDisplay }) {
         return;
       }
       if (ev.type === "assistant_text" && ev.text) {
-        const piece = stripThinking(ev.text).trim();
+        // Untagged planning is suppressed mid-stream too, or the user
+        // watches the model think in real time.
+        const piece = stripReasoning(ev.text).answer.trim();
         if (!piece) return;
         await self._send({ chat_id, text: piece });
         state.lastStreamedText = piece;
@@ -183,6 +186,7 @@ export async function runFollowupTurn(self, {
     let replyAuthor;
     let saUsage = null;
     let saModel = null;
+    let saTrace = null;
     try {
       const sa = await runTelegramSuperAgent(self, {
         chat_id,
@@ -200,6 +204,7 @@ export async function runFollowupTurn(self, {
       replyAuthor = sa.name || agentDisplay;
       saUsage = sa.usage;
       saModel = sa.model || state.model || null;
+      saTrace = sa.trace || null;
     } catch (e) {
       self.log(`telegram[${self.channel.name}] a2a followup failed: ${e.message}`);
       replyText = telegramErrorText(self, e);
@@ -216,6 +221,7 @@ export async function runFollowupTurn(self, {
       replyKind: "superagent",
       saUsage,
       saModel,
+      saTrace,
       streamedCount: state.streamedCount,
       lastStreamedText: state.lastStreamedText,
       agentDisplay,
@@ -244,10 +250,22 @@ export function telegramErrorText(self, e) {
  */
 export async function sendFinalReply(self, {
   chat_id, update_id, replyText, replyAuthor, replyActorId, replyKind,
-  saUsage = null, saModel = null, streamedCount = 0, lastStreamedText = "", agentDisplay,
-  extraMeta = {},
+  saUsage = null, saModel = null, saTrace = null, streamedCount = 0, lastStreamedText = "",
+  agentDisplay, extraMeta = {},
 }) {
-  const finalClean = replyText ? stripThinking(replyText).trim() : "";
+  // A model that dumps raw planning must never have it forwarded. When that
+  // happens the answer comes back empty and the existing never-silent fallback
+  // below sends a short line instead — a worse reply, but not the model's notes.
+  const stripped = replyText ? stripReasoning(replyText) : { answer: "", leaked: false };
+  const finalClean = stripped.answer.trim();
+  if (stripped.leaked) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[apx] telegram: suppressed an untagged reasoning dump from ${saModel || "the model"} ` +
+      `(${replyText.length} chars). Check the model chain — a router that returns raw ` +
+      `chain-of-thought is not usable on a user-facing channel.`
+    );
+  }
   let toSend = "";
   if (finalClean && finalClean !== lastStreamedText) {
     toSend = finalClean;
@@ -265,8 +283,15 @@ export async function sendFinalReply(self, {
     await self._send({ chat_id, text: toSend });
     const meta = { chat_id, tg_channel: self.channel.name, in_reply_to: update_id, final: true, ...extraMeta };
     if (replyText && stripThinking(replyText) !== replyText) meta.thinking_stripped = true;
+    if (stripped.leaked) meta.reasoning_leak_suppressed = true;
     if (saUsage) meta.usage = saUsage;
     if (saModel) meta.model = saModel;
+    // A COMPACT summary, not the trace: the full one carries args and results
+    // and would bloat the day-file for a detail nobody reads back. What is
+    // worth recovering later is "it read three files and sent a message", and
+    // whether any of it failed.
+    const toolSummary = summarizeToolTrace(saTrace);
+    if (toolSummary) meta.tool_summary = toolSummary;
     appendGlobalMessage({
       channel: CHANNELS.TELEGRAM,
       direction: "out",

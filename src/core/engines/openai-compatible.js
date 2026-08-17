@@ -127,7 +127,13 @@ export function createOpenAiCompatibleEngine({
       }
 
       const choice = json.choices?.[0];
-      const text = choice?.message?.content || "";
+      // Reasoning models on OpenRouter/Groq return their chain of thought in a
+      // SEPARATE field (`reasoning`, or `reasoning_content` on some routers).
+      // It is not an answer and must never reach a channel — fold it into the
+      // <think> form APX already knows how to strip per channel.
+      const reasoning = choice?.message?.reasoning || choice?.message?.reasoning_content || "";
+      const answer = choice?.message?.content || "";
+      const text = reasoning ? `<think>${reasoning}</think>${answer}` : answer;
       const toolCalls = choice?.message?.tool_calls;
 
       return {

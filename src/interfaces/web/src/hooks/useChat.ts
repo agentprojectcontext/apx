@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { SuperAgent, Agents, Conversations } from "../lib/api";
-import type { ChatStreamEvent, ChatUsage, ConversationMessage } from "../types/daemon";
+import type { ChatStreamEvent, ChatUsage, ConversationMessage, ToolSummary } from "../types/daemon";
 import { t } from "../i18n";
 
 export type ToolStatus = "running" | "done" | "error" | "deduped";
@@ -37,6 +37,9 @@ export interface ChatMsg {
   usage?: ChatUsage;
   /** Operational notes (engine fallbacks, retries, suppressions). */
   notes?: string[];
+  /** What a HISTORICAL turn did. Live turns render real ToolCall parts from
+   *  the stream; replayed ones only have this, recorded at write time. */
+  toolSummary?: ToolSummary;
   /** Skill Inspector decision for this turn (when the feature is on): which
    *  skills the per-turn RAG loaded inline vs merely hinted. */
   inspector?: {
@@ -179,6 +182,7 @@ function threadToChatMsgs(messages: ConversationMessage[]): ChatMsg[] {
         if (m.agent) turn.agentId = m.agent;
         if (m.agent_name) turn.agent = m.agent_name;
         if (m.model) turn.model = m.model;
+        if (m.tool_summary) turn.toolSummary = m.tool_summary;
         if (m.usage) {
           turn.usage = {
             input_tokens: (turn.usage?.input_tokens || 0) + (m.usage.input_tokens || 0),

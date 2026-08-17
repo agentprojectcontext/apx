@@ -30,7 +30,7 @@ export function RoutineDetail({
   // Read-only content blocks, in pipeline order (pre → action → post).
   const blocks: { title: string; body: string; mono?: boolean }[] = [];
   if (pre.length) blocks.push({ title: t("project.routines.block_pre"), body: pre.join("\n"), mono: true });
-  if (routine.kind === "exec_agent" || routine.kind === "super_agent") {
+  if (routine.kind === "exec_agent" || routine.kind === "super_agent" || routine.kind === "watch") {
     blocks.push({ title: t("project.routines.block_prompt"), body: String(spec.prompt || "") });
   } else if (routine.kind === "telegram") {
     blocks.push({ title: t("project.routines.block_text"), body: String(spec.text || "") });

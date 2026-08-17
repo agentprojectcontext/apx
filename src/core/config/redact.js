@@ -25,6 +25,11 @@ export const SECRET_PATHS = [
   // Telegram bot tokens live inside an array — handled separately in redact()
   // because dotted paths can't address array entries.
   "telegram.channels.*.bot_token",
+  // Same problem: engines.gemini.api_keys is a LIST of spare keys (quota
+  // rotation). A dotted path cannot reach into it, so redact() handles it
+  // below. Listed here so the "which keys are secrets" question still has one
+  // answer to read.
+  "engines.gemini.api_keys.*",
 ];
 
 /** Replace a secret string with the visible marker, preserving the last 5 chars. */
@@ -63,6 +68,12 @@ export function redactConfig(cfg) {
         ch.bot_token = mark(ch.bot_token);
       }
     }
+  }
+  // Spare Gemini keys. Missing this would have served every one of them in
+  // clear text to anyone who opened Settings → Engines.
+  const spareKeys = out?.engines?.gemini?.api_keys;
+  if (Array.isArray(spareKeys)) {
+    out.engines.gemini.api_keys = spareKeys.map(mark);
   }
   return out;
 }
@@ -107,6 +118,17 @@ export function mergeRedactedSecrets(next, prior) {
   const nextChannels = next?.telegram?.channels;
   if (Array.isArray(nextChannels)) {
     next.telegram.channels = mergeRedactedChannels(nextChannels, prior?.telegram?.channels);
+  }
+  // Spare Gemini keys. Without this, opening Settings → Engines and pressing
+  // Save would write the redaction MARKERS over the real keys and silently
+  // empty the rotation pool. Matched by position, which is the only identity
+  // an entry in this list has.
+  const nextSpare = next?.engines?.gemini?.api_keys;
+  if (Array.isArray(nextSpare)) {
+    const priorSpare = Array.isArray(prior?.engines?.gemini?.api_keys)
+      ? prior.engines.gemini.api_keys : [];
+    next.engines.gemini.api_keys = nextSpare.map((v, i) =>
+      isSecretMarker(v) && typeof priorSpare[i] === "string" && priorSpare[i] ? priorSpare[i] : v);
   }
   return next;
 }

@@ -207,6 +207,7 @@ export const es = {
       engines: "Engines & modelos",
       telegram: "Telegram",
       devices: "Dispositivos",
+      nudge: "Interrupciones",
       advanced: "Avanzado",
     },
 
@@ -244,6 +245,34 @@ export const es = {
       no_settings: "Este perfil no tiene nada configurable.",
       settings_locked: "Activá el perfil para poder cambiar su configuración.",
       doctor_vanilla: "Sin perfil activo. APX se comporta como siempre.",
+    },
+
+    nudge: {
+      title: "Presupuesto de interrupciones",
+      subtitle:
+        "Cada cuánto puede escribirte APX sin que se lo pidas. Las respuestas a tus propios mensajes nunca se retienen.",
+      off_hint:
+        "El presupuesto está apagado: sale todo mensaje no solicitado. Igual queda registrado acá abajo.",
+      on_hint: "{{sent}} enviados hoy, quedan {{left}}.",
+      source: "Definido por",
+      enabled: "Aplicar el presupuesto",
+      daily_max: "Mensajes por día",
+      daily_max_hint: "0 significa sin techo.",
+      quiet_hours: "Horas de silencio",
+      quiet_hours_hint: "HH:MM-HH:MM. Cruza la medianoche sin problema. Vacío = ninguna.",
+      cooldown: "Espacio mínimo (minutos)",
+      project_cooldown: "Espacio mínimo por proyecto (minutos)",
+      kind_cooldown: "Espacio mínimo por tipo (minutos)",
+      critical_bypass: "Lo crítico puede saltarse el presupuesto",
+      critical_bypass_hint: "Los saltos quedan siempre registrados y marcados.",
+      log_title: "Lo que mandó",
+      log_subtitle: "Sólo mensajes no solicitados, del más nuevo al más viejo. Lo que marques alimenta lo que manda después.",
+      log_empty: "Todavía no mandó nada sin que se lo pidieras.",
+      useful: "Me sirvió",
+      noise: "No me servía",
+      bypass: "se salteó el presupuesto",
+      saved: "Presupuesto actualizado",
+      unrated: "sin calificar",
     },
 
     identity: {
@@ -339,6 +368,7 @@ export const es = {
       agents:   "Agents",
       routines: "Rutinas",
       tasks:    "Tasks",
+      commitments: "Compromisos",
       mcps:     "MCPs",
       artifacts: "Artifacts",
       vars:     "Variables",
@@ -449,6 +479,24 @@ export const es = {
       empty:       "Sin tasks.",
       due:         "vence",
       go_project:  "Ir al proyecto",
+    },
+
+    commitments: {
+      title:    "Compromisos",
+      subtitle: "Qué prometiste, a quién y para cuándo. Aparte de las tareas: acá hay alguien esperando.",
+      empty:    "Nada prometido.",
+      overdue:  "vencía",
+      overdue_only: "Pasados de fecha",
+      no_date:  "sin fecha acordada",
+      moved:    "movido",
+      mark_kept:   "Cumplido",
+      mark_missed: "Incumplido",
+      state: {
+        open:   "abiertos",
+        kept:   "cumplidos",
+        missed: "incumplidos",
+        all:    "todos",
+      },
     },
 
     routines: {
@@ -873,6 +921,8 @@ export const es = {
     no_activity_ch: "Sin actividad en el canal \"{ch}\".",
     error:        "No pude leer los mensajes: {msg}",
     show_more:    "ver más",
+    event_routine_created: "rutina creada",
+    event_routine_updated: "rutina actualizada",
     show_less:    "ver menos",
     daemon_errors: "Errores del daemon (~/.apx/logs/errors.jsonl)",
     no_errors:    "Sin errores registrados. 🎉",
@@ -1564,6 +1614,9 @@ export const es = {
     kind_routine:            "rutina",
     kind_hierarchy:          "jerarquía",
     nodes_drag_hint:         "{n} nodos · arrastrá para reordenar",
+    kind_watch:              "Vigía",
+    kind_watch_desc:         "Barre buscando cosas que valga la pena notar — vencidos, promesas por caer, proyectos en silencio. No cuesta nada cuando no hay nada que reportar.",
+    action_watch:            "Vigila señales, y sólo juzga cuando encuentra alguna",
     kind_exec_agent:         "Agente del proyecto",
     kind_exec_agent_desc:    "Corre un agente del proyecto con un prompt. Vos elegís cuál.",
     kind_super_agent:        "Super-agente",
@@ -1873,6 +1926,7 @@ export const es = {
   shared_ui: {
     skill_inspector_title: "Skill Inspector ({embedder}) eligió estas skills para este turno",
     tools_count:           "{n} tools",
+    tools_failed:          "{n} fallaron",
     tool_read_file:        "Leer archivo",
     tool_write_file:       "Escribir archivo",
     tool_edit_file:        "Editar archivo",
