@@ -1,3 +1,27 @@
+# [1.79.0](https://github.com/agentprojectcontext/apx/compare/v1.78.0...v1.79.0) (2026-08-17)
+
+
+### Bug Fixes
+
+* **chain,anchors:** five Gemini keys, cheap tiers, and an anchor that can speak ([97dc31b](https://github.com/agentprojectcontext/apx/commit/97dc31bd2bb9767ae5bf8161da750f54700cc35f))
+* **cli:** the two seam bugs live testing found ([832df9d](https://github.com/agentprojectcontext/apx/commit/832df9dcf4c581154c2c4428cf6a63bb8a8a52ef))
+* **engines/gemini:** declare the signing models, and stop sending role 'function' ([329e90a](https://github.com/agentprojectcontext/apx/commit/329e90aaab4e444e578a6fa7058d54e7d97e7523))
+* gemini 400 — capture thoughtSignature from thought parts, replay raw parts ([6e88313](https://github.com/agentprojectcontext/apx/commit/6e88313dcd8418e341affc1d13e0267b21232239))
+* **reply:** never forward a model's raw reasoning to a channel ([b17756f](https://github.com/agentprojectcontext/apx/commit/b17756f2eb56d524bbc95be98b7929d1a8a84ab5))
+* **reply:** strip reasoning on every human-facing surface, not just Telegram ([9af2a3b](https://github.com/agentprojectcontext/apx/commit/9af2a3b9ece6d37147864aa1aee3c258ed0c41ac))
+
+
+### Features
+
+* **commitments:** a promise to a person is its own type ([c5aa944](https://github.com/agentprojectcontext/apx/commit/c5aa9440df4edeb95af29bbbcce8ca805791c223))
+* **cron,tools:** human schedules, and recover tool calls a model wrote as prose ([e3a978d](https://github.com/agentprojectcontext/apx/commit/e3a978daba02029eaa09cd85b3ed1c9e88177e5d))
+* **daemon,memory:** supervise the daemon, and consolidate carefully ([bd9b9f1](https://github.com/agentprojectcontext/apx/commit/bd9b9f108d51c1c87f7a28c0c123ab860e5a55ce))
+* **inbox:** show what a turn did, and when a routine appears ([2852e06](https://github.com/agentprojectcontext/apx/commit/2852e06487aa290dbfeb3d0432be51e1e4fe2cd0))
+* **nudge:** one gate for every message nobody asked for ([a687225](https://github.com/agentprojectcontext/apx/commit/a6872251cf55b417741d4c3ab43789c939aba1c7))
+* **watch:** detect deterministically, judge only when there is something ([9d2d291](https://github.com/agentprojectcontext/apx/commit/9d2d2910b3a1370fdb32b6812d1c4bcc4f3f248a))
+* **web:** give the notebook a home, and one layout for every list page ([f468f42](https://github.com/agentprojectcontext/apx/commit/f468f425321a942865990a8e0f658613714850e6))
+* **web:** the inbox becomes a two-pane chat, and four consistency fixes ([d37aac2](https://github.com/agentprojectcontext/apx/commit/d37aac2989cbd13cd6b84816cc73c4d7f8b0b6fe))
+
 # [1.78.0](https://github.com/agentprojectcontext/apx/compare/v1.77.3...v1.78.0) (2026-08-17)
 
 
