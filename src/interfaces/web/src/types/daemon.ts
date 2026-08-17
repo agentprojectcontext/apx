@@ -55,7 +55,7 @@ export interface AgentDetail extends AgentEntry {
 
 export interface RoutineEntry {
   name: string;
-  kind: "heartbeat" | "exec_agent" | "super_agent" | "telegram" | "shell";
+  kind: "heartbeat" | "exec_agent" | "super_agent" | "telegram" | "shell" | "watch";
   schedule: string;
   spec: Record<string, unknown>;
   enabled: boolean;
