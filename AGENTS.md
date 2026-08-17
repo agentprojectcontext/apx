@@ -32,6 +32,61 @@ headers refers to the four parts of the cross-channel memory design (notebook,
 RAG, compaction, broker). And `skills/` (3 bundled for npm) is not
 `src/core/runtime-skills/` (the ~19 the super-agent actually loads).
 
+## The dev loop — skip a step and your test is a lie
+
+Every step below has the same failure mode when skipped: you test the **old**
+code, conclude your change did not work, and go debug something that was never
+broken. This is the most expensive way work here goes wrong, and it has cost
+whole sessions. It is not optional.
+
+**1. Know which checkout the daemon runs from — it is the MAIN checkout.**
+Never a worktree: worktrees have no `node_modules` and cannot run the daemon.
+
+```bash
+ps -o command= -p "$(pgrep -f 'src/host/daemon/index.js' | head -1)"
+```
+
+A change committed only on a worktree branch is **invisible to the running
+daemon**, no matter how many times you restart it. Either land it where the
+daemon reads from, or say plainly that the fix is not live yet — do not let a
+green test suite in a worktree stand in for a working system.
+
+Check too that your branch has not been overtaken: `git log <branch>..main`. Main
+may already carry a competing fix for the same bug, and pasting yours over it
+silently drops someone else's work.
+
+**2. Restart after EVERY code change, and BEFORE testing by hand.**
+
+```bash
+apx restart
+```
+
+The daemon holds the JS it booted with — adapters, routes, tool handlers, prompt
+builders. `apx restart` restarts the daemon and, when it is running, the desktop
+window. Run it from the main checkout so the process cwd is not a worktree.
+Restart *before* you test, not after you have already drawn a wrong conclusion.
+
+**3. Verify it took — three checks, not one.**
+
+```bash
+curl -s 127.0.0.1:7430/api/health     # uptime_s back near zero
+apx daemon logs --tail 30             # clean boot, plugins initialized, no stack trace
+```
+
+Then **exercise the path you actually changed**, end to end: `apx exec "…"` for
+anything in the agent/tool loop, the route itself for an API change, the screen
+for a web change. "The daemon booted" is not evidence that your change works —
+a fresh uptime only proves a process restarted.
+
+**4. Do not report "done" until step 3 passed.** Say which command you ran and
+what it returned. If you could not verify — no quota, no credentials, an external
+service down — say that explicitly instead of implying it works.
+
+**The exceptions are data, not code:** files a running daemon reads on demand (a
+bundled profile package, a skill) and `~/.apx/config.json`, which
+`POST /api/admin/reload` re-reads. When in doubt, restart — two seconds, and it
+removes a whole class of wasted debugging.
+
 ## Repo layout
 
 - `src/core/` — engine-agnostic core:
@@ -83,18 +138,11 @@ RAG, compaction, broker). And `skills/` (3 bundled for npm) is not
 15. **The daemon never blocks the event loop on a request path.** New I/O inside a route handler uses `fs/promises`; sync I/O is for boot only. Every async handler goes through `asyncRoute()` so a rejection becomes a 500 instead of killing the process.
 16. **Never inline a tool name.** Import from `core/agent/tools/names.js`. A renamed tool must not silently disable a safety check — the side-effect de-duplication that stops a Telegram message being sent three times keys off these names.
 
-17. **A code change is not applied until the daemon restarts.** The daemon holds
-    the JS it booted with: adapters, routes, tool handlers, prompt builders. Edit
-    any of them and the running process keeps serving the OLD code, so the next
-    thing you test is the previous version and you conclude the change did not
-    work. Run `apx restart` after every change and BEFORE testing anything by
-    hand — not after, when you have already drawn a wrong conclusion. Verify it
-    took: `curl -s 127.0.0.1:7430/api/health` should show a new uptime, and a
-    route that only exists in your change should answer.
-    The exceptions are data, not code: new **files** a running daemon reads on
-    demand (a bundled profile package, a skill) and `~/.apx/config.json`, which
-    `POST /api/admin/reload` re-reads. When in doubt, restart — it costs two
-    seconds and removes a whole class of wasted debugging.
+17. **A code change is not applied until the daemon restarts** — `apx restart`,
+    before you test by hand, then verify it took. The daemon runs from the MAIN
+    checkout, so a change committed only on a worktree branch never reaches it.
+    Full procedure and the verification commands: **"The dev loop"** near the top
+    of this file. It is the single most common way work here goes sideways.
 
 ## Conventions & recipes
 
