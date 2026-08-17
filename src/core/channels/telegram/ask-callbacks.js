@@ -15,9 +15,32 @@ import { SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
 import { applyNudgeCallback } from "#core/nudge/index.js";
 
 /**
+ * The label the user actually tapped, recovered from the keyboard attached to
+ * the message. `callback_data` is a routing slug ("mover_workspace_hoy"); the
+ * label is what the human read ("Mover al workspace de hoy"), and that is the
+ * better thing to hand an agent.
+ */
+export function buttonLabelFor(callbackQuery) {
+  const rows = callbackQuery?.message?.reply_markup?.inline_keyboard || [];
+  const data = callbackQuery?.data;
+  for (const row of rows) {
+    for (const btn of row || []) {
+      if (btn?.callback_data === data && btn?.text) return String(btn.text);
+    }
+  }
+  return "";
+}
+
+/**
  * Route an inbound callback_query. ask_questions button presses are handled
- * here; everything else falls through to the confirmation adapter. Both use
- * `apx:<verb>:...` namespacing but the ask flow owns its own state.
+ * here; `apx:`-namespaced presses belong to an APX flow (ask / nudge /
+ * confirmation) and never reach the agent. Anything else is a button someone
+ * else put in the chat, and is treated as a user turn.
+ *
+ * TELEGRAM CONTRACT: every callback_query must be answered, handled or not.
+ * Until it is, the client keeps the button spinning and the tap looks dead —
+ * which is exactly how "the inline buttons do nothing" is reported. Nothing
+ * below may return without an `_answerCallback`.
  */
 export async function handleCallbackQuery(self, callbackQuery) {
   const data = callbackQuery.data || "";
@@ -35,9 +58,53 @@ export async function handleCallbackQuery(self, callbackQuery) {
     pendingStore: getConfirmStore(),
   });
   const handled = await adapter.handleCallbackQuery(callbackQuery);
-  if (!handled) {
-    self.log(`telegram[${self.channel.name}] unhandled callback_query: ${callbackQuery.data}`);
+  if (handled) return;
+
+  // `apx:noop` is a deliberately dead button (a disabled confirmation, an
+  // expired panel). Ack it so the spinner clears and stop there — replaying it
+  // to the agent would answer a question that is already closed.
+  if (data === "apx:noop" || data.startsWith("apx:")) {
+    await self._answerCallback({ callback_query_id: callbackQuery.id });
+    self.log(`telegram[${self.channel.name}] stale apx callback: ${data}`);
+    await clearKeyboard(self, callbackQuery);
+    return;
   }
+
+  // A button APX did not send — an agent-authored keyboard, another tool
+  // posting into this chat. Ack first (never leave it spinning), then let the
+  // press be a turn: re-enter the normal inbound path with the button's label
+  // as the text, so identity, routing and the agent loop all apply unchanged.
+  await self._answerCallback({ callback_query_id: callbackQuery.id });
+  const text = buttonLabelFor(callbackQuery) || data;
+  const chat = callbackQuery.message?.chat;
+  if (!chat?.id || !text) {
+    self.log(`telegram[${self.channel.name}] unhandled callback_query: ${data}`);
+    return;
+  }
+  self.log(`telegram[${self.channel.name}] button press → turn: ${data} (${text})`);
+  await self._handleUpdate({
+    update_id: callbackQuery.id,
+    message: {
+      message_id: callbackQuery.message?.message_id,
+      from: callbackQuery.from,
+      chat,
+      date: Math.floor(Date.now() / 1000),
+      text,
+    },
+  });
+}
+
+/** Best-effort: take the keyboard off a message whose buttons are now dead. */
+async function clearKeyboard(self, callbackQuery) {
+  const chatId = callbackQuery.message?.chat?.id;
+  if (!chatId) return;
+  try {
+    await self._editKeyboard({
+      chat_id: chatId,
+      message_id: callbackQuery.message?.message_id,
+      reply_markup: { inline_keyboard: [] },
+    });
+  } catch { /* best-effort */ }
 }
 
 /**
@@ -111,9 +178,22 @@ export async function handleAskCallback(self, callbackQuery) {
   const chatId = callbackQuery.message?.chat?.id;
   if (!chatId) return;
   const result = askFlow.applyCallback(chatId, callbackQuery.data || "");
-  // Ack the press regardless — keeps the spinner from hanging client-side.
+  if (!result) {
+    // The flow is gone: ask state is process-local (see ask.js), so a daemon
+    // restart or the 30-min TTL kills it while its keyboard stays in the chat
+    // looking live. Acking silently is what makes the button read as broken —
+    // the tap "does nothing" and the user keeps tapping. Say so, and take the
+    // dead keyboard away so the message stops offering a choice it can't take.
+    await self._answerCallback({
+      callback_query_id: callbackQuery.id,
+      text: "Esa consulta ya expiró — escribime de nuevo y la retomamos.",
+    });
+    self.log(`telegram[${self.channel.name}] stale ask callback: ${callbackQuery.data}`);
+    await clearKeyboard(self, callbackQuery);
+    return;
+  }
+  // Ack the press — keeps the spinner from hanging client-side.
   await self._answerCallback({ callback_query_id: callbackQuery.id });
-  if (!result) return; // stale or unknown — adapter already ack'd.
 
   if (result.action === "redraw") {
     // Multi-select toggle: refresh the keyboard on the SAME message.
