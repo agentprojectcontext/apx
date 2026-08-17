@@ -228,6 +228,15 @@ export interface ConversationMessage {
   actor_kind?: string;
   model?: string;
   usage?: ChatUsage;
+  /** Compact record of what the turn did, written at the time (the live tool
+   *  events are long gone by the time a thread is read back). */
+  tool_summary?: ToolSummary;
+}
+
+export interface ToolSummary {
+  total: number;
+  failed: number;
+  tools: { name: string; count: number; failed: number }[];
 }
 
 export interface ConversationDetail {

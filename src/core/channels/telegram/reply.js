@@ -10,6 +10,7 @@ import { TELEGRAM_TOOL_ITERS } from "#core/agent/constants.js";
 import { stripThinking, stripReasoning } from "#core/util/thinking.js";
 import { appendGlobalMessage, getRecentTelegramTurnsFromFs } from "#core/stores/messages.js";
 import { CHANNELS } from "#core/constants/channels.js";
+import { summarizeToolTrace } from "#core/agent/tool-summary.js";
 import { SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
 import { createTelegramConfirmAdapter } from "#core/confirmation/adapters/telegram.js";
 import { getConfirmationStore as getConfirmStore } from "#core/confirmation/pending-store.js";
@@ -185,6 +186,7 @@ export async function runFollowupTurn(self, {
     let replyAuthor;
     let saUsage = null;
     let saModel = null;
+    let saTrace = null;
     try {
       const sa = await runTelegramSuperAgent(self, {
         chat_id,
@@ -202,6 +204,7 @@ export async function runFollowupTurn(self, {
       replyAuthor = sa.name || agentDisplay;
       saUsage = sa.usage;
       saModel = sa.model || state.model || null;
+      saTrace = sa.trace || null;
     } catch (e) {
       self.log(`telegram[${self.channel.name}] a2a followup failed: ${e.message}`);
       replyText = telegramErrorText(self, e);
@@ -218,6 +221,7 @@ export async function runFollowupTurn(self, {
       replyKind: "superagent",
       saUsage,
       saModel,
+      saTrace,
       streamedCount: state.streamedCount,
       lastStreamedText: state.lastStreamedText,
       agentDisplay,
@@ -246,8 +250,8 @@ export function telegramErrorText(self, e) {
  */
 export async function sendFinalReply(self, {
   chat_id, update_id, replyText, replyAuthor, replyActorId, replyKind,
-  saUsage = null, saModel = null, streamedCount = 0, lastStreamedText = "", agentDisplay,
-  extraMeta = {},
+  saUsage = null, saModel = null, saTrace = null, streamedCount = 0, lastStreamedText = "",
+  agentDisplay, extraMeta = {},
 }) {
   // A model that dumps raw planning must never have it forwarded. When that
   // happens the answer comes back empty and the existing never-silent fallback
@@ -282,6 +286,12 @@ export async function sendFinalReply(self, {
     if (stripped.leaked) meta.reasoning_leak_suppressed = true;
     if (saUsage) meta.usage = saUsage;
     if (saModel) meta.model = saModel;
+    // A COMPACT summary, not the trace: the full one carries args and results
+    // and would bloat the day-file for a detail nobody reads back. What is
+    // worth recovering later is "it read three files and sent a message", and
+    // whether any of it failed.
+    const toolSummary = summarizeToolTrace(saTrace);
+    if (toolSummary) meta.tool_summary = toolSummary;
     appendGlobalMessage({
       channel: CHANNELS.TELEGRAM,
       direction: "out",

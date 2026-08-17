@@ -23,6 +23,16 @@ function actorLabel(m: MessageEntry): string {
   return m.agent_slug || m.actor_id || m.author || m.actor_kind || "—";
 }
 
+/** Structured lifecycle events APX records as they happen (a routine created,
+ *  a routine updated). Returns the label to badge, or null for ordinary rows. */
+function lifecycleEvent(m: MessageEntry): string | null {
+  const e = m.meta?.event;
+  if (typeof e !== "string") return null;
+  if (e === "routine_created") return t("logs.event_routine_created");
+  if (e === "routine_updated") return t("logs.event_routine_updated");
+  return null;
+}
+
 /** Model that produced this record — persisted in meta by every channel that
  *  runs an agent turn. Absent on user/system rows and on pre-1.74 history. */
 function modelOf(m: MessageEntry): string | null {
@@ -56,6 +66,11 @@ function LogRow({ m }: { m: MessageEntry }) {
           <span className="font-mono">{fmtTs(m.ts)}</span>
           <Badge tone="info">{m.channel}</Badge>
           {m.type && <Badge>{m.type}</Badge>}
+          {/* Lifecycle events get their own chip rather than blending into the
+              body text. "A routine now exists" is the kind of thing people
+              scroll back looking for, and a green badge is findable in a way a
+              sentence in a log line is not. */}
+          {lifecycleEvent(m) && <Badge tone="success">{lifecycleEvent(m)}</Badge>}
           <span className="font-medium text-foreground">{actorLabel(m)}</span>
           {model && <span className="font-mono text-[11px] text-sky-400/90">{model}</span>}
           {tokens !== null && <span className="font-mono text-[11px]">{tokens} tok</span>}
