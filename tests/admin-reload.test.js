@@ -16,7 +16,12 @@ async function listen(app) {
 test("POST /admin/reload clears cached MCP registries", async () => {
   const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "apx-admin-reload-"));
   const origHomedir = os.homedir;
+  const prevApxHome = process.env.APX_HOME;
+  // Stubbing homedir() alone is not isolation: any ~/.apx path that comes from
+  // a constant frozen at import time in config/paths.js ignores the stub and
+  // resolves to the real home. APX_HOME is read on every call, so it holds.
   os.homedir = () => tmpHome;
+  process.env.APX_HOME = path.join(tmpHome, ".apx");
 
   try {
     const apxHome = path.join(tmpHome, ".apx");
@@ -52,6 +57,8 @@ test("POST /admin/reload clears cached MCP registries", async () => {
     }
   } finally {
     os.homedir = origHomedir;
+    if (prevApxHome === undefined) delete process.env.APX_HOME;
+    else process.env.APX_HOME = prevApxHome;
     fs.rmSync(tmpHome, { recursive: true, force: true });
   }
 });

@@ -12,6 +12,7 @@
 //    with no warning at all.
 import { spawn } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -38,10 +39,25 @@ if (!files.length) {
 // line/branch/function percentages over everything it loaded.
 const COVERAGE_FLOOR = { line: 73, branch: 71, function: 66 };
 
+// 4. A throwaway HOME for the whole run. Tests that isolate by stubbing
+//    os.homedir() are one refactor away from writing to the developer's real
+//    ~/.apx: the stub is bypassed the moment a path comes from a constant
+//    frozen at import time in config/paths.js, which a per-test dynamic import
+//    cannot reload. On 2026-08-16 that cost a live ~/.apx/mcps.json — the
+//    global MCP servers were replaced by a test fixture and nothing noticed.
+//    Moving HOME moves the default ~/.apx out of reach for a test that forgets
+//    to isolate, while every test that sets its own HOME or APX_HOME still
+//    wins over it. This is the floor, not the isolation.
+const testHome = fs.mkdtempSync(path.join(os.tmpdir(), "apx-test-home-"));
+
 const child = spawn(
   process.execPath,
   ["--test", "--experimental-test-coverage", "--test-reporter=spec", ...files],
-  { cwd: REPO, stdio: ["inherit", "pipe", "inherit"] }
+  {
+    cwd: REPO,
+    stdio: ["inherit", "pipe", "inherit"],
+    env: { ...process.env, HOME: testHome, USERPROFILE: testHome },
+  }
 );
 
 let output = "";
@@ -51,6 +67,11 @@ child.stdout.on("data", (chunk) => {
 });
 
 child.on("close", (code) => {
+  try {
+    fs.rmSync(testHome, { recursive: true, force: true });
+  } catch {
+    // A leftover temp dir is noise, not a failure — never mask the test result.
+  }
   const read = (label) => {
     const m = output.match(new RegExp(`^ℹ ${label} (\\d+)$`, "m"));
     return m ? Number(m[1]) : null;

@@ -143,6 +143,11 @@ export const en = {
     no_folders:  "No folders.",
   },
   inbox: {
+    search: "Search",
+    no_match: "Nothing matches",
+    hide_quiet: "Hide quiet agents",
+    open_in_project: "Open in project",
+    super_agent_scope: "All projects",
     title: "Agent inbox",
     subtitle:
       "Every agent as a conversation, most recent first.",
@@ -195,6 +200,8 @@ export const en = {
     devices_revoke:      "Revoke",
     account_section:     "Account",
     agents_section:      "Agents & models",
+    super_agent_section: "Super-agent",
+    knowledge_section:   "Models & knowledge",
     channels_section:    "Channels & devices",
     modules_section:     "Modules",
     advanced_section:    "Advanced",
@@ -223,6 +230,9 @@ export const en = {
       activate: "Activate",
       replace_active: "Replace the active one",
       deactivate: "Deactivate",
+      on: "Active",
+      off: "Inactive",
+      replaces_active: "Turning this on replaces the active profile",
       deactivate_title: "Deactivate the profile?",
       deactivate_confirm:
         "APX goes back to vanilla. The profile's routines are disabled but not deleted, and your settings, tasks and memory are untouched — activating it again restores everything.",
@@ -472,6 +482,16 @@ export const en = {
     },
 
     global_tasks: {
+
+      add: "Add",
+
+      add_title: "New task",
+
+      field_title: "Task",
+
+      field_project: "Project",
+
+      field_due: "Due",
       any_status: "any status",
       title:       "Tasks (all projects)",
       subtitle:    "Aggregated tasks from all registered projects.",
@@ -481,6 +501,26 @@ export const en = {
     },
 
     commitments: {
+
+      add: "Add",
+
+      add_title: "Record a promise",
+
+      add_hint: "Something you told a specific person you would do. Tasks live next door.",
+
+      field_who: "Who is waiting",
+
+      field_who_hint: "A name as you would say it — free text, not a contact.",
+
+      field_what: "What you promised",
+
+      field_what_ph: "send the revised quote",
+
+      field_due: "By when",
+
+      field_due_hint: "Optional, but it is the part that makes this useful.",
+
+      field_project: "Project",
       title:    "Commitments",
       subtitle: "What was promised, to whom, and by when. Separate from tasks: someone is waiting on these.",
       empty:    "Nothing promised.",

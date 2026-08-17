@@ -20,7 +20,21 @@ import type { AgentEntry } from "../../types/daemon";
 // with a real APC agent slug (which must match /^[a-z][a-z0-9_-]*$/).
 const ROBY_SLUG = "__super_agent__";
 
-export function ChatTab({ pid }: { pid: string }) {
+/**
+ * `hideSidebar` lets another screen (the agent inbox) supply its own
+ * conversation list and embed just the thread. The chat surface is not forked
+ * — one implementation, two frames around it.
+ */
+export function ChatTab({
+  pid,
+  hideSidebar = false,
+  initialSelection,
+}: {
+  pid: string;
+  hideSidebar?: boolean;
+  /** Open a specific conversation on mount instead of a fresh live session. */
+  initialSelection?: ChatKey;
+}) {
   const toast = useToast();
   const [params, setSearchParams] = useSearchParams();
   const agents = useSWR(`/api/projects/${pid}/agents`, () => Agents.list(pid));
@@ -36,6 +50,10 @@ export function ChatTab({ pid }: { pid: string }) {
   // defaulting to a live session with the super-agent so the chat works even on
   // a brand-new project with zero agents and zero conversations.
   const [selected, setSelected] = useState<ChatKey>(() => {
+    // An embedding screen that already knows which conversation the user
+    // picked wins over the URL — otherwise clicking a row in the inbox opens
+    // an empty new session and the message you clicked on is nowhere.
+    if (initialSelection) return initialSelection;
     const agent = params.get("agent");
     const conv = params.get("conv");
     const channel = params.get("channel");
@@ -183,7 +201,7 @@ export function ChatTab({ pid }: { pid: string }) {
 
   return (
     <div className="flex h-full overflow-hidden rounded-xl border border-border bg-card/40">
-      <ChatList
+      {hideSidebar ? null : <ChatList
         pid={pid}
         agents={agentList}
         superAgentSlug={ROBY_SLUG}
@@ -191,7 +209,7 @@ export function ChatTab({ pid }: { pid: string }) {
         selected={selected}
         onSelect={selectChat}
         onNewChat={onNewChat}
-      />
+      />}
 
       <section className="flex min-w-0 flex-1 flex-col">
         <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">

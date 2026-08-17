@@ -16,12 +16,24 @@ import {
 // Dynamic import is required because sources.js captures HOME at module-load
 // time when computing the global path. We isolate by reassigning HOME and
 // re-importing the module under a fresh URL.
+//
+// APX_HOME is the load-bearing half of that isolation, and it is not optional:
+// stubbing HOME only works while every ~/.apx path is rebuilt from homedir() at
+// call time. The moment one of them reads a constant frozen in config/paths.js
+// — a module this helper cannot re-import, because only sources.js gets the
+// cache-busting URL — the stub is bypassed and the writes below land in the
+// developer's real ~/.apx. That happened on 2026-08-16: this file's fixtures
+// overwrote a live ~/.apx/mcps.json and its global MCP servers were gone.
+// apxHome() reads APX_HOME first, so setting it holds no matter which module
+// resolves the path or when.
 async function withIsolatedHome(fn) {
   const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "apx-mcp-home-"));
   const prevHome = process.env.HOME;
   const prevUserProfile = process.env.USERPROFILE;
+  const prevApxHome = process.env.APX_HOME;
   process.env.HOME = tmpHome;
   process.env.USERPROFILE = tmpHome;
+  process.env.APX_HOME = path.join(tmpHome, ".apx");
 
   // Stub homedir() since some platforms read from getuid()/passwd, not env.
   const origHomedir = os.homedir;
@@ -41,6 +53,8 @@ async function withIsolatedHome(fn) {
     else process.env.HOME = prevHome;
     if (prevUserProfile === undefined) delete process.env.USERPROFILE;
     else process.env.USERPROFILE = prevUserProfile;
+    if (prevApxHome === undefined) delete process.env.APX_HOME;
+    else process.env.APX_HOME = prevApxHome;
     try { fs.rmSync(tmpHome, { recursive: true, force: true }); } catch {}
   }
 }

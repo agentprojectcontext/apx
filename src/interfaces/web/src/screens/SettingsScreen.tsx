@@ -33,12 +33,22 @@ const SECTIONS: TabSection[] = [
       { key: "identity",    label: t("settings.tabs.identity"),    icon: User },
     ],
   },
+  // The super-agent and the three screens that only describe IT: who it is,
+  // what line of work it has, and how often it may speak. The budget is core
+  // rather than profile-owned — it works with no profile installed — but it
+  // governs this agent's outbound messages, so it belongs next to them.
   {
-    title: t("settings.agents_section"),
+    title: t("settings.super_agent_section"),
     items: [
       { key: "super_agent", label: t("settings.tabs.super_agent"), icon: Bot },
       { key: "profile",     label: t("settings.tabs.profile"),     icon: IdCard },
       { key: "nudge",       label: t("settings.tabs.nudge"),       icon: BellRing },
+    ],
+  },
+  // Shared substrate: every agent uses these, not just the super-agent.
+  {
+    title: t("settings.knowledge_section"),
+    items: [
       { key: "engines",     label: t("settings.tabs.engines"),     icon: Cpu },
       { key: "memory",      label: "Memory (RAG)",                 icon: Database },
       { key: "skills",      label: t("skills_page.title"),         icon: Sparkles },
