@@ -207,9 +207,14 @@ function toGeminiContents(messages, { model = "", config = {} } = {}) {
       const name = m.name || m.tool_name || "tool";
       const id = m.tool_call_id || m.id;
       if (id && degraded.has(id)) {
+        // The call this answers was dropped, so it cannot be a functionResponse
+        // (Gemini rejects a response to a call it cannot see). Carry the result
+        // as an observation on the user side. Phrased as a plain report, never
+        // as call syntax — anything that looks like a callable format in the
+        // history gets imitated instead of executed.
         out.push({
           role: "user",
-          parts: [{ text: `[tool result: ${name}] ${asText(m.content)}` }],
+          parts: [{ text: `Resultado de ${name}: ${asText(m.content)}` }],
         });
         continue;
       }
@@ -262,17 +267,23 @@ function toGeminiContents(messages, { model = "", config = {} } = {}) {
         const sig = callSignatureOf(tc);
         if (requireSignatures && !turnHasSignature) {
           // Nothing to replay: sending this as a functionCall is a guaranteed
-          // 400. Narrate it instead so the model keeps the context without the
-          // API rejecting the turn.
+          // 400. DROP the call from the model turn — never transcribe it into
+          // text. A model turn that reads "[tool call: run_shell] {...}" is a
+          // worked example of writing calls as prose, and the model copies it:
+          // it stops emitting functionCall parts, the loop sees no tool_calls,
+          // and the transcript is delivered to the user as the final answer.
+          // The call itself is not what the model needs to continue — the
+          // RESULT is, and that still arrives (see the tool branch above).
           if (tc.id) degraded.add(tc.id);
-          parts.push({ text: `[tool call: ${name}] ${JSON.stringify(callArgsOf(tc))}` });
           continue;
         }
         const part = { functionCall: { name, args: callArgsOf(tc) } };
         if (sig) part.thoughtSignature = sig;
         parts.push(part);
       }
-      if (parts.length === 0) parts.push({ text: "" });
+      // Every call was dropped and the turn said nothing else: emit no turn at
+      // all rather than an empty model message.
+      if (parts.length === 0) continue;
       out.push({ role: "model", parts });
       continue;
     }

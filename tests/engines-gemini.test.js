@@ -173,7 +173,7 @@ test("gemini: _geminiRawParts round-trip does not lose the signature", async () 
   }
 });
 
-test("gemini 3: a call with no signature is narrated as text, never sent bare", async () => {
+test("gemini 3: a call with no signature is dropped, never sent bare nor transcribed", async () => {
   const { captured, restore } = stubFetchCapturingBody();
   try {
     await gemini.chat({
@@ -201,11 +201,15 @@ test("gemini 3: a call with no signature is narrated as text, never sent bare", 
         assert.ok(p.thoughtSignature, "no signature-less functionCall may be sent to gemini 3");
       }
     }
-    const modelTurn = contents.find((c) => c.role === "model");
-    assert.match(modelTurn.parts[0].text, /create_task/, "the call is narrated instead");
+    // And it is NOT transcribed into text either: a model turn that reads like
+    // a written-out call is a worked example the model copies, which is how
+    // "[tool call: run_shell] {…}" ended up being delivered to a user.
+    const everyText = allParts.map((p) => p.text || "").join("\n");
+    assert.ok(!/\[tool call:/i.test(everyText), `call transcribed into history: ${everyText}`);
     // Its result degrades too — a functionResponse with no matching call is invalid.
     assert.equal(contents.find((c) => c.parts.some((p) => p.functionResponse)), undefined);
-    assert.match(contents[contents.length - 1].parts[0].text, /tool result: create_task/);
+    // …but the result itself still reaches the model, as a plain observation.
+    assert.match(everyText, /Resultado de create_task/);
   } finally {
     restore();
   }
