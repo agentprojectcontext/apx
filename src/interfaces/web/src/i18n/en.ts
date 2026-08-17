@@ -367,6 +367,7 @@ export const en = {
       agents:   "Agents",
       routines: "Routines",
       tasks:    "Tasks",
+      commitments: "Commitments",
       mcps:     "MCPs",
       artifacts: "Artifacts",
       vars:     "Variables",
@@ -477,6 +478,24 @@ export const en = {
       empty:       "No tasks.",
       due:         "due",
       go_project:  "Go to project",
+    },
+
+    commitments: {
+      title:    "Commitments",
+      subtitle: "What was promised, to whom, and by when. Separate from tasks: someone is waiting on these.",
+      empty:    "Nothing promised.",
+      overdue:  "was due",
+      overdue_only: "Past their date",
+      no_date:  "no date agreed",
+      moved:    "moved",
+      mark_kept:   "Kept",
+      mark_missed: "Missed",
+      state: {
+        open:   "open",
+        kept:   "kept",
+        missed: "missed",
+        all:    "all",
+      },
     },
 
     routines: {
