@@ -3,12 +3,15 @@
 // instance (`self`, for logging + channel) plus the parsed update context, and
 // returns the (possibly rewritten) `text` the rest of the pipeline should run.
 //
-// Vision note: we do NOT have image understanding yet — the engine layer can't
-// pass image content to the model. So we download + archive the photo and then
-// inject an internal `[image]` marker into `text` so the agent ALWAYS produces a
-// reply in its own words (never goes silent on a no-caption photo). The reply is
-// model-authored; the marker only tells the model an image arrived and that it
-// can't see the pixels yet. Mirrors the `[audio]` marker convention.
+// Vision: the photo is downloaded, archived, and returned as an `attachment`
+// that dispatch threads onto the turn. A multimodal engine (Gemini) receives it
+// as real image content; engines without vision ignore it and still get the
+// `[image]` marker, which names the local path so the agent can reach the file
+// with its tools. The marker also guarantees a no-caption photo never produces
+// an empty turn — the reply is always model-authored, never canned. Mirrors the
+// `[audio]` marker convention.
+import fs from "node:fs";
+import path from "node:path";
 import { appendGlobalMessage } from "#core/stores/messages.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { resolveBotToken, telegramMediaDir } from "../helpers.js";
@@ -55,9 +58,37 @@ export async function handleIncomingPhoto(self, { msg, u, author, chat_id, text 
     },
   });
 
-  // Guard: never go silent. Hand the agent an internal marker so it replies in
-  // its own words. No vision yet → say so, in-band, so the model doesn't
-  // hallucinate "seeing" the image.
-  const marker = "[image attached — you cannot see its contents yet]";
-  return { text: text ? `${marker} ${text}` : marker };
+  // Hand the pixels to the turn. A multimodal engine (Gemini) renders them as
+  // an inlineData part; the others ignore the field and still have the marker
+  // and the path, so nothing regresses for them.
+  let attachment = null;
+  if (localPath) {
+    try {
+      attachment = {
+        kind: "image",
+        mime: mimeFromPath(localPath),
+        data: fs.readFileSync(localPath).toString("base64"),
+        path: localPath,
+      };
+    } catch (e) {
+      self.log(`telegram[${self.channel.name}] photo read-back failed: ${e.message}`);
+    }
+  }
+
+  // Guard: never go silent. The marker states what arrived and where it is,
+  // and stays neutral about visibility — a vision model can describe the image
+  // it was given, and one without it still has the path and its file tools.
+  const marker = localPath
+    ? `[image attached — saved to ${localPath}]`
+    : "[image attached — the download failed, there is no local copy]";
+  return { text: text ? `${marker} ${text}` : marker, attachment };
+}
+
+function mimeFromPath(p) {
+  const ext = path.extname(p).toLowerCase();
+  if (ext === ".png") return "image/png";
+  if (ext === ".webp") return "image/webp";
+  if (ext === ".gif") return "image/gif";
+  if (ext === ".heic") return "image/heic";
+  return "image/jpeg";
 }

@@ -33,6 +33,8 @@ export async function runSuperAgent({
   // Pre-rendered "who you're talking to" block (see buildRelationshipBlock).
   relationshipBlock = "",
   previousMessages = [],
+  // Files that arrived with this turn; forwarded to runAgent verbatim.
+  attachments = [],
   overrideModel = null,
   onEvent = null,
   signal,
@@ -146,6 +148,7 @@ export async function runSuperAgent({
       system,
       prompt: turnPrompt,
       previousMessages: history,
+      attachments,
       overrideModel,
       preferredModel: contentRoute?.model || null,
       toolSchemas,

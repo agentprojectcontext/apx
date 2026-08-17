@@ -288,10 +288,17 @@ function toGeminiContents(messages, { model = "", config = {} } = {}) {
       continue;
     }
 
-    out.push({
-      role: m.role === "assistant" ? "model" : "user",
-      parts: [{ text: asText(m.content) }],
-    });
+    // A plain turn. A user turn may carry images (Telegram photos, etc.);
+    // Gemini takes them as inlineData parts beside the text. Non-multimodal
+    // engines ignore the field entirely, so carrying it costs them nothing.
+    const parts = [{ text: asText(m.content) }];
+    if (m.role !== "assistant" && Array.isArray(m.images)) {
+      for (const img of m.images) {
+        if (!img?.data || !img?.mime) continue;
+        parts.push({ inlineData: { mimeType: img.mime, data: img.data } });
+      }
+    }
+    out.push({ role: m.role === "assistant" ? "model" : "user", parts });
   }
   return out;
 }

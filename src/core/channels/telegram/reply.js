@@ -111,6 +111,7 @@ export function buildStreamHandler(self, { chat_id, update_id, agentDisplay }) {
 export function runTelegramSuperAgent(self, {
   chat_id, prompt, previousMessages, target, author, authorId, relationshipBlock,
   allowedTools, contextNote, signal, onEvent, backgroundResultSink = null,
+  attachments = [],
 }) {
   const confirmAdapter = createTelegramConfirmAdapter({
     token: resolveBotToken(self.channel),
@@ -126,6 +127,7 @@ export function runTelegramSuperAgent(self, {
     registries: self.registries,
     prompt,
     previousMessages,
+    attachments,
     channel: CHANNELS.TELEGRAM,
     relationshipBlock,
     allowedTools,
