@@ -4,7 +4,10 @@
 // owns its own routing and imports only the command functions it calls, so the
 // CLI no longer loads all 38 command modules to run one of them.
 
-import { cmdDaemonLogs, cmdDaemonReload, cmdDaemonRestart, cmdDaemonStart, cmdDaemonStatus, cmdDaemonStop } from "../commands/daemon.js";
+import {
+  cmdDaemonLogs, cmdDaemonReload, cmdDaemonRestart, cmdDaemonStart, cmdDaemonStatus, cmdDaemonStop,
+  cmdDaemonInstallService, cmdDaemonUninstallService, cmdDaemonServiceStatus,
+} from "../commands/daemon.js";
 
 export default async function route(rest, { parseArgs, die }) {
   const sub = rest[0];
@@ -15,5 +18,8 @@ export default async function route(rest, { parseArgs, die }) {
   else if (sub === "reload") await cmdDaemonReload(a);
   else if (sub === "status") await cmdDaemonStatus(a);
   else if (sub === "logs") cmdDaemonLogs(a);
+  else if (sub === "install-service") await cmdDaemonInstallService(a);
+  else if (sub === "uninstall-service") await cmdDaemonUninstallService(a);
+  else if (sub === "service-status") await cmdDaemonServiceStatus(a);
   else die(`unknown daemon subcommand: ${sub || "(none)"}`);
 }

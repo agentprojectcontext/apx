@@ -4,8 +4,16 @@
 // owns its own routing and imports only the command functions it calls, so the
 // CLI no longer loads all 38 command modules to run one of them.
 
-import { cmdMemory } from "../commands/memory.js";
+import { cmdMemory, cmdMemoryNotebook, cmdMemoryConsolidate, cmdMemoryRevert } from "../commands/memory.js";
 
 export default async function route(rest, { parseArgs }) {
-  cmdMemory(parseArgs(rest));
+  // `apx memory <agent-slug>` is the original form and stays the default, so
+  // these three names are reserved. An agent literally called "notebook" would
+  // be shadowed; that is a trade worth making for a readable command.
+  const sub = rest[0];
+  const a = parseArgs(rest.slice(1));
+  if (sub === "notebook") return cmdMemoryNotebook(a);
+  if (sub === "consolidate") return cmdMemoryConsolidate(a);
+  if (sub === "revert") return cmdMemoryRevert(a);
+  return cmdMemory(parseArgs(rest));
 }
