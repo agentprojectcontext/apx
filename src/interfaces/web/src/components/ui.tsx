@@ -15,6 +15,7 @@ import { Dialog as DialogRoot, DialogContent, DialogHeader, DialogTitle, DialogD
 // Re-export the tooltip convenience wrapper so call sites can grab it from the
 // same barrel as Button/Field/etc.: `import { Button, Tip } from "../ui"`.
 export { Tip } from "./ui/tip";
+export { FilterChips } from "./ui/filter-chips";
 
 // ── Button ──────────────────────────────────────────────────────────────────
 type Variant = "primary" | "secondary" | "ghost" | "destructive";

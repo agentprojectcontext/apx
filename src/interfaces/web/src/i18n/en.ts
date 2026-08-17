@@ -898,6 +898,12 @@ export const en = {
     },
 
     memories: {
+
+      super_agent_group: "Super-agent",
+
+      notebook_item: "{persona}'s notebook",
+
+      tokens: "~{n} tok",
       sidebar_title:   "Memories",
       general_group:   "General",
       general_item:    "Project memory",
