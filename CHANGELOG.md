@@ -1,3 +1,10 @@
+## [1.77.3](https://github.com/agentprojectcontext/apx/compare/v1.77.2...v1.77.3) (2026-08-17)
+
+
+### Bug Fixes
+
+* **pairing:** stop burning the nonce before the pairing succeeds ([#44](https://github.com/agentprojectcontext/apx/issues/44)) ([d1011b6](https://github.com/agentprojectcontext/apx/commit/d1011b670ce46178e7e47d4042200844f91d47c6))
+
 ## [1.77.2](https://github.com/agentprojectcontext/apx/compare/v1.77.1...v1.77.2) (2026-08-16)
 
 
