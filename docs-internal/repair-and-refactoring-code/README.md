@@ -65,48 +65,63 @@ Rules and conventions that must hold from now on: [conventions](./00-conventions
 
 ## Progress
 
-| Phase | State | Notes |
+| Phase | State |
+|---|---|
+| **P0** Context & build blockers | done |
+| **P1** Mechanical guardrails | done |
+| **P2** Long-file refactors | done |
+| **P3** Shared kernel & dedup | done |
+| **P4** Layering repair | done |
+| **P5** Test hardening | done |
+| **P6** Cleanup | mostly done |
+
+Verified before merging: `npm run preflight` exit 0 — lint clean, 861 tests,
+0 skipped, 0 todo, web build, web `tsc --noEmit`, TUI ratchet at baseline.
+Daemon restarts and answers on `/api`; the tool catalog executes; the
+super-agent completes a turn and calls `send_telegram`.
+
+### Numbers
+
+| | before | after |
 |---|---|---|
-| P0 | **done** | `4c00430` |
-| P1 | **done** | `b20edfe`, `4fbb243` |
-| P2 | **partial** | `21b9060`, `83a86a4`, `71a6e6e` — see below |
-| P3 | **partial** | paths + tool-name sets done in `b20edfe` / `83a86a4`; see below |
-| P4 | **done** | `6bb419b` |
-| P5 | **partial** | `624bfca` — dangerous handlers covered; see below |
-| P6 | not started | |
+| `cli/index.js` | 3001 lines | 158 |
+| `core/http-tools/registry.js` | 738 | 138 + catalog + handlers |
+| `core/config/index.js` | 711 | 549 |
+| `host/daemon/stt-venv.js` | 111 | 38 |
+| Tests | 779 | 861 |
+| Coverage (line) | 63.2% | 72.3% |
+| Linters | none | ESLint, layer rule enforced |
+| CI on pull request | none | lint + tests + builds |
+| Dead exports | 132 | 116 |
 
-Verified at this point: `npm run preflight` green (lint + 817 tests + web build
-+ web tsc + TUI ratchet), 0 skipped, daemon restarts and answers on `/api`, and
-the project's own `AGENTS.md` reaches the prompt whole (19,547 chars, no
-truncation marker).
+### Deliberately left open
 
-### What is deliberately still open
+- **116 dead exports**, one or two per module. Each needs the same
+  demote-then-check pass used on `stt-venv.js`; doing them in bulk is how you
+  break something quietly.
+- **12 inline `JSON.parse(readFileSync)`** that must stay explicit — a corrupt
+  `~/.apx/config.json` has to throw, not resolve to an empty config. Documented
+  in `core/util/json-file.js`.
+- **`core/stores/messages.js`** (737 lines) still holds four stores plus a
+  prompt formatter. The split is real work and wants its own change.
+- **`runAgent`** keeps ~10 concerns after the two user-facing guards came out.
+  It is the riskiest refactor in the plan and deserves to land alone, now that
+  the linter and CI exist to catch a mistake.
+- **The TUI** stays at its 176-error typecheck baseline. It is a vendored fork;
+  the ratchet stops it getting worse.
 
-**P2 — `dispatch()` in `cli/index.js`.** The file went 3001 → 768 lines by
-moving the help surface out, which was the bulk of it. The remaining 458-line
-`dispatch()` still spells subcommand aliases inline (`sub === "list" || sub ===
-"ls"` ×17). A single global alias table would be *wrong*: the aliases conflict
-across commands (`rm` = remove under `agent`, unset under `project config`,
-revoke under `pair`). The correct fix is a per-command alias declaration — the
-command registry in [P2](./P2-long-files.md) — which is a separate change with
-its own risk profile.
+### Two corrections to the original survey
 
-**P2 — `runAgent` decomposition.** The safety-critical part is done (the
-behavioural tool sets no longer live as literals inside the loop). Splitting the
-remaining ~12 concerns into `core/agent/loop/` collaborators is still worth
-doing and is the riskiest refactor in the plan; it should land on its own, with
-the linter and CI now in place to catch a mistake.
+Both are recorded because the pattern matters more than the instances:
+**identical names are not identical behaviour.**
 
-**P3 — `core/util/json-file.js`, scopes, frontmatter, project resolution.** The
-`~/.apx` path duplication is gone and enforced by ESLint. The remaining four
-dedups (35 inline `JSON.parse(readFileSync)` sites, `normalizeScope` ×5,
-`parseFrontmatter` ×4, `resolveProject` ×7) are unstarted.
+1. `normalizeScope` ×5 was reported as duplication. The three under `api/` have
+   different vocabularies (`shared|runtime|global` vs `project|global`, with
+   different defaults). Merging them would have rerouted writes to the wrong
+   store. Renamed instead — see [P3](./P3-kernel-dedup.md).
+2. `resolveProject` ×7 was likewise five different operations. Only one had
+   real drift: session search accepted an id or exact path but not a name.
 
-**P5 — coverage tooling and the remaining blind spots.** The dangerous handlers
-and the confirmation path now have tests; engines, embed-engines, the Telegram
-channel layer, `config/redact` and 9 daemon routes do not. No coverage
-threshold yet.
-
-**P6 — cleanup.** Untouched: ~150 remaining dead exports, the 7 unused runtime
-deps, the orphaned root `index.html`, the stale README channel table, the
-glossary.
+A third: the `API_PREFIXES` "footgun" the survey flagged in `AGENTS.md` no
+longer existed — the `/api` cutover had replaced it with a structural seam.
+Rule 9 was documenting a file that was gone.
