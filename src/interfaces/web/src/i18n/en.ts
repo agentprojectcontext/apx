@@ -923,6 +923,8 @@ export const en = {
     no_activity_ch: "No activity in channel \"{ch}\".",
     error:        "Could not read messages: {msg}",
     show_more:    "show more",
+    event_routine_created: "routine created",
+    event_routine_updated: "routine updated",
     show_less:    "show less",
     daemon_errors: "Daemon errors (~/.apx/logs/errors.jsonl)",
     no_errors:    "No errors recorded. 🎉",
@@ -1926,6 +1928,7 @@ export const en = {
   shared_ui: {
     skill_inspector_title: "Skill Inspector ({embedder}) chose these skills for this turn",
     tools_count:           "{n} tools",
+    tools_failed:          "{n} failed",
     tool_read_file:        "Read file",
     tool_write_file:       "Write file",
     tool_edit_file:        "Edit file",

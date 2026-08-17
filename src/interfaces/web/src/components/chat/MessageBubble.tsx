@@ -133,6 +133,19 @@ export function MessageBubble({ msg, isLast, isAskAnswer, onCopy }: Props) {
           {!mine && hasTools && (
             <span>· {t("shared_ui.tools_count", { n: msg.parts.filter((p) => p.kind === "tool").length })}</span>
           )}
+          {/* Replayed turns have no tool parts — the live events are gone — but
+              they do carry the summary recorded at the time. Show that instead,
+              so history does not look like the agent just answered from
+              nothing. Failures are named: "it tried and could not" is the half
+              worth surfacing. */}
+          {!mine && !hasTools && msg.toolSummary?.tools?.length ? (
+            <span title={msg.toolSummary.tools.map((x) => `${x.name}×${x.count}`).join(", ")}>
+              · {t("shared_ui.tools_count", { n: msg.toolSummary.total })}
+              {msg.toolSummary.failed
+                ? ` (${t("shared_ui.tools_failed", { n: msg.toolSummary.failed })})`
+                : ""}
+            </span>
+          ) : null}
           {onCopy && copyText && (
             <Tip content={t("chat_ui.copy")}>
               <button

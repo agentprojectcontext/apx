@@ -228,6 +228,7 @@ export async function handleUpdate(self, u) {
     let replyKind = "superagent";             // actor_kind: superagent | agent
     let replyModel = null;                    // model that actually produced the reply
     let replyUsage = null;                    // token accounting for this turn
+    let replyTrace = null;                    // what the turn actually did (summarised on the message)
     const projectCfg = target.config || self.globalConfig;
     // Display name for the super-agent persona on this channel (from identity.json).
     const agentDisplay = resolveAgentName(self.globalConfig);
@@ -335,6 +336,7 @@ export async function handleUpdate(self, u) {
         replyActorId = SUPERAGENT_ACTOR_ID;
         replyKind = "superagent";
         replyUsage = sa.usage;
+        replyTrace = sa.trace || null;
         replyModel = sa.model || state.model || null;
 
         // ── ask_questions integration ────────────────────────────────────
@@ -397,6 +399,7 @@ export async function handleUpdate(self, u) {
       replyKind,
       saUsage: replyUsage,
       saModel: replyModel,
+      saTrace: replyTrace,
       streamedCount,
       lastStreamedText,
       agentDisplay,

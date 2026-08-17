@@ -921,6 +921,8 @@ export const es = {
     no_activity_ch: "Sin actividad en el canal \"{ch}\".",
     error:        "No pude leer los mensajes: {msg}",
     show_more:    "ver más",
+    event_routine_created: "rutina creada",
+    event_routine_updated: "rutina actualizada",
     show_less:    "ver menos",
     daemon_errors: "Errores del daemon (~/.apx/logs/errors.jsonl)",
     no_errors:    "Sin errores registrados. 🎉",
@@ -1924,6 +1926,7 @@ export const es = {
   shared_ui: {
     skill_inspector_title: "Skill Inspector ({embedder}) eligió estas skills para este turno",
     tools_count:           "{n} tools",
+    tools_failed:          "{n} fallaron",
     tool_read_file:        "Leer archivo",
     tool_write_file:       "Escribir archivo",
     tool_edit_file:        "Editar archivo",

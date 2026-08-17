@@ -16,6 +16,7 @@ import path from "node:path";
 import { callEngine } from "#core/engines/index.js";
 import { runSuperAgent } from "#core/agent/super-agent.js";
 import { computeSuppressedTools } from "#core/agent/index.js";
+import { summarizeToolTrace } from "#core/agent/tool-summary.js";
 import { readAgents } from "#core/apc/parser.js";
 import { buildAgentSystem } from "#core/agent/build-agent-system.js";
 import { resolveAgentName, SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
@@ -148,7 +149,13 @@ async function handleSuperAgent(ctx, routine, extraChannelMeta = {}) {
     actor_kind: "superagent",
     author: result.name || resolveAgentName(globalConfig),
     body: result.text || "",
-    meta: { routine: routine.name, tool_trace: result.trace, usage: result.usage },
+    meta: {
+      routine: routine.name,
+      tool_trace: result.trace,
+      // Compact form too: the viewer renders this without parsing the trace.
+      ...(summarizeToolTrace(result.trace) ? { tool_summary: summarizeToolTrace(result.trace) } : {}),
+      usage: result.usage,
+    },
   });
   return { status: "ok", reply: result.text, trace: result.trace };
 }
