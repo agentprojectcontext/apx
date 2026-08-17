@@ -26,6 +26,7 @@ import * as askFlow from "./ask.js";
 import { telegramAuthorLabel } from "./helpers.js";
 import { handleIncomingPhoto } from "./inbound/photo.js";
 import { handleIncomingAudio } from "./inbound/audio.js";
+import { handleIncomingFile, detectIncomingFile } from "./inbound/file.js";
 import { buildStreamHandler, runTelegramSuperAgent, telegramErrorText, sendFinalReply, runFollowupTurn } from "./reply.js";
 import { t, resolveLang } from "#core/i18n/index.js";
 
@@ -87,15 +88,27 @@ export async function handleUpdate(self, u) {
     // ── Incoming media ────────────────────────────────────────────────────
     // Photo and voice/audio each download + archive the file and rewrite `text`
     // so the rest of the pipeline treats them like a typed message. The handlers
-    // live in ./inbound/ to keep this dispatcher focused on routing. Photos have
-    // no vision yet, so the handler injects an `[image]` marker (never silent);
-    // audio injects its `[audio]` transcript.
+    // live in ./inbound/ to keep this dispatcher focused on routing. Each one
+    // injects a marker so a caption-less attachment is never an empty turn:
+    // photos an `[image]` marker (plus the pixels, as an attachment, for a
+    // multimodal engine), audio its `[audio]` transcript, files a description
+    // with the local path.
+    const attachments = [];
     if (msg.photo && msg.photo.length > 0) {
-      ({ text } = await handleIncomingPhoto(self, { msg, u, author, chat_id, text }));
+      let attachment;
+      ({ text, attachment } = await handleIncomingPhoto(self, { msg, u, author, chat_id, text }));
+      if (attachment) attachments.push(attachment);
     }
     const incomingAudio = msg.voice || msg.audio;
     if (incomingAudio && incomingAudio.file_id) {
       ({ text } = await handleIncomingAudio(self, { msg, u, author, chat_id, text, incomingAudio }));
+    }
+    // Documents, video, video notes and GIFs. Without this a file sent with no
+    // caption left `text` empty, the turn was dropped, and the bot answered
+    // nothing at all.
+    const incomingFile = detectIncomingFile(msg);
+    if (incomingFile) {
+      ({ text } = await handleIncomingFile(self, { msg, u, author, chat_id, text, incoming: incomingFile }));
     }
 
     // If there's a pending ask_questions flow for this chat AND the current
@@ -319,6 +332,7 @@ export async function handleUpdate(self, u) {
       try {
         const sa = await runTelegramSuperAgent(self, {
           chat_id,
+          attachments,
           prompt: slashed.handled ? slashed.prompt : text,
           previousMessages,
           target,

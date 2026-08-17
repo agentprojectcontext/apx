@@ -142,14 +142,42 @@ export async function sendAudio(token, chatId, audio, { caption, title, performe
  * Download a file from Telegram servers.
  * Returns the local file path where it was saved.
  */
-export async function downloadTelegramFile(token, fileId, destDir) {
+/**
+ * Keep a user-supplied filename usable as a leaf name: no directory escape, no
+ * separators, no leading dot, bounded length. Returns "" when nothing usable
+ * survives, so callers fall back to the generated name.
+ */
+export function safeFileBase(name) {
+  const base = path.basename(String(name || "")).replace(/\.[^.]*$/, "");
+  const cleaned = base
+    .replace(/[/\\]/g, "")
+    .replace(/[^\p{L}\p{N}._ -]/gu, "")
+    .replace(/\s+/g, " ")
+    .replace(/^[.\s]+/, "")
+    .trim()
+    .slice(0, 60);
+  return cleaned;
+}
+
+/**
+ * Download a file by file_id into destDir. Returns the absolute local path.
+ *
+ * `preferredName` (a document's own `file_name`) is honoured so the archive is
+ * browsable and the agent can tell the user "I saved informe.pdf" rather than
+ * a generated id. It is sanitised and suffixed with part of the file_id, so a
+ * second "informe.pdf" never overwrites the first.
+ */
+export async function downloadTelegramFile(token, fileId, destDir, { preferredName } = {}) {
   // Step 1: get file path from Telegram
   const infoRes = await fetch(`${API_BASE}/bot${token}/getFile?file_id=${fileId}`);
   const infoJson = await infoRes.json();
   if (!infoJson.ok) throw new Error(`getFile failed: ${infoJson.description}`);
   const filePath = infoJson.result.file_path; // e.g. "photos/file_123.jpg"
-  const ext = path.extname(filePath) || ".jpg";
-  const fileName = `tg_${fileId.slice(-8)}_${Date.now()}${ext}`;
+  const ext = path.extname(preferredName || "") || path.extname(filePath) || ".jpg";
+  const base = safeFileBase(preferredName);
+  const fileName = base
+    ? `${base}-${fileId.slice(-6)}${ext}`
+    : `tg_${fileId.slice(-8)}_${Date.now()}${ext}`;
   const localPath = path.join(destDir, fileName);
 
   // Step 2: download

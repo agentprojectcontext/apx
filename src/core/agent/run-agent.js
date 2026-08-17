@@ -123,6 +123,9 @@ export async function runAgent({
   system,
   prompt,
   previousMessages = [],
+  // Files that arrived with this turn: [{ kind, mime, data (base64), path }].
+  // Channel handlers (e.g. an inbound Telegram photo) populate it.
+  attachments = [],
   overrideModel = null,
   // Content-routed model for this turn (selectModelByRules). Unlike
   // overrideModel it is health-checked and falls back down the chain.
@@ -263,7 +266,19 @@ export async function runAgent({
     }
   };
 
-  const conversation = [...previousMessages, { role: "user", content: prompt }];
+  // Attachments ride on THIS turn's user message. Only images are forwarded to
+  // the model (a multimodal engine renders them; the rest ignore the field);
+  // every other kind is already described in the prompt text by the channel
+  // handler, with its local path, so the agent can reach it with file tools.
+  const turnImages = attachments.filter((a) => a?.data && /^image\//.test(a.mime || ""));
+  const conversation = [
+    ...previousMessages,
+    {
+      role: "user",
+      content: prompt,
+      ...(turnImages.length > 0 ? { images: turnImages } : {}),
+    },
+  ];
   const trace = [];
   const totalUsage = { input_tokens: 0, output_tokens: 0 };
   let lastText = "";
