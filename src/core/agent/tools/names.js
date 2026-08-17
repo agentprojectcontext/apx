@@ -42,6 +42,7 @@ export const TOOLS = Object.freeze({
   LIST_TASKS:          "list_tasks",
   CREATE_TASK:         "create_task",
   RECORD_COMMITMENT:   "record_commitment",
+  REMEMBER_ROUTINE:    "remember_routine",
   LIST_COMMITMENTS:    "list_commitments",
 
   // Interaction
@@ -139,6 +140,7 @@ export const NATIVE_TOOL_NAMES = new Set([
   TOOLS.CREATE_TASK,
   TOOLS.RECORD_COMMITMENT,
   TOOLS.LIST_COMMITMENTS,
+  TOOLS.REMEMBER_ROUTINE,
   TOOLS.ASK_QUESTIONS,
   TOOLS.SEARCH_SESSIONS,
   TOOLS.TRANSCRIBE_AUDIO,
@@ -228,6 +230,7 @@ export const SIDE_EFFECT_TOOLS = new Set([
   TOOLS.SEND_TELEGRAM,
   TOOLS.CREATE_TASK,
   TOOLS.RECORD_COMMITMENT,
+  TOOLS.REMEMBER_ROUTINE,
   TOOLS.WRITE_FILE,
   TOOLS.EDIT_FILE,
   TOOLS.RUN_SHELL,

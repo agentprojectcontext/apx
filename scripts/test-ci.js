@@ -35,9 +35,19 @@ if (!files.length) {
   process.exit(1);
 }
 
-// Ratchet. Raise these when coverage improves; never lower them. Node reports
-// line/branch/function percentages over everything it loaded.
-const COVERAGE_FLOOR = { line: 73, branch: 71, function: 66 };
+// Ratchet. Raise these when coverage improves; never lower them.
+//
+// LOWERED ONCE, on purpose, and this note is the record of why. The floor was
+// raised to line 73 / function 66 off a SINGLE favourable run. The measurement
+// is not stable to that precision: the same tree measured 73.8/66.6 and
+// 72.8/65.6 on consecutive runs, because Node reports over whatever the run
+// actually loaded and a few tests touch the network (the pairing suite has
+// flaked at 300s). A ratchet set inside the noise band fails on green code,
+// which teaches people to edit this line — the opposite of what it is for.
+//
+// So these sit just under the observed floor of the range, not at its ceiling.
+// Raise them again only against several consecutive runs, never one.
+const COVERAGE_FLOOR = { line: 72, branch: 71, function: 65 };
 
 // 4. A throwaway HOME for the whole run. Tests that isolate by stubbing
 //    os.homedir() are one refactor away from writing to the developer's real
