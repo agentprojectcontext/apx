@@ -55,9 +55,15 @@ before(async () => {
   assert.ok(token, "could not read the web token");
 });
 
-after(() => {
-  try { daemon?.kill("SIGTERM"); } catch { /* already gone */ }
-  fs.rmSync(TMP_HOME, { recursive: true, force: true });
+after(async () => {
+  // Wait for the daemon to actually exit before deleting its HOME — it writes
+  // on shutdown, and racing it makes rm fail with ENOTEMPTY.
+  if (daemon && daemon.exitCode === null) {
+    const exited = new Promise((resolve) => daemon.once("exit", resolve));
+    try { daemon.kill("SIGTERM"); } catch { /* already gone */ }
+    await Promise.race([exited, new Promise((r) => setTimeout(r, 5000))]);
+  }
+  try { fs.rmSync(TMP_HOME, { recursive: true, force: true }); } catch { /* best effort */ }
 });
 
 // --------------------------------------------------------------------------
@@ -188,4 +194,32 @@ test("every top-level API route prefix is declared in API_PREFIXES", async () =>
     [],
     `these route prefixes are missing from API_PREFIXES: ${undeclared.join(", ")}`
   );
+});
+
+// Pairing nonces are one-shot on the daemon. The browser hook used to confirm
+// twice under StrictMode, so the second call answered 409 and undid a pairing
+// that had actually succeeded. This pins the daemon's half of that contract.
+test("a pairing nonce is one-shot, and says so clearly the second time", async () => {
+  const init = await (await get("/pair/init", { method: "POST", headers: { "content-type": "application/json" }, body: "{}" })).json();
+  assert.ok(init.pairing_id, "pair/init gave no pairing_id");
+  assert.ok(init.ttl_ms >= 120_000, `TTL of ${init.ttl_ms}ms is too short to scan a QR by hand`);
+
+  const body = (id) => ({
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ pairing_id: id, label: "smoke", kind: "web" }),
+  });
+
+  const first = await get("/pair/confirm", body(init.pairing_id));
+  assert.equal(first.status, 200, "the first confirm must succeed");
+  const client = await first.json();
+  assert.ok(client.token, "no client token issued");
+  assert.notEqual(client.token, token, "a paired client must NOT receive the master token");
+
+  const second = await get("/pair/confirm", body(init.pairing_id));
+  assert.equal(second.status, 409, "a spent nonce must be refused, not silently re-issued");
+
+  // The paired client shows up as its own revocable entry.
+  const { clients } = await (await get("/pair/list")).json();
+  assert.ok(clients.some((c) => c.id === client.client_id), "paired client missing from /pair/list");
 });
