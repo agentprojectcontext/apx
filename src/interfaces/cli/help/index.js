@@ -1138,7 +1138,7 @@ export const HELP_TOPICS = new Map(Object.entries({
     summary: "Create a scheduled routine.",
     usage: ["apx routine add <name> --kind <kind> --schedule <schedule> [--spec '<json>'] [--pre-commands 'cmd1,cmd2'] [--post-commands 'cmd'] [--skip-prompt-on signal|pre_failure|pre_success|always|never] [--project <name|id|path>]"],
     options: [
-      ["--kind <kind>", "heartbeat, exec_agent, super_agent, telegram, or shell."],
+      ["--kind <kind>", "heartbeat, exec_agent, super_agent, telegram, shell, or watch."],
       ["--schedule <schedule>", "every:60s, every:5m, every:1h, or once:<iso>."],
       ["--spec '<json>'", "Routine-specific JSON config."],
       ["--pre-commands 'cmd'", "Comma-separated shell commands to run BEFORE the LLM. Use 'artifact:<name>' shorthand."],
@@ -2108,7 +2108,7 @@ export function buildHelp(version) {
     hSec("Routines & Pipeline"),
     hCmd("apx routine list",           36, "list routines + next/last run"),
     hCmd("apx routine add <name>",     36, "--kind K  --schedule S  [--spec '{...}']"),
-    `    ${H.DI}kinds: heartbeat | exec_agent | super_agent | telegram | shell${H.R}`,
+    `    ${H.DI}kinds: heartbeat | exec_agent | super_agent | telegram | shell | watch${H.R}`,
     `    ${H.DI}flags: --permission-mode total|automatico|permiso  --allowed-tools a,b${H.R}`,
     `    ${H.DI}pipeline: --pre-commands 'cmd1,cmd2'  --post-commands 'cmd'${H.R}`,
     `    ${H.DI}         --skip-prompt-on signal|pre_failure|pre_success|always|never${H.R}`,

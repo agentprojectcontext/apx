@@ -129,9 +129,13 @@ export default {
     const solicited = isReplyToTheLiveChat(ctx, chat_id);
     const gate = canNudge(
       {
-        kind: "agent_message",
+        kind: ctx?.channelMeta?.routineName ? `routine:${ctx.channelMeta.routineName}` : "agent_message",
         project_id: ctx?.channelMeta?.projectId ?? null,
-        severity: "normal",
+        // Severity is set by a DETECTOR when one ran (watch routines put their
+        // peak signal severity here), never by the model. Letting the model
+        // grade its own message would hand it a switch marked "ignore the
+        // budget" — and it would find it.
+        severity: ctx?.channelMeta?.signalSeverity || "normal",
         unsolicited: !solicited,
         channel: "telegram",
       },

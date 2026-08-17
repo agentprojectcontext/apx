@@ -59,12 +59,13 @@ export function RoutineEditor({
 
   // Pre/post shell wrap the LLM kinds AND telegram (pre can fetch data, the text
   // can use {{pre_output}}, post can react to the result).
-  const usesPrePost = kind === "exec_agent" || kind === "super_agent" || kind === "telegram";
+  const usesPrePost = kind === "exec_agent" || kind === "super_agent" || kind === "telegram" || kind === "watch";
 
   const buildSpec = (): Record<string, unknown> => {
     switch (kind) {
       case "exec_agent": return { agent, prompt };
       case "super_agent": return { prompt };
+      case "watch": return { prompt };
       case "telegram": return { channel: tgChannel, ...(tgChatId ? { chat_id: tgChatId } : {}), text: tgText };
       case "shell": return { command };
       case "heartbeat": return { channel: hbChannel, message: hbMessage };
@@ -109,6 +110,7 @@ export function RoutineEditor({
     switch (kind) {
       case "exec_agent": return agent ? t("agents_ui.action_agent_answers", { agent }) : t("agents_ui.action_agent_pick_answers");
       case "super_agent": return t("agents_ui.action_super_answers");
+      case "watch": return t("agents_ui.action_watch");
       case "telegram": return t("agents_ui.action_telegram_channel", { channel: tgChannel });
       case "shell": return command ? t("agents_ui.summary_runs_cmd", { cmd: command.slice(0, 48) }) : t("agents_ui.action_runs_shell");
       case "heartbeat": return t("agents_ui.summary_heartbeat");

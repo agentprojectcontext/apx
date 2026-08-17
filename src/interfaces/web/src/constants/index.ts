@@ -65,6 +65,7 @@ export const ROUTINE_KINDS = [
   "super_agent",
   "telegram",
   "shell",
+  "watch",
 ] as const;
 export type RoutineKind = (typeof ROUTINE_KINDS)[number];
 
