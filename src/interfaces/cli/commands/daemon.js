@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import { PID_PATH, LOG_PATH } from "#core/config/paths.js";
 import { ensureDaemon, http } from "../http.js";
+import { installService, uninstallService, serviceStatus } from "#core/daemon/service.js";
 
 // Wait until nothing answers on the daemon port (old process fully exited and
 // released it), so a fresh start can bind it. Resolves true when down.
@@ -243,4 +244,60 @@ export async function cmdDaemonLogs(args) {
     // Keep process alive
     return new Promise(() => {});
   }
+}
+
+// ── Service (opt-in supervision) ─────────────────────────────────────────────
+
+export async function cmdDaemonInstallService() {
+  const before = serviceStatus();
+  if (!before.supervised && before.platform !== "win32") {
+    console.error(`apx daemon install-service: ${before.note || "not supported here"}`);
+    process.exit(1);
+  }
+
+  const r = installService();
+  if (!r.ok) {
+    console.error(`apx daemon install-service: ${r.error}`);
+    process.exit(1);
+  }
+
+  console.log(`\n  ${fmt.green("●")} ${fmt.bold("apx daemon")} is now a service`);
+  console.log(`  ${fmt.gray("·")}  ${fmt.cyan("unit")}  ${r.path}`);
+  if (r.log) console.log(`  ${fmt.gray("·")}  ${fmt.cyan("log")}   ${r.log}`);
+  console.log("");
+  if (r.supervised) {
+    console.log("  If it dies, it comes back. It survives a reboot.");
+  } else {
+    // Never let the headline promise more than the platform delivers.
+    console.log(`  ${fmt.yellow("Note")}: ${r.note}`);
+  }
+  if (r.note && r.supervised) console.log(`  ${fmt.yellow("Note")}: ${r.note}`);
+  console.log(`\n  Undo any time: ${fmt.cyan("apx daemon uninstall-service")}\n`);
+}
+
+export async function cmdDaemonUninstallService() {
+  const r = uninstallService();
+  if (!r.ok) {
+    console.error(`apx daemon uninstall-service: ${r.error}`);
+    process.exit(1);
+  }
+  console.log(r.removed
+    ? `\n  service removed — ${r.path}\n  The daemon keeps working; it just is not supervised any more.\n`
+    : "\n  no service was installed — nothing to remove\n");
+}
+
+export async function cmdDaemonServiceStatus() {
+  const s = serviceStatus();
+  if (!s.installed) {
+    console.log(`\n  daemon service: ${fmt.dim("not installed")}`);
+    console.log("  The daemon starts when a command needs it, and nothing restarts it if it dies.");
+    console.log(`  Install: ${fmt.cyan("apx daemon install-service")}\n`);
+    if (s.note) console.log(`  ${fmt.yellow("Note")}: ${s.note}\n`);
+    return;
+  }
+  console.log(`\n  daemon service: ${fmt.green("installed")}  ${fmt.gray("·")}  ${s.path}`);
+  console.log(s.supervised
+    ? "  Supervised: it restarts on its own and survives a reboot."
+    : `  ${fmt.yellow("Not supervised")}: ${s.note}`);
+  console.log("");
 }
