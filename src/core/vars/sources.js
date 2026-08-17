@@ -13,9 +13,9 @@
 //
 // project wins over global when the same name exists in both.
 
-import fs from "node:fs";
 import path from "node:path";
 import { apxHome } from "#core/config/paths.js";
+import { readJson, writeJson, SECRET_MODE } from "#core/util/json-file.js";
 
 
 const globalVarsFile = () => path.join(apxHome(), "vars.json");
@@ -30,24 +30,17 @@ export function projectVarsPath(storagePath) {
   return path.join(storagePath, PROJECT_VARS_FILENAME);
 }
 
+// A vars file must be a plain object; anything else is treated as empty.
 function readJsonSafe(absPath) {
-  if (!absPath || !fs.existsSync(absPath)) return {};
-  try {
-    const json = JSON.parse(fs.readFileSync(absPath, "utf8"));
-    return json && typeof json === "object" && !Array.isArray(json) ? json : {};
-  } catch {
-    return {};
-  }
+  if (!absPath) return {};
+  const json = readJson(absPath, {});
+  return json && typeof json === "object" && !Array.isArray(json) ? json : {};
 }
 
+// SECRET_MODE: these files hold tokens. The write is atomic, so a crash can no
+// longer truncate the store.
 function writeJsonSecure(absPath, obj) {
-  fs.mkdirSync(path.dirname(absPath), { recursive: true });
-  fs.writeFileSync(absPath, JSON.stringify(obj, null, 2) + "\n");
-  try {
-    fs.chmodSync(absPath, 0o600);
-  } catch {
-    // Best effort on non-POSIX filesystems.
-  }
+  writeJson(absPath, obj, { mode: SECRET_MODE });
 }
 
 export function readGlobalVars() {

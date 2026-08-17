@@ -37,6 +37,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { apxHome } from "#core/config/paths.js";
 import { apcMcpsFile } from "#core/apc/paths.js";
+import { readJson } from "#core/util/json-file.js";
 
 
 // Resolved per call: the global store must follow APX_HOME if it moves.
@@ -64,15 +65,9 @@ export const SOURCES = [
   { id: "global",  file: "~/.apx/mcps.json", key: "mcpServers", scope: "global" },
 ];
 
-function readJsonSafe(absPath) {
-  if (!absPath) return null;
-  if (!fs.existsSync(absPath)) return null;
-  try {
-    return JSON.parse(fs.readFileSync(absPath, "utf8"));
-  } catch {
-    return null;
-  }
-}
+// readJsonSafe is the shared readJson(); secrets are written with SECRET_MODE.
+const readJsonSafe = (absPath) => readJson(absPath, null);
+
 
 // Resolve the runtime mcps.json path for a given project. `storagePath` is the
 // project's ~/.apx/projects/<apxId>/ directory.
