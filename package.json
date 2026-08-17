@@ -42,7 +42,7 @@
     "build:web": "node scripts/build-web.js",
     "preflight": "npm run lint && npm run test:ci && node scripts/build-web.js && (cd src/interfaces/web && npx --no-install tsc --noEmit) && npm run typecheck:tui",
     "upgrade": "pnpm install && pnpm add -g .",
-    "prepare": "node scripts/install-githooks.js",
+    "prepare": "node scripts/install-githooks.js && node scripts/sync-apc-skill.js",
     "prepack": "node scripts/sync-apc-skill.js && node scripts/build-web.js",
     "postinstall": "node src/interfaces/cli/postinstall.js",
     "smoke:seam": "node --test --test-reporter=spec tests/smoke/*.smoke.js"
