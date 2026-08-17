@@ -1,3 +1,10 @@
+# [1.81.0](https://github.com/agentprojectcontext/apx/compare/v1.80.2...v1.81.0) (2026-08-17)
+
+
+### Features
+
+* **skills:** commitments had no skill, only two tool descriptions ([b85b5d6](https://github.com/agentprojectcontext/apx/commit/b85b5d6a35a7655aec9adbc25418d8d03a0da679))
+
 ## [1.80.2](https://github.com/agentprojectcontext/apx/compare/v1.80.1...v1.80.2) (2026-08-17)
 
 
