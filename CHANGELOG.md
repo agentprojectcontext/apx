@@ -1,3 +1,41 @@
+# [1.78.0](https://github.com/agentprojectcontext/apx/compare/v1.77.3...v1.78.0) (2026-08-17)
+
+
+* refactor(api)!: mount the whole daemon surface under /api ([8c16e01](https://github.com/agentprojectcontext/apx/commit/8c16e01468baee0f2beb804c386c97c166a9388a))
+
+
+### Bug Fixes
+
+* **agent:** stop truncating a project's own AGENTS.md ([4c00430](https://github.com/agentprojectcontext/apx/commit/4c00430c9544bc926799e4e5df7355dbc5bd328f))
+* **agent:** tool-name sets drive safety, so stop writing them as literals ([83a86a4](https://github.com/agentprojectcontext/apx/commit/83a86a49072a14abecb4b20be2cce431dd90d7c8))
+* **apc:** one frontmatter parser — the four disagreed on legal keys ([6b47fbe](https://github.com/agentprojectcontext/apx/commit/6b47fbee514e639d3d1819ea0a2d00c478c220ec))
+* **api:** session search accepted only an id or exact path ([0499e09](https://github.com/agentprojectcontext/apx/commit/0499e09df5deb6180039bfb4724f6df0a88dabb1))
+* apx-mcp could not load, and memory_list threw on every call ([a34fcbd](https://github.com/agentprojectcontext/apx/commit/a34fcbd2eef468bb444e40cb4e9a43ed49fd5526)), closes [#interfaces](https://github.com/agentprojectcontext/apx/issues/interfaces) [#alias](https://github.com/agentprojectcontext/apx/issues/alias)
+* **http-tools:** the tool call proxy never sent a bearer, so 33 of 35 tools 401'd ([6e7435d](https://github.com/agentprojectcontext/apx/commit/6e7435db05d15e6680df592b1812bb730aa8f635))
+
+
+### Features
+
+* **core:** one JSON-file implementation, with the guarantees the copies lacked ([d9d87bd](https://github.com/agentprojectcontext/apx/commit/d9d87bde016ad05d97c8f5f605855555c3e24b88))
+* **lint:** add ESLint and make the layering rule a build error ([b20edfe](https://github.com/agentprojectcontext/apx/commit/b20edfe5d965454de032e778e8b31d4b3e4b11f5))
+
+
+### BREAKING CHANGES
+
+* the old root paths are gone — /health is /api/health,
+/projects is /api/projects, and so on. The desktop WebSocket moves to
+/api/desktop/ws; its legacy /overlay/ws alias is dropped, since no client
+that speaks /api ever used it. Run `apx restart` and rebuild the panel after
+pulling. A daemon started before this commit cannot be stopped by the new
+CLI (it 404s POST /api/admin/shutdown) — kill it by pid once.
+
+Also closes an auth bypass this made visible: isUnauthenticatedPath exempted
+any GET whose path carried a file extension, so an artifact route such as
+GET /projects/0/artifacts/report.html was served without a token. /api/* is
+now checked before that static-asset exemption is ever consulted.
+
+Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+
 ## [1.77.3](https://github.com/agentprojectcontext/apx/compare/v1.77.2...v1.77.3) (2026-08-17)
 
 
