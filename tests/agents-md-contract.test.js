@@ -119,3 +119,51 @@ test("no hand-maintained API prefix list has crept back in", () => {
     );
   assert.deepEqual(offenders, [], "use isApiPath() from api/prefix.js instead");
 });
+
+// ---------------------------------------------------------------------------
+// README — the first thing a human or an agent reads, and it had drifted hard:
+// its channel table listed four names of which only one existed, and it gave
+// an example command using a channel that never has.
+// ---------------------------------------------------------------------------
+
+const README = fs.readFileSync(path.join(REPO, "README.md"), "utf8");
+
+test("README: the channel table matches core/constants/channels.js", async () => {
+  const { CHANNELS } = await import("#core/constants/channels.js");
+  const real = new Set(Object.values(CHANNELS));
+
+  const table = README.split("| Channel | What it captures |")[1] || "";
+  const listed = [...table.split("\n## ")[0].matchAll(/^\|\s*`([a-z_]+)`/gm)].map(
+    (m) => m[1]
+  );
+  assert.ok(listed.length > 0, "channel table not found");
+
+  const bogus = listed.filter((c) => !real.has(c));
+  assert.deepEqual(bogus, [], "README lists channels that do not exist");
+
+  // `voice` is a mode, not a channel — the distinction is load-bearing.
+  assert.ok(!listed.includes("voice"), "voice is a mode, not a channel");
+});
+
+test("README: the runtimes table matches the registry", async () => {
+  const { RUNTIME_IDS } = await import("#core/runtimes/index.js");
+  const table = README.split("## Runtimes")[1] || "";
+  const listed = [...table.matchAll(/^\|\s*`([a-z-]+)`/gm)].map((m) => m[1]);
+  const missing = [...RUNTIME_IDS].filter((r) => !listed.includes(r));
+  assert.deepEqual(missing, [], "README omits shipped runtimes");
+});
+
+test("README: the Node version matches package.json engines", () => {
+  const pkg = JSON.parse(fs.readFileSync(path.join(REPO, "package.json"), "utf8"));
+  const major = pkg.engines.node.replace(/[^\d.]/g, "").split(".")[0];
+  assert.match(
+    README,
+    new RegExp(`Node\\.js ${major}\\+`),
+    `README should say Node.js ${major}+ to match engines.node`
+  );
+});
+
+// Rule 4: "super-agent" is a mode, not a persona name.
+test("README does not reintroduce a persona name for the super-agent", () => {
+  assert.ok(!/\bRoby\b/.test(README), "the super-agent has no persona name");
+});

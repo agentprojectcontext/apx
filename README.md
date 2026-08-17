@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://agentprojectcontext.github.io/apx/"><img src="https://img.shields.io/badge/Website-agentprojectcontext.github.io-3fb950?style=flat-square&logo=googlechrome&logoColor=white" alt="Website"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-3fb950?style=flat-square" alt="License: MIT"></a>
-  <img src="https://img.shields.io/badge/Node.js-20%2B-3fb950?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node.js 20+">
+  <img src="https://img.shields.io/badge/Node.js-22%2B-3fb950?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node.js 22+">
   <a href="https://github.com/agentprojectcontext/agentprojectcontext"><img src="https://img.shields.io/badge/Protocol-APC-3fb950?style=flat-square" alt="APC protocol"></a>
 </p>
 
@@ -49,7 +49,7 @@ APX is opinionated about storage: the filesystem is the source of truth. Project
   █    ‿    █
    ▀███████▀
 </pre>
-<sub>Meet <b>Roby</b> — your project's super-agent. He greets you across the <code>apx</code> CLI and the web admin.</sub>
+<sub>The <b>super-agent</b> — it greets you across the <code>apx</code> CLI and the web admin.</sub>
 </div>
 
 ## Quick start
@@ -77,7 +77,8 @@ apx messages tail
 ## Examples
 
 Real commands — copy one, point it at an agent like `sofia`, and APX routes it to the right
-runtime. The session and memory land in `.apc/`.
+runtime. The session transcript and its summary land in `~/.apx/`; only curated
+memory and the agent definition live in `.apc/`.
 
 | What | Command |
 |------|---------|
@@ -90,7 +91,7 @@ runtime. The session and memory land in `.apc/`.
 
 ## Use cases
 
-- **Review PRs across any runtime** — point an agent at your repo; APX routes to Claude Code and falls back to Codex or OpenCode if one isn't installed. The session and its summary land in `.apc/`.
+- **Review PRs across any runtime** — point an agent at your repo; APX routes to Claude Code and falls back to Codex or OpenCode if one isn't installed. The session and its summary land in `~/.apx/`.
 - **Operate your agents from Telegram** — talk to project agents from your phone. Identity roles gate who can do what, and every message is logged per channel for a full audit trail.
 - **Memory that lives in your repo** — curated, per-agent memory is plain markdown, committed and reviewable alongside your code. No vendor database, no hidden state, no lock-in.
 - **Run the same prompt across engines** — send one prompt through Anthropic, OpenAI, Gemini or a local Ollama model with `apx exec`, configured per project or globally.
@@ -101,7 +102,7 @@ runtime. The session and memory land in `.apc/`.
 npm install -g @agentprojectcontext/apx
 ```
 
-Requires Node.js 20+. The daemon starts automatically on first `apx` call.
+Requires Node.js 22+. The daemon starts automatically on first `apx` call.
 
 ## Web admin
 
@@ -178,12 +179,21 @@ Activity belongs to APX runtime state, not `.apc/`. Message storage is local to 
 JSONL messages include `type` (`user`, `agent`, `tool`, or `system`) plus `actor_id`, so chat views
 can distinguish Telegram users from APX agents and future subagents.
 
+A **channel** is the surface a turn arrived on. The canonical list lives in
+`src/core/constants/channels.js`; `voice` is a *mode*, not a channel.
+
 | Channel | What it captures |
 |---------|-----------------|
-| `runtime` | `apx run` invocations (prompt in, response out) |
-| `a2a` | Agent-to-agent calls made from within a session |
-| `telegram` | Telegram bot messages (stored globally in `~/.apx/messages/telegram/`) |
-| `exec` | Quick `apx exec` calls |
+| `cli` | `apx exec` / `apx run` from the terminal |
+| `telegram` | Telegram bot messages |
+| `api` | Direct daemon HTTP calls |
+| `web` | The admin panel's main chat |
+| `web_sidebar` | The panel's side assistant |
+| `web_code` | The panel's coding surface |
+| `code` | `apx code` sessions |
+| `deck` | The tablet/phone dashboard |
+| `desktop` | The floating voice capsule (always voice mode) |
+| `routine` | Scheduled routine runs |
 
 ## Runtimes
 
@@ -193,6 +203,10 @@ can distinguish Telegram users from APX agents and future subagents.
 | `codex` | OpenAI Codex CLI via non-interactive `codex exec --sandbox workspace-write --skip-git-repo-check` |
 | `opencode` | OpenCode CLI |
 | `aider` | Aider CLI |
+| `cursor-agent` | Cursor's headless agent |
+| `gemini-cli` | Google Gemini CLI |
+| `qwen-code` | Qwen Code CLI |
+| `antigravity` | Antigravity CLI |
 
 Global APX skill installation also writes named helper skills for `codex-cli`, `claude-code`,
 `opencode-cli`, and `openrouter`. They are intentionally narrow and should activate only when those
