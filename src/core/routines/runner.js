@@ -145,6 +145,12 @@ async function handleSuperAgent(ctx, routine, extraChannelMeta = {}) {
     suppressTools: suppressTools.length > 0 ? suppressTools : null,
   });
 
+  // A tool that needed a human in a run with no human is a DEAD END, not a
+  // hiccup: nobody is ever going to confirm it. Reporting the run as "ok"
+  // meant the only symptom was silence — the evening anchor produced nothing
+  // and it took twenty-one shell commands to work out why. Name it.
+  const blocked = blockedForPermission(result.trace);
+
   project.logMessage({
     channel: CHANNELS.ROUTINE,
     direction: "out",
@@ -161,7 +167,35 @@ async function handleSuperAgent(ctx, routine, extraChannelMeta = {}) {
       usage: result.usage,
     },
   });
+  if (blocked.length) {
+    return {
+      status: "error",
+      error:
+        `blocked waiting for a confirmation nobody can give: ${blocked.join(", ")}. ` +
+        `A scheduled run has no one to approve a dangerous tool — either allow it on ` +
+        `this routine (allowed_tools) or use a tool that does not need approval.`,
+      blocked_tools: blocked,
+      reply: result.text,
+      trace: result.trace,
+    };
+  }
   return { status: "ok", reply: result.text, trace: result.trace };
+}
+
+/**
+ * Tools whose result was "Action requires user confirmation" — the message
+ * createPermissionGuard throws when there is no confirmation channel wired
+ * (tools/helpers.js). Distinct from a tool that merely failed.
+ */
+export function blockedForPermission(trace) {
+  const names = new Set();
+  for (const item of Array.isArray(trace) ? trace : []) {
+    const err = item?.result?.error;
+    if (typeof err === "string" && /requires user confirmation/i.test(err)) {
+      names.add(item.tool || "unknown");
+    }
+  }
+  return [...names];
 }
 
 async function handleTelegram(ctx, routine) {

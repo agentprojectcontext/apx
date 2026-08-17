@@ -30,6 +30,7 @@ import askQuestions from "./handlers/ask-questions.js";
 import createTask from "./handlers/create-task.js";
 import recordCommitment from "./handlers/record-commitment.js";
 import listCommitments from "./handlers/list-commitments.js";
+import rememberRoutine from "./handlers/remember-routine.js";
 import listTasks from "./handlers/list-tasks.js";
 import discoverTools from "./handlers/discover-tools.js";
 import gitStatus from "./handlers/git-status.js";
@@ -85,6 +86,7 @@ const NATIVE_TOOLS = [
   listTasks,
   recordCommitment,
   listCommitments,
+  rememberRoutine,
   discoverTools,
   gitStatus,
   gitDiff,
@@ -143,6 +145,10 @@ export const BASE_TOOL_NAMES = new Set([
   TOOLS.READ_AGENT_MEMORY,
   TOOLS.READ_SELF_MEMORY,
   TOOLS.REMEMBER,
+  // NOT here: remember_routine. It only works inside a routine, and the routine
+  // channel is in FULL_CHANNELS — it already receives the whole registry. Adding
+  // it to the base set would spend tokens on every Telegram and desktop turn for
+  // a tool that returns an error on those channels.
   TOOLS.SET_IDENTITY,
   // Sessions + messages (self-recall + channel history).
   TOOLS.SEARCH_SESSIONS,

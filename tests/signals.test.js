@@ -268,3 +268,50 @@ test("a watch routine with signals hands them over as facts to judge", async () 
   assert.ok(signals.length > 0);
   assert.match(formatSignals(signals), /you owe Ana/);
 });
+
+// --------------------------------------------------------------------------
+// a routine blocked on a confirmation nobody can give
+// --------------------------------------------------------------------------
+
+test("a permission block is told apart from an ordinary tool failure", async () => {
+  // The real evening anchor: it tried write_file for its routine memory, the
+  // guard threw "Action requires user confirmation" because a scheduled run has
+  // no confirmation channel, the model gave up before send_telegram — and the
+  // run reported "ok". The only symptom was silence, and finding the cause took
+  // twenty-one shell commands.
+  //
+  // A dead end and a hiccup must not look the same: nobody is ever going to
+  // approve that tool, so it is a misconfiguration to report, not a retry.
+  const { blockedForPermission } = await import("#core/routines/runner.js");
+
+  assert.deepEqual(
+    blockedForPermission([
+      { tool: "list_tasks", result: { tasks: [] } },
+      { tool: "write_file", result: { error: "Action requires user confirmation: Write file …" } },
+    ]),
+    ["write_file"],
+  );
+
+  // An ordinary failure is NOT a permission block — conflating them would turn
+  // every transient error into "your routine is misconfigured".
+  assert.deepEqual(
+    blockedForPermission([{ tool: "run_shell", result: { error: "exit 1: command not found" } }]),
+    [],
+  );
+  // A refusal the user actively gave is a decision, not a dead end.
+  assert.deepEqual(
+    blockedForPermission([{ tool: "write_file", result: { error: "User did not confirm: …" } }]),
+    [],
+  );
+
+  // Deduped, and tolerant of junk.
+  assert.deepEqual(
+    blockedForPermission([
+      { tool: "write_file", result: { error: "Action requires user confirmation: a" } },
+      { tool: "write_file", result: { error: "Action requires user confirmation: b" } },
+    ]),
+    ["write_file"],
+  );
+  assert.deepEqual(blockedForPermission(null), []);
+  assert.deepEqual(blockedForPermission([{ tool: "x" }, {}]), []);
+});
