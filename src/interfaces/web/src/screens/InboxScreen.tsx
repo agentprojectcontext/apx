@@ -1,103 +1,133 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Section } from "../components/Section";
-import { Badge, Button, Empty, Loading } from "../components/ui";
+import { ArrowUpRight, EyeOff, Eye } from "lucide-react";
+import { Button, Loading } from "../components/ui";
+import { Tip } from "../components/ui/tip";
+import { InboxList, rowKey } from "../components/inbox/InboxList";
+import { ChatTab } from "./project/ChatTab";
 import { useInbox } from "../hooks/useInbox";
 import type { InboxRow } from "../lib/api/inbox";
+import type { ChatKey } from "../components/chat/ChatList";
 import { t } from "../i18n";
-import { useState } from "react";
 
 /**
  * The agent inbox — every agent as a conversation, most recent first.
  *
  * A SECOND AXIS over the same data, not a replacement for project navigation:
  * this is the conversational way in, the project rail is the structural one.
- * Clicking a row opens that agent's existing chat rather than re-implementing
- * one here — the thread UI already exists and must not be forked.
+ *
+ * Two panes, like any messaging app: pick on the left, read and reply on the
+ * right. The list used to fill the width and NAVIGATE AWAY on click, so
+ * reading one conversation meant losing the list — which defeats the point of
+ * having an inbox at all. The right pane embeds the real chat surface rather
+ * than a read-only rendering of it: if you can see what an agent said, you can
+ * answer it there and then.
  */
 export function InboxScreen() {
   const navigate = useNavigate();
   const [includeEmpty, setIncludeEmpty] = useState(false);
   const { rows, isLoading } = useInbox(includeEmpty);
+  const [selected, setSelected] = useState<InboxRow | null>(null);
 
-  const open = (row: InboxRow) => {
+  // Open the most recent conversation on arrival. An inbox that lands on an
+  // empty pane makes you click twice to see the thing you came for.
+  useEffect(() => {
+    if (!selected && rows.length) setSelected(rows[0]);
+  }, [rows, selected]);
+
+  if (isLoading) return <Loading />;
+
+  const pid = selected ? String(selected.project_id ?? 0) : null;
+  const title = selected ? (selected.agent_name || selected.agent_slug) : "";
+
+  /**
+   * Which conversation the chat pane should open.
+   *
+   * The super-agent has no per-agent conversation files — it talks on channels,
+   * and its history is the cross-channel ledger — so its row addresses a
+   * THREAD (channel + date). A project agent addresses a conversation. With
+   * neither, fall through to a live session rather than showing nothing.
+   */
+  const selectionFor = (row: InboxRow): ChatKey | undefined => {
     if (row.kind === "super_agent") {
-      navigate("/p/0/chat");
-      return;
+      return row.channel && row.conversation_id
+        ? { kind: "thread", channel: row.channel, threadId: row.conversation_id }
+        : undefined;
     }
-    navigate(`/p/${row.project_id}/agents/${encodeURIComponent(row.agent_slug)}`);
+    return row.conversation_id
+      ? { kind: "conv", agentSlug: row.agent_slug, convId: row.conversation_id }
+      : { kind: "live", agentSlug: row.agent_slug };
   };
 
   return (
-    <Section
-      fullHeight
-      title={t("inbox.title")}
-      description={t("inbox.subtitle")}
-      action={
-        <Button size="sm" variant={includeEmpty ? "primary" : "ghost"} onClick={() => setIncludeEmpty((v) => !v)}>
-          {t("inbox.show_quiet")}
-        </Button>
-      }
-    >
-      {isLoading ? <Loading /> : null}
-      {!isLoading && rows.length === 0 ? <Empty>{t("inbox.empty")}</Empty> : null}
+    <div className="flex h-full min-h-0 flex-col gap-3" data-testid="inbox-screen">
+      <div className="flex shrink-0 items-baseline justify-between gap-3">
+        <div>
+          <h1 className="text-lg font-semibold">{t("inbox.title")}</h1>
+          <p className="text-xs text-muted-fg">{t("inbox.subtitle")}</p>
+        </div>
+        <Tip content={includeEmpty ? t("inbox.hide_quiet") : t("inbox.show_quiet")}>
+          <Button size="sm" variant={includeEmpty ? "primary" : "ghost"} onClick={() => setIncludeEmpty((v) => !v)}>
+            {includeEmpty ? <EyeOff size={14} /> : <Eye size={14} />}
+            <span className="hidden sm:inline">{t("inbox.show_quiet")}</span>
+          </Button>
+        </Tip>
+      </div>
 
-      <ul className="space-y-2" data-testid="inbox-list">
-        {rows.map((row) => (
-          <li key={`${row.project_id ?? "global"}-${row.agent_slug}`}>
-            <button
-              type="button"
-              data-testid={`inbox-row-${row.agent_slug}`}
-              onClick={() => open(row)}
-              className={`flex w-full items-start gap-3 rounded-md border px-3 py-2 text-left transition ${
-                row.pinned
-                  ? "border-primary/60 bg-primary/5 hover:bg-primary/10"
-                  : "border-border bg-muted/30 hover:bg-muted/50"
-              }`}
-            >
-              <span className="mt-0.5 text-lg leading-none">{row.agent_emoji || "🤖"}</span>
+      <div className="flex min-h-0 flex-1 overflow-hidden rounded-xl border border-border bg-card/40">
+        <InboxList
+          rows={rows}
+          selectedKey={selected ? rowKey(selected) : null}
+          onSelect={setSelected}
+        />
 
-              <span className="min-w-0 flex-1">
-                <span className="flex min-w-0 items-baseline gap-2">
-                  <span className="truncate font-medium">{row.agent_name || row.agent_slug}</span>
-                  {row.pinned ? <Badge tone="info">{t("inbox.pinned")}</Badge> : null}
-                  {/* On a phone the timestamp rides with the name; there is no
-                      room for a third column. */}
-                  <span className="ml-auto shrink-0 text-xs opacity-50 sm:hidden">
-                    {shortTime(row.last_activity_at)}
-                  </span>
-                </span>
+        <section className="flex min-w-0 flex-1 flex-col">
+          {!selected ? (
+            <div className="flex h-full items-center justify-center p-8">
+              <p className="text-sm text-muted-fg">{t("inbox.empty")}</p>
+            </div>
+          ) : (
+            <>
+              <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-2.5">
+                <div className="min-w-0">
+                  <h2 className="truncate text-sm font-semibold">{title}</h2>
+                  <p className="truncate text-[11px] text-muted-fg">
+                    {selected.project_name || t("inbox.super_agent_scope")}
+                    {selected.channel ? ` · ${selected.channel}` : ""}
+                  </p>
+                </div>
+                {/* The structural way out. The inbox is a second axis over the
+                    same data, so getting from a conversation to its project
+                    must always be one click. */}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() =>
+                    navigate(
+                      selected.kind === "super_agent"
+                        ? "/p/0/chat"
+                        : `/p/${selected.project_id}/agents/${encodeURIComponent(selected.agent_slug)}`,
+                    )}
+                >
+                  {t("inbox.open_in_project")} <ArrowUpRight size={13} />
+                </Button>
+              </header>
 
-                <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs opacity-55">
-                  {row.project_name ? <span className="truncate">{row.project_name}</span> : null}
-                  {row.channel ? <span className="opacity-70">· {row.channel}</span> : null}
-                </span>
-
-                {/* The agent's own last line. Echoing the user's prompt back
-                    would tell them nothing they do not already know. Two lines
-                    on a phone, one on a wide screen. */}
-                <span className="mt-1 block line-clamp-2 text-sm leading-snug opacity-75 sm:line-clamp-1">
-                  {row.preview || t("inbox.no_reply_yet")}
-                </span>
-              </span>
-
-              <span className="hidden shrink-0 text-xs opacity-50 sm:block">
-                {shortTime(row.last_activity_at)}
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
-    </Section>
+              <div className="min-h-0 flex-1">
+                {/* Remounted per selection: the chat surface holds its own
+                    session state, and carrying one agent's stream into another
+                    agent's pane would be worse than a moment's reload. */}
+                <ChatTab
+                  key={rowKey(selected)}
+                  pid={pid as string}
+                  hideSidebar
+                  initialSelection={selectionFor(selected)}
+                />
+              </div>
+            </>
+          )}
+        </section>
+      </div>
+    </div>
   );
-}
-
-/** Today → time of day; older → date. Same idea as a messaging app. */
-function shortTime(iso: string): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const sameDay = new Date().toDateString() === d.toDateString();
-  return sameDay
-    ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-    : d.toLocaleDateString();
 }

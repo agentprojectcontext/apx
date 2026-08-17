@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, CheckCircle2, Info } from "lucide-react";
 import { Section } from "../Section";
-import { Badge, Button, Dialog, Empty, Field, Input, Loading } from "../ui";
+import { Badge, Button, Dialog, Empty, Field, Input, Loading, Switch } from "../ui";
 import { UiSelect } from "../UiSelect";
 import { useToast } from "../Toast";
 import { useProfiles, useProfile, useProfileDoctor } from "../../hooks/useProfiles";
@@ -143,16 +143,25 @@ export function ProfilePanel() {
         )}
 
         {profile ? (
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            {profile.active ? (
-              <Button variant="destructive" loading={busy} onClick={() => setConfirmOff(true)}>
-                {t("settings.profile.deactivate")}
-              </Button>
-            ) : (
-              <Button variant="primary" loading={busy} onClick={() => activate(profile.id, !!active)}>
-                {active ? t("settings.profile.replace_active") : t("settings.profile.activate")}
-              </Button>
-            )}
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            {/* A switch, like every other on/off in Settings (Engines, Skills,
+                Desktop autostart). The red "Deactivate" button read as a
+                destructive action — deactivating a profile destroys nothing:
+                its settings survive and turning it back on restores them. */}
+            <Switch
+              checked={!!profile.active}
+              disabled={busy}
+              label={profile.active ? t("settings.profile.on") : t("settings.profile.off")}
+              onChange={(on) => {
+                if (on) activate(profile.id, !!active);
+                // Switching OFF still confirms: the profile's routines stop
+                // with it, and that is worth one deliberate tap.
+                else setConfirmOff(true);
+              }}
+            />
+            {!profile.active && active ? (
+              <span className="text-xs opacity-60">{t("settings.profile.replaces_active")}</span>
+            ) : null}
             <span className="text-xs opacity-60">
               {t("settings.profile.token_cost")}: ~{profile.tokens ?? 0}
               {profile.budget ? ` / ${profile.budget}` : ""}

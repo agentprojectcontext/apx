@@ -144,6 +144,11 @@ export const es = {
     no_folders:  "Sin carpetas.",
   },
   inbox: {
+    search: "Buscar",
+    no_match: "No coincide nada",
+    hide_quiet: "Ocultar agentes callados",
+    open_in_project: "Abrir en el proyecto",
+    super_agent_scope: "Todos los proyectos",
     title: "Bandeja de agentes",
     subtitle:
       "Cada agente como una conversación, lo más reciente primero.",
@@ -196,6 +201,8 @@ export const es = {
     devices_revoke:      "Revocar",
     account_section:     "Cuenta",
     agents_section:      "Agentes & modelos",
+    super_agent_section: "Super-agente",
+    knowledge_section:   "Modelos y conocimiento",
     channels_section:    "Canales & dispositivos",
     modules_section:     "Módulos",
     advanced_section:    "Avanzado",
@@ -224,6 +231,9 @@ export const es = {
       activate: "Activar",
       replace_active: "Reemplazar el activo",
       deactivate: "Desactivar",
+      on: "Activo",
+      off: "Inactivo",
+      replaces_active: "Activarlo reemplaza al perfil activo",
       deactivate_title: "¿Desactivar el perfil?",
       deactivate_confirm:
         "APX vuelve a vanilla. Las rutinas del perfil se deshabilitan pero no se borran, y tu configuración, tareas y memoria quedan intactas: volver a activarlo restaura todo.",
@@ -473,6 +483,16 @@ export const es = {
     },
 
     global_tasks: {
+
+      add: "Agregar",
+
+      add_title: "Nueva tarea",
+
+      field_title: "Tarea",
+
+      field_project: "Proyecto",
+
+      field_due: "Vence",
       any_status: "cualquier estado",
       title:       "Tasks (todos los proyectos)",
       subtitle:    "Tareas agregadas de todos los proyectos registrados.",
@@ -482,6 +502,26 @@ export const es = {
     },
 
     commitments: {
+
+      add: "Agregar",
+
+      add_title: "Registrar una promesa",
+
+      add_hint: "Algo que le dijiste a una persona concreta que ibas a hacer. Las tareas están al lado.",
+
+      field_who: "Quién está esperando",
+
+      field_who_hint: "El nombre como lo dirías vos — texto libre, no un contacto.",
+
+      field_what: "Qué prometiste",
+
+      field_what_ph: "mandar el presupuesto corregido",
+
+      field_due: "Para cuándo",
+
+      field_due_hint: "Opcional, pero es la parte que lo hace útil.",
+
+      field_project: "Proyecto",
       title:    "Compromisos",
       subtitle: "Qué prometiste, a quién y para cuándo. Aparte de las tareas: acá hay alguien esperando.",
       empty:    "Nada prometido.",
