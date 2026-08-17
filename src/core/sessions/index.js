@@ -17,6 +17,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { apcProjectFile } from "#core/apc/paths.js";
+import { parseFrontmatterFields as parseFrontmatter } from "#core/apc/frontmatter.js";
 
 // ── shared helpers ───────────────────────────────────────────────────────────
 
@@ -490,17 +491,6 @@ const codexEngine = {
 
 // ── apx engine (default) ─────────────────────────────────────────────────────
 
-function parseFrontmatter(text) {
-  if (!text.startsWith("---\n")) return {};
-  const end = text.indexOf("\n---", 4);
-  if (end === -1) return {};
-  const fm = {};
-  for (const line of text.slice(4, end).split("\n")) {
-    const m = line.match(/^([a-zA-Z_]+):\s*(.*)$/);
-    if (m) fm[m[1]] = m[2].trim();
-  }
-  return fm;
-}
 
 // APX sessions are .md with ISO timestamps in frontmatter — prefer those over
 // mtime for the same backup-safety reason the JSONL engines do.

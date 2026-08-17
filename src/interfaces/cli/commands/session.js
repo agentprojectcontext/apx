@@ -12,6 +12,7 @@ import {
   findSessionAcrossEngines,
   findSessionInEngine,
 } from "./sessions.js";
+import { parseFrontmatter, setFrontmatterField } from "#core/apc/frontmatter.js";
 
 const STALE_HOURS = 1;
 
@@ -42,36 +43,7 @@ function readStdinSync() {
   return chunks.join("");
 }
 
-function parseFrontmatter(text) {
-  if (!text.startsWith("---\n")) return { fm: {}, bodyStart: 0 };
-  const end = text.indexOf("\n---", 4);
-  if (end === -1) return { fm: {}, bodyStart: 0 };
-  const fmText = text.slice(4, end);
-  const fm = {};
-  for (const line of fmText.split("\n")) {
-    const m = line.match(/^([a-zA-Z_]+):\s*(.*)$/);
-    if (m) fm[m[1]] = m[2].trim();
-  }
-  return { fm, bodyStart: end + 4 };
-}
 
-function setFrontmatterField(text, field, value) {
-  if (!text.startsWith("---\n")) return text;
-  const end = text.indexOf("\n---", 4);
-  if (end === -1) return text;
-  const fmText = text.slice(4, end);
-  const lines = fmText.split("\n");
-  let found = false;
-  const out = lines.map((line) => {
-    if (line.match(new RegExp(`^${field}:`))) {
-      found = true;
-      return `${field}: ${value}`;
-    }
-    return line;
-  });
-  if (!found) out.push(`${field}: ${value}`);
-  return `---\n${out.join("\n")}\n---${text.slice(end + 4)}`;
-}
 
 function listAllSessions(root) {
   const agentsDir = path.join(requireStorageRoot(root), "agents");
