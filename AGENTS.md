@@ -87,6 +87,17 @@ bundled profile package, a skill) and `~/.apx/config.json`, which
 `POST /api/admin/reload` re-reads. When in doubt, restart — two seconds, and it
 removes a whole class of wasted debugging.
 
+**Skills refresh two different ways, and this is the part people get wrong.**
+RUNTIME skills (`src/core/runtime-skills/`) are the super-agent's own: the loader
+reads them from the package path on demand, so adding or editing one is live
+immediately — no install, no restart. ENGINE skills (`skills/`, the bundled set) get
+copied into the host CLIs' own directories (`~/.claude/skills/`, …) by
+`apx skills sync` and by `postinstall`. So a PUBLISHED install refreshes them on
+`apx update`; a DEV checkout never runs postinstall, and must not run
+`apx update` at all — it replaces the global symlink pointing at this repo with
+the npm tarball, and you silently stop testing your own code. In dev the command
+is `apx skills sync`.
+
 ## Repo layout
 
 - `src/core/` — engine-agnostic core:
