@@ -5,7 +5,7 @@ import {
   Bot, Heart, Zap, Puzzle, Settings,
   MessagesSquare, KeyRound,
   LayoutDashboard, Boxes, Cpu, ScrollText, History, Brain, FileCode2, Cable,
-  Building2, FileText, FolderTree, Sparkles,
+  Building2, FileText, FolderTree, Sparkles, Handshake,
 } from "lucide-react";
 import { useNavCollapse, type TabSection } from "../components/common/TabNav";
 import { TabLayout } from "../components/common/TabLayout";
@@ -23,6 +23,7 @@ import { ModelsTab } from "./base/ModelsTab";
 import { AgentDefaultsTab } from "./base/AgentDefaultsTab";
 import { SessionsTab } from "./base/SessionsTab";
 import { GlobalTasksTab } from "./base/GlobalTasksTab";
+import { CommitmentsTab } from "./base/CommitmentsTab";
 import { ConfigTab } from "./project/ConfigTab";
 import { AgentsTab } from "./project/AgentsTab";
 import { RoutinesTab } from "./project/RoutinesTab";
@@ -42,7 +43,7 @@ import { SkillsTab } from "./project/SkillsTab";
 
 type NavKey =
   | "" | "chat" | "config" | "telegram"
-  | "agents" | "routines" | "tasks" | "mcps" | "integrations" | "vars" | "logs" | "memories" | "artifacts"
+  | "agents" | "routines" | "tasks" | "commitments" | "mcps" | "integrations" | "vars" | "logs" | "memories" | "artifacts"
   | "structure" | "docs" | "files" | "skills" | "sessions";
 
 export function ProjectScreen() {
@@ -115,6 +116,7 @@ export function ProjectScreen() {
         items: [
           { key: "routines",     label: t("project.nav.routines"),  icon: Heart },
           { key: "tasks",        label: t("project.nav.tasks"),     icon: Zap },
+          { key: "commitments",  label: t("project.nav.commitments"), icon: Handshake },
           { key: "mcps",         label: t("project.nav.mcps"),      icon: Puzzle },
           { key: "integrations", label: "Integrations",             icon: Cable },
           { key: "vars",         label: t("project.nav.vars"),      icon: KeyRound },
@@ -184,6 +186,7 @@ export function ProjectScreen() {
         <Route path="skills"       element={<SkillsTab pid={pid} />} />
         <Route path="routines"     element={<RoutinesTab pid={pid} />} />
         <Route path="tasks"        element={isBase ? <GlobalTasksTab /> : <TasksTab pid={pid} />} />
+        <Route path="commitments"  element={<CommitmentsTab pid={isBase ? undefined : pid} />} />
         <Route path="mcps"         element={<McpsTab pid={pid} />} />
         <Route path="integrations" element={<IntegrationsTab pid={pid} />} />
         <Route path="artifacts"    element={<ArtifactsTab pid={pid} />} />

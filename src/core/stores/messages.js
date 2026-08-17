@@ -684,6 +684,10 @@ export function readGlobalThread({ channel, date, _globalMessagesDir } = {}) {
         ...(r.actor_kind ? { actor_kind: r.actor_kind } : {}),
         ...(r.meta?.model ? { model: r.meta.model } : {}),
         ...(usage && typeof usage === "object" ? { usage } : {}),
+        // What the turn actually did. Recorded compactly at write time
+        // (core/agent/tool-summary.js) because the live tool events are gone
+        // by the time anyone reads the thread back.
+        ...(r.meta?.tool_summary ? { tool_summary: r.meta.tool_summary } : {}),
       };
     });
   return { id: date, channel, messages };

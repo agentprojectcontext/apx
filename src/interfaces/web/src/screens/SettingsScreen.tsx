@@ -1,13 +1,14 @@
 import { type ReactElement } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
-  Bot, Cpu, Database, Globe, IdCard, KeyRound, LayoutGrid, MessageCircle, Mic, Monitor, ScrollText, Send, Smartphone, Sparkles, User,
+  BellRing, Bot, Cpu, Database, Globe, IdCard, KeyRound, LayoutGrid, MessageCircle, Mic, Monitor, ScrollText, Send, Smartphone, Sparkles, User,
 } from "lucide-react";
 import { useNavCollapse, type TabSection } from "../components/common/TabNav";
 import { TabLayout } from "../components/common/TabLayout";
 import { IdentityPanel } from "../components/settings/IdentityPanel";
 import { SuperAgentPanel } from "../components/settings/SuperAgentPanel";
 import { ProfilePanel } from "../components/settings/ProfilePanel";
+import { NudgePanel } from "../components/settings/NudgePanel";
 import { MemoryPanel } from "../components/settings/MemoryPanel";
 import { SkillsSettings } from "../components/settings/SkillsSettings";
 import { ModelsTab } from "./base/ModelsTab";
@@ -22,7 +23,7 @@ import { STORAGE } from "../constants";
 import { t } from "../i18n";
 
 type TabKey =
-  | "identity" | "super_agent" | "profile" | "engines" | "memory" | "skills" | "telegram" | "devices"
+  | "identity" | "super_agent" | "profile" | "nudge" | "engines" | "memory" | "skills" | "telegram" | "devices"
   | "voice" | "deck" | "desktop" | "web" | "advanced";
 
 const SECTIONS: TabSection[] = [
@@ -37,6 +38,7 @@ const SECTIONS: TabSection[] = [
     items: [
       { key: "super_agent", label: t("settings.tabs.super_agent"), icon: Bot },
       { key: "profile",     label: t("settings.tabs.profile"),     icon: IdCard },
+      { key: "nudge",       label: t("settings.tabs.nudge"),       icon: BellRing },
       { key: "engines",     label: t("settings.tabs.engines"),     icon: Cpu },
       { key: "memory",      label: "Memory (RAG)",                 icon: Database },
       { key: "skills",      label: t("skills_page.title"),         icon: Sparkles },
@@ -76,6 +78,7 @@ const PANELS: Record<TabKey, () => ReactElement> = {
   identity:    () => <IdentityPanel />,
   super_agent: () => <SuperAgentPanel />,
   profile:     () => <ProfilePanel />,
+  nudge:       () => <NudgePanel />,
   engines:     () => <ModelsTab />,
   memory:      () => <MemoryPanel />,
   skills:      () => <SkillsSettings />,
@@ -117,6 +120,7 @@ function tabFromPath(pathname: string): TabKey {
   switch (raw) {
     case "super-agent": return "super_agent";
     case "profile": return "profile";
+    case "nudge": return "nudge";
     case "engines": return "engines";
     case "memory": return "memory";
     case "skills": return "skills";

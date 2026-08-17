@@ -36,7 +36,7 @@ if (!files.length) {
 
 // Ratchet. Raise these when coverage improves; never lower them. Node reports
 // line/branch/function percentages over everything it loaded.
-const COVERAGE_FLOOR = { line: 72, branch: 71, function: 64 };
+const COVERAGE_FLOOR = { line: 73, branch: 71, function: 66 };
 
 const child = spawn(
   process.execPath,

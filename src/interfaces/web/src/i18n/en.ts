@@ -206,6 +206,7 @@ export const en = {
       engines: "Engines & models",
       telegram: "Telegram",
       devices: "Devices",
+      nudge: "Interruptions",
       advanced: "Advanced",
     },
 
@@ -243,6 +244,34 @@ export const en = {
       no_settings: "This profile has nothing to configure.",
       settings_locked: "Activate the profile to change its settings.",
       doctor_vanilla: "No profile active. APX behaves as it always has.",
+    },
+
+    nudge: {
+      title: "Interruption budget",
+      subtitle:
+        "How often APX may write to you without being asked. Replies to your own messages are never held back.",
+      off_hint:
+        "The budget is off: every unrequested message goes out. Everything is still recorded below.",
+      on_hint: "{{sent}} sent today, {{left}} left.",
+      source: "Set by",
+      enabled: "Enforce the budget",
+      daily_max: "Messages per day",
+      daily_max_hint: "0 means no ceiling.",
+      quiet_hours: "Quiet hours",
+      quiet_hours_hint: "HH:MM-HH:MM. Crosses midnight fine. Leave empty for none.",
+      cooldown: "Minimum gap (minutes)",
+      project_cooldown: "Minimum gap per project (minutes)",
+      kind_cooldown: "Minimum gap per kind (minutes)",
+      critical_bypass: "Critical messages may bypass the budget",
+      critical_bypass_hint: "Bypasses are always recorded and flagged.",
+      log_title: "What it has sent",
+      log_subtitle: "Unrequested messages only, newest first. Your rating feeds back into what it sends next.",
+      log_empty: "Nothing sent unprompted yet.",
+      useful: "Useful",
+      noise: "Not useful",
+      bypass: "bypassed the budget",
+      saved: "Budget updated",
+      unrated: "not rated",
     },
 
     identity: {
@@ -338,6 +367,7 @@ export const en = {
       agents:   "Agents",
       routines: "Routines",
       tasks:    "Tasks",
+      commitments: "Commitments",
       mcps:     "MCPs",
       artifacts: "Artifacts",
       vars:     "Variables",
@@ -448,6 +478,24 @@ export const en = {
       empty:       "No tasks.",
       due:         "due",
       go_project:  "Go to project",
+    },
+
+    commitments: {
+      title:    "Commitments",
+      subtitle: "What was promised, to whom, and by when. Separate from tasks: someone is waiting on these.",
+      empty:    "Nothing promised.",
+      overdue:  "was due",
+      overdue_only: "Past their date",
+      no_date:  "no date agreed",
+      moved:    "moved",
+      mark_kept:   "Kept",
+      mark_missed: "Missed",
+      state: {
+        open:   "open",
+        kept:   "kept",
+        missed: "missed",
+        all:    "all",
+      },
     },
 
     routines: {
@@ -875,6 +923,8 @@ export const en = {
     no_activity_ch: "No activity in channel \"{ch}\".",
     error:        "Could not read messages: {msg}",
     show_more:    "show more",
+    event_routine_created: "routine created",
+    event_routine_updated: "routine updated",
     show_less:    "show less",
     daemon_errors: "Daemon errors (~/.apx/logs/errors.jsonl)",
     no_errors:    "No errors recorded. 🎉",
@@ -1566,6 +1616,9 @@ export const en = {
     kind_routine:            "routine",
     kind_hierarchy:          "hierarchy",
     nodes_drag_hint:         "{n} nodes · drag to rearrange",
+    kind_watch:              "Watcher",
+    kind_watch_desc:         "Sweeps for things worth noticing — overdue work, promises coming due, projects gone quiet. Costs nothing when there is nothing to report.",
+    action_watch:            "Watches for signals, and judges only when it finds some",
     kind_exec_agent:         "Project agent",
     kind_exec_agent_desc:    "Runs a project agent with a prompt. You pick which one.",
     kind_super_agent:        "Super-agent",
@@ -1875,6 +1928,7 @@ export const en = {
   shared_ui: {
     skill_inspector_title: "Skill Inspector ({embedder}) chose these skills for this turn",
     tools_count:           "{n} tools",
+    tools_failed:          "{n} failed",
     tool_read_file:        "Read file",
     tool_write_file:       "Write file",
     tool_edit_file:        "Edit file",

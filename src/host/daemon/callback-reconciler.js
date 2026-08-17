@@ -15,6 +15,8 @@
 // session close captured remains). The rich A2A relay (Roby re-voicing the
 // result) stays the job of the live in-process path.
 import { listPendingCallbacks, deletePendingCallback, readSessionState } from "#core/stores/runtime-callbacks.js";
+import { readConfig } from "#core/config/index.js";
+import { canNudge, recordNudge } from "#core/nudge/index.js";
 
 const GRACE_MS = 30_000;               // let the live in-process path win a fresh completion
 const STALE_MS = 24 * 60 * 60 * 1000;  // drop IOUs for runs that never finished in a day
@@ -62,11 +64,25 @@ export async function reconcilePendingCallbacks({ plugins, log }) {
       if (Number.isFinite(compAge) && compAge < GRACE_MS) continue;
 
       if (!telegram) continue; // telegram plugin not up this boot — retry next tick
+
+      // PUSH PATH 4 OF 4. Declared SOLICITED, and that is a judgement worth
+      // stating: the user launched this runtime and is waiting for its result.
+      // Arriving late does not make it an interruption, and holding it back
+      // for quiet hours would mean losing an answer they asked for. It still
+      // passes through the gate so the audit is real and so a future policy
+      // can reach it without hunting for a fifth path nobody remembered.
+      const gate = canNudge(
+        { kind: "session_result", severity: "normal", unsolicited: false, channel: "telegram" },
+        readConfig(),
+      );
+      if (!gate.allowed) continue; // never today; retry next tick if it ever is
+
       await telegram.send({
         channel: entry.tg_channel || undefined,
         chat_id: entry.chat_id,
         text: deliverText(entry, state),
       });
+      recordNudge(gate, { chat_id: entry.chat_id });
       deletePendingCallback(entry.session_id);
       log?.(`callback-reconciler: delivered late callback for ${entry.session_id} → chat ${entry.chat_id}`);
     } catch (e) {

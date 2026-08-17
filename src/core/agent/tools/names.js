@@ -41,6 +41,8 @@ export const TOOLS = Object.freeze({
   // Tasks
   LIST_TASKS:          "list_tasks",
   CREATE_TASK:         "create_task",
+  RECORD_COMMITMENT:   "record_commitment",
+  LIST_COMMITMENTS:    "list_commitments",
 
   // Interaction
   ASK_QUESTIONS:       "ask_questions",
@@ -135,6 +137,8 @@ export const NATIVE_TOOL_NAMES = new Set([
   TOOLS.LOAD_SKILL,
   TOOLS.LIST_TASKS,
   TOOLS.CREATE_TASK,
+  TOOLS.RECORD_COMMITMENT,
+  TOOLS.LIST_COMMITMENTS,
   TOOLS.ASK_QUESTIONS,
   TOOLS.SEARCH_SESSIONS,
   TOOLS.TRANSCRIBE_AUDIO,
@@ -182,6 +186,7 @@ export const CODE_PLAN_TOOLS = Object.freeze([
   TOOLS.LIST_SKILLS,
   TOOLS.LOAD_SKILL,
   TOOLS.LIST_TASKS,
+  TOOLS.LIST_COMMITMENTS,
   TOOLS.ASK_QUESTIONS,
   TOOLS.FETCH,
   TOOLS.SEARCH,
@@ -222,6 +227,7 @@ export const CODE_BUILD_TOOLS = "*";
 export const SIDE_EFFECT_TOOLS = new Set([
   TOOLS.SEND_TELEGRAM,
   TOOLS.CREATE_TASK,
+  TOOLS.RECORD_COMMITMENT,
   TOOLS.WRITE_FILE,
   TOOLS.EDIT_FILE,
   TOOLS.RUN_SHELL,

@@ -1,0 +1,100 @@
+---
+title: Calendar
+description: Give the super-agent your agenda through an MCP server — what a chief-of-staff profile needs to open the day with "you have three calls".
+sidebar:
+  order: 9
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+APX has no built-in calendar client. It reaches your agenda through **MCP**, the same way
+it reaches anything else it does not implement itself.
+
+That is a deliberate choice rather than a gap. A calendar is the one integration where the
+protocols are already good, the servers already exist, and the differences between
+providers (Google, CalDAV, Exchange) are exactly the differences an MCP server is there to
+absorb.
+
+<Aside type="caution" title="What is NOT built yet">
+Calendar events are **not** a signal source. The [watch routine](/capabilities/routines/)
+detects overdue work and promises coming due from local stores, deterministically and
+without a model. It cannot do the same for your calendar, because reading a remote agenda
+means a network call, and a detector that makes network calls stops being cheap enough to
+run every few minutes.
+
+Making "a meeting in 30 minutes" a signal needs the native adapter described at the bottom
+of this page. Until then the agent reads your agenda **when it runs a turn** — the day-open
+anchor, or when you ask — which covers the useful cases and none of the proactive ones.
+</Aside>
+
+## Connect a calendar
+
+<Steps>
+
+1. Pick an MCP server for your provider. Any server implementing the Model Context Protocol
+   works; APX does not require a specific one.
+
+2. Register it globally, so every project and channel can reach it:
+
+   ```bash
+   apx mcp add calendar --scope global --command npx --args "-y,@your/calendar-mcp-server"
+   ```
+
+3. Check the agent can see its tools:
+
+   ```bash
+   apx mcp list --scope global
+   ```
+
+4. Ask for it in plain language. The super-agent finds MCP tools through `call_mcp`; you do
+   not need to name the server.
+
+   ```
+   what's on my calendar today?
+   ```
+
+</Steps>
+
+## Recommended configuration
+
+Two things matter more than which server you choose.
+
+**Read-only unless you mean it.** A server that can create and delete events gives the agent
+the ability to change other people's days. Start with read scopes. Grant write access when
+you have a reason to, and remember that APX will still ask before an outward-facing write —
+sending, publishing, or changing something in a third-party system all confirm first.
+
+**Global scope, not per-project.** Your calendar is not a property of one repository. A
+chief-of-staff profile asking "what does today look like" needs the agenda regardless of
+which project it is thinking about.
+
+<Aside type="note" title="Credentials">
+MCP servers hold their own credentials, usually as environment variables in the server's
+own config. APX passes them through and never stores them itself. Nothing calendar-related
+is written to `~/.apx/config.json`.
+</Aside>
+
+## What a profile does with it
+
+The [secretary profile](/capabilities/profiles/) already expects an agenda and works without
+one. Its `day-open` anchor asks for what is on the calendar today; with no calendar
+connected that part is simply absent, and the anchor still reports promises and overdue
+work.
+
+Its manifest lists calendar as an **optional** integration, which is what that means in
+practice: better with, correct without.
+
+## The native adapter, and why it is not here yet
+
+The spec calls for `src/core/integrations/plugins/calendar.js` with normalised tools —
+`calendar_list_events`, `calendar_create_event`, `calendar_find_slot`,
+`calendar_update_event` — so a profile depends on APX's contract rather than on whichever
+tool names a third-party server happens to use.
+
+That adapter is worth building, and it is deliberately not built yet. Writing a stable
+contract before there is a working use case behind it is how you get an abstraction shaped
+like a guess. The order is: get it working through MCP, find out what a profile actually
+asks a calendar for, then freeze that.
+
+When the adapter lands, switching providers will stop requiring any change to the profile
+package. Today it does.

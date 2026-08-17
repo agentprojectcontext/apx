@@ -8,6 +8,14 @@
 //
 // Runs on a temp HOME and a spare port, so it never touches the developer's own
 // ~/.apx and never collides with their daemon.
+//
+// ⚠️ NEEDS ADAPTING to the /api route refactor. Written against the pre-refactor
+// layout where data routes sat at the bare path; the prefix has been updated but
+// five tests still fail against a freshly-booted daemon and the cause is not yet
+// understood — the same calls succeed by hand against a live daemon and against a
+// hand-rolled fresh one. Do NOT wire this into CI until those five pass: a suite
+// that fails for its own reasons trains people to ignore it, which is worse than
+// not having it. See docs-internal/secretary/ADAPTER-SEAM-BUGS.md.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -21,12 +29,17 @@ const TMP_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "apx-smoke-home-"));
 // A spare port, so this never collides with the developer's own daemon.
 const PORT = 7000 + Number(process.hrtime.bigint() % 900n);
 const BASE = `http://127.0.0.1:${PORT}`;
+// Every data route lives under /api. Hitting the bare path does not 404 — it
+// falls through to the SPA, so a test that forgets the prefix passes while
+// asserting nothing. That is exactly what happened when this file was written
+// against the pre-refactor layout.
+const API = `${BASE}/api`;
 
 let daemon;
 let token = "";
 
 function get(p, opts = {}) {
-  return fetch(BASE + p, {
+  return fetch(API + p, {
     ...opts,
     headers: { authorization: `Bearer ${token}`, ...(opts.headers || {}) },
   });
@@ -50,9 +63,35 @@ before(async () => {
     env: { ...process.env, HOME: TMP_HOME, APX_PORT: String(PORT), APX_HOST: "127.0.0.1" },
     stdio: "ignore",
   });
-  assert.ok(await waitForDaemon(), `daemon did not come up on ${BASE}`);
+  assert.ok(await waitForDaemon(), `daemon did not come up on ${API}`);
   token = (await (await fetch(`${BASE}/api/admin/web-token`)).json()).token;
   assert.ok(token, "could not read the web token");
+
+  // Contract tests assert that FIELDS are present, which needs at least one row
+  // to look at. A fresh HOME has none, and an empty list would let every
+  // assertion pass vacuously — the failure mode this whole file exists to stop.
+  const projectDir = path.join(TMP_HOME, "smoke-project");
+  fs.mkdirSync(path.join(projectDir, ".apc"), { recursive: true });
+  fs.writeFileSync(path.join(projectDir, "AGENTS.md"), "# Smoke project\n");
+  fs.writeFileSync(
+    path.join(projectDir, ".apc", "project.json"),
+    JSON.stringify({ name: "smoke", apx_id: "smoke" })
+  );
+
+  const reg = await get("/projects", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ path: projectDir }),
+  });
+  assert.ok(reg.ok, `could not register the smoke project (HTTP ${reg.status})`);
+  const project = await reg.json();
+
+  const task = await get(`/projects/${project.id}/tasks`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ title: "smoke task", tags: ["smoke"] }),
+  });
+  assert.ok(task.ok, `could not create a task (HTTP ${task.status})`);
 });
 
 after(async () => {
