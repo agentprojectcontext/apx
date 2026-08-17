@@ -8,6 +8,8 @@ import { useToast } from "../Toast";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 import { type Kind, kindMeta, kindOptions, schedPresets, scheduleHuman, splitLines, varsFor } from "./shared";
+import { CronPicker } from "../cron/CronPicker";
+import { parseCron } from "../../lib/cron";
 import { VarTextarea } from "./VarTextarea";
 import { AvailableVarsCard } from "./AvailableVarsCard";
 
@@ -178,7 +180,13 @@ export function RoutineEditor({
                     {t("agents_ui.preset_manual")}
                   </button>
                 </div>
-                <Input value={schedule} onChange={(e) => setSchedule(e.target.value)} placeholder="every:10m · cron 0 9 * * 1-5 · once:ISO · manual" />
+                {/* A cron schedule gets the picker; every:/once:/manual stay a
+                    text field, because those forms are already readable. */}
+                {parseCron(schedule.replace(/^cron\s+/i, "")) ? (
+                  <CronPicker value={schedule.replace(/^cron\s+/i, "")} onChange={setSchedule} />
+                ) : (
+                  <Input value={schedule} onChange={(e) => setSchedule(e.target.value)} placeholder="every:10m · 0 9 * * 1-5 · once:ISO · manual" />
+                )}
               </div>
             </Field>
             <AvailableVarsCard />

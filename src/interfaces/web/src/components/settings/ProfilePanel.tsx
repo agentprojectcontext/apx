@@ -6,6 +6,7 @@ import { UiSelect } from "../UiSelect";
 import { useToast } from "../Toast";
 import { useProfiles, useProfile, useProfileDoctor } from "../../hooks/useProfiles";
 import { ProfilesApi, type ProfileSchemaProp } from "../../lib/api/profiles";
+import { CronPicker } from "../cron/CronPicker";
 import { t } from "../../i18n";
 
 /**
@@ -15,6 +16,11 @@ import { t } from "../../i18n";
  * Identity), nor with configuration profiles. With none active, APX behaves
  * exactly as it always has, and the panel says so rather than looking broken.
  */
+/** Schema keys whose value is a five-field cron expression. */
+function isCronKey(key: string): boolean {
+  return /(^|_)schedule$/.test(key) || /_cron$/.test(key);
+}
+
 export function ProfilePanel() {
   const toast = useToast();
   const { active, profiles, isLoading, mutate } = useProfiles();
@@ -192,7 +198,16 @@ export function ProfilePanel() {
               <div className="grid gap-3 sm:grid-cols-2">
                 {Object.entries(props).map(([key, def]) => (
                   <Field key={key} label={def.title || key} hint={def.description}>
-                    {def.enum ? (
+                    {/* A schedule is a time and some days, not five
+                        space-separated fields. Detected by key name because the
+                        JSON-Schema subset has no "format" for cron. */}
+                    {isCronKey(key) ? (
+                      <CronPicker
+                        value={draft[key] ?? String(def.default ?? "")}
+                        onChange={(expr) => setDraft({ ...draft, [key]: expr })}
+                        disabled={!canEdit}
+                      />
+                    ) : def.enum ? (
                       <UiSelect
                         value={draft[key] ?? String(def.default ?? "")}
                         onChange={(v) => setDraft({ ...draft, [key]: v })}

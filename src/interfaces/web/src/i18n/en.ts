@@ -2,6 +2,32 @@
 // Keep entries in the same order as es.ts so diffs stay readable.
 
 export const en = {
+    cron: {
+      daily:            "every day at {at}",
+      weekdays:         "Monday to Friday at {at}",
+      weekends:         "weekends at {at}",
+      on_days:          "{days} at {at}",
+      monthly:          "day {day} of each month at {at}",
+      every_hour:       "every hour, at :{minute}",
+      every_n_hours:    "every {n} hours, at :{minute}",
+      every_n_minutes:  "every {n} minutes",
+      every_minute:     "every minute",
+      every_label:      "every N hours instead",
+      use_cron:         "edit as cron",
+      use_picker:       "use the picker",
+      preset_every_day: "every day",
+      preset_weekdays:  "weekdays",
+      preset_weekends:  "weekends",
+      day_short: { sun: "Sun", mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat" },
+    },
+    when: {
+      now:     "now",
+      in:      "in {amount}",
+      ago:     "{amount} ago",
+      minutes: "{n} min",
+      hours:   "{n} h",
+      days:    "{n} d",
+    },
   common: {
     loading:      "Loading…",
     saving:       "Saving…",
@@ -1678,6 +1704,7 @@ export const en = {
     preset_every_10m:        "every 10 min",
     preset_hourly:           "hourly",
     preset_daily_9am:        "daily 9am",
+    sched_manual:            "only when you run it",
     preset_weekdays_9am:     "weekdays 9am",
     preset_manual:           "Manual",
     var_pre_output_prompt:   "Text output of the pre-commands. Replaced inside the prompt/text before it is sent. Use it to inject fresh data (weather, an API) into the instruction.",

@@ -27,6 +27,17 @@ function writeFile(projectPath, routines) {
 
 export function parseSchedule(s, baseMs = Date.now()) {
   if (!s || typeof s !== "string") return { kind: "invalid" };
+
+  // "manual" — runs only when someone runs it. It USED to work by accident:
+  // the string failed cron parsing, came back "invalid", and an invalid
+  // schedule never becomes due. Correct outcome, wrong reason, and it meant
+  // every surface reported a deliberate choice as a broken expression.
+  if (s.trim().toLowerCase() === "manual") return { kind: "manual" };
+
+  // Tolerate a leading "cron " label. The web editor's own presets wrote
+  // `cron 0 9 * * *`, which cron-parser rejects — so picking "daily at 9am"
+  // in the panel produced a routine that never ran, with nothing to show why.
+  const labelled = s.trim().replace(/^cron\s+/i, "");
   
   if (s.startsWith("every:")) {
     const spec = s.slice(6).trim();
@@ -46,7 +57,7 @@ export function parseSchedule(s, baseMs = Date.now()) {
 
   // Fallback: Try parsing as standard cron expression using cron-parser
   try {
-    const interval = CronExpressionParser.parse(s, { currentDate: new Date(baseMs) });
+    const interval = CronExpressionParser.parse(labelled, { currentDate: new Date(baseMs) });
     return { kind: "cron", parser: interval };
   } catch (err) {
     return { kind: "invalid" };
@@ -55,7 +66,7 @@ export function parseSchedule(s, baseMs = Date.now()) {
 
 export function computeNextRun(routine, baseMs = Date.now()) {
   const sched = parseSchedule(routine.schedule, baseMs);
-  if (sched.kind === "invalid") return null;
+  if (sched.kind === "invalid" || sched.kind === "manual") return null;
   if (sched.kind === "once") {
     return sched.atMs > baseMs
       ? new Date(sched.atMs).toISOString().replace(/\.\d{3}Z$/, "Z")
@@ -227,7 +238,10 @@ export function getDueRoutines(projectPath, nowStr) {
     // CRITICAL: If the schedule cannot be parsed, NEVER run it.
     // Otherwise, an invalid schedule (like a cron string) sets next_run_at to null,
     // which previously caused it to be considered ALWAYS due and spam execution every 5 seconds!
-    if (parseSchedule(r.schedule).kind === "invalid") return false;
+    const kind = parseSchedule(r.schedule).kind;
+    // "manual" is a deliberate never-on-a-clock, not a broken expression —
+    // both are skipped here, but only one of them is a problem to report.
+    if (kind === "invalid" || kind === "manual") return false;
     return (!r.next_run_at || r.next_run_at <= nowStr);
   });
 }
