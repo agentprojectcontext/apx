@@ -1,3 +1,16 @@
+# [1.80.0](https://github.com/agentprojectcontext/apx/compare/v1.79.0...v1.80.0) (2026-08-17)
+
+
+### Bug Fixes
+
+* **agent:** stop teaching models to write tool calls instead of making them ([6e4ad1d](https://github.com/agentprojectcontext/apx/commit/6e4ad1d5c5e76659f78330ade0d3eb7ffa07c183))
+* **telegram:** answer every callback_query, so inline buttons stop reading as dead ([23ba88b](https://github.com/agentprojectcontext/apx/commit/23ba88bc007a94235cccf5ef92f5a70a7554d9aa))
+
+
+### Features
+
+* **telegram:** receive documents, video and GIFs, and give photos to the model ([2f8ae34](https://github.com/agentprojectcontext/apx/commit/2f8ae340c9313ae3afb4f882de73e4453cfd0d3f))
+
 # [1.79.0](https://github.com/agentprojectcontext/apx/compare/v1.78.0...v1.79.0) (2026-08-17)
 
 
