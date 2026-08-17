@@ -617,8 +617,12 @@ function makeInlineHandlers({ projects }) {
 
     memory_list: async (body) => {
       const { default: fs } = await import("node:fs");
-      const { readAgents } = await import("../parser.js");
-      const { agentMemoryPath } = await import("../agent-memory.js");
+      // These paths were "../parser.js" and "../agent-memory.js", neither of
+      // which exists — memory_list threw on every call. Dynamic imports are
+      // invisible to the linter and nothing tested this tool, so it stayed
+      // broken until a typecheck pass looked at it.
+      const { readAgents } = await import("../apc/parser.js");
+      const { agentMemoryPath } = await import("../agent/memory.js");
       // Find the project
       const all = projects.list();
       let p = null;
