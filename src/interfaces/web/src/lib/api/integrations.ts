@@ -103,28 +103,28 @@ const q = (scope: IntegrationScope) => `?scope=${scope}`;
 
 export const Integrations = {
   catalog: (pid: string) =>
-    http.get<CatalogEntry[]>(`/projects/${pid}/integrations/catalog`),
+    http.get<CatalogEntry[]>(`/api/projects/${pid}/integrations/catalog`),
 
   list: (pid: string, scope: IntegrationScope = "project") =>
-    http.get<IntegrationRecord[]>(`/projects/${pid}/integrations${q(scope)}`),
+    http.get<IntegrationRecord[]>(`/api/projects/${pid}/integrations${q(scope)}`),
 
   status: (pid: string, slug: string, scope: IntegrationScope = "project") =>
-    http.get<IntegrationStatus>(`/projects/${pid}/integrations/${slug}${q(scope)}`),
+    http.get<IntegrationStatus>(`/api/projects/${pid}/integrations/${slug}${q(scope)}`),
 
   configure: (pid: string, slug: string, scope: IntegrationScope, body: Record<string, unknown>) =>
-    http.post<IntegrationRecord>(`/projects/${pid}/integrations/${slug}/configure${q(scope)}`, body),
+    http.post<IntegrationRecord>(`/api/projects/${pid}/integrations/${slug}/configure${q(scope)}`, body),
 
   validate: (pid: string, slug: string, scope: IntegrationScope = "project") =>
-    http.post<AsanaValidateResult>(`/projects/${pid}/integrations/${slug}/validate${q(scope)}`, {}),
+    http.post<AsanaValidateResult>(`/api/projects/${pid}/integrations/${slug}/validate${q(scope)}`, {}),
 
   deactivate: (pid: string, slug: string, scope: IntegrationScope = "project") =>
-    http.post<IntegrationStatus>(`/projects/${pid}/integrations/${slug}/deactivate${q(scope)}`, {}),
+    http.post<IntegrationStatus>(`/api/projects/${pid}/integrations/${slug}/deactivate${q(scope)}`, {}),
 
   action: <T>(pid: string, slug: string, action: string, scope: IntegrationScope = "project") =>
-    http.post<T>(`/projects/${pid}/integrations/${slug}/action/${action}${q(scope)}`, {}),
+    http.post<T>(`/api/projects/${pid}/integrations/${slug}/action/${action}${q(scope)}`, {}),
 
   remove: (pid: string, slug: string, scope: IntegrationScope = "project") =>
-    http.del<void>(`/projects/${pid}/integrations/${slug}${q(scope)}`),
+    http.del<void>(`/api/projects/${pid}/integrations/${slug}${q(scope)}`),
 
   // ── Asana convenience wrappers ──────────────────────────────────────────────
   asanaConfigure: (pid: string, scope: IntegrationScope, body: AsanaConfigureBody) =>

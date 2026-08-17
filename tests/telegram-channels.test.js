@@ -20,7 +20,6 @@ process.env.USERPROFILE = tmpHome; // Windows safety net
 
 const {
   readConfig,
-  writeConfig,
   upsertTelegramChannel,
   removeTelegramChannel,
   unsetTelegramChannelFields,
@@ -115,13 +114,13 @@ function installHttpStub({ channels = [] } = {}) {
   const calls = [];
   http.get = async (p) => {
     calls.push(["GET", p, null]);
-    if (p === "/telegram/channels") return { channels };
-    if (p === "/projects") return [];
+    if (p === "/api/telegram/channels") return { channels };
+    if (p === "/api/projects") return [];
     return {};
   };
   http.post = async (p, body) => {
     calls.push(["POST", p, body]);
-    if (p === "/telegram/channels") return { created: true, channel: { name: body.name, ...body } };
+    if (p === "/api/telegram/channels") return { created: true, channel: { name: body.name, ...body } };
     return { ok: true };
   };
   http.patch = async (p, body) => {
@@ -175,14 +174,14 @@ test("cmdTelegramChannelSet patches via /telegram/channels/:name and reloads", a
     _: ["clientes"],
     flags: { project: "iacrmar", agent: "comercial", "respond-engine": "false" },
   });
-  const patch = calls.find((c) => c[0] === "PATCH" && c[1].startsWith("/telegram/channels/"));
+  const patch = calls.find((c) => c[0] === "PATCH" && c[1].startsWith("/api/telegram/channels/"));
   assert.ok(patch, "PATCH /telegram/channels/:name must be sent");
   assert.deepEqual(patch[2], {
     project: "iacrmar",
     route_to_agent: "comercial",
     respond_with_engine: false,
   });
-  assert.ok(calls.find((c) => c[0] === "POST" && c[1] === "/admin/reload"), "reload must be triggered");
+  assert.ok(calls.find((c) => c[0] === "POST" && c[1] === "/api/admin/reload"), "reload must be triggered");
 });
 
 test("cmdTelegramChannelSet without flags throws a helpful error", async () => {
@@ -206,8 +205,8 @@ test("cmdTelegramChannelUnset sends nulls for chosen fields", async () => {
 test("cmdTelegramChannelRemove deletes by url and reloads", async () => {
   const calls = installHttpStub();
   await cmdTelegramChannelRemove({ _: ["clientes"], flags: {} });
-  assert.ok(calls.find((c) => c[0] === "DELETE" && c[1] === "/telegram/channels/clientes"));
-  assert.ok(calls.find((c) => c[0] === "POST" && c[1] === "/admin/reload"));
+  assert.ok(calls.find((c) => c[0] === "DELETE" && c[1] === "/api/telegram/channels/clientes"));
+  assert.ok(calls.find((c) => c[0] === "POST" && c[1] === "/api/admin/reload"));
 });
 
 test("cmdTelegramChannelShow throws when name not found", async () => {

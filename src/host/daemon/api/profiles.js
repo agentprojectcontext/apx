@@ -82,8 +82,8 @@ function detail(id, { preview = true } = {}) {
   };
 }
 
-export function register(app) {
-  app.get("/profiles", (_req, res) => {
+export function register(api) {
+  api.get("/profiles", (_req, res) => {
     try {
       const cfg = readConfig();
       res.json({
@@ -96,7 +96,7 @@ export function register(app) {
   });
 
   // Registered before /profiles/:id so "doctor" isn't swallowed as an id.
-  app.get("/profiles/doctor", (req, res) => {
+  api.get("/profiles/doctor", (req, res) => {
     try {
       res.json(profileDoctor(req.query?.id || null));
     } catch (e) {
@@ -104,7 +104,7 @@ export function register(app) {
     }
   });
 
-  app.get("/profiles/:id", (req, res) => {
+  api.get("/profiles/:id", (req, res) => {
     try {
       const out = detail(req.params.id, { preview: req.query?.preview !== "0" });
       if (!out) return res.status(404).json({ error: `profile "${req.params.id}" not found` });
@@ -114,7 +114,7 @@ export function register(app) {
     }
   });
 
-  app.post("/profiles/install", (req, res) => {
+  api.post("/profiles/install", (req, res) => {
     try {
       const { source, force } = req.body || {};
       if (!source) return res.status(400).json({ error: "body needs { source }" });
@@ -131,7 +131,7 @@ export function register(app) {
     }
   });
 
-  app.post("/profiles/use", (req, res) => {
+  api.post("/profiles/use", (req, res) => {
     try {
       const { id, force } = req.body || {};
       if (!id) return res.status(400).json({ error: "body needs { id }" });
@@ -148,7 +148,7 @@ export function register(app) {
     }
   });
 
-  app.post("/profiles/off", (_req, res) => {
+  api.post("/profiles/off", (_req, res) => {
     try {
       res.json({ ok: true, ...offProfile() });
     } catch (e) {
@@ -156,7 +156,7 @@ export function register(app) {
     }
   });
 
-  app.patch("/profiles/config", (req, res) => {
+  api.patch("/profiles/config", (req, res) => {
     try {
       const { values, id } = req.body || {};
       if (!values || typeof values !== "object") {
@@ -169,7 +169,7 @@ export function register(app) {
     }
   });
 
-  app.delete("/profiles/:id", (req, res) => {
+  api.delete("/profiles/:id", (req, res) => {
     try {
       res.json({ ok: true, ...uninstallProfile(req.params.id) });
     } catch (e) {

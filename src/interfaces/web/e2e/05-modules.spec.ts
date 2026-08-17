@@ -42,7 +42,7 @@ test.describe("module settings", () => {
     await page.getByTestId("tabnav-deck").click();
     await expect(page).toHaveURL(/\/settings\/deck/);
     await expect(page.getByTestId("screen-deck")).toBeVisible();
-    // daemon card renders once /deck/manifest resolves
+    // daemon card renders once /api/deck/manifest resolves
     await expect(page.getByTestId("deck-daemon-card")).toBeVisible();
     expect(errors).toEqual([]);
   });

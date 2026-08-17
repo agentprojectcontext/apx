@@ -34,12 +34,14 @@
 // instead, then to true.
 
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
+import { apxHome } from "#core/config/paths.js";
 import { apcMcpsFile } from "#core/apc/paths.js";
+import { readJson } from "#core/util/json-file.js";
 
-const APX_HOME = path.join(os.homedir(), ".apx");
-const GLOBAL_MCPS_FILE = path.join(APX_HOME, "mcps.json");
+
+// Resolved per call: the global store must follow APX_HOME if it moves.
+const globalMcpsFile = () => path.join(apxHome(), "mcps.json");
 const RUNTIME_MCPS_FILENAME = "mcps.json";
 
 // Project-relative sources (file path resolved against projectRoot).
@@ -63,15 +65,9 @@ export const SOURCES = [
   { id: "global",  file: "~/.apx/mcps.json", key: "mcpServers", scope: "global" },
 ];
 
-function readJsonSafe(absPath) {
-  if (!absPath) return null;
-  if (!fs.existsSync(absPath)) return null;
-  try {
-    return JSON.parse(fs.readFileSync(absPath, "utf8"));
-  } catch {
-    return null;
-  }
-}
+// readJsonSafe is the shared readJson(); secrets are written with SECRET_MODE.
+const readJsonSafe = (absPath) => readJson(absPath, null);
+
 
 // Resolve the runtime mcps.json path for a given project. `storagePath` is the
 // project's ~/.apx/projects/<apxId>/ directory.
@@ -81,7 +77,7 @@ export function runtimeMcpsPath(storagePath) {
 }
 
 export function globalMcpsPath() {
-  return GLOBAL_MCPS_FILE;
+  return globalMcpsFile();
 }
 
 // Aggregate all MCP sources for a project, in priority order.
@@ -119,7 +115,7 @@ export function loadAll(projectRoot, opts = {}) {
   // last. global
   pipeline.push({
     id: "global",
-    abs: GLOBAL_MCPS_FILE,
+    abs: globalMcpsFile(),
     key: "mcpServers",
   });
 
@@ -229,7 +225,7 @@ export function writeRuntimeMcps(storagePath, json) {
 // ---------------------------------------------------------------------------
 
 export function readGlobalMcps() {
-  const p = GLOBAL_MCPS_FILE;
+  const p = globalMcpsFile();
   if (!fs.existsSync(p)) return { mcpServers: {} };
   try {
     const json = JSON.parse(fs.readFileSync(p, "utf8"));
@@ -241,7 +237,7 @@ export function readGlobalMcps() {
 }
 
 export function writeGlobalMcps(json) {
-  const p = GLOBAL_MCPS_FILE;
+  const p = globalMcpsFile();
   fs.mkdirSync(path.dirname(p), { recursive: true });
   fs.writeFileSync(p, JSON.stringify(json, null, 2) + "\n");
 }

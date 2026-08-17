@@ -61,7 +61,7 @@ export function AreaRoleFields({
   onArea: (v: string) => void;
   onRole: (v: string) => void;
 }) {
-  const org = useSWR(`/projects/${pid}/organization`, () => Org.get(pid));
+  const org = useSWR(`/api/projects/${pid}/organization`, () => Org.get(pid));
   const [areaDialog, setAreaDialog] = useState(false);
   const [roleDialog, setRoleDialog] = useState(false);
 

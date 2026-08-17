@@ -27,8 +27,8 @@ function writeProjectJson(root, body) {
   fs.writeFileSync(p, JSON.stringify(body, null, 2) + "\n");
 }
 
-export function register(app, { projects, project }) {
-  app.get("/projects/:pid/config", (req, res) => {
+export function register(api, { projects, project }) {
+  api.get("/projects/:pid/config", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     // Redact secrets (engine api_keys, telegram bot tokens) the same way the
@@ -43,7 +43,7 @@ export function register(app, { projects, project }) {
     });
   });
 
-  app.put("/projects/:pid/config", (req, res) => {
+  api.put("/projects/:pid/config", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const body = req.body || {};
@@ -57,7 +57,7 @@ export function register(app, { projects, project }) {
     res.json({ ok: true });
   });
 
-  app.patch("/projects/:pid/config", (req, res) => {
+  api.patch("/projects/:pid/config", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const { set, unset } = req.body || {};
@@ -78,7 +78,7 @@ export function register(app, { projects, project }) {
     res.json({ ok: true, project_only: redactConfig(cfg) });
   });
 
-  app.put("/projects/:pid/apc-project", (req, res) => {
+  api.put("/projects/:pid/apc-project", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const body = req.body || {};
@@ -93,7 +93,7 @@ export function register(app, { projects, project }) {
     }
   });
 
-  app.patch("/projects/:pid/apc-project", (req, res) => {
+  api.patch("/projects/:pid/apc-project", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     try {

@@ -11,7 +11,7 @@
 //      dialog. The dialog is keyed by correlationId.
 //
 //   3. The user responds → frontend POSTs to
-//      POST /super-agent/confirm/:correlationId  { confirmed: boolean }
+//      POST /api/super-agent/confirm/:correlationId  { confirmed: boolean }
 //
 //   4. The API handler (api/confirm.js) calls pendingStore.resolve(correlationId,
 //      value). This finds the in-memory resolve callback and calls it, unblocking

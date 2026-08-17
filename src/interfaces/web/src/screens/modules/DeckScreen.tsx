@@ -16,7 +16,7 @@ import { t } from "../../i18n";
 export function DeckScreen() {
   const toast = useToast();
   const { data, error, isLoading, mutate } = useSWR(
-    "/deck/manifest",
+    "/api/deck/manifest",
     () => Deck.manifest(),
     { refreshInterval: 30_000 }
   );

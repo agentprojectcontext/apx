@@ -17,6 +17,7 @@ import {
   buildUserContextBlock,
   buildSegmentDiscipline,
 } from "./prompt-builder.js";
+import { readJson } from "#core/util/json-file.js";
 
 // Cap the injected agent body so an over-long authored file can't blow the
 // token budget. Mirrors PROJECT_AGENTS_MAX_CHARS for AGENTS.md.
@@ -30,8 +31,8 @@ function listField(value) {
 function projectName(project) {
   if (project?.name) return project.name;
   try {
-    const meta = JSON.parse(fs.readFileSync(apcProjectFile(project.path), "utf8"));
-    return meta.name || project.path?.split("/").pop() || "";
+    const meta = readJson(apcProjectFile(project.path), {});
+    return meta?.name || project.path?.split("/").pop() || "";
   } catch {
     return project?.path?.split("/").pop() || "";
   }

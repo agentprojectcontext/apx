@@ -18,6 +18,7 @@ import {
   apcAgentFile,
   agentsMdFile,
 } from "./paths.js";
+import { readJson } from "#core/util/json-file.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Now under src/core/apc/ — one more "../" to escape than before.
@@ -431,8 +432,8 @@ function writeMigrateMd(apfDir, found) {
 export function getOrCreateApxId(root) {
   const p = apcProjectFile(root);
   if (!fs.existsSync(p)) return null;
-  let cfg;
-  try { cfg = JSON.parse(fs.readFileSync(p, "utf8")); } catch { return null; }
+  const cfg = readJson(p, null);
+  if (!cfg) return null;
   if (cfg.apx_id) return cfg.apx_id;
   const apxId = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
   console.log(`[apx] Generating new stable ID ${apxId} for project at ${root}`);
@@ -490,7 +491,7 @@ export function initApf(directory, { name } = {}) {
   return { root, agentsMd, projectJson, pendingMigration: scattered };
 }
 
-export function ensureAgentDir(root, slug) {
+export function ensureAgentDir(root, _slug) {
   fs.mkdirSync(apcAgentsDir(root), { recursive: true });
   return apcAgentsDir(root);
 }
@@ -587,7 +588,7 @@ export function restoreVaultAgent(slug) {
 export function addImportedAgent(root, slug) {
   const p = apcProjectFile(root);
   let cfg = {};
-  try { cfg = JSON.parse(fs.readFileSync(p, "utf8")); } catch {}
+  cfg = readJson(p, {});
   if (!cfg.agents) cfg.agents = {};
   if (!cfg.agents.imported) cfg.agents.imported = [];
   if (!cfg.agents.imported.includes(slug)) cfg.agents.imported.push(slug);

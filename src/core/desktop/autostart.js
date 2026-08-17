@@ -1,6 +1,6 @@
 // Per-user "launch APX Desktop at login" wiring. Used by BOTH the CLI
 // (`apx desktop install` / `uninstall`) and the daemon's
-// /desktop/autostart endpoint so the web admin can toggle the same setting
+// /api/desktop/autostart endpoint so the web admin can toggle the same setting
 // without shelling out.
 //
 // Per-user, never sudo, fully reversible. Three platforms supported:
@@ -16,6 +16,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { DESKTOP_AUTOSTART_LOG_PATH } from "#core/config/paths.js";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { augmentedPath } from "#core/util/path-env.js";
@@ -28,7 +29,7 @@ export const MAC_PLIST_PATH       = path.join(os.homedir(), "Library", "LaunchAg
 export const LINUX_DESKTOP_PATH   = path.join(os.homedir(), ".config", "autostart", "apx-desktop.desktop");
 export const WIN_RUN_KEY          = "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run";
 export const WIN_RUN_NAME         = "APXDesktop";
-const AUTOSTART_LOG_PATH          = path.join(os.homedir(), ".apx", "desktop-autostart.log");
+const AUTOSTART_LOG_PATH          = DESKTOP_AUTOSTART_LOG_PATH;
 
 // ── runner resolution ────────────────────────────────────────────────────
 

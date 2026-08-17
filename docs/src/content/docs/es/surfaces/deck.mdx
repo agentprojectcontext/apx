@@ -100,7 +100,7 @@ Expone un único endpoint de solo lectura que la app Deck llama al iniciar para
 inicializar su estado:
 
 ```text
-GET /deck/manifest
+GET /api/deck/manifest
 ```
 
 El manifest devuelve:
@@ -117,13 +117,13 @@ Este endpoint es de **solo lectura e intencionalmente limitado**. No ejecuta
 comandos de shell ni dispara acciones externas de plugins.
 
 Después de inicializarse desde el manifest, la app Deck usa la misma API REST que
-usa el panel web (`/projects/…`, `/voice/turn`, `/messages`, etc.) con su
+usa el panel web (`/api/projects/…`, `/api/voice/turn`, `/api/messages`, etc.) con su
 token bearer de dispositivo.
 
 <Aside type="note">
   La vista del módulo Deck en el panel web — el manifest, la grilla de widgets y
   la card de contexto APX — es una **vista previa** (coming soon). El flujo de
-  vinculación de arriba y el endpoint de solo lectura `GET /deck/manifest` ya funcionan.
+  vinculación de arriba y el endpoint de solo lectura `GET /api/deck/manifest` ya funcionan.
 </Aside>
 
 ## Widgets y desktops
@@ -140,7 +140,7 @@ Activá o desactivá un widget desde el [Panel web → Módulo Deck](/apx/docs/e
 vía la API:
 
 ```bash
-# PATCH /deck/widgets/:id  { enabled: true|false }
+# PATCH /api/deck/widgets/:id  { enabled: true|false }
 curl -X PATCH http://127.0.0.1:7430/deck/widgets/my-widget \
   -H "Authorization: Bearer $(cat ~/.apx/daemon.token)" \
   -H "Content-Type: application/json" \
@@ -172,7 +172,7 @@ funcionan si los cableás vos mismo.
 
 ## Modo de voz en el Deck
 
-El micrófono de voz de la app Deck envía audio a `POST /voice/turn` con
+El micrófono de voz de la app Deck envía audio a `POST /api/voice/turn` con
 `"channel": "voice"`. El daemon:
 
 1. Transcribe el audio con Whisper (STT)
@@ -190,7 +190,7 @@ Mirá [Voz](/apx/docs/es/surfaces/voice/) para la configuración del proveedor d
 
 - Cada dispositivo emparejado recibe un token bearer único almacenado en `~/.apx/remote/devices.json`.
 - Los tokens se pueden listar con `apx pair list` y revocar con `apx pair revoke <id>`.
-- El endpoint de web-token (`/admin/web-token`) rechaza requests no-loopback y tunelizadas.
+- El endpoint de web-token (`/api/admin/web-token`) rechaza requests no-loopback y tunelizadas.
   Para navegadores remotos, el token debe llegar a través del fragmento de URL `#token=…`.
 - El endpoint del manifest es de solo lectura; no expone credenciales sensibles
   ni ejecuta acciones.

@@ -113,8 +113,8 @@ function indexStatus() {
   };
 }
 
-export function register(app /*, ctx */) {
-  app.get("/skills", (req, res) => {
+export function register(api /*, ctx */) {
+  api.get("/skills", (req, res) => {
     const projectPath = typeof req.query?.project_path === "string" && req.query.project_path
       ? req.query.project_path
       : undefined;
@@ -149,7 +149,7 @@ export function register(app /*, ctx */) {
 
   // ---- Full detail (viewer) ----------------------------------------------
 
-  app.get("/skills/:slug/detail", (req, res) => {
+  api.get("/skills/:slug/detail", (req, res) => {
     try {
       const projectPath = typeof req.query?.project_path === "string" && req.query.project_path
         ? req.query.project_path
@@ -175,7 +175,7 @@ export function register(app /*, ctx */) {
 
   // ---- Enable / disable per scope ----------------------------------------
 
-  app.put("/skills/enabled", (req, res) => {
+  api.put("/skills/enabled", (req, res) => {
     try {
       const { slug, enabled, scope, project_path } = req.body || {};
       if (!slug || typeof slug !== "string") {
@@ -202,7 +202,7 @@ export function register(app /*, ctx */) {
   // ---- Create / import user skills ---------------------------------------
 
   // Online editor: write a SKILL.md from slug + description + body.
-  app.post("/skills", (req, res) => {
+  api.post("/skills", (req, res) => {
     try {
       const { slug, description, body, project_path } = req.body || {};
       if (!slug || typeof slug !== "string" || !SLUG_RE.test(slug)) {
@@ -220,7 +220,7 @@ export function register(app /*, ctx */) {
   });
 
   // Import from an uploaded .zip (sent as base64 in JSON — skills are tiny).
-  app.post("/skills/import/zip", (req, res) => {
+  api.post("/skills/import/zip", (req, res) => {
     let tmp;
     try {
       const { data, project_path } = req.body || {};
@@ -257,7 +257,7 @@ export function register(app /*, ctx */) {
 
   // Import by cloning a git repo. The repo root (or its single skill subdir)
   // must contain a SKILL.md.
-  app.post("/skills/import/repo", (req, res) => {
+  api.post("/skills/import/repo", (req, res) => {
     let tmp;
     try {
       const { url, project_path } = req.body || {};
@@ -293,7 +293,7 @@ export function register(app /*, ctx */) {
     }
   });
 
-  app.delete("/skills/:slug", (req, res) => {
+  api.delete("/skills/:slug", (req, res) => {
     try {
       const slug = req.params.slug;
       if (!slug || !SLUG_RE.test(slug)) {
@@ -344,7 +344,7 @@ export function register(app /*, ctx */) {
 
   // ---- Inspector config + status -----------------------------------------
 
-  app.get("/skills/inspector", (_req, res) => {
+  api.get("/skills/inspector", (_req, res) => {
     try {
       const cfg = readConfig();
       res.json({
@@ -358,7 +358,7 @@ export function register(app /*, ctx */) {
     }
   });
 
-  app.put("/skills/inspector", (req, res) => {
+  api.put("/skills/inspector", (req, res) => {
     try {
       const patch = req.body || {};
       const cfg = readConfig();
@@ -388,7 +388,7 @@ export function register(app /*, ctx */) {
 
   // ---- Index build --------------------------------------------------------
 
-  app.post("/skills/index", async (req, res) => {
+  api.post("/skills/index", async (req, res) => {
     try {
       const { project_path, force } = req.body || {};
       const cfg = readConfig();
@@ -423,7 +423,7 @@ export function register(app /*, ctx */) {
 
   // ---- Dry-run ------------------------------------------------------------
 
-  app.post("/skills/inspect", async (req, res) => {
+  api.post("/skills/inspect", async (req, res) => {
     try {
       const { prompt, project_path } = req.body || {};
       if (!prompt || typeof prompt !== "string") {

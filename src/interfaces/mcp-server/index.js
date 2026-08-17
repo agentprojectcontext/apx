@@ -19,12 +19,13 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { findApfRoot } from "#core/apc/parser.js";
-import { ensureDaemon, http } from "../../cli/http.js";
+// Was "../../cli/http.js", which resolves to src/cli/http.js — a path that
+// does not exist, so this binary could not load at all. Use the alias
+// (AGENTS.md rule 7) so the same mistake cannot recur silently.
+import { ensureDaemon, http } from "#interfaces/cli/http.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
-const PORT = parseInt(process.env.APX_PORT || "7430", 10);
 
 // ---------------------------------------------------------------------------
 // Resolve current project
@@ -37,12 +38,12 @@ async function resolveProject() {
 
   // Ensure daemon is running and project is registered.
   await ensureDaemon({ silent: true });
-  const projects = await http.get("/projects");
+  const projects = await http.get("/api/projects");
   const match = projects.find((p) => path.resolve(p.path) === path.resolve(root));
   if (match) return match;
 
   // Register if not yet known.
-  const created = await http.post("/projects", { path: root });
+  const created = await http.post("/api/projects", { path: root });
   return created;
 }
 
@@ -62,7 +63,7 @@ server.tool(
   {},
   async () => {
     const proj = await resolveProject();
-    const agents = await http.get(`/projects/${proj.id}/agents`);
+    const agents = await http.get(`/api/projects/${proj.id}/agents`);
     const rows = agents.map(
       (a) => `${a.slug}  role=${a.role || "—"}  model=${a.model || "—"}`
     );
@@ -83,7 +84,7 @@ server.tool(
     const proj = await resolveProject();
     const body = { prompt };
     if (engine) body.engine = engine;
-    const result = await http.post(`/projects/${proj.id}/agents/${slug}/exec`, body);
+    const result = await http.post(`/api/projects/${proj.id}/agents/${slug}/exec`, body);
     return { content: [{ type: "text", text: result.output || JSON.stringify(result) }] };
   }
 );
@@ -100,7 +101,7 @@ server.tool(
   async ({ slug, prompt, runtime }) => {
     const proj = await resolveProject();
     const body = { prompt, runtime: runtime || "claude-code" };
-    const result = await http.post(`/projects/${proj.id}/agents/${slug}/runtime`, body);
+    const result = await http.post(`/api/projects/${proj.id}/agents/${slug}/runtime`, body);
     return { content: [{ type: "text", text: result.output || JSON.stringify(result) }] };
   }
 );
@@ -114,7 +115,7 @@ server.tool(
   },
   async ({ slug }) => {
     const proj = await resolveProject();
-    const mem = await http.get(`/projects/${proj.id}/agents/${slug}/memory`);
+    const mem = await http.get(`/api/projects/${proj.id}/agents/${slug}/memory`);
     return { content: [{ type: "text", text: mem.body_md || "(empty)" }] };
   }
 );
@@ -129,7 +130,7 @@ server.tool(
   },
   async ({ slug, fact }) => {
     const proj = await resolveProject();
-    await http.put(`/projects/${proj.id}/agents/${slug}/memory`, { append: fact });
+    await http.put(`/api/projects/${proj.id}/agents/${slug}/memory`, { append: fact });
     return { content: [{ type: "text", text: "OK" }] };
   }
 );
@@ -149,7 +150,7 @@ server.tool(
     if (channel) qs.set("channel", channel);
     if (agent) qs.set("agent", agent);
     if (limit) qs.set("limit", String(limit));
-    const msgs = await http.get(`/projects/${proj.id}/messages?${qs}`);
+    const msgs = await http.get(`/api/projects/${proj.id}/messages?${qs}`);
     const rows = (msgs.messages || msgs).map(
       (m) => `[${m.ts}] ${m.channel}/${m.direction} ${m.author || ""}: ${m.body}`
     );
@@ -168,7 +169,7 @@ server.tool(
   async ({ slug, limit }) => {
     const proj = await resolveProject();
     const qs = limit ? `?limit=${limit}` : "";
-    const sessions = await http.get(`/projects/${proj.id}/agents/${slug}/sessions${qs}`);
+    const sessions = await http.get(`/api/projects/${proj.id}/agents/${slug}/sessions${qs}`);
     const rows = (sessions.sessions || sessions).map(
       (s) => `${s.filename}  started=${s.started_at || "—"}  title=${s.title || "—"}`
     );
@@ -183,7 +184,7 @@ server.tool(
   {},
   async () => {
     const proj = await resolveProject();
-    const mcps = await http.get(`/projects/${proj.id}/mcps`);
+    const mcps = await http.get(`/api/projects/${proj.id}/mcps`);
     const rows = (mcps.mcps || mcps).map(
       (m) => `${m.name}  source=${m.source}  transport=${m.transport}  enabled=${m.enabled}`
     );
@@ -203,7 +204,7 @@ server.tool(
   async ({ server: serverName, tool, args }) => {
     const proj = await resolveProject();
     const result = await http.post(
-      `/projects/${proj.id}/mcps/${encodeURIComponent(serverName)}/call`,
+      `/api/projects/${proj.id}/mcps/${encodeURIComponent(serverName)}/call`,
       { tool, args: args || {} }
     );
     return {

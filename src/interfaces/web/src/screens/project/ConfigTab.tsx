@@ -19,7 +19,7 @@ export function ConfigTab({ pid }: { pid: string }) {
   const toast = useToast();
   const navigate = useNavigate();
   const { project, mutate: mutateProject } = useProject(pid);
-  const cfg = useSWR(`/projects/${pid}/config`, () => Projects.config.show(pid));
+  const cfg = useSWR(`/api/projects/${pid}/config`, () => Projects.config.show(pid));
   const isBase = String(pid) === "0";
 
   if (cfg.isLoading) return <Loading />;

@@ -27,7 +27,7 @@ function fail(key, msg) {
 
 export async function cmdOrgShow(args) {
   const pid = await resolveProjectId(args?.flags?.project);
-  const org = await http.get(`/projects/${pid}/organization`);
+  const org = await http.get(`/api/projects/${pid}/organization`);
   if (!org.areas.length && !org.roles.length) {
     console.log("(no organization structure yet)");
     return;
@@ -44,7 +44,7 @@ export async function cmdOrgAreaAdd(args) {
   const name = (args._ || []).slice(1).join(" ").trim();
   if (!name) return fail("areaAdd", "name required");
   const pid = await resolveProjectId(args?.flags?.project);
-  const area = await http.post(`/projects/${pid}/organization/areas`, {
+  const area = await http.post(`/api/projects/${pid}/organization/areas`, {
     name, slug: args.flags?.slug, goal: args.flags?.goal,
   });
   console.log(`added area ${area.name} (${area.slug})`);
@@ -54,7 +54,7 @@ export async function cmdOrgAreaRm(args) {
   const slug = (args._ || [])[1];
   if (!slug) return fail("areaRm", "slug required");
   const pid = await resolveProjectId(args?.flags?.project);
-  await http.delete(`/projects/${pid}/organization/areas/${encodeURIComponent(slug)}`);
+  await http.delete(`/api/projects/${pid}/organization/areas/${encodeURIComponent(slug)}`);
   console.log(`removed area ${slug}`);
 }
 
@@ -62,7 +62,7 @@ export async function cmdOrgRoleAdd(args) {
   const name = (args._ || []).slice(1).join(" ").trim();
   if (!name) return fail("roleAdd", "name required");
   const pid = await resolveProjectId(args?.flags?.project);
-  const role = await http.post(`/projects/${pid}/organization/roles`, {
+  const role = await http.post(`/api/projects/${pid}/organization/roles`, {
     name, slug: args.flags?.slug, area: args.flags?.area, description: args.flags?.desc,
   });
   console.log(`added role ${role.name} (${role.slug})${role.area ? ` in ${role.area}` : ""}`);
@@ -72,6 +72,6 @@ export async function cmdOrgRoleRm(args) {
   const slug = (args._ || [])[1];
   if (!slug) return fail("roleRm", "slug required");
   const pid = await resolveProjectId(args?.flags?.project);
-  await http.delete(`/projects/${pid}/organization/roles/${encodeURIComponent(slug)}`);
+  await http.delete(`/api/projects/${pid}/organization/roles/${encodeURIComponent(slug)}`);
   console.log(`removed role ${slug}`);
 }

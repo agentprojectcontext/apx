@@ -130,13 +130,13 @@ the new shortcut to take effect.
 ## How the window talks to the daemon
 
 The Electron main process opens a WebSocket to `ws://127.0.0.1:7430` and posts
-text via `POST /desktop/message`. The daemon's desktop plugin routes the message
+text via `POST /api/desktop/message`. The daemon's desktop plugin routes the message
 through the super-agent and streams tokens back over the WebSocket:
 
 ```text
 Desktop (Electron)
   │
-  ├── POST /desktop/message { text }  →  daemon acknowledges immediately
+  ├── POST /api/desktop/message { text }  →  daemon acknowledges immediately
   │
   └── WebSocket ← daemon streams:
         { type: "thinking" }
@@ -144,11 +144,11 @@ Desktop (Electron)
         { type: "tool_start", name: "create_task" }
         { type: "tool_done",  name: "create_task" }
         { type: "done", text: "full reply" }
-        { type: "tts-ready", url: "/voice/tts?path=…", duration: 3.2 }
+        { type: "tts-ready", url: "/api/voice/tts?path=…", duration: 3.2 }
 ```
 
 TTS is synthesized by the daemon after the agent finishes, then the URL is
-served back via `GET /voice/tts?path=…`. The window fetches that URL and
+served back via `GET /api/voice/tts?path=…`. The window fetches that URL and
 plays it with the Web Audio API.
 
 <Aside type="tip">

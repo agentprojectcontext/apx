@@ -79,7 +79,7 @@ function LogRow({ m }: { m: MessageEntry }) {
 
 function DaemonErrors() {
   const [open, setOpen] = useState(false);
-  const logs = useSWR(open ? "/admin/logs?errors" : null, () => Admin.logs("errors", 200));
+  const logs = useSWR(open ? "/api/admin/logs?errors" : null, () => Admin.logs("errors", 200));
   const entries = logs.data?.entries || [];
   return (
     <details className="mb-3 rounded-lg border border-border bg-muted/20" onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}>
@@ -116,8 +116,8 @@ export function LogsTab({ pid }: { pid?: string }) {
   const ch = channel.trim() || undefined;
 
   const key = isGlobal
-    ? `/messages/global?channel=${ch ?? ""}`
-    : `/projects/${pid}/messages?channel=${ch ?? ""}`;
+    ? `/api/messages/global?channel=${ch ?? ""}`
+    : `/api/projects/${pid}/messages?channel=${ch ?? ""}`;
   const list = useSWR<MessageEntry[]>(key, () =>
     isGlobal
       ? Messages.global({ channel: ch, limit: 300 })

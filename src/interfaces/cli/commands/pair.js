@@ -34,7 +34,7 @@ const fmt = {
 // pointing at 127.0.0.1 works through the USB bridge. For pure WiFi
 // pairing, the user should bind APX_HOST=0.0.0.0 and we'll emit the
 // LAN IP here instead.
-function pickHostForQr({ host, port }) {
+function pickHostForQr({ host }) {
   if (host && host !== "0.0.0.0" && host !== "::" && host !== "127.0.0.1") {
     return host;
   }
@@ -74,7 +74,7 @@ async function runPairing(args, channel) {
   // 1. Ask daemon for a pairing nonce.
   let init;
   try {
-    init = await http.post("/pair/init", {});
+    init = await http.post("/api/pair/init", {});
   } catch (e) {
     console.error(fmt.red(`pair init failed: ${e.message}`));
     process.exit(1);
@@ -117,7 +117,7 @@ async function runPairing(args, channel) {
   while (Date.now() < deadline) {
     await sleep(1500);
     try {
-      const s = await http.get(`/pair/status/${init.pairing_id}`);
+      const s = await http.get(`/api/pair/status/${init.pairing_id}`);
       if (s.status === "confirmed") {
         console.log(`  ${fmt.green("●")} ${fmt.bold("paired")} ${fmt.gray("·")} ${s.device_label || ""}`);
         console.log(`    ${fmt.gray("client_id:")} ${s.client_id}`);
@@ -138,7 +138,7 @@ async function runPairing(args, channel) {
 }
 
 export async function cmdPairList() {
-  const { clients } = await http.get("/pair/list");
+  const { clients } = await http.get("/api/pair/list");
   if (!clients.length) {
     console.log(`\n  ${fmt.dim("no paired devices")}\n`);
     return;
@@ -160,12 +160,12 @@ export async function cmdPairRevoke(args = {}) {
     process.exit(1);
   }
   // Allow short prefix: resolve via /pair/list.
-  const { clients } = await http.get("/pair/list");
+  const { clients } = await http.get("/api/pair/list");
   const match = clients.find((c) => c.id === id || c.id.startsWith(id));
   if (!match) {
     console.error(fmt.red(`no paired device matches "${id}"`));
     process.exit(1);
   }
-  await http.delete(`/pair/revoke/${match.id}`);
+  await http.delete(`/api/pair/revoke/${match.id}`);
   console.log(`  ${fmt.green("●")} revoked ${match.label} ${fmt.gray(`(${match.id.slice(0, 8)})`)}`);
 }

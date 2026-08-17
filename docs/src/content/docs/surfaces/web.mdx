@@ -26,7 +26,7 @@ apx status          # boots the daemon if it isn't running yet
 ```
 
 On the first load the panel fetches its auth token automatically from
-`/admin/web-token` (loopback-only endpoint). You don't need to copy a token
+`/api/admin/web-token` (loopback-only endpoint). You don't need to copy a token
 manually when opening from the same machine.
 
 <Aside type="note">
@@ -312,7 +312,7 @@ See [Desktop](/apx/docs/surfaces/desktop/) for the full CLI reference.
 
 ### Deck <Badge text="Preview" variant="caution" />
 
-The Deck module (`/m/deck`) will surface the `GET /deck/manifest` payload: daemon
+The Deck module (`/m/deck`) will surface the `GET /api/deck/manifest` payload: daemon
 health, active project, registered plugins, and the widget/desktop grid, and let
 you enable or disable individual widgets from this view.
 
@@ -403,7 +403,7 @@ Browser  →  GET/POST  →  http://127.0.0.1:7430/<route>
 ```
 
 The web bundle is served by `src/host/daemon/api/web.js`. API routes always
-take priority over the SPA catch-all, so a request to `/projects/1/agents` hits
+take priority over the SPA catch-all, so a request to `/api/projects/1/agents` hits
 the real endpoint, not `index.html`.
 
 ## Next steps

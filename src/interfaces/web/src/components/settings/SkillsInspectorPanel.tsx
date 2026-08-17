@@ -39,7 +39,7 @@ type NumericKnobs = {
 
 export function SkillsInspectorPanel() {
   const toast = useToast();
-  const { data, mutate, isLoading } = useSWR("/skills/inspector", () => Skills.inspector());
+  const { data, mutate, isLoading } = useSWR("/api/skills/inspector", () => Skills.inspector());
   const [busy, setBusy] = useState(false);
   const [probe, setProbe] = useState("");
   const [probeResult, setProbeResult] = useState<InspectTrace | null>(null);

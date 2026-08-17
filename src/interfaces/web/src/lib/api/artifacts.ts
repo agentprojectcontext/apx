@@ -53,43 +53,43 @@ export interface ArtifactTunnel {
 
 export const Artifacts = {
   list: (pid: string) =>
-    http.get<ArtifactEntry[]>(`/projects/${encodeURIComponent(pid)}/artifacts`),
+    http.get<ArtifactEntry[]>(`/api/projects/${encodeURIComponent(pid)}/artifacts`),
   read: (pid: string, name: string) =>
     http.get<ArtifactContent>(
-      `/projects/${encodeURIComponent(pid)}/artifacts/${encodeURIComponent(name)}`,
+      `/api/projects/${encodeURIComponent(pid)}/artifacts/${encodeURIComponent(name)}`,
     ),
   run: (pid: string, name: string, args: string[] = []) =>
     http.post<ArtifactRunResult>(
-      `/projects/${encodeURIComponent(pid)}/artifacts/${encodeURIComponent(name)}/run`,
+      `/api/projects/${encodeURIComponent(pid)}/artifacts/${encodeURIComponent(name)}/run`,
       { args },
     ),
   remove: (pid: string, name: string) =>
     http.del<void>(
-      `/projects/${encodeURIComponent(pid)}/artifacts/${encodeURIComponent(name)}`,
+      `/api/projects/${encodeURIComponent(pid)}/artifacts/${encodeURIComponent(name)}`,
     ),
   write: (pid: string, name: string, content: string) =>
     http.patch<{ ok: boolean; name: string }>(
-      `/projects/${encodeURIComponent(pid)}/artifacts/${encodeURIComponent(name)}`,
+      `/api/projects/${encodeURIComponent(pid)}/artifacts/${encodeURIComponent(name)}`,
       { content },
     ),
   rename: (pid: string, name: string, newName: string) =>
     http.patch<{ ok: boolean; name: string }>(
-      `/projects/${encodeURIComponent(pid)}/artifacts/${encodeURIComponent(name)}`,
+      `/api/projects/${encodeURIComponent(pid)}/artifacts/${encodeURIComponent(name)}`,
       { newName },
     ),
 
   // Start (or reuse) an ephemeral local preview server for an artifact.
   preview: (pid: string, name: string, watch = true) =>
     http.post<ArtifactPreview>(
-      `/projects/${encodeURIComponent(pid)}/artifacts/${encodeURIComponent(name)}/preview`,
+      `/api/projects/${encodeURIComponent(pid)}/artifacts/${encodeURIComponent(name)}/preview`,
       { watch },
     ),
   // List running preview servers for a project.
   previews: (pid: string) =>
-    http.get<ArtifactPreview[]>(`/projects/${encodeURIComponent(pid)}/previews`),
-  stopPreview: (id: string) => http.del<void>(`/previews/${encodeURIComponent(id)}`),
+    http.get<ArtifactPreview[]>(`/api/projects/${encodeURIComponent(pid)}/previews`),
+  stopPreview: (id: string) => http.del<void>(`/api/previews/${encodeURIComponent(id)}`),
   // Open / close a public tunnel to a running preview.
   openTunnel: (id: string, provider?: string) =>
-    http.post<ArtifactTunnel>(`/previews/${encodeURIComponent(id)}/tunnel`, { provider }),
-  closeTunnel: (id: string) => http.del<void>(`/previews/${encodeURIComponent(id)}/tunnel`),
+    http.post<ArtifactTunnel>(`/api/previews/${encodeURIComponent(id)}/tunnel`, { provider }),
+  closeTunnel: (id: string) => http.del<void>(`/api/previews/${encodeURIComponent(id)}/tunnel`),
 };

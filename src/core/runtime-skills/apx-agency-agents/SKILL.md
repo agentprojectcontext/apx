@@ -68,7 +68,7 @@ import_agent({ slug: "cody-developer", project: "<name-or-path>" })
 
 ## Web equivalents
 
-Agent defaults tab (`/p/0/agent-defaults`): same CRUD — "New" (POST `/agents/vault`), per-card "Edit" (PATCH `/agents/vault/:slug`, copy-on-write for bundled), "Delete"/"Hide" (DELETE), "Show removed" toggle with "Restore" button.
+Agent defaults tab (`/p/0/agent-defaults`): same CRUD — "New" (POST `/api/agents/vault`), per-card "Edit" (PATCH `/api/agents/vault/:slug`, copy-on-write for bundled), "Delete"/"Hide" (DELETE), "Show removed" toggle with "Restore" button.
 
 ## Which agent to use
 
@@ -107,7 +107,7 @@ is_master: false
 |---|---|
 | `role` | Shown in CLI/web; appears as "Role: …" in prompt. |
 | `model` | Default model for engine routing. |
-| `description` | Shown in `/agents/vault` and AgentDefaultsTab cards. |
+| `description` | Shown in `/api/agents/vault` and AgentDefaultsTab cards. |
 | `language` | Adds "Default language: <code>" to system prompt. |
 | `skills` | Per-agent skill names; bodies loaded by skill resolution. |
 | `tools` | Tool hints; actual callable tools depend on invocation surface. |

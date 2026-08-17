@@ -1,5 +1,5 @@
 // Desktop (Electron floating window) process control — shared by the CLI
-// (`apx desktop start/stop/restart`) and the daemon's /desktop/{start,stop}
+// (`apx desktop start/stop/restart`) and the daemon's /api/desktop/{start,stop}
 // HTTP endpoints, so both spawn/kill the window the exact same way.
 //
 // The window is a detached Electron process (it must survive the spawner so a
@@ -8,8 +8,8 @@
 
 "use strict";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
+import { DESKTOP_LOG_PATH, DESKTOP_PID_PATH } from "#core/config/paths.js";
 import { spawn, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
@@ -19,8 +19,8 @@ const __dirname = path.dirname(__filename);
 // src/core/desktop/ → repo root is three levels up.
 const ROOT = path.resolve(__dirname, "..", "..", "..");
 export const DESKTOP_MAIN = path.resolve(__dirname, "..", "..", "interfaces", "desktop", "main.js");
-export const DESKTOP_PID = path.join(os.homedir(), ".apx", "desktop.pid");
-const DESKTOP_LOG = path.join(os.homedir(), ".apx", "desktop.log");
+export const DESKTOP_PID = DESKTOP_PID_PATH;
+const DESKTOP_LOG = DESKTOP_LOG_PATH;
 
 // ── PID file ────────────────────────────────────────────────────────────────
 export function readPid() {

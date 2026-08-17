@@ -17,14 +17,14 @@ import {
   runRoutineNow,
 } from "#core/routines/index.js";
 
-export function register(app, { projects, registries, plugins, project, config }) {
-  app.get("/projects/:pid/routines", (req, res) => {
+export function register(api, { projects, registries, plugins, project, config }) {
+  api.get("/projects/:pid/routines", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     res.json(listRoutines(p.storagePath));
   });
 
-  app.get("/projects/:pid/routines/:name", (req, res) => {
+  api.get("/projects/:pid/routines/:name", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const r = getRoutine(p.storagePath, req.params.name);
@@ -32,7 +32,7 @@ export function register(app, { projects, registries, plugins, project, config }
     res.json(r);
   });
 
-  app.post("/projects/:pid/routines", (req, res) => {
+  api.post("/projects/:pid/routines", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     try {
@@ -45,28 +45,28 @@ export function register(app, { projects, registries, plugins, project, config }
     }
   });
 
-  app.delete("/projects/:pid/routines/:name", (req, res) => {
+  api.delete("/projects/:pid/routines/:name", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const ok = deleteRoutine(p.storagePath, req.params.name);
     res.status(ok ? 204 : 404).end();
   });
 
-  app.post("/projects/:pid/routines/:name/enable", (req, res) => {
+  api.post("/projects/:pid/routines/:name/enable", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     setRoutineEnabled(p.storagePath, req.params.name, true);
     res.json({ ok: true });
   });
 
-  app.post("/projects/:pid/routines/:name/disable", (req, res) => {
+  api.post("/projects/:pid/routines/:name/disable", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     setRoutineEnabled(p.storagePath, req.params.name, false);
     res.json({ ok: true });
   });
 
-  app.post("/projects/:pid/routines/:name/run", async (req, res) => {
+  api.post("/projects/:pid/routines/:name/run", async (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const r = getRoutine(p.storagePath, req.params.name);

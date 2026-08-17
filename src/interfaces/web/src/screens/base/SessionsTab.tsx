@@ -34,7 +34,7 @@ export function SessionsTab({ pid }: { pid?: string } = {}) {
   }, [input]);
 
   const paged = usePagedQuery<SessionRow>({
-    key: `/sessions?engine=${engine}&q=${query}&deep=${deep ? 1 : 0}&cwd=${cwd || ""}`,
+    key: `/api/sessions?engine=${engine}&q=${query}&deep=${deep ? 1 : 0}&cwd=${cwd || ""}`,
     fetchPage: (limit, offset) =>
       Sessions.page({ engine: engine || undefined, q: query || undefined, deep, cwd, limit, offset }),
     resetKey: `${engine}|${query}|${deep ? 1 : 0}|${cwd || ""}`,

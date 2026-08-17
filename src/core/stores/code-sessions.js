@@ -14,6 +14,7 @@ import path from "node:path";
 import { nowIso } from "../util/time.js";
 import { shortId as makeShortId } from "../util/ids.js";
 import { CODE_MODES, DEFAULT_CODE_MODE } from "../constants/code-modes.js";
+import { readJson, writeJson } from "#core/util/json-file.js";
 
 function sessionsDir(storagePath) {
   return path.join(storagePath, "code-sessions");
@@ -28,20 +29,8 @@ function shortId() {
 }
 
 // Atomic write: tmp file + rename so a crash mid-write can't corrupt a session.
-function writeJson(file, obj) {
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  const tmp = `${file}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(obj, null, 2));
-  fs.renameSync(tmp, file);
-}
-
-function readJson(file) {
-  try {
-    return JSON.parse(fs.readFileSync(file, "utf8"));
-  } catch {
-    return null;
-  }
-}
+// readJson/writeJson come from the shared kernel (this module's atomic write
+// was the one the others were missing).
 
 /** Lightweight row for the session list (no messages). */
 function toRow(s) {

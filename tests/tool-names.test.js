@@ -43,9 +43,16 @@ test("every handler file declares a tool name that lives in NATIVE_TOOL_NAMES", 
 
 test("every name in TOOLS appears either as a handler or as a known bridged tool", () => {
   const handlerNames = readHandlerExportedNames();
+  // Bridged over HTTP rather than implemented as a local handler file.
   const bridgedOnly = new Set([TOOLS.GREP, TOOLS.GLOB, TOOLS.FETCH, TOOLS.SEARCH]);
+  // `finish` has no handler by design: run-agent.js synthesises its schema and
+  // interprets the call itself, because "the turn is over" is a property of the
+  // loop, not an action. It still belongs in TOOLS — security.js and the
+  // completion contract reference it, and while it was absent they had to spell
+  // it as a bare "finish" literal that no rename would have followed.
+  const loopSynthesised = new Set([TOOLS.FINISH]);
   for (const [key, value] of Object.entries(TOOLS)) {
-    if (bridgedOnly.has(value)) continue;
+    if (bridgedOnly.has(value) || loopSynthesised.has(value)) continue;
     assert.ok(
       handlerNames.has(value),
       `TOOLS.${key} = "${value}" has no matching handler under core/agent/tools/handlers/`,

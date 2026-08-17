@@ -5,7 +5,7 @@ import path from "node:path";
 import { appendMessageToFs } from "#core/stores/messages.js";
 import { effectiveConfig } from "./project-config.js";
 import { readAgents } from "#core/apc/parser.js";
-import { apcDir, apcProjectFile, apcAgentsDir, apcCommandsDir } from "#core/apc/paths.js";
+import { apcProjectFile, apcAgentsDir, apcCommandsDir } from "#core/apc/paths.js";
 import { getOrCreateApxId } from "#core/apc/scaffold.js";
 import {
   ensureProjectStorage,

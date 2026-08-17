@@ -92,10 +92,6 @@
   // requestTts / second finalize on the same in-flight bubble.
   let doneHandled = false;
   let ttsTimer = null;
-  // Which agent turn (by message id) is waiting for its TTS audio to attach.
-  // We finalize the bubble immediately on `done`, then post-attach the
-  // scrubber when (or if) tts-ready arrives.
-  let pendingTtsTurnId = null;
 
   // ── Inline SVG icons (mirrors the design's I.* set) ──────────────────────
   const SVG = (path, attrs = {}) => {
@@ -727,7 +723,6 @@
     currentTurn++;
     resetTurnAudio();
     doneHandled = false;
-    pendingTtsTurnId = null;
     if (ttsTimer) { clearTimeout(ttsTimer); ttsTimer = null; }
   }
   function resetTurnAudio() {

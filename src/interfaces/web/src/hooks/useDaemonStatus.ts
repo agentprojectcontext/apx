@@ -4,7 +4,7 @@ import { REFRESH } from "../constants";
 
 export function useDaemonStatus() {
   const { data, error, isLoading } = useSWR(
-    "/health",
+    "/api/health",
     () => Health.get(),
     { refreshInterval: REFRESH.health },
   );

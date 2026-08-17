@@ -1,7 +1,7 @@
 import { http } from "../http.js";
 import { resolveProjectId } from "./project.js";
 import { readConfig, writeConfig } from "#core/config/index.js";
-import { PERMISSION_MODES, DEFAULT_PERMISSION_MODE } from "#core/constants/permissions.js";
+import { DEFAULT_PERMISSION_MODE } from "#core/constants/permissions.js";
 
 function parseValue(raw) {
   // best-effort: try JSON first (covers numbers, bools, objects, arrays, null,
@@ -15,7 +15,7 @@ function parseValue(raw) {
 
 export async function cmdConfigShow(args) {
   const pid = await resolveProjectId(args?.flags?.project);
-  const data = await http.get(`/projects/${pid}/config`);
+  const data = await http.get(`/api/projects/${pid}/config`);
   if (args.flags.effective) {
     process.stdout.write(JSON.stringify(data.effective, null, 2) + "\n");
     return;
@@ -45,7 +45,7 @@ export async function cmdConfigSet(args) {
   }
   const pid = await resolveProjectId(args?.flags?.project);
   const value = parseValue(valueRaw);
-  await http.patch(`/projects/${pid}/config`, { set: { [key]: value } });
+  await http.patch(`/api/projects/${pid}/config`, { set: { [key]: value } });
   console.log(`set ${key} = ${JSON.stringify(value)}`);
 }
 
@@ -53,7 +53,7 @@ export async function cmdConfigUnset(args) {
   const key = args._[0];
   if (!key) throw new Error("apx config unset: usage: apx config unset <key.path>");
   const pid = await resolveProjectId(args?.flags?.project);
-  await http.patch(`/projects/${pid}/config`, { unset: [key] });
+  await http.patch(`/api/projects/${pid}/config`, { unset: [key] });
   console.log(`unset ${key}`);
 }
 

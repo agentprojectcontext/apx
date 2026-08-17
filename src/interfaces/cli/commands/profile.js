@@ -73,7 +73,7 @@ function printDoctor(report) {
 // ── list ────────────────────────────────────────────────────────────────────
 
 export async function cmdProfileList() {
-  const { active, profiles } = await http.get("/profiles");
+  const { active, profiles } = await http.get("/api/profiles");
   if (!profiles.length) {
     console.log("(no profiles available)");
     return;
@@ -94,7 +94,7 @@ export async function cmdProfileShow(args) {
   const id = args._[0];
   if (!id) fail("show", "missing <id>");
 
-  const p = await http.get(`/profiles/${encodeURIComponent(id)}`);
+  const p = await http.get(`/api/profiles/${encodeURIComponent(id)}`);
   console.log(`${p.name} (${p.id}) v${p.version || "?"} — ${p.source}${p.active ? " — ACTIVE" : ""}`);
   if (p.description) console.log(p.description);
   console.log(`languages: ${p.languages.join(", ") || "en"}`);
@@ -119,7 +119,7 @@ export async function cmdProfileInstall(args) {
   const source = args._[0];
   if (!source) fail("install", "missing <id|path>");
 
-  const r = await http.post("/profiles/install", { source, force: !!args?.flags?.force });
+  const r = await http.post("/api/profiles/install", { source, force: !!args?.flags?.force });
   console.log(`installed ${r.profile.name} (${r.profile.id}) v${r.profile.version || "?"}`);
   console.log(`  prompt: ~${r.tokens} tokens`);
   printWarnings(r.warnings);
@@ -133,7 +133,7 @@ export async function cmdProfileUse(args) {
   const id = args._[0];
   if (!id) fail("use", "missing <id>");
 
-  const r = await http.post("/profiles/use", { id, force: !!args?.flags?.force });
+  const r = await http.post("/api/profiles/use", { id, force: !!args?.flags?.force });
   console.log(`active profile: ${r.profile.name} (${r.profile.id})`);
   printWarnings(r.warnings);
 
@@ -146,7 +146,7 @@ export async function cmdProfileUse(args) {
 }
 
 export async function cmdProfileOff() {
-  const r = await http.post("/profiles/off", {});
+  const r = await http.post("/api/profiles/off", {});
   if (!r.was) {
     console.log("no profile was active — nothing to do");
     return;
@@ -185,14 +185,14 @@ async function interactiveConfig(profile) {
 }
 
 export async function cmdProfileConfig(args) {
-  const { active } = await http.get("/profiles");
+  const { active } = await http.get("/api/profiles");
   const id = args?.flags?.profile || active;
   if (!id) {
     console.error("apx profile config: no profile is active — run: apx profile use <id>");
     process.exit(1);
   }
 
-  const profile = await http.get(`/profiles/${encodeURIComponent(id)}?preview=0`);
+  const profile = await http.get(`/api/profiles/${encodeURIComponent(id)}?preview=0`);
 
   let values = parseSetFlags(args?.flags);
   if (args?.flags?.interactive) {
@@ -217,7 +217,7 @@ export async function cmdProfileConfig(args) {
     return;
   }
 
-  const r = await http.patch("/profiles/config", { values, id });
+  const r = await http.patch("/api/profiles/config", { values, id });
   console.log(`updated: ${r.changed.join(", ")}`);
   for (const k of r.changed) console.log(`  ${k.padEnd(24)} ${r.config[k]}`);
 
@@ -233,14 +233,14 @@ export async function cmdProfileConfig(args) {
 export async function cmdProfileDoctor(args) {
   const id = args._[0];
   const q = id ? `?id=${encodeURIComponent(id)}` : "";
-  printDoctor(await http.get(`/profiles/doctor${q}`));
+  printDoctor(await http.get(`/api/profiles/doctor${q}`));
 }
 
 export async function cmdProfileUninstall(args) {
   const id = args._[0];
   if (!id) fail("uninstall", "missing <id>");
 
-  const r = await http.delete(`/profiles/${encodeURIComponent(id)}`);
+  const r = await http.delete(`/api/profiles/${encodeURIComponent(id)}`);
   console.log(`uninstalled "${r.id}" (${r.source})`);
   if (r.routines?.removed?.length) console.log(`  routines removed: ${r.routines.removed.join(", ")}`);
   if (r.routines?.kept?.length) {

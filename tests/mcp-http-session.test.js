@@ -64,7 +64,7 @@ function startMcpHttpServer() {
     server.listen(0, "127.0.0.1", () => {
       const { port } = server.address();
       resolve({
-        url: `http://127.0.0.1:${port}/mcp`,
+        url: `http://127.0.0.1:${port}/api/mcp`,
         requests,
         close: () => new Promise((done) => server.close(done)),
       });

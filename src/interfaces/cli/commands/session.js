@@ -4,7 +4,7 @@ import { spawn } from "node:child_process";
 import { findApfRoot, readAgents } from "#core/apc/parser.js";
 import { getOrCreateApxId } from "#core/apc/scaffold.js";
 import { generateSessionId } from "#core/stores/sessions.js";
-import { projectStorageRoot, ensureProjectStorage } from "#core/config/index.js";
+import { projectStorageRoot } from "#core/config/index.js";
 import { http } from "../http.js";
 import { resolveProjectId } from "./project.js";
 import {
@@ -12,6 +12,7 @@ import {
   findSessionAcrossEngines,
   findSessionInEngine,
 } from "./sessions.js";
+import { parseFrontmatter, setFrontmatterField } from "#core/apc/frontmatter.js";
 
 const STALE_HOURS = 1;
 
@@ -42,36 +43,7 @@ function readStdinSync() {
   return chunks.join("");
 }
 
-function parseFrontmatter(text) {
-  if (!text.startsWith("---\n")) return { fm: {}, bodyStart: 0 };
-  const end = text.indexOf("\n---", 4);
-  if (end === -1) return { fm: {}, bodyStart: 0 };
-  const fmText = text.slice(4, end);
-  const fm = {};
-  for (const line of fmText.split("\n")) {
-    const m = line.match(/^([a-zA-Z_]+):\s*(.*)$/);
-    if (m) fm[m[1]] = m[2].trim();
-  }
-  return { fm, bodyStart: end + 4 };
-}
 
-function setFrontmatterField(text, field, value) {
-  if (!text.startsWith("---\n")) return text;
-  const end = text.indexOf("\n---", 4);
-  if (end === -1) return text;
-  const fmText = text.slice(4, end);
-  const lines = fmText.split("\n");
-  let found = false;
-  const out = lines.map((line) => {
-    if (line.match(new RegExp(`^${field}:`))) {
-      found = true;
-      return `${field}: ${value}`;
-    }
-    return line;
-  });
-  if (!found) out.push(`${field}: ${value}`);
-  return `---\n${out.join("\n")}\n---${text.slice(end + 4)}`;
-}
 
 function listAllSessions(root) {
   const agentsDir = path.join(requireStorageRoot(root), "agents");
@@ -378,7 +350,7 @@ export function cmdSessionUpdate(args) {
 
   let text = fs.readFileSync(s.path, "utf8");
   const fields = ["status", "result", "title", "task_ref", "completed"];
-  let touched = [];
+  const touched = [];
   for (const k of fields) {
     if (args.flags[k] !== undefined && args.flags[k] !== true) {
       text = setFrontmatterField(text, k, args.flags[k]);
@@ -419,7 +391,7 @@ export function cmdSessionCheck() {
   }
 
   let active = 0;
-  let stale = [];
+  const stale = [];
   for (const s of sessions) {
     const h = hoursSince(s.started);
     if (h >= STALE_HOURS) {
@@ -576,7 +548,7 @@ async function summarizeSession(meta, args) {
   if (meta.engine === "apx") {
     const pid = await resolveProjectId(args?.flags?.project);
     const r = await http.get(
-      `/projects/${pid}/sessions/${meta.id}/resume?summarize=true`
+      `/api/projects/${pid}/sessions/${meta.id}/resume?summarize=true`
     );
     return r.summary || null;
   }
@@ -678,7 +650,7 @@ async function mapReduceSession(meta, { mapInstruction, reduceInstruction, oneSh
       : MR_MAX_CHUNKS;
 
   if (text.length <= MR_CHUNK_BYTES) {
-    const r = await http.post(`/super-agent/summarize`, {
+    const r = await http.post(`/api/super-agent/summarize`, {
       prompt: `${oneShot(text)}`,
       context_note: `${note} (one-shot) ${meta.engine}:${meta.id}`,
       max_tokens: MR_MAX_OUTPUT_TOKENS,
@@ -692,7 +664,7 @@ async function mapReduceSession(meta, { mapInstruction, reduceInstruction, oneSh
 
   const notes = [];
   for (let i = 0; i < chunks.length; i++) {
-    const r = await http.post(`/super-agent/summarize`, {
+    const r = await http.post(`/api/super-agent/summarize`, {
       prompt: mapInstruction(chunks[i], i + 1, chunks.length),
       context_note: `${note} map ${i + 1}/${chunks.length} ${meta.engine}:${meta.id}`,
       max_tokens: MR_MAX_OUTPUT_TOKENS,
@@ -705,7 +677,7 @@ async function mapReduceSession(meta, { mapInstruction, reduceInstruction, oneSh
     return { text: "(no relevant content found in the transcript)", chunks: chunks.length, truncated };
   }
 
-  const r = await http.post(`/super-agent/summarize`, {
+  const r = await http.post(`/api/super-agent/summarize`, {
     prompt: reduceInstruction(notes),
     context_note: `${note} reduce ${meta.engine}:${meta.id}`,
     max_tokens: MR_MAX_OUTPUT_TOKENS,
@@ -783,13 +755,13 @@ function spawnContinueSpec(meta) {
 // Create a new APX session whose body is the summary of an existing session.
 // Used by `apx session resume <id> --into apx[:slug]`. Picks a sensible
 // default agent slug when none is given.
-function createApxFollowupSession(meta, slugArg, summary, args) {
+function createApxFollowupSession(meta, slugArg, summary, _args) {
   const root = requireRoot();
   const agents = readAgents(root);
   if (agents.length === 0) {
     throw new Error("no agents in AGENTS.md — `apx agent add <slug>` first");
   }
-  let slug = slugArg || meta.agentSlug || agents[0].slug;
+  const slug = slugArg || meta.agentSlug || agents[0].slug;
   if (!agents.find((a) => a.slug === slug)) {
     throw new Error(
       `agent "${slug}" not in AGENTS.md (known: ${agents.map((a) => a.slug).join(", ")})`
@@ -870,8 +842,8 @@ export async function cmdSessionCompact(args) {
   const pid = await resolveProjectId(args?.flags?.project);
 
   const url = convId
-    ? `/projects/${pid}/agents/${slug}/conversations/${convId}/compact`
-    : `/projects/${pid}/agents/${slug}/compact`;
+    ? `/api/projects/${pid}/agents/${slug}/conversations/${convId}/compact`
+    : `/api/projects/${pid}/agents/${slug}/compact`;
 
   const body = model ? { model } : {};
 

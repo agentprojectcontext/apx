@@ -23,9 +23,7 @@ import {
 } from "../stores/routines.js";
 
 import {
-  PROFILES_DIR,
   MANIFEST_FILE,
-  CONFIG_SCHEMA_FILE,
   PROFILE_ID_RE,
   userProfileDir,
 } from "./paths.js";

@@ -41,7 +41,7 @@ function sourceToScope(source) {
 export async function cmdMcpList(args = {}) {
   const scope = resolveListScope(args?.flags);
   const pid = await resolveProjectId(args?.flags?.project);
-  const mcps = await http.get(`/projects/${pid}/mcps`);
+  const mcps = await http.get(`/api/projects/${pid}/mcps`);
   const filtered = scope === "all"
     ? mcps
     : mcps.filter((m) => sourceToScope(m.source) === scope);
@@ -90,7 +90,7 @@ export async function cmdMcpAdd(args) {
 
   const scope = resolveWriteScope(args.flags);
   const pid = await resolveProjectId(args?.flags?.project);
-  const result = await http.post(`/projects/${pid}/mcps?scope=${encodeURIComponent(scope)}`, {
+  const result = await http.post(`/api/projects/${pid}/mcps?scope=${encodeURIComponent(scope)}`, {
     name,
     command,
     args: mcpArgs,
@@ -105,7 +105,7 @@ export async function cmdMcpRemove(args) {
   if (!name) throw new Error("apx mcp remove: missing <name>");
   const scope = resolveWriteScope(args.flags);
   const pid = await resolveProjectId(args?.flags?.project);
-  await http.delete(`/projects/${pid}/mcps/${name}?scope=${encodeURIComponent(scope)}`);
+  await http.delete(`/api/projects/${pid}/mcps/${name}?scope=${encodeURIComponent(scope)}`);
   console.log(`Removed MCP "${name}" (scope: ${scope})`);
 }
 
@@ -120,7 +120,7 @@ async function toggleEnabled(args, enabled) {
   const name = args._[0];
   if (!name) throw new Error(`apx mcp ${enabled ? "enable" : "disable"}: missing <name>`);
   const pid = await resolveProjectId(args?.flags?.project);
-  const all = await http.get(`/projects/${pid}/mcps`);
+  const all = await http.get(`/api/projects/${pid}/mcps`);
   const m = all.find((x) => x.name === name);
   if (!m) throw new Error(`MCP "${name}" not registered`);
   // Write back to the scope it lives in so we don't accidentally shadow it.
@@ -132,7 +132,7 @@ async function toggleEnabled(args, enabled) {
       `MCP "${name}" comes from foreign source "${m.source}" — toggle it in that IDE's config directly.`
     );
   }
-  await http.post(`/projects/${pid}/mcps?scope=${encodeURIComponent(scope)}`, {
+  await http.post(`/api/projects/${pid}/mcps?scope=${encodeURIComponent(scope)}`, {
     name: m.name,
     command: m.command,
     args: m.args,
@@ -155,7 +155,7 @@ export async function cmdMcpRun(args) {
     }
   }
   const pid = await resolveProjectId(args?.flags?.project);
-  const result = await http.post(`/projects/${pid}/mcps/${name}/call`, { tool, params });
+  const result = await http.post(`/api/projects/${pid}/mcps/${name}/call`, { tool, params });
   process.stdout.write(JSON.stringify(result.result, null, 2) + "\n");
 }
 
@@ -217,7 +217,7 @@ export async function cmdMcpTools(args) {
   if (!name) throw new Error("apx mcp tools: usage: apx mcp tools <name> [<tool>] [--json]");
   const toolFilter = args._[1];
   const pid = await resolveProjectId(args?.flags?.project);
-  const data = await http.get(`/projects/${pid}/mcps/${name}/tools`);
+  const data = await http.get(`/api/projects/${pid}/mcps/${name}/tools`);
   const tools = data.tools || [];
 
   if (toolFilter) {
@@ -256,7 +256,7 @@ export async function cmdMcpLogs(args) {
   const name = args._[0];
   if (!name) throw new Error("apx mcp logs: missing <name>");
   const pid = await resolveProjectId(args?.flags?.project);
-  const logs = await http.get(`/projects/${pid}/mcps/${name}/logs`);
+  const logs = await http.get(`/api/projects/${pid}/mcps/${name}/logs`);
   if (args?.flags?.json) {
     process.stdout.write(JSON.stringify(logs, null, 2) + "\n");
     return;
@@ -287,7 +287,7 @@ export async function cmdMcpLogs(args) {
 
 export async function cmdMcpCheck(args = {}) {
   const pid = await resolveProjectId(args?.flags?.project);
-  const data = await http.get(`/projects/${pid}/mcps/check`);
+  const data = await http.get(`/api/projects/${pid}/mcps/check`);
 
   console.log("Source files:");
   for (const s of data.sources) {

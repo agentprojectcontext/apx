@@ -1,6 +1,6 @@
 // GET /health — unauthenticated; everything else requires the bearer token.
-export function register(app, { version, startedAt }) {
-  app.get("/health", (_req, res) => {
+export function register(api, { version, startedAt }) {
+  api.get("/health", (_req, res) => {
     res.json({
       status: "ok",
       version,

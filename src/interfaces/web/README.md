@@ -27,7 +27,7 @@ src/
 │   ├── api.ts               ← typed daemon client (Bearer auth)
 │   └── cn.ts                ← clsx + tailwind-merge
 ├── hooks/
-│   └── useTokenBootstrap.ts ← reads /admin/web-token on first paint
+│   └── useTokenBootstrap.ts ← reads /api/admin/web-token on first paint
 ├── components/
 │   ├── ProjectSidebar.tsx   ← rail of avatars (APX + projects)
 │   └── Section.tsx          ← card primitive + small UI atoms
@@ -44,11 +44,11 @@ Nothing new server-side. Mounting is done by `src/host/daemon/api/web.js`:
 - **Same origin / same port** as the daemon (default `127.0.0.1:7430`).
 - The daemon serves `dist/` from `/` and does an SPA fallback for unknown
   GETs that aren't an API prefix.
-- `GET /admin/web-token` returns the bearer for loopback callers, so the
+- `GET /api/admin/web-token` returns the bearer for loopback callers, so the
   panel can authenticate every subsequent request.
 
-In development, `pnpm dev` boots Vite on `:7431` and proxies `/projects`,
-`/telegram`, `/admin`, etc. → `127.0.0.1:7430`. Hot reload, real daemon.
+In development, `pnpm dev` boots Vite on `:7431` and proxies `/api` (the whole
+daemon surface, WebSocket included) → `127.0.0.1:7430`. Hot reload, real daemon.
 
 ## Project typology
 
@@ -95,8 +95,8 @@ read-only:
 - [ ] Edit per-project config inline (today: JSON viewer; needs form).
 - [ ] Create / edit telegram channels from the panel (today: list-only).
 - [ ] Run / enable / disable a routine from the panel (today: list).
-- [ ] Threads view: render `/projects/:pid/agents/:slug/conversations`.
-- [ ] APX self-chat surface (call /super-agent/chat/stream).
+- [ ] Threads view: render `/api/projects/:pid/agents/:slug/conversations`.
+- [ ] APX self-chat surface (call /api/super-agent/chat/stream).
 - [ ] Light theme toggle (tokens are there; missing the button).
 
 Adding any of these is a single screen edit + an existing daemon endpoint.

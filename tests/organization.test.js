@@ -90,12 +90,12 @@ test("organization API round-trips areas and roles", async () => {
   const { server, baseUrl } = await listen(app);
   try {
     // Empty to start.
-    let res = await fetch(`${baseUrl}/projects/${id}/organization`);
+    let res = await fetch(`${baseUrl}/api/projects/${id}/organization`);
     assert.equal(res.status, 200);
     assert.deepEqual(await res.json(), { areas: [], roles: [] });
 
     // Create an area.
-    res = await fetch(`${baseUrl}/projects/${id}/organization/areas`, {
+    res = await fetch(`${baseUrl}/api/projects/${id}/organization/areas`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ name: "Engineering", goal: "ship" }),
@@ -105,7 +105,7 @@ test("organization API round-trips areas and roles", async () => {
     assert.equal(area.slug, "engineering");
 
     // Create a role in it.
-    res = await fetch(`${baseUrl}/projects/${id}/organization/roles`, {
+    res = await fetch(`${baseUrl}/api/projects/${id}/organization/roles`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ name: "Tech Lead", area: "engineering" }),
@@ -113,7 +113,7 @@ test("organization API round-trips areas and roles", async () => {
     assert.equal(res.status, 201);
 
     // Duplicate area → 400.
-    res = await fetch(`${baseUrl}/projects/${id}/organization/areas`, {
+    res = await fetch(`${baseUrl}/api/projects/${id}/organization/areas`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ name: "Engineering" }),
@@ -121,10 +121,10 @@ test("organization API round-trips areas and roles", async () => {
     assert.equal(res.status, 400);
 
     // Delete the role.
-    res = await fetch(`${baseUrl}/projects/${id}/organization/roles/tech-lead`, { method: "DELETE" });
+    res = await fetch(`${baseUrl}/api/projects/${id}/organization/roles/tech-lead`, { method: "DELETE" });
     assert.equal(res.status, 200);
 
-    const final = await (await fetch(`${baseUrl}/projects/${id}/organization`)).json();
+    const final = await (await fetch(`${baseUrl}/api/projects/${id}/organization`)).json();
     assert.equal(final.areas.length, 1);
     assert.equal(final.roles.length, 0);
   } finally {

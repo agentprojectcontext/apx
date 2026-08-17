@@ -12,16 +12,16 @@ import {
   agentSessionsDir,
   createAgentSessionFile,
 } from "#core/stores/sessions.js";
-import { collectAllSessions, filterSessionsByQuery } from "#interfaces/cli/commands/sessions.js";
+import { collectAllSessions, filterSessionsByQuery } from "#core/sessions/index.js";
 import { pageEnvelope } from "./shared.js";
 
-export function register(app, { projects, project }) {
+export function register(api, { projects, project }) {
   // Cross-engine sessions (apx · claude · codex), newest first. Returns a
   // { meta, data } envelope (meta = pagination info, data = rows). Paginated
   // via ?limit & ?offset; with no limit, data is the full set as one page.
   // Optional ?q= filters via the same core as `apx session find` (title match,
   // + transcript content when ?deep=1) so terminal and web search are identical.
-  app.get("/sessions", (req, res) => {
+  api.get("/sessions", (req, res) => {
     const engineId = req.query.engine ? String(req.query.engine) : null;
     const q = req.query.q ? String(req.query.q) : "";
     const deep = req.query.deep === "1" || req.query.deep === "true";
@@ -49,7 +49,7 @@ export function register(app, { projects, project }) {
     res.json(pageEnvelope(rows, req.query));
   });
 
-  app.get("/projects/:pid/agents/:slug/sessions", (req, res) => {
+  api.get("/projects/:pid/agents/:slug/sessions", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const agents = readAgents(p.path);
@@ -78,7 +78,7 @@ export function register(app, { projects, project }) {
     res.json(sessions);
   });
 
-  app.post("/projects/:pid/agents/:slug/sessions", (req, res) => {
+  api.post("/projects/:pid/agents/:slug/sessions", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const { title, body = "" } = req.body || {};
@@ -93,7 +93,7 @@ export function register(app, { projects, project }) {
   });
 
   // GET session by filename (sid may include or omit the .md extension)
-  app.get("/projects/:pid/sessions/:sid", (req, res) => {
+  api.get("/projects/:pid/sessions/:sid", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const sid = req.params.sid;

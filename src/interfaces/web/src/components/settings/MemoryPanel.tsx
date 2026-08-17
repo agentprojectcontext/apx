@@ -48,7 +48,7 @@ export function MemoryPanel() {
   const toast = useToast();
   const { config, isLoading, patch } = useGlobalConfig();
   const { data: providers, mutate: mutateProviders } = useSWR(
-    "/embeddings/providers",
+    "/api/embeddings/providers",
     () => Embeddings.providers()
   );
   const [busy, setBusy] = useState(false);

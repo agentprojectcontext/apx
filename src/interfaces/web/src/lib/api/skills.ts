@@ -102,13 +102,13 @@ export const Skills = {
       qs.set("scope", projectPath);
     }
     const q = qs.toString();
-    return http.get<SkillsList>(q ? `/skills?${q}` : "/skills");
+    return http.get<SkillsList>(q ? `/api/skills?${q}` : "/api/skills");
   },
 
   /** Full body + frontmatter of a skill, for the viewer. */
   detail: (slug: string, projectPath?: string) => {
     const qs = projectPath ? `?project_path=${encodeURIComponent(projectPath)}` : "";
-    return http.get<SkillDetail>(`/skills/${encodeURIComponent(slug)}/detail${qs}`);
+    return http.get<SkillDetail>(`/api/skills/${encodeURIComponent(slug)}/detail${qs}`);
   },
 
   /**
@@ -118,7 +118,7 @@ export const Skills = {
    */
   setEnabled: (body: { slug: string; enabled: boolean | null; scope?: string }) =>
     http.put<{ ok: boolean; slug: string; scope: string; enabled: boolean | null }>(
-      "/skills/enabled",
+      "/api/skills/enabled",
       body,
     ),
 
@@ -127,39 +127,39 @@ export const Skills = {
    * that project's .apc/skills/; otherwise in ~/.apx/skills/.
    */
   create: (body: { slug: string; description?: string; body?: string; project_path?: string }) =>
-    http.post<CreateResult>("/skills", body),
+    http.post<CreateResult>("/api/skills", body),
 
   /** Import a skill from an uploaded .zip (base64-encoded). */
   importZip: (body: { data: string; project_path?: string }) =>
-    http.post<CreateResult>("/skills/import/zip", body),
+    http.post<CreateResult>("/api/skills/import/zip", body),
 
   /** Import a skill by cloning a git repo. */
   importRepo: (body: { url: string; project_path?: string }) =>
-    http.post<CreateResult>("/skills/import/repo", body),
+    http.post<CreateResult>("/api/skills/import/repo", body),
 
   /** Delete a user skill (global or project-scoped). */
   remove: (slug: string, projectPath?: string) => {
     const qs = projectPath ? `?project_path=${encodeURIComponent(projectPath)}` : "";
-    return http.del<{ ok: boolean; slug: string }>(`/skills/${encodeURIComponent(slug)}${qs}`);
+    return http.del<{ ok: boolean; slug: string }>(`/api/skills/${encodeURIComponent(slug)}${qs}`);
   },
 
   /** Skill Inspector config + index status. */
-  inspector: () => http.get<InspectorState>("/skills/inspector"),
+  inspector: () => http.get<InspectorState>("/api/skills/inspector"),
 
   /** Patch inspector config (toggle / tune thresholds). */
   updateInspector: (patch: Partial<InspectorConfig>) =>
     http.put<{ ok: boolean; config: InspectorConfig; index: IndexStatus }>(
-      "/skills/inspector",
+      "/api/skills/inspector",
       patch,
     ),
 
   /** (Re)build the inspector vector index. */
   index: (body: { project_path?: string; force?: boolean } = {}) =>
-    http.post<IndexResult>("/skills/index", body),
+    http.post<IndexResult>("/api/skills/index", body),
 
   /** Dry-run the inspector for a prompt (forces enabled). */
   inspect: (prompt: string, projectPath?: string) =>
-    http.post<InspectResult>("/skills/inspect", {
+    http.post<InspectResult>("/api/skills/inspect", {
       prompt,
       project_path: projectPath,
     }),

@@ -128,13 +128,13 @@ export function SkillsManager({ scope: fixedScope, selectable = false }: { scope
   const [repoOpen, setRepoOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const { data: projects } = useSWR(selectable ? "/projects" : null, () => Projects.list());
+  const { data: projects } = useSWR(selectable ? "/api/projects" : null, () => Projects.list());
   const scopeOptions = useMemo(() => [
     { value: SUPER, label: t("skills_page.scope_super_agent") },
     ...(projects ?? []).map((p) => ({ value: p.path, label: p.name || basename(p.path) })),
   ], [projects]);
 
-  const { data, mutate, isLoading } = useSWR(["/skills", scope], () => Skills.list(projectPath));
+  const { data, mutate, isLoading } = useSWR(["/api/skills", scope], () => Skills.list(projectPath));
   const skills = useMemo(() => data?.skills ?? [], [data]);
   const onCount = skills.filter((s) => s.enabled !== false).length;
 

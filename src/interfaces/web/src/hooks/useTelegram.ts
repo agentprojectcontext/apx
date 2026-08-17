@@ -4,7 +4,7 @@ import { REFRESH } from "../constants";
 
 export function useTelegramStatus() {
   const { data, error, isLoading, mutate } = useSWR(
-    "/telegram/status",
+    "/api/telegram/status",
     () => Telegram.status(),
     { refreshInterval: REFRESH.telegramStatus },
   );
@@ -13,7 +13,7 @@ export function useTelegramStatus() {
 
 export function useTelegramChannels() {
   const { data, error, isLoading, mutate } = useSWR(
-    "/telegram/channels",
+    "/api/telegram/channels",
     () => Telegram.channels.list(),
   );
   return { channels: data?.channels || [], error, isLoading, mutate };
@@ -21,7 +21,7 @@ export function useTelegramChannels() {
 
 export function useTelegramContacts() {
   const { data, error, isLoading, mutate } = useSWR(
-    "/telegram/contacts",
+    "/api/telegram/contacts",
     () => Telegram.contacts.list(),
   );
   return {

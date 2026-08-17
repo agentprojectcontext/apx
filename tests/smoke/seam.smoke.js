@@ -36,7 +36,7 @@ async function waitForDaemon(ms = 20_000) {
   const deadline = Date.now() + ms;
   while (Date.now() < deadline) {
     try {
-      const r = await fetch(`${BASE}/health`);
+      const r = await fetch(`${BASE}/api/health`);
       if (r.ok) return true;
     } catch { /* not up yet */ }
     await new Promise((r) => setTimeout(r, 200));
@@ -51,7 +51,7 @@ before(async () => {
     stdio: "ignore",
   });
   assert.ok(await waitForDaemon(), `daemon did not come up on ${BASE}`);
-  token = (await (await fetch(`${BASE}/admin/web-token`)).json()).token;
+  token = (await (await fetch(`${BASE}/api/admin/web-token`)).json()).token;
   assert.ok(token, "could not read the web token");
 });
 
@@ -71,7 +71,7 @@ after(async () => {
 // --------------------------------------------------------------------------
 
 test("every API route requires a token", async () => {
-  for (const p of ["/projects", "/tasks", "/inbox", "/profiles", "/profiles/doctor"]) {
+  for (const p of ["/api/projects", "/api/tasks", "/api/inbox", "/api/profiles", "/api/profiles/doctor"]) {
     const r = await fetch(BASE + p); // deliberately unauthenticated
     assert.equal(r.status, 401, `${p} answered ${r.status} without a token`);
   }
@@ -84,7 +84,7 @@ test("every API route requires a token", async () => {
 // `apx task list` printed "(no tasks)" no matter what, because the endpoint
 // answers {meta,data} and the CLI treated it as an array.
 test("list endpoints answer the {meta,data} envelope callers unwrap", async () => {
-  for (const p of ["/tasks", "/inbox"]) {
+  for (const p of ["/api/tasks", "/api/inbox"]) {
     const body = await (await get(p)).json();
     assert.ok(!Array.isArray(body), `${p} is a bare array — CLI callers unwrap .data`);
     assert.ok(Array.isArray(body.data), `${p} has no .data array`);
@@ -99,7 +99,7 @@ test("list endpoints answer the {meta,data} envelope callers unwrap", async () =
 // `apx routine memory` resolves storage from GET /projects. Both fields were
 // missing from the response, so the command failed before it could do anything.
 test("GET /projects carries the storage fields the CLI resolves paths from", async () => {
-  const projects = await (await get("/projects")).json();
+  const projects = await (await get("/api/projects")).json();
   assert.ok(Array.isArray(projects) && projects.length, "no projects registered");
   for (const p of projects) {
     for (const field of ["id", "path", "name", "apx_id", "storage_path"]) {
@@ -110,7 +110,7 @@ test("GET /projects carries the storage fields the CLI resolves paths from", asy
 });
 
 test("inbox rows carry every field the panel renders", async () => {
-  const { data } = await (await get("/inbox")).json();
+  const { data } = await (await get("/api/inbox")).json();
   for (const row of data) {
     for (const field of [
       "agent_slug", "agent_name", "kind", "pinned",
@@ -122,11 +122,11 @@ test("inbox rows carry every field the panel renders", async () => {
 });
 
 test("profiles expose the schema, settings and prompt preview the panel needs", async () => {
-  const { profiles } = await (await get("/profiles")).json();
-  assert.ok(Array.isArray(profiles), "/profiles has no profiles array");
+  const { profiles } = await (await get("/api/profiles")).json();
+  assert.ok(Array.isArray(profiles), "/api/profiles has no profiles array");
   if (!profiles.length) return; // nothing bundled in this build
 
-  const detail = await (await get(`/profiles/${profiles[0].id}`)).json();
+  const detail = await (await get(`/api/profiles/${profiles[0].id}`)).json();
   for (const field of ["id", "name", "source", "schema", "config", "preview", "tokens"]) {
     assert.ok(field in detail, `profile detail is missing "${field}"`);
   }
@@ -141,7 +141,7 @@ test("profiles expose the schema, settings and prompt preview the panel needs", 
 // screen would never have rendered.
 test("API paths and SPA routes do not overlap", async () => {
   const { isApiPath, isKnownSpaRoute } = await import("#host/daemon/api/web.js");
-  for (const p of ["/inbox", "/tasks", "/profiles", "/projects"]) {
+  for (const p of ["/api/inbox", "/api/tasks", "/api/profiles", "/api/projects"]) {
     assert.ok(isApiPath(p), `${p} should be an API path`);
     assert.ok(!isKnownSpaRoute(p), `${p} is BOTH an API path and an SPA route`);
   }
@@ -152,7 +152,7 @@ test("API paths and SPA routes do not overlap", async () => {
 });
 
 test("an unknown API path 404s instead of quietly serving the panel", async () => {
-  const r = await get("/tasks/definitely-not-a-route/nope");
+  const r = await get("/api/tasks/definitely-not-a-route/nope");
   assert.ok(r.status >= 400, `expected an error, got ${r.status}`);
 });
 
@@ -162,37 +162,38 @@ test("an unknown API path 404s instead of quietly serving the panel", async () =
 
 test("cross-project task filters are accepted, not silently ignored", async () => {
   const qs = "state=all&status=blocked&updated_since=2020-01-01T00:00:00Z&limit=5";
-  const r = await get(`/tasks?${qs}`);
+  const r = await get(`/api/tasks?${qs}`);
   assert.equal(r.status, 200);
   const body = await r.json();
   assert.ok(Array.isArray(body.data));
   assert.ok(body.data.length <= 5, "limit was ignored");
 });
 
-// The list above drifts by omission: someone adds a route and forgets the
-// prefix, and an unknown path under it answers with SPA HTML instead of JSON.
-// Derive the truth from the route registrations rather than trusting the list.
-test("every top-level API route prefix is declared in API_PREFIXES", async () => {
-  const { isApiPath } = await import("#host/daemon/api/web.js");
+// This used to check a hand-written API_PREFIXES list for missing entries.
+// That list is gone: every route module now registers on the Router that
+// api.js mounts at /api, so a new route lands under the prefix by
+// construction and cannot be forgotten.
+//
+// What CAN still go wrong is a module registering on the raw `app` instead of
+// the router — that route would sit at the root, outside auth's /api rules and
+// in the SPA's namespace. web.js is the one legitimate exception: it serves
+// the static panel at the root on purpose.
+test("no route module registers on the root app instead of the /api router", () => {
   const dir = path.join(ROOT, "src/host/daemon/api");
-  const re = /app\.(get|post|put|patch|delete)\(\s*"(\/[^"]*)"/g;
+  const re = /\bapp\.(get|post|put|patch|delete|use|all)\s*\(/g;
 
-  const prefixes = new Set();
+  const offenders = [];
   for (const f of fs.readdirSync(dir).filter((f) => f.endsWith(".js"))) {
+    if (f === "web.js") continue; // owns the root namespace by design
     const src = fs.readFileSync(path.join(dir, f), "utf8");
-    let m;
-    while ((m = re.exec(src)) !== null) {
-      const route = m[2];
-      if (route === "/" || route === "*") continue;
-      prefixes.add("/" + route.split("/")[1]);
-    }
+    if (re.test(src)) offenders.push(f);
+    re.lastIndex = 0;
   }
 
-  const undeclared = [...prefixes].filter((p) => !p.startsWith("/:") && !isApiPath(p)).sort();
   assert.deepEqual(
-    undeclared,
+    offenders.sort(),
     [],
-    `these route prefixes are missing from API_PREFIXES: ${undeclared.join(", ")}`
+    `these modules register at the root instead of on the /api router: ${offenders.join(", ")}`
   );
 });
 

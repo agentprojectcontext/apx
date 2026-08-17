@@ -1,8 +1,8 @@
 // apx desktop — launch/manage the floating voice desktop window (Electron).
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
-import { spawn, execFileSync } from "node:child_process";
+import { DESKTOP_LOG_PATH, CONFIG_PATH } from "#core/config/paths.js";
+import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { http } from "../http.js";
 import {
@@ -11,18 +11,11 @@ import {
   autostartUninstall,
   getApxRunner as _getApxRunner,
   buildPlist as _buildPlist,
-  MAC_PLIST_PATH,
-  LINUX_DESKTOP_PATH,
-  WIN_RUN_KEY,
-  WIN_RUN_NAME,
 } from "#core/desktop/autostart.js";
 import {
   DESKTOP_MAIN,
-  readPid, writePid, clearPid, pidAlive, isDesktopRunning,
-  findElectron as _findElectron,
+  readPid, writePid, clearPid, pidAlive, findElectron as _findElectron,
   buildElectronSpawn as _buildElectronSpawn,
-  startDesktopDetached,
-  stopDesktop,
 } from "#core/desktop/process.js";
 
 // Re-exports — kept so existing tests (tests/desktop-autostart.test.js)
@@ -75,13 +68,13 @@ export async function cmdDesktopStart(args = {}) {
   // Get daemon port from running daemon or env
   let daemonPort = process.env.APX_PORT || "7430";
   try {
-    const health = await http.get("/health").catch(() => null);
+    const health = await http.get("/api/health").catch(() => null);
     if (health?.port) daemonPort = String(health.port);
   } catch {}
 
   const { cmd, argv } = buildElectronSpawn(electronDescriptor, DESKTOP_MAIN, daemonPort);
 
-  const logFile = path.join(os.homedir(), ".apx", "desktop.log");
+  const logFile = DESKTOP_LOG_PATH;
 
   if (debug) {
     // ── Debug mode: start desktop normally, then tail -f the log ─────────
@@ -191,7 +184,7 @@ export async function cmdDesktopStart(args = {}) {
   // Read configured shortcut (if any) for display
   let shortcutHint = "⌘G (macOS) / Ctrl+G (Win/Linux)";
   try {
-    const cfg = JSON.parse(fs.readFileSync(path.join(os.homedir(), ".apx", "config.json"), "utf8"));
+    const cfg = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf8"));
     const sc = cfg?.desktop?.shortcut || cfg?.overlay?.shortcut;
     if (sc) shortcutHint = sc;
   } catch {}
@@ -254,7 +247,7 @@ export async function cmdDesktopStatus(_args = {}) {
 
   let daemonClients = 0;
   try {
-    const s = await http.get("/desktop/status").catch(() => null);
+    const s = await http.get("/api/desktop/status").catch(() => null);
     daemonClients = s?.connected_clients ?? 0;
   } catch {}
 

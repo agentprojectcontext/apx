@@ -12,12 +12,12 @@ function requireRoot() {
 
 export async function cmdProjectAdd(args) {
   const target = args._[0] || requireRoot();
-  const result = await http.post("/projects", { path: path.resolve(target) });
+  const result = await http.post("/api/projects", { path: path.resolve(target) });
   console.log(`Registered #${result.id}: ${result.path}`);
 }
 
 export async function cmdProjectList() {
-  const projects = await http.get("/projects");
+  const projects = await http.get("/api/projects");
   if (projects.length === 0) {
     console.log("(no projects registered — try `apx project add .`)");
     return;
@@ -31,7 +31,7 @@ export async function cmdProjectList() {
 export async function cmdProjectRemove(args) {
   const target = args._[0];
   if (!target) throw new Error("apx project remove: missing <path|id>");
-  const projects = await http.get("/projects");
+  const projects = await http.get("/api/projects");
   let id;
   if (/^\d+$/.test(target)) id = parseInt(target, 10);
   else {
@@ -40,7 +40,7 @@ export async function cmdProjectRemove(args) {
     if (!found) throw new Error(`not registered: ${target}`);
     id = found.id;
   }
-  await http.delete(`/projects/${id}`);
+  await http.delete(`/api/projects/${id}`);
   console.log(`Removed project #${id}`);
 }
 
@@ -51,19 +51,19 @@ export async function cmdProjectRebuild(args) {
     if (/^\d+$/.test(target)) id = parseInt(target, 10);
     else {
       const abs = path.resolve(target);
-      const projects = await http.get("/projects");
+      const projects = await http.get("/api/projects");
       const found = projects.find((p) => p.path === abs);
       if (!found) throw new Error(`not registered: ${target}`);
       id = found.id;
     }
   } else {
     const root = requireRoot();
-    const projects = await http.get("/projects");
+    const projects = await http.get("/api/projects");
     const found = projects.find((p) => p.path === root);
     if (!found) throw new Error(`current project not registered — run \`apx project add .\``);
     id = found.id;
   }
-  const result = await http.post(`/projects/${id}/rebuild`);
+  const result = await http.post(`/api/projects/${id}/rebuild`);
   console.log(`Rebuilt project #${id}: ${result.agents} agents`);
 }
 
@@ -78,7 +78,7 @@ export async function resolveProjectId(target) {
     if (typeof target === "number" || /^\d+$/.test(String(target))) {
       return parseInt(target, 10);
     }
-    const projects = await http.get("/projects");
+    const projects = await http.get("/api/projects");
     const tgt = String(target);
 
     // exact path
@@ -112,10 +112,10 @@ export async function resolveProjectId(target) {
     // Fall back to the default project (id=0) — always available, no .apc/ required.
     return 0;
   }
-  const projects = await http.get("/projects");
+  const projects = await http.get("/api/projects");
   const found = projects.find((p) => p.path === root);
   if (found) return found.id;
   // auto-register
-  const result = await http.post("/projects", { path: root });
+  const result = await http.post("/api/projects", { path: root });
   return result.id;
 }

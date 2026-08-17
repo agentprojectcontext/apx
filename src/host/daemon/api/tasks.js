@@ -24,11 +24,11 @@ import {
 } from "#core/stores/tasks.js";
 import { pageEnvelope } from "./shared.js";
 
-export function register(app, { project, projects }) {
+export function register(api, { project, projects }) {
   // Global tasks across every project, newest first. Returns a { meta, data }
   // envelope. Paginated via ?limit & ?offset; with no limit, data is the full
   // set as one page.
-  app.get("/tasks", (req, res) => {
+  api.get("/tasks", (req, res) => {
     const { state, tag, agent, due_before, due_after, status, updated_since } = req.query;
 
     // Resolve the registered projects to what core needs, dropping any the
@@ -63,7 +63,7 @@ export function register(app, { project, projects }) {
 
   // Per-project tasks. Returns a { meta, data } envelope; with no ?limit the
   // data array is the full filtered set (one page).
-  app.get("/projects/:pid/tasks", (req, res) => {
+  api.get("/projects/:pid/tasks", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const { state, tag, agent, due_before, due_after, status, updated_since } = req.query;
@@ -79,7 +79,7 @@ export function register(app, { project, projects }) {
     res.json(pageEnvelope(all, req.query));
   });
 
-  app.post("/projects/:pid/tasks", (req, res) => {
+  api.post("/projects/:pid/tasks", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     try {
@@ -90,7 +90,7 @@ export function register(app, { project, projects }) {
     }
   });
 
-  app.get("/projects/:pid/tasks/:id", (req, res) => {
+  api.get("/projects/:pid/tasks/:id", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const task = getTask(p.storagePath, req.params.id);
@@ -98,7 +98,7 @@ export function register(app, { project, projects }) {
     res.json(task);
   });
 
-  app.patch("/projects/:pid/tasks/:id", (req, res) => {
+  api.patch("/projects/:pid/tasks/:id", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const { patch } = req.body || {};
@@ -110,7 +110,7 @@ export function register(app, { project, projects }) {
     res.json(updated);
   });
 
-  app.post("/projects/:pid/tasks/:id/done", (req, res) => {
+  api.post("/projects/:pid/tasks/:id/done", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const { by = null } = req.body || {};
@@ -119,7 +119,7 @@ export function register(app, { project, projects }) {
     res.json(updated);
   });
 
-  app.post("/projects/:pid/tasks/:id/drop", (req, res) => {
+  api.post("/projects/:pid/tasks/:id/drop", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const { by = null } = req.body || {};
@@ -128,7 +128,7 @@ export function register(app, { project, projects }) {
     res.json(updated);
   });
 
-  app.post("/projects/:pid/tasks/:id/reopen", (req, res) => {
+  api.post("/projects/:pid/tasks/:id/reopen", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const updated = reopenTask(p.storagePath, req.params.id);
@@ -137,7 +137,7 @@ export function register(app, { project, projects }) {
   });
 
   // Move an open task through its workflow (pending → running → in_review …).
-  app.post("/projects/:pid/tasks/:id/status", (req, res) => {
+  api.post("/projects/:pid/tasks/:id/status", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const { status } = req.body || {};
@@ -149,7 +149,7 @@ export function register(app, { project, projects }) {
   });
 
   // Lightweight summary endpoint for status displays.
-  app.get("/projects/:pid/tasks-summary", (req, res) => {
+  api.get("/projects/:pid/tasks-summary", (req, res) => {
     const p = project(req, res);
     if (!p) return;
     res.json(countTasks(p.storagePath));

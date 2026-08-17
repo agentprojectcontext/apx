@@ -171,7 +171,7 @@ export async function cmdExec(args) {
     let result;
     try {
       result = await http.streamPost(
-        `/projects/${pid}/super-agent/chat/stream`,
+        `/api/projects/${pid}/super-agent/chat/stream`,
         { ...body, confirm: false },
         (event) => status.set(labelForEvent(event))
       );
@@ -187,7 +187,7 @@ export async function cmdExec(args) {
     return;
   }
 
-  const result = await http.post(`/projects/${pid}/agents/${slug}/exec`, body);
+  const result = await http.post(`/api/projects/${pid}/agents/${slug}/exec`, body);
 
   process.stdout.write(result.text + "\n");
   if (process.stderr.isTTY || args.flags.verbose) {

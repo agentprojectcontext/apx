@@ -21,12 +21,12 @@ pnpm e2e:report     # open the last HTML report
 ## Safety: isolation
 
 `global-setup.ts` creates a **throwaway project** in a temp dir
-(`apx init` + `POST /projects`) and records its id in `e2e/.runtime.json`.
+(`apx init` + `POST /api/projects`) and records its id in `e2e/.runtime.json`.
 All mutating specs (`03-crud-isolated`) act only on that project.
 `global-teardown.ts` unregisters it and deletes the temp dir. Your real
 registered projects are never modified.
 
-Auth is automatic: the panel fetches `/admin/web-token` over the loopback
+Auth is automatic: the panel fetches `/api/admin/web-token` over the loopback
 proxy, and the fixture also seeds `localStorage["apx.token"]`.
 
 ## Coverage

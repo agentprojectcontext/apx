@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import express from "express";
 import http from "node:http";
 
-import { makeTempProject, cleanupTempProject } from "./_helpers.js";
+import { makeTempProject, cleanupTempProject, apiRouter } from "./_helpers.js";
 import { McpRegistry } from "#core/mcp/runner.js";
 
 async function listen(app) {
@@ -19,7 +19,7 @@ test("GET /projects/:pid/mcps/:name/tools returns the tool catalog", async () =>
   const app = express();
   app.use(express.json());
   const { register } = await import("../src/host/daemon/api/mcps.js");
-  register(app, {
+  register(apiRouter(express, app), {
     projects: { rebuild: () => {} },
     project: () => ({ id: "p1", path: "/tmp/none", storagePath: null }),
     registries: {
@@ -43,7 +43,7 @@ test("GET /projects/:pid/mcps/:name/tools returns the tool catalog", async () =>
 
   const { server, baseUrl } = await listen(app);
   try {
-    const res = await fetch(`${baseUrl}/projects/p1/mcps/dokploy/tools`);
+    const res = await fetch(`${baseUrl}/api/projects/p1/mcps/dokploy/tools`);
     assert.equal(res.status, 200);
     const body = await res.json();
     assert.equal(body.tools.length, 1);
@@ -58,7 +58,7 @@ test("GET /projects/:pid/mcps/:name/tools surfaces spawn errors as 500", async (
   const app = express();
   app.use(express.json());
   const { register } = await import("../src/host/daemon/api/mcps.js");
-  register(app, {
+  register(apiRouter(express, app), {
     projects: { rebuild: () => {} },
     project: () => ({ id: "p1", path: "/tmp/none", storagePath: null }),
     registries: {
@@ -73,7 +73,7 @@ test("GET /projects/:pid/mcps/:name/tools surfaces spawn errors as 500", async (
 
   const { server, baseUrl } = await listen(app);
   try {
-    const res = await fetch(`${baseUrl}/projects/p1/mcps/broken/tools`);
+    const res = await fetch(`${baseUrl}/api/projects/p1/mcps/broken/tools`);
     assert.equal(res.status, 500);
     const body = await res.json();
     assert.match(body.error, /exited with code 1/);
@@ -124,7 +124,7 @@ function startPaginatedMcpServer() {
     server.listen(0, "127.0.0.1", () => {
       const { port } = server.address();
       resolve({
-        url: `http://127.0.0.1:${port}/mcp`,
+        url: `http://127.0.0.1:${port}/api/mcp`,
         close: () => new Promise((done) => server.close(done)),
       });
     });

@@ -4,11 +4,11 @@
 // Who consumes this:
 //   • CLI  — `apx setup` builds its provider/model menus from here
 //     (src/interfaces/cli/commands/setup.js).
-//   • Web  — the admin panel fetches it via `GET /engines/presets` and hydrates
+//   • Web  — the admin panel fetches it via `GET /api/engines/presets` and hydrates
 //     its provider forms (src/interfaces/web/.../providers/typeStyles.ts).
 //
 // This is the OFFLINE / no-key fallback list. When the user has an api_key
-// configured, the daemon's `POST /engines/models` returns the provider's LIVE
+// configured, the daemon's `POST /api/engines/models` returns the provider's LIVE
 // catalog instead (see ./catalog.js). The model field is ALWAYS free-text, so
 // any id can be typed even if it is not listed here.
 //

@@ -8,7 +8,7 @@
 import { readConfig, writeConfig } from "#core/config/index.js";
 import { resolveAgentName } from "#core/identity/index.js";
 import { setDottedKey, unsetDottedKey } from "../project-config.js";
-import { PERMISSION_MODES, DEFAULT_PERMISSION_MODE } from "#core/constants/permissions.js";
+import { PERMISSION_MODES } from "#core/constants/permissions.js";
 import {
   redactConfig as redact,
   isSecretMarker,
@@ -16,8 +16,8 @@ import {
 } from "#core/config/redact.js";
 import { collectSecretValues, registerSecretValues } from "#core/config/secret-values.js";
 
-export function register(app, { config, scheduler, plugins }) {
-  app.get("/admin/config", (_req, res) => {
+export function register(api, { config, scheduler, plugins }) {
+  api.get("/admin/config", (_req, res) => {
     try {
       const fresh = readConfig();
       res.json({ config: redact(fresh) });
@@ -26,7 +26,7 @@ export function register(app, { config, scheduler, plugins }) {
     }
   });
 
-  app.patch("/admin/config", (req, res) => {
+  api.patch("/admin/config", (req, res) => {
     const { set, unset } = req.body || {};
     let cfg;
     try {
@@ -68,7 +68,7 @@ export function register(app, { config, scheduler, plugins }) {
   });
 
   // Convenience: GET the resolved super_agent prompt (used by SettingsScreen)
-  app.get("/admin/super-agent", (_req, res) => {
+  api.get("/admin/super-agent", (_req, res) => {
     try {
       const fresh = readConfig();
       const sa = fresh.super_agent || {};

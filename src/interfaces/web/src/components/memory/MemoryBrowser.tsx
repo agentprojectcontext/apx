@@ -67,9 +67,9 @@ export function MemoryBrowser({ pid }: { pid: string }) {
   const toast = useToast();
   const [sel, setSel] = useState<Sel>({ kind: "project" });
 
-  const agents = useSWR(`/projects/${pid}/agents`, () => Agents.list(pid));
+  const agents = useSWR(`/api/projects/${pid}/agents`, () => Agents.list(pid));
 
-  const bodyKey = `/memory/${pid}/${selId(sel)}`;
+  const bodyKey = `/api/memory/${pid}/${selId(sel)}`;
   const body = useSWR(bodyKey, () => loadBody(pid, sel));
 
   // Adapt the raw memory body into the FileContent shape FileViewer expects.

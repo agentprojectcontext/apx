@@ -5,15 +5,16 @@
 import { ENGINE_IDS } from "#core/engines/index.js";
 import { listModels } from "#core/engines/catalog.js";
 import { ENGINE_PRESETS } from "#core/engines/presets.js";
+import { asyncRoute } from "./shared.js";
 
-export function register(app, { config }) {
-  app.get("/engines", (_req, res) => res.json({ engines: ENGINE_IDS }));
+export function register(api, { config }) {
+  api.get("/engines", (_req, res) => res.json({ engines: ENGINE_IDS }));
 
   // Curated fallback catalog shared with the CLI wizard. The web hydrates its
   // provider forms from here so model lists never drift between surfaces.
-  app.get("/engines/presets", (_req, res) => res.json({ presets: ENGINE_PRESETS }));
+  api.get("/engines/presets", (_req, res) => res.json({ presets: ENGINE_PRESETS }));
 
-  app.post("/engines/models", async (req, res) => {
+  api.post("/engines/models", asyncRoute(async (req, res) => {
     const b = req.body || {};
     const engine = String(b.engine || "").toLowerCase();
     if (!engine) return res.status(400).json({ models: [], error: "engine requerido" });
@@ -25,13 +26,13 @@ export function register(app, { config }) {
     const out = await listModels(engine, b.base_url, apiKey);
     if (out.error) return res.status(502).json({ engine, models: [], error: out.error });
     res.json({ engine, models: out.models.sort((x, y) => x.localeCompare(y)) });
-  });
+  }));
 
   // Legacy GET (Ollama, no auth) — kept for back-compat.
-  app.get("/engines/models", async (req, res) => {
+  api.get("/engines/models", asyncRoute(async (req, res) => {
     const engine = String(req.query.engine || "").toLowerCase();
     const out = await listModels(engine, String(req.query.base_url || ""), "");
     if (out.error) return res.status(502).json({ engine, models: [], error: out.error });
     res.json({ engine, models: out.models });
-  });
+  }));
 }

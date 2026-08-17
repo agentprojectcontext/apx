@@ -6,7 +6,7 @@
 // Uses Node 18+ built-in fetch with a node-fetch fallback for older
 // runtimes.
 //
-// Endpoints (mounted at /tools/fetch by api.js):
+// Endpoints (mounted at /api/tools/fetch by api.js):
 //   POST /get      { url, headers?, timeout_ms? }
 //   POST /post     { url, body?, headers?, timeout_ms?, json? }
 //   POST /request  { url, method?, headers?, body?, timeout_ms?, json? }

@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { apiRouter } from "./_helpers.js";
 import express from "express";
 import fs from "node:fs";
 import os from "node:os";
@@ -33,7 +34,7 @@ test("POST /admin/reload clears cached MCP registries", async () => {
     const config = {};
     const app = express();
     app.use(express.json());
-    register(app, {
+    register(apiRouter(express, app), {
       scheduler: {},
       plugins: {},
       config,
@@ -42,7 +43,7 @@ test("POST /admin/reload clears cached MCP registries", async () => {
 
     const { server, baseUrl } = await listen(app);
     try {
-      const res = await fetch(`${baseUrl}/admin/reload`, { method: "POST" });
+      const res = await fetch(`${baseUrl}/api/admin/reload`, { method: "POST" });
       assert.equal(res.status, 200);
       assert.equal(shutdowns, 1);
       assert.equal(config.super_agent.model, "test:model");

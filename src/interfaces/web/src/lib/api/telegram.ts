@@ -21,37 +21,37 @@ export interface TelegramSendBody {
 
 export const Telegram = {
   channels: {
-    list:   () => http.get<TelegramChannelsResponse>("/telegram/channels"),
+    list:   () => http.get<TelegramChannelsResponse>("/api/telegram/channels"),
     upsert: (ch: TelegramChannel) =>
-      http.post<{ channel: TelegramChannel; created: boolean }>("/telegram/channels", ch),
+      http.post<{ channel: TelegramChannel; created: boolean }>("/api/telegram/channels", ch),
     patch:  (name: string, body: Partial<TelegramChannel>) =>
-      http.patch<{ ok: true; channel: TelegramChannel }>(`/telegram/channels/${name}`, body),
+      http.patch<{ ok: true; channel: TelegramChannel }>(`/api/telegram/channels/${name}`, body),
     remove: (name: string) =>
-      http.del<void>(`/telegram/channels/${encodeURIComponent(name)}`),
+      http.del<void>(`/api/telegram/channels/${encodeURIComponent(name)}`),
   },
   contacts: {
-    list:   () => http.get<TelegramContactsResponse>("/telegram/contacts"),
+    list:   () => http.get<TelegramContactsResponse>("/api/telegram/contacts"),
     patch:  (userId: number | string, body: Partial<TelegramContact>) =>
       http.patch<{ ok: true; contact: TelegramContact }>(
-        `/telegram/contacts/${encodeURIComponent(String(userId))}`,
+        `/api/telegram/contacts/${encodeURIComponent(String(userId))}`,
         body,
       ),
     remove: (userId: number | string) =>
-      http.del<void>(`/telegram/contacts/${encodeURIComponent(String(userId))}`),
+      http.del<void>(`/api/telegram/contacts/${encodeURIComponent(String(userId))}`),
   },
   roles: {
-    list:   () => http.get<{ roles: Record<string, TelegramRole> }>("/telegram/roles"),
+    list:   () => http.get<{ roles: Record<string, TelegramRole> }>("/api/telegram/roles"),
     set:    (name: string, tools: "*" | string[]) =>
       http.put<{ ok: true; name: string; role: TelegramRole }>(
-        `/telegram/roles/${encodeURIComponent(name)}`,
+        `/api/telegram/roles/${encodeURIComponent(name)}`,
         { tools },
       ),
     remove: (name: string) =>
-      http.del<void>(`/telegram/roles/${encodeURIComponent(name)}`),
+      http.del<void>(`/api/telegram/roles/${encodeURIComponent(name)}`),
   },
-  status: () => http.get<TelegramStatus>("/telegram/status"),
-  start:  () => http.post<{ ok: true; status: TelegramStatus }>("/telegram/start"),
-  stop:   () => http.post<{ ok: true; status: TelegramStatus }>("/telegram/stop"),
+  status: () => http.get<TelegramStatus>("/api/telegram/status"),
+  start:  () => http.post<{ ok: true; status: TelegramStatus }>("/api/telegram/start"),
+  stop:   () => http.post<{ ok: true; status: TelegramStatus }>("/api/telegram/stop"),
   send:   (body: TelegramSendBody) =>
-    http.post<{ ok: true; message_id: number }>("/telegram/send", body),
+    http.post<{ ok: true; message_id: number }>("/api/telegram/send", body),
 };

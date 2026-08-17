@@ -103,7 +103,7 @@ async function _handleMessage({ ws, text, previousMessages }, { projects, config
     await appendGlobalMessage({ channel: CHANNEL, direction: "in", type: "user", author: "user", body: text });
   } catch {}
 
-  let toolsExecuted = [];
+  const toolsExecuted = [];
 
   // Per-segment streaming: instead of merging the whole turn into one blob, we
   // emit each assistant text piece as its own `segment` (an intro before a tool,

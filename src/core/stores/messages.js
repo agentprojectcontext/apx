@@ -29,11 +29,6 @@ function dayPathJsonl(projectRoot, ts) {
   return path.join(projectRoot, "messages", `${day}.jsonl`);
 }
 
-function dayPathMd(projectRoot, ts) {
-  const day = (ts || nowIso()).slice(0, 10);
-  return path.join(projectRoot, "messages", `${day}.md`);
-}
-
 // `compact` is a progressive-compaction summary record (Pieza 3): a dense
 // recap of older turns, stored inline in the channel JSONL so the reader can
 // prepend it as a [RESUMEN COMPACTADO] system turn instead of replaying the
