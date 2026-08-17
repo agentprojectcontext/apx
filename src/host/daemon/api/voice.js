@@ -18,6 +18,7 @@
 //
 // Domain logic (channel context, suggestion parsing, audio decoding) lives in
 // core/. This file is just glue: parse request → call core → format response.
+import { stripReasoning } from "#core/util/thinking.js";
 import fs from "node:fs";
 import path from "node:path";
 import { TTS_TMP_DIR } from "#core/config/paths.js";
@@ -128,7 +129,8 @@ export function register(api, { projects, plugins, registries }) {
             systemSuffix: channelCtx.systemSuffix,
             previousMessages,
           });
-          const raw = (result?.text || "").trim();
+          // Spoken back to the user — never narrate raw planning.
+          const raw = stripReasoning(result?.text || "").answer.trim();
           replyModel = result?.model || null;
           replyUsage = result?.usage || null;
           replyName = result?.name || null;
