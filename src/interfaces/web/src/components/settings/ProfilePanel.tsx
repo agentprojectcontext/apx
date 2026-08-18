@@ -8,6 +8,7 @@ import { useProfiles, useProfile, useProfileDoctor } from "../../hooks/useProfil
 import { ProfilesApi, type ProfileSchemaProp } from "../../lib/api/profiles";
 import { CronPicker } from "../cron/CronPicker";
 import { t } from "../../i18n";
+import { toneText } from "../../lib/tone";
 
 /**
  * Agent profiles — an installable line of work for the super-agent.
@@ -237,7 +238,7 @@ export function ProfilePanel() {
           <Section title={t("settings.profile.doctor_title")} description={doctor?.summary || ""}>
             {!doctor?.checks?.length ? (
               <div className="flex items-center gap-2 text-sm">
-                <CheckCircle2 size={16} className="text-emerald-500" />
+                <CheckCircle2 size={16} className={toneText.emerald} />
                 {active ? t("settings.profile.doctor_clean") : t("settings.profile.doctor_vanilla")}
               </div>
             ) : (
@@ -246,7 +247,7 @@ export function ProfilePanel() {
                   <li key={i} className="flex items-start gap-2 text-sm">
                     <AlertTriangle
                       size={16}
-                      className={`mt-0.5 shrink-0 ${c.level === "error" ? "text-red-500" : "text-amber-500"}`}
+                      className={`mt-0.5 shrink-0 ${c.level === "error" ? toneText.red : toneText.amber}`}
                     />
                     <span className="min-w-0">
                       <span className="opacity-60">[{c.label}]</span> {c.detail}

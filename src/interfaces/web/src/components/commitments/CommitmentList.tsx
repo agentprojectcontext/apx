@@ -7,6 +7,7 @@ import { useToast } from "../Toast";
 import { CommitmentIcon, commitmentFace, commitmentTint, isOverdue } from "./commitmentState";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
+import { toneText } from "../../lib/tone";
 
 /**
  * Left column: the promises, one compact row each — same shape as the task and
@@ -86,7 +87,7 @@ export function CommitmentList({
                 <div className="mt-1 flex items-center justify-between gap-2 pl-8 text-[10px] text-muted-fg">
                   <span className="truncate">{project ? `${project.split("/").pop()} · ` : ""}{c.body}</span>
                   {due && (
-                    <span className={cn("shrink-0", isOverdue(c) && "font-medium text-red-500")}>⏱ {due}</span>
+                    <span className={cn("shrink-0", isOverdue(c) && cn("font-medium", toneText.red))}>⏱ {due}</span>
                   )}
                 </div>
               </button>
@@ -104,14 +105,14 @@ export function CommitmentList({
                         data-testid={`commitment-kept-${c.id}`}
                         onClick={() => act(() => Commitments.kept(cPid, c.id), t("project.commitments.mark_kept"))}
                       >
-                        <Check size={15} className="text-emerald-500" />
+                        <Check size={15} className={toneText.emerald} />
                         {t("project.commitments.mark_kept")}
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         data-testid={`commitment-missed-${c.id}`}
                         onClick={() => act(() => Commitments.missed(cPid, c.id), t("project.commitments.mark_missed"))}
                       >
-                        <X size={15} className="text-red-500" />
+                        <X size={15} className={toneText.red} />
                         {t("project.commitments.mark_missed")}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />

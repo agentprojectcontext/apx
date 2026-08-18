@@ -4,13 +4,14 @@ import {
   FileText, FileCode, Image as ImageIcon, File, Trash2,
 } from "lucide-react";
 import { cn } from "../../lib/cn";
+import { toneText } from "../../lib/tone";
 import type { FileNode, FileKind } from "../../types/daemon";
 
 function kindIcon(kind?: FileKind) {
   switch (kind) {
-    case "markdown": return { Icon: FileText, color: "text-sky-500" };
-    case "text": return { Icon: FileCode, color: "text-amber-500" };
-    case "image": return { Icon: ImageIcon, color: "text-pink-500" };
+    case "markdown": return { Icon: FileText, color: toneText.sky };
+    case "text": return { Icon: FileCode, color: toneText.amber };
+    case "image": return { Icon: ImageIcon, color: toneText.pink };
     default: return { Icon: File, color: "text-muted-foreground" };
   }
 }

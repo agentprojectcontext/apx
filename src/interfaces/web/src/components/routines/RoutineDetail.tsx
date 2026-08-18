@@ -3,7 +3,7 @@ import type { RoutineEntry } from "../../lib/api";
 import { Badge, Button, Switch, Tip } from "../ui";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
-import { toneTint } from "../../lib/tone";
+import { toneText, toneTint } from "../../lib/tone";
 import { kindMeta, scheduleHuman } from "./shared";
 import { relativeWhen } from "../../lib/when";
 import { ReadOnlyBlock } from "../ReadOnlyBlock";
@@ -80,7 +80,7 @@ export function RoutineDetail({
               {t("project.routines.last_run")} {relativeWhen(routine.last_run_at, t as never)}
             </span>
           )}
-          <span className={cn(routine.last_status === "ok" && "text-emerald-500", routine.last_status === "error" && "text-destructive")}>
+          <span className={cn(routine.last_status === "ok" && toneText.emerald, routine.last_status === "error" && "text-destructive")}>
             {t("agents_ui.last_label")} {routine.last_status || "—"}
           </span>
         </div>

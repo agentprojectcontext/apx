@@ -5,6 +5,7 @@ import { Messages } from "../../lib/api";
 import type { MessageEntry } from "../../types/daemon";
 import { Loading, Spinner } from "../ui";
 import { cn } from "../../lib/cn";
+import { toneText } from "../../lib/tone";
 import { t } from "../../i18n";
 
 // Execution history is derived from the ROUTINE-channel messages the runner
@@ -30,9 +31,9 @@ function fmtTs(ts: string): string {
 }
 
 function StatusIcon({ st }: { st: RunSt }) {
-  if (st === "ok") return <Check size={13} className="shrink-0 text-emerald-500" />;
+  if (st === "ok") return <Check size={13} className={cn("shrink-0", toneText.emerald)} />;
   if (st === "error") return <X size={13} className="shrink-0 text-destructive" />;
-  return <Ban size={13} className="shrink-0 text-amber-500" />;
+  return <Ban size={13} className={cn("shrink-0", toneText.amber)} />;
 }
 
 function statusLabel(st: RunSt): string {
@@ -72,7 +73,7 @@ function RunDetailPanel({ m, onClose }: { m: MessageEntry; onClose: () => void }
       <div className="flex shrink-0 items-center justify-between gap-2 px-4 py-2">
         <div className="flex items-center gap-2 text-xs">
           <StatusIcon st={st} />
-          <span className={cn("font-medium", st === "ok" && "text-emerald-500", st === "error" && "text-destructive", st === "skipped" && "text-amber-500")}>{statusLabel(st)}</span>
+          <span className={cn("font-medium", st === "ok" && toneText.emerald, st === "error" && "text-destructive", st === "skipped" && toneText.amber)}>{statusLabel(st)}</span>
           <span className="font-mono text-muted-fg">{fmtTs(m.ts)}</span>
         </div>
         <button type="button" onClick={onClose} aria-label={t("project.routines.runs_close")}
@@ -171,7 +172,7 @@ export function ExecutionsList({ pid, name, running }: { pid: string; name: stri
                   >
                     <StatusIcon st={st} />
                     <span className="font-mono text-muted-fg">{fmtTs(m.ts)}</span>
-                    <span className={cn("font-medium", st === "ok" && "text-emerald-500", st === "error" && "text-destructive", st === "skipped" && "text-amber-500")}>
+                    <span className={cn("font-medium", st === "ok" && toneText.emerald, st === "error" && "text-destructive", st === "skipped" && toneText.amber)}>
                       {statusLabel(st)}
                     </span>
                   </button>

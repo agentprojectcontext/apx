@@ -1,6 +1,7 @@
 import { CheckCircle2, CircleDot, CircleSlash, XCircle, AlertCircle } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
+import { toneText, toneTint } from "../../lib/tone";
 import type { CommitmentEntry, CommitmentState } from "../../lib/api/commitments";
 
 // How each commitment state looks, in one place — the same reasoning as
@@ -9,16 +10,16 @@ import type { CommitmentEntry, CommitmentState } from "../../lib/api/commitments
 type Face = { color: string; tint: string; Icon: typeof CircleDot };
 
 const FACE: Record<CommitmentState | "overdue", Face> = {
-  open:     { color: "text-amber-500",        tint: "bg-amber-500/15",   Icon: CircleDot },
-  overdue:  { color: "text-red-500",          tint: "bg-red-500/15",     Icon: AlertCircle },
-  kept:     { color: "text-emerald-500",      tint: "bg-emerald-500/15", Icon: CheckCircle2 },
-  missed:   { color: "text-red-500",          tint: "bg-red-500/15",     Icon: XCircle },
+  open:     { color: toneText.amber,          tint: toneTint.amber,      Icon: CircleDot },
+  overdue:  { color: toneText.red,            tint: toneTint.red,        Icon: AlertCircle },
+  kept:     { color: toneText.emerald,        tint: toneTint.emerald,    Icon: CheckCircle2 },
+  missed:   { color: toneText.red,            tint: toneTint.red,        Icon: XCircle },
   dropped:  { color: "text-muted-foreground", tint: "bg-muted",          Icon: CircleSlash },
 };
 
 /** Background+foreground for the little square that carries the icon in lists. */
 export function commitmentTint(face: CommitmentState | "overdue"): string {
-  return `${FACE[face].tint} ${FACE[face].color}`;
+  return FACE[face].tint;
 }
 
 /** Past its date and still owed. */

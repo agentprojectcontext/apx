@@ -9,6 +9,7 @@ import { useToast } from "../Toast";
 import { StatusIcon, effectiveStatus, statusTint } from "./taskStatus";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
+import { toneText } from "../../lib/tone";
 
 /**
  * Left column: the tasks, one compact row each. Same shape as the routines
@@ -93,7 +94,7 @@ export function TaskList({
                     {project ? `${project.split("/").pop()}${task.agent ? " · " : ""}` : ""}
                     {task.agent ? `@${task.agent}` : (project ? "" : t("tasks.agent_none_short"))}
                   </span>
-                  {due && <span className={cn("shrink-0", overdue && "font-medium text-red-500")}>⏱ {due}</span>}
+                  {due && <span className={cn("shrink-0", overdue && cn("font-medium", toneText.red))}>⏱ {due}</span>}
                 </div>
               </button>
 
@@ -110,7 +111,7 @@ export function TaskList({
                         data-testid={`task-done-${task.id}`}
                         onClick={() => act(() => Tasks.done(taskPid, task.id), t("project.tasks.done"))}
                       >
-                        <Check size={15} className="text-emerald-500" />
+                        <Check size={15} className={toneText.emerald} />
                         {t("tasks.mark_done")}
                       </DropdownMenuItem>
                       <DropdownMenuItem

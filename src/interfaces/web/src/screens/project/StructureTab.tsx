@@ -50,7 +50,7 @@ export function StructureTab({ pid }: { pid: string }) {
         }
       >
         <div className="mb-4 flex items-start gap-2 rounded-lg border border-sky-500/20 bg-sky-500/5 px-3 py-2 text-[13px] text-muted-foreground">
-          <Info className="mt-0.5 size-4 shrink-0 text-sky-500" />
+          <Info className={`mt-0.5 size-4 shrink-0 ${toneText.sky}`} />
           <span>{t("structure.info")}</span>
         </div>
 
@@ -63,7 +63,7 @@ export function StructureTab({ pid }: { pid: string }) {
             {areas.map((area) => (
               <div key={area.slug} className="group rounded-lg border border-border bg-card/50 p-3">
                 <div className="flex items-start gap-2">
-                  <FolderKanban className="mt-0.5 size-4 shrink-0 text-emerald-500" />
+                  <FolderKanban className={`mt-0.5 size-4 shrink-0 ${toneText.emerald}`} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="truncate text-sm font-semibold">{area.name}</span>

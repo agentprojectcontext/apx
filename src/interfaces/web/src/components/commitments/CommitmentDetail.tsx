@@ -8,6 +8,7 @@ import { CommitmentIcon, CommitmentBadge, commitmentFace, commitmentTint, isOver
 import { relativeWhen } from "../../lib/when";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
+import { toneText } from "../../lib/tone";
 
 /**
  * Right column: the selected promise, open by default.
@@ -77,7 +78,7 @@ export function CommitmentDetail({
           {projectName && <Badge tone="info">{projectName.split("/").pop() || projectName}</Badge>}
           <span className="font-mono text-[10px]">{c.id}</span>
           {due ? (
-            <span className={cn(isOverdue(c) && "font-medium text-red-500")}>
+            <span className={cn(isOverdue(c) && cn("font-medium", toneText.red))}>
               {t("project.global_tasks.field_due")} {due}
             </span>
           ) : (
