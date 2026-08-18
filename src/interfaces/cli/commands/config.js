@@ -15,6 +15,7 @@
 import { http } from "../http.js";
 import { resolveProjectId } from "./project.js";
 import { readConfig, writeConfig, CONFIG_PATH } from "#core/config/index.js";
+import { isSecretKey } from "#core/config/redact.js";
 import { DEFAULT_PERMISSION_MODE } from "#core/constants/permissions.js";
 
 function parseValue(raw) {
@@ -103,6 +104,19 @@ export async function cmdConfigSet(args) {
     await http.patch("/api/admin/config", { set: { [key]: value } });
     console.log(`set ${key} = ${JSON.stringify(value)} (global: ${CONFIG_PATH})`);
     return;
+  }
+  // Warn, don't block: a project may legitimately override a non-secret key
+  // that trips the heuristic, and refusing would strand that case. But
+  // .apc/config.json is COMMITTED (rule 3), so a credential landing there is a
+  // leak the user needs to hear about before it reaches git — not after.
+  // Never echo the value itself into the warning.
+  if (isSecretKey(key)) {
+    process.stderr.write(
+      `apx: warning: "${key}" looks like a secret, and this writes the project's ` +
+        `.apc/config.json — which is committed to git.\n` +
+        `     Write it to ${CONFIG_PATH} instead:\n` +
+        `       apx config set --global ${key} <value>\n`
+    );
   }
   const pid = await resolveProjectId(args?.flags?.project);
   await http.patch(`/api/projects/${pid}/config`, { set: { [key]: value } });

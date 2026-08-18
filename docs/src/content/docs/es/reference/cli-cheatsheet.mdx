@@ -87,8 +87,10 @@ Para profundizar, seguí los enlaces del final.
 | Comando | Qué hace |
 |---|---|
 | `apx config show` | Imprime la config del proyecto (`--effective` para la vista combinada, `--only-overrides` para las diferencias) |
+| `apx config show --global` | Imprime `~/.apx/config.json`, con los secretos ocultos |
 | `apx config set <key.path> <value>` | Define un valor con reconocimiento de JSON en `.apc/config.json` |
-| `apx config unset <key.path>` | Elimina una clave |
+| `apx config set --global <key.path> <value>` | Define un valor en `~/.apx/config.json` — credenciales, voz, daemon |
+| `apx config unset [--global] <key.path>` | Elimina una clave del proyecto o de la config global |
 | `apx model status` | Salud del proveedor + modelo activo (enrutador de fallback) |
 | `apx model order <p1> <p2> …` | Define el orden de fallback — p. ej. `ollama openrouter groq` |
 | `apx model key <provider> <api-key>` | Guarda una API key en `~/.apx/config.json` |

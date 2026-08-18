@@ -40,8 +40,14 @@ apx config --help
 apx status
 ```
 
-Then update only non-secret project-safe settings. Keep API keys in user config or environment, not
-in `.apc/` or git.
+Then update only non-secret project-safe settings. Keep API keys in the global config or the
+environment, never in `.apc/` or git — `apx config set` writes the project's committed
+`.apc/config.json` unless you pass `--global`:
+
+```bash
+apx config set --global engines.openrouter.api_key '<KEY>'   # ~/.apx/config.json
+apx config set engines.openrouter.model <model-id>           # .apc/config.json (committed)
+```
 
 ## OpenCode guidance
 

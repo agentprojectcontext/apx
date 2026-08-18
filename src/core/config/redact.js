@@ -32,6 +32,45 @@ export const SECRET_PATHS = [
   "engines.gemini.api_keys.*",
 ];
 
+// Leaf names that carry a secret even when the full path is not in
+// SECRET_PATHS yet — a provider added after this list was last touched still
+// gets caught. Deliberately narrow: `base_url`, `model` and `provider` are the
+// keys that legitimately belong in a committed project config.
+const SECRET_LEAF_RE = /(^|_)(api_?keys?|tokens?|secrets?|passwords?|credentials?)$/;
+
+/**
+ * True when a dotted config key addresses a secret — used to warn before a
+ * credential is written somewhere it should not be (a committed
+ * `.apc/config.json`). Three ways to match, in order of confidence:
+ *
+ *   1. the key IS a secret path             engines.openai.api_key
+ *   2. the key is an ANCESTOR of one        engines.openai  ← value holds api_key
+ *   3. the leaf name looks like a secret    engines.newprovider.api_key
+ *
+ * Case 2 matters because `apx config set engines.openai '{"api_key":"…"}'` puts
+ * the secret in the VALUE, where a leaf-name check would never see it.
+ * Wildcards in SECRET_PATHS (`telegram.channels.*.bot_token`) match any segment.
+ */
+export function isSecretKey(dottedKey) {
+  if (typeof dottedKey !== "string" || !dottedKey.trim()) return false;
+  const parts = dottedKey.trim().split(".");
+
+  for (const pattern of SECRET_PATHS) {
+    const pp = pattern.split(".");
+    // Compare only the segments the two have in common: a shorter key is an
+    // ancestor (case 2), a longer one reaches inside a secret (still secret).
+    const shared = Math.min(pp.length, parts.length);
+    let hit = true;
+    for (let i = 0; i < shared; i++) {
+      if (pp[i] === "*") continue;
+      if (pp[i] !== parts[i]) { hit = false; break; }
+    }
+    if (hit) return true;
+  }
+
+  return SECRET_LEAF_RE.test(parts[parts.length - 1].toLowerCase());
+}
+
 /** Replace a secret string with the visible marker, preserving the last 5 chars. */
 export function secretMarker(value) {
   if (typeof value !== "string" || !value.length) return value;

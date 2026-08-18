@@ -135,9 +135,9 @@ See [Agents](/apx/docs/concepts/agents/).
 
 | Command | Description |
 |---------|-------------|
-| `apx config show [--effective] [--only-overrides]` | Print `.apc/config.json` (or the merged effective config). |
-| `apx config set <key.path> <value>` | JSON-aware set, e.g. `apx config set engines.openai.model gpt-5.2`. |
-| `apx config unset <key.path>` | Remove a key from `.apc/config.json`. |
+| `apx config show [--global] [--effective] [--only-overrides]` | Print `.apc/config.json` (or, with `--global`, `~/.apx/config.json`). |
+| `apx config set [--global] <key.path> <value>` | JSON-aware set. `--global` writes `~/.apx/config.json` — use it for credentials, voice, and daemon keys. |
+| `apx config unset [--global] <key.path>` | Remove a key from the project or, with `--global`, the global config. |
 | `apx model status` | Provider health check + active model from the fallback router. |
 | `apx model order <p1> <p2> …` | Set the fallback attempt order, e.g. `ollama openrouter groq`. |
 | `apx model key <provider> <api-key>` | Store an API key for `groq` or `openrouter` in `~/.apx/config.json`. |

@@ -35,9 +35,9 @@ When `base_url` is set, APX additionally forwards the non-OpenAI fields the serv
 Some backends (QVox/Qwen3-TTS, Gemini) accept inline `[tag]` markers and switch speaking emotion per segment while keeping the base voice. This is a **generic per-engine toggle**, not hardcoded to any adapter:
 
 ```bash
-apx config set voice.tts.custom.qvox.emotions.enabled true
+apx config set --global voice.tts.custom.qvox.emotions.enabled true
 # optional: restrict the tag set (defaults to the canonical QVox set)
-apx config set voice.tts.custom.qvox.emotions.tags '["happy","sad","excited","calm","whisper","laugh","neutral"]'
+apx config set --global voice.tts.custom.qvox.emotions.tags '["happy","sad","excited","calm","whisper","laugh","neutral"]'
 ```
 
 Default tags: `happy, sad, excited, angry, calm, whisper, shout, laugh, cry, narrator, neutral`. The voice-mode prompt learns the tag syntax **only when the engine that will actually speak has emotions enabled**. On any engine without tag support, stray `[tags]` are stripped from the displayed text and never read aloud (kept only for the speaking engine's audio).
@@ -85,7 +85,7 @@ Playback uses system binaries (`afplay`, `paplay`, `aplay`, `play`, `ffplay`). I
 }
 ```
 
-`apx config set voice.tts.provider <name>` to switch.
+`apx config set --global voice.tts.provider <name>` to switch. Voice config is read from the global config, so `--global` is required — without it the value lands in a project's `.apc/config.json` and the voice stack never sees it.
 
 ## Quick setup: Piper local (recommended, no internet)
 
@@ -101,17 +101,17 @@ curl -LO https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_AR/danie
 curl -LO https://huggingface.co/rhasspy/piper-voices/resolve/main/es/es_AR/daniela/high/es_AR-daniela-high.onnx.json
 
 # 3. Configure + test
-apx config set voice.tts.provider piper
-apx config set voice.tts.piper.model "$HOME/.apx/voices/es_AR-daniela-high.onnx"
+apx config set --global voice.tts.provider piper
+apx config set --global voice.tts.piper.model "$HOME/.apx/voices/es_AR-daniela-high.onnx"
 apx voice say "hola, soy APX" --provider piper
 ```
 
 ## Quick setup: Gemini cloud
 
 ```bash
-apx config set voice.tts.provider gemini
-apx config set voice.tts.gemini.api_key '<GEMINI_KEY>'
-apx config set engines.gemini.api_key   '<GEMINI_KEY>'    # reuse for LLM router
+apx config set --global voice.tts.provider gemini
+apx config set --global voice.tts.gemini.api_key '<GEMINI_KEY>'
+apx config set --global engines.gemini.api_key   '<GEMINI_KEY>'    # reuse for LLM router
 apx voice say "Hello from APX" --provider gemini
 ```
 
