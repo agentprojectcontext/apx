@@ -155,3 +155,20 @@ test("doctor sends you to MCP for an integration APX has no plugin for", () => {
   assert.doesNotMatch(calendar.fix || "", /integration connect/);
   assert.match(calendar.fix || "", /apx mcp add calendar/);
 });
+
+// --------------------------------------------------------------------------
+// the variables a routine is rendered with
+// --------------------------------------------------------------------------
+
+test("a routine gets the identity built-ins, not just the settings", async () => {
+  // The Secretary's anchor addresses the owner by name twice. Rendered with the
+  // settings alone those slots came out empty, and the model was told "none of
+  // that is what  asked for" — a sentence with a hole in it, shipped daily.
+  const { writeIdentity } = await import("#core/identity/index.js");
+  writeIdentity({ owner_name: "Manu", agent_name: "Roby" });
+
+  const anchor = dayOpen(secretaryRoutines());
+
+  assert.match(anchor.spec.prompt, /what Manu asked for/);
+  assert.doesNotMatch(anchor.spec.prompt, /\{\{owner_name\}\}/);
+});
