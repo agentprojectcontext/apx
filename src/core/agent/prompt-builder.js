@@ -244,6 +244,28 @@ export function buildRelationshipBlock(sender) {
   return lines.join("\n");
 }
 
+// Which engine is answering, right now.
+//
+// The model id lives in config, never in the weights, so an agent asked "what
+// model are you?" has nothing to read but its own notebook — and a note that
+// was true in June is a lie in August. Roby spent a day telling its owner it
+// ran on gemini while it ran on Zen, then wrote that down as a verified fact,
+// which made the next answer more confident and just as wrong.
+//
+// So the truth is stated fresh on every call. It goes LAST in the system
+// prompt, after the notebook, because the whole job of this block is to
+// outrank a stale note about the same subject.
+export function buildRuntimeBlock(modelId) {
+  if (!modelId) return "";
+  return [
+    "# Engine answering this turn",
+    `Right now you are running on \`${modelId}\` (provider:model, as configured in APX).`,
+    "This line is regenerated on every call — it describes THIS turn, and it is the only reliable source for it.",
+    "If your notebook, your memory or something earlier in this conversation names a different model, that source is stale: answer with the model above, and correct the note.",
+    "Never record the model you are running on as a durable fact — it changes with config, and this line will always know better than a note.",
+  ].join("\n");
+}
+
 // Super-agent notebook (~/.apx/memory.md), bounded. Returns "" when empty.
 // Project agents have their own per-agent memory.md handled in buildAgentSystem.
 export function buildSelfMemoryBlock() {

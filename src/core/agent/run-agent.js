@@ -9,6 +9,7 @@ import { MAX_TOOL_ITERS, ACK_ONLY_TOOLS, MAX_CONSECUTIVE_ACKS, TURN_ENDING_TOOLS
 import { TOOLS } from "./tools/names.js";
 import { pseudoToolSystem, shouldRetryWithPseudoTools } from "./tools/pseudo-tools.js";
 import { filterToolSchemas } from "./tools-overlap.js";
+import { buildRuntimeBlock } from "./prompt-builder.js";
 import { isRetryableEngineError, shortRetryReason } from "./retry.js";
 import {
   securityRiskConfig,
@@ -376,9 +377,14 @@ export async function runAgent({
       effectiveSchemas.length > 0 &&
       (useContract ||
         (ackOnlyStreak > 0 && ackOnlyStreak <= MAX_CONSECUTIVE_ACKS));
+    // Built per iteration, not per turn: the fallback router can rotate
+    // providers mid-turn, and a line that named the model we STARTED on would
+    // be exactly the kind of stale fact this block exists to kill.
+    const runtime = buildRuntimeBlock(activeModel);
+    const systemForCall = runtime ? `${system}\n\n${runtime}` : system;
     const baseSystem = usePseudoTools
-      ? pseudoToolSystem(system, effectiveSchemas)
-      : system;
+      ? pseudoToolSystem(systemForCall, effectiveSchemas)
+      : systemForCall;
     let result;
     try {
       result = await tryCallEngine({

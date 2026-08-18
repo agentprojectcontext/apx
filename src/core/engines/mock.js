@@ -22,6 +22,16 @@ export default {
     const loopTool = userText.match(/\[mock:loop:([a-z_]+)\]/)?.[1];
     const finishSummary = userText.match(/\[mock:finish:([^\]]*)\]/)?.[1];
     const hasToolResult = messages.some((m) => m.role === "tool");
+    // `[mock:system]` → the whole system prompt comes back as the answer, so a
+    // test can assert what the LOOP actually handed the engine rather than what
+    // the prompt builder returned in isolation.
+    if (/\[mock:system\]/.test(userText)) {
+      return {
+        text: String(system || ""),
+        usage: { input_tokens: userText.length, output_tokens: 0 },
+        raw: { model, mock: true },
+      };
+    }
     // `[mock:empty]` → a dud turn (no text, no tools) to exercise the loop's
     // empty-retry / never-end-silent guard.
     if (/\[mock:empty\]/.test(userText)) {
