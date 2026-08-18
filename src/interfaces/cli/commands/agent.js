@@ -1,6 +1,5 @@
 import fs from "node:fs";
-import path from "node:path";
-import { findApfRoot, readAgents, readVaultAgents, readVaultAgent, VAULT_DIR, SLUG_RE } from "#core/apc/parser.js";
+import { findApfRoot, readAgents, readVaultAgents, readVaultAgent, vaultAgentFile, VAULT_DIR, SLUG_RE } from "#core/apc/parser.js";
 import { apcAgentFile } from "#core/apc/paths.js";
 import { writeAgentFile, writeVaultAgentFile, removeVaultAgent, restoreVaultAgent, addImportedAgent, ensureAgentDir } from "#core/apc/scaffold.js";
 import { ensureAgentRuntimeDir, agentMemoryPath } from "#core/agent/memory.js";
@@ -208,8 +207,10 @@ export async function cmdAgentImport(args) {
   if (!slug) throw new Error("apx agent import: missing <slug>");
   const root = requireRoot();
 
-  const vaultPath = path.join(VAULT_DIR, `${slug}.md`);
-  if (!fs.existsSync(vaultPath)) {
+  // Layered lookup (user file → bundled default) — see vaultAgentFile. Reading
+  // the user layer alone made every bundled agent unimportable.
+  const vaultPath = vaultAgentFile(slug);
+  if (!vaultPath) {
     const vault = readVaultAgents();
     const available = vault.map((a) => a.slug).join(", ") || "(none)";
     throw new Error(`"${slug}" not found in vault. Available: ${available}`);

@@ -1,22 +1,14 @@
 import { test as base, expect } from "@playwright/test";
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { RUNTIME_FILE, readRuntime, type Runtime } from "./throwaway";
 
-const HERE = path.dirname(fileURLToPath(import.meta.url));
-const RUNTIME_FILE = path.join(HERE, ".runtime.json");
-
-export interface Runtime {
-  token: string;
-  daemon: string;
-  projectId: number;
-  projectPath: string;
-  tmpDir: string;
-  startedAt: string;
-}
+export type { Runtime };
 
 export function runtime(): Runtime {
-  return JSON.parse(fs.readFileSync(RUNTIME_FILE, "utf8"));
+  const rt = readRuntime();
+  if (!rt) {
+    throw new Error(`no ${RUNTIME_FILE} — global-setup did not run (or failed)`);
+  }
+  return rt;
 }
 
 // `page` is pre-seeded with the bearer token in localStorage so the panel

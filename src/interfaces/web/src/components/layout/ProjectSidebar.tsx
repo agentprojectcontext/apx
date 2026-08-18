@@ -25,6 +25,7 @@ import { useProjects } from "../../hooks/useProjects";
 import { usePersonaName } from "../../hooks/usePersonaName";
 import { STORAGE } from "../../constants";
 import { cn } from "../../lib/cn";
+import { switchProjectHref } from "../../lib/projectNav";
 import { t } from "../../i18n";
 import type { ProjectEntry } from "../../types/daemon";
 
@@ -88,6 +89,34 @@ function useVisibleCount(
   return enabled ? Math.min(count, total) : total;
 }
 
+// A project you reach through the "+N" popover (or the collapsed folder) is one
+// the rail failed to show you — so opening it pins it to the front, and it stays
+// inline from then on. Order is per-browser; the list is capped so it can't grow
+// forever with ids of projects that no longer exist.
+const RAIL_ORDER_MAX = 32;
+
+function useRailOrder(): { pinned: string[]; pin: (id: string) => void } {
+  const [pinned, setPinned] = useState<string[]>(() => {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(STORAGE.railOrder) || "[]");
+      return Array.isArray(parsed) ? parsed.map(String) : [];
+    } catch {
+      return [];
+    }
+  });
+  const pin = (id: string) =>
+    setPinned((prev) => {
+      const next = [id, ...prev.filter((x) => x !== id)].slice(0, RAIL_ORDER_MAX);
+      try {
+        localStorage.setItem(STORAGE.railOrder, JSON.stringify(next));
+      } catch {
+        /* private mode — the order is a convenience, not state we need */
+      }
+      return next;
+    });
+  return { pinned, pin };
+}
+
 // Square rail button that opens a dropdown listing projects — used both for the
 // "+N" overflow bucket and for the fully-collapsed folder.
 function RailProjectMenu({
@@ -99,7 +128,7 @@ function RailProjectMenu({
   header,
   active,
   testId,
-  onSelect,
+  onOpen,
   isActive,
 }: {
   projects: ProjectEntry[];
@@ -110,7 +139,7 @@ function RailProjectMenu({
   header: string;
   active: boolean;
   testId: string;
-  onSelect: (href: string) => void;
+  onOpen: (project: ProjectEntry) => void;
   isActive: (href: string) => boolean;
 }) {
   return (
@@ -146,7 +175,7 @@ function RailProjectMenu({
             <DropdownMenuItem
               key={p.id}
               data-testid={`project-menu-item-${p.id}`}
-              onClick={() => onSelect(href)}
+              onClick={() => onOpen(p)}
               className={cn(isActive(href) && "bg-accent/60 text-foreground")}
             >
               <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-md text-[10px] font-bold", idleClass)}>
@@ -168,14 +197,32 @@ export function ProjectSidebar({ onSelect, onOpenRoby, onOpenAddProject }: Props
   const persona = usePersonaName();
   const listRef = useRef<HTMLDivElement>(null);
   const { collapsed, toggle } = useNavCollapse(STORAGE.sidebarCollapsed + ".projects");
+  const { pinned, pin } = useRailOrder();
 
   const isActive = (href: string) =>
     location.pathname === href || location.pathname.startsWith(`${href}/`);
+  // Changing projects should change only the project: whatever tab you were
+  // reading stays open on the other side when it exists there.
+  const openProject = (project: Pick<ProjectEntry, "id" | "kind">) =>
+    onSelect(switchProjectHref(location.pathname, project));
+  // Reached through a menu, i.e. it wasn't on the rail — pull it to the front so
+  // it is next time. Inline avatars never reorder: the rail would shuffle under
+  // the cursor on every click.
+  const openFromMenu = (project: ProjectEntry) => {
+    pin(String(project.id));
+    openProject(project);
+  };
   const base = projects.find((p) => String(p.id) === "0");
-  // Newest first — higher ids are more recently registered.
+  // Pinned first in the order they were pinned, then the rest newest-first —
+  // higher ids are more recently registered.
+  const rank = new Map(pinned.map((id, i) => [id, i]));
   const rest = projects
     .filter((p) => String(p.id) !== "0")
-    .sort((a, b) => Number(b.id) - Number(a.id));
+    .sort((a, b) => {
+      const ra = rank.get(String(a.id)) ?? Infinity;
+      const rb = rank.get(String(b.id)) ?? Infinity;
+      return ra === rb ? Number(b.id) - Number(a.id) : ra - rb;
+    });
 
   const visibleCount = useVisibleCount(listRef, rest.length, !collapsed && rest.length > 0);
   const visible = rest.slice(0, visibleCount);
@@ -221,7 +268,7 @@ export function ProjectSidebar({ onSelect, onOpenRoby, onOpenAddProject }: Props
           active={isActive("/p/0")}
           isDefault
           icon={<img src="/modules/superagent.png" alt={t("base.title")} className="size-7 object-contain" draggable={false} />}
-          onClick={() => onSelect("/p/0")}
+          onClick={() => openProject(base)}
         />
       )}
 
@@ -273,7 +320,7 @@ export function ProjectSidebar({ onSelect, onOpenRoby, onOpenAddProject }: Props
               header={t("nav.all_projects")}
               active={rest.some((p) => isActive(`/p/${p.id}`))}
               testId="nav-projects-folder"
-              onSelect={onSelect}
+              onOpen={openFromMenu}
               isActive={isActive}
             />
           )}
@@ -295,7 +342,7 @@ export function ProjectSidebar({ onSelect, onOpenRoby, onOpenAddProject }: Props
                       testId={`project-avatar-${p.id}`}
                       title={`${label} — ${p.path}`}
                       active={isActive(href)}
-                      onClick={() => onSelect(href)}
+                      onClick={() => openProject(p)}
                     />
                   </div>
                 );
@@ -308,7 +355,7 @@ export function ProjectSidebar({ onSelect, onOpenRoby, onOpenAddProject }: Props
                   header={t("nav.more_projects", { count: overflow.length })}
                   active={overflowHasActive}
                   testId="nav-projects-overflow"
-                  onSelect={onSelect}
+                  onOpen={openFromMenu}
                   isActive={isActive}
                 />
               )}

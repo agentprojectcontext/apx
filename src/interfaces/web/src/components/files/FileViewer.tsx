@@ -3,6 +3,7 @@ import { Save, RotateCcw, Pencil, Eye, Columns2, FileQuestion, Download } from "
 import { cn } from "../../lib/cn";
 import { Spinner } from "../ui";
 import { t } from "../../i18n";
+import { toneText } from "../../lib/tone";
 import type { FileContent } from "../../types/daemon";
 import { MarkdownPreview } from "./MarkdownPreview";
 import { MarkdownEditor } from "./MarkdownEditor";
@@ -67,12 +68,15 @@ export function FileViewer({
     setShowPreview(true);
   }, [file?.path, file?.content]);
 
+  // The testid rides every branch: an empty viewer is still the viewer, and
+  // "did the browser render?" is exactly the question asked before a file is
+  // picked.
   if (loading) {
-    return <div className="flex flex-1 items-center justify-center"><Spinner size={16} /></div>;
+    return <div className="flex flex-1 items-center justify-center" data-testid="file-viewer"><Spinner size={16} /></div>;
   }
   if (!file) {
     return (
-      <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+      <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground" data-testid="file-viewer">
         {t("files.select_prompt")}
       </div>
     );
@@ -99,7 +103,7 @@ export function FileViewer({
       <div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-1.5">
         <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted-foreground">
           {file.path}
-          {dirty && <span className="ml-1 text-amber-400">•</span>}
+          {dirty && <span className={`ml-1 ${toneText.amber}`}>•</span>}
         </span>
 
         {isMarkdown && editing && (

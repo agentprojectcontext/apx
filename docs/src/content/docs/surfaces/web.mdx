@@ -148,6 +148,12 @@ send the first message. Each open conversation has a **"New session"** action
 (resets in place) and a **"Delete"** action (behind a confirmation dialog) that
 permanently removes the conversation file or the channel thread.
 
+A turn that takes several steps does not print as a running log. Every tool the
+agent ran collapses into one **N actions** row — open while it works, closed once
+it is done, one click for the arguments and results, and any failure named in the
+row itself. What stays in the open is the closing message: the answer the turn
+was for.
+
 ![Chat tab — channel-first sidebar with super-agent and per-agent threads](../../../assets/shots/11-chat.png)
 
 ### Tasks

@@ -4,14 +4,15 @@ import { UiSelect } from "../UiSelect";
 import { Voice, WHISPER_MODELS, type TranscriptionConfig, type SttHardwareResponse, type SttModelEntry } from "../../lib/api/voice";
 import { isSecretMarker, secretSuffix } from "../../lib/secrets";
 import { t } from "../../i18n";
+import { toneChip } from "../../lib/tone";
 
 // Acceleration badge — each compute backend gets its own colour so the user can
 // tell at a glance what the local engine runs on (Metal on Apple Silicon, CUDA
 // on NVIDIA, Vulkan/ROCm on AMD, plain CPU otherwise).
 const ACCEL: Record<string, { label: string; cls: string }> = {
-  metal: { label: "Metal",         cls: "text-emerald-400 border-emerald-500/40 bg-emerald-500/10" },
-  cuda:  { label: "CUDA",          cls: "text-lime-400 border-lime-500/40 bg-lime-500/10" },
-  rocm:  { label: "Vulkan / ROCm", cls: "text-orange-400 border-orange-500/40 bg-orange-500/10" },
+  metal: { label: "Metal",         cls: toneChip.emerald },
+  cuda:  { label: "CUDA",          cls: toneChip.lime },
+  rocm:  { label: "Vulkan / ROCm", cls: toneChip.orange },
   none:  { label: "CPU",           cls: "text-muted-fg border-border bg-muted" },
 };
 

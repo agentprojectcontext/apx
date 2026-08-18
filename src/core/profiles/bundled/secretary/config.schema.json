@@ -43,6 +43,12 @@
       "title": "Watch runs (cron)",
       "description": "How often to sweep for things worth noticing between the anchors. Cheap: with nothing to report it never wakes the model."
     },
+    "calendar_command": {
+      "type": "string",
+      "default": "",
+      "title": "Calendar command (optional)",
+      "description": "Shell command that prints today's agenda. Its output reaches the morning anchor already fetched, so reading it costs no tool call and no permission. Blank means no calendar, and the anchor simply says nothing about one. Example: apx mcp run calendar list_events '{\"timeMin\":\"today\"}'"
+    },
     "stale_project_days": {
       "type": "integer",
       "default": 7,

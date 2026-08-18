@@ -7,6 +7,7 @@
 //   apx commitment show <id>   [--project X]
 //   apx commitment kept <id>   [--project X] [--note "..."]
 //   apx commitment missed <id> [--project X] [--note "..."]
+//   apx commitment drop <id>   [--project X] [--note "..."]   filed by mistake
 //   apx commitment renegotiate <id> --due <ISO> [--project X] [--note "..."]
 //
 // A task is something to do; a commitment is something you promised a person.
@@ -20,6 +21,7 @@ export const COMMITMENT_USAGE = {
   show:        "apx commitment show <id> [--project X]",
   kept:        'apx commitment kept <id> [--project X] [--note "..."]',
   missed:      'apx commitment missed <id> [--project X] [--note "..."]',
+  drop:        'apx commitment drop <id> [--project X] [--note "..."]',
   renegotiate: 'apx commitment renegotiate <id> --due <ISO> [--project X] [--note "..."]',
 };
 
@@ -139,6 +141,9 @@ async function close(args, sub) {
 
 export const cmdCommitmentKept = (args) => close(args, "kept");
 export const cmdCommitmentMissed = (args) => close(args, "missed");
+// Not an alias of `missed`: nobody was waiting on a promise filed by mistake,
+// so it must not land in the broken-promise count.
+export const cmdCommitmentDrop = (args) => close(args, "drop");
 
 export async function cmdCommitmentRenegotiate(args) {
   const id = args?._?.[0];

@@ -280,7 +280,17 @@ export function applyStreamEvent(turn: ChatMsg, ev: ChatStreamEvent): ChatMsg {
           ),
         };
       }
-    case "final":
+    case "final": {
+      // The closing message. It only counts as "already shown" when it IS one
+      // of the streamed segments — the guard used to be "the turn has any text
+      // at all", which silently dropped every answer that came after a tool
+      // call. Since the model writes a line before each tool, that was every
+      // multi-step turn: the reader saw the steps and never the conclusion.
+      // (api/code.js fixed the same bug on the persistence side.)
+      const finalText = ev.result?.text || "";
+      const alreadyShown =
+        !!finalText &&
+        turn.parts.some((p) => p.kind === "text" && p.text.trim() === finalText.trim());
       return {
         ...turn,
         pending: false,
@@ -291,10 +301,11 @@ export function applyStreamEvent(turn: ChatMsg, ev: ChatStreamEvent): ChatMsg {
         model: turn.model ?? ev.result?.model,
         agent: turn.agent ?? ev.result?.name,
         parts:
-          ev.result?.text && !turn.parts.some((p) => p.kind === "text")
-            ? [...turn.parts, { kind: "text", text: ev.result.text }]
+          finalText && !alreadyShown
+            ? [...turn.parts, { kind: "text", text: finalText }]
             : turn.parts,
       };
+    }
     default: {
       // Raw-delta engines (no assistant_text) — append to the trailing text.
       const piece = ev.delta || ev.content || "";

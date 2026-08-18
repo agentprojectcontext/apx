@@ -1,5 +1,6 @@
 import { Trash2 } from "lucide-react";
 import { cn } from "../../../lib/cn";
+import { toneDot, toneText } from "../../../lib/tone";
 import { Tip } from "../../ui/tip";
 import { secretSuffix } from "../../../lib/secrets";
 import { ENGINE_BADGES, ENGINE_GRADIENTS, ENGINE_ICONS, ENGINE_OPTIONS, engineStyle } from "./typeStyles";
@@ -50,11 +51,11 @@ export function ProviderCard({
               className={cn(
                 "flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-medium transition-colors",
                 active
-                  ? "border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
+                  ? cn(toneText.emerald, "border-emerald-600/40 hover:bg-emerald-500/10 dark:border-emerald-500/40")
                   : "border-border text-muted-fg hover:text-foreground",
               )}
             >
-              <span className={cn("size-1.5 rounded-full", active ? "bg-emerald-400" : "bg-muted-fg/40")} />
+              <span className={cn("size-1.5 rounded-full", active ? toneDot.emerald : "bg-muted-fg/40")} />
               {active ? t("providers_card.active") : t("providers_card.off")}
             </button>
           </Tip>

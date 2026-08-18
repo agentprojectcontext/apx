@@ -15,6 +15,7 @@ import { readConfig, writeConfig } from "../config/index.js";
 import { projectStorageRoot, DEFAULT_PROJECT_ID } from "../config/paths.js";
 import { readIdentity } from "../identity/index.js";
 import { renderPromptTemplate } from "../agent/render-template.js";
+import { getPluginService } from "../integrations/catalog.js";
 import {
   listRoutines,
   upsertRoutine,
@@ -353,27 +354,76 @@ export function installProfile(source, { force = false } = {}) {
 
 // --------------------- routines ---------------------------------------------
 
+/**
+ * Placeholders that belong to the routine RUNTIME, not to this renderer.
+ * `{{pre_output}}` is filled by core/routines/runner.js with the stdout of
+ * pre_commands, moments before the handler runs. Rendering happens at install
+ * time, long before that, and an unknown variable renders as "" — so without
+ * this identity mapping a profile could never hand its pre_commands output to
+ * its own prompt.
+ */
+const RUNTIME_PLACEHOLDERS = Object.freeze({ pre_output: "{{pre_output}}" });
+
+/**
+ * A rendered shell command that came out empty is a setting the user left
+ * blank, not a command to run. Keeping it would hand runner.js a `""` to
+ * execute and, worse, make `hasPreCmds` true — which changes how the routine
+ * behaves (skip_prompt_on, {{pre_output}}) for a step that does nothing.
+ */
+function dropBlankCommands(spec) {
+  const out = { ...spec };
+  for (const key of ["pre_commands", "post_commands"]) {
+    if (!Array.isArray(out[key])) continue;
+    const kept = out[key].filter((c) => typeof c === "string" && c.trim() !== "");
+    if (kept.length) out[key] = kept;
+    else delete out[key];
+  }
+  return out;
+}
+
+/** Render every string leaf of a parsed value, leaving keys and non-strings alone. */
+function renderDeep(value, settings) {
+  if (typeof value === "string") return renderPromptTemplate(value, settings);
+  if (Array.isArray(value)) return value.map((v) => renderDeep(v, settings));
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, renderDeep(v, settings)]));
+  }
+  return value;
+}
+
 /** The profile's routine specs, rendered against its effective settings. */
 export function renderProfileRoutines(profile, globalConfig) {
   const dir = path.join(profile.dir, "routines");
   if (!fs.existsSync(dir)) return [];
 
-  const settings = effectiveProfileConfig(profile, globalConfig);
+  const settings = { ...effectiveProfileConfig(profile, globalConfig), ...RUNTIME_PLACEHOLDERS };
   const out = [];
 
   for (const file of fs.readdirSync(dir).filter((f) => f.endsWith(".json")).sort()) {
+    const text = fs.readFileSync(path.join(dir, file), "utf8");
     let raw;
     try {
-      raw = JSON.parse(renderPromptTemplate(fs.readFileSync(path.join(dir, file), "utf8"), settings));
-    } catch (e) {
-      throw new Error(`profile "${profile.id}": routines/${file} is not valid JSON after rendering — ${e.message}`);
+      // Parse FIRST, then render the string leaves. Rendering the file text
+      // instead lets a setting decide where the document ends: one double quote
+      // in a value — `apx mcp run cal list '{"day":"today"}'` is the realistic
+      // one — and the routine stops being JSON.
+      raw = renderDeep(JSON.parse(text), settings);
+    } catch {
+      // Unless the file is not JSON until it IS rendered, which is what a
+      // placeholder in an unquoted position (`"timeout": {{secs}}`) means. That
+      // shape predates the safe path, so it keeps working the old way.
+      try {
+        raw = JSON.parse(renderPromptTemplate(text, settings));
+      } catch (e) {
+        throw new Error(`profile "${profile.id}": routines/${file} is not valid JSON after rendering — ${e.message}`);
+      }
     }
     if (!raw?.name || !raw?.kind || !raw?.schedule) {
       throw new Error(`profile "${profile.id}": routines/${file} needs name, kind and schedule`);
     }
     // Namespaced, because `name` is the real primary key of the routines store
     // and a profile must never collide with a routine the user wrote.
-    out.push({ ...raw, name: `${profile.id}-${raw.name}` });
+    out.push({ ...dropBlankCommands(raw), name: `${profile.id}-${raw.name}` });
   }
   return out;
 }
@@ -603,14 +653,29 @@ export function profileDoctor(id = null) {
   }
 
   // Integrations. Required ones block; optional ones degrade.
+  //
+  // A profile may name an integration APX has no plugin for — `calendar` is the
+  // live case. `apx integration connect calendar` cannot work and never will
+  // until a plugin exists, so pointing at it is worse than saying nothing:
+  // the reader spends their time on a command that returns "unknown plugin".
+  // Those slugs get the path that does exist, which is MCP.
+  const integrationFix = (slug) =>
+    getPluginService(slug)
+      ? `apx integration connect ${slug}`
+      : `apx mcp add ${slug} --scope global --command <cmd> -- <args>`;
+  const integrationDetail = (slug, suffix) =>
+    getPluginService(slug)
+      ? `${slug} is not connected — ${suffix}`
+      : `${slug} has no built-in plugin — reach it through an MCP server; ${suffix}`;
+
   for (const slug of requires.integrations || []) {
     if (!cfg.integrations?.[slug]) {
-      checks.push({ level: "error", label: "integration", detail: `${slug} is required and not connected`, fix: `apx integration connect ${slug}` });
+      checks.push({ level: "error", label: "integration", detail: integrationDetail(slug, "the profile requires it"), fix: integrationFix(slug) });
     }
   }
   for (const slug of requires.optional_integrations || []) {
     if (!cfg.integrations?.[slug]) {
-      checks.push({ level: "warn", label: "integration", detail: `${slug} is not connected — the profile degrades without it`, fix: `apx integration connect ${slug}` });
+      checks.push({ level: "warn", label: "integration", detail: integrationDetail(slug, "the profile degrades without it"), fix: integrationFix(slug) });
     }
   }
 

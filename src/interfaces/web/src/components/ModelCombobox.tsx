@@ -4,6 +4,7 @@ import { AlertTriangle, ChevronDown } from "lucide-react";
 import { cn } from "../lib/cn";
 import { Tip } from "./ui/tip";
 import { t } from "../i18n";
+import { toneText } from "../lib/tone";
 
 // Editable combobox: type freely, matching options appear below; click one to
 // pick it, or keep your own text. Behaves like a text input that is also a
@@ -86,7 +87,7 @@ export function ModelCombobox({
         {invalid && (
           <Tip content={invalidHint || t("models_ui.invalid_hint")}>
             <span>
-              <AlertTriangle className="size-3.5 shrink-0 text-amber-400" />
+              <AlertTriangle className={`size-3.5 shrink-0 ${toneText.amber}`} />
             </span>
           </Tip>
         )}

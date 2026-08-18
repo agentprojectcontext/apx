@@ -2,6 +2,7 @@ import { Bot, Copy, Info, Sparkles } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { AgentAvatar, type AgentFace } from "../agents/AgentAvatar";
 import { ToolCall } from "./ToolCall";
+import { ActionGroup, splitTurnParts } from "./ActionGroup";
 import { AskQuestionsCard } from "./AskQuestionsCard";
 import { AskAnswersCard, parseAskAnswerText } from "./AskAnswersCard";
 import { textOf, type ChatMsg } from "../../hooks/useChat";
@@ -28,6 +29,9 @@ export function MessageBubble({ msg, isLast, isAskAnswer, onCopy, face }: Props)
   const mine = msg.role === "user";
   const copyText = textOf(msg);
   const hasTools = msg.parts.some((p) => p.kind === "tool");
+  // A user turn is never grouped — it has no tools, and `work` would be empty
+  // anyway; splitting only shapes the assistant side.
+  const { work, rest } = mine ? { work: [], rest: msg.parts } : splitTurnParts(msg.parts);
 
   if (mine && isAskAnswer) {
     const text = textOf(msg);
@@ -78,8 +82,13 @@ export function MessageBubble({ msg, isLast, isAskAnswer, onCopy, face }: Props)
           </Tip>
         ) : null}
 
-        {/* Ordered parts: interleaved assistant text + tool calls. */}
-        {msg.parts.map((part, i) =>
+        {/* The work: every tool call and the line written before it, collapsed
+            into one row. A 24-step turn is a log, not a conversation — it goes
+            behind one click so the answer below is what you read first. */}
+        {!mine && work.length > 0 && <ActionGroup parts={work} running={!!msg.pending} />}
+
+        {/* What the agent said once the work was done — the answer. */}
+        {rest.map((part, i) =>
           part.kind === "tool" ? (
             part.tool === "ask_questions" && !mine ? (
               <AskQuestionsCard

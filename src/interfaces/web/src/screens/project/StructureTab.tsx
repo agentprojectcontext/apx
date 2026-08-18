@@ -8,6 +8,7 @@ import { AreaDialog, RoleDialog } from "../../components/structure/StructureDial
 import { Org } from "../../lib/api/organization";
 import { useToast } from "../../components/Toast";
 import { t } from "../../i18n";
+import { toneText, toneTextHover } from "../../lib/tone";
 import type { OrgArea, OrgRole } from "../../types/daemon";
 
 export function StructureTab({ pid }: { pid: string }) {
@@ -86,7 +87,7 @@ export function StructureTab({ pid }: { pid: string }) {
                     <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                       {t("structure.roles")} ({rolesByArea(area.slug).length})
                     </span>
-                    <button type="button" onClick={() => setRoleDialog({ presetArea: area.slug })} className="text-[11px] text-sky-500 hover:text-sky-400">
+                    <button type="button" onClick={() => setRoleDialog({ presetArea: area.slug })} className={`text-[11px] ${toneText.sky} ${toneTextHover.sky}`}>
                       + {t("structure.add_role")}
                     </button>
                   </div>

@@ -1,6 +1,4 @@
-import fs from "node:fs";
-import path from "node:path";
-import { readVaultAgents, VAULT_DIR } from "#core/apc/parser.js";
+import { readVaultAgents, vaultAgentFile } from "#core/apc/parser.js";
 import { addImportedAgent, ensureAgentDir } from "#core/apc/scaffold.js";
 import { ensureAgentRuntimeDir } from "#core/agent/memory.js";
 import { projectMeta, resolveProject } from "../helpers.js";
@@ -26,8 +24,10 @@ export default {
     await requirePermission("import_agent", { dangerous: true, confirmed, args: { agent: slug } });
     if (!slug) throw new Error("import_agent: agent required");
 
-    const vaultPath = path.join(VAULT_DIR, `${slug}.md`);
-    if (!fs.existsSync(vaultPath)) {
+    // Layered lookup (user file → bundled default). A raw path into the user
+    // vault would reject every bundled agent this same error message lists.
+    const vaultPath = vaultAgentFile(slug);
+    if (!vaultPath) {
       const available = readVaultAgents().map((a) => a.slug).join(", ") || "(none)";
       throw new Error(`agent "${slug}" not found in vault. Available: ${available}`);
     }

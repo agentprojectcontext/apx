@@ -49,15 +49,20 @@
        few points below white so cards/panels rise off it, borders are visible
        at a glance, and secondary text is dark enough to read. The previous
        palette lived between 91% and 100% lightness — every surface, edge and
-       label dissolved into the same fog. */
+       label dissolved into the same fog.
+       Surfaces stop just short of pure white: a full-white card is a glare
+       panel at this size, and the 1-2 points off the top cost no lift (the
+       ground is still 6+ points below) while taking the sting out of it.
+       `--muted-foreground` is set where secondary text clears 4.5:1 on a card
+       — at 38% it read at 4.1 and every hint label was a squint. */
     --background: 220 20% 92%;
     --foreground: 222 24% 12%;
-    --card: 0 0% 100%;
+    --card: 220 24% 99%;
     --card-foreground: 222 24% 12%;
-    --popover: 0 0% 100%;
+    --popover: 220 24% 99%;
     --popover-foreground: 222 24% 12%;
     --muted: 220 18% 95%;
-    --muted-foreground: 220 12% 38%;
+    --muted-foreground: 220 13% 34%;
     --accent: 220 22% 88%;
     --accent-foreground: 222 24% 12%;
     --secondary: 220 18% 94%;
@@ -78,7 +83,7 @@
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
-    --sidebar: 0 0% 100%;
+    --sidebar: 220 24% 99%;
     --sidebar-foreground: 222 24% 12%;
     --sidebar-primary: 152 62% 30%;
     --sidebar-primary-foreground: 150 40% 98%;

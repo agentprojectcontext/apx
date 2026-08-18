@@ -600,8 +600,31 @@ export function readGlobalMessages({ channel, limit = 100, since } = {}) {
 
 const CHANNEL_NAME_RE = /^[a-z0-9_-]+$/i;
 
+// Which project a ledger row was written from, when the writer knew. Web turns
+// stamp it (api/super-agent.js); rows from before that, and channels with no
+// project of their own, have none — those stay visible everywhere rather than
+// being stranded in a project nobody would think to open.
+function rowProject(r) {
+  const v = r?.meta?.project_id;
+  return v === undefined || v === null || v === "" ? null : String(v);
+}
+
+// Rows belonging to `project` (undefined/null → no filtering at all). An
+// unstamped row belongs to every view; a stamped one only to its own project.
+function keepForProject(rows, project) {
+  if (project === undefined || project === null || project === "") return rows;
+  const want = String(project);
+  return rows.filter((r) => {
+    const owner = rowProject(r);
+    return owner === null || owner === want;
+  });
+}
+
 // List every non-empty channel+day thread, newest-last-activity first.
-export function listGlobalThreads({ channels, _globalMessagesDir } = {}) {
+// `project` narrows to the chats started from that project (see keepForProject)
+// — the web sidebar passes it so a chat opened inside a project is listed
+// there, instead of only in the Base workspace.
+export function listGlobalThreads({ channels, project, _globalMessagesDir } = {}) {
   const base = _globalMessagesDir || GLOBAL_MESSAGES_DIR;
   if (!fs.existsSync(base)) return [];
   const chans = (channels && channels.length
@@ -619,8 +642,11 @@ export function listGlobalThreads({ channels, _globalMessagesDir } = {}) {
     for (const f of files) {
       const m = f.match(/^(\d{4}-\d{2}-\d{2})\.jsonl$/);
       if (!m) continue;
-      const msgs = parseDayJsonl(fs.readFileSync(path.join(dir, f), "utf8")).filter(
-        (r) => r.type === "user" || r.type === "agent"
+      const msgs = keepForProject(
+        parseDayJsonl(fs.readFileSync(path.join(dir, f), "utf8")).filter(
+          (r) => r.type === "user" || r.type === "agent"
+        ),
+        project,
       );
       if (!msgs.length) continue;
       const firstUser = msgs.find((r) => r.type === "user");
@@ -655,14 +681,17 @@ export function listGlobalThreads({ channels, _globalMessagesDir } = {}) {
 // usage. All of it is already on disk in `meta`; dropping it here is what made
 // a reloaded thread render "0 tok" with no model, even though the live stream
 // showed both.
-export function readGlobalThread({ channel, date, _globalMessagesDir } = {}) {
+export function readGlobalThread({ channel, date, project, _globalMessagesDir } = {}) {
   if (!CHANNEL_NAME_RE.test(String(channel || ""))) return null;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ""))) return null;
   const base = _globalMessagesDir || GLOBAL_MESSAGES_DIR;
   const file = path.join(base, channel, `${date}.jsonl`);
   if (!fs.existsSync(file)) return null;
-  const messages = parseDayJsonl(fs.readFileSync(file, "utf8"))
-    .filter((r) => r.type === "user" || r.type === "agent" || r.type === "tool")
+  const messages = keepForProject(
+    parseDayJsonl(fs.readFileSync(file, "utf8"))
+      .filter((r) => r.type === "user" || r.type === "agent" || r.type === "tool"),
+    project,
+  )
     .map((r) => {
       if (r.type === "tool") {
         return {
@@ -702,12 +731,26 @@ export function readGlobalThread({ channel, date, _globalMessagesDir } = {}) {
 // is FS-backed (listGlobalThreads/readGlobalThread read files directly), so
 // unlinking the day-file drops the thread from the sidebar. Returns false for a
 // bad channel/date or a file that is already gone.
-export function deleteGlobalThread({ channel, date, _globalMessagesDir } = {}) {
+export function deleteGlobalThread({ channel, date, project, _globalMessagesDir } = {}) {
   if (!CHANNEL_NAME_RE.test(String(channel || ""))) return false;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ""))) return false;
   const base = _globalMessagesDir || GLOBAL_MESSAGES_DIR;
   const file = path.join(base, channel, `${date}.jsonl`);
   if (!fs.existsSync(file)) return false;
+  // Scoped delete: a day-file can hold turns from several projects, and the
+  // sidebar that offered the Delete button was showing only one of them.
+  // Dropping the whole file there would take another project's chat with it.
+  if (project !== undefined && project !== null && project !== "") {
+    const rows = parseDayJsonl(fs.readFileSync(file, "utf8"));
+    const keep = rows.filter((r) => {
+      const owner = rowProject(r);
+      return owner !== null && owner !== String(project);
+    });
+    if (keep.length === rows.length) return false;
+    if (keep.length === 0) fs.unlinkSync(file);
+    else fs.writeFileSync(file, keep.map((r) => JSON.stringify(r)).join("\n") + "\n");
+    return true;
+  }
   fs.unlinkSync(file);
   return true;
 }

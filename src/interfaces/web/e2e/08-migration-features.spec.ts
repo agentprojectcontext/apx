@@ -1,7 +1,7 @@
 import { test, expect, runtime } from "./fixtures";
 
 // Coverage for the PandaProject-migrated surfaces: docs editor, org structure,
-// richer task detail, and the emoji/autonomy agent fields. All scoped to the
+// richer task detail, and the agent avatar/autonomy fields. All scoped to the
 // throwaway project from global-setup (deleted in teardown).
 
 test.describe("migrated features", () => {
@@ -49,6 +49,7 @@ test.describe("migrated features", () => {
     const title = `detail task ${Date.now()}`;
     await page.goto(`/p/${projectId}/tasks`);
 
+    await page.getByTestId("task-new").click();
     const input = page.getByTestId("task-input");
     await input.fill(title);
     await expect(input).toHaveValue(title);
@@ -64,15 +65,20 @@ test.describe("migrated features", () => {
     await expect(panel).toContainText(title);
   });
 
-  test("agent editor exposes emoji + autonomy fields", async ({ page }) => {
+  test("agent editor exposes the avatar picker + autonomy control", async ({ page }) => {
     const { projectId } = runtime();
     await page.goto(`/p/${projectId}/agents`);
     await page.getByTestId("agent-new").click();
-    // The create dialog now carries the emoji input and autonomy segmented
-    // control alongside the slug. Assert with locale-agnostic selectors
-    // ("Emoji" and the "Total" autonomy option read the same in es/en).
+    // The create dialog carries the blob avatar picker and the autonomy
+    // segmented control alongside the slug. Emoji avatars were dropped (see
+    // components/agents/AgentFormFields.tsx) — one visual language, not two.
+    // Located by testid: the field labels are translated and the blob names
+    // are a catalogue that churns.
     await expect(page.getByTestId("agent-slug")).toBeVisible();
-    await expect(page.getByLabel("Emoji")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Total" })).toBeVisible();
+    const avatars = page.getByTestId("agent-icon-picker");
+    await expect(avatars).toBeVisible();
+    expect(await avatars.getByRole("button").count()).toBeGreaterThan(1);
+    // Three modes: total / auto / permission.
+    await expect(page.getByTestId("agent-autonomy").getByRole("button")).toHaveCount(3);
   });
 });

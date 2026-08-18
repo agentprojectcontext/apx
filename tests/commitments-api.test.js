@@ -114,6 +114,25 @@ test("create → list → keep, in the envelope callers unwrap", async () => {
   } finally { await api.close(); }
 });
 
+test("dropping takes it off every default list without marking it missed", async () => {
+  const api = await boot();
+  try {
+    const created = await api.post("/api/projects/1/commitments", {
+      counterparty: "Ana", body: "filed by mistake",
+    });
+    const dropped = await api.post(`/api/projects/1/commitments/${created.body.id}/drop`, {});
+    assert.equal(dropped.body.state, "dropped");
+
+    const open = await api.get("/api/projects/1/commitments");
+    assert.equal(open.body.data.length, 0);
+    const all = await api.get("/api/projects/1/commitments?state=all");
+    assert.equal(all.body.data.length, 1, "still on the record");
+    const summary = await api.get("/api/projects/1/commitments-summary");
+    assert.equal(summary.body.dropped, 1);
+    assert.equal(summary.body.missed, 0);
+  } finally { await api.close(); }
+});
+
 test("a commitment with no counterparty is a 400, not a 500", async () => {
   const api = await boot();
   try {
@@ -130,6 +149,7 @@ test("unknown ids 404 across every mutation", async () => {
       ["get", "/api/projects/1/commitments/nope"],
       ["post", "/api/projects/1/commitments/nope/kept", {}],
       ["post", "/api/projects/1/commitments/nope/missed", {}],
+      ["post", "/api/projects/1/commitments/nope/drop", {}],
       ["post", "/api/projects/1/commitments/nope/renegotiate", { due: "2026-09-01" }],
       ["patch", "/api/projects/1/commitments/nope", { patch: { body: "x" } }],
     ]) {

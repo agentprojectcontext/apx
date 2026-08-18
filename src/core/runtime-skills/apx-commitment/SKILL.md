@@ -7,7 +7,7 @@ description: Promises made to a named person — counterparty, the date you gave
 
 A `task` is something to do. A `commitment` is something **promised to a specific person**: it has a counterparty, a date you gave them, and the channel you said it on. Breaking one costs trust, not throughput.
 
-Append-only JSONL per month at `~/.apx/projects/<apxId>/commitments/YYYY-MM.jsonl`, folded the same way as tasks. Nothing is ever deleted.
+Append-only JSONL per month at `~/.apx/projects/<apxId>/commitments/YYYY-MM.jsonl`, folded the same way as tasks. No event is ever removed from the log — `drop` hides a row that was filed by mistake, it does not erase its history.
 
 ## When it is a commitment and not a task
 
@@ -74,15 +74,24 @@ apx commitment show c_abc123 --project acme
 apx commitment kept   c_abc123 --project acme
 apx commitment missed c_abc123 --project acme --note "forgot entirely"
 apx commitment renegotiate c_abc123 --due 2026-06-15 --project acme --note "agreed on the call"
+
+# Filed by mistake — not a broken promise
+apx commitment drop c_abc123 --project acme --note "this was a task, not a promise"
 ```
 
-## The three ways one ends
+## The ways one ends
 
 | Verb | Means | State after |
 |---|---|---|
 | `kept` | Delivered. | `kept` |
 | `missed` | The date passed and it did not happen. | `missed` |
+| `drop` | Filed by mistake — nobody was ever waiting. | `dropped` |
 | `renegotiate` | A NEW date, agreed with them. | back to `open` |
+
+**`drop` is not a polite `missed`.** Reach for it only when the row should not
+have existed (a task recorded as a promise, a duplicate). Using it on something
+a person actually expected launders a broken promise into a clerical error, and
+the overdue count — the only number here that means anything — stops being true.
 
 **`renegotiate` reopens rather than closing.** A promise with a new date is a live promise, and every date it has ever had stays in `history`. Moving a date twice is a fact about the relationship; it is only visible because the log keeps it.
 
@@ -112,8 +121,9 @@ GET    /api/projects/:pid/commitments/:id
 PATCH  /api/projects/:pid/commitments/:id                 { patch: {...} }
 POST   /api/projects/:pid/commitments/:id/kept            { note? }
 POST   /api/projects/:pid/commitments/:id/missed          { note? }
+POST   /api/projects/:pid/commitments/:id/drop            { note? }   filed by mistake
 POST   /api/projects/:pid/commitments/:id/renegotiate     { due, note? }
-GET    /api/projects/:pid/commitments-summary             → { open, kept, missed, overdue, total }
+GET    /api/projects/:pid/commitments-summary             → { open, kept, missed, dropped, overdue, total }
 ```
 
 ## Don't

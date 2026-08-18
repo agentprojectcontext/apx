@@ -40,7 +40,7 @@ Rule: text from model → `exec_agent`; orchestration (MCPs, files, multi-agent)
 }
 ```
 
-Pipeline: `pre_commands` run sequentially → combined stdout becomes `{{pre_output}}` in `spec.prompt` and `$APX_PRE_OUTPUT` (plus `$APX_PRE_OUTPUT_FILE` for big payloads) → handler runs, result becomes `$APX_LLM_OUTPUT` → `post_commands` run.
+Pipeline: `pre_commands` run sequentially → combined stdout becomes `{{pre_output}}` in `spec.prompt` / `spec.text` and `$APX_PRE_OUTPUT` (plus `$APX_PRE_OUTPUT_FILE` for big payloads) → handler runs, result becomes `$APX_LLM_OUTPUT` → `post_commands` run. `{{pre_output}}` is always substituted — with no pre_commands it renders empty, never as literal braces.
 
 ## Anti-example: double-reply
 

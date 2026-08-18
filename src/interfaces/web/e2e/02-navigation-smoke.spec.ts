@@ -3,48 +3,67 @@ import { test, expect, runtime } from "./fixtures";
 // Walks every screen the panel exposes and asserts it renders without an
 // uncaught exception. This is the read-only "does every screen work" sweep.
 
+// Mirrors the nav order in SettingsScreen.tsx. "appearance" is not a tab any
+// more — it survives only as a legacy route that redirects to the Web module.
 const SETTINGS_TABS = [
   "identity",
-  "appearance",
   "super_agent",
+  "profile",
+  "nudge",
   "engines",
+  "memory",
+  "skills",
   "telegram",
   "devices",
   "voice",
-  "deck",
   "desktop",
+  "deck",
+  "web",
   "advanced",
 ] as const;
 
 // key in the nav → active segment used by the project-tab testid.
 const BASE_TABS: Array<[navKey: string, active: string]> = [
-  ["index", "overview"],
   ["workspaces", "workspaces"],
   ["models", "models"],
   ["agent-defaults", "agent-defaults"],
-  ["chat", "chat"],
-  ["sessions", "sessions"],
-  ["tasks", "tasks"],
-  ["logs", "logs"],
+  ["index", "overview"],
   ["agents", "agents"],
   ["memories", "memories"],
+  ["skills", "skills"],
+  ["artifacts", "artifacts"],
+  ["chat", "chat"],
+  ["sessions", "sessions"],
+  ["logs", "logs"],
   ["routines", "routines"],
+  ["tasks", "tasks"],
+  ["commitments", "commitments"],
   ["mcps", "mcps"],
+  ["integrations", "integrations"],
+  ["vars", "vars"],
   ["config", "config"],
 ];
 
+// Telegram is gone from the project nav — it lives under Settings now, even
+// though /p/:pid/telegram still resolves. "structure" is company-only, and the
+// throwaway project the fixtures register is not a company, so it is absent.
 const PROJECT_TABS: Array<[navKey: string, active: string]> = [
   ["index", "overview"],
-  ["telegram", "telegram"],
-  ["chat", "chat"],
   ["agents", "agents"],
+  ["memories", "memories"],
+  ["skills", "skills"],
+  ["artifacts", "artifacts"],
+  ["chat", "chat"],
+  ["sessions", "sessions"],
+  ["logs", "logs"],
   ["docs", "docs"],
   ["files", "files"],
-  ["memories", "memories"],
   ["routines", "routines"],
   ["tasks", "tasks"],
+  ["commitments", "commitments"],
   ["mcps", "mcps"],
-  ["logs", "logs"],
+  ["integrations", "integrations"],
+  ["vars", "vars"],
   ["config", "config"],
 ];
 

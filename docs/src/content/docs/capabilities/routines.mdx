@@ -77,7 +77,9 @@ Comma-separated shell commands. They form a pipeline around the LLM call:
 <Steps>
 
 1. **`pre_commands`** run sequentially. Their combined stdout is available as:
-   - `{{pre_output}}` — substituted into `spec.prompt` before the LLM call.
+   - `{{pre_output}}` — substituted into `spec.prompt` (and `spec.text`) before the LLM
+     call. Always substituted: with no `pre_commands`, or none that printed anything, the
+     slot renders empty rather than reaching the model as literal braces.
    - `$APX_PRE_OUTPUT` — environment variable for `post_commands`.
    - `$APX_PRE_OUTPUT_FILE` — path to a temp file with the full output (for large payloads).
 

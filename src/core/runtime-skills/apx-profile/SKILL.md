@@ -96,6 +96,16 @@ settings, not core behaviour. If the answer is "it shouldn't have", the fix is u
   `profile_name`) or a schema property **with a default**. A property declared without a
   default is rejected, because it would silently render as an empty string.
 
+**In `routines/*.json`, settings render as VALUES, not as text.** The file is parsed first
+and each string leaf rendered after, so a setting carrying quotes (a shell command with JSON
+arguments, say) cannot break the document. Two consequences worth knowing:
+
+- A `pre_commands` / `post_commands` entry that renders empty is dropped entirely, so an
+  optional command is just a setting defaulting to `""` — no empty shell step, no pre phase.
+- `{{pre_output}}` is left alone by the renderer and filled by the routine runner at run
+  time. That is how a routine hands itself data without spending a tool call or a permission
+  on it — the secretary's `calendar_command` is the live example.
+
 ## Channel overlays
 
 `channels/<ch>.md` is rendered and appended after the core `channels/<ch>.md`, only on that

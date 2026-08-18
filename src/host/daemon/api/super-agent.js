@@ -10,6 +10,8 @@ import { resolveSuperAgentContext,
   appendSuperAgentErrorTrace, asyncRoute } from "./shared.js";
 import { loggerFor } from "#core/logging.js";
 import { appendGlobalMessage } from "#core/stores/messages.js";
+import { summarizeToolTrace } from "#core/agent/tool-summary.js";
+import { SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
 import { createWebConfirmAdapter } from "#core/confirmation/adapters/web.js";
 import { tryResolveSkillCommand } from "#core/agent/skills/trigger.js";
 import { suggestSkillForPrompt } from "#core/agent/skills/rag.js";
@@ -42,20 +44,54 @@ function logInspectorDecision(trace, { trace_id, channel } = {}) {
 // the human surfaces (web big chat + sidebar) — not generic "api"/automation
 // callers. Best-effort: a logging failure never breaks the reply.
 const WEB_LOGGED_CHANNELS = new Set([CHANNELS.WEB, CHANNELS.WEB_SIDEBAR]);
-function logWebTurn(channel, { prompt, replyText, name, model, usage }) {
+function logWebTurn(channel, { prompt, replyText, name, model, usage, trace, project }) {
   if (!WEB_LOGGED_CHANNELS.has(channel)) return;
+  // Which project the chat was opened from. The ledger is one file per
+  // channel+day for the whole daemon, so without this stamp a chat started
+  // inside a project could only be found in the Base workspace — from the
+  // project it was started in, it looked gone.
+  const scope = project ? { project_id: String(project.id), project_name: project.name } : {};
   try {
-    appendGlobalMessage({ channel, direction: "in", type: "user", author: "user", body: prompt });
+    appendGlobalMessage({
+      channel, direction: "in", type: "user", author: "user", body: prompt,
+      meta: { ...scope },
+    });
+    // The steps, one row each — the same shape the Telegram path writes, which
+    // is what lets a reopened thread render its tool calls instead of a bare
+    // answer with the work erased. Results are already truncated upstream
+    // (run-agent's summarizeForTrace), so a row stays small.
+    for (const item of Array.isArray(trace) ? trace : []) {
+      if (!item?.tool) continue;
+      appendGlobalMessage({
+        channel,
+        direction: "out",
+        type: "tool",
+        actor_id: item.tool,
+        actor_kind: "tool",
+        author: name || undefined,
+        body: `${item.tool}(${JSON.stringify(item.args || {}).slice(0, 200)})`,
+        meta: { ...scope, tool: item.tool, args: item.args, result: item.result },
+      });
+    }
     if (replyText) {
       // Attribution rides along on the record: which model answered and what the
       // turn cost. Without it a reloaded thread renders "0 tok" and no model.
+      const toolSummary = summarizeToolTrace(trace);
       appendGlobalMessage({
         channel,
         direction: "out",
         type: "agent",
+        actor_id: SUPERAGENT_ACTOR_ID,
+        actor_kind: "superagent",
+        agent_slug: SUPERAGENT_ACTOR_ID,
         author: name || undefined,
         body: replyText,
-        meta: { ...(model ? { model } : {}), ...(usage ? { usage } : {}) },
+        meta: {
+          ...scope,
+          ...(model ? { model } : {}),
+          ...(usage ? { usage } : {}),
+          ...(toolSummary ? { tool_summary: toolSummary } : {}),
+        },
       });
     }
   } catch {
@@ -186,6 +222,8 @@ export function register(api, { projects, registries, plugins, project, config }
         name: saResult.name,
         model: saResult.model,
         usage: saResult.usage,
+        trace: saResult.trace,
+        project: p,
       });
       send({
         type: "final",
@@ -297,6 +335,8 @@ export function register(api, { projects, registries, plugins, project, config }
         name: saResult.name,
         model: saResult.model,
         usage: saResult.usage,
+        trace: saResult.trace,
+        project: p,
       });
       res.json({
         text: saResult.text,

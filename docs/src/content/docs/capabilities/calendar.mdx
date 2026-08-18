@@ -22,9 +22,10 @@ without a model. It cannot do the same for your calendar, because reading a remo
 means a network call, and a detector that makes network calls stops being cheap enough to
 run every few minutes.
 
-Making "a meeting in 30 minutes" a signal needs the native adapter described at the bottom
-of this page. Until then the agent reads your agenda **when it runs a turn** — the day-open
-anchor, or when you ask — which covers the useful cases and none of the proactive ones.
+So "a meeting in 30 minutes" is not something APX will interrupt you about. It reads your
+agenda when it runs a turn — the day-open anchor, or when you ask — which covers the useful
+cases and none of the proactive ones. Making it proactive needs the native adapter described
+at the bottom of this page.
 </Aside>
 
 ## Connect a calendar
@@ -34,16 +35,18 @@ anchor, or when you ask — which covers the useful cases and none of the proact
 1. Pick an MCP server for your provider. Any server implementing the Model Context Protocol
    works; APX does not require a specific one.
 
-2. Register it globally, so every project and channel can reach it:
+2. Register it globally, so every project and channel can reach it. Everything after `--`
+   is passed to the server as its arguments:
 
    ```bash
-   apx mcp add calendar --scope global --command npx --args "-y,@your/calendar-mcp-server"
+   apx mcp add calendar --scope global --command npx -- -y @your/calendar-mcp-server
    ```
 
-3. Check the agent can see its tools:
+3. Check the agent can see its tools. This also prints each tool's arguments and a
+   ready-to-paste `Run:` line, which the next section needs:
 
    ```bash
-   apx mcp list --scope global
+   apx mcp tools calendar
    ```
 
 4. Ask for it in plain language. The super-agent finds MCP tools through `call_mcp`; you do
@@ -55,9 +58,37 @@ anchor, or when you ask — which covers the useful cases and none of the proact
 
 </Steps>
 
+## Give the agenda to the morning anchor
+
+Asking works from the moment the server is registered. An **anchor** is different: a
+scheduled run has nobody at the keyboard, and `call_mcp` is a tool APX asks you to confirm.
+Granting it to an unattended routine would hand that routine every MCP server on the
+machine, write tools included — for a calendar read.
+
+So the anchor does not call the calendar. It is *handed* the agenda, already fetched, by its
+own pre-command. The [secretary profile](/capabilities/profiles/) exposes one setting for it:
+
+```bash
+apx profile config --set "calendar_command=apx mcp run calendar list_events"
+```
+
+If your tool needs JSON arguments — `apx mcp run calendar list_events '{"timeMin":"today"}'`
+— set it with `apx profile config --interactive` or in the web panel instead, so the shell
+does not eat the quotes.
+
+From then on, whatever that command prints reaches the morning message inside a `<calendar>`
+block. It costs the agent no tool call, no permission, and no step out of its budget.
+
+<Aside type="note" title="It degrades quietly, by design">
+Leave the setting blank and the anchor never mentions a calendar — no apology, no "I could
+not reach your agenda". If the command fails or the server is down, its error lands in the
+same block and the anchor is told to treat that as "no calendar" and carry on. A calendar
+that is down costs you the agenda line, not your morning message.
+</Aside>
+
 ## Recommended configuration
 
-Two things matter more than which server you choose.
+Three things matter more than which server you choose.
 
 **Read-only unless you mean it.** A server that can create and delete events gives the agent
 the ability to change other people's days. Start with read scopes. Grant write access when
@@ -68,21 +99,15 @@ sending, publishing, or changing something in a third-party system all confirm f
 chief-of-staff profile asking "what does today look like" needs the agenda regardless of
 which project it is thinking about.
 
+**Keep the anchor's command small.** Its whole output is pasted into the prompt. Ask for
+today, not the month, and pipe a chatty server through `jq` if it answers with more than the
+times and titles.
+
 <Aside type="note" title="Credentials">
 MCP servers hold their own credentials, usually as environment variables in the server's
 own config. APX passes them through and never stores them itself. Nothing calendar-related
 is written to `~/.apx/config.json`.
 </Aside>
-
-## What a profile does with it
-
-The [secretary profile](/capabilities/profiles/) already expects an agenda and works without
-one. Its `day-open` anchor asks for what is on the calendar today; with no calendar
-connected that part is simply absent, and the anchor still reports promises and overdue
-work.
-
-Its manifest lists calendar as an **optional** integration, which is what that means in
-practice: better with, correct without.
 
 ## The native adapter, and why it is not here yet
 
@@ -96,5 +121,7 @@ contract before there is a working use case behind it is how you get an abstract
 like a guess. The order is: get it working through MCP, find out what a profile actually
 asks a calendar for, then freeze that.
 
-When the adapter lands, switching providers will stop requiring any change to the profile
-package. Today it does.
+Two things change when it lands. Switching providers will stop meaning "edit the
+`calendar_command` setting", and a scoped read-only calendar tool can be allowed to a
+routine without that routine gaining access to every other MCP server — which is what
+would make "you have a call in 30 minutes" possible.

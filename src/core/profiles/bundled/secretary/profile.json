@@ -11,7 +11,8 @@
   "provides": {
     "routines": [
       "day-open",
-      "day-close"
+      "day-close",
+      "watch"
     ],
     "channels": [
       "routine"

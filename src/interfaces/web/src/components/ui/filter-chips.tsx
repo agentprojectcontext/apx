@@ -13,11 +13,14 @@ export function FilterChips<T extends string>({
   options,
   onChange,
   label,
+  testIdPrefix,
 }: {
   value: T;
   options: { value: T; label: string }[];
   onChange: (v: T) => void;
   label?: string;
+  /** Stamps `<prefix>-<value>` on each chip, for e2e. */
+  testIdPrefix?: string;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-1" role="group" aria-label={label}>
@@ -25,6 +28,7 @@ export function FilterChips<T extends string>({
         <button
           key={o.value}
           type="button"
+          data-testid={testIdPrefix ? `${testIdPrefix}-${o.value}` : undefined}
           aria-pressed={value === o.value}
           onClick={() => onChange(o.value)}
           className={cn(

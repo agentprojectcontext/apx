@@ -16,7 +16,7 @@ process.env.HOME = TMP_HOME;
 const {
   createCommitment, listCommitments, listCommitmentsAcrossProjects,
   getCommitment, patchCommitment, keepCommitment, missCommitment,
-  renegotiateCommitment, countCommitments,
+  dropCommitment, renegotiateCommitment, countCommitments,
 } = await import("#core/stores/commitments.js");
 
 let STORE;
@@ -99,6 +99,22 @@ test("a missed one is recorded, not erased", () => {
   assert.equal(all.length, 1);
   assert.equal(all[0].note, "forgot entirely");
   assert.equal(countCommitments(STORE).missed, 1);
+});
+
+test("one filed by mistake leaves the board without counting as broken", () => {
+  // `drop` and `missed` must never collapse into each other: one says nobody
+  // was ever waiting, the other says you failed someone who was.
+  const c = promise({ counterparty: "Nadie" });
+  const dropped = dropCommitment(STORE, c.id, "this was a task");
+  assert.equal(dropped.state, "dropped");
+  assert.equal(listCommitments(STORE).length, 0, "gone from what you still owe");
+  assert.equal(listCommitments(STORE, { state: "dropped" }).length, 1);
+  assert.equal(listCommitments(STORE, { state: "all" }).length, 1, "the log still has it");
+
+  const counts = countCommitments(STORE);
+  assert.equal(counts.dropped, 1);
+  assert.equal(counts.missed, 0, "a mistake is not a broken promise");
+  assert.equal(counts.overdue, 0);
 });
 
 // --------------------------------------------------------------------------

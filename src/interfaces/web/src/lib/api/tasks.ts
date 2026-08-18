@@ -23,8 +23,12 @@ export const Tasks = {
     http.get<unknown>(`/api/tasks?state=${state}`).then((b) => unwrapPage<GlobalTaskEntry>(b).items),
   // Server-paginated variants: one project (listPage) or all projects
   // (globalPage). Each returns the requested window plus the full total.
-  listPage: (pid: string, { state, limit, offset }: { state: TaskEntry["state"] | "all"; limit: number; offset: number }) =>
-    http.get<unknown>(`/api/projects/${pid}/tasks?state=${state}&limit=${limit}&offset=${offset}`).then((b) => unwrapPage<TaskEntry>(b)),
+  listPage: (pid: string, { state, limit, offset, status }: { state: TaskEntry["state"] | "all"; limit: number; offset: number; status?: TaskStatus | "" }) =>
+    http
+      .get<unknown>(
+        `/api/projects/${pid}/tasks?state=${state}&limit=${limit}&offset=${offset}` + (status ? `&status=${status}` : ""),
+      )
+      .then((b) => unwrapPage<TaskEntry>(b)),
   globalPage: ({ state, limit, offset, status }: { state: TaskEntry["state"] | "all"; limit: number; offset: number; status?: TaskStatus | "" }) =>
     http
       .get<unknown>(

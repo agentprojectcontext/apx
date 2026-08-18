@@ -15,6 +15,7 @@ import { RobyEmpty } from "../components/Roby";
 import { Button } from "../components/ui/button";
 import { useProject } from "../hooks/useProjects";
 import { STORAGE } from "../constants";
+import { toneText } from "../lib/tone";
 import { t } from "../i18n";
 import { Overview } from "./project/Overview";
 import { WorkspacesTab } from "./base/WorkspacesTab";
@@ -22,7 +23,6 @@ import { LogsTab } from "./base/LogsTab";
 import { ModelsTab } from "./base/ModelsTab";
 import { AgentDefaultsTab } from "./base/AgentDefaultsTab";
 import { SessionsTab } from "./base/SessionsTab";
-import { GlobalTasksTab } from "./base/GlobalTasksTab";
 import { CommitmentsTab } from "./base/CommitmentsTab";
 import { ConfigTab } from "./project/ConfigTab";
 import { AgentsTab } from "./project/AgentsTab";
@@ -61,7 +61,7 @@ export function ProjectScreen() {
   const obsidianActive = obsidianEntry?.status?.status === "active" && !!obsidianEntry?.status?.is_enabled;
 
   const sections: TabSection[] = useMemo(() => {
-    const memoriesMark = obsidianActive ? <ObsidianLogo className="size-3 text-purple-400" /> : undefined;
+    const memoriesMark = obsidianActive ? <ObsidianLogo className={cn("size-3", toneText.purple)} /> : undefined;
     // One shared taxonomy for both Base and projects, in the same order, so the
     // two menus mirror each other. Base additionally gets a "General" admin
     // section (workspaces / engines / agent defaults) and drops "Content"
@@ -185,7 +185,7 @@ export function ProjectScreen() {
         <Route path="memories"     element={<MemoriesTab pid={pid} />} />
         <Route path="skills"       element={<SkillsTab pid={pid} />} />
         <Route path="routines"     element={<RoutinesTab pid={pid} />} />
-        <Route path="tasks"        element={isBase ? <GlobalTasksTab /> : <TasksTab pid={pid} />} />
+        <Route path="tasks"        element={<TasksTab pid={isBase ? undefined : pid} />} />
         <Route path="commitments"  element={<CommitmentsTab pid={isBase ? undefined : pid} />} />
         <Route path="mcps"         element={<McpsTab pid={pid} />} />
         <Route path="integrations" element={<IntegrationsTab pid={pid} />} />

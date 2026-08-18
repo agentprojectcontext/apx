@@ -12,6 +12,7 @@
 //   PATCH  /projects/:pid/commitments/:id            { patch: {...} }
 //   POST   /projects/:pid/commitments/:id/kept       { note? }
 //   POST   /projects/:pid/commitments/:id/missed     { note? }
+//   POST   /projects/:pid/commitments/:id/drop       { note? }   filed by mistake
 //   POST   /projects/:pid/commitments/:id/renegotiate { due, note? }
 //   GET    /projects/:pid/commitments-summary
 import {
@@ -22,6 +23,7 @@ import {
   patchCommitment,
   keepCommitment,
   missCommitment,
+  dropCommitment,
   renegotiateCommitment,
   countCommitments,
 } from "#core/stores/commitments.js";
@@ -109,6 +111,15 @@ export function register(api, { project, projects }) {
     const p = project(req, res);
     if (!p) return;
     const updated = missCommitment(p.storagePath, req.params.id, req.body?.note || null);
+    if (!updated) return res.status(404).json({ error: "commitment not found" });
+    res.json(updated);
+  });
+
+  // Filed by mistake. Separate from `missed` on purpose: see core/stores.
+  api.post("/projects/:pid/commitments/:id/drop", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const updated = dropCommitment(p.storagePath, req.params.id, req.body?.note || null);
     if (!updated) return res.status(404).json({ error: "commitment not found" });
     res.json(updated);
   });
