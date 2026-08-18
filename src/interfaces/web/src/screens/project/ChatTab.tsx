@@ -10,6 +10,7 @@ import { ContextBar } from "../../components/chat/ContextBar";
 import { InlineAskPanel, pendingAskQuestions } from "../../components/chat/InlineAskPanel";
 import { ChatList, type ChatKey, type ChatSelectionMeta } from "../../components/chat/ChatList";
 import { useChat, type ChatMsg } from "../../hooks/useChat";
+import type { UploadedMedia } from "../../lib/api/media";
 import { useToast } from "../../components/Toast";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
@@ -149,9 +150,12 @@ export function ChatTab({
         : selected.agentSlug,
   ]);
 
-  const send = async (text: string) => {
+  const send = async (text: string, media?: UploadedMedia) => {
     if (activeIsRoby) {
-      await sendChat(text, { model: model || undefined });
+      await sendChat(text, {
+        model: model || undefined,
+        ...(media ? { attachments: [media] } : {}),
+      });
       // The turn just wrote itself into the channel ledger. Revalidate so the
       // new chat shows up in the sidebar now, instead of only after a reload —
       // which read as "the conversation was lost".
@@ -360,6 +364,7 @@ export function ChatTab({
           streaming={streaming}
           model={model}
           onModelChange={setModel}
+          allowFiles={activeIsRoby}
         />
       </section>
 

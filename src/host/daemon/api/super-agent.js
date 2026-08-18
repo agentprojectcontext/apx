@@ -17,6 +17,7 @@ import { tryResolveSkillCommand } from "#core/agent/skills/trigger.js";
 import { suggestSkillForPrompt } from "#core/agent/skills/rag.js";
 import { inspectPromptForSkills, isInspectorEnabled, summarizeTrace } from "#core/agent/skills/inspector.js";
 import { CHANNELS } from "#core/constants/channels.js";
+import { readTurnAttachments } from "./media.js";
 
 const log = loggerFor("super-agent");
 
@@ -44,7 +45,7 @@ function logInspectorDecision(trace, { trace_id, channel } = {}) {
 // the human surfaces (web big chat + sidebar) — not generic "api"/automation
 // callers. Best-effort: a logging failure never breaks the reply.
 const WEB_LOGGED_CHANNELS = new Set([CHANNELS.WEB, CHANNELS.WEB_SIDEBAR]);
-function logWebTurn(channel, { prompt, replyText, name, model, usage, trace, project }) {
+function logWebTurn(channel, { prompt, replyText, name, model, usage, trace, project, media }) {
   if (!WEB_LOGGED_CHANNELS.has(channel)) return;
   // Which project the chat was opened from. The ledger is one file per
   // channel+day for the whole daemon, so without this stamp a chat started
@@ -54,7 +55,10 @@ function logWebTurn(channel, { prompt, replyText, name, model, usage, trace, pro
   try {
     appendGlobalMessage({
       channel, direction: "in", type: "user", author: "user", body: prompt,
-      meta: { ...scope },
+      // `media` records the file the turn was sent with (local_path, name, mime
+      // — see readTurnAttachments), which is what lets a reopened thread render
+      // the photo instead of the marker text the agent was handed.
+      meta: { ...scope, ...(media || {}) },
     });
     // The steps, one row each — the same shape the Telegram path writes, which
     // is what lets a reopened thread render its tool calls instead of a bare
@@ -134,14 +138,20 @@ export function register(api, { projects, registries, plugins, project, config }
     // module. Plain chat callers omit them and keep the lightweight defaults.
     const { prompt: rawPrompt, previousMessages, model, maxIters, maxTokens, completionContract } =
       req.body || {};
-    if (!rawPrompt) return res.status(400).json({ error: "prompt required" });
+    // Files the composer uploaded to ~/.apx/media and named on this turn. A
+    // photo with no caption IS a turn: the marker built below stands in for the
+    // text, exactly as it does when the same photo arrives over Telegram.
+    const turnFiles = readTurnAttachments(req.body?.attachments);
+    if (!rawPrompt && !turnFiles.markers.length) {
+      return res.status(400).json({ error: "prompt required" });
+    }
     const ctx = resolveSuperAgentContext(req, p);
 
     // `/slug ...` shortcut: load the matching skill body into contextNote and
     // strip the prefix from the user prompt. Falls through unchanged when the
     // slug is unknown.
-    const slashed = tryResolveSkillCommand(rawPrompt, { projectPath: p.path });
-    const prompt = slashed.handled ? slashed.prompt : rawPrompt;
+    const slashed = tryResolveSkillCommand(rawPrompt || "", { projectPath: p.path });
+    const prompt = slashed.handled ? slashed.prompt : rawPrompt || "";
     const inspectorOn = isInspectorEnabled(config);
     let inspectorTrace = null;
     if (slashed.handled) {
@@ -164,6 +174,11 @@ export function register(api, { projects, registries, plugins, project, config }
       const hint = await suggestSkillForPrompt(prompt, { projectPath: p.path });
       if (hint) ctx.contextNote = [ctx.contextNote, hint].filter(Boolean).join("\n\n");
     }
+
+    // What the model reads, and what the ledger stores: the attachment markers
+    // first, then whatever was typed. The markers are built on this side so the
+    // path they name is one the daemon resolved, not one a client claimed.
+    const turnPrompt = [...turnFiles.markers, prompt].filter(Boolean).join(" ");
 
     res.setHeader("content-type", "application/x-ndjson; charset=utf-8");
     res.setHeader("cache-control", "no-cache, no-transform");
@@ -202,7 +217,10 @@ export function register(api, { projects, registries, plugins, project, config }
         projects,
         plugins,
         registries,
-        prompt,
+        prompt: turnPrompt,
+        // Images ride on this turn's user message; every other kind is already
+        // named, with its path, in the marker.
+        attachments: turnFiles.attachments,
         channel: ctx.channel,
         channelMeta: ctx.channelMeta,
         contextNote: ctx.contextNote,
@@ -217,7 +235,8 @@ export function register(api, { projects, registries, plugins, project, config }
       });
       projects.rebuild(p.id);
       logWebTurn(ctx.channel, {
-        prompt,
+        prompt: turnPrompt,
+        media: turnFiles.media,
         replyText: saResult.text,
         name: saResult.name,
         model: saResult.model,

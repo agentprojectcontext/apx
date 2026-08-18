@@ -34,6 +34,8 @@
   --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
   --color-sidebar-border: hsl(var(--sidebar-border));
   --color-sidebar-ring: hsl(var(--sidebar-ring));
+  --color-surface-soft: hsl(var(--surface-soft));
+  --color-bubble-mine: hsl(var(--bubble-mine));
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
@@ -69,6 +71,16 @@
     --secondary-foreground: 222 24% 12%;
     --border: 220 16% 83%;
     --input: 220 16% 83%;
+    /* The house soft fill: one flat tone that carries its own shape, with no
+       border and no shadow drawing the same outline twice. It sits under the
+       panels it lands on (card, card/40) by enough to read at a glance and no
+       more — a column of them must not weigh the screen down — and at almost
+       no saturation: the theme's blue-grey is right for panels and edges, but
+       at fill size it tints the content cold. Chat bubbles are the first
+       user; anything flat and quiet can take it. */
+    --surface-soft: 220 8% 90%;
+    /* The same fill in brand hue, for the side of a conversation that is you. */
+    --bubble-mine: 152 42% 85%;
     --ring: 152 58% 36%;
     /* Selection reads as APX green, not as full black. `--primary` drives
        every "this one is picked" state in the app (rail ring, list rows, tabs,
@@ -110,6 +122,10 @@
     --secondary-foreground: 210 16% 92%;
     --border: 222 14% 18%;
     --input: 222 14% 18%;
+    /* Same two fills on a dark ground: a step up off the page, and a brand hue
+       at a lightness that reads green without glowing. */
+    --surface-soft: 222 14% 18%;
+    --bubble-mine: 152 28% 21%;
     --ring: 152 60% 45%;
     /* Same brand green as light, lifted for a dark ground. */
     --primary: 152 58% 45%;

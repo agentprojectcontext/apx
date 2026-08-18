@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { SuperAgent, Agents, Conversations } from "../lib/api";
-import type { ChatStreamEvent, ChatUsage, ConversationMessage, ToolSummary } from "../types/daemon";
+import type { ChatStreamEvent, ChatUsage, ConversationMessage, MessageMedia, ToolSummary } from "../types/daemon";
+import type { UploadedMedia } from "../lib/api/media";
 import { t } from "../i18n";
 
 export type ToolStatus = "running" | "done" | "error" | "deduped";
@@ -40,6 +41,10 @@ export interface ChatMsg {
   /** What a HISTORICAL turn did. Live turns render real ToolCall parts from
    *  the stream; replayed ones only have this, recorded at write time. */
   toolSummary?: ToolSummary;
+  /** The attachment this user turn carried (voice note, photo, document).
+   *  Rendered as the file itself — the stored text is only the marker the
+   *  agent was handed. */
+  media?: MessageMedia;
   /** Skill Inspector decision for this turn (when the feature is on): which
    *  skills the per-turn RAG loaded inline vs merely hinted. */
   inspector?: {
@@ -54,6 +59,10 @@ export interface SendOptions {
   model?: string;
   /** When set, talk to a project agent (non-streaming) instead of Roby. */
   agentSlug?: string;
+  /** Files already stored under ~/.apx/media that this turn carries. The daemon
+   *  resolves each path, hands the images to the model and writes the marker
+   *  that names them. Super-agent turns only. */
+  attachments?: UploadedMedia[];
 }
 
 export interface UseChatResult {
@@ -131,6 +140,23 @@ export function historyTextOf(msg: ChatMsg): string {
 
 const userPart = (text: string): ChatPart[] => [{ kind: "text", text }];
 
+/** The stored-turn shape of a file the composer just uploaded. */
+const mediaOf = (file: UploadedMedia): MessageMedia => ({
+  kind: file.kind,
+  path: file.path,
+  name: file.name,
+  mime: file.mime,
+  size: file.size,
+  duration: null,
+});
+
+/** The marker the daemon will write for this file, mirrored locally so the sent
+ *  turn reads the same before and after a reload. */
+const markerFor = (file: UploadedMedia | undefined): string => {
+  if (!file) return "";
+  return file.kind === "photo" ? "[image attached]" : `[file attached: ${file.name}]`;
+};
+
 function isErrorResult(result: unknown): boolean {
   if (!result || typeof result !== "object") return false;
   const r = result as Record<string, unknown>;
@@ -159,7 +185,7 @@ function threadToChatMsgs(messages: ConversationMessage[]): ChatMsg[] {
     if (m.role === "user") {
       turn = null;
       turnActor = undefined;
-      out.push({ role: "user", parts: userPart(m.content), ts });
+      out.push({ role: "user", parts: userPart(m.content), ts, ...(m.media ? { media: m.media } : {}) });
     } else if (m.role === "assistant" || m.role === "tool") {
       // Tool rows inherit the current actor (they're logged by whoever is
       // running); only assistant rows can start a new one.
@@ -362,7 +388,9 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
   const send = useCallback(
     async (text: string, opts: SendOptions = {}) => {
       const trimmed = text.trim();
-      if (!trimmed || streaming) return;
+      const file = opts.attachments?.[0];
+      // A photo with no caption is a turn; text alone still is one.
+      if ((!trimmed && !file) || streaming) return;
       const nowIso = () => new Date().toISOString();
       const history: ConversationMessage[] = msgs.map((m) => ({
         role: m.role,
@@ -371,7 +399,15 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
 
       setMsgs((curr) => [
         ...curr,
-        { role: "user", parts: userPart(trimmed), ts: nowIso() },
+        {
+          role: "user",
+          // The marker rides on the turn's text the way it does on every other
+          // channel: the bubble strips it (the file is shown instead) and the
+          // NEXT turn's history still records that something was attached.
+          parts: userPart([markerFor(file), trimmed].filter(Boolean).join(" ")),
+          ts: nowIso(),
+          ...(file ? { media: mediaOf(file) } : {}),
+        },
         { role: "assistant", parts: [], ts: nowIso(), pending: true },
       ]);
       setStreaming(true);
@@ -411,7 +447,17 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
       try {
         await SuperAgent.stream(
           pid,
-          { prompt: trimmed, previousMessages: history, model: opts.model || undefined, channel: "web" },
+          {
+            prompt: trimmed,
+            previousMessages: history,
+            model: opts.model || undefined,
+            channel: "web",
+            // Paths only: the bytes are already on disk, and the daemon re-resolves
+            // each one inside ~/.apx/media before it reads a single byte.
+            ...(opts.attachments?.length
+              ? { attachments: opts.attachments.map((a) => ({ path: a.path, name: a.name })) }
+              : {}),
+          },
           applyEvent,
           ctrl.signal,
         );

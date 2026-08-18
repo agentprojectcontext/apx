@@ -5,6 +5,7 @@ import { ToolCall } from "./ToolCall";
 import { ActionGroup, splitTurnParts } from "./ActionGroup";
 import { AskQuestionsCard } from "./AskQuestionsCard";
 import { AskAnswersCard, parseAskAnswerText } from "./AskAnswersCard";
+import { Attachment, stripMediaMarker } from "./Attachment";
 import { textOf, type ChatMsg } from "../../hooks/useChat";
 import { Tip } from "../ui/tip";
 import { t } from "../../i18n";
@@ -27,7 +28,11 @@ interface Props {
 
 export function MessageBubble({ msg, isLast, isAskAnswer, onCopy, face }: Props) {
   const mine = msg.role === "user";
-  const copyText = textOf(msg);
+  // A turn that carried a file shows the file; its text is the marker the agent
+  // was handed, so only what the user actually wrote (caption, or the voice
+  // transcript) stays as text — copy included.
+  const media = mine ? msg.media : undefined;
+  const copyText = media ? stripMediaMarker(textOf(msg)) : textOf(msg);
   const hasTools = msg.parts.some((p) => p.kind === "tool");
   // A user turn is never grouped — it has no tools, and `work` would be empty
   // anyway; splitting only shapes the assistant side.
@@ -50,6 +55,10 @@ export function MessageBubble({ msg, isLast, isAskAnswer, onCopy, face }: Props)
         </span>
       ))}
       <div className={cn("flex min-w-0 flex-col gap-1.5", mine ? "items-end" : "w-full max-w-[85%]")}>
+        {/* What was actually sent: the voice note plays, the photo is the photo,
+            the document opens. */}
+        {media && <Attachment media={media} />}
+
         {/* Operational notes (engine fallbacks, retries, suppressed tools). */}
         {!mine && msg.notes && msg.notes.length > 0 && (
           <div className="flex flex-col gap-0.5">
@@ -99,24 +108,24 @@ export function MessageBubble({ msg, isLast, isAskAnswer, onCopy, face }: Props)
             ) : (
               <ToolCall key={`${part.id}-${i}`} part={part} />
             )
-          ) : part.text ? (
+          ) : textOfPart(part.text, media) ? (
             <div
               key={i}
               className={cn(
-                "whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm leading-relaxed shadow-xs",
+                "whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm leading-relaxed",
                 mine
-                  ? "rounded-br-sm border border-emerald-500/30 bg-emerald-500/10 text-foreground dark:bg-emerald-500/15"
-                  : "w-full rounded-bl-sm border border-border bg-card text-foreground",
+                  ? "rounded-br-sm bg-bubble-mine text-foreground"
+                  : "w-full rounded-bl-sm bg-surface-soft text-foreground",
               )}
             >
-              {part.text}
+              {textOfPart(part.text, media)}
             </div>
           ) : null,
         )}
 
         {/* Pending placeholder before any part has arrived. */}
         {!mine && msg.pending && msg.parts.length === 0 && (
-          <div className="rounded-2xl rounded-bl-sm border border-border bg-card px-3 py-2 text-sm text-muted-foreground">
+          <div className="rounded-2xl rounded-bl-sm bg-surface-soft px-3 py-2 text-sm text-muted-foreground">
             …
           </div>
         )}
@@ -178,6 +187,13 @@ export function MessageBubble({ msg, isLast, isAskAnswer, onCopy, face }: Props)
       </div>
     </div>
   );
+}
+
+/** The visible text of a part: with an attachment, the machine-facing marker
+ *  is dropped and what is left (a caption, or the voice transcript) is shown. */
+function textOfPart(text: string | undefined, media: unknown): string {
+  if (!text) return "";
+  return media ? stripMediaMarker(text) : text;
 }
 
 function formatTs(iso: string): string {

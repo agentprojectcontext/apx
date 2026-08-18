@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { ArrowUp, Square } from "lucide-react"
+import { ArrowUp, Plus, Square } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -21,6 +21,16 @@ interface ChatInputProps {
   maxRows?: number
   /** Optional content rendered on the left of the action row (e.g. a model badge or hint). */
   footer?: React.ReactNode
+  /** Enables attaching: the + button, Cmd/Ctrl+V of an image, and drag-and-drop.
+   *  Receives every file the user handed over, in the order they came. */
+  onFiles?: (files: File[]) => void
+  /** `accept` for the file picker. Only meaningful alongside onFiles. */
+  accept?: string
+  /** Rendered inside the field, above the textarea: the pending attachments. */
+  above?: React.ReactNode
+  /** Send with no text. An attachment on its own is a turn — the daemon builds
+   *  the marker that stands in for the words. */
+  allowEmpty?: boolean
   className?: string
 }
 
@@ -41,9 +51,20 @@ export function ChatInput({
   minRows = 2,
   maxRows = 8,
   footer,
+  onFiles,
+  accept,
+  above,
+  allowEmpty = false,
   className,
 }: ChatInputProps) {
   const ref = React.useRef<HTMLTextAreaElement>(null)
+  const fileRef = React.useRef<HTMLInputElement>(null)
+  const [dropping, setDropping] = React.useState(false)
+
+  const takeFiles = (list: FileList | null | undefined) => {
+    const files = Array.from(list || [])
+    if (files.length && onFiles) onFiles(files)
+  }
 
   // Grow the textarea with its content, clamped between minRows and maxRows.
   // The min keeps a comfortable multi-line height so you can see what you're
@@ -70,20 +91,26 @@ export function ChatInput({
     return () => cancelAnimationFrame(raf)
   }, [value, minRows, maxRows])
 
-  const canSend = value.trim().length > 0 && !disabled
+  const canSend = (value.trim().length > 0 || allowEmpty) && !disabled
 
   return (
     <div
+      onDragOver={onFiles ? (e) => { e.preventDefault(); setDropping(true) } : undefined}
+      onDragLeave={onFiles ? () => setDropping(false) : undefined}
+      onDrop={onFiles ? (e) => { e.preventDefault(); setDropping(false); takeFiles(e.dataTransfer?.files) } : undefined}
       className={cn(
-        // Surface sits a touch above the page/sheet (not the darkest token) so
-        // the input reads as a distinct field; focus is a subtle neutral lift,
-        // not a loud blue ring.
-        "flex flex-col gap-1.5 rounded-2xl border border-border bg-muted/60 p-2 shadow-sm transition-colors",
-        "focus-within:border-foreground/25 focus-within:bg-muted",
+        // The field is a CARD, not a muted slab: on the light theme a grey fill
+        // at this size reads as "disabled" — nobody types into something the
+        // rest of the app uses to mean "you can't". Focus is a neutral lift, no
+        // loud blue ring; a file being dragged over it is the brand green.
+        "flex flex-col gap-1.5 rounded-2xl border border-border bg-card p-2 shadow-sm transition-colors",
+        "focus-within:border-foreground/25",
+        dropping && "border-primary/60 bg-primary/5",
         disabled && "opacity-60",
         className,
       )}
     >
+      {above}
       <textarea
         ref={ref}
         rows={minRows}
@@ -92,6 +119,13 @@ export function ChatInput({
         disabled={disabled}
         placeholder={placeholder}
         onChange={(e) => onValueChange(e.target.value)}
+        onPaste={onFiles ? (e) => {
+          // A screenshot on the clipboard arrives as a file, not as text: take
+          // it and let the caption keep being typed.
+          if (!e.clipboardData?.files?.length) return
+          e.preventDefault()
+          takeFiles(e.clipboardData.files)
+        } : undefined}
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault()
@@ -103,6 +137,32 @@ export function ChatInput({
       />
       <div className="flex items-center justify-between gap-2 pl-1">
         <div className="flex min-w-0 items-center gap-2 text-[11px] text-muted-foreground">
+          {onFiles && (
+            <>
+              <input
+                ref={fileRef}
+                type="file"
+                accept={accept}
+                className="hidden"
+                onChange={(e) => {
+                  takeFiles(e.target.files)
+                  e.target.value = "" // so picking the same file twice fires again
+                }}
+              />
+              <Tip content={t("chat_ui.attach")}>
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  disabled={disabled}
+                  onClick={() => fileRef.current?.click()}
+                  aria-label={t("chat_ui.attach")}
+                >
+                  <Plus className="size-4" />
+                </Button>
+              </Tip>
+            </>
+          )}
           {footer}
         </div>
         {busy && onStop ? (
