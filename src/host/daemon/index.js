@@ -34,6 +34,7 @@ import { buildApi } from "./api.js";
 import { createTokenStore } from "./token-store.js";
 import { triggerWakeup } from "./wakeup.js";
 import { registerDesktopClient, isDesktopUpgradePath, isDesktopUpgradeAuthorized } from "./desktop-ws.js";
+import { isTerminalUpgradePath, startTerminalSession } from "./terminal-ws.js";
 import { log as logToUnified } from "#core/logging.js";
 import { initMemory, stopMemory } from "#core/memory/index.js";
 
@@ -295,14 +296,18 @@ async function main() {
     }).catch(() => {});
   });
 
-  // Attach WebSocket upgrade for the desktop channel on /api/desktop/ws.
+  // Attach WebSocket upgrades: the desktop channel on /api/desktop/ws, and a
+  // terminal on /api/terminal/ws that reopens one session in its own CLI.
   server.on("upgrade", async (req, socket, head) => {
-    if (!isDesktopUpgradePath(req.url)) { socket.destroy(); return; }
+    const isTerminal = isTerminalUpgradePath(req.url);
+    if (!isTerminal && !isDesktopUpgradePath(req.url)) { socket.destroy(); return; }
     // Auth: the WS upgrade must carry a valid token (master or paired client),
     // matching the HTTP /api/desktop/* routes. Without this, any client that can
     // reach the daemon (host binds 0.0.0.0 → the LAN) could open the desktop
     // channel and drive the super-agent (permission_mode "total"). The
     // legitimate desktop window already sends the bearer token. See QA BUG-WS-AUTH.
+    // The terminal channel spawns a CLI on this machine, so it is gated the
+    // same way — the check is about who may open a channel, not which one.
     if (!isDesktopUpgradeAuthorized(req, tokenStore)) {
       socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
       socket.destroy();
@@ -315,7 +320,8 @@ async function main() {
     }
     const wss = new WebSocketServer({ noServer: true });
     wss.handleUpgrade(req, socket, head, (ws) => {
-      registerDesktopClient(ws);
+      if (isTerminal) startTerminalSession(ws, req);
+      else registerDesktopClient(ws);
     });
   });
 

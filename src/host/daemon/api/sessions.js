@@ -23,7 +23,7 @@ import { readEngineSessionContext } from "#core/stores/engine-sessions.js";
 import { pageEnvelope } from "./shared.js";
 
 export function register(api, { projects, project }) {
-  // Cross-engine sessions (apx · claude · codex), newest first. Returns a
+  // Cross-engine sessions (apx · claude · codex · opencode), newest first. Returns a
   // { meta, data } envelope (meta = pagination info, data = rows). Paginated
   // via ?limit & ?offset; with no limit, data is the full set as one page.
   // Optional ?q= filters via the same core as `apx session find` (title match,
