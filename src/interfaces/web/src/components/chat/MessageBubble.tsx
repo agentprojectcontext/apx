@@ -140,8 +140,12 @@ export function MessageBubble({ msg, isLast, isAskAnswer, onCopy, face }: Props)
                 {msg.agent}
               </span>
             )}
+            {/* Half-strength surface: the attribution sits under the bubble and
+                should read as quieter than it, never as a second chip competing
+                with the agent's name. The token flips per theme, so one value
+                covers light and dark. */}
             {msg.model && (
-              <span className="rounded border border-border px-1 py-0.5 font-mono text-muted-foreground">
+              <span className="rounded bg-surface-soft/50 px-1 py-0.5 font-mono text-muted-foreground">
                 {msg.model}
               </span>
             )}
