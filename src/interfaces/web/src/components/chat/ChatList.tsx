@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ElementType } from "react";
+import { useEffect, useMemo, useRef, useState, type ElementType } from "react";
 import useSWR from "swr";
 import clsx from "clsx";
 import {
@@ -96,6 +96,9 @@ interface Props {
   /** Start a fresh in-memory session with the chosen agent (super-agent or a
    *  project agent). It materialises in the Web group on the first message. */
   onNewChat: (agentSlug: string) => void;
+  /** Nothing was chosen for us (no deep link, no host selection) — open this
+   *  project's most recent chat once the lists land. */
+  autoSelectLatest?: boolean;
 }
 
 // Per-agent SWR fetcher. Lives in a child so adding/removing agents doesn't
@@ -129,6 +132,7 @@ export function ChatList({
   selected,
   onSelect,
   onNewChat,
+  autoSelectLatest = false,
 }: Props) {
   const [query, setQuery] = useState("");
   const [agentFilter, setAgentFilter] = useState("");
@@ -137,11 +141,12 @@ export function ChatList({
   const [pickerOpen, setPickerOpen] = useState(false);
 
   // Super-agent channel threads (telegram, web quick-chat, desktop …) come from
-  // the global message ledger. The daemon scopes them per project now: Base
-  // (pid "0") lists every thread, a real project lists the chats started from
-  // it plus the unattributed ones. Hiding them outside Base — the old rule —
-  // meant a chat you opened inside a project was nowhere to be found when you
-  // came back to it.
+  // the global message ledger, scoped by the daemon to the project this screen
+  // is showing: each project lists its own conversations, and the general
+  // workspace (pid "0") owns the channels that have no project of their own —
+  // Telegram and desktop talk to the super-agent there. Inside the project, the
+  // channel groups below stay as they are: a project routing its own Telegram
+  // gets a Telegram group with just those chats in it.
   const threadsQ = useSWR(
     `/api/projects/${pid}/super-agent/threads`,
     () => Conversations.threads(pid),
@@ -250,6 +255,35 @@ export function ChatList({
   const totalCount = allConvs.length + (threadsQ.data?.length || 0);
   const anyLoaded =
     Object.keys(byAgent).length > 0 || agents.length === 0 || !!threadsQ.data;
+
+  // Landing here with nothing chosen — a first visit, or a project switch that
+  // left the previous chat's ids behind in the old URL — should open THIS
+  // project's most recent conversation, not a blank session belonging to
+  // nothing. Waits for every list to answer, so a slow agent fetch can't make
+  // a channel thread look like the newest thing in the project. Fires once:
+  // after that the selection is the user's, and re-picking would fight them.
+  const autoSelected = useRef(false);
+  const listsReady =
+    agents.every((a) => byAgent[a.slug] !== undefined) && !threadsQ.isLoading;
+  useEffect(() => {
+    if (!autoSelectLatest || autoSelected.current || !listsReady) return;
+    autoSelected.current = true;
+    const newest = [
+      ...allConvs.map((c) => ({
+        ts: c.started_at || "",
+        key: { kind: "conv", agentSlug: c.agent_slug, convId: c.id } as ChatKey,
+        meta: { channel: c.channel, createdAt: c.started_at, title: c.title },
+      })),
+      ...(threadsQ.data || []).map((th) => ({
+        ts: th.last_ts || th.started_at || "",
+        key: { kind: "thread", channel: th.channel, threadId: th.id } as ChatKey,
+        meta: { channel: th.channel, createdAt: th.started_at, title: th.title },
+      })),
+    ].sort((a, b) => new Date(b.ts || 0).getTime() - new Date(a.ts || 0).getTime())[0];
+    // A project with no conversations yet keeps the live session already shown.
+    if (newest) onSelect(newest.key, newest.meta);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoSelectLatest, listsReady, allConvs, threadsQ.data]);
 
   return (
     <aside className="flex h-full w-72 shrink-0 flex-col border-r border-border bg-card/30">

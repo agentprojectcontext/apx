@@ -74,6 +74,17 @@ export function ChatTab({
     if (agent) return { kind: "live", agentSlug: agent };
     return { kind: "live", agentSlug: ROBY_SLUG };
   });
+  // Nobody chose for us — no deep link in the URL, no host-supplied selection —
+  // so let the sidebar open this project's most recent chat once its lists land.
+  // Read once at mount: selectChat() writes those same params, and re-reading
+  // them later would turn every switch back to a live session into an auto-pick.
+  const [autoSelectLatest] = useState(
+    () =>
+      !initialSelection &&
+      !params.get("conv") &&
+      !params.get("thread") &&
+      !params.get("agent"),
+  );
   // Display metadata for the current selection (channel/created date/title),
   // carried from the sidebar so the header can show it without a second fetch.
   const [selectedMeta, setSelectedMeta] = useState<ChatSelectionMeta | undefined>(undefined);
@@ -250,6 +261,7 @@ export function ChatTab({
         selected={selected}
         onSelect={selectChat}
         onNewChat={onNewChat}
+        autoSelectLatest={autoSelectLatest}
       />}
 
       <section className="flex min-w-0 flex-1 flex-col">
