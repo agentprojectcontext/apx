@@ -114,7 +114,7 @@ export function NudgePanel() {
             label={t("settings.nudge.critical_bypass")}
             disabled={!draft.enabled}
           />
-          <p className="mt-1 text-[11px] text-muted-foreground/70">
+          <p className="mt-1 text-[11px] text-muted-foreground">
             {t("settings.nudge.critical_bypass_hint")}
           </p>
         </div>

@@ -134,7 +134,7 @@ export function MemoryBrowser({ pid }: { pid: string }) {
               because it is global — not a property of this project — and its
               absence from this list is what made "where is Roby's memory?" an
               unanswerable question. */}
-          <p className="px-1.5 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/60">
+          <p className="px-1.5 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
             {t("project.memories.super_agent_group")}
           </p>
           <SidebarItem
@@ -147,7 +147,7 @@ export function MemoryBrowser({ pid }: { pid: string }) {
           />
 
           {/* General / project memory */}
-          <p className="px-1.5 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/60">
+          <p className="px-1.5 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
             {t("project.memories.general_group")}
           </p>
           <SidebarItem
@@ -159,7 +159,7 @@ export function MemoryBrowser({ pid }: { pid: string }) {
           />
 
           {/* Agent memories */}
-          <p className="px-1.5 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/60">
+          <p className="px-1.5 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
             {t("project.memories.agents_title")}
           </p>
           {agents.isLoading ? (

@@ -117,7 +117,7 @@ export function ToolCall({ part }: { part: ToolPart }) {
         <div className="space-y-2 border-t border-border/60 px-2.5 py-2">
           {part.args && Object.keys(part.args).length > 0 && (
             <div>
-              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">{t("shared_ui.args")}</div>
+              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("shared_ui.args")}</div>
               <pre className="max-h-48 overflow-auto rounded-md bg-background/60 p-2 font-mono text-[11px] leading-relaxed text-foreground">
                 {pretty(part.args)}
               </pre>
@@ -125,7 +125,7 @@ export function ToolCall({ part }: { part: ToolPart }) {
           )}
           {part.result !== undefined && (
             <div>
-              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">{t("shared_ui.result")}</div>
+              <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("shared_ui.result")}</div>
               <pre
                 className={cn(
                   "max-h-64 overflow-auto rounded-md bg-background/60 p-2 font-mono text-[11px] leading-relaxed",

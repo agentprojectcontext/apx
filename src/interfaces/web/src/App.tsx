@@ -155,7 +155,7 @@ function TopBar({
       {nav && <NavToggle collapsed={nav.collapsed} onToggle={nav.toggle} />}
       <span className="min-w-0 flex-1 truncate text-[11px] tracking-wide text-muted-fg">
         {crumb}
-        {subtitle && <span className="text-muted-fg/50"> · {subtitle}</span>}
+        {subtitle && <span className="text-muted-fg"> · {subtitle}</span>}
       </span>
       {pageActions}
       <LanguageMenu />

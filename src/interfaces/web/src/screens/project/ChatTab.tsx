@@ -13,6 +13,7 @@ import { useChat, type ChatMsg } from "../../hooks/useChat";
 import { useToast } from "../../components/Toast";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
+import { toneChip } from "../../lib/tone";
 import { usePersonaName } from "../../hooks/usePersonaName";
 import { AgentAvatar, SUPER_AGENT_ICON, type AgentFace } from "../../components/agents/AgentAvatar";
 import type { AgentEntry } from "../../types/daemon";
@@ -259,7 +260,7 @@ export function ChatTab({
               <div className="flex min-w-0 items-center gap-1.5">
                 <h2 className="truncate text-sm font-semibold">{agentLabel}</h2>
                 {activeIsRoby && (
-                  <span className="shrink-0 rounded bg-primary/15 px-1 py-px text-[9px] font-semibold uppercase tracking-wide text-primary">
+                  <span className={cn("shrink-0 rounded px-1 py-px text-[9px] font-semibold uppercase tracking-wide", toneChip.emerald)}>
                     {t("agents_ui.super_agent_badge")}
                   </span>
                 )}

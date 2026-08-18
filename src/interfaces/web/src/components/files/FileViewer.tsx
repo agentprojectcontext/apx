@@ -33,7 +33,7 @@ function CodeView({ content }: { content: string }) {
         <tbody>
           {content.split("\n").map((line, i) => (
             <tr key={i} className="hover:bg-accent/20">
-              <td className="w-12 select-none border-r border-border/30 px-3 text-right align-top text-[10px] text-muted-foreground/40" aria-hidden="true">
+              <td className="w-12 select-none border-r border-border/30 px-3 text-right align-top text-[10px] text-muted-foreground" aria-hidden="true">
                 {i + 1}
               </td>
               <td className="whitespace-pre px-4 align-top text-foreground/90">{line || " "}</td>

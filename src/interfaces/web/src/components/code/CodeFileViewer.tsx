@@ -104,7 +104,7 @@ export function CodeFileViewer({
               {content.split("\n").map((line, i) => (
                 <tr key={i} className="hover:bg-accent/20">
                   <td
-                    className="w-12 select-none border-r border-border/30 px-3 py-0 text-right align-top text-[10px] text-muted-foreground/40"
+                    className="w-12 select-none border-r border-border/30 px-3 py-0 text-right align-top text-[10px] text-muted-foreground"
                     aria-hidden="true"
                   >
                     {i + 1}

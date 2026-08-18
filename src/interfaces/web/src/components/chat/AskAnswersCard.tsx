@@ -61,7 +61,7 @@ export function AskAnswersCard({ text }: Props) {
                 className={cn(
                   "whitespace-pre-wrap text-[13px] leading-snug",
                   p.skipped
-                    ? "italic text-muted-foreground/70"
+                    ? "italic text-muted-foreground"
                     : "text-muted-foreground",
                 )}
               >

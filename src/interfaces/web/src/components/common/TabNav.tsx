@@ -74,7 +74,7 @@ export function TabNav({ sections, active, onChange, collapsed = false }: TabNav
       {sections.map((section, si) => (
         <div key={si} className={cn("w-full", si > 0 && "mt-2")}>
           {!collapsed && section.title && (
-            <p className="mb-1 px-2 text-[9px] font-semibold uppercase tracking-wider text-muted-fg/70">
+            <p className="mb-1 px-2 text-[9px] font-semibold uppercase tracking-wider text-muted-fg">
               {section.title}
             </p>
           )}
