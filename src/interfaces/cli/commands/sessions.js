@@ -116,6 +116,31 @@ function printSessions(engine, dir, result, limit) {
   }
 }
 
+// OpenCode keeps no project tree — it answers with every session at once, so
+// there is nothing to group by. Same table as printSessions, minus the
+// directory it doesn't have.
+function printAllSessions(engine, rows, limit) {
+  if (!rows.length) {
+    console.log("  (sin nada)");
+    return;
+  }
+  const sessions = limit && limit > 0 ? rows.slice(0, limit) : rows;
+  console.log(`${engine.label} sessions:`);
+  console.log("");
+  console.log(`${"DATE".padEnd(12)} ${"SESSION ID".padEnd(38)} TITLE`);
+  console.log(`${"─".repeat(12)} ${"─".repeat(38)} ${"─".repeat(40)}`);
+  for (const s of sessions) {
+    console.log(
+      `${fmtDate(s.mtime).padEnd(12)} ${String(s.id).padEnd(38)} ${String(s.title).slice(0, 70)}`
+    );
+  }
+  if (engine.resumeHint && sessions[0]) {
+    console.log("");
+    console.log("Resume:");
+    console.log(`  specific: ${engine.resumeHint(sessions[0].id)}`);
+  }
+}
+
 function printProjects(engine, projects) {
   if (projects.length === 0) {
     console.log(`(no ${engine.label} projects found)`);
@@ -158,8 +183,10 @@ function listSingleEngine(engine, args, opts, { headerPrefix = "" } = {}) {
 
   if (dir) {
     printSessions(engine, dir, engine.listSessions(dir, opts), limit);
-  } else {
+  } else if (typeof engine.listProjects === "function") {
     printProjects(engine, engine.listProjects(opts));
+  } else {
+    printAllSessions(engine, engine.listAllSessions(opts), limit);
   }
   return true;
 }
@@ -211,13 +238,19 @@ export function cmdSessionsList(args, opts = {}) {
       } else {
         printSessions(engine, dir, result, limit);
       }
-    } else {
+    } else if (typeof engine.listProjects === "function") {
       const list = engine.listProjects(opts);
       if (list.length === 0) {
         console.log("  (sin nada)");
       } else {
         printProjects(engine, list);
       }
+    } else {
+      // Engines that list flat (OpenCode). `implemented` is true for them —
+      // they list fine, just not by project — so the check above lets them
+      // through and this is where they land. Calling listProjects here is what
+      // made `apx sessions list` exit 1 for everyone with OpenCode installed.
+      printAllSessions(engine, engine.listAllSessions(opts), limit);
     }
   }
   if (!anyDetected) {
