@@ -26,6 +26,15 @@ export function register(api, ctx) {
   hand-write `/api/...` inside a route file. The SPA fallback (`api/web.js`)
   steps aside for `/api` only — when you add a client route, keep
   `isKnownSpaRoute` in sync so unknown routes 404.
+- **Auth follows the same seam.** `/api` needs a bearer (except `/api/health`,
+  `/api/pair/*`, `/api/admin/web-token`, which guard themselves); every GET
+  *outside* `/api` is public, because out there nothing exists but the panel —
+  hashed bundle assets and client-router paths, all resolving to the same
+  public `index.html`. That includes routes the router does not know: they must
+  reach the SPA fallback to get the shell with a 404, or a typo'd URL answers
+  401 and the styled NotFound screen never renders. Do not re-gate this on
+  `isKnownSpaRoute` (`api/shared.js`); non-GET methods outside `/api` still
+  need a token.
 - **Wrap EVERY async handler in `asyncRoute()`.** `api` is a bare Express
   router: an `await` that rejects outside a `try` in an unwrapped handler is an
   unhandled rejection and kills the daemon — taking the SPA, Telegram polling

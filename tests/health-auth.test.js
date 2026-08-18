@@ -76,18 +76,23 @@ test("an API route accepts the correct bearer token", async () => {
   }
 });
 
-test("GET passthrough is scoped to static assets and known SPA routes", async () => {
+test("every GET outside /api is public panel surface; /api is the wall", async () => {
   const { server, baseUrl } = await listen(makeApp());
   try {
-    // No token: genuine bundle assets (extension) and known client-router routes
-    // fall through to the SPA / 404, never the auth wall.
-    for (const p of ["/assets/app-abc123.js", "/settings"]) {
+    // No token: bundle assets, known client-router routes, and routes the
+    // router does NOT know all fall through to the SPA fallback, never the
+    // auth wall. The unknown one used to 401 here, on the theory that it might
+    // be a data route — it cannot be one since every data route moved under
+    // /api, and answering 401 meant a typo'd URL showed a JSON error instead
+    // of the styled NotFound screen (e2e/06-not-found.spec.ts).
+    for (const p of ["/assets/app-abc123.js", "/settings", "/some/unknown/route"]) {
       const res = await fetch(`${baseUrl}${p}`);
       assert.notEqual(res.status, 401, `${p} should pass the auth wall`);
     }
-    // But an unknown, extension-less GET is treated as a potential data route
-    // and MUST require a token — the hardened allowlist (no more denylist drift).
-    const guarded = await fetch(`${baseUrl}/some/unknown/route`);
+    // The unknown one still says 404 — public does not mean pretending it exists.
+    assert.equal((await fetch(`${baseUrl}/some/unknown/route`)).status, 404);
+    // And the wall itself is intact: an /api data route without a token is 401.
+    const guarded = await fetch(`${baseUrl}/api/skills`);
     assert.equal(guarded.status, 401);
   } finally {
     await new Promise((resolve) => server.close(resolve));
