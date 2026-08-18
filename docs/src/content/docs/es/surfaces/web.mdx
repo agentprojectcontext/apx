@@ -153,7 +153,14 @@ Un turno de varios pasos no se imprime como un log. Todas las herramientas que
 corrió el agente se colapsan en una fila **N acciones** — abierta mientras trabaja,
 cerrada cuando termina, un clic para ver argumentos y resultados, y cualquier error
 nombrado en la fila misma. Lo que queda a la vista es el mensaje de cierre: la
-respuesta para la que existía el turno.
+respuesta para la que existía el turno. Si volvés a abrir la conversación más
+tarde ves lo mismo: los pasos quedan guardados con el turno, no solo streameados
+y olvidados.
+
+Un chat que arrancás dentro de un proyecto queda listado en ese proyecto. El
+workspace Base sigue mostrando todos los hilos de todos los canales; un proyecto
+muestra los que se abrieron desde él, más los hilos de canal (Telegram, Desktop)
+que no pertenecen a ningún proyecto en particular.
 
 ![Pestaña Chat — barra lateral channel-first con hilos del super-agente y por agente](../../../../assets/shots/11-chat.png)
 
