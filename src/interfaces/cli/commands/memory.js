@@ -5,6 +5,7 @@ import { http } from "../http.js";
 import {
   proposeConsolidation, applyConsolidation, revertConsolidation, notebookSize,
 } from "#core/memory/consolidate.js";
+import { pruneSelfMemory } from "#core/memory/prune.js";
 import { readSelfMemory } from "#core/agent/self-memory.js";
 
 function requireRoot() {
@@ -131,6 +132,37 @@ export async function cmdMemoryConsolidate(args) {
   console.log(`saved ${written.length} to the notebook:`);
   for (const w of written) console.log(`  + ${w}`);
   console.log("\nUndo: apx memory revert");
+}
+
+/**
+ * apx memory prune [--apply] [--series N] [--threshold X]
+ *
+ * Collapse replicated notebook entries (daily routine chatter, the same fact
+ * saved twice), keeping the newest of each. Dry by default, same contract as
+ * consolidate: deleting from the file the agent believes about itself is not
+ * something to do silently. --apply writes, after a timestamped backup.
+ */
+export async function cmdMemoryPrune(args) {
+  const opts = { apply: args?.flags?.apply === true };
+  if (args?.flags?.series) opts.series_min = Number(args.flags.series);
+  if (args?.flags?.threshold) opts.near_dup = Number(args.flags.threshold);
+
+  const r = pruneSelfMemory(opts);
+  if (!r.removed.length) {
+    console.log("nothing replicated — the notebook is already clean.");
+    return;
+  }
+
+  console.log(`${r.applied ? "removed" : "would remove"} ${r.removed.length} replicated ${r.removed.length === 1 ? "entry" : "entries"} (keeping ${r.kept}):`);
+  for (const e of r.removed) {
+    const tag = e.channel && e.channel !== "memory" ? `[${e.channel}] ` : "";
+    console.log(`  - ${e.date || "????-??-??"} ${tag}${e.text.slice(0, 80)}`);
+  }
+  if (r.applied) {
+    console.log(`\nbackup: ${r.backup}`);
+  } else {
+    console.log("\nNothing was written. Add --apply to prune.");
+  }
 }
 
 export async function cmdMemoryRevert(args) {

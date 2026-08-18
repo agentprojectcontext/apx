@@ -196,8 +196,8 @@ export function revertConsolidation(opts = {}) {
   return { removed, path: SELF_MEMORY_PATH };
 }
 
-/** Drop day headings left with no bullets under them. */
-function stripEmptyDays(lines) {
+/** Drop day headings left with no bullets under them. Shared with prune.js. */
+export function stripEmptyDays(lines) {
   const out = [];
   for (let i = 0; i < lines.length; i++) {
     const isHeading = /^##\s+\d{4}-\d{2}-\d{2}/.test(lines[i].trim());

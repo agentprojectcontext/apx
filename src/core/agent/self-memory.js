@@ -164,12 +164,15 @@ export function ensureSelfMemoryFile() {
 // Parse the notebook into structured entries, oldest first. Tolerant of both
 // the legacy "- note" bullets and the tagged "[HH:MM][channel] note" /
 // "[YYYY-MM-DD HH:MM][channel] note" forms. Each entry:
-//   { date, time, channel, ts, text }
+//   { date, time, channel, ts, text, line }
+// `line` is the 0-based line number in the source text, so a caller editing
+// the file (prune) can remove exactly this bullet and nothing around it.
 export function parseSelfMemoryEntries(text) {
   const out = [];
   let date = "";
-  for (const raw of String(text || "").split("\n")) {
-    const line = raw.trim();
+  const rawLines = String(text || "").split("\n");
+  for (let li = 0; li < rawLines.length; li++) {
+    const line = rawLines[li].trim();
     const h = line.match(/^##\s+(\d{4}-\d{2}-\d{2})/);
     if (h) {
       date = h[1];
@@ -203,7 +206,7 @@ export function parseSelfMemoryEntries(text) {
     if (!rest) continue;
     const hm = time ? time.padStart(5, "0") : "00:00";
     const ts = date ? `${date}T${hm}:00Z` : "";
-    out.push({ date, time, channel: channel || "memory", ts, text: rest });
+    out.push({ date, time, channel: channel || "memory", ts, text: rest, line: li });
   }
   return out;
 }

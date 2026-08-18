@@ -1,4 +1,4 @@
-import { appendRoutineMemory } from "#core/stores/routine-memory.js";
+import { appendRoutineMemory, resolveRoutineStorage } from "#core/stores/routine-memory.js";
 
 /**
  * A routine writing to its OWN memory.
@@ -60,13 +60,7 @@ export default {
     }
 
     // The routine's project storage, never a model-supplied path.
-    const projectPath = channelMeta?.projectPath || "";
-    let storagePath = "";
-    for (const entry of projects?.list?.() || []) {
-      if (projectPath && entry.path !== projectPath) continue;
-      storagePath = projects.get(entry.id)?.storagePath || "";
-      if (storagePath) break;
-    }
+    const storagePath = resolveRoutineStorage(projects, channelMeta?.projectPath || "");
     if (!storagePath) return { error: "could not resolve this routine's storage" };
 
     try {
