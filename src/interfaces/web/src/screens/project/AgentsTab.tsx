@@ -15,6 +15,7 @@ import { BlobAvatar } from "../../components/agents/BlobAvatar";
 import { isBlobKey } from "../../components/agents/blobPresets";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
+import { toneText, toneTextHover } from "../../lib/tone";
 import type { AgentAutonomy } from "../../types/daemon";
 import { typeOptions } from "./AgentDetailScreen";
 
@@ -397,7 +398,7 @@ function AgentCard({
       <AgentStatRow stats={agent.stats} className="mt-2" />
       <div className="mt-2 flex items-center gap-3 border-t border-border pt-2 text-xs text-muted-fg" onClick={(e) => e.stopPropagation()}>
         <button onClick={() => onOpen(agent.slug)} className="flex items-center gap-1 hover:text-foreground"><Eye size={12} /> {t("project.agents.view")}</button>
-        <button onClick={() => onChat(agent.slug)} className="flex items-center gap-1 text-emerald-500 hover:text-emerald-400"><Send size={12} /> {t("project.agents.chat")}</button>
+        <button onClick={() => onChat(agent.slug)} className={`flex items-center gap-1 ${toneText.emerald} ${toneTextHover.emerald}`}><Send size={12} /> {t("project.agents.chat")}</button>
       </div>
     </div>
   );
@@ -424,7 +425,7 @@ function ListView({ agents, onOpen, onChat }: { agents: AgentEntry[]; onOpen: (s
                 {a.is_master && <Badge tone="success"><Crown size={10} /> {t("project.agents.orchestrator")}</Badge>}
                 {a.role && <Badge>{a.role}</Badge>}
                 {a.model && <Badge tone="info">{a.model}</Badge>}
-                {a.parent && <span className="text-[10px] text-violet-400">↳ {a.parent}</span>}
+                {a.parent && <span className={`text-[10px] ${toneText.violet}`}>↳ {a.parent}</span>}
               </div>
               {a.description && <p className="mt-1 truncate text-xs text-muted-fg">{a.description}</p>}
               <div className="mt-1 flex flex-wrap gap-1">
@@ -435,7 +436,7 @@ function ListView({ agents, onOpen, onChat }: { agents: AgentEntry[]; onOpen: (s
             <AgentStatRow stats={a.stats} className="hidden shrink-0 sm:flex" />
             <div className="flex shrink-0 items-center gap-3 text-xs text-muted-fg" onClick={(e) => e.stopPropagation()}>
               <button onClick={() => onOpen(a.slug)} className="flex items-center gap-1 hover:text-foreground"><Eye size={12} /> {t("project.agents.view")}</button>
-              <button onClick={() => onChat(a.slug)} className="flex items-center gap-1 text-emerald-500 hover:text-emerald-400"><Send size={12} /> {t("project.agents.chat")}</button>
+              <button onClick={() => onChat(a.slug)} className={`flex items-center gap-1 ${toneText.emerald} ${toneTextHover.emerald}`}><Send size={12} /> {t("project.agents.chat")}</button>
             </div>
           </div>
         );

@@ -8,6 +8,7 @@ import { useToast } from "../Toast";
 import { useGlobalConfig, useSuperAgentConfig } from "../../hooks/useGlobalConfig";
 import { ENGINE_ICONS, ENGINE_PRESETS, type EngineType } from "./providers/typeStyles";
 import { t } from "../../i18n";
+import { toneText } from "../../lib/tone";
 
 interface ProviderInfo {
   slug: string;
@@ -159,11 +160,11 @@ export function DefaultRouterCard() {
         {/* Resolution preview */}
         <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/20 p-3">
           <Badge tone="success"><GitBranch size={11} /> {t("router_panel.badge_default")}</Badge>
-          <span className={`font-mono text-xs ${!providerExists(model) && model ? "text-amber-400" : ""}`}>{model || "—"}</span>
+          <span className={`font-mono text-xs ${!providerExists(model) && model ? toneText.amber : ""}`}>{model || "—"}</span>
           {fallback.map((m) => (
             <span key={m} className="flex items-center gap-2 text-muted-fg">
               <ArrowRight size={12} />
-              <span className={`font-mono text-xs ${!providerExists(m) ? "text-amber-400" : ""}`}>{m}</span>
+              <span className={`font-mono text-xs ${!providerExists(m) ? toneText.amber : ""}`}>{m}</span>
             </span>
           ))}
         </div>
@@ -195,8 +196,8 @@ export function DefaultRouterCard() {
                       </div>
                     ) : (
                       <button type="button" onClick={() => setEditIdx(i)} className="flex flex-1 items-center gap-1.5 text-left">
-                        {invalid && <AlertTriangle size={12} className="text-amber-400" />}
-                        <span className={`font-mono ${invalid ? "text-amber-400" : ""}`}>{m}</span>
+                        {invalid && <AlertTriangle size={12} className={toneText.amber} />}
+                        <span className={`font-mono ${invalid ? toneText.amber : ""}`}>{m}</span>
                       </button>
                     )}
                     {editing ? (

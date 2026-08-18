@@ -9,6 +9,7 @@ import { isSecretMarker, secretSuffix } from "../../../lib/secrets";
 import { ENGINE_ICONS, ENGINE_OPTIONS, ENGINE_PRESETS, type EngineType } from "./typeStyles";
 import type { Provider } from "./types";
 import { t } from "../../../i18n";
+import { toneOutline, toneText } from "../../../lib/tone";
 
 export interface ProviderSaveResult {
   provider: Provider;
@@ -296,7 +297,7 @@ export function ProviderModal({ open, initial, existingSlugs, onClose, onSave }:
                     onClick={() => pickPreset(eng)}
                     className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs transition-colors ${
                       selected
-                        ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-400"
+                        ? toneOutline.emerald
                         : "border-border text-muted-fg hover:border-muted-fg/60 hover:text-foreground"
                     }`}
                   >
@@ -310,7 +311,7 @@ export function ProviderModal({ open, initial, existingSlugs, onClose, onSave }:
             type="button"
             onClick={() => (jsonMode ? setJsonMode(false) : enterJsonMode())}
             className={`flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs transition-colors ${
-              jsonMode ? "border-sky-500/50 bg-sky-500/10 text-sky-400" : "border-border text-muted-fg hover:text-foreground"
+              jsonMode ? toneOutline.sky : "border-border text-muted-fg hover:text-foreground"
             }`}
           >
             <Braces className="size-3.5" /> {jsonMode ? t("providers_modal.form_mode") : t("providers_modal.json_mode")}
@@ -371,7 +372,7 @@ export function ProviderModal({ open, initial, existingSlugs, onClose, onSave }:
                     </Button>
                   </Tip>
                 </div>
-                {modelError && <p className="text-[11px] text-amber-400">{modelError}</p>}
+                {modelError && <p className={`text-[11px] ${toneText.amber}`}>{modelError}</p>}
               </div>
             </Field>
 

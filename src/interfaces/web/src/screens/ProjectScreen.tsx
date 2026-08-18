@@ -61,7 +61,7 @@ export function ProjectScreen() {
   const obsidianActive = obsidianEntry?.status?.status === "active" && !!obsidianEntry?.status?.is_enabled;
 
   const sections: TabSection[] = useMemo(() => {
-    const memoriesMark = obsidianActive ? <ObsidianLogo className={cn("size-3", toneText.purple)} /> : undefined;
+    const memoriesMark = obsidianActive ? <ObsidianLogo className={`size-3 ${toneText.purple}`} /> : undefined;
     // One shared taxonomy for both Base and projects, in the same order, so the
     // two menus mirror each other. Base additionally gets a "General" admin
     // section (workspaces / engines / agent defaults) and drops "Content"

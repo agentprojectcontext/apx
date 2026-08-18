@@ -15,6 +15,7 @@ import { VarTokenInput } from "../../components/inputs/VarTokenInput";
 import { KeyValueList, recordFromRows, rowsFromRecord, type KvRow } from "../../components/inputs/KeyValueList";
 import { useToast } from "../../components/Toast";
 import { t } from "../../i18n";
+import { toneText } from "../../lib/tone";
 
 type DialogMode =
   | null
@@ -209,7 +210,7 @@ export function McpsTab({ pid }: { pid: string }) {
                       {summary && <p className="mt-0.5 truncate font-mono text-xs text-muted-fg">{summary}</p>}
 
                       {res?.ok === false && res.error && (
-                        <p className="mt-1 flex items-start gap-1 text-xs text-red-400">
+                        <p className={`mt-1 flex items-start gap-1 text-xs ${toneText.red}`}>
                           <XCircle size={12} className="mt-0.5 flex-shrink-0" /> <span className="break-words">{res.error}</span>
                         </p>
                       )}
@@ -322,7 +323,7 @@ function LogsPanel({
           <p className="text-muted-fg">{t("project.mcps.logs_panel_hint")}</p>
         )}
         {mcpName && err && (
-          <p className="text-red-400">{err}</p>
+          <p className={toneText.red}>{err}</p>
         )}
         {mcpName && !err && data && (
           <>
@@ -338,9 +339,9 @@ function LogsPanel({
               <div key={i} className="flex gap-2">
                 <span className="text-muted-fg">{e.ts.slice(11, 19)}</span>
                 <span className={
-                  e.level === "error" ? "text-red-400"
-                  : e.level === "stderr" ? "text-amber-400"
-                  : "text-emerald-400"
+                  e.level === "error" ? toneText.red
+                  : e.level === "stderr" ? toneText.amber
+                  : toneText.emerald
                 }>{e.level}</span>
                 <span className="flex-1 break-all">{e.msg}</span>
               </div>
@@ -348,7 +349,7 @@ function LogsPanel({
             {data.stderr_tail && (
               <div className="mt-2 border-t border-border/60 pt-2">
                 <div className="mb-1 text-muted-fg">stderr</div>
-                <pre className="whitespace-pre-wrap break-all text-amber-300/80">{data.stderr_tail}</pre>
+                <pre className={`whitespace-pre-wrap break-all ${toneText.amber}`}>{data.stderr_tail}</pre>
               </div>
             )}
           </>

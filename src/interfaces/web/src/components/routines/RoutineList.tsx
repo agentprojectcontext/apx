@@ -3,6 +3,7 @@ import type { RoutineEntry } from "../../lib/api";
 import { StatusDot } from "../Section";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
+import { toneTint } from "../../lib/tone";
 import { kindMeta, scheduleHuman } from "./shared";
 
 // Left column: scrollable list of routines. Click selects (the divider is the
@@ -38,7 +39,7 @@ export function RoutineList({
                 )}
               >
                 <div className="flex items-center gap-2">
-                  <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-md", r.enabled ? "bg-emerald-500/15 text-emerald-400" : "bg-muted text-muted-fg")}>
+                  <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-md", r.enabled ? toneTint.emerald : "bg-muted text-muted-fg")}>
                     <Icon size={13} />
                   </span>
                   <span className="min-w-0 flex-1 truncate text-sm font-medium">{r.name}</span>
