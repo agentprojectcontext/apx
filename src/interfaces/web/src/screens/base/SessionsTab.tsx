@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
-import { RefreshCw, Search, X, Terminal, Bot, FolderOpen, Copy } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
+import { RefreshCw, Search, X, Terminal, Bot, FolderOpen, Copy, History, SearchX, TriangleAlert, MousePointerClick } from "lucide-react";
 import { Sessions, Deck, type SessionRow } from "../../lib/api";
 import { Section } from "../../components/Section";
 import { PagedList, usePagedQuery } from "../../components/Pager";
 import { Badge, Button, Empty, Input, Loading, Tip } from "../../components/ui";
+import { DropdownMenuItem } from "../../components/ui/dropdown-menu";
+import { RowMenu } from "../../components/RowMenu";
+import { SessionDetail } from "../../components/sessions/SessionDetail";
 import { UiSelect } from "../../components/UiSelect";
 import { useToast } from "../../components/Toast";
 import { usePersonaName } from "../../hooks/usePersonaName";
@@ -11,7 +15,7 @@ import { useProject } from "../../hooks/useProjects";
 import { t } from "../../i18n";
 
 const ENGINE_TONE: Record<string, "success" | "info" | "warning" | "muted"> = {
-  apx: "success", claude: "info", codex: "warning",
+  apx: "success", claude: "info", codex: "warning", opencode: "info",
 };
 
 // `pid` present + not base → scope to that project's local folder. Base (or no
@@ -22,6 +26,7 @@ export function SessionsTab({ pid }: { pid?: string } = {}) {
   const isBase = !pid || String(pid) === "0";
   const { project } = useProject(isBase ? "" : pid);
   const cwd = isBase ? undefined : project?.path || undefined;
+  const [params, setParams] = useSearchParams();
   const [engine, setEngine] = useState("");
   const [input, setInput] = useState("");
   const [query, setQuery] = useState("");
@@ -42,11 +47,39 @@ export function SessionsTab({ pid }: { pid?: string } = {}) {
 
   const clear = () => { setInput(""); setQuery(""); setEngine(""); setDeep(false); };
 
+  // Selection lives in the URL (?s), same as Routines (?r_id) and Tasks
+  // (?task), so a session can be linked to and survives a reload. The engine
+  // rides along because two engines can mint the same id.
+  const selectedId = params.get("s");
+  const selectedEngine = params.get("s_engine") || "";
+  const selected =
+    paged.items.find((r) => r.id === selectedId && (!selectedEngine || r.engine === selectedEngine)) || null;
+
+  const selectSession = (s: SessionRow | null) =>
+    setParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (s) { next.set("s", s.id); next.set("s_engine", s.engine); }
+      else { next.delete("s"); next.delete("s_engine"); }
+      return next;
+    }, { replace: true });
+
+  // Keep one session open by default, and heal a stale ?s left by a filter
+  // change — an empty pane next to a full list reads as a broken screen.
+  useEffect(() => {
+    if (paged.items.length === 0) return;
+    if (selected) return;
+    selectSession(paged.items[0]);
+  }, [paged.items, selected]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── per-row actions (all reuse existing system functions) ──────────────────
   const copyCmd = async (s: SessionRow) => {
-    // Same command a user would run in the terminal to resume the session.
+    // The engine's own resume command, asked of the daemon rather than guessed
+    // here: each CLI re-enters a conversation differently, and a wrong command
+    // fails silently by starting a NEW session.
     try {
-      await navigator.clipboard.writeText(`apx session resume ${s.id} --continue`);
+      const d = await Sessions.detail(s.id, s.engine);
+      if (!d.resume_command) { toast.error(t("base.sessions_no_command")); return; }
+      await navigator.clipboard.writeText(d.resume_command);
       toast.success(t("base.sessions_cmd_copied"));
     } catch { toast.error(t("base.sessions_copy_failed")); }
   };
@@ -110,6 +143,7 @@ export function SessionsTab({ pid }: { pid?: string } = {}) {
               { value: "apx", label: "apx" },
               { value: "claude", label: "claude" },
               { value: "codex", label: "codex" },
+              { value: "opencode", label: "opencode" },
             ]}
           />
         </div>
@@ -119,42 +153,70 @@ export function SessionsTab({ pid }: { pid?: string } = {}) {
       </div>
 
       {paged.isLoading && <Loading />}
-      {paged.error && <Empty>{t("base.sessions_error", { msg: (paged.error as Error).message })}</Empty>}
+      {paged.error && (
+        <Empty icon={TriangleAlert}>{t("base.sessions_error", { msg: (paged.error as Error).message })}</Empty>
+      )}
       {!paged.isLoading && !paged.error && paged.total === 0 && (
-        <Empty>{query ? t("base.sessions_no_match", { q: query }) : t("base.sessions_empty")}</Empty>
+        query
+          ? <Empty icon={SearchX}>{t("base.sessions_no_match", { q: query })}</Empty>
+          : <Empty icon={History}>{t("base.sessions_empty")}</Empty>
       )}
 
-      <PagedList paged={paged} fullHeight>
-        <ul className="space-y-1 text-sm">
-          {paged.items.map((s, i) => (
-            <li key={`${s.engine}-${s.id}-${i}`} className="group flex items-center gap-3 rounded-md border border-border bg-muted/30 px-3 py-2">
-              <Badge tone={ENGINE_TONE[s.engine] || "muted"}>{s.engine}</Badge>
-              <div className="min-w-0 flex-1">
-                <div className="truncate">{s.title || s.id}</div>
-                <div className="flex items-center gap-2 font-mono text-[10px] text-muted-fg">
-                  <span className="shrink-0">{s.id}</span>
-                  {s.cwd && <span className="truncate">· {s.cwd}</span>}
-                </div>
-              </div>
-              {s.mtime > 0 && <span className="shrink-0 text-[11px] text-muted-fg">{new Date(s.mtime).toLocaleString()}</span>}
-              <div className="flex shrink-0 items-center gap-0.5 opacity-60 transition-opacity group-hover:opacity-100">
-                <Tip content={t("base.sessions_act_cmd")}>
-                  <Button size="sm" variant="ghost" aria-label={t("base.sessions_act_cmd")} onClick={() => copyCmd(s)}><Terminal size={13} /></Button>
-                </Tip>
-                <Tip content={t("base.sessions_act_ask", { name: persona })}>
-                  <Button size="sm" variant="ghost" aria-label={t("base.sessions_act_ask", { name: persona })} onClick={() => askPersona(s)}><Bot size={13} /></Button>
-                </Tip>
-                <Tip content={t("base.sessions_act_folder")}>
-                  <Button size="sm" variant="ghost" aria-label={t("base.sessions_act_folder")} onClick={() => openFolder(s)}><FolderOpen size={13} /></Button>
-                </Tip>
-                <Tip content={t("base.sessions_act_path")}>
-                  <Button size="sm" variant="ghost" aria-label={t("base.sessions_act_path")} onClick={() => copyPath(s)}><Copy size={13} /></Button>
-                </Tip>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </PagedList>
+      {/* Master-detail, like Routines and Tasks: the list picks, the pane on
+          the right is where the session is read and continued. Hidden while
+          there is nothing to pick — an empty list next to an empty pane, under
+          a message that already said "no sessions", is three empty states for
+          one fact. */}
+      {paged.items.length > 0 && (
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border lg:flex-row">
+          <div className="flex min-h-0 min-w-0 flex-col border-border lg:w-[380px] lg:shrink-0 lg:border-r">
+            <PagedList paged={paged} fullHeight>
+              <ul className="space-y-1 p-1 text-sm">
+                {paged.items.map((s, i) => {
+                  const active = selected?.id === s.id && selected?.engine === s.engine;
+                  return (
+                    <li
+                      key={`${s.engine}-${s.id}-${i}`}
+                      onClick={() => selectSession(s)}
+                      className={
+                        "group flex cursor-pointer items-center gap-2 rounded-md border px-2 py-2 " +
+                        (active ? "border-primary/40 bg-primary/10" : "border-transparent hover:bg-muted/50")
+                      }
+                    >
+                      <Badge tone={ENGINE_TONE[s.engine] || "muted"}>{s.engine}</Badge>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate">{s.title || s.id}</div>
+                        <div className="truncate font-mono text-[10px] text-muted-fg">
+                          {s.mtime > 0 ? new Date(s.mtime).toLocaleString() : s.id}
+                        </div>
+                      </div>
+                      <RowMenu label={t("base.sessions_act_menu")}>
+                        <DropdownMenuItem onClick={() => copyCmd(s)}>
+                          <Terminal size={13} /> {t("base.sessions_act_cmd")}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => askPersona(s)}>
+                          <Bot size={13} /> {t("base.sessions_act_ask", { name: persona })}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openFolder(s)}>
+                          <FolderOpen size={13} /> {t("base.sessions_act_folder")}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => copyPath(s)}>
+                          <Copy size={13} /> {t("base.sessions_act_path")}
+                        </DropdownMenuItem>
+                      </RowMenu>
+                    </li>
+                  );
+                })}
+              </ul>
+            </PagedList>
+          </div>
+          <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+            {selected
+              ? <SessionDetail row={selected} onAskPersona={askPersona} />
+              : <Empty fill icon={MousePointerClick}>{t("base.sessions_pick")}</Empty>}
+          </div>
+        </div>
+      )}
     </Section>
   );
 }

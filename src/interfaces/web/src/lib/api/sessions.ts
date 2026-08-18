@@ -11,7 +11,25 @@ export interface SessionRow {
   match?: "title" | "content";
 }
 
+// One session, read on demand: the working directory and last prompt cost a
+// file read (or a subprocess, for OpenCode) that the list can't pay per row.
+export interface SessionDetail {
+  engine: string;
+  id: string;
+  title: string;
+  last_prompt: string | null;
+  cwd: string | null;
+  path: string | null;
+  mtime: number;
+  /** The command that re-enters this session, or null if the engine can't. */
+  resume_command: string | null;
+}
+
 export const Sessions = {
+  detail: (id: string, engine?: string) =>
+    http.get<SessionDetail>(
+      `/api/sessions/${encodeURIComponent(id)}${engine ? `?engine=${encodeURIComponent(engine)}` : ""}`,
+    ),
   // Cross-engine sessions (apx · claude · codex), newest first — full set.
   global: (engine?: string) =>
     http
