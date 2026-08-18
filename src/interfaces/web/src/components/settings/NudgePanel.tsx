@@ -6,6 +6,7 @@ import { useToast } from "../Toast";
 import { useNudges, useNudgePolicy } from "../../hooks/useNudges";
 import { NudgesApi, type NudgePolicy } from "../../lib/api/nudges";
 import { t } from "../../i18n";
+import { toneText } from "../../lib/tone";
 
 /**
  * The interruption budget — how often APX may speak unprompted.
@@ -157,7 +158,7 @@ export function NudgePanel() {
                     aria-label={t("settings.nudge.useful")}
                     onClick={() => rate(e.id, true)}
                     className={`rounded p-1.5 transition hover:bg-muted ${
-                      e.feedback?.useful === true ? "text-emerald-500" : "opacity-40"
+                      e.feedback?.useful === true ? toneText.emerald : "opacity-40"
                     }`}
                   >
                     <ThumbsUp size={14} />
@@ -167,7 +168,7 @@ export function NudgePanel() {
                     aria-label={t("settings.nudge.noise")}
                     onClick={() => rate(e.id, false)}
                     className={`rounded p-1.5 transition hover:bg-muted ${
-                      e.feedback?.useful === false ? "text-red-500" : "opacity-40"
+                      e.feedback?.useful === false ? toneText.red : "opacity-40"
                     }`}
                   >
                     <ThumbsDown size={14} />

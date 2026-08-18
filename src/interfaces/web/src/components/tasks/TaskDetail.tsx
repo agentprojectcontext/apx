@@ -11,6 +11,7 @@ import { StatusIcon, StatusBadge, effectiveStatus, statusTint, TASK_STATUS_ORDER
 import { relativeWhen } from "../../lib/when";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
+import { toneOutline, toneText } from "../../lib/tone";
 import type { TaskEntry, TaskStatus } from "../../types/daemon";
 
 /**
@@ -98,7 +99,7 @@ export function TaskDetail({
           <span className="font-mono text-[10px]">{task.id}</span>
           {task.agent && <span>@{task.agent}</span>}
           {due && (
-            <span className={cn(overdue && "font-medium text-red-500")}>
+            <span className={cn(overdue && cn("font-medium", toneText.red))}>
               {t("project.global_tasks.field_due")} {due}
             </span>
           )}
@@ -140,7 +141,7 @@ export function TaskDetail({
           <button
             type="button"
             onClick={() => navigate(`/p/${pid}/chat?thread=${task.thread}`)}
-            className="flex items-center gap-1.5 rounded-lg border border-sky-500/30 bg-sky-500/5 px-3 py-2 text-xs text-sky-500 hover:bg-sky-500/10"
+            className={cn("flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs hover:bg-sky-500/10", toneOutline.sky)}
           >
             <ExternalLink className="size-3.5" />{t("tasks.view_thread")}
           </button>

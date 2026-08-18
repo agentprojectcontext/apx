@@ -154,7 +154,7 @@ export function MemoryBrowser({ pid }: { pid: string }) {
             active={sel.kind === "project"}
             onClick={() => setSel({ kind: "project" })}
             icon={Brain}
-            iconClass="text-sky-500"
+            iconClass={toneText.sky}
             label={t("project.memories.general_item")}
           />
 
