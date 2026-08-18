@@ -69,35 +69,97 @@ export async function cmdMcpList(args = {}) {
   }
 }
 
+// A flag that was given without a value parses as `true`. For value-carrying
+// flags that means "the user typed --url with nothing after it" — not a value.
+function flagValue(v) {
+  return v === undefined || v === true ? null : String(v);
+}
+
+// `--header "Authorization: Bearer xxx"` and `--header X-Api-Key=abc` both work:
+// we split on whichever of `:` / `=` comes first, so a value may contain either.
+function parseHeaders(raw) {
+  const headers = {};
+  for (const h of Array.isArray(raw) ? raw : [raw]) {
+    const s = String(h);
+    const cuts = [s.indexOf(":"), s.indexOf("=")].filter((i) => i >= 0);
+    if (cuts.length === 0) {
+      throw new Error(`apx mcp add: bad --header "${s}" (use "Name: value" or Name=value)`);
+    }
+    const cut = Math.min(...cuts);
+    const key = s.slice(0, cut).trim();
+    if (!key) throw new Error(`apx mcp add: bad --header "${s}" (empty header name)`);
+    headers[key] = s.slice(cut + 1).trim();
+  }
+  return headers;
+}
+
+function parseEnv(raw) {
+  const env = {};
+  for (const e of Array.isArray(raw) ? raw : [raw]) {
+    const [k, ...rest] = String(e).split("=");
+    env[k] = rest.join("=");
+  }
+  return env;
+}
+
 export async function cmdMcpAdd(args) {
   const name = args._[0];
   if (!name) throw new Error("apx mcp add: missing <name>");
-  const command = args.flags.command;
-  if (!command || command === true) throw new Error("apx mcp add: --command required");
 
-  // Args after `--` go to the MCP. `args._` already excludes the `--` separator
-  // when our parser strips it. We treat anything in args._ after [0] as args.
-  const mcpArgs = args._.slice(1);
+  const command = flagValue(args.flags.command);
+  const url = flagValue(args.flags.url);
 
-  const env = {};
-  if (args.flags.env) {
-    const entries = Array.isArray(args.flags.env) ? args.flags.env : [args.flags.env];
-    for (const e of entries) {
-      const [k, ...rest] = String(e).split("=");
-      env[k] = rest.join("=");
-    }
+  // --transport is sugar; the real signal is --url (http) vs --command (stdio).
+  // We only read it to reject a contradictory pair with a useful message.
+  const declared = flagValue(args.flags.transport)?.toLowerCase() || null;
+  if (declared && !["stdio", "http", "sse", "streamable-http"].includes(declared)) {
+    throw new Error(`apx mcp add: unknown --transport "${declared}" (use stdio|http)`);
+  }
+  const transport = declared === "stdio" ? "stdio" : declared ? "http" : url ? "http" : "stdio";
+
+  if (command && url) {
+    throw new Error("apx mcp add: pass either --command (stdio) or --url (http), not both");
+  }
+  if (transport === "http" && !url) {
+    throw new Error("apx mcp add: --transport http requires --url <endpoint>");
+  }
+  if (transport === "stdio" && !command) {
+    throw new Error(
+      "apx mcp add: --command required for a stdio server (for a remote one: --url <endpoint>)"
+    );
+  }
+  if (args.flags.header && transport !== "http") {
+    throw new Error("apx mcp add: --header only applies to an http server (--url)");
   }
 
   const scope = resolveWriteScope(args.flags);
   const pid = await resolveProjectId(args?.flags?.project);
-  const result = await http.post(`/api/projects/${pid}/mcps?scope=${encodeURIComponent(scope)}`, {
-    name,
-    command,
-    args: mcpArgs,
-    env,
-    enabled: true,
-  });
-  console.log(`Added MCP "${result.name}" (scope: ${scope})`);
+
+  let body;
+  if (transport === "http") {
+    body = {
+      name,
+      url,
+      ...(args.flags.header ? { headers: parseHeaders(args.flags.header) } : {}),
+      enabled: true,
+    };
+  } else {
+    // Args after `--` go to the MCP. `args._` already excludes the `--` separator
+    // when our parser strips it. We treat anything in args._ after [0] as args.
+    body = {
+      name,
+      command,
+      args: args._.slice(1),
+      env: args.flags.env ? parseEnv(args.flags.env) : {},
+      enabled: true,
+    };
+  }
+
+  const result = await http.post(
+    `/api/projects/${pid}/mcps?scope=${encodeURIComponent(scope)}`,
+    body
+  );
+  console.log(`Added MCP "${result.name}" (${transport}, scope: ${scope})`);
 }
 
 export async function cmdMcpRemove(args) {
@@ -132,11 +194,13 @@ async function toggleEnabled(args, enabled) {
       `MCP "${name}" comes from foreign source "${m.source}" — toggle it in that IDE's config directly.`
     );
   }
+  // Re-post only the keys that belong to this server's transport — sending
+  // `command: null` at an http entry would write a stdio field into it.
   await http.post(`/api/projects/${pid}/mcps?scope=${encodeURIComponent(scope)}`, {
     name: m.name,
-    command: m.command,
-    args: m.args,
-    env: m.env,
+    ...(m.transport === "http"
+      ? { url: m.url, headers: m.headers || {} }
+      : { command: m.command, args: m.args, env: m.env }),
     enabled,
   });
   console.log(`${enabled ? "Enabled" : "Disabled"} MCP "${name}"`);
