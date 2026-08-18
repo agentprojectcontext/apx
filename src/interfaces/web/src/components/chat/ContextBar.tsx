@@ -103,7 +103,7 @@ export function ContextBar({ msgs }: { msgs: ChatMsg[] }) {
           </span>
         )}
         {changed.length > 0 && (
-          <span className="flex items-center gap-1 text-violet-400">
+          <span className="flex items-center gap-1 text-violet-700 dark:text-violet-400">
             <FilePen size={12} /> {changed.length} {t("chat_ui.ctx_files")}
           </span>
         )}
@@ -115,7 +115,7 @@ export function ContextBar({ msgs }: { msgs: ChatMsg[] }) {
           </span>
         )}
         {actors.length > 1 && (
-          <span className="ml-auto flex items-center gap-1 text-sky-400">
+          <span className="ml-auto flex items-center gap-1 text-sky-700 dark:text-sky-400">
             <Bot size={12} /> {t("chat_ui.ctx_actors", { n: actors.length })}
           </span>
         )}
@@ -130,8 +130,8 @@ export function ContextBar({ msgs }: { msgs: ChatMsg[] }) {
             <ul className="space-y-0.5">
               {actors.map((a) => (
                 <li key={a.key} className="flex items-center gap-2 text-[11px]">
-                  <Bot size={11} className="shrink-0 text-sky-400" />
-                  <span className="shrink-0 font-medium text-emerald-300">{a.agent || "—"}</span>
+                  <Bot size={11} className="shrink-0 text-sky-700 dark:text-sky-400" />
+                  <span className="shrink-0 font-medium text-emerald-700 dark:text-emerald-300">{a.agent || "—"}</span>
                   <span className="truncate font-mono text-muted-foreground/70">{a.model || "—"}</span>
                   <span className="ml-auto shrink-0 font-mono text-[10px] text-muted-foreground/60">
                     {fmt(a.inTok + a.outTok)} tok ({fmt(a.inTok)}↑ / {fmt(a.outTok)}↓) ·{" "}
@@ -145,7 +145,7 @@ export function ContextBar({ msgs }: { msgs: ChatMsg[] }) {
             <ul className="space-y-0.5">
               {changed.map((f) => (
                 <li key={f.path} className="flex items-center gap-2 font-mono text-[11px]">
-                  <FilePen size={11} className="shrink-0 text-violet-400" />
+                  <FilePen size={11} className="shrink-0 text-violet-700 dark:text-violet-400" />
                   <span className="truncate">{f.path}</span>
                   <span className="ml-auto shrink-0 text-[10px] text-muted-foreground/60">
                     {f.tool === "write_file" ? "write" : "edit"}

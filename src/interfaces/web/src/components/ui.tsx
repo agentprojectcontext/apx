@@ -140,9 +140,9 @@ export function Badge({
   const toneClass: Record<Tone, string> = {
     muted: "",
     danger: "",
-    success: "text-emerald-400 border-emerald-500/30",
-    warning: "text-amber-400 border-amber-500/30",
-    info: "text-sky-400 border-sky-500/30",
+    success: "text-emerald-700 dark:text-emerald-400 border-emerald-500/30",
+    warning: "text-amber-700 dark:text-amber-400 border-amber-500/30",
+    info: "text-sky-700 dark:text-sky-400 border-sky-500/30",
   };
   return (
     <SBadge variant={variant} className={cn("rounded-md", toneClass[tone], className)}>

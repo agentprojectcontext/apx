@@ -208,6 +208,9 @@ function moduleLabel(key?: string) {
   switch (key) {
     case "desktop": return t("nav.modules.desktop");
     case "code":    return t("nav.modules.code");
+    // The inbox prints no heading of its own — the breadcrumb is where its
+    // name lives, so it has to be the real name and not the route segment.
+    case "inbox":   return t("inbox.title");
     default: return key || "";
   }
 }

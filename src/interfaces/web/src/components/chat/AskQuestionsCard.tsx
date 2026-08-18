@@ -38,7 +38,7 @@ export function AskQuestionsCard({ part, pending }: Props) {
   return (
     <div
       className={cn(
-        "rounded-2xl border px-3 py-2 text-sm shadow-sm",
+        "rounded-2xl border px-3 py-2 text-sm shadow-xs",
         pending
           ? "rounded-bl-sm border-amber-500/30 bg-amber-500/5 text-foreground"
           : "rounded-bl-sm border-emerald-500/30 bg-emerald-500/5 text-foreground",

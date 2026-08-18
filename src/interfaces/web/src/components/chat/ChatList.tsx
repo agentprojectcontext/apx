@@ -13,9 +13,9 @@ import {
   Plus,
   Send,
   Timer,
-  User,
 } from "lucide-react";
 import { Conversations } from "../../lib/api";
+import { AgentAvatar, SUPER_AGENT_ICON, type AgentFace } from "../agents/AgentAvatar";
 import { Input, Loading } from "../ui";
 import { UiSelect } from "../UiSelect";
 import { t } from "../../i18n";
@@ -238,6 +238,14 @@ export function ChatList({
     [agents, superAgentSlug, superAgentLabel],
   );
 
+  // Conversations carry a slug, not an agent record — resolve it once here so
+  // every row can wear the right face.
+  const faceFor = (slug: string): AgentFace => {
+    if (slug === superAgentSlug) return { icon: SUPER_AGENT_ICON, name: superAgentLabel };
+    const hit = agents.find((a) => a.slug === slug);
+    return { icon: hit?.icon, emoji: hit?.emoji, name: hit?.name || slug };
+  };
+
   const totalCount = allConvs.length + (threadsQ.data?.length || 0);
   const anyLoaded =
     Object.keys(byAgent).length > 0 || agents.length === 0 || !!threadsQ.data;
@@ -338,7 +346,8 @@ export function ChatList({
                     key={`thread-${th.channel}-${th.id}`}
                     title={th.title}
                     subtitle={[th.channel, `${th.messages} msg`].join(" · ")}
-                    badge="super"
+                    badge={t("agents_ui.super_agent_badge")}
+                    face={{ icon: SUPER_AGENT_ICON, name: superAgentLabel }}
                     timeAgo={th.last_ts}
                     selected={active}
                     onClick={() =>
@@ -362,7 +371,7 @@ export function ChatList({
                   subtitle={[c.agent_slug, `${c.messages ?? 0} msg`]
                     .filter(Boolean)
                     .join(" · ")}
-                  badge={c.agent_slug}
+                  face={faceFor(c.agent_slug)}
                   timeAgo={c.started_at}
                   selected={active}
                   onClick={() =>
@@ -431,6 +440,7 @@ function ChatListItem({
   title,
   subtitle,
   badge,
+  face,
   timeAgo,
   selected,
   onClick,
@@ -438,6 +448,9 @@ function ChatListItem({
   title: string;
   subtitle?: string;
   badge?: string;
+  /** Whose conversation this is — same face the thread header and the bubbles
+   *  draw, so a row and the thread it opens look like the same agent. */
+  face?: AgentFace;
   timeAgo?: string;
   selected?: boolean;
   onClick: () => void;
@@ -447,32 +460,30 @@ function ChatListItem({
       type="button"
       onClick={onClick}
       className={clsx(
-        "w-full rounded-md border px-2.5 py-2 text-left transition-colors",
+        "flex w-full items-start gap-2 rounded-md border px-2 py-2 text-left transition-colors",
         selected
-          ? "border-primary/50 bg-primary/10"
-          : "border-transparent hover:border-border hover:bg-accent/40",
+          ? "border-primary/40 bg-primary/12"
+          : "border-transparent hover:border-border hover:bg-accent/50",
       )}
     >
-      <div className="flex items-start justify-between gap-2">
-        <p className={clsx("truncate text-sm", selected ? "font-semibold" : "font-medium")}>
-          {title}
-        </p>
-        {timeAgo && (
-          <span className="inline-flex shrink-0 items-center gap-0.5 text-[10px] text-muted-fg">
-            <Clock className="size-2.5" />
-            {formatTimeAgo(timeAgo)}
+      {face && <AgentAvatar {...face} size={24} className="mt-0.5" />}
+      <span className="min-w-0 flex-1">
+        <span className="flex items-start justify-between gap-2">
+          <span className={clsx("truncate text-sm", selected ? "font-semibold" : "font-medium")}>
+            {title}
           </span>
-        )}
-      </div>
-      <div className="mt-0.5 flex items-center justify-between gap-2 text-[10px] text-muted-fg">
-        <span className="truncate">{subtitle}</span>
-        {badge && (
-          <span className="inline-flex shrink-0 items-center gap-1 rounded bg-accent/50 px-1.5 py-0.5">
-            <User className="size-2.5" />
-            {badge}
-          </span>
-        )}
-      </div>
+          {timeAgo && (
+            <span className="inline-flex shrink-0 items-center gap-0.5 text-[10px] text-muted-fg">
+              <Clock className="size-2.5" />
+              {formatTimeAgo(timeAgo)}
+            </span>
+          )}
+        </span>
+        <span className="mt-0.5 flex items-center justify-between gap-2 text-[10px] text-muted-fg">
+          <span className="truncate">{subtitle}</span>
+          {badge && <span className="shrink-0 truncate rounded bg-accent px-1.5 py-0.5">{badge}</span>}
+        </span>
+      </span>
     </button>
   );
 }

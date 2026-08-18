@@ -3,8 +3,7 @@ import { Search } from "lucide-react";
 import type { InboxRow } from "../../lib/api/inbox";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
-import { BlobAvatar } from "../agents/BlobAvatar";
-import { isBlobKey } from "../agents/blobPresets";
+import { AgentAvatar } from "../agents/AgentAvatar";
 
 /**
  * The conversation rail: every agent as a chat, most recent first.
@@ -14,18 +13,6 @@ import { isBlobKey } from "../agents/blobPresets";
  * previous version was a full-width list of cards that navigated AWAY on
  * click, which meant losing the list to read one row.
  */
-
-/** Stable colour per agent, so the same agent is the same dot every time. */
-const DOT_COLOURS = [
-  "bg-emerald-500", "bg-orange-500", "bg-violet-500", "bg-sky-500",
-  "bg-rose-500", "bg-amber-500", "bg-teal-500", "bg-fuchsia-500",
-];
-
-function colourFor(seed: string): string {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  return DOT_COLOURS[h % DOT_COLOURS.length];
-}
 
 export function rowKey(row: InboxRow): string {
   return `${row.project_id ?? "global"}::${row.agent_slug}`;
@@ -66,7 +53,9 @@ export function InboxList({
 
   return (
     <aside className="flex w-full shrink-0 flex-col border-r border-border sm:w-72" data-testid="inbox-list">
-      <div className="flex shrink-0 items-center gap-2 border-b border-border p-2">
+      {/* Search sits on the same 44px band as the thread header opposite it, so
+          the two panes share one horizon line instead of stepping. */}
+      <div className="flex h-11 shrink-0 items-center gap-2 border-b border-border px-2">
         <div className="relative flex-1">
           <Search size={13} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-fg" />
           <input
@@ -74,7 +63,7 @@ export function InboxList({
             onChange={(e) => setQ(e.target.value)}
             placeholder={t("inbox.search")}
             aria-label={t("inbox.search")}
-            className="w-full rounded-lg border border-border bg-muted/30 py-1.5 pl-7 pr-2 text-sm outline-none placeholder:text-muted-fg focus:border-primary/60"
+            className="w-full rounded-lg border border-border bg-muted/50 py-1.5 pl-7 pr-2 text-sm outline-none placeholder:text-muted-fg focus:border-primary/60"
           />
         </div>
         {action}
@@ -99,31 +88,29 @@ export function InboxList({
               onClick={() => onSelect(row)}
               className={cn(
                 "flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors",
-                isActive ? "bg-accent text-accent-fg" : "hover:bg-muted/50",
+                isActive
+                  ? "bg-primary/12 ring-1 ring-inset ring-primary/25"
+                  : "hover:bg-accent/60",
               )}
             >
-              {/* Animated blob if the agent has one; otherwise a coloured disc —
-                  at this size the colour is what the eye picks the row out by. */}
-              {isBlobKey(row.agent_icon) ? (
-                <BlobAvatar preset={row.agent_icon} size={32} seed={row.agent_slug} className="mt-0.5 shrink-0" />
-              ) : (
-                <span
-                  className={cn(
-                    "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full text-sm",
-                    colourFor(row.agent_slug),
-                  )}
-                  aria-hidden
-                >
-                  {row.agent_emoji || label.slice(0, 1).toUpperCase()}
-                </span>
-              )}
+              {/* Same face the thread header and the bubbles draw. */}
+              <AgentAvatar
+                icon={row.agent_icon}
+                emoji={row.agent_emoji}
+                name={label}
+                size={32}
+                className="mt-0.5"
+              />
 
               <span className="min-w-0 flex-1">
                 <span className="flex items-baseline gap-2">
                   <span className="truncate text-sm font-medium">{label}</span>
-                  {row.pinned ? (
+                  {/* WHAT this agent is, not where it ranks. "principal" said
+                      nothing a reader could act on; the only distinction that
+                      matters here is super-agent vs a project's own agent. */}
+                  {row.kind === "super_agent" ? (
                     <span className="shrink-0 rounded bg-primary/15 px-1 text-[9px] font-semibold uppercase tracking-wide text-primary">
-                      {t("inbox.pinned")}
+                      {t("agents_ui.super_agent_badge")}
                     </span>
                   ) : null}
                   <span className="ml-auto shrink-0 text-[10px] text-muted-fg">

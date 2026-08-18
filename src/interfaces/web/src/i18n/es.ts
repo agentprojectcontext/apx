@@ -117,6 +117,8 @@ export const es = {
       deck:  "Deck",
       code:  "Code",
       web:   "Web",
+      // Caption under the rail icon — the full name doesn't fit in 3.6rem.
+      inbox_short: "Chats",
     },
   },
   topbar: {
@@ -179,7 +181,6 @@ export const es = {
     subtitle:
       "Cada agente como una conversación, lo más reciente primero.",
     empty: "Todavía no hablaste con ningún agente.",
-    pinned: "principal",
     show_quiet: "Ver los que no hablaron",
     no_reply_yet: "(sin respuestas todavía)",
   },

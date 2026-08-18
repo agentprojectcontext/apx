@@ -1,5 +1,6 @@
-import { Bot, Copy, User, Info, Sparkles } from "lucide-react";
+import { Bot, Copy, Info, Sparkles } from "lucide-react";
 import { cn } from "../../lib/cn";
+import { AgentAvatar, type AgentFace } from "../agents/AgentAvatar";
 import { ToolCall } from "./ToolCall";
 import { AskQuestionsCard } from "./AskQuestionsCard";
 import { AskAnswersCard, parseAskAnswerText } from "./AskAnswersCard";
@@ -17,9 +18,13 @@ interface Props {
    *  call. Renders as a full-width centered card instead of the user bubble. */
   isAskAnswer?: boolean;
   onCopy?: (text: string) => void;
+  /** Who said it. Absent → the neutral glyph (surfaces that don't know the
+   *  cast). The user side draws no avatar at all: you know who you are, and a
+   *  generic silhouette on every second bubble is pure noise. */
+  face?: AgentFace;
 }
 
-export function MessageBubble({ msg, isLast, isAskAnswer, onCopy }: Props) {
+export function MessageBubble({ msg, isLast, isAskAnswer, onCopy, face }: Props) {
   const mine = msg.role === "user";
   const copyText = textOf(msg);
   const hasTools = msg.parts.some((p) => p.kind === "tool");
@@ -33,17 +38,19 @@ export function MessageBubble({ msg, isLast, isAskAnswer, onCopy }: Props) {
 
   return (
     <div className={cn("group flex items-start gap-2", mine ? "justify-end" : "justify-start")}>
-      {!mine && (
+      {!mine && (face ? (
+        <AgentAvatar {...face} size={28} className="mt-0.5" />
+      ) : (
         <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
           <Bot size={14} />
         </span>
-      )}
+      ))}
       <div className={cn("flex min-w-0 flex-col gap-1.5", mine ? "items-end" : "w-full max-w-[85%]")}>
         {/* Operational notes (engine fallbacks, retries, suppressed tools). */}
         {!mine && msg.notes && msg.notes.length > 0 && (
           <div className="flex flex-col gap-0.5">
             {msg.notes.map((n, i) => (
-              <span key={i} className="flex items-center gap-1 text-[10px] text-amber-400/80">
+              <span key={i} className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400/80">
                 <Info size={10} /> {n}
               </span>
             ))}
@@ -54,7 +61,7 @@ export function MessageBubble({ msg, isLast, isAskAnswer, onCopy }: Props) {
         {!mine && msg.inspector && (msg.inspector.loaded?.length || msg.inspector.hinted?.length) ? (
           <Tip content={t("shared_ui.skill_inspector_title", { embedder: msg.inspector.embedder || "RAG" })}>
             <div
-              className="flex flex-wrap items-center gap-1 text-[10px] text-sky-400/90"
+              className="flex flex-wrap items-center gap-1 text-[10px] text-sky-700 dark:text-sky-400/90"
             >
               <Sparkles size={10} />
               {msg.inspector.loaded?.map((s) => (
@@ -87,7 +94,7 @@ export function MessageBubble({ msg, isLast, isAskAnswer, onCopy }: Props) {
             <div
               key={i}
               className={cn(
-                "whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm leading-relaxed shadow-sm",
+                "whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm leading-relaxed shadow-xs",
                 mine
                   ? "rounded-br-sm border border-emerald-500/30 bg-emerald-500/10 text-foreground dark:bg-emerald-500/15"
                   : "w-full rounded-bl-sm border border-border bg-card text-foreground",
@@ -111,7 +118,7 @@ export function MessageBubble({ msg, isLast, isAskAnswer, onCopy }: Props) {
         {!mine && (msg.agent || msg.model) && (
           <div className="flex flex-wrap items-center gap-1 text-[10px]">
             {msg.agent && (
-              <span className="rounded bg-emerald-500/15 px-1 py-0.5 font-medium text-emerald-300">
+              <span className="rounded bg-emerald-500/15 px-1 py-0.5 font-medium text-emerald-700 dark:text-emerald-300">
                 {msg.agent}
               </span>
             )}
@@ -160,11 +167,6 @@ export function MessageBubble({ msg, isLast, isAskAnswer, onCopy }: Props) {
           )}
         </div>
       </div>
-      {mine && (
-        <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground">
-          <User size={14} />
-        </span>
-      )}
     </div>
   );
 }
