@@ -1,6 +1,6 @@
 // Discord-style rail avatar with smart initials.
 //
-//   Single-word ("iacrmar")           → big "I" + a "iacrm…" label below
+//   Single-word ("acmecorp")          → big "A" + a "acmec…" label below
 //   Multi-word  ("panda project")     → big "PP" (first letter of each)
 //   Single short ("apx", "ai")        → big initial + label fits without ellipsis
 //

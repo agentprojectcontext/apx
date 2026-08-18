@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import useSWR from "swr";
 import { Activity, Bot, Crown, Eye, GitBranch, Heart, List, MessagesSquare, Plus, Send, Sparkles, Upload, Wrench, Zap } from "lucide-react";
@@ -9,7 +9,10 @@ import { Badge, Button, Dialog, Empty, Field, Input, Loading, Switch, Textarea }
 import { Tip } from "../../components/ui/tip";
 import { UiSelect } from "../../components/UiSelect";
 import { useToast } from "../../components/Toast";
-import { EmojiInput, AutonomyPicker, AreaRoleFields } from "../../components/agents/AgentFormFields";
+import { AutonomyPicker, AreaRoleFields, AgentIconPicker } from "../../components/agents/AgentFormFields";
+import { AgentModelSelect } from "../../components/agents/AgentModelSelect";
+import { BlobAvatar } from "../../components/agents/BlobAvatar";
+import { isBlobKey } from "../../components/agents/blobPresets";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 import type { AgentAutonomy } from "../../types/daemon";
@@ -201,6 +204,46 @@ function ImportVaultDialog({
   );
 }
 
+// Real connector lines for the hierarchy: cards stay in normal (fixed) flow
+// layout, and an SVG overlay behind them draws animated bezier edges from each
+// parent's bottom edge to each child's top edge. Positions are measured from
+// the DOM (ResizeObserver), so the lines always land on the cards regardless
+// of wrapping or category grouping — no graph library, matching the hand-built
+// d3+SVG approach of AgentBrainGraph.
+const EDGE_COLOR = "#34d399"; // emerald — APX brand accent
+const EDGE_ROOT_COLOR = "#a78bfa"; // violet — edges leaving an orchestrator
+
+interface EdgePath { key: string; d: string; color: string; dur: string; begin: string }
+
+function HierarchyEdges({ paths }: { paths: EdgePath[] }) {
+  return (
+    <svg className="pointer-events-none absolute inset-0 z-0 h-full w-full overflow-visible" aria-hidden>
+      <defs>
+        <filter id="agent-edge-glow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="3" />
+        </filter>
+      </defs>
+      {paths.map((p) => (
+        <g key={p.key}>
+          {/* soft glow under the line */}
+          <path d={p.d} fill="none" stroke={p.color} strokeWidth={4} opacity={0.18} filter="url(#agent-edge-glow)" />
+          {/* animated dotted line (marching ants) */}
+          <path d={p.d} fill="none" stroke={p.color} strokeWidth={1.5} strokeLinecap="round" strokeDasharray="1.5 7" opacity={0.75}>
+            <animate attributeName="stroke-dashoffset" from="17" to="0" dur="1.4s" repeatCount="indefinite" />
+          </path>
+          {/* energy pulse travelling parent → child */}
+          <circle r={4.5} fill={p.color} opacity={0.25} filter="url(#agent-edge-glow)">
+            <animateMotion dur={p.dur} begin={p.begin} repeatCount="indefinite" path={p.d} />
+          </circle>
+          <circle r={2} fill={p.color} opacity={0.9}>
+            <animateMotion dur={p.dur} begin={p.begin} repeatCount="indefinite" path={p.d} />
+          </circle>
+        </g>
+      ))}
+    </svg>
+  );
+}
+
 function HierarchyView({
   roots, childrenByParent, onOpen, onChat,
 }: {
@@ -209,41 +252,98 @@ function HierarchyView({
   onOpen: (slug: string) => void;
   onChat: (slug: string) => void;
 }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const nodeRefs = useRef(new Map<string, HTMLDivElement>());
+  const [paths, setPaths] = useState<EdgePath[]>([]);
+
+  const edges = useMemo(() => {
+    const out: { from: string; to: string; fromMaster: boolean }[] = [];
+    for (const root of roots) {
+      for (const k of childrenByParent.get(root.slug) || []) {
+        out.push({ from: root.slug, to: k.slug, fromMaster: !!root.is_master });
+        for (const gc of childrenByParent.get(k.slug) || []) {
+          out.push({ from: k.slug, to: gc.slug, fromMaster: !!k.is_master });
+        }
+      }
+    }
+    return out;
+  }, [roots, childrenByParent]);
+
+  const setNodeRef = (slug: string) => (el: HTMLDivElement | null) => {
+    if (el) nodeRefs.current.set(slug, el);
+    else nodeRefs.current.delete(slug);
+  };
+
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const compute = () => {
+      const base = container.getBoundingClientRect();
+      const next: EdgePath[] = [];
+      edges.forEach((e, i) => {
+        const a = nodeRefs.current.get(e.from)?.getBoundingClientRect();
+        const b = nodeRefs.current.get(e.to)?.getBoundingClientRect();
+        if (!a || !b) return;
+        const x1 = a.left + a.width / 2 - base.left;
+        const y1 = a.bottom - base.top;
+        const x2 = b.left + b.width / 2 - base.left;
+        const y2 = b.top - base.top;
+        const bend = Math.min(Math.max((y2 - y1) * 0.6, 24), 90);
+        next.push({
+          key: `${e.from}->${e.to}`,
+          d: `M ${x1} ${y1} C ${x1} ${y1 + bend}, ${x2} ${y2 - bend}, ${x2} ${y2}`,
+          color: e.fromMaster ? EDGE_ROOT_COLOR : EDGE_COLOR,
+          dur: `${(2.8 + (i % 5) * 0.4).toFixed(1)}s`,
+          begin: `${((i * 0.5) % 2.5).toFixed(1)}s`,
+        });
+      });
+      setPaths(next);
+    };
+    compute();
+    const ro = new ResizeObserver(compute);
+    ro.observe(container);
+    nodeRefs.current.forEach((el) => ro.observe(el));
+    return () => ro.disconnect();
+  }, [edges]);
+
   return (
-    <div className="space-y-8">
-      {roots.map((root) => {
-        const kids = childrenByParent.get(root.slug) || [];
-        const groups = groupByArea(kids);
-        const categorized = groups.some((g) => g.area);
-        return (
-          <div key={root.slug} className="flex flex-col items-center">
-            <AgentCard agent={root} onOpen={onOpen} onChat={onChat} wide />
-            {kids.length > 0 && (
-              <>
-                <div className="h-5 w-px bg-border" />
-                {/* When children carry a category (area), lay them out grouped
-                    under a heading per category; otherwise keep the flat row. */}
-                <div className="flex flex-col gap-6 border-t border-border pt-5">
+    <div ref={containerRef} className="relative">
+      <HierarchyEdges paths={paths} />
+      <div className="relative z-10 space-y-12">
+        {roots.map((root) => {
+          const kids = childrenByParent.get(root.slug) || [];
+          const groups = groupByArea(kids);
+          const categorized = groups.some((g) => g.area);
+          return (
+            <div key={root.slug} className="flex flex-col items-center">
+              <div ref={setNodeRef(root.slug)}>
+                <AgentCard agent={root} onOpen={onOpen} onChat={onChat} wide />
+              </div>
+              {kids.length > 0 && (
+                // When children carry a category (area), lay them out grouped
+                // under a heading per category; otherwise keep the flat row.
+                <div className="mt-14 flex flex-col gap-10">
                   {groups.map((g) => (
                     <div key={g.area ?? "__none"} className="flex flex-col items-center gap-3">
                       {categorized && (
-                        <span className="rounded-full border border-border bg-muted/40 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-fg">
+                        <span className="rounded-full border border-border bg-card px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-fg">
                           {g.area || t("agents_ui.uncategorized")} · {g.agents.length}
                         </span>
                       )}
-                      <div className="flex flex-wrap items-start justify-center gap-4">
+                      <div className="flex flex-wrap items-start justify-center gap-5">
                         {g.agents.map((k) => (
                           <div key={k.slug} className="flex flex-col items-center">
-                            <AgentCard agent={k} onOpen={onOpen} onChat={onChat} />
+                            <div ref={setNodeRef(k.slug)}>
+                              <AgentCard agent={k} onOpen={onOpen} onChat={onChat} />
+                            </div>
                             {(childrenByParent.get(k.slug) || []).length > 0 && (
-                              <>
-                                <div className="h-4 w-px bg-border" />
-                                <div className="flex flex-wrap justify-center gap-3 border-t border-border pt-4">
-                                  {(childrenByParent.get(k.slug) || []).map((gc) => (
-                                    <AgentCard key={gc.slug} agent={gc} onOpen={onOpen} onChat={onChat} compact />
-                                  ))}
-                                </div>
-                              </>
+                              <div className="mt-12 flex flex-wrap justify-center gap-4">
+                                {(childrenByParent.get(k.slug) || []).map((gc) => (
+                                  <div key={gc.slug} ref={setNodeRef(gc.slug)}>
+                                    <AgentCard agent={gc} onOpen={onOpen} onChat={onChat} compact />
+                                  </div>
+                                ))}
+                              </div>
                             )}
                           </div>
                         ))}
@@ -251,11 +351,11 @@ function HierarchyView({
                     </div>
                   ))}
                 </div>
-              </>
-            )}
-          </div>
-        );
-      })}
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -280,9 +380,13 @@ function AgentCard({
       onClick={() => onOpen(agent.slug)}
     >
       <div className="flex items-center gap-2">
-        <div className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br", gradient)}>
-          {agent.emoji ? <span className="text-base leading-none">{agent.emoji}</span> : <Icon className="size-4 text-white" />}
-        </div>
+        {isBlobKey(agent.icon) ? (
+          <BlobAvatar preset={agent.icon} size={32} seed={agent.slug} className="shrink-0" />
+        ) : (
+          <div className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br", gradient)}>
+            {agent.emoji ? <span className="text-base leading-none">{agent.emoji}</span> : <Icon className="size-4 text-white" />}
+          </div>
+        )}
         <span className="truncate text-sm font-semibold">{agent.slug}</span>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-1">
@@ -307,9 +411,13 @@ function ListView({ agents, onOpen, onChat }: { agents: AgentEntry[]; onOpen: (s
         const { gradient, Icon } = agentVisual(a);
         return (
           <div key={a.slug} data-testid={`agent-card-${a.slug}`} className="flex cursor-pointer items-center gap-4 rounded-xl border border-border bg-muted/30 p-3 hover:border-muted-fg/50" onClick={() => onOpen(a.slug)}>
-            <div className={cn("flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br", gradient)}>
-              {a.emoji ? <span className="text-lg leading-none">{a.emoji}</span> : <Icon className="size-4 text-white" />}
-            </div>
+            {isBlobKey(a.icon) ? (
+              <BlobAvatar preset={a.icon} size={36} seed={a.slug} className="shrink-0" />
+            ) : (
+              <div className={cn("flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br", gradient)}>
+                {a.emoji ? <span className="text-lg leading-none">{a.emoji}</span> : <Icon className="size-4 text-white" />}
+              </div>
+            )}
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm font-semibold">{a.slug}</span>
@@ -341,7 +449,8 @@ function CreateAgentDialog({
 }: { open: boolean; onClose: () => void; onCreated: () => void; pid: string; agents: AgentEntry[] }) {
   const toast = useToast();
   const [slug, setSlug] = useState("");
-  const [emoji, setEmoji] = useState("");
+  const [name, setName] = useState("");
+  const [icon, setIcon] = useState("");
   const [type, setType] = useState("");
   const [role, setRole] = useState("");
   const [area, setArea] = useState("");
@@ -349,15 +458,14 @@ function CreateAgentDialog({
   const [model, setModel] = useState("");
   const [language, setLanguage] = useState("");
   const [description, setDescription] = useState("");
-  const [skills, setSkills] = useState("");
-  const [tools, setTools] = useState("");
+  const [system, setSystem] = useState("");
   const [isMaster, setIsMaster] = useState(false);
   const [parent, setParent] = useState("");
   const [busy, setBusy] = useState(false);
 
   const reset = () => {
-    setSlug(""); setEmoji(""); setType(""); setRole(""); setArea(""); setAutonomy("");
-    setModel(""); setLanguage(""); setDescription(""); setSkills(""); setTools("");
+    setSlug(""); setName(""); setIcon(""); setType(""); setRole(""); setArea(""); setAutonomy("");
+    setModel(""); setLanguage(""); setDescription(""); setSystem("");
     setIsMaster(false); setParent("");
   };
 
@@ -365,9 +473,13 @@ function CreateAgentDialog({
     if (!/^[a-z][a-z0-9_-]*$/.test(slug)) { toast.error(t("project.agents.slug_invalid")); return; }
     setBusy(true);
     try {
+      // Skills and tools are deliberately absent: a new agent inherits the
+      // project's enabled skills and the daemon's default tool set, then gets
+      // tuned in the agent's Config tab.
       await Agents.create(pid, {
         slug,
-        emoji: emoji || undefined,
+        name: name || undefined,
+        icon: icon || undefined,
         type: type || undefined,
         role: role || undefined,
         area: area || undefined,
@@ -375,8 +487,7 @@ function CreateAgentDialog({
         model: model || undefined,
         language: language || undefined,
         description: description || undefined,
-        skills: csv(skills),
-        tools: csv(tools),
+        system: system || undefined,
         is_master: isMaster || type === "orchestrator",
         parent: parent || undefined,
       });
@@ -402,24 +513,34 @@ function CreateAgentDialog({
       }
     >
       <div className="space-y-3">
-        <div className="grid grid-cols-[80px_1fr_1fr] gap-3">
-          <Field label={t("agents_form.emoji")}><EmojiInput value={emoji} onChange={setEmoji} /></Field>
-          <Field label={t("project.agents.slug_label")}><Input autoFocus data-testid="agent-slug" value={slug} onChange={(e) => setSlug(e.target.value)} placeholder={t("project.agents.slug_ph")} /></Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label={t("agents_form.name")} hint={t("agents_form.name_hint")}>
+            <Input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder={t("agents_form.name_ph")} />
+          </Field>
+          <Field label={t("project.agents.slug_label")} hint={t("agents_form.slug_hint")}>
+            <Input data-testid="agent-slug" value={slug} onChange={(e) => setSlug(e.target.value)} placeholder={t("project.agents.slug_ph")} />
+          </Field>
+        </div>
+        <Field label={t("project.agents.desc_label")}>
+          <Textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("project.agents.desc_ph")} />
+        </Field>
+        <Field label={t("project.agent_detail.system_label")} hint={t("project.agent_detail.system_hint")}>
+          <Textarea rows={8} className="font-mono text-xs" value={system} onChange={(e) => setSystem(e.target.value)} placeholder="You are…" />
+        </Field>
+        <Field label={t("agents_form.icon")}>
+          <AgentIconPicker icon={icon} onIcon={setIcon} />
+        </Field>
+        <div className="grid grid-cols-2 gap-3">
           <Field label={t("project.agent_detail.type_label")}><UiSelect value={type} onChange={setType} options={typeOptions()} /></Field>
+          <Field label={t("project.agents.lang_label")}><UiSelect value={language} onChange={setLanguage} options={LANGS.map((l) => ({ value: l, label: l || "—" }))} /></Field>
         </div>
         <AreaRoleFields pid={pid} area={area} role={role} onArea={setArea} onRole={setRole} />
         <Field label={t("agents_form.autonomy")} hint={t("agents_form.autonomy_hint")}>
           <AutonomyPicker value={autonomy} onChange={setAutonomy} />
         </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label={t("project.agents.model_label")} hint={t("project.agents.model_hint")}><Input value={model} onChange={(e) => setModel(e.target.value)} /></Field>
-          <Field label={t("project.agents.lang_label")}><UiSelect value={language} onChange={setLanguage} options={LANGS.map((l) => ({ value: l, label: l || "—" }))} /></Field>
-        </div>
-        <Field label={t("project.agents.desc_label")}><Textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t("project.agents.desc_ph")} /></Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label={t("project.agents.skills_label")}><Input value={skills} onChange={(e) => setSkills(e.target.value)} placeholder={t("project.agents.skills_ph")} /></Field>
-          <Field label={t("project.agents.tools_label")}><Input value={tools} onChange={(e) => setTools(e.target.value)} placeholder={t("project.agents.tools_ph")} /></Field>
-        </div>
+        <Field label={t("project.agents.model_label")} hint={t("project.agents.model_hint")}>
+          <AgentModelSelect value={model} onChange={setModel} />
+        </Field>
         <div className="grid grid-cols-2 items-end gap-3">
           <Field label={t("project.agents.parent_label")} hint={t("project.agents.parent_hint")}>
             <UiSelect
@@ -431,6 +552,9 @@ function CreateAgentDialog({
           </Field>
           <Switch checked={isMaster} onChange={setIsMaster} label={t("project.agents.master_label")} />
         </div>
+        <p className="rounded-lg border border-border bg-muted/30 p-2.5 text-[11px] text-muted-fg">
+          {t("agents_form.create_defaults_note")}
+        </p>
       </div>
     </Dialog>
   );

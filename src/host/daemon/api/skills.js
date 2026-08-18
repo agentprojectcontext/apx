@@ -41,6 +41,7 @@ import {
   readIndex,
 } from "#core/agent/skills/index-store.js";
 import { readConfig, writeConfig } from "#core/config/index.js";
+import { asyncRoute } from "./shared.js";
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]*$/;
 // Only http(s)/ssh/git git remotes — never a local path or shell metachar.
@@ -388,7 +389,7 @@ export function register(api /*, ctx */) {
 
   // ---- Index build --------------------------------------------------------
 
-  api.post("/skills/index", async (req, res) => {
+  api.post("/skills/index", asyncRoute(async (req, res) => {
     try {
       const { project_path, force } = req.body || {};
       const cfg = readConfig();
@@ -419,11 +420,11 @@ export function register(api /*, ctx */) {
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
-  });
+  }));
 
   // ---- Dry-run ------------------------------------------------------------
 
-  api.post("/skills/inspect", async (req, res) => {
+  api.post("/skills/inspect", asyncRoute(async (req, res) => {
     try {
       const { prompt, project_path } = req.body || {};
       if (!prompt || typeof prompt !== "string") {
@@ -444,5 +445,5 @@ export function register(api /*, ctx */) {
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
-  });
+  }));
 }

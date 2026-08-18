@@ -77,7 +77,7 @@ Limits of `ask`: binary noise (base64 images) is stripped before chunking. Cover
 ```bash
 apx sessions list                                       # all engines, all projects
 apx sessions list --dir /path/to/repo                   # all engines, one dir (no registration needed)
-apx sessions list --project iacrmar                     # all engines, registered project
+apx sessions list --project acme                     # all engines, registered project
 apx sessions list --engine claude                       # one engine, all projects
 apx sessions list --engine codex --dir /path --limit 10 # one engine, one dir
 ```

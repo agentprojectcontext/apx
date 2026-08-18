@@ -6,6 +6,8 @@ import { Agents, Artifacts, Conversations, Mcps, Routines, Tasks } from "../../l
 import { Section } from "../../components/Section";
 import { StatusIcon, StatusBadge, effectiveStatus, statusLabel, TASK_STATUS_ORDER } from "../../components/tasks/taskStatus";
 import { BrainGraph, type BrainNode, type BrainEdge } from "./AgentBrainGraph";
+import { BlobAvatar } from "../../components/agents/BlobAvatar";
+import { isBlobKey } from "../../components/agents/blobPresets";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 import type { AgentEntry, RoutineEntry, TaskEntry } from "../../types/daemon";
@@ -215,6 +217,7 @@ function TeamBrain({
         // In full mode every agent is a hub (it carries its own sub-brain).
         role: showFull || isOrch || hasKids(a.slug) ? "hub" : "leaf",
         emoji: a.emoji || undefined,
+        icon: a.icon || undefined,
         relation: a.role || (isOrch ? t("project.agents.orchestrator") : t("project.overview.specialists")),
         detail: a.description || undefined,
       });
@@ -289,7 +292,11 @@ function RosterRow({
               "inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2 py-1 text-xs hover:border-muted-fg/50",
             )}
           >
-            <span className="text-sm leading-none">{a.emoji || "🤖"}</span>
+            {isBlobKey(a.icon) ? (
+              <BlobAvatar preset={a.icon} size={20} seed={a.slug} className="shrink-0" />
+            ) : (
+              <span className="text-sm leading-none">{a.emoji || "🤖"}</span>
+            )}
             <span className="truncate">{a.slug}</span>
             {a.role && <span className="truncate text-[10px] text-muted-fg">· {a.role}</span>}
           </button>

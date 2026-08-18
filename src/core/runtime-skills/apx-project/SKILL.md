@@ -40,7 +40,7 @@ Every `project config` write triggers `POST /api/admin/reload` so the daemon pic
 
 ## `<project>` argument resolution
 
-Accepted: numeric id (`1`), exact name from `.apc/project.json` (`iacrmar`), absolute path, relative path (resolved from cwd). The CLI's `resolveProjectId()` does fuzzy id/name/path matching. If "project not found", run `apx project list` first.
+Accepted: numeric id (`1`), exact name from `.apc/project.json` (`acme`), absolute path, relative path (resolved from cwd). The CLI's `resolveProjectId()` does fuzzy id/name/path matching. If "project not found", run `apx project list` first.
 
 ## What lives where
 
@@ -74,7 +74,7 @@ mkdir -p /path/repo/.apc && echo "{...}" > /path/repo/.apc/project.json
 # Use `apx init <path>` then `apx project add <path>`.
 
 # DON'T set super_agent.model to a model lacking an engine key.
-apx project config set iacrmar super_agent.model gemini:gemini-1.5-pro
+apx project config set acme super_agent.model gemini:gemini-1.5-pro
 # ↑ Fails at first call unless engines.gemini.api_key is set.
 ```
 

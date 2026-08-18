@@ -101,7 +101,7 @@ test("apx engine lists registered projects from config.json", () => {
   fs.mkdirSync(path.join(projectDir, ".apc"), { recursive: true });
   fs.writeFileSync(
     path.join(projectDir, ".apc", "project.json"),
-    JSON.stringify({ name: "iacrmar", apx_id: "f5ec4cdc258b" })
+    JSON.stringify({ name: "acme", apx_id: "f5ec4cdc258b" })
   );
   fs.mkdirSync(path.join(home, ".apx"), { recursive: true });
   fs.writeFileSync(
@@ -111,7 +111,7 @@ test("apx engine lists registered projects from config.json", () => {
 
   const projects = ENGINES.apx.listProjects({ home });
   assert.equal(projects.length, 1);
-  assert.equal(projects[0].key, "iacrmar");
+  assert.equal(projects[0].key, "acme");
   assert.equal(projects[0].dir, projectDir);
 });
 

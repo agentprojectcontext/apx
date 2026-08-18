@@ -4,6 +4,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { parseFrontmatter } from "#core/apc/frontmatter.js";
 import { nowIso } from "../util/time.js";
 
 export function agentSessionsDir(storageRoot, agentSlug) {
@@ -30,14 +31,9 @@ export function readSessionFrontmatter(filePath) {
   if (!fs.existsSync(filePath)) return null;
   const text = fs.readFileSync(filePath, "utf8");
   if (!text.startsWith("---\n")) return null;
-  const end = text.indexOf("\n---", 4);
-  if (end === -1) return null;
-  const fm = {};
-  for (const line of text.slice(4, end).split("\n")) {
-    const m = line.match(/^([a-zA-Z_]+):\s*(.*)$/);
-    if (m) fm[m[1]] = m[2].trim();
-  }
-  return { fm, body: text.slice(end + 4).replace(/^\n+/, "") };
+  const { fm, body, bodyStart } = parseFrontmatter(text);
+  if (bodyStart === 0) return null;
+  return { fm, body };
 }
 
 function slugifyTitle(title) {

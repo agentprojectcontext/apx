@@ -66,12 +66,12 @@ Sends **two** messages: one from agent's `send_telegram` tool, one from `post_co
 
 ```bash
 # Always pin --project; never use default for real ones
-apx routine list --project iacrmar
-apx routine get  weather-bariloche --project iacrmar
+apx routine list --project acme
+apx routine get  weather-bariloche --project acme
 
 # Create — exec_agent + shell delivery
 apx routine add weather-bariloche \
-  --project iacrmar \
+  --project acme \
   --kind exec_agent \
   --schedule "every:24h" \
   --spec '{"agent":"default","prompt":"The weather is {{pre_output}}. One friendly sentence."}' \
@@ -80,17 +80,17 @@ apx routine add weather-bariloche \
 
 # Create — super-agent with tools
 apx routine add daily-status \
-  --project iacrmar \
+  --project acme \
   --kind super_agent \
   --schedule "0 9 * * *" \
   --spec '{"prompt":"List projects with pending tasks and send me a short summary via Telegram."}' \
   --permission-mode automatico
 
 # Toggle / run / remove
-apx routine enable  weather-bariloche --project iacrmar
-apx routine disable weather-bariloche --project iacrmar
-apx routine run     weather-bariloche --project iacrmar     # force-trigger now
-apx routine remove  weather-bariloche --project iacrmar
+apx routine enable  weather-bariloche --project acme
+apx routine disable weather-bariloche --project acme
+apx routine run     weather-bariloche --project acme     # force-trigger now
+apx routine remove  weather-bariloche --project acme
 ```
 
 ## `--project` is non-negotiable
@@ -112,7 +112,7 @@ Gates the LLM call based on `pre_commands` (`shouldSkipPrompt` in `host/daemon/r
 ## Debugging
 
 ```bash
-apx routine history weather-bariloche --project iacrmar    # last runs
+apx routine history weather-bariloche --project acme    # last runs
 apx log -f                                                  # tail unified log
 apx messages tail --channel routine -n 20                   # routine-channel messages
 ```

@@ -43,7 +43,7 @@ Resolve a loose date to a real one ("Friday" → that date) and say which date y
 
 ```json
 { "name": "record_commitment",
-  "arguments": { "project": "iacrmar", "counterparty": "Ana",
+  "arguments": { "project": "acme", "counterparty": "Ana",
                  "body": "send the revised quote", "due": "2026-05-30",
                  "origin_channel": "telegram" } }
 ```
@@ -61,19 +61,19 @@ Counterparty matching is case-insensitive substring, so `"ana"` finds "Ana Pére
 
 ```bash
 # Record
-apx commitment add "send the revised quote" --to "Ana" --due 2026-05-30 --project iacrmar
-apx commitment add "the deck for the board" --to "Bruno" --project iacrmar   # no date yet
+apx commitment add "send the revised quote" --to "Ana" --due 2026-05-30 --project acme
+apx commitment add "the deck for the board" --to "Bruno" --project acme   # no date yet
 
 # Read
 apx commitment list --all                      # every project, soonest deadline first
 apx commitment list --all --overdue            # what you owe and already missed
 apx commitment list --to Ana --state all       # everything ever promised to her
-apx commitment show c_abc123 --project iacrmar
+apx commitment show c_abc123 --project acme
 
 # Close it out
-apx commitment kept   c_abc123 --project iacrmar
-apx commitment missed c_abc123 --project iacrmar --note "forgot entirely"
-apx commitment renegotiate c_abc123 --due 2026-06-15 --project iacrmar --note "agreed on the call"
+apx commitment kept   c_abc123 --project acme
+apx commitment missed c_abc123 --project acme --note "forgot entirely"
+apx commitment renegotiate c_abc123 --due 2026-06-15 --project acme --note "agreed on the call"
 ```
 
 ## The three ways one ends

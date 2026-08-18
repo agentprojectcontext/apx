@@ -9,6 +9,7 @@
 //   POST   /projects/:pid/mcps/:name/call
 import fs from "node:fs";
 import path from "node:path";
+import { asyncRoute } from "./shared.js";
 import {
   readApfMcps,
   writeApfMcps,
@@ -198,7 +199,7 @@ export function register(api, { projects, registries, project }) {
   // Full tool catalog — tools/list with input schemas, all pages merged.
   // This is what `apx mcp tools` renders; /test below stays as the
   // lightweight smoke check for the web UI card.
-  api.get("/projects/:pid/mcps/:name/tools", async (req, res) => {
+  api.get("/projects/:pid/mcps/:name/tools", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
     try {
@@ -207,9 +208,9 @@ export function register(api, { projects, registries, project }) {
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
-  });
+  }));
 
-  api.post("/projects/:pid/mcps/:name/call", async (req, res) => {
+  api.post("/projects/:pid/mcps/:name/call", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const { tool, params } = req.body || {};
@@ -220,12 +221,12 @@ export function register(api, { projects, registries, project }) {
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
-  });
+  }));
 
   // Smoke test — calls tools/list and reports either the tool catalog or a
   // clean error message. Used by the "Test" button in the MCP card so the
   // user can sanity-check a freshly-saved MCP without firing a real tool.
-  api.post("/projects/:pid/mcps/:name/test", async (req, res) => {
+  api.post("/projects/:pid/mcps/:name/test", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
     try {
@@ -242,7 +243,7 @@ export function register(api, { projects, registries, project }) {
     } catch (e) {
       res.status(200).json({ ok: false, error: e.message });
     }
-  });
+  }));
 
   // In-memory log buffer for one MCP — stderr tail (stdio) or fetch summary
   // (http) plus a ring of recent events.

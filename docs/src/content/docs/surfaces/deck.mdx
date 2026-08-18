@@ -153,7 +153,7 @@ The daemon binds to `127.0.0.1` by default (loopback only). For the Deck app
 on your phone to reach it, you need to opt in to LAN binding:
 
 ```bash
-apx config set remote.bind 0.0.0.0
+apx config set --global host 0.0.0.0
 # Then restart the daemon
 apx daemon stop
 apx daemon start

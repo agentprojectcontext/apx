@@ -1,9 +1,9 @@
 import { useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import useSWR from "swr";
 import {
-  ArrowDownLeft, ArrowLeft, ArrowUpRight, Bot, Brain, Crown, Gauge,
-  Heart, MessagesSquare, Save, Send, Settings, Sparkles, Trash2, Wrench, Activity,
+  ArrowDownLeft, ArrowLeft, ArrowUpRight, Bot, Brain, Copy, Crown, Gauge,
+  Heart, MessagesSquare, Pencil, Save, Send, Settings, Sparkles, Trash2, Wrench, Activity,
 } from "lucide-react";
 import { Agents, Conversations, Messages, Routines, Tasks, Tools } from "../../lib/api";
 import type { AgentDetail, AgentEntry, FileContent, MessageEntry, RoutineEntry } from "../../types/daemon";
@@ -13,7 +13,12 @@ import { Tip } from "../../components/ui/tip";
 import { UiSelect } from "../../components/UiSelect";
 import { useToast } from "../../components/Toast";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
-import { EmojiInput, AutonomyPicker, AreaRoleFields } from "../../components/agents/AgentFormFields";
+import { AutonomyPicker, AreaRoleFields, AgentIconPicker } from "../../components/agents/AgentFormFields";
+import { AgentSkillsPicker } from "../../components/agents/AgentSkillsPicker";
+import { AgentModelSelect } from "../../components/agents/AgentModelSelect";
+import { useProject } from "../../hooks/useProjects";
+import { BlobAvatar } from "../../components/agents/BlobAvatar";
+import { isBlobKey } from "../../components/agents/blobPresets";
 import { FileViewer } from "../../components/files/FileViewer";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
@@ -28,7 +33,7 @@ function buildTabs(): { key: TabKey; label: string; icon: typeof Bot }[] {
     { key: "records",  label: t("project.agent_detail.records_title"), icon: Activity },
     { key: "sleep",    label: t("project.agent_detail.sleep_title"),   icon: Heart },
     { key: "brain",    label: t("project.agent_detail.brain_title"),   icon: Sparkles },
-    { key: "config",   label: t("settings.tabs.advanced"),             icon: Settings },
+    { key: "config",   label: t("project.agent_detail.tab_config"),    icon: Settings },
   ];
 }
 
@@ -44,6 +49,10 @@ export function typeOptions() {
 }
 const csv = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
 
+// Height cap for the skills scroller, chosen to sit level with the tools card
+// beside it rather than stretching the row to the full skill catalog.
+const SKILLS_SCROLLER_MAX = 260;
+
 const routinesForAgent = (rs: RoutineEntry[], slug: string) =>
   rs.filter((r) => (r.spec as any)?.agent === slug || (slug === "super-agent" && r.kind === "super_agent"));
 
@@ -58,9 +67,13 @@ function memoryFacts(text: string): string[] {
 export function AgentDetailScreen({ pid }: { pid: string }) {
   const { slug = "" } = useParams();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<TabKey>("overview");
+  const [searchParams] = useSearchParams();
   const TABS = buildTabs();
+  // Tab lives in the URL (?tab=…) so views are linkable and survive reloads.
+  const raw = searchParams.get("tab");
+  const tab: TabKey = TABS.some((x) => x.key === raw) ? (raw as TabKey) : "overview";
 
+  const { project } = useProject(pid);
   const detail = useSWR(`/api/projects/${pid}/agents/${slug}`, () => Agents.get(pid, slug));
   const agents = useSWR(`/api/projects/${pid}/agents`, () => Agents.list(pid));
   const routines = useSWR(`/api/projects/${pid}/routines`, () => Routines.list(pid));
@@ -86,12 +99,21 @@ export function AgentDetailScreen({ pid }: { pid: string }) {
           <button onClick={() => navigate(`/p/${pid}/agents`)} className="mt-1 text-muted-fg hover:text-foreground">
             <ArrowLeft size={16} />
           </button>
-          <div className={cn("flex size-11 items-center justify-center rounded-xl bg-gradient-to-br", a.is_master ? "from-violet-600 to-indigo-600" : "from-slate-600 to-gray-600")}>
-            <Icon className="size-5 text-white" />
-          </div>
+          {isBlobKey(a.icon) ? (
+            <BlobAvatar preset={a.icon} size={44} seed={a.slug} className="shrink-0" />
+          ) : (
+            <div className={cn("flex size-11 items-center justify-center rounded-xl bg-gradient-to-br", a.is_master ? "from-violet-600 to-indigo-600" : "from-slate-600 to-gray-600")}>
+              {a.emoji ? <span className="text-xl leading-none">{a.emoji}</span> : <Icon className="size-5 text-white" />}
+            </div>
+          )}
           <div>
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-lg font-semibold">{a.slug}</h1>
+              <AgentNameHeading
+                pid={pid}
+                slug={a.slug}
+                name={a.name || ""}
+                onSaved={() => { void detail.mutate(); void agents.mutate(); }}
+              />
               {a.is_master && <Badge tone="success"><Crown size={10} /> {t("project.agents.orchestrator")}</Badge>}
               {a.role && <Badge>{a.role}</Badge>}
               {a.model && <Badge tone="info">{a.model}</Badge>}
@@ -109,19 +131,19 @@ export function AgentDetailScreen({ pid }: { pid: string }) {
         </Button>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs — real links (?tab=…) so each view has a shareable href */}
       <div className="flex flex-wrap gap-1 border-b border-border">
         {TABS.map(({ key, label, icon: TI }) => (
-          <button
+          <Link
             key={key}
-            onClick={() => setTab(key)}
+            to={`?tab=${key}`}
             className={cn(
               "flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm transition-colors -mb-px",
               tab === key ? "border-foreground text-foreground" : "border-transparent text-muted-fg hover:text-foreground",
             )}
           >
             <TI size={14} /> {label}
-          </button>
+          </Link>
         ))}
       </div>
 
@@ -178,6 +200,7 @@ export function AgentDetailScreen({ pid }: { pid: string }) {
         <BrainTab
           slug={slug}
           emoji={a.emoji || undefined}
+          icon={a.icon || undefined}
           memory={a.memory || ""}
           threads={(threads.data || []).map((t) => ({ id: t.id, label: t.title || t.filename }))}
           tasks={myTasks.map((t) => ({ id: t.id, label: t.title, detail: t.body || undefined }))}
@@ -192,6 +215,7 @@ export function AgentDetailScreen({ pid }: { pid: string }) {
           pid={pid}
           agent={a}
           agents={agents.data || []}
+          projectPath={project?.path}
           onSaved={() => { detail.mutate(); agents.mutate(); }}
           onDeleted={() => { agents.mutate(); navigate(`/p/${pid}/agents`); }}
         />
@@ -200,17 +224,82 @@ export function AgentDetailScreen({ pid }: { pid: string }) {
   );
 }
 
+// Heading that doubles as an inline rename. Click the pencil (or the name) to
+// swap the h1 for an input; Enter/blur saves, Escape cancels. Only the display
+// Name changes — the slug is the agent's identity (filename, parent links,
+// delegation targets) and stays put.
+function AgentNameHeading({
+  pid, slug, name, onSaved,
+}: { pid: string; slug: string; name: string; onSaved: () => void }) {
+  const toast = useToast();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(name);
+  const [busy, setBusy] = useState(false);
+
+  const start = () => { setDraft(name); setEditing(true); };
+
+  const commit = async () => {
+    const next = draft.trim();
+    setEditing(false);
+    if (next === name) return;
+    setBusy(true);
+    try {
+      await Agents.update(pid, slug, { name: next || null });
+      onSaved();
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); }
+  };
+
+  if (editing) {
+    return (
+      <input
+        autoFocus
+        value={draft}
+        disabled={busy}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") { e.preventDefault(); void commit(); }
+          if (e.key === "Escape") { setDraft(name); setEditing(false); }
+        }}
+        placeholder={slug}
+        aria-label={t("agents_form.name")}
+        className="rounded-md border border-border bg-card px-2 py-0.5 text-lg font-semibold outline-none focus:border-muted-fg"
+      />
+    );
+  }
+
+  return (
+    <span className="group flex items-center gap-1.5">
+      <h1 className="cursor-text text-lg font-semibold" onClick={start}>{name || slug}</h1>
+      {name && <span className="font-mono text-[11px] text-muted-fg">{slug}</span>}
+      <Tip content={t("common.edit")}>
+        <button
+          type="button"
+          onClick={start}
+          aria-label={t("common.edit")}
+          className="text-muted-fg opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100"
+        >
+          <Pencil size={13} />
+        </button>
+      </Tip>
+    </span>
+  );
+}
+
 function AgentConfigForm({
-  pid, agent, agents, onSaved, onDeleted,
+  pid, agent, agents, projectPath, onSaved, onDeleted,
 }: {
   pid: string;
   agent: AgentDetail;
   agents: AgentEntry[];
+  projectPath?: string;
   onSaved: () => void;
   onDeleted: () => void;
 }) {
   const toast = useToast();
-  const [emoji, setEmoji] = useState(agent.emoji || "");
+  const [icon, setIcon] = useState(agent.icon || "");
+  const [name, setName] = useState(agent.name || "");
   const [type, setType] = useState(agent.type || "");
   const [area, setArea] = useState(agent.area || "");
   const [role, setRole] = useState(agent.role || "");
@@ -218,7 +307,9 @@ function AgentConfigForm({
   const [model, setModel] = useState(agent.model || "");
   const [parent, setParent] = useState(agent.parent || "");
   const [isMaster, setIsMaster] = useState(!!agent.is_master);
-  const [skills, setSkills] = useState((agent.skills || []).join(", "));
+  const [skills, setSkills] = useState<string[]>(agent.skills || []);
+  // No declared skills ⇒ the agent inherits whatever the project enables.
+  const [skillDefaults, setSkillDefaults] = useState((agent.skills || []).length === 0);
   const [tools, setTools] = useState((agent.tools || []).join(", "));
   const [description, setDescription] = useState(agent.description || "");
   const [system, setSystem] = useState(agent.system || "");
@@ -229,7 +320,8 @@ function AgentConfigForm({
     setBusy(true);
     try {
       await Agents.update(pid, agent.slug, {
-        emoji: emoji || null,
+        name: name || null,
+        icon: icon || null,
         type: type || null,
         area: area || null,
         role: role || null,
@@ -237,7 +329,7 @@ function AgentConfigForm({
         model: model || null,
         parent: parent || null,
         is_master: isMaster || type === "orchestrator",
-        skills: csv(skills),
+        skills: skillDefaults ? [] : skills,
         tools: csv(tools),
         description: description || null,
         system,
@@ -255,17 +347,45 @@ function AgentConfigForm({
   };
 
   return (
-    <Section title={t("project.agent_detail.config_title")} description={`.apc/agents/${agent.slug}.md — ${t("agents_ui.config_def_desc")}`}>
-      <div className="space-y-3">
-        <div className="grid grid-cols-[80px_1fr] gap-3">
-          <Field label={t("agents_form.emoji")}><EmojiInput value={emoji} onChange={setEmoji} /></Field>
-          <Field label={t("project.agent_detail.type_label")}><UiSelect value={type} onChange={setType} options={typeOptions()} /></Field>
-        </div>
-        <AreaRoleFields pid={pid} area={area} role={role} onArea={setArea} onRole={setRole} />
-        <Field label={t("agents_form.autonomy")} hint={t("agents_form.autonomy_hint")}>
-          <AutonomyPicker value={autonomy} onChange={setAutonomy} />
-        </Field>
-        <div className="grid grid-cols-2 gap-3">
+    <div className="space-y-4">
+      {/* Identity | system prompt side by side, then behavior laid out
+          horizontally, capabilities last. Keeps the form scannable instead of
+          one giant single-column stack. */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Section title={t("project.agent_detail.config_identity")} description={`.apc/agents/${agent.slug}.md — ${t("agents_ui.config_def_desc")}`}>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <Field label={t("agents_form.name")} hint={t("agents_form.name_hint")}>
+                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={agent.slug} />
+              </Field>
+              <Field label={t("project.agent_detail.type_label")}><UiSelect value={type} onChange={setType} options={typeOptions()} /></Field>
+            </div>
+            <Field label={t("agents_form.icon")}>
+              <AgentIconPicker icon={icon} onIcon={setIcon} />
+            </Field>
+            <AreaRoleFields pid={pid} area={area} role={role} onArea={setArea} onRole={setRole} />
+            <Field label={t("project.agent_detail.bio_label")}>
+              <Textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} />
+            </Field>
+          </div>
+        </Section>
+
+        <Section title={t("project.agent_detail.system_label")} description={t("project.agent_detail.system_hint")} fullHeight>
+          <Textarea
+            rows={16}
+            className="h-full min-h-[280px] flex-1 font-mono text-xs"
+            value={system}
+            onChange={(e) => setSystem(e.target.value)}
+            placeholder="You are…"
+          />
+        </Section>
+      </div>
+
+      <Section title={t("project.agent_detail.config_behavior")} description={t("project.agent_detail.config_behavior_desc")}>
+        <div className="grid gap-3 lg:grid-cols-3">
+          <Field label={t("agents_form.autonomy")} hint={t("agents_form.autonomy_hint")}>
+            <AutonomyPicker value={autonomy} onChange={setAutonomy} />
+          </Field>
           <Field label={t("project.agent_detail.parent_label")}>
             <UiSelect
               value={parent}
@@ -275,21 +395,34 @@ function AgentConfigForm({
             />
           </Field>
           <Field label={t("project.agent_detail.model_label")} hint={t("project.agent_detail.model_hint")}>
-            <Input value={model} onChange={(e) => setModel(e.target.value)} placeholder={t("project.agent_detail.model_ph")} />
+            <AgentModelSelect value={model} onChange={setModel} />
           </Field>
         </div>
-        <Field label={t("project.agent_detail.skills_label")}><Input value={skills} onChange={(e) => setSkills(e.target.value)} placeholder="skill-a, skill-b" /></Field>
-        <ToolsPicker value={tools} onChange={setTools} />
-        <Field label={t("project.agent_detail.bio_label")}><Textarea rows={2} value={description} onChange={(e) => setDescription(e.target.value)} /></Field>
-        <Field label={t("project.agent_detail.system_label")} hint={t("project.agent_detail.system_hint")}>
-          <Textarea rows={10} className="font-mono text-xs" value={system} onChange={(e) => setSystem(e.target.value)} placeholder="You are…" />
-        </Field>
-        <Switch checked={isMaster} onChange={setIsMaster} label={t("project.agent_detail.master_label")} />
-
-        <div className="flex items-center justify-between border-t border-border pt-3">
-          <Button variant="destructive" onClick={() => setConfirmDelete(true)}><Trash2 size={13} /> {t("project.agent_detail.delete_btn")}</Button>
-          <Button variant="primary" loading={busy} onClick={save}><Save size={13} /> {t("project.agent_detail.save_btn")}</Button>
+        <div className="mt-3">
+          <Switch checked={isMaster} onChange={setIsMaster} label={t("project.agent_detail.master_label")} />
         </div>
+      </Section>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Section title={t("agents_form.skills_title")} description={t("agents_form.skills_desc")}>
+          <AgentSkillsPicker
+            value={skills}
+            onChange={setSkills}
+            projectPath={projectPath}
+            useDefaults={skillDefaults}
+            onUseDefaults={setSkillDefaults}
+            matchHeight={SKILLS_SCROLLER_MAX}
+          />
+        </Section>
+
+        <Section title={t("agents_ui.tools_label")} description={t("project.agent_detail.tools_hint")}>
+          <ToolsPicker value={tools} onChange={setTools} />
+        </Section>
+      </div>
+
+      <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
+        <Button variant="destructive" onClick={() => setConfirmDelete(true)}><Trash2 size={13} /> {t("project.agent_detail.delete_btn")}</Button>
+        <Button variant="primary" loading={busy} onClick={save}><Save size={13} /> {t("project.agent_detail.save_btn")}</Button>
       </div>
 
       <ConfirmDialog
@@ -300,7 +433,7 @@ function AgentConfigForm({
         description={t("project.agent_detail.delete_confirm", { slug: agent.slug })}
         confirmLabel={t("project.agent_detail.delete_btn")}
       />
-    </Section>
+    </div>
   );
 }
 
@@ -426,6 +559,7 @@ function Field2({ label, value }: { label: string; value: string }) {
 
 function ToolsPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const cat = useSWR("/api/tools", () => Tools.list());
+  const [draft, setDraft] = useState("");
   const selected = csv(value);
   const catalog = cat.data || [];
   const toggle = (name: string) => {
@@ -433,10 +567,18 @@ function ToolsPicker({ value, onChange }: { value: string; onChange: (v: string)
     if (set.has(name)) set.delete(name); else set.add(name);
     onChange([...set].join(", "));
   };
+  const addDraft = () => {
+    const name = draft.trim();
+    if (!name) return;
+    if (!selected.includes(name)) onChange([...selected, name].join(", "));
+    setDraft("");
+  };
   const custom = selected.filter((s) => !catalog.some((tool) => tool.name === s));
+  // The chips ARE the editor (tap to toggle) — no redundant CSV text field.
+  // Custom tools not in the catalog are added via the small inline input.
   return (
-    <Field label={t("agents_ui.tools_label")} hint={t("project.agent_detail.tools_hint")}>
-      <div className="flex flex-wrap gap-1.5">
+    <Field label={t("agents_ui.tools_label")}>
+      <div className="flex flex-wrap items-center gap-1.5">
         {catalog.map((tool) => {
           const on = selected.includes(tool.name);
           return (
@@ -455,8 +597,35 @@ function ToolsPicker({ value, onChange }: { value: string; onChange: (v: string)
             {s} ✕
           </button>
         ))}
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addDraft(); } }}
+          onBlur={addDraft}
+          placeholder={t("project.agent_detail.tools_custom_ph")}
+          className="h-[23px] w-36 rounded-md border border-dashed border-border bg-transparent px-2 font-mono text-[11px] text-foreground outline-none placeholder:text-muted-fg/60 focus:border-muted-fg"
+        />
       </div>
-      <Input className="mt-2" value={value} onChange={(e) => onChange(e.target.value)} placeholder={t("project.agent_detail.tools_custom_ph")} />
+      {/* Chip selection mirrored as CSV text so the list can be copied,
+          pasted or bulk-edited; both stay in sync. */}
+      <div className="mt-2 flex items-center gap-1.5">
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={t("project.agent_detail.tools_csv_ph")}
+          className="h-7 flex-1 rounded-md border border-border bg-muted/30 px-2 font-mono text-[11px] text-muted-fg outline-none focus:border-muted-fg focus:text-foreground"
+        />
+        <Tip content={t("common.copy")}>
+          <button
+            type="button"
+            onClick={() => { void navigator.clipboard.writeText(csv(value).join(", ")); }}
+            aria-label={t("common.copy")}
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border text-muted-fg hover:text-foreground"
+          >
+            <Copy size={12} />
+          </button>
+        </Tip>
+      </div>
     </Field>
   );
 }
@@ -479,10 +648,11 @@ function shareKeyword(a: Set<string>, b: Set<string>): boolean {
 }
 
 function BrainTab({
-  slug, emoji, memory, threads, tasks, routines, parent, children,
+  slug, emoji, icon, memory, threads, tasks, routines, parent, children,
 }: {
   slug: string;
   emoji?: string;
+  icon?: string;
   memory: string;
   threads: { id: string; label: string }[];
   tasks: { id: string; label: string; detail?: string }[];
@@ -494,7 +664,7 @@ function BrainTab({
     const nodes: BrainNode[] = [];
     const edges: BrainEdge[] = [];
     const CORE = "__core";
-    nodes.push({ id: CORE, label: slug, kind: "agent", role: "core", emoji, relation: "self" });
+    nodes.push({ id: CORE, label: slug, kind: "agent", role: "core", emoji, icon, relation: "self" });
 
     // A category hub groups its items so items hang off the hub (a two-level
     // tree) instead of all wiring straight to the core.
@@ -541,7 +711,7 @@ function BrainTab({
     });
 
     return { nodes, edges };
-  }, [slug, emoji, memory, threads, tasks, routines, parent, children]);
+  }, [slug, emoji, icon, memory, threads, tasks, routines, parent, children]);
 
   return (
     <Section title={t("project.agent_detail.brain_title")} description={t("project.agent_detail.brain_desc")}>

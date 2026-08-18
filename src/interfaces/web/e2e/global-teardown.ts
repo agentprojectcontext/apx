@@ -17,7 +17,7 @@ export default async function globalTeardown() {
   }
 
   try {
-    await fetch(`${rt.daemon}/projects/${rt.projectId}`, {
+    await fetch(`${rt.daemon}/api/projects/${rt.projectId}`, {
       method: "DELETE",
       headers: { authorization: `Bearer ${rt.token}` },
     });

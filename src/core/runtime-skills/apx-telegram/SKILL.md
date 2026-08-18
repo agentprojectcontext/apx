@@ -21,7 +21,7 @@ APX polls `getUpdates` and routes messages. Config: `~/.apx/config.json → tele
         "name": "default",
         "bot_token": "<from BotFather>",
         "chat_id": "<numeric chat id>",
-        "project": "iacrmar",          // optional: pin to project
+        "project": "acme",          // optional: pin to project
         "route_to_agent": "reviewer",  // optional: per-channel agent
         "respond_with_engine": true,   // optional: override global
         "owner_user_id": "123456789"   // optional: via `apx telegram owner`
@@ -42,10 +42,10 @@ apx telegram setup            # template (still emits legacy root fields — pre
 
 # Channels CRUD
 apx telegram channel add                  # interactive
-apx telegram channel add clientes --bot-token <T> --chat-id <C> --project iacrmar --agent reviewer
+apx telegram channel add clientes --bot-token <T> --chat-id <C> --project acme --agent reviewer
 apx telegram channel list                 # alias: ls
 apx telegram channel show clientes        # alias: get
-apx telegram channel set    clientes --project iacrmar
+apx telegram channel set    clientes --project acme
 apx telegram channel set    clientes --agent reviewer
 apx telegram channel set    clientes --respond-engine false
 apx telegram channel unset  clientes --project --agent
@@ -85,10 +85,10 @@ Every `channel` CRUD write triggers `POST /api/admin/reload` so polling picks up
 
 ## What "pin to project" does
 
-On a message to a channel with `project: "iacrmar"`:
-1. The super-agent invocation gets `channelMeta.projectId = <iacrmar's id>`.
+On a message to a channel with `project: "acme"`:
+1. The super-agent invocation gets `channelMeta.projectId = <acme's id>`.
 2. The system prompt resolves project-scoped agents, MCPs, memory.
-3. Tools (`list_agents`, `list_tasks`, `create_task`, …) default to that project — no need to repeat "in iacrmar" each message.
+3. Tools (`list_agents`, `list_tasks`, `create_task`, …) default to that project — no need to repeat "in acme" each message.
 
 ## What "master agent" does
 

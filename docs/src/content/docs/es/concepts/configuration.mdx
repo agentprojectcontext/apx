@@ -122,23 +122,34 @@ la config global sólo para ese proyecto. **Nunca pongas secretos acá** — est
 
 ### Ver la config
 
+`apx config` llega a las dos capas. Por defecto edita la capa de **proyecto**, y con `--global`
+(o `--scope global`) la capa **global** — o sea que el flag decide qué archivo estás tocando.
+
 <Tabs syncKey="cfg">
   <TabItem label="Global">
     ```bash
-    apx config show                   # effective config (global merged with project defaults)
-    apx config show --only-overrides  # only what differs from defaults
+    apx config show --global          # ~/.apx/config.json, con los secretos ocultos
+    apx config show --global | jq .super_agent   # el JSON va a stdout, el encabezado a stderr
     ```
   </TabItem>
   <TabItem label="Project">
     ```bash
-    apx project config show my-app
+    apx config show                   # overrides de .apc/config.json + la config efectiva
+    apx config show --effective       # sólo la config efectiva combinada
+    apx config show --only-overrides  # sólo los overrides del proyecto
+
+    apx project config show my-app    # lo mismo, para un proyecto en el que no estás parado
     apx project config show my-app --key super_agent.model
-    apx project config show my-app --effective
     ```
   </TabItem>
 </Tabs>
 
-<Terminal command="apx config show" caption="apx config show — configuración efectiva completa como JSON">
+<Aside type="caution">
+  `--effective` y `--only-overrides` describen la combinación proyecto↔global, así que se rechazan
+  junto con `--global`: en la capa global no hay un segundo archivo con el cual combinar.
+</Aside>
+
+<Terminal command="apx config show --global" caption="apx config show --global — la configuración global como JSON, con los secretos ocultos">
 {`{
   "port": 7430,
   "host": "127.0.0.1",
@@ -161,14 +172,31 @@ la config global sólo para ese proyecto. **Nunca pongas secretos acá** — est
 
 Los valores entienden JSON — booleanos, números y arrays se parsean correctamente:
 
+Los ajustes globales — credenciales, el daemon, la voz y los valores por defecto del super-agente —
+necesitan `--global`. La escritura pasa por el daemon, que recarga el valor nuevo al instante:
+
 ```bash
-apx config set super_agent.enabled true
-apx config set super_agent.model "anthropic:claude-sonnet-4-5"
-apx config set engines.openai.api_key "sk-..."
-apx config unset super_agent.model                  # remove key, fall back to default
+apx config set --global super_agent.enabled true
+apx config set --global super_agent.model "anthropic:claude-sonnet-4-5"
+apx config set --global engines.openai.api_key "sk-..."
+apx config unset --global super_agent.model         # borra la clave y vuelve al default
 ```
 
-Para la config de proyecto:
+<Aside type="danger">
+  Pasá siempre `--global` para cualquier cosa secreta. Sin el flag, el valor termina en el
+  `.apc/config.json` del proyecto, que **se commitea** — y los subsistemas que leen la config
+  global (la voz, el daemon, el router de modelos) no lo van a ver.
+</Aside>
+
+Los overrides de proyecto son el caso por defecto, así que no llevan flag. Dentro del proyecto:
+
+```bash
+apx config set super_agent.model groq:llama-3.3-70b-versatile
+apx config set telegram.route_to_agent reviewer
+apx config unset super_agent.model
+```
+
+Desde cualquier lado, nombrando el proyecto:
 
 ```bash
 apx project config set my-app super_agent.model groq:llama-3.3-70b-versatile

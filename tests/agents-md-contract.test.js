@@ -13,6 +13,19 @@ const AGENTS_MD = path.join(REPO, "AGENTS.md");
 
 const text = fs.readFileSync(AGENTS_MD, "utf8");
 
+// The contract is now AGENTS.md plus the rules/ deep-dives it links to. Content
+// assertions run against the combined corpus, so a reference that moved into
+// rules/ during the docs cleanup still counts.
+const RULES_DIR = path.join(REPO, "rules");
+const rulesText = fs.existsSync(RULES_DIR)
+  ? fs
+      .readdirSync(RULES_DIR)
+      .filter((f) => f.endsWith(".md"))
+      .map((f) => fs.readFileSync(path.join(RULES_DIR, f), "utf8"))
+      .join("\n")
+  : "";
+const docText = `${text}\n${rulesText}`;
+
 // Pull every `backticked` span, then keep the ones that look like a repo path:
 // they contain a slash and end in a known source extension, or name a directory
 // under a known root. Prose like `provider:model` or `{ error }` is skipped.
@@ -65,13 +78,13 @@ test("AGENTS.md: identity fallback matches the code", async () => {
     "../src/core/identity/self.js"
   );
   assert.match(
-    text,
+    docText,
     new RegExp(`SUPERAGENT_DISPLAY_FALLBACK[^\\n]*"${SUPERAGENT_DISPLAY_FALLBACK}"`),
-    "the Desktop section must name the real fallback constant and value"
+    "the docs (AGENTS.md or rules/) must name the real fallback constant and value"
   );
   assert.ok(
-    !/"Superagente"/.test(text),
-    'stale literal "Superagente" is back in AGENTS.md'
+    !/"Superagente"/.test(docText),
+    'stale literal "Superagente" is back in the docs'
   );
 });
 
@@ -84,7 +97,7 @@ test("AGENTS.md: named prompt files resolve", () => {
   ]) {
     assert.ok(fs.existsSync(path.join(REPO, rel)), `${rel} must exist`);
     const base = rel.split("/").slice(-2).join("/");
-    assert.ok(text.includes(base), `AGENTS.md should reference ${base}`);
+    assert.ok(docText.includes(base), `the docs (AGENTS.md or rules/) should reference ${base}`);
   }
 });
 

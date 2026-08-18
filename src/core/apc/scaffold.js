@@ -500,7 +500,7 @@ export function ensureAgentDir(root, _slug) {
 export function writeAgentFile(root, slug, fields, body = "") {
   const dest = apcAgentFile(root, slug);
   const lines = ["---"];
-  const order = ["role", "model", "language", "description", "skills", "tools"];
+  const order = ["name", "role", "model", "language", "description", "skills", "tools"];
   const written = new Set();
   for (const key of order) {
     const titleKey = key.charAt(0).toUpperCase() + key.slice(1);
@@ -527,7 +527,7 @@ export function writeVaultAgentFile(slug, fields, body = "") {
   fs.mkdirSync(VAULT_DIR, { recursive: true });
   const dest = path.join(VAULT_DIR, `${slug}.md`);
   const lines = ["---"];
-  const order = ["role", "model", "language", "description", "skills", "tools"];
+  const order = ["name", "role", "model", "language", "description", "skills", "tools"];
   const written = new Set();
   for (const key of order) {
     const titleKey = key.charAt(0).toUpperCase() + key.slice(1);

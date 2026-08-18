@@ -1,3 +1,4 @@
+import { asyncRoute } from "./shared.js";
 // POST /transcribe/chunk
 // Raw audio bytes in the body. Headers:
 //   X-Audio-Format  webm | ogg | wav | mp3 (defaults to webm)
@@ -10,7 +11,7 @@ export function register(api) {
   // admin (mirror of /tts/providers). local = embedded faster-whisper;
   // openai = cloud Whisper; custom = any OpenAI-compatible server (mlx-audio
   // on Metal, a Radeon/NVIDIA box on the LAN, a remote endpoint).
-  api.get("/transcribe/providers", async (_req, res) => {
+  api.get("/transcribe/providers", asyncRoute(async (_req, res) => {
     try {
       const { readConfig } = await import("#core/config/index.js");
       const { listSttProviders } = await import("#core/voice/transcription.js");
@@ -18,12 +19,12 @@ export function register(api) {
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
-  });
+  }));
 
   // GET /transcribe/hardware — detected machine + the recommended local backend
   // (mlx on Apple Silicon, faster-whisper cuda on NVIDIA, else CPU). Drives the
   // "engine adapts itself" UX in the web admin.
-  api.get("/transcribe/hardware", async (_req, res) => {
+  api.get("/transcribe/hardware", asyncRoute(async (_req, res) => {
     try {
       const { detectHardware, recommendStt } = await import("#core/voice/stt-hardware.js");
       const hw = detectHardware();
@@ -31,11 +32,11 @@ export function register(api) {
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
-  });
+  }));
 
   // GET /transcribe/models?backend=faster|mlx — model catalog with on-disk
   // status (downloaded? size) for the model-manager UI.
-  api.get("/transcribe/models", async (req, res) => {
+  api.get("/transcribe/models", asyncRoute(async (req, res) => {
     try {
       const backend = String(req.query.backend || "faster");
       const { listSttModels } = await import("#core/voice/stt-models.js");
@@ -43,21 +44,21 @@ export function register(api) {
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
-  });
+  }));
 
   // GET /transcribe/warmup — load the local whisper model (if needed) and reset
   // its idle watchdog. Callers (e.g. the desktop window) ping this while open so
   // the first real utterance doesn't pay the cold-load cost.
-  api.get("/transcribe/warmup", async (_req, res) => {
+  api.get("/transcribe/warmup", asyncRoute(async (_req, res) => {
     try {
       const { warmupWhisper } = await import("../whisper-server.js");
       res.json(await warmupWhisper());
     } catch (e) {
       res.status(500).json({ ok: false, error: e.message });
     }
-  });
+  }));
 
-  api.post("/transcribe/chunk", async (req, res) => {
+  api.post("/transcribe/chunk", asyncRoute(async (req, res) => {
     const chunks = [];
     req.on("data", (c) => chunks.push(c));
     req.on("end", async () => {
@@ -86,5 +87,5 @@ export function register(api) {
     req.on("error", (e) =>
       res.status(500).json({ ok: false, error: e.message })
     );
-  });
+  }));
 }

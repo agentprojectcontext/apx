@@ -5,7 +5,7 @@ export const Agents = {
   list:   (pid: string, opts?: { stats?: boolean }) =>
     http.get<AgentEntry[]>(`/api/projects/${pid}/agents${opts?.stats ? "?stats=1" : ""}`),
   get:    (pid: string, slug: string) => http.get<AgentDetail>(`/api/projects/${pid}/agents/${slug}`),
-  create: (pid: string, body: Partial<AgentEntry> & { slug: string }) =>
+  create: (pid: string, body: Partial<AgentEntry> & { slug: string; system?: string }) =>
     http.post<AgentEntry>(`/api/projects/${pid}/agents`, body),
   update: (pid: string, slug: string, body: Partial<AgentEntry> & { system?: string }) =>
     http.patch<AgentEntry>(`/api/projects/${pid}/agents/${encodeURIComponent(slug)}`, body),

@@ -40,7 +40,8 @@ qa/
 # Build artifacts (root) — compiled CLI/TUI, not shipped to npm
 /dist/
 
-# Internal planning docs — local only (ADRs, roadmap, PRDs, backlog)
+# Internal planning docs — local only (ADRs, roadmap, PRDs, backlog).
+# The AGENTS.md deep dives live in top-level rules/ (tracked), not here.
 /spec/
 
 # Screenshot harness — local dev tool, not shipped

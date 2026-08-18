@@ -127,11 +127,11 @@ export const HELP_TOPICS = new Map(Object.entries({
       ["--json", "Emit JSON instead of human-readable lines (show --key only)."],
     ],
     examples: [
-      "apx project config show iacrmar",
-      "apx project config show iacrmar --key super_agent.model",
-      "apx project config set iacrmar super_agent.model groq:llama-3.3-70b-versatile",
-      "apx project config unset iacrmar super_agent.model",
-      "apx project config edit iacrmar",
+      "apx project config show acme",
+      "apx project config show acme --key super_agent.model",
+      "apx project config set acme super_agent.model groq:llama-3.3-70b-versatile",
+      "apx project config unset acme super_agent.model",
+      "apx project config edit acme",
     ],
   }),
   "project config show": topic({
@@ -142,25 +142,25 @@ export const HELP_TOPICS = new Map(Object.entries({
       ["--key <dotted.key>", "Print just one key (effective + project_only)."],
       ["--json", "JSON output (only with --key)."],
     ],
-    examples: ["apx project config show iacrmar", "apx project config show iacrmar --key super_agent.model"],
+    examples: ["apx project config show acme", "apx project config show acme --key super_agent.model"],
   }),
   "project config set": topic({
     title: "apx project config set",
     summary: "Set a dotted-key value in .apc/config.json (PATCH).",
     usage: ["apx project config set <project> <dotted.key> <value>"],
-    examples: ["apx project config set iacrmar super_agent.model groq:llama-3.3-70b-versatile"],
+    examples: ["apx project config set acme super_agent.model groq:llama-3.3-70b-versatile"],
   }),
   "project config unset": topic({
     title: "apx project config unset",
     summary: "Remove a dotted-key from .apc/config.json (PATCH unset).",
     usage: ["apx project config unset <project> <dotted.key>"],
-    examples: ["apx project config unset iacrmar super_agent.model"],
+    examples: ["apx project config unset acme super_agent.model"],
   }),
   "project config edit": topic({
     title: "apx project config edit",
     summary: "Open the project_only config in $EDITOR. Saves with PUT on exit.",
     usage: ["apx project config edit <project>"],
-    examples: ["apx project config edit iacrmar"],
+    examples: ["apx project config edit acme"],
   }),
   agent: topic({
     title: "apx agent",
@@ -293,40 +293,66 @@ export const HELP_TOPICS = new Map(Object.entries({
   }),
   config: topic({
     title: "apx config",
-    summary: "Read and edit project configuration in .apc/config.json.",
-    usage: ["apx config [show] [--effective] [--only-overrides]", "apx config set <key.path> <value>", "apx config unset <key.path>"],
+    summary: "Read and edit configuration: the project layer (.apc/config.json) or, with --global, ~/.apx/config.json.",
+    usage: [
+      "apx config [show] [--global] [--effective] [--only-overrides]",
+      "apx config set [--global] <key.path> <value>",
+      "apx config unset [--global] <key.path>",
+    ],
     commands: [
       ["show | ls", "Print config."],
       ["set <key> <value>", "Set a JSON-aware value."],
       ["unset | rm <key>", "Remove a key."],
     ],
     options: [
-      ["--effective", "Show merged effective config."],
-      ["--only-overrides", "Show only project overrides."],
+      ["--global", "Target ~/.apx/config.json instead of the project. Credentials, daemon and voice settings live there."],
+      ["--scope <project|global>", "Explicit scope (alias of --global)."],
+      ["--effective", "Show merged effective config. Project scope only."],
+      ["--only-overrides", "Show only project overrides. Project scope only."],
+      ["--project <name|id|path>", "Pin the project layer to a specific project."],
     ],
-    examples: ["apx config show --effective", "apx config set engines.openai.model gpt-5.2"],
+    examples: [
+      "apx config show --effective",
+      "apx config show --global",
+      "apx config set --global engines.openai.api_key sk-example",
+      "apx config set engines.openai.model gpt-5.2",
+    ],
   }),
   "config show": topic({
     title: "apx config show",
-    summary: "Print project config.",
-    usage: ["apx config show [--effective] [--only-overrides]", "apx config ls"],
+    summary: "Print project config, or ~/.apx/config.json with --global.",
+    usage: ["apx config show [--global] [--effective] [--only-overrides]", "apx config ls"],
     options: [
-      ["--effective", "Show merged effective config."],
-      ["--only-overrides", "Show only project overrides."],
+      ["--global", "Print ~/.apx/config.json (secrets redacted). JSON on stdout, header on stderr, so it pipes to jq."],
+      ["--scope <project|global>", "Explicit scope (alias of --global)."],
+      ["--effective", "Show merged effective config. Project scope only."],
+      ["--only-overrides", "Show only project overrides. Project scope only."],
     ],
-    examples: ["apx config show", "apx config show --effective"],
+    examples: ["apx config show", "apx config show --effective", "apx config show --global"],
   }),
   "config set": topic({
     title: "apx config set",
-    summary: "Set a JSON-aware value in .apc/config.json.",
-    usage: ["apx config set <key.path> <value>"],
-    examples: ["apx config set super_agent.enabled true", "apx config set engines.openai.model gpt-5.2"],
+    summary: "Set a JSON-aware value in .apc/config.json, or in ~/.apx/config.json with --global.",
+    usage: ["apx config set [--global] <key.path> <value>"],
+    options: [
+      ["--global", "Write to ~/.apx/config.json and hot-reload the daemon. Required for credentials — .apc/config.json is committed."],
+      ["--scope <project|global>", "Explicit scope (alias of --global)."],
+    ],
+    examples: [
+      "apx config set --global super_agent.enabled true",
+      "apx config set --global engines.openai.api_key sk-example",
+      "apx config set engines.openai.model gpt-5.2",
+    ],
   }),
   "config unset": topic({
     title: "apx config unset",
-    summary: "Remove a key from .apc/config.json.",
-    usage: ["apx config unset <key.path>", "apx config rm <key.path>"],
-    examples: ["apx config unset engines.openai.model"],
+    summary: "Remove a key from .apc/config.json, or from ~/.apx/config.json with --global.",
+    usage: ["apx config unset [--global] <key.path>", "apx config rm <key.path>"],
+    options: [
+      ["--global", "Remove the key from ~/.apx/config.json and hot-reload the daemon."],
+      ["--scope <project|global>", "Explicit scope (alias of --global)."],
+    ],
+    examples: ["apx config unset engines.openai.model", "apx config unset --global super_agent.model"],
   }),
   permission: topic({
     title: "apx permission",
@@ -538,7 +564,7 @@ export const HELP_TOPICS = new Map(Object.entries({
     examples: [
       "apx sessions list                              # every engine, every project",
       "apx sessions list --engine claude",
-      "apx sessions list --engine claude --project iacrmar",
+      "apx sessions list --engine claude --project acme",
       "apx sessions list --dir /path/to/project       # this dir across every engine",
     ],
   }),
@@ -560,8 +586,8 @@ export const HELP_TOPICS = new Map(Object.entries({
     ],
     examples: [
       "apx sessions list                                            # every engine, every project",
-      "apx sessions list --engine claude --project iacrmar",
-      "apx sessions list --engine codex --dir /Volumes/work/iacrmar",
+      "apx sessions list --engine claude --project acme",
+      "apx sessions list --engine codex --dir /Volumes/work/acme",
     ],
   }),
   obsidian: topic({
@@ -617,7 +643,7 @@ export const HELP_TOPICS = new Map(Object.entries({
     examples: [
       "apx mcp list",
       "apx mcp list --project default",
-      "apx mcp list --scope runtime --project iacrmar",
+      "apx mcp list --scope runtime --project acme",
     ],
   }),
   "mcp add": topic({
@@ -633,7 +659,7 @@ export const HELP_TOPICS = new Map(Object.entries({
     ],
     examples: [
       "apx mcp add filesystem --command npx -- -y @modelcontextprotocol/server-filesystem .",
-      "apx mcp add github --scope runtime --project iacrmar --command npx -- -y @modelcontextprotocol/server-github",
+      "apx mcp add github --scope runtime --project acme --command npx -- -y @modelcontextprotocol/server-github",
     ],
   }),
   "mcp remove": topic({
@@ -647,7 +673,7 @@ export const HELP_TOPICS = new Map(Object.entries({
       ["--project <name|id|path>", "Pin command to a specific project."],
       ["--scope <s>", "Which scope to remove from. Defaults to `shared` inside an APC project, else `global`."],
     ],
-    examples: ["apx mcp remove filesystem", "apx mcp remove github --scope runtime --project iacrmar"],
+    examples: ["apx mcp remove filesystem", "apx mcp remove github --scope runtime --project acme"],
   }),
   "mcp enable": topic({
     title: "apx mcp enable",
@@ -862,7 +888,7 @@ export const HELP_TOPICS = new Map(Object.entries({
     ],
     examples: [
       "apx telegram channel add",
-      "apx telegram channel add clientes --bot-token TOKEN --chat-id 1234 --project iacrmar --agent comercial",
+      "apx telegram channel add clientes --bot-token TOKEN --chat-id 1234 --project acme --agent comercial",
       "apx telegram channel list",
       "apx telegram channel set clientes --agent reviewer",
       "apx telegram channel unset clientes --agent",
@@ -898,7 +924,7 @@ export const HELP_TOPICS = new Map(Object.entries({
     summary: "Patch fields on an existing Telegram channel and reload the daemon.",
     usage: ["apx telegram channel set <name> [--project P] [--agent A] [--respond-engine true|false] [--bot-token T] [--chat-id ID]"],
     examples: [
-      "apx telegram channel set clientes --project iacrmar --agent comercial",
+      "apx telegram channel set clientes --project acme --agent comercial",
       "apx telegram channel set clientes --respond-engine false",
     ],
   }),

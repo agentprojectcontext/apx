@@ -17,6 +17,7 @@ import {
   runRoutineNow,
 } from "#core/routines/index.js";
 import { CHANNELS } from "#core/constants/channels.js";
+import { asyncRoute } from "./shared.js";
 
 export function register(api, { projects, registries, plugins, project, config }) {
   api.get("/projects/:pid/routines", (req, res) => {
@@ -90,7 +91,7 @@ export function register(api, { projects, registries, plugins, project, config }
     res.json({ ok: true });
   });
 
-  api.post("/projects/:pid/routines/:name/run", async (req, res) => {
+  api.post("/projects/:pid/routines/:name/run", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const r = getRoutine(p.storagePath, req.params.name);
@@ -104,5 +105,5 @@ export function register(api, { projects, registries, plugins, project, config }
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
-  });
+  }));
 }

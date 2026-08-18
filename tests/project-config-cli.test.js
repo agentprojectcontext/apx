@@ -13,7 +13,7 @@ const {
 } = await import("#interfaces/cli/commands/project-config.js");
 
 function installStub({
-  projects = [{ id: 7, name: "iacrmar", path: "/tmp/iacrmar" }],
+  projects = [{ id: 7, name: "acme", path: "/tmp/acme" }],
   effective,
   projectOnly = {},
 } = {}) {
@@ -26,7 +26,7 @@ function installStub({
         // Default: effective shows the global value; project_only is empty.
         effective: effective || { super_agent: { model: "global:x" } },
         project_only: projectOnly,
-        project_config_path: "/tmp/iacrmar/.apc/config.json",
+        project_config_path: "/tmp/acme/.apc/config.json",
       };
     }
     return {};
@@ -58,7 +58,7 @@ test("cmdProjectConfigShow without --key prints full effective+project_only JSON
     effective: { super_agent: { model: "local:y" } },
     projectOnly: { super_agent: { model: "local:y" } },
   });
-  const out = await captureLog(() => cmdProjectConfigShow({ _: ["iacrmar"], flags: {} }));
+  const out = await captureLog(() => cmdProjectConfigShow({ _: ["acme"], flags: {} }));
   assert.match(out, /"effective"/);
   assert.match(out, /"project_only"/);
   assert.match(out, /"model": "local:y"/);
@@ -70,7 +70,7 @@ test("cmdProjectConfigShow --key prints just that key from both objects", async 
     projectOnly: { super_agent: { model: "local:y" } },
   });
   const out = await captureLog(() =>
-    cmdProjectConfigShow({ _: ["iacrmar"], flags: { key: "super_agent.model" } })
+    cmdProjectConfigShow({ _: ["acme"], flags: { key: "super_agent.model" } })
   );
   assert.match(out, /effective\.super_agent\.model\s*=\s*"global:x"/);
   assert.match(out, /project_only\.super_agent\.model\s*=\s*"local:y"/);
@@ -79,7 +79,7 @@ test("cmdProjectConfigShow --key prints just that key from both objects", async 
 test("cmdProjectConfigSet sends PATCH set with coerced value and reloads", async () => {
   const calls = installStub();
   await cmdProjectConfigSet({
-    _: ["iacrmar", "super_agent.model", "groq:llama-3.3-70b-versatile"],
+    _: ["acme", "super_agent.model", "groq:llama-3.3-70b-versatile"],
     flags: {},
   });
   const patch = calls.find((c) => c[0] === "PATCH");
@@ -89,8 +89,8 @@ test("cmdProjectConfigSet sends PATCH set with coerced value and reloads", async
 
 test("cmdProjectConfigSet coerces booleans and numbers", async () => {
   const calls = installStub();
-  await cmdProjectConfigSet({ _: ["iacrmar", "x.bool", "true"], flags: {} });
-  await cmdProjectConfigSet({ _: ["iacrmar", "x.num", "42"], flags: {} });
+  await cmdProjectConfigSet({ _: ["acme", "x.bool", "true"], flags: {} });
+  await cmdProjectConfigSet({ _: ["acme", "x.num", "42"], flags: {} });
   const patches = calls.filter((c) => c[0] === "PATCH").map((c) => c[2]);
   assert.deepEqual(patches[0], { set: { "x.bool": true } });
   assert.deepEqual(patches[1], { set: { "x.num": 42 } });
@@ -98,14 +98,14 @@ test("cmdProjectConfigSet coerces booleans and numbers", async () => {
 
 test("cmdProjectConfigSet keeps strings that don't parse as JSON/number/bool", async () => {
   const calls = installStub();
-  await cmdProjectConfigSet({ _: ["iacrmar", "x.label", "permiso"], flags: {} });
+  await cmdProjectConfigSet({ _: ["acme", "x.label", "permiso"], flags: {} });
   const patch = calls.find((c) => c[0] === "PATCH");
   assert.deepEqual(patch[2], { set: { "x.label": "permiso" } });
 });
 
 test("cmdProjectConfigUnset sends PATCH unset", async () => {
   const calls = installStub();
-  await cmdProjectConfigUnset({ _: ["iacrmar", "super_agent.model"], flags: {} });
+  await cmdProjectConfigUnset({ _: ["acme", "super_agent.model"], flags: {} });
   const patch = calls.find((c) => c[0] === "PATCH");
   assert.deepEqual(patch[2], { unset: ["super_agent.model"] });
 });
@@ -113,7 +113,7 @@ test("cmdProjectConfigUnset sends PATCH unset", async () => {
 test("cmdProjectConfigSet errors when value is missing", async () => {
   installStub();
   await assert.rejects(
-    () => cmdProjectConfigSet({ _: ["iacrmar", "x.y"], flags: {} }),
+    () => cmdProjectConfigSet({ _: ["acme", "x.y"], flags: {} }),
     /missing <value>/
   );
 });

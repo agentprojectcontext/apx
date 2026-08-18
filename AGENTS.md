@@ -4,6 +4,22 @@
 > and any AGENTS.md-aware tool). APX never regenerates this file — it's created at
 > `apx init` and owned by the project. End-user app usage lives in `docs/`.
 
+This file is the **hub**: the always-read contract (glossary, the dev loop, the
+numbered rules) lives here in full. Per-subsystem how-to is split into
+**read-on-demand** deep dives under [`rules/`](rules/) —
+open one only when you're working in that subsystem. See [Deep dives](#deep-dives--read-on-demand) below.
+The current code-vs-contract audit (live bugs, god-file verdicts, dedup backlog):
+[`spec/repair-and-refactoring-code/SURVEY-2026-08-17.md`](spec/repair-and-refactoring-code/SURVEY-2026-08-17.md) (local-only, under `spec/`).
+
+## Contents
+
+- [Glossary](#glossary--read-this-before-guessing) — the terms this repo overloads; read before guessing
+- [The dev loop](#the-dev-loop--skip-a-step-and-your-test-is-a-lie) — restart + verify, or your test is a lie
+- [Repo map](#repo-map) — top-level orientation (full breakdown in the deep dive)
+- [Project rules](#project-rules) — the numbered 1–17 contract
+- [Deep dives](#deep-dives--read-on-demand) — subsystem how-to, read only when needed
+- [Agents (dogfood)](#agents-dogfood)
+
 ## Glossary — read this before guessing
 
 Several words in this repo mean more than one thing. Picking the wrong sense is
@@ -98,16 +114,38 @@ copied into the host CLIs' own directories (`~/.claude/skills/`, …) by
 the npm tarball, and you silently stop testing your own code. In dev the command
 is `apx skills sync`.
 
-## Repo layout
+## Repo map
 
-- `src/core/` — engine-agnostic core:
-  - `agent/` — `super-agent.js` (daemon action loop), `run-agent.js` (tool loop), `build-agent-system.js`, `prompt-builder.js`, `model-router.js`, `retry.js`, `self-memory.js`, `memory.js`; `loop/` (the collaborators `run-agent.js` orchestrates); `prompts/` (`core/`, `channels/`, `modes/`, `discipline/`); `skills/` (catalog, loader, trigger, rag, **inspector**, index-store, policy); `tools/` (registry + `handlers/`, one file per tool, names in `tools/names.js`)
-  - `apc/` (scaffold, AGENTS.md parser, skill-sync), `config/` (index + paths), `engines/` (per-provider adapters + `_health`/`_streaming`), `runtimes/` (external coding CLIs + detect), `sessions/` (`core/sessions/` — cross-engine session discovery — the CLI, the daemon and the agent tool all call it), `mcp/`, `memory/`, `identity/`, `stores/`, `constants/` (channels, permissions, roles, actors, scopes — never inline literals), `util/`, `confirmation/`, `channels/`, `profiles/`, `routines/`, `integrations/`, `artifacts/`, `deck/`, `desktop/`, `http-tools/` (`catalog.js` is the tool data, `registry.js` only indexes and serves it), `i18n/`, `net/`, `vars/`, `runtime-skills/`, `voice/`
-- `src/host/daemon/` — thin **adapter** over `core/`: HTTP API (`api/*.js` mounted by `buildApi`), plugins (`telegram/`, `desktop/`), WebSocket hubs. **No domain logic here** — if an `api/*` file is more than body→core→response, move the work into `core/`.
-- `src/interfaces/` — `cli/` (`commands/` = what a command does, `routes/` = how its args are parsed, `help/` = the help surface), `web/` (React + Vite admin panel, isolated pnpm workspace), `tui/`, `desktop/` (Electron floating voice window), `mcp-server/` (stdio MCP exposing APX to other LLMs — distinct from `apx mcp …` which consumes MCPs), `acp/` (Agent Client Protocol, `apx-acp` bin).
-  - **The TUI is a deliberate island.** `interfaces/tui/` is a vendored OpenCode fork (~24k lines) that imports `@opencode-ai/*` and makes **zero** `#core/` imports — it reaches APX over HTTP like any other client. "One domain function, one home" does not apply inside it; don't try to wire it to `core/` directly.
-- `tests/` — backend suite (`npm run test:ci`: recursive discovery, and it fails on any skipped/todo test). `src/interfaces/web/e2e/` — Playwright.
-- `skills/` — bundled `SKILL.md`s. `scripts/` — build-web, sync, git hooks. `docs/` — public docs site (Astro + Starlight, bilingual; self-contained, not in the npm package).
+Top-level orientation; the full per-folder breakdown is in
+[`rules/repo-layout.md`](rules/repo-layout.md).
+
+- `src/core/` — engine-agnostic core (agent loop, prompts, skills, tools, engines, runtimes, memory, stores, constants…). **Never imports upward.**
+- `src/host/daemon/` — thin adapter over `core/`: HTTP API (`api/*.js`), plugins (`telegram/`, `desktop/`), WS hubs. No domain logic here.
+- `src/interfaces/` — `cli/`, `web/` (React+Vite panel), `tui/` (vendored OpenCode island, HTTP-only), `desktop/` (Electron), `mcp-server/`, `acp/`.
+- `tests/` — backend suite (`npm run test:ci`); `src/interfaces/web/e2e/` — Playwright.
+- `skills/` — bundled `SKILL.md`s · `scripts/` — build/sync/hooks · `docs/` — public docs site.
+
+## Architecture & methodology — the shape every change follows
+
+Full version with reference implementations: [`rules/architecture.md`](rules/architecture.md).
+
+- **core → adapter → surface** (rule 8) is the whole design: `core/` owns every
+  operation; `host/daemon` and `interfaces/*` only parse input, call ONE core
+  function, and shape output. ESLint enforces the import direction — but it
+  cannot see *misplaced logic*, and passing a framework object into core as a
+  parameter is still a violation.
+- **Extension = registry pattern.** Every family (engines, runtimes, tool
+  handlers, embed engines, CLI routes) is a directory of uniform adapters plus
+  one id→adapter registry. Adding a member touches the new file + one registry
+  line, nothing else. New family → build the registry on day one. An adapter
+  must honor (or explicitly declare it lacks) every option the family contract
+  passes — silently swallowing one degrades behavior per provider.
+- **One operation, one home; grep before writing any helper.** The shared
+  kernel already covers paths, JSON I/O (atomic writes included), frontmatter,
+  project resolution, constants, spawn-capture. Copy #2 is a bug.
+- **Comments are decision records.** When you finish or abandon a migration a
+  comment describes, update the comment in the same change; never cite an
+  unverified file path.
 
 ## Project rules
 
@@ -118,18 +156,19 @@ is `apx skills sync`.
    - **Coverage only goes up.** `test:ci` enforces a floor (`COVERAGE_FLOOR` in `scripts/test-ci.js`). When you push it higher, raise the floor in the same commit; never lower it to make a build pass.
 2. **Gate every push with `npm run preflight`** (lint + `test:ci` + web build + web `tsc --noEmit` + the TUI ratchet). The pre-push hook and the `pull_request` CI workflow both enforce it — don't bypass.
 3. **No secrets in the repo.** Tokens live in runtime scope only (`apx mcp add --scope runtime`); `.apc/mcps.json` holds non-secret hints. Runtime state (conversations, sessions, message logs, config, tokens) stays under `~/.apx/`. **Never commit command output/logs** — `apx config show --effective`, `apx status`, etc. can dump engine `api_key`s and the Telegram bot token. Scrub or gitignore any captured output.
+   - **No real data in examples, fixtures, or docs — invent it.** Every project name, company, person, domain, chat/user id, IP, hostname, and absolute path that appears in a test, a `SKILL.md`, CLI help, a code comment, a screenshot, or `docs/` must be made up. Use obvious placeholders: `acme` / `northwind` for projects, `example.com`, `1234567890` for ids, `/path/to/project` for paths. Never paste a real turn — a Telegram reply, a memory note, a routine output — into a fixture; retype it with synthetic content, because a transcript carries whatever the live install happened to know. This is a **public** repo and history is permanent: a scrub after the fact removes it from the tip, not from the commits, so the check belongs in review, not in a cleanup pass later. Do not record the offending values here or in any commit message — naming them publishes them again.
 4. **"super-agent" is a mode, not a persona name.** User-facing copy uses `~/.apx/identity.json` (default "APX"); config keys/routine kinds may still say `super_agent`.
    - **`persona` ≠ `profile`.** `persona` is the agent's *visible name* (`identity.json.agent_name`) — that meaning is load-bearing here and in `core/identity/self.js`. An **agent profile** (`core/profiles/`, `config.profile`, `apx profile`) is an installable package that gives the super-agent a line of work. Never use one word for the other; write "agent profile" where the bare word could be read as a config profile.
 5. **Respect backward-compat shims.** The `overlay`→`desktop` rename keeps `config.overlay`, `/overlay/ws`, and `apx overlay` working — don't reintroduce old names or break the shims (they're tested).
 6. **Skills stay in sync.** When you change CLI commands, routes, config keys, or behavior documented in a skill, update the matching `SKILL.md` in the same change. **Look in `src/core/runtime-skills/<slug>/` first** — that's where the ~19 skills the super-agent actually loads live. The 3 under `skills/` are only the bundled ones shipped to npm, and `skills/apc-context/` is synced from upstream (don't hand-edit it). Verify flags with `apx <command> --help` — don't invent subcommands.
-   - **Docs stay in sync too.** Any change that alters user-facing behavior — CLI commands/flags, config keys, providers/engines, surfaces (web/desktop/voice/deck), MCP, integrations/connectors, memory, or a new capability — must review `docs/` and update the affected page in the **same** change (both EN `src/content/docs/<section>/<slug>` and ES `…/es/<section>/<slug>`). If a whole feature has no page yet, add one (follow `docs/AUTHORING.md`). Pure internal refactors with no observable change need no docs edit. Build with `cd docs && pnpm build` when you touch it (docs are not in preflight).
+   - **Docs stay in sync too.** Any change that alters user-facing behavior — CLI commands/flags, config keys, providers/engines, surfaces (web/desktop/voice/deck), MCP, integrations/connectors, memory, or a new capability — must review `docs/` and update the affected page in the **same** change (both EN `src/content/docs/<section>/<slug>` and ES `…/es/<section>/<slug>`). If a whole feature has no page yet, add one (follow `docs/AUTHORING.md`). Pure internal refactors with no observable change need no docs edit. Build with `cd docs && pnpm build` when you touch it (docs are not in preflight). Deep dive: [`rules/docs-site.md`](rules/docs-site.md).
 7. **Imports use `#aliases`, not `../../../`.** `#core/*`→`src/core/*`, `#host/*`, `#interfaces/*` (package.json `imports`; mirrored in `jsconfig.json`). Same-folder neighbors stay relative.
 8. **One domain function — one home.** When an operation exists in both an `api/<x>.js` route and a CLI `commands/<x>.js`, the logic belongs in `core/` (usually `core/stores/<x>.js`). API and CLI are adapters: parse input, call core, shape output. Model: **core → adapter → surface**.
    - **This is machine-enforced.** ESLint fails the build if `core/` imports `#host/*` or `#interfaces/*`, or if `host/` imports `#interfaces/*`. It is a `no-restricted-syntax` AST selector, not `no-restricted-imports` — those patterns go through minimatch, which treats a leading `#` as a comment, so `#host/**` silently matches nothing and the rule looks like it passes while enforcing nothing. If core needs something that lives in an adapter, the thing is misfiled — move it into core rather than importing upward.
    - **Before writing a helper, grep for it.** Scope normalization (per subsystem — `normalizeMcpScope` / `normalizeVarScope` / `normalizeIntegrationScope`, deliberately NOT merged: the vocabularies differ) and `~/.apx` paths (`core/config/paths.js`) have exactly one home; frontmatter parsing and project resolution still have several and are being consolidated. Adding a second copy is a bug, not a convenience.
 9. **Adding a daemon route.** Export `register(app, ctx)` from `api/<x>.js`, mount it in `buildApi()` before the 404 catch-all, return `{ error }` + a real status code. **Every data route lives under `/api`** (`api/prefix.js` — `API_PREFIX`, `isApiPath`, `apiPath`), so route paths are written root-relative and the mount adds the prefix. That is structural, not a list: the old hand-maintained `API_PREFIXES` is gone, and with it the footgun where an authenticated GET got mistaken for an SPA asset. The SPA fallback in `api/web.js` steps aside for `/api` only — keep `isKnownSpaRoute` in sync with the `<Routes>` registry so unknown client routes 404 instead of silently returning 200. Wrap async handlers in `asyncRoute()` (`api/shared.js`) so a rejection becomes a 500 instead of killing the daemon.
 10. **Adding a CLI command.** Write `cmd<Name>(args)` in `cli/commands/<x>.js`, add its routing in `cli/routes/<x>.js` (export `default async function route(rest, ctx)`, plus `export const aliases = [...]` if it takes any), register it in `cli/routes/index.js`, and add a `topic({…})` in `cli/help/index.js`. There is no dispatch switch — `cli/index.js` looks the command up and lazily imports its route module, so a command loads only what it uses. Aliases are declared per command on purpose: `rm` means remove under `agent`, unset under `project config` and revoke under `pair`. `parseArgs` yields `{ _: [positionals], flags }`. Every command prints an `apx vX` mark (header/banner via `branding.js`; `--version`/`update`/`init` get the big banner). Reach the daemon via the `http` helper (auto-starts it).
-11. **Web panel = Base UI, hand-built.** No Radix/shadcn/installers — primitives in `components/ui/*` behind `components/ui.tsx`. All requests go through `src/lib/api/*` (bearer auto-fetched from `/api/admin/web-token`). Every string in **both** `i18n/en.ts` and `i18n/es.ts` under the same key. New screens/modules get a Playwright spec in `e2e/`.
+11. **Web panel = Base UI, hand-built.** Curated Base-UI primitives in `components/ui/*` behind the `components/ui.tsx` barrel — no Radix, no shadcn installer runs; `components.json` stays deleted. All requests go through `src/lib/api/*` (bearer auto-fetched from `/api/admin/web-token`). Every string in **both** `i18n/en.ts` and `i18n/es.ts` under the same key. New screens/modules get a Playwright spec in `e2e/`. How-to: [`rules/web-ui.md`](rules/web-ui.md).
 
 11b. **One page layout for every list screen.** Wrap it in `<Section>` and use
     the slots: `title` + `description`, the ONE primary action in `action`
@@ -143,7 +182,7 @@ is `apx skills sync`.
     the interface.
 
 
-12. **Channel rules live in ONE place; watch the prompt budget.** Per-channel formatting goes in `prompts/channels/<ch>.md` (+ `modes/voice.md`) — never inline in callers. `prompts/core/super-agent.md` ships every turn on every channel — keep it lean (~2.5k tok). Measure with `node scripts/inspect-channel-prompts.js`. Don't recite a tool catalog (the runtime sends real schemas); operational syntax belongs in on-demand `apx-*` skills.
+12. **Channel rules live in ONE place; watch the prompt budget.** Per-channel formatting goes in `prompts/channels/<ch>.md` (+ `modes/voice.md`) — never inline in callers. `prompts/core/super-agent.md` ships every turn on every channel — keep it lean (~2.5k tok). Measure with `node scripts/inspect-channel-prompts.js`. Don't recite a tool catalog (the runtime sends real schemas); operational syntax belongs in on-demand `apx-*` skills. Deep dive: [`rules/prompts-and-channels.md`](rules/prompts-and-channels.md).
 13. **No hardcoded paths or identity/channel/permission strings.** Paths from `core/config/` (`APX_HOME`, `CONFIG_PATH`, `projectStorageRoot()`); channels from `constants/channels.js`, permission modes from `constants/permissions.js`, actor ids from `constants/actors.js`. Read/write global config only via `readConfig()`/`writeConfig()` — `writeConfig` refuses to silently clear credentials (`CREDENTIAL_PATHS`); pass `_allowClear:true` for an intentional reset. Per-project overrides in `.apc/config.json`, deep-merged via `effectiveConfig()` (arrays replace, don't merge).
 14. **ESM + pnpm.** `"type":"module"`, Node ≥22 (what CI runs and the docs site requires): explicit `.js` imports, no `__dirname` (use `fileURLToPath(import.meta.url)`). **pnpm only**. Only `src/`, `skills/`, `README.md` ship to npm.
 15. **The daemon never blocks the event loop on a request path.** New I/O inside a route handler uses `fs/promises`; sync I/O is for boot only. Every async handler goes through `asyncRoute()` so a rejection becomes a 500 instead of killing the process.
@@ -152,56 +191,29 @@ is `apx skills sync`.
 17. **A code change is not applied until the daemon restarts** — `apx restart`,
     before you test by hand, then verify it took. The daemon runs from the MAIN
     checkout, so a change committed only on a worktree branch never reaches it.
-    Full procedure and the verification commands: **"The dev loop"** near the top
-    of this file. It is the single most common way work here goes sideways.
+    Full procedure and the verification commands: **["The dev loop"](#the-dev-loop--skip-a-step-and-your-test-is-a-lie)**
+    above. It is the single most common way work here goes sideways.
 
-## Conventions & recipes
+## Deep dives — read on demand
 
-- **Model ids are `provider:model`** (`ENGINE_IDS` = anthropic/openai/groq/openrouter/ollama/gemini/mock). Add an engine: `src/core/engines/<id>.js` exporting `chat()`/`health()`, register in `ADAPTERS`. Degrade chain: `super_agent.model_fallback.models` (ordered full ids). The router (`model-router.js`) health-checks the chain and picks the first healthy; at call time `retry.js` rotates on retryable errors (429/5xx/timeout) but treats 4xx/auth as fatal.
-- **Add an external runtime** (claude-code/codex/opencode/aider/cursor-agent/gemini-cli/qwen-code/antigravity): `src/core/runtimes/<id>.js`, register in `REGISTRY`. These are delegations — the external tool reads `AGENTS.md` itself, so APX does NOT inject the project AGENTS.md for them.
-- **MCP scopes** (`core/mcp/`): `runtime` (`~/.apx/projects/<id>/mcps.json`, secrets, chmod 600, never committed) ▶ `apc` (`.apc/mcps.json`, committed, no secrets) ▶ `global` (`~/.apx/mcps.json`). First-by-name wins; secrets go to runtime only.
-- **Telegram identity** (`plugins/telegram.js`): global roster keyed by `user_id`, roles owner/contact/guest — unknown senders are guests with no tools. `telegram.channels[]` is canonical; root `bot_token`/`chat_id` are legacy fallbacks.
+Subsystem how-to lives in [`rules/`](rules/) so this
+hub stays scannable. Open a file only when you're working in that subsystem;
+when you change behavior it documents, update both the deep dive and the matching
+rule above in the same change.
 
-## Web UI (`src/interfaces/web`, React 19 + Vite + Tailwind v4)
-
-- **Run/verify**: `pnpm dev` (port 7431, proxies daemon 7430) hot-reloads; `pnpm build` regenerates `dist/`, which the daemon serves. Verify with `npx tsc --noEmit` — `vite build` does NOT type-check.
-- **i18n is es-typed**: `t()` keys derive from `i18n/es.ts` (`TKey = DeepKeys<EsStrings>`). Add every key to BOTH `es.ts` and `en.ts` or `tsc` fails.
-- **Tooltips**: wrap the element in `<Tip content={…}>` (`components/ui/tip`), never native `title`. Provider is global in `App.tsx` (delay 0). Leave `<img alt>` alone — that's a11y, not a tooltip.
-- **Confirm before acting**: any button that triggers an execution or a destructive change (Run, Delete, rebuild, …) opens a confirm `<Dialog>` (`components/ui`) with a Cancel + action footer (see `RoutinesTab`, `ConfigTab`). Never native `confirm()` or a hand-rolled modal. Show a loading state while the action runs (button `loading`, optimistic row) and revalidate the affected SWR keys after.
-- **Componentize screens**: thin screen in `screens/`, its own parts under `components/<feature>/` (e.g. `components/routines/`, `components/code/`).
-- **Full-height tabs**: `TabLayout` content is `flex-1 min-h-0 overflow-y-auto`, so use `h-full` + per-pane `overflow-y-auto` (see `ChatTab`, `RoutinesTab`).
-- **The web is a GUI over the system — reuse, don't re-implement.** A web feature must call the SAME core/daemon function the CLI uses, never a parallel reimplementation. Before building anything, find the existing function (`core/stores/*`, `commands/*`, an `api/*` route) and wire the UI to it. If the logic lives only inside a CLI command (coupled to console output), extract it to `core/` (or a shared exported helper) so both surfaces call one implementation — per rule 8 (core → adapter → surface). **If no function exists for what's asked, do NOT invent a web-only version: stop, say so, and ask how to proceed — the capability should be added to the daemon/CLI too so terminal and web stay at parity.**
-
-## Super-agent prompt & channels
-
-Assembled by `buildSuperAgentSystem()` (`prompt-builder.js`), run by `runAgent()` (`run-agent.js`), driven by `runSuperAgent()` (`core/agent/super-agent.js`; the HTTP entry point is `host/daemon/api/super-agent.js`). Block order (each dropped when empty): base → user/identity → memory (broker `[RELEVANT MEMORY]` or notebook) → active threads → relationship → channel block + contextNote → projects index → **project AGENTS.md** → skills (hint or inspector) → lazy-tools hint → **voice mode** → suffix. Format directives sit LAST for recency.
-
-- **Project AGENTS.md is loaded** (`buildProjectAgentsBlock`) when APX runs its OWN loop inside a project — NOT when it delegates to an external engine (that engine reads it itself). **The project APX is running inside is never truncated** — a project always reads its own contract whole. A *foreign* project is capped at `super_agent.project_agents_max_chars` (0 = no cap), cut on a line boundary, and the block says how much was dropped.
-- **Channels are SURFACES; voice is a MODE.** `CHANNEL_PROMPT_FILES` maps each surface (`telegram, cli, routine, api, web, web_sidebar, web_code, deck, desktop, code`) to `channels/<ch>.md`. There is no `voice` channel — it's `channelMeta.voice` (from `modes/voice.md`); desktop is always voice. Who sets it: telegram plugin, `api/voice.js`, `plugins/desktop.js` (`{voice:true}`), web body (`web`/`web_sidebar`/`web_code`), routines, `apx code`.
-- **Lazy tools** (`tools/registry.js`): a small `BASE_TOOL_NAMES` set ships by default; the model pulls the rest in via `discover_tools({category|names})` to fit cheap-tier TPM caps. (This replaced the old per-channel CORE/FULL split.)
-- **Skills are reached on demand.** Default: `buildSkillsHintBlock` (slugs-only hint) + `list_skills`/`load_skill` tools, plus `/slug` trigger and semantic RAG nudge. **Opt-in Skill Inspector** (`src/core/agent/skills/inspector.js`, `config.skills.inspector.enabled`): per-turn embeddings RAG injects the matching skill body/hint and suppresses the static slug dump. Embedder chain ollama→gemini→openai→tf.
-- **Chit-chat protection** (`prompts/discipline/action.md`, in both project-agent and super-agent prompts): call `finish` on pure greetings/thanks instead of hallucinating a tool.
-
-## Memory, RAG & cross-channel store
-
-- **Embeddings provider is configurable** (`memory.embeddings`, registry at `core/memory/embed-engines/`: ollama/openai/gemini/tf). `embedOne/embedBatch` resolve via `selectEmbedEngine`, fall back to `tf` on error. Switching provider/model changes the embedder space → run `POST /api/embeddings/reindex` after a switch.
-- **The cross-channel message store is the spine.** Every surface logs turns to `~/.apx/messages/<channel>/YYYY-MM-DD.jsonl` via `appendGlobalMessage({channel, ...})`. Feeds the RAG indexer, `search_messages`, and the `# Active threads` block — a channel that doesn't log is invisible cross-channel.
-- **Progressive compaction** (`core/memory/compactor.js`): fire-and-forget once a chat passes `memory.compact_threshold`; summarizes the oldest into a `type:"compact"` record (light `compact_model`), keeps `keep_recent` verbatim.
-- **Vector store is dual-backend + lazy** (`store.js`): tries sqlite-vec (`~/.apx/memory.db`), falls back to a pure-JS JSON store on any load failure. Indexer is incremental (cursor at `~/.apx/memory-cursor.json`), reconciles embedder family changes, broker hard-capped at `memory.broker_budget_ms`. Tests: `memory-rag` + `memory-compaction` (offline: force-TF/force-JSON/mock/temp HOME).
-
-## Desktop module (floating voice window)
-
-`apx desktop` — tray-resident Electron capsule (hotkey ⌘G/Ctrl+G), renamed from `apx overlay` (rule 5). Lives in `src/interfaces/desktop/` (`main.js`/`preload.js`/`renderer.js`, vanilla JS — NOT React), wired by `plugins/desktop.js`, `desktop-ws.js`, `api/desktop.js`.
-
-- **Boot:** `apx desktop start` → `commands/desktop.js` (`findElectron()` cascade; for autostart the `node node_modules/electron/cli.js` branch wins under launchd's minimal PATH). Wrapper spawns Electron `detached`+`unref`. `main.js` reads `desktop.*` config, registers shortcuts, connects WS to `/api/desktop/ws` **with a bearer token** (the upgrade handler authenticates it — see `desktop-ws.js`).
-- **State machine** (renderer): `idle | listening | transcribing | thinking | speaking`. Non-streaming models send one `done` with no tokens → inject final text immediately; TTS is fire-and-forget. Production guards (double-`done`, regen, conv-card height, webm chunked transcription) are documented inline in `renderer.js` — read the comments before touching it.
-- **Identity name:** `identity.json agent_name` → `super_agent.name` → `SUPERAGENT_DISPLAY_FALLBACK` ("APX", `core/identity/self.js`) via `resolveAgentName()`; don't invert.
-- **Autostart** (`apx desktop install/uninstall`): launchd plist / HKCU Run / `.desktop`. `ProgramArguments` MUST be `process.execPath` + absolute CLI script (never a shim — launchd PATH ENOENTs `exec node`).
-- **Out of scope:** `apx voice` (CLI TTS) and `voice.*` keys; whisper/STT (`transcription.js`). The desktop is a consumer, not an owner.
-
-## Docs site
-
-`docs/` — Astro 6 + Starlight, self-contained, bilingual (EN at `src/content/docs/<section>/`, ES at `…/es/<section>/` with the same slug — edit both). Base path `/apx`; internal links absolute with trailing slash. Screenshots are placeholder `<Screenshot/>` components (files using it must be `.mdx`). GFM-in-MDX needs the explicit `remarkGfm` in `astro.config.mjs` — don't remove it. **Read `docs/AUTHORING.md` first.** Not wired into preflight — build explicitly (`cd docs && pnpm build`) when you touch it.
+| Deep dive | Read it when you're touching… |
+|---|---|
+| [`architecture.md`](rules/architecture.md) | any structural decision — layering, SOLID, registries, where logic lives |
+| [`repo-layout.md`](rules/repo-layout.md) | finding where a thing lives / where a new thing goes |
+| [`daemon-api.md`](rules/daemon-api.md) | HTTP routes, `asyncRoute`, plugins, WS hubs (rules 9 / 15) |
+| [`cli.md`](rules/cli.md) | CLI commands, routes, help, aliases (rule 10) |
+| [`testing.md`](rules/testing.md) | writing/harnessing tests, coverage floor, preflight (rule 1) |
+| [`recipes.md`](rules/recipes.md) | engines, external runtimes, MCP scopes, Telegram identity |
+| [`web-ui.md`](rules/web-ui.md) | the React + Vite admin panel (rules 11 / 11b) |
+| [`prompts-and-channels.md`](rules/prompts-and-channels.md) | prompt assembly, channels, lazy tools, skills (rules 12 / 16) |
+| [`memory.md`](rules/memory.md) | embeddings, message store, compaction, vector index |
+| [`desktop.md`](rules/desktop.md) | the Electron floating voice window (rule 5) |
+| [`docs-site.md`](rules/docs-site.md) | the public Astro + Starlight docs in `docs/` (rule 6) |
 
 ## Agents (dogfood)
 

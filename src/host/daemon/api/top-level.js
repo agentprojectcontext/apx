@@ -10,7 +10,7 @@
 //   POST /mcp/run                call an MCP tool
 import fs from "node:fs";
 import path from "node:path";
-import { resolveMemoryPath } from "./shared.js";
+import { resolveMemoryPath, asyncRoute } from "./shared.js";
 
 export function register(api, { projects, registries, resolveTopProject }) {
   // ---- /memory ----
@@ -117,7 +117,7 @@ export function register(api, { projects, registries, resolveTopProject }) {
     res.json(registries.for(p).list());
   });
 
-  api.post("/mcp/run", async (req, res) => {
+  api.post("/mcp/run", asyncRoute(async (req, res) => {
     const { project: projectRef, name, tool, params } = req.body || {};
     if (!name) return res.status(400).json({ error: "name required" });
     if (!tool) return res.status(400).json({ error: "tool required" });
@@ -129,5 +129,5 @@ export function register(api, { projects, registries, resolveTopProject }) {
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
-  });
+  }));
 }

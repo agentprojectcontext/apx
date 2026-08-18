@@ -1,11 +1,13 @@
 // YAML-ish frontmatter — one parser.
 //
-// Four copies existed, and they did not agree on which keys are legal:
+// Six copies existed, and they did not agree on which keys are legal:
 //
 //   apc/parser.js        /^([a-zA-Z_-]+):/          dashes, no digits
 //   agent/skills/loader  /^([a-zA-Z_][a-zA-Z0-9_-]*)\s*:/  digits and dashes, strips quotes
 //   core/sessions        /^([a-zA-Z_]+):/           neither
 //   cli/commands/session /^([a-zA-Z_]+):/           neither
+//   stores/sessions      /^([a-zA-Z_]+):/           neither
+//   stores/conversations /^([a-zA-Z_]+):/           neither
 //
 // That is not cosmetic duplication: a key like `route_to_agent2` or
 // `agent-slug` parsed in some code paths and vanished in others, so the same

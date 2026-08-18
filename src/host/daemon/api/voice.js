@@ -32,6 +32,7 @@ import { buildVoiceChannelContext } from "#core/agent/channels/voice-context.js"
 import { extractSuggestions } from "#core/agent/suggestions.js";
 import { appendGlobalMessage } from "#core/stores/messages.js";
 import { appendErrorTrace, previewText } from "#core/logging.js";
+import { asyncRoute } from "./shared.js";
 
 export function register(api, { projects, plugins, registries }) {
   // GET /voice/tts?path=<abs>
@@ -39,7 +40,7 @@ export function register(api, { projects, plugins, registries }) {
   // Streams a TTS audio file back to the caller. Sandboxed to the
   // ~/.apx/tmp/tts directory so a client can't request arbitrary
   // filesystem paths through a manifest-leaked reply_audio_path.
-  api.get("/voice/tts", async (req, res) => {
+  api.get("/voice/tts", asyncRoute(async (req, res) => {
     const rawPath = String(req.query.path || "");
     if (!rawPath) return res.status(400).json({ error: "path required" });
     try {
@@ -64,9 +65,9 @@ export function register(api, { projects, plugins, registries }) {
     } catch (e) {
       res.status(500).json({ error: e?.message || "tts read failed" });
     }
-  });
+  }));
 
-  api.post("/voice/turn", async (req, res) => {
+  api.post("/voice/turn", asyncRoute(async (req, res) => {
     const body = req.body || {};
     const cfg = readConfig();
     let userText = (body.text || "").trim();
@@ -261,7 +262,7 @@ export function register(api, { projects, plugins, registries }) {
         }
       }
     }
-  });
+  }));
 }
 
 // Note for plugin authors:

@@ -11,10 +11,11 @@
 // for the daemon's lifetime.
 import { previews } from "#core/artifacts/preview.js";
 import { tunnels, detectProviders } from "#core/artifacts/tunnel.js";
+import { asyncRoute } from "./shared.js";
 
 export function register(api, { project }) {
   // Start (or reuse) an ephemeral preview server for an artifact.
-  api.post("/projects/:pid/artifacts/:name/preview", async (req, res) => {
+  api.post("/projects/:pid/artifacts/:name/preview", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const name = decodeURIComponent(req.params.name);
@@ -30,7 +31,7 @@ export function register(api, { project }) {
     } catch (e) {
       res.status(400).json({ error: e.message });
     }
-  });
+  }));
 
   // List preview servers scoped to a project.
   api.get("/projects/:pid/previews", (req, res) => {
@@ -50,15 +51,15 @@ export function register(api, { project }) {
   });
 
   // Stop a preview server (also closes its tunnel).
-  api.delete("/previews/:id", async (req, res) => {
+  api.delete("/previews/:id", asyncRoute(async (req, res) => {
     const rec = previews.get(req.params.id);
     if (rec?.tunnel) tunnels.close(rec.tunnel.id);
     const ok = await previews.stop(req.params.id);
     res.status(ok ? 204 : 404).end();
-  });
+  }));
 
   // Open a public tunnel to a preview's local port.
-  api.post("/previews/:id/tunnel", async (req, res) => {
+  api.post("/previews/:id/tunnel", asyncRoute(async (req, res) => {
     const rec = previews.get(req.params.id);
     if (!rec) return res.status(404).json({ error: "preview not found" });
     if (rec.tunnel) return res.json(rec.tunnel); // already shared
@@ -69,7 +70,7 @@ export function register(api, { project }) {
     } catch (e) {
       res.status(502).json({ error: e.message });
     }
-  });
+  }));
 
   // Close a preview's tunnel but keep the local server running.
   api.delete("/previews/:id/tunnel", (req, res) => {

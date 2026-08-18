@@ -352,6 +352,7 @@ export async function runResumedTurn(self, ctx) {
     saTrace,
     streamedCount: state.streamedCount,
     lastStreamedText: state.lastStreamedText,
+    heldCount: state.heldCount,
     agentDisplay,
     extraMeta: { ask_resume: true },
   });

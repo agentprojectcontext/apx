@@ -19,6 +19,7 @@ import {
   autostartInstall,
   autostartUninstall,
 } from "#core/desktop/autostart.js";
+import { asyncRoute } from "./shared.js";
 import {
   isDesktopRunning,
   startDesktopDetached,
@@ -41,7 +42,7 @@ export function register(api, { plugins, config }) {
 
   // POST /desktop/start — launch the floating window (detached Electron). Same
   // helper the CLI's `apx desktop start` uses. No-op-safe if already running.
-  api.post("/desktop/start", async (_req, res) => {
+  api.post("/desktop/start", asyncRoute(async (_req, res) => {
     try {
       const r = await startDesktopDetached({ port: config?.port });
       if (!r.ok) return res.status(500).json({ ok: false, error: r.error });
@@ -49,7 +50,7 @@ export function register(api, { plugins, config }) {
     } catch (e) {
       res.status(500).json({ ok: false, error: e.message });
     }
-  });
+  }));
 
   // POST /desktop/stop — terminate the running window (SIGTERM). `stopped` is
   // false when nothing was running.
@@ -76,7 +77,7 @@ export function register(api, { plugins, config }) {
       .catch((e) => res.status(500).json({ ok: false, error: e.message }));
   });
 
-  api.post("/desktop/message", async (req, res) => {
+  api.post("/desktop/message", asyncRoute(async (req, res) => {
     const { text, previousMessages = [] } = req.body || {};
     if (!text) return res.status(400).json({ error: "text required" });
     // Respond immediately — the real reply goes over WebSocket.
@@ -94,7 +95,7 @@ export function register(api, { plugins, config }) {
         })
         .catch(() => {});
     }
-  });
+  }));
 
   // ── Autostart-at-login (per-user, no sudo) ──────────────────────────────
   // Reads/toggles the same launchd plist / Windows Run / .desktop entry the

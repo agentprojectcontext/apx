@@ -43,7 +43,7 @@ the path without playing it.
   ✓ piper        local    es_AR-daniela-high.onnx
   ✓ elevenlabs   cloud    eleven_multilingual_v2   key ••••a91f
   ✓ openai       cloud    tts-1                     key ••••7c2d
-  ⚠ gemini       cloud    no key — run apx config set voice.tts.gemini.api_key
+  ⚠ gemini       cloud    no key — run apx config set --global voice.tts.gemini.api_key
   • mock         local    silent WAV (tests only)
 
   STT
@@ -110,7 +110,7 @@ Provider settings live in `~/.apx/config.json` under `voice.tts`:
 Switch the active provider with:
 
 ```bash
-apx config set voice.tts.provider piper
+apx config set --global voice.tts.provider piper
 ```
 
 You can also manage providers from the [Web panel](/apx/docs/surfaces/web/)
@@ -155,7 +155,7 @@ Piper runs fully offline. You need the `piper` binary and one `.onnx` voice mode
 3. Point APX at it:
 
    ```bash
-   apx config set voice.tts.provider piper
+   apx config set --global voice.tts.provider piper
    apx config set voice.tts.piper.model "$HOME/.apx/voices/es_AR-daniela-high.onnx"
    ```
 
@@ -170,8 +170,8 @@ Piper runs fully offline. You need the `piper` binary and one `.onnx` voice mode
 ### Gemini cloud (quickest with an existing key)
 
 ```bash
-apx config set voice.tts.provider gemini
-apx config set voice.tts.gemini.api_key '<YOUR_GEMINI_KEY>'
+apx config set --global voice.tts.provider gemini
+apx config set --global voice.tts.gemini.api_key '<YOUR_GEMINI_KEY>'
 apx voice say "hola mundo" --provider gemini
 ```
 
@@ -184,9 +184,9 @@ apx voice say "hola mundo" --provider gemini
 ### ElevenLabs
 
 ```bash
-apx config set voice.tts.provider elevenlabs
-apx config set voice.tts.elevenlabs.api_key '<YOUR_11L_KEY>'
-apx config set voice.tts.elevenlabs.voice_id '<VOICE_ID>'
+apx config set --global voice.tts.provider elevenlabs
+apx config set --global voice.tts.elevenlabs.api_key '<YOUR_11L_KEY>'
+apx config set --global voice.tts.elevenlabs.voice_id '<VOICE_ID>'
 apx voice say "hola mundo" --provider elevenlabs
 ```
 

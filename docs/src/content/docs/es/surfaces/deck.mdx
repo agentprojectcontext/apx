@@ -153,7 +153,7 @@ El daemon se enlaza a `127.0.0.1` por defecto (solo loopback). Para que la app D
 en tu teléfono pueda alcanzarlo, tenés que habilitar el enlace por LAN:
 
 ```bash
-apx config set remote.bind 0.0.0.0
+apx config set --global host 0.0.0.0
 # Then restart the daemon
 apx daemon stop
 apx daemon start

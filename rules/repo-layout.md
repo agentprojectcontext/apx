@@ -1,0 +1,14 @@
+# Repo layout
+
+> Deep dive for [`AGENTS.md`](../AGENTS.md). The hub carries a 5-line map;
+> this is the full per-folder breakdown. Read it when you're finding where a
+> thing lives or deciding where a new thing goes.
+
+- `src/core/` — engine-agnostic core:
+  - `agent/` — `super-agent.js` (daemon action loop), `run-agent.js` (tool loop), `build-agent-system.js`, `prompt-builder.js`, `model-router.js`, `retry.js`, `self-memory.js`, `memory.js`; `loop/` (the collaborators `run-agent.js` orchestrates); `prompts/` (`core/`, `channels/`, `modes/`, `discipline/`); `skills/` (catalog, loader, trigger, rag, **inspector**, index-store, policy); `tools/` (registry + `handlers/`, one file per tool, names in `tools/names.js`)
+  - `apc/` (scaffold, AGENTS.md parser, skill-sync), `config/` (index + paths), `engines/` (per-provider adapters + `_health`/`_streaming`), `runtimes/` (external coding CLIs + detect), `sessions/` (`core/sessions/` — cross-engine session discovery — the CLI, the daemon and the agent tool all call it), `mcp/`, `memory/`, `identity/`, `stores/`, `constants/` (channels, permissions, roles, actors, scopes — never inline literals), `util/`, `confirmation/`, `channels/`, `profiles/`, `routines/`, `integrations/`, `artifacts/`, `deck/`, `desktop/`, `http-tools/` (`catalog.js` is the tool data, `registry.js` only indexes and serves it), `i18n/`, `net/`, `vars/`, `runtime-skills/`, `voice/`
+- `src/host/daemon/` — thin **adapter** over `core/`: HTTP API (`api/*.js` mounted by `buildApi`), plugins (`telegram/`, `desktop/`), WebSocket hubs. **No domain logic here** — if an `api/*` file is more than body→core→response, move the work into `core/`. See [`daemon-api.md`](daemon-api.md).
+- `src/interfaces/` — `cli/` (`commands/` = what a command does, `routes/` = how its args are parsed, `help/` = the help surface — see [`cli.md`](cli.md)), `web/` (React + Vite admin panel, isolated pnpm workspace), `tui/`, `desktop/` (Electron floating voice window), `mcp-server/` (stdio MCP exposing APX to other LLMs — distinct from `apx mcp …` which consumes MCPs), `acp/` (Agent Client Protocol, `apx-acp` bin).
+  - **The TUI is a deliberate island.** `interfaces/tui/` is a vendored OpenCode fork (~24k lines) that imports `@opencode-ai/*` and makes **zero** `#core/` imports — it reaches APX over HTTP like any other client. "One domain function, one home" does not apply inside it; don't try to wire it to `core/` directly.
+- `tests/` — backend suite (`npm run test:ci`: recursive discovery, and it fails on any skipped/todo test). `src/interfaces/web/e2e/` — Playwright. See [`testing.md`](testing.md).
+- `skills/` — bundled `SKILL.md`s. `scripts/` — build-web, sync, git hooks. `docs/` — public docs site (Astro + Starlight, bilingual; self-contained, not in the npm package).

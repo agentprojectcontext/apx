@@ -31,7 +31,7 @@ async function pickAgentModel({ modelOverride, agent, config }) {
 }
 
 export function register(api, { projects, project, config }) {
-  api.post("/projects/:pid/agents/:slug/exec", async (req, res) => {
+  api.post("/projects/:pid/agents/:slug/exec", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const {
@@ -106,7 +106,7 @@ export function register(api, { projects, project, config }) {
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
-  });
+  }));
 
   api.post("/projects/:pid/agents/:slug/chat", asyncRoute(async (req, res) => {
     const p = project(req, res);

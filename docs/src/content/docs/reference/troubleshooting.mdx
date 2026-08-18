@@ -167,7 +167,7 @@ apx model order anthropic openrouter groq
 **Problem:** Keys at `engines.groq.api_key`, `engines.openrouter.api_key`, or similar fields reset
 to empty strings without you touching them. This was observed on 2026-05-27 (spec #14).
 
-**Cause:** A partial `writeConfig()` call (from `apx config set`, a wizard re-run, or a daemon
+**Cause:** A partial `writeConfig()` call (from `apx config set --global`, a wizard re-run, or a daemon
 reload after a structural edit) can overwrite a sub-tree with defaults, silently wiping sibling
 fields.
 
@@ -183,11 +183,11 @@ fields.
    apx model key gemini AIza...
    ```
 
-2. If you recently ran `apx config set engines.<something>`, verify the full block still looks
+2. If you recently ran `apx config set --global engines.<something>`, verify the full block still looks
    right:
 
    ```bash
-   apx config show --effective | grep -A 20 '"engines"'
+   apx config show --global | grep -A 20 '"engines"'
    ```
 
 3. After restoring keys, reload the daemon so it picks them up without a full restart:
@@ -199,7 +199,7 @@ fields.
 </Steps>
 
 <Aside type="caution">
-  Avoid `apx config set engines` with a partial JSON value — always set leaf keys (e.g.
+  Avoid `apx config set --global engines` with a partial JSON value — always set leaf keys (e.g.
   `engines.groq.api_key`) rather than the entire `engines` object. This is a known issue (#14)
   being addressed in the `writeConfig` layer.
 </Aside>

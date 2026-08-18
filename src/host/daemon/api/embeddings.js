@@ -17,9 +17,10 @@ import {
 } from "#core/memory/embed-engines/index.js";
 import { embedOne } from "#core/memory/embeddings.js";
 import { reindexMemory } from "#core/memory/index.js";
+import { asyncRoute } from "./shared.js";
 
 export function register(api) {
-  api.get("/embeddings/providers", async (_req, res) => {
+  api.get("/embeddings/providers", asyncRoute(async (_req, res) => {
     try {
       const cfg = readConfig();
       const embedCfg = embeddingsConfig(cfg);
@@ -32,9 +33,9 @@ export function register(api) {
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
-  });
+  }));
 
-  api.post("/embeddings/test", async (req, res) => {
+  api.post("/embeddings/test", asyncRoute(async (req, res) => {
     try {
       const { text, provider } = req.body || {};
       const sample = typeof text === "string" && text.trim()
@@ -52,14 +53,14 @@ export function register(api) {
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
-  });
+  }));
 
-  api.post("/embeddings/reindex", async (_req, res) => {
+  api.post("/embeddings/reindex", asyncRoute(async (_req, res) => {
     try {
       const result = await reindexMemory({ config: readConfig() });
       res.json({ ok: true, ...result });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
-  });
+  }));
 }

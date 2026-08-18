@@ -9,9 +9,10 @@
 // or to return a cancelled error.
 
 import { getConfirmationStore } from "#core/confirmation/pending-store.js";
+import { asyncRoute } from "./shared.js";
 
 export function register(api) {
-  api.post("/super-agent/confirm/:correlationId", async (req, res) => {
+  api.post("/super-agent/confirm/:correlationId", asyncRoute(async (req, res) => {
     const { correlationId } = req.params;
     const { confirmed } = req.body;
 
@@ -26,5 +27,5 @@ export function register(api) {
     }
 
     return res.json({ ok: true, confirmed });
-  });
+  }));
 }

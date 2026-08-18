@@ -54,7 +54,7 @@ pip install fastmcp
 # or: uv tool install fastmcp
 
 apx mcp add my-server \
-  --command uv --project iacrmar \
+  --command uv --project acme \
   -- run python /abs/path/my_server.py
 ```
 
@@ -106,7 +106,7 @@ await server.connect(new StdioServerTransport());
 
 ```bash
 apx mcp add my-server \
-  --command npx --project iacrmar \
+  --command npx --project acme \
   -- -y my-server-package
 ```
 
@@ -122,7 +122,7 @@ apx mcp add my-server \
 
 ```bash
 apx mcp add github \
-  --scope runtime --project iacrmar \
+  --scope runtime --project acme \
   --command npx \
   --env GITHUB_TOKEN=ghp_xxx \
   --env GITHUB_OWNER=manuel \
@@ -165,7 +165,7 @@ apx mcp logs my-server
 apx log -f
 
 # Scopes / files / env APX sees
-apx mcp check --project iacrmar
+apx mcp check --project acme
 ```
 
 ## Don't
