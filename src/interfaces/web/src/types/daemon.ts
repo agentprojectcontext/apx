@@ -247,6 +247,9 @@ export interface ConversationMessage {
   /** Compact record of what the turn did, written at the time (the live tool
    *  events are long gone by the time a thread is read back). */
   tool_summary?: ToolSummary;
+  /** The model's thinking for that turn, one entry per model pass. Never part
+   *  of `content` — the adapter keeps the two apart. */
+  reasoning?: string[];
   /** The skill inspector's decision for that turn, recorded at write time. */
   skill_inspector?: {
     embedder?: string;

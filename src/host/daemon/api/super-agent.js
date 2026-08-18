@@ -62,7 +62,7 @@ function inspectorRecord(trace) {
 // the human surfaces (web big chat + sidebar) — not generic "api"/automation
 // callers. Best-effort: a logging failure never breaks the reply.
 const WEB_LOGGED_CHANNELS = new Set([CHANNELS.WEB, CHANNELS.WEB_SIDEBAR]);
-function logWebTurn(channel, { prompt, replyText, name, model, usage, trace, project, media, inspector }) {
+function logWebTurn(channel, { prompt, replyText, name, model, usage, trace, project, media, inspector, reasoning }) {
   if (!WEB_LOGGED_CHANNELS.has(channel)) return;
   // Which project the chat was opened from. The ledger is one file per
   // channel+day for the whole daemon, so without this stamp a chat started
@@ -118,6 +118,11 @@ function logWebTurn(channel, { prompt, replyText, name, model, usage, trace, pro
           ...(usage ? { usage } : {}),
           ...(toolSummary ? { tool_summary: toolSummary } : {}),
           ...(skillInspector ? { skill_inspector: skillInspector } : {}),
+          // Stored in meta, not as its own row: rows are what the agent reads
+          // back as history (getRecentChannelTurnsFromFs) and what search and
+          // the RAG index walk. The thinking is for whoever reopens the thread,
+          // never an input the model gets fed its own notes from.
+          ...(reasoning?.length ? { reasoning } : {}),
         },
       });
     }
@@ -126,12 +131,31 @@ function logWebTurn(channel, { prompt, replyText, name, model, usage, trace, pro
   }
 }
 
+// A turn's thinking goes on the record, but the ledger is a day-file the whole
+// daemon shares: an agent that loops twenty times must not write a novel into
+// it. One segment per model pass, both ends bounded.
+const REASONING_SEGMENT_CAP = 4000;
+const REASONING_MAX_SEGMENTS = 10;
+
 // Wrap an onEvent emitter so that operationally interesting events also land
 // in the unified daemon log. We don't log every "model_start" — too noisy —
 // just the ones a user would want to see in `apx log -f` after a turn fails
 // or rotates models.
-function wrapOnEventForLog(send, { trace_id, channel }) {
+function wrapOnEventForLog(send, { trace_id, channel, reasoning }) {
   return (event) => {
+    // The thinking, kept for the record. It rides its own event and never the
+    // answer text, so this is the only place it can be picked up before it is
+    // gone — same problem the tool trace has, same fix.
+    if (event?.type === "assistant_reasoning" && Array.isArray(reasoning)) {
+      const piece = String(event.reasoning || "").trim();
+      if (piece && reasoning.length < REASONING_MAX_SEGMENTS) {
+        reasoning.push(
+          piece.length > REASONING_SEGMENT_CAP
+            ? piece.slice(0, REASONING_SEGMENT_CAP) + "…"
+            : piece,
+        );
+      }
+    }
     if (event?.type === "engine_failed") {
       log.warn(
         `engine ${event.model || "?"} failed → retrying with ${event.retry_with || "?"}`,
@@ -212,9 +236,11 @@ export function register(api, { projects, registries, plugins, project, config }
       res.write(JSON.stringify(event) + "\n");
     };
 
+    const reasoning = [];
     const onEvent = wrapOnEventForLog(send, {
       trace_id: req.apxTraceId,
       channel: ctx.channel,
+      reasoning,
     });
 
     // Surface the inspector decision to clients before model_start so the web
@@ -274,6 +300,7 @@ export function register(api, { projects, registries, plugins, project, config }
         trace: saResult.trace,
         project: p,
         inspector: inspectorTrace,
+        reasoning,
       });
       send({
         type: "final",
@@ -349,6 +376,7 @@ export function register(api, { projects, registries, plugins, project, config }
     const ctx = resolveSuperAgentContext(req, p);
     const inspectorOn = isInspectorEnabled(config);
     let inspectorTrace = null;
+    const reasoning = [];
     if (inspectorOn) {
       try {
         const out = await inspectPromptForSkills({ prompt, projectPath: p.path, globalConfig: config });
@@ -377,6 +405,7 @@ export function register(api, { projects, registries, plugins, project, config }
         onEvent: wrapOnEventForLog(null, {
           trace_id: req.apxTraceId,
           channel: ctx.channel,
+          reasoning,
         }),
         skipSkillsHint: inspectorOn,
       });
@@ -390,6 +419,7 @@ export function register(api, { projects, registries, plugins, project, config }
         trace: saResult.trace,
         project: p,
         inspector: inspectorTrace,
+        reasoning,
       });
       res.json({
         text: saResult.text,

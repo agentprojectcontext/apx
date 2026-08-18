@@ -25,7 +25,8 @@ process.env.USERPROFILE = TMP_HOME;
 
 const express = (await import("express")).default;
 const { register } = await import("#host/daemon/api/super-agent.js");
-const { readGlobalThread, listGlobalThreads, appendGlobalMessage } = await import("#core/stores/messages.js");
+const { readGlobalThread, listGlobalThreads, appendGlobalMessage, getRecentChannelTurnsFromFs } =
+  await import("#core/stores/messages.js");
 const { apiRouter, makeTempProject, cleanupTempProject } = await import("./_helpers.js");
 
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -120,5 +121,39 @@ test("the skill inspector's decision survives a reopen", () => {
     answer.skill_inspector,
     decision,
     "the badges must be rebuildable from the record alone",
+  );
+});
+
+// Same for the thinking: it travels on its own event and never inside the
+// answer text, so nothing was left of it once the stream closed.
+test("the model's thinking survives a reopen, and stays out of what feeds the model", () => {
+  const thinking = ["Primero reviso las sesiones.", "Con eso ya puedo contestar."];
+  appendGlobalMessage({
+    channel: "web",
+    direction: "out",
+    type: "agent",
+    actor_id: "super_agent",
+    actor_kind: "superagent",
+    agent_slug: "super_agent",
+    body: "Listo — ya traje la skill.",
+    meta: { project_id: "8", project_name: "postbeam", reasoning: thinking },
+  });
+
+  const thread = readGlobalThread({ channel: "web", date: TODAY, project: "8" });
+  const answer = thread.messages.filter((m) => m.role === "assistant").at(-1);
+  assert.deepEqual(answer.reasoning, thinking, "the thread viewer gets the thinking back");
+  assert.equal(
+    answer.content.includes(thinking[0]),
+    false,
+    "and it never leaks into the answer text",
+  );
+
+  // What the agent reads back as history is built from rows, not from meta —
+  // the thinking must not come back to it as context.
+  const turns = getRecentChannelTurnsFromFs({ channel: "web", limit: 20 });
+  assert.equal(
+    turns.some((t) => String(t.content || "").includes(thinking[0])),
+    false,
+    "the model must not be fed its own notes",
   );
 });
