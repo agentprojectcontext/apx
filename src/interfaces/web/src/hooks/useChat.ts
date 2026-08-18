@@ -229,6 +229,11 @@ function threadToChatMsgs(messages: ConversationMessage[]): ChatMsg[] {
             output_tokens: (turn.usage?.output_tokens || 0) + (m.usage.output_tokens || 0),
           };
         }
+        // The thinking first, the answer after — the order it happened in and
+        // the order the live stream paints it.
+        for (const think of m.reasoning || []) {
+          if (think) turn.parts.push({ kind: "reasoning", text: think });
+        }
         if (m.content) turn.parts.push({ kind: "text", text: m.content });
       }
     }

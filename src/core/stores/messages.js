@@ -768,6 +768,12 @@ export function readGlobalThread({ channel, date, project, _globalMessagesDir } 
         // Which skills the per-turn RAG put in the prompt. Same reasoning as
         // tool_summary: the live `skill_inspector` event is gone by read time.
         ...(r.meta?.skill_inspector ? { skill_inspector: r.meta.skill_inspector } : {}),
+        // The model's thinking for that turn, one entry per model pass. Kept in
+        // meta and handed out only here, so it reaches the thread viewer and
+        // nothing that feeds the model.
+        ...(Array.isArray(r.meta?.reasoning) && r.meta.reasoning.length
+          ? { reasoning: r.meta.reasoning }
+          : {}),
       };
     });
   // A day-file the asking project owns no turn in is not its thread to read.
