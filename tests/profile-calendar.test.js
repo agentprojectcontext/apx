@@ -139,7 +139,7 @@ test("a calendar command that fails degrades to text, it does not fail the run",
 // doctor
 // --------------------------------------------------------------------------
 
-test("doctor sends you to MCP for an integration APX has no plugin for", () => {
+test("doctor points at the plugin now that calendar has one", () => {
   const cfg = readConfig();
   cfg.profile = { active: "secretary", config: {}, configs: { secretary: {} } };
   writeConfig(cfg);
@@ -149,11 +149,33 @@ test("doctor sends you to MCP for an integration APX has no plugin for", () => {
 
   assert.ok(calendar, "the optional calendar integration should be reported");
   assert.equal(calendar.level, "warn", "optional means degrade, not block");
-  // `apx integration connect calendar` cannot work: there is no calendar plugin
-  // in the catalog and the command answers "unknown plugin". Naming a command
-  // that fails is worse than naming none.
-  assert.doesNotMatch(calendar.fix || "", /integration connect/);
-  assert.match(calendar.fix || "", /apx mcp add calendar/);
+  // This assertion used to be the exact opposite, and the flip is the point:
+  // while there was no calendar plugin, `apx integration connect calendar`
+  // answered "unknown plugin" and the doctor had to send people to MCP instead.
+  // A real plugin exists now, so the ordinary path is the ordinary answer.
+  assert.match(calendar.fix || "", /apx integration connect calendar/);
+});
+
+test("an integration with no plugin at all still gets the MCP route", async () => {
+  // The branch has not gone away, it just no longer applies to calendars: a
+  // package may name any integration it likes, and naming a command that cannot
+  // work is worse than naming none.
+  const { installProfile, useProfile } = await import("#core/profiles/lifecycle.js");
+
+  const dir = fs.mkdtempSync(path.join(TMP_HOME, "pkg-"));
+  fs.writeFileSync(path.join(dir, "profile.json"), JSON.stringify({
+    id: "telepath", name: "Telepath", version: "1.0.0",
+    requires: { optional_integrations: ["telepathy"] },
+  }));
+  fs.writeFileSync(path.join(dir, "PROFILE.md"), "# Role: Tester");
+  installProfile(dir);
+  useProfile("telepath", { confirmReplace: true });
+
+  const check = profileDoctor("telepath").checks.find((c) => c.detail.startsWith("telepathy"));
+
+  assert.ok(check, "an optional integration must still be reported");
+  assert.doesNotMatch(check.fix, /integration connect/);
+  assert.match(check.fix, /apx mcp add telepathy/);
 });
 
 // --------------------------------------------------------------------------

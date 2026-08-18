@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import useSWR from "swr";
-import { AlertCircle, CheckCircle2, ChevronDown, ExternalLink, Eye, EyeOff, Github, Loader2, RefreshCw, WifiOff, X } from "lucide-react";
+import { AlertCircle, Calendar, CheckCircle2, ChevronDown, ExternalLink, Eye, EyeOff, Github, Loader2, RefreshCw, WifiOff, X } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { Integrations, type CatalogEntry, type IntegrationScope, type IntegrationStatus } from "../../lib/api";
 import { t } from "../../i18n";
@@ -42,12 +42,14 @@ const ACCENTS: Record<string, Accent> = {
   rose: { text: toneText.rose, border: "border-rose-600/40 dark:border-rose-700/50", hover: "hover:bg-rose-500/10 dark:hover:bg-rose-900/20", ring: "focus:border-rose-500/50", wrap: "border-rose-500/30 from-rose-500/20 to-pink-500/20" },
   slate: { text: toneText.slate, border: "border-slate-400/60 dark:border-slate-600/60", hover: "hover:bg-slate-500/10 dark:hover:bg-slate-700/30", ring: "focus:border-slate-400/60", wrap: "border-slate-500/30 from-slate-500/20 to-slate-700/20" },
   purple: { text: toneText.purple, border: "border-purple-600/40 dark:border-purple-700/50", hover: "hover:bg-purple-500/10 dark:hover:bg-purple-900/20", ring: "focus:border-purple-500/50", wrap: "border-purple-500/30 from-purple-500/20 to-violet-500/20" },
+  sky: { text: toneText.sky, border: "border-sky-600/40 dark:border-sky-700/50", hover: "hover:bg-sky-500/10 dark:hover:bg-sky-900/20", ring: "focus:border-sky-500/50", wrap: "border-sky-500/30 from-sky-500/20 to-blue-500/20" },
 };
 
 function iconFor(slug: string, accent: Accent): ReactNode {
   if (slug === "github") return <Github className={cn("h-6 w-6", accent.text)} />;
   if (slug === "asana") return <AsanaLogo className={cn("h-6 w-6", accent.text)} />;
   if (slug === "obsidian") return <ObsidianLogo className={cn("h-6 w-6", accent.text)} />;
+  if (slug === "calendar") return <Calendar className={cn("h-6 w-6", accent.text)} />;
   return <span className={cn("text-lg", accent.text)}>◆</span>;
 }
 
