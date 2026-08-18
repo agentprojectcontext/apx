@@ -10,7 +10,8 @@ import { TELEGRAM_TOOL_ITERS } from "#core/agent/constants.js";
 import { stripThinking, stripReasoning } from "#core/util/thinking.js";
 import { appendGlobalMessage, getRecentTelegramTurnsFromFs } from "#core/stores/messages.js";
 import { CHANNELS } from "#core/constants/channels.js";
-import { summarizeToolTrace } from "#core/agent/tool-summary.js";
+import { summarizeToolTrace, formatToolSummary } from "#core/agent/tool-summary.js";
+import { authorLine } from "#core/agent/author-line.js";
 import { SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
 import { createTelegramConfirmAdapter } from "#core/confirmation/adapters/telegram.js";
 import { getConfirmationStore as getConfirmStore } from "#core/confirmation/pending-store.js";
@@ -252,14 +253,17 @@ export function telegramErrorText(self, e) {
  * sent, so we only send `replyText` if it's non-empty AND not a duplicate of
  * the last piece that went out. This is the message the whole turn is for: with
  * mid-turn notes held back, it's the only place the result can arrive — hence
- * the never-silent floor. A turn that acted but produced no closing gets a
- * neutral "continue?"; a pure chit-chat turn that did nothing gets a short ack.
+ * the never-silent floor. When the closing comes back empty the model is asked
+ * to write it from what the turn did (author-line.js), and only if THAT is
+ * empty too — usually because the engine is down, which is why the turn is
+ * empty in the first place — does the canned line go out. Never silent beats
+ * never canned, in that order.
  * Caller stops the typing indicator before calling.
  */
 export async function sendFinalReply(self, {
   chat_id, update_id, replyText, replyAuthor, replyActorId, replyKind,
   saUsage = null, saModel = null, saTrace = null, streamedCount = 0, lastStreamedText = "",
-  heldCount = 0, agentDisplay, extraMeta = {},
+  heldCount = 0, agentDisplay, extraMeta = {}, authorLineFn = authorLine,
 }) {
   // A model that dumps raw planning must never have it forwarded. When that
   // happens the answer comes back empty and the existing never-silent fallback
@@ -274,14 +278,29 @@ export async function sendFinalReply(self, {
       `chain-of-thought is not usable on a user-facing channel.`
     );
   }
+  const toolSummary = summarizeToolTrace(saTrace);
   let toSend = "";
   if (finalClean && finalClean !== lastStreamedText) {
     toSend = finalClean;
   } else if (!finalClean) {
     const lang = resolveLang(self.globalConfig);
-    toSend = streamedCount === 0
-      ? t("telegram.fallback_listo", { lang })
-      : t("telegram.fallback_continue", { lang });
+    const worked = streamedCount > 0 || Boolean(toolSummary);
+    // One cheap tool-free call: the closing is the model's to word, even when
+    // the turn that should have produced it came back with nothing.
+    const authored = await authorLineFn({
+      globalConfig: self.globalConfig,
+      instruction: worked
+        ? "You worked on the user's request but the closing message never got written. Write it now: where the work got to, and whether you should keep going if something is left."
+        : "Your reply came back empty. Write the one line that should have gone out — acknowledge them without claiming a result you do not have.",
+      context: [
+        lastStreamedText ? `The last thing you said to them was: ${lastStreamedText}` : "",
+        toolSummary ? `What you did this turn: ${formatToolSummary(toolSummary)}` : "",
+      ].filter(Boolean).join("\n"),
+    });
+    toSend = authored || (worked
+      ? t("telegram.fallback_continue", { lang })
+      : t("telegram.fallback_listo", { lang }));
+    if (!authored) self.log(`telegram[${self.channel.name}] closing floor: the model could not write it either`);
   }
   if (!toSend) return; // everything was already streamed — nothing left to send
 
@@ -298,7 +317,6 @@ export async function sendFinalReply(self, {
     // and would bloat the day-file for a detail nobody reads back. What is
     // worth recovering later is "it read three files and sent a message", and
     // whether any of it failed.
-    const toolSummary = summarizeToolTrace(saTrace);
     if (toolSummary) meta.tool_summary = toolSummary;
     // How many progress notes the gate held back. The ledger stays a record of
     // what the user RECEIVED; this number is how you tell, after the fact, that

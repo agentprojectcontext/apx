@@ -41,13 +41,33 @@ test("telegram: super-agent catch surfaces a reply on non-abort errors", () => {
 });
 
 test("telegram: empty final text never ends the turn silently", () => {
-  // The never-silent floor lives in sendFinalReply (reply.js): a turn that
-  // streamed/acted but produced no closing gets a neutral "continue?"; a pure
-  // chit-chat turn that did nothing gets the short ack.
-  const floor = REPLY.match(/}\s*else if \(!finalClean\) \{[\s\S]{0,600}?\n {2}\}/);
+  // The never-silent floor lives in sendFinalReply (reply.js). Two layers, in
+  // this order: the model is asked to write the closing from what the turn did,
+  // and the canned line is what goes out only if that comes back empty too.
+  // The behaviour is exercised in telegram-closing.test.js; what this pins is
+  // that the floor itself is still there and still layered that way.
+  const floor = REPLY.match(/}\s*else if \(!finalClean\) \{[\s\S]{0,1800}?\n {2}\}/);
   assert.ok(floor, "sendFinalReply must have an `else if (!finalClean)` floor branch");
-  assert.match(floor[0], /telegram\.fallback_continue/, "cut-off turn gets the neutral continue prompt");
-  assert.match(floor[0], /telegram\.fallback_listo/, "pure chit-chat turn still gets the short ack");
+  assert.match(floor[0], /authorLineFn\(/, "the closing is the model's to word first");
+  assert.match(floor[0], /telegram\.fallback_continue/, "cut-off turn falls back to the neutral continue prompt");
+  assert.match(floor[0], /telegram\.fallback_listo/, "pure chit-chat turn falls back to the short ack");
+  assert.ok(
+    floor[0].indexOf("authorLineFn(") < floor[0].indexOf("telegram.fallback"),
+    "canned text is the floor, not the first answer",
+  );
+});
+
+test("telegram: the /reset ack is written by the model, canned only as a floor", () => {
+  // Same rule as the closing: the host decides an ack is due, the model decides
+  // how it reads. A reset engages no engine for the TURN — this one call is not
+  // that turn, it is the confirmation, and it still has a floor under it.
+  const reset = DISPATCH.match(/if \(isReset\) \{[\s\S]{0,900}?telegram\.reset_ack[^\n]*/);
+  assert.ok(reset, "the reset short-circuit must still produce an ack");
+  assert.match(reset[0], /authorLine\(/, "the ack is asked for, not stored");
+  assert.ok(
+    reset[0].indexOf("authorLine(") < reset[0].indexOf("telegram.reset_ack"),
+    "the canned ack is what runs when the model cannot answer, not before it",
+  );
 });
 
 test("telegram: both entry points share the reply path (no drift)", () => {
