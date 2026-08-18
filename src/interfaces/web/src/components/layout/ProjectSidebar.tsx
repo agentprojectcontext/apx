@@ -137,6 +137,39 @@ function projectLabel(p: ProjectEntry): string {
   return p.name || p.path.split("/").pop() || String(p.id);
 }
 
+// What a right-click on a project offers, wherever that project is drawn.
+interface ProjectActions {
+  openConfig: (p: ProjectEntry) => void;
+  copyPath: (p: ProjectEntry) => void;
+  remove: (p: ProjectEntry) => void;
+}
+
+// The menu body itself. A tile and a popover row are different triggers for the
+// same project, so they get the same verbs in the same order — destructive last.
+function ProjectMenuContent({ project, actions }: { project: ProjectEntry; actions: ProjectActions }) {
+  return (
+    <ContextMenuContent className="w-56" data-testid={`project-ctx-${project.id}`}>
+      <div className="truncate px-1.5 py-1 text-xs font-medium text-muted-foreground">
+        {projectLabel(project)}
+      </div>
+      <ContextMenuItem onClick={() => actions.openConfig(project)} data-testid={`project-ctx-config-${project.id}`}>
+        <SlidersHorizontal /> {t("nav.project_settings")}
+      </ContextMenuItem>
+      <ContextMenuItem onClick={() => actions.copyPath(project)} data-testid={`project-ctx-copy-${project.id}`}>
+        <Copy /> {t("nav.copy_path")}
+      </ContextMenuItem>
+      <ContextMenuSeparator />
+      <ContextMenuItem
+        variant="destructive"
+        onClick={() => actions.remove(project)}
+        data-testid={`project-ctx-unregister-${project.id}`}
+      >
+        <Trash2 /> {t("admin.unregister")}
+      </ContextMenuItem>
+    </ContextMenuContent>
+  );
+}
+
 // Square rail button that opens a dropdown listing projects — used both for the
 // "+N" overflow bucket and for the fully-collapsed folder.
 function RailProjectMenu({
@@ -150,6 +183,7 @@ function RailProjectMenu({
   testId,
   onOpen,
   isActive,
+  actions,
 }: {
   projects: ProjectEntry[];
   label?: string;
@@ -161,9 +195,18 @@ function RailProjectMenu({
   testId: string;
   onOpen: (project: ProjectEntry) => void;
   isActive: (href: string) => boolean;
+  actions: ProjectActions;
 }) {
+  // Controlled so a verb picked from a row's context menu also puts the
+  // popover away: acting on a project is leaving the list, not browsing it.
+  const [open, setOpen] = useState(false);
+  const rowActions: ProjectActions = {
+    openConfig: (p) => { setOpen(false); actions.openConfig(p); },
+    copyPath:   (p) => { setOpen(false); actions.copyPath(p); },
+    remove:     (p) => { setOpen(false); actions.remove(p); },
+  };
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger
         data-testid={testId}
         title={tooltip}
@@ -192,17 +235,27 @@ function RailProjectMenu({
           const href = `/p/${p.id}`;
           const { initials, idleClass } = projectTone(name);
           return (
-            <DropdownMenuItem
-              key={p.id}
-              data-testid={`project-menu-item-${p.id}`}
-              onClick={() => onOpen(p)}
-              className={cn(isActive(href) && "bg-accent/60 text-foreground")}
-            >
-              <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-md text-[10px] font-bold", idleClass)}>
-                {initials}
-              </span>
-              <span className="truncate">{name}</span>
-            </DropdownMenuItem>
+            // A project you can only reach through this popover carries the
+            // same right-click menu as one with a tile of its own. `render`
+            // keeps the DOM flat — the row itself is the context trigger, so
+            // the dropdown's own keyboard navigation is untouched.
+            <ContextMenu key={p.id}>
+              <ContextMenuTrigger
+                render={
+                  <DropdownMenuItem
+                    data-testid={`project-menu-item-${p.id}`}
+                    onClick={() => onOpen(p)}
+                    className={cn(isActive(href) && "bg-accent/60 text-foreground")}
+                  />
+                }
+              >
+                <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-md text-[10px] font-bold", idleClass)}>
+                  {initials}
+                </span>
+                <span className="truncate">{name}</span>
+              </ContextMenuTrigger>
+              <ProjectMenuContent project={p} actions={rowActions} />
+            </ContextMenu>
           );
         })}
       </DropdownMenuContent>
@@ -257,6 +310,12 @@ export function ProjectSidebar({ onSelect, onOpenRoby, onOpenAddProject }: Props
     } catch (e) {
       toast.error((e as Error).message);
     }
+  };
+
+  const actions: ProjectActions = {
+    openConfig: (project) => onSelect(`/p/${project.id}/config`),
+    copyPath,
+    remove: setPendingRemove,
   };
 
   const base = projects.find((p) => String(p.id) === "0");
@@ -369,6 +428,7 @@ export function ProjectSidebar({ onSelect, onOpenRoby, onOpenAddProject }: Props
               testId="nav-projects-folder"
               onOpen={openFromMenu}
               isActive={isActive}
+              actions={actions}
             />
           )}
 
@@ -385,9 +445,7 @@ export function ProjectSidebar({ onSelect, onOpenRoby, onOpenAddProject }: Props
                   project={p}
                   active={isActive(`/p/${p.id}`)}
                   onOpen={() => openProject(p)}
-                  onOpenConfig={() => onSelect(`/p/${p.id}/config`)}
-                  onCopyPath={() => copyPath(p)}
-                  onRemove={() => setPendingRemove(p)}
+                  actions={actions}
                 />
               ))}
               {overflow.length > 0 && (
@@ -400,6 +458,7 @@ export function ProjectSidebar({ onSelect, onOpenRoby, onOpenAddProject }: Props
                   testId="nav-projects-overflow"
                   onOpen={openFromMenu}
                   isActive={isActive}
+                  actions={actions}
                 />
               )}
             </>
@@ -479,16 +538,12 @@ function ProjectRailItem({
   project,
   active,
   onOpen,
-  onOpenConfig,
-  onCopyPath,
-  onRemove,
+  actions,
 }: {
   project: ProjectEntry;
   active: boolean;
   onOpen: () => void;
-  onOpenConfig: () => void;
-  onCopyPath: () => void;
-  onRemove: () => void;
+  actions: ProjectActions;
 }) {
   const label = projectLabel(project);
   return (
@@ -504,23 +559,7 @@ function ProjectRailItem({
           onClick={onOpen}
         />
       </ContextMenuTrigger>
-      <ContextMenuContent className="w-56" data-testid={`project-ctx-${project.id}`}>
-        <div className="truncate px-1.5 py-1 text-xs font-medium text-muted-foreground">{label}</div>
-        <ContextMenuItem onClick={onOpenConfig} data-testid={`project-ctx-config-${project.id}`}>
-          <SlidersHorizontal /> {t("nav.project_settings")}
-        </ContextMenuItem>
-        <ContextMenuItem onClick={onCopyPath} data-testid={`project-ctx-copy-${project.id}`}>
-          <Copy /> {t("nav.copy_path")}
-        </ContextMenuItem>
-        <ContextMenuSeparator />
-        <ContextMenuItem
-          variant="destructive"
-          onClick={onRemove}
-          data-testid={`project-ctx-unregister-${project.id}`}
-        >
-          <Trash2 /> {t("admin.unregister")}
-        </ContextMenuItem>
-      </ContextMenuContent>
+      <ProjectMenuContent project={project} actions={actions} />
     </ContextMenu>
   );
 }
