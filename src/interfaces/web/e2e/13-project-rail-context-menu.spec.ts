@@ -73,6 +73,26 @@ test.describe("project rail context menu", () => {
     expect(deleted).toEqual([]);
   });
 
+  test("a project reached through the +N popover carries the same menu", async ({ page }) => {
+    // Short window: nothing fits inline, so both projects live in the bucket.
+    await page.setViewportSize({ width: 1200, height: 700 });
+    await page.goto("/");
+
+    await page.getByTestId("nav-projects-overflow").click();
+    const row = page.getByTestId("project-menu-item-42");
+    await expect(row).toBeVisible();
+
+    await row.click({ button: "right" });
+    await expect(page.getByTestId("project-ctx-42")).toBeVisible();
+    await page.getByTestId("project-ctx-unregister-42").click();
+
+    const confirm = page.getByTestId("project-unregister-confirm");
+    await expect(confirm).toBeVisible();
+    await confirm.click();
+
+    expect(deleted).toEqual(["42"]);
+  });
+
   test("the menu opens the project's config", async ({ page }) => {
     await page.goto("/");
     await page.getByTestId("project-avatar-41").click({ button: "right" });
