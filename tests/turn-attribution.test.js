@@ -69,12 +69,23 @@ test("telegram: every entry point hands the model to sendFinalReply", () => {
 });
 
 test("web/desktop/voice: persisted agent turns carry model and usage", () => {
+  // The signature may grow (trace, project…); what must never drop out is the
+  // attribution pair.
   assert.match(
     API_SUPER_AGENT,
-    /logWebTurn\(channel, \{ prompt, replyText, name, model, usage \}\)/,
+    /function logWebTurn\(channel, \{ prompt, replyText, name, model, usage[\w\s,]*\}\)/,
     "logWebTurn must receive the attribution",
   );
-  assert.match(API_SUPER_AGENT, /meta: \{ \.\.\.\(model \? \{ model \} : \{\}\), \.\.\.\(usage \? \{ usage \} : \{\}\) \}/);
+  assert.match(
+    API_SUPER_AGENT,
+    /logWebTurn\(ctx\.channel, \{\s*prompt,\s*replyText: saResult\.text,\s*name: saResult\.name,\s*model: saResult\.model,\s*usage: saResult\.usage,/,
+    "both endpoints must hand the attribution to logWebTurn",
+  );
+  assert.match(
+    API_SUPER_AGENT,
+    /meta: \{\s*\.\.\.scope,\s*\.\.\.\(model \? \{ model \} : \{\}\),\s*\.\.\.\(usage \? \{ usage \} : \{\}\),/,
+    "the persisted turn's meta must stamp model and usage",
+  );
   for (const [name, src, modelExpr, usageExpr] of [
     ["desktop", DESKTOP, /\{ model: result\.model \}/, /\{ usage: result\.usage \}/],
     ["voice", API_VOICE, /\{ model: replyModel \}/, /\{ usage: replyUsage \}/],
