@@ -152,7 +152,13 @@ A turn that takes several steps does not print as a running log. Every tool the
 agent ran collapses into one **N actions** row — open while it works, closed once
 it is done, one click for the arguments and results, and any failure named in the
 row itself. What stays in the open is the closing message: the answer the turn
-was for.
+was for. Reopening the conversation later shows the same thing: the steps are
+recorded with the turn, not just streamed and forgotten.
+
+A chat you start inside a project is listed in that project. The Base workspace
+still shows every thread from every channel; a project shows the ones opened from
+it, plus channel threads (Telegram, Desktop) that belong to no project in
+particular.
 
 ![Chat tab — channel-first sidebar with super-agent and per-agent threads](../../../assets/shots/11-chat.png)
 
