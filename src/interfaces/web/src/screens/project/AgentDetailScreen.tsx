@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import useSWR from "swr";
 import {
-  ArrowDownLeft, ArrowLeft, ArrowUpRight, Bot, Brain, Copy, Crown, Gauge,
+  ArrowDownLeft, ArrowLeft, ArrowUpRight, Bot, Brain, Copy, Crown, FileText, Gauge,
   Heart, MessagesSquare, Pencil, Save, Send, Settings, Sparkles, Trash2, Wrench, Activity,
 } from "lucide-react";
 import { Agents, Conversations, Messages, Routines, Tasks, Tools } from "../../lib/api";
@@ -26,7 +26,7 @@ import { toneOutline, toneText } from "../../lib/tone";
 import type { AgentAutonomy } from "../../types/daemon";
 import { BrainGraph, type BrainNode, type BrainEdge } from "./AgentBrainGraph";
 
-type TabKey = "overview" | "memories" | "records" | "sleep" | "brain" | "config";
+type TabKey = "overview" | "memories" | "records" | "sleep" | "brain" | "prompt" | "config";
 function buildTabs(): { key: TabKey; label: string; icon: typeof Bot }[] {
   return [
     { key: "overview", label: t("agents_ui.tab_explorer"),        icon: Gauge },
@@ -34,6 +34,7 @@ function buildTabs(): { key: TabKey; label: string; icon: typeof Bot }[] {
     { key: "records",  label: t("project.agent_detail.records_title"), icon: Activity },
     { key: "sleep",    label: t("project.agent_detail.sleep_title"),   icon: Heart },
     { key: "brain",    label: t("project.agent_detail.brain_title"),   icon: Sparkles },
+    { key: "prompt",   label: t("project.agent_detail.tab_prompt"),    icon: FileText },
     { key: "config",   label: t("project.agent_detail.tab_config"),    icon: Settings },
   ];
 }
@@ -211,6 +212,10 @@ export function AgentDetailScreen({ pid }: { pid: string }) {
         />
       )}
 
+      {tab === "prompt" && (
+        <SystemPromptEditor pid={pid} slug={slug} system={a.system || ""} onSaved={() => void detail.mutate()} />
+      )}
+
       {tab === "config" && (
         <AgentConfigForm
           pid={pid}
@@ -313,9 +318,10 @@ function AgentConfigForm({
   const [skillDefaults, setSkillDefaults] = useState((agent.skills || []).length === 0);
   const [tools, setTools] = useState((agent.tools || []).join(", "));
   const [description, setDescription] = useState(agent.description || "");
-  const [system, setSystem] = useState(agent.system || "");
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // The prompt body is edited in its own tab; here we only report its size.
+  const promptLines = (agent.system || "").trim() ? (agent.system || "").trim().split("\n").length : 0;
 
   const save = async () => {
     setBusy(true);
@@ -333,7 +339,6 @@ function AgentConfigForm({
         skills: skillDefaults ? [] : skills,
         tools: csv(tools),
         description: description || null,
-        system,
       });
       toast.success(t("project.agent_detail.update_success"));
       onSaved();
@@ -349,9 +354,10 @@ function AgentConfigForm({
 
   return (
     <div className="space-y-4">
-      {/* Identity | system prompt side by side, then behavior laid out
-          horizontally, capabilities last. Keeps the form scannable instead of
-          one giant single-column stack. */}
+      {/* Identity | behavior side by side, capabilities last. The system
+          prompt used to hold the right column, but it always dwarfed the rest
+          of the form — it moved to its own tab (?tab=prompt) with the markdown
+          editor, and behavior moved up into the space it left. */}
       <div className="grid gap-4 lg:grid-cols-2">
         <Section title={t("project.agent_detail.config_identity")} description={`.apc/agents/${agent.slug}.md — ${t("agents_ui.config_def_desc")}`}>
           <div className="space-y-3">
@@ -371,38 +377,44 @@ function AgentConfigForm({
           </div>
         </Section>
 
-        <Section title={t("project.agent_detail.system_label")} description={t("project.agent_detail.system_hint")} fullHeight>
-          <Textarea
-            rows={16}
-            className="h-full min-h-[280px] flex-1 font-mono text-xs"
-            value={system}
-            onChange={(e) => setSystem(e.target.value)}
-            placeholder="You are…"
-          />
-        </Section>
-      </div>
+        <div className="space-y-4">
+          <Section title={t("project.agent_detail.config_behavior")} description={t("project.agent_detail.config_behavior_desc")}>
+            <div className="space-y-3">
+              <Field label={t("agents_form.autonomy")} hint={t("agents_form.autonomy_hint")}>
+                <AutonomyPicker value={autonomy} onChange={setAutonomy} />
+              </Field>
+              <Field label={t("project.agent_detail.parent_label")}>
+                <UiSelect
+                  value={parent}
+                  onChange={setParent}
+                  placeholder={t("project.agent_detail.none_parent")}
+                  options={[{ value: "", label: t("project.agent_detail.none_parent") }, ...agents.filter((x) => x.slug !== agent.slug).map((x) => ({ value: x.slug, label: x.slug }))]}
+                />
+              </Field>
+              <Field label={t("project.agent_detail.model_label")} hint={t("project.agent_detail.model_hint")}>
+                <AgentModelSelect value={model} onChange={setModel} />
+              </Field>
+              <Switch checked={isMaster} onChange={setIsMaster} label={t("project.agent_detail.master_label")} />
+            </div>
+          </Section>
 
-      <Section title={t("project.agent_detail.config_behavior")} description={t("project.agent_detail.config_behavior_desc")}>
-        <div className="grid gap-3 lg:grid-cols-3">
-          <Field label={t("agents_form.autonomy")} hint={t("agents_form.autonomy_hint")}>
-            <AutonomyPicker value={autonomy} onChange={setAutonomy} />
-          </Field>
-          <Field label={t("project.agent_detail.parent_label")}>
-            <UiSelect
-              value={parent}
-              onChange={setParent}
-              placeholder={t("project.agent_detail.none_parent")}
-              options={[{ value: "", label: t("project.agent_detail.none_parent") }, ...agents.filter((x) => x.slug !== agent.slug).map((x) => ({ value: x.slug, label: x.slug }))]}
-            />
-          </Field>
-          <Field label={t("project.agent_detail.model_label")} hint={t("project.agent_detail.model_hint")}>
-            <AgentModelSelect value={model} onChange={setModel} />
-          </Field>
+          {/* The prompt left this form for its own tab — this keeps the trail
+              visible from where people used to look for it. */}
+          <Link
+            to="?tab=prompt"
+            className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3 hover:border-muted-fg/50"
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <FileText size={14} className="shrink-0 text-muted-fg" />
+              <span className="truncate text-sm font-medium">{t("project.agent_detail.system_label")}</span>
+              <span className="shrink-0 text-xs text-muted-fg">
+                {promptLines ? t("project.agent_detail.prompt_lines", { n: promptLines }) : t("project.agent_detail.prompt_empty")}
+              </span>
+            </span>
+            <span className={`shrink-0 text-xs ${toneText.violet}`}>{t("common.open")} →</span>
+          </Link>
         </div>
-        <div className="mt-3">
-          <Switch checked={isMaster} onChange={setIsMaster} label={t("project.agent_detail.master_label")} />
-        </div>
-      </Section>
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Section title={t("agents_form.skills_title")} description={t("agents_form.skills_desc")}>
@@ -479,6 +491,45 @@ function MemoryEditor({ pid, slug, onSaved }: { pid: string; slug: string; onSav
     <div className="flex h-[65vh] min-h-[420px] flex-col overflow-hidden rounded-xl border border-border bg-card">
       <FileViewer file={file} loading={body.isLoading} onSave={onSave} />
     </div>
+  );
+}
+
+// The system prompt is the body of .apc/agents/<slug>.md, and real prompts run
+// hundreds of lines — far past what a form textarea beside the identity fields
+// can show. It gets its own tab and the same markdown editor as memory/docs:
+// rendered preview by default, split editing, ⌘S to save.
+function SystemPromptEditor({
+  pid, slug, system, onSaved,
+}: { pid: string; slug: string; system: string; onSaved: () => void }) {
+  const toast = useToast();
+
+  const file = useMemo<FileContent>(() => ({
+    path: `.apc/agents/${slug}.md`,
+    name: `${slug}.md`,
+    kind: "markdown",
+    size: system.length,
+    modified: "",
+    encoding: "utf8",
+    content: system,
+  }), [slug, system]);
+
+  const onSave = async (content: string) => {
+    await Agents.update(pid, slug, { system: content });
+    toast.success(t("project.agent_detail.update_success"));
+    onSaved();
+  };
+
+  return (
+    <Section
+      title={t("project.agent_detail.system_label")}
+      description={t("project.agent_detail.system_hint")}
+      fullHeight
+      className="h-[70vh] min-h-[460px]"
+    >
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border">
+        <FileViewer file={file} onSave={onSave} />
+      </div>
+    </Section>
   );
 }
 
