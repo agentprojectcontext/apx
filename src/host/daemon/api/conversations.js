@@ -67,12 +67,15 @@ export function register(api, { project, config }) {
   // These endpoints surface that ledger as day-threads so the web Chats
   // sidebar can list and reopen them.
   //
-  // Scope: the Base workspace (project 0) sees every thread; a real project
-  // sees the ones started from it, plus the unattributed ones (channels with no
-  // project of their own, and everything written before turns were stamped). A
-  // chat opened inside a project used to be listed only in Base — it looked
-  // like the conversation had been lost.
-  const threadScope = (p) => (String(p.id) === "0" ? undefined : String(p.id));
+  // Scope: each project lists only the super-agent chats that happened in it.
+  // The default workspace (project 0) additionally owns every unstamped turn —
+  // Telegram, desktop and deck have no project of their own, so that is where
+  // those conversations live. Passing `undefined` for project 0, as this used
+  // to, means "no filter", and the unstamped-rows-belong-everywhere rule it
+  // paired with then listed the same ~90 Telegram threads under every project.
+  // Channel grouping is untouched: a project with its own Telegram routing
+  // still gets a Telegram group holding just its chats.
+  const threadScope = (p) => String(p.id);
 
   api.get("/projects/:pid/super-agent/threads", (req, res) => {
     const p = project(req, res);

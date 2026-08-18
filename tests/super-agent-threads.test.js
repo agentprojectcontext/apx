@@ -197,18 +197,71 @@ test("threads: a project sees its own chats, not another project's", () => {
   assert.equal(listGlobalThreads({ _globalMessagesDir: base })[0].messages, 4);
 });
 
-test("threads: unstamped rows stay visible everywhere", () => {
+test("threads: unstamped rows belong to the default workspace, not to every project", () => {
   const base = tmpLedger();
-  webDay(base, "2026-07-04", [
-    userRow("2026-07-04T09:00:00Z", "chat viejo sin proyecto"),
-    agentRow("2026-07-04T09:00:01Z", "ok"),
+  writeDay(base, "telegram", "2026-07-04", [
+    { ts: "2026-07-04T09:00:00Z", channel: "telegram", direction: "in", type: "user", body: "hablando por telegram" },
+    { ts: "2026-07-04T09:00:01Z", channel: "telegram", direction: "out", type: "agent", body: "ok" },
   ]);
-  // Legacy history predates the stamp — stranding it in one project would be
-  // the same disappearance bug from the other side.
-  for (const project of ["8", "9", undefined]) {
-    const threads = listGlobalThreads({ project, _globalMessagesDir: base });
-    assert.equal(threads.length, 1, `project=${project} must still see legacy threads`);
+  webDay(base, "2026-07-04", [
+    userRow("2026-07-04T10:00:00Z", "chat viejo sin proyecto"),
+    agentRow("2026-07-04T10:00:01Z", "ok"),
+  ]);
+
+  // Telegram and desktop have no project of their own, and legacy web rows
+  // predate the stamp: all of it is the default workspace's history.
+  assert.equal(listGlobalThreads({ project: "0", _globalMessagesDir: base }).length, 2);
+  // A real project shows what happened in it — not the general workspace's
+  // Telegram backlog, which is what made every project look identical.
+  for (const project of ["8", "9"]) {
+    assert.deepEqual(
+      listGlobalThreads({ project, _globalMessagesDir: base }),
+      [],
+      `project=${project} must not inherit the default workspace's chats`,
+    );
   }
+  // No project at all still means no filtering — the cross-project shape the
+  // agent inbox reads.
+  assert.equal(listGlobalThreads({ _globalMessagesDir: base }).length, 2);
+});
+
+test("threads: the default workspace keeps its channel groups separate from a project's", () => {
+  const base = tmpLedger();
+  // Same channel, same day, two projects: the general workspace's own Telegram
+  // chat and a project that routes Telegram to its own agents.
+  writeDay(base, "telegram", "2026-07-09", [
+    { ts: "2026-07-09T09:00:00Z", channel: "telegram", direction: "in", type: "user", body: "che roby" },
+    { ts: "2026-07-09T09:00:01Z", channel: "telegram", direction: "out", type: "agent", body: "dale" },
+    { ts: "2026-07-09T11:00:00Z", channel: "telegram", direction: "in", type: "user", body: "ana, el presupuesto", meta: { project_id: "8" } },
+    { ts: "2026-07-09T11:00:01Z", channel: "telegram", direction: "out", type: "agent", body: "lo armo", meta: { project_id: "8" } },
+  ]);
+
+  const general = listGlobalThreads({ project: "0", _globalMessagesDir: base });
+  assert.equal(general.length, 1);
+  assert.equal(general[0].channel, "telegram", "the channel group survives the scoping");
+  assert.equal(general[0].messages, 2);
+  assert.equal(general[0].title, "che roby");
+
+  const scoped = listGlobalThreads({ project: "8", _globalMessagesDir: base });
+  assert.equal(scoped.length, 1);
+  assert.equal(scoped[0].channel, "telegram");
+  assert.equal(scoped[0].title, "ana, el presupuesto");
+
+  const thread = readGlobalThread({ channel: "telegram", date: "2026-07-09", project: "0", _globalMessagesDir: base });
+  assert.deepEqual(thread.messages.map((m) => m.content), ["che roby", "dale"]);
+});
+
+test("readGlobalThread: a project owning no turn in the day gets nothing, not an empty thread", () => {
+  const base = tmpLedger();
+  writeDay(base, "telegram", "2026-07-12", [
+    { ts: "2026-07-12T09:00:00Z", channel: "telegram", direction: "in", type: "user", body: "de la general" },
+  ]);
+  // The file exists — someone else's chat is in it — so the route must take the
+  // not-found path instead of opening an empty pane.
+  assert.equal(readGlobalThread({ channel: "telegram", date: "2026-07-12", project: "9", _globalMessagesDir: base }), null);
+  assert.ok(readGlobalThread({ channel: "telegram", date: "2026-07-12", project: "0", _globalMessagesDir: base }));
+  // Unscoped reads still answer for the whole file.
+  assert.equal(readGlobalThread({ channel: "telegram", date: "2026-07-12", _globalMessagesDir: base }).messages.length, 1);
 });
 
 test("readGlobalThread: a project reads only its own turns from a shared day", () => {
@@ -241,6 +294,36 @@ test("deleteGlobalThread: scoped delete keeps the other project's turns", () => 
     false,
     "nothing left of ours to delete",
   );
+});
+
+test("deleteGlobalThread: deleting a project's chat spares the default workspace's", () => {
+  const base = tmpLedger();
+  writeDay(base, "telegram", "2026-07-10", [
+    { ts: "2026-07-10T09:00:00Z", channel: "telegram", direction: "in", type: "user", body: "sin proyecto" },
+    { ts: "2026-07-10T09:00:01Z", channel: "telegram", direction: "out", type: "agent", body: "ok" },
+    { ts: "2026-07-10T11:00:00Z", channel: "telegram", direction: "in", type: "user", body: "de postbeam", meta: { project_id: "8" } },
+  ]);
+  assert.equal(deleteGlobalThread({ channel: "telegram", date: "2026-07-10", project: "8", _globalMessagesDir: base }), true);
+
+  // The unstamped turns are the general workspace's chat, not spare rows to
+  // sweep up with someone else's delete.
+  const left = readGlobalThread({ channel: "telegram", date: "2026-07-10", project: "0", _globalMessagesDir: base });
+  assert.deepEqual(left.messages.map((m) => m.content), ["sin proyecto", "ok"]);
+});
+
+test("deleteGlobalThread: the default workspace can delete its own unstamped chat", () => {
+  const base = tmpLedger();
+  writeDay(base, "telegram", "2026-07-11", [
+    { ts: "2026-07-11T09:00:00Z", channel: "telegram", direction: "in", type: "user", body: "sin proyecto" },
+    { ts: "2026-07-11T11:00:00Z", channel: "telegram", direction: "in", type: "user", body: "de postbeam", meta: { project_id: "8" } },
+  ]);
+  assert.equal(deleteGlobalThread({ channel: "telegram", date: "2026-07-11", project: "0", _globalMessagesDir: base }), true);
+  assert.deepEqual(
+    listGlobalThreads({ project: "0", _globalMessagesDir: base }),
+    [],
+    "the row it was showing is the row it deletes",
+  );
+  assert.equal(listGlobalThreads({ project: "8", _globalMessagesDir: base }).length, 1);
 });
 
 test("deleteGlobalThread: unscoped delete still removes the whole day", () => {

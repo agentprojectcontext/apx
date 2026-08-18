@@ -600,30 +600,40 @@ export function readGlobalMessages({ channel, limit = 100, since } = {}) {
 
 const CHANNEL_NAME_RE = /^[a-z0-9_-]+$/i;
 
+// The workspace an unstamped row belongs to. Telegram, desktop and deck each
+// write one daemon-wide channel with no project of their own, and so does every
+// row written before web turns started stamping one. Those chats are the default
+// workspace's, not every project's: calling them unowned — visible from every
+// project — is what put all ninety-odd Telegram threads in the sidebar of
+// projects none of them happened in.
+const DEFAULT_THREAD_PROJECT = "0";
+
 // Which project a ledger row was written from, when the writer knew. Web turns
-// stamp it (api/super-agent.js); rows from before that, and channels with no
-// project of their own, have none — those stay visible everywhere rather than
-// being stranded in a project nobody would think to open.
+// stamp it (api/super-agent.js), because the web panel is the one surface where
+// the same channel is used from several projects.
 function rowProject(r) {
   const v = r?.meta?.project_id;
   return v === undefined || v === null || v === "" ? null : String(v);
 }
 
-// Rows belonging to `project` (undefined/null → no filtering at all). An
-// unstamped row belongs to every view; a stamped one only to its own project.
+// Whether a row belongs in `want`'s view of the ledger: a stamped row only in
+// its own project, an unstamped one in the default workspace.
+function rowBelongsTo(r, want) {
+  return (rowProject(r) ?? DEFAULT_THREAD_PROJECT) === want;
+}
+
+// Rows belonging to `project`. `undefined`/null means no filtering at all — the
+// cross-project shape the agent inbox and rebuild read.
 function keepForProject(rows, project) {
   if (project === undefined || project === null || project === "") return rows;
   const want = String(project);
-  return rows.filter((r) => {
-    const owner = rowProject(r);
-    return owner === null || owner === want;
-  });
+  return rows.filter((r) => rowBelongsTo(r, want));
 }
 
 // List every non-empty channel+day thread, newest-last-activity first.
-// `project` narrows to the chats started from that project (see keepForProject)
-// — the web sidebar passes it so a chat opened inside a project is listed
-// there, instead of only in the Base workspace.
+// `project` narrows to the chats that happened in that project (see
+// keepForProject) — the web sidebar passes it so each project lists its own
+// conversations, with the channel groups inside it left intact.
 export function listGlobalThreads({ channels, project, _globalMessagesDir } = {}) {
   const base = _globalMessagesDir || GLOBAL_MESSAGES_DIR;
   if (!fs.existsSync(base)) return [];
@@ -668,6 +678,38 @@ export function listGlobalThreads({ channels, project, _globalMessagesDir } = {}
   return out;
 }
 
+// The attachment a stored turn carries, shaped for a viewer.
+//
+// The bytes live in ~/.apx/media and the turn records where: without this the
+// thread showed only the text marker the agent was given ("[document received:
+// … saved to /Users/…]"), which says nothing to the person who sent the file.
+//
+// Records written since dispatch merged the media row carry `media_kind`;
+// older ones predate it, so the kind is inferred from the metadata that IS
+// there — a transcription backend means a voice note, pixel dimensions mean a
+// photo, anything else with a file behind it is a plain file.
+//
+// What marks a row as carrying a file is the file: a Telegram `file_id` or a
+// `local_path`. Requiring the id would have made every web upload — which has
+// no Telegram anything — read back as a plain typed message.
+export function mediaFromMeta(meta) {
+  if (!meta || (!meta.file_id && !meta.local_path)) return null;
+  const kind = Array.isArray(meta.media_kind) ? meta.media_kind[0] : meta.media_kind;
+  const resolved =
+    kind ||
+    (meta.transcription_backend !== undefined ? "audio" : meta.width ? "photo" : "file");
+  return {
+    kind: resolved,
+    // null when the download failed: the turn still records what arrived, and
+    // the viewer says the copy is missing instead of offering a dead player.
+    path: meta.local_path || null,
+    name: meta.file_name || (meta.local_path ? path.basename(meta.local_path) : null),
+    mime: meta.mime_type || null,
+    size: meta.file_size ?? null,
+    duration: meta.duration ?? null,
+  };
+}
+
 // Read one channel+day thread shaped for the web chat viewer:
 // { id, channel, messages: [{ role, content, ts, … }] } — or null when missing.
 // Tool records are INCLUDED (role:"tool" with structured tool/args/result from
@@ -704,7 +746,8 @@ export function readGlobalThread({ channel, date, project, _globalMessagesDir } 
         };
       }
       if (r.type === "user") {
-        return { role: "user", content: r.body || "", ts: r.ts };
+        const media = mediaFromMeta(r.meta);
+        return { role: "user", content: r.body || "", ts: r.ts, ...(media ? { media } : {}) };
       }
       const usage = r.meta?.usage;
       return {
@@ -724,6 +767,11 @@ export function readGlobalThread({ channel, date, project, _globalMessagesDir } 
         ...(r.meta?.tool_summary ? { tool_summary: r.meta.tool_summary } : {}),
       };
     });
+  // A day-file the asking project owns no turn in is not its thread to read.
+  // The file exists — another project's chat is in it — so without this a
+  // stale link or a bookmarked URL opened an empty pane instead of taking the
+  // not-found path. Unscoped reads keep answering for the whole file.
+  if (!messages.length && project !== undefined && project !== null && project !== "") return null;
   return { id: date, channel, messages };
 }
 
@@ -739,13 +787,12 @@ export function deleteGlobalThread({ channel, date, project, _globalMessagesDir 
   if (!fs.existsSync(file)) return false;
   // Scoped delete: a day-file can hold turns from several projects, and the
   // sidebar that offered the Delete button was showing only one of them.
-  // Dropping the whole file there would take another project's chat with it.
+  // Dropping the whole file there would take another project's chat with it —
+  // including the default workspace's unstamped Telegram and desktop turns,
+  // which the old predicate swept up on every scoped delete.
   if (project !== undefined && project !== null && project !== "") {
     const rows = parseDayJsonl(fs.readFileSync(file, "utf8"));
-    const keep = rows.filter((r) => {
-      const owner = rowProject(r);
-      return owner !== null && owner !== String(project);
-    });
+    const keep = rows.filter((r) => !rowBelongsTo(r, String(project)));
     if (keep.length === rows.length) return false;
     if (keep.length === 0) fs.unlinkSync(file);
     else fs.writeFileSync(file, keep.map((r) => JSON.stringify(r)).join("\n") + "\n");
