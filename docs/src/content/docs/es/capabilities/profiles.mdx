@@ -78,6 +78,7 @@ tu memoria quedan intactas, así que `apx profile use` restaura todo.
 | `apx profile show <id> --preview` | …más el bloque de prompt renderizado |
 | `apx profile install <id\|ruta>` | Valida e instala. **No** activa |
 | `apx profile use <id>` | Activa e instala las rutinas del perfil |
+| `apx profile sync` | Vuelve a leer el paquete activo del disco después de actualizar APX |
 | `apx profile off` | Vuelve a vanilla |
 | `apx profile config` | Muestra la configuración |
 | `apx profile config --set k=v` | Cambia un valor (se puede repetir) |
@@ -103,6 +104,17 @@ y el cron se mueve.
 
 La configuración se guarda por perfil, así que cambiar de uno a otro y volver le devuelve a
 cada uno la suya en vez de pasarle la del otro.
+
+## Actualizar un paquete que ya instalaste
+
+El bloque de prompt de un perfil se renderiza en cada turno, así que mejora en el momento en
+que actualizás APX. Sus **rutinas** no: son registros en el store del super-agente, escritos
+cuando lo instalaste. `apx profile sync` vuelve a leer el paquete del disco y las refresca,
+dejando tus ajustes y la activación tal cual están.
+
+Las rutinas que editaste vos se saltean — es el contrato, y es la razón por la que
+`apx profile doctor` te avisa cuando una quedó atrás del paquete, en vez de dejarte callado en
+la versión de la primavera pasada. Si querés la nueva, borrá la tuya y corré sync.
 
 ## Dónde viven los paquetes
 

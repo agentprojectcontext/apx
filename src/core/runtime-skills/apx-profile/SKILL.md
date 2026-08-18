@@ -33,6 +33,7 @@ apx profile install secretary         # a bundled id
 apx profile install ./my-profile      # a local package directory
 apx profile use secretary             # activates + installs its routines
 apx profile use tutor --force         # replace whatever is active
+apx profile sync                      # re-read the active package from disk (after an APX update)
 
 # Configure — this is where white-label happens
 apx profile config                                  # show current settings
@@ -105,6 +106,15 @@ arguments, say) cannot break the document. Two consequences worth knowing:
 - `{{pre_output}}` is left alone by the renderer and filled by the routine runner at run
   time. That is how a routine hands itself data without spending a tool call or a permission
   on it — the secretary's `calendar_command` is the live example.
+
+## A package updates, its installed routines do not
+
+The prompt block is rendered every turn, so it improves the moment APX updates. Routines are
+records in the super-agent's store, written at install time — nothing carries a better anchor
+across. `apx profile sync` re-renders them from the package on disk, leaving settings and
+activation alone; `apx profile doctor` reports the drift so it is not silent. A routine the
+owner edited is skipped forever, by design, which also means a profile SETTING that lands in
+a routine stops taking effect on that routine once they have touched it.
 
 ## Channel overlays
 

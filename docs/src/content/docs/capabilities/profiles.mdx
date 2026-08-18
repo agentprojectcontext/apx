@@ -78,6 +78,7 @@ memory are untouched, so `apx profile use` restores everything.
 | `apx profile show <id> --preview` | …plus the rendered prompt block |
 | `apx profile install <id\|path>` | Validate and install. Does **not** activate |
 | `apx profile use <id>` | Activate, and install the profile's routines |
+| `apx profile sync` | Re-read the active package from disk after an APX update |
 | `apx profile off` | Back to vanilla |
 | `apx profile config` | Show settings |
 | `apx profile config --set k=v` | Change one setting (repeatable) |
@@ -103,6 +104,17 @@ and the cron actually moves.
 
 Settings are stored per profile, so switching from one to another and back gives each its
 own values rather than handing them the other's.
+
+## Updating a package you already installed
+
+A profile's prompt block is rendered on every turn, so it improves the moment APX updates.
+Its **routines** do not: those are records in the super-agent's store, written when you
+installed. `apx profile sync` re-reads the package from disk and refreshes them, keeping your
+settings and your activation exactly as they are.
+
+Routines you edited yourself are skipped — that is the contract, and it is why
+`apx profile doctor` tells you when one has drifted from the package rather than quietly
+leaving you on last spring's version. If you want the new one, delete yours and sync.
 
 ## Where packages live
 
