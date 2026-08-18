@@ -4,8 +4,9 @@
 // line before each one, and the stream handler used to forward every one of
 // them — a single request arrived as eight chat messages, i.e. eight push
 // notifications for one task. These tests pin the policy (progress-gate.js) and
-// the wiring (buildStreamHandler): the opener goes out, the notes before later
-// steps are held, and only a long silence buys one more.
+// the wiring (buildStreamHandler): the model's own opening line goes out, the
+// notes before later steps are held, only a long silence buys one more, and
+// nothing is ever written on the agent's behalf.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -22,7 +23,6 @@ const { createProgressGate, progressEveryMs, DEFAULT_PROGRESS_EVERY_S } = await 
   "../src/core/channels/telegram/progress-gate.js"
 );
 const { buildStreamHandler } = await import("../src/core/channels/telegram/reply.js");
-const { t, resolveLang } = await import("#core/i18n/index.js");
 
 // ── the policy ─────────────────────────────────────────────────────────────
 
@@ -31,14 +31,16 @@ test("gate: the model's first line opens the turn, later ones are held", () => {
   assert.equal(gate.text(), "send", "the opening line is the turn's one notice");
   assert.equal(gate.text(), "hold");
   assert.equal(gate.text(), "hold");
-  assert.equal(gate.toolStart(), "hold", "no canned heads-up once the model has spoken");
 });
 
-test("gate: a model that goes straight to a tool gets the canned heads-up, once", () => {
+test("gate: only the model opens a turn — tool calls buy no message of their own", () => {
+  // Tool steps are not events this gate reacts to at all: nothing is written on
+  // the agent's behalf, so a turn that opened straight into a tool is still
+  // unopened, and the first line the model writes is its opener.
   const gate = createProgressGate({ everyMs: 90_000, now: () => 1_000 });
-  assert.equal(gate.toolStart(), "heads_up");
-  assert.equal(gate.toolStart(), "hold", "one opener per turn, not one per tool");
-  assert.equal(gate.text(), "hold", "the heads-up already spent the opener");
+  assert.equal(gate.sinceLastMs(), 0, "no tool step has spent the opener");
+  assert.equal(gate.text(), "send", "the model's own line is the turn's first message");
+  assert.equal(gate.text(), "hold", "one opener per turn");
 });
 
 test("gate: a long silence buys exactly one more note", () => {
@@ -126,7 +128,7 @@ test("stream: a seven-step turn sends ONE message, not seven", async () => {
   assert.equal(state.heldCount, 7, "every later note is accounted for, not silently dropped");
 });
 
-test("stream: a model that calls a tool first opens with the canned heads-up", async () => {
+test("stream: a turn that starts with tools says nothing until the model does", async () => {
   const { self, sent } = makePoller({ telegram_progress_every_s: 90 });
   const { onEvent, state } = buildStreamHandler(self, {
     chat_id: "1234567890",
@@ -138,10 +140,9 @@ test("stream: a model that calls a tool first opens with the canned heads-up", a
   await onEvent(toolStart(2));
   await onEvent({ type: "assistant_text", text: "Sigo buscando", iteration: 2 });
 
-  const heads = t("telegram.heads_up", { lang: resolveLang(self.globalConfig) });
-  assert.deepEqual(sent, [heads], "one heads-up for the turn, none per tool");
-  assert.equal(state.streamedCount, 0, "the canned notice is not model prose");
-  assert.equal(state.heldCount, 1);
+  assert.deepEqual(sent, ["Sigo buscando"], "no canned notice precedes the model's own words");
+  assert.equal(state.streamedCount, 1, "what reached the chat is model prose, all of it");
+  assert.equal(state.heldCount, 0);
 });
 
 test("stream: a turn that never calls a tool is untouched", async () => {

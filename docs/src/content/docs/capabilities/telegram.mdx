@@ -189,8 +189,9 @@ Leave `route_to_agent` empty (or unset) to use the super-agent (the default).
 
 A request that takes the agent several steps arrives as **two messages, not ten**:
 
-1. **One notice** when work starts — the agent's own opening line ("Checking that"), or a
-   short heads-up if it went straight to a tool.
+1. **One notice** when work starts — the agent's own opening line ("Checking that"), which
+   it writes before reaching for the first tool. Nothing is ever sent on its behalf: a turn
+   that opens straight into a tool stays quiet until the agent has something of its own to say.
 2. **Quiet while it works.** Telegram's "typing…" indicator stays on, but the notes the model
    writes before each step are not delivered — a single task should not buzz your phone eight
    times.

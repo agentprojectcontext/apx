@@ -16,14 +16,14 @@ test("resolveLang reads globalConfig.user.language, slices to 2 chars, lowercase
 });
 
 test("t() returns the localized string when the key exists in the locale", () => {
-  assert.equal(t("telegram.heads_up", { lang: "es" }), "Dale, estoy con eso… 🛠️");
-  assert.equal(t("telegram.heads_up", { lang: "en" }), "On it — working on that… 🛠️");
-  assert.equal(t("telegram.heads_up", { lang: "pt" }), "Já estou nisso… 🛠️");
+  assert.equal(t("telegram.fallback_listo", { lang: "es" }), "Listo.");
+  assert.equal(t("telegram.fallback_listo", { lang: "en" }), "Done.");
+  assert.equal(t("telegram.fallback_listo", { lang: "pt" }), "Pronto.");
 });
 
 test("t() falls back to DEFAULT_LANG when the requested locale is unknown", () => {
   // "fr" is not in DICTS, must fall back to the default-lang value (en).
-  assert.equal(t("telegram.heads_up", { lang: "fr" }), DICTS[DEFAULT_LANG]["telegram.heads_up"]);
+  assert.equal(t("telegram.reset_ack", { lang: "fr" }), DICTS[DEFAULT_LANG]["telegram.reset_ack"]);
 });
 
 test("t() falls back to the key itself when the key is missing everywhere", () => {
@@ -31,11 +31,13 @@ test("t() falls back to the key itself when the key is missing everywhere", () =
 });
 
 test("t() interpolates {var} placeholders", () => {
-  // Use an ad-hoc dict by adding a key dynamically. Skipped to keep the
-  // fixture immutable — instead we test that an existing string with no
-  // placeholders is returned untouched.
-  const out = t("telegram.heads_up", { lang: "es", vars: { foo: "bar" } });
-  assert.equal(out, "Dale, estoy con eso… 🛠️");
+  assert.equal(
+    t("telegram.error_generic", { lang: "es", vars: { error: "timeout" } }),
+    "⚠️ No pude responder ahora mismo (timeout).",
+  );
+  // And a string with no placeholders comes back untouched.
+  const out = t("telegram.reset_ack", { lang: "es", vars: { foo: "bar" } });
+  assert.equal(out, DICTS.es["telegram.reset_ack"]);
 });
 
 test("locale parity: every key present in any dict must be in every dict", () => {

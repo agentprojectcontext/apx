@@ -9,9 +9,11 @@
 //
 // So this gate decides which stream events become chat messages:
 //
-//   - The FIRST sign that work started gets ONE message: the model's own
-//     opening line if it wrote one, or the canned heads-up if it went straight
-//     to a tool. Whichever comes first, and only one of them.
+//   - The FIRST line the model writes goes out as the turn's one notice. The
+//     two-segment discipline has it write that line before the first tool, so
+//     it lands before the work starts. Nothing is ever sent on the agent's
+//     behalf: a turn that opens straight into a tool stays quiet until the
+//     model itself speaks.
 //   - Everything after it is held. The turn goes quiet — the typing indicator
 //     keeps ticking (poller._startTyping re-pings every 4s) — until the closing
 //     message the caller always sends.
@@ -42,7 +44,7 @@ export function progressEveryMs(globalConfig) {
 
 /**
  * @param {{everyMs?: number, now?: () => number}} opts
- * @returns {{ text: () => "send"|"hold", toolStart: () => "heads_up"|"hold", sinceLastMs: () => number }}
+ * @returns {{ text: () => "send"|"hold", sinceLastMs: () => number }}
  */
 export function createProgressGate({ everyMs = 0, now = Date.now } = {}) {
   let opened = false;
@@ -66,15 +68,6 @@ export function createProgressGate({ everyMs = 0, now = Date.now } = {}) {
         return "send";
       }
       return "hold";
-    },
-    /**
-     * A tool is about to run. "heads_up" → the model said nothing first, so the
-     * canned notice is this turn's opener; after that, silence.
-     */
-    toolStart() {
-      if (opened) return "hold";
-      markSent();
-      return "heads_up";
     },
     /** Milliseconds since the last message we let through (for logging). */
     sinceLastMs() {
