@@ -63,6 +63,75 @@ test("call_runtime flags a runtime that exits 0 with empty output as failed", as
   }
 });
 
+test("call_runtime carries the CLI's own refusal line and the duty to report it", async () => {
+  const { root, projects } = setup();
+  try {
+    // A logged-out CLI: the exit code says nothing, the one line it printed
+    // says everything. Both must reach the model.
+    await withFakeBinary("aider", "#!/bin/sh\necho 'Not logged in · Please run /login' 1>&2\nexit 1\n", async () => {
+      const handlers = makeToolHandlers({
+        projects,
+        plugins: null,
+        registries: null,
+        globalConfig: { super_agent: { permission_mode: "total" } },
+      });
+      const r = await handlers.call_runtime({
+        runtime: "aider",
+        prompt: "do something",
+      });
+      assert.match(r.error, /Not logged in/, "the CLI's refusal line rides along with the exit code");
+      assert.ok(r.next_step, "a failed run tells the model what it owes the user");
+      assert.match(r.next_step, /Not logged in/, "the instruction repeats the diagnosis");
+      assert.match(r.next_step, /Do NOT silently retry/i);
+    });
+  } finally {
+    cleanupTempProject(root);
+  }
+});
+
+test("call_runtime unwraps a JSON envelope instead of quoting it", async () => {
+  const { root, projects } = setup();
+  try {
+    // `claude -p --output-format json` reports its refusal inside .result and
+    // still exits non-zero. The sentence is the diagnosis, not the envelope.
+    const body = "#!/bin/sh\necho '{\"is_error\":true,\"result\":\"Not logged in · Please run /login\",\"session_id\":\"x\"}'\nexit 1\n";
+    await withFakeBinary("aider", body, async () => {
+      const handlers = makeToolHandlers({
+        projects,
+        plugins: null,
+        registries: null,
+        globalConfig: { super_agent: { permission_mode: "total" } },
+      });
+      const r = await handlers.call_runtime({ runtime: "aider", prompt: "do something" });
+      assert.match(r.error, /Not logged in · Please run \/login/);
+      assert.doesNotMatch(r.error, /is_error/, "the JSON envelope stays out of the message");
+    });
+  } finally {
+    cleanupTempProject(root);
+  }
+});
+
+test("call_runtime reports a timeout as a timeout, not as the signal's exit code", async () => {
+  const { root, projects } = setup();
+  try {
+    // Answers --version at once (the availability probe must pass), then hangs
+    // on the real run so our own SIGTERM is what ends it.
+    const body = "#!/bin/sh\ncase \"$1\" in --version) echo 1.0; exit 0;; esac\nsleep 5\n";
+    await withFakeBinary("aider", body, async () => {
+      const handlers = makeToolHandlers({
+        projects,
+        plugins: null,
+        registries: null,
+        globalConfig: { super_agent: { permission_mode: "total" } },
+      });
+      const r = await handlers.call_runtime({ runtime: "aider", prompt: "take your time", timeout_s: 1 });
+      assert.match(r.error, /timeout/i, "SIGTERM was ours; say so instead of blaming exit 143");
+    });
+  } finally {
+    cleanupTempProject(root);
+  }
+});
+
 test("call_runtime flags a runtime that exits non-zero as failed", async () => {
   const { root, projects } = setup();
   try {
