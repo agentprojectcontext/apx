@@ -32,7 +32,7 @@ export function PluginToolsSection({ tools, isActive }: { pid: string; tools: Pl
           </div>
         ))}
       </div>
-      <p className="text-[10px] text-muted-foreground/70">{t("integrations.tools_available_note")}</p>
+      <p className="text-[10px] text-muted-foreground">{t("integrations.tools_available_note")}</p>
     </div>
   );
 }

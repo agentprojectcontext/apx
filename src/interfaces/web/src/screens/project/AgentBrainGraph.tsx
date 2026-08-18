@@ -440,7 +440,7 @@ export function BrainGraph({
           {/* Where it hangs from */}
           {selParents.length > 0 && (
             <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[10px] uppercase tracking-wide text-muted-fg/70">{t("agents_ui.brain_part_of")}</span>
+              <span className="text-[10px] uppercase tracking-wide text-muted-fg">{t("agents_ui.brain_part_of")}</span>
               {selParents.map((p) => <NeighborChip key={p.id} node={p} onClick={() => setSelected(p)} />)}
             </div>
           )}
@@ -448,7 +448,7 @@ export function BrainGraph({
           {/* Branches that follow it */}
           {selChildren.length > 0 && (
             <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[10px] uppercase tracking-wide text-muted-fg/70">
+              <span className="text-[10px] uppercase tracking-wide text-muted-fg">
                 {t("agents_ui.brain_branches")} · {selChildren.length}
               </span>
               {selChildren.map((c) => <NeighborChip key={c.id} node={c} onClick={() => setSelected(c)} />)}

@@ -105,17 +105,17 @@ function pickTone(s: string): ProjectTone {
 
 // Two grounds, two palettes. On dark, a 15% wash with 300-level text reads;
 // on white the same pair is a pale smudge, so light gets a stronger wash and
-// 700-level text. Every tone is declared for both themes — no tone may be
+// 800-level text. Every tone is declared for both themes — no tone may be
 // defined only inside `dark:`.
 const TONE_IDLE: Record<ProjectTone, string> = {
-  sky:     "bg-sky-500/20 text-sky-700 hover:bg-sky-500/30 dark:bg-sky-500/15 dark:text-sky-300 dark:hover:bg-sky-500/25",
-  violet:  "bg-violet-500/20 text-violet-700 hover:bg-violet-500/30 dark:bg-violet-500/15 dark:text-violet-300 dark:hover:bg-violet-500/25",
-  emerald: "bg-emerald-500/20 text-emerald-700 hover:bg-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300 dark:hover:bg-emerald-500/25",
-  amber:   "bg-amber-500/20 text-amber-700 hover:bg-amber-500/30 dark:bg-amber-500/15 dark:text-amber-300 dark:hover:bg-amber-500/25",
-  rose:    "bg-rose-500/20 text-rose-700 hover:bg-rose-500/30 dark:bg-rose-500/15 dark:text-rose-300 dark:hover:bg-rose-500/25",
-  indigo:  "bg-indigo-500/20 text-indigo-700 hover:bg-indigo-500/30 dark:bg-indigo-500/15 dark:text-indigo-300 dark:hover:bg-indigo-500/25",
-  teal:    "bg-teal-500/20 text-teal-700 hover:bg-teal-500/30 dark:bg-teal-500/15 dark:text-teal-300 dark:hover:bg-teal-500/25",
-  fuchsia: "bg-fuchsia-500/20 text-fuchsia-700 hover:bg-fuchsia-500/30 dark:bg-fuchsia-500/15 dark:text-fuchsia-300 dark:hover:bg-fuchsia-500/25",
+  sky:     "bg-sky-500/20 text-sky-800 hover:bg-sky-500/30 dark:bg-sky-500/15 dark:text-sky-300 dark:hover:bg-sky-500/25",
+  violet:  "bg-violet-500/20 text-violet-800 hover:bg-violet-500/30 dark:bg-violet-500/15 dark:text-violet-300 dark:hover:bg-violet-500/25",
+  emerald: "bg-emerald-500/20 text-emerald-800 hover:bg-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300 dark:hover:bg-emerald-500/25",
+  amber:   "bg-amber-500/20 text-amber-800 hover:bg-amber-500/30 dark:bg-amber-500/15 dark:text-amber-300 dark:hover:bg-amber-500/25",
+  rose:    "bg-rose-500/20 text-rose-800 hover:bg-rose-500/30 dark:bg-rose-500/15 dark:text-rose-300 dark:hover:bg-rose-500/25",
+  indigo:  "bg-indigo-500/20 text-indigo-800 hover:bg-indigo-500/30 dark:bg-indigo-500/15 dark:text-indigo-300 dark:hover:bg-indigo-500/25",
+  teal:    "bg-teal-500/20 text-teal-800 hover:bg-teal-500/30 dark:bg-teal-500/15 dark:text-teal-300 dark:hover:bg-teal-500/25",
+  fuchsia: "bg-fuchsia-500/20 text-fuchsia-800 hover:bg-fuchsia-500/30 dark:bg-fuchsia-500/15 dark:text-fuchsia-300 dark:hover:bg-fuchsia-500/25",
 };
 const TONE_ACTIVE: Record<ProjectTone, string> = {
   sky:     "bg-sky-500/35 text-sky-900 dark:bg-sky-500/30 dark:text-sky-100",

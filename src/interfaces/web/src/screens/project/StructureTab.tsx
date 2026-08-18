@@ -95,7 +95,7 @@ export function StructureTab({ pid }: { pid: string }) {
                     {rolesByArea(area.slug).map((role) => (
                       <RoleChip key={role.slug} role={role} onEdit={() => setRoleDialog({ editing: role })} onDelete={() => setConfirm({ kind: "role", slug: role.slug, name: role.name })} />
                     ))}
-                    {rolesByArea(area.slug).length === 0 && <span className="text-[11px] text-muted-foreground/60">{t("structure.no_roles")}</span>}
+                    {rolesByArea(area.slug).length === 0 && <span className="text-[11px] text-muted-foreground">{t("structure.no_roles")}</span>}
                   </div>
                 </div>
               </div>

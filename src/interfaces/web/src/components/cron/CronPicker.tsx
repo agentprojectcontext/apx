@@ -136,7 +136,7 @@ export function CronPicker({
                             // though none is individually ticked — show that
                             // rather than seven blank boxes.
                             ? "border-border bg-muted/40 text-muted-fg"
-                            : "border-border text-muted-fg/60 hover:bg-muted/40",
+                            : "border-border text-muted-fg hover:bg-muted/40",
                       )}
                     >
                       {t(`cron.day_short.${key}`)}

@@ -41,7 +41,7 @@ export function VarTextarea({
   return (
     <div className="space-y-1">
       <div className="text-xs font-medium text-muted-foreground">{label}</div>
-      {hint && <div className="text-[11px] text-muted-foreground/70">{hint}</div>}
+      {hint && <div className="text-[11px] text-muted-foreground">{hint}</div>}
       <div ref={wrapRef} className="space-y-1.5">
         <Textarea
           rows={rows}

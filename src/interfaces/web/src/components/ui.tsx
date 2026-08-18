@@ -96,7 +96,7 @@ export function Field({
         )}
       </span>
       {children}
-      {hint && <span className="block text-[11px] text-muted-foreground/70">{hint}</span>}
+      {hint && <span className="block text-[11px] text-muted-foreground">{hint}</span>}
     </div>
   );
 }
@@ -137,12 +137,15 @@ export function Badge({
 }) {
   // muted/danger use built-in variants; the colored tones use outline + color.
   const variant = tone === "danger" ? "destructive" : tone === "muted" ? "secondary" : "outline";
+  // Light ink matches lib/tone's chip scale (800, not 700): these badges land
+  // on muted rows as often as on a card, and 700 only clears 4.5:1 against
+  // white. See lib/tone.ts for the shared pairs.
   const toneClass: Record<Tone, string> = {
     muted: "",
     danger: "",
-    success: "text-emerald-700 dark:text-emerald-400 border-emerald-500/30",
-    warning: "text-amber-700 dark:text-amber-400 border-amber-500/30",
-    info: "text-sky-700 dark:text-sky-400 border-sky-500/30",
+    success: "text-emerald-800 dark:text-emerald-400 border-emerald-500/30",
+    warning: "text-amber-800 dark:text-amber-400 border-amber-500/30",
+    info: "text-sky-800 dark:text-sky-400 border-sky-500/30",
   };
   return (
     <SBadge variant={variant} className={cn("rounded-md", toneClass[tone], className)}>

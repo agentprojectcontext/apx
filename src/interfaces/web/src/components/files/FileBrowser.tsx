@@ -114,7 +114,7 @@ export function FileBrowser({
             <FileTree nodes={nodes} selectedPath={selected} onSelect={onSelect} onDelete={onDelete} />
           )}
           {tree.data?.truncated && (
-            <p className="px-2 py-1 text-[10px] text-muted-foreground/60">{t("files.truncated")}</p>
+            <p className="px-2 py-1 text-[10px] text-muted-foreground">{t("files.truncated")}</p>
           )}
         </div>
       </div>

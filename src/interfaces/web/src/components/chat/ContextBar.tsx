@@ -93,7 +93,7 @@ export function ContextBar({ msgs }: { msgs: ChatMsg[] }) {
       >
         <span className="flex items-center gap-1">
           <Gauge size={12} /> {fmt(totalTok)} tok
-          <span className="text-muted-foreground/60">
+          <span className="text-muted-foreground">
             ({fmt(inTok)}↑ / {fmt(outTok)}↓)
           </span>
         </span>
@@ -110,7 +110,7 @@ export function ContextBar({ msgs }: { msgs: ChatMsg[] }) {
         {/* One actor → show it inline. Several → say how many and let the user
             expand for the split. */}
         {actors.length === 1 && (
-          <span className="ml-auto truncate font-mono text-muted-foreground/70">
+          <span className="ml-auto truncate font-mono text-muted-foreground">
             {[actors[0].agent, actors[0].model].filter(Boolean).join(" · ")}
           </span>
         )}
@@ -132,8 +132,8 @@ export function ContextBar({ msgs }: { msgs: ChatMsg[] }) {
                 <li key={a.key} className="flex items-center gap-2 text-[11px]">
                   <Bot size={11} className="shrink-0 text-sky-700 dark:text-sky-400" />
                   <span className="shrink-0 font-medium text-emerald-700 dark:text-emerald-300">{a.agent || "—"}</span>
-                  <span className="truncate font-mono text-muted-foreground/70">{a.model || "—"}</span>
-                  <span className="ml-auto shrink-0 font-mono text-[10px] text-muted-foreground/60">
+                  <span className="truncate font-mono text-muted-foreground">{a.model || "—"}</span>
+                  <span className="ml-auto shrink-0 font-mono text-[10px] text-muted-foreground">
                     {fmt(a.inTok + a.outTok)} tok ({fmt(a.inTok)}↑ / {fmt(a.outTok)}↓) ·{" "}
                     {t("chat_ui.ctx_turns", { n: a.turns })}
                   </span>
@@ -147,7 +147,7 @@ export function ContextBar({ msgs }: { msgs: ChatMsg[] }) {
                 <li key={f.path} className="flex items-center gap-2 font-mono text-[11px]">
                   <FilePen size={11} className="shrink-0 text-violet-700 dark:text-violet-400" />
                   <span className="truncate">{f.path}</span>
-                  <span className="ml-auto shrink-0 text-[10px] text-muted-foreground/60">
+                  <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">
                     {f.tool === "write_file" ? "write" : "edit"}
                   </span>
                 </li>

@@ -75,7 +75,10 @@
        chips), so a near-black primary painted the whole UI's selection in ink. */
     --primary: 152 62% 30%;
     --primary-foreground: 150 40% 98%;
-    --destructive: 0 72% 51%;
+    /* 51% left `text-destructive` at 4.0:1 on the destructive/10 wash the
+       ghost Delete/Unregister buttons sit on. Solid destructive buttons
+       keep >5:1 against their white label at this value. */
+    --destructive: 0 72% 46%;
     --destructive-foreground: 210 20% 98%;
     --radius: 0.75rem;
     --chart-1: 220 70% 50%;

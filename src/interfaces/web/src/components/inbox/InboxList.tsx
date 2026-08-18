@@ -3,6 +3,7 @@ import { Search } from "lucide-react";
 import type { InboxRow } from "../../lib/api/inbox";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
+import { toneChip } from "../../lib/tone";
 import { AgentAvatar } from "../agents/AgentAvatar";
 
 /**
@@ -109,7 +110,7 @@ export function InboxList({
                       nothing a reader could act on; the only distinction that
                       matters here is super-agent vs a project's own agent. */}
                   {row.kind === "super_agent" ? (
-                    <span className="shrink-0 rounded bg-primary/15 px-1 text-[9px] font-semibold uppercase tracking-wide text-primary">
+                    <span className={cn("shrink-0 rounded px-1 text-[9px] font-semibold uppercase tracking-wide", toneChip.emerald)}>
                       {t("agents_ui.super_agent_badge")}
                     </span>
                   ) : null}
