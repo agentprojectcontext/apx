@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { QrCode } from "lucide-react";
+import { MonitorSmartphone, QrCode } from "lucide-react";
 import { Section } from "../Section";
 import { Badge, Button, Empty, Field, Input, Loading } from "../ui";
 import { useToast } from "../Toast";
@@ -48,7 +48,7 @@ export function DevicesPanel() {
       >
         {isLoading && <Loading />}
         {!isLoading && clients.length === 0 && (
-          <Empty>{t("settings.devices_empty")}</Empty>
+          <Empty icon={MonitorSmartphone}>{t("settings.devices_empty")}</Empty>
         )}
         {clients.length > 0 && (
           <ul className="space-y-2 text-sm">

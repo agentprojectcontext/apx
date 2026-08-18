@@ -22,6 +22,15 @@ capitalizes; raw storage values like `in review` must never render). Never put
 filters or secondary buttons in `action`. Reference implementations:
 `GlobalTasksTab`, `CommitmentsTab`.
 
+**Nothing to show is a state, not a blank.** Every empty pane renders
+`<Empty>` from the barrel — never a bare `<p className="text-muted-fg">` or a
+naked `<div>`. Pass the screen's own lucide `icon` (the APX mark stands in
+without one), and add `fill` whenever the state owns a pane with a height (the
+empty half of a master-detail, an empty chat): `fill` centres in the whole
+pane, while the default is an inline dashed card for the gap where the list
+would have been. A master-detail with nothing to pick hides the whole
+box — one message, not an empty list beside an empty pane.
+
 ## Data layer
 
 - **All requests through `src/lib/api/*`** — one module per resource, uniform

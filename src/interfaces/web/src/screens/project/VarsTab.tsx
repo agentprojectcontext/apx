@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
-import { Eye, EyeOff, Pencil, Plus, Trash2 } from "lucide-react";
+import { Eye, EyeOff, KeyRound, Pencil, Plus, Trash2 } from "lucide-react";
 import { Vars, type VarScope, type VarsList } from "../../lib/api";
 import { Section } from "../../components/Section";
 import { Badge, Button, Dialog, Empty, Field, Input, Loading, Switch } from "../../components/ui";
@@ -87,7 +87,7 @@ export function VarsTab({ pid }: { pid: string }) {
       )}
 
       {list.isLoading && <Loading />}
-      {!list.isLoading && rows.length === 0 && <Empty>{t("project.vars.empty")}</Empty>}
+      {!list.isLoading && rows.length === 0 && <Empty icon={KeyRound}>{t("project.vars.empty")}</Empty>}
 
       {rows.length > 0 && (
         <ul className="space-y-2 text-sm">

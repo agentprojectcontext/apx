@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import useSWR, { mutate } from "swr";
-import { ArrowUpRight, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { ArrowUpRight, MessageSquareDashed, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { Agents, Conversations } from "../../lib/api";
 import { Button, Dialog, Empty, Field, Input, Loading, Switch, Tip } from "../../components/ui";
 import { Composer } from "../../components/chat/Composer";
@@ -339,9 +339,7 @@ export function ChatTab({
           {msgs.length ? (
             <MessageList msgs={msgs} onCopy={copyToClipboard} faceFor={faceFor} />
           ) : (
-            <div className="flex h-full items-center justify-center p-8">
-              <p className="text-sm text-muted-fg">{t("project.chat.empty")}</p>
-            </div>
+            <Empty fill icon={MessageSquareDashed}>{t("project.chat.empty")}</Empty>
           )}
         </div>
         <ContextBar msgs={msgs} />

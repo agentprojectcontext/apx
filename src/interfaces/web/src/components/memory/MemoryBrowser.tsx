@@ -166,7 +166,7 @@ export function MemoryBrowser({ pid }: { pid: string }) {
             <div className="flex justify-center py-4"><Spinner size={14} /></div>
           ) : list.length === 0 ? (
             <div className="px-1.5 py-2">
-              <Empty>{t("project.memories.no_agents")}</Empty>
+              <Empty icon={Brain}>{t("project.memories.no_agents")}</Empty>
             </div>
           ) : (
             list.map((a) => (

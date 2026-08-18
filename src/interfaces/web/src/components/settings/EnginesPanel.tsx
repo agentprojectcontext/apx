@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Cpu, Plus } from "lucide-react";
 import { Section } from "../Section";
 import { Button, Empty, Loading } from "../ui";
 import { useToast } from "../Toast";
@@ -98,7 +98,7 @@ export function EnginesPanel() {
       action={<Button size="sm" variant="primary" onClick={openCreate}><Plus size={14} /> {t("engines_panel.new_btn")}</Button>}
     >
       {providers.length === 0 ? (
-        <Empty>{t("engines_panel.empty")}</Empty>
+        <Empty icon={Cpu}>{t("engines_panel.empty")}</Empty>
       ) : (
         <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {providers.map((p) => (

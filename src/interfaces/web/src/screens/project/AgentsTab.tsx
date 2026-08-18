@@ -127,7 +127,7 @@ export function AgentsTab({ pid }: { pid: string }) {
     >
       {list.isLoading && <Loading />}
       {!list.isLoading && agents.length === 0 && (
-        <Empty>{t("project.agents.empty_text")}</Empty>
+        <Empty icon={Bot}>{t("project.agents.empty_text")}</Empty>
       )}
 
       {!list.isLoading && agents.length > 0 && (
@@ -179,7 +179,7 @@ function ImportVaultDialog({
       footer={<Button variant="ghost" onClick={onClose}>{t("common.close")}</Button>}
     >
       {vault.isLoading && <Loading />}
-      {!vault.isLoading && items.length === 0 && <Empty>{t("project.agents.import_empty")}</Empty>}
+      {!vault.isLoading && items.length === 0 && <Empty icon={Upload}>{t("project.agents.import_empty")}</Empty>}
       <ul className="space-y-2">
         {items.map((a) => {
           const already = existing.includes(a.slug);

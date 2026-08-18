@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Plus } from "lucide-react";
+import { ListTodo, MousePointerClick, Plus } from "lucide-react";
 import { Tasks } from "../../lib/api";
 import type { GlobalTaskEntry } from "../../lib/api/tasks";
 import type { TaskEntry, TaskStatus } from "../../types/daemon";
@@ -111,7 +111,7 @@ export function TasksTab({ pid }: { pid?: string }) {
     >
       {paged.isLoading && <Loading />}
       {!paged.isLoading && paged.total === 0 && (
-        <Empty>
+        <Empty icon={ListTodo}>
           {!pid ? t("project.global_tasks.empty")
             : state === "open" ? t("project.tasks.empty_open")
             : t("project.tasks.empty", { state })}
@@ -152,9 +152,7 @@ export function TasksTab({ pid }: { pid?: string }) {
                 onChanged={() => paged.mutate()}
               />
             ) : (
-              <div className="flex h-full items-center justify-center p-8">
-                <p className="text-sm text-muted-fg">{t("tasks.detail_empty")}</p>
-              </div>
+              <Empty fill icon={MousePointerClick}>{t("tasks.detail_empty")}</Empty>
             )}
           </div>
         </div>
