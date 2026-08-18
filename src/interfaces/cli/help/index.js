@@ -624,7 +624,7 @@ export const HELP_TOPICS = new Map(Object.entries({
     usage: ["apx mcp <subcommand> [args] [--flags]"],
     commands: [
       ["list | ls", "List MCP servers for a project."],
-      ["add <name>", "Add a project-owned MCP server."],
+      ["add <name>", "Add a project-owned MCP server (stdio via --command, remote via --url)."],
       ["remove | rm <name>", "Remove a project-owned MCP server."],
       ["enable <name>", "Enable a project-owned MCP server."],
       ["disable <name>", "Disable a project-owned MCP server."],
@@ -652,18 +652,26 @@ export const HELP_TOPICS = new Map(Object.entries({
   }),
   "mcp add": topic({
     title: "apx mcp add",
-    summary: "Add an APX-owned MCP server. Default scope is `shared` (commit to repo) inside an APC project, else `global`.",
-    usage: ["apx mcp add <name> --command <cmd> [--scope <shared|runtime|global>] [--env KEY=VAL ...] [--project <name|id|path>] [-- <arg> ...]"],
+    summary: "Add an APX-owned MCP server, local (stdio) or remote (http). Default scope is `shared` (commit to repo) inside an APC project, else `global`.",
+    usage: [
+      "apx mcp add <name> --command <cmd> [--scope <shared|runtime|global>] [--env KEY=VAL ...] [--project <name|id|path>] [-- <arg> ...]",
+      "apx mcp add <name> --url <endpoint> [--header \"Name: value\" ...] [--scope <shared|runtime|global>] [--project <name|id|path>]",
+    ],
     options: [
-      ["--command <cmd>", "Executable command for stdio MCP server."],
+      ["--command <cmd>", "Executable command for a local stdio MCP server."],
+      ["--url <endpoint>", "Endpoint of a remote streamable-HTTP MCP server. Mutually exclusive with --command."],
+      ["--header \"Name: value\"", "HTTP header for --url (also accepts Name=value). Repeatable. Put tokens in --scope runtime."],
+      ["--transport <stdio|http>", "Optional; inferred from --command / --url."],
       ["--scope <s>", "shared = .apc/mcps.json (committable); runtime = ~/.apx/projects/<id>/mcps.json (per-project, local, chmod 0600 — use for tokens); global = ~/.apx/mcps.json (machine-wide)."],
-      ["--env KEY=VAL", "Environment variable. Repeatable."],
+      ["--env KEY=VAL", "Environment variable (stdio only). Repeatable."],
       ["--project <name|id|path>", "Pin command to a specific project."],
-      ["-- <arg> ...", "Arguments passed to the MCP command."],
+      ["-- <arg> ...", "Arguments passed to the MCP command (stdio only)."],
     ],
     examples: [
       "apx mcp add filesystem --command npx -- -y @modelcontextprotocol/server-filesystem .",
       "apx mcp add github --scope runtime --project acme --command npx -- -y @modelcontextprotocol/server-github",
+      "apx mcp add postbean --url https://mcp.example.com/mcp --scope runtime",
+      "apx mcp add postbean --url https://mcp.example.com/mcp --header \"Authorization: Bearer $TOKEN\" --scope runtime",
     ],
   }),
   "mcp remove": topic({

@@ -65,22 +65,49 @@ Decision tree:
 
 Default if none is obvious: `shared` when inside an APC project, `global` outside.
 
-## Common command shapes by transport
+## Command shapes by transport
+
+Two transports. `--command` = local process (stdio), `--url` = remote endpoint (http).
+There is no third option, and no flag outside this list — if a shape isn't here,
+run `apx help mcp add` instead of guessing.
 
 ```bash
-# stdio MCP (most common — npx, uvx, node, python)
+# stdio MCP — a local process (npx, uvx, node, python)
 apx mcp add <name> --command npx -- -y <package-or-flag-list>
 apx mcp add <name> --command uvx -- <python-cli-name>
 apx mcp add <name> --command python -- /abs/path/to/server.py
 
-# Env vars (one --env per var)
+# stdio env vars (one --env per var)
 apx mcp add <name> --command npx \
   --env GITHUB_TOKEN=ghp_xxx \
   --env GITHUB_OWNER=manuel \
   -- -y @modelcontextprotocol/server-github
+
+# http MCP — a remote streamable-HTTP endpoint. No command, no npx, no install.
+apx mcp add <name> --url https://mcp.example.com/mcp --scope runtime
+
+# http with auth headers (repeatable; "Name: value" or Name=value both parse)
+apx mcp add <name> --url https://mcp.example.com/mcp --scope runtime \
+  --header "Authorization: Bearer $TOKEN" \
+  --header "X-Workspace: acme"
 ```
 
-Anything after `--` is forwarded verbatim as args to the command. Quote carefully.
+Everything after `--` is forwarded verbatim as args to a stdio command. Quote carefully.
+`--env` and `--` args are stdio-only; `--header` is http-only — mixing them errors.
+
+Remote servers almost always carry a token, so they belong in `--scope runtime`
+(chmod 0600, never committed). Read the token from the environment rather than
+pasting it: `--header "Authorization: Bearer $TOKEN"`.
+
+## After adding: prove it works
+
+```bash
+apx mcp tools <name>     # spawns/connects and lists tools — this is the real check
+apx mcp logs <name>      # if the above is empty or errors: request/response log
+```
+
+`apx mcp add` only writes JSON — it never contacts the server. An MCP that "was
+added fine" but has no tools is a failed connection, not a successful install.
 
 ## Anti-examples
 
