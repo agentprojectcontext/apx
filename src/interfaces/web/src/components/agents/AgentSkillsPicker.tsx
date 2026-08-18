@@ -5,6 +5,7 @@ import { Switch } from "../ui";
 import { Tip } from "../ui/tip";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
+import { toneOutline } from "../../lib/tone";
 
 // Per-agent skill selection, fed by the project's own skill list so the choices
 // here are exactly what /skills shows for this project.
@@ -83,7 +84,7 @@ export function AgentSkillsPicker({
                 <span
                   className={cn(
                     "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded border",
-                    on ? "border-emerald-500 bg-emerald-500/20 text-emerald-400" : "border-border",
+                    on ? toneOutline.emerald : "border-border",
                   )}
                 >
                   {on && <Sparkles size={10} />}

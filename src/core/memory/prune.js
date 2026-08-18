@@ -74,7 +74,7 @@ function openerSignature(text, words = DEFAULT_PRUNE.opener_words) {
  */
 function quotedIdentifiers(text) {
   const out = new Set();
-  for (const m of String(text || "").matchAll(/['"\`]([^'"\`]{1,80})['"\`]/g)) {
+  for (const m of String(text || "").matchAll(/['"`]([^'"`]{1,80})['"`]/g)) {
     out.add(m[1].trim().toLowerCase());
   }
   return out;

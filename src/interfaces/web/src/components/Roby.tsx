@@ -25,13 +25,15 @@ export function Roby({ mood = "happy", className }: { mood?: RobyMood; className
   const face = FACES[mood] ?? FACES.happy;
   const [el, er] = face.eyes;
   // Recessed eye "screens" + floating accent sit in a dimmer emerald; the bright
-  // frame, pupils and mouth inherit text-emerald-400 from the wrapper.
-  const dim = "text-emerald-700 dark:text-emerald-600/70";
+  // frame, pupils and mouth inherit the wrapper's emerald. Both halves flip
+  // with the theme: on a white ground the bright part has to be the DARK
+  // shade and the dim part the faded one, or the mascot reads inside-out.
+  const dim = "text-emerald-600/45 dark:text-emerald-600/70";
   return (
     <div
       aria-hidden
       className={cn(
-        "select-none whitespace-pre font-mono leading-none text-emerald-400",
+        "select-none whitespace-pre font-mono leading-none text-emerald-700 dark:text-emerald-400",
         className
       )}
     >

@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { File, Folder, FolderOpen, ChevronRight, ChevronsUpDown, RefreshCw } from "lucide-react";
 import { cn } from "../../lib/cn";
+import { toneText } from "../../lib/tone";
 import { Empty, Spinner } from "../ui";
 import { Tip } from "../ui/tip";
 import { ProjectFiles } from "../../lib/api/projectFiles";
@@ -37,12 +38,12 @@ function TreeNode({
         {isDir ? (
           <>
             <ChevronRight className={cn("size-3 shrink-0 transition-transform", open && "rotate-90")} />
-            {open ? <FolderOpen className="size-3.5 shrink-0 text-amber-400" /> : <Folder className="size-3.5 shrink-0 text-amber-400" />}
+            {open ? <FolderOpen className={cn("size-3.5 shrink-0", toneText.amber)} /> : <Folder className={cn("size-3.5 shrink-0", toneText.amber)} />}
           </>
         ) : (
           <>
             <span className="size-3 shrink-0" />
-            <File className="size-3.5 shrink-0 text-sky-400" />
+            <File className={cn("size-3.5 shrink-0", toneText.sky)} />
           </>
         )}
         <span className="truncate">{node.name}</span>

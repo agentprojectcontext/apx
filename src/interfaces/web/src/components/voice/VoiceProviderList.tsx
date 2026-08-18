@@ -4,6 +4,7 @@ import { StatusDot } from "../Section";
 import { cn } from "../../lib/cn";
 import { TTS_PROVIDER_META, type TtsEngineInfo } from "../../lib/api/voice";
 import { t } from "../../i18n";
+import { toneOutline } from "../../lib/tone";
 
 // TTS engine list — an ordered fallback chain (router). The arrows reorder the
 // chain, the switch enables/disables an engine, and the first available engine
@@ -120,7 +121,7 @@ export function VoiceProviderList({
                   className={cn(
                     "rounded-md border px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50",
                     e.emotionsOn
-                      ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-300"
+                      ? toneOutline.emerald
                       : "border-border text-muted-fg hover:text-fg",
                   )}
                 >

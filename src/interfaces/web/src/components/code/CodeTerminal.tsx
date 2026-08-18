@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Terminal as TerminalIcon, Eraser, X } from "lucide-react";
 import { cn } from "../../lib/cn";
+import { toneText } from "../../lib/tone";
 import { Tip } from "../ui/tip";
 import { http } from "../../lib/http";
 import { t } from "../../i18n";
@@ -112,8 +113,8 @@ export function CodeTerminal({
             key={i}
             className={cn(
               "whitespace-pre-wrap break-all",
-              l.type === "cmd" && "text-emerald-400",
-              l.type === "err" && "text-rose-400",
+              l.type === "cmd" && toneText.emerald,
+              l.type === "err" && toneText.rose,
               l.type === "out" && "text-foreground/90",
             )}
           >
@@ -123,7 +124,7 @@ export function CodeTerminal({
         <div ref={bottomRef} />
       </div>
       <div className="flex shrink-0 items-center border-t border-border px-3 py-1">
-        <span className="mr-2 text-[11px] text-emerald-400 font-mono">$</span>
+        <span className={cn("mr-2 font-mono text-[11px]", toneText.emerald)}>$</span>
         <input
           ref={inputRef}
           value={input}
