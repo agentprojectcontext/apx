@@ -604,6 +604,36 @@ export function setProfileConfig(values, { id = null } = {}) {
   return { config: settings, changed: Object.keys(value), routines };
 }
 
+/**
+ * Re-install the active profile's routines from the package as it is on disk
+ * TODAY, without touching settings or activation.
+ *
+ * A bundled package improves with every APX update, but the routines it
+ * installs are records in the super-agent's store, frozen at install time. So
+ * an owner who installed the Secretary in June kept June's anchors for good —
+ * the improved prompt shipped, and nothing carried it across. The only paths
+ * that re-rendered were `use` and changing a setting, neither of which is a
+ * thing you would think to run after a `git pull`.
+ *
+ * Routines the owner edited are still skipped: their fingerprint no longer
+ * matches the one taken at install, and that is the whole point of the check.
+ */
+export function syncProfile(id = null) {
+  const cfg = readConfig();
+  const state = readProfileState(cfg);
+  const targetId = id || state.active;
+  if (!targetId) throw new Error("no profile is active — run: apx profile use <id>");
+
+  const profile = readProfile(targetId);
+  if (!profile) throw new Error(`profile "${targetId}" is not installed`);
+  if (state.active !== targetId) {
+    throw new Error(`profile "${targetId}" is not active — its routines are not installed`);
+  }
+
+  clearProfileBlockCache();
+  return { id: targetId, version: profile.manifest?.version || null, routines: syncProfileRoutines(profile, cfg) };
+}
+
 // --------------------- doctor -----------------------------------------------
 
 /**
@@ -695,9 +725,44 @@ export function profileDoctor(id = null) {
   // Routines it installed that are currently off.
   if (state.active === targetId) {
     const origin = profileOrigin(targetId);
-    const off = listRoutines(superAgentStorage()).filter((r) => r.origin === origin && !r.enabled);
-    for (const r of off) {
+    const installed = listRoutines(superAgentStorage()).filter((r) => r.origin === origin);
+    for (const r of installed.filter((r) => !r.enabled)) {
       checks.push({ level: "warn", label: "routine", detail: `"${r.name}" is disabled`, fix: `apx routine enable ${r.name}` });
+    }
+
+    // Routines that no longer match the package they came from. Worth saying
+    // out loud because nothing announces it: the package improves with every
+    // APX update while the installed record stays exactly as it was, and a
+    // profile setting that lands in a routine (the Secretary's
+    // `calendar_command`) silently does nothing until one of them moves.
+    try {
+      const rendered = renderProfileRoutines(profile, cfg);
+      for (const spec of rendered) {
+        const prev = installed.find((r) => r.name === spec.name);
+        if (!prev) continue;
+        const { name, enabled_by_default, ...rest } = spec;
+        if (routineFingerprint(rest) === routineFingerprint(prev)) continue;
+
+        const edited = prev.origin_hash && routineFingerprint(prev) !== prev.origin_hash;
+        checks.push(edited
+          ? {
+            level: "warn",
+            label: "routine",
+            // Their edits win — that is the contract. But a routine that sync
+            // will always skip is one they now maintain themselves, and they
+            // should hear that while they can still decide otherwise.
+            detail: `"${name}" is yours now (you edited it) and the package has moved on — sync will keep skipping it`,
+            fix: `apx routine show ${name}  # then edit it, or delete it and run: apx profile sync`,
+          }
+          : {
+            level: "warn",
+            label: "routine",
+            detail: `"${name}" is older than the package that installed it`,
+            fix: "apx profile sync",
+          });
+      }
+    } catch {
+      /* a package that no longer renders is already reported by validate */
     }
   }
 

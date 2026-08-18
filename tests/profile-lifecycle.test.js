@@ -14,6 +14,7 @@ const {
   useProfile,
   offProfile,
   setProfileConfig,
+  syncProfile,
   uninstallProfile,
   profileDoctor,
   listProfilesWithState,
@@ -642,4 +643,92 @@ test("a placeholder in an unquoted position still renders", () => {
 
   const r = listRoutines(SA_STORAGE).find((x) => x.name === `${pkg.id}-day-open`);
   assert.equal(r.spec.timeout_s, 45, "a number stayed a number");
+});
+
+// --------------------------------------------------------------------------
+// picking up an improved package after an APX update
+// --------------------------------------------------------------------------
+
+test("sync re-reads the package from disk without touching settings", () => {
+  resetState();
+  const pkg = makePackage({
+    schema: SCHEMA_WITH_COMMAND,
+    routines: { "day-open": DAY_OPEN_ROUTINE },
+  });
+  installProfile(pkg.dir);
+  useProfile(pkg.id);
+  setProfileConfig({ agenda_cmd: "echo hi" });
+
+  // APX updates: the bundled package on disk gains a pre_command the installed
+  // record knows nothing about. Nothing re-renders on its own — before `sync`
+  // existed, an owner kept the anchors they installed months ago for good.
+  const installedPath = path.join(PROFILES_DIR, pkg.id, "routines", "day-open.json");
+  const shipped = JSON.parse(fs.readFileSync(installedPath, "utf8"));
+  fs.writeFileSync(
+    installedPath,
+    JSON.stringify({ ...shipped, pre_commands: ["{{agenda_cmd}}"] }, null, 2)
+  );
+
+  const before = listRoutines(SA_STORAGE).find((r) => r.name === `${pkg.id}-day-open`);
+  assert.deepEqual(before.pre_commands, [], "stale until something re-renders");
+
+  const out = syncProfile();
+
+  assert.deepEqual(out.routines.installed, [`${pkg.id}-day-open`]);
+  const after = listRoutines(SA_STORAGE).find((r) => r.name === `${pkg.id}-day-open`);
+  assert.deepEqual(after.pre_commands, ["echo hi"], "rendered with the settings it already had");
+  assert.equal(readConfig().profile.config.agenda_cmd, "echo hi", "settings untouched");
+  assert.equal(readConfig().profile.active, pkg.id, "activation untouched");
+});
+
+test("sync leaves a routine the owner edited alone", () => {
+  resetState();
+  const pkg = makePackage({ routines: { "day-open": DAY_OPEN_ROUTINE } });
+  installProfile(pkg.dir);
+  useProfile(pkg.id);
+
+  // The owner rewrote the anchor's prompt. An update must not take that back.
+  const name = `${pkg.id}-day-open`;
+  upsertRoutine(SA_STORAGE, { ...listRoutines(SA_STORAGE).find((r) => r.name === name), spec: { prompt: "mine" } });
+
+  const out = syncProfile();
+
+  assert.deepEqual(out.routines.installed, []);
+  assert.deepEqual(out.routines.skipped, [{ name, reason: "user_modified" }]);
+  assert.equal(listRoutines(SA_STORAGE).find((r) => r.name === name).spec.prompt, "mine");
+});
+
+test("sync refuses when the profile is not the active one", () => {
+  resetState();
+  const pkg = makePackage({ routines: { "day-open": DAY_OPEN_ROUTINE } });
+  installProfile(pkg.dir);
+
+  assert.throws(() => syncProfile(), /no profile is active/);
+  useProfile(pkg.id);
+  assert.throws(() => syncProfile("nope"), /not installed/);
+});
+
+test("doctor says when an installed routine has fallen behind the package", () => {
+  resetState();
+  const pkg = makePackage({ routines: { "day-open": DAY_OPEN_ROUTINE } });
+  installProfile(pkg.dir);
+  useProfile(pkg.id);
+
+  // The package on disk moves (an APX update), the installed record does not.
+  const installedPath = path.join(PROFILES_DIR, pkg.id, "routines", "day-open.json");
+  const shipped = JSON.parse(fs.readFileSync(installedPath, "utf8"));
+  fs.writeFileSync(installedPath, JSON.stringify({ ...shipped, spec: { prompt: "a better prompt" } }, null, 2));
+
+  const stale = profileDoctor(pkg.id).checks.find((c) => c.label === "routine");
+  assert.match(stale.detail, /older than the package/);
+  assert.equal(stale.fix, "apx profile sync");
+
+  // Once the owner has edited it, the advice changes: sync will never touch it
+  // again, and telling them to run sync would be telling them to do nothing.
+  const name = `${pkg.id}-day-open`;
+  upsertRoutine(SA_STORAGE, { ...listRoutines(SA_STORAGE).find((r) => r.name === name), spec: { prompt: "mine" } });
+
+  const mine = profileDoctor(pkg.id).checks.find((c) => c.label === "routine");
+  assert.match(mine.detail, /is yours now/);
+  assert.doesNotMatch(mine.fix, /^apx profile sync$/);
 });

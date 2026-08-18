@@ -20,6 +20,7 @@ import {
   installProfile,
   useProfile,
   offProfile,
+  syncProfile,
   setProfileConfig,
   uninstallProfile,
   profileDoctor,
@@ -143,6 +144,17 @@ export function register(api) {
         warnings: out.warnings,
         tokens: out.tokens,
       });
+    } catch (e) {
+      fail(res, e);
+    }
+  });
+
+  // Re-render the active package's routines from disk. Separate from `use`
+  // because re-activating is a bigger, noisier operation than "pick up the
+  // package as it is today", and an owner who just updated APX wants the second.
+  api.post("/profiles/sync", (req, res) => {
+    try {
+      res.json({ ok: true, ...syncProfile(req.body?.id || null) });
     } catch (e) {
       fail(res, e);
     }
