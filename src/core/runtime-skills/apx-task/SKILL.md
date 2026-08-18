@@ -11,30 +11,30 @@ A `task` is a per-project TODO. Append-only JSONL event log per month at `~/.apx
 
 ```bash
 # Add
-apx task add "Review the auth bug" --project iacrmar
-apx task add "Call the client" --project iacrmar --due 2026-05-30 --tag urgent
-apx task add "Demo for tester X" --project iacrmar --agent reviewer --tag demo --tag external --source cli
+apx task add "Review the auth bug" --project acme
+apx task add "Call the client" --project acme --due 2026-05-30 --tag urgent
+apx task add "Demo for tester X" --project acme --agent reviewer --tag demo --tag external --source cli
 
 # List (defaults to open)
-apx task list --project iacrmar
+apx task list --project acme
 apx task list --all                          # every registered project, each row labelled
 apx task list --all --status blocked         # what is stuck, everywhere
 apx task list --all --updated-since 2026-08-01T00:00:00Z   # what moved
-apx task list --project iacrmar --status in_review
-apx task list --project iacrmar --state all
-apx task list --project iacrmar --state done
-apx task list --project iacrmar --tag urgent
-apx task list --project iacrmar --due-before 2026-06-01
-apx task list --project iacrmar --limit 5
+apx task list --project acme --status in_review
+apx task list --project acme --state all
+apx task list --project acme --state done
+apx task list --project acme --tag urgent
+apx task list --project acme --due-before 2026-06-01
+apx task list --project acme --limit 5
 
 # Inspect / mutate
-apx task show t_abc123 --project iacrmar
-apx task show abc       --project iacrmar    # prefix match (≥3 chars, unique)
-apx task done    t_abc123 --project iacrmar --by manuel
-apx task drop    t_abc123 --project iacrmar               # archived (not "done")
-apx task reopen  t_abc123 --project iacrmar
-apx task patch   t_abc123 --project iacrmar --title "New title" --due 2026-06-10
-apx task patch   t_abc123 --project iacrmar --tag bug --tag blocker   # replaces tags
+apx task show t_abc123 --project acme
+apx task show abc       --project acme    # prefix match (≥3 chars, unique)
+apx task done    t_abc123 --project acme --by manuel
+apx task drop    t_abc123 --project acme               # archived (not "done")
+apx task reopen  t_abc123 --project acme
+apx task patch   t_abc123 --project acme --title "New title" --due 2026-06-10
+apx task patch   t_abc123 --project acme --tag bug --tag blocker   # replaces tags
 ```
 
 ## ID format
@@ -55,14 +55,14 @@ apx task patch   t_abc123 --project iacrmar --tag bug --tag blocker   # replaces
 
 ## Super-agent tools
 
-The super-agent has `create_task` and `list_tasks`. "Note that we need to close the auth bug in iacrmar tomorrow" → model calls:
+The super-agent has `create_task` and `list_tasks`. "Note that we need to close the auth bug in acme tomorrow" → model calls:
 
 ```json
 { "name": "create_task",
-  "arguments": { "project": "iacrmar", "title": "Close the auth bug", "due": "<tomorrow>", "tags": ["bug"] } }
+  "arguments": { "project": "acme", "title": "Close the auth bug", "due": "<tomorrow>", "tags": ["bug"] } }
 ```
 
-"What's pending in iacrmar?" → `list_tasks({ project: "iacrmar" })`. If user doesn't say which project, `list_projects` first and ask — never assume. If the channel has pinned project context (Telegram), use that.
+"What's pending in acme?" → `list_tasks({ project: "acme" })`. If user doesn't say which project, `list_projects` first and ask — never assume. If the channel has pinned project context (Telegram), use that.
 
 ## Anti-examples
 

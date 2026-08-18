@@ -78,7 +78,7 @@ apx pair revoke <id>
 
 <Aside type="caution">
   The daemon binds to `127.0.0.1` by default. For LAN access you need to opt
-  in: `apx config set remote.bind 0.0.0.0` then restart the daemon. This is an
+  in: `apx config set --global host 0.0.0.0` then restart the daemon. This is an
   explicit step so you don't accidentally expose the daemon on a shared network
   without intending to.
 </Aside>

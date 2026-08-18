@@ -9,7 +9,7 @@
 // pure transform layer so HTTP routes, CLI commands, and the super-agent
 // `import_agent` tool all agree on what fields exist.
 
-export const VAULT_PATCH_FIELDS = ["role", "model", "language", "description", "skills", "tools", "is_master"];
+export const VAULT_PATCH_FIELDS = ["role", "model", "language", "description", "skills", "tools", "is_master", "emoji", "icon"];
 
 /**
  * Normalize a user-provided vault patch:

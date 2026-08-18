@@ -43,12 +43,13 @@ test("POST persists emoji + autonomy; GET returns them", async () => {
       headers: json,
       body: JSON.stringify({
         slug: "roby", type: "orchestrator", area: "ops",
-        emoji: "🤖", autonomy: "total",
+        emoji: "🤖", icon: "noche", autonomy: "total",
       }),
     });
     assert.equal(r.status, 201);
     const created = await r.json();
     assert.equal(created.emoji, "🤖");
+    assert.equal(created.icon, "noche");
     assert.equal(created.autonomy, "total");
     assert.equal(created.type, "orchestrator");
     assert.equal(created.area, "ops");
@@ -56,6 +57,7 @@ test("POST persists emoji + autonomy; GET returns them", async () => {
     // Frontmatter written to the .apc file.
     const md = fs.readFileSync(path.join(root, ".apc", "agents", "roby.md"), "utf8");
     assert.match(md, /emoji: 🤖/);
+    assert.match(md, /icon: noche/);
     assert.match(md, /autonomy: total/);
   } finally {
     await new Promise((res) => server.close(res));
@@ -90,6 +92,15 @@ test("PATCH updates autonomy and rejects an invalid value silently (keeps prior)
       method: "PATCH", headers: json, body: JSON.stringify({ emoji: "" }),
     });
     assert.equal((await r.json()).emoji, null);
+    // Blob icon round-trips through PATCH and can be cleared too.
+    r = await fetch(`${baseUrl}/api/projects/${id}/agents/cody`, {
+      method: "PATCH", headers: json, body: JSON.stringify({ icon: "nimbo" }),
+    });
+    assert.equal((await r.json()).icon, "nimbo");
+    r = await fetch(`${baseUrl}/api/projects/${id}/agents/cody`, {
+      method: "PATCH", headers: json, body: JSON.stringify({ icon: "" }),
+    });
+    assert.equal((await r.json()).icon, null);
   } finally {
     await new Promise((res) => server.close(res));
     cleanupTempProject(root);

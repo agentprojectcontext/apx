@@ -3,43 +3,9 @@ import { File, Folder, FolderOpen, ChevronRight, ChevronsUpDown, RefreshCw } fro
 import { cn } from "../../lib/cn";
 import { Empty, Spinner } from "../ui";
 import { Tip } from "../ui/tip";
-import { http } from "../../lib/http";
+import { ProjectFiles } from "../../lib/api/projectFiles";
+import type { FileNode } from "../../types/daemon";
 import { t } from "../../i18n";
-
-interface FileNode {
-  name: string;
-  path: string; // relative path from project root
-  type: "file" | "dir";
-  children?: FileNode[];
-}
-
-function buildTree(paths: string[]): FileNode[] {
-  const root: FileNode[] = [];
-  for (const p of paths) {
-    const parts = p.split("/").filter(Boolean);
-    let level = root;
-    let cumPath = "";
-    for (let i = 0; i < parts.length; i++) {
-      cumPath = cumPath ? `${cumPath}/${parts[i]}` : parts[i];
-      const isLast = i === parts.length - 1;
-      let node = level.find((n) => n.name === parts[i]);
-      if (!node) {
-        node = { name: parts[i], path: cumPath, type: isLast ? "file" : "dir", children: isLast ? undefined : [] };
-        level.push(node);
-      }
-      if (!isLast) level = node.children!;
-    }
-  }
-  // Sort: dirs first, then files, both alphabetically
-  const sort = (nodes: FileNode[]): FileNode[] => {
-    nodes.forEach((n) => { if (n.children) n.children = sort(n.children); });
-    return nodes.sort((a, b) => {
-      if (a.type !== b.type) return a.type === "dir" ? -1 : 1;
-      return a.name.localeCompare(b.name);
-    });
-  };
-  return sort(root);
-}
 
 function TreeNode({
   node,
@@ -110,7 +76,7 @@ export function CodeFileTree({
   className?: string;
   onOpenFile?: (path: string) => void;
 }) {
-  const [files, setFiles] = useState<string[]>([]);
+  const [tree, setTree] = useState<FileNode[]>([]);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
   // Open-dir state lifted out of TreeNode so the parent can collapse all at once.
@@ -119,15 +85,8 @@ export function CodeFileTree({
   const loadFiles = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await http.post<{ ok: boolean; stdout: string; stderr: string }>(
-        "/api/run",
-        {
-          cmd: "find . -type f -not -path '*/node_modules/*' -not -path '*/.git/*' -not -path '*/dist/*' -not -path '*/.claude/*' | sed 's|^\\./||' | sort | head -500",
-          project: pid,
-        },
-      );
-      const paths = r.stdout.split("\n").map((l) => l.trim()).filter(Boolean);
-      setFiles(paths);
+      const r = await ProjectFiles.tree(pid);
+      setTree(r.tree);
       setLoaded(true);
     } catch {
       setLoaded(true);
@@ -156,7 +115,6 @@ export function CodeFileTree({
     setOpenDirs(new Set());
   }, []);
 
-  const tree = buildTree(files);
   const anyOpen = openDirs.size > 0;
 
   return (

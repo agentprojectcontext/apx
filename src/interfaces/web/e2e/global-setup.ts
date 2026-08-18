@@ -14,7 +14,7 @@ const RUNTIME_FILE = path.join(HERE, ".runtime.json");
 // teardown to consume.
 export default async function globalSetup() {
   // 1. Loopback bearer token (same one the panel auto-fetches).
-  const tokenRes = await fetch(`${DAEMON}/admin/web-token`);
+  const tokenRes = await fetch(`${DAEMON}/api/admin/web-token`);
   if (!tokenRes.ok) {
     throw new Error(
       `Could not get /api/admin/web-token from ${DAEMON} (HTTP ${tokenRes.status}). Is the daemon running? Try: apx daemon status`,
@@ -28,7 +28,7 @@ export default async function globalSetup() {
   execSync(`apx init . --name apx-e2e`, { cwd: tmpDir, stdio: "ignore" });
 
   // 3. Register it with the daemon.
-  const reg = await fetch(`${DAEMON}/projects`, {
+  const reg = await fetch(`${DAEMON}/api/projects`, {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
     body: JSON.stringify({ path: tmpDir }),

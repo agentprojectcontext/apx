@@ -1,0 +1,9 @@
+# Conventions & recipes
+
+> Deep dive for [`AGENTS.md`](../AGENTS.md). Read before adding an engine, an
+> external runtime, an MCP scope, or touching Telegram identity.
+
+- **Model ids are `provider:model`** (`ENGINE_IDS` = anthropic/openai/groq/openrouter/ollama/gemini/mock). Add an engine: `src/core/engines/<id>.js` exporting `chat()`/`health()`, register in `ADAPTERS`. **The router calls `health()` unconditionally** (`model-router.js`) — an adapter without it crashes the chain, whatever the contract comment says. If your provider is OpenAI-compatible, delegate to `createOpenAiCompatibleEngine` like `openai/groq/openrouter` do (8 lines) instead of writing a client. If the adapter can't stream, don't silently drop `onToken` — see the engine-contract caveats in [`architecture.md`](architecture.md). Degrade chain: `super_agent.model_fallback.models` (ordered full ids). The router health-checks the chain and picks the first healthy; at call time `retry.js` rotates on retryable errors (429/5xx/timeout) but treats 4xx/auth as fatal.
+- **Add an external runtime** (claude-code/codex/opencode/aider/cursor-agent/gemini-cli/qwen-code/antigravity): `src/core/runtimes/<id>.js`, register in `REGISTRY`. Contract: default export `{id, binary, versionFlag, run()}`. These are delegations — the external tool reads `AGENTS.md` itself, so APX does NOT inject the project AGENTS.md for them.
+- **MCP scopes** (`core/mcp/`): `runtime` (`~/.apx/projects/<id>/mcps.json`, secrets, chmod 600, never committed) ▶ `apc` (`.apc/mcps.json`, committed, no secrets) ▶ `global` (`~/.apx/mcps.json`). First-by-name wins; secrets go to runtime only.
+- **Telegram identity** (`plugins/telegram.js`): global roster keyed by `user_id`, roles owner/contact/guest — unknown senders are guests with no tools. `telegram.channels[]` is canonical; root `bot_token`/`chat_id` are legacy fallbacks.

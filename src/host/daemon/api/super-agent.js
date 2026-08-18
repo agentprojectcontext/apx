@@ -6,10 +6,8 @@
 //   POST /projects/:pid/super-agent/chat/stream    NDJSON event stream
 //   POST /projects/:pid/super-agent/chat            blocking JSON response
 import { runSuperAgent } from "#core/agent/super-agent.js";
-import {
-  resolveSuperAgentContext,
-  appendSuperAgentErrorTrace,
-} from "./shared.js";
+import { resolveSuperAgentContext,
+  appendSuperAgentErrorTrace, asyncRoute } from "./shared.js";
 import { loggerFor } from "#core/logging.js";
 import { appendGlobalMessage } from "#core/stores/messages.js";
 import { createWebConfirmAdapter } from "#core/confirmation/adapters/web.js";
@@ -92,7 +90,7 @@ function wrapOnEventForLog(send, { trace_id, channel }) {
 }
 
 export function register(api, { projects, registries, plugins, project, config }) {
-  api.post("/projects/:pid/super-agent/chat/stream", async (req, res) => {
+  api.post("/projects/:pid/super-agent/chat/stream", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
     // Optional coding-surface knobs: the terminal Code TUI (apx code, Build
@@ -217,13 +215,13 @@ export function register(api, { projects, registries, plugins, project, config }
       });
       res.end();
     }
-  });
+  }));
 
   // Project-agnostic one-shot summarize endpoint. Used by `apx session resume
   // <id>` when the session lives outside any registered APX project (e.g. a
   // raw Claude/Codex session). Returns { text } so callers can format the
   // summary however they want.
-  api.post("/super-agent/summarize", async (req, res) => {
+  api.post("/super-agent/summarize", asyncRoute(async (req, res) => {
     const { prompt, context_note: contextNote = "", model, max_tokens } = req.body || {};
     if (!prompt) return res.status(400).json({ error: "prompt required" });
     try {
@@ -252,9 +250,9 @@ export function register(api, { projects, registries, plugins, project, config }
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
-  });
+  }));
 
-  api.post("/projects/:pid/super-agent/chat", async (req, res) => {
+  api.post("/projects/:pid/super-agent/chat", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const { prompt, previousMessages, model, maxIters, maxTokens, completionContract } =
@@ -317,5 +315,5 @@ export function register(api, { projects, registries, plugins, project, config }
       });
       res.status(500).json({ error: e.message, trace_id: req.apxTraceId });
     }
-  });
+  }));
 }

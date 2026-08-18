@@ -24,9 +24,9 @@ test("the untagged dump that actually shipped is caught", () => {
 
 test("ordinary replies are untouched, in either language", () => {
   for (const reply of [
-    "Listo, anoté la tarea de merge en savia.ar para mañana.",
-    "Filed it under savia.ar, due tomorrow. Nothing else is overdue.",
-    "No hay actividad registrada en bytetravel desde el 3 de agosto.",
+    "Listo, anoté la tarea de merge en acme.dev para mañana.",
+    "Filed it under acme.dev, due tomorrow. Nothing else is overdue.",
+    "No hay actividad registrada en northwind desde el 3 de agosto.",
   ]) {
     const { answer, leaked } = stripReasoning(reply);
     assert.equal(leaked, false, `false positive on: ${reply}`);

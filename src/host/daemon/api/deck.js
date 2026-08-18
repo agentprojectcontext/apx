@@ -11,6 +11,7 @@ import {
 import { readProjectContext } from "#core/apc/context-copy.js";
 import { appendProjectNote } from "#core/apc/notes.js";
 import { runDeckExec, copyToClipboard } from "../deck-exec.js";
+import { asyncRoute } from "./shared.js";
 
 function safePluginStatus(plugins) {
   if (!plugins || typeof plugins.status !== "function") return {};
@@ -51,7 +52,7 @@ export function register(api, ctx) {
   // Persists the user's enable/disable choice for an external widget into the
   // global config under `deck.widget_overrides[id]`. No-op for unknown widget
   // ids so the deck UI can stay forward-compatible.
-  api.patch("/deck/widgets/:id", async (req, res) => {
+  api.patch("/deck/widgets/:id", asyncRoute(async (req, res) => {
     const id = req.params.id;
     if (!TOGGLEABLE_WIDGETS.has(id)) {
       return res.status(404).json({ error: `unknown widget: ${id}` });
@@ -86,13 +87,13 @@ export function register(api, ctx) {
     } catch (e) {
       return res.status(500).json({ error: e?.message || "config persistence failed" });
     }
-  });
+  }));
 
   // POST /projects/:pid/context/copy
   //
   // Reads the project's AGENTS.md + .apc/memory.md, concatenates them with a
   // small header per file, and ships the result to the daemon-host clipboard.
-  api.post("/projects/:pid/context/copy", async (req, res) => {
+  api.post("/projects/:pid/context/copy", asyncRoute(async (req, res) => {
     const project = ctx.project ? ctx.project(req, res) : null;
     if (!project) return; // project() already 404'd
     try {
@@ -103,10 +104,10 @@ export function register(api, ctx) {
     } catch (e) {
       res.status(500).json({ error: e?.message || String(e) });
     }
-  });
+  }));
 
   // POST /projects/:pid/notes  body: { body: "...", title?: "..." }
-  api.post("/projects/:pid/notes", async (req, res) => {
+  api.post("/projects/:pid/notes", asyncRoute(async (req, res) => {
     const project = ctx.project ? ctx.project(req, res) : null;
     if (!project) return;
     const { body, title } = req.body || {};
@@ -122,14 +123,14 @@ export function register(api, ctx) {
     } catch (e) {
       res.status(500).json({ error: e?.message || String(e) });
     }
-  });
+  }));
 
   // POST /deck/exec
   //
   // Light-touch action runner for the deck buttons. Companion clients can't
   // shell out arbitrary commands — body picks from a whitelist of "intent"
   // verbs and the server picks the OS command. See deck-exec.js for the kinds.
-  api.post("/deck/exec", async (req, res) => {
+  api.post("/deck/exec", asyncRoute(async (req, res) => {
     const { kind, target, app: appHint, text } = req.body || {};
     if (!kind || typeof kind !== "string") {
       return res.status(400).json({ error: "kind required" });
@@ -140,5 +141,5 @@ export function register(api, ctx) {
     } catch (e) {
       res.status(400).json({ error: e?.message || String(e) });
     }
-  });
+  }));
 }

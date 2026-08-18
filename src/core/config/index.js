@@ -62,6 +62,12 @@ const DEFAULT_CONFIG = {
     // snappier but more "want me to continue?" hand-backs. 0/unset → built-in
     // default (TELEGRAM_TOOL_ITERS in src/core/agent/constants.js).
     telegram_max_iters: 0,
+    // How often a working turn may speak before it's done. The first sign of
+    // work always goes out (the model's opening line, or a canned heads-up);
+    // after that the turn stays quiet — one notice, the work, then the answer —
+    // except one more note per this many seconds so a long job doesn't look
+    // hung. 0 = never speak mid-turn. See core/channels/telegram/progress-gate.js.
+    telegram_progress_every_s: 90,
     // Char cap for a FOREIGN project's AGENTS.md in the prompt. 0 = no cap.
     // The project APX runs inside is never capped regardless of this value —
     // a project must always read its own contract whole.

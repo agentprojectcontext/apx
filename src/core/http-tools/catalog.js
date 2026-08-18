@@ -549,3 +549,22 @@ export const TOOL_DEFINITIONS = Object.freeze([
     examples: [{}],
   },
 ]);
+
+// Tools a freshly created agent gets out of the box. Read/search the project,
+// keep its own memory, and look itself up in the org — everything with a side
+// effect (shell, write, browser, MCP, network) stays opt-in per agent.
+// One source of truth: the daemon applies these on create, and the web
+// preselects them so the create dialog needs no tool picker at all.
+export const DEFAULT_AGENT_TOOLS = Object.freeze([
+  "read_file",
+  "list_files",
+  "glob",
+  "grep",
+  "memory_get",
+  "memory_set",
+  "memory_append",
+  "memory_list",
+  "agent_list",
+  "agent_get",
+  "project_info",
+]);

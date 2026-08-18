@@ -245,6 +245,7 @@ export function agentToResponse(a) {
   if (!a) return null;
   const f = a.fields || {};
   const reserved = new Set([
+    "Name",
     "Role",
     "Model",
     "Language",
@@ -257,6 +258,7 @@ export function agentToResponse(a) {
     "Type",
     "Area",
     "Emoji",
+    "Icon",
     "Autonomy",
   ]);
   const extra = {};
@@ -265,6 +267,9 @@ export function agentToResponse(a) {
   }
   return {
     slug: a.slug,
+    // Human-readable display name. The slug stays the immutable identity
+    // (filename, links, delegation); Name is what surfaces in the UI.
+    name: f.Name || null,
     role: f.Role || null,
     model: f.Model || null,
     language: f.Language || null,
@@ -281,6 +286,9 @@ export function agentToResponse(a) {
     // permiso). Definitional, kept in APC frontmatter so they travel with the
     // project and stay diffable.
     emoji: f.Emoji || null,
+    // Blob-preset key for the animated avatar (see web blobPresets). Definitional,
+    // kept in APC frontmatter alongside Emoji so it travels with the project.
+    icon: f.Icon || null,
     autonomy: f.Autonomy || null,
     skills: Array.isArray(f.Skills) ? f.Skills : [],
     tools: Array.isArray(f.Tools) ? f.Tools : [],

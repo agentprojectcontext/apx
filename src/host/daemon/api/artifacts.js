@@ -7,6 +7,7 @@
 import fs from "node:fs";
 import { spawn } from "node:child_process";
 import path from "node:path";
+import { asyncRoute } from "./shared.js";
 import {
   artifactPath,
   createArtifact,
@@ -158,7 +159,7 @@ export function register(api, { project }) {
   // its own local spawn (stdio inherited) so it can run interactively. Output
   // is captured up to MAX_CAPTURE_BYTES and the call is bounded by
   // RUN_TIMEOUT_MS — anything longer should go through the terminal.
-  api.post("/projects/:pid/artifacts/:name/run", async (req, res) => {
+  api.post("/projects/:pid/artifacts/:name/run", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const name = decodeURIComponent(req.params.name);
@@ -190,5 +191,5 @@ export function register(api, { project }) {
       args,
     });
     res.json(result);
-  });
+  }));
 }

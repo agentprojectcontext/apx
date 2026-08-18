@@ -13,7 +13,7 @@
 // transcript, runs the super-agent on the `code` channel (with plan/build mode
 // + per-mode tool gating), then persists the rich assistant turn.
 import { runSuperAgent } from "#core/agent/super-agent.js";
-import { appendSuperAgentErrorTrace } from "./shared.js";
+import { appendSuperAgentErrorTrace, asyncRoute } from "./shared.js";
 import { createWebConfirmAdapter } from "#core/confirmation/adapters/web.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { CODE_MODES, DEFAULT_CODE_MODE } from "#core/constants/code-modes.js";
@@ -130,7 +130,7 @@ export function register(api, { projects, project, config, registries, plugins }
   });
 
   // ---- Streaming turn ------------------------------------------------------
-  api.post("/projects/:pid/code/sessions/:sid/chat/stream", async (req, res) => {
+  api.post("/projects/:pid/code/sessions/:sid/chat/stream", asyncRoute(async (req, res) => {
     const p = findProject(req, res);
     if (!p) return;
     const session = getCodeSession(p.storagePath, req.params.sid);
@@ -254,5 +254,5 @@ export function register(api, { projects, project, config, registries, plugins }
       });
       res.end();
     }
-  });
+  }));
 }

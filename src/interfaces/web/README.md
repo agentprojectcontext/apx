@@ -55,7 +55,7 @@ daemon surface, WebSocket included) → `127.0.0.1:7430`. Hot reload, real daemo
 Each project's `.apc/project.json` may include an optional `kind`:
 
 ```json
-{ "name": "iacrmar", "apx_id": "...", "kind": "company" }
+{ "name": "acme", "apx_id": "...", "kind": "company" }
 ```
 
 Recognised values (extensible, the daemon doesn't enforce anything special):

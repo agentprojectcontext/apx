@@ -1,0 +1,14 @@
+# Super-agent prompt & channels
+
+> Deep dive for [`AGENTS.md`](../AGENTS.md). Read before touching prompt
+> assembly, channel formatting, lazy tools, or skill surfacing. Rules **12** and
+> **16** in the hub are the always-read constraints.
+
+Assembled by `buildSuperAgentSystem()` (`prompt-builder.js`), run by `runAgent()` (`run-agent.js`), driven by `runSuperAgent()` (`core/agent/super-agent.js`; the HTTP entry point is `host/daemon/api/super-agent.js`). Block order (each dropped when empty): base → user/identity → memory (broker `[RELEVANT MEMORY]` or notebook) → active threads → relationship → channel block + contextNote → projects index → **project AGENTS.md** → skills (hint or inspector) → lazy-tools hint → **voice mode** → suffix. Format directives sit LAST for recency.
+
+- **Project AGENTS.md is loaded** (`buildProjectAgentsBlock`) when APX runs its OWN loop inside a project — NOT when it delegates to an external engine (that engine reads it itself). **The project APX is running inside is never truncated** — a project always reads its own contract whole. A *foreign* project is capped at `super_agent.project_agents_max_chars` (0 = no cap), cut on a line boundary, and the block says how much was dropped.
+- **Channels are SURFACES; voice is a MODE.** `CHANNEL_PROMPT_FILES` maps each surface (`telegram, cli, routine, api, web, web_sidebar, web_code, deck, desktop, code`) to `channels/<ch>.md`. There is no `voice` channel — it's `channelMeta.voice` (from `modes/voice.md`); desktop is always voice. Who sets it: telegram plugin, `api/voice.js`, `plugins/desktop.js` (`{voice:true}`), web body (`web`/`web_sidebar`/`web_code`), routines, `apx code`.
+- **Lazy tools** (`tools/registry.js`): a small `BASE_TOOL_NAMES` set ships by default; the model pulls the rest in via `discover_tools({category|names})` to fit cheap-tier TPM caps. (This replaced the old per-channel CORE/FULL split.)
+- **Skills are reached on demand.** Default: `buildSkillsHintBlock` (slugs-only hint) + `list_skills`/`load_skill` tools, plus `/slug` trigger and semantic RAG nudge. **Opt-in Skill Inspector** (`src/core/agent/skills/inspector.js`, `config.skills.inspector.enabled`): per-turn embeddings RAG injects the matching skill body/hint and suppresses the static slug dump. Embedder chain ollama→gemini→openai→tf.
+- **Chit-chat protection** (`prompts/discipline/action.md`, in both project-agent and super-agent prompts): call `finish` on pure greetings/thanks instead of hallucinating a tool.
+- **The skill-turn preflight must stay single-homed.** The `/slug` shortcut → inspector → legacy nudge pipeline is consumed by the streaming chat route, the blocking chat route, the desktop plugin and telegram. Keep it one shared function — the four hand-rolled copies diverged once already (`/slug` silently dead on the blocking route; see the survey).

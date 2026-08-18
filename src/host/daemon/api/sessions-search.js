@@ -11,7 +11,7 @@ import { resolveProject } from "#core/apc/projects-helpers.js";
 // Plural on purpose: no ref means "search every project". This is a different
 // operation from core's resolveProject (which resolves exactly one and throws),
 // but the *matching* must agree with it — this used to accept only an id or an
-// exact path, so `?project=savia` matched nothing here while working on every
+// exact path, so `?project=acme` matched nothing here while working on every
 // other route.
 function resolveProjects(projects, projectRef) {
   if (projectRef == null || projectRef === "") {

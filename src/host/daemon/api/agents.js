@@ -25,6 +25,7 @@ import {
 import { agentToResponse } from "./shared.js";
 import { normalizeVaultPatch } from "#core/apc/agents-vault.js";
 import { PERMISSION_MODES } from "#core/constants/permissions.js";
+import { DEFAULT_AGENT_TOOLS } from "#core/http-tools/catalog.js";
 import { listConversations } from "#core/stores/conversations.js";
 import { listTasks } from "#core/stores/tasks.js";
 import { listRoutines } from "#core/stores/routines.js";
@@ -176,8 +177,8 @@ export function register(api, { projects, project }) {
     const p = project(req, res);
     if (!p) return;
     const {
-      slug, role, model, skills, language, description, tools, is_master,
-      parent, type, area, emoji, autonomy,
+      slug, name, role, model, skills, language, description, tools, is_master,
+      parent, type, area, emoji, icon, autonomy, system,
     } = req.body || {};
     if (!slug) return res.status(400).json({ error: "slug required" });
     if (!/^[a-z][a-z0-9_-]*$/.test(slug))
@@ -188,19 +189,23 @@ export function register(api, { projects, project }) {
     const autonomyVal = normalizeAutonomy(autonomy);
     try {
       writeAgentFile(p.path, slug, {
+        Name: name || null,
         Role: role || null,
         Model: model || null,
         Language: language || null,
         Description: description || null,
         Skills: skills || [],
-        Tools: tools || [],
+        // Omitted tools ⇒ the safe default set, so a new agent is useful
+        // immediately instead of landing with an empty capability list.
+        Tools: Array.isArray(tools) ? tools : [...DEFAULT_AGENT_TOOLS],
         Master: is_master ? true : null,
         Parent: parent || null,
         Type: type || null,
         Area: area || null,
         Emoji: emoji || null,
+        Icon: icon || null,
         Autonomy: autonomyVal || null,
-      });
+      }, typeof system === "string" ? system : "");
       ensureAgentDir(p.path, slug);
       ensureAgentRuntimeDir(p, slug);
       projects.rebuild(p.id);
@@ -226,6 +231,7 @@ export function register(api, { projects, project }) {
       if (val === null || val === "") delete fields[key];
       else fields[key] = val;
     };
+    setStr("Name", b.name);
     setStr("Role", b.role);
     setStr("Model", b.model);
     setStr("Language", b.language);
@@ -234,6 +240,7 @@ export function register(api, { projects, project }) {
     setStr("Type", b.type);
     setStr("Area", b.area);
     setStr("Emoji", b.emoji);
+    setStr("Icon", b.icon);
     setStr("Autonomy", normalizeAutonomy(b.autonomy));
     if (b.skills !== undefined) fields.Skills = Array.isArray(b.skills) ? b.skills : [];
     if (b.tools !== undefined) fields.Tools = Array.isArray(b.tools) ? b.tools : [];

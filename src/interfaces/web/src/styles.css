@@ -131,3 +131,40 @@
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 5px; }
 ::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground)); }
+
+/* ── Blob agent avatars (animated) ──────────────────────────────────────────
+   Body is an <img>; eyes are an inline SVG overlaid at the same box. The
+   wrapper bobs+tilts (pivot at base); eyes look around and blink on their own
+   nested groups so the two transforms never fight. Per-instance desync comes
+   from an inline --bl-d delay. */
+.blobav { position: relative; display: inline-block; }
+.blobav-body { display: block; width: 100%; height: 100%; object-fit: contain;
+  -webkit-user-select: none; user-select: none; -webkit-user-drag: none; }
+.blobav-eyes-svg { position: absolute; inset: 0; width: 100%; height: 100%;
+  overflow: visible; pointer-events: none; }
+
+.blobav-anim { animation: blobav-float 5s ease-in-out infinite;
+  animation-delay: var(--bl-d, 0s); transform-origin: 50% 100%; will-change: transform; }
+.blobav-anim .blobav-look { transform-box: fill-box; transform-origin: center;
+  animation: blobav-look 7s ease-in-out infinite; animation-delay: var(--bl-d, 0s); }
+.blobav-anim .blobav-eyes { transform-box: fill-box; transform-origin: center;
+  animation: blobav-blink 5.4s ease-in-out infinite; animation-delay: var(--bl-d, 0s); }
+
+@keyframes blobav-float {
+  0%   { transform: translateY(0) rotate(-3deg); }
+  50%  { transform: translateY(-6%) rotate(3deg); }
+  100% { transform: translateY(0) rotate(-3deg); }
+}
+@keyframes blobav-look {
+  0%,16%   { transform: translateX(0); }
+  28%,40%  { transform: translateX(10px); }
+  52%,64%  { transform: translateX(-10px); }
+  76%,100% { transform: translateX(0); }
+}
+@keyframes blobav-blink {
+  0%,93%,100% { transform: scaleY(1); }
+  96.5%       { transform: scaleY(.08); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .blobav-anim, .blobav-anim .blobav-look, .blobav-anim .blobav-eyes { animation: none !important; }
+}

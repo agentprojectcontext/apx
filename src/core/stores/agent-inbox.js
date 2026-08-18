@@ -73,6 +73,7 @@ export function listAgentInbox(projects, opts = {}) {
         agent_slug: agent.slug,
         agent_name: agent.fields?.Name || agent.name || agent.slug,
         agent_emoji: agent.fields?.Emoji || agent.emoji || null,
+        agent_icon: agent.fields?.Icon || agent.icon || null,
         kind: "agent",
         pinned: false,
         conversation_id: latest?.id || null,
@@ -142,6 +143,7 @@ function buildSuperAgentRow() {
     agent_slug: SUPERAGENT_ACTOR_ID,
     agent_name: null, // resolved by the surface via resolveAgentName()
     agent_emoji: null,
+    agent_icon: "noche", // Roby, the super-agent, wears the "Noche" blob
     kind: "super_agent",
     pinned: true,
     conversation_id: latest?.id || null,

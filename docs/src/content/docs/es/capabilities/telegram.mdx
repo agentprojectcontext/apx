@@ -185,6 +185,38 @@ apx telegram channel set support-line --agent sofia
 
 Dejá `route_to_agent` vacío (o sin configurar) para usar el super-agent (el valor por defecto).
 
+## Cómo llega un turno de trabajo
+
+Un pedido que le lleva varios pasos al agente llega como **dos mensajes, no diez**:
+
+1. **Un aviso** cuando arranca el trabajo — la línea propia del agente ("Reviso eso"), o un
+   aviso corto si fue directo a una herramienta.
+2. **Silencio mientras trabaja.** El indicador "escribiendo…" de Telegram sigue activo, pero
+   las notas que el modelo escribe antes de cada paso no se envían — una sola tarea no tiene
+   por qué hacerte sonar el teléfono ocho veces.
+3. **El mensaje de cierre**, que trae el resultado completo. Es el mensaje para el que existe
+   el turno, y nunca se saltea: un turno que actuó pero no produjo cierre igual recibe un
+   "¿querés que siga?" corto.
+
+En un trabajo largo se deja pasar una nota extra después de 90 segundos de silencio, para que
+una tarea de cuatro minutos no parezca colgada. La ventana es un ajuste global —
+`~/.apx/config.json`, o la pantalla de Settings del panel web, que escribe el mismo archivo y lo
+aplica sin reiniciar:
+
+```json
+{
+  "super_agent": {
+    "telegram_progress_every_s": 180
+  }
+}
+```
+
+`180` es como mucho una nota cada tres minutos; `0` es aviso, trabajo, respuesta — nada más en
+el medio.
+
+Cuánto trabajo entra en un turno es otra perilla: `super_agent.telegram_max_iters` limita los
+pasos de herramienta de un turno (por defecto 24, el último reservado para el mensaje de cierre).
+
 ## Identidad del remitente y roles
 
 APX reconoce a cada remitente por su `user_id` estable de Telegram — no por el chat ID o el número de

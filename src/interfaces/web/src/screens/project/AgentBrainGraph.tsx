@@ -5,6 +5,8 @@ import {
 } from "d3-force";
 import { Maximize2, Minimize2, Plus, Minus, Frame } from "lucide-react";
 import { t } from "../../i18n";
+import { BlobAvatar } from "../../components/agents/BlobAvatar";
+import { isBlobKey } from "../../components/agents/blobPresets";
 
 // Generic animated "brain" graph (d3-force + SVG). It takes an explicit node +
 // edge set so callers can model *any* topology — a single agent's hubbed brain
@@ -28,7 +30,21 @@ export interface BrainNode {
   relation?: string;
   detail?: string;
   emoji?: string;
+  icon?: string;          // blob-preset key → animated avatar (see blobPresets)
   slug?: string;          // for navigation (project map)
+}
+
+// An animated blob avatar embedded in the SVG via <foreignObject>. Pointer
+// events pass through so the node's drag/click handlers still fire.
+function NodeBlob({ icon, size, seed }: { icon: string; size: number; seed?: string }) {
+  return (
+    <foreignObject x={-size / 2} y={-size / 2} width={size} height={size}
+      style={{ pointerEvents: "none", overflow: "visible" }}>
+      <div style={{ width: size, height: size }}>
+        <BlobAvatar preset={icon} size={size} seed={seed} />
+      </div>
+    </foreignObject>
+  );
 }
 export interface BrainEdge { source: string; target: string; }
 
@@ -335,11 +351,17 @@ export function BrainGraph({
                         <animate attributeName="r" values="26;48" dur="3.2s" repeatCount="indefinite" />
                         <animate attributeName="opacity" values="0.5;0" dur="3.2s" repeatCount="indefinite" />
                       </circle>
-                      <circle r={24} fill={KIND_COLOR.agent} filter="url(#brain-glow)" />
-                      <circle r={24} fill="none" stroke="#ffffff" strokeOpacity={0.35} strokeWidth={1} />
-                      <text textAnchor="middle" dominantBaseline="central" fontSize={display.length <= 2 ? 20 : 11} fontWeight={700} fill="#1a1030">
-                        {display.length > 8 ? display.slice(0, 8) : display}
-                      </text>
+                      {isBlobKey(n.icon) ? (
+                        <NodeBlob icon={n.icon} size={58} seed={n.slug || n.id} />
+                      ) : (
+                        <>
+                          <circle r={24} fill={KIND_COLOR.agent} filter="url(#brain-glow)" />
+                          <circle r={24} fill="none" stroke="#ffffff" strokeOpacity={0.35} strokeWidth={1} />
+                          <text textAnchor="middle" dominantBaseline="central" fontSize={display.length <= 2 ? 20 : 11} fontWeight={700} fill="#1a1030">
+                            {display.length > 8 ? display.slice(0, 8) : display}
+                          </text>
+                        </>
+                      )}
                     </g>
                   );
                 }
@@ -358,9 +380,11 @@ export function BrainGraph({
                     </circle>
                     <circle r={r} fill={color} fillOpacity={isSel ? 1 : 0.95}
                       stroke={isSel ? "#fff" : "#ffffff"} strokeOpacity={isSel ? 1 : 0.25} strokeWidth={isSel ? 2 : 1} />
-                    {n.emoji && isHub && (
+                    {isBlobKey(n.icon) ? (
+                      <NodeBlob icon={n.icon} size={2 * r + 10} seed={n.slug || n.id} />
+                    ) : n.emoji && isHub ? (
                       <text textAnchor="middle" dominantBaseline="central" fontSize={11} style={{ pointerEvents: "none" }}>{n.emoji}</text>
-                    )}
+                    ) : null}
                     {showLabel && (
                       <text x={r + 4} y={4} fontSize={isHub ? 11 : 10}
                         className={isHub ? "fill-foreground font-medium" : "fill-foreground/80"} style={{ pointerEvents: "none" }}>
@@ -390,7 +414,11 @@ export function BrainGraph({
           {/* The clicked node: title, type, relation */}
           <div className="flex flex-wrap items-center gap-2">
             <span className="size-2.5 rounded-full" style={{ background: KIND_COLOR[selected.kind] }} />
-            {selected.emoji && <span className="text-sm leading-none">{selected.emoji}</span>}
+            {isBlobKey(selected.icon) ? (
+              <BlobAvatar preset={selected.icon} size={20} animated={false} seed={selected.slug || selected.id} className="shrink-0" />
+            ) : selected.emoji ? (
+              <span className="text-sm leading-none">{selected.emoji}</span>
+            ) : null}
             <span className="text-[13px] font-semibold">{selected.label}</span>
             <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-fg">
               {kindLabel(selected.kind)}
@@ -441,7 +469,11 @@ function NeighborChip({ node, onClick }: { node: BrainNode; onClick: () => void 
       className="inline-flex max-w-[220px] items-center gap-1 rounded-md border border-border bg-muted/40 px-1.5 py-0.5 text-[11px] hover:border-muted-fg/50 hover:bg-muted"
     >
       <span className="size-1.5 shrink-0 rounded-full" style={{ background: KIND_COLOR[node.kind] }} />
-      {node.emoji && <span className="leading-none">{node.emoji}</span>}
+      {isBlobKey(node.icon) ? (
+        <BlobAvatar preset={node.icon} size={16} animated={false} seed={node.slug || node.id} className="shrink-0" />
+      ) : node.emoji ? (
+        <span className="leading-none">{node.emoji}</span>
+      ) : null}
       <span className="truncate">{clip(node.label, 28)}</span>
     </button>
   );

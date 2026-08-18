@@ -2,23 +2,54 @@ import { useState } from "react";
 import useSWR from "swr";
 import { Plus } from "lucide-react";
 import { cn } from "../../lib/cn";
-import { Field, Input } from "../ui";
+import { Field } from "../ui";
+import { Tip } from "../ui/tip";
 import { UiSelect } from "../UiSelect";
 import { Org } from "../../lib/api/organization";
 import { t } from "../../i18n";
 import type { AgentAutonomy } from "../../types/daemon";
 import { AreaDialog, RoleDialog } from "../structure/StructureDialogs";
+import { BlobAvatar } from "./BlobAvatar";
+import { BLOB_KEYS, BLOB_PRESETS } from "./blobPresets";
 
-// ── Emoji ────────────────────────────────────────────────────────────────────
-export function EmojiInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+// ── Agent avatar picker ──────────────────────────────────────────────────────
+// The agent's avatar is a blob preset, full stop. Emoji avatars were dropped:
+// one visual language beats two half-supported ones. Legacy Emoji frontmatter
+// still renders (see the header/card cascade) but is no longer authorable.
+export function AgentIconPicker({
+  icon, onIcon,
+}: {
+  icon: string;
+  onIcon: (v: string) => void;
+}) {
+  // Animate the selected blob always, and whichever one the mouse is over — so
+  // the grid comes alive on hover instead of being a wall of still avatars.
+  const [hover, setHover] = useState<string | null>(null);
   return (
-    <Input
-      value={value}
-      onChange={(e) => onChange([...e.target.value].slice(-2).join(""))}
-      className="text-center text-lg"
-      placeholder="🤖"
-      aria-label={t("agents_form.emoji")}
-    />
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-1.5">
+        {BLOB_KEYS.map((k) => (
+          <Tip key={k} content={BLOB_PRESETS[k].label}>
+            <button
+              type="button"
+              aria-label={BLOB_PRESETS[k].label}
+              aria-pressed={icon === k}
+              onMouseEnter={() => setHover(k)}
+              onMouseLeave={() => setHover((h) => (h === k ? null : h))}
+              onFocus={() => setHover(k)}
+              onBlur={() => setHover((h) => (h === k ? null : h))}
+              onClick={() => onIcon(icon === k ? "" : k)}
+              className={cn(
+                "rounded-lg p-0.5 transition-all",
+                icon === k ? "ring-2 ring-primary" : "opacity-75 hover:opacity-100",
+              )}
+            >
+              <BlobAvatar preset={k} size={34} animated={icon === k || hover === k} seed={k} />
+            </button>
+          </Tip>
+        ))}
+      </div>
+    </div>
   );
 }
 

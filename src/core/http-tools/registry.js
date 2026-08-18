@@ -7,7 +7,7 @@
 //
 // The catalog itself lives in ./catalog.js and the in-process executors in
 // ./inline-handlers.js. This module only indexes and serves them.
-import { TOOL_DEFINITIONS } from "./catalog.js";
+import { TOOL_DEFINITIONS, DEFAULT_AGENT_TOOLS } from "./catalog.js";
 import { makeInlineHandlers } from "./inline-handlers.js";
 
 
@@ -22,6 +22,8 @@ function listTools() {
     name,
     description,
     category,
+    // Whether a new agent gets this tool by default (see DEFAULT_AGENT_TOOLS).
+    default_for_agents: DEFAULT_AGENT_TOOLS.includes(name),
     schema_url: `/api/tools/${name}`,
     endpoint_method: endpoint?.method || "inline",
     endpoint_path: endpoint?.path || null,

@@ -1,5 +1,6 @@
 ---
 role: Roby
+icon: noche
 description: Autonomous pipeline orchestrator that coordinates all specialist agents from initial research through deployment.
 language: en
 skills:

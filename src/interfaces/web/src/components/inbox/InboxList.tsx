@@ -3,6 +3,8 @@ import { Search } from "lucide-react";
 import type { InboxRow } from "../../lib/api/inbox";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
+import { BlobAvatar } from "../agents/BlobAvatar";
+import { isBlobKey } from "../agents/blobPresets";
 
 /**
  * The conversation rail: every agent as a chat, most recent first.
@@ -100,17 +102,21 @@ export function InboxList({
                 isActive ? "bg-accent text-accent-fg" : "hover:bg-muted/50",
               )}
             >
-              {/* A coloured disc, not an emoji on plain background: at this size
-                  the colour is what the eye picks the row out by. */}
-              <span
-                className={cn(
-                  "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full text-sm",
-                  colourFor(row.agent_slug),
-                )}
-                aria-hidden
-              >
-                {row.agent_emoji || label.slice(0, 1).toUpperCase()}
-              </span>
+              {/* Animated blob if the agent has one; otherwise a coloured disc —
+                  at this size the colour is what the eye picks the row out by. */}
+              {isBlobKey(row.agent_icon) ? (
+                <BlobAvatar preset={row.agent_icon} size={32} seed={row.agent_slug} className="mt-0.5 shrink-0" />
+              ) : (
+                <span
+                  className={cn(
+                    "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full text-sm",
+                    colourFor(row.agent_slug),
+                  )}
+                  aria-hidden
+                >
+                  {row.agent_emoji || label.slice(0, 1).toUpperCase()}
+                </span>
+              )}
 
               <span className="min-w-0 flex-1">
                 <span className="flex items-baseline gap-2">

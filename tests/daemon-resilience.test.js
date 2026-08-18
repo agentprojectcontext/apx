@@ -6,6 +6,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import express from "express";
 import { asyncRoute, errorMiddleware } from "#host/daemon/api/shared.js";
+import { buildApi } from "#host/daemon/api.js";
 
 async function withServer(build, fn) {
   const app = express();
@@ -103,6 +104,56 @@ test("errorMiddleware: does not double-send when the response already went out",
       assert.deepEqual(await res.json(), { ok: true });
     }
   );
+});
+
+test("a rejecting handler on a real daemon route returns 500 and leaves no unhandled rejection", async () => {
+  // Poisoned project store: the first thing most project routes do is
+  // `project(req, res)` → `projects.get(pid)`. Making that throw inside a real
+  // registered route proves the whole chain — buildApi's middleware stack,
+  // asyncRoute on the route module, errorMiddleware last — turns the rejection
+  // into a JSON 500 instead of the pre-fix behavior (unhandled rejection,
+  // daemon dead).
+  const projects = {
+    get() {
+      throw new Error("store exploded");
+    },
+    list() {
+      return [];
+    },
+  };
+  const app = buildApi({
+    projects,
+    registries: null,
+    plugins: { get: () => null, status: () => ({}) },
+    scheduler: null,
+    version: "test",
+    startedAt: Date.now(),
+    addProjectGlobally: () => {},
+    config: { host: "127.0.0.1", port: 7430 },
+    token: "",
+  });
+
+  const rejections = [];
+  const spy = (err) => rejections.push(err);
+  process.on("unhandledRejection", spy);
+  const server = app.listen(0);
+  await new Promise((r) => server.once("listening", r));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  try {
+    const res = await fetch(`${base}/api/projects/1/agents/x/exec`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ prompt: "hi" }),
+    });
+    assert.equal(res.status, 500);
+    assert.equal((await res.json()).error, "store exploded");
+    // Let any stray rejection reach the event loop before asserting.
+    await new Promise((r) => setImmediate(r));
+    assert.deepEqual(rejections, []);
+  } finally {
+    process.off("unhandledRejection", spy);
+    await new Promise((r) => server.close(r));
+  }
 });
 
 test("the daemon registers unhandledRejection, not just uncaughtException", async () => {

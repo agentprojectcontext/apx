@@ -16,29 +16,37 @@ import { createTelegramConfirmAdapter } from "#core/confirmation/adapters/telegr
 import { getConfirmationStore as getConfirmStore } from "#core/confirmation/pending-store.js";
 import { t, resolveLang } from "#core/i18n/index.js";
 import { buildTelegramMeta, resolveBotToken } from "./helpers.js";
+import { createProgressGate, progressEveryMs } from "./progress-gate.js";
 
 /**
- * Build the streaming event handler for a Telegram super-agent turn. Sends a
- * one-shot localized heads-up the moment real work starts (first tool), streams
- * each assistant-text iteration as its own chat message, and logs tool calls
- * (audit trail / other channels — never sent to Telegram). Returns the handler
- * plus a live `state` the caller reads AFTER the run to drive the final send.
+ * Build the streaming event handler for a Telegram super-agent turn. ONE notice
+ * goes out when work starts — the model's own opening line, or the canned
+ * heads-up if it went straight to a tool — and the rest of the turn stays quiet
+ * until the caller sends the closing message. The progress notes the model
+ * writes before each later step are held back (see ./progress-gate.js for why,
+ * and for the long-job heartbeat that lets one through every N seconds). Tool
+ * calls are logged for the audit trail / other channels, never sent to Telegram.
+ * Returns the handler plus a live `state` the caller reads AFTER the run to
+ * drive the final send.
  *
  * `state.model` tracks the model actually answering RIGHT NOW (it can rotate
  * mid-turn on a fallback), so every record this handler writes is stamped with
  * the model that produced it — not with the one the turn happened to end on.
  *
- * @returns {{ onEvent: Function, state: { streamedCount: number, lastStreamedText: string, model: string } }}
+ * @returns {{ onEvent: Function, state: { streamedCount: number, lastStreamedText: string, heldCount: number, model: string } }}
  */
 export function buildStreamHandler(self, { chat_id, update_id, agentDisplay }) {
-  const state = { streamedCount: 0, lastStreamedText: "", sentHeadsUp: false, model: "" };
+  const state = { streamedCount: 0, lastStreamedText: "", heldCount: 0, model: "" };
+  const gate = createProgressGate({ everyMs: progressEveryMs(self.globalConfig) });
   const onEvent = async (ev) => {
     try {
       if ((ev.type === "model_start" || ev.type === "model_routed" || ev.type === "final_wrapup") && ev.model) {
         state.model = ev.model;
       }
-      if (ev.type === "tool_start" && !state.sentHeadsUp && state.streamedCount === 0) {
-        state.sentHeadsUp = true;
+      if (ev.type === "tool_start") {
+        // Only ever the turn's opener: if the model already spoke, the gate
+        // holds this and the user hears nothing more until the answer.
+        if (gate.toolStart() !== "heads_up") return;
         const heads = t("telegram.heads_up", { lang: resolveLang(self.globalConfig) });
         await self._send({ chat_id, text: heads });
         appendGlobalMessage({
@@ -59,6 +67,18 @@ export function buildStreamHandler(self, { chat_id, update_id, agentDisplay }) {
         // watches the model think in real time.
         const piece = stripReasoning(ev.text).answer.trim();
         if (!piece) return;
+        if (gate.text() === "hold") {
+          // Held, not lost: it was a pre-tool filler line, and the closing
+          // message carries the result. Logged by size only — the ledger
+          // records what the user actually received, and the daemon log is
+          // not the place to copy conversation text.
+          state.heldCount += 1;
+          self.log(
+            `telegram[${self.channel.name}] progress note held ` +
+            `(#${state.heldCount}, ${piece.length} chars, ${Math.round(gate.sinceLastMs() / 1000)}s of quiet)`
+          );
+          return;
+        }
         await self._send({ chat_id, text: piece });
         state.lastStreamedText = piece;
         state.streamedCount += 1;
@@ -226,6 +246,7 @@ export async function runFollowupTurn(self, {
       saTrace,
       streamedCount: state.streamedCount,
       lastStreamedText: state.lastStreamedText,
+      heldCount: state.heldCount,
       agentDisplay,
       extraMeta: { a2a_relay: true },
     });
@@ -244,16 +265,18 @@ export function telegramErrorText(self, e) {
 }
 
 /**
- * Send the final reply for a turn and log it. The intermediate prose was already
- * streamed, so we only send `replyText` if it's non-empty AND not a duplicate of
- * the last streamed piece. Never ends on silence: a turn that streamed/acted but
- * produced no closing gets a neutral "continue?"; a pure chit-chat turn that did
- * nothing gets a short ack. Caller stops the typing indicator before calling.
+ * Send the final reply for a turn and log it. The opening notice was already
+ * sent, so we only send `replyText` if it's non-empty AND not a duplicate of
+ * the last piece that went out. This is the message the whole turn is for: with
+ * mid-turn notes held back, it's the only place the result can arrive — hence
+ * the never-silent floor. A turn that acted but produced no closing gets a
+ * neutral "continue?"; a pure chit-chat turn that did nothing gets a short ack.
+ * Caller stops the typing indicator before calling.
  */
 export async function sendFinalReply(self, {
   chat_id, update_id, replyText, replyAuthor, replyActorId, replyKind,
   saUsage = null, saModel = null, saTrace = null, streamedCount = 0, lastStreamedText = "",
-  agentDisplay, extraMeta = {},
+  heldCount = 0, agentDisplay, extraMeta = {},
 }) {
   // A model that dumps raw planning must never have it forwarded. When that
   // happens the answer comes back empty and the existing never-silent fallback
@@ -294,6 +317,10 @@ export async function sendFinalReply(self, {
     // whether any of it failed.
     const toolSummary = summarizeToolTrace(saTrace);
     if (toolSummary) meta.tool_summary = toolSummary;
+    // How many progress notes the gate held back. The ledger stays a record of
+    // what the user RECEIVED; this number is how you tell, after the fact, that
+    // a quiet turn was quiet on purpose.
+    if (heldCount > 0) meta.progress_held = heldCount;
     appendGlobalMessage({
       channel: CHANNELS.TELEGRAM,
       direction: "out",

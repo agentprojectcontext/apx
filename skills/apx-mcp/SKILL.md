@@ -21,20 +21,20 @@ Resolution priority when a name appears in more than one: **runtime > shared > g
 
 ```bash
 # List (all scopes, this is the default)
-apx mcp list --project iacrmar
-apx mcp list --scope runtime --project iacrmar
-apx mcp list --scope shared  --project iacrmar
+apx mcp list --project acme
+apx mcp list --scope runtime --project acme
+apx mcp list --scope shared  --project acme
 apx mcp list --scope global
 
 # Inspect sources and conflicts
-apx mcp check --project iacrmar
+apx mcp check --project acme
 
 # Add — shared (commit to repo)
-apx mcp add filesystem --command npx --project iacrmar \
+apx mcp add filesystem --command npx --project acme \
   -- -y @modelcontextprotocol/server-filesystem .
 
 # Add — runtime (per-project, local, secrets safe)
-apx mcp add github --scope runtime --project iacrmar \
+apx mcp add github --scope runtime --project acme \
   --command npx --env GITHUB_TOKEN=ghp_xxx \
   -- -y @modelcontextprotocol/server-github
 
@@ -45,12 +45,12 @@ apx mcp add brave --scope global \
 
 # Remove (pass --scope when the MCP isn't in the default scope:
 # shared inside an APC project, else global)
-apx mcp remove filesystem --project iacrmar
-apx mcp remove github     --scope runtime --project iacrmar
+apx mcp remove filesystem --project acme
+apx mcp remove github     --scope runtime --project acme
 
 # Toggle (defaults to the scope that owns the MCP)
-apx mcp enable  filesystem --project iacrmar
-apx mcp disable filesystem --project iacrmar
+apx mcp enable  filesystem --project acme
+apx mcp disable filesystem --project acme
 
 # Call a tool through the daemon (useful for debugging)
 apx mcp run filesystem read_file '{"path":"README.md"}'
@@ -101,7 +101,7 @@ apx mcp remove github          # if github lives in runtime, this errors with a 
 ## Debugging connection issues
 
 ```bash
-apx mcp check --project iacrmar             # what scopes APX sees + which files exist
+apx mcp check --project acme             # what scopes APX sees + which files exist
 apx mcp tools <name>                         # list a server's tools (proves it spawned + initialized)
 apx mcp tools <name> <tool>                  # one tool's input schema + a ready-to-run example
 apx mcp logs <name>                          # spawn/init log + stderr tail for this server

@@ -8,6 +8,8 @@ export interface InboxRow {
   agent_slug: string;
   agent_name: string | null;
   agent_emoji: string | null;
+  /** Blob-preset key for the animated avatar (see components/agents/blobPresets). */
+  agent_icon: string | null;
   kind: "agent" | "super_agent";
   pinned: boolean;
   conversation_id: string | null;

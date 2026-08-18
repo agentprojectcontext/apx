@@ -1,5 +1,6 @@
 ---
 role: Arch
+icon: cubi
 description: Software architect for multi-tenant SaaS systems. Designs scalable, maintainable architectures with clear trade-off documentation.
 language: en
 skills:

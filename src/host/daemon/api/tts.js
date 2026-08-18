@@ -10,9 +10,10 @@
 // Telegram plugin, overlay) is responsible for picking them up.
 import { synthesize, listProviders } from "#core/voice/tts.js";
 import { readConfig } from "#core/config/index.js";
+import { asyncRoute } from "./shared.js";
 
 export function register(api) {
-  api.post("/tts/say", async (req, res) => {
+  api.post("/tts/say", asyncRoute(async (req, res) => {
     try {
       const { text, voice, language, provider, format, style } = req.body || {};
       if (typeof text !== "string" || !text.trim()) {
@@ -31,14 +32,14 @@ export function register(api) {
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
-  });
+  }));
 
-  api.get("/tts/providers", async (_req, res) => {
+  api.get("/tts/providers", asyncRoute(async (_req, res) => {
     try {
       const info = await listProviders(readConfig());
       res.json(info);
     } catch (e) {
       res.status(500).json({ error: e.message });
     }
-  });
+  }));
 }

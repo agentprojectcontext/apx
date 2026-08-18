@@ -216,5 +216,5 @@ The daemon reads `~/.apx/config.json` on start. Key fields:
 ```
 
 After editing config, run `apx daemon reload` (for config-only changes) or `apx daemon restart`
-(for code/prompt changes). The `apx config set` and `apx model key` commands write this file and
+(for code/prompt changes). The `apx config set --global` and `apx model key` commands write this file and
 call the reload endpoint automatically.

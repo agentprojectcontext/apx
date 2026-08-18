@@ -293,13 +293,15 @@ export async function handleUpdate(self, u) {
       }
     }
 
-    // Fallback: super-agent — STREAMED. Each iteration's assistant text is sent
-    // to Telegram as its own message the moment the model produces it; tool
-    // calls are logged but never sent (internal). The streamed turn + its final
-    // send live in ./reply.js so this dispatcher and the ask-flow resume
+    // Fallback: super-agent — STREAMED, but not narrated step by step. One
+    // notice goes out when work starts, the notes before every later step are
+    // held (./progress-gate.js), and the closing message carries the result;
+    // tool calls are logged but never sent (internal). The streamed turn + its
+    // final send live in ./reply.js so this dispatcher and the ask-flow resume
     // (_runResumedTurn in the host poller) share ONE reply path — no drift.
     let streamedCount = 0;
     let lastStreamedText = "";
+    let heldCount = 0;
     if (!replyText && isSuperAgentEnabled(self.globalConfig)) {
       const { onEvent, state } = buildStreamHandler(self, { chat_id, update_id: u.update_id, agentDisplay });
 
@@ -383,6 +385,7 @@ export async function handleUpdate(self, u) {
         }
         streamedCount = state.streamedCount;
         lastStreamedText = state.lastStreamedText;
+        heldCount = state.heldCount;
       } catch (e) {
         if (abortCtrl.signal.aborted) {
           // A newer message superseded this one. Whatever streamed so far is
@@ -416,6 +419,7 @@ export async function handleUpdate(self, u) {
       saTrace: replyTrace,
       streamedCount,
       lastStreamedText,
+      heldCount,
       agentDisplay,
     });
   }

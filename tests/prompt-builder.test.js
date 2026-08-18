@@ -216,11 +216,11 @@ test("telegram channel template includes project pin when present", async () => 
     channelName: "default",
     author: "Manú",
     chatId: "1234",
-    projectBlock: "\nProject pin: **iacrmar** (`/x/y`).",
+    projectBlock: "\nProject pin: **acme** (`/x/y`).",
     routeBlock: "",
   });
   assert.match(out, /Project pin/);
-  assert.match(out, /iacrmar/);
+  assert.match(out, /acme/);
   assert.equal(/Master agent/.test(out), false);
 });
 

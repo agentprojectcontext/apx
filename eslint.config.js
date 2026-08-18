@@ -55,6 +55,31 @@ const HOST_LAYER = forbidImports(
     "extract the shared logic into core/ and have both adapters call it."
 );
 
+// Express 4 does not await handlers: an async handler that rejects outside a
+// try/catch becomes an unhandled rejection and takes the daemon down (AGENTS.md
+// rule 15; see api/shared.js asyncRoute). Forbid passing a bare async function
+// to a route/middleware registration — wrap it in asyncRoute() instead, which
+// routes the rejection into errorMiddleware as a 500.
+const ROUTE_METHODS = "/^(get|post|put|delete|patch|all|use)$/";
+const ASYNC_ROUTE_MSG =
+  "Async route handlers must be wrapped in asyncRoute() from api/shared.js — " +
+  "a rejection in a bare async handler is an unhandled rejection that kills " +
+  "the daemon. AGENTS.md rule 15.";
+const ASYNC_ROUTE = [
+  {
+    selector:
+      `CallExpression[callee.property.name=${ROUTE_METHODS}] > ` +
+      "ArrowFunctionExpression[async=true]",
+    message: ASYNC_ROUTE_MSG,
+  },
+  {
+    selector:
+      `CallExpression[callee.property.name=${ROUTE_METHODS}] > ` +
+      "FunctionExpression[async=true]",
+    message: ASYNC_ROUTE_MSG,
+  },
+];
+
 // Node/web globals available in this runtime. Listed explicitly because the
 // backend is plain ESM with no tsconfig lib to infer them from.
 const RUNTIME_GLOBALS = Object.fromEntries(
@@ -112,9 +137,10 @@ export default [
         },
       ],
       // Empty non-catch blocks are always a mistake. Empty *catch* blocks are
-      // often legitimate best-effort cleanup here, so they are ratcheted
-      // separately by scripts/check-empty-catch.js instead of being banned
-      // wholesale — see docs-internal/repair-and-refactoring-code.
+      // often legitimate best-effort cleanup here, so they are allowed rather
+      // than banned wholesale — see docs-internal/repair-and-refactoring-code.
+      // (A planned ratchet script for them was never built; if one lands,
+      // reference it here.)
       "no-empty": ["error", { allowEmptyCatch: true }],
       // ANSI escapes in regexes are intentional: the CLI strips terminal
       // colour codes out of captured output.
@@ -140,7 +166,9 @@ export default [
   // ---- Layer guard: the daemon is an adapter, never a surface consumer ----
   {
     files: ["src/host/**/*.js"],
-    rules: { "no-restricted-syntax": ["error", ...HOST_LAYER, NO_HOMEDIR] },
+    rules: {
+      "no-restricted-syntax": ["error", ...HOST_LAYER, NO_HOMEDIR, ...ASYNC_ROUTE],
+    },
   },
 
   // Surfaces may import anything below them, but still must not re-derive paths.

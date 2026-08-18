@@ -172,12 +172,12 @@ test("cmdTelegramChannelSet patches via /telegram/channels/:name and reloads", a
   const calls = installHttpStub();
   await cmdTelegramChannelSet({
     _: ["clientes"],
-    flags: { project: "iacrmar", agent: "comercial", "respond-engine": "false" },
+    flags: { project: "acme", agent: "comercial", "respond-engine": "false" },
   });
   const patch = calls.find((c) => c[0] === "PATCH" && c[1].startsWith("/api/telegram/channels/"));
   assert.ok(patch, "PATCH /telegram/channels/:name must be sent");
   assert.deepEqual(patch[2], {
-    project: "iacrmar",
+    project: "acme",
     route_to_agent: "comercial",
     respond_with_engine: false,
   });

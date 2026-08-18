@@ -17,20 +17,20 @@ APX exposes MCP servers via three scopes; resolution priority **runtime > shared
 
 ```bash
 # List (defaults to all scopes)
-apx mcp list --project iacrmar
-apx mcp list --scope runtime --project iacrmar
-apx mcp list --scope shared  --project iacrmar
+apx mcp list --project acme
+apx mcp list --scope runtime --project acme
+apx mcp list --scope shared  --project acme
 apx mcp list --scope global
 
 # Inspect sources and conflicts
-apx mcp check --project iacrmar
+apx mcp check --project acme
 
 # Add — shared (commit to repo)
-apx mcp add filesystem --command npx --project iacrmar \
+apx mcp add filesystem --command npx --project acme \
   -- -y @modelcontextprotocol/server-filesystem .
 
 # Add — runtime (per-project, local, secrets safe)
-apx mcp add github --scope runtime --project iacrmar \
+apx mcp add github --scope runtime --project acme \
   --command npx --env GITHUB_TOKEN=ghp_xxx \
   -- -y @modelcontextprotocol/server-github
 
@@ -40,12 +40,12 @@ apx mcp add brave --scope global \
   -- -y @modelcontextprotocol/server-brave-search
 
 # Remove (pass --scope when not in default: shared inside APC project, else global)
-apx mcp remove filesystem --project iacrmar
-apx mcp remove github     --scope runtime --project iacrmar
+apx mcp remove filesystem --project acme
+apx mcp remove github     --scope runtime --project acme
 
 # Toggle (defaults to owning scope)
-apx mcp enable  filesystem --project iacrmar
-apx mcp disable filesystem --project iacrmar
+apx mcp enable  filesystem --project acme
+apx mcp disable filesystem --project acme
 
 # Discover tools — list catalog, then inspect one tool's schema
 apx mcp tools filesystem                     # table: tool name + description
@@ -99,7 +99,7 @@ apx mcp remove github          # errors if github lives in runtime
 ## Debugging
 
 ```bash
-apx mcp check --project iacrmar      # scopes seen + which files exist
+apx mcp check --project acme      # scopes seen + which files exist
 apx mcp tools <name>                 # spawn server + list its tools (proves init works)
 apx mcp logs <name>                  # spawn/init event log + stderr tail
 apx mcp run <name> <tool> '{...}'    # call a tool for real

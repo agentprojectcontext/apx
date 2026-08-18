@@ -167,7 +167,7 @@ apx model order anthropic openrouter groq
 **Problema:** Las claves en `engines.groq.api_key`, `engines.openrouter.api_key` o campos similares se resetean
 a cadenas vacías sin que las hayas tocado. Esto se observó el 2026-05-27 (spec #14).
 
-**Causa:** Una llamada parcial a `writeConfig()` (desde `apx config set`, una reejecución del wizard o una recarga
+**Causa:** Una llamada parcial a `writeConfig()` (desde `apx config set --global`, una reejecución del wizard o una recarga
 del daemon después de una edición estructural) puede sobrescribir un subárbol con defaults, borrando silenciosamente
 campos hermanos.
 
@@ -183,11 +183,11 @@ campos hermanos.
    apx model key gemini AIza...
    ```
 
-2. Si ejecutaste recientemente `apx config set engines.<something>`, verificá que el bloque completo todavía se vea
+2. Si ejecutaste recientemente `apx config set --global engines.<something>`, verificá que el bloque completo todavía se vea
    bien:
 
    ```bash
-   apx config show --effective | grep -A 20 '"engines"'
+   apx config show --global | grep -A 20 '"engines"'
    ```
 
 3. Después de restaurar las claves, recargá el daemon para que las tome sin un reinicio completo:
@@ -199,7 +199,7 @@ campos hermanos.
 </Steps>
 
 <Aside type="caution">
-  Evitá `apx config set engines` con un valor JSON parcial — definí siempre las claves hoja (p. ej.
+  Evitá `apx config set --global engines` con un valor JSON parcial — definí siempre las claves hoja (p. ej.
   `engines.groq.api_key`) en lugar del objeto `engines` entero. Este es un problema conocido (#14)
   que se está abordando en la capa `writeConfig`.
 </Aside>

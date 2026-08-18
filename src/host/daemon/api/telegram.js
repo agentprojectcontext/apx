@@ -44,6 +44,7 @@ import {
 
 import { redactChannel, isSecretMarker } from "#core/config/redact.js";
 import { canNudge, recordNudge, nudgeFeedbackKeyboard } from "#core/nudge/index.js";
+import { asyncRoute } from "./shared.js";
 
 export function register(api, { telegram }) {
   api.get("/telegram/status", (_req, res) => {
@@ -73,7 +74,7 @@ export function register(api, { telegram }) {
     }
   });
 
-  api.post("/telegram/send", async (req, res) => {
+  api.post("/telegram/send", asyncRoute(async (req, res) => {
     const { chat_id, text, channel } = req.body || {};
     if (!text) return res.status(400).json({ error: "text required" });
     if (!telegram)
@@ -84,9 +85,9 @@ export function register(api, { telegram }) {
     } catch (e) {
       res.status(502).json({ error: e.message });
     }
-  });
+  }));
 
-  api.post("/telegram/send_photo", async (req, res) => {
+  api.post("/telegram/send_photo", asyncRoute(async (req, res) => {
     const { chat_id, photo, caption, parse_mode, channel } = req.body || {};
     if (!photo)
       return res.status(400).json({ error: "photo required (path or url)" });
@@ -104,9 +105,9 @@ export function register(api, { telegram }) {
     } catch (e) {
       res.status(502).json({ error: e.message });
     }
-  });
+  }));
 
-  api.post("/telegram/send_voice", async (req, res) => {
+  api.post("/telegram/send_voice", asyncRoute(async (req, res) => {
     const { chat_id, audio, caption, duration, channel } = req.body || {};
     if (!audio) return res.status(400).json({ error: "audio required (path)" });
     if (!telegram)
@@ -123,9 +124,9 @@ export function register(api, { telegram }) {
     } catch (e) {
       res.status(502).json({ error: e.message });
     }
-  });
+  }));
 
-  api.post("/telegram/send_audio", async (req, res) => {
+  api.post("/telegram/send_audio", asyncRoute(async (req, res) => {
     const { chat_id, audio, caption, title, performer, channel } =
       req.body || {};
     if (!audio) return res.status(400).json({ error: "audio required (path)" });
@@ -144,7 +145,7 @@ export function register(api, { telegram }) {
     } catch (e) {
       res.status(502).json({ error: e.message });
     }
-  });
+  }));
 
   // ── Channel CRUD (config-only; caller must POST /admin/reload to apply) ──
   // We read fresh config from disk on each call so concurrent writes from the
@@ -309,7 +310,7 @@ export function register(api, { telegram }) {
   // interruption budget applies by default. A caller delivering something the
   // user is waiting for says so with `unsolicited: false`, and that choice is
   // then visible in its own diff rather than hidden in this handler.
-  api.post("/telegram/notify", async (req, res) => {
+  api.post("/telegram/notify", asyncRoute(async (req, res) => {
     const { chat_id, text, channel, kind, project_id, severity, unsolicited } = req.body || {};
     if (!text) return res.status(400).json({ error: "text required" });
     if (!telegram)
@@ -348,5 +349,5 @@ export function register(api, { telegram }) {
     } catch (e) {
       res.status(502).json({ error: e.message });
     }
-  });
+  }));
 }

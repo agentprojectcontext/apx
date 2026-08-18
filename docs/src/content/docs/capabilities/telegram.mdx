@@ -185,6 +185,37 @@ apx telegram channel set support-line --agent sofia
 
 Leave `route_to_agent` empty (or unset) to use the super-agent (the default).
 
+## How a working turn arrives
+
+A request that takes the agent several steps arrives as **two messages, not ten**:
+
+1. **One notice** when work starts — the agent's own opening line ("Checking that"), or a
+   short heads-up if it went straight to a tool.
+2. **Quiet while it works.** Telegram's "typing…" indicator stays on, but the notes the model
+   writes before each step are not delivered — a single task should not buzz your phone eight
+   times.
+3. **The closing message**, which carries the whole result. It is the message the turn exists
+   for, and it is never skipped: a turn that acted but produced no closing still gets a short
+   "want me to keep going?".
+
+On a long job one extra note is let through after 90 seconds of quiet, so a four-minute task
+does not look hung. The window is a global setting — `~/.apx/config.json`, or the Settings
+screen of the web panel, which writes the same file and applies it without a restart:
+
+```json
+{
+  "super_agent": {
+    "telegram_progress_every_s": 180
+  }
+}
+```
+
+`180` means at most one note every three minutes; `0` means notice, work, answer — nothing
+else in between.
+
+How much work fits in one turn is a separate knob: `super_agent.telegram_max_iters` caps the
+tool steps a single turn may take (default 24, the last one reserved for the closing message).
+
 ## Sender identity and roles
 
 APX recognizes every sender by their stable Telegram `user_id` — not by chat ID or phone

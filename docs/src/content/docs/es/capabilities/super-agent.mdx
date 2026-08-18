@@ -28,8 +28,8 @@ con las claves `super_agent.*` en `~/.apx/config.json`, y los tipos de routine t
 El modo está deshabilitado por defecto. Configurá ambas claves antes de llamarlo por primera vez:
 
 ```bash
-apx config set super_agent.enabled true
-apx config set super_agent.model "anthropic:claude-sonnet-4-5"
+apx config set --global super_agent.enabled true
+apx config set --global super_agent.model "anthropic:claude-sonnet-4-5"
 ```
 
 Una vez habilitado, cada llamada a `apx exec` sin `-a <agent>` pasa por este modo.
@@ -141,7 +141,7 @@ apx identity wizard               # prompt de configuración interactivo
   Personality : pragmatic, concise, a little playful
   Owner       : Alex
   Context     : prefers es-AR, ships fast, hates ceremony
-  Language    : en  (apx config set user.language <code>)
+  Language    : en  (apx config set --global user.language <code>)
   Last wakeup : 2026-06-14 09:31
   File        : ~/.apx/identity.json`}
 </Terminal>

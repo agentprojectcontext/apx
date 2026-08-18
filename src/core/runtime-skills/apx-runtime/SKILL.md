@@ -57,7 +57,7 @@ session_id: abc123
 Full resume/get/continue/summarise lives in the **`apx-sessions`** skill. Quick paths:
 
 ```bash
-apx sessions list --engine claude --project iacrmar
+apx sessions list --engine claude --project acme
 apx session resume <id>                          # auto-detects engine
 apx session resume <id> --continue               # spawn native CLI to keep going
 apx session resume <id> --summary                # super-agent summary

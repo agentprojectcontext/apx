@@ -21,18 +21,19 @@ import {
   extractRuntimeResult as extractApfResult,
 } from "#core/stores/runtime-sessions.js";
 import { runSuperAgent, isSuperAgentEnabled } from "#core/agent/super-agent.js";
+import { asyncRoute } from "./shared.js";
 
 export function register(api, { projects, registries, plugins, project, config }) {
   api.get("/runtimes", (_req, res) =>
     res.json({ runtimes: RUNTIME_IDS })
   );
 
-  api.get("/env/detect", async (_req, res) => {
+  api.get("/env/detect", asyncRoute(async (_req, res) => {
     const detected = await detectAll();
     res.json(detected);
-  });
+  }));
 
-  api.post("/projects/:pid/agents/:slug/runtime", async (req, res) => {
+  api.post("/projects/:pid/agents/:slug/runtime", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const { runtime, prompt, timeoutMs } = req.body || {};
@@ -143,10 +144,10 @@ export function register(api, { projects, registries, plugins, project, config }
       } catch {}
       res.status(500).json({ error: e.message, apc_session: session.id });
     }
-  });
+  }));
 
   // ---- Session resume — reads APC session file + (optionally) external transcript ----
-  api.get("/projects/:pid/sessions/:id/resume", async (req, res) => {
+  api.get("/projects/:pid/sessions/:id/resume", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const { id } = req.params;
@@ -217,5 +218,5 @@ export function register(api, { projects, registries, plugins, project, config }
     }
 
     res.json(out);
-  });
+  }));
 }

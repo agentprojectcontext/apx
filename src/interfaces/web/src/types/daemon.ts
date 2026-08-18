@@ -23,6 +23,8 @@ export type AgentAutonomy = "total" | "automatico" | "permiso";
 
 export interface AgentEntry {
   slug: string;
+  /** Display name. The slug remains the stable identity used for links/delegation. */
+  name?: string | null;
   role: string | null;
   model: string | null;
   language: string | null;
@@ -32,6 +34,8 @@ export interface AgentEntry {
   type?: string | null;
   area?: string | null;
   emoji?: string | null;
+  // Blob-preset key for the agent's animated avatar (see components/agents/blobPresets).
+  icon?: string | null;
   autonomy?: AgentAutonomy | null;
   skills: string[];
   tools: string[];

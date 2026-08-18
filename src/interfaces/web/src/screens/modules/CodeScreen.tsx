@@ -5,7 +5,7 @@ import { Bot, FolderTree, MessageSquare, PanelLeft, PanelRight, Terminal, X } fr
 import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from "react-resizable-panels";
 import { Code, Projects, Agents } from "../../lib/api";
 import { Artifacts } from "../../lib/api/artifacts";
-import { http } from "../../lib/http";
+import { ProjectFiles } from "../../lib/api/projectFiles";
 import { Empty, Loading } from "../../components/ui";
 import { Tip } from "../../components/ui/tip";
 import { UiSelect } from "../../components/UiSelect";
@@ -292,14 +292,14 @@ export function CodeScreen() {
         if (prev.some((f) => f.path === path)) return prev; // already open
         return [...prev, { path, content: "", loading: true }];
       });
-      // Fetch content async
-      http
-        .post<{ ok: boolean; stdout: string; stderr: string }>("/run", {
-          cmd: `cat "${path}"`,
-          project: pid,
-        })
+      // Fetch content through the sandboxed project-files API — the path is
+      // user-controlled, so it must never reach a shell.
+      ProjectFiles.read(pid, path)
         .then((r) => {
-          const content = r.stdout || r.stderr || t("modules_ui.code_file_empty");
+          const content =
+            r.encoding === "utf8" && typeof r.content === "string"
+              ? r.content || t("modules_ui.code_file_empty")
+              : t(r.too_large ? "files.too_large" : "files.no_preview");
           setOpenFiles((prev) =>
             prev.map((f) => (f.path === path ? { ...f, content, loading: false } : f)),
           );

@@ -3,6 +3,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { parseFrontmatter } from "#core/apc/frontmatter.js";
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 
@@ -62,16 +63,7 @@ export function appendTurn({ filePath, role, content }) {
 // Parse a conversation file into structured turns. Tolerant — anything that
 // doesn't look like a turn header is ignored.
 export function parseConversation(text) {
-  const fmEnd = text.indexOf("\n---", 4);
-  const fm = {};
-  let body = text;
-  if (text.startsWith("---\n") && fmEnd !== -1) {
-    for (const line of text.slice(4, fmEnd).split("\n")) {
-      const m = line.match(/^([a-zA-Z_]+):\s*(.*)$/);
-      if (m) fm[m[1]] = m[2].trim();
-    }
-    body = text.slice(fmEnd + 4);
-  }
+  const { fm, body } = parseFrontmatter(text);
   const turns = [];
   // The terminator is "the next turn header, or the true end of input".
   //
