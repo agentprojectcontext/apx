@@ -192,7 +192,11 @@ export function ProjectScreen() {
         <Route path="artifacts"    element={<ArtifactsTab pid={pid} />} />
         <Route path="vars"         element={<VarsTab pid={pid} />} />
         <Route path="threads"      element={<Navigate to={`/p/${pid}/chat`} replace />} />
-        <Route path="chat"         element={<ChatTab pid={pid} />} />
+        {/* Keyed by pid: React Router keeps this screen mounted across a project
+            switch, and the chat pane owns real state (which conversation is
+            open, the loaded messages). Without the key you land on the new
+            project still reading the old one's chat. */}
+        <Route path="chat"         element={<ChatTab key={pid} pid={pid} />} />
         <Route path="*"            element={<Overview pid={pid} />} />
       </Routes>
     </TabLayout>
