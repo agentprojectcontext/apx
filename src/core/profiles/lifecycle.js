@@ -46,6 +46,7 @@ import {
 } from "./store.js";
 import {
   renderProfilePrompt,
+  profileTemplateVars,
   clearProfileBlockCache,
   validateTemplateVars,
   profileChannelFile,
@@ -396,7 +397,15 @@ export function renderProfileRoutines(profile, globalConfig) {
   const dir = path.join(profile.dir, "routines");
   if (!fs.existsSync(dir)) return [];
 
-  const settings = { ...effectiveProfileConfig(profile, globalConfig), ...RUNTIME_PLACEHOLDERS };
+  // The SAME variables PROFILE.md gets — settings plus the read-only facts from
+  // identity.json. Rendering routines with settings alone left `{{owner_name}}`
+  // empty in every routine that used it, which is how the Secretary's anchor
+  // came to tell the model "none of that is what  asked for".
+  const identity = (() => { try { return readIdentity(); } catch { return null; } })();
+  const settings = {
+    ...profileTemplateVars(profile, identity, globalConfig),
+    ...RUNTIME_PLACEHOLDERS,
+  };
   const out = [];
 
   for (const file of fs.readdirSync(dir).filter((f) => f.endsWith(".json")).sort()) {
