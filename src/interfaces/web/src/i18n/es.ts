@@ -113,6 +113,10 @@ export const es = {
     more_projects:     "{count} más",
     collapse_projects: "Ocultar proyectos",
     expand_projects:   "Mostrar proyectos",
+    project_settings:  "Configuración del proyecto",
+    copy_path:         "Copiar ruta",
+    path_copied:       "Ruta copiada.",
+    copy_failed:       "No se pudo copiar.",
     modules: {
       voice:   "Voces",
       desktop: "Escritorio",

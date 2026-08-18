@@ -12,6 +12,7 @@ export function ConfirmDialog({
   description,
   confirmLabel,
   destructive = true,
+  testId,
 }: {
   open: boolean;
   onClose: () => void;
@@ -20,6 +21,8 @@ export function ConfirmDialog({
   description?: string;
   confirmLabel?: string;
   destructive?: boolean;
+  /** Put on the confirm button — the one a spec has to click. */
+  testId?: string;
 }) {
   const [busy, setBusy] = useState(false);
   const run = async () => {
@@ -39,7 +42,7 @@ export function ConfirmDialog({
       footer={
         <>
           <Button variant="ghost" onClick={onClose} disabled={busy}>{t("common.cancel")}</Button>
-          <Button variant={destructive ? "destructive" : "primary"} onClick={() => void run()} loading={busy}>
+          <Button variant={destructive ? "destructive" : "primary"} onClick={() => void run()} loading={busy} data-testid={testId}>
             {confirmLabel ?? t("common.confirm")}
           </Button>
         </>
