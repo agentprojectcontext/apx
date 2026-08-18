@@ -110,6 +110,10 @@ Para profundizar, seguí los enlaces del final.
 | `apx memory <slug>` | Imprime el `memory.md` de un agente |
 | `apx memory <slug> --append "<note>"` | Agrega una nota bajo `## Recent context` |
 | `apx memory <slug> --replace` | Reemplaza la memoria desde stdin |
+| `apx memory notebook` | Muestra la libreta propia del super-agente (`~/.apx/memory.md`) y su tamaño |
+| `apx memory consolidate [--apply]` | Propone hechos durables desde stdin (escribe solo con `--apply`) |
+| `apx memory prune [--apply]` | Colapsa entradas replicadas de la libreta, conservando la más nueva (simulacro por defecto) |
+| `apx memory revert [--since D]` | Quita las entradas escritas por la consolidación |
 
 ---
 
@@ -253,6 +257,23 @@ Para profundizar, seguí los enlaces del final.
 | `apx task drop <id>` | Descarta / archiva una tarea |
 | `apx task reopen <id>` | Reabre una tarea hecha o descartada |
 | `apx task patch <id>` | Edita campos (`--title T --body B --due D --agent A --tag t`) |
+
+---
+
+## Compromisos
+
+Lo que le prometiste a una persona concreta, y para cuándo. Aparte de las
+tareas: una tarea es trabajo, un compromiso es alguien esperando.
+
+| Comando | Qué hace |
+|---|---|
+| `apx commitment add "<qué>" --to "<persona>"` | Registra una promesa (`--due ISO --project X --channel C`) |
+| `apx commitment list` | Lista promesas (`--all --to X --state open\|kept\|missed\|dropped\|all --overdue`) |
+| `apx commitment show <id>` | Imprime una promesa, con todas las fechas que tuvo |
+| `apx commitment kept <id>` | Cumplida (`--note "..."`) |
+| `apx commitment missed <id>` | Pasó la fecha y no se hizo (`--note "..."`) |
+| `apx commitment renegotiate <id> --due <ISO>` | Fecha nueva, acordada con la persona — la reabre y guarda la anterior |
+| `apx commitment drop <id>` | Cargada por error — sale de las listas y NO cuenta como incumplida |
 
 ---
 

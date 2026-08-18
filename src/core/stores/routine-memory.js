@@ -52,6 +52,20 @@ export function ensureRoutineMemory(storagePath, routineId, routineName = "") {
   return true;
 }
 
+/**
+ * Resolve a routine run's storagePath from the projects registry — never from
+ * a model-supplied path. `projectPath` (channelMeta) narrows to the owning
+ * project; without it, the first project with storage wins.
+ */
+export function resolveRoutineStorage(projects, projectPath = "") {
+  for (const entry of projects?.list?.() || []) {
+    if (projectPath && entry.path !== projectPath) continue;
+    const storagePath = projects?.get?.(entry.id)?.storagePath || "";
+    if (storagePath) return storagePath;
+  }
+  return "";
+}
+
 /** Append a dated note to the routine memory. Creates the file on first write. */
 export function appendRoutineMemory(storagePath, routineId, note, { routineName = "" } = {}) {
   const text = String(note || "").trim();

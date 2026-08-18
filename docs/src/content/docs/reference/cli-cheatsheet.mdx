@@ -110,6 +110,10 @@ For deep dives, follow the links at the bottom.
 | `apx memory <slug>` | Print an agent's `memory.md` |
 | `apx memory <slug> --append "<note>"` | Append a note under `## Recent context` |
 | `apx memory <slug> --replace` | Replace memory from stdin |
+| `apx memory notebook` | Show the super-agent's own notebook (`~/.apx/memory.md`) and its size |
+| `apx memory consolidate [--apply]` | Propose durable facts from stdin candidates (writes only with `--apply`) |
+| `apx memory prune [--apply]` | Collapse replicated notebook entries, keeping the newest (dry-run by default) |
+| `apx memory revert [--since D]` | Remove entries written by consolidation |
 
 ---
 
@@ -253,6 +257,23 @@ For deep dives, follow the links at the bottom.
 | `apx task drop <id>` | Drop / archive a task |
 | `apx task reopen <id>` | Reopen a done or dropped task |
 | `apx task patch <id>` | Edit fields (`--title T --body B --due D --agent A --tag t`) |
+
+---
+
+## Commitments
+
+What you promised a named person, by when. Separate from tasks: a task is work,
+a commitment is someone waiting.
+
+| Command | What it does |
+|---|---|
+| `apx commitment add "<what>" --to "<person>"` | Record a promise (`--due ISO --project X --channel C`) |
+| `apx commitment list` | List promises (`--all --to X --state open\|kept\|missed\|dropped\|all --overdue`) |
+| `apx commitment show <id>` | Print one promise, with every date it has had |
+| `apx commitment kept <id>` | Delivered (`--note "..."`) |
+| `apx commitment missed <id>` | The date passed and it did not happen (`--note "..."`) |
+| `apx commitment renegotiate <id> --due <ISO>` | A new date, agreed with them — reopens it and keeps the old date |
+| `apx commitment drop <id>` | Filed by mistake — off the lists, and NOT counted as broken |
 
 ---
 
