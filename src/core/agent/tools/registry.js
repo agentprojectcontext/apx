@@ -43,6 +43,10 @@ import asanaCreateTask from "./handlers/asana-create-task.js";
 import asanaUpdateTask from "./handlers/asana-update-task.js";
 import githubListRepos from "./handlers/github-list-repos.js";
 import githubCreateIssue from "./handlers/github-create-issue.js";
+import calendarListEvents from "./handlers/calendar-list-events.js";
+import calendarFindSlot from "./handlers/calendar-find-slot.js";
+import calendarCreateEvent from "./handlers/calendar-create-event.js";
+import calendarUpdateEvent from "./handlers/calendar-update-event.js";
 import obsidianSearchNotes from "./handlers/obsidian-search-notes.js";
 import obsidianReadNote from "./handlers/obsidian-read-note.js";
 import obsidianWriteNote from "./handlers/obsidian-write-note.js";
@@ -105,6 +109,10 @@ const NATIVE_TOOLS = [
   obsidianReadNote,
   obsidianWriteNote,
   obsidianListNotes,
+  calendarListEvents,
+  calendarFindSlot,
+  calendarCreateEvent,
+  calendarUpdateEvent,
 ];
 
 // Registry-backed bridges. Categories can be overridden per-process via env

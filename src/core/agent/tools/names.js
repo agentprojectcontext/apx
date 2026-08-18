@@ -68,6 +68,12 @@ export const TOOLS = Object.freeze({
   GITHUB_LIST_REPOS:   "github_list_repos",
   GITHUB_CREATE_ISSUE: "github_create_issue",
 
+  // Integrations — Google Calendar plugin (see core/integrations/plugins/calendar.js)
+  CALENDAR_LIST_EVENTS:  "calendar_list_events",
+  CALENDAR_FIND_SLOT:    "calendar_find_slot",
+  CALENDAR_CREATE_EVENT: "calendar_create_event",
+  CALENDAR_UPDATE_EVENT: "calendar_update_event",
+
   // Integrations — Obsidian plugin (see core/integrations/plugins/obsidian.js)
   OBSIDIAN_SEARCH_NOTES: "obsidian_search_notes",
   OBSIDIAN_READ_NOTE:    "obsidian_read_note",
@@ -129,6 +135,10 @@ export const NATIVE_TOOL_NAMES = new Set([
   TOOLS.OBSIDIAN_READ_NOTE,
   TOOLS.OBSIDIAN_WRITE_NOTE,
   TOOLS.OBSIDIAN_LIST_NOTES,
+  TOOLS.CALENDAR_LIST_EVENTS,
+  TOOLS.CALENDAR_FIND_SLOT,
+  TOOLS.CALENDAR_CREATE_EVENT,
+  TOOLS.CALENDAR_UPDATE_EVENT,
   TOOLS.SEND_TELEGRAM,
   TOOLS.SET_IDENTITY,
   TOOLS.SET_PERMISSION_MODE,
