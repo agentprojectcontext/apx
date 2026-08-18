@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus } from "lucide-react";
+import { Handshake, MousePointerClick, Plus } from "lucide-react";
 import { Commitments, type CommitmentEntry, type CommitmentState } from "../../lib/api/commitments";
 import { useSearchParams } from "react-router-dom";
 import { Section } from "../../components/Section";
@@ -97,7 +97,7 @@ export function CommitmentsTab({ pid }: { pid?: string }) {
       }
     >
       {paged.isLoading && <Loading />}
-      {!paged.isLoading && paged.total === 0 && <Empty>{t("project.commitments.empty")}</Empty>}
+      {!paged.isLoading && paged.total === 0 && <Empty icon={Handshake}>{t("project.commitments.empty")}</Empty>}
 
       {paged.items.length > 0 && (
         <div className={"flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border lg:flex-row"}>
@@ -133,9 +133,7 @@ export function CommitmentsTab({ pid }: { pid?: string }) {
                 onChanged={() => paged.mutate()}
               />
             ) : (
-              <div className="flex h-full items-center justify-center p-8">
-                <p className="text-sm text-muted-fg">{t("project.commitments.detail_empty")}</p>
-              </div>
+              <Empty fill icon={MousePointerClick}>{t("project.commitments.detail_empty")}</Empty>
             )}
           </div>
         </div>

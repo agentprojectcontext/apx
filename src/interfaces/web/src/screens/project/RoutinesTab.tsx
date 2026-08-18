@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import useSWR, { mutate as globalMutate } from "swr";
-import { Plus } from "lucide-react";
+import { MousePointerClick, Plus, Repeat } from "lucide-react";
 import { Routines, type RoutineEntry } from "../../lib/api";
 import { Button, Dialog, Empty, Loading } from "../../components/ui";
 import { useToast } from "../../components/Toast";
@@ -90,7 +90,7 @@ export function RoutinesTab({ pid }: { pid: string }) {
       }
     >
       {list.isLoading && <Loading />}
-      {!list.isLoading && rows.length === 0 && <Empty>{t("project.routines.empty")}</Empty>}
+      {!list.isLoading && rows.length === 0 && <Empty icon={Repeat}>{t("project.routines.empty")}</Empty>}
 
       {rows.length > 0 && (
         <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] grid-cols-[minmax(200px,260px)_1fr] overflow-hidden rounded-lg border border-border">
@@ -107,9 +107,7 @@ export function RoutinesTab({ pid }: { pid: string }) {
                   onDelete={() => setConfirmDelete(selected)}
                   running={running === selected.name}
                 />
-              : <div className="flex h-full items-center justify-center p-8">
-                  <p className="text-sm text-muted-fg">{t("project.routines.detail_empty")}</p>
-                </div>}
+              : <Empty fill icon={MousePointerClick}>{t("project.routines.detail_empty")}</Empty>}
           </div>
         </div>
       )}

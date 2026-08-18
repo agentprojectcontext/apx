@@ -3,7 +3,10 @@
 // Dialog open/onClose, Field label/hint) so call sites don't churn, while the
 // actual rendering comes from base-ui (proper focus, portaling, a11y).
 import type { ReactNode, ButtonHTMLAttributes, InputHTMLAttributes, TextareaHTMLAttributes, SelectHTMLAttributes } from "react";
+import type { LucideIcon } from "lucide-react";
 import { cn } from "../lib/cn";
+import { t } from "../i18n";
+import { Logo } from "./layout/Logo";
 import { Button as SButton } from "./ui/button";
 import { Input as SInput } from "./ui/input";
 import { Textarea as STextarea } from "./ui/textarea";
@@ -204,18 +207,64 @@ export function Spinner({ size = 14 }: { size?: number }) {
 
 // ── Empty / Loading helpers ─────────────────────────────────────────────────
 
-export function Empty({ children }: { children: ReactNode }) {
+/**
+ * The house empty state: one centred illustration, the line that says what is
+ * missing, and optionally the button that fixes it. Every empty pane in the
+ * app goes through here, so they all read the same way.
+ *
+ * `icon` is the screen's own lucide glyph; without one the APX mark stands in.
+ * `fill` is for the empty half of a master-detail (or any pane with a height):
+ * it takes the whole pane and centres in it, instead of leaving a short dashed
+ * card pinned to the top edge with dead space under it. Inline (no `fill`) it
+ * is a card sized for the gap where the list would have been.
+ */
+export function Empty({
+  children,
+  icon: Icon,
+  action,
+  fill,
+  className,
+}: {
+  children: ReactNode;
+  icon?: LucideIcon;
+  /** The one button that resolves the state — create the first item, retry. */
+  action?: ReactNode;
+  fill?: boolean;
+  className?: string;
+}) {
   return (
-    <div className="rounded-lg border border-dashed border-border bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
-      {children}
+    <div
+      className={cn(
+        "flex flex-col items-center justify-center gap-4 text-center",
+        fill
+          ? "h-full min-h-[200px] p-8"
+          : "rounded-lg border border-dashed border-border bg-muted/20 px-6 py-8",
+        className
+      )}
+    >
+      <div
+        className={cn(
+          "grid shrink-0 place-items-center rounded-full bg-muted/70 ring-1 ring-border/60",
+          fill ? "size-24" : "size-14"
+        )}
+      >
+        {Icon
+          ? <Icon size={fill ? 42 : 24} strokeWidth={1.5} className="text-muted-fg" />
+          : <Logo size={fill ? 44 : 26} />}
+      </div>
+      <div className="max-w-[46ch] text-balance text-sm leading-relaxed text-muted-foreground">{children}</div>
+      {action}
     </div>
   );
 }
 
-export function Loading({ label = "Cargando…" }: { label?: string }) {
+// The label is i18n by default: most call sites just want "loading", and a
+// hardcoded default here rendered Spanish inside the English UI.
+export function Loading({ label }: { label?: string }) {
+  const text = label ?? t("common.loading");
   return (
     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-      <Spinner /> {label}
+      <Spinner /> {text}
     </div>
   );
 }

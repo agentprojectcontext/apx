@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import {
-  ChevronDown, FlaskConical, Globe, Network, Pencil, Plus, ScrollText,
+  ChevronDown, FlaskConical, Globe, Network, Pencil, Plug, Plus, ScrollText,
   Terminal, Trash2, Wrench, X, XCircle,
 } from "lucide-react";
 import { Mcps, Vars, type McpAddBody, type McpScope, type McpLogsResult, type VarsList } from "../../lib/api";
@@ -145,7 +145,7 @@ export function McpsTab({ pid }: { pid: string }) {
           ) : null}
 
           {list.isLoading && <Loading />}
-          {!list.isLoading && (list.data?.length ?? 0) === 0 && <Empty>{t("project.mcps.empty")}</Empty>}
+          {!list.isLoading && (list.data?.length ?? 0) === 0 && <Empty icon={Plug}>{t("project.mcps.empty")}</Empty>}
 
           <ul className="space-y-2 text-sm">
             {(list.data || []).map((m) => {

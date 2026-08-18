@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import useSWR from "swr";
-import { ArrowDownLeft, ArrowUpRight, RefreshCw } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, RefreshCw, ScrollText, TriangleAlert } from "lucide-react";
 import { Admin, Messages } from "../../lib/api";
 import type { MessageEntry } from "../../types/daemon";
 import { Section } from "../../components/Section";
@@ -210,9 +210,9 @@ export function LogsTab({ pid }: { pid?: string }) {
       </div>
 
       {list.isLoading && <Loading />}
-      {list.error && <Empty>{t("logs.error", { msg: (list.error as Error).message })}</Empty>}
+      {list.error && <Empty icon={TriangleAlert}>{t("logs.error", { msg: (list.error as Error).message })}</Empty>}
       {!list.isLoading && !list.error && rows.length === 0 && (
-        <Empty>{ch ? t("logs.no_activity_ch", { ch }) : t("logs.no_activity")}</Empty>
+        <Empty icon={ScrollText}>{ch ? t("logs.no_activity_ch", { ch }) : t("logs.no_activity")}</Empty>
       )}
 
       <ul className="space-y-1 text-sm">

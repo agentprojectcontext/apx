@@ -21,7 +21,7 @@ export function WorkspacesTab() {
       }
     >
       {isLoading && <Loading />}
-      {!isLoading && projects.length === 0 && <Empty>{t("base.workspaces_empty")}</Empty>}
+      {!isLoading && projects.length === 0 && <Empty icon={FolderKanban}>{t("base.workspaces_empty")}</Empty>}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {projects.map((p) => {

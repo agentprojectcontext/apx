@@ -151,7 +151,7 @@ export function CodeFileTree({
         {!loaded ? (
           <div className="flex justify-center pt-6"><Spinner size={14} /></div>
         ) : tree.length === 0 ? (
-          <div className="p-3"><Empty>Sin archivos</Empty></div>
+          <div className="p-3"><Empty icon={File}>{t("files.empty")}</Empty></div>
         ) : (
           <ul>
             {tree.map((node) => (

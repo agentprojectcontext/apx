@@ -60,7 +60,7 @@ export function AgentDefaultsTab() {
     >
       {vault.isLoading && <Loading />}
       {!vault.isLoading && items.length === 0 && (
-        <Empty>{t("base.defaults_empty")}</Empty>
+        <Empty icon={Bot}>{t("base.defaults_empty")}</Empty>
       )}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((a) => {

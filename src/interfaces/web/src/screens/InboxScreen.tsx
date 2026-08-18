@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { EyeOff, Eye } from "lucide-react";
-import { Button, Loading } from "../components/ui";
+import { EyeOff, Eye, Inbox } from "lucide-react";
+import { Button, Empty, Loading } from "../components/ui";
 import { Tip } from "../components/ui/tip";
 import { InboxList, rowKey } from "../components/inbox/InboxList";
 import { ChatTab } from "./project/ChatTab";
@@ -88,9 +88,7 @@ export function InboxScreen() {
 
       <section className="flex min-w-0 flex-1 flex-col">
         {!selected ? (
-          <div className="flex h-full items-center justify-center p-8">
-            <p className="text-sm text-muted-fg">{t("inbox.empty")}</p>
-          </div>
+          <Empty fill icon={Inbox}>{t("inbox.empty")}</Empty>
         ) : (
           /* Remounted per selection: the chat surface holds its own session
              state, and carrying one agent's stream into another agent's pane
