@@ -4,6 +4,7 @@
 //   apx profile show <id>       [--preview]
 //   apx profile install <id|path> [--force]
 //   apx profile use <id>        [--force]
+//   apx profile sync
 //   apx profile off
 //   apx profile config          [--set k=v]... [--interactive]
 //   apx profile doctor          [<id>]
@@ -21,6 +22,7 @@ export const PROFILE_USAGE = {
   show:      "apx profile show <id> [--preview]",
   install:   "apx profile install <id|path> [--force]",
   use:       "apx profile use <id> [--force]",
+  sync:      "apx profile sync",
   off:       "apx profile off",
   config:    "apx profile config [--set key=value]... [--interactive]",
   doctor:    "apx profile doctor [<id>]",
@@ -143,6 +145,18 @@ export async function cmdProfileUse(args) {
     console.log(`  routine "${s.name}" left alone (${s.reason.replace(/_/g, " ")})`);
   }
   if (!r.profile.active) console.log("  (warning: profile did not activate)");
+}
+
+export async function cmdProfileSync(args) {
+  const r = await http.post("/api/profiles/sync", { id: args?.flags?.profile || null });
+
+  const { installed = [], skipped = [] } = r.routines || {};
+  console.log(`profile "${r.id}"${r.version ? ` v${r.version}` : ""} re-read from disk`);
+  if (installed.length) console.log(`  routines refreshed: ${installed.join(", ")}`);
+  else console.log("  no routines to refresh");
+  for (const s of skipped) {
+    console.log(`  routine "${s.name}" left alone (${s.reason.replace(/_/g, " ")})`);
+  }
 }
 
 export async function cmdProfileOff() {
