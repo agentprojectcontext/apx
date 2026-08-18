@@ -16,6 +16,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { apcProjectFile } from "#core/apc/paths.js";
 import { parseFrontmatterFields as parseFrontmatter } from "#core/apc/frontmatter.js";
 
@@ -323,6 +324,9 @@ const claudeEngine = {
   resumeHint(id) {
     return `claude -p --resume ${id} "your prompt"`;
   },
+  resumeArgv(id) {
+    return ["claude", "--resume", id];
+  },
 };
 
 // ── codex engine ─────────────────────────────────────────────────────────────
@@ -487,6 +491,9 @@ const codexEngine = {
   resumeHint(id) {
     return `codex exec resume ${id} "your prompt"   (interactive: codex resume ${id})`;
   },
+  resumeArgv(id) {
+    return ["codex", "resume", id];
+  },
 };
 
 // ── apx engine (default) ─────────────────────────────────────────────────────
@@ -647,6 +654,144 @@ const apxEngine = {
   resumeHint(id) {
     return `apx session resume ${id}`;
   },
+  resumeArgv(id) {
+    // An APX session is a record of a runtime run, not a conversation a CLI can
+    // re-enter. `resume` prints what it was — the honest equivalent.
+    return ["apx", "session", "resume", id];
+  },
+};
+
+// ── opencode engine ──────────────────────────────────────────────────────────
+//
+// The one engine with no files to read: OpenCode keeps its sessions in its own
+// SQLite database, and APX stores nothing in SQL. So we ask OpenCode itself
+// instead of reaching into its database — its CLI is the supported interface,
+// and it survives schema changes we would otherwise have to chase.
+//
+// Two calls, deliberately split by cost. `opencode session list` prints every
+// session newest-first in about half a second, so the listing is memoised for a
+// few seconds — a Sessions search box would otherwise spawn a process per
+// keystroke. The working directory only exists in `opencode export <id>`, one
+// spawn per session, so it's paid only when a single session is opened.
+//
+// What we give up by not reading the database: sessions arrive without a cwd,
+// so they show in the global list and not in a per-project one.
+
+const OPENCODE_LIST_TTL_MS = 5000;
+let opencodeListCache = { at: 0, rows: [] };
+
+function opencodeCli(args, { timeoutMs = 15000 } = {}) {
+  try {
+    return execFileSync("opencode", args, {
+      encoding: "utf8",
+      timeout: timeoutMs,
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+  } catch {
+    // Not installed, too slow, or a version without this subcommand. An engine
+    // that can't answer is an engine with no sessions — never a thrown listing.
+    return "";
+  }
+}
+
+// "2:26 PM" (today) or "4:48 PM · 7/6/2026". Locale-shaped, so anything we
+// don't recognise returns 0: the row still lists, it just sorts last rather
+// than claiming a time it doesn't have.
+export function parseOpencodeUpdated(text, now = Date.now()) {
+  const [clock, date] = String(text || "").split("·").map((s) => s.trim());
+  const t = /^(\d{1,2}):(\d{2})\s*(AM|PM)$/i.exec(clock || "");
+  if (!t) return 0;
+  let hour = Number(t[1]) % 12;
+  if (/PM/i.test(t[3])) hour += 12;
+  const when = new Date(now);
+  if (date) {
+    const d = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(date);
+    if (!d) return 0;
+    when.setFullYear(Number(d[3]), Number(d[1]) - 1, Number(d[2]));
+  }
+  when.setHours(hour, Number(t[2]), 0, 0);
+  return when.getTime();
+}
+
+// Fixed-width table: id, title, then the timestamp. Only `ses_` lines are rows,
+// which skips the header and its rule without having to count them.
+export function parseOpencodeSessionList(stdout, now = Date.now()) {
+  const rows = [];
+  for (const line of String(stdout || "").split("\n")) {
+    const m = /^(ses_\S+)\s\s+(.*?)\s\s+(\S.*?)\s*$/.exec(line);
+    if (!m) continue;
+    rows.push({ id: m[1], title: m[2].trim(), mtime: parseOpencodeUpdated(m[3], now) });
+  }
+  return rows;
+}
+
+const opencodeEngine = {
+  id: "opencode",
+  label: "OpenCode",
+  implemented: true,
+  detect(opts) {
+    const candidates = [
+      path.join(homeDir(opts), ".local", "share", "opencode"),
+      path.join(homeDir(opts), ".config", "opencode"),
+    ];
+    return candidates.some((c) => fs.existsSync(c))
+      ? { available: true }
+      : { available: false, reason: "OpenCode not installed" };
+  },
+  // No directory tree to walk: OpenCode is asked for all of its sessions at
+  // once. collectAllSessions calls this instead of listProjects/listSessions.
+  listAllSessions(opts = {}) {
+    const now = (opts.now || Date.now)();
+    if (opencodeListCache.rows.length && now - opencodeListCache.at < OPENCODE_LIST_TTL_MS) {
+      return opencodeListCache.rows;
+    }
+    const rows = parseOpencodeSessionList(opencodeCli(["session", "list"]), now);
+    opencodeListCache = { at: now, rows };
+    return rows;
+  },
+  findSessionById(id, opts = {}) {
+    // Guard the spawn: every cross-engine lookup would otherwise pay for an
+    // `opencode export` of a Claude uuid that can never match.
+    if (!/^ses_[A-Za-z0-9]+$/.test(String(id || ""))) return null;
+    let dump;
+    try {
+      dump = JSON.parse(opencodeCli(["export", id]));
+    } catch {
+      return null;
+    }
+    const info = dump?.info;
+    if (!info?.id) return null;
+    // The export already carries the conversation, so the last prompt costs
+    // nothing extra — and it's what the other engines contribute to a summary.
+    let lastPrompt = null;
+    for (const m of dump.messages || []) {
+      if (m?.info?.role !== "user") continue;
+      const text = (m.parts || [])
+        .filter((p) => p?.type === "text" && typeof p.text === "string")
+        .map((p) => p.text)
+        .join("\n")
+        .trim();
+      if (text) lastPrompt = text;
+    }
+    return {
+      engine: "opencode",
+      id: info.id,
+      path: null,
+      cwd: info.directory || null,
+      title: info.title || "",
+      lastPrompt,
+      mtime: Number(info.time?.updated) || (opts.now || Date.now)(),
+    };
+  },
+  continueHint() {
+    return `opencode --continue   (run from the project directory)`;
+  },
+  resumeHint(id) {
+    return `opencode --session ${id}`;
+  },
+  resumeArgv(id) {
+    return ["opencode", "--session", id];
+  },
 };
 
 // ── antigravity engine (detected, listing not implemented) ───────────────────
@@ -676,8 +821,33 @@ export const ENGINES = {
   apx: apxEngine,
   claude: claudeEngine,
   codex: codexEngine,
+  opencode: opencodeEngine,
   antigravity: antigravityEngine,
 };
+
+// ── resuming a session in its own CLI ────────────────────────────────────────
+//
+// Every engine re-enters a conversation differently, and getting it wrong is
+// silent: the CLI starts a NEW session and the user only notices once the
+// history they expected isn't there. So the command lives with the engine that
+// owns it, and both callers — the terminal the daemon spawns, and the line the
+// user copies to run it elsewhere — read it from here. One definition, so the
+// button and the terminal can never drift apart.
+
+/** argv for re-entering `id` interactively, or null if the engine can't. */
+export function resumeArgvFor(engineId, id) {
+  const engine = ENGINES[engineId];
+  if (!engine || typeof engine.resumeArgv !== "function" || !id) return null;
+  const argv = engine.resumeArgv(id);
+  return Array.isArray(argv) && argv.length ? argv : null;
+}
+
+/** The same command as one pasteable line. Quotes only what needs it. */
+export function resumeCommandFor(engineId, id) {
+  const argv = resumeArgvFor(engineId, id);
+  if (!argv) return null;
+  return argv.map((a) => (/^[A-Za-z0-9_.:/=-]+$/.test(a) ? a : `'${a.replace(/'/g, `'\\''`)}'`)).join(" ");
+}
 
 // ── cross-engine helpers (used by `apx session resume <id>` etc.) ────────────
 
@@ -725,8 +895,30 @@ export function collectAllSessions(opts = {}, { dir = null, engineId = null } = 
   const out = [];
   for (const engine of Object.values(ENGINES)) {
     if (engineId && engine.id !== engineId) continue;
-    if (!engine.implemented || typeof engine.listSessions !== "function") continue;
+    if (!engine.implemented) continue;
     if (!engine.detect(opts).available) continue;
+
+    // Engines that don't file their sessions under a working directory answer
+    // in one shot instead. They can't honour a `dir` scope — having no cwd to
+    // match, they'd answer every project's question with the same rows — so a
+    // scoped listing skips them rather than polluting it.
+    if (typeof engine.listAllSessions === "function") {
+      if (dir) continue;
+      let rows = [];
+      try { rows = engine.listAllSessions(opts) || []; } catch { rows = []; }
+      for (const s of rows) {
+        out.push({
+          engine: engine.id,
+          id: s.id,
+          title: s.title || "",
+          mtime: s.mtime || 0,
+          cwd: s.cwd || null,
+          path: s.path || null,
+        });
+      }
+      continue;
+    }
+    if (typeof engine.listSessions !== "function") continue;
 
     const dirs = [];
     if (dir) {
