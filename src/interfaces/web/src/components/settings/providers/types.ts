@@ -20,6 +20,9 @@ export interface Provider {
   default_temperature?: number;
   default_max_tokens?: number;
   is_active?: boolean;
+  /** false = ask this provider not to reason before answering. Undefined leaves
+   *  the provider's own default alone. */
+  thinking?: boolean;
   context_limit_tokens?: number;
   model_context_limits?: Record<string, number>;
   pricing?: ProviderPricing;

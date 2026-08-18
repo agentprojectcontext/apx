@@ -95,6 +95,14 @@ export function RobyBubble({
     return () => window.removeEventListener("apx:roby-prompt", onPreload);
   }, [onOpenChange]);
 
+  // A link inside the sheet (e.g. a skill badge's "open skill") navigates the
+  // router underneath it — the sheet has to get out of the way to show it.
+  useEffect(() => {
+    const onClose = () => onOpenChange(false);
+    window.addEventListener("apx:roby-close", onClose);
+    return () => window.removeEventListener("apx:roby-close", onClose);
+  }, [onOpenChange]);
+
   const stop = () => {
     abortRef.current?.abort();
     setBusy(false);

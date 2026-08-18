@@ -1,4 +1,4 @@
-import { Trash2 } from "lucide-react";
+import { Trash2, Zap } from "lucide-react";
 import { cn } from "../../../lib/cn";
 import { toneDot, toneText } from "../../../lib/tone";
 import { Tip } from "../../ui/tip";
@@ -12,11 +12,13 @@ export function ProviderCard({
   onEdit,
   onDelete,
   onToggle,
+  onTest,
 }: {
   provider: Provider;
   onEdit: () => void;
   onDelete: () => void;
   onToggle: () => void;
+  onTest: () => void;
 }) {
   const gradient = engineStyle(ENGINE_GRADIENTS, provider.engine);
   const badge = engineStyle(ENGINE_BADGES, provider.engine);
@@ -57,6 +59,15 @@ export function ProviderCard({
             >
               <span className={cn("size-1.5 rounded-full", active ? toneDot.emerald : "bg-muted-fg/40")} />
               {active ? t("providers_card.active") : t("providers_card.off")}
+            </button>
+          </Tip>
+          <Tip content={t("provider_test.button")}>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onTest(); }}
+              className="rounded-md p-1 text-muted-fg hover:bg-accent hover:text-foreground"
+            >
+              <Zap className="size-3.5" />
             </button>
           </Tip>
           <Tip content={t("providers_modal.delete")}>

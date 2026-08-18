@@ -19,6 +19,14 @@ export interface EnginePresets {
   presets: Record<string, EnginePreset>;
 }
 
+export interface EngineTestResult {
+  provider: string;
+  model: string;
+  text: string;
+  usage?: { input_tokens?: number; output_tokens?: number } | null;
+  ms: number;
+}
+
 export const Engines = {
   list: () => http.get<EngineSummary>("/api/engines"),
   // Curated catalog (known models + defaults) shared with the CLI wizard. The
@@ -28,4 +36,8 @@ export const Engines = {
   // the provider slug (so editing an existing provider works without retyping).
   models: (body: { engine: string; slug?: string; base_url?: string; api_key?: string }) =>
     http.post<EngineModels>("/api/engines/models", body),
+  // One-shot connectivity probe. Not a conversation: nothing is stored and the
+  // daemon sends no history, tools or skills with it.
+  test: (body: { provider: string; model: string; message?: string }) =>
+    http.post<EngineTestResult>("/api/engines/test", body),
 };

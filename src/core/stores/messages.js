@@ -765,6 +765,9 @@ export function readGlobalThread({ channel, date, project, _globalMessagesDir } 
         // (core/agent/tool-summary.js) because the live tool events are gone
         // by the time anyone reads the thread back.
         ...(r.meta?.tool_summary ? { tool_summary: r.meta.tool_summary } : {}),
+        // Which skills the per-turn RAG put in the prompt. Same reasoning as
+        // tool_summary: the live `skill_inspector` event is gone by read time.
+        ...(r.meta?.skill_inspector ? { skill_inspector: r.meta.skill_inspector } : {}),
       };
     });
   // A day-file the asking project owns no turn in is not its thread to read.

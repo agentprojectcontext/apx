@@ -40,13 +40,73 @@ test("stream: the closing message is appended unless it was already streamed", (
   );
   assert.match(
     final[0],
-    /finalText && !alreadyShown\s*\n?\s*\? \[\.\.\.turn\.parts, \{ kind: "text", text: finalText \}\]/,
+    /finalText && !alreadyShown\s*\n?\s*\? \[\.\.\.parts, \{ kind: "text", text: finalText \}\]/,
     "a non-duplicate closing message must be appended as a part",
+  );
+  assert.match(
+    final[0],
+    /last\.kind === "text" && last\.streaming/,
+    "a segment still being streamed is REPLACED by the cleaned text, not left above it",
   );
   assert.doesNotMatch(
     final[0],
     /!turn\.parts\.some\(\(p\) => p\.kind === "text"\)/,
     "the old guard dropped every answer that came after a tool call",
+  );
+});
+
+// Token streaming arrived after the shape above was settled: the same answer
+// now reaches the reducer twice — once as `assistant_delta` tokens, once whole
+// as `assistant_text`/`final`. Whoever closes the segment must REPLACE the
+// streamed part; appending it prints the answer twice.
+test("stream: streamed tokens are replaced by the closing segment, never doubled", () => {
+  const deltas = USE_CHAT.match(/default: \{[\s\S]*?\n {4}\}/);
+  assert.ok(deltas, "applyStreamEvent must handle raw deltas");
+  assert.match(
+    deltas[0],
+    /streaming: true/,
+    "a part built from deltas is marked streaming, so the closing segment can find it",
+  );
+  assert.match(
+    deltas[0],
+    /last\.kind === "text" && last\.streaming/,
+    "tokens only extend a part still streaming — a closed segment never absorbs the next one's",
+  );
+
+  const closed = USE_CHAT.match(/case "assistant_text": \{[\s\S]*?\n {4}\}/);
+  assert.ok(closed, "applyStreamEvent must handle assistant_text");
+  assert.match(
+    closed[0],
+    /parts\[parts\.length - 1\] = \{ kind: "text", text: ev\.text \}/,
+    "the cleaned segment replaces the streamed one in place",
+  );
+});
+
+// The thinking is rendered on purpose, in its own block — the fix for it
+// arriving spliced into the answer as <think>…</think>. It must never be read
+// as something the agent said: not copied, not counted as the reply.
+test("thinking: its own block, and never part of the answer", () => {
+  assert.match(
+    USE_CHAT,
+    /export interface ReasoningPart/,
+    "a reasoning part is a kind of its own, not a text part",
+  );
+  assert.match(
+    USE_CHAT,
+    /\.filter\(\(p\): p is TextPart => p\.kind === "text"\)/,
+    "textOf keeps reading only text parts — reasoning is not the reply",
+  );
+  assert.match(
+    MESSAGE_BUBBLE,
+    /part\.kind === "reasoning" \? \(\s*\n?\s*<ReasoningBlock/,
+    "the bubble renders reasoning through ReasoningBlock, not as a text bubble",
+  );
+  const reasoning = USE_CHAT.match(/case "assistant_reasoning": \{[\s\S]*?\n {4}\}/);
+  assert.ok(reasoning, "applyStreamEvent must handle the consolidated reasoning event");
+  assert.match(
+    reasoning[0],
+    /p\.kind === "reasoning" && p\.streaming/,
+    "the consolidated block closes the streamed one instead of adding a second",
   );
 });
 

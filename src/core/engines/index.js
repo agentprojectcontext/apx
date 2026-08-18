@@ -17,9 +17,10 @@ import groq from "./groq.js";
 import openrouter from "./openrouter.js";
 import ollama from "./ollama.js";
 import gemini from "./gemini.js";
+import zen from "./zen.js";
 import mock from "./mock.js";
 
-const ADAPTERS = { anthropic, openai, groq, openrouter, ollama, gemini, mock };
+const ADAPTERS = { anthropic, openai, groq, openrouter, ollama, gemini, zen, mock };
 
 export function resolveProvider(modelId) {
   if (typeof modelId !== "string" || !modelId) {
@@ -38,6 +39,18 @@ export function resolveProvider(modelId) {
   );
 }
 
+/**
+ * The adapter behind a provider *slug*. A slug is not always an adapter id:
+ * a provider named "carlos" running on Ollama is stored as
+ * `engines.carlos = { engine: "ollama", … }`, and "carlos:llama3.2" has to
+ * reach the ollama adapter. Falls back to the slug itself, which is the case
+ * for the stock providers whose slug already is the engine id.
+ */
+export function adapterForSlug(slug, config) {
+  const cfg = (config && config.engines && config.engines[slug]) || {};
+  return getAdapter(cfg.engine || slug);
+}
+
 export function getAdapter(provider) {
   const a = ADAPTERS[provider];
   if (!a) {
@@ -48,10 +61,12 @@ export function getAdapter(provider) {
   return a;
 }
 
-export async function callEngine({ modelId, system, messages, config, temperature, maxTokens, tools, toolChoice, signal, onToken }) {
+export async function callEngine({ modelId, system, messages, config, temperature, maxTokens, tools, toolChoice, signal, onToken, onReasoningToken }) {
   const { provider, model } = resolveProvider(modelId);
-  const adapter = getAdapter(provider);
   const providerCfg = (config && config.engines && config.engines[provider]) || {};
+  // `provider` here is the slug the user configured, which only coincides with
+  // the adapter id for the stock providers.
+  const adapter = getAdapter(providerCfg.engine || provider);
   // The per-provider `default_max_tokens` set in the web admin (Provider modal
   // slider) acts as a floor: callers may ask for more, but never less. This
   // matters for "thinking" models (e.g. Gemini 3.x) whose internal reasoning
@@ -73,6 +88,7 @@ export async function callEngine({ modelId, system, messages, config, temperatur
     config: providerCfg,
     signal,
     onToken,
+    onReasoningToken,
   });
 }
 

@@ -24,31 +24,38 @@ export const ENGINE_PRESETS = {
     default_model: "claude-sonnet-5",
     api_key_env: "ANTHROPIC_API_KEY",
     known_models: [
-      "claude-opus-4-8",
+      "claude-fable-5",
+      "claude-opus-5",
       "claude-sonnet-5",
       "claude-haiku-4-5",
-      "claude-fable-5",
+      "claude-opus-4-8",
+      "claude-sonnet-4-6",
     ],
   },
   openai: {
     base_url: "https://api.openai.com/v1",
-    default_model: "gpt-5.4-mini",
+    default_model: "gpt-5.6-luna",
     api_key_env: "OPENAI_API_KEY",
     known_models: [
+      "gpt-5.6-sol",
+      "gpt-5.6-terra",
+      "gpt-5.6-luna",
       "gpt-5.5",
       "gpt-5.4-mini",
       "gpt-5.4-nano",
-      "gpt-5.1",
-      "gpt-4.1-mini",
     ],
   },
   gemini: {
     base_url: "https://generativelanguage.googleapis.com/v1beta/openai",
-    default_model: "gemini-2.5-flash",
+    default_model: "gemini-3.7-flash",
     api_key_env: "GEMINI_API_KEY",
     known_models: [
+      "gemini-3.7-flash",
+      "gemini-3.6-flash",
       "gemini-3.5-flash",
+      "gemini-3.5-flash-lite",
       "gemini-3.1-pro-preview",
+      "gemini-3.1-flash-lite",
       "gemini-2.5-pro",
       "gemini-2.5-flash",
       "gemini-2.5-flash-lite",
@@ -75,9 +82,12 @@ export const ENGINE_PRESETS = {
     known_models: [
       "openrouter/auto",
       "openrouter/free",
+      "anthropic/claude-opus-5",
       "anthropic/claude-sonnet-5",
-      "openai/gpt-5.4-mini",
-      "google/gemini-2.5-flash",
+      "openai/gpt-5.6-sol",
+      "openai/gpt-5.6-terra",
+      "google/gemini-3.7-flash",
+      "qwen/qwen3.8-27b",
     ],
   },
   azure: {
@@ -91,6 +101,24 @@ export const ENGINE_PRESETS = {
     default_model: "gemma2:9b",
     api_key_env: "",
     known_models: [], // dynamic — fetched live from the local Ollama daemon
+  },
+  // OpenCode Zen. The free-tier ids are listed first: they bill at zero with a
+  // Zen key, which is the reason to reach for this provider at all. The paid
+  // Claude/GPT/Gemini models it also fronts are reachable by typing their id —
+  // the model field is free text everywhere.
+  zen: {
+    base_url: "https://opencode.ai/zen/v1",
+    default_model: "big-pickle",
+    api_key_env: "OPENCODE_ZEN_API_KEY",
+    known_models: [
+      "big-pickle",
+      "nemotron-3-ultra-free",
+      "nemotron-3.5-lightning-free",
+      "deepseek-v4-flash-free",
+      "laguna-s-2.1-free",
+      "mimo-v2.5-free",
+      "hy3-free",
+    ],
   },
   mock: { base_url: "", default_model: "mock", api_key_env: "", known_models: ["mock"] },
   custom: { base_url: "", default_model: "", api_key_env: "", known_models: [] },

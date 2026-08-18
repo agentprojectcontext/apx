@@ -136,6 +136,7 @@ export async function runAgent({
   onEvent = null,
   signal,
   onToken = null,
+  onReasoningToken = null,
   agentName = "apx",
   suppressTools = null, // optional list of tool names to remove from the registry
   // Per-reply output cap. Defaults to 512 (tuned for chit-chat + small tool
@@ -400,6 +401,7 @@ export async function runAgent({
         maxTokens,
         signal,
         onToken: ((!forceTool || isFinalWrapUp) && onToken) ? onToken : null,
+        onReasoningToken: ((!forceTool || isFinalWrapUp) && onReasoningToken) ? onReasoningToken : null,
       });
     } catch (e) {
       if (usePseudoTools && /^ollama:/i.test(String(activeModel || "")) && /ollama\s+500/i.test(String(e?.message || "")) && trace.length > 0) {
@@ -419,11 +421,24 @@ export async function runAgent({
         maxTokens,
         signal,
         onToken: (iter > 0 && onToken) ? onToken : null,
+        onReasoningToken: (iter > 0 && onReasoningToken) ? onReasoningToken : null,
       });
     }
 
     totalUsage.input_tokens += result.usage?.input_tokens || 0;
     totalUsage.output_tokens += result.usage?.output_tokens || 0;
+
+    // The model thinking out loud. Adapters keep it out of `text` so no
+    // surface can leak it by forgetting to strip; it rides its own event for
+    // the ones that want to show it on purpose, and is ignored by the rest.
+    if (result.reasoning) {
+      await emitProgress(onEvent, {
+        type: "assistant_reasoning",
+        reasoning: result.reasoning,
+        iteration: iter + 1,
+      });
+    }
+
     lastText = result.text || "";
 
     let toolCalls = result.tool_calls || (result.message && result.message.tool_calls) || null;

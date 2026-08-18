@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
-import { Braces, Loader2, RefreshCw } from "lucide-react";
+import { Braces, Loader2, RefreshCw, SlidersHorizontal } from "lucide-react";
 import { Button, Dialog, Field, Input, Switch, Textarea } from "../../ui";
 import { Tip } from "../../ui/tip";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../ui/tabs";
 import { UiSelect } from "../../UiSelect";
 import { ModelCombobox } from "../../ModelCombobox";
 import { Engines } from "../../../lib/api";
@@ -9,7 +10,7 @@ import { isSecretMarker, secretSuffix } from "../../../lib/secrets";
 import { ENGINE_ICONS, ENGINE_OPTIONS, ENGINE_PRESETS, type EngineType } from "./typeStyles";
 import type { Provider } from "./types";
 import { t } from "../../../i18n";
-import { toneOutline, toneText } from "../../../lib/tone";
+import { toneText } from "../../../lib/tone";
 
 export interface ProviderSaveResult {
   provider: Provider;
@@ -36,6 +37,7 @@ interface FormState {
   default_temperature: number;
   default_max_tokens: number;
   is_active: boolean;
+  thinking: boolean;
   context_limit_tokens: number;
   model_context_limits_json: string;
   p_input: string;
@@ -47,13 +49,11 @@ interface FormState {
 const EMPTY: FormState = {
   name: "", slug: "", engine: "anthropic", base_url: "", api_key_value: "",
   default_model: "", default_temperature: 0.7, default_max_tokens: 4096,
-  is_active: true, context_limit_tokens: 200000, model_context_limits_json: "",
+  is_active: true, thinking: true, context_limit_tokens: 200000, model_context_limits_json: "",
   p_input: "", p_output: "", p_cache_read: "", p_cache_write: "",
 };
 
 // Preset pills shown on create (the common providers).
-const PRESET_PILLS: EngineType[] = ["anthropic", "openai", "gemini", "groq", "openrouter", "ollama", "custom"];
-
 function slugify(s: string): string {
   return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 }
@@ -74,6 +74,7 @@ function fromProvider(p: Provider): FormState {
     default_temperature: p.default_temperature ?? 0.7,
     default_max_tokens: p.default_max_tokens ?? 4096,
     is_active: p.is_active !== false,
+    thinking: p.thinking !== false,
     context_limit_tokens: p.context_limit_tokens ?? 200000,
     model_context_limits_json: p.model_context_limits ? JSON.stringify(p.model_context_limits, null, 2) : "",
     p_input: numOrEmpty(p.pricing?.input_per_million),
@@ -109,29 +110,33 @@ export function ProviderModal({ open, initial, existingSlugs, onClose, onSave }:
 
   const up = (patch: Partial<FormState>) => setF((s) => ({ ...s, ...patch }));
 
-  // Apply a full preset (pill click on create): name/slug/engine/base_url/model.
-  const pickPreset = (engine: EngineType) => {
-    const p = ENGINE_PRESETS[engine];
-    up({
-      engine,
-      name: engine === "custom" ? f.name : (ENGINE_OPTIONS.find((o) => o.value === engine)?.label || engine),
-      slug: engine === "custom" ? f.slug : engine,
-      base_url: p.base_url,
-      default_model: p.default_model,
-    });
-    setAvailableModels(p.known_models);
-    setModelError(null);
-  };
+  // Picking an engine applies its whole preset — endpoint, default model, model
+  // list. There used to be two ways to do this (a pill row and this select)
+  // that disagreed: the pills overwrote the endpoint, the select only filled it
+  // when empty, so the same choice left you in different states depending on
+  // where you clicked. One control now, and it fills the endpoint.
+  //
+  // A base_url the user typed themselves is never clobbered: only a blank, or
+  // one still carrying another engine's preset value, gets replaced. Same rule
+  // for the default model, so switching engine to compare two providers doesn't
+  // quietly discard what you configured.
+  const isUntouched = (value: string, field: "base_url" | "default_model") =>
+    !value || Object.values(ENGINE_PRESETS).some((preset) => preset[field] && preset[field] === value);
 
-  // Engine select change: switch adapter, soft-fill base_url/model if empty.
   const changeEngine = (engine: EngineType) => {
     const p = ENGINE_PRESETS[engine];
-    up({
-      engine,
-      base_url: f.base_url || p.base_url,
-      default_model: f.default_model || p.default_model,
-    });
+    const patch: Partial<FormState> = { engine };
+    if (isUntouched(f.base_url, "base_url")) patch.base_url = p.base_url;
+    if (isUntouched(f.default_model, "default_model")) patch.default_model = p.default_model;
+    // On create the provider is also named after the engine; an existing one
+    // keeps the name it is referred to by.
+    if (!isEdit && engine !== "custom") {
+      patch.name = ENGINE_OPTIONS.find((o) => o.value === engine)?.label || engine;
+      patch.slug = engine;
+    }
+    up(patch);
     setAvailableModels(p.known_models);
+    setModelError(null);
   };
 
   const loadModels = async () => {
@@ -192,6 +197,7 @@ export function ProviderModal({ open, initial, existingSlugs, onClose, onSave }:
         default_temperature: f.default_temperature,
         default_max_tokens: f.default_max_tokens,
         is_active: f.is_active,
+        thinking: f.thinking,
         context_limit_tokens: f.context_limit_tokens || undefined,
         model_context_limits: modelLimits,
         pricing,
@@ -221,6 +227,48 @@ export function ProviderModal({ open, initial, existingSlugs, onClose, onSave }:
     setJsonText(JSON.stringify(block, null, 2));
     setError(null);
     setJsonMode(true);
+  };
+
+  // Leaving the JSON tab: parse it back into the form so edits made there are
+  // not silently dropped. Returns false (and shows why) when it cannot, so the
+  // caller can keep the user on the JSON tab with their text intact.
+  const applyJsonToForm = (): boolean => {
+    let parsed: unknown;
+    try { parsed = JSON.parse(jsonText); }
+    catch { setError(t("providers_modal.err_json_invalid")); return false; }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      setError(t("providers_modal.err_json_object")); return false;
+    }
+    const raw = parsed as Record<string, unknown>;
+    const str = (k: string) => (typeof raw[k] === "string" ? (raw[k] as string) : undefined);
+    const num = (k: string) => (typeof raw[k] === "number" ? (raw[k] as number) : undefined);
+    const pricing = (raw.pricing || {}) as Record<string, unknown>;
+    const engine = str("engine") as EngineType | undefined;
+    setF((s) => ({
+      ...s,
+      name: str("name") ?? s.name,
+      engine: engine ?? s.engine,
+      base_url: str("base_url") ?? "",
+      default_model: str("default_model") ?? "",
+      api_key_value: str("api_key") ?? s.api_key_value,
+      default_temperature: num("default_temperature") ?? s.default_temperature,
+      default_max_tokens: num("default_max_tokens") ?? s.default_max_tokens,
+      is_active: raw.is_active !== false,
+      context_limit_tokens: num("context_limit_tokens") ?? s.context_limit_tokens,
+      model_context_limits_json: raw.model_context_limits ? JSON.stringify(raw.model_context_limits, null, 2) : "",
+      p_input: numOrEmpty(pricing.input_per_million),
+      p_output: numOrEmpty(pricing.output_per_million),
+      p_cache_read: numOrEmpty(pricing.cache_read_per_million),
+      p_cache_write: numOrEmpty(pricing.cache_write_per_million),
+    }));
+    if (engine) setAvailableModels(ENGINE_PRESETS[engine]?.known_models || []);
+    setError(null);
+    return true;
+  };
+
+  const switchTab = (tab: string) => {
+    if (tab === "json") { enterJsonMode(); return; }
+    if (applyJsonToForm()) setJsonMode(false);
   };
 
   const submit = async () => {
@@ -282,43 +330,17 @@ export function ProviderModal({ open, initial, existingSlugs, onClose, onSave }:
         </>
       }
     >
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          {!isEdit ? (
-            <div className="flex flex-wrap gap-1.5">
-              {PRESET_PILLS.map((eng) => {
-                const Icon = ENGINE_ICONS[eng];
-                const label = eng === "custom" ? t("providers_modal.custom") : (ENGINE_OPTIONS.find((o) => o.value === eng)?.label || eng);
-                const selected = f.engine === eng;
-                return (
-                  <button
-                    key={eng}
-                    type="button"
-                    onClick={() => pickPreset(eng)}
-                    className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs transition-colors ${
-                      selected
-                        ? toneOutline.emerald
-                        : "border-border text-muted-fg hover:border-muted-fg/60 hover:text-foreground"
-                    }`}
-                  >
-                    <Icon className="size-3.5" /> {label}
-                  </button>
-                );
-              })}
-            </div>
-          ) : <span />}
-          <button
-            type="button"
-            onClick={() => (jsonMode ? setJsonMode(false) : enterJsonMode())}
-            className={`flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs transition-colors ${
-              jsonMode ? toneOutline.sky : "border-border text-muted-fg hover:text-foreground"
-            }`}
-          >
-            <Braces className="size-3.5" /> {jsonMode ? t("providers_modal.form_mode") : t("providers_modal.json_mode")}
-          </button>
-        </div>
+      <Tabs value={jsonMode ? "json" : "form"} onValueChange={(v) => switchTab(String(v))} className="gap-3">
+        <TabsList>
+          <TabsTrigger value="form">
+            <SlidersHorizontal className="size-3.5" /> {t("providers_modal.tab_form")}
+          </TabsTrigger>
+          <TabsTrigger value="json">
+            <Braces className="size-3.5" /> {t("providers_modal.tab_json")}
+          </TabsTrigger>
+        </TabsList>
 
-        {jsonMode ? (
+        <TabsContent value="json">
           <div className="space-y-2">
             <Field label={t("providers_modal.json_label")} hint={t("providers_modal.json_hint", { slug: (f.slug || slugify(f.name)) || "<slug>" })}>
               <Textarea
@@ -331,8 +353,10 @@ export function ProviderModal({ open, initial, existingSlugs, onClose, onSave }:
             </Field>
             <p className="text-[11px] text-muted-fg">{t("providers_modal.json_help")}</p>
           </div>
-        ) : (
-          <>
+        </TabsContent>
+
+        <TabsContent value="form">
+          <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <Field label={t("providers_modal.name_label")}>
                 <Input value={f.name} onChange={(e) => up({ name: e.target.value, slug: isEdit ? f.slug : slugify(e.target.value) })} placeholder={t("providers_modal.name_ph")} />
@@ -400,11 +424,17 @@ export function ProviderModal({ open, initial, existingSlugs, onClose, onSave }:
             </details>
 
             <Switch checked={f.is_active} onChange={(v) => up({ is_active: v })} label={t("providers_modal.active_label")} />
-          </>
-        )}
+            <div className="space-y-1">
+              <Switch checked={f.thinking} onChange={(v) => up({ thinking: v })} label={t("providers_modal.thinking_label")} />
+              <p className="text-xs text-muted-fg">{t("providers_modal.thinking_hint")}</p>
+            </div>
+          </div>
+        </TabsContent>
 
+        {/* Outside the panels: an error raised while switching tabs has to stay
+            visible on whichever tab you land on. */}
         {error && <div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</div>}
-      </div>
+      </Tabs>
     </Dialog>
   );
 }

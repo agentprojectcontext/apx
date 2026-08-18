@@ -18,9 +18,20 @@ export interface ToolPart {
 export interface TextPart {
   kind: "text";
   text: string;
+  /** Still being painted by `assistant_delta` tokens. Cleared when the segment
+   *  closes (`assistant_text` / `final`) and the cleaned text replaces it. */
+  streaming?: boolean;
 }
 
-export type ChatPart = TextPart | ToolPart;
+/** The model thinking out loud. Never part of the answer — `textOf` skips it,
+ *  so it is not copied, not counted as the reply, and not spoken. */
+export interface ReasoningPart {
+  kind: "reasoning";
+  text: string;
+  streaming?: boolean;
+}
+
+export type ChatPart = TextPart | ToolPart | ReasoningPart;
 
 export interface ChatMsg {
   role: "user" | "assistant";
@@ -51,6 +62,8 @@ export interface ChatMsg {
     embedder?: string;
     loaded?: string[];
     hinted?: string[];
+    /** Top matches with their cosine similarity, for the badge popover. */
+    scored?: { slug: string; sim: number }[];
   };
 }
 
@@ -209,6 +222,7 @@ function threadToChatMsgs(messages: ConversationMessage[]): ChatMsg[] {
         if (m.agent_name) turn.agent = m.agent_name;
         if (m.model) turn.model = m.model;
         if (m.tool_summary) turn.toolSummary = m.tool_summary;
+        if (m.skill_inspector) turn.inspector = m.skill_inspector;
         if (m.usage) {
           turn.usage = {
             input_tokens: (turn.usage?.input_tokens || 0) + (m.usage.input_tokens || 0),
@@ -259,11 +273,56 @@ export function applyStreamEvent(turn: ChatMsg, ev: ChatStreamEvent): ChatMsg {
           embedder: insp.embedder,
           loaded: insp.loaded || [],
           hinted: insp.hinted || [],
+          scored: insp.scored || [],
         },
       };
     }
-    case "assistant_text":
-      return ev.text ? { ...turn, parts: [...turn.parts, { kind: "text", text: ev.text }] } : turn;
+    case "assistant_reasoning_delta": {
+      // The thinking, live. Fills the wait before the first word of the answer.
+      const piece = ev.reasoning || "";
+      if (!piece) return turn;
+      const parts = [...turn.parts];
+      const last = parts[parts.length - 1];
+      if (last && last.kind === "reasoning" && last.streaming) {
+        parts[parts.length - 1] = { ...last, text: last.text + piece };
+      } else {
+        parts.push({ kind: "reasoning", text: piece, streaming: true });
+      }
+      return { ...turn, parts };
+    }
+    case "assistant_reasoning": {
+      // The whole block at once — the loop emits it after the call returns, so
+      // by now the answer may already be painted below the streamed thinking.
+      const full = ev.reasoning || "";
+      if (!full) return turn;
+      const parts = [...turn.parts];
+      for (let i = parts.length - 1; i >= 0; i--) {
+        const p = parts[i];
+        if (p.kind === "reasoning" && p.streaming) {
+          parts[i] = { kind: "reasoning", text: full };
+          return { ...turn, parts };
+        }
+      }
+      // An engine that never streamed it: the thinking happened BEFORE the
+      // answer, so it goes in front of the segment being written, not after.
+      const last = parts[parts.length - 1];
+      const at = last && last.kind === "text" && last.streaming ? parts.length - 1 : parts.length;
+      parts.splice(at, 0, { kind: "reasoning", text: full });
+      return { ...turn, parts };
+    }
+    case "assistant_text": {
+      // The cleaned close of the segment the deltas were painting. It REPLACES
+      // the streamed part — appending it would show the same answer twice, once
+      // token by token and once whole.
+      if (!ev.text) return turn;
+      const parts = [...turn.parts];
+      const last = parts[parts.length - 1];
+      if (last && last.kind === "text" && last.streaming) {
+        parts[parts.length - 1] = { kind: "text", text: ev.text };
+        return { ...turn, parts };
+      }
+      return { ...turn, parts: [...parts, { kind: "text", text: ev.text }] };
+    }
     case "tool_start":
       return ev.trace
         ? {
@@ -314,9 +373,16 @@ export function applyStreamEvent(turn: ChatMsg, ev: ChatStreamEvent): ChatMsg {
       // multi-step turn: the reader saw the steps and never the conclusion.
       // (api/code.js fixed the same bug on the persistence side.)
       const finalText = ev.result?.text || "";
+      const parts = [...turn.parts];
+      const last = parts[parts.length - 1];
+      // A part still marked streaming holds raw tokens; `final` carries the
+      // cleaned version of that same text, so it lands in place.
+      if (finalText && last && last.kind === "text" && last.streaming) {
+        parts[parts.length - 1] = { kind: "text", text: finalText };
+      }
       const alreadyShown =
         !!finalText &&
-        turn.parts.some((p) => p.kind === "text" && p.text.trim() === finalText.trim());
+        parts.some((p) => p.kind === "text" && p.text.trim() === finalText.trim());
       return {
         ...turn,
         pending: false,
@@ -328,18 +394,23 @@ export function applyStreamEvent(turn: ChatMsg, ev: ChatStreamEvent): ChatMsg {
         agent: turn.agent ?? ev.result?.name,
         parts:
           finalText && !alreadyShown
-            ? [...turn.parts, { kind: "text", text: finalText }]
-            : turn.parts,
+            ? [...parts, { kind: "text", text: finalText }]
+            : parts,
       };
     }
     default: {
-      // Raw-delta engines (no assistant_text) — append to the trailing text.
+      // `assistant_delta` — tokens as the model writes them. They only ever
+      // extend a part that is still streaming; a segment already closed by
+      // assistant_text is finished and must not absorb the next one's tokens.
       const piece = ev.delta || ev.content || "";
       if (!piece) return turn;
       const parts = [...turn.parts];
       const last = parts[parts.length - 1];
-      if (last && last.kind === "text") parts[parts.length - 1] = { ...last, text: last.text + piece };
-      else parts.push({ kind: "text", text: piece });
+      if (last && last.kind === "text" && last.streaming) {
+        parts[parts.length - 1] = { ...last, text: last.text + piece };
+      } else {
+        parts.push({ kind: "text", text: piece, streaming: true });
+      }
       return { ...turn, parts };
     }
   }

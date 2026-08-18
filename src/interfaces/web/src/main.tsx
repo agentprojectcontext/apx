@@ -4,11 +4,10 @@ import { BrowserRouter } from "react-router-dom";
 import "./styles.css";
 import { App } from "./App";
 import { ThemeProvider } from "./hooks/useTheme";
-import { loadEnginePresets } from "./components/settings/providers/typeStyles";
 
-// Hydrate the shared model catalog (GET /engines/presets) in the background so
-// provider forms show up-to-date model lists. Non-blocking: app renders anyway.
-void loadEnginePresets();
+// The shared model catalog (GET /engines/presets) is hydrated by
+// useTokenBootstrap once the bearer token is known good — it is an
+// authenticated endpoint, so it cannot be fetched this early.
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

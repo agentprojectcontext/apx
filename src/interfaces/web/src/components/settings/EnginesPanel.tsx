@@ -7,6 +7,7 @@ import { useGlobalConfig } from "../../hooks/useGlobalConfig";
 import { ENGINE_OPTIONS } from "./providers/typeStyles";
 import { ProviderCard } from "./providers/ProviderCard";
 import { ProviderModal, type ProviderSaveResult } from "./providers/ProviderModal";
+import { ProviderTestDialog } from "./providers/ProviderTestDialog";
 import type { Provider } from "./providers/types";
 import { t } from "../../i18n";
 
@@ -24,6 +25,7 @@ function toProvider(slug: string, v: Record<string, unknown>): Provider {
     default_temperature: typeof v.default_temperature === "number" ? v.default_temperature : undefined,
     default_max_tokens: typeof v.default_max_tokens === "number" ? v.default_max_tokens : undefined,
     is_active: typeof v.is_active === "boolean" ? v.is_active : undefined,
+    thinking: typeof v.thinking === "boolean" ? v.thinking : undefined,
     context_limit_tokens: typeof v.context_limit_tokens === "number" ? v.context_limit_tokens : undefined,
     model_context_limits: (v.model_context_limits as Record<string, number>) || undefined,
     pricing: (v.pricing as Provider["pricing"]) || undefined,
@@ -35,6 +37,7 @@ export function EnginesPanel() {
   const { config, isLoading, patch, mutate } = useGlobalConfig();
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Provider | null>(null);
+  const [testing, setTesting] = useState<Provider | null>(null);
 
   if (isLoading) return <Loading />;
 
@@ -63,6 +66,10 @@ export function EnginesPanel() {
     };
     const unset: string[] = [];
     const opt = (key: string, val: unknown) => { if (val === undefined || val === "" ) unset.push(`${base}.${key}`); else set[`${base}.${key}`] = val; };
+    // Only the "off" state is stored. Leaving the key out is what tells the
+    // adapter to send nothing and let the provider decide.
+    if (provider.thinking === false) set[`${base}.thinking`] = false;
+    else unset.push(`${base}.thinking`);
     opt("base_url", provider.base_url);
     opt("default_model", provider.default_model);
     opt("context_limit_tokens", provider.context_limit_tokens);
@@ -102,7 +109,7 @@ export function EnginesPanel() {
       ) : (
         <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {providers.map((p) => (
-            <ProviderCard key={p.slug} provider={p} onEdit={() => openEdit(p)} onDelete={() => remove(p)} onToggle={() => toggle(p)} />
+            <ProviderCard key={p.slug} provider={p} onEdit={() => openEdit(p)} onDelete={() => remove(p)} onToggle={() => toggle(p)} onTest={() => setTesting(p)} />
           ))}
           <button
             type="button"
@@ -114,6 +121,8 @@ export function EnginesPanel() {
           </button>
         </div>
       )}
+
+      <ProviderTestDialog open={!!testing} provider={testing} onClose={() => setTesting(null)} />
 
       <ProviderModal
         open={modalOpen}

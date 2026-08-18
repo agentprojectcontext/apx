@@ -40,12 +40,29 @@ function logInspectorDecision(trace, { trace_id, channel } = {}) {
   }
 }
 
+// What of the inspector trace is worth keeping on disk: the decision, not the
+// payload. `null` when the turn injected nothing — a thread should not carry a
+// row for a middleware that stayed silent.
+function inspectorRecord(trace) {
+  if (!trace?.enabled) return null;
+  const loaded = trace.loaded || [];
+  const hinted = trace.hinted || [];
+  if (loaded.length === 0 && hinted.length === 0) return null;
+  return {
+    ...(trace.embedder ? { embedder: trace.embedder } : {}),
+    ...(loaded.length ? { loaded } : {}),
+    ...(hinted.length ? { hinted } : {}),
+    // Already capped at the top 5 upstream — the similarities the badge shows.
+    ...(trace.scored?.length ? { scored: trace.scored } : {}),
+  };
+}
+
 // Persist human web turns to the cross-channel message store so they feed the
 // RAG index, search_messages, and the "active threads" awareness block. Only
 // the human surfaces (web big chat + sidebar) — not generic "api"/automation
 // callers. Best-effort: a logging failure never breaks the reply.
 const WEB_LOGGED_CHANNELS = new Set([CHANNELS.WEB, CHANNELS.WEB_SIDEBAR]);
-function logWebTurn(channel, { prompt, replyText, name, model, usage, trace, project, media }) {
+function logWebTurn(channel, { prompt, replyText, name, model, usage, trace, project, media, inspector }) {
   if (!WEB_LOGGED_CHANNELS.has(channel)) return;
   // Which project the chat was opened from. The ledger is one file per
   // channel+day for the whole daemon, so without this stamp a chat started
@@ -81,6 +98,11 @@ function logWebTurn(channel, { prompt, replyText, name, model, usage, trace, pro
       // Attribution rides along on the record: which model answered and what the
       // turn cost. Without it a reloaded thread renders "0 tok" and no model.
       const toolSummary = summarizeToolTrace(trace);
+      // The skill inspector's decision, recorded next to the tool summary and
+      // for the same reason: it rides a live stream event, so a reopened thread
+      // had no way to show which skills paid for this turn's prompt. Only the
+      // decision is kept (slugs + similarities), never the injected bodies.
+      const skillInspector = inspectorRecord(inspector);
       appendGlobalMessage({
         channel,
         direction: "out",
@@ -95,6 +117,7 @@ function logWebTurn(channel, { prompt, replyText, name, model, usage, trace, pro
           ...(model ? { model } : {}),
           ...(usage ? { usage } : {}),
           ...(toolSummary ? { tool_summary: toolSummary } : {}),
+          ...(skillInspector ? { skill_inspector: skillInspector } : {}),
         },
       });
     }
@@ -230,6 +253,13 @@ export function register(api, { projects, registries, plugins, project, config }
         ...(Number.isFinite(Number(maxTokens)) ? { maxTokens: Number(maxTokens) } : {}),
         ...(completionContract ? { completionContract: true } : {}),
         onEvent,
+        // Token-by-token text. `assistant_text` still closes each segment with
+        // the cleaned version, so a client that ignores deltas (apx exec) reads
+        // exactly what it read before — it just reads it later.
+        onToken: (chunk) => send({ type: "assistant_delta", delta: chunk }),
+        // The thinking, live and on its own channel. Clients that don't render
+        // it drop it; the answer never carries a word of it either way.
+        onReasoningToken: (chunk) => send({ type: "assistant_reasoning_delta", reasoning: chunk }),
         requestConfirmation,
         skipSkillsHint: inspectorOn,
       });
@@ -243,6 +273,7 @@ export function register(api, { projects, registries, plugins, project, config }
         usage: saResult.usage,
         trace: saResult.trace,
         project: p,
+        inspector: inspectorTrace,
       });
       send({
         type: "final",
@@ -317,9 +348,11 @@ export function register(api, { projects, registries, plugins, project, config }
     if (!prompt) return res.status(400).json({ error: "prompt required" });
     const ctx = resolveSuperAgentContext(req, p);
     const inspectorOn = isInspectorEnabled(config);
+    let inspectorTrace = null;
     if (inspectorOn) {
       try {
         const out = await inspectPromptForSkills({ prompt, projectPath: p.path, globalConfig: config });
+        inspectorTrace = out.trace;
         if (out.contextNote) {
           ctx.contextNote = [ctx.contextNote, out.contextNote].filter(Boolean).join("\n\n");
         }
@@ -356,6 +389,7 @@ export function register(api, { projects, registries, plugins, project, config }
         usage: saResult.usage,
         trace: saResult.trace,
         project: p,
+        inspector: inspectorTrace,
       });
       res.json({
         text: saResult.text,
