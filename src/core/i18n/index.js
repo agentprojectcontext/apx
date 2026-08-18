@@ -1,12 +1,12 @@
-// Backend i18n for daemon-side messages (Telegram heads-up, system replies,
-// any other user-facing string emitted from the host/core layer). The web
-// admin has its own dict tree under src/interfaces/web/src/i18n/ — that one
-// stays separate, this is for what the daemon sends back.
+// Backend i18n for daemon-side messages (command acks, error floors, any other
+// user-facing string emitted from the host/core layer). The web admin has its
+// own dict tree under src/interfaces/web/src/i18n/ — that one stays separate,
+// this is for what the daemon sends back.
 //
 // Usage:
 //   import { t, resolveLang } from "#core/i18n/index.js";
 //   const lang = resolveLang(globalConfig);
-//   await sendTelegram(t("telegram.heads_up", { lang }));
+//   await sendTelegram(t("telegram.reset_ack", { lang }));
 //
 // Adding a key: pick a clear dotted path, add it to every locale dict, and
 // the unit test in tests/i18n.test.js will assert parity (no missing

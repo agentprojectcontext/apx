@@ -20,12 +20,14 @@ import { createProgressGate, progressEveryMs } from "./progress-gate.js";
 
 /**
  * Build the streaming event handler for a Telegram super-agent turn. ONE notice
- * goes out when work starts — the model's own opening line, or the canned
- * heads-up if it went straight to a tool — and the rest of the turn stays quiet
- * until the caller sends the closing message. The progress notes the model
- * writes before each later step are held back (see ./progress-gate.js for why,
- * and for the long-job heartbeat that lets one through every N seconds). Tool
- * calls are logged for the audit trail / other channels, never sent to Telegram.
+ * goes out when work starts — the model's own opening line, the one the
+ * two-segment discipline has it write before the first tool — and the rest of
+ * the turn stays quiet until the caller sends the closing message. Nothing is
+ * ever written on the agent's behalf: a turn that opens straight into a tool
+ * stays quiet until the model itself speaks. The progress notes it writes
+ * before each later step are held back (see ./progress-gate.js for why, and for
+ * the long-job heartbeat that lets one through every N seconds). Tool calls are
+ * logged for the audit trail / other channels, never sent to Telegram.
  * Returns the handler plus a live `state` the caller reads AFTER the run to
  * drive the final send.
  *
@@ -42,25 +44,6 @@ export function buildStreamHandler(self, { chat_id, update_id, agentDisplay }) {
     try {
       if ((ev.type === "model_start" || ev.type === "model_routed" || ev.type === "final_wrapup") && ev.model) {
         state.model = ev.model;
-      }
-      if (ev.type === "tool_start") {
-        // Only ever the turn's opener: if the model already spoke, the gate
-        // holds this and the user hears nothing more until the answer.
-        if (gate.toolStart() !== "heads_up") return;
-        const heads = t("telegram.heads_up", { lang: resolveLang(self.globalConfig) });
-        await self._send({ chat_id, text: heads });
-        appendGlobalMessage({
-          channel: CHANNELS.TELEGRAM,
-          direction: "out",
-          type: "agent",
-          actor_id: SUPERAGENT_ACTOR_ID,
-          actor_kind: "superagent",
-          agent_slug: SUPERAGENT_ACTOR_ID,
-          author: agentDisplay,
-          body: heads,
-          meta: { chat_id, tg_channel: self.channel.name, in_reply_to: update_id, heads_up: true, ...(state.model ? { model: state.model } : {}) },
-        });
-        return;
       }
       if (ev.type === "assistant_text" && ev.text) {
         // Untagged planning is suppressed mid-stream too, or the user

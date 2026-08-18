@@ -62,8 +62,8 @@ const DEFAULT_CONFIG = {
     // snappier but more "want me to continue?" hand-backs. 0/unset → built-in
     // default (TELEGRAM_TOOL_ITERS in src/core/agent/constants.js).
     telegram_max_iters: 0,
-    // How often a working turn may speak before it's done. The first sign of
-    // work always goes out (the model's opening line, or a canned heads-up);
+    // How often a working turn may speak before it's done. The model's own
+    // opening line always goes out (nothing is ever written on its behalf);
     // after that the turn stays quiet — one notice, the work, then the answer —
     // except one more note per this many seconds so a long job doesn't look
     // hung. 0 = never speak mid-turn. See core/channels/telegram/progress-gate.js.

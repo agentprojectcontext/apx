@@ -189,8 +189,9 @@ Dejá `route_to_agent` vacío (o sin configurar) para usar el super-agent (el va
 
 Un pedido que le lleva varios pasos al agente llega como **dos mensajes, no diez**:
 
-1. **Un aviso** cuando arranca el trabajo — la línea propia del agente ("Reviso eso"), o un
-   aviso corto si fue directo a una herramienta.
+1. **Un aviso** cuando arranca el trabajo — la línea propia del agente ("Reviso eso"), que
+   escribe antes de usar la primera herramienta. Nunca se manda nada en su nombre: un turno que
+   arranca directo con una herramienta queda callado hasta que el agente tenga algo que decir.
 2. **Silencio mientras trabaja.** El indicador "escribiendo…" de Telegram sigue activo, pero
    las notas que el modelo escribe antes de cada paso no se envían — una sola tarea no tiene
    por qué hacerte sonar el teléfono ocho veces.
