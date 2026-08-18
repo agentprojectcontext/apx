@@ -8,6 +8,7 @@ import { Empty, Loading } from "../../components/ui";
 import { PluginConnect } from "../../components/integrations/PluginConnect";
 import { ComingSoonPlugin } from "../../components/integrations/ComingSoonPlugin";
 import { t } from "../../i18n";
+import { toneChip } from "../../lib/tone";
 
 type SubTab = "plugins" | "tools";
 
@@ -64,7 +65,7 @@ function ToolsSection({ pid }: { pid: string }) {
                   className={cn(
                     "rounded border px-1.5 py-0.5 text-[10px]",
                     tool.active
-                      ? "border-emerald-700/40 bg-emerald-900/20 text-emerald-400"
+                      ? toneChip.emerald
                       : "border-border bg-muted text-muted-foreground",
                   )}
                 >

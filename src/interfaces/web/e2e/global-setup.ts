@@ -2,17 +2,28 @@ import { execSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { RUNTIME_FILE, dropThrowaway, readRuntime } from "./throwaway";
 
 const DAEMON = process.env.APX_DAEMON_URL || "http://localhost:7430";
-const HERE = path.dirname(fileURLToPath(import.meta.url));
-const RUNTIME_FILE = path.join(HERE, ".runtime.json");
 
 // Prepares an isolated, throwaway project so the mutating CRUD specs never
 // touch the user's real registered projects. Writes the bearer token + the
 // throwaway project's id/path/tmpDir to .runtime.json for the fixtures and
 // teardown to consume.
 export default async function globalSetup() {
+  // 0. A .runtime.json still here means the previous run died before its
+  //    teardown. Clean that throwaway up now rather than leaking it into the
+  //    daemon and the global config — and rather than leaving a stale record
+  //    around for something else to act on later.
+  const stale = readRuntime();
+  if (stale) {
+    const age = Date.now() - Date.parse(stale.startedAt || "");
+    const mins = Number.isFinite(age) ? Math.round(age / 60_000) : "?";
+    // eslint-disable-next-line no-console
+    console.log(`[e2e] leftover throwaway from a run ${mins}m ago — cleaning it up first`);
+    await dropThrowaway(stale);
+  }
+
   // 1. Loopback bearer token (same one the panel auto-fetches).
   const tokenRes = await fetch(`${DAEMON}/api/admin/web-token`);
   if (!tokenRes.ok) {

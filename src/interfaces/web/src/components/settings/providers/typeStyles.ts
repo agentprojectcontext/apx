@@ -1,6 +1,8 @@
 // Visual styles per provider engine (adapter). Maps the engine id to a
 // gradient (card icon) and a badge class. Ported/adapted from pandaproject.
 
+import { toneChip } from "../../../lib/tone";
+
 export type EngineType =
   | "anthropic" | "openai" | "gemini" | "groq"
   | "openrouter" | "ollama" | "azure" | "mock" | "custom";
@@ -18,15 +20,15 @@ export const ENGINE_GRADIENTS: Record<EngineType, string> = {
 };
 
 export const ENGINE_BADGES: Record<EngineType, string> = {
-  anthropic:  "bg-orange-500/20 text-orange-300 border border-orange-500/40",
-  openai:     "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40",
-  gemini:     "bg-blue-500/20 text-blue-300 border border-blue-500/40",
-  groq:       "bg-cyan-500/20 text-cyan-300 border border-cyan-500/40",
-  openrouter: "bg-violet-500/20 text-violet-300 border border-violet-500/40",
-  ollama:     "bg-amber-500/20 text-amber-300 border border-amber-500/40",
-  azure:      "bg-blue-500/20 text-blue-300 border border-blue-500/40",
-  mock:       "bg-slate-500/20 text-slate-300 border border-slate-500/40",
-  custom:     "bg-slate-500/20 text-slate-300 border border-slate-500/40",
+  anthropic:  toneChip.orange,
+  openai:     toneChip.emerald,
+  gemini:     toneChip.blue,
+  groq:       toneChip.cyan,
+  openrouter: toneChip.violet,
+  ollama:     toneChip.amber,
+  azure:      toneChip.blue,
+  mock:       toneChip.slate,
+  custom:     toneChip.slate,
 };
 
 export const ENGINE_OPTIONS: { value: EngineType; label: string }[] = [

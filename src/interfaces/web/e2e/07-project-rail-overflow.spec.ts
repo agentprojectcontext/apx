@@ -46,6 +46,24 @@ test.describe("project rail overflow", () => {
     expect(errors).toEqual([]);
   });
 
+  test("opening a project from the popover pins it to the front", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByTestId("project-avatar-16")).toBeVisible();
+
+    // The oldest project is buried in the overflow bucket...
+    await expect(page.getByTestId("project-avatar-1")).toHaveCount(0);
+    await page.getByTestId("nav-projects-overflow").click();
+    await page.getByTestId("project-menu-item-1").click();
+
+    // ...and opening it from there pulls it to the front of the rail.
+    const first = page.locator("[data-rail-item]").first();
+    await expect(first.getByTestId("project-avatar-1")).toBeVisible();
+
+    // The order is remembered, so it is still there on the next visit.
+    await page.reload();
+    await expect(page.locator("[data-rail-item]").first().getByTestId("project-avatar-1")).toBeVisible();
+  });
+
   test("collapse folds every project into one folder button", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByTestId("nav-toggle-projects")).toBeVisible();

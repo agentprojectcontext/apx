@@ -26,7 +26,7 @@ export function AgentIconPicker({
   // the grid comes alive on hover instead of being a wall of still avatars.
   const [hover, setHover] = useState<string | null>(null);
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" data-testid="agent-icon-picker">
       <div className="flex flex-wrap gap-1.5">
         {BLOB_KEYS.map((k) => (
           <Tip key={k} content={BLOB_PRESETS[k].label}>
@@ -62,7 +62,7 @@ const AUTONOMY_OPTIONS: { value: AgentAutonomy; labelKey: "auto_total" | "auto_a
 
 export function AutonomyPicker({ value, onChange }: { value: string; onChange: (v: AgentAutonomy) => void }) {
   return (
-    <div className="inline-flex w-full rounded-lg border border-border p-0.5">
+    <div className="inline-flex w-full rounded-lg border border-border p-0.5" data-testid="agent-autonomy">
       {AUTONOMY_OPTIONS.map((opt) => (
         <button
           key={opt.value}

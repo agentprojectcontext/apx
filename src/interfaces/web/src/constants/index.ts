@@ -21,6 +21,7 @@ export const STORAGE = {
   theme: "apx.theme",
   token: "apx.token",
   sidebarCollapsed: "apx.sidebar.collapsed",
+  railOrder: "apx.rail.order",
   language: "apx.lang",
   robyChat: "apx.roby.chat",
 } as const;

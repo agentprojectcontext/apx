@@ -10,8 +10,10 @@ test.describe("isolated CRUD", () => {
     const title = `e2e task ${Date.now()}`;
     await page.goto(`/p/${projectId}/tasks`);
 
-    // add — wait until the controlled input actually holds the value (React
-    // state synced) before clicking, so the click handler reads a fresh draft.
+    // add — the title lives in the task dialog now (same form used to edit),
+    // so open it first. Wait until the controlled input actually holds the
+    // value (React state synced) before submitting.
+    await page.getByTestId("task-new").click();
     const input = page.getByTestId("task-input");
     await input.click();
     await input.fill(title);
@@ -21,8 +23,15 @@ test.describe("isolated CRUD", () => {
     const row = list.locator("li", { hasText: title });
     await expect(row).toBeVisible();
 
+    // Lifecycle verbs live behind the row's ⋯ menu; the items are portaled, so
+    // they are located on the page, not inside the row.
+    const rowAction = async (row: ReturnType<typeof list.locator>, action: string) => {
+      await row.locator('[data-testid^="task-menu-"]').click();
+      await page.locator(`[data-testid^="task-${action}-"]`).click();
+    };
+
     // done → leaves the open list, shows under "done"
-    await row.getByLabel("marcar done").click();
+    await rowAction(row, "done");
     await expect(list.locator("li", { hasText: title })).toHaveCount(0);
     await page.getByTestId("task-filter-done").click();
     const doneRow = page.getByTestId("task-list").locator("li", { hasText: title });
@@ -30,13 +39,13 @@ test.describe("isolated CRUD", () => {
 
     // reopen → back under "open". Reload to read fresh state (the filter cache
     // is not revalidated on switch — see findings note).
-    await doneRow.getByLabel("reabrir task").click();
+    await rowAction(doneRow, "reopen");
     await page.reload();
     const reopened = page.getByTestId("task-list").locator("li", { hasText: title });
     await expect(reopened).toBeVisible();
 
     // drop → shows under "dropped"
-    await reopened.getByLabel("descartar task").click();
+    await rowAction(reopened, "drop");
     await page.reload();
     await page.getByTestId("task-filter-dropped").click();
     await expect(

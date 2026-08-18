@@ -577,3 +577,69 @@ test("the secretary's routines carry schedules the scheduler can actually parse"
     );
   }
 });
+
+// --------------------------------------------------------------------------
+// settings are values, not text spliced into the file
+// --------------------------------------------------------------------------
+
+const SCHEMA_WITH_COMMAND = {
+  type: "object",
+  properties: {
+    day_open_at: { type: "string", default: "08:30" },
+    nudge_budget_per_day: { type: "integer", default: 3 },
+    agenda_cmd: { type: "string", default: "" },
+  },
+};
+
+test("a setting containing a quote renders INTO the routine, not through it", () => {
+  resetState();
+  const pkg = makePackage({
+    schema: SCHEMA_WITH_COMMAND,
+    routines: { "day-open": { ...DAY_OPEN_ROUTINE, pre_commands: ["{{agenda_cmd}}"] } },
+  });
+  installProfile(pkg.dir);
+  useProfile(pkg.id);
+
+  // The realistic value, and the one that used to end the JSON document early:
+  // a shell command carrying a JSON argument.
+  const cmd = `apx mcp run cal list_events '{"timeMin":"today"}'`;
+  setProfileConfig({ agenda_cmd: cmd });
+
+  const r = listRoutines(SA_STORAGE).find((x) => x.name === `${pkg.id}-day-open`);
+  assert.deepEqual(r.pre_commands, [cmd]);
+});
+
+test("a setting left blank leaves no command behind, not an empty one", () => {
+  resetState();
+  const pkg = makePackage({
+    schema: SCHEMA_WITH_COMMAND,
+    routines: { "day-open": { ...DAY_OPEN_ROUTINE, pre_commands: ["{{agenda_cmd}}"] } },
+  });
+  installProfile(pkg.dir);
+  useProfile(pkg.id);
+
+  // `[""]` would still count as a pre phase: a shell spawned to run nothing,
+  // and skip_prompt_on / {{pre_output}} behaving as if it had output.
+  const r = listRoutines(SA_STORAGE).find((x) => x.name === `${pkg.id}-day-open`);
+  assert.deepEqual(r.pre_commands, []);
+});
+
+test("a placeholder in an unquoted position still renders", () => {
+  resetState();
+  const pkg = makePackage({
+    schema: { type: "object", properties: { day_open_at: { type: "string", default: "08:30" }, nudge_budget_per_day: { type: "integer", default: 3 }, timeout_s: { type: "integer", default: 45 } } },
+    routines: { "day-open": DAY_OPEN_ROUTINE },
+  });
+  // A package that is only valid JSON once rendered. Older shape, still legal:
+  // the renderer falls back to substituting text when the file will not parse.
+  fs.writeFileSync(
+    path.join(pkg.dir, "routines", "day-open.json"),
+    `{ "name": "day-open", "kind": "super_agent", "schedule": "every:5m",
+       "spec": { "prompt": "hi", "timeout_s": {{timeout_s}} }, "enabled_by_default": true }`
+  );
+  installProfile(pkg.dir);
+  useProfile(pkg.id);
+
+  const r = listRoutines(SA_STORAGE).find((x) => x.name === `${pkg.id}-day-open`);
+  assert.equal(r.spec.timeout_s, 45, "a number stayed a number");
+});

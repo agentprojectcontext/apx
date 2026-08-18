@@ -23,15 +23,19 @@
 //   renegotiate   — a NEW date, agreed with them. Distinct from missing:
 //                   moving a date with someone is not the same as letting it
 //                   slide, and the history keeps both.
+//   drop          — filed by mistake. NOT the same as `missed`: nobody was
+//                   ever waiting, so counting it as a broken promise would
+//                   poison the only number that matters here. The events stay
+//                   on disk; the row leaves the lists.
 //
-// State: "open" → "kept" | "missed" | "renegotiated" → (renegotiated reopens
-// as "open" with a new due, keeping the previous date in `history`).
+// State: "open" → "kept" | "missed" | "dropped" → (renegotiate reopens as
+// "open" with a new due, keeping the previous date in `history`).
 import fs from "node:fs";
 import path from "node:path";
 import { nowIso } from "../util/time.js";
 import { shortId as makeShortId } from "../util/ids.js";
 
-export const COMMITMENT_STATES = Object.freeze(["open", "kept", "missed", "renegotiated"]);
+export const COMMITMENT_STATES = Object.freeze(["open", "kept", "missed", "dropped"]);
 
 function commitmentsDir(storagePath) {
   return path.join(storagePath, "commitments");
@@ -120,6 +124,14 @@ function projectState(events) {
       case "missed": {
         if (!existing) break;
         existing.state = "missed";
+        existing.closed_at = ev.ts;
+        existing.note = ev.note || existing.note || null;
+        existing.updated_at = ev.ts;
+        break;
+      }
+      case "drop": {
+        if (!existing) break;
+        existing.state = "dropped";
         existing.closed_at = ev.ts;
         existing.note = ev.note || existing.note || null;
         existing.updated_at = ev.ts;
@@ -296,6 +308,17 @@ export function missCommitment(storagePath, idOrPrefix, note = null) {
   return close(storagePath, idOrPrefix, "missed", note);
 }
 
+/**
+ * Filed by mistake — take it off the board without calling it broken.
+ *
+ * Deliberately not `missed`: "you failed Ana" and "this was never a promise"
+ * are different facts, and the second one must not show up in the first one's
+ * count. The log keeps every event either way.
+ */
+export function dropCommitment(storagePath, idOrPrefix, note = null) {
+  return close(storagePath, idOrPrefix, "drop", note);
+}
+
 function close(storagePath, idOrPrefix, op, note) {
   const existing = getCommitment(storagePath, idOrPrefix);
   if (!existing) return null;
@@ -325,6 +348,7 @@ export function countCommitments(storagePath, now = nowIso()) {
     open: open.length,
     kept: rows.filter((c) => c.state === "kept").length,
     missed: rows.filter((c) => c.state === "missed").length,
+    dropped: rows.filter((c) => c.state === "dropped").length,
     overdue: open.filter((c) => c.due && c.due < now).length,
     total: rows.length,
   };

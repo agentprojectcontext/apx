@@ -10,6 +10,7 @@ import { BlobAvatar } from "../../components/agents/BlobAvatar";
 import { isBlobKey } from "../../components/agents/blobPresets";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
+import { toneText, toneTextHover } from "../../lib/tone";
 import type { AgentEntry, RoutineEntry, TaskEntry } from "../../types/daemon";
 
 // Floor / mission control: a live per-project summary — what's here (agents,
@@ -93,7 +94,7 @@ export function Overview({ pid }: { pid: string }) {
 
         {/* Recent / in-flight tasks */}
         <Section title={t("project.overview.recent_tasks")} className="!p-4"
-          action={<NavLink to={`/p/${pid}/tasks`} className="text-xs text-sky-500 hover:text-sky-400">{t("common.view_all")}</NavLink>}
+          action={<NavLink to={`/p/${pid}/tasks`} className={`text-xs ${toneText.sky} ${toneTextHover.sky}`}>{t("common.view_all")}</NavLink>}
         >
           {openTasks.length === 0 ? (
             <p className="flex items-center gap-2 text-sm text-muted-fg"><Activity className="size-4" />{t("project.overview.no_activity")}</p>

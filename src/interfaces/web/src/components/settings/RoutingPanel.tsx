@@ -5,6 +5,7 @@ import { Badge, Button, Dialog, Field, Loading, Switch, Textarea, Tip } from "..
 import { useToast } from "../Toast";
 import { useGlobalConfig } from "../../hooks/useGlobalConfig";
 import { t } from "../../i18n";
+import { toneText } from "../../lib/tone";
 
 // Content-based model routing (OpenHands RouterLLM pattern). NOT the failover
 // router (that is DefaultRouterCard). Here each rule prefers a model for a turn
@@ -189,7 +190,7 @@ export function RoutingPanel() {
                 spellCheck={false}
               />
               {parsed.error ? (
-                <span className="mt-1 block text-[11px] text-red-400">{parsed.error}</span>
+                <span className={`mt-1 block text-[11px] ${toneText.red}`}>{parsed.error}</span>
               ) : (
                 <button
                   type="button"

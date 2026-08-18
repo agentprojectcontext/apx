@@ -4,6 +4,7 @@ import { cn } from "../../lib/cn";
 import { Spinner } from "../ui";
 import { Tip } from "../ui/tip";
 import { t } from "../../i18n";
+import { toneText } from "../../lib/tone";
 
 export function CodeFileViewer({
   path,
@@ -44,7 +45,7 @@ export function CodeFileViewer({
       <div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-1.5">
         <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted-foreground">
           {path}
-          {dirty && <span className="ml-1 text-amber-400">•</span>}
+          {dirty && <span className={`ml-1 ${toneText.amber}`}>•</span>}
         </span>
         {editable && (
           <>

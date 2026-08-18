@@ -6,7 +6,10 @@ import { test, expect, runtime } from "./fixtures";
 test.describe("usability", () => {
   test("Roby floating chat opens and closes", async ({ page, errors }) => {
     await page.goto("/");
-    const launcher = page.getByRole("button", { name: "Hablar con Roby" });
+    // The launcher lives in the left rail, and its accessible name is the
+    // persona from identity.json in the active locale — so it is located by
+    // testid, not by a hardcoded "Hablar con Roby".
+    const launcher = page.getByTestId("nav-roby");
     await expect(launcher).toBeVisible();
     await launcher.click();
     const sheet = page.getByRole("dialog");
@@ -31,12 +34,11 @@ test.describe("usability", () => {
   });
 
   test("task action buttons expose accessible names (a11y)", async ({ page }) => {
-    // The icon-only done/drop/reopen buttons must be reachable by name. We
-    // assert the add affordance and filters are labelled/usable on the
-    // per-project Tasks screen (Base /p/0/tasks renders the global view).
+    // The icon-only add/menu affordances must be reachable by name. Same
+    // screen serves both scopes now (Base /p/0/tasks passes no project).
     const { projectId } = runtime();
     await page.goto(`/p/${projectId}/tasks`);
-    await expect(page.getByTestId("task-add")).toBeVisible();
+    await expect(page.getByTestId("task-new")).toBeVisible();
     await expect(page.getByTestId("task-filter-open")).toBeVisible();
     await expect(page.getByTestId("task-filter-done")).toBeVisible();
     await expect(page.getByTestId("task-filter-dropped")).toBeVisible();

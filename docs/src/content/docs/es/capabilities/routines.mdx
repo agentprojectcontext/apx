@@ -77,7 +77,9 @@ Comandos de shell separados por comas. Forman un pipeline alrededor de la llamad
 <Steps>
 
 1. **`pre_commands`** corren secuencialmente. Su stdout combinado queda disponible como:
-   - `{{pre_output}}` — sustituido en `spec.prompt` antes de la llamada al LLM.
+   - `{{pre_output}}` — sustituido en `spec.prompt` (y en `spec.text`) antes de la llamada
+     al LLM. Siempre se sustituye: sin `pre_commands`, o sin salida, el hueco queda vacío en
+     vez de llegarle al modelo como llaves literales.
    - `$APX_PRE_OUTPUT` — variable de entorno para `post_commands`.
    - `$APX_PRE_OUTPUT_FILE` — ruta a un archivo temporal con la salida completa (para payloads grandes).
 

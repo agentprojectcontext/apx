@@ -66,10 +66,18 @@ export function register(api, { project, config }) {
   // in the global per-channel ledger, not in per-agent conversation files.
   // These endpoints surface that ledger as day-threads so the web Chats
   // sidebar can list and reopen them.
+  //
+  // Scope: the Base workspace (project 0) sees every thread; a real project
+  // sees the ones started from it, plus the unattributed ones (channels with no
+  // project of their own, and everything written before turns were stamped). A
+  // chat opened inside a project used to be listed only in Base — it looked
+  // like the conversation had been lost.
+  const threadScope = (p) => (String(p.id) === "0" ? undefined : String(p.id));
+
   api.get("/projects/:pid/super-agent/threads", (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    res.json(listGlobalThreads());
+    res.json(listGlobalThreads({ project: threadScope(p) }));
   });
 
   api.get("/projects/:pid/super-agent/threads/:channel/:id", (req, res) => {
@@ -78,6 +86,7 @@ export function register(api, { project, config }) {
     const thread = readGlobalThread({
       channel: req.params.channel,
       date: req.params.id,
+      project: threadScope(p),
     });
     if (!thread) return res.status(404).json({ error: "thread not found" });
     res.json(thread);
@@ -86,7 +95,11 @@ export function register(api, { project, config }) {
   api.delete("/projects/:pid/super-agent/threads/:channel/:id", (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    const ok = deleteGlobalThread({ channel: req.params.channel, date: req.params.id });
+    const ok = deleteGlobalThread({
+      channel: req.params.channel,
+      date: req.params.id,
+      project: threadScope(p),
+    });
     if (!ok) return res.status(404).json({ error: "thread not found" });
     res.json({ ok: true });
   });

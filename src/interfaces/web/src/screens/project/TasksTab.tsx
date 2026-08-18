@@ -1,159 +1,173 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Plus, ChevronDown, ChevronUp, Check, Trash2, RotateCcw } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Tasks } from "../../lib/api";
+import type { GlobalTaskEntry } from "../../lib/api/tasks";
+import type { TaskEntry, TaskStatus } from "../../types/daemon";
 import { Section } from "../../components/Section";
-import { PagedList, usePagedQuery } from "../../components/Pager";
-import { Badge, Button, Empty, Field, Input, Loading, Textarea } from "../../components/ui";
-import { useToast } from "../../components/Toast";
-import { StatusIcon, StatusBadge, effectiveStatus } from "../../components/tasks/taskStatus";
-import { TaskDetailPanel } from "../../components/tasks/TaskDetailPanel";
+import { Pager, usePagedQuery } from "../../components/Pager";
+import { Button, Empty, FilterChips, Loading } from "../../components/ui";
+import { TaskList } from "../../components/tasks/TaskList";
+import { TaskDetail } from "../../components/tasks/TaskDetail";
+import { TASK_STATUS_ORDER, statusLabel } from "../../components/tasks/taskStatus";
+import { TaskFormDialog } from "../../components/tasks/TaskFormDialog";
+import { useProjects } from "../../hooks/useProjects";
 import { t } from "../../i18n";
 
-export function TasksTab({ pid }: { pid: string }) {
-  const [state, setState] = useState<"open" | "done" | "dropped">("open");
+/**
+ * Tasks — one screen, two scopes, master-detail like Routines.
+ *
+ * `pid` set = that project. `pid` omitted = every registered project, which is
+ * what the base workspace shows. There used to be two components and they
+ * drifted into two different products: the cross-project one could not filter
+ * by status, mark anything done, or edit a title, and printed the raw state
+ * word on a second line. The only thing scope changes now is the project chip
+ * and where a new task is filed.
+ *
+ * One task is always open on the right — a list you can only stare at is a
+ * report, not a workspace.
+ */
+export function TasksTab({ pid }: { pid?: string }) {
   const [params, setParams] = useSearchParams();
-  const selected = params.get("task");
-  const toast = useToast();
-  // dedupingInterval:0 so switching the state filter always revalidates the
-  // target page instead of showing the stale cached one from a prior switch.
+  const [state, setState] = useState<"open" | "done" | "dropped" | "all">("open");
+  // Workflow sub-status is a different question from state: "what is blocked
+  // right now" is not "what is open". Only meaningful for open tasks.
+  const [status, setStatus] = useState<TaskStatus | "">("");
+  const effStatus = state === "open" ? status : "";
+
+  const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<{ pid: string; task: TaskEntry } | null>(null);
+  const { projects } = useProjects();
+
+  // dedupingInterval:0 so switching a filter always revalidates the target page
+  // instead of showing the stale cached one from a prior switch.
   const paged = usePagedQuery({
-    key: `/api/projects/${pid}/tasks?state=${state}`,
-    fetchPage: (limit, offset) => Tasks.listPage(pid, { state, limit, offset }),
-    resetKey: state,
+    key: `/api/tasks?pid=${pid ?? "all"}&state=${state}&status=${effStatus}`,
+    fetchPage: (limit, offset) =>
+      pid
+        ? Tasks.listPage(pid, { state, limit, offset, status: effStatus })
+        : Tasks.globalPage({ state, limit, offset, status: effStatus }),
+    resetKey: `${pid ?? "all"}|${state}|${effStatus}`,
     swr: { dedupingInterval: 0, revalidateOnFocus: true },
   });
-  const [draft, setDraft] = useState("");
-  const [body, setBody] = useState("");
-  const [showBody, setShowBody] = useState(false);
-  const [busy, setBusy] = useState(false);
 
-  const select = (id: string | null) => {
-    const next = new URLSearchParams(params);
-    if (id) next.set("task", id); else next.delete("task");
-    setParams(next, { replace: true });
-  };
+  const rowPid = (task: TaskEntry) => pid ?? String((task as GlobalTaskEntry).project_id ?? "");
+  const selectedId = params.get("task");
+  const selected = paged.items.find((x) => x.id === selectedId) || null;
 
-  const add = async () => {
-    if (!draft.trim()) return;
-    setBusy(true);
-    try {
-      await Tasks.add(pid, { title: draft.trim(), body: body.trim() || null, source: "web" });
-      setDraft(""); setBody(""); setShowBody(false);
-      toast.success(t("project.tasks.created"));
-      paged.mutate();
-    } catch (e: any) {
-      toast.error(e?.message || t("project.tasks.create_error"));
-    } finally {
-      setBusy(false);
-    }
-  };
-  const mark = async (fn: () => Promise<unknown>, label: string) => {
-    try { await fn(); toast.success(label); paged.mutate(); }
-    catch (e: any) { toast.error(e?.message || t("common.error_generic")); }
-  };
+  const select = (id: string | null) =>
+    setParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (id) next.set("task", id); else next.delete("task");
+      return next;
+    }, { replace: true });
+
+  // Keep the first task selected, and heal a stale ?task (filter switched, the
+  // task closed, the page moved).
+  useEffect(() => {
+    if (paged.items.length === 0) return;
+    if (selectedId && paged.items.some((x) => x.id === selectedId)) return;
+    select(paged.items[0].id);
+  }, [paged.items, selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <Section
       fullHeight
-      title={t("project.tasks.title")}
-      description={t("project.tasks.subtitle")}
+      title={pid ? t("project.tasks.title") : t("project.global_tasks.title")}
+      description={pid ? t("project.tasks.subtitle") : t("project.global_tasks.subtitle")}
       action={
-        <div className="flex gap-1">
-          {(["open", "done", "dropped"] as const).map((s) => (
-            <Button key={s} size="sm" data-testid={`task-filter-${s}`} variant={state === s ? "primary" : "ghost"} onClick={() => setState(s)}>
-              {t(`tasks.state_${s}` as never)}
-            </Button>
-          ))}
-        </div>
+        <Button size="sm" variant="primary" data-testid="task-new" onClick={() => setAdding(true)}>
+          <Plus size={14} /> {t("project.global_tasks.add")}
+        </Button>
+      }
+      filters={
+        <>
+          <FilterChips
+            value={state}
+            onChange={setState}
+            testIdPrefix="task-filter"
+            label={t("project.tasks.title")}
+            options={(["open", "done", "dropped", "all"] as const).map((s) => ({
+              value: s,
+              label: s === "all" ? t("common.all") : t(`tasks.state_${s}` as never),
+            }))}
+          />
+          {state === "open" ? (
+            <div className="ml-2">
+              <FilterChips
+                value={status}
+                onChange={setStatus}
+                testIdPrefix="task-status-filter"
+                label={t("project.global_tasks.any_status")}
+                options={[
+                  { value: "" as const, label: t("project.global_tasks.any_status") },
+                  ...TASK_STATUS_ORDER.map((s) => ({ value: s, label: statusLabel(s) })),
+                ]}
+              />
+            </div>
+          ) : null}
+        </>
       }
     >
-      <div className="mb-4 shrink-0 space-y-2">
-        <div className="flex items-end gap-2">
-          <Field label={t("project.tasks.add_label")}>
-            <Input
-              data-testid="task-input"
-              placeholder={t("project.tasks.add_placeholder")}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !showBody) add(); }}
-            />
-          </Field>
-          <Button variant="ghost" size="sm" onClick={() => setShowBody((v) => !v)} aria-label={t("tasks.toggle_prompt")}>
-            {showBody ? <ChevronUp size={14} /> : <ChevronDown size={14} />} {t("tasks.field_prompt")}
-          </Button>
-          <Button variant="primary" data-testid="task-add" onClick={add} loading={busy}>
-            <Plus size={14} /> {t("project.tasks.add")}
-          </Button>
-        </div>
-        {showBody && (
-          <Textarea rows={3} value={body} onChange={(e) => setBody(e.target.value)} placeholder={t("tasks.prompt_ph")} className="text-xs" />
-        )}
-      </div>
+      {paged.isLoading && <Loading />}
+      {!paged.isLoading && paged.total === 0 && (
+        <Empty>
+          {!pid ? t("project.global_tasks.empty")
+            : state === "open" ? t("project.tasks.empty_open")
+            : t("project.tasks.empty", { state })}
+        </Empty>
+      )}
 
-      <div className="flex min-h-0 flex-1 gap-4">
-        <div className="flex min-w-0 flex-1 flex-col">
-          {paged.isLoading && <Loading />}
-          {!paged.isLoading && paged.total === 0 && (
-            <Empty>
-              {state === "open" ? t("project.tasks.empty_open") : t("project.tasks.empty", { state })}
-              {" "}<code>apx task add "…"</code>
-            </Empty>
-          )}
-
-          <PagedList paged={paged} fullHeight>
-            <ul className="space-y-2 text-sm" data-testid="task-list">
-              {paged.items.map((task) => {
-                const eff = effectiveStatus(task);
-                return (
-                  <li
-                    key={task.id}
-                    data-testid={`task-${task.id}`}
-                    onClick={() => select(task.id)}
-                    className={`flex cursor-pointer items-start gap-3 rounded-md border px-3 py-2 hover:border-muted-fg/50 ${selected === task.id ? "border-primary/50 bg-primary/5" : "border-border bg-muted/30"}`}
-                  >
-                    <StatusIcon status={eff} className="mt-0.5 shrink-0" />
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate font-medium">{task.title}</div>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted-fg">
-                        {task.state === "open" && <StatusBadge status={eff} />}
-                        {task.tags?.map((tag) => <Badge key={tag}>#{tag}</Badge>)}
-                        {task.agent && <Badge tone="info">@{task.agent}</Badge>}
-                        {task.due && <span>{t("project.tasks.due")} {task.due}</span>}
-                      </div>
-                    </div>
-                    <div className="flex shrink-0 gap-1" onClick={(e) => e.stopPropagation()}>
-                      {task.state === "open" ? (
-                        <>
-                          <Button size="sm" variant="secondary" aria-label={t("project.tasks.aria_done")} data-testid={`task-done-${task.id}`} onClick={() => mark(() => Tasks.done(pid, task.id), t("project.tasks.done"))}>
-                            <Check size={13} />
-                          </Button>
-                          <Button size="sm" variant="destructive" aria-label={t("project.tasks.aria_drop")} data-testid={`task-drop-${task.id}`} onClick={() => mark(() => Tasks.drop(pid, task.id), t("project.tasks.drop"))}>
-                            <Trash2 size={13} />
-                          </Button>
-                        </>
-                      ) : (
-                        <Button size="sm" variant="ghost" aria-label={t("project.tasks.aria_reopen")} data-testid={`task-reopen-${task.id}`} onClick={() => mark(() => Tasks.reopen(pid, task.id), t("project.tasks.reopen"))}>
-                          <RotateCcw size={13} />
-                        </Button>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </PagedList>
-        </div>
-
-        {selected && (
-          <TaskDetailPanel
-            pid={pid}
-            taskId={selected}
-            onClose={() => select(null)}
+      {paged.items.length > 0 && (
+        <div className={"flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border lg:flex-row"}>
+          <TaskList
+            className={"max-h-64 shrink-0 border-b border-border lg:h-full lg:max-h-none lg:w-[280px] lg:border-b-0 lg:border-r"}
+            tasks={paged.items}
+            pid={rowPid}
+            selectedId={selected?.id ?? null}
+            onSelect={select}
+            onEdit={(task) => setEditing({ pid: rowPid(task), task })}
             onChanged={() => paged.mutate()}
+            footer={
+              <Pager
+                page={paged.page}
+                pageCount={paged.pageCount}
+                total={paged.total}
+                start={paged.start}
+                end={paged.end}
+                pageSize={paged.pageSize}
+                onPage={paged.setPage}
+                onPageSize={paged.setPageSize}
+              />
+            }
           />
-        )}
-      </div>
+          <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+            {selected ? (
+              <TaskDetail
+                key={`${rowPid(selected)}-${selected.id}`}
+                pid={rowPid(selected)}
+                taskId={selected.id}
+                projectName={pid ? undefined : (selected as GlobalTaskEntry).project_name}
+                onEdit={(task) => setEditing({ pid: rowPid(selected), task })}
+                onChanged={() => paged.mutate()}
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center p-8">
+                <p className="text-sm text-muted-fg">{t("tasks.detail_empty")}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      <TaskFormDialog
+        open={adding || !!editing}
+        onClose={() => { setAdding(false); setEditing(null); }}
+        fixedPid={pid}
+        projects={projects}
+        editing={editing}
+        onSaved={() => paged.mutate()}
+      />
     </Section>
   );
 }

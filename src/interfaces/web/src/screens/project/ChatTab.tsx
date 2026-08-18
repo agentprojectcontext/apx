@@ -140,10 +140,15 @@ export function ChatTab({
   const send = async (text: string) => {
     if (activeIsRoby) {
       await sendChat(text, { model: model || undefined });
+      // The turn just wrote itself into the channel ledger. Revalidate so the
+      // new chat shows up in the sidebar now, instead of only after a reload —
+      // which read as "the conversation was lost".
+      void mutate(`/api/projects/${pid}/super-agent/threads`);
       return;
     }
     if (!activeAgent) return;
     await sendChat(text, { model: model || undefined, agentSlug: activeAgent.slug });
+    void mutate(`/api/projects/${pid}/agents/${activeAgent.slug}/conversations`);
   };
 
   const copyToClipboard = async (text: string) => {

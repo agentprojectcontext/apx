@@ -425,17 +425,22 @@ export async function runRoutineNow(ctx, routine) {
   let errMsg = null;
 
   if (!skip) {
-    const enrichedRoutine = (hasPreCmds && preStdout)
-      ? {
-          ...routine,
-          spec: {
-            ...routine.spec,
-            // {{pre_output}} works in both the LLM prompt and the telegram text.
-            prompt: injectPreOutput(routine.spec?.prompt, preStdout),
-            text: injectPreOutput(routine.spec?.text, preStdout),
-          },
-        }
-      : routine;
+    // Injected unconditionally, including when there is no pre output at all.
+    // A routine that asks for {{pre_output}} and gets nothing must see an empty
+    // slot, not the literal braces: a placeholder that survives into the prompt
+    // reaches the model as text and it will dutifully try to make sense of it.
+    // The replace is a no-op for the routines that never mention it.
+    const enrichedRoutine = {
+      ...routine,
+      spec: {
+        ...routine.spec,
+        // {{pre_output}} works in both the LLM prompt and the telegram text.
+        // Keys the spec does not have stay absent — a `prompt: undefined` on a
+        // shell routine would be a new shape for every reader downstream.
+        ...(typeof routine.spec?.prompt === "string" ? { prompt: injectPreOutput(routine.spec.prompt, preStdout) } : {}),
+        ...(typeof routine.spec?.text === "string" ? { text: injectPreOutput(routine.spec.text, preStdout) } : {}),
+      },
+    };
 
     const handler = HANDLERS[enrichedRoutine.kind];
     if (!handler) {

@@ -1,6 +1,8 @@
 import { http, unwrapPage } from "../http";
 
-export type CommitmentState = "open" | "kept" | "missed";
+// "dropped" = filed by mistake. Deliberately not a synonym for "missed": one
+// says you failed a person, the other says nobody was ever waiting.
+export type CommitmentState = "open" | "kept" | "missed" | "dropped";
 
 export type CommitmentEntry = {
   id: string;
@@ -52,6 +54,10 @@ export const Commitments = {
     http.post<CommitmentEntry>(`/api/projects/${pid}/commitments/${id}/kept`, { note }),
   missed: (pid: string, id: string, note?: string) =>
     http.post<CommitmentEntry>(`/api/projects/${pid}/commitments/${id}/missed`, { note }),
+  drop: (pid: string, id: string, note?: string) =>
+    http.post<CommitmentEntry>(`/api/projects/${pid}/commitments/${id}/drop`, { note }),
+  patch: (pid: string, id: string, patch: Partial<CommitmentEntry>) =>
+    http.patch<CommitmentEntry>(`/api/projects/${pid}/commitments/${id}`, { patch }),
   renegotiate: (pid: string, id: string, due: string, note?: string) =>
     http.post<CommitmentEntry>(`/api/projects/${pid}/commitments/${id}/renegotiate`, { due, note }),
 };

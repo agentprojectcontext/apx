@@ -1,5 +1,6 @@
 import { Fragment, type ReactNode } from "react";
 import { cn } from "../../lib/cn";
+import { toneText, toneTextHover } from "../../lib/tone";
 
 // A small, dependency-free markdown renderer. We deliberately avoid
 // react-markdown/marked (no installers per project rules) and never use
@@ -24,7 +25,7 @@ function renderInline(text: string, keyBase: string): ReactNode[] {
       out.push(<code key={`${keyBase}-c${i}`} className="rounded bg-muted px-1 py-0.5 font-mono text-[0.85em]">{m[6]}</code>);
     else if (m[8] !== undefined)
       out.push(
-        <a key={`${keyBase}-l${i}`} href={m[9]} target="_blank" rel="noreferrer" className="text-sky-500 underline underline-offset-2 hover:text-sky-400">
+        <a key={`${keyBase}-l${i}`} href={m[9]} target="_blank" rel="noreferrer" className={`underline underline-offset-2 ${toneText.sky} ${toneTextHover.sky}`}>
           {m[8]}
         </a>,
       );

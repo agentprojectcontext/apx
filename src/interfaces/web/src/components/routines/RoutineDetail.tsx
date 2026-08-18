@@ -5,7 +5,7 @@ import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 import { kindMeta, scheduleHuman } from "./shared";
 import { relativeWhen } from "../../lib/when";
-import { ReadOnlyBlock } from "./ReadOnlyBlock";
+import { ReadOnlyBlock } from "../ReadOnlyBlock";
 import { ExecutionsList } from "./ExecutionsList";
 
 // Right column: read-only detail of the selected routine. Two stacked areas —

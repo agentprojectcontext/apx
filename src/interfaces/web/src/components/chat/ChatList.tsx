@@ -137,12 +137,13 @@ export function ChatList({
   const [pickerOpen, setPickerOpen] = useState(false);
 
   // Super-agent channel threads (telegram, web quick-chat, desktop …) come from
-  // the global message ledger, which is daemon-level and NOT project-scoped.
-  // Only surface them in the Base workspace (pid "0"); inside a real project the
-  // sidebar shows just that project's own agent conversations.
-  const isBase = String(pid) === "0";
+  // the global message ledger. The daemon scopes them per project now: Base
+  // (pid "0") lists every thread, a real project lists the chats started from
+  // it plus the unattributed ones. Hiding them outside Base — the old rule —
+  // meant a chat you opened inside a project was nowhere to be found when you
+  // came back to it.
   const threadsQ = useSWR(
-    isBase ? `/api/projects/${pid}/super-agent/threads` : null,
+    `/api/projects/${pid}/super-agent/threads`,
     () => Conversations.threads(pid),
     { revalidateOnFocus: false },
   );
