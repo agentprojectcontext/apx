@@ -21,19 +21,48 @@ import { readJson } from "#core/util/json-file.js";
 
 const log = loggerFor("call_runtime");
 
+// A CLI that refuses to work says why in one line — "Not logged in · Please run
+// /login", "usage limit reached", "model requires a newer version". That line is
+// the whole diagnosis, and an `exit 1` that drops it leaves the model, the
+// session record and the daemon log all equally blind. Prefer stderr (where
+// CLIs put refusals), fall back to stdout (claude -p puts them in .result).
+// A machine-readable runtime answers in JSON; pasting the envelope would bury
+// the sentence inside it, so unwrap the field that carries the message.
+function diagnosticLine(r) {
+  const pick = String(r?.stderr || "").trim() || String(r?.output || "").trim();
+  if (!pick) return "";
+  const line = pick.split("\n").map((l) => l.trim()).filter(Boolean).pop() || "";
+  if (line.startsWith("{")) {
+    try {
+      const o = JSON.parse(line);
+      const msg = o.result || o.error?.message || o.error || o.message;
+      if (typeof msg === "string" && msg.trim()) return msg.trim().slice(0, 160);
+    } catch { /* not JSON after all — fall through to the raw line */ }
+  }
+  return line.slice(0, 160);
+}
+
 // Decide if the runtime actually did the work the model asked for. A spawn
 // failure (-1), a non-zero exit, or a clean exit with no captured output and
 // no transcript path all point at "process didn't really run" — exactly the
 // false-positive scenario this guard exists to catch.
-function runtimeLooksLikeFailure(r) {
+function runtimeLooksLikeFailure(r, { timedOut = false, timeoutS = 0 } = {}) {
   if (!r) return { failed: true, reason: "no runtime result" };
   if (r.exitCode === -1 || r.error) {
     return { failed: true, reason: r.error || "spawn error" };
   }
-  if (typeof r.exitCode === "number" && r.exitCode !== 0) {
-    return { failed: true, reason: `exit ${r.exitCode}` };
+  // Order matters: we SIGTERM'd it ourselves, so whatever it exits with is our
+  // own signal echoed back. Reading that as the CLI's verdict would report a
+  // timeout as a crash — or, when the exit code is null, as "empty output".
+  // `r.killed` only arrives from adapters that bother to forward it; the clock
+  // is what every runtime has in common, so it decides.
+  if (timedOut || r.killed) {
+    return { failed: true, reason: `killed (timeout after ${timeoutS}s)` };
   }
-  if (r.killed) return { failed: true, reason: "killed (timeout)" };
+  if (typeof r.exitCode === "number" && r.exitCode !== 0) {
+    const why = diagnosticLine(r);
+    return { failed: true, reason: why ? `exit ${r.exitCode}: ${why}` : `exit ${r.exitCode}` };
+  }
   const out = String(r.output || "").trim();
   const stderr = String(r.stderr || "").trim();
   if (!out && !r.externalSessionPath && !r.sessionId) {
@@ -43,6 +72,25 @@ function runtimeLooksLikeFailure(r) {
     };
   }
   return { failed: false };
+}
+
+// A runtime that refuses to run is news the user needs BEFORE anything else
+// happens. Left to itself the model treats the failure as a routing hint: it
+// silently retries the next runtime, and if one of them answers it reports that
+// answer as a success — the user never learns their Claude CLI is logged out,
+// and gets a different engine's work under the name of the one they asked for.
+// So the failing result carries the obligation with it. An instruction, not a
+// sentence to parrot: the model still writes the message in its own voice, in
+// the user's language, with the diagnosis it just read.
+function runtimeFailureNextStep(runtime, reason) {
+  return [
+    `STOP. Tell the user, in your own words and their language, that "${runtime}" did not run`,
+    `and why (${reason}).`,
+    "Do NOT silently retry another runtime: a different engine's answer is not the one they asked for.",
+    "If a different runtime could still do the job, say so and let them choose;",
+    "if the cause looks fixable on their machine (login, quota, missing binary, stale version),",
+    "say what they would need to do. Never present a fallback runtime's output as if the requested one produced it.",
+  ].join(" ");
 }
 
 // If the model passed resume_session_id, look the session up (claude / codex /
@@ -260,6 +308,7 @@ export default {
     // it as a callback instead of crashing an un-awaited promise.
     const runToCompletion = async () => {
       try {
+        const startedAt = Date.now();
         const r = await rt.run({
           system: buildRuntimeSystem(p, agent, runtime, session.id, "super_agent_tool"),
           prompt: effectivePrompt,
@@ -267,7 +316,11 @@ export default {
           timeoutMs: effectiveTimeoutS * 1000,
         });
 
-        const failure = runtimeLooksLikeFailure(r);
+        // A killed process can outlive its own SIGTERM: an orphaned grandchild
+        // holds the pipes open, so `close` (and this await) can land well after
+        // the deadline. "Did we reach the deadline", not "how long did we wait".
+        const timedOut = Date.now() - startedAt >= effectiveTimeoutS * 1000;
+        const failure = runtimeLooksLikeFailure(r, { timedOut, timeoutS: effectiveTimeoutS });
         const result = extractApfResult(r.output) || (r.output || "").slice(0, 200);
         closeRuntimeSession({
           filePath: session.path,
@@ -322,6 +375,7 @@ export default {
             output: (r.output || "").slice(0, 2000),
             external_session_path: r.externalSessionPath || null,
             session_id: r.sessionId || null,
+            next_step: runtimeFailureNextStep(runtime, failure.reason),
           };
         }
 
