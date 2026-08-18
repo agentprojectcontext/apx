@@ -215,6 +215,18 @@ export interface ConversationListEntry {
   title?: string;
 }
 
+/** An attachment that arrived with a turn: the file is on disk under
+ *  ~/.apx/media and `path` is what /api/media streams back. `path` is null when
+ *  the download failed — the turn still records what was sent. */
+export interface MessageMedia {
+  kind: "audio" | "photo" | "video" | "animation" | "document" | "file";
+  path: string | null;
+  name: string | null;
+  mime: string | null;
+  size: number | null;
+  duration: number | null;
+}
+
 export interface ConversationMessage {
   role: "user" | "assistant" | "system" | "tool";
   content: string;
@@ -235,6 +247,8 @@ export interface ConversationMessage {
   /** Compact record of what the turn did, written at the time (the live tool
    *  events are long gone by the time a thread is read back). */
   tool_summary?: ToolSummary;
+  /** Present on role:"user" rows that carried an attachment. */
+  media?: MessageMedia;
 }
 
 export interface ToolSummary {

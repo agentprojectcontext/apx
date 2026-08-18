@@ -6,19 +6,22 @@
 //
 // Takes the poller instance (`self`, for logging, channel + the typing
 // indicator) plus the parsed update context, and returns the `text` the rest of
-// the pipeline should run — the transcript merged into any existing caption.
-import { appendGlobalMessage } from "#core/stores/messages.js";
-import { CHANNELS } from "#core/constants/channels.js";
+// the pipeline should run — the transcript merged into any existing caption —
+// plus the `media` metadata dispatch folds into the ONE record it writes for
+// this update. This handler deliberately writes nothing itself: it used to
+// append its own row while also rewriting `text`, so the same turn was stored
+// twice (see dispatch.js).
 import { transcribe as transcribeAudioFile } from "#core/voice/transcription.js";
 import { resolveBotToken, telegramMediaDir } from "../helpers.js";
 import { downloadTelegramFile } from "../media.js";
 
 /**
  * @param {object} self  poller instance (uses self.log, self.channel, self._startTyping)
- * @param {object} ctx   { msg, u, author, chat_id, text, incomingAudio }
- * @returns {Promise<{ text: string }>}  text to continue the pipeline with
+ * @param {object} ctx   { chat_id, text, incomingAudio }
+ * @returns {Promise<{ text: string, media: object }>}  text to continue the
+ *   pipeline with, and what was archived for the inbound record
  */
-export async function handleIncomingAudio(self, { msg, u, author, chat_id, text, incomingAudio }) {
+export async function handleIncomingAudio(self, { chat_id, text, incomingAudio }) {
   const token = resolveBotToken(self.channel);
   const mediaDir = telegramMediaDir();
 
@@ -53,30 +56,23 @@ export async function handleIncomingAudio(self, { msg, u, author, chat_id, text,
     ? `[audio] ${transcript}`
     : `[audio] (transcription unavailable${transcribeError ? ": " + transcribeError : ""})`;
 
-  appendGlobalMessage({
-    channel: CHANNELS.TELEGRAM,
-    direction: "in",
-    type: "audio",
-    actor_id: msg.from?.id ? String(msg.from.id) : author,
-    external_id: String(u.update_id),
-    author,
-    body: audioBody,
-    meta: {
-      chat_id,
-      user_id: msg.from?.id || null,
-      message_id: msg.message_id,
-      tg_channel: self.channel.name,
-      local_path: localPath,
-      file_id: incomingAudio.file_id,
-      duration: incomingAudio.duration,
-      mime_type: incomingAudio.mime_type,
-      transcription_backend: transcribeBackend,
-      transcription_error: transcribeError,
-    },
-  });
-
   // Inject the transcribed text into `text` so the rest of the agent pipeline
   // treats it identically to a typed message. If there was a caption alongside
-  // the audio, prepend the audio marker to it.
-  return { text: text ? `${audioBody}\n${text}` : audioBody };
+  // the audio, prepend the audio marker to it. The file metadata rides back
+  // with it so the stored turn keeps it, download or transcription failures
+  // included.
+  return {
+    text: text ? `${audioBody}\n${text}` : audioBody,
+    media: {
+      kind: "audio",
+      meta: {
+        local_path: localPath,
+        file_id: incomingAudio.file_id,
+        duration: incomingAudio.duration,
+        mime_type: incomingAudio.mime_type,
+        transcription_backend: transcribeBackend,
+        transcription_error: transcribeError,
+      },
+    },
+  };
 }

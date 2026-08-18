@@ -9,6 +9,9 @@ export interface SuperAgentSendBody {
   // channels/*.md block. "web" = big chat (full tools), "web_sidebar" = quick
   // chat (lightweight). Omitted → daemon defaults to "api".
   channel?: "web" | "web_sidebar";
+  /** Files this turn carries, as paths the daemon stored (POST /media/upload).
+   *  It re-resolves each one inside ~/.apx/media before reading it. */
+  attachments?: { path: string; name?: string }[];
 }
 
 export const SuperAgent = {

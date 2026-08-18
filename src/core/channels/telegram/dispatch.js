@@ -32,6 +32,21 @@ import { t, resolveLang } from "#core/i18n/index.js";
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 
+// One Telegram message = ONE stored record. The media handlers used to append
+// their own row AND rewrite `text`, so dispatch's inbound log stored the same
+// turn a second time: the viewer showed it twice, the current transcript landed
+// in its own history (the media row was already on disk by the time we read it
+// back), and the next turn replayed it twice more. They now return what they
+// archived and this folds it into the single inbound record, so the file
+// metadata (local_path, file_id, …) is not lost with the duplicate.
+function mediaMeta(media) {
+  if (!media.length) return {};
+  return {
+    ...Object.assign({}, ...media.map((m) => m.meta)),
+    media_kind: media.length === 1 ? media[0].kind : media.map((m) => m.kind),
+  };
+}
+
 export async function handleUpdate(self, u) {
     self.lastUpdateAt = nowIso();
 
@@ -86,29 +101,37 @@ export async function handleUpdate(self, u) {
     let text = msg.text || msg.caption || "";
 
     // ── Incoming media ────────────────────────────────────────────────────
-    // Photo and voice/audio each download + archive the file and rewrite `text`
-    // so the rest of the pipeline treats them like a typed message. The handlers
-    // live in ./inbound/ to keep this dispatcher focused on routing. Each one
+    // Photo, voice/audio and files each download the attachment and rewrite
+    // `text` so the rest of the pipeline treats them like a typed message; the
+    // file metadata comes back in `media` and is stored on the single inbound
+    // record below. The handlers live in ./inbound/ to keep this dispatcher
+    // focused on routing. Each one
     // injects a marker so a caption-less attachment is never an empty turn:
     // photos an `[image]` marker (plus the pixels, as an attachment, for a
     // multimodal engine), audio its `[audio]` transcript, files a description
     // with the local path.
     const attachments = [];
+    const media = [];   // what the handlers downloaded, folded into the inbound record below
     if (msg.photo && msg.photo.length > 0) {
-      let attachment;
-      ({ text, attachment } = await handleIncomingPhoto(self, { msg, u, author, chat_id, text }));
+      let attachment, archived;
+      ({ text, attachment, media: archived } = await handleIncomingPhoto(self, { msg, text }));
       if (attachment) attachments.push(attachment);
+      if (archived) media.push(archived);
     }
     const incomingAudio = msg.voice || msg.audio;
     if (incomingAudio && incomingAudio.file_id) {
-      ({ text } = await handleIncomingAudio(self, { msg, u, author, chat_id, text, incomingAudio }));
+      let archived;
+      ({ text, media: archived } = await handleIncomingAudio(self, { chat_id, text, incomingAudio }));
+      if (archived) media.push(archived);
     }
     // Documents, video, video notes and GIFs. Without this a file sent with no
     // caption left `text` empty, the turn was dropped, and the bot answered
     // nothing at all.
     const incomingFile = detectIncomingFile(msg);
     if (incomingFile) {
-      ({ text } = await handleIncomingFile(self, { msg, u, author, chat_id, text, incoming: incomingFile }));
+      let archived;
+      ({ text, media: archived } = await handleIncomingFile(self, { text, incoming: incomingFile }));
+      if (archived) media.push(archived);
     }
 
     // If there's a pending ask_questions flow for this chat AND the current
@@ -125,6 +148,7 @@ export async function handleUpdate(self, u) {
         author,
         body: text,
         meta: {
+          ...mediaMeta(media),
           chat_id,
           user_id: msg.from?.id || null,
           message_id: msg.message_id,
@@ -188,6 +212,7 @@ export async function handleUpdate(self, u) {
       author,
       body: text,
       meta: {
+        ...mediaMeta(media),
         chat_id,
         user_id: msg.from?.id || null,
         message_id: msg.message_id,

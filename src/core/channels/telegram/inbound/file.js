@@ -1,8 +1,9 @@
 // Inbound Telegram FILES: document, video, video_note, animation.
 //
 // Same shape as ./photo.js and ./audio.js — take the poller (`self`) plus the
-// parsed update, download and archive the file, and return the (rewritten)
-// `text` the rest of the pipeline runs with.
+// parsed update, download the file, and return the (rewritten) `text` the rest
+// of the pipeline runs with plus the metadata dispatch folds into the one
+// record it writes for this update.
 //
 // Why this exists: dispatch only recognised photo and voice/audio. Every other
 // attachment fell through to `text = msg.caption || ""`, and a file sent with
@@ -13,8 +14,6 @@
 // The reply is model-authored, as everywhere else: the marker states what
 // arrived and where it landed, and the agent puts that in its own words. No
 // canned "file received" string.
-import { appendGlobalMessage } from "#core/stores/messages.js";
-import { CHANNELS } from "#core/constants/channels.js";
 import { resolveBotToken, telegramMediaDir } from "../helpers.js";
 import { downloadTelegramFile } from "../media.js";
 
@@ -49,10 +48,10 @@ function humanSize(bytes) {
 
 /**
  * @param {object} self  poller instance (uses self.log, self.channel)
- * @param {object} ctx   { msg, u, author, chat_id, text, incoming }
- * @returns {Promise<{ text: string }>}
+ * @param {object} ctx   { text, incoming }
+ * @returns {Promise<{ text: string, media: object }>}
  */
-export async function handleIncomingFile(self, { msg, u, author, chat_id, text, incoming }) {
+export async function handleIncomingFile(self, { text, incoming }) {
   const { file, label, type } = incoming;
   const token = resolveBotToken(self.channel);
   const mediaDir = telegramMediaDir();
@@ -72,30 +71,6 @@ export async function handleIncomingFile(self, { msg, u, author, chat_id, text, 
     self.log(`telegram[${self.channel.name}] ${label} download failed: ${e.message}`);
   }
 
-  // Archive regardless of download outcome, so the history records the file
-  // even when the fetch failed.
-  appendGlobalMessage({
-    channel: CHANNELS.TELEGRAM,
-    direction: "in",
-    type,
-    actor_id: msg.from?.id ? String(msg.from.id) : author,
-    external_id: String(u.update_id),
-    author,
-    body: text || `[${label}]`,
-    meta: {
-      chat_id,
-      user_id: msg.from?.id || null,
-      message_id: msg.message_id,
-      tg_channel: self.channel.name,
-      local_path: localPath,
-      file_id: file.file_id,
-      file_name: declaredName || null,
-      mime_type: file.mime_type || null,
-      file_size: file.file_size || null,
-      duration: file.duration || null,
-    },
-  });
-
   const bits = [declaredName || label];
   const size = humanSize(file.file_size);
   if (size) bits.push(size);
@@ -104,5 +79,20 @@ export async function handleIncomingFile(self, { msg, u, author, chat_id, text, 
     ? `[${label} received: ${bits.join(", ")} — saved to ${localPath}. You can open it with your file tools.]`
     : `[${label} received: ${bits.join(", ")} — the download FAILED (${failure || "unknown error"}), so there is no local copy. Say so; files over 20 MB cannot be fetched by a bot.]`;
 
-  return { text: text ? `${marker} ${text}` : marker };
+  return {
+    text: text ? `${marker} ${text}` : marker,
+    // Reported regardless of download outcome, so the stored turn records the
+    // file even when the fetch failed.
+    media: {
+      kind: type,
+      meta: {
+        local_path: localPath,
+        file_id: file.file_id,
+        file_name: declaredName || null,
+        mime_type: file.mime_type || null,
+        file_size: file.file_size || null,
+        duration: file.duration || null,
+      },
+    },
+  };
 }

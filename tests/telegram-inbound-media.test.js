@@ -11,8 +11,12 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 process.env.HOME = fs.mkdtempSync(path.join(os.tmpdir(), "apx-media-test-"));
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const readSrc = (...p) => fs.readFileSync(path.join(__dirname, "..", "src", ...p), "utf8");
 
 const { detectIncomingFile, handleIncomingFile } = await import("#core/channels/telegram/inbound/file.js");
 const { safeFileBase } = await import("#core/channels/telegram/media.js");
@@ -157,4 +161,75 @@ test("an assistant turn never carries images back to the model", async () => {
   } finally {
     global.fetch = original;
   }
+});
+
+// ── One message, one record ────────────────────────────────────────────────
+// A voice note arrived and was stored TWICE: the media handler appended its own
+// row and also rewrote `text`, which dispatch then logged as the inbound turn.
+// Same ts, same message_id, same body. The web thread showed the message twice,
+// and the reader (getRecentChannelTurnsFromFs → coalesceTurns) fed the model the
+// whole transcript twice. Worse, the media row was on disk BEFORE dispatch read
+// the history back, so the current turn was part of its own history.
+//
+// `appendGlobalMessage` writes to the user's real ~/.apx/messages (no dir
+// injection), so the write side is asserted on source shape, as in
+// turn-attribution.test.js.
+
+test("a media handler writes no record of its own", () => {
+  for (const f of ["audio.js", "photo.js", "file.js"]) {
+    const src = readSrc("core", "channels", "telegram", "inbound", f);
+    assert.doesNotMatch(
+      src,
+      /appendGlobalMessage/,
+      `inbound/${f} must not append its own row — dispatch writes the one record for the update`,
+    );
+  }
+});
+
+test("the file metadata rides back to dispatch instead", async () => {
+  const restore = stubTelegramDownload();
+  try {
+    const msg = {
+      message_id: 8,
+      from: { id: 7 },
+      document: { file_id: "meta1", file_name: "b.pdf", file_size: 10, mime_type: "application/pdf" },
+    };
+    const { media } = await handleIncomingFile(fakePoller(), CTX(msg));
+    assert.equal(media.kind, "document");
+    assert.equal(media.meta.file_id, "meta1");
+    assert.equal(media.meta.file_name, "b.pdf");
+    assert.equal(media.meta.mime_type, "application/pdf");
+    assert.ok(media.meta.local_path, "the local path must survive — it only lived on the dropped row");
+  } finally {
+    restore();
+  }
+});
+
+test("a failed download still reports what arrived", async () => {
+  const original = global.fetch;
+  global.fetch = async () => ({ ok: true, json: async () => ({ ok: false, description: "too big" }) });
+  try {
+    const msg = { message_id: 9, from: { id: 7 }, video: { file_id: "vid1", file_size: 99 } };
+    const { media } = await handleIncomingFile(fakePoller(), CTX(msg));
+    assert.equal(media.kind, "video");
+    assert.equal(media.meta.file_id, "vid1");
+    assert.equal(media.meta.local_path, null, "no local copy, and the record says so");
+  } finally {
+    global.fetch = original;
+  }
+});
+
+test("dispatch folds the media metadata into its single inbound record", () => {
+  const src = readSrc("core", "channels", "telegram", "dispatch.js");
+  assert.match(src, /function mediaMeta\(media\)/, "dispatch must merge what the handlers archived");
+  assert.match(
+    src,
+    /meta: \{\s*\n\s*\.\.\.mediaMeta\(media\),\s*\n\s*chat_id,/,
+    "every inbound record must carry the media metadata",
+  );
+  assert.equal(
+    (src.match(/\.\.\.mediaMeta\(media\)/g) || []).length,
+    2,
+    "both inbound writes (plain turn and ask-flow answer) need it",
+  );
 });
