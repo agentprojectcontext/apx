@@ -9,7 +9,6 @@ import { readAgents } from "#core/apc/parser.js";
 import { agentMemoryPath } from "#core/agent/memory.js";
 import { apcMemoryFile } from "#core/apc/paths.js";
 import { CHANNELS } from "#core/constants/channels.js";
-import { isKnownSpaRoute } from "./web.js";
 import { apiPath, isApiPath } from "./prefix.js";
 
 export const nowIso = () =>
@@ -98,30 +97,27 @@ const UNAUTHENTICATED_PREFIXES = [
   apiPath("/admin/web-token"),
 ];
 
-// Does this path look like a static asset (has a file extension)? Vite emits
-// hashed, extension-bearing filenames (index-abc123.js, logo.svg, font.woff2),
-// so an extension is a reliable "this is a bundle asset, not a data route"
-// signal. Data routes (/skills, /projects, /p/0/tasks) have no extension.
-function isStaticAssetPath(p) {
-  return path.extname(p) !== "";
-}
-
 function isUnauthenticatedPath(p, method = "GET") {
   for (const prefix of UNAUTHENTICATED_PREFIXES) {
     if (p === prefix.replace(/\/$/, "") || p.startsWith(prefix)) return true;
   }
-  // Everything else under /api needs a token, full stop. Checked BEFORE the
-  // SPA-bootstrap exemption below, which would otherwise let a data route pass
-  // simply because its last segment happens to carry a file extension —
-  // GET /api/projects/0/artifacts/report.html is a data route, not an asset.
+  // Everything under /api needs a token, full stop. This is the whole auth
+  // wall: since the /api cutover there is no data route outside that prefix,
+  // and a path is on one side of the seam or the other.
   if (isApiPath(p)) return false;
   // SPA bootstrap: the admin bundle loads before it holds a bearer, so a GET
-  // for a static asset or a known client-router route is served without auth —
-  // the bundle then fetches /api/admin/web-token. Since every data route now
-  // lives under /api and returned false above, this exemption can only ever
-  // reach panel assets and client-router paths.
-  if (method === "GET" && (isStaticAssetPath(p) || isKnownSpaRoute(p))) return true;
-  return false;
+  // outside /api is served without auth — the bundle then fetches
+  // /api/admin/web-token. Out here there is nothing BUT the panel: a hashed
+  // bundle asset (index-abc123.js, logo.svg) or a client-router path, and both
+  // resolve to the same public index.html shell.
+  //
+  // Including paths the router does NOT know. That is deliberate: an unknown
+  // route is exactly the one that must reach the SPA fallback (api/web.js),
+  // which serves the shell with a 404 so React Router can draw the styled
+  // NotFound screen. While this was gated on isKnownSpaRoute, a typo'd URL got
+  // a bare 401 JSON body instead — and the old justification ("an unknown
+  // extension-less GET might be a data route") died with the cutover above.
+  return method === "GET";
 }
 
 // Bearer-token auth.
