@@ -22,6 +22,7 @@ import { isBlobKey } from "../../components/agents/blobPresets";
 import { FileViewer } from "../../components/files/FileViewer";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
+import { toneOutline, toneText } from "../../lib/tone";
 import type { AgentAutonomy } from "../../types/daemon";
 import { BrainGraph, type BrainNode, type BrainEdge } from "./AgentBrainGraph";
 
@@ -118,7 +119,7 @@ export function AgentDetailScreen({ pid }: { pid: string }) {
               {a.role && <Badge>{a.role}</Badge>}
               {a.model && <Badge tone="info">{a.model}</Badge>}
               {a.parent && (
-                <button onClick={() => navigate(`/p/${pid}/agents/${a.parent}`)} className="text-[11px] text-violet-400 hover:underline">
+                <button onClick={() => navigate(`/p/${pid}/agents/${a.parent}`)} className={`text-[11px] hover:underline ${toneText.violet}`}>
                   {t("project.agent_detail.reports_to")} {a.parent}
                 </button>
               )}
@@ -491,7 +492,7 @@ function RecordsList({ records, loading }: { records: MessageEntry[]; loading: b
         {sorted.map((m, i) => (
           <li key={`${m.ts}-${i}`} className="flex items-start gap-2 rounded-md border border-border bg-muted/30 px-3 py-2">
             <span className="mt-0.5 shrink-0">
-              {m.direction === "in" ? <ArrowDownLeft size={13} className="text-blue-400" /> : <ArrowUpRight size={13} className="text-emerald-400" />}
+              {m.direction === "in" ? <ArrowDownLeft size={13} className={toneText.blue} /> : <ArrowUpRight size={13} className={toneText.emerald} />}
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-fg">
@@ -513,7 +514,7 @@ function SleepView({ routines }: { routines: RoutineEntry[] }) {
     return (
       <Section title={t("project.agent_detail.sleep_title")} description={t("project.agent_detail.sleep_desc")}>
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-4 text-sm">
-          <div className="font-medium text-amber-400">{t("project.agent_detail.sleep_deep")}</div>
+          <div className={`font-medium ${toneText.amber}`}>{t("project.agent_detail.sleep_deep")}</div>
           <p className="mt-1 text-xs text-muted-fg">{t("project.agent_detail.sleep_deep_desc")}</p>
         </div>
       </Section>
@@ -585,7 +586,7 @@ function ToolsPicker({ value, onChange }: { value: string; onChange: (v: string)
             <Tip key={tool.name} content={tool.description || tool.name}>
               <button type="button" onClick={() => toggle(tool.name)}
                 className={cn("rounded-md border px-2 py-0.5 font-mono text-[11px] transition-colors",
-                  on ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-400" : "border-border text-muted-fg hover:text-foreground")}>
+                  on ? toneOutline.emerald : "border-border text-muted-fg hover:text-foreground")}>
                 {tool.name}
               </button>
             </Tip>
@@ -593,7 +594,7 @@ function ToolsPicker({ value, onChange }: { value: string; onChange: (v: string)
         })}
         {custom.map((s) => (
           <button key={s} type="button" onClick={() => toggle(s)}
-            className="rounded-md border border-sky-500/50 bg-sky-500/10 px-2 py-0.5 font-mono text-[11px] text-sky-400">
+            className={cn("rounded-md px-2 py-0.5 font-mono text-[11px]", toneOutline.sky)}>
             {s} ✕
           </button>
         ))}

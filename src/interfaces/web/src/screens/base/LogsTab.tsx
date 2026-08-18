@@ -7,6 +7,7 @@ import { Section } from "../../components/Section";
 import { Badge, Button, Empty, Input, Loading } from "../../components/ui";
 import { UiSelect } from "../../components/UiSelect";
 import { t } from "../../i18n";
+import { toneText } from "../../lib/tone";
 
 const CLAMP = 320;
 
@@ -58,8 +59,8 @@ function LogRow({ m }: { m: MessageEntry }) {
     <li className="flex items-start gap-3 rounded-md border border-border bg-muted/30 px-3 py-2">
       <span className="mt-0.5 shrink-0">
         {m.direction === "in"
-          ? <ArrowDownLeft size={14} className="text-blue-400" />
-          : <ArrowUpRight size={14} className="text-emerald-400" />}
+          ? <ArrowDownLeft size={14} className={toneText.blue} />
+          : <ArrowUpRight size={14} className={toneText.emerald} />}
       </span>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-fg">
@@ -72,7 +73,7 @@ function LogRow({ m }: { m: MessageEntry }) {
               sentence in a log line is not. */}
           {lifecycleEvent(m) && <Badge tone="success">{lifecycleEvent(m)}</Badge>}
           <span className="font-medium text-foreground">{actorLabel(m)}</span>
-          {model && <span className="font-mono text-[11px] text-sky-400/90">{model}</span>}
+          {model && <span className={`font-mono text-[11px] ${toneText.sky}`}>{model}</span>}
           {tokens !== null && <span className="font-mono text-[11px]">{tokens} tok</span>}
         </div>
         {m.body && (
@@ -82,7 +83,7 @@ function LogRow({ m }: { m: MessageEntry }) {
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
-            className="mt-1 text-[11px] font-medium text-sky-400 hover:underline"
+            className={`mt-1 text-[11px] font-medium hover:underline ${toneText.sky}`}
           >
             {expanded ? t("logs.show_less") : t("logs.show_more")}
           </button>

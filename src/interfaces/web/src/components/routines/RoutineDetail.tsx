@@ -3,6 +3,7 @@ import type { RoutineEntry } from "../../lib/api";
 import { Badge, Button, Switch, Tip } from "../ui";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
+import { toneTint } from "../../lib/tone";
 import { kindMeta, scheduleHuman } from "./shared";
 import { relativeWhen } from "../../lib/when";
 import { ReadOnlyBlock } from "../ReadOnlyBlock";
@@ -49,7 +50,7 @@ export function RoutineDetail({
         {/* header: name + actions (edit behind a button) */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2">
-            <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-lg", routine.enabled ? "bg-emerald-500/15 text-emerald-400" : "bg-muted text-muted-fg")}>
+            <span className={cn("flex size-7 shrink-0 items-center justify-center rounded-lg", routine.enabled ? toneTint.emerald : "bg-muted text-muted-fg")}>
               <Icon size={14} />
             </span>
             <h3 className="truncate text-base font-semibold">{routine.name}</h3>

@@ -7,6 +7,7 @@ import { UiSelect } from "../UiSelect";
 import { useToast } from "../Toast";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
+import { toneOutline, toneText } from "../../lib/tone";
 import { type Kind, kindMeta, kindOptions, schedPresets, scheduleHuman, splitLines, varsFor } from "./shared";
 import { CronPicker } from "../cron/CronPicker";
 import { parseCron } from "../../lib/cron";
@@ -171,12 +172,12 @@ export function RoutineEditor({
                 <div className="flex flex-wrap gap-1">
                   {schedPresets().map((s) => (
                     <button key={s.value} type="button" onClick={() => setSchedule(s.value)}
-                      className={cn("rounded-md border px-2 py-0.5 text-[11px]", schedule === s.value ? "border-emerald-500/50 text-emerald-400" : "border-border text-muted-fg hover:text-foreground")}>
+                      className={cn("rounded-md border px-2 py-0.5 text-[11px]", schedule === s.value ? toneOutline.emerald : "border-border text-muted-fg hover:text-foreground")}>
                       {s.label}
                     </button>
                   ))}
                   <button type="button" onClick={() => setSchedule("manual")}
-                    className={cn("rounded-md border px-2 py-0.5 text-[11px]", schedule === "manual" ? "border-emerald-500/50 text-emerald-400" : "border-border text-muted-fg hover:text-foreground")}>
+                    className={cn("rounded-md border px-2 py-0.5 text-[11px]", schedule === "manual" ? toneOutline.emerald : "border-border text-muted-fg hover:text-foreground")}>
                     {t("agents_ui.preset_manual")}
                   </button>
                 </div>
@@ -256,8 +257,8 @@ export function RoutineEditor({
           <div className="flex flex-wrap items-stretch gap-2">
             {steps.map((s, i) => (
               <div key={s.id} className="flex items-stretch gap-2">
-                <div className={cn("flex max-w-[240px] flex-col gap-1 rounded-lg border px-2.5 py-2", s.action ? "border-emerald-500/40 bg-emerald-500/5" : "border-border bg-card")}>
-                  <div className={cn("flex items-center gap-1.5 text-[11px] font-medium", s.action ? "text-emerald-400" : "text-muted-fg")}>
+                <div className={cn("flex max-w-[240px] flex-col gap-1 rounded-lg border px-2.5 py-2", s.action ? "border-emerald-600/40 bg-emerald-500/5 dark:border-emerald-500/40" : "border-border bg-card")}>
+                  <div className={cn("flex items-center gap-1.5 text-[11px] font-medium", s.action ? toneText.emerald : "text-muted-fg")}>
                     <s.icon size={12} /> {s.label}
                   </div>
                   {s.detail && <div className="line-clamp-2 font-mono text-[10px] text-muted-fg">{s.detail}</div>}
