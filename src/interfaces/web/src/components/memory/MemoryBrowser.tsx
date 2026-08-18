@@ -8,6 +8,7 @@ import { cn } from "../../lib/cn";
 import { Spinner, Empty } from "../ui";
 import { useToast } from "../Toast";
 import { t } from "../../i18n";
+import { toneText } from "../../lib/tone";
 import { usePersonaName } from "../../hooks/usePersonaName";
 import { FileViewer } from "../files/FileViewer";
 
@@ -140,7 +141,7 @@ export function MemoryBrowser({ pid }: { pid: string }) {
             active={sel.kind === "notebook"}
             onClick={() => setSel({ kind: "notebook" })}
             icon={NotebookPen}
-            iconClass="text-emerald-400"
+            iconClass={toneText.emerald}
             label={t("project.memories.notebook_item", { persona })}
             sub={notebook.data ? t("project.memories.tokens", { n: notebook.data.approx_tokens }) : undefined}
           />
@@ -174,7 +175,7 @@ export function MemoryBrowser({ pid }: { pid: string }) {
                 active={sel.kind === "agent" && sel.slug === a.slug}
                 onClick={() => setSel({ kind: "agent", slug: a.slug })}
                 icon={a.is_master ? Crown : Bot}
-                iconClass={a.is_master ? "text-violet-400" : "text-muted-foreground"}
+                iconClass={a.is_master ? toneText.violet : "text-muted-foreground"}
                 label={a.slug}
                 sub={a.role || undefined}
               />

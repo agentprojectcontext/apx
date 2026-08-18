@@ -4,6 +4,7 @@ import { AlertCircle, CheckCircle2, ChevronDown, ExternalLink, Eye, EyeOff, Gith
 import { cn } from "../../lib/cn";
 import { Integrations, type CatalogEntry, type IntegrationScope, type IntegrationStatus } from "../../lib/api";
 import { t } from "../../i18n";
+import { toneChip, toneDot, toneText } from "../../lib/tone";
 import type { TKey } from "../../i18n";
 import { PluginCard } from "./PluginCard";
 import { PluginToolsSection } from "./PluginToolsSection";
@@ -38,9 +39,9 @@ function Toggle({ on, onChange, disabled, accent }: { on: boolean; onChange: (ne
 
 type Accent = { text: string; border: string; hover: string; ring: string; wrap: string };
 const ACCENTS: Record<string, Accent> = {
-  rose: { text: "text-rose-400", border: "border-rose-700/50", hover: "hover:bg-rose-900/20", ring: "focus:border-rose-500/50", wrap: "border-rose-500/30 from-rose-500/20 to-pink-500/20" },
-  slate: { text: "text-slate-200", border: "border-slate-600/60", hover: "hover:bg-slate-700/30", ring: "focus:border-slate-400/60", wrap: "border-slate-500/30 from-slate-500/20 to-slate-700/20" },
-  purple: { text: "text-purple-400", border: "border-purple-700/50", hover: "hover:bg-purple-900/20", ring: "focus:border-purple-500/50", wrap: "border-purple-500/30 from-purple-500/20 to-violet-500/20" },
+  rose: { text: toneText.rose, border: "border-rose-600/40 dark:border-rose-700/50", hover: "hover:bg-rose-500/10 dark:hover:bg-rose-900/20", ring: "focus:border-rose-500/50", wrap: "border-rose-500/30 from-rose-500/20 to-pink-500/20" },
+  slate: { text: toneText.slate, border: "border-slate-400/60 dark:border-slate-600/60", hover: "hover:bg-slate-500/10 dark:hover:bg-slate-700/30", ring: "focus:border-slate-400/60", wrap: "border-slate-500/30 from-slate-500/20 to-slate-700/20" },
+  purple: { text: toneText.purple, border: "border-purple-600/40 dark:border-purple-700/50", hover: "hover:bg-purple-500/10 dark:hover:bg-purple-900/20", ring: "focus:border-purple-500/50", wrap: "border-purple-500/30 from-purple-500/20 to-violet-500/20" },
 };
 
 function iconFor(slug: string, accent: Accent): ReactNode {
@@ -193,10 +194,10 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
         <span
           className={cn(
             "flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px]",
-            isActive ? "border-emerald-700 bg-emerald-900/20 text-emerald-400" : "border-border bg-muted text-muted-foreground",
+            isActive ? toneChip.emerald : "border-border bg-muted text-muted-foreground",
           )}
         >
-          <span className={cn("h-1.5 w-1.5 rounded-full", isActive ? "bg-emerald-400" : "bg-muted-foreground")} />
+          <span className={cn("h-1.5 w-1.5 rounded-full", isActive ? toneDot.emerald : "bg-muted-foreground")} />
           {badgeLabel}
         </span>
       }
@@ -205,7 +206,7 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
     >
       <div className="space-y-4 p-4">
         {error && (
-          <div className="flex items-center gap-2 rounded-lg border border-red-700/30 bg-red-900/20 px-3 py-2.5 text-xs text-red-300">
+          <div className={cn("flex items-center gap-2 rounded-lg px-3 py-2.5 text-xs", toneChip.red)}>
             <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
             <span className="flex-1">{error}</span>
             <button onClick={() => setError(null)}><X className="h-3.5 w-3.5" /></button>
@@ -214,10 +215,10 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
 
         {/* Connected summary */}
         {isActive && selectOptions.length === 0 && (
-          <div className="space-y-1 rounded-xl border border-emerald-700/30 bg-emerald-900/10 p-3">
+          <div className="space-y-1 rounded-xl border border-emerald-600/30 bg-emerald-500/8 p-3 dark:border-emerald-700/30 dark:bg-emerald-900/10">
             <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-              <span className="text-xs font-medium text-emerald-300">{t("integrations.connected")}</span>
+              <CheckCircle2 className={cn("h-3.5 w-3.5", toneText.emerald)} />
+              <span className={cn("text-xs font-medium", toneText.emerald)}>{t("integrations.connected")}</span>
             </div>
             {(ui.connectedFields || []).map((key) => {
               const v = status?.[key];
@@ -248,7 +249,7 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
 
         {isActive && selectOptions.length === 0 && (ui.actions?.length ?? 0) > 0 && (
           <div className="space-y-2">
-            {actionMsg && <p className="text-[11px] text-emerald-400">{actionMsg}</p>}
+            {actionMsg && <p className={cn("text-[11px]", toneText.emerald)}>{actionMsg}</p>}
             <div className="flex flex-wrap gap-2">
               {ui.actions!.map((a) => (
                 <button
@@ -407,7 +408,7 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
           <div className="flex justify-end border-t border-border pt-2">
             <button
               onClick={handleDeactivate}
-              className="flex items-center gap-1.5 rounded-lg border border-red-700/50 px-3 py-1.5 text-xs text-red-400 transition-all hover:bg-red-900/20"
+              className={cn("flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs transition-all", toneText.red, "border-red-600/40 hover:bg-red-500/10 dark:border-red-700/50 dark:hover:bg-red-900/20")}
             >
               <WifiOff className="h-3.5 w-3.5" /> {t("integrations.deactivate")}
             </button>
