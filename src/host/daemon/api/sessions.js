@@ -12,7 +12,14 @@ import {
   agentSessionsDir,
   createAgentSessionFile,
 } from "#core/stores/sessions.js";
-import { collectAllSessions, filterSessionsByQuery } from "#core/sessions/index.js";
+import {
+  collectAllSessions,
+  filterSessionsByQuery,
+  findSessionAcrossEngines,
+  findSessionInEngine,
+  resumeCommandFor,
+} from "#core/sessions/index.js";
+import { readEngineSessionContext } from "#core/stores/engine-sessions.js";
 import { pageEnvelope } from "./shared.js";
 
 export function register(api, { projects, project }) {
@@ -47,6 +54,41 @@ export function register(api, { projects, project }) {
       rows.sort((a, b) => (b.mtime || 0) - (a.mtime || 0));
     }
     res.json(pageEnvelope(rows, req.query));
+  });
+
+  // One session, enough to decide what to do with it: what it was about, and
+  // the command that re-enters it. The list can't carry this — the working
+  // directory and last prompt cost a file read (or, for OpenCode, a subprocess)
+  // per session, which is affordable once and not eighty times.
+  //
+  // ?engine= disambiguates when two engines mint the same id; without it the
+  // first engine that recognises the id answers.
+  api.get("/sessions/:id", (req, res) => {
+    const id = String(req.params.id || "");
+    const engineId = req.query.engine ? String(req.query.engine) : null;
+    let meta = null;
+    try {
+      meta = engineId ? findSessionInEngine(engineId, id) : (findSessionAcrossEngines(id)[0] || null);
+    } catch (e) {
+      return res.status(500).json({ error: e.message });
+    }
+    if (!meta) return res.status(404).json({ error: "session not found" });
+
+    // Engines that hand us a transcript path get read for a summary; the ones
+    // that answered from their own CLI already included what they know.
+    let ctx = null;
+    try { ctx = meta.path ? readEngineSessionContext(meta) : null; } catch { ctx = null; }
+
+    res.json({
+      engine: meta.engine,
+      id: meta.id,
+      title: ctx?.title || meta.title || "",
+      last_prompt: ctx?.lastPrompt || meta.lastPrompt || null,
+      cwd: meta.cwd || null,
+      path: meta.path || null,
+      mtime: meta.mtime || 0,
+      resume_command: resumeCommandFor(meta.engine, meta.id),
+    });
   });
 
   api.get("/projects/:pid/agents/:slug/sessions", (req, res) => {
