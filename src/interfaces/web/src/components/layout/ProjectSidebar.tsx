@@ -8,9 +8,13 @@
 // and only as many as physically fit are shown inline — the rest collapse into
 // a "+N" popover so the rail never overflows the viewport. The whole section can
 // also be collapsed into a single folder button (state persisted per browser).
+//
+// Each project avatar carries a right-click menu: the rail shows one 40px tile
+// per project and has nowhere to put a "⋯", so the verbs that don't fit (its
+// config, its path, unregistering it) hang off the tile itself.
 import { useLayoutEffect, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { Plus, Settings, Monitor, Terminal, Bot, BookOpen, ChevronDown, Folders, MessagesSquare, type LucideIcon } from "lucide-react";
+import { Plus, Settings, Monitor, Terminal, Bot, BookOpen, ChevronDown, Folders, MessagesSquare, Copy, SlidersHorizontal, Trash2, type LucideIcon } from "lucide-react";
 import { Logo } from "./Logo";
 import { ProjectAvatar, projectTone } from "./ProjectAvatar";
 import { Tip } from "../ui/tip";
@@ -20,6 +24,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../ui/dropdown-menu";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "../ui/context-menu";
+import { ConfirmDialog } from "../common/ConfirmDialog";
+import { useToast } from "../Toast";
+import { Projects } from "../../lib/api";
 import { useNavCollapse } from "../common/TabNav";
 import { useProjects } from "../../hooks/useProjects";
 import { usePersonaName } from "../../hooks/usePersonaName";
@@ -117,6 +131,12 @@ function useRailOrder(): { pinned: string[]; pin: (id: string) => void } {
   return { pinned, pin };
 }
 
+// What a project is called on the rail: its name, else the last segment of its
+// path, else its id — the same rule everywhere it is drawn.
+function projectLabel(p: ProjectEntry): string {
+  return p.name || p.path.split("/").pop() || String(p.id);
+}
+
 // Square rail button that opens a dropdown listing projects — used both for the
 // "+N" overflow bucket and for the fully-collapsed folder.
 function RailProjectMenu({
@@ -168,7 +188,7 @@ function RailProjectMenu({
       <DropdownMenuContent side="right" align="start" sideOffset={8} className="max-h-[70vh] w-64">
         <div className="px-1.5 py-1 text-xs font-medium text-muted-foreground">{header}</div>
         {projects.map((p) => {
-          const name = p.name || p.path.split("/").pop() || String(p.id);
+          const name = projectLabel(p);
           const href = `/p/${p.id}`;
           const { initials, idleClass } = projectTone(name);
           return (
@@ -191,13 +211,17 @@ function RailProjectMenu({
 }
 
 export function ProjectSidebar({ onSelect, onOpenRoby, onOpenAddProject }: Props) {
-  const { projects, isLoading } = useProjects();
+  const { projects, isLoading, mutate: mutateProjects } = useProjects();
   const location = useLocation();
+  const toast = useToast();
   const MODULES = buildModules();
   const persona = usePersonaName();
   const listRef = useRef<HTMLDivElement>(null);
   const { collapsed, toggle } = useNavCollapse(STORAGE.sidebarCollapsed + ".projects");
   const { pinned, pin } = useRailOrder();
+  // The one destructive verb on the rail never fires from the menu itself — it
+  // parks the project here and the dialog below asks first.
+  const [pendingRemove, setPendingRemove] = useState<ProjectEntry | null>(null);
 
   const isActive = (href: string) =>
     location.pathname === href || location.pathname.startsWith(`${href}/`);
@@ -212,6 +236,29 @@ export function ProjectSidebar({ onSelect, onOpenRoby, onOpenAddProject }: Props
     pin(String(project.id));
     openProject(project);
   };
+  const copyPath = async (project: ProjectEntry) => {
+    try {
+      await navigator.clipboard.writeText(project.path);
+      toast.success(t("nav.path_copied"));
+    } catch {
+      toast.error(t("nav.copy_failed"));
+    }
+  };
+  // Unregister, not delete: the project leaves APX's registry and every file on
+  // disk stays. If you were reading the project you just removed, the rail
+  // takes you home — its screen has nothing left to show.
+  const runRemove = async () => {
+    if (!pendingRemove) return;
+    try {
+      await Projects.remove(String(pendingRemove.id));
+      toast.success(t("project.unregistered"));
+      await mutateProjects();
+      if (isActive(`/p/${pendingRemove.id}`)) onSelect("/");
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  };
+
   const base = projects.find((p) => String(p.id) === "0");
   // Pinned first in the order they were pinned, then the rest newest-first —
   // higher ids are more recently registered.
@@ -332,21 +379,17 @@ export function ProjectSidebar({ onSelect, onOpenRoby, onOpenAddProject }: Props
               <div data-rail-probe aria-hidden className="invisible absolute w-full">
                 <ProjectAvatar label="Ag" active={false} onClick={() => {}} />
               </div>
-              {visible.map((p) => {
-                const label = p.name || p.path.split("/").pop() || String(p.id);
-                const href = `/p/${p.id}`;
-                return (
-                  <div key={p.id} data-rail-item className="w-full">
-                    <ProjectAvatar
-                      label={label}
-                      testId={`project-avatar-${p.id}`}
-                      title={`${label} — ${p.path}`}
-                      active={isActive(href)}
-                      onClick={() => openProject(p)}
-                    />
-                  </div>
-                );
-              })}
+              {visible.map((p) => (
+                <ProjectRailItem
+                  key={p.id}
+                  project={p}
+                  active={isActive(`/p/${p.id}`)}
+                  onOpen={() => openProject(p)}
+                  onOpenConfig={() => onSelect(`/p/${p.id}/config`)}
+                  onCopyPath={() => copyPath(p)}
+                  onRemove={() => setPendingRemove(p)}
+                />
+              ))}
               {overflow.length > 0 && (
                 <RailProjectMenu
                   projects={overflow}
@@ -409,7 +452,76 @@ export function ProjectSidebar({ onSelect, onOpenRoby, onOpenAddProject }: Props
           <Bot size={18} />
         </button>
       </Tip>
+
+      {/* Portalled: it lives here so the rail owns its own destructive flow,
+          but it renders at the document root, outside the measured list. The
+          path goes in the question — the tile only shows two initials, and the
+          folder is what the answer is really about. */}
+      <ConfirmDialog
+        open={pendingRemove !== null}
+        onClose={() => setPendingRemove(null)}
+        onConfirm={runRemove}
+        title={t("project.danger.unregister_confirm_title")}
+        description={pendingRemove
+          ? `${t("project.unregister_confirm", { label: projectLabel(pendingRemove) })} ${pendingRemove.path}`
+          : ""}
+        confirmLabel={t("admin.unregister")}
+        testId="project-unregister-confirm"
+      />
     </aside>
+  );
+}
+
+// One rail avatar plus its right-click menu. Left click still just opens the
+// project — the menu is for everything else, and the destructive item only
+// arms the confirmation dialog.
+function ProjectRailItem({
+  project,
+  active,
+  onOpen,
+  onOpenConfig,
+  onCopyPath,
+  onRemove,
+}: {
+  project: ProjectEntry;
+  active: boolean;
+  onOpen: () => void;
+  onOpenConfig: () => void;
+  onCopyPath: () => void;
+  onRemove: () => void;
+}) {
+  const label = projectLabel(project);
+  return (
+    <ContextMenu>
+      {/* data-rail-item stays on the trigger: it is what the layout measures
+          and what the e2e specs locate. */}
+      <ContextMenuTrigger data-rail-item className="w-full">
+        <ProjectAvatar
+          label={label}
+          testId={`project-avatar-${project.id}`}
+          title={`${label} — ${project.path}`}
+          active={active}
+          onClick={onOpen}
+        />
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-56" data-testid={`project-ctx-${project.id}`}>
+        <div className="truncate px-1.5 py-1 text-xs font-medium text-muted-foreground">{label}</div>
+        <ContextMenuItem onClick={onOpenConfig} data-testid={`project-ctx-config-${project.id}`}>
+          <SlidersHorizontal /> {t("nav.project_settings")}
+        </ContextMenuItem>
+        <ContextMenuItem onClick={onCopyPath} data-testid={`project-ctx-copy-${project.id}`}>
+          <Copy /> {t("nav.copy_path")}
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem
+          variant="destructive"
+          onClick={onRemove}
+          data-testid={`project-ctx-unregister-${project.id}`}
+        >
+          <Trash2 /> {t("admin.unregister")}
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
 

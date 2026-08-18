@@ -112,6 +112,10 @@ export const en = {
     more_projects:     "{count} more",
     collapse_projects: "Hide projects",
     expand_projects:   "Show projects",
+    project_settings:  "Project settings",
+    copy_path:         "Copy path",
+    path_copied:       "Path copied.",
+    copy_failed:       "Could not copy.",
     modules: {
       voice:   "Voices",
       desktop: "Desktop",
