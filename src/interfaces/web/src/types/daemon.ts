@@ -247,6 +247,13 @@ export interface ConversationMessage {
   /** Compact record of what the turn did, written at the time (the live tool
    *  events are long gone by the time a thread is read back). */
   tool_summary?: ToolSummary;
+  /** The skill inspector's decision for that turn, recorded at write time. */
+  skill_inspector?: {
+    embedder?: string;
+    loaded?: string[];
+    hinted?: string[];
+    scored?: { slug: string; sim: number }[];
+  };
   /** Present on role:"user" rows that carried an attachment. */
   media?: MessageMedia;
 }
@@ -416,6 +423,8 @@ export interface ChatStreamEvent {
   delta?: string;
   text?: string;
   content?: string;
+  // assistant_reasoning: the model's chain of thought, kept out of the answer
+  reasoning?: string;
   // diagnostics
   error?: string;
   iteration?: number;

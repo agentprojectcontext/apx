@@ -25,7 +25,7 @@ process.env.USERPROFILE = TMP_HOME;
 
 const express = (await import("express")).default;
 const { register } = await import("#host/daemon/api/super-agent.js");
-const { readGlobalThread, listGlobalThreads } = await import("#core/stores/messages.js");
+const { readGlobalThread, listGlobalThreads, appendGlobalMessage } = await import("#core/stores/messages.js");
 const { apiRouter, makeTempProject, cleanupTempProject } = await import("./_helpers.js");
 
 const TODAY = new Date().toISOString().slice(0, 10);
@@ -91,4 +91,34 @@ test("a web turn is stamped with its project and keeps its tool calls", async ()
     await new Promise((r) => server.close(r));
     cleanupTempProject(root);
   }
+});
+
+// Third regression, same shape as the tool calls: the skill badges under a turn
+// came off a live stream event, so refreshing the page erased which skills had
+// paid for that turn's prompt. The decision now rides the answer row.
+test("the skill inspector's decision survives a reopen", () => {
+  const decision = {
+    embedder: "ollama:nomic-embed-text",
+    loaded: ["apx-voice"],
+    hinted: ["apx-telegram", "apx-skill-builder"],
+    scored: [{ slug: "apx-voice", sim: 0.64 }, { slug: "apx-telegram", sim: 0.44 }],
+  };
+  appendGlobalMessage({
+    channel: "web",
+    direction: "out",
+    type: "agent",
+    actor_id: "super_agent",
+    actor_kind: "superagent",
+    agent_slug: "super_agent",
+    body: "para la voz necesitás…",
+    meta: { project_id: "8", project_name: "postbeam", skill_inspector: decision },
+  });
+
+  const thread = readGlobalThread({ channel: "web", date: TODAY, project: "8" });
+  const answer = thread.messages.filter((m) => m.role === "assistant").at(-1);
+  assert.deepEqual(
+    answer.skill_inspector,
+    decision,
+    "the badges must be rebuildable from the record alone",
+  );
 });

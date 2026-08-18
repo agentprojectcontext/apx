@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import useSWR from "swr";
 import {
   ChevronDown, Code2, FileText, GitBranch, Lock, PencilLine,
@@ -115,14 +115,26 @@ function fileToBase64(file: File): Promise<string> {
 // Main
 // ---------------------------------------------------------------------------
 
-export function SkillsManager({ scope: fixedScope, selectable = false }: { scope?: string; selectable?: boolean }) {
+export function SkillsManager({
+  scope: fixedScope,
+  selectable = false,
+  initialSlug,
+}: {
+  scope?: string;
+  selectable?: boolean;
+  /** Open on this skill instead of the first one — how a chat badge's
+   *  "open skill" lands on the row it named. */
+  initialSlug?: string;
+}) {
   const toast = useToast();
   const [scopeState, setScopeState] = useState<string>(fixedScope ?? SUPER);
   const scope = fixedScope ?? scopeState;
   const projectPath = scope === SUPER ? undefined : scope;
 
   const [busy, setBusy] = useState(false);
-  const [picked, setPicked] = useState<string | null>(null);
+  const [picked, setPicked] = useState<string | null>(initialSlug ?? null);
+  // A second arrival (another badge, same screen already mounted) re-picks.
+  useEffect(() => { if (initialSlug) setPicked(initialSlug); }, [initialSlug]);
   const [view, setView] = useState<"preview" | "source">("preview");
   const [createOpen, setCreateOpen] = useState(false);
   const [repoOpen, setRepoOpen] = useState(false);

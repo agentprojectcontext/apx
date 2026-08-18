@@ -1,8 +1,10 @@
-import { Bot, Copy, Info, Sparkles } from "lucide-react";
+import { Bot, Copy, Info } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { AgentAvatar, type AgentFace } from "../agents/AgentAvatar";
 import { ToolCall } from "./ToolCall";
 import { ActionGroup, splitTurnParts } from "./ActionGroup";
+import { SkillTrace } from "./SkillTrace";
+import { ReasoningBlock } from "./ReasoningBlock";
 import { AskQuestionsCard } from "./AskQuestionsCard";
 import { AskAnswersCard, parseAskAnswerText } from "./AskAnswersCard";
 import { Attachment, stripMediaMarker } from "./Attachment";
@@ -70,26 +72,9 @@ export function MessageBubble({ msg, isLast, isAskAnswer, onCopy, face }: Props)
           </div>
         )}
 
-        {/* Skill Inspector: which skills the per-turn RAG injected for this turn. */}
-        {!mine && msg.inspector && (msg.inspector.loaded?.length || msg.inspector.hinted?.length) ? (
-          <Tip content={t("shared_ui.skill_inspector_title", { embedder: msg.inspector.embedder || "RAG" })}>
-            <div
-              className="flex flex-wrap items-center gap-1 text-[10px] text-sky-700 dark:text-sky-400/90"
-            >
-              <Sparkles size={10} />
-              {msg.inspector.loaded?.map((s) => (
-                <span key={`l-${s}`} className="rounded bg-sky-500/15 px-1 py-0.5 font-mono">
-                  {s}
-                </span>
-              ))}
-              {msg.inspector.hinted?.map((s) => (
-                <span key={`h-${s}`} className="rounded border border-sky-500/30 px-1 py-0.5 font-mono opacity-70">
-                  {s}?
-                </span>
-              ))}
-            </div>
-          </Tip>
-        ) : null}
+        {/* Skill Inspector: which skills the per-turn RAG injected for this turn.
+            Each badge opens the skill it names. */}
+        {!mine && msg.inspector && <SkillTrace inspector={msg.inspector} />}
 
         {/* The work: every tool call and the line written before it, collapsed
             into one row. A 24-step turn is a log, not a conversation — it goes
@@ -98,7 +83,9 @@ export function MessageBubble({ msg, isLast, isAskAnswer, onCopy, face }: Props)
 
         {/* What the agent said once the work was done — the answer. */}
         {rest.map((part, i) =>
-          part.kind === "tool" ? (
+          part.kind === "reasoning" ? (
+            <ReasoningBlock key={i} text={part.text} streaming={part.streaming} />
+          ) : part.kind === "tool" ? (
             part.tool === "ask_questions" && !mine ? (
               <AskQuestionsCard
                 key={`${part.id}-${i}`}

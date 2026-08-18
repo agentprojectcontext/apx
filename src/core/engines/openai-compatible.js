@@ -1,5 +1,6 @@
 // Shared OpenAI-compatible chat adapter (OpenAI, Groq, OpenRouter, …).
 import { pingUrl } from "./_health.js";
+import { streamSseDataEvents } from "./_streaming.js";
 
 // Adapters stash provider-private metadata on tool_calls under an underscore
 // prefix (e.g. gemini's `_thoughtSignature`). Strict OpenAI-shaped APIs reject
@@ -19,6 +20,7 @@ export function createOpenAiCompatibleEngine({
   defaultBaseUrl,
   apiKeyEnv,
   defaultFallbackModel = null,
+  extraHeaders = {},
 }) {
   function getKey(config) {
     return config?.api_key || process.env[apiKeyEnv] || "";
@@ -29,12 +31,29 @@ export function createOpenAiCompatibleEngine({
     return String(raw).replace(/\/$/, "");
   }
 
+  // Headers beyond the ones every call needs. Some gateways gate on something
+  // other than the key — OpenCode Zen serves its free tier only to a caller
+  // that identifies itself as the opencode client — and a self-hosted proxy in
+  // front of a model may want its own. The adapter carries a default per
+  // engine; `engines.<id>.headers` in config adds to or overrides it. The
+  // per-call ones (auth, content-type) always win, so config can't blank out
+  // the key by accident.
+  function buildHeaders(config, perCall = {}) {
+    const merged = { ...extraHeaders, ...(config?.headers || {}), ...perCall };
+    const out = {};
+    for (const [k, v] of Object.entries(merged)) {
+      if (v != null && v !== "") out[String(k).toLowerCase()] = String(v);
+    }
+    return out;
+  }
+
   return {
     id,
     needsApiKey: true,
     apiKeyEnv,
     defaultBaseUrl,
     defaultFallbackModel,
+    buildHeaders,
 
     /**
      * Health: confirm we have a key and the `/models` catalog answers.
@@ -48,7 +67,7 @@ export function createOpenAiCompatibleEngine({
       const base = getBaseUrl(config);
       const res = await pingUrl(`${base}/models`, {
         timeoutMs: Math.max(timeoutMs, 1200),
-        headers: { authorization: `Bearer ${getKey(config)}` },
+        headers: buildHeaders(config, { authorization: `Bearer ${getKey(config)}` }),
       });
       if (res.ok) return { ok: true, provider: id, detail: base };
       // Key present but catalog ping failed — keep going, the chat call will
@@ -72,6 +91,8 @@ export function createOpenAiCompatibleEngine({
       tools,
       toolChoice,
       signal,
+      onToken,
+      onReasoningToken,
     }) {
       const key = getKey(config);
       if (!key) {
@@ -114,6 +135,15 @@ export function createOpenAiCompatibleEngine({
         max_tokens: maxTokens,
       };
 
+      // Thinking, off at the source. A reasoning model spends the token budget
+      // planning before it writes a word, so a small max_tokens comes back with
+      // a full chain of thought and an EMPTY answer — and the operator pays for
+      // both. `thinking: false` on the provider stops it being generated;
+      // `reasoning_effort: "none"` is the knob the OpenAI-shaped gateways read
+      // (verified against Zen: reasoning_tokens drops to 0). Only sent when the
+      // operator asked for it — a provider that never heard of the field 400s.
+      if (config?.thinking === false) body.reasoning_effort = "none";
+
       if (tools && tools.length > 0) {
         body.tools = tools;
         if (toolChoice === "required" || toolChoice === "any") {
@@ -123,34 +153,49 @@ export function createOpenAiCompatibleEngine({
         }
       }
 
+      // Stream when the caller wants tokens as they land. A tool-forced turn is
+      // excluded: it has no prose to stream, only a call to assemble.
+      const wantsStream =
+        typeof onToken === "function" && toolChoice !== "required" && toolChoice !== "any";
+      if (wantsStream) {
+        body.stream = true;
+        // Streamed responses omit usage unless asked. Gateways that don't know
+        // the field ignore it; Zen sends the totals in a final choice-less row.
+        body.stream_options = { include_usage: true };
+      }
+
       const res = await fetch(`${getBaseUrl(config)}/chat/completions`, {
         method: "POST",
-        headers: {
+        headers: buildHeaders(config, {
           "content-type": "application/json",
           authorization: `Bearer ${key}`,
-        },
+        }),
         body: JSON.stringify(body),
         signal,
       });
-      const json = await res.json();
+
       if (!res.ok) {
+        // An error answers as JSON even when the request asked for a stream.
+        const err = await res.json().catch(() => null);
         throw new Error(
-          `${id} ${res.status}: ${json?.error?.message || JSON.stringify(json)}`
+          `${id} ${res.status}: ${err?.error?.message || JSON.stringify(err)}`
         );
       }
 
+      if (wantsStream) return readStream(res, onToken, onReasoningToken);
+
+      const json = await res.json();
       const choice = json.choices?.[0];
-      // Reasoning models on OpenRouter/Groq return their chain of thought in a
-      // SEPARATE field (`reasoning`, or `reasoning_content` on some routers).
-      // It is not an answer and must never reach a channel — fold it into the
-      // <think> form APX already knows how to strip per channel.
-      const reasoning = choice?.message?.reasoning || choice?.message?.reasoning_content || "";
-      const answer = choice?.message?.content || "";
-      const text = reasoning ? `<think>${reasoning}</think>${answer}` : answer;
       const toolCalls = choice?.message?.tool_calls;
 
       return {
-        text,
+        // Reasoning travels in its own field, never folded into the answer.
+        // It used to be wrapped in <think>…</think> and left inside `text` for
+        // each surface to strip; the surfaces that forgot (web, CLI) showed the
+        // model's notes to the user. Keeping the two apart at the boundary
+        // means no surface can leak what it never received.
+        text: choice?.message?.content || "",
+        reasoning: choice?.message?.reasoning || choice?.message?.reasoning_content || "",
         tool_calls: toolCalls?.length > 0 ? toolCalls : undefined,
         finish_reason: choice?.finish_reason,
         usage: {
@@ -160,5 +205,63 @@ export function createOpenAiCompatibleEngine({
         raw: json,
       };
     },
+  };
+}
+
+/**
+ * Read an OpenAI-shaped SSE stream into the same result object the blocking
+ * path returns. The two channels stay apart the whole way down: `content`
+ * deltas reach `onToken`, reasoning reaches `onReasoningToken`, and a caller
+ * that only passes the first never sees a word of the thinking. tool_calls are
+ * reassembled by index (a call arrives split across rows: the name in one, the
+ * arguments a character at a time after it).
+ */
+async function readStream(res, onToken, onReasoningToken) {
+  let text = "";
+  let reasoning = "";
+  let finishReason;
+  let usage = null;
+  const calls = [];
+
+  for await (const evt of streamSseDataEvents(res)) {
+    if (evt.usage) usage = evt.usage;
+    const choice = evt.choices?.[0];
+    if (!choice) continue;
+    const delta = choice.delta || {};
+
+    if (delta.content) {
+      text += delta.content;
+      onToken(delta.content);
+    }
+    const think = delta.reasoning_content || delta.reasoning;
+    if (think) {
+      reasoning += think;
+      if (typeof onReasoningToken === "function") onReasoningToken(think);
+    }
+
+    for (const tc of delta.tool_calls || []) {
+      const i = Number.isFinite(tc.index) ? tc.index : calls.length;
+      if (!calls[i]) calls[i] = { id: "", type: "function", function: { name: "", arguments: "" } };
+      const slot = calls[i];
+      if (tc.id) slot.id = tc.id;
+      if (tc.type) slot.type = tc.type;
+      if (tc.function?.name) slot.function.name += tc.function.name;
+      if (tc.function?.arguments) slot.function.arguments += tc.function.arguments;
+    }
+
+    if (choice.finish_reason) finishReason = choice.finish_reason;
+  }
+
+  const toolCalls = calls.filter((c) => c?.function?.name);
+  return {
+    text,
+    reasoning,
+    tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
+    finish_reason: finishReason,
+    usage: {
+      input_tokens: usage?.prompt_tokens || 0,
+      output_tokens: usage?.completion_tokens || 0,
+    },
+    raw: null,
   };
 }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { getToken, setToken, http, HttpError, Pair } from "../lib/api";
+import { loadEnginePresets } from "../components/settings/providers/typeStyles";
 import { STORAGE } from "../constants";
 import { deviceLabel } from "../lib/device";
 
@@ -83,6 +84,7 @@ export function useTokenBootstrap(): AuthState {
           // confirm left the device with no way to retry: the nonce was spent
           // and the link that carried it was already gone from the URL.
           history.replaceState(null, "", window.location.pathname + window.location.search);
+          void loadEnginePresets();
           setState({ status: "ok" });
           return;
         } catch {
@@ -126,6 +128,8 @@ export function useTokenBootstrap(): AuthState {
       // 5. Validate the token with one cheap authenticated call.
       try {
         await http.get("/api/projects");
+        // Authenticated at last — now the shared model catalog can load.
+        void loadEnginePresets();
         if (!cancelled) setState({ status: "ok" });
       } catch (e) {
         if (e instanceof HttpError && (e.status === 401 || e.status === 403)) {

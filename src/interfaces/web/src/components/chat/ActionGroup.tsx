@@ -3,6 +3,7 @@ import { ChevronRight, Loader2, Wrench } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { ToolCall } from "./ToolCall";
 import { AskQuestionsCard } from "./AskQuestionsCard";
+import { ReasoningBlock } from "./ReasoningBlock";
 import type { ChatPart } from "../../hooks/useChat";
 import { t } from "../../i18n";
 
@@ -68,7 +69,9 @@ export function ActionGroup({ parts, running }: Props) {
       {open && (
         <div className="flex flex-col gap-1.5 border-t border-border/60 px-2.5 py-2">
           {parts.map((part, i) =>
-            part.kind === "tool" ? (
+            part.kind === "reasoning" ? (
+              <ReasoningBlock key={i} text={part.text} streaming={part.streaming} />
+            ) : part.kind === "tool" ? (
               part.tool === "ask_questions" ? (
                 <AskQuestionsCard key={`${part.id}-${i}`} part={part} pending={false} />
               ) : (

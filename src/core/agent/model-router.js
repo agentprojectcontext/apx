@@ -5,7 +5,7 @@
 // src/core/engines/<provider>.js. The router only knows the grammar of model
 // ids and the algorithm of trying the chain in order. Per-provider details
 // are owned by the provider.
-import { getAdapter } from "../engines/index.js";
+import { adapterForSlug, getAdapter } from "../engines/index.js";
 
 export function parseModelId(modelId) {
   if (typeof modelId !== "string" || !modelId) {
@@ -57,7 +57,8 @@ export async function checkProviderHealth(provider, config, timeoutMs = 800, opt
   const p = String(provider || "").toLowerCase();
   let adapter;
   try {
-    adapter = getAdapter(p);
+    // Slug, not adapter id — see adapterForSlug.
+    adapter = adapterForSlug(p, config);
   } catch {
     return { ok: false, provider: p, reason: "unknown provider" };
   }

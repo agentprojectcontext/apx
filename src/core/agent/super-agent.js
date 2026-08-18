@@ -39,6 +39,7 @@ export async function runSuperAgent({
   onEvent = null,
   signal,
   onToken = null,
+  onReasoningToken = null,
   suppressTools = null,
   // Channel-specific addendum appended to the system prompt; used by
   // voice.js to ask for trailing ```suggestions``` JSON on voice/deck
@@ -157,6 +158,7 @@ export async function runSuperAgent({
       onEvent,
       signal,
       onToken,
+      onReasoningToken,
       agentName: resolveAgentName(globalConfig),
       suppressTools,
       ...(maxTokens ? { maxTokens } : {}),
