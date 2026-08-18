@@ -1,18 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import useSWR, { mutate } from "swr";
-import { Plus, RotateCcw, Trash2 } from "lucide-react";
+import { ArrowUpRight, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { Agents, Conversations } from "../../lib/api";
-import { Badge, Button, Dialog, Empty, Field, Input, Loading, Switch } from "../../components/ui";
+import { Button, Dialog, Empty, Field, Input, Loading, Switch, Tip } from "../../components/ui";
 import { Composer } from "../../components/chat/Composer";
 import { MessageList } from "../../components/chat/MessageList";
 import { ContextBar } from "../../components/chat/ContextBar";
 import { InlineAskPanel, pendingAskQuestions } from "../../components/chat/InlineAskPanel";
 import { ChatList, type ChatKey, type ChatSelectionMeta } from "../../components/chat/ChatList";
-import { useChat } from "../../hooks/useChat";
+import { useChat, type ChatMsg } from "../../hooks/useChat";
 import { useToast } from "../../components/Toast";
+import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 import { usePersonaName } from "../../hooks/usePersonaName";
+import { AgentAvatar, SUPER_AGENT_ICON, type AgentFace } from "../../components/agents/AgentAvatar";
 import type { AgentEntry } from "../../types/daemon";
 
 // Virtual entry slug used in the agent dropdown to address the daemon-level
@@ -29,11 +31,19 @@ export function ChatTab({
   pid,
   hideSidebar = false,
   initialSelection,
+  bare = false,
+  onOpenInProject,
 }: {
   pid: string;
   hideSidebar?: boolean;
   /** Open a specific conversation on mount instead of a fresh live session. */
   initialSelection?: ChatKey;
+  /** Drop the card chrome. An embedding screen already draws a panel around
+   *  this, and a card inside a card reads as a rendering bug. */
+  bare?: boolean;
+  /** Structural way out, shown as a header action. Only the inbox passes it:
+   *  inside a project you are already where it would take you. */
+  onOpenInProject?: () => void;
 }) {
   const toast = useToast();
   const [params, setSearchParams] = useSearchParams();
@@ -180,27 +190,52 @@ export function ChatTab({
     }
   };
 
-  // Header shows "Created {date} · {channel} · {agent}" (or "New chat · …" for a
-  // fresh session with no persisted date yet), per the sidebar redesign.
-  const agentLabel = activeIsRoby ? persona : activeAgent?.slug ?? selected.agentSlug;
+  // The header answers WHO first and WHICH CONVERSATION second: the agent's
+  // face and name on the title line, the thread's own identity (title, date,
+  // channel) demoted to the meta line under it. It used to lead with the
+  // conversation id — a bare date string — while the agent was a chip off to
+  // the right, so a thread looked like it belonged to nobody.
+  const agentLabel = activeIsRoby ? persona : activeAgent?.name || activeAgent?.slug || selected.agentSlug;
   const channelLabel =
     selected.kind === "thread" ? selected.channel : selectedMeta?.channel || "web";
   const createdIso =
     selected.kind === "thread" ? selected.threadId : selectedMeta?.createdAt;
 
-  const headerTitle =
+  const convLabel =
     selected.kind === "live"
-      ? t("project.chat.live_title", { agent: agentLabel })
+      ? ""
       : selectedMeta?.title ||
         (selected.kind === "thread" ? selected.threadId : selected.convId);
-  const headerSubtitle = createdIso
-    ? t("project.chat.meta_created", { date: formatDate(createdIso), channel: channelLabel })
-    : t("project.chat.meta_new", { channel: channelLabel });
+  // Kept as the delete-dialog subject: there the conversation, not the agent,
+  // is the thing being destroyed.
+  const headerTitle = convLabel || t("project.chat.live_title", { agent: agentLabel });
+  const headerSubtitle = [
+    convLabel,
+    createdIso
+      ? t("project.chat.meta_created", { date: formatDate(createdIso), channel: channelLabel })
+      : t("project.chat.meta_new", { channel: channelLabel }),
+  ].filter(Boolean).join(" · ");
+
+  // One face per speaker, resolved from the same data the inbox uses. Turns a
+  // delegated agent produced inside a super-agent thread keep THEIR face, so a
+  // multi-agent thread is readable without expanding anything.
+  const headerFace: AgentFace = activeIsRoby
+    ? { icon: SUPER_AGENT_ICON, name: persona }
+    : { icon: activeAgent?.icon, emoji: activeAgent?.emoji, name: agentLabel };
+
+  const faceFor = (msg: ChatMsg): AgentFace => {
+    const id = msg.agentId || msg.agent;
+    if (!id) return headerFace;
+    if (id === "super_agent") return { icon: SUPER_AGENT_ICON, name: msg.agent || persona };
+    const hit = agentList.find((a) => a.slug === id || a.name === id);
+    if (hit) return { icon: hit.icon, emoji: hit.emoji, name: hit.name || hit.slug };
+    return { ...headerFace, name: msg.agent || headerFace.name };
+  };
 
   if (agents.isLoading) return <Loading />;
 
   return (
-    <div className="flex h-full overflow-hidden rounded-xl border border-border bg-card/40">
+    <div className={cn("flex h-full overflow-hidden", !bare && "rounded-xl border border-border bg-card/40")}>
       {hideSidebar ? null : <ChatList
         pid={pid}
         agents={agentList}
@@ -212,46 +247,75 @@ export function ChatTab({
       />}
 
       <section className="flex min-w-0 flex-1 flex-col">
-        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3">
-          <div className="min-w-0">
-            <h2 className="truncate text-sm font-semibold">{headerTitle}</h2>
-            <p className="truncate text-[11px] text-muted-fg">{headerSubtitle}</p>
+        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-3 py-2">
+          <div className="flex min-w-0 flex-1 items-center gap-2.5">
+            <AgentAvatar {...headerFace} size={30} />
+            <div className="min-w-0">
+              <div className="flex min-w-0 items-center gap-1.5">
+                <h2 className="truncate text-sm font-semibold">{agentLabel}</h2>
+                {activeIsRoby && (
+                  <span className="shrink-0 rounded bg-primary/15 px-1 py-px text-[9px] font-semibold uppercase tracking-wide text-primary">
+                    {t("agents_ui.super_agent_badge")}
+                  </span>
+                )}
+              </div>
+              <p className="truncate text-[11px] text-muted-fg">{headerSubtitle}</p>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            {activeIsRoby ? (
-              <Badge tone="success">{t("agents_ui.super_agent_badge")}</Badge>
-            ) : (
-              <Badge tone="info">{agentLabel}</Badge>
-            )}
+          {/* Labels fold away before the agent's name does: below `lg` these
+              are icon buttons with tooltips. Three full-width buttons used to
+              eat the identity block down to nothing in the inbox's pane. */}
+          <div className="flex shrink-0 items-center gap-1">
             {!agentList.length && !activeIsRoby && (
               <Button variant="primary" size="sm" onClick={() => setCreating(true)}>
                 <Plus size={14} /> {t("project.chat.create_agent")}
               </Button>
             )}
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={streaming || msgs.length === 0}
-              onClick={newSession}
-            >
-              <RotateCcw size={13} /> {t("project.chat.new_session")}
-            </Button>
-            {(selected.kind === "conv" || selected.kind === "thread") && (
+            {onOpenInProject && (
+              <Tip content={t("inbox.open_in_project")}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  aria-label={t("inbox.open_in_project")}
+                  onClick={onOpenInProject}
+                >
+                  <span className="hidden lg:inline">{t("inbox.open_in_project")}</span>
+                  <ArrowUpRight size={13} />
+                </Button>
+              </Tip>
+            )}
+            <Tip content={t("project.chat.new_session")}>
               <Button
-                variant="destructive"
+                variant="ghost"
                 size="sm"
-                disabled={streaming}
-                onClick={() => setConfirmDelete(true)}
+                aria-label={t("project.chat.new_session")}
+                disabled={streaming || msgs.length === 0}
+                onClick={newSession}
               >
-                <Trash2 size={13} /> {t("project.chat.delete")}
+                <RotateCcw size={13} />
+                <span className="hidden lg:inline">{t("project.chat.new_session")}</span>
               </Button>
+            </Tip>
+            {(selected.kind === "conv" || selected.kind === "thread") && (
+              <Tip content={t("project.chat.delete")}>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  aria-label={t("project.chat.delete")}
+                  disabled={streaming}
+                  onClick={() => setConfirmDelete(true)}
+                >
+                  <Trash2 size={13} />
+                  <span className="hidden lg:inline">{t("project.chat.delete")}</span>
+                </Button>
+              </Tip>
             )}
           </div>
         </header>
 
         <div className="flex-1 overflow-y-auto">
           {msgs.length ? (
-            <MessageList msgs={msgs} onCopy={copyToClipboard} />
+            <MessageList msgs={msgs} onCopy={copyToClipboard} faceFor={faceFor} />
           ) : (
             <div className="flex h-full items-center justify-center p-8">
               <p className="text-sm text-muted-fg">{t("project.chat.empty")}</p>

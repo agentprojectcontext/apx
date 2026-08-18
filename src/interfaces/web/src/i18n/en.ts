@@ -116,6 +116,8 @@ export const en = {
       deck:  "Deck",
       code:  "Code",
       web:   "Web",
+      // Caption under the rail icon — the full name doesn't fit in 3.6rem.
+      inbox_short: "Chats",
     },
   },
   topbar: {
@@ -178,7 +180,6 @@ export const en = {
     subtitle:
       "Every agent as a conversation, most recent first.",
     empty: "You have not talked to any agent yet.",
-    pinned: "lead",
     show_quiet: "Show quiet agents",
     no_reply_yet: "(no replies yet)",
   },

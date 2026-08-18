@@ -44,7 +44,7 @@ export function AskAnswersCard({ text }: Props) {
   return (
     <div className="flex w-full justify-center">
       <div
-        className="w-full max-w-[85%] rounded-2xl border border-border/70 bg-card/40 px-4 py-3 shadow-sm"
+        className="w-full max-w-[85%] rounded-2xl border border-border/70 bg-card/40 px-4 py-3 shadow-xs"
         data-testid="ask-answers-card"
       >
         <div className="mb-2 flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">

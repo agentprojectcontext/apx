@@ -2,14 +2,18 @@ import { useEffect, useRef } from "react";
 import { MessageBubble } from "./MessageBubble";
 import { Empty } from "../ui";
 import { t } from "../../i18n";
+import type { AgentFace } from "../agents/AgentAvatar";
 import type { ChatMsg } from "../../hooks/useChat";
 
 interface Props {
   msgs: ChatMsg[];
   onCopy: (text: string) => void;
+  /** Who to draw next to an assistant turn. Screens that know the cast (chat,
+   *  inbox) pass it; the rest fall back to a neutral glyph. */
+  faceFor?: (msg: ChatMsg) => AgentFace;
 }
 
-export function MessageList({ msgs, onCopy }: Props) {
+export function MessageList({ msgs, onCopy, faceFor }: Props) {
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -34,6 +38,7 @@ export function MessageList({ msgs, onCopy }: Props) {
           isLast={i === lastIdx}
           isAskAnswer={isAnswerToAsk(msgs, i)}
           onCopy={onCopy}
+          face={m.role === "assistant" ? faceFor?.(m) : undefined}
         />
       ))}
       <div ref={bottomRef} />

@@ -125,7 +125,7 @@ function RailProjectMenu({
           className={cn(
             "flex size-10 items-center justify-center rounded-xl text-xs font-bold transition-all",
             "bg-muted/40 text-muted-fg hover:bg-accent hover:text-foreground",
-            active && "ring-2 ring-foreground ring-offset-2 ring-offset-card",
+            active && "ring-2 ring-primary ring-offset-2 ring-offset-background",
           )}
         >
           {icon ?? label}
@@ -197,22 +197,19 @@ export function ProjectSidebar({ onSelect, onOpenRoby, onOpenAddProject }: Props
 
       {/* The conversational way in. Sits above the project rail because it is
           the daily entry point — but the rail below it is untouched, and stays
-          the structural axis. */}
-      <Tip content={t("inbox.title")} side="right">
-        <button
-          type="button"
-          onClick={() => onSelect("/m/inbox")}
-          data-testid="nav-inbox"
-          className={`flex size-10 cursor-pointer items-center justify-center rounded-xl border transition ${
-            isActive("/m/inbox")
-              ? "border-primary bg-primary/10"
-              : "border-border bg-muted/40 hover:bg-muted"
-          }`}
-          aria-label={t("inbox.title")}
-        >
-          <MessagesSquare size={18} />
-        </button>
-      </Tip>
+          the structural axis. Drawn with the same avatar as Base and the
+          modules: it used to be the one bordered white square in a rail of
+          coloured tiles, which read as a different KIND of thing. */}
+      <ProjectAvatar
+        label={t("inbox.title")}
+        sublabel={t("nav.modules.inbox_short")}
+        tone="emerald"
+        testId="nav-inbox"
+        title={t("inbox.title")}
+        active={isActive("/m/inbox")}
+        icon={<MessagesSquare size={18} />}
+        onClick={() => onSelect("/m/inbox")}
+      />
 
       {isLoading && <div className="size-10 animate-pulse rounded-xl bg-muted" />}
 
@@ -347,7 +344,7 @@ export function ProjectSidebar({ onSelect, onOpenRoby, onOpenAddProject }: Props
           rel="noopener noreferrer"
           data-testid="nav-docs"
           aria-label={t("settings_ui.documentation")}
-          className="flex size-10 items-center justify-center rounded-xl border border-border/60 bg-muted/30 text-muted-fg transition-colors hover:bg-accent hover:text-foreground"
+          className="flex size-10 items-center justify-center rounded-xl bg-muted text-muted-fg transition-colors hover:bg-accent hover:text-foreground dark:bg-muted/60"
         >
           <BookOpen size={18} />
         </a>
@@ -360,7 +357,7 @@ export function ProjectSidebar({ onSelect, onOpenRoby, onOpenAddProject }: Props
           onClick={onOpenRoby}
           data-testid="nav-roby"
           aria-label={t("superagent.talk", { persona })}
-          className="flex size-10 items-center justify-center rounded-xl border border-border/60 bg-muted/30 text-muted-fg transition-colors hover:bg-accent hover:text-foreground"
+          className="flex size-10 items-center justify-center rounded-xl bg-muted text-muted-fg transition-colors hover:bg-accent hover:text-foreground dark:bg-muted/60"
         >
           <Bot size={18} />
         </button>

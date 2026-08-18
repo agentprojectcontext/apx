@@ -20,14 +20,22 @@ interface Props {
   icon?: React.ReactNode;
   title?: string;
   testId?: string;
+  /** Pin the colour instead of hashing it from the label — for fixed rail
+   *  entries (inbox, modules) whose identity isn't a project name. */
+  tone?: ProjectTone;
+  /** Override the caption under the icon. The computed one truncates a long
+   *  label to four characters, which is fine for a project slug and useless
+   *  for a two-word module name. */
+  sublabel?: string;
 }
 
-export function ProjectAvatar({ label, active, onClick, isAdd, isSettings, isDefault, icon, title, testId }: Props) {
+export function ProjectAvatar({ label, active, onClick, isAdd, isSettings, isDefault, icon, title, testId, tone: toneProp, sublabel }: Props) {
   const text = label.trim() || "·";
   const { initials, subLabel } = computeInitialsAndSub(text);
   const tone: ProjectTone =
-    isAdd || isSettings ? "indigo" : pickTone(text);
-  const showSub = subLabel && !isAdd && !isSettings && !isDefault;
+    toneProp ?? (isAdd || isSettings ? "indigo" : pickTone(text));
+  const caption = sublabel ?? subLabel;
+  const showSub = caption && !isAdd && !isSettings && !isDefault;
   return (
     <Tooltip>
       <TooltipTrigger
@@ -41,9 +49,9 @@ export function ProjectAvatar({ label, active, onClick, isAdd, isSettings, isDef
             <span
               className={cn(
                 "flex size-10 items-center justify-center rounded-xl text-sm font-bold transition-all",
-                active && "ring-2 ring-foreground ring-offset-2 ring-offset-card",
+                active && "ring-2 ring-primary ring-offset-2 ring-offset-background",
                 isAdd && "border border-dashed border-muted-fg/50 bg-transparent text-muted-fg hover:bg-accent/60 hover:text-foreground",
-                isSettings && "bg-muted text-muted-fg hover:bg-accent hover:text-foreground",
+                isSettings && "bg-muted text-muted-fg hover:bg-accent hover:text-foreground dark:bg-muted/60",
                 isDefault && "overflow-hidden bg-muted",
                 !isAdd && !isSettings && !isDefault && active && toneActive(tone),
                 !isAdd && !isSettings && !isDefault && !active && toneIdle(tone),
@@ -52,8 +60,11 @@ export function ProjectAvatar({ label, active, onClick, isAdd, isSettings, isDef
               {icon ?? initials}
             </span>
             {showSub && (
-              <span className="block max-w-[3.6rem] truncate text-[9px] leading-tight text-muted-fg group-hover:text-foreground">
-                {subLabel}
+              <span className={cn(
+                "block max-w-[3.6rem] truncate text-[9px] leading-tight group-hover:text-foreground",
+                active ? "font-medium text-foreground" : "text-muted-fg",
+              )}>
+                {caption}
               </span>
             )}
           </button>
@@ -92,25 +103,29 @@ function pickTone(s: string): ProjectTone {
   return PROJECT_TONES[Math.abs(h) % PROJECT_TONES.length];
 }
 
+// Two grounds, two palettes. On dark, a 15% wash with 300-level text reads;
+// on white the same pair is a pale smudge, so light gets a stronger wash and
+// 700-level text. Every tone is declared for both themes — no tone may be
+// defined only inside `dark:`.
 const TONE_IDLE: Record<ProjectTone, string> = {
-  sky:     "bg-sky-500/15 text-sky-300 hover:bg-sky-500/25",
-  violet:  "bg-violet-500/15 text-violet-300 hover:bg-violet-500/25",
-  emerald: "bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25",
-  amber:   "bg-amber-500/15 text-amber-300 hover:bg-amber-500/25",
-  rose:    "bg-rose-500/15 text-rose-300 hover:bg-rose-500/25",
-  indigo:  "bg-indigo-500/15 text-indigo-300 hover:bg-indigo-500/25",
-  teal:    "bg-teal-500/15 text-teal-300 hover:bg-teal-500/25",
-  fuchsia: "bg-fuchsia-500/15 text-fuchsia-300 hover:bg-fuchsia-500/25",
+  sky:     "bg-sky-500/20 text-sky-700 hover:bg-sky-500/30 dark:bg-sky-500/15 dark:text-sky-300 dark:hover:bg-sky-500/25",
+  violet:  "bg-violet-500/20 text-violet-700 hover:bg-violet-500/30 dark:bg-violet-500/15 dark:text-violet-300 dark:hover:bg-violet-500/25",
+  emerald: "bg-emerald-500/20 text-emerald-700 hover:bg-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300 dark:hover:bg-emerald-500/25",
+  amber:   "bg-amber-500/20 text-amber-700 hover:bg-amber-500/30 dark:bg-amber-500/15 dark:text-amber-300 dark:hover:bg-amber-500/25",
+  rose:    "bg-rose-500/20 text-rose-700 hover:bg-rose-500/30 dark:bg-rose-500/15 dark:text-rose-300 dark:hover:bg-rose-500/25",
+  indigo:  "bg-indigo-500/20 text-indigo-700 hover:bg-indigo-500/30 dark:bg-indigo-500/15 dark:text-indigo-300 dark:hover:bg-indigo-500/25",
+  teal:    "bg-teal-500/20 text-teal-700 hover:bg-teal-500/30 dark:bg-teal-500/15 dark:text-teal-300 dark:hover:bg-teal-500/25",
+  fuchsia: "bg-fuchsia-500/20 text-fuchsia-700 hover:bg-fuchsia-500/30 dark:bg-fuchsia-500/15 dark:text-fuchsia-300 dark:hover:bg-fuchsia-500/25",
 };
 const TONE_ACTIVE: Record<ProjectTone, string> = {
-  sky:     "bg-sky-500/30 text-sky-100",
-  violet:  "bg-violet-500/30 text-violet-100",
-  emerald: "bg-emerald-500/30 text-emerald-100",
-  amber:   "bg-amber-500/30 text-amber-100",
-  rose:    "bg-rose-500/30 text-rose-100",
-  indigo:  "bg-indigo-500/30 text-indigo-100",
-  teal:    "bg-teal-500/30 text-teal-100",
-  fuchsia: "bg-fuchsia-500/30 text-fuchsia-100",
+  sky:     "bg-sky-500/35 text-sky-900 dark:bg-sky-500/30 dark:text-sky-100",
+  violet:  "bg-violet-500/35 text-violet-900 dark:bg-violet-500/30 dark:text-violet-100",
+  emerald: "bg-emerald-500/35 text-emerald-900 dark:bg-emerald-500/30 dark:text-emerald-100",
+  amber:   "bg-amber-500/35 text-amber-900 dark:bg-amber-500/30 dark:text-amber-100",
+  rose:    "bg-rose-500/35 text-rose-900 dark:bg-rose-500/30 dark:text-rose-100",
+  indigo:  "bg-indigo-500/35 text-indigo-900 dark:bg-indigo-500/30 dark:text-indigo-100",
+  teal:    "bg-teal-500/35 text-teal-900 dark:bg-teal-500/30 dark:text-teal-100",
+  fuchsia: "bg-fuchsia-500/35 text-fuchsia-900 dark:bg-fuchsia-500/30 dark:text-fuchsia-100",
 };
 function toneIdle(t: ProjectTone)   { return TONE_IDLE[t]; }
 function toneActive(t: ProjectTone) { return TONE_ACTIVE[t]; }

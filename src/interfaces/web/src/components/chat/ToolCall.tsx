@@ -74,10 +74,10 @@ function pretty(value: unknown): string {
 }
 
 function StatusIcon({ status }: { status: ToolPart["status"] }) {
-  if (status === "running") return <Loader2 className="size-3 shrink-0 animate-spin text-sky-400" />;
-  if (status === "error") return <X className="size-3 shrink-0 text-rose-400" />;
-  if (status === "deduped") return <CornerDownRight className="size-3 shrink-0 text-amber-400" />;
-  return <Check className="size-3 shrink-0 text-emerald-400" />;
+  if (status === "running") return <Loader2 className="size-3 shrink-0 animate-spin text-sky-700 dark:text-sky-400" />;
+  if (status === "error") return <X className="size-3 shrink-0 text-rose-700 dark:text-rose-400" />;
+  if (status === "deduped") return <CornerDownRight className="size-3 shrink-0 text-amber-700 dark:text-amber-400" />;
+  return <Check className="size-3 shrink-0 text-emerald-700 dark:text-emerald-400" />;
 }
 
 export function ToolCall({ part }: { part: ToolPart }) {
@@ -104,11 +104,11 @@ export function ToolCall({ part }: { part: ToolPart }) {
         ) : (
           <span className="size-3 shrink-0" />
         )}
-        <Icon className={cn("size-3.5 shrink-0", isFile ? "text-violet-400" : "text-muted-foreground")} />
+        <Icon className={cn("size-3.5 shrink-0", isFile ? "text-violet-700 dark:text-violet-400" : "text-muted-foreground")} />
         <span className="shrink-0 font-medium">{label}</span>
         {summary && <span className="truncate font-mono text-muted-foreground">{summary}</span>}
         <span className="ml-auto flex items-center gap-1">
-          {part.status === "deduped" && <span className="text-[10px] text-amber-400">{t("shared_ui.dedup")}</span>}
+          {part.status === "deduped" && <span className="text-[10px] text-amber-700 dark:text-amber-400">{t("shared_ui.dedup")}</span>}
           <StatusIcon status={part.status} />
         </span>
       </button>
@@ -129,7 +129,7 @@ export function ToolCall({ part }: { part: ToolPart }) {
               <pre
                 className={cn(
                   "max-h-64 overflow-auto rounded-md bg-background/60 p-2 font-mono text-[11px] leading-relaxed",
-                  part.status === "error" ? "text-rose-300" : "text-foreground",
+                  part.status === "error" ? "text-rose-700 dark:text-rose-300" : "text-foreground",
                 )}
               >
                 {pretty(part.result)}

@@ -45,23 +45,31 @@
    .dark off the <html> tag. Match Tailwind's `colors` config above. */
 @layer base {
   :root {
-    --background: 220 16% 95%;
-    --foreground: 222 16% 16%;
+    /* Light is a LIFTED theme, not a washed-out one: the page ground sits a
+       few points below white so cards/panels rise off it, borders are visible
+       at a glance, and secondary text is dark enough to read. The previous
+       palette lived between 91% and 100% lightness — every surface, edge and
+       label dissolved into the same fog. */
+    --background: 220 20% 92%;
+    --foreground: 222 24% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 222 16% 16%;
+    --card-foreground: 222 24% 12%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222 16% 16%;
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 9% 46%;
-    --accent: 220 14% 96%;
-    --accent-foreground: 222 16% 16%;
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 222 16% 16%;
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 222 80% 56%;
-    --primary: 222 47% 11%;
-    --primary-foreground: 210 20% 98%;
+    --popover-foreground: 222 24% 12%;
+    --muted: 220 18% 95%;
+    --muted-foreground: 220 12% 38%;
+    --accent: 220 22% 88%;
+    --accent-foreground: 222 24% 12%;
+    --secondary: 220 18% 94%;
+    --secondary-foreground: 222 24% 12%;
+    --border: 220 16% 83%;
+    --input: 220 16% 83%;
+    --ring: 152 58% 36%;
+    /* Selection reads as APX green, not as full black. `--primary` drives
+       every "this one is picked" state in the app (rail ring, list rows, tabs,
+       chips), so a near-black primary painted the whole UI's selection in ink. */
+    --primary: 152 62% 30%;
+    --primary-foreground: 150 40% 98%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 210 20% 98%;
     --radius: 0.75rem;
@@ -71,13 +79,13 @@
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
     --sidebar: 0 0% 100%;
-    --sidebar-foreground: 222 16% 16%;
-    --sidebar-primary: 222 47% 11%;
-    --sidebar-primary-foreground: 210 20% 98%;
-    --sidebar-accent: 220 14% 96%;
-    --sidebar-accent-foreground: 222 16% 16%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 222 80% 56%;
+    --sidebar-foreground: 222 24% 12%;
+    --sidebar-primary: 152 62% 30%;
+    --sidebar-primary-foreground: 150 40% 98%;
+    --sidebar-accent: 220 22% 88%;
+    --sidebar-accent-foreground: 222 24% 12%;
+    --sidebar-border: 220 16% 83%;
+    --sidebar-ring: 152 58% 36%;
   }
   .dark {
     --background: 222 22% 5%;
@@ -94,9 +102,10 @@
     --secondary-foreground: 210 16% 92%;
     --border: 222 14% 18%;
     --input: 222 14% 18%;
-    --ring: 217 91% 60%;
-    --primary: 210 16% 92%;
-    --primary-foreground: 222 18% 8%;
+    --ring: 152 60% 45%;
+    /* Same brand green as light, lifted for a dark ground. */
+    --primary: 152 58% 45%;
+    --primary-foreground: 155 60% 6%;
     --destructive: 0 62% 50%;
     --destructive-foreground: 210 16% 92%;
     --chart-1: 217 91% 60%;
@@ -106,12 +115,12 @@
     --chart-5: 340 75% 55%;
     --sidebar: 222 16% 11%;
     --sidebar-foreground: 210 16% 92%;
-    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary: 152 58% 45%;
     --sidebar-primary-foreground: 210 16% 92%;
     --sidebar-accent: 222 14% 17%;
     --sidebar-accent-foreground: 210 16% 92%;
     --sidebar-border: 222 14% 18%;
-    --sidebar-ring: 217 91% 60%;
+    --sidebar-ring: 152 60% 45%;
   }
   body {
     font-feature-settings: "rlig" 1, "calt" 1;

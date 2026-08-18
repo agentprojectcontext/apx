@@ -10,13 +10,14 @@
 // inline (collapsible args + results) so you can see exactly what Roby does.
 
 import { useEffect, useRef, useState } from "react";
-import { Bot, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "./ui/sheet";
 import { Button } from "./ui/button";
 import { ChatInput } from "./ui/chat-input";
 import { ModelPicker } from "./chat/ModelPicker";
 import { SkillPicker } from "./chat/SkillPicker";
 import { MessageList } from "./chat/MessageList";
+import { AgentAvatar, SUPER_AGENT_ICON } from "./agents/AgentAvatar";
 import { ContextBar } from "./chat/ContextBar";
 import { applyStreamEvent, textOf, type ChatMsg } from "../hooks/useChat";
 import { SuperAgent } from "../lib/api";
@@ -188,7 +189,8 @@ export function RobyBubble({
       >
         <SheetHeader className="pr-12">
           <SheetTitle className="flex items-center gap-2">
-            <Bot size={18} /> {t("superagent.title", { persona })}
+            <AgentAvatar icon={SUPER_AGENT_ICON} name={persona} size={22} />
+            {t("superagent.title", { persona })}
             <span className="text-xs font-normal text-muted-fg">{t("superagent.badge")}</span>
           </SheetTitle>
           <SheetDescription>{t("superagent.desc")}</SheetDescription>
@@ -198,7 +200,11 @@ export function RobyBubble({
           {msgs.length === 0 ? (
             <p className="mt-6 text-center text-sm text-muted-fg">{t("superagent.empty", { persona })}</p>
           ) : (
-            <MessageList msgs={msgs} onCopy={copyToClipboard} />
+            <MessageList
+              msgs={msgs}
+              onCopy={copyToClipboard}
+              faceFor={() => ({ icon: SUPER_AGENT_ICON, name: persona })}
+            />
           )}
         </div>
 
