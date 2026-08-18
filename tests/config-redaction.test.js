@@ -12,7 +12,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  redactConfig, mergeRedactedSecrets, isSecretMarker, secretMarker, SECRET_PATHS,
+  redactConfig, mergeRedactedSecrets, isSecretMarker, secretMarker, SECRET_PATHS, isSecretKey,
 } from "#core/config/redact.js";
 
 const REAL = {
@@ -84,4 +84,59 @@ test("other engines are unaffected", () => {
   const out = redactConfig(REAL);
   assert.ok(isSecretMarker(out.engines.groq.api_key));
   assert.equal(secretMarker(""), "", "an empty secret stays empty rather than becoming a marker");
+});
+
+// ---------------------------------------------------------------------------
+// isSecretKey — the write-side question ("is this key a credential?"), asked of
+// the same SECRET_PATHS inventory the read-side redaction uses. `apx config
+// set` calls it to warn before a credential lands in a committed
+// .apc/config.json.
+// ---------------------------------------------------------------------------
+
+test("isSecretKey matches an exact secret path", () => {
+  for (const dotted of SECRET_PATHS) {
+    if (dotted.includes("*")) continue;
+    assert.equal(isSecretKey(dotted), true, dotted);
+  }
+});
+
+test("isSecretKey matches wildcard paths that dotted keys cannot express", () => {
+  // Bot tokens and spare Gemini keys live in arrays; a concrete index must
+  // still register as secret.
+  assert.equal(isSecretKey("telegram.channels.0.bot_token"), true);
+  assert.equal(isSecretKey("engines.gemini.api_keys.1"), true);
+});
+
+test("isSecretKey matches an ancestor, because the secret rides in the value", () => {
+  assert.equal(isSecretKey("engines.openai"), true);
+  assert.equal(isSecretKey("engines"), true);
+  assert.equal(isSecretKey("voice.tts.elevenlabs"), true);
+});
+
+test("isSecretKey catches a provider added after SECRET_PATHS was last touched", () => {
+  assert.equal(isSecretKey("engines.newprovider.api_key"), true);
+  assert.equal(isSecretKey("integrations.acme.access_token"), true);
+  assert.equal(isSecretKey("something.client_secret"), true);
+});
+
+test("isSecretKey leaves ordinary project-overridable keys alone", () => {
+  // These are exactly the keys the docs tell people to put in .apc/config.json.
+  for (const key of [
+    "super_agent.model",
+    "super_agent.permission_mode",
+    "telegram.route_to_agent",
+    "engines.openai.model",
+    "engines.ollama.base_url",
+    "voice.tts.provider",
+  ]) {
+    assert.equal(isSecretKey(key), false, key);
+  }
+});
+
+test("isSecretKey handles junk input without throwing", () => {
+  assert.equal(isSecretKey(""), false);
+  assert.equal(isSecretKey("   "), false);
+  assert.equal(isSecretKey(undefined), false);
+  assert.equal(isSecretKey(null), false);
+  assert.equal(isSecretKey(42), false);
 });

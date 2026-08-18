@@ -119,6 +119,63 @@ test("cmdConfigSet --global parses JSON values the same way as project scope", a
 });
 
 // ---------------------------------------------------------------------------
+// set — credential guard
+//
+// .apc/config.json is committed (rule 3). `apx config set` without --global
+// writes it, so a credential typed without the flag walks into git. The command
+// warns and still proceeds: a project may legitimately override a non-secret
+// key that trips the heuristic.
+// ---------------------------------------------------------------------------
+
+test("cmdConfigSet warns when a secret is written to the committed project config", async () => {
+  const calls = installStub();
+  const { stderr } = await capture(() =>
+    cmdConfigSet({ _: ["engines.openai.api_key", "sk-example"], flags: { project: "acme" } })
+  );
+  assert.match(stderr, /looks like a secret/);
+  assert.match(stderr, /committed to git/);
+  assert.match(stderr, /apx config set --global engines\.openai\.api_key/);
+  // Warn-and-proceed: the write still happens.
+  assert.ok(calls.some(([m, p]) => m === "PATCH" && p === "/api/projects/7/config"));
+});
+
+test("the warning never echoes the secret value", async () => {
+  installStub();
+  const { stdout, stderr } = await capture(() =>
+    cmdConfigSet({ _: ["engines.openai.api_key", "sk-doNotLeakThis"], flags: { project: "acme" } })
+  );
+  assert.doesNotMatch(stderr, /doNotLeakThis/);
+  // stdout still confirms the write, and that line is the pre-existing echo.
+  assert.match(stdout, /set engines\.openai\.api_key/);
+});
+
+test("cmdConfigSet --global does not warn — the global config is the right home", async () => {
+  installStub();
+  const { stderr } = await capture(() =>
+    cmdConfigSet({ _: ["engines.openai.api_key", "sk-example"], flags: { global: true } })
+  );
+  assert.equal(stderr, "");
+});
+
+test("cmdConfigSet stays quiet for ordinary project keys", async () => {
+  installStub();
+  for (const key of ["super_agent.model", "telegram.route_to_agent", "engines.openai.model"]) {
+    const { stderr } = await capture(() => cmdConfigSet({ _: [key, "x"], flags: { project: "acme" } }));
+    assert.equal(stderr, "", `${key} should not warn`);
+  }
+});
+
+test("cmdConfigSet warns when the secret rides inside a parent object value", async () => {
+  // `apx config set engines.openai '{"api_key":"…"}'` puts the credential in
+  // the VALUE, where a leaf-name check would never see it.
+  installStub();
+  const { stderr } = await capture(() =>
+    cmdConfigSet({ _: ["engines.openai", '{"api_key":"sk-example"}'], flags: { project: "acme" } })
+  );
+  assert.match(stderr, /looks like a secret/);
+});
+
+// ---------------------------------------------------------------------------
 // unset
 // ---------------------------------------------------------------------------
 

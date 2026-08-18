@@ -186,6 +186,18 @@ apx config unset --global super_agent.model         # remove key, fall back to d
   Always pass `--global` for anything secret. Without it the value lands in the project's
   `.apc/config.json`, which is **committed** — and subsystems that read the global config
   (voice, the daemon, the model router) will not see it at all.
+
+  APX warns when it recognises a credential going to the project layer:
+
+  ```
+  apx: warning: "engines.openai.api_key" looks like a secret, and this writes the
+       project's .apc/config.json — which is committed to git.
+       Write it to ~/.apx/config.json instead:
+         apx config set --global engines.openai.api_key <value>
+  ```
+
+  The write still goes through — the warning does not block a project that genuinely
+  needs the key. Treat it as a prompt to re-run with `--global`.
 </Aside>
 
 Project overrides are the default, so they need no flag. Inside the project:

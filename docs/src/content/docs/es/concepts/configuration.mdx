@@ -186,6 +186,18 @@ apx config unset --global super_agent.model         # borra la clave y vuelve al
   Pasá siempre `--global` para cualquier cosa secreta. Sin el flag, el valor termina en el
   `.apc/config.json` del proyecto, que **se commitea** — y los subsistemas que leen la config
   global (la voz, el daemon, el router de modelos) no lo van a ver.
+
+  APX avisa cuando reconoce una credencial yendo a la capa de proyecto:
+
+  ```
+  apx: warning: "engines.openai.api_key" looks like a secret, and this writes the
+       project's .apc/config.json — which is committed to git.
+       Write it to ~/.apx/config.json instead:
+         apx config set --global engines.openai.api_key <value>
+  ```
+
+  La escritura igual se hace — el aviso no bloquea a un proyecto que realmente necesite esa
+  clave. Tomalo como recordatorio para volver a correrlo con `--global`.
 </Aside>
 
 Los overrides de proyecto son el caso por defecto, así que no llevan flag. Dentro del proyecto:

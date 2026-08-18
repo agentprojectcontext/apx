@@ -98,7 +98,7 @@ With `route_to_agent: "reviewer"`, messages go through `/api/projects/:pid/agent
 
 ```bash
 # DON'T write to legacy root fields.
-apx config set telegram.bot_token "<T>"   # ← use channels[] via `apx telegram channel`
+apx config set --global telegram.bot_token "<T>"   # ← use channels[] via `apx telegram channel`
 
 # DON'T expect routing magic from same project on two channels.
 # A channel pins messages TO a project, not vice-versa. Same project from multiple

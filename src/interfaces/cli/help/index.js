@@ -343,6 +343,10 @@ export const HELP_TOPICS = new Map(Object.entries({
       "apx config set --global engines.openai.api_key sk-example",
       "apx config set engines.openai.model gpt-5.2",
     ],
+    notes: [
+      "Setting a key that looks like a credential WITHOUT --global prints a warning:",
+      ".apc/config.json is committed to git. The write still goes through.",
+    ],
   }),
   "config unset": topic({
     title: "apx config unset",

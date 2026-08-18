@@ -87,8 +87,10 @@ For deep dives, follow the links at the bottom.
 | Command | What it does |
 |---|---|
 | `apx config show` | Print project config (`--effective` for merged view, `--only-overrides` for deltas) |
+| `apx config show --global` | Print `~/.apx/config.json`, secrets redacted |
 | `apx config set <key.path> <value>` | Set a JSON-aware value in `.apc/config.json` |
-| `apx config unset <key.path>` | Remove a key |
+| `apx config set --global <key.path> <value>` | Set a value in `~/.apx/config.json` — credentials, voice, daemon |
+| `apx config unset [--global] <key.path>` | Remove a key from the project or global config |
 | `apx model status` | Provider health + active model (fallback router) |
 | `apx model order <p1> <p2> …` | Set fallback order — e.g. `ollama openrouter groq` |
 | `apx model key <provider> <api-key>` | Save an API key to `~/.apx/config.json` |
