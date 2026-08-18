@@ -196,8 +196,9 @@ Un pedido que le lleva varios pasos al agente llega como **dos mensajes, no diez
    las notas que el modelo escribe antes de cada paso no se envían — una sola tarea no tiene
    por qué hacerte sonar el teléfono ocho veces.
 3. **El mensaje de cierre**, que trae el resultado completo. Es el mensaje para el que existe
-   el turno, y nunca se saltea: un turno que actuó pero no produjo cierre igual recibe un
-   "¿querés que siga?" corto.
+   el turno, y nunca se saltea: si el turno actuó pero no produjo cierre, se le pide al agente
+   que lo escriba a partir de lo que acaba de hacer. Recién si eso también falla —normalmente
+   la misma caída de motor que vació el turno— sale una línea fija en su lugar.
 
 En un trabajo largo se deja pasar una nota extra después de 90 segundos de silencio, para que
 una tarea de cuatro minutos no parezca colgada. La ventana es un ajuste global —

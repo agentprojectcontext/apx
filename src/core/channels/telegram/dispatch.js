@@ -20,6 +20,7 @@ import { buildAgentSystem } from "#core/agent/build-agent-system.js";
 import { resolveAgentName, SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
 import { registerSender, resolveAllowedTools } from "#core/identity/telegram.js";
 import { buildRelationshipBlock } from "#core/agent/index.js";
+import { authorLine } from "#core/agent/author-line.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { tryResolveSkillCommand } from "#core/agent/skills/trigger.js";
 import * as askFlow from "./ask.js";
@@ -229,12 +230,28 @@ export async function handleUpdate(self, u) {
     const skipRoutedAgent = self.channel.respond_with_engine === false;
     if (!text) return;
 
-    // Short-circuit /reset / /new: send an ack and don't engage the engine.
-    // The marker we just logged is enough — getRecentTelegramTurns will
-    // honor it for future messages.
+    // Short-circuit /reset / /new: confirm and stop. No turn runs — the one
+    // model call below writes the confirmation itself, it does not answer the
+    // command. The marker we just logged is enough — getRecentTelegramTurns
+    // will honor it for future messages.
     if (isReset) {
       try {
-        const ack = t("telegram.reset_ack", { lang: resolveLang(self.globalConfig) });
+        // The ack is ours to trigger, not to word: the model writes it, and the
+        // canned line is only what goes out if it can't (engine down, no model
+        // configured). See core/agent/author-line.js.
+        const lang = resolveLang(self.globalConfig);
+        // Writing it takes a second or two, which on a chat reads as nothing
+        // happening — the same indicator a normal turn puts up covers it.
+        const stopAckTyping = self._startTyping(chat_id);
+        let ack;
+        try {
+          ack = (await authorLine({
+            globalConfig: self.globalConfig,
+            instruction: "The user just cleared this conversation — from here you remember none of it and the thread starts fresh. Confirm that in one line and invite what comes next.",
+          })) || t("telegram.reset_ack", { lang });
+        } finally {
+          stopAckTyping();
+        }
         await self._send({ chat_id, text: ack });
         appendGlobalMessage({
           channel: CHANNELS.TELEGRAM,

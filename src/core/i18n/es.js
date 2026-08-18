@@ -1,7 +1,8 @@
 // Backend strings — Spanish (es). Keep this file flat dot-paths only; the
 // web admin has its own i18n tree.
 export default {
-  // Telegram channel
+  // Telegram channel. Pisos, no copy: el ack y los cierres los escribe el
+  // modelo (core/agent/author-line.js) y estos textos salen solo si no pudo.
   "telegram.reset_ack": "Listo, contexto borrado. Arranco un hilo nuevo, ¿qué necesitás?",
   "telegram.fallback_listo": "Listo.",
   "telegram.fallback_continue": "Avancé con eso. ¿Querés que siga?",

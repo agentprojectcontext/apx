@@ -196,8 +196,9 @@ A request that takes the agent several steps arrives as **two messages, not ten*
    writes before each step are not delivered — a single task should not buzz your phone eight
    times.
 3. **The closing message**, which carries the whole result. It is the message the turn exists
-   for, and it is never skipped: a turn that acted but produced no closing still gets a short
-   "want me to keep going?".
+   for, and it is never skipped: when a turn acts but produces no closing, the agent is asked
+   to write one from what it just did. Only if that fails too — usually the same engine outage
+   that emptied the turn — does a fixed line go out instead.
 
 On a long job one extra note is let through after 90 seconds of quiet, so a four-minute task
 does not look hung. The window is a global setting — `~/.apx/config.json`, or the Settings
