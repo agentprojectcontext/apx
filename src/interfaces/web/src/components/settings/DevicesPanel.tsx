@@ -7,6 +7,7 @@ import { useDevices } from "../../hooks/useDevices";
 import { Pair, getToken, setToken } from "../../lib/api";
 import { STORAGE } from "../../constants";
 import { PairDeviceDialog } from "./PairDeviceDialog";
+import { AccessPanel } from "./AccessPanel";
 import { t } from "../../i18n";
 
 export function DevicesPanel() {
@@ -37,6 +38,7 @@ export function DevicesPanel() {
 
   return (
     <div className="space-y-6">
+      <AccessPanel />
       <Section
         title={t("settings.devices")}
         description={t("settings.devices_sub")}

@@ -13,6 +13,7 @@
 import express from "express";
 
 import { API_PREFIX } from "./api/prefix.js";
+import { effectiveHost, effectivePort } from "#core/config/index.js";
 import { logError } from "#core/logging.js";
 
 import {
@@ -70,6 +71,7 @@ import { register as registerSelfMemory } from "./api/self-memory.js";
 import { register as registerNudges } from "./api/nudges.js";
 import { register as registerWeb, registerWebToken } from "./api/web.js";
 import { register as registerConfirm } from "./api/confirm.js";
+import { register as registerNet, corsBetweenOwnAddresses } from "./api/net.js";
 
 export function buildApi({
   projects,
@@ -92,6 +94,13 @@ export function buildApi({
   // ---- Global middleware -------------------------------------------
   app.use(express.json({ limit: "2mb" }));
   app.use(traceIdMiddleware);
+  // One daemon answers on several addresses (loopback, the LAN, the tailnet).
+  // A panel installed from one of them may fail over to another; that is a
+  // cross-origin request to the same process, and only OUR other addresses are
+  // allowed to make it. Must sit above the auth wall so a preflight — which
+  // carries no Authorization header by definition — is answered rather than
+  // rejected as unauthenticated.
+  app.use(corsBetweenOwnAddresses({ port: effectivePort(config), host: effectiveHost(config) }));
   // Prefer the multi-token store when provided (production path); fall
   // back to the single `token` argument for legacy callers and tests
   // that haven't migrated yet.
@@ -140,6 +149,7 @@ export function buildApi({
   registerExec(api, ctx);
   registerSuperAgent(api, ctx);
   registerConfirm(api, ctx);
+  registerNet(api, ctx);
   registerCode(api, ctx);
   registerConversations(api, ctx);
   registerConnections(api, ctx);

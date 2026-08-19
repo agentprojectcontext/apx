@@ -7,7 +7,7 @@ import { SkillTrace } from "./SkillTrace";
 import { ReasoningBlock } from "./ReasoningBlock";
 import { AskQuestionsCard } from "./AskQuestionsCard";
 import { AskAnswersCard, parseAskAnswerText } from "./AskAnswersCard";
-import { Attachment, stripMediaMarker } from "./Attachment";
+import { AttachmentGroup, stripMediaMarker } from "./Attachment";
 import { textOf, type ChatMsg } from "../../hooks/useChat";
 import { Tip } from "../ui/tip";
 import { t } from "../../i18n";
@@ -34,7 +34,7 @@ export function MessageBubble({ msg, isLast, isAskAnswer, onCopy, face }: Props)
   // was handed, so only what the user actually wrote (caption, or the voice
   // transcript) stays as text — copy included.
   const media = mine ? msg.media : undefined;
-  const copyText = media ? stripMediaMarker(textOf(msg)) : textOf(msg);
+  const copyText = media?.length ? stripMediaMarker(textOf(msg), media.length) : textOf(msg);
   const hasTools = msg.parts.some((p) => p.kind === "tool");
   // A user turn is never grouped — it has no tools, and `work` would be empty
   // anyway; splitting only shapes the assistant side.
@@ -63,7 +63,7 @@ export function MessageBubble({ msg, isLast, isAskAnswer, onCopy, face }: Props)
       <div className={cn("flex min-w-0 max-w-[85%] flex-col gap-1.5", mine ? "items-end" : "w-full")}>
         {/* What was actually sent: the voice note plays, the photo is the photo,
             the document opens. */}
-        {media && <Attachment media={media} />}
+        {media?.length ? <AttachmentGroup media={media} /> : null}
 
         {/* Operational notes (engine fallbacks, retries, suppressed tools). */}
         {!mine && msg.notes && msg.notes.length > 0 && (
@@ -103,11 +103,18 @@ export function MessageBubble({ msg, isLast, isAskAnswer, onCopy, face }: Props)
             <div
               key={i}
               className={cn(
-                // max-w-full AND break-words: the column caps at 85%, but a
-                // flex child is free to exceed its parent unless it is told not
-                // to, so one unbroken string still pushed the bubble past both
-                // edges of a phone screen with the text cut off on the left.
-                "max-w-full whitespace-pre-wrap break-words rounded-2xl px-3 py-2 text-sm leading-relaxed",
+                // max-w-full AND overflow-wrap:anywhere. The column caps at
+                // 85%, but a flex child is free to exceed its parent unless it
+                // is told not to, so one unbroken string still pushed the
+                // bubble past both edges of a phone with the text cut off on
+                // the left. `anywhere` rather than Tailwind's `break-words`
+                // (overflow-wrap: break-word) because only `anywhere` also
+                // shrinks the element's MIN-CONTENT width: break-word wraps the
+                // glyphs but still reports the whole URL as the narrowest the
+                // box can be, so any ancestor that sizes to content — a flex
+                // item, a grid cell — is laid out around the unbroken string
+                // and the overflow comes back.
+                "max-w-full whitespace-pre-wrap [overflow-wrap:anywhere] rounded-2xl px-3 py-2 text-sm leading-relaxed",
                 mine
                   ? "rounded-br-sm bg-bubble-mine text-foreground"
                   : "w-full rounded-bl-sm bg-surface-soft text-foreground",
@@ -188,11 +195,11 @@ export function MessageBubble({ msg, isLast, isAskAnswer, onCopy, face }: Props)
   );
 }
 
-/** The visible text of a part: with an attachment, the machine-facing marker
- *  is dropped and what is left (a caption, or the voice transcript) is shown. */
-function textOfPart(text: string | undefined, media: unknown): string {
+/** The visible text of a part: with attachments, the machine-facing markers
+ *  are dropped and what is left (a caption, or the voice transcript) is shown. */
+function textOfPart(text: string | undefined, media: unknown[] | undefined): string {
   if (!text) return "";
-  return media ? stripMediaMarker(text) : text;
+  return media?.length ? stripMediaMarker(text, media.length) : text;
 }
 
 function formatTs(iso: string): string {

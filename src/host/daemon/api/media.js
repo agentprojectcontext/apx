@@ -25,6 +25,10 @@ import { APX_HOME } from "#core/config/index.js";
 
 const MIME = {
   ".oga": "audio/ogg", ".ogg": "audio/ogg", ".opus": "audio/ogg",
+  // A voice note recorded in the browser is Opus in a WebM container. Without
+  // its own extension it would land as ".webm" → video/webm → a <video> element
+  // with no picture. `.weba` is the audio-only spelling of the same container.
+  ".weba": "audio/webm",
   ".mp3": "audio/mpeg", ".wav": "audio/wav", ".m4a": "audio/mp4", ".aac": "audio/aac",
   ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".gif": "image/gif",
   ".webp": "image/webp", ".heic": "image/heic",
@@ -41,7 +45,7 @@ const MIME = {
 // would run if it ever escaped the Content-Disposition below.
 const UPLOAD_EXT = new Set([
   ".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic",
-  ".oga", ".ogg", ".opus", ".mp3", ".wav", ".m4a", ".aac",
+  ".oga", ".ogg", ".opus", ".weba", ".mp3", ".wav", ".m4a", ".aac",
   ".mp4", ".mov", ".webm",
   ".pdf", ".txt", ".md", ".csv", ".json", ".log",
 ]);

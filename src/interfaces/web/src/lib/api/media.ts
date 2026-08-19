@@ -1,4 +1,5 @@
 import { getToken } from "../http";
+import { apiUrl } from "../net";
 import type { MessageMedia } from "../../types/daemon";
 import { t } from "../../i18n";
 
@@ -12,7 +13,7 @@ import { t } from "../../i18n";
  */
 export async function fetchMediaUrl(filePath: string): Promise<string> {
   const token = getToken();
-  const res = await fetch(`/api/media?path=${encodeURIComponent(filePath)}`, {
+  const res = await fetch(apiUrl(`/api/media?path=${encodeURIComponent(filePath)}`), {
     headers: token ? { authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) {
@@ -39,7 +40,7 @@ export interface UploadedMedia {
  */
 const ALLOWED_EXT = [
   ".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic",
-  ".oga", ".ogg", ".opus", ".mp3", ".wav", ".m4a", ".aac",
+  ".oga", ".ogg", ".opus", ".weba", ".mp3", ".wav", ".m4a", ".aac",
   ".mp4", ".mov", ".webm",
   ".pdf", ".txt", ".md", ".csv", ".json", ".log",
 ];
@@ -62,6 +63,17 @@ const EXT_FOR_MIME: Record<string, string> = {
   "text/markdown": ".md",
   "text/csv": ".csv",
   "application/json": ".json",
+  // A recording and a pasted video arrive as a Blob with a type and no name at
+  // all. Opus-in-WebM gets `.weba` so it is stored as audio, not as a video
+  // with no picture; Safari's recorder produces audio/mp4 instead.
+  "audio/webm": ".weba",
+  "audio/ogg": ".ogg",
+  "audio/mp4": ".m4a",
+  "audio/mpeg": ".mp3",
+  "audio/wav": ".wav",
+  "video/webm": ".webm",
+  "video/mp4": ".mp4",
+  "video/quicktime": ".mov",
 };
 
 /** The filename to send this file under: its own, or one built from its type. */
@@ -98,7 +110,7 @@ export async function uploadMedia(file: File): Promise<UploadedMedia> {
   const rejected = attachmentRejection(file);
   if (rejected) throw new Error(rejected);
   const token = getToken();
-  const res = await fetch(`/api/media/upload?name=${encodeURIComponent(attachmentName(file))}`, {
+  const res = await fetch(apiUrl(`/api/media/upload?name=${encodeURIComponent(attachmentName(file))}`), {
     method: "POST",
     headers: {
       "content-type": "application/octet-stream",

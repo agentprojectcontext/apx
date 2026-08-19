@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
-import { Search, Users } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Search, Share, Smartphone, Users, X } from "lucide-react";
+import { installStance, onInstallStateChange, promptInstall } from "../../lib/pwa";
 import { AgentAvatar } from "../../components/agents/AgentAvatar";
 import type { ReactNode } from "react";
 import { SUPER_AGENT_ICON } from "../../components/agents/AgentAvatar";
@@ -146,6 +147,8 @@ export function MobileChatList({
         </div>
       </header>
 
+      <InstallRow />
+
       <div className="min-h-0 flex-1 divide-y divide-border/60 overflow-y-auto pb-[env(safe-area-inset-bottom)]">
         {shownTeams.map((team) => (
           <Row
@@ -175,6 +178,70 @@ export function MobileChatList({
           </p>
         )}
       </div>
+    </div>
+  );
+}
+
+
+/**
+ * "Put this on your home screen" — offered here because this is the screen a
+ * phone actually lands on, not buried in the desktop settings.
+ *
+ * Shown once and dismissible: an install banner that comes back every session
+ * is an ad. Nothing is shown at all when the browser cannot install (no secure
+ * context) or already has — the row would be a promise we cannot keep.
+ */
+const INSTALL_DISMISSED = "apx.install.dismissed";
+
+function InstallRow() {
+  const [, bump] = useState(0);
+  const [hidden, setHidden] = useState(() => {
+    try {
+      return localStorage.getItem(INSTALL_DISMISSED) === "1";
+    } catch {
+      return false;
+    }
+  });
+  // Chrome fires beforeinstallprompt whenever it likes — usually after this
+  // screen has already painted.
+  useEffect(() => onInstallStateChange(() => bump((n) => n + 1)), []);
+
+  const stance = installStance();
+  if (hidden) return null;
+  if (stance.kind !== "prompt" && stance.kind !== "ios") return null;
+
+  const dismiss = () => {
+    setHidden(true);
+    try {
+      localStorage.setItem(INSTALL_DISMISSED, "1");
+    } catch {
+      /* private mode: it stays gone for this session, which is enough */
+    }
+  };
+
+  return (
+    <div className="flex shrink-0 items-center gap-3 border-b border-border bg-primary/5 px-4 py-3 text-sm">
+      {stance.kind === "prompt" ? <Smartphone size={16} className="shrink-0 text-primary" /> : <Share size={16} className="shrink-0 text-primary" />}
+      <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
+        {stance.kind === "prompt" ? t("access.install_sub") : t("access.install_ios")}
+      </span>
+      {stance.kind === "prompt" && (
+        <button
+          type="button"
+          onClick={() => void promptInstall()}
+          className="shrink-0 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground"
+        >
+          {t("access.install_now")}
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={dismiss}
+        aria-label={t("common.close")}
+        className="shrink-0 rounded p-1 text-muted-fg hover:text-foreground"
+      >
+        <X size={14} />
+      </button>
     </div>
   );
 }

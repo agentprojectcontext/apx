@@ -19,17 +19,27 @@
 
 import { randomUUID } from "node:crypto";
 import os from "node:os";
+import { reachableEndpoints } from "./net.js";
 
 // 90s was not enough for the real sequence: pick up the phone, unlock it,
 // open the camera, scan, wait for the browser. Five minutes is still short
 // enough that a nonce left on screen is not a standing invitation.
 const PAIRING_TTL_MS = 5 * 60_000;
 
-// Reachable base URLs a device on the LAN can hit. When the daemon binds to
-// the wildcard (0.0.0.0/::) we enumerate non-internal IPv4s; when it binds to
-// a concrete host we use that. Loopback is always last (only useful for the
-// host itself / adb reverse). Used to build the scan-to-login QR.
-function reachableUrls({ host, port }) {
+// Reachable base URLs a device can hit, best first. Delegated to the net
+// module so the pairing QR and the access panel agree on what exists — and so
+// a tailnet HTTPS address, when there is one, is what the phone scans. That
+// matters beyond convenience: a device paired over https:// gets an origin
+// that can install the panel as an app and open a microphone, which
+// http://192.168.x.x cannot.
+//
+// Kept synchronous-with-a-cache: /pair/init is a fast path and asking
+// Tailscale takes a round trip. The list is refreshed in the background and is
+// at worst one pairing stale — and the LAN half, which is what a first pairing
+// almost always uses, is computed here and now.
+let urlCache = { at: 0, urls: null };
+
+function lanFallback({ host, port }) {
   const p = port || 7430;
   const urls = [];
   if (host && host !== "0.0.0.0" && host !== "::" && host !== "127.0.0.1") {
@@ -44,6 +54,19 @@ function reachableUrls({ host, port }) {
   }
   urls.push(`http://127.0.0.1:${p}`);
   return [...new Set(urls)];
+}
+
+function reachableUrls({ host, port }) {
+  const p = port || 7430;
+  if (Date.now() - urlCache.at > 30_000) {
+    urlCache = { ...urlCache, at: Date.now() };
+    reachableEndpoints({ port: p, host })
+      .then((eps) => {
+        urlCache = { at: Date.now(), urls: eps.map((e) => e.url) };
+      })
+      .catch(() => {});
+  }
+  return urlCache.urls || lanFallback({ host, port: p });
 }
 
 // pairing_id → { expires_at, confirmed_at, device_label, client_id }

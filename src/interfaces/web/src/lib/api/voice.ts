@@ -1,4 +1,5 @@
 import { http, getToken } from "../http";
+import { apiUrl } from "../net";
 
 // Voice / TTS / STT client. Talks to the daemon's /voice, /tts and /transcribe
 // surfaces (see src/host/daemon/api/{voice,tts,transcribe}.js + the engine
@@ -220,7 +221,7 @@ export const TTS_PROVIDER_ORDER: TtsProviderId[] = ["piper", "elevenlabs", "open
  */
 export async function fetchTtsAudioUrl(audioPath: string): Promise<string> {
   const token = getToken();
-  const res = await fetch(`/api/voice/tts?path=${encodeURIComponent(audioPath)}`, {
+  const res = await fetch(apiUrl(`/api/voice/tts?path=${encodeURIComponent(audioPath)}`), {
     headers: token ? { authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) {

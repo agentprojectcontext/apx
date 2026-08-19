@@ -9,10 +9,20 @@ import type { PairInit } from "../../types/daemon";
 import { t } from "../../i18n";
 import { toneText } from "../../lib/tone";
 
+/** Which address the QR should send the phone to.
+ *
+ *  An https:// one wins outright when there is one: the origin a device pairs
+ *  over is the origin its installed app keeps launching at, and only a secure
+ *  one can install as an app, record a voice note, or read the clipboard. The
+ *  daemon already returns the list best-first; this only makes the preference
+ *  explicit and skips loopback, which no other device can reach. */
 function pickLanUrl(urls: string[]): string {
-  return urls.find((u) => !u.includes("127.0.0.1") && !u.includes("localhost"))
-    || urls[0]
-    || window.location.origin;
+  return (
+    urls.find((u) => u.startsWith("https://")) ||
+    urls.find((u) => !u.includes("127.0.0.1") && !u.includes("localhost")) ||
+    urls[0] ||
+    window.location.origin
+  );
 }
 
 export function PairDeviceDialog({

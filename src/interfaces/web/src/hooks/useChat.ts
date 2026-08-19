@@ -55,7 +55,7 @@ export interface ChatMsg {
   /** The attachment this user turn carried (voice note, photo, document).
    *  Rendered as the file itself — the stored text is only the marker the
    *  agent was handed. */
-  media?: MessageMedia;
+  media?: MessageMedia[];
   /** Skill Inspector decision for this turn (when the feature is on): which
    *  skills the per-turn RAG loaded inline vs merely hinted. */
   inspector?: {
@@ -166,12 +166,12 @@ const mediaOf = (file: UploadedMedia): MessageMedia => ({
   duration: null,
 });
 
-/** The marker the daemon will write for this file, mirrored locally so the sent
- *  turn reads the same before and after a reload. */
-const markerFor = (file: UploadedMedia | undefined): string => {
-  if (!file) return "";
-  return file.kind === "photo" ? "[image attached]" : `[file attached: ${file.name}]`;
-};
+/** The markers the daemon will write for these files, mirrored locally so the
+ *  sent turn reads the same before and after a reload. */
+const markersFor = (files: UploadedMedia[]): string =>
+  files
+    .map((f) => (f.kind === "photo" ? "[image attached]" : `[file attached: ${f.name}]`))
+    .join(" ");
 
 function isErrorResult(result: unknown): boolean {
   if (!result || typeof result !== "object") return false;
@@ -201,7 +201,10 @@ function threadToChatMsgs(messages: ConversationMessage[]): ChatMsg[] {
     if (m.role === "user") {
       turn = null;
       turnActor = undefined;
-      out.push({ role: "user", parts: userPart(m.content), ts, ...(m.media ? { media: m.media } : {}) });
+      // A stored turn records ONE file (the ledger row holds a single media
+      // block) — the live turn below can carry several, so the field is a list
+      // either way and history just has a list of one.
+      out.push({ role: "user", parts: userPart(m.content), ts, ...(m.media ? { media: [m.media] } : {}) });
     } else if (m.role === "assistant" || m.role === "tool") {
       // Tool rows inherit the current actor (they're logged by whoever is
       // running); only assistant rows can start a new one.
@@ -492,9 +495,9 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
   const send = useCallback(
     async (text: string, opts: SendOptions = {}) => {
       const trimmed = text.trim();
-      const file = opts.attachments?.[0];
+      const files = opts.attachments || [];
       // A photo with no caption is a turn; text alone still is one.
-      if ((!trimmed && !file) || streaming) return;
+      if ((!trimmed && !files.length) || streaming) return;
       const nowIso = () => new Date().toISOString();
       const history: ConversationMessage[] = msgs.map((m) => ({
         role: m.role,
@@ -508,9 +511,9 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
           // The marker rides on the turn's text the way it does on every other
           // channel: the bubble strips it (the file is shown instead) and the
           // NEXT turn's history still records that something was attached.
-          parts: userPart([markerFor(file), trimmed].filter(Boolean).join(" ")),
+          parts: userPart([markersFor(files), trimmed].filter(Boolean).join(" ")),
           ts: nowIso(),
-          ...(file ? { media: mediaOf(file) } : {}),
+          ...(files.length ? { media: files.map(mediaOf) } : {}),
         },
         { role: "assistant", parts: [], ts: nowIso(), pending: true },
       ]);

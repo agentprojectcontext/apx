@@ -10,11 +10,18 @@ import { t } from "../../i18n";
 // agent was handed ("[document received: … saved to /Users/…]"), which is
 // machine-facing text — the person who sent the file gets the file back.
 
-/** Drop the leading `[…]` marker a media turn carries, leaving the caption
+/** Drop the leading `[…]` markers a media turn carries, leaving the caption
  *  (or, for a voice note, the transcript). Only ever applied to turns that
- *  DO have an attachment, so a plain message starting with a bracket is safe. */
-export function stripMediaMarker(text: string): string {
-  return text.replace(/^\[[^\]]*\]\s*/, "").trim();
+ *  DO have an attachment, and never more markers than there were files — so a
+ *  message that itself starts with a bracket keeps its own text. */
+export function stripMediaMarker(text: string, count = 1): string {
+  let out = text;
+  for (let i = 0; i < Math.max(1, count); i++) {
+    const next = out.replace(/^\[[^\]]*\]\s*/, "");
+    if (next === out) break;
+    out = next;
+  }
+  return out.trim();
 }
 
 function humanSize(bytes: number | null): string {
@@ -96,7 +103,7 @@ export function Attachment({ media }: { media: MessageMedia }) {
 
   if (media.kind === "photo") {
     return url ? (
-      <a href={url} target="_blank" rel="noreferrer" className="block max-w-[16rem]">
+      <a href={url} target="_blank" rel="noreferrer" className="block w-full max-w-[16rem]">
         <img
           src={url}
           alt={label}
@@ -149,6 +156,31 @@ export function Attachment({ media }: { media: MessageMedia }) {
         </a>
       )}
     </Card>
+  );
+}
+
+/** Every file a turn carried. Images go side by side (an album reads as one
+ *  thing); anything else stacks, because each row is a name you have to read. */
+export function AttachmentGroup({ media }: { media: MessageMedia[] }) {
+  if (!media.length) return null;
+  if (media.length === 1) return <Attachment media={media[0]} />;
+  const shots = media.filter((m) => m.kind === "photo");
+  const rest = media.filter((m) => m.kind !== "photo");
+  return (
+    <div className="flex max-w-full flex-col gap-1.5">
+      {shots.length > 0 && (
+        <div className="flex flex-wrap justify-end gap-1.5">
+          {shots.map((m, i) => (
+            <div key={i} className="w-[calc(50%-0.1875rem)] min-w-28 max-w-40">
+              <Attachment media={m} />
+            </div>
+          ))}
+        </div>
+      )}
+      {rest.map((m, i) => (
+        <Attachment key={i} media={m} />
+      ))}
+    </div>
   );
 }
 
