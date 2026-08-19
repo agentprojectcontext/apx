@@ -35,7 +35,6 @@ import {
 import { agentToResponse } from "./shared.js";
 import { normalizeVaultPatch } from "#core/apc/agents-vault.js";
 import { PERMISSION_MODES } from "#core/constants/permissions.js";
-import { DEFAULT_AGENT_TOOLS } from "#core/http-tools/catalog.js";
 import { isBlobKey, normalizeAgentType, pickBlob } from "#core/apc/agent-identity.js";
 import { readOrganization, resolveAreaSlug } from "#core/stores/organization.js";
 import { listConversations } from "#core/stores/conversations.js";
@@ -217,9 +216,14 @@ export function register(api, { projects, project }) {
         Language: language || null,
         Description: description || null,
         Skills: skills || [],
-        // Omitted tools ⇒ the safe default set, so a new agent is useful
-        // immediately instead of landing with an empty capability list.
-        Tools: Array.isArray(tools) ? tools : [...DEFAULT_AGENT_TOOLS],
+        // Omitted tools ⇒ leave the field UNDECLARED. A declared list is a
+        // deliberate narrowing and it wins forever, so stamping a snapshot of
+        // "the defaults" at creation quietly froze every new agent to whatever
+        // the catalog looked like that day — the reason a producer agent could
+        // not reach the MCP it was built around. Undeclared means the broad
+        // default (see resolveAgentAllowedTools), and it keeps up with the
+        // registry as tools are added.
+        Tools: Array.isArray(tools) ? tools : null,
         // An orchestrator IS a master — the web already conflated the two on
         // create, and letting them disagree splits the hierarchy view from the
         // typology.

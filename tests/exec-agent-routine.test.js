@@ -65,9 +65,15 @@ test("exec_agent with tools runs the call and stores a conversation", async () =
     assert.ok(out.conversation_id, "run must persist a conversation id");
     assert.ok(Array.isArray(out.trace) && out.trace.some((t) => t.tool === "list_projects"),
       `expected list_projects in trace, got ${JSON.stringify(out.trace)}`);
-    assert.ok(out.allowed_tools.includes("list_projects"), "empty tools: field falls back to defaults");
-    assert.equal(out.allowed_tools.includes("send_telegram"), false, "must not inherit super-agent tools");
-    assert.equal(out.allowed_tools.includes("call_runtime"), false);
+    // No declaration on the card ⇒ the broad default. A routine that has to ask
+    // for each capability it needs is a routine that fails at 08:00 and gets
+    // diagnosed at 18:00; narrowing is the deliberate act, not the starting point.
+    assert.ok(out.allowed_tools.includes("list_projects"), "no tools: field ⇒ the broad default");
+    assert.ok(out.allowed_tools.includes("send_telegram"), "a cron must be able to report");
+    assert.ok(out.allowed_tools.includes("call_mcp"), "and reach its MCPs");
+    // What stays out is the host's own.
+    assert.equal(out.allowed_tools.includes("set_permission_mode"), false);
+    assert.equal(out.allowed_tools.includes("set_identity"), false);
 
     const convs = listConversations(ctx.project.storagePath, "scout");
     assert.equal(convs.length, 1);

@@ -14,13 +14,32 @@ test("declaredAgentTools reads fields.Tools or tools", () => {
   assert.deepEqual(declaredAgentTools({}), []);
 });
 
-test("empty declaration falls back to the safe default set, not the super-agent registry", () => {
+// Capability is the default; narrowing is the deliberate act. The old default
+// was a read/search/memory set, and it produced agents that could not do their
+// job — a producer with no way to reach the MCP holding its publishing tools —
+// each one diagnosed as a bug long after the run that needed it had failed.
+test("no declaration ⇒ the broad default: the registry minus what belongs to the host", () => {
   const names = resolveAgentAllowedTools({ fields: { Tools: [] } });
-  assert.ok(names.includes(TOOLS.READ_FILE), "defaults include read_file");
-  assert.ok(names.includes("glob") || names.includes(TOOLS.SEARCH_FILES), "defaults include search (glob)");
-  assert.equal(names.includes(TOOLS.CALL_RUNTIME), false, "must not inherit call_runtime");
-  assert.equal(names.includes(TOOLS.SEND_TELEGRAM), false, "must not inherit send_telegram");
+  assert.ok(names.length > 40, `expected a broad set, got ${names.length}`);
+  assert.ok(names.includes(TOOLS.READ_FILE));
+  assert.ok(names.includes("glob") || names.includes(TOOLS.SEARCH_FILES));
+  // The capabilities whose absence kept breaking real agents.
+  assert.ok(names.includes(TOOLS.CALL_MCP), "an agent must be able to reach its MCPs");
+  assert.ok(names.includes(TOOLS.LIST_MCP_TOOLS));
+  assert.ok(names.includes(TOOLS.SEND_TELEGRAM));
+  assert.ok(names.includes(TOOLS.CREATE_TASK));
+
+  // What stays out is the super-agent's own: its identity, its privilege level,
+  // and surgery on the install it is running inside.
+  assert.equal(names.includes(TOOLS.SET_IDENTITY), false);
   assert.equal(names.includes(TOOLS.SET_PERMISSION_MODE), false);
+  assert.equal(names.includes(TOOLS.ADD_PROJECT), false);
+  assert.equal(names.includes(TOOLS.IMPORT_AGENT), false);
+});
+
+test("a declared list still narrows — that is the whole point of declaring one", () => {
+  const names = resolveAgentAllowedTools({ fields: { Tools: ["read_file", "run_command"] } });
+  assert.deepEqual(names, [TOOLS.READ_FILE, TOOLS.RUN_SHELL]);
 });
 
 test("catalog aliases rewrite to callable native names", () => {

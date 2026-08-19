@@ -16,7 +16,7 @@ import path from "node:path";
 import { initApf } from "#core/apc/scaffold.js";
 import { readAgents } from "#core/apc/parser.js";
 import { cmdAgentAdd, cmdAgentSet } from "#interfaces/cli/commands/agent.js";
-import { DEFAULT_AGENT_TOOLS } from "#core/http-tools/catalog.js";
+import { resolveAgentAllowedTools } from "#core/agent/agent-tools.js";
 import { SUPER_AGENT_BLOB, isBlobKey } from "#core/apc/agent-identity.js";
 
 const PROMPT = [
@@ -98,18 +98,21 @@ test("agent add with no prompt still works but warns", async () => {
   });
 });
 
-// Matches the daemon API, which has always applied DEFAULT_AGENT_TOOLS on
-// create. A CLI-created agent used to land with no tools at all.
-test("agent add defaults tools to the safe set, and --tools overrides it", async () => {
+// A declared `tools:` list is a deliberate narrowing that wins forever, so
+// stamping a snapshot of "the defaults" at creation froze every new agent to
+// whatever the catalog looked like that day. Undeclared is the useful state: it
+// resolves to the broad default and keeps up as tools are added.
+test("agent add leaves tools undeclared, and --tools narrows it", async () => {
   await inProject(async (root) => {
     await cmdAgentAdd(args(["reviewer"], { prompt: PROMPT }));
     const fields = readAgents(root).find((a) => a.slug === "reviewer").fields;
-    const tools = String(fields.Tools).split(",").map((s) => s.trim());
-    assert.deepEqual(tools, [...DEFAULT_AGENT_TOOLS]);
+    assert.ok(!fields.Tools, "no tools: line — the agent inherits the broad default");
+    assert.ok(resolveAgentAllowedTools({ fields }).length > 20, "and that default is broad");
 
     await cmdAgentAdd(args(["narrow"], { prompt: PROMPT, tools: "read_file, glob" }));
     const narrow = readAgents(root).find((a) => a.slug === "narrow").fields;
     assert.deepEqual(String(narrow.Tools).split(",").map((s) => s.trim()), ["read_file", "glob"]);
+    assert.deepEqual(resolveAgentAllowedTools({ fields: narrow }), ["read_file", "glob"]);
   });
 });
 
