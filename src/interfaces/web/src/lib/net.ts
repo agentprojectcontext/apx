@@ -75,8 +75,15 @@ export function knownCandidates(): string[] {
   }
 }
 
-/** Does this address answer, right now? Short timeout: the whole point is to
- *  move on quickly, and an address that is not there fails by hanging. */
+/**
+ * Is an APX daemon answering at this address, right now?
+ *
+ * Not "did something answer": a LAN address is a lease, and the 192.168.x.x
+ * that was this Mac yesterday can be a printer today — one that cheerfully
+ * returns 200s, or 404s, for everything. So the check is that the body is
+ * OUR health payload. Short timeout, because the whole point is to move on
+ * quickly and an address that is not there fails by hanging.
+ */
 export async function probe(candidate: string, timeoutMs = 2500): Promise<boolean> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -87,12 +94,39 @@ export async function probe(candidate: string, timeoutMs = 2500): Promise<boolea
       // cost a round trip on every candidate we are only trying out.
       cache: "no-store",
     });
-    return res.ok;
+    if (!res.ok) return false;
+    const body = (await res.json().catch(() => null)) as { status?: string; version?: string } | null;
+    return body?.status === "ok" && typeof body.version === "string";
   } catch {
     return false;
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * A response came back wrong in a way an address change would explain — a 404
+ * where a route should be, a gateway error. Confirm the daemon is still on the
+ * other end of the CURRENT address before believing it, and fail over when it
+ * is not.
+ *
+ * This is the half that a rejected fetch does not cover. Leaving the house does
+ * not always produce a network error: the same private address is handed out on
+ * every network, so the phone reconnects to *something* and gets a stranger's
+ * 404 instead of silence.
+ *
+ * Returns true when it moved (the caller should retry).
+ */
+export async function recoverIfAddressIsWrong(): Promise<boolean> {
+  const current = base || window.location.origin;
+  if (await probe(current, 1500)) return false; // the daemon is there; the error is real
+  return (await recoverConnection()) !== null;
+}
+
+/** Statuses worth a second look. A 401 is an auth problem and a 400 is our own
+ *  bad request — neither is fixed by talking to a different address. */
+export function mayBeWrongAddress(status: number): boolean {
+  return status === 404 || status === 502 || status === 503 || status === 504;
 }
 
 let recovering: Promise<string | null> | null = null;

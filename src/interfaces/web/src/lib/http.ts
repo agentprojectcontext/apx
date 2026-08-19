@@ -8,7 +8,7 @@
 // Wi-Fi, or Tailscale is off. A request that cannot reach the current address
 // asks lib/net to find one that answers and is retried there; see that file
 // for the whole story.
-import { apiUrl, recoverConnection } from "./net";
+import { apiUrl, mayBeWrongAddress, recoverConnection, recoverIfAddressIsWrong } from "./net";
 
 let token: string | null = null;
 
@@ -53,6 +53,13 @@ async function request<T>(
     // an HTTP error. That is exactly the case another address might fix.
     if ((init.signal as AbortSignal | undefined)?.aborted) throw e;
     if ((await recoverConnection()) === null) throw e;
+    res = await send();
+  }
+  // Not every wrong address fails by rejecting. Private ranges repeat across
+  // networks, so a phone that changed Wi-Fi can reach *something* at the old
+  // address and be told 404 by a stranger. Confirm our daemon is still there
+  // before passing that on as an answer.
+  if (!res.ok && mayBeWrongAddress(res.status) && (await recoverIfAddressIsWrong())) {
     res = await send();
   }
   if (!res.ok) {

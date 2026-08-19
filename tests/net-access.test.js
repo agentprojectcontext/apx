@@ -128,3 +128,27 @@ test("the service worker never caches data or another origin", () => {
     "the network is tried before the cache",
   );
 });
+
+test("failing over needs OUR daemon at the other end, not just a 200", () => {
+  const net = fs.readFileSync(
+    path.join(__dirname, "..", "src", "interfaces", "web", "src", "lib", "net.ts"),
+    "utf8",
+  );
+  // A LAN address is a lease: the 192.168.x.x that was this Mac yesterday can
+  // be a printer today, and it will answer. The probe checks the health body,
+  // not the status code.
+  assert.match(net, /body\?\.status === "ok" && typeof body\.version === "string"/);
+  // And the same repeated private ranges mean leaving the house does not
+  // always produce a network error — sometimes it produces a stranger's 404.
+  assert.match(net, /export function mayBeWrongAddress/);
+  assert.match(net, /status === 404 \|\| status === 502/);
+  // An auth failure is not an address problem; retrying elsewhere would only
+  // hide it.
+  assert.doesNotMatch(net, /status === 401/);
+
+  const http = fs.readFileSync(
+    path.join(__dirname, "..", "src", "interfaces", "web", "src", "lib", "http.ts"),
+    "utf8",
+  );
+  assert.match(http, /mayBeWrongAddress\(res\.status\) && \(await recoverIfAddressIsWrong\(\)\)/);
+});
