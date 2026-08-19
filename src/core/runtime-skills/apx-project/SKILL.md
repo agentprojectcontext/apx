@@ -49,6 +49,7 @@ Accepted: numeric id (`1`), exact name from `.apc/project.json` (`acme`), absolu
 ├── AGENTS.md                                   ← agent definitions (committed)
 └── .apc/
     ├── project.json                            ← { apxId, name, ... }
+    ├── memory.md                               ← the project's own memory (committed)
     ├── agents/<slug>.md
     ├── skills/<slug>.md or <slug>/SKILL.md
     ├── mcps.json                               ← shared MCPs (committed)
@@ -63,6 +64,18 @@ Accepted: numeric id (`1`), exact name from `.apc/project.json` (`acme`), absolu
 ├── artifacts/
 └── mcps.json                                   ← per-project runtime MCPs (local, may hold tokens)
 ```
+
+## Project memory
+
+`.apc/memory.md` is what the PROJECT knows: what it is, its stack, who owns it, the decisions that outlive a session. It is what the project's Memories screen shows and what the RAG index scopes to `project:<id>`.
+
+Write it with `remember` and a `project` — never by creating a memory file yourself. A `MEMORY.md` at the repo root, or any other name, is read by nothing.
+
+```
+remember(note: "Northwind runs on Postgres in production", project: "northwind")
+```
+
+Read it with `read_file` on `<repo>/.apc/memory.md`. For facts that matter on every channel, call `remember` with no `project` — those go to your own notebook.
 
 ## Anti-examples
 

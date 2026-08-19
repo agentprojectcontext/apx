@@ -193,7 +193,10 @@ Header/config values in the MCP editor support the variable token picker — see
 ### Memories
 
 The **Memories** tab edits the project's `.apc/memory.md` and each agent's
-runtime memory, the long-lived context the agents read on every turn.
+runtime memory, the long-lived context the agents read on every turn. It is also
+where the super-agent's `remember` tool writes when it is told a fact about this
+project. The super-agent's own notebook (`~/.apx/memory.md`) is global rather
+than per-project, so it is listed only in **Base**.
 
 ![Memories tab — the project memory.md editor](../../../assets/shots/17-memories.png)
 

@@ -75,24 +75,33 @@ function SidebarItem({
 // right for markdown edit / split-preview / save — the same surface as /docs.
 export function MemoryBrowser({ pid }: { pid: string }) {
   const toast = useToast();
-  // Opens on the notebook. It is the memory that ships in every prompt on
-  // every channel, so it is the one most worth seeing first.
+  // The notebook belongs to Base (id 0) and to nowhere else. It is ONE global
+  // file (~/.apx/memory.md) that used to head the sidebar of every project, so
+  // twelve projects each looked like they owned a copy of the super-agent's
+  // memory — and editing it "in Postbeam" silently edited the global one.
+  const isBase = String(pid) === "0";
+  // On Base it opens on the notebook (the memory that ships in every prompt on
+  // every channel); on a project, on that project's own memory.
   const [sel, setSel] = useState<Sel>({ kind: "notebook" });
-  const notebook = useSWR("/api/notebook", () => Notebook.get());
+  // Switching projects from the rail re-renders this component without
+  // remounting it, so a notebook selection can outlive Base. Derive rather than
+  // reset: off Base there is simply no such row to be on.
+  const open: Sel = !isBase && sel.kind === "notebook" ? { kind: "project" } : sel;
+  const notebook = useSWR(isBase ? "/api/notebook" : null, () => Notebook.get());
   // Never hardcode the agent's name (AGENTS.md rule 13) — it is the user's to set.
   const persona = usePersonaName();
 
   const agents = useSWR(`/api/projects/${pid}/agents`, () => Agents.list(pid));
 
-  const bodyKey = `/api/memory/${pid}/${selId(sel)}`;
-  const body = useSWR(bodyKey, () => loadBody(pid, sel));
+  const bodyKey = `/api/memory/${pid}/${selId(open)}`;
+  const body = useSWR(bodyKey, () => loadBody(pid, open));
 
   // Adapt the raw memory body into the FileContent shape FileViewer expects.
   const file = useMemo<FileContent | null>(() => {
     if (body.data === undefined) return null;
     const content = body.data ?? "";
     return {
-      path: selPath(sel),
+      path: selPath(open),
       name: "memory.md",
       kind: "markdown",
       size: content.length,
@@ -100,10 +109,10 @@ export function MemoryBrowser({ pid }: { pid: string }) {
       encoding: "utf8",
       content,
     };
-  }, [body.data, sel]);
+  }, [body.data, open]);
 
   const onSave = async (content: string) => {
-    await saveBody(pid, sel, content);
+    await saveBody(pid, open, content);
     toast.success(t("project.memories.saved"));
     void body.mutate(content, { revalidate: false });
   };
@@ -130,28 +139,32 @@ export function MemoryBrowser({ pid }: { pid: string }) {
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
-          {/* The super-agent's own notebook. First, and in its own group,
-              because it is global — not a property of this project — and its
-              absence from this list is what made "where is Roby's memory?" an
-              unanswerable question. */}
-          <p className="px-1.5 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-            {t("project.memories.super_agent_group")}
-          </p>
-          <SidebarItem
-            active={sel.kind === "notebook"}
-            onClick={() => setSel({ kind: "notebook" })}
-            icon={NotebookPen}
-            iconClass={toneText.emerald}
-            label={t("project.memories.notebook_item", { persona })}
-            sub={notebook.data ? t("project.memories.tokens", { n: notebook.data.approx_tokens }) : undefined}
-          />
+          {/* The super-agent's own notebook — Base only. First, and in its own
+              group, because it is global rather than a property of a project,
+              and its absence from every list is what made "where is the
+              super-agent's memory?" an unanswerable question. */}
+          {isBase && (
+            <>
+              <p className="px-1.5 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                {t("project.memories.super_agent_group")}
+              </p>
+              <SidebarItem
+                active={open.kind === "notebook"}
+                onClick={() => setSel({ kind: "notebook" })}
+                icon={NotebookPen}
+                iconClass={toneText.emerald}
+                label={t("project.memories.notebook_item", { persona })}
+                sub={notebook.data ? t("project.memories.tokens", { n: notebook.data.approx_tokens }) : undefined}
+              />
+            </>
+          )}
 
           {/* General / project memory */}
-          <p className="px-1.5 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <p className={`px-1.5 pb-1 ${isBase ? "pt-3" : "pt-1"} text-[10px] font-semibold uppercase tracking-wide text-muted-foreground`}>
             {t("project.memories.general_group")}
           </p>
           <SidebarItem
-            active={sel.kind === "project"}
+            active={open.kind === "project"}
             onClick={() => setSel({ kind: "project" })}
             icon={Brain}
             iconClass={toneText.sky}
@@ -172,7 +185,7 @@ export function MemoryBrowser({ pid }: { pid: string }) {
             list.map((a) => (
               <SidebarItem
                 key={a.slug}
-                active={sel.kind === "agent" && sel.slug === a.slug}
+                active={open.kind === "agent" && open.slug === a.slug}
                 onClick={() => setSel({ kind: "agent", slug: a.slug })}
                 icon={a.is_master ? Crown : Bot}
                 iconClass={a.is_master ? toneText.violet : "text-muted-foreground"}
