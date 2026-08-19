@@ -13,8 +13,12 @@
 import { callEngine } from "../engines/index.js";
 
 // Structured state summaries carry several labelled sections, so they need more
-// room than the old ~800-token narrative recap.
-export const COMPACT_MAX_TOKENS = 1200;
+// room than the old ~800-token narrative recap — and the budget has to cover
+// the model's THINKING too. A reasoner spends a chain of thought before it
+// writes a word: at 1200 the reasoning ate the budget and the summary came back
+// cut off mid-section, which is the one failure mode this whole file exists to
+// avoid. ~900 tokens of summary + room to think.
+export const COMPACT_MAX_TOKENS = 3200;
 
 export const CONDENSER_SYSTEM =
   "You are maintaining a context-aware state summary for an interactive agent. " +
@@ -98,12 +102,68 @@ export function buildCondenserPrompt({ eventsBlock, openingBlock = "" }) {
   return `${CONDENSER_INSTRUCTIONS}\n\n${opening}${eventsBlock}`;
 }
 
+// A compact record REPLACES the raw turns it covers — the reader drops them and
+// keeps only this text. So a summary that came back truncated, empty-ish, or
+// stripped of its sections is not a degraded summary: it is amnesia written to
+// disk, permanently, for every turn it covered. It has happened in production —
+// one flaky response wrote `"USER_CONTEXT:\n- Manu"` over 350 turns and the
+// agent spent the rest of the day re-deriving what it already knew.
+//
+// So a summary has to earn the right to stand in for the history:
+const MIN_SUMMARY_CHARS = 400;
+// …and at least this many of the labelled sections it was asked for, otherwise
+// the model answered with prose or stopped mid-header.
+const MIN_SUMMARY_SECTIONS = 2;
+// A threaded summary must SUBSUME the previous one. Coming back at a fraction
+// of its size means state was dropped, not condensed.
+const PREV_SUMMARY_FLOOR = 0.5;
+
+// A section header opens a line: optional markdown bullet/heading marks, the
+// label, a colon. What follows on the line is free — real summaries put the
+// bullets underneath, but a one-line "LABEL: value" is still a section.
+const SECTION_RE =
+  /^[ \t]*[-*#>\s]*(USER_CONTEXT|TASK_TRACKING|COMPLETED|PENDING|CURRENT_STATE|CODE_STATE|TESTS|CHANGES|DEPS|VERSION_CONTROL_STATUS)[ \t]*:/gim;
+
+/** How many labelled sections a summary actually carries. */
+export function countSummarySections(text) {
+  const seen = new Set();
+  for (const m of String(text || "").matchAll(SECTION_RE)) seen.add(m[1].toUpperCase());
+  return seen.size;
+}
+
+/**
+ * Is this text fit to REPLACE the turns it covers? Returns null when usable,
+ * else a short reason (for the log — a silent reject is undiagnosable).
+ */
+export function summaryRejectReason(text, { prevSummary = "" } = {}) {
+  const t = String(text || "").trim();
+  if (!t) return "empty";
+  if (t.length < MIN_SUMMARY_CHARS) return `too short (${t.length} chars)`;
+  const sections = countSummarySections(t);
+  if (sections < MIN_SUMMARY_SECTIONS) return `only ${sections} section(s)`;
+  const prev = String(prevSummary || "").trim();
+  if (prev && t.length < prev.length * PREV_SUMMARY_FLOOR) {
+    return `shrank past the previous summary (${t.length} vs ${prev.length} chars)`;
+  }
+  return null;
+}
+
 /**
  * Run the summarizer over a prompt, walking the model chain. Returns
- * { text, model } or null when no model produced text (caller decides what a
- * null means — skip compaction, keep raw history, etc.).
+ * { text, model } or null when no model produced a USABLE summary (caller
+ * decides what a null means — skip compaction, keep raw history, etc.).
+ *
+ * `prevSummary` is the summary this one is meant to subsume; it is used only to
+ * validate that the new text did not lose it.
  */
-export async function summarizeStructured({ prompt, models, config, maxTokens = COMPACT_MAX_TOKENS }) {
+export async function summarizeStructured({
+  prompt,
+  models,
+  config,
+  maxTokens = COMPACT_MAX_TOKENS,
+  prevSummary = "",
+  onReject = null,
+}) {
   for (const modelId of [models.primary, models.fallback]) {
     if (!modelId) continue;
     try {
@@ -116,9 +176,13 @@ export async function summarizeStructured({ prompt, models, config, maxTokens = 
         temperature: 0.2,
       });
       const text = String(r.text || "").trim();
-      if (text) return { text, model: modelId };
-    } catch {
-      /* try next model */
+      const reject = summaryRejectReason(text, { prevSummary });
+      if (!reject) return { text, model: modelId };
+      if (typeof onReject === "function") onReject({ model: modelId, reason: reject, text });
+    } catch (e) {
+      if (typeof onReject === "function") {
+        onReject({ model: modelId, reason: `engine error: ${e?.message || e}`, text: "" });
+      }
     }
   }
   return null;
