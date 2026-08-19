@@ -2,7 +2,17 @@
 <html lang="es" class="dark">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover so the app paints under the notch / home indicator
+         once it is installed to a home screen; the layout keeps its own safe-area
+         padding. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- iOS has never read the web manifest for standalone mode; these are the
+         equivalent, and without them "Add to Home Screen" on an iPhone opens a
+         Safari tab with the address bar instead of an app window. -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="APX" />
     <meta name="color-scheme" content="dark light" />
     <title>APX — admin</title>
     <link rel="icon" href="/favicon/dark/favicon.ico" />
