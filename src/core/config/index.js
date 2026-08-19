@@ -116,13 +116,21 @@ const DEFAULT_CONFIG = {
       enabled: true,
       rules: [],
     },
-    // Goal-completion judge (OpenHands critic pattern): after a
-    // completion-contract turn declares done, an LLM judge scores goal
-    // completion (0..1); below success_threshold the agent gets a
+    // Goal-completion judge (OpenHands critic pattern): an LLM judge scores
+    // goal completion (0..1); below success_threshold the agent gets a
     // verification follow-up and continues, up to max_iterations rounds.
+    //   enabled            — verify the "done" a completion-contract (coding)
+    //                        turn declares. Opt-in: it costs a call per finish.
+    //   continue_unfinished — continue a CONVERSATIONAL turn that stopped
+    //                        mid-task (the model announced its next step and
+    //                        called no tool). On by default; that stop reads as
+    //                        a bug, and the manual fix is the user typing
+    //                        "seguí". Chat turns and turns that ended asking a
+    //                        question are never judged.
     // model "" → judge runs on super_agent.model.
     judge: {
       enabled: false,
+      continue_unfinished: true,
       success_threshold: 0.6,
       max_iterations: 2,
       model: "",

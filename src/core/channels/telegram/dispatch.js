@@ -284,6 +284,7 @@ export async function handleUpdate(self, u) {
     let replyModel = null;                    // model that actually produced the reply
     let replyUsage = null;                    // token accounting for this turn
     let replyTrace = null;                    // what the turn actually did (summarised on the message)
+    let replyJudge = null;                    // verdict trail, when the turn was continued past a stop
     const projectCfg = target.config || self.globalConfig;
     // Display name for the super-agent persona on this channel (from identity.json).
     const agentDisplay = resolveAgentName(self.globalConfig);
@@ -395,6 +396,7 @@ export async function handleUpdate(self, u) {
         replyKind = "superagent";
         replyUsage = sa.usage;
         replyTrace = sa.trace || null;
+        replyJudge = sa.judge || null;
         replyModel = sa.model || state.model || null;
 
         // ── ask_questions integration ────────────────────────────────────
@@ -463,6 +465,9 @@ export async function handleUpdate(self, u) {
       lastStreamedText,
       heldCount,
       agentDisplay,
+      // Recoverable after the fact: this turn ran longer because a verdict said
+      // it wasn't finished, not because the model rambled.
+      extraMeta: replyJudge ? { judge: replyJudge } : {},
     });
   }
 

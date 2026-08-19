@@ -90,6 +90,14 @@ export function buildStreamHandler(self, { chat_id, update_id, agentDisplay }) {
           body: `${tr.tool}(${JSON.stringify(tr.args || {}).slice(0, 200)})`,
           meta: { chat_id, tg_channel: self.channel.name, in_reply_to: update_id, tool: tr.tool, args: tr.args, result: tr.result, iteration: ev.iteration, ...(state.model ? { model: state.model } : {}) },
         });
+      } else if (ev.type === "judge_verdict") {
+        // Why a turn kept going after it looked done. Logged, never sent: the
+        // continuation shows up as the work itself, not as a status report.
+        self.log(
+          `telegram[${self.channel.name}] judge round ${ev.iteration}: ` +
+          `${Math.round((ev.score ?? 0) * 100)}% ${ev.passed ? "→ done" : "→ continuing"}` +
+          `${ev.reasoning ? ` (${ev.reasoning})` : ""}`
+        );
       } else if (ev.type === "engine_failed") {
         // A model in the fallback chain errored; the loop is rotating to the
         // next one. Log so a mid-turn provider failure is diagnosable.

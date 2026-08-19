@@ -15,6 +15,7 @@ const {
   judgeCompletion,
   buildJudgeFollowup,
   applyJudgeLoop,
+  continuableTurn,
 } = await import("#core/agent/judge.js");
 const { runSuperAgent } = await import("#core/agent/super-agent.js");
 const { ProjectManager } = await import("#host/daemon/db.js");
@@ -23,15 +24,31 @@ const { makeTempProject, cleanupTempProject } = await import("./_helpers.js");
 test("judgeConfig defaults and clamping", () => {
   assert.deepEqual(judgeConfig({}), {
     enabled: false,
+    continue_unfinished: true,
     success_threshold: 0.6,
     max_iterations: 2,
     model: "",
   });
+  // Two independent switches: verifying a declared "done" stays opt-in, while
+  // continuing a turn that stopped mid-task is on until it is turned off.
+  assert.equal(judgeConfig({ super_agent: { judge: { continue_unfinished: false } } }).continue_unfinished, false);
+  assert.equal(judgeConfig({ super_agent: { judge: { enabled: true } } }).continue_unfinished, true);
   const c = judgeConfig({
     super_agent: { judge: { enabled: true, success_threshold: 0.9, max_iterations: 99, model: "mock:j" } },
   });
   assert.equal(c.max_iterations, 5);
   assert.equal(c.success_threshold, 0.9);
+});
+
+test("continuableTurn: work that stopped, not chat and not a question", () => {
+  assert.equal(continuableTurn({ trace: [{ tool: "read_file" }] }), true, "it worked and then stopped");
+  assert.equal(continuableTurn({ trace: [] }), false, "chat has no half-done work to finish");
+  assert.equal(continuableTurn({}), false, "a result with no trace is chat too");
+  assert.equal(
+    continuableTurn({ trace: [{ tool: "read_file" }, { tool: "ask_questions" }] }),
+    false,
+    "it is waiting for the user, not unfinished — the next move is theirs",
+  );
 });
 
 test("parseVerdict: strict JSON, JSON with prose around it, junk", () => {
@@ -138,6 +155,58 @@ test("buildJudgeFollowup shapes the note without dictating wording", () => {
   assert.match(note, /33% likely complete \(verification round 2\)/);
   assert.match(note, /no tests ran/);
   assert.match(note, /"run tests", "update docs"/);
+});
+
+// The conversational door: no completion contract, no "done" claim — the turn
+// simply stopped calling tools. That is also what a model does when it announces
+// its next step and writes no call, so a verdict decides whether it is finished.
+test("runSuperAgent: a conversational turn that stopped mid-task gets continued", async () => {
+  const root = makeTempProject({ name: "Judge Chat" });
+  const projects = new ProjectManager({ engines: {} });
+  projects.register(root);
+  const base = {
+    globalConfig: {
+      super_agent: { enabled: true, model: "mock:base", permission_mode: "total", model_fallback: { enabled: false } },
+      memory: { enabled: false },
+      engines: {},
+    },
+    projects, plugins: null, registries: null,
+    channel: "api",
+    maxIters: 4,
+  };
+  try {
+    const scores = [0.2, 0.9];
+    const goals = [];
+    const continued = await runSuperAgent({
+      ...base,
+      prompt: "[mock:tool:list_projects] regenerá el post",
+      judgeCompletionFn: async ({ goal }) => {
+        goals.push(goal);
+        return { score: scores.shift(), reasoning: "half done", missing: ["subir el video"] };
+      },
+    });
+    assert.equal(continued.judge.length, 2, "one verdict continued the turn, the next let it close");
+    assert.match(goals[0], /regenerá el post/, "the judge scores the ORIGINAL request, not its own followup");
+
+    // Chat has nothing to finish: judging every "hola" would be a call per line.
+    const chat = await runSuperAgent({
+      ...base,
+      prompt: "hola",
+      judgeCompletionFn: async () => { throw new Error("must not judge a toolless turn"); },
+    });
+    assert.equal(chat.judge, undefined);
+
+    // And the whole thing is switchable.
+    const off = await runSuperAgent({
+      ...base,
+      globalConfig: { ...base.globalConfig, super_agent: { ...base.globalConfig.super_agent, judge: { continue_unfinished: false } } },
+      prompt: "[mock:tool:list_projects] regenerá el post",
+      judgeCompletionFn: async () => { throw new Error("must not judge when it is switched off"); },
+    });
+    assert.equal(off.judge, undefined);
+  } finally {
+    cleanupTempProject(root);
+  }
 });
 
 test("runSuperAgent: unusable judge (mock echo isn't JSON) accepts the result gracefully", async () => {

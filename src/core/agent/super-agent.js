@@ -13,7 +13,7 @@ import {
 import { resolveAgentName } from "#core/identity/index.js";
 import { memoryBlockFor, buildActiveThreadsBlock } from "#core/memory/index.js";
 import { CHANNELS } from "#core/constants/channels.js";
-import { judgeConfig, judgeCompletion, applyJudgeLoop } from "#core/agent/judge.js";
+import { judgeConfig, judgeCompletion, applyJudgeLoop, continuableTurn } from "#core/agent/judge.js";
 
 export {
   buildIdentityBlock,
@@ -53,6 +53,9 @@ export async function runSuperAgent({
   // Structural "keep going until done" contract (finish tool + forced tool
   // choice). Coding surfaces (web Code build mode, terminal Build) turn this on.
   completionContract = false,
+  // The completion judge, injectable so a test can supply verdicts without an
+  // engine. Production always uses the real one.
+  judgeCompletionFn = judgeCompletion,
   // Run tool-free: pure text generation, no tool registry. Used by the
   // summarize/ask endpoint so a transcript that *mentions* a tool (e.g. the
   // telegram plugin) can't make the model actually fire it.
@@ -168,12 +171,24 @@ export async function runSuperAgent({
 
   const result = await runOnce(prompt, previousMessages);
 
-  // Goal-completion judge (OpenHands critic pattern): opt-in, and only where
-  // "done" is a checkable claim — completion-contract turns at the top level.
-  // Sub-agent runs are excluded (the parent already judges the overall turn);
-  // tool-free callers (summarize/ask) have nothing to verify.
+  // Goal-completion judge (OpenHands critic pattern). Two doors into it:
+  //
+  //   - a completion-contract turn declared itself done, and `judge.enabled`
+  //     asks for that claim to be checked;
+  //   - a conversational turn stopped calling tools, which is also what the
+  //     model does when it just announces its next step. That reads as a task
+  //     that quit halfway, so the judge continues it instead of leaving the
+  //     user to type "seguí". Skipped for chat and for a turn that ended asking
+  //     something — see continuableTurn.
+  //
+  // Sub-agent runs are excluded (the parent judges the overall turn); tool-free
+  // callers (summarize/ask) have nothing to verify; and an aborted turn is the
+  // user saying stop, which is the one instruction a judge must not overrule.
   const jCfg = judgeConfig(globalConfig);
-  if (!jCfg.enabled || !completionContract || noTools || subagentDepth > 0) {
+  const judging = completionContract
+    ? jCfg.enabled
+    : jCfg.continue_unfinished && continuableTurn(result);
+  if (!judging || noTools || subagentDepth > 0 || signal?.aborted) {
     return result;
   }
   // Rolling refinement history: each round sees the original goal, its own
@@ -183,7 +198,7 @@ export async function runSuperAgent({
     initialResult: result,
     cfg: jCfg,
     onEvent,
-    judgeFn: (r) => judgeCompletion({ goal: prompt, result: r, globalConfig }),
+    judgeFn: (r) => judgeCompletionFn({ goal: prompt, result: r, globalConfig }),
     runFollowup: async (followup, prior) => {
       history.push({ role: "assistant", content: prior.text || "" });
       const next = await runOnce(followup, [...history]);

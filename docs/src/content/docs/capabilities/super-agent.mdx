@@ -199,20 +199,37 @@ mode can't:
 
 ## Goal-completion judge
 
-Opt-in verification loop (OpenHands critic pattern) for completion-contract turns (coding
-surfaces): after the agent declares done, an LLM judge scores the probability that the *original*
-request is fully satisfied. Below `success_threshold` the agent receives an internal verification
-note (what looks unmet, per the judge) and continues — up to `max_iterations` rounds. An
-unusable judge (engine down, unparseable reply) accepts the result rather than blocking it.
+Verification loop (OpenHands critic pattern): an LLM judge scores the probability that the
+*original* request is fully satisfied. Below `success_threshold` the agent receives an internal
+verification note (what looks unmet, per the judge) and continues — up to `max_iterations` rounds.
+An unusable judge (engine down, unparseable reply) accepts the result rather than blocking it.
+
+It covers two different ways a turn ends early:
+
+- **`enabled`** (opt-in) — a completion-contract turn (coding surfaces) declared itself done, and
+  the judge checks that claim.
+- **`continue_unfinished`** (on by default) — a conversational turn (Telegram, web chat) stopped
+  calling tools. That is also what a model does when it merely *announces* its next step
+  ("ahora genero el SRT en inglés") and writes no call: the task stops halfway and waits to be
+  poked. The judge is the poke. A turn that ran no tools is never judged (chat has nothing to
+  finish), nor is one that ended by asking you something — that one is waiting, not unfinished.
 
 ```json
 "super_agent": {
-  "judge": { "enabled": true, "success_threshold": 0.6, "max_iterations": 2, "model": "" }
+  "judge": {
+    "enabled": true,
+    "continue_unfinished": true,
+    "success_threshold": 0.6,
+    "max_iterations": 2,
+    "model": ""
+  }
 }
 ```
 
 `model` empty → the judge runs on `super_agent.model`; set a cheap model to keep verification
-overhead low. Verdicts surface as `judge_verdict` events and on the result as `result.judge`.
+overhead low. Verdicts surface as `judge_verdict` events, on the result as `result.judge`, and on
+the Telegram message that closed the turn — so a turn that ran long can be traced back to the
+verdict that kept it going.
 
 ## Stuck detection
 
