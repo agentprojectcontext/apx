@@ -1,9 +1,15 @@
-// Google Gemini embeddings adapter (default: text-embedding-004, 768 dims).
-// Free tier available with a Gemini API key. Reuses engines.gemini.api_key.
+// Google Gemini embeddings adapter. Free tier available with a Gemini API key,
+// and it reuses engines.gemini.api_key rather than asking for a second one.
+//
+// The default used to be `text-embedding-004`, which Google has since retired:
+// the endpoint answers 404 "not found for API version v1beta", embedOne swallows
+// it as a provider error, and every vector silently comes back from the offline
+// `tf` fallback instead. Pin a model that is actually served, and override it
+// with memory.embeddings.gemini.model when Google moves again.
 
 import { l2normalize } from "../embeddings.js";
 
-const DEFAULT_MODEL = "text-embedding-004";
+const DEFAULT_MODEL = "gemini-embedding-001";
 const BASE = "https://generativelanguage.googleapis.com/v1beta";
 
 function getKey(config = {}, parentEnginesCfg) {

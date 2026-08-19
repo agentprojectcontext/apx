@@ -13,7 +13,7 @@ const { tfEmbed, cosineSim, embedOne, embedBatch } = await import(
   "../src/core/memory/embeddings.js"
 );
 const { openMemoryStore, JsonStore } = await import("#core/memory/store.js");
-const { indexNewMessages } = await import("#core/memory/indexer.js");
+const { indexNewMessages, embedderFamily, reconcileEmbedder } = await import("#core/memory/indexer.js");
 const { buildMemoryBlock } = await import("#core/memory/broker.js");
 
 function tmpdir(tag) {
@@ -140,6 +140,34 @@ test("indexer: embedder downgrade (Ollama down) skips the pass and preserves the
   const r = await indexNewMessages(store, { messagesDir, cursorPath, memoryPath, apxHome: dir, embed: { forceTf: true } });
   assert.equal(r.skipped, "embedder-downgrade");
   assert.equal(store.count(), 1, "nomic store untouched — not cleared, not polluted with TF rows");
+});
+
+// The guard used to be "ollama" vs everything-else-is-tf, which made Gemini
+// indistinguishable from the offline fallback: switching the provider order to
+// Gemini while Ollama was down read as a downgrade and indexing stopped for
+// good instead of re-indexing into the Gemini space.
+test("embedderFamily: a real provider is its own space, not the tf fallback", () => {
+  assert.equal(embedderFamily("ollama:nomic-embed-text"), "ollama");
+  assert.equal(embedderFamily("gemini:text-embedding-004"), "gemini");
+  assert.equal(embedderFamily("openai:text-embedding-3-small"), "openai");
+  assert.equal(embedderFamily("tf"), "tf");
+  assert.equal(embedderFamily(undefined), "tf");
+});
+
+test("reconcileEmbedder: a provider swap re-indexes; only a tf fallback stalls", () => {
+  // Same space, or nothing to protect yet.
+  assert.equal(reconcileEmbedder("ollama", "ollama", true), "ok");
+  assert.equal(reconcileEmbedder("ollama", "gemini", false), "ok");
+  assert.equal(reconcileEmbedder(null, "gemini", true), "ok");
+
+  // Into a real provider space — re-embed the history so it stays comparable.
+  assert.equal(reconcileEmbedder("ollama", "gemini", true), "reindex");
+  assert.equal(reconcileEmbedder("tf", "gemini", true), "reindex");
+  assert.equal(reconcileEmbedder("gemini", "ollama", true), "reindex");
+
+  // Only the offline fallback stalls a pass — that is the case worth refusing.
+  assert.equal(reconcileEmbedder("ollama", "tf", true), "skip");
+  assert.equal(reconcileEmbedder("gemini", "tf", true), "skip");
 });
 
 test("broker: builds a [RELEVANT MEMORY] block from store hits", async () => {
