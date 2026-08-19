@@ -10,6 +10,7 @@ import {
   writeVaultTombstones,
 } from "./parser.js";
 import { readApcContextSkill } from "./skill-sync.js";
+import { formatFrontmatterEntry } from "./frontmatter.js";
 import { nowIso } from "../util/time.js";
 import {
   apcDir,
@@ -507,7 +508,7 @@ export function writeAgentFile(root, slug, fields, body = "") {
     const v = fields[titleKey] ?? fields[key];
     if (v === undefined || v === null || v === "") continue;
     const value = Array.isArray(v) ? v.join(", ") : v;
-    lines.push(`${key}: ${value}`);
+    lines.push(...formatFrontmatterEntry(key, value));
     written.add(titleKey);
   }
   // Any extra fields not in the ordered list
@@ -515,7 +516,7 @@ export function writeAgentFile(root, slug, fields, body = "") {
     const titleKey = k.charAt(0).toUpperCase() + k.slice(1);
     if (written.has(titleKey) || v === undefined || v === null || v === "") continue;
     const value = Array.isArray(v) ? v.join(", ") : v;
-    lines.push(`${k.toLowerCase()}: ${value}`);
+    lines.push(...formatFrontmatterEntry(k.toLowerCase(), value));
   }
   lines.push("---");
   if (body) lines.push("", body);
@@ -533,13 +534,13 @@ export function writeVaultAgentFile(slug, fields, body = "") {
     const titleKey = key.charAt(0).toUpperCase() + key.slice(1);
     const v = fields[titleKey] ?? fields[key];
     if (v === undefined || v === null || v === "") continue;
-    lines.push(`${key}: ${Array.isArray(v) ? v.join(", ") : v}`);
+    lines.push(...formatFrontmatterEntry(key, Array.isArray(v) ? v.join(", ") : v));
     written.add(titleKey);
   }
   for (const [k, v] of Object.entries(fields)) {
     const titleKey = k.charAt(0).toUpperCase() + k.slice(1);
     if (written.has(titleKey) || v === undefined || v === null || v === "") continue;
-    lines.push(`${k.toLowerCase()}: ${Array.isArray(v) ? v.join(", ") : v}`);
+    lines.push(...formatFrontmatterEntry(k.toLowerCase(), Array.isArray(v) ? v.join(", ") : v));
   }
   lines.push("---");
   if (body) lines.push("", body);
