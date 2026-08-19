@@ -56,7 +56,15 @@ const GLOBAL_DIR         = SKILLS_DIR;
 // Directory scanners
 // ---------------------------------------------------------------------------
 
-/** Returns [{slug, source, file}] from a directory using <slug>/SKILL.md layout. */
+/** Returns [{slug, source, file}] from a directory using <slug>/SKILL.md layout.
+ *
+ *  Symlinked entries count. `readdirSync({withFileTypes:true})` reports a
+ *  symlink-to-directory as isSymbolicLink() and NOT isDirectory(), so testing
+ *  isDirectory() alone silently skipped any skill linked in from somewhere
+ *  else — the natural way to keep a skill managed by an external tool
+ *  (`npx skills add` installs to ~/.agents/skills/) without copying it. The
+ *  existsSync() below follows the link, so a broken link or a link to a file
+ *  still drops out. */
 function scanDirStyle(baseDir, source) {
   if (!baseDir || !fs.existsSync(baseDir)) return [];
   const out = [];
@@ -64,7 +72,7 @@ function scanDirStyle(baseDir, source) {
   try { entries = fs.readdirSync(baseDir, { withFileTypes: true }); }
   catch { return []; }
   for (const e of entries) {
-    if (!e.isDirectory()) continue;
+    if (!e.isDirectory() && !e.isSymbolicLink()) continue;
     const file = path.join(baseDir, e.name, "SKILL.md");
     if (fs.existsSync(file)) out.push({ slug: e.name, source, file });
   }
@@ -79,8 +87,10 @@ function scanFlatStyle(baseDir, source) {
   try { entries = fs.readdirSync(baseDir, { withFileTypes: true }); }
   catch { return []; }
   for (const e of entries) {
-    if (!e.isFile() || !e.name.endsWith(".md")) continue;
+    if (!e.isFile() && !e.isSymbolicLink()) continue;   // see scanDirStyle
+    if (!e.name.endsWith(".md")) continue;
     if (e.name === "README.md") continue;
+    if (e.isSymbolicLink() && !fs.statSync(path.join(baseDir, e.name), { throwIfNoEntry: false })?.isFile()) continue;
     out.push({
       slug: e.name.replace(/\.md$/, ""),
       source,

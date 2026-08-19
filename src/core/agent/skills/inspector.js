@@ -100,7 +100,10 @@ function renderInjectedBlock({ loaded, hinted, embedder }) {
   if (hinted.length) {
     lines.push("## Possibly relevant — load on demand");
     for (const s of hinted) {
-      lines.push(`- \`${s.slug}\` — sim ${s.sim.toFixed(2)}. ${s.desc}`);
+      // A description read from a block scalar carries real newlines; this is
+      // one markdown list item, so collapse it back to a single line.
+      const desc = String(s.desc || "").replace(/\s+/g, " ").trim();
+      lines.push(`- \`${s.slug}\` — sim ${s.sim.toFixed(2)}. ${desc}`);
     }
     lines.push("");
     lines.push("Call `load_skill({slug:\"…\"})` for any of these BEFORE answering if you need its exact syntax.");
