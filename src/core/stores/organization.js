@@ -34,6 +34,35 @@ export function slugifyName(name) {
     .replace(/-{2,}/g, "-");
 }
 
+/**
+ * Canonical area key for an agent.
+ *
+ * Agents historically stored the display name (`Growth`) while the org chart
+ * uses the slug (`growth`). The team view groups by exact string, so mixed
+ * case splits one area into two pills that look identical (the label is
+ * CSS-uppercased). Resolve against the org chart first (slug or name,
+ * case-insensitive), then fall back to slugify so two free-text values that
+ * mean the same thing still land in one bucket.
+ *
+ * Empty / missing input → null. Unknown free text is still allowed — areas
+ * are optional groupings, not a closed enum.
+ */
+export function resolveAreaSlug(input, org) {
+  const raw = String(input || "").trim();
+  if (!raw) return null;
+  const areas = org?.areas || [];
+  const lower = raw.toLowerCase();
+  const slugified = slugifyName(raw);
+  const match = areas.find(
+    (a) =>
+      a.slug === slugified ||
+      String(a.slug || "").toLowerCase() === lower ||
+      String(a.name || "").toLowerCase() === lower,
+  );
+  if (match) return match.slug;
+  return slugified || null;
+}
+
 function emptyOrg() {
   return { areas: [], roles: [] };
 }

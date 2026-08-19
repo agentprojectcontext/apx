@@ -576,13 +576,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
       try {
         const detail = await Conversations.get(pid, agentSlug, conversationId);
         if (seq !== loadSeqRef.current) return; // superseded by a newer pick
-        const loaded: ChatMsg[] = (detail.messages ?? [])
-          .filter((m) => m.role === "user" || m.role === "assistant")
-          .map((m) => ({
-            role: m.role as "user" | "assistant",
-            parts: [{ kind: "text", text: m.content }],
-            ts: m.ts || new Date().toISOString(),
-          }));
+        const loaded = threadToChatMsgs(detail.messages ?? []);
         convoRef.current = conversationId;
         setConversationId(conversationId);
         setMsgs(loaded);

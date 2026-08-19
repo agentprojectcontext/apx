@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import useSWR from "swr";
 import { Activity, Bot, Crown, Eye, GitBranch, Heart, List, MessagesSquare, Plus, Send, Sparkles, Upload, Wrench, Zap } from "lucide-react";
@@ -11,9 +11,12 @@ import { UiSelect } from "../../components/UiSelect";
 import { useToast } from "../../components/Toast";
 import { AutonomyPicker, AreaRoleFields, AgentIconPicker } from "../../components/agents/AgentFormFields";
 import { AgentModelSelect } from "../../components/agents/AgentModelSelect";
+import { AgentModelBadge } from "../../components/agents/AgentModelBadge";
+import { INHERIT_MODEL, isInheritedModel } from "../../components/agents/modelCatalog";
 import { BlobAvatar } from "../../components/agents/BlobAvatar";
 import { isBlobKey } from "../../components/agents/blobPresets";
 import { cn } from "../../lib/cn";
+import { slugify } from "../../lib/slug";
 import { t } from "../../i18n";
 import { toneText, toneTextHover } from "../../lib/tone";
 import type { AgentAutonomy } from "../../types/daemon";
@@ -52,18 +55,49 @@ function AgentStatRow({ stats, className }: { stats?: AgentStats; className?: st
   );
 }
 
+// Canonical area key. Agents historically stored the display name (`Growth`)
+// while the org chart uses the slug (`growth`); grouping by the raw string
+// split one area into two pills that looked identical (CSS uppercase).
+function areaKey(area: string | null | undefined): string | null {
+  if (!area) return null;
+  return slugify(area) || area;
+}
+
 // Group agents by their area (category). Named areas sort alphabetically;
 // uncategorized agents fall to the end.
 function groupByArea(agents: AgentEntry[]): { area: string | null; agents: AgentEntry[] }[] {
   const map = new Map<string | null, AgentEntry[]>();
   for (const a of agents) {
-    const k = a.area || null;
+    const k = areaKey(a.area);
     if (!map.has(k)) map.set(k, []);
     map.get(k)!.push(a);
   }
   return [...map.entries()]
     .sort(([a], [b]) => (a === null ? 1 : b === null ? -1 : a.localeCompare(b)))
     .map(([area, agents]) => ({ area, agents }));
+}
+
+// How many columns a group of N sibling agents packs into: 1, 1×2, 2×2, 2×3,
+// 3×3… — keeps a group squarish instead of one tall column or one wide row.
+function siblingGridCols(n: number): number {
+  if (n <= 2) return n;
+  if (n <= 4) return 2;
+  if (n <= 9) return 3;
+  return 4;
+}
+
+// Sibling agents inside one area. Columns are `max-content` (never fr), so a
+// group is only as wide as its cards and can't squash them when it sits beside
+// other areas.
+function AgentGrid({ count, children }: { count: number; children: ReactNode }) {
+  return (
+    <div
+      className="grid items-start justify-items-center gap-x-5 gap-y-8"
+      style={{ gridTemplateColumns: `repeat(${siblingGridCols(count)}, max-content)` }}
+    >
+      {children}
+    </div>
+  );
 }
 
 // Build parent→children map with panda's single-orchestrator fallback: if there
@@ -132,7 +166,7 @@ export function AgentsTab({ pid }: { pid: string }) {
 
       {!list.isLoading && agents.length > 0 && (
         view === "hierarchy"
-          ? <HierarchyView roots={roots} childrenByParent={childrenByParent} onOpen={open} onChat={chat} />
+          ? <HierarchyView pid={pid} roots={roots} childrenByParent={childrenByParent} onOpen={open} onChat={chat} onAgentSaved={() => list.mutate()} />
           : <ListView agents={agents} onOpen={open} onChat={chat} />
       )}
 
@@ -246,12 +280,14 @@ function HierarchyEdges({ paths }: { paths: EdgePath[] }) {
 }
 
 function HierarchyView({
-  roots, childrenByParent, onOpen, onChat,
+  pid, roots, childrenByParent, onOpen, onChat, onAgentSaved,
 }: {
+  pid: string;
   roots: AgentEntry[];
   childrenByParent: Map<string, AgentEntry[]>;
   onOpen: (slug: string) => void;
   onChat: (slug: string) => void;
+  onAgentSaved: () => void;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const nodeRefs = useRef(new Map<string, HTMLDivElement>());
@@ -259,14 +295,13 @@ function HierarchyView({
 
   const edges = useMemo(() => {
     const out: { from: string; to: string; fromMaster: boolean }[] = [];
-    for (const root of roots) {
-      for (const k of childrenByParent.get(root.slug) || []) {
-        out.push({ from: root.slug, to: k.slug, fromMaster: !!root.is_master });
-        for (const gc of childrenByParent.get(k.slug) || []) {
-          out.push({ from: k.slug, to: gc.slug, fromMaster: !!k.is_master });
-        }
+    const walk = (node: AgentEntry) => {
+      for (const child of childrenByParent.get(node.slug) || []) {
+        out.push({ from: node.slug, to: child.slug, fromMaster: !!node.is_master });
+        walk(child);
       }
-    }
+    };
+    for (const root of roots) walk(root);
     return out;
   }, [roots, childrenByParent]);
 
@@ -311,62 +346,119 @@ function HierarchyView({
     <div ref={containerRef} className="relative">
       <HierarchyEdges paths={paths} />
       <div className="relative z-10 space-y-12">
-        {roots.map((root) => {
-          const kids = childrenByParent.get(root.slug) || [];
-          const groups = groupByArea(kids);
-          const categorized = groups.some((g) => g.area);
-          return (
-            <div key={root.slug} className="flex flex-col items-center">
-              <div ref={setNodeRef(root.slug)}>
-                <AgentCard agent={root} onOpen={onOpen} onChat={onChat} wide />
-              </div>
-              {kids.length > 0 && (
-                // When children carry a category (area), lay them out grouped
-                // under a heading per category; otherwise keep the flat row.
-                <div className="mt-14 flex flex-col gap-10">
-                  {groups.map((g) => (
-                    <div key={g.area ?? "__none"} className="flex flex-col items-center gap-3">
-                      {categorized && (
-                        <span className="rounded-full border border-border bg-card px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-fg">
-                          {g.area || t("agents_ui.uncategorized")} · {g.agents.length}
-                        </span>
-                      )}
-                      <div className="flex flex-wrap items-start justify-center gap-5">
-                        {g.agents.map((k) => (
-                          <div key={k.slug} className="flex flex-col items-center">
-                            <div ref={setNodeRef(k.slug)}>
-                              <AgentCard agent={k} onOpen={onOpen} onChat={onChat} />
-                            </div>
-                            {(childrenByParent.get(k.slug) || []).length > 0 && (
-                              <div className="mt-12 flex flex-wrap justify-center gap-4">
-                                {(childrenByParent.get(k.slug) || []).map((gc) => (
-                                  <div key={gc.slug} ref={setNodeRef(gc.slug)}>
-                                    <AgentCard agent={gc} onOpen={onOpen} onChat={onChat} compact />
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
+        {roots.map((root) => (
+          <HierarchyBranch
+            key={root.slug}
+            pid={pid}
+            agent={root}
+            depth={0}
+            childrenByParent={childrenByParent}
+            setNodeRef={setNodeRef}
+            onOpen={onOpen}
+            onChat={onChat}
+            onAgentSaved={onAgentSaved}
+          />
+        ))}
       </div>
     </div>
   );
 }
 
-function AgentCard({
-  agent, onOpen, onChat, wide, compact,
+function AreaPill({ area, count }: { area: string | null; count: number }) {
+  return (
+    <span className="rounded-full border border-border bg-card px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-fg">
+      {area || t("agents_ui.uncategorized")} · {count}
+    </span>
+  );
+}
+
+// One agent + its descendants. Areas sit side by side in one row; the agents
+// of each area pack into their own compact grid. Parent→child links grow down.
+function HierarchyBranch({
+  pid, agent, depth, childrenByParent, setNodeRef, onOpen, onChat, onAgentSaved,
 }: {
+  pid: string;
+  agent: AgentEntry;
+  depth: number;
+  childrenByParent: Map<string, AgentEntry[]>;
+  setNodeRef: (slug: string) => (el: HTMLDivElement | null) => void;
+  onOpen: (slug: string) => void;
+  onChat: (slug: string) => void;
+  onAgentSaved: () => void;
+}) {
+  const kids = childrenByParent.get(agent.slug) || [];
+  const groups = groupByArea(kids);
+  const categorized = groups.some((g) => g.area);
+
+  return (
+    <div className="flex flex-col items-center">
+      <div ref={setNodeRef(agent.slug)}>
+        <AgentCard
+          pid={pid}
+          agent={agent}
+          onOpen={onOpen}
+          onChat={onChat}
+          onModelSaved={onAgentSaved}
+          wide={depth === 0}
+          compact={depth >= 2}
+        />
+      </div>
+      {kids.length > 0 && (
+        categorized ? (
+          <div className="mt-12 flex flex-row flex-wrap items-start justify-center gap-x-10 gap-y-12">
+            {groups.map((g) => (
+              <div key={g.area ?? "__none"} className="flex flex-col items-center gap-3">
+                <AreaPill area={g.area} count={g.agents.length} />
+                <AgentGrid count={g.agents.length}>
+                  {g.agents.map((k) => (
+                    <HierarchyBranch
+                      key={k.slug}
+                      pid={pid}
+                      agent={k}
+                      depth={depth + 1}
+                      childrenByParent={childrenByParent}
+                      setNodeRef={setNodeRef}
+                      onOpen={onOpen}
+                      onChat={onChat}
+                      onAgentSaved={onAgentSaved}
+                    />
+                  ))}
+                </AgentGrid>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-12">
+            <AgentGrid count={kids.length}>
+              {kids.map((k) => (
+                <HierarchyBranch
+                  key={k.slug}
+                  pid={pid}
+                  agent={k}
+                  depth={depth + 1}
+                  childrenByParent={childrenByParent}
+                  setNodeRef={setNodeRef}
+                  onOpen={onOpen}
+                  onChat={onChat}
+                  onAgentSaved={onAgentSaved}
+                />
+              ))}
+            </AgentGrid>
+          </div>
+        )
+      )}
+    </div>
+  );
+}
+
+function AgentCard({
+  pid, agent, onOpen, onChat, onModelSaved, wide, compact,
+}: {
+  pid: string;
   agent: AgentEntry;
   onOpen: (slug: string) => void;
   onChat: (slug: string) => void;
+  onModelSaved: () => void;
   wide?: boolean;
   compact?: boolean;
 }) {
@@ -393,12 +485,20 @@ function AgentCard({
       <div className="mt-2 flex flex-wrap items-center gap-1">
         {agent.is_master && <Badge tone="success"><Crown size={9} /> {t("project.agents.orchestrator")}</Badge>}
         {agent.role && <Badge>{agent.role}</Badge>}
-        {agent.model && !compact && <Badge tone="info">{agent.model}</Badge>}
       </div>
       <AgentStatRow stats={agent.stats} className="mt-2" />
+      {/* The model badge closes this row: it only gets the width left over by
+          View/Chat and truncates, so a long id can't widen the card. */}
       <div className="mt-2 flex items-center gap-3 border-t border-border pt-2 text-xs text-muted-fg" onClick={(e) => e.stopPropagation()}>
-        <button onClick={() => onOpen(agent.slug)} className="flex items-center gap-1 hover:text-foreground"><Eye size={12} /> {t("project.agents.view")}</button>
-        <button onClick={() => onChat(agent.slug)} className={`flex items-center gap-1 ${toneText.emerald} ${toneTextHover.emerald}`}><Send size={12} /> {t("project.agents.chat")}</button>
+        <button onClick={() => onOpen(agent.slug)} className="flex shrink-0 items-center gap-1 hover:text-foreground"><Eye size={12} /> {t("project.agents.view")}</button>
+        <button onClick={() => onChat(agent.slug)} className={`flex shrink-0 items-center gap-1 ${toneText.emerald} ${toneTextHover.emerald}`}><Send size={12} /> {t("project.agents.chat")}</button>
+        <AgentModelBadge
+          pid={pid}
+          slug={agent.slug}
+          model={agent.model}
+          onSaved={onModelSaved}
+          className="ml-auto"
+        />
       </div>
     </div>
   );
@@ -456,7 +556,7 @@ function CreateAgentDialog({
   const [role, setRole] = useState("");
   const [area, setArea] = useState("");
   const [autonomy, setAutonomy] = useState<AgentAutonomy | "">("");
-  const [model, setModel] = useState("");
+  const [model, setModel] = useState(INHERIT_MODEL);
   const [language, setLanguage] = useState("");
   const [description, setDescription] = useState("");
   const [system, setSystem] = useState("");
@@ -466,7 +566,7 @@ function CreateAgentDialog({
 
   const reset = () => {
     setSlug(""); setName(""); setIcon(""); setType(""); setRole(""); setArea(""); setAutonomy("");
-    setModel(""); setLanguage(""); setDescription(""); setSystem("");
+    setModel(INHERIT_MODEL); setLanguage(""); setDescription(""); setSystem("");
     setIsMaster(false); setParent("");
   };
 
@@ -485,7 +585,7 @@ function CreateAgentDialog({
         role: role || undefined,
         area: area || undefined,
         autonomy: autonomy || undefined,
-        model: model || undefined,
+        model: isInheritedModel(model) ? INHERIT_MODEL : model,
         language: language || undefined,
         description: description || undefined,
         system: system || undefined,

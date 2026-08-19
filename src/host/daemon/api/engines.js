@@ -33,15 +33,29 @@ export function register(api, { config }) {
   // no tools, no skills, no memory — just enough to prove the credentials, the
   // endpoint and the model id all work together.
   //
-  // The prompt asks the model to name itself, and pointedly does not tell it
-  // which model it is: a provider silently serving something other than the id
-  // you asked for is exactly the failure this is meant to catch.
+  // Substitution is caught by `served_model` (the gateway's own `model` /
+  // `modelVersion` field), not by asking the weights to name themselves.
+  // Self-identification is colour: models guess, and a distilled model will
+  // happily claim to be Claude. The prompt still asks, but tells it to say
+  // "I don't know" rather than invent an id.
   const TEST_SYSTEM = [
     "You are answering a one-off connection test from an admin panel.",
     "Reply in at most two short sentences: which model you are, and what you are doing right now.",
-    "Nobody has told you which model you are — answer from your own knowledge.",
+    "If you do not know your exact model id, say so instead of guessing.",
     "Answer in the language of the user's message.",
   ].join(" ");
+
+  // What the gateway says it served. OpenAI-shaped bodies use `model`; Gemini
+  // uses `modelVersion`. Missing is fine — streaming adapters leave `raw` null.
+  function servedModelOf(out) {
+    const raw = out?.raw;
+    if (!raw || typeof raw !== "object") return null;
+    for (const key of ["model", "modelVersion"]) {
+      const v = raw[key];
+      if (typeof v === "string" && v.trim()) return v.trim();
+    }
+    return null;
+  }
 
   api.post("/engines/test", asyncRoute(async (req, res) => {
     const b = req.body || {};
@@ -64,6 +78,7 @@ export function register(api, { config }) {
       res.json({
         provider,
         model,
+        served_model: servedModelOf(out),
         text: out?.text || "",
         usage: out?.usage || null,
         ms: Date.now() - started,

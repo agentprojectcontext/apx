@@ -63,6 +63,37 @@ test("the history annotation for a stale turn is never spoken", () => {
   assert.equal(clean, "Hola Manu.");
 });
 
+test("DeepSeek DSML markup is parsed into real tool calls", () => {
+  const text = `I'll start by reading my notes.
+<||DSML||tool_calls>
+<||DSML||invoke name="read_file">
+<||DSML||parameter name="path" string="true">work/notes.md</||DSML||parameter>
+</||DSML||invoke>
+<||DSML||invoke name="read_file">
+<||DSML||parameter name="path" string="true">work/LEDGER.md</||DSML||parameter>
+</||DSML||invoke>
+</||DSML||tool_calls>`;
+  const calls = extractPseudoToolCalls(text);
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].function.name, "read_file");
+  assert.deepEqual(calls[0].function.arguments, { path: "work/notes.md" });
+  assert.equal(calls[1].function.name, "read_file");
+  assert.deepEqual(calls[1].function.arguments, { path: "work/LEDGER.md" });
+});
+
+test("DSML markup is stripped from the visible reply", () => {
+  const text = `Voy a leer el ledger.
+<||DSML||tool_calls>
+<||DSML||invoke name="read_file">
+<||DSML||parameter name="path" string="true">work/LEDGER.md</||DSML||parameter>
+</||DSML||invoke>
+</||DSML||tool_calls>`;
+  const clean = cleanTextOfPseudoToolCalls(text);
+  assert.ok(!clean.includes("DSML"), `markup survived: ${clean}`);
+  assert.ok(!clean.includes("read_file"), `tool name survived: ${clean}`);
+  assert.match(clean, /Voy a leer el ledger/);
+});
+
 // ── the source of the contamination ────────────────────────────────────────
 
 function stubFetch() {

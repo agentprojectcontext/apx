@@ -4,6 +4,7 @@
 //                                  then delegates to compactConversation.
 import { readAgents } from "#core/apc/parser.js";
 import { compactConversation } from "#core/stores/conversations-compactor.js";
+import { resolveAgentModel } from "#core/agent/agent-model.js";
 import { searchSessions, findSessionFile } from "#core/stores/sessions-search.js";
 import { asyncRoute } from "./shared.js";
 import { resolveProject } from "#core/apc/projects-helpers.js";
@@ -47,7 +48,11 @@ export function register(api, { projects, config }) {
     const { project: p, agentSlug, filename } = found;
     const agents = readAgents(p.path);
     const agent = agents.find((a) => a.slug === agentSlug);
-    const modelId = modelOverride || agent?.fields?.Model;
+    const modelId = await resolveAgentModel({
+      agent,
+      config: p.config || config,
+      override: modelOverride,
+    });
     if (!modelId) {
       return res.status(400).json({ error: "agent has no model; pass model in body" });
     }

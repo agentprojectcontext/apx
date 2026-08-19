@@ -1,6 +1,7 @@
 import { callEngine } from "#core/engines/index.js";
 import { readAgents } from "#core/apc/parser.js";
 import { agentScopedMemoryBlock } from "#core/memory/index.js";
+import { resolveAgentModel } from "#core/agent/agent-model.js";
 import { buildAgentSystem, resolveProject } from "../helpers.js";
 
 export default {
@@ -25,14 +26,16 @@ export default {
     const p = resolveProject(projects, project);
     const agent = readAgents(p.path).find((a) => a.slug === slug);
     if (!agent) throw new Error(`agent ${slug} not found`);
-    if (!agent.fields.Model) throw new Error(`agent ${slug} has no model`);
 
     const config = p.config || globalConfig;
+    const modelId = await resolveAgentModel({ agent, config });
+    if (!modelId) throw new Error(`no model for agent ${slug} (no override, no router default)`);
+
     // Scoped RAG recall for this agent + its project, grounded in the prompt.
     const scopedMemory = await agentScopedMemoryBlock(prompt, { project: p, agent, config });
 
     const result = await callEngine({
-      modelId: agent.fields.Model,
+      modelId,
       system: buildAgentSystem(p, agent, {
         invocation: "engine",
         caller: "super_agent_tool",

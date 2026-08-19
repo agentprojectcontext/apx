@@ -21,6 +21,7 @@ export function createOpenAiCompatibleEngine({
   apiKeyEnv,
   defaultFallbackModel = null,
   extraHeaders = {},
+  decorateMessage = null,
 }) {
   function getKey(config) {
     return config?.api_key || process.env[apiKeyEnv] || "";
@@ -111,6 +112,11 @@ export function createOpenAiCompatibleEngine({
       // Dropping any of these is the cause of the
       //   "messages.N.tool_call_id: property 'tool_call_id' is missing"
       // 400 we saw on Groq when llama-3.3 emitted a pseudo-tool call.
+      //
+      // Rebuilding the entry from scratch (rather than spreading `m`) is what
+      // keeps engine-private fields off the wire — strict OpenAI-shaped APIs
+      // reject unknown properties. An engine that needs one of them replayed
+      // for a specific model opts in through `decorateMessage`; see zen.js.
       const fullMessages = [];
       if (system) fullMessages.push({ role: "system", content: system });
       for (const m of messages) {
@@ -125,6 +131,7 @@ export function createOpenAiCompatibleEngine({
         if (m.role === "tool" && (m.tool_name || m.name)) {
           entry.name = m.name || m.tool_name;
         }
+        if (decorateMessage) decorateMessage(entry, m, { model, config });
         fullMessages.push(entry);
       }
 

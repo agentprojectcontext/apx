@@ -5,6 +5,7 @@
 import fs from "node:fs";
 import { callEngine } from "../../engines/index.js";
 import { apcAgentMemoryFile } from "../../apc/paths.js";
+import { resolveAgentModel } from "../agent-model.js";
 
 /**
  * Build the recipient's system prompt for an A2A reply.
@@ -34,12 +35,15 @@ export function buildA2AReplySystem({ projectPath, toAgent, fromAgent }) {
  * Throws on engine failure — caller decides how to surface.
  */
 export async function replyAsAgent({ projectPath, toAgent, fromAgent, body, config }) {
-  if (!toAgent?.fields?.Model) {
-    throw new Error(`agent ${toAgent?.slug || "?"} has no model`);
+  const modelId = await resolveAgentModel({ agent: toAgent, config });
+  if (!modelId) {
+    throw new Error(
+      `no model for agent ${toAgent?.slug || "?"} (no override, no router default)`
+    );
   }
   const system = buildA2AReplySystem({ projectPath, toAgent, fromAgent });
   const result = await callEngine({
-    modelId: toAgent.fields.Model,
+    modelId,
     system,
     messages: [{ role: "user", content: `From ${fromAgent.slug}:\n\n${body}` }],
     config,

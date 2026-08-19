@@ -19,14 +19,15 @@ and optional shell hook arrays (`pre_commands` / `post_commands`).
 |---|---|---|---|
 | `heartbeat` | No | — | Logs a marker. Useful as a "still alive" ping. |
 | `shell` | No | — | Runs a shell command. Stdout captured. |
-| `exec_agent` | Yes | None | Loads a project agent's prompt, sends `spec.prompt`, returns plain text. Single call. |
+| `exec_agent` | Yes | Agent `tools:` | Loads a project agent, runs `spec.prompt` with that agent's allowlist (not the full super-agent registry), persists a conversation. Pass `allowed_tools: []` for the old one-shot text path. |
 | `super_agent` | Yes | All | Runs the default APX agent with the full tool registry. Multi-iteration loop. |
 | `telegram` | No | — | Sends a hardcoded `spec.text` via the Telegram plugin. |
 
 **Picking rule of thumb:**
 
-- Need text from a model, no tool calls? → `exec_agent`.
-- Need orchestration (write files, call MCPs, create tasks, send dynamic Telegram)? → `super_agent`.
+- Need a project agent to actually *do* the work (files, Asana, tools)? → `exec_agent`.
+- Need the default APX agent (full tool registry, persona)? → `super_agent`.
+- Need text from a model with no tool calls? → `exec_agent` with `allowed_tools: []`.
 - Pure shell without LLM? → `shell`.
 - Fixed Telegram message on a schedule? → `telegram`.
 

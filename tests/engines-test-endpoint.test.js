@@ -51,15 +51,15 @@ test("answers through a provider whose slug is not the adapter id", async () => 
     assert.equal(status, 200);
     assert.equal(body.provider, "carlos");
     assert.equal(body.model, "mock");
+    assert.equal(body.served_model, "mock");
     assert.match(body.text, /hola carlos/);
     assert.equal(typeof body.ms, "number");
   } finally { server.close(); }
 });
 
 test("sends the same system prompt whatever the model is", async () => {
-  // The point of the probe is that the model NAMES ITSELF. If the prompt
-  // varied with the model id we would be feeding it the answer, and a provider
-  // quietly serving something else would sail through.
+  // The prompt must not name the model: self-identification is colour, not
+  // the substitution check. That check is `served_model` from the gateway.
   const { server, baseUrl } = await listen(makeApp({ mock: { engine: "mock" } }));
   const systemOf = (text) => text.match(/\(system: (.*)\)$/)?.[1];
   try {
@@ -69,6 +69,23 @@ test("sends the same system prompt whatever the model is", async () => {
     assert.ok(sysA, `no system fragment in ${a.body.text}`);
     assert.equal(sysA, systemOf(b.body.text));
     assert.doesNotMatch(sysA, /model-one|model-two/);
+    assert.equal(a.body.served_model, "model-one");
+    assert.equal(b.body.served_model, "model-two");
+  } finally { server.close(); }
+});
+
+test("does not tell the model its own id, and does not demand a guess", async () => {
+  const { server, baseUrl } = await listen(makeApp({ mock: { engine: "mock" } }));
+  try {
+    const { status, body } = await post(baseUrl, {
+      provider: "mock",
+      model: "secret-id",
+      message: "[mock:system]",
+    });
+    assert.equal(status, 200);
+    assert.doesNotMatch(body.text, /secret-id/);
+    assert.doesNotMatch(body.text, /Nobody has told you/i);
+    assert.match(body.text, /do not know your exact model id/i);
   } finally { server.close(); }
 });
 

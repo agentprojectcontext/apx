@@ -7,7 +7,7 @@
 import { callEngine } from "#core/engines/index.js";
 import { readAgents } from "#core/apc/parser.js";
 import { buildAgentSystem } from "#core/agent/build-agent-system.js";
-import { resolveActiveModel } from "#core/agent/model-router.js";
+import { resolveAgentModel } from "#core/agent/agent-model.js";
 import {
   startConversation,
   appendTurn,
@@ -15,20 +15,6 @@ import {
   setStatus,
 } from "#core/stores/conversations.js";
 import { asyncRoute } from "./shared.js";
-
-// Pick a model for a direct agent chat: explicit override → agent's own model →
-// super-agent default (resolved via the same router the super-agent uses, so
-// it walks the fallback chain when the primary is empty/unhealthy).
-async function pickAgentModel({ modelOverride, agent, config }) {
-  if (modelOverride) return modelOverride;
-  if (agent.fields?.Model) return agent.fields.Model;
-  try {
-    const routing = await resolveActiveModel(config);
-    return routing?.modelId || null;
-  } catch {
-    return null;
-  }
-}
 
 export function register(api, { projects, project, config }) {
   api.post("/projects/:pid/agents/:slug/exec", asyncRoute(async (req, res) => {
@@ -44,7 +30,7 @@ export function register(api, { projects, project, config }) {
     const agents = readAgents(p.path);
     const agent = agents.find((a) => a.slug === req.params.slug);
     if (!agent) return res.status(404).json({ error: "agent not found" });
-    const modelId = await pickAgentModel({ modelOverride, agent, config });
+    const modelId = await resolveAgentModel({ agent, config, override: modelOverride });
     if (!modelId)
       return res
         .status(400)
@@ -123,7 +109,7 @@ export function register(api, { projects, project, config }) {
     const agents = readAgents(p.path);
     const agent = agents.find((a) => a.slug === req.params.slug);
     if (!agent) return res.status(404).json({ error: "agent not found" });
-    const modelId = await pickAgentModel({ modelOverride, agent, config });
+    const modelId = await resolveAgentModel({ agent, config, override: modelOverride });
     if (!modelId)
       return res
         .status(400)

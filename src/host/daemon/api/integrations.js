@@ -90,6 +90,7 @@ export function register(api, { projects, project, registries }) {
         const resolved = resolveIntegration({
           projectStorage: p.storagePath,
           slug: entry.slug,
+          defaultStorage: storagePathForScope("global", p, projects),
           requireEnabled: false,
         });
         status = svc.status(resolved?.record || null);

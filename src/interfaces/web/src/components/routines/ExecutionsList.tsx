@@ -1,12 +1,15 @@
 import { useState, type ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
 import useSWR from "swr";
-import { Ban, Check, X } from "lucide-react";
+import { Ban, Check, MessageSquare, X } from "lucide-react";
 import { Messages } from "../../lib/api";
 import type { MessageEntry } from "../../types/daemon";
-import { Loading, Spinner } from "../ui";
+import { Loading, Spinner, Tip } from "../ui";
 import { cn } from "../../lib/cn";
 import { toneText } from "../../lib/tone";
 import { t } from "../../i18n";
+import { MessageList } from "../chat/MessageList";
+import { routineRunToChatMsgs } from "./runChat";
 
 // Execution history is derived from the ROUTINE-channel messages the runner
 // logs at the end of each run (src/core/routines/runner.js) — there is no
@@ -58,7 +61,8 @@ const PRE_CLS = "whitespace-pre-wrap break-words rounded-lg border border-border
 
 /** Side panel: the full flow of the clicked run — pre → action → post. Phases
  *  that did not run are hidden; older runs (no saved flow) show just the output. */
-function RunDetailPanel({ m, onClose }: { m: MessageEntry; onClose: () => void }) {
+function RunDetailPanel({ pid, m, onClose }: { pid: string; m: MessageEntry; onClose: () => void }) {
+  const navigate = useNavigate();
   const st = runStatus(m);
   const meta = (m.meta || {}) as Record<string, any>;
   const result = (meta.result || {}) as Record<string, any>;
@@ -67,6 +71,12 @@ function RunDetailPanel({ m, onClose }: { m: MessageEntry; onClose: () => void }
   const err = String(result.error ?? result.stderr ?? "");
   const note = String(result.note ?? "");
   const empty = <span className="text-muted-fg">{t("project.routines.block_empty")}</span>;
+  const chatMsgs = routineRunToChatMsgs(result, m.ts);
+  const convId = typeof result.conversation_id === "string" ? result.conversation_id : "";
+  const agentSlug = typeof result.agent_slug === "string" ? result.agent_slug : "";
+  const chatHref = convId && agentSlug
+    ? `/p/${pid}/chat?agent=${encodeURIComponent(agentSlug)}&conv=${encodeURIComponent(convId)}`
+    : null;
 
   return (
     <div className="flex min-h-0 flex-col border-l border-border">
@@ -76,30 +86,47 @@ function RunDetailPanel({ m, onClose }: { m: MessageEntry; onClose: () => void }
           <span className={cn("font-medium", st === "ok" && toneText.emerald, st === "error" && "text-destructive", st === "skipped" && toneText.amber)}>{statusLabel(st)}</span>
           <span className="font-mono text-muted-fg">{fmtTs(m.ts)}</span>
         </div>
-        <button type="button" onClick={onClose} aria-label={t("project.routines.runs_close")}
-          className="rounded-md p-1 text-muted-fg hover:bg-muted hover:text-foreground">
-          <X size={14} />
-        </button>
+        <div className="flex items-center gap-1">
+          {chatHref && (
+            <Tip content={t("project.routines.open_chat")}>
+              <button
+                type="button"
+                onClick={() => navigate(chatHref)}
+                aria-label={t("project.routines.open_chat")}
+                data-testid="routine-open-chat"
+                className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] text-muted-fg hover:bg-muted hover:text-foreground"
+              >
+                <MessageSquare size={13} />
+                {t("project.routines.open_chat")}
+              </button>
+            </Tip>
+          )}
+          <button type="button" onClick={onClose} aria-label={t("project.routines.runs_close")}
+            className="rounded-md p-1 text-muted-fg hover:bg-muted hover:text-foreground">
+            <X size={14} />
+          </button>
+        </div>
       </div>
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-4 text-xs">
         {m.body && <div className="text-muted-fg">{m.body}</div>}
 
-        {/* Pre-commands */}
         {flow?.pre && (
           <FlowBlock title={t("project.routines.block_pre")}>
             {flow.pre.output?.trim() ? <pre className={PRE_CLS}>{flow.pre.output}</pre> : empty}
           </FlowBlock>
         )}
 
-        {/* Action output (agent reply / telegram message / shell stdout) */}
-        <FlowBlock title={t("project.routines.runs_output")}>
-          {output ? <pre className={PRE_CLS}>{output}</pre>
+        <FlowBlock title={chatMsgs.length ? t("project.routines.runs_chat") : t("project.routines.runs_output")}>
+          {chatMsgs.length ? (
+            <div data-testid="routine-run-chat" className="-mx-1">
+              <MessageList msgs={chatMsgs} onCopy={() => {}} autoscroll={false} />
+            </div>
+          ) : output ? <pre className={PRE_CLS}>{output}</pre>
             : err ? <pre className="whitespace-pre-wrap break-words rounded-lg bg-destructive/10 px-3 py-2 font-mono text-[11px] text-destructive">{err}</pre>
             : note ? <div className="text-muted-fg">{note}</div>
             : empty}
         </FlowBlock>
 
-        {/* Post-commands */}
         {flow?.post && flow.post.length > 0 && (
           <FlowBlock title={t("project.routines.block_post")}>
             <div className="space-y-1.5">
@@ -183,7 +210,7 @@ export function ExecutionsList({ pid, name, running }: { pid: string; name: stri
         </div>
 
         {/* run detail (opens as a side grid column) */}
-        {selected && <RunDetailPanel m={selected} onClose={() => setSelTs(null)} />}
+        {selected && <RunDetailPanel pid={pid} m={selected} onClose={() => setSelTs(null)} />}
       </div>
     </div>
   );

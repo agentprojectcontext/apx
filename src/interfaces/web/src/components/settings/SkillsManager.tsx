@@ -29,10 +29,29 @@ function basename(p: string): string {
   return parts[parts.length - 1] || p;
 }
 
-function sourceBadge(source: string): { label: string; tone: "info" | "success" | "muted" } {
-  if (source === "builtin") return { label: t("skills_page.source_builtin"), tone: "info" };
-  if (source === "project") return { label: t("skills_page.source_project"), tone: "success" };
+function sourceBadge(source: string, origin?: string | null): { label: string; tone: "info" | "success" | "muted" } {
+  const host = origin || source;
+  if (source === "builtin" || host === "apx" || host === "builtin") {
+    return { label: t("skills_page.source_builtin"), tone: "info" };
+  }
+  if (source === "project" || host === "project") {
+    return { label: t("skills_page.source_project"), tone: "success" };
+  }
+  if (host === "claude") return { label: t("skills_page.origin_claude"), tone: "muted" };
+  if (host === "cursor") return { label: t("skills_page.origin_cursor"), tone: "muted" };
+  if (host === "codex") return { label: t("skills_page.origin_codex"), tone: "muted" };
+  if (host === "agents") return { label: t("skills_page.origin_agents"), tone: "muted" };
   return { label: t("skills_page.source_global"), tone: "muted" };
+}
+
+function addedByLabel(detail: { private?: boolean; origin?: string | null }): string {
+  if (detail.private || detail.origin === "apx") return t("skills_page.by_apx");
+  if (detail.origin === "claude") return t("skills_page.origin_claude");
+  if (detail.origin === "cursor") return t("skills_page.origin_cursor");
+  if (detail.origin === "codex") return t("skills_page.origin_codex");
+  if (detail.origin === "agents") return t("skills_page.origin_agents");
+  if (detail.origin === "project") return t("skills_page.source_project");
+  return t("skills_page.by_you");
 }
 
 // ---------------------------------------------------------------------------
@@ -278,7 +297,7 @@ export function SkillsManager({
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <code className="text-sm font-semibold">{detail.slug}</code>
-                      {(() => { const b = sourceBadge(detail.source); return <Badge tone={b.tone}>{b.label}</Badge>; })()}
+                      {(() => { const b = sourceBadge(detail.source, detail.origin); return <Badge tone={b.tone}>{b.label}</Badge>; })()}
                       {detail.private && (
                         <span className="inline-flex items-center gap-1 text-xs text-muted-fg">
                           <Lock size={11} /> {t("skills_page.private_badge")}
@@ -290,10 +309,18 @@ export function SkillsManager({
                     )}
                     <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-fg">
                       <span>{t("skills_page.added_by")}: <span className="text-foreground">
-                        {detail.private ? t("skills_page.by_apx") : t("skills_page.by_you")}</span></span>
+                        {addedByLabel(detail)}</span></span>
                       <span>{t("skills_page.activator")}: <span className="text-foreground">
                         {t("skills_page.activator_value")}</span></span>
                     </div>
+                    {(detail.origin_path || detail.file) && (
+                      <p className="mt-1.5 font-mono text-[11px] leading-snug text-muted-fg break-all">
+                        {t("skills_page.path_label")}: {detail.origin_path || detail.file}
+                        {detail.file_path && detail.origin_path && detail.file_path !== detail.origin_path
+                          ? ` · ${t("skills_page.path_apx_link")}: ${detail.file_path}`
+                          : null}
+                      </p>
+                    )}
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     {(detail.source === "global" || detail.source === "project") && (
@@ -373,7 +400,7 @@ function SkillRow({ skill, active, busy, onSelect, onToggle }: {
   skill: SkillEntry; active: boolean; busy: boolean;
   onSelect: () => void; onToggle: (v: boolean) => void;
 }) {
-  const b = sourceBadge(skill.source);
+  const b = sourceBadge(skill.source, skill.origin);
   const enabled = skill.private ? true : skill.enabled !== false;
   return (
     <li>

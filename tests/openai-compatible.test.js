@@ -235,6 +235,113 @@ test("openai-compatible: thinking:false asks the provider to skip reasoning", as
   }
 });
 
+// --- per-model wire quirks (Zen / DeepSeek) --------------------------------
+// DeepSeek's thinking mode counts `reasoning_content` as part of the assistant
+// turn: replay the turn without it and the gateway answers 400. The older
+// reasoners reject the same field, so this has to stay scoped by model.
+
+function captureZenBody() {
+  const originalFetch = globalThis.fetch;
+  const state = { body: null, restore: () => { globalThis.fetch = originalFetch; } };
+  globalThis.fetch = async (_url, opts) => {
+    state.body = JSON.parse(opts.body);
+    return {
+      ok: true,
+      json: async () => ({ choices: [{ message: { content: "ok" } }], usage: {} }),
+    };
+  };
+  return state;
+}
+
+const THINKING_HISTORY = [
+  { role: "user", content: "listá las rutinas" },
+  {
+    role: "assistant",
+    content: "",
+    _reasoning: "El usuario quiere las rutinas; leo el directorio.",
+    tool_calls: [{ id: "c1", type: "function", function: { name: "run_shell", arguments: "{}" } }],
+  },
+  { role: "tool", tool_call_id: "c1", tool_name: "run_shell", content: "cron-ideas" },
+];
+
+test("zen: replays reasoning_content for the models whose thinking mode demands it", async () => {
+  const { default: zen } = await import("#core/engines/zen.js");
+  const cap = captureZenBody();
+  try {
+    await zen.chat({
+      model: "deepseek-v4-flash-free",
+      messages: THINKING_HISTORY,
+      config: { api_key: "zen-key" },
+    });
+    const assistant = cap.body.messages.find((m) => m.role === "assistant");
+    assert.equal(assistant.reasoning_content, "El usuario quiere las rutinas; leo el directorio.");
+    // The private field itself never reaches the wire.
+    assert.equal("_reasoning" in assistant, false);
+  } finally {
+    cap.restore();
+  }
+});
+
+test("zen: other models never see reasoning_content (deepseek-r1 et al reject it)", async () => {
+  const { default: zen } = await import("#core/engines/zen.js");
+  const cap = captureZenBody();
+  try {
+    await zen.chat({
+      model: "big-pickle",
+      messages: THINKING_HISTORY,
+      config: { api_key: "zen-key" },
+    });
+    const assistant = cap.body.messages.find((m) => m.role === "assistant");
+    assert.equal("reasoning_content" in assistant, false);
+  } finally {
+    cap.restore();
+  }
+});
+
+test("zen: engines.zen.reasoning_replay_models replaces the built-in list", async () => {
+  const { default: zen, modelReplaysReasoning } = await import("#core/engines/zen.js");
+  assert.equal(modelReplaysReasoning("deepseek-v4-flash-free"), true);
+  assert.equal(modelReplaysReasoning("deepseek-r1"), false);
+  // An explicit list is the whole answer — including an empty one, which opts
+  // the install out entirely.
+  assert.equal(
+    modelReplaysReasoning("deepseek-v4-flash-free", { reasoning_replay_models: [] }),
+    false,
+  );
+
+  const cap = captureZenBody();
+  try {
+    await zen.chat({
+      model: "some-new-reasoner",
+      messages: THINKING_HISTORY,
+      config: { api_key: "zen-key", reasoning_replay_models: ["some-new-*"] },
+    });
+    const assistant = cap.body.messages.find((m) => m.role === "assistant");
+    assert.equal(assistant.reasoning_content, "El usuario quiere las rutinas; leo el directorio.");
+  } finally {
+    cap.restore();
+  }
+});
+
+test("zen: a turn with no stored reasoning is sent as-is, not invented", async () => {
+  const { default: zen } = await import("#core/engines/zen.js");
+  const cap = captureZenBody();
+  try {
+    await zen.chat({
+      model: "deepseek-v4-flash-free",
+      messages: [
+        { role: "user", content: "hola" },
+        { role: "assistant", content: "Hola" },
+      ],
+      config: { api_key: "zen-key" },
+    });
+    const assistant = cap.body.messages.find((m) => m.role === "assistant");
+    assert.equal("reasoning_content" in assistant, false);
+  } finally {
+    cap.restore();
+  }
+});
+
 test("openai-compatible: reasoning streams on its own callback, never onToken", async () => {
   const engine = createOpenAiCompatibleEngine({
     id: "test", defaultBaseUrl: "https://example.test/v1", apiKeyEnv: "TEST_RS_KEY",

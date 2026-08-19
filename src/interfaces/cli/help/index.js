@@ -8,6 +8,10 @@
 // examples, notes. `topic()` only fills in the empty arrays so every consumer
 // can iterate without guarding.
 
+// The agent typology and avatar vocabularies are owned by core, so `apx help`
+// can't list a type the daemon would reject or a blob the web can't draw.
+import { AGENT_TYPE_VALUES, BLOB_KEYS } from "#core/apc/agent-identity.js";
+
 // ── ANSI helpers (help only) ─────────────────────────────────────────────────
 const H = {
   R:  "\x1b[0m",
@@ -169,6 +173,7 @@ export const HELP_TOPICS = new Map(Object.entries({
     commands: [
       ["add <slug>", "Create a project-local agent."],
       ["list | ls", "List project agents."],
+      ["set | edit <slug>", "Edit an agent's system prompt and/or fields."],
       ["get | show <slug>", "Print one agent definition."],
       ["remove | rm <slug>", "Delete a project agent (file + runtime memory)."],
       ["import <slug>", "Import an agent template from ~/.apx/agents."],
@@ -177,21 +182,54 @@ export const HELP_TOPICS = new Map(Object.entries({
       ["vault rm <slug>", "Delete a vault template (tombstones the bundled default so it stays hidden)."],
       ["vault restore <slug>", "Lift a tombstone so a previously-removed bundled default is visible again."],
     ],
-    examples: ["apx agent add reviewer --role Reviewer --model gpt-5.2", "apx agent list"],
+    examples: ["apx agent add reviewer --role Reviewer --prompt-file ./prompt.md", "apx agent list"],
   }),
   "agent add": topic({
     title: "apx agent add",
-    summary: "Create a project-local agent definition.",
-    usage: ["apx agent add <slug> [--role <role>] [--model <model>] [--skills a,b] [--language <tag>] [--description <text>] [--tools a,b]"],
+    summary: "Create a project-local agent definition, with its system prompt.",
+    usage: ["apx agent add <slug> [--prompt <text>|-] [--prompt-file <path>] [--type <type>] [--role <role>] [--area <area>] [--model <model>] [--skills a,b] [--language <tag>] [--description <text>] [--tools a,b] [--icon <blob>] [--parent <slug>]"],
     options: [
-      ["--role <role>", "Human-readable role."],
+      ["--prompt <text>", "The agent's system prompt (its instructions). Use `-` to read it from stdin."],
+      ["--prompt-file <path>", "Read the system prompt from a file."],
+      ["--type <type>", `Typology: ${AGENT_TYPE_VALUES.join(" | ")}. 'orchestrator' also marks the agent as master.`],
+      ["--role <role>", "Role — a role slug from `apx org show`, or free text."],
+      ["--area <area>", "Org-chart area slug from `apx org show` (growth, not Growth). Display names are slugified on write."],
       ["--model <model>", "Preferred model id."],
       ["--skills a,b", "Comma-separated skill names."],
       ["--language <tag>", "Default response language, for example en-US or es-AR."],
       ["--description <text>", "Short agent description."],
-      ["--tools a,b", "Comma-separated tool hints."],
+      ["--tools a,b", "Comma-separated tool hints. Omitted means the safe default set."],
+      ["--icon <blob>", "Avatar blob preset. Omitted means one is picked from those this project isn't using."],
+      ["--parent <slug>", "The orchestrator this agent reports to."],
     ],
-    examples: ["apx agent add reviewer --role Reviewer --model gpt-5.2 --skills review,test"],
+    notes: [
+      "--description is one line of metadata; the PROMPT is what the agent is actually told. Without it the agent runs on its frontmatter alone.",
+      "For a multi-line prompt pipe it in: apx agent add reviewer --prompt - <<'EOF' … EOF",
+      `Blob presets: ${BLOB_KEYS.join(", ")}.`,
+    ],
+    examples: [
+      "apx agent add reviewer --type specialist --role Reviewer --prompt-file ./reviewer-prompt.md",
+      "apx agent add reviewer --role Reviewer --prompt - < prompt.md",
+    ],
+  }),
+  "agent set": topic({
+    title: "apx agent set",
+    summary: "Edit an existing project agent: its system prompt, identity or fields.",
+    usage: ["apx agent set <slug> [--prompt <text>|-] [--prompt-file <path>] [--type <type>] [--role <role>] [--area <area>] [--icon <blob>] [--model <model>] [--language <tag>] [--description <text>] [--skills a,b] [--tools a,b] [--emoji <e>] [--parent <slug>]"],
+    options: [
+      ["--prompt <text>", "Replace the agent's system prompt. Use `-` to read it from stdin."],
+      ["--prompt-file <path>", "Replace the system prompt from a file."],
+      ["--type <type>", `Typology: ${AGENT_TYPE_VALUES.join(" | ")}.`],
+      ["--icon <blob>", "Change the avatar blob preset."],
+    ],
+    notes: [
+      "Only what you pass is changed; a field-only edit leaves the prompt intact.",
+      "Aliases: apx agent edit, apx agent update.",
+    ],
+    examples: [
+      "apx agent set reviewer --prompt - < prompt.md",
+      "apx agent set reviewer --type specialist --area growth --icon kiwi",
+    ],
   }),
   "agent list": topic({
     title: "apx agent list",
@@ -1937,6 +1975,8 @@ export const HELP_ALIASES = new Map(Object.entries({
   "project rm": "project remove",
   "agent ls": "agent list",
   "agent show": "agent get",
+  "agent edit": "agent set",
+  "agent update": "agent set",
   "agent vault ls": "agent vault list",
   "session ls": "session list",
   "session show": "session get",
@@ -2050,7 +2090,8 @@ export function buildHelp(version) {
     hCmd("apx project rebuild [id]",   36, "rebuild project index from filesystem"),
 
     hSec("Agents"),
-    hCmd("apx agent add <slug>",       36, "--role R  --model M  --skills a,b  --language es-AR  --description D"),
+    hCmd("apx agent add <slug>",       36, "--prompt -  --role R  --model M  --skills a,b  --language es-AR  --description D"),
+    hCmd("apx agent set <slug>",       36, "edit the system prompt (--prompt -) and/or any field"),
     hCmd("apx agent list",             36, ""),
     hCmd("apx agent get <slug>",       36, ""),
     hCmd("apx agent remove <slug>",    36, "delete a project agent (file + runtime memory)"),

@@ -29,6 +29,12 @@ test("isRetryableEngineError: 'failed to call a function' 400 retries (model qua
   );
 });
 
+test("isRetryableEngineError: AbortError is not a retry (user interrupted)", () => {
+  const err = new Error("This operation was aborted");
+  err.name = "AbortError";
+  assert.equal(isRetryableEngineError(err), false);
+});
+
 test("isRetryableEngineError: auth 401 stays fatal", () => {
   assert.equal(isRetryableEngineError(new Error("openai 401: invalid api key")), false);
 });

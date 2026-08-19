@@ -28,7 +28,7 @@ export function conversationPath(storagePath, agentSlug, idOrFilename) {
   return path.join(storagePath, "agents", agentSlug, "conversations", filename);
 }
 
-export function startConversation({ storagePath, agentSlug, engine, system, channel }) {
+export function startConversation({ storagePath, agentSlug, engine, system, channel, title }) {
   const dir = path.join(storagePath, "agents", agentSlug, "conversations");
   fs.mkdirSync(dir, { recursive: true });
   const id = generateConversationId(storagePath, agentSlug);
@@ -40,6 +40,7 @@ export function startConversation({ storagePath, agentSlug, engine, system, chan
     `agent: ${agentSlug}\n` +
     `engine: ${engine}\n` +
     (channel ? `channel: ${channel}\n` : "") +
+    (title ? `title: ${JSON.stringify(String(title))}\n` : "") +
     `started: ${started}\n` +
     `last_turn: \n` +
     `status: open\n` +
@@ -89,6 +90,23 @@ export function readConversation(storagePath, agentSlug, idOrFilename) {
   return { ...parseConversation(fs.readFileSync(p, "utf8")), path: p };
 }
 
+/** Shape a parsed turn for the web chat viewer (tool rows carry structured args). */
+export function shapeConversationMessage(t) {
+  const base = { role: t.role, content: t.content, ts: t.ts };
+  if (t.role !== "tool") return base;
+  let parsed = null;
+  try { parsed = JSON.parse(t.content); } catch { parsed = null; }
+  if (parsed && typeof parsed === "object" && parsed.tool) {
+    return {
+      ...base,
+      tool: parsed.tool,
+      args: parsed.args,
+      result: parsed.result,
+    };
+  }
+  return { ...base, tool: "tool" };
+}
+
 // Delete a conversation file. Filesystem is source of truth, so unlinking the
 // markdown removes it from the sidebar list on the next fetch. Returns false
 // when there is nothing to delete (already gone / bad id).
@@ -119,9 +137,12 @@ function summarizeConversation(filePath, agentSlug, filename) {
   let text;
   try { text = fs.readFileSync(filePath, "utf8"); } catch { return null; }
   const { fm, turns } = parseConversation(text);
-  const messages = turns.filter((t) => t.role !== "system" && t.role !== "compact").length;
+  const messages = turns.filter((t) => t.role === "user" || t.role === "assistant").length;
   const firstUser = turns.find((t) => t.role === "user");
-  const title = (firstUser?.content || "").split("\n")[0].slice(0, 80).trim() || undefined;
+  const title =
+    (typeof fm.title === "string" && fm.title.trim()) ||
+    (firstUser?.content || "").split("\n")[0].slice(0, 80).trim() ||
+    undefined;
 
   // What the AGENT last said, not what the user last asked. An inbox row that
   // echoes your own prompt back tells you nothing; the reply is the thing you
