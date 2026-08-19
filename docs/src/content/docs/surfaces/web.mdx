@@ -192,11 +192,14 @@ Header/config values in the MCP editor support the variable token picker — see
 
 ### Memories
 
-The **Memories** tab edits the project's `.apc/memory.md` and each agent's
-runtime memory, the long-lived context the agents read on every turn. It is also
-where the super-agent's `remember` tool writes when it is told a fact about this
-project. The super-agent's own notebook (`~/.apx/memory.md`) is global rather
-than per-project, so it is listed only in **Base**.
+The **Memories** tab shows the long-lived context the agents read, one file per
+row. A project has two: **Project memory** (`.apc/memory.md`), curated and
+committed with the repo, and **Local memory** (`~/.apx/projects/<id>/memory.md`),
+which the super-agent's `remember` tool writes and git never sees — so a fact
+picked up mid-conversation cannot put a pasted credential in your history.
+Promoting a line from local to committed is a manual edit here. Below them sits
+each agent's own memory. The super-agent's notebook (`~/.apx/memory.md`) is
+global rather than per-project, so it is listed only in **Base**.
 
 ![Memories tab — the project memory.md editor](../../../assets/shots/17-memories.png)
 

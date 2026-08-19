@@ -195,11 +195,14 @@ variables — mirá [Variables](#variables) más abajo.
 
 ### Memories
 
-La pestaña **Memories** edita el `.apc/memory.md` del proyecto y la memoria de runtime
-de cada agente, el contexto de larga vida que los agentes leen en cada turno. Ahí mismo
-escribe la tool `remember` del super-agente cuando le contás un dato de este proyecto.
-La libreta propia del super-agente (`~/.apx/memory.md`) es global, no de un proyecto,
-así que aparece solamente en **Base**.
+La pestaña **Memories** muestra el contexto de larga vida que leen los agentes, un archivo
+por fila. Un proyecto tiene dos: **Memoria del proyecto** (`.apc/memory.md`), curada y
+committeada con el repo, y **Memoria local** (`~/.apx/projects/<id>/memory.md`), que escribe
+la tool `remember` del super-agente y que git no ve nunca — así un dato levantado en medio de
+una charla no te mete una credencial pegada en el historial. Promover una línea de local a
+committeada es una edición manual acá. Abajo va la memoria propia de cada agente. La libreta
+del super-agente (`~/.apx/memory.md`) es global, no de un proyecto, así que aparece solamente
+en **Base**.
 
 ![Pestaña Memories — el editor del memory.md del proyecto](../../../../assets/shots/17-memories.png)
 

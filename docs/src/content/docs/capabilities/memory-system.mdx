@@ -35,17 +35,28 @@ is machine-local global state.
 
 #### A fact about one project goes to that project
 
-`remember` takes an optional `project` (id, name, or path). With it, the note is appended to
-that project's own memory at `<repo>/.apc/memory.md` instead of the global notebook — the same
-file the project's **Memories** screen edits, and the one the indexer scopes to `project:<id>`.
+`remember` takes an optional `project` (id, name, or path). With it, the note is appended to that
+project's **local memory** at `~/.apx/projects/<apx_id>/memory.md` instead of the global notebook.
 Use it for what a repo is, its stack, who owns it, a decision taken in it; leave `project` empty
-for facts that matter on every channel. Unlike the notebook, project memory is committed with
-the repo, so it travels with the project.
+for facts that matter on every channel.
 
 ```bash
 # "remember that Northwind runs on Postgres in production, in the northwind project"
-# → <northwind>/.apc/memory.md, not ~/.apx/memory.md
+# → ~/.apx/projects/<apx_id>/memory.md, not ~/.apx/memory.md
 ```
+
+<Aside type="caution">
+  It writes the **local** file, never the repo's `.apc/memory.md`. A project has two memories and
+  the difference is a safety boundary: `.apc/memory.md` is committed and travels with the repo, so
+  only a person writes it, after reading it. Everything automatic — `remember`, and anything the
+  agent picked up mid-conversation, including a credential someone pasted — goes to the local file,
+  which git never sees. This is APC's own rule: private runtime memory stays in the runtime's store,
+  and `.apc/` holds only curated facts that are safe for the team.
+</Aside>
+
+Both files are shown in the project's **Memories** screen, side by side, and both are indexed for
+retrieval under `project:<id>`. Promoting a line from the local file into `.apc/memory.md` is a
+manual edit — that read-before-commit step is the whole point.
 
 ### Piece 2 — RAG retrieval (vector search)
 
@@ -198,9 +209,10 @@ All keys live under `config.memory`:
 | **Compaction** | Not applicable | Progressive (Piece 3) |
 
 Use the per-agent file for stable, curated facts about the agent's project role. The cross-channel
-system handles dynamic, turn-by-turn context that spans surfaces. A third file sits between them:
-`<repo>/.apc/memory.md`, the project's own memory — written by `remember` with a `project`, edited
-in the project's Memories screen, and the only one of the three that is committed with the repo.
+system handles dynamic, turn-by-turn context that spans surfaces. Two more files belong to the project
+rather than to an agent: `~/.apx/projects/<apx_id>/memory.md`, written by `remember` with a
+`project` and never committed, and `<repo>/.apc/memory.md`, curated by hand and the only memory
+in APX that git carries.
 
 ## Next
 

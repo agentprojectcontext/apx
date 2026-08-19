@@ -1,20 +1,26 @@
 import { appendSelfMemory } from "#core/agent/self-memory.js";
-import { appendProjectMemory } from "#core/apc/project-memory.js";
+import { appendProjectLocalMemory } from "#core/stores/project-memory.js";
 import { appendRoutineMemory, resolveRoutineStorage } from "#core/stores/routine-memory.js";
 import { looksDurable } from "#core/memory/consolidate.js";
 import { resolveProject, projectMeta } from "../helpers.js";
 import { CHANNELS } from "#core/constants/channels.js";
 
 // Write a durable note into YOUR OWN notebook (~/.apx/memory.md) — or, with
-// `project`, into that project's own memory (<repo>/.apc/memory.md). This is
-// durable memory, not a project task and not an agent memory.
+// `project`, into that project's LOCAL memory (~/.apx/projects/<apxId>/memory.md).
+// This is durable memory, not a project task and not an agent memory.
 //
 // The `project` scope exists because a fact about ONE repo does not belong in a
 // notebook that ships in every prompt on every channel, and because without it
 // the model had no way at all to write project memory: asked to record what a
 // dozen projects were, it invented a `MEMORY.md` at each repo root, which the
-// Memories screen does not read and the RAG indexer does not see. A note now
-// lands where the reader already looks.
+// Memories screen does not read and the RAG indexer does not see.
+//
+// It writes the LOCAL file, never the repo's `.apc/memory.md`. An automatic
+// writer pointed at a committed file is how a token pasted into a chat ends up
+// in a public git history — APC keeps private runtime memory out of `.apc/` for
+// exactly that reason, and reserves `.apc/memory.md` for facts a person read and
+// judged team-safe. Promotion from local to committed is the owner's move, made
+// in the Memories screen, which shows both files side by side.
 //
 // Routine runs get one extra judgement: the notebook ships in every prompt on
 // every channel forever, and a scheduled routine calling `remember` each run
@@ -30,7 +36,7 @@ export default {
     function: {
       name: "remember",
       description:
-        "Save a durable fact. Without `project` it goes to your cross-channel notebook (~/.apx/memory.md) so you still know it in future sessions AND on other channels (telegram, web, deck, voice); with `project` it goes to THAT project's own memory (<repo>/.apc/memory.md), which is what its Memories screen shows — never write a memory file yourself, this tool is the only correct way to put one there. Use it at the END of any turn where something important happened: a decision taken, a task completed, a key datum agreed, or a relevant tool result. NOT for one-off TODOs (use create_task), NOT for project-agent memory, and NOT for ephemeral data that ages out within a day (today's weather, a routine's run summary) — inside a routine those belong in `remember_routine`, and non-durable notes are diverted there automatically. Keep each note to one self-contained sentence.",
+        "Save a durable fact. Without `project` it goes to your cross-channel notebook (~/.apx/memory.md) so you still know it in future sessions AND on other channels (telegram, web, deck, voice); with `project` it goes to THAT project's local memory, which its Memories screen shows. Never create a memory file yourself — this tool is the only correct way to write one, and it deliberately writes the project's LOCAL file, not the repo's committed .apc/memory.md (the owner promotes a fact there once they have read it). Use it at the END of any turn where something important happened: a decision taken, a task completed, a key datum agreed, or a relevant tool result. NOT for one-off TODOs (use create_task), NOT for project-agent memory, and NOT for ephemeral data that ages out within a day (today's weather, a routine's run summary) — inside a routine those belong in `remember_routine`, and non-durable notes are diverted there automatically. Keep each note to one self-contained sentence.",
       parameters: {
         type: "object",
         required: ["note"],
@@ -48,7 +54,7 @@ export default {
           project: {
             type: "string",
             description:
-              "Optional: project id, name or path. Give it when the fact is about ONE project (what it is, its stack, who owns it, a decision taken in it) — the note lands in that project's memory instead of your notebook. Leave it empty for facts that matter on every channel.",
+              "Optional: project id, name or path. Give it when the fact is about ONE project (what it is, its stack, who owns it, a decision taken in it) — the note lands in that project's local memory instead of your notebook. Leave it empty for facts that matter on every channel.",
           },
         },
       },
@@ -68,11 +74,19 @@ export default {
           return { error: e.message };
         }
         const meta = projectMeta(ctx.projects, p);
-        const r = appendProjectMemory(p.path, text, {
+        const r = appendProjectLocalMemory(p, text, {
           channel: channel || ctx.channel || "",
           projectName: meta.name,
         });
-        return { saved: true, scope: "project", project: meta.name, note: text, path: r.path };
+        return {
+          saved: true,
+          scope: "project",
+          project: meta.name,
+          note: text,
+          path: r.path,
+          hint:
+            "saved to this project's LOCAL memory (not committed). If the owner wants it in the repo, they promote it to .apc/memory.md from the Memories screen.",
+        };
       }
 
       const routineId = ctx.channelMeta?.routineId;

@@ -36,16 +36,27 @@ estado global local de la máquina.
 #### Un dato de un proyecto va a ese proyecto
 
 `remember` acepta un `project` opcional (id, nombre o path). Con eso, la nota se agrega a la
-memoria propia de ese proyecto, en `<repo>/.apc/memory.md`, en vez de la libreta global — el
-mismo archivo que edita la pantalla **Memories** del proyecto y el que el indexador scopea a
-`project:<id>`. Usalo para qué es un repo, su stack, quién lo lleva, una decisión que se tomó
-ahí; dejá `project` vacío para los datos que importan en todos los canales. A diferencia de la
-libreta, la memoria de proyecto se committea con el repo, así que viaja con él.
+**memoria local** de ese proyecto, en `~/.apx/projects/<apx_id>/memory.md`, en vez de la libreta
+global. Usalo para qué es un repo, su stack, quién lo lleva, una decisión que se tomó ahí; dejá
+`project` vacío para los datos que importan en todos los canales.
 
 ```bash
 # "acordate de que Northwind corre sobre Postgres en producción, en el proyecto northwind"
-# → <northwind>/.apc/memory.md, no ~/.apx/memory.md
+# → ~/.apx/projects/<apx_id>/memory.md, no ~/.apx/memory.md
 ```
+
+<Aside type="caution">
+  Escribe el archivo **local**, nunca el `.apc/memory.md` del repo. Un proyecto tiene dos memorias y
+  la diferencia es un límite de seguridad: `.apc/memory.md` se committea y viaja con el repo, así que
+  lo escribe una persona, después de leerlo. Todo lo automático — `remember`, y cualquier cosa que el
+  agente haya levantado en medio de una charla, incluida una credencial que alguien pegó — va al
+  archivo local, que git no ve nunca. Es la regla de APC: la memoria privada de runtime se queda en el
+  store del runtime, y `.apc/` guarda solo datos curados y seguros para el equipo.
+</Aside>
+
+Las dos aparecen en la pantalla **Memories** del proyecto, una al lado de la otra, y las dos se
+indexan para recuperación bajo `project:<id>`. Promover una línea del archivo local a `.apc/memory.md`
+es una edición manual — ese paso de leer antes de committear es justamente el punto.
 
 ### Pieza 2 — Recuperación RAG (búsqueda vectorial)
 
@@ -199,10 +210,10 @@ Todas las claves viven bajo `config.memory`:
 | **Compactación** | No aplica | Progresiva (Pieza 3) |
 
 Usá el archivo por agente para datos estables y curados sobre el rol del agente en el proyecto. El sistema
-entre canales maneja el contexto dinámico, turno a turno, que abarca superficies. Hay un tercer archivo
-entre los dos: `<repo>/.apc/memory.md`, la memoria propia del proyecto — la escribe `remember` con un
-`project`, se edita en la pantalla Memories del proyecto y es la única de las tres que se committea con
-el repo.
+entre canales maneja el contexto dinámico, turno a turno, que abarca superficies. Hay otros dos archivos que son
+del proyecto y no de un agente: `~/.apx/projects/<apx_id>/memory.md`, que escribe `remember` con un
+`project` y no se committea nunca, y `<repo>/.apc/memory.md`, curado a mano y la única memoria de APX
+que git se lleva.
 
 ## Siguiente
 

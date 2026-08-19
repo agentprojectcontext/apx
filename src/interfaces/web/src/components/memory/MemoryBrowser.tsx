@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import useSWR from "swr";
-import { Brain, Bot, Crown, NotebookPen, RefreshCw } from "lucide-react";
+import { Brain, BrainCircuit, Bot, Crown, NotebookPen, RefreshCw } from "lucide-react";
 import { Agents, Projects } from "../../lib/api";
 import { Notebook } from "../../lib/api/notebook";
 import type { AgentEntry, FileContent } from "../../types/daemon";
@@ -12,12 +12,18 @@ import { toneText } from "../../lib/tone";
 import { usePersonaName } from "../../hooks/usePersonaName";
 import { FileViewer } from "../files/FileViewer";
 
-// Which memory is open in the right pane.
-type Sel = { kind: "notebook" } | { kind: "project" } | { kind: "agent"; slug: string };
+// Which memory is open in the right pane. A project has TWO: "project" is the
+// curated `.apc/memory.md` that git carries, "local" is the never-committed file
+// the agent writes. Keeping them separate rows is the point — the boundary is
+// what stops an automatic note putting a pasted token in someone's repo.
+type Sel =
+  | { kind: "notebook" }
+  | { kind: "project" }
+  | { kind: "local" }
+  | { kind: "agent"; slug: string };
 
 function selId(s: Sel): string {
-  if (s.kind === "notebook") return "notebook";
-  return s.kind === "project" ? "project" : `agent:${s.slug}`;
+  return s.kind === "agent" ? `agent:${s.slug}` : s.kind;
 }
 
 // On-disk-ish path shown in the viewer header (mirrors the real memory.md
@@ -25,23 +31,32 @@ function selId(s: Sel): string {
 function selPath(s: Sel): string {
   // The notebook is NOT under the project — it is global to the super-agent.
   // Showing its real absolute-ish path is the whole point: the confusion this
-  // entry fixes was not knowing where it lived.
-  if (s.kind === "notebook") return "~/.apx/memory.md";
-  return s.kind === "project" ? ".apc/memory.md" : `agents/${s.slug}/memory.md`;
+  // entry fixes was not knowing where it lived. Same reasoning for the local
+  // file: "not in the repo" is a property you have to be able to SEE.
+  switch (s.kind) {
+    case "notebook": return "~/.apx/memory.md";
+    case "project":  return ".apc/memory.md";
+    case "local":    return "~/.apx/projects/<id>/memory.md";
+    default:         return `agents/${s.slug}/memory.md`;
+  }
 }
 
 function loadBody(pid: string, s: Sel): Promise<string> {
-  if (s.kind === "notebook") return Notebook.get().then((r) => r.body);
-  return s.kind === "project"
-    ? Projects.memory.get(pid).then((r) => r.body)
-    : Agents.memory.get(pid, s.slug).then((r) => r.body);
+  switch (s.kind) {
+    case "notebook": return Notebook.get().then((r) => r.body);
+    case "project":  return Projects.memory.get(pid).then((r) => r.body);
+    case "local":    return Projects.memory.local.get(pid).then((r) => r.body);
+    default:         return Agents.memory.get(pid, s.slug).then((r) => r.body);
+  }
 }
 
 function saveBody(pid: string, s: Sel, body: string): Promise<void> {
-  if (s.kind === "notebook") return Notebook.put(body).then(() => {});
-  return s.kind === "project"
-    ? Projects.memory.put(pid, body).then(() => {})
-    : Agents.memory.put(pid, s.slug, body).then(() => {});
+  switch (s.kind) {
+    case "notebook": return Notebook.put(body).then(() => {});
+    case "project":  return Projects.memory.put(pid, body).then(() => {});
+    case "local":    return Projects.memory.local.put(pid, body).then(() => {});
+    default:         return Agents.memory.put(pid, s.slug, body).then(() => {});
+  }
 }
 
 function SidebarItem({
@@ -169,6 +184,19 @@ export function MemoryBrowser({ pid }: { pid: string }) {
             icon={Brain}
             iconClass={toneText.sky}
             label={t("project.memories.general_item")}
+            sub={t("project.memories.committed")}
+          />
+          {/* The agent's half. Split from the committed file on purpose: what
+              `remember` writes lands here, so a fact picked up mid-chat cannot
+              put a pasted credential into the repo's history. Promotion to
+              .apc/memory.md is a person copying a line they have read. */}
+          <SidebarItem
+            active={open.kind === "local"}
+            onClick={() => setSel({ kind: "local" })}
+            icon={BrainCircuit}
+            iconClass={toneText.amber}
+            label={t("project.memories.local_item")}
+            sub={t("project.memories.not_committed")}
           />
 
           {/* Agent memories */}

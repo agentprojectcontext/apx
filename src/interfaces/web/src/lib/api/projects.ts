@@ -21,9 +21,17 @@ export const Projects = {
     put: (id: string, full: Record<string, unknown>) =>
       http.put<{ ok: true; apc_project: Record<string, unknown> }>(`/api/projects/${id}/apc-project`, full),
   },
-  // Project-level memory (.apc/memory.md). Per-agent memory lives in Agents.memory.
+  // Project-level memory. Two files: `memory` is the curated `.apc/memory.md`
+  // that git carries and only a person writes; `memory.local` is
+  // `~/.apx/projects/<id>/memory.md`, never committed, and is the one the
+  // `remember` tool appends to. Per-agent memory lives in Agents.memory.
   memory: {
     get: (id: string) => http.get<{ body: string; path: string }>(`/api/projects/${id}/memory`),
     put: (id: string, body: string) => http.put<{ ok: boolean; bytes: number }>(`/api/projects/${id}/memory`, { body }),
+    local: {
+      get: (id: string) => http.get<{ body: string; path: string }>(`/api/projects/${id}/memory/local`),
+      put: (id: string, body: string) =>
+        http.put<{ ok: boolean; bytes: number }>(`/api/projects/${id}/memory/local`, { body }),
+    },
   },
 };
