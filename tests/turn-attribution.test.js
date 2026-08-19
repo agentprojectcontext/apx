@@ -60,10 +60,17 @@ test("telegram: every entry point hands the model to sendFinalReply", () => {
     assert.match(src, /saModel[:,]/, `${name} must pass saModel through to sendFinalReply`);
   }
   // The routed project-agent branch has no super-agent result to read the model
-  // from — it must fall back to the agent card's own Model field.
+  // from — it must resolve the agent's own model. It used to read
+  // `agent.fields.Model` directly; resolveAgentModel() replaced that so an
+  // `inherit` card resolves to what actually ran. Same guarantee, one hop.
   assert.match(
     DISPATCH,
-    /replyModel = agent\.fields\.Model/,
+    /await resolveAgentModel\(\{ agent/,
+    "the routed branch must resolve the agent's own model",
+  );
+  assert.match(
+    DISPATCH,
+    /replyModel = agentModel/,
     "a routed project agent must still record which model it ran on",
   );
 });
