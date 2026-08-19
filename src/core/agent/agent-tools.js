@@ -6,7 +6,6 @@
 // `agent_list`); the loop speaks native + bridged names (`search_files` is
 // native, `glob` is bridged, `read_self_memory` is native). This module is the
 // one map between those vocabularies.
-import { DEFAULT_AGENT_TOOLS } from "#core/http-tools/catalog.js";
 import { listCallableToolNames } from "#core/agent/tools/registry.js";
 import { TOOLS } from "#core/agent/tools/names.js";
 
@@ -33,12 +32,45 @@ export function declaredAgentTools(agent) {
   return [];
 }
 
+// What an agent with no declared `tools:` may NOT call. Everything else it can.
+//
+// The default used to be a narrow read/search/memory set, and the result was
+// agents that could not do their job: a social producer that could not reach the
+// MCP holding its publishing tools, a routine that could not file the task it
+// had just written. Every one of those was diagnosed as a bug, one card at a
+// time, long after the run that needed it had already failed.
+//
+// So capability is the default and removal is the deliberate act: declare
+// `tools:` on the card when an agent should be narrower than the registry. What
+// stays out is only what belongs to the super-agent as the host, not work an
+// agent might reasonably need.
+//
+// This is an ALLOWLIST gate, not a prompt budget — lightweight channels still
+// send the small base set and expand through discover_tools, so a broad default
+// costs nothing on a chat turn. It only stops the runtime from refusing.
+const HOST_ONLY_TOOLS = Object.freeze([
+  // The super-agent's own persona and privilege level. An agent rewriting who
+  // APX is, or widening its own permissions, is never the task.
+  TOOLS.SET_IDENTITY,
+  TOOLS.SET_PERMISSION_MODE,
+  // Registry surgery: adding projects / importing agents reshapes the install
+  // the agent is running inside.
+  TOOLS.ADD_PROJECT,
+  TOOLS.IMPORT_AGENT,
+]);
+
+/** Everything a project agent may call by default: the registry minus the host's own. */
+export function defaultAgentToolNames() {
+  const deny = new Set(HOST_ONLY_TOOLS);
+  return listCallableToolNames().filter((n) => !deny.has(n));
+}
+
 /**
  * Names this agent may call this turn.
  *
  * - `override` set (routine.allowed_tools) wins, including `[]` = no tools.
- * - else the agent's declared `tools:` field.
- * - empty declaration falls back to DEFAULT_AGENT_TOOLS (safe read/search/memory).
+ * - else the agent's declared `tools:` field, when it declares one.
+ * - no declaration → the broad default (see defaultAgentToolNames).
  * Unknown names are dropped, catalog aliases are rewritten, duplicates collapse.
  *
  * @returns {string[]}
@@ -46,12 +78,11 @@ export function declaredAgentTools(agent) {
 export function resolveAgentAllowedTools(agent, { override } = {}) {
   if (Array.isArray(override)) return resolveNames(override);
   const declared = declaredAgentTools(agent);
-  const source = declared.length ? declared : [...DEFAULT_AGENT_TOOLS];
-  const resolved = resolveNames(source);
-  if (resolved.length) return resolved;
-  // Declared names that none map (stale card) — still give the safe default
-  // rather than a silent no-tools turn that dumps markup as the "answer".
-  return resolveNames([...DEFAULT_AGENT_TOOLS]);
+  if (!declared.length) return defaultAgentToolNames();
+  const resolved = resolveNames(declared);
+  // A card whose every name is stale would otherwise mean a silent no-tools
+  // turn that dumps markup as the "answer". Capability beats a broken card.
+  return resolved.length ? resolved : defaultAgentToolNames();
 }
 
 function resolveNames(names) {

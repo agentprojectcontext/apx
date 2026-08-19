@@ -3,7 +3,6 @@ import { findApfRoot, readAgents, readVaultAgents, readVaultAgent, vaultAgentFil
 import { apcAgentFile } from "#core/apc/paths.js";
 import { writeAgentFile, writeVaultAgentFile, removeVaultAgent, restoreVaultAgent, addImportedAgent, ensureAgentDir } from "#core/apc/scaffold.js";
 import { ensureAgentRuntimeDir, agentMemoryPath } from "#core/agent/memory.js";
-import { DEFAULT_AGENT_TOOLS } from "#core/http-tools/catalog.js";
 import {
   AGENT_TYPE_VALUES, BLOB_KEYS, isBlobKey, normalizeAgentType, pickBlob,
 } from "#core/apc/agent-identity.js";
@@ -133,12 +132,13 @@ export async function cmdAgentAdd(args) {
   // Every agent gets a face, same as the daemon API does. Drawn from the blobs
   // this project isn't using yet so the team stays distinguishable.
   fields.Icon = resolveIconFlag(f, existing);
-  // Omitted tools ⇒ the safe default set, matching what the daemon API does on
-  // create. Without this a CLI-created agent landed with no capabilities while
-  // the same agent created from the web UI got the defaults.
-  fields.Tools = f.tools && f.tools !== true
-    ? String(f.tools).split(",").map((s) => s.trim()).filter(Boolean)
-    : [...DEFAULT_AGENT_TOOLS];
+  // Omitted tools ⇒ leave the field UNDECLARED, matching the daemon API. A
+  // declared list is a deliberate narrowing that wins forever; writing one on
+  // create froze the agent to a snapshot of the catalog instead of letting it
+  // inherit the broad default.
+  if (f.tools && f.tools !== true) {
+    fields.Tools = String(f.tools).split(",").map((s) => s.trim()).filter(Boolean);
+  }
 
   const prompt = readPromptFlag(f);
 
