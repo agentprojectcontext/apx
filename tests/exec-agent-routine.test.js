@@ -83,7 +83,7 @@ test("exec_agent with tools runs the call and stores a conversation", async () =
   }
 });
 
-test("exec_agent allowed_tools:[] stays a one-shot text call", async () => {
+test("exec_agent spec.no_tools stays a one-shot text call", async () => {
   const root = makeTempProject({ name: "acme", agents: [{ slug: "scout", model: "mock:test" }] });
   writeAgent(root, "scout");
   const ctx = makeCtx(root);
@@ -92,14 +92,37 @@ test("exec_agent allowed_tools:[] stays a one-shot text call", async () => {
       name: "scout-blurb",
       kind: "exec_agent",
       schedule: "every:24h",
-      allowed_tools: [],
-      spec: { agent: "scout", prompt: "One sentence [mock:tool:list_projects]" },
+      spec: { agent: "scout", no_tools: true, prompt: "One sentence [mock:tool:list_projects]" },
     });
     assert.equal(out.status, "ok");
     assert.equal(out.trace.length, 0, "no-tools path must not execute tools");
     assert.match(out.reply || "", /received:/);
     assert.ok(out.conversation_id);
     assert.deepEqual(out.allowed_tools, []);
+  } finally {
+    cleanupTempProject(root);
+  }
+});
+
+// `allowed_tools: []` is what the store writes when nobody chose any — it is
+// "no override", not "no tools". Reading it as an opt-out silently turned every
+// routine created without --allowed-tools into a model narrating work it could
+// not do (see the runner's noTools comment).
+test("exec_agent allowed_tools:[] means no override, NOT a tool-less run", async () => {
+  const root = makeTempProject({ name: "acme", agents: [{ slug: "scout", model: "mock:test" }] });
+  writeAgent(root, "scout", "tools: read_file\n");
+  const ctx = makeCtx(root);
+  try {
+    const out = await runRoutineNow(ctx, {
+      name: "scout-default-tools",
+      kind: "exec_agent",
+      schedule: "every:24h",
+      allowed_tools: [],
+      spec: { agent: "scout", prompt: "Just look [mock:tool:read_file]" },
+    });
+    assert.equal(out.status, "ok");
+    assert.deepEqual(out.allowed_tools, ["read_file"], "falls back to the agent's declared tools");
+    assert.ok(out.trace.length > 0, "the tool loop actually ran");
   } finally {
     cleanupTempProject(root);
   }
