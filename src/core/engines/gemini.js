@@ -2,6 +2,7 @@
 // Direct fetch, no SDK. Supports function calling (Gemini's name for tool
 // use) so it can drive the super-agent loop on parity with Groq / OpenAI.
 import { randomUUID } from "node:crypto";
+import { matchesModelGlob, modelListFromConfig } from "./_globs.js";
 
 const API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
@@ -150,21 +151,13 @@ export const THOUGHT_SIGNATURE_MODELS = [
   "gemini-5*",
 ];
 
-function globToRegExp(pattern) {
-  const escaped = String(pattern).replace(/[.+^${}()|[\]\\]/g, "\\$&");
-  return new RegExp(`^${escaped.replace(/\*/g, ".*").replace(/\?/g, ".")}$`, "i");
-}
-
 // Per-install override, no code change required:
 //   engines.gemini.thought_signature_models: ["gemini-3*", "my-tuned-model*"]
-// A configured list REPLACES the built-in default — it is the whole answer to
-// "which models use this mechanism", so an install can also opt out entirely
-// with an explicit empty list.
 export function modelUsesThoughtSignatures(model, config = {}) {
-  const configured = config?.thought_signature_models;
-  const patterns = Array.isArray(configured) ? configured : THOUGHT_SIGNATURE_MODELS;
-  const id = String(model || "");
-  return patterns.some((p) => globToRegExp(p).test(id));
+  return matchesModelGlob(
+    model,
+    modelListFromConfig(config?.thought_signature_models, THOUGHT_SIGNATURE_MODELS)
+  );
 }
 
 function historyHasSignature(messages) {

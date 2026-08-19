@@ -1,10 +1,15 @@
 import { http } from "../http";
 
 export type SkillSource = "builtin" | "global" | "project" | string;
+export type SkillOrigin = "apx" | "global" | "project" | "claude" | "cursor" | "codex" | "agents" | string;
 
 export type SkillEntry = {
   slug: string;
   source: SkillSource;
+  /** Host that owns the files (claude, cursor, …) when APX only holds a link. */
+  origin?: SkillOrigin | null;
+  origin_path?: string | null;
+  file?: string;
   description: string;
   /** Effective enabled state for the requested scope. */
   enabled?: boolean;
@@ -24,6 +29,9 @@ export type SkillsList = {
 export interface SkillDetail {
   slug: string;
   source: SkillSource;
+  origin?: SkillOrigin | null;
+  origin_path?: string | null;
+  file_path?: string | null;
   description: string;
   frontmatter: Record<string, string>;
   body: string;

@@ -22,7 +22,7 @@ const SUBTABS: { value: SubTab; labelKey: "integrations.tab_plugins" | "integrat
 // — they have their own top-level "MCPs" nav item.
 function PluginRow({ pid, scope, entry }: { pid: string; scope: IntegrationScope; entry: CatalogEntry }) {
   if (entry.coming_soon || !entry.ui) return <ComingSoonPlugin entry={entry} />;
-  return <PluginConnect pid={pid} scope={scope} entry={entry} />;
+  return <PluginConnect key={`${pid}-${scope}-${entry.slug}`} pid={pid} scope={scope} entry={entry} />;
 }
 
 function PluginsSection({ pid, scope }: { pid: string; scope: IntegrationScope }) {

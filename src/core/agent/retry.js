@@ -45,6 +45,8 @@ const FATAL_PHRASES = [
 ];
 
 export function isRetryableEngineError(err) {
+  if (err?.name === "AbortError" || err?.code === "ABORT_ERR") return false;
+
   const msg = String(err?.message || err || "");
   if (!msg) return false;
 
@@ -69,6 +71,17 @@ export function isRetryableEngineError(err) {
           /looks like (object|array)|can'?t find closing|unexpected end of json|invalid (json|grammar)/i.test(msg)) {
         return true;
       }
+      // A gateway 400 with no message at all — Zen answers upstream failures
+      // with a bare `{"object":"error","model":"..."}` envelope. There is
+      // nothing in it to fix, and it is as likely to be the vendor behind the
+      // gateway as it is to be our payload, so the chain gets to try the next
+      // model rather than ending the run on an error the user cannot act on.
+      if (/^[a-z0-9_-]+ 400:\s*\{"object":\s*"error"/i.test(msg)) return true;
+      // A history-fidelity requirement we may not be able to satisfy: the turn
+      // being replayed came from a different engine (post-rotation) and never
+      // carried the field. Serialising it correctly is zen.js's job; when the
+      // data isn't there, a model that doesn't demand it is the only way out.
+      if (/reasoning_content|thought.?signature/i.test(msg)) return true;
       // explicit schema / param errors are our bug, not transient
       return false;
     }

@@ -22,6 +22,8 @@ export interface EnginePresets {
 export interface EngineTestResult {
   provider: string;
   model: string;
+  /** Id the gateway put on the response. Null when the adapter did not echo one. */
+  served_model?: string | null;
   text: string;
   usage?: { input_tokens?: number; output_tokens?: number } | null;
   ms: number;

@@ -116,6 +116,12 @@ class ChannelPoller {
 
   stop() {
     this.polling = false;
+    // Kill in-flight turns so a restart doesn't leave a zombie run that still
+    // holds the chat (and so `apx daemon restart` actually interrupts Telegram).
+    for (const ctrl of this.activeRequests.values()) {
+      try { ctrl.abort(); } catch { /* already aborted */ }
+    }
+    this.activeRequests.clear();
   }
 
   async _loop() {
@@ -127,6 +133,9 @@ class ChannelPoller {
         // A successful poll clears any stale error so status reflects recovery.
         this.lastError = null;
         for (const u of updates) {
+          // handleUpdate logs inbound + spawns the model turn; it must NOT
+          // await the super-agent. Awaiting the whole run froze getUpdates,
+          // so a newer message could never abort the one in flight.
           await this._handleUpdate(u);
           this.offset = u.update_id + 1;
           this._saveOffset();

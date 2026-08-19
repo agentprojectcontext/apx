@@ -87,6 +87,16 @@ test("asanaPlugin.configure: builds a patch that marks pending validation", () =
   assert.equal(patch.name, "Asana");
 });
 
+test("asanaPlugin.configure: workspace_gid-only patch does not mark pending_validation", () => {
+  const { patch } = asanaPlugin.configure(
+    { config: { personal_access_token: "1/tok:secret" }, status: "active" },
+    { workspace_gid: "ws-1" },
+  );
+  assert.equal(patch.config.workspace_gid, "ws-1");
+  assert.equal(patch.config.personal_access_token, undefined);
+  assert.equal(patch.status, undefined);
+});
+
 test("asanaPlugin.configure: rejects an empty body on a brand-new record", () => {
   assert.throws(() => asanaPlugin.configure(null, {}), /personal_access_token or workspace_gid/);
 });

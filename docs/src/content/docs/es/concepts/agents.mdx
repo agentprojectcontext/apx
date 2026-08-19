@@ -175,8 +175,8 @@ en este orden:
 
 | Aspecto | Super-agente (APX en sí) | Agente del proyecto |
 |---|---|---|
-| ¿Tiene herramientas? | Sí — registro completo de herramientas | No — sólo texto de entrada / texto de salida |
-| Loop de ejecución | Loop de herramientas multi-iteración | Una única llamada al LLM |
+| ¿Tiene herramientas? | Sí — registro completo | Sí — solo allowlist `tools:` del agente (no el registro entero). Campo vacío → default lectura/búsqueda/memoria. `exec_agent` corre el loop; `/agents/:slug/chat` sigue siendo solo texto. |
+| Loop de ejecución | Loop de herramientas multi-iteración | Multi-iteración en `exec_agent`; una sola llamada si `allowed_tools: []` |
 | System prompt | `super-agent-base.md` + plantilla de canal + identidad | Construido por agente como arriba |
 | Configurado vía | `super_agent.*` en la config | `.apc/agents/<slug>.md` |
 

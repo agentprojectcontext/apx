@@ -138,9 +138,14 @@ function usePidFromRoute(): string {
   return pathname.match(/^\/p\/([^/]+)/)?.[1] ?? "0";
 }
 
-function sourceLabel(source: string): string {
-  if (source === "builtin") return t("skills_page.source_builtin");
-  if (source === "project") return t("skills_page.source_project");
+function sourceLabel(source: string, origin?: string | null): string {
+  const host = origin || source;
+  if (source === "builtin" || host === "apx" || host === "builtin") return t("skills_page.source_builtin");
+  if (source === "project" || host === "project") return t("skills_page.source_project");
+  if (host === "claude") return t("skills_page.origin_claude");
+  if (host === "cursor") return t("skills_page.origin_cursor");
+  if (host === "codex") return t("skills_page.origin_codex");
+  if (host === "agents") return t("skills_page.origin_agents");
   return t("skills_page.source_global");
 }
 

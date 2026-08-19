@@ -9,6 +9,16 @@ import type { Provider } from "./types";
 import { t } from "../../../i18n";
 import { toneText } from "../../../lib/tone";
 
+/** True when the gateway's echoed id is the same model we asked for. */
+function servedMatchesRequested(requested: string, served: string | null | undefined): boolean {
+  if (!served) return true;
+  const a = requested.trim().toLowerCase();
+  const b = served.trim().toLowerCase();
+  if (!a || a === b) return true;
+  const tail = b.split(/[/:]/).pop() || b;
+  return tail === a;
+}
+
 // "Does this actually answer?" — one message, one reply, nothing kept.
 //
 // Deliberately not a chat: no history is sent or stored, so the reply costs a
@@ -125,6 +135,12 @@ export function ProviderTestDialog({
                 <span>· {t("provider_test.tokens", { n: String(result.usage.output_tokens) })}</span>
               )}
             </div>
+            {result.served_model && !servedMatchesRequested(result.model, result.served_model) && (
+              <div className={`text-[11px] font-mono ${toneText.amber}`}>
+                {t("provider_test.served", { id: result.served_model })}
+                <span> · {t("provider_test.served_mismatch")}</span>
+              </div>
+            )}
             <p className="whitespace-pre-wrap text-sm">{result.text || t("provider_test.empty_reply")}</p>
           </div>
         )}

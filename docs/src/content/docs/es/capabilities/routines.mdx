@@ -19,14 +19,15 @@ y arrays de hooks de shell opcionales (`pre_commands` / `post_commands`).
 |---|---|---|---|
 | `heartbeat` | No | — | Registra un marcador. Útil como ping de "sigo vivo". |
 | `shell` | No | — | Corre un comando de shell. Captura el stdout. |
-| `exec_agent` | Sí | Ninguna | Carga el prompt de un agente del proyecto, envía `spec.prompt`, devuelve texto plano. Una sola llamada. |
+| `exec_agent` | Sí | Allowlist del agente | Carga un agente del proyecto, corre `spec.prompt` con las tools de su campo `tools:` (no el registro del superagente) y persiste una conversación. `allowed_tools: []` deja el path de texto de una sola llamada. |
 | `super_agent` | Sí | Todas | Corre el agente APX por defecto con el registro completo de herramientas. Bucle multi-iteración. |
 | `telegram` | No | — | Envía un `spec.text` fijo vía el plugin de Telegram. |
 
 **Regla general para elegir:**
 
-- ¿Necesitás texto de un modelo, sin llamadas a herramientas? → `exec_agent`.
-- ¿Necesitás orquestación (escribir archivos, llamar MCPs, crear tareas, enviar Telegram dinámico)? → `super_agent`.
+- ¿El agente del proyecto tiene que *hacer* el trabajo (archivos, Asana, tools)? → `exec_agent`.
+- ¿El agente APX por defecto, con el registro completo? → `super_agent`.
+- ¿Texto de un modelo, sin llamadas a tools? → `exec_agent` con `allowed_tools: []`.
 - ¿Shell puro sin LLM? → `shell`.
 - ¿Mensaje fijo de Telegram en un horario? → `telegram`.
 

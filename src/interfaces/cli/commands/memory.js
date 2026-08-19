@@ -2,6 +2,7 @@ import fs from "node:fs";
 import { findApfRoot } from "#core/apc/parser.js";
 import { agentMemoryPath, readAgentMemory, writeAgentMemory, ensureAgentRuntimeDir } from "#core/agent/memory.js";
 import { http } from "../http.js";
+import { readStdinSync } from "../stdin.js";
 import {
   proposeConsolidation, applyConsolidation, revertConsolidation, notebookSize,
 } from "#core/memory/consolidate.js";
@@ -57,19 +58,6 @@ export async function cmdMemory(args) {
     throw new Error(`no memory for "${slug}" — agent dir not yet created`);
   }
   process.stdout.write(body);
-}
-
-function readStdinSync() {
-  const chunks = [];
-  const buf = Buffer.alloc(65536);
-  try {
-    while (true) {
-      const bytes = fs.readSync(0, buf, 0, buf.length);
-      if (!bytes) break;
-      chunks.push(buf.slice(0, bytes).toString("utf8"));
-    }
-  } catch {}
-  return chunks.join("");
 }
 
 

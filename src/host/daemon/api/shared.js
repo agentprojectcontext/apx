@@ -9,6 +9,7 @@ import { readAgents } from "#core/apc/parser.js";
 import { agentMemoryPath } from "#core/agent/memory.js";
 import { apcMemoryFile } from "#core/apc/paths.js";
 import { CHANNELS } from "#core/constants/channels.js";
+import { slugifyName } from "#core/stores/organization.js";
 import { apiPath, isApiPath } from "./prefix.js";
 
 export const nowIso = () =>
@@ -277,7 +278,9 @@ export function agentToResponse(a) {
     // Typology (specialist/assistant/orchestrator/worker/monitor) + area. Both
     // definitional, kept in APC frontmatter.
     type: f.Type || null,
-    area: f.Area || null,
+    // Canonical slug, so `Growth` and `growth` group as one area in the team
+    // view even when the file on disk still has the display name.
+    area: f.Area ? (slugifyName(f.Area) || f.Area) : null,
     // Display emoji (avatar) + autonomy (permission mode: total/automatico/
     // permiso). Definitional, kept in APC frontmatter so they travel with the
     // project and stay diffable.

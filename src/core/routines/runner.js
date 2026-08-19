@@ -15,11 +15,20 @@ import os from "node:os";
 import path from "node:path";
 import { callEngine } from "#core/engines/index.js";
 import { runSuperAgent } from "#core/agent/super-agent.js";
-import { computeSuppressedTools } from "#core/agent/index.js";
+import { runAgent, computeSuppressedTools } from "#core/agent/index.js";
+import { TELEGRAM_TOOL_ITERS } from "#core/agent/constants.js";
+import { createToolSession, makeToolHandlers } from "#core/agent/tools/registry.js";
 import { summarizeToolTrace } from "#core/agent/tool-summary.js";
 import { readAgents } from "#core/apc/parser.js";
 import { buildAgentSystem } from "#core/agent/build-agent-system.js";
+import { resolveAgentModel } from "#core/agent/agent-model.js";
+import { resolveAgentAllowedTools } from "#core/agent/agent-tools.js";
 import { resolveAgentName, SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
+import {
+  startConversation,
+  appendTurn,
+  setStatus,
+} from "#core/stores/conversations.js";
 import { resolveArtifactRef, ARTIFACTS_SKIP_SIGNAL } from "#core/stores/artifacts.js";
 import {
   ensureRoutineMemory,
@@ -55,27 +64,218 @@ async function handleHeartbeat(ctx, routine) {
 }
 
 async function handleExecAgent(ctx, routine) {
-  const { project, globalConfig } = ctx;
+  const { project, globalConfig, projects, plugins, registries } = ctx;
   const { agent: slug, prompt } = routine.spec;
   if (!slug || !prompt) throw new Error("exec_agent: spec needs { agent, prompt }");
 
   const agents = readAgents(project.path);
   const agent = agents.find((a) => a.slug === slug);
   if (!agent) throw new Error(`agent ${slug} not found`);
-  const model = agent.fields.Model;
-  if (!model) throw new Error(`agent ${slug} has no model`);
+  const config = project.config || globalConfig;
+  const model = await resolveAgentModel({ agent, config });
+  if (!model) throw new Error(`no model for agent ${slug} (no override, no router default)`);
 
-  const result = await callEngine({
-    modelId: model,
-    system: buildAgentSystem(project, agent, {
-      invocation: "routine",
-      routine: routine.name,
-      extraParts: [`Reply briefly, max 4 sentences.`],
-    }),
-    messages: [{ role: "user", content: prompt }],
-    config: project.config || globalConfig,
+  // Explicit opt-out: `allowed_tools: []` or `spec.no_tools` keeps the old
+  // one-shot text path (weather-style "write a sentence, post_commands send it").
+  // Everything else gets the tool loop — Magui's crons read files, talk to
+  // Asana, compact a ledger. A single callEngine with no tools made those
+  // models dump DSML markup as the "answer" and the work never happened.
+  const noTools =
+    routine.spec?.no_tools === true ||
+    (Array.isArray(routine.allowed_tools) && routine.allowed_tools.length === 0);
+
+  const system = buildAgentSystem(project, agent, {
+    invocation: "routine",
+    routine: routine.name,
+    channel: CHANNELS.ROUTINE,
+    globalConfig: config,
   });
 
+  let text = "";
+  let trace = [];
+  let usage = null;
+  let allowedTools = [];
+
+  if (noTools) {
+    const result = await callEngine({
+      modelId: model,
+      system,
+      messages: [{ role: "user", content: prompt }],
+      config,
+    });
+    text = result.text || "";
+    usage = result.usage;
+  } else {
+    const cfg = structuredClone(config || {});
+    cfg.super_agent = {
+      ...(config?.super_agent || {}),
+      // A scheduled run has no human to click Confirm. Default to total so
+      // a Magui-style cron can edit its ledger; pin permission_mode on the
+      // routine itself to lock it down.
+      permission_mode: routine.permission_mode || "total",
+      ...(Array.isArray(routine.allowed_tools) ? { allowed_tools: routine.allowed_tools } : {}),
+    };
+    const autoSuppress = computeSuppressedTools(routine.post_commands);
+    const explicitSuppress = Array.isArray(routine.spec?.suppress_tools)
+      ? routine.spec.suppress_tools.filter((s) => typeof s === "string")
+      : [];
+    const suppressTools = [...new Set([...autoSuppress, ...explicitSuppress])];
+    allowedTools = resolveAgentAllowedTools(agent, {
+      override: Array.isArray(routine.allowed_tools) ? routine.allowed_tools : undefined,
+    });
+    const toolSession = createToolSession(CHANNELS.ROUTINE, { allowedTools });
+
+    const result = await runAgent({
+      globalConfig: cfg,
+      system,
+      prompt,
+      overrideModel: model,
+      toolSchemas: toolSession.initialSchemas,
+      makeToolHandlers,
+      toolHandlerCtx: {
+        projects,
+        plugins,
+        registries,
+        globalConfig: cfg,
+        channel: CHANNELS.ROUTINE,
+        channelMeta: {
+          routineName: routine.name,
+          routineId: routine.id || "",
+          projectPath: project.path,
+        },
+        toolSession,
+        requestConfirmation: null,
+      },
+      agentName: slug,
+      suppressTools: suppressTools.length > 0 ? suppressTools : null,
+      maxIters: TELEGRAM_TOOL_ITERS,
+      maxTokens: 2048,
+    });
+    text = result.text || "";
+    trace = Array.isArray(result.trace) ? result.trace : [];
+    usage = result.usage;
+
+    const blocked = blockedForPermission(trace);
+    if (blocked.length) {
+      const conversationId = persistRoutineConversation({
+        storagePath: project.storagePath,
+        slug,
+        model,
+        prompt,
+        reply: text,
+        trace,
+        routineName: routine.name,
+      });
+      logRoutineChat(project, {
+        slug, prompt, reply: text, trace, usage, model,
+        routineName: routine.name, conversationId,
+      });
+      return {
+        status: "error",
+        error:
+          `blocked waiting for a confirmation nobody can give: ${blocked.join(", ")}. ` +
+          `A scheduled run has no one to approve a dangerous tool — either allow it on ` +
+          `this routine (allowed_tools) or use a tool that does not need approval.`,
+        blocked_tools: blocked,
+        reply: text,
+        trace,
+        agent_slug: slug,
+        conversation_id: conversationId,
+        allowed_tools: allowedTools,
+      };
+    }
+  }
+
+  const conversationId = persistRoutineConversation({
+    storagePath: project.storagePath,
+    slug,
+    model,
+    prompt,
+    reply: text,
+    trace,
+    routineName: routine.name,
+  });
+  logRoutineChat(project, {
+    slug, prompt, reply: text, trace, usage, model,
+    routineName: routine.name, conversationId,
+  });
+  return {
+    status: "ok",
+    reply: text,
+    trace,
+    agent_slug: slug,
+    conversation_id: conversationId,
+    allowed_tools: allowedTools,
+    usage,
+  };
+}
+
+/** One conversation file per run so the chat list / inbox can reopen it. */
+function persistRoutineConversation({ storagePath, slug, model, prompt, reply, trace, routineName }) {
+  if (!storagePath || !slug) return null;
+  try {
+    const conv = startConversation({
+      storagePath,
+      agentSlug: slug,
+      engine: model,
+      channel: CHANNELS.ROUTINE,
+      title: routineName,
+    });
+    appendTurn({
+      filePath: conv.path,
+      role: "user",
+      content: `[routine: ${routineName}]\n\n${prompt}`,
+    });
+    for (const item of Array.isArray(trace) ? trace : []) {
+      if (!item?.tool) continue;
+      appendTurn({
+        filePath: conv.path,
+        role: "tool",
+        content: JSON.stringify({
+          tool: item.tool,
+          args: item.args || {},
+          result: item.result,
+        }),
+      });
+    }
+    appendTurn({ filePath: conv.path, role: "assistant", content: reply || "" });
+    setStatus(conv.path, "closed");
+    return conv.id;
+  } catch {
+    return null;
+  }
+}
+
+function logRoutineChat(project, { slug, prompt, reply, trace, usage, model, routineName, conversationId }) {
+  if (!project?.logMessage) return;
+  const scope = {
+    routine: routineName,
+    ...(conversationId ? { conversation: conversationId } : {}),
+  };
+  project.logMessage({
+    agent_slug: slug,
+    channel: CHANNELS.ROUTINE,
+    direction: "in",
+    type: "user",
+    author: "user",
+    body: prompt,
+    meta: scope,
+  });
+  for (const item of Array.isArray(trace) ? trace : []) {
+    if (!item?.tool) continue;
+    project.logMessage({
+      agent_slug: slug,
+      channel: CHANNELS.ROUTINE,
+      direction: "out",
+      type: "tool",
+      actor_id: item.tool,
+      actor_kind: "tool",
+      author: slug,
+      body: `${item.tool}(${JSON.stringify(item.args || {}).slice(0, 200)})`,
+      meta: { ...scope, tool: item.tool, args: item.args, result: item.result },
+    });
+  }
+  const toolSummary = summarizeToolTrace(trace);
   project.logMessage({
     agent_slug: slug,
     channel: CHANNELS.ROUTINE,
@@ -84,10 +284,15 @@ async function handleExecAgent(ctx, routine) {
     actor_id: slug,
     actor_kind: "agent",
     author: slug,
-    body: result.text,
-    meta: { routine: routine.name, usage: result.usage },
+    body: reply || "",
+    meta: {
+      ...scope,
+      ...(model ? { model } : {}),
+      ...(usage ? { usage } : {}),
+      ...(toolSummary ? { tool_summary: toolSummary } : {}),
+      ...(trace?.length ? { tool_trace: trace } : {}),
+    },
   });
-  return { status: "ok", reply: result.text };
 }
 
 async function handleSuperAgent(ctx, routine, extraChannelMeta = {}) {
