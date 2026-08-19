@@ -21,6 +21,10 @@ import { readTurnAttachments } from "./media.js";
 
 const log = loggerFor("super-agent");
 
+// How long a streamed turn may go silent before it writes a keepalive byte.
+// Comfortably under undici's 300s body timeout and the usual proxy idle limits.
+const KEEPALIVE_MS = 20_000;
+
 // Emit a single, readable line so `apx log -f` shows exactly what the skill
 // inspector decided this turn (which skills it loaded/hinted, the embedder, and
 // the top similarity). Best-effort: logging must never break a reply.
@@ -233,8 +237,25 @@ export function register(api, { projects, registries, plugins, project, config }
     res.flushHeaders?.();
 
     const send = (event) => {
+      lastWriteAt = Date.now();
       res.write(JSON.stringify(event) + "\n");
     };
+
+    // Keepalive. A turn only writes when something happens, and one tool can own
+    // the turn for minutes on end — run_routine blocks until the routine ends,
+    // by design. To an HTTP client that is an idle response body, and undici
+    // (the CLI, the TUI) drops it at its body timeout with UND_ERR_BODY_TIMEOUT;
+    // proxies in front of the daemon do the same. A bare newline is a valid
+    // no-op in NDJSON — every reader here skips blank lines — so it holds the
+    // connection open without inventing an event type clients must know about.
+    let lastWriteAt = Date.now();
+    const keepalive = setInterval(() => {
+      if (Date.now() - lastWriteAt < KEEPALIVE_MS) return;
+      lastWriteAt = Date.now();
+      try { res.write("\n"); } catch { /* the socket is gone; the finally clears us */ }
+    }, KEEPALIVE_MS);
+    keepalive.unref?.();
+    res.on("close", () => clearInterval(keepalive));
 
     const reasoning = [];
     const onEvent = wrapOnEventForLog(send, {
@@ -314,8 +335,10 @@ export function register(api, { projects, registries, plugins, project, config }
           trace: saResult.trace,
         },
       });
+      clearInterval(keepalive);
       res.end();
     } catch (e) {
+      clearInterval(keepalive);
       appendSuperAgentErrorTrace(req, e, {
         prompt,
         channel: ctx.channel,
