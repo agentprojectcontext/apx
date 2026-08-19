@@ -230,6 +230,9 @@ export async function runAgent({
     // (In `total` the guard returns early anyway, so this is a no-op there.)
     if (toolHandlerCtx) toolHandlerCtx.securityRiskActive = true;
   }
+  // Telegram (and any other abortable surface) kills in-flight shell tools
+  // when a newer turn supersedes this one. Handlers read it at call time.
+  if (toolHandlerCtx && signal) toolHandlerCtx.abortSignal = signal;
 
   const rawHandlers = makeToolHandlers(toolHandlerCtx);
   const handlers = suppressed.size > 0
@@ -335,6 +338,7 @@ export async function runAgent({
       try {
         return await callEngine({ ...params, modelId: activeModel });
       } catch (e) {
+        if (signal?.aborted || e?.name === "AbortError") throw e;
         if (!allowRetry || retryChain.length === 0 || !isRetryableEngineError(e)) throw e;
         const nextModel = retryChain.shift();
         await emitProgress(onEvent, {
@@ -352,6 +356,11 @@ export async function runAgent({
   };
 
   for (let iter = 0; iter < maxIters; iter++) {
+    if (signal?.aborted) {
+      const err = new Error("aborted");
+      err.name = "AbortError";
+      throw err;
+    }
     // Merge any tools activated via discover_tools on the previous iteration.
     drainPendingTools();
     // Final iteration of a non-contract turn: the model is out of action steps.

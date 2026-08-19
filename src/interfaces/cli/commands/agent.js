@@ -3,7 +3,13 @@ import { findApfRoot, readAgents, readVaultAgents, readVaultAgent, vaultAgentFil
 import { apcAgentFile } from "#core/apc/paths.js";
 import { writeAgentFile, writeVaultAgentFile, removeVaultAgent, restoreVaultAgent, addImportedAgent, ensureAgentDir } from "#core/apc/scaffold.js";
 import { ensureAgentRuntimeDir, agentMemoryPath } from "#core/agent/memory.js";
+import { DEFAULT_AGENT_TOOLS } from "#core/http-tools/catalog.js";
+import {
+  AGENT_TYPE_VALUES, BLOB_KEYS, isBlobKey, normalizeAgentType, pickBlob,
+} from "#core/apc/agent-identity.js";
+import { readOrganization, resolveAreaSlug } from "#core/stores/organization.js";
 import { http } from "../http.js";
+import { readStdinSync } from "../stdin.js";
 import { resolveProjectId } from "./project.js";
 
 // ── ANSI ──────────────────────────────────────────────────────────────────────
@@ -18,6 +24,70 @@ function requireRoot() {
   const root = findApfRoot();
   if (!root) throw new Error("not inside an APC project (run `apx init` first)");
   return root;
+}
+
+function flagValue(flags, ...names) {
+  for (const n of names) {
+    const v = flags?.[n];
+    if (v !== undefined && v !== true && v !== "") return String(v);
+  }
+  return null;
+}
+
+/**
+ * The agent's system prompt — everything after the frontmatter in
+ * `.apc/agents/<slug>.md`, injected by buildAgentSystem() as
+ * "# Custom instructions".
+ *
+ * WHY THIS EXISTS. `apx agent add` used to write frontmatter only: there was no
+ * flag for the body and `writeAgentFile`'s 4th argument was never passed. The
+ * command exited 0, so an agent created from the CLI (or by the super-agent,
+ * which follows the apx-agent skill) silently ran on three metadata fields with
+ * no instructions at all — while the daemon API and the web UI have always been
+ * able to write it via `system`. This closes that gap.
+ *
+ * Three ways in, because a system prompt is many lines and paragraphs:
+ *   --prompt "text"        inline, for one-liners
+ *   --prompt-file <path>   read from a file
+ *   --prompt -             read from stdin (heredoc / pipe) — the practical one
+ */
+function readPromptFlag(flags) {
+  const file = flagValue(flags, "prompt-file", "system-file");
+  if (file) {
+    if (!fs.existsSync(file)) throw new Error(`--prompt-file: no such file "${file}"`);
+    return fs.readFileSync(file, "utf8").trim();
+  }
+  const inline = flagValue(flags, "prompt", "system");
+  if (inline === "-") return readStdinSync().trim();
+  if (inline) return inline;
+  return null;
+}
+
+function readTypeFlag(flags) {
+  const raw = flagValue(flags, "type");
+  if (!raw) return null;
+  const type = normalizeAgentType(raw);
+  if (!type) {
+    throw new Error(`invalid --type "${raw}" — one of: ${AGENT_TYPE_VALUES.join(", ")}`);
+  }
+  return type;
+}
+
+/**
+ * The agent's avatar: a blob preset key. `--icon <key>` pins one, otherwise one
+ * is drawn from the presets this project isn't using yet — an agent with no
+ * `Icon` renders as a grey lettered disc in every surface, which is what every
+ * CLI- and MCP-created agent used to get.
+ */
+function resolveIconFlag(flags, roster) {
+  const raw = flagValue(flags, "icon", "avatar", "blob");
+  if (raw) {
+    if (!isBlobKey(raw)) {
+      throw new Error(`invalid --icon "${raw}" — one of: ${BLOB_KEYS.join(", ")}`);
+    }
+    return raw;
+  }
+  return pickBlob({ taken: roster.map((a) => a.fields?.Icon).filter(Boolean) });
 }
 
 async function nudgeDaemon(root) {
@@ -46,10 +116,33 @@ export async function cmdAgentAdd(args) {
   if (f.model && f.model !== true)      fields.Model = f.model;
   if (f.language && f.language !== true) fields.Language = f.language;
   if (f.description && f.description !== true) fields.Description = f.description;
+  if (f.area && f.area !== true) {
+    const area = resolveAreaSlug(String(f.area), readOrganization(root));
+    if (area) fields.Area = area;
+  }
+  if (f.parent && f.parent !== true)    fields.Parent = String(f.parent);
   if (f.skills && f.skills !== true)    fields.Skills = String(f.skills).split(",").map((s) => s.trim()).filter(Boolean);
-  if (f.tools && f.tools !== true)      fields.Tools = String(f.tools).split(",").map((s) => s.trim()).filter(Boolean);
 
-  writeAgentFile(root, slug, fields);
+  const type = readTypeFlag(f);
+  if (type) {
+    fields.Type = type;
+    // An orchestrator is a master; the daemon and the web already tie the two
+    // together on create, so the CLI can't be the one that disagrees.
+    if (type === "orchestrator") fields.Master = true;
+  }
+  // Every agent gets a face, same as the daemon API does. Drawn from the blobs
+  // this project isn't using yet so the team stays distinguishable.
+  fields.Icon = resolveIconFlag(f, existing);
+  // Omitted tools ⇒ the safe default set, matching what the daemon API does on
+  // create. Without this a CLI-created agent landed with no capabilities while
+  // the same agent created from the web UI got the defaults.
+  fields.Tools = f.tools && f.tools !== true
+    ? String(f.tools).split(",").map((s) => s.trim()).filter(Boolean)
+    : [...DEFAULT_AGENT_TOOLS];
+
+  const prompt = readPromptFlag(f);
+
+  writeAgentFile(root, slug, fields, prompt || "");
   ensureAgentDir(root, slug);
   ensureAgentRuntimeDir(root, slug);
   await nudgeDaemon(root);
@@ -58,6 +151,99 @@ export async function cmdAgentAdd(args) {
   for (const [k, v] of Object.entries(fields)) {
     console.log(`  ${k}: ${Array.isArray(v) ? v.join(", ") : v}`);
   }
+  // Say it out loud either way. A prompt-less agent runs on its frontmatter
+  // alone, which is almost never what the author meant — and the old silence
+  // is exactly why that went unnoticed.
+  if (prompt) {
+    console.log(`  Prompt: ${Buffer.byteLength(prompt)} bytes`);
+  } else {
+    console.log(
+      `\n  ${tag("no system prompt")} — this agent has metadata but no instructions.` +
+      `\n  Add one with: apx agent set ${slug} --prompt - <<'EOF' … EOF`
+    );
+  }
+}
+
+// Edit an existing agent: merge frontmatter fields and/or replace the system
+// prompt. The CLI had no edit path at all, so an agent created without a prompt
+// could never get one without hand-editing the file (which the skill forbids,
+// since AGENTS.md has to be regenerated).
+export async function cmdAgentSet(args) {
+  const slug = args._[0];
+  if (!slug) throw new Error("apx agent set: missing <slug>");
+
+  const root = requireRoot();
+  const existing = readAgents(root).find((a) => a.slug === slug);
+  if (!existing) {
+    throw new Error(`agent "${slug}" not found — run \`apx agent list\` to see this project's agents`);
+  }
+  if (existing.source !== "local") {
+    throw new Error(
+      `agent "${slug}" comes from the ${existing.source} layer — run \`apx agent import ${slug} --copy\` first to get a local copy to edit`
+    );
+  }
+
+  const fields = { ...(existing.fields || {}) };
+  const f = args.flags;
+  const set = (key, flag) => {
+    const v = flagValue(f, flag);
+    if (v === null) return false;
+    fields[key] = v;
+    return true;
+  };
+  let touched = false;
+  for (const [key, flag] of [
+    ["Role", "role"], ["Model", "model"], ["Language", "language"],
+    ["Description", "description"], ["Emoji", "emoji"],
+    ["Parent", "parent"],
+  ]) {
+    if (set(key, flag)) touched = true;
+  }
+  for (const [key, flag] of [["Skills", "skills"], ["Tools", "tools"]]) {
+    const v = flagValue(f, flag);
+    if (v === null) continue;
+    fields[key] = v.split(",").map((s) => s.trim()).filter(Boolean);
+    touched = true;
+  }
+  const type = readTypeFlag(f);
+  if (type) {
+    fields.Type = type;
+    if (type === "orchestrator") fields.Master = true;
+    touched = true;
+  }
+  const icon = flagValue(f, "icon", "avatar", "blob");
+  if (icon) {
+    if (!isBlobKey(icon)) throw new Error(`invalid --icon "${icon}" — one of: ${BLOB_KEYS.join(", ")}`);
+    fields.Icon = icon;
+    touched = true;
+  }
+  const areaRaw = flagValue(f, "area");
+  if (areaRaw !== null) {
+    const area = resolveAreaSlug(areaRaw, readOrganization(root));
+    if (area) fields.Area = area;
+    else delete fields.Area;
+    touched = true;
+  }
+
+  const prompt = readPromptFlag(f);
+  if (prompt === null && !touched) {
+    throw new Error(
+      "apx agent set: nothing to change — pass --prompt/--prompt-file or a field flag (--role, --model, --description, …)"
+    );
+  }
+
+  // A field-only edit must not wipe the prompt the agent already had.
+  const body = prompt === null ? (existing.body || "") : prompt;
+  writeAgentFile(root, slug, fields, body);
+  ensureAgentDir(root, slug);
+  ensureAgentRuntimeDir(root, slug);
+  await nudgeDaemon(root);
+
+  console.log(`Updated agent ${slug}`);
+  for (const [k, v] of Object.entries(fields)) {
+    console.log(`  ${k}: ${Array.isArray(v) ? v.join(", ") : v}`);
+  }
+  if (prompt !== null) console.log(`  Prompt: ${Buffer.byteLength(body)} bytes`);
 }
 
 export function cmdAgentList() {

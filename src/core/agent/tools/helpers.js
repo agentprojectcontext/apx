@@ -3,6 +3,7 @@
 // core/apc/projects-helpers.js and is re-exported here for back-compat.
 import path from "node:path";
 import { agentSkills, buildAgentSystem as buildCoreAgentSystem } from "#core/agent/build-agent-system.js";
+import { agentForcedModel } from "#core/agent/agent-model.js";
 import { buildConfirmDescription } from "#core/confirmation/index.js";
 import { PERMISSION_MODES, DEFAULT_PERMISSION_MODE } from "#core/constants/permissions.js";
 
@@ -25,7 +26,9 @@ export function agentRow(agent) {
   return {
     slug: agent.slug,
     role: agent.fields.Role || null,
-    model: agent.fields.Model || null,
+    // Only a real override is worth telling the model about — `inherit` says
+    // nothing it can act on.
+    model: agentForcedModel(agent) || null,
     language: agent.fields.Language || null,
     description: agent.fields.Description || null,
     skills: skillsFromFields(agent.fields),

@@ -64,6 +64,19 @@ export function extractPseudoToolCalls(text) {
   // run-agent loop then treats them identically.
   const llamaCalls = extractLlamaDottedFunctionCalls(text);
 
+  // DeepSeek (and some OpenAI-compatible gateways) dump native tool markup
+  // as prose instead of filling `tool_calls`. The wire shape looks like:
+  //
+  //   <||DSML||tool_calls>
+  //   <||DSML||invoke name="read_file">
+  //   <||DSML||parameter name="path" string="true">notes.md</||DSML||parameter>
+  //   </||DSML||invoke>
+  //   </||DSML||tool_calls>
+  //
+  // Without this pass the loop treats the blob as the final answer, the
+  // files never get read, and the operator sees XML in the routine preview.
+  const dsmlCalls = extractDsmlToolCalls(text);
+
   // `[tool call: NAME] {…json…}` — APX's own internal transcription of a tool
   // call, which used to be written into Gemini history when a turn had no
   // thought signature to replay. Models copied the format out of their own
@@ -99,6 +112,7 @@ export function extractPseudoToolCalls(text) {
       // captured — otherwise we'd double-fire the tool.
       const insideLlamaWrap =
         llamaCalls.some((lc) => lc._rawStart <= i && balanced.end <= lc._rawEnd) ||
+        dsmlCalls.some((dc) => dc._rawStart <= i && balanced.end <= dc._rawEnd) ||
         bracketCalls.some((bc) => bc._rawStart <= i && balanced.end <= bc._rawEnd);
       if (insideLlamaWrap) {
         i = balanced.end - 1;
@@ -117,9 +131,59 @@ export function extractPseudoToolCalls(text) {
   // Strip internal markers used to dedupe against JSON pass.
   return [
     ...llamaCalls.map(({ _rawStart, _rawEnd, ...rest }) => rest),
+    ...dsmlCalls.map(({ _rawStart, _rawEnd, ...rest }) => rest),
     ...bracketCalls.map(({ _rawStart, _rawEnd, ...rest }) => rest),
     ...jsonCalls,
   ];
+}
+
+// DeepSeek DSML markup. Tags use one or two pipes (`|DSML|` / `||DSML||`).
+// Each invoke becomes one pseudo-tool-call; parameter bodies stay strings
+// unless they parse as JSON (so `{"a":1}` still arrives as an object).
+export function extractDsmlToolCalls(text) {
+  if (!text || typeof text !== "string" || !/DSML/i.test(text)) return [];
+  const out = [];
+  const openRe = /<\|{1,2}DSML\|{1,2}invoke\s+name="([^"]+)"\s*>/gi;
+  let m;
+  while ((m = openRe.exec(text)) !== null) {
+    const name = m[1];
+    const start = m.index;
+    const afterOpen = start + m[0].length;
+    const closeRe = /<\/\|{1,2}DSML\|{1,2}invoke>/i;
+    const closeMatch = closeRe.exec(text.slice(afterOpen));
+    const innerEnd = closeMatch ? afterOpen + closeMatch.index : text.length;
+    const end = closeMatch ? innerEnd + closeMatch[0].length : innerEnd;
+    const inner = text.slice(afterOpen, innerEnd);
+    const args = {};
+    const paramRe =
+      /<\|{1,2}DSML\|{1,2}parameter\s+name="([^"]+)"[^>]*>([\s\S]*?)<\/\|{1,2}DSML\|{1,2}parameter>/gi;
+    let p;
+    while ((p = paramRe.exec(inner)) !== null) {
+      args[p[1]] = coerceDsmlValue(p[2].trim());
+    }
+    out.push({
+      id: nextId(),
+      type: "function",
+      function: { name, arguments: args },
+      _pseudo: true,
+      _raw: text.slice(start, end),
+      _rawStart: start,
+      _rawEnd: end,
+    });
+    openRe.lastIndex = end;
+  }
+  return out;
+}
+
+function coerceDsmlValue(raw) {
+  if (raw === "") return "";
+  if (raw === "true") return true;
+  if (raw === "false") return false;
+  if (/^-?\d+(\.\d+)?$/.test(raw)) return Number(raw);
+  if ((raw.startsWith("{") && raw.endsWith("}")) || (raw.startsWith("[") && raw.endsWith("]"))) {
+    try { return JSON.parse(raw); } catch { /* keep the string */ }
+  }
+  return raw;
 }
 
 // Parse `[tool call: NAME] {…}` — see the note in extractPseudoToolCalls.
@@ -299,6 +363,8 @@ export function cleanTextOfPseudoToolCalls(text, knownNames) {
   // Some models emit a stray `</function>` after the args without the
   // opening tag — sweep those too.
   out = out.replace(/<\/?function(?:\.[a-zA-Z_][a-zA-Z0-9_]*)?>/gi, "");
+  // Leftover DSML wrappers after the invoke spans were removed.
+  out = out.replace(/<\/?\|{1,2}DSML\|{1,2}[^>]*>/gi, "");
 
   // Tidy up whitespace & blank lines
   out = out.replace(/\n{3,}/g, "\n\n").trim();

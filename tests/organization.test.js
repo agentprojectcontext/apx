@@ -11,6 +11,7 @@ import {
   createRole,
   removeArea,
   slugifyName,
+  resolveAreaSlug,
 } from "#core/stores/organization.js";
 import { makeTempProject, cleanupTempProject } from "./_helpers.js";
 
@@ -38,6 +39,16 @@ function makeApp(projects) {
 test("slugifyName kebab-cases free text", () => {
   assert.equal(slugifyName("Backend Engineering"), "backend-engineering");
   assert.equal(slugifyName("  R&D / Labs  "), "r-d-labs");
+});
+
+test("resolveAreaSlug matches org slug or name, else slugifies", () => {
+  const org = { areas: [{ slug: "growth", name: "Growth" }] };
+  assert.equal(resolveAreaSlug("Growth", org), "growth");
+  assert.equal(resolveAreaSlug("GROWTH", org), "growth");
+  assert.equal(resolveAreaSlug("growth", org), "growth");
+  assert.equal(resolveAreaSlug("content", org), "content");
+  assert.equal(resolveAreaSlug("  ", org), null);
+  assert.equal(resolveAreaSlug(null), null);
 });
 
 test("createArea + createRole persist to .apc/organization.json", () => {

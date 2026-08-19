@@ -1,8 +1,8 @@
-import { useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import useSWR from "swr";
-import { AlertCircle, Calendar, CheckCircle2, ChevronDown, ExternalLink, Eye, EyeOff, Github, Loader2, RefreshCw, WifiOff, X } from "lucide-react";
+import { AlertCircle, Calendar, CheckCircle2, ChevronDown, ExternalLink, Eye, EyeOff, Github, Loader2, Pencil, RefreshCw, WifiOff, X } from "lucide-react";
 import { cn } from "../../lib/cn";
-import { Integrations, type CatalogEntry, type IntegrationScope, type IntegrationStatus } from "../../lib/api";
+import { Integrations, type CatalogEntry, type IntegrationScope, type IntegrationStatus, type PluginSelect } from "../../lib/api";
 import { t } from "../../i18n";
 import { toneChip, toneDot, toneText } from "../../lib/tone";
 import type { TKey } from "../../i18n";
@@ -56,6 +56,16 @@ function iconFor(slug: string, accent: Accent): ReactNode {
 type Step = "idle" | "saving" | "validating" | "done";
 type Opt = { value: string; label: string };
 
+// Asana: workspace_gid → workspace_name. Calendar: calendar_id → calendar_name.
+function selectLabelField(select: PluginSelect): string {
+  return select.key.replace(/_gid$/, "_name").replace(/_id$/, "_name");
+}
+
+function optionsFromAction(data: Record<string, unknown>, select: PluginSelect): Opt[] {
+  const list = (data[select.listKey] as Record<string, unknown>[]) || [];
+  return list.map((o) => ({ value: String(o[select.valueKey]), label: String(o[select.labelKey]) }));
+}
+
 export function PluginConnect({ pid, scope, entry }: { pid: string; scope: IntegrationScope; entry: CatalogEntry }) {
   const ui = entry.ui!;
   const accent = ACCENTS[ui.accent || "rose"] || ACCENTS.rose;
@@ -76,14 +86,53 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
     () => Integrations.status(pid, entry.slug, scope),
     { shouldRetryOnError: false },
   );
+  const statusRef = useRef(status);
+  statusRef.current = status;
 
   const isActive = status?.status === "active" && status.is_enabled === true;
   const busy = step === "saving" || step === "validating";
   const showForm = !isActive && selectOptions.length === 0;
+  const selectKey = ui.select?.key;
+  const hasSelectValue = !!(selectKey && status?.[selectKey]);
+  const needsSelect = Boolean(isActive && ui.select && status && !hasSelectValue);
+  const selectBusy = !!ui.select && actionBusy === ui.select.action;
   // Toggle fields (boolean switches) vs. required text/password inputs.
   const toggleFields = ui.configFields.filter((f) => f.type === "toggle");
   const requiredFields = ui.configFields.filter((f) => f.type !== "toggle");
   const missingRequired = requiredFields.some((f) => !values[f.key]?.trim());
+
+  const loadSelectOptions = useCallback(async () => {
+    const select = ui.select;
+    if (!select) return;
+    setError(null);
+    setActionBusy(select.action);
+    try {
+      const data = (await Integrations.action(pid, entry.slug, select.action, scope)) as Record<string, unknown>;
+      const opts = optionsFromAction(data, select);
+      setSelectOptions(opts);
+      const current = statusRef.current?.[select.key];
+      if (current) setSelectValue(String(current));
+      else if (opts.length === 1) setSelectValue(opts[0].value);
+      if (opts.length === 0) setError(t("integrations.select_empty"));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("integrations.err_generic"));
+    } finally {
+      setActionBusy(null);
+    }
+  }, [pid, entry.slug, scope, ui.select]);
+
+  // Connected without a pick (e.g. Global token saved, workspace never confirmed):
+  // open the card and load the dropdown so the user can finish / change it.
+  const autoLoaded = useRef(false);
+  useEffect(() => {
+    autoLoaded.current = false;
+  }, [pid, scope, entry.slug]);
+  useEffect(() => {
+    if (!needsSelect || autoLoaded.current) return;
+    autoLoaded.current = true;
+    setExpanded(true);
+    void loadSelectOptions();
+  }, [needsSelect, loadSelectOptions]);
 
   async function handleConnect() {
     if (missingRequired) return;
@@ -99,13 +148,7 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
       setStep("validating");
       const result = (await Integrations.validate(pid, entry.slug, scope)) as unknown as Record<string, unknown>;
       await mutate();
-      if (ui.select && !result[ui.select.key]) {
-        const data = (await Integrations.action(pid, entry.slug, ui.select.action, scope)) as Record<string, unknown>;
-        const list = (data[ui.select.listKey] as Record<string, unknown>[]) || [];
-        if (list.length > 1) {
-          setSelectOptions(list.map((o) => ({ value: String(o[ui.select!.valueKey]), label: String(o[ui.select!.labelKey]) })));
-        }
-      }
+      if (ui.select && !result[ui.select.key]) await loadSelectOptions();
       setStep("done");
       setValues({});
     } catch (err) {
@@ -216,7 +259,7 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
         )}
 
         {/* Connected summary */}
-        {isActive && selectOptions.length === 0 && (
+        {isActive && (
           <div className="space-y-1 rounded-xl border border-emerald-600/30 bg-emerald-500/8 p-3 dark:border-emerald-700/30 dark:bg-emerald-900/10">
             <div className="flex items-center gap-2">
               <CheckCircle2 className={cn("h-3.5 w-3.5", toneText.emerald)} />
@@ -224,13 +267,31 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
             </div>
             {(ui.connectedFields || []).map((key) => {
               const v = status?.[key];
-              if (!v) return null;
+              const relatedToSelect = !!ui.select && key === selectLabelField(ui.select);
+              if (!v && !relatedToSelect) return null;
               return (
-                <p key={key} className="pl-5 text-[10px] text-muted-foreground">
-                  {tk(`integrations.${entry.slug}.connected.${key}`)}: {String(v)}
-                </p>
+                <div key={key} className="flex items-center justify-between gap-2 pl-5">
+                  <p className="text-[10px] text-muted-foreground">
+                    {tk(`integrations.${entry.slug}.connected.${key}`)}: {v ? String(v) : t("integrations.select_none")}
+                  </p>
+                  {relatedToSelect && (
+                    <button
+                      type="button"
+                      data-testid="plugin-select-change"
+                      onClick={() => void loadSelectOptions()}
+                      disabled={selectBusy}
+                      className={cn("flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] transition-all disabled:cursor-not-allowed disabled:opacity-50", accent.border, accent.text, accent.hover)}
+                    >
+                      {selectBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Pencil className="h-3 w-3" />}
+                      {v ? t("integrations.change") : t("integrations.select_pick")}
+                    </button>
+                  )}
+                </div>
               );
             })}
+            {needsSelect && (
+              <p className="pl-5 text-[10px] text-amber-700 dark:text-amber-400">{t("integrations.select_missing")}</p>
+            )}
           </div>
         )}
 
@@ -268,12 +329,15 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
           </div>
         )}
 
-        {/* Post-validate selection (e.g. Asana workspace) */}
-        {selectOptions.length > 1 && ui.select && (
+        {/* Post-validate selection (e.g. Asana workspace). Shown during first
+            connect AND later via Change, including the "connected but no pick"
+            case that used to leave Global stuck without a workspace. */}
+        {selectOptions.length > 0 && ui.select && (
           <div className="space-y-2">
             <p className="text-[11px] text-muted-foreground">{tk(`integrations.${entry.slug}.select_label`)}:</p>
             <div className="flex gap-2">
               <select
+                data-testid="plugin-select"
                 value={selectValue}
                 onChange={(e) => setSelectValue(e.target.value)}
                 className={cn("flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-xs outline-none", accent.ring)}
@@ -290,6 +354,16 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
               >
                 {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : t("integrations.confirm")}
               </button>
+              {!needsSelect && (
+                <button
+                  type="button"
+                  onClick={() => { setSelectOptions([]); setSelectValue(""); }}
+                  disabled={busy}
+                  className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted/50 disabled:opacity-50"
+                >
+                  {t("common.cancel")}
+                </button>
+              )}
             </div>
           </div>
         )}

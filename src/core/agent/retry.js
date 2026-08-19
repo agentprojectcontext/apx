@@ -45,6 +45,8 @@ const FATAL_PHRASES = [
 ];
 
 export function isRetryableEngineError(err) {
+  if (err?.name === "AbortError" || err?.code === "ABORT_ERR") return false;
+
   const msg = String(err?.message || err || "");
   if (!msg) return false;
 

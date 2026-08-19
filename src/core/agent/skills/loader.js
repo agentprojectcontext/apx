@@ -34,6 +34,7 @@ import { SKILLS_DIR } from "#core/config/paths.js";
 import { fileURLToPath } from "node:url";
 import { apcSkillsDir } from "#core/apc/paths.js";
 import { parseFrontmatter } from "#core/apc/frontmatter.js";
+import { skillOrigin } from "./origin.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
@@ -148,6 +149,7 @@ export function listSkills({ projectPath } = {}) {
       source: entry.source,
       description,
       file: entry.file,
+      ...skillOrigin(entry.file, { source: entry.source }),
     });
   }
   return result;
@@ -180,6 +182,9 @@ export function loadSkill(slug, { projectPath } = {}) {
     description: entry.description || fm.description || "",
     frontmatter: fm,
     body: body.trim(),
+    origin: entry.origin,
+    origin_path: entry.origin_path,
+    file_path: entry.file_path,
   };
 }
 

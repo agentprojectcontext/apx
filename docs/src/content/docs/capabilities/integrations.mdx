@@ -79,7 +79,9 @@ Open **Project → Integrations → Plugins**. Each entry is one of:
 4. Once validated, the card shows the resolved identity (Asana: user name, email, workspace;
    GitHub: login, name) and status flips to **Active**. Asana additionally lets you pick a
    workspace from a dropdown populated by the plugin's own `workspaces` action, auto-selecting it
-   when the token only has access to one.
+   when the token only has access to one. You can change that pick later with **Change** — no
+   need to re-paste the token. If a connection is Active but no workspace was confirmed (easy
+   to hit when switching project/global scope mid-setup), the picker opens again until you confirm.
 
 </Steps>
 

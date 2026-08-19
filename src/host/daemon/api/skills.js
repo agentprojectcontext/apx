@@ -137,6 +137,9 @@ export function register(api /*, ctx */) {
         skills: annotated.map((s) => ({
           slug: s.slug,
           source: s.source,
+          origin: s.origin || null,
+          origin_path: s.origin_path || null,
+          file: s.file,
           description: condenseSkillDescription(s.description),
           enabled: s.enabled,
           private: s.private,
@@ -161,6 +164,9 @@ export function register(api /*, ctx */) {
       res.json({
         slug: skill.slug,
         source: skill.source,
+        origin: skill.origin || null,
+        origin_path: skill.origin_path || null,
+        file_path: skill.file_path || null,
         description: skill.description,
         frontmatter: skill.frontmatter,
         body: skill.body,

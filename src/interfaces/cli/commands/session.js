@@ -6,6 +6,7 @@ import { getOrCreateApxId } from "#core/apc/scaffold.js";
 import { generateSessionId } from "#core/stores/sessions.js";
 import { projectStorageRoot } from "#core/config/index.js";
 import { http } from "../http.js";
+import { readStdinSync } from "../stdin.js";
 import { resolveProjectId } from "./project.js";
 import {
   ENGINES,
@@ -29,20 +30,6 @@ function requireStorageRoot(root) {
 }
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
-
-function readStdinSync() {
-  const chunks = [];
-  const buf = Buffer.alloc(65536);
-  try {
-    while (true) {
-      const bytes = fs.readSync(0, buf, 0, buf.length);
-      if (!bytes) break;
-      chunks.push(buf.slice(0, bytes).toString("utf8"));
-    }
-  } catch {}
-  return chunks.join("");
-}
-
 
 
 function listAllSessions(root) {

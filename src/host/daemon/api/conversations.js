@@ -7,10 +7,11 @@
 //   POST /projects/:pid/agents/:slug/conversations/:id/compact
 //   POST /projects/:pid/send                                   (agent-to-agent)
 import { readAgents } from "#core/apc/parser.js";
-import { listConversations, readConversation, deleteConversation } from "#core/stores/conversations.js";
+import { listConversations, readConversation, deleteConversation, shapeConversationMessage } from "#core/stores/conversations.js";
 import { listGlobalThreads, readGlobalThread, deleteGlobalThread } from "#core/stores/messages.js";
 import { compactConversation } from "#core/stores/conversations-compactor.js";
 import { replyAsAgent } from "#core/agent/a2a/reply.js";
+import { resolveAgentModel } from "#core/agent/agent-model.js";
 import { nowIso, asyncRoute } from "./shared.js";
 
 export function register(api, { project, config }) {
@@ -42,11 +43,7 @@ export function register(api, { project, config }) {
       id: req.params.id,
       agent_slug: req.params.slug,
       channel: conv.fm?.channel,
-      messages: (conv.turns || []).map((t) => ({
-        role: t.role,
-        content: t.content,
-        ts: t.ts,
-      })),
+      messages: (conv.turns || []).map(shapeConversationMessage),
       meta: conv.fm || {},
     });
   });
@@ -113,7 +110,11 @@ export function register(api, { project, config }) {
     const agents = readAgents(p.path);
     const agent = agents.find((a) => a.slug === req.params.slug);
     if (!agent) return res.status(404).json({ error: "agent not found" });
-    const modelId = (req.body || {}).model || agent.fields.Model;
+    const modelId = await resolveAgentModel({
+      agent,
+      config: p.config || config,
+      override: (req.body || {}).model,
+    });
     if (!modelId) return res.status(400).json({ error: "agent has no model" });
     try {
       const result = await compactConversation({
@@ -176,8 +177,10 @@ export function register(api, { project, config }) {
       ts,
     });
 
+    // An agent that inherits still replies: replyAsAgent resolves the router
+    // default for it. `deliver` is the only gate here.
     let reply = null;
-    if (deliver && toAgent.fields.Model) {
+    if (deliver) {
       try {
         const result = await replyAsAgent({
           projectPath: p.path,

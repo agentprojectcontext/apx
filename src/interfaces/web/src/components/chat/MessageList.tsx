@@ -11,14 +11,17 @@ interface Props {
   /** Who to draw next to an assistant turn. Screens that know the cast (chat,
    *  inbox) pass it; the rest fall back to a neutral glyph. */
   faceFor?: (msg: ChatMsg) => AgentFace;
+  /** Smooth-scroll to the latest turn. Nested previews turn this off. */
+  autoscroll?: boolean;
 }
 
-export function MessageList({ msgs, onCopy, faceFor }: Props) {
+export function MessageList({ msgs, onCopy, faceFor, autoscroll = true }: Props) {
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
+    if (!autoscroll) return;
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [msgs]);
+  }, [msgs, autoscroll]);
 
   if (msgs.length === 0) {
     return (

@@ -108,13 +108,14 @@ export function buildAgentSystem(project, agent, {
   // Relationship block — "you're talking to <owner>" / "<contact>" / "<guest>".
   const relationship = buildRelationshipBlock(sender);
 
-  // Declared tool hints (informational — actual callables come from runtime).
+  // Declared tool allowlist. The names here are what this agent may call;
+  // the runtime maps catalog aliases (glob, memory_get, …) to native tools.
   const declaredTools = listField(fields.Tools);
   const toolHints = declaredTools.length
     ? [
-        "## Declared tool hints (agent-level expectations)",
+        "## Tools you may call this turn",
         declaredTools.join(", "),
-        "Actual callable tools depend on the invocation surface — use whatever the runtime sends this turn.",
+        "Do not invent tools outside this list. If a needed tool is missing, say so instead of faking the call.",
       ].join("\n")
     : "";
 
