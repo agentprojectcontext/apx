@@ -32,11 +32,45 @@ async function emitProgress(onEvent, event) {
   await onEvent(event);
 }
 
+// How much of one tool result the trace carries. The trace is what gets
+// PERSISTED (message store, web viewer) and what the next turns replay as
+// history, so this cap is the memory a past tool call leaves behind.
+const TRACE_RESULT_CAP = 1200;
+// Longest single string field kept inside a structured result.
+const TRACE_FIELD_CAP = 900;
+
+// Shrink a tool result for the trace WITHOUT destroying its shape. The old
+// version stringified anything over 400 chars and sliced the JSON text, which
+// left a half-open brace: unparseable, so every downstream reader (history
+// replay, viewer) had to show escaped JSON instead of the actual output. Now
+// the envelope survives and only the long string fields inside are clipped —
+// `{ exit_code, stdout }` stays an object whose stdout is trimmed.
 function summarizeForTrace(r) {
   if (r === null || r === undefined) return r;
-  const s = JSON.stringify(r);
-  if (s.length <= 400) return r;
-  return s.slice(0, 380) + "…(truncated)";
+  if (typeof r === "string") {
+    return r.length <= TRACE_RESULT_CAP ? r : r.slice(0, TRACE_RESULT_CAP) + "…(truncated)";
+  }
+  if (typeof r !== "object") return r;
+  try {
+    if (JSON.stringify(r).length <= TRACE_RESULT_CAP) return r;
+  } catch {
+    return String(r).slice(0, TRACE_RESULT_CAP);
+  }
+  const clip = (v, depth) => {
+    if (typeof v === "string") {
+      return v.length <= TRACE_FIELD_CAP ? v : v.slice(0, TRACE_FIELD_CAP) + "…(truncated)";
+    }
+    if (Array.isArray(v)) {
+      const head = v.slice(0, 20).map((x) => clip(x, depth + 1));
+      return v.length > 20 ? [...head, `…(${v.length - 20} more)`] : head;
+    }
+    if (v && typeof v === "object") {
+      if (depth >= 3) return "…(nested)";
+      return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, clip(x, depth + 1)]));
+    }
+    return v;
+  };
+  return clip(r, 0);
 }
 
 function fallbackFinalText(trace, error) {
