@@ -52,6 +52,25 @@ function isSafeShellCommand(command) {
   });
 }
 
+// Commands that stop or restart the daemon this tool is running INSIDE.
+// Killing your own host mid-turn is not a dangerous-but-valid action, it is a
+// guaranteed loss: the process dies, every in-flight turn dies with it, the
+// stream to the user is cut, and the work of the turn is gone with no report.
+// Seen in production — an agent that had just edited a handler ran `apx restart`
+// "to load the new code" and executed itself two steps from finishing.
+//
+// Checked per command SEGMENT, so `cd x && apx restart` and
+// `sleep 1; apx daemon stop` are both caught, while a segment that merely
+// mentions the command — `echo "run apx restart when I'm done"` — is not.
+const SELF_KILL_RE =
+  /^(?:apx\s+(?:restart\b|daemon\s+(?:restart|stop|kill)\b)|(?:pkill|killall)\b.*\bapx[-\s]?daemon\b)/i;
+
+export function killsOwnDaemon(command) {
+  return String(command || "")
+    .split(/\s*(?:;|\||&&|\|\|)\s*/)
+    .some((segment) => SELF_KILL_RE.test(segment.trim()));
+}
+
 export default {
   name: "run_shell",
   schema: {
@@ -75,6 +94,18 @@ export default {
     const { projects, requirePermission, abortSignal } = ctx;
     await requirePermission("run_shell", { dangerous: !isSafeShellCommand(command), confirmed, args: { command } });
     if (!command) throw new Error("run_shell: command required");
+    if (killsOwnDaemon(command)) {
+      // An error, not a confirmation prompt: there is no answer that makes this
+      // succeed. Say why, and say what to do instead — code the agent just wrote
+      // is loaded by a restart the USER runs, after the turn has reported back.
+      return {
+        error:
+          "refused: that command restarts or stops the APX daemon you are running inside. " +
+          "It would kill this turn before you could report anything. Finish the work and tell " +
+          "the user to run it — a daemon restart is theirs to make, not something to do mid-turn.",
+        command,
+      };
+    }
 
     const p = resolveProject(projects, project);
     const workingDir = safePathJoin(p.path, cwd);
