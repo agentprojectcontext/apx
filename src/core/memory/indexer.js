@@ -238,19 +238,32 @@ function collectAgentMemoryChunks(store, apxHome) {
 
 // Project memory (.apc/memory.md) for every registered project. Needs the
 // registry to map id → repo path. Scoped by channel "project:<id>".
+//
+// BOTH halves are indexed under the same scope: the curated `.apc/memory.md` and
+// the local `~/.apx/projects/<id>/memory.md` the agent writes. They differ in who
+// may write them and whether git carries them — not in whether they are true, and
+// retrieval that saw only the committed half would miss everything the agent has
+// learned since the owner last curated.
 function collectProjectMemoryChunks(store, projects) {
   const fresh = [];
   const list = typeof projects?.list === "function" ? projects.list() : Array.isArray(projects) ? projects : [];
   for (const entry of list) {
     const root = entry?.path;
     if (!root) continue; // the default project (id 0) has no repo root
-    const body = readIfExists(apcMemoryFile(root));
-    if (body == null) continue;
+    const files = [
+      ["projmem", readIfExists(apcMemoryFile(root))],
+      ["projlocalmem", entry?.storage_path || entry?.storagePath
+        ? readIfExists(path.join(entry.storage_path || entry.storagePath, "memory.md"))
+        : null],
+    ];
     const channel = `project:${entry.id}`;
-    for (const block of chunkFreeMarkdown(body)) {
-      const id = `projmem:${entry.id}:${fnv1aHex(block)}`;
-      if (store.hasId(id)) continue;
-      fresh.push({ id, source: "project-memory", channel, ts: "", tag: "project-memory", text: block });
+    for (const [prefix, body] of files) {
+      if (body == null) continue;
+      for (const block of chunkFreeMarkdown(body)) {
+        const id = `${prefix}:${entry.id}:${fnv1aHex(block)}`;
+        if (store.hasId(id)) continue;
+        fresh.push({ id, source: "project-memory", channel, ts: "", tag: "project-memory", text: block });
+      }
     }
   }
   return fresh;

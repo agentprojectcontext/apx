@@ -10,7 +10,15 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import express from "express";
-import { register } from "../src/host/daemon/api/integrations.js";
+
+// A temp HOME *before* the module loads (AGENTS.md rule 1): the global
+// integration scope is stored under ~/.apx, so without this the catalog reads
+// whatever the developer's own install happens to have connected — this file
+// passed or failed depending on whether Asana was live on the machine running it.
+const TMP_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "apx-api-integrations-home-"));
+process.env.HOME = TMP_HOME;
+
+const { register } = await import("../src/host/daemon/api/integrations.js");
 
 function tmpdir(label) {
   return fs.mkdtempSync(path.join(os.tmpdir(), `apx-api-${label}-`));

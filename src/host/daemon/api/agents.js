@@ -14,6 +14,11 @@ import {
   projectMemoryPath,
 } from "#core/apc/project-memory.js";
 import {
+  readProjectLocalMemory,
+  writeProjectLocalMemory,
+  projectLocalMemoryPath,
+} from "#core/stores/project-memory.js";
+import {
   writeAgentFile,
   writeVaultAgentFile,
   removeVaultAgent,
@@ -287,10 +292,13 @@ export function register(api, { projects, project }) {
     }
   });
 
-  // ---- Project-level memory (.apc/memory.md) ----
-  // The file itself is core's (core/apc/project-memory.js) — the same one the
-  // `remember` tool appends to, so the screen and the agent cannot drift onto
-  // two different paths again.
+  // ---- Project-level memory ----
+  // Two files, one boundary: `.apc/memory.md` is committed and only a person
+  // writes it (core/apc/project-memory.js); `~/.apx/projects/<id>/memory.md` is
+  // local, never committed, and is what the `remember` tool appends to
+  // (core/stores/project-memory.js). Both are served here so the Memories screen
+  // can show them side by side — a memory nothing displays is the bug this pair
+  // of routes exists to prevent.
   api.get("/projects/:pid/memory", (req, res) => {
     const p = project(req, res);
     if (!p) return;
@@ -305,6 +313,23 @@ export function register(api, { projects, project }) {
       return res.status(400).json({ error: "body must be string" });
     const { bytes } = writeProjectMemory(p.path, body);
     try { projects.rebuild(p.id); } catch {}
+    res.json({ ok: true, bytes });
+  });
+
+  // The local half — agent-written, never committed.
+  api.get("/projects/:pid/memory/local", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    res.json({ body: readProjectLocalMemory(p), path: projectLocalMemoryPath(p) });
+  });
+
+  api.put("/projects/:pid/memory/local", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const { body } = req.body || {};
+    if (typeof body !== "string")
+      return res.status(400).json({ error: "body must be string" });
+    const { bytes } = writeProjectLocalMemory(p, body);
     res.json({ ok: true, bytes });
   });
 

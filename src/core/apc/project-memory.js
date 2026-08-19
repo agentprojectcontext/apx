@@ -1,21 +1,24 @@
-// A project's own durable memory — `<repo>/.apc/memory.md`.
+// A project's CURATED memory — `<repo>/.apc/memory.md`. Committed.
 //
-// What the PROJECT knows, as distinct from what one agent knows (per-agent
-// memory.md) and from what the super-agent knows everywhere (~/.apx/memory.md):
-// what this repo is, who owns it, the decisions that outlive a session. It is
-// committed with the repo, the Memories screen reads and edits it, and the RAG
-// indexer scopes it to `project:<id>`.
+// What the PROJECT knows and the team may read: what this repo is, who owns it,
+// the decisions that outlive a session. Distinct from what one agent knows
+// (per-agent memory.md), from what the super-agent knows everywhere
+// (~/.apx/memory.md), and — the distinction that matters most here — from the
+// project's LOCAL memory (core/stores/project-memory.js), which is never
+// committed and is where the agent actually writes.
 //
-// WHY THIS FILE EXISTS. The path had readers and no writer. The super-agent had
-// `remember` for its own notebook and nothing at all for a project, so asked to
-// write down what each project was, it improvised a `MEMORY.md` at the repo root
-// — a file no screen shows and no index sees — in twelve projects at once, and
-// reported success each time. The owner was told the memories were written and
-// found the Memories screen unchanged, which is exactly what it looked like.
-// Writes now go where the readers already look.
+// NOTHING AUTOMATIC WRITES THIS FILE. That is the rule, and it is APC's:
+// `.apc/` memory is "only for curated project facts safe for the team", while
+// private runtime memory belongs in the runtime's own store because it "often
+// contains sensitive prompts, credentials pasted by mistake, customer data".
+// A file that git will carry forever is written by a person who read it first.
+// The writer here is the Memories editor (a human pressing Save) and the
+// dangerous-gated file tools, which ask before they touch a repo.
+//
+// It still has an automatic READER: the RAG indexer scopes it to `project:<id>`,
+// so curated facts come back as context without being re-typed.
 import fs from "node:fs";
 import { apcDir, apcMemoryFile } from "./paths.js";
-import { appendDatedBullet } from "#core/memory/dated-log.js";
 
 export { apcMemoryFile as projectMemoryPath };
 
@@ -28,23 +31,14 @@ export function readProjectMemory(root) {
   }
 }
 
-/** Replace the whole body (the Memories editor's Save). Creates `.apc/`. */
+/**
+ * Replace the whole body — the Memories editor's Save, and the only writer.
+ * There is deliberately no append helper here: an appender is what an automatic
+ * caller reaches for, and this file is not written automatically.
+ */
 export function writeProjectMemory(root, body) {
   const file = apcMemoryFile(root);
   fs.mkdirSync(apcDir(root), { recursive: true });
   fs.writeFileSync(file, body);
   return { path: file, bytes: Buffer.byteLength(body, "utf8") };
-}
-
-/**
- * Append one dated note. Creates the file on first write, headed with the
- * project's name so the file says what it is when someone opens it in the repo
- * rather than in APX.
- */
-export function appendProjectMemory(root, note, { channel = "", projectName = "" } = {}) {
-  const text = String(note || "").trim();
-  if (!text) throw new Error("nothing to remember (empty note)");
-  const header = projectName ? `# ${projectName} — project memory` : "# Project memory";
-  const next = appendDatedBullet(readProjectMemory(root), text, { channel, header });
-  return { ...writeProjectMemory(root, next), note: text };
 }
