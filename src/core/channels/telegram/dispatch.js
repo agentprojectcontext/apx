@@ -17,6 +17,7 @@ import { getRecentTelegramTurnsFromFs, appendGlobalMessage } from "#core/stores/
 import { compactChannelIfNeeded, agentScopedMemoryBlock } from "#core/memory/index.js";
 import { readAgents } from "#core/apc/parser.js";
 import { buildAgentSystem } from "#core/agent/build-agent-system.js";
+import { resolveAgentModel } from "#core/agent/agent-model.js";
 import { resolveAgentName, SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
 import { registerSender, resolveAllowedTools } from "#core/identity/telegram.js";
 import { buildRelationshipBlock } from "#core/agent/index.js";
@@ -24,7 +25,7 @@ import { authorLine } from "#core/agent/author-line.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { tryResolveSkillCommand } from "#core/agent/skills/trigger.js";
 import * as askFlow from "./ask.js";
-import { telegramAuthorLabel } from "./helpers.js";
+import { telegramAuthorLabel, releaseActiveRequest } from "./helpers.js";
 import { handleIncomingPhoto } from "./inbound/photo.js";
 import { handleIncomingAudio } from "./inbound/audio.js";
 import { handleIncomingFile, detectIncomingFile } from "./inbound/file.js";
@@ -273,6 +274,11 @@ export async function handleUpdate(self, u) {
     // Start "typing..." indicator. Stops when we send the reply (or fail).
     const stopTyping = self._startTyping(chat_id);
 
+    // Detach the model turn from the poll loop. Awaiting it here used to freeze
+    // getUpdates for the whole run, so a newer Telegram message could never
+    // abort this one — Default Interrupt existed, but never fired.
+    const replyTurn = (async () => {
+
     // Preset to the super-agent defaults so every exit path (including one where
     // neither the routed-agent nor the super-agent branch runs) has a valid
     // actor — the routed-agent / super-agent branches override these on success,
@@ -294,7 +300,10 @@ export async function handleUpdate(self, u) {
     const routeSlug = skipRoutedAgent ? null : self.channel.route_to_agent;
     if (routeSlug) {
       const agent = readAgents(target.path).find((a) => a.slug === routeSlug);
-      if (agent && agent.fields.Model) {
+      // An agent that inherits its model is still usable: the router resolves
+      // one for it, same as a direct chat.
+      const agentModel = agent ? await resolveAgentModel({ agent, config: projectCfg }) : null;
+      if (agent && agentModel) {
         try {
           const scopedMemory = await agentScopedMemoryBlock(text, { project: target, agent, config: projectCfg });
           const system = buildAgentSystem(target, agent, {
@@ -304,18 +313,19 @@ export async function handleUpdate(self, u) {
             extraParts: [relationshipBlock, scopedMemory].filter(Boolean),
           });
           const result = await callEngine({
-            modelId: agent.fields.Model,
+            modelId: agentModel,
             system,
             messages: [{ role: "user", content: text }],
             config: projectCfg,
+            signal: abortCtrl.signal,
           });
           replyText = result.text;
           replyAuthor = agent.slug;
           replyActorId = agent.slug;
           replyKind = "agent";
-          // Fully-qualified id from the agent card (provider:model) — callEngine
-          // resolves it internally and doesn't hand it back.
-          replyModel = agent.fields.Model;
+          // Fully-qualified id (provider:model) — callEngine resolves it
+          // internally and doesn't hand it back.
+          replyModel = agentModel;
           replyUsage = result.usage || null;
         } catch (e) {
           self.log(`telegram[${self.channel.name}] agent reply failed: ${e.message}`);
@@ -406,7 +416,7 @@ export async function handleUpdate(self, u) {
         // (via _runResumedTurn) once every answer is collected.
         const askQuestions = askFlow.extractAskQuestionsFromTrace(sa.trace);
         if (askQuestions && chat_id) {
-          self.activeRequests.delete(chat_id);
+          releaseActiveRequest(self.activeRequests, chat_id, abortCtrl);
           stopTyping();
           try {
             await self._startAskFlow({
@@ -435,7 +445,7 @@ export async function handleUpdate(self, u) {
           // A newer message superseded this one. Whatever streamed so far is
           // already sent + logged; the newer message's run continues the thread.
           self.log(`telegram[${self.channel.name}] request aborted for chat ${chat_id}`);
-          if (chat_id) self.activeRequests.delete(chat_id);
+          releaseActiveRequest(self.activeRequests, chat_id, abortCtrl);
           stopTyping();
           return;
         }
@@ -449,7 +459,13 @@ export async function handleUpdate(self, u) {
       }
     }
 
-    if (chat_id) self.activeRequests.delete(chat_id);
+    if (abortCtrl.signal.aborted) {
+      self.log(`telegram[${self.channel.name}] request aborted for chat ${chat_id}`);
+      releaseActiveRequest(self.activeRequests, chat_id, abortCtrl);
+      stopTyping();
+      return;
+    }
+    releaseActiveRequest(self.activeRequests, chat_id, abortCtrl);
     stopTyping();
     await sendFinalReply(self, {
       chat_id,
@@ -468,6 +484,10 @@ export async function handleUpdate(self, u) {
       // Recoverable after the fact: this turn ran longer because a verdict said
       // it wasn't finished, not because the model rambled.
       extraMeta: replyJudge ? { judge: replyJudge } : {},
+    });
+    })();
+    replyTurn.catch((e) => {
+      self.log(`telegram[${self.channel.name}] reply turn crashed: ${e.message}`);
     });
   }
 

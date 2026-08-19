@@ -29,12 +29,38 @@ test("isRetryableEngineError: 'failed to call a function' 400 retries (model qua
   );
 });
 
-test("isRetryableEngineError: auth 401 stays fatal", () => {
-  assert.equal(isRetryableEngineError(new Error("openai 401: invalid api key")), false);
+test("isRetryableEngineError: AbortError is not a retry (user interrupted)", () => {
+  const err = new Error("This operation was aborted");
+  err.name = "AbortError";
+  assert.equal(isRetryableEngineError(err), false);
 });
 
 test("isRetryableEngineError: rate-limit 429 is retryable", () => {
   assert.equal(isRetryableEngineError(new Error("gemini 429: rate limit exceeded")), true);
+});
+
+// Zen answers upstream failures with a message-less envelope. Treating it as
+// fatal ended a Telegram turn outright with a seven-model fallback chain sitting
+// unused — there is nothing in `{"object":"error","model":"…"}` to fix.
+test("isRetryableEngineError: Zen's message-less 400 envelope advances the chain", () => {
+  assert.equal(
+    isRetryableEngineError(new Error(`zen 400: {"object":"error","model":"deepseek-v4-flash-free"}`)),
+    true,
+  );
+});
+
+// zen.js replays `reasoning_content` for the models that demand it; this is the
+// net for the turn it cannot serialise — one inherited from another engine after
+// a rotation, which never carried the field.
+test("isRetryableEngineError: a reasoning_content 400 advances the chain", () => {
+  assert.equal(
+    isRetryableEngineError(
+      new Error(
+        "zen 400: Upstream request failed: [invalid_request_error] The `reasoning_content` in the thinking mode must be passed back to the API.",
+      ),
+    ),
+    true,
+  );
 });
 
 test("shouldRetryWithPseudoTools: ollama tool-grammar 400 → pseudo-tools, scoped to ollama", () => {

@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   forceSimulation, forceLink, forceManyBody, forceCenter, forceCollide, forceX, forceY,
   type Simulation,
 } from "d3-force";
-import { Maximize2, Minimize2, Plus, Minus, Frame } from "lucide-react";
+import { Eye, Frame, Maximize2, Minimize2, Minus, Pencil, Plus } from "lucide-react";
 import { t } from "../../i18n";
 import { BlobAvatar } from "../../components/agents/BlobAvatar";
 import { isBlobKey } from "../../components/agents/blobPresets";
+import { kindMeta, scheduleHuman } from "../../components/routines/shared";
+import type { RoutineEntry } from "../../types/daemon";
 
 // Generic animated "brain" graph (d3-force + SVG). It takes an explicit node +
 // edge set so callers can model *any* topology — a single agent's hubbed brain
@@ -32,6 +35,8 @@ export interface BrainNode {
   emoji?: string;
   icon?: string;          // blob-preset key → animated avatar (see blobPresets)
   slug?: string;          // for navigation (project map)
+  href?: string;          // view this thing
+  editHref?: string;      // open its editor
 }
 
 // An animated blob avatar embedded in the SVG via <foreignObject>. Pointer
@@ -76,13 +81,42 @@ const uniqById = <T extends { id: string }>(arr: T[]): T[] => {
 };
 const clip = (s: string, n = 26) => (s.length > n ? `${s.slice(0, n)}…` : s);
 
+export function clipPreview(s: string | null | undefined, n = 160): string | undefined {
+  const text = (s || "").replace(/\s+/g, " ").trim();
+  if (!text) return undefined;
+  return text.length > n ? `${text.slice(0, n)}…` : text;
+}
+
+export function agentPreview(a: {
+  description?: string | null;
+  role?: string | null;
+  type?: string | null;
+}): string | undefined {
+  const meta = [a.role, a.type].filter(Boolean).join(" · ");
+  const desc = clipPreview(a.description, 160);
+  if (meta && desc) return `${meta}\n${desc}`;
+  return desc || meta || undefined;
+}
+
+export function routinePreview(r: Pick<RoutineEntry, "kind" | "schedule" | "enabled"> & { spec?: Record<string, unknown> }): string {
+  const spec = r.spec || {};
+  const action = String(spec.prompt || spec.text || spec.message || spec.command || "").trim();
+  const kind = kindMeta()[r.kind]?.label || r.kind;
+  const head = [
+    kind,
+    scheduleHuman(r.schedule),
+    r.enabled ? null : t("agents_ui.paused"),
+  ].filter(Boolean).join(" · ");
+  const body = clipPreview(action, 140);
+  return body ? `${head}\n${body}` : head;
+}
+
 export function BrainGraph({
-  nodes, edges, height = 520, onNodeClick, toolbar,
+  nodes, edges, height = 520, toolbar,
 }: {
   nodes: BrainNode[];
   edges: BrainEdge[];
   height?: number;
-  onNodeClick?: (n: BrainNode) => void;
   toolbar?: React.ReactNode;   // extra controls (e.g. an Expand toggle)
 }) {
   const W = 1000, H = Math.round((W * height) / 760); // keep a wide-ish canvas
@@ -94,7 +128,7 @@ export function BrainGraph({
   const linksRef = useRef<SimLink[]>([]);
   const dragRef = useRef<SimNode | null>(null);
   const panRef = useRef<{ x: number; y: number } | null>(null);
-  // Press bookkeeping so a drag is never mistaken for a click (which navigates).
+  // Press bookkeeping so a drag is never mistaken for a click (which selects).
   const downRef = useRef<{ x: number; y: number } | null>(null);
   const movedRef = useRef(false);
   const viewRef = useRef({ tx: 0, ty: 0, k: 1 });
@@ -147,7 +181,10 @@ export function BrainGraph({
       .force("center", forceCenter(CX, CY).strength(0.03))
       .force("x", forceX(CX).strength(0.02))
       .force("y", forceY(CY).strength(0.02))
-      .force("collide", forceCollide<SimNode>((n) => RADIUS[roleOf(n)] + 8))
+      .force("collide", forceCollide<SimNode>((n) => {
+        const extra = isBlobKey(n.icon) && roleOf(n) !== "core" ? 10 : 0;
+        return RADIUS[roleOf(n)] + 8 + extra;
+      }))
       .alphaDecay(0.025)
       .on("tick", bump);
     simRef.current = sim;
@@ -252,7 +289,7 @@ export function BrainGraph({
   const links = linksRef.current;
   const v = viewRef.current;
   const legendKinds = [...new Set(nodes.map((n) => n.kind))].filter((k) => k !== "agent" && k !== "hub");
-  const pick = (n: SimNode) => { setSelected(n); onNodeClick?.(n); };
+  const pick = (n: SimNode) => { setSelected(n); };
 
   // For the detail panel: what the selected node hangs off (parents) and the
   // branches that hang off it (children), derived from the live edges.
@@ -342,7 +379,8 @@ export function BrainGraph({
                 if (role === "core") {
                   const display = (n.emoji && n.emoji.trim()) || n.label.slice(0, 2).toUpperCase();
                   return (
-                    <g key={n.id} transform={`translate(${n.x},${n.y})`}>
+                    <g key={n.id} transform={`translate(${n.x},${n.y})`} className="cursor-pointer"
+                       onPointerDown={(e) => e.stopPropagation()} onClick={() => pick(n)}>
                       <circle r={54} fill="url(#brain-core)">
                         <animate attributeName="r" values="50;58;50" dur="4s" repeatCount="indefinite" />
                         <animate attributeName="opacity" values="0.85;1;0.85" dur="4s" repeatCount="indefinite" />
@@ -370,23 +408,33 @@ export function BrainGraph({
                 const beat = 2.4 + (idx % 6) * 0.4;
                 const begin = `${(idx % 6) * 0.3}s`;
                 const isHub = role === "hub";
+                const isAgentFace = n.kind === "agent" || n.kind === "agentlink";
+                const hasBlob = isBlobKey(n.icon);
+                const blobSize = hasBlob ? (isHub || isAgentFace ? 36 : 22) : 0;
+                const showEmoji = !hasBlob && !!n.emoji && (isHub || isAgentFace);
                 const showLabel = isHub || isSel || !hideLeafLabels;
+                const labelX = (hasBlob ? blobSize / 2 : r) + 4;
                 return (
                   <g key={n.id} transform={`translate(${n.x},${n.y})`} className="cursor-grab active:cursor-grabbing"
                      onPointerDown={onNodeDown(n)} onClick={onNodeClickGuarded(n)}>
-                    <circle r={r} fill={color} filter="url(#brain-glow)" opacity={0.3}>
-                      <animate attributeName="r" values={`${r};${r + 6};${r}`} dur={`${beat}s`} begin={begin} repeatCount="indefinite" />
+                    <circle r={hasBlob ? blobSize / 2 : r} fill={color} filter="url(#brain-glow)" opacity={0.3}>
+                      <animate attributeName="r" values={`${hasBlob ? blobSize / 2 : r};${(hasBlob ? blobSize / 2 : r) + 6};${hasBlob ? blobSize / 2 : r}`} dur={`${beat}s`} begin={begin} repeatCount="indefinite" />
                       <animate attributeName="opacity" values="0.32;0.08;0.32" dur={`${beat}s`} begin={begin} repeatCount="indefinite" />
                     </circle>
-                    <circle r={r} fill={color} fillOpacity={isSel ? 1 : 0.95}
-                      stroke={isSel ? "#fff" : "#ffffff"} strokeOpacity={isSel ? 1 : 0.25} strokeWidth={isSel ? 2 : 1} />
-                    {isBlobKey(n.icon) ? (
-                      <NodeBlob icon={n.icon} size={2 * r + 10} seed={n.slug || n.id} />
-                    ) : n.emoji && isHub ? (
-                      <text textAnchor="middle" dominantBaseline="central" fontSize={11} style={{ pointerEvents: "none" }}>{n.emoji}</text>
+                    {!hasBlob && (
+                      <circle r={r} fill={color} fillOpacity={isSel ? 1 : 0.95}
+                        stroke={isSel ? "#fff" : "#ffffff"} strokeOpacity={isSel ? 1 : 0.25} strokeWidth={isSel ? 2 : 1} />
+                    )}
+                    {hasBlob ? (
+                      <>
+                        {isSel && <circle r={blobSize / 2 + 3} fill="none" stroke="#fff" strokeWidth={2} />}
+                        <NodeBlob icon={n.icon!} size={blobSize} seed={n.slug || n.id} />
+                      </>
+                    ) : showEmoji ? (
+                      <text textAnchor="middle" dominantBaseline="central" fontSize={isHub ? 13 : 11} style={{ pointerEvents: "none" }}>{n.emoji}</text>
                     ) : null}
                     {showLabel && (
-                      <text x={r + 4} y={4} fontSize={isHub ? 11 : 10}
+                      <text x={labelX} y={4} fontSize={isHub ? 11 : 10}
                         className={isHub ? "fill-foreground font-medium" : "fill-foreground/80"} style={{ pointerEvents: "none" }}>
                         {n.label.length > 22 ? `${n.label.slice(0, 22)}…` : n.label}
                       </text>
@@ -424,18 +472,25 @@ export function BrainGraph({
               {kindLabel(selected.kind)}
             </span>
             {selected.relation && <span className="text-muted-fg">· {selected.relation}</span>}
-            <div className="ml-auto flex items-center gap-2">
-              {selected.slug && onNodeClick && (
-                <button type="button" onClick={() => onNodeClick(selected)} className="text-primary hover:underline">
-                  {t("agents_ui.brain_open")}
-                </button>
+            <div className="ml-auto flex items-center gap-1.5">
+              {selected.href && (
+                <Link to={selected.href}
+                  className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-[11px] font-medium hover:bg-muted">
+                  <Eye size={12} /> {t("agents_ui.brain_view")}
+                </Link>
+              )}
+              {selected.editHref && (
+                <Link to={selected.editHref}
+                  className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-[11px] font-medium hover:bg-muted">
+                  <Pencil size={12} /> {t("agents_ui.brain_edit")}
+                </Link>
               )}
               <button type="button" onClick={() => setSelected(null)} className="text-muted-fg hover:text-foreground">✕</button>
             </div>
           </div>
 
-          {/* Internal info — only when it adds something beyond the title */}
-          {selDetail && <p className="whitespace-pre-wrap text-muted-fg">{selDetail}</p>}
+          {/* Short preview — only when it adds something beyond the title */}
+          {selDetail && <p className="max-w-prose whitespace-pre-wrap text-[12px] leading-relaxed text-muted-fg">{selDetail}</p>}
 
           {/* Where it hangs from */}
           {selParents.length > 0 && (

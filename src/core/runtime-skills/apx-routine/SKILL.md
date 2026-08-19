@@ -13,11 +13,11 @@ A scheduled APX task. Scheduler ticks every 5s. Each routine has a `kind`, `sche
 |---|---|---|
 | `heartbeat` | no | "Still alive" marker. No LLM. |
 | `shell` | no | Pure shell. Stdout captured. |
-| `exec_agent` | **no** | Loads agent prompt, sends `spec.prompt`, returns text. Single LLM call. |
+| `exec_agent` | **agent allowlist** | Loads that project agent and runs `spec.prompt` with the agent's `tools:` field (not the super-agent registry). Persists a conversation. Routine `allowed_tools` overrides the card. `allowed_tools: []` or `spec.no_tools: true` keeps the old one-shot text path. |
 | `super_agent` | **all** | Default agent with full tool registry. Multi-iteration loop. |
 | `telegram` | n/a | Sends hardcoded text via Telegram plugin. |
 
-Rule: text from model → `exec_agent`; orchestration (MCPs, files, multi-agent) → `super_agent`; pure shell → `shell`; fixed Telegram poke → `telegram`.
+Rule: a project agent that must *do* work (read files, Asana, compact a ledger) → `exec_agent`; orchestration as the super-agent → `super_agent`; text-only + shell delivery → `exec_agent` with `allowed_tools: []`; pure shell → `shell`; fixed Telegram poke → `telegram`.
 
 ## Schedule grammar
 
@@ -52,11 +52,12 @@ Pipeline: `pre_commands` run sequentially → combined stdout becomes `{{pre_out
 }
 ```
 
-Sends **two** messages: one from agent's `send_telegram` tool, one from `post_commands`. The runner auto-suppresses `send_telegram` when post contains `apx telegram send`, but the clean fix is `exec_agent`:
+Sends **two** messages: one from agent's `send_telegram` tool, one from `post_commands`. The runner auto-suppresses `send_telegram` when post contains `apx telegram send`, but the clean fix is `exec_agent` with no tools:
 
 ```json
 {
   "kind": "exec_agent",
+  "allowed_tools": [],
   "spec": { "agent": "default", "prompt": "The weather is {{pre_output}}. One friendly sentence." },
   "post_commands": ["apx telegram send \"$APX_LLM_OUTPUT\""]
 }
@@ -121,7 +122,7 @@ apx messages tail --channel routine -n 20                   # routine-channel me
 
 ## Don't
 
-- Use `super_agent` when `exec_agent` would do — it loops, calls tools, costs more.
+- Use `super_agent` when a project agent should own the work — `exec_agent` runs that agent with tools and the chat lands under their name.
 - Write `apx telegram send` inside a `super_agent` prompt — agent calls `send_telegram` AND post_commands fire. Pick one.
 - Hardcode model names in `spec` without reason — routines inherit `super_agent.model` (with router fallback).
 - Put credentials in `spec`. Use `~/.apx/config.json` engines and reference by provider.

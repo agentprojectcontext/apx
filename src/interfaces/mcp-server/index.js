@@ -4,12 +4,15 @@
 //
 // Tool surface:
 //   agent_list        — list agents in the current project
+//   agent_create      — create an agent, including its system prompt
+//   agent_set_prompt  — replace an existing agent's system prompt
 //   agent_exec        — quick one-shot LLM call via apx exec
 //   agent_run         — launch a full runtime session
 //   memory_read       — read an agent's memory.md
 //   memory_append     — append a fact to agent memory
 //   messages_tail     — recent messages (all channels or filtered)
 //   session_list      — list sessions for an agent
+//   org_list          — areas + roles an agent can be assigned to
 //   mcp_list          — list project+global MCPs
 //   mcp_call          — call a project MCP tool
 
@@ -19,6 +22,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { findApfRoot } from "#core/apc/parser.js";
+import { AGENT_TYPES, AGENT_TYPE_VALUES, BLOB_KEYS } from "#core/apc/agent-identity.js";
 // Was "../../cli/http.js", which resolves to src/cli/http.js — a path that
 // does not exist, so this binary could not load at all. Use the alias
 // (AGENTS.md rule 7) so the same mistake cannot recur silently.
@@ -68,6 +72,89 @@ server.tool(
       (a) => `${a.slug}  role=${a.role || "—"}  model=${a.model || "—"}`
     );
     return { content: [{ type: "text", text: rows.join("\n") || "(no agents)" }] };
+  }
+);
+
+// agent_create
+//
+// `prompt` is the agent's instruction set, stored as the body of
+// `.apc/agents/<slug>.md` and injected by buildAgentSystem() as "# Custom
+// instructions". It is required, not optional: an agent created from metadata
+// alone (role + description) has nothing telling it what to do, and that
+// failure is silent — which is exactly how it kept happening.
+server.tool(
+  "agent_create",
+  "Create a project agent. `prompt` is the agent's system prompt (its actual instructions) and is required — `description` is one line of metadata and is NOT a substitute for it.",
+  {
+    slug: z.string().describe("Agent slug (lowercase, a-z0-9_-)"),
+    prompt: z.string().min(1).describe("The agent's system prompt: persona, responsibilities, rules, hard limits. Markdown, multi-line."),
+    type: z.enum(AGENT_TYPE_VALUES).optional().describe(
+      `Typology — ${AGENT_TYPES.map((t) => `${t.value}: ${t.description}`).join(" ")} 'orchestrator' also makes the agent a master (it gets sub-agents).`
+    ),
+    role: z.string().optional().describe("Role slug from the project org chart (see org_list), or free text. Shown as a badge on the agent card."),
+    area: z.string().optional().describe("Area slug from the project org chart (see org_list). Groups the agent in the team view."),
+    description: z.string().optional().describe("One-line summary shown in agent listings"),
+    model: z.string().optional().describe("Model override, e.g. 'zen:big-pickle'. Omit to follow the project default"),
+    language: z.string().optional().describe("Default response language, e.g. 'es' or 'es-AR'"),
+    parent: z.string().optional().describe("Slug of the orchestrator this agent reports to"),
+    icon: z.enum(BLOB_KEYS).optional().describe("Avatar blob preset. Omit and one is picked from the blobs this project isn't using yet."),
+    skills: z.array(z.string()).optional().describe("Skill names to load for this agent"),
+    tools: z.array(z.string()).optional().describe("Tool names. Omit for the safe default set"),
+  },
+  async ({ slug, prompt, type, role, area, description, model, language, parent, icon, skills, tools }) => {
+    const proj = await resolveProject();
+    const created = await http.post(`/api/projects/${proj.id}/agents`, {
+      slug, system: prompt, type, role, area, description, model, language, parent, icon, skills, tools,
+    });
+    const bits = [
+      `Created agent ${created.slug}`,
+      `prompt ${Buffer.byteLength(prompt)} bytes`,
+      `avatar ${created.icon}`,
+    ];
+    if (created.type) bits.push(`type ${created.type}`);
+    if (created.area) bits.push(`area ${created.area}`);
+    if (created.role) bits.push(`role ${created.role}`);
+    return { content: [{ type: "text", text: bits.join(" · ") + "." }] };
+  }
+);
+
+// org_list — the vocabulary agent_create's `area` / `role` draw from.
+server.tool(
+  "org_list",
+  "List the project's org chart: the areas and roles an agent can be assigned to (`.apc/organization.json`). Call this before agent_create if you want to place the agent in the org structure.",
+  {},
+  async () => {
+    const proj = await resolveProject();
+    const org = await http.get(`/api/projects/${proj.id}/organization`);
+    const areas = (org.areas || []).map((a) => `area  ${a.slug}  ${a.name}`);
+    const roles = (org.roles || []).map((r) => `role  ${r.slug}  ${r.name}${r.area ? `  (area: ${r.area})` : ""}`);
+    const rows = [...areas, ...roles];
+    return {
+      content: [{
+        type: "text",
+        text: rows.join("\n") || "(no areas or roles defined — `role` and `area` accept free text too)",
+      }],
+    };
+  }
+);
+
+// agent_set_prompt
+server.tool(
+  "agent_set_prompt",
+  "Replace an existing agent's system prompt (the body of its definition file). Use this to give instructions to an agent that was created without them.",
+  {
+    slug: z.string().describe("Agent slug"),
+    prompt: z.string().min(1).describe("The full replacement system prompt (not a patch)"),
+  },
+  async ({ slug, prompt }) => {
+    const proj = await resolveProject();
+    await http.patch(`/api/projects/${proj.id}/agents/${slug}`, { system: prompt });
+    return {
+      content: [{
+        type: "text",
+        text: `Updated ${slug}: system prompt is now ${Buffer.byteLength(prompt)} bytes.`,
+      }],
+    };
   }
 );
 

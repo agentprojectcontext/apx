@@ -175,8 +175,8 @@ in this order:
 
 | Aspect | Super-agent (APX itself) | Project agent |
 |---|---|---|
-| Has tools? | Yes — full tool registry | No — text-in / text-out only |
-| Execution loop | Multi-iteration tool loop | Single LLM call |
+| Has tools? | Yes — full registry | Yes — only the agent's `tools:` allowlist (not the full registry). Empty field → safe read/search/memory default. `exec_agent` runs the loop; `/agents/:slug/chat` is still text-only. |
+| Execution loop | Multi-iteration tool loop | Multi-iteration when invoked as `exec_agent`; one-shot if `allowed_tools: []` |
 | System prompt | `super-agent-base.md` + channel template + identity | Built per-agent as above |
 | Configured via | `super_agent.*` in config | `.apc/agents/<slug>.md` |
 

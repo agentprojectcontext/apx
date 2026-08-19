@@ -155,3 +155,14 @@ export function resolveChannels(globalConfig) {
 export function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+/**
+ * Drop this chat's AbortController only if it is still the one we own.
+ * An aborted turn used to `activeRequests.delete(chat_id)` unconditionally,
+ * which wiped the NEWER turn's controller and made the next interrupt a no-op.
+ */
+export function releaseActiveRequest(activeRequests, chat_id, abortCtrl) {
+  if (chat_id && activeRequests.get(chat_id) === abortCtrl) {
+    activeRequests.delete(chat_id);
+  }
+}

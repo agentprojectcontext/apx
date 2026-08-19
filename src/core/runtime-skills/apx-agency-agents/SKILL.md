@@ -74,7 +74,7 @@ Agent defaults tab (`/p/0/agent-defaults`): same CRUD — "New" (POST `/api/agen
 
 - User says **"spawn/use Cody/Rocky/Tessa/Max/Arch/Sid/Vera/Roby/Finn"** → import that exact slug from named team.
 - User wants **"developer"/"QA"/"marketing" without a persona** → use generics (`development`, `qa`, `marketing`, …).
-- **Not in vault** → `apx agent vault add <slug>` for a new template, or `apx agent add <slug>` directly in a project for a one-off.
+- **Not in vault** → `apx agent vault add <slug>` for a new template, or `apx agent add <slug> --prompt -` directly in a project for a one-off. A new agent needs its system prompt (the file body), not just `--role`/`--description` — see `apx-agent`.
 - **Fresh install** → bundled defaults are always present (no sync step); appear in `apx agent vault list` immediately.
 
 ## File locations
@@ -110,7 +110,7 @@ is_master: false
 | `description` | Shown in `/api/agents/vault` and AgentDefaultsTab cards. |
 | `language` | Adds "Default language: <code>" to system prompt. |
 | `skills` | Per-agent skill names; bodies loaded by skill resolution. |
-| `tools` | Tool hints; actual callable tools depend on invocation surface. |
+| `tools` | Allowlist of callable tools for `exec_agent`. Catalog names (`glob`, `memory_get`, `run_command`) map to native handlers. Empty → safe default (read/search/memory). Not the super-agent registry. |
 | `is_master` | If true, marked master in project (badge + ordering). |
 
 ## Related skills

@@ -64,6 +64,26 @@ export const TOOL_DEFINITIONS = Object.freeze([
     },
     examples: [{ path: "src" }],
   },
+  {
+    // Native loop tool. Listed so the agent picker can toggle it; HTTP /call
+    // is 501 — the exec_agent loop runs the in-process handler.
+    name: "edit_file",
+    category: "file",
+    description: "Replace one exact string with another inside a project file. Prefer this over write_file for small edits.",
+    endpoint: null,
+    parameters: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Relative path inside the project" },
+        search: { type: "string", description: "Exact text to replace" },
+        replace: { type: "string", description: "Replacement text" },
+        all: { type: "boolean", description: "Replace every match; default false" },
+        project: { type: "string" },
+      },
+      required: ["path", "search", "replace"],
+    },
+    examples: [{ path: "README.md", search: "old", replace: "new" }],
+  },
 
   // ── shell ─────────────────────────────────────────────────────────────────
   {
@@ -548,6 +568,113 @@ export const TOOL_DEFINITIONS = Object.freeze([
     parameters: { type: "object", properties: {} },
     examples: [{}],
   },
+
+  // ── skills (native) ───────────────────────────────────────────────────────
+  {
+    name: "list_skills",
+    category: "skill",
+    description: "List available skills (slug + one-line description). Call load_skill to fetch a body.",
+    endpoint: null,
+    parameters: {
+      type: "object",
+      properties: {
+        project_path: { type: "string", description: "Optional project root to also scan .apc/skills" },
+      },
+    },
+    examples: [{}],
+  },
+  {
+    name: "load_skill",
+    category: "skill",
+    description: "Load the full body of a named skill into this turn.",
+    endpoint: null,
+    parameters: {
+      type: "object",
+      properties: {
+        slug: { type: "string", description: "Skill slug from list_skills" },
+        project_path: { type: "string" },
+      },
+      required: ["slug"],
+    },
+    examples: [{ slug: "apx-routine" }],
+  },
+
+  // ── telegram (native) ─────────────────────────────────────────────────────
+  {
+    name: "send_telegram",
+    category: "telegram",
+    description: "Send a Telegram message (text; optional photo/document). Dangerous — confirm or run under total.",
+    endpoint: null,
+    parameters: {
+      type: "object",
+      properties: {
+        text: { type: "string" },
+        chat_id: { type: "string" },
+      },
+      required: ["text"],
+    },
+    examples: [{ text: "Magui: listo el lote de ideas." }],
+  },
+
+  // ── asana (native plugin) ─────────────────────────────────────────────────
+  {
+    name: "asana_list_projects",
+    category: "integrations",
+    description: "List Asana projects visible to the configured token.",
+    endpoint: null,
+    parameters: { type: "object", properties: { project: { type: "string" } } },
+    examples: [{}],
+  },
+  {
+    name: "asana_list_tasks",
+    category: "integrations",
+    description: "List tasks in an Asana project.",
+    endpoint: null,
+    parameters: {
+      type: "object",
+      properties: {
+        project_gid: { type: "string" },
+        completed: { type: "boolean" },
+        project: { type: "string" },
+      },
+      required: ["project_gid"],
+    },
+    examples: [{ project_gid: "123" }],
+  },
+  {
+    name: "asana_create_task",
+    category: "integrations",
+    description: "Create a task in an Asana project.",
+    endpoint: null,
+    parameters: {
+      type: "object",
+      properties: {
+        project_gid: { type: "string" },
+        name: { type: "string" },
+        notes: { type: "string" },
+        project: { type: "string" },
+      },
+      required: ["project_gid", "name"],
+    },
+    examples: [{ project_gid: "123", name: "Reel agro" }],
+  },
+  {
+    name: "asana_update_task",
+    category: "integrations",
+    description: "Update an Asana task (name, notes, completed, section).",
+    endpoint: null,
+    parameters: {
+      type: "object",
+      properties: {
+        task_gid: { type: "string" },
+        name: { type: "string" },
+        completed: { type: "boolean" },
+        project: { type: "string" },
+      },
+      required: ["task_gid"],
+    },
+    examples: [{ task_gid: "456", completed: true }],
+  },
 ]);
 
 // Tools a freshly created agent gets out of the box. Read/search the project,
@@ -567,4 +694,16 @@ export const DEFAULT_AGENT_TOOLS = Object.freeze([
   "agent_list",
   "agent_get",
   "project_info",
+]);
+
+// Worker / editor agents (Magui and friends): the safe default PLUS write,
+// surgical edit, shell, and on-demand skills. Browser, HTTP, MCP, and
+// session tools stay opt-in. Asana / Telegram are extra per-agent.
+export const EDITOR_AGENT_TOOLS = Object.freeze([
+  ...DEFAULT_AGENT_TOOLS,
+  "write_file",
+  "edit_file",
+  "run_command",
+  "list_skills",
+  "load_skill",
 ]);

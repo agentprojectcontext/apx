@@ -54,11 +54,45 @@ test("POST persists emoji + autonomy; GET returns them", async () => {
     assert.equal(created.type, "orchestrator");
     assert.equal(created.area, "ops");
 
+    // Display names are stored as the org slug so Growth and growth don't split.
+    const named = await fetch(`${baseUrl}/api/projects/${id}/agents`, {
+      method: "POST",
+      headers: json,
+      body: JSON.stringify({ slug: "max", area: "Growth" }),
+    });
+    assert.equal(named.status, 201);
+    assert.equal((await named.json()).area, "growth");
+    const mdMax = fs.readFileSync(path.join(root, ".apc", "agents", "max.md"), "utf8");
+    assert.match(mdMax, /^area:\s*growth\s*$/m);
+
     // Frontmatter written to the .apc file.
     const md = fs.readFileSync(path.join(root, ".apc", "agents", "roby.md"), "utf8");
     assert.match(md, /emoji: 🤖/);
     assert.match(md, /icon: noche/);
     assert.match(md, /autonomy: total/);
+  } finally {
+    await new Promise((res) => server.close(res));
+    cleanupTempProject(root);
+  }
+});
+
+test("GET slugifies a display-name Area already on disk", async () => {
+  const root = makeTempProject({});
+  fs.mkdirSync(path.join(root, ".apc", "agents"), { recursive: true });
+  fs.writeFileSync(path.join(root, ".apc", "agents", "max.md"), [
+    "---",
+    "role: Marketing",
+    "area: Growth",
+    "---",
+    "",
+    "# Max",
+    "",
+  ].join("\n"));
+  const { app, id } = makeApp(root);
+  const { server, baseUrl } = await listen(app);
+  try {
+    const list = await (await fetch(`${baseUrl}/api/projects/${id}/agents`)).json();
+    assert.equal(list.find((a) => a.slug === "max").area, "growth");
   } finally {
     await new Promise((res) => server.close(res));
     cleanupTempProject(root);

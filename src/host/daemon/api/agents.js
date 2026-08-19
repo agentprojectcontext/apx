@@ -36,6 +36,8 @@ import { agentToResponse } from "./shared.js";
 import { normalizeVaultPatch } from "#core/apc/agents-vault.js";
 import { PERMISSION_MODES } from "#core/constants/permissions.js";
 import { DEFAULT_AGENT_TOOLS } from "#core/http-tools/catalog.js";
+import { isBlobKey, normalizeAgentType, pickBlob } from "#core/apc/agent-identity.js";
+import { readOrganization, resolveAreaSlug } from "#core/stores/organization.js";
 import { listConversations } from "#core/stores/conversations.js";
 import { listTasks } from "#core/stores/tasks.js";
 import { listRoutines } from "#core/stores/routines.js";
@@ -193,10 +195,20 @@ export function register(api, { projects, project }) {
     if (!slug) return res.status(400).json({ error: "slug required" });
     if (!/^[a-z][a-z0-9_-]*$/.test(slug))
       return res.status(400).json({ error: "invalid slug" });
-    const existing = readAgents(p.path).find((a) => a.slug === slug);
+    const roster = readAgents(p.path);
+    const existing = roster.find((a) => a.slug === slug);
     if (existing)
       return res.status(400).json({ error: `agent ${slug} already exists` });
     const autonomyVal = normalizeAutonomy(autonomy);
+    const typeVal = normalizeAgentType(type);
+    if (type && !typeVal) return res.status(400).json({ error: `invalid type "${type}"` });
+    // Every agent gets a face. Callers that don't care about avatars (the CLI,
+    // the MCP server, the super-agent) used to leave Icon empty, and the agent
+    // rendered as a grey lettered disc everywhere. Picked from the blobs this
+    // project isn't using yet, so a team stays visually distinguishable.
+    const iconVal = isBlobKey(icon)
+      ? icon
+      : pickBlob({ taken: roster.map((a) => a.fields?.Icon).filter(Boolean) });
     try {
       writeAgentFile(p.path, slug, {
         Name: name || null,
@@ -208,12 +220,15 @@ export function register(api, { projects, project }) {
         // Omitted tools ⇒ the safe default set, so a new agent is useful
         // immediately instead of landing with an empty capability list.
         Tools: Array.isArray(tools) ? tools : [...DEFAULT_AGENT_TOOLS],
-        Master: is_master ? true : null,
+        // An orchestrator IS a master — the web already conflated the two on
+        // create, and letting them disagree splits the hierarchy view from the
+        // typology.
+        Master: is_master || typeVal === "orchestrator" ? true : null,
         Parent: parent || null,
-        Type: type || null,
-        Area: area || null,
+        Type: typeVal,
+        Area: resolveAreaSlug(area, readOrganization(p.path)),
         Emoji: emoji || null,
-        Icon: icon || null,
+        Icon: iconVal,
         Autonomy: autonomyVal || null,
       }, typeof system === "string" ? system : "");
       ensureAgentDir(p.path, slug);
@@ -247,8 +262,19 @@ export function register(api, { projects, project }) {
     setStr("Language", b.language);
     setStr("Description", b.description);
     setStr("Parent", b.parent);
-    setStr("Type", b.type);
-    setStr("Area", b.area);
+    if (b.type !== undefined && b.type !== null && b.type !== "") {
+      const t = normalizeAgentType(b.type);
+      if (!t) return res.status(400).json({ error: `invalid type "${b.type}"` });
+      fields.Type = t;
+    } else {
+      setStr("Type", b.type);
+    }
+    if (b.area !== undefined) {
+      const resolved = b.area === null || b.area === ""
+        ? null
+        : resolveAreaSlug(b.area, readOrganization(p.path));
+      setStr("Area", resolved);
+    }
     setStr("Emoji", b.emoji);
     setStr("Icon", b.icon);
     setStr("Autonomy", normalizeAutonomy(b.autonomy));

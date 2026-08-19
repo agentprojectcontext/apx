@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import { resolveProject, safePathJoin } from "../helpers.js";
 
-function run(command, { cwd, timeoutMs }) {
+function run(command, { cwd, timeoutMs, abortSignal }) {
   return new Promise((resolve) => {
     const child = spawn("sh", ["-lc", command], { cwd, env: process.env });
     let stdout = "";
@@ -12,10 +12,19 @@ function run(command, { cwd, timeoutMs }) {
       child.kill("SIGTERM");
     }, timeoutMs);
 
+    const onAbort = () => {
+      child.kill("SIGTERM");
+    };
+    if (abortSignal) {
+      if (abortSignal.aborted) onAbort();
+      else abortSignal.addEventListener("abort", onAbort, { once: true });
+    }
+
     child.stdout.on("data", (d) => { stdout += d.toString(); });
     child.stderr.on("data", (d) => { stderr += d.toString(); });
     child.on("close", (code, signal) => {
       clearTimeout(timer);
+      abortSignal?.removeEventListener("abort", onAbort);
       resolve({ code, signal, timedOut, stdout, stderr });
     });
   });
@@ -62,7 +71,8 @@ export default {
       },
     },
   },
-  makeHandler: ({ projects, requirePermission }) => async ({ project, cwd = ".", command, timeout_s = 60, confirmed = false }) => {
+  makeHandler: (ctx) => async ({ project, cwd = ".", command, timeout_s = 60, confirmed = false }) => {
+    const { projects, requirePermission, abortSignal } = ctx;
     await requirePermission("run_shell", { dangerous: !isSafeShellCommand(command), confirmed, args: { command } });
     if (!command) throw new Error("run_shell: command required");
 
@@ -71,6 +81,7 @@ export default {
     const result = await run(command, {
       cwd: workingDir,
       timeoutMs: Math.max(1, Math.min(timeout_s, 600)) * 1000,
+      abortSignal,
     });
     return {
       exit_code: result.code,

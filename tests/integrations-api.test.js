@@ -151,3 +151,23 @@ test("validate on an unconfigured plugin → 404; unknown plugin → 404; unknow
     close();
   }
 });
+
+test("configure workspace_gid on an existing record keeps the token", async () => {
+  const { call, close } = await boot();
+  try {
+    await call("POST", "/api/projects/1/integrations/asana/configure?scope=global", {
+      personal_access_token: "1/global:token",
+    });
+    const r = await call("POST", "/api/projects/1/integrations/asana/configure?scope=global", {
+      workspace_gid: "ws-99",
+    });
+    assert.equal(r.status, 201);
+    assert.equal(r.json.config.workspace_gid, "ws-99");
+    assert.equal(r.json.config.personal_access_token_set, true);
+    assert.equal(r.json.config.personal_access_token, undefined);
+    const listed = await call("GET", "/api/projects/1/integrations?scope=project");
+    assert.equal(listed.json.length, 0, "project scope must stay empty");
+  } finally {
+    close();
+  }
+});

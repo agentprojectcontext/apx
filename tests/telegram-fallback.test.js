@@ -84,8 +84,19 @@ test("telegram: both entry points share the reply path (no drift)", () => {
 test("telegram: aborted requests still short-circuit silently", () => {
   // The abort path must remain a silent return — interrupting the user's own
   // request shouldn't generate a "could not reply" message.
-  const abortBlock = DISPATCH.match(/if \(abortCtrl\.signal\.aborted\) \{[\s\S]{0,400}?\n {8}\}/);
+  const abortBlock = DISPATCH.match(/if \(abortCtrl\.signal\.aborted\) \{[\s\S]{0,600}?return;/);
   assert.ok(abortBlock, "abort branch must exist");
   assert.match(abortBlock[0], /return;/, "abort path must return");
   assert.doesNotMatch(abortBlock[0], /replyText\s*=/, "abort path must NOT set a reply — interrupting is silent");
+});
+
+test("telegram: the poll loop does not await the model turn", () => {
+  // Default Interrupt (abort the previous AbortController) only fires if
+  // getUpdates keeps running while a turn is in flight. handleUpdate used to
+  // await the whole super-agent, which froze polling — a newer message sat in
+  // Telegram's queue until the zombie run finished, then each queued message
+  // ran sequentially. The reply turn is now detached.
+  assert.match(DISPATCH, /const replyTurn = \(async \(\) => \{/);
+  assert.match(DISPATCH, /replyTurn\.catch\(/);
+  assert.match(DISPATCH, /releaseActiveRequest\(/);
 });

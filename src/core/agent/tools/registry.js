@@ -434,3 +434,8 @@ export function makeToolHandlers(ctx) {
 export function listBridgedToolNames() {
   return BRIDGED_TOOLS.map(t => t.name);
 }
+
+/** Every name the loop can actually call this process (native + bridged). */
+export function listCallableToolNames() {
+  return ALL_TOOLS.map((t) => t.name);
+}
