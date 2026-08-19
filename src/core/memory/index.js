@@ -41,7 +41,17 @@ let _indexing = false;
 function indexOnce(note) {
   if (_indexing || !_store) return Promise.resolve();
   _indexing = true;
-  return indexNewMessages(_store, { embed: embedOptsFromConfig(_cfg), projects: _projects, log: note })
+  return indexNewMessages(_store, {
+    embed: embedOptsFromConfig(_cfg),
+    projects: _projects,
+    log: note,
+    // How many chunks one pass may embed. A local embedder happily takes the
+    // default; a hosted one on a free tier does not — 1000 embed calls a minute
+    // is a 429, and a rate-limited provider degrades to `tf`, which the
+    // consistency guard then (correctly) refuses to write. Smaller passes, more
+    // of them: `memory.index_batch`.
+    ...(Number(_cfg?.memory?.index_batch) > 0 ? { limit: Number(_cfg.memory.index_batch) } : {}),
+  })
     .catch(() => {})
     .finally(() => {
       _indexing = false;
