@@ -15,6 +15,7 @@ export default {
           name: { type: "string", description: "Task title" },
           notes: { type: "string", description: "Task description/notes" },
           project_gid: { type: "string", description: "Optional Asana project gid to add the task to" },
+          section_gid: { type: "string", description: "Optional Asana section gid to place the task in (e.g. a backlog column). Only valid together with project_gid." },
           assignee: { type: "string", description: "Optional assignee (user gid or 'me')" },
           due_on: { type: "string", description: "Optional due date (YYYY-MM-DD)" },
           ...PROJECT_ARG,
@@ -23,13 +24,14 @@ export default {
       },
     },
   },
-  makeHandler: ({ projects }) => async ({ project, name, notes, project_gid, assignee, due_on } = {}) => {
+  makeHandler: ({ projects }) => async ({ project, name, notes, project_gid, section_gid, assignee, due_on } = {}) => {
     const { token, config } = resolveAsana(projects, project);
     const task = await asana.createTask(token, {
       workspaceGid: requireWorkspace(config),
       name,
       notes,
       projectGid: project_gid,
+      sectionGid: section_gid,
       assignee,
       dueOn: due_on,
     });

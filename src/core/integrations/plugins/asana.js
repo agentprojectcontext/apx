@@ -93,21 +93,25 @@ export async function listProjects(token, workspaceGid) {
 export async function listTasks(token, projectGid, completed = false) {
   const result = await request(token, "GET", `/projects/${projectGid}/tasks`, {
     params: {
-      opt_fields: "gid,name,completed,due_on,assignee.name,notes,permalink_url",
+      opt_fields: "gid,name,completed,due_on,assignee.name,notes,permalink_url,memberships.section.name,memberships.section.gid",
       completed_since: completed ? "" : "now",
     },
   });
   return result?.data || [];
 }
 
-export async function createTask(token, { workspaceGid, name, notes = "", projectGid, assignee, dueOn } = {}) {
+export async function createTask(token, { workspaceGid, name, notes = "", projectGid, sectionGid, assignee, dueOn } = {}) {
   const payload = { name, workspace: workspaceGid };
   if (notes) payload.notes = notes;
   if (projectGid) payload.projects = [projectGid];
   if (assignee) payload.assignee = assignee;
   if (dueOn) payload.due_on = dueOn;
   const result = await request(token, "POST", "/tasks", { payload });
-  return result?.data || {};
+  const task = result?.data || {};
+  if (sectionGid && task.gid) {
+    await request(token, "POST", `/sections/${sectionGid}/addTask`, { payload: { task: task.gid } });
+  }
+  return task;
 }
 
 export async function updateTask(token, taskGid, { name, notes, completed, dueOn, assignee } = {}) {
