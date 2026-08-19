@@ -14,6 +14,7 @@ export const TOOLS = Object.freeze({
   LIST_VAULT_AGENTS:   "list_vault_agents",
   IMPORT_AGENT:        "import_agent",
   LIST_MCPS:           "list_mcps",
+  LIST_MCP_TOOLS:      "list_mcp_tools",
 
   // Memory
   READ_AGENT_MEMORY:   "read_agent_memory",
@@ -43,6 +44,10 @@ export const TOOLS = Object.freeze({
   CREATE_TASK:         "create_task",
   RECORD_COMMITMENT:   "record_commitment",
   REMEMBER_ROUTINE:    "remember_routine",
+
+  // Routines
+  LIST_ROUTINES:       "list_routines",
+  RUN_ROUTINE:         "run_routine",
   LIST_COMMITMENTS:    "list_commitments",
 
   // Interaction
@@ -112,6 +117,7 @@ export const NATIVE_TOOL_NAMES = new Set([
   TOOLS.IMPORT_AGENT,
   TOOLS.ADD_PROJECT,
   TOOLS.LIST_MCPS,
+  TOOLS.LIST_MCP_TOOLS,
   TOOLS.READ_AGENT_MEMORY,
   TOOLS.LIST_FILES,
   TOOLS.READ_FILE,
@@ -151,6 +157,8 @@ export const NATIVE_TOOL_NAMES = new Set([
   TOOLS.RECORD_COMMITMENT,
   TOOLS.LIST_COMMITMENTS,
   TOOLS.REMEMBER_ROUTINE,
+  TOOLS.LIST_ROUTINES,
+  TOOLS.RUN_ROUTINE,
   TOOLS.ASK_QUESTIONS,
   TOOLS.SEARCH_SESSIONS,
   TOOLS.TRANSCRIBE_AUDIO,

@@ -4,6 +4,7 @@ import listVaultAgents from "./handlers/list-vault-agents.js";
 import importAgent from "./handlers/import-agent.js";
 import addProject from "./handlers/add-project.js";
 import listMcps from "./handlers/list-mcps.js";
+import listMcpTools from "./handlers/list-mcp-tools.js";
 import readAgentMemory from "./handlers/read-agent-memory.js";
 import remember from "./handlers/remember.js";
 import readSelfMemory from "./handlers/read-self-memory.js";
@@ -31,6 +32,8 @@ import createTask from "./handlers/create-task.js";
 import recordCommitment from "./handlers/record-commitment.js";
 import listCommitments from "./handlers/list-commitments.js";
 import rememberRoutine from "./handlers/remember-routine.js";
+import listRoutines from "./handlers/list-routines.js";
+import runRoutine from "./handlers/run-routine.js";
 import listTasks from "./handlers/list-tasks.js";
 import discoverTools from "./handlers/discover-tools.js";
 import gitStatus from "./handlers/git-status.js";
@@ -63,6 +66,7 @@ const NATIVE_TOOLS = [
   importAgent,
   addProject,
   listMcps,
+  listMcpTools,
   readAgentMemory,
   remember,
   readSelfMemory,
@@ -91,6 +95,8 @@ const NATIVE_TOOLS = [
   recordCommitment,
   listCommitments,
   rememberRoutine,
+  listRoutines,
+  runRoutine,
   discoverTools,
   gitStatus,
   gitDiff,
@@ -212,6 +218,7 @@ const NATIVE_CATEGORY = {
   [TOOLS.LIST_AGENTS]:         "inventory",
   [TOOLS.LIST_VAULT_AGENTS]:   "inventory",
   [TOOLS.LIST_MCPS]:           "inventory",
+  [TOOLS.LIST_MCP_TOOLS]:      "mcp",
   [TOOLS.LIST_SKILLS]:         "inventory",
   [TOOLS.LOAD_SKILL]:          "skills",
   [TOOLS.IMPORT_AGENT]:        "agents",
@@ -231,6 +238,8 @@ const NATIVE_CATEGORY = {
   [TOOLS.ASK_QUESTIONS]:       "conversation",
   [TOOLS.CREATE_TASK]:         "tasks",
   [TOOLS.LIST_TASKS]:          "tasks",
+  [TOOLS.LIST_ROUTINES]:       "routines",
+  [TOOLS.RUN_ROUTINE]:         "routines",
   [TOOLS.TRANSCRIBE_AUDIO]:    "voice",
   [TOOLS.READ_FILE]:           "files",
   [TOOLS.WRITE_FILE]:          "files",
