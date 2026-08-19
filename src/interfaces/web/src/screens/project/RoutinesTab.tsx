@@ -42,6 +42,18 @@ export function RoutinesTab({ pid }: { pid: string }) {
     selectRoutine(rows[0].name);
   }, [rows, selectedName]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const wantEdit = params.get("edit") === "1";
+  const canOpenEditor = wantEdit && !!selected;
+  useEffect(() => {
+    if (!canOpenEditor || !selected) return;
+    setEditing({ ...selected });
+    setParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("edit");
+      return next;
+    }, { replace: true });
+  }, [canOpenEditor, selectedName]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const toggle = async (r: RoutineEntry) => {
     try { await (r.enabled ? Routines.disable : Routines.enable)(pid, r.name); list.mutate(); }
     catch (e: any) { toast.error(e?.message || t("project.routines.toggle_error")); }

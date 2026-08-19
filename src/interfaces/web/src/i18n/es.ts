@@ -1769,6 +1769,8 @@ export const es = {
     brain_expand:            "Expandir cerebros",
     brain_collapse:          "Colapsar",
     brain_open:              "Abrir",
+    brain_view:              "Ver",
+    brain_edit:              "Editar",
     brain_part_of:           "Parte de",
     brain_branches:          "Ramas",
     config_def_desc:         "frontmatter de identidad. El system prompt vive en la tab Prompt.",

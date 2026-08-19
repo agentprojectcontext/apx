@@ -5,7 +5,7 @@ import { Bot, Briefcase, Brain, FileCode2, Heart, MessagesSquare, Puzzle, Zap, C
 import { Agents, Artifacts, Conversations, Mcps, Routines, Tasks } from "../../lib/api";
 import { Section } from "../../components/Section";
 import { StatusIcon, StatusBadge, effectiveStatus, statusLabel, TASK_STATUS_ORDER } from "../../components/tasks/taskStatus";
-import { BrainGraph, type BrainNode, type BrainEdge } from "./AgentBrainGraph";
+import { BrainGraph, type BrainNode, type BrainEdge, agentPreview, routinePreview, clipPreview } from "./AgentBrainGraph";
 import { BlobAvatar } from "../../components/agents/BlobAvatar";
 import { isBlobKey } from "../../components/agents/blobPresets";
 import { cn } from "../../lib/cn";
@@ -130,7 +130,7 @@ export function Overview({ pid }: { pid: string }) {
           heartbeats), all connected by hierarchy. */}
       {agentList.length > 0 && (
         <Section title={t("project.overview.brain_title")} description={t("project.overview.brain_desc")} className="!p-4">
-          <TeamBrain pid={pid} agents={agentList} routines={routines.data ?? []} navigate={navigate} />
+          <TeamBrain pid={pid} agents={agentList} routines={routines.data ?? []} />
         </Section>
       )}
     </div>
@@ -170,9 +170,9 @@ interface TeamDetail {
 // each agent becomes a hub with its own sub-brain — memory / threads / tasks /
 // heartbeats — so the whole company reads as one connected brain-of-brains.
 function TeamBrain({
-  pid, agents, routines, navigate,
+  pid, agents, routines,
 }: {
-  pid: string; agents: AgentEntry[]; routines: RoutineEntry[]; navigate: (to: string) => void;
+  pid: string; agents: AgentEntry[]; routines: RoutineEntry[];
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -220,7 +220,9 @@ function TeamBrain({
         emoji: a.emoji || undefined,
         icon: a.icon || undefined,
         relation: a.role || (isOrch ? t("project.agents.orchestrator") : t("project.overview.specialists")),
-        detail: a.description || undefined,
+        detail: agentPreview(a),
+        href: `/p/${pid}/agents/${a.slug}`,
+        editHref: `/p/${pid}/agents/${a.slug}?tab=config`,
       });
     }
     for (const a of agents) {
@@ -231,22 +233,34 @@ function TeamBrain({
     // Expanded: graft each agent's own items as leaves off the agent node.
     if (showFull && detail.data) {
       const { tasks, perAgent } = detail.data;
-      const push = (id: string, label: string, kind: BrainNode["kind"], parent: string, detailText?: string) => {
-        nodes.push({ id, label, kind, detail: detailText });
+      const push = (id: string, label: string, kind: BrainNode["kind"], parent: string, extra?: Partial<BrainNode>) => {
+        nodes.push({ id, label, kind, ...extra });
         edges.push({ source: parent, target: id });
       };
       for (const a of agents) {
         const info = perAgent[a.slug];
-        memoryFacts(info?.memory || "").forEach((f, i) => push(`${a.slug}:m${i}`, f, "memory", a.slug, f));
-        (info?.threads || []).forEach((th, i) => push(`${a.slug}:th${i}`, th.title, "thread", a.slug));
+        memoryFacts(info?.memory || "").forEach((f, i) => push(`${a.slug}:m${i}`, f, "memory", a.slug, {
+          detail: f, href: `/p/${pid}/agents/${a.slug}?tab=memories`,
+        }));
+        (info?.threads || []).forEach((th, i) => push(`${a.slug}:th${i}`, th.title, "thread", a.slug, {
+          href: `/p/${pid}/chat?agent=${a.slug}&conv=${th.id}`,
+        }));
         tasks.filter((tk) => tk.agent === a.slug).slice(0, 4)
-          .forEach((tk, i) => push(`${a.slug}:ts${i}`, tk.title, "task", a.slug, tk.body || undefined));
+          .forEach((tk, i) => push(`${a.slug}:ts${i}`, tk.title, "task", a.slug, {
+            detail: clipPreview(tk.body),
+            href: `/p/${pid}/tasks?task=${tk.id}`,
+            editHref: `/p/${pid}/tasks?task=${tk.id}&edit=1`,
+          }));
         routines.filter((r) => (r.spec as { agent?: string })?.agent === a.slug).slice(0, 2)
-          .forEach((r, i) => push(`${a.slug}:rt${i}`, r.name, "routine", a.slug, `schedule: ${r.schedule}`));
+          .forEach((r, i) => push(`${a.slug}:rt${i}`, r.name, "routine", a.slug, {
+            detail: routinePreview(r),
+            href: `/p/${pid}/routines?r_id=${encodeURIComponent(r.name)}`,
+            editHref: `/p/${pid}/routines?r_id=${encodeURIComponent(r.name)}&edit=1`,
+          }));
       }
     }
     return { nodes, edges };
-  }, [agents, routines, showFull, detail.data]);
+  }, [agents, routines, showFull, detail.data, pid]);
 
   const toggle = (
     <button
@@ -268,7 +282,6 @@ function TeamBrain({
       edges={edges}
       height={620}
       toolbar={toggle}
-      onNodeClick={(n) => { if (n.slug) navigate(`/p/${pid}/agents/${n.slug}`); }}
     />
   );
 }
