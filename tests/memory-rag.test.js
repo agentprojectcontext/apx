@@ -170,6 +170,33 @@ test("reconcileEmbedder: a provider swap re-indexes; only a tf fallback stalls",
   assert.equal(reconcileEmbedder("gemini", "tf", true), "skip");
 });
 
+// The embedder signature and the per-channel cursors are different state. Only
+// the cursors may not advance on a capped pass; writing the signature at the end
+// meant a big first index never recorded which space it was in, so every pass
+// re-detected a "switch", wiped the store and re-embedded the same first `limit`
+// chunks — an index that could never grow past one cap.
+test("indexer: a capped pass still records the embedder space", async () => {
+  const dir = tmpdir("indexer-capped-cursor");
+  const messagesDir = path.join(dir, "messages");
+  const cursorPath = path.join(dir, "cursor.json");
+  const memoryPath = path.join(dir, "memory.md");
+  const store = new JsonStore(path.join(dir, "idx.jsonl"));
+
+  const rows = [];
+  for (let i = 0; i < 6; i++) {
+    rows.push({ ts: `2026-05-29T10:0${i}:00Z`, channel: "telegram", direction: "in", type: "user", body: `mensaje numero ${i}`, meta: { chat_id: 1, message_id: i } });
+  }
+  writeJsonl(path.join(messagesDir, "telegram", "2026-05-29.jsonl"), rows);
+
+  const r = await indexNewMessages(store, {
+    messagesDir, cursorPath, memoryPath, apxHome: dir, limit: 2,
+    embed: { forceTf: true },
+  });
+  assert.equal(r.capped, true, "the pass hit the cap");
+  const cursor = JSON.parse(fs.readFileSync(cursorPath, "utf8"));
+  assert.equal(cursor.embedder, "tf", "the space is recorded even though the pass was capped");
+});
+
 test("broker: builds a [RELEVANT MEMORY] block from store hits", async () => {
   const dir = tmpdir("broker");
   const store = new JsonStore(path.join(dir, "idx.jsonl"));

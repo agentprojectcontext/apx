@@ -344,7 +344,14 @@ export async function indexNewMessages(store, opts = {}) {
     writeCursor(cursorPath, cursor);
     return { indexed: 0, backend: store.backend, skipped: "embedder-downgrade" };
   }
+  // Persist the embedder signature NOW, before doing any work. It is separate
+  // state from the per-channel cursors: those may only advance on a complete
+  // pass, but the signature describes the store as it already is. Writing it at
+  // the end meant a CAPPED pass never recorded it — so the next pass still read
+  // the old family, wiped the store, re-embedded the same first `limit` chunks,
+  // capped again, and looped forever without the index ever growing.
   cursor.embedder = family;
+  writeCursor(cursorPath, cursor);
 
   const { fresh: msgChunks, maxTsByChannel } = collectMessageChunks(store, cursor, messagesDir);
   const memChunks = collectMemoryChunks(store, memoryPath);
