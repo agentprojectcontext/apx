@@ -85,6 +85,15 @@ function fallbackFinalText(trace, error) {
   return lines.join("\n");
 }
 
+/**
+ * Did the engine stop because it ran out of output budget? Every adapter passes
+ * the provider's own word through: OpenAI-shaped gateways say "length", Gemini
+ * says "MAX_TOKENS".
+ */
+function wasTruncated(result) {
+  return /^(length|max_tokens)$/i.test(String(result?.finish_reason || ""));
+}
+
 function previewTraceResult(result) {
   if (result === null || result === undefined) return "ok";
   if (typeof result === "string") return result.slice(0, 180);
@@ -149,6 +158,30 @@ const WRAPUP_SIGNAL =
   "- Ask whether they want you to keep going.\n" +
   "Talk like a person giving a quick status update. Do NOT emit a tool call, " +
   "JSON, or system jargon like \"iteration\" or \"limit\".]";
+
+// How many times one turn may be nudged past an output-limit truncation before
+// we let it end. A model that answers with a wall of prose every time is not
+// going to start acting on the third try, and the wrap-up still fires.
+const MAX_LENGTH_CONTINUES = 2;
+
+// A model that hits its output cap mid-sentence has not finished; it has been
+// cut off. Every adapter reports that as a finish reason, and the loop used to
+// ignore it: no tool calls in a truncated message means "the model stopped
+// calling tools", which reads as a completed turn. So a routine that wrote six
+// ideas out as YAML instead of filing them, ran out of budget halfway through
+// the sixth, and never called the tool, reported `status: ok` with a reply that
+// began mid-word.
+//
+// This note goes in as a conversation turn so weak models actually answer it,
+// and it asks for the ACTION rather than a shorter essay — writing the work out
+// is what filled the budget in the first place.
+const TRUNCATED_SIGNAL =
+  "[Internal turn note — this is NOT from the user. Your last message hit the " +
+  "output limit and was cut off mid-way, so nothing in it counted as work.\n" +
+  "Do NOT rewrite or continue that text. If the task needs tools — creating a " +
+  "task, writing a file, sending a message — CALL THEM NOW, one step at a time, " +
+  "and keep any prose to a single short line. Composing the result as text is " +
+  "not the same as doing it.]";
 
 /**
  * Shared tool-calling agent loop used by super-agent and future surfaces.
@@ -336,6 +369,7 @@ export async function runAgent({
   // the turn empty, and the retry does NOT consume an iteration of the tool
   // budget. Bounded so a model that only ever returns empty can't spin forever.
   let emptyRetries = 0;
+  let lengthContinues = 0;
   const MAX_EMPTY_RETRIES = 2;
   // Side-effect dedupe. Weaker models (Gemini especially) sometimes
   // re-emit the SAME tool call across iterations — e.g. send_telegram
@@ -529,6 +563,19 @@ export async function runAgent({
         emptyRetries += 1;
         await emitProgress(onEvent, { type: "empty_retry", iteration: iter + 1, attempt: emptyRetries });
         iter -= 1;
+        continue;
+      }
+      // Cut off at the output cap, not finished. Keep the truncated text in the
+      // history (so the model can see what it was doing) and ask for the action.
+      if (wasTruncated(result) && lengthContinues < MAX_LENGTH_CONTINUES) {
+        lengthContinues += 1;
+        await emitProgress(onEvent, {
+          type: "truncated_continue",
+          iteration: iter + 1,
+          attempt: lengthContinues,
+        });
+        conversation.push({ role: "assistant", content: lastText });
+        conversation.push({ role: "user", content: TRUNCATED_SIGNAL });
         continue;
       }
       break;

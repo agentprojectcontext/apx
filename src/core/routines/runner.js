@@ -155,7 +155,11 @@ async function handleExecAgent(ctx, routine) {
       agentName: slug,
       suppressTools: suppressTools.length > 0 ? suppressTools : null,
       maxIters: TELEGRAM_TOOL_ITERS,
-      maxTokens: 2048,
+      // A routine has to both act and report, and 2048 was tight enough that a
+      // run which wrote its output before filing it hit the cap mid-item. The
+      // loop now recovers from that (see wasTruncated), but the headroom keeps
+      // it from being the normal case.
+      maxTokens: 4096,
     });
     text = result.text || "";
     trace = Array.isArray(result.trace) ? result.trace : [];

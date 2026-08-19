@@ -94,6 +94,24 @@ export default {
       return mkToolCall(requestedTool, "mock-call-1");
     }
 
+    // `[mock:cutoff]` → prose that hit the output cap: text, no tool calls,
+    // finish_reason "length". Models the turn that composed its work instead of
+    // doing it and ran out of budget. The SECOND time (once the loop has asked
+    // for the action) it calls the tool, so a test can assert the recovery.
+    if (/\[mock:cutoff:([a-z_]+)\]/.test(userText) || messages.some((m) => /\[mock:cutoff:/.test(String(m.content || "")))) {
+      const tool = messages
+        .map((m) => String(m.content || "").match(/\[mock:cutoff:([a-z_]+)\]/)?.[1])
+        .find(Boolean);
+      const nudged = messages.some((m) => /output limit and was cut off/i.test(String(m.content || "")));
+      if (nudged && toolsAvailable) return mkToolCall(tool, "mock-cutoff-1");
+      return {
+        text: "Idea 1: ... Idea 2: ... Idea 3: ... and then the budget ran ou",
+        finish_reason: "length",
+        usage: { input_tokens: userText.length, output_tokens: 512 },
+        raw: { model, mock: true },
+      };
+    }
+
     // `mock:truncated` → a degenerate answer: non-empty, but far too small to
     // stand in for anything. Models the flaky provider response that used to
     // get written over a whole conversation as its "summary".
