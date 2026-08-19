@@ -71,21 +71,48 @@ function seedTelegram(dir, chat_id, records) {
   }
 }
 
-test("reader: tool results are included, truncated and prefixed", () => {
+test("reader: tool records replay the RESULT, not just the call, and stay bounded", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-reader-"));
   const today = new Date().toISOString().slice(0, 10);
   seedTelegram(dir, 7, [
     { ts: `${today}T10:00:00Z`, direction: "in", type: "user", body: "leé el archivo" },
-    { ts: `${today}T10:00:05Z`, direction: "out", type: "tool", body: "Z".repeat(900), meta: { tool_name: "read_file" } },
+    {
+      ts: `${today}T10:00:05Z`,
+      direction: "out",
+      type: "tool",
+      body: `read_file({"path":"/tmp/x"})`,
+      meta: { tool_name: "read_file", result: { content: "EL-CONTENIDO-QUE-IMPORTA " + "Z".repeat(900) } },
+    },
     { ts: `${today}T10:00:06Z`, direction: "out", type: "agent", body: "listo, lo leí" },
   ]);
   const turns = getRecentChannelTurnsFromFs({ channel: "telegram", chat_id: 7, _globalMessagesDir: dir });
   // user, then tool+agent coalesced onto the assistant side.
   assert.equal(turns[0].role, "user");
   assert.equal(turns[1].role, "assistant");
-  assert.match(turns[1].content, /\[tool result: read_file\]/);
-  assert.ok(turns[1].content.length <= 400 + 64, "tool slice stays bounded");
+  assert.match(turns[1].content, /\[tool read_file\]/);
+  // The point of the record: what came BACK is in context, not only what was asked.
+  assert.match(turns[1].content, /EL-CONTENIDO-QUE-IMPORTA/);
+  assert.ok(turns[1].content.length <= 700 + 64, "tool slice stays bounded");
   assert.match(turns[1].content, /listo, lo leí/);
+});
+
+test("reader: a shell result is unwrapped to its stdout, envelope and all", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-reader-sh-"));
+  const today = new Date().toISOString().slice(0, 10);
+  seedTelegram(dir, 71, [
+    { ts: `${today}T10:00:00Z`, direction: "in", type: "user", body: "cuántos hay" },
+    {
+      ts: `${today}T10:00:05Z`,
+      direction: "out",
+      type: "tool",
+      body: `run_shell({"command":"wc -l x"})`,
+      // Stored serialized, the way a trace round-trips through JSONL.
+      meta: { tool: "run_shell", result: JSON.stringify({ exit_code: 0, stdout: "1247 x\n", stderr: "" }) },
+    },
+  ]);
+  const turns = getRecentChannelTurnsFromFs({ channel: "telegram", chat_id: 71, _globalMessagesDir: dir });
+  assert.match(turns[1].content, /1247 x/);
+  assert.ok(!/exit_code/.test(turns[1].content), "the envelope is noise; stdout is the answer");
 });
 
 test("reader: a compact record is prepended as a system turn; covered turns dropped", () => {

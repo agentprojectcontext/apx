@@ -418,13 +418,73 @@ export function searchProjectMessages(projectRoot, query, limit = 50) {
   return all.slice(0, Math.min(limit, 500));
 }
 
-const TOOL_CONTEXT_CAP = 400; // chars of a tool result kept in model context
+const TOOL_CONTEXT_CAP = 700; // chars of a tool result kept in model context
+const TOOL_CALL_CAP = 160;    // chars of the invocation that introduces it
 
-// Truncated, prefixed rendering of a tool result for model context (Pieza 3).
+// What a tool record actually returned. The record stores the invocation in
+// `body` ("run_shell({\"command\":…})") and the OUTCOME in `meta.result` —
+// this used to read `body`, so the rolling history replayed the agent's own
+// commands and never a single result. A turn could re-read the shell script it
+// wrote an hour ago and still not know what the shell said, which is what made
+// long Telegram threads feel amnesiac: the model kept re-deriving facts it had
+// already fetched. Prefer the result; fall back to the invocation only when a
+// record has none (older records, or a tool that returns undefined).
+function renderToolResultBody(m) {
+  let r = m.meta?.result;
+  if (r === undefined || r === null || r === "") return "";
+  // Some writers store the result already serialized. Re-parse so the shell
+  // envelope below still gets unwrapped instead of being replayed as escaped
+  // JSON, which spends the whole budget on backslashes.
+  if (typeof r === "string") {
+    const t = r.trim();
+    if (t.startsWith("{") || t.startsWith("[")) {
+      try {
+        r = JSON.parse(t);
+      } catch {
+        // Records written before the trace kept its shape are truncated JSON
+        // text and will never parse. Dig the stdout out by hand rather than
+        // replaying a wall of backslashes.
+        const cut = t.match(/"stdout"\s*:\s*"((?:[^"\\]|\\.)*)/);
+        if (!cut) return t;
+        try { return JSON.parse(`"${cut[1]}"`); } catch { return cut[1]; }
+      }
+    } else {
+      return r;
+    }
+  }
+  // Shell-shaped results are mostly envelope; the stdout is the information.
+  if (typeof r === "object" && !Array.isArray(r)) {
+    const parts = [];
+    if (typeof r.stdout === "string" && r.stdout.trim()) parts.push(r.stdout.trim());
+    if (typeof r.stderr === "string" && r.stderr.trim()) parts.push(`stderr: ${r.stderr.trim()}`);
+    if (r.error) parts.push(`error: ${typeof r.error === "string" ? r.error : JSON.stringify(r.error)}`);
+    if (parts.length) {
+      const code = r.exit_code;
+      return (Number.isFinite(code) && code !== 0 ? `exit=${code} ` : "") + parts.join(" | ");
+    }
+  }
+  try {
+    return JSON.stringify(r);
+  } catch {
+    return String(r);
+  }
+}
+
+// Truncated, prefixed rendering of a tool record for model context (Pieza 3).
+// Shape: `[tool <name>] <short invocation> → <result>`. The invocation is kept
+// (short) because a result with no question attached is unreadable — "1247"
+// means nothing without "wc -l on X". The result gets the bulk of the budget.
 function renderToolResult(m) {
   const name = m.meta?.tool_name || m.meta?.tool || m.actor_id || "tool";
-  const body = String(m.body || "").replace(/\s+/g, " ").trim();
-  return `[tool result: ${name}] ${body}`.slice(0, TOOL_CONTEXT_CAP);
+  const flat = (s) => String(s || "").replace(/\s+/g, " ").trim();
+  // `body` is "<name>(<args>)" and the name is already in the prefix — keep
+  // only the arguments so the cap buys context, not a repeated tool name.
+  const raw = flat(m.body);
+  const call = (raw.startsWith(`${name}(`) ? raw.slice(name.length + 1, -1) : raw).slice(0, TOOL_CALL_CAP);
+  const result = flat(renderToolResultBody(m));
+  if (!result) return `[tool ${name}] ${call}`.slice(0, TOOL_CONTEXT_CAP);
+  const head = `[tool ${name}] ${call} → `;
+  return head + result.slice(0, Math.max(120, TOOL_CONTEXT_CAP - head.length));
 }
 
 // Collapse consecutive same-role entries into one message. Keeps the model
@@ -448,8 +508,8 @@ function coalesceTurns(turns) {
 //   - the latest `compact` record (if any) is prepended as a role:"system"
 //     turn "[RESUMEN COMPACTADO turnos a-b]: …"; the raw turns it covers are
 //     dropped (they live in the summary now)
-//   - tool results are INCLUDED, truncated to 400 chars, prefixed
-//     "[tool result: <tool>]" (kept on the assistant side)
+//   - tool records are INCLUDED as "[tool <name>] <call> → <result>", the
+//     RESULT truncated to fit TOOL_CONTEXT_CAP (kept on the assistant side)
 //   - the most recent `keepRecent` conversational turns are kept verbatim
 //   - consecutive same-role turns are coalesced
 //
