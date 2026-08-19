@@ -12,6 +12,7 @@
 //   - Super-agent self-memory (~/.apx/memory.md) — global to the super-agent.
 import fs from "node:fs";
 import path from "node:path";
+import { appendDatedBullet } from "#core/memory/dated-log.js";
 
 const PROMPT_LIMIT = 1500;
 
@@ -72,14 +73,7 @@ export function appendRoutineMemory(storagePath, routineId, note, { routineName 
   if (!text) throw new Error("nothing to remember (empty note)");
   ensureRoutineMemory(storagePath, routineId, routineName);
   const file = routineMemoryPath(storagePath, routineId);
-  const today = new Date().toISOString().slice(0, 10);
-  const heading = `## ${today}`;
-  const oneLine = text.replace(/\n+/g, " ").trim();
-  const bullet = `- ${oneLine}`;
-  const existing = fs.readFileSync(file, "utf8");
-  const next = existing.includes(heading)
-    ? existing.trimEnd() + `\n${bullet}\n`
-    : existing.trimEnd() + `\n\n${heading}\n${bullet}\n`;
+  const next = appendDatedBullet(fs.readFileSync(file, "utf8"), text);
   fs.writeFileSync(file, next);
   return { path: file, note: text };
 }

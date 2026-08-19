@@ -19,8 +19,7 @@ import { SELF_MEMORY_PATH } from "../config/paths.js";
 
 export { SELF_MEMORY_PATH };
 import { resolveAgentName } from "../identity/index.js";
-
-
+import { appendDatedBullet } from "#core/memory/dated-log.js";
 
 function notebookHeader() {
   let name = "";
@@ -91,59 +90,23 @@ export function readSelfMemoryForPrompt(limit = SELF_MEMORY_PROMPT_LIMIT) {
   return out.join("\n").trim();
 }
 
-// HH:MM (UTC) for the current time — used to tag notes per the cross-channel
-// format "[HH:MM][canal] nota".
-function nowHm() {
-  return new Date().toISOString().slice(11, 16);
-}
-
 /**
- * Append a dated note to the notebook. Each note is a markdown bullet under a
- * `## YYYY-MM-DD` heading so the file stays chronologically skimmable. Creates
- * the file (and ~/.apx) on first write.
- *
- * opts.channel — when given, the bullet is tagged "[HH:MM][channel] note" so
- *   the cross-channel broker (and the RAG indexer) can attribute the note to a
- *   surface and time. Without it the legacy "- note" form is kept.
+ * Append a dated note to the notebook. Creates the file (and ~/.apx) on first
+ * write. The bullet format — one `## YYYY-MM-DD` heading per day, an
+ * "[HH:MM][channel]" tag so the cross-channel broker and the RAG indexer can
+ * attribute a note to a surface and a time — lives in core/memory/dated-log.js,
+ * shared with project memory and routine memory.
  */
 export function appendSelfMemory(note, opts = {}) {
   const text = String(note || "").trim();
   if (!text) throw new Error("nothing to remember (empty note)");
   fs.mkdirSync(path.dirname(SELF_MEMORY_PATH), { recursive: true });
 
-  const today = new Date().toISOString().slice(0, 10);
-  const existing = readSelfMemory();
-  const heading = `## ${today}`;
-  const oneLine = text.replace(/\n+/g, " ").trim();
-  const channel = String(opts.channel || "").trim().toLowerCase();
-  const tag = channel ? `[${opts.time || nowHm()}][${channel}] ` : "";
-  const bullet = `- ${tag}${oneLine}`;
-
-  let next;
-  if (!existing.trim()) {
-    next = `${notebookHeader()}\n\n${heading}\n${bullet}\n`;
-  } else if (existing.includes(heading)) {
-    // Append the bullet under today's existing heading.
-    const lines = existing.split("\n");
-    const idx = lines.lastIndexOf(heading);
-    // Find the end of today's block (next heading or EOF).
-    let insertAt = lines.length;
-    for (let i = idx + 1; i < lines.length; i++) {
-      if (lines[i].startsWith("## ")) {
-        insertAt = i;
-        break;
-      }
-    }
-    // Trim trailing blank lines inside the block before inserting.
-    while (insertAt > idx + 1 && lines[insertAt - 1].trim() === "") insertAt--;
-    lines.splice(insertAt, 0, bullet);
-    next = lines.join("\n");
-    if (!next.endsWith("\n")) next += "\n";
-  } else {
-    const sep = existing.endsWith("\n") ? "" : "\n";
-    next = `${existing}${sep}\n${heading}\n${bullet}\n`;
-  }
-
+  const next = appendDatedBullet(readSelfMemory(), text, {
+    channel: opts.channel,
+    time: opts.time,
+    header: notebookHeader(),
+  });
   fs.writeFileSync(SELF_MEMORY_PATH, next);
   return { path: SELF_MEMORY_PATH, note: text };
 }

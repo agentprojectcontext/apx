@@ -33,6 +33,20 @@ Cuando el super-agente llama a su herramienta `remember`, el dato se agrega a
 El archivo se crea al arrancar el daemon si no existe. _No_ se committea al repo — es
 estado global local de la máquina.
 
+#### Un dato de un proyecto va a ese proyecto
+
+`remember` acepta un `project` opcional (id, nombre o path). Con eso, la nota se agrega a la
+memoria propia de ese proyecto, en `<repo>/.apc/memory.md`, en vez de la libreta global — el
+mismo archivo que edita la pantalla **Memories** del proyecto y el que el indexador scopea a
+`project:<id>`. Usalo para qué es un repo, su stack, quién lo lleva, una decisión que se tomó
+ahí; dejá `project` vacío para los datos que importan en todos los canales. A diferencia de la
+libreta, la memoria de proyecto se committea con el repo, así que viaja con él.
+
+```bash
+# "acordate de que Northwind corre sobre Postgres en producción, en el proyecto northwind"
+# → <northwind>/.apc/memory.md, no ~/.apx/memory.md
+```
+
 ### Pieza 2 — Recuperación RAG (búsqueda vectorial)
 
 Cada mensaje que pasa por cualquier canal se indexa de forma asíncrona en un almacén vectorial en
@@ -185,7 +199,10 @@ Todas las claves viven bajo `config.memory`:
 | **Compactación** | No aplica | Progresiva (Pieza 3) |
 
 Usá el archivo por agente para datos estables y curados sobre el rol del agente en el proyecto. El sistema
-entre canales maneja el contexto dinámico, turno a turno, que abarca superficies.
+entre canales maneja el contexto dinámico, turno a turno, que abarca superficies. Hay un tercer archivo
+entre los dos: `<repo>/.apc/memory.md`, la memoria propia del proyecto — la escribe `remember` con un
+`project`, se edita en la pantalla Memories del proyecto y es la única de las tres que se committea con
+el repo.
 
 ## Siguiente
 

@@ -33,6 +33,20 @@ When the super-agent calls its `remember` tool, the fact is appended to
 The file is created on daemon boot if it doesn't exist. It is _not_ committed to the repo — it
 is machine-local global state.
 
+#### A fact about one project goes to that project
+
+`remember` takes an optional `project` (id, name, or path). With it, the note is appended to
+that project's own memory at `<repo>/.apc/memory.md` instead of the global notebook — the same
+file the project's **Memories** screen edits, and the one the indexer scopes to `project:<id>`.
+Use it for what a repo is, its stack, who owns it, a decision taken in it; leave `project` empty
+for facts that matter on every channel. Unlike the notebook, project memory is committed with
+the repo, so it travels with the project.
+
+```bash
+# "remember that Northwind runs on Postgres in production, in the northwind project"
+# → <northwind>/.apc/memory.md, not ~/.apx/memory.md
+```
+
 ### Piece 2 — RAG retrieval (vector search)
 
 Every message that passes through any channel is indexed asynchronously in a vector store at
@@ -184,7 +198,9 @@ All keys live under `config.memory`:
 | **Compaction** | Not applicable | Progressive (Piece 3) |
 
 Use the per-agent file for stable, curated facts about the agent's project role. The cross-channel
-system handles dynamic, turn-by-turn context that spans surfaces.
+system handles dynamic, turn-by-turn context that spans surfaces. A third file sits between them:
+`<repo>/.apc/memory.md`, the project's own memory — written by `remember` with a `project`, edited
+in the project's Memories screen, and the only one of the three that is committed with the repo.
 
 ## Next
 

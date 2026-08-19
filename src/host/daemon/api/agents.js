@@ -7,7 +7,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import { readAgents, readVaultAgents, readVaultAgent } from "#core/apc/parser.js";
-import { apcAgentFile, apcDir, apcMemoryFile } from "#core/apc/paths.js";
+import { apcAgentFile } from "#core/apc/paths.js";
+import {
+  readProjectMemory,
+  writeProjectMemory,
+  projectMemoryPath,
+} from "#core/apc/project-memory.js";
 import {
   writeAgentFile,
   writeVaultAgentFile,
@@ -283,12 +288,13 @@ export function register(api, { projects, project }) {
   });
 
   // ---- Project-level memory (.apc/memory.md) ----
+  // The file itself is core's (core/apc/project-memory.js) — the same one the
+  // `remember` tool appends to, so the screen and the agent cannot drift onto
+  // two different paths again.
   api.get("/projects/:pid/memory", (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    const memPath = apcMemoryFile(p.path);
-    const body = fs.existsSync(memPath) ? fs.readFileSync(memPath, "utf8") : "";
-    res.json({ body, path: memPath });
+    res.json({ body: readProjectMemory(p.path), path: projectMemoryPath(p.path) });
   });
 
   api.put("/projects/:pid/memory", (req, res) => {
@@ -297,11 +303,9 @@ export function register(api, { projects, project }) {
     const { body } = req.body || {};
     if (typeof body !== "string")
       return res.status(400).json({ error: "body must be string" });
-    fs.mkdirSync(apcDir(p.path), { recursive: true });
-    const memPath = apcMemoryFile(p.path);
-    fs.writeFileSync(memPath, body);
+    const { bytes } = writeProjectMemory(p.path, body);
     try { projects.rebuild(p.id); } catch {}
-    res.json({ ok: true, bytes: Buffer.byteLength(body, "utf8") });
+    res.json({ ok: true, bytes });
   });
 
   // ---- Per-agent memory ----
