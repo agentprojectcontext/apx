@@ -70,6 +70,18 @@ export function TasksTab({ pid }: { pid?: string }) {
     select(paged.items[0].id);
   }, [paged.items, selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const wantEdit = params.get("edit") === "1";
+  const canOpenEditor = wantEdit && !!selected;
+  useEffect(() => {
+    if (!canOpenEditor || !selected) return;
+    setEditing({ pid: rowPid(selected), task: selected });
+    setParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("edit");
+      return next;
+    }, { replace: true });
+  }, [canOpenEditor, selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <Section
       fullHeight

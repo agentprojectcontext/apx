@@ -1771,6 +1771,8 @@ export const en = {
     brain_expand:            "Expand brains",
     brain_collapse:          "Collapse",
     brain_open:              "Open",
+    brain_view:              "View",
+    brain_edit:              "Edit",
     brain_part_of:           "Part of",
     brain_branches:          "Branches",
     config_def_desc:         "identity frontmatter. The system prompt lives in the Prompt tab.",

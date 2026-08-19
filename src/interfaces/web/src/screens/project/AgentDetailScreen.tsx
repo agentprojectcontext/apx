@@ -16,6 +16,7 @@ import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import { AutonomyPicker, AreaRoleFields, AgentIconPicker } from "../../components/agents/AgentFormFields";
 import { AgentSkillsPicker } from "../../components/agents/AgentSkillsPicker";
 import { AgentModelSelect } from "../../components/agents/AgentModelSelect";
+import { INHERIT_MODEL, isInheritedModel } from "../../components/agents/modelCatalog";
 import { useProject } from "../../hooks/useProjects";
 import { BlobAvatar } from "../../components/agents/BlobAvatar";
 import { isBlobKey } from "../../components/agents/blobPresets";
@@ -24,7 +25,7 @@ import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 import { toneOutline, toneText } from "../../lib/tone";
 import type { AgentAutonomy } from "../../types/daemon";
-import { BrainGraph, type BrainNode, type BrainEdge } from "./AgentBrainGraph";
+import { BrainGraph, type BrainNode, type BrainEdge, agentPreview, routinePreview, clipPreview } from "./AgentBrainGraph";
 
 type TabKey = "overview" | "memories" | "records" | "sleep" | "brain" | "prompt" | "config";
 function buildTabs(): { key: TabKey; label: string; icon: typeof Bot }[] {
@@ -200,15 +201,21 @@ export function AgentDetailScreen({ pid }: { pid: string }) {
 
       {tab === "brain" && (
         <BrainTab
+          pid={pid}
           slug={slug}
           emoji={a.emoji || undefined}
           icon={a.icon || undefined}
+          description={a.description || undefined}
+          role={a.role || undefined}
+          type={a.type || undefined}
           memory={a.memory || ""}
           threads={(threads.data || []).map((t) => ({ id: t.id, label: t.title || t.filename }))}
           tasks={myTasks.map((t) => ({ id: t.id, label: t.title, detail: t.body || undefined }))}
           routines={myRoutines}
-          parent={a.parent || null}
-          children={children.map((c) => c.slug)}
+          parent={a.parent
+            ? ((agents.data || []).find((x) => x.slug === a.parent) ?? { slug: a.parent })
+            : null}
+          children={children}
         />
       )}
 
@@ -333,7 +340,7 @@ function AgentConfigForm({
         area: area || null,
         role: role || null,
         autonomy: autonomy || null,
-        model: model || null,
+        model: isInheritedModel(model) ? INHERIT_MODEL : model,
         parent: parent || null,
         is_master: isMaster || type === "orchestrator",
         skills: skillDefaults ? [] : skills,
@@ -699,29 +706,64 @@ function shareKeyword(a: Set<string>, b: Set<string>): boolean {
   return false;
 }
 
+type BrainAgentFace = {
+  slug: string;
+  emoji?: string | null;
+  icon?: string | null;
+  description?: string | null;
+  role?: string | null;
+  type?: string | null;
+};
+
+function brainAgentNode(pid: string, id: string, agent: BrainAgentFace, relation: string): BrainNode {
+  return {
+    id,
+    label: agent.slug,
+    kind: "agentlink",
+    role: "hub",
+    relation,
+    slug: agent.slug,
+    emoji: agent.emoji || undefined,
+    icon: agent.icon || undefined,
+    detail: agentPreview(agent),
+    href: `/p/${pid}/agents/${agent.slug}`,
+    editHref: `/p/${pid}/agents/${agent.slug}?tab=config`,
+  };
+}
+
 function BrainTab({
-  slug, emoji, icon, memory, threads, tasks, routines, parent, children,
+  pid, slug, emoji, icon, description, role, type, memory, threads, tasks, routines, parent, children,
 }: {
+  pid: string;
   slug: string;
   emoji?: string;
   icon?: string;
+  description?: string;
+  role?: string;
+  type?: string;
   memory: string;
   threads: { id: string; label: string }[];
   tasks: { id: string; label: string; detail?: string }[];
   routines: RoutineEntry[];
-  parent: string | null;
-  children: string[];
+  parent: BrainAgentFace | null;
+  children: BrainAgentFace[];
 }) {
   const { nodes, edges } = useMemo(() => {
     const nodes: BrainNode[] = [];
     const edges: BrainEdge[] = [];
     const CORE = "__core";
-    nodes.push({ id: CORE, label: slug, kind: "agent", role: "core", emoji, icon, relation: "self" });
+    const agentHref = `/p/${pid}/agents/${slug}`;
+    nodes.push({
+      id: CORE, label: slug, kind: "agent", role: "core", emoji, icon, relation: "self", slug,
+      detail: agentPreview({ description, role, type }),
+      href: agentHref,
+      editHref: `${agentHref}?tab=config`,
+    });
 
     // A category hub groups its items so items hang off the hub (a two-level
     // tree) instead of all wiring straight to the core.
-    const hub = (id: string, label: string, kind: BrainNode["kind"]) => {
-      nodes.push({ id, label, kind, role: "hub", relation: "cluster" });
+    const hub = (id: string, label: string, kind: BrainNode["kind"], href?: string) => {
+      nodes.push({ id, label, kind, role: "hub", relation: "cluster", href });
       edges.push({ source: CORE, target: id });
     };
 
@@ -730,28 +772,59 @@ function BrainTab({
     const ts = tasks.slice(0, 8);
 
     if (mem.length) {
-      hub("hub-mem", t("agents_ui.kind_memory"), "memory");
-      mem.forEach((f, i) => { nodes.push({ id: `m${i}`, label: f, kind: "memory", relation: "knows", detail: f }); edges.push({ source: "hub-mem", target: `m${i}` }); });
+      hub("hub-mem", t("agents_ui.kind_memory"), "memory", `${agentHref}?tab=memories`);
+      mem.forEach((f, i) => {
+        nodes.push({
+          id: `m${i}`, label: f, kind: "memory", relation: "knows", detail: f,
+          href: `${agentHref}?tab=memories`,
+        });
+        edges.push({ source: "hub-mem", target: `m${i}` });
+      });
     }
     if (th.length) {
-      hub("hub-thread", t("agents_ui.kind_thread"), "thread");
-      th.forEach((x) => { nodes.push({ id: `th-${x.id}`, label: x.label, kind: "thread", relation: "in_thread" }); edges.push({ source: "hub-thread", target: `th-${x.id}` }); });
+      hub("hub-thread", t("agents_ui.kind_thread"), "thread", `/p/${pid}/chat?agent=${slug}`);
+      th.forEach((x) => {
+        nodes.push({
+          id: `th-${x.id}`, label: x.label, kind: "thread", relation: "in_thread",
+          href: `/p/${pid}/chat?agent=${slug}&conv=${x.id}`,
+        });
+        edges.push({ source: "hub-thread", target: `th-${x.id}` });
+      });
     }
     if (ts.length) {
-      hub("hub-task", t("agents_ui.kind_task"), "task");
-      ts.forEach((x) => { nodes.push({ id: `ts-${x.id}`, label: x.label, kind: "task", relation: "handles_task", detail: x.detail }); edges.push({ source: "hub-task", target: `ts-${x.id}` }); });
+      hub("hub-task", t("agents_ui.kind_task"), "task", `/p/${pid}/tasks`);
+      ts.forEach((x) => {
+        nodes.push({
+          id: `ts-${x.id}`, label: x.label, kind: "task", relation: "handles_task",
+          detail: clipPreview(x.detail),
+          href: `/p/${pid}/tasks?task=${x.id}`,
+          editHref: `/p/${pid}/tasks?task=${x.id}&edit=1`,
+        });
+        edges.push({ source: "hub-task", target: `ts-${x.id}` });
+      });
     }
     if (routines.length) {
-      hub("hub-routine", t("agents_ui.kind_routine"), "routine");
-      routines.forEach((r) => { nodes.push({ id: `rt-${r.name}`, label: r.name, kind: "routine", relation: "ticks", detail: `schedule: ${r.schedule}` }); edges.push({ source: "hub-routine", target: `rt-${r.name}` }); });
+      hub("hub-routine", t("agents_ui.kind_routine"), "routine", `/p/${pid}/routines`);
+      routines.forEach((r) => {
+        nodes.push({
+          id: `rt-${r.name}`, label: r.name, kind: "routine", relation: "ticks",
+          detail: routinePreview(r),
+          href: `/p/${pid}/routines?r_id=${encodeURIComponent(r.name)}`,
+          editHref: `/p/${pid}/routines?r_id=${encodeURIComponent(r.name)}&edit=1`,
+        });
+        edges.push({ source: "hub-routine", target: `rt-${r.name}` });
+      });
     }
     if (children.length) {
-      hub("hub-team", t("agents_ui.kind_hierarchy"), "agentlink");
-      children.forEach((c) => { nodes.push({ id: `c-${c}`, label: c, kind: "agentlink", role: "hub", relation: "orchestrates", slug: c }); edges.push({ source: "hub-team", target: `c-${c}` }); });
+      hub("hub-team", t("agents_ui.kind_hierarchy"), "agentlink", `/p/${pid}/agents`);
+      children.forEach((c) => {
+        nodes.push(brainAgentNode(pid, `c-${c.slug}`, c, "orchestrates"));
+        edges.push({ source: "hub-team", target: `c-${c.slug}` });
+      });
     }
     if (parent) {
-      nodes.push({ id: `p-${parent}`, label: parent, kind: "agentlink", role: "hub", relation: "reports_to", slug: parent });
-      edges.push({ source: `p-${parent}`, target: CORE });
+      nodes.push(brainAgentNode(pid, `p-${parent.slug}`, parent, "reports_to"));
+      edges.push({ source: `p-${parent.slug}`, target: CORE });
     }
 
     // Cross-links: wire a task to a thread that shares a keyword (first match).
@@ -763,7 +836,7 @@ function BrainTab({
     });
 
     return { nodes, edges };
-  }, [slug, emoji, icon, memory, threads, tasks, routines, parent, children]);
+  }, [pid, slug, emoji, icon, description, role, type, memory, threads, tasks, routines, parent, children]);
 
   return (
     <Section title={t("project.agent_detail.brain_title")} description={t("project.agent_detail.brain_desc")}>
