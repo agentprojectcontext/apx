@@ -202,9 +202,13 @@ export function SkillsManager({
   };
 
   return (
-    <div className="space-y-4">
+    // TabLayout gives the routed content a definite height, so the screen can
+    // fill it: header fixed, list and viewer sharing what is left and scrolling
+    // inside themselves. The 62vh this used to hardcode left dead space below
+    // the panes on a tall window and squashed them on a short one.
+    <div className="flex h-full min-h-[34rem] flex-col gap-4">
       {/* Header: scope + count + Add */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
           {selectable ? (
             <div className="w-64">
@@ -245,10 +249,10 @@ export function SkillsManager({
       {isLoading || !data ? (
         <Loading />
       ) : (
-        <div className="grid min-h-[62vh] gap-4 lg:grid-cols-[20rem_1fr]">
+        <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] gap-4 lg:grid-cols-[20rem_1fr] lg:grid-rows-1">
           {/* List */}
-          <div className="overflow-hidden rounded-xl border border-border bg-card">
-            <ul className="max-h-[62vh] divide-y divide-border overflow-y-auto">
+          <div className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-border bg-card">
+            <ul className="max-h-72 flex-1 divide-y divide-border overflow-y-auto lg:max-h-none">
               {skills.length === 0 ? (
                 <li className="px-3 py-4 text-sm text-muted-fg">{t("skills_page.empty")}</li>
               ) : skills.map((s) => (
@@ -260,15 +264,15 @@ export function SkillsManager({
           </div>
 
           {/* Viewer */}
-          <div className="min-w-0 overflow-hidden rounded-xl border border-border bg-card">
+          <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card">
             {!selected ? (
-              <div className="grid h-full place-items-center p-8 text-sm text-muted-fg">
+              <div className="grid min-h-0 flex-1 place-items-center p-8 text-sm text-muted-fg">
                 {t("skills_page.select_a_skill")}
               </div>
             ) : !detail ? (
               <div className="p-6"><Loading /></div>
             ) : (
-              <div className="flex h-full max-h-[62vh] flex-col">
+              <div className="flex min-h-0 flex-1 flex-col">
                 {/* Viewer header */}
                 <div className="flex items-start justify-between gap-3 border-b border-border px-5 py-4">
                   <div className="min-w-0">

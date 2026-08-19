@@ -19,16 +19,23 @@ export function SkillsSettings() {
     setParams(next, { replace: true });
   };
 
+  // The manager fills the height it is given (list + viewer scroll inside it);
+  // the RAG panel is an ordinary settings form and keeps its natural height.
+  const fill = tab === "manager";
   return (
-    <div className="space-y-5">
-      <div className="flex items-center gap-1 border-b border-border">
+    <div className={`flex flex-col gap-5 ${fill ? "h-full" : ""}`}>
+      <div className="flex shrink-0 items-center gap-1 border-b border-border">
         <SubTab active={tab === "manager"} onClick={() => setTab("manager")}
           icon={Sparkles} label={t("skills_page.manager_tab")} />
         <SubTab active={tab === "rag"} onClick={() => setTab("rag")}
           icon={SlidersHorizontal} label={t("skills_page.rag_tab")} />
       </div>
 
-      {tab === "manager" ? <SkillsManager selectable /> : <SkillsInspectorPanel />}
+      {fill ? (
+        <div className="min-h-0 flex-1"><SkillsManager selectable /></div>
+      ) : (
+        <SkillsInspectorPanel />
+      )}
     </div>
   );
 }
