@@ -515,6 +515,11 @@ export async function runAgent({
       // next request, avoiding the 400 "missing thought_signature" error.
       // Other engines return undefined here, so this field is a no-op for them.
       ...(result._geminiRawParts ? { _geminiRawParts: result._geminiRawParts } : {}),
+      // Same idea for the OpenAI-shaped reasoners: DeepSeek's thinking mode
+      // rejects a replayed assistant turn that lost its `reasoning_content`.
+      // Stored under an underscore so only the adapters that ask for it put it
+      // back on the wire (see zen.js modelReplaysReasoning).
+      ...(result.reasoning ? { _reasoning: result.reasoning } : {}),
     });
 
     let finishSummary = null;
