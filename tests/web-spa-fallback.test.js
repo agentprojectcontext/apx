@@ -35,6 +35,9 @@ test("isKnownSpaRoute matches every client route in App.tsx", () => {
     "/m/code/anything",
     "/p/0",
     "/p/12/tasks",
+    // The phone surface, rendered outside the desktop shell.
+    "/mobile",
+    "/mobile/anything",
   ];
   for (const p of known) {
     assert.equal(isKnownSpaRoute(p), true, `${p} should be a known SPA route (200)`);

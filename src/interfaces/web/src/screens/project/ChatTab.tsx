@@ -32,12 +32,17 @@ const ROBY_SLUG = "__super_agent__";
 export function ChatTab({
   pid,
   hideSidebar = false,
+  hideHeader = false,
   initialSelection,
   bare = false,
   onOpenInProject,
 }: {
   pid: string;
   hideSidebar?: boolean;
+  /** Drop the thread header. The phone surface draws its own — with the back
+   *  button and the session switcher on it — and two stacked headers naming the
+   *  same agent is a rendering bug, not a layout. */
+  hideHeader?: boolean;
   /** Open a specific conversation on mount instead of a fresh live session. */
   initialSelection?: ChatKey;
   /** Drop the card chrome. An embedding screen already draws a panel around
@@ -261,7 +266,7 @@ export function ChatTab({
   if (agents.isLoading) return <Loading />;
 
   return (
-    <div className={cn("flex h-full overflow-hidden", !bare && "rounded-xl border border-border bg-card/40")}>
+    <div className={cn("flex h-full min-h-0 overflow-hidden", !bare && "rounded-xl border border-border bg-card/40")}>
       {hideSidebar ? null : <ChatList
         pid={pid}
         agents={agentList}
@@ -273,8 +278,12 @@ export function ChatTab({
         autoSelectLatest={autoSelectLatest}
       />}
 
-      <section className="flex min-w-0 flex-1 flex-col">
-        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-3 py-2">
+      {/* min-h-0 is what makes the message list the only scroller: without it a
+          flex child refuses to shrink below its content, the column grows past
+          the viewport, and the composer sits under the fold with no way to
+          reach it. Invisible on a tall desktop pane, fatal on a phone. */}
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col">
+        {hideHeader ? null : <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-3 py-2">
           <div className="flex min-w-0 flex-1 items-center gap-2.5">
             <AgentAvatar {...headerFace} size={30} />
             <div className="min-w-0">
@@ -338,9 +347,9 @@ export function ChatTab({
               </Tip>
             )}
           </div>
-        </header>
+        </header>}
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
           {msgs.length ? (
             <MessageList msgs={msgs} onCopy={copyToClipboard} faceFor={faceFor} />
           ) : (

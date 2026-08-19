@@ -176,6 +176,15 @@ export const en = {
     browser_unavailable: "Browser unavailable until daemon restarts. Paste path manually.",
     no_folders:  "No folders.",
   },
+  mobile: {
+    back: "Back",
+    sessions: "Sessions",
+    no_sessions: "No saved sessions yet.",
+    live_session: "New session",
+    no_messages: "No messages yet",
+    team_members: "{count} agents",
+    empty: "You haven't talked to any agent yet.",
+  },
   inbox: {
     search: "Search",
     no_match: "Nothing matches",

@@ -87,7 +87,9 @@ export function ContextBar({ msgs }: { msgs: ChatMsg[] }) {
         type="button"
         onClick={() => expandable && setOpen((v) => !v)}
         className={cn(
-          "flex w-full items-center gap-3 px-4 py-1.5 text-muted-foreground",
+          // Wraps: on a phone the row is tokens + tools + changed files in
+          // ~360px, and a nowrap flex row just pushed the last item off-screen.
+          "flex w-full flex-wrap items-center gap-x-3 gap-y-0.5 px-4 py-1.5 text-muted-foreground",
           expandable && "hover:text-foreground",
         )}
       >

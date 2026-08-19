@@ -95,7 +95,9 @@ export function Composer({ onSend, onStop, streaming, model, onModelChange, allo
   const uploading = !!pending && !pending.media && !pending.error;
 
   return (
-    <div className="border-t border-border bg-card/60 p-3">
+    // The bottom padding clears the phone's home indicator; it resolves to the
+    // normal p-3 anywhere with no inset, so the desktop layout is untouched.
+    <div className="shrink-0 border-t border-border bg-card/60 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
       <ChatInput
         value={text}
         onValueChange={setText}
