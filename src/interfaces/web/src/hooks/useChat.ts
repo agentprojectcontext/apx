@@ -95,6 +95,9 @@ export interface UseChatResult {
   /** Conversation id we're bound to, if any. Lets callers reflect "live vs
    *  loaded" state in the UI. */
   conversationId: string | undefined;
+  /** What the loaded conversation records about itself — engine, channel — from
+   *  its own frontmatter, which is authoritative where a list row's guess is not. */
+  conversationMeta: ConversationMeta | undefined;
 }
 
 /** Concatenate the text parts of a message (for clipboard). */
@@ -421,6 +424,25 @@ export function applyStreamEvent(turn: ChatMsg, ev: ChatStreamEvent): ChatMsg {
   }
 }
 
+/** What a stored conversation records about itself (its frontmatter). */
+export interface ConversationMeta {
+  engine?: string;
+  channel?: string;
+  title?: string;
+  started?: string;
+}
+
+function metaFromDetail(detail: { channel?: string; meta?: Record<string, unknown> }): ConversationMeta {
+  const fm = (detail.meta || {}) as Record<string, unknown>;
+  const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
+  return {
+    engine: str(fm.engine),
+    channel: str(fm.channel) || detail.channel,
+    title: str(fm.title)?.replace(/^"|"$/g, ""),
+    started: str(fm.started),
+  };
+}
+
 /**
  * Single source of truth for the project chat. For Roby (super-agent) it
  * consumes the NDJSON event stream and builds a rich, opencode-style turn:
@@ -432,6 +454,12 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
   const [msgs, setMsgs] = useState<ChatMsg[]>([]);
   const [streaming, setStreaming] = useState(false);
   const [conversationId, setConversationId] = useState<string | undefined>(undefined);
+  // What the LOADED conversation says about itself — its engine, its channel —
+  // read from the file's own frontmatter rather than from whatever the list row
+  // guessed. A routine conversation opened from the sidebar was labelled "new
+  // chat · web" and showed no model at all, because the header only ever saw
+  // the selection metadata.
+  const [conversationMeta, setConversationMeta] = useState<ConversationMeta | undefined>(undefined);
   const abortRef = useRef<AbortController | null>(null);
   const convoRef = useRef<string | undefined>(undefined);
   // Monotonic token guarding async history loads. Every load()/loadThread()/
@@ -579,11 +607,13 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
         const loaded = threadToChatMsgs(detail.messages ?? []);
         convoRef.current = conversationId;
         setConversationId(conversationId);
+        setConversationMeta(metaFromDetail(detail));
         setMsgs(loaded);
       } catch (e) {
         if (seq !== loadSeqRef.current) return;
         convoRef.current = undefined;
         setConversationId(undefined);
+        setConversationMeta(undefined);
         setMsgs([]);
         onError?.((e as Error)?.message || t("shared_ui.err_load_conversation"));
       }
@@ -616,5 +646,5 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
     [pid, streaming, onError],
   );
 
-  return { msgs, send, stop, clear, load, loadThread, streaming, conversationId };
+  return { msgs, send, stop, clear, load, loadThread, streaming, conversationId, conversationMeta };
 }
