@@ -25,7 +25,7 @@ import { authorLine } from "#core/agent/author-line.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { tryResolveSkillCommand } from "#core/agent/skills/trigger.js";
 import * as askFlow from "./ask.js";
-import { telegramAuthorLabel, releaseActiveRequest } from "./helpers.js";
+import { telegramAuthorLabel, releaseActiveRequest, isImpatientResend } from "./helpers.js";
 import { handleIncomingPhoto } from "./inbound/photo.js";
 import { handleIncomingAudio } from "./inbound/audio.js";
 import { handleIncomingFile, detectIncomingFile } from "./inbound/file.js";
@@ -89,18 +89,69 @@ export async function handleUpdate(self, u) {
     // Role-based tool gating for the super-agent path (guests → no tools).
     const allowedTools = resolveAllowedTools(self.globalConfig, sender);
 
-    // Default Interrupt: abort any running request for this chat_id
+    // What the user actually typed, needed before the interrupt decision below.
+    // Media handlers rewrite it further down; a resend is plain text, so the raw
+    // field is enough here.
+    let text = msg.text || msg.caption || "";
+
+    // Default Interrupt: a new message aborts the running turn for this chat —
+    // "no, stop, do this instead". Except when the "new" message is the SAME
+    // one the turn is already working on: that is the user checking whether a
+    // quiet turn is still alive, and aborting it restarts the work from zero
+    // (see isImpatientResend). Then we let the running turn finish and say so.
     if (chat_id) {
       const prev = self.activeRequests.get(chat_id);
+      if (prev && isImpatientResend(prev, text)) {
+        const secs = Math.round((Date.now() - prev.startedAt) / 1000);
+        self.log(
+          `telegram[${self.channel.name}] resend of the in-flight message for chat ${chat_id} ` +
+          `(${secs}s in) — keeping the running turn`
+        );
+        // Logged so the history is honest about what was sent, flagged so the
+        // turn that eventually answers knows it was asked twice.
+        appendGlobalMessage({
+          channel: CHANNELS.TELEGRAM,
+          direction: "in",
+          type: "user",
+          actor_id: msg.from?.id ? String(msg.from.id) : author,
+          external_id: String(u.update_id),
+          author,
+          body: text,
+          meta: {
+            chat_id,
+            user_id: msg.from?.id || null,
+            message_id: msg.message_id,
+            tg_channel: self.channel.name,
+            resend_of_in_flight: true,
+          },
+        });
+        try {
+          // Its own words, from the situation — not a canned "please wait".
+          const line = await authorLine({
+            globalConfig: self.globalConfig,
+            instruction:
+              `You are ${Math.round(secs / 60) || 1} minute(s) into working on exactly this request ` +
+              `and the user just sent it again, which means the quiet made them think you stopped. ` +
+              `In ONE short line: you are still on it, and say what you are doing right now. ` +
+              `Do not restart, do not apologise at length, do not promise a time.`,
+          });
+          if (line) await self._send({ chat_id, text: line });
+        } catch (e) {
+          self.log(`telegram[${self.channel.name}] resend ack failed: ${e.message}`);
+        }
+        return;
+      }
       if (prev) {
         self.log(`telegram[${self.channel.name}] interrupting previous request for chat ${chat_id}`);
         prev.abort();
       }
     }
     const abortCtrl = new AbortController();
+    // The turn's own text and start time ride on the controller so the next
+    // inbound can tell "do something else" from "are you still there".
+    abortCtrl.text = text;
+    abortCtrl.startedAt = Date.now();
     if (chat_id) self.activeRequests.set(chat_id, abortCtrl);
-
-    let text = msg.text || msg.caption || "";
 
     // ── Incoming media ────────────────────────────────────────────────────
     // Photo, voice/audio and files each download the attachment and rewrite
