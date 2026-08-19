@@ -53,7 +53,7 @@ export function ChatTab({
   const [creating, setCreating] = useState(false);
   const [model, setModel] = useState("");
   const [dismissedAskKey, setDismissedAskKey] = useState<string | null>(null);
-  const { msgs, send: sendChat, stop, clear, load, loadThread, streaming } =
+  const { msgs, send: sendChat, stop, clear, load, loadThread, streaming, conversationMeta } =
     useChat(pid, (m) => toast.error(m));
   const persona = usePersonaName();
 
@@ -230,11 +230,16 @@ export function ChatTab({
   // Kept as the delete-dialog subject: there the conversation, not the agent,
   // is the thing being destroyed.
   const headerTitle = convLabel || t("project.chat.live_title", { agent: agentLabel });
+  // The loaded file knows its own channel and engine; the selection metadata is
+  // only what the list row happened to carry. Prefer the file — a routine
+  // conversation was reading as "new chat · web" with no model named anywhere.
+  const shownChannel = conversationMeta?.channel || channelLabel;
   const headerSubtitle = [
     convLabel,
     createdIso
-      ? t("project.chat.meta_created", { date: formatDate(createdIso), channel: channelLabel })
-      : t("project.chat.meta_new", { channel: channelLabel }),
+      ? t("project.chat.meta_created", { date: formatDate(createdIso), channel: shownChannel })
+      : t("project.chat.meta_new", { channel: shownChannel }),
+    conversationMeta?.engine,
   ].filter(Boolean).join(" · ");
 
   // One face per speaker, resolved from the same data the inbox uses. Turns a
