@@ -161,10 +161,26 @@ export async function compactChannelIfNeeded(opts = {}) {
   });
 
   const models = resolveCompactModels(config);
-  const summary = await summarizeStructured({ prompt, models, config });
+  const prevSummaryText = prevCompact ? String(prevCompact.body || "").trim() : "";
+  const summary = await summarizeStructured({
+    prompt,
+    models,
+    config,
+    // The new summary must subsume this one; if it comes back smaller than the
+    // state it replaces, it dropped things and is refused.
+    prevSummary: prevSummaryText,
+    onReject: ({ model, reason }) =>
+      log(`memory: compaction for ${channel}/${chat_id} refused ${model}'s summary — ${reason}`),
+  });
   if (!summary) {
-    log(`memory: compaction for ${channel}/${chat_id} skipped — no model available`);
-    return { skipped: "no model" };
+    // Deliberately writing NOTHING. A compact record replaces the turns it
+    // covers, so a bad one is permanent amnesia while no record at all just
+    // means the raw history stays and the next turn tries again.
+    log(
+      `memory: compaction for ${channel}/${chat_id} skipped — no usable summary; ` +
+      `keeping ${compactedReal} raw turn(s)`
+    );
+    return { skipped: "no usable summary" };
   }
 
   const totalCovered = prevCount + compactedReal;

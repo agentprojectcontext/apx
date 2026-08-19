@@ -94,6 +94,17 @@ export default {
       return mkToolCall(requestedTool, "mock-call-1");
     }
 
+    // `mock:truncated` → a degenerate answer: non-empty, but far too small to
+    // stand in for anything. Models the flaky provider response that used to
+    // get written over a whole conversation as its "summary".
+    if (model === "truncated" || model === "mock:truncated") {
+      return {
+        text: "USER_CONTEXT:\n- Manu",
+        usage: { input_tokens: userText.length, output_tokens: 6 },
+        raw: { model, mock: true },
+      };
+    }
+
     const sysHint = system ? ` (system: ${system.slice(0, 40)}…)` : "";
     return {
       text: `[mock:${model}] received: ${userText}${sysHint}`,

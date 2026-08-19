@@ -143,6 +143,61 @@ test("condenser: reader still surfaces the v2 record as [RESUMEN COMPACTADO]", (
   assert.match(turns[0].content, /\[RESUMEN COMPACTADO/);
 });
 
+// --- the amnesia guard ------------------------------------------------------
+//
+// A compact record REPLACES the turns it covers. Production once wrote
+// `"USER_CONTEXT:\n- Manu"` over 350 turns — the agent then spent the day
+// re-deriving what it already knew. These pin the rule that a summary has to
+// earn the right to stand in for the history.
+
+const { summaryRejectReason, countSummarySections } =
+  await import("#core/memory/summarizer.js");
+
+test("summary guard: a truncated summary is refused, a real one passes", () => {
+  assert.match(summaryRejectReason("USER_CONTEXT:\n- Manu"), /too short/);
+  assert.equal(summaryRejectReason(""), "empty");
+  assert.match(summaryRejectReason("x".repeat(900)), /section/);
+
+  const real =
+    "USER_CONTEXT:\n- Manu (APX dev).\n" + "- detail\n".repeat(40) +
+    "PENDING:\n- publicar el reel\n";
+  assert.equal(summaryRejectReason(real), null);
+  assert.ok(countSummarySections(real) >= 2);
+});
+
+test("summary guard: a new summary that shrank past the one it subsumes is refused", () => {
+  const prev = "USER_CONTEXT:\n" + "- carried state\n".repeat(200) + "PENDING:\n- algo\n";
+  const shrunk = "USER_CONTEXT:\n" + "- carried state\n".repeat(40) + "PENDING:\n- algo\n";
+  assert.equal(summaryRejectReason(shrunk), null, "fine on its own");
+  assert.match(summaryRejectReason(shrunk, { prevSummary: prev }), /shrank past/);
+  assert.equal(summaryRejectReason(prev, { prevSummary: prev }), null);
+});
+
+test("compactChannelIfNeeded: an unusable summary writes NO record — raw history survives", async () => {
+  const chat_id = 777;
+  seedTurns({ chat_id, from: "2026-05-29T10:00:00Z", count: 8 });
+  const res = await compactChannelIfNeeded({
+    channel: "telegram",
+    chat_id,
+    // `mock` echoes its prompt; `mock:truncated` is the degenerate answer.
+    config: { memory: { compact_model: "mock:truncated", compact_fallback_model: "" } },
+    maxTurns: 3,
+    keepRecent: 1,
+    max_age_hours: NO_AGE_LIMIT,
+  });
+  assert.equal(res.compacted, undefined);
+  assert.ok(res.skipped, "compaction refused rather than writing amnesia");
+  assert.equal(readCompacts(chat_id).length, 0, "nothing written to disk");
+
+  // The turns it would have covered are still replayable verbatim.
+  const turns = getRecentChannelTurnsFromFs({
+    channel: "telegram",
+    chat_id,
+    max_age_hours: NO_AGE_LIMIT,
+  });
+  assert.ok(turns.some((t) => /mensaje 0/.test(t.content)), "oldest turn survived");
+});
+
 test.after(() => {
   fs.rmSync(tmpHome, { recursive: true, force: true });
 });
