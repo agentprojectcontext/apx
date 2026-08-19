@@ -1,5 +1,8 @@
 import { Pencil, Play, Trash2, Zap } from "lucide-react";
+import useSWR from "swr";
+import { Agents } from "../../lib/api";
 import type { RoutineEntry } from "../../lib/api";
+import { AgentAvatar } from "../agents/AgentAvatar";
 import { Badge, Button, Switch, Tip } from "../ui";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
@@ -26,6 +29,12 @@ export function RoutineDetail({
   const meta = kindMeta()[routine.kind];
   const Icon = meta?.icon || Zap;
   const spec = (routine.spec || {}) as Record<string, any>;
+  // Which agent actually runs this. The header used to say "Project agent" and
+  // stop there, so a project with four routines showed the same label four
+  // times and you had to open the editor to find out who each one belonged to.
+  const agentSlug = routine.kind === "exec_agent" ? String(spec.agent || "") : "";
+  const roster = useSWR(agentSlug ? `/api/projects/${pid}/agents` : null, () => Agents.list(pid));
+  const runner = agentSlug ? (roster.data || []).find((a) => a.slug === agentSlug) : undefined;
   const pre = routine.pre_commands || [];
   const post = routine.post_commands || [];
 
@@ -54,7 +63,16 @@ export function RoutineDetail({
               <Icon size={14} />
             </span>
             <h3 className="truncate text-base font-semibold">{routine.name}</h3>
-            <Badge tone={routine.kind === "shell" ? "warning" : "info"}>{meta?.label || routine.kind}</Badge>
+            {agentSlug ? (
+              <Badge tone="info">
+                <span className="flex items-center gap-1.5">
+                  <AgentAvatar icon={runner?.icon} emoji={runner?.emoji} name={runner?.name || agentSlug} size={16} />
+                  <span className="truncate">{runner?.name || agentSlug}</span>
+                </span>
+              </Badge>
+            ) : (
+              <Badge tone={routine.kind === "shell" ? "warning" : "info"}>{meta?.label || routine.kind}</Badge>
+            )}
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <Switch checked={routine.enabled} onChange={onToggle} />

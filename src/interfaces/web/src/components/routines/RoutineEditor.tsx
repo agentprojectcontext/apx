@@ -4,6 +4,7 @@ import { ArrowRight, Terminal } from "lucide-react";
 import { Routines, Agents, Telegram, type RoutineEntry } from "../../lib/api";
 import { Button, Dialog, Field, Input, Switch } from "../ui";
 import { UiSelect } from "../UiSelect";
+import { AgentAvatar } from "../agents/AgentAvatar";
 import { useToast } from "../Toast";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
@@ -164,7 +165,16 @@ export function RoutineEditor({
             {kind === "exec_agent" && (
               <Field label={t("project.routines.agent_field")} hint={t("project.routines.agent_hint")}>
                 <UiSelect value={agent} onChange={setAgent} placeholder={agentsList.isLoading ? t("project.routines.agent_loading") : t("project.routines.agent_pick")}
-                  options={(agentsList.data || []).map((a) => ({ value: a.slug, label: a.slug, description: [a.role, a.model].filter(Boolean).join(" · ") || undefined }))} />
+                  options={(agentsList.data || []).map((a) => ({
+                    value: a.slug,
+                    label: a.name || a.slug,
+                    // Same face the agent has everywhere else — the roster, the
+                    // inbox, its bubbles. Picking "who runs this" off a list of
+                    // bare slugs was the one place that made you read instead of
+                    // recognise.
+                    adornment: <AgentAvatar icon={a.icon} emoji={a.emoji} name={a.name || a.slug} size={20} />,
+                    description: [a.role, a.model].filter(Boolean).join(" · ") || undefined,
+                  }))} />
               </Field>
             )}
             <Field label={t("project.routines.schedule_field")} hint={t("project.routines.schedule_hint")}>
