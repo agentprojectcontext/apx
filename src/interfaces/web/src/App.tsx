@@ -10,6 +10,7 @@ import { DesktopScreen } from "./screens/modules/DesktopScreen";
 import { CodeScreen } from "./screens/modules/CodeScreen";
 import { AddProjectDialog } from "./components/AddProjectDialog";
 import { PairingScreen } from "./screens/PairingScreen";
+import { MobileScreen } from "./screens/mobile/MobileScreen";
 import { RobyBubble } from "./components/RobyBubble";
 import { Roby, RobyEmpty, type RobyMood } from "./components/Roby";
 import { ToastProvider } from "./components/Toast";
@@ -52,7 +53,23 @@ export function App() {
   return (
     <ToastProvider>
       <TooltipProvider delay={0}>
-        <Shell />
+        <Routes>
+          {/* The phone surface renders OUTSIDE the desktop shell — no project
+              rail, no top bar, no card. Everything it needs is its own header,
+              and anything the shell would add is width it does not have. */}
+          <Route path="/mobile/*" element={
+            /* Its own viewport box. Outside the Shell there is no h-screen
+               ancestor, so the screen's h-full had nothing to be full OF: the
+               composer flowed past the fold and you could not reach it.
+               100dvh, not 100vh — on a phone the browser's address bar is part
+               of the viewport by the vh definition, so vh puts the last ~60px
+               of the app under it. */
+            <div className="h-[100dvh] w-screen overflow-hidden bg-background text-foreground">
+              <MobileScreen />
+            </div>
+          } />
+          <Route path="*" element={<Shell />} />
+        </Routes>
       </TooltipProvider>
     </ToastProvider>
   );

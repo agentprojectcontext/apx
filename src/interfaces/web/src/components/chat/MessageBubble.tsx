@@ -56,7 +56,11 @@ export function MessageBubble({ msg, isLast, isAskAnswer, onCopy, face }: Props)
           <Bot size={14} />
         </span>
       ))}
-      <div className={cn("flex min-w-0 flex-col gap-1.5", mine ? "items-end" : "w-full max-w-[85%]")}>
+      {/* Both sides are capped. The user's own column used to have no max-width
+          at all, so one unbroken string — a Google Docs URL pasted into a
+          message — stretched the bubble past the viewport and the text ran off
+          the left edge. Invisible on a wide screen, unreadable on a phone. */}
+      <div className={cn("flex min-w-0 max-w-[85%] flex-col gap-1.5", mine ? "items-end" : "w-full")}>
         {/* What was actually sent: the voice note plays, the photo is the photo,
             the document opens. */}
         {media && <Attachment media={media} />}
@@ -99,7 +103,11 @@ export function MessageBubble({ msg, isLast, isAskAnswer, onCopy, face }: Props)
             <div
               key={i}
               className={cn(
-                "whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm leading-relaxed",
+                // max-w-full AND break-words: the column caps at 85%, but a
+                // flex child is free to exceed its parent unless it is told not
+                // to, so one unbroken string still pushed the bubble past both
+                // edges of a phone screen with the text cut off on the left.
+                "max-w-full whitespace-pre-wrap break-words rounded-2xl px-3 py-2 text-sm leading-relaxed",
                 mine
                   ? "rounded-br-sm bg-bubble-mine text-foreground"
                   : "w-full rounded-bl-sm bg-surface-soft text-foreground",

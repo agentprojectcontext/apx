@@ -118,7 +118,7 @@ export function ToolCall({ part }: { part: ToolPart }) {
           {part.args && Object.keys(part.args).length > 0 && (
             <div>
               <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("shared_ui.args")}</div>
-              <pre className="max-h-48 overflow-auto rounded-md bg-background/60 p-2 font-mono text-[11px] leading-relaxed text-foreground">
+              <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-all rounded-md bg-background/60 p-2 font-mono text-[11px] leading-relaxed text-foreground">
                 {pretty(part.args)}
               </pre>
             </div>
@@ -128,7 +128,7 @@ export function ToolCall({ part }: { part: ToolPart }) {
               <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{t("shared_ui.result")}</div>
               <pre
                 className={cn(
-                  "max-h-64 overflow-auto rounded-md bg-background/60 p-2 font-mono text-[11px] leading-relaxed",
+                  "max-h-64 overflow-auto whitespace-pre-wrap break-all rounded-md bg-background/60 p-2 font-mono text-[11px] leading-relaxed",
                   part.status === "error" ? "text-rose-700 dark:text-rose-300" : "text-foreground",
                 )}
               >

@@ -33,6 +33,7 @@ const SPA_ROUTES = [
   /^\/$/,
   /^\/settings(\/.*)?$/,
   /^\/m\/(voice|desktop|deck|code|inbox)(\/.*)?$/,
+  /^\/mobile(\/.*)?$/,
   /^\/p\/[^/]+(\/.*)?$/,
 ];
 

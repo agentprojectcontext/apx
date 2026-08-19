@@ -177,6 +177,15 @@ export const es = {
     browser_unavailable: "Explorador no disponible hasta reiniciar daemon. Pegá ruta manual.",
     no_folders:  "Sin carpetas.",
   },
+  mobile: {
+    back: "Volver",
+    sessions: "Sesiones",
+    no_sessions: "Sin sesiones guardadas todavía.",
+    live_session: "Sesión nueva",
+    no_messages: "Sin mensajes todavía",
+    team_members: "{count} agentes",
+    empty: "Todavía no hablaste con ningún agente.",
+  },
   inbox: {
     search: "Buscar",
     no_match: "No coincide nada",
