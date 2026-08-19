@@ -5,6 +5,7 @@ import { AgentAvatar, SUPER_AGENT_ICON } from "../../components/agents/AgentAvat
 import { ChatTab } from "../project/ChatTab";
 import type { ChatKey } from "../../components/chat/ChatList";
 import { Conversations } from "../../lib/api";
+import { selectionFromParam } from "./routes";
 import { relativeWhen } from "../../lib/when";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
@@ -20,16 +21,6 @@ interface SessionRow {
   channel?: string;
 }
 
-function keyFor(row: InboxRow, sessionId?: string, channel?: string): ChatKey {
-  if (row.kind === "super_agent") {
-    const ch = channel || row.channel || "web";
-    const id = sessionId || row.conversation_id || "";
-    return id ? { kind: "thread", channel: ch, threadId: id } : { kind: "live", agentSlug: row.agent_slug };
-  }
-  const id = sessionId || row.conversation_id || "";
-  return id ? { kind: "conv", agentSlug: row.agent_slug, convId: id } : { kind: "live", agentSlug: row.agent_slug };
-}
-
 /**
  * One chat, full screen.
  *
@@ -37,11 +28,27 @@ function keyFor(row: InboxRow, sessionId?: string, channel?: string): ChatKey {
  * name in the middle, and the session line underneath — tapping it opens the
  * session list for THIS chat, which is the thing the desktop inbox could not do
  * without unplugging you from everything else. Picking one swaps the thread
- * in place; you never leave the chat.
+ * without leaving the chat; it does change the URL (replacing, not stacking,
+ * so leaving is still one Back) because a thread you are reading has to be a
+ * place you can return to.
  */
-export function MobileChat({ row, onBack }: { row: InboxRow; onBack: () => void }) {
+export function MobileChat({
+  row,
+  sessionParamValue,
+  onBack,
+  onPickSession,
+}: {
+  row: InboxRow;
+  /** The `:session` segment of the URL, if any. */
+  sessionParamValue?: string;
+  onBack: () => void;
+  onPickSession: (key: ChatKey) => void;
+}) {
   const pid = String(row.project_id ?? 0);
-  const [selection, setSelection] = useState<ChatKey>(() => keyFor(row));
+  // The URL is the state. Picking a session navigates, and this reads it back
+  // — so a reload, or the phone discarding the tab while you were in another
+  // app, reopens the thread you were actually reading.
+  const selection = selectionFromParam(sessionParamValue, row);
   const [pickerOpen, setPickerOpen] = useState(false);
 
   const isSuper = row.kind === "super_agent";
@@ -107,7 +114,9 @@ export function MobileChat({ row, onBack }: { row: InboxRow; onBack: () => void 
         </button>
       </header>
 
-      {/* Session switcher: a sheet over the thread, not a route change. */}
+      {/* Session switcher: a sheet over the thread. Picking one replaces the
+          URL rather than pushing, so Back leaves the chat instead of walking
+          you through every session you looked at. */}
       {pickerOpen && (
         <div className="max-h-[45%] shrink-0 overflow-y-auto border-b border-border bg-muted/20">
           <p className="px-4 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-muted-fg">
@@ -120,7 +129,7 @@ export function MobileChat({ row, onBack }: { row: InboxRow; onBack: () => void 
               <button
                 key={s.id}
                 type="button"
-                onClick={() => { setSelection(s.key); setPickerOpen(false); }}
+                onClick={() => { onPickSession(s.key); setPickerOpen(false); }}
                 className={cn(
                   "flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left active:bg-accent/60",
                   active && "bg-primary/10",
