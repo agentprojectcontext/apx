@@ -8,6 +8,11 @@ import { Button } from "@/components/ui/button"
 import { Tip } from "./tip"
 import { t } from "@/i18n"
 
+/** What a caller-supplied attach menu can do to the hidden file input. */
+export interface FilePicker {
+  open: (accept?: string) => void
+}
+
 interface ChatInputProps {
   value: string
   onValueChange: (value: string) => void
@@ -28,6 +33,14 @@ interface ChatInputProps {
   accept?: string
   /** Rendered inside the field, above the textarea: the pending attachments. */
   above?: React.ReactNode
+  /** Handle onto the hidden file input, so a caller-supplied menu can open it
+   *  with its own `accept` filter. */
+  pickerRef?: React.Ref<FilePicker>
+  /** Replaces the default "+" button on the action row. Pass a menu when there
+   *  is more than one way to attach (photo, file, camera). */
+  leading?: React.ReactNode
+  /** Sits between the footer and send: the mic, on surfaces that record. */
+  trailing?: React.ReactNode
   /** Send with no text. An attachment on its own is a turn — the daemon builds
    *  the marker that stands in for the words. */
   allowEmpty?: boolean
@@ -49,16 +62,30 @@ export function ChatInput({
   placeholder,
   autoFocus,
   minRows = 2,
-  maxRows = 8,
+  maxRows = 12,
   footer,
   onFiles,
   accept,
   above,
+  pickerRef,
+  leading,
+  trailing,
   allowEmpty = false,
   className,
 }: ChatInputProps) {
   const ref = React.useRef<HTMLTextAreaElement>(null)
   const fileRef = React.useRef<HTMLInputElement>(null)
+  React.useImperativeHandle(pickerRef, () => ({
+    open: (override?: string) => {
+      const el = fileRef.current
+      if (!el) return
+      // The menu picks the filter per entry ("photo or video" vs "file"); it is
+      // restored right after so the next open is not stuck on the last choice.
+      if (override !== undefined) el.setAttribute("accept", override)
+      el.click()
+      if (override !== undefined) setTimeout(() => el.setAttribute("accept", accept || ""), 0)
+    },
+  }))
   const [dropping, setDropping] = React.useState(false)
 
   const takeFiles = (list: FileList | null | undefined) => {
@@ -79,7 +106,11 @@ export function ChatInput({
       void el.offsetHeight
       const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 20
       const min = lineHeight * minRows
-      const max = lineHeight * maxRows
+      // Two ceilings, and the lower one wins: maxRows for the shape of the
+      // field, and 40% of the window so a long draft on a phone can never grow
+      // over the conversation it is about. Without the second one, maxRows big
+      // enough to be comfortable on a desktop swallows a 812px screen.
+      const max = Math.min(lineHeight * maxRows, Math.round(window.innerHeight * 0.4))
       el.style.height = `${Math.min(Math.max(el.scrollHeight, min), max)}px`
       el.style.overflowY = el.scrollHeight > max ? "auto" : "hidden"
     }
@@ -88,7 +119,13 @@ export function ChatInput({
     // wasn't ready on the initial sync pass (e.g. inside a resizable panel
     // that's just been mounted).
     const raf = requestAnimationFrame(resize)
-    return () => cancelAnimationFrame(raf)
+    // The viewport ceiling above moves: rotating the phone, or the on-screen
+    // keyboard opening, changes what 40% is.
+    window.addEventListener("resize", resize)
+    return () => {
+      cancelAnimationFrame(raf)
+      window.removeEventListener("resize", resize)
+    }
   }, [value, minRows, maxRows])
 
   const canSend = (value.trim().length > 0 || allowEmpty) && !disabled
@@ -143,28 +180,35 @@ export function ChatInput({
                 ref={fileRef}
                 type="file"
                 accept={accept}
+                multiple
                 className="hidden"
                 onChange={(e) => {
                   takeFiles(e.target.files)
                   e.target.value = "" // so picking the same file twice fires again
                 }}
               />
-              <Tip content={t("chat_ui.attach")}>
-                <Button
-                  type="button"
-                  size="icon-sm"
-                  variant="ghost"
-                  disabled={disabled}
-                  onClick={() => fileRef.current?.click()}
-                  aria-label={t("chat_ui.attach")}
-                >
-                  <Plus className="size-4" />
-                </Button>
-              </Tip>
+              {/* A caller with more than one way to attach supplies its own
+                  trigger (a menu); everything else keeps the plain button. */}
+              {leading ?? (
+                <Tip content={t("chat_ui.attach")}>
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="ghost"
+                    disabled={disabled}
+                    onClick={() => fileRef.current?.click()}
+                    aria-label={t("chat_ui.attach")}
+                  >
+                    <Plus className="size-4" />
+                  </Button>
+                </Tip>
+              )}
             </>
           )}
           {footer}
         </div>
+        <div className="flex shrink-0 items-center gap-1">
+        {trailing}
         {busy && onStop ? (
           <Tip content={t("chat_ui.stop")}>
             <Button
@@ -191,6 +235,7 @@ export function ChatInput({
             </Button>
           </Tip>
         )}
+        </div>
       </div>
     </div>
   )

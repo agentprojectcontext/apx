@@ -24,10 +24,16 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon/dark/favicon-16x16.png" media="(prefers-color-scheme: dark)" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon/dark/favicon-32x32.png" media="(prefers-color-scheme: dark)" />
     <link rel="icon" type="image/png" sizes="48x48" href="/favicon/dark/favicon-48x48.png" media="(prefers-color-scheme: dark)" />
+    <!-- Unconditional first: Safari does not evaluate `media` on a touch icon,
+         and a home-screen install with no icon it recognises gets a screenshot
+         of the page instead. The themed ones below are for everyone else. -->
+    <link rel="apple-touch-icon" href="/favicon/dark/apple-touch-icon.png" />
     <link rel="apple-touch-icon" href="/favicon/white/apple-touch-icon.png" media="(prefers-color-scheme: light)" />
-    <link rel="apple-touch-icon" href="/favicon/dark/apple-touch-icon.png" media="(prefers-color-scheme: dark)" />
-    <link rel="manifest" href="/favicon/white/site.webmanifest" media="(prefers-color-scheme: light)" />
-    <link rel="manifest" href="/favicon/dark/site.webmanifest" media="(prefers-color-scheme: dark)" />
+    <!-- ONE manifest, no `media`. That attribute is not part of the manifest
+         link's contract: browsers take the first `rel=manifest` they find, so
+         two of them meant install behaviour depended on which theme happened to
+         be listed first. Icons for both themes live inside the one file. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
   </head>
   <body class="bg-background text-foreground antialiased">
     <div id="root"></div>

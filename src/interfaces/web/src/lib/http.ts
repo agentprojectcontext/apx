@@ -1,7 +1,14 @@
 // Typed HTTP client against the APX daemon. All requests carry the bearer
-// token loaded once on first paint (see useTokenBootstrap). Same-origin:
-// when the daemon serves the SPA, requests land on the same port; in
+// token loaded once on first paint (see useTokenBootstrap). Same-origin by
+// default: when the daemon serves the SPA, requests land on the same port; in
 // `vite dev` the proxy redirects to 7430.
+//
+// "By default", because an installed app launches at the address it was
+// installed from and that address is not always reachable — the phone left the
+// Wi-Fi, or Tailscale is off. A request that cannot reach the current address
+// asks lib/net to find one that answers and is retried there; see that file
+// for the whole story.
+import { apiUrl, recoverConnection } from "./net";
 
 let token: string | null = null;
 
@@ -31,12 +38,23 @@ async function request<T>(
     ...(token ? { authorization: `Bearer ${token}` } : {}),
     ...((init.headers as Record<string, string>) || {}),
   };
-  const res = await fetch(path, {
-    ...init,
-    method,
-    headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
-  });
+  const send = () =>
+    fetch(apiUrl(path), {
+      ...init,
+      method,
+      headers,
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+  let res: Response;
+  try {
+    res = await send();
+  } catch (e) {
+    // A rejected fetch is a NETWORK failure — DNS, refused, unreachable — not
+    // an HTTP error. That is exactly the case another address might fix.
+    if ((init.signal as AbortSignal | undefined)?.aborted) throw e;
+    if ((await recoverConnection()) === null) throw e;
+    res = await send();
+  }
   if (!res.ok) {
     let detail = "";
     let parsed: unknown = null;
@@ -95,15 +113,24 @@ export async function streamNdjson<E = unknown>(
   onEvent: (ev: E) => void,
   signal?: AbortSignal
 ): Promise<void> {
-  const res = await fetch(path, {
-    method: "POST",
-    signal,
-    headers: {
-      "content-type": "application/json",
-      ...(token ? { authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify(body),
-  });
+  const open = () =>
+    fetch(apiUrl(path), {
+      method: "POST",
+      signal,
+      headers: {
+        "content-type": "application/json",
+        ...(token ? { authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(body),
+    });
+  let res: Response;
+  try {
+    res = await open();
+  } catch (e) {
+    if (signal?.aborted) throw e;
+    if ((await recoverConnection()) === null) throw e;
+    res = await open();
+  }
   if (!res.ok || !res.body) {
     const text = await res.text().catch(() => "");
     throw new HttpError(res.status, `POST ${path} → ${res.status}: ${text || "stream failed"}`);

@@ -1529,15 +1529,21 @@ export const HELP_TOPICS = new Map(Object.entries({
   panel: topic({
     title: "apx panel",
     summary:
-      "Reach the admin panel from another device on the same network. Not a tunnel — nothing leaves your LAN, and loopback stays the default.",
-    usage: ["apx panel <status|share|unshare>"],
+      "Reach the admin panel from another device: on your own network with `share`, or from anywhere with `tailscale`. Loopback stays the default.",
+    usage: ["apx panel <status|share|unshare|tailscale>"],
     commands: [
       ["status", "Whether the panel is local only or shared, and on what address."],
       ["share", "Bind a LAN address and print the URL to open on your phone."],
       ["unshare", "Go back to local only."],
+      ["tailscale on", "Publish it at https://<machine>.<tailnet>.ts.net — works from anywhere on your tailnet, with a real certificate. Not `funnel`: nothing is public."],
+      ["tailscale off", "Stop publishing over HTTPS."],
+      ["tailscale status", "Whether Tailscale is up and what it publishes."],
     ],
     options: [["--host <ip>", "share: bind this address instead of the detected one."]],
-    examples: ["apx panel status", "apx panel share", "apx panel unshare"],
+    examples: ["apx panel status", "apx panel share", "apx panel tailscale on"],
+    notes: [
+      "Installing the panel as an app on a phone, recording a voice note, and copying to the clipboard all need a SECURE CONTEXT — https:// or localhost. A LAN address served over http:// has none of the three, whatever APX does, which is what `tailscale on` is for.",
+    ],
   }),
   profile: topic({
     title: "apx profile",

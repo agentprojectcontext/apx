@@ -155,11 +155,11 @@ export function ChatTab({
         : selected.agentSlug,
   ]);
 
-  const send = async (text: string, media?: UploadedMedia) => {
+  const send = async (text: string, media?: UploadedMedia[]) => {
     if (activeIsRoby) {
       await sendChat(text, {
         model: model || undefined,
-        ...(media ? { attachments: [media] } : {}),
+        ...(media?.length ? { attachments: media } : {}),
       });
       // The turn just wrote itself into the channel ledger. Revalidate so the
       // new chat shows up in the sidebar now, instead of only after a reload —

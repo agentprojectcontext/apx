@@ -118,9 +118,18 @@ test("the media endpoint is sandboxed to ~/.apx/media", () => {
   assert.match(src, /X-Content-Type-Options/, "nosniff, so a stray file cannot render as HTML");
 });
 
-test("the bubble shows the file and drops the marker text", () => {
+// A turn can now carry SEVERAL files (the web composer sends up to ten, and
+// the daemon has always accepted an array), so the bubble renders a group and
+// strips one marker per file rather than exactly one. A turn replayed from the
+// ledger still has a single file — that side of the store holds one media block
+// per row — and arrives here as a list of one.
+test("the bubble shows the files and drops the marker text", () => {
   const src = readSrc("interfaces", "web", "src", "components", "chat", "MessageBubble.tsx");
-  assert.match(src, /<Attachment media=\{media\} \/>/, "the attachment renders above the text");
-  assert.match(src, /stripMediaMarker\(textOf\(msg\)\)/, "copying a media turn copies what is shown");
+  assert.match(src, /<AttachmentGroup media=\{media\} \/>/, "the attachments render above the text");
+  assert.match(
+    src,
+    /stripMediaMarker\(textOf\(msg\), media\.length\)/,
+    "copying a media turn copies what is shown, one marker dropped per file",
+  );
   assert.match(src, /textOfPart\(part\.text, media\)/, "the machine-facing marker is not shown as the message");
 });

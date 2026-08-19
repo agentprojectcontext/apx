@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { getToken, setToken, http, HttpError, Pair } from "../lib/api";
+import { apiUrl, recoverConnection } from "../lib/net";
+import { getToken, setToken, http, HttpError, Pair, Net } from "../lib/api";
 import { loadEnginePresets } from "../components/settings/providers/typeStyles";
 import { STORAGE } from "../constants";
 import { deviceLabel } from "../lib/device";
@@ -56,13 +57,21 @@ export function useTokenBootstrap(): AuthState {
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      // 1. Is the daemon even up?
+      // 1. Is the daemon even up — at THIS address?
+      //
+      // An installed app launches at whatever URL it was installed from, and
+      // that URL is a promise the network cannot always keep: off the Wi-Fi,
+      // or with Tailscale down, it is simply gone. Before reporting the daemon
+      // as unreachable, try the other addresses it told us about.
       try {
-        const probe = await fetch("/api/health");
+        const probe = await fetch(apiUrl("/api/health"));
         if (!probe.ok) throw new Error(`HTTP ${probe.status}`);
       } catch (e) {
-        if (!cancelled) setState({ status: "error", reason: String(e) });
-        return;
+        const recovered = await recoverConnection();
+        if (recovered === null) {
+          if (!cancelled) setState({ status: "error", reason: String(e) });
+          return;
+        }
       }
 
       // 2a. Scan-to-login: `#pair=<pairing_id>` from a QR. Confirm the nonce
@@ -85,6 +94,7 @@ export function useTokenBootstrap(): AuthState {
           // and the link that carried it was already gone from the URL.
           history.replaceState(null, "", window.location.pathname + window.location.search);
           void loadEnginePresets();
+          void Net.endpoints().catch(() => {});
           setState({ status: "ok" });
           return;
         } catch {
@@ -109,7 +119,7 @@ export function useTokenBootstrap(): AuthState {
 
       // 3. Loopback endpoint — only succeeds on local same-origin requests.
       try {
-        const t = await fetch("/api/admin/web-token");
+        const t = await fetch(apiUrl("/api/admin/web-token"));
         if (t.ok) {
           const body = await t.json();
           if (body?.token) {
@@ -130,6 +140,9 @@ export function useTokenBootstrap(): AuthState {
         await http.get("/api/projects");
         // Authenticated at last — now the shared model catalog can load.
         void loadEnginePresets();
+        // And now the daemon's other addresses can be cached, which is what
+        // makes the failover above possible the NEXT time this address dies.
+        void Net.endpoints().catch(() => {});
         if (!cancelled) setState({ status: "ok" });
       } catch (e) {
         if (e instanceof HttpError && (e.status === 401 || e.status === 403)) {

@@ -122,6 +122,13 @@ export function register(app, { express }) {
         if (filePath.endsWith("index.html")) {
           res.setHeader("Cache-Control", "no-cache");
         }
+        // The service worker decides what the installed app is allowed to
+        // reuse; a cached copy of it would keep deciding with yesterday's
+        // rules. Browsers already revalidate this file, but an hour of
+        // max-age here is one hour of pinning a policy we may have fixed.
+        if (filePath.endsWith("sw.js")) {
+          res.setHeader("Cache-Control", "no-cache");
+        }
       },
     })
   );

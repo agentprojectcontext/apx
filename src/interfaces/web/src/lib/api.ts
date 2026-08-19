@@ -27,6 +27,7 @@ export * from "./api/artifacts";
 export * from "./api/skills";
 export * from "./api/organization";
 export * from "./api/projectFiles";
+export * from "./api/net";
 
 // Re-export the daemon types so older imports of "../lib/api" still work.
 export type {
