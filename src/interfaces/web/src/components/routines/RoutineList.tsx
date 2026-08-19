@@ -6,6 +6,12 @@ import { t } from "../../i18n";
 import { toneTint } from "../../lib/tone";
 import { kindMeta, scheduleHuman } from "./shared";
 
+/** The agent an exec_agent routine runs, when it names one. */
+function agentSlug(r: RoutineEntry): string {
+  if (r.kind !== "exec_agent") return "";
+  return String((r.spec as Record<string, unknown> | undefined)?.agent || "");
+}
+
 // Left column: scrollable list of routines. Click selects (the divider is the
 // single border-r line); the detail lives in the sibling column.
 export function RoutineList({
@@ -47,7 +53,10 @@ export function RoutineList({
                   <StatusDot ok={r.last_status === "ok" ? true : r.last_status === "error" ? false : null} />
                 </div>
                 <div className="mt-1 flex items-center justify-between gap-2 pl-8 text-[10px] text-muted-fg">
-                  <span className="truncate">{meta?.label || r.kind}</span>
+                  {/* Who runs it beats what kind it is: four exec_agent routines
+                      all read "Project agent", and the name is the thing you
+                      are scanning the list for. */}
+                  <span className="truncate">{agentSlug(r) || meta?.label || r.kind}</span>
                   <span className="shrink-0">⏱ {scheduleHuman(r.schedule)}</span>
                 </div>
               </button>
