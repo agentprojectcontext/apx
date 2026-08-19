@@ -1,17 +1,32 @@
 // Goal-completion judge loop (OpenHands Critic / iterative-refinement
-// pattern). After a completion-contract run declares done, an LLM judge scores
-// how likely the ORIGINAL goal is actually met (0..1). Below the threshold,
-// the agent gets a follow-up verification note and continues — bounded by
-// max_iterations so a harsh judge can't spin forever. Opt-in and scoped to
-// completion-contract surfaces (coding turns), where "done" is checkable.
+// pattern). An LLM judge scores how likely the ORIGINAL goal is actually met
+// (0..1); below the threshold the agent gets a follow-up verification note and
+// continues — bounded by max_iterations so a harsh judge can't spin forever.
+//
+// It serves two different failures, through the same loop:
+//
+//   - Completion-contract turns (coding surfaces) declare "done" themselves,
+//     and the judge checks that claim. Opt-in: `judge.enabled`.
+//   - Conversational turns (Telegram, web chat) end whenever the model stops
+//     calling tools — which it also does when it merely ANNOUNCES the next step
+//     ("ahora genero el SRT en inglés") and writes no call. Nothing declared
+//     anything; the task just stopped halfway and waited to be poked. Here the
+//     judge IS the poke, and it is on by default (`judge.continue_unfinished`).
 import { callEngine } from "../engines/index.js";
+import { TURN_ENDING_TOOLS } from "./tools/names.js";
 
 export function judgeConfig(globalConfig) {
   const raw = globalConfig?.super_agent?.judge || {};
   const threshold = Number(raw.success_threshold);
   const iters = parseInt(raw.max_iterations, 10);
   return {
+    // Verify a contract turn's own "done". Opt-in — the coding surfaces pay a
+    // judge call per finish, and not every deployment wants that.
     enabled: raw.enabled === true,
+    // Continue a conversational turn that stopped mid-task. On unless switched
+    // off: a turn that quits after announcing its next step reads as a bug, and
+    // the alternative is the user typing "seguí" to restart it by hand.
+    continue_unfinished: raw.continue_unfinished !== false,
     success_threshold:
       Number.isFinite(threshold) && threshold > 0 && threshold <= 1 ? threshold : 0.6,
     max_iterations: Number.isFinite(iters) && iters > 0 ? Math.min(iters, 5) : 2,
@@ -134,6 +149,24 @@ export function buildJudgeFollowup(verdict, iteration) {
   ]
     .filter(Boolean)
     .join("\n");
+}
+
+/**
+ * Is this conversational turn one worth checking — and continuing if unfinished?
+ *
+ * Two exclusions, both about not spending a call to learn nothing:
+ *   - a turn that ran no tools is chat, and chat has no half-done work; judging
+ *     it would be one model call per "hola".
+ *   - a turn that ended by ASKING the user is not unfinished, it is waiting. A
+ *     verdict of "not complete" there would push the agent to answer its own
+ *     question instead of letting the person answer it.
+ *
+ * @param {{trace?: {tool?: string}[]}} result a runAgent result
+ */
+export function continuableTurn(result) {
+  const trace = Array.isArray(result?.trace) ? result.trace : [];
+  if (trace.length === 0) return false;
+  return !trace.some((t) => TURN_ENDING_TOOLS.has(String(t?.tool || "")));
 }
 
 /**

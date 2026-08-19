@@ -200,22 +200,39 @@ modo de permisos no puede dar:
 
 ## Judge de completitud
 
-Loop de verificación opt-in (patrón critic de OpenHands) para turnos con completion contract
-(superficies de código): cuando el agente declara que terminó, un LLM juez puntúa la probabilidad
-de que el pedido *original* esté completamente satisfecho. Por debajo de `success_threshold`, el
-agente recibe una nota interna de verificación (qué parece faltar, según el juez) y sigue
-trabajando — hasta `max_iterations` rondas. Un juez inutilizable (engine caído, respuesta no
-parseable) acepta el resultado en vez de bloquearlo.
+Loop de verificación (patrón critic de OpenHands): un LLM juez puntúa la probabilidad de que el
+pedido *original* esté completamente satisfecho. Por debajo de `success_threshold`, el agente
+recibe una nota interna de verificación (qué parece faltar, según el juez) y sigue trabajando —
+hasta `max_iterations` rondas. Un juez inutilizable (engine caído, respuesta no parseable) acepta
+el resultado en vez de bloquearlo.
+
+Cubre dos formas distintas de que un turno termine antes de tiempo:
+
+- **`enabled`** (opt-in) — un turno con completion contract (superficies de código) declaró que
+  terminó, y el juez verifica esa declaración.
+- **`continue_unfinished`** (activado por defecto) — un turno conversacional (Telegram, chat web)
+  dejó de llamar herramientas. Eso es también lo que hace un modelo cuando solo *anuncia* el paso
+  siguiente ("ahora genero el SRT en inglés") y no escribe ninguna llamada: la tarea queda a mitad
+  esperando que la empujen. El juez es ese empujón. Un turno que no usó herramientas nunca se
+  juzga (una charla no tiene nada que terminar), ni tampoco uno que cerró preguntándote algo —
+  ese está esperando, no inconcluso.
 
 ```json
 "super_agent": {
-  "judge": { "enabled": true, "success_threshold": 0.6, "max_iterations": 2, "model": "" }
+  "judge": {
+    "enabled": true,
+    "continue_unfinished": true,
+    "success_threshold": 0.6,
+    "max_iterations": 2,
+    "model": ""
+  }
 }
 ```
 
 `model` vacío → el juez corre sobre `super_agent.model`; poné un modelo barato para mantener bajo
-el overhead de verificación. Los veredictos salen como eventos `judge_verdict` y en el resultado
-como `result.judge`.
+el overhead de verificación. Los veredictos salen como eventos `judge_verdict`, en el resultado
+como `result.judge`, y en el mensaje de Telegram que cerró el turno — así un turno que se hizo
+largo se puede rastrear hasta el veredicto que lo mantuvo andando.
 
 ## Detección de loops (stuck detection)
 
