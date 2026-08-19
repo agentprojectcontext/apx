@@ -269,6 +269,35 @@ function collectProjectMemoryChunks(store, projects) {
   return fresh;
 }
 
+// The offline fallback embedder. Everything else is a real provider space.
+const TF_FAMILY = "tf";
+
+/**
+ * Provider family of an embedder id ("ollama:nomic-embed-text" → "ollama").
+ * Vectors are only comparable within one family.
+ */
+export function embedderFamily(embedder) {
+  const id = String(embedder || TF_FAMILY);
+  const cut = id.indexOf(":");
+  return cut === -1 ? id : id.slice(0, cut);
+}
+
+/**
+ * What to do when the live embedder does not match the one the store was built
+ * with. Pure, so the policy is testable without a reachable provider.
+ *
+ *   "ok"      — same space (or an empty store); index normally.
+ *   "reindex" — moving into a real provider space; wipe and re-embed history.
+ *   "skip"    — the provider is down and we would fall back to `tf`; leave the
+ *               good store alone rather than mix spaces.
+ *
+ * @returns {"ok"|"reindex"|"skip"}
+ */
+export function reconcileEmbedder(stored, family, hasRows) {
+  if (!stored || stored === family || !hasRows) return "ok";
+  return family === TF_FAMILY ? "skip" : "reindex";
+}
+
 // Run one incremental indexing pass. Returns { indexed, backend }.
 // `opts.embed` overrides embedding options (baseUrl/model/timeoutMs) for tests.
 export async function indexNewMessages(store, opts = {}) {
@@ -283,30 +312,37 @@ export async function indexNewMessages(store, opts = {}) {
   cursor.channels = cursor.channels || {};
 
   // Embedder-consistency guard. Cosine only works within one embedder space, so
-  // the whole store must share an embedder family ("ollama" vs "tf"). Probe the
-  // currently-active embedder and reconcile:
-  //   - upgrade (tf → ollama, i.e. Ollama came back): wipe + full re-index so
-  //     the history is re-embedded in the better space.
-  //   - downgrade (ollama → tf, i.e. Ollama went down): skip this pass entirely
-  //     so we never pollute a good nomic store with TF rows.
+  // the whole store must share an embedder family. Probe the currently-active
+  // embedder and reconcile:
+  //   - moving into a REAL provider space (from tf, or from another provider):
+  //     wipe + full re-index so the history lives in one comparable space.
+  //   - falling back to `tf` (the offline embedder — the provider is down):
+  //     skip this pass entirely rather than pollute a good store with tf rows.
+  //
+  // The family used to be a boolean, "ollama" vs everything-else-is-tf. That
+  // made Gemini and OpenAI indistinguishable from the degraded fallback, so
+  // putting Gemini first while Ollama was down read as a downgrade and indexing
+  // stopped forever instead of re-indexing into the Gemini space.
   const probe = await embedOne("apx memory embedder probe", embedOpts);
-  const family = probe.embedder.startsWith("ollama") ? "ollama" : "tf";
+  const family = embedderFamily(probe.embedder);
   const stored = cursor.embedder || null;
-  if (stored && stored !== family && store.count() > 0) {
-    if (family === "ollama") {
-      try {
-        store.clear?.();
-      } catch {
-        /* ignore */
-      }
-      cursor.channels = {};
-      log(`memory: embedder ${stored}→ollama — full re-index`);
-    } else {
-      log("memory: Ollama unavailable — skipping index to keep embedder consistent");
-      cursor.embedder = stored; // keep the good signature
-      writeCursor(cursorPath, cursor);
-      return { indexed: 0, backend: store.backend, skipped: "embedder-downgrade" };
+  const verdict = reconcileEmbedder(stored, family, store.count() > 0);
+  if (verdict === "reindex") {
+    try {
+      store.clear?.();
+    } catch {
+      /* ignore */
     }
+    cursor.channels = {};
+    log(`memory: embedder ${stored}→${family} — full re-index`);
+  } else if (verdict === "skip") {
+    log(
+      `memory: embedding provider unavailable (would fall back to ${TF_FAMILY}) — ` +
+      `skipping index to keep the ${stored} store consistent`
+    );
+    cursor.embedder = stored; // keep the good signature
+    writeCursor(cursorPath, cursor);
+    return { indexed: 0, backend: store.backend, skipped: "embedder-downgrade" };
   }
   cursor.embedder = family;
 
