@@ -170,6 +170,22 @@ Full version with reference implementations: [`rules/architecture.md`](rules/arc
 10. **Adding a CLI command.** Write `cmd<Name>(args)` in `cli/commands/<x>.js`, add its routing in `cli/routes/<x>.js` (export `default async function route(rest, ctx)`, plus `export const aliases = [...]` if it takes any), register it in `cli/routes/index.js`, and add a `topic({…})` in `cli/help/index.js`. There is no dispatch switch — `cli/index.js` looks the command up and lazily imports its route module, so a command loads only what it uses. Aliases are declared per command on purpose: `rm` means remove under `agent`, unset under `project config` and revoke under `pair`. `parseArgs` yields `{ _: [positionals], flags }`. Every command prints an `apx vX` mark (header/banner via `branding.js`; `--version`/`update`/`init` get the big banner). Reach the daemon via the `http` helper (auto-starts it).
 11. **Web panel = Base UI, hand-built.** Curated Base-UI primitives in `components/ui/*` behind the `components/ui.tsx` barrel — no Radix, no shadcn installer runs; `components.json` stays deleted. All requests go through `src/lib/api/*` (bearer auto-fetched from `/api/admin/web-token`). Every string in **both** `i18n/en.ts` and `i18n/es.ts` under the same key. New screens/modules get a Playwright spec in `e2e/`. How-to: [`rules/web-ui.md`](rules/web-ui.md).
 
+11a. **Every user-visible label starts with a Capital.** A label is anything that
+    NAMES something on screen: nav items, list rows and their sub-labels, chips,
+    column headers, buttons, tabs, empty states, toasts, dialog titles. Sentence
+    case, capital initial — `"Memoria interna"`, `"En el repo"`, `"Project
+    memory"` — never Title Case, never `"en el repo"`. Group headings are written
+    the same way even when CSS renders them uppercase: the shouting is the
+    stylesheet's job, not the string's. **The exception is a fragment**, a string
+    the interface composes into a running sentence or drops mid-text (`in:
+    "en {amount}"`, `every_n_hours: "cada {n} horas…"`) — those follow the
+    sentence they land in. Data is not a label either: a slug, a path, a file
+    name or a command keeps its real spelling (`rocky-pm`, `.apc/memory.md`,
+    `apx restart`), and storage enum values reach the screen through
+    `<FilterChips>`, which Capitalises them. Both `i18n/en.ts` and `i18n/es.ts`
+    follow this per key. It is not cosmetic: lowercase labels read as unfinished
+    notes-to-self, and a panel that mixes the two looks like two products.
+
 11b. **One page layout for every list screen.** Wrap it in `<Section>` and use
     the slots: `title` + `description`, the ONE primary action in `action`
     (top-right, with the title), and every filter/segment/tab in `filters` — its
@@ -209,7 +225,7 @@ rule above in the same change.
 | [`cli.md`](rules/cli.md) | CLI commands, routes, help, aliases (rule 10) |
 | [`testing.md`](rules/testing.md) | writing/harnessing tests, coverage floor, preflight (rule 1) |
 | [`recipes.md`](rules/recipes.md) | engines, external runtimes, MCP scopes, Telegram identity |
-| [`web-ui.md`](rules/web-ui.md) | the React + Vite admin panel (rules 11 / 11b) |
+| [`web-ui.md`](rules/web-ui.md) | the React + Vite admin panel (rules 11 / 11a / 11b) |
 | [`prompts-and-channels.md`](rules/prompts-and-channels.md) | prompt assembly, channels, lazy tools, skills (rules 12 / 16) |
 | [`memory.md`](rules/memory.md) | embeddings, message store, compaction, vector index |
 | [`desktop.md`](rules/desktop.md) | the Electron floating voice window (rule 5) |
