@@ -95,13 +95,18 @@ export function MemoryBrowser({ pid }: { pid: string }) {
   // twelve projects each looked like they owned a copy of the super-agent's
   // memory — and editing it "in Postbeam" silently edited the global one.
   const isBase = String(pid) === "0";
-  // On Base it opens on the notebook (the memory that ships in every prompt on
-  // every channel); on a project, on that project's own memory.
-  const [sel, setSel] = useState<Sel>({ kind: "notebook" });
+  // What opens first is what is most likely to have something in it. On Base
+  // that is the notebook (the memory that ships in every prompt on every
+  // channel); on a project it is the internal memory, because that is where
+  // everything the agent has learned lands — opening on the curated file meant
+  // opening on an empty pane and having to go looking, which is the exact
+  // feeling this screen exists to remove.
+  const fallback: Sel = isBase ? { kind: "notebook" } : { kind: "local" };
+  const [sel, setSel] = useState<Sel | null>(null);
   // Switching projects from the rail re-renders this component without
   // remounting it, so a notebook selection can outlive Base. Derive rather than
   // reset: off Base there is simply no such row to be on.
-  const open: Sel = !isBase && sel.kind === "notebook" ? { kind: "project" } : sel;
+  const open: Sel = !sel || (!isBase && sel.kind === "notebook") ? fallback : sel;
   const notebook = useSWR(isBase ? "/api/notebook" : null, () => Notebook.get());
   // Never hardcode the agent's name (AGENTS.md rule 13) — it is the user's to set.
   const persona = usePersonaName();
@@ -178,15 +183,7 @@ export function MemoryBrowser({ pid }: { pid: string }) {
           <p className={`px-1.5 pb-1 ${isBase ? "pt-3" : "pt-1"} text-[10px] font-semibold uppercase tracking-wide text-muted-foreground`}>
             {t("project.memories.general_group")}
           </p>
-          <SidebarItem
-            active={open.kind === "project"}
-            onClick={() => setSel({ kind: "project" })}
-            icon={Brain}
-            iconClass={toneText.sky}
-            label={t("project.memories.general_item")}
-            sub={t("project.memories.committed")}
-          />
-          {/* The agent's half. Split from the committed file on purpose: what
+          {/* The agent's half, first because it is the one that fills up: what
               `remember` writes lands here, so a fact picked up mid-chat cannot
               put a pasted credential into the repo's history. Promotion to
               .apc/memory.md is a person copying a line they have read. */}
@@ -197,6 +194,14 @@ export function MemoryBrowser({ pid }: { pid: string }) {
             iconClass={toneText.amber}
             label={t("project.memories.local_item")}
             sub={t("project.memories.not_committed")}
+          />
+          <SidebarItem
+            active={open.kind === "project"}
+            onClick={() => setSel({ kind: "project" })}
+            icon={Brain}
+            iconClass={toneText.sky}
+            label={t("project.memories.general_item")}
+            sub={t("project.memories.committed")}
           />
 
           {/* Agent memories */}

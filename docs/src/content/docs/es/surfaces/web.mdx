@@ -196,11 +196,12 @@ variables — mirá [Variables](#variables) más abajo.
 ### Memories
 
 La pestaña **Memories** muestra el contexto de larga vida que leen los agentes, un archivo
-por fila. Un proyecto tiene dos: **Memoria del proyecto** (`.apc/memory.md`), curada y
-committeada con el repo, y **Memoria local** (`~/.apx/projects/<id>/memory.md`), que escribe
-la tool `remember` del super-agente y que git no ve nunca — así un dato levantado en medio de
-una charla no te mete una credencial pegada en el historial. Promover una línea de local a
-committeada es una edición manual acá. Abajo va la memoria propia de cada agente. La libreta
+por fila. Un proyecto tiene dos. **Memoria interna**
+(`~/.apx/projects/<id>/memory.md`) va primera y es la que abre: la escribe la tool `remember`
+del super-agente y git no la ve nunca, así un dato levantado en medio de una charla no te mete
+una credencial pegada en el historial. **Memoria del proyecto** (`.apc/memory.md`) es la curada,
+la que viaja con el repo. Promover una línea de la interna a la committeada es una edición
+manual acá. Abajo va la memoria propia de cada agente. La libreta
 del super-agente (`~/.apx/memory.md`) es global, no de un proyecto, así que aparece solamente
 en **Base**.
 
