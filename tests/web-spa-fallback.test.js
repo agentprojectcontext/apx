@@ -35,9 +35,17 @@ test("isKnownSpaRoute matches every client route in App.tsx", () => {
     "/m/code/anything",
     "/p/0",
     "/p/12/tasks",
-    // The phone surface, rendered outside the desktop shell.
+    // The phone surface, rendered outside the desktop shell. Its screens are
+    // real URLs — reloading a chat, or coming back to a tab the phone
+    // discarded while you were in another app, has to land on the same thread
+    // rather than on the list.
     "/mobile",
     "/mobile/anything",
+    "/mobile/chat/1/magui",
+    // The super-agent has no project, so its `:pid` segment is a sentinel.
+    "/mobile/chat/-/super_agent",
+    "/mobile/chat/-/super_agent/telegram~2026-08-19",
+    "/mobile/team/1",
   ];
   for (const p of known) {
     assert.equal(isKnownSpaRoute(p), true, `${p} should be a known SPA route (200)`);

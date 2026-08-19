@@ -1,0 +1,124 @@
+import type { ChatKey } from "../../components/chat/ChatList";
+import type { InboxRow } from "../../lib/api/inbox";
+
+/**
+ * The phone surface in the URL.
+ *
+ *   /mobile                                  the chat list
+ *   /mobile/team/:pid                        one project's team
+ *   /mobile/chat/:pid/:slug                  a chat, on whatever it last used
+ *   /mobile/chat/:pid/:slug/:session         a chat, on one specific session
+ *
+ * Navigation used to be `useState`, which meant a reload — or the phone
+ * discarding the tab in the background, which it does constantly — dropped you
+ * back on the list and lost the thread you were reading. Anything you can be
+ * looking at has to be somewhere you can be sent back to.
+ *
+ * `~` separates a channel from a thread id because it is one of the handful of
+ * characters a URL never has to escape (RFC 3986 unreserved), so the path stays
+ * readable: /mobile/chat/0/roby/telegram~2026-08-19.
+ */
+
+export const MOBILE_ROOT = "/mobile";
+
+/**
+ * The daemon-level super-agent belongs to no project: its inbox row carries
+ * `project_id: null`. Left as an empty string that becomes `/mobile/chat//roby`
+ * — a path with an empty segment, which matches no route at all, so opening
+ * Roby bounced straight back to the list.
+ *
+ * `-` and not `0`: zero is a REAL project id here, and a sentinel that collides
+ * with live data is a bug waiting for the one user who has that project.
+ */
+const NO_PROJECT = "-";
+
+/** The `:pid` segment for a row. */
+export function pidOf(row: Pick<InboxRow, "project_id">): string {
+  return row.project_id === null || row.project_id === undefined ? NO_PROJECT : String(row.project_id);
+}
+
+/** The project id a `:pid` segment stands for — null for the super-agent. */
+export function projectOf(pid: string): number | string | null {
+  return pid === NO_PROJECT ? null : pid;
+}
+
+/** The session segment for a selection, or null when it is just "the latest". */
+export function sessionParam(key: ChatKey): string | null {
+  if (key.kind === "thread") return `${key.channel}~${key.threadId}`;
+  if (key.kind === "conv") return key.convId;
+  return null;
+}
+
+export function chatPath(pid: string, slug: string, key?: ChatKey): string {
+  const base = `${MOBILE_ROOT}/chat/${encodeURIComponent(pid)}/${encodeURIComponent(slug)}`;
+  const session = key ? sessionParam(key) : null;
+  return session ? `${base}/${encodeURIComponent(session)}` : base;
+}
+
+export function teamPath(pid: string): string {
+  return `${MOBILE_ROOT}/team/${encodeURIComponent(pid)}`;
+}
+
+/**
+ * Where a row opens by default: the super-agent has channel threads, a project
+ * agent has conversation files, and either can have neither yet.
+ */
+export function keyFor(row: InboxRow, sessionId?: string, channel?: string): ChatKey {
+  if (row.kind === "super_agent") {
+    const ch = channel || row.channel || "web";
+    const id = sessionId || row.conversation_id || "";
+    return id ? { kind: "thread", channel: ch, threadId: id } : { kind: "live", agentSlug: row.agent_slug };
+  }
+  const id = sessionId || row.conversation_id || "";
+  return id ? { kind: "conv", agentSlug: row.agent_slug, convId: id } : { kind: "live", agentSlug: row.agent_slug };
+}
+
+/** The selection a URL asks for, falling back to the row's own default. */
+export function selectionFromParam(param: string | undefined, row: InboxRow): ChatKey {
+  if (!param) return keyFor(row);
+  const raw = decodeURIComponent(param);
+  if (row.kind === "super_agent") {
+    const cut = raw.indexOf("~");
+    // A thread with no channel in it is a URL from somewhere else (or hand
+    // typed); fall back rather than building a selection that loads nothing.
+    if (cut <= 0) return keyFor(row);
+    return { kind: "thread", channel: raw.slice(0, cut), threadId: raw.slice(cut + 1) };
+  }
+  return { kind: "conv", agentSlug: row.agent_slug, convId: raw };
+}
+
+/**
+ * A row for an agent the inbox does not list.
+ *
+ * Deep links outlive the inbox: it only carries agents that have been talked
+ * to, and it is filtered and paged. Landing on a chat that is not in the list
+ * should open the chat with the slug as its name, not bounce to the list —
+ * being sent somewhere else is worse than a missing avatar.
+ */
+export function placeholderRow(pid: string, slug: string, known: InboxRow[]): InboxRow {
+  // Whether this is the super-agent is decided by the inbox's own answer for
+  // that slug when it has one, so this file never hardcodes its spelling.
+  const sameSlug = known.find((r) => r.agent_slug === slug);
+  return {
+    project_id: projectOf(pid),
+    project_name: null,
+    project_path: null,
+    agent_slug: slug,
+    agent_name: sameSlug?.agent_name ?? null,
+    agent_emoji: sameSlug?.agent_emoji ?? null,
+    agent_icon: sameSlug?.agent_icon ?? null,
+    kind: sameSlug?.kind ?? "agent",
+    pinned: false,
+    conversation_id: null,
+    channel: null,
+    messages: 0,
+    preview: null,
+    last_activity_at: "",
+  };
+}
+
+/** The row a /mobile/chat/:pid/:slug URL points at. */
+export function findRow(rows: InboxRow[], pid: string, slug: string): InboxRow {
+  const hit = rows.find((r) => pidOf(r) === pid && r.agent_slug === slug);
+  return hit || placeholderRow(pid, slug, rows);
+}

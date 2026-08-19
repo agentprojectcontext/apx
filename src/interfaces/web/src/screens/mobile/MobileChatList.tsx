@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, Share, Smartphone, Users, X } from "lucide-react";
+import { Search, Share, ShieldAlert, Smartphone, Users, X } from "lucide-react";
 import { installStance, onInstallStateChange, promptInstall } from "../../lib/pwa";
 import { AgentAvatar } from "../../components/agents/AgentAvatar";
 import type { ReactNode } from "react";
@@ -208,7 +208,12 @@ function InstallRow() {
 
   const stance = installStance();
   if (hidden) return null;
-  if (stance.kind !== "prompt" && stance.kind !== "ios") return null;
+  // `insecure` is shown too, and that is the important one: over plain http on
+  // a LAN address Chrome does not expose the service worker API at all, so
+  // nothing fires, nothing appears, and the panel looked like it had simply
+  // forgotten to offer the install. Silence is the worst possible answer to
+  // "why can't I install this" — say what the browser is doing and why.
+  if (stance.kind !== "prompt" && stance.kind !== "ios" && stance.kind !== "insecure") return null;
 
   const dismiss = () => {
     setHidden(true);
@@ -220,10 +225,25 @@ function InstallRow() {
   };
 
   return (
-    <div className="flex shrink-0 items-center gap-3 border-b border-border bg-primary/5 px-4 py-3 text-sm">
-      {stance.kind === "prompt" ? <Smartphone size={16} className="shrink-0 text-primary" /> : <Share size={16} className="shrink-0 text-primary" />}
+    <div
+      className={cn(
+        "flex shrink-0 items-start gap-3 border-b border-border px-4 py-3 text-sm",
+        stance.kind === "insecure" ? "bg-amber-500/10" : "bg-primary/5",
+      )}
+    >
+      {stance.kind === "prompt" ? (
+        <Smartphone size={16} className="shrink-0 text-primary" />
+      ) : stance.kind === "ios" ? (
+        <Share size={16} className="shrink-0 text-primary" />
+      ) : (
+        <ShieldAlert size={16} className="shrink-0 text-amber-500" />
+      )}
       <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
-        {stance.kind === "prompt" ? t("access.install_sub") : t("access.install_ios")}
+        {stance.kind === "prompt"
+          ? t("access.install_sub")
+          : stance.kind === "ios"
+            ? t("access.install_ios")
+            : t("access.install_insecure")}
       </span>
       {stance.kind === "prompt" && (
         <button
