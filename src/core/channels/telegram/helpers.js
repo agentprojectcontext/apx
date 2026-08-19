@@ -166,3 +166,41 @@ export function releaseActiveRequest(activeRequests, chat_id, abortCtrl) {
     activeRequests.delete(chat_id);
   }
 }
+
+// Below this, a resend of the same text is impatience, not a new instruction.
+// Past it, the run has been going long enough that "again" plausibly means
+// "that is stuck, start over" — so the interrupt goes through as usual.
+const RESEND_WINDOW_MS = 10 * 60_000;
+
+/** Comparable form of a chat message: case, accents and punctuation dropped. */
+function normalizeForResend(text) {
+  return String(text || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+}
+
+/**
+ * Is this inbound the SAME message the chat is already working on?
+ *
+ * Default Interrupt aborts the running turn on every new message, which is
+ * right for "no, stop, do this instead" and exactly wrong for the case that
+ * actually happens: a long turn goes quiet (one progress note per 90s), the
+ * user assumes it died and sends the same request again. The resend killed the
+ * work in flight and restarted it from zero — so the next one looked stuck too.
+ * Six resends of one message in 35 minutes, and nothing ever finished.
+ *
+ * A verbatim repeat inside the window is treated as "still here?", not as a new
+ * turn: the running work keeps its abort controller and finishes.
+ *
+ * @returns {boolean} true when the caller should let the running turn continue.
+ */
+export function isImpatientResend(prev, text, { now = Date.now } = {}) {
+  if (!prev?.text) return false;
+  const incoming = normalizeForResend(text);
+  if (!incoming) return false;
+  if (incoming !== normalizeForResend(prev.text)) return false;
+  return now() - (prev.startedAt || 0) < RESEND_WINDOW_MS;
+}

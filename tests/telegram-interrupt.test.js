@@ -16,7 +16,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { releaseActiveRequest } from "#core/channels/telegram/helpers.js";
+import { releaseActiveRequest, isImpatientResend } from "#core/channels/telegram/helpers.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PLUGIN = fs.readFileSync(
@@ -42,6 +42,39 @@ test("releaseActiveRequest: missing chat is a no-op", () => {
   releaseActiveRequest(map, null, {});
   releaseActiveRequest(map, 99, {});
   assert.equal(map.size, 0);
+});
+
+// The other half of Default Interrupt: NOT interrupting. A long turn goes quiet
+// (one progress note per 90s), the user assumes it died and resends — and the
+// resend killed the work in flight, so the restarted turn looked stuck too. Six
+// resends of one message in 35 minutes, nothing ever finished.
+test("isImpatientResend: the same message again, mid-turn, is not a new instruction", () => {
+  const t0 = 1_000_000;
+  const prev = { text: "probemos la de ideas, a ver cómo va", startedAt: t0 };
+  const now = () => t0 + 90_000;
+
+  assert.equal(isImpatientResend(prev, "probemos la de ideas, a ver cómo va", { now }), true);
+  // Typos, case and punctuation drift between resends; the intent does not.
+  assert.equal(isImpatientResend(prev, "Probemos la de ideas... a ver como va!", { now }), true);
+});
+
+test("isImpatientResend: a genuinely new message still interrupts", () => {
+  const t0 = 1_000_000;
+  const prev = { text: "corré la rutina de ideas", startedAt: t0 };
+  const now = () => t0 + 90_000;
+
+  assert.equal(isImpatientResend(prev, "no, dejá eso y mirá el post", { now }), false);
+  assert.equal(isImpatientResend(prev, "", { now }), false);
+  assert.equal(isImpatientResend(null, "corré la rutina de ideas", { now }), false);
+});
+
+test("isImpatientResend: past the window, a repeat means 'that is stuck, start over'", () => {
+  const t0 = 1_000_000;
+  const prev = { text: "corré la rutina de ideas", startedAt: t0 };
+  assert.equal(
+    isImpatientResend(prev, "corré la rutina de ideas", { now: () => t0 + 11 * 60_000 }),
+    false,
+  );
 });
 
 test("telegram plugin stop() aborts every in-flight turn", () => {
