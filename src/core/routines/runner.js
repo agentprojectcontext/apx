@@ -75,14 +75,22 @@ async function handleExecAgent(ctx, routine) {
   const model = await resolveAgentModel({ agent, config });
   if (!model) throw new Error(`no model for agent ${slug} (no override, no router default)`);
 
-  // Explicit opt-out: `allowed_tools: []` or `spec.no_tools` keeps the old
-  // one-shot text path (weather-style "write a sentence, post_commands send it").
-  // Everything else gets the tool loop — Magui's crons read files, talk to
-  // Asana, compact a ledger. A single callEngine with no tools made those
-  // models dump DSML markup as the "answer" and the work never happened.
-  const noTools =
-    routine.spec?.no_tools === true ||
-    (Array.isArray(routine.allowed_tools) && routine.allowed_tools.length === 0);
+  // Explicit opt-out ONLY. `spec.no_tools: true` keeps the old one-shot text
+  // path (weather-style "write a sentence, post_commands send it").
+  //
+  // An empty `allowed_tools` used to count as that opt-out, and it is also what
+  // the store writes when nobody specified any — `apx routine add` without
+  // `--allowed-tools` produced `[]`. So every routine created the obvious way
+  // silently ran with NO tools: the agent could not read a file, reach Asana or
+  // write its ledger, and the "answer" was a model narrating work it never did.
+  // The two states are now distinct: `[]` means "no override, use the agent's
+  // declared tools", and refusing tools altogether is something you have to say.
+  const noTools = routine.spec?.no_tools === true;
+  // Only a NON-EMPTY list overrides the agent's own declared tools.
+  const toolOverride =
+    Array.isArray(routine.allowed_tools) && routine.allowed_tools.length > 0
+      ? routine.allowed_tools
+      : undefined;
 
   const system = buildAgentSystem(project, agent, {
     invocation: "routine",
@@ -113,16 +121,14 @@ async function handleExecAgent(ctx, routine) {
       // a Magui-style cron can edit its ledger; pin permission_mode on the
       // routine itself to lock it down.
       permission_mode: routine.permission_mode || "total",
-      ...(Array.isArray(routine.allowed_tools) ? { allowed_tools: routine.allowed_tools } : {}),
+      ...(toolOverride ? { allowed_tools: toolOverride } : {}),
     };
     const autoSuppress = computeSuppressedTools(routine.post_commands);
     const explicitSuppress = Array.isArray(routine.spec?.suppress_tools)
       ? routine.spec.suppress_tools.filter((s) => typeof s === "string")
       : [];
     const suppressTools = [...new Set([...autoSuppress, ...explicitSuppress])];
-    allowedTools = resolveAgentAllowedTools(agent, {
-      override: Array.isArray(routine.allowed_tools) ? routine.allowed_tools : undefined,
-    });
+    allowedTools = resolveAgentAllowedTools(agent, { override: toolOverride });
     const toolSession = createToolSession(CHANNELS.ROUTINE, { allowedTools });
 
     const result = await runAgent({
@@ -304,7 +310,9 @@ async function handleSuperAgent(ctx, routine, extraChannelMeta = {}) {
   cfg.super_agent = {
     ...(globalConfig?.super_agent || {}),
     ...(routine.permission_mode ? { permission_mode: routine.permission_mode } : {}),
-    ...(Array.isArray(routine.allowed_tools) ? { allowed_tools: routine.allowed_tools } : {}),
+    // Same rule as exec_agent: an empty list is the store's default, not a
+    // deliberate "no tools".
+    ...(routine.allowed_tools?.length ? { allowed_tools: routine.allowed_tools } : {}),
   };
 
   // Auto-suppress tools whose output would duplicate post_commands.
