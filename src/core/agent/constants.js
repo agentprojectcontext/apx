@@ -15,6 +15,15 @@ export const MAX_TOOL_ITERS = 10;
 // genuinely exhausts this budget — a rare safety floor, not the default close.
 // Overridable per-deployment via config.super_agent.telegram_max_iters.
 export const TELEGRAM_TOOL_ITERS = 24;
+// A background routine that does NOT report to Telegram has no human waiting on
+// a bounded chat turn: nobody is going to read a "want me to keep going?"
+// wrap-up, let alone answer it. Capping such a run at the conversational budget
+// just filed a half-finished record — Magui hitting ~23 steps and stopping
+// mid-backlog. So a non-Telegram routine runs until the work is actually done:
+// the loop already ends on its own the moment the model stops calling tools
+// (run-agent.js), and this high finite ceiling stays only as a runaway backstop.
+// Overridable per-deployment via config.super_agent.routine_max_iters.
+export const ROUTINE_UNCAPPED_TOOL_ITERS = 1000;
 // Defined in tools/names.js, next to the names they reference.
 export { ACK_ONLY_TOOLS, TURN_ENDING_TOOLS } from "./tools/names.js";
 export const MAX_CONSECUTIVE_ACKS = 2;

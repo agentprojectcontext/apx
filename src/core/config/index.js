@@ -62,6 +62,13 @@ const DEFAULT_CONFIG = {
     // snappier but more "want me to continue?" hand-backs. 0/unset → built-in
     // default (TELEGRAM_TOOL_ITERS in src/core/agent/constants.js).
     telegram_max_iters: 0,
+    // Tool-loop budget for a routine that does NOT report to Telegram (Magui
+    // filling a backlog, an agent working a repo): no human waits on it mid-run,
+    // so it runs to completion rather than to a chat budget. 0/unset → built-in
+    // ceiling (ROUTINE_UNCAPPED_TOOL_ITERS in src/core/agent/constants.js), which
+    // is a runaway backstop, not a normal stopping point. Telegram-bound routines
+    // keep telegram_max_iters so their message stays one concise turn.
+    routine_max_iters: 0,
     // How often a working turn may speak before it's done. The model's own
     // opening line always goes out (nothing is ever written on its behalf);
     // after that the turn stays quiet — one notice, the work, then the answer —
