@@ -23,6 +23,7 @@
 // signs them; the click handler in sw.js is shared with that future, the
 // subscription is not built.
 import { Inbox, type InboxRow } from "./api/inbox";
+import { t } from "../i18n";
 import { subscribeLive } from "./live";
 import { isSecure } from "./net";
 // Pure URL helpers, no React: the tap has to land on the same path the inbox
@@ -146,6 +147,43 @@ async function show(row: InboxRow) {
     new Notification(title, options);
   } catch {
     /* nothing more to try */
+  }
+}
+
+/**
+ * One notification, on demand, so "on" can be confirmed instead of believed.
+ *
+ * Deliberately routed through the SAME `show()` the real ones use — service
+ * worker registration and all. A test that took a shortcut would prove the
+ * shortcut works: the interesting failures live exactly there (no worker
+ * registered, Android refusing the page-scoped constructor, the browser
+ * swallowing it while the tab has focus).
+ *
+ * Returns false when there is nothing to show it with, so the caller can say
+ * so rather than leaving a button that looks like it did something.
+ */
+export async function sendTestNotification(): Promise<boolean> {
+  if (notifyStance().kind !== "on") return false;
+  try {
+    await show({
+      project_id: null,
+      project_name: null,
+      project_path: null,
+      agent_slug: "__test__",
+      agent_name: t("notify.test_title"),
+      agent_emoji: null,
+      agent_icon: null,
+      kind: "agent",
+      pinned: false,
+      conversation_id: null,
+      channel: null,
+      messages: 0,
+      preview: t("notify.test_body"),
+      last_activity_at: new Date().toISOString(),
+    } as InboxRow);
+    return true;
+  } catch {
+    return false;
   }
 }
 
