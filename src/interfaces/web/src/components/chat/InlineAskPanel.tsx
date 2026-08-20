@@ -94,11 +94,21 @@ export function InlineAskPanel({ turnKey, questions, onSubmit, onDismiss, disabl
     questions.map(() => emptyAnswer()),
   );
 
-  // Reset when a new question batch arrives.
-  useEffect(() => {
+  // Reset when a NEW question batch arrives — keyed on `turnKey`, which IS the
+  // batch's identity, and never on the `questions` array.
+  //
+  // The array is rebuilt on every render of the host (it is derived from the
+  // message list, which changes on every stream event and every live refresh),
+  // so an effect watching it re-ran constantly and set the index back to zero.
+  // You answered question 2, pressed Next, and landed on question 1 again with
+  // no way past it. Adjusted during render rather than in an effect, so the
+  // stale index never gets painted.
+  const [batch, setBatch] = useState(turnKey);
+  if (batch !== turnKey) {
+    setBatch(turnKey);
     setIdx(0);
     setAnswers(questions.map(() => emptyAnswer()));
-  }, [turnKey, questions]);
+  }
 
   const current = questions[idx];
   const answer = answers[idx] || emptyAnswer();
@@ -203,28 +213,32 @@ export function InlineAskPanel({ turnKey, questions, onSubmit, onDismiss, disabl
       )}
       data-testid="inline-ask-panel"
     >
-      <header className="flex items-start gap-2 border-b border-border px-3 py-2">
-        <span className="mt-0.5 shrink-0 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-mono font-medium text-amber-700 dark:text-amber-300">
-          {idx + 1}/{total}
-        </span>
-        {current.header && (
-          <span className="mt-0.5 shrink-0 rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-            {current.header}
+      {/* The chips take a row of their own and the question gets the full width
+          under them. Sharing one line, "1/3" and a header like "Opción múltiple"
+          squeezed the question into a third of a phone's width and broke it
+          across five lines — and the question is the part you have to read. */}
+      <header className="border-b border-border px-3 py-2">
+        <div className="flex items-center gap-2">
+          <span className="shrink-0 rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-mono font-medium text-amber-700 dark:text-amber-300">
+            {idx + 1}/{total}
           </span>
-        )}
-        <p className="min-w-0 flex-1 text-sm font-semibold leading-snug">
-          {current.question}
-        </p>
-        {onDismiss && (
-          <button
-            type="button"
-            onClick={onDismiss}
-            className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
-            aria-label={t("common.close")}
-          >
-            <X className="size-3.5" />
-          </button>
-        )}
+          {current.header && (
+            <span className="min-w-0 truncate rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+              {current.header}
+            </span>
+          )}
+          {onDismiss && (
+            <button
+              type="button"
+              onClick={onDismiss}
+              className="ml-auto shrink-0 rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+              aria-label={t("common.close")}
+            >
+              <X className="size-3.5" />
+            </button>
+          )}
+        </div>
+        <p className="mt-1.5 text-sm font-semibold leading-snug">{current.question}</p>
       </header>
 
       <div className="space-y-1 px-2 py-2">
