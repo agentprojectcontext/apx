@@ -22,6 +22,7 @@
 import ollama from "./ollama.js";
 import openai from "./openai.js";
 import gemini from "./gemini.js";
+import custom from "./custom.js";
 import tf from "./tf.js";
 
 const ADAPTERS = { ollama, openai, gemini, tf };
@@ -30,7 +31,29 @@ export const EMBED_ENGINE_IDS = Object.keys(ADAPTERS);
 // Local-first, then free-with-key, then paid, then offline fallback.
 export const AUTO_PREFERENCE = ["ollama", "gemini", "openai", "tf"];
 
+// ── Custom providers ────────────────────────────────────────────────────────
+// Users can add any number of OpenAI-compatible /embeddings endpoints (a local
+// Zen / LiteLLM / llama.cpp server). They live under memory.embeddings.custom
+// .<slug> and surface with id "custom:<slug>", all backed by the custom adapter.
+// Mirrors the TTS engine registry (src/core/voice/engines/index.js).
+export const CUSTOM_PREFIX = "custom:";
+
+export function isCustomId(id) {
+  return typeof id === "string" && id.startsWith(CUSTOM_PREFIX);
+}
+function slugOf(id) {
+  return isCustomId(id) ? id.slice(CUSTOM_PREFIX.length) : id;
+}
+function customEngineIds(embedCfg) {
+  return Object.keys(embedCfg?.custom || {}).map((slug) => CUSTOM_PREFIX + slug);
+}
+function knownIds(embedCfg) {
+  return [...EMBED_ENGINE_IDS, ...customEngineIds(embedCfg)];
+}
+
 export function getEmbedAdapter(provider) {
+  // Every custom provider is OpenAI-compatible → the custom adapter.
+  if (isCustomId(provider)) return custom;
   const a = ADAPTERS[provider];
   if (!a) {
     throw new Error(
@@ -62,10 +85,17 @@ export function embeddingsConfig(globalConfig) {
 }
 
 function providerConfig(globalConfig, provider) {
-  return embeddingsConfig(globalConfig)?.[provider] || {};
+  const emb = embeddingsConfig(globalConfig);
+  // A custom provider's config lives under .custom.<slug>; inject its own id so
+  // the adapter tags vectors with `custom:<slug>:model` (a distinct cosine space).
+  if (isCustomId(provider)) {
+    return { ...(emb?.custom?.[slugOf(provider)] || {}), _embedder_id: provider };
+  }
+  return emb?.[provider] || {};
 }
 
 function isEnabled(embedCfg, id) {
+  if (isCustomId(id)) return embedCfg?.custom?.[slugOf(id)]?.enabled !== false;
   return embedCfg?.[id]?.enabled !== false;
 }
 
@@ -76,15 +106,17 @@ export function resolveMode(embedCfg) {
   return p && p !== "auto" ? "single" : "chain";
 }
 
-/** Full chain order: user's custom order (known ids only) then the rest; tf last. */
+/** Full chain order: user's saved order (known ids only) then the rest, with tf
+ *  ALWAYS last (the guaranteed offline floor). "Known" now includes every
+ *  custom:<slug> so added providers can be reordered. */
 export function resolveChainOrder(embedCfg) {
-  const custom = Array.isArray(embedCfg?.order)
-    ? embedCfg.order.filter((id) => EMBED_ENGINE_IDS.includes(id))
+  const known = knownIds(embedCfg);
+  const ordered = Array.isArray(embedCfg?.order)
+    ? embedCfg.order.filter((id) => known.includes(id) && id !== "tf")
     : [];
-  const rest = AUTO_PREFERENCE.filter((id) => !custom.includes(id));
-  const full = [...custom, ...rest];
-  if (!full.includes("tf")) full.push("tf");
-  return full;
+  const rest = [...AUTO_PREFERENCE.filter((id) => id !== "tf"), ...customEngineIds(embedCfg)]
+    .filter((id) => !ordered.includes(id));
+  return [...ordered, ...rest, "tf"];
 }
 
 /**
@@ -115,7 +147,7 @@ export async function selectEmbedEngine({ globalConfig, provider }) {
   // 3. Chain mode: probe the (enabled) order, first available wins.
   for (const id of resolveChainOrder(embedCfg)) {
     if (id !== "tf" && !isEnabled(embedCfg, id)) continue;
-    const adapter = ADAPTERS[id];
+    const adapter = getEmbedAdapter(id);
     const cfg = providerConfig(globalConfig, id);
     try {
       if (await adapter.isAvailable(cfg, globalConfig?.engines)) {
@@ -142,8 +174,8 @@ export async function selectEmbedChain({ globalConfig }) {
   // contract; embedOne still drops to tf if that one engine errors).
   if (resolveMode(embedCfg) === "single") {
     const id = embedCfg?.provider;
-    if (id && id !== "auto" && ADAPTERS[id]) {
-      return [{ provider: id, adapter: ADAPTERS[id], engineConfig: providerConfig(globalConfig, id) }];
+    if (id && id !== "auto" && (ADAPTERS[id] || isCustomId(id))) {
+      return [{ provider: id, adapter: getEmbedAdapter(id), engineConfig: providerConfig(globalConfig, id) }];
     }
   }
 
@@ -151,8 +183,8 @@ export async function selectEmbedChain({ globalConfig }) {
   for (const id of resolveChainOrder(embedCfg)) {
     if (id === "tf") continue;
     if (!isEnabled(embedCfg, id)) continue;
-    const adapter = ADAPTERS[id];
-    if (!adapter) continue;
+    let adapter;
+    try { adapter = getEmbedAdapter(id); } catch { continue; }
     const cfg = providerConfig(globalConfig, id);
     try {
       if (await adapter.isAvailable(cfg, globalConfig?.engines)) {
@@ -163,12 +195,13 @@ export async function selectEmbedChain({ globalConfig }) {
   return out;
 }
 
-/** Discover which engines are configured/available right now. */
+/** Discover which engines are configured/available right now — built-ins plus
+ *  every user-added custom:<slug> provider. */
 export async function listAvailableEmbedEngines(globalConfig) {
   const embedCfg = embeddingsConfig(globalConfig);
   const out = [];
-  for (const id of EMBED_ENGINE_IDS) {
-    const adapter = ADAPTERS[id];
+  for (const id of knownIds(embedCfg)) {
+    const adapter = getEmbedAdapter(id);
     const cfg = providerConfig(globalConfig, id);
     let available = false;
     try {
@@ -177,8 +210,10 @@ export async function listAvailableEmbedEngines(globalConfig) {
     out.push({
       id,
       available,
-      configured: Object.keys(cfg).filter((k) => k !== "enabled").length > 0,
+      // `_embedder_id` is injected for custom blocks, not user-set config.
+      configured: Object.keys(cfg).filter((k) => k !== "enabled" && k !== "_embedder_id").length > 0,
       enabled: isEnabled(embedCfg, id),
+      ...(isCustomId(id) ? { custom: true, label: cfg.label || slugOf(id) } : {}),
     });
   }
   return out;
