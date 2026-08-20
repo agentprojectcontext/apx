@@ -27,6 +27,10 @@ interface Props {
   onDismiss?: () => void;
   /** Hide the panel while the next turn is in flight. */
   disabled?: boolean;
+  /** Render as a band inside the composer card rather than as a floating card
+   *  above it. The questions are something you ANSWER, so they belong in the
+   *  same box as the field you would otherwise type the answer into. */
+  docked?: boolean;
 }
 
 // One answer slot per question: which option indices are selected + free text.
@@ -40,12 +44,21 @@ function emptyAnswer(): AnswerState {
   return { picked: new Set<number>(), text: "", skipped: false };
 }
 
+/** Stands in for an answer that was not given. An em dash and not a word: this
+ *  string is sent to the MODEL, and every word invented here is a word in
+ *  whatever language this panel happens to be in. It used to be a parenthesised
+ *  Spanish phrase, so an agent working in French was handed Spanish scaffolding
+ *  wrapped around its own French questions. Everything else in the compiled
+ *  message — the questions, the option labels — is already the agent's own
+ *  wording coming back to it. */
+const NO_ANSWER = "—";
+
 function compileAnswers(questions: AskQuestion[], answers: AnswerState[]): string {
   const lines: string[] = [];
   questions.forEach((q, i) => {
     const a = answers[i] || emptyAnswer();
     if (a.skipped) {
-      lines.push(`- ${q.question}\n  → (omitido)`);
+      lines.push(`- ${q.question}\n  → ${NO_ANSWER}`);
       return;
     }
     const parts: string[] = [];
@@ -57,21 +70,24 @@ function compileAnswers(questions: AskQuestion[], answers: AnswerState[]): strin
       if (labels.length > 0) parts.push(labels.join(", "));
     }
     const text = a.text.trim();
-    if (text) {
-      parts.push(q.options && q.options.length > 0 ? `(Otro: ${text})` : text);
-    }
-    const answerText = parts.length > 0 ? parts.join(" ") : "(sin respuesta)";
+    // Free text alongside picked options goes in as itself. It used to carry a
+    // prefix naming it as the "other" field — one more invented word going to
+    // the model, when the separator already says the same thing.
+    if (text) parts.push(text);
+    const answerText = parts.length > 0 ? parts.join(" · ") : NO_ANSWER;
     lines.push(`- ${q.question}\n  → ${answerText}`);
   });
   return lines.join("\n");
 }
 
-// Inline panel rendered above the composer when the last assistant turn ended
-// on an unanswered ask_questions call. Clones the Claude Code question UX:
-// one question at a time, N/M progress, options + "Otro" free-text, skip / back
-// / next controls. Submitting compiles every answer into a single user message
-// so the agent sees them in the next turn.
-export function InlineAskPanel({ turnKey, questions, onSubmit, onDismiss, disabled }: Props) {
+export { NO_ANSWER };
+
+// The questions the agent is waiting on, rendered inside the composer card —
+// the thing you have to answer, in the box you answer with. One question at a
+// time, N/M progress, options plus a free-text field, skip / back / next.
+// Submitting compiles every answer into a single user message so the agent sees
+// them all in the next turn.
+export function InlineAskPanel({ turnKey, questions, onSubmit, onDismiss, disabled, docked }: Props) {
   const total = questions.length;
   const [idx, setIdx] = useState(0);
   const [answers, setAnswers] = useState<AnswerState[]>(() =>
@@ -117,8 +133,8 @@ export function InlineAskPanel({ turnKey, questions, onSubmit, onDismiss, disabl
   };
 
   const canAdvance = useMemo(() => {
-    // Always allow advancing — empty answer just records "(sin respuesta)".
-    // Skip is explicit via Omitir.
+    // Always allow advancing — an empty answer just records NO_ANSWER. Skipping
+    // is the explicit button.
     return true;
   }, []);
 
@@ -178,7 +194,11 @@ export function InlineAskPanel({ turnKey, questions, onSubmit, onDismiss, disabl
   return (
     <div
       className={cn(
-        "mx-3 mb-2 rounded-xl border border-border bg-card/95 shadow-xl backdrop-blur supports-[backdrop-filter]:bg-card/80",
+        docked
+          // Full-bleed inside the card's padding: one piece with the strip
+          // above it and the field below, not a third floating thing.
+          ? "-mx-2 border-b border-border/70 bg-card"
+          : "mx-3 mb-2 rounded-xl border border-border bg-card/95 shadow-xl backdrop-blur supports-[backdrop-filter]:bg-card/80",
         disabled && "pointer-events-none opacity-60",
       )}
       data-testid="inline-ask-panel"
@@ -347,18 +367,44 @@ function normalizeQuestionClient(q: unknown): AskQuestion | null {
   };
 }
 
-// Helper: pull questions from the last assistant turn if it ended on an
-// unanswered ask_questions call. Returns null when there's nothing to ask.
-// Tries args.questions first (raw model output) then result.questions
-// (server-normalized, may be JSON-stringified).
-export function pendingAskQuestions(msgs: Array<{ role: string; parts: Array<{ kind: string; tool?: string; args?: any; result?: any; status?: string }> }>): {
+type AskMsg = { role: string; parts: Array<{ kind: string; tool?: string; args?: any; result?: any; status?: string }> };
+
+/**
+ * Which message holds the question batch still waiting for an answer, or -1.
+ *
+ * Walk back from the end and stop at the first thing that settles it: a USER
+ * message means these questions have already been answered (or ignored, which
+ * amounts to the same thing — you moved on), and an `ask_questions` call means
+ * nobody has replied to it yet.
+ *
+ * It used to demand that the ask be in the very LAST message, which is a
+ * stricter thing than "unanswered": the agent routinely says a line alongside
+ * its questions ("Dale, acá va de nuevo 👇"), and any assistant turn landing
+ * after the call hid the panel for good. The questions then rendered as already
+ * received, with nothing to pick.
+ */
+export function pendingAskIndex(msgs: AskMsg[]): number {
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    const m = msgs[i];
+    if (m.role === "user") return -1;
+    if (m.role !== "assistant") continue;
+    if (m.parts.some((p) => p.kind === "tool" && p.tool === "ask_questions")) return i;
+  }
+  return -1;
+}
+
+// Helper: pull questions from the most recent unanswered ask_questions call.
+// Returns null when there's nothing to ask. Tries args.questions first (raw
+// model output) then result.questions (server-normalized, may be
+// JSON-stringified).
+export function pendingAskQuestions(msgs: AskMsg[]): {
   turnKey: string;
   questions: AskQuestion[];
 } | null {
-  if (!msgs.length) return null;
-  const last = msgs[msgs.length - 1];
-  if (last.role !== "assistant") return null;
-  // Find the most recent ask_questions tool part in this assistant turn.
+  const at = pendingAskIndex(msgs);
+  if (at < 0) return null;
+  const last = msgs[at];
+  // Find the most recent ask_questions tool part in that assistant turn.
   let askPart: typeof last.parts[number] | null = null;
   let askIdx = -1;
   for (let i = last.parts.length - 1; i >= 0; i--) {

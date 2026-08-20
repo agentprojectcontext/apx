@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Download, FileText, Image as ImageIcon, Mic, Video } from "lucide-react";
 import { fetchMediaUrl } from "../../lib/api/media";
 import type { MessageMedia } from "../../types/daemon";
@@ -124,19 +124,7 @@ export function Attachment({ media }: { media: MessageMedia }) {
   }
 
   if (media.kind === "audio") {
-    return url ? (
-      <div className="flex w-64 flex-col gap-1 rounded-2xl border border-border bg-card px-3 py-2 shadow-xs">
-        <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-          <Mic size={10} /> {t("chat_ui.voice_note")}
-          {detail && <span>· {detail}</span>}
-        </span>
-        {/* Opus in .oga: every Chromium/Firefox build plays it; the download
-            link is the way out anywhere that does not. */}
-        <audio src={url} controls className="w-full" />
-      </div>
-    ) : (
-      <Skeleton className="h-14 w-64" />
-    );
+    return url ? <VoiceNote url={url} detail={detail} /> : <Skeleton className="h-14 w-64" />;
   }
 
   return (
@@ -156,6 +144,36 @@ export function Attachment({ media }: { media: MessageMedia }) {
         </a>
       )}
     </Card>
+  );
+}
+
+/**
+ * A voice note, on the browser's own player.
+ *
+ * The unmount pause is not housekeeping — a detached media element goes on
+ * playing in Chrome, with no control anywhere on screen attached to it. Whoever
+ * unmounts this (switching sessions, leaving the chat) would otherwise leave a
+ * voice note playing out of a component that no longer exists, and the play
+ * button the reader can still see belongs to a different element entirely.
+ */
+function VoiceNote({ url, detail }: { url: string; detail: string }) {
+  const ref = useRef<HTMLAudioElement>(null);
+  useEffect(() => {
+    // Captured here rather than read in the cleanup: React has already detached
+    // the ref by the time that runs.
+    const el = ref.current;
+    return () => el?.pause();
+  }, []);
+  return (
+    <div className="flex w-64 flex-col gap-1 rounded-2xl border border-border bg-card px-3 py-2 shadow-xs">
+      <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+        <Mic size={10} /> {t("chat_ui.voice_note")}
+        {detail && <span>· {detail}</span>}
+      </span>
+      {/* Opus in .oga: every Chromium/Firefox build plays it; the download
+          link is the way out anywhere that does not. */}
+      <audio ref={ref} src={url} controls className="w-full" />
+    </div>
   );
 }
 

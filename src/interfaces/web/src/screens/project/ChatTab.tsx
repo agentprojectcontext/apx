@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import useSWR, { mutate } from "swr";
-import { ArrowUpRight, MessageSquareDashed, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, ArrowDown, ArrowUpRight, ChevronLeft, MessageSquareDashed, MoreVertical, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
 import { Agents, Conversations } from "../../lib/api";
 import { Button, Dialog, Empty, Field, Input, Loading, Switch, Tip } from "../../components/ui";
 import { Composer } from "../../components/chat/Composer";
@@ -9,6 +9,16 @@ import { MessageList } from "../../components/chat/MessageList";
 import { ContextBar } from "../../components/chat/ContextBar";
 import { InlineAskPanel, pendingAskQuestions } from "../../components/chat/InlineAskPanel";
 import { ChatList, type ChatKey, type ChatSelectionMeta } from "../../components/chat/ChatList";
+import { SessionPicker } from "../../components/chat/SessionPicker";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "../../components/ui/dropdown-menu";
 import { useChat, type ChatMsg } from "../../hooks/useChat";
 import { useLiveMessages } from "../../hooks/useLiveMessages";
 import { concernsConversation, concernsThread, type LiveEvent } from "../../lib/live";
@@ -19,7 +29,7 @@ import { t } from "../../i18n";
 import { toneChip } from "../../lib/tone";
 import { usePersonaName } from "../../hooks/usePersonaName";
 import { AgentAvatar, SUPER_AGENT_ICON, type AgentFace } from "../../components/agents/AgentAvatar";
-import type { AgentEntry } from "../../types/daemon";
+import type { AgentEntry, ConversationListEntry } from "../../types/daemon";
 
 // Virtual entry slug used in the agent dropdown to address the daemon-level
 // super-agent (persona "Roby" for the owner). Picked so it can't collide
@@ -38,6 +48,9 @@ export function ChatTab({
   initialSelection,
   bare = false,
   onOpenInProject,
+  compact = false,
+  onBack,
+  onSelectionChange,
 }: {
   pid: string;
   hideSidebar?: boolean;
@@ -53,6 +66,17 @@ export function ChatTab({
   /** Structural way out, shown as a header action. Only the inbox passes it:
    *  inside a project you are already where it would take you. */
   onOpenInProject?: () => void;
+  /** Phone shaping: no avatar column, wider bubbles, and a header sized for a
+   *  thumb with its actions folded behind one ⋯. The phone surface sets it; the
+   *  desktop pane never does. */
+  compact?: boolean;
+  /** Renders the back arrow in the header. Only the phone has anywhere to go
+   *  back TO — inside a project the chat is a tab, not a screen. */
+  onBack?: () => void;
+  /** The host owns the URL. Passed by the phone surface, where a session is a
+   *  path segment rather than a query string, so picking one has to navigate
+   *  instead of writing `?conv=` that a reload would not read back. */
+  onSelectionChange?: (key: ChatKey) => void;
 }) {
   const toast = useToast();
   const [params, setSearchParams] = useSearchParams();
@@ -60,9 +84,61 @@ export function ChatTab({
   const [creating, setCreating] = useState(false);
   const [model, setModel] = useState("");
   const [dismissedAskKey, setDismissedAskKey] = useState<string | null>(null);
-  const { msgs, send: sendChat, stop, clear, load, loadThread, streaming, conversationMeta } =
+  const { msgs, send: sendChat, stop, clear, load, loadThread, streaming, queued, unqueue, conversationMeta } =
     useChat(pid, (m) => toast.error(m));
   const persona = usePersonaName();
+
+  // How tall the floating dock currently is. It moves constantly — a draft
+  // wrapping to a third line, an attachment strip appearing, the context panel
+  // opening — and the thread needs the live number, not a guess, or the last
+  // message ends up behind the field exactly when you are reading it.
+  //
+  // A callback ref, not an effect on a ref object: this component renders
+  // <Loading/> until the agent list arrives, so a mount effect would look for a
+  // dock that does not exist yet, find null, and never run again — leaving the
+  // inset at zero and the field parked on top of the last three lines.
+  const [dockH, setDockH] = useState(0);
+  // While the context detail is open the dock is temporarily much taller, and
+  // the thread must NOT reserve that: opening a panel for two seconds should
+  // cover the conversation, not shove it up and drop it back down. So the inset
+  // is the last height measured with the panel shut.
+  const [ctxOpen, setCtxOpen] = useState(false);
+  const restingDock = useRef(0);
+  if (!ctxOpen) restingDock.current = dockH;
+  const bottomInset = ctxOpen ? restingDock.current : dockH;
+
+  // Whether the reader is following the end of the thread, and what they have
+  // missed while they were not. Nothing scrolls on its own any more, so the
+  // count is the only way to know something arrived while you were reading
+  // further up — an arrow that appears silently is easy to look straight past.
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const [atBottom, setAtBottom] = useState(true);
+  const [missed, setMissed] = useState(0);
+  const seenCount = useRef(0);
+  useEffect(() => {
+    if (atBottom) {
+      seenCount.current = msgs.length;
+      setMissed(0);
+      return;
+    }
+    setMissed(Math.max(0, msgs.length - seenCount.current));
+  }, [msgs.length, atBottom]);
+
+  const jumpToLatest = useCallback(() => {
+    const el = scrollerRef.current;
+    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+  }, []);
+  const dockWatch = useRef<ResizeObserver | null>(null);
+  const dockRef = useCallback((el: HTMLDivElement | null) => {
+    dockWatch.current?.disconnect();
+    if (!el) {
+      dockWatch.current = null;
+      return;
+    }
+    const ro = new ResizeObserver(([entry]) => setDockH(entry.contentRect.height));
+    ro.observe(el);
+    dockWatch.current = ro;
+  }, []);
 
   // Selection state — drives both the sidebar highlight and the right-pane
   // header. Restored from the URL query on mount (so a chat is deep-linkable),
@@ -97,6 +173,8 @@ export function ChatTab({
   // carried from the sidebar so the header can show it without a second fetch.
   const [selectedMeta, setSelectedMeta] = useState<ChatSelectionMeta | undefined>(undefined);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmNew, setConfirmNew] = useState(false);
+  const [renaming, setRenaming] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   // Select a chat and mirror its id into the URL query so the current chat is
@@ -104,6 +182,12 @@ export function ChatTab({
   const selectChat = (key: ChatKey, meta?: ChatSelectionMeta) => {
     setSelected(key);
     setSelectedMeta(meta);
+    // A host that owns the URL writes it in its own shape; writing both would
+    // leave two spellings of the same thing to disagree on the next reload.
+    if (onSelectionChange) {
+      onSelectionChange(key);
+      return;
+    }
     const next = new URLSearchParams();
     if (key.kind === "conv") {
       next.set("agent", key.agentSlug);
@@ -238,12 +322,85 @@ export function ChatTab({
       }
       toast.success(t("project.chat.deleted"));
       setConfirmDelete(false);
-      newSession();
+      await openNeighbour();
     } catch (e) {
       toast.error((e as Error)?.message || t("shared_ui.err_chat_failed"));
     } finally {
       setDeleting(false);
     }
+  };
+
+  /** Both lists that could be showing this session. Cheaper to revalidate the
+   *  pair than to work out which frame we are in. */
+  const refreshSessions = () => {
+    if (selected.kind === "thread") void mutate(`/api/projects/${pid}/super-agent/threads`);
+    else if (selected.kind === "conv") void mutate(`/api/projects/${pid}/agents/${selected.agentSlug}/conversations`);
+    void mutate(`sessions:${pid}:${activeAgent?.slug || ""}:${activeIsRoby}`);
+  };
+
+  /** Name it something you will recognise. An empty name is not an error — it
+   *  drops the override, and the derived one (the first thing said) comes back. */
+  const doRename = async (title: string) => {
+    try {
+      if (selected.kind === "conv") {
+        await Conversations.update(pid, selected.agentSlug, selected.convId, { title });
+      } else if (selected.kind === "thread") {
+        await Conversations.updateThread(pid, selected.channel, selected.threadId, { title });
+      }
+      setSelectedMeta((m) => ({ ...(m || {}), title: title.trim() || undefined }) as ChatSelectionMeta);
+      refreshSessions();
+      setRenaming(null);
+      toast.success(t("project.chat.renamed"));
+    } catch (e) {
+      toast.error((e as Error)?.message || t("shared_ui.err_chat_failed"));
+    }
+  };
+
+  /** Put away, or take back out. The smaller decision than deleting: the record
+   *  stays exactly where it is and only leaves the lists that offer chats to
+   *  resume, so archiving is never the end of anything. */
+  const doArchive = async (archived: boolean) => {
+    try {
+      if (selected.kind === "conv") {
+        await Conversations.update(pid, selected.agentSlug, selected.convId, { archived });
+      } else if (selected.kind === "thread") {
+        await Conversations.updateThread(pid, selected.channel, selected.threadId, { archived });
+      }
+      refreshSessions();
+      toast.success(t(archived ? "project.chat.archived_ok" : "project.chat.unarchived_ok"));
+      // Archiving takes this thread out of the list you are reading it from, so
+      // stay somewhere that still exists. Un-archiving leaves you put.
+      if (archived) await openNeighbour();
+    } catch (e) {
+      toast.error((e as Error)?.message || t("shared_ui.err_chat_failed"));
+    }
+  };
+
+  /** Where to land once a conversation is gone: the most recent one still
+   *  there, for the same agent or the same channel wall. Dropping the reader on
+   *  an empty new session instead is the app answering "deleted" with "and now
+   *  you are nowhere" — the thread next to it is what they were reading around.
+   *  An empty list, or a list we cannot fetch, still falls back to a fresh one. */
+  const openNeighbour = async () => {
+    try {
+      if (selected.kind === "conv") {
+        const gone = selected.convId;
+        const slug = selected.agentSlug;
+        const rest = (await Conversations.list(pid, slug)).filter((c) => c.id !== gone);
+        const next = rest.sort(byRecency)[0];
+        if (next) return selectChat({ kind: "conv", agentSlug: slug, convId: next.id });
+      } else if (selected.kind === "thread") {
+        const { channel, threadId } = selected;
+        const rest = (await Conversations.threads(pid)).filter(
+          (th) => !(th.channel === channel && th.id === threadId),
+        );
+        const next = [...rest].sort((a, b) => (b.last_ts || b.id).localeCompare(a.last_ts || a.id))[0];
+        if (next) return selectChat({ kind: "thread", channel: next.channel, threadId: next.id });
+      }
+    } catch {
+      /* the list is unreachable: a fresh session is still a place to be */
+    }
+    newSession();
   };
 
   // The header answers WHO first and WHICH CONVERSATION second: the agent's
@@ -257,10 +414,16 @@ export function ChatTab({
   const createdIso =
     selected.kind === "thread" ? selected.threadId : selectedMeta?.createdAt;
 
+  // What this session is CALLED. The loaded file (or thread) knows its own
+  // name, including the one the reader gave it; the list row is only what
+  // happened to be carried in from wherever you clicked, and on a deep link
+  // there is no row at all — which is how the header ended up showing a bare
+  // date where the name should be.
   const convLabel =
     selected.kind === "live"
       ? ""
-      : selectedMeta?.title ||
+      : conversationMeta?.title ||
+        selectedMeta?.title ||
         (selected.kind === "thread" ? selected.threadId : selected.convId);
   // Kept as the delete-dialog subject: there the conversation, not the agent,
   // is the thing being destroyed.
@@ -269,14 +432,6 @@ export function ChatTab({
   // only what the list row happened to carry. Prefer the file — a routine
   // conversation was reading as "new chat · web" with no model named anywhere.
   const shownChannel = conversationMeta?.channel || channelLabel;
-  const headerSubtitle = [
-    convLabel,
-    createdIso
-      ? t("project.chat.meta_created", { date: formatDate(createdIso), channel: shownChannel })
-      : t("project.chat.meta_new", { channel: shownChannel }),
-    conversationMeta?.engine,
-  ].filter(Boolean).join(" · ");
-
   // One face per speaker, resolved from the same data the inbox uses. Turns a
   // delegated agent produced inside a super-agent thread keep THEIR face, so a
   // multi-agent thread is readable without expanding anything.
@@ -292,6 +447,47 @@ export function ChatTab({
     if (hit) return { icon: hit.icon, emoji: hit.emoji, name: hit.name || hit.slug };
     return { ...headerFace, name: msg.agent || headerFace.name };
   };
+
+  // A stored session is the only kind you can name, put away or destroy: a live
+  // one is not anywhere yet.
+  const storedSession = selected.kind === "conv" || selected.kind === "thread";
+  const isArchived = !!selectedMeta?.archived;
+  const newSessionAction = {
+    key: "new",
+    icon: RotateCcw,
+    label: t("project.chat.new_session"),
+    onClick: () => setConfirmNew(true),
+    disabled: streaming || msgs.length === 0,
+  };
+
+  // What the ⋯ holds: everything that edits THIS session. Described once, so
+  // the phone and the desktop cannot drift into offering different things.
+  const menuActions = [
+    // On a phone there is no room for a second control, so it starts here too.
+    ...(compact ? [newSessionAction] : []),
+    ...(storedSession
+      ? [
+          {
+            key: "rename",
+            icon: Pencil,
+            label: t("project.chat.rename"),
+            onClick: () => setRenaming(convLabel || ""),
+            disabled: false,
+          },
+          {
+            key: "archive",
+            icon: isArchived ? ArchiveRestore : Archive,
+            label: t(isArchived ? "project.chat.unarchive" : "project.chat.archive"),
+            onClick: () => void doArchive(!isArchived),
+            disabled: streaming,
+          },
+        ]
+      : []),
+  ];
+  // Below the line, on its own: the one that cannot be taken back.
+  const deleteAction = storedSession
+    ? { key: "delete", icon: Trash2, label: t("project.chat.delete"), onClick: () => setConfirmDelete(true), disabled: streaming }
+    : null;
 
   if (agents.isLoading) return <Loading />;
 
@@ -313,101 +509,221 @@ export function ChatTab({
           the viewport, and the composer sits under the fold with no way to
           reach it. Invisible on a tall desktop pane, fatal on a phone. */}
       <section className="flex min-h-0 min-w-0 flex-1 flex-col">
-        {hideHeader ? null : <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-3 py-2">
+        {hideHeader ? null : <header
+          className={cn(
+            "flex shrink-0 items-center justify-between gap-3 border-b border-border",
+            // The phone pays for the notch here rather than in a second header
+            // of its own: one implementation, two frames around it.
+            compact ? "gap-2 px-2 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))]" : "px-3 py-2",
+          )}
+        >
+          {onBack && (
+            <button
+              type="button"
+              onClick={onBack}
+              aria-label={t("mobile.back")}
+              className="flex size-10 shrink-0 items-center justify-center rounded-full text-muted-fg active:bg-accent/60"
+            >
+              <ChevronLeft size={22} />
+            </button>
+          )}
           <div className="flex min-w-0 flex-1 items-center gap-2.5">
-            <AgentAvatar {...headerFace} size={30} />
-            <div className="min-w-0">
-              <div className="flex min-w-0 items-center gap-1.5">
-                <h2 className="truncate text-sm font-semibold">{agentLabel}</h2>
-                {activeIsRoby && (
+            <AgentAvatar {...headerFace} size={compact ? 36 : 30} />
+            {/* The session on top, WHO on the line under it. The header used to
+                lead with the agent and demote the thread to a date in the meta
+                line — but the agent's face is already sitting right there, and
+                the date was standing in the one place the name should be. */}
+            <div className="min-w-0 flex-1">
+              <SessionPicker
+                pid={pid}
+                agentSlug={activeAgent?.slug || (selected.kind === "thread" ? "" : selected.agentSlug)}
+                isSuper={activeIsRoby}
+                selected={selected}
+                label={convLabel || t("mobile.live_session")}
+                onPick={selectChat}
+                className={cn(
+                  "max-w-full font-semibold text-foreground",
+                  compact ? "text-[15px] leading-tight" : "text-sm",
+                )}
+              />
+              {/* Who answered, where, and when — three facts, each short. Kept
+                  on one line and truncated as a whole, so a long agent name
+                  cannot push the channel and the date onto a second row. */}
+              <p className="flex min-w-0 items-center gap-1.5 truncate text-[11px] text-muted-fg">
+                <span className="truncate">{agentLabel}</span>
+                {/* Not on a phone: at 375px the badge and the two facts after it
+                    squeezed "Roby" down to "Ro…", and the face two inches to
+                    the left already says which agent this is. */}
+                {activeIsRoby && !compact && (
                   <span className={cn("shrink-0 rounded px-1 py-px text-[9px] font-semibold uppercase tracking-wide", toneChip.emerald)}>
                     {t("agents_ui.super_agent_badge")}
                   </span>
                 )}
-              </div>
-              <p className="truncate text-[11px] text-muted-fg">{headerSubtitle}</p>
+                <span className="shrink-0">· {shownChannel}</span>
+                {createdIso && <span className="shrink-0">· {formatDate(createdIso)}</span>}
+                {conversationMeta?.engine && !compact && (
+                  <span className="truncate">· {conversationMeta.engine}</span>
+                )}
+              </p>
             </div>
           </div>
-          {/* Labels fold away before the agent's name does: below `lg` these
-              are icon buttons with tooltips. Three full-width buttons used to
-              eat the identity block down to nothing in the inbox's pane. */}
+
+          {/* Same actions on both surfaces, presented for the room available:
+              spelled out where there is width, folded behind one ⋯ where there
+              is not. On the phone they used to be absent altogether. */}
           <div className="flex shrink-0 items-center gap-1">
-            {!agentList.length && !activeIsRoby && (
+            {!agentList.length && !activeIsRoby && !compact && (
               <Button variant="primary" size="sm" onClick={() => setCreating(true)}>
                 <Plus size={14} /> {t("project.chat.create_agent")}
               </Button>
             )}
-            {onOpenInProject && (
-              <Tip content={t("inbox.open_in_project")}>
+            {/* Navigation says so in words — it is the one action here that
+                takes you somewhere rather than changing something. */}
+            {onOpenInProject && !compact && (
+              <Button variant="ghost" size="sm" onClick={onOpenInProject}>
+                {t("inbox.open_in_project")} <ArrowUpRight size={13} />
+              </Button>
+            )}
+            {!compact && (
+              <Tip content={newSessionAction.label}>
                 <Button
                   variant="ghost"
                   size="sm"
-                  aria-label={t("inbox.open_in_project")}
-                  onClick={onOpenInProject}
+                  aria-label={newSessionAction.label}
+                  disabled={newSessionAction.disabled}
+                  onClick={newSessionAction.onClick}
                 >
-                  <span className="hidden lg:inline">{t("inbox.open_in_project")}</span>
-                  <ArrowUpRight size={13} />
+                  <RotateCcw size={13} />
                 </Button>
               </Tip>
             )}
-            <Tip content={t("project.chat.new_session")}>
-              <Button
-                variant="ghost"
-                size="sm"
-                aria-label={t("project.chat.new_session")}
-                disabled={streaming || msgs.length === 0}
-                onClick={newSession}
-              >
-                <RotateCcw size={13} />
-                <span className="hidden lg:inline">{t("project.chat.new_session")}</span>
-              </Button>
-            </Tip>
-            {(selected.kind === "conv" || selected.kind === "thread") && (
-              <Tip content={t("project.chat.delete")}>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  aria-label={t("project.chat.delete")}
-                  disabled={streaming}
-                  onClick={() => setConfirmDelete(true)}
+            {(menuActions.length > 0 || deleteAction) && (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  aria-label={t("common.more")}
+                  className={cn(
+                    "flex items-center justify-center rounded-full text-muted-fg data-[popup-open]:bg-accent/60",
+                    compact ? "size-10 active:bg-accent/60" : "size-8 hover:bg-accent/60",
+                  )}
                 >
-                  <Trash2 size={13} />
-                  <span className="hidden lg:inline">{t("project.chat.delete")}</span>
-                </Button>
-              </Tip>
+                  <MoreVertical size={compact ? 20 : 16} />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" sideOffset={6} className="w-60">
+                  {/* Which session these act on, named at the top — the same
+                      thing the project's right-click menu does. Without it the
+                      menu is four verbs with no subject. */}
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel className="truncate text-[11px] font-normal text-muted-fg">
+                      {convLabel || t("mobile.live_session")}
+                    </DropdownMenuLabel>
+                  </DropdownMenuGroup>
+                  {menuActions.map((a) => (
+                    <DropdownMenuItem key={a.key} onClick={a.onClick} disabled={a.disabled}>
+                      <a.icon className="size-4" /> {a.label}
+                    </DropdownMenuItem>
+                  ))}
+                  {deleteAction && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={deleteAction.onClick}
+                        disabled={deleteAction.disabled}
+                        className="text-destructive"
+                      >
+                        <Trash2 className="size-4 text-destructive" /> {deleteAction.label}
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
         </header>}
 
-        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
-          {msgs.length ? (
-            <MessageList msgs={msgs} onCopy={copyToClipboard} faceFor={faceFor} />
-          ) : (
-            <Empty fill icon={MessageSquareDashed}>{t("project.chat.empty")}</Empty>
+        {/* The thread and the dock share the same box: the composer HOVERS over
+            the conversation instead of taking a slice of the column away from
+            it. The list is given the dock's exact height as trailing space, so
+            the last line can always be scrolled clear of the field — floating
+            over the text is only an improvement while you can still read the
+            line you are answering. */}
+        <div className="relative min-h-0 flex-1">
+          <div ref={scrollerRef} className="h-full overflow-y-auto overflow-x-hidden">
+            {msgs.length || queued.length ? (
+              <MessageList
+                msgs={msgs}
+                queued={queued}
+                onUnqueue={unqueue}
+                onCopy={copyToClipboard}
+                faceFor={faceFor}
+                compact={compact}
+                bottomInset={bottomInset}
+                onAtBottomChange={setAtBottom}
+              />
+            ) : (
+              <Empty fill icon={MessageSquareDashed}>{t("project.chat.empty")}</Empty>
+            )}
+          </div>
+
+          {/* The way back to the end, once leaving it is something you can do
+              without being dragged straight back. Positioned against the same
+              box as the dock and sized by it, so it clears the field without
+              being part of it — inside the dock it would grow the space the
+              thread reserves, and the conversation would jump every time this
+              appeared. */}
+          {!atBottom && msgs.length > 0 && (
+            <button
+              type="button"
+              onClick={jumpToLatest}
+              aria-label={missed ? t("chat_ui.jump_latest_new") : t("chat_ui.jump_latest")}
+              // Against the dock's REAL height, not the frozen inset: it has to
+              // clear whatever is actually on screen, panel included.
+              style={{ bottom: dockH + 8 }}
+              className={cn(
+                "absolute left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-border",
+                "bg-card px-3 py-1.5 text-xs shadow-lg transition-colors hover:bg-accent",
+                missed > 0 && "border-primary/50 text-primary",
+              )}
+            >
+              <ArrowDown size={14} />
+              {missed > 0 && <span className="font-medium tabular-nums">{missed}</span>}
+            </button>
           )}
-        </div>
-        <ContextBar msgs={msgs} />
-        {(() => {
-          const pending = !streaming ? pendingAskQuestions(msgs) : null;
-          if (!pending || pending.turnKey === dismissedAskKey) return null;
-          return (
-            <InlineAskPanel
-              turnKey={pending.turnKey}
-              questions={pending.questions}
-              onSubmit={(compiled) => void send(compiled)}
-              onDismiss={() => setDismissedAskKey(pending.turnKey)}
-              disabled={streaming}
+
+          <div ref={dockRef} className="absolute inset-x-0 bottom-0">
+            <Composer
+              onSend={send}
+              onStop={stop}
+              streaming={streaming}
+              model={model}
+              onModelChange={setModel}
+              allowFiles={activeIsRoby}
+              floating
+              // The strip and the questions are both part of the field: what the
+              // turn cost, and what it is waiting on. The panel used to hover as
+              // a separate card above the composer, which put the thing you have
+              // to answer somewhere other than the thing you answer with.
+              context={
+                <>
+                  <ContextBar msgs={msgs} docked onOpenChange={setCtxOpen} />
+                  {(() => {
+                    const pending = !streaming ? pendingAskQuestions(msgs) : null;
+                    if (!pending || pending.turnKey === dismissedAskKey) return null;
+                    return (
+                      <InlineAskPanel
+                        docked
+                        turnKey={pending.turnKey}
+                        questions={pending.questions}
+                        onSubmit={(compiled) => void send(compiled)}
+                        onDismiss={() => setDismissedAskKey(pending.turnKey)}
+                        disabled={streaming}
+                      />
+                    );
+                  })()}
+                </>
+              }
             />
-          );
-        })()}
-        <Composer
-          onSend={send}
-          onStop={stop}
-          streaming={streaming}
-          model={model}
-          onModelChange={setModel}
-          allowFiles={activeIsRoby}
-        />
+          </div>
+        </div>
       </section>
 
       <CreateAgentDialog
@@ -416,6 +732,54 @@ export function ChatTab({
         onClose={() => setCreating(false)}
         onCreated={() => { setCreating(false); agents.mutate(); }}
       />
+
+      <Dialog
+        open={renaming !== null}
+        onClose={() => setRenaming(null)}
+        title={t("project.chat.rename_title")}
+        size="sm"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setRenaming(null)}>
+              {t("common.cancel")}
+            </Button>
+            <Button variant="primary" onClick={() => void doRename(renaming || "")}>
+              {t("common.save")}
+            </Button>
+          </>
+        }
+      >
+        <Field label={t("project.chat.rename_label")} hint={t("project.chat.rename_hint")}>
+          <Input
+            autoFocus
+            value={renaming ?? ""}
+            onChange={(e) => setRenaming(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void doRename(renaming || "");
+            }}
+          />
+        </Field>
+      </Dialog>
+
+      <Dialog
+        open={confirmNew}
+        onClose={() => setConfirmNew(false)}
+        title={t("project.chat.new_session_confirm_title")}
+        description={t("project.chat.new_session_confirm_desc")}
+        size="sm"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setConfirmNew(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button variant="primary" onClick={() => { setConfirmNew(false); newSession(); }}>
+              <RotateCcw size={14} /> {t("project.chat.new_session")}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-muted-fg">{headerTitle}</p>
+      </Dialog>
 
       <Dialog
         open={confirmDelete}
@@ -438,6 +802,14 @@ export function ChatTab({
       </Dialog>
     </div>
   );
+}
+
+/** Most recent first. `ended_at` is when it was last written to; a conversation
+ *  that has only ever been opened has just `started_at`, and the id is the last
+ *  resort so the order is never arbitrary. */
+function byRecency(a: ConversationListEntry, b: ConversationListEntry): number {
+  const when = (c: ConversationListEntry) => c.ended_at || c.started_at || c.id;
+  return when(b).localeCompare(when(a));
 }
 
 // Localised short date for the header "Created {date}" line. Falls back to the

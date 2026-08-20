@@ -213,6 +213,8 @@ export interface ConversationListEntry {
   channel?: string;
   messages?: number;
   title?: string;
+  /** Put away: still on disk, just out of the lists that offer chats to resume. */
+  archived?: boolean;
 }
 
 /** An attachment that arrived with a turn: the file is on disk under
@@ -283,11 +285,16 @@ export interface ThreadListEntry {
   messages: number;
   started_at: string;
   last_ts: string;
+  archived?: boolean;
 }
 
 export interface ThreadDetail {
   id: string;
   channel: string;
+  /** What this thread is called: the reader's own name for it, or the first
+   *  thing that was said in it. */
+  title?: string;
+  archived?: boolean;
   messages: ConversationMessage[];
 }
 

@@ -216,8 +216,6 @@ export function RobyBubble({
           )}
         </div>
 
-        <ContextBar msgs={msgs} />
-
         <div className="border-t border-border p-3">
           <div className="mb-1.5">
             <SkillPicker value={draft} onPick={(slug) => setDraft(`/${slug} `)} />
@@ -229,6 +227,9 @@ export function RobyBubble({
             onStop={stop}
             busy={busy}
             placeholder={t("superagent.placeholder")}
+            // The context summary is the field's own top edge here too, rather
+            // than a strip on its own line above it.
+            header={<ContextBar msgs={msgs} docked />}
             footer={<ModelPicker value={model} onChange={setModel} disabled={busy} />}
           />
           <div className="mt-1.5 flex justify-end">

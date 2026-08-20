@@ -33,6 +33,10 @@ interface ChatInputProps {
   accept?: string
   /** Rendered inside the field, above the textarea: the pending attachments. */
   above?: React.ReactNode
+  /** Full-bleed strip welded to the top edge of the card — the conversation's
+   *  context summary. It cancels the card padding itself, so it reads as the
+   *  field's own top edge rather than as a separate bar hovering above it. */
+  header?: React.ReactNode
   /** Handle onto the hidden file input, so a caller-supplied menu can open it
    *  with its own `accept` filter. */
   pickerRef?: React.Ref<FilePicker>
@@ -67,6 +71,7 @@ export function ChatInput({
   onFiles,
   accept,
   above,
+  header,
   pickerRef,
   leading,
   trailing,
@@ -128,6 +133,10 @@ export function ChatInput({
     }
   }, [value, minRows, maxRows])
 
+  // Note what this does NOT read: `busy`. A draft in the field is a turn to
+  // send, and the agent already working is no reason to refuse it — the caller
+  // queues it onto the thread. Being busy only decides what the button becomes
+  // once there is nothing left to send.
   const canSend = (value.trim().length > 0 || allowEmpty) && !disabled
 
   return (
@@ -147,6 +156,7 @@ export function ChatInput({
         className,
       )}
     >
+      {header}
       {above}
       <textarea
         ref={ref}
@@ -166,7 +176,7 @@ export function ChatInput({
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault()
-            if (busy || !canSend) return
+            if (!canSend) return
             onSubmit()
           }
         }}
@@ -209,7 +219,11 @@ export function ChatInput({
         </div>
         <div className="flex shrink-0 items-center gap-1">
         {trailing}
-        {busy && onStop ? (
+        {/* Stop is what the button becomes when the field is EMPTY. With a
+            draft in it, the only thing that button can mean is "send this" —
+            swapping it for a stop the moment the agent starts working turned
+            every message typed mid-run into a killed run. */}
+        {busy && onStop && !canSend ? (
           <Tip content={t("chat_ui.stop")}>
             <Button
               type="button"

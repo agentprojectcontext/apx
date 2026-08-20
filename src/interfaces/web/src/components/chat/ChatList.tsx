@@ -83,6 +83,9 @@ export interface ChatSelectionMeta {
   channel?: string;
   createdAt?: string;
   title?: string;
+  /** Reached from the archived group: the ⋯ menu offers to take it back out
+   *  rather than to put it away again. */
+  archived?: boolean;
 }
 
 interface Props {

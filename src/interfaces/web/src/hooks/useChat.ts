@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { SuperAgent, Agents, Conversations } from "../lib/api";
 import type { ChatStreamEvent, ChatUsage, ConversationMessage, MessageMedia, ToolSummary } from "../types/daemon";
 import type { UploadedMedia } from "../lib/api/media";
@@ -84,6 +84,23 @@ export interface SendOptions {
   attachments?: UploadedMedia[];
 }
 
+/** A turn written while the previous one was still running.
+ *
+ *  It is IN the thread from the moment you send it — dimmed, with a way out —
+ *  and goes out by itself the moment the running turn lands. Sending during a
+ *  run used to be refused outright, which left "stop" as the only thing the
+ *  button under a working agent could do: the way to add a sentence to the
+ *  conversation was to kill the answer being written. */
+export interface QueuedTurn {
+  id: string;
+  /** The bubble, built exactly like the one a sent turn gets — the marker text
+   *  included, so it renders its photo and not the marker's words. */
+  msg: ChatMsg;
+  /** What actually goes out when its turn comes. */
+  text: string;
+  opts: SendOptions;
+}
+
 export interface ReloadOptions {
   /** A BACKGROUND re-read: the same conversation moved somewhere else and we
    *  are catching up. It must not blank the pane first, must not drop what was
@@ -106,6 +123,13 @@ export interface UseChatResult {
    *  turns with the thread as previousMessages context. */
   loadThread: (channel: string, threadId: string, opts?: ReloadOptions) => Promise<void>;
   streaming: boolean;
+  /** Turns typed while this one was running, in the order they were written.
+   *  They belong under the thread, not in `msgs`: everything that paints a live
+   *  answer works on the trailing message, and a queued bubble parked there
+   *  would silently swallow the rest of the stream. */
+  queued: QueuedTurn[];
+  /** Take one back before it goes out. */
+  unqueue: (id: string) => void;
   /** Conversation id we're bound to, if any. Lets callers reflect "live vs
    *  loaded" state in the UI. */
   conversationId: string | undefined;
@@ -222,11 +246,22 @@ function threadToChatMsgs(messages: ConversationMessage[]): ChatMsg[] {
     } else if (m.role === "assistant" || m.role === "tool") {
       // Tool rows inherit the current actor (they're logged by whoever is
       // running); only assistant rows can start a new one.
+      //
+      // A turn OPENED by tool rows has no actor yet, and the assistant row that
+      // follows is the one that names it — not a second turn. Comparing against
+      // an undefined actor split every "tools first, then the answer" turn in
+      // two: the calls in a bubble credited to nobody, the answer in another.
+      // That is what kept the question panel from ever appearing — the
+      // ask_questions call ended up one bubble BEHIND the last message, so the
+      // questions read as already answered and there was nothing to pick from.
       const actor = m.role === "assistant" ? m.agent : turnActor;
-      if (!turn || (m.role === "assistant" && actor !== turnActor)) {
+      const named = turnActor !== undefined;
+      if (!turn || (m.role === "assistant" && named && actor !== turnActor)) {
         turn = { role: "assistant", parts: [], ts };
         turnActor = actor;
         out.push(turn);
+      } else if (m.role === "assistant" && !named) {
+        turnActor = actor;
       }
       if (m.role === "tool") {
         turn.parts.push({
@@ -497,6 +532,12 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
   // chat · web" and showed no model at all, because the header only ever saw
   // the selection metadata.
   const [conversationMeta, setConversationMeta] = useState<ConversationMeta | undefined>(undefined);
+  // Written during a run, waiting their turn. Deliberately their own state and
+  // not a flag on a `msgs` entry: `patchLast` and the two error paths below all
+  // address the LAST message, so a queued bubble sitting there would take the
+  // rest of the stream, or be the thing a failed turn deleted.
+  const [queued, setQueued] = useState<QueuedTurn[]>([]);
+  const queueSeq = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
   const convoRef = useRef<string | undefined>(undefined);
   // Monotonic token guarding async history loads. Every load()/loadThread()/
@@ -531,8 +572,30 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
       const trimmed = text.trim();
       const files = opts.attachments || [];
       // A photo with no caption is a turn; text alone still is one.
-      if ((!trimmed && !files.length) || streaming) return;
+      if (!trimmed && !files.length) return;
       const nowIso = () => new Date().toISOString();
+      // The bubble a turn gets, whether it goes out now or in a minute. The
+      // marker rides on the turn's text the way it does on every other channel:
+      // the bubble strips it (the file is shown instead) and the NEXT turn's
+      // history still records that something was attached.
+      const bubble = (): ChatMsg => ({
+        role: "user",
+        parts: userPart([markersFor(files), trimmed].filter(Boolean).join(" ")),
+        ts: nowIso(),
+        // Composed here: a background refresh keeps it even when the thread
+        // being read is not the channel this turn goes out on.
+        local: true,
+        ...(files.length ? { media: files.map(mediaOf) } : {}),
+      });
+
+      // Written while the previous turn was still going. It joins the thread
+      // now and leaves on its own when the run lands — refusing it is what made
+      // "stop" the only button a working agent would show you.
+      if (streaming) {
+        setQueued((curr) => [...curr, { id: `q${++queueSeq.current}`, text: trimmed, opts, msg: bubble() }]);
+        return;
+      }
+
       const history: ConversationMessage[] = msgs.map((m) => ({
         role: m.role,
         content: historyTextOf(m),
@@ -540,18 +603,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
 
       setMsgs((curr) => [
         ...curr,
-        {
-          role: "user",
-          // The marker rides on the turn's text the way it does on every other
-          // channel: the bubble strips it (the file is shown instead) and the
-          // NEXT turn's history still records that something was attached.
-          parts: userPart([markersFor(files), trimmed].filter(Boolean).join(" ")),
-          ts: nowIso(),
-          // Composed here: a background refresh keeps it even when the thread
-          // being read is not the channel this turn goes out on.
-          local: true,
-          ...(files.length ? { media: files.map(mediaOf) } : {}),
-        },
+        bubble(),
         { role: "assistant", parts: [], ts: nowIso(), pending: true, local: true },
       ]);
       setStreaming(true);
@@ -625,12 +677,34 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
     [pid, msgs, streaming, applyEvent, patchLast, onError],
   );
 
+  // Stop ends the turn being written; it does not cancel what you queued. That
+  // pairing is the point of the two buttons — "this answer is going the wrong
+  // way, here is what I actually meant": send the correction, stop the run, and
+  // the correction leaves immediately instead of after the wrong answer.
   const stop = useCallback(() => abortRef.current?.abort(), []);
+  const unqueue = useCallback((id: string) => setQueued((curr) => curr.filter((q) => q.id !== id)), []);
+
+  // Drain: one at a time, as soon as the pane is free.
+  //
+  // From an EFFECT, not from `send`'s own `finally`. `send` builds its history
+  // out of the `msgs` its closure captured — the list as it was before the turn
+  // that just finished was written into it — so a queued message sent from in
+  // there would reach an agent with no record of the answer it is replying to.
+  // An effect runs after the render that committed those messages and reads
+  // them back through a fresh `send`.
+  useEffect(() => {
+    if (streaming || queued.length === 0) return;
+    const [next, ...rest] = queued;
+    setQueued(rest);
+    void send(next.text, next.opts);
+  }, [streaming, queued, send]);
+
   const clear = useCallback(() => {
     if (streaming) return;
     loadSeqRef.current++; // cancel any in-flight history load
     convoRef.current = undefined;
     setConversationId(undefined);
+    setQueued([]);
     setMsgs([]);
   }, [streaming]);
 
@@ -640,8 +714,10 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
       const seq = ++loadSeqRef.current;
       // Blank the pane up front so it never shows the previous chat under the
       // new header while the fetch is in flight. A silent re-read is the SAME
-      // chat catching up, so blanking would be a flash of empty for nothing.
-      if (!opts?.silent) setMsgs([]);
+      // chat catching up, so blanking would be a flash of empty for nothing —
+      // and for the same reason it keeps the queue: what you queued belongs to
+      // this thread, and only actually LEAVING it drops it.
+      if (!opts?.silent) { setMsgs([]); setQueued([]); }
       try {
         const detail = await Conversations.get(pid, agentSlug, conversationId);
         if (seq !== loadSeqRef.current) return; // superseded by a newer pick
@@ -670,7 +746,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
     async (channel: string, threadId: string, opts?: ReloadOptions) => {
       if (streaming) return;
       const seq = ++loadSeqRef.current;
-      if (!opts?.silent) setMsgs([]);
+      if (!opts?.silent) { setMsgs([]); setQueued([]); } // see load()
       try {
         const detail = await Conversations.thread(pid, channel, threadId);
         if (seq !== loadSeqRef.current) return; // superseded by a newer pick
@@ -679,6 +755,10 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
         // web turns with this history as previousMessages.
         convoRef.current = undefined;
         setConversationId(undefined);
+        // A thread knows its own name and channel, same as a conversation file
+        // does — the header should not have to be handed them by whichever list
+        // happened to open it.
+        setConversationMeta({ channel: detail.channel, title: detail.title });
         setMsgs((curr) => (opts?.silent ? mergeLocalTurns(loaded, curr) : loaded));
       } catch (e) {
         if (seq !== loadSeqRef.current) return;
@@ -692,5 +772,5 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
     [pid, streaming, onError],
   );
 
-  return { msgs, send, stop, clear, load, loadThread, streaming, conversationId, conversationMeta };
+  return { msgs, send, stop, clear, load, loadThread, streaming, queued, unqueue, conversationId, conversationMeta };
 }

@@ -1,5 +1,6 @@
 import { MessageCircleQuestion } from "lucide-react";
 import { cn } from "../../lib/cn";
+import { NO_ANSWER } from "./InlineAskPanel";
 import { t } from "../../i18n";
 
 interface QA {
@@ -22,7 +23,7 @@ export function parseAskAnswerText(text: string): QA[] | null {
     } else if (line.startsWith("  → ") && current) {
       const a = line.slice(4);
       current.answer = a;
-      current.skipped = a === "(omitido)";
+      current.skipped = a === NO_ANSWER;
     } else {
       return null;
     }

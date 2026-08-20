@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, Share, ShieldAlert, Smartphone, Users, X } from "lucide-react";
+import { Search, Settings, Share, ShieldAlert, Smartphone, Users, X } from "lucide-react";
 import { installStance, onInstallStateChange, promptInstall } from "../../lib/pwa";
+import { PrefsDialog } from "../../components/settings/PanelPrefs";
 import { AgentAvatar } from "../../components/agents/AgentAvatar";
 import type { ReactNode } from "react";
 import { SUPER_AGENT_ICON } from "../../components/agents/AgentAvatar";
@@ -125,6 +126,7 @@ export function MobileChatList({
   onOpenTeam: (team: TeamRow) => void;
 }) {
   const [query, setQuery] = useState("");
+  const [prefsOpen, setPrefsOpen] = useState(false);
   const teams = useMemo(() => buildTeams(rows), [rows]);
 
   const q = query.trim().toLowerCase();
@@ -135,7 +137,20 @@ export function MobileChatList({
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
       <header className="shrink-0 border-b border-border px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
-        <h1 className="mb-2 text-xl font-semibold">{t("inbox.title")}</h1>
+        {/* Theme and language are reachable from the screen the phone lands on.
+            They used to live only in the desktop panel's Web module, which on a
+            phone means leaving the app to change how the app looks. */}
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <h1 className="text-xl font-semibold">{t("inbox.title")}</h1>
+          <button
+            type="button"
+            onClick={() => setPrefsOpen(true)}
+            aria-label={t("mobile.prefs")}
+            className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted-fg active:bg-accent/60"
+          >
+            <Settings size={19} />
+          </button>
+        </div>
         <div className="relative">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-fg" />
           <input
@@ -178,6 +193,8 @@ export function MobileChatList({
           </p>
         )}
       </div>
+
+      <PrefsDialog open={prefsOpen} onClose={() => setPrefsOpen(false)} />
     </div>
   );
 }

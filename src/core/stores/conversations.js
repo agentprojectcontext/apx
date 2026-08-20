@@ -66,9 +66,24 @@ export function startConversation({ storagePath, agentSlug, engine, system, chan
   return { id, filename: `${id}.md`, path: file, started };
 }
 
-export function appendTurn({ filePath, role, content }) {
+/**
+ * Append one turn.
+ *
+ * `meta` is the turn's ATTRIBUTION — which agent answered, on which model, what
+ * it cost, what its tools did — and it is written as a JSON object on the turn
+ * header, after the timestamp. The ledger has carried this since
+ * `readGlobalThread`; the conversation file did not, so anything reopened from
+ * a file rendered "0 tok" and no model even when the run had recorded both. A
+ * routine is the case where that is ALL you get: nobody watched it stream.
+ *
+ * The content itself is untouched — meta lives on the header, so a body that
+ * happens to start with a brace is still a body. Files written before this
+ * simply have no meta, and parse exactly as they did.
+ */
+export function appendTurn({ filePath, role, content, meta }) {
   const ts = nowIso();
-  const block = `## ${role} — ${ts}\n${content}\n\n`;
+  const head = meta && Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : "";
+  const block = `## ${role} — ${ts}${head}\n${content}\n\n`;
   fs.appendFileSync(filePath, block);
   // Update last_turn in frontmatter (in-place)
   let text = fs.readFileSync(filePath, "utf8");
@@ -93,13 +108,23 @@ export function parseConversation(text) {
   // — so the lazy body stopped at the first newline and every multi-line turn
   // was silently truncated to its first line. `(?![\s\S])` is end-of-input and
   // nothing else. /m is still needed for the `^` on the header.
-  const re = /^##\s+(user|assistant|system|tool|compact)\s+—\s+(\S+)\s*\n([\s\S]*?)(?=\n##\s+(?:user|assistant|system|tool|compact)\s+—\s|\s*(?![\s\S]))/gm;
+  //
+  // The optional `{…}` after the timestamp is the turn's attribution (see
+  // `appendTurn`). It is single-line by construction — JSON.stringify escapes
+  // newlines — so `.*` cannot run into the body.
+  const re = /^##\s+(user|assistant|system|tool|compact)\s+—\s+(\S+)[ \t]*(\{.*\})?[ \t]*\n([\s\S]*?)(?=\n##\s+(?:user|assistant|system|tool|compact)\s+—\s|\s*(?![\s\S]))/gm;
   let m;
   while ((m = re.exec(body)) !== null) {
+    let meta = null;
+    if (m[3]) {
+      // A header we cannot parse costs the turn its attribution, never its text.
+      try { meta = JSON.parse(m[3]); } catch { meta = null; }
+    }
     turns.push({
       role: m[1],
       ts: m[2],
-      content: m[3].trim(),
+      content: m[4].trim(),
+      ...(meta && typeof meta === "object" ? { meta } : {}),
     });
   }
   return { fm, turns };
@@ -111,9 +136,28 @@ export function readConversation(storagePath, agentSlug, idOrFilename) {
   return { ...parseConversation(fs.readFileSync(p, "utf8")), path: p };
 }
 
-/** Shape a parsed turn for the web chat viewer (tool rows carry structured args). */
+/** Shape a parsed turn for the web chat viewer (tool rows carry structured args).
+ *
+ *  Assistant rows hand out the attribution stored on their header under the
+ *  SAME field names `readGlobalThread` uses — agent / agent_name / model /
+ *  usage / tool_summary — because the web client shapes both through one
+ *  `threadToChatMsgs`. A conversation opened from a file and the same turn read
+ *  back from the ledger must not be two different things to the viewer. */
 export function shapeConversationMessage(t) {
   const base = { role: t.role, content: t.content, ts: t.ts };
+  if (t.role === "assistant") {
+    const meta = t.meta || {};
+    const usage = meta.usage;
+    return {
+      ...base,
+      ...(meta.agent ? { agent: meta.agent } : {}),
+      ...(meta.agent_name ? { agent_name: meta.agent_name } : {}),
+      ...(meta.actor_kind ? { actor_kind: meta.actor_kind } : {}),
+      ...(meta.model ? { model: meta.model } : {}),
+      ...(usage && typeof usage === "object" ? { usage } : {}),
+      ...(meta.tool_summary ? { tool_summary: meta.tool_summary } : {}),
+    };
+  }
   if (t.role !== "tool") return base;
   let parsed = null;
   try { parsed = JSON.parse(t.content); } catch { parsed = null; }
@@ -138,7 +182,10 @@ export function deleteConversation(storagePath, agentSlug, idOrFilename) {
   return true;
 }
 
-export function listConversations(storagePath, agentSlug) {
+/** Newest first. Archived ones are left out unless asked for — that is what
+ *  archiving is FOR — but they are never dropped from disk, so the session
+ *  picker can offer them back under their own heading. */
+export function listConversations(storagePath, agentSlug, { includeArchived = false } = {}) {
   const dir = path.join(storagePath, "agents", agentSlug, "conversations");
   if (!fs.existsSync(dir)) return [];
   return fs
@@ -147,7 +194,8 @@ export function listConversations(storagePath, agentSlug) {
     .sort()
     .reverse()
     .map((f) => summarizeConversation(path.join(dir, f), agentSlug, f))
-    .filter(Boolean);
+    .filter(Boolean)
+    .filter((c) => includeArchived || !c.archived);
 }
 
 // Lightweight summary used by the chat list sidebar — reads frontmatter and
@@ -183,11 +231,49 @@ function summarizeConversation(filePath, agentSlug, filename) {
     last_turn_at: fm.last_turn || fm.started || "",
     ended_at: fm.status === "closed" ? (fm.last_turn || undefined) : undefined,
     channel: fm.channel || undefined,
+    archived: String(fm.archived) === "true" || undefined,
     messages,
     title,
     preview,
     preview_at: lastReply?.ts || undefined,
   };
+}
+
+/**
+ * Patch a conversation's frontmatter in place: what it is called, and whether
+ * it has been put away.
+ *
+ * Only the keys present in `patch` are touched, and a key already in the file
+ * is rewritten rather than duplicated — a second `title:` line would win or
+ * lose depending on which parser read it. New keys are inserted just before the
+ * closing fence so the block keeps its shape.
+ *
+ * Archiving is deliberately a FIELD and not a move to another directory: the
+ * file stays exactly where every id, link and reader already expects it, and
+ * putting a conversation away stays a decision you can take back.
+ */
+export function setConversationMeta(storagePath, agentSlug, idOrFilename, patch = {}) {
+  const p = conversationPath(storagePath, agentSlug, idOrFilename);
+  if (!fs.existsSync(p)) return false;
+  let text = fs.readFileSync(p, "utf8");
+  const fence = text.indexOf("\n---", 4);
+  if (!text.startsWith("---\n") || fence < 0) return false;
+
+  const write = (key, value) => {
+    const line = value === undefined ? null : `${key}: ${JSON.stringify(String(value))}`;
+    const re = new RegExp(`^${key}:.*$`, "m");
+    const head = text.slice(0, fence);
+    if (re.test(head)) {
+      text = head.replace(re, line ?? "").replace(/\n\n+/g, "\n") + text.slice(fence);
+      return;
+    }
+    if (line) text = head + `\n${line}` + text.slice(fence);
+  };
+
+  if ("title" in patch) write("title", patch.title || undefined);
+  if ("archived" in patch) write("archived", patch.archived ? "true" : undefined);
+  fs.writeFileSync(p, text);
+  return true;
 }
 
 export function setStatus(filePath, status) {

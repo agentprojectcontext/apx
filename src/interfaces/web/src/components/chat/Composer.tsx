@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Camera, FileText, Image as ImageIcon, Mic, Paperclip, Plus, Send, Trash2, X } from "lucide-react";
 import { ChatInput, type FilePicker } from "../ui/chat-input";
 import { ModelPicker } from "./ModelPicker";
@@ -29,6 +29,14 @@ interface Props {
    *  a project agent talks to the engine directly, with no vision and no file
    *  tools, so an attachment there would upload and then be ignored. */
   allowFiles?: boolean;
+  /** Welded into the top edge of the field: the conversation's context strip.
+   *  It used to sit on its own line above, separated by a border, which on a
+   *  phone reads as two floating things instead of one. */
+  context?: ReactNode;
+  /** The composer hovers OVER the thread rather than sitting in the column
+   *  under it: the bar loses its opaque backing and the conversation runs
+   *  behind, staying legible right up to the card's edge. */
+  floating?: boolean;
 }
 
 /** A file the user handed over: on screen immediately, uploading behind it. */
@@ -53,7 +61,7 @@ const MAX_ATTACHMENTS = 10;
 let seq = 0;
 const nextId = () => `att-${++seq}`;
 
-export function Composer({ onSend, onStop, streaming, model, onModelChange, allowFiles }: Props) {
+export function Composer({ onSend, onStop, streaming, model, onModelChange, allowFiles, context, floating }: Props) {
   const [text, setText] = useState("");
   const [pending, setPending] = useState<Pending[]>([]);
   const [transcribing, setTranscribing] = useState(false);
@@ -196,7 +204,17 @@ export function Composer({ onSend, onStop, streaming, model, onModelChange, allo
   return (
     // The bottom padding clears the phone's home indicator; it resolves to the
     // normal p-3 anywhere with no inset, so the desktop layout is untouched.
-    <div className="shrink-0 border-t border-border bg-card/60 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+    <div
+      className={cn(
+        "relative shrink-0 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]",
+        floating ? "pt-5" : "border-t border-border bg-card/60",
+      )}
+    >
+      {/* Floating: the thread runs UNDER the field, and the band above the card
+          stays plain glass. A backdrop filter there looked right over the
+          message text and wrong over everything else living in that strip — it
+          smeared the scrollbar into a grey smudge. The conversation simply
+          stays legible until it slides under the opaque card. */}
       {allowFiles && (
         // Its own input: `capture` is what turns a picker into the camera, and
         // it cannot be toggled on the shared one without also changing what the
@@ -217,6 +235,8 @@ export function Composer({ onSend, onStop, streaming, model, onModelChange, allo
         <RecordingBar rec={rec} onSend={finishRecording} />
       ) : (
         <ChatInput
+          className="relative"
+          header={context}
           value={text}
           onValueChange={setText}
           onSubmit={submit}
@@ -242,8 +262,11 @@ export function Composer({ onSend, onStop, streaming, model, onModelChange, allo
           }
           leading={
             allowFiles ? (
+              // Not gated on `streaming`. A turn written during a run is a turn
+              // like any other, and "look at this" with no way to attach the
+              // this is half a composer. Only a full tray stops it.
               <AttachMenu
-                disabled={streaming || full}
+                disabled={full}
                 onPhoto={() => pickerRef.current?.open(VISUAL_ACCEPT)}
                 onFile={() => pickerRef.current?.open(ATTACH_ACCEPT)}
                 onCamera={() => cameraRef.current?.click()}
@@ -257,7 +280,7 @@ export function Composer({ onSend, onStop, streaming, model, onModelChange, allo
                   type="button"
                   size="icon-sm"
                   variant="ghost"
-                  disabled={streaming || full}
+                  disabled={full} // see the attach menu: composing is not gated on the run
                   onClick={() => void rec.start()}
                   aria-label={t("chat_ui.record")}
                 >
