@@ -30,6 +30,14 @@ const modeOptions = () => [
   { value: "single", label: t("memory_panel.mode_single") },
 ];
 
+interface CustomEmbedBlock {
+  label?: string;
+  base_url?: string;
+  api_key?: string;
+  model?: string;
+  enabled?: boolean;
+}
+
 interface MemoryCfg {
   embeddings?: {
     provider?: string;
@@ -37,6 +45,7 @@ interface MemoryCfg {
     ollama?: { model?: string; base_url?: string };
     openai?: { api_key?: string; model?: string; base_url?: string };
     gemini?: { api_key?: string; model?: string };
+    custom?: Record<string, CustomEmbedBlock>;
   };
   compact_threshold?: number;
   keep_recent?: number;
@@ -107,6 +116,36 @@ export function MemoryPanel() {
     gemini: emb.gemini?.model || "",
   };
 
+  // Custom OpenAI-compatible providers, keyed by their full "custom:<slug>" id so
+  // the list component can look each row's config up directly.
+  const customBlocks = emb.custom || {};
+  const customConfigs: Record<string, CustomEmbedBlock> = {};
+  for (const slug of Object.keys(customBlocks)) customConfigs[`custom:${slug}`] = customBlocks[slug];
+
+  const slugOf = (id: string) => id.replace(/^custom:/, "");
+  // Config path segment for an engine's own block: built-ins are top-level
+  // (memory.embeddings.<id>), custom providers nest under .custom.<slug>.
+  const enabledKey = (id: string) => (id.startsWith("custom:") ? `custom.${slugOf(id)}` : id);
+
+  const addCustom = () => {
+    let n = 1;
+    while (customBlocks[`c${n}`]) n += 1;
+    apply({ [`memory.embeddings.custom.c${n}`]: { label: t("memory_panel.custom_default_label"), base_url: "" } });
+  };
+  const removeCustom = async (id: string) => {
+    setBusy(true);
+    try {
+      await patch(undefined, [`memory.embeddings.custom.${slugOf(id)}`]);
+      await mutateProviders();
+    } catch (e) {
+      toast.error(t("memory_panel.save_failed", { msg: (e as Error).message }));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const setCustomField = (id: string, field: string, value: string) =>
+    apply({ [`memory.embeddings.custom.${slugOf(id)}.${field}`]: value });
+
   return (
     <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
       <Section
@@ -134,12 +173,16 @@ export function MemoryPanel() {
                 engines={engines}
                 order={order}
                 models={models}
+                customConfigs={customConfigs}
                 busy={busy}
                 onReorder={(next) => apply({ "memory.embeddings.order": next })}
                 onToggleEnabled={(id, enabled) =>
-                  apply({ [`memory.embeddings.${id}.enabled`]: enabled })
+                  apply({ [`memory.embeddings.${enabledKey(id)}.enabled`]: enabled })
                 }
                 onSetModel={(id, model) => apply({ [`memory.embeddings.${id}.model`]: model })}
+                onSetCustomField={setCustomField}
+                onRemoveCustom={removeCustom}
+                onAddCustom={addCustom}
               />
             </Field>
           ) : (

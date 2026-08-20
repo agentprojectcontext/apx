@@ -1,9 +1,10 @@
 import { useState } from "react";
 import useSWR from "swr";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, RefreshCw, Wand2, ArrowUpRight } from "lucide-react";
+import { Sparkles, RefreshCw, Wand2, ArrowUpRight, ChevronDown, ChevronUp } from "lucide-react";
 import { Section } from "../Section";
 import { Button, Field, Input, Loading, Badge, Switch } from "../ui";
+import { cn } from "../../lib/cn";
 import { useToast } from "../Toast";
 import { Skills, type InspectTrace } from "../../lib/api/skills";
 import { Embeddings } from "../../lib/api/embeddings";
@@ -47,6 +48,8 @@ export function SkillsInspectorPanel() {
   const [busy, setBusy] = useState(false);
   const [probe, setProbe] = useState("");
   const [probeResult, setProbeResult] = useState<InspectTrace | null>(null);
+  // Advanced (thresholds) starts collapsed — most turns never touch these.
+  const [advOpen, setAdvOpen] = useState(false);
 
   if (isLoading || !data) return <Loading />;
 
@@ -102,25 +105,22 @@ export function SkillsInspectorPanel() {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+      {/* 1 — Inspector: the ON switch sits top-right opposite the title; below it
+          the status and, folded in, the shared-embedder block + reindex. */}
       <Section
         title={t("settings_ui.inspector_title")}
         description={t("settings_ui.inspector_desc")}
+        action={
+          <Switch
+            checked={cfg.enabled}
+            disabled={busy}
+            onChange={(v) => apply({ enabled: v })}
+            label={cfg.enabled ? t("settings_ui.on") : t("settings_ui.off")}
+          />
+        }
       >
         <div className="space-y-4">
-          <Field
-            label={t("settings_ui.enable_inspector")}
-            hint={t("settings_ui.enable_inspector_hint")}
-          >
-            <Switch
-              checked={cfg.enabled}
-              disabled={busy}
-              onChange={(v) => apply({ enabled: v })}
-              label={cfg.enabled ? t("settings_ui.on") : t("settings_ui.off")}
-            />
-          </Field>
-
-          <div className="flex flex-wrap items-center gap-2 pt-1">
+          <div className="flex flex-wrap items-center gap-2">
             <Badge tone={idx.count > 0 ? "success" : "warning"}>
               {t("settings_ui.index_count", { n: idx.count })}
             </Badge>
@@ -133,7 +133,7 @@ export function SkillsInspectorPanel() {
             ) : null}
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 pt-1">
+          <div className="flex flex-wrap items-center gap-3">
             <Button variant="secondary" onClick={() => runIndex(false)} loading={busy}>
               <RefreshCw size={14} /> {t("settings_ui.reindex")}
             </Button>
@@ -181,21 +181,23 @@ export function SkillsInspectorPanel() {
         </div>
       </Section>
 
+      {/* 2 — Test (dry-run): dimmed + inert when the inspector is off, like the
+          Advanced limits below. */}
       <Section
         title={t("settings_ui.test_title")}
         description={t("settings_ui.test_desc")}
       >
-        <div className="space-y-3">
+        <div className={cn("space-y-3", !cfg.enabled && "pointer-events-none opacity-50")}>
           <div className="flex flex-wrap items-center gap-2">
             <Input
               value={probe}
               placeholder={t("settings_ui.test_placeholder")}
-              disabled={busy}
+              disabled={busy || !cfg.enabled}
               onChange={(ev) => setProbe(ev.target.value)}
               onKeyDown={(ev) => { if (ev.key === "Enter") runProbe(); }}
               className="max-w-xl flex-1"
             />
-            <Button variant="primary" onClick={runProbe} loading={busy}>
+            <Button variant="primary" onClick={runProbe} loading={busy} disabled={busy || !cfg.enabled}>
               <Wand2 size={14} /> {t("settings_ui.test_btn")}
             </Button>
           </div>
@@ -240,31 +242,50 @@ export function SkillsInspectorPanel() {
           )}
         </div>
       </Section>
-      </div>
 
+      {/* 3 — Advanced: the thresholds, collapsed by default so they don't tire the
+          eye, and dimmed + inert when the inspector is off. */}
       <Section
-        title={t("settings_ui.thresholds_title")}
+        title={t("settings_ui.advanced_title")}
         description={t("settings_ui.thresholds_desc")}
+        action={
+          <button
+            type="button"
+            onClick={() => setAdvOpen((o) => !o)}
+            aria-expanded={advOpen}
+            className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+          >
+            {advOpen ? t("settings_ui.hide") : t("settings_ui.show")}
+            {advOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </button>
+        }
       >
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
-          {knobs().map((k) => (
-            <Field key={k.key} label={k.label} hint={k.hint}>
-              <Input
-                type="number"
-                step={k.step}
-                min={k.min}
-                max={k.max}
-                defaultValue={String(cfg[k.key])}
-                disabled={busy}
-                onBlur={(ev) => {
-                  const n = Number(ev.target.value);
-                  if (Number.isFinite(n) && n !== cfg[k.key]) apply({ [k.key]: n });
-                }}
-                className="max-w-[12rem]"
-              />
-            </Field>
-          ))}
-        </div>
+        {advOpen ? (
+          <div
+            className={cn(
+              "grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4",
+              !cfg.enabled && "pointer-events-none opacity-50",
+            )}
+          >
+            {knobs().map((k) => (
+              <Field key={k.key} label={k.label} hint={k.hint}>
+                <Input
+                  type="number"
+                  step={k.step}
+                  min={k.min}
+                  max={k.max}
+                  defaultValue={String(cfg[k.key])}
+                  disabled={busy || !cfg.enabled}
+                  onBlur={(ev) => {
+                    const n = Number(ev.target.value);
+                    if (Number.isFinite(n) && n !== cfg[k.key]) apply({ [k.key]: n });
+                  }}
+                  className="max-w-[12rem]"
+                />
+              </Field>
+            ))}
+          </div>
+        ) : null}
       </Section>
     </div>
   );

@@ -13,6 +13,8 @@ export interface EmbedEngineInfo {
   available: boolean;   // probe says it can embed right now
   configured: boolean;  // has a non-empty memory.embeddings.<id> config block
   enabled: boolean;     // included in the fallback chain
+  custom?: boolean;     // a user-added custom:<slug> OpenAI-compatible provider
+  label?: string;       // display name for a custom provider
 }
 
 export interface EmbedProvidersResponse {
