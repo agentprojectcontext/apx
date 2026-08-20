@@ -18,17 +18,12 @@ import { runSuperAgent } from "#core/agent/super-agent.js";
 import { runAgent, computeSuppressedTools } from "#core/agent/index.js";
 import { TELEGRAM_TOOL_ITERS } from "#core/agent/constants.js";
 import { createToolSession, makeToolHandlers } from "#core/agent/tools/registry.js";
-import { summarizeToolTrace } from "#core/agent/tool-summary.js";
 import { readAgents } from "#core/apc/parser.js";
 import { buildAgentSystem } from "#core/agent/build-agent-system.js";
 import { resolveAgentModel } from "#core/agent/agent-model.js";
 import { resolveAgentAllowedTools } from "#core/agent/agent-tools.js";
 import { resolveAgentName, SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
-import {
-  startConversation,
-  appendTurn,
-  setStatus,
-} from "#core/stores/conversations.js";
+import { recordAgentTurn } from "#core/stores/turn-record.js";
 import { resolveArtifactRef, ARTIFACTS_SKIP_SIGNAL } from "#core/stores/artifacts.js";
 import {
   ensureRoutineMemory,
@@ -103,6 +98,9 @@ async function handleExecAgent(ctx, routine) {
   let trace = [];
   let usage = null;
   let allowedTools = [];
+  // What ANSWERED, which is not always what was resolved: the router can fall
+  // back mid-run, and the record should name the model that produced the reply.
+  let answeredOn = model;
 
   if (noTools) {
     const result = await callEngine({
@@ -113,6 +111,7 @@ async function handleExecAgent(ctx, routine) {
     });
     text = result.text || "";
     usage = result.usage;
+    answeredOn = result.model || model;
   } else {
     const cfg = structuredClone(config || {});
     cfg.super_agent = {
@@ -164,21 +163,12 @@ async function handleExecAgent(ctx, routine) {
     text = result.text || "";
     trace = Array.isArray(result.trace) ? result.trace : [];
     usage = result.usage;
+    answeredOn = result.model || model;
 
     const blocked = blockedForPermission(trace);
     if (blocked.length) {
-      const conversationId = persistRoutineConversation({
-        storagePath: project.storagePath,
-        slug,
-        model,
-        prompt,
-        reply: text,
-        trace,
-        routineName: routine.name,
-      });
-      logRoutineChat(project, {
-        slug, prompt, reply: text, trace, usage, model,
-        routineName: routine.name, conversationId,
+      const { conversationId } = recordRoutineTurn(project, routine, {
+        slug, model: answeredOn, prompt, reply: text, trace, usage,
       });
       return {
         status: "error",
@@ -196,18 +186,8 @@ async function handleExecAgent(ctx, routine) {
     }
   }
 
-  const conversationId = persistRoutineConversation({
-    storagePath: project.storagePath,
-    slug,
-    model,
-    prompt,
-    reply: text,
-    trace,
-    routineName: routine.name,
-  });
-  logRoutineChat(project, {
-    slug, prompt, reply: text, trace, usage, model,
-    routineName: routine.name, conversationId,
+  const { conversationId } = recordRoutineTurn(project, routine, {
+    slug, model: answeredOn, prompt, reply: text, trace, usage,
   });
   return {
     status: "ok",
@@ -220,88 +200,31 @@ async function handleExecAgent(ctx, routine) {
   };
 }
 
-/** One conversation file per run so the chat list / inbox can reopen it. */
-function persistRoutineConversation({ storagePath, slug, model, prompt, reply, trace, routineName }) {
-  if (!storagePath || !slug) return null;
-  try {
-    const conv = startConversation({
-      storagePath,
-      agentSlug: slug,
-      engine: model,
-      channel: CHANNELS.ROUTINE,
-      title: routineName,
-    });
-    appendTurn({
-      filePath: conv.path,
-      role: "user",
-      content: `[routine: ${routineName}]\n\n${prompt}`,
-    });
-    for (const item of Array.isArray(trace) ? trace : []) {
-      if (!item?.tool) continue;
-      appendTurn({
-        filePath: conv.path,
-        role: "tool",
-        content: JSON.stringify({
-          tool: item.tool,
-          args: item.args || {},
-          result: item.result,
-        }),
-      });
-    }
-    appendTurn({ filePath: conv.path, role: "assistant", content: reply || "" });
-    setStatus(conv.path, "closed");
-    return conv.id;
-  } catch {
-    return null;
-  }
-}
-
-function logRoutineChat(project, { slug, prompt, reply, trace, usage, model, routineName, conversationId }) {
-  if (!project?.logMessage) return;
-  const scope = {
-    routine: routineName,
-    ...(conversationId ? { conversation: conversationId } : {}),
-  };
-  project.logMessage({
-    agent_slug: slug,
+/**
+ * File this run the way a message to you is filed: one conversation to reopen,
+ * one set of ledger rows to search — written by the SAME recorder every other
+ * channel uses, so a run records which agent answered, on which model, and what
+ * it cost. It used to have its own pair of writers here, and the file half of
+ * that pair wrote text and nothing else: the thread opened as "0 tok", no
+ * model, no actor. A scheduled run is the case where the stored record is the
+ * only record there will ever be — nobody watched it stream.
+ */
+function recordRoutineTurn(project, routine, { slug, model, prompt, reply, trace, usage }) {
+  return recordAgentTurn({
+    project,
+    agentSlug: slug,
     channel: CHANNELS.ROUTINE,
-    direction: "in",
-    type: "user",
-    author: "user",
-    body: prompt,
-    meta: scope,
-  });
-  for (const item of Array.isArray(trace) ? trace : []) {
-    if (!item?.tool) continue;
-    project.logMessage({
-      agent_slug: slug,
-      channel: CHANNELS.ROUTINE,
-      direction: "out",
-      type: "tool",
-      actor_id: item.tool,
-      actor_kind: "tool",
-      author: slug,
-      body: `${item.tool}(${JSON.stringify(item.args || {}).slice(0, 200)})`,
-      meta: { ...scope, tool: item.tool, args: item.args, result: item.result },
-    });
-  }
-  const toolSummary = summarizeToolTrace(trace);
-  project.logMessage({
-    agent_slug: slug,
-    channel: CHANNELS.ROUTINE,
-    direction: "out",
-    type: "agent",
-    actor_id: slug,
-    actor_kind: "agent",
-    author: slug,
-    body: reply || "",
-    meta: {
-      ...scope,
-      ...(model ? { model } : {}),
-      ...(usage ? { usage } : {}),
-      ...(toolSummary ? { tool_summary: toolSummary } : {}),
-      ...(trace?.length ? { tool_trace: trace } : {}),
-    },
+    title: routine.name,
+    model,
+    prompt,
+    // The thread says whose clock woke it; the ledger row keeps the bare prompt
+    // (it already carries `meta.routine`, and search should match the words the
+    // routine actually asked).
+    filedPrompt: `[routine: ${routine.name}]\n\n${prompt}`,
+    reply,
+    trace,
+    usage,
+    scope: { routine: routine.name },
   });
 }
 
@@ -368,21 +291,23 @@ async function handleSuperAgent(ctx, routine, extraChannelMeta = {}) {
   // and it took twenty-one shell commands to work out why. Name it.
   const blocked = blockedForPermission(result.trace);
 
-  project.logMessage({
+  // Same recorder as exec_agent and as a message typed by hand — the prompt, the
+  // steps, and a reply stamped with model and usage. The super-agent's chats
+  // live in the ledger rather than in per-agent conversation files, so only that
+  // half is written; what goes into it is the same shape either way.
+  recordAgentTurn({
+    project,
+    agentSlug: SUPERAGENT_ACTOR_ID,
+    agentName: result.name || resolveAgentName(globalConfig),
+    actorKind: "superagent",
+    conversation: false,
     channel: CHANNELS.ROUTINE,
-    direction: "out",
-    type: "agent",
-    actor_id: SUPERAGENT_ACTOR_ID,
-    actor_kind: "superagent",
-    author: result.name || resolveAgentName(globalConfig),
-    body: result.text || "",
-    meta: {
-      routine: routine.name,
-      tool_trace: result.trace,
-      // Compact form too: the viewer renders this without parsing the trace.
-      ...(summarizeToolTrace(result.trace) ? { tool_summary: summarizeToolTrace(result.trace) } : {}),
-      usage: result.usage,
-    },
+    model: result.model,
+    prompt,
+    reply: result.text || "",
+    trace: result.trace,
+    usage: result.usage,
+    scope: { routine: routine.name },
   });
   if (blocked.length) {
     return {
