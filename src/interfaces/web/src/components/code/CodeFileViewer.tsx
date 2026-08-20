@@ -57,7 +57,7 @@ export function CodeFileViewer({
                 className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-accent hover:text-foreground disabled:opacity-40"
               >
                 <RotateCcw className="size-3" />
-                Descartar
+                {t("code_module.discard_label")}
               </button>
             </Tip>
             <Tip content={t("code_module.save_shortcut_hint")}>
@@ -73,7 +73,7 @@ export function CodeFileViewer({
                 )}
               >
                 {saving ? <Spinner size={10} /> : <Save className="size-3" />}
-                Guardar
+                {t("code_module.save_label")}
               </button>
             </Tip>
           </>
