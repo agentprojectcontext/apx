@@ -419,3 +419,23 @@ test("the header leads with the session, and says who under it", () => {
   assert.match(tab, /conversationMeta\?\.title \|\|\s*\n\s*selectedMeta\?\.title/);
   assert.match(chat, /setConversationMeta\(\{ channel: detail\.channel, title: detail\.title \}\)/);
 });
+
+test("answering the questions gets past question one", () => {
+  const panel = web("components", "chat", "InlineAskPanel.tsx");
+
+  // The reset is keyed on the batch's identity and NEVER on the questions
+  // array. That array is rebuilt on every render of the host — it is derived
+  // from the message list, which changes on every stream event and every live
+  // refresh — so an effect watching it re-ran constantly and put the index back
+  // to zero: you answered question 2, pressed Next, and landed on question 1
+  // again with no way past it.
+  assert.match(panel, /const \[batch, setBatch\] = useState\(turnKey\);/);
+  assert.match(panel, /if \(batch !== turnKey\) \{\s*\n\s*setBatch\(turnKey\);\s*\n\s*setIdx\(0\);/);
+  assert.doesNotMatch(panel, /\}, \[turnKey, questions\]\)/, "the array must not key the reset");
+
+  // The chips get a row of their own. Sharing one line with "1/3" and a header
+  // like "Opción múltiple", the question was squeezed into a third of a phone's
+  // width and broke across five lines — and the question is the part you read.
+  assert.match(panel, /<p className="mt-1\.5 text-sm font-semibold leading-snug">\{current\.question\}<\/p>/);
+  assert.doesNotMatch(panel, /min-w-0 flex-1 text-sm font-semibold leading-snug/);
+});
