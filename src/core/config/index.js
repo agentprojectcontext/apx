@@ -4,7 +4,7 @@
 // can keep `import { APX_HOME, projectStorageRoot } from ".../config"` working.
 import fs from "node:fs";
 import path from "node:path";
-import { APX_HOME, CONFIG_PATH } from "./paths.js";
+import { APX_HOME, CONFIG_PATH, syncPaths } from "./paths.js";
 import { PERMISSION_MODES } from "../constants/permissions.js";
 import { agentsMdFile, apcProjectFile } from "../apc/paths.js";
 
@@ -219,6 +219,12 @@ const DEFAULT_CONFIG = {
 };
 
 function ensureHome() {
+  // Re-derive the home first. It is fixed for the life of a real process, so
+  // this is a string compare that always says "no" in production — but a test
+  // that relocates APX_HOME after this module loaded needs its fixture read
+  // back, not the developer's real config. Doing it here, rather than relying
+  // on nothing having imported config yet, is what makes that deterministic.
+  syncPaths();
   fs.mkdirSync(APX_HOME, { recursive: true });
 }
 

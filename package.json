@@ -34,7 +34,7 @@
   "scripts": {
     "start": "node src/host/daemon/index.js",
     "smoke": "node src/host/daemon/smoke.js",
-    "test": "node --test --test-reporter=spec tests/*.test.js",
+    "test": "node scripts/test.js",
     "test:ci": "node scripts/test-ci.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

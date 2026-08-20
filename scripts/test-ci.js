@@ -11,25 +11,17 @@
 //    glob — the first person to add `tests/core/foo.test.js` would have lost it
 //    with no warning at all.
 import { spawn } from "node:child_process";
-import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { findTests, makeTestHome } from "./lib/test-home.js";
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const TESTS = path.join(REPO, "tests");
 
-function findTests(dir) {
-  const out = [];
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const abs = path.join(dir, entry.name);
-    if (entry.isDirectory()) out.push(...findTests(abs));
-    else if (entry.name.endsWith(".test.js")) out.push(path.relative(REPO, abs));
-  }
-  return out.sort();
-}
-
-const files = findTests(TESTS);
+// Discovery and the sandboxed HOME both live in scripts/lib/test-home.js now,
+// shared with the everyday `npm test` — the two runners drifting apart is what
+// let a flake exist locally and not in CI.
+const files = findTests(TESTS, REPO);
 if (!files.length) {
   console.error("test:ci: no test files found under tests/");
   process.exit(1);
@@ -58,7 +50,7 @@ const COVERAGE_FLOOR = { line: 72, branch: 71, function: 65 };
 //    Moving HOME moves the default ~/.apx out of reach for a test that forgets
 //    to isolate, while every test that sets its own HOME or APX_HOME still
 //    wins over it. This is the floor, not the isolation.
-const testHome = fs.mkdtempSync(path.join(os.tmpdir(), "apx-test-home-"));
+const sandbox = makeTestHome("apx-test-home");
 
 const child = spawn(
   process.execPath,
@@ -66,7 +58,7 @@ const child = spawn(
   {
     cwd: REPO,
     stdio: ["inherit", "pipe", "inherit"],
-    env: { ...process.env, HOME: testHome, USERPROFILE: testHome },
+    env: sandbox.env,
   }
 );
 
@@ -77,11 +69,7 @@ child.stdout.on("data", (chunk) => {
 });
 
 child.on("close", (code) => {
-  try {
-    fs.rmSync(testHome, { recursive: true, force: true });
-  } catch {
-    // A leftover temp dir is noise, not a failure — never mask the test result.
-  }
+  sandbox.cleanup();
   const read = (label) => {
     const m = output.match(new RegExp(`^ℹ ${label} (\\d+)$`, "m"));
     return m ? Number(m[1]) : null;
