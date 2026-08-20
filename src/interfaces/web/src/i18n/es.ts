@@ -1498,7 +1498,7 @@ export const es = {
     install_done:        "Ya está instalada",
     install_ios:         "En iPhone: Compartir → Añadir a pantalla de inicio. Safari no permite instalarla desde acá.",
     install_insecure:    "Este navegador no puede instalarla desde una dirección http:// de red local. Necesita HTTPS — la forma más simple es publicar el panel por Tailscale, abajo. Sin HTTPS tampoco hay micrófono ni portapapeles.",
-    install_unsupported: "Este navegador no ofrece instalar la app.",
+    install_unsupported: "Este navegador todavía no ofreció instalar la app. En Chrome podés forzarlo desde el menú ⋮ → Instalar aplicación.",
     addresses_title:     "Direcciones",
     addresses_sub:       "Todas las formas de llegar a este daemon. Si una deja de responder, el panel prueba las otras solo.",
     secure:              "seguro",
@@ -1523,6 +1523,16 @@ export const es = {
     serve_off:           "Ya no se publica",
     serve_failed:        "No se pudo publicar",
     why_https:           "Sin HTTPS el navegador apaga tres cosas: instalar la app, el micrófono y el portapapeles. No es una decisión de APX.",
+  },
+
+  mobile_link: {
+    title:               "Abrir en el teléfono",
+    desc:                "Escaneá el QR con la cámara del teléfono para abrir el chat mobile.",
+    scan_paired:         "Un escaneo y queda: abre el chat y vincula el dispositivo.",
+    scan_plain:          "Abre el chat mobile. Si el dispositivo no está vinculado, te lo va a pedir ahí.",
+    paired:              "Listo, el teléfono ya está vinculado",
+    insecure:            "Esta dirección es http://, así que en el teléfono no vas a poder instalarla como app ni grabar audio. Para eso: apx panel tailscale on",
+    open_chat:           "Abrir chat mobile",
   },
 
   sidebar_ui: {

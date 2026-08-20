@@ -56,3 +56,35 @@ test("a deep link to an agent the inbox does not list still opens", () => {
   assert.match(routes, /export function placeholderRow/);
   assert.match(routes, /return hit \|\| placeholderRow\(pid, slug, rows\)/);
 });
+
+test("the phone surface is reachable from the desktop panel", () => {
+  const app = fs.readFileSync(
+    path.join(__dirname, "..", "src", "interfaces", "web", "src", "App.tsx"),
+    "utf8",
+  );
+  // The manifest's start_url points at /mobile, but that only applies once the
+  // app is INSTALLED. Opening the URL in a phone browser lands on `/` — the
+  // desktop shell at 375px — which is where the phone surface is least
+  // discoverable and where the install banner (inside /mobile) never appears.
+  assert.match(app, /<MobileHint \/>/);
+  assert.match(app, /<MobileLinkDialog/);
+  assert.match(app, /data-testid="mobile-link"/);
+
+  const hint = fs.readFileSync(
+    path.join(__dirname, "..", "src", "interfaces", "web", "src", "components", "MobileHint.tsx"),
+    "utf8",
+  );
+  // A card you can dismiss, not a redirect: someone may want the full panel on
+  // a tablet, and being moved without asking is worse.
+  assert.match(hint, /localStorage\.setItem\(DISMISSED/);
+  assert.doesNotMatch(hint, /<Navigate/);
+
+  const dialog = fs.readFileSync(
+    path.join(__dirname, "..", "src", "interfaces", "web", "src", "components", "MobileLinkDialog.tsx"),
+    "utf8",
+  );
+  // Loopback is the one address a phone can never reach, and the nonce belongs
+  // in the fragment — never sent to a server, never in a Referer or a log.
+  assert.match(dialog, /e\.kind !== "loopback"/);
+  assert.match(dialog, /`\$\{link\}#pair=\$\{pairingId\}`/);
+});

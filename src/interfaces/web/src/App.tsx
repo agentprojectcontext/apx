@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Route, Routes, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { Languages, Moon, Sun } from "lucide-react";
+import { Languages, Moon, Smartphone, Sun } from "lucide-react";
 import { ProjectSidebar, projectKindLabel } from "./components/layout/ProjectSidebar";
 import { ApxAdminScreen } from "./screens/ApxAdminScreen";
 import { InboxScreen } from "./screens/InboxScreen";
@@ -12,6 +12,8 @@ import { AddProjectDialog } from "./components/AddProjectDialog";
 import { PairingScreen } from "./screens/PairingScreen";
 import { MobileScreen } from "./screens/mobile/MobileScreen";
 import { RobyBubble } from "./components/RobyBubble";
+import { MobileHint } from "./components/MobileHint";
+import { MobileLinkDialog } from "./components/MobileLinkDialog";
 import { Roby, RobyEmpty, type RobyMood } from "./components/Roby";
 import { ToastProvider } from "./components/Toast";
 import { Button } from "./components/ui/button";
@@ -82,6 +84,7 @@ function Shell() {
   const { theme, toggle } = useTheme();
   const addOpen = params.get("action") === "add-project";
   const [robyOpen, setRobyOpen] = useState(false);
+  const [mobileLinkOpen, setMobileLinkOpen] = useState(false);
 
   const closeAdd = () => {
     const next = new URLSearchParams(params);
@@ -103,7 +106,12 @@ function Shell() {
           onOpenAddProject={openAdd}
         />
         <main className="m-2 flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-          <TopBar onToggleTheme={toggle} isDark={theme === "dark"} pathname={location.pathname} />
+          <TopBar
+            onToggleTheme={toggle}
+            isDark={theme === "dark"}
+            pathname={location.pathname}
+            onOpenMobileLink={() => setMobileLinkOpen(true)}
+          />
           <div className="flex-1 overflow-y-auto">
             <Routes>
               <Route path="/"           element={<ApxAdminScreen />} />
@@ -120,6 +128,11 @@ function Shell() {
         {/* Roby (the super-agent) chat sheet. Launcher lives in the rail (below
             Settings); open state is owned here so the rail can trigger it. */}
         <RobyBubble open={robyOpen} onOpenChange={setRobyOpen} />
+        <MobileLinkDialog open={mobileLinkOpen} onClose={() => setMobileLinkOpen(false)} />
+        {/* On a narrow screen, the way to the phone surface and the way to
+            install it — both of which otherwise only exist inside /mobile,
+            which is the place you have not found yet. */}
+        <MobileHint />
       </div>
     </NavCollapseProvider>
   );
@@ -129,10 +142,12 @@ function TopBar({
   onToggleTheme,
   isDark,
   pathname,
+  onOpenMobileLink,
 }: {
   onToggleTheme: () => void;
   isDark: boolean;
   pathname: string;
+  onOpenMobileLink: () => void;
 }) {
   const { projects } = useProjects();
   const pageLabel = usePageLabel();
@@ -175,6 +190,19 @@ function TopBar({
         {subtitle && <span className="text-muted-fg"> · {subtitle}</span>}
       </span>
       {pageActions}
+      {/* Send the chat surface to a phone: one scan carries the address, the
+          /mobile path and a pairing nonce. */}
+      <Tip content={t("mobile_link.title")}>
+        <button
+          type="button"
+          data-testid="mobile-link"
+          onClick={onOpenMobileLink}
+          aria-label={t("mobile_link.title")}
+          className="shrink-0 rounded-md p-1.5 text-muted-fg hover:bg-accent hover:text-accent-fg"
+        >
+          <Smartphone size={14} />
+        </button>
+      </Tip>
       <LanguageMenu />
       <Tip content={isDark ? t("topbar.light") : t("topbar.dark")}>
         <button
