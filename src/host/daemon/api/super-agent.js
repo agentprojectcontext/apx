@@ -45,19 +45,24 @@ function logInspectorDecision(trace, { trace_id, channel } = {}) {
 }
 
 // What of the inspector trace is worth keeping on disk: the decision, not the
-// payload. `null` when the turn injected nothing — a thread should not carry a
-// row for a middleware that stayed silent.
-function inspectorRecord(trace) {
+// payload. `null` only when the inspector had nothing to say at all — no skill
+// injected AND no candidate scored. When it scored candidates but none crossed
+// the load/hint bar we STILL keep the row: a reopened thread should be able to
+// show what was suggested each round (the "considered" near-misses), which is
+// what makes the per-turn RAG legible instead of silently doing nothing.
+export function inspectorRecord(trace) {
   if (!trace?.enabled) return null;
   const loaded = trace.loaded || [];
   const hinted = trace.hinted || [];
-  if (loaded.length === 0 && hinted.length === 0) return null;
+  const scored = trace.scored || [];
+  if (loaded.length === 0 && hinted.length === 0 && scored.length === 0) return null;
   return {
     ...(trace.embedder ? { embedder: trace.embedder } : {}),
     ...(loaded.length ? { loaded } : {}),
     ...(hinted.length ? { hinted } : {}),
-    // Already capped at the top 5 upstream — the similarities the badge shows.
-    ...(trace.scored?.length ? { scored: trace.scored } : {}),
+    // Already capped at the top 5 upstream — the similarities the badge shows,
+    // and the source of the dim "considered" badges when nothing was injected.
+    ...(scored.length ? { scored } : {}),
   };
 }
 
