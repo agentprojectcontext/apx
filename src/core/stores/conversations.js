@@ -4,6 +4,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { parseFrontmatter } from "#core/apc/frontmatter.js";
+import { emitMessageEvent } from "#core/events/bus.js";
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 
@@ -26,6 +27,21 @@ export function generateConversationId(storagePath, agentSlug) {
 export function conversationPath(storagePath, agentSlug, idOrFilename) {
   const filename = idOrFilename.endsWith(".md") ? idOrFilename : `${idOrFilename}.md`;
   return path.join(storagePath, "agents", agentSlug, "conversations", filename);
+}
+
+/** Read a conversation file path back into what it addresses. The inverse of
+ *  `conversationPath`, and it lives next to it so the two cannot drift: the
+ *  live event feed has a file path and needs the project/agent/conversation it
+ *  belongs to. Returns null for anything that is not a conversation file. */
+export function parseConversationPath(filePath) {
+  const parts = String(filePath || "").split(path.sep);
+  const i = parts.lastIndexOf("conversations");
+  if (i < 2 || parts[i - 2] !== "agents") return null;
+  return {
+    project_root: parts.slice(0, i - 2).join(path.sep),
+    agent_slug: parts[i - 1],
+    conversation_id: (parts[i + 1] || "").replace(/\.md$/, ""),
+  };
 }
 
 export function startConversation({ storagePath, agentSlug, engine, system, channel, title }) {
@@ -58,6 +74,11 @@ export function appendTurn({ filePath, role, content }) {
   let text = fs.readFileSync(filePath, "utf8");
   text = text.replace(/^last_turn:.*$/m, `last_turn: ${ts}`);
   fs.writeFileSync(filePath, text);
+  // Announce it, the same way a ledger write does: a routine or an `apx exec`
+  // appending here is a conversation moving, and an open panel should see it
+  // without being reloaded. See core/events/bus.js.
+  const where = parseConversationPath(filePath);
+  if (where) emitMessageEvent({ scope: "conversation", ...where, role, ts });
   return { ts };
 }
 

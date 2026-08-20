@@ -7,9 +7,9 @@ import {
   broadcastDesktop,
   sendToClient,
   isDesktopUpgradePath,
-  extractWsToken,
-  isDesktopUpgradeAuthorized,
 } from "#host/daemon/desktop-ws.js";
+// The token check is not the desktop's own — every WS channel shares it.
+import { extractWsToken, isWsUpgradeAuthorized } from "#host/daemon/ws-auth.js";
 
 // Minimal stand-in for a `ws` WebSocket: records sent payloads and lets the
 // test fire lifecycle/message events synchronously.
@@ -151,16 +151,16 @@ test("extractWsToken reads the bearer header, then the ?token= fallback", () => 
   assert.equal(extractWsToken({ headers: {}, url: "/api/desktop/ws" }), "");
 });
 
-test("isDesktopUpgradeAuthorized rejects missing/wrong tokens and accepts a known one", () => {
+test("isWsUpgradeAuthorized rejects missing/wrong tokens and accepts a known one", () => {
   const tokenStore = { has: (t) => t === "good-master" };
   // missing
-  assert.equal(isDesktopUpgradeAuthorized({ headers: {}, url: "/api/desktop/ws" }, tokenStore), false);
+  assert.equal(isWsUpgradeAuthorized({ headers: {}, url: "/api/desktop/ws" }, tokenStore), false);
   // wrong
-  assert.equal(isDesktopUpgradeAuthorized({ headers: { authorization: "Bearer nope" }, url: "/api/desktop/ws" }, tokenStore), false);
+  assert.equal(isWsUpgradeAuthorized({ headers: { authorization: "Bearer nope" }, url: "/api/desktop/ws" }, tokenStore), false);
   // correct via header
-  assert.equal(isDesktopUpgradeAuthorized({ headers: { authorization: "Bearer good-master" }, url: "/api/desktop/ws" }, tokenStore), true);
+  assert.equal(isWsUpgradeAuthorized({ headers: { authorization: "Bearer good-master" }, url: "/api/desktop/ws" }, tokenStore), true);
   // correct via query param
-  assert.equal(isDesktopUpgradeAuthorized({ headers: {}, url: "/api/desktop/ws?token=good-master" }, tokenStore), true);
+  assert.equal(isWsUpgradeAuthorized({ headers: {}, url: "/api/desktop/ws?token=good-master" }, tokenStore), true);
   // no store → deny
-  assert.equal(isDesktopUpgradeAuthorized({ headers: { authorization: "Bearer good-master" }, url: "/api/desktop/ws" }, null), false);
+  assert.equal(isWsUpgradeAuthorized({ headers: { authorization: "Bearer good-master" }, url: "/api/desktop/ws" }, null), false);
 });

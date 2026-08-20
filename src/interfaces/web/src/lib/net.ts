@@ -60,6 +60,23 @@ export function apiUrl(path: string): string {
   return base ? `${base}${path}` : path;
 }
 
+/**
+ * The WebSocket URL for a daemon path — same address the HTTP calls use.
+ *
+ * Not `window.location.host`: an installed app can be talking to a base that is
+ * not the page's origin (see above), and a socket opened against the page would
+ * quietly go to a machine the rest of the panel stopped using.
+ */
+export function wsUrl(path: string, params: Record<string, string | null | undefined> = {}): string {
+  const href = apiUrl(path);
+  const url = new URL(href.startsWith("http") ? href : `${window.location.origin}${href}`);
+  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+  for (const [key, value] of Object.entries(params)) {
+    if (value) url.searchParams.set(key, value);
+  }
+  return url.toString();
+}
+
 /** Remember where else this daemon answers, for the next time one address
  *  stops working. Called whenever the endpoint list is successfully read. */
 export function rememberEndpoints(endpoints: Endpoint[]) {

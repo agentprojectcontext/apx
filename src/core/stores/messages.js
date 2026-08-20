@@ -23,6 +23,7 @@ import { CHANNELS } from "../constants/channels.js";
 import { SUPERAGENT_ACTOR_ID } from "../constants/actors.js";
 
 import { nowIso } from "../util/time.js";
+import { emitMessageEvent } from "../events/bus.js";
 
 function dayPathJsonl(projectRoot, ts) {
   const day = (ts || nowIso()).slice(0, 10);
@@ -121,6 +122,20 @@ export function appendMessageToFs({ projectRoot, channel, direction, type, actor
   };
 
   fs.appendFileSync(file, JSON.stringify(record) + "\n");
+  // Announce it. Both project writers land here — `appendMessage` wraps this
+  // function — so one emit covers the whole project funnel. The storage path
+  // and not a project id: core has no registry to resolve one, and the daemon
+  // that subscribes does. See core/events/bus.js.
+  emitMessageEvent({
+    scope: "project",
+    project_root: projectRoot,
+    channel,
+    thread: ts.slice(0, 10),
+    agent_slug: agent_slug || null,
+    direction,
+    type: msgType,
+    ts,
+  });
   return { ts, file };
 }
 
@@ -583,6 +598,21 @@ export function appendGlobalMessage({ channel, direction, type, actor_id, actor_
     ...(Object.keys(fullMeta).length ? { meta: fullMeta } : {}),
   };
   fs.appendFileSync(file, JSON.stringify(record) + "\n");
+  // Announce it: this is the funnel every channel writes through — Telegram in
+  // and out, desktop, the web's own turns — so a surface subscribed to the bus
+  // sees a conversation move no matter which device produced the turn.
+  // `thread` is the day file's id because that is how a channel thread is
+  // addressed everywhere else (readGlobalThread, the inbox row, the URL).
+  emitMessageEvent({
+    scope: "global",
+    channel,
+    thread: ts.slice(0, 10),
+    project_id: fullMeta.project_id ?? null,
+    agent_slug: agent_slug || null,
+    direction,
+    type: msgType,
+    ts,
+  });
   return { ts, file };
 }
 

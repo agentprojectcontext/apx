@@ -121,6 +121,25 @@ conectada al super-agente.
 
 ![Riel izquierdo — lista de proyectos más accesos directos a módulos](../../../../assets/shots/10-project-overview.png)
 
+## Actualización en vivo
+
+Cada pantalla que muestra una conversación se actualiza sola. El panel mantiene
+un WebSocket abierto contra el daemon (`/api/events/ws`, autenticado con el
+mismo token que la API HTTP), y el daemon avisa por ahí cada vez que una
+conversación se mueve, sin importar en qué superficie se produjo el turno.
+
+Así, un mensaje que llega por Telegram aparece en la bandeja de la notebook y en
+el teléfono al mismo tiempo, sin recargar, y tres dispositivos abiertos en el
+mismo hilo quedan sincronizados. El socket lleva una señal, nunca contenido:
+dice qué hilo se movió, y cada pantalla vuelve a leer ese hilo por la misma API
+que ya usaba.
+
+Se repara solo. Un teléfono que suspende la pestaña, una notebook que se duerme,
+un tailnet que se cae: al volver, el panel se reconecta y revalida una vez, así
+no se pierde nada de lo que pasó mientras estuvo afuera. Si el socket no se
+puede abrir (un proxy que rechaza upgrades), las listas vuelven a su refresco de
+15 segundos y el panel sigue funcionando, sólo que menos inmediato.
+
 ## Workspace de proyecto
 
 Abrir un proyecto te lleva a su **Resumen** — un "mission control" con tarjetas

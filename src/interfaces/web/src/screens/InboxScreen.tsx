@@ -41,6 +41,25 @@ export function InboxScreen() {
     if (!selected && rows.length) setSelected(rows[0]);
   }, [rows, selected]);
 
+  // Follow the row, not the snapshot of it. The list refreshes underneath as
+  // messages arrive, and the same agent can point at a DIFFERENT thread than it
+  // did a minute ago — the ledger is a file per day, so the first message after
+  // midnight starts a new one. A selection frozen at click time would leave you
+  // reading yesterday while today filled up.
+  useEffect(() => {
+    if (!selected) return;
+    const fresh = rows.find((r) => rowKey(r) === rowKey(selected));
+    if (!fresh) return;
+    // Channel AND id: the super-agent's threads are a file per channel per DAY,
+    // so today's Telegram thread and today's web thread share an id and differ
+    // only by channel. Comparing the id alone left the pane on the web thread
+    // while the row it belongs to had already moved to Telegram — the preview
+    // showed a message the pane could not reach.
+    if (fresh.conversation_id !== selected.conversation_id || fresh.channel !== selected.channel) {
+      setSelected(fresh);
+    }
+  }, [rows, selected]);
+
   // Padded: the screen itself is flush to the shell's edges, so a bare
   // spinner would sit in the very corner.
   if (isLoading) return <div className="p-4"><Loading /></div>;
@@ -94,7 +113,10 @@ export function InboxScreen() {
              state, and carrying one agent's stream into another agent's pane
              would be worse than a moment's reload. */
           <ChatTab
-            key={rowKey(selected)}
+            /* The thread is part of the identity: when the selected agent moves
+               to a new day's thread the pane must reopen on it, and ChatTab
+               reads its initial selection once, at mount. */
+            key={`${rowKey(selected)}::${selected.channel ?? ""}::${selected.conversation_id ?? ""}`}
             pid={pid as string}
             hideSidebar
             bare
