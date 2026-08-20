@@ -67,7 +67,7 @@
   let timeData = null;
   let waveRaf = null;
 
-  let streamingAgentEntry = null; // legacy single-bubble streaming (kept dormant)
+  let streamingAgentEntry = null; // the pending "thinking" bubble; also renders turn errors
   let toolPillsByName = {};       // active tool pills, by tool name, for the live turn
   let ttsAudio = null;            // <audio> currently playing
 
@@ -536,6 +536,8 @@
     $convScroll?.querySelector("[data-pending='user']")?.remove();
   }
 
+  // The placeholder bubble shown while the turn is in flight. Segments replace
+  // it with real bubbles; a failed turn overwrites it with the error text.
   function ensureStreamingAgentBubble() {
     if (!$convScroll) return;
     if (streamingAgentEntry?.el && document.body.contains(streamingAgentEntry.el)) return;
@@ -558,18 +560,6 @@
     `;
     $convScroll.appendChild(t);
     streamingAgentEntry = { id, el: t, msgEl: t.querySelector(".msg-agent"), text: "", started: false };
-    scrollConvToBottom();
-  }
-
-  function appendStreamingToken(chunk) {
-    ensureStreamingAgentBubble();
-    if (!streamingAgentEntry.started) {
-      streamingAgentEntry.started = true;
-      streamingAgentEntry.msgEl.innerHTML = ""; // clear the dots placeholder
-    }
-    streamingAgentEntry.text += chunk;
-    // Re-render with the word-in animation: split into spans on word boundaries.
-    streamingAgentEntry.msgEl.innerHTML = formatWordsHtml(streamingAgentEntry.text) + `<span class="caret"></span>`;
     scrollConvToBottom();
   }
 
@@ -1163,11 +1153,6 @@
           doneHandled = false;
         }
         ensureConv();
-        break;
-      case "token":
-        // Legacy path (backend no longer streams tokens for desktop). Kept so a
-        // mixed-version daemon doesn't break — accumulate into a single bubble.
-        appendStreamingToken(msg.text || "");
         break;
       case "tool_start":  addToolPill(msg.name); break;
       case "tool_done":   updateToolPill(msg.name); break;

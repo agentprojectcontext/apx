@@ -21,8 +21,8 @@ estar en contexto, no para el historial crudo de la conversación.
 
 Este archivo es estado de runtime local, fuera del repositorio. El repositorio commiteado guarda la definición
 del agente en `.apc/agents/<slug>.md`; APX guarda la memoria bajo `~/.apx` para que las notas privadas, el contexto del
-dueño y los detalles operativos no se filtren a repos públicos. El legacy
-`.apc/agents/<slug>/memory.md` sólo se lee como fallback de migración.
+dueño y los detalles operativos no se filtren a repos públicos. No hay una segunda ubicación: nada lee
+ni escribe un `memory.md` por agente dentro de `.apc/`.
 
 ## Qué corresponde a la memoria
 

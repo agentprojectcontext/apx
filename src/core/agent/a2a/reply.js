@@ -2,9 +2,8 @@
 // message body, build the recipient's system prompt and call the engine. Pure
 // orchestration over core/agent + core/engines — no HTTP, no message log
 // writes (the caller decides whether/where to persist).
-import fs from "node:fs";
 import { callEngine } from "../../engines/index.js";
-import { apcAgentMemoryFile } from "../../apc/paths.js";
+import { readAgentMemory } from "../memory.js";
 import { resolveAgentModel } from "../agent-model.js";
 
 /**
@@ -22,10 +21,11 @@ export function buildA2AReplySystem({ projectPath, toAgent, fromAgent }) {
     `You are ${toAgent.slug}. You just received a message from ${fromAgent.slug}. Reply concisely.`
   );
   if (projectPath && toAgent.slug) {
-    const memPath = apcAgentMemoryFile(projectPath, toAgent.slug);
-    if (fs.existsSync(memPath)) {
-      parts.push("## Memory\n" + fs.readFileSync(memPath, "utf8"));
-    }
+    // Same file buildAgentSystem injects — an A2A turn must not read a
+    // different memory than a normal turn, or the agent contradicts itself
+    // depending on who asked.
+    const memory = readAgentMemory(projectPath, toAgent.slug);
+    if (memory) parts.push("## Memory\n" + memory);
   }
   return parts.join("\n\n");
 }

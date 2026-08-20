@@ -44,10 +44,6 @@ export function apcAgentFile(root, slug) {
   return path.join(root, APC_DIR, APC_AGENTS_DIR, `${slug}.md`);
 }
 
-export function apcAgentMemoryFile(root, slug) {
-  return path.join(root, APC_DIR, APC_AGENTS_DIR, slug, "memory.md");
-}
-
 export function apcRemovedFile(root) {
   return path.join(root, APC_DIR, APC_AGENTS_DIR, APC_REMOVED_FILE);
 }
@@ -68,8 +64,10 @@ export function apcNotesDir(root) {
   return path.join(root, APC_DIR, APC_NOTES_DIR);
 }
 
-// Project-level memory (super-agent / project-wide), distinct from the
-// per-agent memory.md that lives under .apc/agents/<slug>/.
+// Project-level memory: curated, committed, written by a person. This is the
+// ONLY memory.md that belongs inside a repo. A single agent's memory is runtime
+// state and lives in ~/.apx/projects/<apx_id>/agents/<slug>/memory.md — see
+// core/agent/memory.js. There is deliberately no builder for it here.
 export function apcMemoryFile(root) {
   return path.join(root, APC_DIR, APC_PROJECT_MEMORY_FILE);
 }

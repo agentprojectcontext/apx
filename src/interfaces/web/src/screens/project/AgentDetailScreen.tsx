@@ -477,7 +477,7 @@ function MemoryEditor({ pid, slug, onSaved }: { pid: string; slug: string; onSav
     if (body.data === undefined) return null;
     const content = body.data ?? "";
     return {
-      path: `agents/${slug}/memory.md`,
+      path: `~/.apx/projects/<id>/agents/${slug}/memory.md`,
       name: "memory.md",
       kind: "markdown",
       size: content.length,

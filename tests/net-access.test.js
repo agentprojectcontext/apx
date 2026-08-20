@@ -21,6 +21,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const readSrc = (...p) => fs.readFileSync(path.join(__dirname, "..", "src", ...p), "utf8");
 
 const { reachableEndpoints, corsBetweenOwnAddresses } = await import("#host/daemon/api/net.js");
+const { servePrecompressed } = await import("#host/daemon/api/web.js");
 
 test("the endpoint list is ordered by how long the address keeps working", async () => {
   const eps = await reachableEndpoints({ port: 7430, host: "192.168.1.40" });
@@ -151,4 +152,65 @@ test("failing over needs OUR daemon at the other end, not just a 200", () => {
     "utf8",
   );
   assert.match(http, /mayBeWrongAddress\(res\.status\) && \(await recoverIfAddressIsWrong\(\)\)/);
+});
+
+test("the bundle goes out compressed, and only to clients that asked", () => {
+  // ~1.7 MB of JavaScript used to be served raw. On loopback that is
+  // invisible; over Tailscale, where a connection can be relayed through a
+  // DERP node on another continent, it is the difference between the panel
+  // opening at once and a phone sitting on a white screen.
+  const dist = path.join(__dirname, "..", "src", "interfaces", "web", "dist");
+  const mw = servePrecompressed(dist);
+
+  const call = (urlPath, accept) => {
+    const headers = {};
+    let sent = null;
+    let nexted = false;
+    const res = {
+      setHeader: (k, v) => (headers[k.toLowerCase()] = v),
+      sendFile: (file) => (sent = file),
+    };
+    mw({ method: "GET", path: urlPath, headers: { "accept-encoding": accept } }, res, () => (nexted = true));
+    return { headers, sent, nexted };
+  };
+
+  const assets = path.join(dist, "assets");
+  if (!fs.existsSync(assets)) return; // no build in this checkout; nothing to assert against
+  const js = fs.readdirSync(assets).find((f) => f.endsWith(".js") && fs.existsSync(path.join(assets, `${f}.br`)));
+  if (!js) return; // built by an older version, which is the fall-through case below
+
+  const brotli = call(`/assets/${js}`, "br, gzip");
+  assert.equal(brotli.headers["content-encoding"], "br");
+  // The file being sent ends in .br, so the type has to be set from the
+  // ORIGINAL extension or a browser refuses to execute it.
+  assert.match(brotli.headers["content-type"], /javascript/);
+  assert.equal(brotli.headers["vary"], "Accept-Encoding");
+  assert.ok(brotli.sent.endsWith(".br"));
+
+  const gz = call(`/assets/${js}`, "gzip");
+  assert.equal(gz.headers["content-encoding"], "gzip");
+
+  // A client that takes neither gets the original, uncompressed and working.
+  const plain = call(`/assets/${js}`, "identity");
+  assert.equal(plain.nexted, true);
+  assert.equal(plain.headers["content-encoding"], undefined);
+
+  // The shell and the service worker decide what everything else may reuse;
+  // neither may be held in a cache.
+  assert.equal(call("/index.html", "br").headers["cache-control"], "no-cache");
+  assert.equal(call("/sw.js", "br").headers["cache-control"], "no-cache");
+});
+
+test("a compressed twin cannot be reached from outside the dist", () => {
+  const dist = path.join(__dirname, "..", "src", "interfaces", "web", "dist");
+  const mw = servePrecompressed(dist);
+  let sent = null;
+  let nexted = false;
+  mw(
+    { method: "GET", path: "/../../../../etc/hosts.js", headers: { "accept-encoding": "br" } },
+    { setHeader: () => {}, sendFile: (f) => (sent = f) },
+    () => (nexted = true),
+  );
+  assert.equal(sent, null);
+  assert.equal(nexted, true);
 });

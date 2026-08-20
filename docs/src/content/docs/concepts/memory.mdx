@@ -21,8 +21,8 @@ in context, not raw conversation history.
 
 This file is local runtime state, outside the repository. The committed repository keeps the agent
 definition at `.apc/agents/<slug>.md`; APX keeps memory under `~/.apx` so private notes, owner
-context, and operational details do not leak into public repos. Legacy
-`.apc/agents/<slug>/memory.md` is read only as a migration fallback.
+context, and operational details do not leak into public repos. There is no second location: nothing
+reads or writes a per-agent `memory.md` under `.apc/`.
 
 ## What belongs in memory
 

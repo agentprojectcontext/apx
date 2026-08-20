@@ -2,6 +2,18 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import crypto from "node:crypto";
+
+// Deliberately NO top-level import of #core/config or anything that reaches it:
+// config/paths.js freezes APX_HOME into module constants the moment it loads,
+// and every test file that imports this helper would freeze it before it got a
+// chance to point APX_HOME at its own sandbox (see admin-reload.test.js).
+// Source of truth for the layout below: core/agent/memory.js + config/paths.js.
+function agentMemoryFile(root, slug) {
+  const apxHome = process.env.APX_HOME || path.join(os.homedir(), ".apx");
+  const { apx_id } = JSON.parse(fs.readFileSync(path.join(root, ".apc", "project.json"), "utf8"));
+  return path.join(apxHome, "projects", apx_id, "agents", slug, "memory.md");
+}
 
 let counter = 0;
 
@@ -17,6 +29,7 @@ export function makeTempProject({ name = "tmp", agents = [], skills = [], mcps =
       version: "0.1.0",
       apf: "0.1.0",
       created: "2026-01-01T00:00:00Z",
+      apx_id: crypto.randomUUID().replace(/-/g, "").slice(0, 12),
     }, null, 2)
   );
 
@@ -30,12 +43,12 @@ export function makeTempProject({ name = "tmp", agents = [], skills = [], mcps =
     if (a.description) agentsMd += `- **Description**: ${a.description}\n`;
     agentsMd += "\n";
 
-    const adir = path.join(root, ".apc", "agents", a.slug);
-    fs.mkdirSync(adir, { recursive: true });
-    fs.writeFileSync(
-      path.join(adir, "memory.md"),
-      a.memory || `# Memory — ${a.slug}\n\n## Identity\n- ${a.slug}\n`
-    );
+    // Memory goes where the code reads it: ~/.apx/projects/<apx_id>/agents/
+    // <slug>/memory.md, never .apc/. A fixture seeded under .apc/ is a fixture
+    // production stopped looking at.
+    const mem = agentMemoryFile(root, a.slug);
+    fs.mkdirSync(path.dirname(mem), { recursive: true });
+    fs.writeFileSync(mem, a.memory || `# Memory — ${a.slug}\n\n## Identity\n- ${a.slug}\n`);
   }
   fs.writeFileSync(path.join(root, "AGENTS.md"), agentsMd);
 
@@ -57,6 +70,16 @@ export function makeTempProject({ name = "tmp", agents = [], skills = [], mcps =
 }
 
 export function cleanupTempProject(root) {
+  // The runtime half lives outside the repo tree, so removing the repo alone
+  // leaves a stray ~/.apx/projects/<apx_id>/ behind on every single run.
+  try {
+    // memory.md → agents/<slug> → agents → the store itself.
+    const store = path.dirname(path.dirname(path.dirname(agentMemoryFile(root, "_"))));
+    const id = path.basename(store);
+    if (path.basename(path.dirname(store)) === "projects" && id !== "default" && id !== "null") {
+      fs.rmSync(store, { recursive: true, force: true });
+    }
+  } catch {}
   try { fs.rmSync(root, { recursive: true, force: true }); } catch {}
 }
 

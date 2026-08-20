@@ -89,6 +89,16 @@ function purgeExpired(now = Date.now()) {
 
 export function register(api, ctx) {
   const { tokenStore, config } = ctx;
+  // Warm the address list at boot. The first call to reachableUrls() returns
+  // the LAN fallback while the real answer is still being fetched — and the
+  // first call is exactly the one that matters, because it is someone opening
+  // the pairing dialog and getting the http:// address for the QR when a
+  // secure https:// one exists. By the time anyone gets there, this has landed.
+  try {
+    reachableUrls({ host: config?.host, port: config?.port });
+  } catch {
+    /* address discovery is best-effort; pairing works without it */
+  }
   if (!tokenStore) {
     // Pairing requires the multi-token store; if running with legacy
     // single-token mode just don't register the routes. Devices can fall

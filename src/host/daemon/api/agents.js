@@ -30,7 +30,6 @@ import {
   readAgentMemory,
   writeAgentMemory,
   agentMemoryPath,
-  legacyAgentMemoryPath,
 } from "#core/agent/memory.js";
 import { agentToResponse } from "./shared.js";
 import { normalizeVaultPatch } from "#core/apc/agents-vault.js";
@@ -308,13 +307,11 @@ export function register(api, { projects, project }) {
     const slug = req.params.slug;
     const file = apcAgentFile(p.path, slug);
     const runtimeDir = path.dirname(agentMemoryPath(p, slug));
-    const legacyDir = path.dirname(legacyAgentMemoryPath(p.path, slug));
-    if (!fs.existsSync(file) && !fs.existsSync(runtimeDir) && !fs.existsSync(legacyDir))
+    if (!fs.existsSync(file) && !fs.existsSync(runtimeDir))
       return res.status(404).json({ error: "agent not found" });
     try {
       if (fs.existsSync(file)) fs.rmSync(file);
       if (fs.existsSync(runtimeDir)) fs.rmSync(runtimeDir, { recursive: true, force: true });
-      if (fs.existsSync(legacyDir)) fs.rmSync(legacyDir, { recursive: true, force: true });
       projects.rebuild(p.id);
       res.json({ ok: true });
     } catch (e) {

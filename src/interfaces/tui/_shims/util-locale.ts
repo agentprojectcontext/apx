@@ -99,6 +99,4 @@ export const Locale = {
   truncateLeft,
   truncateMiddle,
   pluralize,
-  // legacy alias kept for any callers expecting `format`
-  format: (n: number) => String(n),
 }

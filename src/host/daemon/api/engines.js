@@ -1,7 +1,6 @@
 // GET  /engines            — list engine adapter ids known to core/engines.
 // GET  /engines/presets     — curated catalog (known models, defaults) per engine.
 // POST /engines/models      — live model catalog from a provider.
-// GET  /engines/models      — legacy (Ollama only, no auth).
 // POST /engines/test        — one-shot "is this wired up?" message to one model.
 import { ENGINE_IDS, callEngine } from "#core/engines/index.js";
 import { listModels } from "#core/engines/catalog.js";
@@ -86,13 +85,5 @@ export function register(api, { config }) {
     } catch (e) {
       res.status(502).json({ error: e?.message || "la llamada falló", ms: Date.now() - started });
     }
-  }));
-
-  // Legacy GET (Ollama, no auth) — kept for back-compat.
-  api.get("/engines/models", asyncRoute(async (req, res) => {
-    const engine = String(req.query.engine || "").toLowerCase();
-    const out = await listModels(engine, String(req.query.base_url || ""), "");
-    if (out.error) return res.status(502).json({ engine, models: [], error: out.error });
-    res.json({ engine, models: out.models });
   }));
 }
