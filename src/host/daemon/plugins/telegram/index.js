@@ -20,12 +20,11 @@
 //       },
 //       ...
 //     ],
-//     // legacy single-channel keys (used only when channels[] is absent/empty):
-//     "bot_token": "",
-//     "chat_id": "",
-//     "route_to_agent": "",
+//     "route_to_agent": "",              // default for channels that omit it
 //     "poll_interval_ms": 1500
 //   }
+// With channels[] empty, one implicit "default" channel is polled using
+// BOT_TELEGRAM_TOKEN / TELEGRAM_CHAT_ID from the environment.
 
 // This poller is intentionally thin: per-update logic lives in core/channels/
 // telegram/ — dispatch (inbound routing), reply (the super-agent turn),
@@ -64,9 +63,7 @@ class ChannelPoller {
     this.plugins = plugins;
     this.registries = registries;
     this.state = loadState();
-    this.offset =
-      this.state.channels?.[channel.name]?.offset ??
-      (channel.name === "default" ? this.state._legacy_offset || 0 : 0);
+    this.offset = this.state.channels?.[channel.name]?.offset ?? 0;
     this.polling = false;
     this.lastError = null;
     this.lastUpdateAt = null;

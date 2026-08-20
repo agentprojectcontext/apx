@@ -161,7 +161,7 @@ If the daemon is down, `apx` auto-starts it when needed.
 
 ---
 
-## Native APX session commands (legacy, still useful)
+## Native APX session commands
 
 Manage APX-native sessions (`.md` files in `~/.apx/projects/.../sessions/`). They do **not** see Claude/Codex sessions.
 

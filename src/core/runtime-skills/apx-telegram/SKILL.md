@@ -1,6 +1,6 @@
 ---
 name: apx-telegram
-description: APX Telegram plugin — channels, project pinning, master agents, media. Load BEFORE configuring a new bot or routing — multi-channel is the only mode, root bot_token/chat_id are legacy.
+description: APX Telegram plugin — channels, project pinning, master agents, media. Load BEFORE configuring a new bot or routing — channels[] is the only place credentials live.
 ---
 
 # apx-telegram
@@ -33,12 +33,12 @@ APX polls `getUpdates` and routes messages. Config: `~/.apx/config.json → tele
 }
 ```
 
-Root `telegram.bot_token` / `telegram.chat_id` are **legacy**. Don't write them. If a config still has them and `channels[]` is empty, APX migrates them into `channels[0]` automatically on first read.
+Root `telegram.bot_token` / `telegram.chat_id` are **not read**. APX drops them on load, so a token written there silently does nothing — always use `channels[]`. With `channels[]` empty, APX polls one implicit `default` channel using `BOT_TELEGRAM_TOKEN` / `TELEGRAM_CHAT_ID` from the environment.
 
 ## Concrete CLI calls
 
 ```bash
-apx telegram setup            # template (still emits legacy root fields — prefer channels[])
+apx telegram setup            # prints the config template (channels[] shape)
 
 # Channels CRUD
 apx telegram channel add                  # interactive
@@ -97,7 +97,7 @@ With `route_to_agent: "reviewer"`, messages go through `/api/projects/:pid/agent
 ## Anti-examples
 
 ```bash
-# DON'T write to legacy root fields.
+# DON'T write to the root fields — they are dropped on load.
 apx config set --global telegram.bot_token "<T>"   # ← use channels[] via `apx telegram channel`
 
 # DON'T expect routing magic from same project on two channels.

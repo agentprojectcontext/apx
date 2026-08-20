@@ -160,8 +160,8 @@ export function cmdSessionList(args) {
 /**
  * `apx session get <id>` — single-record fetch.
  *
- *   - Default: search the current APC project's local sessions (legacy
- *     behaviour, fast, no daemon, no engine scan).
+ *   - Default: search the current APC project's local sessions (fast, no
+ *     daemon, no engine scan).
  *   - --engine <id>  : look only inside that engine's storage (apx, claude,
  *                      codex). Useful when you want the raw transcript of a
  *                      Claude/Codex session by id.
@@ -201,7 +201,7 @@ export function cmdSessionGet(args) {
     return printEngineSession(hits[0], args);
   }
 
-  // Legacy / default — local APC project session lookup.
+  // Default — local APC project session lookup.
   const root = requireRoot();
   const s = findSessionById(root, id);
   if (!s) {

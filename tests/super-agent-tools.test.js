@@ -110,7 +110,7 @@ test("list_agents without project returns grouped inventory", () => {
   }
 });
 
-test("list_agents returns the agents from AGENTS.md", () => {
+test("list_agents returns the agents from .apc/agents/", () => {
   const { root, projects } = setup();
   try {
     const handlers = makeToolHandlers({ projects, plugins: null, registries: null, globalConfig: {} });

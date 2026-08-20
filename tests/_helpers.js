@@ -33,15 +33,20 @@ export function makeTempProject({ name = "tmp", agents = [], skills = [], mcps =
     }, null, 2)
   );
 
-  let agentsMd = "# Agents\n\n";
   for (const a of agents) {
-    agentsMd += `## ${a.slug}\n`;
-    if (a.role) agentsMd += `- **Role**: ${a.role}\n`;
-    if (a.model) agentsMd += `- **Model**: ${a.model}\n`;
-    if (a.skills?.length) agentsMd += `- **Skills**: ${a.skills.join(", ")}\n`;
-    if (a.language) agentsMd += `- **Language**: ${a.language}\n`;
-    if (a.description) agentsMd += `- **Description**: ${a.description}\n`;
-    agentsMd += "\n";
+    // Agents live in .apc/agents/<slug>.md — the one source readAgents() reads.
+    // AGENTS.md is the project's startup-rules file, never an agent registry.
+    const fm = ["---"];
+    if (a.role) fm.push(`role: ${a.role}`);
+    if (a.model) fm.push(`model: ${a.model}`);
+    if (a.skills?.length) fm.push(`skills: ${a.skills.join(", ")}`);
+    if (a.language) fm.push(`language: ${a.language}`);
+    if (a.description) fm.push(`description: ${a.description}`);
+    fm.push("---", "");
+    fs.writeFileSync(
+      path.join(root, ".apc", "agents", `${a.slug}.md`),
+      `${fm.join("\n")}\n${a.body || ""}`
+    );
 
     // Memory goes where the code reads it: ~/.apx/projects/<apx_id>/agents/
     // <slug>/memory.md, never .apc/. A fixture seeded under .apc/ is a fixture
@@ -50,7 +55,7 @@ export function makeTempProject({ name = "tmp", agents = [], skills = [], mcps =
     fs.mkdirSync(path.dirname(mem), { recursive: true });
     fs.writeFileSync(mem, a.memory || `# Memory — ${a.slug}\n\n## Identity\n- ${a.slug}\n`);
   }
-  fs.writeFileSync(path.join(root, "AGENTS.md"), agentsMd);
+  fs.writeFileSync(path.join(root, "AGENTS.md"), "# Project rules\n");
 
   for (const s of skills) {
     fs.writeFileSync(

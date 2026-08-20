@@ -138,7 +138,7 @@ export const IDE_TARGETS = [
 // Global targets (absolute paths, use ~/<dir>/skills/<slug>/SKILL.md format).
 // These dirs are read by Claude Code, Cursor (compat), and tools adopting the skills.sh spec.
 const GLOBAL_SKILL_DIRS = [
-  path.join(os.homedir(), ".claude", "skills"),    // Claude Code + Cursor legacy compat
+  path.join(os.homedir(), ".claude", "skills"),    // Claude Code (Cursor reads it too)
   path.join(os.homedir(), ".cursor", "skills"),    // Cursor primary global path
   path.join(os.homedir(), ".codex",  "skills"),    // Codex (OpenAI)
   path.join(os.homedir(), ".agents", "skills"),    // Antigravity/other skills.sh adopters
@@ -216,10 +216,11 @@ export function listEngineSkills() {
   return listBundledSkills();
 }
 
-// Legacy slugs APX used to ship to global dirs but no longer does — exposed so
-// the CLI can report what `installGlobalSkills` will prune.
-export function listLegacyPruneSlugs() {
-  return [...PRUNE_LEGACY_SLUGS];
+// Slugs APX used to ship to global dirs but no longer does — exposed so the
+// CLI can report what `installGlobalSkills` will prune. Add to this list every
+// time a slug leaves the published set, or stale copies linger forever.
+export function listRetiredSkillSlugs() {
+  return [...RETIRED_SKILL_SLUGS];
 }
 
 function discoverBundledSkills() {
@@ -249,12 +250,12 @@ function discoverBundledSkills() {
 // compatibility with `apx skills sync --include-…`; the slim set has no tiers.
 //
 // Pruning: removes stale APX-shipped slugs that are no longer in the engine
-// set (the catalog of slugs APX has ever published, see PRUNE_LEGACY_SLUGS).
+// set (the catalog of slugs APX has ever published, see RETIRED_SKILL_SLUGS).
 // Skills the user installed themselves are NOT touched.
 //
 // Returns an array of { dir, skill, file, status, scope }.
 //   status ∈ {created, updated, unchanged, pruned}
-const PRUNE_LEGACY_SLUGS = [
+const RETIRED_SKILL_SLUGS = [
   "apx-agency-agents",
   "apx-agent",
   "apx-mcp-builder",
@@ -299,13 +300,13 @@ export function installGlobalSkills({
       results.push({ dir: base, skill: slug, file: dest, status: existed ? "updated" : "created", scope: "engine" });
     }
     if (prune) {
-      for (const slug of PRUNE_LEGACY_SLUGS) {
+      for (const slug of RETIRED_SKILL_SLUGS) {
         if (wantedSlugs.has(slug)) continue;
         const dest = path.join(base, slug, "SKILL.md");
         if (!fs.existsSync(dest)) continue;
         fs.unlinkSync(dest);
         try { fs.rmdirSync(path.dirname(dest)); } catch {}
-        results.push({ dir: base, skill: slug, file: dest, status: "pruned", scope: "legacy" });
+        results.push({ dir: base, skill: slug, file: dest, status: "pruned", scope: "retired" });
       }
     }
   }
@@ -340,7 +341,7 @@ const AGENTS_MD_TEMPLATE = `# AGENTS.md
 const APC_GITIGNORE = `# APC repository-safe context only.
 # Runtime state belongs in ~/.apx/projects/<id>/, not in .apc/.
 
-# Legacy per-agent runtime dirs (agent definitions are flat: agents/<slug>.md)
+# Per-agent runtime dirs (agent definitions are flat: agents/<slug>.md)
 agents/*/
 
 # Runtime sessions / conversations / messages

@@ -88,8 +88,7 @@ export async function cmdStatus() {
 
   // ── Telegram ───────────────────────────────────────────────────────────────
   // Prefer the daemon's live view (real polling state). Fall back to the
-  // config file only when the daemon is unreachable. The config check must
-  // honour BOTH the legacy top-level bot_token AND per-channel tokens.
+  // config file only when the daemon is unreachable.
   console.log(sec("Telegram"));
   const tg = cfg.telegram || {};
   let tgLive = null;
@@ -117,7 +116,7 @@ export async function cmdStatus() {
     }
   } else {
     // Daemon down — best-effort from config. Token may be top-level or per-channel.
-    const hasToken = !!tg.bot_token || (tg.channels || []).some((c) => c.bot_token);
+    const hasToken = (tg.channels || []).some((c) => c.bot_token);
     if (tg.enabled && hasToken) {
       console.log(`  ${off("configured")}   ${DI}daemon down — start it to see live status${R}`);
       console.log(`${key("channels")}${val((tg.channels?.length || 1) + " configured")}`);

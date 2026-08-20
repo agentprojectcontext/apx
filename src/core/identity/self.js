@@ -20,7 +20,7 @@ export function readIdentity() {
 }
 
 // Resolve the super-agent's DISPLAY name (the persona shown to users). Order:
-// identity.json persona → legacy super_agent.name → "APX". This is the single
+// identity.json agent_name → super_agent.name → "APX". This is the single
 // source of truth for "what is the super-agent called"; callers must not read
 // super_agent.name directly. The stable id for storage is SUPERAGENT_ACTOR_ID.
 export function resolveAgentName(globalConfig = {}) {

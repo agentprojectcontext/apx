@@ -423,9 +423,8 @@ ipcMain.handle("cancel", async () => {
   stopRecording();
 });
 
-// Renderer requests close/hide (legacy "close-overlay" still accepted)
+// Renderer requests close/hide
 ipcMain.handle("close-desktop", async () => { hideOverlay(); });
-ipcMain.handle("close-overlay", async () => { hideOverlay(); });
 
 // Renderer queries the configured shortcut for display
 ipcMain.handle("get-shortcut", () => getShortcut());

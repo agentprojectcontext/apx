@@ -42,8 +42,8 @@ export function getEmbedAdapter(provider) {
 
 export function embeddingsConfig(globalConfig) {
   const mem = globalConfig?.memory || {};
-  // Back-compat: older configs only had the flat memory.embed_* keys. Fold them
-  // into a synthetic ollama engine config so they keep working unchanged.
+  // memory.embed_* are the flat defaults every config ships with. With no
+  // explicit `embeddings.ollama` block, fold them into a synthetic one.
   const section = mem.embeddings || {};
   if (!section.ollama && (mem.embed_model || mem.embed_base_url || mem.embed_timeout_ms)) {
     return {

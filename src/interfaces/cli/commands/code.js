@@ -1,6 +1,6 @@
 // `apx code` — launch the APX terminal coding assistant (Solid.js TUI).
 // The TUI runs its TypeScript source directly under bun; there is no
-// legacy readline fallback anymore (removed with the old sys.js chat).
+// readline fallback anymore (it went with the old sys.js chat).
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";

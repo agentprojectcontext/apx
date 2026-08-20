@@ -73,57 +73,27 @@ export async function checkProviderHealth(provider, config, timeoutMs = 800, opt
  * should be attempted. Each item is a fully-qualified `<provider>:<model>`
  * string — no separate `order` array, no `models{provider}` map.
  *
- * Reads three formats, in priority order:
+ * `model_fallback.models` is an ordered array of strings; each carries its own
+ * provider prefix and the array order is the fallback order:
  *
- *  1. **New (preferred)**: `model_fallback.models` is an array of strings.
- *     Order = array order. Each string carries its own provider prefix.
+ *     "model_fallback": { "models": ["openrouter:foo", "groq:bar"] }
  *
- *       "model_fallback": { "models": ["openrouter:foo", "groq:bar"] }
- *
- *  2. **Legacy**: `model_fallback.order` is a provider list +
- *     `model_fallback.models` is `{ <provider>: "<provider>:<model>" }`.
- *     Walked in `order`; missing entries fill from DEFAULT_FALLBACK_MODELS or
- *     (for Ollama) from `super_agent.model`.
- *
- *  3. **None**: no fallback configured → defaults derived from
- *     DEFAULT_FALLBACK_ORDER + DEFAULT_FALLBACK_MODELS.
+ * With no fallback configured, the chain is derived from
+ * DEFAULT_FALLBACK_ORDER + DEFAULT_FALLBACK_MODELS.
  *
  * The primary model (`super_agent.model`) is NOT included here — it's tried
  * first by `resolveActiveModel`. This function returns only the alternates.
  */
 export function fallbackModels(globalConfig) {
-  const sa = globalConfig?.super_agent || {};
-  const fb = sa.model_fallback || {};
+  const fb = globalConfig?.super_agent?.model_fallback || {};
 
-  // Format 1 — new
   if (Array.isArray(fb.models)) {
     return fb.models
       .filter((m) => typeof m === "string" && m.includes(":"))
       .map(String);
   }
 
-  // Format 2 — legacy
-  const legacyMap = fb.models && typeof fb.models === "object" ? fb.models : null;
-  const order = Array.isArray(fb.order) ? fb.order.map(String) : null;
-  if (legacyMap || order) {
-    const chain = order || DEFAULT_FALLBACK_ORDER;
-    const out = [];
-    for (const provider of chain) {
-      const p = String(provider).toLowerCase();
-      let model = legacyMap?.[p];
-      if (!model) {
-        if (p === "ollama" && typeof sa.model === "string" && /^ollama:/i.test(sa.model)) {
-          model = sa.model;
-        } else if (DEFAULT_FALLBACK_MODELS[p]) {
-          model = DEFAULT_FALLBACK_MODELS[p];
-        }
-      }
-      if (model && typeof model === "string" && model.includes(":")) out.push(model);
-    }
-    return out;
-  }
-
-  // Format 3 — empty config, derive from defaults
+  // Nothing configured — derive from defaults.
   return DEFAULT_FALLBACK_ORDER
     .map((p) => DEFAULT_FALLBACK_MODELS[p])
     .filter((m) => typeof m === "string" && m.includes(":"));

@@ -221,7 +221,7 @@ export function register(api, { projects, registries, plugins, project, config }
         ctx.contextNote = [ctx.contextNote, out.contextNote].filter(Boolean).join("\n\n");
       }
     } else {
-      // Legacy path — passive nudge, still works when inspector is off.
+      // Inspector off — fall back to the passive nudge.
       const hint = await suggestSkillForPrompt(prompt, { projectPath: p.path });
       if (hint) ctx.contextNote = [ctx.contextNote, hint].filter(Boolean).join("\n\n");
     }

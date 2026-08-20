@@ -56,11 +56,7 @@ export const { use: useSDK, provider: SDKProvider } = createSimpleContext({
     pid: string
     agent?: string
     model?: string
-    // Legacy compat props (unused but accepted to avoid prop errors)
     directory?: string
-    fetch?: typeof fetch
-    headers?: RequestInit["headers"]
-    events?: unknown
   }) => {
     const abort = new AbortController()
     const emitter = createGlobalEmitter<{ event: ApxEvent }>()

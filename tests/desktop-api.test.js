@@ -112,14 +112,10 @@ test("desktop plugin is enabled by default", () => {
   assert.equal(inst.status().enabled, true);
 });
 
-test("desktop plugin reads the legacy 'overlay' config block as a fallback", () => {
-  const inst = initPlugin({ overlay: { enabled: false } });
-  assert.equal(inst.status().enabled, false);
-});
-
-test("the 'desktop' config block wins over the legacy 'overlay' block", () => {
-  const inst = initPlugin({ desktop: { enabled: true }, overlay: { enabled: false } });
-  assert.equal(inst.status().enabled, true);
+test("the 'desktop' config block is the only source of the enabled flag", () => {
+  assert.equal(initPlugin({ desktop: { enabled: false } }).status().enabled, false);
+  // An `overlay` block is not read at all — it predates the rename.
+  assert.equal(initPlugin({ overlay: { enabled: false } }).status().enabled, true);
 });
 
 test("handleMessage rejects when the plugin is disabled", async () => {

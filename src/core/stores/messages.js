@@ -240,42 +240,6 @@ export function parseDayJsonl(text) {
   return out;
 }
 
-// Parse the legacy .md format (kept so rebuild still picks up files written
-// by older versions of the daemon).
-export function parseDayFile(text) {
-  const out = [];
-  const blocks = text.split(/\n(?=## \d{4}-\d{2}-\d{2}T)/);
-  for (const block of blocks) {
-    const m = block.match(/^## (\S+)\s+(\S+)\s+(in|out)\s+(.*?)\n([\s\S]*)$/);
-    if (!m) continue;
-    const ts = m[1];
-    const channel = m[2];
-    const direction = m[3];
-    const author = m[4].trim();
-    let body = m[5];
-    let meta = {};
-    const metaMatch = body.match(/<!--\s*meta:\s*(\{[\s\S]*?\})\s*-->/);
-    if (metaMatch) {
-      try { meta = JSON.parse(metaMatch[1]); } catch {}
-      body = body.replace(metaMatch[0], "");
-    }
-    body = body.trim();
-    const agent_slug = meta.agent;
-    const type = inferMessageType({ channel, direction, author, agent_slug, meta });
-    const actor_id = inferActorId({ type, author, agent_slug, meta });
-    const actor_kind = inferActorKind({ type, actor_id, meta });
-    out.push({
-      ts, channel, direction, author, body, meta,
-      type,
-      actor_id,
-      actor_kind,
-      agent_slug,
-      session_id: meta.session_id ?? (typeof meta.apc_session_id === "number" ? meta.apc_session_id : null),
-      external_id: meta.external_id,
-    });
-  }
-  return out;
-}
 
 // Pull the recent conversation for a given Telegram chat_id from the messages
 // table. Returns the messages in CHRONOLOGICAL order (oldest first), shaped
@@ -386,7 +350,6 @@ export function readProjectMessages(projectRoot, { channel, agent_slug, since, l
     const text = fs.readFileSync(full, "utf8");
     let msgs = [];
     if (/^\d{4}-\d{2}-\d{2}\.jsonl$/.test(f)) msgs = parseDayJsonl(text);
-    else if (/^\d{4}-\d{2}-\d{2}\.md$/.test(f)) msgs = parseDayFile(text);
     for (const m of msgs) {
       if (channel && m.channel !== channel) continue;
       if (agent_slug && m.agent_slug !== agent_slug) continue;
@@ -409,7 +372,6 @@ export function searchProjectMessages(projectRoot, query, limit = 50) {
     const text = fs.readFileSync(full, "utf8");
     let msgs = [];
     if (/^\d{4}-\d{2}-\d{2}\.jsonl$/.test(f)) msgs = parseDayJsonl(text);
-    else if (/^\d{4}-\d{2}-\d{2}\.md$/.test(f)) msgs = parseDayFile(text);
     for (const m of msgs) {
       if ((m.body || "").toLowerCase().includes(q)) all.push(m);
     }
@@ -871,24 +833,18 @@ export function deleteGlobalThread({ channel, date, project, _globalMessagesDir 
   return true;
 }
 
-// Wipe the cache and re-populate from APX project messages. Reads BOTH `.jsonl`
-// (current format) and `.md` (legacy). Called by rebuild.
+// Wipe the cache and re-populate from APX project messages. Called by rebuild.
 export function rebuildMessagesFromFs(db, projectRoot) {
   const dir = path.join(projectRoot, "messages");
   if (!fs.existsSync(dir)) return { count: 0 };
   db.prepare("DELETE FROM messages").run();
 
-  // Collect every line from every .jsonl + .md, parse, sort by ts so the
-  // SQL row ids end up in the right order.
+  // Collect every line from every .jsonl, parse, sort by ts so the SQL row
+  // ids end up in the right order.
   const all = [];
   for (const f of fs.readdirSync(dir).sort()) {
-    const full = path.join(dir, f);
-    const text = fs.readFileSync(full, "utf8");
-    if (/^\d{4}-\d{2}-\d{2}\.jsonl$/.test(f)) {
-      all.push(...parseDayJsonl(text));
-    } else if (/^\d{4}-\d{2}-\d{2}\.md$/.test(f)) {
-      all.push(...parseDayFile(text));
-    }
+    if (!/^\d{4}-\d{2}-\d{2}\.jsonl$/.test(f)) continue;
+    all.push(...parseDayJsonl(fs.readFileSync(path.join(dir, f), "utf8")));
   }
   all.sort((a, b) => (a.ts || "").localeCompare(b.ts || ""));
 

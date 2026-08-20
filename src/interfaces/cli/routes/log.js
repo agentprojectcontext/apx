@@ -14,7 +14,7 @@ export const aliases = ["logs"];
 
 export default async function route(rest, { parseArgs }) {
   // `apx log` is the unified daemon log (everything: telegram, whisper,
-  // super-agent, tools, desktop). For just the legacy stdout sink,
+  // super-agent, tools, desktop). For just the raw daemon stdout sink,
   // use `apx daemon logs`. `apx log -f` follows; `--errors` filters.
   await cmdLog(parseArgs(rest));
 }

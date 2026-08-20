@@ -255,7 +255,7 @@ export function cmdAgentList() {
   }
   console.log();
   for (const a of agents) {
-    const src   = a.source === "vault" ? tag(" ↑ vault") : a.source === "legacy" ? gray(" ↑ legacy") : "";
+    const src   = a.source === "vault" ? tag(" ↑ vault") : "";
     const role  = a.fields.Role  ? dim(a.fields.Role)  : gray("—");
     const model = a.fields.Model ? dim(a.fields.Model) : gray("—");
     console.log(`  ${bold(a.slug)}${src}  ${role}  ${cyan(model)}`);
@@ -277,7 +277,7 @@ export function cmdAgentGet(args) {
     }
     throw new Error(`agent "${slug}" not found`);
   }
-  const src = a.source === "vault" ? tag(" ↑ vault") : a.source === "legacy" ? gray(" ↑ legacy") : "";
+  const src = a.source === "vault" ? tag(" ↑ vault") : "";
   console.log(`\n  ${bold(a.slug)}${src}`);
   for (const [k, v] of Object.entries(a.fields)) {
     console.log(`  ${gray(k.padEnd(12))}  ${Array.isArray(v) ? v.join(", ") : v}`);

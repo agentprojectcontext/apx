@@ -28,7 +28,7 @@ apx env detect          # which runtimes are installed
 apx env list            # alias
 
 apx run reviewer --runtime claude-code "Review the diff in src/host/daemon/api/ for memory leaks"
-apx run scratch  --runtime codex       "Refactor parseAgentsMd to use a state machine"
+apx run scratch  --runtime codex       "Refactor parseAgentFile to use a state machine"
 apx run scratch  --runtime opencode    "<prompt>"
 apx run scratch  --runtime codex --timeout 300 "<prompt>"   # cap (seconds)
 apx run scratch  --runtime codex -      # prompt from stdin (large prompts)

@@ -3,8 +3,7 @@ import { test, expect, runtime } from "./fixtures";
 // Walks every screen the panel exposes and asserts it renders without an
 // uncaught exception. This is the read-only "does every screen work" sweep.
 
-// Mirrors the nav order in SettingsScreen.tsx. "appearance" is not a tab any
-// more — it survives only as a legacy route that redirects to the Web module.
+// Mirrors the nav order in SettingsScreen.tsx.
 const SETTINGS_TABS = [
   "identity",
   "super_agent",

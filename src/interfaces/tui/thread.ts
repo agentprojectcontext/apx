@@ -9,8 +9,6 @@ import { errorMessage } from "@/util/error"
 import { withTimeout } from "@/util/timeout"
 import { withNetworkOptions, resolveNetworkOptionsNoConfig } from "@/cli/network"
 import { Filesystem } from "@/util/filesystem"
-import type { GlobalEvent } from "@opencode-ai/sdk/v2"
-import type { EventSource } from "./context/sdk"
 import { win32DisableProcessedInput, win32InstallCtrlCGuard } from "./win32"
 import { writeHeapSnapshot } from "v8"
 import { TuiConfig } from "./config/tui"
@@ -44,16 +42,6 @@ function createWorkerFetch(client: RpcClient): typeof fetch {
     })
   }
   return fn as typeof fetch
-}
-
-function createEventSource(client: RpcClient): EventSource {
-  return {
-    subscribe: async (handler) => {
-      return client.on<GlobalEvent>("global.event", (e) => {
-        handler(e)
-      })
-    },
-  }
 }
 
 async function target() {
@@ -202,12 +190,10 @@ export const TuiThreadCommand = cmd({
         ? {
             url: (await client.call("server", network)).url,
             fetch: undefined,
-            events: undefined,
           }
         : {
             url: "http://opencode.internal",
             fetch: createWorkerFetch(client),
-            events: createEventSource(client),
           }
 
       try {
@@ -238,8 +224,6 @@ export const TuiThreadCommand = cmd({
           },
           config,
           directory: cwd,
-          fetch: transport.fetch,
-          events: transport.events,
           args: {
             continue: args.continue,
             sessionID: args.session,

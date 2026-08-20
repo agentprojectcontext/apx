@@ -140,7 +140,6 @@ function tabFromPath(pathname: string): TabKey {
     case "deck": return "deck";
     case "desktop": return "desktop";
     case "web": return "web";
-    case "appearance": return "web"; // legacy route → Web module
     case "config":
     case "advanced": return "advanced";
     default: return "identity";

@@ -353,12 +353,20 @@ export function cmdTelegramSetup() {
 
   "telegram": {
     "enabled": true,
-    "bot_token": "<your bot token from @BotFather>",
-    "chat_id": "<numeric chat id where outbound goes>",
     "poll_interval_ms": 1500,
-    "route_to_agent": "<slug>",          // optional: who auto-replies
-    "respond_with_engine": true          // false → only log inbound
+    "channels": [
+      {
+        "name": "default",
+        "bot_token": "<your bot token from @BotFather>",
+        "chat_id": "<numeric chat id where outbound goes>",
+        "route_to_agent": "<slug>",      // optional: who auto-replies
+        "respond_with_engine": true      // false → only log inbound
+      }
+    ]
   }
+
+Credentials live in channels[] — a bot_token at the root is ignored.
+Or skip the hand-edit entirely: apx telegram channel add
 
 Then restart the daemon (apx daemon stop && any apx command will auto-start it).
 You can verify with: apx telegram status

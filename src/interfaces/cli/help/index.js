@@ -1487,7 +1487,7 @@ export const HELP_TOPICS = new Map(Object.entries({
   "skills inspector": topic({
     title: "apx skills inspector",
     summary:
-      "Toggle and tune the Skill Inspector (per-turn skill RAG). When ON: the static slug-dump in the system prompt is suppressed and a local RAG picks 0–N skills per turn — loading the body of high-confidence matches, hinting mid-confidence ones, injecting nothing below threshold. When OFF: legacy behaviour (full slug list + passive suggestion). Opt-in test feature.",
+      "Toggle and tune the Skill Inspector (per-turn skill RAG). When ON: the static slug-dump in the system prompt is suppressed and a local RAG picks 0–N skills per turn — loading the body of high-confidence matches, hinting mid-confidence ones, injecting nothing below threshold. When OFF: the static behaviour (full slug list + passive suggestion). Opt-in test feature.",
     usage: ["apx skills inspector [status|enable|disable|set <key> <value>]"],
     examples: [
       "apx skills inspector enable",
@@ -2161,7 +2161,7 @@ export function buildHelp(version) {
     hCmd("apx daemon reload",          36, "reload ~/.apx/config.json without restart"),
     hCmd("apx daemon stop",            36, ""),
     hCmd("apx daemon status",          36, ""),
-    hCmd("apx daemon logs",            36, "--tail N  legacy daemon stdout log"),
+    hCmd("apx daemon logs",            36, "--tail N  raw daemon stdout log"),
     hCmd("apx log",                    36, "unified log (all modules)  -f follow  --tail N  --errors only"),
 
     hSec("Telegram"),

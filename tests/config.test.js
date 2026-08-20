@@ -73,38 +73,22 @@ test("mergeDefaults: telegram.channels falls back to [] when not an array", () =
 });
 
 // ---------------------------------------------------------------------------
-// telegram legacy migration (bot_token / chat_id at root level)
+// telegram credentials live in channels[]; root bot_token/chat_id is not a
+// supported shape and is dropped rather than merged in.
 // ---------------------------------------------------------------------------
 
-// Silence the migration warning during tests; restore after each case.
-function silenceWarn(fn) {
-  const orig = console.warn;
-  console.warn = () => {};
-  try {
-    return fn();
-  } finally {
-    console.warn = orig;
-  }
-}
-
-test("mergeDefaults: fresh telegram config has no legacy bot_token/chat_id at root", () => {
+test("mergeDefaults: fresh telegram config has no bot_token/chat_id at root", () => {
   const result = mergeDefaults({});
   assert.equal(result.telegram.bot_token, undefined);
   assert.equal(result.telegram.chat_id, undefined);
   assert.deepEqual(result.telegram.channels, []);
 });
 
-test("mergeDefaults: new-style telegram config (channels only) is preserved as-is", () => {
+test("mergeDefaults: telegram config (channels only) is preserved as-is", () => {
   const channels = [{ name: "main", bot_token: "tok-new", chat_id: "999" }];
-  const result = silenceWarn(() =>
-    mergeDefaults({
-      telegram: {
-        enabled: true,
-        poll_interval_ms: 2000,
-        channels,
-      },
-    }),
-  );
+  const result = mergeDefaults({
+    telegram: { enabled: true, poll_interval_ms: 2000, channels },
+  });
   assert.equal(result.telegram.enabled, true);
   assert.equal(result.telegram.poll_interval_ms, 2000);
   assert.deepEqual(result.telegram.channels, channels);
@@ -112,68 +96,21 @@ test("mergeDefaults: new-style telegram config (channels only) is preserved as-i
   assert.equal(result.telegram.chat_id, undefined);
 });
 
-test("mergeDefaults: legacy telegram.bot_token/chat_id migrates into channels[0]", () => {
-  const result = silenceWarn(() =>
-    mergeDefaults({
-      telegram: {
-        enabled: true,
-        bot_token: "legacy-token",
-        chat_id: "legacy-chat",
-      },
-    }),
-  );
-  assert.equal(result.telegram.channels.length, 1);
-  assert.equal(result.telegram.channels[0].name, "default");
-  assert.equal(result.telegram.channels[0].bot_token, "legacy-token");
-  assert.equal(result.telegram.channels[0].chat_id, "legacy-chat");
-  // legacy root fields are dropped after migration
-  assert.equal(result.telegram.bot_token, undefined);
-  assert.equal(result.telegram.chat_id, undefined);
-});
-
-test("mergeDefaults: legacy fields are ignored when channels[] already has entries", () => {
-  const channels = [{ name: "main", bot_token: "real-tok", chat_id: "real-chat" }];
-  const result = silenceWarn(() =>
-    mergeDefaults({
-      telegram: {
-        enabled: true,
-        bot_token: "legacy-token",
-        chat_id: "legacy-chat",
-        channels,
-      },
-    }),
-  );
-  // channels wins; legacy is silently dropped, not merged in.
-  assert.equal(result.telegram.channels.length, 1);
-  assert.deepEqual(result.telegram.channels, channels);
-  assert.equal(result.telegram.bot_token, undefined);
-  assert.equal(result.telegram.chat_id, undefined);
-});
-
-test("mergeDefaults: empty legacy strings do NOT trigger migration", () => {
-  // Empty strings are the historical default — they must not produce a phantom channel.
+test("mergeDefaults: root bot_token/chat_id is dropped, not turned into a channel", () => {
   const result = mergeDefaults({
-    telegram: {
-      bot_token: "",
-      chat_id: "",
-    },
+    telegram: { enabled: true, bot_token: "root-token", chat_id: "root-chat" },
   });
   assert.deepEqual(result.telegram.channels, []);
   assert.equal(result.telegram.bot_token, undefined);
   assert.equal(result.telegram.chat_id, undefined);
 });
 
-test("mergeDefaults: migration logs a warning so the user sees the upgrade", () => {
-  const orig = console.warn;
-  const logs = [];
-  console.warn = (...args) => logs.push(args.join(" "));
-  try {
-    mergeDefaults({ telegram: { bot_token: "tok", chat_id: "id" } });
-  } finally {
-    console.warn = orig;
-  }
-  assert.ok(
-    logs.some((line) => line.includes("[apx]") && line.includes("legacy telegram")),
-    `expected migration warning, got: ${JSON.stringify(logs)}`,
-  );
+test("mergeDefaults: channels[] is untouched by a stray root bot_token", () => {
+  const channels = [{ name: "main", bot_token: "real-tok", chat_id: "real-chat" }];
+  const result = mergeDefaults({
+    telegram: { enabled: true, bot_token: "root-token", chat_id: "root-chat", channels },
+  });
+  assert.deepEqual(result.telegram.channels, channels);
+  assert.equal(result.telegram.bot_token, undefined);
+  assert.equal(result.telegram.chat_id, undefined);
 });

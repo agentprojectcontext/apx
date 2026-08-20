@@ -1,6 +1,5 @@
 // File-based routines store: read/write .apc/routines.json.
 // Replaces the SQLite `routines` table for project-scoped scheduled tasks.
-import fs from "node:fs";
 import path from "node:path";
 import { CronExpressionParser } from "cron-parser";
 import { nowIso, isoToMs } from "../util/time.js";
@@ -89,58 +88,13 @@ export function computeNextRun(routine, baseMs = Date.now()) {
   return null;
 }
 
-// --------------------- ids + migration --------------------------------------
-
-// Routines are addressed by `name` everywhere (getRoutine/deleteRoutine/
-// setEnabled/updateRunState), but per-routine memory is keyed by `id`
-// (stores/routine-memory.js). Records written before ids existed have none, so
-// every one of them resolved to the shared `routines/_unknown/memory.md`.
-//
-// This migration is deliberately NOT inside readFile(): that helper is on the
-// scheduler's 5s polling path, and writing from it would mean write
-// amplification plus a read-modify-write race against a concurrent CLI edit.
-// Instead the public read entry points call this, and it early-returns without
-// touching disk once every record has an id — so the write happens once per
-// project, ever.
-
-/**
- * Backfill `id` on any routine record that predates the field.
- * Returns the number of records migrated (0 when there was nothing to do).
- */
-export function ensureRoutineIds(storagePath) {
-  const routines = readFile(storagePath);
-  const missing = routines.filter((r) => r && !r.id);
-  if (missing.length === 0) return 0;
-
-  for (const r of missing) r.id = shortId("r");
-  writeFile(storagePath, routines);
-
-  // Anything already written under routines/_unknown/ belonged to an
-  // indeterminate set of routines — we can't know which, so we leave it where
-  // it is rather than guess, and say so out loud once.
-  const orphan = path.join(storagePath, "routines", "_unknown");
-  if (fs.existsSync(orphan)) {
-    // eslint-disable-next-line no-console
-    console.warn(
-      `[apx] routines: assigned ids to ${missing.length} routine(s). Pre-existing shared\n` +
-      `      memory at ${orphan} was left untouched — it cannot be attributed to a single\n` +
-      `      routine. Copy anything worth keeping into the per-routine memory files.`
-    );
-  }
-  return missing.length;
-}
-
 // --------------------- CRUD -------------------------------------------------
 
 export function listRoutines(projectPath) {
-  ensureRoutineIds(projectPath);
   return readFile(projectPath);
 }
 
 export function getRoutine(projectPath, name) {
-  // Callers hand the record straight to the runner, which needs `id` for
-  // per-routine memory.
-  ensureRoutineIds(projectPath);
   return readFile(projectPath).find((r) => r.name === name) || null;
 }
 
@@ -231,8 +185,6 @@ export function updateRunState(projectPath, name, { last_run_at, last_status, la
 }
 
 export function getDueRoutines(projectPath, nowStr) {
-  // The runner keys per-routine memory off `id`, so due records must carry one.
-  ensureRoutineIds(projectPath);
   return readFile(projectPath).filter((r) => {
     if (!r.enabled) return false;
     // CRITICAL: If the schedule cannot be parsed, NEVER run it.

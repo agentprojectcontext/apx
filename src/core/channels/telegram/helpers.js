@@ -76,7 +76,7 @@ export function loadState() {
   if (!fs.existsSync(TELEGRAM_STATE_PATH)) return { channels: {} };
   try {
     const raw = JSON.parse(fs.readFileSync(TELEGRAM_STATE_PATH, "utf8"));
-    return { channels: raw.channels || {}, _legacy_offset: raw.offset || 0 };
+    return { channels: raw.channels || {} };
   } catch {
     return { channels: {} };
   }
@@ -116,8 +116,9 @@ export function tokenSource(channel) {
 }
 
 /**
- * Resolve the list of telegram channels to poll, honouring both the
- * canonical telegram.channels[] and the legacy single-channel mode.
+ * Resolve the list of telegram channels to poll. Credentials live in
+ * telegram.channels[]; with none configured we fall back to a single implicit
+ * "default" channel whose token/chat id come from the environment.
  */
 export function resolveChannels(globalConfig) {
   const tg = globalConfig.telegram || {};
@@ -135,15 +136,17 @@ export function resolveChannels(globalConfig) {
       poll_interval_ms: c.poll_interval_ms || tg.poll_interval_ms || 1500,
     }));
   }
-  // Legacy single-channel mode
-  if (!tg.bot_token && !process.env.BOT_TELEGRAM_TOKEN && !process.env.TELEGRAM_BOT_TOKEN) {
+  // Env-only mode: no channels configured, but a token is in the environment.
+  // resolveBotToken()/resolveChatId() fill the blanks from BOT_TELEGRAM_TOKEN
+  // / TELEGRAM_CHAT_ID at call time.
+  if (!process.env.BOT_TELEGRAM_TOKEN && !process.env.TELEGRAM_BOT_TOKEN) {
     return [];
   }
   return [
     {
       name: "default",
-      bot_token: tg.bot_token || "",
-      chat_id: tg.chat_id || "",
+      bot_token: "",
+      chat_id: "",
       route_to_agent: tg.route_to_agent || "",
       project: null,
       respond_with_engine: tg.respond_with_engine !== false,
