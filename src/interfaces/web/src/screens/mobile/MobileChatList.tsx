@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Search, Settings, Share, ShieldAlert, Smartphone, Users, X } from "lucide-react";
 import { installStance, onInstallStateChange, promptInstall } from "../../lib/pwa";
-import { PrefsDialog } from "../../components/settings/PanelPrefs";
+import { NotifyNudge, PrefsDialog } from "../../components/settings/PanelPrefs";
 import { AgentAvatar } from "../../components/agents/AgentAvatar";
 import type { ReactNode } from "react";
 import { SUPER_AGENT_ICON } from "../../components/agents/AgentAvatar";
@@ -162,6 +162,10 @@ export function MobileChatList({
         </div>
       </header>
 
+      {/* Both offers live at the top of the screen the phone lands on, for the
+          same reason: neither can announce itself. A permission prompt needs a
+          real tap to be accepted at all, so the app has to ask first. */}
+      <NotifyNudge />
       <InstallRow />
 
       <div className="min-h-0 flex-1 divide-y divide-border/60 overflow-y-auto pb-[env(safe-area-inset-bottom)]">

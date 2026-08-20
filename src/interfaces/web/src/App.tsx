@@ -13,6 +13,7 @@ import { PairingScreen } from "./screens/PairingScreen";
 import { MobileScreen } from "./screens/mobile/MobileScreen";
 import { RobyBubble } from "./components/RobyBubble";
 import { MobileHint } from "./components/MobileHint";
+import { NotifyNudge } from "./components/settings/PanelPrefs";
 import { MobileLinkDialog } from "./components/MobileLinkDialog";
 import { Roby, RobyEmpty, type RobyMood } from "./components/Roby";
 import { ToastProvider } from "./components/Toast";
@@ -133,6 +134,9 @@ function Shell() {
             install it — both of which otherwise only exist inside /mobile,
             which is the place you have not found yet. */}
         <MobileHint />
+        {/* The offer, in the corner. It cannot open by itself: a browser only
+            accepts a permission request that came from a real click. */}
+        <NotifyNudge floating />
       </div>
     </NavCollapseProvider>
   );

@@ -196,6 +196,12 @@ export const en = {
     denied:      "This browser is blocking notifications for this site. Allow them from the padlock next to the address, then reload.",
     insecure:    "Notifications need https. Turn the tunnel on with `apx panel tailscale on` and open the panel at that address.",
     unsupported: "This browser has no notifications.",
+    test:        "Test",
+    test_title:  "APX",
+    test_body:   "If you can see this, notifications work on this device.",
+    test_failed: "Nothing was shown. Check the browser has permission at the system level.",
+    nudge:       "Tell you when an agent writes?",
+    nudge_yes:   "Turn on",
   },
   inbox: {
     search: "Search",

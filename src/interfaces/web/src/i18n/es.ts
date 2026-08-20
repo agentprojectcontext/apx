@@ -197,6 +197,12 @@ export const es = {
     denied:      "Este navegador está bloqueando las notificaciones del sitio. Habilitalas desde el candado al lado de la dirección y recargá.",
     insecure:    "Las notificaciones necesitan https. Prendé el túnel con `apx panel tailscale on` y abrí el panel en esa dirección.",
     unsupported: "Este navegador no tiene notificaciones.",
+    test:        "Probar",
+    test_title:  "APX",
+    test_body:   "Si ves esto, las notificaciones de este dispositivo funcionan.",
+    test_failed: "No se pudo mostrar. Revisá que el navegador tenga permiso a nivel sistema.",
+    nudge:       "¿Te aviso cuando un agente escriba?",
+    nudge_yes:   "Activar",
   },
   inbox: {
     search: "Buscar",

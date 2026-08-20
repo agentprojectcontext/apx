@@ -112,3 +112,47 @@ test("the switch is reachable from BOTH surfaces, not just the phone", () => {
   const phone = webSrc("components", "settings", "PanelPrefs.tsx");
   assert.match(phone, /<NotificationSwitch \/>/, "and so does the phone's dialog");
 });
+
+// ── Proving it, and offering it ────────────────────────────────────────────
+// "On" is a claim until something appears on the glass. Between the browser's
+// permission, the OS letting the browser post at all, and a service worker that
+// has to be registered, there are three places this dies silently — and the
+// switch reads identically in all of them.
+
+test("the test notification goes through the same path the real ones do", () => {
+  const notify = webSrc("lib", "notify.ts");
+  assert.match(notify, /export async function sendTestNotification\(\): Promise<boolean>/);
+  // Through `show()`, not a shortcut: a test that took its own route would
+  // prove the route it took. The interesting failures are all inside show().
+  assert.match(notify, /await show\(\{/);
+  assert.doesNotMatch(notify, /sendTestNotification[\s\S]{0,400}new Notification\(/);
+  // It refuses rather than pretending when there is nothing to show it with.
+  assert.match(notify, /if \(notifyStance\(\)\.kind !== "on"\) return false;/);
+
+  const prefs = webSrc("components", "settings", "PanelPrefs.tsx");
+  assert.match(prefs, /setTested\(await sendTestNotification\(\)\)/);
+  assert.match(prefs, /tested === false \? t\("notify\.test_failed"\)/, "a silent failure says so");
+});
+
+test("the offer finds you, and cannot open by itself", () => {
+  const prefs = webSrc("components", "settings", "PanelPrefs.tsx");
+  const inbox = webSrc("screens", "mobile", "MobileChatList.tsx");
+  const app = webSrc("App.tsx");
+
+  // A banner with a button, never an automatic prompt: browsers only accept
+  // Notification.requestPermission() from a real click, and Chrome drops a
+  // request that is not tied to a gesture. So the app asks, and the browser's
+  // own dialog comes after the tap.
+  assert.match(prefs, /export function NotifyNudge/);
+  assert.match(prefs, /onClick=\{async \(\) => \{\s*\n\s*const next = await enableNotifications\(\);/);
+
+  // Only while the browser has not decided. Denied is not something a banner
+  // can fix, and off is a decision already made in this very panel.
+  assert.match(prefs, /if \(hidden \|\| stance\.kind !== "ask"\) return null;/);
+  // Shown once — one that returns every session is an advert.
+  assert.match(prefs, /localStorage\.setItem\(NUDGE_DISMISSED, "1"\)/);
+
+  // Both surfaces: a strip on the phone's inbox, a card in the desktop corner.
+  assert.match(inbox, /<NotifyNudge \/>/);
+  assert.match(app, /<NotifyNudge floating \/>/);
+});

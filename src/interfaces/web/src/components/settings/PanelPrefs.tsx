@@ -1,12 +1,14 @@
 import { useState } from "react";
-import { Bell, BellOff, Monitor, Moon, Sun } from "lucide-react";
+import { Bell, BellOff, Monitor, Moon, Send, Sun, X } from "lucide-react";
 import { Button, Dialog } from "../ui";
+import { cn } from "../../lib/cn";
 import { useTheme } from "../../hooks/useTheme";
 import { t, setLocale, getLocale, LOCALES, type Locale } from "../../i18n";
 import {
   disableNotifications,
   enableNotifications,
   notifyStance,
+  sendTestNotification,
   type NotifyStance,
 } from "../../lib/notify";
 
@@ -96,12 +98,102 @@ export function NotificationSwitch({ className }: { className?: string }) {
     }
     setStance(await enableNotifications());
   };
+
+  // "On" is a claim until something actually appears. Between the browser's
+  // permission, the OS letting the browser post at all, and a service worker
+  // that has to be registered, there are three places this dies silently — and
+  // the switch reads exactly the same in all of them.
+  const [tested, setTested] = useState<null | boolean>(null);
+  const test = async () => {
+    setTested(null);
+    setTested(await sendTestNotification());
+  };
+
   return (
     <div className={className ?? "space-y-2"}>
-      <Button variant={on ? "primary" : "secondary"} onClick={toggle} aria-pressed={on}>
-        {on ? <Bell size={14} /> : <BellOff size={14} />} {on ? t("notify.on") : t("notify.off")}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant={on ? "primary" : "secondary"} onClick={toggle} aria-pressed={on}>
+          {on ? <Bell size={14} /> : <BellOff size={14} />} {on ? t("notify.on") : t("notify.off")}
+        </Button>
+        {on && (
+          <Button variant="secondary" onClick={test}>
+            <Send size={14} /> {t("notify.test")}
+          </Button>
+        )}
+      </div>
+      <p className="text-xs text-muted-fg">
+        {tested === false ? t("notify.test_failed") : on ? t("notify.on_hint") : t("notify.off_hint")}
+      </p>
+    </div>
+  );
+}
+
+/**
+ * The offer, where you already are.
+ *
+ * It cannot be a prompt that opens by itself: browsers only accept
+ * `Notification.requestPermission()` from a real click, and Chrome drops the
+ * request outright when it is not tied to a gesture. So the app asks, and the
+ * browser's own dialog comes after the tap. Shown once — a banner that returns
+ * every session is an advert — and only while the browser has not decided yet.
+ */
+const NUDGE_DISMISSED = "apx.notify.nudge.dismissed";
+
+export function NotifyNudge({ className, floating }: { className?: string; floating?: boolean }) {
+  const [stance, setStance] = useState<NotifyStance>(() => notifyStance());
+  const [hidden, setHidden] = useState(() => {
+    try {
+      return localStorage.getItem(NUDGE_DISMISSED) === "1";
+    } catch {
+      return false;
+    }
+  });
+  // Only the undecided case. Denied is not something a banner can fix, and off
+  // is a decision that was already made here.
+  if (hidden || stance.kind !== "ask") return null;
+
+  const dismiss = () => {
+    setHidden(true);
+    try {
+      localStorage.setItem(NUDGE_DISMISSED, "1");
+    } catch {
+      /* private mode: gone for this session, which is enough */
+    }
+  };
+
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-3 text-sm",
+        // A strip at the top of the list on the phone, a card in the corner on
+        // a desktop — the same offer, put where the eye already is.
+        floating
+          ? "fixed bottom-4 right-4 z-50 max-w-sm rounded-2xl border border-border bg-card/95 p-3 shadow-lg backdrop-blur"
+          : "shrink-0 border-b border-border bg-primary/5 px-4 py-3",
+        className,
+      )}
+    >
+      <Bell size={16} className="shrink-0 text-primary" />
+      <span className="min-w-0 flex-1">{t("notify.nudge")}</span>
+      <Button
+        size="sm"
+        variant="primary"
+        onClick={async () => {
+          const next = await enableNotifications();
+          setStance(next);
+          if (next.kind === "on") dismiss();
+        }}
+      >
+        {t("notify.nudge_yes")}
       </Button>
-      <p className="text-xs text-muted-fg">{on ? t("notify.on_hint") : t("notify.off_hint")}</p>
+      <button
+        type="button"
+        onClick={dismiss}
+        aria-label={t("common.close")}
+        className="shrink-0 rounded p-1 text-muted-fg hover:text-foreground"
+      >
+        <X size={14} />
+      </button>
     </div>
   );
 }
