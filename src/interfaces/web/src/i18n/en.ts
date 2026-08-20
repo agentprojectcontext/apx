@@ -187,6 +187,16 @@ export const en = {
     empty: "You haven't talked to any agent yet.",
     prefs: "Preferences",
   },
+  notify: {
+    title:       "Notifications",
+    on:          "Notifications on",
+    off:         "Turn notifications on",
+    on_hint:     "When an agent writes and you are not on its thread, this device says so.",
+    off_hint:    "The panel updates itself silently; nothing reaches you when it is in the background.",
+    denied:      "This browser is blocking notifications for this site. Allow them from the padlock next to the address, then reload.",
+    insecure:    "Notifications need https. Turn the tunnel on with `apx panel tailscale on` and open the panel at that address.",
+    unsupported: "This browser has no notifications.",
+  },
   inbox: {
     search: "Search",
     no_match: "Nothing matches",

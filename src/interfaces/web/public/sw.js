@@ -70,3 +70,30 @@ self.addEventListener("fetch", (event) => {
     })(),
   );
 });
+
+// ── Notifications ───────────────────────────────────────────────────────────
+//
+// The worker SHOWS them (lib/notify.ts calls registration.showNotification —
+// Android Chrome has no page-scoped Notification constructor), so the worker
+// has to own the tap. The rule the user expects from every other messaging app:
+// one app. If a window is already open, focus it and route it; only open a new
+// one when there is nothing to focus.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = event.notification.data && event.notification.data.url;
+  if (!target) return;
+  event.waitUntil(
+    (async () => {
+      const url = new URL(target, self.location.origin);
+      const clients = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const client of clients) {
+        if (new URL(client.url).origin !== url.origin) continue;
+        // navigate() is a no-op in some browsers when the client is already
+        // there; focus is the part that must happen either way.
+        try { await client.navigate(url.href); } catch { /* focus still helps */ }
+        return client.focus();
+      }
+      return self.clients.openWindow(url.href);
+    })(),
+  );
+});
