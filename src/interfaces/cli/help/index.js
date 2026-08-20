@@ -28,6 +28,10 @@ const hCmd  = (cmd, pad, desc) => `  ${H.WH}${cmd.padEnd(pad)}${H.R}  ${H.DI}${d
 const hSub  = (sub, pad, desc) => `    ${H.CY}${sub.padEnd(pad)}${H.R}  ${H.DI}${desc}${H.R}`;
 const hFlag = (f,   pad, desc) => `    ${H.YE}${f.padEnd(pad)}${H.R}  ${H.DI}${desc}${H.R}`;
 
+// Every file-editing command answers to the same selector, so the flag reads
+// the same everywhere it appears.
+const PROJECT_FLAG = ["--project <name|id|path>", "Act on that project instead of the one cwd is inside."];
+
 const topic = ({ title, summary, usage = [], commands = [], options = [], examples = [], notes = [] }) => ({
   title,
   summary,
@@ -187,7 +191,7 @@ export const HELP_TOPICS = new Map(Object.entries({
   "agent add": topic({
     title: "apx agent add",
     summary: "Create a project-local agent definition, with its system prompt.",
-    usage: ["apx agent add <slug> [--prompt <text>|-] [--prompt-file <path>] [--type <type>] [--role <role>] [--area <area>] [--model <model>] [--skills a,b] [--language <tag>] [--description <text>] [--tools a,b] [--icon <blob>] [--parent <slug>]"],
+    usage: ["apx agent add <slug> [--prompt <text>|-] [--prompt-file <path>] [--type <type>] [--role <role>] [--area <area>] [--model <model>] [--skills a,b] [--language <tag>] [--description <text>] [--tools a,b] [--icon <blob>] [--parent <slug>] [--project <name|id|path>]"],
     options: [
       ["--prompt <text>", "The agent's system prompt (its instructions). Use `-` to read it from stdin."],
       ["--prompt-file <path>", "Read the system prompt from a file."],
@@ -201,6 +205,7 @@ export const HELP_TOPICS = new Map(Object.entries({
       ["--tools a,b", "Comma-separated tool hints. Omitted means the safe default set."],
       ["--icon <blob>", "Avatar blob preset. Omitted means one is picked from those this project isn't using."],
       ["--parent <slug>", "The orchestrator this agent reports to."],
+      ["--project <name|id|path>", "Create it in that project instead of the one cwd is inside."],
     ],
     notes: [
       "--description is one line of metadata; the PROMPT is what the agent is actually told. Without it the agent runs on its frontmatter alone.",
@@ -215,33 +220,39 @@ export const HELP_TOPICS = new Map(Object.entries({
   "agent set": topic({
     title: "apx agent set",
     summary: "Edit an existing project agent: its system prompt, identity or fields.",
-    usage: ["apx agent set <slug> [--prompt <text>|-] [--prompt-file <path>] [--type <type>] [--role <role>] [--area <area>] [--icon <blob>] [--model <model>] [--language <tag>] [--description <text>] [--skills a,b] [--tools a,b] [--emoji <e>] [--parent <slug>]"],
+    usage: ["apx agent set <slug> [--prompt <text>|-] [--prompt-file <path>] [--type <type>] [--role <role>] [--area <area>] [--icon <blob>] [--model <model>] [--language <tag>] [--description <text>] [--skills a,b] [--tools a,b] [--emoji <e>] [--parent <slug>] [--project <name|id|path>]"],
     options: [
       ["--prompt <text>", "Replace the agent's system prompt. Use `-` to read it from stdin."],
       ["--prompt-file <path>", "Replace the system prompt from a file."],
       ["--type <type>", `Typology: ${AGENT_TYPE_VALUES.join(" | ")}.`],
       ["--icon <blob>", "Change the avatar blob preset."],
+      ["--tools a,b", "Comma-separated tool allowlist. A declared list is a deliberate narrowing; omit the flag to leave the agent on the broad default."],
+      ["--project <name|id|path>", "Edit the agent in that project instead of the one cwd is inside."],
     ],
     notes: [
       "Only what you pass is changed; a field-only edit leaves the prompt intact.",
       "Aliases: apx agent edit, apx agent update.",
+      "You do not have to stand in the project: `--project` takes a name, an id from `apx project list`, or a path.",
     ],
     examples: [
       "apx agent set reviewer --prompt - < prompt.md",
       "apx agent set reviewer --type specialist --area growth --icon kiwi",
+      "apx agent set magui --tools browser_navigate,browser_snapshot,browser_click --project appsi",
     ],
   }),
   "agent list": topic({
     title: "apx agent list",
-    summary: "List agents available in the current APC project.",
-    usage: ["apx agent list", "apx agent ls"],
-    examples: ["apx agent list"],
+    summary: "List agents available in an APC project (the one cwd is inside, unless --project says otherwise).",
+    usage: ["apx agent list [--project <name|id|path>]", "apx agent ls [--project <name|id|path>]"],
+    options: [PROJECT_FLAG],
+    examples: ["apx agent list", "apx agent list --project appsi"],
   }),
   "agent get": topic({
     title: "apx agent get",
     summary: "Print one project agent definition.",
-    usage: ["apx agent get <slug>", "apx agent show <slug>"],
-    examples: ["apx agent get reviewer"],
+    usage: ["apx agent get <slug> [--project <name|id|path>]", "apx agent show <slug> [--project <name|id|path>]"],
+    options: [PROJECT_FLAG],
+    examples: ["apx agent get reviewer", "apx agent get magui --project appsi"],
   }),
   "agent remove": topic({
     title: "apx agent remove",

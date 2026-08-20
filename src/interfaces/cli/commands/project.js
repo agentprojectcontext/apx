@@ -67,6 +67,35 @@ export async function cmdProjectRebuild(args) {
   console.log(`Rebuilt project #${id}: ${result.agents} agents`);
 }
 
+/**
+ * The filesystem root of a project, from the same selectors resolveProjectId
+ * accepts (numeric id, path, exact name, fuzzy name/path).
+ *
+ * WHY THIS EXISTS. Commands that edit files under `.apc/` need the path, not the
+ * id, and they all resolved it by walking up from cwd. So `apx agent set magui
+ * --tools …` run from anywhere but that one checkout failed with "not inside an
+ * APC project (run `apx init` first)" — advice that would have scaffolded a
+ * second project on top of the shell's cwd instead of editing the agent the
+ * user named. `--project` already works everywhere else; now it works here.
+ */
+export async function resolveProjectRoot(target) {
+  if (target === true) {
+    throw new Error("--project needs a value: a project name, id, or path (`apx project list` shows them)");
+  }
+  if (target === undefined || target === null || target === "") {
+    const root = findApfRoot();
+    if (root) return root;
+    throw new Error(
+      "not inside an APC project — cd into one, run `apx init` here, or name the project with --project <name|id|path>"
+    );
+  }
+  const id = await resolveProjectId(target);
+  const projects = await http.get("/api/projects");
+  const found = projects.find((p) => Number(p.id) === Number(id));
+  if (!found) throw new Error(`--project "${target}" is not registered — run \`apx project list\``);
+  return found.path;
+}
+
 // Resolve a project id from one of:
 //   numeric id   ("2")
 //   absolute path ("/abs/path/to/project")

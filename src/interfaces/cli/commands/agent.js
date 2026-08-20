@@ -9,7 +9,7 @@ import {
 import { readOrganization, resolveAreaSlug } from "#core/stores/organization.js";
 import { http } from "../http.js";
 import { readStdinSync } from "../stdin.js";
-import { resolveProjectId } from "./project.js";
+import { resolveProjectId, resolveProjectRoot } from "./project.js";
 
 // ── ANSI ──────────────────────────────────────────────────────────────────────
 const c = { reset:"\x1b[0m", bold:"\x1b[1m", dim:"\x1b[2m", cyan:"\x1b[36m", green:"\x1b[32m", yellow:"\x1b[33m", gray:"\x1b[90m" };
@@ -19,10 +19,17 @@ const cyan = (s) => `${c.cyan}${s}${c.reset}`;
 const gray = (s) => `${c.gray}${s}${c.reset}`;
 const tag  = (s) => `${c.yellow}${s}${c.reset}`;
 
-function requireRoot() {
-  const root = findApfRoot();
-  if (!root) throw new Error("not inside an APC project (run `apx init` first)");
-  return root;
+// The project these subcommands read and write: `--project <name|id|path>`
+// when given, otherwise the one cwd sits inside.
+function resolveRoot(args) {
+  return resolveProjectRoot(args?.flags?.project);
+}
+
+// For the two commands that only WANT a project if there is one (they fall back
+// to the vault). Honours --project, returns null instead of throwing.
+async function resolveRootOptional(args) {
+  if (args?.flags?.project) return resolveRoot(args);
+  return findApfRoot();
 }
 
 function flagValue(flags, ...names) {
@@ -103,7 +110,7 @@ export async function cmdAgentAdd(args) {
   if (!slug) throw new Error("apx agent add: missing <slug>");
   if (!SLUG_RE.test(slug)) throw new Error(`invalid slug "${slug}"`);
 
-  const root = requireRoot();
+  const root = await resolveRoot(args);
   const existing = readAgents(root);
   if (existing.some((a) => a.slug === slug)) {
     throw new Error(`agent "${slug}" already exists`);
@@ -172,7 +179,7 @@ export async function cmdAgentSet(args) {
   const slug = args._[0];
   if (!slug) throw new Error("apx agent set: missing <slug>");
 
-  const root = requireRoot();
+  const root = await resolveRoot(args);
   const existing = readAgents(root).find((a) => a.slug === slug);
   if (!existing) {
     throw new Error(`agent "${slug}" not found — run \`apx agent list\` to see this project's agents`);
@@ -246,8 +253,8 @@ export async function cmdAgentSet(args) {
   if (prompt !== null) console.log(`  Prompt: ${Buffer.byteLength(body)} bytes`);
 }
 
-export function cmdAgentList() {
-  const root = requireRoot();
+export async function cmdAgentList(args) {
+  const root = await resolveRoot(args);
   const agents = readAgents(root);
   if (agents.length === 0) {
     console.log(dim("(no agents — try `apx agent add <slug>` or `apx agent import <slug>`)"));
@@ -263,10 +270,10 @@ export function cmdAgentList() {
   console.log();
 }
 
-export function cmdAgentGet(args) {
+export async function cmdAgentGet(args) {
   const slug = args._[0];
   if (!slug) throw new Error("apx agent get: missing <slug>");
-  const root = requireRoot();
+  const root = await resolveRoot(args);
   const a = readAgents(root).find((x) => x.slug === slug);
   if (!a) {
     // Check vault and suggest import
@@ -291,7 +298,7 @@ export async function cmdAgentRemove(args) {
   if (!slug) throw new Error("apx agent remove: missing <slug> — usage: apx agent remove <slug>");
   // Resolve locally first so we can give a clear message + suggestions instead
   // of a bare 404 when the slug is wrong.
-  const root = findApfRoot();
+  const root = await resolveRootOptional(args);
   if (root) {
     const local = readAgents(root).find((a) => a.slug === slug);
     if (!local) {
@@ -335,7 +342,7 @@ export async function cmdAgentVaultAdd(args) {
   if (!slug || !SLUG_RE.test(slug)) throw new Error("apx agent vault add: missing or invalid <slug>");
 
   // If we're inside a project, offer to copy the local agent to vault
-  const root = findApfRoot();
+  const root = await resolveRootOptional(args);
   if (root) {
     const local = readAgents(root).find((a) => a.slug === slug && a.source === "local");
     if (local) {
@@ -391,7 +398,7 @@ export function cmdAgentVaultRestore(args) {
 export async function cmdAgentImport(args) {
   const slug = args._[0];
   if (!slug) throw new Error("apx agent import: missing <slug>");
-  const root = requireRoot();
+  const root = await resolveRoot(args);
 
   // Layered lookup (user file → bundled default) — see vaultAgentFile. Reading
   // the user layer alone made every bundled agent unimportable.

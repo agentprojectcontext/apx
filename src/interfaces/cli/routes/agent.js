@@ -11,8 +11,8 @@ export default async function route(rest, { parseArgs, die }) {
   const a = parseArgs(rest.slice(1));
   if (sub === "add") await cmdAgentAdd(a);
   else if (sub === "set" || sub === "edit" || sub === "update") await cmdAgentSet(a);
-  else if (sub === "list" || sub === "ls") cmdAgentList();
-  else if (sub === "get" || sub === "show") cmdAgentGet(a);
+  else if (sub === "list" || sub === "ls") await cmdAgentList(a);
+  else if (sub === "get" || sub === "show") await cmdAgentGet(a);
   else if (sub === "remove" || sub === "rm" || sub === "delete") await cmdAgentRemove(a);
   else if (sub === "import") await cmdAgentImport(a);
   else if (sub === "vault") {
