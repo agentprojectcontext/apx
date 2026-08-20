@@ -59,7 +59,9 @@ test("the icon is the agent's own blob, with the app mark as the badge", () => {
 test("the tap lands on the inbox row's own path, not a hand-built URL", () => {
   const notify = webSrc("lib", "notify.ts");
   assert.match(notify, /import \{ chatPath, keyFor, pidOf \} from "\.\.\/screens\/mobile\/routes"/);
-  assert.match(notify, /return chatPath\(pidOf\(row\), row\.agent_slug, keyFor\(row\)\)/);
+  // Built from the same helpers the inbox row navigates with — on the phone
+  // surface. The desktop shape is pinned in its own test below.
+  assert.match(notify, /return chatPath\(pidOf\(row\), row\.agent_slug, key\)/);
 });
 
 test("the service worker owns the click and focuses one app instead of opening a second", () => {
@@ -155,4 +157,37 @@ test("the offer finds you, and cannot open by itself", () => {
   // Both surfaces: a strip on the phone's inbox, a card in the desktop corner.
   assert.match(inbox, /<NotifyNudge \/>/);
   assert.match(app, /<NotifyNudge floating \/>/);
+});
+
+test("the tap lands in the shape of the surface that raised it", () => {
+  const notify = webSrc("lib", "notify.ts");
+
+  // Two frames, two ways of addressing a session: the phone puts it in the
+  // PATH, the desktop panel in the QUERY. Handing out the phone path
+  // unconditionally threw a laptop click into the phone surface — one column,
+  // no sidebar, on a 27-inch screen you were already sitting in front of.
+  assert.match(notify, /function onPhoneSurface\(\): boolean/);
+  assert.match(notify, /if \(isInstalled\(\)\) return true;/);
+  assert.match(notify, /location\.pathname\.startsWith\("\/mobile"\)/);
+  assert.match(notify, /if \(onPhoneSurface\(\)\) return chatPath\(pidOf\(row\), row\.agent_slug, key\);/);
+  assert.match(notify, /return `\/p\/\$\{pid\}\/chat\?\$\{q\.toString\(\)\}`/);
+  // The desktop route has no "no project" sentinel — the super-agent is in 0.
+  assert.match(notify, /const pid = row\.project_id \?\? 0;/);
+});
+
+test("a tap that cannot focus still opens something", () => {
+  const sw = webPublic("sw.js");
+  const pwa = webSrc("lib", "pwa.ts");
+
+  // focus() can be refused — an installed app is not allowed to raise a
+  // background browser tab. Returning it either way meant the tap did NOTHING:
+  // no focus, and openWindow never reached.
+  assert.match(sw, /const focused = await client\.focus\(\);\s*\n\s*if \(focused\) return focused;/);
+  assert.match(sw, /\} catch \{ \/\* try the next client, then open a window \*\/ \}/);
+
+  // And the worker script itself is never served from the HTTP cache during an
+  // update check: the default lets a browser keep an old sw.js for a day, which
+  // is how a device ends up running a worker older than the panel around it.
+  assert.match(pwa, /updateViaCache: "none"/);
+  assert.match(pwa, /\.then\(\(reg\) => reg\.update\(\)/);
 });

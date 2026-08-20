@@ -91,7 +91,14 @@ self.addEventListener("notificationclick", (event) => {
         // navigate() is a no-op in some browsers when the client is already
         // there; focus is the part that must happen either way.
         try { await client.navigate(url.href); } catch { /* focus still helps */ }
-        return client.focus();
+        // …and focus itself can be refused — a background Chrome tab is not
+        // something an installed app is allowed to raise. Returning it either
+        // way meant the tap did NOTHING: neither focused nor opened. Falling
+        // through to the line below opens the app instead.
+        try {
+          const focused = await client.focus();
+          if (focused) return focused;
+        } catch { /* try the next client, then open a window */ }
       }
       return self.clients.openWindow(url.href);
     })(),

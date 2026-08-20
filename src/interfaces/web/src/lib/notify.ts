@@ -25,7 +25,7 @@
 import { Inbox, type InboxRow } from "./api/inbox";
 import { t } from "../i18n";
 import { subscribeLive } from "./live";
-import { isSecure } from "./net";
+import { isInstalled, isSecure } from "./net";
 // Pure URL helpers, no React: the tap has to land on the same path the inbox
 // row would have navigated to, and there is exactly one place that knows it.
 import { chatPath, keyFor, pidOf } from "../screens/mobile/routes";
@@ -187,9 +187,41 @@ export async function sendTestNotification(): Promise<boolean> {
   }
 }
 
-/** Where tapping it should land: the same path the inbox row navigates to. */
+/** Whether this panel IS the phone surface — installed as an app, or already
+ *  inside /mobile. Decided where the notification is built, because that is the
+ *  only place that knows which surface the person is actually using. */
+function onPhoneSurface(): boolean {
+  if (isInstalled()) return true;
+  return typeof location !== "undefined" && location.pathname.startsWith("/mobile");
+}
+
+/**
+ * Where tapping it should land — in the shape of the surface that raised it.
+ *
+ * The two frames address a session differently: the phone puts it in the PATH
+ * (/mobile/chat/-/super_agent/web~2026-08-20), the desktop panel in the QUERY
+ * (/p/0/chat?channel=web&thread=2026-08-20). This used to hand out the phone
+ * path unconditionally, so clicking a notification on a laptop threw you into
+ * the phone surface — a single-column chat with no sidebar, on a 27-inch
+ * screen, for a panel you were already sitting in front of.
+ */
 export function conversationUrl(row: InboxRow): string {
-  return chatPath(pidOf(row), row.agent_slug, keyFor(row));
+  const key = keyFor(row);
+  if (onPhoneSurface()) return chatPath(pidOf(row), row.agent_slug, key);
+  // The desktop route has no "no project" sentinel: the super-agent lives in
+  // workspace 0 there, which is the same place its own sidebar opens it from.
+  const pid = row.project_id ?? 0;
+  const q = new URLSearchParams();
+  if (key.kind === "thread") {
+    q.set("channel", key.channel);
+    q.set("thread", key.threadId);
+  } else if (key.kind === "conv") {
+    q.set("agent", key.agentSlug);
+    q.set("conv", key.convId);
+  } else {
+    q.set("agent", key.agentSlug);
+  }
+  return `/p/${pid}/chat?${q.toString()}`;
 }
 
 /** Rows whose newest activity we had not seen yet. */
