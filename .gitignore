@@ -46,3 +46,5 @@ qa/
 
 # Screenshot harness — local dev tool, not shipped
 src/interfaces/web/scripts/shots.mjs
+
+.playwright-mcp/
