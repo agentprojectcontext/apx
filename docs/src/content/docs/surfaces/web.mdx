@@ -121,6 +121,25 @@ sheet connected to the super-agent.
 
 ![Left rail — project list plus module shortcuts](../../../assets/shots/10-project-overview.png)
 
+## Live updates
+
+Every screen that shows a conversation updates itself. The panel keeps one
+WebSocket open to the daemon (`/api/events/ws`, authenticated with the same
+token as the HTTP API), and the daemon reports on it whenever a conversation
+moves — whichever surface produced the turn.
+
+So a message that arrives on Telegram appears in the inbox on the laptop and on
+the phone at the same time, without a reload, and three devices open on the same
+thread stay in step. The socket carries a signal, never content: it says which
+thread moved, and each screen re-reads that thread through the API it already
+uses.
+
+It repairs itself. A phone that suspends the tab, a laptop that sleeps, a
+tailnet that drops — on coming back the panel reconnects and revalidates once,
+so nothing is missed while it was away. If the socket cannot be opened at all
+(a proxy that refuses upgrades), the lists fall back to their 15-second refresh
+and the panel keeps working, just less immediately.
+
 ## Project workspace
 
 Opening a project lands on its **Overview** — a "mission control" floor with live

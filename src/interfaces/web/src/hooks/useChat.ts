@@ -56,6 +56,12 @@ export interface ChatMsg {
    *  Rendered as the file itself — the stored text is only the marker the
    *  agent was handed. */
   media?: MessageMedia[];
+  /** Composed HERE, in this tab, rather than read back from storage.
+   *  A reply typed into a Telegram thread goes out on the `web` channel, so the
+   *  Telegram thread file will never contain it — and a background refresh that
+   *  took the file as the whole truth would erase what you just sent. See
+   *  `mergeLocalTurns`. */
+  local?: boolean;
   /** Skill Inspector decision for this turn (when the feature is on): which
    *  skills the per-turn RAG loaded inline vs merely hinted. */
   inspector?: {
@@ -78,6 +84,14 @@ export interface SendOptions {
   attachments?: UploadedMedia[];
 }
 
+export interface ReloadOptions {
+  /** A BACKGROUND re-read: the same conversation moved somewhere else and we
+   *  are catching up. It must not blank the pane first, must not drop what was
+   *  typed here, and must leave the view alone if the fetch fails — none of
+   *  which apply when the user actively picked a different chat. */
+  silent?: boolean;
+}
+
 export interface UseChatResult {
   msgs: ChatMsg[];
   send: (text: string, opts?: SendOptions) => Promise<void>;
@@ -86,11 +100,11 @@ export interface UseChatResult {
   /** Load a persisted conversation as history and bind subsequent sends to it.
    *  Only supported for project agents (super-agent conversations aren't
    *  persisted per-file). Pass `null` to drop the binding without clearing. */
-  load: (agentSlug: string, conversationId: string) => Promise<void>;
+  load: (agentSlug: string, conversationId: string, opts?: ReloadOptions) => Promise<void>;
   /** Load a super-agent channel thread (telegram/desktop/…) as history. Not
    *  bound to a conversation file — continuing sends go out as fresh web
    *  turns with the thread as previousMessages context. */
-  loadThread: (channel: string, threadId: string) => Promise<void>;
+  loadThread: (channel: string, threadId: string, opts?: ReloadOptions) => Promise<void>;
   streaming: boolean;
   /** Conversation id we're bound to, if any. Lets callers reflect "live vs
    *  loaded" state in the UI. */
@@ -246,6 +260,26 @@ function threadToChatMsgs(messages: ConversationMessage[]): ChatMsg[] {
     // system/compact rows are context-only; not rendered in the thread viewer.
   }
   return out;
+}
+
+/**
+ * Reconcile a background re-read with what this tab composed itself.
+ *
+ * Storage wins for everything it knows about — it is the record, and it now
+ * holds whatever the other device just said. But a turn typed HERE may not be
+ * in the file we just read: a reply sent while reading a Telegram thread goes
+ * out on the `web` channel, so the Telegram day file will never contain it, and
+ * taking the file as the whole truth would make what you just sent vanish.
+ *
+ * Local turns that DID land in storage (a project conversation appends to the
+ * same file) are matched by role + text and dropped, so the same turn is never
+ * shown twice.
+ */
+export function mergeLocalTurns(remote: ChatMsg[], current: ChatMsg[]): ChatMsg[] {
+  const extras = current.filter((m) => m.local);
+  if (!extras.length) return remote;
+  const seen = new Set(remote.map((m) => `${m.role}|${textOf(m)}`));
+  return [...remote, ...extras.filter((m) => !seen.has(`${m.role}|${textOf(m)}`))];
 }
 
 /**
@@ -513,9 +547,12 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
           // NEXT turn's history still records that something was attached.
           parts: userPart([markersFor(files), trimmed].filter(Boolean).join(" ")),
           ts: nowIso(),
+          // Composed here: a background refresh keeps it even when the thread
+          // being read is not the channel this turn goes out on.
+          local: true,
           ...(files.length ? { media: files.map(mediaOf) } : {}),
         },
-        { role: "assistant", parts: [], ts: nowIso(), pending: true },
+        { role: "assistant", parts: [], ts: nowIso(), pending: true, local: true },
       ]);
       setStreaming(true);
 
@@ -598,12 +635,13 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
   }, [streaming]);
 
   const load = useCallback(
-    async (agentSlug: string, conversationId: string) => {
+    async (agentSlug: string, conversationId: string, opts?: ReloadOptions) => {
       if (streaming) return;
       const seq = ++loadSeqRef.current;
       // Blank the pane up front so it never shows the previous chat under the
-      // new header while the fetch is in flight.
-      setMsgs([]);
+      // new header while the fetch is in flight. A silent re-read is the SAME
+      // chat catching up, so blanking would be a flash of empty for nothing.
+      if (!opts?.silent) setMsgs([]);
       try {
         const detail = await Conversations.get(pid, agentSlug, conversationId);
         if (seq !== loadSeqRef.current) return; // superseded by a newer pick
@@ -611,9 +649,13 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
         convoRef.current = conversationId;
         setConversationId(conversationId);
         setConversationMeta(metaFromDetail(detail));
-        setMsgs(loaded);
+        setMsgs((curr) => (opts?.silent ? mergeLocalTurns(loaded, curr) : loaded));
       } catch (e) {
         if (seq !== loadSeqRef.current) return;
+        // A background refresh that failed is a refresh that did not happen:
+        // keep showing the conversation and stay quiet. Only a refresh the user
+        // asked for by picking a chat reports, and clears.
+        if (opts?.silent) return;
         convoRef.current = undefined;
         setConversationId(undefined);
         setConversationMeta(undefined);
@@ -625,10 +667,10 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
   );
 
   const loadThread = useCallback(
-    async (channel: string, threadId: string) => {
+    async (channel: string, threadId: string, opts?: ReloadOptions) => {
       if (streaming) return;
       const seq = ++loadSeqRef.current;
-      setMsgs([]);
+      if (!opts?.silent) setMsgs([]);
       try {
         const detail = await Conversations.thread(pid, channel, threadId);
         if (seq !== loadSeqRef.current) return; // superseded by a newer pick
@@ -637,9 +679,10 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
         // web turns with this history as previousMessages.
         convoRef.current = undefined;
         setConversationId(undefined);
-        setMsgs(loaded);
+        setMsgs((curr) => (opts?.silent ? mergeLocalTurns(loaded, curr) : loaded));
       } catch (e) {
         if (seq !== loadSeqRef.current) return;
+        if (opts?.silent) return; // see load(): a failed catch-up changes nothing
         convoRef.current = undefined;
         setConversationId(undefined);
         setMsgs([]);

@@ -11,15 +11,12 @@ export function setDesktopMessageHandler(fn) {
   _messageHandler = fn;
 }
 
-// --- WS upgrade auth helpers (shared by the daemon upgrade handler + tests) ---
+// --- WS upgrade auth ---
 //
-// The desktop WS channel must authenticate the same way the HTTP /api/desktop/*
-// routes do: a bearer token (master or paired client) carried on the upgrade
-// request. The legitimate desktop window sends `Authorization: Bearer <token>`
-// (src/interfaces/desktop/main.js); browser clients can pass `?token=`. Without
-// this, any client that can reach the daemon (loopback by default, but the LAN
-// when host is set to 0.0.0.0) could open the channel and drive the
-// super-agent. See QA BUG-WS-AUTH.
+// The desktop channel authenticates the same way every other WS channel and
+// every HTTP /api route does. The check itself lives in ws-auth.js — it is not
+// a desktop rule, it is the daemon's rule — and only the PATH is the desktop's
+// own. See that file for why it may not be duplicated per channel.
 
 /** The desktop channel's upgrade path. Lives under /api like every other route. */
 export const DESKTOP_WS_PATH = apiPath("/desktop/ws");
@@ -29,21 +26,6 @@ export function isDesktopUpgradePath(url) {
   let pathname = url || "";
   try { pathname = new URL(url, "http://localhost").pathname; } catch { /* keep raw */ }
   return pathname === DESKTOP_WS_PATH;
-}
-
-/** Extract the bearer token from the upgrade request (header first, ?token= fallback). */
-export function extractWsToken(req) {
-  const auth = (req && req.headers && req.headers["authorization"]) || "";
-  if (auth.startsWith("Bearer ")) return auth.slice(7);
-  try {
-    return new URL((req && req.url) || "", "http://localhost").searchParams.get("token") || "";
-  } catch { return ""; }
-}
-
-/** True iff the upgrade request carries a token the store recognizes. */
-export function isDesktopUpgradeAuthorized(req, tokenStore) {
-  if (!tokenStore || typeof tokenStore.has !== "function") return false;
-  return tokenStore.has(extractWsToken(req));
 }
 
 export function registerDesktopClient(ws) {

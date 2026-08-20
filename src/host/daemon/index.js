@@ -33,8 +33,10 @@ import { startCallbackReconciler } from "./callback-reconciler.js";
 import { buildApi } from "./api.js";
 import { createTokenStore } from "./token-store.js";
 import { triggerWakeup } from "./wakeup.js";
-import { registerDesktopClient, isDesktopUpgradePath, isDesktopUpgradeAuthorized } from "./desktop-ws.js";
+import { registerDesktopClient, isDesktopUpgradePath } from "./desktop-ws.js";
 import { isTerminalUpgradePath, startTerminalSession } from "./terminal-ws.js";
+import { isEventsUpgradePath, registerEventsClient, startEventsBridge } from "./events-ws.js";
+import { isWsUpgradeAuthorized } from "./ws-auth.js";
 import { log as logToUnified } from "#core/logging.js";
 import { initMemory, stopMemory } from "#core/memory/index.js";
 
@@ -236,6 +238,7 @@ async function main() {
   plugins.installRoutes(app);
 
   let callbackReconciler = null;
+  let eventsBridge = null;
 
   // Loopback is ALWAYS bound, whatever `host` says.
   //
@@ -255,6 +258,7 @@ async function main() {
       // one is already up and is the one everything depends on.
       const s2 = http.createServer(app);
       s2.on("error", (e) => log(`bind ${h}:${port} failed (${e.code || e.message}) — local access unaffected`));
+      s2.on("upgrade", handleUpgrade);
       s2.listen(port, h, () => log(`apx-daemon also listening on http://${h}:${port}`));
       secondary.push(s2);
     }
@@ -266,6 +270,10 @@ async function main() {
     // daemon died before it could (crash, pull, or a task that restarted the
     // daemon). Runs once now to recover prior IOUs, then on an interval.
     callbackReconciler = startCallbackReconciler({ plugins, log });
+    // Live event feed: turn every ledger write into a frame on /api/events/ws so
+    // an open panel — on any device — sees a conversation move the moment it
+    // moves, whichever channel produced the turn.
+    eventsBridge = startEventsBridge({ projects });
     // Cross-channel memory: ensure ~/.apx/memory.md exists, open the vector
     // store, and start the incremental RAG indexer. Best-effort — never blocks
     // boot and never throws into the daemon.
@@ -296,19 +304,28 @@ async function main() {
     }).catch(() => {});
   });
 
-  // Attach WebSocket upgrades: the desktop channel on /api/desktop/ws, and a
-  // terminal on /api/terminal/ws that reopens one session in its own CLI.
-  server.on("upgrade", async (req, socket, head) => {
+  // Attach WebSocket upgrades: the desktop channel on /api/desktop/ws, a
+  // terminal on /api/terminal/ws that reopens one session in its own CLI, and
+  // the live event feed on /api/events/ws that tells every open panel when a
+  // conversation moved.
+  //
+  // Attached to EVERY listener, not just the first. A specific `host` means the
+  // daemon runs two servers on one app (see the bind block above), and an
+  // upgrade handler on only one of them is how the phone on the tailnet gets a
+  // panel whose HTTP works and whose live feed silently never connects.
+  async function handleUpgrade(req, socket, head) {
     const isTerminal = isTerminalUpgradePath(req.url);
-    if (!isTerminal && !isDesktopUpgradePath(req.url)) { socket.destroy(); return; }
+    const isEvents = isEventsUpgradePath(req.url);
+    if (!isTerminal && !isEvents && !isDesktopUpgradePath(req.url)) { socket.destroy(); return; }
     // Auth: the WS upgrade must carry a valid token (master or paired client),
-    // matching the HTTP /api/desktop/* routes. Without this, any client that can
-    // reach the daemon (host binds 0.0.0.0 → the LAN) could open the desktop
-    // channel and drive the super-agent (permission_mode "total"). The
-    // legitimate desktop window already sends the bearer token. See QA BUG-WS-AUTH.
-    // The terminal channel spawns a CLI on this machine, so it is gated the
+    // matching the HTTP /api/* routes. Without this, any client that can reach
+    // the daemon (host binds 0.0.0.0 → the LAN) could open the desktop channel
+    // and drive the super-agent (permission_mode "total"). The legitimate
+    // desktop window already sends the bearer token; a browser passes ?token=.
+    // See QA BUG-WS-AUTH. The terminal channel spawns a CLI on this machine and
+    // the event feed reports who is talking to whom, so all three are gated the
     // same way — the check is about who may open a channel, not which one.
-    if (!isDesktopUpgradeAuthorized(req, tokenStore)) {
+    if (!isWsUpgradeAuthorized(req, tokenStore)) {
       socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
       socket.destroy();
       return;
@@ -321,9 +338,11 @@ async function main() {
     const wss = new WebSocketServer({ noServer: true });
     wss.handleUpgrade(req, socket, head, (ws) => {
       if (isTerminal) startTerminalSession(ws, req);
+      else if (isEvents) registerEventsClient(ws);
       else registerDesktopClient(ws);
     });
-  });
+  }
+  server.on("upgrade", handleUpgrade);
 
   server.on("error", (e) => {
     log(`fatal: listen ${host}:${port} failed: ${e.message}`);
@@ -337,6 +356,7 @@ async function main() {
     log(`received ${signal}, shutting down...`);
     scheduler.stop();
     callbackReconciler?.stop();
+    eventsBridge?.();
     plugins.stopAll();
     stopMemory();
     registries.shutdown();

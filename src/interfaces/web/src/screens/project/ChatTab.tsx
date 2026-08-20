@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import useSWR, { mutate } from "swr";
 import { ArrowUpRight, MessageSquareDashed, Plus, RotateCcw, Trash2 } from "lucide-react";
@@ -10,6 +10,8 @@ import { ContextBar } from "../../components/chat/ContextBar";
 import { InlineAskPanel, pendingAskQuestions } from "../../components/chat/InlineAskPanel";
 import { ChatList, type ChatKey, type ChatSelectionMeta } from "../../components/chat/ChatList";
 import { useChat, type ChatMsg } from "../../hooks/useChat";
+import { useLiveMessages } from "../../hooks/useLiveMessages";
+import { concernsConversation, concernsThread, type LiveEvent } from "../../lib/live";
 import type { UploadedMedia } from "../../lib/api/media";
 import { useToast } from "../../components/Toast";
 import { cn } from "../../lib/cn";
@@ -154,6 +156,34 @@ export function ChatTab({
         ? `${selected.channel}:${selected.threadId}`
         : selected.agentSlug,
   ]);
+
+  // The conversation on screen moved somewhere ELSE — a message on Telegram,
+  // another device on the same thread, a routine writing into the file. The
+  // daemon says which thread moved and we re-read it; nothing arrives over the
+  // socket except the fact that something did (see lib/live.ts).
+  //
+  // Skipped while this tab is streaming its own answer: the turn being painted
+  // token by token is not in storage yet, and re-reading mid-stream would
+  // replace it with a version that stops at the last thing written.
+  useLiveMessages(
+    useCallback(
+      (events: LiveEvent[]) => {
+        if (streaming) return;
+        if (selected.kind === "thread") {
+          if (events.some((e) => concernsThread(e, selected.channel, selected.threadId))) {
+            void loadThread(selected.channel, selected.threadId, { silent: true });
+          }
+        } else if (selected.kind === "conv") {
+          if (events.some((e) => concernsConversation(e, selected.agentSlug, selected.convId))) {
+            void load(selected.agentSlug, selected.convId, { silent: true });
+          }
+        }
+        // A live session has no stored thread to catch up with: everything it
+        // shows was produced in this tab.
+      },
+      [selected, streaming, load, loadThread],
+    ),
+  );
 
   const send = async (text: string, media?: UploadedMedia[]) => {
     if (activeIsRoby) {
