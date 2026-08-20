@@ -1,10 +1,12 @@
 import { useState } from "react";
 import useSWR from "swr";
-import { Sparkles, RefreshCw, Wand2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Sparkles, RefreshCw, Wand2, ArrowUpRight } from "lucide-react";
 import { Section } from "../Section";
 import { Button, Field, Input, Loading, Badge, Switch } from "../ui";
 import { useToast } from "../Toast";
 import { Skills, type InspectTrace } from "../../lib/api/skills";
+import { Embeddings } from "../../lib/api/embeddings";
 import { t } from "../../i18n";
 
 // Skill Inspector — per-turn skill RAG middleware. When ON, the static
@@ -39,7 +41,9 @@ type NumericKnobs = {
 
 export function SkillsInspectorPanel() {
   const toast = useToast();
+  const navigate = useNavigate();
   const { data, mutate, isLoading } = useSWR("/api/skills/inspector", () => Skills.inspector());
+  const { data: providers } = useSWR("/api/embeddings/providers", () => Embeddings.providers());
   const [busy, setBusy] = useState(false);
   const [probe, setProbe] = useState("");
   const [probeResult, setProbeResult] = useState<InspectTrace | null>(null);
@@ -136,10 +140,44 @@ export function SkillsInspectorPanel() {
             <Button variant="secondary" onClick={() => runIndex(true)} loading={busy}>
               <RefreshCw size={14} /> {t("settings_ui.reindex_forced")}
             </Button>
-            <span className="text-xs text-muted-foreground">
-              {t("settings_ui.embedder_source")}
-            </span>
           </div>
+
+          {/* The embedder is shared with Memory (RAG) — one engine for the whole
+              daemon. Surface which one is live now and where to change it, and
+              flag when the index was built with a different one (needs reindex). */}
+          {(() => {
+            // The embedder a real call lands on now (probed server-side) — the
+            // honest "active", so a rate-limited gemini that actually falls to
+            // ollama shows ollama, not gemini.
+            const active = providers?.active_embedder || "";
+            const indexTag = idx.embedder || "";
+            const stale = !!indexTag && !!active && indexTag !== active;
+            return (
+              <div className="space-y-1.5 rounded-md border border-border/60 bg-muted/20 p-3 text-xs">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium text-foreground">
+                    {t("settings_ui.embedder_shared_title")}
+                  </span>
+                  {active ? (
+                    <Badge tone={active === "tf" ? "warning" : "success"}>{active}</Badge>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={() => navigate("/settings/memory")}
+                    className="inline-flex items-center gap-1 font-medium text-sky-700 hover:underline dark:text-sky-400"
+                  >
+                    {t("settings_ui.embedder_configure")} <ArrowUpRight size={12} />
+                  </button>
+                </div>
+                <p className="text-muted-foreground">{t("settings_ui.embedder_shared_desc")}</p>
+                {stale ? (
+                  <p className="text-amber-600 dark:text-amber-400">
+                    {t("settings_ui.embedder_stale", { index: indexTag, active })}
+                  </p>
+                ) : null}
+              </div>
+            );
+          })()}
         </div>
       </Section>
 
