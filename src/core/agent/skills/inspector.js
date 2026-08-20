@@ -177,9 +177,23 @@ export async function inspectPromptForSkills({ prompt, projectPath, globalConfig
     return { contextNote: "", trace: { enabled: true, reason: "embed_failed" } };
   }
 
-  // Embedder mismatch — old index was built with a different provider. Don't
-  // mix cosine spaces; the operator needs to re-run `apx skills index`.
+  // Embedder mismatch — the index was built with a different provider (e.g. the
+  // local Ollama server was up when it was indexed and is now down, so we fell
+  // back to `tf`). Cosine only means anything within one embedder space, so we
+  // can't score this turn. But the line-156 refresh can't detect this on its own
+  // (it runs before we know the request-time embedder), so kick a rebuild HERE
+  // with the embedder we just probed: planIndex sees embedderChanged and rebuilds
+  // the index to the current space, and the NEXT turn scores normally. Without
+  // this the mismatch stuck silently until a daemon reboot or `apx skills index`
+  // — which is exactly how skill suggestions "just stopped appearing".
   if (idx.embedder && idx.embedder !== probe.embedder) {
+    try {
+      backgroundRefreshIfStale({
+        projectPath,
+        embedOpts: { ...(embedOpts || {}), globalConfig },
+        currentEmbedder: probe.embedder,
+      });
+    } catch { /* best-effort */ }
     return {
       contextNote: "",
       trace: {

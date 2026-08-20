@@ -346,7 +346,11 @@ export function applyStreamEvent(turn: ChatMsg, ev: ChatStreamEvent): ChatMsg {
       return withNote(`tools suppressed: ${(ev.tools || []).join(", ")}`);
     case "skill_inspector": {
       const insp = ev.inspector;
-      if (!insp || (!insp.loaded?.length && !insp.hinted?.length)) return turn;
+      // Keep the row when anything was injected OR merely scored: the "considered"
+      // near-misses are shown each round too, so the per-turn RAG is visible even
+      // when nothing crossed the load/hint bar (e.g. on the offline tf embedder).
+      if (!insp || (!insp.loaded?.length && !insp.hinted?.length && !insp.scored?.length))
+        return turn;
       return {
         ...turn,
         inspector: {

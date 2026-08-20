@@ -24,10 +24,30 @@ export type InspectorTrace = {
  * (whole body vs. one line) and links to the skill itself — the badge names a
  * thing you own, so it has to be reachable from where it is named.
  */
+// How much of a near-miss is worth showing as "considered". The offline `tf`
+// fallback embedder scores everything low and compressed — an on-topic postbean
+// query lands around 0.18-0.28 — so the calibrated 0.40 hint bar hides even a
+// clearly relevant match. This low floor keeps those visible; it can't fully
+// separate signal from noise on `tf` (that needs a real embedder — ollama/
+// gemini), but it makes each round's top matches legible instead of silent.
+const CONSIDERED_MIN_SIM = 0.15;
+const MAX_CONSIDERED = 3;
+
+type BadgeVariant = "loaded" | "hint" | "considered";
+
 export function SkillTrace({ inspector }: { inspector: InspectorTrace }) {
   const loaded = inspector.loaded || [];
   const hinted = inspector.hinted || [];
-  if (loaded.length === 0 && hinted.length === 0) return null;
+  // Near-misses: top scored matches that were neither loaded nor hinted. Shown
+  // dimmer so the per-turn RAG is legible every round — you can see what it
+  // weighed, not only what it injected.
+  const injected = new Set([...loaded, ...hinted]);
+  const considered = (inspector.scored || [])
+    .filter((s) => !injected.has(s.slug) && s.sim >= CONSIDERED_MIN_SIM)
+    .slice(0, MAX_CONSIDERED)
+    .map((s) => s.slug);
+
+  if (loaded.length === 0 && hinted.length === 0 && considered.length === 0) return null;
 
   return (
     <div className="flex flex-wrap items-center gap-1 text-[10px] text-sky-700 dark:text-sky-400/90">
@@ -37,37 +57,40 @@ export function SkillTrace({ inspector }: { inspector: InspectorTrace }) {
         </span>
       </Tip>
       {loaded.map((slug) => (
-        <SkillBadge key={`l-${slug}`} slug={slug} loaded inspector={inspector} />
+        <SkillBadge key={`l-${slug}`} slug={slug} variant="loaded" inspector={inspector} />
       ))}
       {hinted.map((slug) => (
-        <SkillBadge key={`h-${slug}`} slug={slug} loaded={false} inspector={inspector} />
+        <SkillBadge key={`h-${slug}`} slug={slug} variant="hint" inspector={inspector} />
+      ))}
+      {considered.map((slug) => (
+        <SkillBadge key={`c-${slug}`} slug={slug} variant="considered" inspector={inspector} />
       ))}
     </div>
   );
 }
 
+const BADGE_CLASS: Record<BadgeVariant, string> = {
+  loaded: "cursor-pointer rounded bg-sky-500/15 px-1 py-0.5 font-mono hover:bg-sky-500/25",
+  hint: "cursor-pointer rounded border border-sky-500/30 px-1 py-0.5 font-mono opacity-70 hover:opacity-100",
+  considered:
+    "cursor-pointer rounded border border-dashed border-sky-500/25 px-1 py-0.5 font-mono opacity-50 hover:opacity-90",
+};
+
 function SkillBadge({
   slug,
-  loaded,
+  variant,
   inspector,
 }: {
   slug: string;
-  loaded: boolean;
+  variant: BadgeVariant;
   inspector: InspectorTrace;
 }) {
+  const label = variant === "loaded" ? slug : variant === "hint" ? `${slug}?` : `~${slug}`;
   return (
     <Popover>
-      <PopoverTrigger
-        className={
-          loaded
-            ? "cursor-pointer rounded bg-sky-500/15 px-1 py-0.5 font-mono hover:bg-sky-500/25"
-            : "cursor-pointer rounded border border-sky-500/30 px-1 py-0.5 font-mono opacity-70 hover:opacity-100"
-        }
-      >
-        {loaded ? slug : `${slug}?`}
-      </PopoverTrigger>
+      <PopoverTrigger className={BADGE_CLASS[variant]}>{label}</PopoverTrigger>
       <PopoverContent>
-        <SkillCard slug={slug} loaded={loaded} inspector={inspector} />
+        <SkillCard slug={slug} variant={variant} inspector={inspector} />
       </PopoverContent>
     </Popover>
   );
@@ -77,11 +100,11 @@ function SkillBadge({
 // so the catalog is fetched on the first click, not on every message painted.
 function SkillCard({
   slug,
-  loaded,
+  variant,
   inspector,
 }: {
   slug: string;
-  loaded: boolean;
+  variant: BadgeVariant;
   inspector: InspectorTrace;
 }) {
   const navigate = useNavigate();
@@ -112,7 +135,11 @@ function SkillCard({
       </div>
 
       <p className="text-[11px] text-muted-foreground">
-        {loaded ? t("shared_ui.skill_trace_loaded") : t("shared_ui.skill_trace_hinted")}
+        {variant === "loaded"
+          ? t("shared_ui.skill_trace_loaded")
+          : variant === "hint"
+            ? t("shared_ui.skill_trace_hinted")
+            : t("shared_ui.skill_trace_considered")}
         {typeof sim === "number" && ` · ${t("shared_ui.skill_trace_sim", { sim: sim.toFixed(2) })}`}
       </p>
 
