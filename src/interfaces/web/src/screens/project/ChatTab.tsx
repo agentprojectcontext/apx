@@ -869,7 +869,7 @@ function CreateAgentDialog({
       }
     >
       <div className="space-y-3">
-        <Field label="slug">
+        <Field label={t("project.chat.slug_label")}>
           <Input autoFocus value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="master" />
         </Field>
         <Field label={t("project.chat.role_label")}>

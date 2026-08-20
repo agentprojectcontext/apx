@@ -84,7 +84,7 @@ export function CodeTerminal({
     <div className={cn("flex h-full min-h-0 flex-col bg-card/60", className)} data-testid="code-terminal">
       <div className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-1">
         <TerminalIcon className="size-3 text-muted-foreground" />
-        <span className="flex-1 text-[11px] text-muted-foreground">Terminal</span>
+        <span className="flex-1 text-[11px] text-muted-foreground">{t("code_module.terminal_title")}</span>
         <Tip content={t("code_module.terminal_clear")}>
           <button
             type="button"

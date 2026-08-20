@@ -122,7 +122,7 @@ export function CodeFileTree({
     <div className={cn("flex h-full flex-col", className)} data-testid="code-file-tree">
       {/* Header */}
       <div className="flex shrink-0 items-center justify-between border-b border-border px-3 py-2">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Archivos</span>
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{t("code_module.tree_title")}</span>
         <div className="flex items-center gap-0.5">
           <Tip content={t("code_module.tree_collapse_all")}>
             <button
