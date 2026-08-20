@@ -30,6 +30,7 @@ import {
   readRoutineMemoryForPrompt,
   routineMemoryPath,
 } from "#core/stores/routine-memory.js";
+import { buildRoutineHeader, prependRoutineHeader } from "#core/routines/header.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { detectSignals, formatSignals, peakSeverity, thresholdsFromConfig } from "#core/routines/signals.js";
 import { readActiveProfile, effectiveProfileConfig } from "#core/profiles/store.js";
@@ -611,6 +612,17 @@ export async function runRoutineNow(ctx, routine) {
   let errMsg = null;
 
   if (!skip) {
+    // The automation header: name / id / memory path / last run / this run,
+    // built once so a single run stamps one instant. Prepended to the prompt so
+    // the model always opens on its identity and the current time natively —
+    // the routine no longer needs an `echo …date…` pre_command feeding
+    // {{pre_output}} just to know what day it is.
+    const header = buildRoutineHeader(routine, {
+      storagePath,
+      config: ctx.project?.config || ctx.globalConfig,
+      nowMs: Date.now(),
+    });
+
     // Injected unconditionally, including when there is no pre output at all.
     // A routine that asks for {{pre_output}} and gets nothing must see an empty
     // slot, not the literal braces: a placeholder that survives into the prompt
@@ -621,10 +633,11 @@ export async function runRoutineNow(ctx, routine) {
       spec: {
         ...routine.spec,
         // {{pre_output}} works in both the LLM prompt and the telegram text.
-        // Keys the spec does not have stay absent — a `prompt: undefined` on a
-        // shell routine would be a new shape for every reader downstream.
-        ...(typeof routine.spec?.prompt === "string" ? { prompt: injectPreOutput(routine.spec.prompt, preStdout) } : {}),
-        ...(typeof routine.spec?.text === "string" ? { text: injectPreOutput(routine.spec.text, preStdout) } : {}),
+        // The header rides on top of both. Keys the spec does not have stay
+        // absent — a `prompt: undefined` on a shell routine would be a new shape
+        // for every reader downstream.
+        ...(typeof routine.spec?.prompt === "string" ? { prompt: prependRoutineHeader(injectPreOutput(routine.spec.prompt, preStdout), header) } : {}),
+        ...(typeof routine.spec?.text === "string" ? { text: prependRoutineHeader(injectPreOutput(routine.spec.text, preStdout), header) } : {}),
       },
     };
 
