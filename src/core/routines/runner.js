@@ -16,7 +16,7 @@ import path from "node:path";
 import { callEngine } from "#core/engines/index.js";
 import { runSuperAgent } from "#core/agent/super-agent.js";
 import { runAgent, computeSuppressedTools } from "#core/agent/index.js";
-import { TELEGRAM_TOOL_ITERS } from "#core/agent/constants.js";
+import { TELEGRAM_TOOL_ITERS, ROUTINE_UNCAPPED_TOOL_ITERS } from "#core/agent/constants.js";
 import { createToolSession, makeToolHandlers } from "#core/agent/tools/registry.js";
 import { readAgents } from "#core/apc/parser.js";
 import { buildAgentSystem } from "#core/agent/build-agent-system.js";
@@ -56,6 +56,36 @@ async function handleHeartbeat(ctx, routine) {
     meta: { routine: routine.name },
   });
   return { status: "ok", note: `logged to messages on channel '${channel}'` };
+}
+
+// Is this routine "telegram-bound" — i.e. is its PRODUCT a Telegram message? The
+// reliable signal is a `apx telegram …` post_command, which pipes the model's
+// final text straight into Telegram and shows up here as a suppressed
+// send_telegram (see tools-overlap.js). There the final turn literally becomes
+// the message, so the bounded single-turn chat budget is the right shape.
+//
+// Merely HAVING the send_telegram tool available does NOT count: it's a
+// near-universal default (an empty allowed_tools falls back to the broad set),
+// so keying on it would mark almost every routine telegram-bound and cap the
+// exact background work this distinction exists to free. Magui filling a backlog
+// might send a summary at the end, but her job is the backlog, not the message —
+// she must finish first. So only the post_command sink marks telegram-bound.
+export function routineReportsToTelegram({ autoSuppress }) {
+  return (autoSuppress || []).includes("send_telegram");
+}
+
+// Tool-loop budget for a routine: the bounded conversational budget when it
+// reports to Telegram, an effectively-unbounded ceiling when it doesn't (see
+// ROUTINE_UNCAPPED_TOOL_ITERS). Both honor a per-deployment config override.
+export function routineToolIters(config, { telegramBound }) {
+  const sa = config?.super_agent || {};
+  const pick = (raw, fallback) => {
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : fallback;
+  };
+  return telegramBound
+    ? pick(sa.telegram_max_iters, TELEGRAM_TOOL_ITERS)
+    : pick(sa.routine_max_iters, ROUTINE_UNCAPPED_TOOL_ITERS);
 }
 
 async function handleExecAgent(ctx, routine) {
@@ -129,6 +159,11 @@ async function handleExecAgent(ctx, routine) {
     const suppressTools = [...new Set([...autoSuppress, ...explicitSuppress])];
     allowedTools = resolveAgentAllowedTools(agent, { override: toolOverride });
     const toolSession = createToolSession(CHANNELS.ROUTINE, { allowedTools });
+    // A routine that reports to Telegram keeps the bounded chat budget; one that
+    // does background work nobody watches runs to completion (Magui's backlog
+    // refill was being cut off at ~23 steps by the Telegram budget).
+    const telegramBound = routineReportsToTelegram({ autoSuppress });
+    const maxIters = routineToolIters(cfg, { telegramBound });
 
     const result = await runAgent({
       globalConfig: cfg,
@@ -153,7 +188,7 @@ async function handleExecAgent(ctx, routine) {
       },
       agentName: slug,
       suppressTools: suppressTools.length > 0 ? suppressTools : null,
-      maxIters: TELEGRAM_TOOL_ITERS,
+      maxIters,
       // A routine has to both act and report, and 2048 was tight enough that a
       // run which wrote its output before filing it hit the cap mid-item. The
       // loop now recovers from that (see wasTruncated), but the headroom keeps
@@ -252,6 +287,14 @@ async function handleSuperAgent(ctx, routine, extraChannelMeta = {}) {
     : [];
   const suppressTools = [...new Set([...autoSuppress, ...explicitSuppress])];
 
+  // Same rule as exec_agent: only a `apx telegram …` post_command makes the run
+  // telegram-bound (bounded chat budget). A super_agent report that sends via the
+  // send_telegram tool — like the secretary open/close — is work that should run
+  // to completion, which also lifts it off runSuperAgent's low chit-chat default
+  // of MAX_TOOL_ITERS.
+  const telegramBound = routineReportsToTelegram({ autoSuppress });
+  const maxIters = routineToolIters(cfg, { telegramBound });
+
   const result = await runSuperAgent({
     globalConfig: cfg,
     projects,
@@ -283,6 +326,7 @@ async function handleSuperAgent(ctx, routine, extraChannelMeta = {}) {
       ...extraChannelMeta,
     },
     suppressTools: suppressTools.length > 0 ? suppressTools : null,
+    maxIters,
   });
 
   // A tool that needed a human in a run with no human is a DEAD END, not a
