@@ -5,7 +5,7 @@ description: Create, configure, use project agents in APX — including writing 
 
 # apx-agent
 
-A project agent is a named persona inside an APC project. Definition: `.apc/agents/<slug>.md` (flat); `AGENTS.md` auto-regenerated for discovery. Runtime data (memory, conversations, sessions) under `~/.apx/projects/<apx_id>/agents/<slug>/`, never committed. Legacy `.apc/agents/<slug>/memory.md` still read as migration fallback.
+A project agent is a named persona inside an APC project. Definition: `.apc/agents/<slug>.md` (flat); `AGENTS.md` auto-regenerated for discovery. Runtime data (memory, conversations, sessions) under `~/.apx/projects/<apx_id>/agents/<slug>/`, never committed. That is the only place an agent's memory lives — nothing reads or writes a `memory.md` under `.apc/`.
 
 ## The definition file has two halves — both matter
 
@@ -117,7 +117,7 @@ apx memory <slug> --replace < file.md      # full replace from stdin
 3. Role + Language fields.
 4. **The agent's own body → `# Custom instructions`.** Empty body ⇒ this block is absent and the agent has no instructions.
 5. Invocation context: `engine | telegram | routine | runtime` — the channel calling.
-6. Memory: `~/.apx/projects/<apx_id>/agents/<slug>/memory.md` (legacy `.apc/agents/<slug>/memory.md` fallback).
+6. Memory: `~/.apx/projects/<apx_id>/agents/<slug>/memory.md` — the single location, no fallback.
 7. Skills from agent's `Skills:` field, loaded from `.apc/skills/<slug>.md` or bundled set.
 8. The `apx` meta-skill (so agent knows how to operate APX).
 9. ACTION_DISCIPLINE_RULES (fixed footer — anti-ghost, anti-disclaimer, action-first).

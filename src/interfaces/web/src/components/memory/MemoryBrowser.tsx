@@ -37,7 +37,7 @@ function selPath(s: Sel): string {
     case "notebook": return "~/.apx/memory.md";
     case "project":  return ".apc/memory.md";
     case "local":    return "~/.apx/projects/<id>/memory.md";
-    default:         return `agents/${s.slug}/memory.md`;
+    default:         return `~/.apx/projects/<id>/agents/${s.slug}/memory.md`;
   }
 }
 

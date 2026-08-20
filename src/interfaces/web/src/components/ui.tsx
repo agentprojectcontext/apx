@@ -2,7 +2,7 @@
 // components in ./ui/* — they keep a small, stable API (variant/tone/size,
 // Dialog open/onClose, Field label/hint) so call sites don't churn, while the
 // actual rendering comes from base-ui (proper focus, portaling, a11y).
-import type { ReactNode, ButtonHTMLAttributes, InputHTMLAttributes, TextareaHTMLAttributes, SelectHTMLAttributes } from "react";
+import type { ReactNode, ButtonHTMLAttributes, InputHTMLAttributes, TextareaHTMLAttributes } from "react";
 import type { LucideIcon } from "lucide-react";
 import { cn } from "../lib/cn";
 import { t } from "../i18n";
@@ -60,19 +60,6 @@ export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
 
 export function Textarea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return <STextarea {...props} />;
-}
-
-// Native select kept for legacy call sites; new code uses UiSelect (base-ui).
-export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
-  return (
-    <select
-      {...props}
-      className={cn(
-        "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50",
-        props.className,
-      )}
-    />
-  );
 }
 
 // ── Field wrapper ───────────────────────────────────────────────────────────

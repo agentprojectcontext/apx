@@ -41,6 +41,80 @@ export function isKnownSpaRoute(p) {
   return SPA_ROUTES.some((re) => re.test(p));
 }
 
+// Content types for the compressed twins. Needed because the file being sent
+// ends in `.br`/`.gz`, and express would otherwise call a brotli-compressed
+// stylesheet application/octet-stream — which a browser refuses to apply.
+const TYPE_BY_EXT = {
+  ".js": "application/javascript; charset=UTF-8",
+  ".css": "text/css; charset=UTF-8",
+  ".html": "text/html; charset=UTF-8",
+  ".svg": "image/svg+xml",
+  ".json": "application/json; charset=UTF-8",
+  ".webmanifest": "application/manifest+json",
+  ".map": "application/json; charset=UTF-8",
+  ".txt": "text/plain; charset=UTF-8",
+};
+
+/** The encodings this client will take, best first. */
+function acceptedEncodings(header) {
+  // Order by our preference, not the client's q-values: brotli is smaller and
+  // every browser that offers it prefers it too.
+  const raw = String(header || "").toLowerCase();
+  const out = [];
+  if (/\bbr\b/.test(raw)) out.push({ enc: "br", ext: ".br" });
+  if (/\bgzip\b/.test(raw)) out.push({ enc: "gzip", ext: ".gz" });
+  return out;
+}
+
+/**
+ * Serve `foo.js.br` when the client asked for brotli and the file exists.
+ *
+ * Deliberately a lookup and a sendFile rather than compressing per request:
+ * these files do not change between builds, so the work belongs in the build
+ * (see scripts/build-web.js), and brotli at maximum quality — worth another
+ * ~20% over gzip — is far too slow to do on the fly.
+ *
+ * A dist with no twins (an older build, or a dev checkout) falls straight
+ * through to express.static, uncompressed and working.
+ */
+export function servePrecompressed(root) {
+  return function precompressed(req, res, next) {
+    if (req.method !== "GET" && req.method !== "HEAD") return next();
+    const ext = path.extname(req.path).toLowerCase();
+    const type = TYPE_BY_EXT[ext];
+    if (!type) return next();
+
+    // The client may be behind a proxy that varies on encoding; say so
+    // regardless of whether we end up compressing, so a cache keyed on the URL
+    // alone cannot hand a brotli body to a client that cannot read it.
+    res.setHeader("Vary", "Accept-Encoding");
+
+    const rel = decodeURIComponent(req.path).replace(/^\/+/, "");
+    // Same containment rule as the media route: resolve, then require the
+    // result to still be inside the directory we are serving.
+    const target = path.resolve(root, rel);
+    if (target !== root && !target.startsWith(root + path.sep)) return next();
+
+    for (const { enc, ext: suffix } of acceptedEncodings(req.headers["accept-encoding"])) {
+      const twin = `${target}${suffix}`;
+      if (!fs.existsSync(twin)) continue;
+      res.setHeader("Content-Encoding", enc);
+      res.setHeader("Content-Type", type);
+      // index.html is the SPA shell and must never be cached; its twin is the
+      // same file and inherits the same rule.
+      res.setHeader("Cache-Control", rel.endsWith("index.html") || rel.endsWith("sw.js") ? "no-cache" : "public, max-age=3600");
+      // acceptRanges off: a byte range of the COMPRESSED file is not a byte
+      // range of the resource, and a client that asked for one would decode
+      // garbage. Nothing range-requests a stylesheet, but the header would be
+      // an invitation to.
+      return res.sendFile(twin, { acceptRanges: false }, (err) => {
+        if (err) next(err);
+      });
+    }
+    return next();
+  };
+}
+
 // /api/admin/web-token: localhost-only endpoint that returns the daemon token
 // so the same-origin admin panel can authenticate every subsequent call.
 // Refuses if the request didn't come from loopback. Also refuses if the
@@ -108,6 +182,16 @@ export function register(app, { express }) {
     });
     return;
   }
+
+  // Precompressed twins first: the build writes `.br` and `.gz` next to every
+  // compressible asset, and this hands over whichever one the client asked for.
+  //
+  // The bundle is ~1.7 MB of JavaScript and every byte of it used to go out
+  // raw. On loopback that is invisible; over Tailscale, where the connection
+  // may be relayed through a DERP node on another continent, it is the whole
+  // difference between the panel opening at once and the phone sitting on a
+  // white screen. Brotli takes it to ~400 KB.
+  app.use(servePrecompressed(WEB_DIST));
 
   // Serve static assets. NB: we mount AFTER the /api router is mounted in
   // api.js so data routes always win over this catch-all.

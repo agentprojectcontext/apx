@@ -1,8 +1,18 @@
+// A project agent's durable memory. ONE location, no second candidate:
+//
+//   ~/.apx/projects/<apx_id>/agents/<slug>/memory.md
+//
+// It is runtime state, so it lives in the APX home and never inside the user's
+// repo. `.apc/` is the committed half of a project (agent definitions, skills,
+// curated project memory) and an agent's memory is none of those: it is written
+// by the agent itself, turn after turn, and nobody reviews it before it lands.
+// An older layout wrote it to `.apc/agents/<slug>/memory.md`; that path is gone
+// on purpose — two candidate files means half the writes land where the next
+// read does not look.
 import fs from "node:fs";
 import path from "node:path";
 import { projectStorageRoot } from "../config/index.js";
 import { getOrCreateApxId } from "../apc/scaffold.js";
-import { apcAgentMemoryFile } from "../apc/paths.js";
 
 const EMPTY_MEMORY = (slug) =>
   `# Memory — ${slug}\n\n` +
@@ -27,10 +37,6 @@ export function agentMemoryPath(projectOrRoot, slug) {
   return path.join(agentRuntimeDir(projectOrRoot, slug), "memory.md");
 }
 
-export function legacyAgentMemoryPath(projectRoot, slug) {
-  return apcAgentMemoryFile(projectRoot, slug);
-}
-
 export function ensureAgentRuntimeDir(projectOrRoot, slug, { createMemory = false } = {}) {
   const dir = agentRuntimeDir(projectOrRoot, slug);
   fs.mkdirSync(dir, { recursive: true });
@@ -42,19 +48,8 @@ export function ensureAgentRuntimeDir(projectOrRoot, slug, { createMemory = fals
 }
 
 export function readAgentMemory(projectOrRoot, slug) {
-  const primary = agentMemoryPath(projectOrRoot, slug);
-  if (fs.existsSync(primary)) return fs.readFileSync(primary, "utf8");
-
-  const root =
-    typeof projectOrRoot === "string"
-      ? projectOrRoot
-      : projectOrRoot?.path;
-  if (root) {
-    const legacy = legacyAgentMemoryPath(root, slug);
-    if (fs.existsSync(legacy)) return fs.readFileSync(legacy, "utf8");
-  }
-
-  return "";
+  const file = agentMemoryPath(projectOrRoot, slug);
+  return fs.existsSync(file) ? fs.readFileSync(file, "utf8") : "";
 }
 
 export function writeAgentMemory(projectOrRoot, slug, body) {

@@ -3,7 +3,8 @@
 // APX admin screen — shared so they can't drift apart.
 
 import { Section } from "../Section";
-import { Badge, Button, Empty, Loading, Select } from "../ui";
+import { Badge, Button, Empty, Loading } from "../ui";
+import { UiSelect } from "../UiSelect";
 import { Tip } from "../ui/tip";
 import { useToast } from "../Toast";
 import { useTelegramContacts } from "../../hooks/useTelegram";
@@ -60,13 +61,13 @@ export function TelegramContactsPanel({ bare = false }: Props) {
                   </div>
                   <div className="flex items-center gap-2">
                     <Tip content={isOwner ? t("telegram_contacts.owner_hint") : t("telegram_contacts.assign_role")}>
-                      <Select
+                      <UiSelect
                         value={effectiveRole}
                         disabled={isOwner}
-                        onChange={(e) => setRole(c, e.target.value)}
-                      >
-                        {roleNames.map((r) => <option key={r} value={r}>{r}</option>)}
-                      </Select>
+                        onChange={(v) => setRole(c, v)}
+                        options={roleNames.map((r) => ({ value: r, label: r }))}
+                        className="w-36"
+                      />
                     </Tip>
                     <Button size="sm" variant="destructive" onClick={() => remove(c)}>{t("common.delete")}</Button>
                   </div>

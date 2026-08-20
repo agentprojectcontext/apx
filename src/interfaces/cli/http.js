@@ -39,16 +39,8 @@ async function ping(timeoutMs = 400) {
 }
 
 function findDaemonEntry() {
-  const candidates = [
-    // Current layout: src/host/daemon/index.js
-    path.resolve(__dirname, "../../host/daemon/index.js"),
-    // Legacy fallbacks for older installs that still have the shim tree.
-    path.resolve(__dirname, "../../daemon/index.js"),
-    path.resolve(__dirname, "../daemon/index.js"),
-    path.resolve(__dirname, "..", "node_modules", "apx-daemon", "src", "index.js"),
-  ];
-  for (const c of candidates) if (fs.existsSync(c)) return c;
-  return null;
+  const entry = path.resolve(__dirname, "../../host/daemon/index.js");
+  return fs.existsSync(entry) ? entry : null;
 }
 
 async function autoStart({ silent = false } = {}) {

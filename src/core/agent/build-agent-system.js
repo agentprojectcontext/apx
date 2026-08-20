@@ -122,7 +122,8 @@ export function buildAgentSystem(project, agent, {
   // Invocation context (who called me, through what, for what).
   const invocationCtx = buildInvocationContext({ invocation, runtime, caller, routine });
 
-  // Per-agent memory (lives under <project>/.apc/agents/<slug>/memory.md).
+  // Per-agent memory — ~/.apx/projects/<apx_id>/agents/<slug>/memory.md,
+  // never inside the repo (core/agent/memory.js).
   const memory = readAgentMemory(project, agent.slug);
   const memoryBlock = memory ? "# Memory\n" + memory : "";
 

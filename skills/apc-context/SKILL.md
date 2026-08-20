@@ -45,7 +45,7 @@ Classify content:
 | Agent definitions: name, model, description | Put in `.apc/agents/<name>.md` and/or `AGENTS.md` |
 | Shared project rules, stack notes, commands, testing policy | Keep in `AGENTS.md` |
 | Reusable instruction blocks | Move to `.apc/skills/<name>.md` |
-| Durable safe facts useful to all contributors | Add to `.apc/agents/<name>/memory.md` only after curation |
+| Durable safe facts useful to all contributors | Add to `.apc/memory.md` only after curation |
 | MCP expectations without secrets | Add to `.apc/mcps.json` |
 | Raw sessions, transcripts, conversations, messages, tool logs | Do not move into `.apc/`; leave with source runtime |
 | Secrets, tokens, credentials, private headers | Do not store in repository |
@@ -69,7 +69,7 @@ AGENTS.md                        ← root project contract
   project.json                   ← project metadata
   .gitignore                     ← safety guard
   agents/<name>.md               ← agent definition
-  agents/<name>/memory.md        ← optional curated project memory
+  memory.md                      ← optional curated project memory (committed)
   skills/<name>.md               ← reusable project instructions
   mcps.json                      ← MCP hints without secrets
 ```
@@ -77,6 +77,7 @@ AGENTS.md                        ← root project contract
 Do not store:
 
 ```text
+.apc/agents/<name>/memory.md     ← agent memory is runtime state; see below
 .apc/agents/<name>/sessions/
 .apc/sessions/
 .apc/conversations/
@@ -92,7 +93,8 @@ Do not store:
 | Data | Visibility | Commit? |
 |---|---|---|
 | Agent definitions, skills, project rules | `stable` / `project` | Yes |
-| Curated safe `memory.md` | `project` | Yes, if team-safe |
+| Curated safe `.apc/memory.md` | `project` | Yes, if team-safe |
+| A single agent's `memory.md` | `local` | No; runtime-owned (`~/.apx/projects/<apx_id>/agents/<slug>/`) |
 | MCP hints without secrets | `project` | Yes |
 | Sessions, conversations, messages | `local` | No; runtime-owned |
 | Secrets, tokens, `*.secret.json`, `*.env` | `private` | Never |
@@ -102,7 +104,7 @@ Do not store:
 
 1. Read `AGENTS.md` and relevant `.apc/` files before assuming project context.
 2. Read agent definitions from `.apc/agents/<name>.md` when present.
-3. Read curated project memory from `.apc/agents/<name>/memory.md` when present.
+3. Read curated project memory from `.apc/memory.md` when present. An individual agent's own memory is runtime state and lives at `~/.apx/projects/<apx_id>/agents/<slug>/memory.md` — never under `.apc/`.
 4. Write only durable, safe, curated facts to APC memory.
 5. Never write raw sessions, transcripts, messages, conversations, or tool logs into `.apc/`.
 6. Keep secrets out of APC and out of git.
@@ -136,7 +138,7 @@ OpenCode runtime storage
 ```
 
 At task end, provide the user a concise result. If project memory should be updated, write a short
-sanitized fact to `.apc/agents/<name>/memory.md` only when useful and safe.
+sanitized fact to `.apc/memory.md` only when useful and safe.
 
 ## APX
 
