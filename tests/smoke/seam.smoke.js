@@ -9,13 +9,13 @@
 // Runs on a temp HOME and a spare port, so it never touches the developer's own
 // ~/.apx and never collides with their daemon.
 //
-// ⚠️ NEEDS ADAPTING to the /api route refactor. Written against the pre-refactor
-// layout where data routes sat at the bare path; the prefix has been updated but
-// five tests still fail against a freshly-booted daemon and the cause is not yet
-// understood — the same calls succeed by hand against a live daemon and against a
-// hand-rolled fresh one. Do NOT wire this into CI until those five pass: a suite
-// that fails for its own reasons trains people to ignore it, which is worse than
-// not having it. See docs-internal/secretary/ADAPTER-SEAM-BUGS.md.
+// History: after the /api route refactor five of these failed for weeks and the
+// cause was written off as "not yet understood", because the same calls worked by
+// hand. They did — by hand you write the prefix once. The tests wrote it twice:
+// get() prefixes /api itself, and the calls passed "/api/tasks", so every request
+// went to /api/api/tasks and 404'd. Worse, "an unknown API path 404s" PASSED on
+// that same 404, for entirely the wrong reason. get() now rejects a doubled
+// prefix outright, so the mistake cannot come back quietly.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -38,7 +38,14 @@ const API = `${BASE}/api`;
 let daemon;
 let token = "";
 
+// `p` is the path BELOW /api — this helper adds the prefix. Passing "/api/x"
+// used to silently produce /api/api/x, which 404s; five tests failed that way
+// for weeks and one of them ("an unknown API path 404s") passed for the wrong
+// reason. Refuse the doubled prefix instead of letting it look like a real 404.
 function get(p, opts = {}) {
+  if (p.startsWith("/api/") || p === "/api") {
+    throw new Error(`get() already prefixes /api — pass "${p.slice(4)}", not "${p}"`);
+  }
   return fetch(API + p, {
     ...opts,
     headers: { authorization: `Bearer ${token}`, ...(opts.headers || {}) },
@@ -123,7 +130,7 @@ test("every API route requires a token", async () => {
 // `apx task list` printed "(no tasks)" no matter what, because the endpoint
 // answers {meta,data} and the CLI treated it as an array.
 test("list endpoints answer the {meta,data} envelope callers unwrap", async () => {
-  for (const p of ["/api/tasks", "/api/inbox"]) {
+  for (const p of ["/tasks", "/inbox"]) {
     const body = await (await get(p)).json();
     assert.ok(!Array.isArray(body), `${p} is a bare array — CLI callers unwrap .data`);
     assert.ok(Array.isArray(body.data), `${p} has no .data array`);
@@ -138,7 +145,7 @@ test("list endpoints answer the {meta,data} envelope callers unwrap", async () =
 // `apx routine memory` resolves storage from GET /projects. Both fields were
 // missing from the response, so the command failed before it could do anything.
 test("GET /projects carries the storage fields the CLI resolves paths from", async () => {
-  const projects = await (await get("/api/projects")).json();
+  const projects = await (await get("/projects")).json();
   assert.ok(Array.isArray(projects) && projects.length, "no projects registered");
   for (const p of projects) {
     for (const field of ["id", "path", "name", "apx_id", "storage_path"]) {
@@ -149,7 +156,7 @@ test("GET /projects carries the storage fields the CLI resolves paths from", asy
 });
 
 test("inbox rows carry every field the panel renders", async () => {
-  const { data } = await (await get("/api/inbox")).json();
+  const { data } = await (await get("/inbox")).json();
   for (const row of data) {
     for (const field of [
       "agent_slug", "agent_name", "kind", "pinned",
@@ -161,11 +168,11 @@ test("inbox rows carry every field the panel renders", async () => {
 });
 
 test("profiles expose the schema, settings and prompt preview the panel needs", async () => {
-  const { profiles } = await (await get("/api/profiles")).json();
+  const { profiles } = await (await get("/profiles")).json();
   assert.ok(Array.isArray(profiles), "/api/profiles has no profiles array");
   if (!profiles.length) return; // nothing bundled in this build
 
-  const detail = await (await get(`/api/profiles/${profiles[0].id}`)).json();
+  const detail = await (await get(`/profiles/${profiles[0].id}`)).json();
   for (const field of ["id", "name", "source", "schema", "config", "preview", "tokens"]) {
     assert.ok(field in detail, `profile detail is missing "${field}"`);
   }
@@ -191,7 +198,7 @@ test("API paths and SPA routes do not overlap", async () => {
 });
 
 test("an unknown API path 404s instead of quietly serving the panel", async () => {
-  const r = await get("/api/tasks/definitely-not-a-route/nope");
+  const r = await get("/tasks/definitely-not-a-route/nope");
   assert.ok(r.status >= 400, `expected an error, got ${r.status}`);
 });
 
@@ -201,7 +208,7 @@ test("an unknown API path 404s instead of quietly serving the panel", async () =
 
 test("cross-project task filters are accepted, not silently ignored", async () => {
   const qs = "state=all&status=blocked&updated_since=2020-01-01T00:00:00Z&limit=5";
-  const r = await get(`/api/tasks?${qs}`);
+  const r = await get(`/tasks?${qs}`);
   assert.equal(r.status, 200);
   const body = await r.json();
   assert.ok(Array.isArray(body.data));
