@@ -6,6 +6,7 @@ import { Tip } from "../components/ui/tip";
 import { InboxList, rowKey } from "../components/inbox/InboxList";
 import { ChatTab } from "./project/ChatTab";
 import { useInbox } from "../hooks/useInbox";
+import { threadMoved } from "../lib/inbox-selection";
 import type { InboxRow } from "../lib/api/inbox";
 import type { ChatKey } from "../components/chat/ChatList";
 import { t } from "../i18n";
@@ -50,14 +51,9 @@ export function InboxScreen() {
     if (!selected) return;
     const fresh = rows.find((r) => rowKey(r) === rowKey(selected));
     if (!fresh) return;
-    // Channel AND id: the super-agent's threads are a file per channel per DAY,
-    // so today's Telegram thread and today's web thread share an id and differ
-    // only by channel. Comparing the id alone left the pane on the web thread
-    // while the row it belongs to had already moved to Telegram — the preview
-    // showed a message the pane could not reach.
-    if (fresh.conversation_id !== selected.conversation_id || fresh.channel !== selected.channel) {
-      setSelected(fresh);
-    }
+    // What counts as "moved" is in lib/inbox-selection — channel AND id, for a
+    // reason worth reading before touching this.
+    if (threadMoved(selected, fresh)) setSelected(fresh);
   }, [rows, selected]);
 
   // Padded: the screen itself is flush to the shell's edges, so a bare
