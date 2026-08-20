@@ -6,66 +6,12 @@ import {
   apcAgentsDir,
   apcAgentFile,
   apcProjectFile,
-  agentsMdFile,
   isApcProject,
 } from "./paths.js";
 
 export const SLUG_RE = /^[a-z][a-z0-9_-]*$/;
-const H1_RE = /^#\s+Agents\s*$/i;
-const H2_RE = /^##\s+(\S.*?)\s*$/;
-const FIELD_RE = /^-\s+\*\*([^*]+?)\*\*\s*:\s*(.*)$/;
-const INDENT_CONT_RE = /^\s{2,}\S/;
 const LIST_FIELDS = new Set(["Skills", "Tools"]);
 
-// ---------------------------------------------------------------------------
-// AGENTS.md parser (legacy / Codex compat source)
-// ---------------------------------------------------------------------------
-
-export function parseAgentsMd(text) {
-  const stripped = text.replace(/<!--[\s\S]*?-->/g, "");
-  const lines = stripped.split(/\r?\n/);
-  const agents = [];
-  let current = null;
-  let pendingField = null;
-  let seenH1 = false;
-
-  for (const raw of lines) {
-    const line = raw.replace(/\s+$/, "");
-    if (H1_RE.test(line)) { seenH1 = true; continue; }
-    const mH2 = line.match(H2_RE);
-    if (mH2 && seenH1) {
-      const slug = mH2[1].trim();
-      if (SLUG_RE.test(slug)) {
-        current = { slug, fields: {} };
-        agents.push(current);
-        pendingField = null;
-      } else {
-        current = null; pendingField = null;
-      }
-      continue;
-    }
-    if (!current) continue;
-    const mField = line.match(FIELD_RE);
-    if (mField) {
-      const name = mField[1].trim();
-      const value = mField[2].trim();
-      current.fields[name] = LIST_FIELDS.has(name)
-        ? value.split(",").map((s) => s.trim()).filter(Boolean)
-        : value;
-      pendingField = name;
-      continue;
-    }
-    if (pendingField && INDENT_CONT_RE.test(raw)) {
-      const existing = current.fields[pendingField];
-      if (!Array.isArray(existing)) {
-        current.fields[pendingField] = existing ? `${existing} ${raw.trim()}` : raw.trim();
-      }
-      continue;
-    }
-    if (line.trim() === "") pendingField = null;
-  }
-  return agents;
-}
 
 // ---------------------------------------------------------------------------
 // Per-agent file parser  (.apc/agents/<slug>.md)
@@ -234,7 +180,7 @@ export function importedVaultSlugs(root) {
 // Resolution order:
 //   1. .apc/agents/<slug>.md  (local — overrides everything)
 //   2. ~/.apx/agents/<slug>.md  (vault — for imported slugs)
-//   3. Legacy hand-written AGENTS.md (not auto-generated)
+// AGENTS.md is the project's startup-rules file, never an agent registry.
 export function readAgents(root) {
   const fromFiles = readAgentsFromDir(root).map((a) => ({ ...a, source: "local" }));
   const localSlugs = new Set(fromFiles.map((a) => a.slug));
@@ -253,20 +199,7 @@ export function readAgents(root) {
     })
     .filter(Boolean);
 
-  const all = [...fromFiles, ...vaultAgents];
-  const allSlugs = new Set(all.map((a) => a.slug));
-
-  const agentsMdPath = agentsMdFile(root);
-  if (!fs.existsSync(agentsMdPath)) return all;
-
-  const mdText = fs.readFileSync(agentsMdPath, "utf8");
-  if (mdText.includes("Auto-generated from .apc/agents/")) return all;
-
-  // Legacy hand-written AGENTS.md
-  const legacy = parseAgentsMd(mdText)
-    .filter((a) => !allSlugs.has(a.slug))
-    .map((a) => ({ ...a, source: "legacy" }));
-  return [...all, ...legacy];
+  return [...fromFiles, ...vaultAgents];
 }
 
 // ---------------------------------------------------------------------------

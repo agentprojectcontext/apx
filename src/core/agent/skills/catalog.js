@@ -7,7 +7,7 @@
 //      condensed description) is reached via the `list_skills` tool.
 //   2. The `list_skills` tool itself renders descriptions using
 //      condenseSkillDescription() — keeps the trigger-list tails out of the
-//      tool result, same way the legacy catalog did.
+//      tool result.
 //
 // Skill descriptions are authored for Claude Code's skill matcher, so many end
 // with verbose "Trigger on: …" / "Activate when …" / "Activa cuando…" lists.

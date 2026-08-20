@@ -169,7 +169,8 @@ const DEFAULT_CONFIG = {
       window_hours: 6,   // only surface channels touched within this window
       max_lines: 3,      // hard cap on bullets (token guard)
     },
-    // Legacy flat keys (still honored as an ollama override for old configs).
+    // Flat Ollama embedding defaults; embed-engines/index.js folds these into
+    // an `embeddings.ollama` block when the config has no explicit one.
     embed_model: "nomic-embed-text",  // Ollama embeddings model
     embed_base_url: "",               // "" → falls back to engines.ollama.base_url
     embed_timeout_ms: 4000,
@@ -354,36 +355,15 @@ export function writeConfig(cfg) {
   try { fs.chmodSync(CONFIG_PATH, 0o600); } catch {}
 }
 
-// Normalise `model_fallback` to the new format (`models` as an ordered array
-// of "<provider>:<model>" strings). Legacy configs that use `order + models{}`
-// are converted in place; the result is what the runtime sees, but
-// writeConfig() preserves whichever shape the user has on disk unless we
-// rewrite it explicitly elsewhere.
+// Normalise `model_fallback`: `models` is an ordered array of
+// "<provider>:<model>" strings. Anything else falls back to the defaults.
 function mergeModelFallback(raw) {
   const def = DEFAULT_CONFIG.super_agent.model_fallback;
   const src = raw && typeof raw === "object" ? raw : {};
 
-  // Resolve `models` to an array. Three input shapes:
-  //   1. array of strings → keep, filtered to "<provider>:<model>".
-  //   2. legacy object + (optional) order → walk order, collect values.
-  //   3. nothing → use defaults.
-  let models;
-  if (Array.isArray(src.models)) {
-    models = src.models
-      .filter((m) => typeof m === "string" && m.includes(":"))
-      .map(String);
-  } else if (src.models && typeof src.models === "object") {
-    const order = Array.isArray(src.order)
-      ? src.order.map(String)
-      : ["ollama", "openrouter", "groq"];
-    models = [];
-    for (const p of order) {
-      const m = src.models[p.toLowerCase()];
-      if (typeof m === "string" && m.includes(":")) models.push(m);
-    }
-  } else {
-    models = [...def.models];
-  }
+  const models = Array.isArray(src.models)
+    ? src.models.filter((m) => typeof m === "string" && m.includes(":")).map(String)
+    : [...def.models];
 
   return {
     enabled: typeof src.enabled === "boolean" ? src.enabled : def.enabled,
@@ -395,31 +375,12 @@ function mergeModelFallback(raw) {
   };
 }
 
-// Migrate legacy `telegram.bot_token` / `telegram.chat_id` (root level) into
-// `telegram.channels[]`. These root-level fields were removed once channels[]
-// became the source of truth; we keep this helper around so existing configs
-// upgrade in place without losing credentials.
+// `telegram.channels[]` is the source of truth for credentials. A bare
+// `bot_token`/`chat_id` at the root is not a supported shape and is dropped.
 function mergeTelegram(rawTelegram) {
   const src = rawTelegram || {};
-  const { bot_token: legacyBotToken, chat_id: legacyChatId, channels: rawChannels, ...rest } = src;
-  let channels = Array.isArray(rawChannels) ? rawChannels : [];
-
-  const hasLegacy =
-    (typeof legacyBotToken === "string" && legacyBotToken.length > 0) ||
-    (typeof legacyChatId === "string" && legacyChatId.length > 0);
-
-  if (hasLegacy && channels.length === 0) {
-    // Build a single "default" channel from the legacy fields and drop them.
-    channels = [
-      {
-        name: "default",
-        bot_token: legacyBotToken || "",
-        chat_id: legacyChatId || "",
-      },
-    ];
-    // eslint-disable-next-line no-console
-    console.warn("[apx] migrated legacy telegram.bot_token/chat_id into channels[0]");
-  }
+  const { bot_token: _dropBotToken, chat_id: _dropChatId, channels: rawChannels, ...rest } = src;
+  const channels = Array.isArray(rawChannels) ? rawChannels : [];
 
   return {
     ...DEFAULT_CONFIG.telegram,

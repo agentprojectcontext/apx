@@ -17,7 +17,6 @@ import { Slot as HostSlot } from "./slots"
 import type { useToast } from "../ui/toast"
 import { InstallationVersion } from "@opencode-ai/core/installation/version"
 import * as Keymap from "../keymap"
-import { createCommandShim } from "./command-shim"
 
 type RouteEntry = {
   key: symbol
@@ -206,8 +205,6 @@ export function createTuiApi(input: Input): TuiPluginApi {
   }
   return {
     app: appApi(),
-    // Keep deprecated `api.command` working for v1 plugins; remove in v2.
-    command: createCommandShim(input.keymap, input.dialog, input.tuiConfig.keybinds),
     keys: {
       formatSequence(parts) {
         return Keymap.formatKeySequence(parts, input.tuiConfig)

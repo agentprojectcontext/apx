@@ -15,7 +15,6 @@
 //     "model": "",                 // override model; leave empty = super-agent.model
 //     "max_history": 20            // turns to keep in context
 //   }
-// (legacy "overlay" block is still read as a fallback)
 
 import {
   broadcastDesktop,
@@ -35,7 +34,7 @@ export default {
   id: "desktop",
 
   init({ projects, config, log, plugins }) {
-    const cfg = config.desktop || config.overlay || {};
+    const cfg = config.desktop || {};
     const enabled = cfg.enabled !== false; // enabled by default
 
     // In-memory conversation history per connected client.

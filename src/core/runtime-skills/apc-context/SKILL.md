@@ -112,17 +112,22 @@ Do not store:
 
 ## Normalization
 
-If agent formats are broken or use legacy fields (role, skills in YAML), offer to normalize:
+`role`, `model`, `language`, `description`, `skills` and `tools` in YAML frontmatter
+are the canonical shape — this is exactly what `apx agent add` writes. Do NOT strip
+them.
 
 ```yaml
 ---
 name: agent-name
+role: what this agent is for
 model: inherit
 description: Semantic activation trigger
+skills: skill-a, skill-b
 ---
 ```
 
-Identify and fix inconsistencies in `model` (use technical IDs or `inherit`) and ensure `description` is present for semantic activation.
+Only fix genuine breakage: frontmatter that does not parse, a `model` that is neither
+a technical ID nor `inherit`, or a missing `description` (semantic activation needs it).
 
 ## Sessions
 

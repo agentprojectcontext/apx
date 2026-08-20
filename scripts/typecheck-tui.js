@@ -17,7 +17,7 @@ import { fileURLToPath } from "node:url";
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const PROJECT = "src/interfaces/tui";
-const BASELINE = 176;
+const BASELINE = 174;
 
 const res = spawnSync(
   "npx",

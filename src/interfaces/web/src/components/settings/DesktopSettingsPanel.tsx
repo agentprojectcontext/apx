@@ -39,9 +39,8 @@ export function DesktopSettingsPanel() {
       theme?: "light" | "dark" | "system";
       position?: "left" | "center" | "right";
     };
-    overlay?: { shortcut?: string }; // legacy fallback
   };
-  const savedShortcut = cfgView.desktop?.shortcut || cfgView.overlay?.shortcut || DEFAULT_SHORTCUT;
+  const savedShortcut = cfgView.desktop?.shortcut || DEFAULT_SHORTCUT;
   const enabled  = cfgView.desktop?.enabled !== false;
   // Default to "system" so the window follows the OS appearance until the
   // user explicitly pins light/dark.

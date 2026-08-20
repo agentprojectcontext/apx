@@ -29,7 +29,7 @@ beforeEach(() => clearRegisteredSecretValues());
 // collectSecretValues
 // ---------------------------------------------------------------------------
 
-test("collectSecretValues — engine keys, tts keys, telegram channel + legacy tokens", () => {
+test("collectSecretValues — engine keys, tts keys, telegram channel tokens", () => {
   const cfg = {
     engines: {
       anthropic: { api_key: "sk-ant-abcdef123456" },
@@ -38,7 +38,6 @@ test("collectSecretValues — engine keys, tts keys, telegram channel + legacy t
     },
     voice: { tts: { elevenlabs: { api_key: "el-key-11223344" } } },
     telegram: {
-      bot_token: "111111:legacy-root-token", // pre-migration shape
       channels: [
         { name: "default", bot_token: "222222:AAAA-channel-token" },
         { name: "broken", bot_token: "" },
@@ -51,7 +50,6 @@ test("collectSecretValues — engine keys, tts keys, telegram channel + legacy t
   assert.ok(values.includes("sk-openai-987654"));
   assert.ok(values.includes("el-key-11223344"));
   assert.ok(values.includes("222222:AAAA-channel-token"));
-  assert.ok(values.includes("111111:legacy-root-token"));
   assert.ok(!values.includes(""));
 });
 

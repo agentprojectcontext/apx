@@ -3,6 +3,7 @@ import fetch from "node-fetch";
 import { readIdentity, writeIdentity } from "#core/identity/index.js";
 import { resolveProvider, getAdapter } from "#core/engines/index.js";
 import { canNudge, recordNudge, nudgeFeedbackKeyboard } from "#core/nudge/index.js";
+import { resolveChannels, resolveBotToken, resolveChatId } from "#core/channels/telegram/helpers.js";
 
 const WAKEUP_COOLDOWN_MS = 30 * 60 * 1000; // 30 min
 
@@ -13,7 +14,7 @@ const ISO_TO_LANGUAGE = {
 };
 
 // Exported for unit testing.
-// Priority: config.user.language (ISO 639-1) → identity.language (legacy) → system LANG env.
+// Priority: config.user.language (ISO 639-1) → identity.language → system LANG env.
 export function detectLanguage(identity, config) {
   const cfgLang = config?.user?.language;
   if (cfgLang) return ISO_TO_LANGUAGE[cfgLang.toLowerCase()] || cfgLang;
@@ -67,8 +68,12 @@ export async function triggerWakeup(config, log) {
   const identity = readIdentity();
   if (!identity) return;
 
-  const tg = config.telegram;
-  if (!tg?.enabled || !tg?.bot_token || !tg?.chat_id) return;
+  if (!config?.telegram?.enabled) return;
+  const channel = resolveChannels(config)[0];
+  if (!channel) return;
+  const botToken = resolveBotToken(channel);
+  const chatId = resolveChatId(channel);
+  if (!botToken || !chatId) return;
 
   // Cooldown check
   if (identity.last_wakeup) {
@@ -91,10 +96,10 @@ export async function triggerWakeup(config, log) {
   try {
     const message = await generateMessage(identity, config);
     const text = message || `${identity.agent_name} online. Ready.`;
-    await sendTelegram(tg.bot_token, tg.chat_id, text, nudgeFeedbackKeyboard(gate.nudge_id));
-    recordNudge(gate, { chat_id: tg.chat_id, preview: text });
+    await sendTelegram(botToken, chatId, text, nudgeFeedbackKeyboard(gate.nudge_id));
+    recordNudge(gate, { chat_id: chatId, preview: text });
     writeIdentity({ last_wakeup: new Date().toISOString() });
-    log?.(`wakeup: sent to Telegram chat ${tg.chat_id}`);
+    log?.(`wakeup: sent to Telegram chat ${chatId}`);
   } catch (e) {
     log?.(`wakeup: failed — ${e.message}`);
   }

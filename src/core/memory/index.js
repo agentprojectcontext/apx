@@ -64,8 +64,8 @@ export function memoryEnabled(config) {
 
 // The embeddings provider is resolved from config.memory.embeddings inside
 // embedOne/embedBatch via the engine registry — so all we forward here is the
-// live config. (Legacy memory.embed_* keys are still honored by the registry's
-// back-compat shim in embed-engines/index.js.)
+// live config. (The flat memory.embed_* defaults are folded into a synthetic
+// ollama block by embed-engines/index.js.)
 function embedOptsFromConfig(config) {
   return { globalConfig: config };
 }

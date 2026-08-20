@@ -38,7 +38,6 @@ import { INTERNAL_TUI_PLUGINS, type InternalTuiPlugin } from "./internal"
 import { setupSlots, Slot as View } from "./slots"
 import type { HostPluginApi, HostSlots } from "./slots"
 import { ConfigPlugin } from "@/config/plugin"
-import { createCommandShim } from "./command-shim"
 
 ensureRuntimePluginSupport({ additional: keymapRuntimeModules })
 
@@ -576,8 +575,6 @@ function pluginApi(runtime: RuntimeState, plugin: PluginEntry, scope: PluginScop
 
   return {
     app: api.app,
-    // Keep deprecated `api.command` working for v1 plugins; remove in v2.
-    command: createCommandShim(keymap, api.ui.dialog, api.tuiConfig.keybinds),
     keys: api.keys,
     keymap,
     route,

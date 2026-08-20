@@ -5,7 +5,6 @@ import path from "node:path";
 import Database from "better-sqlite3";
 import {
   appendMessageToFs,
-  parseDayFile,
   rebuildMessagesFromFs,
   appendMessage,
 } from "#core/stores/messages.js";
@@ -151,21 +150,6 @@ test("actor_kind — inferred from actor_id when not given (superagent vs agent)
   assert.equal(rows[2].actor_kind, "user");
 });
 
-test("parseDayFile (legacy md) still works for backward compat", () => {
-  const text = `# Messages — 2026-05-08
-
-## 2026-05-08T10:00:00Z  telegram  in  @user
-hola
-<!-- meta: {"chat_id":99} -->
-`;
-  const rows = parseDayFile(text);
-  assert.equal(rows.length, 1);
-  assert.equal(rows[0].body, "hola");
-  assert.equal(rows[0].type, "user");
-  assert.equal(rows[0].actor_id, "@user");
-  assert.equal(rows[0].meta.chat_id, 99);
-});
-
 test("getRecentTelegramTurns — pulls per chat_id in chronological order", async () => {
   const { getRecentTelegramTurns } = await import("#core/stores/messages.js");
   const root = makeTempProject({ agents: [{ slug: "sofia" }] });
@@ -257,41 +241,6 @@ test("getRecentTelegramTurns — empty when no chat_id", async () => {
     assert.deepEqual(getRecentTelegramTurns(db, {}), []);
   } finally {
     db.close();
-  }
-});
-
-test("rebuildMessagesFromFs reads BOTH .jsonl and .md (legacy) and merges by ts", async () => {
-  const { rebuildMessagesFromFs, appendMessage } = await import("#core/stores/messages.js");
-  const root = makeTempProject({ agents: [{ slug: "sofia" }] });
-  const db = freshDb();
-  try {
-    // Write a legacy .md by hand
-    const dir = path.join(root, "messages");
-    fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(
-      path.join(dir, "2026-05-07.md"),
-      `# Messages — 2026-05-07\n\n## 2026-05-07T10:00:00Z  telegram  in  @old\nlegacy\n<!-- meta: {"chat_id":1} -->\n`
-    );
-    // Write modern .jsonl via appendMessage
-    appendMessage({
-      projectRoot: root, db,
-      channel: "telegram", direction: "in", author: "@new", body: "moderno",
-      ts: "2026-05-08T10:00:00Z", meta: { chat_id: 1 },
-    });
-
-    // Wipe SQL, rebuild
-    db.exec("DELETE FROM messages");
-    const r = rebuildMessagesFromFs(db, root);
-    assert.equal(r.count, 2, "merged legacy + modern");
-
-    const bodies = db
-      .prepare("SELECT body FROM messages ORDER BY ts")
-      .all()
-      .map((r) => r.body);
-    assert.deepEqual(bodies, ["legacy", "moderno"]);
-  } finally {
-    db.close();
-    cleanupTempProject(root);
   }
 });
 

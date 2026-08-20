@@ -275,7 +275,7 @@ export async function handleUpdate(self, u) {
 
     // Super-agent is ALWAYS active on Telegram: respond_with_engine === false
     // used to silently drop user messages, which looked to the user like the
-    // bot ignored them. Honour the legacy flag only as a soft hint (skip the
+    // bot ignored them. Honour the flag only as a soft hint (skip the
     // routed-agent shortcut so we fall straight to super-agent) but never let
     // it short-circuit the whole reply. To genuinely silence the bot, disable
     // the channel entirely (telegram.enabled = false in config).
@@ -346,7 +346,7 @@ export async function handleUpdate(self, u) {
     // Display name for the super-agent persona on this channel (from identity.json).
     const agentDisplay = resolveAgentName(self.globalConfig);
 
-    // Try the project's chosen agent first (skipped if the legacy
+    // Try the project's chosen agent first (skipped when the
     // respond_with_engine === false hint asked to bypass routed agents).
     const routeSlug = skipRoutedAgent ? null : self.channel.route_to_agent;
     if (routeSlug) {

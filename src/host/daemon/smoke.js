@@ -15,8 +15,7 @@ import { readAgents } from "#core/apc/parser.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Smoke now lives at src/host/daemon/smoke.js — one level deeper than the
-// legacy src/daemon/smoke.js. Adjust the example-project lookup accordingly:
+// Example-project lookup, relative to src/host/daemon/:
 //   ../../../examples/my-first-project           ← repo-local examples (if any)
 //   ../../../../apc/examples/my-first-project    ← sibling apc/ repo
 const EXAMPLE_CANDIDATES = [

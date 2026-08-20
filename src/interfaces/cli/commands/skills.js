@@ -12,7 +12,7 @@ import {
   installGlobalSkills,
   listBundledSkills,
   listEngineSkills,
-  listLegacyPruneSlugs,
+  listRetiredSkillSlugs,
 } from "#core/apc/scaffold.js";
 import {
   ensureIndex,
@@ -174,7 +174,7 @@ export async function cmdSkillsSync(args) {
     for (const k of ["created", "updated", "unchanged", "pruned"]) {
       if (counts[k]) parts.push(`${counts[k]} ${k}`);
     }
-    const tag = entries[0]?.scope === "legacy" ? " [legacy]" : "";
+    const tag = entries[0]?.scope === "retired" ? " [retired]" : "";
     console.log(`  ${slug.padEnd(sw)}${tag.padEnd(10)}  ${parts.join(", ")}`);
   }
   console.log("");
@@ -251,7 +251,7 @@ export async function cmdSkillsStatus() {
 
   const engineSet = listEngineSkills();        // what we publish to engines
   const bundled = listBundledSkills();          // what stays in-repo for the super-agent
-  const legacy = listLegacyPruneSlugs();        // slugs APX shipped historically — pruned on sync
+  const retired = listRetiredSkillSlugs();      // slugs APX shipped historically — pruned on sync
 
   console.log(
     `Engine skill set (replicated to global dirs): ${engineSet.length} ` +
@@ -266,7 +266,7 @@ export async function cmdSkillsStatus() {
     { label: "Codex",                       dir: path.join(os.homedir(), ".codex",  "skills") },
     { label: "Antigravity / others",        dir: path.join(os.homedir(), ".agents", "skills") },
   ];
-  const allSlugs = [...engineSet.map((s) => s.slug), ...legacy];
+  const allSlugs = [...engineSet.map((s) => s.slug), ...retired];
   const sw = Math.max(...allSlugs.map((s) => s.length), 8);
   for (const { label, dir } of GLOBAL_DIRS) {
     console.log(`\n  ${label} — ${dir.replace(os.homedir(), "~")}`);
@@ -276,12 +276,12 @@ export async function cmdSkillsStatus() {
       const state = present ? "✓ installed" : "✗ MISSING (run `apx skills sync`)";
       console.log(`    ${slug.padEnd(sw)}             ${state}`);
     }
-    const stale = legacy.filter((slug) =>
+    const stale = retired.filter((slug) =>
       fs.existsSync(path.join(dir, slug, "SKILL.md"))
     );
     if (stale.length) {
       for (const slug of stale) {
-        console.log(`    ${slug.padEnd(sw)} [legacy]    ⚠ stale (run \`apx skills sync\` to prune)`);
+        console.log(`    ${slug.padEnd(sw)} [retired]   ⚠ stale (run \`apx skills sync\` to prune)`);
       }
     }
   }
@@ -481,7 +481,7 @@ export async function cmdSkillsInspector(args) {
   if (sub === "disable" || sub === "off") {
     ensureInspectorBlock(cfg).skills.inspector.enabled = false;
     writeConfig(cfg);
-    console.log("Skill Inspector disabled. Falling back to the legacy slug hint + passive RAG nudge.");
+    console.log("Skill Inspector disabled. Falling back to the static slug hint + passive RAG nudge.");
     return;
   }
   if (sub === "set") {

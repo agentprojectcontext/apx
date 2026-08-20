@@ -154,9 +154,6 @@ export function tui(input: {
   config: TuiConfig.Resolved
   onSnapshot?: () => Promise<string[]>
   directory?: string
-  fetch?: typeof fetch
-  headers?: RequestInit["headers"]
-  events?: unknown
 }) {
   // promise to prevent immediate exit
   // oxlint-disable-next-line no-async-promise-executor -- intentional: async executor used for sequential setup before resolve
@@ -211,9 +208,6 @@ export function tui(input: {
                           agent={input.agent}
                           model={input.model}
                           directory={input.directory}
-                          fetch={input.fetch}
-                          headers={input.headers}
-                          events={input.events}
                         >
                           <ProjectProvider>
                             <ApxSyncProvider>

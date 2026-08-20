@@ -37,9 +37,8 @@ function getDotted(obj, dotted) {
 
 /**
  * Walk a config object and return every secret VALUE it holds: all
- * SECRET_PATHS entries, every telegram channel bot_token, and the legacy
- * root telegram.bot_token (pre-migration configs). Deduped; empty and
- * too-short strings dropped.
+ * SECRET_PATHS entries and every telegram channel bot_token. Deduped; empty
+ * and too-short strings dropped.
  */
 export function collectSecretValues(cfg) {
   const out = new Set();
@@ -56,7 +55,6 @@ export function collectSecretValues(cfg) {
         if (isRegistrable(ch?.bot_token)) out.add(ch.bot_token);
       }
     }
-    if (isRegistrable(cfg?.telegram?.bot_token)) out.add(cfg.telegram.bot_token);
   } catch {
     // collection must never break the caller — return what we got so far
   }

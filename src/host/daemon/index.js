@@ -49,7 +49,7 @@ const PKG = JSON.parse(
 // process.stdout.write reaches the file once. In foreground (npm start), it
 // still prints to the console. No double-append.
 //
-// Beyond the legacy stdout sink we also fan out every line to the unified
+// Beyond the stdout sink we also fan out every line to the unified
 // ~/.apx/logs/apx.log via core/logging.js so `apx log` and `apx log -f`
 // see everything that any plugin/module writes through the daemon's log fn.
 //

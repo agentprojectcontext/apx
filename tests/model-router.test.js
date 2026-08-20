@@ -33,11 +33,8 @@ test("resolveActiveModel: skips ollama when down, picks openrouter with key", as
       model: "ollama:gemma4:31b-cloud",
       model_fallback: {
         enabled: true,
-        order: ["ollama", "openrouter", "groq"],
         health_timeout_ms: 100,
-        models: {
-          openrouter: "openrouter:test/model",
-        },
+        models: ["ollama:gemma4:31b-cloud", "openrouter:test/model"],
       },
     },
     engines: {
@@ -145,8 +142,7 @@ test("resolveActiveModel skips Ollama when its configured model isn't pulled", a
       model: "ollama:gemma4:31b-cloud",
       model_fallback: {
         enabled: true,
-        order: ["ollama", "openrouter"],
-        models: { openrouter: "openrouter:openrouter/free" },
+        models: ["ollama:gemma4:31b-cloud", "openrouter:openrouter/free"],
         health_timeout_ms: 200,
       },
     },
@@ -182,7 +178,7 @@ test("resolveActiveModel skips Ollama when its configured model isn't pulled", a
   }
 });
 
-// ── New flat-list format + legacy migration ─────────────────────────────────
+// ── Flat-list format ────────────────────────────────────────────────────────
 
 test("fallbackModels: reads the new array shape directly", async () => {
   const { fallbackModels } = await import("#core/agent/model-router.js");
@@ -212,27 +208,6 @@ test("fallbackModels: array order IS attempt order (no separate `order` needed)"
     "groq:qwen3",
     "openrouter:free",
     "ollama:llama3",
-  ]);
-});
-
-test("fallbackModels: legacy { order, models{} } shape is normalised in order", async () => {
-  const { fallbackModels } = await import("#core/agent/model-router.js");
-  const cfg = {
-    super_agent: {
-      model: "ollama:gemma4:31b",   // ollama gets a fallback to primary
-      model_fallback: {
-        order: ["ollama", "groq", "openrouter"],
-        models: {
-          openrouter: "openrouter:openrouter/free",
-          groq: "groq:qwen/qwen3-32b",
-        },
-      },
-    },
-  };
-  assert.deepEqual(fallbackModels(cfg), [
-    "ollama:gemma4:31b",
-    "groq:qwen/qwen3-32b",
-    "openrouter:openrouter/free",
   ]);
 });
 
