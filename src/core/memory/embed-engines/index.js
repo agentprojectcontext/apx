@@ -126,6 +126,43 @@ export async function selectEmbedEngine({ globalConfig, provider }) {
   return { provider: "tf", adapter: tf, engineConfig: providerConfig(globalConfig, "tf") };
 }
 
+/**
+ * The ORDERED list of engines embedOne should try this call, first to last,
+ * before the guaranteed tf floor. Unlike selectEmbedEngine (which picks ONE by
+ * isAvailable), this returns every enabled+available engine in chain order so
+ * embedOne can fall through to the next one when a call FAILS at runtime — a
+ * rate-limited (429) or down provider, not just a keyless one. tf is omitted
+ * here; embedOne appends it as the final fallback.
+ * Returns [{ provider, adapter, engineConfig }].
+ */
+export async function selectEmbedChain({ globalConfig }) {
+  const embedCfg = embeddingsConfig(globalConfig);
+
+  // Single mode: exactly the configured engine, no fallback (matches the mode's
+  // contract; embedOne still drops to tf if that one engine errors).
+  if (resolveMode(embedCfg) === "single") {
+    const id = embedCfg?.provider;
+    if (id && id !== "auto" && ADAPTERS[id]) {
+      return [{ provider: id, adapter: ADAPTERS[id], engineConfig: providerConfig(globalConfig, id) }];
+    }
+  }
+
+  const out = [];
+  for (const id of resolveChainOrder(embedCfg)) {
+    if (id === "tf") continue;
+    if (!isEnabled(embedCfg, id)) continue;
+    const adapter = ADAPTERS[id];
+    if (!adapter) continue;
+    const cfg = providerConfig(globalConfig, id);
+    try {
+      if (await adapter.isAvailable(cfg, globalConfig?.engines)) {
+        out.push({ provider: id, adapter, engineConfig: cfg });
+      }
+    } catch { /* probe failures skip the engine */ }
+  }
+  return out;
+}
+
 /** Discover which engines are configured/available right now. */
 export async function listAvailableEmbedEngines(globalConfig) {
   const embedCfg = embeddingsConfig(globalConfig);

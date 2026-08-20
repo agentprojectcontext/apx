@@ -19,6 +19,7 @@ export interface EmbedProvidersResponse {
   configured_provider: string; // "auto" | <engine id>
   mode: EmbedMode;
   order: string[];
+  active_embedder: string; // embedder tag a real call lands on now ("ollama:…"|"tf")
   engines: EmbedEngineInfo[];
 }
 

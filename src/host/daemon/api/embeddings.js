@@ -24,10 +24,18 @@ export function register(api) {
     try {
       const cfg = readConfig();
       const embedCfg = embeddingsConfig(cfg);
+      // The embedder a real call lands on RIGHT NOW — not the first engine that
+      // merely has a key. This is what makes "gemini has a key but is rate-limited
+      // so we're actually on ollama" visible instead of a lie. One probe per load.
+      let active_embedder = "";
+      try {
+        active_embedder = (await embedOne("probe", { globalConfig: cfg })).embedder;
+      } catch { /* leave blank on probe failure */ }
       res.json({
         configured_provider: embedCfg.provider || "auto",
         mode: resolveMode(embedCfg),
         order: resolveChainOrder(embedCfg),
+        active_embedder,
         engines: await listAvailableEmbedEngines(cfg),
       });
     } catch (e) {

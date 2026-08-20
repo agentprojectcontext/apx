@@ -165,6 +165,13 @@ export async function ensureIndex({ projectPath, embedOpts = {}, onProgress, for
   const embedder = embedderTag(probe);
   const dim = probe.vector.length;
 
+  // Pin every per-skill embed to the engine the probe actually landed on, so a
+  // chain that fell past a rate-limited provider to a working one doesn't
+  // re-probe (and re-fail) the dead provider once per skill.
+  const embedPinned = embedder === "tf"
+    ? { ...embedOpts, forceTf: true }
+    : { ...embedOpts, provider: embedder.split(":")[0] };
+
   const embedderChanged = !force && idxBefore.embedder && idxBefore.embedder !== embedder;
   const items = embedderChanged || force ? {} : structuredClone(idxBefore.items || {});
 
@@ -191,7 +198,7 @@ export async function ensureIndex({ projectPath, embedOpts = {}, onProgress, for
       kept.push(s.slug);
       action = "kept";
     } else {
-      const out = await embedOne(desc, embedOpts);
+      const out = await embedOne(desc, embedPinned);
       const vector = Array.isArray(out?.vector) ? out.vector : [];
       items[s.slug] = {
         slug: s.slug,

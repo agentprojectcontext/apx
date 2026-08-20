@@ -19,7 +19,7 @@
 // NOTE: this module is the leaf the engine adapters import (l2normalize /
 // tfEmbed). It also imports the registry — ESM live bindings make this safe
 // because selectEmbedEngine is only referenced at call time, never at init.
-import { selectEmbedEngine } from "./embed-engines/index.js";
+import { selectEmbedEngine, selectEmbedChain } from "./embed-engines/index.js";
 
 const TF_DIM = 256;
 
@@ -85,35 +85,57 @@ function tfResult(text) {
   return { vector: v, embedder: "tf", dim: v.length };
 }
 
+// The provider id inside an embedder tag ("ollama:nomic-embed-text" → "ollama",
+// "tf" → "tf"). Used to pin a batch to whatever actually answered.
+export function embedderProvider(embedder) {
+  return String(embedder || "tf").split(":")[0];
+}
+
+async function tryEmbed({ adapter, engineConfig }, clean, opts) {
+  const timeoutMs = opts.timeoutMs || engineConfig?.timeout_ms || 4000;
+  const out = await adapter.embed({
+    text: clean,
+    config: engineConfig || {},
+    parentEnginesCfg: opts.globalConfig?.engines,
+    timeoutMs,
+    signal: opts.signal,
+  });
+  if (!out || !Array.isArray(out.vector) || out.vector.length === 0) {
+    throw new Error("empty vector");
+  }
+  return out;
+}
+
 export async function embedOne(text, opts = {}) {
   const clean = String(text || "").slice(0, 8000);
   if (!clean.trim()) return tfResult("");
   if (opts.forceTf) return tfResult(clean);
 
-  let adapter, engineConfig;
-  try {
-    ({ adapter, engineConfig } = await selectEmbedEngine({
-      globalConfig: opts.globalConfig,
-      provider: opts.provider,
-    }));
-  } catch {
-    return tfResult(clean);
+  // Explicit provider (test UI, batch fast-path): exactly that engine, no chain
+  // fallback — tf only if it errors. This keeps the tester honest about one
+  // provider and lets a batch pin to the engine that already won.
+  if (opts.provider && opts.provider !== "auto") {
+    try {
+      const picked = await selectEmbedEngine({ globalConfig: opts.globalConfig, provider: opts.provider });
+      return await tryEmbed(picked, clean, opts);
+    } catch {
+      return tfResult(clean);
+    }
   }
 
-  const timeoutMs = opts.timeoutMs || engineConfig?.timeout_ms || 4000;
-  try {
-    const out = await adapter.embed({
-      text: clean,
-      config: engineConfig || {},
-      parentEnginesCfg: opts.globalConfig?.engines,
-      timeoutMs,
-      signal: opts.signal,
-    });
-    if (!out || !Array.isArray(out.vector) || out.vector.length === 0) return tfResult(clean);
-    return out;
-  } catch {
-    return tfResult(clean);
+  // Chain: walk every enabled+available engine in order and fall through to the
+  // NEXT one whenever a call fails at runtime — a rate-limited (429) or down
+  // provider, not just a keyless one. This is the "falls back to the next if one
+  // fails" the UI promises; before, a 429 on the first engine dropped straight
+  // to the offline tf floor and skipped a working local Ollama behind it.
+  let chain = [];
+  try { chain = await selectEmbedChain({ globalConfig: opts.globalConfig }); } catch { /* → tf */ }
+  for (const engine of chain) {
+    try {
+      return await tryEmbed(engine, clean, opts);
+    } catch { /* try the next engine in the chain */ }
   }
+  return tfResult(clean);
 }
 
 // Embed many strings. Probes the provider once with the first item; if that
@@ -124,9 +146,15 @@ export async function embedBatch(texts, opts = {}) {
   if (list.length === 0) return [];
   const first = await embedOne(list[0], opts);
   const out = [first];
-  const forceTf = first.embedder === "tf" ? { ...opts, forceTf: true } : opts;
+  // Pin the rest to whatever actually answered. Without this, a chain that fell
+  // past a rate-limited gemini to ollama would re-probe (and re-429) gemini for
+  // every remaining item — slow and quota-burning. tf → forceTf; a real engine →
+  // call it directly (no chain re-walk).
+  const restOpts = first.embedder === "tf"
+    ? { ...opts, forceTf: true }
+    : { ...opts, provider: embedderProvider(first.embedder) };
   for (let i = 1; i < list.length; i++) {
-    out.push(await embedOne(list[i], forceTf));
+    out.push(await embedOne(list[i], restOpts));
   }
   return out;
 }

@@ -7,6 +7,8 @@ import { UiSelect } from "../UiSelect";
 import { useToast } from "../Toast";
 import { useGlobalConfig } from "../../hooks/useGlobalConfig";
 import { Embeddings, type EmbedMode } from "../../lib/api/embeddings";
+import { EmbedProviderList } from "./EmbedProviderList";
+import { ModelPicker } from "../chat/ModelPicker";
 import { t } from "../../i18n";
 
 // Memory / RAG embeddings configuration. Mirrors the Voice (TTS/STT) panel:
@@ -42,8 +44,6 @@ interface MemoryCfg {
   compact_fallback_model?: string;
 }
 
-const isMarker = (v: string) => v.startsWith("***");
-
 export function MemoryPanel() {
   const toast = useToast();
   const { config, isLoading, patch } = useGlobalConfig();
@@ -61,6 +61,7 @@ export function MemoryPanel() {
   const provider = providers?.configured_provider || emb.provider || "auto";
   const mode: EmbedMode = providers?.mode || emb.mode || "chain";
   const engines = providers?.engines || [];
+  const order = providers?.order || [];
 
   const apply = async (set: Record<string, unknown>) => {
     setBusy(true);
@@ -100,6 +101,12 @@ export function MemoryPanel() {
     }
   };
 
+  const models: Record<string, string> = {
+    ollama: emb.ollama?.model || "",
+    openai: emb.openai?.model || "",
+    gemini: emb.gemini?.model || "",
+  };
+
   return (
     <div className="grid gap-6 xl:grid-cols-2 xl:items-start">
       <Section
@@ -107,16 +114,6 @@ export function MemoryPanel() {
         description={t("memory_panel.embeddings_desc")}
       >
         <div className="space-y-3">
-          <Field label={t("memory_panel.provider_label")} hint={t("memory_panel.provider_hint")}>
-            <UiSelect
-              value={provider}
-              onChange={(v) => apply({ "memory.embeddings.provider": v })}
-              options={providerOptions()}
-              disabled={busy}
-              className="max-w-xl"
-            />
-          </Field>
-
           <Field label={t("memory_panel.mode_label")} hint={t("memory_panel.mode_hint")}>
             <UiSelect
               value={mode}
@@ -127,13 +124,53 @@ export function MemoryPanel() {
             />
           </Field>
 
-          <div className="flex flex-wrap items-center gap-2 pt-1">
-            {engines.map((e) => (
-              <Badge key={e.id} tone={e.available ? "success" : "muted"}>
-                {e.id}: {e.available ? t("memory_panel.available") : t("memory_panel.unavailable")}
-              </Badge>
-            ))}
-          </div>
+          {mode === "chain" ? (
+            // Ordered fallback chain — reorder, enable/disable, and pick each
+            // engine's embedding model right here. Keys are reused from Engines &
+            // models, so there is nothing to re-declare. The first AVAILABLE
+            // engine wins, so with Ollama down the chain skips to the next one.
+            <Field label={t("memory_panel.chain_label")} hint={t("memory_panel.chain_hint")}>
+              <EmbedProviderList
+                engines={engines}
+                order={order}
+                models={models}
+                busy={busy}
+                onReorder={(next) => apply({ "memory.embeddings.order": next })}
+                onToggleEnabled={(id, enabled) =>
+                  apply({ [`memory.embeddings.${id}.enabled`]: enabled })
+                }
+                onSetModel={(id, model) => apply({ [`memory.embeddings.${id}.model`]: model })}
+              />
+            </Field>
+          ) : (
+            <>
+              <Field label={t("memory_panel.provider_label")} hint={t("memory_panel.provider_hint")}>
+                <UiSelect
+                  value={provider}
+                  onChange={(v) => apply({ "memory.embeddings.provider": v })}
+                  options={providerOptions()}
+                  disabled={busy}
+                  className="max-w-xl"
+                />
+              </Field>
+              {provider !== "auto" && provider !== "tf" && (
+                <Field label={t("memory_panel.model_label")}>
+                  <Input
+                    defaultValue={models[provider] || ""}
+                    placeholder={t("memory_panel.model_ph")}
+                    disabled={busy}
+                    onBlur={(ev) => {
+                      const v = ev.target.value.trim();
+                      if (v !== (models[provider] || "")) apply({ [`memory.embeddings.${provider}.model`]: v });
+                    }}
+                    className="max-w-md font-mono text-sm"
+                  />
+                </Field>
+              )}
+            </>
+          )}
+
+          <p className="pt-1 text-xs text-muted-foreground">{t("memory_panel.keys_reuse_note")}</p>
 
           <div className="flex flex-wrap items-center gap-3 pt-1">
             <Button variant="secondary" onClick={runTest} loading={busy}>
@@ -142,89 +179,14 @@ export function MemoryPanel() {
             <Button variant="secondary" onClick={runReindex} loading={busy}>
               <Database size={14} /> {t("memory_panel.reindex_btn")}
             </Button>
+            {providers?.active_embedder && (
+              <Badge tone={providers.active_embedder === "tf" ? "warning" : "success"}>
+                {t("memory_panel.active_embedder", { embedder: providers.active_embedder })}
+              </Badge>
+            )}
             {testResult && <span className="text-sm text-muted-foreground">{testResult}</span>}
           </div>
         </div>
-      </Section>
-
-      <Section title={t("memory_panel.ollama_title")} description={t("memory_panel.ollama_desc")}>
-        <Field label={t("memory_panel.model_label")}>
-          <Input
-            defaultValue={emb.ollama?.model || "nomic-embed-text"}
-            placeholder="nomic-embed-text"
-            disabled={busy}
-            onBlur={(ev) => {
-              const v = ev.target.value.trim();
-              if (v && v !== emb.ollama?.model) apply({ "memory.embeddings.ollama.model": v });
-            }}
-            className="max-w-md"
-          />
-        </Field>
-        <Field label={t("memory_panel.base_url_label")} hint={t("memory_panel.ollama_base_url_hint")}>
-          <Input
-            defaultValue={emb.ollama?.base_url || ""}
-            placeholder="http://localhost:11434"
-            disabled={busy}
-            onBlur={(ev) => apply({ "memory.embeddings.ollama.base_url": ev.target.value.trim() })}
-            className="max-w-md"
-          />
-        </Field>
-      </Section>
-
-      <Section title={t("memory_panel.openai_title")} description={t("memory_panel.openai_desc")}>
-        <Field label={t("memory_panel.model_label")}>
-          <Input
-            defaultValue={emb.openai?.model || "text-embedding-3-small"}
-            placeholder="text-embedding-3-small"
-            disabled={busy}
-            onBlur={(ev) => {
-              const v = ev.target.value.trim();
-              if (v && v !== emb.openai?.model) apply({ "memory.embeddings.openai.model": v });
-            }}
-            className="max-w-md"
-          />
-        </Field>
-        <Field label={t("memory_panel.api_key_label")} hint={t("memory_panel.openai_key_hint")}>
-          <Input
-            type="password"
-            defaultValue={emb.openai?.api_key || ""}
-            placeholder="sk-…"
-            disabled={busy}
-            onBlur={(ev) => {
-              const v = ev.target.value;
-              if (v && !isMarker(v)) apply({ "memory.embeddings.openai.api_key": v });
-            }}
-            className="max-w-md"
-          />
-        </Field>
-      </Section>
-
-      <Section title={t("memory_panel.gemini_title")} description={t("memory_panel.gemini_desc")}>
-        <Field label={t("memory_panel.model_label")}>
-          <Input
-            defaultValue={emb.gemini?.model || "text-embedding-004"}
-            placeholder="text-embedding-004"
-            disabled={busy}
-            onBlur={(ev) => {
-              const v = ev.target.value.trim();
-              if (v && v !== emb.gemini?.model) apply({ "memory.embeddings.gemini.model": v });
-            }}
-            className="max-w-md"
-          />
-        </Field>
-        <Field label={t("memory_panel.api_key_label")} hint={t("memory_panel.gemini_key_hint")}>
-          <Input
-            type="password"
-            defaultValue={emb.gemini?.api_key || ""}
-            placeholder="AIza…"
-            disabled={busy}
-            onBlur={(ev) => {
-              const v = ev.target.value;
-              if (v && !isMarker(v)) apply({ "memory.embeddings.gemini.api_key": v });
-            }}
-            className="max-w-md"
-          />
-        </Field>
       </Section>
 
       <Section
@@ -266,28 +228,22 @@ export function MemoryPanel() {
           </Field>
         </div>
         <Field label={t("memory_panel.compact_model_label")} hint={t("memory_panel.compact_model_hint")}>
-          <Input
-            defaultValue={mem.compact_model || "ollama:gemma4:31b-cloud"}
-            placeholder="ollama:gemma4:31b-cloud"
-            disabled={busy}
-            onBlur={(ev) => {
-              const v = ev.target.value.trim();
-              if (v && v !== mem.compact_model) apply({ "memory.compact_model": v });
-            }}
-            className="max-w-md"
-          />
+          <div className="w-fit rounded-md border border-border px-2 py-1">
+            <ModelPicker
+              value={mem.compact_model || ""}
+              onChange={(v) => apply({ "memory.compact_model": v })}
+              disabled={busy}
+            />
+          </div>
         </Field>
         <Field label={t("memory_panel.compact_fallback_label")} hint={t("memory_panel.compact_fallback_hint")}>
-          <Input
-            defaultValue={mem.compact_fallback_model || ""}
-            placeholder={t("memory_panel.compact_fallback_ph")}
-            disabled={busy}
-            onBlur={(ev) => {
-              const v = ev.target.value.trim();
-              if (v !== (mem.compact_fallback_model || "")) apply({ "memory.compact_fallback_model": v });
-            }}
-            className="max-w-md"
-          />
+          <div className="w-fit rounded-md border border-border px-2 py-1">
+            <ModelPicker
+              value={mem.compact_fallback_model || ""}
+              onChange={(v) => apply({ "memory.compact_fallback_model": v })}
+              disabled={busy}
+            />
+          </div>
         </Field>
       </Section>
     </div>
