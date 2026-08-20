@@ -613,10 +613,13 @@ export async function runRoutineNow(ctx, routine) {
 
   if (!skip) {
     // The automation header: name / id / memory path / last run / this run,
-    // built once so a single run stamps one instant. Prepended to the prompt so
-    // the model always opens on its identity and the current time natively —
-    // the routine no longer needs an `echo …date…` pre_command feeding
-    // {{pre_output}} just to know what day it is.
+    // built once so a single run stamps one instant. Prepended to the LLM
+    // prompt so the model always opens on its identity and the current time
+    // natively — the routine no longer needs an `echo …date…` pre_command
+    // feeding {{pre_output}} just to know what day it is. It rides on
+    // `spec.prompt` ONLY: a telegram routine's `spec.text` is the message body
+    // sent verbatim to the chat (handleTelegram), so a header there would leak
+    // into the delivered message, not brief a model.
     const header = buildRoutineHeader(routine, {
       storagePath,
       config: ctx.project?.config || ctx.globalConfig,
@@ -632,12 +635,12 @@ export async function runRoutineNow(ctx, routine) {
       ...routine,
       spec: {
         ...routine.spec,
-        // {{pre_output}} works in both the LLM prompt and the telegram text.
-        // The header rides on top of both. Keys the spec does not have stay
-        // absent — a `prompt: undefined` on a shell routine would be a new shape
-        // for every reader downstream.
+        // {{pre_output}} works in both the LLM prompt and the telegram text;
+        // the header rides on the prompt only (see above). Keys the spec does
+        // not have stay absent — a `prompt: undefined` on a shell routine would
+        // be a new shape for every reader downstream.
         ...(typeof routine.spec?.prompt === "string" ? { prompt: prependRoutineHeader(injectPreOutput(routine.spec.prompt, preStdout), header) } : {}),
-        ...(typeof routine.spec?.text === "string" ? { text: prependRoutineHeader(injectPreOutput(routine.spec.text, preStdout), header) } : {}),
+        ...(typeof routine.spec?.text === "string" ? { text: injectPreOutput(routine.spec.text, preStdout) } : {}),
       },
     };
 

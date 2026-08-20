@@ -2,9 +2,11 @@
 //
 // It is the native replacement for the old `echo "…date…"` pre_command +
 // `{{pre_output}}` trick: the runner (core/routines/runner.js) builds this block
-// once per run and puts it at the very top of spec.prompt / spec.text, so the
-// model always opens on who it is, where its memory lives, and what "now" is —
-// without any per-routine shell plumbing.
+// once per run and puts it at the very top of the LLM prompt (spec.prompt), so
+// the model always opens on who it is, where its memory lives, and what "now"
+// is — without any per-routine shell plumbing. It is NOT prepended to a telegram
+// routine's spec.text: that string is the message body sent verbatim to the
+// chat, so a header there would leak into the delivered message.
 //
 // The clock is reported two ways on purpose: machine-friendly (ISO + epoch ms,
 // UTC) so a routine can diff runs deterministically, and human-friendly in the
