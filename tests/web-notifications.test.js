@@ -101,3 +101,14 @@ test("both locales carry every notify string", () => {
 test("they resume on boot without asking a second time", () => {
   assert.match(webSrc("main.tsx"), /startAgentNotifications\(\);/);
 });
+
+test("the switch is reachable from BOTH surfaces, not just the phone", () => {
+  // It shipped in the phone's prefs dialog only — the one surface a person at
+  // a desk never opens. There was a switch and no way to reach it from the
+  // panel where they actually sit, which is the same as not having built it.
+  const desktop = webSrc("components", "settings", "WebPanel.tsx");
+  assert.match(desktop, /NotificationSwitch/, "the desktop settings screen offers it");
+  assert.match(desktop, /t\("notify\.title"\)/);
+  const phone = webSrc("components", "settings", "PanelPrefs.tsx");
+  assert.match(phone, /<NotificationSwitch \/>/, "and so does the phone's dialog");
+});
