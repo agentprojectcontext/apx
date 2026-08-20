@@ -8,8 +8,13 @@ import {
   buildLazyToolsBlock,
   makeToolHandlers,
 } from "#core/agent/tools/registry.js";
+import { TOOL_DEFINITIONS } from "#core/http-tools/catalog.js";
 
 const nameOf = (s) => s?.function?.name || s?.name;
+
+// Derived, not typed in: the browser category grows (browser_snapshot was the
+// twelfth), and a literal here only ever fails the next person to add a tool.
+const BROWSER_TOOL_COUNT = TOOL_DEFINITIONS.filter((t) => t.category === "browser").length;
 
 test("base set is a strict, smaller subset of the full registry", () => {
   assert.ok(BASE_TOOL_SCHEMAS.length < TOOL_SCHEMAS.length);
@@ -51,8 +56,8 @@ test("full channels load everything and produce no lazy block", () => {
 test("activate by category reveals schemas via pending", () => {
   const s = createToolSession("telegram");
   const r = s.activate({ category: "browser" });
-  assert.equal(r.activated.length, 11);
-  assert.equal(s.pending.length, 11);
+  assert.equal(r.activated.length, BROWSER_TOOL_COUNT);
+  assert.equal(s.pending.length, BROWSER_TOOL_COUNT);
   assert.ok(s.activeNames.has("browser_navigate"));
   // pending carries real schemas the agent loop can merge
   assert.ok(s.pending.every((sc) => typeof nameOf(sc) === "string"));
@@ -75,7 +80,7 @@ test("role gate is enforced on the initial set and on activation", () => {
   assert.deepEqual(guest.initialSchemas.map(nameOf).sort(), ["list_tasks", "send_telegram"]);
   const r = guest.activate({ category: "browser" });
   assert.equal(r.activated.length, 0);
-  assert.equal(r.denied.length, 11);
+  assert.equal(r.denied.length, BROWSER_TOOL_COUNT);
   assert.equal(guest.pending.length, 0);
 
   const muted = createToolSession("telegram", { allowedTools: [] });
@@ -88,7 +93,7 @@ test("discover_tools catalog groups not-loaded tools by category", () => {
   const handlers = makeToolHandlers({ projects: { list: () => [] }, globalConfig: {}, toolSession: s });
   const cat = handlers.discover_tools({});
   assert.equal(cat.ok, true);
-  assert.ok(cat.categories.browser.length === 11);
+  assert.ok(cat.categories.browser.length === BROWSER_TOOL_COUNT);
   assert.equal(cat.loaded_count, BASE_TOOL_SCHEMAS.length);
 
   // activation through the handler mutates the session
