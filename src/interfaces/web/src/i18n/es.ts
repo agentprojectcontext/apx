@@ -188,6 +188,16 @@ export const es = {
     empty: "Todavía no hablaste con ningún agente.",
     prefs: "Preferencias",
   },
+  notify: {
+    title:       "Notificaciones",
+    on:          "Notificaciones activadas",
+    off:         "Activar notificaciones",
+    on_hint:     "Cuando un agente escribe y no estás en su conversación, este dispositivo te avisa.",
+    off_hint:    "El panel se actualiza solo y en silencio; con la app en segundo plano no te llega nada.",
+    denied:      "Este navegador está bloqueando las notificaciones del sitio. Habilitalas desde el candado al lado de la dirección y recargá.",
+    insecure:    "Las notificaciones necesitan https. Prendé el túnel con `apx panel tailscale on` y abrí el panel en esa dirección.",
+    unsupported: "Este navegador no tiene notificaciones.",
+  },
   inbox: {
     search: "Buscar",
     no_match: "No coincide nada",
