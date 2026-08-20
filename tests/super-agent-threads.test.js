@@ -6,7 +6,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { listGlobalThreads, readGlobalThread, deleteGlobalThread } from "#core/stores/messages.js";
+import { listGlobalThreads, readGlobalThread, deleteGlobalThread, setGlobalThreadMeta } from "#core/stores/messages.js";
 
 function tmpLedger() {
   return fs.mkdtempSync(path.join(os.tmpdir(), "apx-threads-ledger-"));
@@ -351,4 +351,70 @@ test("threads: a web turn's tool calls survive the reload", () => {
   assert.deepEqual(tool.args, { project: "acme" });
   const assistant = thread.messages.find((m) => m.role === "assistant");
   assert.equal(assistant.tool_summary.total, 1);
+});
+
+// ── Naming and putting away ────────────────────────────────────────────────
+// A channel thread has no file of its own to carry either decision — it IS a
+// day of a channel's ledger, and the rows are the record of what was said, not
+// a place to hang what the reader called it. Both live in one small index
+// beside the ledger, and neither touches a single message.
+
+test("a thread can be named, and the name survives the one it was born with", () => {
+  const base = tmpLedger();
+  writeDay(base, "web", "2026-07-02", [
+    { ts: "2026-07-02T09:00:00Z", channel: "web", direction: "in", type: "user", body: "ping" },
+    { ts: "2026-07-02T09:00:01Z", channel: "web", direction: "out", type: "agent", body: "pong" },
+  ]);
+  assert.equal(listGlobalThreads({ _globalMessagesDir: base })[0].title, "ping");
+
+  setGlobalThreadMeta({ channel: "web", date: "2026-07-02", title: "  deploy   del viernes ", _globalMessagesDir: base });
+  const named = listGlobalThreads({ _globalMessagesDir: base })[0];
+  assert.equal(named.title, "deploy del viernes", "whitespace collapsed, and it wins over the first thing said");
+
+  // The messages are untouched: renaming is a label, not an edit — and the
+  // thread carries its own name to whoever opens it, so a header reached by
+  // deep link does not have to fall back to printing the date.
+  const opened = readGlobalThread({ channel: "web", date: "2026-07-02", _globalMessagesDir: base });
+  assert.equal(opened.messages.length, 2);
+  assert.equal(opened.title, "deploy del viernes");
+
+  // An empty name is not an error — it drops the override and the derived one
+  // comes back, so a rename is always reversible.
+  setGlobalThreadMeta({ channel: "web", date: "2026-07-02", title: "", _globalMessagesDir: base });
+  assert.equal(listGlobalThreads({ _globalMessagesDir: base })[0].title, "ping");
+});
+
+test("archiving takes a thread out of the lists, not off the disk", () => {
+  const base = tmpLedger();
+  writeDay(base, "web", "2026-07-02", [
+    { ts: "2026-07-02T09:00:00Z", channel: "web", direction: "in", type: "user", body: "ping" },
+  ]);
+  writeDay(base, "telegram", "2026-07-03", [
+    { ts: "2026-07-03T09:00:00Z", channel: "telegram", direction: "in", type: "user", body: "hola" },
+  ]);
+
+  setGlobalThreadMeta({ channel: "web", date: "2026-07-02", archived: true, _globalMessagesDir: base });
+  const shown = listGlobalThreads({ _globalMessagesDir: base });
+  assert.deepEqual(shown.map((t) => t.channel), ["telegram"], "archived drops out by default");
+
+  // …but the session picker asks for them, flagged, so there is a way back.
+  const all = listGlobalThreads({ includeArchived: true, _globalMessagesDir: base });
+  assert.equal(all.length, 2);
+  assert.equal(all.find((t) => t.channel === "web").archived, true);
+
+  // The ledger itself never moved.
+  assert.equal(readGlobalThread({ channel: "web", date: "2026-07-02", _globalMessagesDir: base }).messages.length, 1);
+
+  setGlobalThreadMeta({ channel: "web", date: "2026-07-02", archived: false, _globalMessagesDir: base });
+  assert.equal(listGlobalThreads({ _globalMessagesDir: base }).length, 2, "and it comes back");
+});
+
+test("a thread id that is not one is refused before it touches the index", () => {
+  const base = tmpLedger();
+  writeDay(base, "web", "2026-07-02", [
+    { ts: "2026-07-02T09:00:00Z", channel: "web", direction: "in", type: "user", body: "ping" },
+  ]);
+  assert.equal(setGlobalThreadMeta({ channel: "../etc", date: "2026-07-02", title: "x", _globalMessagesDir: base }), false);
+  assert.equal(setGlobalThreadMeta({ channel: "web", date: "not-a-date", title: "x", _globalMessagesDir: base }), false);
+  assert.equal(listGlobalThreads({ _globalMessagesDir: base })[0].title, "ping");
 });

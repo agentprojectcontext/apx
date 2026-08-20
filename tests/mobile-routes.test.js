@@ -40,7 +40,11 @@ test("a session is part of the path, not component state", () => {
   assert.match(routes, /`\$\{key\.channel\}~\$\{key\.threadId\}`/);
 
   const chat = mobile("MobileChat.tsx");
-  assert.match(chat, /const selection = selectionFromParam\(sessionParamValue, row\)/);
+  // Still resolved FROM the URL — just once per URL instead of once per render,
+  // so the inbox moving underneath cannot re-key the chat you are inside (see
+  // web-chat-dock for what that broke).
+  assert.match(chat, /const selection = useResolvedSelection\(sessionParamValue, row\)/);
+  assert.match(chat, /selectionFromParam\(param, row\)/, "and the URL is what resolves it");
   assert.doesNotMatch(chat, /useState<ChatKey>/, "the URL is the state; a second copy would drift from it");
 
   const screen = mobile("MobileScreen.tsx");

@@ -121,7 +121,12 @@ test("stream: the final event exposes the engine separately from the persona", (
 test("web: a reloaded thread splits turns when the answering agent changes", () => {
   assert.match(
     USE_CHAT,
-    /m\.role === "assistant" && actor !== turnActor/,
+    /m\.role === "assistant" && named && actor !== turnActor/,
     "threadToChatMsgs must start a new bubble when the actor changes",
   );
+  // …but only once the current turn HAS an actor. A turn opened by tool rows
+  // does not yet, and the assistant row that follows names it rather than
+  // starting a second bubble — see web-chat-dock for what the split broke.
+  assert.match(USE_CHAT, /const named = turnActor !== undefined;/);
+  assert.match(USE_CHAT, /\} else if \(m\.role === "assistant" && !named\) \{\s*\n\s*turnActor = actor;/);
 });

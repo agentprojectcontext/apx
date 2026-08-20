@@ -282,3 +282,67 @@ test("appendMessage + rebuildMessagesFromFs — wipe SQL and replay survives", (
     cleanupTempProject(root);
   }
 });
+
+// ── Naming and putting away an agent conversation ──────────────────────────
+// The agent side of the same two decisions the channel threads got: the title
+// and the archived flag live in the file's own frontmatter, so the `.md` stays
+// exactly where every id and link already expects it.
+import os from "node:os";
+import { startConversation, appendTurn, listConversations, setConversationMeta, readConversation }
+  from "#core/stores/conversations.js";
+
+function tmpStorage() {
+  return fs.mkdtempSync(path.join(os.tmpdir(), "apx-conv-store-"));
+}
+
+function seedConversation(storagePath, { title } = {}) {
+  const conv = startConversation({ storagePath, agentSlug: "april", engine: "test", channel: "web", title });
+  appendTurn({ filePath: conv.path, role: "user", content: "primera cosa que dije" });
+  appendTurn({ filePath: conv.path, role: "assistant", content: "y la respuesta" });
+  return conv;
+}
+
+test("a conversation can be named, and cleared back to what it was called", () => {
+  const storagePath = tmpStorage();
+  const conv = seedConversation(storagePath);
+  assert.equal(listConversations(storagePath, "april")[0].title, "primera cosa que dije");
+
+  assert.equal(setConversationMeta(storagePath, "april", conv.id, { title: "el hilo del viernes" }), true);
+  assert.equal(listConversations(storagePath, "april")[0].title, "el hilo del viernes");
+  // A label, not an edit: the turns are untouched.
+  assert.equal(readConversation(storagePath, "april", conv.id).turns.length, 2);
+
+  // Twice in a row rewrites the key rather than stacking a second one — two
+  // `title:` lines would win or lose depending on which parser read them.
+  setConversationMeta(storagePath, "april", conv.id, { title: "otro nombre" });
+  const text = fs.readFileSync(conv.path, "utf8");
+  assert.equal(text.match(/^title:/gm).length, 1);
+
+  setConversationMeta(storagePath, "april", conv.id, { title: "" });
+  assert.equal(listConversations(storagePath, "april")[0].title, "primera cosa que dije");
+});
+
+test("archiving a conversation hides it from the lists and keeps the file", () => {
+  const storagePath = tmpStorage();
+  const kept = seedConversation(storagePath);
+  const away = seedConversation(storagePath);
+
+  assert.equal(setConversationMeta(storagePath, "april", away.id, { archived: true }), true);
+  const shown = listConversations(storagePath, "april");
+  assert.deepEqual(shown.map((c) => c.id), [kept.id], "archived drops out by default");
+
+  // The picker asks for them, flagged, so there is a way back to one.
+  const all = listConversations(storagePath, "april", { includeArchived: true });
+  assert.equal(all.length, 2);
+  assert.equal(all.find((c) => c.id === away.id).archived, true);
+  assert.equal(fs.existsSync(away.path), true, "still on disk");
+
+  setConversationMeta(storagePath, "april", away.id, { archived: false });
+  assert.equal(listConversations(storagePath, "april").length, 2, "and it comes back");
+});
+
+test("naming a conversation that is not there says so instead of writing one", () => {
+  const storagePath = tmpStorage();
+  seedConversation(storagePath);
+  assert.equal(setConversationMeta(storagePath, "april", "2099-01-01-99", { title: "x" }), false);
+});

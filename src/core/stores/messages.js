@@ -686,7 +686,61 @@ function keepForProject(rows, project) {
 // `project` narrows to the chats that happened in that project (see
 // keepForProject) — the web sidebar passes it so each project lists its own
 // conversations, with the channel groups inside it left intact.
-export function listGlobalThreads({ channels, project, _globalMessagesDir } = {}) {
+// ── Thread overrides ────────────────────────────────────────────────────────
+// A channel thread has no file of its own to carry metadata: it IS a day of a
+// channel's ledger, and the ledger rows are the record of what was said — not a
+// place to hang what the reader decided to call it. So the two decisions a
+// reader can make about a thread, its name and whether it has been put away,
+// live in one small index beside the ledger. Nothing here changes a single
+// message, and losing this file loses only the names.
+const THREAD_META_FILE = ".threads.json";
+
+function threadMetaPath(base) {
+  return path.join(base, THREAD_META_FILE);
+}
+
+function readThreadMeta(base) {
+  try {
+    return JSON.parse(fs.readFileSync(threadMetaPath(base), "utf8")) || {};
+  } catch {
+    return {};
+  }
+}
+
+/** Key one thread. Channel and date both, because the same date exists in every
+ *  channel and they are different conversations. */
+function threadKey(channel, date) {
+  return `${channel}/${date}`;
+}
+
+/**
+ * Name a thread, or put it away. `title: ""` drops the override and the
+ * derived title (the first thing said) comes back.
+ */
+export function setGlobalThreadMeta({ channel, date, title, archived, _globalMessagesDir } = {}) {
+  if (!CHANNEL_NAME_RE.test(String(channel || ""))) return false;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ""))) return false;
+  const base = _globalMessagesDir || GLOBAL_MESSAGES_DIR;
+  if (!fs.existsSync(base)) return false;
+  const all = readThreadMeta(base);
+  const key = threadKey(channel, date);
+  const entry = { ...(all[key] || {}) };
+  if (title !== undefined) {
+    const clean = String(title).replace(/\s+/g, " ").trim().slice(0, 200);
+    if (clean) entry.title = clean;
+    else delete entry.title;
+  }
+  if (archived !== undefined) {
+    if (archived) entry.archived = true;
+    else delete entry.archived;
+  }
+  if (Object.keys(entry).length) all[key] = entry;
+  else delete all[key];
+  fs.writeFileSync(threadMetaPath(base), JSON.stringify(all, null, 2) + "\n");
+  return true;
+}
+
+export function listGlobalThreads({ channels, project, includeArchived = false, _globalMessagesDir } = {}) {
   const base = _globalMessagesDir || GLOBAL_MESSAGES_DIR;
   if (!fs.existsSync(base)) return [];
   const chans = (channels && channels.length
@@ -696,6 +750,7 @@ export function listGlobalThreads({ channels, project, _globalMessagesDir } = {}
       })
   ).filter((c) => CHANNEL_NAME_RE.test(c));
 
+  const meta = readThreadMeta(base);
   const out = [];
   for (const ch of chans) {
     const dir = path.join(base, ch);
@@ -711,15 +766,19 @@ export function listGlobalThreads({ channels, project, _globalMessagesDir } = {}
         project,
       );
       if (!msgs.length) continue;
+      const over = meta[threadKey(ch, m[1])] || {};
+      if (over.archived && !includeArchived) continue;
       const firstUser = msgs.find((r) => r.type === "user");
-      const title = String((firstUser || msgs[0]).body || "")
+      const derived = String((firstUser || msgs[0]).body || "")
         .replace(/\s+/g, " ")
         .trim()
         .slice(0, 80);
       out.push({
         id: m[1],
         channel: ch,
-        title: title || `${ch} · ${m[1]}`,
+        // What the reader called it wins over the first thing that was said.
+        title: over.title || derived || `${ch} · ${m[1]}`,
+        archived: over.archived || undefined,
         messages: msgs.length,
         started_at: msgs[0].ts,
         last_ts: msgs[msgs.length - 1].ts,
@@ -833,7 +892,22 @@ export function readGlobalThread({ channel, date, project, _globalMessagesDir } 
   // stale link or a bookmarked URL opened an empty pane instead of taking the
   // not-found path. Unscoped reads keep answering for the whole file.
   if (!messages.length && project !== undefined && project !== null && project !== "") return null;
-  return { id: date, channel, messages };
+  // The thread's name travels with it. Deriving it a second time on the client
+  // would put the same rule in two places, and the reader's own name for it —
+  // which only this index knows — would never reach the header at all.
+  const over = readThreadMeta(base)[threadKey(channel, date)] || {};
+  const firstUser = messages.find((m) => m.role === "user");
+  const derived = String((firstUser || messages[0] || {}).content || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 80);
+  return {
+    id: date,
+    channel,
+    title: over.title || derived || `${channel} · ${date}`,
+    archived: over.archived || undefined,
+    messages,
+  };
 }
 
 // Delete one channel+day thread by removing its JSONL file. The global ledger

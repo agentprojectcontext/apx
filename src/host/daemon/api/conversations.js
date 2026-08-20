@@ -7,8 +7,8 @@
 //   POST /projects/:pid/agents/:slug/conversations/:id/compact
 //   POST /projects/:pid/send                                   (agent-to-agent)
 import { readAgents } from "#core/apc/parser.js";
-import { listConversations, readConversation, deleteConversation, shapeConversationMessage } from "#core/stores/conversations.js";
-import { listGlobalThreads, readGlobalThread, deleteGlobalThread } from "#core/stores/messages.js";
+import { listConversations, readConversation, deleteConversation, setConversationMeta, shapeConversationMessage } from "#core/stores/conversations.js";
+import { listGlobalThreads, readGlobalThread, deleteGlobalThread, setGlobalThreadMeta } from "#core/stores/messages.js";
 import { compactConversation } from "#core/stores/conversations-compactor.js";
 import { replyAsAgent } from "#core/agent/a2a/reply.js";
 import { resolveAgentModel } from "#core/agent/agent-model.js";
@@ -28,7 +28,30 @@ export function register(api, { project, config }) {
     if (!p) return;
     if (!agentResolvable(p, req.params.slug))
       return res.status(404).json({ error: "agent not found" });
-    res.json(listConversations(p.storagePath, req.params.slug));
+    res.json(
+      listConversations(p.storagePath, req.params.slug, {
+        includeArchived: req.query.include_archived === "1",
+      }),
+    );
+  });
+
+  // Rename, or put away. Archiving is the smaller decision — the file stays
+  // exactly where it is and only drops out of the lists that offer chats to
+  // resume, so it stays a decision you can take back.
+  api.patch("/projects/:pid/agents/:slug/conversations/:id", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    if (!agentResolvable(p, req.params.slug))
+      return res.status(404).json({ error: "agent not found" });
+    const { title, archived } = req.body || {};
+    if (title === undefined && archived === undefined)
+      return res.status(400).json({ error: "nothing to change" });
+    const ok = setConversationMeta(p.storagePath, req.params.slug, req.params.id, {
+      ...(title !== undefined ? { title } : {}),
+      ...(archived !== undefined ? { archived: !!archived } : {}),
+    });
+    if (!ok) return res.status(404).json({ error: "conversation not found" });
+    res.json({ ok: true });
   });
 
   api.get("/projects/:pid/agents/:slug/conversations/:id", (req, res) => {
@@ -77,7 +100,12 @@ export function register(api, { project, config }) {
   api.get("/projects/:pid/super-agent/threads", (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    res.json(listGlobalThreads({ project: threadScope(p) }));
+    res.json(
+      listGlobalThreads({
+        project: threadScope(p),
+        includeArchived: req.query.include_archived === "1",
+      }),
+    );
   });
 
   api.get("/projects/:pid/super-agent/threads/:channel/:id", (req, res) => {
@@ -99,6 +127,25 @@ export function register(api, { project, config }) {
       channel: req.params.channel,
       date: req.params.id,
       project: threadScope(p),
+    });
+    if (!ok) return res.status(404).json({ error: "thread not found" });
+    res.json({ ok: true });
+  });
+
+  // A channel thread has no file of its own to carry a name, so the two
+  // decisions a reader can make about one — what to call it, whether to put it
+  // away — live in a small index beside the ledger. The messages are untouched.
+  api.patch("/projects/:pid/super-agent/threads/:channel/:id", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const { title, archived } = req.body || {};
+    if (title === undefined && archived === undefined)
+      return res.status(400).json({ error: "nothing to change" });
+    const ok = setGlobalThreadMeta({
+      channel: req.params.channel,
+      date: req.params.id,
+      ...(title !== undefined ? { title } : {}),
+      ...(archived !== undefined ? { archived: !!archived } : {}),
     });
     if (!ok) return res.status(404).json({ error: "thread not found" });
     res.json({ ok: true });
