@@ -140,7 +140,12 @@ test("theme and language are reachable from the screen the phone lands on", () =
 
   // One implementation, two frames around it. Two copies is how the phone ends
   // up offering a theme the desktop panel has since renamed.
-  assert.match(panel, /import \{ LanguageButtons, ThemeButtons \} from "\.\/PanelPrefs"/);
+  //
+  // Matched per control rather than as one literal import list: the shared set
+  // grows (NotificationSwitch joined it), and pinning the list made adding a
+  // control to BOTH frames — the very thing this test asks for — fail the test.
+  assert.match(panel, /import \{[^}]*\bThemeButtons\b[^}]*\} from "\.\/PanelPrefs"/);
+  assert.match(panel, /import \{[^}]*\bLanguageButtons\b[^}]*\} from "\.\/PanelPrefs"/);
   assert.doesNotMatch(panel, /useTheme|setLocale/, "the settings screen owns no copy of the controls");
 });
 
