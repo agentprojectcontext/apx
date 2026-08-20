@@ -99,8 +99,17 @@ export function registerServiceWorker() {
   // working fine — the app is simply not installable there.
   if (!isSecure()) return;
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {
-      /* installability is a bonus, never a requirement to run */
-    });
+    // `updateViaCache: "none"` so the WORKER SCRIPT is never served from the
+    // HTTP cache during an update check. The default lets a browser keep an
+    // old sw.js for up to a day — which is how a device ends up running a
+    // worker that predates, say, the notification-click handler, with a panel
+    // that looks completely up to date. The explicit update() on top asks on
+    // every boot rather than on the browser's own schedule.
+    navigator.serviceWorker
+      .register("/sw.js", { scope: "/", updateViaCache: "none" })
+      .then((reg) => reg.update().catch(() => {}))
+      .catch(() => {
+        /* installability is a bonus, never a requirement to run */
+      });
   });
 }
