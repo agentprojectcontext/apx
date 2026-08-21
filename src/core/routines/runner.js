@@ -37,9 +37,10 @@ import {
   deliverRoutineOutput,
   alreadyServedChannels,
   routineOutputText,
-  emitRoutineToSuperagent,
+  notifyOwnerViaRoby,
   AGENT_WEB_CHAT_ID,
 } from "#core/routines/delivery.js";
+import { recordDelivery, markDelivery, DELIVERY_STATUS } from "#core/stores/deliveries.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { detectSignals, formatSignals, peakSeverity, thresholdsFromConfig } from "#core/routines/signals.js";
 import { readActiveProfile, effectiveProfileConfig } from "#core/profiles/store.js";
@@ -845,12 +846,36 @@ export async function runRoutineNow(ctx, routine) {
       deliveries = await deliverRoutineOutput(runCtx, {
         routine, channels: chatChannels, text: deliveryText, gate, attachments, agent: runByAgent,
       });
+
+      // The delivery queue — one record per thing left waiting for Manu, visible
+      // as it piles up and gets crossed off (see core/stores/deliveries.js).
+      const priority = routine.spec?.anchor === true;
+      const delId = recordDelivery(storagePath, {
+        agent: runByAgent.slug,
+        agentName: runByAgent.name,
+        routine: routine.name,
+        routineId: routine.id || "",
+        notify: runByAgent.notify,
+        priority,
+        project_id: ctx.project?.id ?? null,
+      });
+
+      // Roby tells Manu he has something waiting — immediately for a priority
+      // (anchor) delivery, which crosses the budget; an ordinary one is held when
+      // the budget says so, and the queue shows it withheld rather than lost.
       if (pushChannels.length) {
-        // fyi for an ordinary run, status for an anchor Manu put on the clock —
-        // the a2a tag the watch reads to weigh the interruption.
-        const severity = routine.spec?.anchor === true ? "status" : "fyi";
-        const r = emitRoutineToSuperagent(runCtx, { routine, agent: runByAgent, text: deliveryText, severity });
-        deliveries.push({ channel: "telegram→roby", status: "ok", note: r.note });
+        const r = await notifyOwnerViaRoby(runCtx, {
+          routine, agent: runByAgent, text: deliveryText, notify: runByAgent.notify, gate,
+        });
+        if (r.sent) {
+          markDelivery(storagePath, delId, DELIVERY_STATUS.NOTIFIED, { channel: "telegram" });
+          deliveries.push({ channel: "telegram(roby)", status: "ok", note: r.reason || "roby notified" });
+        } else if (r.held) {
+          markDelivery(storagePath, delId, DELIVERY_STATUS.HELD, { reason: r.reason });
+          deliveries.push({ channel: "telegram(roby)", status: "held", reason: r.reason });
+        } else {
+          deliveries.push({ channel: "telegram(roby)", status: "error", error: r.reason || "not sent" });
+        }
       }
     } else {
       deliveries = await deliverRoutineOutput(runCtx, {

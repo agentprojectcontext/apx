@@ -27,6 +27,7 @@ import { SUPERAGENT_ACTOR_ID, resolveAgentName } from "#core/identity/index.js";
 import { TOOLS } from "#core/agent/tools/names.js";
 import { canNudge, recordNudge } from "#core/nudge/index.js";
 import { conversationPath, startConversation, appendTurn } from "#core/stores/conversations.js";
+import { callEngine } from "#core/engines/index.js";
 
 /**
  * A project agent's ONE persistent web chat with the owner. A routine run by a
@@ -178,46 +179,76 @@ function ledgerAdapter(channel) {
 }
 
 /**
- * Emit a non-Roby agent's routine output TO Roby as an a2a message, instead of
- * pushing it to the owner's phone directly. This is the second half of Manu's
- * rule: "leave a delivery so Roby notifies me that I have something to answer."
+ * Roby tells Manu he has something waiting, on Telegram, in Roby's own words —
+ * the second half of Manu's rule ("leave a delivery so Roby notifies me"), done
+ * without the a2a-chat hack that used to clutter the inbox and leak the
+ * `super_agent` slug into the UI.
  *
- * The message lands on the project's `a2a` channel; the ~20-min a2a sweep
- * (secretary-a2a-sweep) surfaces it as an `a2a_message` signal and Roby decides
- * whether and how to interrupt — honoring the interruption budget and quiet
- * hours, which a direct send bypassed. `severity` maps to the a2a tag the
- * watcher reads (status → normal, fyi → low, blocker → critical).
+ * The gate is checked FIRST, so a delivery the interruption budget would hold
+ * never spends a model turn composing a line nobody receives:
+ *   • a priority/anchor delivery crosses the budget → Roby composes and sends now
+ *     (this is what makes a priority tip arrive "de toque", not in 20 minutes);
+ *   • an ordinary one is held when the budget says so — reported as `held` so the
+ *     delivery queue shows it withheld rather than lost.
  *
- * Written as a single `direction:"in"` row under Roby's ledger: that is the row
- * `detectA2A` reads (it filters to inbound), so one row = one signal.
+ * Roby WRITES the line (never a canned string, per the model-authored rule); a
+ * model that is down falls back to a thin template so the owner is still told.
+ *
+ * @returns {{sent?:boolean, held?:boolean, skipped?:boolean, line?:string, reason?:string}}
  */
-export function emitRoutineToSuperagent(ctx, { routine, agent, text, severity = "status" }) {
-  const project = ctx?.project;
-  if (!project?.logMessage) return { note: "no ledger — could not emit to Roby" };
-  const preview = String(text || "").replace(/\s+/g, " ").trim().slice(0, 280);
-  const body =
-    `${agent.name || agent.slug} le dejó un mensaje a Manu en su chat y espera respuesta.\n\n` +
-    `${preview}\n\n` +
-    `(está en el chat web de ${agent.slug} — avisale a Manu para que responda cuando pueda.)`;
-  project.logMessage({
-    agent_slug: SUPERAGENT_ACTOR_ID,
-    channel: CHANNELS.A2A,
-    direction: "in",
-    type: "agent",
-    actor_id: agent.slug,
-    actor_kind: "agent",
-    author: agent.slug,
-    body,
-    meta: {
-      from: agent.slug,
-      to: SUPERAGENT_ACTOR_ID,
-      severity,
-      via: "routine_delivery",
-      routine: routine.name,
-      routine_id: routine.id || "",
-    },
-  });
-  return { note: `emitted to Roby (a2a, ${severity}) — Roby decides the notify` };
+export async function notifyOwnerViaRoby(ctx, { routine, agent, text, notify, gate = null }) {
+  const tg = ctx?.plugins?.get?.("telegram");
+  if (!tg?.send) return { skipped: true, reason: "telegram plugin not loaded" };
+  const globalConfig = ctx?.globalConfig || {};
+
+  // Gate first — no compose, no send, no tokens when the budget holds it.
+  if (gate) {
+    const decision = canNudge(
+      {
+        kind: `delivery:${agent.slug}`,
+        project_id: gate.project_id ?? null,
+        severity: gate.severity || "normal",
+        unsolicited: gate.unsolicited !== false,
+        scheduled: gate.scheduled === true,
+        channel: CHANNELS.TELEGRAM,
+      },
+      globalConfig,
+    );
+    if (!decision.allowed) return { held: true, reason: decision.reason };
+    const line = await composeRobyNotice({ agent, text, notify, globalConfig });
+    await tg.send({ text: line, meta: { via: "delivery_notify", routine: routine.name, routine_id: routine.id || "", agent: agent.slug } });
+    recordNudge(decision, { preview: line });
+    return { sent: true, line, reason: decision.reason };
+  }
+
+  const line = await composeRobyNotice({ agent, text, notify, globalConfig });
+  await tg.send({ text: line, meta: { via: "delivery_notify", routine: routine.name, routine_id: routine.id || "", agent: agent.slug } });
+  return { sent: true, line };
+}
+
+/** The one Telegram line, written as Roby. Model-authored; a thin template only
+ *  when the model is unavailable, so the owner is never left un-told. */
+async function composeRobyNotice({ agent, text, notify, globalConfig }) {
+  const robyName = resolveAgentName(globalConfig) || "Roby";
+  const who = agent.name || agent.slug;
+  const model = globalConfig?.super_agent?.model;
+  if (model) {
+    try {
+      const r = await callEngine({
+        modelId: model,
+        system:
+          `You are ${robyName}, Manu's personal assistant. The agent "${who}" just left Manu a message ` +
+          `in its own chat and it is waiting for a reply. Write ONE short line (max ~160 characters) to ` +
+          `send Manu on Telegram, in HIS language, telling him he has something to answer from ${who} and ` +
+          `hinting what it is about. Warm and brief. No preamble, no quotes — just the line.`,
+        messages: [{ role: "user", content: `What ${who} left:\n\n${notify || text || ""}` }],
+        config: globalConfig,
+      });
+      const line = String(r.text || "").replace(/\s+/g, " ").trim();
+      if (line) return line;
+    } catch { /* fall through to the template floor */ }
+  }
+  return `${who} te dejó un mensaje${notify ? `: ${notify}` : ""} — respondé en su chat.`;
 }
 
 export const DELIVERY_ADAPTERS = Object.freeze({
