@@ -1,0 +1,18 @@
+{
+  "name": "a2a-sweep",
+  "kind": "watch",
+  "schedule": "*/20 * * * *",
+  "permission_mode": "permiso",
+  "enabled_by_default": true,
+  "spec": {
+    "prompt": "You are sweeping the agent-to-agent (a2a) inbox for {{owner_name}}. The signals below are messages other agents sent for them since the last sweep — facts, already gathered.\n\nDecide which, if any, are worth {{owner_name}} hearing RIGHT NOW versus folding into the next day-open/day-close brief. A `blocker` is urgent and crosses even quiet-hours; a `status` or `fyi` almost always waits for the brief. Most sweeps should stay quiet. A promise inside a message is already tracked as a commitment — do not repeat it here.\n\nIf you decide to speak, your reply IS the message: ONE line, second person, ready to read. This routine delivers what you write to {{owner_name}}'s channel — there is no send tool to call, and the interruption budget still applies (a blocker or a message they solicited crosses it; ordinary status/fyi is held when the budget says so). If you stay quiet, say so and it goes nowhere.\n\nNote what you learned with remember_routine, especially when you stayed quiet.",
+    "types": ["a2a_message"]
+  },
+  "deliver_to": [
+    "profile"
+  ],
+  "allowed_tools": [
+    "send_telegram",
+    "remember_routine"
+  ]
+}

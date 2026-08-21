@@ -538,6 +538,10 @@ async function handleWatch(ctx, routine) {
     signals: signals.length,
     peak_severity: peakSeverity(signals),
     signal_types: [...new Set(signals.map((s) => s.type))],
+    // Solicited when the owner explicitly asked to be told about one of these
+    // (an a2a message tagged solicited). It crosses the interruption budget the
+    // same way a reply does — see the gate in core/routines/delivery.js.
+    solicited: signals.some((s) => s.payload?.solicited === true),
     ...(skipped.length ? { skipped } : {}),
   };
 }
@@ -730,18 +734,34 @@ export async function runRoutineNow(ctx, routine) {
       trace: result?.trace,
     });
     const skipIds = new Set(deliverySkipped.map((d) => d.channel));
+    // The interruption budget, applied to the push channels delivery owns now
+    // that send_telegram is suppressed for a delivering routine. An anchor is
+    // `scheduled` and exempt; a watch/a2a run carries its detector's peak
+    // severity (a blocker is critical and crosses quiet-hours); a run the owner
+    // solicited crosses the budget like a reply. See core/routines/delivery.js.
+    const gate = {
+      severity: result?.peak_severity || "normal",
+      scheduled: routine.spec?.anchor === true,
+      unsolicited: !(result?.solicited === true),
+      project_id: ctx.project?.id ?? null,
+    };
     deliveries = await deliverRoutineOutput(runCtx, {
       routine,
       channels: delivery.channels.filter((c) => !skipIds.has(c)),
       text: deliveryText,
+      gate,
     });
     for (const id of delivery.unknown) {
       deliveries.push({ channel: id, status: "error", error: `unknown delivery channel: ${id}` });
     }
     // Asked to deliver, delivered nowhere, and nothing else was going to carry
     // it — that is the exact shape of failure this feature exists to end, so it
-    // is reported as an error rather than as a run that "went fine".
-    const anyOk = deliveries.some((d) => d.status === "ok") || deliverySkipped.length > 0;
+    // is reported as an error rather than as a run that "went fine". A `held`
+    // delivery is NOT that failure: the budget withheld it on purpose, and the
+    // message survives in the run log to fold into the next brief.
+    const anyOk =
+      deliveries.some((d) => d.status === "ok" || d.status === "held") ||
+      deliverySkipped.length > 0;
     if (!anyOk) {
       status = "error";
       errMsg =

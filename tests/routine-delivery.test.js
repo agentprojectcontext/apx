@@ -53,6 +53,46 @@ test("normalizeDeliverTo — accepts a comma string, trims, lowercases, dedupes"
   assert.deepEqual(normalizeDeliverTo([null, 7, "web"]), ["web"]);
 });
 
+// ── the interruption gate on telegram delivery ────────────────────────────────
+// send_telegram is suppressed for a delivering routine, so the budget that used
+// to gate the push has to live in the telegram adapter. An all-day quiet window
+// makes "held" deterministic without controlling the clock.
+test("delivery gate — quiet-hours holds an ordinary push; scheduled/critical/solicited cross it; gate:null is unconditional", async () => {
+  const routine = { name: "watch", id: "r1" };
+  const quiet = { nudge: { enabled: true, quiet_hours: "00:00-23:59" } };
+  const mk = () => {
+    const sent = [];
+    return {
+      sent,
+      ctx: {
+        globalConfig: quiet,
+        project: { id: "p1" },
+        plugins: { get: (n) => (n === "telegram" ? { send: async (m) => sent.push(m) } : null) },
+      },
+    };
+  };
+  const deliver = (h, gate) =>
+    deliverRoutineOutput(h.ctx, { routine, channels: ["telegram"], text: "hola", gate });
+
+  const ordinary = mk();
+  assert.equal((await deliver(ordinary, { severity: "normal", scheduled: false, unsolicited: true }))[0].status, "held");
+  assert.equal(ordinary.sent.length, 0);
+
+  const anchor = mk();
+  assert.equal((await deliver(anchor, { severity: "normal", scheduled: true, unsolicited: true }))[0].status, "ok");
+  assert.equal(anchor.sent.length, 1);
+
+  const blocker = mk();
+  assert.equal((await deliver(blocker, { severity: "critical", scheduled: false, unsolicited: true }))[0].status, "ok");
+
+  const solicited = mk();
+  assert.equal((await deliver(solicited, { severity: "normal", scheduled: false, unsolicited: false }))[0].status, "ok");
+
+  const ungated = mk();
+  assert.equal((await deliver(ungated, null))[0].status, "ok");
+  assert.equal(ungated.sent.length, 1);
+});
+
 test("resolveDeliveryChannels — no opinion anywhere delivers nowhere", () => {
   // Every routine written before this feature must keep behaving as it did.
   const out = resolveDeliveryChannels({ name: "old" }, {});

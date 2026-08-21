@@ -243,9 +243,10 @@ const PUSH_PATHS = [
   "src/host/daemon/api/telegram.js",        // POST /telegram/notify
   "src/core/agent/tools/handlers/send-telegram.js", // the model's own send tool
   "src/host/daemon/callback-reconciler.js", // late runtime results
+  "src/core/routines/delivery.js",          // routine deliver_to (send_telegram is suppressed, so the gate moved here)
 ];
 
-test("all four outbound push paths import the gate", () => {
+test("all five outbound push paths import the gate", () => {
   for (const rel of PUSH_PATHS) {
     const src = fs.readFileSync(path.join(ROOT, rel), "utf8");
     assert.match(src, /from "#core\/nudge\/index\.js"/, `${rel} does not import the gate`);
@@ -271,6 +272,8 @@ test("no push path outside the audited four calls the telegram plugin's send", (
     "src/host/daemon/plugins/telegram/index.js", // defines it
     "src/core/channels/telegram/reply.js",       // the reply path — solicited by construction
   ]);
+  // delivery.js reaches the plugin through a `tg` alias, which the telegram.send
+  // pattern below does not match; it is in PUSH_PATHS and asserted to gate above.
   const offenders = [];
   for (const file of walk(path.join(ROOT, "src"))) {
     const rel = path.relative(ROOT, file);
