@@ -43,6 +43,8 @@ export type ProfileCheck = {
   label: string;
   detail: string;
   fix: string | null;
+  /** Set on routine-drift checks: the routine a targeted re-adopt would repair. */
+  routine?: string | null;
 };
 
 export type ProfileDoctor = {
@@ -83,4 +85,14 @@ export const ProfilesApi = {
     ),
   uninstall: (id: string) =>
     http.del<{ ok: true; id: string; source: string }>(`/api/profiles/${encodeURIComponent(id)}`),
+  /**
+   * Force the active profile's routines back to the package, past the skips sync
+   * respects. Pass a routine name to re-adopt just that one; omit it for all.
+   * Discards local edits to the affected routines.
+   */
+  readopt: (routine?: string) =>
+    http.post<{ ok: true; id: string; version: string | null; readopted: string[] }>(
+      "/api/profiles/readopt",
+      routine ? { routine } : {}
+    ),
 };

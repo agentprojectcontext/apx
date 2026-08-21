@@ -314,6 +314,12 @@ export const en = {
       no_settings: "This profile has nothing to configure.",
       settings_locked: "Activate the profile to change its settings.",
       doctor_vanilla: "No profile active. APX behaves as it always has.",
+      readopt_all: "Re-sync routines",
+      readopt_one: "Re-adopt",
+      readopt_title: "Re-adopt from package",
+      readopt_confirm:
+        "Reinstalls the affected routines from the package, discarding your local edits and repairing provenance. Routines you did not touch are left alone.",
+      readopt_done: "Routines re-adopted",
     },
 
     nudge: {

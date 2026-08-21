@@ -137,7 +137,10 @@ install. Check the real number with `apx profile show <id>` or
 `GET /api/profiles` · `GET /api/profiles/:id` (includes `preview`) · `GET /api/profiles/doctor` ·
 `POST /api/profiles/install` · `POST /api/profiles/use` · `POST /api/profiles/off` ·
 `POST /api/profiles/sync` (re-applies a package's routines after an update — `apx profile sync`) ·
-`PATCH /api/profiles/config` · `DELETE /api/profiles/:id`
+`PATCH /api/profiles/config` · `DELETE /api/profiles/:id` ·
+`POST /api/profiles/readopt` (force the active profile's routines back to the package, past the
+user_modified/user_owned skips sync respects — `{ routine }` targets one, omit for all; the
+web "Re-sync routines" button. It discards local edits to the affected routines.)
 
 ## Gotchas
 

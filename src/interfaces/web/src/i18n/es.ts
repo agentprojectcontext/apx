@@ -315,6 +315,12 @@ export const es = {
       no_settings: "Este perfil no tiene nada configurable.",
       settings_locked: "Activá el perfil para poder cambiar su configuración.",
       doctor_vanilla: "Sin perfil activo. APX se comporta como siempre.",
+      readopt_all: "Re-sincronizar rutinas",
+      readopt_one: "Re-adoptar",
+      readopt_title: "Re-adoptar del paquete",
+      readopt_confirm:
+        "Vuelve a instalar las rutinas afectadas desde el paquete, descartando tus ediciones locales y arreglando la procedencia. Las que no tocaste no cambian.",
+      readopt_done: "Rutinas re-adoptadas",
     },
 
     nudge: {
