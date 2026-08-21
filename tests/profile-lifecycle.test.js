@@ -555,14 +555,13 @@ test("the bundled secretary package is valid and within its declared budget", as
     assert.ok(tokens <= budget, `PROFILE (${lang}) is ${tokens} tokens, over the ${budget} budget`);
   }
 
-  // The secretary now ships English and Spanish prompts: an owner running APX in
-  // `es` was reading an English chief-of-staff block, which defeated the point of
-  // white-labelling it. Every shipped language must stay under budget (checked in
-  // the loop above) and be declared in the manifest, so a new PROFILE.<lang>.md
-  // added without listing it here — or one that blows the budget — fails loudly
-  // rather than drifting silently.
-  assert.deepEqual(measured.map((m) => m.lang).sort(), ["en", "es"]);
-  assert.deepEqual([...secretary.manifest.languages].sort(), ["en", "es"]);
+  // System prompts ship in English only. The prompt is instructions to the model,
+  // not owner-facing copy: it already tells the agent to reply in the owner's
+  // language, so a translated PROFILE.<lang>.md would be a second prompt to keep
+  // in sync for no behaviour gain. Localization belongs in the UI (schema labels,
+  // doctor) — the panel the owner reads — not in the block the model reads.
+  assert.deepEqual(measured.map((m) => m.lang), ["en"]);
+  assert.deepEqual(secretary.manifest.languages, ["en"]);
 });
 
 test("the secretary's routines carry schedules the scheduler can actually parse", async () => {
