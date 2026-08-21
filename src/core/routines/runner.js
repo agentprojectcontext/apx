@@ -37,6 +37,8 @@ import {
   deliverRoutineOutput,
   alreadyServedChannels,
   routineOutputText,
+  emitRoutineToSuperagent,
+  AGENT_WEB_CHAT_ID,
 } from "#core/routines/delivery.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { detectSignals, formatSignals, peakSeverity, thresholdsFromConfig } from "#core/routines/signals.js";
@@ -114,6 +116,7 @@ async function handleExecAgent(ctx, routine) {
   const agents = readAgents(project.path);
   const agent = agents.find((a) => a.slug === slug);
   if (!agent) throw new Error(`agent ${slug} not found`);
+  const agentName = agent.fields?.Name || agent.name || slug;
   const config = project.config || globalConfig;
   const model = await resolveAgentModel({ agent, config });
   if (!model) throw new Error(`no model for agent ${slug} (no override, no router default)`);
@@ -128,6 +131,14 @@ async function handleExecAgent(ctx, routine) {
   // write its ledger, and the "answer" was a model narrating work it never did.
   // The two states are now distinct: `[]` means "no override, use the agent's
   // declared tools", and refusing tools altogether is something you have to say.
+  // A non-Roby agent that delivers to web gets its OWN persistent web chat
+  // (web-main), written by the delivery adapter. Recording a fresh per-run
+  // routine conversation here too would give it a second, noisier thread — so
+  // for that case keep only the ledger audit and let the web chat be the thread.
+  const isProjectAgent = slug !== SUPERAGENT_ACTOR_ID;
+  const deliversToWeb = (ctx.deliverTo || []).includes(CHANNELS.WEB);
+  const ledgerOnly = isProjectAgent && deliversToWeb;
+
   const noTools = routine.spec?.no_tools === true;
   // Only a NON-EMPTY list overrides the agent's own declared tools.
   const toolOverride =
@@ -235,7 +246,7 @@ async function handleExecAgent(ctx, routine) {
     const blocked = blockedForPermission(trace);
     if (blocked.length) {
       const { conversationId } = recordRoutineTurn(project, routine, {
-        slug, model: answeredOn, prompt, reply: text, trace, usage,
+        slug, model: answeredOn, prompt, reply: text, trace, usage, conversation: !ledgerOnly,
       });
       return {
         status: "error",
@@ -247,21 +258,25 @@ async function handleExecAgent(ctx, routine) {
         reply: text,
         trace,
         agent_slug: slug,
-        conversation_id: conversationId,
+        agent_name: agentName,
+        model: answeredOn,
+        conversation_id: conversationId || (ledgerOnly ? AGENT_WEB_CHAT_ID : null),
         allowed_tools: allowedTools,
       };
     }
   }
 
   const { conversationId } = recordRoutineTurn(project, routine, {
-    slug, model: answeredOn, prompt, reply: text, trace, usage,
+    slug, model: answeredOn, prompt, reply: text, trace, usage, conversation: !ledgerOnly,
   });
   return {
     status: "ok",
     reply: text,
     trace,
     agent_slug: slug,
-    conversation_id: conversationId,
+    agent_name: agentName,
+    model: answeredOn,
+    conversation_id: conversationId || (ledgerOnly ? AGENT_WEB_CHAT_ID : null),
     allowed_tools: allowedTools,
     usage,
     // Images the agent queued with attach_media, for the delivery adapters.
@@ -278,7 +293,7 @@ async function handleExecAgent(ctx, routine) {
  * model, no actor. A scheduled run is the case where the stored record is the
  * only record there will ever be — nobody watched it stream.
  */
-function recordRoutineTurn(project, routine, { slug, model, prompt, reply, trace, usage }) {
+function recordRoutineTurn(project, routine, { slug, model, prompt, reply, trace, usage, conversation = true }) {
   return recordAgentTurn({
     project,
     agentSlug: slug,
@@ -286,6 +301,10 @@ function recordRoutineTurn(project, routine, { slug, model, prompt, reply, trace
     title: routine.name,
     model,
     prompt,
+    // False for a delivering project agent: its user-facing thread is its own
+    // persistent web chat, not a per-run routine conversation. The ledger audit
+    // (usage/model/trace) is still written either way.
+    conversation,
     // The thread says whose clock woke it; the ledger row keeps the bare prompt
     // (it already carries `meta.routine`, and search should match the words the
     // routine actually asked).
@@ -758,13 +777,37 @@ export async function runRoutineNow(ctx, routine) {
       unsolicited: !(result?.solicited === true),
       project_id: ctx.project?.id ?? null,
     };
-    deliveries = await deliverRoutineOutput(runCtx, {
-      routine,
-      channels: delivery.channels.filter((c) => !skipIds.has(c)),
-      text: deliveryText,
-      gate,
-      attachments: Array.isArray(result?.attachments) ? result.attachments : [],
-    });
+    const attachments = Array.isArray(result?.attachments) ? result.attachments : [];
+    const channels = delivery.channels.filter((c) => !skipIds.has(c));
+
+    // Manu's rule: a routine run by an agent that is NOT Roby must post to its
+    // OWN web chat and, instead of pinging the phone itself, leave a delivery
+    // for Roby to notify. So for a project agent we split the configured
+    // channels — the chat channels go to the agent's own thread, and any push
+    // channel (telegram) becomes an a2a emit to Roby, who decides the notify.
+    const runByAgent =
+      result?.agent_slug && result.agent_slug !== SUPERAGENT_ACTOR_ID
+        ? { slug: result.agent_slug, name: result.agent_name || result.agent_slug, model: result.model }
+        : null;
+
+    if (runByAgent) {
+      const pushChannels = channels.filter((c) => c === CHANNELS.TELEGRAM);
+      const chatChannels = channels.filter((c) => c !== CHANNELS.TELEGRAM);
+      deliveries = await deliverRoutineOutput(runCtx, {
+        routine, channels: chatChannels, text: deliveryText, gate, attachments, agent: runByAgent,
+      });
+      if (pushChannels.length) {
+        // fyi for an ordinary run, status for an anchor Manu put on the clock —
+        // the a2a tag the watch reads to weigh the interruption.
+        const severity = routine.spec?.anchor === true ? "status" : "fyi";
+        const r = emitRoutineToSuperagent(runCtx, { routine, agent: runByAgent, text: deliveryText, severity });
+        deliveries.push({ channel: "telegram→roby", status: "ok", note: r.note });
+      }
+    } else {
+      deliveries = await deliverRoutineOutput(runCtx, {
+        routine, channels, text: deliveryText, gate, attachments,
+      });
+    }
     for (const id of delivery.unknown) {
       deliveries.push({ channel: id, status: "error", error: `unknown delivery channel: ${id}` });
     }

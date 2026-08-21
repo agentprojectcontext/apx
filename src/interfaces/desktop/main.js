@@ -896,6 +896,20 @@ function connectEventsFeed() {
       const text = n > 1 ? `${n} mensajes nuevos en ${label}` : `Nuevo mensaje en ${label}`;
       mascotWindow.webContents.send("mascot-notify", { text });
     }
+
+    // Routine deliveries are `direction:"out"` (an agent reaching us), so the
+    // inbound filter above skips them — yet a non-Roby agent leaving a message
+    // in its own web chat is exactly the "you have something to answer" the pet
+    // exists to surface. Bubble one per agent, keyed off the web delivery row.
+    const byAgent = new Set();
+    for (const ev of msg.events) {
+      if (!ev || ev.via !== "routine_delivery" || ev.channel !== "web") continue;
+      if (!ev.agent_slug || ev.agent_slug === "super_agent") continue;
+      byAgent.add(ev.agent_slug);
+    }
+    for (const agent of byAgent) {
+      mascotWindow.webContents.send("mascot-notify", { text: `${agent} te dejó un mensaje` });
+    }
   }
 
   function connect() {

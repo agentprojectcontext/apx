@@ -20,11 +20,22 @@
 // A channel only belongs here when something actually READS what the adapter
 // writes. `deck` is deliberately absent for that reason: writing to a surface
 // nobody reads is a delivery that reports success and reaches no one.
+import fs from "node:fs";
 import { appendGlobalMessage } from "#core/stores/messages.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { SUPERAGENT_ACTOR_ID, resolveAgentName } from "#core/identity/index.js";
 import { TOOLS } from "#core/agent/tools/names.js";
 import { canNudge, recordNudge } from "#core/nudge/index.js";
+import { conversationPath, startConversation, appendTurn } from "#core/stores/conversations.js";
+
+/**
+ * A project agent's ONE persistent web chat with the owner. A routine run by a
+ * non-Roby agent posts its message here (a fixed thread reused across runs)
+ * instead of into the super-agent's dated web channel — so golf-coach keeps a
+ * single ongoing conversation you can reply to, the way Manu asked for. See
+ * `deliverToAgentWebChat`.
+ */
+export const AGENT_WEB_CHAT_ID = "web-main";
 
 /** `deliver_to: ["profile"]` — take the channels from the active agent profile. */
 export const PROFILE_DELIVERY = "profile";
@@ -65,10 +76,77 @@ function mediaMeta(attachments) {
   };
 }
 
+/**
+ * Post a non-Roby agent's routine output into that agent's OWN persistent web
+ * chat — a single reused thread (`AGENT_WEB_CHAT_ID`) attributed to the agent,
+ * NOT the super-agent's dated web channel. This is the rule Manu set: "a routine
+ * run by an agent that is not Roby creates its own chat with me on the web
+ * channel" — golf-coach's tip lands in golf-coach's thread, and stays there to
+ * be answered, run after run.
+ */
+function deliverToAgentWebChat(ctx, { routine, text, attachments, agent }) {
+  const storagePath = ctx?.project?.storagePath;
+  if (!storagePath) throw new Error("no project storagePath for the agent web chat");
+  const author = agent.name || agent.slug;
+  const file = conversationPath(storagePath, agent.slug, AGENT_WEB_CHAT_ID);
+  if (!fs.existsSync(file)) {
+    startConversation({
+      storagePath,
+      agentSlug: agent.slug,
+      engine: agent.model || "",
+      channel: CHANNELS.WEB,
+      title: author,
+      id: AGENT_WEB_CHAT_ID,
+    });
+  }
+  // The thread the panel reopens. Left OPEN on purpose — this is a live chat the
+  // owner replies in, not a closed run record. appendTurn announces it on the
+  // message bus, so an open panel sees the tip arrive without a reload.
+  appendTurn({
+    filePath: file,
+    role: "assistant",
+    content: text,
+    meta: {
+      agent: agent.slug,
+      agent_name: author,
+      ...(agent.model ? { model: agent.model } : {}),
+      via: "routine_delivery",
+      routine: routine.name,
+    },
+  });
+  // The cross-channel ledger row, under the AGENT (search, RAG, the inbox) —
+  // stamped web + agent, never the global super-agent web channel.
+  ctx?.project?.logMessage?.({
+    agent_slug: agent.slug,
+    channel: CHANNELS.WEB,
+    direction: "out",
+    type: "agent",
+    actor_id: agent.slug,
+    actor_kind: "agent",
+    author,
+    body: text,
+    meta: {
+      routine: routine.name,
+      routine_id: routine.id || "",
+      via: "routine_delivery",
+      conversation: AGENT_WEB_CHAT_ID,
+      ...mediaMeta(attachments),
+    },
+  });
+  const n = (attachments || []).filter((a) => a && a.path).length;
+  return { note: `posted to ${agent.slug}'s own web chat${n ? ` (+${n} image${n > 1 ? "s" : ""})` : ""}` };
+}
+
 function ledgerAdapter(channel) {
   return {
     id: channel,
-    async deliver(ctx, { routine, text, attachments }) {
+    async deliver(ctx, { routine, text, attachments, agent }) {
+      // A non-Roby agent's routine goes to ITS own chat, not the super-agent's
+      // channel (the rule above). Only the super-agent's own routines — or a
+      // channel with no agent identity — write the global channel thread.
+      if (channel === CHANNELS.WEB && agent?.slug && agent.slug !== SUPERAGENT_ACTOR_ID) {
+        return deliverToAgentWebChat(ctx, { routine, text, attachments, agent });
+      }
       appendGlobalMessage({
         channel,
         direction: "out",
@@ -90,6 +168,49 @@ function ledgerAdapter(channel) {
       return { note: `written to the ${channel} thread${n ? ` (+${n} image${n > 1 ? "s" : ""})` : ""}` };
     },
   };
+}
+
+/**
+ * Emit a non-Roby agent's routine output TO Roby as an a2a message, instead of
+ * pushing it to the owner's phone directly. This is the second half of Manu's
+ * rule: "leave a delivery so Roby notifies me that I have something to answer."
+ *
+ * The message lands on the project's `a2a` channel; the ~20-min a2a sweep
+ * (secretary-a2a-sweep) surfaces it as an `a2a_message` signal and Roby decides
+ * whether and how to interrupt — honoring the interruption budget and quiet
+ * hours, which a direct send bypassed. `severity` maps to the a2a tag the
+ * watcher reads (status → normal, fyi → low, blocker → critical).
+ *
+ * Written as a single `direction:"in"` row under Roby's ledger: that is the row
+ * `detectA2A` reads (it filters to inbound), so one row = one signal.
+ */
+export function emitRoutineToSuperagent(ctx, { routine, agent, text, severity = "status" }) {
+  const project = ctx?.project;
+  if (!project?.logMessage) return { note: "no ledger — could not emit to Roby" };
+  const preview = String(text || "").replace(/\s+/g, " ").trim().slice(0, 280);
+  const body =
+    `${agent.name || agent.slug} le dejó un mensaje a Manu en su chat y espera respuesta.\n\n` +
+    `${preview}\n\n` +
+    `(está en el chat web de ${agent.slug} — avisale a Manu para que responda cuando pueda.)`;
+  project.logMessage({
+    agent_slug: SUPERAGENT_ACTOR_ID,
+    channel: CHANNELS.A2A,
+    direction: "in",
+    type: "agent",
+    actor_id: agent.slug,
+    actor_kind: "agent",
+    author: agent.slug,
+    body,
+    meta: {
+      from: agent.slug,
+      to: SUPERAGENT_ACTOR_ID,
+      severity,
+      via: "routine_delivery",
+      routine: routine.name,
+      routine_id: routine.id || "",
+    },
+  });
+  return { note: `emitted to Roby (a2a, ${severity}) — Roby decides the notify` };
 }
 
 export const DELIVERY_ADAPTERS = Object.freeze({
@@ -314,7 +435,7 @@ export function alreadyServedChannels({ routine, channels, postSinks, trace }) {
  *
  * @returns {Array<{channel, status, note?, error?}>}
  */
-export async function deliverRoutineOutput(ctx, { routine, channels, text, gate = null, attachments = [] }) {
+export async function deliverRoutineOutput(ctx, { routine, channels, text, gate = null, attachments = [], agent = null }) {
   const out = [];
   for (const id of channels || []) {
     const adapter = DELIVERY_ADAPTERS[id];
@@ -323,7 +444,7 @@ export async function deliverRoutineOutput(ctx, { routine, channels, text, gate 
       continue;
     }
     try {
-      const r = await adapter.deliver(ctx, { routine, text, gate, attachments });
+      const r = await adapter.deliver(ctx, { routine, text, gate, attachments, agent });
       // "held" is not "ok" and not "error": the interruption budget did its job.
       // The caller must not treat it as a failed delivery — the message was
       // deliberately withheld, and the message the model wrote survives in the

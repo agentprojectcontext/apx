@@ -16,6 +16,7 @@ export const CHANNELS = Object.freeze({
   DECK: "deck",               // Mobile cockpit dashboard
   DESKTOP: "desktop",         // Electron capsule (always voice mode)
   CODE: "code",               // `apx code` — terminal coding session
+  A2A: "a2a",                 // Agent-to-agent relay (project-scoped ledger)
   DIRECT: "direct",           // Planned: 1:1 channel that isn't a chat platform
   WHATSAPP: "whatsapp",       // Planned: WhatsApp bot integration
 });
