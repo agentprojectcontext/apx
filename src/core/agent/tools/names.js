@@ -43,6 +43,9 @@ export const TOOLS = Object.freeze({
   // Skills + dynamic tool surface
   LIST_SKILLS:         "list_skills",
   LOAD_SKILL:          "load_skill",
+  READ_SKILL:          "read_skill",
+  ATTACH_MEDIA:        "attach_media",
+  VIEW_MEDIA:          "view_media",
   DISCOVER_TOOLS:      "discover_tools",
 
   // Tasks
@@ -168,6 +171,9 @@ export const NATIVE_TOOL_NAMES = new Set([
   TOOLS.REMEMBER,
   TOOLS.LIST_SKILLS,
   TOOLS.LOAD_SKILL,
+  TOOLS.READ_SKILL,
+  TOOLS.ATTACH_MEDIA,
+  TOOLS.VIEW_MEDIA,
   TOOLS.LIST_TASKS,
   TOOLS.CREATE_TASK,
   TOOLS.RECORD_COMMITMENT,
@@ -221,6 +227,7 @@ export const CODE_PLAN_TOOLS = Object.freeze([
   TOOLS.TAIL_MESSAGES,
   TOOLS.LIST_SKILLS,
   TOOLS.LOAD_SKILL,
+  TOOLS.READ_SKILL,
   TOOLS.LIST_TASKS,
   TOOLS.LIST_COMMITMENTS,
   TOOLS.ASK_QUESTIONS,

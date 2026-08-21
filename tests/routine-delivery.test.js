@@ -289,6 +289,59 @@ test("deliverRoutineOutput — the web adapter writes a readable, project-stampe
   assert.equal(String(mine[0].meta.project_id), "9");
 });
 
+// ── attachments (skill images the agent queued with attach_media) ────────────
+
+function fakeTelegramWithPhoto(sent, shots) {
+  return {
+    get: (n) =>
+      n === "telegram"
+        ? {
+            send: async (m) => { sent.push(m); return { ok: true }; },
+            sendPhoto: async (m) => { shots.push(m); return { ok: true, message_id: 1 }; },
+          }
+        : null,
+  };
+}
+
+test("deliverRoutineOutput — telegram sends the text then each queued photo", async () => {
+  const sent = [];
+  const shots = [];
+  const out = await deliverRoutineOutput(
+    { plugins: fakeTelegramWithPhoto(sent, shots), project: { id: 3 }, globalConfig: {} },
+    {
+      routine: { name: "golf-coach-am", id: "r_1" },
+      channels: ["telegram"],
+      text: "🏌️ Tip: el grip",
+      attachments: [{ id: "grip", path: "/x/grip.jpg", mime: "image/jpeg", caption: "el agarre" }],
+    },
+  );
+  assert.equal(out[0].status, "ok");
+  assert.match(out[0].note, /\+1 photo/);
+  assert.equal(sent.length, 1, "the text always goes first");
+  assert.equal(shots.length, 1);
+  assert.equal(shots[0].photo, "/x/grip.jpg");
+  assert.equal(shots[0].caption, "el agarre");
+});
+
+test("deliverRoutineOutput — the web row carries the attached images in its meta", async () => {
+  await deliverRoutineOutput(
+    { plugins: { get: () => null }, project: { id: 11 }, globalConfig: {} },
+    {
+      routine: { name: "golf-web", id: "r_9" },
+      channels: ["web"],
+      text: "🏌️ Tip: el grip",
+      attachments: [{ id: "grip", path: "/x/grip.jpg", file: "grip.jpg", mime: "image/jpeg", caption: "el agarre" }],
+    },
+  );
+  const rows = readGlobalMessages({ channel: "web", limit: 50 });
+  const mine = rows.filter((r) => r.meta?.routine === "golf-web");
+  assert.equal(mine.length, 1);
+  assert.equal(mine[0].meta.local_path, "/x/grip.jpg", "first image on the flat field");
+  assert.equal(mine[0].meta.media_kind, "photo");
+  assert.equal(mine[0].meta.media.length, 1);
+  assert.equal(mine[0].meta.media[0].caption, "el agarre");
+});
+
 // ── end to end through the runner ───────────────────────────────────────────
 
 function makeCtx(root, { plugins, globalConfig } = {}) {

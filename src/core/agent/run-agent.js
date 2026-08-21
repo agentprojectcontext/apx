@@ -698,6 +698,20 @@ export async function runAgent({
         sideEffects.record(sig, summarizeForTrace(toolResult));
       }
 
+      // A tool may return images for the MODEL to see (view_media loads a skill
+      // photo so the model can reason about a position). Lift them off the
+      // result and onto the tool message as `images`, so the engine sends them
+      // as multimodal parts — and keep the base64 OUT of the trace and the JSON
+      // content the model re-reads as text (a dumped data URI there is both a
+      // token bomb and a worked example of pasting base64 into prose).
+      let toolImages = null;
+      if (toolResult && typeof toolResult === "object" && Array.isArray(toolResult.images)) {
+        const usable = toolResult.images.filter((im) => im && im.data && im.mime);
+        if (usable.length) toolImages = usable;
+        const { images, ...rest } = toolResult;
+        toolResult = { ...rest, ...(toolImages ? { images_attached: toolImages.length } : {}) };
+      }
+
       const traceItem = {
         id: traceId,
         tool: name,
@@ -725,6 +739,9 @@ export async function runAgent({
         tool_call_id: tc.id || `synth_${iter}_${trace.length}`,
         tool_name: name,
         content: JSON.stringify(toolResult),
+        // Multimodal tool results (view_media): carried beside the JSON so a
+        // vision engine renders them as inlineData parts. Text engines drop it.
+        ...(toolImages ? { images: toolImages } : {}),
       });
 
       // Capture turn-ending intents (e.g. ask_questions). The loop cannot

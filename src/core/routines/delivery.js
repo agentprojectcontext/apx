@@ -42,10 +42,33 @@ export const NO_DELIVERY = "none";
  * core/stores/messages.js) — an unstamped row lands in the default workspace,
  * which is not where the routine ran.
  */
+/** The `media` array a delivered row carries, shaped for the thread viewer. */
+function mediaMeta(attachments) {
+  const usable = (attachments || []).filter((a) => a && a.path);
+  if (!usable.length) return {};
+  const media = usable.map((a) => ({
+    kind: "photo",
+    path: a.path,
+    name: a.file || null,
+    mime: a.mime || null,
+    caption: a.caption || "",
+  }));
+  // Also mirror the FIRST image onto the flat fields mediaFromMeta reads, so a
+  // reader that only understands the single-attachment shape still sees one.
+  const first = usable[0];
+  return {
+    media,
+    media_kind: "photo",
+    local_path: first.path,
+    file_name: first.file || null,
+    mime_type: first.mime || null,
+  };
+}
+
 function ledgerAdapter(channel) {
   return {
     id: channel,
-    async deliver(ctx, { routine, text }) {
+    async deliver(ctx, { routine, text, attachments }) {
       appendGlobalMessage({
         channel,
         direction: "out",
@@ -60,9 +83,11 @@ function ledgerAdapter(channel) {
           routine: routine.name,
           routine_id: routine.id || "",
           via: "routine_delivery",
+          ...mediaMeta(attachments),
         },
       });
-      return { note: `written to the ${channel} thread` };
+      const n = (attachments || []).filter((a) => a && a.path).length;
+      return { note: `written to the ${channel} thread${n ? ` (+${n} image${n > 1 ? "s" : ""})` : ""}` };
     },
   };
 }
@@ -74,9 +99,25 @@ export const DELIVERY_ADAPTERS = Object.freeze({
     // runner suppresses it for the run, the way it already suppresses the tool
     // an equivalent post_command would duplicate.
     overlapTools: [TOOLS.SEND_TELEGRAM],
-    async deliver(ctx, { routine, text, gate }) {
+    async deliver(ctx, { routine, text, gate, attachments }) {
       const tg = ctx?.plugins?.get?.("telegram");
       if (!tg?.send) throw new Error("telegram plugin not loaded");
+
+      // Send the queued images AFTER the text lands, each as its own photo. The
+      // text is the message that must always arrive, so a photo that fails to
+      // upload never costs the words. Skipped when the plugin can't send photos.
+      const sendPhotos = async () => {
+        const shots = (attachments || []).filter((a) => a && a.path);
+        if (!shots.length || typeof tg.sendPhoto !== "function") return 0;
+        let sent = 0;
+        for (const a of shots) {
+          try {
+            await tg.sendPhoto({ photo: a.path, caption: a.caption || "", author: "apx" });
+            sent++;
+          } catch { /* one bad image must not sink the rest */ }
+        }
+        return sent;
+      };
 
       // The interruption budget. Suppressing send_telegram for a delivering
       // routine moved this push off the tool that used to gate it, so the gate
@@ -102,15 +143,17 @@ export const DELIVERY_ADAPTERS = Object.freeze({
           text,
           meta: { routine: routine.name, routine_id: routine.id || "", via: "routine_delivery" },
         });
+        const sent = await sendPhotos();
         recordNudge(decision, { preview: text });
-        return { note: `sent to telegram (${decision.reason})` };
+        return { note: `sent to telegram (${decision.reason})${sent ? ` +${sent} photo${sent > 1 ? "s" : ""}` : ""}` };
       }
 
       await tg.send({
         text,
         meta: { routine: routine.name, routine_id: routine.id || "", via: "routine_delivery" },
       });
-      return { note: "sent to telegram" };
+      const sent = await sendPhotos();
+      return { note: `sent to telegram${sent ? ` +${sent} photo${sent > 1 ? "s" : ""}` : ""}` };
     },
   },
   [CHANNELS.WEB]: ledgerAdapter(CHANNELS.WEB),
@@ -271,7 +314,7 @@ export function alreadyServedChannels({ routine, channels, postSinks, trace }) {
  *
  * @returns {Array<{channel, status, note?, error?}>}
  */
-export async function deliverRoutineOutput(ctx, { routine, channels, text, gate = null }) {
+export async function deliverRoutineOutput(ctx, { routine, channels, text, gate = null, attachments = [] }) {
   const out = [];
   for (const id of channels || []) {
     const adapter = DELIVERY_ADAPTERS[id];
@@ -280,7 +323,7 @@ export async function deliverRoutineOutput(ctx, { routine, channels, text, gate 
       continue;
     }
     try {
-      const r = await adapter.deliver(ctx, { routine, text, gate });
+      const r = await adapter.deliver(ctx, { routine, text, gate, attachments });
       // "held" is not "ok" and not "error": the interruption budget did its job.
       // The caller must not treat it as a failed delivery — the message was
       // deliberately withheld, and the message the model wrote survives in the

@@ -47,6 +47,7 @@ import {
   computeNextRun,
 } from "#core/stores/routines.js";
 import { nowIso } from "#core/util/time.js";
+import { loadAgentSkills, collectAgentSkillMedia } from "#core/agent/skills/agent-skills.js";
 
 // --------------------- handlers ---------------------------------------------
 
@@ -141,6 +142,13 @@ async function handleExecAgent(ctx, routine) {
     globalConfig: config,
   });
 
+  // Images the agent's skills declare: the pool attach_media / view_media
+  // validate against, and the sink a queued attachment lands in for delivery.
+  // Same skills the system prompt above rendered, so the manifest the model
+  // sees and the ids it can attach never drift.
+  const attachableMedia = collectAgentSkillMedia(loadAgentSkills(project, agent));
+  const mediaSink = [];
+
   let text = "";
   let trace = [];
   let usage = null;
@@ -205,6 +213,9 @@ async function handleExecAgent(ctx, routine) {
           projectPath: project.path,
         },
         toolSession,
+        // Skill media plumbing for attach_media / view_media (see above).
+        attachableMedia,
+        mediaSink,
         requestConfirmation: null,
       },
       agentName: slug,
@@ -253,6 +264,8 @@ async function handleExecAgent(ctx, routine) {
     conversation_id: conversationId,
     allowed_tools: allowedTools,
     usage,
+    // Images the agent queued with attach_media, for the delivery adapters.
+    ...(mediaSink.length ? { attachments: mediaSink } : {}),
   };
 }
 
@@ -750,6 +763,7 @@ export async function runRoutineNow(ctx, routine) {
       channels: delivery.channels.filter((c) => !skipIds.has(c)),
       text: deliveryText,
       gate,
+      attachments: Array.isArray(result?.attachments) ? result.attachments : [],
     });
     for (const id of delivery.unknown) {
       deliveries.push({ channel: id, status: "error", error: `unknown delivery channel: ${id}` });

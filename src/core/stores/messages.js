@@ -953,10 +953,16 @@ export function shapeLedgerMessage(r) {
     return { role: "user", content: r.body || "", ts: r.ts, ...(media ? { media } : {}) };
   }
   const usage = r.meta?.usage;
+  // Images the agent attached to its own message (attach_media → routine
+  // delivery). Stored on the row meta the same way an inbound upload is, so the
+  // thread viewer can render an agent-sent photo, not only a user-sent one.
+  const media = mediaFromMeta(r.meta);
   return {
     role: "assistant",
     content: r.body || "",
     ts: r.ts,
+    ...(media ? { media } : {}),
+    ...(Array.isArray(r.meta?.media) && r.meta.media.length ? { media_list: r.meta.media } : {}),
     // Stable id of who answered (super_agent | project-agent slug) plus the
     // display name that was shown on the channel.
     ...(r.agent_slug || r.actor_id ? { agent: r.agent_slug || r.actor_id } : {}),

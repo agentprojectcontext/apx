@@ -18,7 +18,7 @@ const BROWSER_TOOL_COUNT = TOOL_DEFINITIONS.filter((t) => t.category === "browse
 
 test("base set is a strict, smaller subset of the full registry", () => {
   assert.ok(BASE_TOOL_SCHEMAS.length < TOOL_SCHEMAS.length);
-  assert.ok(BASE_TOOL_SCHEMAS.length >= 20 && BASE_TOOL_SCHEMAS.length <= 26);
+  assert.ok(BASE_TOOL_SCHEMAS.length >= 20 && BASE_TOOL_SCHEMAS.length <= 27);
   const full = new Set(TOOL_SCHEMAS.map(nameOf));
   for (const s of BASE_TOOL_SCHEMAS) assert.ok(full.has(nameOf(s)));
   // discover_tools must be in the base set — it's the entry point to the rest.
