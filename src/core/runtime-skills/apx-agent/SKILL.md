@@ -40,6 +40,8 @@ If you are the super-agent, you have native tools for the agent lifecycle — us
 |---|---|---|
 | `create_agent` | Creates the agent **with its system prompt** in one call | `system` is **required** — it refuses a body-less agent. Pass `slug` + `system`; add `role`/`skills`/`area`/`model` as needed. Omit `tools` unless narrowing. |
 | `set_agent_prompt` | Replaces an existing agent's prompt | Keeps every frontmatter field. |
+| `configure_agent` | Edits frontmatter (model, type, area, role, skills, …) | Keeps the prompt. Only the fields you pass change; empty string clears one. |
+| `remove_agent` | Deletes the agent + its runtime data | Irreversible — confirm first unless clearly asked. |
 | `write_agent_memory` | Seeds/updates **another** agent's `memory.md` | Not `remember` (that's YOUR notebook). `mode: append` (default) or `replace`. |
 
 Typical build: `create_agent({ slug, system, role, skills:["golf-lvl-2"] })` → optionally `write_agent_memory({ agent: slug, content: "..." })` to seed progress → `remember_routine(...)` for any schedule. One tool each, no shell, prompt inline.

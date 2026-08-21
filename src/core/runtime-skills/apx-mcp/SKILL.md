@@ -13,6 +13,10 @@ APX exposes MCP servers via three scopes; resolution priority **runtime > shared
 | `runtime` | `~/.apx/projects/<apxId>/mcps.json` (chmod 0600) | no | yes | Per-project — tokens, machine-specific endpoints |
 | `global` | `~/.apx/mcps.json` | n/a | yes | Machine-wide, not tied to a project |
 
+## Super-agent tool
+
+The super-agent registers an MCP with the **`add_mcp`** tool (name + `command`/`args`/`env` for stdio, or `url`/`headers` for http; `scope` = runtime | shared | global, default runtime) — no shelling to `apx mcp add`. Then `list_mcp_tools` to see what it exposes and `call_mcp` to run one. Secrets go in `runtime`/`global` scope, never `shared` (committed).
+
 ## Concrete CLI calls
 
 ```bash

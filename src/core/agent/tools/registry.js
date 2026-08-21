@@ -5,6 +5,11 @@ import importAgent from "./handlers/import-agent.js";
 import createAgent from "./handlers/create-agent.js";
 import setAgentPrompt from "./handlers/set-agent-prompt.js";
 import writeAgentMemory from "./handlers/write-agent-memory.js";
+import configureAgent from "./handlers/configure-agent.js";
+import removeAgent from "./handlers/remove-agent.js";
+import addMcp from "./handlers/add-mcp.js";
+import completeTask from "./handlers/complete-task.js";
+import markCommitment from "./handlers/mark-commitment.js";
 import addProject from "./handlers/add-project.js";
 import listMcps from "./handlers/list-mcps.js";
 import listMcpTools from "./handlers/list-mcp-tools.js";
@@ -70,6 +75,11 @@ const NATIVE_TOOLS = [
   createAgent,
   setAgentPrompt,
   writeAgentMemory,
+  configureAgent,
+  removeAgent,
+  addMcp,
+  completeTask,
+  markCommitment,
   addProject,
   listMcps,
   listMcpTools,
@@ -231,6 +241,11 @@ const NATIVE_CATEGORY = {
   [TOOLS.CREATE_AGENT]:        "agents",
   [TOOLS.SET_AGENT_PROMPT]:    "agents",
   [TOOLS.WRITE_AGENT_MEMORY]:  "agents",
+  [TOOLS.CONFIGURE_AGENT]:     "agents",
+  [TOOLS.REMOVE_AGENT]:        "agents",
+  [TOOLS.ADD_MCP]:             "mcp",
+  [TOOLS.COMPLETE_TASK]:       "tasks",
+  [TOOLS.MARK_COMMITMENT]:     "tasks",
   [TOOLS.ADD_PROJECT]:         "projects",
   [TOOLS.CALL_AGENT]:          "agents",
   [TOOLS.RUN_SUBAGENT]:        "agents",

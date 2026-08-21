@@ -9,9 +9,12 @@
 // prompt) and, when that produced a body-less agent, patched over it by hand-
 // writing the `.md` — the exact anti-pattern the apx-agent skill warns against.
 // These functions are what the native tools stand on so that never has to happen.
+import fs from "node:fs";
+import path from "node:path";
 import { readAgents } from "#core/apc/parser.js";
+import { apcAgentFile } from "#core/apc/paths.js";
 import { writeAgentFile, ensureAgentDir } from "#core/apc/scaffold.js";
-import { ensureAgentRuntimeDir } from "#core/agent/memory.js";
+import { ensureAgentRuntimeDir, agentMemoryPath } from "#core/agent/memory.js";
 import { isBlobKey, normalizeAgentType, pickBlob } from "#core/apc/agent-identity.js";
 import { readOrganization, resolveAreaSlug } from "#core/stores/organization.js";
 import { PERMISSION_MODES } from "#core/constants/permissions.js";
@@ -116,5 +119,81 @@ export function setAgentPrompt(project, slug, system) {
   writeAgentFile(project.path, slug, existing.fields || {}, system);
   ensureAgentDir(project.path, slug);
   ensureAgentRuntimeDir(project, slug);
+  return slug;
+}
+
+/**
+ * Merge frontmatter fields into an existing agent (model, type, area, skills,
+ * role, …), keeping its body unless `patch.system` is given. Mirrors the PATCH
+ * route so the route and the configure_agent tool share one normalization.
+ * A field set to null/"" is removed; `undefined` leaves it untouched.
+ *
+ * @param {{path:string}} project
+ * @param {string} slug
+ * @param {object} patch
+ * @returns {string} the slug
+ */
+export function setAgentConfig(project, slug, patch = {}) {
+  const existing = readAgents(project.path).find((a) => a.slug === slug);
+  if (!existing) throw new Error(`agent ${slug} not found`);
+  const fields = { ...(existing.fields || {}) };
+  const setStr = (key, val) => {
+    if (val === undefined) return;
+    if (val === null || val === "") delete fields[key];
+    else fields[key] = val;
+  };
+  setStr("Name", patch.name);
+  setStr("Role", patch.role);
+  setStr("Model", patch.model);
+  setStr("Language", patch.language);
+  setStr("Description", patch.description);
+  setStr("Parent", patch.parent);
+  if (patch.type !== undefined && patch.type !== null && patch.type !== "") {
+    const t = normalizeAgentType(patch.type);
+    if (!t) throw new Error(`invalid type "${patch.type}"`);
+    fields.Type = t;
+  } else {
+    setStr("Type", patch.type);
+  }
+  if (patch.area !== undefined) {
+    const resolved = patch.area === null || patch.area === ""
+      ? null
+      : resolveAreaSlug(patch.area, readOrganization(project.path));
+    setStr("Area", resolved);
+  }
+  setStr("Emoji", patch.emoji);
+  setStr("Icon", patch.icon);
+  const auto = normalizeAutonomy(patch.autonomy);
+  if (auto !== undefined) setStr("Autonomy", auto);
+  if (patch.skills !== undefined) fields.Skills = Array.isArray(patch.skills) ? patch.skills : [];
+  if (patch.tools !== undefined) fields.Tools = Array.isArray(patch.tools) ? patch.tools : [];
+  if (patch.is_master !== undefined) {
+    if (patch.is_master) fields.Master = true;
+    else { delete fields.Master; delete fields.Primary; }
+  }
+  const body = patch.system !== undefined ? patch.system : (existing.body || "");
+  writeAgentFile(project.path, slug, fields, body);
+  ensureAgentDir(project.path, slug);
+  ensureAgentRuntimeDir(project, slug);
+  return slug;
+}
+
+/**
+ * Delete an agent: its `.apc/agents/<slug>.md` definition and its runtime dir
+ * (memory, conversations, sessions). Throws if neither exists. Caller rebuilds.
+ *
+ * @param {{path:string}} project
+ * @param {string} slug
+ * @returns {string} the slug
+ */
+export function removeAgent(project, slug) {
+  if (!slug) throw new Error("slug required");
+  const file = apcAgentFile(project.path, slug);
+  const runtimeDir = path.dirname(agentMemoryPath(project, slug));
+  if (!fs.existsSync(file) && !fs.existsSync(runtimeDir)) {
+    throw new Error(`agent ${slug} not found`);
+  }
+  if (fs.existsSync(file)) fs.rmSync(file);
+  if (fs.existsSync(runtimeDir)) fs.rmSync(runtimeDir, { recursive: true, force: true });
   return slug;
 }

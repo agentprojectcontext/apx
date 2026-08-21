@@ -4,10 +4,7 @@
 //   POST /projects/:pid/agents                      — create from slug
 //   GET  /projects/:pid/agents/:slug/memory
 //   PUT  /projects/:pid/agents/:slug/memory
-import fs from "node:fs";
-import path from "node:path";
 import { readAgents, readVaultAgents, readVaultAgent } from "#core/apc/parser.js";
-import { apcAgentFile } from "#core/apc/paths.js";
 import {
   readProjectMemory,
   writeProjectMemory,
@@ -29,13 +26,10 @@ import {
   ensureAgentRuntimeDir,
   readAgentMemory,
   writeAgentMemory,
-  agentMemoryPath,
 } from "#core/agent/memory.js";
-import { createAgent, normalizeAutonomy } from "#core/apc/agent-write.js";
+import { createAgent, setAgentConfig, removeAgent } from "#core/apc/agent-write.js";
 import { agentToResponse } from "./shared.js";
 import { normalizeVaultPatch } from "#core/apc/agents-vault.js";
-import { normalizeAgentType } from "#core/apc/agent-identity.js";
-import { readOrganization, resolveAreaSlug } from "#core/stores/organization.js";
 import { listConversations } from "#core/stores/conversations.js";
 import { listTasks } from "#core/stores/tasks.js";
 import { listRoutines } from "#core/stores/routines.js";
@@ -196,48 +190,12 @@ export function register(api, { projects, project }) {
     const p = project(req, res);
     if (!p) return;
     const slug = req.params.slug;
-    const existing = readAgents(p.path).find((a) => a.slug === slug);
-    if (!existing) return res.status(404).json({ error: "agent not found" });
-    const b = req.body || {};
-    const fields = { ...(existing.fields || {}) };
-    const setStr = (key, val) => {
-      if (val === undefined) return;
-      if (val === null || val === "") delete fields[key];
-      else fields[key] = val;
-    };
-    setStr("Name", b.name);
-    setStr("Role", b.role);
-    setStr("Model", b.model);
-    setStr("Language", b.language);
-    setStr("Description", b.description);
-    setStr("Parent", b.parent);
-    if (b.type !== undefined && b.type !== null && b.type !== "") {
-      const t = normalizeAgentType(b.type);
-      if (!t) return res.status(400).json({ error: `invalid type "${b.type}"` });
-      fields.Type = t;
-    } else {
-      setStr("Type", b.type);
-    }
-    if (b.area !== undefined) {
-      const resolved = b.area === null || b.area === ""
-        ? null
-        : resolveAreaSlug(b.area, readOrganization(p.path));
-      setStr("Area", resolved);
-    }
-    setStr("Emoji", b.emoji);
-    setStr("Icon", b.icon);
-    setStr("Autonomy", normalizeAutonomy(b.autonomy));
-    if (b.skills !== undefined) fields.Skills = Array.isArray(b.skills) ? b.skills : [];
-    if (b.tools !== undefined) fields.Tools = Array.isArray(b.tools) ? b.tools : [];
-    if (b.is_master !== undefined) {
-      if (b.is_master) fields.Master = true;
-      else { delete fields.Master; delete fields.Primary; }
-    }
-    const body = b.system !== undefined ? b.system : (existing.body || "");
+    if (!readAgents(p.path).some((a) => a.slug === slug))
+      return res.status(404).json({ error: "agent not found" });
+    // Field normalization + write live in core (agent-write.js), shared with the
+    // super-agent's configure_agent / set_agent_prompt tools.
     try {
-      writeAgentFile(p.path, slug, fields, body);
-      ensureAgentDir(p.path, slug);
-      ensureAgentRuntimeDir(p, slug);
+      setAgentConfig(p, slug, req.body || {});
       projects.rebuild(p.id);
       const updated = readAgents(p.path).find((a) => a.slug === slug);
       res.json(agentToResponse(updated));
@@ -250,18 +208,13 @@ export function register(api, { projects, project }) {
   api.delete("/projects/:pid/agents/:slug", (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    const slug = req.params.slug;
-    const file = apcAgentFile(p.path, slug);
-    const runtimeDir = path.dirname(agentMemoryPath(p, slug));
-    if (!fs.existsSync(file) && !fs.existsSync(runtimeDir))
-      return res.status(404).json({ error: "agent not found" });
     try {
-      if (fs.existsSync(file)) fs.rmSync(file);
-      if (fs.existsSync(runtimeDir)) fs.rmSync(runtimeDir, { recursive: true, force: true });
+      removeAgent(p, req.params.slug);
       projects.rebuild(p.id);
       res.json({ ok: true });
     } catch (e) {
-      res.status(400).json({ error: e.message });
+      const status = /not found/.test(e.message) ? 404 : 400;
+      res.status(status).json({ error: e.message });
     }
   });
 
