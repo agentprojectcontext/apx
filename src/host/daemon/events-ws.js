@@ -101,6 +101,9 @@ function publicEvent(event, projects) {
     // How the row was produced, when it matters to a subscriber — "routine_delivery"
     // marks an agent reaching the owner, which the mascot surfaces on its own.
     via: event.via || null,
+    // A ≤100-char headline for a delivery, so the mascot bubble can say what
+    // arrived. A notice, not the message body — "signal, not data" holds.
+    notify: event.notify || null,
     ts: event.ts || null,
   };
 }

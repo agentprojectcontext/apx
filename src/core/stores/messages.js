@@ -138,6 +138,10 @@ export function appendMessageToFs({ projectRoot, channel, direction, type, actor
     // owner) apart from an ordinary reply the owner is watching — the desktop
     // mascot bubbles the former even though it is `direction: "out"`.
     via: fullMeta.via || null,
+    // A bounded (≤100 char) headline for that delivery, so the pet can say what
+    // arrived without breaking "signal, not data" — it carries a notice, not the
+    // message. Null on every ordinary row.
+    notify: fullMeta.notify || null,
     ts,
   });
   return { ts, file };
