@@ -80,51 +80,51 @@ apx session get <id> --any --full                # or --engine claude --tail 16k
 
 See `apx-sessions` for full flag reference, collision handling, and daemon-vs-no-daemon matrix.
 
-## Async relay — hand a coding session back to an orchestrator
+## Async relay — reply back into a coding session
 
-Use this when the user wants to step away and be reached through an APX agent
-(e.g. "avisame por Roby cuando termines", "estaré afk, que <agente> me avise").
-The daemon **cannot** inject into a live interactive CLI process; the model is
-**mailbox + resume**, not a live socket. Each round-trip is one headless resume.
+Two agents that don't share a live process still need to talk both ways: a coding
+CLI (Claude Code, Codex, …) finishes and asks an APX agent something, the agent
+relays it to the user, the user answers, and the answer has to land back in the
+**same** coding session — with its full context intact. The daemon **cannot**
+inject into a live interactive CLI process, so the model is **mailbox + resume**,
+not a live socket: each round-trip is one headless resume of the session.
 
-**The loop.** (1) You finish and message the agent, ending your turn — you do
-NOT block waiting. (2) The agent relays to the user. (3) The user replies to the
-agent. (4) The agent wakes your session with that reply and captures what you do.
+**The whole convention is one line: identify your session when you message the
+agent.** A coding session tells the agent who to answer by including its engine
+and session id in the message body — nothing more:
 
-**The two primitives** (both already exist — no new plumbing):
+```
+engine=claude session=<your-session-id>
+```
+
+That's the "return address". Any APX agent, on seeing it, knows how to reply.
+
+**The return leg** — how an agent (or you, testing) answers a coding session:
 
 ```bash
-# YOU → agent (outbound leg). Logs the A2A edge and runs the target agent once.
-# Requires both slugs to exist in AGENTS.md. Put the reply-to ENVELOPE in the body.
-apx send <your-agent-slug> roby "Done: auth refactor, tests green. Continue with integration or stop?
-[apx-relay] runtime=claude-code session=<your-session-id> project=<abs-path>" --deliver
-
-# agent → YOU (return leg). Wakes your idle session HEADLESS with the user's
-# reply, resuming your transcript (full context), and captures your response.
-apx session deliver <your-session-id> "Manu says: go ahead with integration, don't touch login"
+# Headless: inject one message into the session's transcript (full context) and
+# capture its reply on stdout. Implies --continue. Claude only for now.
+apx session resume <session-id> --continue --msg "Manu says: go ahead with the tests, don't touch login"
 ```
 
-**The envelope** is the only convention to standardise — it is the return
-address, plain text in the message body:
+The reply the woken session produces comes back on stdout — the agent relays that
+to the user, and the loop can go around again.
 
-```
-[apx-relay] runtime=claude-code session=<uuid> project=<abs-path>
-```
+**For an APX agent** (this is a general capability, not one agent's prompt hack):
+when a message carries `engine=claude session=<id>` and the user later answers it,
+run `apx session resume <id> --continue --msg "<user's reply>"` to hand the answer
+back. If you can't resolve the session or the resume fails, tell the user — never
+swallow it.
 
-- `session` is your own transcript id. For Claude Code it is the run's session
-  id (e.g. from your working/session path, or `apx sessions list --engine claude`).
-- If you cannot determine your session id, write `session=unknown` and say so in
-  the body — the agent then re-opens a fresh run instead of a true resume. Never
-  omit the envelope silently: without it the agent has no way back to you.
+**If you can't determine your own session id**, say so in the message instead of
+guessing — the agent then starts a fresh run rather than a true resume, and the
+user knows context won't carry.
 
-**Roby's half** (lives in the agent's own prompt, not here): on receiving a
-message with an `[apx-relay]` line, store the envelope, relay the request to the
-user in its own voice (without the envelope), and when the user answers run
-`apx session deliver <session> "<user's reply>"`. If `session=unknown` or the
-deliver fails, tell the user — never swallow it.
-
-`deliver` is claude-only today; other engines print an explicit "not supported
-yet" and exit non-zero.
+Notes: the outbound leg reuses whatever already talks to the agent (`apx exec -a
+<agent> "…"`, the super-agent, a routine) — there is no relay-specific send
+command. `--msg` headless delivery is claude-only today; other engines print an
+explicit "not supported yet". See the **claude-code** skill for the coding-CLI
+side of this.
 
 ## APC_RESULT contract
 
