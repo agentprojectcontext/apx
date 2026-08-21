@@ -1,6 +1,12 @@
 import { http } from "../http.js";
 import { resolveProjectId } from "./project.js";
 import { listRoutines } from "#core/stores/routines.js";
+import {
+  deliveryChannelIds,
+  normalizeDeliverTo,
+  PROFILE_DELIVERY,
+  NO_DELIVERY,
+} from "#core/routines/index.js";
 import { projectStorageRoot } from "#core/config/index.js";
 import {
   routineMemoryPath,
@@ -8,6 +14,13 @@ import {
   appendRoutineMemory,
   ensureRoutineMemory,
 } from "#core/stores/routine-memory.js";
+
+// Flags that belong to the routine record itself, not to its `spec`.
+const ROUTINE_FLAGS = [
+  "name", "kind", "schedule", "spec", "verbose", "project",
+  "permission-mode", "allowed-tools",
+  "pre-commands", "post-commands", "skip-prompt-on", "deliver-to",
+];
 
 function parseSpec(args) {
   // Build spec from --spec '<json>' or from --K=V pairs
@@ -20,7 +33,11 @@ function parseSpec(args) {
   }
   const spec = {};
   for (const [k, v] of Object.entries(args.flags)) {
-    if (["name", "kind", "schedule", "spec", "verbose", "permission-mode", "allowed-tools"].includes(k)) continue;
+    // Every flag `cmdRoutineAdd` reads for itself. A name missing from this
+    // list does not just get ignored — it lands in `spec` as a stray key the
+    // handler never reads, which is how `--post-commands` used to end up
+    // stored twice, once parsed and once as raw text.
+    if (ROUTINE_FLAGS.includes(k)) continue;
     if (v === true) continue;
     // try to JSON-parse the value (numbers, bools), else keep as string
     let val = v;
@@ -86,12 +103,26 @@ export async function cmdRoutineAdd(args) {
   const skip_prompt_on = args.flags["skip-prompt-on"] && args.flags["skip-prompt-on"] !== true
     ? args.flags["skip-prompt-on"]
     : undefined;
+  // Where the output goes: `--deliver-to telegram,web`, `--deliver-to profile`
+  // to take it from the active agent profile, `--deliver-to none` to say out
+  // loud that this one delivers nowhere. Omitted leaves the field unset, which
+  // is not the same as empty — see deliver_to in core/stores/routines.js.
+  const deliver_to = args.flags["deliver-to"] && args.flags["deliver-to"] !== true
+    ? normalizeDeliverTo(String(args.flags["deliver-to"]))
+    : undefined;
+  if (deliver_to) {
+    const known = [...deliveryChannelIds(), PROFILE_DELIVERY, NO_DELIVERY];
+    const bad = deliver_to.filter((c) => !known.includes(c));
+    if (bad.length)
+      throw new Error(`apx routine add: unknown --deliver-to channel: ${bad.join(", ")} (known: ${known.join(", ")})`);
+  }
   const pid = await resolveProjectId(args?.flags?.project);
-  const r = await http.post(`/api/projects/${pid}/routines`, { name, kind, schedule, spec, permission_mode, allowed_tools, pre_commands, post_commands, skip_prompt_on });
+  const r = await http.post(`/api/projects/${pid}/routines`, { name, kind, schedule, spec, permission_mode, allowed_tools, pre_commands, post_commands, skip_prompt_on, deliver_to });
   console.log(`added routine "${r.name}" (${r.kind}, ${r.schedule}) → next ${r.next_run_at}`);
   if (r.pre_commands?.length)  console.log(`  pre:  ${r.pre_commands.join(", ")}`);
   if (r.post_commands?.length) console.log(`  post: ${r.post_commands.join(", ")}`);
   if (r.skip_prompt_on && r.skip_prompt_on !== "signal") console.log(`  skip_prompt_on: ${r.skip_prompt_on}`);
+  if (r.deliver_to) console.log(`  deliver_to: ${r.deliver_to.length ? r.deliver_to.join(", ") : "(nowhere)"}`);
 }
 
 export async function cmdRoutineRemove(args) {

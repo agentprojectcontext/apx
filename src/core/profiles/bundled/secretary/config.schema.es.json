@@ -48,6 +48,18 @@
       "title": "Canal principal",
       "description": "A dónde van los mensajes no pedidos por defecto."
     },
+    "routine_delivery": {
+      "type": "string",
+      "enum": [
+        "telegram",
+        "web",
+        "telegram,web",
+        "none"
+      ],
+      "default": "telegram",
+      "title": "Dónde se entregan los anclajes",
+      "description": "Los mensajes de apertura y cierre los entrega el runtime a este canal, así llegan aunque el modelo se olvide de mandarlos. Con 'none' quedan solo en el registro."
+    },
     "formality": {
       "title": "Trato",
       "description": "Solo tiene efecto en idiomas que lo distinguen (tú / vos / usted)."

@@ -252,7 +252,8 @@ export async function runAgent({
   }
 
   // Suppression: callers (notably the routine runner) can disable tools whose
-  // output would duplicate post_commands. We filter the schemas the engine
+  // output would duplicate a sink the run already has — a post_command, or the
+  // routine's own `deliver_to`. We filter the schemas the engine
   // sees AND keep a deny-set so a model that hallucinates a suppressed tool
   // call gets a clear error rather than firing.
   let effectiveSchemas = Array.isArray(suppressTools) && suppressTools.length > 0
@@ -263,7 +264,10 @@ export async function runAgent({
     await emitProgress(onEvent, {
       type: "tools_suppressed",
       tools: [...suppressed],
-      reason: "post_commands_overlap",
+      // Why, generically: a post_command pipes this output somewhere, or the
+      // routine's `deliver_to` does. Either way the sink already owns the
+      // message and the loop must not send a second one.
+      reason: "output_sink_overlap",
     });
   }
   // Completion contract: only meaningful when there are real tools to choose
@@ -307,7 +311,7 @@ export async function runAgent({
         get(target, name) {
           if (typeof name === "string" && suppressed.has(name)) {
             return async () => ({
-              error: `tool "${name}" is suppressed for this invocation (post_commands already cover this output channel)`,
+              error: `tool "${name}" is suppressed for this invocation (this run already delivers to that channel)`,
             });
           }
           return target[name];
