@@ -787,7 +787,7 @@ export async function runRoutineNow(ctx, routine) {
     // channel (telegram) becomes an a2a emit to Roby, who decides the notify.
     const runByAgent =
       result?.agent_slug && result.agent_slug !== SUPERAGENT_ACTOR_ID
-        ? { slug: result.agent_slug, name: result.agent_name || result.agent_slug, model: result.model }
+        ? { slug: result.agent_slug, name: result.agent_name || result.agent_slug, model: result.model, usage: result.usage }
         : null;
 
     if (runByAgent) {

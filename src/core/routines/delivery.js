@@ -106,10 +106,13 @@ function deliverToAgentWebChat(ctx, { routine, text, attachments, agent }) {
     filePath: file,
     role: "assistant",
     content: text,
+    // Carry model AND usage, the same attribution turn-record.js writes — a
+    // conversation reopened from the file renders "0 tok"/no model without it.
     meta: {
       agent: agent.slug,
       agent_name: author,
       ...(agent.model ? { model: agent.model } : {}),
+      ...(agent.usage ? { usage: agent.usage } : {}),
       via: "routine_delivery",
       routine: routine.name,
     },
@@ -130,6 +133,8 @@ function deliverToAgentWebChat(ctx, { routine, text, attachments, agent }) {
       routine_id: routine.id || "",
       via: "routine_delivery",
       conversation: AGENT_WEB_CHAT_ID,
+      ...(agent.model ? { model: agent.model } : {}),
+      ...(agent.usage ? { usage: agent.usage } : {}),
       ...mediaMeta(attachments),
     },
   });
