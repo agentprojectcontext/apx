@@ -9,7 +9,7 @@
 // Or via:     apx desktop start
 
 "use strict";
-const { app, BrowserWindow, Tray, globalShortcut, ipcMain, nativeImage, screen, Menu } = require("electron");
+const { app, BrowserWindow, Tray, globalShortcut, ipcMain, nativeImage, screen, Menu, shell } = require("electron");
 const path = require("path");
 const os = require("os");
 const fs = require("fs");
@@ -124,6 +124,43 @@ function getAgentName() {
   return "Superagente";
 }
 
+// ── Mascot (blob pet) config ────────────────────────────────────────────────
+// Which blob the pet wears: config.desktop.blob, else the super-agent's icon,
+// else "noche" (Roby's default). Each user can pick their own in config.json.
+function getMascotBlob() {
+  const cfg = readApxConfig();
+  const key = cfg?.desktop?.blob || cfg?.super_agent?.icon;
+  return (typeof key === "string" && key.trim()) ? key.trim() : "noche";
+}
+
+// The pet is on by default — the user asked for it. Disable with
+//   "desktop": { "mascot": false }
+function getMascotEnabled() {
+  const cfg = readApxConfig();
+  return cfg?.desktop?.mascot !== false;
+}
+
+// Saved pet position ({x,y} in screen coords), or null for the default corner.
+function getMascotPos() {
+  const cfg = readApxConfig();
+  const p = cfg?.desktop?.mascot_pos;
+  if (p && typeof p.x === "number" && typeof p.y === "number") return p;
+  return null;
+}
+
+// Persist a partial patch into config.json's `desktop` block, preserving every
+// other field. Best-effort — a write failure just means the pet forgets where
+// it was left, which is harmless.
+function patchDesktopConfig(patch) {
+  try {
+    const cfg = readApxConfig();
+    cfg.desktop = { ...(cfg.desktop || {}), ...patch };
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify(cfg, null, 2) + "\n", "utf8");
+  } catch (e) {
+    console.warn("desktop: could not persist mascot config —", e.message);
+  }
+}
+
 function getWindowOrigin(_height) {
   const display = screen.getPrimaryDisplay();
   const { workArea } = display;
@@ -139,6 +176,7 @@ function getWindowOrigin(_height) {
 // ---------------------------------------------------------------------------
 
 let mainWindow = null;
+let mascotWindow = null; // the draggable blob pet (separate always-on-top window)
 let tray = null;
 let wsConn = null; // WebSocket to daemon
 let isRecording = false;
@@ -169,9 +207,12 @@ app.whenReady().then(() => {
   catch (e) { console.error("desktop: createTray failed:", e.message); }
   try { createWindow();      console.log("desktop: window created"); }
   catch (e) { console.error("desktop: createWindow failed:", e.message); }
+  try { if (getMascotEnabled()) { createMascotWindow(); console.log("desktop: mascot created"); } }
+  catch (e) { console.error("desktop: createMascotWindow failed:", e.message); }
   try { registerShortcut(); }
   catch (e) { console.error("desktop: registerShortcut failed:", e.message); }
   connectDaemon();
+  connectEventsFeed();
 });
 
 process.on("uncaughtException", (e) => {
@@ -213,13 +254,22 @@ function createTray() {
   tray = new Tray(icon);
 
   // No extra text label on macOS — the icon is the brand mark.
-  tray.setToolTip("APX Desktop — click to toggle, right-click for menu");
+  tray.setToolTip("APX Desktop — click para abrir, click derecho para el menú");
 
-  const contextMenu = Menu.buildFromTemplate([
-    { label: "Show / Hide",    click: toggleWindow },
-    { label: "Start Recording", click: () => { showOverlay(); startRecording(); } },
+  // Built fresh on each right-click so the "Blob mascota" checkbox reflects the
+  // pet's live on/off state.
+  const buildMenu = () => Menu.buildFromTemplate([
+    { label: "Mostrar / ocultar",  click: toggleWindow },
+    { label: "Grabar",             click: () => { showOverlay(); startRecording(); } },
     { type: "separator" },
-    { label: "Quit APX Desktop", click: () => app.exit(0) },
+    {
+      label: "Blob mascota",
+      type: "checkbox",
+      checked: !!mascotWindow,
+      click: toggleMascot,
+    },
+    { type: "separator" },
+    { label: "Salir de APX Desktop", click: () => app.exit(0) },
   ]);
 
   // IMPORTANT on macOS: do NOT call tray.setContextMenu(contextMenu).
@@ -229,7 +279,7 @@ function createTray() {
   //   left-click  → toggle the floating window
   //   right-click → pop up the context menu
   tray.on("click",       () => toggleWindow());
-  tray.on("right-click", () => tray.popUpContextMenu(contextMenu));
+  tray.on("right-click", () => tray.popUpContextMenu(buildMenu()));
 }
 
 function updateTrayRecording(rec) {
@@ -338,6 +388,91 @@ function reloadDesktopWindow() {
 }
 
 // ---------------------------------------------------------------------------
+// Mascot (blob pet) window
+// ---------------------------------------------------------------------------
+//
+// A second, tiny, transparent, always-on-top window that hosts just the blob
+// avatar. It is draggable anywhere on screen, click-through over its
+// transparent pixels (only the blob + bubble opt back into the mouse), and
+// floats notification bubbles relayed from the daemon. Clicking it toggles the
+// voice HUD. Kept fully separate from the voice window so neither disturbs the
+// other.
+
+const MASCOT_W = 240;
+const MASCOT_H = 210;
+const MASCOT_MARGIN = 16;
+
+function getMascotOrigin() {
+  const saved = getMascotPos();
+  const { workArea } = screen.getPrimaryDisplay();
+  if (saved) {
+    // Clamp a stale saved position back onto the visible work area.
+    const x = Math.min(Math.max(saved.x, workArea.x), workArea.x + workArea.width - MASCOT_W);
+    const y = Math.min(Math.max(saved.y, workArea.y), workArea.y + workArea.height - MASCOT_H);
+    return { x: Math.round(x), y: Math.round(y) };
+  }
+  // Default: bottom-right corner, above the dock/taskbar.
+  return {
+    x: workArea.x + workArea.width - MASCOT_W - MASCOT_MARGIN,
+    y: workArea.y + workArea.height - MASCOT_H - MASCOT_MARGIN,
+  };
+}
+
+function createMascotWindow() {
+  if (mascotWindow) return;
+  const origin = getMascotOrigin();
+  mascotWindow = new BrowserWindow({
+    width: MASCOT_W,
+    height: MASCOT_H,
+    x: origin.x,
+    y: origin.y,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    resizable: false,
+    hasShadow: false,
+    focusable: false,     // a pet never steals keyboard focus
+    fullscreenable: false,
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, "mascot-preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  // Follow the user across spaces / full-screen apps, and float above them.
+  try {
+    mascotWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+    mascotWindow.setAlwaysOnTop(true, "screen-saver");
+  } catch {}
+
+  // Start click-through; the renderer re-enables the mouse only over the blob.
+  mascotWindow.setIgnoreMouseEvents(true, { forward: true });
+
+  mascotWindow.loadFile(path.join(__dirname, "mascot.html"));
+  mascotWindow.once("ready-to-show", () => mascotWindow.showInactive());
+  mascotWindow.on("closed", () => { mascotWindow = null; });
+}
+
+function destroyMascotWindow() {
+  if (!mascotWindow) return;
+  try { mascotWindow.close(); } catch {}
+  mascotWindow = null;
+}
+
+function toggleMascot() {
+  if (mascotWindow) {
+    destroyMascotWindow();
+    patchDesktopConfig({ mascot: false });
+  } else {
+    patchDesktopConfig({ mascot: true });
+    createMascotWindow();
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Global shortcut: Cmd/Ctrl+Shift+Space toggles recording
 // ---------------------------------------------------------------------------
 
@@ -432,6 +567,72 @@ ipcMain.handle("get-theme",    () => getTheme());
 ipcMain.handle("get-position", () => getPosition());
 ipcMain.handle("get-agent-name", () => getAgentName());
 ipcMain.handle("get-voice-timing", () => getVoiceTiming());
+
+// ── Mascot (blob pet) IPC ───────────────────────────────────────────────────
+ipcMain.handle("mascot-get-config", () => ({
+  blob: getMascotBlob(),
+  name: getAgentName(),
+  theme: getTheme(),
+}));
+
+ipcMain.handle("mascot-get-bounds", () => {
+  if (!mascotWindow) return { x: 0, y: 0, width: MASCOT_W, height: MASCOT_H };
+  return mascotWindow.getBounds();
+});
+
+ipcMain.on("mascot-set-pos", (_e, { x, y }) => {
+  if (!mascotWindow) return;
+  if (typeof x !== "number" || typeof y !== "number") return;
+  mascotWindow.setPosition(Math.round(x), Math.round(y));
+});
+
+ipcMain.on("mascot-save-pos", () => {
+  if (!mascotWindow) return;
+  const [x, y] = mascotWindow.getPosition();
+  patchDesktopConfig({ mascot_pos: { x, y } });
+});
+
+// A clean click on the blob toggles the voice HUD.
+ipcMain.handle("mascot-poke", () => { toggleWindow(); });
+
+// Right-click on the blob → a native context menu at the cursor. Mirrors the
+// tray menu, plus a shortcut to open the full chat in the browser.
+ipcMain.handle("mascot-menu", () => {
+  const menu = Menu.buildFromTemplate([
+    { label: "Abrir chat en el navegador", click: openWebChat },
+    { type: "separator" },
+    { label: "Mostrar / ocultar voz", click: toggleWindow },
+    { label: "Grabar", click: () => { showOverlay(); startRecording(); } },
+    { label: "Probar notificación", click: testMascotNotify },
+    { type: "separator" },
+    { label: "Blob mascota", type: "checkbox", checked: !!mascotWindow, click: toggleMascot },
+    { type: "separator" },
+    { label: "Salir", click: () => app.exit(0) },
+  ]);
+  menu.popup({ window: mascotWindow || undefined });
+});
+
+// Fire a sample bubble on the pet — lets you preview notifications without
+// sending a real message through a channel.
+function testMascotNotify() {
+  if (!mascotWindow) return;
+  mascotWindow.webContents.send("mascot-notify", { text: "Nuevo mensaje en Telegram" });
+}
+
+// Open the APX web chat in the user's default browser. The daemon serves the
+// web UI at its own host:port.
+function openWebChat() {
+  const url = `http://${DAEMON_HOST}:${DAEMON_PORT}/`;
+  shell.openExternal(url).catch((e) => console.warn("desktop: openWebChat failed —", e.message));
+}
+
+// Click-through toggling — ignore the mouse over transparent pixels, capture it
+// over the blob/bubble. `forward:true` keeps move events flowing so the
+// renderer can tell when the pointer re-enters an interactive region.
+ipcMain.on("mascot-set-ignore", (_e, { ignore }) => {
+  if (!mascotWindow) return;
+  mascotWindow.setIgnoreMouseEvents(!!ignore, { forward: true });
+});
 
 // Renderer asks main to grow/shrink the window to fit its content.
 // Clamped to [WIN_H_MIN, getMaxWindowHeight()]; same anchor (top edge stays put).
@@ -639,6 +840,80 @@ function connectDaemon() {
     setTimeout(connect, delay);
   }
   function resetReconnectDelay() { reconnectDelay = 1000; }
+
+  connect();
+}
+
+// ---------------------------------------------------------------------------
+// Cross-channel event feed → mascot notifications
+// ---------------------------------------------------------------------------
+//
+// A SECOND socket, to /api/events/ws (distinct from the desktop conversation
+// socket above). It carries a signal-only "the channel X moved" feed for every
+// channel (Telegram, web, …): frames are { type:"messages", events:[…] } where
+// each event has { channel, direction, type, thread, project_id, ts } but NO
+// message text. We surface an inbound-message bubble on the pet; the full text
+// still lives in the web chat / HUD. Only meaningful while the pet is on.
+
+function channelLabel(ch) {
+  const map = {
+    telegram: "Telegram", whatsapp: "WhatsApp", web: "Web",
+    voice: "Voz", desktop: "Escritorio", email: "Email", slack: "Slack",
+  };
+  if (!ch) return "un canal";
+  return map[ch] || (ch.charAt(0).toUpperCase() + ch.slice(1));
+}
+
+function connectEventsFeed() {
+  let WS;
+  try { WS = require("ws"); } catch { return; } // already warned in connectDaemon
+
+  const url = `ws://${DAEMON_HOST}:${DAEMON_PORT}/api/events/ws`;
+  let conn = null;
+  let reconnectDelay = 1000;
+
+  function scheduleReconnect() {
+    const delay = reconnectDelay;
+    reconnectDelay = Math.min(reconnectDelay * 2, 30000);
+    setTimeout(connect, delay);
+  }
+
+  function handleFrame(msg) {
+    if (!msg || msg.type !== "messages" || !Array.isArray(msg.events)) return;
+    if (!mascotWindow) return; // pet off → nothing to notify
+
+    // Only inbound messages (someone wrote to us). Skip the agent's own
+    // replies (direction "out") and our own desktop/voice input (we're right
+    // there talking). Collapse a burst into one bubble per channel.
+    const byChannel = new Map();
+    for (const ev of msg.events) {
+      if (!ev || ev.direction !== "in") continue;
+      if (ev.channel === "desktop" || ev.channel === "voice") continue;
+      byChannel.set(ev.channel, (byChannel.get(ev.channel) || 0) + 1);
+    }
+    for (const [channel, n] of byChannel) {
+      const label = channelLabel(channel);
+      const text = n > 1 ? `${n} mensajes nuevos en ${label}` : `Nuevo mensaje en ${label}`;
+      mascotWindow.webContents.send("mascot-notify", { text });
+    }
+  }
+
+  function connect() {
+    const token = readToken();
+    try {
+      conn = new WS(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      conn.on("open", () => { reconnectDelay = 1000; console.log("desktop: events feed connected"); });
+      conn.on("message", (raw) => {
+        let msg; try { msg = JSON.parse(raw.toString()); } catch { return; }
+        handleFrame(msg);
+      });
+      conn.on("close", () => { conn = null; scheduleReconnect(); });
+      conn.on("error", (e) => { console.warn("desktop events-feed ws error:", e.message); });
+    } catch (e) {
+      console.warn("desktop: events feed connect failed —", e.message);
+      scheduleReconnect();
+    }
+  }
 
   connect();
 }
