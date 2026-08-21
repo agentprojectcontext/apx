@@ -589,6 +589,22 @@ export const HELP_TOPICS = new Map(Object.entries({
       "apx session resume b3f0c12a... --engine claude --into apx:reviewer",
     ],
   }),
+  "session deliver": topic({
+    title: "apx session deliver",
+    summary:
+      "Wake an idle coding-CLI session HEADLESS with one new message (resumes its transcript, full context) and capture its reply. The return leg of a CLI ⇄ agent hand-off.",
+    usage: [
+      "apx session deliver <id> \"<message>\" [--engine <id>]",
+      "apx session deliver <id> -            # read the message from stdin",
+    ],
+    options: [
+      ["--engine <id>", "Restrict the search to one engine when <id> collides: apx | claude | codex."],
+    ],
+    examples: [
+      "apx session deliver fb65f80d... \"Manu says: keep going with the tests, don't touch login\"",
+      "cat reply.txt | apx session deliver fb65f80d... -",
+    ],
+  }),
   "session compact": topic({
     title: "apx session compact",
     summary: "Compact an agent conversation into a durable summary.",
@@ -1152,14 +1168,18 @@ export const HELP_TOPICS = new Map(Object.entries({
   }),
   run: topic({
     title: "apx run",
-    summary: "Launch a full external runtime session for an agent.",
-    usage: ["apx run <agent> --runtime <claude-code|codex|opencode|aider|cursor-agent|gemini-cli|qwen-code|antigravity> \"<prompt>\" [--timeout <seconds>] [--project <name|id|path>]"],
+    summary: "Delegate a prompt to an external runtime CLI. The agent is OPTIONAL — without one it's a pass-through (the CLI runs as itself); with one, that agent's system prompt shapes the turn.",
+    usage: ["apx run [-a <agent>] --runtime <claude-code|codex|opencode|aider|cursor-agent|gemini-cli|qwen-code|antigravity> \"<prompt>\" [--timeout <seconds>] [--project <name|id|path>]"],
     options: [
       ["--runtime <id>", "Runtime CLI to launch: claude-code, codex, opencode, aider, cursor-agent, gemini-cli, qwen-code, antigravity."],
+      ["-a, --agent <slug>", "Optional. Wrap the run in this APX agent's system prompt. Omit for a pass-through — the external CLI uses its own default persona (it does not use APX agents)."],
       ["--timeout <seconds>", "Runtime timeout."],
       ["--project <name|id|path>", "Pin command to a specific project."],
     ],
-    examples: ["apx run reviewer --runtime codex \"Review this repo\" --timeout 600"],
+    examples: [
+      "apx run --runtime codex \"Review this repo\"                 # pass-through",
+      "apx run -a reviewer --runtime codex \"Review this repo\"     # wrapped in the reviewer agent",
+    ],
   }),
   env: topic({
     title: "apx env",
@@ -2145,6 +2165,7 @@ export function buildHelp(version) {
     hCmd("apx session check",          36, "anti-collision: exit 1 if active session"),
     hCmd("apx session close-stale",    36, "auto-close sessions older than 1h"),
     hCmd("apx session resume <id>",    36, "--summary  --full  (APC + Claude Code transcript)"),
+    hCmd("apx session deliver <id>",   36, "\"<msg>\"  wake an idle CLI session headless, capture its reply"),
     hCmd("apx session compact <slug>", 36, "--conversation <id>  collapse history into summary"),
     hCmd("apx session find <text>",    36, "find sessions by title (cross-engine)  --deep  --engine X"),
     hCmd("apx session summary <id>",   36, "LLM summary of any session by id"),
@@ -2195,7 +2216,7 @@ export function buildHelp(version) {
     hCmd("apx acp",                    36, "serve the super-agent over the Agent Client Protocol (stdio, for IDEs)"),
 
     hSec("Runtimes"),
-    hCmd("apx run <agent>",            36, "--runtime <id> \"prompt\"  --timeout <s>"),
+    hCmd("apx run [-a <agent>]",       36, "--runtime <id> \"prompt\"  --timeout <s>"),
     `                                        ${H.DI}runtimes: claude-code | codex | opencode | aider | cursor-agent | gemini-cli | qwen-code | antigravity${H.R}`,
     hCmd("apx env detect",             36, "which agent CLIs are installed"),
 

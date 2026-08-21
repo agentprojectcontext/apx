@@ -33,17 +33,13 @@ export function register(api, { projects, registries, plugins, project, config }
     res.json(detected);
   }));
 
-  api.post("/projects/:pid/agents/:slug/runtime", asyncRoute(async (req, res) => {
-    const p = project(req, res);
-    if (!p) return;
-    const { runtime, prompt, timeoutMs } = req.body || {};
-    if (!runtime || !prompt)
-      return res.status(400).json({ error: "runtime and prompt required" });
-
-    const agents = readAgents(p.path);
-    const agent = agents.find((a) => a.slug === req.params.slug);
-    if (!agent) return res.status(404).json({ error: "agent not found" });
-
+  // Spawn an external runtime and capture its result. `agent` may be null: a
+  // pass-through run hands the prompt to the CLI with NO APX system prompt, so
+  // claude/codex/opencode act as themselves. When an agent IS given, its
+  // buildAgentSystem() output is injected as the CLI's system prompt — that is
+  // the ONLY thing the agent contributes here (the external CLI has its own
+  // agency; the APX "agent" is just how APX shapes the wrapping prompt).
+  async function executeRuntime(res, { p, agent, runtime, prompt, timeoutMs, title, taskRef }) {
     let rt;
     try {
       rt = getRuntime(runtime);
@@ -53,33 +49,39 @@ export function register(api, { projects, registries, plugins, project, config }
 
     let projectName = path.basename(p.path);
     try {
-      const meta = JSON.parse(
-        fs.readFileSync(apcProjectFile(p.path), "utf8")
-      );
+      const meta = JSON.parse(fs.readFileSync(apcProjectFile(p.path), "utf8"));
       if (meta.name) projectName = meta.name;
     } catch {}
+
+    // Pass-through runs are bucketed under a pseudo-slug named for the runtime
+    // (agents/<runtime>/sessions), since there is no persona to attribute them to.
+    const agentSlug = agent ? agent.slug : runtime;
 
     const session = createRuntimeSession({
       projectRoot: p.path,
       storageRoot: p.storagePath,
-      agentSlug: agent.slug,
+      agentSlug,
       runtime,
-      title: req.body?.title,
-      taskRef: req.body?.task_ref || "",
+      title,
+      taskRef: taskRef || "",
     });
 
-    const system = buildAgentSystem(p, agent, {
-      invocation: "runtime",
-      runtime,
-      extraParts: [
-        buildApfHint({
-          projectName,
-          projectPath: p.path,
-          agentSlug: agent.slug,
-          sessionId: session.id,
-        }),
-      ],
-    });
+    // No agent → no system prompt (true pass-through). With an agent, its system
+    // prompt plus the bridge hint that lets it report a result back.
+    const system = agent
+      ? buildAgentSystem(p, agent, {
+          invocation: "runtime",
+          runtime,
+          extraParts: [
+            buildApfHint({
+              projectName,
+              projectPath: p.path,
+              agentSlug: agent.slug,
+              sessionId: session.id,
+            }),
+          ],
+        })
+      : "";
 
     try {
       const r = await rt.run({
@@ -99,7 +101,7 @@ export function register(api, { projects, registries, plugins, project, config }
       });
 
       p.logMessage({
-        agent_slug: agent.slug,
+        agent_slug: agentSlug,
         channel: "runtime",
         direction: "in",
         author: "user",
@@ -107,13 +109,13 @@ export function register(api, { projects, registries, plugins, project, config }
         meta: { runtime, apc_session: session.id },
       });
       p.logMessage({
-        agent_slug: agent.slug,
+        agent_slug: agentSlug,
         channel: "runtime",
         direction: "out",
         type: "agent",
-        actor_id: agent.slug,
-        actor_kind: "agent",
-        author: agent.slug,
+        actor_id: agentSlug,
+        actor_kind: agent ? "agent" : "runtime",
+        author: agentSlug,
         body: r.output || "",
         meta: {
           runtime,
@@ -127,6 +129,7 @@ export function register(api, { projects, registries, plugins, project, config }
 
       res.json({
         runtime,
+        agent: agent ? agent.slug : null,
         exit_code: r.exitCode,
         output: r.output,
         stderr: r.stderr,
@@ -144,6 +147,36 @@ export function register(api, { projects, registries, plugins, project, config }
       } catch {}
       res.status(500).json({ error: e.message, apc_session: session.id });
     }
+  }
+
+  // Pass-through: delegate to a runtime with no APX agent (the CLI runs as itself).
+  api.post("/projects/:pid/runtime", asyncRoute(async (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const { runtime, prompt, timeoutMs } = req.body || {};
+    if (!runtime || !prompt)
+      return res.status(400).json({ error: "runtime and prompt required" });
+    await executeRuntime(res, {
+      p, agent: null, runtime, prompt, timeoutMs,
+      title: req.body?.title, taskRef: req.body?.task_ref,
+    });
+  }));
+
+  // Agent-wrapped: the named agent's system prompt shapes the runtime's turn.
+  api.post("/projects/:pid/agents/:slug/runtime", asyncRoute(async (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const { runtime, prompt, timeoutMs } = req.body || {};
+    if (!runtime || !prompt)
+      return res.status(400).json({ error: "runtime and prompt required" });
+
+    const agent = readAgents(p.path).find((a) => a.slug === req.params.slug);
+    if (!agent) return res.status(404).json({ error: "agent not found" });
+
+    await executeRuntime(res, {
+      p, agent, runtime, prompt, timeoutMs,
+      title: req.body?.title, taskRef: req.body?.task_ref,
+    });
   }));
 
   // ---- Session resume — reads APC session file + (optionally) external transcript ----

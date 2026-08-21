@@ -1,13 +1,36 @@
 import { http } from "../http.js";
 import { resolveProjectId } from "./project.js";
 
+const SLUG_RE = /^[a-z][a-z0-9_-]*$/;
+
+// Resolve the OPTIONAL agent and the prompt positionals for `apx run`. The APX
+// agent only shapes the system prompt handed to the external CLI — the CLI has
+// its own agency — so no agent means a pass-through:
+//   apx run --runtime claude-code "<prompt>"              → { slug: null }  (pass-through)
+//   apx run -a reviewer --runtime claude-code "<prompt>"  → { slug: "reviewer" }
+//   apx run reviewer --runtime claude-code "<prompt>"     → legacy positional (still works)
+// A SINGLE positional is always the prompt, so a quoted pass-through prompt is
+// never mistaken for an agent.
+export function resolveRunAgent(flags = {}, positionals = []) {
+  const flagVal =
+    (flags.agent && flags.agent !== true) ? String(flags.agent) :
+    (flags.a && flags.a !== true) ? String(flags.a) : null;
+  let slug = flagVal;
+  let rest = positionals.slice();
+  if (!slug && rest.length >= 2 && SLUG_RE.test(rest[0])) {
+    slug = rest[0];
+    rest = rest.slice(1);
+  }
+  return { slug: slug || null, positionals: rest };
+}
+
 export async function cmdRun(args) {
-  const slug = args._[0];
-  if (!slug) throw new Error("apx run: usage: apx run <agent> --runtime <id> \"<prompt>\"");
   const runtime = args.flags.runtime === true ? null : args.flags.runtime;
   if (!runtime) throw new Error("apx run: --runtime required (claude-code | codex | opencode | aider | cursor-agent | gemini-cli | qwen-code | antigravity)");
 
-  let prompt = args._.slice(1).join(" ").trim();
+  const { slug, positionals } = resolveRunAgent(args.flags, args._);
+
+  let prompt = positionals.join(" ").trim();
   if (!prompt || prompt === "-") {
     const fs = await import("node:fs");
     if (!process.stdin.isTTY) {
@@ -30,10 +53,10 @@ export async function cmdRun(args) {
     ? parseInt(args.flags.timeout, 10) * 1000
     : undefined;
 
-  const result = await http.post(
-    `/api/projects/${pid}/agents/${slug}/runtime`,
-    { runtime, prompt, timeoutMs }
-  );
+  const endpoint = slug
+    ? `/api/projects/${pid}/agents/${slug}/runtime`
+    : `/api/projects/${pid}/runtime`;
+  const result = await http.post(endpoint, { runtime, prompt, timeoutMs });
 
   if (result.output) process.stdout.write(result.output + "\n");
   if (process.stderr.isTTY || args.flags.verbose) {
