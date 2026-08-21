@@ -17,15 +17,38 @@ while Android owns the floating mascot, system notifications, and app launch.
 1. Make the daemon reachable from the phone, over LAN or an ADB reverse port.
 2. Run `apx pair web` on the daemon machine.
 3. Enter the daemon URL and printed pairing code in APX Android.
-4. Grant notification and **Display over other apps** permissions when Android asks.
-5. If trip detection is enabled, grant notification access and location
-   **only while the app is in use**.
+4. Grant the notification permission when Android asks.
+5. Grant **Display over other apps** only when the floating mascot is wanted.
 </Steps>
 
 The app receives its own `kind: android` client token. It does not reuse the
 token stored by Chrome or an installed PWA because Android isolates each app's
 storage. Existing web pairing remains valid; both clients appear in
 `apx pair list` and can be revoked independently.
+
+## One-time car setup
+
+Android does not let an app approve notification access or Do Not Disturb
+access for itself. A new installation therefore needs two explicit system
+switches for the complete car experience:
+
+| Capability | One-time action | Required for |
+| --- | --- | --- |
+| APX notifications | Accept Android's notification prompt | Every APX notification |
+| Driving alerts | APX menu → **Allow driving alerts**, then enable APX in the system screen | Heads-up cards while Android Auto enables Do Not Disturb |
+| Trip detection | APX menu → **Enable trip detection**, then enable APX notification access | Reading Google Maps navigation state and destination |
+| Location | Choose **While using the app** | Supplying the trip origin |
+| Overlay | Enable **Display over other apps** | Floating mascot only; not needed for car cards |
+
+In Android Auto settings, keep **Show message notifications** enabled. Enable
+**Show first line of messages** when the card should expose APX text instead of
+only announcing a new message.
+
+<Aside type="caution">
+  **Unknown sources** is needed only for a sideloaded development APK. Enable
+  Android Auto developer mode and that switch when testing a local build. A
+  normally distributed release does not require this developer option.
+</Aside>
 
 ## Native behavior
 
@@ -75,6 +98,19 @@ storage. Existing web pairing remains valid; both clients appear in
   authenticated foreground WebSocket to the daemon and reconnects after
   network interruptions. Disabling the mascot only removes the overlay.
 </Aside>
+
+## Which route APX knows
+
+APX does **not** receive Google Maps' exact polyline. Android sends the latest
+available GPS point as the origin and the confirmed destination text exposed by
+the Maps navigation notification. The daemon geocodes that destination and
+builds its own driving route with Valhalla, falling back to OSRM.
+
+That reconstructed route is enough for corridor and nearby-place matching, but
+it can differ from Google Maps because it has no Google traffic, avoidance, or
+private-road decisions. If origin or destination is missing, APX does not claim
+to know the route and does not run proximity matching. Merely connecting to a
+car without choosing a destination does not start route evaluation.
 
 ## Build and install
 
