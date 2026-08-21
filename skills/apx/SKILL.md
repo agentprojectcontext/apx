@@ -14,8 +14,9 @@ This is the **engine-side** skill: a slim reference for runtimes invoked by APX.
 
 ## When you (as an engine) interact with APX
 
-- You were spawned by `apx run` — your CWD is a project and APX is reachable on `127.0.0.1:7430`.
+- You were spawned by `apx run`, or the user launched you by hand inside an APX project — either way APX is reachable on `127.0.0.1:7430`.
 - The user asks you to call APX from inside your session ("send a telegram via apx", "list apx sessions").
+- The user asks you to reach an APX agent — "hablá con Roby", "preguntale a <agente>", "que <agente> me avise cuando termines" — see **Talking to an APX agent (a2a relay)** below.
 - You're inside an `.apc/` project and want to consult APX-managed state.
 
 If you can do the task natively (you're an IDE/CLI with your own tools), prefer that. Only shell out to `apx` when the task is APX-specific. For anything MCP-related, use the [[apx-mcp]] skill — it's the MCP entry point for agents.
@@ -61,6 +62,57 @@ apx messages chat --channel <name> -n 20
 # Protocol bridges (spawned by clients, not run interactively)
 apx acp                         # Agent Client Protocol server on stdio (Zed, JetBrains, ...)
 ```
+
+---
+
+## Talking to an APX agent (a2a relay)
+
+When the user wants to reach an APX agent — "hablá con Roby", "preguntale a
+<agente>", "que <agente> me avise cuando termines" — you talk to the agent on the
+**agent-to-agent (a2a) channel**, not to the user. You send, the agent runs and
+returns its reply on stdout; if you identified your session, the agent (or the
+user through it) can later answer back *into this session*.
+
+Send with `apx send` on the a2a channel:
+
+```bash
+apx send <you> <agent> "<message>  engine=claude session=<your-session-id>" --deliver --project <name>
+```
+
+- `<you>` — your sender identity; for a coding CLI use the engine name (`claude`,
+  `codex`, …). It does NOT need to be a registered agent.
+- `<agent>` — recipient slug. `--project` is optional unless the slug exists in
+  several projects (then `apx send` lists them). `apx agent list --all` shows
+  every agent and its project.
+- `--deliver` — runs the recipient now and returns its reply on stdout. The agent
+  decides whether/how to tell the user on its own channel (respecting quiet-hours).
+- **The a2a thread keeps history** — each `--deliver` sees the earlier turns of
+  this pair, so a back-and-forth is a real conversation (you don't have to restate
+  context every message). It shows in the web inbox as a "you · agent" group chat.
+- Do NOT use `apx exec` for this (it posts on the USER channel — the agent sees it
+  as if the user typed it), and do NOT `apx telegram send` the user directly (that
+  bypasses the agent and the relay never closes).
+- The super-agent itself is not an a2a target — reach it with `apx exec "<msg>"`.
+
+**Identify your session so the answer can return.** Put `engine=claude
+session=<id>` in the message body. Get your id from your own transcript path (most
+reliable), or `apx sessions list --engine claude --dir "$PWD"`.
+
+> ⚠️ With several Claude sessions open in the same repo, "most recent" is NOT
+> reliably you — prefer your transcript path. If you can't be sure, say so in the
+> message instead of guessing; the agent then starts fresh rather than resuming
+> the wrong (possibly stale) session.
+
+The agent answers back by resuming your session headless — **it** runs this, not
+you:
+
+```bash
+apx session resume <session-id> --continue --msg "<the reply>"
+```
+
+That injects one message into your transcript with full context and captures your
+response on stdout. (Resume-with-`--msg` is Claude-only for now.) The agent side
+of this convention lives in the **apx-runtime** skill.
 
 ---
 

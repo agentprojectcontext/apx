@@ -37,6 +37,31 @@ If you can spawn a subagent natively in the current IDE (Claude Code, Cursor, �
 
 > *internal/dev* sub-skills aren't pushed to IDE skill dirs by default. They live in the APX repo; install to IDE with `apx skills add <slug> --global`.
 
+## Talk to an APX agent (a2a) — "hablá con Roby"
+
+When the user says "hablá con Roby" / "avisale a <agent>" / "pasale esto a <agent>",
+message the agent on the **a2a channel** — NOT `apx exec` (that posts as the user):
+
+```bash
+apx send <you> <agent> "<message>" --deliver --project <name>
+```
+
+- `<you>`: your own identity as sender — a coding CLI passes its engine name
+  (`claude`, `codex`). It need NOT be a registered agent.
+- `<agent>`: recipient slug. If it lives in one project, `--project` is optional;
+  if the slug exists in several (e.g. `roby` is in Appsi and BlobSmoke), `apx send`
+  refuses and lists them — pass `--project`. `apx agent list --all` shows every
+  agent with its project.
+- `--deliver` runs the recipient now and returns its reply on stdout. The a2a
+  thread keeps history, so a back-and-forth is a real conversation (each `send`
+  sees the prior turns). It shows in the web inbox as a "claude · roby" group chat.
+- The agent decides whether/how to tell the user on its own channel (respecting
+  quiet-hours) — you don't `apx telegram send` the user yourself.
+
+To be answered back into THIS coding session, include `engine=claude session=<id>`
+in your message; the agent replies with `apx session resume <id> --continue --msg
+"…"`. Full detail lives in the **apx-runtime** and **claude-code** sub-skills.
+
 ## Generic patterns (apply to every sub-skill)
 
 ### Verify commands before recommending
