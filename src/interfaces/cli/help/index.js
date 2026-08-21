@@ -571,7 +571,8 @@ export const HELP_TOPICS = new Map(Object.entries({
       "Locate <id> across every detected engine (apx | claude | codex), show it, and optionally continue.",
     usage: [
       "apx session resume <id> [--engine <id>] [--summary] [--full|--tail N]",
-      "apx session resume <id> --continue            # spawn native CLI to resume",
+      "apx session resume <id> --continue            # spawn native CLI to resume (interactive, for a human)",
+      "apx session resume <id> --continue --msg \"<text>\"   # headless: inject one message, capture the reply",
       "apx session resume <id> --into apx[:slug]     # create a new APX session seeded with the summary",
     ],
     options: [
@@ -579,30 +580,16 @@ export const HELP_TOPICS = new Map(Object.entries({
       ["--summary", "Ask the super-agent to summarize the transcript (needs daemon)."],
       ["--tail N[k|m]", "Print the last N bytes of the transcript (default = metadata only)."],
       ["--full / --body", "Print the entire transcript."],
-      ["--continue", "Spawn the engine's native CLI (claude --resume / codex resume)."],
+      ["--continue", "Spawn the engine's native CLI (claude --resume / codex resume), interactive."],
+      ["--msg \"<text>\"", "Headless: inject one message into the transcript (full context) and capture the reply. Implies --continue. Claude only. \"-\" or empty reads stdin. How an APX agent answers a coding session."],
       ["--into apx[:slug]", "Create a new APX session whose body is the summary of <id>."],
       ["--project <name|id|path>", "Pin to a specific APX project (apx-engine summaries only)."],
     ],
     examples: [
       "apx session resume b3f0c12a... --summary",
       "apx session resume 2026-05-09-01 --continue",
+      "apx session resume fb65f80d... --continue --msg \"Manu says: go ahead with the tests, don't touch login\"",
       "apx session resume b3f0c12a... --engine claude --into apx:reviewer",
-    ],
-  }),
-  "session deliver": topic({
-    title: "apx session deliver",
-    summary:
-      "Wake an idle coding-CLI session HEADLESS with one new message (resumes its transcript, full context) and capture its reply. The return leg of a CLI ⇄ agent hand-off.",
-    usage: [
-      "apx session deliver <id> \"<message>\" [--engine <id>]",
-      "apx session deliver <id> -            # read the message from stdin",
-    ],
-    options: [
-      ["--engine <id>", "Restrict the search to one engine when <id> collides: apx | claude | codex."],
-    ],
-    examples: [
-      "apx session deliver fb65f80d... \"Manu says: keep going with the tests, don't touch login\"",
-      "cat reply.txt | apx session deliver fb65f80d... -",
     ],
   }),
   "session compact": topic({
@@ -2164,8 +2151,7 @@ export function buildHelp(version) {
     hCmd("apx session close <id>",     36, "--result \"text\""),
     hCmd("apx session check",          36, "anti-collision: exit 1 if active session"),
     hCmd("apx session close-stale",    36, "auto-close sessions older than 1h"),
-    hCmd("apx session resume <id>",    36, "--summary  --full  (APC + Claude Code transcript)"),
-    hCmd("apx session deliver <id>",   36, "\"<msg>\"  wake an idle CLI session headless, capture its reply"),
+    hCmd("apx session resume <id>",    36, "--summary  --full  --continue [--msg \"<text>\"]  (APC + Claude Code transcript)"),
     hCmd("apx session compact <slug>", 36, "--conversation <id>  collapse history into summary"),
     hCmd("apx session find <text>",    36, "find sessions by title (cross-engine)  --deep  --engine X"),
     hCmd("apx session summary <id>",   36, "LLM summary of any session by id"),
