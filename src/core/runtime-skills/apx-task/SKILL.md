@@ -56,7 +56,7 @@ apx task patch   t_abc123 --project acme --tag bug --tag blocker   # replaces ta
 
 ## Super-agent tools
 
-The super-agent has `create_task` and `list_tasks`. "Note that we need to close the auth bug in acme tomorrow" → model calls:
+The super-agent has `create_task`, `list_tasks`, and **`complete_task`** (done | drop | reopen | status). Add, list, and close all happen with tools — no shelling out to `apx task done`. "Note that we need to close the auth bug in acme tomorrow" → model calls:
 
 ```json
 { "name": "create_task",

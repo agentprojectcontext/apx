@@ -39,7 +39,7 @@ Resolve a loose date to a real one ("Friday" → that date) and say which date y
 
 ## Super-agent tools
 
-`record_commitment` and `list_commitments`. Both are in the base set — a promise is caught mid-sentence, so they are always loaded.
+`record_commitment` and `list_commitments` are in the base set — a promise is caught mid-sentence, so they are always loaded. **`mark_commitment`** (kept | missed | drop | renegotiate) closes one out with a tool, no shelling to `apx commitment kept`.
 
 ```json
 { "name": "record_commitment",

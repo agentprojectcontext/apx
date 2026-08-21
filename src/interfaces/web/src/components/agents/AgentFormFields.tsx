@@ -44,7 +44,7 @@ export function AgentIconPicker({
                 icon === k ? "ring-2 ring-primary" : "opacity-75 hover:opacity-100",
               )}
             >
-              <BlobAvatar preset={k} size={34} animated={icon === k || hover === k} seed={k} />
+              <BlobAvatar preset={k} size={40} animated={icon === k || hover === k} seed={k} />
             </button>
           </Tip>
         ))}

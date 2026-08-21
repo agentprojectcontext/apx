@@ -16,8 +16,11 @@ export const TOOLS = Object.freeze({
   CREATE_AGENT:        "create_agent",
   SET_AGENT_PROMPT:    "set_agent_prompt",
   WRITE_AGENT_MEMORY:  "write_agent_memory",
+  CONFIGURE_AGENT:     "configure_agent",
+  REMOVE_AGENT:        "remove_agent",
   LIST_MCPS:           "list_mcps",
   LIST_MCP_TOOLS:      "list_mcp_tools",
+  ADD_MCP:             "add_mcp",
 
   // Memory
   READ_AGENT_MEMORY:   "read_agent_memory",
@@ -45,7 +48,9 @@ export const TOOLS = Object.freeze({
   // Tasks
   LIST_TASKS:          "list_tasks",
   CREATE_TASK:         "create_task",
+  COMPLETE_TASK:       "complete_task",
   RECORD_COMMITMENT:   "record_commitment",
+  MARK_COMMITMENT:     "mark_commitment",
   REMEMBER_ROUTINE:    "remember_routine",
 
   // Routines
@@ -121,6 +126,11 @@ export const NATIVE_TOOL_NAMES = new Set([
   TOOLS.CREATE_AGENT,
   TOOLS.SET_AGENT_PROMPT,
   TOOLS.WRITE_AGENT_MEMORY,
+  TOOLS.CONFIGURE_AGENT,
+  TOOLS.REMOVE_AGENT,
+  TOOLS.ADD_MCP,
+  TOOLS.COMPLETE_TASK,
+  TOOLS.MARK_COMMITMENT,
   TOOLS.ADD_PROJECT,
   TOOLS.LIST_MCPS,
   TOOLS.LIST_MCP_TOOLS,
@@ -263,6 +273,11 @@ export const SIDE_EFFECT_TOOLS = new Set([
   TOOLS.CREATE_AGENT,
   TOOLS.SET_AGENT_PROMPT,
   TOOLS.WRITE_AGENT_MEMORY,
+  TOOLS.CONFIGURE_AGENT,
+  TOOLS.REMOVE_AGENT,
+  TOOLS.ADD_MCP,
+  TOOLS.COMPLETE_TASK,
+  TOOLS.MARK_COMMITMENT,
   TOOLS.SET_IDENTITY,
 ]);
 
