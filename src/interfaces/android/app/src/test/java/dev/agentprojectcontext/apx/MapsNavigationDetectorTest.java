@@ -55,4 +55,12 @@ public final class MapsNavigationDetectorTest {
             "heading to Central Station"
         ).equals("Central Station"));
     }
+
+    @Test
+    public void rejectsHonorTurnInstructionAsDestination() {
+        assertTrue(MapsNavigationDetector.destinationFrom(
+            "Dirígete hacia Parque Nacional Laguna Blanca",
+            "Llegada: 5:55 p. m."
+        ).isBlank());
+    }
 }
