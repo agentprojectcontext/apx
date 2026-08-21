@@ -135,6 +135,7 @@ install. Check the real number with `apx profile show <id>` or
 
 `GET /api/profiles` · `GET /api/profiles/:id` (includes `preview`) · `GET /api/profiles/doctor` ·
 `POST /api/profiles/install` · `POST /api/profiles/use` · `POST /api/profiles/off` ·
+`POST /api/profiles/sync` (re-applies a package's routines after an update — `apx profile sync`) ·
 `PATCH /api/profiles/config` · `DELETE /api/profiles/:id`
 
 ## Gotchas

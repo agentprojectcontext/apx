@@ -92,7 +92,7 @@ On a message to a channel with `project: "acme"`:
 
 ## What "master agent" does
 
-With `route_to_agent: "reviewer"`, messages go through `/api/projects/:pid/agents/reviewer/chat` instead of `/api/super-agent/chat`. The agent's `AGENT.md` + memory is used. No tools (project agents are `exec_agent`-shaped — text in, text out). Single LLM call. Use this for persona channels (reviewer, sales, support) instead of the general assistant. Empty = super-agent (default).
+With `route_to_agent: "reviewer"`, an incoming message is dispatched to that project agent instead of the super-agent. Routing is **in-process** — `src/core/channels/telegram/dispatch.js` reads the agent and makes a single `callEngine` with the agent's `AGENT.md` + memory (there is no per-request `agents/:slug/chat` HTTP route). No tools: text in, text out. Use this for persona channels (reviewer, sales, support) instead of the general assistant. Empty = super-agent (default).
 
 ## Anti-examples
 

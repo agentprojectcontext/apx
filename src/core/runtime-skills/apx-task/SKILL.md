@@ -48,10 +48,11 @@ apx task patch   t_abc123 --project acme --tag bug --tag blocker   # replaces ta
 | `title` | always | One imperative line. Required. |
 | `body` | optional | Longer notes. Markdown OK. |
 | `tags` | optional | Free-form. Used by `--tag` filter. |
-| `due` | optional | ISO `YYYY-MM-DD`. Supports `--due-before`. |
+| `due` | optional | ISO `YYYY-MM-DD`. Filter with `--due-before` / `--due-after`. |
 | `agent` | optional | Slug of responsible agent. Used by `--agent` filter. |
 | `source` | auto/optional | Origin (cli, telegram, super-agent). |
-| `state` | derived | `open` after create, `done`/`dropped` after ops. |
+| `state` | derived | Storage lifecycle: `open` after create, `done`/`dropped` after ops. |
+| `status` | sub-status | How an **open** task is progressing — `pending` (default) \| `running` \| `in_review` \| `blocked`. Orthogonal to `state`. Filter with `--status`; set via `POST …/tasks/:id/status` (the CLI `patch` does not set it). |
 
 ## Super-agent tools
 
@@ -79,14 +80,16 @@ apx task drop t_abc            # "no longer needed; archive without completion"
 ## Endpoint surface
 
 ```
-GET    /api/projects/:pid/tasks                  ?state=open|done|dropped|all&tag=X&agent=Y&due_before=ISO&limit=N
+GET    /api/tasks                                cross-project; same filters, plus ?offset
+GET    /api/projects/:pid/tasks                  ?state=open|done|dropped|all&status=pending|running|in_review|blocked&tag=X&agent=Y&due_before=ISO&due_after=ISO&updated_since=ISO&limit=N
 POST   /api/projects/:pid/tasks                  { title, body?, tags?, due?, agent?, source?, meta? }
 GET    /api/projects/:pid/tasks/:id
 PATCH  /api/projects/:pid/tasks/:id              { patch: {...} }
 POST   /api/projects/:pid/tasks/:id/done         { by? }
 POST   /api/projects/:pid/tasks/:id/drop         { by? }
 POST   /api/projects/:pid/tasks/:id/reopen
-GET    /api/projects/:pid/tasks-summary          → { open, done, dropped, overdue, total }
+POST   /api/projects/:pid/tasks/:id/status       { status: pending|running|in_review|blocked }
+GET    /api/projects/:pid/tasks-summary          → { open, done, dropped, overdue, total, status:{…} }
 ```
 
 ## Don't
