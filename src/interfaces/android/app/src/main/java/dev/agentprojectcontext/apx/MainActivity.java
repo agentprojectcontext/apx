@@ -253,13 +253,13 @@ public final class MainActivity extends Activity {
     }
 
     private void ensureMascotRunning() {
-        if (!preferences.paired() || !preferences.mascotEnabled() || !Settings.canDrawOverlays(this)) return;
+        if (!preferences.paired()) return;
         Intent service = new Intent(this, MascotOverlayService.class);
         if (Build.VERSION.SDK_INT >= 26) startForegroundService(service); else startService(service);
     }
 
     private void setMascotAppForeground(boolean foreground) {
-        if (!preferences.paired() || !preferences.mascotEnabled() || !Settings.canDrawOverlays(this)) return;
+        if (!preferences.paired()) return;
         Intent service = new Intent(this, MascotOverlayService.class)
             .setAction(foreground ? MascotOverlayService.ACTION_APP_FOREGROUND : MascotOverlayService.ACTION_APP_BACKGROUND);
         if (Build.VERSION.SDK_INT >= 26) startForegroundService(service); else startService(service);
@@ -359,18 +359,27 @@ public final class MainActivity extends Activity {
         }
         String mascotAction = preferences.mascotEnabled() ? "Desactivar mascota" : "Activar mascota";
         String soundAction = preferences.soundEnabled() ? "✓ Sonido de mensajes" : "Sonido de mensajes";
+        NotificationManager notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        String drivingAlertsAction = notificationManager.isNotificationPolicyAccessGranted()
+            ? "✓ Avisos durante conducción"
+            : "Permitir avisos durante conducción";
         boolean travelAccess = travelDetectionEnabled();
         String travelAction = !travelAccess
             ? "Activar detección de viajes"
             : preferences.travelActive() ? "✓ Viaje de Maps detectado" : "✓ Detección de viajes activa";
         new AlertDialog.Builder(this)
             .setTitle("APX Android")
-            .setItems(new String[]{mascotAction, soundAction, travelAction, "Recargar /mobile", "Vincular otro dispositivo"}, (dialog, which) -> {
+            .setItems(new String[]{mascotAction, soundAction, drivingAlertsAction, travelAction, "Probar aviso Android Auto", "Recargar /mobile", "Vincular otro dispositivo"}, (dialog, which) -> {
                 if (which == 0) toggleMascot();
                 if (which == 1) toggleMessageSound();
-                if (which == 2) openTravelDetectionSettings();
-                if (which == 3) openMobile("/mobile");
+                if (which == 2) startActivity(new Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS));
+                if (which == 3) openTravelDetectionSettings();
                 if (which == 4) {
+                    CarMessageNotification.show(this, "Prueba APX: aviso directo en Android Auto.");
+                    Toast.makeText(this, "Aviso APX enviado", Toast.LENGTH_SHORT).show();
+                }
+                if (which == 5) openMobile("/mobile");
+                if (which == 6) {
                     stopService(new Intent(this, MascotOverlayService.class));
                     preferences.clearPairing();
                     showPairing(null, null, false);
@@ -405,7 +414,7 @@ public final class MainActivity extends Activity {
         boolean enabled = !preferences.mascotEnabled();
         preferences.setMascotEnabled(enabled);
         if (!enabled) {
-            stopService(new Intent(this, MascotOverlayService.class));
+            ensureMascotRunning();
             Toast.makeText(this, "Mascota desactivada", Toast.LENGTH_SHORT).show();
             return;
         }

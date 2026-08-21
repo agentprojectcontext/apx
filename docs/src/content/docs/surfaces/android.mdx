@@ -64,11 +64,16 @@ storage. Existing web pairing remains valid; both clients appear in
   Maps before delivery cancels the pending notice.
 - Mobility deliveries also create an APX Android card and play the local sound
   when native message sounds are enabled.
+- Direct APX messages use Android's messaging notification format. Android Auto
+  can render them as heads-up notices and read them aloud without opening
+  Telegram. The native menu includes **Test Android Auto notice** for DHU or
+  vehicle testing. Android Auto enables Do Not Disturb while connected; grant
+  **Driving alerts** once if APX should bypass it.
 
 <Aside type="note">
-  Live notifications require the mascot foreground service to remain enabled.
-  The service keeps one authenticated WebSocket to the daemon and reconnects
-  after network interruptions.
+  Live notifications do not require the floating mascot. APX keeps one
+  authenticated foreground WebSocket to the daemon and reconnects after
+  network interruptions. Disabling the mascot only removes the overlay.
 </Aside>
 
 ## Build and install

@@ -29,9 +29,7 @@ public final class MascotOverlayService extends Service {
     static final String ACTION_APP_FOREGROUND = "dev.agentprojectcontext.apx.APP_FOREGROUND";
     static final String ACTION_APP_BACKGROUND = "dev.agentprojectcontext.apx.APP_BACKGROUND";
     private static final String SERVICE_CHANNEL = "apx_mascot";
-    private static final String MESSAGE_CHANNEL = "apx_messages_custom_sound";
     private static final int SERVICE_NOTIFICATION = 7001;
-    private static final int MESSAGE_NOTIFICATION = 7100;
 
     private final Handler main = new Handler(Looper.getMainLooper());
     private WindowManager windowManager;
@@ -40,6 +38,7 @@ public final class MascotOverlayService extends Service {
     private ApxPreferences preferences;
     private WebSocket socket;
     private boolean destroyed;
+    private boolean foregroundStarted;
     private int reconnectAttempts;
 
     @Override
@@ -53,16 +52,18 @@ public final class MascotOverlayService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         if (intent != null && ACTION_STOP.equals(intent.getAction())) {
             preferences.setMascotEnabled(false);
-            stopSelf();
-            return START_NOT_STICKY;
+            removeOverlay();
         }
-        startForeground(SERVICE_NOTIFICATION, serviceNotification());
-        if (!preferences.paired() || !preferences.mascotEnabled() || !Settings.canDrawOverlays(this)) {
+        if (!foregroundStarted) {
+            startForeground(SERVICE_NOTIFICATION, serviceNotification());
+            foregroundStarted = true;
+        }
+        if (!preferences.paired()) {
             stopSelf();
             return START_NOT_STICKY;
         }
         boolean appForeground = intent != null && ACTION_APP_FOREGROUND.equals(intent.getAction());
-        if (appForeground) {
+        if (appForeground || !preferences.mascotEnabled() || !Settings.canDrawOverlays(this)) {
             removeOverlay();
         } else if (mascotView == null) {
             addOverlay();
@@ -149,8 +150,7 @@ public final class MascotOverlayService extends Service {
     private void presentMessage(String message) {
         if (mascotView != null) mascotView.showMessage(message);
         if (preferences.soundEnabled()) playNotificationSound();
-        NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-        manager.notify(MESSAGE_NOTIFICATION, messageNotification(message));
+        CarMessageNotification.show(this, message);
     }
 
     private void playNotificationSound() {
@@ -185,7 +185,7 @@ public final class MascotOverlayService extends Service {
         NotificationChannel service = new NotificationChannel(SERVICE_CHANNEL, getString(R.string.mascot_channel), NotificationManager.IMPORTANCE_LOW);
         service.setDescription("Mantiene mascota APX y conexión local activas.");
         manager.createNotificationChannel(service);
-        NotificationChannel messages = new NotificationChannel(MESSAGE_CHANNEL, getString(R.string.messages_channel), NotificationManager.IMPORTANCE_HIGH);
+        NotificationChannel messages = new NotificationChannel(CarMessageNotification.CHANNEL, getString(R.string.messages_channel), NotificationManager.IMPORTANCE_HIGH);
         messages.setDescription("Mensajes nuevos recibidos por APX.");
         messages.setSound(null, null);
         manager.createNotificationChannel(messages);
@@ -196,22 +196,11 @@ public final class MascotOverlayService extends Service {
         Intent stop = new Intent(this, MascotOverlayService.class).setAction(ACTION_STOP);
         return new Notification.Builder(this, SERVICE_CHANNEL)
             .setSmallIcon(R.drawable.ic_apx_notification)
-            .setContentTitle("Mascota APX activa")
-            .setContentText("Conectada a mensajes APX")
+            .setContentTitle("APX conectado")
+            .setContentText("Mensajes directos y avisos activos")
             .setContentIntent(pendingActivity(open, 1))
-            .addAction(new Notification.Action.Builder(null, "Ocultar", pendingService(stop, 2)).build())
+            .addAction(new Notification.Action.Builder(null, "Ocultar mascota", pendingService(stop, 2)).build())
             .setOngoing(true)
-            .build();
-    }
-
-    private Notification messageNotification(String message) {
-        Intent open = new Intent(this, MainActivity.class).putExtra(MainActivity.EXTRA_PATH, "/mobile");
-        return new Notification.Builder(this, MESSAGE_CHANNEL)
-            .setSmallIcon(R.drawable.ic_apx_notification)
-            .setContentTitle("APX")
-            .setContentText(message)
-            .setContentIntent(pendingActivity(open, 3))
-            .setAutoCancel(true)
             .build();
     }
 
