@@ -189,7 +189,7 @@ function detectOverdueCommitments(project, { now }) {
  */
 export const A2A_SEVERITY = Object.freeze({ blocker: "critical", status: "normal", fyi: "low" });
 
-function detectA2A(project, { now, a2a_since }) {
+function detectA2A(project, { now, a2a_since, a2a_alerts = false }) {
   // No last run yet → a bounded window, so a first sweep does not dump history.
   const since = a2a_since || new Date(Date.parse(now) - 6 * 3_600_000).toISOString();
   let msgs = [];
@@ -203,6 +203,14 @@ function detectA2A(project, { now, a2a_since }) {
     // `blocker` relayed with severity — see the /send route). The watch must not
     // notify them a second time; the message still lives in the thread.
     .filter((m) => m.direction === "in" && !m.meta?.owner_notified && (m.body || "").trim())
+    // TODO(notifications-menu): a2a alerting is OFF by default. Agent↔agent
+    // chatter — and simulated/test blockers like Magui's — was pinging the owner
+    // as noise, sometimes twice. Until there is a per-notification preferences
+    // menu (choose which agents / severities / channels may alert, and on which
+    // surface), only messages the owner EXPLICITLY asked to be told about
+    // (`solicited`) surface here. Set `a2a_alerts: true` on the profile to
+    // restore the old "Roby judges every a2a" behavior in the meantime.
+    .filter((m) => a2a_alerts === true || m.meta?.solicited === true)
     .map((m) => {
       const tag = String(m.meta?.severity || "").toLowerCase();
       // The owner explicitly asked to be told about this one → the delivery is
@@ -305,6 +313,9 @@ export function thresholdsFromConfig(profileConfig = {}) {
     blocked_hours: pick("blocked_task_hours", DEFAULT_THRESHOLDS.blocked_hours),
     stale_project_days: pick("stale_project_days", DEFAULT_THRESHOLDS.stale_project_days),
     commitment_lead_hours: pick("commitment_lead_hours", DEFAULT_THRESHOLDS.commitment_lead_hours),
+    // Whether agent↔agent chatter alerts the owner at all. OFF by default (see
+    // the TODO in detectA2A) — only `true` restores "Roby judges every a2a".
+    a2a_alerts: profileConfig.a2a_alerts === true,
   };
 }
 
