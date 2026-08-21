@@ -17,15 +17,38 @@ maneja mascota flotante, notificaciones del sistema y apertura de la app.
 1. Hacé accesible el daemon desde el teléfono, por LAN o puerto inverso ADB.
 2. Ejecutá `apx pair web` en la máquina del daemon.
 3. Ingresá URL del daemon y código mostrado dentro de APX Android.
-4. Otorgá permisos de notificaciones y **Mostrar sobre otras apps**.
-5. Si activás detección de viajes, otorgá acceso a notificaciones y ubicación
-   **solo mientras la app está en uso**.
+4. Otorgá permiso de notificaciones cuando Android lo solicite.
+5. Otorgá **Mostrar sobre otras apps** solo si querés mascota flotante.
 </Steps>
 
 La app recibe un token cliente propio `kind: android`. No reutiliza el token
 guardado por Chrome o la PWA instalada porque Android aísla almacenamiento por
 app. Pairing web existente sigue válido; ambos clientes aparecen en
 `apx pair list` y pueden revocarse por separado.
+
+## Configuración del auto una sola vez
+
+Android no permite que una app se otorgue acceso a notificaciones ni permiso
+No molestar. Instalación nueva necesita dos switches explícitos del sistema para
+experiencia completa:
+
+| Capacidad | Acción única | Necesaria para |
+| --- | --- | --- |
+| Notificaciones APX | Aceptar solicitud Android | Toda notificación APX |
+| Avisos durante conducción | Menú APX → **Permitir avisos durante conducción** y activar APX en pantalla del sistema | Cards flotantes mientras Android Auto activa No molestar |
+| Detección de viajes | Menú APX → **Activar detección de viajes** y activar acceso a notificaciones APX | Leer estado y destino de navegación Google Maps |
+| Ubicación | Elegir **Mientras se usa la app** | Enviar origen del viaje |
+| Overlay | Activar **Mostrar sobre otras apps** | Solo mascota flotante; no necesario para cards del auto |
+
+En configuración Android Auto, mantener **Ver notificaciones de mensajes**
+activo. Activar **Mostrar la primera línea de los mensajes** para ver texto APX
+en card, no solo anuncio de mensaje nuevo.
+
+<Aside type="caution">
+  **Fuentes desconocidas** solo hace falta con APK de desarrollo instalada
+  manualmente. Para probar build local, activar modo desarrollador Android Auto
+  y ese switch. Release distribuida normalmente no necesita opción desarrollador.
+</Aside>
 
 ## Comportamiento nativo
 
@@ -72,6 +95,19 @@ app. Pairing web existente sigue válido; ambos clientes aparecen en
   WebSocket autenticado foreground y reconecta tras cortes. Desactivar mascota
   solo quita overlay.
 </Aside>
+
+## Qué ruta conoce APX
+
+APX **no** recibe polilínea exacta de Google Maps. Android envía último punto
+GPS disponible como origen y texto de destino confirmado expuesto por
+notificación de navegación Maps. Daemon geocodifica destino y arma ruta propia
+con Valhalla; usa OSRM como fallback.
+
+Ruta reconstruida alcanza para buscar corredor y lugares cercanos, pero puede
+diferir de Google Maps: no incluye tráfico Google, preferencias de desvío ni
+decisiones sobre caminos privados. Si falta origen o destino, APX no afirma
+conocer ruta y no evalúa proximidad. Conectarse al auto sin elegir destino no
+inicia evaluación.
 
 ## Compilar e instalar
 
