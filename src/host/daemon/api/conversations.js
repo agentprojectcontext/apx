@@ -8,7 +8,36 @@
 //   POST /projects/:pid/send                                   (agent-to-agent)
 import { readAgents } from "#core/apc/parser.js";
 import { listConversations, readConversation, deleteConversation, setConversationMeta, shapeConversationMessage } from "#core/stores/conversations.js";
-import { listGlobalThreads, readGlobalThread, deleteGlobalThread, setGlobalThreadMeta, listProjectA2AThreads, readProjectA2AThread } from "#core/stores/messages.js";
+import { listGlobalThreads, readGlobalThread, deleteGlobalThread, setGlobalThreadMeta, listProjectA2AThreads, readProjectA2AThread, readProjectMessages } from "#core/stores/messages.js";
+
+// Prior turns of an a2a thread between `from` and `to`, oldest→newest, shaped as
+// LLM messages from `viewer`'s side (its own lines = assistant, the peer's =
+// user). This is what gives an a2a reply MEMORY: without it every --deliver is a
+// stateless one-shot and the agent forgets the previous turn. Loaded BEFORE the
+// current message is logged, so it excludes it.
+function a2aPairHistory(storageRoot, from, to, viewer, limit = 24) {
+  const pair = new Set([from, to]);
+  const rows = readProjectMessages(storageRoot, { channel: "a2a", limit: 300 }).filter((m) => {
+    const parts = [m.agent_slug, m.author, m.meta?.from, m.meta?.to].filter(Boolean);
+    return parts.length > 0 && parts.every((s) => pair.has(s));
+  });
+  // Collapse the double-logged rows (one under each peer), keeping the copy
+  // written under the speaker's own ledger.
+  const best = new Map();
+  for (const m of rows) {
+    const k = `${m.ts}|${m.author}|${(m.body || "").slice(0, 120)}`;
+    const cur = best.get(k);
+    if (!cur || (m.agent_slug === m.author && cur.agent_slug !== cur.author)) best.set(k, m);
+  }
+  return [...best.values()]
+    .sort((a, b) => (a.ts || "").localeCompare(b.ts || ""))
+    .slice(-limit)
+    .map((m) =>
+      m.author === viewer
+        ? { role: "assistant", content: m.body || "" }
+        : { role: "user", content: `From ${m.author}:\n\n${m.body || ""}` },
+    );
+}
 import { compactConversation } from "#core/stores/conversations-compactor.js";
 import { replyAsAgent } from "#core/agent/a2a/reply.js";
 import { resolveAgentModel } from "#core/agent/agent-model.js";
@@ -222,6 +251,10 @@ export function register(api, { project, config }) {
         hint: "run `apx agent list --all` to see every agent and its project",
       });
 
+    // Snapshot the prior conversation BEFORE we log the new message, so the
+    // reply sees history without the turn it is answering.
+    const history = deliver ? a2aPairHistory(p.storagePath, from, to, to) : [];
+
     const ts = nowIso();
     p.logMessage({
       agent_slug: from,
@@ -253,6 +286,7 @@ export function register(api, { project, config }) {
           fromAgent,
           body,
           config: p.config || config,
+          history,
         });
 
         p.logMessage({
