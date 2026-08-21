@@ -127,6 +127,20 @@ the new shortcut to take effect.
 `position` can be `"left"`, `"center"`, or `"right"` (default `"right"`).
 `theme` can be `"light"` or `"dark"` (default `"light"`).
 
+### Mascot message sound
+
+New-message bubbles play the bundled notification sound by default. Right-click
+the mascot or tray icon and toggle the checked **Sonido de mensajes** item to
+mute or restore it. The preference persists independently from mascot visibility:
+
+```json
+{
+  "desktop": {
+    "mascot_sound": false
+  }
+}
+```
+
 ## How the window talks to the daemon
 
 The Electron main process opens a WebSocket to `ws://127.0.0.1:7430` and posts

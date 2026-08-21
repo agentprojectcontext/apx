@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">APX</string>
+    <string name="mascot_channel">Mascota APX</string>
+    <string name="messages_channel">Mensajes APX</string>
+</resources>

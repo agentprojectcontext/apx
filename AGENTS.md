@@ -121,7 +121,7 @@ Top-level orientation; the full per-folder breakdown is in
 
 - `src/core/` — engine-agnostic core (agent loop, prompts, skills, tools, engines, runtimes, memory, stores, constants…). **Never imports upward.**
 - `src/host/daemon/` — thin adapter over `core/`: HTTP API (`api/*.js`), plugins (`telegram/`, `desktop/`), WS hubs. No domain logic here.
-- `src/interfaces/` — `cli/`, `web/` (React+Vite panel), `tui/` (vendored OpenCode island, HTTP-only), `desktop/` (Electron), `mcp-server/`, `acp/`.
+- `src/interfaces/` — `cli/`, `web/` (React+Vite panel), `tui/` (vendored OpenCode island, HTTP-only), `desktop/` (Electron), `android/` (native `/mobile` shell + floating mascot), `mcp-server/`, `acp/`.
 - `tests/` — backend suite (`npm run test:ci`); `src/interfaces/web/e2e/` — Playwright.
 - `skills/` — bundled `SKILL.md`s · `scripts/` — build/sync/hooks · `docs/` — public docs site.
 
@@ -230,6 +230,7 @@ rule above in the same change.
 | [`prompts-and-channels.md`](rules/prompts-and-channels.md) | prompt assembly, channels, lazy tools, skills (rules 12 / 16) |
 | [`memory.md`](rules/memory.md) | embeddings, message store, compaction, vector index |
 | [`desktop.md`](rules/desktop.md) | the Electron floating voice window (rule 5) |
+| [`android.md`](rules/android.md) | the native Android `/mobile` shell, pairing, notifications, or overlay mascot |
 | [`docs-site.md`](rules/docs-site.md) | the public Astro + Starlight docs in `docs/` (rule 6) |
 
 ## Agents (dogfood)

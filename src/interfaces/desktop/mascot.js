@@ -115,6 +115,8 @@ function hop() {
 
 // ── Notifications ───────────────────────────────────────────────────────────
 const queue = [];
+const notificationSound = new Audio("./assets/notification.mp3");
+notificationSound.preload = "auto";
 let showing = false;
 let hideTimer = null;
 
@@ -128,6 +130,10 @@ function pump() {
   showing = true;
   bubbleText.textContent = msg.text;
   bubbleEl.hidden = false;
+  if (msg.sound !== false) {
+    notificationSound.currentTime = 0;
+    void notificationSound.play().catch(() => {});
+  }
   void bubbleEl.offsetWidth;
   bubbleEl.classList.add("show");
   hop();
@@ -150,6 +156,6 @@ bubbleEl.addEventListener("click", dismiss);
 window.mascot.onNotify((msg) => {
   const text = (msg && (msg.text || msg.message || "")).toString().trim();
   if (!text) return;
-  queue.push({ text });
+  queue.push({ text, sound: msg.sound !== false });
   pump();
 });

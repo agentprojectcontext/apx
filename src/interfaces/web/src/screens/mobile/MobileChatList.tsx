@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Search, Settings, Share, ShieldAlert, Smartphone, Users, X } from "lucide-react";
+import { Ellipsis, Search, Settings, Share, ShieldAlert, Smartphone, Users, X } from "lucide-react";
 import { installStance, onInstallStateChange, promptInstall } from "../../lib/pwa";
 import { NotifyNudge, PrefsDialog } from "../../components/settings/PanelPrefs";
 import { AgentAvatar } from "../../components/agents/AgentAvatar";
@@ -115,6 +115,7 @@ export function MobileChatList({
 }) {
   const [query, setQuery] = useState("");
   const [prefsOpen, setPrefsOpen] = useState(false);
+  const androidOptions = typeof window.APXAndroid?.openOptions === "function";
   const teams = useMemo(() => buildTeams(rows), [rows]);
 
   const q = query.trim().toLowerCase();
@@ -130,14 +131,26 @@ export function MobileChatList({
             phone means leaving the app to change how the app looks. */}
         <div className="mb-2 flex items-center justify-between gap-2">
           <h1 className="text-xl font-semibold">{t("inbox.title")}</h1>
-          <button
-            type="button"
-            onClick={() => setPrefsOpen(true)}
-            aria-label={t("mobile.prefs")}
-            className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted-fg active:bg-accent/60"
-          >
-            <Settings size={19} />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setPrefsOpen(true)}
+              aria-label={t("mobile.prefs")}
+              className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted-fg active:bg-accent/60"
+            >
+              <Settings size={19} />
+            </button>
+            {androidOptions && (
+              <button
+                type="button"
+                onClick={() => window.APXAndroid?.openOptions()}
+                aria-label={t("mobile.app_options")}
+                className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted-fg active:bg-accent/60"
+              >
+                <Ellipsis size={21} />
+              </button>
+            )}
+          </div>
         </div>
         <div className="relative">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-fg" />

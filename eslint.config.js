@@ -124,6 +124,9 @@ export default [
       "src/interfaces/web/**",
       // Vendored OpenCode fork (TypeScript), gated by scripts/typecheck-tui.js.
       "src/interfaces/tui/**",
+      // Gradle emits HTML/JS test reports; Android sources have their own gate.
+      "src/interfaces/android/**/build/**",
+      "src/interfaces/android/.gradle/**",
       "*.html",
     ],
   },
