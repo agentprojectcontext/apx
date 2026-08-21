@@ -96,6 +96,20 @@ const RUNTIME_GLOBALS = Object.fromEntries(
   ].map((g) => [g, "readonly"])
 );
 
+// DOM globals for browser execution contexts (the Electron renderers, the
+// mascot window, and Puppeteer page.evaluate() callbacks). Kept as one list so
+// every browser-context block below shares the same surface.
+const BROWSER_GLOBALS = Object.fromEntries(
+  [
+    "window", "document", "location", "history", "localStorage",
+    "sessionStorage", "requestAnimationFrame", "cancelAnimationFrame",
+    "MediaRecorder", "MediaStream", "Audio", "AudioContext",
+    "ResizeObserver", "MutationObserver", "IntersectionObserver",
+    "getComputedStyle", "HTMLElement", "Element", "Node", "DOMParser",
+    "alert", "confirm", "prompt", "CustomEvent", "KeyboardEvent",
+  ].map((g) => [g, "readonly"])
+);
+
 export default [
   {
     ignores: [
@@ -194,23 +208,25 @@ export default [
     files: [
       "src/interfaces/desktop/renderer.js",
       "src/interfaces/desktop/preload.js",
+      "src/interfaces/desktop/mascot.js",
       "src/core/http-tools/browser.js",
     ],
     languageOptions: {
-      globals: {
-        ...RUNTIME_GLOBALS,
-        ...Object.fromEntries(
-          [
-            "window", "document", "location", "history", "localStorage",
-            "sessionStorage", "requestAnimationFrame", "cancelAnimationFrame",
-            "MediaRecorder", "MediaStream", "Audio", "AudioContext",
-            "ResizeObserver", "MutationObserver", "IntersectionObserver",
-            "getComputedStyle", "HTMLElement", "Element", "Node", "DOMParser",
-            "alert", "confirm", "prompt", "CustomEvent", "KeyboardEvent",
-          ].map((g) => [g, "readonly"])
-        ),
-      },
+      globals: { ...RUNTIME_GLOBALS, ...BROWSER_GLOBALS },
     },
+  },
+
+  // Auto-generated vanilla mirror of the web blob presets, loaded as a plain
+  // <script> in the mascot window: its top-level consts ARE the page's globals,
+  // consumed by the sibling mascot.js (see its `/* global BLOB_PRESETS … */`).
+  // It is a classic script, not a module — parsed as such. no-unused-vars still
+  // flags top-level lexical consts even in scripts, and this file can't carry a
+  // hand-written annotation (the generator would overwrite it), so the rule is
+  // turned off here; the file only ever holds those two exported globals.
+  {
+    files: ["src/interfaces/desktop/mascot-blobs.js"],
+    languageOptions: { sourceType: "script" },
+    rules: { "no-unused-vars": "off" },
   },
 
   // Tests and scripts verify the seams, so they may reach anywhere.
