@@ -582,9 +582,9 @@ test("runRoutineNow — a priority delivery has Roby notify Manu on Telegram, no
   }
 });
 
-test("runRoutineNow — an ordinary delivery held by quiet-hours stays on the queue, no model call", async () => {
-  // Not an anchor, quiet all day → the gate holds it BEFORE composing, so no
-  // notice is sent and the delivery sits `held` on the queue rather than lost.
+test("runRoutineNow — an ordinary delivery is deferred, not pinged at delivery time", async () => {
+  // Not an anchor → nothing is sent now. It sits `pending` on the queue for the
+  // grace window; the daemon's sweep notifies it later, unless Manu answers first.
   const { listDeliveries } = await import("#core/stores/deliveries.js");
   const root = makeTempProject({ name: "northwind", agents: [{ slug: "scout", model: "mock:test" }] });
   fs.mkdirSync(path.join(root, ".apc", "agents"), { recursive: true });
@@ -593,10 +593,7 @@ test("runRoutineNow — an ordinary delivery held by quiet-hours stays on the qu
     "---\nname: Scout\nmodel: mock:test\ndescription: Test project agent.\n---\n\n# scout\nDo the work.\n",
   );
   const sent = [];
-  const cfg = {
-    super_agent: { enabled: true, model: "mock:test", permission_mode: "total" },
-    nudge: { enabled: true, quiet_hours: "00:00-23:59" },
-  };
+  const cfg = { super_agent: { enabled: true, model: "mock:test", permission_mode: "total" } };
   const ctx = makeCtx(root, { plugins: fakeTelegram(sent), globalConfig: cfg });
   try {
     const out = await runRoutineNow(ctx, {
@@ -606,12 +603,12 @@ test("runRoutineNow — an ordinary delivery held by quiet-hours stays on the qu
       deliver_to: ["telegram"],
       spec: { agent: "scout", prompt: "Report [mock:tool:send_telegram]" },
     });
-    assert.equal(sent.length, 0, "nothing sent while quiet");
+    assert.equal(sent.length, 0, "an ordinary delivery is not pinged immediately");
     const tgResult = out.delivery.results.find((d) => d.channel === "telegram(roby)");
-    assert.equal(tgResult.status, "held");
+    assert.equal(tgResult.status, "deferred");
     const q = listDeliveries(ctx.project.storagePath);
     assert.equal(q.length, 1);
-    assert.equal(q[0].status, "held");
+    assert.equal(q[0].status, "pending", "it waits on the queue for the grace window");
   } finally {
     cleanupTempProject(root);
   }

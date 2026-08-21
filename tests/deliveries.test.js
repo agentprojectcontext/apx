@@ -9,7 +9,7 @@ process.env.APX_HOME = path.join(TMP, ".apx");
 
 const { test } = await import("node:test");
 const { default: assert } = await import("node:assert/strict");
-const { recordDelivery, markDelivery, listDeliveries, DELIVERY_STATUS } =
+const { recordDelivery, markDelivery, answerDeliveries, listDeliveries, DELIVERY_STATUS } =
   await import("#core/stores/deliveries.js");
 
 function fresh() {
@@ -58,6 +58,27 @@ test("listDeliveries — filters by status and keeps the descriptive fields", ()
   const pending = listDeliveries(s, { status: DELIVERY_STATUS.PENDING });
   assert.equal(pending.length, 1);
   assert.equal(pending[0].agent, "b");
+});
+
+test("answerDeliveries — a reply closes that agent's open deliveries, leaves others", () => {
+  const s = fresh();
+  const a1 = recordDelivery(s, { agent: "coach", routine: "r", notify: "x1" });
+  recordDelivery(s, { agent: "coach", routine: "r", notify: "x2" }); // second pending
+  const other = recordDelivery(s, { agent: "magui", routine: "r", notify: "y" });
+  markDelivery(s, a1, DELIVERY_STATUS.NOTIFIED); // already notified — still closes
+
+  const closed = answerDeliveries(s, "coach");
+  assert.equal(closed, 2, "both of coach's open deliveries closed");
+  const coach = listDeliveries(s).filter((d) => d.agent === "coach");
+  assert.ok(coach.every((d) => d.status === DELIVERY_STATUS.ANSWERED));
+  // Another agent's delivery is untouched.
+  assert.equal(listDeliveries(s).find((d) => d.id === other).status, DELIVERY_STATUS.PENDING);
+});
+
+test("answerDeliveries — nothing open is a no-op", () => {
+  const s = fresh();
+  assert.equal(answerDeliveries(s, "nobody"), 0);
+  assert.equal(answerDeliveries(s, ""), 0);
 });
 
 test("listDeliveries — empty / missing store is just an empty list", () => {
