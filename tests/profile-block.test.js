@@ -17,6 +17,9 @@ import path from "node:path";
 // result depends on whose machine runs the suite.
 const TMP_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "apx-profile-test-"));
 process.env.HOME = TMP_HOME;
+// See profile-lifecycle.test.js: pin APX_HOME so isolation does not depend on
+// which module imported config/paths.js first.
+process.env.APX_HOME = path.join(TMP_HOME, ".apx");
 
 const { buildSuperAgentSystem } = await import("#core/agent/prompt-builder.js");
 const { buildProfileBlock, renderProfilePrompt, clearProfileBlockCache } =

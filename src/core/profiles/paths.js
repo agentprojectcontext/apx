@@ -49,3 +49,15 @@ export function promptFileFor(lang) {
   if (!code || code.toLowerCase() === "en") return PROMPT_FILE;
   return `PROFILE.${code}.md`;
 }
+
+/**
+ * Language-specific settings-schema filename: config.schema.es.json, …
+ * Mirrors promptFileFor. The localized file carries only display strings
+ * (title/description); types, defaults and enums stay in the base schema, which
+ * is the single source of truth for validation.
+ */
+export function schemaFileFor(lang) {
+  const code = String(lang || "").trim();
+  if (!code || code.toLowerCase() === "en") return CONFIG_SCHEMA_FILE;
+  return `config.schema.${code}.json`;
+}

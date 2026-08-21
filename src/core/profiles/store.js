@@ -27,6 +27,7 @@ import {
   bundledProfileDir,
   userProfileDir,
   promptFileFor,
+  schemaFileFor,
 } from "./paths.js";
 import { schemaDefaults } from "./manifest.js";
 import { readJson } from "#core/util/json-file.js";
@@ -118,6 +119,52 @@ export function listProfiles({ includeRemoved = false } = {}) {
     if (!includeRemoved && tombstones.has(id)) continue;
     const profile = readProfile(id);
     if (profile) out.push({ ...profile, removed: tombstones.has(id) });
+  }
+  return out;
+}
+
+/**
+ * The base settings schema with title/description overlaid from a
+ * config.schema.<lang>.json when one exists for `lang`. Only display strings
+ * are localized — every property's type, default and enum come from the base
+ * schema, so validation has exactly one source of truth and a missing or stale
+ * translation degrades to English rather than dropping a field.
+ *
+ * Returns the schema unchanged when there is no localized file or `lang` is
+ * English, so callers can use it unconditionally.
+ */
+export function localizeProfileSchema(profileDir, schema, lang) {
+  if (!schema?.properties) return schema || null;
+
+  const candidates = [];
+  const wanted = schemaFileFor(lang);
+  if (wanted !== CONFIG_SCHEMA_FILE) candidates.push(wanted);
+  const base = String(lang || "").split("-")[0];
+  if (base && base !== lang) {
+    const b = schemaFileFor(base);
+    if (b !== CONFIG_SCHEMA_FILE) candidates.push(b);
+  }
+
+  let strings = null;
+  for (const name of candidates) {
+    const file = path.join(profileDir, name);
+    if (fs.existsSync(file)) {
+      strings = readJson(file);
+      break;
+    }
+  }
+  if (!strings?.properties) return schema;
+
+  const out = { ...schema, properties: {} };
+  for (const [key, def] of Object.entries(schema.properties)) {
+    const tr = strings.properties[key];
+    out.properties[key] = tr
+      ? {
+          ...def,
+          ...(tr.title ? { title: tr.title } : {}),
+          ...(tr.description ? { description: tr.description } : {}),
+        }
+      : def;
   }
   return out;
 }

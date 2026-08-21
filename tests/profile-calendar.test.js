@@ -14,6 +14,9 @@ import path from "node:path";
 
 const TMP_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "apx-calendar-"));
 process.env.HOME = TMP_HOME;
+// See profile-lifecycle.test.js: pin APX_HOME so isolation does not depend on
+// which module imported config/paths.js first.
+process.env.APX_HOME = path.join(TMP_HOME, ".apx");
 
 const { readProfile, renderProfileRoutines } = await import("#core/profiles/index.js");
 const { profileDoctor } = await import("#core/profiles/lifecycle.js");

@@ -8,6 +8,10 @@ import path from "node:path";
 
 const TMP_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "apx-profile-life-"));
 process.env.HOME = TMP_HOME;
+// Pin APX_HOME too: computeHome() reads it before falling back to os.homedir(),
+// so setting only HOME left isolation to import-order luck and could write into
+// the developer's real ~/.apx when this file runs alongside others.
+process.env.APX_HOME = path.join(TMP_HOME, ".apx");
 
 const {
   installProfile,
@@ -551,11 +555,14 @@ test("the bundled secretary package is valid and within its declared budget", as
     assert.ok(tokens <= budget, `PROFILE (${lang}) is ${tokens} tokens, over the ${budget} budget`);
   }
 
-  // System prompts ship in English only. A translated PROFILE.<lang>.md would be
-  // a second prompt to keep in sync and drift silently; the agent is told to
-  // reply in the owner's language instead.
-  assert.deepEqual(measured.map((m) => m.lang), ["en"]);
-  assert.deepEqual(secretary.manifest.languages, ["en"]);
+  // The secretary now ships English and Spanish prompts: an owner running APX in
+  // `es` was reading an English chief-of-staff block, which defeated the point of
+  // white-labelling it. Every shipped language must stay under budget (checked in
+  // the loop above) and be declared in the manifest, so a new PROFILE.<lang>.md
+  // added without listing it here — or one that blows the budget — fails loudly
+  // rather than drifting silently.
+  assert.deepEqual(measured.map((m) => m.lang).sort(), ["en", "es"]);
+  assert.deepEqual([...secretary.manifest.languages].sort(), ["en", "es"]);
 });
 
 test("the secretary's routines carry schedules the scheduler can actually parse", async () => {
