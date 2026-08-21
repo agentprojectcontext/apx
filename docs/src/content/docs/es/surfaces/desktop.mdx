@@ -128,6 +128,20 @@ el nuevo atajo tenga efecto.
 `position` puede ser `"left"`, `"center"` o `"right"` (por defecto `"right"`).
 `theme` puede ser `"light"` o `"dark"` (por defecto `"light"`).
 
+### Sonido de mensajes de mascota
+
+Burbuja de mensaje nuevo reproduce sonido incluido por defecto. Clic derecho
+sobre mascota o icono de bandeja permite mutear/reactivar **Sonido de mensajes**;
+tilde indica estado activo. Preferencia persiste separada de visibilidad:
+
+```json
+{
+  "desktop": {
+    "mascot_sound": false
+  }
+}
+```
+
 ## Cómo se comunica la ventana con el daemon
 
 El proceso principal de Electron abre un WebSocket a `ws://127.0.0.1:7430` y publica

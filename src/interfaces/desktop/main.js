@@ -140,6 +140,13 @@ function getMascotEnabled() {
   return cfg?.desktop?.mascot !== false;
 }
 
+// Message sounds are on by default. The checkbox in the native context menus
+// persists this setting independently from the mascot visibility toggle.
+function getMascotSoundEnabled() {
+  const cfg = readApxConfig();
+  return cfg?.desktop?.mascot_sound !== false;
+}
+
 // Saved pet position ({x,y} in screen coords), or null for the default corner.
 function getMascotPos() {
   const cfg = readApxConfig();
@@ -159,6 +166,10 @@ function patchDesktopConfig(patch) {
   } catch (e) {
     console.warn("desktop: could not persist mascot config —", e.message);
   }
+}
+
+function toggleMascotSound() {
+  patchDesktopConfig({ mascot_sound: !getMascotSoundEnabled() });
 }
 
 function getWindowOrigin(_height) {
@@ -267,6 +278,12 @@ function createTray() {
       type: "checkbox",
       checked: !!mascotWindow,
       click: toggleMascot,
+    },
+    {
+      label: "Sonido de mensajes",
+      type: "checkbox",
+      checked: getMascotSoundEnabled(),
+      click: toggleMascotSound,
     },
     { type: "separator" },
     { label: "Salir de APX Desktop", click: () => app.exit(0) },
@@ -439,6 +456,7 @@ function createMascotWindow() {
       preload: path.join(__dirname, "mascot-preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
+      autoplayPolicy: "no-user-gesture-required",
     },
   });
 
@@ -573,6 +591,7 @@ ipcMain.handle("mascot-get-config", () => ({
   blob: getMascotBlob(),
   name: getAgentName(),
   theme: getTheme(),
+  sound: getMascotSoundEnabled(),
 }));
 
 ipcMain.handle("mascot-get-bounds", () => {
@@ -606,6 +625,7 @@ ipcMain.handle("mascot-menu", () => {
     { label: "Probar notificación", click: testMascotNotify },
     { type: "separator" },
     { label: "Blob mascota", type: "checkbox", checked: !!mascotWindow, click: toggleMascot },
+    { label: "Sonido de mensajes", type: "checkbox", checked: getMascotSoundEnabled(), click: toggleMascotSound },
     { type: "separator" },
     { label: "Salir", click: () => app.exit(0) },
   ]);
@@ -616,7 +636,10 @@ ipcMain.handle("mascot-menu", () => {
 // sending a real message through a channel.
 function testMascotNotify() {
   if (!mascotWindow) return;
-  mascotWindow.webContents.send("mascot-notify", { text: "Nuevo mensaje en Telegram" });
+  mascotWindow.webContents.send("mascot-notify", {
+    text: "Nuevo mensaje en Telegram",
+    sound: getMascotSoundEnabled(),
+  });
 }
 
 // Open the APX web chat in the user's default browser. The daemon serves the
@@ -894,7 +917,7 @@ function connectEventsFeed() {
     for (const [channel, n] of byChannel) {
       const label = channelLabel(channel);
       const text = n > 1 ? `${n} mensajes nuevos en ${label}` : `Nuevo mensaje en ${label}`;
-      mascotWindow.webContents.send("mascot-notify", { text });
+      mascotWindow.webContents.send("mascot-notify", { text, sound: getMascotSoundEnabled() });
     }
 
     // Routine deliveries are `direction:"out"` (an agent reaching us), so the
@@ -908,7 +931,10 @@ function connectEventsFeed() {
       byAgent.add(ev.agent_slug);
     }
     for (const agent of byAgent) {
-      mascotWindow.webContents.send("mascot-notify", { text: `${agent} te dejó un mensaje` });
+      mascotWindow.webContents.send("mascot-notify", {
+        text: `${agent} te dejó un mensaje`,
+        sound: getMascotSoundEnabled(),
+      });
     }
   }
 

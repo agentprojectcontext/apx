@@ -187,6 +187,7 @@ export const es = {
     team_members: "{count} agentes",
     empty: "Todavía no hablaste con ningún agente.",
     prefs: "Preferencias",
+    app_options: "Opciones de app",
   },
   notify: {
     title:       "Notificaciones",
@@ -197,6 +198,9 @@ export const es = {
     denied:      "Este navegador está bloqueando las notificaciones del sitio. Habilitalas desde el candado al lado de la dirección y recargá.",
     insecure:    "Las notificaciones necesitan https. Prendé el túnel con `apx panel tailscale on` y abrí el panel en esa dirección.",
     unsupported: "Este navegador no tiene notificaciones.",
+    native_off: "Notificaciones desactivadas",
+    native_on_hint: "Gestionadas por APX Android. Tocá para abrir ajustes de notificaciones del sistema.",
+    native_off_hint: "Activá notificaciones de APX en ajustes del sistema Android.",
     test:        "Probar",
     test_title:  "APX",
     test_body:   "Si ves esto, las notificaciones de este dispositivo funcionan.",

@@ -1,0 +1,363 @@
+package dev.agentprojectcontext.apx;
+
+import android.Manifest;
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.NotificationManager;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.net.Uri;
+import android.os.Build;
+import android.os.Bundle;
+import android.provider.Settings;
+import android.view.Gravity;
+import android.view.View;
+import android.view.ViewGroup;
+import android.webkit.WebChromeClient;
+import android.webkit.JavascriptInterface;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.ProgressBar;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import java.net.URI;
+
+public final class MainActivity extends Activity {
+    static final String EXTRA_PATH = "open_path";
+    static final String EXTRA_SETTINGS = "show_settings";
+    private static final int OVERLAY_REQUEST = 401;
+    private static final int NOTIFICATION_REQUEST = 402;
+    private static final int GREEN = Color.rgb(58, 231, 176);
+    private static final int PANEL = Color.rgb(20, 27, 25);
+
+    private ApxPreferences preferences;
+    private WebView webView;
+    private boolean waitingForOverlay;
+    private String pendingPath = "/mobile";
+
+    @Override
+    protected void onCreate(Bundle state) {
+        super.onCreate(state);
+        preferences = new ApxPreferences(this);
+        getWindow().setStatusBarColor(Color.rgb(13, 17, 16));
+        getWindow().setNavigationBarColor(Color.rgb(13, 17, 16));
+        handleIntent(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        handleIntent(intent);
+    }
+
+    private void handleIntent(Intent intent) {
+        String requestedPath = intent.getStringExtra(EXTRA_PATH);
+        if (requestedPath != null && requestedPath.startsWith("/mobile")) pendingPath = requestedPath;
+        Uri data = intent.getData();
+        if (data != null && "apx".equals(data.getScheme()) && "pair".equals(data.getHost())) {
+            showPairing(data.getQueryParameter("url"), data.getQueryParameter("pid"), true);
+            return;
+        }
+        if (intent.getBooleanExtra(EXTRA_SETTINGS, false)) {
+            showNativeMenu();
+            return;
+        }
+        if (preferences.paired()) {
+            openMobile(pendingPath);
+            ensureMascotRunning();
+        } else {
+            showPairing(null, null, false);
+        }
+    }
+
+    private void showPairing(String suggestedUrl, String suggestedCode, boolean autoSubmit) {
+        webView = null;
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setGravity(Gravity.CENTER_HORIZONTAL);
+        root.setPadding(dp(28), dp(56), dp(28), dp(24));
+        root.setBackgroundColor(Color.rgb(13, 17, 16));
+
+        TextView title = text("APX Android", 28, Color.WHITE);
+        title.setTypeface(null, android.graphics.Typeface.BOLD);
+        root.addView(title, matchWrap());
+
+        TextView info = text("Conectá esta app al daemon. Ejecutá “apx pair web” y pegá código mostrado.", 15, Color.LTGRAY);
+        info.setPadding(0, dp(12), 0, dp(24));
+        root.addView(info, matchWrap());
+
+        EditText url = input("http://IP:7430");
+        url.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_URI);
+        String currentUrl = suggestedUrl != null ? suggestedUrl : preferences.daemonUrl();
+        url.setText(currentUrl);
+        root.addView(url, matchWrap());
+
+        EditText code = input("Código pairing");
+        code.setText(suggestedCode == null ? "" : suggestedCode);
+        LinearLayout.LayoutParams codeParams = matchWrap();
+        codeParams.topMargin = dp(12);
+        root.addView(code, codeParams);
+
+        TextView status = text("", 14, Color.LTGRAY);
+        status.setPadding(0, dp(14), 0, dp(8));
+        root.addView(status, matchWrap());
+
+        ProgressBar progress = new ProgressBar(this);
+        progress.setVisibility(View.GONE);
+        root.addView(progress, new LinearLayout.LayoutParams(dp(38), dp(38)));
+
+        Button pair = button("Vincular y abrir");
+        root.addView(pair, matchWrap());
+        setContentView(root);
+
+        View.OnClickListener submit = ignored -> {
+            String base;
+            try {
+                base = DaemonAddress.normalize(url.getText().toString());
+            } catch (IllegalArgumentException error) {
+                status.setText(error.getMessage());
+                status.setTextColor(Color.rgb(255, 130, 130));
+                return;
+            }
+            String pairingId = code.getText().toString().trim();
+            if (pairingId.isBlank()) {
+                status.setText("Ingresá código pairing.");
+                status.setTextColor(Color.rgb(255, 130, 130));
+                return;
+            }
+            pair.setEnabled(false);
+            progress.setVisibility(View.VISIBLE);
+            status.setText("Vinculando…");
+            status.setTextColor(Color.LTGRAY);
+            String label = "APX Android · " + Build.MANUFACTURER + " " + Build.MODEL;
+            DaemonClient.pair(base, pairingId, label, new DaemonClient.PairCallback() {
+                @Override public void onSuccess(String token) {
+                    runOnUiThread(() -> {
+                        preferences.savePairing(base, token);
+                        status.setText("Vinculado.");
+                        status.setTextColor(GREEN);
+                        requestNativePermissionsAndOpen();
+                    });
+                }
+
+                @Override public void onError(String message) {
+                    runOnUiThread(() -> {
+                        pair.setEnabled(true);
+                        progress.setVisibility(View.GONE);
+                        status.setText(message);
+                        status.setTextColor(Color.rgb(255, 130, 130));
+                    });
+                }
+            });
+        };
+        pair.setOnClickListener(submit);
+        if (autoSubmit && suggestedUrl != null && suggestedCode != null) pair.post(pair::performClick);
+    }
+
+    private void requestNativePermissionsAndOpen() {
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, NOTIFICATION_REQUEST);
+        }
+        if (!Settings.canDrawOverlays(this)) {
+            waitingForOverlay = true;
+            Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + getPackageName()));
+            startActivityForResult(intent, OVERLAY_REQUEST);
+            return;
+        }
+        ensureMascotRunning();
+        openMobile("/mobile");
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (waitingForOverlay) {
+            waitingForOverlay = false;
+            if (Settings.canDrawOverlays(this)) ensureMascotRunning();
+            openMobile("/mobile");
+        }
+        setMascotAppForeground(true);
+    }
+
+    @Override
+    protected void onPause() {
+        setMascotAppForeground(false);
+        super.onPause();
+    }
+
+    private void ensureMascotRunning() {
+        if (!preferences.paired() || !preferences.mascotEnabled() || !Settings.canDrawOverlays(this)) return;
+        Intent service = new Intent(this, MascotOverlayService.class);
+        if (Build.VERSION.SDK_INT >= 26) startForegroundService(service); else startService(service);
+    }
+
+    private void setMascotAppForeground(boolean foreground) {
+        if (!preferences.paired() || !preferences.mascotEnabled() || !Settings.canDrawOverlays(this)) return;
+        Intent service = new Intent(this, MascotOverlayService.class)
+            .setAction(foreground ? MascotOverlayService.ACTION_APP_FOREGROUND : MascotOverlayService.ACTION_APP_BACKGROUND);
+        if (Build.VERSION.SDK_INT >= 26) startForegroundService(service); else startService(service);
+    }
+
+    private void openMobile(String path) {
+        if (!preferences.paired()) {
+            showPairing(null, null, false);
+            return;
+        }
+        FrameLayout frame = new FrameLayout(this);
+        webView = new WebView(this);
+        webView.setBackgroundColor(Color.rgb(13, 17, 16));
+        WebSettings settings = webView.getSettings();
+        settings.setJavaScriptEnabled(true);
+        settings.setDomStorageEnabled(true);
+        settings.setDatabaseEnabled(true);
+        settings.setMediaPlaybackRequiresUserGesture(false);
+        settings.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
+        settings.setUserAgentString(settings.getUserAgentString() + " APXAndroid/0.1");
+        webView.addJavascriptInterface(new AndroidBridge(), "APXAndroid");
+        webView.setWebChromeClient(new WebChromeClient());
+        webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                Uri target = request.getUrl();
+                try {
+                    URI base = URI.create(preferences.daemonUrl());
+                    if (base.getHost().equalsIgnoreCase(target.getHost())) return false;
+                } catch (Exception ignored) {}
+                startActivity(new Intent(Intent.ACTION_VIEW, target));
+                return true;
+            }
+        });
+        frame.addView(webView, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        setContentView(frame);
+
+        String safePath = path != null && path.startsWith("/mobile") ? path : "/mobile";
+        String target = preferences.daemonUrl() + safePath + "#token=" + Uri.encode(preferences.token());
+        webView.loadUrl(target);
+    }
+
+    private final class AndroidBridge {
+        @JavascriptInterface
+        public void openOptions() {
+            runOnUiThread(MainActivity.this::showNativeMenu);
+        }
+
+        @JavascriptInterface
+        public boolean notificationsEnabled() {
+            NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+            boolean permissionGranted = Build.VERSION.SDK_INT < 33 ||
+                checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED;
+            return permissionGranted && manager.areNotificationsEnabled();
+        }
+
+        @JavascriptInterface
+        public void openNotificationSettings() {
+            runOnUiThread(() -> startActivity(new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                .putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName())));
+        }
+    }
+
+    private void showNativeMenu() {
+        if (!preferences.paired()) {
+            showPairing(null, null, false);
+            return;
+        }
+        String mascotAction = preferences.mascotEnabled() ? "Desactivar mascota" : "Activar mascota";
+        String soundAction = preferences.soundEnabled() ? "✓ Sonido de mensajes" : "Sonido de mensajes";
+        new AlertDialog.Builder(this)
+            .setTitle("APX Android")
+            .setItems(new String[]{mascotAction, soundAction, "Recargar /mobile", "Vincular otro dispositivo"}, (dialog, which) -> {
+                if (which == 0) toggleMascot();
+                if (which == 1) toggleMessageSound();
+                if (which == 2) openMobile("/mobile");
+                if (which == 3) {
+                    stopService(new Intent(this, MascotOverlayService.class));
+                    preferences.clearPairing();
+                    showPairing(null, null, false);
+                }
+            })
+            .setNegativeButton("Cerrar", null)
+            .show();
+    }
+
+    private void toggleMessageSound() {
+        boolean enabled = !preferences.soundEnabled();
+        preferences.setSoundEnabled(enabled);
+        Toast.makeText(this, enabled ? "Sonido activado" : "Sonido silenciado", Toast.LENGTH_SHORT).show();
+    }
+
+    private void toggleMascot() {
+        boolean enabled = !preferences.mascotEnabled();
+        preferences.setMascotEnabled(enabled);
+        if (!enabled) {
+            stopService(new Intent(this, MascotOverlayService.class));
+            Toast.makeText(this, "Mascota desactivada", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (!Settings.canDrawOverlays(this)) {
+            waitingForOverlay = true;
+            startActivityForResult(new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + getPackageName())), OVERLAY_REQUEST);
+            return;
+        }
+        ensureMascotRunning();
+        Toast.makeText(this, "Mascota activada", Toast.LENGTH_SHORT).show();
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (webView != null && webView.canGoBack()) webView.goBack(); else super.onBackPressed();
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (webView != null) {
+            webView.stopLoading();
+            webView.destroy();
+        }
+        super.onDestroy();
+    }
+
+    private EditText input(String hint) {
+        EditText input = new EditText(this);
+        input.setHint(hint);
+        input.setHintTextColor(Color.GRAY);
+        input.setTextColor(Color.WHITE);
+        input.setSingleLine(true);
+        input.setPadding(dp(14), dp(12), dp(14), dp(12));
+        input.setBackgroundColor(PANEL);
+        return input;
+    }
+
+    private Button button(String label) {
+        Button button = new Button(this);
+        button.setText(label);
+        button.setTextColor(Color.rgb(10, 20, 17));
+        button.setBackgroundColor(GREEN);
+        button.setAllCaps(false);
+        return button;
+    }
+
+    private TextView text(String value, int sp, int color) {
+        TextView view = new TextView(this);
+        view.setText(value);
+        view.setTextSize(sp);
+        view.setTextColor(color);
+        return view;
+    }
+
+    private LinearLayout.LayoutParams matchWrap() {
+        return new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+    }
+
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
+    }
+}

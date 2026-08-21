@@ -1,0 +1,56 @@
+---
+title: Android app
+description: The native APX Android shell — pairing, /mobile, notifications, and the floating mascot.
+sidebar:
+  order: 6
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+The **APX Android** app is a native shell around the daemon's `/mobile` surface.
+It keeps the existing React mobile UI as the single interface implementation,
+while Android owns the floating mascot, system notifications, and app launch.
+
+## Pair once
+
+<Steps>
+1. Make the daemon reachable from the phone, over LAN or an ADB reverse port.
+2. Run `apx pair web` on the daemon machine.
+3. Enter the daemon URL and printed pairing code in APX Android.
+4. Grant notification and **Display over other apps** permissions when Android asks.
+</Steps>
+
+The app receives its own `kind: android` client token. It does not reuse the
+token stored by Chrome or an installed PWA because Android isolates each app's
+storage. Existing web pairing remains valid; both clients appear in
+`apx pair list` and can be revoked independently.
+
+## Native behavior
+
+- Normal launch opens `<daemon>/mobile` inside the app, not Chrome.
+- The mascot floats above the launcher and other apps, can be dragged, and
+  remembers its position.
+- It hides while the APX app itself is open and returns when APX goes to the background.
+- Inbound APX events trigger the same short message bubble as the desktop
+  mascot, the bundled message sound, and an Android notification.
+- Tapping the mascot or notification opens the native app at `/mobile`.
+- The persistent mascot notification includes a **Hide** action.
+- An app-only ellipsis beside **Preferences** opens native options. Chrome and
+  installed PWAs do not show it.
+- Native options can mute/unmute message sounds without disabling the mascot.
+- **Preferences → Notifications** reports Android's real permission state. Tap
+  it to open the app's system notification settings.
+
+<Aside type="note">
+  Live notifications require the mascot foreground service to remain enabled.
+  The service keeps one authenticated WebSocket to the daemon and reconnects
+  after network interruptions.
+</Aside>
+
+## Build and install
+
+```bash
+cd src/interfaces/android
+./gradlew testDebugUnitTest assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```

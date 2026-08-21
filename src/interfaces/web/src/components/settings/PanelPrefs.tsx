@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Bell, BellOff, Monitor, Moon, Send, Sun, X } from "lucide-react";
 import { Button, Dialog } from "../ui";
 import { cn } from "../../lib/cn";
@@ -128,6 +128,39 @@ export function NotificationSwitch({ className }: { className?: string }) {
   );
 }
 
+function NativeNotificationStatus({ className }: { className?: string }) {
+  const read = () => {
+    try { return window.APXAndroid?.notificationsEnabled() === true; } catch { return false; }
+  };
+  const [on, setOn] = useState(read);
+
+  useEffect(() => {
+    const refresh = () => setOn(read());
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, []);
+
+  return (
+    <div className={className ?? "space-y-2"}>
+      <Button
+        variant={on ? "primary" : "secondary"}
+        onClick={() => window.APXAndroid?.openNotificationSettings()}
+        aria-pressed={on}
+      >
+        {on ? <Bell size={14} /> : <BellOff size={14} />}
+        {on ? t("notify.on") : t("notify.native_off")}
+      </Button>
+      <p className="text-xs text-muted-fg">
+        {on ? t("notify.native_on_hint") : t("notify.native_off_hint")}
+      </p>
+    </div>
+  );
+}
+
 /**
  * The offer, where you already are.
  *
@@ -200,6 +233,7 @@ export function NotifyNudge({ className, floating }: { className?: string; float
 
 /** Both of them in a sheet small enough to be a decision, not a screen. */
 export function PrefsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const nativeNotifications = typeof window.APXAndroid?.notificationsEnabled === "function";
   return (
     <Dialog open={open} onClose={onClose} title={t("mobile.prefs")} size="sm">
       <div className="space-y-5">
@@ -219,7 +253,7 @@ export function PrefsDialog({ open, onClose }: { open: boolean; onClose: () => v
           <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-fg">
             {t("notify.title")}
           </h3>
-          <NotificationSwitch />
+          {nativeNotifications ? <NativeNotificationStatus /> : <NotificationSwitch />}
         </section>
       </div>
     </Dialog>

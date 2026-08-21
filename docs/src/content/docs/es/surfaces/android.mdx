@@ -1,0 +1,53 @@
+---
+title: App Android
+description: App nativa APX para Android — pairing, /mobile, notificaciones y mascota flotante.
+sidebar:
+  order: 6
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+**APX Android** es una app nativa que encapsula la superficie `/mobile` del
+daemon. Mantiene la UI móvil React existente como implementación única; Android
+maneja mascota flotante, notificaciones del sistema y apertura de la app.
+
+## Vincular una vez
+
+<Steps>
+1. Hacé accesible el daemon desde el teléfono, por LAN o puerto inverso ADB.
+2. Ejecutá `apx pair web` en la máquina del daemon.
+3. Ingresá URL del daemon y código mostrado dentro de APX Android.
+4. Otorgá permisos de notificaciones y **Mostrar sobre otras apps**.
+</Steps>
+
+La app recibe un token cliente propio `kind: android`. No reutiliza el token
+guardado por Chrome o la PWA instalada porque Android aísla almacenamiento por
+app. Pairing web existente sigue válido; ambos clientes aparecen en
+`apx pair list` y pueden revocarse por separado.
+
+## Comportamiento nativo
+
+- Inicio normal abre `<daemon>/mobile` dentro de la app, no Chrome.
+- Mascota flota sobre escritorio y otras apps, puede arrastrarse y recuerda posición.
+- Se oculta mientras APX está abierta y reaparece cuando APX pasa al fondo.
+- Eventos APX entrantes disparan burbuja, sonido incluido y notificación Android.
+- Tocar mascota o notificación abre app nativa en `/mobile`.
+- Notificación persistente de mascota incluye acción **Ocultar**.
+- Puntos suspensivos exclusivos de app, junto a **Preferencias**, abren opciones
+  nativas. Chrome y PWA instalada no los muestran.
+- Opciones nativas permiten mutear/reactivar sonido sin desactivar mascota.
+- **Preferencias → Notificaciones** muestra permiso Android real. Tocarlo abre
+  ajustes de notificaciones de APX en sistema.
+
+<Aside type="note">
+  Notificaciones en vivo requieren servicio foreground de mascota activo. El
+  servicio mantiene un WebSocket autenticado al daemon y reconecta tras cortes.
+</Aside>
+
+## Compilar e instalar
+
+```bash
+cd src/interfaces/android
+./gradlew testDebugUnitTest assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
