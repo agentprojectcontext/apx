@@ -3,9 +3,8 @@ import { Search, Settings, Share, ShieldAlert, Smartphone, Users, X } from "luci
 import { installStance, onInstallStateChange, promptInstall } from "../../lib/pwa";
 import { NotifyNudge, PrefsDialog } from "../../components/settings/PanelPrefs";
 import { AgentAvatar } from "../../components/agents/AgentAvatar";
-import type { ReactNode } from "react";
 import { SUPER_AGENT_ICON } from "../../components/agents/AgentAvatar";
-import { relativeWhen } from "../../lib/when";
+import { InboxRowItem, inboxRowTime } from "../../components/inbox/InboxRowItem";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 import type { InboxRow } from "../../lib/api/inbox";
@@ -62,11 +61,14 @@ function BlobCluster({ members }: { members: InboxRow[] }) {
             zIndex: shown.length - i,
           }}
         >
-          <AgentAvatar {...faceOf(m)} size={26} className="ring-2 ring-background" />
+          <AgentAvatar {...faceOf(m)} size={26} />
         </span>
       ))}
       {members.length > 3 && (
-        <span className="absolute -bottom-0.5 -right-0.5 z-10 rounded-full bg-muted px-1 text-[9px] font-semibold text-muted-fg ring-2 ring-background">
+        <span
+          data-testid="team-extra-avatar"
+          className="absolute -bottom-0.5 -right-0.5 z-10 inline-flex size-5 items-center justify-center rounded-full bg-transparent text-[9px] font-semibold text-muted-fg dark:bg-zinc-300 dark:text-zinc-700"
+        >
           +{members.length - 3}
         </span>
       )}
@@ -74,35 +76,23 @@ function BlobCluster({ members }: { members: InboxRow[] }) {
   );
 }
 
-function Row({
-  face, title, preview, when, badge, onClick,
-}: {
-  face: ReactNode;
-  title: string;
-  preview: string;
-  when: string;
-  badge?: string;
-  onClick: () => void;
-}) {
+function TeamRowItem({ team, onClick }: { team: TeamRow; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
       className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors active:bg-accent/60"
     >
-      {face}
+      <BlobCluster members={team.members} />
       <span className="min-w-0 flex-1">
         <span className="flex items-baseline justify-between gap-2">
-          <span className="truncate text-[15px] font-semibold">{title}</span>
-          <span className="shrink-0 text-[11px] text-muted-fg">{when}</span>
+          <span className="truncate text-[15px] font-semibold">{team.projectName}</span>
+          <span className="shrink-0 text-[11px] text-muted-fg">{inboxRowTime(team.lastActivityAt)}</span>
         </span>
         <span className="mt-0.5 flex items-center gap-1.5">
-          <span className="truncate text-[13px] text-muted-fg">{preview}</span>
-          {badge && (
-            <span className="shrink-0 rounded px-1 text-[10px] uppercase tracking-wide text-muted-fg/70">
-              {badge}
-            </span>
-          )}
+          <span className="truncate text-[13px] text-muted-fg">
+            {t("mobile.team_members", { count: String(team.members.length) })}
+          </span>
         </span>
       </span>
     </button>
@@ -113,10 +103,8 @@ function Row({
  * The chat list — one row per agent you have talked to, most recent first,
  * plus a group row per project team.
  *
- * Deliberately not the desktop inbox in a narrow column: no module rail, no
- * two-pane split, no card chrome. A row fills the width, the avatar is the
- * touch target, and tapping drills IN rather than filling a second pane that
- * would not fit.
+ * The shell stays phone-specific: no module rail or two-pane split, and tapping
+ * drills in. Conversation rows share the desktop renderer with touch density.
  */
 export function MobileChatList({
   rows, onOpenChat, onOpenTeam,
@@ -170,24 +158,18 @@ export function MobileChatList({
 
       <div className="min-h-0 flex-1 divide-y divide-border/60 overflow-y-auto pb-[env(safe-area-inset-bottom)]">
         {shownTeams.map((team) => (
-          <Row
+          <TeamRowItem
             key={`team:${team.projectId}`}
-            face={<BlobCluster members={team.members} />}
-            title={team.projectName}
-            preview={t("mobile.team_members", { count: String(team.members.length) })}
-            when={relativeWhen(team.lastActivityAt, t as never)}
+            team={team}
             onClick={() => onOpenTeam(team)}
           />
         ))}
         {shownRows.map((row) => (
-          <Row
+          <InboxRowItem
             key={`${row.project_id}:${row.agent_slug}:${row.conversation_id ?? ""}`}
-            face={<AgentAvatar {...faceOf(row)} size={48} />}
-            title={row.agent_name || row.agent_slug}
-            preview={row.preview || t("mobile.no_messages")}
-            when={relativeWhen(row.last_activity_at, t as never)}
-            badge={row.channel || undefined}
-            onClick={() => onOpenChat(row)}
+            row={row}
+            variant="touch"
+            onSelect={onOpenChat}
           />
         ))}
         {!shownRows.length && !shownTeams.length && (

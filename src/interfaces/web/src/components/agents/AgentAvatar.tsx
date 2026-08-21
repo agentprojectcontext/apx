@@ -61,17 +61,23 @@ export function AgentAvatarGroup({
   size = 22,
   max = 3,
   className,
+  "data-testid": dataTestId,
 }: {
   faces: AgentFace[];
   size?: number;
   max?: number;
   className?: string;
+  "data-testid"?: string;
 }) {
   const shown = faces.slice(0, max);
   const extra = faces.length - shown.length;
   const overlap = Math.round(size * 0.3);
   return (
-    <span className={cn("flex shrink-0 items-center", className)}>
+    <span
+      className={cn("flex shrink-0 items-center", className)}
+      data-testid={dataTestId}
+      data-participant-count={faces.length}
+    >
       {shown.map((f, i) => (
         <span key={i} style={{ marginLeft: i === 0 ? 0 : -overlap, zIndex: i + 1 }}>
           <AgentAvatar {...f} size={size} />

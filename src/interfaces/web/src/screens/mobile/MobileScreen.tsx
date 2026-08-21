@@ -3,12 +3,10 @@ import { ChevronLeft } from "lucide-react";
 import { MobileChatList, buildTeams, type TeamRow } from "./MobileChatList";
 import { MobileChat } from "./MobileChat";
 import { chatPath, findRow, pidOf, teamPath, MOBILE_ROOT } from "./routes";
-import { AgentAvatar } from "../../components/agents/AgentAvatar";
+import { InboxRowItem } from "../../components/inbox/InboxRowItem";
 import { useInbox } from "../../hooks/useInbox";
 import { Loading } from "../../components/ui";
-import { relativeWhen } from "../../lib/when";
 import { t } from "../../i18n";
-import type { InboxRow } from "../../lib/api/inbox";
 
 /**
  * The phone surface: chats, and one chat at a time.
@@ -103,24 +101,13 @@ function TeamRoute() {
         </span>
       </header>
       <ul className="min-h-0 flex-1 divide-y divide-border/60 overflow-y-auto pb-[env(safe-area-inset-bottom)]">
-        {team.members.map((m: InboxRow) => (
+        {team.members.map((m) => (
           <li key={m.agent_slug}>
-            <button
-              type="button"
-              onClick={() => navigate(chatPath(pidOf(m), m.agent_slug))}
-              className="flex w-full items-center gap-3 px-4 py-3 text-left active:bg-accent/60"
-            >
-              <AgentAvatar icon={m.agent_icon} emoji={m.agent_emoji} name={m.agent_name || m.agent_slug} size={44} />
-              <span className="min-w-0 flex-1">
-                <span className="flex items-baseline justify-between gap-2">
-                  <span className="truncate text-[15px] font-semibold">{m.agent_name || m.agent_slug}</span>
-                  <span className="shrink-0 text-[11px] text-muted-fg">{relativeWhen(m.last_activity_at, t as never)}</span>
-                </span>
-                <span className="mt-0.5 block truncate text-[13px] text-muted-fg">
-                  {m.preview || t("mobile.no_messages")}
-                </span>
-              </span>
-            </button>
+            <InboxRowItem
+              row={m}
+              variant="touch"
+              onSelect={(row) => navigate(chatPath(pidOf(row), row.agent_slug))}
+            />
           </li>
         ))}
       </ul>
