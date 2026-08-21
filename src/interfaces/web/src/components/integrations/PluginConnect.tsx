@@ -92,6 +92,10 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
   const isActive = status?.status === "active" && status.is_enabled === true;
   const busy = step === "saving" || step === "validating";
   const showForm = !isActive && selectOptions.length === 0;
+  // OAuth plugins (Google Calendar): browser consent flow instead of a token paste.
+  const isOAuth = !!ui.oauth;
+  const redirectUri = isOAuth ? `${window.location.origin}${ui.oauth!.redirectPath}` : "";
+  const needsReauth = isOAuth && isActive && !!status?.needs_reauth;
   const selectKey = ui.select?.key;
   const hasSelectValue = !!(selectKey && status?.[selectKey]);
   const needsSelect = Boolean(isActive && ui.select && status && !hasSelectValue);
@@ -134,7 +138,71 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
     void loadSelectOptions();
   }, [needsSelect, loadSelectOptions]);
 
+  // Wait for the OAuth popup to finish: the callback page posts a message when
+  // it lands, and we poll status as a fallback (popup blockers, closed tabs).
+  const waitForConnection = useCallback(async () => {
+    const deadline = Date.now() + 150_000;
+    await new Promise<void>((resolve) => {
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        window.removeEventListener("message", onMsg);
+        clearInterval(timer);
+        resolve();
+      };
+      const onMsg = (e: MessageEvent) => {
+        if (e.data && (e.data as { source?: string }).source === "apx-oauth") finish();
+      };
+      window.addEventListener("message", onMsg);
+      const timer = setInterval(async () => {
+        try {
+          const s = await Integrations.status(pid, entry.slug, scope);
+          if (s?.status === "active" && s.is_enabled) finish();
+        } catch { /* keep polling */ }
+        if (Date.now() > deadline) finish();
+      }, 2000);
+    });
+  }, [pid, entry.slug, scope]);
+
+  // Open Google's consent screen and wait for the connection to land.
+  async function startAuthorize() {
+    setStep("validating");
+    setError(null);
+    try {
+      const r = (await Integrations.action(pid, entry.slug, ui.oauth!.action, scope)) as Record<string, unknown>;
+      const authUrl = String(r.auth_url || "");
+      if (!authUrl) throw new Error(t("integrations.err_generic"));
+      const popup = window.open(authUrl, "apx-oauth", "width=520,height=680");
+      if (!popup) { window.location.href = authUrl; return; }
+      await waitForConnection();
+      await mutate();
+      setStep("done");
+      setValues({});
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("integrations.err_connect"));
+      setStep("idle");
+    }
+  }
+
+  // OAuth connect: save the client_id/secret, then run consent.
+  async function handleOAuthConnect() {
+    if (missingRequired) return;
+    setStep("saving");
+    setError(null);
+    try {
+      const payload: Record<string, unknown> = { ...values };
+      for (const f of toggleFields) if (payload[f.key] === undefined) payload[f.key] = f.default ? "true" : "false";
+      await Integrations.configure(pid, entry.slug, scope, payload);
+      await startAuthorize();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("integrations.err_connect"));
+      setStep("idle");
+    }
+  }
+
   async function handleConnect() {
+    if (isOAuth) return handleOAuthConnect();
     if (missingRequired) return;
     setStep("saving");
     setError(null);
@@ -190,6 +258,9 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
     setActionMsg(null);
     try {
       await Integrations.configure(pid, entry.slug, scope, { [key]: next ? "true" : "false" });
+      // Turning write access on/off changes the OAuth scope, so Google has to be
+      // re-consented — a plain re-validate would keep the old (wrong) scope.
+      if (isOAuth && key === "write_access") { await startAuthorize(); return; }
       await Integrations.validate(pid, entry.slug, scope);
       await mutate();
     } catch (err) {
@@ -255,6 +326,21 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
             <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
             <span className="flex-1">{error}</span>
             <button onClick={() => setError(null)}><X className="h-3.5 w-3.5" /></button>
+          </div>
+        )}
+
+        {/* Re-consent needed (e.g. write access was toggled → scope changed) */}
+        {needsReauth && (
+          <div className="flex items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-700 dark:text-amber-300">
+            <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
+            <span className="flex-1">{t("integrations.oauth_reauth")}</span>
+            <button
+              onClick={() => void startAuthorize()}
+              disabled={busy}
+              className={cn("rounded-md border px-2 py-1 text-[10px] transition-all disabled:opacity-50", accent.border, accent.text, accent.hover)}
+            >
+              {t("integrations.connect_oauth")}
+            </button>
           </div>
         )}
 
@@ -372,6 +458,21 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
         {showForm && (
           <div className="space-y-3">
             <p className="text-xs font-semibold text-foreground">{t("integrations.credentials", { name: entry.name })}</p>
+            {isOAuth && (
+              <div className={cn("space-y-1.5 rounded-lg border p-3", accent.border)}>
+                <p className="text-[11px] text-muted-foreground">{t("integrations.oauth_redirect_hint")}</p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 overflow-x-auto whitespace-nowrap rounded bg-muted/50 px-2 py-1 font-mono text-[10px] text-foreground">{redirectUri}</code>
+                  <button
+                    type="button"
+                    onClick={() => void navigator.clipboard?.writeText(redirectUri)}
+                    className={cn("rounded-md border px-2 py-1 text-[10px] transition-all", accent.border, accent.text, accent.hover)}
+                  >
+                    {t("integrations.copy")}
+                  </button>
+                </div>
+              </div>
+            )}
             {ui.configFields.map((field) => {
               if (field.type === "toggle") {
                 const on = values[field.key] !== undefined ? values[field.key] === "true" : !!field.default;
@@ -470,8 +571,8 @@ export function PluginConnect({ pid, scope, entry }: { pid: string; scope: Integ
               className={cn("flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs transition-all disabled:cursor-not-allowed disabled:opacity-50", accent.border, accent.text, accent.hover)}
             >
               {busy ? (
-                <><Loader2 className="h-3.5 w-3.5 animate-spin" />{step === "saving" ? t("integrations.saving") : t("integrations.validating")}</>
-              ) : t("integrations.connect")}
+                <><Loader2 className="h-3.5 w-3.5 animate-spin" />{step === "saving" ? t("integrations.saving") : isOAuth ? t("integrations.oauth_waiting") : t("integrations.validating")}</>
+              ) : isOAuth ? t("integrations.connect_oauth") : t("integrations.connect")}
             </button>
           </div>
         )}

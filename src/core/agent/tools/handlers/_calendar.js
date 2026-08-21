@@ -19,12 +19,16 @@ export function resolveCalendar(projects, project, { needsWrite = false } = {}) 
     );
   }
   const config = resolved.record.config || {};
-  const calendarId = config.calendar_id;
-  if (!calendarId) {
-    throw new Error("The calendar integration has no calendar selected. Pick one in the web panel.");
+  // Under user OAuth the calendar is always the account's own ("primary"); there
+  // is no calendar to pick. But we DO need an authorized connection.
+  if (!config.refresh_token) {
+    throw new Error(
+      "The calendar isn't authorized yet. Ask the user to connect it with Google in the web panel → Integrations → Google Calendar.",
+    );
   }
-  // Read-only is the default, and the agent finding out by way of a 403 from
-  // Google is a worse answer than being told here.
+  const calendarId = config.calendar_id || "primary";
+  // Read-only is possible, and the agent finding out by way of a 403 from Google
+  // is a worse answer than being told here.
   if (needsWrite && !config.write_access) {
     throw new Error(
       "This calendar is connected read-only. The user has to enable write access in the web panel → Integrations → Google Calendar before anything can be scheduled.",

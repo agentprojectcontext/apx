@@ -24,6 +24,7 @@ skills/apc-context/
 .env
 .env.*
 !.env.example
+secrets/
 
 # macOS
 .DS_Store

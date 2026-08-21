@@ -45,12 +45,21 @@ export interface PluginSelect {
 export interface PluginAction {
   action: string;
 }
+// When present, the plugin authenticates via a browser OAuth consent flow: the
+// component saves client_id/secret, then opens `action` (which returns an
+// auth_url) in a popup. `redirectPath` is the URI the user registers in the
+// provider console (shown in the UI, resolved against the panel's origin).
+export interface PluginOAuth {
+  action: string;
+  redirectPath: string;
+}
 export interface PluginUi {
   accent?: string;
   configFields: PluginConfigField[];
   select?: PluginSelect;
   connectedFields?: string[];
   actions?: PluginAction[];
+  oauth?: PluginOAuth;
 }
 
 // One entry of the plugin catalog with its resolved status for this project.
