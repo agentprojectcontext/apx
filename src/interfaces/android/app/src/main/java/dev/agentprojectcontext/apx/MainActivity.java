@@ -28,6 +28,7 @@ import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
@@ -100,6 +101,17 @@ public final class MainActivity extends Activity {
         root.setGravity(Gravity.CENTER_HORIZONTAL);
         root.setPadding(dp(28), dp(56), dp(28), dp(24));
         root.setBackgroundColor(Color.rgb(13, 17, 16));
+
+        ImageView logo = new ImageView(this);
+        logo.setImageResource(R.drawable.apx_logo);
+        logo.setContentDescription("APX");
+        logo.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
+        LinearLayout.LayoutParams logoParams = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            dp(112)
+        );
+        logoParams.bottomMargin = dp(16);
+        root.addView(logo, logoParams);
 
         TextView title = text("APX Android", 28, Color.WHITE);
         title.setTypeface(null, android.graphics.Typeface.BOLD);
