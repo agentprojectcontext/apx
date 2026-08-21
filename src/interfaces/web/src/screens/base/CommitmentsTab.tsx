@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Handshake, MousePointerClick, Plus } from "lucide-react";
+import { Check, Handshake, MousePointerClick, Plus, Trash2 } from "lucide-react";
 import { Commitments, type CommitmentEntry, type CommitmentState } from "../../lib/api/commitments";
 import { useSearchParams } from "react-router-dom";
 import { Section } from "../../components/Section";
@@ -8,6 +8,9 @@ import { Button, Empty, FilterChips, Loading } from "../../components/ui";
 import { CommitmentList } from "../../components/commitments/CommitmentList";
 import { CommitmentDetail } from "../../components/commitments/CommitmentDetail";
 import { CommitmentFormDialog } from "../../components/commitments/CommitmentFormDialog";
+import { BulkActionBar } from "../../components/common/BulkActionBar";
+import { ConfirmDialog } from "../../components/common/ConfirmDialog";
+import { useToast } from "../../components/Toast";
 import { useProjects } from "../../hooks/useProjects";
 import { t } from "../../i18n";
 
@@ -34,6 +37,12 @@ export function CommitmentsTab({ pid }: { pid?: string }) {
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<{ pid: string; commitment: CommitmentEntry } | null>(null);
   const { projects } = useProjects();
+  const toast = useToast();
+
+  // Multi-select — keyed by id, carries the resolved pid + item so a bulk verb
+  // survives the paginator and works across projects in the global view.
+  const [checked, setChecked] = useState<Map<string, { pid: string; c: CommitmentEntry }>>(new Map());
+  const [bulk, setBulk] = useState<"kept" | "dropped" | null>(null);
 
   const paged = usePagedQuery({
     key: `/api/commitments?pid=${pid ?? "all"}&state=${state}&overdue=${overdueOnly}`,
@@ -56,6 +65,33 @@ export function CommitmentsTab({ pid }: { pid?: string }) {
       if (id) next.set("c_id", id); else next.delete("c_id");
       return next;
     }, { replace: true });
+
+  const toggleCheck = (c: CommitmentEntry) =>
+    setChecked((prev) => {
+      const next = new Map(prev);
+      if (next.has(c.id)) next.delete(c.id);
+      else next.set(c.id, { pid: rowPid(c), c });
+      return next;
+    });
+  const clearChecked = () => setChecked(new Map());
+  const checkedIds = new Set(checked.keys());
+
+  // A filter switch changes what the ids mean — drop the selection.
+  useEffect(() => { setChecked(new Map()); }, [pid, state, overdueOnly]);
+
+  const runBulk = async (kind: "kept" | "dropped") => {
+    const entries = [...checked.values()];
+    if (entries.length === 0) return;
+    const results = await Promise.allSettled(
+      entries.map(({ pid: p, c }) => (kind === "kept" ? Commitments.kept(p, c.id) : Commitments.drop(p, c.id))),
+    );
+    const failed = results.filter((r) => r.status === "rejected").length;
+    const ok = entries.length - failed;
+    if (ok > 0) toast.success(t(kind === "kept" ? "project.commitments.bulk_kept_toast" : "project.commitments.bulk_dropped_toast", { count: ok }));
+    if (failed > 0) toast.error(t("common.error_generic"));
+    clearChecked();
+    paged.mutate();
+  };
 
   // One promise is always open, and a stale ?c_id heals itself.
   useEffect(() => {
@@ -109,6 +145,8 @@ export function CommitmentsTab({ pid }: { pid?: string }) {
             onSelect={select}
             onEdit={(c) => setEditing({ pid: rowPid(c), commitment: c })}
             onChanged={() => paged.mutate()}
+            checkedIds={checkedIds}
+            onToggleCheck={toggleCheck}
             footer={
               <Pager
                 page={paged.page}
@@ -146,6 +184,37 @@ export function CommitmentsTab({ pid }: { pid?: string }) {
         projects={projects}
         editing={editing}
         onSaved={() => paged.mutate()}
+      />
+
+      <BulkActionBar
+        count={checked.size}
+        countLabel={t("project.commitments.bulk_selected", { count: checked.size })}
+        actions={[
+          { key: "kept", label: t("project.commitments.mark_kept"), icon: <Check size={14} />, variant: "secondary", onClick: () => setBulk("kept"), testId: "commitment-bulk-kept" },
+          { key: "dropped", label: t("project.commitments.mark_dropped"), icon: <Trash2 size={14} />, variant: "destructive", onClick: () => setBulk("dropped"), testId: "commitment-bulk-drop" },
+        ]}
+        onClear={clearChecked}
+        clearLabel={t("project.commitments.bulk_clear")}
+        testId="commitment-bulk-bar"
+      />
+      <ConfirmDialog
+        open={bulk === "kept"}
+        onClose={() => setBulk(null)}
+        onConfirm={() => runBulk("kept")}
+        destructive={false}
+        title={t("project.commitments.confirm_bulk_kept_title", { count: checked.size })}
+        description={t("project.commitments.confirm_bulk_kept_desc", { count: checked.size })}
+        confirmLabel={t("project.commitments.mark_kept")}
+        testId="commitment-bulk-kept-confirm"
+      />
+      <ConfirmDialog
+        open={bulk === "dropped"}
+        onClose={() => setBulk(null)}
+        onConfirm={() => runBulk("dropped")}
+        title={t("project.commitments.confirm_bulk_dropped_title", { count: checked.size })}
+        description={t("project.commitments.confirm_bulk_dropped_desc", { count: checked.size })}
+        confirmLabel={t("project.commitments.mark_dropped")}
+        testId="commitment-bulk-drop-confirm"
       />
     </Section>
   );
