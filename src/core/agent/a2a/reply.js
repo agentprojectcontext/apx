@@ -67,7 +67,7 @@ export function buildA2AReplySystem({ projectPath, toAgent, fromAgent, config })
  * Run one A2A turn: build system, call engine, return { text, usage }.
  * Throws on engine failure — caller decides how to surface.
  */
-export async function replyAsAgent({ projectPath, toAgent, fromAgent, body, config }) {
+export async function replyAsAgent({ projectPath, toAgent, fromAgent, body, config, history = [] }) {
   const modelId = await resolveAgentModel({ agent: toAgent, config });
   if (!modelId) {
     throw new Error(
@@ -75,10 +75,13 @@ export async function replyAsAgent({ projectPath, toAgent, fromAgent, body, conf
     );
   }
   const system = buildA2AReplySystem({ projectPath, toAgent, fromAgent, config });
+  // Prior turns of THIS pair's a2a thread go in front of the new message, so the
+  // reply is a continuation, not a stateless one-shot. Without this the agent has
+  // amnesia between a2a turns (it literally sees only the latest message).
   const result = await callEngine({
     modelId,
     system,
-    messages: [{ role: "user", content: `From ${fromAgent.slug}:\n\n${body}` }],
+    messages: [...history, { role: "user", content: `From ${fromAgent.slug}:\n\n${body}` }],
     config,
   });
   // Return the model too: the a2a log must record which model answered, exactly
