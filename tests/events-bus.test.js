@@ -10,6 +10,7 @@ import path from "node:path";
 // those paths at import time are loaded (rule 1).
 const HOME = fs.mkdtempSync(path.join(os.tmpdir(), "apx-events-"));
 process.env.HOME = HOME;
+process.env.APX_HOME = path.join(HOME, ".apx"); // isolate the apx home too — HOME alone is overridden by the runner's APX_HOME
 
 const { emitMessageEvent, onMessageEvent, resetEventBus } = await import("#core/events/bus.js");
 const { appendGlobalMessage, appendMessageToFs } = await import("#core/stores/messages.js");

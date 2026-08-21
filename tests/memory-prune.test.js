@@ -11,6 +11,7 @@ import path from "node:path";
 
 const TMP_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "apx-prune-"));
 process.env.HOME = TMP_HOME;
+process.env.APX_HOME = path.join(TMP_HOME, ".apx"); // isolate the apx home too — HOME alone is overridden by the runner's APX_HOME
 
 const { planPrune, pruneSelfMemory } = await import("#core/memory/prune.js");
 const { SELF_MEMORY_PATH, appendSelfMemory, readSelfMemory } = await import("#core/agent/self-memory.js");

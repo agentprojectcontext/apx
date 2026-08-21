@@ -14,6 +14,7 @@ import path from "node:path";
 
 const TMP_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "apx-agentlc-"));
 process.env.HOME = TMP_HOME;
+process.env.APX_HOME = path.join(TMP_HOME, ".apx"); // isolate the apx home too — HOME alone is overridden by the runner's APX_HOME
 
 const createAgentTool = (await import("#core/agent/tools/handlers/create-agent.js")).default;
 const setPromptTool = (await import("#core/agent/tools/handlers/set-agent-prompt.js")).default;

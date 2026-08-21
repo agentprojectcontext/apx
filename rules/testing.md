@@ -35,9 +35,18 @@
    ```
 2. **Project trees** — `makeTempProject()` builds a throwaway `.apc` project;
    never point tests at the real checkout.
-3. **`~/.apx` state** — set `process.env.HOME` to a temp dir **BEFORE importing
-   the module under test** (paths are resolved at import time; setting HOME
-   after the import silently tests your real home).
+3. **`~/.apx` state** — set `process.env.APX_HOME` to your own temp `.apx` dir
+   **BEFORE importing the module under test**, e.g.
+   `process.env.APX_HOME = path.join(tmpHome, ".apx")` (keep `HOME`/`USERPROFILE`
+   pointed at `tmpHome` too, for `~/.claude`-style lookups). Two gotchas make
+   `APX_HOME` — not `HOME` alone — the thing to set:
+   - Paths resolve at import time, so setting it after the import silently tests
+     the shared sandbox.
+   - The `test`/`test:ci` runners pin ONE `APX_HOME` for the whole run, and
+     `computeHome()` reads `APX_HOME` before `os.homedir()`. A test that only
+     moves `HOME` is overridden by that shared sandbox and races every other
+     HOME-only test running in parallel — the source of the memory/telegram/
+     inbox flakes fixed by giving each file its own `APX_HOME`.
 4. **Memory/RAG** — force the offline backends: TF embedder, JSON vector store,
    mock engine, temp HOME (see `tests/memory-rag*` and `memory-compaction*`).
 

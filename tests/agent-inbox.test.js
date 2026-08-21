@@ -15,6 +15,7 @@ import path from "node:path";
 // would depend on whatever real history the machine happens to have.
 const TMP_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "apx-inbox-home-"));
 process.env.HOME = TMP_HOME;
+process.env.APX_HOME = path.join(TMP_HOME, ".apx"); // isolate the apx home too — HOME alone is overridden by the runner's APX_HOME
 
 const { listAgentInbox } = await import("#core/stores/agent-inbox.js");
 const { listConversations } = await import("#core/stores/conversations.js");

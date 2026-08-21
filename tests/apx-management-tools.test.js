@@ -10,6 +10,7 @@ import path from "node:path";
 
 const TMP_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "apx-mgmt-"));
 process.env.HOME = TMP_HOME;
+process.env.APX_HOME = path.join(TMP_HOME, ".apx"); // isolate the apx home too — HOME alone is overridden by the runner's APX_HOME
 
 const completeTask = (await import("#core/agent/tools/handlers/complete-task.js")).default;
 const markCommitment = (await import("#core/agent/tools/handlers/mark-commitment.js")).default;

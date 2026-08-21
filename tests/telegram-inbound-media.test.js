@@ -13,7 +13,9 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-process.env.HOME = fs.mkdtempSync(path.join(os.tmpdir(), "apx-media-test-"));
+const TMP_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "apx-media-test-"));
+process.env.HOME = TMP_HOME;
+process.env.APX_HOME = path.join(TMP_HOME, ".apx"); // isolate the apx home too — HOME alone is overridden by the runner's APX_HOME
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const readSrc = (...p) => fs.readFileSync(path.join(__dirname, "..", "src", ...p), "utf8");
