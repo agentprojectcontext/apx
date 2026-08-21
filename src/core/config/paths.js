@@ -75,6 +75,8 @@ export let AGENT_VAULT_DIR;
 
 /** Ledger of unrequested outbound messages and the user's feedback on them. */
 export let NUDGES_PATH;
+/** Mobility preferences such as "do not mention more trips today". */
+export let MOBILITY_PATH;
 
 /** Unified log tree. Everything writes here so one tail follows the system. */
 export let LOG_DIR;
@@ -112,6 +114,7 @@ function rebuild(home) {
   SKILLS_INDEX_PATH = path.join(SKILLS_DIR, ".index.json");
   AGENT_VAULT_DIR = path.join(home, "agents");
   NUDGES_PATH = path.join(home, "nudges.json");
+  MOBILITY_PATH = path.join(home, "mobility.json");
   LOG_DIR = path.join(home, "logs");
   APX_LOG_PATH = path.join(LOG_DIR, "apx.log");
   ERROR_TRACE_PATH = path.join(LOG_DIR, "errors.jsonl");

@@ -716,6 +716,8 @@ export function appendGlobalMessage({ channel, direction, type, actor_id, actor_
     agent_slug: agent_slug || null,
     direction,
     type: msgType,
+    via: fullMeta.via || null,
+    notify: fullMeta.notify || null,
     ts,
   });
   return { ts, file };
