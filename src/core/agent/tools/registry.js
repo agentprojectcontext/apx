@@ -2,6 +2,9 @@ import listProjects from "./handlers/list-projects.js";
 import listAgents from "./handlers/list-agents.js";
 import listVaultAgents from "./handlers/list-vault-agents.js";
 import importAgent from "./handlers/import-agent.js";
+import createAgent from "./handlers/create-agent.js";
+import setAgentPrompt from "./handlers/set-agent-prompt.js";
+import writeAgentMemory from "./handlers/write-agent-memory.js";
 import addProject from "./handlers/add-project.js";
 import listMcps from "./handlers/list-mcps.js";
 import listMcpTools from "./handlers/list-mcp-tools.js";
@@ -64,6 +67,9 @@ const NATIVE_TOOLS = [
   listAgents,
   listVaultAgents,
   importAgent,
+  createAgent,
+  setAgentPrompt,
+  writeAgentMemory,
   addProject,
   listMcps,
   listMcpTools,
@@ -222,6 +228,9 @@ const NATIVE_CATEGORY = {
   [TOOLS.LIST_SKILLS]:         "inventory",
   [TOOLS.LOAD_SKILL]:          "skills",
   [TOOLS.IMPORT_AGENT]:        "agents",
+  [TOOLS.CREATE_AGENT]:        "agents",
+  [TOOLS.SET_AGENT_PROMPT]:    "agents",
+  [TOOLS.WRITE_AGENT_MEMORY]:  "agents",
   [TOOLS.ADD_PROJECT]:         "projects",
   [TOOLS.CALL_AGENT]:          "agents",
   [TOOLS.RUN_SUBAGENT]:        "agents",

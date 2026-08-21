@@ -31,10 +31,10 @@ import {
   writeAgentMemory,
   agentMemoryPath,
 } from "#core/agent/memory.js";
+import { createAgent, normalizeAutonomy } from "#core/apc/agent-write.js";
 import { agentToResponse } from "./shared.js";
 import { normalizeVaultPatch } from "#core/apc/agents-vault.js";
-import { PERMISSION_MODES } from "#core/constants/permissions.js";
-import { isBlobKey, normalizeAgentType, pickBlob } from "#core/apc/agent-identity.js";
+import { normalizeAgentType } from "#core/apc/agent-identity.js";
 import { readOrganization, resolveAreaSlug } from "#core/stores/organization.js";
 import { listConversations } from "#core/stores/conversations.js";
 import { listTasks } from "#core/stores/tasks.js";
@@ -69,16 +69,6 @@ function attachAgentStats(p, agents) {
       heartbeats: hbByAgent[a.slug] || 0,
     };
   }
-}
-
-// Autonomy mirrors the super-agent permission modes (total/automatico/permiso).
-// An invalid value is dropped rather than persisted so a typo can't silently
-// widen an agent's autonomy.
-const AUTONOMY_VALUES = new Set(Object.values(PERMISSION_MODES));
-function normalizeAutonomy(v) {
-  if (v === undefined) return undefined;
-  if (v === null || v === "") return null;
-  return AUTONOMY_VALUES.has(v) ? v : undefined;
 }
 
 export function register(api, { projects, project }) {
@@ -186,56 +176,12 @@ export function register(api, { projects, project }) {
   api.post("/projects/:pid/agents", (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    const {
-      slug, name, role, model, skills, language, description, tools, is_master,
-      parent, type, area, emoji, icon, autonomy, system,
-    } = req.body || {};
-    if (!slug) return res.status(400).json({ error: "slug required" });
-    if (!/^[a-z][a-z0-9_-]*$/.test(slug))
-      return res.status(400).json({ error: "invalid slug" });
-    const roster = readAgents(p.path);
-    const existing = roster.find((a) => a.slug === slug);
-    if (existing)
-      return res.status(400).json({ error: `agent ${slug} already exists` });
-    const autonomyVal = normalizeAutonomy(autonomy);
-    const typeVal = normalizeAgentType(type);
-    if (type && !typeVal) return res.status(400).json({ error: `invalid type "${type}"` });
-    // Every agent gets a face. Callers that don't care about avatars (the CLI,
-    // the MCP server, the super-agent) used to leave Icon empty, and the agent
-    // rendered as a grey lettered disc everywhere. Picked from the blobs this
-    // project isn't using yet, so a team stays visually distinguishable.
-    const iconVal = isBlobKey(icon)
-      ? icon
-      : pickBlob({ taken: roster.map((a) => a.fields?.Icon).filter(Boolean) });
+    // Field normalization, avatar pick, slug/type validation and the file write
+    // all live in core (agent-write.js), shared with the super-agent's
+    // create_agent tool so the two surfaces can never drift. The route only
+    // resolves the project, rebuilds the registry, and shapes the response.
     try {
-      writeAgentFile(p.path, slug, {
-        Name: name || null,
-        Role: role || null,
-        Model: model || null,
-        Language: language || null,
-        Description: description || null,
-        Skills: skills || [],
-        // Omitted tools ⇒ leave the field UNDECLARED. A declared list is a
-        // deliberate narrowing and it wins forever, so stamping a snapshot of
-        // "the defaults" at creation quietly froze every new agent to whatever
-        // the catalog looked like that day — the reason a producer agent could
-        // not reach the MCP it was built around. Undeclared means the broad
-        // default (see resolveAgentAllowedTools), and it keeps up with the
-        // registry as tools are added.
-        Tools: Array.isArray(tools) ? tools : null,
-        // An orchestrator IS a master — the web already conflated the two on
-        // create, and letting them disagree splits the hierarchy view from the
-        // typology.
-        Master: is_master || typeVal === "orchestrator" ? true : null,
-        Parent: parent || null,
-        Type: typeVal,
-        Area: resolveAreaSlug(area, readOrganization(p.path)),
-        Emoji: emoji || null,
-        Icon: iconVal,
-        Autonomy: autonomyVal || null,
-      }, typeof system === "string" ? system : "");
-      ensureAgentDir(p.path, slug);
-      ensureAgentRuntimeDir(p, slug);
+      const slug = createAgent(p, req.body || {});
       projects.rebuild(p.id);
       const created = readAgents(p.path).find((a) => a.slug === slug);
       res.status(201).json(agentToResponse(created));

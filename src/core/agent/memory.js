@@ -58,3 +58,21 @@ export function writeAgentMemory(projectOrRoot, slug, body) {
   fs.writeFileSync(memory, body);
   return memory;
 }
+
+// Append a dated note under the "## Recent context" section, creating the file
+// (and the section) if missing. ONE home for the append convention so the CLI
+// (`apx memory <slug> --append`) and the super-agent's `write_agent_memory` tool
+// stamp memory identically. `now` is injectable so tests can pin the date.
+export function appendAgentMemory(projectOrRoot, slug, note, { now = new Date() } = {}) {
+  ensureAgentRuntimeDir(projectOrRoot, slug);
+  const text = String(note || "").trim();
+  if (!text) throw new Error("note required");
+  let body = readAgentMemory(projectOrRoot, slug);
+  if (!body) body = EMPTY_MEMORY(slug);
+  if (!/##\s+Recent context/i.test(body)) {
+    body += body.endsWith("\n") ? "\n## Recent context\n" : "\n\n## Recent context\n";
+  }
+  const today = now.toISOString().slice(0, 10);
+  body = body.replace(/(##\s+Recent context\s*\n)/i, `$1- ${today}: ${text}\n`);
+  return writeAgentMemory(projectOrRoot, slug, body);
+}

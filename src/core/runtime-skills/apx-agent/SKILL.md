@@ -5,7 +5,9 @@ description: Create, configure, use project agents in APX — including writing 
 
 # apx-agent
 
-A project agent is a named persona inside an APC project. Definition: `.apc/agents/<slug>.md` (flat); `AGENTS.md` auto-regenerated for discovery. Runtime data (memory, conversations, sessions) under `~/.apx/projects/<apx_id>/agents/<slug>/`, never committed. That is the only place an agent's memory lives — nothing reads or writes a `memory.md` under `.apc/`.
+A project agent is a named persona inside an APC project. Definition: `.apc/agents/<slug>.md` (flat) — that file **is** the agent; the roster is discovered by reading `.apc/agents/*.md` directly (`readAgents`). Runtime data (memory, conversations, sessions) under `~/.apx/projects/<apx_id>/agents/<slug>/`, never committed. That is the only place an agent's memory lives — nothing reads or writes a `memory.md` under `.apc/`.
+
+> **`AGENTS.md` is NOT the agent registry.** It's a generic startup-rules file written once by `apx init` and then owned by the user; APX **never** regenerates it (`scaffold.js`) and adding/removing an agent does not touch it. Editing it by hand is safe. Some projects (like the super-agent's `default`) have no `AGENTS.md` at all — that is normal, not a broken state.
 
 ## The definition file has two halves — both matter
 
@@ -29,6 +31,18 @@ You are Magui, the social producer for …   ← body: THE SYSTEM PROMPT
 The **body** is the agent's real instruction set. `buildAgentSystem()` injects it as `# Custom instructions` (`src/core/agent/build-agent-system.js`), capped at 6000 chars. **`description` is not a substitute** — it is one line of metadata for listings. An agent created with frontmatter only runs on `role` + `description` + `language` and is told nothing about what to do, how, or what never to do.
 
 **Creating an agent without a prompt is the single most common mistake here, and nothing errors when you do it.** Always write the body.
+
+## Build it with a tool, not a shell (super-agent)
+
+If you are the super-agent, you have native tools for the agent lifecycle — use them, the same way you use `create_task` and `remember_routine`. Do **not** shell out to `apx agent add` and do **not** `write_file` the `.md` by hand (a raw write skips the daemon-registry rebuild the tools do for you, so the running daemon won't see the agent, and it's how a body-less agent gets papered over):
+
+| Tool | Does | Notes |
+|---|---|---|
+| `create_agent` | Creates the agent **with its system prompt** in one call | `system` is **required** — it refuses a body-less agent. Pass `slug` + `system`; add `role`/`skills`/`area`/`model` as needed. Omit `tools` unless narrowing. |
+| `set_agent_prompt` | Replaces an existing agent's prompt | Keeps every frontmatter field. |
+| `write_agent_memory` | Seeds/updates **another** agent's `memory.md` | Not `remember` (that's YOUR notebook). `mode: append` (default) or `replace`. |
+
+Typical build: `create_agent({ slug, system, role, skills:["golf-lvl-2"] })` → optionally `write_agent_memory({ agent: slug, content: "..." })` to seed progress → `remember_routine(...)` for any schedule. One tool each, no shell, prompt inline.
 
 ## Identity: typology, area, role, avatar
 
@@ -60,7 +74,7 @@ apx agent list
 apx org show
 
 # Create WITH its system prompt (writes .apc/agents/<slug>.md, creates runtime
-# dir, regenerates AGENTS.md). Heredoc, because a prompt is many lines:
+# dir, rebuilds the daemon's agent registry). Heredoc, because a prompt is many lines:
 apx agent add reviewer \
   --type specialist \
   --role "Code reviewer" \
@@ -113,7 +127,7 @@ apx memory <slug> --replace < file.md      # full replace from stdin
 `buildAgentSystem()` (`src/core/agent/build-agent-system.js`) composes:
 
 1. Identity: `You are <slug>` + project name.
-2. Description (from AGENTS.md).
+2. Description (from the agent's own frontmatter).
 3. Role + Language fields.
 4. **The agent's own body → `# Custom instructions`.** Empty body ⇒ this block is absent and the agent has no instructions.
 5. Invocation context: `engine | telegram | routine | runtime` — the channel calling.
@@ -143,6 +157,7 @@ A routine `kind: exec_agent` with `spec.agent: reviewer` uses that model.
 
 | Surface | Create | Set prompt | List areas/roles |
 |---|---|---|---|
+| Super-agent tool | `create_agent` (`system` required) | `set_agent_prompt` | `list_agents` / org |
 | CLI | `apx agent add <slug> --prompt -` | `apx agent set <slug> --prompt -` | `apx org show` |
 | MCP (`apx-mcp`) | `agent_create` (`prompt` required) | `agent_set_prompt` | `org_list` |
 | Daemon API | `POST /api/projects/:pid/agents` `{system}` | `PATCH .../agents/:slug` `{system}` | `GET .../organization` |
@@ -166,9 +181,10 @@ apx agent add magui --role "Social Media Producer" --description "Productora soc
 # DON'T make up an --icon. Only the 15 blob keys render; anything else is
 # rejected. Omit the flag and one is chosen for you.
 
-# DON'T hand-write .apc/agents/<slug>.md without regenerating AGENTS.md.
+# DON'T hand-write .apc/agents/<slug>.md — the running daemon won't see it until a rebuild.
 echo "..." > /path/.apc/agents/reviewer.md
-# ↑ Use `apx agent add/set` or `apx agent import` so AGENTS.md stays consistent.
+# ↑ Use `apx agent add/set`, `apx agent import`, or the create_agent tool so the
+#   running daemon reloads its registry (a raw write it won't see until a rebuild).
 
 # DON'T set Model: to a provider without keys — fails on first call.
 # DON'T put long-running context in `Description` (one line). Put it in memory.md.
@@ -182,7 +198,7 @@ echo "..." > /path/.apc/agents/reviewer.md
 | Loop? | Multi-iteration tool loop | Multi-iteration, in a normal conversation or on `exec_agent`; one-shot text only when `spec.no_tools: true` |
 | System prompt | `super-agent-base.md` + channel template + identity | `buildAgentSystem()` per-agent |
 | Conversation in | super-agent surfaces | `<storagePath>/agents/<slug>/conversations/*.md` |
-| Configured via | `super_agent.*` in config | `AGENTS.md` + per-agent files |
+| Configured via | `super_agent.*` in config | `.apc/agents/<slug>.md` per-agent files |
 
 When in doubt: super-agent is APX itself; agents are personas inside a project.
 
@@ -190,5 +206,5 @@ When in doubt: super-agent is APX itself; agents are personas inside a project.
 
 - Don't create an agent without a system prompt. Nothing errors; the agent just has no instructions. Verify with `apx agent get <slug>` — if you see only fields and no body, it isn't done.
 - Don't declare a `tools:` allowlist unless you mean to *narrow* the agent. Capability is the default: an agent with no `tools:` field already gets the whole registry minus a few host-only tools (`set_identity`, `set_permission_mode`, `add_project`, `import_agent`). Declaring the field takes tools *away* — so if you list one, list every tool the agent needs (`write_file`, `run_command`, `load_skill`, its MCP tools), or it silently loses the rest. When unsure, leave `tools:` off.
-- Don't overwrite `AGENTS.md` manually — `apx agent add/set/remove` regenerates it. Hand edits get clobbered.
+- Don't assume `AGENTS.md` is the agent list — it isn't. It's a user-owned startup-rules file APX never regenerates; agents live in `.apc/agents/*.md`. A project with no `AGENTS.md` (the super-agent's `default`) is fine, not broken.
 - Don't use the same slug across projects expecting shared memory. Memory is per-project.

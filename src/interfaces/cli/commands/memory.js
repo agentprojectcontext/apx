@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import { findApfRoot } from "#core/apc/parser.js";
-import { agentMemoryPath, readAgentMemory, writeAgentMemory, ensureAgentRuntimeDir } from "#core/agent/memory.js";
+import { agentMemoryPath, readAgentMemory, writeAgentMemory, appendAgentMemory } from "#core/agent/memory.js";
 import { http } from "../http.js";
 import { readStdinSync } from "../stdin.js";
 import {
@@ -40,14 +40,7 @@ export async function cmdMemory(args) {
 
   if (args.flags.append && args.flags.append !== true) {
     const note = String(args.flags.append);
-    ensureAgentRuntimeDir(root, slug);
-    let body = readAgentMemory(root, slug);
-    if (!/##\s+Recent context/i.test(body)) {
-      body += body.endsWith("\n") ? "\n## Recent context\n" : "\n\n## Recent context\n";
-    }
-    const today = new Date().toISOString().slice(0, 10);
-    body = body.replace(/(##\s+Recent context\s*\n)/i, `$1- ${today}: ${note}\n`);
-    writeAgentMemory(root, slug, body);
+    appendAgentMemory(root, slug, note);
     await nudgeDaemon(root);
     console.log(`appended to ${slug} memory: ${note}`);
     return;
