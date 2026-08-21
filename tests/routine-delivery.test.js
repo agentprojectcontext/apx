@@ -13,6 +13,7 @@ import path from "node:path";
 const TMP_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "apx-routine-delivery-"));
 process.env.HOME = TMP_HOME;
 process.env.USERPROFILE = TMP_HOME;
+process.env.APX_HOME = path.join(TMP_HOME, ".apx"); // isolate the apx home too — HOME alone is overridden by the runner's APX_HOME
 
 // A post_command that names a real sink has to be DETECTED without being RUN:
 // `apx telegram send` would reach for the daemon, and tests run offline. A stub
@@ -598,6 +599,10 @@ test("runRoutineNow — a non-Roby agent's web delivery lands in its OWN web cha
     assert.equal(row.agent_slug, "scout");
     assert.equal(row.actor_kind, "agent");
     assert.notEqual(row.actor_id, "super_agent");
+    // Attribution: model + usage travel with the delivery, so the reopened chat
+    // shows real tokens instead of "0 tok" (the turn-record.js fix, on this path).
+    assert.ok(row.meta.usage, "the web row carries token usage");
+    assert.match(chat, /"usage"/, "the web-main turn records usage in its meta");
   } finally {
     cleanupTempProject(root);
   }
