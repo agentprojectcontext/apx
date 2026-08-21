@@ -21,7 +21,14 @@ final class MessageFrameParser {
             Map<String, Integer> channels = new LinkedHashMap<>();
             for (int i = 0; i < events.length(); i++) {
                 JSONObject event = events.optJSONObject(i);
-                if (event == null || !"in".equals(event.optString("direction"))) continue;
+                if (event == null) continue;
+                if ("out".equals(event.optString("direction"))
+                    && "mobility_delivery".equals(event.optString("via"))) {
+                    String notice = event.optString("notify", "").trim();
+                    if (!notice.isBlank()) messages.add(notice);
+                    continue;
+                }
+                if (!"in".equals(event.optString("direction"))) continue;
                 String channel = event.optString("channel", "APX");
                 if ("desktop".equals(channel) || "voice".equals(channel)) continue;
                 channels.put(channel, channels.getOrDefault(channel, 0) + 1);

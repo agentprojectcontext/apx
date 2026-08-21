@@ -5,6 +5,10 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.NotificationManager;
 import android.content.Intent;
+import android.content.ComponentName;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
@@ -35,13 +39,21 @@ public final class MainActivity extends Activity {
     static final String EXTRA_SETTINGS = "show_settings";
     private static final int OVERLAY_REQUEST = 401;
     private static final int NOTIFICATION_REQUEST = 402;
+    private static final int LOCATION_REQUEST = 403;
     private static final int GREEN = Color.rgb(58, 231, 176);
     private static final int PANEL = Color.rgb(20, 27, 25);
 
     private ApxPreferences preferences;
     private WebView webView;
+    private TravelStatusBanner travelBanner;
+    private boolean travelReceiverRegistered;
     private boolean waitingForOverlay;
     private String pendingPath = "/mobile";
+    private final BroadcastReceiver travelReceiver = new BroadcastReceiver() {
+        @Override public void onReceive(Context context, Intent intent) {
+            updateTravelBanner();
+        }
+    };
 
     @Override
     protected void onCreate(Bundle state) {
@@ -72,6 +84,7 @@ public final class MainActivity extends Activity {
             return;
         }
         if (preferences.paired()) {
+            requestLocationPermission();
             openMobile(pendingPath);
             ensureMascotRunning();
         } else {
@@ -173,8 +186,17 @@ public final class MainActivity extends Activity {
             startActivityForResult(intent, OVERLAY_REQUEST);
             return;
         }
+        requestLocationPermission();
         ensureMascotRunning();
         openMobile("/mobile");
+    }
+
+    private void requestLocationPermission() {
+        if (checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) return;
+        requestPermissions(new String[]{
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.ACCESS_FINE_LOCATION,
+        }, LOCATION_REQUEST);
     }
 
     @Override
@@ -186,6 +208,25 @@ public final class MainActivity extends Activity {
             openMobile("/mobile");
         }
         setMascotAppForeground(true);
+        updateTravelBanner();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        IntentFilter filter = new IntentFilter(MapsNavigationListenerService.ACTION_TRAVEL_STATE_CHANGED);
+        if (Build.VERSION.SDK_INT >= 33) registerReceiver(travelReceiver, filter, RECEIVER_NOT_EXPORTED);
+        else registerReceiver(travelReceiver, filter);
+        travelReceiverRegistered = true;
+    }
+
+    @Override
+    protected void onStop() {
+        if (travelReceiverRegistered) {
+            unregisterReceiver(travelReceiver);
+            travelReceiverRegistered = false;
+        }
+        super.onStop();
     }
 
     @Override
@@ -212,7 +253,21 @@ public final class MainActivity extends Activity {
             showPairing(null, null, false);
             return;
         }
-        FrameLayout frame = new FrameLayout(this);
+        LinearLayout frame = new LinearLayout(this);
+        frame.setOrientation(LinearLayout.VERTICAL);
+        frame.setBackgroundColor(Color.rgb(13, 17, 16));
+        frame.setOnApplyWindowInsetsListener((view, insets) -> {
+            view.setPadding(0, insets.getSystemWindowInsetTop(), 0, 0);
+            return insets;
+        });
+        travelBanner = new TravelStatusBanner(this);
+        travelBanner.setOnClickListener(ignored -> openGoogleMaps());
+        LinearLayout.LayoutParams bannerParams = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        );
+        bannerParams.topMargin = dp(10);
+        frame.addView(travelBanner, bannerParams);
         webView = new WebView(this);
         webView.setBackgroundColor(Color.rgb(13, 17, 16));
         WebSettings settings = webView.getSettings();
@@ -236,12 +291,27 @@ public final class MainActivity extends Activity {
                 return true;
             }
         });
-        frame.addView(webView, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+        frame.addView(webView, new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            0,
+            1f
+        ));
         setContentView(frame);
+        updateTravelBanner();
 
         String safePath = path != null && path.startsWith("/mobile") ? path : "/mobile";
         String target = preferences.daemonUrl() + safePath + "#token=" + Uri.encode(preferences.token());
         webView.loadUrl(target);
+    }
+
+    private void updateTravelBanner() {
+        if (travelBanner == null) return;
+        travelBanner.update(preferences.travelActive(), preferences.travelDestination());
+    }
+
+    private void openGoogleMaps() {
+        Intent open = getPackageManager().getLaunchIntentForPackage(MapsNavigationDetector.MAPS_PACKAGE);
+        if (open != null) startActivity(open);
     }
 
     private final class AndroidBridge {
@@ -272,13 +342,18 @@ public final class MainActivity extends Activity {
         }
         String mascotAction = preferences.mascotEnabled() ? "Desactivar mascota" : "Activar mascota";
         String soundAction = preferences.soundEnabled() ? "✓ Sonido de mensajes" : "Sonido de mensajes";
+        boolean travelAccess = travelDetectionEnabled();
+        String travelAction = !travelAccess
+            ? "Activar detección de viajes"
+            : preferences.travelActive() ? "✓ Viaje de Maps detectado" : "✓ Detección de viajes activa";
         new AlertDialog.Builder(this)
             .setTitle("APX Android")
-            .setItems(new String[]{mascotAction, soundAction, "Recargar /mobile", "Vincular otro dispositivo"}, (dialog, which) -> {
+            .setItems(new String[]{mascotAction, soundAction, travelAction, "Recargar /mobile", "Vincular otro dispositivo"}, (dialog, which) -> {
                 if (which == 0) toggleMascot();
                 if (which == 1) toggleMessageSound();
-                if (which == 2) openMobile("/mobile");
-                if (which == 3) {
+                if (which == 2) openTravelDetectionSettings();
+                if (which == 3) openMobile("/mobile");
+                if (which == 4) {
                     stopService(new Intent(this, MascotOverlayService.class));
                     preferences.clearPairing();
                     showPairing(null, null, false);
@@ -286,6 +361,21 @@ public final class MainActivity extends Activity {
             })
             .setNegativeButton("Cerrar", null)
             .show();
+    }
+
+    private boolean travelDetectionEnabled() {
+        NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        if (Build.VERSION.SDK_INT >= 27) {
+            return manager.isNotificationListenerAccessGranted(
+                new ComponentName(this, MapsNavigationListenerService.class)
+            );
+        }
+        String enabled = Settings.Secure.getString(getContentResolver(), "enabled_notification_listeners");
+        return enabled != null && enabled.contains(getPackageName());
+    }
+
+    private void openTravelDetectionSettings() {
+        startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS));
     }
 
     private void toggleMessageSound() {
@@ -318,6 +408,7 @@ public final class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        travelBanner = null;
         if (webView != null) {
             webView.stopLoading();
             webView.destroy();

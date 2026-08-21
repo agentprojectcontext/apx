@@ -26,4 +26,15 @@ public final class MessageFrameParserTest {
     public void rejectsMalformedFrames() {
         assertTrue(MessageFrameParser.notifications("not json").isEmpty());
     }
+
+    @Test
+    public void surfacesMobilityDeliveryFromRobyAsApxNotification() {
+        String frame = """
+            {"type":"messages","events":[
+              {"direction":"out","channel":"telegram","via":"mobility_delivery","notify":"Pasá por La Anónima"}
+            ]}
+            """;
+
+        assertEquals(List.of("Pasá por La Anónima"), MessageFrameParser.notifications(frame));
+    }
 }
