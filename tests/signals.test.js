@@ -54,6 +54,27 @@ test("a2a_message is a default detector, so the watch sees a2a without opting in
   assert.ok(SIGNAL_TYPES.includes("a2a_message"));
 });
 
+test("an a2a severity tag maps to signal severity; blocker is high, not critical", () => {
+  const tagged = (author, sev) =>
+    appendMessageToFs({
+      projectRoot: STORE, channel: "a2a", direction: "in", type: "agent",
+      author, body: `msg from ${author}`, ts: "2026-06-15T11:00:00.000Z",
+      meta: { severity: sev },
+    });
+  tagged("rocky", "blocker");
+  tagged("april", "fyi");
+  tagged("max", "bogus");   // unknown tag → plain normal
+
+  const { signals } = detectSignals([PROJECT], {
+    now: NOW, types: ["a2a_message"], a2a_since: "2026-06-15T10:00:00.000Z",
+  });
+  const bySender = Object.fromEntries(signals.map((s) => [s.payload.from, s.severity]));
+  assert.equal(bySender.rocky, "high");   // blocker → high (respects quiet-hours in canNudge)
+  assert.notEqual(bySender.rocky, "critical");
+  assert.equal(bySender.april, "low");
+  assert.equal(bySender.max, "normal");
+});
+
 test("an overdue task is a signal; one due tomorrow is not", () => {
   createTask(STORE, { title: "late", due: "2026-06-01" });
   createTask(STORE, { title: "soon", due: "2026-06-16" });

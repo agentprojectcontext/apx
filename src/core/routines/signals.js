@@ -178,6 +178,17 @@ function detectOverdueCommitments(project, { now }) {
  * captured as a commitment by the a2a triage, so it resurfaces through the
  * commitment detectors — this detector is for everything that is not a promise.
  */
+/**
+ * The a2a severity contract: a sender tags a message [blocker | status | fyi],
+ * and the tag maps to a signal severity so the watch prioritises it.
+ *
+ * `blocker` is "high", deliberately NOT "critical": critical crosses quiet-hours
+ * (canNudge), and the contract says a blocker is delivered promptly but still
+ * respects the owner's quiet window. An untagged a2a message is a plain "normal"
+ * signal, exactly as before the contract existed.
+ */
+const A2A_SEVERITY = Object.freeze({ blocker: "high", status: "normal", fyi: "low" });
+
 function detectA2A(project, { now, a2a_since }) {
   // No last run yet → a bounded window, so a first sweep does not dump history.
   const since = a2a_since || new Date(Date.parse(now) - 6 * 3_600_000).toISOString();
@@ -189,14 +200,15 @@ function detectA2A(project, { now, a2a_since }) {
   }
   return msgs
     .filter((m) => m.direction === "in" && (m.body || "").trim())
-    .map((m) =>
-      signal(project, {
+    .map((m) => {
+      const tag = String(m.meta?.severity || "").toLowerCase();
+      return signal(project, {
         type: "a2a_message",
-        severity: "normal",
-        subject: `${m.author || "another agent"} sent (a2a): ${firstLine(m.body)}`,
-        payload: { from: m.author, ts: m.ts, body: m.body },
-      }),
-    );
+        severity: A2A_SEVERITY[tag] || "normal",
+        subject: `${m.author || "another agent"} sent (a2a${tag && A2A_SEVERITY[tag] ? `, ${tag}` : ""}): ${firstLine(m.body)}`,
+        payload: { from: m.author, ts: m.ts, body: m.body, tag: A2A_SEVERITY[tag] ? tag : null },
+      });
+    });
 }
 
 const DETECTORS = {
