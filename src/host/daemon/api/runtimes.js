@@ -108,6 +108,7 @@ export function register(api, { projects, registries, plugins, project, config }
         body: prompt,
         meta: { runtime, apc_session: session.id },
       });
+      // attribution-exempt: external runtime stdout — APX has no token accounting for a coding CLI's own model call.
       p.logMessage({
         agent_slug: agentSlug,
         channel: "runtime",

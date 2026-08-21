@@ -307,6 +307,7 @@ export async function handleUpdate(self, u) {
           stopAckTyping();
         }
         await self._send({ chat_id, text: ack });
+        // attribution-exempt: /reset ack — a short model-authored line whose attribution the ack path does not surface.
         appendGlobalMessage({
           channel: CHANNELS.TELEGRAM,
           direction: "out",

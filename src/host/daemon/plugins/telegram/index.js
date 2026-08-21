@@ -324,6 +324,7 @@ export default {
       async send({ channel: channelName, chat_id, text, reply_markup, author = resolveAgentName(config), meta: extraMeta }) {
         const p = pickPoller(pollers, channelName);
         const result = await p._send({ chat_id, text, reply_markup });
+        // attribution-exempt: relay primitive — send() ships text the caller composed; a caller that spent tokens passes model/usage via `meta`.
         appendGlobalMessage({
           channel: CHANNELS.TELEGRAM,
           direction: "out",

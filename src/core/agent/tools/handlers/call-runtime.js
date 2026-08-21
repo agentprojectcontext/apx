@@ -337,6 +337,7 @@ export default {
           body: effectivePrompt,
           meta: { runtime, invoked_by: "super_agent_tool", apc_session: session.id, resume_session_id: resume_session_id || null },
         });
+        // attribution-exempt: external runtime (claude/codex/…) stdout — APX did not make the model call, so it has no model/usage to record.
         p.logMessage({
           agent_slug: actor,
           channel: "runtime",

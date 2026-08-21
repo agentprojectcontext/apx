@@ -884,8 +884,12 @@ export async function runRoutineNow(ctx, routine) {
         }
       }
     } else {
+      // The super-agent's own routine. Carry its model/usage so the delivered
+      // web-thread row is attributed like every other agent turn (the ledger
+      // adapter reads agent.model/agent.usage), not filed as "0 tok"/no model.
       deliveries = await deliverRoutineOutput(runCtx, {
         routine, channels, text: deliveryText, gate, attachments,
+        agent: { slug: SUPERAGENT_ACTOR_ID, model: result?.model, usage: result?.usage },
       });
     }
     for (const id of delivery.unknown) {

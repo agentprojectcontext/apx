@@ -89,6 +89,19 @@ export async function cmdSend(args) {
     throw new Error(`apx send: --severity must be one of blocker|status|fyi (got "${severity}")`);
   }
 
+  // Attribution override. Normally the daemon stamps the sender agent's
+  // configured model automatically; `--model` / `--usage '{"input_tokens":…}'`
+  // let a caller that KNOWS the real cost (e.g. a routine relaying its run)
+  // record it precisely. A plain relay spends no tokens, so usage stays empty.
+  const modelFlag = args?.flags?.model;
+  const model = modelFlag && modelFlag !== true ? String(modelFlag) : null;
+  const usageFlag = args?.flags?.usage;
+  let usage = null;
+  if (usageFlag && usageFlag !== true) {
+    try { usage = JSON.parse(String(usageFlag)); }
+    catch { throw new Error(`apx send: --usage must be JSON, e.g. '{"input_tokens":10,"output_tokens":5}'`); }
+  }
+
   const pid = await resolveSendTarget(to, args?.flags?.project);
   const result = await http.post(`/api/projects/${pid}/send`, {
     from,
@@ -96,6 +109,8 @@ export async function cmdSend(args) {
     body,
     deliver: !!args.flags.deliver,
     ...(severity ? { severity } : {}),
+    ...(model ? { model } : {}),
+    ...(usage ? { usage } : {}),
     ...(requested_by ? { requested_by } : {}),
   });
   console.log(`✉  ${from} → ${to}  @ ${result.ts}${severity ? `  [${severity}]` : ""}`);

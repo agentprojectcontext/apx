@@ -1184,10 +1184,12 @@ export const HELP_TOPICS = new Map(Object.entries({
   send: topic({
     title: "apx send",
     summary: "Log an agent-to-agent message, optionally delivering it through the target engine.",
-    usage: ["apx send <from> <to> \"<message>\" [--deliver] [--severity blocker|status|fyi] [--project <name|id|path>]"],
+    usage: ["apx send <from> <to> \"<message>\" [--deliver] [--severity blocker|status|fyi] [--model <id>] [--usage <json>] [--project <name|id|path>]"],
     options: [
       ["--deliver", "Run the target engine after logging the message."],
       ["--severity <blocker|status|fyi>", "Urgency for the owner. blocker = alert now (Roby pings, crosses quiet-hours); status/fyi = rides the digest."],
+      ["--model <id>", "Attribution override. Default: the sender agent's configured model. Sets which model the message shows as."],
+      ["--usage <json>", "Token usage, e.g. '{\"input_tokens\":10,\"output_tokens\":5}'. A plain relay spends none, so it stays empty unless you pass it."],
       ["--project <name|id|path>", "Pin command to a specific project."],
     ],
     examples: [
