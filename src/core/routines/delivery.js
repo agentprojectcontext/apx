@@ -24,6 +24,7 @@ import { appendGlobalMessage } from "#core/stores/messages.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { SUPERAGENT_ACTOR_ID, resolveAgentName } from "#core/identity/index.js";
 import { TOOLS } from "#core/agent/tools/names.js";
+import { canNudge, recordNudge } from "#core/nudge/index.js";
 
 /** `deliver_to: ["profile"]` — take the channels from the active agent profile. */
 export const PROFILE_DELIVERY = "profile";
@@ -73,9 +74,38 @@ export const DELIVERY_ADAPTERS = Object.freeze({
     // runner suppresses it for the run, the way it already suppresses the tool
     // an equivalent post_command would duplicate.
     overlapTools: [TOOLS.SEND_TELEGRAM],
-    async deliver(ctx, { routine, text }) {
+    async deliver(ctx, { routine, text, gate }) {
       const tg = ctx?.plugins?.get?.("telegram");
       if (!tg?.send) throw new Error("telegram plugin not loaded");
+
+      // The interruption budget. Suppressing send_telegram for a delivering
+      // routine moved this push off the tool that used to gate it, so the gate
+      // has to live here or a watch would push every 20 minutes regardless of
+      // budget or quiet-hours. An anchor passes as `scheduled`; a blocker
+      // passes as `critical`; a solicited reply passes as `unsolicited: false`;
+      // an ordinary status/fyi is held when the budget says so. `gate: null`
+      // (a caller that hasn't opted in) delivers unconditionally, as before.
+      if (gate) {
+        const decision = canNudge(
+          {
+            kind: `routine:${routine.name}`,
+            project_id: gate.project_id ?? null,
+            severity: gate.severity || "normal",
+            unsolicited: gate.unsolicited !== false,
+            scheduled: gate.scheduled === true,
+            channel: CHANNELS.TELEGRAM,
+          },
+          ctx?.globalConfig || {},
+        );
+        if (!decision.allowed) return { held: true, reason: decision.reason };
+        await tg.send({
+          text,
+          meta: { routine: routine.name, routine_id: routine.id || "", via: "routine_delivery" },
+        });
+        recordNudge(decision, { preview: text });
+        return { note: `sent to telegram (${decision.reason})` };
+      }
+
       await tg.send({
         text,
         meta: { routine: routine.name, routine_id: routine.id || "", via: "routine_delivery" },
@@ -241,7 +271,7 @@ export function alreadyServedChannels({ routine, channels, postSinks, trace }) {
  *
  * @returns {Array<{channel, status, note?, error?}>}
  */
-export async function deliverRoutineOutput(ctx, { routine, channels, text }) {
+export async function deliverRoutineOutput(ctx, { routine, channels, text, gate = null }) {
   const out = [];
   for (const id of channels || []) {
     const adapter = DELIVERY_ADAPTERS[id];
@@ -250,8 +280,13 @@ export async function deliverRoutineOutput(ctx, { routine, channels, text }) {
       continue;
     }
     try {
-      const r = await adapter.deliver(ctx, { routine, text });
-      out.push({ channel: id, status: "ok", ...(r?.note ? { note: r.note } : {}) });
+      const r = await adapter.deliver(ctx, { routine, text, gate });
+      // "held" is not "ok" and not "error": the interruption budget did its job.
+      // The caller must not treat it as a failed delivery — the message was
+      // deliberately withheld, and the message the model wrote survives in the
+      // run log / routine memory to fold into the next brief.
+      if (r?.held) out.push({ channel: id, status: "held", reason: r.reason });
+      else out.push({ channel: id, status: "ok", ...(r?.note ? { note: r.note } : {}) });
     } catch (e) {
       out.push({ channel: id, status: "error", error: e?.message || String(e) });
     }

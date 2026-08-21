@@ -12,7 +12,8 @@
     "routines": [
       "day-open",
       "day-close",
-      "watch"
+      "watch",
+      "a2a-sweep"
     ],
     "channels": [
       "routine"

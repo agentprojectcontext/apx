@@ -54,25 +54,26 @@ test("a2a_message is a default detector, so the watch sees a2a without opting in
   assert.ok(SIGNAL_TYPES.includes("a2a_message"));
 });
 
-test("an a2a severity tag maps to signal severity; blocker is high, not critical", () => {
-  const tagged = (author, sev) =>
+test("an a2a severity tag maps to signal severity; blocker is critical, solicited is carried", () => {
+  const tagged = (author, meta) =>
     appendMessageToFs({
       projectRoot: STORE, channel: "a2a", direction: "in", type: "agent",
-      author, body: `msg from ${author}`, ts: "2026-06-15T11:00:00.000Z",
-      meta: { severity: sev },
+      author, body: `msg from ${author}`, ts: "2026-06-15T11:00:00.000Z", meta,
     });
-  tagged("rocky", "blocker");
-  tagged("april", "fyi");
-  tagged("max", "bogus");   // unknown tag → plain normal
+  tagged("rocky", { severity: "blocker" });
+  tagged("april", { severity: "fyi" });
+  tagged("max", { severity: "bogus" });                 // unknown tag → plain normal
+  tagged("nina", { severity: "status", solicited: true });
 
   const { signals } = detectSignals([PROJECT], {
     now: NOW, types: ["a2a_message"], a2a_since: "2026-06-15T10:00:00.000Z",
   });
-  const bySender = Object.fromEntries(signals.map((s) => [s.payload.from, s.severity]));
-  assert.equal(bySender.rocky, "high");   // blocker → high (respects quiet-hours in canNudge)
-  assert.notEqual(bySender.rocky, "critical");
-  assert.equal(bySender.april, "low");
-  assert.equal(bySender.max, "normal");
+  const by = Object.fromEntries(signals.map((s) => [s.payload.from, s]));
+  assert.equal(by.rocky.severity, "critical");   // blocker → critical (owner: crosses quiet-hours)
+  assert.equal(by.april.severity, "low");
+  assert.equal(by.max.severity, "normal");
+  assert.equal(by.nina.payload.solicited, true); // solicited carried through for the gate
+  assert.equal(by.max.payload.solicited, false);
 });
 
 test("an overdue task is a signal; one due tomorrow is not", () => {
