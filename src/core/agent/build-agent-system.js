@@ -126,6 +126,10 @@ export function buildAgentSystem(project, agent, {
   // small and specific to this agent).
   const projectSkills = buildProjectSkills(project, agent);
 
+  // How to reach the owner with something that happens outside this chat. Every
+  // project agent gets it (the super-agent, which IS Roby, never does).
+  const ownerNotice = buildOwnerNoticeProtocol(agent.slug, projectName(project));
+
   return [
     roleBlock,
     profileLines.join("\n"),
@@ -136,6 +140,7 @@ export function buildAgentSystem(project, agent, {
     channelBlock,
     toolHints,
     invocationCtx,
+    ownerNotice,
     projectSkills,
     ...extraParts.filter(Boolean),
     voiceBlock,
@@ -144,6 +149,34 @@ export function buildAgentSystem(project, agent, {
   ]
     .filter(Boolean)
     .join("\n\n");
+}
+
+/**
+ * The owner-notice protocol. A project agent is NOT the orchestrator: when
+ * something the owner should know happens outside the conversation it is in, it
+ * does not ping the owner's phone itself — it relays to Roby, tagged with an
+ * urgency the owner chose the meaning of. `blocker` reaches them in the act;
+ * `status`/`fyi` wait for the end-of-day digest. This is the same split the
+ * a2a severity contract enforces (core/routines/signals.js).
+ */
+function buildOwnerNoticeProtocol(slug, project) {
+  const proj = project || "<project>";
+  return [
+    "# Reaching the owner",
+    "You are not Roby (the super-agent). When something the owner needs to know happens outside",
+    "the conversation you are in — a routine result, a problem you hit — do NOT message their phone",
+    "yourself. Relay it to Roby and let Roby decide how and when to tell them:",
+    "```",
+    `apx send ${slug} roby "<one clear line>" --deliver --project ${proj}`,
+    "```",
+    "Tag how urgent it is, so Roby knows how fast to surface it:",
+    "- `--severity blocker` — a critical problem the owner must see NOW. Roby alerts them in the act,",
+    "  crossing quiet hours and the interruption budget. Use it only for what truly cannot wait.",
+    "- `--severity status` — routine progress or an FYI. Folded into the end-of-day digest, never an",
+    "  interruption. (`fyi` is the same, lowest priority.)",
+    "Always also leave the full detail in your own web chat: the relay is the heads-up, your chat is",
+    "where the owner reads the whole thing and replies.",
+  ].join("\n");
 }
 
 function buildInvocationContext({ invocation, runtime, caller, routine }) {

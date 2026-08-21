@@ -187,7 +187,7 @@ function detectOverdueCommitments(project, { now }) {
  * until morning is not a blocker. `status`/`fyi` are gated like any other
  * unrequested message. An untagged a2a message is a plain "normal" signal.
  */
-const A2A_SEVERITY = Object.freeze({ blocker: "critical", status: "normal", fyi: "low" });
+export const A2A_SEVERITY = Object.freeze({ blocker: "critical", status: "normal", fyi: "low" });
 
 function detectA2A(project, { now, a2a_since }) {
   // No last run yet → a bounded window, so a first sweep does not dump history.
@@ -199,7 +199,10 @@ function detectA2A(project, { now, a2a_since }) {
     return []; // unreadable ledger → no evidence, surfaced as a skip by the caller
   }
   return msgs
-    .filter((m) => m.direction === "in" && (m.body || "").trim())
+    // `owner_notified` rows were already pinged to the owner in the act (a
+    // `blocker` relayed with severity — see the /send route). The watch must not
+    // notify them a second time; the message still lives in the thread.
+    .filter((m) => m.direction === "in" && !m.meta?.owner_notified && (m.body || "").trim())
     .map((m) => {
       const tag = String(m.meta?.severity || "").toLowerCase();
       // The owner explicitly asked to be told about this one → the delivery is

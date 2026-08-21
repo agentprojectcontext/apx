@@ -147,6 +147,12 @@ in the a2a reply prompt, and you should follow it in fuller turns too:
 - **Not the orchestrator?** If the message needs the owner's attention or a
   decision, relay it up: `apx send <you> roby "…" --deliver`. Roby decides how
   and when to tell the owner. Otherwise just do your part and reply on a2a.
+  - **Tag the urgency** so Roby knows how fast to surface it:
+    `--severity blocker` is a critical alert — Roby pings the owner **in the act**,
+    crossing quiet-hours and the interruption budget (use only for what truly
+    can't wait); `--severity status` / `--severity fyi` is a normal notice that
+    rides the end-of-day digest and never interrupts. Untagged = normal. The
+    `send` result reports `owner_notified` when a `blocker` reached the phone.
 - **Secretary profile active?** Anything promised to / owed to / needing action
   from the owner must be CAPTURED as a commitment (`record_commitment` /
   `apx commitment`, with a due date) so it resurfaces at the right time — a lone

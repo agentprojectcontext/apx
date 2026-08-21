@@ -27,7 +27,7 @@ function a2aEtiquette({ toSlug, config }) {
     );
   } else {
     lines.push(
-      "You are NOT the orchestrator: if this needs the owner's attention or a decision, relay it to Roby (`apx send <you> roby \"…\" --deliver`) and let Roby decide how and when to tell them. Otherwise just do your part and reply here.",
+      "You are NOT the orchestrator: if this needs the owner's attention or a decision, relay it to Roby (`apx send <you> roby \"…\" --deliver`) and let Roby decide how and when to tell them. Tag urgency: `--severity blocker` for a critical alert (Roby pings the owner in the act, crossing quiet-hours), `--severity status`/`fyi` for a normal notice that rides the digest. Otherwise just do your part and reply here.",
     );
   }
   if (secretaryActive) {

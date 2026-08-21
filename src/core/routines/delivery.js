@@ -196,7 +196,7 @@ function ledgerAdapter(channel) {
  *
  * @returns {{sent?:boolean, held?:boolean, skipped?:boolean, line?:string, reason?:string}}
  */
-export async function notifyOwnerViaRoby(ctx, { routine, agent, text, notify, gate = null }) {
+export async function notifyOwnerViaRoby(ctx, { routine, agent, text, notify, gate = null, severity = null }) {
   const tg = ctx?.plugins?.get?.("telegram");
   if (!tg?.send) return { skipped: true, reason: "telegram plugin not loaded" };
   const globalConfig = ctx?.globalConfig || {};
@@ -215,32 +215,39 @@ export async function notifyOwnerViaRoby(ctx, { routine, agent, text, notify, ga
       globalConfig,
     );
     if (!decision.allowed) return { held: true, reason: decision.reason };
-    const line = await composeRobyNotice({ agent, text, notify, globalConfig });
+    const line = await composeRobyNotice({ agent, text, notify, globalConfig, severity });
     await tg.send({ text: line, meta: { via: "delivery_notify", routine: routine.name, routine_id: routine.id || "", agent: agent.slug } });
     recordNudge(decision, { preview: line });
     return { sent: true, line, reason: decision.reason };
   }
 
-  const line = await composeRobyNotice({ agent, text, notify, globalConfig });
+  const line = await composeRobyNotice({ agent, text, notify, globalConfig, severity });
   await tg.send({ text: line, meta: { via: "delivery_notify", routine: routine.name, routine_id: routine.id || "", agent: agent.slug } });
   return { sent: true, line };
 }
 
 /** The one Telegram line, written as Roby. Model-authored; a thin template only
  *  when the model is unavailable, so the owner is never left un-told. */
-async function composeRobyNotice({ agent, text, notify, globalConfig }) {
+async function composeRobyNotice({ agent, text, notify, globalConfig, severity = null }) {
   const robyName = resolveAgentName(globalConfig) || "Roby";
   const who = agent.name || agent.slug;
   const model = globalConfig?.super_agent?.model;
+  // A `critical` relay is an alert, not a "you have a reply waiting" nudge — the
+  // line has to read as urgent so the owner acts on it now.
+  const urgent = severity === "critical";
   if (model) {
     try {
       const r = await callEngine({
         modelId: model,
-        system:
-          `You are ${robyName}, Manu's personal assistant. The agent "${who}" just left Manu a message ` +
-          `in its own chat and it is waiting for a reply. Write ONE short line (max ~160 characters) to ` +
-          `send Manu on Telegram, in HIS language, telling him he has something to answer from ${who} and ` +
-          `hinting what it is about. Warm and brief. No preamble, no quotes — just the line.`,
+        system: urgent
+          ? `You are ${robyName}, Manu's personal assistant. The agent "${who}" just flagged something CRITICAL ` +
+            `that needs Manu now. Write ONE short line (max ~160 characters) to send Manu on Telegram, in HIS ` +
+            `language, making clear it is urgent and from ${who}, and hinting what the problem is. No preamble, ` +
+            `no quotes — just the line.`
+          : `You are ${robyName}, Manu's personal assistant. The agent "${who}" just left Manu a message ` +
+            `in its own chat and it is waiting for a reply. Write ONE short line (max ~160 characters) to ` +
+            `send Manu on Telegram, in HIS language, telling him he has something to answer from ${who} and ` +
+            `hinting what it is about. Warm and brief. No preamble, no quotes — just the line.`,
         messages: [{ role: "user", content: `What ${who} left:\n\n${notify || text || ""}` }],
         config: globalConfig,
       });
@@ -248,6 +255,7 @@ async function composeRobyNotice({ agent, text, notify, globalConfig }) {
       if (line) return line;
     } catch { /* fall through to the template floor */ }
   }
+  if (urgent) return `⚠️ ${who} marcó algo crítico${notify ? `: ${notify}` : ""} — revisalo ahora en su chat.`;
   return `${who} te dejó un mensaje${notify ? `: ${notify}` : ""} — respondé en su chat.`;
 }
 
