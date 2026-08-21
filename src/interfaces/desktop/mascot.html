@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>APX Mascota</title>
+  <link rel="stylesheet" href="mascot.css">
+</head>
+<body>
+  <!-- Bubble grows upward from the blob; the blob is anchored bottom-centre. -->
+  <div id="stage">
+    <div id="bubble" class="bubble" hidden>
+      <span id="bubble-text"></span>
+      <span class="bubble-tail"></span>
+    </div>
+
+    <div id="blob" title="APX">
+      <!-- Ground shadow: stays on the floor, follows sideways, shrinks when the
+           blob is lifted. NOT inside .blob-lift so it doesn't rise with it. -->
+      <div class="blob-shadow"></div>
+      <!-- Lift wrapper: raises + tilts the body while dragging, drops on release. -->
+      <div class="blob-lift">
+        <span class="blobav blobav-anim">
+          <img id="blob-body" class="blobav-body" alt="" draggable="false">
+          <svg id="blob-eyes" class="blobav-eyes-svg" viewBox="0 0 256 256" aria-hidden="true">
+            <g class="blobav-look">
+              <g id="blob-eyes-g" class="blobav-eyes"></g>
+            </g>
+          </svg>
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <script src="mascot-blobs.js"></script>
+  <script src="mascot.js"></script>
+</body>
+</html>
