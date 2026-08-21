@@ -85,6 +85,22 @@ export function markDelivery(storagePath, id, status, extra = {}) {
 }
 
 /**
+ * Manu engaged with an agent (replied in its chat) → close that agent's open
+ * deliveries. A `pending` one being answered CANCELS its grace-window notify
+ * before it fires; a `notified` one just gets crossed off. Returns how many were
+ * closed, so a caller can skip the notify when it already had one in flight.
+ */
+export function answerDeliveries(storagePath, agentSlug) {
+  if (!storagePath || !agentSlug) return 0;
+  const open = listDeliveries(storagePath).filter(
+    (d) => d.agent === agentSlug &&
+      (d.status === DELIVERY_STATUS.PENDING || d.status === DELIVERY_STATUS.NOTIFIED),
+  );
+  for (const d of open) markDelivery(storagePath, d.id, DELIVERY_STATUS.ANSWERED);
+  return open.length;
+}
+
+/**
  * The current queue, newest first. Folds the event log so each id appears once
  * with its latest status and the fields from its `pending` event. `status`
  * filters to one state; `limit` caps the result.

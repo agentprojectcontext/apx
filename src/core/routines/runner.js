@@ -860,21 +860,27 @@ export async function runRoutineNow(ctx, routine) {
         project_id: ctx.project?.id ?? null,
       });
 
-      // Roby tells Manu he has something waiting — immediately for a priority
-      // (anchor) delivery, which crosses the budget; an ordinary one is held when
-      // the budget says so, and the queue shows it withheld rather than lost.
+      // How Roby tells Manu, by priority:
+      //   • an anchor (urgent) delivery notifies NOW, crossing the budget;
+      //   • an ordinary one is LEFT PENDING — the daemon's grace sweep notifies it
+      //     ~a minute later, unless Manu opens the chat and replies first, which
+      //     marks it answered and cancels the notify (answerDeliveries).
       if (pushChannels.length) {
-        const r = await notifyOwnerViaRoby(runCtx, {
-          routine, agent: runByAgent, text: deliveryText, notify: runByAgent.notify, gate,
-        });
-        if (r.sent) {
-          markDelivery(storagePath, delId, DELIVERY_STATUS.NOTIFIED, { channel: "telegram" });
-          deliveries.push({ channel: "telegram(roby)", status: "ok", note: r.reason || "roby notified" });
-        } else if (r.held) {
-          markDelivery(storagePath, delId, DELIVERY_STATUS.HELD, { reason: r.reason });
-          deliveries.push({ channel: "telegram(roby)", status: "held", reason: r.reason });
+        if (priority) {
+          const r = await notifyOwnerViaRoby(runCtx, {
+            routine, agent: runByAgent, text: deliveryText, notify: runByAgent.notify, gate,
+          });
+          if (r.sent) {
+            markDelivery(storagePath, delId, DELIVERY_STATUS.NOTIFIED, { channel: "telegram" });
+            deliveries.push({ channel: "telegram(roby)", status: "ok", note: r.reason || "roby notified" });
+          } else if (r.held) {
+            markDelivery(storagePath, delId, DELIVERY_STATUS.HELD, { reason: r.reason });
+            deliveries.push({ channel: "telegram(roby)", status: "held", reason: r.reason });
+          } else {
+            deliveries.push({ channel: "telegram(roby)", status: "error", error: r.reason || "not sent" });
+          }
         } else {
-          deliveries.push({ channel: "telegram(roby)", status: "error", error: r.reason || "not sent" });
+          deliveries.push({ channel: "telegram(roby)", status: "deferred", note: "grace window — Roby notifies unless answered first" });
         }
       }
     } else {
@@ -891,7 +897,7 @@ export async function runRoutineNow(ctx, routine) {
     // delivery is NOT that failure: the budget withheld it on purpose, and the
     // message survives in the run log to fold into the next brief.
     const anyOk =
-      deliveries.some((d) => d.status === "ok" || d.status === "held") ||
+      deliveries.some((d) => d.status === "ok" || d.status === "held" || d.status === "deferred") ||
       deliverySkipped.length > 0;
     if (!anyOk) {
       status = "error";

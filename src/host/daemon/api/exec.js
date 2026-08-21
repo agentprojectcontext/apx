@@ -21,6 +21,7 @@ import {
   readConversation,
   setStatus,
 } from "#core/stores/conversations.js";
+import { answerDeliveries } from "#core/stores/deliveries.js";
 import { asyncRoute } from "./shared.js";
 
 // A chat reply is prose, not a Telegram one-liner: run-agent's 512-token default
@@ -311,6 +312,9 @@ export function register(api, { projects, project, config, plugins, registries }
       }
 
       appendTurn({ filePath: turn.conv.path, role: "user", content: prompt });
+      // Manu replied in this agent's chat → close its open deliveries (and cancel
+      // any grace-window notify still pending). See core/stores/deliveries.js.
+      try { answerDeliveries(p.storagePath, agent.slug); } catch { /* best-effort */ }
 
       const result = await runAgentTurn({
         p, agent, modelId,
@@ -394,6 +398,9 @@ export function register(api, { projects, project, config, plugins, registries }
     res.on("close", () => clearInterval(keepalive));
 
     appendTurn({ filePath: turn.conv.path, role: "user", content: prompt });
+    // Manu replied in this agent's chat → close its open deliveries (and cancel
+    // any grace-window notify still pending). See core/stores/deliveries.js.
+    try { answerDeliveries(p.storagePath, agent.slug); } catch { /* best-effort */ }
 
     try {
       const result = await runAgentTurn({

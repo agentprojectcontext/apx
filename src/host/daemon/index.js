@@ -29,6 +29,7 @@ import { ProjectManager } from "./db.js";
 import { McpRegistry } from "#core/mcp/runner.js";
 import { PluginManager } from "./plugins/index.js";
 import { RoutineScheduler } from "./routines-scheduler.js";
+import { startDeliverySweep } from "./delivery-sweep.js";
 import { startCallbackReconciler } from "./callback-reconciler.js";
 import { buildApi } from "./api.js";
 import { createTokenStore } from "./token-store.js";
@@ -274,6 +275,10 @@ async function main() {
     // an open panel — on any device — sees a conversation move the moment it
     // moves, whichever channel produced the turn.
     eventsBridge = startEventsBridge({ projects });
+    // Delivery grace sweep: notify ordinary deliveries that have sat unread past
+    // their grace window, so "notify unless he reads it first" actually fires.
+    // Priority deliveries are pinged immediately by the runner, not here.
+    startDeliverySweep({ projects, plugins, registries, config: cfg });
     // Cross-channel memory: ensure ~/.apx/memory.md exists, open the vector
     // store, and start the incremental RAG indexer. Best-effort — never blocks
     // boot and never throws into the daemon.
