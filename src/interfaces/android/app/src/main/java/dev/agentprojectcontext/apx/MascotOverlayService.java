@@ -195,7 +195,7 @@ public final class MascotOverlayService extends Service {
         Intent open = new Intent(this, MainActivity.class).putExtra(MainActivity.EXTRA_PATH, "/mobile");
         Intent stop = new Intent(this, MascotOverlayService.class).setAction(ACTION_STOP);
         return new Notification.Builder(this, SERVICE_CHANNEL)
-            .setSmallIcon(R.drawable.mascot_noche)
+            .setSmallIcon(R.drawable.ic_apx_notification)
             .setContentTitle("Mascota APX activa")
             .setContentText("Conectada a mensajes APX")
             .setContentIntent(pendingActivity(open, 1))
@@ -207,7 +207,7 @@ public final class MascotOverlayService extends Service {
     private Notification messageNotification(String message) {
         Intent open = new Intent(this, MainActivity.class).putExtra(MainActivity.EXTRA_PATH, "/mobile");
         return new Notification.Builder(this, MESSAGE_CHANNEL)
-            .setSmallIcon(R.drawable.mascot_noche)
+            .setSmallIcon(R.drawable.ic_apx_notification)
             .setContentTitle("APX")
             .setContentText(message)
             .setContentIntent(pendingActivity(open, 3))
