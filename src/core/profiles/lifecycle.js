@@ -16,6 +16,7 @@ import { projectStorageRoot, DEFAULT_PROJECT_ID } from "../config/paths.js";
 import { readIdentity } from "../identity/index.js";
 import { renderPromptTemplate } from "../agent/render-template.js";
 import { getPluginService } from "../integrations/catalog.js";
+import { resolveIntegration } from "../integrations/store.js";
 import {
   listRoutines,
   upsertRoutine,
@@ -76,6 +77,12 @@ function routineFingerprint(r) {
     pre_commands: r?.pre_commands || [],
     post_commands: r?.post_commands || [],
     skip_prompt_on: r?.skip_prompt_on || "signal",
+    // Added LAST and only when set, so the digest of every routine installed
+    // before delivery existed is byte-identical to the one stored beside it.
+    // Folding an always-present `deliver_to: null` into the canonical object
+    // would change every stored hash at once, and every package routine would
+    // read as "the user edited this" and never be updated again.
+    ...(r?.deliver_to?.length ? { deliver_to: r.deliver_to } : {}),
   };
   return crypto.createHash("sha256").update(JSON.stringify(canonical)).digest("hex").slice(0, 16);
 }
@@ -651,11 +658,17 @@ export function syncProfile(id = null) {
  */
 export function profileDoctor(id = null) {
   const cfg = readConfig();
+  // The doctor is owner-facing UI, so its prose follows the owner's language —
+  // unlike the prompt block, which is instructions to the model and stays
+  // English. `fix` values are literal CLI commands and are NOT translated; only
+  // the human sentences around them are.
+  const es = /^es(-|$)/.test(String(cfg.user?.language || "en").toLowerCase());
+  const L = (esStr, enStr) => (es ? esStr : enStr);
   const state = readProfileState(cfg);
   const targetId = id || state.active;
 
   if (!targetId) {
-    return { id: null, active: false, ok: true, checks: [], summary: "No profile active (vanilla)." };
+    return { id: null, active: false, ok: true, checks: [], summary: L("No hay perfil activo (vanilla).", "No profile active (vanilla).") };
   }
 
   const profile = readProfile(targetId);
@@ -664,8 +677,8 @@ export function profileDoctor(id = null) {
       id: targetId,
       active: false,
       ok: false,
-      checks: [{ level: "error", label: "package", detail: `not installed`, fix: `apx profile install ${targetId}` }],
-      summary: `profile "${targetId}" is not installed`,
+      checks: [{ level: "error", label: "package", detail: L("no está instalado", "not installed"), fix: `apx profile install ${targetId}` }],
+      summary: L(`el perfil "${targetId}" no está instalado`, `profile "${targetId}" is not installed`),
     };
   }
 
@@ -684,7 +697,7 @@ export function profileDoctor(id = null) {
         checks.push({
           level: "warn",
           label: "channel",
-          detail: `Telegram is not configured — the profile cannot reach you there`,
+          detail: L("Telegram no está configurado — el perfil no puede alcanzarte ahí", "Telegram is not configured — the profile cannot reach you there"),
           fix: "apx telegram setup",
         });
       }
@@ -704,17 +717,24 @@ export function profileDoctor(id = null) {
       : `apx mcp add ${slug} --scope global --command <cmd> -- <args>`;
   const integrationDetail = (slug, suffix) =>
     getPluginService(slug)
-      ? `${slug} is not connected — ${suffix}`
-      : `${slug} has no built-in plugin — reach it through an MCP server; ${suffix}`;
+      ? L(`${slug} no está conectado — ${suffix}`, `${slug} is not connected — ${suffix}`)
+      : L(`${slug} no tiene plugin nativo — alcanzalo con un servidor MCP; ${suffix}`, `${slug} has no built-in plugin — reach it through an MCP server; ${suffix}`);
 
+  // Integrations live in per-project stores (~/.apx/projects/<id>/integrations.json),
+  // with project→default precedence — NOT in a global `config.integrations`, which
+  // is null on a normal install. Checking the config object reported "calendar is
+  // not connected" while a connected Google Calendar sat in the default project.
+  // resolveIntegration() looks where they actually are, so a calendar connected at
+  // the (default) project level counts as connected for the super-agent.
+  const integrationConnected = (slug) => !!resolveIntegration({ slug });
   for (const slug of requires.integrations || []) {
-    if (!cfg.integrations?.[slug]) {
-      checks.push({ level: "error", label: "integration", detail: integrationDetail(slug, "the profile requires it"), fix: integrationFix(slug) });
+    if (!integrationConnected(slug)) {
+      checks.push({ level: "error", label: "integration", detail: integrationDetail(slug, L("el perfil lo requiere", "the profile requires it")), fix: integrationFix(slug) });
     }
   }
   for (const slug of requires.optional_integrations || []) {
-    if (!cfg.integrations?.[slug]) {
-      checks.push({ level: "warn", label: "integration", detail: integrationDetail(slug, "the profile degrades without it"), fix: integrationFix(slug) });
+    if (!integrationConnected(slug)) {
+      checks.push({ level: "warn", label: "integration", detail: integrationDetail(slug, L("el perfil se degrada sin esto", "the profile degrades without it")), fix: integrationFix(slug) });
     }
   }
 
@@ -725,7 +745,7 @@ export function profileDoctor(id = null) {
       checks.push({
         level: "warn",
         label: "capability",
-        detail: `"${cap}" is not provided by this APX version — the profile degrades`,
+        detail: L(`"${cap}" no la provee esta versión de APX — el perfil se degrada`, `"${cap}" is not provided by this APX version — the profile degrades`),
         fix: null,
       });
     }
@@ -736,7 +756,7 @@ export function profileDoctor(id = null) {
     const origin = profileOrigin(targetId);
     const installed = listRoutines(superAgentStorage()).filter((r) => r.origin === origin);
     for (const r of installed.filter((r) => !r.enabled)) {
-      checks.push({ level: "warn", label: "routine", detail: `"${r.name}" is disabled`, fix: `apx routine enable ${r.name}` });
+      checks.push({ level: "warn", label: "routine", detail: L(`"${r.name}" está deshabilitada`, `"${r.name}" is disabled`), fix: `apx routine enable ${r.name}` });
     }
 
     // Routines that no longer match the package they came from. Worth saying
@@ -760,13 +780,13 @@ export function profileDoctor(id = null) {
             // Their edits win — that is the contract. But a routine that sync
             // will always skip is one they now maintain themselves, and they
             // should hear that while they can still decide otherwise.
-            detail: `"${name}" is yours now (you edited it) and the package has moved on — sync will keep skipping it`,
-            fix: `apx routine show ${name}  # then edit it, or delete it and run: apx profile sync`,
+            detail: L(`"${name}" ahora es tuya (la editaste) y el paquete avanzó — sync la va a seguir salteando`, `"${name}" is yours now (you edited it) and the package has moved on — sync will keep skipping it`),
+            fix: L(`apx routine show ${name}  # editala, o borrala y corré: apx profile sync`, `apx routine show ${name}  # then edit it, or delete it and run: apx profile sync`),
           }
           : {
             level: "warn",
             label: "routine",
-            detail: `"${name}" is older than the package that installed it`,
+            detail: L(`"${name}" es más vieja que el paquete que la instaló`, `"${name}" is older than the package that installed it`),
             fix: "apx profile sync",
           });
       }
@@ -784,8 +804,8 @@ export function profileDoctor(id = null) {
     budget: profile.manifest?.prompt_budget_tokens || null,
     checks,
     summary: errors === 0
-      ? `profile "${targetId}" is healthy${checks.length ? ` (${checks.length} warning(s))` : ""}`
-      : `profile "${targetId}" has ${errors} blocking problem(s)`,
+      ? L(`el perfil "${targetId}" está sano${checks.length ? ` (${checks.length} advertencia(s))` : ""}`, `profile "${targetId}" is healthy${checks.length ? ` (${checks.length} warning(s))` : ""}`)
+      : L(`el perfil "${targetId}" tiene ${errors} problema(s) que bloquean`, `profile "${targetId}" has ${errors} blocking problem(s)`),
   };
 }
 

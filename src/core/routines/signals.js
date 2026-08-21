@@ -18,6 +18,7 @@
 // summaries drift from the data they claim to describe.
 import { listTasks } from "#core/stores/tasks.js";
 import { listCommitments } from "#core/stores/commitments.js";
+import { readProjectMessages } from "#core/stores/messages.js";
 import { nowIso } from "#core/util/time.js";
 
 /** Every detector, keyed by the type it emits. */
@@ -27,6 +28,7 @@ export const SIGNAL_TYPES = Object.freeze([
   "stale_project",
   "commitment_due",
   "overdue_commitment",
+  "a2a_message",
 ]);
 
 /** Defaults chosen to be quiet. A watcher that cries on day one gets turned off. */
@@ -161,12 +163,49 @@ function detectOverdueCommitments(project, { now }) {
     );
 }
 
+/**
+ * An agent-to-agent message that landed for this project since the last sweep.
+ *
+ * This is the seam that lets a2a "reach" {{owner_name}}: an a2a turn never pings
+ * the owner directly (buildA2AReplySystem), it lands in the project's `a2a`
+ * ledger channel. The watch picks the recent inbound ones up as signals, and —
+ * because the watch now delivers to the profile's channel — the owner hears the
+ * ones Roby judges worth it, timed and batched, instead of a raw ping per message.
+ *
+ * Only DIRECTION "in" (something another agent sent into this project), and only
+ * since `a2a_since` (the watch's last run), so a message is surfaced once, not
+ * re-raised every two hours. A promise buried in an a2a message is already
+ * captured as a commitment by the a2a triage, so it resurfaces through the
+ * commitment detectors — this detector is for everything that is not a promise.
+ */
+function detectA2A(project, { now, a2a_since }) {
+  // No last run yet → a bounded window, so a first sweep does not dump history.
+  const since = a2a_since || new Date(Date.parse(now) - 6 * 3_600_000).toISOString();
+  let msgs = [];
+  try {
+    msgs = readProjectMessages(project.storagePath, { channel: "a2a", since, limit: 50 });
+  } catch {
+    return []; // unreadable ledger → no evidence, surfaced as a skip by the caller
+  }
+  return msgs
+    .filter((m) => m.direction === "in" && (m.body || "").trim())
+    .map((m) =>
+      signal(project, {
+        type: "a2a_message",
+        severity: "normal",
+        subject: `${m.author || "another agent"} sent (a2a): ${firstLine(m.body)}`,
+        payload: { from: m.author, ts: m.ts, body: m.body },
+      }),
+    );
+}
+
 const DETECTORS = {
   overdue_task: detectOverdueTasks,
   blocked_task: detectBlockedTasks,
   stale_project: detectStaleProject,
   commitment_due: detectCommitmentsDue,
   overdue_commitment: detectOverdueCommitments,
+  a2a_message: detectA2A,
 };
 
 // ---------------------------------------------------------------------------
@@ -259,6 +298,12 @@ function signal(project, fields) {
     detected_at: nowIso(),
     ...fields,
   };
+}
+
+/** First non-empty line of a body, trimmed to a signal-sized preview. */
+function firstLine(body) {
+  const line = String(body || "").split("\n").map((s) => s.trim()).find(Boolean) || "";
+  return line.length > 140 ? `${line.slice(0, 137)}…` : line;
 }
 
 /** Whole days between two YYYY-MM-DD strings. Negative when `to` precedes `from`. */

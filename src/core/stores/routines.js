@@ -98,7 +98,7 @@ export function getRoutine(projectPath, name) {
   return readFile(projectPath).find((r) => r.name === name) || null;
 }
 
-export function upsertRoutine(storagePath, { name, kind, schedule, spec, enabled = true, permission_mode, allowed_tools, pre_commands, post_commands, skip_prompt_on, origin, origin_hash }) {
+export function upsertRoutine(storagePath, { name, kind, schedule, spec, enabled = true, permission_mode, allowed_tools, pre_commands, post_commands, skip_prompt_on, deliver_to, origin, origin_hash }) {
   if (!name || !kind || !schedule) throw new Error("routine requires name, kind, schedule");
   const now = nowIso();
   const routines = readFile(storagePath);
@@ -126,6 +126,14 @@ export function upsertRoutine(storagePath, { name, kind, schedule, spec, enabled
     //   "always"      — never run the LLM (shell-only routine)
     //   "never"       — always run the LLM regardless of pre_commands
     skip_prompt_on: skip_prompt_on || prev?.skip_prompt_on || "signal",
+    // Where the run's output is delivered (core/routines/delivery.js).
+    // `null` and `[]` are NOT the same value here, and this is the one place
+    // that has to keep them apart: `null` means "nobody said", so the
+    // deployment default still applies, while `[]` means "deliver nowhere" and
+    // stops the fallthrough. Defaulting an absent field to `[]` is exactly the
+    // bug allowed_tools had — every routine created the obvious way silently
+    // carried a deliberate-looking empty list nobody wrote.
+    deliver_to: Array.isArray(deliver_to) ? deliver_to : (deliver_to === null ? null : (prev?.deliver_to ?? null)),
     // Provenance. A routine installed by a persona package carries
     // origin: "persona:<id>" so it can be disabled or removed with that
     // package without touching the user's own routines. `origin_hash` is the

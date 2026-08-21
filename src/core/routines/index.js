@@ -14,3 +14,12 @@ export {
 } from "#core/stores/routines.js";
 
 export { runRoutineNow } from "./runner.js";
+
+export {
+  deliveryChannelIds,
+  normalizeDeliverTo,
+  resolveDeliveryChannels,
+  PROFILE_DELIVERY,
+  NO_DELIVERY,
+} from "./delivery.js";
+

@@ -18,6 +18,7 @@ const {
 } = await import("#core/routines/signals.js");
 const { createTask, doneTask, setTaskStatus } = await import("#core/stores/tasks.js");
 const { createCommitment } = await import("#core/stores/commitments.js");
+const { appendMessageToFs } = await import("#core/stores/messages.js");
 
 const NOW = "2026-06-15T12:00:00.000Z";
 
@@ -33,6 +34,25 @@ const only = (type) => ({ now: NOW, types: [type] });
 // --------------------------------------------------------------------------
 // each detector, with state built by hand
 // --------------------------------------------------------------------------
+
+test("an inbound a2a message since the last sweep is a signal; outbound and old are not", () => {
+  const a2a = (direction, author, body, ts) =>
+    appendMessageToFs({ projectRoot: STORE, channel: "a2a", direction, type: "agent", author, body, ts });
+  a2a("in", "rocky", "deploy of Savia is green", "2026-06-15T11:00:00.000Z");
+  a2a("out", "roby", "thanks", "2026-06-15T11:01:00.000Z");       // outbound: not for the owner
+  a2a("in", "april", "old news", "2026-06-15T09:00:00.000Z");      // before the last sweep
+
+  const { signals } = detectSignals([PROJECT], {
+    now: NOW, types: ["a2a_message"], a2a_since: "2026-06-15T10:00:00.000Z",
+  });
+  assert.equal(signals.length, 1);
+  assert.equal(signals[0].payload.from, "rocky");
+  assert.match(signals[0].subject, /rocky sent \(a2a\)/);
+});
+
+test("a2a_message is a default detector, so the watch sees a2a without opting in", () => {
+  assert.ok(SIGNAL_TYPES.includes("a2a_message"));
+});
 
 test("an overdue task is a signal; one due tomorrow is not", () => {
   createTask(STORE, { title: "late", due: "2026-06-01" });

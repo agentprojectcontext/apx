@@ -31,6 +31,13 @@ import {
   routineMemoryPath,
 } from "#core/stores/routine-memory.js";
 import { buildRoutineHeader, prependRoutineHeader } from "#core/routines/header.js";
+import {
+  resolveDeliveryChannels,
+  deliverySuppressedTools,
+  deliverRoutineOutput,
+  alreadyServedChannels,
+  routineOutputText,
+} from "#core/routines/delivery.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { detectSignals, formatSignals, peakSeverity, thresholdsFromConfig } from "#core/routines/signals.js";
 import { readActiveProfile, effectiveProfileConfig } from "#core/profiles/store.js";
@@ -56,7 +63,10 @@ async function handleHeartbeat(ctx, routine) {
     body: message,
     meta: { routine: routine.name },
   });
-  return { status: "ok", note: `logged to messages on channel '${channel}'` };
+  // `text` is the run's output (routineOutputText): a heartbeat's product IS
+  // this line, and without naming it here a heartbeat with a delivery channel
+  // had something to say and delivered an empty string.
+  return { status: "ok", text: message, note: `logged to messages on channel '${channel}'` };
 }
 
 // Is this routine "telegram-bound" — i.e. is its PRODUCT a Telegram message? The
@@ -71,7 +81,13 @@ async function handleHeartbeat(ctx, routine) {
 // exact background work this distinction exists to free. Magui filling a backlog
 // might send a summary at the end, but her job is the backlog, not the message —
 // she must finish first. So only the post_command sink marks telegram-bound.
-export function routineReportsToTelegram({ autoSuppress }) {
+export function routineReportsToTelegram({ autoSuppress, deliverTo }) {
+  // `deliver_to: ["telegram"]` is the same shape of sink, declared on the
+  // routine instead of in a shell string: the runner hands the final text to
+  // Telegram, so the final turn IS the message here too. No routine that
+  // predates deliver_to has one, so this widens the rule without moving any
+  // existing routine from one budget to the other.
+  if ((deliverTo || []).includes(CHANNELS.TELEGRAM)) return true;
   return (autoSuppress || []).includes("send_telegram");
 }
 
@@ -157,13 +173,17 @@ async function handleExecAgent(ctx, routine) {
     const explicitSuppress = Array.isArray(routine.spec?.suppress_tools)
       ? routine.spec.suppress_tools.filter((s) => typeof s === "string")
       : [];
-    const suppressTools = [...new Set([...autoSuppress, ...explicitSuppress])];
+    // A configured delivery owns the message the same way a post_command sink
+    // does — leaving send_telegram in the loop next to `deliver_to: telegram`
+    // is the two-messages bug of spec/done/01 with a different sink.
+    const deliverSuppress = deliverySuppressedTools(ctx.deliverTo);
+    const suppressTools = [...new Set([...autoSuppress, ...explicitSuppress, ...deliverSuppress])];
     allowedTools = resolveAgentAllowedTools(agent, { override: toolOverride });
     const toolSession = createToolSession(CHANNELS.ROUTINE, { allowedTools });
     // A routine that reports to Telegram keeps the bounded chat budget; one that
     // does background work nobody watches runs to completion (Magui's backlog
     // refill was being cut off at ~23 steps by the Telegram budget).
-    const telegramBound = routineReportsToTelegram({ autoSuppress });
+    const telegramBound = routineReportsToTelegram({ autoSuppress, deliverTo: ctx.deliverTo });
     const maxIters = routineToolIters(cfg, { telegramBound });
 
     const result = await runAgent({
@@ -286,14 +306,17 @@ async function handleSuperAgent(ctx, routine, extraChannelMeta = {}) {
   const explicitSuppress = Array.isArray(routine.spec?.suppress_tools)
     ? routine.spec.suppress_tools.filter((s) => typeof s === "string")
     : [];
-  const suppressTools = [...new Set([...autoSuppress, ...explicitSuppress])];
+  // Same rule as exec_agent: a channel the runner is going to deliver to loses
+  // its in-loop twin, so the run produces one message and not two.
+  const deliverSuppress = deliverySuppressedTools(ctx.deliverTo);
+  const suppressTools = [...new Set([...autoSuppress, ...explicitSuppress, ...deliverSuppress])];
 
   // Same rule as exec_agent: only a `apx telegram …` post_command makes the run
   // telegram-bound (bounded chat budget). A super_agent report that sends via the
   // send_telegram tool — like the secretary open/close — is work that should run
   // to completion, which also lifts it off runSuperAgent's low chit-chat default
   // of MAX_TOOL_ITERS.
-  const telegramBound = routineReportsToTelegram({ autoSuppress });
+  const telegramBound = routineReportsToTelegram({ autoSuppress, deliverTo: ctx.deliverTo });
   const maxIters = routineToolIters(cfg, { telegramBound });
 
   const result = await runSuperAgent({
@@ -385,6 +408,21 @@ export function blockedForPermission(trace) {
   return [...names];
 }
 
+/**
+ * The active agent profile's settings, or `{}`. Read by the watcher (for its
+ * thresholds) and by delivery (for `deliver_to: ["profile"]`), and swallowing
+ * the error is the point: a profile that fails to load must not take down a
+ * run that has nothing to do with it.
+ */
+function activeProfileConfig(globalConfig) {
+  try {
+    const active = readActiveProfile(globalConfig);
+    return active ? (effectiveProfileConfig(active, globalConfig) || {}) : {};
+  } catch {
+    return {};
+  }
+}
+
 async function handleTelegram(ctx, routine) {
   const { plugins } = ctx;
   const tg = plugins?.get("telegram");
@@ -440,11 +478,7 @@ async function handleWatch(ctx, routine) {
   // Thresholds come from the active profile — "stale after 7 days" is a
   // judgement about how someone works, not a constant — with the routine able
   // to override for its own narrower purpose.
-  let profileConfig = {};
-  try {
-    const active = readActiveProfile(globalConfig);
-    if (active) profileConfig = effectiveProfileConfig(active, globalConfig) || {};
-  } catch { /* a broken profile must not take the watcher down */ }
+  const profileConfig = activeProfileConfig(globalConfig);
 
   const entries = [];
   for (const entry of projects?.list?.() || []) {
@@ -462,6 +496,9 @@ async function handleWatch(ctx, routine) {
     ...thresholdsFromConfig(profileConfig),
     ...(thresholds && typeof thresholds === "object" ? thresholds : {}),
     types: Array.isArray(types) ? types : [],
+    // So the a2a detector surfaces each message once — everything that arrived
+    // since this watch last ran, and nothing it already considered.
+    a2a_since: routine.last_run_at || routine.last_run || "",
   });
 
   if (!signals.length) {
@@ -572,6 +609,15 @@ export async function runRoutineNow(ctx, routine) {
   const hasPreCmds  = Array.isArray(routine.pre_commands)  && routine.pre_commands.length  > 0;
   const hasPostCmds = Array.isArray(routine.post_commands) && routine.post_commands.length > 0;
 
+  // Where this run's output goes, resolved ONCE and before the handler runs —
+  // the handlers need it too, because a channel the runner is going to deliver
+  // to has its in-loop twin (send_telegram) suppressed for the run.
+  const delivery = resolveDeliveryChannels(routine, {
+    profileConfig: activeProfileConfig(ctx.globalConfig),
+    globalConfig: ctx.project?.config || ctx.globalConfig,
+  });
+  const runCtx = delivery.channels.length ? { ...ctx, deliverTo: delivery.channels } : ctx;
+
   let preStdout = "";
   let preExitCode = 0;
   let preOutputFile = null;
@@ -650,7 +696,7 @@ export async function runRoutineNow(ctx, routine) {
       errMsg = `unknown routine kind: ${enrichedRoutine.kind}`;
     } else {
       try {
-        result = await handler(ctx, enrichedRoutine);
+        result = await handler(runCtx, enrichedRoutine);
         if (result?.status === "error") {
           status = "error";
           errMsg = result.error || result.stderr || `routine ${routine.name} returned error status`;
@@ -665,15 +711,54 @@ export async function runRoutineNow(ctx, routine) {
     result = { status: "ok", skipped: true, note: "pre_commands signalled skip" };
   }
 
+  // ── Phase 2.5: delivery ───────────────────────────────────────────────────
+  // The run's own answer, handed to every channel the routine is configured
+  // for. Before this phase existed the answer went to the ledger and stopped
+  // there: reaching a person meant a shell post_command or a paragraph in the
+  // prompt asking the model to call send_telegram, and the failure mode of both
+  // is silence. See core/routines/delivery.js.
+  const llmOutput = result?.reply || result?.text || "";
+  const deliveryText = routineOutputText(result);
+  const wanted = delivery.channels.length + delivery.unknown.length;
+  let deliveries = [];
+  let deliverySkipped = [];
+  if (wanted > 0 && status === "ok" && deliveryText) {
+    deliverySkipped = alreadyServedChannels({
+      routine,
+      channels: delivery.channels,
+      postSinks: computeSuppressedTools(routine.post_commands),
+      trace: result?.trace,
+    });
+    const skipIds = new Set(deliverySkipped.map((d) => d.channel));
+    deliveries = await deliverRoutineOutput(runCtx, {
+      routine,
+      channels: delivery.channels.filter((c) => !skipIds.has(c)),
+      text: deliveryText,
+    });
+    for (const id of delivery.unknown) {
+      deliveries.push({ channel: id, status: "error", error: `unknown delivery channel: ${id}` });
+    }
+    // Asked to deliver, delivered nowhere, and nothing else was going to carry
+    // it — that is the exact shape of failure this feature exists to end, so it
+    // is reported as an error rather than as a run that "went fine".
+    const anyOk = deliveries.some((d) => d.status === "ok") || deliverySkipped.length > 0;
+    if (!anyOk) {
+      status = "error";
+      errMsg =
+        `nothing delivered: ${deliveries.map((d) => `${d.channel} (${d.error})`).join("; ")}. ` +
+        `The run produced an answer and no one received it.`;
+    }
+  }
+
   // ── Phase 3: post_commands ────────────────────────────────────────────────
   const postRuns = [];
   if (hasPostCmds) {
-    const llmOutput = result?.reply || result?.text || "";
     const postEnv = {
       ...pipelineEnv,
       APX_LLM_OUTPUT: llmOutput.slice(0, 32_000),
       APX_STATUS: status,
       APX_SKIPPED: skip ? "1" : "0",
+      APX_DELIVERED: deliveries.filter((d) => d.status === "ok").map((d) => d.channel).join(","),
     };
     for (const rawCmd of routine.post_commands) {
       const cmd = resolveArtifactRef(rawCmd, storagePath);
@@ -705,12 +790,23 @@ export async function runRoutineNow(ctx, routine) {
       : `routine ${routine.name} error: ${errMsg}`,
     meta: {
       routine: routine.name, status, skipped: skip, result,
-      // Persisted run flow so the UI can replay pre → action → post.
+      // Persisted run flow so the UI can replay pre → action → delivery → post.
       flow: {
         pre: hasPreCmds ? { output: preStdout.slice(0, 8000), exit: preExitCode } : null,
+        delivery: wanted ? { channels: delivery.channels, source: delivery.source, results: deliveries, skipped: deliverySkipped } : null,
         post: postRuns.length ? postRuns : null,
       },
     },
   });
-  return { ...result, last_run_at: lastRun, next_run_at: next };
+  return {
+    ...result,
+    // A caller that ran the routine by hand (CLI, API, the web panel) should be
+    // able to see where the answer went without going to read the ledger.
+    ...(wanted
+      ? { delivery: { channels: delivery.channels, source: delivery.source, results: deliveries, skipped: deliverySkipped } }
+      : {}),
+    ...(status === "error" && result?.status !== "error" ? { status, error: errMsg } : {}),
+    last_run_at: lastRun,
+    next_run_at: next,
+  };
 }

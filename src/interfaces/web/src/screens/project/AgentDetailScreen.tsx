@@ -361,6 +361,13 @@ function AgentConfigForm({
 
   return (
     <div className="space-y-4">
+      {/* Actions sit at the top of the form so Save/Delete are reachable
+          without scrolling past the whole config. */}
+      <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
+        <Button variant="destructive" onClick={() => setConfirmDelete(true)}><Trash2 size={13} /> {t("project.agent_detail.delete_btn")}</Button>
+        <Button variant="primary" loading={busy} onClick={save}><Save size={13} /> {t("project.agent_detail.save_btn")}</Button>
+      </div>
+
       {/* Identity | behavior side by side, capabilities last. The system
           prompt used to hold the right column, but it always dwarfed the rest
           of the form — it moved to its own tab (?tab=prompt) with the markdown
@@ -438,11 +445,6 @@ function AgentConfigForm({
         <Section title={t("agents_ui.tools_label")} description={t("project.agent_detail.tools_hint")}>
           <ToolsPicker value={tools} onChange={setTools} />
         </Section>
-      </div>
-
-      <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
-        <Button variant="destructive" onClick={() => setConfirmDelete(true)}><Trash2 size={13} /> {t("project.agent_detail.delete_btn")}</Button>
-        <Button variant="primary" loading={busy} onClick={save}><Save size={13} /> {t("project.agent_detail.save_btn")}</Button>
       </div>
 
       <ConfirmDialog

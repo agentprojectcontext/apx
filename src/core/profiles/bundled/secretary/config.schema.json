@@ -69,14 +69,36 @@
     },
     "primary_channel": {
       "type": "string",
-      "enum": ["telegram", "desktop", "cli", "web"],
+      "enum": [
+        "telegram",
+        "desktop",
+        "cli",
+        "web"
+      ],
       "default": "telegram",
       "title": "Primary channel",
       "description": "Where unrequested messages go by default."
     },
+    "routine_delivery": {
+      "type": "string",
+      "enum": [
+        "telegram",
+        "web",
+        "telegram,web",
+        "none"
+      ],
+      "default": "telegram",
+      "title": "Where the anchors are delivered",
+      "description": "The morning and evening messages are handed to this channel by the runtime, so they arrive whether or not the model remembers to send them. 'none' keeps them in the log only."
+    },
     "formality": {
       "type": "string",
-      "enum": ["tu", "vos", "usted", "neutral"],
+      "enum": [
+        "tu",
+        "vos",
+        "usted",
+        "neutral"
+      ],
       "default": "neutral",
       "title": "Form of address",
       "description": "Only meaningful in languages that distinguish it."
