@@ -15,11 +15,13 @@ test("buildRoutineHeader — machine stamp is ISO-with-millis + epoch ms", () =>
     { name: "magui-cron", id: "r_ab12cd", last_run_at: "" },
     { storagePath: "/store", config: {}, nowMs: NOW },
   );
-  assert.match(h, /^Automation: magui-cron$/m);
+  // The human name is intentionally absent — the filed record opens on
+  // `[routine: <name>]`, so echoing it here duplicated the slug.
+  assert.ok(!/^Automation: /m.test(h), "no standalone Automation name line");
   assert.match(h, /^Automation ID: r_ab12cd$/m);
   assert.match(h, /^Automation memory: \/store\/routines\/r_ab12cd\/memory\.md$/m);
   assert.match(h, /^Last run: never$/m);
-  assert.match(h, /^This run: 2026-08-20T13:00:35\.123Z \(1787230835123\)/m);
+  assert.match(h, /^This run \(UTC\): 2026-08-20T13:00:35\.123Z \(1787230835123\)$/m);
 });
 
 test("buildRoutineHeader — a prior run renders as ISO + epoch, not 'never'", () => {
@@ -40,7 +42,12 @@ test("buildRoutineHeader — configured timezone adds a local wall-clock line", 
     },
   );
   // 13:00 UTC is 10:00 in Buenos Aires (-03), and the zone is named for the model.
-  assert.match(h, /This run: .+ — .+10:00:35.+\(America\/Argentina\/Buenos_Aires\)/);
+  // The UTC and local frames land on separate, labelled lines.
+  assert.match(h, /^This run \(UTC\): 2026-08-20T13:00:35\.123Z \(1787230835123\)$/m);
+  assert.match(
+    h,
+    /^This run \(owner local time\): .+10:00:35.+\(America\/Argentina\/Buenos_Aires\)$/m,
+  );
 });
 
 test("buildRoutineHeader — no timezone means no local line, just the machine stamp", () => {
@@ -48,7 +55,7 @@ test("buildRoutineHeader — no timezone means no local line, just the machine s
     { name: "r", id: "r_1", last_run_at: "" },
     { storagePath: "/store", config: {}, nowMs: NOW },
   );
-  assert.ok(!h.includes(" — "), "no local suffix when timezone is unset");
+  assert.ok(!h.includes("owner local time"), "no local line when timezone is unset");
 });
 
 test("buildRoutineHeader — an unusable timezone degrades to the machine stamp only", () => {
@@ -56,7 +63,8 @@ test("buildRoutineHeader — an unusable timezone degrades to the machine stamp 
     { name: "r", id: "r_1", last_run_at: "" },
     { storagePath: "/store", config: { user: { timezone: "Not/AZone" } }, nowMs: NOW },
   );
-  assert.match(h, /^This run: 2026-08-20T13:00:35\.123Z \(1787230835123\)$/m);
+  assert.match(h, /^This run \(UTC\): 2026-08-20T13:00:35\.123Z \(1787230835123\)$/m);
+  assert.ok(!h.includes("owner local time"), "no local line for an unusable zone");
 });
 
 test("buildRoutineHeader — no id/storage omits the memory line, never crashes", () => {

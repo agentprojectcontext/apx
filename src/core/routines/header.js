@@ -3,15 +3,17 @@
 // It is the native replacement for the old `echo "…date…"` pre_command +
 // `{{pre_output}}` trick: the runner (core/routines/runner.js) builds this block
 // once per run and puts it at the very top of the LLM prompt (spec.prompt), so
-// the model always opens on who it is, where its memory lives, and what "now"
-// is — without any per-routine shell plumbing. It is NOT prepended to a telegram
-// routine's spec.text: that string is the message body sent verbatim to the
-// chat, so a header there would leak into the delivered message.
+// the model always opens on its id + memory path and what "now" is — without any
+// per-routine shell plumbing. It is NOT prepended to a telegram routine's
+// spec.text: that string is the message body sent verbatim to the chat, so a
+// header there would leak into the delivered message. The routine's human name
+// is not repeated here — the filed record already opens on `[routine: <name>]`.
 //
-// The clock is reported two ways on purpose: machine-friendly (ISO + epoch ms,
-// UTC) so a routine can diff runs deterministically, and human-friendly in the
-// owner's configured timezone (config.user.timezone / .locale) so a reply reads
-// in local wall-clock time.
+// The clock is reported two ways on purpose, each on its own labelled line:
+// machine-friendly (ISO + epoch ms, UTC) so a routine can diff runs
+// deterministically, and human-friendly in the owner's configured timezone
+// (config.user.timezone / .locale) so a reply reads in local wall-clock time.
+// The "(UTC)" / "(owner local time)" labels keep the two frames unambiguous.
 import { isoToMs } from "#core/util/time.js";
 import { routineMemoryPath } from "#core/stores/routine-memory.js";
 
@@ -59,13 +61,20 @@ export function buildRoutineHeader(routine, { storagePath, config, nowMs } = {})
     : "";
   const local = localStamp(now, user.timezone, user.locale || user.language);
 
+  // The routine name is intentionally NOT repeated here: the filed record already
+  // opens on `[routine: <name>]` (runner.recordRoutineTurn), so a second
+  // `Automation: <name>` line duplicated the slug in the delivered message. The
+  // ID + memory path identify the automation without that echo.
   const lines = [
-    `Automation: ${routine?.name || "—"}`,
     `Automation ID: ${routine?.id || "—"}`,
   ];
   if (memPath) lines.push(`Automation memory: ${memPath}`);
   lines.push(`Last run: ${lastMs ? machineStamp(lastMs) : "never"}`);
-  lines.push(`This run: ${machineStamp(now)}${local ? ` — ${local}` : ""}`);
+  // The clock is labelled so the UTC machine stamp (…Z) reads as distinct from
+  // the owner's local wall-clock: same instant, two frames of reference.
+  lines.push(
+    `This run (UTC): ${machineStamp(now)}${local ? `\nThis run (owner local time): ${local}` : ""}`,
+  );
   return lines.join("\n");
 }
 
