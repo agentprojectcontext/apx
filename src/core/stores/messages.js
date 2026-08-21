@@ -395,6 +395,98 @@ export function searchProjectMessages(projectRoot, query, limit = 50) {
   return all.slice(0, Math.min(limit, 500));
 }
 
+// ── A2A "group chats" ────────────────────────────────────────────────────────
+// Agent-to-agent exchanges are project-scoped (they live in the project ledger,
+// not the global channel dir), so listGlobalThreads never sees them. But they
+// are NOT one agent's conversation either — an a2a exchange is a thing between
+// two agents (claude · roby). We surface it as its own thread, keyed by the
+// PAIR of participants, so the web sidebar's "Agent ↔ Agent" group fills with a
+// group chat per pair instead of hiding inside either agent's session.
+
+// The two participants of an a2a row. `agent_slug` is the ledger owner (the
+// `from` or `to` the row was written under); `meta.from`/`meta.to` names the
+// counterpart; `author` is who actually spoke. Any two distinct of these are
+// the pair.
+function a2aPair(m) {
+  const set = new Set([m.agent_slug, m.author, m.meta?.from, m.meta?.to].filter(Boolean));
+  return [...set].sort();
+}
+function a2aPairId(pair) {
+  return pair.join("~");
+}
+// `apx send … --deliver` logs each utterance twice — once under `from`, once
+// under `to`. Collapse to one line per (who, when, what) so the thread reads as
+// a conversation, not a doubled transcript.
+function dedupA2A(msgs) {
+  const best = new Map();
+  for (const m of msgs) {
+    const k = `${m.ts}|${m.author}|${(m.body || "").slice(0, 120)}`;
+    const cur = best.get(k);
+    // Keep the copy logged under the SPEAKER's own ledger (agent_slug === author):
+    // that is the one carrying the turn's usage/model/reply_to, not the mirror
+    // written under the other peer.
+    if (!cur || (m.agent_slug === m.author && cur.agent_slug !== cur.author)) best.set(k, m);
+  }
+  return [...best.values()];
+}
+
+/** One thread entry per a2a participant-pair in this project. Shaped like a
+ *  listGlobalThreads() row so the web sidebar renders it in the a2a group,
+ *  plus `participants` for the double-avatar face. */
+export function listProjectA2AThreads(projectRoot) {
+  const msgs = readProjectMessages(projectRoot, { channel: "a2a", limit: 1000 });
+  const byPair = new Map();
+  for (const m of msgs) {
+    const pair = a2aPair(m);
+    if (pair.length < 2) continue;
+    const id = a2aPairId(pair);
+    const g = byPair.get(id) || { pair, msgs: [] };
+    g.msgs.push(m);
+    byPair.set(id, g);
+  }
+  const out = [];
+  for (const [id, g] of byPair) {
+    const uniq = dedupA2A(g.msgs).sort((a, b) => (a.ts || "").localeCompare(b.ts || ""));
+    if (!uniq.length) continue;
+    const last = uniq[uniq.length - 1];
+    out.push({
+      id,
+      channel: "a2a",
+      title: g.pair.join(" · "),
+      participants: g.pair,
+      messages: uniq.length,
+      started_at: uniq[0].ts,
+      last_ts: last.ts,
+      preview: `${last.author}: ${(last.body || "").replace(/\s+/g, " ").trim()}`.slice(0, 140),
+    });
+  }
+  out.sort((a, b) => (b.last_ts || "").localeCompare(a.last_ts || ""));
+  return out;
+}
+
+/** One a2a thread (by pair id) shaped for the web chat viewer: every utterance
+ *  as an agent turn carrying its author, so the viewer can attribute each
+ *  bubble to whichever agent spoke. Null when the pair has no messages. */
+export function readProjectA2AThread(projectRoot, id) {
+  const want = String(id || "");
+  const msgs = readProjectMessages(projectRoot, { channel: "a2a", limit: 1000 })
+    .filter((m) => a2aPairId(a2aPair(m)) === want);
+  const uniq = dedupA2A(msgs).sort((a, b) => (a.ts || "").localeCompare(b.ts || ""));
+  if (!uniq.length) return null;
+  return {
+    id: want,
+    channel: "a2a",
+    participants: want.split("~"),
+    // Shaped through the ONE ledger interpreter (shapeLedgerMessage), same as
+    // every other channel — so model, token usage, tool summary and attribution
+    // all survive. a2a double-logs under both peers, so normalise agent_slug to
+    // the SPEAKER (m.author) first; the shaper does the rest.
+    messages: uniq.map((m) =>
+      shapeLedgerMessage({ ...m, type: "agent", agent_slug: m.author, actor_kind: m.actor_kind || "agent" }),
+    ),
+  };
+}
+
 const TOOL_CONTEXT_CAP = 700; // chars of a tool result kept in model context
 const TOOL_CALL_CAP = 160;    // chars of the invocation that introduces it
 
@@ -834,6 +926,60 @@ export function mediaFromMeta(meta) {
 // usage. All of it is already on disk in `meta`; dropping it here is what made
 // a reloaded thread render "0 tok" with no model, even though the live stream
 // showed both.
+// THE ONE INTERPRETER FOR LEDGER ROWS → viewer messages.
+//
+// Every channel's history is read back through THIS function: telegram, web,
+// desktop, a2a — all of them. It is what carries a turn's attribution (who
+// answered, its actor_kind), its MODEL, its token USAGE, its tool summary and
+// reasoning from the raw JSONL row out to the thread viewer. A channel that
+// shapes its own rows by hand WILL drop these (that is exactly how a2a first
+// shipped showing "0 tok" and no model). So: if you add a new channel, read it
+// back with shapeLedgerMessage — never re-map rows inline. The only thing a
+// caller does first is normalise the raw row (e.g. a2a sets agent_slug to the
+// speaker before shaping, because it double-logs under both peers).
+export function shapeLedgerMessage(r) {
+  if (r.type === "tool") {
+    return {
+      role: "tool",
+      content: r.body || "",
+      ts: r.ts,
+      tool: r.meta?.tool || r.meta?.tool_name || r.actor_id || "tool",
+      args: r.meta?.args,
+      result: r.meta?.result,
+    };
+  }
+  if (r.type === "user") {
+    const media = mediaFromMeta(r.meta);
+    return { role: "user", content: r.body || "", ts: r.ts, ...(media ? { media } : {}) };
+  }
+  const usage = r.meta?.usage;
+  return {
+    role: "assistant",
+    content: r.body || "",
+    ts: r.ts,
+    // Stable id of who answered (super_agent | project-agent slug) plus the
+    // display name that was shown on the channel.
+    ...(r.agent_slug || r.actor_id ? { agent: r.agent_slug || r.actor_id } : {}),
+    ...(r.author ? { agent_name: r.author } : {}),
+    ...(r.actor_kind ? { actor_kind: r.actor_kind } : {}),
+    ...(r.meta?.model ? { model: r.meta.model } : {}),
+    ...(usage && typeof usage === "object" ? { usage } : {}),
+    // What the turn actually did. Recorded compactly at write time
+    // (core/agent/tool-summary.js) because the live tool events are gone
+    // by the time anyone reads the thread back.
+    ...(r.meta?.tool_summary ? { tool_summary: r.meta.tool_summary } : {}),
+    // Which skills the per-turn RAG put in the prompt. Same reasoning as
+    // tool_summary: the live `skill_inspector` event is gone by read time.
+    ...(r.meta?.skill_inspector ? { skill_inspector: r.meta.skill_inspector } : {}),
+    // The model's thinking for that turn, one entry per model pass. Kept in
+    // meta and handed out only here, so it reaches the thread viewer and
+    // nothing that feeds the model.
+    ...(Array.isArray(r.meta?.reasoning) && r.meta.reasoning.length
+      ? { reasoning: r.meta.reasoning }
+      : {}),
+  };
+}
+
 export function readGlobalThread({ channel, date, project, _globalMessagesDir } = {}) {
   if (!CHANNEL_NAME_RE.test(String(channel || ""))) return null;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ""))) return null;
@@ -844,49 +990,7 @@ export function readGlobalThread({ channel, date, project, _globalMessagesDir } 
     parseDayJsonl(fs.readFileSync(file, "utf8"))
       .filter((r) => r.type === "user" || r.type === "agent" || r.type === "tool"),
     project,
-  )
-    .map((r) => {
-      if (r.type === "tool") {
-        return {
-          role: "tool",
-          content: r.body || "",
-          ts: r.ts,
-          tool: r.meta?.tool || r.meta?.tool_name || r.actor_id || "tool",
-          args: r.meta?.args,
-          result: r.meta?.result,
-        };
-      }
-      if (r.type === "user") {
-        const media = mediaFromMeta(r.meta);
-        return { role: "user", content: r.body || "", ts: r.ts, ...(media ? { media } : {}) };
-      }
-      const usage = r.meta?.usage;
-      return {
-        role: "assistant",
-        content: r.body || "",
-        ts: r.ts,
-        // Stable id of who answered (super_agent | project-agent slug) plus the
-        // display name that was shown on the channel.
-        ...(r.agent_slug || r.actor_id ? { agent: r.agent_slug || r.actor_id } : {}),
-        ...(r.author ? { agent_name: r.author } : {}),
-        ...(r.actor_kind ? { actor_kind: r.actor_kind } : {}),
-        ...(r.meta?.model ? { model: r.meta.model } : {}),
-        ...(usage && typeof usage === "object" ? { usage } : {}),
-        // What the turn actually did. Recorded compactly at write time
-        // (core/agent/tool-summary.js) because the live tool events are gone
-        // by the time anyone reads the thread back.
-        ...(r.meta?.tool_summary ? { tool_summary: r.meta.tool_summary } : {}),
-        // Which skills the per-turn RAG put in the prompt. Same reasoning as
-        // tool_summary: the live `skill_inspector` event is gone by read time.
-        ...(r.meta?.skill_inspector ? { skill_inspector: r.meta.skill_inspector } : {}),
-        // The model's thinking for that turn, one entry per model pass. Kept in
-        // meta and handed out only here, so it reaches the thread viewer and
-        // nothing that feeds the model.
-        ...(Array.isArray(r.meta?.reasoning) && r.meta.reasoning.length
-          ? { reasoning: r.meta.reasoning }
-          : {}),
-      };
-    });
+  ).map(shapeLedgerMessage);
   // A day-file the asking project owns no turn in is not its thread to read.
   // The file exists — another project's chat is in it — so without this a
   // stale link or a bookmarked URL opened an empty pane instead of taking the

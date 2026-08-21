@@ -15,7 +15,7 @@ import {
   Timer,
 } from "lucide-react";
 import { Conversations } from "../../lib/api";
-import { AgentAvatar, SUPER_AGENT_ICON, type AgentFace } from "../agents/AgentAvatar";
+import { AgentAvatar, AgentAvatarGroup, SUPER_AGENT_ICON, type AgentFace } from "../agents/AgentAvatar";
 import { Input, Loading } from "../ui";
 import { UiSelect } from "../UiSelect";
 import { t } from "../../i18n";
@@ -379,13 +379,18 @@ export function ChatList({
                   selected.kind === "thread" &&
                   selected.channel === th.channel &&
                   selected.threadId === th.id;
+                // a2a "group chats" are between two agents, not the super-agent:
+                // draw both faces and skip the super-agent badge.
+                const isA2A = th.channel === "a2a";
+                const parts = (th as unknown as { participants?: string[] }).participants;
                 return (
                   <ChatListItem
                     key={`thread-${th.channel}-${th.id}`}
                     title={th.title}
                     subtitle={[th.channel, `${th.messages} msg`].join(" · ")}
-                    badge={t("agents_ui.super_agent_badge")}
-                    face={{ icon: SUPER_AGENT_ICON, name: superAgentLabel }}
+                    badge={isA2A ? undefined : t("agents_ui.super_agent_badge")}
+                    face={isA2A ? undefined : { icon: SUPER_AGENT_ICON, name: superAgentLabel }}
+                    faces={isA2A && parts?.length ? parts.map(faceFor) : undefined}
                     timeAgo={th.last_ts}
                     selected={active}
                     onClick={() =>
@@ -479,6 +484,7 @@ function ChatListItem({
   subtitle,
   badge,
   face,
+  faces,
   timeAgo,
   selected,
   onClick,
@@ -489,6 +495,8 @@ function ChatListItem({
   /** Whose conversation this is — same face the thread header and the bubbles
    *  draw, so a row and the thread it opens look like the same agent. */
   face?: AgentFace;
+  /** Two faces for a group chat (a2a): drawn overlapping. Wins over `face`. */
+  faces?: AgentFace[];
   timeAgo?: string;
   selected?: boolean;
   onClick: () => void;
@@ -504,7 +512,11 @@ function ChatListItem({
           : "border-transparent hover:border-border hover:bg-accent/50",
       )}
     >
-      {face && <AgentAvatar {...face} size={24} className="mt-0.5" />}
+      {faces?.length ? (
+        <AgentAvatarGroup faces={faces} size={22} className="mt-0.5" />
+      ) : face ? (
+        <AgentAvatar {...face} size={24} className="mt-0.5" />
+      ) : null}
       <span className="min-w-0 flex-1">
         <span className="flex items-start justify-between gap-2">
           <span className={clsx("truncate text-sm", selected ? "font-semibold" : "font-medium")}>

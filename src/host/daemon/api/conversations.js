@@ -8,7 +8,7 @@
 //   POST /projects/:pid/send                                   (agent-to-agent)
 import { readAgents } from "#core/apc/parser.js";
 import { listConversations, readConversation, deleteConversation, setConversationMeta, shapeConversationMessage } from "#core/stores/conversations.js";
-import { listGlobalThreads, readGlobalThread, deleteGlobalThread, setGlobalThreadMeta } from "#core/stores/messages.js";
+import { listGlobalThreads, readGlobalThread, deleteGlobalThread, setGlobalThreadMeta, listProjectA2AThreads, readProjectA2AThread } from "#core/stores/messages.js";
 import { compactConversation } from "#core/stores/conversations-compactor.js";
 import { replyAsAgent } from "#core/agent/a2a/reply.js";
 import { resolveAgentModel } from "#core/agent/agent-model.js";
@@ -100,22 +100,30 @@ export function register(api, { project, config }) {
   api.get("/projects/:pid/super-agent/threads", (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    res.json(
-      listGlobalThreads({
-        project: threadScope(p),
-        includeArchived: req.query.include_archived === "1",
-      }),
-    );
+    // Global channel threads (telegram/web/desktop…) live in the cross-project
+    // ledger; a2a "group chats" are project-scoped, so they come from this
+    // project's own messages. Both fold into the same channel-grouped sidebar.
+    const global = listGlobalThreads({
+      project: threadScope(p),
+      includeArchived: req.query.include_archived === "1",
+    });
+    let a2a = [];
+    try { a2a = listProjectA2AThreads(p.storagePath); } catch { /* best-effort */ }
+    res.json([...global, ...a2a]);
   });
 
   api.get("/projects/:pid/super-agent/threads/:channel/:id", (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    const thread = readGlobalThread({
-      channel: req.params.channel,
-      date: req.params.id,
-      project: threadScope(p),
-    });
+    // a2a threads are keyed by participant-pair id, not a date — read them from
+    // the project ledger; everything else is a global channel+date thread.
+    const thread = req.params.channel === "a2a"
+      ? readProjectA2AThread(p.storagePath, req.params.id)
+      : readGlobalThread({
+          channel: req.params.channel,
+          date: req.params.id,
+          project: threadScope(p),
+        });
     if (!thread) return res.status(404).json({ error: "thread not found" });
     res.json(thread);
   });
@@ -197,12 +205,22 @@ export function register(api, { project, config }) {
       return res.status(429).json({ error: "a2a depth limit (3) exceeded" });
 
     const agents = readAgents(p.path);
-    const fromAgent = agents.find((a) => a.slug === from);
+    // The SENDER may be a project agent, the super-agent, or an external
+    // identity that isn't registered anywhere — a coding CLI (claude/codex/…)
+    // relaying to an agent, a routine, a system actor. Requiring `from` to be an
+    // AGENTS.md agent is what blocked CLI→agent relays (404 "from not found").
+    // A synthetic sender ({slug}) is enough: replyAsAgent only reads `from.slug`,
+    // and the a2a log records the label. The RECIPIENT still has to exist, so a
+    // typo'd or wrong-project target fails loudly instead of vanishing.
+    const fromAgent = agents.find((a) => a.slug === from) || { slug: from, fields: {}, synthetic: true };
     const toAgent = agents.find((a) => a.slug === to);
-    if (!fromAgent)
-      return res.status(404).json({ error: `from agent "${from}" not found` });
     if (!toAgent)
-      return res.status(404).json({ error: `to agent "${to}" not found` });
+      return res.status(404).json({
+        error: `to agent "${to}" not found in project "${p.name}"`,
+        project: p.name,
+        available: agents.map((a) => a.slug),
+        hint: "run `apx agent list --all` to see every agent and its project",
+      });
 
     const ts = nowIso();
     p.logMessage({
@@ -241,12 +259,16 @@ export function register(api, { project, config }) {
           agent_slug: to,
           channel: "a2a",
           direction: "out",
+          type: "agent",
+          actor_kind: "agent",
+          actor_id: to,
           author: to,
           body: result.text,
           meta: {
             to: from,
             depth: _depth + 1,
             reply_to: fromAgent.slug,
+            model: result.model,
             usage: result.usage,
           },
         });

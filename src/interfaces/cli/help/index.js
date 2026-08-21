@@ -1230,7 +1230,7 @@ export const HELP_TOPICS = new Map(Object.entries({
   "routine add": topic({
     title: "apx routine add",
     summary: "Create a scheduled routine.",
-    usage: ["apx routine add <name> --kind <kind> --schedule <schedule> [--spec '<json>'] [--pre-commands 'cmd1,cmd2'] [--post-commands 'cmd'] [--skip-prompt-on signal|pre_failure|pre_success|always|never] [--project <name|id|path>]"],
+    usage: ["apx routine add <name> --kind <kind> --schedule <schedule> [--spec '<json>'] [--pre-commands 'cmd1,cmd2'] [--post-commands 'cmd'] [--skip-prompt-on signal|pre_failure|pre_success|always|never] [--deliver-to telegram,web] [--project <name|id|path>]"],
     options: [
       ["--kind <kind>", "heartbeat, exec_agent, super_agent, telegram, shell, or watch."],
       ["--schedule <schedule>", "every:60s, every:5m, every:1h, or once:<iso>."],
@@ -1238,6 +1238,7 @@ export const HELP_TOPICS = new Map(Object.entries({
       ["--pre-commands 'cmd'", "Comma-separated shell commands to run BEFORE the LLM. Use 'artifact:<name>' shorthand."],
       ["--post-commands 'cmd'", "Comma-separated shell commands to run AFTER the LLM. Env: APX_LLM_OUTPUT, APX_PRE_OUTPUT, APX_STATUS."],
       ["--skip-prompt-on <mode>", "signal (default), pre_failure, pre_success, always, never."],
+      ["--deliver-to a,b", "Where the output goes: telegram, web, profile (ask the active agent profile), none. Unset means nowhere."],
       ["--permission-mode <mode>", "total, automatico, or permiso."],
       ["--allowed-tools a,b", "Comma-separated allowed tool names."],
       ["--project <name|id|path>", "Pin command to a specific project."],
@@ -1245,6 +1246,7 @@ export const HELP_TOPICS = new Map(Object.entries({
     examples: [
       "apx routine add check --kind shell --schedule every:1h --spec '{\"cmd\":\"npm test\"}'",
       "apx routine add asana-check --kind super_agent --schedule '*/5 * * * *' --pre-commands 'artifact:check_asana.sh' --skip-prompt-on pre_success --project 0",
+      "apx routine add standup --kind super_agent --schedule '30 8 * * 1-5' --spec '{\"prompt\":\"What needs attention today?\"}' --deliver-to telegram,web",
     ],
   }),
   "routine get": topic({

@@ -120,11 +120,37 @@ swallow it.
 guessing — the agent then starts a fresh run rather than a true resume, and the
 user knows context won't carry.
 
-Notes: the outbound leg reuses whatever already talks to the agent (`apx exec -a
-<agent> "…"`, the super-agent, a routine) — there is no relay-specific send
-command. `--msg` headless delivery is claude-only today; other engines print an
-explicit "not supported yet". See the **claude-code** skill for the coding-CLI
-side of this.
+**The outbound leg** (coding CLI → agent) goes on the **a2a channel**, so the
+agent sees it as agent-to-agent, not as the user typing:
+
+```bash
+apx send <engine> <agent> "…question… engine=claude session=<id>" --deliver --project <name>
+```
+
+The sender does not need to be a registered agent — a coding CLI passes its
+engine name (`claude`, `codex`). If the recipient slug exists in several projects,
+`apx send` lists them; pass `--project`. `apx agent list --all` shows every agent
+with its project. Do NOT use `apx exec` for the hand-off — that posts on the user
+channel (the agent reads it as if the user spoke). `--msg` headless delivery on
+the return leg is claude-only today; other engines print "not supported yet". See
+the **claude-code** skill for the coding-CLI side.
+
+### a2a etiquette — never message the owner directly
+
+An a2a message is another AGENT talking, not the owner. The daemon enforces this
+in the a2a reply prompt, and you should follow it in fuller turns too:
+
+- **Don't ping the owner from an a2a turn.** No `apx telegram send`, no direct
+  owner message. Whether the owner hears about it — and when — is the
+  orchestrator's (Roby / the super-agent's) call, on its own channel, respecting
+  quiet-hours.
+- **Not the orchestrator?** If the message needs the owner's attention or a
+  decision, relay it up: `apx send <you> roby "…" --deliver`. Roby decides how
+  and when to tell the owner. Otherwise just do your part and reply on a2a.
+- **Secretary profile active?** Anything promised to / owed to / needing action
+  from the owner must be CAPTURED as a commitment (`record_commitment` /
+  `apx commitment`, with a due date) so it resurfaces at the right time — a lone
+  a2a message is not a reminder, and quiet-hours can swallow a one-off ping.
 
 ## APC_RESULT contract
 

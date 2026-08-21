@@ -254,10 +254,16 @@ export async function cmdAgentSet(args) {
 }
 
 export async function cmdAgentList(args) {
+  // --all: every agent across every registered project, with the project next to
+  // it. This is what makes cross-project addressing possible — when you want to
+  // message an agent (a2a) you need to know which project owns it, and two
+  // projects can each have a "rocky". Needs the daemon (project registry).
+  if (args?.flags?.all) return cmdAgentListAll();
+
   const root = await resolveRoot(args);
   const agents = readAgents(root);
   if (agents.length === 0) {
-    console.log(dim("(no agents — try `apx agent add <slug>` or `apx agent import <slug>`)"));
+    console.log(dim("(no agents — try `apx agent add <slug>` or `apx agent import <slug>`, or `apx agent list --all` across projects)"));
     return;
   }
   console.log();
@@ -267,6 +273,31 @@ export async function cmdAgentList(args) {
     const model = a.fields.Model ? dim(a.fields.Model) : gray("—");
     console.log(`  ${bold(a.slug)}${src}  ${role}  ${cyan(model)}`);
   }
+  console.log();
+}
+
+// `apx agent list --all` — one line per (agent, project) across the whole
+// registry, plus the super-agent. The right-hand project column is the address
+// you pass to `apx send … --project <name>`.
+async function cmdAgentListAll() {
+  const projects = await http.get("/api/projects");
+  console.log();
+  console.log(`  ${bold("super-agent")}  ${gray("→")}  ${dim("default")}  ${gray("(reachable as the daemon fallback)")}`);
+  let total = 0;
+  for (const proj of projects) {
+    let agents = [];
+    try { agents = readAgents(proj.path); } catch { /* unreadable project */ }
+    if (agents.length === 0) continue;
+    console.log();
+    console.log(`  ${cyan(proj.name)} ${gray(`#${proj.id}`)}`);
+    for (const a of agents) {
+      const role = a.fields.Role ? dim(a.fields.Role) : gray("—");
+      console.log(`    ${bold(a.slug)}  ${role}`);
+      total++;
+    }
+  }
+  console.log();
+  console.log(dim(`  ${total} agent(s) across ${projects.length} project(s). Address one with: apx send <from> <slug> --project <name>`));
   console.log();
 }
 

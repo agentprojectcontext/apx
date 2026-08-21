@@ -93,16 +93,25 @@ a fresh run instead of resuming, and the user knows context won't carry.
 
 Send the hand-off **to the agent**, not to the user — the agent is what relays,
 respects quiet-hours, and can reply back. Do NOT `apx telegram send` the user
-directly: that bypasses the agent and the relay does not close. Use the a2a /
-direct-agent path (no sender agent needed):
+directly (that bypasses the agent and the relay does not close), and do NOT use
+`apx exec` for this — `apx exec` posts on the USER channel, so the agent sees the
+message as if the user typed it. Use the **a2a channel** (`apx send`), which
+records the message as agent-to-agent with you as the sender:
 
 ```bash
-apx exec -a <agent> [--project <name>] "Done: <what you did>. <question>? engine=claude session=<id>"
+apx send <you> <agent> "Done: <what you did>. <question>? engine=claude session=<id>" --deliver --project <name>
 ```
 
-`--project` is required when the agent lives in a different project than your cwd
-(e.g. Roby is defined in the "Appsi" project). The agent's reply comes back on
-stdout; the agent handles telling the user on its own channel.
+- `<you>` is your own identity as the sender — for a coding CLI use the engine
+  name (`claude`, `codex`, …). It does NOT need to be a registered agent.
+- `<agent>` is the recipient slug. If it lives in one project, `--project` is
+  optional; if the slug exists in several projects (two `rocky`s), `apx send`
+  refuses and lists them — pass `--project <name>`. To see every agent and its
+  project, run `apx agent list --all`.
+- `--deliver` runs the recipient now and returns its reply on stdout; the agent
+  decides whether/how to tell the user on its own channel (respecting quiet-hours).
+- The super-agent itself is not an a2a target yet — reach it with `apx exec "<msg>"`
+  (no `-a`). `apx agent list --all` shows which agents are project agents.
 
 The agent answers back by resuming this session headless:
 
