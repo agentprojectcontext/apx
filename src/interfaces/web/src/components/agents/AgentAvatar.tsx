@@ -1,6 +1,19 @@
 import { BlobAvatar } from "./BlobAvatar";
 import { isBlobKey } from "./blobPresets";
 import { cn } from "../../lib/cn";
+import claudeLogo from "../../assets/cli/claude.webp";
+import codexLogo from "../../assets/cli/codex.webp";
+import opencodeLogo from "../../assets/cli/opencode.png";
+
+// Coding-CLI identities aren't project agents — they have no blob — but they DO
+// have a brand mark. When an a2a participant (or any face) is one of these
+// engines, wear its logo instead of a bare initial disc.
+const CLI_LOGOS: Record<string, string> = {
+  claude: claudeLogo,
+  "claude-code": claudeLogo,
+  codex: codexLogo,
+  opencode: opencodeLogo,
+};
 
 /**
  * One agent, one face — everywhere.
@@ -37,6 +50,46 @@ export interface AgentFace {
   name?: string | null;
 }
 
+/**
+ * A cluster of faces for a group chat (a2a). Overlapping discs, each ringed in
+ * the surface colour so they read as separated (Gmail-style). Past `max`,
+ * the rest collapse into a "+N" chip. `ringClass` must match the background the
+ * group sits on — that ring colour is what makes the overlap look clean.
+ */
+export function AgentAvatarGroup({
+  faces,
+  size = 22,
+  max = 3,
+  className,
+}: {
+  faces: AgentFace[];
+  size?: number;
+  max?: number;
+  className?: string;
+}) {
+  const shown = faces.slice(0, max);
+  const extra = faces.length - shown.length;
+  const overlap = Math.round(size * 0.3);
+  return (
+    <span className={cn("flex shrink-0 items-center", className)}>
+      {shown.map((f, i) => (
+        <span key={i} style={{ marginLeft: i === 0 ? 0 : -overlap, zIndex: i + 1 }}>
+          <AgentAvatar {...f} size={size} />
+        </span>
+      ))}
+      {extra > 0 && (
+        <span
+          aria-hidden
+          className="inline-flex items-center justify-center rounded-full bg-muted font-semibold text-muted-fg"
+          style={{ marginLeft: -overlap, zIndex: shown.length + 1, width: size, height: size, fontSize: Math.round(size * 0.4) }}
+        >
+          +{extra}
+        </span>
+      )}
+    </span>
+  );
+}
+
 export function AgentAvatar({
   icon,
   emoji,
@@ -46,6 +99,19 @@ export function AgentAvatar({
 }: AgentFace & { size?: number; className?: string }) {
   const label = (name || "").trim();
   const seed = label || icon || emoji || "?";
+
+  const logo = CLI_LOGOS[label.toLowerCase()] || CLI_LOGOS[(icon || "").toLowerCase()];
+  if (logo) {
+    return (
+      <img
+        src={logo}
+        alt=""
+        aria-hidden
+        className={cn("shrink-0 rounded-full object-cover", className)}
+        style={{ width: size, height: size }}
+      />
+    );
+  }
 
   if (isBlobKey(icon)) {
     return <BlobAvatar preset={icon} size={size} seed={seed} className={cn("shrink-0", className)} />;

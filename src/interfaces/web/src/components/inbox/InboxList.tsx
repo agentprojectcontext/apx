@@ -4,7 +4,7 @@ import type { InboxRow } from "../../lib/api/inbox";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 import { toneChip } from "../../lib/tone";
-import { AgentAvatar } from "../agents/AgentAvatar";
+import { AgentAvatar, AgentAvatarGroup } from "../agents/AgentAvatar";
 
 /**
  * The conversation rail: every agent as a chat, most recent first.
@@ -94,14 +94,25 @@ export function InboxList({
                   : "hover:bg-accent/60",
               )}
             >
-              {/* Same face the thread header and the bubbles draw. */}
-              <AgentAvatar
-                icon={row.agent_icon}
-                emoji={row.agent_emoji}
-                name={label}
-                size={32}
-                className="mt-0.5"
-              />
+              {/* Same face the thread header and the bubbles draw. a2a group
+                  chats wear both participants' faces as a duo instead. */}
+              {row.kind === "a2a" && (row.participant_faces?.length || row.participants?.length) ? (
+                <AgentAvatarGroup
+                  faces={row.participant_faces?.length
+                    ? row.participant_faces
+                    : (row.participants || []).map((slug) => ({ name: slug }))}
+                  size={24}
+                  className="mt-0.5"
+                />
+              ) : (
+                <AgentAvatar
+                  icon={row.agent_icon}
+                  emoji={row.agent_emoji}
+                  name={label}
+                  size={32}
+                  className="mt-0.5"
+                />
+              )}
 
               <span className="min-w-0 flex-1">
                 <span className="flex items-baseline gap-2">

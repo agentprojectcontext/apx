@@ -76,6 +76,10 @@ export function InboxScreen() {
         ? { kind: "thread", channel: row.channel, threadId: row.conversation_id }
         : undefined;
     }
+    // An a2a group chat opens the pair thread, not either agent's conversation.
+    if (row.kind === "a2a" && row.conversation_id) {
+      return { kind: "thread", channel: "a2a", threadId: row.conversation_id };
+    }
     return row.conversation_id
       ? { kind: "conv", agentSlug: row.agent_slug, convId: row.conversation_id }
       : { kind: "live", agentSlug: row.agent_slug };

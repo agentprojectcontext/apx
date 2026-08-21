@@ -10,7 +10,11 @@ export interface InboxRow {
   agent_emoji: string | null;
   /** Blob-preset key for the animated avatar (see components/agents/blobPresets). */
   agent_icon: string | null;
-  kind: "agent" | "super_agent";
+  kind: "agent" | "super_agent" | "a2a";
+  /** For a2a group chats: the two (or more) participant slugs, for the duo avatar. */
+  participants?: string[];
+  /** Resolved face per participant (blob/emoji/name) so the duo wears real avatars. */
+  participant_faces?: { name?: string | null; emoji?: string | null; icon?: string | null }[];
   pinned: boolean;
   conversation_id: string | null;
   channel: string | null;
