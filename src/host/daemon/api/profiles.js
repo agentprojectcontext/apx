@@ -17,6 +17,7 @@ import {
   readProfile,
   readProfileState,
   effectiveProfileConfig,
+  localizeProfileSchema,
   installProfile,
   useProfile,
   offProfile,
@@ -46,6 +47,7 @@ function detail(id, { preview = true } = {}) {
   const state = readProfileState(cfg);
   const identity = (() => { try { return readIdentity(); } catch { return null; } })();
   const settings = effectiveProfileConfig(profile, cfg);
+  const lang = cfg?.user?.language || identity?.language || "en";
 
   const languages = profile.prompts.map((f) => {
     const m = f.match(/^PROFILE\.([\w-]+)\.md$/);
@@ -56,7 +58,7 @@ function detail(id, { preview = true } = {}) {
     ? renderProfilePrompt(profile, {
         identity,
         globalConfig: { ...cfg, profile: { active: id, config: settings } },
-        lang: cfg?.user?.language || identity?.language || "en",
+        lang,
       })
     : "";
 
@@ -72,7 +74,7 @@ function detail(id, { preview = true } = {}) {
     languages: [...new Set(languages)].sort(),
     provides: profile.manifest.provides || {},
     requires: profile.manifest.requires || {},
-    schema: profile.schema || null,
+    schema: localizeProfileSchema(profile.dir, profile.schema, lang),
     defaults: profile.defaults,
     config: settings,
     budget: profile.manifest.prompt_budget_tokens || null,

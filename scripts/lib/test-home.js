@@ -24,7 +24,14 @@ export function makeTestHome(label = "apx-test-home") {
     home,
     // USERPROFILE alongside HOME: os.homedir() reads that one on Windows, and a
     // suite that only moved HOME would still find the real profile there.
-    env: { ...process.env, HOME: home, USERPROFILE: home },
+    //
+    // APX_HOME explicitly, not just implied through HOME: computeHome() checks
+    // APX_HOME FIRST and only falls back to os.homedir(). Relying on the HOME
+    // fallback made isolation an import-order race — whichever module reached
+    // config/paths.js first froze APX_HOME, and if that happened before a suite
+    // moved HOME it froze to the developer's real ~/.apx. Pinning APX_HOME here
+    // removes the race: the value is unambiguous no matter who imports when.
+    env: { ...process.env, HOME: home, USERPROFILE: home, APX_HOME: path.join(home, ".apx") },
     cleanup() {
       try {
         fs.rmSync(home, { recursive: true, force: true });

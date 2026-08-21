@@ -1,0 +1,56 @@
+{
+  "properties": {
+    "day_open_schedule": {
+      "title": "Abre el día (cron)",
+      "description": "Cuándo corre el anclaje de la mañana. Cron de cinco campos, en la hora local de la máquina."
+    },
+    "day_close_schedule": {
+      "title": "Cierra el día (cron)",
+      "description": "Cuándo corre el anclaje de la tarde."
+    },
+    "nudge_budget_per_day": {
+      "title": "Mensajes no pedidos por día",
+      "description": "El tope fuera de los anclajes. Menos suele ser mejor. Declarar esto activa el presupuesto de interrupciones."
+    },
+    "quiet_hours": {
+      "title": "Horas de silencio",
+      "description": "Sin mensajes no pedidos en esta ventana. Las respuestas nunca se retienen."
+    },
+    "nudge_project_cooldown_minutes": {
+      "title": "Espacio mínimo por proyecto (minutos)",
+      "description": "Tres ideas sueltas sobre el mismo proyecto en una hora es una interrupción de más."
+    },
+    "nudge_kind_cooldown_minutes": {
+      "title": "Espacio mínimo por tipo (minutos)",
+      "description": "Evita que una condición que se repite llene el presupuesto del día ella sola."
+    },
+    "watch_schedule": {
+      "title": "Corre el watch (cron)",
+      "description": "Cada cuánto barre cosas que valga la pena notar entre los anclajes. Barato: si no hay nada que reportar, nunca despierta al modelo."
+    },
+    "calendar_command": {
+      "title": "Comando de calendario (opcional)",
+      "description": "Comando de shell que imprime la agenda de hoy. Su salida llega al anclaje de la mañana ya buscada, así que leerla no cuesta ni una llamada a herramienta ni un permiso. Vacío significa sin calendario, y el anclaje simplemente no dice nada de eso. Ejemplo: apx mcp run calendar list_events '{\"timeMin\":\"today\"}'"
+    },
+    "stale_project_days": {
+      "title": "Un proyecto queda inactivo tras (días)",
+      "description": "Días sin actividad registrada de tarea o compromiso antes de que valga mencionarlo."
+    },
+    "blocked_task_hours": {
+      "title": "Una tarea bloqueada queda trabada tras (horas)",
+      "description": "Bloqueada esta mañana es un estado de trabajo normal, no un problema."
+    },
+    "commitment_lead_hours": {
+      "title": "Avisar de una promesa con esta anticipación (horas)",
+      "description": "Cuánto antes de su fecha levantar un compromiso, mientras todavía hay tiempo de cumplirlo."
+    },
+    "primary_channel": {
+      "title": "Canal principal",
+      "description": "A dónde van los mensajes no pedidos por defecto."
+    },
+    "formality": {
+      "title": "Trato",
+      "description": "Solo tiene efecto en idiomas que lo distinguen (tú / vos / usted)."
+    }
+  }
+}

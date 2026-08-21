@@ -12,6 +12,9 @@ import express from "express";
 
 const TMP_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "apx-profiles-api-"));
 process.env.HOME = TMP_HOME;
+// See profile-lifecycle.test.js: pin APX_HOME so isolation does not depend on
+// which module imported config/paths.js first.
+process.env.APX_HOME = path.join(TMP_HOME, ".apx");
 
 const { register } = await import("../src/host/daemon/api/profiles.js");
 const { readConfig, writeConfig } = await import("#core/config/index.js");

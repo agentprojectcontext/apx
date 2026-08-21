@@ -37,8 +37,9 @@ apx profile sync                      # re-read the active package from disk (af
 
 # Configure — this is where white-label happens
 apx profile config                                  # show current settings
-apx profile config --set day_open_at="30 8 * * 1-5"
+apx profile config --set day_open_schedule="30 8 * * 1-5"
 apx profile config --set nudge_budget_per_day=3 --set quiet_hours=22:00-07:30
+apx profile config --set watch_schedule="0 */2 * * *" --set formality=vos
 apx profile config --interactive                    # walk the whole schema
 
 # Health and removal
