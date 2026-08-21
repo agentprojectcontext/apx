@@ -3,6 +3,7 @@ import { Check, Pencil, Trash2, X } from "lucide-react";
 import { Commitments, type CommitmentEntry } from "../../lib/api/commitments";
 import { RowMenu } from "../RowMenu";
 import { ConfirmDialog } from "../common/ConfirmDialog";
+import { SelectCheckbox } from "../common/SelectCheckbox";
 import { DropdownMenuItem, DropdownMenuSeparator } from "../ui/dropdown-menu";
 import { useToast } from "../Toast";
 import { CommitmentIcon, commitmentFace, commitmentTint, isOverdue } from "./commitmentState";
@@ -27,6 +28,8 @@ export function CommitmentList({
   onChanged,
   footer,
   className,
+  checkedIds,
+  onToggleCheck,
 }: {
   commitments: CommitmentEntry[];
   pid: (c: CommitmentEntry) => string;
@@ -37,10 +40,14 @@ export function CommitmentList({
   footer?: ReactNode;
   /** Frame (width / borders) — the screen owns how the two panes sit. */
   className?: string;
+  /** Multi-select: ids ticked for a bulk action (the screen owns the set). */
+  checkedIds?: Set<string>;
+  onToggleCheck?: (c: CommitmentEntry) => void;
 }) {
   const toast = useToast();
   // Row-menu verbs confirm through a dialog too — same rule as the detail pane.
   const [confirm, setConfirm] = useState<{ kind: "kept" | "missed" | "dropped"; c: CommitmentEntry } | null>(null);
+  const selecting = !!onToggleCheck && (checkedIds?.size ?? 0) > 0;
 
   const act = async (fn: () => Promise<unknown>, label: string) => {
     try {
@@ -64,22 +71,36 @@ export function CommitmentList({
           const cPid = pid(c);
           const due = c.due ? String(c.due).slice(0, 10) : null;
           const project = (c as { project_name?: string }).project_name;
+          const checked = checkedIds?.has(c.id) ?? false;
           return (
             <li
               key={`${cPid}-${c.id}`}
               data-testid={`commitment-${c.id}`}
               className={cn(
-                "flex items-start gap-1 rounded-lg border transition-colors",
+                "group flex items-start gap-1 rounded-lg border transition-colors",
                 active
                   ? "border-primary/50 bg-primary/10"
                   : "border-transparent hover:border-border hover:bg-accent/40",
               )}
             >
+              {onToggleCheck && (
+                <div className={cn(
+                  "shrink-0 self-stretch pl-2 pt-2.5 transition-opacity",
+                  selecting || checked ? "opacity-100" : "opacity-0 focus-within:opacity-100 group-hover:opacity-100",
+                )}>
+                  <SelectCheckbox
+                    checked={checked}
+                    onToggle={() => onToggleCheck(c)}
+                    label={t("project.commitments.select_row", { who: c.counterparty })}
+                    testId={`commitment-check-${c.id}`}
+                  />
+                </div>
+              )}
               <button
                 type="button"
                 onClick={() => onSelect(c.id)}
                 aria-current={active}
-                className="min-w-0 flex-1 px-2.5 py-2 text-left"
+                className={cn("min-w-0 flex-1 py-2 pr-2.5 text-left", onToggleCheck ? "pl-1.5" : "pl-2.5")}
               >
                 <div className="flex items-center gap-2">
                   <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-md", commitmentTint(face))}>

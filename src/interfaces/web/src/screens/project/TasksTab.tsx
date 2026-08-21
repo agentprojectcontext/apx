@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { ListTodo, MousePointerClick, Plus } from "lucide-react";
+import { Check, ListTodo, MousePointerClick, Plus, Trash2 } from "lucide-react";
 import { Tasks } from "../../lib/api";
 import type { GlobalTaskEntry } from "../../lib/api/tasks";
 import type { TaskEntry, TaskStatus } from "../../types/daemon";
@@ -11,7 +11,7 @@ import { TaskList } from "../../components/tasks/TaskList";
 import { TaskDetail } from "../../components/tasks/TaskDetail";
 import { TASK_STATUS_ORDER, statusLabel } from "../../components/tasks/taskStatus";
 import { TaskFormDialog } from "../../components/tasks/TaskFormDialog";
-import { BulkActionBar } from "../../components/tasks/BulkActionBar";
+import { BulkActionBar } from "../../components/common/BulkActionBar";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import { useToast } from "../../components/Toast";
 import { useProjects } from "../../hooks/useProjects";
@@ -220,9 +220,14 @@ export function TasksTab({ pid }: { pid?: string }) {
 
       <BulkActionBar
         count={checked.size}
-        onDone={() => setBulk("done")}
-        onDrop={() => setBulk("drop")}
+        countLabel={t("tasks.bulk_selected", { count: checked.size })}
+        actions={[
+          { key: "done", label: t("tasks.bulk_done"), icon: <Check size={14} />, variant: "secondary", onClick: () => setBulk("done"), testId: "task-bulk-done" },
+          { key: "drop", label: t("tasks.bulk_drop"), icon: <Trash2 size={14} />, variant: "destructive", onClick: () => setBulk("drop"), testId: "task-bulk-drop" },
+        ]}
         onClear={clearChecked}
+        clearLabel={t("tasks.bulk_clear")}
+        testId="task-bulk-bar"
       />
       <ConfirmDialog
         open={bulk === "done"}

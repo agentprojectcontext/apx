@@ -5,6 +5,7 @@ import type { GlobalTaskEntry } from "../../lib/api/tasks";
 import type { TaskEntry } from "../../types/daemon";
 import { RowMenu } from "../RowMenu";
 import { ConfirmDialog } from "../common/ConfirmDialog";
+import { SelectCheckbox } from "../common/SelectCheckbox";
 import { DropdownMenuItem, DropdownMenuSeparator } from "../ui/dropdown-menu";
 import { useToast } from "../Toast";
 import { StatusIcon, effectiveStatus, statusTint } from "./taskStatus";
@@ -94,20 +95,12 @@ export function TaskList({
                   "shrink-0 self-stretch pl-2 pt-2.5 transition-opacity",
                   selecting || checked ? "opacity-100" : "opacity-0 focus-within:opacity-100 group-hover:opacity-100",
                 )}>
-                  <button
-                    type="button"
-                    role="checkbox"
-                    aria-checked={checked}
-                    aria-label={t("tasks.select_row", { title: task.title })}
-                    data-testid={`task-check-${task.id}`}
-                    onClick={() => onToggleCheck(task)}
-                    className={cn(
-                      "flex size-4 items-center justify-center rounded border transition-colors",
-                      checked ? "border-primary bg-primary text-primary-foreground" : "border-border hover:border-primary",
-                    )}
-                  >
-                    {checked && <Check size={12} strokeWidth={3} />}
-                  </button>
+                  <SelectCheckbox
+                    checked={checked}
+                    onToggle={() => onToggleCheck(task)}
+                    label={t("tasks.select_row", { title: task.title })}
+                    testId={`task-check-${task.id}`}
+                  />
                 </div>
               )}
               <button

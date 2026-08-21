@@ -1,6 +1,7 @@
 import { Zap } from "lucide-react";
 import type { RoutineEntry } from "../../lib/api";
 import { StatusDot } from "../Section";
+import { SelectCheckbox } from "../common/SelectCheckbox";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 import { toneTint } from "../../lib/tone";
@@ -15,12 +16,16 @@ function agentSlug(r: RoutineEntry): string {
 // Left column: scrollable list of routines. Click selects (the divider is the
 // single border-r line); the detail lives in the sibling column.
 export function RoutineList({
-  routines, selectedName, onSelect,
+  routines, selectedName, onSelect, checkedNames, onToggleCheck,
 }: {
   routines: RoutineEntry[];
   selectedName: string | null;
   onSelect: (name: string) => void;
+  /** Multi-select: routine names ticked for a bulk run (the screen owns it). */
+  checkedNames?: Set<string>;
+  onToggleCheck?: (r: RoutineEntry) => void;
 }) {
+  const selecting = !!onToggleCheck && (checkedNames?.size ?? 0) > 0;
   return (
     <aside className="flex h-full min-h-0 flex-col border-r border-border">
       <div className="shrink-0 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-fg">
@@ -31,17 +36,34 @@ export function RoutineList({
           const meta = kindMeta()[r.kind];
           const Icon = meta?.icon || Zap;
           const active = r.name === selectedName;
+          const checked = checkedNames?.has(r.name) ?? false;
           return (
-            <li key={r.name}>
+            <li key={r.name} className={cn(
+              "group flex items-stretch gap-1 rounded-lg border transition-colors",
+              active
+                ? "border-primary/50 bg-primary/10"
+                : "border-transparent hover:border-border hover:bg-accent/40",
+            )}>
+              {onToggleCheck && (
+                <div className={cn(
+                  "flex shrink-0 items-start pl-2 pt-2.5 transition-opacity",
+                  selecting || checked ? "opacity-100" : "opacity-0 focus-within:opacity-100 group-hover:opacity-100",
+                )}>
+                  <SelectCheckbox
+                    checked={checked}
+                    onToggle={() => onToggleCheck(r)}
+                    label={t("project.routines.select_row", { name: r.name })}
+                    testId={`routine-check-${r.name}`}
+                  />
+                </div>
+              )}
               <button
                 type="button"
                 onClick={() => onSelect(r.name)}
                 aria-current={active}
                 className={cn(
-                  "w-full rounded-lg border px-2.5 py-2 text-left transition-colors",
-                  active
-                    ? "border-primary/50 bg-primary/10"
-                    : "border-transparent hover:border-border hover:bg-accent/40",
+                  "min-w-0 flex-1 rounded-lg py-2 pr-2.5 text-left",
+                  onToggleCheck ? "pl-1.5" : "pl-2.5",
                 )}
               >
                 <div className="flex items-center gap-2">
