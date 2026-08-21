@@ -6,8 +6,7 @@
   "author": "apx",
   "apx_min_version": "1.74.1",
   "languages": [
-    "en",
-    "es"
+    "en"
   ],
   "provides": {
     "routines": [
@@ -31,5 +30,5 @@
       "telegram"
     ]
   },
-  "prompt_budget_tokens": 700
+  "prompt_budget_tokens": 600
 }
