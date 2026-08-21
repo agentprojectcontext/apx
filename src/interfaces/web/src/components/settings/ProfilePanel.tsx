@@ -34,6 +34,8 @@ export function ProfilePanel() {
   const [draft, setDraft] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [confirmOff, setConfirmOff] = useState(false);
+  // null = dialog closed; "*" = re-adopt every routine; else a routine name.
+  const [readoptTarget, setReadoptTarget] = useState<string | null>(null);
 
   useEffect(() => {
     if (!profile) return;
@@ -90,6 +92,23 @@ export function ProfilePanel() {
       toast.error((e as Error).message);
     } finally {
       setBusy(false);
+    }
+  };
+
+  // Force the profile's routines back to the package — the web equivalent of
+  // `apx routine remove` + `apx profile sync`, for the drift sync won't repair.
+  const doReadopt = async () => {
+    if (!readoptTarget) return;
+    setBusy(true);
+    try {
+      const r = await ProfilesApi.readopt(readoptTarget === "*" ? undefined : readoptTarget);
+      await refreshAll();
+      toast.success(`${t("settings.profile.readopt_done")}: ${r.readopted.join(", ") || "—"}`);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+      setReadoptTarget(null);
     }
   };
 
@@ -256,11 +275,34 @@ export function ProfilePanel() {
                           {c.fix}
                         </code>
                       ) : null}
+                      {/* A one-click repair sitting next to the exact warning:
+                          re-adopt just this drifted routine from the package. */}
+                      {c.routine ? (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="mt-1.5"
+                          disabled={busy}
+                          onClick={() => setReadoptTarget(c.routine as string)}
+                        >
+                          {t("settings.profile.readopt_one")}
+                        </Button>
+                      ) : null}
                     </span>
                   </li>
                 ))}
               </ul>
             )}
+            {/* Blanket recovery, for the drift a per-routine warning misses (a
+                routine whose profile origin went null is skipped by the check
+                above, but re-adopting all still repairs it). */}
+            {active ? (
+              <div className="mt-3">
+                <Button size="sm" variant="secondary" disabled={busy} onClick={() => setReadoptTarget("*")}>
+                  {t("settings.profile.readopt_all")}
+                </Button>
+              </div>
+            ) : null}
           </Section>
 
           <Section
@@ -297,6 +339,27 @@ export function ProfilePanel() {
         }
       >
         {t("settings.profile.deactivate_confirm")}
+      </Dialog>
+
+      <Dialog
+        open={!!readoptTarget}
+        onClose={() => setReadoptTarget(null)}
+        title={t("settings.profile.readopt_title")}
+        footer={
+          <>
+            <Button onClick={() => setReadoptTarget(null)}>{t("common.cancel")}</Button>
+            <Button variant="primary" loading={busy} onClick={doReadopt}>
+              {readoptTarget && readoptTarget !== "*"
+                ? t("settings.profile.readopt_one")
+                : t("settings.profile.readopt_all")}
+            </Button>
+          </>
+        }
+      >
+        {t("settings.profile.readopt_confirm")}
+        {readoptTarget && readoptTarget !== "*" ? (
+          <code className="mt-2 block rounded bg-muted px-1.5 py-0.5 text-xs">{readoptTarget}</code>
+        ) : null}
       </Dialog>
     </div>
   );

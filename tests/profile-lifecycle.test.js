@@ -19,6 +19,7 @@ const {
   offProfile,
   setProfileConfig,
   syncProfile,
+  readoptProfile,
   uninstallProfile,
   profileDoctor,
   listProfilesWithState,
@@ -344,6 +345,39 @@ test("uninstall keeps a routine the user edited, and never touches their own", (
 
   const left = listRoutines(SA_STORAGE).map((r) => r.name).sort();
   assert.deepEqual(left, [`${pkg.id}-day-open`, "my-own"].sort());
+});
+
+test("readopt forces a drifted routine back to the package where sync skips it", () => {
+  resetState();
+  const pkg = makePackage({ routines: { "day-open": DAY_OPEN_ROUTINE } });
+  installProfile(pkg.dir);
+  useProfile(pkg.id);
+  const name = `${pkg.id}-day-open`;
+
+  // Drift it the way a hand-patch does: change the schedule so the fingerprint
+  // no longer matches the origin_hash taken at install.
+  const installed = listRoutines(SA_STORAGE).find((r) => r.name === name);
+  upsertRoutine(SA_STORAGE, { ...installed, schedule: "cron:07:00" });
+
+  // sync respects the edit and leaves it drifted — this is what it CANNOT fix.
+  const s = syncProfile();
+  assert.ok(s.routines.skipped.some((x) => x.name === name && x.reason === "user_modified"));
+  assert.equal(listRoutines(SA_STORAGE).find((r) => r.name === name).schedule, "cron:07:00");
+
+  // readopt forces it back to the package and repairs provenance.
+  const r = readoptProfile(null, { only: name });
+  assert.deepEqual(r.readopted, [name]);
+  const after = listRoutines(SA_STORAGE).find((r) => r.name === name);
+  assert.notEqual(after.schedule, "cron:07:00", "schedule is the package's again");
+  assert.equal(after.origin, `profile:${pkg.id}`);
+  assert.ok(after.origin_hash, "origin_hash rewritten so it reads as untouched again");
+
+  // A routine whose profile origin went null (an old-migration case) is skipped
+  // by sync as user_owned, but readopt-all still repairs it.
+  upsertRoutine(SA_STORAGE, { ...after, origin: null, origin_hash: null });
+  const all = readoptProfile();
+  assert.ok(all.readopted.includes(name));
+  assert.equal(listRoutines(SA_STORAGE).find((r) => r.name === name).origin, `profile:${pkg.id}`);
 });
 
 test("a profile never hijacks a routine the user already owns by that name", () => {

@@ -499,6 +499,44 @@ export function syncProfileRoutines(profile, globalConfig, { enable = true } = {
   return { installed, skipped };
 }
 
+/**
+ * Force the profile's routines back to the package version, discarding local
+ * edits and repairing provenance. This is what sync CANNOT do: sync deliberately
+ * skips a routine the user edited (`user_modified`) or one whose profile origin
+ * was lost (`user_owned`), so a routine that drifted — a hand-patched schedule,
+ * or an `origin` gone null after an old migration — never picks up a new package
+ * field like `deliver_to`. Re-adopt overwrites by NAME: the package spec wins,
+ * `origin`/`origin_hash` are rewritten so it reads as "exactly as installed"
+ * again, and the run history (`last_run_at`) is preserved by upsertRoutine.
+ *
+ * @param {{ only?: string|null }} opts  one routine name, or null for all.
+ * @returns {{ readopted: string[] }}
+ */
+export function readoptProfileRoutines(profile, globalConfig, { only = null } = {}) {
+  const storage = superAgentStorage();
+  const specs = renderProfileRoutines(profile, globalConfig);
+  const existing = listRoutines(storage);
+  const origin = profileOrigin(profile.id);
+
+  const readopted = [];
+  for (const spec of specs) {
+    const { name, enabled_by_default, ...rest } = spec;
+    if (only && name !== only) continue;
+    const prev = existing.find((r) => r.name === name);
+    upsertRoutine(storage, {
+      ...rest,
+      name,
+      // Keep whether the user had it switched off — re-adopt is about behaviour
+      // and provenance, not about turning a routine back on behind their back.
+      enabled: prev ? prev.enabled !== false : enabled_by_default !== false,
+      origin,
+      origin_hash: routineFingerprint(rest),
+    });
+    readopted.push(name);
+  }
+  return { readopted };
+}
+
 /** Disable — never delete — the routines a profile installed. */
 export function disableProfileRoutines(profileId) {
   const storage = superAgentStorage();
@@ -650,6 +688,29 @@ export function syncProfile(id = null) {
   return { id: targetId, version: profile.manifest?.version || null, routines: syncProfileRoutines(profile, cfg) };
 }
 
+/**
+ * Re-adopt the active profile's routines from the package, forcing past the
+ * user_modified/user_owned skips that sync respects. `only` targets one routine
+ * (the per-warning "re-adopt this one" button); omit it to re-adopt all. This is
+ * the recovery path a non-CLI user needs when their installed routines drifted —
+ * see readoptProfileRoutines.
+ */
+export function readoptProfile(id = null, { only = null } = {}) {
+  const cfg = readConfig();
+  const state = readProfileState(cfg);
+  const targetId = id || state.active;
+  if (!targetId) throw new Error("no profile is active — run: apx profile use <id>");
+
+  const profile = readProfile(targetId);
+  if (!profile) throw new Error(`profile "${targetId}" is not installed`);
+  if (state.active !== targetId) {
+    throw new Error(`profile "${targetId}" is not active — its routines are not installed`);
+  }
+
+  clearProfileBlockCache();
+  return { id: targetId, version: profile.manifest?.version || null, ...readoptProfileRoutines(profile, cfg, { only }) };
+}
+
 // --------------------- doctor -----------------------------------------------
 
 /**
@@ -777,6 +838,9 @@ export function profileDoctor(id = null) {
           ? {
             level: "warn",
             label: "routine",
+            // `routine` names the record so a UI can offer a targeted re-adopt
+            // (POST /profiles/readopt {routine}) next to this exact warning.
+            routine: name,
             // Their edits win — that is the contract. But a routine that sync
             // will always skip is one they now maintain themselves, and they
             // should hear that while they can still decide otherwise.
@@ -786,6 +850,7 @@ export function profileDoctor(id = null) {
           : {
             level: "warn",
             label: "routine",
+            routine: name,
             detail: L(`"${name}" es más vieja que el paquete que la instaló`, `"${name}" is older than the package that installed it`),
             fix: "apx profile sync",
           });

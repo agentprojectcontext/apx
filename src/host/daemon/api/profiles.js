@@ -22,6 +22,7 @@ import {
   useProfile,
   offProfile,
   syncProfile,
+  readoptProfile,
   setProfileConfig,
   uninstallProfile,
   profileDoctor,
@@ -157,6 +158,19 @@ export function register(api) {
   api.post("/profiles/sync", (req, res) => {
     try {
       res.json({ ok: true, ...syncProfile(req.body?.id || null) });
+    } catch (e) {
+      fail(res, e);
+    }
+  });
+
+  // Force-re-adopt the active profile's routines from the package, past the
+  // user_modified/user_owned skips that sync respects. `{ routine }` targets one;
+  // omit it to re-adopt all. This is the recovery a non-CLI user needs when their
+  // installed routines drifted (a hand-patched schedule, an origin gone null) and
+  // sync keeps skipping them — the web equivalent of `remove` + `sync`.
+  api.post("/profiles/readopt", (req, res) => {
+    try {
+      res.json({ ok: true, ...readoptProfile(req.body?.id || null, { only: req.body?.routine || null }) });
     } catch (e) {
       fail(res, e);
     }
