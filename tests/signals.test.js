@@ -44,7 +44,7 @@ test("an inbound a2a message since the last sweep is a signal; outbound and old 
   a2a("in", "april", "old news", "2026-06-15T09:00:00.000Z");      // before the last sweep
 
   const { signals } = detectSignals([PROJECT], {
-    now: NOW, types: ["a2a_message"], a2a_since: "2026-06-15T10:00:00.000Z",
+    now: NOW, types: ["a2a_message"], a2a_since: "2026-06-15T10:00:00.000Z", a2a_alerts: true,
   });
   assert.equal(signals.length, 1);
   assert.equal(signals[0].payload.from, "rocky");
@@ -53,6 +53,22 @@ test("an inbound a2a message since the last sweep is a signal; outbound and old 
 
 test("a2a_message is a default detector, so the watch sees a2a without opting in", () => {
   assert.ok(SIGNAL_TYPES.includes("a2a_message"));
+});
+
+test("a2a alerting is OFF by default — unsolicited chatter does not surface, solicited does", () => {
+  const a2a = (author, body, meta) =>
+    appendMessageToFs({ projectRoot: STORE, channel: "a2a", direction: "in", type: "agent", author, body, ts: "2026-06-15T11:00:00.000Z", meta });
+  a2a("magui", "[TEST] critical blocker", { severity: "blocker" }); // unsolicited → suppressed
+  a2a("nina", "the thing you asked about", { solicited: true });     // solicited → surfaces
+
+  // No a2a_alerts flag → default off. Magui's (even blocker-tagged) chatter is
+  // noise; only what the owner explicitly asked for reaches them.
+  const { signals } = detectSignals([PROJECT], {
+    now: NOW, types: ["a2a_message"], a2a_since: "2026-06-15T10:00:00.000Z",
+  });
+  const froms = signals.map((s) => s.payload.from);
+  assert.ok(!froms.includes("magui"), "unsolicited agent chatter must not ping the owner");
+  assert.ok(froms.includes("nina"), "a message the owner asked for still surfaces");
 });
 
 test("an a2a severity tag maps to signal severity; blocker is critical, solicited is carried", () => {
@@ -67,7 +83,7 @@ test("an a2a severity tag maps to signal severity; blocker is critical, solicite
   tagged("nina", { severity: "status", solicited: true });
 
   const { signals } = detectSignals([PROJECT], {
-    now: NOW, types: ["a2a_message"], a2a_since: "2026-06-15T10:00:00.000Z",
+    now: NOW, types: ["a2a_message"], a2a_since: "2026-06-15T10:00:00.000Z", a2a_alerts: true,
   });
   const by = Object.fromEntries(signals.map((s) => [s.payload.from, s]));
   assert.equal(by.rocky.severity, "critical");   // blocker → critical (owner: crosses quiet-hours)
@@ -89,7 +105,7 @@ test("an owner_notified a2a row is skipped — the /send route already pinged th
   inbound("april", { severity: "status" });
 
   const { signals } = detectSignals([PROJECT], {
-    now: NOW, types: ["a2a_message"], a2a_since: "2026-06-15T10:00:00.000Z",
+    now: NOW, types: ["a2a_message"], a2a_since: "2026-06-15T10:00:00.000Z", a2a_alerts: true,
   });
   const froms = signals.map((s) => s.payload.from);
   assert.ok(!froms.includes("rocky"), "owner_notified row must not resurface");
