@@ -34,7 +34,7 @@ const {
   deliverRoutineOutput,
   alreadyServedChannels,
 } = await import("#core/routines/delivery.js");
-const { runRoutineNow, routineReportsToTelegram } = await import("#core/routines/runner.js");
+const { runRoutineNow, routineReportsToTelegram, buildDeliveryNotify } = await import("#core/routines/runner.js");
 const { upsertRoutine, getRoutine } = await import("#core/stores/routines.js");
 const { readGlobalMessages } = await import("#core/stores/messages.js");
 const { makeTempProject, cleanupTempProject } = await import("./_helpers.js");
@@ -509,6 +509,32 @@ test("upsertRoutine — an absent deliver_to stays null, and an edit keeps the o
   assert.deepEqual(getRoutine(storage, "r").deliver_to, []);
 });
 
+// ── the mascot / push headline ────────────────────────────────────────────────
+
+test("buildDeliveryNotify — a short message is its own headline, no model call", async () => {
+  // Under the threshold: the first meaningful line, markdown stripped, capped —
+  // and crucially NO engine call (a bad model must not matter for a short tip).
+  const out = await buildDeliveryNotify({
+    text: "🏌️ **Tip Golf** ⛳: De \"y\" a \"L\"\n\nUna micro-pregunta al final.",
+    model: "does-not-exist:boom",
+    config: {},
+  });
+  assert.equal(out, '🏌️ Tip Golf ⛳: De "y" a "L"');
+  assert.ok(out.length <= 100);
+});
+
+test("buildDeliveryNotify — a long message gets a model summary, capped at 100", async () => {
+  const long = "Repaso largo de golf. ".repeat(30); // > 280 chars → summary path
+  const out = await buildDeliveryNotify({ text: long, model: "mock:test", config: {} });
+  assert.ok(out.length > 0 && out.length <= 100, "a non-empty line, capped at 100");
+});
+
+test("buildDeliveryNotify — a model that is down falls back to the headline, never empty", async () => {
+  const long = "x".repeat(400);
+  const out = await buildDeliveryNotify({ text: long, model: "does-not-exist:boom", config: {} });
+  assert.ok(out.length > 0, "fell back to a truncation instead of going silent");
+});
+
 // ── the loop and the sink, together ─────────────────────────────────────────
 
 test("runRoutineNow — a non-Roby agent's telegram delivery is emitted to Roby, not the phone", async () => {
@@ -603,6 +629,9 @@ test("runRoutineNow — a non-Roby agent's web delivery lands in its OWN web cha
     // shows real tokens instead of "0 tok" (the turn-record.js fix, on this path).
     assert.ok(row.meta.usage, "the web row carries token usage");
     assert.match(chat, /"usage"/, "the web-main turn records usage in its meta");
+    // The mascot headline travels on the row too, bounded to ≤100 chars.
+    assert.ok(typeof row.meta.notify === "string" && row.meta.notify.length > 0, "carries a notify headline");
+    assert.ok(row.meta.notify.length <= 100);
   } finally {
     cleanupTempProject(root);
   }

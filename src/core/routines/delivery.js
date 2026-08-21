@@ -133,6 +133,8 @@ function deliverToAgentWebChat(ctx, { routine, text, attachments, agent }) {
       routine_id: routine.id || "",
       via: "routine_delivery",
       conversation: AGENT_WEB_CHAT_ID,
+      // The one-line headline the event feed hands the desktop mascot.
+      ...(agent.notify ? { notify: agent.notify } : {}),
       ...(agent.model ? { model: agent.model } : {}),
       ...(agent.usage ? { usage: agent.usage } : {}),
       ...mediaMeta(attachments),

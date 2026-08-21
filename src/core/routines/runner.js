@@ -612,6 +612,46 @@ function injectPreOutput(prompt, preOutput) {
   return prompt.replace(/\{\{pre_output\}\}/g, preOutput || "");
 }
 
+// The one-line notification a delivery hands the mascot / push feed: short
+// enough for a bubble, in the message's own language. Two tiers, so tokens are
+// only spent when they buy something:
+//   • a short message IS its own headline — take its first meaningful line, free;
+//   • a long one gets a real ≤100-char summary from the model ("you have a golf
+//     trivia to answer" rather than the first 100 chars of a wall of text).
+const NOTIFY_MAX_CHARS = 100;
+const NOTIFY_SUMMARY_OVER = 280;
+
+function firstLineNotify(text) {
+  const line = String(text || "")
+    .split("\n").map((s) => s.trim()).find(Boolean) || "";
+  // Strip the loudest markdown so the bubble reads as prose, keep emoji.
+  return line.replace(/[*_`#>]+/g, "").replace(/\s+/g, " ").trim().slice(0, NOTIFY_MAX_CHARS);
+}
+
+export async function buildDeliveryNotify({ text, model, config }) {
+  const clean = String(text || "").trim();
+  if (!clean) return "";
+  if (clean.length <= NOTIFY_SUMMARY_OVER) return firstLineNotify(clean);
+  // Long → a dedicated tiny summary. Kept model-authored (never a canned string)
+  // and in the message's own language; a model that is down falls back to the
+  // truncated headline rather than going silent.
+  try {
+    const r = await callEngine({
+      modelId: model,
+      system:
+        "You write ONE ultra-short notification line (max 100 characters) that tells the user " +
+        "what a message is about, so they know whether to open it. Write in the SAME language as " +
+        "the message. No quotes, no preamble, no trailing period — just the line.",
+      messages: [{ role: "user", content: `Message:\n\n${clean}\n\nNotification line (≤100 chars):` }],
+      config,
+    });
+    const line = String(r.text || "").replace(/\s+/g, " ").trim().slice(0, NOTIFY_MAX_CHARS);
+    return line || firstLineNotify(clean);
+  } catch {
+    return firstLineNotify(clean);
+  }
+}
+
 /** Decide whether to skip the LLM call based on skip_prompt_on + pre results. */
 function shouldSkipPrompt(routine, preExitCode, preStdout) {
   const mode = routine.skip_prompt_on || "signal";
@@ -791,6 +831,15 @@ export async function runRoutineNow(ctx, routine) {
         : null;
 
     if (runByAgent) {
+      // The short notification line the mascot / push feed shows (see
+      // buildDeliveryNotify): a headline for a short tip, a model summary for a
+      // long one. Rides on the delivery so the web ledger row carries it and the
+      // event feed can hand it to the pet.
+      runByAgent.notify = await buildDeliveryNotify({
+        text: deliveryText,
+        model: runByAgent.model,
+        config: ctx.project?.config || ctx.globalConfig,
+      });
       const pushChannels = channels.filter((c) => c === CHANNELS.TELEGRAM);
       const chatChannels = channels.filter((c) => c !== CHANNELS.TELEGRAM);
       deliveries = await deliverRoutineOutput(runCtx, {
