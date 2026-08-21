@@ -133,6 +133,11 @@ export function InboxList({
                 <span className="mt-0.5 flex items-center gap-1.5 text-[10px] text-muted-fg">
                   {row.project_name ? <span className="truncate">{row.project_name}</span> : null}
                   {row.channel ? <span className="opacity-70">· {row.channel}</span> : null}
+                  {row.requested_by ? (
+                    <span className="shrink-0 rounded bg-primary/12 px-1 text-primary">
+                      for {row.requested_by}
+                    </span>
+                  ) : null}
                 </span>
 
                 {/* The agent's own last line. Echoing the user's prompt back
