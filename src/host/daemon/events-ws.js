@@ -98,6 +98,9 @@ function publicEvent(event, projects) {
     conversation_id: event.conversation_id || null,
     direction: event.direction || null,
     type: event.type || null,
+    // How the row was produced, when it matters to a subscriber — "routine_delivery"
+    // marks an agent reaching the owner, which the mascot surfaces on its own.
+    via: event.via || null,
     ts: event.ts || null,
   };
 }

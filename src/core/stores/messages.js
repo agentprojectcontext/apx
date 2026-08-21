@@ -134,6 +134,10 @@ export function appendMessageToFs({ projectRoot, channel, direction, type, actor
     agent_slug: agent_slug || null,
     direction,
     type: msgType,
+    // `via` lets a subscriber tell a routine DELIVERY (an agent reaching the
+    // owner) apart from an ordinary reply the owner is watching — the desktop
+    // mascot bubbles the former even though it is `direction: "out"`.
+    via: fullMeta.via || null,
     ts,
   });
   return { ts, file };

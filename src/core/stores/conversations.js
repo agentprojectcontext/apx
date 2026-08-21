@@ -44,10 +44,13 @@ export function parseConversationPath(filePath) {
   };
 }
 
-export function startConversation({ storagePath, agentSlug, engine, system, channel, title }) {
+export function startConversation({ storagePath, agentSlug, engine, system, channel, title, id: idArg }) {
   const dir = path.join(storagePath, "agents", agentSlug, "conversations");
   fs.mkdirSync(dir, { recursive: true });
-  const id = generateConversationId(storagePath, agentSlug);
+  // A caller may pin a STABLE id (e.g. an agent's one persistent "web-main"
+  // coaching chat, reused across routine runs) instead of the auto-incrementing
+  // date-NN. Auto-increment stays the default so nothing else changes.
+  const id = idArg || generateConversationId(storagePath, agentSlug);
   const file = path.join(dir, `${id}.md`);
   const started = nowIso();
   const fm =

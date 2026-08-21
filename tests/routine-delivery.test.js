@@ -347,7 +347,13 @@ test("deliverRoutineOutput — the web row carries the attached images in its me
 function makeCtx(root, { plugins, globalConfig } = {}) {
   const storagePath = path.join(TMP_HOME, ".apx", "projects", `p${Math.random().toString(36).slice(2, 8)}`);
   fs.mkdirSync(storagePath, { recursive: true });
-  const project = { id: 7, name: "northwind", path: root, storagePath, config: globalConfig, logMessage: () => {} };
+  // Capture ledger writes so a test can assert what the runner logged (e.g. the
+  // a2a emit to Roby). Harmless for the tests that ignore it.
+  const logged = [];
+  const project = {
+    id: 7, name: "northwind", path: root, storagePath, config: globalConfig,
+    logMessage: (m) => { logged.push(m); }, _log: logged,
+  };
   return {
     project,
     projects: { list: () => [project], get: () => project },
@@ -504,10 +510,11 @@ test("upsertRoutine — an absent deliver_to stays null, and an edit keeps the o
 
 // ── the loop and the sink, together ─────────────────────────────────────────
 
-test("runRoutineNow — an agent routine delivering to telegram sends exactly once", async () => {
-  // The two-messages bug (spec/done/01) with the other sink: the loop still has
-  // send_telegram AND the runner is configured to deliver. One of them has to
-  // stand down, and it is the loop.
+test("runRoutineNow — a non-Roby agent's telegram delivery is emitted to Roby, not the phone", async () => {
+  // Manu's rule: a routine run by an agent that is NOT Roby does not ping the
+  // owner's phone itself — it leaves a delivery for Roby to notify. So both the
+  // loop (send_telegram suppressed) AND the runner (no direct send) stand down;
+  // the telegram intent becomes an a2a emit to the super-agent instead.
   const root = makeTempProject({ name: "northwind", agents: [{ slug: "scout", model: "mock:test" }] });
   fs.mkdirSync(path.join(root, ".apc", "agents"), { recursive: true });
   fs.writeFileSync(
@@ -526,12 +533,71 @@ test("runRoutineNow — an agent routine delivering to telegram sends exactly on
       spec: { agent: "scout", prompt: "Report [mock:tool:send_telegram]" },
     });
     assert.equal(out.status, "ok");
-    assert.equal(sent.length, 1, "one message: the runner's, not the loop's");
-    assert.deepEqual(out.delivery.results.map((d) => d.status), ["ok"]);
+    assert.equal(sent.length, 0, "a project agent never pings the phone directly");
+    // The delivery reports the redirect, and it counts as a successful delivery.
+    const tgResult = out.delivery.results.find((d) => d.channel === "telegram→roby");
+    assert.ok(tgResult && tgResult.status === "ok", "telegram intent was emitted to Roby");
     // And the loop was told why it could not send, rather than silently firing.
     const call = (out.trace || []).find((t) => t.tool === "send_telegram");
     assert.ok(call, "the mock still attempted the call");
     assert.match(call.result.error, /suppressed for this invocation/);
+    // The a2a row Roby's sweep reads: one inbound message under the super-agent,
+    // from scout, tagged for the interruption budget.
+    const emit = ctx.project._log.find(
+      (m) => m.channel === "a2a" && m.direction === "in" && m.meta?.from === "scout",
+    );
+    assert.ok(emit, "an a2a message to Roby was written");
+    assert.equal(emit.meta.to, "super_agent");
+    assert.equal(emit.meta.via, "routine_delivery");
+  } finally {
+    cleanupTempProject(root);
+  }
+});
+
+test("runRoutineNow — a non-Roby agent's web delivery lands in its OWN web chat", async () => {
+  // Manu's rule, the web half: a routine run by a non-Roby agent posts to its
+  // own persistent web chat (web-main), attributed to the agent — NOT the
+  // super-agent's dated web channel. And it does not also spawn a per-run
+  // routine thread: the web chat IS the thread.
+  const root = makeTempProject({ name: "northwind", agents: [{ slug: "scout", model: "mock:test" }] });
+  fs.mkdirSync(path.join(root, ".apc", "agents"), { recursive: true });
+  fs.writeFileSync(
+    path.join(root, ".apc", "agents", "scout.md"),
+    "---\nname: Scout\nmodel: mock:test\ndescription: Test project agent.\n---\n\n# scout\nDo the work.\n",
+  );
+  const cfg = { super_agent: { enabled: true, model: "mock:test", permission_mode: "total" } };
+  const ctx = makeCtx(root, { globalConfig: cfg });
+  try {
+    const out = await runRoutineNow(ctx, {
+      name: "scout-am",
+      kind: "exec_agent",
+      schedule: "every:24h",
+      deliver_to: ["web"],
+      spec: { agent: "scout", prompt: "Give the morning tip." },
+    });
+    assert.equal(out.status, "ok");
+
+    // The agent's OWN persistent web chat exists and carries the tip.
+    const convDir = path.join(ctx.project.storagePath, "agents", "scout", "conversations");
+    const files = fs.readdirSync(convDir);
+    assert.ok(files.includes("web-main.md"), "the persistent web-main chat was created");
+    assert.ok(
+      !files.some((f) => /^\d{4}-\d{2}-\d{2}-\d{2}\.md$/.test(f)),
+      "no competing per-run routine thread",
+    );
+    const chat = fs.readFileSync(path.join(convDir, "web-main.md"), "utf8");
+    assert.match(chat, /channel: web/);
+    assert.match(chat, /title: "Scout"/, "titled by the agent's display name");
+    assert.match(chat, /Give the morning tip/);
+
+    // The ledger row is stamped web + the agent, never the super-agent.
+    const row = ctx.project._log.find(
+      (m) => m.channel === "web" && m.meta?.via === "routine_delivery",
+    );
+    assert.ok(row, "a web ledger row was written");
+    assert.equal(row.agent_slug, "scout");
+    assert.equal(row.actor_kind, "agent");
+    assert.notEqual(row.actor_id, "super_agent");
   } finally {
     cleanupTempProject(root);
   }
