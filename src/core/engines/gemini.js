@@ -186,7 +186,7 @@ function signaturesRequired(model, messages, config) {
 // their thoughtSignature) that the signing families require in every
 // subsequent turn. Falling back to reconstruction handles messages that came
 // from a non-Gemini engine or were serialised before this field was added.
-function toGeminiContents(messages, { model = "", config = {} } = {}) {
+export function toGeminiContents(messages, { model = "", config = {} } = {}) {
   const requireSignatures = signaturesRequired(model, messages, config);
   const out = [];
   // tool_call ids whose functionCall part we could not replay with a valid
@@ -223,6 +223,16 @@ function toGeminiContents(messages, { model = "", config = {} } = {}) {
         prev.parts.push(part);
       } else {
         out.push({ role: "user", parts: [part] });
+      }
+      // A multimodal tool result (view_media) carries images the model should
+      // SEE. A functionResponse can't hold pixels, so the image rides on a
+      // following user turn with a short cue, right after the result.
+      if (Array.isArray(m.images) && m.images.length) {
+        const imgParts = [{ text: `(imagen de ${name})` }];
+        for (const img of m.images) {
+          if (img?.data && img?.mime) imgParts.push({ inlineData: { mimeType: img.mime, data: img.data } });
+        }
+        if (imgParts.length > 1) out.push({ role: "user", parts: imgParts });
       }
       continue;
     }

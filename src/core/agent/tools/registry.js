@@ -34,6 +34,9 @@ import setPermissionMode from "./handlers/set-permission-mode.js";
 import searchFiles from "./handlers/search-files.js";
 import listSkills from "./handlers/list-skills.js";
 import loadSkill from "./handlers/load-skill.js";
+import readSkill from "./handlers/read-skill.js";
+import attachMedia from "./handlers/attach-media.js";
+import viewMedia from "./handlers/view-media.js";
 import transcribeAudio from "./handlers/transcribe-audio.js";
 import askQuestions from "./handlers/ask-questions.js";
 import createTask from "./handlers/create-task.js";
@@ -104,6 +107,9 @@ const NATIVE_TOOLS = [
   searchFiles,
   listSkills,
   loadSkill,
+  readSkill,
+  attachMedia,
+  viewMedia,
   transcribeAudio,
   askQuestions,
   createTask,
@@ -171,6 +177,10 @@ export const BASE_TOOL_NAMES = new Set([
   TOOLS.LIST_MCPS,
   TOOLS.LIST_SKILLS,
   TOOLS.LOAD_SKILL,
+  // A skill shown "loaded on demand" is useless without the tool that pages it,
+  // so read_skill is hot everywhere load_skill is (project agents on chat
+  // channels rely on it to reach a lazy skill's sections).
+  TOOLS.READ_SKILL,
   // Memory + identity.
   TOOLS.READ_AGENT_MEMORY,
   TOOLS.READ_SELF_MEMORY,
@@ -237,6 +247,9 @@ const NATIVE_CATEGORY = {
   [TOOLS.LIST_MCP_TOOLS]:      "mcp",
   [TOOLS.LIST_SKILLS]:         "inventory",
   [TOOLS.LOAD_SKILL]:          "skills",
+  [TOOLS.READ_SKILL]:          "skills",
+  [TOOLS.ATTACH_MEDIA]:        "skills",
+  [TOOLS.VIEW_MEDIA]:          "skills",
   [TOOLS.IMPORT_AGENT]:        "agents",
   [TOOLS.CREATE_AGENT]:        "agents",
   [TOOLS.SET_AGENT_PROMPT]:    "agents",

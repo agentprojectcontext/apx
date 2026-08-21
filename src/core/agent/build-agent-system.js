@@ -9,6 +9,8 @@
 import fs from "node:fs";
 import { readAgentMemory } from "./memory.js";
 import { apcProjectFile, apcSkillFile } from "../apc/paths.js";
+import { listField, agentSkills } from "./skills/declared.js";
+import { loadAgentSkills, renderAgentSkillsBlock } from "./skills/agent-skills.js";
 import {
   PROMPTS,
   buildChannelContextBlock,
@@ -23,11 +25,6 @@ import { readJson } from "#core/util/json-file.js";
 // token budget. Mirrors PROJECT_AGENTS_MAX_CHARS for AGENTS.md.
 const AGENT_BODY_MAX_CHARS = 6000;
 
-function listField(value) {
-  if (Array.isArray(value)) return value.map(String).map((s) => s.trim()).filter(Boolean);
-  return String(value || "").split(",").map((s) => s.trim()).filter(Boolean);
-}
-
 function projectName(project) {
   if (project?.name) return project.name;
   try {
@@ -38,9 +35,7 @@ function projectName(project) {
   }
 }
 
-export function agentSkills(agent) {
-  return listField(agent?.fields?.Skills);
-}
+export { agentSkills };
 
 /**
  * Build the system prompt for a project agent.
@@ -179,11 +174,10 @@ function buildProjectSkills(project, agent) {
   if (fs.existsSync(apxSkill)) {
     parts.push("## APX\n" + fs.readFileSync(apxSkill, "utf8").trim());
   }
-  for (const skill of agentSkills(agent)) {
-    const skillPath = apcSkillFile(project.path, skill);
-    if (fs.existsSync(skillPath)) {
-      parts.push(`## Skill: ${skill}\n` + fs.readFileSync(skillPath, "utf8").trim());
-    }
-  }
+  // The agent's declared skills, with progressive disclosure: a small skill is
+  // injected whole, a large one (or one with images) as a card the agent pages
+  // with read_skill / attach_media / view_media. See skills/agent-skills.js.
+  const declared = renderAgentSkillsBlock(loadAgentSkills(project, agent));
+  if (declared) parts.push(declared);
   return parts.join("\n\n");
 }
