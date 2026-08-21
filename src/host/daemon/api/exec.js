@@ -268,7 +268,9 @@ export function register(api, { projects, project, config, plugins, registries }
         actor_kind: "agent",
         author: agent.slug,
         body: result.text,
-        meta: { conversation: conv.id, usage: result.usage },
+        // Full attribution, same as the conversation-file half above — the
+        // ledger row renders "0 tok"/no model without both fields.
+        meta: { conversation: conv.id, model: result.model, usage: result.usage },
       });
 
       projects.rebuild(p.id);

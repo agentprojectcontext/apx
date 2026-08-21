@@ -66,6 +66,7 @@ export function buildStreamHandler(self, { chat_id, update_id, agentDisplay }) {
         await self._send({ chat_id, text: piece });
         state.lastStreamedText = piece;
         state.streamedCount += 1;
+        // attribution-exempt: mid-stream segment — token usage is only known at turn end; the final row carries model+usage.
         appendGlobalMessage({
           channel: CHANNELS.TELEGRAM,
           direction: "out",
@@ -330,6 +331,7 @@ export async function sendFinalReply(self, {
     // what the user RECEIVED; this number is how you tell, after the fact, that
     // a quiet turn was quiet on purpose.
     if (heldCount > 0) meta.progress_held = heldCount;
+    // attribution: model+usage were stamped on `meta` above (saModel/saUsage) — the final row the user received.
     appendGlobalMessage({
       channel: CHANNELS.TELEGRAM,
       direction: "out",

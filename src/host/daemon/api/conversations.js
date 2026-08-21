@@ -229,7 +229,7 @@ export function register(api, { project, config, plugins, registries }) {
   api.post("/projects/:pid/send", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    const { from, to, body, deliver = false, _depth = 0, requested_by = null, severity = null } = req.body || {};
+    const { from, to, body, deliver = false, _depth = 0, requested_by = null, severity = null, model = null, usage = null } = req.body || {};
     if (!from || !to || !body)
       return res.status(400).json({ error: "from, to, body required" });
     if (_depth > 3)
@@ -263,6 +263,21 @@ export function register(api, { project, config, plugins, registries }) {
     // reply sees history without the turn it is answering.
     const history = deliver ? a2aPairHistory(p.storagePath, from, to, to) : [];
 
+    // Attribute the sender's message the way every other channel does: an
+    // explicit override wins (a caller that knows the real cost — a routine
+    // relaying its run — passes model/usage); otherwise stamp the sender agent's
+    // configured model, so an a2a message shows whose model spoke instead of a
+    // blank row. Usage stays absent on a plain relay — it spends no tokens.
+    let attrib = {};
+    const overrideModel = typeof model === "string" && model ? model : null;
+    let senderModel = overrideModel;
+    if (!senderModel && !fromAgent.synthetic) {
+      try { senderModel = await resolveAgentModel({ agent: fromAgent, config: p.config || config }); }
+      catch { /* no model resolvable → leave the row unattributed */ }
+    }
+    if (senderModel) attrib.model = senderModel;
+    if (usage && typeof usage === "object") attrib.usage = usage;
+
     const ts = nowIso();
     p.logMessage({
       agent_slug: from,
@@ -270,7 +285,7 @@ export function register(api, { project, config, plugins, registries }) {
       direction: "out",
       author: from,
       body,
-      meta: { to, depth: _depth, ...sevMeta, ...(requested_by ? { requested_by } : {}) },
+      meta: { to, depth: _depth, ...sevMeta, ...attrib, ...(requested_by ? { requested_by } : {}) },
       ts,
     });
 
@@ -307,7 +322,7 @@ export function register(api, { project, config, plugins, registries }) {
       author: from,
       body,
       meta: {
-        from, depth: _depth, ...sevMeta,
+        from, depth: _depth, ...sevMeta, ...attrib,
         ...(ownerNotified ? { owner_notified: true } : {}),
         ...(requested_by ? { requested_by } : {}),
       },

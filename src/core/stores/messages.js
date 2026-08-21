@@ -494,6 +494,7 @@ export function readProjectA2AThread(projectRoot, id) {
     // every other channel — so model, token usage, tool summary and attribution
     // all survive. a2a double-logs under both peers, so normalise agent_slug to
     // the SPEAKER (m.author) first; the shaper does the rest.
+    // attribution-exempt: reader — shapeLedgerMessage READS model/usage from each row's meta; this shapes for display, it does not write a row.
     messages: uniq.map((m) =>
       shapeLedgerMessage({ ...m, type: "agent", agent_slug: m.author, actor_kind: m.actor_kind || "agent" }),
     ),

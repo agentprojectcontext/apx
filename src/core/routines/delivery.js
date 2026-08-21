@@ -169,6 +169,10 @@ function ledgerAdapter(channel) {
           routine: routine.name,
           routine_id: routine.id || "",
           via: "routine_delivery",
+          // Attribution when the caller carried it (the super-agent's own run —
+          // see runner.js). Without it the delivered row renders "0 tok"/no model.
+          ...(agent?.model ? { model: agent.model } : {}),
+          ...(agent?.usage ? { usage: agent.usage } : {}),
           ...mediaMeta(attachments),
         },
       });
