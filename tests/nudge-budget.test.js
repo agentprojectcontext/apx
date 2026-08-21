@@ -272,6 +272,14 @@ test("no push path outside the audited four calls the telegram plugin's send", (
     ...PUSH_PATHS,
     "src/host/daemon/plugins/telegram/index.js", // defines it
     "src/core/channels/telegram/reply.js",       // the reply path — solicited by construction
+    // Mobility route-errand alert — solicited by construction, like the reply
+    // path. The user starts navigation on Android Maps (scheduledByUser), and
+    // the ping only means anything WHILE they are driving past the errand: a
+    // route match held by the budget or quiet-hours arrives after they've driven
+    // on, so it is useless held — the same "would-be-stale-if-delayed" case that
+    // exempts a solicited reply. The feature carries its own mute instead
+    // (isMobilitySilentToday + the "🔕 No avisar más hoy" button).
+    "src/core/mobility/trip-event.js",
   ]);
   // delivery.js reaches the plugin through a `tg` alias, which the telegram.send
   // pattern below does not match; it is in PUSH_PATHS and asserted to gate above.
