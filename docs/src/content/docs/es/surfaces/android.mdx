@@ -61,10 +61,16 @@ app. Pairing web existente sigue válido; ambos clientes aparecen en
   ronda. Cerrar Maps antes del envío cancela aviso pendiente.
 - Delivery de movilidad también genera card Android APX y sonido local cuando
   sonido nativo está activo.
+- Mensajes directos APX usan formato mensajería Android. Android Auto puede
+  mostrarlos como avisos flotantes y leerlos sin abrir Telegram. Menú nativo
+  incluye **Probar aviso Android Auto** para pruebas DHU o vehículo. Android
+  Auto activa No molestar; concedé **Avisos durante conducción** una vez para
+  permitir que APX lo atraviese.
 
 <Aside type="note">
-  Notificaciones en vivo requieren servicio foreground de mascota activo. El
-  servicio mantiene un WebSocket autenticado al daemon y reconecta tras cortes.
+  Notificaciones en vivo no requieren mascota flotante. APX mantiene un
+  WebSocket autenticado foreground y reconecta tras cortes. Desactivar mascota
+  solo quita overlay.
 </Aside>
 
 ## Compilar e instalar
