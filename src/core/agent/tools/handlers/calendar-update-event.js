@@ -18,6 +18,7 @@ export default {
           end: { type: "string", description: "ISO end" },
           description: { type: "string" },
           location: { type: "string" },
+          attendees: { type: "array", items: { type: "string" }, description: "email addresses — replaces the guest list and re-sends invites" },
           confirmed: { type: "boolean", description: "set once the user has approved this write" },
           ...PROJECT_ARG,
         },

@@ -11,8 +11,9 @@
 // Calendar, WhatsApp. Telegram is intentionally absent — it's a channel,
 // configured under its own surface, not a service plugin. Transcription lives
 // with the desktop STT stack. Obsidian is path-based (a local Vault) rather than
-// token-based, and Calendar is service-account-based — see plugins/calendar.js
-// for why that is a paste-a-credential plugin and not an OAuth client.
+// token-based, and Calendar is user-OAuth-based (auth: "oauth") — see
+// plugins/calendar.js for why it acts as you (invites + Meet) instead of as a
+// service account.
 import { asanaPlugin } from "./plugins/asana.js";
 import { calendarPlugin } from "./plugins/calendar.js";
 import { githubPlugin } from "./plugins/github.js";

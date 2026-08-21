@@ -96,6 +96,9 @@ const UNAUTHENTICATED_PREFIXES = [
   apiPath("/health"),
   apiPath("/pair/"),
   apiPath("/admin/web-token"),
+  // OAuth landing: Google's browser redirect arrives with no bearer token. The
+  // route defends itself with a signed `state` instead (see api/integrations.js).
+  apiPath("/integrations/oauth/callback"),
 ];
 
 function isUnauthenticatedPath(p, method = "GET") {

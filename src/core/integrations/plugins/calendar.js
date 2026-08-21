@@ -1,144 +1,57 @@
-// Google Calendar integration plugin — and, deliberately, NOT an OAuth client.
+// Google Calendar integration plugin — user OAuth, so an agent can act AS you.
 //
-// Every other plugin here takes a credential you can paste (Asana PAT, GitHub
-// PAT) or a path you can pick (Obsidian vault). A calendar looks like it breaks
-// that model, because the consumer path for Google is OAuth2: a client id and
-// secret, a browser consent round-trip, and refresh tokens to store and rotate.
-// APX has none of that machinery, and building it for one integration is the
-// wrong order.
+// This plugin used to authenticate with a service account: paste a JSON key,
+// share your calendar with a robot email, done. It worked for reading and for
+// creating plain events, but a service account acts as ITSELF, and Google bars
+// it from inviting other people or creating a Meet link without Domain-Wide
+// Delegation — a Workspace feature a personal @gmail.com does not have. So
+// "agendá con Carlos y mandale el Meet" was simply impossible.
 //
-// A service account skips the whole dance. You create one, take its email, and
-// SHARE YOUR CALENDAR WITH IT from Google Calendar's own settings — the same
-// gesture as sharing with a colleague. The credential is then a JSON key file:
-// something you can paste or point at, exactly like every other plugin. There
-// is no consent screen, no refresh token that expires in seven days, and no app
-// verification, because nothing here acts on behalf of a user — it acts as
-// itself, on a calendar you handed it.
+// User OAuth acts as YOU. You consent once in the browser and Google hands back
+// a refresh token; from then on APX reads your agenda, creates and moves events,
+// SENDS INVITATIONS, and creates Meet links — because it is you doing it, on your
+// own calendar. The only setup left is a one-time OAuth client in Google Cloud
+// Console (client_id + secret). No key file, no calendar sharing, no Workspace.
 //
-// The cost of that choice, stated plainly: a service account cannot send
-// invitations to other people without domain-wide delegation (a Workspace
-// feature). Reading your agenda and creating or moving events on a calendar
-// shared with it works.
-//
-// Auth flow: sign a JWT with the key (RS256), exchange it at Google's token
-// endpoint for a one-hour access token, cache it in memory. ~40 lines of
-// node:crypto, no Google SDK.
-import fs from "node:fs";
+// The OAuth mechanics (consent URL, code exchange, refresh, state signing) live
+// in ./_google-oauth.js. This file is the calendar REST client + the plugin
+// lifecycle the daemon and web panel drive.
 import crypto from "node:crypto";
-import path from "node:path";
-import os from "node:os";
+import {
+  buildAuthUrl,
+  callbackUrl,
+  signState,
+  exchangeCode,
+  accessTokenFor,
+  emailFromIdToken,
+} from "./_google-oauth.js";
 
-const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const API = "https://www.googleapis.com/calendar/v3";
 
-// Read-only unless the owner asks for more. A calendar an agent can write to is
-// a calendar an agent can change other people's days with.
-export const SCOPE_READ = "https://www.googleapis.com/auth/calendar.readonly";
-export const SCOPE_WRITE = "https://www.googleapis.com/auth/calendar";
+// Full calendar when the owner allows writes (create/move events, invite people,
+// mint Meet links, free/busy); read-only otherwise. `openid email` rides along
+// so we can show which account is connected. Kept broad-but-standard on purpose:
+// narrower per-feature scopes make invites and free/busy fragile for no real gain
+// on a single-user tool.
+export const SCOPE_READ = "openid email https://www.googleapis.com/auth/calendar.readonly";
+export const SCOPE_WRITE = "openid email https://www.googleapis.com/auth/calendar";
 
-// ─── credentials ────────────────────────────────────────────────────────────
-
-function expandHome(p) {
-  const s = String(p || "");
-  if (s === "~") return os.homedir();
-  if (s.startsWith("~/") || s.startsWith("~\\")) return path.join(os.homedir(), s.slice(2));
-  return s;
+function scopeFor(config) {
+  return config?.write_access ? SCOPE_WRITE : SCOPE_READ;
 }
 
-/**
- * The service account key, from whichever of the two ways it was given: pasted
- * JSON, or a path to the file Google downloaded. The path form is the better
- * one — the private key never enters APX's own config.
- */
-export function readKey(config = {}) {
-  const pasted = String(config.service_account_json || "").trim();
-  const file = String(config.key_file || "").trim();
+// ─── access tokens ────────────────────────────────────────────────────────────
 
-  let raw = pasted;
-  if (!raw) {
-    if (!file) throw new Error("No service account key: paste the JSON or point at the key file");
-    const resolved = path.resolve(expandHome(file));
-    try {
-      raw = fs.readFileSync(resolved, "utf8");
-    } catch {
-      throw new Error(`Cannot read the key file: ${resolved}`);
-    }
+/** A live access token for the stored connection, or a clear error. */
+export async function getAccessToken(config = {}, opts = {}) {
+  const { client_id, client_secret, refresh_token } = config || {};
+  if (!client_id || !client_secret) {
+    throw new Error("Falta el OAuth client (client_id / client_secret). Cargalos en el panel.");
   }
-
-  let key;
-  try {
-    key = JSON.parse(raw);
-  } catch {
-    throw new Error("The service account key is not valid JSON");
+  if (!refresh_token) {
+    throw new Error("El calendario no está autorizado todavía. Conectá con Google en el panel.");
   }
-  if (key.type && key.type !== "service_account") {
-    throw new Error(
-      `That is a "${key.type}" key, not a service account. Create a service account key in Google Cloud Console → IAM → Service Accounts → Keys.`
-    );
-  }
-  if (!key.client_email || !key.private_key) {
-    throw new Error("The key is missing client_email or private_key");
-  }
-  return key;
-}
-
-// ─── access tokens ──────────────────────────────────────────────────────────
-
-const base64url = (buf) =>
-  Buffer.from(buf).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-
-/** A signed JWT assertion — the thing Google trades for an access token. */
-export function signAssertion(key, scope, { now = Math.floor(Date.now() / 1000) } = {}) {
-  const header = { alg: "RS256", typ: "JWT" };
-  const claims = {
-    iss: key.client_email,
-    scope,
-    aud: TOKEN_URL,
-    iat: now,
-    exp: now + 3600,
-  };
-  const body = `${base64url(JSON.stringify(header))}.${base64url(JSON.stringify(claims))}`;
-  const signature = crypto.createSign("RSA-SHA256").update(body).sign(key.private_key);
-  return `${body}.${base64url(signature)}`;
-}
-
-// Access tokens last an hour and cost a network round-trip. The morning anchor
-// asking twice in one turn should not pay for it twice.
-const tokenCache = new Map();
-
-export function clearTokenCache() {
-  tokenCache.clear();
-}
-
-export async function getAccessToken(config = {}, { fetchImpl = fetch } = {}) {
-  const key = readKey(config);
-  const scope = config.write_access ? SCOPE_WRITE : SCOPE_READ;
-  const cacheKey = `${key.client_email}:${scope}`;
-
-  const hit = tokenCache.get(cacheKey);
-  // 60s of slack: a token that expires mid-request is a failure with a
-  // confusing error message.
-  if (hit && hit.expires_at - 60_000 > Date.now()) return hit.access_token;
-
-  const res = await fetchImpl(TOKEN_URL, {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-      assertion: signAssertion(key, scope),
-    }).toString(),
-  });
-
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok || !data.access_token) {
-    const detail = data.error_description || data.error || `HTTP ${res.status}`;
-    throw new Error(`Google refused the service account key: ${detail}`);
-  }
-  tokenCache.set(cacheKey, {
-    access_token: data.access_token,
-    expires_at: Date.now() + (Number(data.expires_in) || 3600) * 1000,
-  });
-  return data.access_token;
+  return accessTokenFor({ clientId: client_id, clientSecret: client_secret, refreshToken: refresh_token }, opts);
 }
 
 // ─── REST client ────────────────────────────────────────────────────────────
@@ -161,19 +74,15 @@ async function call(config, urlPath, { method = "GET", query, body, fetchImpl = 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const msg = data?.error?.message || `HTTP ${res.status}`;
-    // The one mistake everybody makes, worth catching by name: the key works,
-    // the calendar was never shared with the service account.
-    if (res.status === 404 || res.status === 403) {
-      throw new Error(
-        `${msg} — check the calendar is shared with the service account. Google Calendar → Settings → your calendar → "Share with specific people" → add the service account email.`
-      );
+    if (res.status === 401 || res.status === 403) {
+      throw new Error(`${msg} — puede que haga falta reconectar con Google en el panel.`);
     }
     throw new Error(msg);
   }
   return data;
 }
 
-/** Calendars this service account can see — i.e. the ones shared with it. */
+/** Calendars the connected account can see — used only for the account probe. */
 export async function listCalendars(config, opts = {}) {
   const data = await call(config, "/users/me/calendarList", { ...opts });
   return (data.items || []).map((c) => ({
@@ -197,50 +106,73 @@ function flattenEvent(e) {
     attendees: (e.attendees || []).map((a) => a.email).filter(Boolean),
     status: e.status || null,
     link: e.htmlLink || null,
+    meet_link: e.hangoutLink || null,
   };
 }
 
-export async function listEvents(config, { calendarId, timeMin, timeMax, q, maxResults = 25 } = {}, opts = {}) {
+export async function listEvents(config, { calendarId = "primary", timeMin, timeMax, q, maxResults = 25 } = {}, opts = {}) {
   const data = await call(config, `/calendars/${encodeURIComponent(calendarId)}/events`, {
-    query: {
-      timeMin,
-      timeMax,
-      q,
-      maxResults,
-      singleEvents: true,
-      orderBy: "startTime",
-    },
+    query: { timeMin, timeMax, q, maxResults, singleEvents: true, orderBy: "startTime" },
     ...opts,
   });
   return (data.items || []).map(flattenEvent);
 }
 
-export async function createEvent(config, { calendarId, title, start, end, description, location, attendees } = {}, opts = {}) {
+/**
+ * Create an event. Because we act as the user now, two things that were
+ * impossible with a service account just work:
+ *   - attendees get a real invitation (`sendUpdates=all`)
+ *   - `meet: true` mints a Google Meet link (`conferenceData` + v1)
+ */
+export async function createEvent(
+  config,
+  { calendarId = "primary", title, start, end, description, location, attendees, meet = false } = {},
+  opts = {},
+) {
+  const hasAttendees = Array.isArray(attendees) && attendees.length > 0;
+  const body = {
+    summary: title,
+    description: description || undefined,
+    location: location || undefined,
+    start: { dateTime: start },
+    end: { dateTime: end },
+    ...(hasAttendees ? { attendees: attendees.map((email) => ({ email })) } : {}),
+    ...(meet
+      ? {
+          conferenceData: {
+            createRequest: {
+              requestId: crypto.randomUUID(),
+              conferenceSolutionKey: { type: "hangoutsMeet" },
+            },
+          },
+        }
+      : {}),
+  };
   const data = await call(config, `/calendars/${encodeURIComponent(calendarId)}/events`, {
     method: "POST",
-    body: {
-      summary: title,
-      description: description || undefined,
-      location: location || undefined,
-      start: { dateTime: start },
-      end: { dateTime: end },
-      ...(attendees?.length ? { attendees: attendees.map((email) => ({ email })) } : {}),
+    body,
+    query: {
+      ...(meet ? { conferenceDataVersion: 1 } : {}),
+      ...(hasAttendees ? { sendUpdates: "all" } : {}),
     },
     ...opts,
   });
   return flattenEvent(data);
 }
 
-export async function updateEvent(config, { calendarId, eventId, ...fields } = {}, opts = {}) {
+export async function updateEvent(config, { calendarId = "primary", eventId, ...fields } = {}, opts = {}) {
   const body = {};
   if (fields.title !== undefined) body.summary = fields.title;
   if (fields.description !== undefined) body.description = fields.description;
   if (fields.location !== undefined) body.location = fields.location;
   if (fields.start !== undefined) body.start = { dateTime: fields.start };
   if (fields.end !== undefined) body.end = { dateTime: fields.end };
+  const hasAttendees = Array.isArray(fields.attendees) && fields.attendees.length > 0;
+  if (fields.attendees !== undefined) body.attendees = (fields.attendees || []).map((email) => ({ email }));
   const data = await call(config, `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`, {
     method: "PATCH",
     body,
+    query: { ...(hasAttendees ? { sendUpdates: "all" } : {}) },
     ...opts,
   });
   return flattenEvent(data);
@@ -248,10 +180,9 @@ export async function updateEvent(config, { calendarId, eventId, ...fields } = {
 
 /**
  * The first gaps of at least `minutes` between timeMin and timeMax, from
- * Google's freeBusy view. Pure arithmetic once the busy blocks are in: the
- * model should never be asked to work out whether 11:20–11:50 fits an hour.
+ * Google's freeBusy view. Pure arithmetic once the busy blocks are in.
  */
-export async function findSlots(config, { calendarId, timeMin, timeMax, minutes = 30, limit = 5 } = {}, opts = {}) {
+export async function findSlots(config, { calendarId = "primary", timeMin, timeMax, minutes = 30, limit = 5 } = {}, opts = {}) {
   const token = await getAccessToken(config, opts);
   const fetchImpl = opts.fetchImpl || fetch;
   const res = await fetchImpl(`${API}/freeBusy`, {
@@ -297,127 +228,161 @@ export const calendarPlugin = {
   name: "Google Calendar",
   type: "calendar",
   description:
-    "Conectá tu Google Calendar con una service account para que los agentes lean tu agenda y agenden",
-  auth: "service_account",
+    "Conectá tu Google Calendar con OAuth para que los agentes lean tu agenda, agenden, inviten y armen Meet",
+  auth: "oauth",
   tools: [
     { slug: "calendar_list_events", desc: "Ver qué hay en la agenda" },
     { slug: "calendar_find_slot", desc: "Buscar huecos libres" },
-    { slug: "calendar_create_event", desc: "Agendar un evento" },
+    { slug: "calendar_create_event", desc: "Agendar un evento (con invitados y Meet)" },
     { slug: "calendar_update_event", desc: "Mover o editar un evento" },
   ],
   // Structure only — display text lives in web i18n (integrations.calendar.*).
   ui: {
     accent: "sky",
+    // Presence of `oauth` tells the web component to run the consent flow:
+    // save client_id/secret, then a "Conectar con Google" button. `redirectPath`
+    // is the URI the user registers in the console (shown in the UI).
+    oauth: { action: "authorize", redirectPath: "/api/integrations/oauth/callback" },
     configFields: [
       {
-        key: "key_file",
-        type: "path",
-        placeholder: "~/Downloads/mi-proyecto-a1b2c3.json",
-        help_url: "https://console.cloud.google.com/iam-admin/serviceaccounts",
+        key: "client_id",
+        type: "text",
+        placeholder: "123-abc.apps.googleusercontent.com",
+        help_url: "https://console.cloud.google.com/apis/credentials",
         help_url_label: "console.cloud.google.com",
       },
-      { key: "service_account_json", type: "password", placeholder: '{"type":"service_account",…}' },
-      { key: "write_access", type: "toggle", default: false },
+      { key: "client_secret", type: "password", placeholder: "GOCSPX-…" },
+      { key: "write_access", type: "toggle", default: true },
+      { key: "meet", type: "toggle", default: true },
     ],
-    select: { key: "calendar_id", action: "calendars", listKey: "calendars", valueKey: "id", labelKey: "summary" },
-    connectedFields: ["client_email", "calendar_name", "access_role"],
+    connectedFields: ["account_email", "calendar_name"],
   },
 
+  // Save the OAuth client + preferences. This never mints tokens — authorization
+  // happens in the browser (authorize action → callback → completeOAuth).
   configure(record, body = {}) {
     const prev = record?.config || {};
-    const keyFile = String(body.key_file ?? prev.key_file ?? "").trim();
-    const pasted = String(body.service_account_json ?? prev.service_account_json ?? "").trim();
-    const calendarId = String(body.calendar_id ?? prev.calendar_id ?? "").trim();
+    const clientId = String(body.client_id ?? prev.client_id ?? "").trim();
+    const clientSecret = String(body.client_secret ?? prev.client_secret ?? "").trim();
 
-    if (!keyFile && !pasted && !calendarId) {
-      throw new Error("Provide the service account key (a file path or the JSON itself)");
+    // A live connection flipping a preference (write/meet) shouldn't need the
+    // secret re-typed — merge over what's stored.
+    const config = {
+      ...(clientId ? { client_id: clientId } : {}),
+      ...(clientSecret ? { client_secret: clientSecret } : {}),
+      write_access: asBool(body.write_access, prev.write_access ?? true),
+      meet: asBool(body.meet, prev.meet ?? true),
+    };
+
+    if (!clientId && !prev.client_id) {
+      throw new Error("Cargá el client_id del OAuth client de Google.");
     }
 
-    const config = {
-      ...(keyFile ? { key_file: keyFile } : {}),
-      ...(pasted ? { service_account_json: pasted } : {}),
-      ...(calendarId ? { calendar_id: calendarId } : {}),
-      write_access: asBool(body.write_access, prev.write_access ?? false),
-    };
-
-    const patch = {
-      name: this.name,
-      type: this.type,
-      description: this.description,
-      config,
-    };
-    // A new key, or a different scope, is a connection nobody has verified yet.
-    if (keyFile || pasted || config.write_access !== prev.write_access) {
+    const patch = { name: this.name, type: this.type, description: this.description, config };
+    // A changed write scope needs a re-consent (the granted scope no longer
+    // matches). Everything else keeps the current connection.
+    if (config.write_access !== prev.write_access && prev.refresh_token) {
       patch.status = "pending_validation";
+      patch.config.needs_reauth = true;
     }
     return { patch };
   },
 
-  async validate(record) {
+  /**
+   * Build the Google consent URL. Called by the web panel (authorize action);
+   * `ctx.origin` is the browser origin, so the redirect URI matches what the
+   * user registered and what the callback reconstructs.
+   */
+  buildAuthorizeUrl(record, { origin, pid, scope } = {}) {
     const config = record?.config || {};
-    let key;
-    try {
-      key = readKey(config);
-    } catch (e) {
-      return {
-        patch: { status: "error", is_enabled: false, config: { last_error: String(e.message || e) } },
-        result: { ok: false, error: String(e.message || e) },
-      };
+    if (!config.client_id) throw new Error("Cargá primero el client_id.");
+    if (!origin) throw new Error("No pude determinar el origin del panel para el redirect.");
+    const redirectUri = callbackUrl(origin);
+    const state = signState({ slug: this.slug, pid: String(pid ?? ""), scope: scope || "project" });
+    const auth_url = buildAuthUrl({
+      clientId: config.client_id,
+      redirectUri,
+      scope: scopeFor(config),
+      state,
+    });
+    return { auth_url, redirect_uri: redirectUri };
+  },
+
+  /**
+   * Finish the OAuth dance: trade the code for a refresh token and activate.
+   * Called by the daemon's callback route. Returns a patch to persist.
+   */
+  async completeOAuth(record, { code, redirectUri } = {}) {
+    const config = record?.config || {};
+    if (!config.client_id || !config.client_secret) {
+      throw new Error("Falta el OAuth client guardado para completar la conexión.");
     }
-
-    let calendars;
-    try {
-      calendars = await listCalendars(config);
-    } catch (e) {
-      return {
-        patch: { status: "error", is_enabled: false, config: { last_error: String(e.message || e) } },
-        result: { ok: false, error: String(e.message || e) },
-      };
-    }
-
-    // A key that works but sees nothing means one specific thing, and saying it
-    // is the difference between a two-minute fix and an afternoon.
-    if (!calendars.length) {
-      const detail =
-        `The key works, but no calendar is shared with ${key.client_email}. ` +
-        `In Google Calendar → Settings → your calendar → "Share with specific people", add that address.`;
-      return {
-        patch: { status: "error", is_enabled: false, config: { client_email: key.client_email, last_error: detail } },
-        result: { ok: false, error: detail, client_email: key.client_email },
-      };
-    }
-
-    // Auto-select when there is nothing to choose between — same rule as Asana
-    // with a single workspace.
-    const chosen =
-      calendars.find((c) => c.id === config.calendar_id) ||
-      (calendars.length === 1 ? calendars[0] : null);
-
+    const tokens = await exchangeCode({
+      clientId: config.client_id,
+      clientSecret: config.client_secret,
+      code,
+      redirectUri,
+    });
     return {
       patch: {
         status: "active",
         is_enabled: true,
         config: {
-          client_email: key.client_email,
-          ...(chosen ? { calendar_id: chosen.id, calendar_name: chosen.summary, access_role: chosen.accessRole } : {}),
+          refresh_token: tokens.refresh_token,
+          account_email: tokens.email || config.account_email || null,
+          calendar_id: "primary",
+          calendar_name: tokens.email || "primary",
+          needs_reauth: false,
           last_error: null,
         },
       },
-      result: { ok: true, client_email: key.client_email, calendars, calendar_id: chosen?.id || null },
+    };
+  },
+
+  // Re-check a stored connection (used when flipping toggles once connected).
+  async validate(record) {
+    const config = record?.config || {};
+    if (!config.refresh_token) {
+      const detail = "Autorizá con Google en el panel para conectar el calendario.";
+      return {
+        patch: { status: "pending_validation", is_enabled: false, config: { last_error: detail } },
+        result: { ok: false, error: detail, needs_auth: true },
+      };
+    }
+    try {
+      // A cheap call that proves the refresh token still works.
+      await call(config, "/users/me/calendarList", { query: { maxResults: 1 } });
+    } catch (e) {
+      return {
+        patch: { status: "error", is_enabled: false, config: { last_error: String(e.message || e) } },
+        result: { ok: false, error: String(e.message || e) },
+      };
+    }
+    return {
+      patch: { status: "active", is_enabled: true, config: { calendar_id: "primary", needs_reauth: false, last_error: null } },
+      result: { ok: true, account_email: config.account_email || null },
     };
   },
 
   status(record) {
     const c = record?.config || {};
+    // No refresh token → not connected, whatever the stored status says. This
+    // also demotes a leftover service-account record from the old auth model so
+    // it can't masquerade as "active" after the OAuth migration.
+    const authorized = !!c.refresh_token;
+    let st = record?.status || "disconnected";
+    if (!authorized && st === "active") st = "disconnected";
     return {
       slug: this.slug,
-      status: record?.status || "disconnected",
-      is_enabled: !!record?.is_enabled,
-      client_email: c.client_email || null,
-      calendar_id: c.calendar_id || null,
-      calendar_name: c.calendar_name || null,
-      access_role: c.access_role || null,
+      status: st,
+      is_enabled: authorized && !!record?.is_enabled,
+      account_email: c.account_email || null,
+      calendar_id: c.calendar_id || (c.refresh_token ? "primary" : null),
+      calendar_name: c.calendar_name || (c.refresh_token ? c.account_email || "primary" : null),
       write_access: !!c.write_access,
+      meet: !!c.meet,
+      client_id_set: !!c.client_id,
+      needs_reauth: !!c.needs_reauth,
     };
   },
 
@@ -426,8 +391,13 @@ export const calendarPlugin = {
   },
 
   actions: {
-    async calendars(record) {
-      return { calendars: await listCalendars(record?.config || {}) };
+    // Kick off OAuth: the web panel opens the returned auth_url in a popup.
+    async authorize(record, ctx = {}) {
+      return calendarPlugin.buildAuthorizeUrl(record, {
+        origin: ctx.origin,
+        pid: ctx.project?.id ?? 0,
+        scope: ctx.scope,
+      });
     },
   },
 };

@@ -8,6 +8,7 @@ import { ReasoningBlock } from "./ReasoningBlock";
 import { AskQuestionsCard } from "./AskQuestionsCard";
 import { AskAnswersCard, parseAskAnswerText } from "./AskAnswersCard";
 import { AttachmentGroup, stripMediaMarker } from "./Attachment";
+import { MarkdownPreview } from "../files/MarkdownPreview";
 import { textOf, type ChatMsg } from "../../hooks/useChat";
 import { Tip } from "../ui/tip";
 import { t } from "../../i18n";
@@ -137,13 +138,27 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
                 // box can be, so any ancestor that sizes to content — a flex
                 // item, a grid cell — is laid out around the unbroken string
                 // and the overflow comes back.
-                "max-w-full whitespace-pre-wrap [overflow-wrap:anywhere] rounded-2xl px-3 py-2 text-sm leading-relaxed",
+                "max-w-full [overflow-wrap:anywhere] rounded-2xl px-3 py-2 text-sm leading-relaxed",
                 mine
-                  ? "rounded-br-sm bg-bubble-mine text-foreground"
+                  ? "whitespace-pre-wrap rounded-br-sm bg-bubble-mine text-foreground"
                   : "w-full rounded-bl-sm bg-surface-soft text-foreground",
               )}
             >
-              {textOfPart(part.text, media)}
+              {/* The agent writes markdown — **bold**, lists, `code`, links —
+                  so its turns render through the (dependency-free, no
+                  dangerouslySetInnerHTML) markdown component. The user's own
+                  bubble stays literal: they typed it, and reflowing their text
+                  as markdown would eat their asterisks and line breaks. The
+                  first/last child margins are zeroed so the block spacing does
+                  not double up with the bubble's own py-2. */}
+              {mine ? (
+                textOfPart(part.text, media)
+              ) : (
+                <MarkdownPreview
+                  content={textOfPart(part.text, media)}
+                  className="text-sm text-foreground [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
+                />
+              )}
             </div>
           ) : null,
         )}

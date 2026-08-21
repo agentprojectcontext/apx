@@ -2335,6 +2335,11 @@ export const es = {
     err_connect:         "Error al conectar",
     err_generic:         "Ocurrió un error",
     action_done:         "Listo",
+    copy:                "Copiar",
+    connect_oauth:       "Conectar con Google",
+    oauth_waiting:       "Esperando el consentimiento…",
+    oauth_redirect_hint: "Registrá esta URI en tu OAuth client de Google (Credenciales → tu client → \"URIs de redireccionamiento autorizados\"):",
+    oauth_reauth:        "Cambió el acceso: volvé a conectar con Google para aplicarlo.",
     asana: {
       select_label: "Seleccioná el workspace a usar",
       connected: { user_name: "Conectado como", user_email: "Email", workspace_name: "Workspace" },
@@ -2347,21 +2352,24 @@ export const es = {
       },
     },
     calendar: {
-      select_label: "Qu\u00e9 calendario usar",
-      connected: { client_email: "Service account", calendar_name: "Calendario", access_role: "Acceso" },
+      connected: { account_email: "Cuenta", calendar_name: "Calendario" },
       fields: {
-        key_file: {
-          label: "Key de la service account (archivo)",
-          help_label: "\u00bfC\u00f3mo consigo una?",
-          help_steps: "Abr\u00ed console.cloud.google.com y cre\u00e1 un proyecto (o eleg\u00ed uno).\nHabilit\u00e1 la Google Calendar API en ese proyecto.\nAnd\u00e1 a IAM y administraci\u00f3n \u2192 Cuentas de servicio \u2192 Crear cuenta de servicio. Cualquier nombre sirve.\nAbrila \u2192 Claves \u2192 Agregar clave \u2192 Crear clave nueva \u2192 JSON. Se descarga un archivo.\nCopi\u00e1 el mail de la cuenta de servicio (termina en .iam.gserviceaccount.com).\nEn Google Calendar \u2192 Configuraci\u00f3n \u2192 tu calendario \u2192 \"Compartir con determinadas personas\", agreg\u00e1 ese mail. S\u00f3lo lectura, o \"Realizar cambios en los eventos\" si quer\u00e9s que APX agende.\nApunt\u00e1 el campo de abajo al archivo descargado.",
+        client_id: {
+          label: "Client ID de OAuth",
+          help_label: "¿Cómo consigo el OAuth client?",
+          help_steps: "Abrí console.cloud.google.com y elegí (o creá) un proyecto.\nHabilitá la Google Calendar API en ese proyecto.\nAndá a APIs y servicios → Pantalla de consentimiento de OAuth → tipo Externo, y agregá tu mail como usuario de prueba.\nCredenciales → Crear credenciales → ID de cliente de OAuth → tipo \"App de escritorio\".\nCopiá el Client ID y el Client secret y pegalos abajo.\nEn \"URIs de redireccionamiento autorizados\" pegá la URI que se muestra acá arriba.",
         },
-        service_account_json: {
-          label: "\u2026o peg\u00e1 el JSON",
-          hint: "S\u00f3lo si preferís no dejar el archivo de key en disco. La ruta al archivo es la mejor opci\u00f3n.",
+        client_secret: {
+          label: "Client secret",
+          hint: "El secreto del mismo OAuth client. Se guarda en ~/.apx, nunca en el repo.",
         },
         write_access: {
           label: "Permitir escritura",
-          hint: "Apagado, APX s\u00f3lo lee tu agenda. Prendido, puede crear y mover eventos \u2014 y igual va a preguntar antes de cada uno.",
+          hint: "Apagado, APX sólo lee tu agenda. Prendido, puede crear y mover eventos, invitar gente y armar Meet — y igual va a preguntar antes de cada uno.",
+        },
+        meet: {
+          label: "Crear links de Meet",
+          hint: "Cuando agenda con invitados, suma un link de Google Meet al evento.",
         },
       },
     },

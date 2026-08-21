@@ -2334,6 +2334,11 @@ export const en = {
     err_connect:         "Failed to connect",
     err_generic:         "Something went wrong",
     action_done:         "Done",
+    copy:                "Copy",
+    connect_oauth:       "Connect with Google",
+    oauth_waiting:       "Waiting for consent…",
+    oauth_redirect_hint: "Register this URI in your Google OAuth client (Credentials → your client → \"Authorized redirect URIs\"):",
+    oauth_reauth:        "Access changed: reconnect with Google to apply it.",
     asana: {
       select_label: "Select the workspace to use",
       connected: { user_name: "Connected as", user_email: "Email", workspace_name: "Workspace" },
@@ -2346,21 +2351,24 @@ export const en = {
       },
     },
     calendar: {
-      select_label: "Which calendar to use",
-      connected: { client_email: "Service account", calendar_name: "Calendar", access_role: "Access" },
+      connected: { account_email: "Account", calendar_name: "Calendar" },
       fields: {
-        key_file: {
-          label: "Service account key (file)",
-          help_label: "How do I get one?",
-          help_steps: "Open console.cloud.google.com and create a project (or pick one).\nEnable the Google Calendar API for it.\nGo to IAM & Admin \u2192 Service Accounts \u2192 Create service account. Any name.\nOpen it \u2192 Keys \u2192 Add key \u2192 Create new key \u2192 JSON. It downloads a file.\nCopy the service account email (it ends in .iam.gserviceaccount.com).\nIn Google Calendar \u2192 Settings \u2192 your calendar \u2192 \"Share with specific people\", add that email. Read-only, or \"Make changes to events\" if you want APX to schedule.\nPoint the field below at the downloaded file.",
+        client_id: {
+          label: "OAuth Client ID",
+          help_label: "How do I get the OAuth client?",
+          help_steps: "Open console.cloud.google.com and pick (or create) a project.\nEnable the Google Calendar API in that project.\nGo to APIs & Services → OAuth consent screen → External, and add your email as a test user.\nCredentials → Create credentials → OAuth client ID → type \"Desktop app\".\nCopy the Client ID and Client secret and paste them below.\nUnder \"Authorized redirect URIs\", paste the URI shown above.",
         },
-        service_account_json: {
-          label: "\u2026or paste the JSON",
-          hint: "Only if you would rather not leave the key file on disk. The file path is the better option.",
+        client_secret: {
+          label: "Client secret",
+          hint: "The secret from the same OAuth client. Stored under ~/.apx, never in the repo.",
         },
         write_access: {
           label: "Allow writing",
-          hint: "Off, APX can only read your agenda. On, it can create and move events \u2014 and will still ask before each one.",
+          hint: "Off, APX only reads your agenda. On, it can create and move events, invite people and add Meet — and it still asks before each one.",
+        },
+        meet: {
+          label: "Create Meet links",
+          hint: "When scheduling with guests, add a Google Meet link to the event.",
         },
       },
     },

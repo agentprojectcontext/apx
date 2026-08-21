@@ -25,7 +25,36 @@ import {
   getPluginService,
   reconcilePluginMcp,
 } from "#core/integrations/index.js";
+import { verifyState, callbackUrl } from "#core/integrations/plugins/_google-oauth.js";
 import { asyncRoute } from "./shared.js";
+
+// The browser origin behind this request, reconstructed so an OAuth redirect URI
+// built at authorize-time matches the one the callback trades the code with.
+function requestOrigin(req) {
+  const proto = String(req.headers["x-forwarded-proto"] || (req.secure ? "https" : "http")).split(",")[0].trim();
+  const host = req.headers["x-forwarded-host"] || req.headers.host;
+  return `${proto}://${host}`;
+}
+
+// The little page the OAuth popup lands on: tells the opener panel it's done and
+// closes itself. Kept self-contained (no bundle) since it renders outside the SPA.
+function oauthResultPage(ok, message = "") {
+  const title = ok ? "Conectado ✓" : "No se pudo conectar";
+  const detail = ok ? "Ya podés cerrar esta ventana." : String(message || "Reintentá desde el panel.");
+  const safe = detail.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" })[c]);
+  return `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${title}</title>
+<body style="margin:0;font:15px/1.5 system-ui,sans-serif;background:#0b0f14;color:#e6edf3;display:grid;place-items:center;height:100vh">
+<div style="max-width:22rem;text-align:center;padding:1.5rem">
+  <div style="font-size:2rem;margin-bottom:.5rem">${ok ? "✅" : "⚠️"}</div>
+  <h1 style="font-size:1.05rem;margin:0 0 .35rem">${title}</h1>
+  <p style="margin:0;color:#9aa7b4">${safe}</p>
+</div>
+<script>
+  try { window.opener && window.opener.postMessage({ source: "apx-oauth", ok: ${ok ? "true" : "false"} }, "*"); } catch (e) {}
+  ${ok ? "setTimeout(function(){ try { window.close(); } catch (e) {} }, 1200);" : ""}
+</script>`;
+}
 
 // Integration scope vocabulary: project | global, accepting "default" for
 // global and both "shared" and "runtime" for project. See the note in
@@ -64,6 +93,37 @@ export function register(api, { projects, project, registries }) {
       /* best-effort MCP reconcile — ignore */
     }
   }
+
+  // OAuth redirect landing. Google sends the browser here (no bearer token — see
+  // the auth allowlist in shared.js), with a signed `state` that says which
+  // plugin/project/scope started the flow. We trade the code for a refresh token
+  // and persist it, then render a page that tells the panel it's done.
+  api.get("/integrations/oauth/callback", asyncRoute(async (req, res) => {
+    const fail = (msg) => res.status(400).type("html").send(oauthResultPage(false, msg));
+    const { code, state, error } = req.query || {};
+    if (error) return fail(`Google devolvió un error: ${error}`);
+    const decoded = verifyState(state);
+    if (!decoded || !code) return fail("El enlace de autorización venció o es inválido. Reintentá desde el panel.");
+    const svc = getPluginService(decoded.slug);
+    if (!svc || typeof svc.completeOAuth !== "function") return fail(`El plugin "${decoded.slug}" no soporta OAuth.`);
+    const scope = normalizeIntegrationScope(decoded.scope) || "project";
+    const p = projects.get(Number(decoded.pid) || 0);
+    if (!p) return fail("No encontré el proyecto para guardar la conexión.");
+    const storagePath = storagePathForScope(scope, p, projects);
+    if (!storagePath) return fail("El proyecto no tiene ruta de storage.");
+    const store = new IntegrationStore(storagePath);
+    const record = store.get(decoded.slug);
+    if (!record) return fail("La integración no está configurada (¿cargaste el client_id?).");
+    try {
+      const redirectUri = callbackUrl(requestOrigin(req));
+      const { patch } = await svc.completeOAuth(record, { code: String(code), redirectUri });
+      store.upsert(decoded.slug, patch);
+      reconcileMcp(svc, storagePath, scope, p);
+      res.type("html").send(oauthResultPage(true));
+    } catch (e) {
+      fail(e.message || String(e));
+    }
+  }));
 
   // List stored integrations in the chosen scope (secrets redacted).
   api.get("/projects/:pid/integrations", (req, res) => {
@@ -196,8 +256,9 @@ export function register(api, { projects, project, registries }) {
     if (!record) return res.status(404).json({ error: "integration not configured" });
     try {
       // Actions get a 2nd ctx arg (existing plugins ignore it). Obsidian's
-      // sync_memory uses it to reach every project's memory.md.
-      const actionCtx = { storagePath, scope, project: p, projects, registries };
+      // sync_memory uses it to reach every project's memory.md; calendar's
+      // authorize uses `origin` to build the OAuth redirect URI.
+      const actionCtx = { storagePath, scope, project: p, projects, registries, origin: requestOrigin(req) };
       res.json(await fn.call(svc.actions, record, actionCtx));
     } catch (e) {
       res.status(400).json({ error: e.message });

@@ -14,6 +14,8 @@ const SECRET_KEYS = new Set([
   "token",
   "api_key",
   "client_secret",
+  "refresh_token",
+  "access_token",
 ]);
 
 // Return a shallow copy of a record with secret config values masked, safe to
