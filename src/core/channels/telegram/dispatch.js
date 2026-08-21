@@ -31,6 +31,7 @@ import { handleIncomingAudio } from "./inbound/audio.js";
 import { handleIncomingFile, detectIncomingFile } from "./inbound/file.js";
 import { buildStreamHandler, runTelegramSuperAgent, telegramErrorText, sendFinalReply, runFollowupTurn } from "./reply.js";
 import { t, resolveLang } from "#core/i18n/index.js";
+import { isMobilitySilenceCommand, silenceMobilityToday } from "#core/mobility/preferences.js";
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 
@@ -93,6 +94,7 @@ export async function handleUpdate(self, u) {
     // Media handlers rewrite it further down; a resend is plain text, so the raw
     // field is enough here.
     let text = msg.text || msg.caption || "";
+    if (isMobilitySilenceCommand(text)) silenceMobilityToday();
 
     // Default Interrupt: a new message aborts the running turn for this chat —
     // "no, stop, do this instead". Except when the "new" message is the SAME
@@ -541,4 +543,3 @@ export async function handleUpdate(self, u) {
       self.log(`telegram[${self.channel.name}] reply turn crashed: ${e.message}`);
     });
   }
-

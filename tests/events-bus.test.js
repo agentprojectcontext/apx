@@ -60,6 +60,20 @@ test("a global write with no project stamp announces a null project", () => {
   assert.equal(seen[0].project_id, null);
 });
 
+test("a mobility delivery exposes only its bounded notification headline", () => {
+  resetEventBus();
+  const seen = capture(() => appendGlobalMessage({
+    channel: "telegram",
+    direction: "out",
+    type: "agent",
+    body: "full private body",
+    meta: { via: "mobility_delivery", notify: "Pasá por La Anónima" },
+  }));
+  assert.equal(seen[0].via, "mobility_delivery");
+  assert.equal(seen[0].notify, "Pasá por La Anónima");
+  assert.equal("body" in seen[0], false);
+});
+
 test("appendMessageToFs announces the project root, not an id core cannot know", () => {
   resetEventBus();
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-proj-"));

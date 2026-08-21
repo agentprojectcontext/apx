@@ -18,6 +18,8 @@ maneja mascota flotante, notificaciones del sistema y apertura de la app.
 2. Ejecutá `apx pair web` en la máquina del daemon.
 3. Ingresá URL del daemon y código mostrado dentro de APX Android.
 4. Otorgá permisos de notificaciones y **Mostrar sobre otras apps**.
+5. Si activás detección de viajes, otorgá acceso a notificaciones y ubicación
+   **solo mientras la app está en uso**.
 </Steps>
 
 La app recibe un token cliente propio `kind: android`. No reutiliza el token
@@ -38,6 +40,26 @@ app. Pairing web existente sigue válido; ambos clientes aparecen en
 - Opciones nativas permiten mutear/reactivar sonido sin desactivar mascota.
 - **Preferencias → Notificaciones** muestra permiso Android real. Tocarlo abre
   ajustes de notificaciones de APX en sistema.
+- Menú nativo permite activar **Detección de viajes APX**. Con acceso a
+  notificaciones otorgado, app detecta inicio y fin de navegación Google Maps
+  mediante metadatos de notificación. Durante viaje muestra barra nativa con
+  icono de auto, destino cuando Maps lo publica y acceso directo a Maps. Inicio
+  nuevo envía evento autenticado `trip.started` a `/api/mobility/events`, con
+  destino y última ubicación disponible como origen. No sube ruta, historial ni
+  contenido completo de notificaciones.
+- Daemon pide a Roby revisar tareas y compromisos pendientes usando herramientas
+  de solo lectura. Eventos de viaje configurados por usuario se procesan al
+  instante, fuera de rondas y presupuesto proactivo, y producen un único aviso
+  Telegram. Roby no afirma cercanía ni desvíos sin datos suficientes.
+- Con origen y destino disponibles, daemon geocodifica mediante Nominatim,
+  calcula ruta con Valhalla/OSRM y busca comercios OpenStreetMap dentro de 700 m.
+  Envía máximo tres coincidencias y enlaces Google Maps; cero coincidencias
+  verificadas producen silencio.
+- Aviso Telegram ofrece **Sí, voy ahora**, **No podré**, **Recordarme luego** y
+  **No avisar más hoy**. Recordar luego crea delivery pendiente para próxima
+  ronda. Cerrar Maps antes del envío cancela aviso pendiente.
+- Delivery de movilidad también genera card Android APX y sonido local cuando
+  sonido nativo está activo.
 
 <Aside type="note">
   Notificaciones en vivo requieren servicio foreground de mascota activo. El

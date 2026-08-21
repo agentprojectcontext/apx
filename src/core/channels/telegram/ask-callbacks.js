@@ -13,6 +13,8 @@ import { getRecentTelegramTurnsFromFs, appendGlobalMessage } from "#core/stores/
 import { CHANNELS } from "#core/constants/channels.js";
 import { SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
 import { applyNudgeCallback } from "#core/nudge/index.js";
+import { recordDelivery } from "#core/stores/deliveries.js";
+import { silenceMobilityToday } from "#core/mobility/preferences.js";
 
 /**
  * The label the user actually tapped, recovered from the keyboard attached to
@@ -50,6 +52,10 @@ export async function handleCallbackQuery(self, callbackQuery) {
   }
   if (data.startsWith("apx:nudge:")) {
     await handleNudgeCallback(self, callbackQuery);
+    return;
+  }
+  if (data.startsWith("apx:mobility:")) {
+    await handleMobilityCallback(self, callbackQuery);
     return;
   }
   const adapter = createTelegramConfirmAdapter({
@@ -92,6 +98,38 @@ export async function handleCallbackQuery(self, callbackQuery) {
       text,
     },
   });
+}
+
+export async function handleMobilityCallback(self, callbackQuery) {
+  const action = String(callbackQuery.data || "").split(":").pop();
+  const chatId = callbackQuery.message?.chat?.id;
+  let ack = "Listo.";
+  let response = "";
+  if (action === "later") {
+    const project = self.resolveProject();
+    const original = String(callbackQuery.message?.text || "recordatorio de viaje").slice(0, 500);
+    const id = project?.storagePath ? recordDelivery(project.storagePath, {
+      agent: "super_agent",
+      agentName: "Roby",
+      routine: "mobility-reminder",
+      notify: `Recordatorio pospuesto por usuario: ${original}`,
+      priority: false,
+      project_id: project.id,
+    }) : null;
+    ack = id ? "Lo guardé para próxima ronda." : "No pude guardar el recordatorio.";
+    response = ack;
+  } else if (action === "silence") {
+    silenceMobilityToday();
+    ack = "Sin avisos de viaje por hoy.";
+    response = ack;
+  } else if (action === "yes") {
+    ack = "Marcado: vas ahora.";
+  } else if (action === "no") {
+    ack = "Entendido: no vas ahora.";
+  }
+  await self._answerCallback({ callback_query_id: callbackQuery.id, text: ack });
+  await clearKeyboard(self, callbackQuery);
+  if (response && chatId) await self._send({ chat_id: chatId, text: response });
 }
 
 /** Best-effort: take the keyboard off a message whose buttons are now dead. */

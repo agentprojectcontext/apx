@@ -17,10 +17,14 @@
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { handleCallbackQuery, buttonLabelFor } from "#core/channels/telegram/ask-callbacks.js";
+import { listDeliveries, DELIVERY_STATUS } from "#core/stores/deliveries.js";
 
-function fakePoller() {
-  const calls = { answers: [], keyboards: [], updates: [], logs: [] };
+function fakePoller(storagePath = null) {
+  const calls = { answers: [], keyboards: [], updates: [], logs: [], sends: [] };
   return {
     calls,
     channel: { name: "default", bot_token: "test-token" },
@@ -29,9 +33,23 @@ function fakePoller() {
     async _answerCallback(a) { calls.answers.push(a); },
     async _editKeyboard(k) { calls.keyboards.push(k); },
     async _handleUpdate(u) { calls.updates.push(u); },
-    async _send() { return { message_id: 1 }; },
+    resolveProject() { return storagePath ? { id: "default", storagePath } : null; },
+    async _send(message) { calls.sends.push(message); return { message_id: 1 }; },
   };
 }
+
+test("mobility remind-later button enters the delivery queue", async () => {
+  const storagePath = fs.mkdtempSync(path.join(os.tmpdir(), "apx-mobility-delivery-"));
+  const self = fakePoller(storagePath);
+  const press = pressOf("apx:mobility:later");
+  press.message.text = "Pasá por La Anónima";
+  await handleCallbackQuery(self, press);
+  const rows = listDeliveries(storagePath, { status: DELIVERY_STATUS.PENDING });
+  assert.equal(rows.length, 1);
+  assert.match(rows[0].notify, /La Anónima/);
+  assert.equal(self.calls.keyboards.length, 1);
+  assert.match(self.calls.sends[0].text, /próxima ronda/i);
+});
 
 function pressOf(data, { label = "", chatId = 4242 } = {}) {
   return {

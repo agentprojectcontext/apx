@@ -18,6 +18,8 @@ while Android owns the floating mascot, system notifications, and app launch.
 2. Run `apx pair web` on the daemon machine.
 3. Enter the daemon URL and printed pairing code in APX Android.
 4. Grant notification and **Display over other apps** permissions when Android asks.
+5. If trip detection is enabled, grant notification access and location
+   **only while the app is in use**.
 </Steps>
 
 The app receives its own `kind: android` client token. It does not reuse the
@@ -40,6 +42,26 @@ storage. Existing web pairing remains valid; both clients appear in
 - Native options can mute/unmute message sounds without disabling the mascot.
 - **Preferences → Notifications** reports Android's real permission state. Tap
   it to open the app's system notification settings.
+- The native menu can enable **APX trip detection**. After notification-listener
+  access is granted, the app detects Google Maps navigation start and end from
+  notification metadata. During a trip it shows a native car banner, the
+  destination when Maps exposes it, and a shortcut back to Maps. A new trip
+  posts an authenticated `trip.started` event to `/api/mobility/events`, with
+  the destination and latest available location as the origin. It uploads no
+  route, location history, or complete notification content.
+- The daemon asks Roby to inspect pending tasks and commitments with read-only
+  tools. User-configured trip events run immediately outside proactive rounds
+  and interruption budgets, then produce one Telegram notice. Roby must not
+  claim proximity or a detour without enough data.
+- When origin and destination are available, the daemon geocodes with
+  Nominatim, computes the route with Valhalla/OSRM, and finds OpenStreetMap
+  shops within 700 m. It sends at most three matches and Google Maps links; a
+  verified route with no matches stays silent.
+- Telegram offers **Yes, now**, **I cannot**, **Remind me later**, and **No more
+  today**. Remind later records a pending delivery for a later round. Closing
+  Maps before delivery cancels the pending notice.
+- Mobility deliveries also create an APX Android card and play the local sound
+  when native message sounds are enabled.
 
 <Aside type="note">
   Live notifications require the mascot foreground service to remain enabled.
