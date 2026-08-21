@@ -2,8 +2,10 @@
 // role assignment. Used in both Settings → Telegram → Contactos and in the
 // APX admin screen — shared so they can't drift apart.
 
+import { useState } from "react";
 import { Section } from "../Section";
 import { Badge, Button, Empty, Loading } from "../ui";
+import { ConfirmDialog } from "../common/ConfirmDialog";
 import { UiSelect } from "../UiSelect";
 import { Tip } from "../ui/tip";
 import { useToast } from "../Toast";
@@ -20,6 +22,7 @@ interface Props {
 export function TelegramContactsPanel({ bare = false }: Props) {
   const toast = useToast();
   const { contacts, roles, channelOwners, isLoading, mutate } = useTelegramContacts();
+  const [confirm, setConfirm] = useState<TelegramContact | null>(null);
 
   const ownerIds = new Set(
     channelOwners.filter((o) => o.owner_user_id != null).map((o) => String(o.owner_user_id)),
@@ -35,7 +38,6 @@ export function TelegramContactsPanel({ bare = false }: Props) {
     } catch (e) { toast.error((e as Error).message); }
   };
   const remove = async (c: TelegramContact) => {
-    if (!confirm(t("telegram_contacts.delete_confirm", { name: c.name || String(c.user_id) }))) return;
     try { await Telegram.contacts.remove(c.user_id); toast.success(t("telegram_contacts.removed")); mutate(); }
     catch (e) { toast.error((e as Error).message); }
   };
@@ -69,7 +71,7 @@ export function TelegramContactsPanel({ bare = false }: Props) {
                         className="w-36"
                       />
                     </Tip>
-                    <Button size="sm" variant="destructive" onClick={() => remove(c)}>{t("common.delete")}</Button>
+                    <Button size="sm" variant="destructive" onClick={() => setConfirm(c)}>{t("common.delete")}</Button>
                   </div>
                 </div>
                 <div className="mt-1 grid grid-cols-3 gap-2 text-xs text-muted-fg">
@@ -82,6 +84,14 @@ export function TelegramContactsPanel({ bare = false }: Props) {
           })}
         </ul>
       )}
+      <ConfirmDialog
+        open={!!confirm}
+        onClose={() => setConfirm(null)}
+        onConfirm={() => { if (confirm) return remove(confirm); }}
+        title={t("telegram_contacts.delete_confirm", { name: confirm?.name || String(confirm?.user_id ?? "") })}
+        confirmLabel={t("common.delete")}
+        testId="telegram-contact-delete-confirm"
+      />
     </>
   );
 

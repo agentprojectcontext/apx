@@ -1,9 +1,10 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { Check, Pencil, RotateCcw, Trash2 } from "lucide-react";
 import { Tasks } from "../../lib/api";
 import type { GlobalTaskEntry } from "../../lib/api/tasks";
 import type { TaskEntry } from "../../types/daemon";
 import { RowMenu } from "../RowMenu";
+import { ConfirmDialog } from "../common/ConfirmDialog";
 import { DropdownMenuItem, DropdownMenuSeparator } from "../ui/dropdown-menu";
 import { useToast } from "../Toast";
 import { StatusIcon, effectiveStatus, statusTint } from "./taskStatus";
@@ -28,6 +29,8 @@ export function TaskList({
   onChanged,
   footer,
   className,
+  checkedIds,
+  onToggleCheck,
 }: {
   tasks: TaskEntry[];
   /** Resolves the owning project for a row (cross-project list carries its own). */
@@ -40,8 +43,14 @@ export function TaskList({
   footer?: ReactNode;
   /** Frame (width / borders) — the screen owns how the two panes sit. */
   className?: string;
+  /** Multi-select: ids ticked for a bulk action (the screen owns the set). */
+  checkedIds?: Set<string>;
+  onToggleCheck?: (task: TaskEntry) => void;
 }) {
   const toast = useToast();
+  // Row-menu verbs confirm through a dialog too — same rule as the detail pane.
+  const [confirm, setConfirm] = useState<{ kind: "done" | "drop"; task: TaskEntry } | null>(null);
+  const selecting = !!onToggleCheck && (checkedIds?.size ?? 0) > 0;
 
   const act = async (fn: () => Promise<unknown>, label: string) => {
     try {
@@ -66,22 +75,46 @@ export function TaskList({
           const due = task.due ? String(task.due).slice(0, 10) : null;
           const overdue = task.state === "open" && !!due && due < new Date().toISOString().slice(0, 10);
           const project = (task as GlobalTaskEntry).project_name;
+          const checked = checkedIds?.has(task.id) ?? false;
           return (
             <li
               key={`${taskPid}-${task.id}`}
               data-testid={`task-${task.id}`}
               className={cn(
-                "flex items-start gap-1 rounded-lg border transition-colors",
+                "group flex items-start gap-1 rounded-lg border transition-colors",
                 active
                   ? "border-primary/50 bg-primary/10"
                   : "border-transparent hover:border-border hover:bg-accent/40",
               )}
             >
+              {onToggleCheck && (
+                // Hidden until you hover or a selection is already running, so
+                // the list stays calm when you are just reading it.
+                <div className={cn(
+                  "shrink-0 self-stretch pl-2 pt-2.5 transition-opacity",
+                  selecting || checked ? "opacity-100" : "opacity-0 focus-within:opacity-100 group-hover:opacity-100",
+                )}>
+                  <button
+                    type="button"
+                    role="checkbox"
+                    aria-checked={checked}
+                    aria-label={t("tasks.select_row", { title: task.title })}
+                    data-testid={`task-check-${task.id}`}
+                    onClick={() => onToggleCheck(task)}
+                    className={cn(
+                      "flex size-4 items-center justify-center rounded border transition-colors",
+                      checked ? "border-primary bg-primary text-primary-foreground" : "border-border hover:border-primary",
+                    )}
+                  >
+                    {checked && <Check size={12} strokeWidth={3} />}
+                  </button>
+                </div>
+              )}
               <button
                 type="button"
                 onClick={() => onSelect(task.id)}
                 aria-current={active}
-                className="min-w-0 flex-1 px-2.5 py-2 text-left"
+                className={cn("min-w-0 flex-1 py-2 pr-2.5 text-left", onToggleCheck ? "pl-1.5" : "pl-2.5")}
               >
                 <div className="flex items-center gap-2">
                   <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-md", statusTint(eff))}>
@@ -109,7 +142,7 @@ export function TaskList({
                     <>
                       <DropdownMenuItem
                         data-testid={`task-done-${task.id}`}
-                        onClick={() => act(() => Tasks.done(taskPid, task.id), t("project.tasks.done"))}
+                        onClick={() => setConfirm({ kind: "done", task })}
                       >
                         <Check size={15} className={toneText.emerald} />
                         {t("tasks.mark_done")}
@@ -117,7 +150,7 @@ export function TaskList({
                       <DropdownMenuItem
                         variant="destructive"
                         data-testid={`task-drop-${task.id}`}
-                        onClick={() => act(() => Tasks.drop(taskPid, task.id), t("project.tasks.drop"))}
+                        onClick={() => setConfirm({ kind: "drop", task })}
                       >
                         <Trash2 size={15} />
                         {t("tasks.mark_dropped")}
@@ -139,6 +172,26 @@ export function TaskList({
         })}
       </ul>
       {footer ? <div className="shrink-0 border-t border-border px-3 py-2">{footer}</div> : null}
+
+      <ConfirmDialog
+        open={confirm?.kind === "done"}
+        onClose={() => setConfirm(null)}
+        onConfirm={() => { if (confirm) return act(() => Tasks.done(pid(confirm.task), confirm.task.id), t("project.tasks.done")); }}
+        destructive={false}
+        title={t("tasks.confirm_done_title")}
+        description={confirm ? t("tasks.confirm_done_desc", { title: confirm.task.title }) : ""}
+        confirmLabel={t("tasks.mark_done")}
+        testId="task-row-done-confirm"
+      />
+      <ConfirmDialog
+        open={confirm?.kind === "drop"}
+        onClose={() => setConfirm(null)}
+        onConfirm={() => { if (confirm) return act(() => Tasks.drop(pid(confirm.task), confirm.task.id), t("project.tasks.drop")); }}
+        title={t("tasks.confirm_drop_title")}
+        description={confirm ? t("tasks.confirm_drop_desc", { title: confirm.task.title }) : ""}
+        confirmLabel={t("tasks.mark_dropped")}
+        testId="task-row-drop-confirm"
+      />
     </aside>
   );
 }

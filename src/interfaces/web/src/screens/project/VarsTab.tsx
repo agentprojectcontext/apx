@@ -4,6 +4,7 @@ import { Eye, EyeOff, KeyRound, Pencil, Plus, Trash2 } from "lucide-react";
 import { Vars, type VarScope, type VarsList } from "../../lib/api";
 import { Section } from "../../components/Section";
 import { Badge, Button, Dialog, Empty, Field, Input, Loading, Switch } from "../../components/ui";
+import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import { UiSelect } from "../../components/UiSelect";
 import { useToast } from "../../components/Toast";
 import { t } from "../../i18n";
@@ -27,6 +28,7 @@ export function VarsTab({ pid }: { pid: string }) {
     () => Vars.list(pid, { reveal: revealAll }),
   );
   const [openCreate, setOpenCreate] = useState<{ name?: string; value?: string; scope?: VarScope } | null>(null);
+  const [confirm, setConfirm] = useState<{ name: string; scope: VarScope } | null>(null);
 
   const rows: Row[] = useMemo(() => {
     if (!list.data) return [];
@@ -45,8 +47,9 @@ export function VarsTab({ pid }: { pid: string }) {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [list.data, filter]);
 
-  const remove = async (name: string, scope: VarScope) => {
-    if (!confirm(t("project.vars.delete_confirm", { name, scope }))) return;
+  const doRemove = async () => {
+    if (!confirm) return;
+    const { name, scope } = confirm;
     try {
       await Vars.remove(pid, name, scope);
       toast.success(t("project.vars.removed"));
@@ -117,7 +120,7 @@ export function VarsTab({ pid }: { pid: string }) {
                   <Button
                     size="sm"
                     variant="destructive"
-                    onClick={() => remove(r.name, r.scope)}
+                    onClick={() => setConfirm({ name: r.name, scope: r.scope })}
                     aria-label={t("project.vars.delete_btn")}
                   >
                     <Trash2 size={13} />
@@ -139,6 +142,15 @@ export function VarsTab({ pid }: { pid: string }) {
           setOpenCreate(null);
           list.mutate();
         }}
+      />
+
+      <ConfirmDialog
+        open={!!confirm}
+        onClose={() => setConfirm(null)}
+        onConfirm={doRemove}
+        title={confirm ? t("project.vars.delete_confirm", { name: confirm.name, scope: confirm.scope }) : ""}
+        confirmLabel={t("common.delete")}
+        testId="vars-delete-confirm"
       />
     </Section>
   );

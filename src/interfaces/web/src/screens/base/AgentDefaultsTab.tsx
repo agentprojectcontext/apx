@@ -4,6 +4,7 @@ import { Bot, Crown, Plus, Sparkles, Trash2, Wrench, Pencil, RotateCcw } from "l
 import { Agents } from "../../lib/api";
 import { Section } from "../../components/Section";
 import { Badge, Button, Dialog, Empty, Field, Input, Loading, Switch, Textarea } from "../../components/ui";
+import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../components/ui/tooltip";
 import { useToast } from "../../components/Toast";
 import { t } from "../../i18n";
@@ -26,13 +27,12 @@ export function AgentDefaultsTab() {
   const items = (vault.data || []) as VaultAgent[];
 
   const [editing, setEditing] = useState<VaultAgent | "new" | null>(null);
+  const [confirm, setConfirm] = useState<VaultAgent | null>(null);
 
-  const remove = async (a: VaultAgent) => {
+  const doRemove = async () => {
+    if (!confirm) return;
+    const a = confirm;
     const tombstoning = a.source !== "user";
-    const msg = tombstoning
-      ? t("base.defaults_tombstone_msg", { slug: a.slug })
-      : t("base.defaults_delete_msg", { slug: a.slug });
-    if (!confirm(msg)) return;
     try {
       await Agents.vaultRemove(a.slug);
       toast.success(tombstoning ? t("base.defaults_hidden") : t("base.defaults_deleted"));
@@ -86,7 +86,7 @@ export function AgentDefaultsTab() {
                       <IconBtn label={t("base.defaults_edit")} onClick={() => setEditing(a)} variant="ghost"><Pencil size={13} /></IconBtn>
                       <IconBtn
                         label={a.source === "user" ? t("base.defaults_delete") : t("base.defaults_hide")}
-                        onClick={() => remove(a)}
+                        onClick={() => setConfirm(a)}
                         variant="ghost-destructive"
                       >
                         <Trash2 size={13} />
@@ -116,6 +116,21 @@ export function AgentDefaultsTab() {
           onSaved={() => { setEditing(null); vault.mutate(); }}
         />
       )}
+
+      <ConfirmDialog
+        open={!!confirm}
+        onClose={() => setConfirm(null)}
+        onConfirm={doRemove}
+        title={
+          confirm
+            ? confirm.source !== "user"
+              ? t("base.defaults_tombstone_msg", { slug: confirm.slug })
+              : t("base.defaults_delete_msg", { slug: confirm.slug })
+            : ""
+        }
+        confirmLabel={t("common.delete")}
+        testId="agent-defaults-delete-confirm"
+      />
     </Section>
   );
 }

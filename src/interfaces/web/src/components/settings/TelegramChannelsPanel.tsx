@@ -7,6 +7,7 @@ import { useState } from "react";
 import { Plus, Send } from "lucide-react";
 import { Section } from "../Section";
 import { Badge, Button, Empty, Loading } from "../ui";
+import { ConfirmDialog } from "../common/ConfirmDialog";
 import { useToast } from "../Toast";
 import { useTelegramChannels, useTelegramContacts } from "../../hooks/useTelegram";
 import { Telegram } from "../../lib/api";
@@ -23,13 +24,13 @@ export function TelegramChannelsPanel() {
 
   const [editing, setEditing] = useState<TelegramChannel | null>(null);
   const [sendTarget, setSendTarget] = useState<TelegramChannel | null>(null);
+  const [confirm, setConfirm] = useState<{ name: string } | null>(null);
 
   // user_id → display name, so we can show "owner: Manu" instead of just the id.
   const nameByUserId = new Map<string, string>();
   for (const c of contacts) nameByUserId.set(String(c.user_id), c.name || `@${c.username || c.user_id}`);
 
   const remove = async (name: string) => {
-    if (!confirm(t("telegram_channels.delete_confirm", { name }))) return;
     try { await Telegram.channels.remove(name); toast.success(t("telegram_channels.removed")); mutate(); }
     catch (e) { toast.error((e as Error).message); }
   };
@@ -61,7 +62,7 @@ export function TelegramChannelsPanel() {
                     <Send size={13} /> {t("admin.telegram_send_test")}
                   </Button>
                   <Button size="sm" variant="secondary" onClick={() => setEditing(c)}>{t("common.edit")}</Button>
-                  <Button size="sm" variant="destructive" onClick={() => remove(c.name)}>{t("common.delete")}</Button>
+                  <Button size="sm" variant="destructive" onClick={() => setConfirm({ name: c.name })}>{t("common.delete")}</Button>
                 </div>
               </div>
               <div className="mt-1 grid grid-cols-2 gap-2 text-xs text-muted-fg">
@@ -84,6 +85,14 @@ export function TelegramChannelsPanel() {
       <TelegramSendDialog
         channel={sendTarget}
         onClose={() => setSendTarget(null)}
+      />
+      <ConfirmDialog
+        open={!!confirm}
+        onClose={() => setConfirm(null)}
+        onConfirm={() => { if (confirm) return remove(confirm.name); }}
+        title={t("telegram_channels.delete_confirm", { name: confirm?.name ?? "" })}
+        confirmLabel={t("common.delete")}
+        testId="telegram-channel-delete-confirm"
       />
     </Section>
   );

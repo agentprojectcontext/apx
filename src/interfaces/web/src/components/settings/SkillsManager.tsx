@@ -10,6 +10,7 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
 } from "../ui/dropdown-menu";
 import { useToast } from "../Toast";
+import { ConfirmDialog } from "../common/ConfirmDialog";
 import { Skills, type SkillEntry } from "../../lib/api/skills";
 import { Projects } from "../../lib/api/projects";
 import { t } from "../../i18n";
@@ -157,6 +158,7 @@ export function SkillsManager({
   const [view, setView] = useState<"preview" | "source">("preview");
   const [createOpen, setCreateOpen] = useState(false);
   const [repoOpen, setRepoOpen] = useState(false);
+  const [confirm, setConfirm] = useState<{ slug: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const { data: projects } = useSWR(selectable ? "/api/projects" : null, () => Projects.list());
@@ -183,8 +185,9 @@ export function SkillsManager({
     finally { setBusy(false); }
   };
 
-  const remove = async (slug: string) => {
-    if (!window.confirm(t("skills_page.delete_confirm", { slug }))) return;
+  const doRemove = async () => {
+    if (!confirm) return;
+    const { slug } = confirm;
     setBusy(true);
     try {
       await Skills.remove(slug, projectPath);
@@ -326,7 +329,7 @@ export function SkillsManager({
                     {(detail.source === "global" || detail.source === "project") && (
                       <Tip content={t("skills_page.delete_btn")}>
                         <Button variant="ghost" size="sm" disabled={busy}
-                          onClick={() => remove(detail.slug)} aria-label={t("skills_page.delete_btn")}>
+                          onClick={() => setConfirm({ slug: detail.slug })} aria-label={t("skills_page.delete_btn")}>
                           <Trash2 size={14} />
                         </Button>
                       </Tip>
@@ -367,6 +370,15 @@ export function SkillsManager({
         onCreate={createSkill} />
       <RepoDialog open={repoOpen} onClose={() => setRepoOpen(false)}
         onImport={importRepo} />
+
+      <ConfirmDialog
+        open={!!confirm}
+        onClose={() => setConfirm(null)}
+        onConfirm={doRemove}
+        title={t("skills_page.delete_confirm", { slug: confirm?.slug ?? "" })}
+        confirmLabel={t("common.delete")}
+        testId="skill-delete-confirm"
+      />
     </div>
   );
 }

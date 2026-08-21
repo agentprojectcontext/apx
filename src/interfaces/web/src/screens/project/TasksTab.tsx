@@ -11,6 +11,9 @@ import { TaskList } from "../../components/tasks/TaskList";
 import { TaskDetail } from "../../components/tasks/TaskDetail";
 import { TASK_STATUS_ORDER, statusLabel } from "../../components/tasks/taskStatus";
 import { TaskFormDialog } from "../../components/tasks/TaskFormDialog";
+import { BulkActionBar } from "../../components/tasks/BulkActionBar";
+import { ConfirmDialog } from "../../components/common/ConfirmDialog";
+import { useToast } from "../../components/Toast";
 import { useProjects } from "../../hooks/useProjects";
 import { t } from "../../i18n";
 
@@ -38,6 +41,12 @@ export function TasksTab({ pid }: { pid?: string }) {
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<{ pid: string; task: TaskEntry } | null>(null);
   const { projects } = useProjects();
+  const toast = useToast();
+
+  // Multi-select. Keyed by task id but carries the resolved pid + task so a
+  // bulk verb still works after the page moves or across projects (global view).
+  const [checked, setChecked] = useState<Map<string, { pid: string; task: TaskEntry }>>(new Map());
+  const [bulk, setBulk] = useState<"done" | "drop" | null>(null);
 
   // dedupingInterval:0 so switching a filter always revalidates the target page
   // instead of showing the stale cached one from a prior switch.
@@ -61,6 +70,34 @@ export function TasksTab({ pid }: { pid?: string }) {
       if (id) next.set("task", id); else next.delete("task");
       return next;
     }, { replace: true });
+
+  const toggleCheck = (task: TaskEntry) =>
+    setChecked((prev) => {
+      const next = new Map(prev);
+      if (next.has(task.id)) next.delete(task.id);
+      else next.set(task.id, { pid: rowPid(task), task });
+      return next;
+    });
+  const clearChecked = () => setChecked(new Map());
+  const checkedIds = new Set(checked.keys());
+
+  // A filter switch changes what the ids even mean — drop the selection so a
+  // bulk verb can never hit a task you can no longer see.
+  useEffect(() => { setChecked(new Map()); }, [pid, state, effStatus]);
+
+  const runBulk = async (kind: "done" | "drop") => {
+    const entries = [...checked.values()];
+    if (entries.length === 0) return;
+    const results = await Promise.allSettled(
+      entries.map(({ pid: p, task }) => (kind === "done" ? Tasks.done(p, task.id) : Tasks.drop(p, task.id))),
+    );
+    const failed = results.filter((r) => r.status === "rejected").length;
+    const ok = entries.length - failed;
+    if (ok > 0) toast.success(t(kind === "done" ? "tasks.bulk_done_toast" : "tasks.bulk_drop_toast", { count: ok }));
+    if (failed > 0) toast.error(t("common.error_generic"));
+    clearChecked();
+    paged.mutate();
+  };
 
   // Keep the first task selected, and heal a stale ?task (filter switched, the
   // task closed, the page moved).
@@ -140,6 +177,8 @@ export function TasksTab({ pid }: { pid?: string }) {
             onSelect={select}
             onEdit={(task) => setEditing({ pid: rowPid(task), task })}
             onChanged={() => paged.mutate()}
+            checkedIds={checkedIds}
+            onToggleCheck={toggleCheck}
             footer={
               <Pager
                 page={paged.page}
@@ -177,6 +216,32 @@ export function TasksTab({ pid }: { pid?: string }) {
         projects={projects}
         editing={editing}
         onSaved={() => paged.mutate()}
+      />
+
+      <BulkActionBar
+        count={checked.size}
+        onDone={() => setBulk("done")}
+        onDrop={() => setBulk("drop")}
+        onClear={clearChecked}
+      />
+      <ConfirmDialog
+        open={bulk === "done"}
+        onClose={() => setBulk(null)}
+        onConfirm={() => runBulk("done")}
+        destructive={false}
+        title={t("tasks.confirm_bulk_done_title", { count: checked.size })}
+        description={t("tasks.confirm_bulk_done_desc", { count: checked.size })}
+        confirmLabel={t("tasks.bulk_done")}
+        testId="task-bulk-done-confirm"
+      />
+      <ConfirmDialog
+        open={bulk === "drop"}
+        onClose={() => setBulk(null)}
+        onConfirm={() => runBulk("drop")}
+        title={t("tasks.confirm_bulk_drop_title", { count: checked.size })}
+        description={t("tasks.confirm_bulk_drop_desc", { count: checked.size })}
+        confirmLabel={t("tasks.bulk_drop")}
+        testId="task-bulk-drop-confirm"
       />
     </Section>
   );

@@ -6,6 +6,7 @@ import { Tasks } from "../../lib/api";
 import { Badge, Button, Spinner, Tip } from "../ui";
 import { UiSelect } from "../UiSelect";
 import { ReadOnlyBlock } from "../ReadOnlyBlock";
+import { ConfirmDialog } from "../common/ConfirmDialog";
 import { useToast } from "../Toast";
 import { StatusIcon, StatusBadge, effectiveStatus, statusTint, TASK_STATUS_ORDER, statusLabel } from "./taskStatus";
 import { relativeWhen } from "../../lib/when";
@@ -40,6 +41,9 @@ export function TaskDetail({
     () => Tasks.get(pid, taskId),
   );
   const [busy, setBusy] = useState(false);
+  // Destructive / consequential verbs confirm through a dialog, never fire on
+  // the first click (project rule: no silent state changes on a button).
+  const [confirm, setConfirm] = useState<"done" | "drop" | null>(null);
 
   const act = async (fn: () => Promise<unknown>) => {
     setBusy(true);
@@ -75,11 +79,11 @@ export function TaskDetail({
             </Button>
             {isOpen ? (
               <>
-                <Button size="sm" variant="primary" loading={busy} onClick={() => act(() => Tasks.done(pid, task.id))}>
+                <Button size="sm" variant="primary" loading={busy} onClick={() => setConfirm("done")}>
                   <Check size={13} /> {t("tasks.mark_done")}
                 </Button>
                 <Tip content={t("tasks.mark_dropped")}>
-                  <Button size="sm" variant="destructive" loading={busy} aria-label={t("tasks.mark_dropped")} onClick={() => act(() => Tasks.drop(pid, task.id))}>
+                  <Button size="sm" variant="destructive" loading={busy} aria-label={t("tasks.mark_dropped")} data-testid="task-detail-drop" onClick={() => setConfirm("drop")}>
                     <Trash2 size={13} />
                   </Button>
                 </Tip>
@@ -147,6 +151,26 @@ export function TaskDetail({
           </button>
         )}
       </div>
+
+      <ConfirmDialog
+        open={confirm === "done"}
+        onClose={() => setConfirm(null)}
+        onConfirm={() => act(() => Tasks.done(pid, task.id))}
+        destructive={false}
+        title={t("tasks.confirm_done_title")}
+        description={t("tasks.confirm_done_desc", { title: task.title })}
+        confirmLabel={t("tasks.mark_done")}
+        testId="task-detail-done-confirm"
+      />
+      <ConfirmDialog
+        open={confirm === "drop"}
+        onClose={() => setConfirm(null)}
+        onConfirm={() => act(() => Tasks.drop(pid, task.id))}
+        title={t("tasks.confirm_drop_title")}
+        description={t("tasks.confirm_drop_desc", { title: task.title })}
+        confirmLabel={t("tasks.mark_dropped")}
+        testId="task-detail-drop-confirm"
+      />
     </div>
   );
 }

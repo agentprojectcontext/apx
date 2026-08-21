@@ -6,6 +6,7 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Section } from "../Section";
 import { Badge, Button, Empty, Field, Input, Loading, Switch } from "../ui";
+import { ConfirmDialog } from "../common/ConfirmDialog";
 import { useToast } from "../Toast";
 import { useTelegramContacts } from "../../hooks/useTelegram";
 import { Telegram } from "../../lib/api";
@@ -20,6 +21,7 @@ export function TelegramRolesPanel() {
   const [toolsRaw, setToolsRaw] = useState("");
   const [allTools, setAllTools] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [confirm, setConfirm] = useState<{ name: string } | null>(null);
 
   const submit = async () => {
     const n = name.trim();
@@ -37,7 +39,6 @@ export function TelegramRolesPanel() {
   };
 
   const remove = async (n: string) => {
-    if (!confirm(t("telegram_roles.delete_confirm", { name: n }))) return;
     try { await Telegram.roles.remove(n); toast.success(t("telegram_roles.removed")); mutate(); }
     catch (e) { toast.error((e as Error).message); }
   };
@@ -68,7 +69,7 @@ export function TelegramRolesPanel() {
                     {builtIn && <Badge tone="info">{t("telegram_roles.builtin")}</Badge>}
                   </div>
                   {!builtIn && (
-                    <Button size="sm" variant="destructive" onClick={() => remove(n)}>{t("telegram_roles.delete_btn")}</Button>
+                    <Button size="sm" variant="destructive" onClick={() => setConfirm({ name: n })}>{t("telegram_roles.delete_btn")}</Button>
                   )}
                 </div>
                 <div className="mt-1 text-xs text-muted-fg">{t("telegram_contacts.tools_label")} {toolsLabel}</div>
@@ -103,6 +104,15 @@ export function TelegramRolesPanel() {
           <Button variant="primary" loading={busy} onClick={submit}>{t("telegram_roles.save_btn")}</Button>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={!!confirm}
+        onClose={() => setConfirm(null)}
+        onConfirm={() => { if (confirm) return remove(confirm.name); }}
+        title={t("telegram_roles.delete_confirm", { name: confirm?.name ?? "" })}
+        confirmLabel={t("common.delete")}
+        testId="telegram-role-delete-confirm"
+      />
     </Section>
   );
 }

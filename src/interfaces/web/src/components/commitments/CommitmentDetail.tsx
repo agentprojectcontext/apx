@@ -3,6 +3,7 @@ import { Check, Pencil, Trash2, X } from "lucide-react";
 import { Commitments, type CommitmentEntry } from "../../lib/api/commitments";
 import { Badge, Button, Tip } from "../ui";
 import { ReadOnlyBlock } from "../ReadOnlyBlock";
+import { ConfirmDialog } from "../common/ConfirmDialog";
 import { useToast } from "../Toast";
 import { CommitmentIcon, CommitmentBadge, commitmentFace, commitmentTint, isOverdue } from "./commitmentState";
 import { relativeWhen } from "../../lib/when";
@@ -28,6 +29,8 @@ export function CommitmentDetail({
 }) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  // Consequential verbs confirm through a dialog — same rule as tasks.
+  const [confirm, setConfirm] = useState<"kept" | "missed" | "dropped" | null>(null);
   const face = commitmentFace(c);
   const due = c.due ? String(c.due).slice(0, 10) : null;
 
@@ -55,18 +58,18 @@ export function CommitmentDetail({
             </Button>
             {c.state === "open" && (
               <>
-                <Button size="sm" variant="primary" loading={busy} onClick={() => act(() => Commitments.kept(pid, c.id), t("project.commitments.mark_kept"))}>
+                <Button size="sm" variant="primary" loading={busy} onClick={() => setConfirm("kept")}>
                   <Check size={13} /> {t("project.commitments.mark_kept")}
                 </Button>
                 <Tip content={t("project.commitments.mark_missed")}>
-                  <Button size="sm" variant="secondary" loading={busy} aria-label={t("project.commitments.mark_missed")} onClick={() => act(() => Commitments.missed(pid, c.id), t("project.commitments.mark_missed"))}>
+                  <Button size="sm" variant="secondary" loading={busy} aria-label={t("project.commitments.mark_missed")} data-testid="commitment-detail-missed" onClick={() => setConfirm("missed")}>
                     <X size={13} />
                   </Button>
                 </Tip>
               </>
             )}
             <Tip content={t("project.commitments.mark_dropped")}>
-              <Button size="sm" variant="destructive" loading={busy} aria-label={t("project.commitments.mark_dropped")} onClick={() => act(() => Commitments.drop(pid, c.id), t("project.commitments.dropped_toast"))}>
+              <Button size="sm" variant="destructive" loading={busy} aria-label={t("project.commitments.mark_dropped")} data-testid="commitment-detail-drop" onClick={() => setConfirm("dropped")}>
                 <Trash2 size={13} />
               </Button>
             </Tip>
@@ -124,6 +127,36 @@ export function CommitmentDetail({
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirm === "kept"}
+        onClose={() => setConfirm(null)}
+        onConfirm={() => act(() => Commitments.kept(pid, c.id), t("project.commitments.mark_kept"))}
+        destructive={false}
+        title={t("project.commitments.confirm_kept_title")}
+        description={t("project.commitments.confirm_kept_desc", { who: c.counterparty })}
+        confirmLabel={t("project.commitments.mark_kept")}
+        testId="commitment-detail-kept-confirm"
+      />
+      <ConfirmDialog
+        open={confirm === "missed"}
+        onClose={() => setConfirm(null)}
+        onConfirm={() => act(() => Commitments.missed(pid, c.id), t("project.commitments.mark_missed"))}
+        destructive={false}
+        title={t("project.commitments.confirm_missed_title")}
+        description={t("project.commitments.confirm_missed_desc", { who: c.counterparty })}
+        confirmLabel={t("project.commitments.mark_missed")}
+        testId="commitment-detail-missed-confirm"
+      />
+      <ConfirmDialog
+        open={confirm === "dropped"}
+        onClose={() => setConfirm(null)}
+        onConfirm={() => act(() => Commitments.drop(pid, c.id), t("project.commitments.dropped_toast"))}
+        title={t("project.commitments.confirm_dropped_title")}
+        description={t("project.commitments.confirm_dropped_desc", { who: c.counterparty })}
+        confirmLabel={t("project.commitments.mark_dropped")}
+        testId="commitment-detail-drop-confirm"
+      />
     </div>
   );
 }

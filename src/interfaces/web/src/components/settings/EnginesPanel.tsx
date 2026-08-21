@@ -9,6 +9,7 @@ import { ProviderCard } from "./providers/ProviderCard";
 import { ProviderModal, type ProviderSaveResult } from "./providers/ProviderModal";
 import { ProviderTestDialog } from "./providers/ProviderTestDialog";
 import type { Provider } from "./providers/types";
+import { ConfirmDialog } from "../common/ConfirmDialog";
 import { t } from "../../i18n";
 
 const KNOWN_ENGINES = new Set(ENGINE_OPTIONS.map((o) => o.value));
@@ -38,6 +39,7 @@ export function EnginesPanel() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Provider | null>(null);
   const [testing, setTesting] = useState<Provider | null>(null);
+  const [confirm, setConfirm] = useState<Provider | null>(null);
 
   if (isLoading) return <Loading />;
 
@@ -89,10 +91,10 @@ export function EnginesPanel() {
     } catch (e) { toast.error((e as Error).message); }
   };
 
-  const remove = async (p: Provider) => {
-    if (!confirm(t("engines_panel.delete_confirm", { name: p.name || p.slug }))) return;
+  const doRemove = async () => {
+    if (!confirm) return;
     try {
-      await patch(undefined, [`engines.${p.slug}`]);
+      await patch(undefined, [`engines.${confirm.slug}`]);
       toast.success(t("engines_panel.deleted"));
       mutate();
     } catch (e) { toast.error((e as Error).message); }
@@ -109,7 +111,7 @@ export function EnginesPanel() {
       ) : (
         <div className="grid grid-cols-1 items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {providers.map((p) => (
-            <ProviderCard key={p.slug} provider={p} onEdit={() => openEdit(p)} onDelete={() => remove(p)} onToggle={() => toggle(p)} onTest={() => setTesting(p)} />
+            <ProviderCard key={p.slug} provider={p} onEdit={() => openEdit(p)} onDelete={() => setConfirm(p)} onToggle={() => toggle(p)} onTest={() => setTesting(p)} />
           ))}
           <button
             type="button"
@@ -130,6 +132,15 @@ export function EnginesPanel() {
         existingSlugs={slugs}
         onClose={() => { setModalOpen(false); setEditing(null); }}
         onSave={save}
+      />
+
+      <ConfirmDialog
+        open={!!confirm}
+        onClose={() => setConfirm(null)}
+        onConfirm={doRemove}
+        title={t("engines_panel.delete_confirm", { name: confirm?.name || confirm?.slug || "" })}
+        confirmLabel={t("common.delete")}
+        testId="engine-delete-confirm"
       />
     </Section>
   );
