@@ -45,6 +45,7 @@ import { register as registerConversations } from "./api/conversations.js";
 import { register as registerConnections } from "./api/connections.js";
 import { register as registerRuntimes } from "./api/runtimes.js";
 import { register as registerRoutines } from "./api/routines.js";
+import { register as registerDeliveries } from "./api/deliveries.js";
 import { register as registerArtifacts } from "./api/artifacts.js";
 import { register as registerArtifactPreview } from "./api/artifact-preview.js";
 import { register as registerTasks } from "./api/tasks.js";
@@ -72,6 +73,7 @@ import { register as registerNudges } from "./api/nudges.js";
 import { register as registerWeb, registerWebToken } from "./api/web.js";
 import { register as registerConfirm } from "./api/confirm.js";
 import { register as registerNet, corsBetweenOwnAddresses } from "./api/net.js";
+import { register as registerMobility } from "./api/mobility.js";
 
 export function buildApi({
   projects,
@@ -84,6 +86,7 @@ export function buildApi({
   config,
   token,
   tokenStore,
+  mobilityDispatch,
 }) {
   const telegram = plugins?.get("telegram");
   const app = express();
@@ -127,6 +130,7 @@ export function buildApi({
     resolveTopProject,
     token,
     tokenStore,
+    mobilityDispatch,
   };
 
   // ---- Tool routers — must mount BEFORE wildcard registry below ----
@@ -155,6 +159,7 @@ export function buildApi({
   registerConnections(api, ctx);
   registerRuntimes(api, ctx);
   registerRoutines(api, ctx);
+  registerDeliveries(api, ctx);
   registerArtifacts(api, ctx);
   registerArtifactPreview(api, ctx);
   registerTasks(api, ctx);
@@ -177,6 +182,7 @@ export function buildApi({
   registerVoice(api, ctx);
   registerDesktop(api, ctx);
   registerDeck(api, ctx);
+  registerMobility(api, ctx);
   registerPairing(api, ctx);
 
   // ---- Admin -------------------------------------------------------
