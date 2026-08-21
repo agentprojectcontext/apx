@@ -34,4 +34,70 @@ test.describe("agent inbox", () => {
     await page.getByTestId("nav-home").click();
     await expect(page.getByTestId("screen-admin")).toBeVisible();
   });
+
+  test("a2a conversations keep both participant avatars on desktop and mobile", async ({ page, errors }) => {
+    const a2aRow = {
+      project_id: 7,
+      project_name: "Northwind",
+      project_path: "/path/to/northwind",
+      agent_slug: "ada-grace",
+      agent_name: "Ada · Grace",
+      agent_emoji: null,
+      agent_icon: null,
+      kind: "a2a",
+      participants: ["ada", "grace"],
+      participant_faces: [
+        { name: "Ada", emoji: "🧭", icon: null },
+        { name: "Grace", emoji: "⚙️", icon: null },
+      ],
+      requested_by: null,
+      pinned: false,
+      conversation_id: "conversation-example",
+      channel: "a2a",
+      messages: 2,
+      preview: "Grace: Done.",
+      last_activity_at: new Date().toISOString(),
+    };
+    const teammateRow = {
+      ...a2aRow,
+      agent_slug: "linus",
+      agent_name: "Linus",
+      agent_emoji: "🐧",
+      kind: "agent",
+      participants: undefined,
+      participant_faces: undefined,
+      conversation_id: "conversation-teammate",
+      channel: "web",
+    };
+
+    await page.route(
+      (url) => url.pathname === "/api/inbox",
+      (route) => route.fulfill({ json: [a2aRow, teammateRow] }),
+    );
+
+    await page.goto("/m/inbox");
+    await expect(page.getByTestId("inbox-list")).toBeVisible();
+    await expect(page.getByTestId("a2a-avatar-group")).toHaveAttribute("data-participant-count", "2");
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/mobile");
+    await expect(page.getByTestId("a2a-avatar-group")).toHaveAttribute("data-participant-count", "2");
+    const avatarFitsViewport = await page
+      .getByTestId("inbox-row-ada-grace")
+      .getByTestId("inbox-avatar-viewport")
+      .evaluate((viewport) => {
+        const group = viewport.querySelector('[data-testid="a2a-avatar-group"]');
+        if (!group) return false;
+        const viewportBox = viewport.getBoundingClientRect();
+        const groupBox = group.getBoundingClientRect();
+        return groupBox.left >= viewportBox.left && groupBox.right <= viewportBox.right + 0.5;
+      });
+    expect(avatarFitsViewport).toBe(true);
+    await expect(page.getByTestId("inbox-row-ada-grace")).toContainText("Northwind");
+
+    await page.goto("/mobile/team/7");
+    await expect(page.getByTestId("inbox-row-ada-grace").getByTestId("a2a-avatar-group"))
+      .toHaveAttribute("data-participant-count", "2");
+    expect(errors).toEqual([]);
+  });
 });
