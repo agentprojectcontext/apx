@@ -227,7 +227,7 @@ export function register(api, { project, config }) {
   api.post("/projects/:pid/send", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    const { from, to, body, deliver = false, _depth = 0 } = req.body || {};
+    const { from, to, body, deliver = false, _depth = 0, requested_by = null } = req.body || {};
     if (!from || !to || !body)
       return res.status(400).json({ error: "from, to, body required" });
     if (_depth > 3)
@@ -262,7 +262,7 @@ export function register(api, { project, config }) {
       direction: "out",
       author: from,
       body,
-      meta: { to, depth: _depth },
+      meta: { to, depth: _depth, ...(requested_by ? { requested_by } : {}) },
       ts,
     });
     p.logMessage({
@@ -271,7 +271,7 @@ export function register(api, { project, config }) {
       direction: "in",
       author: from,
       body,
-      meta: { from, depth: _depth },
+      meta: { from, depth: _depth, ...(requested_by ? { requested_by } : {}) },
       ts,
     });
 

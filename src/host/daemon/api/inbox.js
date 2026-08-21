@@ -45,6 +45,7 @@ function a2aInboxRows(entries) {
         kind: "a2a",
         participants: th.participants,
         participant_faces: (th.participants || []).map((slug) => participantFace(agents, slug)),
+        ...(th.requested_by ? { requested_by: th.requested_by } : {}),
         pinned: false,
         conversation_id: th.id,
         channel: "a2a",

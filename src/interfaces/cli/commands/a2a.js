@@ -70,12 +70,19 @@ export async function cmdSend(args) {
   }
   if (!body) throw new Error("apx send: body is empty");
 
+  // --for <who>: this a2a is being sent on someone's behalf (an agent relaying a
+  // person's request). Surfaces as "a pedido de <who>" so the exchange connects
+  // back to who triggered it instead of floating detached.
+  const forFlag = args?.flags?.for;
+  const requested_by = forFlag && forFlag !== true ? String(forFlag) : null;
+
   const pid = await resolveSendTarget(to, args?.flags?.project);
   const result = await http.post(`/api/projects/${pid}/send`, {
     from,
     to,
     body,
     deliver: !!args.flags.deliver,
+    ...(requested_by ? { requested_by } : {}),
   });
   console.log(`✉  ${from} → ${to}  @ ${result.ts}`);
   console.log(`   ${body}`);

@@ -15,6 +15,8 @@ export interface InboxRow {
   participants?: string[];
   /** Resolved face per participant (blob/emoji/name) so the duo wears real avatars. */
   participant_faces?: { name?: string | null; emoji?: string | null; icon?: string | null }[];
+  /** For a2a spawned on someone's behalf: who asked for it ("a pedido de X"). */
+  requested_by?: string | null;
   pinned: boolean;
   conversation_id: string | null;
   channel: string | null;

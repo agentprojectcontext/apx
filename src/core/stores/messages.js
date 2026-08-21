@@ -449,11 +449,16 @@ export function listProjectA2AThreads(projectRoot) {
     const uniq = dedupA2A(g.msgs).sort((a, b) => (a.ts || "").localeCompare(b.ts || ""));
     if (!uniq.length) continue;
     const last = uniq[uniq.length - 1];
+    // Who asked for this exchange — set when an agent relays on a person's behalf
+    // (`apx send --for <who>`). Lets the UI show "a pedido de X" and connect a
+    // a2a the user triggered back to them, instead of it floating detached.
+    const requested_by = g.msgs.map((m) => m.meta?.requested_by).find(Boolean) || null;
     out.push({
       id,
       channel: "a2a",
       title: g.pair.join(" · "),
       participants: g.pair,
+      ...(requested_by ? { requested_by } : {}),
       messages: uniq.length,
       started_at: uniq[0].ts,
       last_ts: last.ts,
