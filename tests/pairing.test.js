@@ -17,7 +17,8 @@ import path from "node:path";
 
 // Point APX_HOME at a temp dir BEFORE importing anything that reads it.
 const TMP_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "apx-pairing-test-"));
-process.env.HOME = TMP_HOME; // config.js derives APX_HOME from os.homedir()
+process.env.HOME = TMP_HOME;
+process.env.APX_HOME = path.join(TMP_HOME, ".apx"); // isolate the apx home too — HOME alone is overridden by the runner's APX_HOME
 
 const { ProjectManager } = await import("#host/daemon/db.js");
 const { buildApi } = await import("#host/daemon/api.js");

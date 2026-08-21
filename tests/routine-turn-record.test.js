@@ -11,6 +11,7 @@ import path from "node:path";
 const TMP_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "apx-routine-turn-record-"));
 process.env.HOME = TMP_HOME;
 process.env.USERPROFILE = TMP_HOME;
+process.env.APX_HOME = path.join(TMP_HOME, ".apx"); // isolate the apx home too — HOME alone is overridden by the runner's APX_HOME
 
 const { test } = await import("node:test");
 const { default: assert } = await import("node:assert/strict");

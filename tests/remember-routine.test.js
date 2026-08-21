@@ -18,6 +18,7 @@ import path from "node:path";
 
 const TMP_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "apx-remroutine-"));
 process.env.HOME = TMP_HOME;
+process.env.APX_HOME = path.join(TMP_HOME, ".apx"); // isolate the apx home too — HOME alone is overridden by the runner's APX_HOME
 
 const rememberRoutine = (await import("#core/agent/tools/handlers/remember-routine.js")).default;
 const { readRoutineMemory, routineMemoryPath } = await import("#core/stores/routine-memory.js");

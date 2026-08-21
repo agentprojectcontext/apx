@@ -18,6 +18,7 @@ import path from "node:path";
 const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "apx-vault-import-"));
 process.env.HOME = tmpHome;
 process.env.USERPROFILE = tmpHome;
+process.env.APX_HOME = path.join(tmpHome, ".apx"); // isolate the apx home too — HOME alone is overridden by the runner's APX_HOME
 
 const {
   vaultAgentFile,

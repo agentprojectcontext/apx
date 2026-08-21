@@ -17,6 +17,7 @@ import express from "express";
 // passed or failed depending on whether Asana was live on the machine running it.
 const TMP_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "apx-api-integrations-home-"));
 process.env.HOME = TMP_HOME;
+process.env.APX_HOME = path.join(TMP_HOME, ".apx"); // isolate the apx home too — HOME alone is overridden by the runner's APX_HOME
 
 const { register } = await import("../src/host/daemon/api/integrations.js");
 

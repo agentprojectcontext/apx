@@ -14,6 +14,7 @@ import { apiRouter } from "./_helpers.js";
 
 const TMP_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "apx-notebook-api-"));
 process.env.HOME = TMP_HOME;
+process.env.APX_HOME = path.join(TMP_HOME, ".apx"); // isolate the apx home too — HOME alone is overridden by the runner's APX_HOME
 
 const { register } = await import("../src/host/daemon/api/self-memory.js");
 const { SELF_MEMORY_PATH, appendSelfMemory, readSelfMemory } = await import("#core/agent/self-memory.js");

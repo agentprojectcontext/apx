@@ -28,6 +28,7 @@ import { makeTempProject, cleanupTempProject } from "./_helpers.js";
 
 const TMP_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "apx-projmem-"));
 process.env.HOME = TMP_HOME;
+process.env.APX_HOME = path.join(TMP_HOME, ".apx"); // isolate the apx home too — HOME alone is overridden by the runner's APX_HOME
 
 const remember = (await import("#core/agent/tools/handlers/remember.js")).default;
 const { readProjectMemory, writeProjectMemory, projectMemoryPath } =

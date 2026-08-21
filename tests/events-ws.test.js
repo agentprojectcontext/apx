@@ -8,6 +8,7 @@ import path from "node:path";
 
 const HOME = fs.mkdtempSync(path.join(os.tmpdir(), "apx-events-ws-"));
 process.env.HOME = HOME;
+process.env.APX_HOME = path.join(HOME, ".apx"); // isolate the apx home too — HOME alone is overridden by the runner's APX_HOME
 
 const {
   eventsClients,
