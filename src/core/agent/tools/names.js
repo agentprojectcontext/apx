@@ -13,6 +13,9 @@ export const TOOLS = Object.freeze({
   LIST_AGENTS:         "list_agents",
   LIST_VAULT_AGENTS:   "list_vault_agents",
   IMPORT_AGENT:        "import_agent",
+  CREATE_AGENT:        "create_agent",
+  SET_AGENT_PROMPT:    "set_agent_prompt",
+  WRITE_AGENT_MEMORY:  "write_agent_memory",
   LIST_MCPS:           "list_mcps",
   LIST_MCP_TOOLS:      "list_mcp_tools",
 
@@ -115,6 +118,9 @@ export const NATIVE_TOOL_NAMES = new Set([
   TOOLS.LIST_AGENTS,
   TOOLS.LIST_VAULT_AGENTS,
   TOOLS.IMPORT_AGENT,
+  TOOLS.CREATE_AGENT,
+  TOOLS.SET_AGENT_PROMPT,
+  TOOLS.WRITE_AGENT_MEMORY,
   TOOLS.ADD_PROJECT,
   TOOLS.LIST_MCPS,
   TOOLS.LIST_MCP_TOOLS,
@@ -254,6 +260,9 @@ export const SIDE_EFFECT_TOOLS = new Set([
   TOOLS.RUN_SHELL,
   TOOLS.CALL_RUNTIME,
   TOOLS.ADD_PROJECT,
+  TOOLS.CREATE_AGENT,
+  TOOLS.SET_AGENT_PROMPT,
+  TOOLS.WRITE_AGENT_MEMORY,
   TOOLS.SET_IDENTITY,
 ]);
 
