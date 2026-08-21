@@ -15,6 +15,7 @@ test("Android branding uses the canonical APX logo for splash and launcher", () 
   const activity = read("java", "dev", "agentprojectcontext", "apx", "MainActivity.java");
   const splash = read("res", "values-v31", "styles.xml");
   const launcher = read("res", "mipmap-anydpi-v26", "ic_launcher.xml");
+  const notificationIcon = read("res", "drawable", "ic_apx_notification.xml");
 
   assert.deepEqual(bundledLogo, sourceLogo);
   assert.match(manifest, /android:icon="@mipmap\/ic_launcher"/);
@@ -22,4 +23,6 @@ test("Android branding uses the canonical APX logo for splash and launcher", () 
   assert.match(activity, /setImageResource\(R\.drawable\.apx_logo\)/);
   assert.match(splash, /android:windowSplashScreenAnimatedIcon/);
   assert.match(launcher, /@drawable\/ic_apx_launcher_foreground/);
+  assert.match(notificationIcon, /M23,12/);
+  assert.doesNotMatch(notificationIcon, /M12,2 L2,22/);
 });
