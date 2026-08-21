@@ -13,6 +13,7 @@ import { useTelegramStatus, useTelegramChannels } from "../hooks/useTelegram";
 import { TelegramChannelDialog } from "../components/TelegramChannelDialog";
 import { TelegramSendDialog } from "../components/TelegramSendDialog";
 import { TelegramContactsPanel } from "../components/settings/TelegramContactsPanel";
+import { ConfirmDialog } from "../components/common/ConfirmDialog";
 import { t } from "../i18n";
 import type { TelegramChannel } from "../types/daemon";
 
@@ -28,6 +29,12 @@ export function ApxAdminScreen() {
 
   const [editing, setEditing] = useState<TelegramChannel | null>(null);
   const [sendTarget, setSendTarget] = useState<TelegramChannel | null>(null);
+  // One state drives both destructive confirms (channel delete vs project unregister).
+  const [confirm, setConfirm] = useState<
+    | { kind: "channel"; name: string }
+    | { kind: "unregister"; id: string; label: string }
+    | null
+  >(null);
 
   const reload = async () => {
     try { await Admin.reload(); toast.success(t("admin.reload_success")); }
@@ -40,15 +47,15 @@ export function ApxAdminScreen() {
       mutateTgStatus();
     } catch (e) { toast.error((e as Error).message); }
   };
-  const removeChannel = async (name: string) => {
-    if (!confirm(t("telegram_channels.delete_confirm", { name }))) return;
-    try { await Telegram.channels.remove(name); toast.success(t("admin.telegram_channel_removed")); mutateChannels(); }
-    catch (e) { toast.error((e as Error).message); }
-  };
-  const removeProject = async (id: string, label: string) => {
-    if (!confirm(t("admin.unregister_confirm", { label }))) return;
-    try { await Projects.remove(id); toast.success(t("project.unregistered")); mutateProjects(); }
-    catch (e) { toast.error((e as Error).message); }
+  const doConfirm = async () => {
+    if (!confirm) return;
+    if (confirm.kind === "channel") {
+      try { await Telegram.channels.remove(confirm.name); toast.success(t("admin.telegram_channel_removed")); mutateChannels(); }
+      catch (e) { toast.error((e as Error).message); }
+    } else {
+      try { await Projects.remove(confirm.id); toast.success(t("project.unregistered")); mutateProjects(); }
+      catch (e) { toast.error((e as Error).message); }
+    }
   };
 
   return (
@@ -116,7 +123,7 @@ export function ApxAdminScreen() {
                     <Send size={13} /> {t("admin.telegram_send_test")}
                   </Button>
                   <Button size="sm" variant="secondary" onClick={() => setEditing(c)}>{t("common.edit")}</Button>
-                  <Button size="sm" variant="destructive" onClick={() => removeChannel(c.name)}>{t("common.delete")}</Button>
+                  <Button size="sm" variant="destructive" onClick={() => setConfirm({ kind: "channel", name: c.name })}>{t("common.delete")}</Button>
                 </div>
               </div>
               <div className="mt-1 grid grid-cols-3 gap-2 text-xs text-muted-fg">
@@ -147,7 +154,7 @@ export function ApxAdminScreen() {
               </button>
               <Badge>{(p.agents ?? 0)} {t("admin.agents_badge")}</Badge>
               {Number(p.id) !== 0 && (
-                <Button size="sm" variant="destructive" onClick={() => removeProject(String(p.id), p.name || p.path)}>
+                <Button size="sm" variant="destructive" onClick={() => setConfirm({ kind: "unregister", id: String(p.id), label: p.name || p.path })}>
                   {t("admin.unregister")}
                 </Button>
               )}
@@ -164,6 +171,21 @@ export function ApxAdminScreen() {
       <TelegramSendDialog
         channel={sendTarget}
         onClose={() => setSendTarget(null)}
+      />
+
+      <ConfirmDialog
+        open={!!confirm}
+        onClose={() => setConfirm(null)}
+        onConfirm={doConfirm}
+        title={
+          confirm?.kind === "channel"
+            ? t("telegram_channels.delete_confirm", { name: confirm.name })
+            : confirm?.kind === "unregister"
+              ? t("admin.unregister_confirm", { label: confirm.label })
+              : ""
+        }
+        confirmLabel={confirm?.kind === "unregister" ? t("admin.unregister") : t("common.delete")}
+        testId="admin-confirm"
       />
     </div>
   );

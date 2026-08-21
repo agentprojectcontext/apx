@@ -19,6 +19,7 @@ import { CodeFileTree } from "../../components/code/CodeFileTree";
 import { CodeFileViewer } from "../../components/code/CodeFileViewer";
 import { CodeTerminal } from "../../components/code/CodeTerminal";
 import { InlineAskPanel, pendingAskQuestions } from "../../components/chat/InlineAskPanel";
+import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import { useToast } from "../../components/Toast";
 import { t } from "../../i18n";
 import { applyStreamEvent, textOf, type ChatMsg } from "../../hooks/useChat";
@@ -64,6 +65,8 @@ export function CodeScreen() {
   const [termOpen, setTermOpen] = useState(false);
   const [termInitCmd, setTermInitCmd] = useState("");
   const [worktreeOpen, setWorktreeOpen] = useState(false);
+  // Session id pending delete confirmation.
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const deepLinkDone = useRef(false);
@@ -175,9 +178,14 @@ export function CodeScreen() {
     }
   };
 
-  const onDeleteSession = async (id: string) => {
+  const onDeleteSession = (id: string) => {
     if (busy) return;
-    if (!window.confirm(t("code_module.delete_confirm"))) return;
+    setConfirmDelete(id);
+  };
+
+  const doDeleteSession = async () => {
+    const id = confirmDelete;
+    if (!id) return;
     try {
       await Code.sessions.remove(pid, id);
       if (id === sid) {
@@ -679,6 +687,15 @@ export function CodeScreen() {
           )}
         </PanelGroup>
       )}
+
+      <ConfirmDialog
+        open={!!confirmDelete}
+        onClose={() => setConfirmDelete(null)}
+        onConfirm={doDeleteSession}
+        title={t("code_module.delete_confirm")}
+        confirmLabel={t("common.delete")}
+        testId="code-delete-session-confirm"
+      />
     </div>
   );
 }

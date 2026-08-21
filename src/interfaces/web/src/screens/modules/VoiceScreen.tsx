@@ -9,6 +9,7 @@ import { VoiceProviderModal, type VoiceProviderSave } from "../../components/voi
 import { VoiceTestCard } from "../../components/voice/VoiceTestCard";
 import { VoiceSttCard } from "../../components/voice/VoiceSttCard";
 import { Voice, type TranscriptionConfig, type TtsMode, type VoiceTtsConfig } from "../../lib/api/voice";
+import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import { t } from "../../i18n";
 
 // Voices module — configure TTS/STT providers, pick the default engine, and
@@ -29,6 +30,8 @@ export function VoiceScreen() {
   // "create custom provider" mode.
   const [editing, setEditing] = useState<string | null>(null);
   const [busyDefault, setBusyDefault] = useState(false);
+  // custom:<slug> engine id pending removal confirmation.
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
 
   // config.voice is typed as Record<string,unknown> and transcription isn't on
   // GlobalConfig (owned by another agent) — read both off a local view.
@@ -113,9 +116,14 @@ export function VoiceScreen() {
     toast.success(t("voice_ui.toast_config_saved"));
   };
 
-  const removeCustom = async (id: string) => {
+  const removeCustom = (id: string) => {
     if (!id.startsWith("custom:")) return;
-    if (!window.confirm(t("voice_ui.remove_confirm"))) return;
+    setConfirmRemove(id);
+  };
+
+  const doRemoveCustom = async () => {
+    const id = confirmRemove;
+    if (!id || !id.startsWith("custom:")) return;
     setBusyDefault(true);
     try {
       const slug = id.slice(7);
@@ -188,6 +196,15 @@ export function VoiceScreen() {
         config={editingConfig}
         onClose={() => setEditing(null)}
         onSave={saveProvider}
+      />
+
+      <ConfirmDialog
+        open={!!confirmRemove}
+        onClose={() => setConfirmRemove(null)}
+        onConfirm={doRemoveCustom}
+        title={t("voice_ui.remove_confirm")}
+        confirmLabel={t("common.remove")}
+        testId="voice-remove-provider-confirm"
       />
     </div>
   );

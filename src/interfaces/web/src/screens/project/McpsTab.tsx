@@ -9,6 +9,7 @@ import type { McpEntry } from "../../types/daemon";
 import { cn } from "../../lib/cn";
 import { Section } from "../../components/Section";
 import { Badge, Button, Dialog, Empty, Field, Input, Loading, Switch } from "../../components/ui";
+import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import { Tip } from "../../components/ui/tip";
 import { UiSelect } from "../../components/UiSelect";
 import { VarTokenInput } from "../../components/inputs/VarTokenInput";
@@ -81,14 +82,16 @@ export function McpsTab({ pid }: { pid: string }) {
   const [activeMcp, setActiveMcp] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, McpResult>>({});
   const [expandedTools, setExpandedTools] = useState<Record<string, boolean>>({});
+  const [confirm, setConfirm] = useState<{ name: string; scope: McpScope } | null>(null);
 
   const varNames = useMemo(
     () => (vars.data ? Object.keys(vars.data.effective).sort() : []),
     [vars.data],
   );
 
-  const remove = async (name: string, scope: McpScope) => {
-    if (!confirm(t("project.mcps.delete_confirm", { name, scope }))) return;
+  const doRemove = async () => {
+    if (!confirm) return;
+    const { name, scope } = confirm;
     try { await Mcps.remove(pid, name, scope); toast.success(t("project.mcps.removed")); list.mutate(); if (activeMcp === name) setActiveMcp(null); }
     catch (e: any) { toast.error(e?.message || t("common.error_generic")); }
   };
@@ -201,7 +204,7 @@ export function McpsTab({ pid }: { pid: string }) {
                           </Tip>
                         )}
                         {writable && (
-                          <Button size="sm" variant="destructive" onClick={(e) => { e.stopPropagation(); remove(m.name, scopeForRemove); }}>
+                          <Button size="sm" variant="destructive" onClick={(e) => { e.stopPropagation(); setConfirm({ name: m.name, scope: scopeForRemove }); }}>
                             <Trash2 size={13} />
                           </Button>
                         )}
@@ -262,6 +265,15 @@ export function McpsTab({ pid }: { pid: string }) {
       <div className="lg:col-span-1">
         <LogsPanel pid={pid} mcpName={activeMcp} runningTest={!!(activeMcp && results[activeMcp]?.busy)} />
       </div>
+
+      <ConfirmDialog
+        open={!!confirm}
+        onClose={() => setConfirm(null)}
+        onConfirm={doRemove}
+        title={confirm ? t("project.mcps.delete_confirm", { name: confirm.name, scope: confirm.scope }) : ""}
+        confirmLabel={t("common.delete")}
+        testId="mcps-delete-confirm"
+      />
     </div>
   );
 }

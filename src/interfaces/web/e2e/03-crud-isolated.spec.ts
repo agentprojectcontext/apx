@@ -24,10 +24,15 @@ test.describe("isolated CRUD", () => {
     await expect(row).toBeVisible();
 
     // Lifecycle verbs live behind the row's ⋯ menu; the items are portaled, so
-    // they are located on the page, not inside the row.
+    // they are located on the page, not inside the row. The consequential verbs
+    // (done/drop) now confirm through a dialog — reopen is a safe recovery and
+    // fires straight away.
     const rowAction = async (row: ReturnType<typeof list.locator>, action: string) => {
       await row.locator('[data-testid^="task-menu-"]').click();
       await page.locator(`[data-testid^="task-${action}-"]`).click();
+      if (action === "done" || action === "drop") {
+        await page.getByTestId(`task-row-${action}-confirm`).click();
+      }
     };
 
     // done → leaves the open list, shows under "done"

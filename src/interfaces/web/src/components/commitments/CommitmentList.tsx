@@ -1,7 +1,8 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { Check, Pencil, Trash2, X } from "lucide-react";
 import { Commitments, type CommitmentEntry } from "../../lib/api/commitments";
 import { RowMenu } from "../RowMenu";
+import { ConfirmDialog } from "../common/ConfirmDialog";
 import { DropdownMenuItem, DropdownMenuSeparator } from "../ui/dropdown-menu";
 import { useToast } from "../Toast";
 import { CommitmentIcon, commitmentFace, commitmentTint, isOverdue } from "./commitmentState";
@@ -38,6 +39,8 @@ export function CommitmentList({
   className?: string;
 }) {
   const toast = useToast();
+  // Row-menu verbs confirm through a dialog too — same rule as the detail pane.
+  const [confirm, setConfirm] = useState<{ kind: "kept" | "missed" | "dropped"; c: CommitmentEntry } | null>(null);
 
   const act = async (fn: () => Promise<unknown>, label: string) => {
     try {
@@ -103,14 +106,14 @@ export function CommitmentList({
                     <>
                       <DropdownMenuItem
                         data-testid={`commitment-kept-${c.id}`}
-                        onClick={() => act(() => Commitments.kept(cPid, c.id), t("project.commitments.mark_kept"))}
+                        onClick={() => setConfirm({ kind: "kept", c })}
                       >
                         <Check size={15} className={toneText.emerald} />
                         {t("project.commitments.mark_kept")}
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         data-testid={`commitment-missed-${c.id}`}
-                        onClick={() => act(() => Commitments.missed(cPid, c.id), t("project.commitments.mark_missed"))}
+                        onClick={() => setConfirm({ kind: "missed", c })}
                       >
                         <X size={15} className={toneText.red} />
                         {t("project.commitments.mark_missed")}
@@ -123,7 +126,7 @@ export function CommitmentList({
                   <DropdownMenuItem
                     variant="destructive"
                     data-testid={`commitment-drop-${c.id}`}
-                    onClick={() => act(() => Commitments.drop(cPid, c.id), t("project.commitments.dropped_toast"))}
+                    onClick={() => setConfirm({ kind: "dropped", c })}
                   >
                     <Trash2 size={15} />
                     {t("project.commitments.mark_dropped")}
@@ -135,6 +138,36 @@ export function CommitmentList({
         })}
       </ul>
       {footer ? <div className="shrink-0 border-t border-border px-3 py-2">{footer}</div> : null}
+
+      <ConfirmDialog
+        open={confirm?.kind === "kept"}
+        onClose={() => setConfirm(null)}
+        onConfirm={() => { if (confirm) return act(() => Commitments.kept(pid(confirm.c), confirm.c.id), t("project.commitments.mark_kept")); }}
+        destructive={false}
+        title={t("project.commitments.confirm_kept_title")}
+        description={confirm ? t("project.commitments.confirm_kept_desc", { who: confirm.c.counterparty }) : ""}
+        confirmLabel={t("project.commitments.mark_kept")}
+        testId="commitment-row-kept-confirm"
+      />
+      <ConfirmDialog
+        open={confirm?.kind === "missed"}
+        onClose={() => setConfirm(null)}
+        onConfirm={() => { if (confirm) return act(() => Commitments.missed(pid(confirm.c), confirm.c.id), t("project.commitments.mark_missed")); }}
+        destructive={false}
+        title={t("project.commitments.confirm_missed_title")}
+        description={confirm ? t("project.commitments.confirm_missed_desc", { who: confirm.c.counterparty }) : ""}
+        confirmLabel={t("project.commitments.mark_missed")}
+        testId="commitment-row-missed-confirm"
+      />
+      <ConfirmDialog
+        open={confirm?.kind === "dropped"}
+        onClose={() => setConfirm(null)}
+        onConfirm={() => { if (confirm) return act(() => Commitments.drop(pid(confirm.c), confirm.c.id), t("project.commitments.dropped_toast")); }}
+        title={t("project.commitments.confirm_dropped_title")}
+        description={confirm ? t("project.commitments.confirm_dropped_desc", { who: confirm.c.counterparty }) : ""}
+        confirmLabel={t("project.commitments.mark_dropped")}
+        testId="commitment-row-drop-confirm"
+      />
     </aside>
   );
 }

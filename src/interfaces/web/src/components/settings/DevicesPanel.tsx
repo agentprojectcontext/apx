@@ -8,6 +8,7 @@ import { Pair, getToken, setToken } from "../../lib/api";
 import { STORAGE } from "../../constants";
 import { PairDeviceDialog } from "./PairDeviceDialog";
 import { AccessPanel } from "./AccessPanel";
+import { ConfirmDialog } from "../common/ConfirmDialog";
 import { t } from "../../i18n";
 
 export function DevicesPanel() {
@@ -15,11 +16,12 @@ export function DevicesPanel() {
   const { clients, isLoading, mutate } = useDevices();
   const [pairOpen, setPairOpen] = useState(false);
   const [draftToken, setDraftToken] = useState("");
+  const [confirm, setConfirm] = useState<{ id: string } | null>(null);
 
-  const revoke = async (id: string) => {
-    if (!confirm(t("settings.devices_revoke_confirm", { id }))) return;
+  const doRevoke = async () => {
+    if (!confirm) return;
     try {
-      await Pair.revoke(id);
+      await Pair.revoke(confirm.id);
       toast.success(t("settings.devices_revoke_success"));
       mutate();
     } catch (e) {
@@ -62,7 +64,7 @@ export function DevicesPanel() {
                 <span className="ml-auto text-xs text-muted-fg">
                   {t("settings.devices_last_seen")} {c.last_seen ? new Date(c.last_seen).toLocaleString() : t("settings.devices_never")}
                 </span>
-                <Button size="sm" variant="destructive" onClick={() => revoke(c.id)}>{t("settings.devices_revoke")}</Button>
+                <Button size="sm" variant="destructive" onClick={() => setConfirm({ id: c.id })}>{t("settings.devices_revoke")}</Button>
               </li>
             ))}
           </ul>
@@ -88,6 +90,15 @@ export function DevicesPanel() {
           <Button variant="primary" onClick={saveToken}>{t("common.save")}</Button>
         </div>
       </Section>
+
+      <ConfirmDialog
+        open={!!confirm}
+        onClose={() => setConfirm(null)}
+        onConfirm={doRevoke}
+        title={t("settings.devices_revoke_confirm", { id: confirm?.id ?? "" })}
+        confirmLabel={t("settings.devices_revoke")}
+        testId="device-revoke-confirm"
+      />
     </div>
   );
 }
