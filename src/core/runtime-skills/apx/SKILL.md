@@ -1,6 +1,6 @@
 ---
 name: apx
-description: "APX CLI umbrella — routes operations to sub-skills (sessions, MCPs, routines, tasks, telegram, projects, agents, runtimes). Activate on `apx`, the APX daemon, or coordinating/running/delegating agents. Not for `.apc/` alone (use apc-context). Triggers: 'apx', 'apx run', 'apx daemon', 'coordinate agents'."
+description: "APX CLI umbrella — routes operations to sub-skills (sessions, MCPs, routines, tasks, commitments, telegram, projects, agents, agent vault, profiles, runtimes). Activate on `apx`, the APX daemon, or coordinating/running/delegating agents. Not for `.apc/` alone (use apc-context). Triggers: 'apx', 'apx run', 'apx daemon', 'coordinate agents'."
 homepage: https://github.com/agentprojectcontext/apx
 ---
 
@@ -22,9 +22,13 @@ If you can spawn a subagent natively in the current IDE (Claude Code, Cursor, �
 | Delegate to external coding CLI | **apx-runtime** | `apx run <agent> --runtime claude-code\|codex\|...` |
 | List/read/resume/summarise/continue sessions | **apx-sessions** | `apx session resume`, `apx sessions list`, "import a codex session" |
 | Use a registered MCP tool | **apx-mcp** | `apx mcp tools`, `apx mcp run`, "call MCP filesystem", "MCP failing" |
+| Connect/diagnose a service connector | **apx-integrations** | Asana/Calendar/GitHub/Obsidian, "not connected", "read-only calendar", Plugins tab |
 | Add/configure/use a project agent | **apx-agent** | "add an agent", vault import, per-agent model, agent memory |
+| Reusable agent templates (vault) | **apx-agency-agents** | "spawn Cody/Rocky/Tessa", "list agents", import a bundled default |
+| Install/activate an agent profile (line of work) | **apx-profile** | "install the secretary", "go back to vanilla", "why does it message me" |
 | Register/list/configure a project | **apx-project** | "register this project", `apx project list`, per-project config |
 | Per-project TODO list | **apx-task** | "add a task", "remind me to…", "what's pending" |
+| Promises made to a named person | **apx-commitment** | "I told X I would…", "le dije a X que…", "what do I owe X" |
 | Scheduled/recurring agents | **apx-routine** | `apx routine add`, every-5m, cron-like jobs |
 | Telegram I/O | **apx-telegram** | configure bot, channels, send a message |
 | Voice channel (TTS, speech) — *optional* | **apx-voice** | only if voice is being set up |

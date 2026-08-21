@@ -110,7 +110,7 @@ is_master: false
 | `description` | Shown in `/api/agents/vault` and AgentDefaultsTab cards. |
 | `language` | Adds "Default language: <code>" to system prompt. |
 | `skills` | Per-agent skill names; bodies loaded by skill resolution. |
-| `tools` | Allowlist of callable tools for `exec_agent`. Catalog names (`glob`, `memory_get`, `run_command`) map to native handlers. Empty → safe default (read/search/memory). Not the super-agent registry. |
+| `tools` | Allowlist that *narrows* the agent's callable tools. Catalog names (`glob`, `memory_get`, `run_command`) map to native handlers. **Empty → broad default: the whole registry minus a few host-only tools** (`set_identity`, `set_permission_mode`, `add_project`, `import_agent`). Declaring the field takes tools away, so list everything the agent needs. |
 | `is_master` | If true, marked master in project (badge + ordering). |
 
 ## Related skills

@@ -1,6 +1,6 @@
 ---
 name: apx-sessions
-description: "Cross-engine session ops (apx, claude, codex, antigravity): find by title, list, get transcript, summarize, ask, resume, continue. Triggers: 'apx session find/ask/summary/resume/get', 'find/resume/summarize session', 'get session transcript', 'continue session in apx'. Not for `apx run` orchestration (use apx skill)."
+description: "Cross-engine session ops (apx, claude, codex, opencode, antigravity): find by title, list, get transcript, summarize, ask, resume, continue. Triggers: 'apx session find/ask/summary/resume/get', 'find/resume/summarize session', 'get session transcript', 'continue session in apx'. Not for `apx run` orchestration (use apx skill)."
 ---
 
 # APX Sessions — cross-engine resume, summary, continuation
@@ -14,6 +14,7 @@ Storage locations APX scans:
 | apx       | `~/.apx/projects/<apx_id>/agents/<slug>/sessions/*.md`    |
 | claude    | `~/.claude/projects/<encoded-cwd>/<id>.jsonl`             |
 | codex     | `~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl`            |
+| opencode  | `~/.local/share/opencode` (also `~/.config/opencode`) — listed via the `opencode` CLI (`session list` / `export`) |
 | antigravity | detected only — listing not implemented yet              |
 
 Uninstalled engines are skipped silently. Detected-but-empty engines print `(sin nada)`.
@@ -88,7 +89,7 @@ Per engine: `DATE | SESSION ID | TITLE` newest first, plus the native-CLI resume
 
 ## Resuming by id (`apx session resume <id>`)
 
-1. Searches every engine (apx → claude → codex).
+1. Searches every engine (apx → claude → codex → opencode).
 2. **One match** → prints metadata (engine, path, cwd, title).
 3. **Zero matches** → non-zero exit with `session "<id>" not found in any detected engine`.
 4. **Multiple matches** → prints all, exit 2, asks for `--engine <id>`.
@@ -97,7 +98,7 @@ Flags:
 
 | Flag | Effect |
 |------|--------|
-| `--engine <apx\|claude\|codex>` | Skip auto-detection. |
+| `--engine <apx\|claude\|codex\|opencode>` | Skip auto-detection. |
 | `--tail N[k\|m]` | Print last N bytes (e.g. `--tail 32k`). No daemon. |
 | `--full` / `--body` | Dump entire transcript. No daemon. |
 | `--summary` | Tail → super-agent → 4-bullet summary. **Daemon + `super_agent.enabled`.** |
@@ -185,7 +186,7 @@ $ apx session resume abc123
 ⚠️  session id "abc123" exists in multiple engines:
   - claude  /Users/.../-Volumes-work-repo/abc123.jsonl  (cwd: /Volumes/work/repo)
   - codex   /Users/.../sessions/2026/05/27/rollout-...-abc123.jsonl  (cwd: /Volumes/work/repo)
-→ re-run with --engine <id> to pick one (apx | claude | codex)
+→ re-run with --engine <id> to pick one (apx | claude | codex | opencode)
 ```
 
 Pick one with `--engine claude` or `--engine codex`.

@@ -110,7 +110,7 @@ apx memory <slug> --replace < file.md      # full replace from stdin
 
 ## Agent system prompt composition
 
-`buildAgentSystem()` (`src/core/agent-system.js`) composes:
+`buildAgentSystem()` (`src/core/agent/build-agent-system.js`) composes:
 
 1. Identity: `You are <slug>` + project name.
 2. Description (from AGENTS.md).
@@ -178,8 +178,8 @@ echo "..." > /path/.apc/agents/reviewer.md
 
 | Aspect | Super-agent (default APX) | Project agent |
 |---|---|---|
-| Has tools? | Yes (full registry) | Yes — agent's `tools:` allowlist, not the full registry. Empty → safe default. `exec_agent` runs the loop. |
-| Loop? | Multi-iteration tool loop | Multi-iteration on `exec_agent`; one-shot if `allowed_tools: []` |
+| Has tools? | Yes (full registry) | Yes. **No declared `tools:` → the broad default: the whole registry minus a few host-only tools** (`set_identity`, `set_permission_mode`, `add_project`, `import_agent`). Declaring `tools:` *narrows* to that allowlist. |
+| Loop? | Multi-iteration tool loop | Multi-iteration, in a normal conversation or on `exec_agent`; one-shot text only when `spec.no_tools: true` |
 | System prompt | `super-agent-base.md` + channel template + identity | `buildAgentSystem()` per-agent |
 | Conversation in | super-agent surfaces | `<storagePath>/agents/<slug>/conversations/*.md` |
 | Configured via | `super_agent.*` in config | `AGENTS.md` + per-agent files |
@@ -189,6 +189,6 @@ When in doubt: super-agent is APX itself; agents are personas inside a project.
 ## Don't
 
 - Don't create an agent without a system prompt. Nothing errors; the agent just has no instructions. Verify with `apx agent get <slug>` — if you see only fields and no body, it isn't done.
-- Don't leave a worker agent's `tools:` on the read-only default if it must edit files, run shell, or load skills — toggle `write_file`, `edit_file`, `run_command`, `list_skills`, `load_skill`. The picker is not the super-agent registry (browser/HTTP stay opt-in).
+- Don't declare a `tools:` allowlist unless you mean to *narrow* the agent. Capability is the default: an agent with no `tools:` field already gets the whole registry minus a few host-only tools (`set_identity`, `set_permission_mode`, `add_project`, `import_agent`). Declaring the field takes tools *away* — so if you list one, list every tool the agent needs (`write_file`, `run_command`, `load_skill`, its MCP tools), or it silently loses the rest. When unsure, leave `tools:` off.
 - Don't overwrite `AGENTS.md` manually — `apx agent add/set/remove` regenerates it. Hand edits get clobbered.
 - Don't use the same slug across projects expecting shared memory. Memory is per-project.

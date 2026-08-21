@@ -1,6 +1,6 @@
 ---
 name: apx-runtime
-description: Delegate a task to an external coding CLI (claude-code, codex, opencode, aider, cursor-agent, gemini-cli, qwen-code) via `apx run`. APX builds the system prompt, spawns the CLI, captures the result. Load when delegating to another AI tool.
+description: Delegate a task to an external coding CLI (claude-code, codex, opencode, aider, cursor-agent, gemini-cli, qwen-code, antigravity) via `apx run`. APX builds the system prompt, spawns the CLI, captures the result. Load when delegating to another AI tool.
 ---
 
 # apx-runtime
@@ -12,12 +12,13 @@ A "runtime" is an external AI coding CLI that APX invokes headlessly. APX builds
 | id | binary | Headless flag |
 |---|---|---|
 | `claude-code`   | `claude`        | `-p "<prompt>" --append-system-prompt "<sys>" --output-format json` |
-| `codex`         | `codex`         | `exec "<prompt>"` (works outside git repos) |
+| `codex`         | `codex`         | `exec "<prompt>" --sandbox workspace-write --skip-git-repo-check` |
 | `opencode`      | `opencode`      | non-interactive mode |
-| `aider`         | `aider`         | `--message "<prompt>" --no-stream` |
+| `aider`         | `aider`         | `--message "<prompt>" --yes-always --no-auto-commits` |
 | `cursor-agent`  | `cursor-agent`  | headless print mode |
 | `gemini-cli`    | `gemini`        | headless prompt mode |
-| `qwen-code`     | `qwen-code`     | system prompt passed separately |
+| `qwen-code`     | `qwen`          | `--output-format text --approval-mode yolo "<prompt>"` |
+| `antigravity`   | `agy`           | `agy -p "<prompt>"` (headless). Falls back to the `antigravity-ide` GUI, which can't return a result to stdout. |
 
 `apx env detect` reports which are installed and reachable.
 
@@ -36,7 +37,7 @@ apx run scratch  --runtime codex -      # prompt from stdin (large prompts)
 
 Behavior:
 1. APX picks project from `--project` or cwd.
-2. Reads agent's `AGENT.md` + memory + skills; builds system prompt with `buildAgentSystem({ invocation: "runtime", runtime: "<id>" })`.
+2. Reads agent's `AGENT.md` + memory + skills; builds system prompt with `buildAgentSystem(project, agent, { invocation: "runtime", runtime: "<id>" })`.
 3. Spawns CLI with the right flags; cwd = project path.
 4. Captures stdout. If runtime printed `APC_RESULT: <value>`, that's the structured result; else first 200 chars of stdout.
 5. Writes `~/.apx/projects/<apxId>/agents/<slug>/sessions/<YYYY-MM-DD>-<id>.md` with frontmatter linking back to the external transcript when available.
