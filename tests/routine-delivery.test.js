@@ -537,16 +537,16 @@ test("buildDeliveryNotify — a model that is down falls back to the headline, n
 
 // ── the loop and the sink, together ─────────────────────────────────────────
 
-test("runRoutineNow — a non-Roby agent's telegram delivery is emitted to Roby, not the phone", async () => {
-  // Manu's rule: a routine run by an agent that is NOT Roby does not ping the
-  // owner's phone itself — it leaves a delivery for Roby to notify. So both the
-  // loop (send_telegram suppressed) AND the runner (no direct send) stand down;
-  // the telegram intent becomes an a2a emit to the super-agent instead.
+test("runRoutineNow — a priority delivery has Roby notify Manu on Telegram, now, and lands in the queue", async () => {
+  // Manu's rule, redone: a non-Roby agent does not ping the phone with its own
+  // message. It records a DELIVERY and Roby tells Manu — immediately for an
+  // anchor (priority), which crosses the interruption budget. No a2a chat.
+  const { listDeliveries } = await import("#core/stores/deliveries.js");
   const root = makeTempProject({ name: "northwind", agents: [{ slug: "scout", model: "mock:test" }] });
   fs.mkdirSync(path.join(root, ".apc", "agents"), { recursive: true });
   fs.writeFileSync(
     path.join(root, ".apc", "agents", "scout.md"),
-    "---\nname: scout\nmodel: mock:test\ndescription: Test project agent.\n---\n\n# scout\nDo the work.\n",
+    "---\nname: Scout\nmodel: mock:test\ndescription: Test project agent.\n---\n\n# scout\nDo the work.\n",
   );
   const sent = [];
   const cfg = { super_agent: { enabled: true, model: "mock:test", permission_mode: "total" } };
@@ -557,25 +557,61 @@ test("runRoutineNow — a non-Roby agent's telegram delivery is emitted to Roby,
       kind: "exec_agent",
       schedule: "every:24h",
       deliver_to: ["telegram"],
-      spec: { agent: "scout", prompt: "Report [mock:tool:send_telegram]" },
+      spec: { agent: "scout", anchor: true, prompt: "Report [mock:tool:send_telegram]" },
     });
     assert.equal(out.status, "ok");
-    assert.equal(sent.length, 0, "a project agent never pings the phone directly");
-    // The delivery reports the redirect, and it counts as a successful delivery.
-    const tgResult = out.delivery.results.find((d) => d.channel === "telegram→roby");
-    assert.ok(tgResult && tgResult.status === "ok", "telegram intent was emitted to Roby");
-    // And the loop was told why it could not send, rather than silently firing.
+    // Roby sent exactly ONE Telegram line — the notice, model-authored — not the
+    // agent's raw message, and no second message.
+    assert.equal(sent.length, 1, "Roby notified Manu once");
+    const tgResult = out.delivery.results.find((d) => d.channel === "telegram(roby)");
+    assert.ok(tgResult && tgResult.status === "ok", "the anchor delivery crossed the budget and was sent");
+    // The loop's own send_telegram was still suppressed (no double send).
     const call = (out.trace || []).find((t) => t.tool === "send_telegram");
     assert.ok(call, "the mock still attempted the call");
     assert.match(call.result.error, /suppressed for this invocation/);
-    // The a2a row Roby's sweep reads: one inbound message under the super-agent,
-    // from scout, tagged for the interruption budget.
-    const emit = ctx.project._log.find(
-      (m) => m.channel === "a2a" && m.direction === "in" && m.meta?.from === "scout",
-    );
-    assert.ok(emit, "an a2a message to Roby was written");
-    assert.equal(emit.meta.to, "super_agent");
-    assert.equal(emit.meta.via, "routine_delivery");
+    // And it is on the delivery queue, crossed off as notified — not a chat.
+    const q = listDeliveries(ctx.project.storagePath);
+    assert.equal(q.length, 1, "one delivery recorded");
+    assert.equal(q[0].agent, "scout");
+    assert.equal(q[0].status, "notified");
+    // No a2a row was written anywhere.
+    const a2a = ctx.project._log.find((m) => m.channel === "a2a");
+    assert.ok(!a2a, "no a2a chat entry");
+  } finally {
+    cleanupTempProject(root);
+  }
+});
+
+test("runRoutineNow — an ordinary delivery held by quiet-hours stays on the queue, no model call", async () => {
+  // Not an anchor, quiet all day → the gate holds it BEFORE composing, so no
+  // notice is sent and the delivery sits `held` on the queue rather than lost.
+  const { listDeliveries } = await import("#core/stores/deliveries.js");
+  const root = makeTempProject({ name: "northwind", agents: [{ slug: "scout", model: "mock:test" }] });
+  fs.mkdirSync(path.join(root, ".apc", "agents"), { recursive: true });
+  fs.writeFileSync(
+    path.join(root, ".apc", "agents", "scout.md"),
+    "---\nname: Scout\nmodel: mock:test\ndescription: Test project agent.\n---\n\n# scout\nDo the work.\n",
+  );
+  const sent = [];
+  const cfg = {
+    super_agent: { enabled: true, model: "mock:test", permission_mode: "total" },
+    nudge: { enabled: true, quiet_hours: "00:00-23:59" },
+  };
+  const ctx = makeCtx(root, { plugins: fakeTelegram(sent), globalConfig: cfg });
+  try {
+    const out = await runRoutineNow(ctx, {
+      name: "scout-note",
+      kind: "exec_agent",
+      schedule: "every:24h",
+      deliver_to: ["telegram"],
+      spec: { agent: "scout", prompt: "Report [mock:tool:send_telegram]" },
+    });
+    assert.equal(sent.length, 0, "nothing sent while quiet");
+    const tgResult = out.delivery.results.find((d) => d.channel === "telegram(roby)");
+    assert.equal(tgResult.status, "held");
+    const q = listDeliveries(ctx.project.storagePath);
+    assert.equal(q.length, 1);
+    assert.equal(q[0].status, "held");
   } finally {
     cleanupTempProject(root);
   }
