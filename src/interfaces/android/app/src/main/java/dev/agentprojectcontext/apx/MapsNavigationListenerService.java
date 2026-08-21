@@ -24,7 +24,9 @@ public final class MapsNavigationListenerService extends NotificationListenerSer
     private final Handler main = new Handler(Looper.getMainLooper());
     private final Runnable verifyEnded = this::refreshFromActiveNotifications;
     private final Runnable notifyDaemon = () -> {
-        if (!preferences.travelActive() || preferences.travelEventSent()) return;
+        if (!preferences.travelActive()
+            || preferences.travelDestination().isBlank()
+            || preferences.travelEventSent()) return;
         preferences.setTravelEventSent(true);
         DaemonClient.notifyTripStarted(
             preferences.daemonUrl(),
@@ -59,7 +61,7 @@ public final class MapsNavigationListenerService extends NotificationListenerSer
     public void onNotificationPosted(StatusBarNotification item) {
         if (!matches(item)) return;
         main.removeCallbacks(verifyEnded);
-        setTravelActive(true, destination(item));
+        observeNavigation(destination(item));
     }
 
     @Override
@@ -93,7 +95,7 @@ public final class MapsNavigationListenerService extends NotificationListenerSer
         if (active != null) {
             for (StatusBarNotification item : active) {
                 if (matches(item)) {
-                    setTravelActive(true, destination(item));
+                    observeNavigation(destination(item));
                     return;
                 }
             }
@@ -127,17 +129,32 @@ public final class MapsNavigationListenerService extends NotificationListenerSer
         );
     }
 
+    private void observeNavigation(String destination) {
+        if (destination == null || destination.isBlank()) {
+            if (preferences.travelActive() && preferences.travelDestination().isBlank()) {
+                setTravelActive(false, "");
+            }
+            Log.i(TAG, "Google Maps navigation pending destination; APX remains silent");
+            return;
+        }
+        setTravelActive(true, destination);
+    }
+
     private void setTravelActive(boolean active, String destination) {
         boolean wasActive = preferences.travelActive();
         String previousDestination = preferences.travelDestination();
         String previousTripId = preferences.travelTripId();
         boolean previousEventSent = preferences.travelEventSent();
-        String resolvedDestination = !active
-            ? ""
-            : destination != null && !destination.isBlank() ? destination : previousDestination;
+        String resolvedDestination = !active ? "" : destination == null ? "" : destination.trim();
+        if (active && resolvedDestination.isBlank()) return;
         if (wasActive == active && previousDestination.equals(resolvedDestination)) return;
+        boolean routeChanged = wasActive
+            && !previousDestination.isBlank()
+            && !previousDestination.equals(resolvedDestination);
         String tripId = active
-            ? wasActive && !previousTripId.isBlank() ? previousTripId : java.util.UUID.randomUUID().toString()
+            ? wasActive && !routeChanged && !previousTripId.isBlank()
+                ? previousTripId
+                : java.util.UUID.randomUUID().toString()
             : "";
         preferences.setTravelState(active, resolvedDestination, tripId);
         sendBroadcast(new Intent(ACTION_TRAVEL_STATE_CHANGED).setPackage(getPackageName()));
@@ -170,17 +187,19 @@ public final class MapsNavigationListenerService extends NotificationListenerSer
             .setOngoing(true)
             .build();
         manager.notify(ACTIVE_NOTIFICATION, notice);
-        if (!wasActive) {
+        if (routeChanged) {
+            main.removeCallbacks(notifyDaemon);
+            if (previousEventSent && !previousTripId.isBlank()) {
+                DaemonClient.notifyTripEnded(preferences.daemonUrl(), preferences.token(), previousTripId);
+            }
+            preferences.setTravelEventSent(false);
+            main.postDelayed(notifyDaemon, DESTINATION_SETTLE_MS);
+            Log.i(TAG, "Google Maps destination changed; APX started a new trip");
+        } else if (!wasActive) {
             Log.i(TAG, "Google Maps navigation started");
             preferences.setTravelEventSent(false);
             main.removeCallbacks(notifyDaemon);
             main.postDelayed(notifyDaemon, EVENT_DELAY_MS);
-        } else if (!previousDestination.equals(resolvedDestination)) {
-            Log.i(TAG, "Google Maps destination resolved");
-            if (!preferences.travelEventSent()) {
-                main.removeCallbacks(notifyDaemon);
-                main.postDelayed(notifyDaemon, DESTINATION_SETTLE_MS);
-            }
         }
     }
 }

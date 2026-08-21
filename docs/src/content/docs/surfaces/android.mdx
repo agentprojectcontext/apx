@@ -44,11 +44,13 @@ storage. Existing web pairing remains valid; both clients appear in
   it to open the app's system notification settings.
 - The native menu can enable **APX trip detection**. After notification-listener
   access is granted, the app detects Google Maps navigation start and end from
-  notification metadata. During a trip it shows a native car banner, the
-  destination when Maps exposes it, and a shortcut back to Maps. A new trip
-  posts an authenticated `trip.started` event to `/api/mobility/events`, with
-  the destination and latest available location as the origin. It uploads no
-  route, location history, or complete notification content.
+  notification metadata. APX stays silent until Maps exposes a confirmed final
+  destination, then shows a native car banner and a shortcut back to Maps. A
+  new trip posts an authenticated `trip.started` event to
+  `/api/mobility/events`, with the destination and latest available location as
+  the origin. Changing the destination closes the previous trip and starts a
+  new evaluation. It uploads no route, location history, or complete
+  notification content.
 - The daemon asks Roby to inspect pending tasks and commitments with read-only
   tools. User-configured trip events run immediately outside proactive rounds
   and interruption budgets, then produce one Telegram notice. Roby must not

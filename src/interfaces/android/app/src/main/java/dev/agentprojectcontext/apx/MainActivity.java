@@ -4,6 +4,7 @@ import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.NotificationManager;
+import android.service.notification.NotificationListenerService;
 import android.content.Intent;
 import android.content.ComponentName;
 import android.content.BroadcastReceiver;
@@ -202,6 +203,10 @@ public final class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        NotificationListenerService.requestRebind(new ComponentName(
+            this,
+            MapsNavigationListenerService.class
+        ));
         if (waitingForOverlay) {
             waitingForOverlay = false;
             if (Settings.canDrawOverlays(this)) ensureMascotRunning();

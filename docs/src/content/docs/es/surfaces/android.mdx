@@ -42,11 +42,12 @@ app. Pairing web existente sigue válido; ambos clientes aparecen en
   ajustes de notificaciones de APX en sistema.
 - Menú nativo permite activar **Detección de viajes APX**. Con acceso a
   notificaciones otorgado, app detecta inicio y fin de navegación Google Maps
-  mediante metadatos de notificación. Durante viaje muestra barra nativa con
-  icono de auto, destino cuando Maps lo publica y acceso directo a Maps. Inicio
-  nuevo envía evento autenticado `trip.started` a `/api/mobility/events`, con
-  destino y última ubicación disponible como origen. No sube ruta, historial ni
-  contenido completo de notificaciones.
+  mediante metadatos de notificación. APX queda silencioso hasta que Maps
+  publica destino final confirmado; luego muestra barra nativa con icono de auto
+  y acceso directo a Maps. Inicio nuevo envía evento autenticado `trip.started`
+  a `/api/mobility/events`, con destino y última ubicación disponible como
+  origen. Cambiar destino cierra viaje anterior e inicia evaluación nueva. No
+  sube ruta, historial ni contenido completo de notificaciones.
 - Daemon pide a Roby revisar tareas y compromisos pendientes usando herramientas
   de solo lectura. Eventos de viaje configurados por usuario se procesan al
   instante, fuera de rondas y presupuesto proactivo, y producen un único aviso

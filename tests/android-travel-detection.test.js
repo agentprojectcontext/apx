@@ -22,6 +22,8 @@ test("Android trip detector is opt-in and scoped to Google Maps navigation", () 
   assert.match(listener, /EVENT_DELAY_MS/);
   assert.match(listener, /notifyTripEnded/);
   assert.match(listener, /previousDestination/);
+  assert.match(listener, /pending destination; APX remains silent/);
+  assert.match(listener, /destination changed; APX started a new trip/);
   assert.match(banner, /Estás navegando por una ruta/);
   assert.match(banner, /Abrir Maps/);
 });
