@@ -77,6 +77,25 @@ test("an a2a severity tag maps to signal severity; blocker is critical, solicite
   assert.equal(by.max.payload.solicited, false);
 });
 
+test("an owner_notified a2a row is skipped — the /send route already pinged the owner", () => {
+  const inbound = (author, meta) =>
+    appendMessageToFs({
+      projectRoot: STORE, channel: "a2a", direction: "in", type: "agent",
+      author, body: `msg from ${author}`, ts: "2026-06-15T11:00:00.000Z", meta,
+    });
+  // A blocker relayed with severity is pinged in the act and stamped, so the
+  // watch must not re-notify it; an ordinary one still surfaces.
+  inbound("rocky", { severity: "blocker", owner_notified: true });
+  inbound("april", { severity: "status" });
+
+  const { signals } = detectSignals([PROJECT], {
+    now: NOW, types: ["a2a_message"], a2a_since: "2026-06-15T10:00:00.000Z",
+  });
+  const froms = signals.map((s) => s.payload.from);
+  assert.ok(!froms.includes("rocky"), "owner_notified row must not resurface");
+  assert.ok(froms.includes("april"), "an un-notified row still surfaces");
+});
+
 test("an overdue task is a signal; one due tomorrow is not", () => {
   createTask(STORE, { title: "late", due: "2026-06-01" });
   createTask(STORE, { title: "soon", due: "2026-06-16" });

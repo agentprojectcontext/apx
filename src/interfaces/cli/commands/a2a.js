@@ -46,11 +46,15 @@ async function resolveSendTarget(to, projectFlag) {
   );
 }
 
+/** The a2a urgency tags. `blocker` reaches the owner in the act (crosses the
+ *  interruption budget and quiet hours); `status`/`fyi` wait for a digest. */
+const SEVERITY_TAGS = new Set(["blocker", "status", "fyi"]);
+
 export async function cmdSend(args) {
   const from = args._[0];
   const to = args._[1];
   if (!from || !to) {
-    throw new Error('apx send: usage: apx send <from> <to> "<body>" [--deliver] [--project <name>]');
+    throw new Error('apx send: usage: apx send <from> <to> "<body>" [--deliver] [--severity blocker|status|fyi] [--project <name>]');
   }
   let body = args._.slice(2).join(" ").trim();
   if (!body || body === "-") {
@@ -76,16 +80,28 @@ export async function cmdSend(args) {
   const forFlag = args?.flags?.for;
   const requested_by = forFlag && forFlag !== true ? String(forFlag) : null;
 
+  // --severity blocker|status|fyi. A `blocker` is an alert: Roby pings the owner
+  // in the act. status/fyi ride the digest. An unknown value fails loudly rather
+  // than silently downgrading a critical alert to a normal one.
+  const sevFlag = args?.flags?.severity;
+  const severity = sevFlag && sevFlag !== true ? String(sevFlag).toLowerCase() : null;
+  if (severity && !SEVERITY_TAGS.has(severity)) {
+    throw new Error(`apx send: --severity must be one of blocker|status|fyi (got "${severity}")`);
+  }
+
   const pid = await resolveSendTarget(to, args?.flags?.project);
   const result = await http.post(`/api/projects/${pid}/send`, {
     from,
     to,
     body,
     deliver: !!args.flags.deliver,
+    ...(severity ? { severity } : {}),
     ...(requested_by ? { requested_by } : {}),
   });
-  console.log(`✉  ${from} → ${to}  @ ${result.ts}`);
+  console.log(`✉  ${from} → ${to}  @ ${result.ts}${severity ? `  [${severity}]` : ""}`);
   console.log(`   ${body}`);
+  if (result.owner_notified) console.log(`   ⚠️  owner alerted now (critical): ${result.owner_notified_line || ""}`);
+  else if (result.owner_notify_reason) console.log(`   (owner not alerted: ${result.owner_notify_reason})`);
   if (result.reply) {
     if (result.reply.error) {
       console.log(`\n⚠  delivery failed: ${result.reply.error}`);

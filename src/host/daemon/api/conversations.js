@@ -41,9 +41,11 @@ function a2aPairHistory(storageRoot, from, to, viewer, limit = 24) {
 import { compactConversation } from "#core/stores/conversations-compactor.js";
 import { replyAsAgent } from "#core/agent/a2a/reply.js";
 import { resolveAgentModel } from "#core/agent/agent-model.js";
+import { notifyOwnerViaRoby } from "#core/routines/delivery.js";
+import { A2A_SEVERITY } from "#core/routines/signals.js";
 import { nowIso, asyncRoute } from "./shared.js";
 
-export function register(api, { project, config }) {
+export function register(api, { project, config, plugins, registries }) {
   // The super-agent (default name "apx") is a pseudo-agent: it owns
   // conversations per project but is NOT listed in AGENTS.md. Resolve its slug
   // so `apx conversations list` (which defaults to the super-agent) works
@@ -227,11 +229,17 @@ export function register(api, { project, config }) {
   api.post("/projects/:pid/send", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    const { from, to, body, deliver = false, _depth = 0, requested_by = null } = req.body || {};
+    const { from, to, body, deliver = false, _depth = 0, requested_by = null, severity = null } = req.body || {};
     if (!from || !to || !body)
       return res.status(400).json({ error: "from, to, body required" });
     if (_depth > 3)
       return res.status(429).json({ error: "a2a depth limit (3) exceeded" });
+
+    // Urgency tag: blocker|status|fyi. Only a known tag is kept — an unknown one
+    // is dropped rather than stored as a severity the detector can't map.
+    const sevTag = severity && A2A_SEVERITY[String(severity).toLowerCase()]
+      ? String(severity).toLowerCase() : null;
+    const sevMeta = sevTag ? { severity: sevTag } : {};
 
     const agents = readAgents(p.path);
     // The SENDER may be a project agent, the super-agent, or an external
@@ -262,16 +270,47 @@ export function register(api, { project, config }) {
       direction: "out",
       author: from,
       body,
-      meta: { to, depth: _depth, ...(requested_by ? { requested_by } : {}) },
+      meta: { to, depth: _depth, ...sevMeta, ...(requested_by ? { requested_by } : {}) },
       ts,
     });
+
+    // A `blocker` is an alert, not a note for the next digest: Roby pings the
+    // owner in the act (canNudge's critical-bypass crosses budget and quiet
+    // hours). Done here — before the inbound row a watch would pick up later —
+    // so the ping never waits for a scheduled sweep. A successful ping stamps
+    // the inbound row `owner_notified` so the watch does not tell him twice; if
+    // it is held/skipped the flag is absent, so the watch remains the fallback.
+    let ownerNotify = null;
+    if (sevTag === "blocker") {
+      try {
+        ownerNotify = await notifyOwnerViaRoby(
+          { project: p, plugins, registries, globalConfig: p.config || config },
+          {
+            routine: { name: `a2a:${from}->${to}`, id: "" },
+            agent: { slug: from, name: from },
+            text: body,
+            notify: body,
+            gate: { severity: "critical", scheduled: false, unsolicited: true, project_id: p.id ?? null },
+            severity: "critical",
+          },
+        );
+      } catch (e) {
+        ownerNotify = { skipped: true, reason: e?.message || String(e) };
+      }
+    }
+    const ownerNotified = ownerNotify?.sent === true;
+
     p.logMessage({
       agent_slug: to,
       channel: "a2a",
       direction: "in",
       author: from,
       body,
-      meta: { from, depth: _depth, ...(requested_by ? { requested_by } : {}) },
+      meta: {
+        from, depth: _depth, ...sevMeta,
+        ...(ownerNotified ? { owner_notified: true } : {}),
+        ...(requested_by ? { requested_by } : {}),
+      },
       ts,
     });
 
@@ -320,6 +359,14 @@ export function register(api, { project, config }) {
       }
     }
 
-    res.json({ from, to, body, ts, reply });
+    res.json({
+      from, to, body, ts, reply,
+      ...(sevTag ? { severity: sevTag } : {}),
+      ...(ownerNotify ? {
+        owner_notified: ownerNotified,
+        ...(ownerNotify.line ? { owner_notified_line: ownerNotify.line } : {}),
+        ...(!ownerNotified ? { owner_notify_reason: ownerNotify.reason || (ownerNotify.skipped ? "skipped" : "not sent") } : {}),
+      } : {}),
+    });
   }));
 }

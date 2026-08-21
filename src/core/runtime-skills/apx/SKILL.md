@@ -57,6 +57,9 @@ apx send <you> <agent> "<message>" --deliver --project <name>
   sees the prior turns). It shows in the web inbox as a "claude · roby" group chat.
 - The agent decides whether/how to tell the user on its own channel (respecting
   quiet-hours) — you don't `apx telegram send` the user yourself.
+- `--severity blocker|status|fyi` tags urgency when relaying up to Roby: a
+  `blocker` alerts the owner **in the act** (Roby pings, crossing quiet-hours);
+  `status`/`fyi` ride the end-of-day digest and never interrupt.
 
 To be answered back into THIS coding session, include `engine=claude session=<id>`
 in your message; the agent replies with `apx session resume <id> --continue --msg
