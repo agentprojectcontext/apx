@@ -476,30 +476,76 @@ export async function cmdSessionResume(args) {
     }
   }
 
-  // ── 4. Optional spawn of native CLI to continue ──────────────────────────
-  if (args.flags.continue) {
-    const spec = spawnContinueSpec(meta);
-    if (!spec) {
-      console.log("");
-      console.log(`(--continue not supported for engine "${meta.engine}")`);
+  // ── 4. Continue the session ──────────────────────────────────────────────
+  // Two shapes share one flag family:
+  //   --continue                 → interactive: hand the terminal to the native
+  //                                CLI (claude --resume / codex resume) so a
+  //                                HUMAN keeps typing. (stdio inherited)
+  //   --continue --msg "<text>"  → headless: inject one message into the
+  //                                existing transcript (full context) and
+  //                                capture the reply. This is how an APX agent
+  //                                answers a coding session it doesn't share a
+  //                                live process with — the return leg of a
+  //                                CLI ⇄ agent hand-off. `--msg` implies continue.
+  const relayMsgFlag = args.flags.msg ?? args.flags.text ?? args.flags.m;
+  const wantsRelay = relayMsgFlag !== undefined && relayMsgFlag !== false;
+  if (args.flags.continue || wantsRelay) {
+    if (wantsRelay) {
+      const message = relayMsgFlag === true || relayMsgFlag === "-" ? readStdinSync().trim() : String(relayMsgFlag);
+      if (!message) throw new Error('apx session resume --msg: message is empty (pass "<text>" or pipe it on stdin)');
+      const spec = spawnHeadlessMsgSpec(meta, message);
+      if (!spec) {
+        console.log("");
+        console.log(`(--msg headless delivery not supported for engine "${meta.engine}" yet — claude only; use --continue without --msg for interactive)`);
+        process.exitCode = 2;
+      } else {
+        console.error(`→ delivering to ${meta.engine}:${meta.id}${spec.cwd ? `  (cwd: ${spec.cwd})` : ""}`);
+        const child = spawn(spec.bin, spec.args, {
+          cwd: spec.cwd || process.cwd(),
+          stdio: ["ignore", "pipe", "pipe"],
+        });
+        let out = "";
+        let err = "";
+        child.stdout.on("data", (d) => (out += d));
+        child.stderr.on("data", (d) => (err += d));
+        const code = await new Promise((resolve) => {
+          child.on("exit", (c) => resolve(c));
+          child.on("error", (e) => {
+            err += `\n(failed to launch ${spec.bin}: ${e.message})`;
+            resolve(-1);
+          });
+        });
+        const text = out.trim();
+        if (text) console.log(text);
+        if (code !== 0) {
+          if (err.trim()) console.error(err.trim().slice(0, 800));
+          process.exitCode = code === -1 ? 1 : code;
+        }
+      }
     } else {
-      console.log("");
-      console.log(`→ launching: ${spec.bin} ${spec.args.join(" ")}`);
-      if (spec.cwd) console.log(`   cwd: ${spec.cwd}`);
-      const child = spawn(spec.bin, spec.args, {
-        cwd: spec.cwd || process.cwd(),
-        stdio: "inherit",
-      });
-      await new Promise((resolve) => {
-        child.on("exit", (code) => {
-          if (code !== 0) console.log(`(native CLI exited with code ${code})`);
-          resolve();
+      const spec = spawnContinueSpec(meta);
+      if (!spec) {
+        console.log("");
+        console.log(`(--continue not supported for engine "${meta.engine}")`);
+      } else {
+        console.log("");
+        console.log(`→ launching: ${spec.bin} ${spec.args.join(" ")}`);
+        if (spec.cwd) console.log(`   cwd: ${spec.cwd}`);
+        const child = spawn(spec.bin, spec.args, {
+          cwd: spec.cwd || process.cwd(),
+          stdio: "inherit",
         });
-        child.on("error", (e) => {
-          console.log(`(failed to launch ${spec.bin}: ${e.message})`);
-          resolve();
+        await new Promise((resolve) => {
+          child.on("exit", (code) => {
+            if (code !== 0) console.log(`(native CLI exited with code ${code})`);
+            resolve();
+          });
+          child.on("error", (e) => {
+            console.log(`(failed to launch ${spec.bin}: ${e.message})`);
+            resolve();
+          });
         });
-      });
+      }
     }
   }
 
@@ -736,6 +782,25 @@ function spawnContinueSpec(meta) {
     };
   }
   // For apx-native sessions there's no "native CLI" to resume — use --into.
+  return null;
+}
+
+// Map (engine, id, cwd, message) → how to spawn the native CLI HEADLESS with a
+// new message injected into the existing transcript. This is the async-relay
+// counterpart to spawnContinueSpec: `--continue` opens the session for a human
+// to keep typing (stdio inherited); `--continue --msg` hands one message into an
+// idle session non-interactively and captures what it does, so any APX agent can
+// relay a user's reply back into a coding-CLI session it doesn't share a live
+// process with. Claude only for now (`claude -p "<msg>" --resume <id>`); other
+// engines fall through to an explicit "not supported yet".
+function spawnHeadlessMsgSpec(meta, message) {
+  if (meta.engine === "claude") {
+    return {
+      bin: "claude",
+      args: ["-p", message, "--resume", meta.id, "--output-format", "text"],
+      cwd: meta.cwd && fs.existsSync(meta.cwd) ? meta.cwd : null,
+    };
+  }
   return null;
 }
 

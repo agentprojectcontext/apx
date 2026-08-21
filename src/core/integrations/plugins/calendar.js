@@ -23,7 +23,6 @@ import {
   signState,
   exchangeCode,
   accessTokenFor,
-  emailFromIdToken,
 } from "./_google-oauth.js";
 
 const API = "https://www.googleapis.com/calendar/v3";
