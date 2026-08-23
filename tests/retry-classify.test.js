@@ -113,3 +113,14 @@ test("a 404 that is not about the model stays fatal", () => {
   assert.equal(isRetryableEngineError(new Error("openrouter 404: Not Found")), false);
   assert.equal(isRetryableEngineError(new Error("ollama 404: page not found")), false);
 });
+
+test("a gateway 400 for a model it no longer serves also advances the chain", () => {
+  // Zen answers 400, not 404, when the upstream model is gone. Same situation.
+  assert.equal(isRetryableEngineError(new Error(
+    "zen 400: Error from provider (Console): Upstream request failed: Model is unavailable"
+  )), true);
+  // A genuine payload bug at 400 is still fatal — that one is ours to fix.
+  assert.equal(isRetryableEngineError(new Error(
+    "groq 400: tools.0.function.parameters: invalid schema"
+  )), false);
+});

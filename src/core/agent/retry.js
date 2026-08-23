@@ -43,6 +43,7 @@ const MODEL_RETIRED_PHRASES = [
   /unknown model/i,
   /model.{0,20}(not found|is not supported)/i,
   /has been (deprecated|retired|removed)/i,
+  /model is unavailable/i,
 ];
 
 const FATAL_STATUS = new Set([400, 401, 403, 404, 422]);
@@ -89,6 +90,12 @@ export function isRetryableEngineError(err) {
       // gateway as it is to be our payload, so the chain gets to try the next
       // model rather than ending the run on an error the user cannot act on.
       if (/^[a-z0-9_-]+ 400:\s*\{"object":\s*"error"/i.test(msg)) return true;
+      // A gateway that answers 400 (not 404) for a model it no longer serves:
+      //   zen 400: Error from provider (Console): Upstream request failed:
+      //   Model is unavailable
+      // Same situation as a retired model, different status code — the model
+      // is not coming back this turn, so walk the chain.
+      if (MODEL_RETIRED_PHRASES.some((re) => re.test(msg))) return true;
       // A history-fidelity requirement we may not be able to satisfy: the turn
       // being replayed came from a different engine (post-rotation) and never
       // carried the field. Serialising it correctly is zen.js's job; when the
