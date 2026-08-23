@@ -33,6 +33,18 @@ const RETRYABLE_PHRASES = [
   /timeout/i,
 ];
 
+// A 404 that means "this model is retired / unknown", as opposed to a 404 that
+// means "wrong base_url". Kept narrow on purpose: a typo'd model id also lands
+// here, and rotating past it is still the better outcome than a dead turn.
+const MODEL_RETIRED_PHRASES = [
+  /no longer available/i,
+  /not found for API version/i,
+  /does not exist/i,
+  /unknown model/i,
+  /model.{0,20}(not found|is not supported)/i,
+  /has been (deprecated|retired|removed)/i,
+];
+
 const FATAL_STATUS = new Set([400, 401, 403, 404, 422]);
 
 const FATAL_PHRASES = [
@@ -85,6 +97,16 @@ export function isRetryableEngineError(err) {
       // explicit schema / param errors are our bug, not transient
       return false;
     }
+    // 404 usually means "you pointed at the wrong endpoint" — fatal, fix it.
+    // But it is ALSO how a provider retires a model:
+    //   gemini 404: This model models/gemini-2.5-flash-lite is no longer
+    //   available. Please update your code to use models/gemini-3.5-flash-lite
+    //   openai 404: The model `x` does not exist or you do not have access
+    // That is exactly what the fallback chain is for. The model is gone for
+    // good, the user cannot act on it mid-turn, and the next model in the
+    // chain will answer — so rotate instead of ending the run on a wall of
+    // provider text. A 404 that is NOT about the model stays fatal.
+    if (status === 404 && MODEL_RETIRED_PHRASES.some((re) => re.test(msg))) return true;
     return false;
   }
   if (status && RETRYABLE_STATUS.has(status)) return true;
