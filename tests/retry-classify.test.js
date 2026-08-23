@@ -83,3 +83,33 @@ test("shouldRetryWithPseudoTools: a plain ollama 400 (non-grammar) does NOT pseu
     false,
   );
 });
+
+// ── A retired model must rotate, not end the turn ──────────────────────────
+// Providers retire models with a 404, and 404 was blanket-fatal, so the raw
+// provider text reached the user:
+//   "gemini 404: This model models/gemini-2.5-flash-lite is no longer
+//    available. Please update your code to use models/gemini-3.5-flash-lite"
+// The fallback chain exists for exactly this: the model is gone for good and
+// the user cannot act on it mid-turn.
+
+test("a retired model 404 advances the chain", () => {
+  assert.equal(isRetryableEngineError(new Error(
+    "gemini 404: This model models/gemini-2.5-flash-lite is no longer available. Please update your code to use models/gemini-3.5-flash-lite"
+  )), true);
+  assert.equal(isRetryableEngineError(new Error(
+    "gemini 404: models/gemini-2.0-flash is not found for API version v1beta, or is not supported for generateContent"
+  )), true);
+  assert.equal(isRetryableEngineError(new Error(
+    "openai 404: The model `gpt-4-vision-preview` does not exist or you do not have access to it."
+  )), true);
+  assert.equal(isRetryableEngineError(new Error(
+    "anthropic 404: model claude-2 has been deprecated"
+  )), true);
+});
+
+test("a 404 that is not about the model stays fatal", () => {
+  // A wrong base_url or a bad route is a configuration bug the user must fix;
+  // silently answering from a different model would hide it.
+  assert.equal(isRetryableEngineError(new Error("openrouter 404: Not Found")), false);
+  assert.equal(isRetryableEngineError(new Error("ollama 404: page not found")), false);
+});
