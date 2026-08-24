@@ -21,7 +21,7 @@ const VERSION = JSON.parse(
 // Flags that never take a value. Without this the parser would greedily
 // swallow the following positional (e.g. `apx exec --code "hi"` would set
 // flags.code = "hi" and drop the prompt). Boolean flags always resolve to true.
-const BOOLEAN_FLAGS = new Set(["code", "verbose", "global", "mcp", "memory"]);
+const BOOLEAN_FLAGS = new Set(["code", "verbose", "global", "mcp", "memory", "json"]);
 
 function parseArgs(argv) {
   const args = { _: [], flags: {} };

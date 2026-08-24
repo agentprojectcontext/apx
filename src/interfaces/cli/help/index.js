@@ -1852,6 +1852,36 @@ export const HELP_TOPICS = new Map(Object.entries({
   }),
 
   // ── Voice (TTS / mic round-trip) ──────────────────────────────────────────
+  transcribe: topic({
+    title: "apx transcribe",
+    summary: "Speech-to-text from audio OR video files (or stdin) using the daemon's whisper — the same STT engine the desktop overlay and Telegram voice notes use. Handles one file, many files, or a whole folder. The model is preloaded at daemon boot, so repeat calls hit a warm server.",
+    usage: [
+      "apx transcribe <file> [--lang <code>] [--provider local|openai|custom] [--json]",
+      "apx transcribe <a> <b> <c>          # bulk: one block per file",
+      "apx transcribe <dir>                # every audio/video file in a folder",
+      "cat clip.wav | apx transcribe - [--format webm|ogg|wav|mp3]",
+    ],
+    options: [
+      ["--lang <code>", "ISO language (e.g. es, en). Default: auto-detect."],
+      ["--provider <id>", "Override STT routing: local (embedded whisper) | openai (cloud) | custom (any OpenAI-compatible server on the LAN/remote). Default: config."],
+      ["--json", "Machine-readable output: the result object for one file, or an array of {file, ...} in bulk."],
+      ["--format <ext>", "Audio format hint for stdin input (default webm)."],
+    ],
+    examples: [
+      "apx transcribe nota.oga",
+      "apx transcribe reunion.mp4                 # video: the audio track is pulled out",
+      "apx transcribe voz.webm --lang es",
+      "apx transcribe *.mp3 --json > out.json     # bulk to JSON",
+      "apx transcribe ./notas-de-voz/             # a whole folder",
+      "cat clip.wav | apx transcribe -",
+    ],
+    notes: [
+      "Audio: webm, ogg/oga, opus, m4a, aac, mp3, wav, flac. Video: mp4, mov, mkv, m4v, avi, 3gp… — ffmpeg extracts the audio track. The container is probed from the bytes, so the extension is only a hint.",
+      "Single file → clean transcript on stdout (pipe-friendly). Many files or a folder → a '── name ──' header per file. The APX banner goes to stderr, so stdout stays scriptable.",
+      "Bulk runs sequentially (the local model is single-instance) and keeps going past a failed file, exiting non-zero if any failed.",
+      "Long media can take a while; the daemon allows up to 20 minutes per request. A GPU backend (mlx on Apple Silicon, faster-whisper cuda on NVIDIA) is picked automatically for the local provider.",
+    ],
+  }),
   voice: topic({
     title: "apx voice",
     summary: "Speak text through the daemon TTS, run a mic→reply round-trip, or list providers.",
@@ -2267,6 +2297,7 @@ export function buildHelp(version) {
     hCmd("apx voice say \"text\"",     36, "TTS via daemon  --provider <id>  --voice <name>  --no-play"),
     hCmd("apx voice listen",           36, "mic → /voice/turn → reply  --seconds N  --no-play"),
     hCmd("apx voice providers",        36, "list configured TTS / STT providers"),
+    hCmd("apx transcribe <file…|dir>", 36, "STT of audio/video via the warm daemon whisper — bulk-capable  --lang es  --provider  --json"),
     hCmd("apx desktop start",          36, "launch floating voice desktop window (Electron)"),
     hCmd("apx desktop stop",           36, ""),
     hCmd("apx desktop status",         36, "show desktop process + autostart state"),
