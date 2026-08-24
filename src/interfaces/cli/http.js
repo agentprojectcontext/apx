@@ -103,6 +103,40 @@ async function request(method, path, body, opts = {}) {
   return json;
 }
 
+// Like request(), but sends a raw body (Buffer/Uint8Array/string) with
+// caller-supplied headers instead of JSON. For endpoints that take bytes, not
+// objects — e.g. POST /api/transcribe/chunk wants the audio itself in the body
+// plus X-Audio-Format / X-Language / X-Provider headers.
+async function rawRequest(method, path, body, opts = {}) {
+  if (opts.autoStart !== false) await ensureDaemon();
+  else if (!(await ping())) {
+    throw new Error(`apx daemon not running (no response on ${baseUrl()})`);
+  }
+  const token = readToken();
+  const res = await fetch(`${baseUrl()}${path}`, {
+    method,
+    headers: {
+      ...(opts.headers || {}),
+      ...(token ? { "authorization": `Bearer ${token}` } : {}),
+    },
+    body,
+    signal: opts.signal,
+  });
+  const text = await res.text();
+  let json;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    if (!res.ok) throw new Error(`${method} ${path} → ${res.status}: ${text}`);
+    return text;
+  }
+  if (!res.ok) {
+    const msg = json?.error || `${method} ${path} → ${res.status}`;
+    throw new Error(msg);
+  }
+  return json;
+}
+
 async function streamRequest(method, path, body, onEvent, opts = {}) {
   if (opts.autoStart !== false) await ensureDaemon();
   else if (!(await ping())) {
@@ -180,6 +214,7 @@ async function streamRequest(method, path, body, onEvent, opts = {}) {
 export const http = {
   get: (p, opts) => request("GET", p, undefined, opts),
   post: (p, body, opts) => request("POST", p, body, opts),
+  postRaw: (p, body, opts) => rawRequest("POST", p, body, opts),
   streamPost: (p, body, onEvent, opts) => streamRequest("POST", p, body, onEvent, opts),
   put: (p, body, opts) => request("PUT", p, body, opts),
   patch: (p, body, opts) => request("PATCH", p, body, opts),
