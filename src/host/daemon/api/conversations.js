@@ -268,7 +268,7 @@ export function register(api, { project, config, plugins, registries }) {
     // relaying its run — passes model/usage); otherwise stamp the sender agent's
     // configured model, so an a2a message shows whose model spoke instead of a
     // blank row. Usage stays absent on a plain relay — it spends no tokens.
-    let attrib = {};
+    const attrib = {};
     const overrideModel = typeof model === "string" && model ? model : null;
     let senderModel = overrideModel;
     if (!senderModel && !fromAgent.synthetic) {
