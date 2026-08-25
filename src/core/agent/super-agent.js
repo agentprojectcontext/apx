@@ -14,6 +14,7 @@ import { resolveAgentName } from "#core/identity/index.js";
 import { memoryBlockFor, buildActiveThreadsBlock } from "#core/memory/index.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { judgeConfig, judgeCompletion, applyJudgeLoop, continuableTurn } from "#core/agent/judge.js";
+import { mobilityContextBlock } from "#core/mobility/state.js";
 
 export {
   buildIdentityBlock,
@@ -119,11 +120,13 @@ export async function runSuperAgent({
   const scopedListSkills = (opts = {}) =>
     filterEnabledSkills(listSkills(opts), { config: globalConfig, projectPath });
 
+  const mobilityBlock = mobilityContextBlock();
+  const effectiveContextNote = [contextNote, mobilityBlock].filter(Boolean).join("\n\n");
   const system = buildSuperAgentSystem({
     globalConfig,
     projects,
     listSkills: scopedListSkills,
-    contextNote,
+    contextNote: effectiveContextNote,
     channel,
     channelMeta,
     relationshipBlock,

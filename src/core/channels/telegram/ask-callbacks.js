@@ -15,6 +15,7 @@ import { SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
 import { applyNudgeCallback } from "#core/nudge/index.js";
 import { recordDelivery } from "#core/stores/deliveries.js";
 import { silenceMobilityToday } from "#core/mobility/preferences.js";
+import { recordMobilityResponse } from "#core/mobility/state.js";
 
 /**
  * The label the user actually tapped, recovered from the keyboard attached to
@@ -102,6 +103,7 @@ export async function handleCallbackQuery(self, callbackQuery) {
 
 export async function handleMobilityCallback(self, callbackQuery) {
   const action = String(callbackQuery.data || "").split(":").pop();
+  recordMobilityResponse(action);
   const chatId = callbackQuery.message?.chat?.id;
   let ack = "Listo.";
   let response = "";

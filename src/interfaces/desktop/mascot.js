@@ -35,6 +35,8 @@ function paintBlob(key) {
   if (cfg.name) blobEl.title = cfg.name;
 })();
 
+window.mascot.onAvatar((key) => paintBlob(key));
+
 // ── Click-through management ────────────────────────────────────────────────
 // The window ignores the mouse over transparent pixels (main forwards move
 // events). We re-enable it only while the pointer is over the blob or bubble,
