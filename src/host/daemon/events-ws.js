@@ -20,6 +20,7 @@
 // Telegram poller and the agent loop, so every write anyone makes happens here.
 // See core/events/bus.js for the one case it does not cover.
 import { onMessageEvent } from "#core/events/bus.js";
+import { resolveSuperAgentBlob } from "#core/apc/agent-identity.js";
 import { apiPath } from "./api/prefix.js";
 
 const _clients = new Set(); // Set<WebSocket>
@@ -48,7 +49,7 @@ const FLUSH_MS = 250;
 const PING_MS = 30_000;
 
 /** Register a connected client. Sends a hello so the page can show it is live. */
-export function registerEventsClient(ws) {
+export function registerEventsClient(ws, config = {}) {
   _clients.add(ws);
   ws.isAlive = true;
   ws.on("pong", () => { ws.isAlive = true; });
@@ -57,7 +58,19 @@ export function registerEventsClient(ws) {
   // The feed is one-directional. A client has nothing to say here — it acts
   // through the HTTP API — so anything it sends is ignored rather than parsed.
   ws.on("message", () => {});
-  send(ws, { type: "hello", ts: new Date().toISOString() });
+  send(ws, {
+    type: "hello",
+    ts: new Date().toISOString(),
+    settings: { super_agent: { icon: resolveSuperAgentBlob(config) } },
+  });
+}
+
+/** Publish a hot-reloaded super-agent avatar to every connected surface. */
+export function broadcastSuperAgentAvatar(config) {
+  broadcastEvents({
+    type: "settings",
+    settings: { super_agent: { icon: resolveSuperAgentBlob(config) } },
+  });
 }
 
 function send(ws, msg) {

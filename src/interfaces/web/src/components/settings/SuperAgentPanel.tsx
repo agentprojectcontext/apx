@@ -9,6 +9,8 @@ import { useGlobalConfig, useSuperAgentConfig } from "../../hooks/useGlobalConfi
 import { useIdentity } from "../../hooks/useIdentity";
 import { PERMISSION_MODES } from "../../constants";
 import { t } from "../../i18n";
+import { AgentIconPicker } from "../agents/AgentFormFields";
+import { SUPER_AGENT_ICON } from "../agents/AgentAvatar";
 
 export function SuperAgentPanel() {
   const toast = useToast();
@@ -20,6 +22,7 @@ export function SuperAgentPanel() {
   const [enabled, setEnabled] = useState(true);
   const [system, setSystem] = useState("");
   const [personality, setPersonality] = useState("");
+  const [icon, setIcon] = useState(SUPER_AGENT_ICON);
   const [perm, setPerm] = useState<string>("permiso");
   const [busy, setBusy] = useState(false);
 
@@ -28,6 +31,7 @@ export function SuperAgentPanel() {
     setEnabled(!!superAgent.enabled);
     setSystem(superAgent.system || "");
     setPerm(superAgent.permission_mode || "permiso");
+    setIcon(superAgent.icon || SUPER_AGENT_ICON);
   }, [superAgent]);
 
   useEffect(() => {
@@ -43,6 +47,7 @@ export function SuperAgentPanel() {
         "super_agent.enabled":          enabled,
         "super_agent.system":           system,
         "super_agent.permission_mode":  perm,
+        "super_agent.icon":             icon,
       }, ["super_agent.name"]);
       await saveIdentity({ personality });
       toast.success(t("settings.super_agent.saved"));
@@ -72,6 +77,9 @@ export function SuperAgentPanel() {
 
         <Field label={t("settings.super_agent.permission_mode")}>
           <UiSelect value={perm} onChange={setPerm} options={PERMISSION_MODES.map((m) => ({ value: m, label: m }))} />
+        </Field>
+        <Field label={t("settings.super_agent.avatar")} hint={t("settings.super_agent.avatar_hint")}>
+          <AgentIconPicker icon={icon} onIcon={(next) => setIcon(next || SUPER_AGENT_ICON)} />
         </Field>
         <Field label={t("settings.super_agent.personality")}>
           <Textarea rows={2} value={personality} onChange={(e) => setPersonality(e.target.value)} />

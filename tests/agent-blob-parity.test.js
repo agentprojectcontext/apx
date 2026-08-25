@@ -13,7 +13,13 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { BLOB_KEYS, SUPER_AGENT_BLOB, isBlobKey, pickBlob } from "#core/apc/agent-identity.js";
+import {
+  BLOB_KEYS,
+  SUPER_AGENT_BLOB,
+  isBlobKey,
+  pickBlob,
+  resolveSuperAgentBlob,
+} from "#core/apc/agent-identity.js";
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -30,8 +36,29 @@ test("core blob keys match the web renderer's, in the same order", () => {
   assert.deepEqual([...BLOB_KEYS], webBlobKeys());
 });
 
+test("Android bundles every shared blob and generated catalog entry", () => {
+  const androidRoot = path.join(REPO, "src/interfaces/android/app/src/main");
+  const catalog = fs.readFileSync(
+    path.join(androidRoot, "java/dev/agentprojectcontext/apx/MascotBlobCatalog.java"),
+    "utf8",
+  );
+  for (const key of BLOB_KEYS) {
+    assert.ok(catalog.includes(`case "${key}"`), `missing Android catalog entry: ${key}`);
+    assert.ok(
+      fs.existsSync(path.join(androidRoot, `res/drawable-nodpi/mascot_${key}.png`)),
+      `missing Android mascot body: ${key}`,
+    );
+  }
+});
+
 test("the super-agent's blob is one of the presets", () => {
   assert.ok(isBlobKey(SUPER_AGENT_BLOB));
+});
+
+test("the super-agent blob resolves a configured preset and rejects junk", () => {
+  assert.equal(resolveSuperAgentBlob({ super_agent: { icon: "coral" } }), "coral");
+  assert.equal(resolveSuperAgentBlob({ super_agent: { icon: "not-a-blob" } }), SUPER_AGENT_BLOB);
+  assert.equal(resolveSuperAgentBlob({}), SUPER_AGENT_BLOB);
 });
 
 test("the web's SUPER_AGENT_ICON is the same blob core reserves", () => {

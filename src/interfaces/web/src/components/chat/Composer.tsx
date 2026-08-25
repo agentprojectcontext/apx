@@ -25,9 +25,10 @@ interface Props {
   /** Selected model override ("" = Auto). Omit to hide the picker. */
   model?: string;
   onModelChange?: (m: string) => void;
-  /** Whether this conversation can carry files. Only the super-agent turn does:
-   *  a project agent talks to the engine directly, with no vision and no file
-   *  tools, so an attachment there would upload and then be ignored. */
+  /** Whether this conversation can carry files. Both the super-agent and a
+   *  project agent do: each turn is resolved against ~/.apx/media on the daemon,
+   *  images ride on the user message for a multimodal engine, and a marker names
+   *  the file in the prompt so an engine without vision still knows it arrived. */
   allowFiles?: boolean;
   /** Welded into the top edge of the field: the conversation's context strip.
    *  It used to sit on its own line above, separated by a border, which on a

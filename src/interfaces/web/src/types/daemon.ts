@@ -345,6 +345,7 @@ export interface Identity {
 export interface SuperAgentConfig {
   enabled: boolean;
   name: string;
+  icon: string;
   model: string;
   system: string;
   permission_mode: string;

@@ -343,7 +343,7 @@ async function main() {
     const wss = new WebSocketServer({ noServer: true });
     wss.handleUpgrade(req, socket, head, (ws) => {
       if (isTerminal) startTerminalSession(ws, req);
-      else if (isEvents) registerEventsClient(ws);
+      else if (isEvents) registerEventsClient(ws, cfg);
       else registerDesktopClient(ws);
     });
   }

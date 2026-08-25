@@ -23,6 +23,8 @@ test("APX declares and builds Android Auto messaging notifications", () => {
   assert.match(notification, /RemoteInput\.Builder/);
   assert.match(notification, /SEMANTIC_ACTION_REPLY/);
   assert.match(notification, /SEMANTIC_ACTION_MARK_AS_READ/);
+  assert.match(notification, /ACTION_MOBILITY_DESTINATION/);
+  assert.match(notification, /Decí tu destino/);
   assert.match(notification, /setBypassDnd\(manager\.isNotificationPolicyAccessGranted\(\)\)/);
   assert.match(activity, /Probar aviso Android Auto/);
   assert.match(activity, /Permitir avisos durante conducción/);
@@ -36,4 +38,24 @@ test("direct APX message connection remains active without the mascot overlay", 
   assert.match(service, /if \(socket == null\) connect\(\)/);
   assert.match(activity, /private void ensureMascotRunning\(\) \{\s*if \(!preferences\.paired\(\)\) return;/);
   assert.doesNotMatch(activity, /if \(!enabled\) \{\s*stopService/);
+});
+
+test("dragging the mascot onto the bottom target hides it", () => {
+  const service = read("java", "dev", "agentprojectcontext", "apx", "MascotOverlayService.java");
+  const view = read("java", "dev", "agentprojectcontext", "apx", "MascotView.java");
+
+  assert.match(view, /listener\.onDragStarted\(\)/);
+  assert.match(view, /listener\.onDragEnded\(event\.getActionMasked\(\) == MotionEvent\.ACTION_CANCEL\)/);
+  assert.match(service, /Gravity\.BOTTOM \| Gravity\.CENTER_HORIZONTAL/);
+  assert.match(service, /preferences\.setMascotEnabled\(false\)/);
+  assert.match(service, /overDismissTarget/);
+});
+
+test("the persistent notification toggles mascot visibility", () => {
+  const service = read("java", "dev", "agentprojectcontext", "apx", "MascotOverlayService.java");
+
+  assert.match(service, /ACTION_SHOW/);
+  assert.match(service, /mascotVisible \? "Ocultar mascota" : "Mostrar mascota"/);
+  assert.match(service, /preferences\.setMascotEnabled\(true\)/);
+  assert.match(service, /notify\(SERVICE_NOTIFICATION, serviceNotification\(\)\)/);
 });

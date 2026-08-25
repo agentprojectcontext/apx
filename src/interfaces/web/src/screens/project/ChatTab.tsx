@@ -28,6 +28,7 @@ import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 import { toneChip } from "../../lib/tone";
 import { usePersonaName } from "../../hooks/usePersonaName";
+import { useSuperAgentConfig } from "../../hooks/useGlobalConfig";
 import { AgentAvatar, SUPER_AGENT_ICON, type AgentFace } from "../../components/agents/AgentAvatar";
 import type { AgentEntry, ConversationListEntry } from "../../types/daemon";
 
@@ -87,6 +88,8 @@ export function ChatTab({
   const { msgs, send: sendChat, stop, clear, load, loadThread, streaming, queued, unqueue, conversationMeta } =
     useChat(pid, (m) => toast.error(m));
   const persona = usePersonaName();
+  const { superAgent } = useSuperAgentConfig();
+  const superAgentIcon = superAgent?.icon || SUPER_AGENT_ICON;
 
   // How tall the floating dock currently is. It moves constantly — a draft
   // wrapping to a third line, an attachment strip appearing, the context panel
@@ -282,7 +285,11 @@ export function ChatTab({
       return;
     }
     if (!activeAgent) return;
-    await sendChat(text, { model: model || undefined, agentSlug: activeAgent.slug });
+    await sendChat(text, {
+      model: model || undefined,
+      agentSlug: activeAgent.slug,
+      ...(media?.length ? { attachments: media } : {}),
+    });
     void mutate(`/api/projects/${pid}/agents/${activeAgent.slug}/conversations`);
   };
 
@@ -436,13 +443,13 @@ export function ChatTab({
   // delegated agent produced inside a super-agent thread keep THEIR face, so a
   // multi-agent thread is readable without expanding anything.
   const headerFace: AgentFace = activeIsRoby
-    ? { icon: SUPER_AGENT_ICON, name: persona }
+    ? { icon: superAgentIcon, name: persona }
     : { icon: activeAgent?.icon, emoji: activeAgent?.emoji, name: agentLabel };
 
   const faceFor = (msg: ChatMsg): AgentFace => {
     const id = msg.agentId || msg.agent;
     if (!id) return headerFace;
-    if (id === "super_agent") return { icon: SUPER_AGENT_ICON, name: msg.agent || persona };
+    if (id === "super_agent") return { icon: superAgentIcon, name: msg.agent || persona };
     const hit = agentList.find((a) => a.slug === id || a.name === id);
     if (hit) return { icon: hit.icon, emoji: hit.emoji, name: hit.name || hit.slug };
     return { ...headerFace, name: msg.agent || headerFace.name };
@@ -498,6 +505,7 @@ export function ChatTab({
         agents={agentList}
         superAgentSlug={ROBY_SLUG}
         superAgentLabel={t("agents_ui.super_agent_label", { persona })}
+        superAgentIcon={superAgentIcon}
         selected={selected}
         onSelect={selectChat}
         onNewChat={onNewChat}
@@ -696,7 +704,12 @@ export function ChatTab({
               streaming={streaming}
               model={model}
               onModelChange={setModel}
-              allowFiles={activeIsRoby}
+              // Every chat carries files now — Roby and project agents alike.
+              // A project agent's turn goes through /agents/:slug/chat, which
+              // resolves the same media dir and folds a marker into the prompt,
+              // so an engine with vision renders the image and one without is
+              // still told a file arrived and where it lives.
+              allowFiles
               floating
               // The strip and the questions are both part of the field: what the
               // turn cost, and what it is waiting on. The panel used to hover as

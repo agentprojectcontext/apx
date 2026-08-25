@@ -30,7 +30,7 @@ test("mobility event normalizes endpoints and deduplicates event id", () => {
     age_ms: 500,
   });
   assert.equal(acceptMobilityEvent(body, 1_001).duplicate, true);
-  assert.match(mobilityPrompt(first), /no esperes rondas proactivas/);
+  assert.match(mobilityPrompt(first), /esto no obliga a enviar mensaje/);
 });
 
 test("trip end cancels a pending mobility delivery", () => {
@@ -38,6 +38,18 @@ test("trip end cancels a pending mobility delivery", () => {
   assert.equal(isMobilityTripActive("journey"), true);
   acceptMobilityEvent({ event_id: "end", trip_id: "journey", type: "trip.ended" }, 1_001);
   assert.equal(isMobilityTripActive("journey"), false);
+});
+
+test("state-only trip updates Roby's context without evaluation", async () => {
+  const event = acceptMobilityEvent({
+    event_id: "context-only",
+    trip_id: "journey-context",
+    type: "trip.started",
+    destination: "Onelli 444",
+    evaluate: false,
+  }, 2_000);
+  assert.equal(event.evaluate, false);
+  assert.equal(isMobilityTripActive("journey-context"), true);
 });
 
 test("POST /mobility/events acknowledges before dispatching configured workflow", async () => {

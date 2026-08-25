@@ -6,6 +6,8 @@ ring/LED); it still bobs, it just doesn't blink."""
 from PIL import Image
 import os
 import pathlib
+import subprocess
+import sys
 
 # Repo root is the script's parent directory (scripts/ -> repo). No hardcoded
 # local paths. Source crops (blob_<key>.png) are read from BLOB_SRC_DIR, which
@@ -127,3 +129,7 @@ core_lines += [f'  "{k}",' for k in presets]
 core_lines += ["]);", ""]
 CORE_KEYS.write_text("\n".join(core_lines), encoding="utf-8")
 print("wrote", CORE_KEYS, "with", len(presets), "keys")
+
+# Keep the native mascot's bundled bodies and eye geometry in the same export
+# transaction so adding a web preset cannot silently leave Android behind.
+subprocess.run([sys.executable, str(REPO / "scripts/export_android_mascot_assets.py")], check=True)
