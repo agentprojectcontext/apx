@@ -7,7 +7,7 @@
 //   POST /projects/:pid/agents/:slug/conversations/:id/compact
 //   POST /projects/:pid/send                                   (agent-to-agent)
 import { readAgents } from "#core/apc/parser.js";
-import { listConversations, readConversation, deleteConversation, setConversationMeta, shapeConversationMessage } from "#core/stores/conversations.js";
+import { listConversations, readConversation, deleteConversation, truncateConversation, setConversationMeta, shapeConversationMessage } from "#core/stores/conversations.js";
 import { listGlobalThreads, readGlobalThread, deleteGlobalThread, setGlobalThreadMeta, listProjectA2AThreads, readProjectA2AThread, readProjectMessages } from "#core/stores/messages.js";
 
 // Prior turns of an a2a thread between `from` and `to`, oldest→newest, shaped as
@@ -39,6 +39,7 @@ function a2aPairHistory(storageRoot, from, to, viewer, limit = 24) {
     );
 }
 import { compactConversation } from "#core/stores/conversations-compactor.js";
+import { getActiveTurnByKey, convTurnKey } from "../active-turns.js";
 import { replyAsAgent } from "#core/agent/a2a/reply.js";
 import { resolveAgentModel } from "#core/agent/agent-model.js";
 import { notifyOwnerViaRoby } from "#core/routines/delivery.js";
@@ -139,12 +140,18 @@ export function register(api, { project, config, plugins, registries }) {
     // Shape the response as the `ConversationDetail` the web client expects:
     // `messages[]` (mapped from the parsed `turns`) + id/agent/channel. Without
     // this the client's `detail.messages.filter(...)` throws on every load.
+    //
+    // `active_turn` is the turn being written RIGHT NOW, if any — so a surface
+    // opening (or re-opening) this chat mid-answer shows the partial and then
+    // follows the live "turn" frames, instead of a blank pane that fills all at
+    // once when the turn happens to finish.
     res.json({
       id: req.params.id,
       agent_slug: req.params.slug,
       channel: conv.fm?.channel,
       messages: (conv.turns || []).map(shapeConversationMessage),
       meta: conv.fm || {},
+      active_turn: getActiveTurnByKey(convTurnKey(p.id, req.params.id)),
     });
   });
 
@@ -155,6 +162,24 @@ export function register(api, { project, config, plugins, registries }) {
     if (!agentResolvable(p, req.params.slug))
       return res.status(404).json({ error: "agent not found" });
     const ok = deleteConversation(p.storagePath, req.params.slug, req.params.id);
+    if (!ok) return res.status(404).json({ error: "conversation not found" });
+    res.json({ ok: true });
+  });
+
+  // Rewind a conversation to its first `turns` turns, dropping the rest. Backs
+  // "regenerate" and "edit & resend": the pane rewinds to a turn and the file
+  // must rewind with it, or a project agent (whose history the daemon rebuilds
+  // from this file) would keep answering with the dropped turns still present.
+  api.post("/projects/:pid/agents/:slug/conversations/:id/truncate", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    if (rejectA2AWrite(req, res, "truncated")) return;
+    if (!agentResolvable(p, req.params.slug))
+      return res.status(404).json({ error: "agent not found" });
+    const keepVisible = Number(req.body?.keep_visible);
+    if (!Number.isInteger(keepVisible) || keepVisible < 0)
+      return res.status(400).json({ error: "keep_visible must be a non-negative integer" });
+    const ok = truncateConversation(p.storagePath, req.params.slug, req.params.id, { keepVisible });
     if (!ok) return res.status(404).json({ error: "conversation not found" });
     res.json({ ok: true });
   });

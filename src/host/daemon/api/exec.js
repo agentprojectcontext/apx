@@ -24,6 +24,8 @@ import {
 import { answerDeliveries } from "#core/stores/deliveries.js";
 import { asyncRoute, rejectA2AWrite} from "./shared.js";
 import { readTurnAttachments } from "./media.js";
+import { broadcastTurn } from "../events-ws.js";
+import { startActiveTurn, appendActiveTurn, endActiveTurn, convTurnKey } from "../active-turns.js";
 
 // A chat reply is prose, not a Telegram one-liner: run-agent's 512-token default
 // truncates an agent mid-answer on the surface where the whole answer is the
@@ -447,6 +449,20 @@ export function register(api, { projects, project, config, plugins, registries }
     // any grace-window notify still pending). See core/stores/deliveries.js.
     try { answerDeliveries(p.storagePath, agent.slug); } catch { /* best-effort */ }
 
+    // Register the turn and push it over the shared feed too, so a surface that
+    // did NOT open this stream (another tab, or this one after a refresh) can
+    // catch up on the partial and follow the tokens live. The turn keeps running
+    // here regardless of whether this NDJSON socket stays open.
+    const turnKey = convTurnKey(p.id, turn.conv.id);
+    const active = startActiveTurn(turnKey, {
+      project_id: p.id, agent_slug: agent.slug, conversation_id: turn.conv.id, model: modelId,
+    });
+    const turnFrame = (phase, extra) => broadcastTurn({
+      phase, project_id: p.id, agent_slug: agent.slug, conversation_id: turn.conv.id,
+      turn_id: active.id, ...extra,
+    });
+    turnFrame("start");
+
     try {
       const result = await runAgentTurn({
         p, agent, modelId,
@@ -459,7 +475,7 @@ export function register(api, { projects, project, config, plugins, registries }
         temperature, maxTokens, tools, maxIters,
         projects, plugins, registries, config,
         onEvent: send,
-        onToken: (chunk) => send({ type: "assistant_delta", delta: chunk }),
+        onToken: (chunk) => { send({ type: "assistant_delta", delta: chunk }); appendActiveTurn(active.id, chunk); turnFrame("delta", { delta: chunk }); },
         // A streamed turn CAN answer a confirmation round-trip (the client
         // posts to /super-agent/confirm/:id). A caller that cannot — `apx exec`
         // renders a spinner and nothing else — sends confirm:false and falls
@@ -476,25 +492,27 @@ export function register(api, { projects, project, config, plugins, registries }
       });
       projects.rebuild(p.id);
 
-      send({
-        type: "final",
-        result: {
-          conversation_id: turn.conv.id,
-          text: result.text,
-          usage: result.usage,
-          name: agent.slug,
-          model: result.model,
-          trace: result.trace,
-          allowed_tools: result.allowedTools,
-          compacted: !!turn.conv.compactSummary,
-        },
-      });
+      const finalResult = {
+        conversation_id: turn.conv.id,
+        text: result.text,
+        usage: result.usage,
+        name: agent.slug,
+        model: result.model,
+        trace: result.trace,
+        allowed_tools: result.allowedTools,
+        compacted: !!turn.conv.compactSummary,
+      };
+      turnFrame("final", { result: finalResult });
+      send({ type: "final", result: finalResult });
       clearInterval(keepalive);
       res.end();
     } catch (e) {
+      turnFrame("error", { error: e.message });
       clearInterval(keepalive);
       send({ type: "error", error: e.message });
       res.end();
+    } finally {
+      endActiveTurn(active.id);
     }
   }));
 

@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SuperAgent, Agents, Conversations } from "../lib/api";
-import type { ChatStreamEvent, ChatUsage, ConversationMessage, MessageMedia, ToolSummary } from "../types/daemon";
+import type { ActiveTurn, ChatStreamEvent, ChatUsage, ConversationMessage, MessageMedia, ToolSummary, TurnFrame } from "../types/daemon";
 import type { UploadedMedia } from "../lib/api/media";
+import { subscribeTurns } from "../lib/live";
 import { t } from "../i18n";
 
 export type ToolStatus = "running" | "done" | "error" | "deduped";
@@ -122,6 +123,13 @@ export interface UseChatResult {
    *  bound to a conversation file — continuing sends go out as fresh web
    *  turns with the thread as previousMessages context. */
   loadThread: (channel: string, threadId: string, opts?: ReloadOptions) => Promise<void>;
+  /** Re-run the user turn that produced the assistant message at `index`,
+   *  dropping that answer and everything after it (in the pane AND, for a bound
+   *  project-agent conversation, on disk). Project-agent / live chats only. */
+  regenerate: (index: number, opts?: SendOptions) => Promise<void>;
+  /** Replace the user message at `index` with `text` and re-send, dropping that
+   *  message and everything after it. Project-agent / live chats only. */
+  editAndResend: (index: number, text: string, opts?: SendOptions) => Promise<void>;
   streaming: boolean;
   /** Turns typed while this one was running, in the order they were written.
    *  They belong under the thread, not in `msgs`: everything that paints a live
@@ -315,6 +323,24 @@ export function mergeLocalTurns(remote: ChatMsg[], current: ChatMsg[]): ChatMsg[
   if (!extras.length) return remote;
   const seen = new Set(remote.map((m) => `${m.role}|${textOf(m)}`));
   return [...remote, ...extras.filter((m) => !seen.has(`${m.role}|${textOf(m)}`))];
+}
+
+/** History plus a trailing streaming bubble for a turn still being written, so
+ *  opening a chat mid-answer shows the partial (then the live frames fill it).
+ *  Marked local so a background refetch keeps it until the real turn persists. */
+function withActiveTurn(loaded: ChatMsg[], active?: ActiveTurn | null): ChatMsg[] {
+  if (!active) return loaded;
+  return [
+    ...loaded,
+    {
+      role: "assistant",
+      parts: active.text ? [{ kind: "text", text: active.text, streaming: true }] : [],
+      ts: active.started_at || new Date().toISOString(),
+      local: true,
+      pending: true,
+      ...(active.agent_slug ? { agent: active.agent_slug, agentId: active.agent_slug } : {}),
+    },
+  ];
 }
 
 /**
@@ -549,6 +575,15 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
   // Without this, clicking chat A then B could land A's (slower) response last
   // and paint A's messages under B's header.
   const loadSeqRef = useRef(0);
+  // True while THIS tab is the one streaming a turn over its own NDJSON socket.
+  // The sender renders from that; it must ignore the live-turn frames the daemon
+  // also pushes for everyone else, or it would paint each token twice.
+  const streamingRef = useRef(false);
+  useEffect(() => { streamingRef.current = streaming; }, [streaming]);
+  // The turn this tab is FOLLOWING from the live feed (a turn it did not start):
+  // its id and the text accumulated so far, so a frame that arrives after a
+  // background refetch wiped the bubble can repaint it whole rather than lose it.
+  const liveTurnRef = useRef<{ id: string; text: string } | null>(null);
 
   // Mutate the trailing assistant turn in place.
   const patchLast = useCallback((fn: (m: ChatMsg) => ChatMsg) => {
@@ -570,6 +605,90 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
     },
     [patchLast, onError],
   );
+
+  // ── Following a turn this tab did NOT start (live push) ──────────────────
+  // paintLive upserts a trailing STREAMING assistant bubble (local, so a
+  // background refetch keeps it) from the full accumulated text; finalizeLive
+  // turns it into a settled reply (no longer local, so the next silent reload
+  // replaces it with the identical persisted turn instead of doubling it).
+  const paintLive = useCallback((text: string, agentSlug?: string) => {
+    setMsgs((curr) => {
+      const copy = [...curr];
+      const last = copy[copy.length - 1];
+      const base: ChatMsg = {
+        role: "assistant",
+        parts: text ? [{ kind: "text", text, streaming: true }] : [],
+        ts: new Date().toISOString(),
+        local: true,
+        pending: true,
+        ...(agentSlug ? { agent: agentSlug, agentId: agentSlug } : {}),
+      };
+      if (last && last.role === "assistant" && (last.pending || last.local)) {
+        copy[copy.length - 1] = { ...base, ts: last.ts };
+      } else {
+        copy.push(base);
+      }
+      return copy;
+    });
+  }, []);
+
+  const finalizeLive = useCallback(
+    (text: string, opts: { model?: string; name?: string; usage?: ChatUsage; error?: string }) => {
+      setMsgs((curr) => {
+        const copy = [...curr];
+        const last = copy[copy.length - 1];
+        if (!last || last.role !== "assistant") return curr;
+        copy[copy.length - 1] = {
+          ...last,
+          local: false,
+          pending: false,
+          parts: text
+            ? [{ kind: "text", text }]
+            : opts.error
+              ? [{ kind: "text", text: t("shared_ui.err_stream") }]
+              : last.parts,
+          ...(opts.model ? { model: opts.model } : {}),
+          ...(opts.name ? { agent: opts.name, agentId: opts.name } : {}),
+          ...(opts.usage ? { usage: opts.usage } : {}),
+        };
+        return copy;
+      });
+    },
+    [],
+  );
+
+  // The daemon pushes every in-progress turn's tokens over the shared feed. A
+  // tab that is NOT the sender — a second window, or this one after a refresh /
+  // switching chats and back — follows them here, so streaming survives losing
+  // the connection that started it.
+  const onTurnFrame = useCallback((f: TurnFrame) => {
+    if (streamingRef.current) return;                 // the sender renders via NDJSON
+    if (String(f.project_id) !== String(pid)) return;
+    if (!convoRef.current || f.conversation_id !== convoRef.current) return;
+    if (f.phase === "start") {
+      liveTurnRef.current = { id: f.turn_id, text: "" };
+      paintLive("", f.agent_slug || undefined);
+    } else if (f.phase === "delta") {
+      const cur =
+        liveTurnRef.current && liveTurnRef.current.id === f.turn_id
+          ? liveTurnRef.current
+          : (liveTurnRef.current = { id: f.turn_id, text: "" });
+      cur.text += f.delta || "";
+      paintLive(cur.text, f.agent_slug || undefined);
+    } else if (f.phase === "final") {
+      liveTurnRef.current = null;
+      finalizeLive(f.result?.text ?? "", {
+        model: f.result?.model,
+        name: f.result?.name || f.agent_slug || undefined,
+        usage: f.result?.usage,
+      });
+    } else if (f.phase === "error") {
+      liveTurnRef.current = null;
+      finalizeLive("", { error: f.error });
+    }
+  }, [pid, paintLive, finalizeLive]);
+
+  useEffect(() => subscribeTurns(onTurnFrame), [onTurnFrame]);
 
   const send = useCallback(
     async (text: string, opts: SendOptions = {}) => {
@@ -612,38 +731,60 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
       ]);
       setStreaming(true);
 
-      // ── Project agent: blocking call, single text part, no tools. ──────────
+      // ── Project agent: streamed NDJSON, token-by-token like the super-agent.
+      // It used to be a single blocking call, which meant no "typing", no
+      // word-by-word — the pane sat blank until the whole reply arrived at once,
+      // and a slow model read as "nothing happened", so turns got re-sent. ─────
       if (opts.agentSlug) {
+        const slug = opts.agentSlug;
+        const ctrl = new AbortController();
+        abortRef.current = ctrl;
         try {
-          const out = await Agents.chat(pid, opts.agentSlug, {
-            prompt: trimmed,
-            conversation_id: convoRef.current,
-            model: opts.model || undefined,
-            channel: "web",
-            // Paths only, same as the super-agent turn below: the bytes are on
-            // disk and the daemon re-resolves each one inside ~/.apx/media. An
-            // engine with vision renders images; one without still gets a marker
-            // in the prompt naming the file and its path.
-            ...(opts.attachments?.length
-              ? { attachments: opts.attachments.map((a) => ({ path: a.path, name: a.name })) }
-              : {}),
-          });
-          convoRef.current = out.conversation_id;
-          setConversationId(out.conversation_id);
-          patchLast((m) => ({
-            ...m,
-            pending: false,
-            model: out.engine,
-            agent: opts.agentSlug,
-            agentId: opts.agentSlug,
-            usage: out.usage,
-            parts: [{ kind: "text", text: out.text }],
-          }));
+          await Agents.chatStream(
+            pid,
+            slug,
+            {
+              prompt: trimmed,
+              conversation_id: convoRef.current,
+              model: opts.model || undefined,
+              channel: "web",
+              // Paths only, same as the super-agent turn below: the bytes are on
+              // disk and the daemon re-resolves each one inside ~/.apx/media. An
+              // engine with vision renders images; one without still gets a marker
+              // in the prompt naming the file and its path.
+              ...(opts.attachments?.length
+                ? { attachments: opts.attachments.map((a) => ({ path: a.path, name: a.name })) }
+                : {}),
+            },
+            (ev) => {
+              // Bind this pane (and any later regenerate/edit rewind) to the file
+              // the daemon appended to — it only names it on the closing event.
+              if (ev.type === "final" && ev.result?.conversation_id) {
+                convoRef.current = ev.result.conversation_id;
+                setConversationId(ev.result.conversation_id);
+              }
+              // The face: a project agent's turns are all its own, so stamp the
+              // slug the reducer's final event doesn't know to set as the id.
+              patchLast((m) => (m.agentId ? m : { ...m, agentId: slug }));
+              applyEvent(ev);
+            },
+            ctrl.signal,
+          );
+          patchLast((m) => ({ ...m, pending: false }));
         } catch (e) {
-          onError?.((e as Error)?.message || t("shared_ui.err_chat_failed"));
-          setMsgs((curr) => curr.filter((_, i) => i !== curr.length - 1));
+          if (ctrl.signal.aborted) {
+            patchLast((m) => ({
+              ...m,
+              pending: false,
+              parts: [...m.parts, { kind: "text", text: t("code_module.stopped") }],
+            }));
+          } else {
+            onError?.((e as Error)?.message || t("shared_ui.err_chat_failed"));
+            setMsgs((curr) => curr.filter((_, i) => i !== curr.length - 1));
+          }
         } finally {
           setStreaming(false);
+          abortRef.current = null;
         }
         return;
       }
@@ -686,6 +827,53 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
       }
     },
     [pid, msgs, streaming, applyEvent, patchLast, onError],
+  );
+
+  // Rewind the pane (and the bound file) to `keepVisible` turns, then send. The
+  // file rewind matters for a project agent: the daemon rebuilds its history
+  // from the conversation file, so without it the dropped turns would still be
+  // there and the "regenerated" answer would see them. send() appends its bubble
+  // to whatever msgs is after this slice, and — for a project agent — reads
+  // history from the file, not its (stale) msgs closure, so the order is right.
+  const rewindAndSend = useCallback(
+    async (keepVisible: number, text: string, opts: SendOptions) => {
+      if (streaming) return;
+      if (convoRef.current && opts.agentSlug) {
+        try {
+          await Conversations.truncate(pid, opts.agentSlug, convoRef.current, keepVisible);
+        } catch (e) {
+          onError?.((e as Error)?.message || t("shared_ui.err_chat_failed"));
+          return;
+        }
+      }
+      setMsgs((curr) => curr.slice(0, keepVisible));
+      await send(text, opts);
+    },
+    [pid, streaming, send, onError],
+  );
+
+  const regenerate = useCallback(
+    async (index: number, opts: SendOptions = {}) => {
+      const target = msgs[index];
+      if (!target || target.role !== "assistant") return;
+      // The user turn that produced it: the nearest user message before it.
+      let u = index - 1;
+      while (u >= 0 && msgs[u].role !== "user") u--;
+      if (u < 0) return;
+      // Keep the turns before that user turn; re-send its text so it (and a fresh
+      // answer) are appended again.
+      await rewindAndSend(u, historyTextOf(msgs[u]), opts);
+    },
+    [msgs, rewindAndSend],
+  );
+
+  const editAndResend = useCallback(
+    async (index: number, text: string, opts: SendOptions = {}) => {
+      const target = msgs[index];
+      if (!target || target.role !== "user") return;
+      await rewindAndSend(index, text, opts);
+    },
+    [msgs, rewindAndSend],
   );
 
   // Stop ends the turn being written; it does not cancel what you queued. That
@@ -736,7 +924,16 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
         convoRef.current = conversationId;
         setConversationId(conversationId);
         setConversationMeta(metaFromDetail(detail));
-        setMsgs((curr) => (opts?.silent ? mergeLocalTurns(loaded, curr) : loaded));
+        // Opening a chat whose answer is still being written: show the partial
+        // as a streaming bubble and let the live "turn" frames carry on filling
+        // it — the whole point of the push feed. Only on a real open; a silent
+        // refetch leaves the live bubble the frames are already maintaining.
+        const active = !opts?.silent ? detail.active_turn : null;
+        if (active) liveTurnRef.current = { id: active.turn_id, text: active.text || "" };
+        else if (!opts?.silent) liveTurnRef.current = null;
+        setMsgs((curr) =>
+          opts?.silent ? mergeLocalTurns(loaded, curr) : withActiveTurn(loaded, active),
+        );
       } catch (e) {
         if (seq !== loadSeqRef.current) return;
         // A background refresh that failed is a refresh that did not happen:
@@ -783,5 +980,5 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
     [pid, streaming, onError],
   );
 
-  return { msgs, send, stop, clear, load, loadThread, streaming, queued, unqueue, conversationId, conversationMeta };
+  return { msgs, send, regenerate, editAndResend, stop, clear, load, loadThread, streaming, queued, unqueue, conversationId, conversationMeta };
 }

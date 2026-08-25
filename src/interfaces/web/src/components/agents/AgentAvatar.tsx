@@ -4,6 +4,7 @@ import { cn } from "../../lib/cn";
 import claudeLogo from "../../assets/cli/claude.webp";
 import codexLogo from "../../assets/cli/codex.webp";
 import opencodeLogo from "../../assets/cli/opencode.png";
+import cursorLogo from "../../assets/cli/cursor.svg";
 
 // Coding-CLI identities aren't project agents — they have no blob — but they DO
 // have a brand mark. When an a2a participant (or any face) is one of these
@@ -13,6 +14,8 @@ const CLI_LOGOS: Record<string, string> = {
   "claude-code": claudeLogo,
   codex: codexLogo,
   opencode: opencodeLogo,
+  cursor: cursorLogo,
+  "cursor-agent": cursorLogo,
 };
 
 /**

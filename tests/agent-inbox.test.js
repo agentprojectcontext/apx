@@ -324,3 +324,49 @@ test("an agent whose only activity is a routine drops out of the inbox", () => {
     cleanup(p);
   }
 });
+
+// The inbox and the phone are WEB-ONLY: `channel: "web"` scopes each agent's row
+// to its web chat so a Telegram thread never surfaces there. This is the one axis
+// where APX is a messaging app; project-first navigation still sees every channel.
+test("channel scope surfaces the web chat and drops a telegram-only agent", () => {
+  const p = makeProject("scoped", ["webby", "teleonly"]);
+  try {
+    // webby has both a telegram chat and a web one. listConversations orders by
+    // filename desc, so the id decides which is "latest" — c2-tg wins unscoped.
+    writeConversationOn(p, "webby", {
+      id: "c1-web", channel: "web",
+      startedAt: "2026-08-01T09:00:00Z", lastAt: "2026-08-01T09:01:00Z",
+      turns: [{ role: "assistant", ts: "2026-08-01T09:01:00Z", content: "web reply." }],
+    });
+    writeConversationOn(p, "webby", {
+      id: "c2-tg", channel: "telegram",
+      startedAt: "2026-08-01T12:00:00Z", lastAt: "2026-08-01T12:01:00Z",
+      turns: [{ role: "assistant", ts: "2026-08-01T12:01:00Z", content: "telegram reply." }],
+    });
+    // teleonly has ONLY a telegram chat.
+    writeConversationOn(p, "teleonly", {
+      id: "c-tg", channel: "telegram",
+      startedAt: "2026-08-01T11:00:00Z", lastAt: "2026-08-01T11:01:00Z",
+      turns: [{ role: "assistant", ts: "2026-08-01T11:01:00Z", content: "only on telegram." }],
+    });
+
+    // Unscoped: webby follows recency to its telegram chat, teleonly is present.
+    const { rows: all } = listAgentInbox([p]);
+    assert.equal(all.find((r) => r.agent_slug === "webby").channel, "telegram");
+    assert.ok(all.find((r) => r.agent_slug === "teleonly"), "telegram-only agent shows unscoped");
+
+    // Web-scoped: webby pins to its web chat, teleonly drops out entirely.
+    const { rows: web } = listAgentInbox([p], { channel: "web" });
+    const webby = web.find((r) => r.agent_slug === "webby");
+    assert.ok(webby, "webby stays, on its web chat");
+    assert.equal(webby.channel, "web", "the row is scoped to the web channel");
+    assert.equal(webby.preview, "web reply.", "the preview comes from the web chat, not telegram");
+    assert.equal(web.find((r) => r.agent_slug === "teleonly"), undefined, "no web chat, no web-scoped row");
+
+    // ...unless includeEmpty is asked for (the "new chat" roster).
+    const { rows: roster } = listAgentInbox([p], { channel: "web", includeEmpty: true });
+    assert.ok(roster.find((r) => r.agent_slug === "teleonly"), "includeEmpty keeps it in the roster");
+  } finally {
+    cleanup(p);
+  }
+});

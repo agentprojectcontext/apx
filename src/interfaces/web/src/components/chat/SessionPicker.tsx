@@ -31,33 +31,48 @@ export interface SessionRow {
  * Every session of one chat, fetched only when someone asks to see them — the
  * list is navigation, not something the chat needs in order to render.
  */
-export function useSessionRows(pid: string, agentSlug: string, isSuper: boolean, enabled: boolean) {
+export function useSessionRows(
+  pid: string,
+  agentSlug: string,
+  isSuper: boolean,
+  enabled: boolean,
+  channelScope?: string,
+) {
   return useSWR<SessionRow[]>(
-    enabled ? `sessions:${pid}:${agentSlug}:${isSuper}` : null,
+    enabled ? `sessions:${pid}:${agentSlug}:${isSuper}:${channelScope ?? ""}` : null,
     async () => {
+      // `channelScope` keeps this switcher in step with the surface it lives on:
+      // the inbox and the phone are web-only, so their session list must not
+      // offer a Telegram thread you'd never reach from there. Project-first
+      // navigation passes nothing and sees every channel.
+      const onScope = (ch?: string) => !channelScope || ch === channelScope;
       // Archived ones are asked for HERE and nowhere else: this is the one
       // list whose job is to offer every session back, including the ones put
       // away. The sidebar and the inbox stay clear of them.
       if (isSuper) {
         const threads = await Conversations.threads(pid, true);
-        return threads.map((th) => ({
-          key: { kind: "thread", channel: th.channel, threadId: th.id } as ChatKey,
-          id: `${th.channel}:${th.id}`,
-          label: th.title || th.id,
-          when: th.last_ts || th.started_at || th.id,
-          channel: th.channel,
-          archived: th.archived,
-        }));
+        return threads
+          .filter((th) => onScope(th.channel))
+          .map((th) => ({
+            key: { kind: "thread", channel: th.channel, threadId: th.id } as ChatKey,
+            id: `${th.channel}:${th.id}`,
+            label: th.title || th.id,
+            when: th.last_ts || th.started_at || th.id,
+            channel: th.channel,
+            archived: th.archived,
+          }));
       }
       const convs = await Conversations.list(pid, agentSlug, true);
-      return convs.map((c) => ({
-        key: { kind: "conv", agentSlug, convId: c.id } as ChatKey,
-        id: c.id,
-        label: c.title || c.id,
-        when: c.ended_at || c.started_at || c.id,
-        channel: c.channel,
-        archived: c.archived,
-      }));
+      return convs
+        .filter((c) => onScope(c.channel))
+        .map((c) => ({
+          key: { kind: "conv", agentSlug, convId: c.id } as ChatKey,
+          id: c.id,
+          label: c.title || c.id,
+          when: c.ended_at || c.started_at || c.id,
+          channel: c.channel,
+          archived: c.archived,
+        }));
     },
   );
 }
@@ -87,6 +102,7 @@ export function SessionPicker({
   label,
   onPick,
   className,
+  channelScope,
 }: {
   pid: string;
   agentSlug: string;
@@ -96,13 +112,15 @@ export function SessionPicker({
   label: string;
   onPick: (key: ChatKey, meta?: ChatSelectionMeta) => void;
   className?: string;
+  /** Limit the list to one channel (the inbox and the phone pass "web"). */
+  channelScope?: string;
 }) {
   const current = currentSessionId(selected);
   // `useSWR(null)` is the off switch: the list is fetched the moment someone
   // reaches for it, not on every chat that gets opened. Armed on hover/focus so
   // it is already there by the time the menu paints.
   const [armed, setArmed] = useState(false);
-  const sessions = useSessionRows(pid, agentSlug, isSuper, armed);
+  const sessions = useSessionRows(pid, agentSlug, isSuper, armed, channelScope);
   const rows = sessions.data || [];
   const live = rows.filter((s) => !s.archived);
   const archivedRows = rows.filter((s) => s.archived);

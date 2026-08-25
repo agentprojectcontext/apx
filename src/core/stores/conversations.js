@@ -175,6 +175,64 @@ export function shapeConversationMessage(t) {
   return { ...base, tool: "tool" };
 }
 
+// Rewind a conversation, dropping turns. This is what "regenerate" and "edit &
+// resend" stand on: the pane rewinds to a turn and the FILE has to rewind with
+// it, or the daemon (which rebuilds a project agent's history from this file)
+// would answer with the stale turns still appended.
+//
+// Cutoff is by a COUNT OF VISIBLE turns, not a timestamp: a just-sent turn's
+// on-screen ts (stamped in the browser) differs from the ts appendTurn writes
+// on disk, so a ts cutoff could misalign. `keepVisible: K` keeps turns through
+// the K-th user/assistant turn, carrying any interleaved system/compact context
+// with them, and drops everything after — which lines up exactly with the
+// viewer, where the pane's messages ARE the user/assistant turns in order (the
+// viewer hides system/compact; project agents have no tool turns). Returns false
+// when the file is missing.
+//
+// The frontmatter block is preserved verbatim except last_turn, and each kept
+// turn is re-emitted in appendTurn's exact format so a round-trip is stable.
+export function truncateConversation(storagePath, agentSlug, idOrFilename, opts = {}) {
+  const { keepVisible = null } = typeof opts === "number" ? { keepVisible: opts } : opts || {};
+  const p = conversationPath(storagePath, agentSlug, idOrFilename);
+  if (!fs.existsSync(p)) return false;
+  const text = fs.readFileSync(p, "utf8");
+  const { turns } = parseConversation(text);
+
+  // Keep turns up to and including the K-th visible (user/assistant) turn — any
+  // system/compact turns before it ride along as context. If K reaches or
+  // exceeds the visible turns present, nothing is dropped (a no-op rewind).
+  const isVisible = (t) => t.role === "user" || t.role === "assistant";
+  const k = Math.max(0, Number(keepVisible) || 0);
+  let kept = [];
+  if (k > 0) {
+    let seen = 0;
+    let lastIdx = -1;
+    for (let i = 0; i < turns.length; i++) {
+      if (isVisible(turns[i]) && ++seen === k) { lastIdx = i; break; }
+    }
+    kept = lastIdx >= 0 ? turns.slice(0, lastIdx + 1) : turns.slice();
+  }
+
+  // Preserve the frontmatter block (`---\n…\n---\n`) exactly, only rewriting
+  // last_turn — re-serialising parsed fm would reorder keys and drop unknowns.
+  const fmEnd = text.startsWith("---\n") ? text.indexOf("\n---\n", 4) : -1;
+  const header = fmEnd !== -1 ? text.slice(0, fmEnd + 5) : "";
+
+  const body = kept
+    .map((t) => {
+      const head = t.meta && Object.keys(t.meta).length ? ` ${JSON.stringify(t.meta)}` : "";
+      return `## ${t.role} — ${t.ts}${head}\n${t.content}\n\n`;
+    })
+    .join("");
+  const lastTs = kept.length ? kept[kept.length - 1].ts : "";
+  const head = header.replace(/^last_turn:.*$/m, `last_turn: ${lastTs}`);
+  fs.writeFileSync(p, `${head}\n${body}`);
+
+  const where = parseConversationPath(p);
+  if (where) emitMessageEvent({ scope: "conversation", ...where, role: "system", ts: nowIso() });
+  return true;
+}
+
 // Delete a conversation file. Filesystem is source of truth, so unlinking the
 // markdown removes it from the sidebar list on the next fetch. Returns false
 // when there is nothing to delete (already gone / bad id).
