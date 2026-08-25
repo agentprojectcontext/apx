@@ -13,6 +13,22 @@ export interface GroupCreated {
   participants: string[];
 }
 
+// Agent-loop events forwarded through a group speaker turn (same NDJSON shape as 1:1 chat).
+type GroupAgentStreamEvent = ChatStreamEvent & {
+  type:
+    | "tool_start"
+    | "tool_result"
+    | "tool_deduped"
+    | "assistant_text"
+    | "model_start"
+    | "model_routed"
+    | "engine_failed"
+    | "model_retry"
+    | "tools_suppressed"
+    | "skill_inspector"
+    | "reasoning";
+};
+
 // NDJSON events streamed while a group turn runs. Bodies are re-read from the
 // thread afterward; these drive live speaker attribution + token streaming.
 export type GroupStreamEvent =
@@ -23,7 +39,7 @@ export type GroupStreamEvent =
   | { type: "done" }
   | { type: "final" }
   | { type: "error"; error: string }
-  | Extract<ChatStreamEvent, { type: "tool_start" | "tool_result" | "tool_deduped" | "assistant_text" | "model_start" | "model_routed" | "engine_failed" | "model_retry" | "tools_suppressed" | "skill_inspector" | "reasoning" }>;
+  | GroupAgentStreamEvent;
 
 export const Groups = {
   create: (pid: string, body: { title?: string; participants: string[] }) =>
