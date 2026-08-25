@@ -25,9 +25,7 @@ const CLI_LOGOS: Record<string, string> = {
  * the agent has one, else its emoji, else a stable coloured initial.
  */
 
-/** The blob the super-agent wears. Mirrors core/stores/agent-inbox.js, which
- *  stamps the same key on the super-agent's inbox row — if the two drift, Roby
- *  changes face between the list and the thread. */
+/** Default blob for surfaces loading before super-agent config arrives. */
 export const SUPER_AGENT_ICON = "noche";
 
 /** Stable colour per agent, so the same agent is the same disc every time. */

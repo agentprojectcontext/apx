@@ -42,7 +42,7 @@ export function buildTeams(rows: InboxRow[]): TeamRow[] {
 
 function faceOf(row: InboxRow) {
   return row.kind === "super_agent"
-    ? { icon: SUPER_AGENT_ICON, name: row.agent_name || row.agent_slug }
+    ? { icon: row.agent_icon || SUPER_AGENT_ICON, name: row.agent_name || row.agent_slug }
     : { icon: row.agent_icon, emoji: row.agent_emoji, name: row.agent_name || row.agent_slug };
 }
 
@@ -125,7 +125,10 @@ export function MobileChatList({
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
-      <header className="shrink-0 border-b border-border px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+      <header className={cn(
+        "shrink-0 border-b border-border px-4 pb-3",
+        androidOptions ? "pt-1.5" : "pt-[max(0.75rem,env(safe-area-inset-top))]",
+      )}>
         {/* Theme and language are reachable from the screen the phone lands on.
             They used to live only in the desktop panel's Web module, which on a
             phone means leaving the app to change how the app looks. */}

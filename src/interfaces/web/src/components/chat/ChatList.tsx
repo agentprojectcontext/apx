@@ -94,6 +94,7 @@ interface Props {
   /** Virtual super-agent slug used by the dropdown (kept in sync with ChatTab). */
   superAgentSlug: string;
   superAgentLabel: string;
+  superAgentIcon?: string;
   selected: ChatKey;
   onSelect: (key: ChatKey, meta?: ChatSelectionMeta) => void;
   /** Start a fresh in-memory session with the chosen agent (super-agent or a
@@ -132,6 +133,7 @@ export function ChatList({
   agents,
   superAgentSlug,
   superAgentLabel,
+  superAgentIcon = SUPER_AGENT_ICON,
   selected,
   onSelect,
   onNewChat,
@@ -250,7 +252,7 @@ export function ChatList({
   // Conversations carry a slug, not an agent record — resolve it once here so
   // every row can wear the right face.
   const faceFor = (slug: string): AgentFace => {
-    if (slug === superAgentSlug) return { icon: SUPER_AGENT_ICON, name: superAgentLabel };
+    if (slug === superAgentSlug) return { icon: superAgentIcon, name: superAgentLabel };
     const hit = agents.find((a) => a.slug === slug);
     return { icon: hit?.icon, emoji: hit?.emoji, name: hit?.name || slug };
   };
@@ -389,7 +391,7 @@ export function ChatList({
                     title={th.title}
                     subtitle={[th.channel, `${th.messages} msg`].join(" · ")}
                     badge={isA2A ? undefined : t("agents_ui.super_agent_badge")}
-                    face={isA2A ? undefined : { icon: SUPER_AGENT_ICON, name: superAgentLabel }}
+                    face={isA2A ? undefined : { icon: superAgentIcon, name: superAgentLabel }}
                     faces={isA2A && parts?.length ? parts.map(faceFor) : undefined}
                     timeAgo={th.last_ts}
                     selected={active}

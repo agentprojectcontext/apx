@@ -25,6 +25,7 @@ import { STORAGE } from "../constants";
 import { useToast } from "./Toast";
 import { t } from "../i18n";
 import { usePersonaName } from "../hooks/usePersonaName";
+import { useSuperAgentConfig } from "../hooks/useGlobalConfig";
 import type { ChatStreamEvent, ConversationMessage } from "../types/daemon";
 
 // Load any persisted conversation, dropping half-finished (pending) turns.
@@ -48,6 +49,8 @@ export function RobyBubble({
   onOpenChange: (open: boolean) => void;
 }) {
   const persona = usePersonaName();
+  const { superAgent } = useSuperAgentConfig();
+  const avatar = superAgent?.icon || SUPER_AGENT_ICON;
   const toast = useToast();
   const [msgs, setMsgs] = useState<ChatMsg[]>(loadStored);
   const [draft, setDraft] = useState("");
@@ -197,7 +200,7 @@ export function RobyBubble({
       >
         <SheetHeader className="pr-12">
           <SheetTitle className="flex items-center gap-2">
-            <AgentAvatar icon={SUPER_AGENT_ICON} name={persona} size={22} />
+            <AgentAvatar icon={avatar} name={persona} size={22} />
             {t("superagent.title", { persona })}
             <span className="text-xs font-normal text-muted-fg">{t("superagent.badge")}</span>
           </SheetTitle>
@@ -211,7 +214,7 @@ export function RobyBubble({
             <MessageList
               msgs={msgs}
               onCopy={copyToClipboard}
-              faceFor={() => ({ icon: SUPER_AGENT_ICON, name: persona })}
+              faceFor={() => ({ icon: avatar, name: persona })}
             />
           )}
         </div>

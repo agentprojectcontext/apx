@@ -15,6 +15,7 @@ const {
   isEventsUpgradePath,
   registerEventsClient,
   broadcastEvents,
+  broadcastSuperAgentAvatar,
   startEventsBridge,
   EVENTS_WS_PATH,
 } = await import("#host/daemon/events-ws.js");
@@ -74,9 +75,10 @@ test("the feed is gated by the same token check as every other WS channel", () =
 test("a connecting client is greeted, tracked, and dropped when it goes away", () => {
   reset();
   const a = new FakeWs();
-  registerEventsClient(a);
+  registerEventsClient(a, { super_agent: { icon: "coral" } });
   assert.equal(eventsClients.size, 1);
   assert.equal(a.frames()[0].type, "hello");
+  assert.equal(a.frames()[0].settings.super_agent.icon, "coral");
 
   const b = new FakeWs();
   registerEventsClient(b);
@@ -85,6 +87,18 @@ test("a connecting client is greeted, tracked, and dropped when it goes away", (
   assert.ok(eventsClients.has(b));
   b.emit("error", new Error("boom"));
   assert.equal(eventsClients.size, 0);
+});
+
+test("avatar changes fan out through the settings feed", () => {
+  reset();
+  const ws = new FakeWs();
+  registerEventsClient(ws);
+  ws.sent.length = 0;
+  broadcastSuperAgentAvatar({ super_agent: { icon: "zafiro" } });
+  assert.deepEqual(ws.frames(), [{
+    type: "settings",
+    settings: { super_agent: { icon: "zafiro" } },
+  }]);
 });
 
 test("broadcastEvents skips a socket that is not open", () => {

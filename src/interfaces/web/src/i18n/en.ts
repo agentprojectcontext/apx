@@ -375,6 +375,8 @@ export const en = {
       model: "Active model",
       model_hint: "E.g.: anthropic:claude-sonnet-4.5, ollama:gemma2:9b",
       permission_mode: "Permission mode",
+      avatar: "Avatar",
+      avatar_hint: "Updates the Desktop and Android mascots immediately.",
       system: "Extra prompt (system)",
       system_hint: "Text prepended to the base system prompt.",
       system_ph: "(Empty = the base prompt from core/agent/prompts/super-agent-base.md is used)",

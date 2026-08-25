@@ -620,6 +620,13 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
             conversation_id: convoRef.current,
             model: opts.model || undefined,
             channel: "web",
+            // Paths only, same as the super-agent turn below: the bytes are on
+            // disk and the daemon re-resolves each one inside ~/.apx/media. An
+            // engine with vision renders images; one without still gets a marker
+            // in the prompt naming the file and its path.
+            ...(opts.attachments?.length
+              ? { attachments: opts.attachments.map((a) => ({ path: a.path, name: a.name })) }
+              : {}),
           });
           convoRef.current = out.conversation_id;
           setConversationId(out.conversation_id);

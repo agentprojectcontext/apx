@@ -79,6 +79,14 @@ test.describe("navigation smoke", () => {
     expect(errors, "no uncaught errors across settings panels").toEqual([]);
   });
 
+  test("super-agent settings offers the shared blob catalog", async ({ page, errors }) => {
+    await page.goto("/settings/super-agent");
+    const picker = page.getByTestId("agent-icon-picker");
+    await expect(picker).toBeVisible();
+    await expect(picker.getByRole("button")).toHaveCount(35);
+    expect(errors).toEqual([]);
+  });
+
   test("every Base (daemon) screen renders", async ({ page, errors }) => {
     await page.goto("/p/0");
     for (const [navKey, active] of BASE_TABS) {

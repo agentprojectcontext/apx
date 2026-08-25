@@ -15,6 +15,8 @@ import {
   mergeRedactedChannels,
 } from "#core/config/redact.js";
 import { collectSecretValues, registerSecretValues } from "#core/config/secret-values.js";
+import { isBlobKey, resolveSuperAgentBlob } from "#core/apc/agent-identity.js";
+import { broadcastSuperAgentAvatar } from "../events-ws.js";
 
 export function register(api, { config, scheduler, plugins }) {
   api.get("/admin/config", (_req, res) => {
@@ -28,6 +30,11 @@ export function register(api, { config, scheduler, plugins }) {
 
   api.patch("/admin/config", (req, res) => {
     const { set, unset } = req.body || {};
+    const avatarTouched = (set && Object.hasOwn(set, "super_agent.icon"))
+      || (Array.isArray(unset) && unset.includes("super_agent.icon"));
+    if (set && Object.hasOwn(set, "super_agent.icon") && !isBlobKey(set["super_agent.icon"])) {
+      return res.status(400).json({ error: "Invalid super-agent avatar" });
+    }
     let cfg;
     try {
       cfg = readConfig();
@@ -64,6 +71,7 @@ export function register(api, { config, scheduler, plugins }) {
     registerSecretValues(collectSecretValues(fresh));
     if (scheduler) scheduler.globalConfig = config;
     if (plugins) plugins.config = config;
+    if (avatarTouched) broadcastSuperAgentAvatar(fresh);
     res.json({ ok: true, config: redact(fresh) });
   });
 
@@ -75,6 +83,7 @@ export function register(api, { config, scheduler, plugins }) {
       res.json({
         enabled: !!sa.enabled,
         name: resolveAgentName(fresh),
+        icon: resolveSuperAgentBlob(fresh),
         model: sa.model || "",
         system: sa.system || "",
         permission_mode: sa.permission_mode || PERMISSION_MODES.PERMISO,

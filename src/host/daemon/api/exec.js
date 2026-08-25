@@ -23,6 +23,7 @@ import {
 } from "#core/stores/conversations.js";
 import { answerDeliveries } from "#core/stores/deliveries.js";
 import { asyncRoute } from "./shared.js";
+import { readTurnAttachments } from "./media.js";
 
 // A chat reply is prose, not a Telegram one-liner: run-agent's 512-token default
 // truncates an agent mid-answer on the surface where the whole answer is the
@@ -57,6 +58,9 @@ async function runAgentTurn({
   system,
   prompt,
   previousMessages = [],
+  // Images that arrived with this turn: [{ kind, mime, data, path }]. Only the
+  // tool-driven path forwards them — the toolless callEngine branch is text.
+  attachments = [],
   channel,
   channelMeta,
   temperature,
@@ -109,6 +113,7 @@ async function runAgentTurn({
     system,
     prompt,
     previousMessages,
+    attachments,
     overrideModel: modelId,
     toolSchemas: toolSession.initialSchemas,
     makeToolHandlers,
@@ -216,8 +221,18 @@ export function register(api, { projects, project, config, plugins, registries }
       maxIters,
       channel,
       channelMeta,
+      attachments,
     } = req.body || {};
-    if (!prompt) return res.status(400).json({ error: "prompt required" });
+    // Files the composer uploaded to ~/.apx/media and named on this turn,
+    // resolved the way the super-agent turn resolves them: images ride on the
+    // model message, and a marker naming each file is folded into the prompt so
+    // a photo with no caption is still a turn and a non-vision engine is told a
+    // file arrived and where it lives.
+    const turnFiles = readTurnAttachments(attachments);
+    if (!prompt && !turnFiles.markers.length) {
+      return res.status(400).json({ error: "prompt required" });
+    }
+    const turnPrompt = [...turnFiles.markers, prompt].filter(Boolean).join(" ");
     const target = await resolveTarget(req, res, p, config);
     if (!target) return;
     const { agent, modelId } = target;
@@ -230,10 +245,11 @@ export function register(api, { projects, project, config, plugins, registries }
         engine: modelId,
         system,
       });
-      appendTurn({ filePath: conv.path, role: "user", content: prompt });
+      appendTurn({ filePath: conv.path, role: "user", content: turnPrompt });
 
       const result = await runAgentTurn({
-        p, agent, modelId, system, prompt,
+        p, agent, modelId, system, prompt: turnPrompt,
+        attachments: turnFiles.attachments,
         channel: channel || CHANNELS.API,
         channelMeta,
         temperature, maxTokens, tools, maxIters,
@@ -299,8 +315,18 @@ export function register(api, { projects, project, config, plugins, registries }
       maxIters,
       channel,
       channelMeta,
+      attachments,
     } = req.body || {};
-    if (!prompt) return res.status(400).json({ error: "prompt required" });
+    // Files the composer uploaded to ~/.apx/media and named on this turn,
+    // resolved the way the super-agent turn resolves them: images ride on the
+    // model message, and a marker naming each file is folded into the prompt so
+    // a photo with no caption is still a turn and a non-vision engine is told a
+    // file arrived and where it lives.
+    const turnFiles = readTurnAttachments(attachments);
+    if (!prompt && !turnFiles.markers.length) {
+      return res.status(400).json({ error: "prompt required" });
+    }
+    const turnPrompt = [...turnFiles.markers, prompt].filter(Boolean).join(" ");
     const target = await resolveTarget(req, res, p, config);
     if (!target) return;
     const { agent, modelId } = target;
@@ -313,7 +339,7 @@ export function register(api, { projects, project, config, plugins, registries }
           .json({ error: `conversation ${conversation_id} not found` });
       }
 
-      appendTurn({ filePath: turn.conv.path, role: "user", content: prompt });
+      appendTurn({ filePath: turn.conv.path, role: "user", content: turnPrompt });
       // Manu replied in this agent's chat → close its open deliveries (and cancel
       // any grace-window notify still pending). See core/stores/deliveries.js.
       try { answerDeliveries(p.storagePath, agent.slug); } catch { /* best-effort */ }
@@ -321,7 +347,8 @@ export function register(api, { projects, project, config, plugins, registries }
       const result = await runAgentTurn({
         p, agent, modelId,
         system: turn.system,
-        prompt,
+        prompt: turnPrompt,
+        attachments: turnFiles.attachments,
         previousMessages: turn.conv.history,
         channel: channel || CHANNELS.API,
         channelMeta,
@@ -366,8 +393,18 @@ export function register(api, { projects, project, config, plugins, registries }
       maxIters,
       channel,
       channelMeta,
+      attachments,
     } = req.body || {};
-    if (!prompt) return res.status(400).json({ error: "prompt required" });
+    // Files the composer uploaded to ~/.apx/media and named on this turn,
+    // resolved the way the super-agent turn resolves them: images ride on the
+    // model message, and a marker naming each file is folded into the prompt so
+    // a photo with no caption is still a turn and a non-vision engine is told a
+    // file arrived and where it lives.
+    const turnFiles = readTurnAttachments(attachments);
+    if (!prompt && !turnFiles.markers.length) {
+      return res.status(400).json({ error: "prompt required" });
+    }
+    const turnPrompt = [...turnFiles.markers, prompt].filter(Boolean).join(" ");
     const target = await resolveTarget(req, res, p, config);
     if (!target) return;
     const { agent, modelId } = target;
@@ -399,7 +436,7 @@ export function register(api, { projects, project, config, plugins, registries }
     keepalive.unref?.();
     res.on("close", () => clearInterval(keepalive));
 
-    appendTurn({ filePath: turn.conv.path, role: "user", content: prompt });
+    appendTurn({ filePath: turn.conv.path, role: "user", content: turnPrompt });
     // Manu replied in this agent's chat → close its open deliveries (and cancel
     // any grace-window notify still pending). See core/stores/deliveries.js.
     try { answerDeliveries(p.storagePath, agent.slug); } catch { /* best-effort */ }
@@ -408,7 +445,8 @@ export function register(api, { projects, project, config, plugins, registries }
       const result = await runAgentTurn({
         p, agent, modelId,
         system: turn.system,
-        prompt,
+        prompt: turnPrompt,
+        attachments: turnFiles.attachments,
         previousMessages: turn.conv.history,
         channel: channel || CHANNELS.WEB,
         channelMeta,

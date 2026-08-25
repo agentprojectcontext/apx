@@ -265,3 +265,62 @@ test("a multi-line turn survives parsing intact", async () => {
   const reply = turns.find((t) => t.role === "assistant");
   assert.equal(reply.content, "line one\nline two\n\nline four");
 });
+
+// A routine run is not a chat. Chatting inside a routine thread happens, but the
+// inbox headline for an agent must be its last REAL conversation — else a
+// scheduled run that just fired buries the thread you were actually in.
+function writeConversationOn(project, slug, { id, channel, startedAt, lastAt, turns }) {
+  const dir = path.join(project.storagePath, "agents", slug, "conversations");
+  fs.mkdirSync(dir, { recursive: true });
+  const fm = `---\nstarted: ${startedAt}\nlast_turn: ${lastAt}\nchannel: ${channel}\nstatus: open\n---\n\n`;
+  const body = turns.map((t) => `## ${t.role} — ${t.ts}\n${t.content}\n`).join("\n");
+  fs.writeFileSync(path.join(dir, `${id}.md`), fm + body + "\n");
+}
+
+test("a routine conversation is never the inbox headline — the last real chat is", () => {
+  const p = makeProject("routines", ["magui"]);
+  try {
+    // Older real chat...
+    writeConversationOn(p, "magui", {
+      id: "c1-web", channel: "web",
+      startedAt: "2026-08-01T09:00:00Z", lastAt: "2026-08-01T09:01:00Z",
+      turns: [{ role: "assistant", ts: "2026-08-01T09:01:00Z", content: "posted the daily." }],
+    });
+    // ...and a NEWER routine run on top of it.
+    writeConversationOn(p, "magui", {
+      id: "c2-routine", channel: "routine",
+      startedAt: "2026-08-01T12:00:00Z", lastAt: "2026-08-01T12:01:00Z",
+      turns: [{ role: "assistant", ts: "2026-08-01T12:01:00Z", content: "cron tick done." }],
+    });
+
+    const { rows } = listAgentInbox([p]);
+    const magui = rows.find((r) => r.agent_slug === "magui");
+    assert.ok(magui, "magui is in the inbox");
+    assert.equal(magui.channel, "web", "the routine run does not become the row's channel");
+    assert.equal(magui.preview, "posted the daily.", "the preview is the last real chat, not the routine tick");
+  } finally {
+    cleanup(p);
+  }
+});
+
+test("an agent whose only activity is a routine drops out of the inbox", () => {
+  const p = makeProject("routine-only", ["ghost"]);
+  try {
+    writeConversationOn(p, "ghost", {
+      id: "c1-routine", channel: "routine",
+      startedAt: "2026-08-01T12:00:00Z", lastAt: "2026-08-01T12:01:00Z",
+      turns: [{ role: "assistant", ts: "2026-08-01T12:01:00Z", content: "cron tick done." }],
+    });
+
+    const { rows } = listAgentInbox([p]);
+    assert.equal(rows.find((r) => r.agent_slug === "ghost"), undefined, "no chat, no row");
+
+    // ...but includeEmpty still surfaces it, with no channel.
+    const { rows: withEmpty } = listAgentInbox([p], { includeEmpty: true });
+    const ghost = withEmpty.find((r) => r.agent_slug === "ghost");
+    assert.ok(ghost, "includeEmpty surfaces the agent");
+    assert.equal(ghost.channel, null, "and it carries no routine channel");
+  } finally {
+    cleanup(p);
+  }
+});
