@@ -138,3 +138,42 @@ test("an ordinary agent slug is unaffected", async () => {
     assert.equal((await missing.json()).error, "agent not found");
   });
 });
+
+// ── Writes: refuse coherently, on every surface ────────────────────────────
+// web, /mobile and the inbox are the same SPA over the same endpoints, so a
+// slug the read paths accept must not fall through to "agent not found" (or,
+// worse, to running an agent that does not exist) on the write paths.
+
+test("writes aimed at an a2a thread are refused with a reason, not 'agent not found'", async () => {
+  await withProject(async ({ baseUrl, id }) => {
+    const base = `${baseUrl}/api/projects/${id}/agents/a2a:cursor~roby`;
+    const cases = [
+      ["DELETE", `${base}/conversations/cursor~roby`, undefined],
+      ["POST", `${base}/conversations/cursor~roby/compact`, {}],
+      ["POST", `${base}/compact`, {}],
+      ["POST", `${base}/chat`, { prompt: "hola" }],
+      ["POST", `${base}/exec`, { prompt: "hola" }],
+    ];
+    for (const [method, url, body] of cases) {
+      const res = await fetch(url, {
+        method,
+        ...(body ? { headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : {}),
+      });
+      assert.equal(res.status, 400, `${method} ${url} should be a clear 400`);
+      const err = (await res.json()).error;
+      assert.match(err, /a2a threads cannot be/i, `${method} ${url}: ${err}`);
+      assert.doesNotMatch(err, /agent not found/i);
+    }
+  });
+});
+
+test("the a2a prefix has one definition, shared by the route that mints it", async () => {
+  const { A2A_SLUG_PREFIX, a2aSlugThreadId } = await import("#host/daemon/api/shared.js");
+  assert.equal(A2A_SLUG_PREFIX, "a2a:");
+  assert.equal(a2aSlugThreadId("a2a:cursor~roby"), "cursor~roby");
+  assert.equal(a2aSlugThreadId("roby"), null);
+  assert.equal(a2aSlugThreadId(undefined), null);
+  const inbox = fs.readFileSync(path.join(process.cwd(), "src/host/daemon/api/inbox.js"), "utf8");
+  assert.match(inbox, /A2A_SLUG_PREFIX/, "inbox mints the slug from the shared constant");
+  assert.doesNotMatch(inbox, /`a2a:\$\{/, "no second hardcoded copy of the prefix");
+});
