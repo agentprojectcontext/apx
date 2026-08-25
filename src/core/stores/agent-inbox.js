@@ -16,8 +16,11 @@
 // resolution.
 import { readAgents } from "../apc/parser.js";
 import { listConversations } from "./conversations.js";
+import { CHANNELS } from "../constants/channels.js";
 import { listGlobalThreads, readGlobalThread } from "./messages.js";
 import { SUPERAGENT_ACTOR_ID } from "../constants/actors.js";
+import { readConfig } from "../config/index.js";
+import { resolveSuperAgentBlob } from "../apc/agent-identity.js";
 
 /** Most recent first; slug breaks ties so two identical calls agree. */
 function byRecency(a, b) {
@@ -65,7 +68,13 @@ export function listAgentInbox(projects, opts = {}) {
         // whole project from the inbox.
         conversations = [];
       }
-      const latest = conversations[0] || null;
+      // A routine conversation is not a chat: the routine runs on its own and
+      // its delivered output lands in the agent's web chat, which is the row we
+      // want to show. Chatting inside the routine thread happens, but it should
+      // not become the agent's inbox entry — pick the latest NON-routine
+      // conversation instead. An agent whose only activity is routine runs has
+      // no chat to show and drops out of the inbox (unless includeEmpty).
+      const latest = conversations.find((c) => c.channel !== CHANNELS.ROUTINE) || null;
       if (!latest && !includeEmpty) continue;
 
       rows.push({
@@ -117,7 +126,10 @@ function buildSuperAgentRow() {
   }
 
   const messages = threads.reduce((n, t) => n + (t.messages || 0), 0);
-  const latest = threads[0] || null; // listGlobalThreads sorts by last_ts desc
+  // Same rule as the project agents: a routine run is not a chat, so it never
+  // becomes the row's headline. listGlobalThreads sorts by last_ts desc, so the
+  // first non-routine thread is the most recent real conversation.
+  const latest = threads.find((t) => t.channel !== CHANNELS.ROUTINE) || null;
 
   let preview = null;
   if (latest) {
@@ -143,7 +155,7 @@ function buildSuperAgentRow() {
     agent_slug: SUPERAGENT_ACTOR_ID,
     agent_name: null, // resolved by the surface via resolveAgentName()
     agent_emoji: null,
-    agent_icon: "noche", // Roby, the super-agent, wears the "Noche" blob
+    agent_icon: resolveSuperAgentBlob(readConfig()),
     kind: "super_agent",
     pinned: true,
     conversation_id: latest?.id || null,

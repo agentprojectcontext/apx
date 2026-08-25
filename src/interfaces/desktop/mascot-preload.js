@@ -26,4 +26,7 @@ contextBridge.exposeInMainWorld("mascot", {
 
   // Notifications relayed from the cross-channel event feed in main.
   onNotify: (fn) => ipcRenderer.on("mascot-notify", (_e, msg) => fn(msg)),
+
+  // Avatar updates use the same authenticated event feed as notifications.
+  onAvatar: (fn) => ipcRenderer.on("mascot-avatar", (_e, key) => fn(key)),
 });

@@ -125,11 +125,11 @@ function getAgentName() {
 }
 
 // ── Mascot (blob pet) config ────────────────────────────────────────────────
-// Which blob the pet wears: config.desktop.blob, else the super-agent's icon,
-// else "noche" (Roby's default). Each user can pick their own in config.json.
+// Which blob the pet wears: the shared super-agent avatar, then the legacy
+// desktop-only override, then the default. The web picker writes the shared key.
 function getMascotBlob() {
   const cfg = readApxConfig();
-  const key = cfg?.desktop?.blob || cfg?.super_agent?.icon;
+  const key = cfg?.super_agent?.icon || cfg?.desktop?.blob;
   return (typeof key === "string" && key.trim()) ? key.trim() : "noche";
 }
 
@@ -902,6 +902,10 @@ function connectEventsFeed() {
   }
 
   function handleFrame(msg) {
+    const avatar = msg?.settings?.super_agent?.icon;
+    if ((msg?.type === "hello" || msg?.type === "settings") && typeof avatar === "string") {
+      mascotWindow?.webContents.send("mascot-avatar", avatar);
+    }
     if (!msg || msg.type !== "messages" || !Array.isArray(msg.events)) return;
     if (!mascotWindow) return; // pet off → nothing to notify
 
@@ -911,7 +915,9 @@ function connectEventsFeed() {
     const byChannel = new Map();
     for (const ev of msg.events) {
       if (!ev || ev.direction !== "in") continue;
-      if (ev.channel === "desktop" || ev.channel === "voice") continue;
+      // Skip our own input surfaces (we're right there), and a2a — agent↔agent
+      // chatter is not for the owner, so the pet must not bubble "message in A2a".
+      if (ev.channel === "desktop" || ev.channel === "voice" || ev.channel === "a2a") continue;
       byChannel.set(ev.channel, (byChannel.get(ev.channel) || 0) + 1);
     }
     for (const [channel, n] of byChannel) {
@@ -923,16 +929,19 @@ function connectEventsFeed() {
     // Routine deliveries are `direction:"out"` (an agent reaching us), so the
     // inbound filter above skips them — yet a non-Roby agent leaving a message
     // in its own web chat is exactly the "you have something to answer" the pet
-    // exists to surface. Bubble one per agent, keyed off the web delivery row.
-    const byAgent = new Set();
+    // exists to surface. Bubble one per agent, keyed off the web delivery row,
+    // and use the row's own ≤100-char headline (`notify`) so the pet says WHAT
+    // arrived ("golf-coach: 🏌️ Tip Golf…") instead of a bare "new message".
+    const byAgent = new Map();
     for (const ev of msg.events) {
       if (!ev || ev.via !== "routine_delivery" || ev.channel !== "web") continue;
       if (!ev.agent_slug || ev.agent_slug === "super_agent") continue;
-      byAgent.add(ev.agent_slug);
+      byAgent.set(ev.agent_slug, ev.notify || byAgent.get(ev.agent_slug) || "");
     }
-    for (const agent of byAgent) {
+    for (const [agent, notify] of byAgent) {
+      const text = notify ? `${agent}: ${notify}` : `${agent} te dejó un mensaje`;
       mascotWindow.webContents.send("mascot-notify", {
-        text: `${agent} te dejó un mensaje`,
+        text,
         sound: getMascotSoundEnabled(),
       });
     }

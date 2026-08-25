@@ -14,16 +14,16 @@
 export { BLOB_KEYS } from "./blob-keys.js";
 import { BLOB_KEYS } from "./blob-keys.js";
 
-/**
- * The super-agent (Roby) wears this one. Mirrors SUPER_AGENT_ICON in
- * `components/agents/AgentAvatar.tsx`. Project agents never get it assigned
- * automatically — two identities with the same face in one thread is exactly
- * the confusion the single-renderer work removed.
- */
+/** Default super-agent avatar. Users may override it with super_agent.icon. */
 export const SUPER_AGENT_BLOB = "noche";
 
 export function isBlobKey(v) {
   return typeof v === "string" && BLOB_KEYS.includes(v);
+}
+
+/** Resolve a safe super-agent avatar from global config. */
+export function resolveSuperAgentBlob(config) {
+  return isBlobKey(config?.super_agent?.icon) ? config.super_agent.icon : SUPER_AGENT_BLOB;
 }
 
 /**
