@@ -54,9 +54,44 @@ export function register(api, { project, config, plugins, registries }) {
   const agentResolvable = (p, slug) =>
     slug === superAgentSlug() || readAgents(p.path).some((a) => a.slug === slug);
 
+  // The inbox lists a2a "group chats" under a SYNTHETIC slug, `a2a:<pairId>`
+  // (see api/inbox.js) — a pair exchange is nobody's individual conversation,
+  // so it has no agents/<slug>/conversations/ directory. Those rows are opened
+  // through this same per-agent surface, so unless the slug resolves here every
+  // a2a row in the inbox dead-ends on "agent not found".
+  //
+  // NOT a URL-parsing problem: Express hands `a2a:cursor~roby` through intact,
+  // percent-encoded or not (verified both ways against the running daemon).
+  // The id was reaching the handler fine; there was simply no code path that
+  // could read a pair thread. `readProjectA2AThread` already existed and
+  // already returns the viewer's shape — it was never wired to a route.
+  const A2A_PREFIX = "a2a:";
+  const a2aThreadId = (slug) => {
+    const s = String(slug || "");
+    return s.startsWith(A2A_PREFIX) ? s.slice(A2A_PREFIX.length) : null;
+  };
+
   api.get("/projects/:pid/agents/:slug/conversations", (req, res) => {
     const p = project(req, res);
     if (!p) return;
+    const listA2A = a2aThreadId(req.params.slug);
+    if (listA2A !== null) {
+      const th = listProjectA2AThreads(p.storagePath).find((t) => t.id === listA2A);
+      // One pair id is one thread. Shaped like a conversation summary so the
+      // sidebar renders it beside the ordinary ones.
+      return res.json(th ? [{
+        id: th.id,
+        filename: `${th.id}.a2a`,
+        agent_slug: req.params.slug,
+        started_at: th.started_at || "",
+        last_turn_at: th.last_ts || th.started_at || "",
+        channel: "a2a",
+        messages: th.messages,
+        title: th.title,
+        preview: th.preview || undefined,
+        preview_at: th.last_ts || undefined,
+      }] : []);
+    }
     if (!agentResolvable(p, req.params.slug))
       return res.status(404).json({ error: "agent not found" });
     res.json(
@@ -72,6 +107,11 @@ export function register(api, { project, config, plugins, registries }) {
   api.patch("/projects/:pid/agents/:slug/conversations/:id", (req, res) => {
     const p = project(req, res);
     if (!p) return;
+    // An a2a thread is derived from the message ledger, not a file with
+    // frontmatter, so there is nothing to rename or archive. Say that, rather
+    // than the misleading "agent not found" this used to answer.
+    if (a2aThreadId(req.params.slug) !== null)
+      return res.status(400).json({ error: "a2a threads cannot be renamed or archived" });
     if (!agentResolvable(p, req.params.slug))
       return res.status(404).json({ error: "agent not found" });
     const { title, archived } = req.body || {};
@@ -88,6 +128,18 @@ export function register(api, { project, config, plugins, registries }) {
   api.get("/projects/:pid/agents/:slug/conversations/:id", (req, res) => {
     const p = project(req, res);
     if (!p) return;
+    const detailA2A = a2aThreadId(req.params.slug);
+    if (detailA2A !== null) {
+      const th = readProjectA2AThread(p.storagePath, detailA2A || req.params.id);
+      if (!th) return res.status(404).json({ error: "conversation not found" });
+      return res.json({
+        id: th.id,
+        agent_slug: req.params.slug,
+        channel: "a2a",
+        messages: th.messages,
+        meta: { channel: "a2a", participants: th.participants },
+      });
+    }
     const conv = readConversation(p.storagePath, req.params.slug, req.params.id);
     if (!conv) return res.status(404).json({ error: "conversation not found" });
     // Shape the response as the `ConversationDetail` the web client expects:
