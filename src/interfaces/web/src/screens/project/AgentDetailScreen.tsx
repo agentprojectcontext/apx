@@ -22,6 +22,7 @@ import { BlobAvatar } from "../../components/agents/BlobAvatar";
 import { isBlobKey } from "../../components/agents/blobPresets";
 import { FileViewer } from "../../components/files/FileViewer";
 import { cn } from "../../lib/cn";
+import { slugify } from "../../lib/slug";
 import { t } from "../../i18n";
 import { toneOutline, toneText } from "../../lib/tone";
 import type { AgentAutonomy } from "../../types/daemon";
@@ -116,6 +117,7 @@ export function AgentDetailScreen({ pid }: { pid: string }) {
                 slug={a.slug}
                 name={a.name || ""}
                 onSaved={() => { void detail.mutate(); void agents.mutate(); }}
+                onRenamed={(newSlug) => { void agents.mutate(); navigate(`/p/${pid}/agents/${newSlug}`); }}
               />
               {a.is_master && <Badge tone="success"><Crown size={10} /> {t("project.agents.orchestrator")}</Badge>}
               {a.role && <Badge>{a.role}</Badge>}
@@ -241,6 +243,7 @@ export function AgentDetailScreen({ pid }: { pid: string }) {
           projectPath={project?.path}
           onSaved={() => { detail.mutate(); agents.mutate(); }}
           onDeleted={() => { agents.mutate(); navigate(`/p/${pid}/agents`); }}
+          onRenamed={(newSlug) => { void agents.mutate(); navigate(`/p/${pid}/agents/${newSlug}?tab=config`); }}
         />
       )}
     </div>
@@ -252,12 +255,16 @@ export function AgentDetailScreen({ pid }: { pid: string }) {
 // Name changes — the slug is the agent's identity (filename, parent links,
 // delegation targets) and stays put.
 function AgentNameHeading({
-  pid, slug, name, onSaved,
-}: { pid: string; slug: string; name: string; onSaved: () => void }) {
+  pid, slug, name, onSaved, onRenamed,
+}: { pid: string; slug: string; name: string; onSaved: () => void; onRenamed: (s: string) => void }) {
   const toast = useToast();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(name);
   const [busy, setBusy] = useState(false);
+  // After a name change, if the slug would follow, we offer to rename it too —
+  // but renaming moves the agent's file/dir and changes the URL, so it's an
+  // explicit confirm rather than a silent side effect of editing the name.
+  const [renameTo, setRenameTo] = useState<string | null>(null);
 
   const start = () => { setDraft(name); setEditing(true); };
 
@@ -269,8 +276,30 @@ function AgentNameHeading({
     try {
       await Agents.update(pid, slug, { name: next || null });
       onSaved();
+      // Suggest matching the slug to the new name, but only when it's a real,
+      // valid change (never for the super-agent or an unchanged slug).
+      const suggested = slugify(next);
+      if (
+        slug !== "super-agent" &&
+        suggested &&
+        suggested !== slug &&
+        /^[a-z][a-z0-9_-]*$/.test(suggested)
+      ) {
+        setRenameTo(suggested);
+      }
     } catch (e) { toast.error((e as Error).message); }
     finally { setBusy(false); }
+  };
+
+  const rename = async () => {
+    if (!renameTo) return;
+    setBusy(true);
+    try {
+      const updated = await Agents.rename(pid, slug, renameTo);
+      toast.success(t("project.agent_detail.rename_success", { slug: updated.slug }));
+      onRenamed(updated.slug);
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); setRenameTo(null); }
   };
 
   if (editing) {
@@ -306,6 +335,14 @@ function AgentNameHeading({
           <Pencil size={13} />
         </button>
       </Tip>
+      <ConfirmDialog
+        open={!!renameTo}
+        onClose={() => setRenameTo(null)}
+        onConfirm={rename}
+        title={t("project.agent_detail.rename_btn")}
+        description={t("project.agent_detail.rename_confirm", { from: slug, to: renameTo || "" })}
+        confirmLabel={t("project.agent_detail.rename_btn")}
+      />
     </span>
   );
 }
@@ -339,7 +376,7 @@ function CloneAgentButton({
 }
 
 function AgentConfigForm({
-  pid, agent, agents, projectPath, onSaved, onDeleted,
+  pid, agent, agents, projectPath, onSaved, onDeleted, onRenamed,
 }: {
   pid: string;
   agent: AgentDetail;
@@ -347,6 +384,7 @@ function AgentConfigForm({
   projectPath?: string;
   onSaved: () => void;
   onDeleted: () => void;
+  onRenamed: (newSlug: string) => void;
 }) {
   const toast = useToast();
   const [icon, setIcon] = useState(agent.icon || "");
@@ -419,6 +457,9 @@ function AgentConfigForm({
               </Field>
               <Field label={t("project.agent_detail.type_label")}><UiSelect value={type} onChange={setType} options={typeOptions()} /></Field>
             </div>
+            {agent.slug !== "super-agent" && (
+              <SlugRenameField pid={pid} currentSlug={agent.slug} nameDraft={name} onRenamed={onRenamed} />
+            )}
             <Field label={t("agents_form.icon")}>
               <AgentIconPicker icon={icon} onIcon={setIcon} />
             </Field>
@@ -494,6 +535,75 @@ function AgentConfigForm({
         confirmLabel={t("project.agent_detail.delete_btn")}
       />
     </div>
+  );
+}
+
+// Renaming the slug is deliberately its own action, apart from "Save": the slug
+// is the agent's physical key (its .apc/agents/<slug>.md, its runtime dir, the
+// Parent refs and routines that point at it, and this page's URL). The server
+// moves the file + dir and repoints references atomically; here we only collect
+// the new slug (suggested from the name, editable), confirm — because it's an
+// irreversible move — and let the parent navigate to the new URL.
+function SlugRenameField({
+  pid, currentSlug, nameDraft, onRenamed,
+}: { pid: string; currentSlug: string; nameDraft: string; onRenamed: (s: string) => void }) {
+  const toast = useToast();
+  const [draft, setDraft] = useState(currentSlug);
+  const [busy, setBusy] = useState(false);
+  const [confirm, setConfirm] = useState(false);
+
+  const suggestion = slugify(nameDraft);
+  const next = slugify(draft);
+  const invalid = !/^[a-z][a-z0-9_-]*$/.test(next);
+  const unchanged = next === currentSlug;
+
+  const rename = async () => {
+    setBusy(true);
+    try {
+      const updated = await Agents.rename(pid, currentSlug, next);
+      toast.success(t("project.agent_detail.rename_success", { slug: updated.slug }));
+      onRenamed(updated.slug);
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); setConfirm(false); }
+  };
+
+  return (
+    <Field label={t("project.agent_detail.slug_label")} hint={t("project.agent_detail.slug_hint")}>
+      <div className="flex items-center gap-2">
+        <Input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => setDraft(next)}
+          placeholder={currentSlug}
+          className="font-mono"
+        />
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={busy || invalid || unchanged}
+          onClick={() => setConfirm(true)}
+        >
+          <Pencil size={13} /> {t("project.agent_detail.rename_btn")}
+        </Button>
+      </div>
+      {suggestion && suggestion !== next && (
+        <button
+          type="button"
+          onClick={() => setDraft(suggestion)}
+          className={`mt-1 text-[11px] hover:underline ${toneText.violet}`}
+        >
+          {t("project.agent_detail.rename_from_name", { slug: suggestion })}
+        </button>
+      )}
+      <ConfirmDialog
+        open={confirm}
+        onClose={() => setConfirm(false)}
+        onConfirm={rename}
+        title={t("project.agent_detail.rename_btn")}
+        description={t("project.agent_detail.rename_confirm", { from: currentSlug, to: next })}
+        confirmLabel={t("project.agent_detail.rename_btn")}
+      />
+    </Field>
   );
 }
 

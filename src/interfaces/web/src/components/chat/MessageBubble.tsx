@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Bot, Clock, Copy, Info, Pencil, RefreshCw, X } from "lucide-react";
+import { Bot, Clock, CornerDownRight, Copy, Info, Pencil, RefreshCw, X } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { AgentAvatar, type AgentFace } from "../agents/AgentAvatar";
 import { ToolCall } from "./ToolCall";
@@ -9,7 +9,7 @@ import { ReasoningBlock } from "./ReasoningBlock";
 import { AskQuestionsCard } from "./AskQuestionsCard";
 import { AskAnswersCard, parseAskAnswerText } from "./AskAnswersCard";
 import { AttachmentGroup, stripMediaMarker } from "./Attachment";
-import { MarkdownPreview } from "../files/MarkdownPreview";
+import { MarkdownPreview, renderMentions } from "../files/MarkdownPreview";
 import { textOf, type ChatMsg } from "../../hooks/useChat";
 import { Tip } from "../ui/tip";
 import { t } from "../../i18n";
@@ -43,9 +43,27 @@ interface Props {
   /** Edit this user turn and re-send, dropping everything after it. Absent → no
    *  edit affordance. */
   onEdit?: (text: string) => void;
+  /** Group style: name each speaker in a header ABOVE the bubble (with a "traído
+   *  por X" tag when a mention pulled them in), the way a group chat reads. Off
+   *  in a 1:1, where the single agent is already named in the header. */
+  showSpeaker?: boolean;
+  /** Resolve an agent slug to its display name, for the "traído por X" tag. */
+  nameOf?: (slug: string) => string;
 }
 
-export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, compact, queued, onUnqueue, onRegenerate, onEdit }: Props) {
+export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, compact, queued, onUnqueue, onRegenerate, onEdit, showSpeaker, nameOf }: Props) {
+  // A group system notice ("… se sumó / salió del chat") is a centred line, not
+  // a bubble, so it reads as something the room did rather than someone saying it.
+  if (msg.event) {
+    const who = (nameOf ? nameOf(msg.who || "") : msg.who) || msg.who || "";
+    return (
+      <div className="flex justify-center py-1">
+        <span className="rounded-full bg-muted/50 px-3 py-0.5 text-[11px] text-muted-fg">
+          {msg.event === "left" ? t("project.groups.left_chat", { name: who }) : t("project.groups.joined_chat", { name: who })}
+        </span>
+      </div>
+    );
+  }
   const mine = msg.role === "user";
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
@@ -101,6 +119,19 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
           mine ? "items-end" : "w-full",
         )}
       >
+        {/* Group style: name the speaker ABOVE the bubble, with a "traído por X"
+            tag when a mention pulled them in — the way a group chat reads. */}
+        {showSpeaker && !mine && (msg.agent || msg.agentId) && (
+          <div className="flex items-center gap-1.5 text-[11px] leading-none">
+            <span className="font-semibold text-foreground/90">{msg.agent}</span>
+            {msg.reason && (
+              <span className="inline-flex items-center gap-0.5 text-muted-fg/70">
+                <CornerDownRight size={11} /> {t("project.groups.pulled_by", { name: nameOf ? nameOf(msg.reason) : msg.reason })}
+              </span>
+            )}
+          </div>
+        )}
+
         {/* What was actually sent: the voice note plays, the photo is the photo,
             the document opens. */}
         {media?.length ? <AttachmentGroup media={media} /> : null}
@@ -183,7 +214,9 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
                 "max-w-full [overflow-wrap:anywhere] rounded-2xl px-3 py-2 text-sm leading-relaxed",
                 mine
                   ? "whitespace-pre-wrap rounded-br-sm bg-bubble-mine text-foreground"
-                  : "w-full rounded-bl-sm bg-surface-soft text-foreground",
+                  // Agent bubble — the softer muted fill the group v1 used, now
+                  // shared by every chat bubble so 1:1 and group read the same.
+                  : "w-full rounded-bl-sm bg-muted/50 text-foreground",
               )}
             >
               {/* The agent writes markdown — **bold**, lists, `code`, links —
@@ -194,10 +227,11 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
                   first/last child margins are zeroed so the block spacing does
                   not double up with the bubble's own py-2. */}
               {mine ? (
-                textOfPart(part.text, media)
+                renderMentions(textOfPart(part.text, media))
               ) : (
                 <MarkdownPreview
                   content={textOfPart(part.text, media)}
+                  mentions
                   className="text-sm text-foreground [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
                 />
               )}
@@ -211,7 +245,18 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
             that stopped mid-thought. The pill stays for the whole turn and goes
             when the turn does. */}
         {!mine && msg.pending && (
-          <Typing label={msg.parts.length === 0 ? t("chat_ui.typing") : t("chat_ui.working")} />
+          <Typing label={
+            (() => {
+              const name = face?.name || msg.agent || "";
+              const key = msg.parts.length === 0 ? "chat_ui.typing" : "chat_ui.working";
+              // In a group the speaker header already names them right above, so
+              // the pill drops the name ("está escribiendo…"). In a 1:1 the pill
+              // is the only place it's named, so keep it ("Candela está escribiendo…").
+              return showSpeaker || !name
+                ? t(`${key}_generic` as "chat_ui.typing_generic")
+                : t(key, { name });
+            })()
+          } />
         )}
 
         {/* One line under the bubble: who answered on the left, when it did and
@@ -232,7 +277,9 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
             mine && "justify-end",
           )}
         >
-          {!mine && msg.agent && (
+          {/* In a group the speaker is named ABOVE the bubble, so the footer drops
+              the green name chip and keeps only model/time/cost. */}
+          {!mine && msg.agent && !showSpeaker && (
             <span className="shrink-0 rounded bg-emerald-500/15 px-1 py-0.5 font-medium text-emerald-700 dark:text-emerald-300">
               {msg.agent}
             </span>

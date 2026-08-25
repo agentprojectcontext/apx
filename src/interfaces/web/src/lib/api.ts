@@ -6,6 +6,7 @@ export * from "./api/health";
 export * from "./api/projects";
 export * from "./api/agents";
 export * from "./api/conversations";
+export * from "./api/groups";
 export * from "./api/routines";
 export * from "./api/tasks";
 export * from "./api/mcps";

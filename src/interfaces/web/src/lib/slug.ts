@@ -3,6 +3,9 @@
 // slug the daemon would derive.
 export function slugify(name: string): string {
   return String(name || "")
+    // Strip diacritics first so "José" → "jose" (not "jos"); mirrors the backend.
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")

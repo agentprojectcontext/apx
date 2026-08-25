@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { SuperAgent, Agents, Conversations } from "../lib/api";
+import { SuperAgent, Agents, Conversations, Groups } from "../lib/api";
 import type { ActiveTurn, ChatStreamEvent, ChatUsage, ConversationMessage, MessageMedia, ToolSummary, TurnFrame } from "../types/daemon";
 import type { UploadedMedia } from "../lib/api/media";
 import { subscribeTurns } from "../lib/live";
@@ -46,6 +46,12 @@ export interface ChatMsg {
   agent?: string;
   /** Stable id of that actor (super_agent | agent slug). Turns are split on it. */
   agentId?: string;
+  /** Group only: which agent's @mention pulled this speaker in ("traído por X"). */
+  reason?: string;
+  /** A group system notice ("joined"/"left") — rendered as a centred line, not a
+   *  bubble. `who` is the agent slug it is about. */
+  event?: "joined" | "left";
+  who?: string;
   /** Token accounting from the `final` event. */
   usage?: ChatUsage;
   /** Operational notes (engine fallbacks, retries, suppressions). */
@@ -113,6 +119,11 @@ export interface ReloadOptions {
 export interface UseChatResult {
   msgs: ChatMsg[];
   send: (text: string, opts?: SendOptions) => Promise<void>;
+  /** Run one GROUP turn: the owner's line fans out to the room as a cascade of
+   *  speakers, each streamed into its own pending bubble (name + "traído por X").
+   *  `nameOf` resolves a slug to a display name; `rerun` re-runs from a speaker
+   *  against the last owner message (`from` = slug, `reason` = who pulled them). */
+  sendGroup: (gid: string, text: string, nameOf: (slug: string) => string, opts?: { rerun?: boolean; from?: string; reason?: string | null; media?: UploadedMedia[] }) => Promise<void>;
   stop: () => void;
   clear: () => void;
   /** Load a persisted conversation as history and bind subsequent sends to it.
@@ -283,6 +294,7 @@ function threadToChatMsgs(messages: ConversationMessage[]): ChatMsg[] {
       } else {
         if (m.agent) turn.agentId = m.agent;
         if (m.agent_name) turn.agent = m.agent_name;
+        if (m.reason) turn.reason = m.reason; // group: "traído por X"
         if (m.model) turn.model = m.model;
         if (m.tool_summary) turn.toolSummary = m.tool_summary;
         if (m.skill_inspector) turn.inspector = m.skill_inspector;
@@ -299,8 +311,14 @@ function threadToChatMsgs(messages: ConversationMessage[]): ChatMsg[] {
         }
         if (m.content) turn.parts.push({ kind: "text", text: m.content });
       }
+    } else if (m.role === "system" && m.event) {
+      // A group join/leave notice — a standalone centred line, not part of any
+      // agent's turn.
+      turn = null;
+      turnActor = undefined;
+      out.push({ role: "assistant", parts: [], ts, event: m.event, who: m.who });
     }
-    // system/compact rows are context-only; not rendered in the thread viewer.
+    // other system/compact rows are context-only; not rendered in the viewer.
   }
   return out;
 }
@@ -980,5 +998,65 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
     [pid, streaming, onError],
   );
 
-  return { msgs, send, regenerate, editAndResend, stop, clear, load, loadThread, streaming, queued, unqueue, conversationId, conversationMeta };
+  // A group turn streams like a 1:1 one — same pending-bubble machinery — but the
+  // reply comes as a CASCADE of speakers on the group endpoint. Each speaker gets
+  // its own streaming assistant bubble (name + "traído por X"), tokens land as
+  // they are written, and the "… está escribiendo" pill rides on the pending
+  // bubble exactly where a normal turn's does. `rerun` resumes from one speaker
+  // against the last owner message (regenerate) instead of appending a new one.
+  const sendGroup = useCallback(
+    async (gid: string, text: string, nameOf: (slug: string) => string, opts: { rerun?: boolean; from?: string; reason?: string | null; media?: UploadedMedia[] } = {}) => {
+      const trimmed = text.trim();
+      const files = opts.media || [];
+      if (streaming) return;
+      if (!opts.rerun && !trimmed && !files.length) return;
+      const nowIso = () => new Date().toISOString();
+      if (!opts.rerun) {
+        // Optimistic owner bubble — shows the photo/file immediately, same as a
+        // 1:1 turn; the marker rides on the text the way the daemon folds it.
+        setMsgs((curr) => [...curr, {
+          role: "user",
+          parts: userPart([markersFor(files), trimmed].filter(Boolean).join(" ")),
+          ts: nowIso(), local: true,
+          ...(files.length ? { media: files.map(mediaOf) } : {}),
+        }]);
+      }
+      setStreaming(true);
+      const ctrl = new AbortController();
+      abortRef.current = ctrl;
+      const onEvent = (ev: import("../lib/api/groups").GroupStreamEvent) => {
+        if (ev.type === "speaker_start") {
+          setMsgs((curr) => [...curr, {
+            role: "assistant", parts: [], ts: nowIso(), pending: true, local: true,
+            agentId: ev.slug, agent: nameOf(ev.slug),
+            ...(ev.reason ? { reason: ev.reason } : {}),
+          }]);
+        } else if (ev.type === "speaker_delta") {
+          // Reuse the exact token-merge the 1:1 stream uses.
+          applyEvent({ type: "assistant_delta", delta: ev.delta } as ChatStreamEvent);
+        } else if (ev.type === "speaker_final") {
+          patchLast((m) => ({ ...m, pending: false, ...(ev.model ? { model: ev.model } : {}), ...(ev.usage ? { usage: ev.usage } : {}) }));
+        }
+      };
+      try {
+        if (opts.rerun) await Groups.rerunStream(pid, gid, onEvent, ctrl.signal,
+          opts.from ? { from: opts.from, reason: opts.reason } : undefined);
+        else await Groups.sendStream(pid, gid, trimmed, onEvent, ctrl.signal,
+          files.map((a) => ({ path: a.path, name: a.name })));
+        patchLast((m) => ({ ...m, pending: false }));
+      } catch (e) {
+        if (ctrl.signal.aborted) patchLast((m) => ({ ...m, pending: false }));
+        else onError?.((e as Error)?.message || t("shared_ui.err_chat_failed"));
+      } finally {
+        setStreaming(false);
+        abortRef.current = null;
+        // Reconcile with the canonical thread (model/usage/reason from the ledger,
+        // join/leave notices, and drops the local bubbles for the persisted ones).
+        void loadThread("group", gid, { silent: true });
+      }
+    },
+    [pid, streaming, applyEvent, patchLast, loadThread, onError],
+  );
+
+  return { msgs, send, sendGroup, regenerate, editAndResend, stop, clear, load, loadThread, streaming, queued, unqueue, conversationId, conversationMeta };
 }

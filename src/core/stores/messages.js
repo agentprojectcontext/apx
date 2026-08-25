@@ -134,6 +134,7 @@ export function appendMessageToFs({ projectRoot, channel, direction, type, actor
     agent_slug: agent_slug || null,
     direction,
     type: msgType,
+    author: author || null,
     // `via` lets a subscriber tell a routine DELIVERY (an agent reaching the
     // owner) apart from an ordinary reply the owner is watching — the desktop
     // mascot bubbles the former even though it is `direction: "out"`.
@@ -142,6 +143,10 @@ export function appendMessageToFs({ projectRoot, channel, direction, type, actor
     // arrived without breaking "signal, not data" — it carries a notice, not the
     // message. Null on every ordinary row.
     notify: fullMeta.notify || null,
+    // Closing vs mid-turn: the pet only bubbles the launched final on
+    // Telegram / group / A2A, never the owner's send and never a stream chunk.
+    final: fullMeta.final === true ? true : null,
+    streamed: fullMeta.streamed === true ? true : null,
     ts,
   });
   return { ts, file };
@@ -501,6 +506,214 @@ export function readProjectA2AThread(projectRoot, id) {
   };
 }
 
+// ── Group chats ───────────────────────────────────────────────────────────
+// A group is the owner + N agents in one room. It rides the SAME ledger as a2a
+// (channel "group"), so it lists, opens, and renders through the same thread
+// machinery — no separate store. What a2a derives from message pairs, a group
+// keeps explicit: a `group_created` control row carries the roster + title, and
+// every message tags its `meta.group_id`. Owner turns are `type:"user"` (so the
+// viewer puts them on the right); agent turns are `type:"agent"` attributed to
+// the speaker; control rows (`meta.kind`) never render.
+const GROUP_CHANNEL = "group";
+
+function newGroupId() {
+  // base36 time + a little entropy → short, URL-safe, and collision-proof for
+  // two creations in the same millisecond.
+  return `grp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+}
+
+/** Create a room. Writes the `group_created` control row (roster + title) so
+ *  the thread exists — and shows in every list — before anyone speaks. Returns
+ *  the new group id. `logMessage` is the project's writer (db entry method). */
+export function createGroupThread(logMessage, { participants = [], title = null } = {}) {
+  const slugs = [...new Set(participants.filter(Boolean))];
+  if (!slugs.length) throw new Error("a group needs at least one agent");
+  const group_id = newGroupId();
+  logMessage({
+    channel: GROUP_CHANNEL, direction: "out", type: "system", author: "system",
+    body: "", meta: { group_id, kind: "group_created", participants: slugs, title },
+  });
+  return group_id;
+}
+
+/** Add an agent to a room (writes a `participant_added` control row carrying the
+ *  full new roster, so the latest control row is always the source of truth).
+ *  `added` is the joining slug, recorded so the transcript can show "… se sumó". */
+export function addGroupParticipant(logMessage, group_id, participants, added = null) {
+  logMessage({
+    channel: GROUP_CHANNEL, direction: "out", type: "system", author: "system",
+    body: "", meta: { group_id, kind: "participant_added", participants: [...new Set(participants)], ...(added ? { added } : {}) },
+  });
+}
+
+/** Append the owner's line. `type:"user"` → the viewer renders it as sent-by-me.
+ *  `media` (the `{media_kind, local_path, …}` shape from readTurnAttachments) is
+ *  folded into meta so the transcript renders the photo/file the owner sent. */
+export function appendGroupOwnerMessage(logMessage, group_id, body, media = null) {
+  return logMessage({
+    channel: GROUP_CHANNEL, direction: "in", type: "user", author: "owner",
+    actor_kind: "user", body, meta: { group_id, ...(media || {}) },
+  });
+}
+
+/** Append one agent's reply, attributed to it and carrying who summoned it. */
+export function appendGroupAgentMessage(logMessage, group_id, { slug, body, reason = null, model = null, usage = null }) {
+  return logMessage({
+    channel: GROUP_CHANNEL, direction: "out", type: "agent", agent_slug: slug, author: slug,
+    actor_kind: "agent", body,
+    meta: {
+      group_id,
+      final: true,
+      ...(reason ? { reason } : {}),
+      ...(model ? { model } : {}),
+      ...(usage ? { usage } : {}),
+    },
+  });
+}
+
+function groupRows(projectRoot, group_id) {
+  return readProjectMessages(projectRoot, { channel: GROUP_CHANNEL, limit: 4000 })
+    .filter((m) => m.meta?.group_id && (group_id ? m.meta.group_id === group_id : true))
+    .sort((a, b) => (a.ts || "").localeCompare(b.ts || ""));
+}
+const isControlRow = (r) => !!r.meta?.kind || r.type === "system";
+
+/** One thread row per group in this project, shaped like a listProjectA2AThreads
+ *  row so the web sidebar and inbox render it in a group. */
+export function listProjectGroupThreads(projectRoot) {
+  const byId = new Map();
+  for (const r of groupRows(projectRoot, null)) {
+    const gid = r.meta.group_id;
+    const g = byId.get(gid) || { id: gid, participants: [], title: null, created: null, display: [], last: null };
+    if (Array.isArray(r.meta.participants)) g.participants = r.meta.participants; // latest control wins
+    if (r.meta.kind === "group_created") { g.title = r.meta.title || null; g.created = r.ts; }
+    if (!isControlRow(r)) { g.display.push(r); g.last = r; }
+    byId.set(gid, g);
+  }
+  const out = [];
+  for (const g of byId.values()) {
+    out.push({
+      id: g.id,
+      channel: GROUP_CHANNEL,
+      title: g.title || g.participants.join(" · "),
+      participants: g.participants,
+      messages: g.display.length,
+      started_at: g.created || (g.display[0]?.ts) || "",
+      last_ts: g.last?.ts || g.created || "",
+      preview: g.last
+        ? `${g.last.author === "owner" ? "vos" : g.last.author}: ${(g.last.body || "").replace(/\s+/g, " ").trim()}`.slice(0, 140)
+        : undefined,
+    });
+  }
+  out.sort((a, b) => (b.last_ts || "").localeCompare(a.last_ts || ""));
+  return out;
+}
+
+/** One group thread shaped for the web chat viewer: control rows drive roster +
+ *  title; owner rows render as `user`, agent rows as `assistant` attributed to
+ *  the speaker (same shaper every other channel uses). Null when unknown. */
+export function readProjectGroupThread(projectRoot, group_id) {
+  const rows = groupRows(projectRoot, group_id);
+  if (!rows.length) return null;
+  let participants = [];
+  let title = null;
+  for (const r of rows) {
+    if (Array.isArray(r.meta.participants)) participants = r.meta.participants;
+    if (r.meta.kind === "group_created") title = r.meta.title || null;
+  }
+  // Join/leave control rows surface as centred system notices in the transcript
+  // ("… se sumó al chat" / "… salió del chat"); group_created stays silent.
+  // attribution-exempt: reader — shapes ledger rows for display, writes nothing.
+  const messages = [];
+  for (const r of rows) {
+    if (r.meta.kind === "participant_added" && r.meta.added)
+      messages.push({ role: "system", event: "joined", who: r.meta.added, ts: r.ts });
+    else if (r.meta.kind === "participant_removed" && r.meta.left)
+      messages.push({ role: "system", event: "left", who: r.meta.left, ts: r.ts });
+    else if (isControlRow(r)) continue;
+    else if (r.type === "user") messages.push(shapeLedgerMessage(r));
+    else messages.push(shapeLedgerMessage({ ...r, agent_slug: r.actor_id || r.author, actor_kind: r.actor_kind || "agent" }));
+  }
+  return { id: group_id, channel: GROUP_CHANNEL, title: title || participants.join(" · "), participants, messages };
+}
+
+/**
+ * Rewind a group: keep the first `keepVisible` DISPLAY messages (owner + agent
+ * turns) and drop the rest from the ledger, so "regenerate"/"edit & resend" can
+ * overwrite everything after a point — the same rewind the 1:1 chat's
+ * truncateConversation does, but on the append-only ledger. Control rows
+ * (roster/title) and every other channel are left untouched. Returns how many
+ * rows were removed.
+ *
+ * Unlike a2a (which refuses truncation — it is a record of two agents talking),
+ * a group is an interactive chat the owner drives, so rewinding it is expected.
+ */
+export function truncateGroupThread(projectRoot, group_id, keepVisible) {
+  const dir = path.join(projectRoot, "messages");
+  if (!fs.existsSync(dir)) return { removed: 0 };
+  const files = fs.readdirSync(dir).filter((f) => f.endsWith(".jsonl")).sort();
+  const raw = new Map();          // file -> raw line array
+  const display = [];             // { file, idx, ts } for this group's display rows
+  for (const f of files) {
+    const lines = fs.readFileSync(path.join(dir, f), "utf8").split("\n");
+    raw.set(f, lines);
+    lines.forEach((line, idx) => {
+      const t = line.trim();
+      if (!t) return;
+      let obj; try { obj = JSON.parse(t); } catch { return; }
+      if (!obj || obj.channel !== GROUP_CHANNEL || obj.meta?.group_id !== group_id) return;
+      if (obj.meta?.kind || obj.type === "system") return; // control row — keep
+      display.push({ file: f, idx, ts: obj.ts || "" });
+    });
+  }
+  display.sort((a, b) => (a.ts || "").localeCompare(b.ts || ""));
+  const drop = new Set(display.slice(Math.max(0, keepVisible)).map((d) => `${d.file}#${d.idx}`));
+  if (!drop.size) return { removed: 0 };
+  for (const f of new Set([...drop].map((k) => k.slice(0, k.lastIndexOf("#"))))) {
+    const kept = raw.get(f).filter((_, idx) => !drop.has(`${f}#${idx}`));
+    fs.writeFileSync(path.join(dir, f), kept.join("\n"));
+  }
+  return { removed: drop.size };
+}
+
+/** The body of the last owner turn in a group — the seed a "regenerate" re-runs
+ *  the cascade from, without appending a new owner message. Null if none. */
+export function lastGroupOwnerMessage(projectRoot, group_id) {
+  const rows = groupRows(projectRoot, group_id).filter((r) => r.type === "user");
+  return rows.length ? (rows[rows.length - 1].body || "") : null;
+}
+
+/** Delete a whole group room: every ledger row for it (messages AND control
+ *  rows), across day files. Returns how many rows were removed. */
+export function deleteGroupThread(projectRoot, group_id) {
+  const dir = path.join(projectRoot, "messages");
+  if (!fs.existsSync(dir)) return { removed: 0 };
+  let removed = 0;
+  for (const f of fs.readdirSync(dir).filter((x) => x.endsWith(".jsonl"))) {
+    const full = path.join(dir, f);
+    const lines = fs.readFileSync(full, "utf8").split("\n");
+    const kept = lines.filter((line) => {
+      const t = line.trim();
+      if (!t) return true;
+      let obj; try { obj = JSON.parse(t); } catch { return true; }
+      const hit = obj?.channel === GROUP_CHANNEL && obj.meta?.group_id === group_id;
+      if (hit) removed += 1;
+      return !hit;
+    });
+    if (removed) fs.writeFileSync(full, kept.join("\n"));
+  }
+  return { removed };
+}
+
+/** Remove an agent from a room, recording it as a visible notice ("… salió del
+ *  chat") so the transcript shows who left and the agents stop citing them. */
+export function removeGroupParticipant(logMessage, group_id, slug, participants) {
+  logMessage({
+    channel: GROUP_CHANNEL, direction: "out", type: "system", author: "system",
+    body: "", meta: { group_id, kind: "participant_removed", participants: [...participants], left: slug },
+  });
+}
+
 const TOOL_CONTEXT_CAP = 700; // chars of a tool result kept in model context
 const TOOL_CALL_CAP = 160;    // chars of the invocation that introduces it
 
@@ -717,8 +930,11 @@ export function appendGlobalMessage({ channel, direction, type, actor_id, actor_
     agent_slug: agent_slug || null,
     direction,
     type: msgType,
+    author: author || null,
     via: fullMeta.via || null,
     notify: fullMeta.notify || null,
+    final: fullMeta.final === true ? true : null,
+    streamed: fullMeta.streamed === true ? true : null,
     ts,
   });
   return { ts, file };
@@ -984,6 +1200,8 @@ export function shapeLedgerMessage(r) {
     ...(r.agent_slug || r.actor_id ? { agent: r.agent_slug || r.actor_id } : {}),
     ...(r.author ? { agent_name: r.author } : {}),
     ...(r.actor_kind ? { actor_kind: r.actor_kind } : {}),
+    // Group only: which agent's @mention pulled this speaker in ("traído por X").
+    ...(r.meta?.reason ? { reason: r.meta.reason } : {}),
     ...(r.meta?.model ? { model: r.meta.model } : {}),
     ...(usage && typeof usage === "object" ? { usage } : {}),
     // What the turn actually did. Recorded compactly at write time

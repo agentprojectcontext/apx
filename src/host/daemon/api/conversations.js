@@ -8,7 +8,7 @@
 //   POST /projects/:pid/send                                   (agent-to-agent)
 import { readAgents } from "#core/apc/parser.js";
 import { listConversations, readConversation, deleteConversation, truncateConversation, setConversationMeta, shapeConversationMessage } from "#core/stores/conversations.js";
-import { listGlobalThreads, readGlobalThread, deleteGlobalThread, setGlobalThreadMeta, listProjectA2AThreads, readProjectA2AThread, readProjectMessages } from "#core/stores/messages.js";
+import { listGlobalThreads, readGlobalThread, deleteGlobalThread, setGlobalThreadMeta, listProjectA2AThreads, readProjectA2AThread, listProjectGroupThreads, readProjectGroupThread, deleteGroupThread, readProjectMessages } from "#core/stores/messages.js";
 
 // Prior turns of an a2a thread between `from` and `to`, oldest→newest, shaped as
 // LLM messages from `viewer`'s side (its own lines = assistant, the peer's =
@@ -212,7 +212,9 @@ export function register(api, { project, config, plugins, registries }) {
     });
     let a2a = [];
     try { a2a = listProjectA2AThreads(p.storagePath); } catch { /* best-effort */ }
-    res.json([...global, ...a2a]);
+    let groups = [];
+    try { groups = listProjectGroupThreads(p.storagePath); } catch { /* best-effort */ }
+    res.json([...global, ...a2a, ...groups]);
   });
 
   api.get("/projects/:pid/super-agent/threads/:channel/:id", (req, res) => {
@@ -222,6 +224,8 @@ export function register(api, { project, config, plugins, registries }) {
     // the project ledger; everything else is a global channel+date thread.
     const thread = req.params.channel === "a2a"
       ? readProjectA2AThread(p.storagePath, req.params.id)
+      : req.params.channel === "group"
+      ? readProjectGroupThread(p.storagePath, req.params.id)
       : readGlobalThread({
           channel: req.params.channel,
           date: req.params.id,
@@ -234,6 +238,14 @@ export function register(api, { project, config, plugins, registries }) {
   api.delete("/projects/:pid/super-agent/threads/:channel/:id", (req, res) => {
     const p = project(req, res);
     if (!p) return;
+    // A group is a ledger thread of its own — delete every row for it, not a
+    // global channel+date file (which is what 404'd before).
+    if (req.params.channel === "group") {
+      const out = deleteGroupThread(p.storagePath, req.params.id);
+      try { projects.rebuild(p.id); } catch { /* best-effort */ }
+      if (!out.removed) return res.status(404).json({ error: "thread not found" });
+      return res.json({ ok: true, ...out });
+    }
     const ok = deleteGlobalThread({
       channel: req.params.channel,
       date: req.params.id,
@@ -358,7 +370,7 @@ export function register(api, { project, config, plugins, registries }) {
       direction: "out",
       author: from,
       body,
-      meta: { to, depth: _depth, ...sevMeta, ...attrib, ...(requested_by ? { requested_by } : {}) },
+      meta: { to, depth: _depth, final: true, ...sevMeta, ...attrib, ...(requested_by ? { requested_by } : {}) },
       ts,
     });
 
@@ -429,6 +441,7 @@ export function register(api, { project, config, plugins, registries }) {
             to: from,
             depth: _depth + 1,
             reply_to: fromAgent.slug,
+            final: true,
             model: result.model,
             usage: result.usage,
           },
