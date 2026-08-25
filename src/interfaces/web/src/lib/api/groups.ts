@@ -1,5 +1,5 @@
 import { http, streamNdjson } from "../http";
-import type { ChatUsage } from "../../types/daemon";
+import type { ChatStreamEvent, ChatUsage } from "../../types/daemon";
 
 // A group is a THREAD (channel "group") — listing and reading it go through the
 // shared thread endpoints (Conversations.thread / the threads list / the inbox),
@@ -22,7 +22,8 @@ export type GroupStreamEvent =
   | { type: "speaker_final"; slug: string; model?: string; usage?: ChatUsage }
   | { type: "done" }
   | { type: "final" }
-  | { type: "error"; error: string };
+  | { type: "error"; error: string }
+  | Extract<ChatStreamEvent, { type: "tool_start" | "tool_result" | "tool_deduped" | "assistant_text" | "model_start" | "model_routed" | "engine_failed" | "model_retry" | "tools_suppressed" | "skill_inspector" | "reasoning" }>;
 
 export const Groups = {
   create: (pid: string, body: { title?: string; participants: string[] }) =>

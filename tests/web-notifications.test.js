@@ -58,7 +58,7 @@ test("the icon is the agent's own blob, with the app mark as the badge", () => {
 
 test("the tap lands on the inbox row's own path, not a hand-built URL", () => {
   const notify = webSrc("lib", "notify.ts");
-  assert.match(notify, /import \{ chatPath, keyFor, pidOf \} from "\.\.\/screens\/mobile\/routes"/);
+  assert.match(notify, /import \{ chatPath, keyFor, pidOf, queryForChat, urlLooksAt \} from "\.\.\/screens\/mobile\/routes"/);
   // Built from the same helpers the inbox row navigates with — on the phone
   // surface. The desktop shape is pinned in its own test below.
   assert.match(notify, /return chatPath\(pidOf\(row\), row\.agent_slug, key\)/);
@@ -79,8 +79,7 @@ test("reading the thread suppresses its notification on both surfaces", () => {
   const notify = webSrc("lib", "notify.ts");
   const looking = notify.slice(notify.indexOf("function looking("), notify.indexOf("async function show("));
   assert.match(looking, /visibilityState !== "visible"/, "a hidden page is never 'looking'");
-  assert.match(looking, /searchParams\.get\("agent"\)/, "the desktop panel puts the agent in the query");
-  assert.match(looking, /\\\/mobile\\\/chat\\\//, "the phone puts it in the path");
+  assert.match(looking, /urlLooksAt\(/, "URL matching is the shared helper, not a second copy of the query shape");
 });
 
 test("the switch never offers a button for a state the user cannot change here", () => {
@@ -159,6 +158,15 @@ test("the offer finds you, and cannot open by itself", () => {
   assert.match(app, /<NotifyNudge floating \/>/);
 });
 
+test("the inbox writes the open thread into the URL so looking() can see it", () => {
+  // The inbox picks via initialSelection and never calls selectChat. Without
+  // this write, `/m/inbox` has no query and a group reply you are watching
+  // still rings the bell.
+  const tab = webSrc("screens", "project", "ChatTab.tsx");
+  assert.match(tab, /const initialAddr = initialSelection && !onSelectionChange/);
+  assert.match(tab, /setSearchParams\(new URLSearchParams\(initialAddr\), \{ replace: true \}\)/);
+});
+
 test("the tap lands in the shape of the surface that raised it", () => {
   const notify = webSrc("lib", "notify.ts");
 
@@ -170,7 +178,7 @@ test("the tap lands in the shape of the surface that raised it", () => {
   assert.match(notify, /if \(isInstalled\(\)\) return true;/);
   assert.match(notify, /location\.pathname\.startsWith\("\/mobile"\)/);
   assert.match(notify, /if \(onPhoneSurface\(\)\) return chatPath\(pidOf\(row\), row\.agent_slug, key\);/);
-  assert.match(notify, /return `\/p\/\$\{pid\}\/chat\?\$\{q\.toString\(\)\}`/);
+  assert.match(notify, /return `\/p\/\$\{pid\}\/chat\?\$\{queryForChat\(key\)\.toString\(\)\}`/);
   // The desktop route has no "no project" sentinel — the super-agent is in 0.
   assert.match(notify, /const pid = row\.project_id \?\? 0;/);
 });

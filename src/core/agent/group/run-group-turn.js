@@ -137,6 +137,7 @@ export async function runGroupTurn({ p, gid, text, attachments = [], media = nul
       channel: CHANNELS.WEB,
       tools: true,
       projects, plugins, registries, config: cfg,
+      onEvent,
       onToken: (chunk) => onEvent({ type: "speaker_delta", slug, delta: chunk }),
     });
 
@@ -145,6 +146,7 @@ export async function runGroupTurn({ p, gid, text, attachments = [], media = nul
       slug, body: reply,
       reason: ctx.byOwner ? null : ctx.reason,
       model: result.model, usage: result.usage,
+      trace: result.trace,
     });
     said.push({ slug, text: reply });
     onEvent({ type: "speaker_final", slug, model: result.model || modelId, usage: result.usage });

@@ -28,7 +28,7 @@ import { subscribeLive } from "./live";
 import { isInstalled, isSecure } from "./net";
 // Pure URL helpers, no React: the tap has to land on the same path the inbox
 // row would have navigated to, and there is exactly one place that knows it.
-import { chatPath, keyFor, pidOf } from "../screens/mobile/routes";
+import { chatPath, keyFor, pidOf, queryForChat, urlLooksAt } from "../screens/mobile/routes";
 
 const PREF_KEY = "apx.notify.agents";
 
@@ -107,18 +107,15 @@ export function disableNotifications() {
 /**
  * Reading the thread already counts as being told.
  *
- * Two surfaces, two URL shapes: the phone puts the agent in the path
- * (/mobile/chat/:pid/:slug), the desktop panel in the query
- * (/p/1/chat?agent=magui). Matching on the AGENT and not the conversation is
- * deliberate — you are looking at that agent's thread, and the row that moved
- * is the thread you are looking at.
+ * Three surfaces, one question: is this row the thing on screen? The phone
+ * puts the agent in the path (/mobile/chat/:pid/:slug), the desktop panel and
+ * the inbox put the session in the query (`?agent=` / `?channel=&thread=`).
+ * Matching only the agent slug missed groups and `/m/inbox` — both address a
+ * thread, not an agent, so a reply you were watching also rang the bell.
  */
 function looking(row: InboxRow): boolean {
   if (typeof document === "undefined" || document.visibilityState !== "visible") return false;
-  const url = new URL(window.location.href);
-  if (url.searchParams.get("agent") === row.agent_slug) return true;
-  const m = url.pathname.match(/^\/mobile\/chat\/[^/]+\/([^/]+)/);
-  return !!m && decodeURIComponent(m[1]) === row.agent_slug;
+  return urlLooksAt(window.location.href, row);
 }
 
 async function show(row: InboxRow) {
@@ -211,17 +208,7 @@ export function conversationUrl(row: InboxRow): string {
   // The desktop route has no "no project" sentinel: the super-agent lives in
   // workspace 0 there, which is the same place its own sidebar opens it from.
   const pid = row.project_id ?? 0;
-  const q = new URLSearchParams();
-  if (key.kind === "thread") {
-    q.set("channel", key.channel);
-    q.set("thread", key.threadId);
-  } else if (key.kind === "conv") {
-    q.set("agent", key.agentSlug);
-    q.set("conv", key.convId);
-  } else {
-    q.set("agent", key.agentSlug);
-  }
-  return `/p/${pid}/chat?${q.toString()}`;
+  return `/p/${pid}/chat?${queryForChat(key).toString()}`;
 }
 
 /** Rows whose newest activity we had not seen yet. */

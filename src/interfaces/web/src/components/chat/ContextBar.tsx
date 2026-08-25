@@ -85,9 +85,10 @@ export function ContextBar({ msgs, docked = false, onOpenChange }: {
           byActor.set(key, { key, agent: m.agent, model: m.model, inTok: mIn, outTok: mOut, turns: 1 });
         }
       }
+      let turnTools = 0;
       for (const part of m.parts) {
         if (part.kind !== "tool") continue;
-        toolCount += 1;
+        turnTools += 1;
         if (FILE_TOOLS.has(part.tool) && (part as ToolPart).status !== "error") {
           const path = filePathOf(part.args);
           if (path && !seen.has(path)) {
@@ -96,6 +97,7 @@ export function ContextBar({ msgs, docked = false, onOpenChange }: {
           }
         }
       }
+      toolCount += turnTools || m.toolSummary?.total || 0;
     }
     return { inTok, outTok, toolCount, changed, actors: [...byActor.values()] };
   }, [msgs]);

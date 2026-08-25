@@ -112,8 +112,8 @@ test("a turn being written says so, in the reader's language", () => {
   // A bare "…" is the same glyph the app uses for truncation everywhere else,
   // so a turn being written read as one that had been cut off.
   assert.match(bubble, /flex w-fit items-center gap-1\.5 self-start/, "the status hugs its words");
-  assert.match(es, /typing:\s+"escribiendo"/);
-  assert.match(en, /typing:\s+"typing"/);
+  assert.match(es, /typing:\s+"\{name\} está escribiendo…"/);
+  assert.match(en, /typing:\s+"\{name\} is typing…"/);
 
   // And it stays for the WHOLE turn, not just until the first part lands. A
   // turn that has been running shell commands for two minutes otherwise shows a
@@ -121,11 +121,11 @@ test("a turn being written says so, in the reader's language", () => {
   assert.match(bubble, /!mine && msg\.pending && \(\s*\n\s*<Typing/, "pending is the only condition");
   assert.match(
     bubble,
-    /msg\.parts\.length === 0 \? t\("chat_ui\.typing"\) : t\("chat_ui\.working"\)/,
+    /msg\.parts\.length === 0 \? "chat_ui\.typing" : "chat_ui\.working"/,
     "writing and working are different words",
   );
-  assert.match(es, /working:\s+"trabajando"/);
-  assert.match(en, /working:\s+"working"/);
+  assert.match(es, /working:\s+"\{name\} está trabajando…"/);
+  assert.match(en, /working:\s+"\{name\} is working…"/);
 });
 
 test("theme and language are reachable from the screen the phone lands on", () => {
@@ -242,7 +242,7 @@ test("which thread you are in is also the way to the others", () => {
   assert.match(phone, /onBack=\{onBack\}/);
 
   // The list is fetched when someone reaches for it, not on every chat opened.
-  assert.match(picker, /useSessionRows\(pid, agentSlug, isSuper, armed\)/);
+  assert.match(picker, /useSessionRows\(pid, agentSlug, isSuper, armed, channelScope\)/);
   assert.match(picker, /onPointerEnter=\{\(\) => setArmed\(true\)\}/);
 
   // The phone's session lives in the PATH, so picking one has to navigate —

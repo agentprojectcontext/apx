@@ -49,6 +49,21 @@ export function sessionParam(key: ChatKey): string | null {
   return null;
 }
 
+/** Query string ChatTab writes for a selection (`/p/:pid/chat` and `/m/inbox`). */
+export function queryForChat(key: ChatKey): URLSearchParams {
+  const next = new URLSearchParams();
+  if (key.kind === "conv") {
+    next.set("agent", key.agentSlug);
+    next.set("conv", key.convId);
+  } else if (key.kind === "thread") {
+    next.set("channel", key.channel);
+    next.set("thread", key.threadId);
+  } else {
+    next.set("agent", key.agentSlug);
+  }
+  return next;
+}
+
 export function chatPath(pid: string, slug: string, key?: ChatKey): string {
   const base = `${MOBILE_ROOT}/chat/${encodeURIComponent(pid)}/${encodeURIComponent(slug)}`;
   const session = key ? sessionParam(key) : null;
@@ -94,6 +109,38 @@ export function keyFor(row: InboxRow, sessionId?: string, channel?: string): Cha
   }
   const id = sessionId || row.conversation_id || "";
   return id ? { kind: "conv", agentSlug: row.agent_slug, convId: id } : { kind: "live", agentSlug: row.agent_slug };
+}
+
+/**
+ * Does this URL mean the person is already reading this inbox row?
+ *
+ * ChatTab addresses a session two ways: query (`?channel=&thread=` or
+ * `?agent=&conv=`) on `/p/:pid/chat` and `/m/inbox`, and a path on the phone
+ * (`/mobile/chat/:pid/:slug/:session`). Matching only `?agent=` missed groups
+ * and the inbox — both write `channel`+`thread` and have no agent param.
+ */
+export function urlLooksAt(href: string, row: InboxRow): boolean {
+  const url = new URL(href, "http://localhost");
+  const key = keyFor(row);
+
+  const mobile = url.pathname.match(/^\/mobile\/chat\/[^/]+\/([^/]+)(?:\/([^/]+))?/);
+  if (mobile) {
+    if (decodeURIComponent(mobile[1]) !== row.agent_slug) return false;
+    if (!mobile[2]) return true;
+    return decodeURIComponent(mobile[2]) === (sessionParam(key) ?? "");
+  }
+
+  const want = queryForChat(key);
+  if (want.has("thread")) {
+    return url.searchParams.get("channel") === want.get("channel")
+      && url.searchParams.get("thread") === want.get("thread");
+  }
+  if (want.has("conv")) {
+    return url.searchParams.get("agent") === want.get("agent")
+      && url.searchParams.get("conv") === want.get("conv");
+  }
+  if (want.has("agent")) return url.searchParams.get("agent") === want.get("agent");
+  return false;
 }
 
 /** The selection a URL asks for, falling back to the row's own default. */

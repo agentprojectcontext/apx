@@ -1034,6 +1034,20 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
         } else if (ev.type === "speaker_delta") {
           // Reuse the exact token-merge the 1:1 stream uses.
           applyEvent({ type: "assistant_delta", delta: ev.delta } as ChatStreamEvent);
+        } else if (
+          ev.type === "tool_start" ||
+          ev.type === "tool_result" ||
+          ev.type === "tool_deduped" ||
+          ev.type === "assistant_text" ||
+          ev.type === "model_start" ||
+          ev.type === "model_routed" ||
+          ev.type === "engine_failed" ||
+          ev.type === "model_retry" ||
+          ev.type === "tools_suppressed" ||
+          ev.type === "skill_inspector" ||
+          ev.type === "reasoning"
+        ) {
+          applyEvent(ev as ChatStreamEvent);
         } else if (ev.type === "speaker_final") {
           patchLast((m) => ({ ...m, pending: false, ...(ev.model ? { model: ev.model } : {}), ...(ev.usage ? { usage: ev.usage } : {}) }));
         }
