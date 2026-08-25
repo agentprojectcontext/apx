@@ -28,6 +28,13 @@ public final class MessageFrameParserTest {
     }
 
     @Test
+    public void readsAvatarFromHelloAndSettingsFrames() {
+        assertEquals("coral", MessageFrameParser.avatar("{\"type\":\"hello\",\"settings\":{\"super_agent\":{\"icon\":\"coral\"}}}"));
+        assertEquals("zafiro", MessageFrameParser.avatar("{\"type\":\"settings\",\"settings\":{\"super_agent\":{\"icon\":\"zafiro\"}}}"));
+        assertEquals(null, MessageFrameParser.avatar("{\"type\":\"messages\",\"events\":[]}"));
+    }
+
+    @Test
     public void surfacesMobilityDeliveryFromRobyAsApxNotification() {
         String frame = """
             {"type":"messages","events":[

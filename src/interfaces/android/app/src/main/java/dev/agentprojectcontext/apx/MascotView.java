@@ -15,12 +15,14 @@ import android.view.View;
 
 final class MascotView extends View {
     interface Listener {
+        void onDragStarted();
         void onMove(float rawX, float rawY, float offsetX, float offsetY);
-        void onPositionCommitted();
+        void onDragEnded(boolean cancelled);
         void onTapped();
     }
 
-    private final Bitmap body;
+    private Bitmap body;
+    private MascotBlobCatalog.Preset preset;
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
     private final Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -35,14 +37,23 @@ final class MascotView extends View {
     private boolean dragging;
     private long hopStarted;
 
-    MascotView(Context context, Listener listener) {
+    MascotView(Context context, String avatar, Listener listener) {
         super(context);
         this.listener = listener;
-        body = BitmapFactory.decodeResource(getResources(), R.drawable.mascot_noche);
+        setAvatar(avatar);
         textPaint.setColor(Color.WHITE);
         textPaint.setTextSize(dp(12.5f));
         textPaint.setTypeface(android.graphics.Typeface.create("sans", android.graphics.Typeface.NORMAL));
         setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+    }
+
+    void setAvatar(String key) {
+        MascotBlobCatalog.Preset next = MascotBlobCatalog.forKey(key);
+        Bitmap nextBody = BitmapFactory.decodeResource(getResources(), next.drawable);
+        if (nextBody == null) return;
+        preset = next;
+        body = nextBody;
+        invalidate();
     }
 
     void showMessage(String value) {
@@ -92,13 +103,23 @@ final class MascotView extends View {
     }
 
     private void drawEyes(Canvas canvas, float left, float top, float size, long now) {
+        if (preset == null) return;
         float scale = size / 256f;
         float look = (float) (Math.sin(now / 980.0) * 8f) * scale;
         boolean blink = now % 5_400L > 5_170L;
         float blinkScale = blink ? 0.10f : 1f;
-        paint.setColor(Color.rgb(58, 231, 176));
-        drawEye(canvas, left + 123.8f * scale + look, top + 133.6f * scale, 15.9f * scale, 33.8f * scale, 6.4f * scale, blinkScale);
-        drawEye(canvas, left + 157.6f * scale + look, top + 133.6f * scale, 15.9f * scale, 33.8f * scale, 6.4f * scale, blinkScale);
+        paint.setColor(preset.eyeColor);
+        for (float[] eye : preset.eyes) {
+            drawEye(
+                canvas,
+                left + eye[0] * scale + look,
+                top + eye[1] * scale,
+                eye[2] * scale,
+                eye[3] * scale,
+                eye[4] * scale,
+                blinkScale
+            );
+        }
     }
 
     private void drawEye(Canvas canvas, float x, float y, float width, float height, float radius, float blinkScale) {
@@ -165,14 +186,17 @@ final class MascotView extends View {
                 invalidate();
                 return true;
             case MotionEvent.ACTION_MOVE:
-                if (Math.hypot(event.getRawX() - downRawX, event.getRawY() - downRawY) > dp(6)) dragged = true;
+                if (!dragged && Math.hypot(event.getRawX() - downRawX, event.getRawY() - downRawY) > dp(6)) {
+                    dragged = true;
+                    listener.onDragStarted();
+                }
                 listener.onMove(event.getRawX(), event.getRawY(), offsetX, offsetY);
                 return true;
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL:
                 dragging = false;
                 invalidate();
-                if (dragged) listener.onPositionCommitted();
+                if (dragged) listener.onDragEnded(event.getActionMasked() == MotionEvent.ACTION_CANCEL);
                 else {
                     hopStarted = System.currentTimeMillis();
                     listener.onTapped();

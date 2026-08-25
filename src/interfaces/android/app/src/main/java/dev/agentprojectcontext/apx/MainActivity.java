@@ -35,6 +35,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.net.URI;
+import java.util.UUID;
 
 public final class MainActivity extends Activity {
     static final String EXTRA_PATH = "open_path";
@@ -74,6 +75,7 @@ public final class MainActivity extends Activity {
     }
 
     private void handleIntent(Intent intent) {
+        if (handleMapsShare(intent)) return;
         String requestedPath = intent.getStringExtra(EXTRA_PATH);
         if (requestedPath != null && requestedPath.startsWith("/mobile")) pendingPath = requestedPath;
         Uri data = intent.getData();
@@ -92,6 +94,56 @@ public final class MainActivity extends Activity {
         } else {
             showPairing(null, null, false);
         }
+    }
+
+    private boolean handleMapsShare(Intent intent) {
+        if (!Intent.ACTION_SEND.equals(intent.getAction()) || !"text/plain".equals(intent.getType())) return false;
+        CharSequence shared = intent.getCharSequenceExtra(Intent.EXTRA_TEXT);
+        if (!MapsShareIntentParser.isGoogleMapsShare(shared)) {
+            Toast.makeText(this, "APX necesita un viaje compartido desde Maps", Toast.LENGTH_LONG).show();
+            return true;
+        }
+        if (!preferences.paired()) {
+            Toast.makeText(this, "Vinculá APX antes de compartir el viaje", Toast.LENGTH_LONG).show();
+            showPairing(null, null, false);
+            return true;
+        }
+
+        String destination = MapsShareIntentParser.destinationFrom(shared);
+        String tripId = preferences.travelActive() && !preferences.travelTripId().isBlank()
+            ? preferences.travelTripId()
+            : UUID.randomUUID().toString();
+        boolean suppressed = TravelEventGate.coolingDown(
+            System.currentTimeMillis(),
+            destination,
+            preferences.travelLastSentAt(),
+            preferences.travelLastSentDestination()
+        );
+        preferences.setTravelState(true, destination, tripId);
+        if (suppressed) {
+            preferences.setTravelEventSent(true);
+        } else {
+            preferences.recordTravelEventSent(destination);
+            DaemonClient.notifyTripStarted(
+                preferences.daemonUrl(),
+                preferences.token(),
+                tripId,
+                destination,
+                DeviceLocation.latest(this)
+            );
+        }
+        sendBroadcast(new Intent(MapsNavigationListenerService.ACTION_TRAVEL_STATE_CHANGED).setPackage(getPackageName()));
+        Toast.makeText(
+            this,
+            suppressed ? "Viaje actualizado; Roby no repetirá el aviso" : "Viaje compartido con APX",
+            Toast.LENGTH_LONG
+        ).show();
+        intent.setAction(Intent.ACTION_MAIN);
+        intent.removeExtra(Intent.EXTRA_TEXT);
+        requestLocationPermission();
+        openMobile(pendingPath);
+        ensureMascotRunning();
+        return true;
     }
 
     private void showPairing(String suggestedUrl, String suggestedCode, boolean autoSubmit) {
@@ -283,7 +335,6 @@ public final class MainActivity extends Activity {
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
         );
-        bannerParams.topMargin = dp(10);
         frame.addView(travelBanner, bannerParams);
         webView = new WebView(this);
         webView.setBackgroundColor(Color.rgb(13, 17, 16));
@@ -375,7 +426,10 @@ public final class MainActivity extends Activity {
                 if (which == 2) startActivity(new Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS));
                 if (which == 3) openTravelDetectionSettings();
                 if (which == 4) {
-                    CarMessageNotification.show(this, "Prueba APX: aviso directo en Android Auto.");
+                    Intent test = new Intent(this, MascotOverlayService.class)
+                        .setAction(MascotOverlayService.ACTION_TEST_MESSAGE)
+                        .putExtra(MascotOverlayService.EXTRA_TEST_MESSAGE, "Prueba APX: aviso directo en Android Auto.");
+                    if (Build.VERSION.SDK_INT >= 26) startForegroundService(test); else startService(test);
                     Toast.makeText(this, "Aviso APX enviado", Toast.LENGTH_SHORT).show();
                 }
                 if (which == 5) openMobile("/mobile");

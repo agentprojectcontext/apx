@@ -54,6 +54,9 @@ public final class MapsNavigationDetectorTest {
         assertTrue(MapsNavigationDetector.destinationFrom(
             "heading to Central Station"
         ).equals("Central Station"));
+        assertTrue(MapsNavigationDetector.destinationFrom(
+            "Estoy yendo a La Anónima km 4"
+        ).equals("La Anónima km 4"));
     }
 
     @Test

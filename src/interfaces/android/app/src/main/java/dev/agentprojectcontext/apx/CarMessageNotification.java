@@ -15,13 +15,25 @@ import androidx.core.app.RemoteInput;
 final class CarMessageNotification {
     static final String CHANNEL = "apx_messages_custom_sound";
     static final int ID = 7100;
+    static final int DESTINATION_ID = 7101;
     static final String ACTION_REPLY = "dev.agentprojectcontext.apx.CAR_MESSAGE_REPLY";
+    static final String ACTION_MOBILITY_DESTINATION = "dev.agentprojectcontext.apx.MOBILITY_DESTINATION";
     static final String ACTION_READ = "dev.agentprojectcontext.apx.CAR_MESSAGE_READ";
     static final String KEY_REPLY = "apx_car_reply";
 
     private CarMessageNotification() {}
 
     static Notification build(Context context, String message, PendingIntent openApp) {
+        return build(context, message, openApp, ACTION_REPLY, "Responder a APX");
+    }
+
+    private static Notification build(
+        Context context,
+        String message,
+        PendingIntent openApp,
+        String replyAction,
+        String replyLabel
+    ) {
         ensureChannel(context);
 
         Person apx = new Person.Builder()
@@ -31,12 +43,12 @@ final class CarMessageNotification {
         Person user = new Person.Builder().setName("Vos").build();
 
         RemoteInput replyInput = new RemoteInput.Builder(KEY_REPLY)
-            .setLabel("Responder a APX")
+            .setLabel(replyLabel)
             .build();
         NotificationCompat.Action reply = new NotificationCompat.Action.Builder(
             R.drawable.ic_apx_notification,
             "Responder",
-            pendingBroadcast(context, ACTION_REPLY, 40, true)
+            pendingBroadcast(context, replyAction, 40, true)
         )
             .addRemoteInput(replyInput)
             .setSemanticAction(NotificationCompat.Action.SEMANTIC_ACTION_REPLY)
@@ -70,12 +82,36 @@ final class CarMessageNotification {
                     .addMessage(message)
                     .setLatestTimestamp(System.currentTimeMillis())
                     .setReadPendingIntent(pendingBroadcast(context, ACTION_READ, 42, false))
-                    .setReplyAction(pendingBroadcast(context, ACTION_REPLY, 43, true), replyInput)
+                    .setReplyAction(pendingBroadcast(context, replyAction, 43, true), replyInput)
                     .build()))
             .build();
     }
 
     static void show(Context context, String message) {
+        show(context, ID, message, ACTION_REPLY, "Responder a APX");
+    }
+
+    static void showDestinationRequest(Context context) {
+        show(
+            context,
+            DESTINATION_ID,
+            "¿A dónde vas? Respondé por voz para completar la ruta.",
+            ACTION_MOBILITY_DESTINATION,
+            "Decí tu destino"
+        );
+    }
+
+    static void cancel(Context context) {
+        context.getSystemService(NotificationManager.class).cancel(DESTINATION_ID);
+    }
+
+    private static void show(
+        Context context,
+        int notificationId,
+        String message,
+        String replyAction,
+        String replyLabel
+    ) {
         Intent open = new Intent(context, MainActivity.class)
             .putExtra(MainActivity.EXTRA_PATH, "/mobile")
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
@@ -86,7 +122,7 @@ final class CarMessageNotification {
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
         NotificationManager manager = context.getSystemService(NotificationManager.class);
-        manager.notify(ID, build(context, message, openApp));
+        manager.notify(notificationId, build(context, message, openApp, replyAction, replyLabel));
     }
 
     private static void ensureChannel(Context context) {

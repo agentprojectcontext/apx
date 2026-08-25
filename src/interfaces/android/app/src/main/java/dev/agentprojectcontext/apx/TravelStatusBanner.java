@@ -53,8 +53,12 @@ final class TravelStatusBanner extends LinearLayout {
             return;
         }
         boolean known = destination != null && !destination.isBlank();
+        boolean sharedLink = known && (destination.startsWith("https://maps.app.goo.gl/")
+            || destination.startsWith("https://goo.gl/maps/"));
         title.setText(known ? "Estás en camino" : "Estás navegando por una ruta");
-        detail.setText(known ? "Destino: " + destination : "Google Maps activo · destino todavía no disponible");
+        detail.setText(sharedLink
+            ? "Viaje compartido desde Google Maps"
+            : known ? "Destino: " + destination : "Google Maps activo · destino todavía no disponible");
         setVisibility(View.VISIBLE);
     }
 
