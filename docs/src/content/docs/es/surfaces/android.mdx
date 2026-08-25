@@ -54,6 +54,9 @@ en card, no solo anuncio de mensaje nuevo.
 
 - Inicio normal abre `<daemon>/mobile` dentro de la app, no Chrome.
 - Mascota flota sobre escritorio y otras apps, puede arrastrarse y recuerda posición.
+- Avatar sigue **Ajustes → Super-agente → Avatar**. WebSocket autenticado envía
+  valor actual al conectar y cada cambio posterior; Android lo guarda local y
+  repinta overlay inmediatamente.
 - Se oculta mientras APX está abierta y reaparece cuando APX pasa al fondo.
 - Eventos APX entrantes disparan burbuja, sonido incluido y notificación Android.
 - Tocar mascota o notificación abre app nativa en `/mobile`.
@@ -65,16 +68,32 @@ en card, no solo anuncio de mensaje nuevo.
   ajustes de notificaciones de APX en sistema.
 - Menú nativo permite activar **Detección de viajes APX**. Con acceso a
   notificaciones otorgado, app detecta inicio y fin de navegación Google Maps
-  mediante metadatos de notificación. APX queda silencioso hasta que Maps
-  publica destino final confirmado; luego muestra barra nativa con icono de auto
-  y acceso directo a Maps. Inicio nuevo envía evento autenticado `trip.started`
-  a `/api/mobility/events`, con destino y última ubicación disponible como
-  origen. Cambiar destino cierra viaje anterior e inicia evaluación nueva. No
+  mediante metadatos de notificación. Muestra barra nativa con icono de auto y
+  acceso directo a Maps. Inicio nuevo envía evento autenticado `trip.started`
+  a `/api/mobility/events`, con última ubicación disponible como origen. Si
+  Maps omite destino, card Android Auto pregunta dónde vas; **Responder** acepta
+  dictado de voz y completa mismo viaje. Cambiar destino inicia evaluación nueva. No
   sube ruta, historial ni contenido completo de notificaciones.
+- Mensajes de viaje tienen límite deliberado. Destino conocido debe quedar
+  estable 45 segundos; navegación sin destino espera 10 minutos. Reabrir mismo
+  destino queda silencioso 30 minutos; destino distinto no dispara otra
+  evaluación Roby antes de 5 minutos. Cancelar/reiniciar rápido actualiza estado
+  local sin ráfaga de mensajes. APX envía contexto de viaje al daemon apenas lo
+  detecta; esas esperas limitan evaluación y avisos, no conciencia de Roby.
+- Como alternativa explícita, desde Maps en teléfono elegí **Compartir progreso
+  del viaje → Más → Compartir viaje con APX**. APX acepta solo enlaces Google
+  Maps, adjunta ubicación permitida y actualiza viaje activo. Shares actuales
+  suelen traer solo enlace opaco `maps.app.goo.gl`, sin texto de destino; APX
+  debe mostrarlo como progreso compartido y nunca inventar destino. Android
+  Auto puede mostrar solo contactos y ocultar share targets de apps; en ese
+  caso hacelo desde teléfono o usá respuesta de voz APX.
 - Daemon pide a Roby revisar tareas y compromisos pendientes usando herramientas
   de solo lectura. Eventos de viaje configurados por usuario se procesan al
-  instante, fuera de rondas y presupuesto proactivo, y producen un único aviso
-  Telegram. Roby no afirma cercanía ni desvíos sin datos suficientes.
+  instante, fuera de rondas y presupuesto proactivo, pero actualizan contexto
+  de movilidad en vez de forzar Telegram. Roby ve viaje actual, última pregunta
+  y última respuesta botonera durante chats y rondas de secretaria posteriores.
+  Solo escribe ante oportunidad nueva y concreta; `SILENT` queda como opción
+  normal. Roby no afirma cercanía ni desvíos sin datos suficientes.
 - Con origen y destino disponibles, daemon geocodifica mediante Nominatim,
   calcula ruta con Valhalla/OSRM y busca comercios OpenStreetMap dentro de 700 m.
   Envía máximo tres coincidencias y enlaces Google Maps; cero coincidencias
@@ -99,15 +118,45 @@ en card, no solo anuncio de mensaje nuevo.
 ## Qué ruta conoce APX
 
 APX **no** recibe polilínea exacta de Google Maps. Android envía último punto
-GPS disponible como origen y texto de destino confirmado expuesto por
-notificación de navegación Maps. Daemon geocodifica destino y arma ruta propia
+GPS disponible como origen y, cuando existe, texto de destino expuesto por
+notificación Maps, compartido explícitamente o confirmado por voz. Daemon geocodifica destino y arma ruta propia
 con Valhalla; usa OSRM como fallback.
 
 Ruta reconstruida alcanza para buscar corredor y lugares cercanos, pero puede
 diferir de Google Maps: no incluye tráfico Google, preferencias de desvío ni
-decisiones sobre caminos privados. Si falta origen o destino, APX no afirma
-conocer ruta y no evalúa proximidad. Conectarse al auto sin elegir destino no
-inicia evaluación.
+decisiones sobre caminos privados. Si falta destino, Roby recibe solo posición
+actual y no afirma conocer ruta ni evalúa proximidad.
+
+## Head unit controlada por APX (experimental)
+
+Android Auto también manda mensajes semánticos de navegación al head unit.
+Canal privado del protocolo de proyección; no API disponible para app Android.
+Prueba USB/DHU real capturó:
+
+- `0x8003`: navegación activa/inactiva;
+- `0x8006`: maniobra, calles y dirección de destino;
+- `0x8007`: distancia restante y llegada.
+
+Payload real incluyó guía **Bosque Petrificado** y destino **R8400, Río
+Negro**. Resultado: head unit APX puede detectar contexto automáticamente, sin
+leer notificaciones, voz, compartir Maps ni API Google.
+
+<Aside type="caution">
+  No permite observar head unit original del auto. APX debe controlar endpoint:
+  DHU Mac para desarrollo, o head unit/proxy compatible dedicado dentro del
+  auto. Protocolo Google no público ni estable. Datos pueden traer dirección
+  amplia, no nombre POI; APX debe fallar silenciosamente cuando precisión no
+  alcanza.
+</Aside>
+
+```text
+Android → head unit/proxy APX → decoder navegación
+        → /api/mobility/events autenticado → Roby
+```
+
+Conexión prueba contexto de conducción. Emitir `trip.started` solo cuando
+navegación activa y destino útil. Emitir `trip.ended` al terminar navegación o
+desconectar. Deduplicar frames `0x8006`; nunca guardar video/audio proyectado.
 
 ## Compilar e instalar
 

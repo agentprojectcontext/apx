@@ -141,6 +141,12 @@ mute or restore it. The preference persists independently from mascot visibility
 }
 ```
 
+### Mascot avatar
+
+Choose any agent blob in **Settings → Super-agent → Avatar**. Saving updates
+the web avatar and the running Desktop mascot immediately through the
+authenticated events WebSocket; no Desktop restart is required.
+
 ## How the window talks to the daemon
 
 The Electron main process opens a WebSocket to `ws://127.0.0.1:7430` and posts

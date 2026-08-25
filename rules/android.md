@@ -16,6 +16,18 @@ Native code owns only capabilities a browser/PWA cannot provide reliably:
   explicit foreground location permission. Never upload route geometry,
   location history, or complete notification text.
 
+Never turn raw Maps notification churn into agent messages. Require 45 seconds
+of stability for a known destination and 10 minutes before an unknown-route
+prompt. Persist send history across service/app restarts. Suppress the same
+destination for 30 minutes and any different destination for at least 5
+minutes; keep only the newest pending state during rapid cancel/restart tests.
+- a text share target for explicit Google Maps trip-progress shares. Accept only
+  recognized Google Maps URLs, reuse an active trip id when present, and send
+  the shared destination/link plus the newest permitted location to the same
+  authenticated mobility endpoint. Treat opaque live-progress links as unknown
+  destination; never derive a place name from the token. Generic text shares
+  must never trigger a mobility event.
+
 The native options menu persists mascot visibility and message sound separately.
 Message sound defaults on and uses `res/raw/apx_notification.mp3`; the system
 notification itself stays silent so each event plays exactly once.
@@ -31,8 +43,10 @@ grants notification-listener access in Android settings; `MainActivity` reports
 that access and the current local travel state in its native options. Match the
 exact Maps package plus an ongoing navigation category or conservative guidance
 terms. Debounce removals because Maps replaces its notification during a trip.
-Preserve the last non-empty destination metadata and delay Telegram briefly so
-Maps can publish it. `TravelStatusBanner` stays native, above `/mobile`, and
+Preserve the last non-empty destination metadata and delay delivery briefly so
+Maps can publish it. If Maps omits destination, send current location without
+claiming a route and post an Android Auto messaging card whose voice reply can
+confirm destination. `TravelStatusBanner` stays native, above `/mobile`, and
 opens Maps when tapped. Keep its container below system-bar insets with visible
 top spacing.
 
@@ -51,6 +65,15 @@ places to 700 m from computed geometry. A completed route check with no match
 must stay silent. Every suggested place includes a clickable Maps coordinate
 link.
 
+An APX-controlled Android Auto head unit may use the private semantic
+navigation channel as an experimental destination source. Verified DHU traffic
+uses `0x8003` for navigation state, `0x8006` for maneuver/road/destination, and
+`0x8007` for distance/ETA. This capability belongs to the head unit or proxy,
+never the ordinary Android app. Treat protocol fields as untrusted and
+version-dependent, deduplicate repeated frames, fail closed when destination is
+empty or broad, and never capture projection video or audio. Stock car head
+units cannot be retrofitted by granting another Android permission.
+
 The Android start event and end event share `trip_id`. Before Telegram delivery,
 daemon must confirm that trip remains active; closing Maps cancels in-flight
 output. Mobility Telegram keyboards route postpone into the delivery queue and
@@ -58,12 +81,26 @@ persist same-day silence. Outbound mobility rows use `via: mobility_delivery`
 plus a bounded `notify` headline so Android can create one APX card and sound
 without streaming full message bodies over the events socket.
 
+Mobility events update persistent secretary context; they do not imply an
+outbound message. Inject current trip, last mobility question, and last button
+response into later super-agent turns and routines. The mobility agent may
+return `SILENT`, and the daemon must not replace silence with a generic
+"I see you are driving" fallback. Record each delivered mobility question and
+callback so Roby knows what it just asked and never behaves like a stateless
+notification trigger.
+
+Send a state-only mobility event as soon as Android detects navigation. Apply
+settling and cooldown gates only to evaluation-capable events, never to Roby's
+trip awareness.
+
 The Android token is separate from Chrome/PWA storage. Never read, export, or
 share another client's token. Pair through `/api/pair/confirm` with
 `kind: "android"` and let the daemon mint a new credential.
 
-The mascot reuses the `noche` body PNG and eye geometry from the Electron
-mascot. Keep its movement and message filtering aligned with
+The mascot uses the shared web blob catalog, exported into Android drawables and
+`MascotBlobCatalog.java` by `scripts/export_android_mascot_assets.py`. It stores
+the avatar received in WebSocket `hello`/`settings` frames and repaints without
+restarting the service. Keep its movement and message filtering aligned with
 `src/interfaces/desktop/mascot.js` and `main.js`: inbound messages only, and no
 self-notification for desktop/voice input.
 

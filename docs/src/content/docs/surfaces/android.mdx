@@ -55,6 +55,9 @@ only announcing a new message.
 - Normal launch opens `<daemon>/mobile` inside the app, not Chrome.
 - The mascot floats above the launcher and other apps, can be dragged, and
   remembers its position.
+- Its avatar follows **Settings → Super-agent → Avatar**. The authenticated
+  WebSocket sends the current value on connect and every later change; Android
+  stores it locally and repaints the overlay immediately.
 - It hides while the APX app itself is open and returns when APX goes to the background.
 - Inbound APX events trigger the same short message bubble as the desktop
   mascot, the bundled message sound, and an Android notification.
@@ -67,17 +70,35 @@ only announcing a new message.
   it to open the app's system notification settings.
 - The native menu can enable **APX trip detection**. After notification-listener
   access is granted, the app detects Google Maps navigation start and end from
-  notification metadata. APX stays silent until Maps exposes a confirmed final
-  destination, then shows a native car banner and a shortcut back to Maps. A
-  new trip posts an authenticated `trip.started` event to
-  `/api/mobility/events`, with the destination and latest available location as
-  the origin. Changing the destination closes the previous trip and starts a
+  notification metadata, then shows a native car banner and a shortcut back to
+  Maps. A new trip posts an authenticated `trip.started` event to
+  `/api/mobility/events`, with the latest available location as origin. When
+  Maps omits destination, an Android Auto card asks where the user is going;
+  **Reply** accepts voice dictation and completes the same trip. Changing the destination starts a
   new evaluation. It uploads no route, location history, or complete
   notification content.
+- Trip messages are intentionally rate-limited. A known destination must remain
+  stable for 45 seconds; navigation without destination waits 10 minutes.
+  Reopening the same destination stays silent for 30 minutes, and changing to a
+  different destination cannot trigger another Roby evaluation for 5 minutes.
+  Rapid cancel/restart tests update local state but produce no message burst.
+  APX sends trip context to the daemon as soon as it detects it; these delays
+  gate evaluation and alerts, not Roby's awareness.
+- As an explicit fallback, choose **Share trip progress → More → Share trip
+  with APX** in Maps on the phone. APX accepts Google Maps links only, attaches
+  the permitted current location, and updates the active trip. Current Maps
+  live-progress shares commonly contain only an opaque `maps.app.goo.gl` link,
+  not destination text; APX must label those as shared progress and must not
+  invent a destination. Android Auto may expose contacts only and hide app
+  share targets; use the phone or APX voice reply in that case.
 - The daemon asks Roby to inspect pending tasks and commitments with read-only
   tools. User-configured trip events run immediately outside proactive rounds
-  and interruption budgets, then produce one Telegram notice. Roby must not
-  claim proximity or a detour without enough data.
+  and interruption budgets, but they update Roby's mobility context instead of
+  forcing a Telegram notice. Roby sees current trip, last mobility question,
+  and the user's last button response in later chats and secretary rounds.
+  It sends only a new concrete opportunity; `SILENT` is the default when
+  nothing useful changed. Roby must not claim proximity or a detour without
+  enough data.
 - When origin and destination are available, the daemon geocodes with
   Nominatim, computes the route with Valhalla/OSRM, and finds OpenStreetMap
   shops within 700 m. It sends at most three matches and Google Maps links; a
@@ -102,15 +123,51 @@ only announcing a new message.
 ## Which route APX knows
 
 APX does **not** receive Google Maps' exact polyline. Android sends the latest
-available GPS point as the origin and the confirmed destination text exposed by
-the Maps navigation notification. The daemon geocodes that destination and
+available GPS point as the origin and destination text exposed by Maps,
+explicitly shared, or confirmed by voice. The daemon geocodes that destination and
 builds its own driving route with Valhalla, falling back to OSRM.
 
 That reconstructed route is enough for corridor and nearby-place matching, but
 it can differ from Google Maps because it has no Google traffic, avoidance, or
-private-road decisions. If origin or destination is missing, APX does not claim
-to know the route and does not run proximity matching. Merely connecting to a
-car without choosing a destination does not start route evaluation.
+private-road decisions. Without a destination, Roby receives current position
+only; APX does not claim a route or run proximity matching.
+
+## APX-controlled head unit (experimental)
+
+Android Auto also sends semantic navigation messages to the connected head
+unit. This is a private projection-protocol channel, not an Android app API.
+During a real USB/DHU test, APX captured:
+
+- `0x8003`: navigation active/inactive state;
+- `0x8006`: current maneuver text, road names, and destination address;
+- `0x8007`: remaining distance and arrival information.
+
+The verified `0x8006` payload contained guidance such as **Bosque
+Petrificado** and destination address **R8400, Río Negro**. This proves an
+APX-controlled head unit can detect route context automatically, without
+notification scraping, voice confirmation, Google Maps sharing, or a Google
+Maps API key.
+
+<Aside type="caution">
+  This does not make a stock vehicle head unit observable. APX must own the
+  projection endpoint: DHU on a Mac for development, or a dedicated compatible
+  head-unit/proxy in the vehicle. Google does not publish this navigation
+  protocol as a stable third-party API, so decoding must be version-tested and
+  fail closed. Never infer a precise POI when Maps sends only a broad address.
+</Aside>
+
+Target production flow:
+
+```text
+Android phone → APX head unit/proxy → navigation decoder
+              → authenticated /api/mobility/events → Roby
+```
+
+Head-unit connection itself proves driving context. Emit `trip.started` only
+after navigation state becomes active and a useful destination appears. Emit
+`trip.ended` when navigation becomes inactive or projection disconnects. Keep
+last semantic state in memory, deduplicate repeated `0x8006` frames, and never
+store video/audio projection data.
 
 ## Build and install
 
