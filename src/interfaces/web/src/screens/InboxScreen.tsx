@@ -4,6 +4,7 @@ import { EyeOff, Eye, Inbox } from "lucide-react";
 import { Button, Empty, Loading } from "../components/ui";
 import { Tip } from "../components/ui/tip";
 import { InboxList, rowKey } from "../components/inbox/InboxList";
+import { agentCardUrl } from "./mobile/routes";
 import { ChatTab } from "./project/ChatTab";
 import { useInbox } from "../hooks/useInbox";
 import { threadMoved } from "../lib/inbox-selection";
@@ -120,17 +121,15 @@ export function InboxScreen() {
             pid={pid as string}
             hideSidebar
             bare
+            channelScope="web"
+            threadFaces={selected.kind === "a2a" ? selected.participant_faces : undefined}
+            threadTitle={selected.kind === "a2a" ? selected.agent_name ?? undefined : undefined}
             initialSelection={selectionFor(selected)}
             /* The structural way out. The inbox is a second axis over the same
                data, so getting from a conversation to its project must always
                be one click — it just lives in the thread's own button row now
                instead of a header duplicating the agent's name above it. */
-            onOpenInProject={() =>
-              navigate(
-                selected.kind === "super_agent"
-                  ? "/p/0/chat"
-                  : `/p/${selected.project_id}/agents/${encodeURIComponent(selected.agent_slug)}`,
-              )}
+            onOpenInProject={() => navigate(agentCardUrl(selected))}
           />
         )}
       </section>

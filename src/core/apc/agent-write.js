@@ -14,7 +14,7 @@ import path from "node:path";
 import { readAgents } from "#core/apc/parser.js";
 import { apcAgentFile } from "#core/apc/paths.js";
 import { writeAgentFile, ensureAgentDir } from "#core/apc/scaffold.js";
-import { ensureAgentRuntimeDir, agentMemoryPath } from "#core/agent/memory.js";
+import { ensureAgentRuntimeDir, agentMemoryPath, readAgentMemory, writeAgentMemory } from "#core/agent/memory.js";
 import { isBlobKey, normalizeAgentType, pickBlob } from "#core/apc/agent-identity.js";
 import { readOrganization, resolveAreaSlug } from "#core/stores/organization.js";
 import { PERMISSION_MODES } from "#core/constants/permissions.js";
@@ -98,6 +98,48 @@ export function createAgent(project, spec = {}, { requireSystem = false } = {}) 
   ensureAgentDir(project.path, slug);
   ensureAgentRuntimeDir(project, slug);
   return slug;
+}
+
+// Strip a trailing " (2)" / "-2" style copy marker so cloning a clone doesn't
+// stack them ("candela (2) (3)"): it re-derives the base and picks the next free
+// index instead.
+const stripNameCopy = (name) => name.replace(/\s*\(\d+\)\s*$/, "").trim();
+const stripSlugCopy = (slug) => slug.replace(/-\d+$/, "");
+
+/**
+ * Duplicate an existing agent into a fresh slug. Copies every frontmatter field
+ * and the system prompt verbatim, appending " (n)" to the display Name and "-n"
+ * to the slug — n being the lowest index that keeps both unique — and carries
+ * the agent's memory across so the clone starts where the original was. Throws
+ * if the source doesn't exist. Caller rebuilds the registry.
+ *
+ * @param {{path:string}} project
+ * @param {string} slug  source agent slug
+ * @returns {string} the new (cloned) slug
+ */
+export function cloneAgent(project, slug) {
+  if (!slug) throw new Error("slug required");
+  const roster = readAgents(project.path);
+  const source = roster.find((a) => a.slug === slug);
+  if (!source) throw new Error(`agent ${slug} not found`);
+
+  const taken = new Set(roster.map((a) => a.slug));
+  const baseSlug = stripSlugCopy(source.slug) || source.slug;
+  let n = 2;
+  while (taken.has(`${baseSlug}-${n}`)) n += 1;
+  const newSlug = `${baseSlug}-${n}`;
+  if (!AGENT_SLUG_RE.test(newSlug)) throw new Error(`cannot derive a valid slug from "${slug}"`);
+
+  const fields = { ...(source.fields || {}) };
+  const baseName = stripNameCopy(fields.Name || source.name || source.slug);
+  fields.Name = `${baseName} (${n})`;
+
+  writeAgentFile(project.path, newSlug, fields, source.body || "");
+  ensureAgentDir(project.path, newSlug);
+  ensureAgentRuntimeDir(project, newSlug);
+  const memory = readAgentMemory(project, source.slug);
+  if (memory && memory.trim()) writeAgentMemory(project, newSlug, memory);
+  return newSlug;
 }
 
 /**

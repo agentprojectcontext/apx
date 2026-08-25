@@ -13,6 +13,11 @@ interface Props {
   queued?: QueuedTurn[];
   onUnqueue?: (id: string) => void;
   onCopy: (text: string) => void;
+  /** Re-run the answer at this index (drop it and everything after). Absent →
+   *  no regenerate affordance (super-agent threads, a2a, previews). */
+  onRegenerate?: (index: number) => void;
+  /** Edit the user message at this index and re-send (drop everything after). */
+  onEdit?: (index: number, text: string) => void;
   /** Who to draw next to an assistant turn. Screens that know the cast (chat,
    *  inbox) pass it; the rest fall back to a neutral glyph. */
   faceFor?: (msg: ChatMsg) => AgentFace;
@@ -40,6 +45,8 @@ export function MessageList({
   queued = [],
   onUnqueue,
   onCopy,
+  onRegenerate,
+  onEdit,
   faceFor,
   autoscroll = true,
   bottomInset = 0,
@@ -136,6 +143,8 @@ export function MessageList({
           askPending={i === askAt}
           isAskAnswer={isAnswerToAsk(msgs, i)}
           onCopy={onCopy}
+          onRegenerate={onRegenerate && m.role === "assistant" ? () => onRegenerate(i) : undefined}
+          onEdit={onEdit && m.role === "user" ? (text) => onEdit(i, text) : undefined}
           compact={compact}
           face={m.role === "assistant" ? faceFor?.(m) : undefined}
         />

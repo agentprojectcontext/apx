@@ -1,12 +1,12 @@
+import { useState } from "react";
 import { Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
-import { ChevronLeft } from "lucide-react";
-import { MobileChatList, buildTeams, type TeamRow } from "./MobileChatList";
+import { MobileChatList } from "./MobileChatList";
 import { MobileChat } from "./MobileChat";
-import { chatPath, findRow, pidOf, teamPath, MOBILE_ROOT } from "./routes";
-import { InboxRowItem } from "../../components/inbox/InboxRowItem";
+import { NewChatSheet } from "./NewChatSheet";
+import { chatPath, findRow, pidOf, MOBILE_ROOT } from "./routes";
 import { useInbox } from "../../hooks/useInbox";
 import { Loading } from "../../components/ui";
-import { t } from "../../i18n";
+import type { InboxRow } from "../../lib/api/inbox";
 
 /**
  * The phone surface: chats, and one chat at a time.
@@ -28,7 +28,6 @@ export function MobileScreen() {
   return (
     <Routes>
       <Route index element={<ListRoute />} />
-      <Route path="team/:pid" element={<TeamRoute />} />
       <Route path="chat/:pid/:slug" element={<ChatRoute />} />
       <Route path="chat/:pid/:slug/:session" element={<ChatRoute />} />
       {/* Anything else under /mobile is the list, not a 404 screen inside an
@@ -41,13 +40,25 @@ export function MobileScreen() {
 function ListRoute() {
   const { rows, isLoading } = useInbox();
   const navigate = useNavigate();
+  const [newOpen, setNewOpen] = useState(false);
+  const openChat = (row: InboxRow) => navigate(chatPath(pidOf(row), row.agent_slug));
   if (isLoading) return <Busy />;
   return (
-    <MobileChatList
-      rows={rows}
-      onOpenChat={(row) => navigate(chatPath(pidOf(row), row.agent_slug))}
-      onOpenTeam={(team) => navigate(teamPath(team.projectId))}
-    />
+    <>
+      <MobileChatList
+        rows={rows}
+        onOpenChat={openChat}
+        onNew={() => setNewOpen(true)}
+      />
+      <NewChatSheet
+        open={newOpen}
+        onClose={() => setNewOpen(false)}
+        onPick={(row) => {
+          setNewOpen(false);
+          openChat(row);
+        }}
+      />
+    </>
   );
 }
 
@@ -67,51 +78,6 @@ function ChatRoute() {
       onBack={() => backToList(navigate)}
       onPickSession={(key) => navigate(chatPath(pid, slug, key), { replace: true })}
     />
-  );
-}
-
-/**
- * A team is a list of its members' chats — same rows, scoped. Opening one from
- * here still returns HERE, so the group reads as a folder you stepped into
- * rather than a different place.
- */
-function TeamRoute() {
-  const { pid = "" } = useParams();
-  const { rows, isLoading } = useInbox();
-  const navigate = useNavigate();
-  if (isLoading) return <Busy />;
-  const team: TeamRow | undefined = buildTeams(rows).find((x) => x.projectId === pid);
-  if (!team) return <Navigate to={MOBILE_ROOT} replace />;
-  return (
-    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
-      <header className="flex shrink-0 items-center gap-2 border-b border-border px-2 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
-        <button
-          type="button"
-          onClick={() => backToList(navigate)}
-          aria-label={t("mobile.back")}
-          className="flex size-10 shrink-0 items-center justify-center rounded-full text-muted-fg active:bg-accent/60"
-        >
-          <ChevronLeft size={22} />
-        </button>
-        <span className="min-w-0">
-          <span className="block truncate text-[15px] font-semibold leading-tight">{team.projectName}</span>
-          <span className="text-[11px] text-muted-fg">
-            {t("mobile.team_members", { count: String(team.members.length) })}
-          </span>
-        </span>
-      </header>
-      <ul className="min-h-0 flex-1 divide-y divide-border/60 overflow-y-auto pb-[env(safe-area-inset-bottom)]">
-        {team.members.map((m) => (
-          <li key={m.agent_slug}>
-            <InboxRowItem
-              row={m}
-              variant="touch"
-              onSelect={(row) => navigate(chatPath(pidOf(row), row.agent_slug))}
-            />
-          </li>
-        ))}
-      </ul>
-    </div>
   );
 }
 

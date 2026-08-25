@@ -94,10 +94,43 @@ test.describe("agent inbox", () => {
       });
     expect(avatarFitsViewport).toBe(true);
     await expect(page.getByTestId("inbox-row-ada-grace")).toContainText("Northwind");
+    expect(errors).toEqual([]);
+  });
 
-    await page.goto("/mobile/team/7");
-    await expect(page.getByTestId("inbox-row-ada-grace").getByTestId("a2a-avatar-group"))
-      .toHaveAttribute("data-participant-count", "2");
+  test("the phone lists agents loose, with a way to start a new chat", async ({ page, errors }) => {
+    const row = {
+      project_id: 7,
+      project_name: "Northwind",
+      project_path: "/path/to/northwind",
+      agent_slug: "linus",
+      agent_name: "Linus",
+      agent_emoji: "🐧",
+      agent_icon: null,
+      kind: "agent",
+      pinned: false,
+      conversation_id: "conversation-linus",
+      channel: "web",
+      messages: 2,
+      preview: "Hi.",
+      last_activity_at: new Date().toISOString(),
+    };
+    // Every /api/inbox call answers with this one agent, whatever the query — the
+    // list is web-only and the "new chat" picker asks with include_empty.
+    await page.route(
+      (url) => url.pathname === "/api/inbox",
+      (route) => route.fulfill({ json: [row] }),
+    );
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/mobile");
+    // Agents are loose: no per-project team folder rows, just the agent.
+    await expect(page.getByTestId("inbox-row-linus")).toBeVisible();
+
+    // "New chat" opens the picker, which lists the agent to start talking to.
+    await page.getByTestId("mobile-new-chat").click();
+    await expect(page.getByTestId("new-chat-linus")).toBeVisible();
+    await page.getByTestId("new-chat-linus").click();
+    await expect(page).toHaveURL(/\/mobile\/chat\/7\/linus/);
     expect(errors).toEqual([]);
   });
 });

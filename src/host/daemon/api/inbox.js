@@ -16,14 +16,59 @@ import { pageEnvelope, A2A_SLUG_PREFIX } from "./shared.js";
 // thread it is in renders the bare `super_agent` slug with no avatar; a coding
 // CLI (claude/codex/…) isn't an agent either, so it falls through to the name
 // (AgentAvatar maps it to a brand logo).
-function participantFace(agents, slug, superFace) {
-  if (slug === SUPERAGENT_ACTOR_ID) return superFace;
-  const a = agents.find((x) => x.slug === slug);
+function faceOfAgent(a) {
   return {
-    name: a?.fields?.Name || slug,
+    name: a?.fields?.Name || a?.name || null,
     emoji: a?.fields?.Emoji || a?.emoji || null,
     icon: a?.fields?.Icon || a?.icon || null,
   };
+}
+
+// Coding CLIs aren't project agents (no .apc file, so no face resolves), but an
+// a2a pair with one should read as its brand, not a bare lowercase slug. Keys
+// match the frontend's CLI_LOGOS so the logo still lands (it matches on the
+// lowercased name), the label just wears proper case.
+const CLI_DISPLAY_NAMES = {
+  claude: "Claude",
+  "claude-code": "Claude",
+  codex: "Codex",
+  opencode: "OpenCode",
+  cursor: "Cursor",
+  "cursor-agent": "Cursor",
+  aider: "Aider",
+  gemini: "Gemini",
+  qwen: "Qwen",
+};
+
+// An a2a pair can span projects — crypto-analyst lives in `default` while the
+// thread it shares with roby is logged under nicho-apps. A face looked up only
+// in the thread's own project renders as a bare letter for the outsider, so we
+// resolve against EVERY project's agents (the thread's own first, then the rest)
+// before falling back to the slug.
+function participantFace(localAgents, globalIndex, slug, superFace) {
+  if (slug === SUPERAGENT_ACTOR_ID) return superFace;
+  const local = localAgents.find((x) => x.slug === slug);
+  const resolved = local ? faceOfAgent(local) : globalIndex.get(slug) || null;
+  return {
+    // A project agent's own name; else a coding CLI's brand name (Claude, Cursor,
+    // OpenCode…) so it doesn't read as a bare lowercase slug; else the slug.
+    name: resolved?.name || CLI_DISPLAY_NAMES[String(slug).toLowerCase()] || slug,
+    emoji: resolved?.emoji || null,
+    icon: resolved?.icon || null,
+  };
+}
+
+// slug -> face across all projects, so a cross-project a2a participant still
+// wears its real avatar. First project to define a slug wins — collisions are
+// rare and the thread's own project is tried before this map anyway.
+function buildAgentIndex(entries) {
+  const idx = new Map();
+  for (const e of entries) {
+    let agents = [];
+    try { agents = e.path ? readAgents(e.path) : []; } catch { continue; }
+    for (const a of agents) if (!idx.has(a.slug)) idx.set(a.slug, faceOfAgent(a));
+  }
+  return idx;
 }
 
 // a2a "group chats" aren't any single agent's conversation, so listAgentInbox
@@ -31,6 +76,7 @@ function participantFace(agents, slug, superFace) {
 // rows — this is the one place that shows EVERY conversation, so a group chat
 // belongs here next to the individual ones.
 function a2aInboxRows(entries, superFace) {
+  const globalIndex = buildAgentIndex(entries);
   const rows = [];
   for (const e of entries) {
     let threads = [];
@@ -38,7 +84,7 @@ function a2aInboxRows(entries, superFace) {
     let agents = [];
     try { agents = e.path ? readAgents(e.path) : []; } catch { /* skip */ }
     for (const th of threads) {
-      const faces = (th.participants || []).map((slug) => participantFace(agents, slug, superFace));
+      const faces = (th.participants || []).map((slug) => participantFace(agents, globalIndex, slug, superFace));
       // Title from the RESOLVED display names, not the raw slugs — "golf-coach ·
       // Roby", never "golf-coach · super_agent".
       const title = faces.length ? faces.map((f) => f.name).join(" · ") : th.title;
@@ -81,8 +127,17 @@ export function register(api, { projects }) {
         });
       }
 
+      // `?channel=web` scopes the individual-agent rows to one channel — the
+      // inbox and the phone are web-only so a Telegram thread never surfaces
+      // there. a2a group rows are their own channel and are added below,
+      // unaffected by this filter.
+      const channel = typeof req.query.channel === "string" && req.query.channel
+        ? req.query.channel
+        : null;
+
       const { rows, skipped } = listAgentInbox(entries, {
         includeEmpty: req.query.include_empty === "1" || req.query.include_empty === "true",
+        channel,
       });
 
       // The super-agent's display name lives in identity.json, and core must not

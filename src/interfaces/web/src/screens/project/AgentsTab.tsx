@@ -480,7 +480,15 @@ function AgentCard({
             {agent.emoji ? <span className="text-base leading-none">{agent.emoji}</span> : <Icon className="size-4 text-white" />}
           </div>
         )}
-        <span className="truncate text-sm font-semibold">{agent.slug}</span>
+        {/* Name is what the agent is CALLED; the slug is its immutable handle
+            (filename, delegation, a2a ids), kept as a small subtitle when it
+            differs so both are visible. */}
+        <span className="min-w-0">
+          <span className="block truncate text-sm font-semibold">{agent.name || agent.slug}</span>
+          {agent.name && agent.name !== agent.slug && (
+            <span className="block truncate text-[10px] leading-tight text-muted-fg">{agent.slug}</span>
+          )}
+        </span>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-1">
         {agent.is_master && <Badge tone="success"><Crown size={9} /> {t("project.agents.orchestrator")}</Badge>}
@@ -521,7 +529,8 @@ function ListView({ agents, onOpen, onChat }: { agents: AgentEntry[]; onOpen: (s
             )}
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-semibold">{a.slug}</span>
+                <span className="text-sm font-semibold">{a.name || a.slug}</span>
+                {a.name && a.name !== a.slug && <span className="text-[10px] text-muted-fg">{a.slug}</span>}
                 {a.is_master && <Badge tone="success"><Crown size={10} /> {t("project.agents.orchestrator")}</Badge>}
                 {a.role && <Badge>{a.role}</Badge>}
                 {a.model && <Badge tone="info">{a.model}</Badge>}

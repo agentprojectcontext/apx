@@ -1,4 +1,5 @@
-import { Bot, Clock, Copy, Info, X } from "lucide-react";
+import { useState } from "react";
+import { Bot, Clock, Copy, Info, Pencil, RefreshCw, X } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { AgentAvatar, type AgentFace } from "../agents/AgentAvatar";
 import { ToolCall } from "./ToolCall";
@@ -36,10 +37,18 @@ interface Props {
   queued?: boolean;
   /** Take it back before it goes. Only meaningful alongside `queued`. */
   onUnqueue?: () => void;
+  /** Re-run this assistant turn (drop it and everything after, ask again).
+   *  Absent → no button (super-agent threads / previews don't offer it). */
+  onRegenerate?: () => void;
+  /** Edit this user turn and re-send, dropping everything after it. Absent → no
+   *  edit affordance. */
+  onEdit?: (text: string) => void;
 }
 
-export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, compact, queued, onUnqueue }: Props) {
+export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, compact, queued, onUnqueue, onRegenerate, onEdit }: Props) {
   const mine = msg.role === "user";
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
   // A turn that carried a file shows the file; its text is the marker the agent
   // was handed, so only what the user actually wrote (caption, or the voice
   // transcript) stays as text — copy included.
@@ -56,6 +65,13 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
       return <AskAnswersCard text={text} />;
     }
   }
+
+  const startEdit = () => { setDraft(copyText); setEditing(true); };
+  const submitEdit = () => {
+    const v = draft.trim();
+    setEditing(false);
+    if (v && onEdit) onEdit(v);
+  };
 
   return (
     <div
@@ -109,8 +125,34 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
             behind one click so the answer below is what you read first. */}
         {!mine && work.length > 0 && <ActionGroup parts={work} running={!!msg.pending} />}
 
+        {/* Editing your own turn in place: on save it re-sends and everything
+            below is dropped and re-answered. Enter saves, Esc/Cancel backs out. */}
+        {mine && editing && (
+          <div className={cn("flex w-full flex-col gap-1.5", compact ? "max-w-[92%]" : "max-w-[85%]")}>
+            <textarea
+              autoFocus
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submitEdit(); }
+                if (e.key === "Escape") setEditing(false);
+              }}
+              rows={Math.min(8, Math.max(2, draft.split("\n").length))}
+              className="w-full resize-y rounded-2xl rounded-br-sm border border-primary/40 bg-bubble-mine px-3 py-2 text-sm leading-relaxed text-foreground outline-none focus:border-primary"
+            />
+            <div className="flex items-center justify-end gap-2 text-xs">
+              <button type="button" onClick={() => setEditing(false)} className="rounded px-2 py-1 text-muted-foreground hover:text-foreground">
+                {t("common.cancel")}
+              </button>
+              <button type="button" onClick={submitEdit} disabled={!draft.trim()} className="rounded bg-primary px-2 py-1 font-medium text-primary-foreground disabled:opacity-50">
+                {t("chat_ui.edit_resend")}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* What the agent said once the work was done — the answer. */}
-        {rest.map((part, i) =>
+        {!(mine && editing) && rest.map((part, i) =>
           part.kind === "reasoning" ? (
             <ReasoningBlock key={i} text={part.text} streaming={part.streaming} />
           ) : part.kind === "tool" ? (
@@ -265,6 +307,32 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
                   aria-label={t("chat_ui.copy")}
                 >
                   <Copy size={10} /> {!compact && t("chat_ui.copy")}
+                </button>
+              </Tip>
+            )}
+            {/* Edit your turn and re-ask (drops everything below). */}
+            {mine && onEdit && !queued && !editing && (
+              <Tip content={t("chat_ui.edit")}>
+                <button
+                  type="button"
+                  onClick={startEdit}
+                  className="inline-flex items-center gap-1 hover:text-foreground"
+                  aria-label={t("chat_ui.edit")}
+                >
+                  <Pencil size={10} /> {!compact && t("chat_ui.edit")}
+                </button>
+              </Tip>
+            )}
+            {/* Re-run this answer (drops it and everything below). */}
+            {!mine && onRegenerate && !queued && (
+              <Tip content={t("chat_ui.regenerate")}>
+                <button
+                  type="button"
+                  onClick={onRegenerate}
+                  className="inline-flex items-center gap-1 hover:text-foreground"
+                  aria-label={t("chat_ui.regenerate")}
+                >
+                  <RefreshCw size={10} /> {!compact && t("chat_ui.regenerate")}
                 </button>
               </Tip>
             )}

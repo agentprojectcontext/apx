@@ -1,127 +1,37 @@
-import { useEffect, useMemo, useState } from "react";
-import { Ellipsis, Search, Settings, Share, ShieldAlert, Smartphone, Users, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Ellipsis, Search, Settings, Share, ShieldAlert, Smartphone, SquarePen, Users, X } from "lucide-react";
 import { installStance, onInstallStateChange, promptInstall } from "../../lib/pwa";
 import { NotifyNudge, PrefsDialog } from "../../components/settings/PanelPrefs";
-import { AgentAvatar } from "../../components/agents/AgentAvatar";
-import { SUPER_AGENT_ICON } from "../../components/agents/AgentAvatar";
-import { InboxRowItem, inboxRowTime } from "../../components/inbox/InboxRowItem";
+import { InboxRowItem } from "../../components/inbox/InboxRowItem";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 import type { InboxRow } from "../../lib/api/inbox";
 
-/** A project with more than one agent that has been talked to: the row reads as
- *  a group, and opening it filters the list to that team. */
-export interface TeamRow {
-  projectId: string;
-  projectName: string;
-  members: InboxRow[];
-  lastActivityAt: string;
-}
-
-/** Teams first, then everyone — the same order a messaging app uses for pinned. */
-export function buildTeams(rows: InboxRow[]): TeamRow[] {
-  const byProject = new Map<string, InboxRow[]>();
-  for (const r of rows) {
-    if (r.kind === "super_agent") continue;   // the super-agent is nobody's teammate
-    const key = String(r.project_id ?? "");
-    if (!key) continue;
-    byProject.set(key, [...(byProject.get(key) || []), r]);
-  }
-  const teams: TeamRow[] = [];
-  for (const [projectId, members] of byProject) {
-    if (members.length < 2) continue;
-    teams.push({
-      projectId,
-      projectName: members[0].project_name || projectId,
-      members,
-      lastActivityAt: members.map((m) => m.last_activity_at).sort().reverse()[0] || "",
-    });
-  }
-  return teams.sort((a, b) => b.lastActivityAt.localeCompare(a.lastActivityAt));
-}
-
-function faceOf(row: InboxRow) {
-  return row.kind === "super_agent"
-    ? { icon: row.agent_icon || SUPER_AGENT_ICON, name: row.agent_name || row.agent_slug }
-    : { icon: row.agent_icon, emoji: row.agent_emoji, name: row.agent_name || row.agent_slug };
-}
-
-/** Up to three faces fanned out, the way a group thread reads at a glance. */
-function BlobCluster({ members }: { members: InboxRow[] }) {
-  const shown = members.slice(0, 3);
-  return (
-    <span className="relative flex size-12 shrink-0 items-center justify-center">
-      {shown.map((m, i) => (
-        <span
-          key={m.agent_slug}
-          className="absolute"
-          style={{
-            left: `${4 + i * 9}px`,
-            top: `${i % 2 === 0 ? 2 : 12}px`,
-            zIndex: shown.length - i,
-          }}
-        >
-          <AgentAvatar {...faceOf(m)} size={26} />
-        </span>
-      ))}
-      {members.length > 3 && (
-        <span
-          data-testid="team-extra-avatar"
-          className="absolute -bottom-0.5 -right-0.5 z-10 inline-flex size-5 items-center justify-center rounded-full bg-transparent text-[9px] font-semibold text-muted-fg dark:bg-zinc-300 dark:text-zinc-700"
-        >
-          +{members.length - 3}
-        </span>
-      )}
-    </span>
-  );
-}
-
-function TeamRowItem({ team, onClick }: { team: TeamRow; onClick: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors active:bg-accent/60"
-    >
-      <BlobCluster members={team.members} />
-      <span className="min-w-0 flex-1">
-        <span className="flex items-baseline justify-between gap-2">
-          <span className="truncate text-[15px] font-semibold">{team.projectName}</span>
-          <span className="shrink-0 text-[11px] text-muted-fg">{inboxRowTime(team.lastActivityAt)}</span>
-        </span>
-        <span className="mt-0.5 flex items-center gap-1.5">
-          <span className="truncate text-[13px] text-muted-fg">
-            {t("mobile.team_members", { count: String(team.members.length) })}
-          </span>
-        </span>
-      </span>
-    </button>
-  );
-}
-
 /**
- * The chat list — one row per agent you have talked to, most recent first,
- * plus a group row per project team.
+ * The chat list — one row per agent, most recent first. Agents are loose: there
+ * is no per-project grouping here (the project rail is where structure lives).
+ * The only group rows are a2a threads, which InboxRowItem draws with a clustered
+ * avatar of their participants.
  *
  * The shell stays phone-specific: no module rail or two-pane split, and tapping
  * drills in. Conversation rows share the desktop renderer with touch density.
  */
 export function MobileChatList({
-  rows, onOpenChat, onOpenTeam,
+  rows, onOpenChat, onNew,
 }: {
   rows: InboxRow[];
   onOpenChat: (row: InboxRow) => void;
-  onOpenTeam: (team: TeamRow) => void;
+  /** "New" — open the agent picker to start a chat with anyone, including agents
+   *  not in this (web-only) list yet. */
+  onNew: () => void;
 }) {
   const [query, setQuery] = useState("");
   const [prefsOpen, setPrefsOpen] = useState(false);
   const androidOptions = typeof window.APXAndroid?.openOptions === "function";
-  const teams = useMemo(() => buildTeams(rows), [rows]);
 
   const q = query.trim().toLowerCase();
   const match = (s: string | null | undefined) => !q || String(s || "").toLowerCase().includes(q);
   const shownRows = rows.filter((r) => match(r.agent_name) || match(r.agent_slug) || match(r.project_name));
-  const shownTeams = q ? teams.filter((tm) => match(tm.projectName)) : teams;
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
@@ -135,6 +45,15 @@ export function MobileChatList({
         <div className="mb-2 flex items-center justify-between gap-2">
           <h1 className="text-xl font-semibold">{t("inbox.title")}</h1>
           <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={onNew}
+              aria-label={t("mobile.new_chat")}
+              data-testid="mobile-new-chat"
+              className="flex size-9 shrink-0 items-center justify-center rounded-full text-muted-fg active:bg-accent/60"
+            >
+              <SquarePen size={19} />
+            </button>
             <button
               type="button"
               onClick={() => setPrefsOpen(true)}
@@ -173,13 +92,6 @@ export function MobileChatList({
       <InstallRow />
 
       <div className="min-h-0 flex-1 divide-y divide-border/60 overflow-y-auto pb-[env(safe-area-inset-bottom)]">
-        {shownTeams.map((team) => (
-          <TeamRowItem
-            key={`team:${team.projectId}`}
-            team={team}
-            onClick={() => onOpenTeam(team)}
-          />
-        ))}
         {shownRows.map((row) => (
           <InboxRowItem
             key={`${row.project_id}:${row.agent_slug}:${row.conversation_id ?? ""}`}
@@ -188,7 +100,7 @@ export function MobileChatList({
             onSelect={onOpenChat}
           />
         ))}
-        {!shownRows.length && !shownTeams.length && (
+        {!shownRows.length && (
           <p className={cn("px-4 py-10 text-center text-sm text-muted-fg")}>
             <Users size={20} className="mx-auto mb-2 opacity-50" />
             {t("mobile.empty")}

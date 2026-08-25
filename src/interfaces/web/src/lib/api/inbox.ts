@@ -27,8 +27,16 @@ export interface InboxRow {
 }
 
 export const Inbox = {
-  list: (includeEmpty = false) =>
-    http
-      .get<unknown>(`/api/inbox${includeEmpty ? "?include_empty=1" : ""}`)
-      .then((b) => unwrapPage<InboxRow>(b).items),
+  /** `channel` scopes the individual-agent rows to one channel (e.g. "web") so a
+   *  Telegram thread never surfaces on the inbox or the phone. a2a group rows are
+   *  always included. Omit it for the full, every-channel list. */
+  list: (includeEmpty = false, channel?: string) => {
+    const params = new URLSearchParams();
+    if (includeEmpty) params.set("include_empty", "1");
+    if (channel) params.set("channel", channel);
+    const qs = params.toString();
+    return http
+      .get<unknown>(`/api/inbox${qs ? `?${qs}` : ""}`)
+      .then((b) => unwrapPage<InboxRow>(b).items);
+  },
 };

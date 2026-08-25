@@ -3,11 +3,18 @@ import useSWR from "swr";
 import { Inbox, type InboxRow } from "../lib/api/inbox";
 import { useLiveMessages } from "./useLiveMessages";
 
-/** Every agent as a conversation, most recent first, super-agent pinned. */
-export function useInbox(includeEmpty = false) {
+/**
+ * Every agent as a conversation, most recent first, super-agent pinned.
+ *
+ * Scoped to the WEB channel by default: this hook feeds the inbox and the phone,
+ * and both are web-only — a Telegram (or any other channel) thread must not
+ * surface there. a2a group rows always come through regardless. Pass `channel:
+ * null` for the full every-channel roster (the "new chat" agent picker uses it).
+ */
+export function useInbox(includeEmpty = false, channel: string | null = "web") {
   const { data, error, isLoading, mutate } = useSWR<InboxRow[]>(
-    `/api/inbox?include_empty=${includeEmpty ? 1 : 0}`,
-    () => Inbox.list(includeEmpty),
+    `/api/inbox?include_empty=${includeEmpty ? 1 : 0}&channel=${channel ?? ""}`,
+    () => Inbox.list(includeEmpty, channel ?? undefined),
     // The live feed below is what makes this list move in real time. The poll
     // stays as the floor for when the socket cannot connect at all (a proxy
     // that drops upgrades, a token that has not landed yet) — a list that is

@@ -275,6 +275,32 @@ export interface ConversationDetail {
   channel?: string;
   messages: ConversationMessage[];
   meta?: Record<string, unknown>;
+  /** A turn being written right now (streamed over the live feed), so a surface
+   *  opening this chat mid-answer shows the partial and follows the tokens. */
+  active_turn?: ActiveTurn | null;
+}
+
+/** The daemon's record of an in-progress chat turn — the partial text so far
+ *  plus who is writing it. Followed live via `TurnFrame`s on the events feed. */
+export interface ActiveTurn {
+  turn_id: string;
+  text: string;
+  agent_slug?: string;
+  model?: string;
+  started_at?: string;
+}
+
+/** A live-feed frame carrying a turn's tokens as they are written — the stream
+ *  that used to belong only to the sending tab, now pushed to every surface. */
+export interface TurnFrame {
+  phase: "start" | "delta" | "final" | "error";
+  project_id: number | string | null;
+  agent_slug: string | null;
+  conversation_id: string | null;
+  turn_id: string;
+  delta?: string;
+  result?: { text?: string; usage?: ChatUsage; model?: string; name?: string; conversation_id?: string };
+  error?: string;
 }
 
 /** Super-agent channel thread (one per channel+day of the global ledger). */
@@ -464,6 +490,10 @@ export interface ChatStreamEvent {
     usage?: ChatUsage;
     /** Agent persona that answered (identity.json name / agent slug). */
     name?: string;
+    /** The conversation the turn was appended to — a project agent's streamed
+     *  turn returns it so the client can bind subsequent sends (and the file
+     *  rewind of regenerate / edit) to it. */
+    conversation_id?: string;
     /** Engine that actually produced the reply — may differ from the configured
      *  one when routing fell back mid-turn. */
     model?: string;

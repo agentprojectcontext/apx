@@ -63,14 +63,16 @@ export function InboxRowItem({
         data-testid="inbox-avatar-viewport"
         className={cn(
           "shrink-0 overflow-visible pt-0.5",
-          touch && (grouped ? "w-[58px]" : "w-12"),
+          // Grouped rows fan up to three faces plus a "+N" chip, so they need
+          // more room than a single avatar before the name column starts.
+          touch && (grouped ? "w-[84px]" : "w-12"),
         )}
       >
         {grouped ? (
           <AgentAvatarGroup
             faces={faces}
             size={touch ? 34 : 24}
-            max={2}
+            max={3}
             data-testid="a2a-avatar-group"
           />
         ) : (

@@ -188,6 +188,9 @@ export const es = {
     empty: "Todavía no hablaste con ningún agente.",
     prefs: "Preferencias",
     app_options: "Opciones de app",
+    new_chat: "Nuevo chat",
+    new_chat_title: "Empezar un chat",
+    new_chat_empty: "No se encontraron agentes.",
   },
   notify: {
     title:       "Notificaciones",
@@ -786,6 +789,9 @@ export const es = {
     agent_detail: {
       not_found:       "Agente no encontrado.",
       chat_btn:        "Chat con {slug}",
+      clone_btn:       "Clonar",
+      clone_hint:      "Duplica este agente (prompt y memoria) con un nombre (n) para evitar duplicados.",
+      clone_success:   "Clonado como {slug}",
       reports_to:      "↳ reporta a",
       no_threads:      "Sin threads.",
       no_activity:     "Sin actividad registrada.",
@@ -1548,6 +1554,9 @@ export const es = {
 
   chat_ui: {
     copy:                "Copiar",
+    edit:                "Editar",
+    edit_resend:         "Guardar y reenviar",
+    regenerate:          "Regenerar",
     stop:                "Detener",
     send:                "Enviar",
     queued:              "en cola",

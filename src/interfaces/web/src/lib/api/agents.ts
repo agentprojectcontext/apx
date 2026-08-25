@@ -1,5 +1,5 @@
-import { http } from "../http";
-import type { AgentDetail, AgentEntry, ChatUsage } from "../../types/daemon";
+import { http, streamNdjson } from "../http";
+import type { AgentDetail, AgentEntry, ChatStreamEvent, ChatUsage } from "../../types/daemon";
 
 export const Agents = {
   list:   (pid: string, opts?: { stats?: boolean }) =>
@@ -11,11 +11,25 @@ export const Agents = {
     http.patch<AgentEntry>(`/api/projects/${pid}/agents/${encodeURIComponent(slug)}`, body),
   remove: (pid: string, slug: string) =>
     http.del<{ ok: boolean }>(`/api/projects/${pid}/agents/${encodeURIComponent(slug)}`),
+  // Duplicate an agent server-side into a fresh "<slug>-n" (Name gains " (n)"),
+  // carrying its prompt + memory. Returns the new agent so the caller can open it.
+  clone: (pid: string, slug: string) =>
+    http.post<AgentEntry>(`/api/projects/${pid}/agents/${encodeURIComponent(slug)}/clone`, {}),
   chat: (pid: string, slug: string, body: { prompt: string; conversation_id?: string; model?: string; channel?: string; attachments?: { path: string; name?: string }[] }) =>
     http.post<{ conversation_id: string; text: string; usage?: ChatUsage; engine: string }>(
       `/api/projects/${pid}/agents/${encodeURIComponent(slug)}/chat`,
       body,
     ),
+  // The same turn, streamed token-by-token (NDJSON) — identical event vocabulary
+  // to the super-agent stream, so the chat renders a project agent's answer as it
+  // writes instead of a blank wait that ends in the whole reply at once.
+  chatStream: (
+    pid: string,
+    slug: string,
+    body: { prompt: string; conversation_id?: string; model?: string; channel?: string; attachments?: { path: string; name?: string }[] },
+    onEvent: (ev: ChatStreamEvent) => void,
+    signal?: AbortSignal,
+  ) => streamNdjson<ChatStreamEvent>(`/api/projects/${pid}/agents/${encodeURIComponent(slug)}/chat/stream`, body, onEvent, signal),
   memory: {
     get: (pid: string, slug: string) =>
       http.get<{ body: string }>(`/api/projects/${pid}/agents/${slug}/memory`),

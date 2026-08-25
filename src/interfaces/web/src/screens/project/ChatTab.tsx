@@ -29,7 +29,7 @@ import { t } from "../../i18n";
 import { toneChip } from "../../lib/tone";
 import { usePersonaName } from "../../hooks/usePersonaName";
 import { useSuperAgentConfig } from "../../hooks/useGlobalConfig";
-import { AgentAvatar, SUPER_AGENT_ICON, type AgentFace } from "../../components/agents/AgentAvatar";
+import { AgentAvatar, AgentAvatarGroup, SUPER_AGENT_ICON, type AgentFace } from "../../components/agents/AgentAvatar";
 import type { AgentEntry, ConversationListEntry } from "../../types/daemon";
 
 // Virtual entry slug used in the agent dropdown to address the daemon-level
@@ -52,6 +52,9 @@ export function ChatTab({
   compact = false,
   onBack,
   onSelectionChange,
+  channelScope,
+  threadFaces,
+  threadTitle,
 }: {
   pid: string;
   hideSidebar?: boolean;
@@ -78,6 +81,16 @@ export function ChatTab({
    *  path segment rather than a query string, so picking one has to navigate
    *  instead of writing `?conv=` that a reload would not read back. */
   onSelectionChange?: (key: ChatKey) => void;
+  /** Limit the session switcher to one channel. The inbox and the phone pass
+   *  "web" so their switcher never offers a Telegram thread; project-first
+   *  navigation omits it and keeps every channel. */
+  channelScope?: string;
+  /** For an a2a thread: the participants' resolved faces and the "A · B" title.
+   *  An a2a thread is a conversation BETWEEN two agents, not the super-agent's,
+   *  so the header wears both faces and their names instead of Roby's. The host
+   *  (inbox/phone) has these on the row; ChatTab has only the thread id. */
+  threadFaces?: AgentFace[];
+  threadTitle?: string;
 }) {
   const toast = useToast();
   const [params, setSearchParams] = useSearchParams();
@@ -85,7 +98,7 @@ export function ChatTab({
   const [creating, setCreating] = useState(false);
   const [model, setModel] = useState("");
   const [dismissedAskKey, setDismissedAskKey] = useState<string | null>(null);
-  const { msgs, send: sendChat, stop, clear, load, loadThread, streaming, queued, unqueue, conversationMeta } =
+  const { msgs, send: sendChat, regenerate, editAndResend, stop, clear, load, loadThread, streaming, queued, unqueue, conversationMeta } =
     useChat(pid, (m) => toast.error(m));
   const persona = usePersonaName();
   const { superAgent } = useSuperAgentConfig();
@@ -415,7 +428,14 @@ export function ChatTab({
   // channel) demoted to the meta line under it. It used to lead with the
   // conversation id — a bare date string — while the agent was a chip off to
   // the right, so a thread looked like it belonged to nobody.
-  const agentLabel = activeIsRoby ? persona : activeAgent?.name || activeAgent?.slug || selected.agentSlug;
+  // An a2a thread is a conversation BETWEEN two agents — not the super-agent's,
+  // even though (like every stored thread) selected.kind is "thread". It gets
+  // both faces and their "A · B" title, and none of the super-agent chrome.
+  const isA2A = selected.kind === "thread" && selected.channel === "a2a";
+  const a2aFaces = isA2A ? (threadFaces || []) : [];
+  const agentLabel = isA2A
+    ? threadTitle || (selected.kind === "thread" ? selected.threadId : "")
+    : activeIsRoby ? persona : activeAgent?.name || activeAgent?.slug || selected.agentSlug;
   const channelLabel =
     selected.kind === "thread" ? selected.channel : selectedMeta?.channel || "web";
   const createdIso =
@@ -429,9 +449,11 @@ export function ChatTab({
   const convLabel =
     selected.kind === "live"
       ? ""
-      : conversationMeta?.title ||
-        selectedMeta?.title ||
-        (selected.kind === "thread" ? selected.threadId : selected.convId);
+      : isA2A
+        ? threadTitle || (selected.kind === "thread" ? selected.threadId : "")
+        : conversationMeta?.title ||
+          selectedMeta?.title ||
+          (selected.kind === "thread" ? selected.threadId : selected.convId);
   // Kept as the delete-dialog subject: there the conversation, not the agent,
   // is the thing being destroyed.
   const headerTitle = convLabel || t("project.chat.live_title", { agent: agentLabel });
@@ -467,10 +489,23 @@ export function ChatTab({
     disabled: streaming || msgs.length === 0,
   };
 
+  // Go to the agent's card / project. On the desktop this is a header button
+  // (below); the phone has no room for it there, so it rides in the ⋯ menu.
+  const openInProjectAction = onOpenInProject
+    ? {
+        key: "open-project",
+        icon: ArrowUpRight,
+        label: t("inbox.open_in_project"),
+        onClick: onOpenInProject,
+        disabled: false,
+      }
+    : null;
+
   // What the ⋯ holds: everything that edits THIS session. Described once, so
   // the phone and the desktop cannot drift into offering different things.
   const menuActions = [
     // On a phone there is no room for a second control, so it starts here too.
+    ...(compact && openInProjectAction ? [openInProjectAction] : []),
     ...(compact ? [newSessionAction] : []),
     ...(storedSession
       ? [
@@ -495,6 +530,20 @@ export function ChatTab({
   const deleteAction = storedSession
     ? { key: "delete", icon: Trash2, label: t("project.chat.delete"), onClick: () => setConfirmDelete(true), disabled: streaming }
     : null;
+
+  // Regenerate / edit-and-resend are wired only for a project agent's own chat —
+  // the case whose history the daemon rebuilds from a file we can rewind. The
+  // super-agent's channel threads and a2a share a day-ledger, not a per-chat
+  // file, so they're left out for now.
+  const canRewind = !activeIsRoby && !!activeAgent && !isA2A && !streaming;
+  const afterRewind = () =>
+    void mutate(`/api/projects/${pid}/agents/${activeAgent?.slug}/conversations`);
+  const onRegenerate = canRewind
+    ? (index: number) => { void regenerate(index, { model: model || undefined, agentSlug: activeAgent!.slug }); afterRewind(); }
+    : undefined;
+  const onEditResend = canRewind
+    ? (index: number, text: string) => { void editAndResend(index, text, { model: model || undefined, agentSlug: activeAgent!.slug }); afterRewind(); }
+    : undefined;
 
   if (agents.isLoading) return <Loading />;
 
@@ -536,7 +585,25 @@ export function ChatTab({
             </button>
           )}
           <div className="flex min-w-0 flex-1 items-center gap-2.5">
-            <AgentAvatar {...headerFace} size={compact ? 36 : 30} />
+            {(() => {
+              const avatar = isA2A && a2aFaces.length ? (
+                <AgentAvatarGroup faces={a2aFaces} size={compact ? 30 : 26} max={3} />
+              ) : (
+                <AgentAvatar {...headerFace} size={compact ? 36 : 30} />
+              );
+              // Tapping the face is the quick way to the agent's card/project —
+              // more discoverable than the button in the row of actions.
+              return onOpenInProject ? (
+                <button
+                  type="button"
+                  onClick={onOpenInProject}
+                  aria-label={t("inbox.open_in_project")}
+                  className="shrink-0 rounded-full transition-opacity hover:opacity-80 active:opacity-70"
+                >
+                  {avatar}
+                </button>
+              ) : avatar;
+            })()}
             {/* The session on top, WHO on the line under it. The header used to
                 lead with the agent and demote the thread to a date in the meta
                 line — but the agent's face is already sitting right there, and
@@ -549,6 +616,7 @@ export function ChatTab({
                 selected={selected}
                 label={convLabel || t("mobile.live_session")}
                 onPick={selectChat}
+                channelScope={channelScope}
                 className={cn(
                   "max-w-full font-semibold text-foreground",
                   compact ? "text-[15px] leading-tight" : "text-sm",
@@ -558,11 +626,13 @@ export function ChatTab({
                   on one line and truncated as a whole, so a long agent name
                   cannot push the channel and the date onto a second row. */}
               <p className="flex min-w-0 items-center gap-1.5 truncate text-[11px] text-muted-fg">
-                <span className="truncate">{agentLabel}</span>
+                {/* For a2a the picker above already names both agents, so the
+                    meta line skips the "who" and leads with the channel. */}
+                {!isA2A && <span className="truncate">{agentLabel}</span>}
                 {/* Not on a phone: at 375px the badge and the two facts after it
                     squeezed "Roby" down to "Ro…", and the face two inches to
                     the left already says which agent this is. */}
-                {activeIsRoby && !compact && (
+                {activeIsRoby && !isA2A && !compact && (
                   <span className={cn("shrink-0 rounded px-1 py-px text-[9px] font-semibold uppercase tracking-wide", toneChip.emerald)}>
                     {t("agents_ui.super_agent_badge")}
                   </span>
@@ -662,6 +732,8 @@ export function ChatTab({
                 queued={queued}
                 onUnqueue={unqueue}
                 onCopy={copyToClipboard}
+                onRegenerate={onRegenerate}
+                onEdit={onEditResend}
                 faceFor={faceFor}
                 compact={compact}
                 bottomInset={bottomInset}

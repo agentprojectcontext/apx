@@ -187,6 +187,9 @@ export const en = {
     empty: "You haven't talked to any agent yet.",
     prefs: "Preferences",
     app_options: "App options",
+    new_chat: "New chat",
+    new_chat_title: "Start a chat",
+    new_chat_empty: "No agents found.",
   },
   notify: {
     title:       "Notifications",
@@ -785,6 +788,9 @@ export const en = {
     agent_detail: {
       not_found:       "Agent not found.",
       chat_btn:        "Chat with {slug}",
+      clone_btn:       "Clone",
+      clone_hint:      "Duplicate this agent (prompt and memory) with a (n) name to avoid duplicates.",
+      clone_success:   "Cloned as {slug}",
       reports_to:      "↳ reports to",
       no_threads:      "No threads.",
       no_activity:     "No recorded activity.",
@@ -1547,6 +1553,9 @@ export const en = {
 
   chat_ui: {
     copy:                "Copy",
+    edit:                "Edit",
+    edit_resend:         "Save & resend",
+    regenerate:          "Regenerate",
     stop:                "Stop",
     send:                "Send",
     queued:              "queued",

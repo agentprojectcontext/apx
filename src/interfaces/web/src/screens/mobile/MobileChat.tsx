@@ -1,7 +1,7 @@
 import { useRef } from "react";
 import { ChatTab } from "../project/ChatTab";
 import type { ChatKey } from "../../components/chat/ChatList";
-import { selectionFromParam } from "./routes";
+import { selectionFromParam, agentCardUrl } from "./routes";
 import type { InboxRow } from "../../lib/api/inbox";
 
 /**
@@ -71,6 +71,10 @@ export function MobileChat({
         bare
         compact
         hideSidebar
+        channelScope="web"
+        threadFaces={row.kind === "a2a" ? row.participant_faces : undefined}
+        threadTitle={row.kind === "a2a" ? row.agent_name ?? undefined : undefined}
+        onOpenInProject={() => window.open(agentCardUrl(row), "_blank", "noopener")}
         onBack={onBack}
         onSelectionChange={onPickSession}
         initialSelection={selection}

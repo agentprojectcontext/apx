@@ -28,6 +28,10 @@ export const Conversations = {
   // Delete a super-agent channel thread (its channel+day ledger file).
   removeThread: (pid: string, channel: string, id: string) =>
     http.del<{ ok: boolean }>(`/api/projects/${pid}/super-agent/threads/${channel}/${id}`),
+  // Rewind a persisted agent conversation to its first `keepVisible` user/
+  // assistant turns, dropping the rest — backs "regenerate" and "edit & resend".
+  truncate: (pid: string, slug: string, id: string, keepVisible: number) =>
+    http.post<{ ok: boolean }>(`/api/projects/${pid}/agents/${slug}/conversations/${id}/truncate`, { keep_visible: keepVisible }),
   compact: (pid: string, slug: string, id?: string) =>
     http.post<{ ok?: boolean }>(
       id

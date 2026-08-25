@@ -36,10 +36,15 @@ function byRecency(a, b) {
  * @param {object} opts
  *   - limit          cap applied AFTER the merge
  *   - includeEmpty   also list agents that have never been talked to
+ *   - channel        scope each row to ONE channel (e.g. "web"): the row's
+ *                    headline conversation must be on that channel, and an agent
+ *                    with none drops out (unless includeEmpty). The inbox and the
+ *                    phone pass "web" so a Telegram thread never surfaces there;
+ *                    project-first navigation passes nothing and sees every channel.
  * @returns {{ rows: object[], skipped: {id:any, error:string}[] }}
  */
 export function listAgentInbox(projects, opts = {}) {
-  const { limit, includeEmpty = false } = opts || {};
+  const { limit, includeEmpty = false, channel = null } = opts || {};
   const rows = [];
   const skipped = [];
 
@@ -74,7 +79,14 @@ export function listAgentInbox(projects, opts = {}) {
       // not become the agent's inbox entry — pick the latest NON-routine
       // conversation instead. An agent whose only activity is routine runs has
       // no chat to show and drops out of the inbox (unless includeEmpty).
-      const latest = conversations.find((c) => c.channel !== CHANNELS.ROUTINE) || null;
+      //
+      // When `channel` is set, the headline must be on THAT channel — the inbox
+      // and the phone are web-only, so an agent whose only chat is on Telegram
+      // has nothing to show there and drops out (unless includeEmpty).
+      const latest =
+        conversations.find((c) =>
+          channel ? c.channel === channel : c.channel !== CHANNELS.ROUTINE,
+        ) || null;
       if (!latest && !includeEmpty) continue;
 
       rows.push({
@@ -100,7 +112,7 @@ export function listAgentInbox(projects, opts = {}) {
   // The super-agent is the single voice the owner talks to and the others
   // report through it. It is pinned first and marked distinct so the hierarchy
   // is visible, rather than sorted in among its own reports.
-  const superRow = buildSuperAgentRow();
+  const superRow = buildSuperAgentRow({ channel });
   const out = superRow ? [superRow, ...rows] : rows;
 
   return {
@@ -117,7 +129,8 @@ export function listAgentInbox(projects, opts = {}) {
  * (~/.apx/messages/<channel>/YYYY-MM-DD.jsonl). So recency and the preview come
  * from there, not from agents/<slug>/conversations.
  */
-function buildSuperAgentRow() {
+function buildSuperAgentRow(opts = {}) {
+  const { channel = null } = opts || {};
   let threads = [];
   try {
     threads = listGlobalThreads();
@@ -128,8 +141,14 @@ function buildSuperAgentRow() {
   const messages = threads.reduce((n, t) => n + (t.messages || 0), 0);
   // Same rule as the project agents: a routine run is not a chat, so it never
   // becomes the row's headline. listGlobalThreads sorts by last_ts desc, so the
-  // first non-routine thread is the most recent real conversation.
-  const latest = threads.find((t) => t.channel !== CHANNELS.ROUTINE) || null;
+  // first matching thread is the most recent real conversation. When `channel`
+  // is set (the inbox/phone are web-only) the headline must be on that channel;
+  // the super-agent still stays pinned even with no web thread yet (falls to a
+  // live session).
+  const latest =
+    threads.find((t) =>
+      channel ? t.channel === channel : t.channel !== CHANNELS.ROUTINE,
+    ) || null;
 
   let preview = null;
   if (latest) {

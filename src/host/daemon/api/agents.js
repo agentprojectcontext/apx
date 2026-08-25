@@ -27,7 +27,7 @@ import {
   readAgentMemory,
   writeAgentMemory,
 } from "#core/agent/memory.js";
-import { createAgent, setAgentConfig, removeAgent } from "#core/apc/agent-write.js";
+import { createAgent, cloneAgent, setAgentConfig, removeAgent } from "#core/apc/agent-write.js";
 import { agentToResponse } from "./shared.js";
 import { normalizeVaultPatch } from "#core/apc/agents-vault.js";
 import { listConversations } from "#core/stores/conversations.js";
@@ -181,6 +181,24 @@ export function register(api, { projects, project }) {
       res.status(201).json(agentToResponse(created));
     } catch (e) {
       res.status(400).json({ error: e.message });
+    }
+  });
+
+  // Duplicate an agent (frontmatter + prompt + memory) into a fresh "<slug>-n"
+  // whose display Name gains a " (n)" suffix. Clone/naming live in core
+  // (agent-write.js); the route resolves the project, rebuilds, and returns the
+  // new agent so the UI can jump straight to it.
+  api.post("/projects/:pid/agents/:slug/clone", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    try {
+      const newSlug = cloneAgent(p, req.params.slug);
+      projects.rebuild(p.id);
+      const created = readAgents(p.path).find((a) => a.slug === newSlug);
+      res.status(201).json(agentToResponse(created));
+    } catch (e) {
+      const status = /not found/.test(e.message) ? 404 : 400;
+      res.status(status).json({ error: e.message });
     }
   });
 

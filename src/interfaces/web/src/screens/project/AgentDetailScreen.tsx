@@ -129,9 +129,19 @@ export function AgentDetailScreen({ pid }: { pid: string }) {
             {a.description && <p className="mt-0.5 max-w-2xl text-xs text-muted-fg">{a.description}</p>}
           </div>
         </div>
-        <Button size="sm" variant="primary" onClick={() => navigate(`/p/${pid}/chat?agent=${slug}`)}>
-          <Send size={13} /> {t("project.agent_detail.chat_btn", { slug: a.slug })}
-        </Button>
+        <div className="flex shrink-0 items-center gap-2">
+          <CloneAgentButton
+            pid={pid}
+            slug={a.slug}
+            onCloned={(newSlug) => {
+              void agents.mutate();
+              navigate(`/p/${pid}/agents/${newSlug}`);
+            }}
+          />
+          <Button size="sm" variant="primary" onClick={() => navigate(`/p/${pid}/chat?agent=${slug}`)}>
+            <Send size={13} /> {t("project.agent_detail.chat_btn", { slug: a.slug })}
+          </Button>
+        </div>
       </div>
 
       {/* Tabs — real links (?tab=…) so each view has a shareable href */}
@@ -297,6 +307,34 @@ function AgentNameHeading({
         </button>
       </Tip>
     </span>
+  );
+}
+
+// Duplicate this agent and jump to the copy. The heavy lifting (unique slug,
+// " (n)" naming, prompt + memory copy) is server-side; here we only fire it,
+// surface the toast, and let the parent navigate to the fresh agent.
+function CloneAgentButton({
+  pid, slug, onCloned,
+}: { pid: string; slug: string; onCloned: (newSlug: string) => void }) {
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+
+  const clone = async () => {
+    setBusy(true);
+    try {
+      const created = await Agents.clone(pid, slug);
+      toast.success(t("project.agent_detail.clone_success", { slug: created.slug }));
+      onCloned(created.slug);
+    } catch (e) { toast.error((e as Error).message); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <Tip content={t("project.agent_detail.clone_hint")}>
+      <Button size="sm" variant="secondary" loading={busy} onClick={clone}>
+        <Copy size={13} /> {t("project.agent_detail.clone_btn")}
+      </Button>
+    </Tip>
   );
 }
 

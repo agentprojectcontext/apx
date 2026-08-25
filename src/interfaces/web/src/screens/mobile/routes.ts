@@ -60,10 +60,33 @@ export function teamPath(pid: string): string {
 }
 
 /**
+ * Where an agent's card / project view lives — the ficha (`AgentDetailScreen`)
+ * for a project agent, the workspace chat for the super-agent (it has no project
+ * ficha), and the pair thread for an a2a row. Shared so the inbox (self) and the
+ * phone (new tab) send you to the same place.
+ */
+export function agentCardUrl(row: InboxRow): string {
+  if (row.kind === "super_agent") return "/p/0/chat";
+  const pid = row.project_id ?? 0;
+  if (row.kind === "a2a") {
+    return `/p/${pid}/chat?channel=a2a&thread=${encodeURIComponent(row.conversation_id || "")}`;
+  }
+  return `/p/${pid}/agents/${encodeURIComponent(row.agent_slug)}`;
+}
+
+/**
  * Where a row opens by default: the super-agent has channel threads, a project
  * agent has conversation files, and either can have neither yet.
  */
 export function keyFor(row: InboxRow, sessionId?: string, channel?: string): ChatKey {
+  // An a2a row is a conversation BETWEEN two agents, addressed as a thread on the
+  // "a2a" channel — never one agent's conversation file (its agent_slug is the
+  // synthetic "a2a:<pair>", which owns no file). Missing this made the phone open
+  // a blank pane with the raw pair id in the header.
+  if (row.kind === "a2a") {
+    const id = sessionId || row.conversation_id || "";
+    return id ? { kind: "thread", channel: "a2a", threadId: id } : { kind: "live", agentSlug: row.agent_slug };
+  }
   if (row.kind === "super_agent") {
     const ch = channel || row.channel || "web";
     const id = sessionId || row.conversation_id || "";
@@ -75,6 +98,9 @@ export function keyFor(row: InboxRow, sessionId?: string, channel?: string): Cha
 
 /** The selection a URL asks for, falling back to the row's own default. */
 export function selectionFromParam(param: string | undefined, row: InboxRow): ChatKey {
+  // An a2a row has exactly one thread; there are no alternate sessions to pick,
+  // so the pair thread is the selection regardless of any URL session segment.
+  if (row.kind === "a2a") return keyFor(row);
   if (!param) return keyFor(row);
   const raw = decodeURIComponent(param);
   if (row.kind === "super_agent") {
