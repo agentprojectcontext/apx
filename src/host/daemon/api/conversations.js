@@ -43,7 +43,7 @@ import { replyAsAgent } from "#core/agent/a2a/reply.js";
 import { resolveAgentModel } from "#core/agent/agent-model.js";
 import { notifyOwnerViaRoby } from "#core/routines/delivery.js";
 import { A2A_SEVERITY } from "#core/routines/signals.js";
-import { nowIso, asyncRoute } from "./shared.js";
+import { nowIso, asyncRoute, a2aSlugThreadId, rejectA2AWrite } from "./shared.js";
 
 export function register(api, { project, config, plugins, registries }) {
   // The super-agent (default name "apx") is a pseudo-agent: it owns
@@ -65,16 +65,11 @@ export function register(api, { project, config, plugins, registries }) {
   // The id was reaching the handler fine; there was simply no code path that
   // could read a pair thread. `readProjectA2AThread` already existed and
   // already returns the viewer's shape — it was never wired to a route.
-  const A2A_PREFIX = "a2a:";
-  const a2aThreadId = (slug) => {
-    const s = String(slug || "");
-    return s.startsWith(A2A_PREFIX) ? s.slice(A2A_PREFIX.length) : null;
-  };
 
   api.get("/projects/:pid/agents/:slug/conversations", (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    const listA2A = a2aThreadId(req.params.slug);
+    const listA2A = a2aSlugThreadId(req.params.slug);
     if (listA2A !== null) {
       const th = listProjectA2AThreads(p.storagePath).find((t) => t.id === listA2A);
       // One pair id is one thread. Shaped like a conversation summary so the
@@ -110,8 +105,7 @@ export function register(api, { project, config, plugins, registries }) {
     // An a2a thread is derived from the message ledger, not a file with
     // frontmatter, so there is nothing to rename or archive. Say that, rather
     // than the misleading "agent not found" this used to answer.
-    if (a2aThreadId(req.params.slug) !== null)
-      return res.status(400).json({ error: "a2a threads cannot be renamed or archived" });
+    if (rejectA2AWrite(req, res, "renamed or archived")) return;
     if (!agentResolvable(p, req.params.slug))
       return res.status(404).json({ error: "agent not found" });
     const { title, archived } = req.body || {};
@@ -128,7 +122,7 @@ export function register(api, { project, config, plugins, registries }) {
   api.get("/projects/:pid/agents/:slug/conversations/:id", (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    const detailA2A = a2aThreadId(req.params.slug);
+    const detailA2A = a2aSlugThreadId(req.params.slug);
     if (detailA2A !== null) {
       const th = readProjectA2AThread(p.storagePath, detailA2A || req.params.id);
       if (!th) return res.status(404).json({ error: "conversation not found" });
@@ -157,6 +151,7 @@ export function register(api, { project, config, plugins, registries }) {
   api.delete("/projects/:pid/agents/:slug/conversations/:id", (req, res) => {
     const p = project(req, res);
     if (!p) return;
+    if (rejectA2AWrite(req, res, "deleted")) return;
     if (!agentResolvable(p, req.params.slug))
       return res.status(404).json({ error: "agent not found" });
     const ok = deleteConversation(p.storagePath, req.params.slug, req.params.id);
@@ -245,6 +240,7 @@ export function register(api, { project, config, plugins, registries }) {
   async function handleCompact(req, res, filename) {
     const p = project(req, res);
     if (!p) return;
+    if (rejectA2AWrite(req, res, "compacted")) return;
     const agents = readAgents(p.path);
     const agent = agents.find((a) => a.slug === req.params.slug);
     if (!agent) return res.status(404).json({ error: "agent not found" });

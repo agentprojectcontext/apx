@@ -32,6 +32,36 @@ export const nowIso = () =>
  *
  *   api.get("/things", asyncRoute(async (req, res) => { ... }))
  */
+// An a2a "group chat" is an exchange BETWEEN two agents, so it belongs to
+// neither of them and has no agents/<slug>/conversations/ directory. The inbox
+// still has to list it beside the individual chats, so it hands out a synthetic
+// slug — `a2a:<pairId>` — and every surface (web, /mobile, inbox) opens a row
+// through the per-agent endpoints with it.
+//
+// The prefix is defined ONCE, here, because it is a contract between the route
+// that mints it (api/inbox.js) and the routes that must recognise it. It is a
+// display/read handle: threads can be read through it, never written to.
+export const A2A_SLUG_PREFIX = "a2a:";
+
+/** The pair id inside a synthetic a2a slug, or null for an ordinary agent. */
+export function a2aSlugThreadId(slug) {
+  const s = String(slug || "");
+  return s.startsWith(A2A_SLUG_PREFIX) ? s.slice(A2A_SLUG_PREFIX.length) : null;
+}
+
+/**
+ * Refuse a write aimed at an a2a slug, with a reason the caller can act on.
+ * Returns true when it answered — "agent not found" was actively misleading
+ * here: the agent is not missing, the target is not an agent at all.
+ */
+export function rejectA2AWrite(req, res, what) {
+  if (a2aSlugThreadId(req.params?.slug) === null) return false;
+  res.status(400).json({
+    error: `a2a threads cannot be ${what} — they are a record of two agents talking, derived from the message ledger. Address one of the participants instead.`,
+  });
+  return true;
+}
+
 export function asyncRoute(handler) {
   return (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
 }

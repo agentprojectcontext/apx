@@ -8,7 +8,7 @@ import { listProjectA2AThreads } from "#core/stores/messages.js";
 import { readAgents } from "#core/apc/parser.js";
 import { readConfig } from "#core/config/index.js";
 import { resolveAgentName, SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
-import { pageEnvelope } from "./shared.js";
+import { pageEnvelope, A2A_SLUG_PREFIX } from "./shared.js";
 
 // Resolve a participant slug to the same face the rest of the app draws: a
 // project agent wears its blob/emoji; the super-agent is NOT a project agent, so
@@ -46,7 +46,7 @@ function a2aInboxRows(entries, superFace) {
         project_id: e.id,
         project_name: e.name,
         project_path: e.path,
-        agent_slug: `a2a:${th.id}`,
+        agent_slug: `${A2A_SLUG_PREFIX }${th.id}`,
         agent_name: title,
         agent_emoji: null,
         agent_icon: null,

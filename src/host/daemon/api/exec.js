@@ -22,7 +22,7 @@ import {
   setStatus,
 } from "#core/stores/conversations.js";
 import { answerDeliveries } from "#core/stores/deliveries.js";
-import { asyncRoute } from "./shared.js";
+import { asyncRoute, rejectA2AWrite} from "./shared.js";
 import { readTurnAttachments } from "./media.js";
 
 // A chat reply is prose, not a Telegram one-liner: run-agent's 512-token default
@@ -213,6 +213,8 @@ export function register(api, { projects, project, config, plugins, registries }
   api.post("/projects/:pid/agents/:slug/exec", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
+    // An a2a thread is a transcript, not an addressable agent.
+    if (rejectA2AWrite(req, res, "written to")) return;
     const {
       prompt,
       temperature,
@@ -306,6 +308,8 @@ export function register(api, { projects, project, config, plugins, registries }
   api.post("/projects/:pid/agents/:slug/chat", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
+    // An a2a thread is a transcript, not an addressable agent.
+    if (rejectA2AWrite(req, res, "written to")) return;
     const {
       prompt,
       conversation_id,
@@ -384,6 +388,8 @@ export function register(api, { projects, project, config, plugins, registries }
   api.post("/projects/:pid/agents/:slug/chat/stream", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
+    // An a2a thread is a transcript, not an addressable agent.
+    if (rejectA2AWrite(req, res, "written to")) return;
     const {
       prompt,
       conversation_id,
