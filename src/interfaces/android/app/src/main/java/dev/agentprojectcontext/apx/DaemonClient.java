@@ -70,14 +70,18 @@ final class DaemonClient {
     }
 
     static void notifyTripStarted(String daemonUrl, String token, String tripId, String destination, DeviceLocation.Snapshot origin) {
-        notifyTripEvent(daemonUrl, token, tripId, "trip.started", destination, origin);
+        notifyTripEvent(daemonUrl, token, tripId, "trip.started", destination, origin, true);
+    }
+
+    static void notifyTripContext(String daemonUrl, String token, String tripId, String destination, DeviceLocation.Snapshot origin) {
+        notifyTripEvent(daemonUrl, token, tripId, "trip.started", destination, origin, false);
     }
 
     static void notifyTripEnded(String daemonUrl, String token, String tripId) {
-        notifyTripEvent(daemonUrl, token, tripId, "trip.ended", "", null);
+        notifyTripEvent(daemonUrl, token, tripId, "trip.ended", "", null, false);
     }
 
-    private static void notifyTripEvent(String daemonUrl, String token, String tripId, String type, String destination, DeviceLocation.Snapshot origin) {
+    private static void notifyTripEvent(String daemonUrl, String token, String tripId, String type, String destination, DeviceLocation.Snapshot origin, boolean evaluate) {
         if (daemonUrl == null || daemonUrl.isBlank() || token == null || token.isBlank()) return;
         JSONObject payload = new JSONObject();
         try {
@@ -86,6 +90,7 @@ final class DaemonClient {
             payload.put("type", type);
             payload.put("occurred_at", java.time.Instant.now().toString());
             payload.put("destination", destination == null ? "" : destination);
+            payload.put("evaluate", evaluate);
             if (origin != null) {
                 JSONObject position = new JSONObject();
                 position.put("latitude", origin.latitude());

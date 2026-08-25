@@ -26,8 +26,11 @@ import okhttp3.WebSocketListener;
 
 public final class MascotOverlayService extends Service {
     static final String ACTION_STOP = "dev.agentprojectcontext.apx.STOP_MASCOT";
+    static final String ACTION_SHOW = "dev.agentprojectcontext.apx.SHOW_MASCOT";
     static final String ACTION_APP_FOREGROUND = "dev.agentprojectcontext.apx.APP_FOREGROUND";
     static final String ACTION_APP_BACKGROUND = "dev.agentprojectcontext.apx.APP_BACKGROUND";
+    static final String ACTION_TEST_MESSAGE = "dev.agentprojectcontext.apx.TEST_MESSAGE";
+    static final String EXTRA_TEST_MESSAGE = "test_message";
     private static final String SERVICE_CHANNEL = "apx_mascot";
     private static final int SERVICE_NOTIFICATION = 7001;
 
@@ -35,10 +38,13 @@ public final class MascotOverlayService extends Service {
     private WindowManager windowManager;
     private WindowManager.LayoutParams params;
     private MascotView mascotView;
+    private android.widget.TextView dismissTarget;
+    private boolean overDismissTarget;
     private ApxPreferences preferences;
     private WebSocket socket;
     private boolean destroyed;
     private boolean foregroundStarted;
+    private boolean appForeground;
     private int reconnectAttempts;
 
     @Override
@@ -54,6 +60,11 @@ public final class MascotOverlayService extends Service {
             preferences.setMascotEnabled(false);
             removeOverlay();
         }
+        if (intent != null && ACTION_SHOW.equals(intent.getAction())) {
+            preferences.setMascotEnabled(true);
+        }
+        if (intent != null && ACTION_APP_FOREGROUND.equals(intent.getAction())) appForeground = true;
+        if (intent != null && ACTION_APP_BACKGROUND.equals(intent.getAction())) appForeground = false;
         if (!foregroundStarted) {
             startForeground(SERVICE_NOTIFICATION, serviceNotification());
             foregroundStarted = true;
@@ -62,13 +73,22 @@ public final class MascotOverlayService extends Service {
             stopSelf();
             return START_NOT_STICKY;
         }
-        boolean appForeground = intent != null && ACTION_APP_FOREGROUND.equals(intent.getAction());
         if (appForeground || !preferences.mascotEnabled() || !Settings.canDrawOverlays(this)) {
             removeOverlay();
         } else if (mascotView == null) {
             addOverlay();
         }
+        if (foregroundStarted) {
+            ((NotificationManager) getSystemService(NOTIFICATION_SERVICE))
+                .notify(SERVICE_NOTIFICATION, serviceNotification());
+        }
         if (socket == null) connect();
+        if (intent != null && ACTION_TEST_MESSAGE.equals(intent.getAction())) {
+            String message = intent.getStringExtra(EXTRA_TEST_MESSAGE);
+            main.post(() -> presentMessage(message == null || message.isBlank()
+                ? "Prueba APX: aviso directo en Android Auto."
+                : message));
+        }
         return START_STICKY;
     }
 
@@ -92,15 +112,29 @@ public final class MascotOverlayService extends Service {
         params.x = preferences.mascotX(fallbackX);
         params.y = preferences.mascotY(fallbackY);
 
-        mascotView = new MascotView(this, new MascotView.Listener() {
+        mascotView = new MascotView(this, preferences.mascotAvatar(), new MascotView.Listener() {
+            @Override public void onDragStarted() {
+                showDismissTarget();
+            }
+
             @Override public void onMove(float rawX, float rawY, float offsetX, float offsetY) {
                 params.x = Math.round(rawX - offsetX);
                 params.y = Math.round(rawY - offsetY);
                 try { windowManager.updateViewLayout(mascotView, params); } catch (RuntimeException ignored) {}
+                updateDismissTarget(rawX, rawY);
             }
 
-            @Override public void onPositionCommitted() {
-                preferences.saveMascotPosition(params.x, params.y);
+            @Override public void onDragEnded(boolean cancelled) {
+                boolean dismiss = !cancelled && overDismissTarget;
+                hideDismissTarget();
+                if (dismiss) {
+                    preferences.setMascotEnabled(false);
+                    removeOverlay();
+                    ((NotificationManager) getSystemService(NOTIFICATION_SERVICE))
+                        .notify(SERVICE_NOTIFICATION, serviceNotification());
+                } else {
+                    preferences.saveMascotPosition(params.x, params.y);
+                }
             }
 
             @Override public void onTapped() {
@@ -108,6 +142,61 @@ public final class MascotOverlayService extends Service {
             }
         });
         windowManager.addView(mascotView, params);
+    }
+
+    private void showDismissTarget() {
+        if (dismissTarget != null || windowManager == null) return;
+        dismissTarget = new android.widget.TextView(this);
+        dismissTarget.setText("×");
+        dismissTarget.setTextSize(34);
+        dismissTarget.setTextColor(android.graphics.Color.WHITE);
+        dismissTarget.setGravity(Gravity.CENTER);
+        dismissTarget.setTypeface(null, android.graphics.Typeface.BOLD);
+        setDismissTargetActive(false);
+
+        WindowManager.LayoutParams dismissParams = new WindowManager.LayoutParams(
+            dp(76),
+            dp(76),
+            Build.VERSION.SDK_INT >= 26 ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY : WindowManager.LayoutParams.TYPE_PHONE,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE |
+                WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT
+        );
+        dismissParams.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
+        dismissParams.y = dp(28);
+        try { windowManager.addView(dismissTarget, dismissParams); } catch (RuntimeException ignored) {
+            dismissTarget = null;
+        }
+    }
+
+    private void updateDismissTarget(float rawX, float rawY) {
+        if (dismissTarget == null) return;
+        android.util.DisplayMetrics metrics = getResources().getDisplayMetrics();
+        float targetX = metrics.widthPixels / 2f;
+        float targetY = metrics.heightPixels - dp(66);
+        boolean active = Math.hypot(rawX - targetX, rawY - targetY) <= dp(92);
+        if (active == overDismissTarget) return;
+        overDismissTarget = active;
+        setDismissTargetActive(active);
+        dismissTarget.animate().scaleX(active ? 1.18f : 1f).scaleY(active ? 1.18f : 1f).setDuration(120).start();
+    }
+
+    private void setDismissTargetActive(boolean active) {
+        if (dismissTarget == null) return;
+        android.graphics.drawable.GradientDrawable background = new android.graphics.drawable.GradientDrawable();
+        background.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+        background.setColor(active
+            ? android.graphics.Color.rgb(224, 64, 64)
+            : android.graphics.Color.argb(205, 74, 79, 78));
+        dismissTarget.setBackground(background);
+    }
+
+    private void hideDismissTarget() {
+        overDismissTarget = false;
+        if (dismissTarget == null || windowManager == null) return;
+        try { windowManager.removeView(dismissTarget); } catch (RuntimeException ignored) {}
+        dismissTarget = null;
     }
 
     private void connect() {
@@ -142,6 +231,13 @@ public final class MascotOverlayService extends Service {
     }
 
     private void handleFrame(String text) {
+        String avatar = MessageFrameParser.avatar(text);
+        if (avatar != null) {
+            preferences.setMascotAvatar(avatar);
+            main.post(() -> {
+                if (mascotView != null) mascotView.setAvatar(avatar);
+            });
+        }
         for (String message : MessageFrameParser.notifications(text)) {
             main.post(() -> presentMessage(message));
         }
@@ -156,7 +252,7 @@ public final class MascotOverlayService extends Service {
     private void playNotificationSound() {
         MediaPlayer player = new MediaPlayer();
         player.setAudioAttributes(new AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+            .setUsage(AudioAttributes.USAGE_MEDIA)
             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
             .build());
         try (AssetFileDescriptor audio = getResources().openRawResourceFd(R.raw.apx_notification)) {
@@ -168,6 +264,7 @@ public final class MascotOverlayService extends Service {
             });
             player.prepare();
             player.start();
+            android.util.Log.i("APX", "Message sound started");
         } catch (Exception error) {
             player.release();
             android.util.Log.w("APX", "Could not play message sound", error);
@@ -175,6 +272,7 @@ public final class MascotOverlayService extends Service {
     }
 
     private void removeOverlay() {
+        hideDismissTarget();
         if (mascotView == null || windowManager == null) return;
         try { windowManager.removeView(mascotView); } catch (RuntimeException ignored) {}
         mascotView = null;
@@ -193,13 +291,19 @@ public final class MascotOverlayService extends Service {
 
     private Notification serviceNotification() {
         Intent open = new Intent(this, MainActivity.class).putExtra(MainActivity.EXTRA_PATH, "/mobile");
-        Intent stop = new Intent(this, MascotOverlayService.class).setAction(ACTION_STOP);
+        boolean mascotVisible = preferences.mascotEnabled();
+        Intent mascotAction = new Intent(this, MascotOverlayService.class)
+            .setAction(mascotVisible ? ACTION_STOP : ACTION_SHOW);
         return new Notification.Builder(this, SERVICE_CHANNEL)
             .setSmallIcon(R.drawable.ic_apx_notification)
             .setContentTitle("APX conectado")
             .setContentText("Mensajes directos y avisos activos")
             .setContentIntent(pendingActivity(open, 1))
-            .addAction(new Notification.Action.Builder(null, "Ocultar mascota", pendingService(stop, 2)).build())
+            .addAction(new Notification.Action.Builder(
+                null,
+                mascotVisible ? "Ocultar mascota" : "Mostrar mascota",
+                pendingService(mascotAction, mascotVisible ? 2 : 3)
+            ).build())
             .setOngoing(true)
             .build();
     }

@@ -34,6 +34,7 @@ final class MapsNavigationDetector {
             String normalized = normalize(raw);
             String[] prefixes = {
                 "en direccion a ", "en camino a ", "hacia ",
+                "estoy yendo a ", "voy a ", "voy hacia ", "me dirijo a ",
                 "heading to ", "on the way to ", "toward ", "towards "
             };
             for (String prefix : prefixes) {

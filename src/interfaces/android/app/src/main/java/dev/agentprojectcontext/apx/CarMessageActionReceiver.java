@@ -15,11 +15,33 @@ public final class CarMessageActionReceiver extends BroadcastReceiver {
         NotificationManager manager = context.getSystemService(NotificationManager.class);
         manager.cancel(CarMessageNotification.ID);
 
-        if (!CarMessageNotification.ACTION_REPLY.equals(intent.getAction())) return;
+        boolean destinationReply = CarMessageNotification.ACTION_MOBILITY_DESTINATION.equals(intent.getAction());
+        if (!CarMessageNotification.ACTION_REPLY.equals(intent.getAction()) && !destinationReply) return;
         Bundle results = RemoteInput.getResultsFromIntent(intent);
         CharSequence reply = results == null ? null : results.getCharSequence(CarMessageNotification.KEY_REPLY);
         if (reply != null && !reply.toString().trim().isEmpty()) {
-            Toast.makeText(context, "Prueba local: respuesta no enviada", Toast.LENGTH_SHORT).show();
+            if (destinationReply) {
+                ApxPreferences preferences = new ApxPreferences(context);
+                String spoken = reply.toString().trim();
+                String parsed = MapsNavigationDetector.destinationFrom(spoken);
+                String destination = parsed.isBlank() ? spoken : parsed;
+                String tripId = preferences.travelTripId();
+                if (preferences.travelActive() && !tripId.isBlank()) {
+                    preferences.setTravelState(true, destination, tripId);
+                    context.sendBroadcast(new Intent(MapsNavigationListenerService.ACTION_TRAVEL_STATE_CHANGED)
+                        .setPackage(context.getPackageName()));
+                    DaemonClient.notifyTripStarted(
+                        preferences.daemonUrl(),
+                        preferences.token(),
+                        tripId,
+                        destination,
+                        DeviceLocation.latest(context)
+                    );
+                    Toast.makeText(context, "Destino enviado a Roby", Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                Toast.makeText(context, "Respuesta recibida", Toast.LENGTH_SHORT).show();
+            }
         }
     }
 }

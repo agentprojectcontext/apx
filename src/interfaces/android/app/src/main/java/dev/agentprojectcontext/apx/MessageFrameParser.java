@@ -11,6 +11,20 @@ import java.util.Map;
 final class MessageFrameParser {
     private MessageFrameParser() {}
 
+    static String avatar(String text) {
+        try {
+            JSONObject frame = new JSONObject(text);
+            String type = frame.optString("type");
+            if (!"hello".equals(type) && !"settings".equals(type)) return null;
+            JSONObject settings = frame.optJSONObject("settings");
+            JSONObject superAgent = settings == null ? null : settings.optJSONObject("super_agent");
+            String icon = superAgent == null ? "" : superAgent.optString("icon", "").trim();
+            return icon.isBlank() ? null : icon;
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
     static List<String> notifications(String text) {
         List<String> messages = new ArrayList<>();
         try {
