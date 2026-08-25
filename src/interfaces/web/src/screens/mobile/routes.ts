@@ -68,8 +68,8 @@ export function teamPath(pid: string): string {
 export function agentCardUrl(row: InboxRow): string {
   if (row.kind === "super_agent") return "/p/0/chat";
   const pid = row.project_id ?? 0;
-  if (row.kind === "a2a") {
-    return `/p/${pid}/chat?channel=a2a&thread=${encodeURIComponent(row.conversation_id || "")}`;
+  if (row.kind === "a2a" || row.kind === "group") {
+    return `/p/${pid}/chat?channel=${row.kind}&thread=${encodeURIComponent(row.conversation_id || "")}`;
   }
   return `/p/${pid}/agents/${encodeURIComponent(row.agent_slug)}`;
 }
@@ -83,9 +83,9 @@ export function keyFor(row: InboxRow, sessionId?: string, channel?: string): Cha
   // "a2a" channel — never one agent's conversation file (its agent_slug is the
   // synthetic "a2a:<pair>", which owns no file). Missing this made the phone open
   // a blank pane with the raw pair id in the header.
-  if (row.kind === "a2a") {
+  if (row.kind === "a2a" || row.kind === "group") {
     const id = sessionId || row.conversation_id || "";
-    return id ? { kind: "thread", channel: "a2a", threadId: id } : { kind: "live", agentSlug: row.agent_slug };
+    return id ? { kind: "thread", channel: row.kind, threadId: id } : { kind: "live", agentSlug: row.agent_slug };
   }
   if (row.kind === "super_agent") {
     const ch = channel || row.channel || "web";
@@ -100,7 +100,7 @@ export function keyFor(row: InboxRow, sessionId?: string, channel?: string): Cha
 export function selectionFromParam(param: string | undefined, row: InboxRow): ChatKey {
   // An a2a row has exactly one thread; there are no alternate sessions to pick,
   // so the pair thread is the selection regardless of any URL session segment.
-  if (row.kind === "a2a") return keyFor(row);
+  if (row.kind === "a2a" || row.kind === "group") return keyFor(row);
   if (!param) return keyFor(row);
   const raw = decodeURIComponent(param);
   if (row.kind === "super_agent") {

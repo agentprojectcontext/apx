@@ -43,6 +43,9 @@ export const MESSAGE_EVENT = "message";
  *   - agent_slug   the agent the turn belongs to, when the write named one
  *   - direction    in | out
  *   - type         user | agent | tool | system | compact
+ *   - author       display name of who wrote the row, when the writer had one
+ *   - final        true when this row is the closing message of a turn
+ *   - streamed     true when this row is a mid-turn Telegram chunk
  *   - ts           the record's timestamp
  *
  * Never throws into the caller: an announcement failing must not fail the write

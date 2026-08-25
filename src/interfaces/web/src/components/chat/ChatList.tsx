@@ -13,6 +13,7 @@ import {
   Plus,
   Send,
   Timer,
+  Users,
 } from "lucide-react";
 import { Conversations } from "../../lib/api";
 import { AgentAvatar, AgentAvatarGroup, SUPER_AGENT_ICON, type AgentFace } from "../agents/AgentAvatar";
@@ -32,6 +33,7 @@ export type ChannelGroupKey =
   | "desktop"
   | "voice"
   | "a2a"
+  | "group"
   | "schedule"
   | "other";
 
@@ -47,8 +49,9 @@ const GROUP_META: Record<ChannelGroupKey, GroupMeta> = {
   desktop:  { label: "Desktop", icon: Monitor, order: 2 },
   voice:    { label: "Voice", icon: Mic, order: 3 },
   a2a:      { label: "Agent ↔ Agent", icon: Bot, order: 4 },
-  schedule: { label: "Schedule", icon: Timer, order: 5 },
-  other:    { label: "Other", icon: FolderOpen, order: 6 },
+  group:    { label: "Groups", icon: Users, order: 5 },
+  schedule: { label: "Schedule", icon: Timer, order: 6 },
+  other:    { label: "Other", icon: FolderOpen, order: 7 },
 };
 
 function channelGroup(channel?: string): ChannelGroupKey {
@@ -59,6 +62,7 @@ function channelGroup(channel?: string): ChannelGroupKey {
   if (c === "desktop") return "desktop";
   if (c === "web" || c === "sidebar" || c === "web-sidebar") return "web";
   if (c === "a2a" || c.startsWith("agent")) return "a2a";
+  if (c === "group") return "group";
   if (c === "schedule" || c === "cron" || c === "routine") return "schedule";
   return "other";
 }
@@ -100,6 +104,8 @@ interface Props {
   /** Start a fresh in-memory session with the chosen agent (super-agent or a
    *  project agent). It materialises in the Web group on the first message. */
   onNewChat: (agentSlug: string) => void;
+  /** Create a group room with the chosen agents and open it. */
+  onNewGroup?: (agentSlugs: string[]) => void;
   /** Nothing was chosen for us (no deep link, no host selection) — open this
    *  project's most recent chat once the lists land. */
   autoSelectLatest?: boolean;
@@ -137,6 +143,7 @@ export function ChatList({
   selected,
   onSelect,
   onNewChat,
+  onNewGroup,
   autoSelectLatest = false,
 }: Props) {
   const [query, setQuery] = useState("");
@@ -144,6 +151,11 @@ export function ChatList({
   const [collapsed, setCollapsed] = useState<Partial<Record<ChannelGroupKey, boolean>>>({});
   const [byAgent, setByAgent] = useState<Record<string, ConversationListEntry[]>>({});
   const [pickerOpen, setPickerOpen] = useState(false);
+  // The "+ New" picker asks first WHAT to start (a 1:1 or a group), then WHO.
+  const [pickerMode, setPickerMode] = useState<"root" | "agent" | "group">("root");
+  const [groupPick, setGroupPick] = useState<string[]>([]);
+  const openPicker = () => { setPickerOpen(true); setPickerMode("root"); setGroupPick([]); };
+  const closePicker = () => { setPickerOpen(false); setPickerMode("root"); setGroupPick([]); };
 
   // Super-agent channel threads (telegram, web quick-chat, desktop …) come from
   // the global message ledger, scoped by the daemon to the project this screen
@@ -308,7 +320,7 @@ export function ChatList({
         <div className="relative">
           <button
             type="button"
-            onClick={() => setPickerOpen((o) => !o)}
+            onClick={() => (pickerOpen ? closePicker() : openPicker())}
             className="inline-flex items-center gap-1 rounded-md border border-border bg-accent/60 px-2 py-1 text-[11px] font-medium hover:bg-accent"
           >
             <Plus className="size-3" /> {t("project.chat.list.new")}
@@ -321,28 +333,94 @@ export function ChatList({
                 aria-hidden
                 tabIndex={-1}
                 className="fixed inset-0 z-10 cursor-default"
-                onClick={() => setPickerOpen(false)}
+                onClick={closePicker}
               />
-              <div className="absolute right-0 top-full z-20 mt-1 w-56 rounded-md border border-border bg-card p-1 shadow-lg">
-                <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-fg">
-                  {t("project.chat.list.pick_agent")}
-                </p>
-                <div className="max-h-64 overflow-y-auto">
-                  {newChatAgents.map((a) => (
+              <div className="absolute right-0 top-full z-20 mt-1 w-60 rounded-md border border-border bg-card p-1 shadow-lg">
+                {pickerMode === "root" ? (
+                  <div className="flex flex-col gap-0.5">
                     <button
-                      key={`new-${a.slug}`}
                       type="button"
-                      onClick={() => {
-                        setPickerOpen(false);
-                        onNewChat(a.slug);
-                      }}
-                      className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs hover:bg-accent/50"
+                      onClick={() => setPickerMode("agent")}
+                      className="flex items-center gap-2 rounded px-2 py-2 text-left text-xs hover:bg-accent/50"
                     >
-                      <Bot className="size-3 shrink-0 text-muted-fg" />
-                      <span className="truncate">{a.label}</span>
+                      <MessageSquare className="size-4 shrink-0 text-muted-fg" />
+                      <span>
+                        <span className="block font-medium">{t("project.chat.list.new_single")}</span>
+                        <span className="block text-[10px] text-muted-fg">{t("project.chat.list.new_single_hint")}</span>
+                      </span>
                     </button>
-                  ))}
-                </div>
+                    {onNewGroup && agents.length >= 2 && (
+                      <button
+                        type="button"
+                        onClick={() => setPickerMode("group")}
+                        className="flex items-center gap-2 rounded px-2 py-2 text-left text-xs hover:bg-accent/50"
+                      >
+                        <Users className="size-4 shrink-0 text-primary" />
+                        <span>
+                          <span className="block font-medium">{t("project.groups.new_title")}</span>
+                          <span className="block text-[10px] text-muted-fg">{t("project.groups.new_hint")}</span>
+                        </span>
+                      </button>
+                    )}
+                  </div>
+                ) : pickerMode === "group" ? (
+                  <>
+                    <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-fg">
+                      {t("project.groups.pick_members")}
+                    </p>
+                    <div className="max-h-56 overflow-y-auto">
+                      {agents.map((a, i) => {
+                        const on = groupPick.includes(a.slug);
+                        return (
+                          <button
+                            key={`grp-${a.slug}`}
+                            type="button"
+                            onClick={() => setGroupPick((p) => on ? p.filter((s) => s !== a.slug) : [...p, a.slug])}
+                            className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs hover:bg-accent/50"
+                          >
+                            <span className={clsx("flex size-4 shrink-0 items-center justify-center rounded border text-[9px] font-bold",
+                              on ? "border-primary bg-primary text-primary-foreground" : "border-border")}>
+                              {on ? groupPick.indexOf(a.slug) + 1 : ""}
+                            </span>
+                            <AgentAvatar icon={a.icon} emoji={a.emoji} name={a.name || a.slug} size={18} />
+                            <span className="truncate">{a.name || a.slug}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="px-2 pt-1 text-[10px] text-muted-fg">{t("project.groups.first_hint")}</p>
+                    <div className="flex items-center gap-1 p-1">
+                      <button type="button" onClick={() => { setPickerMode("root"); setGroupPick([]); }}
+                        className="flex-1 rounded px-2 py-1 text-xs text-muted-fg hover:bg-accent/50">
+                        {t("mobile.back")}
+                      </button>
+                      <button type="button" disabled={groupPick.length < 1}
+                        onClick={() => { const picks = groupPick; closePicker(); onNewGroup?.(picks); }}
+                        className="flex-1 rounded bg-primary px-2 py-1 text-xs font-medium text-primary-foreground disabled:opacity-50">
+                        {t("project.groups.create")}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-fg">
+                      {t("project.chat.list.pick_agent")}
+                    </p>
+                    <div className="max-h-56 overflow-y-auto">
+                      {newChatAgents.map((a) => (
+                        <button
+                          key={`new-${a.slug}`}
+                          type="button"
+                          onClick={() => { closePicker(); onNewChat(a.slug); }}
+                          className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs hover:bg-accent/50"
+                        >
+                          <Bot className="size-3 shrink-0 text-muted-fg" />
+                          <span className="truncate">{a.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             </>
           )}
@@ -381,18 +459,19 @@ export function ChatList({
                   selected.kind === "thread" &&
                   selected.channel === th.channel &&
                   selected.threadId === th.id;
-                // a2a "group chats" are between two agents, not the super-agent:
-                // draw both faces and skip the super-agent badge.
-                const isA2A = th.channel === "a2a";
+                // Multi-agent threads (a2a between two agents, or a group room)
+                // aren't the super-agent's: draw every participant's face and
+                // skip the super-agent badge.
+                const isMulti = th.channel === "a2a" || th.channel === "group";
                 const parts = (th as unknown as { participants?: string[] }).participants;
                 return (
                   <ChatListItem
                     key={`thread-${th.channel}-${th.id}`}
                     title={th.title}
                     subtitle={[th.channel, `${th.messages} msg`].join(" · ")}
-                    badge={isA2A ? undefined : t("agents_ui.super_agent_badge")}
-                    face={isA2A ? undefined : { icon: superAgentIcon, name: superAgentLabel }}
-                    faces={isA2A && parts?.length ? parts.map(faceFor) : undefined}
+                    badge={isMulti ? undefined : t("agents_ui.super_agent_badge")}
+                    face={isMulti ? undefined : { icon: superAgentIcon, name: superAgentLabel }}
+                    faces={isMulti && parts?.length ? parts.map(faceFor) : undefined}
                     timeAgo={th.last_ts}
                     selected={active}
                     onClick={() =>

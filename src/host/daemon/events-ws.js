@@ -20,6 +20,7 @@
 // Telegram poller and the agent loop, so every write anyone makes happens here.
 // See core/events/bus.js for the one case it does not cover.
 import { onMessageEvent } from "#core/events/bus.js";
+import { mascotNotificationsFromEvents } from "#core/events/mascot-notify.js";
 import { resolveSuperAgentBlob } from "#core/apc/agent-identity.js";
 import { apiPath } from "./api/prefix.js";
 
@@ -121,12 +122,17 @@ function publicEvent(event, projects) {
     conversation_id: event.conversation_id || null,
     direction: event.direction || null,
     type: event.type || null,
+    author: event.author || null,
     // How the row was produced, when it matters to a subscriber — "routine_delivery"
     // marks an agent reaching the owner, which the mascot surfaces on its own.
     via: event.via || null,
     // A ≤100-char headline for a delivery, so the mascot bubble can say what
     // arrived. A notice, not the message body — "signal, not data" holds.
     notify: event.notify || null,
+    // Closing vs mid-turn chunk. The pet only bubbles an agent's launched
+    // final on Telegram / group / A2A — never the owner's send.
+    final: event.final === true ? true : null,
+    streamed: event.streamed === true ? true : null,
     ts: event.ts || null,
   };
 }
@@ -150,7 +156,16 @@ export function startEventsBridge({ projects } = {}) {
     const events = [...pending.values()];
     pending.clear();
     // Nobody listening is the normal case (no panel open). Skip the work.
-    if (_clients.size) broadcastEvents({ type: "messages", events });
+    if (_clients.size) {
+      broadcastEvents({
+        type: "messages",
+        events,
+        // Computed once here so desktop and the phone cannot drift: both pets
+        // just render the lines. Empty means "this burst is not news" (the
+        // owner sending, a stream chunk, a tool row).
+        notifications: mascotNotificationsFromEvents(events),
+      });
+    }
   };
 
   const unsubscribe = onMessageEvent((event) => {

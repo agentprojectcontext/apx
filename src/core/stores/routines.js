@@ -159,6 +159,24 @@ export function upsertRoutine(storagePath, { name, kind, schedule, spec, enabled
   return entry;
 }
 
+// Repoint every routine that targets `oldSlug` to `newSlug`. Called when an
+// agent is renamed so its scheduled tasks don't silently point at a slug that
+// no longer exists. Returns the number of routines rewritten.
+export function renameRoutineAgent(storagePath, oldSlug, newSlug) {
+  if (!oldSlug || !newSlug || oldSlug === newSlug) return 0;
+  const routines = readFile(storagePath);
+  let changed = 0;
+  for (const r of routines) {
+    if (r?.spec && r.spec.agent === oldSlug) {
+      r.spec = { ...r.spec, agent: newSlug };
+      r.updated_at = nowIso();
+      changed += 1;
+    }
+  }
+  if (changed) writeFile(storagePath, routines);
+  return changed;
+}
+
 export function deleteRoutine(projectPath, name) {
   const routines = readFile(projectPath);
   const idx = routines.findIndex((r) => r.name === name);

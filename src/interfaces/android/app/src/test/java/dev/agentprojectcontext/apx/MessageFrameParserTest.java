@@ -9,17 +9,44 @@ import java.util.List;
 
 public final class MessageFrameParserTest {
     @Test
-    public void groupsInboundMessagesAndIgnoresOwnDesktopInput() {
+    public void prefersDaemonNotificationsAndTreatsEmptyAsNoNews() {
+        String ready = """
+            {"type":"messages","notifications":["sofia respondió en Telegram"],"events":[
+              {"direction":"in","channel":"telegram"}
+            ]}
+            """;
+        assertEquals(List.of("sofia respondió en Telegram"), MessageFrameParser.notifications(ready));
+
+        String ownerSend = """
+            {"type":"messages","notifications":[],"events":[
+              {"direction":"in","channel":"telegram","type":"user"}
+            ]}
+            """;
+        assertTrue(MessageFrameParser.notifications(ownerSend).isEmpty());
+    }
+
+    @Test
+    public void ignoresOwnerSendAndBubblesAgentFinalsWhenDaemonOmitsTheField() {
         String frame = """
             {"type":"messages","events":[
-              {"direction":"in","channel":"telegram"},
-              {"direction":"in","channel":"telegram"},
-              {"direction":"out","channel":"telegram"},
-              {"direction":"in","channel":"desktop"}
+              {"direction":"in","channel":"telegram","type":"user"},
+              {"direction":"in","channel":"group","type":"user"},
+              {"direction":"out","channel":"telegram","type":"agent","streamed":true,"author":"Roby"},
+              {"direction":"out","channel":"telegram","type":"agent","author":"Roby","agent_slug":"super_agent"},
+              {"direction":"out","channel":"group","type":"agent","author":"sofia","agent_slug":"sofia"},
+              {"direction":"out","channel":"a2a","type":"agent","author":"martin","agent_slug":"martin"},
+              {"direction":"in","channel":"a2a","type":"agent","author":"martin"}
             ]}
             """;
 
-        assertEquals(List.of("2 mensajes nuevos en Telegram"), MessageFrameParser.notifications(frame));
+        assertEquals(
+            List.of(
+                "Roby respondió en Telegram",
+                "sofia respondió en Grupo",
+                "martin respondió en A2A"
+            ),
+            MessageFrameParser.notifications(frame)
+        );
     }
 
     @Test

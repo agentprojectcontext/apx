@@ -14,9 +14,10 @@ import path from "node:path";
 import { readAgents } from "#core/apc/parser.js";
 import { apcAgentFile } from "#core/apc/paths.js";
 import { writeAgentFile, ensureAgentDir } from "#core/apc/scaffold.js";
-import { ensureAgentRuntimeDir, agentMemoryPath, readAgentMemory, writeAgentMemory } from "#core/agent/memory.js";
+import { ensureAgentRuntimeDir, agentMemoryPath, agentRuntimeDir, readAgentMemory, writeAgentMemory } from "#core/agent/memory.js";
 import { isBlobKey, normalizeAgentType, pickBlob } from "#core/apc/agent-identity.js";
 import { readOrganization, resolveAreaSlug } from "#core/stores/organization.js";
+import { renameRoutineAgent } from "#core/stores/routines.js";
 import { PERMISSION_MODES } from "#core/constants/permissions.js";
 
 export const AGENT_SLUG_RE = /^[a-z][a-z0-9_-]*$/;
@@ -218,6 +219,65 @@ export function setAgentConfig(project, slug, patch = {}) {
   ensureAgentDir(project.path, slug);
   ensureAgentRuntimeDir(project, slug);
   return slug;
+}
+
+/**
+ * Rename an agent's slug — the agent's physical key. The slug names the
+ * definition file (`.apc/agents/<slug>.md`), the runtime dir (memory,
+ * conversations, sessions under `agents/<slug>/`), and is referenced by other
+ * agents' `Parent` field and by routines' `spec.agent`. This moves the file and
+ * dir and repoints every reference so nothing is left dangling, in ONE place so
+ * the route and any tool share the same behavior. Historical ledger rows keep
+ * the old `agent_slug` — they are a record of what happened, not a live pointer.
+ *
+ * Caller rebuilds the daemon registry afterwards.
+ *
+ * @param {{path:string, storagePath?:string}} project
+ * @param {string} oldSlug  current slug
+ * @param {string} newSlug  desired slug (already slugified/validated by caller,
+ *   re-validated here against AGENT_SLUG_RE)
+ * @returns {string} the final slug (equal to oldSlug when it's a no-op)
+ */
+export function renameAgent(project, oldSlug, newSlug) {
+  if (!oldSlug) throw new Error("current slug required");
+  if (!newSlug) throw new Error("new slug required");
+  if (!AGENT_SLUG_RE.test(newSlug)) throw new Error(`invalid slug "${newSlug}"`);
+  if (newSlug === oldSlug) return oldSlug; // nothing to do
+
+  const roster = readAgents(project.path);
+  const source = roster.find((a) => a.slug === oldSlug);
+  if (!source) throw new Error(`agent ${oldSlug} not found`);
+  if (roster.find((a) => a.slug === newSlug)) throw new Error(`agent ${newSlug} already exists`);
+
+  // 1) Move the definition file. If it's missing (agent lived only in runtime),
+  //    re-materialize it under the new slug from what we parsed.
+  const oldFile = apcAgentFile(project.path, oldSlug);
+  ensureAgentDir(project.path, newSlug);
+  if (fs.existsSync(oldFile)) fs.renameSync(oldFile, apcAgentFile(project.path, newSlug));
+  else writeAgentFile(project.path, newSlug, source.fields || {}, source.body || "");
+
+  // 2) Move the runtime dir (memory, conversations, sessions) wholesale.
+  const oldDir = agentRuntimeDir(project, oldSlug);
+  const newDir = agentRuntimeDir(project, newSlug);
+  if (fs.existsSync(oldDir)) {
+    if (fs.existsSync(newDir)) throw new Error(`runtime data for ${newSlug} already exists`);
+    fs.renameSync(oldDir, newDir);
+  }
+
+  // 3) Repoint child agents whose Parent pointed at the old slug.
+  for (const child of roster) {
+    if (child.slug === oldSlug) continue;
+    if (child.fields?.Parent === oldSlug) {
+      writeAgentFile(project.path, child.slug, { ...child.fields, Parent: newSlug }, child.body || "");
+    }
+  }
+
+  // 4) Repoint routines that target this agent. Routines live under the
+  //    storage root (~/.apx/projects/<id>/); the default project uses its path
+  //    as both. A missing store is fine — it just means no routines.
+  try { renameRoutineAgent(project.storagePath || project.path, oldSlug, newSlug); } catch { /* no routines store */ }
+
+  return newSlug;
 }
 
 /**

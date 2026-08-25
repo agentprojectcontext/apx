@@ -42,7 +42,7 @@ export function InboxRowItem({
   const touch = variant === "touch";
   const label = row.agent_name || row.agent_slug;
   const faces = participantFaces(row);
-  const grouped = row.kind === "a2a" && faces.length > 0;
+  const grouped = (row.kind === "a2a" || row.kind === "group") && faces.length > 0;
 
   return (
     <button

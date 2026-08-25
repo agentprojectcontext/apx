@@ -21,6 +21,11 @@ interface Props {
   /** Who to draw next to an assistant turn. Screens that know the cast (chat,
    *  inbox) pass it; the rest fall back to a neutral glyph. */
   faceFor?: (msg: ChatMsg) => AgentFace;
+  /** Group style: name each speaker above their bubble, with a "traído por X"
+   *  tag. Off in a 1:1. */
+  showSpeaker?: boolean;
+  /** Resolve an agent slug to a display name (for the "traído por X" tag). */
+  nameOf?: (slug: string) => string;
   /** Smooth-scroll to the latest turn. Nested previews turn this off. */
   autoscroll?: boolean;
   /** Height of whatever floats over the bottom of the thread (the composer
@@ -48,6 +53,8 @@ export function MessageList({
   onRegenerate,
   onEdit,
   faceFor,
+  showSpeaker,
+  nameOf,
   autoscroll = true,
   bottomInset = 0,
   compact,
@@ -147,6 +154,8 @@ export function MessageList({
           onEdit={onEdit && m.role === "user" ? (text) => onEdit(i, text) : undefined}
           compact={compact}
           face={m.role === "assistant" ? faceFor?.(m) : undefined}
+          showSpeaker={showSpeaker}
+          nameOf={nameOf}
         />
       ))}
       {/* Waiting their turn, under the answer they will follow. Same bubble as

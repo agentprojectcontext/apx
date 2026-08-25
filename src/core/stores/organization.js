@@ -27,6 +27,11 @@ export const ORG_SLUG_RE = /^[a-z][a-z0-9_-]*$/;
 // auto-slug behavior so a name typed in either surface yields the same slug.
 export function slugifyName(name) {
   return String(name || "")
+    // Strip diacritics first so "José" → "jose" (not "jos") and "Ñaña" → "nana".
+    // Without the NFD pass the accented letter is simply dropped by the a-z
+    // filter below, silently losing a character from the slug.
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")

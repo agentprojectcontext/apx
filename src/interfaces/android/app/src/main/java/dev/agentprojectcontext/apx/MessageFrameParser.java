@@ -30,38 +30,99 @@ final class MessageFrameParser {
         try {
             JSONObject frame = new JSONObject(text);
             if (!"messages".equals(frame.optString("type"))) return messages;
+            // Daemon-computed copy is the contract: an empty array means the
+            // owner's send is not news and must not fall through to a guess.
+            if (frame.has("notifications")) {
+                JSONArray ready = frame.optJSONArray("notifications");
+                if (ready == null) return messages;
+                for (int i = 0; i < ready.length(); i++) {
+                    String line = ready.optString(i, "").trim();
+                    if (!line.isEmpty()) messages.add(line);
+                }
+                return messages;
+            }
             JSONArray events = frame.optJSONArray("events");
             if (events == null) return messages;
-            Map<String, Integer> channels = new LinkedHashMap<>();
-            for (int i = 0; i < events.length(); i++) {
-                JSONObject event = events.optJSONObject(i);
-                if (event == null) continue;
-                if ("out".equals(event.optString("direction"))
-                    && "mobility_delivery".equals(event.optString("via"))) {
-                    String notice = event.optString("notify", "").trim();
-                    if (!notice.isBlank()) messages.add(notice);
-                    continue;
-                }
-                if (!"in".equals(event.optString("direction"))) continue;
-                String channel = event.optString("channel", "APX");
-                if ("desktop".equals(channel) || "voice".equals(channel)) continue;
-                channels.put(channel, channels.getOrDefault(channel, 0) + 1);
-            }
-            for (Map.Entry<String, Integer> entry : channels.entrySet()) {
-                int count = entry.getValue();
-                String label = channelLabel(entry.getKey());
-                messages.add(count > 1 ? count + " mensajes nuevos en " + label : "Nuevo mensaje en " + label);
-            }
+            appendMobility(messages, events);
+            appendRoutineDeliveries(messages, events);
+            appendAgentFinals(messages, events);
         } catch (Exception ignored) {
             // A malformed live frame has no notification value.
         }
         return messages;
     }
 
+    private static void appendMobility(List<String> messages, JSONArray events) {
+        for (int i = 0; i < events.length(); i++) {
+            JSONObject event = events.optJSONObject(i);
+            if (event == null) continue;
+            if (!"mobility_delivery".equals(event.optString("via"))) continue;
+            String notice = event.optString("notify", "").trim();
+            if (!notice.isBlank()) messages.add(notice);
+        }
+    }
+
+    private static void appendRoutineDeliveries(List<String> messages, JSONArray events) {
+        Map<String, String> byAgent = new LinkedHashMap<>();
+        for (int i = 0; i < events.length(); i++) {
+            JSONObject event = events.optJSONObject(i);
+            if (event == null) continue;
+            if (!"routine_delivery".equals(event.optString("via"))) continue;
+            if (!"web".equals(event.optString("channel"))) continue;
+            String agent = event.optString("agent_slug", "").trim();
+            if (agent.isEmpty() || "super_agent".equals(agent)) continue;
+            String notify = event.optString("notify", "").trim();
+            if (notify.isEmpty()) notify = byAgent.getOrDefault(agent, "");
+            byAgent.put(agent, notify);
+        }
+        for (Map.Entry<String, String> entry : byAgent.entrySet()) {
+            String notify = entry.getValue();
+            messages.add(notify.isEmpty()
+                ? entry.getKey() + " te dejó un mensaje"
+                : entry.getKey() + ": " + notify);
+        }
+    }
+
+    private static void appendAgentFinals(List<String> messages, JSONArray events) {
+        Map<String, String> byAgent = new LinkedHashMap<>();
+        for (int i = 0; i < events.length(); i++) {
+            JSONObject event = events.optJSONObject(i);
+            if (event == null) continue;
+            if (!isAgentFinal(event)) continue;
+            String agent = speakerName(event);
+            String channel = event.optString("channel");
+            byAgent.put(channel + "|" + agent, agent + " respondió en " + channelLabel(channel));
+        }
+        messages.addAll(byAgent.values());
+    }
+
+    private static boolean isAgentFinal(JSONObject event) {
+        if (!"out".equals(event.optString("direction"))) return false;
+        String type = event.optString("type", "");
+        if (!type.isEmpty() && !"agent".equals(type)) return false;
+        String channel = event.optString("channel");
+        if (!"telegram".equals(channel) && !"group".equals(channel) && !"a2a".equals(channel)) return false;
+        if (event.optBoolean("streamed", false)) return false;
+        String via = event.optString("via", "");
+        if ("routine_delivery".equals(via) || "mobility_delivery".equals(via)) return false;
+        return true;
+    }
+
+    private static String speakerName(JSONObject event) {
+        String author = event.optString("author", "").trim();
+        if (!author.isEmpty() && !"user".equals(author) && !"owner".equals(author) && !author.startsWith("@")) {
+            return author;
+        }
+        String slug = event.optString("agent_slug", "").trim();
+        return slug.isEmpty() ? "agente" : slug;
+    }
+
     private static String channelLabel(String channel) {
         if (channel == null || channel.isBlank()) return "APX";
         return switch (channel) {
             case "telegram" -> "Telegram";
+            case "group" -> "Grupo";
+            case "a2a" -> "A2A";
             case "web", "web_sidebar", "web_code" -> "Web";
             case "cli" -> "Terminal";
             case "routine" -> "Rutinas";

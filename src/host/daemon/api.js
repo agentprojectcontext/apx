@@ -42,6 +42,7 @@ import { register as registerExec } from "./api/exec.js";
 import { register as registerSuperAgent } from "./api/super-agent.js";
 import { register as registerCode } from "./api/code.js";
 import { register as registerConversations } from "./api/conversations.js";
+import { register as registerGroups } from "./api/groups.js";
 import { register as registerConnections } from "./api/connections.js";
 import { register as registerRuntimes } from "./api/runtimes.js";
 import { register as registerRoutines } from "./api/routines.js";
@@ -156,6 +157,7 @@ export function buildApi({
   registerNet(api, ctx);
   registerCode(api, ctx);
   registerConversations(api, ctx);
+  registerGroups(api, ctx);
   registerConnections(api, ctx);
   registerRuntimes(api, ctx);
   registerRoutines(api, ctx);

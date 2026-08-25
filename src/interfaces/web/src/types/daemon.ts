@@ -246,6 +246,12 @@ export interface ConversationMessage {
   actor_kind?: string;
   model?: string;
   usage?: ChatUsage;
+  /** Group only: which agent's @mention pulled this speaker in ("traído por X"). */
+  reason?: string;
+  /** Group system notice: an agent joined ("joined") or left ("left") the room.
+   *  `who` is the agent slug it concerns. Rendered as a centred line. */
+  event?: "joined" | "left";
+  who?: string;
   /** Compact record of what the turn did, written at the time (the live tool
    *  events are long gone by the time a thread is read back). */
   tool_summary?: ToolSummary;
@@ -321,6 +327,8 @@ export interface ThreadDetail {
    *  thing that was said in it. */
   title?: string;
   archived?: boolean;
+  /** For multi-agent threads (a2a, group): the participant agent slugs. */
+  participants?: string[];
   messages: ConversationMessage[];
 }
 

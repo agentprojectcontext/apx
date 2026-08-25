@@ -872,20 +872,12 @@ function connectDaemon() {
 // ---------------------------------------------------------------------------
 //
 // A SECOND socket, to /api/events/ws (distinct from the desktop conversation
-// socket above). It carries a signal-only "the channel X moved" feed for every
-// channel (Telegram, web, …): frames are { type:"messages", events:[…] } where
-// each event has { channel, direction, type, thread, project_id, ts } but NO
-// message text. We surface an inbound-message bubble on the pet; the full text
-// still lives in the web chat / HUD. Only meaningful while the pet is on.
-
-function channelLabel(ch) {
-  const map = {
-    telegram: "Telegram", whatsapp: "WhatsApp", web: "Web",
-    voice: "Voz", desktop: "Escritorio", email: "Email", slack: "Slack",
-  };
-  if (!ch) return "un canal";
-  return map[ch] || (ch.charAt(0).toUpperCase() + ch.slice(1));
-}
+// socket above). It carries a signal-only "the channel X moved" feed. The
+// daemon already decided which bursts are news (`notifications: string[]`):
+// an agent's launched final on Telegram / group / A2A, plus delivery
+// headlines. The owner's own send is NOT news — it used to bubble here
+// because the filter watched `direction: "in"`. Only meaningful while the
+// pet is on.
 
 function connectEventsFeed() {
   let WS;
@@ -901,50 +893,56 @@ function connectEventsFeed() {
     setTimeout(connect, delay);
   }
 
+  function pushBubble(text) {
+    if (!text || !mascotWindow) return;
+    mascotWindow.webContents.send("mascot-notify", { text, sound: getMascotSoundEnabled() });
+  }
+
   function handleFrame(msg) {
     const avatar = msg?.settings?.super_agent?.icon;
     if ((msg?.type === "hello" || msg?.type === "settings") && typeof avatar === "string") {
       mascotWindow?.webContents.send("mascot-avatar", avatar);
     }
-    if (!msg || msg.type !== "messages" || !Array.isArray(msg.events)) return;
+    if (!msg || msg.type !== "messages") return;
     if (!mascotWindow) return; // pet off → nothing to notify
 
-    // Only inbound messages (someone wrote to us). Skip the agent's own
-    // replies (direction "out") and our own desktop/voice input (we're right
-    // there talking). Collapse a burst into one bubble per channel.
-    const byChannel = new Map();
-    for (const ev of msg.events) {
-      if (!ev || ev.direction !== "in") continue;
-      // Skip our own input surfaces (we're right there), and a2a — agent↔agent
-      // chatter is not for the owner, so the pet must not bubble "message in A2a".
-      if (ev.channel === "desktop" || ev.channel === "voice" || ev.channel === "a2a") continue;
-      byChannel.set(ev.channel, (byChannel.get(ev.channel) || 0) + 1);
-    }
-    for (const [channel, n] of byChannel) {
-      const label = channelLabel(channel);
-      const text = n > 1 ? `${n} mensajes nuevos en ${label}` : `Nuevo mensaje en ${label}`;
-      mascotWindow.webContents.send("mascot-notify", { text, sound: getMascotSoundEnabled() });
+    // The daemon computes the copy. An empty array means "this burst is not
+    // news" (the owner sending) and must not fall through to a local guess.
+    if (Array.isArray(msg.notifications)) {
+      for (const text of msg.notifications) pushBubble(text);
+      return;
     }
 
-    // Routine deliveries are `direction:"out"` (an agent reaching us), so the
-    // inbound filter above skips them — yet a non-Roby agent leaving a message
-    // in its own web chat is exactly the "you have something to answer" the pet
-    // exists to surface. Bubble one per agent, keyed off the web delivery row,
-    // and use the row's own ≤100-char headline (`notify`) so the pet says WHAT
-    // arrived ("golf-coach: 🏌️ Tip Golf…") instead of a bare "new message".
+    // Older daemon without the field: still skip the owner's send, only
+    // bubble an agent's launched final on Telegram / group / A2A plus the
+    // delivery headlines the previous local filter already knew about.
+    const events = Array.isArray(msg.events) ? msg.events : [];
+    for (const ev of events) {
+      if (ev?.via === "mobility_delivery" && ev.notify) pushBubble(ev.notify);
+    }
     const byAgent = new Map();
-    for (const ev of msg.events) {
+    for (const ev of events) {
       if (!ev || ev.via !== "routine_delivery" || ev.channel !== "web") continue;
       if (!ev.agent_slug || ev.agent_slug === "super_agent") continue;
       byAgent.set(ev.agent_slug, ev.notify || byAgent.get(ev.agent_slug) || "");
     }
     for (const [agent, notify] of byAgent) {
-      const text = notify ? `${agent}: ${notify}` : `${agent} te dejó un mensaje`;
-      mascotWindow.webContents.send("mascot-notify", {
-        text,
-        sound: getMascotSoundEnabled(),
-      });
+      pushBubble(notify ? `${agent}: ${notify}` : `${agent} te dejó un mensaje`);
     }
+    const finals = new Map();
+    for (const ev of events) {
+      if (!ev || ev.direction !== "out") continue;
+      if (ev.type && ev.type !== "agent") continue;
+      if (ev.channel !== "telegram" && ev.channel !== "group" && ev.channel !== "a2a") continue;
+      if (ev.streamed === true) continue;
+      if (ev.via === "routine_delivery" || ev.via === "mobility_delivery") continue;
+      const agent = (ev.author && ev.author !== "user" && ev.author !== "owner")
+        ? ev.author
+        : (ev.agent_slug || "agente");
+      const label = ev.channel === "telegram" ? "Telegram" : ev.channel === "group" ? "Grupo" : "A2A";
+      finals.set(`${ev.channel}|${agent}`, `${agent} respondió en ${label}`);
+    }
+    for (const text of finals.values()) pushBubble(text);
   }
 
   function connect() {

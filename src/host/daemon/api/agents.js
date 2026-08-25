@@ -27,12 +27,13 @@ import {
   readAgentMemory,
   writeAgentMemory,
 } from "#core/agent/memory.js";
-import { createAgent, cloneAgent, setAgentConfig, removeAgent } from "#core/apc/agent-write.js";
+import { createAgent, cloneAgent, setAgentConfig, removeAgent, renameAgent } from "#core/apc/agent-write.js";
 import { agentToResponse } from "./shared.js";
 import { normalizeVaultPatch } from "#core/apc/agents-vault.js";
 import { listConversations } from "#core/stores/conversations.js";
 import { listTasks } from "#core/stores/tasks.js";
 import { listRoutines } from "#core/stores/routines.js";
+import { slugifyName } from "#core/stores/organization.js";
 import { readProjectMessages } from "#core/stores/messages.js";
 
 // Attach a per-agent activity summary ({ threads, records, tasks, heartbeats })
@@ -219,6 +220,31 @@ export function register(api, { projects, project }) {
       res.json(agentToResponse(updated));
     } catch (e) {
       res.status(400).json({ error: e.message });
+    }
+  });
+
+  // Rename an agent's slug — moves its .apc/agents/<slug>.md and runtime dir and
+  // repoints child `Parent` refs and routines. Distinct from PATCH on purpose:
+  // it's an irreversible file move and it changes the resource URL, so the UI
+  // must navigate to the returned slug rather than revalidate in place. The new
+  // slug can be sent raw (`{ slug }`) or derived from a name (`{ name }`) — the
+  // caller-side slugify is mirrored here so either surface yields the same key.
+  api.post("/projects/:pid/agents/:slug/rename", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const body = req.body || {};
+    const target = body.slug ? String(body.slug) : slugifyName(body.name || "");
+    if (!target || !/^[a-z][a-z0-9_-]*$/.test(target)) {
+      return res.status(400).json({ error: "valid target slug required" });
+    }
+    try {
+      const finalSlug = renameAgent(p, req.params.slug, target);
+      projects.rebuild(p.id);
+      const updated = readAgents(p.path).find((a) => a.slug === finalSlug);
+      res.json(agentToResponse(updated));
+    } catch (e) {
+      const status = /not found/.test(e.message) ? 404 : 400;
+      res.status(status).json({ error: e.message });
     }
   });
 

@@ -9,11 +9,24 @@ import { toneText, toneTextHover } from "../../lib/tone";
 // headings, fenced/inline code, bold/italic/links, blockquotes, hr, and
 // ordered/unordered lists. Anything else renders as plain paragraphs.
 
-// ── Inline: bold, italic, code, links ──────────────────────────────────────
-function renderInline(text: string, keyBase: string): ReactNode[] {
+// A group @mention, styled as a soft neutral chip (not a loud colour) so it
+// reads as a handle in any theme. Exported so a literal (non-markdown) bubble —
+// the user's own — can highlight mentions the same way.
+export function MentionChip({ handle }: { handle: string }) {
+  return (
+    <span className="rounded bg-foreground/[0.07] px-1 font-medium text-foreground/90 dark:bg-foreground/10">
+      {handle}
+    </span>
+  );
+}
+
+// ── Inline: bold, italic, code, links, (optional) @mentions ─────────────────
+function renderInline(text: string, keyBase: string, mentions = false): ReactNode[] {
   const out: ReactNode[] = [];
   // One regex, alternation ordered so `**` beats `*`. Groups capture the inner.
-  const re = /(\*\*([^*]+)\*\*)|(\*([^*]+)\*)|(`([^`]+)`)|(\[([^\]]+)\]\(([^)]+)\))/g;
+  // The trailing @mention group is only STYLED when `mentions` is on; otherwise
+  // it renders as the literal text, so ordinary markdown is unchanged.
+  const re = /(\*\*([^*]+)\*\*)|(\*([^*]+)\*)|(`([^`]+)`)|(\[([^\]]+)\]\(([^)]+)\))|((?<![\w])@[\p{L}\p{N}_-]+)/gu;
   let last = 0;
   let m: RegExpExecArray | null;
   let i = 0;
@@ -29,6 +42,10 @@ function renderInline(text: string, keyBase: string): ReactNode[] {
           {m[8]}
         </a>,
       );
+    else if (m[10] !== undefined)
+      out.push(mentions
+        ? <MentionChip key={`${keyBase}-m${i}`} handle={m[10]} />
+        : <Fragment key={`${keyBase}-m${i}`}>{m[10]}</Fragment>);
     last = re.lastIndex;
     i += 1;
   }
@@ -36,8 +53,26 @@ function renderInline(text: string, keyBase: string): ReactNode[] {
   return out;
 }
 
+// Highlight @mentions in a literal (non-markdown) string — the user's own
+// bubble, which stays verbatim so we don't run it through the markdown parser.
+export function renderMentions(text: string): ReactNode[] {
+  const out: ReactNode[] = [];
+  const re = /(?<![\w])@[\p{L}\p{N}_-]+/gu;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  let i = 0;
+  while ((m = re.exec(text))) {
+    if (m.index > last) out.push(<Fragment key={`u-t${i}`}>{text.slice(last, m.index)}</Fragment>);
+    out.push(<MentionChip key={`u-m${i}`} handle={m[0]} />);
+    last = re.lastIndex;
+    i += 1;
+  }
+  if (last < text.length) out.push(<Fragment key="u-tend">{text.slice(last)}</Fragment>);
+  return out;
+}
+
 // ── Block-level ─────────────────────────────────────────────────────────────
-export function MarkdownPreview({ content, className }: { content: string; className?: string }) {
+export function MarkdownPreview({ content, className, mentions = false }: { content: string; className?: string; mentions?: boolean }) {
   const lines = content.replace(/\r\n/g, "\n").split("\n");
   const blocks: ReactNode[] = [];
   let i = 0;
@@ -48,7 +83,7 @@ export function MarkdownPreview({ content, className }: { content: string; class
     blocks.push(
       <Tag key={`k${key++}`} className={cn("my-2 space-y-1 pl-5", ordered ? "list-decimal" : "list-disc")}>
         {items.map((it, idx) => (
-          <li key={idx}>{renderInline(it, `li${key}-${idx}`)}</li>
+          <li key={idx}>{renderInline(it, `li${key}-${idx}`, mentions)}</li>
         ))}
       </Tag>,
     );
@@ -81,7 +116,7 @@ export function MarkdownPreview({ content, className }: { content: string; class
       const sizes = ["text-2xl", "text-xl", "text-lg", "text-base", "text-sm", "text-sm"];
       blocks.push(
         <div key={`k${key++}`} className={cn("mt-3 mb-1 font-semibold text-foreground", sizes[level - 1])}>
-          {renderInline(h[2], `h${key}`)}
+          {renderInline(h[2], `h${key}`, mentions)}
         </div>,
       );
       i += 1;
@@ -101,7 +136,7 @@ export function MarkdownPreview({ content, className }: { content: string; class
       while (i < lines.length && /^>\s?/.test(lines[i])) buf.push(lines[i++].replace(/^>\s?/, ""));
       blocks.push(
         <blockquote key={`k${key++}`} className="my-2 border-l-2 border-border pl-3 text-muted-foreground">
-          {renderInline(buf.join(" "), `q${key}`)}
+          {renderInline(buf.join(" "), `q${key}`, mentions)}
         </blockquote>,
       );
       continue;
@@ -138,7 +173,7 @@ export function MarkdownPreview({ content, className }: { content: string; class
     }
     blocks.push(
       <p key={`k${key++}`} className="my-2 leading-relaxed">
-        {renderInline(para.join(" "), `p${key}`)}
+        {renderInline(para.join(" "), `p${key}`, mentions)}
       </p>,
     );
   }

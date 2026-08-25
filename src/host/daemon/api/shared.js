@@ -42,6 +42,9 @@ export const nowIso = () =>
 // that mints it (api/inbox.js) and the routes that must recognise it. It is a
 // display/read handle: threads can be read through it, never written to.
 export const A2A_SLUG_PREFIX = "a2a:";
+// Same idea for group rooms: the inbox mints `group:<id>` so a group thread has
+// a stable handle in the same lists as individual and a2a rows.
+export const GROUP_SLUG_PREFIX = "group:";
 
 /** The pair id inside a synthetic a2a slug, or null for an ordinary agent. */
 export function a2aSlugThreadId(slug) {

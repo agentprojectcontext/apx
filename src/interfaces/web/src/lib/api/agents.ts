@@ -15,6 +15,11 @@ export const Agents = {
   // carrying its prompt + memory. Returns the new agent so the caller can open it.
   clone: (pid: string, slug: string) =>
     http.post<AgentEntry>(`/api/projects/${pid}/agents/${encodeURIComponent(slug)}/clone`, {}),
+  // Rename an agent's slug (moves its file + runtime dir, repoints Parent refs
+  // and routines). Returns the agent at its new slug — the caller must navigate
+  // to it, since the resource URL changed.
+  rename: (pid: string, slug: string, newSlug: string) =>
+    http.post<AgentEntry>(`/api/projects/${pid}/agents/${encodeURIComponent(slug)}/rename`, { slug: newSlug }),
   chat: (pid: string, slug: string, body: { prompt: string; conversation_id?: string; model?: string; channel?: string; attachments?: { path: string; name?: string }[] }) =>
     http.post<{ conversation_id: string; text: string; usage?: ChatUsage; engine: string }>(
       `/api/projects/${pid}/agents/${encodeURIComponent(slug)}/chat`,

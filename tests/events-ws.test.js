@@ -138,6 +138,7 @@ test("a ledger write reaches every connected client", async () => {
   assert.equal(frames[0].events.length, 1);
   assert.equal(frames[0].events[0].channel, "telegram");
   assert.equal(frames[0].events[0].thread, "2026-01-15");
+  assert.deepEqual(frames[0].notifications, [], "the owner's send is not a pet bubble");
   stop();
 });
 
@@ -160,6 +161,40 @@ test("a streamed turn's many writes collapse into one frame", async () => {
   assert.equal(frames.length, 1, "one window, one frame");
   assert.equal(frames[0].events.length, 2, "one per distinct thread");
   assert.deepEqual(frames[0].events.map((e) => e.channel).sort(), ["telegram", "web"]);
+  stop();
+});
+
+test("the pet is told when an agent launches a final, not when the owner sends", async () => {
+  reset();
+  const stop = startEventsBridge({ projects: null });
+  const ws = new FakeWs();
+  registerEventsClient(ws);
+  ws.sent.length = 0;
+
+  emitMessageEvent({
+    scope: "global", channel: "telegram", thread: "2026-01-15",
+    direction: "in", type: "user", author: "@manu",
+  });
+  emitMessageEvent({
+    scope: "global", channel: "telegram", thread: "2026-01-15",
+    direction: "out", type: "agent", author: "Roby", agent_slug: "super_agent",
+  });
+  emitMessageEvent({
+    scope: "project", channel: "group", thread: "2026-01-15",
+    direction: "out", type: "agent", author: "sofia", agent_slug: "sofia",
+  });
+  emitMessageEvent({
+    scope: "project", channel: "a2a", thread: "2026-01-15",
+    direction: "out", type: "agent", author: "martin", agent_slug: "martin",
+  });
+  await wait(400);
+
+  const [frame] = ws.frames();
+  assert.deepEqual(frame.notifications, [
+    "Roby respondió en Telegram",
+    "sofia respondió en Grupo",
+    "martin respondió en A2A",
+  ]);
   stop();
 });
 

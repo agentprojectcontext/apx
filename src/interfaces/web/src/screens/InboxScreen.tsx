@@ -77,9 +77,9 @@ export function InboxScreen() {
         ? { kind: "thread", channel: row.channel, threadId: row.conversation_id }
         : undefined;
     }
-    // An a2a group chat opens the pair thread, not either agent's conversation.
-    if (row.kind === "a2a" && row.conversation_id) {
-      return { kind: "thread", channel: "a2a", threadId: row.conversation_id };
+    // An a2a or group chat opens its thread, not any single agent's conversation.
+    if ((row.kind === "a2a" || row.kind === "group") && row.conversation_id) {
+      return { kind: "thread", channel: row.kind, threadId: row.conversation_id };
     }
     return row.conversation_id
       ? { kind: "conv", agentSlug: row.agent_slug, convId: row.conversation_id }
@@ -122,8 +122,8 @@ export function InboxScreen() {
             hideSidebar
             bare
             channelScope="web"
-            threadFaces={selected.kind === "a2a" ? selected.participant_faces : undefined}
-            threadTitle={selected.kind === "a2a" ? selected.agent_name ?? undefined : undefined}
+            threadFaces={selected.kind === "a2a" || selected.kind === "group" ? selected.participant_faces : undefined}
+            threadTitle={selected.kind === "a2a" || selected.kind === "group" ? selected.agent_name ?? undefined : undefined}
             initialSelection={selectionFor(selected)}
             /* The structural way out. The inbox is a second axis over the same
                data, so getting from a conversation to its project must always

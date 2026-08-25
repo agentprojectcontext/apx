@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import useSWR, { mutate } from "swr";
-import { Archive, ArchiveRestore, ArrowDown, ArrowUpRight, ChevronLeft, MessageSquareDashed, MoreVertical, Pencil, Plus, RotateCcw, Trash2 } from "lucide-react";
-import { Agents, Conversations } from "../../lib/api";
+import { Archive, ArchiveRestore, ArrowDown, ArrowUpRight, ChevronLeft, MessageSquareDashed, MoreVertical, Pencil, Plus, RotateCcw, Trash2, UserPlus, X } from "lucide-react";
+import { Agents, Conversations, Groups } from "../../lib/api";
 import { Button, Dialog, Empty, Field, Input, Loading, Switch, Tip } from "../../components/ui";
 import { Composer } from "../../components/chat/Composer";
 import { MessageList } from "../../components/chat/MessageList";
@@ -98,7 +98,7 @@ export function ChatTab({
   const [creating, setCreating] = useState(false);
   const [model, setModel] = useState("");
   const [dismissedAskKey, setDismissedAskKey] = useState<string | null>(null);
-  const { msgs, send: sendChat, regenerate, editAndResend, stop, clear, load, loadThread, streaming, queued, unqueue, conversationMeta } =
+  const { msgs, send: sendChat, sendGroup, regenerate, editAndResend, stop, clear, load, loadThread, streaming, queued, unqueue, conversationMeta } =
     useChat(pid, (m) => toast.error(m));
   const persona = usePersonaName();
   const { superAgent } = useSuperAgentConfig();
@@ -192,6 +192,12 @@ export function ChatTab({
   const [confirmNew, setConfirmNew] = useState(false);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  // A pending group rewind awaiting confirmation (there are messages after the
+  // target that the regenerate/edit would overwrite).
+  const [groupRewind, setGroupRewind] = useState<
+    { kind: "edit" | "regen"; keepVisible: number; drop: number; text?: string; from?: string; reason?: string | null } | null
+  >(null);
 
   // Select a chat and mirror its id into the URL query so the current chat is
   // shareable/deep-linkable. `replace` keeps navigation history clean.
@@ -231,6 +237,12 @@ export function ChatTab({
   );
   const activeIsRoby = selected.kind === "thread" || isRoby(selected.agentSlug);
 
+  const isA2A = selected.kind === "thread" && selected.channel === "a2a";
+  const isGroup = selected.kind === "thread" && selected.channel === "group";
+  // a2a and group are both multi-agent threads: many faces, no super-agent badge,
+  // no rewind. Their name comes from the thread, not an agent.
+  const isMultiThread = isA2A || isGroup;
+
   // Whenever the user picks a stored conversation or a channel thread, reload
   // the in-memory chat with its persisted history. Conversations bind the
   // conversation_id (sends append to the file); threads stay unbound —
@@ -256,6 +268,18 @@ export function ChatTab({
         ? `${selected.channel}:${selected.threadId}`
         : selected.agentSlug,
   ]);
+
+  // A group opened from the sidebar carries no faces prop, so read its roster
+  // from the thread: the header can then show every member and "add someone"
+  // knows who is already in. Keyed on the thread so it refetches when a member
+  // is added.
+  const groupThreadKey =
+    selected.kind === "thread" && selected.channel === "group"
+      ? `/api/projects/${pid}/super-agent/threads/group/${selected.threadId}`
+      : null;
+  const groupThreadId = selected.kind === "thread" ? selected.threadId : "";
+  const groupDetail = useSWR(groupThreadKey, () => Conversations.thread(pid, "group", groupThreadId));
+  const groupParticipants = groupDetail.data?.participants ?? [];
 
   // The conversation on screen moved somewhere ELSE — a message on Telegram,
   // another device on the same thread, a routine writing into the file. The
@@ -285,7 +309,21 @@ export function ChatTab({
     ),
   );
 
+  // A group room streams through useChat's own pending-bubble machinery — the
+  // owner's line fans out to the members and each speaker's tokens land live,
+  // exactly like a 1:1 turn. Refresh the sidebar/inbox once it settles.
+  const nameOfSlug = (slug: string) => agentList.find((a) => a.slug === slug)?.name || slug;
+  const groupSend = async (gid: string, text: string, media?: UploadedMedia[]) => {
+    await sendGroup(gid, text, nameOfSlug, media?.length ? { media } : undefined);
+    void mutate(`/api/projects/${pid}/super-agent/threads`);
+    void mutate((key) => typeof key === "string" && key.startsWith(`/api/inbox`));
+  };
+
   const send = async (text: string, media?: UploadedMedia[]) => {
+    if (selected.kind === "thread" && selected.channel === "group") {
+      await groupSend(selected.threadId, text, media);
+      return;
+    }
     if (activeIsRoby) {
       await sendChat(text, {
         model: model || undefined,
@@ -318,6 +356,71 @@ export function ChatTab({
     selectChat({ kind: "live", agentSlug });
     clear();
   };
+
+  // "New group" from the sidebar: create the room, then open it as a group
+  // thread. It shows in the Groups section (and the inbox) from here on.
+  const onNewGroup = async (agentSlugs: string[]) => {
+    try {
+      const g = await Groups.create(pid, { participants: agentSlugs });
+      void mutate(`/api/projects/${pid}/super-agent/threads`);
+      selectChat({ kind: "thread", channel: "group", threadId: g.id }, { channel: "group", title: g.title });
+    } catch (e) {
+      toast.error((e as Error)?.message || t("shared_ui.err_chat_failed"));
+    }
+  };
+
+  // Add a member to the CURRENT group room.
+  const addToGroup = async (slug: string) => {
+    if (selected.kind !== "thread") return;
+    const gid = selected.threadId;
+    try {
+      await Groups.addParticipant(pid, gid, slug);
+      await groupDetail.mutate();
+      void loadThread("group", gid, { silent: true });
+      void mutate(`/api/projects/${pid}/super-agent/threads`);
+    } catch (e) {
+      toast.error((e as Error)?.message || t("shared_ui.err_chat_failed"));
+    }
+  };
+
+  // Remove a member from the current group (records a "… salió del chat" notice;
+  // agents stop citing them). Keep at least one agent in the room.
+  const removeFromGroup = async (slug: string) => {
+    if (selected.kind !== "thread") return;
+    const gid = selected.threadId;
+    try {
+      await Groups.removeParticipant(pid, gid, slug);
+      await groupDetail.mutate();
+      void loadThread("group", gid, { silent: true });
+      void mutate(`/api/projects/${pid}/super-agent/threads`);
+    } catch (e) {
+      toast.error((e as Error)?.message || t("shared_ui.err_chat_failed"));
+    }
+  };
+
+  // Escalate a 1:1 with a project agent into a group by pulling someone in.
+  const escalateToGroup = async (slug: string) => {
+    const base = activeAgent?.slug;
+    if (!base) return;
+    try {
+      const g = await Groups.create(pid, { participants: [base, slug] });
+      void mutate(`/api/projects/${pid}/super-agent/threads`);
+      selectChat({ kind: "thread", channel: "group", threadId: g.id }, { channel: "group", title: g.title });
+    } catch (e) {
+      toast.error((e as Error)?.message || t("shared_ui.err_chat_failed"));
+    }
+  };
+
+  // Who "add someone" offers: in a group, every agent not already in it; in a
+  // 1:1 with a project agent, every other project agent (adding one makes it a
+  // group). Not offered for the super-agent or a2a threads.
+  // activeAgent is only set for a 1:1 with a project agent (undefined for threads
+  // and the super-agent), so it alone marks the escalate-able case.
+  const canAddPeople = isGroup || (!activeIsRoby && !!activeAgent);
+  const addCandidates = isGroup
+    ? agentList.filter((a) => !groupParticipants.includes(a.slug))
+    : agentList.filter((a) => a.slug !== activeAgent?.slug);
+  const onPickAdd = (slug: string) => (isGroup ? addToGroup(slug) : escalateToGroup(slug));
 
   // "New session" header button: reset the pane but stay with the current
   // agent (Roby for channel threads / the super-agent, else the project agent).
@@ -431,10 +534,18 @@ export function ChatTab({
   // An a2a thread is a conversation BETWEEN two agents — not the super-agent's,
   // even though (like every stored thread) selected.kind is "thread". It gets
   // both faces and their "A · B" title, and none of the super-agent chrome.
-  const isA2A = selected.kind === "thread" && selected.channel === "a2a";
-  const a2aFaces = isA2A ? (threadFaces || []) : [];
-  const agentLabel = isA2A
-    ? threadTitle || (selected.kind === "thread" ? selected.threadId : "")
+  // Faces for the multi-agent header: the prop when the inbox handed us one,
+  // else (a group opened from the sidebar) resolved from the thread's roster.
+  const groupFaces: AgentFace[] = useMemo(
+    () => groupParticipants.map((slug) => {
+      const hit = agentList.find((a) => a.slug === slug);
+      return { icon: hit?.icon, emoji: hit?.emoji, name: hit?.name || slug };
+    }),
+    [groupParticipants, agentList],
+  );
+  const a2aFaces = isMultiThread ? (threadFaces?.length ? threadFaces : (isGroup ? groupFaces : [])) : [];
+  const agentLabel = isMultiThread
+    ? threadTitle || conversationMeta?.title || (selected.kind === "thread" ? selected.threadId : "")
     : activeIsRoby ? persona : activeAgent?.name || activeAgent?.slug || selected.agentSlug;
   const channelLabel =
     selected.kind === "thread" ? selected.channel : selectedMeta?.channel || "web";
@@ -449,8 +560,8 @@ export function ChatTab({
   const convLabel =
     selected.kind === "live"
       ? ""
-      : isA2A
-        ? threadTitle || (selected.kind === "thread" ? selected.threadId : "")
+      : isMultiThread
+        ? threadTitle || conversationMeta?.title || (selected.kind === "thread" ? selected.threadId : "")
         : conversationMeta?.title ||
           selectedMeta?.title ||
           (selected.kind === "thread" ? selected.threadId : selected.convId);
@@ -535,7 +646,7 @@ export function ChatTab({
   // the case whose history the daemon rebuilds from a file we can rewind. The
   // super-agent's channel threads and a2a share a day-ledger, not a per-chat
   // file, so they're left out for now.
-  const canRewind = !activeIsRoby && !!activeAgent && !isA2A && !streaming;
+  const canRewind = !activeIsRoby && !!activeAgent && !isMultiThread && !streaming;
   const afterRewind = () =>
     void mutate(`/api/projects/${pid}/agents/${activeAgent?.slug}/conversations`);
   const onRegenerate = canRewind
@@ -544,6 +655,45 @@ export function ChatTab({
   const onEditResend = canRewind
     ? (index: number, text: string) => { void editAndResend(index, text, { model: model || undefined, agentSlug: activeAgent!.slug }); afterRewind(); }
     : undefined;
+
+  // ── Group rewind (regenerate / edit & resend) ─────────────────────────────
+  // A group is a ledger thread, so rewinding truncates the ledger (not a file)
+  // and then resumes the cascade from the target speaker. Regenerating the last
+  // bubble keeps earlier replies this turn; regenerating an earlier one drops
+  // everything after it (those speakers may be pulled back in by a new @mention).
+  const gidOf = () => (selected.kind === "thread" ? selected.threadId : "");
+  const runGroupEdit = async (keepVisible: number, text: string) => {
+    const gid = gidOf();
+    try { await Groups.truncate(pid, gid, keepVisible); } catch (e) { toast.error((e as Error)?.message); return; }
+    await loadThread("group", gid, { silent: true });
+    await groupSend(gid, text);
+  };
+  const runGroupRegen = async (keepVisible: number, from?: string, reason?: string | null) => {
+    const gid = gidOf();
+    if (streaming) return;
+    try { await Groups.truncate(pid, gid, keepVisible); } catch (e) { toast.error((e as Error)?.message); return; }
+    await loadThread("group", gid, { silent: true });
+    await sendGroup(gid, "", nameOfSlug, { rerun: true, from, reason });
+    void mutate(`/api/projects/${pid}/super-agent/threads`);
+  };
+  const groupRegenerate = (index: number) => {
+    const target = msgs[index];
+    if (target?.role !== "assistant" || target.event || !target.agentId) return;
+    // Keep everything BEFORE this bubble; drop it and anything after.
+    const keepVisible = index;
+    const from = target.agentId;
+    const reason = target.reason || null;
+    if (index < msgs.length - 1) setGroupRewind({ kind: "regen", keepVisible, drop: msgs.length - 1 - index, from, reason });
+    else void runGroupRegen(keepVisible, from, reason);
+  };
+  const groupEdit = (index: number, text: string) => {
+    const keepVisible = index; // drop the edited owner line + everything after
+    if (index < msgs.length - 1) setGroupRewind({ kind: "edit", keepVisible, text, drop: msgs.length - 1 - index });
+    else void runGroupEdit(keepVisible, text);
+  };
+  // In a group, the same affordances rewind the ledger instead of a file.
+  const regenerateHandler = isGroup ? (streaming ? undefined : groupRegenerate) : onRegenerate;
+  const editHandler = isGroup ? (streaming ? undefined : groupEdit) : onEditResend;
 
   if (agents.isLoading) return <Loading />;
 
@@ -558,6 +708,7 @@ export function ChatTab({
         selected={selected}
         onSelect={selectChat}
         onNewChat={onNewChat}
+        onNewGroup={onNewGroup}
         autoSelectLatest={autoSelectLatest}
       />}
 
@@ -586,7 +737,7 @@ export function ChatTab({
           )}
           <div className="flex min-w-0 flex-1 items-center gap-2.5">
             {(() => {
-              const avatar = isA2A && a2aFaces.length ? (
+              const avatar = isMultiThread && a2aFaces.length ? (
                 <AgentAvatarGroup faces={a2aFaces} size={compact ? 30 : 26} max={3} />
               ) : (
                 <AgentAvatar {...headerFace} size={compact ? 36 : 30} />
@@ -609,30 +760,41 @@ export function ChatTab({
                 line — but the agent's face is already sitting right there, and
                 the date was standing in the one place the name should be. */}
             <div className="min-w-0 flex-1">
-              <SessionPicker
-                pid={pid}
-                agentSlug={activeAgent?.slug || (selected.kind === "thread" ? "" : selected.agentSlug)}
-                isSuper={activeIsRoby}
-                selected={selected}
-                label={convLabel || t("mobile.live_session")}
-                onPick={selectChat}
-                channelScope={channelScope}
-                className={cn(
-                  "max-w-full font-semibold text-foreground",
+              {/* A group is one room, not an agent with many sessions — so it
+                  gets a plain title, not the session switcher. */}
+              {isGroup ? (
+                <div className={cn(
+                  "max-w-full truncate font-semibold text-foreground",
                   compact ? "text-[15px] leading-tight" : "text-sm",
-                )}
-              />
+                )}>
+                  {convLabel || t("project.groups.title")}
+                </div>
+              ) : (
+                <SessionPicker
+                  pid={pid}
+                  agentSlug={activeAgent?.slug || (selected.kind === "thread" ? "" : selected.agentSlug)}
+                  isSuper={activeIsRoby}
+                  selected={selected}
+                  label={convLabel || t("mobile.live_session")}
+                  onPick={selectChat}
+                  channelScope={channelScope}
+                  className={cn(
+                    "max-w-full font-semibold text-foreground",
+                    compact ? "text-[15px] leading-tight" : "text-sm",
+                  )}
+                />
+              )}
               {/* Who answered, where, and when — three facts, each short. Kept
                   on one line and truncated as a whole, so a long agent name
                   cannot push the channel and the date onto a second row. */}
               <p className="flex min-w-0 items-center gap-1.5 truncate text-[11px] text-muted-fg">
                 {/* For a2a the picker above already names both agents, so the
                     meta line skips the "who" and leads with the channel. */}
-                {!isA2A && <span className="truncate">{agentLabel}</span>}
+                {!isMultiThread && <span className="truncate">{agentLabel}</span>}
                 {/* Not on a phone: at 375px the badge and the two facts after it
                     squeezed "Roby" down to "Ro…", and the face two inches to
                     the left already says which agent this is. */}
-                {activeIsRoby && !isA2A && !compact && (
+                {activeIsRoby && !isMultiThread && !compact && (
                   <span className={cn("shrink-0 rounded px-1 py-px text-[9px] font-semibold uppercase tracking-wide", toneChip.emerald)}>
                     {t("agents_ui.super_agent_badge")}
                   </span>
@@ -654,6 +816,85 @@ export function ChatTab({
               <Button variant="primary" size="sm" onClick={() => setCreating(true)}>
                 <Plus size={14} /> {t("project.chat.create_agent")}
               </Button>
+            )}
+            {/* Add someone: turns a 1:1 into a group, or grows an existing one.
+                Same control, two meanings — the menu names which. */}
+            {canAddPeople && (isGroup || addCandidates.length > 0) && (
+              <div className="relative">
+                <Tip content={isGroup ? t("project.groups.members_label") : t("project.groups.make_group")}>
+                  <button
+                    type="button"
+                    aria-label={isGroup ? t("project.groups.members_label") : t("project.groups.make_group")}
+                    onClick={() => setAddOpen((o) => !o)}
+                    className={cn(
+                      "flex items-center justify-center rounded-full text-muted-fg",
+                      compact ? "size-10 active:bg-accent/60" : "size-8 hover:bg-accent/60",
+                      addOpen && "bg-accent/60",
+                    )}
+                  >
+                    <UserPlus size={compact ? 20 : 16} />
+                  </button>
+                </Tip>
+                {addOpen && (
+                  <>
+                    <button type="button" aria-hidden tabIndex={-1}
+                      className="fixed inset-0 z-10 cursor-default" onClick={() => setAddOpen(false)} />
+                    <div className="absolute right-0 top-full z-20 mt-1 w-60 rounded-md border border-border bg-card p-1 shadow-lg">
+                      {/* In a group: the current roster (each removable) then who
+                          to add. In a 1:1: only who to pull in to make a group. */}
+                      {isGroup && groupParticipants.length > 0 && (
+                        <>
+                          <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-fg">
+                            {t("project.groups.members_label")}
+                          </p>
+                          <div className="max-h-40 overflow-y-auto">
+                            {groupParticipants.map((slug) => {
+                              const a = agentList.find((x) => x.slug === slug);
+                              return (
+                                <div key={slug} className="group/mem flex items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent/50">
+                                  <AgentAvatar icon={a?.icon} emoji={a?.emoji} name={a?.name || slug} size={18} />
+                                  <span className="min-w-0 flex-1 truncate">{a?.name || slug}</span>
+                                  {groupParticipants.length > 1 && (
+                                    <button
+                                      type="button"
+                                      aria-label={t("project.groups.remove_member")}
+                                      title={t("project.groups.remove_member")}
+                                      onClick={() => { setAddOpen(false); void removeFromGroup(slug); }}
+                                      className="shrink-0 rounded p-0.5 text-muted-fg opacity-0 hover:text-destructive group-hover/mem:opacity-100"
+                                    >
+                                      <X size={13} />
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <div className="my-1 border-t border-border" />
+                        </>
+                      )}
+                      <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-fg">
+                        {isGroup ? t("project.groups.add_member") : t("project.groups.make_group")}
+                      </p>
+                      <div className="max-h-40 overflow-y-auto">
+                        {addCandidates.map((a) => (
+                          <button
+                            key={a.slug}
+                            type="button"
+                            onClick={() => { setAddOpen(false); void onPickAdd(a.slug); }}
+                            className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-xs hover:bg-accent/50"
+                          >
+                            <AgentAvatar icon={a.icon} emoji={a.emoji} name={a.name || a.slug} size={18} />
+                            <span className="truncate">{a.name || a.slug}</span>
+                          </button>
+                        ))}
+                        {isGroup && addCandidates.length === 0 && (
+                          <p className="px-2 py-1.5 text-[11px] text-muted-fg">{t("project.groups.all_in")}</p>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             )}
             {/* Navigation says so in words — it is the one action here that
                 takes you somewhere rather than changing something. */}
@@ -732,9 +973,11 @@ export function ChatTab({
                 queued={queued}
                 onUnqueue={unqueue}
                 onCopy={copyToClipboard}
-                onRegenerate={onRegenerate}
-                onEdit={onEditResend}
+                onRegenerate={regenerateHandler}
+                onEdit={editHandler}
                 faceFor={faceFor}
+                showSpeaker={isGroup}
+                nameOf={(slug) => agentList.find((a) => a.slug === slug)?.name || slug}
                 compact={compact}
                 bottomInset={bottomInset}
                 onAtBottomChange={setAtBottom}
@@ -884,6 +1127,34 @@ export function ChatTab({
         }
       >
         <p className="text-sm text-muted-fg">{headerTitle}</p>
+      </Dialog>
+
+      {/* Group regenerate / edit overwrites the messages after the target. */}
+      <Dialog
+        open={!!groupRewind}
+        onClose={() => setGroupRewind(null)}
+        title={groupRewind?.kind === "edit" ? t("project.chat.group_edit_title") : t("project.chat.group_regen_title")}
+        description={t("project.chat.group_rewind_desc", { n: groupRewind?.drop ?? 0 })}
+        size="sm"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setGroupRewind(null)}>{t("common.cancel")}</Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                const r = groupRewind;
+                setGroupRewind(null);
+                if (!r) return;
+                if (r.kind === "edit") void runGroupEdit(r.keepVisible, r.text || "");
+                else void runGroupRegen(r.keepVisible, r.from, r.reason);
+              }}
+            >
+              {groupRewind?.kind === "edit" ? t("project.chat.group_edit_confirm") : t("project.chat.group_regen_confirm")}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-muted-fg">{convLabel}</p>
       </Dialog>
     </div>
   );
