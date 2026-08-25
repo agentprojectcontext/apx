@@ -18,6 +18,7 @@ import {
   readConversation,
   setStatus,
 } from "#core/stores/conversations.js";
+import { buildTurnAttribution, appendAgentReplyToConversation } from "#core/stores/turn-record.js";
 import { answerDeliveries } from "#core/stores/deliveries.js";
 import { asyncRoute, rejectA2AWrite} from "./shared.js";
 import { readTurnAttachments } from "./media.js";
@@ -82,13 +83,25 @@ function openConversation({ p, agent, modelId, system, conversationId, channel }
 }
 
 /** The attribution a reopened conversation renders from. */
-function assistantMeta(agent, model, usage, trace) {
-  return {
-    agent: agent.slug,
-    model,
-    ...(usage ? { usage } : {}),
-    ...(trace && trace.length ? { tools: trace.length } : {}),
-  };
+function turnAttribution(agent, result) {
+  return buildTurnAttribution({
+    agentSlug: agent.slug,
+    agentName: agent.fields?.Name || agent.slug,
+    model: result.model,
+    usage: result.usage,
+    trace: result.trace,
+  });
+}
+
+function persistAgentReply({ filePath, agent, result }) {
+  const attribution = turnAttribution(agent, result);
+  appendAgentReplyToConversation({
+    filePath,
+    reply: result.text,
+    trace: result.trace,
+    attribution,
+  });
+  return attribution;
 }
 
 export function register(api, { projects, project, config, plugins, registries }) {
@@ -140,15 +153,7 @@ export function register(api, { projects, project, config, plugins, registries }
         projects, plugins, registries, config,
       });
 
-      appendTurn({
-        filePath: conv.path,
-        role: "assistant",
-        content: result.text,
-        // The same attribution the ledger row below carries. A conversation
-        // reopened from its file is read by the same viewer as a channel
-        // thread, and without this it renders "0 tok" and no model.
-        meta: assistantMeta(agent, result.model, result.usage, result.trace),
-      });
+      const attribution = persistAgentReply({ filePath: conv.path, agent, result });
       setStatus(conv.path, "closed");
 
       p.logMessage({
@@ -168,9 +173,7 @@ export function register(api, { projects, project, config, plugins, registries }
         actor_kind: "agent",
         author: agent.slug,
         body: result.text,
-        // Full attribution, same as the conversation-file half above — the
-        // ledger row renders "0 tok"/no model without both fields.
-        meta: { conversation: conv.id, model: result.model, usage: result.usage },
+        meta: { conversation: conv.id, ...attribution },
       });
 
       projects.rebuild(p.id);
@@ -242,12 +245,7 @@ export function register(api, { projects, project, config, plugins, registries }
         projects, plugins, registries, config,
       });
 
-      appendTurn({
-        filePath: turn.conv.path,
-        role: "assistant",
-        content: result.text,
-        meta: assistantMeta(agent, result.model, result.usage, result.trace),
-      });
+      persistAgentReply({ filePath: turn.conv.path, agent, result });
       projects.rebuild(p.id);
 
       res.json({
@@ -364,12 +362,7 @@ export function register(api, { projects, project, config, plugins, registries }
           req.body?.confirm === false ? null : createWebConfirmAdapter({ onEvent: send }),
       });
 
-      appendTurn({
-        filePath: turn.conv.path,
-        role: "assistant",
-        content: result.text,
-        meta: assistantMeta(agent, result.model, result.usage, result.trace),
-      });
+      persistAgentReply({ filePath: turn.conv.path, agent, result });
       projects.rebuild(p.id);
 
       const finalResult = {

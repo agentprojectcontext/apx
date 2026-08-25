@@ -46,7 +46,7 @@ import { notifyOwnerViaRoby } from "#core/routines/delivery.js";
 import { A2A_SEVERITY } from "#core/routines/signals.js";
 import { nowIso, asyncRoute, a2aSlugThreadId, rejectA2AWrite } from "./shared.js";
 
-export function register(api, { project, config, plugins, registries }) {
+export function register(api, { projects, project, config, plugins, registries }) {
   // The super-agent (default name "apx") is a pseudo-agent: it owns
   // conversations per project but is NOT listed in AGENTS.md. Resolve its slug
   // so `apx conversations list` (which defaults to the super-agent) works

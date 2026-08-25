@@ -23,6 +23,7 @@ import { CHANNELS } from "../constants/channels.js";
 import { SUPERAGENT_ACTOR_ID } from "../constants/actors.js";
 
 import { nowIso } from "../util/time.js";
+import { summarizeToolTrace } from "../agent/tool-summary.js";
 import { emitMessageEvent } from "../events/bus.js";
 
 function dayPathJsonl(projectRoot, ts) {
@@ -557,7 +558,17 @@ export function appendGroupOwnerMessage(logMessage, group_id, body, media = null
 }
 
 /** Append one agent's reply, attributed to it and carrying who summoned it. */
-export function appendGroupAgentMessage(logMessage, group_id, { slug, body, reason = null, model = null, usage = null }) {
+export function appendGroupAgentMessage(logMessage, group_id, { slug, body, reason = null, model = null, usage = null, trace = [] }) {
+  const steps = Array.isArray(trace) ? trace.filter((s) => s?.tool) : [];
+  const toolSummary = summarizeToolTrace(steps);
+  for (const step of steps) {
+    logMessage({
+      channel: GROUP_CHANNEL, direction: "out", type: "tool", agent_slug: slug, author: slug,
+      actor_id: step.tool, actor_kind: "tool",
+      body: `${step.tool}(${JSON.stringify(step.args || {}).slice(0, 200)})`,
+      meta: { group_id, tool: step.tool, args: step.args, result: step.result },
+    });
+  }
   return logMessage({
     channel: GROUP_CHANNEL, direction: "out", type: "agent", agent_slug: slug, author: slug,
     actor_kind: "agent", body,
@@ -567,6 +578,7 @@ export function appendGroupAgentMessage(logMessage, group_id, { slug, body, reas
       ...(reason ? { reason } : {}),
       ...(model ? { model } : {}),
       ...(usage ? { usage } : {}),
+      ...(toolSummary ? { tool_summary: toolSummary } : {}),
     },
   });
 }

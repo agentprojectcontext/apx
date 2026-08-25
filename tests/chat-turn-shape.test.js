@@ -121,7 +121,7 @@ test("bubble: the work is grouped, the answer is not", () => {
     /work\.length > 0 && <ActionGroup parts=\{work\} running=\{!!msg\.pending\} \/>/,
     "the work renders as ONE collapsible group, streaming state included",
   );
-  assert.match(MESSAGE_BUBBLE, /\{rest\.map\(/, "only the trailing parts render as bubbles");
+  assert.match(MESSAGE_BUBBLE, /rest\.map\(/, "only the trailing parts render as bubbles");
 });
 
 test("split: the group ends at the last tool, and ask_questions stays out of it", () => {

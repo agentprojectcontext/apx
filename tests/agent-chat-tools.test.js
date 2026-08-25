@@ -187,6 +187,23 @@ test("a missing agent and a missing conversation still answer with their own sta
   assert.match(noConv.body.error, /conversation/);
 });
 
+test("chat persists tool rows and tool_summary for a reopened thread", async () => {
+  const r = await call("/api/projects/1/agents/magui/chat", {
+    prompt: "[mock:tool:list_agents] dale",
+    model: "mock",
+  });
+  assert.equal(r.status, 200);
+  const { readConversation, shapeConversationMessage } = await import("#core/stores/conversations.js");
+  const conv = readConversation(PROJECT.storagePath, "magui", r.body.conversation_id);
+  const tool = conv.turns.find((t) => t.role === "tool");
+  assert.ok(tool, "the conversation file must keep what the agent did");
+  assert.equal(JSON.parse(tool.content).tool, "list_agents");
+  const reply = conv.turns.find((t) => t.role === "assistant");
+  assert.ok(reply?.meta?.tool_summary?.total >= 1, "tool_summary must survive reopen");
+  const shaped = shapeConversationMessage(reply);
+  assert.ok(shaped.tool_summary?.total >= 1);
+});
+
 test("chat/stream speaks the same NDJSON the super-agent's stream does", async () => {
   const base = `http://127.0.0.1:${server.address().port}`;
   const res = await fetch(`${base}/api/projects/1/agents/magui/chat/stream`, {

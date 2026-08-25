@@ -159,6 +159,11 @@ export function shapeConversationMessage(t) {
       ...(meta.model ? { model: meta.model } : {}),
       ...(usage && typeof usage === "object" ? { usage } : {}),
       ...(meta.tool_summary ? { tool_summary: meta.tool_summary } : {}),
+      // Legacy exec rows wrote `{ tools: N }` before tool rows existed — surface
+      // a compact count so reopened threads don't look tool-less.
+      ...(!meta.tool_summary && Number(meta.tools) > 0
+        ? { tool_summary: { total: Number(meta.tools), failed: 0, tools: [{ name: "tool", count: Number(meta.tools), failed: 0 }] } }
+        : {}),
     };
   }
   if (t.role !== "tool") return base;

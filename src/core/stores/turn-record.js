@@ -20,6 +20,41 @@ import {
 } from "#core/stores/conversations.js";
 import { summarizeToolTrace } from "#core/agent/tool-summary.js";
 
+/** Attribution every writer stamps on the assistant row — model, usage, tool summary. */
+export function buildTurnAttribution({ agentSlug, agentName, model, usage, trace = [] }) {
+  const steps = Array.isArray(trace) ? trace.filter((s) => s?.tool) : [];
+  const toolSummary = summarizeToolTrace(steps);
+  return {
+    agent: agentSlug,
+    agent_name: agentName || agentSlug,
+    ...(model ? { model } : {}),
+    ...(usage ? { usage } : {}),
+    ...(toolSummary ? { tool_summary: toolSummary } : {}),
+  };
+}
+
+/** Append tool rows then the assistant answer to an open conversation file. */
+export function appendAgentReplyToConversation({ filePath, reply, trace = [], attribution }) {
+  const steps = Array.isArray(trace) ? trace.filter((s) => s?.tool) : [];
+  for (const step of steps) {
+    appendTurn({
+      filePath,
+      role: "tool",
+      content: JSON.stringify({
+        tool: step.tool,
+        args: step.args || {},
+        result: step.result,
+      }),
+    });
+  }
+  appendTurn({
+    filePath,
+    role: "assistant",
+    content: reply || "",
+    meta: attribution,
+  });
+}
+
 /**
  * Record a complete agent turn to the conversation file and the project ledger.
  *
@@ -69,20 +104,7 @@ export function recordAgentTurn({
 }) {
   const steps = Array.isArray(trace) ? trace.filter((s) => s?.tool) : [];
   const toolSummary = summarizeToolTrace(steps);
-  // The attribution, assembled once and written to both halves. Building it in
-  // one place is the point: this is what drifted apart when there were two
-  // writers, and it is the difference between a thread that can tell you what a
-  // run cost and one that shows a zero.
-  const attribution = {
-    agent: agentSlug,
-    // Always, even when it is just the slug again: the viewer's per-actor
-    // breakdown shows the NAME, and a turn without one renders as "—" next to a
-    // model id — which is the one field there you cannot guess from the rest.
-    agent_name: agentName || agentSlug,
-    ...(model ? { model } : {}),
-    ...(usage ? { usage } : {}),
-    ...(toolSummary ? { tool_summary: toolSummary } : {}),
-  };
+  const attribution = buildTurnAttribution({ agentSlug, agentName, model, usage, trace: steps });
 
   const conversationId = conversation
     ? writeConversation({
@@ -127,22 +149,11 @@ function writeConversation({ storagePath, agentSlug, channel, title, model, prom
       title,
     });
     appendTurn({ filePath: conv.path, role: "user", content: prompt });
-    for (const step of steps) {
-      appendTurn({
-        filePath: conv.path,
-        role: "tool",
-        content: JSON.stringify({
-          tool: step.tool,
-          args: step.args || {},
-          result: step.result,
-        }),
-      });
-    }
-    appendTurn({
+    appendAgentReplyToConversation({
       filePath: conv.path,
-      role: "assistant",
-      content: reply || "",
-      meta: attribution,
+      reply,
+      trace: steps,
+      attribution,
     });
     setStatus(conv.path, "closed");
     return conv.id;

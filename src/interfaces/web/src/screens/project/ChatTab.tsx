@@ -9,6 +9,7 @@ import { MessageList } from "../../components/chat/MessageList";
 import { ContextBar } from "../../components/chat/ContextBar";
 import { InlineAskPanel, pendingAskQuestions } from "../../components/chat/InlineAskPanel";
 import { ChatList, type ChatKey, type ChatSelectionMeta } from "../../components/chat/ChatList";
+import { queryForChat } from "../mobile/routes";
 import { SessionPicker } from "../../components/chat/SessionPicker";
 import {
   DropdownMenu,
@@ -210,18 +211,18 @@ export function ChatTab({
       onSelectionChange(key);
       return;
     }
-    const next = new URLSearchParams();
-    if (key.kind === "conv") {
-      next.set("agent", key.agentSlug);
-      next.set("conv", key.convId);
-    } else if (key.kind === "thread") {
-      next.set("channel", key.channel);
-      next.set("thread", key.threadId);
-    } else {
-      next.set("agent", key.agentSlug);
-    }
-    setSearchParams(next, { replace: true });
+    setSearchParams(queryForChat(key), { replace: true });
   };
+
+  // An embedding host (the inbox) picks the thread via initialSelection and
+  // never calls selectChat. Without this write, `/m/inbox` has no query, and
+  // agent notifications cannot tell you are already reading the row that just
+  // moved — they fire for a message already on screen.
+  const initialAddr = initialSelection && !onSelectionChange ? queryForChat(initialSelection).toString() : "";
+  useEffect(() => {
+    if (!initialAddr) return;
+    setSearchParams(new URLSearchParams(initialAddr), { replace: true });
+  }, [initialAddr, setSearchParams]);
 
   const agentList = agents.data || [];
   const isRoby = (slug: string | null | undefined) => slug === ROBY_SLUG;
