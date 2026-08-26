@@ -141,3 +141,138 @@ test("web: requests go through lib/api, not a bare fetch (rule 11)", () => {
     `bare fetch() outside lib/api — route these through src/lib/api/*: ${offenders.join(", ")}`,
   );
 });
+
+// Rule 11a: a user-visible label starts with a Capital; a FRAGMENT does not.
+//
+// A fragment is a string the interface composes into a running sentence or
+// drops mid-text ("in {amount}", "cada {n} horas…"), plus the rule's data
+// carve-out — a slug, a path, a file name, a command or a config key keeps its
+// real spelling. Those are the only strings allowed to open lowercase, and each
+// one is listed here under the reason it qualifies.
+//
+// The list is explicit rather than a pattern, on purpose. A heuristic ("ends in
+// _ph", "contains a {placeholder}") would quietly re-open the door this closes:
+// 169 keys had already drifted into lowercase labels by the time the gate was
+// written — status chips reading "running", badges reading "agents", form
+// labels reading "slug" — and most of them would have matched some plausible
+// pattern and stayed that way.
+//
+// Adding a key here is a claim that the string is grammatically part of
+// something larger. If it NAMES something on screen, Capitalise it instead.
+const SENTENCE_FRAGMENTS = new Set([
+  // schedule descriptions (lib/cron.ts / routines/shared.ts build the phrase; AGENTS.md 11a names these verbatim)
+  "cron.daily", "cron.weekdays", "cron.weekends", "cron.monthly", "cron.every_hour",
+  "cron.every_n_hours", "cron.every_n_minutes", "cron.every_minute", "agents_ui.every_n_unit",
+  "agents_ui.every_v", "agents_ui.sched_manual",
+
+  // time units substituted into `every {n} {unit}`
+  "agents_ui.unit_seconds", "agents_ui.unit_minutes", "agents_ui.unit_hours",
+  "agents_ui.unit_days",
+
+  // relative time dropped mid-text (AGENTS.md 11a names `in`)
+  "when.now", "when.in", "when.ago",
+
+  // sits between two numbers: `{n} of {m}`
+  "logs.count_of",
+
+  // a preposition introducing its object, like `in` / `ago` above
+  "project.tasks.via", "project.threads.via",
+
+  // follows the file name it describes
+  "chat_ui.attachment_missing", "chat_ui.attachment_failed", "chat_ui.attach_failed",
+  "chat_ui.attach_too_big",
+
+  // follows the subject it qualifies
+  "project.groups.pulled_by", "project.commitments.no_date", "settings.profile.over_budget",
+  "settings.nudge.bypass", "settings.nudge.unrated", "project.agent_detail.model_unlisted",
+  "provider_test.served_mismatch", "voice_ui.stt_hw_limited", "router_panel.hint_offline",
+
+  // routing condition, read as `When: …`
+  "routing_panel.when_any", "routing_panel.when_image", "routing_panel.when_no_image",
+  "routing_panel.when_min_prompt", "routing_panel.when_max_prompt",
+  "routing_panel.when_min_context", "routing_panel.when_channels",
+  "routing_panel.when_keywords",
+
+  // descriptive hint continuing the field it sits under
+  "project.groups.members_hint", "project.mcps.args_hint", "agents_ui.comma_separated",
+  "agents_ui.brain_pan_hint", "agents_ui.config_def_desc", "agents_ui.memory_durable_desc",
+  "memory_panel.openai_desc", "memory_panel.gemini_desc", "voice_ui.openai_model_hint",
+  "telegram_channels.no_owner", "project.agents.slug_invalid", "base.defaults_slug_invalid",
+  "agents_ui.body_hint", "project.mcps.env_invalid",
+
+  // config key / field name shown verbatim
+  "project.config.model", "project.config.perm", "project.config.route",
+  "project.telegram.route_agent", "telegram_channel_dialog.token_label",
+  "telegram_channel_dialog.chat_id", "telegram_channel_dialog.route_label",
+  "telegram_channel_dialog.owner_label", "telegram_ui.send_chat_id",
+  "telegram_ui.user_id_fallback", "project.mcps.transport_stdio", "project.mcps.logs_stderr",
+  "project.memories.chars",
+
+  // example value typed into the field (a slug, a command, a model id, a path)
+  "project.agents.slug_ph", "project.agents.role_ph", "project.agents.skills_ph",
+  "project.agents.tools_ph", "project.mcps.name_ph", "project.mcps.cmd_ph",
+  "project.mcps.url_ph", "project.agent_detail.area_ph", "telegram_roles.name_ph",
+  "telegram_roles.tools_ph", "skills_page.add_slug_ph", "skills_page.repo_url_ph",
+  "providers_modal.base_url_ph", "agents_ui.slug_kebab_hint", "memory_panel.model_ph",
+  "project.commitments.field_what_ph", "project.routines.prompt_exec_ph",
+  "project.routines.prompt_super_ph", "agents_ui.tg_text_ph", "agents_ui.hb_message_ph",
+  "project.agent_detail.tools_csv_ph", "shared_ui.kv_value_ph",
+
+  // `e.g.` / `ej.` — a lowercase abbreviation opens the string
+  "pairing.code_ph", "pairing.label_ph", "project.chat.model_hint", "project.agents.model_hint",
+  "project.agent_detail.area_hint", "project.config.model_hint",
+  "project.tasks.add_placeholder", "logs.filter_channel", "files.path_example",
+  "voice_ui.stt_custom_baseurl_hint", "voice_ui.stt_custom_model_hint",
+  "settings_ui.test_placeholder",
+
+  // process exit output, reproduced as the shell prints it
+  "modules_ui.code_artifact_exit_ok", "modules_ui.code_artifact_exit_fail",
+  "modules_ui.code_artifact_exit_badge",
+
+  // the product spells its own name lowercase
+  "superagent.badge", "code_module.badge", "modules_ui.code_super_agent",
+  "agents_ui.super_agent_badge",
+]);
+
+/** Dotted path -> the string itself, so a key can be looked up by the name the
+ *  allowlist and the failure message both use. */
+function leafEntries(obj, prefix = "", out = {}) {
+  for (const [k, v] of Object.entries(obj)) {
+    const key = prefix ? `${prefix}.${k}` : k;
+    if (v && typeof v === "object" && !Array.isArray(v)) leafEntries(v, key, out);
+    else out[key] = v;
+  }
+  return out;
+}
+
+test("i18n: user-visible labels start with a Capital (rule 11a)", () => {
+  const en = leafEntries(loadDict("en.ts", "en"));
+  const es = leafEntries(loadDict("es.ts", "es"));
+
+  // \p{Ll}, not [a-z]: three Spanish labels opened with "ú" ("última:") while
+  // their English twins had already been fixed to "Last:". An ASCII-only check
+  // called those clean, and per-locale drift is exactly what 11a forbids —
+  // "both en.ts and es.ts follow this per key".
+  const opensLowercase = (s) => typeof s === "string" && /^\p{Ll}/u.test(s);
+
+  const offenders = [];
+  for (const key of Object.keys(en)) {
+    if (SENTENCE_FRAGMENTS.has(key)) continue;
+    for (const [lang, dict] of [["en", en], ["es", es]]) {
+      if (opensLowercase(dict[key])) offenders.push(`${key} (${lang}) = ${JSON.stringify(dict[key])}`);
+    }
+  }
+  assert.deepEqual(
+    offenders,
+    [],
+    "these open lowercase. If one NAMES something on screen, Capitalise it in BOTH dictionaries; " +
+      "if it is a fragment, add it to SENTENCE_FRAGMENTS with the reason:\n  " +
+      offenders.slice(0, 25).join("\n  "),
+  );
+
+  // Keeps the list honest: an entry whose string no longer opens lowercase (it
+  // was reworded, or its key was deleted) is a stale claim, and a stale
+  // allowlist is how an exception list turns into somewhere to hide things.
+  const stale = [...SENTENCE_FRAGMENTS].filter((k) => !opensLowercase(en[k]) && !opensLowercase(es[k]));
+  assert.deepEqual(stale, [], `SENTENCE_FRAGMENTS entries that no longer apply — remove them: ${stale.join(", ")}`);
+});

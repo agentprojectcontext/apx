@@ -186,6 +186,12 @@ Full version with reference implementations: [`rules/architecture.md`](rules/arc
     `<FilterChips>`, which Capitalises them. Both `i18n/en.ts` and `i18n/es.ts`
     follow this per key. It is not cosmetic: lowercase labels read as unfinished
     notes-to-self, and a panel that mixes the two looks like two products.
+    **This is a build error now, not a convention.** `tests/web-guardrails.test.js`
+    fails on any leaf string that opens lowercase unless its key is listed in
+    `SENTENCE_FRAGMENTS` there, with the reason it qualifies. 169 keys had already
+    drifted when the gate landed; the 110 genuine fragments are the allowlist.
+    Adding to it is a claim that the string is grammatically part of something
+    larger — if it NAMES something on screen, Capitalise it instead.
 
 11b. **One page layout for every list screen.** Wrap it in `<Section>` and use
     the slots: `title` + `description`, the ONE primary action in `action`
