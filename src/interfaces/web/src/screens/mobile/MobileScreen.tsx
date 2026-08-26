@@ -38,7 +38,7 @@ export function MobileScreen() {
 }
 
 function ListRoute() {
-  const { rows, isLoading } = useInbox();
+  const { rows, isLoading, mutate } = useInbox();
   const navigate = useNavigate();
   const [newOpen, setNewOpen] = useState(false);
   const openChat = (row: InboxRow) => navigate(chatPath(pidOf(row), row.agent_slug));
@@ -55,7 +55,19 @@ function ListRoute() {
         onClose={() => setNewOpen(false)}
         onPick={(row) => {
           setNewOpen(false);
-          openChat(row);
+          // Fresh live session — no stored conv yet.
+          openChat({ ...row, conversation_id: null, channel: "web" });
+        }}
+        onGroupCreated={(info) => {
+          void mutate();
+          const slug = `group:${info.id}`;
+          navigate(
+            chatPath(String(info.project_id), slug, {
+              kind: "thread",
+              channel: "group",
+              threadId: info.id,
+            }),
+          );
         }}
       />
     </>

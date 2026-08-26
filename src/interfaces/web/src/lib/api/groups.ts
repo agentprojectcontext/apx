@@ -11,7 +11,11 @@ export interface GroupCreated {
   channel: "group";
   title: string;
   participants: string[];
+  /** Present when the room mixes agents from several projects. */
+  homes?: Record<string, number | string>;
 }
+
+export type GroupMember = { project_id: number | string; slug: string };
 
 // Agent-loop events forwarded through a group speaker turn (same NDJSON shape as 1:1 chat).
 type GroupAgentStreamEvent = ChatStreamEvent & {
@@ -42,8 +46,10 @@ export type GroupStreamEvent =
   | GroupAgentStreamEvent;
 
 export const Groups = {
-  create: (pid: string, body: { title?: string; participants: string[] }) =>
-    http.post<GroupCreated>(`/api/projects/${pid}/groups`, body),
+  create: (
+    pid: string,
+    body: { title?: string; participants?: string[]; members?: GroupMember[] },
+  ) => http.post<GroupCreated>(`/api/projects/${pid}/groups`, body),
   addParticipant: (pid: string, gid: string, slug: string) =>
     http.post<{ id: string; participants: string[] }>(`/api/projects/${pid}/groups/${gid}/participants`, { slug }),
   removeParticipant: (pid: string, gid: string, slug: string) =>
@@ -73,8 +79,8 @@ export const Groups = {
     { rerun: true, ...(resume?.from ? { from: resume.from, ...(resume.reason ? { reason: resume.reason } : {}) } : {}) },
     onEvent, signal,
   ),
-  // Rewind: keep the first `keepVisible` messages, drop the rest (backs
-  // regenerate / edit & resend, which overwrite everything after a point).
+  // Rewind: keep the first `keepVisible` owner+agent turns, drop the rest
+  // (tool rows ride with their agent; backs regenerate / edit & resend).
   truncate: (pid: string, gid: string, keepVisible: number) =>
     http.post<{ ok: boolean; removed: number }>(`/api/projects/${pid}/groups/${gid}/truncate`, { keep_visible: keepVisible }),
 };

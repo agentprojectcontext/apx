@@ -1,6 +1,7 @@
 import { BlobAvatar } from "./BlobAvatar";
 import { isBlobKey } from "./blobPresets";
 import { cn } from "../../lib/cn";
+import { Tip } from "../ui/tip";
 import claudeLogo from "../../assets/cli/claude.webp";
 import codexLogo from "../../assets/cli/codex.webp";
 import opencodeLogo from "../../assets/cli/opencode.png";
@@ -44,6 +45,8 @@ export function agentDiscColour(seed: string): string {
 }
 
 export interface AgentFace {
+  /** Project / actor slug — needed to open the agent's ficha from a group face. */
+  slug?: string | null;
   /** Blob-preset key (see blobPresets), when the agent has one. */
   icon?: string | null;
   emoji?: string | null;
@@ -56,18 +59,26 @@ export interface AgentFace {
  * the surface colour so they read as separated (Gmail-style). Past `max`,
  * the rest collapse into a "+N" chip. `ringClass` must match the background the
  * group sits on — that ring colour is what makes the overlap look clean.
+ *
+ * When `onFaceClick` is set, each openable face is its own control (tooltip +
+ * click) so a group header can send you to agent A or agent B, not "the group".
  */
 export function AgentAvatarGroup({
   faces,
   size = 22,
   max = 3,
   className,
+  onFaceClick,
+  faceOpenable,
   "data-testid": dataTestId,
 }: {
   faces: AgentFace[];
   size?: number;
   max?: number;
   className?: string;
+  onFaceClick?: (face: AgentFace) => void;
+  /** When set, only faces that return true become buttons; others keep a tip. */
+  faceOpenable?: (face: AgentFace) => boolean;
   "data-testid"?: string;
 }) {
   const shown = faces.slice(0, max);
@@ -79,11 +90,35 @@ export function AgentAvatarGroup({
       data-testid={dataTestId}
       data-participant-count={faces.length}
     >
-      {shown.map((f, i) => (
-        <span key={i} style={{ marginLeft: i === 0 ? 0 : -overlap, zIndex: i + 1 }}>
-          <AgentAvatar {...f} size={size} />
-        </span>
-      ))}
+      {shown.map((f, i) => {
+        const label = (f.name || f.slug || "").trim();
+        const openable = !!onFaceClick && (faceOpenable ? faceOpenable(f) : true);
+        const face = <AgentAvatar {...f} size={size} />;
+        const body = openable ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onFaceClick?.(f);
+            }}
+            aria-label={label || undefined}
+            className="rounded-full transition-opacity hover:opacity-80 active:opacity-70"
+          >
+            {face}
+          </button>
+        ) : (
+          <span className="inline-flex">{face}</span>
+        );
+        return (
+          <span
+            key={f.slug || `${label}-${i}`}
+            className="inline-flex"
+            style={{ marginLeft: i === 0 ? 0 : -overlap, zIndex: i + 1 }}
+          >
+            {label ? <Tip content={label}>{body}</Tip> : body}
+          </span>
+        );
+      })}
       {extra > 0 && (
         <span
           aria-hidden

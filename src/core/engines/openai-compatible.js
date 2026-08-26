@@ -15,6 +15,24 @@ function stripPrivateFields(tc) {
   return out;
 }
 
+/** OpenAI multimodal content: text plus any `images` riding on the turn.
+ *  Without this, run-agent's turnImages were silently dropped and a vision
+ *  model (or a text model behind a vision bridge) never saw the photo. */
+function contentForOpenAi(m) {
+  const text = typeof m.content === "string" ? m.content : JSON.stringify(m.content ?? "");
+  const imgs = Array.isArray(m.images)
+    ? m.images.filter((im) => im && im.data && im.mime)
+    : [];
+  if (!imgs.length) return text;
+  return [
+    ...(text ? [{ type: "text", text }] : []),
+    ...imgs.map((im) => ({
+      type: "image_url",
+      image_url: { url: `data:${im.mime};base64,${im.data}` },
+    })),
+  ];
+}
+
 export function createOpenAiCompatibleEngine({
   id,
   defaultBaseUrl,
@@ -22,9 +40,13 @@ export function createOpenAiCompatibleEngine({
   defaultFallbackModel = null,
   extraHeaders = {},
   decorateMessage = null,
+  // Zen free-tier accepts the literal key "public" with the opencode UA.
+  // Without a key the adapter would refuse the call even though the gateway
+  // is happy — so an engine can opt into a built-in default.
+  defaultApiKey = "",
 }) {
   function getKey(config) {
-    return config?.api_key || process.env[apiKeyEnv] || "";
+    return config?.api_key || process.env[apiKeyEnv] || defaultApiKey || "";
   }
 
   function getBaseUrl(config) {
@@ -108,6 +130,9 @@ export function createOpenAiCompatibleEngine({
       //   - tool_call_id (tool result turns — Groq / OpenAI strict require
       //                   this to match the assistant's tool_call id)
       //   - name         (some providers prefer it on tool messages)
+      //   - images       (user/tool turns carrying vision bytes — rendered as
+      //                   multimodal content parts; text-only models ignore or
+      //                   400, which the vision bridge in run-agent covers)
       //
       // Dropping any of these is the cause of the
       //   "messages.N.tool_call_id: property 'tool_call_id' is missing"
@@ -122,7 +147,7 @@ export function createOpenAiCompatibleEngine({
       for (const m of messages) {
         const entry = {
           role: m.role,
-          content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
+          content: contentForOpenAi(m),
         };
         if (m.tool_calls)    entry.tool_calls   = m.tool_calls.map(stripPrivateFields);
         if (m.tool_call_id)  entry.tool_call_id = m.tool_call_id;

@@ -150,7 +150,7 @@ export function selectModelByRules(
   const hasImage =
     channelMeta?.has_image === true ||
     contentHasImage(prompt) ||
-    messages.some((m) => contentHasImage(m?.content));
+    messages.some((m) => contentHasImage(m?.content) || (Array.isArray(m?.images) && m.images.length > 0));
   let contextChars = 0;
   for (const m of messages) {
     const c = m?.content;

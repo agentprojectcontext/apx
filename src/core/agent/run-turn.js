@@ -83,6 +83,7 @@ export async function runAgentTurn({
   // on the base set and expands through discover_tools.
   const toolSession = createToolSession(channel, { allowedTools });
 
+  const hasImage = (attachments || []).some((a) => a?.data && /^image\//.test(a.mime || ""));
   const result = await runAgent({
     globalConfig: cfg,
     system,
@@ -100,6 +101,7 @@ export async function runAgentTurn({
       channel,
       channelMeta: {
         ...(channelMeta || {}),
+        ...(hasImage ? { has_image: true } : {}),
         agentSlug: agent.slug,
         projectPath: p.path,
       },

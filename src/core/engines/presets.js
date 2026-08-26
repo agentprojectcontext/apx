@@ -101,10 +101,10 @@ export const ENGINE_PRESETS = {
     api_key_env: "",
     known_models: [], // dynamic — fetched live from the local Ollama daemon
   },
-  // OpenCode Zen. The free-tier ids are listed first: they bill at zero with a
-  // Zen key, which is the reason to reach for this provider at all. The paid
-  // Claude/GPT/Gemini models it also fronts are reachable by typing their id —
-  // the model field is free text everywhere.
+  // OpenCode Zen. The free-tier ids are listed first: they bill at zero.
+  // Free models need the opencode User-Agent (see zen.js ZEN_HEADERS) and
+  // accept api_key "public" when no personal key is set. Paid Claude/GPT/
+  // Gemini models on the same base URL need a real Zen key.
   zen: {
     base_url: "https://opencode.ai/zen/v1",
     default_model: "big-pickle",

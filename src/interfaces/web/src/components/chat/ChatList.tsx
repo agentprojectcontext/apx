@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { Conversations } from "../../lib/api";
 import { AgentAvatar, AgentAvatarGroup, SUPER_AGENT_ICON, type AgentFace } from "../agents/AgentAvatar";
-import { Input, Loading } from "../ui";
+import { Input, Loading, Switch } from "../ui";
 import { UiSelect } from "../UiSelect";
 import { t } from "../../i18n";
 import type { AgentEntry, ConversationListEntry, ThreadListEntry } from "../../types/daemon";
@@ -104,8 +104,9 @@ interface Props {
   /** Start a fresh in-memory session with the chosen agent (super-agent or a
    *  project agent). It materialises in the Web group on the first message. */
   onNewChat: (agentSlug: string) => void;
-  /** Create a group room with the chosen agents and open it. */
-  onNewGroup?: (agentSlugs: string[]) => void;
+  /** Create a group room with the chosen agents and open it.
+   *  `showTools` is the initial transcript layout preference for that room. */
+  onNewGroup?: (agentSlugs: string[], opts?: { showTools?: boolean }) => void;
   /** Nothing was chosen for us (no deep link, no host selection) — open this
    *  project's most recent chat once the lists land. */
   autoSelectLatest?: boolean;
@@ -154,8 +155,11 @@ export function ChatList({
   // The "+ New" picker asks first WHAT to start (a 1:1 or a group), then WHO.
   const [pickerMode, setPickerMode] = useState<"root" | "agent" | "group">("root");
   const [groupPick, setGroupPick] = useState<string[]>([]);
-  const openPicker = () => { setPickerOpen(true); setPickerMode("root"); setGroupPick([]); };
-  const closePicker = () => { setPickerOpen(false); setPickerMode("root"); setGroupPick([]); };
+  // Initial transcript layout for the new room — same switch that will sit in
+  // the chat header after create. Off = pelado (text only); on = tools visible.
+  const [groupShowTools, setGroupShowTools] = useState(false);
+  const openPicker = () => { setPickerOpen(true); setPickerMode("root"); setGroupPick([]); setGroupShowTools(false); };
+  const closePicker = () => { setPickerOpen(false); setPickerMode("root"); setGroupPick([]); setGroupShowTools(false); };
 
   // Super-agent channel threads (telegram, web quick-chat, desktop …) come from
   // the global message ledger, scoped by the daemon to the project this screen
@@ -264,9 +268,9 @@ export function ChatList({
   // Conversations carry a slug, not an agent record — resolve it once here so
   // every row can wear the right face.
   const faceFor = (slug: string): AgentFace => {
-    if (slug === superAgentSlug) return { icon: superAgentIcon, name: superAgentLabel };
+    if (slug === superAgentSlug) return { slug, icon: superAgentIcon, name: superAgentLabel };
     const hit = agents.find((a) => a.slug === slug);
-    return { icon: hit?.icon, emoji: hit?.emoji, name: hit?.name || slug };
+    return { slug, icon: hit?.icon, emoji: hit?.emoji, name: hit?.name || slug };
   };
 
   const totalCount = allConvs.length + (threadsQ.data?.length || 0);
@@ -389,13 +393,26 @@ export function ChatList({
                       })}
                     </div>
                     <p className="px-2 pt-1 text-[10px] text-muted-fg">{t("project.groups.first_hint")}</p>
+                    <div className="flex items-center gap-2 px-2 py-1.5 text-xs">
+                      <Switch
+                        checked={groupShowTools}
+                        onChange={setGroupShowTools}
+                        label={t("chat_ui.show_tools")}
+                      />
+                    </div>
+                    <p className="px-2 pb-1 text-[10px] text-muted-fg">{t("chat_ui.show_tools_hint")}</p>
                     <div className="flex items-center gap-1 p-1">
-                      <button type="button" onClick={() => { setPickerMode("root"); setGroupPick([]); }}
+                      <button type="button" onClick={() => { setPickerMode("root"); setGroupPick([]); setGroupShowTools(false); }}
                         className="flex-1 rounded px-2 py-1 text-xs text-muted-fg hover:bg-accent/50">
                         {t("mobile.back")}
                       </button>
                       <button type="button" disabled={groupPick.length < 1}
-                        onClick={() => { const picks = groupPick; closePicker(); onNewGroup?.(picks); }}
+                        onClick={() => {
+                          const picks = groupPick;
+                          const showTools = groupShowTools;
+                          closePicker();
+                          onNewGroup?.(picks, { showTools });
+                        }}
                         className="flex-1 rounded bg-primary px-2 py-1 text-xs font-medium text-primary-foreground disabled:opacity-50">
                         {t("project.groups.create")}
                       </button>

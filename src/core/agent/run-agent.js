@@ -26,6 +26,11 @@ import {
 } from "./stuck-detector.js";
 import { createGreetingGuard } from "./loop/greeting-guard.js";
 import { createSideEffectLedger } from "./loop/side-effects.js";
+import {
+  describeTurnImages,
+  providerWiresVision,
+  withImageDescription,
+} from "./vision-bridge.js";
 
 async function emitProgress(onEvent, event) {
   if (typeof onEvent !== "function") return;
@@ -342,17 +347,34 @@ export async function runAgent({
     }
   };
 
-  // Attachments ride on THIS turn's user message. Only images are forwarded to
-  // the model (a multimodal engine renders them; the rest ignore the field);
-  // every other kind is already described in the prompt text by the channel
-  // handler, with its local path, so the agent can reach it with file tools.
+  // Attachments ride on THIS turn's user message. Multimodal engines (Gemini,
+  // Claude, GPT via OpenAI-shaped wire) get the pixels. Text-only engines
+  // (zen:big-pickle and most free Zen models) get a short description from the
+  // vision bridge instead — otherwise the agent only sees "[image attached —
+  // saved to …]" and roleplays that the photo never arrived.
   const turnImages = attachments.filter((a) => a?.data && /^image\//.test(a.mime || ""));
+  let turnPrompt = prompt;
+  let imagesForModel = turnImages;
+  if (turnImages.length && !providerWiresVision(activeModel)) {
+    const description = await describeTurnImages(turnImages, globalConfig, { signal });
+    if (description) {
+      turnPrompt = withImageDescription(prompt, description);
+      await emitProgress(onEvent, {
+        type: "vision_bridged",
+        model: activeModel,
+        images: turnImages.length,
+      });
+    }
+    // Do not put raw bytes on the wire for text-only providers — Zen free
+    // models 400 or silently drop them (see vision-bridge.js).
+    imagesForModel = [];
+  }
   const conversation = [
     ...previousMessages,
     {
       role: "user",
-      content: prompt,
-      ...(turnImages.length > 0 ? { images: turnImages } : {}),
+      content: turnPrompt,
+      ...(imagesForModel.length > 0 ? { images: imagesForModel } : {}),
     },
   ];
   const trace = [];

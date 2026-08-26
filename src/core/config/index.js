@@ -123,6 +123,11 @@ const DEFAULT_CONFIG = {
       enabled: true,
       rules: [],
     },
+    // Vision bridge: when the answering model cannot see pixels (zen free
+    // models, etc.), describe attached photos with this vision model and fold
+    // the text into the prompt. Default gemini-2.0-flash; override here or via
+    // a has_image routing rule.
+    vision_bridge_model: null,
     // Goal-completion judge (OpenHands critic pattern): an LLM judge scores
     // goal completion (0..1); below success_threshold the agent gets a
     // verification follow-up and continues, up to max_iterations rounds.

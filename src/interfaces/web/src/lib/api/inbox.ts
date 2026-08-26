@@ -14,7 +14,7 @@ export interface InboxRow {
   /** For a2a and group chats: the participant slugs, for the multi-face avatar. */
   participants?: string[];
   /** Resolved face per participant (blob/emoji/name) so the duo wears real avatars. */
-  participant_faces?: { name?: string | null; emoji?: string | null; icon?: string | null }[];
+  participant_faces?: { slug?: string | null; name?: string | null; emoji?: string | null; icon?: string | null }[];
   /** For a2a spawned on someone's behalf: who asked for it ("a pedido de X"). */
   requested_by?: string | null;
   pinned: boolean;

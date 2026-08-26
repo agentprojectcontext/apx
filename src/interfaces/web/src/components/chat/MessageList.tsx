@@ -26,6 +26,8 @@ interface Props {
   showSpeaker?: boolean;
   /** Resolve an agent slug to a display name (for the "traído por X" tag). */
   nameOf?: (slug: string) => string;
+  /** Full vs simple (pelado) transcript layout. Default on = show tool groups. */
+  showTools?: boolean;
   /** Smooth-scroll to the latest turn. Nested previews turn this off. */
   autoscroll?: boolean;
   /** Height of whatever floats over the bottom of the thread (the composer
@@ -55,6 +57,7 @@ export function MessageList({
   faceFor,
   showSpeaker,
   nameOf,
+  showTools = true,
   autoscroll = true,
   bottomInset = 0,
   compact,
@@ -156,6 +159,7 @@ export function MessageList({
           face={m.role === "assistant" ? faceFor?.(m) : undefined}
           showSpeaker={showSpeaker}
           nameOf={nameOf}
+          showTools={showTools}
         />
       ))}
       {/* Waiting their turn, under the answer they will follow. Same bubble as
@@ -169,6 +173,7 @@ export function MessageList({
           compact={compact}
           queued
           onUnqueue={onUnqueue ? () => onUnqueue(q.id) : undefined}
+          showTools={showTools}
         />
       ))}
       <div ref={bottomRef} style={bottomInset ? { height: bottomInset } : undefined} />

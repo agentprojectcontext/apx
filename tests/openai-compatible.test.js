@@ -69,6 +69,39 @@ test("zen: sends the opencode User-Agent on chat", async () => {
   }
 });
 
+test("zen: falls back to api_key public when none is configured", async () => {
+  const { default: zen, ZEN_PUBLIC_API_KEY } = await import("#core/engines/zen.js");
+
+  let sent = {};
+  const originalFetch = globalThis.fetch;
+  const prev = process.env.OPENCODE_ZEN_API_KEY;
+  delete process.env.OPENCODE_ZEN_API_KEY;
+  globalThis.fetch = async (_url, opts) => {
+    sent = opts.headers;
+    return {
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: "hi" }, finish_reason: "stop" }],
+        usage: { prompt_tokens: 1, completion_tokens: 1 },
+      }),
+    };
+  };
+
+  try {
+    await zen.chat({
+      model: "big-pickle",
+      messages: [{ role: "user", content: "ping" }],
+      config: {},
+    });
+    assert.equal(sent["user-agent"], "opencode/1.18.18");
+    assert.equal(sent.authorization, `Bearer ${ZEN_PUBLIC_API_KEY}`);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (prev === undefined) delete process.env.OPENCODE_ZEN_API_KEY;
+    else process.env.OPENCODE_ZEN_API_KEY = prev;
+  }
+});
+
 test("openai-compatible: config.headers override the engine's, never the key", async () => {
   const engine = createOpenAiCompatibleEngine({
     id: "test",

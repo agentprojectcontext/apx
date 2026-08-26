@@ -118,10 +118,28 @@ test("bubble: the work is grouped, the answer is not", () => {
   );
   assert.match(
     MESSAGE_BUBBLE,
-    /work\.length > 0 && <ActionGroup parts=\{work\} running=\{!!msg\.pending\} \/>/,
-    "the work renders as ONE collapsible group, streaming state included",
+    /showTools && !mine && work\.length > 0 && <ActionGroup parts=\{work\} running=\{!!msg\.pending\} \/>/,
+    "the work renders as ONE collapsible group when showTools is on",
   );
-  assert.match(MESSAGE_BUBBLE, /rest\.map\(/, "only the trailing parts render as bubbles");
+  assert.match(MESSAGE_BUBBLE, /\(simpleParts \|\| rest\)\.map\(/, "simple view flattens; full view uses rest");
+});
+
+test("bubble: simple view lifts narration out of the work block", () => {
+  assert.match(
+    MESSAGE_BUBBLE,
+    /showTools\?: boolean/,
+    "MessageBubble accepts a showTools layout flag",
+  );
+  assert.match(
+    MESSAGE_BUBBLE,
+    /p\.kind === "tool" && p\.tool === "ask_questions"/,
+    "simple view still surfaces ask_questions — it is a control, not a log line",
+  );
+  assert.match(
+    MESSAGE_BUBBLE,
+    /simpleParts = !mine && !showTools/,
+    "simple view builds a flat part list without the ActionGroup",
+  );
 });
 
 test("split: the group ends at the last tool, and ask_questions stays out of it", () => {
@@ -158,5 +176,6 @@ test("group: open while it works, collapsed when done, and failures are named", 
 test("i18n: the actions label exists in both languages", () => {
   for (const [name, src] of [["en", EN], ["es", ES]]) {
     assert.match(src, /actions_count:\s+"\{n\} /, `${name}.ts must define chat_ui.actions_count`);
+    assert.match(src, /show_tools:\s+"/, `${name}.ts must define chat_ui.show_tools`);
   }
 });

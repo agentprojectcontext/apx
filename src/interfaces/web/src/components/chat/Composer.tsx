@@ -1,7 +1,24 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Camera, FileText, Image as ImageIcon, Mic, Paperclip, Plus, Send, Trash2, X } from "lucide-react";
 import { ChatInput, type FilePicker } from "../ui/chat-input";
 import { ModelPicker } from "./ModelPicker";
+import {
+  activeInvite,
+  activeMention,
+  applyMention,
+  ComposerSuggest,
+  filterAgents,
+  handleSuggestKey,
+  useSuggestIndex,
+  type SuggestAgent,
+} from "./ComposerSuggest";
+import {
+  activeSlashCommand,
+  buildSlashCommands,
+  ComposerCommands,
+  filterSlashCommands,
+  type SlashCommand,
+} from "./ComposerCommands";
 import { Spinner } from "../ui";
 import { Button } from "../ui/button";
 import { Tip } from "../ui/tip";
@@ -38,6 +55,18 @@ interface Props {
    *  under it: the bar loses its opaque backing and the conversation runs
    *  behind, staying legible right up to the card's edge. */
   floating?: boolean;
+  /** Group members offered by `@…` (mention cascade). Empty / omitted → no picker. */
+  mentionAgents?: SuggestAgent[];
+  /** Agents offered after `/invite ` (inserts `/invite slug `, does not invite yet). */
+  inviteAgents?: SuggestAgent[];
+  /** Invite list title: add to room vs turn 1:1 into a group. */
+  inviteKind?: "add" | "escalate";
+  /** `/new` — start a fresh session with the current agent. */
+  onNewSession?: () => void;
+  /** `/tools` — toggle tool visibility in the thread. */
+  onToggleTools?: () => void;
+  /** Override the default placeholder (groups want the @ / /invite hint). */
+  placeholder?: string;
 }
 
 /** A file the user handed over: on screen immediately, uploading behind it. */
@@ -62,13 +91,122 @@ const MAX_ATTACHMENTS = 10;
 let seq = 0;
 const nextId = () => `att-${++seq}`;
 
-export function Composer({ onSend, onStop, streaming, model, onModelChange, allowFiles, context, floating }: Props) {
+export function Composer({
+  onSend,
+  onStop,
+  streaming,
+  model,
+  onModelChange,
+  allowFiles,
+  context,
+  floating,
+  mentionAgents,
+  inviteAgents,
+  inviteKind = "add",
+  onNewSession,
+  onToggleTools,
+  placeholder,
+}: Props) {
   const [text, setText] = useState("");
+  // Esc dismisses the current suggest without wiping the draft; cleared on next edit.
+  const [suggestDismissed, setSuggestDismissed] = useState(false);
   const [pending, setPending] = useState<Pending[]>([]);
   const [transcribing, setTranscribing] = useState(false);
   const pickerRef = useRef<FilePicker>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const rec = useRecorder();
+
+  const slashCommands = useMemo(
+    () =>
+      buildSlashCommands({
+        canInvite: inviteAgents !== undefined,
+        canNewSession: Boolean(onNewSession),
+        canToggleTools: Boolean(onToggleTools),
+      }),
+    [inviteAgents, onNewSession, onToggleTools],
+  );
+
+  const mentionHit = mentionAgents?.length ? activeMention(text) : null;
+  // `/invite andy` (incomplete) → agent list. Priority over the bare `/` menu.
+  const inviteArgHit =
+    !mentionHit && inviteAgents !== undefined ? activeInvite(text) : null;
+  const slashHit =
+    !mentionHit && !inviteArgHit && slashCommands.length
+      ? activeSlashCommand(text)
+      : null;
+
+  const panel: "mention" | "invite" | "commands" | null = mentionHit
+    ? "mention"
+    : inviteArgHit
+      ? "invite"
+      : slashHit
+        ? "commands"
+        : null;
+  const panelOpen = !suggestDismissed && panel !== null;
+  const suggestQuery =
+    mentionHit?.query ?? inviteArgHit?.query ?? slashHit?.query ?? "";
+  const agentPool = mentionHit ? mentionAgents! : inviteAgents || [];
+  const agentList = useMemo(
+    () =>
+      panelOpen && (panel === "mention" || panel === "invite")
+        ? filterAgents(agentPool, suggestQuery)
+        : [],
+    [panelOpen, panel, agentPool, suggestQuery],
+  );
+  const commandList = useMemo(
+    () =>
+      panelOpen && panel === "commands"
+        ? filterSlashCommands(slashCommands, suggestQuery)
+        : [],
+    [panelOpen, panel, slashCommands, suggestQuery],
+  );
+  const keyCount =
+    panel === "commands" ? commandList.length : agentList.length;
+  const [activeIndex, setActiveIndex] = useSuggestIndex(
+    `${panel || "off"}:${suggestQuery}:${
+      panel === "commands"
+        ? commandList.map((c) => c.id).join(",")
+        : agentPool.map((a) => a.slug).join(",")
+    }`,
+  );
+
+  const setDraft = (next: string | ((curr: string) => string)) => {
+    setSuggestDismissed(false);
+    setText(next);
+  };
+
+  const pickMention = (slug: string) => {
+    if (!mentionHit) return;
+    setDraft(applyMention(text, mentionHit.start, slug));
+  };
+
+  /** Insert `/invite slug ` — invite runs on send, with the optional message. */
+  const pickInviteArg = (slug: string) => {
+    setDraft(`/invite ${slug} `);
+  };
+
+  const pickCommand = (cmd: SlashCommand) => {
+    if (cmd.needsAgents) {
+      setDraft(`/${cmd.slash} `);
+      return;
+    }
+    setText("");
+    setSuggestDismissed(false);
+    if (cmd.id === "new") onNewSession?.();
+    else if (cmd.id === "tools") onToggleTools?.();
+  };
+
+  const confirmSuggest = () => {
+    if (panel === "commands") {
+      const c = commandList[activeIndex];
+      if (c) pickCommand(c);
+      return;
+    }
+    const a = agentList[activeIndex];
+    if (!a) return;
+    if (panel === "mention") pickMention(a.slug);
+    else if (panel === "invite") pickInviteArg(a.slug);
+  };
 
   // In-flight uploads by id, so Enter pressed mid-upload waits for the files
   // instead of sending the caption without them.
@@ -166,7 +304,7 @@ export function Composer({ onSend, onStop, streaming, model, onModelChange, allo
     setTranscribing(true);
     try {
       const said = await transcribeAudio(out.file);
-      if (said) setText((curr) => (curr ? `${curr} ${said}` : said));
+      if (said) setDraft(curr => (curr ? `${curr} ${said}` : said));
     } catch {
       /* no STT configured, or it failed: the audio still goes, silently */
     } finally {
@@ -237,13 +375,41 @@ export function Composer({ onSend, onStop, streaming, model, onModelChange, allo
       ) : (
         <ChatInput
           className="relative"
-          header={context}
+          header={
+            <>
+              {context}
+              {/* Welded under the token strip: same card chrome, no floating
+                  sheet covering the last messages. */}
+              {panelOpen && panel === "commands" && (
+                <ComposerCommands
+                  docked
+                  commands={slashCommands}
+                  query={suggestQuery}
+                  activeIndex={activeIndex}
+                  onActiveIndexChange={setActiveIndex}
+                  onPick={pickCommand}
+                />
+              )}
+              {panelOpen && (panel === "mention" || panel === "invite") && (
+                <ComposerSuggest
+                  docked
+                  mode={panel}
+                  agents={agentPool}
+                  query={suggestQuery}
+                  activeIndex={activeIndex}
+                  onActiveIndexChange={setActiveIndex}
+                  onPick={panel === "mention" ? pickMention : pickInviteArg}
+                  inviteKind={inviteKind}
+                />
+              )}
+            </>
+          }
           value={text}
-          onValueChange={setText}
+          onValueChange={setDraft}
           onSubmit={submit}
           onStop={onStop}
           busy={streaming}
-          placeholder={t("project.chat.placeholder")}
+          placeholder={placeholder || t("project.chat.placeholder")}
           maxRows={14}
           onFiles={allowFiles ? (files) => attach(files) : undefined}
           accept={ATTACH_ACCEPT}
@@ -251,6 +417,16 @@ export function Composer({ onSend, onStop, streaming, model, onModelChange, allo
           // An attachment on its own is a turn — the daemon writes the marker
           // that stands in for the words. Not while it is still uploading.
           allowEmpty={ready && !uploading}
+          onKeyDown={(e) =>
+            handleSuggestKey(e, {
+              open: panelOpen && keyCount > 0,
+              count: keyCount,
+              activeIndex,
+              setActiveIndex,
+              onConfirm: confirmSuggest,
+              onDismiss: () => setSuggestDismissed(true),
+            })
+          }
           above={
             pending.length || transcribing || rec.error ? (
               <Gallery

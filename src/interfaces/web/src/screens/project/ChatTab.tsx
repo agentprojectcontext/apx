@@ -1,16 +1,17 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import useSWR, { mutate } from "swr";
-import { Archive, ArchiveRestore, ArrowDown, ArrowUpRight, ChevronLeft, MessageSquareDashed, MoreVertical, Pencil, Plus, RotateCcw, Trash2, UserPlus, X } from "lucide-react";
+import { Archive, ArchiveRestore, ArrowDown, ArrowUpRight, ChevronLeft, Eye, MessageSquareDashed, MoreVertical, Pencil, Plus, RotateCcw, Trash2, UserPlus, Wrench, X } from "lucide-react";
 import { Agents, Conversations, Groups } from "../../lib/api";
 import { Button, Dialog, Empty, Field, Input, Loading, Switch, Tip } from "../../components/ui";
 import { Composer } from "../../components/chat/Composer";
 import { MessageList } from "../../components/chat/MessageList";
 import { ContextBar } from "../../components/chat/ContextBar";
 import { InlineAskPanel, pendingAskQuestions } from "../../components/chat/InlineAskPanel";
-import { ChatList, type ChatKey, type ChatSelectionMeta } from "../../components/chat/ChatList";
+import { ChatList, chatKeyToString, type ChatKey, type ChatSelectionMeta } from "../../components/chat/ChatList";
 import { queryForChat } from "../mobile/routes";
 import { SessionPicker } from "../../components/chat/SessionPicker";
+import { messageForInvite, parseInviteCommand } from "../../components/chat/ComposerCommands";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,7 +21,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../../components/ui/dropdown-menu";
-import { useChat, type ChatMsg } from "../../hooks/useChat";
+import { attachmentsOf, useChat, type ChatMsg } from "../../hooks/useChat";
 import { useLiveMessages } from "../../hooks/useLiveMessages";
 import { concernsConversation, concernsThread, type LiveEvent } from "../../lib/live";
 import type { UploadedMedia } from "../../lib/api/media";
@@ -68,8 +69,9 @@ export function ChatTab({
   /** Drop the card chrome. An embedding screen already draws a panel around
    *  this, and a card inside a card reads as a rendering bug. */
   bare?: boolean;
-  /** Structural way out, shown as a header action. Only the inbox passes it:
-   *  inside a project you are already where it would take you. */
+  /** Structural way out from the inbox axis (leave inbox → project / agent card).
+   *  When omitted, a 1:1 project-agent chat defaults to opening that agent's
+   *  ficha (`/p/:pid/agents/:slug`) via the face and the ⋯ menu. */
   onOpenInProject?: () => void;
   /** Phone shaping: no avatar column, wider bubbles, and a header sized for a
    *  thumb with its actions folded behind one ⋯. The phone surface sets it; the
@@ -94,6 +96,7 @@ export function ChatTab({
   threadTitle?: string;
 }) {
   const toast = useToast();
+  const navigate = useNavigate();
   const [params, setSearchParams] = useSearchParams();
   const agents = useSWR(`/api/projects/${pid}/agents`, () => Agents.list(pid));
   const [creating, setCreating] = useState(false);
@@ -197,7 +200,7 @@ export function ChatTab({
   // A pending group rewind awaiting confirmation (there are messages after the
   // target that the regenerate/edit would overwrite).
   const [groupRewind, setGroupRewind] = useState<
-    { kind: "edit" | "regen"; keepVisible: number; drop: number; text?: string; from?: string; reason?: string | null } | null
+    { kind: "edit" | "regen"; keepVisible: number; drop: number; text?: string; media?: UploadedMedia[]; from?: string; reason?: string | null } | null
   >(null);
 
   // Select a chat and mirror its id into the URL query so the current chat is
@@ -243,6 +246,18 @@ export function ChatTab({
   // a2a and group are both multi-agent threads: many faces, no super-agent badge,
   // no rewind. Their name comes from the thread, not an agent.
   const isMultiThread = isA2A || isGroup;
+
+  // Transcript layout: tools visible (ActionGroup) vs pelado (text only).
+  // Persisted per chat so the header switch and the create-group checkbox stick.
+  const showToolsKey = `${SHOW_TOOLS_PREF}.${pid}.${chatKeyToString(selected)}`;
+  const [showTools, setShowToolsState] = useState(() => readShowTools(showToolsKey));
+  useEffect(() => {
+    setShowToolsState(readShowTools(showToolsKey));
+  }, [showToolsKey]);
+  const setShowTools = (v: boolean) => {
+    setShowToolsState(v);
+    writeShowTools(showToolsKey, v);
+  };
 
   // Whenever the user picks a stored conversation or a channel thread, reload
   // the in-memory chat with its persisted history. Conversations bind the
@@ -321,6 +336,28 @@ export function ChatTab({
   };
 
   const send = async (text: string, media?: UploadedMedia[]) => {
+    // `/invite andy hola…` — pull them in, then send the message (with @ so
+    // the cascade addresses them). The composer only inserts the command; the
+    // invite itself happens here on send.
+    const inv = parseInviteCommand(text);
+    if (inv && canAddPeople) {
+      let gid: string | null = null;
+      if (isGroup && selected.kind === "thread") {
+        if (groupParticipants.includes(inv.slug)) {
+          gid = selected.threadId;
+        } else {
+          gid = await addToGroup(inv.slug);
+          if (!gid) return;
+        }
+      } else if (inv.slug !== activeAgent?.slug) {
+        gid = await escalateToGroup(inv.slug);
+        if (!gid) return;
+      }
+      if (gid) {
+        await groupSend(gid, messageForInvite(inv.slug, inv.message), media);
+        return;
+      }
+    }
     if (selected.kind === "thread" && selected.channel === "group") {
       await groupSend(selected.threadId, text, media);
       return;
@@ -360,27 +397,32 @@ export function ChatTab({
 
   // "New group" from the sidebar: create the room, then open it as a group
   // thread. It shows in the Groups section (and the inbox) from here on.
-  const onNewGroup = async (agentSlugs: string[]) => {
+  // `showTools` seeds the header switch for that room (pelado by default).
+  const onNewGroup = async (agentSlugs: string[], opts?: { showTools?: boolean }) => {
     try {
       const g = await Groups.create(pid, { participants: agentSlugs });
+      const key = { kind: "thread" as const, channel: "group", threadId: g.id };
+      writeShowTools(`${SHOW_TOOLS_PREF}.${pid}.${chatKeyToString(key)}`, opts?.showTools === true);
       void mutate(`/api/projects/${pid}/super-agent/threads`);
-      selectChat({ kind: "thread", channel: "group", threadId: g.id }, { channel: "group", title: g.title });
+      selectChat(key, { channel: "group", title: g.title });
     } catch (e) {
       toast.error((e as Error)?.message || t("shared_ui.err_chat_failed"));
     }
   };
 
   // Add a member to the CURRENT group room.
-  const addToGroup = async (slug: string) => {
-    if (selected.kind !== "thread") return;
+  const addToGroup = async (slug: string): Promise<string | null> => {
+    if (selected.kind !== "thread") return null;
     const gid = selected.threadId;
     try {
       await Groups.addParticipant(pid, gid, slug);
       await groupDetail.mutate();
       void loadThread("group", gid, { silent: true });
       void mutate(`/api/projects/${pid}/super-agent/threads`);
+      return gid;
     } catch (e) {
       toast.error((e as Error)?.message || t("shared_ui.err_chat_failed"));
+      return null;
     }
   };
 
@@ -400,15 +442,17 @@ export function ChatTab({
   };
 
   // Escalate a 1:1 with a project agent into a group by pulling someone in.
-  const escalateToGroup = async (slug: string) => {
+  const escalateToGroup = async (slug: string): Promise<string | null> => {
     const base = activeAgent?.slug;
-    if (!base) return;
+    if (!base) return null;
     try {
       const g = await Groups.create(pid, { participants: [base, slug] });
       void mutate(`/api/projects/${pid}/super-agent/threads`);
       selectChat({ kind: "thread", channel: "group", threadId: g.id }, { channel: "group", title: g.title });
+      return g.id;
     } catch (e) {
       toast.error((e as Error)?.message || t("shared_ui.err_chat_failed"));
+      return null;
     }
   };
 
@@ -540,11 +584,24 @@ export function ChatTab({
   const groupFaces: AgentFace[] = useMemo(
     () => groupParticipants.map((slug) => {
       const hit = agentList.find((a) => a.slug === slug);
-      return { icon: hit?.icon, emoji: hit?.emoji, name: hit?.name || slug };
+      return { slug, icon: hit?.icon, emoji: hit?.emoji, name: hit?.name || slug };
     }),
     [groupParticipants, agentList],
   );
-  const a2aFaces = isMultiThread ? (threadFaces?.length ? threadFaces : (isGroup ? groupFaces : [])) : [];
+  const a2aFaces = useMemo(() => {
+    const raw = isMultiThread
+      ? (threadFaces?.length ? threadFaces : (isGroup ? groupFaces : []))
+      : [];
+    // Inbox faces always carry slug after the API; older payloads / name-only
+    // faces still resolve against this project's roster so a click has a target.
+    return raw.map((f, i) => {
+      if (f.slug) return f;
+      const fromRoster = groupParticipants[i];
+      if (fromRoster) return { ...f, slug: fromRoster };
+      const hit = agentList.find((a) => a.name === f.name || a.slug === f.name);
+      return hit ? { ...f, slug: hit.slug } : f;
+    });
+  }, [isMultiThread, threadFaces, isGroup, groupFaces, groupParticipants, agentList]);
   const agentLabel = isMultiThread
     ? threadTitle || conversationMeta?.title || (selected.kind === "thread" ? selected.threadId : "")
     : activeIsRoby ? persona : activeAgent?.name || activeAgent?.slug || selected.agentSlug;
@@ -601,23 +658,48 @@ export function ChatTab({
     disabled: streaming || msgs.length === 0,
   };
 
-  // Go to the agent's card / project. On the desktop this is a header button
-  // (below); the phone has no room for it there, so it rides in the ⋯ menu.
-  const openInProjectAction = onOpenInProject
+  // Go to the agent's card / project. Inbox passes `onOpenInProject` (leave the
+  // inbox axis). Inside a project chat we default to the agent's own ficha —
+  // tapping the face used to do nothing there because the prop was absent.
+  // `!activeIsRoby` already means this is not a thread (a2a/group/super-agent),
+  // so `selected` is a live/conv here and carries an agentSlug.
+  const agentViewSlug = !activeIsRoby && !isMultiThread
+    ? (activeAgent?.slug || (selected as { agentSlug?: string }).agentSlug)
+    : undefined;
+  const openAgentView = agentViewSlug
+    ? () => navigate(`/p/${pid}/agents/${encodeURIComponent(agentViewSlug)}`)
+    : undefined;
+  const openAgentAction = onOpenInProject || openAgentView;
+  const openAgentActionMeta = openAgentAction
     ? {
         key: "open-project",
-        icon: ArrowUpRight,
-        label: t("inbox.open_in_project"),
-        onClick: onOpenInProject,
+        icon: onOpenInProject ? ArrowUpRight : Eye,
+        label: t(onOpenInProject ? "inbox.open_in_project" : "project.chat.view_agent"),
+        onClick: openAgentAction,
         disabled: false,
       }
     : null;
 
+  // Resolve a group/a2a face to a project-agent slug we can open. Coding CLIs
+  // and the super-agent have no ficha here — tip still names them, click no-ops.
+  const resolveFaceSlug = (face: AgentFace): string | undefined => {
+    if (face.slug && agentList.some((a) => a.slug === face.slug)) return face.slug;
+    return agentList.find((a) => a.name === face.name || a.slug === face.name)?.slug;
+  };
+  const openFace = (face: AgentFace) => {
+    const slug = resolveFaceSlug(face);
+    if (!slug) return;
+    navigate(`/p/${pid}/agents/${encodeURIComponent(slug)}`);
+  };
+  const faceOpenable = (face: AgentFace) => !!resolveFaceSlug(face);
+
   // What the ⋯ holds: everything that edits THIS session. Described once, so
   // the phone and the desktop cannot drift into offering different things.
   const menuActions = [
-    // On a phone there is no room for a second control, so it starts here too.
-    ...(compact && openInProjectAction ? [openInProjectAction] : []),
+    // Face + ⋯ both offer the same escape hatch (inbox → project, or chat →
+    // agent ficha). Always in the menu so it is not only a discoverable click
+    // on the blob.
+    ...(openAgentActionMeta ? [openAgentActionMeta] : []),
     ...(compact ? [newSessionAction] : []),
     ...(storedSession
       ? [
@@ -662,12 +744,19 @@ export function ChatTab({
   // and then resumes the cascade from the target speaker. Regenerating the last
   // bubble keeps earlier replies this turn; regenerating an earlier one drops
   // everything after it (those speakers may be pulled back in by a new @mention).
+  //
+  // keepVisible = pane bubbles before the target. truncateGroupThread collapses
+  // the ledger the same way (tools ride with their agent; consecutive same-speaker
+  // agent rows = one bubble). A raw row count used to cut too early and delete
+  // the owner's message when Candela had spoken twice in a row.
   const gidOf = () => (selected.kind === "thread" ? selected.threadId : "");
-  const runGroupEdit = async (keepVisible: number, text: string) => {
+  const groupKeepVisible = (index: number) =>
+    msgs.slice(0, index).filter((m) => m.role === "user" || (m.role === "assistant" && !m.event)).length;
+  const runGroupEdit = async (keepVisible: number, text: string, media?: UploadedMedia[]) => {
     const gid = gidOf();
     try { await Groups.truncate(pid, gid, keepVisible); } catch (e) { toast.error((e as Error)?.message); return; }
     await loadThread("group", gid, { silent: true });
-    await groupSend(gid, text);
+    await groupSend(gid, text, media);
   };
   const runGroupRegen = async (keepVisible: number, from?: string, reason?: string | null) => {
     const gid = gidOf();
@@ -680,17 +769,21 @@ export function ChatTab({
   const groupRegenerate = (index: number) => {
     const target = msgs[index];
     if (target?.role !== "assistant" || target.event || !target.agentId) return;
-    // Keep everything BEFORE this bubble; drop it and anything after.
-    const keepVisible = index;
+    // Keep owner/agent turns BEFORE this bubble; drop it and anything after.
+    const keepVisible = groupKeepVisible(index);
     const from = target.agentId;
     const reason = target.reason || null;
     if (index < msgs.length - 1) setGroupRewind({ kind: "regen", keepVisible, drop: msgs.length - 1 - index, from, reason });
     else void runGroupRegen(keepVisible, from, reason);
   };
   const groupEdit = (index: number, text: string) => {
-    const keepVisible = index; // drop the edited owner line + everything after
-    if (index < msgs.length - 1) setGroupRewind({ kind: "edit", keepVisible, text, drop: msgs.length - 1 - index });
-    else void runGroupEdit(keepVisible, text);
+    const target = msgs[index];
+    if (!target || target.role !== "user") return;
+    const keepVisible = groupKeepVisible(index); // drop the edited owner line + everything after
+    // Keep the photo/file on the edited turn — only the caption changes.
+    const media = attachmentsOf(target);
+    if (index < msgs.length - 1) setGroupRewind({ kind: "edit", keepVisible, text, media, drop: msgs.length - 1 - index });
+    else void runGroupEdit(keepVisible, text, media);
   };
   // In a group, the same affordances rewind the ledger instead of a file.
   const regenerateHandler = isGroup ? (streaming ? undefined : groupRegenerate) : onRegenerate;
@@ -738,18 +831,28 @@ export function ChatTab({
           )}
           <div className="flex min-w-0 flex-1 items-center gap-2.5">
             {(() => {
-              const avatar = isMultiThread && a2aFaces.length ? (
-                <AgentAvatarGroup faces={a2aFaces} size={compact ? 30 : 26} max={3} />
-              ) : (
-                <AgentAvatar {...headerFace} size={compact ? 36 : 30} />
-              );
+              // Group / a2a: each face is its own control (tip + open that agent).
+              // Wrapping the whole cluster in one button made every blob do the
+              // same thing — or nothing, when openAgentAction was absent.
+              if (isMultiThread && a2aFaces.length) {
+                return (
+                  <AgentAvatarGroup
+                    faces={a2aFaces}
+                    size={compact ? 30 : 26}
+                    max={3}
+                    onFaceClick={openFace}
+                    faceOpenable={faceOpenable}
+                  />
+                );
+              }
+              const avatar = <AgentAvatar {...headerFace} size={compact ? 36 : 30} />;
               // Tapping the face is the quick way to the agent's card/project —
               // more discoverable than the button in the row of actions.
-              return onOpenInProject ? (
+              return openAgentAction ? (
                 <button
                   type="button"
-                  onClick={onOpenInProject}
-                  aria-label={t("inbox.open_in_project")}
+                  onClick={openAgentAction}
+                  aria-label={t(onOpenInProject ? "inbox.open_in_project" : "project.chat.view_agent")}
                   className="shrink-0 rounded-full transition-opacity hover:opacity-80 active:opacity-70"
                 >
                   {avatar}
@@ -813,6 +916,20 @@ export function ChatTab({
               spelled out where there is width, folded behind one ⋯ where there
               is not. On the phone they used to be absent altogether. */}
           <div className="flex shrink-0 items-center gap-1">
+            {/* Same switch as "create group": on = tools/ActionGroup, off = pelado
+                (narration as bubbles, tools hidden). Lives next to add-person. */}
+            <Tip content={showTools ? t("chat_ui.show_tools_on") : t("chat_ui.show_tools_off")}>
+              <div
+                className={cn(
+                  "flex items-center gap-1.5 rounded-full text-muted-fg",
+                  compact ? "px-1.5" : "px-1",
+                )}
+                aria-label={t("chat_ui.show_tools")}
+              >
+                {!compact && <Wrench size={13} className="shrink-0 opacity-70" aria-hidden />}
+                <Switch checked={showTools} onChange={setShowTools} />
+              </div>
+            </Tip>
             {!agentList.length && !activeIsRoby && !compact && (
               <Button variant="primary" size="sm" onClick={() => setCreating(true)}>
                 <Plus size={14} /> {t("project.chat.create_agent")}
@@ -897,8 +1014,9 @@ export function ChatTab({
                 )}
               </div>
             )}
-            {/* Navigation says so in words — it is the one action here that
-                takes you somewhere rather than changing something. */}
+            {/* Inbox only: leave the inbox axis in words. Inside a project the
+                face + ⋯ already open the agent ficha — a second labeled button
+                just repeats "you are already here". */}
             {onOpenInProject && !compact && (
               <Button variant="ghost" size="sm" onClick={onOpenInProject}>
                 {t("inbox.open_in_project")} <ArrowUpRight size={13} />
@@ -979,6 +1097,7 @@ export function ChatTab({
                 faceFor={faceFor}
                 showSpeaker={isGroup}
                 nameOf={(slug) => agentList.find((a) => a.slug === slug)?.name || slug}
+                showTools={showTools}
                 compact={compact}
                 bottomInset={bottomInset}
                 onAtBottomChange={setAtBottom}
@@ -1027,6 +1146,39 @@ export function ChatTab({
               // still told a file arrived and where it lives.
               allowFiles
               floating
+              placeholder={
+                isGroup
+                  ? t("project.groups.composer_ph")
+                  : canAddPeople
+                    ? t("project.groups.invite_ph")
+                    : undefined
+              }
+              mentionAgents={
+                isGroup
+                  ? groupParticipants.map((slug) => {
+                      const a = agentList.find((x) => x.slug === slug);
+                      return {
+                        slug,
+                        name: a?.name || slug,
+                        icon: a?.icon,
+                        emoji: a?.emoji,
+                      };
+                    })
+                  : undefined
+              }
+              inviteAgents={
+                canAddPeople
+                  ? addCandidates.map((a) => ({
+                      slug: a.slug,
+                      name: a.name || a.slug,
+                      icon: a.icon,
+                      emoji: a.emoji,
+                    }))
+                  : undefined
+              }
+              inviteKind={isGroup ? "add" : "escalate"}
+              onNewSession={() => setConfirmNew(true)}
+              onToggleTools={() => setShowTools(!showTools)}
               // The strip and the questions are both part of the field: what the
               // turn cost, and what it is waiting on. The panel used to hover as
               // a separate card above the composer, which put the thing you have
@@ -1146,7 +1298,7 @@ export function ChatTab({
                 const r = groupRewind;
                 setGroupRewind(null);
                 if (!r) return;
-                if (r.kind === "edit") void runGroupEdit(r.keepVisible, r.text || "");
+                if (r.kind === "edit") void runGroupEdit(r.keepVisible, r.text || "", r.media);
                 else void runGroupRegen(r.keepVisible, r.from, r.reason);
               }}
             >
@@ -1176,6 +1328,27 @@ function formatDate(iso?: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleDateString();
+}
+
+// Per-chat preference: show tool ActionGroups vs pelado transcript.
+// Default off (pelado) so the thread reads like a conversation; flip the header
+// switch (or the create-group checkbox) when you want the work log.
+const SHOW_TOOLS_PREF = "apx.chat.showTools";
+
+function readShowTools(key: string): boolean {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw === null) return false;
+    return raw === "1" || raw === "true";
+  } catch {
+    return false;
+  }
+}
+
+function writeShowTools(key: string, v: boolean): void {
+  try {
+    localStorage.setItem(key, v ? "1" : "0");
+  } catch { /* quota / private mode */ }
 }
 
 function CreateAgentDialog({
