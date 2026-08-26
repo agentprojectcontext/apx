@@ -53,6 +53,10 @@ export function ProfilePanel() {
   const activate = async (id: string, force: boolean) => {
     setBusy(true);
     try {
+      // Not a React hook: `ProfilesApi.use` is the daemon call that ACTIVATES a
+      // profile (POST /api/profiles/:id/use), mirroring `apx profile use`. The
+      // rule keys off the `use` prefix alone and cannot tell the two apart.
+      // eslint-disable-next-line react-hooks/rules-of-hooks
       const r = await ProfilesApi.use(id, force);
       for (const w of r.warnings || []) toast.error(w);
       await refreshAll();

@@ -45,7 +45,15 @@ test("the strip is the field's top edge, and opens away from the thumb", () => {
   assert.match(bar, /"-mx-2 -mt-2 overflow-hidden rounded-t-\[calc\(1rem-1px\)\] border-b border-border\/70 bg-muted\/40"/,
     "the docked strip is full-bleed inside the card");
   assert.match(input, /\{header\}\s*\n\s*\{above\}/, "the header sits inside the card, above the attachments");
-  assert.match(composer, /header=\{context\}/);
+  // The context strip rides in ChatInput's `header` slot. It used to be the
+  // only thing there (`header={context}`), and this asserted that literally —
+  // then the composer welded the `/command` and `@mention` panels into the SAME
+  // slot, deliberately, so they share the card's chrome instead of floating over
+  // the thread. The contract is "context renders inside the header", not
+  // "context IS the header", so assert that and stop tracking its formatting.
+  const header = composer.slice(composer.indexOf("header={"), composer.indexOf("value={text}"));
+  assert.ok(header, "the composer passes a header to ChatInput");
+  assert.match(header, /\{context\}/, "the context strip renders inside the ChatInput header");
   assert.match(tab, /<ContextBar msgs=\{msgs\} docked onOpenChange=\{setCtxOpen\} \/>/);
   // The questions ride in the same slot, right under the strip: the thing you
   // have to answer belongs in the box you would answer with.

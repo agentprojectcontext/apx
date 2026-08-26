@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 import {
   ChevronDown, FlaskConical, Globe, Network, Pencil, Plug, Plus, ScrollText,
-  Terminal, Trash2, Wrench, X, XCircle,
+  Terminal, Trash2, Wrench, XCircle,
 } from "lucide-react";
 import { Mcps, Vars, type McpAddBody, type McpScope, type McpLogsResult, type VarsList } from "../../lib/api";
 import type { McpEntry } from "../../types/daemon";

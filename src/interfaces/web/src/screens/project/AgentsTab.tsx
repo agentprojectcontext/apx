@@ -23,7 +23,6 @@ import type { AgentAutonomy } from "../../types/daemon";
 import { typeOptions } from "./AgentDetailScreen";
 
 const LANGS = ["", "es", "en", "pt", "fr", "it", "de"];
-const csv = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
 
 function agentVisual(a: AgentEntry) {
   return a.is_master
@@ -126,7 +125,6 @@ function buildTree(agents: AgentEntry[]) {
 
 export function AgentsTab({ pid }: { pid: string }) {
   const navigate = useNavigate();
-  const toast = useToast();
   const list = useSWR(`/api/projects/${pid}/agents?stats=1`, () => Agents.list(pid, { stats: true }));
   const [view, setView] = useState<"hierarchy" | "list">("hierarchy");
   const [creating, setCreating] = useState(false);

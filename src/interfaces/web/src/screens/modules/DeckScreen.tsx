@@ -31,7 +31,6 @@ export function DeckScreen() {
   //    release. The original implementation is kept intact, just unreachable.
   const handleToggle = async (widgetId: string, enabled: boolean) => {
     return; // no-op while Deck is pre-release — see note above.
-    // eslint-disable-next-line no-unreachable
     try {
       await Deck.setWidget(widgetId, { enabled });
       // Optimistically update local data so the switch flips immediately.

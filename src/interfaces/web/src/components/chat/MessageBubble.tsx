@@ -56,6 +56,14 @@ interface Props {
 }
 
 export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, compact, queued, onUnqueue, onRegenerate, onEdit, showSpeaker, nameOf, showTools = true }: Props) {
+  // Hooks before any early return. The group-notice branch below returns without
+  // rendering a bubble, and these two used to sit after it — so a notice arriving
+  // mid-thread ("X joined the chat") changed the hook count for that row and React
+  // threw "rendered more hooks than during the previous render". Group chat is
+  // exactly where notices appear, so the crash was on the feature's own path.
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+
   // A group system notice ("… se sumó / salió del chat") is a centred line, not
   // a bubble, so it reads as something the room did rather than someone saying it.
   if (msg.event) {
@@ -69,8 +77,6 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
     );
   }
   const mine = msg.role === "user";
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState("");
   // A turn that carried a file shows the file; its text is the marker the agent
   // was handed, so only what the user actually wrote (caption, or the voice
   // transcript) stays as text — copy included.

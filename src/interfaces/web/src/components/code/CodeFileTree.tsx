@@ -68,7 +68,7 @@ function TreeNode({
 
 export function CodeFileTree({
   pid,
-  projectPath,
+  // projectPath is accepted (CodeScreen passes it) but nothing here reads it.
   className,
   onOpenFile,
 }: {

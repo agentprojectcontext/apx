@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Save, RotateCcw, Pencil, Eye, Columns2, FileQuestion, Download } from "lucide-react";
+import { Save, RotateCcw, Pencil, Columns2, FileQuestion, Download } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { Spinner } from "../ui";
 import { t } from "../../i18n";
