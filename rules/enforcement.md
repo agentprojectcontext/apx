@@ -44,6 +44,7 @@ early return survived in two separate components.
 | Every i18n key in **both** `en.ts` and `es.ts` | 11 | `tests/web-guardrails.test.js` |
 | No Radix, no `components.json` | 11 | `tests/web-guardrails.test.js` |
 | Panel requests go through `src/lib/api/*` | 11 | `tests/web-guardrails.test.js` |
+| User-visible labels start with a Capital | 11a | `tests/web-guardrails.test.js` (`SENTENCE_FRAGMENTS` allowlist) |
 | React hooks rules; no unused vars in the panel | — | `src/interfaces/web/eslint.config.js` |
 | Panel `any` + `exhaustive-deps` count may only fall | — | `scripts/lint-web.js` (baseline 38) |
 | Vendored TUI type errors may only fall | — | `scripts/typecheck-tui.js` (baseline 174) |
@@ -63,13 +64,36 @@ not a build failure, and not even the dev-mode warning (that fires only when
 BOTH dictionaries lack it). It is an English-speaking user quietly reading
 Spanish, with every gate green. Hence `tests/web-guardrails.test.js`.
 
+### How rule 11a is checked, and why it needed an allowlist first
+
+11a is the one rule here whose gate could not simply be switched on. A naive
+"must start with a capital" check reported 279 keys the day it was written, and
+most were legitimate — the rule's own fragment exception (`"in {amount}"`,
+`"cada {n} horas…"`) plus its data carve-out (a slug, a path, a command). A gate
+that fails 279 times is not a gate; it teaches people to edit the check.
+
+So the 279 were classified one at a time. 169 were genuine drift and were
+Capitalised in both dictionaries — status chips reading `"running"`, badges
+reading `"agents"`, form labels reading `"slug"`, toasts reading `"save failed"`.
+The remaining 110 are listed in `SENTENCE_FRAGMENTS` in
+`tests/web-guardrails.test.js`, each under the reason it qualifies.
+
+Two things about that list are deliberate. It is **explicit, not a pattern**: a
+heuristic like "keys ending in `_ph`" would have re-admitted most of the 169.
+And a **stale entry fails the test** — if an allowlisted string is later
+reworded to open with a capital, or its key is deleted, the entry has to go.
+Without that, an exception list becomes somewhere to put things.
+
+The check uses `\p{Ll}`, not `[a-z]`. Three Spanish labels opened with `"ú"`
+(`"última:"`) while their English twins already read `"Last:"`; an ASCII-only
+check called that clean, and per-locale drift is exactly what 11a forbids.
+
 ## Convention only — nothing checks these
 
 Real rules. No mechanism. They hold because someone reads the diff.
 
 | What | Rule | Why there is no gate |
 |---|---|---|
-| User-visible labels start with a Capital | 11a | 275 strings currently start lowercase and **most are legitimate** — the documented "fragment" exception (`"in {amount}"`, `"cada {n} horas…"`). A naive check is 275 false-ish positives; a real one needs a curated allowlist, which is judgment work nobody has done yet. Known drift: `daemon.running`, `admin.agents_badge`, `settings.profile.active`. |
 | One page layout for list screens (`<Section>` slots) | 11b | Structural/visual; no cheap assertion |
 | No secrets, no real data in fixtures or docs | 3 | Needs human judgment about what is real |
 | Skills and `docs/` updated with the behaviour they describe | 6 | `tests/runtime-skills.test.js` checks a skill's *shape*, never whether its prose is still true |
