@@ -79,6 +79,18 @@ export function LanguageButtons({ className }: { className?: string }) {
 export function NotificationSwitch({ className }: { className?: string }) {
   const [stance, setStance] = useState<NotifyStance>(() => notifyStance());
 
+  // "On" is a claim until something actually appears. Between the browser's
+  // permission, the OS letting the browser post at all, and a service worker
+  // that has to be registered, there are three places this dies silently — and
+  // the switch reads exactly the same in all of them.
+  //
+  // This hook belongs ABOVE the three early returns below. It used to sit after
+  // them, so the component rendered one hook while permission was denied and two
+  // once it was granted — and granting permission is the whole point of the
+  // switch. React throws "rendered more hooks than during the previous render"
+  // on that transition.
+  const [tested, setTested] = useState<null | boolean>(null);
+
   if (stance.kind === "insecure") {
     return <p className={className ?? "text-xs text-muted-fg"}>{t("notify.insecure")}</p>;
   }
@@ -99,11 +111,6 @@ export function NotificationSwitch({ className }: { className?: string }) {
     setStance(await enableNotifications());
   };
 
-  // "On" is a claim until something actually appears. Between the browser's
-  // permission, the OS letting the browser post at all, and a service worker
-  // that has to be registered, there are three places this dies silently — and
-  // the switch reads exactly the same in all of them.
-  const [tested, setTested] = useState<null | boolean>(null);
   const test = async () => {
     setTested(null);
     setTested(await sendTestNotification());

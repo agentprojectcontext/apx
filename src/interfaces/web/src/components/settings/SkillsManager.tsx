@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import useSWR from "swr";
 import {
   ChevronDown, Code2, FileText, GitBranch, Lock, PencilLine,
-  Plus, RotateCcw, Trash2, Upload,
+  Plus, Trash2, Upload,
 } from "lucide-react";
 import { Button, Field, Input, Textarea, Switch, Badge, Loading, Tip, Dialog } from "../ui";
 import { UiSelect } from "../UiSelect";

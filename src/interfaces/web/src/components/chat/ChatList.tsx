@@ -373,7 +373,7 @@ export function ChatList({
                       {t("project.groups.pick_members")}
                     </p>
                     <div className="max-h-56 overflow-y-auto">
-                      {agents.map((a, i) => {
+                      {agents.map((a) => {
                         const on = groupPick.includes(a.slug);
                         return (
                           <button

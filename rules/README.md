@@ -7,6 +7,7 @@ only when you're working in that subsystem.
 
 | File | Read it when you're touching… |
 |---|---|
+| [`enforcement.md`](enforcement.md) | **which rules are build errors and which are only prose** — read before trusting a rule |
 | [`architecture.md`](architecture.md) | any structural decision — layering, SOLID, registries, where logic lives |
 | [`repo-layout.md`](repo-layout.md) | finding where a thing lives / where a new thing goes |
 | [`daemon-api.md`](daemon-api.md) | HTTP routes, `asyncRoute`, plugins, WebSocket hubs |

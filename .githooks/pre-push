@@ -42,6 +42,17 @@ if ! npm run lint --silent >/tmp/apx-pre-push-lint.log 2>&1; then
 fi
 ok "lint"
 
+# 0b) The web panel's own lint. It is a separate pnpm workspace, so the root
+#     eslint run above does not see a single one of its ~47k lines. Errors are
+#     absolute; warnings ratchet against a baseline (scripts/lint-web.js).
+step "linting web panel (npm run lint:web)"
+if ! npm run lint:web --silent >/tmp/apx-pre-push-lint-web.log 2>&1; then
+  printf "%s\n" "── eslint (web) ──" >&2
+  tail -40 /tmp/apx-pre-push-lint-web.log >&2
+  fail "web lint failed (full log: /tmp/apx-pre-push-lint-web.log)"
+fi
+ok "web lint"
+
 # 1) Backend tests — the source of truth for behavior the daemon ships.
 #    test:ci also refuses skipped/todo tests; a skipped test is one nobody
 #    is watching.

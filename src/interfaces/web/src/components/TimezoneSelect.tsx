@@ -28,7 +28,10 @@ export function TimezoneSelect({
   const listRef = useRef<HTMLUListElement | null>(null);
   const [menuRect, setMenuRect] = useState<{ top: number; left: number; width: number } | null>(null);
 
-  useEffect(() => { setQuery(labelFor(value)); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [value, options]);
+  // labelFor is rebuilt every render and only reads `options`, which is already
+  // a dependency — listing it too would re-run this on every render.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setQuery(labelFor(value)); }, [value, options]);
 
   useLayoutEffect(() => {
     if (!open) return;

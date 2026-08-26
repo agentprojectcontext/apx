@@ -6,8 +6,6 @@
 // where the conversation's weight sits (user vs assistant vs tool I/O).
 import type { CodeTurn } from "./api/code";
 
-const estTokens = (s: string): number => (s ? Math.ceil(s.length / 4) : 0);
-
 function turnText(turn: CodeTurn, kinds: { text?: boolean; tool?: boolean }): number {
   let chars = 0;
   for (const p of turn.parts || []) {

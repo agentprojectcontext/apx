@@ -41,6 +41,12 @@ jobs:
       - name: Lint
         run: pnpm run lint
 
+      # The panel is a separate workspace, so the run above never sees its
+      # ~47k lines of TS/TSX. Errors are absolute; warnings ratchet against a
+      # baseline in scripts/lint-web.js and may only fall.
+      - name: Lint (web panel)
+        run: pnpm run lint:web
+
       # Backend suite. The script also enforces "0 skipped, 0 todo" — a skipped
       # test is a test nobody is watching.
       - name: Test
@@ -56,3 +62,77 @@ jobs:
       # Ratchet: the vendored TUI fork's error count may fall, never rise.
       - name: TUI typecheck
         run: node scripts/typecheck-tui.js
+
+  # The Playwright suite: 14 specs that drive the real panel against a real
+  # daemon. They existed for months and nothing ran them — not preflight, not
+  # pre-push, not CI — so they were documentation of intent rather than a gate.
+  #
+  # Kept as its OWN job, deliberately: it needs a booted daemon and a browser,
+  # so it is an order of magnitude slower and more fragile than `verify`. A
+  # failure here should be read as "the panel broke", but `verify` stays the
+  # fast signal that blocks the obvious mistakes.
+  #
+  # If a spec proves flaky, stabilise the spec. Do not delete the job — that is
+  # how these stopped running the first time.
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install (root)
+        run: pnpm install --frozen-lockfile
+
+      - name: Install (web panel)
+        run: pnpm install --frozen-lockfile
+        working-directory: src/interfaces/web
+
+      # e2e/global-setup.ts shells out to `apx init` to build its throwaway
+      # project, so the CLI has to be on PATH. A shim beats `pnpm link --global`
+      # here: no global store to configure, and it points at this checkout, so
+      # the specs exercise the code under test rather than a published tarball.
+      - name: Put the apx CLI on PATH
+        run: |
+          printf '#!/bin/sh\nexec node "%s/src/interfaces/cli/index.js" "$@"\n' "$PWD" | sudo tee /usr/local/bin/apx >/dev/null
+          sudo chmod +x /usr/local/bin/apx
+          apx --version
+
+      - name: Start the daemon
+        run: |
+          node src/host/daemon/index.js > /tmp/apx-daemon.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:7430/api/health >/dev/null; then
+              echo "daemon up after ${i}s"; curl -s http://127.0.0.1:7430/api/health; exit 0
+            fi
+            sleep 1
+          done
+          echo "daemon never became healthy"; cat /tmp/apx-daemon.log; exit 1
+
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+        working-directory: src/interfaces/web
+
+      - name: E2E
+        run: pnpm exec playwright test
+        working-directory: src/interfaces/web
+
+      # The report and the daemon log are the only evidence of WHY a headless
+      # run failed, so keep them even (especially) when the step above did not.
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            src/interfaces/web/e2e/.playwright-report
+            /tmp/apx-daemon.log
+          retention-days: 7
+          if-no-files-found: ignore
