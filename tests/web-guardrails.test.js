@@ -200,11 +200,18 @@ const SENTENCE_FRAGMENTS = new Set([
   "telegram_channels.no_owner", "project.agents.slug_invalid", "base.defaults_slug_invalid",
   "agents_ui.body_hint", "project.mcps.env_invalid",
 
-  // config key / field name shown verbatim
+  // config key / field name shown verbatim.
+  //
+  // TelegramChannelDialog labels every field with the key it writes on the
+  // channel object — bot_token, chat_id, route_to_agent, owner_user_id — so
+  // `name` and `project` belong in that spelling too. The first pass over 11a
+  // capitalised those two, which broke the one pattern the dialog has; they are
+  // back to lowercase and listed here so the gate stops asking.
   "project.config.model", "project.config.perm", "project.config.route",
   "project.telegram.route_agent", "telegram_channel_dialog.token_label",
   "telegram_channel_dialog.chat_id", "telegram_channel_dialog.route_label",
-  "telegram_channel_dialog.owner_label", "telegram_ui.send_chat_id",
+  "telegram_channel_dialog.owner_label", "telegram_channel_dialog.name_label",
+  "telegram_channel_dialog.project_label", "telegram_ui.send_chat_id",
   "telegram_ui.user_id_fallback", "project.mcps.transport_stdio", "project.mcps.logs_stderr",
   "project.memories.chars",
 

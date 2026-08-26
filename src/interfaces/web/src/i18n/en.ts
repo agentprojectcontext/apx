@@ -1222,10 +1222,10 @@ export const en = {
   telegram_channel_dialog: {
     new_title:   "New Telegram channel",
     edit_title:  "Edit channel: {name}",
-    name_label:  "Name (internal slug)",
+    name_label:  "name (internal slug)",
     token_label: "bot_token",
     chat_id:     "chat_id",
-    project_label: "Project",
+    project_label: "project",
     project_hint: "Slug or id of the project to pin this channel to (optional).",
     route_label: "route_to_agent",
     route_hint:  "Answering agent; empty = APX super-agent.",
