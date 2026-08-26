@@ -49,9 +49,13 @@ interface Props {
   showSpeaker?: boolean;
   /** Resolve an agent slug to its display name, for the "traído por X" tag. */
   nameOf?: (slug: string) => string;
+  /** Full view: tool calls collapse into an ActionGroup. Simple ("pelado") view:
+   *  tools hide and the narration lines that lived inside the group render as
+   *  normal bubbles in order — same parts list, different layout. Default on. */
+  showTools?: boolean;
 }
 
-export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, compact, queued, onUnqueue, onRegenerate, onEdit, showSpeaker, nameOf }: Props) {
+export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, compact, queued, onUnqueue, onRegenerate, onEdit, showSpeaker, nameOf, showTools = true }: Props) {
   // A group system notice ("… se sumó / salió del chat") is a centred line, not
   // a bubble, so it reads as something the room did rather than someone saying it.
   if (msg.event) {
@@ -76,6 +80,16 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
   // A user turn is never grouped — it has no tools, and `work` would be empty
   // anyway; splitting only shapes the assistant side.
   const { work, rest } = mine ? { work: [], rest: msg.parts } : splitTurnParts(msg.parts);
+  // Simple view: same parts, no ActionGroup. Narration that lived inside the
+  // work block comes out as regular bubbles; tools stay hidden (ask_questions
+  // still shows — it is a control the reader must reach).
+  const simpleParts = !mine && !showTools
+    ? msg.parts.filter((p) =>
+        p.kind === "text" ||
+        p.kind === "reasoning" ||
+        (p.kind === "tool" && p.tool === "ask_questions"),
+      )
+    : null;
 
   if (mine && isAskAnswer) {
     const text = textOf(msg);
@@ -88,7 +102,10 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
   const submitEdit = () => {
     const v = draft.trim();
     setEditing(false);
-    if (v && onEdit) onEdit(v);
+    if (!onEdit) return;
+    // Caption may be empty when the turn still has a file — editing only the
+    // text of a photo message must not refuse the save.
+    if (v || media?.length) onEdit(v);
   };
 
   return (
@@ -153,8 +170,9 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
 
         {/* The work: every tool call and the line written before it, collapsed
             into one row. A 24-step turn is a log, not a conversation — it goes
-            behind one click so the answer below is what you read first. */}
-        {!mine && work.length > 0 && <ActionGroup parts={work} running={!!msg.pending} />}
+            behind one click so the answer below is what you read first.
+            Simple view skips this entirely (narration reappears as bubbles). */}
+        {showTools && !mine && work.length > 0 && <ActionGroup parts={work} running={!!msg.pending} />}
 
         {/* Editing your own turn in place: on save it re-sends and everything
             below is dropped and re-answered. Enter saves, Esc/Cancel backs out. */}
@@ -182,8 +200,9 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
           </div>
         )}
 
-        {/* What the agent said once the work was done — the answer. */}
-        {!(mine && editing) && rest.map((part, i) =>
+        {/* Full view: what the agent said once the work was done. Simple view:
+            every text/reasoning part in original order (tools hidden). */}
+        {!(mine && editing) && (simpleParts || rest).map((part, i) =>
           part.kind === "reasoning" ? (
             <ReasoningBlock key={i} text={part.text} streaming={part.streaming} />
           ) : part.kind === "tool" ? (
@@ -329,15 +348,15 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
                 · {fmtTok((msg.usage.input_tokens || 0) + (msg.usage.output_tokens || 0))} tok
               </span>
             ) : null}
-            {!mine && hasTools && (
+            {showTools && !mine && hasTools && (
               <span>· {t("shared_ui.tools_count", { n: msg.parts.filter((p) => p.kind === "tool").length })}</span>
             )}
             {/* Replayed turns have no tool parts — the live events are gone —
                 but they do carry the summary recorded at the time. Show that
                 instead, so history does not look like the agent just answered
                 from nothing. Failures are named: "it tried and could not" is
-                the half worth surfacing. */}
-            {!mine && !hasTools && msg.toolSummary?.tools?.length ? (
+                the half worth surfacing. Hidden in simple view with the rest. */}
+            {showTools && !mine && !hasTools && msg.toolSummary?.tools?.length ? (
               <span title={msg.toolSummary.tools.map((x) => `${x.name}×${x.count}`).join(", ")}>
                 · {t("shared_ui.tools_count", { n: msg.toolSummary.total })}
                 {msg.toolSummary.failed
@@ -433,13 +452,28 @@ function fmtTok(n: number): string {
 function formatTs(iso: string, compact?: boolean): string {
   try {
     const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
     // Seconds are for reading a live stream on a desktop; on the phone they are
     // three more characters competing with the model's name for the same line.
-    return d.toLocaleTimeString([], {
+    const time = d.toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
       ...(compact ? {} : { second: "2-digit" }),
     });
+    // Today → time only. Older (or future) days keep the date so a scrolled
+    // thread is readable without opening a calendar.
+    const now = new Date();
+    const sameDay =
+      d.getFullYear() === now.getFullYear() &&
+      d.getMonth() === now.getMonth() &&
+      d.getDate() === now.getDate();
+    if (sameDay) return time;
+    const date = d.toLocaleDateString([], {
+      day: "2-digit",
+      month: "2-digit",
+      ...(d.getFullYear() !== now.getFullYear() ? { year: "2-digit" } : {}),
+    });
+    return `${date} ${time}`;
   } catch {
     return iso;
   }

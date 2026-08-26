@@ -11,6 +11,7 @@
 import { readAgents } from "#core/apc/parser.js";
 import {
   createGroupThread, addGroupParticipant, removeGroupParticipant, readProjectGroupThread, truncateGroupThread,
+  lastGroupOwnerMedia,
 } from "#core/stores/messages.js";
 import { runGroupTurn } from "#core/agent/group/run-group-turn.js";
 import { readTurnAttachments } from "./media.js";
@@ -29,14 +30,44 @@ export function register(api, { projects, project, config, plugins, registries }
   api.post("/projects/:pid/groups", (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    const { title, participants } = req.body || {};
-    const known = new Set(readAgents(p.path).map((a) => a.slug));
-    const slugs = (Array.isArray(participants) ? participants : []).filter((s) => known.has(s));
+    const { title, participants, members } = req.body || {};
+
+    // Cross-project rooms (inbox / mobile): `members: [{ project_id, slug }]`.
+    // Same-project rooms keep the old `participants: string[]` shape.
+    let slugs = [];
+    let homes = null;
+    if (Array.isArray(members) && members.length) {
+      const seen = new Set();
+      homes = {};
+      for (const m of members) {
+        const slug = typeof m?.slug === "string" ? m.slug.trim() : "";
+        if (!slug || seen.has(slug)) continue;
+        const homeId = m.project_id ?? p.id;
+        let home;
+        try { home = projects.get(homeId); } catch { home = null; }
+        if (!home?.path) continue;
+        if (!readAgents(home.path).some((a) => a.slug === slug)) continue;
+        seen.add(slug);
+        slugs.push(slug);
+        homes[slug] = home.id;
+      }
+      // All members live on the host project → no homes map needed.
+      if (slugs.length && Object.values(homes).every((id) => String(id) === String(p.id))) {
+        homes = null;
+      }
+    } else {
+      const known = new Set(readAgents(p.path).map((a) => a.slug));
+      slugs = (Array.isArray(participants) ? participants : []).filter((s) => known.has(s));
+    }
+
     if (slugs.length < 1) return res.status(400).json({ error: "at least one existing agent required" });
     try {
-      const id = createGroupThread(p.logMessage, { title: title || null, participants: slugs });
+      const id = createGroupThread(p.logMessage, { title: title || null, participants: slugs, homes });
       try { projects.rebuild(p.id); } catch { /* best-effort */ }
-      res.status(201).json({ id, channel: "group", title: title || slugs.join(" · "), participants: slugs });
+      res.status(201).json({
+        id, channel: "group", title: title || slugs.join(" · "), participants: slugs,
+        ...(homes ? { homes } : {}),
+      });
     } catch (e) {
       res.status(400).json({ error: e.message });
     }
@@ -73,7 +104,8 @@ export function register(api, { projects, project, config, plugins, registries }
   });
 
   // Rewind a group so a regenerate/edit can overwrite everything after a point.
-  // `keep_visible` = how many display messages (owner + agent turns) to keep.
+  // `keep_visible` = how many pane bubbles to keep (tools + consecutive same
+  // speaker collapse like the web transcript).
   api.post("/projects/:pid/groups/:gid/truncate", (req, res) => {
     const p = project(req, res);
     if (!p) return;
@@ -95,14 +127,21 @@ export function register(api, { projects, project, config, plugins, registries }
     const p = project(req, res);
     if (!p) return;
     const { prompt, rerun, attachments, from, reason } = req.body || {};
+    if (!readProjectGroupThread(p.storagePath, req.params.gid)) return res.status(404).json({ error: "group not found" });
     // Files the composer uploaded to ~/.apx/media: images ride on each speaker's
     // turn (vision), and a marker naming each file is folded into the prompt so a
     // photo with no caption is still a turn and a non-vision agent is told a file
     // arrived and where it lives. Same handling as the 1:1 chat.
-    const turnFiles = rerun ? { attachments: [], markers: [], media: null } : readTurnAttachments(attachments);
-    const turnPrompt = [...turnFiles.markers, prompt].filter(Boolean).join(" ");
+    //
+    // On a REGENERATE (rerun), the owner already sent the turn — re-read the
+    // photo it carried from the ledger and re-attach it, or the re-run agents
+    // lose sight of the image the original turn answered.
+    const rerunAttach = rerun
+      ? (() => { const md = lastGroupOwnerMedia(p.storagePath, req.params.gid); return md ? [md] : []; })()
+      : attachments;
+    const turnFiles = readTurnAttachments(rerunAttach);
+    const turnPrompt = rerun ? "" : [...turnFiles.markers, prompt].filter(Boolean).join(" ");
     if (!rerun && !turnPrompt.trim()) return res.status(400).json({ error: "prompt required" });
-    if (!readProjectGroupThread(p.storagePath, req.params.gid)) return res.status(404).json({ error: "group not found" });
 
     res.setHeader("content-type", "application/x-ndjson; charset=utf-8");
     res.setHeader("cache-control", "no-cache, no-transform");

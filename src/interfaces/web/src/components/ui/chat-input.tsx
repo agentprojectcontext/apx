@@ -48,6 +48,9 @@ interface ChatInputProps {
   /** Send with no text. An attachment on its own is a turn — the daemon builds
    *  the marker that stands in for the words. */
   allowEmpty?: boolean
+  /** Extra key handling (e.g. ↑/↓/Enter for an @mention picker). Return true
+   *  to consume the event so Enter does not also send. */
+  onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => boolean | void
   className?: string
 }
 
@@ -76,6 +79,7 @@ export function ChatInput({
   leading,
   trailing,
   allowEmpty = false,
+  onKeyDown,
   className,
 }: ChatInputProps) {
   const ref = React.useRef<HTMLTextAreaElement>(null)
@@ -174,6 +178,7 @@ export function ChatInput({
           takeFiles(e.clipboardData.files)
         } : undefined}
         onKeyDown={(e) => {
+          if (onKeyDown?.(e)) return
           if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault()
             if (!canSend) return

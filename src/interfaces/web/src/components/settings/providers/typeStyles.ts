@@ -164,6 +164,8 @@ export const ENGINE_PRESETS: Record<EngineType, EnginePreset> = {
   zen: {
     base_url: "https://opencode.ai/zen/v1",
     default_model: "big-pickle",
+    // Free tier: literal "public" + User-Agent opencode/* (engine injects UA).
+    // Paid models need a real OpenCode Zen key.
     api_key_env: "OPENCODE_ZEN_API_KEY",
     known_models: [
       "big-pickle",

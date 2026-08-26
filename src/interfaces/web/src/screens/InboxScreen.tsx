@@ -5,6 +5,7 @@ import { Button, Empty, Loading } from "../components/ui";
 import { Tip } from "../components/ui/tip";
 import { InboxList, rowKey } from "../components/inbox/InboxList";
 import { agentCardUrl } from "./mobile/routes";
+import { NewChatSheet } from "./mobile/NewChatSheet";
 import { ChatTab } from "./project/ChatTab";
 import { useInbox } from "../hooks/useInbox";
 import { threadMoved } from "../lib/inbox-selection";
@@ -34,8 +35,9 @@ import { t } from "../i18n";
 export function InboxScreen() {
   const navigate = useNavigate();
   const [includeEmpty, setIncludeEmpty] = useState(false);
-  const { rows, isLoading } = useInbox(includeEmpty);
+  const { rows, isLoading, mutate } = useInbox(includeEmpty);
   const [selected, setSelected] = useState<InboxRow | null>(null);
+  const [newOpen, setNewOpen] = useState(false);
 
   // Open the most recent conversation on arrival. An inbox that lands on an
   // empty pane makes you click twice to see the thing you came for.
@@ -86,12 +88,55 @@ export function InboxScreen() {
       : { kind: "live", agentSlug: row.agent_slug };
   };
 
+  const openLive = (row: InboxRow) => {
+    setSelected({
+      ...row,
+      conversation_id: null,
+      channel: "web",
+      messages: 0,
+      preview: null,
+      last_activity_at: new Date().toISOString(),
+    });
+  };
+
+  const openGroup = async (info: {
+    id: string;
+    title: string;
+    participants: string[];
+    project_id: number | string;
+  }) => {
+    const fresh = await mutate();
+    const hit = (fresh || []).find(
+      (r) => r.kind === "group" && r.conversation_id === info.id,
+    );
+    setSelected(
+      hit || {
+        project_id: info.project_id,
+        project_name: null,
+        project_path: null,
+        agent_slug: `group:${info.id}`,
+        agent_name: info.title,
+        agent_emoji: null,
+        agent_icon: null,
+        kind: "group",
+        participants: info.participants,
+        pinned: false,
+        conversation_id: info.id,
+        channel: "group",
+        messages: 0,
+        preview: null,
+        last_activity_at: new Date().toISOString(),
+      },
+    );
+  };
+
   return (
     <div className="flex h-full min-h-0 overflow-hidden" data-testid="inbox-screen">
       <InboxList
         rows={rows}
         selectedKey={selected ? rowKey(selected) : null}
         onSelect={setSelected}
+        onNew={() => setNewOpen(true)}
         action={
           <Tip content={includeEmpty ? t("inbox.hide_quiet") : t("inbox.show_quiet")}>
             <Button
@@ -104,6 +149,13 @@ export function InboxScreen() {
             </Button>
           </Tip>
         }
+      />
+
+      <NewChatSheet
+        open={newOpen}
+        onClose={() => setNewOpen(false)}
+        onPick={openLive}
+        onGroupCreated={(info) => void openGroup(info)}
       />
 
       <section className="flex min-w-0 flex-1 flex-col">

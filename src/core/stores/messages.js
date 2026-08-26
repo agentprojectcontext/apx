@@ -525,14 +525,22 @@ function newGroupId() {
 
 /** Create a room. Writes the `group_created` control row (roster + title) so
  *  the thread exists — and shows in every list — before anyone speaks. Returns
- *  the new group id. `logMessage` is the project's writer (db entry method). */
-export function createGroupThread(logMessage, { participants = [], title = null } = {}) {
+ *  the new group id. `logMessage` is the project's writer (db entry method).
+ *
+ *  `homes` (optional): `{ [slug]: projectId }` — when a room mixes agents from
+ *  several projects, each speaker's home project is recorded so the turn runner
+ *  can load the right `.apc` agent (and memory) instead of only the host's roster.
+ */
+export function createGroupThread(logMessage, { participants = [], title = null, homes = null } = {}) {
   const slugs = [...new Set(participants.filter(Boolean))];
   if (!slugs.length) throw new Error("a group needs at least one agent");
   const group_id = newGroupId();
+  const homesMeta = homes && typeof homes === "object" && Object.keys(homes).length
+    ? { homes }
+    : {};
   logMessage({
     channel: GROUP_CHANNEL, direction: "out", type: "system", author: "system",
-    body: "", meta: { group_id, kind: "group_created", participants: slugs, title },
+    body: "", meta: { group_id, kind: "group_created", participants: slugs, title, ...homesMeta },
   });
   return group_id;
 }
@@ -596,8 +604,9 @@ export function listProjectGroupThreads(projectRoot) {
   const byId = new Map();
   for (const r of groupRows(projectRoot, null)) {
     const gid = r.meta.group_id;
-    const g = byId.get(gid) || { id: gid, participants: [], title: null, created: null, display: [], last: null };
+    const g = byId.get(gid) || { id: gid, participants: [], title: null, homes: null, created: null, display: [], last: null };
     if (Array.isArray(r.meta.participants)) g.participants = r.meta.participants; // latest control wins
+    if (r.meta.homes && typeof r.meta.homes === "object") g.homes = r.meta.homes;
     if (r.meta.kind === "group_created") { g.title = r.meta.title || null; g.created = r.ts; }
     if (!isControlRow(r)) { g.display.push(r); g.last = r; }
     byId.set(gid, g);
@@ -609,6 +618,7 @@ export function listProjectGroupThreads(projectRoot) {
       channel: GROUP_CHANNEL,
       title: g.title || g.participants.join(" · "),
       participants: g.participants,
+      ...(g.homes ? { homes: g.homes } : {}),
       messages: g.display.length,
       started_at: g.created || (g.display[0]?.ts) || "",
       last_ts: g.last?.ts || g.created || "",
@@ -629,8 +639,10 @@ export function readProjectGroupThread(projectRoot, group_id) {
   if (!rows.length) return null;
   let participants = [];
   let title = null;
+  let homes = null;
   for (const r of rows) {
     if (Array.isArray(r.meta.participants)) participants = r.meta.participants;
+    if (r.meta.homes && typeof r.meta.homes === "object") homes = r.meta.homes;
     if (r.meta.kind === "group_created") title = r.meta.title || null;
   }
   // Join/leave control rows surface as centred system notices in the transcript
@@ -646,16 +658,29 @@ export function readProjectGroupThread(projectRoot, group_id) {
     else if (r.type === "user") messages.push(shapeLedgerMessage(r));
     else messages.push(shapeLedgerMessage({ ...r, agent_slug: r.actor_id || r.author, actor_kind: r.actor_kind || "agent" }));
   }
-  return { id: group_id, channel: GROUP_CHANNEL, title: title || participants.join(" · "), participants, messages };
+  return {
+    id: group_id,
+    channel: GROUP_CHANNEL,
+    title: title || participants.join(" · "),
+    participants,
+    ...(homes ? { homes } : {}),
+    messages,
+  };
 }
 
 /**
- * Rewind a group: keep the first `keepVisible` DISPLAY messages (owner + agent
- * turns) and drop the rest from the ledger, so "regenerate"/"edit & resend" can
- * overwrite everything after a point — the same rewind the 1:1 chat's
- * truncateConversation does, but on the append-only ledger. Control rows
- * (roster/title) and every other channel are left untouched. Returns how many
- * rows were removed.
+ * Rewind a group: keep the first `keepVisible` PANE BUBBLES and drop the rest
+ * from the ledger, so "regenerate"/"edit & resend" can overwrite everything
+ * after a point — the same rewind the 1:1 chat's truncateConversation does, but
+ * on the append-only ledger. Control rows (roster/title) and every other channel
+ * are left untouched. Returns how many rows were removed.
+ *
+ * keepVisible matches what the web pane shows as bubbles:
+ *   - tool rows ride with the agent turn that follows (do not count alone)
+ *   - consecutive agent rows from the SAME speaker collapse into ONE bubble
+ *     (threadToChatMsgs does the same). Counting each agent row separately
+ *     under-counted keepVisible and deleted the owner's line when regenerating
+ *     the next reply (e.g. two Candela rows → one UI bubble → cut too early).
  *
  * Unlike a2a (which refuses truncation — it is a record of two agents talking),
  * a group is an interactive chat the owner drives, so rewinding it is expected.
@@ -665,7 +690,7 @@ export function truncateGroupThread(projectRoot, group_id, keepVisible) {
   if (!fs.existsSync(dir)) return { removed: 0 };
   const files = fs.readdirSync(dir).filter((f) => f.endsWith(".jsonl")).sort();
   const raw = new Map();          // file -> raw line array
-  const display = [];             // { file, idx, ts } for this group's display rows
+  const display = [];             // { file, idx, ts, type, author }
   for (const f of files) {
     const lines = fs.readFileSync(path.join(dir, f), "utf8").split("\n");
     raw.set(f, lines);
@@ -675,11 +700,54 @@ export function truncateGroupThread(projectRoot, group_id, keepVisible) {
       let obj; try { obj = JSON.parse(t); } catch { return; }
       if (!obj || obj.channel !== GROUP_CHANNEL || obj.meta?.group_id !== group_id) return;
       if (obj.meta?.kind || obj.type === "system") return; // control row — keep
-      display.push({ file: f, idx, ts: obj.ts || "" });
+      display.push({
+        file: f,
+        idx,
+        ts: obj.ts || "",
+        type: obj.type || "agent",
+        author: obj.author || obj.agent_slug || "",
+      });
     });
   }
   display.sort((a, b) => (a.ts || "").localeCompare(b.ts || ""));
-  const drop = new Set(display.slice(Math.max(0, keepVisible)).map((d) => `${d.file}#${d.idx}`));
+
+  // Collapse into pane bubbles (same rules as threadToChatMsgs).
+  const bubbles = []; // each: row refs
+  let pendingTools = [];
+  let lastActor = null; // "user" | "agent:<slug>"
+  for (const d of display) {
+    if (d.type === "tool") {
+      pendingTools.push(d);
+      continue;
+    }
+    if (d.type === "user") {
+      bubbles.push([...pendingTools, d]);
+      pendingTools = [];
+      lastActor = "user";
+      continue;
+    }
+    // agent (or any other non-tool display row attributed to a speaker)
+    const actor = `agent:${d.author || "agent"}`;
+    if (lastActor === actor && bubbles.length) {
+      bubbles[bubbles.length - 1].push(...pendingTools, d);
+    } else {
+      bubbles.push([...pendingTools, d]);
+    }
+    pendingTools = [];
+    lastActor = actor;
+  }
+  if (pendingTools.length) {
+    // Orphan tools after the last turn — attach to last bubble or own drop unit.
+    if (bubbles.length) bubbles[bubbles.length - 1].push(...pendingTools);
+    else bubbles.push(pendingTools);
+  }
+
+  const cut = Math.max(0, keepVisible);
+  const drop = new Set();
+  const keyOf = (d) => `${d.file}#${d.idx}`;
+  for (const bubble of bubbles.slice(cut)) {
+    for (const d of bubble) drop.add(keyOf(d));
+  }
   if (!drop.size) return { removed: 0 };
   for (const f of new Set([...drop].map((k) => k.slice(0, k.lastIndexOf("#"))))) {
     const kept = raw.get(f).filter((_, idx) => !drop.has(`${f}#${idx}`));
@@ -693,6 +761,17 @@ export function truncateGroupThread(projectRoot, group_id, keepVisible) {
 export function lastGroupOwnerMessage(projectRoot, group_id) {
   const rows = groupRows(projectRoot, group_id).filter((r) => r.type === "user");
   return rows.length ? (rows[rows.length - 1].body || "") : null;
+}
+
+/** The photo/file the last owner turn carried, as `{ path, name }` — so a
+ *  regenerate can re-attach it and vision keeps working. Null when that turn had
+ *  no media (or there is no owner turn). */
+export function lastGroupOwnerMedia(projectRoot, group_id) {
+  const rows = groupRows(projectRoot, group_id).filter((r) => r.type === "user");
+  const last = rows[rows.length - 1];
+  const m = last?.meta;
+  if (!m?.local_path) return null;
+  return { path: m.local_path, name: m.file_name || undefined };
 }
 
 /** Delete a whole group room: every ledger row for it (messages AND control

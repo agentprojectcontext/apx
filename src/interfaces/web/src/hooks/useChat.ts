@@ -211,6 +211,30 @@ export function historyTextOf(msg: ChatMsg): string {
   return chunks.join("\n\n").trim();
 }
 
+/** Re-send shape for files already on a stored turn (edit / regenerate). */
+export function attachmentsOf(msg: ChatMsg): UploadedMedia[] {
+  return (msg.media || [])
+    .filter((m): m is MessageMedia & { path: string } => typeof m.path === "string" && m.path.length > 0)
+    .map((m) => ({
+      path: m.path,
+      name: m.name || "file",
+      mime: m.mime || "application/octet-stream",
+      kind: m.kind,
+      size: m.size ?? 0,
+    }));
+}
+
+/** Drop leading `[…]` markers so re-attaching files does not double them. */
+function stripLeadingMarkers(text: string, count: number): string {
+  let out = text;
+  for (let i = 0; i < Math.max(1, count); i++) {
+    const next = out.replace(/^\[[^\]]*\]\s*/, "");
+    if (next === out) break;
+    out = next;
+  }
+  return out.trim();
+}
+
 const userPart = (text: string): ChatPart[] => [{ kind: "text", text }];
 
 /** The stored-turn shape of a file the composer just uploaded. */
@@ -223,11 +247,17 @@ const mediaOf = (file: UploadedMedia): MessageMedia => ({
   duration: null,
 });
 
-/** The markers the daemon will write for these files, mirrored locally so the
- *  sent turn reads the same before and after a reload. */
+/** The markers the daemon will write for these files (see readTurnAttachments),
+ *  mirrored locally so the sent turn matches the ledger after a silent reload.
+ *  A short `[image attached]` used to diverge from `[image attached — saved to
+ *  …]` and leave the optimistic bubble dangling as a duplicate photo. */
 const markersFor = (files: UploadedMedia[]): string =>
   files
-    .map((f) => (f.kind === "photo" ? "[image attached]" : `[file attached: ${f.name}]`))
+    .map((f) =>
+      f.kind === "photo"
+        ? `[image attached — saved to ${f.path}]`
+        : `[file attached: ${f.name}, ${f.mime} — saved to ${f.path}. You can open it with your file tools.]`,
+    )
     .join(" ");
 
 function isErrorResult(result: unknown): boolean {
@@ -332,15 +362,31 @@ function threadToChatMsgs(messages: ConversationMessage[]): ChatMsg[] {
  * out on the `web` channel, so the Telegram day file will never contain it, and
  * taking the file as the whole truth would make what you just sent vanish.
  *
- * Local turns that DID land in storage (a project conversation appends to the
- * same file) are matched by role + text and dropped, so the same turn is never
- * shown twice.
+ * Local turns that DID land in storage are matched by role + text OR by the
+ * same attachment path (media markers used to diverge between optimistic and
+ * ledger text, which left a duplicate photo at the foot of the thread until
+ * a hard reload) and dropped, so the same turn is never shown twice.
  */
+function mediaPathsKey(m: ChatMsg): string {
+  return (m.media || []).map((x) => x.path).filter(Boolean).join("\0");
+}
+
 export function mergeLocalTurns(remote: ChatMsg[], current: ChatMsg[]): ChatMsg[] {
   const extras = current.filter((m) => m.local);
   if (!extras.length) return remote;
-  const seen = new Set(remote.map((m) => `${m.role}|${textOf(m)}`));
-  return [...remote, ...extras.filter((m) => !seen.has(`${m.role}|${textOf(m)}`))];
+  const seenText = new Set(remote.map((m) => `${m.role}|${textOf(m)}`));
+  const seenMedia = new Set(
+    remote.filter((m) => mediaPathsKey(m)).map((m) => `${m.role}|${mediaPathsKey(m)}`),
+  );
+  return [
+    ...remote,
+    ...extras.filter((m) => {
+      if (seenText.has(`${m.role}|${textOf(m)}`)) return false;
+      const paths = mediaPathsKey(m);
+      if (paths && seenMedia.has(`${m.role}|${paths}`)) return false;
+      return true;
+    }),
+  ];
 }
 
 /** History plus a trailing streaming bubble for a turn still being written, so
@@ -878,9 +924,17 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
       let u = index - 1;
       while (u >= 0 && msgs[u].role !== "user") u--;
       if (u < 0) return;
-      // Keep the turns before that user turn; re-send its text so it (and a fresh
-      // answer) are appended again.
-      await rewindAndSend(u, historyTextOf(msgs[u]), opts);
+      // Keep the turns before that user turn; re-send its text (+ any files) so
+      // it (and a fresh answer) are appended again. Strip markers when files
+      // ride along — send() / the daemon add them back.
+      const userMsg = msgs[u];
+      const files = attachmentsOf(userMsg);
+      const raw = historyTextOf(userMsg);
+      const text = files.length ? stripLeadingMarkers(raw, files.length) : raw;
+      await rewindAndSend(u, text, {
+        ...opts,
+        ...(files.length ? { attachments: files } : {}),
+      });
     },
     [msgs, rewindAndSend],
   );
@@ -889,7 +943,14 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
     async (index: number, text: string, opts: SendOptions = {}) => {
       const target = msgs[index];
       if (!target || target.role !== "user") return;
-      await rewindAndSend(index, text, opts);
+      // Keep the photo/file that was on the edited turn — only the caption
+      // changes. Dropping media here is what made "edit text with photo" wipe
+      // the image until a hard reload couldn't bring it back either.
+      const files = attachmentsOf(target);
+      await rewindAndSend(index, text, {
+        ...opts,
+        ...(files.length ? { attachments: files } : {}),
+      });
     },
     [msgs, rewindAndSend],
   );

@@ -9,6 +9,24 @@ function getKey(config) {
   return config.api_key || process.env.ANTHROPIC_API_KEY || "";
 }
 
+/** Anthropic multimodal content blocks. Images ride on `m.images` the same
+ *  way Gemini/OpenAI adapters read them — without this, Claude never saw
+ *  photos attached to a turn. */
+function contentForAnthropic(m) {
+  const text = typeof m.content === "string" ? m.content : JSON.stringify(m.content ?? "");
+  const imgs = Array.isArray(m.images)
+    ? m.images.filter((im) => im && im.data && im.mime)
+    : [];
+  if (!imgs.length) return text;
+  return [
+    ...(text ? [{ type: "text", text }] : []),
+    ...imgs.map((im) => ({
+      type: "image",
+      source: { type: "base64", media_type: im.mime, data: im.data },
+    })),
+  ];
+}
+
 export default {
   id: "anthropic",
   needsApiKey: true,
@@ -39,7 +57,7 @@ export default {
       temperature,
       messages: messages.map((m) => ({
         role: m.role === "assistant" ? "assistant" : "user",
-        content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
+        content: contentForAnthropic(m),
       })),
     };
     if (system) body.system = system;

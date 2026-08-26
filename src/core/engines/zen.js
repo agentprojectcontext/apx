@@ -15,6 +15,9 @@ import { matchesModelGlob, modelListFromConfig } from "./_globs.js";
 // with every Zen call — chat, health and the model catalog. It is a pinned
 // version string, and pins go stale; `engines.zen.headers` overrides it from
 // config when Zen starts asking for a newer one.
+//
+// Pair with api_key "public" (or any Zen key). Missing UA → 429. Missing key
+// with UA still works for free models when the adapter falls back to "public".
 export const ZEN_HEADERS = { "user-agent": "opencode/1.18.18" };
 
 // Which models demand their own thinking back on every subsequent request.
@@ -62,6 +65,13 @@ function replayReasoningContent(entry, source, { model, config }) {
   if (typeof reasoning === "string" && reasoning) entry.reasoning_content = reasoning;
 }
 
+// Free-tier key. With ZEN_HEADERS the gateway answers 200 for big-pickle and
+// the other *-free models; without the UA it answers 429 FreeUsageLimitError
+// even when the key is valid. Prefer a real OPENCODE_ZEN_API_KEY / engines.zen
+// api_key when present (paid models need one); fall back to "public" so agents
+// are never left keyless on the free tier.
+export const ZEN_PUBLIC_API_KEY = "public";
+
 const base = createOpenAiCompatibleEngine({
   id: "zen",
   defaultBaseUrl: "https://opencode.ai/zen/v1",
@@ -69,6 +79,7 @@ const base = createOpenAiCompatibleEngine({
   defaultFallbackModel: "zen:big-pickle",
   extraHeaders: ZEN_HEADERS,
   decorateMessage: replayReasoningContent,
+  defaultApiKey: ZEN_PUBLIC_API_KEY,
 });
 
 /** The cheapest model that still proves a key works: free, one token. */
@@ -79,12 +90,12 @@ const PROBE_MODEL = "big-pickle";
 // "connected", so a typo in the key would show a healthy provider that fails on
 // the first real turn. Here the probe has to be a completion: one token against
 // a free model, which costs nothing and is the only answer the gateway gives
-// that actually depends on the key.
+// that actually depends on the key. Empty config still probes with "public".
 export default {
   ...base,
 
   async health(config = {}, { timeoutMs = 800 } = {}) {
-    const key = config?.api_key || process.env.OPENCODE_ZEN_API_KEY || "";
+    const key = config?.api_key || process.env.OPENCODE_ZEN_API_KEY || ZEN_PUBLIC_API_KEY;
     if (!key) return { ok: false, provider: "zen", reason: "no api_key" };
 
     const url = `${String(config?.base_url || base.defaultBaseUrl).replace(/\/$/, "")}/chat/completions`;

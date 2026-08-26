@@ -76,19 +76,36 @@ export async function runGroupTurn({ p, gid, text, attachments = [], media = nul
     }
   }
 
-  const roster = readAgents(p.path);
-  const bySlug = new Map(roster.map((a) => [a.slug, a]));
-  const agents = thread.participants.map((s) => bySlug.get(s)).filter(Boolean);
+  // Resolve each participant against its home project when the room was built
+  // cross-project (inbox / mobile). Same-project rooms keep the host roster.
+  const homes = thread.homes && typeof thread.homes === "object" ? thread.homes : null;
+  const resolveHome = (slug) => {
+    const homeId = homes?.[slug];
+    if (homeId == null || homeId === "" || String(homeId) === String(p.id)) return p;
+    try {
+      const home = projects?.get?.(homeId);
+      return home?.path ? home : p;
+    } catch {
+      return p;
+    }
+  };
+  const bySlug = new Map(); // slug -> { agent, project }
+  for (const slug of thread.participants || []) {
+    const home = resolveHome(slug);
+    const agent = readAgents(home.path).find((a) => a.slug === slug);
+    if (agent) bySlug.set(slug, { agent, project: home });
+  }
+  const agents = [...bySlug.values()].map((x) => x.agent);
   if (!agents.length) throw new Error("group has no resolvable agents");
-  if (from && !agents.some((a) => a.slug === from))
+  if (from && !bySlug.has(from))
     throw new Error(`agent ${from} is not in this group`);
 
   const nameFor = (author) =>
-    author === "owner" ? ownerName : (bySlug.get(author) ? displayName(bySlug.get(author)) : author);
+    author === "owner" ? ownerName : (bySlug.get(author) ? displayName(bySlug.get(author).agent) : author);
 
   const participants = [
     { slug: "owner", name: ownerName, kind: "owner" },
-    ...agents.map((a) => ({ slug: a.slug, name: displayName(a), kind: "agent" })),
+    ...[...bySlug.entries()].map(([slug, { agent }]) => ({ slug, name: displayName(agent), kind: "agent" })),
   ];
 
   // The owner's line first, so it's part of the transcript everyone reads.
@@ -102,7 +119,9 @@ export async function runGroupTurn({ p, gid, text, attachments = [], media = nul
   const said = [];
 
   const runAgent = async (slug, ctx) => {
-    const agent = bySlug.get(slug);
+    const hit = bySlug.get(slug);
+    if (!hit) throw new Error(`agent ${slug} is not in this group`);
+    const { agent, project: agentProject } = hit;
     const modelId = await resolveAgentModel({ agent, config: cfg });
     if (!modelId) throw new Error(`no model for agent ${slug}`);
 
@@ -110,7 +129,7 @@ export async function runGroupTurn({ p, gid, text, attachments = [], media = nul
     const others = participants
       .filter((x) => x.kind === "agent" && x.slug !== slug)
       .map((x) => `${x.name} (@${x.slug})`);
-    const system = buildAgentSystem(p, agent, {
+    const system = buildAgentSystem(agentProject, agent, {
       invocation: "engine",
       caller: ctx.byOwner ? "user" : ctx.reason,
       globalConfig: cfg,
@@ -118,16 +137,18 @@ export async function runGroupTurn({ p, gid, text, attachments = [], media = nul
     });
 
     // Fresh read each time: earlier speakers this turn are already persisted, so
-    // a later cascade speaker sees what was just said.
+    // a later cascade speaker sees what was just said. Tool rows stay out of the
+    // transcript text — they are execution noise; the answer bubble is enough.
     const current = readProjectGroupThread(p.storagePath, gid);
     const transcript = current.messages
+      .filter((m) => m.role === "user" || (m.role === "assistant" && m.content))
       .map((m) => `${m.role === "user" ? ownerName : (nameFor(m.agent) || "agent")}: ${m.content}`)
       .join("\n");
     const directive = reasonLine({ reason: ctx.reason, byOwner: ctx.byOwner, ownerName, nameFor, me });
 
     onEvent({ type: "speaker_start", slug, reason: ctx.byOwner ? null : ctx.reason });
     const result = await runAgentTurn({
-      p, agent, modelId, system,
+      p: agentProject, agent, modelId, system,
       prompt: `${transcript}\n\n---\n${directive}`,
       previousMessages: [],
       // The owner's image rides on this turn for every speaker answering it, so

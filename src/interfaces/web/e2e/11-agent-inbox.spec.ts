@@ -126,11 +126,44 @@ test.describe("agent inbox", () => {
     // Agents are loose: no per-project team folder rows, just the agent.
     await expect(page.getByTestId("inbox-row-linus")).toBeVisible();
 
-    // "New chat" opens the picker, which lists the agent to start talking to.
+    // "New" opens the picker root (Chat / group), then the agent list.
     await page.getByTestId("mobile-new-chat").click();
+    await expect(page.getByTestId("new-chat-sheet")).toBeVisible();
+    await page.getByTestId("new-chat-mode-single").click();
     await expect(page.getByTestId("new-chat-linus")).toBeVisible();
     await page.getByTestId("new-chat-linus").click();
     await expect(page).toHaveURL(/\/mobile\/chat\/7\/linus/);
+    expect(errors).toEqual([]);
+  });
+
+  test("desktop inbox has + Nuevo and can open any agent", async ({ page, errors }) => {
+    const row = {
+      project_id: 7,
+      project_name: "Northwind",
+      project_path: "/path/to/northwind",
+      agent_slug: "linus",
+      agent_name: "Linus",
+      agent_emoji: "🐧",
+      agent_icon: null,
+      kind: "agent",
+      pinned: false,
+      conversation_id: "conversation-linus",
+      channel: "web",
+      messages: 2,
+      preview: "Hi.",
+      last_activity_at: new Date().toISOString(),
+    };
+    await page.route(
+      (url) => url.pathname === "/api/inbox",
+      (route) => route.fulfill({ json: [row] }),
+    );
+
+    await page.goto("/m/inbox");
+    await expect(page.getByTestId("inbox-new-chat")).toBeVisible();
+    await page.getByTestId("inbox-new-chat").click();
+    await expect(page.getByTestId("new-chat-sheet")).toBeVisible();
+    await page.getByTestId("new-chat-mode-single").click();
+    await expect(page.getByTestId("new-chat-linus")).toBeVisible();
     expect(errors).toEqual([]);
   });
 });

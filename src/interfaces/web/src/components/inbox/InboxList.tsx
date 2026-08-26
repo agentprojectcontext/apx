@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import type { InboxRow } from "../../lib/api/inbox";
 import { t } from "../../i18n";
 import { InboxRowItem } from "./InboxRowItem";
@@ -22,11 +22,14 @@ export function InboxList({
   selectedKey,
   onSelect,
   action,
+  onNew,
 }: {
   rows: InboxRow[];
   selectedKey: string | null;
   onSelect: (row: InboxRow) => void;
   action?: React.ReactNode;
+  /** Opens the same + Nuevo picker the phone uses (any agent, any project). */
+  onNew?: () => void;
 }) {
   const [q, setQ] = useState("");
 
@@ -54,6 +57,16 @@ export function InboxList({
             className="w-full rounded-lg border border-border bg-muted/50 py-1.5 pl-7 pr-2 text-sm outline-none placeholder:text-muted-fg focus:border-primary/60"
           />
         </div>
+        {onNew && (
+          <button
+            type="button"
+            data-testid="inbox-new-chat"
+            onClick={onNew}
+            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-border bg-accent/60 px-2 py-1 text-[11px] font-medium hover:bg-accent"
+          >
+            <Plus className="size-3" /> {t("project.chat.list.new")}
+          </button>
+        )}
         {action}
       </div>
 

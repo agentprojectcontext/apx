@@ -172,6 +172,14 @@ export function placeholderRow(pid: string, slug: string, known: InboxRow[]): In
   // Whether this is the super-agent is decided by the inbox's own answer for
   // that slug when it has one, so this file never hardcodes its spelling.
   const sameSlug = known.find((r) => r.agent_slug === slug);
+  const isGroup = slug.startsWith("group:");
+  const isA2a = slug.startsWith("a2a:");
+  const kind = sameSlug?.kind ?? (isGroup ? "group" : isA2a ? "a2a" : "agent");
+  const conversation_id = isGroup
+    ? slug.slice("group:".length)
+    : isA2a
+      ? slug.slice("a2a:".length)
+      : null;
   return {
     project_id: projectOf(pid),
     project_name: null,
@@ -180,10 +188,10 @@ export function placeholderRow(pid: string, slug: string, known: InboxRow[]): In
     agent_name: sameSlug?.agent_name ?? null,
     agent_emoji: sameSlug?.agent_emoji ?? null,
     agent_icon: sameSlug?.agent_icon ?? null,
-    kind: sameSlug?.kind ?? "agent",
+    kind,
     pinned: false,
-    conversation_id: null,
-    channel: null,
+    conversation_id: sameSlug?.conversation_id ?? conversation_id,
+    channel: kind === "group" || kind === "a2a" ? kind : null,
     messages: 0,
     preview: null,
     last_activity_at: "",

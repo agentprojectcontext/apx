@@ -46,10 +46,12 @@ const CLI_DISPLAY_NAMES = {
 // resolve against EVERY project's agents (the thread's own first, then the rest)
 // before falling back to the slug.
 function participantFace(localAgents, globalIndex, slug, superFace) {
-  if (slug === SUPERAGENT_ACTOR_ID) return superFace;
+  if (slug === SUPERAGENT_ACTOR_ID) return { ...superFace, slug };
   const local = localAgents.find((x) => x.slug === slug);
   const resolved = local ? faceOfAgent(local) : globalIndex.get(slug) || null;
   return {
+    // Physical key so the header can open THIS agent (not just paint a face).
+    slug,
     // A project agent's own name; else a coding CLI's brand name (Claude, Cursor,
     // OpenCode…) so it doesn't read as a bare lowercase slug; else the slug.
     name: resolved?.name || CLI_DISPLAY_NAMES[String(slug).toLowerCase()] || slug,
@@ -188,6 +190,7 @@ export function register(api, { projects }) {
       // The face an a2a thread draws for the super-agent: its human name and its
       // blob, so "golf-coach ↔ Roby" shows Roby (with an avatar), not the slug.
       const superFace = {
+        slug: SUPERAGENT_ACTOR_ID,
         name: superName,
         emoji: null,
         icon: cfg?.super_agent?.icon || cfg?.desktop?.blob || null,
