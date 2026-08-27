@@ -99,6 +99,22 @@ export class JsonStore {
     this._flush();
   }
 
+  /** Drop every row on one channel. Used when a scoped channel key stops being
+   *  valid — an agent renamed away from `agent:<projdir>:<slug>` — so the rows
+   *  cannot be inherited by whoever takes that key next. */
+  dropChannel(channel) {
+    if (!channel) return 0;
+    let n = 0;
+    for (const [id, row] of this.rows) {
+      if (row.channel === channel) {
+        this.rows.delete(id);
+        n++;
+      }
+    }
+    if (n) this._flush();
+    return n;
+  }
+
   search(vector, { embedder, k = 5, channel, scope } = {}) {
     const scopeArr = Array.isArray(scope) ? scope : null;
     const scored = [];
@@ -188,6 +204,12 @@ class SqliteVecStore {
 
   clear() {
     this.db.prepare("DELETE FROM chunks").run();
+  }
+
+  /** Drop every row on one channel (see JsonStore.dropChannel). */
+  dropChannel(channel) {
+    if (!channel) return 0;
+    return this.db.prepare("DELETE FROM chunks WHERE channel = ?").run(channel).changes || 0;
   }
 
   search(vector, { embedder, k = 5, channel, scope } = {}) {

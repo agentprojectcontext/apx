@@ -17,7 +17,7 @@ import { writeAgentFile, ensureAgentDir } from "#core/apc/scaffold.js";
 import { ensureAgentRuntimeDir, agentMemoryPath, agentRuntimeDir, readAgentMemory, writeAgentMemory } from "#core/agent/memory.js";
 import { isBlobKey, normalizeAgentType, pickBlob } from "#core/apc/agent-identity.js";
 import { readOrganization, resolveAreaSlug } from "#core/stores/organization.js";
-import { renameRoutineAgent } from "#core/stores/routines.js";
+import { repointAgentReferences } from "./agent-rename-refs.js";
 import { PERMISSION_MODES } from "#core/constants/permissions.js";
 
 export const AGENT_SLUG_RE = /^[a-z][a-z0-9_-]*$/;
@@ -223,22 +223,26 @@ export function setAgentConfig(project, slug, patch = {}) {
 
 /**
  * Rename an agent's slug — the agent's physical key. The slug names the
- * definition file (`.apc/agents/<slug>.md`), the runtime dir (memory,
- * conversations, sessions under `agents/<slug>/`), and is referenced by other
- * agents' `Parent` field and by routines' `spec.agent`. This moves the file and
- * dir and repoints every reference so nothing is left dangling, in ONE place so
- * the route and any tool share the same behavior. Historical ledger rows keep
- * the old `agent_slug` — they are a record of what happened, not a live pointer.
+ * definition file (`.apc/agents/<slug>.md`) and the runtime dir (memory,
+ * conversations, sessions under `agents/<slug>/`); it is ALSO written into
+ * other agents' `Parent` field and into stores that live nowhere near the agent
+ * (group rosters, telegram routes, tasks, deliveries, code sessions, the RAG
+ * scope). This moves the files and repoints every one of those, in ONE place so
+ * the route and any tool share the same behavior — see agent-rename-refs.js for
+ * which references are pointers (repointed) and which are records (left alone:
+ * a ledger row's `agent_slug` says who spoke, it does not resolve to anyone).
  *
  * Caller rebuilds the daemon registry afterwards.
  *
- * @param {{path:string, storagePath?:string}} project
+ * @param {{id?:any, path:string, storagePath?:string, apxId?:string}} project
  * @param {string} oldSlug  current slug
  * @param {string} newSlug  desired slug (already slugified/validated by caller,
  *   re-validated here against AGENT_SLUG_RE)
- * @returns {string} the final slug (equal to oldSlug when it's a no-op)
+ * @param {{projects?:object[]}} [opts]  the daemon registry when the caller has
+ *   one — reaches rooms hosted by other projects and telegram fallbacks.
+ * @returns {Promise<string>} the final slug (equal to oldSlug when it's a no-op)
  */
-export function renameAgent(project, oldSlug, newSlug) {
+export async function renameAgent(project, oldSlug, newSlug, opts = {}) {
   if (!oldSlug) throw new Error("current slug required");
   if (!newSlug) throw new Error("new slug required");
   if (!AGENT_SLUG_RE.test(newSlug)) throw new Error(`invalid slug "${newSlug}"`);
@@ -272,10 +276,11 @@ export function renameAgent(project, oldSlug, newSlug) {
     }
   }
 
-  // 4) Repoint routines that target this agent. Routines live under the
-  //    storage root (~/.apx/projects/<id>/); the default project uses its path
-  //    as both. A missing store is fine — it just means no routines.
-  try { renameRoutineAgent(project.storagePath || project.path, oldSlug, newSlug); } catch { /* no routines store */ }
+  // 4) Repoint every other live reference — routines, group rosters, tasks,
+  //    deliveries, code sessions, telegram routes, the project's own
+  //    `.apc/config.json` and the RAG scope. Best-effort per store: the files
+  //    have already moved, so one unreadable store must not fail the rename.
+  try { await repointAgentReferences(project, oldSlug, newSlug, opts); } catch { /* best-effort */ }
 
   return newSlug;
 }

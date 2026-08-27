@@ -805,6 +805,50 @@ export function removeGroupParticipant(logMessage, group_id, slug, participants)
   });
 }
 
+/** Repoint a room's roster after an agent's slug changed. The roster lives in
+ *  the LATEST control row (and `homes` maps slug → home project), so a rename is
+ *  one more control row: same room, same history, new key. Without it the runner
+ *  cannot resolve the speaker (`bySlug`) and the agent falls out of the room in
+ *  silence. Rows already written keep their old `agent_slug` — those are a
+ *  record of who spoke, not a pointer.
+ *
+ *  Takes `projectRoot` rather than a `logMessage` (unlike every other writer
+ *  here) because it has to READ the threads to find the ones that name the
+ *  slug, and it runs from the core sweep (apc/agent-rename-refs.js) where no
+ *  daemon entry is in hand.
+ *
+ *  `homeId` scopes a mixed-project room to the renamed agent's own project, so
+ *  two projects that both own a "magui" never repoint each other's member;
+ *  `hostId` is who a participant belongs to when the room has no `homes` map
+ *  (single-project by construction). Passing neither renames every match.
+ *
+ *  @returns {number} rooms repointed
+ */
+export function renameGroupParticipant(projectRoot, oldSlug, newSlug, { homeId = null, hostId = null } = {}) {
+  if (!projectRoot || !oldSlug || !newSlug || oldSlug === newSlug) return 0;
+  let changed = 0;
+  for (const thread of listProjectGroupThreads(projectRoot)) {
+    if (!Array.isArray(thread.participants) || !thread.participants.includes(oldSlug)) continue;
+    const homes = thread.homes && typeof thread.homes === "object" ? thread.homes : null;
+    const owner = homes?.[oldSlug] ?? hostId;
+    if (homeId != null && String(owner ?? homeId) !== String(homeId)) continue;
+    const participants = [...new Set(thread.participants.map((s) => (s === oldSlug ? newSlug : s)))];
+    const nextHomes = homes
+      ? Object.fromEntries(Object.entries(homes).map(([s, id]) => [s === oldSlug ? newSlug : s, id]))
+      : null;
+    appendMessageToFs({
+      projectRoot, channel: GROUP_CHANNEL, direction: "out", type: "system", author: "system",
+      body: "",
+      meta: {
+        group_id: thread.id, kind: "participant_renamed", participants,
+        ...(nextHomes ? { homes: nextHomes } : {}), from: oldSlug, to: newSlug,
+      },
+    });
+    changed += 1;
+  }
+  return changed;
+}
+
 const TOOL_CONTEXT_CAP = 700; // chars of a tool result kept in model context
 const TOOL_CALL_CAP = 160;    // chars of the invocation that introduces it
 

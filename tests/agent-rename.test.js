@@ -1,7 +1,11 @@
 // Renaming an agent's slug — the slug is the agent's physical key, so a rename
 // must move its .apc/agents/<slug>.md and its runtime dir (memory) AND repoint
-// every reference (child `Parent`, routine `spec.agent`) or it leaves dangling
-// pointers. This pins the whole move through the real HTTP route.
+// every LIVE pointer to it — child `Parent`, routine `spec.agent`, group
+// rosters (here and in rooms hosted by another project), tasks, the delivery
+// queue, code sessions, telegram routing and the project's own .apc/config.json
+// — or it leaves dangling pointers: an agent that keeps its chats but silently
+// falls out of its rooms, its channel and its queue. This pins the whole move
+// through the real HTTP route.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -15,6 +19,12 @@ const assert = (await import("node:assert/strict")).default;
 const { ProjectManager } = await import("#host/daemon/db.js");
 const { buildApi } = await import("#host/daemon/api.js");
 const { upsertRoutine, listRoutines } = await import("#core/stores/routines.js");
+const { createGroupThread, listProjectGroupThreads } = await import("#core/stores/messages.js");
+const { createTask, listTasks } = await import("#core/stores/tasks.js");
+const { recordDelivery, markDelivery, listDeliveries, DELIVERY_STATUS } =
+  await import("#core/stores/deliveries.js");
+const { createCodeSession, getCodeSession } = await import("#core/stores/code-sessions.js");
+const { readConfig, writeConfig } = await import("#core/config/index.js");
 const { makeTempProject, cleanupTempProject } = await import("./_helpers.js");
 
 async function listen(app) {
@@ -23,9 +33,10 @@ async function listen(app) {
   return { server, baseUrl: `http://127.0.0.1:${server.address().port}` };
 }
 
-function makeApp(root) {
+function makeApp(root, extraRoots = []) {
   const projects = new ProjectManager({});
   projects.register(root);
+  for (const extra of extraRoots) projects.register(extra);
   const app = buildApi({
     projects, registries: null,
     plugins: { get: () => null, status: () => ({}) },
@@ -139,5 +150,99 @@ test("rename rejects a taken slug and an invalid slug", async () => {
   } finally {
     await new Promise((res) => server.close(res));
     cleanupTempProject(root);
+  }
+});
+
+test("rename repoints groups, tasks, deliveries, code sessions, telegram and .apc/config.json", async () => {
+  const root = makeTempProject({});
+  const other = makeTempProject({ name: "northwind" });
+  const { app, projects } = makeApp(root, [other]);
+  const { server, baseUrl } = await listen(app);
+  try {
+    const pid = await pidFor(baseUrl, root);
+    const p = projects.get(pid);
+    const q = projects.getByPath(other);
+    const store = p.storagePath || p.path;
+
+    // Both projects own an agent called "nati" — the sweep must repoint OURS
+    // and leave the other project's alone, or a rename in one project would
+    // reach into another's rooms and routes.
+    for (const [base, slug] of [[pid, "nati"], [q.id, "nati"]]) {
+      const r = await fetch(`${baseUrl}/api/projects/${base}/agents`, {
+        method: "POST", headers: json,
+        body: JSON.stringify({ slug, name: "Nati", system: "You are Nati." }),
+      });
+      assert.equal(r.status, 201);
+    }
+
+    upsertRoutine(store, { name: "nati-daily", kind: "exec_agent", schedule: "manual", spec: { agent: "nati" } });
+    const gid = createGroupThread(p.logMessage, { participants: ["nati"], title: "Sala" });
+    // Hosted by the OTHER project, but this agent's home is here → repointed.
+    const guestGid = createGroupThread(q.logMessage, {
+      participants: ["nati"], title: "Cross", homes: { nati: pid },
+    });
+    // The other project's OWN nati (no homes map → host's roster) → untouched.
+    const foreignGid = createGroupThread(q.logMessage, { participants: ["nati"], title: "Suya" });
+    const task = createTask(store, { title: "Escribir el brief", agent: "nati" });
+    const did = recordDelivery(store, { agent: "nati", agentName: "Nati", routine: "nati-daily", notify: "x" });
+    markDelivery(store, did, DELIVERY_STATUS.NOTIFIED);
+    const session = createCodeSession(store, { projectId: pid, title: "spike", agentSlug: "nati" });
+
+    // Telegram: one channel on this project, one on the other, same slug.
+    const cfg = readConfig();
+    writeConfig({
+      ...cfg,
+      telegram: {
+        ...cfg.telegram,
+        channels: [
+          { name: "acme", bot_token: "t", chat_id: "1234567890", route_to_agent: "nati", project: root },
+          { name: "northwind", bot_token: "t", chat_id: "1234567891", route_to_agent: "nati", project: other },
+        ],
+      },
+    });
+    const apcCfg = path.join(root, ".apc", "config.json");
+    fs.writeFileSync(apcCfg, JSON.stringify({
+      telegram: { route_to_agent: "nati" },
+      routines: [{ name: "morning", schedule: "0 9 * * *", agent: "nati", prompt: "hi" }],
+    }, null, 2));
+
+    const r = await fetch(`${baseUrl}/api/projects/${pid}/agents/nati/rename`, {
+      method: "POST", headers: json, body: JSON.stringify({ slug: "vera" }),
+    });
+    assert.equal(r.status, 200, JSON.stringify(await r.clone().json()));
+
+    assert.equal(listRoutines(store).find((x) => x.name === "nati-daily").spec.agent, "vera");
+
+    const rooms = listProjectGroupThreads(store);
+    assert.deepEqual(rooms.find((t) => t.id === gid).participants, ["vera"]);
+
+    const guestRooms = listProjectGroupThreads(q.storagePath || q.path);
+    const guest = guestRooms.find((t) => t.id === guestGid);
+    assert.deepEqual(guest.participants, ["vera"]);
+    assert.deepEqual(guest.homes, { vera: pid });
+    // The other project's own agent kept its slug and its room.
+    assert.deepEqual(guestRooms.find((t) => t.id === foreignGid).participants, ["nati"]);
+    assert.equal((await fetch(`${baseUrl}/api/projects/${q.id}/agents/nati`)).status, 200);
+
+    assert.equal(listTasks(store, { state: "all" }).find((t) => t.id === task.id).agent, "vera");
+
+    const delivery = listDeliveries(store).find((d) => d.id === did);
+    assert.equal(delivery.agent, "vera");
+    // Repointing must not rewind the queue: it was notified, it stays notified.
+    assert.equal(delivery.status, DELIVERY_STATUS.NOTIFIED);
+
+    assert.equal(getCodeSession(store, session.id).agentSlug, "vera");
+
+    const after = readConfig();
+    assert.equal(after.telegram.channels.find((c) => c.name === "acme").route_to_agent, "vera");
+    assert.equal(after.telegram.channels.find((c) => c.name === "northwind").route_to_agent, "nati");
+
+    const apc = JSON.parse(fs.readFileSync(apcCfg, "utf8"));
+    assert.equal(apc.telegram.route_to_agent, "vera");
+    assert.equal(apc.routines[0].agent, "vera");
+  } finally {
+    await new Promise((res) => server.close(res));
+    cleanupTempProject(root);
+    cleanupTempProject(other);
   }
 });
