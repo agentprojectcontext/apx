@@ -25,6 +25,7 @@ import { SUPERAGENT_ACTOR_ID } from "../constants/actors.js";
 import { nowIso } from "../util/time.js";
 import { summarizeToolTrace } from "../agent/tool-summary.js";
 import { emitMessageEvent } from "../events/bus.js";
+import { cleanTextOfPseudoToolCalls } from "../agent/tools/tool-call-parser.js";
 
 function dayPathJsonl(projectRoot, ts) {
   const day = (ts || nowIso()).slice(0, 10);
@@ -336,8 +337,21 @@ export function getRecentTelegramTurns(
 // Solution: replace any assistant turn that *looks* like it contains data
 // with a generic "I answered" placeholder. The model loses the cache to
 // copy from but keeps enough hint to track the conversation flow.
+const OMITTED_TURN =
+  "[omitted: this turn contained data that may be stale — call the tool again instead of repeating it]";
+
 function sanitizeAssistantForContext(content) {
   if (!content) return "";
+  // A past turn that leaked wire format is the worst thing there is to replay:
+  // the model reads its OWN voice writing a call as prose and does it again,
+  // which is how one leaked turn becomes fourteen in a day. Scrub the markup
+  // out of the history exactly as it is scrubbed out of an answer, so a reply
+  // that leaked before this was fixed stops teaching the shape today rather
+  // than when it ages out of the window. A turn that was nothing BUT markup
+  // becomes the annotation below — "call the tool again" is precisely right
+  // for a turn whose whole content was a call that never ran.
+  content = cleanTextOfPseudoToolCalls(content) || "";
+  if (!content.trim()) return OMITTED_TURN;
   // Heuristics — if any of these match, the turn likely contains facts
   // the model should re-derive from tools rather than parrot from cache.
   const FACTUAL_PATTERNS = [
@@ -356,7 +370,7 @@ function sanitizeAssistantForContext(content) {
       // this read as something the assistant had said, and after a few of them
       // in a row the model copied the sentence and sent it to the user as its
       // reply. History the model can mistake for its own voice gets imitated.
-      return "[omitted: this turn contained data that may be stale — call the tool again instead of repeating it]";
+      return OMITTED_TURN;
     }
   }
   // Otherwise it's conversational small-talk; keep up to 200 chars.
@@ -901,21 +915,54 @@ function renderToolResultBody(m) {
   }
 }
 
-// Truncated, prefixed rendering of a tool record for model context (Pieza 3).
-// Shape: `[tool <name>] <short invocation> → <result>`. The invocation is kept
-// (short) because a result with no question attached is unreadable — "1247"
-// means nothing without "wc -l on X". The result gets the bulk of the budget.
-function renderToolResult(m) {
-  const name = m.meta?.tool_name || m.meta?.tool || m.actor_id || "tool";
-  const flat = (s) => String(s || "").replace(/\s+/g, " ").trim();
+const flatten = (s) => String(s ?? "").replace(/\s+/g, " ").trim();
+
+// The invocation that introduces a result, rendered so it cannot be mistaken
+// for one. This half is why the record is readable at all — "1247" means
+// nothing without "wc -l on X" — but the form matters as much as the content:
+// `{"command":"ls"}` IS a call, and a model that reads its own history finds a
+// worked example of writing calls as prose, copies it, and the loop (which
+// sees no tool_calls) delivers the transcript to the user as the answer.
+// `command=ls` carries the same question with no wire format to imitate.
+function renderToolCallSummary(m, name) {
+  let args = m.meta?.args;
+  const raw = flatten(m.body);
   // `body` is "<name>(<args>)" and the name is already in the prefix — keep
   // only the arguments so the cap buys context, not a repeated tool name.
-  const raw = flat(m.body);
-  const call = (raw.startsWith(`${name}(`) ? raw.slice(name.length + 1, -1) : raw).slice(0, TOOL_CALL_CAP);
-  const result = flat(renderToolResultBody(m));
-  if (!result) return `[tool ${name}] ${call}`.slice(0, TOOL_CONTEXT_CAP);
-  const head = `[tool ${name}] ${call} → `;
-  return head + result.slice(0, Math.max(120, TOOL_CONTEXT_CAP - head.length));
+  const inner = raw.startsWith(`${name}(`) && raw.endsWith(")")
+    ? raw.slice(name.length + 1, -1)
+    : raw;
+  if (args === undefined || args === null) {
+    try { args = JSON.parse(inner); } catch { /* not JSON — fall back to text */ }
+  }
+  const text =
+    args && typeof args === "object" && !Array.isArray(args)
+      ? Object.entries(args)
+        .map(([k, v]) => `${k}=${typeof v === "string" ? v : JSON.stringify(v)}`)
+        .join(", ")
+      : inner;
+  // Belt and braces, literally: an argument object is the one shape that reads
+  // back as a real call, so no `{}` survives into the history at all.
+  return flatten(text).replace(/[{}]/g, "").slice(0, TOOL_CALL_CAP);
+}
+
+// Truncated, prefixed rendering of a tool record for model context (Pieza 3).
+// Shape: `[tool result: <name>] (<short invocation>) → <result>`. The result
+// gets the bulk of the budget.
+//
+// The prefix says "result", not "<name>", on purpose: it is an annotation
+// ABOUT a past turn, `cleanTextOfPseudoToolCalls` strips the whole line out of
+// anything a model says, and it matches what the RAG indexer writes for the
+// same record. `[tool <name>] <args>` — what this rendered between 2026-08-19
+// and 2026-08-26 — looked instead like a call, and gemini-3.7-flash echoed it
+// straight back at the user, tools never running (see tool-markup-leak.test.js).
+function renderToolResult(m) {
+  const name = m.meta?.tool_name || m.meta?.tool || m.actor_id || "tool";
+  const call = renderToolCallSummary(m, name);
+  const result = flatten(renderToolResultBody(m));
+  const head = call ? `[tool result: ${name}] (${call})` : `[tool result: ${name}]`;
+  if (!result) return head.slice(0, TOOL_CONTEXT_CAP);
+  return `${head} → ` + result.slice(0, Math.max(120, TOOL_CONTEXT_CAP - head.length - 3));
 }
 
 // Collapse consecutive same-role entries into one message. Keeps the model
@@ -939,8 +986,8 @@ function coalesceTurns(turns) {
 //   - the latest `compact` record (if any) is prepended as a role:"system"
 //     turn "[RESUMEN COMPACTADO turnos a-b]: …"; the raw turns it covers are
 //     dropped (they live in the summary now)
-//   - tool records are INCLUDED as "[tool <name>] <call> → <result>", the
-//     RESULT truncated to fit TOOL_CONTEXT_CAP (kept on the assistant side)
+//   - tool records are INCLUDED as "[tool result: <name>] (<call>) → <result>",
+//     the RESULT truncated to fit TOOL_CONTEXT_CAP (kept on the assistant side)
 //   - the most recent `keepRecent` conversational turns are kept verbatim
 //   - consecutive same-role turns are coalesced
 //

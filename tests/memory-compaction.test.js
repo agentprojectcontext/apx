@@ -90,11 +90,71 @@ test("reader: tool records replay the RESULT, not just the call, and stay bounde
   // user, then tool+agent coalesced onto the assistant side.
   assert.equal(turns[0].role, "user");
   assert.equal(turns[1].role, "assistant");
-  assert.match(turns[1].content, /\[tool read_file\]/);
+  assert.match(turns[1].content, /\[tool result: read_file\]/);
+  // The invocation stays: a result with no question attached is unreadable.
+  assert.match(turns[1].content, /path=\/tmp\/x/);
   // The point of the record: what came BACK is in context, not only what was asked.
   assert.match(turns[1].content, /EL-CONTENIDO-QUE-IMPORTA/);
   assert.ok(turns[1].content.length <= 700 + 64, "tool slice stays bounded");
   assert.match(turns[1].content, /listo, lo leí/);
+});
+
+// The regression behind fourteen leaked turns in a day. This history sits on
+// the ASSISTANT side, coalesced into the model's own voice, once per tool it
+// has ever run — so whatever shape it has is a worked example of how to
+// answer. Rendered as `[tool run_shell] {"command":"…"} → …` it was a worked
+// example of writing calls instead of making them, and gemini-3.7-flash took
+// it: the loop saw no tool_calls, took the transcript for the final answer,
+// and sent it. Nothing ran. Full story in tests/tool-markup-leak.test.js.
+test("reader: the history is never shaped like a call the model could copy", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-reader-shape-"));
+  const today = new Date().toISOString().slice(0, 10);
+  seedTelegram(dir, 72, [
+    { ts: `${today}T10:00:00Z`, direction: "in", type: "user", body: "mirá los workflows" },
+    {
+      ts: `${today}T10:00:05Z`,
+      direction: "out",
+      type: "tool",
+      body: `run_shell({"command":"head -n 10 /path/to/repo/ci.yml"})`,
+      meta: {
+        tool: "run_shell",
+        args: { command: "head -n 10 /path/to/repo/ci.yml", cwd: "." },
+        result: { exit_code: 0, stdout: "name: CI\n" },
+      },
+    },
+  ]);
+  const turns = getRecentChannelTurnsFromFs({ channel: "telegram", chat_id: 72, _globalMessagesDir: dir });
+  const history = turns.map((t) => t.content).join("\n");
+  // Both halves are still there — the fix is the FORM, not the content.
+  assert.match(history, /head -n 10 \/path\/to\/repo\/ci\.yml/);
+  assert.match(history, /name: CI/);
+  // …and none of the three shapes that read back as an executable call.
+  assert.doesNotMatch(history, /\[tool run_shell\]/, "a bare `[tool NAME]` header is a call");
+  assert.doesNotMatch(history, /[{}]/, "an argument object is the shape that gets copied");
+  assert.doesNotMatch(history, /run_shell\s*\(/, "so is `name(`");
+});
+
+// The other half of the same leak, and the reason it compounded: a reply that
+// leaked the wire format is stored like any other, so the next turn reads the
+// model's OWN voice writing a call as prose. One leaked turn teaches the next
+// one. History gets the same scrub the answer does.
+test("reader: a turn that already leaked wire format stops teaching it", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-reader-leak-"));
+  const today = new Date().toISOString().slice(0, 10);
+  seedTelegram(dir, 73, [
+    { ts: `${today}T10:00:00Z`, direction: "in", type: "user", body: "mirá los workflows" },
+    {
+      ts: `${today}T10:00:06Z`,
+      direction: "out",
+      type: "agent",
+      body: 'Reviso los workflows para confirmarte. [tool run_shell] {"command":"head -n 10 /path/to/repo/ci.yml"} → name: CI',
+    },
+  ]);
+  const turns = getRecentChannelTurnsFromFs({ channel: "telegram", chat_id: 73, _globalMessagesDir: dir });
+  const history = turns.map((t) => t.content).join("\n");
+  assert.doesNotMatch(history, /\[tool /, "the markup must not come back as an example");
+  assert.doesNotMatch(history, /head -n 10/, "nor the arguments");
+  assert.match(history, /Reviso los workflows/, "what the agent actually said survives");
 });
 
 test("reader: a shell result is unwrapped to its stdout, envelope and all", () => {
