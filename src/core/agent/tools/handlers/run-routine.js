@@ -66,7 +66,7 @@ export default {
       let out;
       try {
         out = await runRoutineNow(
-          { project: p, projects, plugins, registries, globalConfig },
+          { project: p, projects, plugins, registries, globalConfig, trigger: "agent" },
           r
         );
       } catch (e) {

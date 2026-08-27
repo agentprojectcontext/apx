@@ -52,6 +52,7 @@ export class RoutineScheduler {
               plugins: this.plugins,
               registries: this.registries,
               globalConfig: this.globalConfig,
+              trigger: "schedule",
             },
             r
           );

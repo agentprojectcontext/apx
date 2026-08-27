@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import useSWR, { mutate as globalMutate } from "swr";
 import { MousePointerClick, Play, Plus, Repeat } from "lucide-react";
@@ -7,6 +7,7 @@ import { Button, Dialog, Empty, Loading } from "../../components/ui";
 import { useToast } from "../../components/Toast";
 import { Section } from "../../components/Section";
 import { t } from "../../i18n";
+import { subscribeRoutineRuns } from "../../lib/live";
 import { RoutineList } from "../../components/routines/RoutineList";
 import { RoutineDetail } from "../../components/routines/RoutineDetail";
 import { RoutineEditor } from "../../components/routines/RoutineEditor";
@@ -24,12 +25,16 @@ export function RoutinesTab({ pid }: { pid: string }) {
   const [confirmDelete, setConfirmDelete] = useState<RoutineEntry | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [confirmRun, setConfirmRun] = useState<RoutineEntry | null>(null);
+  // Optimistic only — the window between the click and the daemon's first frame.
+  // The truth about what is running is `r.running`, which comes from the daemon
+  // and therefore survives a refresh and shows scheduled runs too.
   const [running, setRunning] = useState<string | null>(null);
   // Multi-select run — routines are single-project and keyed by name.
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [bulkRun, setBulkRun] = useState(false);
 
   const rows = list.data || [];
+  const isRunning = (r: RoutineEntry) => !!r.running || running === r.name;
   const selectedName = params.get("r_id");
   const selected = rows.find((r) => r.name === selectedName) || null;
 
@@ -46,6 +51,15 @@ export function RoutinesTab({ pid }: { pid: string }) {
     if (selectedName && rows.some((r) => r.name === selectedName)) return;
     selectRoutine(rows[0].name);
   }, [rows, selectedName]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A run starting or ending anywhere — this tab, another device, the scheduler
+  // — changes what the list should say (the running mark, then last run/status).
+  // Steps in between do not: the executions pane follows those on its own.
+  const refreshList = useCallback(() => { list.mutate(); }, [list]);
+  useEffect(() => subscribeRoutineRuns((frame) => {
+    if (String(frame.project_id) !== String(pid)) return;
+    if (frame.phase === "start" || frame.phase === "end") refreshList();
+  }), [pid, refreshList]);
 
   const wantEdit = params.get("edit") === "1";
   const canOpenEditor = wantEdit && !!selected;
@@ -100,6 +114,10 @@ export function RoutinesTab({ pid }: { pid: string }) {
     setConfirmRun(null);
     setRunning(r.name);
     try {
+      // The daemon answers when the run is OVER — it can be minutes. The panel
+      // does not wait for that to show anything: the run announces itself on the
+      // live feed within a beat, and the executions pane draws it there.
+      list.mutate();
       await Routines.run(pid, r.name);
       toast.success(t("project.routines.run_success", { name: r.name }));
       // Refresh the routine list (last status) and its executions list.
@@ -142,7 +160,7 @@ export function RoutinesTab({ pid }: { pid: string }) {
 
       {rows.length > 0 && (
         <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] grid-cols-[minmax(200px,260px)_1fr] overflow-hidden rounded-lg border border-border">
-          <RoutineList routines={rows} selectedName={selected?.name ?? null} onSelect={selectRoutine} checkedNames={checked} onToggleCheck={toggleCheck} />
+          <RoutineList routines={rows} selectedName={selected?.name ?? null} onSelect={selectRoutine} checkedNames={checked} onToggleCheck={toggleCheck} runningName={running} />
           <div className="min-h-0 min-w-0 overflow-hidden">
             {selected
               ? <RoutineDetail
@@ -153,7 +171,7 @@ export function RoutinesTab({ pid }: { pid: string }) {
                   onRun={() => setConfirmRun(selected)}
                   onToggle={() => toggle(selected)}
                   onDelete={() => setConfirmDelete(selected)}
-                  running={running === selected.name}
+                  running={isRunning(selected)}
                 />
               : <Empty fill icon={MousePointerClick}>{t("project.routines.detail_empty")}</Empty>}
           </div>

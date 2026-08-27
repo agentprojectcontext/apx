@@ -110,8 +110,11 @@ export function RoutineDetail({
         </div>
       </div>
 
-      {/* EXECUTIONS — fills the remaining height and scrolls */}
-      <ExecutionsList pid={pid} name={routine.name} running={running} />
+      {/* EXECUTIONS — fills the remaining height and scrolls. It reads the run
+          in flight from the daemon rather than from this component's `running`
+          prop, so it also shows a run the SCHEDULER started, and survives a
+          refresh. `running` here only drives the Play button's own spinner. */}
+      <ExecutionsList pid={pid} name={routine.name} />
     </div>
   );
 }

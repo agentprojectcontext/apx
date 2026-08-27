@@ -6,12 +6,15 @@
 // step. This module owns exactly one connection, opened when something first
 // subscribes and kept for the life of the page.
 //
-// A frame is a SIGNAL, never content — see host/daemon/events-ws.js for why.
-// Subscribers react by re-fetching through the API they already use, which is
-// what makes the device that SENT a message not show it twice.
+// A message frame is a SIGNAL, never content — see host/daemon/events-ws.js for
+// why. Subscribers react by re-fetching through the API they already use, which
+// is what makes the device that SENT a message not show it twice. The two
+// exceptions carry data because there is nothing to re-fetch YET: turn frames
+// (tokens mid-answer) and routine frames (a run's steps, which only reach the
+// ledger once the run is over).
 import { getToken } from "./http";
 import { wsUrl } from "./net";
-import type { TurnFrame } from "../types/daemon";
+import type { RoutineFrame, TurnFrame } from "../types/daemon";
 
 export interface LiveEvent {
   /** Which ledger moved. `resync` is not from the daemon — see below. */
@@ -29,9 +32,11 @@ export interface LiveEvent {
 
 type Listener = (events: LiveEvent[]) => void;
 type TurnListener = (frame: TurnFrame) => void;
+type RoutineListener = (frame: RoutineFrame) => void;
 
 const listeners = new Set<Listener>();
 const turnListeners = new Set<TurnListener>();
+const routineListeners = new Set<RoutineListener>();
 
 let socket: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -75,6 +80,16 @@ function emitTurn(frame: TurnFrame) {
   }
 }
 
+function emitRoutine(frame: RoutineFrame) {
+  for (const fn of routineListeners) {
+    try {
+      fn(frame);
+    } catch {
+      /* one screen's handler must not stop the others */
+    }
+  }
+}
+
 function backoffMs(): number {
   // 1s, 2s, 4s… capped at 15s. A phone that was asleep for an hour should come
   // back quickly, not after a minute-long backoff.
@@ -82,7 +97,7 @@ function backoffMs(): number {
 }
 
 function scheduleReconnect() {
-  if (reconnectTimer || (!listeners.size && !turnListeners.size)) return;
+  if (reconnectTimer || (!listeners.size && !turnListeners.size && !routineListeners.size)) return;
   const delay = backoffMs();
   attempts += 1;
   reconnectTimer = setTimeout(() => {
@@ -92,7 +107,7 @@ function scheduleReconnect() {
 }
 
 function connect() {
-  if (socket || (!listeners.size && !turnListeners.size)) return;
+  if (socket || (!listeners.size && !turnListeners.size && !routineListeners.size)) return;
   // No token yet (the bootstrap fetch is still in flight): the upgrade would be
   // rejected with a 401. Wait one beat rather than burning a reconnect attempt.
   const token = getToken();
@@ -129,6 +144,7 @@ function connect() {
     }
     if (frame.type === "messages" && Array.isArray(frame.events)) emit(frame.events);
     else if (frame.type === "turn") emitTurn(frame as unknown as TurnFrame);
+    else if (frame.type === "routine") emitRoutine(frame as unknown as RoutineFrame);
   };
 
   const dropped = () => {
@@ -145,7 +161,7 @@ function connect() {
 /** Reconnect NOW rather than on the backoff — the page just became visible or
  *  the network came back, and both mean the old socket is probably dead. */
 function wakeUp() {
-  if (!listeners.size && !turnListeners.size) return;
+  if (!listeners.size && !turnListeners.size && !routineListeners.size) return;
   if (socket && socket.readyState === WebSocket.OPEN) return;
   if (reconnectTimer) {
     clearTimeout(reconnectTimer);
@@ -195,6 +211,16 @@ export function subscribeTurns(fn: TurnListener): () => void {
   return () => { turnListeners.delete(fn); };
 }
 
+/** Subscribe to routine-run frames: a run starting, taking a step, or ending,
+ *  wherever it was started from. Keeps the shared socket open like subscribeLive.
+ *  Returns the unsubscribe function. */
+export function subscribeRoutineRuns(fn: RoutineListener): () => void {
+  routineListeners.add(fn);
+  wireWakeUps();
+  connect();
+  return () => { routineListeners.delete(fn); };
+}
+
 /** Does this event concern the channel thread on screen? */
 export function concernsThread(ev: LiveEvent, channel: string, threadId: string): boolean {
   if (ev.scope === "resync") return true;
@@ -212,6 +238,7 @@ export function concernsConversation(ev: LiveEvent, agentSlug: string, convId: s
 export function resetLive() {
   listeners.clear();
   turnListeners.clear();
+  routineListeners.clear();
   if (reconnectTimer) clearTimeout(reconnectTimer);
   reconnectTimer = null;
   attempts = 0;

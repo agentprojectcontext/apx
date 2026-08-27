@@ -8,6 +8,8 @@
 //   POST   /projects/:pid/routines/:name/enable
 //   POST   /projects/:pid/routines/:name/disable
 //   POST   /projects/:pid/routines/:name/run
+//   GET    /projects/:pid/routines/:name/run   → the run in flight, if any
+//   GET    /projects/:pid/routines/:name/runs  → the runs already made
 import {
   listRoutines,
   getRoutine,
@@ -16,6 +18,8 @@ import {
   setEnabled as setRoutineEnabled,
   runRoutineNow,
 } from "#core/routines/index.js";
+import { getRoutineRun, listRoutineRuns } from "#core/routines/active-runs.js";
+import { listRoutineRunLog } from "#core/routines/run-log.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { asyncRoute } from "./shared.js";
 
@@ -23,7 +27,34 @@ export function register(api, { projects, registries, plugins, project, config }
   api.get("/projects/:pid/routines", (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    res.json(listRoutines(p.storagePath));
+    // `running` is runtime state, not stored state: which of these the daemon
+    // has open RIGHT NOW. Without it the list could only ever show the last
+    // finished run, so a routine working away for four minutes looked idle to
+    // every surface except the tab that pressed Play.
+    const open = new Map(listRoutineRuns(p.storagePath).map((r) => [r.routine, r]));
+    res.json(listRoutines(p.storagePath).map((r) => {
+      const run = open.get(r.name);
+      return run ? { ...r, running: true, run_started_at: run.started_at } : r;
+    }));
+  });
+
+  // The live record of a run in flight: which phase, which steps so far, what
+  // the model has said. 200 with `{ run: null }` when nothing is running — a
+  // routine that is idle is an answer, not a 404.
+  api.get("/projects/:pid/routines/:name/run", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    res.json({ run: getRoutineRun(p.storagePath, req.params.name) });
+  });
+
+  // A routine's run history. Reading it means knowing that a run is a ledger
+  // row with a particular meta on it, and that a "routine updated" row is NOT
+  // one — knowledge that belongs in core/routines/run-log.js, not in a panel.
+  api.get("/projects/:pid/routines/:name/runs", (req, res) => {
+    const p = project(req, res);
+    if (!p) return;
+    const limit = Math.min(parseInt(req.query.limit, 10) || 50, 200);
+    res.json(listRoutineRunLog(p.storagePath, req.params.name, { limit }));
   });
 
   api.get("/projects/:pid/routines/:name", (req, res) => {
@@ -98,7 +129,7 @@ export function register(api, { projects, registries, plugins, project, config }
     if (!r) return res.status(404).json({ error: "routine not found" });
     try {
       const result = await runRoutineNow(
-        { project: p, projects, plugins, registries, globalConfig: config },
+        { project: p, projects, plugins, registries, globalConfig: config, trigger: "manual" },
         r
       );
       res.json(result);

@@ -1,4 +1,5 @@
 import type { ChatMsg, ChatPart, ToolPart } from "../../hooks/useChat";
+import type { LiveRoutineRun } from "../../types/daemon";
 
 type TraceItem = {
   tool?: string;
@@ -39,6 +40,35 @@ export function routineRunToChatMsgs(
     ts,
     agent,
     agentId: agent,
+  }];
+}
+
+/** The same preview, for a run that is still going: the steps the daemon has
+ *  announced so far. A tool still out is left `running`, so the panel shows a
+ *  spinner on the step instead of pretending it came back. */
+export function liveRunToChatMsgs(run: LiveRoutineRun): ChatMsg[] {
+  const parts: ChatPart[] = [];
+  for (const step of run.steps) {
+    if (step.kind === "tool" && step.tool) {
+      parts.push({
+        kind: "tool",
+        id: `live-${step.id}`,
+        tool: step.tool,
+        args: step.args ?? undefined,
+        status: step.status === "error" ? "error" : step.status === "done" ? "done" : "running",
+      });
+    } else if (step.kind === "text" && step.text?.trim()) {
+      parts.push({ kind: "text", text: step.text.trim() });
+    }
+  }
+  if (!parts.length) return [];
+  return [{
+    role: "assistant",
+    parts,
+    ts: run.started_at,
+    pending: true,
+    agent: run.agent_slug || undefined,
+    agentId: run.agent_slug || undefined,
   }];
 }
 

@@ -69,6 +69,68 @@ export interface RoutineEntry {
   last_error: string | null;
   pre_commands?: string[];
   post_commands?: string[];
+  /** Runtime state, not stored state: the daemon has a run of this open right
+   *  now. Set by GET /projects/:pid/routines — absent means idle. */
+  running?: boolean;
+  run_started_at?: string;
+}
+
+/** One step of a run in flight — a tool the agent called, or something it said
+ *  on the way. The live twin of a finished run's trace. */
+export interface RoutineRunStep {
+  at: string;
+  id: string;
+  kind: "tool" | "text";
+  tool?: string;
+  args?: Record<string, unknown> | null;
+  status?: "running" | "done" | "error";
+  text?: string;
+}
+
+/** The daemon's record of a routine run in flight. Read once from
+ *  GET /projects/:pid/routines/:name/run, then followed live via RoutineFrame. */
+export interface LiveRoutineRun {
+  run_id: string;
+  routine: string;
+  kind: string;
+  trigger: "manual" | "schedule" | "agent" | string;
+  started_at: string;
+  phase: "pre" | "agent" | "delivery" | "post";
+  agent_slug: string | null;
+  steps: RoutineRunStep[];
+  text: string;
+  ended_at?: string;
+  status?: string;
+  error?: string | null;
+  conversation_id?: string;
+}
+
+/** One run a routine has already made, as the daemon reads it back out of the
+ *  ledger (core/routines/run-log.js). A "routine updated" row is not one. */
+export interface RoutineRun {
+  ts: string;
+  routine: string;
+  status: "ok" | "error" | "skipped";
+  skipped: boolean;
+  body: string;
+  result: Record<string, unknown>;
+  flow: {
+    pre?: { output?: string; exit?: number } | null;
+    delivery?: Record<string, unknown> | null;
+    post?: Array<{ cmd: string; exit: number; stdout: string; stderr: string }> | null;
+  } | null;
+  /** Lifted out of the result: what "open this run's chat" needs. */
+  conversation_id: string | null;
+  agent_slug: string | null;
+}
+
+/** A live-feed frame carrying a routine run as it moves. Unlike a message frame
+ *  this carries the data — a run's steps are not in the ledger until it ends. */
+export interface RoutineFrame {
+  phase: "start" | "progress" | "end";
+  project_id: number | string | null;
+  routine: string;
+  run: LiveRoutineRun;
 }
 
 // Workflow sub-status for an open task (orthogonal to `state`).

@@ -27,7 +27,7 @@ import { fileURLToPath } from "node:url";
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const PANEL = path.join(REPO, "src", "interfaces", "web");
-const BASELINE = 38;
+const BASELINE = 36;
 
 const res = spawnSync("npx", ["--no-install", "eslint", ".", "-f", "json"], {
   cwd: PANEL,

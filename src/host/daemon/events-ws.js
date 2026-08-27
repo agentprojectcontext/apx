@@ -19,7 +19,7 @@
 // Fan-out is per PROCESS and that is enough: the daemon owns the HTTP API, the
 // Telegram poller and the agent loop, so every write anyone makes happens here.
 // See core/events/bus.js for the one case it does not cover.
-import { onMessageEvent } from "#core/events/bus.js";
+import { onMessageEvent, onRoutineEvent } from "#core/events/bus.js";
 import { mascotNotificationsFromEvents } from "#core/events/mascot-notify.js";
 import { resolveSuperAgentBlob } from "#core/apc/agent-identity.js";
 import { apiPath } from "./api/prefix.js";
@@ -95,6 +95,15 @@ export function broadcastTurn(frame) {
   broadcastEvents({ type: "turn", ...frame });
 }
 
+/** Push one routine-run frame (start / progress / end). Like a turn frame and
+ *  unlike a message frame this CARRIES the data — a run's steps are not in the
+ *  ledger until it ends, so there is nothing for a client to re-fetch while it
+ *  is still going. Sent straight, not through the 250ms batch: the whole point
+ *  is watching a run move. */
+export function broadcastRoutineRun(frame) {
+  broadcastEvents({ type: "routine", ...frame });
+}
+
 /** Which project a write belongs to, as an id the panel can match on.
  *  A global write already carries one in its meta; a project or conversation
  *  write carries the storage path, which only the daemon's registry resolves. */
@@ -168,6 +177,24 @@ export function startEventsBridge({ projects } = {}) {
     }
   };
 
+  // A routine run moving is its own signal: it is not a ledger write, and the
+  // batch that collapses ledger writes would make a step list arrive in clumps.
+  const unsubscribeRoutines = onRoutineEvent((event) => {
+    if (!_clients.size) return;
+    let projectId = null;
+    try {
+      projectId = projectIdOf(event, projects);
+    } catch {
+      return; // an unresolvable project is not worth taking the daemon down for
+    }
+    broadcastRoutineRun({
+      phase: event.phase,
+      project_id: projectId,
+      routine: event.routine,
+      run: event.run,
+    });
+  });
+
   const unsubscribe = onMessageEvent((event) => {
     let pub;
     try {
@@ -198,6 +225,7 @@ export function startEventsBridge({ projects } = {}) {
 
   return function stop() {
     unsubscribe();
+    unsubscribeRoutines();
     clearInterval(pinger);
     if (flushTimer) clearTimeout(flushTimer);
     pending.clear();
