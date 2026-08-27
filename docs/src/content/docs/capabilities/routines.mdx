@@ -218,6 +218,15 @@ A routine that "sends nothing" most often means: `enabled: false`, `next_run_at`
 future, or the LLM returned empty text. Check `apx routine history` first — the `result.text`
 field shows exactly what the model produced.
 
+### Watching a run
+
+The panel's **Routines** screen shows the run happening *now*, not only the ones that
+finished. A running routine is marked as such from the moment it starts, the executions
+list draws its steps as the agent takes them, and each finished run links to the chat it
+filed into. That state lives in the daemon, so it survives a page refresh, looks the same
+on every open panel, and shows runs the scheduler started while nobody was watching. A
+daemon restart clears it — the run died with the process.
+
 ## Next
 
 - [Tasks](/apx/docs/capabilities/tasks/) — per-project TODO list that routines can read and write.

@@ -218,6 +218,16 @@ Una rutina que "no envía nada" lo más frecuente es que signifique: `enabled: f
 futuro, o el LLM devolvió texto vacío. Revisá `apx routine history` primero — el campo `result.text`
 muestra exactamente lo que produjo el modelo.
 
+### Mirar una corrida
+
+La pantalla **Rutinas** del panel muestra la corrida que está pasando *ahora*, no sólo las
+que terminaron. Una rutina corriendo queda marcada desde el momento en que arranca, la
+lista de ejecuciones dibuja sus pasos a medida que el agente los da, y cada ejecución
+terminada linkea al chat donde quedó archivada. Ese estado vive en el daemon: sobrevive un
+refresh, se ve igual en todos los paneles abiertos, y muestra también las corridas que
+disparó el scheduler sin que nadie estuviera mirando. Un reinicio del daemon lo borra — la
+corrida se murió con el proceso.
+
 ## Siguiente
 
 - [Tareas](/apx/docs/es/capabilities/tasks/) — lista de TODO por proyecto que las rutinas pueden leer y escribir.

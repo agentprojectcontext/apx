@@ -1,6 +1,7 @@
 import { Zap } from "lucide-react";
 import type { RoutineEntry } from "../../lib/api";
 import { StatusDot } from "../Section";
+import { Spinner, Tip } from "../ui";
 import { SelectCheckbox } from "../common/SelectCheckbox";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
@@ -16,7 +17,7 @@ function agentSlug(r: RoutineEntry): string {
 // Left column: scrollable list of routines. Click selects (the divider is the
 // single border-r line); the detail lives in the sibling column.
 export function RoutineList({
-  routines, selectedName, onSelect, checkedNames, onToggleCheck,
+  routines, selectedName, onSelect, checkedNames, onToggleCheck, runningName,
 }: {
   routines: RoutineEntry[];
   selectedName: string | null;
@@ -24,6 +25,9 @@ export function RoutineList({
   /** Multi-select: routine names ticked for a bulk run (the screen owns it). */
   checkedNames?: Set<string>;
   onToggleCheck?: (r: RoutineEntry) => void;
+  /** Just-clicked, before the daemon's first frame lands. `r.running` is the
+   *  real answer and covers every other case (a refresh, another device, cron). */
+  runningName?: string | null;
 }) {
   const selecting = !!onToggleCheck && (checkedNames?.size ?? 0) > 0;
   return (
@@ -72,7 +76,11 @@ export function RoutineList({
                   </span>
                   <span className="min-w-0 flex-1 truncate text-sm font-medium">{r.name}</span>
                   {!r.enabled && <span className="shrink-0 text-[10px] text-muted-fg">{t("project.routines.paused")}</span>}
-                  <StatusDot ok={r.last_status === "ok" ? true : r.last_status === "error" ? false : null} />
+                  {/* Running now beats how the last one went: the dot is
+                      history, and history is not what you are watching for. */}
+                  {r.running || runningName === r.name
+                    ? <Tip content={t("project.routines.running")}><span className="flex shrink-0 items-center" data-testid={`routine-running-${r.name}`}><Spinner size={11} /></span></Tip>
+                    : <StatusDot ok={r.last_status === "ok" ? true : r.last_status === "error" ? false : null} />}
                 </div>
                 <div className="mt-1 flex items-center justify-between gap-2 pl-8 text-[10px] text-muted-fg">
                   {/* Who runs it beats what kind it is: four exec_agent routines

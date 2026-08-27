@@ -213,16 +213,20 @@ export async function cmdRoutineHistory(args) {
   if (!name) throw new Error("apx routine history: missing <name>");
   const pid = await resolveProjectId(args?.flags?.project);
   const limit = args.flags.n || args.flags.last || "50";
-  const rows = await http.get(`/api/projects/${pid}/messages?channel=routine&limit=${encodeURIComponent(limit)}`);
-  const filtered = rows
-    .filter((r) => r.meta?.routine === name)
-    .reverse();
-  if (filtered.length === 0) {
+  // The daemon decides what counts as a run (core/routines/run-log.js). This
+  // used to read the raw routine channel and keep every row carrying
+  // `meta.routine`, which is one row per TOOL CALL plus the "routine created /
+  // updated" rows — so `history` printed a run's internals interleaved with
+  // edits and called all of it history. Same bug the panel had; same fix.
+  const runs = await http.get(
+    `/api/projects/${pid}/routines/${encodeURIComponent(name)}/runs?limit=${encodeURIComponent(limit)}`
+  );
+  if (runs.length === 0) {
     console.log("(no routine history)");
     return;
   }
-  for (const r of filtered) {
-    const status = r.meta?.status ? ` ${r.meta.status}` : "";
-    console.log(`${r.ts}${status} ${r.author || ""}: ${r.body}`);
+  for (const r of [...runs].reverse()) {
+    const chat = r.conversation_id ? ` [chat ${r.agent_slug}/${r.conversation_id}]` : "";
+    console.log(`${r.ts} ${r.status} ${r.body}${chat}`);
   }
 }

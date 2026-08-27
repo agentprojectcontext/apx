@@ -65,6 +65,41 @@ export function onMessageEvent(fn) {
   return () => bus.off(MESSAGE_EVENT, fn);
 }
 
+export const ROUTINE_EVENT = "routine";
+
+/**
+ * A routine run started, moved a step, or ended.
+ *
+ * Same layering as the message event above: core emits the facts it already
+ * has (which project root, which routine, the run record) and never listens.
+ * The daemon subscribes in host/daemon/events-ws.js, maps the root to a project
+ * id and fans it out.
+ *
+ * Unlike a message event this one CARRIES the step, on purpose. A run's steps
+ * are not in the ledger while it runs — they are written once, at the end — so
+ * "re-fetch through the API you already use" has nothing to fetch. The live
+ * record IS the data, exactly like the turn frames in events-ws.js.
+ *
+ * @param {object} event
+ *   - phase        start | progress | end
+ *   - project_root the project's storage path — the daemon maps it to an id
+ *   - routine      the routine's name
+ *   - run          the public run record (core/routines/active-runs.js)
+ */
+export function emitRoutineEvent(event) {
+  try {
+    bus.emit(ROUTINE_EVENT, event);
+  } catch {
+    /* a broken listener is the listener's problem, not the runner's */
+  }
+}
+
+/** Subscribe to routine-run events. Returns the unsubscribe function. */
+export function onRoutineEvent(fn) {
+  bus.on(ROUTINE_EVENT, fn);
+  return () => bus.off(ROUTINE_EVENT, fn);
+}
+
 /** Drop every listener. For tests, and for a clean daemon shutdown. */
 export function resetEventBus() {
   bus.removeAllListeners();

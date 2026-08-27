@@ -32,6 +32,15 @@ import {
 } from "#core/stores/routine-memory.js";
 import { buildRoutineHeader, prependRoutineHeader } from "#core/routines/header.js";
 import {
+  startRoutineRun,
+  setRoutineRunPhase,
+  startRoutineRunTool,
+  finishRoutineRunTool,
+  addRoutineRunText,
+  setRoutineRunConversation,
+  endRoutineRun,
+} from "#core/routines/active-runs.js";
+import {
   resolveDeliveryChannels,
   deliverySuppressedTools,
   deliverRoutineOutput,
@@ -107,6 +116,28 @@ export function routineToolIters(config, { telegramBound }) {
   return telegramBound
     ? pick(sa.telegram_max_iters, TELEGRAM_TOOL_ITERS)
     : pick(sa.routine_max_iters, ROUTINE_UNCAPPED_TOOL_ITERS);
+}
+
+/**
+ * Bridge the agent loop's progress events onto the open run record, so a panel
+ * can watch a run TAKE its steps. Until this existed the only trace of a run
+ * was written at the end, which meant a four-minute routine was four minutes of
+ * nothing followed by a wall of text.
+ *
+ * Returns null when no run is open (a direct handler call in a test), and the
+ * loop then pays one `if` per event instead of building a record nobody reads.
+ */
+function runProgressEvents(runId) {
+  if (!runId) return null;
+  return (ev) => {
+    if (ev?.type === "tool_start") {
+      startRoutineRunTool(runId, { traceId: ev.trace?.id, tool: ev.trace?.tool, args: ev.trace?.args });
+    } else if (ev?.type === "tool_result") {
+      finishRoutineRunTool(runId, { traceId: ev.trace?.id, tool: ev.trace?.tool, result: ev.trace?.result });
+    } else if (ev?.type === "assistant_text") {
+      addRoutineRunText(runId, ev.text);
+    }
+  };
 }
 
 async function handleExecAgent(ctx, routine) {
@@ -231,6 +262,7 @@ async function handleExecAgent(ctx, routine) {
         requestConfirmation: null,
       },
       agentName: slug,
+      onEvent: runProgressEvents(ctx.runId),
       suppressTools: suppressTools.length > 0 ? suppressTools : null,
       maxIters,
       // A routine has to both act and report, and 2048 was tight enough that a
@@ -270,6 +302,7 @@ async function handleExecAgent(ctx, routine) {
   const { conversationId } = recordRoutineTurn(project, routine, {
     slug, model: answeredOn, prompt, reply: text, trace, usage, conversation: !ledgerOnly,
   });
+  setRoutineRunConversation(ctx.runId, { conversationId, agentSlug: slug });
   return {
     status: "ok",
     reply: text,
@@ -384,6 +417,7 @@ async function handleSuperAgent(ctx, routine, extraChannelMeta = {}) {
     },
     suppressTools: suppressTools.length > 0 ? suppressTools : null,
     maxIters,
+    onEvent: runProgressEvents(ctx.runId),
   });
 
   // A tool that needed a human in a run with no human is a DEAD END, not a
@@ -680,6 +714,34 @@ function shouldSkipPrompt(routine, preExitCode, preStdout) {
  * @returns {object} { status, last_run_at, next_run_at, ...handler-result }
  */
 export async function runRoutineNow(ctx, routine) {
+  // The run record is opened HERE, around everything, so a routine is visible
+  // as running from its first millisecond — including while a pre_command is
+  // still shelling out, which is where the old panel showed nothing at all.
+  const run = startRoutineRun({
+    projectRoot: ctx.project?.storagePath || os.homedir(),
+    routine,
+    trigger: ctx.trigger || "manual",
+  });
+  let out = null;
+  let failure = null;
+  try {
+    out = await runRoutinePipeline({ ...ctx, runId: run.id }, routine);
+    return out;
+  } catch (e) {
+    failure = e;
+    throw e;
+  } finally {
+    endRoutineRun(run.id, {
+      status: failure || out?.status === "error" ? "error" : "ok",
+      error: failure?.message || out?.error || null,
+      conversationId: out?.conversation_id || null,
+      agentSlug: out?.agent_slug || null,
+      text: out?.reply || out?.text || null,
+    });
+  }
+}
+
+async function runRoutinePipeline(ctx, routine) {
   const cwd = ctx.project?.path || os.homedir();
   const storagePath = ctx.project?.storagePath || os.homedir();
 
@@ -729,6 +791,7 @@ export async function runRoutineNow(ctx, routine) {
 
   // ── Phase 2: LLM / handler ────────────────────────────────────────────────
   const skip = hasPreCmds && shouldSkipPrompt(routine, preExitCode, preStdout);
+  setRoutineRunPhase(ctx.runId, "agent");
 
   let result = { status: "ok" };
   let status = "ok";
@@ -794,6 +857,7 @@ export async function runRoutineNow(ctx, routine) {
   // there: reaching a person meant a shell post_command or a paragraph in the
   // prompt asking the model to call send_telegram, and the failure mode of both
   // is silence. See core/routines/delivery.js.
+  setRoutineRunPhase(ctx.runId, "delivery");
   const llmOutput = result?.reply || result?.text || "";
   const deliveryText = routineOutputText(result);
   const wanted = delivery.channels.length + delivery.unknown.length;
@@ -914,6 +978,7 @@ export async function runRoutineNow(ctx, routine) {
   // ── Phase 3: post_commands ────────────────────────────────────────────────
   const postRuns = [];
   if (hasPostCmds) {
+    setRoutineRunPhase(ctx.runId, "post");
     const postEnv = {
       ...pipelineEnv,
       APX_LLM_OUTPUT: llmOutput.slice(0, 32_000),
