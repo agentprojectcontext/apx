@@ -217,6 +217,36 @@ test("broker: builds a [RELEVANT MEMORY] block from store hits", async () => {
   assert.match(block, /sanitizador/);
 });
 
+// A recalled tool row used to reach the prompt as `create_task({…})` — the
+// broker stripped the `[tool result: …]` prefix and left the bare call shape
+// standing. That is a worked example of writing calls instead of making them,
+// the same contamination tools/tool-call-parser.js exists to undo; recall must
+// not be the thing that plants it. See tests/tool-markup-leak.test.js.
+test("broker: a recalled tool row keeps its facts and loses its call shape", async () => {
+  const dir = tmpdir("broker-tool");
+  const store = new JsonStore(path.join(dir, "idx.jsonl"));
+  const v = (t) => {
+    const e = tfEmbed(t);
+    return { embedder: "tf", dim: e.length, vector: e };
+  };
+  store.upsert([
+    {
+      id: "t", channel: "telegram", ts: "2026-05-28T10:00:00Z", tag: "tool:create_task",
+      text: '[tool result: create_task] create_task({"project":"acme","title":"revisar el sanitizador del deck"})',
+      ...v("create_task acme revisar el sanitizador del deck"),
+    },
+  ]);
+  const block = await buildMemoryBlock("qué tarea habíamos anotado del sanitizador?", {
+    store,
+    embed: { forceTf: true },
+    memoryPath: path.join(dir, "none.md"),
+  });
+  assert.match(block, /create_task/, "which tool ran is the useful half");
+  assert.match(block, /revisar el sanitizador/, "and so are its arguments");
+  assert.doesNotMatch(block, /create_task\s*\(/, "but never as something to copy");
+  assert.doesNotMatch(block, /[{}]/, "an argument object is the shape that gets copied");
+});
+
 test("broker: empty store + empty notebook → empty block (graceful)", async () => {
   const dir = tmpdir("broker-empty");
   const store = new JsonStore(path.join(dir, "idx.jsonl"));

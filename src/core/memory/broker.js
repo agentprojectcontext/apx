@@ -73,6 +73,21 @@ function lastMemoryEntries(memoryPath, n) {
   }
 }
 
+// A recalled tool row is indexed as `[tool result: <name>] <name>({…args})`.
+// Stripping the prefix — which is what this did — left the bare call shape
+// sitting in the prompt, the exact worked example that teaches a model to
+// WRITE calls instead of making them (see tools/tool-call-parser.js). The
+// name and the arguments are what makes the bullet useful; the parentheses
+// and braces are what makes it dangerous, so only those go.
+function deFangToolRow(text) {
+  const m = String(text ?? "").match(/^\[tool result:\s*([^\]\n]+)\]\s*([\s\S]*)$/);
+  if (!m) return text;
+  const name = m[1].trim();
+  let body = m[2].trim();
+  if (body.startsWith(`${name}(`) && body.endsWith(")")) body = body.slice(name.length + 1, -1);
+  return `${name} → ${body.replace(/[{}]/g, "")}`.trim();
+}
+
 function bulletFor({ date, channel, text }) {
   const d = date ? `[${date}]` : "";
   const c = channel && channel !== "memory" ? `[${channel}]` : channel === "memory" ? "[memory]" : "";
@@ -129,7 +144,7 @@ export async function buildMemoryBlock(message, opts = {}) {
     push({
       date: dateOf(h.ts),
       channel: h.tag === "memory" ? "memory" : h.channel,
-      text: h.text.replace(/^\[tool result: [^\]]+\]\s*/, ""),
+      text: deFangToolRow(h.text),
     });
   }
   for (const e of memEntries) {

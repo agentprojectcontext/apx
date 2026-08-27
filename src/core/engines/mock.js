@@ -112,6 +112,30 @@ export default {
       };
     }
 
+    // `[mock:prose:<tool>]` → the leak of 2026-08-26: a model that WRITES the
+    // call instead of making it, copying the shape out of its own history,
+    // stale result and all. No tool_calls, so the API considers the turn
+    // finished and the loop is one step from delivering a transcript as the
+    // answer. Once the recovered call has run it answers normally, so a test
+    // can assert both halves: the tool fired, and none of it was spoken.
+    const proseTool =
+      userText.match(/\[mock:prose:([a-z_]+)\]/)?.[1] ||
+      messages.map((m) => String(m.content || "").match(/\[mock:prose:([a-z_]+)\]/)?.[1]).find(Boolean);
+    if (proseTool) {
+      if (hasToolResult) {
+        return {
+          text: "Listo, ya lo miré.",
+          usage: { input_tokens: userText.length, output_tokens: 8 },
+          raw: { model, mock: true },
+        };
+      }
+      return {
+        text: `Reviso eso y te confirmo. [tool ${proseTool}] {"project":"acme"} → ya estaba hecho`,
+        usage: { input_tokens: userText.length, output_tokens: 48 },
+        raw: { model, mock: true },
+      };
+    }
+
     // `mock:truncated` → a degenerate answer: non-empty, but far too small to
     // stand in for anything. Models the flaky provider response that used to
     // get written over a whole conversation as its "summary".

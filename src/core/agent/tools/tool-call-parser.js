@@ -77,13 +77,15 @@ export function extractPseudoToolCalls(text) {
   // files never get read, and the operator sees XML in the routine preview.
   const dsmlCalls = extractDsmlToolCalls(text);
 
-  // `[tool call: NAME] {…json…}` — APX's own internal transcription of a tool
-  // call, which used to be written into Gemini history when a turn had no
-  // thought signature to replay. Models copied the format out of their own
-  // history and started writing calls instead of making them, and the line
-  // was delivered to the user verbatim. The history no longer contains it,
-  // but a model that already learned the shape (or any model that invents it)
-  // must have the call EXECUTED rather than printed.
+  // `[tool call: NAME] {…json…}` and `[tool NAME] {…json…}` — APX's own
+  // internal transcriptions of a tool call. The first used to be written into
+  // Gemini history when a turn had no thought signature to replay; the second
+  // is how the message store rendered tool records between 2026-08-19 and
+  // 2026-08-26. Models copied the format out of their own history and started
+  // writing calls instead of making them, and the line was delivered to the
+  // user verbatim. Neither shape is in the history any more, but a model that
+  // already learned it (or any model that invents it) must have the call
+  // EXECUTED rather than printed.
   const bracketCalls = extractBracketToolCalls(text);
 
   // Second pass: balanced `{name, arguments}` JSON anywhere in the text.
@@ -186,12 +188,21 @@ function coerceDsmlValue(raw) {
   return raw;
 }
 
-// Parse `[tool call: NAME] {…}` — see the note in extractPseudoToolCalls.
-// `_raw` spans the bracket AND its argument object so the whole line is
-// removed from the visible text, not just the JSON half.
+// Parse `[tool call: NAME] {…}` and the bare `[tool NAME] {…}` — see the note
+// in extractPseudoToolCalls. `_raw` spans the bracket, its argument object AND
+// any `→ …` result copied along with it, so the whole line is removed from the
+// visible text, not just the JSON half.
 function extractBracketToolCalls(text) {
   const out = [];
-  const re = /\[tool[ _]call:\s*([a-zA-Z_][a-zA-Z0-9_]*)\]\s*/g;
+  // Two shapes. `[tool call: NAME]` (also `[tool_call:`, `[tool:`) is the one
+  // models invent. The bare `[tool NAME]` is APX's own — the message store
+  // rendered history that way for a week, and gemini-3.7-flash copied it
+  // fourteen times in a day. It counts as a call only when an argument object
+  // follows: `[tool run_shell] no anduvo` is prose about a tool, not a call.
+  // `[tool result: NAME]` matches NEITHER, deliberately — it annotates a past
+  // record, and re-running someone's old shell command is not a recovery.
+  const re =
+    /\[tool(?:[ _]call)?:\s*([a-zA-Z_][a-zA-Z0-9_]*)\]\s*|\[tool[ _]+([a-zA-Z_][a-zA-Z0-9_]*)\]\s*(?=\{)/g;
   let m;
   while ((m = re.exec(text)) !== null) {
     const argsStart = m.index + m[0].length;
@@ -207,9 +218,14 @@ function extractBracketToolCalls(text) {
         end = balanced.end;
       }
     }
+    // A model copying a record copies the whole thing, result included:
+    // `[tool run_shell] {…} → <output>`. That tail is a stale result being
+    // passed off as a fresh one; the real one arrives when the call runs.
+    const tail = text.slice(end).match(/^[ \t]*(?:→|->|=>)[^\n]*/);
+    if (tail) end += tail[0].length;
     out.push({
       id: nextId(),
-      function: { name: m[1], arguments: args },
+      function: { name: m[1] || m[2], arguments: args },
       _pseudo: true,
       _raw: text.slice(m.index, end),
       _rawStart: m.index,
@@ -355,7 +371,15 @@ export function cleanTextOfPseudoToolCalls(text, knownNames) {
   for (const call of extractBareFunctionCalls(out, knownNames)) {
     if (call._raw) out = out.replace(call._raw, "");
   }
-  out = out.replace(/\[tool result:\s*[^\]]+\]\s*/gi, "");
+  // APX's own history annotation: `[tool result: <name>] (<call>) → <result>`.
+  // A line that IS the annotation goes whole — the prefix used to be stripped
+  // on its own, which left `(command=…) → ==> …` standing there as the answer.
+  // Mid-sentence the prefix alone still goes, so the human half survives.
+  out = out.replace(/^[ \t]*\[tool result:\s*[^\]\n]*\][^\n]*$/gim, "");
+  out = out.replace(/\[tool result:\s*[^\]\n]*\]\s*/gi, "");
+  // The same for the bare `[tool <name>]` form once its call has been lifted
+  // out above: what is left is bookkeeping, never something to say.
+  out = out.replace(/^[ \t]*\[tool[ _]+[a-z_][a-z0-9_]*\][^\n]*$/gim, "");
   // …and the history annotation the message store substitutes for a stale
   // answer (`sanitizeAssistantForContext`). It describes a turn; it is never
   // something to say to the user.

@@ -39,7 +39,7 @@ if (!files.length) {
 //
 // So these sit just under the observed floor of the range, not at its ceiling.
 // Raise them again only against several consecutive runs, never one.
-const COVERAGE_FLOOR = { line: 72, branch: 71, function: 65 };
+const COVERAGE_FLOOR = { line: 75, branch: 72, function: 70 };
 
 // 4. A throwaway HOME for the whole run. Tests that isolate by stubbing
 //    os.homedir() are one refactor away from writing to the developer's real
