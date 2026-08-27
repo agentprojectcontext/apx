@@ -146,3 +146,32 @@ export function listDeliveries(storagePath, { status, limit = 100 } = {}) {
   out.sort((a, b) => String(b.created_at || b.ts || "").localeCompare(String(a.created_at || a.ts || "")));
   return out.slice(0, limit);
 }
+
+/**
+ * Repoint a queue after an agent's slug changed. The queue keys work by slug —
+ * `answerDeliveries` closes by slug, and the sweep's notify links into that
+ * agent's chat — so a rename that skipped this would leave an open delivery
+ * nobody can ever cross off, still pointing at an agent that no longer exists.
+ *
+ * Append-only like every other write here: a re-stated `pending` event carries
+ * the new slug, and the fold keeps whatever status the delivery had reached
+ * (`status: prev?.status`), so a notified one stays notified and a later
+ * `answered` event still lands on it. `ts` repeats the original `created_at` so
+ * the queue's ordering and age do not jump.
+ *
+ * @returns {number} deliveries repointed
+ */
+export function renameDeliveryAgent(storagePath, oldSlug, newSlug) {
+  if (!storagePath || !oldSlug || !newSlug || oldSlug === newSlug) return 0;
+  const mine = listDeliveries(storagePath, { limit: Infinity }).filter((d) => d.agent === oldSlug);
+  for (const d of mine) {
+    appendEvent(storagePath, {
+      ...d,
+      ev: DELIVERY_STATUS.PENDING,
+      ts: d.created_at || d.ts || nowIso(),
+      agent: newSlug,
+      agent_name: d.agent_name || newSlug,
+    });
+  }
+  return mine.length;
+}

@@ -28,7 +28,7 @@ import {
   writeAgentMemory,
 } from "#core/agent/memory.js";
 import { createAgent, cloneAgent, setAgentConfig, removeAgent, renameAgent } from "#core/apc/agent-write.js";
-import { agentToResponse } from "./shared.js";
+import { agentToResponse, asyncRoute } from "./shared.js";
 import { normalizeVaultPatch } from "#core/apc/agents-vault.js";
 import { listConversations } from "#core/stores/conversations.js";
 import { listTasks } from "#core/stores/tasks.js";
@@ -224,12 +224,15 @@ export function register(api, { projects, project }) {
   });
 
   // Rename an agent's slug — moves its .apc/agents/<slug>.md and runtime dir and
-  // repoints child `Parent` refs and routines. Distinct from PATCH on purpose:
-  // it's an irreversible file move and it changes the resource URL, so the UI
-  // must navigate to the returned slug rather than revalidate in place. The new
-  // slug can be sent raw (`{ slug }`) or derived from a name (`{ name }`) — the
-  // caller-side slugify is mirrored here so either surface yields the same key.
-  api.post("/projects/:pid/agents/:slug/rename", (req, res) => {
+  // repoints every live reference to it (child `Parent`, routines, group
+  // rosters, tasks, deliveries, code sessions, telegram routes, the RAG scope).
+  // Distinct from PATCH on purpose: it's an irreversible file move and it
+  // changes the resource URL, so the UI must navigate to the returned slug
+  // rather than revalidate in place. The new slug can be sent raw (`{ slug }`)
+  // or derived from a name (`{ name }`) — the caller-side slugify is mirrored
+  // here so either surface yields the same key. The whole registry goes in so
+  // the sweep can reach rooms hosted by ANOTHER project that include this agent.
+  api.post("/projects/:pid/agents/:slug/rename", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
     const body = req.body || {};
@@ -238,7 +241,7 @@ export function register(api, { projects, project }) {
       return res.status(400).json({ error: "valid target slug required" });
     }
     try {
-      const finalSlug = renameAgent(p, req.params.slug, target);
+      const finalSlug = await renameAgent(p, req.params.slug, target, { projects: projects.list() });
       projects.rebuild(p.id);
       const updated = readAgents(p.path).find((a) => a.slug === finalSlug);
       res.json(agentToResponse(updated));
@@ -246,7 +249,7 @@ export function register(api, { projects, project }) {
       const status = /not found/.test(e.message) ? 404 : 400;
       res.status(status).json({ error: e.message });
     }
-  });
+  }));
 
   // Delete an agent: removes .apc/agents/<slug>.md and runtime data dir.
   api.delete("/projects/:pid/agents/:slug", (req, res) => {
