@@ -18,7 +18,11 @@ const BROWSER_TOOL_COUNT = TOOL_DEFINITIONS.filter((t) => t.category === "browse
 
 test("base set is a strict, smaller subset of the full registry", () => {
   assert.ok(BASE_TOOL_SCHEMAS.length < TOOL_SCHEMAS.length);
-  assert.ok(BASE_TOOL_SCHEMAS.length >= 20 && BASE_TOOL_SCHEMAS.length <= 27);
+  // A band, not a number: the base set is allowed to grow, but not quietly.
+  // It went to 29 when complete_task and mark_commitment joined the halves that
+  // were already hot (~+480 tokens on every lightweight turn) — the asymmetry
+  // was costing more than the tokens, see BASE_TOOL_NAMES.
+  assert.ok(BASE_TOOL_SCHEMAS.length >= 20 && BASE_TOOL_SCHEMAS.length <= 30);
   const full = new Set(TOOL_SCHEMAS.map(nameOf));
   for (const s of BASE_TOOL_SCHEMAS) assert.ok(full.has(nameOf(s)));
   // discover_tools must be in the base set — it's the entry point to the rest.
@@ -114,4 +118,72 @@ test("lazy block lists not-loaded tool names without schemas", () => {
   assert.match(block, /browser_navigate/);
   // names only — no JSON schema noise
   assert.ok(!block.includes('"parameters"'));
+});
+
+// ── the pairs that must not be split ─────────────────────────────────────────
+
+test("a hot half never ships without its write-back half", () => {
+  // The gap that bit on 2026-08-27: create_task and list_tasks were in the base
+  // set, complete_task was not. On Telegram the model could open a task and read
+  // it back but not close one — so, seeing the name in the lazy block and no
+  // schema, it invented `complete_task({project, id})`, got "task required"
+  // twice, and left the task open. Same shape for commitments, where the
+  // unresolvable one had been in the watcher's signals since July 2025.
+  for (const [read, write] of [
+    ["list_tasks", "complete_task"],
+    ["list_commitments", "mark_commitment"],
+  ]) {
+    assert.ok(BASE_TOOL_NAMES.has(read), `${read} is hot`);
+    assert.ok(BASE_TOOL_NAMES.has(write), `${write} must be hot too — ${read} is`);
+  }
+});
+
+// ── calling a tool whose schema was never sent ───────────────────────────────
+
+test("run-agent: a call to an unloaded tool activates it and returns the schema, and runs nothing", async () => {
+  // The model can SEE unloaded tool NAMES (that is what buildLazyToolsBlock is
+  // for) and providers do not all refuse a call to a tool that was not in the
+  // request. Executing it means executing guessed arguments — which is how a
+  // task got closed with `id` against a schema that says `task`.
+  const { runAgent } = await import("#core/agent/run-agent.js");
+  const session = createToolSession("telegram");
+  const executed = [];
+  const result = await runAgent({
+    globalConfig: { super_agent: { enabled: true, model: "mock:test", permission_mode: "total", model_fallback: { enabled: false } }, engines: {} },
+    system: "sys",
+    prompt: "[mock:tool:web_search] buscá precios",
+    toolSchemas: session.initialSchemas,
+    makeToolHandlers: () => ({ web_search: async (args) => { executed.push(args); return { ok: true }; } }),
+    toolHandlerCtx: { toolSession: session, globalConfig: {}, projects: { list: () => [] } },
+    maxIters: 2,
+  });
+  const call = (result.trace || []).find((t) => t.tool === "web_search");
+  assert.ok(call, "the call was made");
+  assert.equal(executed.length, 0, "guessed arguments never reached the handler");
+  assert.match(call.result.error, /was not loaded/);
+  assert.equal(call.result.activated, "web_search");
+  assert.ok(call.result.schema?.parameters, "the model gets the schema it was missing");
+  assert.ok(session.activeNames.has("web_search"), "and the retry has the tool");
+});
+
+test("run-agent: a tool the role gate denies is refused, not run, even when the name is guessed", async () => {
+  // The gate only ever filtered the schemas the model was SENT. The handler map
+  // holds every tool, so a guessed name walked straight past it.
+  const { runAgent } = await import("#core/agent/run-agent.js");
+  const session = createToolSession("telegram", { allowedTools: ["list_tasks"] });
+  const executed = [];
+  const result = await runAgent({
+    globalConfig: { super_agent: { enabled: true, model: "mock:test", permission_mode: "total", model_fallback: { enabled: false } }, engines: {} },
+    system: "sys",
+    prompt: "[mock:tool:run_shell] borrá todo",
+    toolSchemas: session.initialSchemas,
+    makeToolHandlers: () => ({ run_shell: async (args) => { executed.push(args); return { ok: true }; } }),
+    toolHandlerCtx: { toolSession: session, globalConfig: {}, projects: { list: () => [] } },
+    maxIters: 2,
+  });
+  const call = (result.trace || []).find((t) => t.tool === "run_shell");
+  assert.ok(call);
+  assert.equal(executed.length, 0);
+  assert.match(call.result.error, /not available to you/);
+  assert.ok(!session.activeNames.has("run_shell"));
 });

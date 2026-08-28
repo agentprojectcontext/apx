@@ -1,5 +1,5 @@
 import { doneTask, dropTask, reopenTask, setTaskStatus } from "#core/stores/tasks.js";
-import { projectMeta, resolveProject } from "../helpers.js";
+import { missingArg, projectMeta, resolveProject } from "../helpers.js";
 
 // Close or move a task. The sibling of create_task: the super-agent could add
 // and list tasks but not finish one, so a "mark it done" turned into a shelled
@@ -25,9 +25,13 @@ export default {
       },
     },
   },
-  makeHandler: ({ projects, requirePermission }) => async ({ project, task, action, status, by } = {}) => {
+  makeHandler: ({ projects, requirePermission }) => async (args = {}) => {
+    const { project, task, action, status, by } = args;
     await requirePermission("complete_task", { dangerous: true, args: { task, action } });
-    if (!task) return { error: "task required" };
+    // `task`, not `id` — and the error says so, because list_tasks and
+    // create_task both hand back `id` and a model that copies it straight back
+    // here has no other way to learn the difference.
+    if (!task) return missingArg("complete_task", "task", { required: ["task", "action"], optional: ["project", "status", "by"] }, args);
     let p;
     try {
       p = resolveProject(projects, project || "default");
