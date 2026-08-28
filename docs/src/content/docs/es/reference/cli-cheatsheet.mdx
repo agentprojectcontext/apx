@@ -311,6 +311,17 @@ tareas: una tarea es trabajo, un compromiso es alguien esperando.
 
 ---
 
+## Imágenes
+
+| Comando | Qué hace |
+|---|---|
+| `apx image "<prompt>"` | Genera una imagen (`--out <archivo> --size 768x512 --steps N --cfg N --seed N`) |
+| `apx image "<prompt>" --provider <id>` | Fuerza un motor: `a1111` \| `sdcpp` \| `openai` \| `mock` \| `custom:<slug>` |
+| `apx image providers` | Qué motores de imagen están configurados, responden y en qué orden |
+| `apx image capabilities` | Modelos, samplers y schedulers que ofrece un servidor (`--provider <id>`) |
+
+---
+
 ## Voz y Escritorio
 
 | Comando | Qué hace |
