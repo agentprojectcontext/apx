@@ -425,7 +425,13 @@ test("the header leads with the session, and says who under it", () => {
   // be carried in from wherever you clicked, and a deep link carries nothing —
   // which is how a date ended up standing in for the name.
   assert.match(tab, /conversationMeta\?\.title \|\|\s*\n\s*selectedMeta\?\.title/);
-  assert.match(chat, /setConversationMeta\(\{ channel: detail\.channel, title: detail\.title \}\)/);
+  // A loaded THREAD hands over its name the same way — and, for an a2a or group
+  // thread, the participants and their faces with it, so the header can draw
+  // "Andy · Claude" with both avatars from the thread alone. Resolving that in
+  // the panel is what made the same thread look different in the inbox and in
+  // the project Chats tab (see tests/thread-faces.test.js).
+  assert.match(chat, /setConversationMeta\(\{\s*\n\s*channel: detail\.channel,\s*\n\s*title: detail\.title,/);
+  assert.match(chat, /participants: detail\.participants,\s*\n\s*faces: detail\.participant_faces,/);
 });
 
 test("answering the questions gets past question one", () => {

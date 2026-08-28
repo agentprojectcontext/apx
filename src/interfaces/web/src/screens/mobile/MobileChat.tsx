@@ -72,8 +72,6 @@ export function MobileChat({
         compact
         hideSidebar
         channelScope="web"
-        threadFaces={row.kind === "a2a" || row.kind === "group" ? row.participant_faces : undefined}
-        threadTitle={row.kind === "a2a" || row.kind === "group" ? row.agent_name ?? undefined : undefined}
         onOpenInProject={() => window.open(agentCardUrl(row), "_blank", "noopener")}
         onBack={onBack}
         onSelectionChange={onPickSession}

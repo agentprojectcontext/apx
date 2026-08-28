@@ -174,8 +174,6 @@ export function InboxScreen() {
             hideSidebar
             bare
             channelScope="web"
-            threadFaces={selected.kind === "a2a" || selected.kind === "group" ? selected.participant_faces : undefined}
-            threadTitle={selected.kind === "a2a" || selected.kind === "group" ? selected.agent_name ?? undefined : undefined}
             initialSelection={selectionFor(selected)}
             /* The structural way out. The inbox is a second axis over the same
                data, so getting from a conversation to its project must always

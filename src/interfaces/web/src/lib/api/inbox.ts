@@ -1,4 +1,5 @@
 import { http, unwrapPage } from "../http";
+import type { AgentFace } from "../../types/daemon";
 
 /** One row of the agent inbox: an agent, and the last thing it said. */
 export interface InboxRow {
@@ -13,8 +14,9 @@ export interface InboxRow {
   kind: "agent" | "super_agent" | "a2a" | "group";
   /** For a2a and group chats: the participant slugs, for the multi-face avatar. */
   participants?: string[];
-  /** Resolved face per participant (blob/emoji/name) so the duo wears real avatars. */
-  participant_faces?: { slug?: string | null; name?: string | null; emoji?: string | null; icon?: string | null }[];
+  /** Resolved face per participant (blob/emoji/name) so the duo wears real
+   *  avatars — the same shape, from the same resolver, that a thread carries. */
+  participant_faces?: AgentFace[];
   /** For a2a spawned on someone's behalf: who asked for it ("a pedido de X"). */
   requested_by?: string | null;
   pinned: boolean;

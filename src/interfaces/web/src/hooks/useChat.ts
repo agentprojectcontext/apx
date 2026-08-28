@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SuperAgent, Agents, Conversations, Groups } from "../lib/api";
-import type { ActiveTurn, ChatStreamEvent, ChatUsage, ConversationMessage, MessageMedia, ToolSummary, TurnFrame } from "../types/daemon";
+import type { ActiveTurn, AgentFace, ChatStreamEvent, ChatUsage, ConversationMessage, MessageMedia, ToolSummary, TurnFrame } from "../types/daemon";
 import type { UploadedMedia } from "../lib/api/media";
 import { subscribeTurns } from "../lib/live";
 import { t } from "../i18n";
@@ -596,6 +596,12 @@ export interface ConversationMeta {
   channel?: string;
   title?: string;
   started?: string;
+  /** Multi-agent threads (a2a, group) only: who is in the room, and the face
+   *  each one wears. Both come resolved from the daemon with the messages, so
+   *  the header can draw the thread without being handed a list row — which is
+   *  all the project Chats tab ever had, and why it drew none. */
+  participants?: string[];
+  faces?: AgentFace[];
 }
 
 function metaFromDetail(detail: { channel?: string; meta?: Record<string, unknown> }): ConversationMeta {
@@ -982,6 +988,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
     loadSeqRef.current++; // cancel any in-flight history load
     convoRef.current = undefined;
     setConversationId(undefined);
+    setConversationMeta(undefined);
     setQueued([]);
     setMsgs([]);
   }, [streaming]);
@@ -1045,7 +1052,12 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
         // A thread knows its own name and channel, same as a conversation file
         // does — the header should not have to be handed them by whichever list
         // happened to open it.
-        setConversationMeta({ channel: detail.channel, title: detail.title });
+        setConversationMeta({
+          channel: detail.channel,
+          title: detail.title,
+          participants: detail.participants,
+          faces: detail.participant_faces,
+        });
         setMsgs((curr) => (opts?.silent ? mergeLocalTurns(loaded, curr) : loaded));
       } catch (e) {
         if (seq !== loadSeqRef.current) return;

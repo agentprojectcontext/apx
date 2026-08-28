@@ -371,26 +371,53 @@ export interface TurnFrame {
   error?: string;
 }
 
+/**
+ * One participant's resolved avatar + display name.
+ *
+ * Resolved by the daemon (host/daemon/api/thread-faces.js) and shipped on the
+ * payload, never re-derived from a slug in the panel: the super-agent and a
+ * coding CLI are not project agents, so a screen resolving faces against its own
+ * agent list draws a bare letter for exactly the participants that matter most.
+ */
+export interface AgentFace {
+  /** Project / actor slug — needed to open the agent's ficha from a group face. */
+  slug?: string | null;
+  /** Blob-preset key (see components/agents/blobPresets), when the agent has one. */
+  icon?: string | null;
+  emoji?: string | null;
+  /** Display name — used for the fallback initial and to seed the colour. */
+  name?: string | null;
+}
+
 /** Super-agent channel thread (one per channel+day of the global ledger). */
 export interface ThreadListEntry {
   id: string;         // YYYY-MM-DD
   channel: string;    // telegram | web | desktop | deck | …
+  /** Already display-ready: for a2a and group threads it is "Andy · Claude",
+   *  built from the resolved faces below, not the raw pair id. */
   title: string;
   messages: number;
   started_at: string;
   last_ts: string;
   archived?: boolean;
+  /** For multi-agent threads (a2a, group): the participant agent slugs… */
+  participants?: string[];
+  /** …and the face each one wears. */
+  participant_faces?: AgentFace[];
+  preview?: string;
 }
 
 export interface ThreadDetail {
   id: string;
   channel: string;
-  /** What this thread is called: the reader's own name for it, or the first
-   *  thing that was said in it. */
+  /** What this thread is called: the reader's own name for it, the resolved
+   *  "A · B" of a multi-agent thread, or the first thing that was said in it. */
   title?: string;
   archived?: boolean;
-  /** For multi-agent threads (a2a, group): the participant agent slugs. */
+  /** For multi-agent threads (a2a, group): the participant agent slugs… */
   participants?: string[];
+  /** …and the face each one wears, so the header can draw them without a list. */
+  participant_faces?: AgentFace[];
   messages: ConversationMessage[];
 }
 
