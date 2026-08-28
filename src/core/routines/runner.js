@@ -506,9 +506,10 @@ async function handleTelegram(ctx, routine) {
 
 function handleShell(ctx, routine) {
   return new Promise((resolve, reject) => {
-    const { command, timeout_ms = 30_000 } = routine.spec;
-    if (!command) return reject(new Error("shell routine needs spec.command"));
-    const child = spawn("sh", ["-c", command], {
+    const { command, cmd, timeout_ms = 30_000 } = routine.spec || {};
+    const finalCmd = command || cmd;
+    if (!finalCmd) return reject(new Error("shell routine needs spec.command (or spec.cmd)"));
+    const child = spawn("sh", ["-c", finalCmd], {
       cwd: ctx.project.path,
       stdio: ["ignore", "pipe", "pipe"],
     });

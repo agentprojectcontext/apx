@@ -25,6 +25,9 @@
 // and every thread with a suffix 404s. `:` survives the trip (encoded or not),
 // which api/conversations.js already relies on for the `a2a:` slug itself.
 import { RUNTIME_IDS } from "#core/runtimes/index.js";
+import { resolveAgentName } from "#core/identity/self.js";
+
+const SUPERAGENT_PEERS = new Set(["default", "superagent", "super_agent", "super-agent", "apx"]);
 
 /** Split "<name>:<thread>". A leading ":" is not a suffix — that is the name. */
 export function parsePeerAddress(address) {
@@ -51,12 +54,50 @@ export function resolvePeer(address, agents = []) {
   const { address: full, name, thread } = parsePeerAddress(address);
   if (!full) return null;
 
-  const agent = agents.find((a) => a.slug === name);
+  // 1. Exact slug match
+  let agent = agents.find((a) => a.slug === name);
+
+  // 2. Case-insensitive slug match
+  if (!agent) {
+    agent = agents.find((a) => a.slug?.toLowerCase() === name.toLowerCase());
+  }
+
+  // 3. Match by agent display Name (e.g. Name: Andy, Name: April)
+  if (!agent) {
+    agent = agents.find((a) => (a.name || a.fields?.Name || "").toLowerCase() === name.toLowerCase());
+  }
+
   if (agent) return { kind: "agent", address: full, name: agent.slug, thread, agent };
 
   if (isRuntimeName(name)) {
     return { kind: "runtime", address: full, name, thread, runtime: name };
   }
+
+  // 4. Superagent fallback (default, super-agent, or configured identity name like "roby")
+  const configuredName = resolveAgentName() || "";
+  const nameLower = name.toLowerCase();
+  const isSuper = SUPERAGENT_PEERS.has(nameLower) || (configuredName && nameLower === configuredName.toLowerCase());
+  if (isSuper) {
+    const displayName = configuredName || "Roby";
+    return {
+      kind: "agent",
+      address: full,
+      name: "default",
+      thread,
+      agent: {
+        slug: "default",
+        name: displayName,
+        fields: {
+          Name: displayName,
+          Role: "Super-agent / Orchestrator",
+          Type: "orchestrator",
+          Description: "Always-on orchestrator and chief of staff",
+        },
+        synthetic: true,
+      },
+    };
+  }
+
   return null;
 }
 

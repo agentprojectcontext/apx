@@ -9,13 +9,14 @@
 import { callEngine } from "../../engines/index.js";
 import { readAgentMemory } from "../memory.js";
 import { resolveAgentModel } from "../agent-model.js";
+import { resolveAgentName } from "../../identity/self.js";
 import { readProfileState } from "../../profiles/store.js";
 import { getRuntime } from "../../runtimes/index.js";
 import { runtimeLooksLikeFailure } from "../../runtimes/outcome.js";
 import { a2aSessionKey } from "./peers.js";
 
 // The super-agent's own slug — the orchestrator that speaks to the owner.
-const ORCHESTRATOR_SLUGS = new Set(["roby", "super_agent", "super-agent", "apx"]);
+const ORCHESTRATOR_SLUGS = new Set(["default", "roby", "superagent", "super_agent", "super-agent", "apx"]);
 
 // A shell word only needs quoting when it isn't one. A `:thread` address is
 // safe unquoted in every shell we target, but the quotes cost nothing and cover
@@ -40,9 +41,11 @@ export function a2aReplyCommand({ selfAddress, peerAddress }) {
  *  the owner, and when, is the orchestrator's (Roby's) call, through its own
  *  channel and quiet-hours. */
 function a2aEtiquette({ selfAddress, peerAddress, config }) {
-  const selfName = String(selfAddress || "").toLowerCase().split("#")[0];
-  const isOrchestrator = ORCHESTRATOR_SLUGS.has(selfName);
+  const selfName = String(selfAddress || "").toLowerCase().split("#")[0].split(":")[0];
+  const configuredName = (resolveAgentName(config) || "").toLowerCase();
+  const isOrchestrator = ORCHESTRATOR_SLUGS.has(selfName) || (configuredName && selfName === configuredName);
   const secretaryActive = readProfileState(config).active === "secretary";
+  const superName = resolveAgentName(config) || "the orchestrator";
   const lines = [
     "## This is an agent-to-agent (a2a) message",
     "It comes from another AGENT, not from the human owner. Do NOT notify the owner directly from this turn (no `apx telegram send`, no direct owner ping).",
@@ -53,7 +56,7 @@ function a2aEtiquette({ selfAddress, peerAddress, config }) {
     );
   } else {
     lines.push(
-      "You are NOT the orchestrator: if this needs the owner's attention or a decision, relay it to Roby (`apx send <you> roby \"…\" --deliver`) and let Roby decide how and when to tell them. Tag urgency: `--severity blocker` for a critical alert (Roby pings the owner in the act, crossing quiet-hours), `--severity status`/`fyi` for a normal notice that rides the digest. Otherwise just do your part and reply here.",
+      `You are NOT the orchestrator: if this needs the owner's attention or a decision, relay it to ${superName} (\`apx send <you> default "…" --deliver\` or \`apx send <you> ${superName.toLowerCase()} "…" --deliver\`) and let ${superName} decide how and when to tell them. Tag urgency: \`--severity blocker\` for a critical alert (${superName} pings the owner in the act, crossing quiet-hours), \`--severity status\`/\`fyi\` for a normal notice that rides the digest. Otherwise just do your part and reply here.`,
     );
   }
   if (secretaryActive) {

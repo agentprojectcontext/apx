@@ -52,12 +52,14 @@ export function skillsFromFields(fields = {}) {
 export function agentRow(agent) {
   return {
     slug: agent.slug,
-    role: agent.fields.Role || null,
+    name: agent.name || agent.fields?.Name || agent.slug,
+    type: agent.fields?.Type || null,
+    role: agent.fields?.Role || null,
     // Only a real override is worth telling the model about — `inherit` says
     // nothing it can act on.
     model: agentForcedModel(agent) || null,
-    language: agent.fields.Language || null,
-    description: agent.fields.Description || null,
+    language: agent.fields?.Language || null,
+    description: agent.fields?.Description || null,
     skills: skillsFromFields(agent.fields),
   };
 }

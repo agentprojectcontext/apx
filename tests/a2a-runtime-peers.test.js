@@ -313,3 +313,20 @@ test("each peer's session is its own, even though the two share one thread", () 
   assert.equal(readA2APeerSession(root, { from: "claude-code", to: "codex" }), null);
   fs.rmSync(root, { recursive: true, force: true });
 });
+
+test("resolvePeer matches agents by slug, display name, and superagent aliases", () => {
+  const mockAgents = [
+    { slug: "andy", name: "Andy", fields: { Name: "Andy", Role: "Orchestrator", Type: "orchestrator" } },
+    { slug: "crypto-analyst", name: "Crypto Analyst", fields: { Name: "Crypto Analyst", Role: "Analyst" } },
+  ];
+
+  // Exact slug
+  assert.equal(resolvePeer("andy", mockAgents)?.name, "andy");
+  // Display name
+  assert.equal(resolvePeer("Crypto Analyst", mockAgents)?.name, "crypto-analyst");
+  // Superagent aliases
+  assert.equal(resolvePeer("default", mockAgents)?.name, "default");
+  assert.equal(resolvePeer("superagent", mockAgents)?.name, "default");
+  assert.equal(resolvePeer("super-agent", mockAgents)?.name, "default");
+  assert.equal(resolvePeer("apx", mockAgents)?.name, "default");
+});
