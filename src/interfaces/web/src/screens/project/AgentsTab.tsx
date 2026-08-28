@@ -488,10 +488,29 @@ function AgentCard({
           )}
         </span>
       </div>
-      <div className="mt-2 flex flex-wrap items-center gap-1">
-        {agent.is_master && <Badge tone="success"><Crown size={9} /> {t("project.agents.orchestrator")}</Badge>}
-        {agent.role && <Badge>{agent.role}</Badge>}
-      </div>
+      {/* Role is a LABEL, description is the sentence. They were collapsed into
+          one un-clipped badge, and since people (and create_agent) write a whole
+          description into Role — "Investigador de precios de servicios
+          automotrices en Argentina" — it spilled out past the card border and
+          the actual description was never shown at all. So the role badge is
+          clipped to the card and the description sits under it, at two lines. */}
+      {(agent.is_master || agent.role) && (
+        <div className="mt-2 flex min-w-0 flex-wrap items-center gap-1">
+          {agent.is_master && <Badge tone="success"><Crown size={9} /> {t("project.agents.orchestrator")}</Badge>}
+          {agent.role && (
+            <Badge className="min-w-0 max-w-full shrink">
+              <span className="min-w-0 truncate" title={agent.role}>{agent.role}</span>
+            </Badge>
+          )}
+        </div>
+      )}
+      {/* Skipped when it only repeats the role — two lines of the same sentence
+          is worse than one. */}
+      {agent.description && agent.description !== agent.role && (
+        <p className="mt-1.5 line-clamp-2 text-[11px] leading-snug text-muted-fg" title={agent.description}>
+          {agent.description}
+        </p>
+      )}
       <AgentStatRow stats={agent.stats} className="mt-2" />
       {/* The model badge closes this row: it only gets the width left over by
           View/Chat and truncates, so a long id can't widen the card. */}

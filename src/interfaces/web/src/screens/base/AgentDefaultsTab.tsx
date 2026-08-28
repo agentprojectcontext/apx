@@ -99,8 +99,14 @@ export function AgentDefaultsTab() {
                 ? <Badge tone="info">{a.model}</Badge>
                 : <span className="text-[10px] text-muted-fg">{t("agents_ui.model_router_default")}</span>}
               {a.description && <p className="line-clamp-3 text-xs text-muted-fg">{a.description}</p>}
-              <div className="flex flex-wrap gap-1">
-                {a.role && <Badge>{a.role}</Badge>}
+              <div className="flex min-w-0 flex-wrap gap-1">
+                {/* Clipped for the same reason as the agent cards: a Role field
+                    holding a whole sentence used to run past the card edge. */}
+                {a.role && (
+                  <Badge className="min-w-0 max-w-full shrink">
+                    <span className="min-w-0 truncate" title={a.role}>{a.role}</span>
+                  </Badge>
+                )}
                 {a.skills?.map((s) => <span key={s} className="inline-flex items-center gap-0.5 rounded bg-muted px-1 py-0.5 text-[9px] text-muted-fg"><Sparkles size={9} /> {s}</span>)}
                 {a.tools?.map((t) => <span key={t} className="inline-flex items-center gap-0.5 rounded bg-muted px-1 py-0.5 text-[9px] text-muted-fg"><Wrench size={9} /> {t}</span>)}
               </div>
