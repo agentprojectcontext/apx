@@ -1866,6 +1866,53 @@ export const HELP_TOPICS = new Map(Object.entries({
     examples: ["apx desktop start"],
   }),
 
+  // ── Images (text-to-image) ────────────────────────────────────────────────
+  image: topic({
+    title: "apx image",
+    summary: "Text-to-image through the daemon's routed engine. Speaks three dialects — the AUTOMATIC1111 API (A1111, Forge, Draw Things, stable-diffusion.cpp), the native stable-diffusion.cpp async job API, and OpenAI-compatible /v1/images — so the same command drives a local server, a box on the LAN and a cloud key. Configure engines in Settings → Images or under `images.*` in ~/.apx/config.json.",
+    usage: [
+      "apx image \"<prompt>\" [--out <file>] [--provider <id>] [--size 768x512] [--steps N] [--cfg N]",
+      "apx image \"<prompt>\" [--seed N] [--negative \"...\"] [--count N] [--model <id>] [--format png|jpeg|webp]",
+      "apx image providers",
+      "apx image capabilities [--provider <id>]",
+    ],
+    commands: [
+      ["providers", "Which engines are configured, reachable and in what routing order."],
+      ["capabilities", "Models, samplers and schedulers a server actually offers."],
+    ],
+    options: [
+      ["--out <file>", "Copy the result here (a directory works too). Without it the path under ~/.apx/images/<date>/ is printed and nothing is written into your project."],
+      ["--provider <id>", "Force an engine: a1111 | sdcpp | openai | mock | custom:<slug>. Default: the configured routing."],
+      ["--size <WxH>", "e.g. 768x512. Or pass --width / --height separately."],
+      ["--steps N", "Sampling steps. A turbo checkpoint wants ~8; a standard one 20-30."],
+      ["--cfg N", "Guidance scale (cfg_scale). Turbo checkpoints want ~1.0."],
+      ["--seed N", "Fix the seed for a reproducible image. Default -1 (random)."],
+      ["--negative \"...\"", "What to keep out of the picture."],
+      ["--count N", "How many images in one run."],
+      ["--model <id>", "Checkpoint / model id, where the server can switch."],
+      ["--format <ext>", "png | jpeg | webp, where the server supports it."],
+      ["--sampler <id>", "Sampler name (see `apx image capabilities`)."],
+      ["--scheduler <id>", "Scheduler name (see `apx image capabilities`)."],
+      ["--prompt \"...\"", "Pass the prompt explicitly — needed only when it is literally the word providers or capabilities."],
+      ["--json", "Machine-readable result: engine, resolved request, ignored options, file paths."],
+      ["--open", "Open the image in the OS viewer when it is done."],
+    ],
+    examples: [
+      "apx image \"a green origami fox on a white background\"",
+      "apx image \"portrait of a fox\" --size 768x512 --steps 8 --cfg 1.0 --out fox.png",
+      "apx image \"a logo sketch\" --provider a1111 --seed 123 --json",
+      "apx image providers",
+      "apx image capabilities --provider sdcpp",
+    ],
+    notes: [
+      "Engines are tried in order (images.order) and the first reachable one wins, exactly like TTS routing; set images.mode=single to pin one. `mock` is always last and always available, so a call with nothing configured still returns a file instead of an error.",
+      "Not every engine honors every knob. The OpenAI dialect has no steps, cfg, sampler or negative prompt; stable-diffusion.cpp hosts one checkpoint and cannot switch models. Whatever an engine cannot honor is REPORTED after the run instead of being silently dropped.",
+      "The A1111 route is preferred over the native sdcpp one for the same server because only it carries steps and cfg — a turbo checkpoint left on a server's stock 20 steps / cfg 7 renders several times slower for a worse picture.",
+      "Ollama cannot generate images: it serves language and vision models, none of which produce pixels. For a local engine on macOS, point the a1111 provider at Draw Things' HTTP API (or any local A1111-compatible server) instead.",
+      "Images are kept under ~/.apx/images/<date>/ so they are never written into a project checkout unless --out says so.",
+    ],
+  }),
+
   // ── Voice (TTS / mic round-trip) ──────────────────────────────────────────
   transcribe: topic({
     title: "apx transcribe",
@@ -2307,6 +2354,10 @@ export function buildHelp(version) {
     hSec("Plugins"),
     hCmd("apx plugins list",           36, "show loaded plugins and their status"),
     hCmd("apx plugins status <id>",    36, "detailed status of one plugin (e.g. telegram)"),
+
+    hSec("Images"),
+    hCmd("apx image \"<prompt>\"",      36, "text-to-image via the routed engine  --out  --size  --steps  --cfg  --provider"),
+    hCmd("apx image providers",        36, "which image engines are configured and reachable"),
 
     hSec("Voice & Overlay"),
     hCmd("apx voice say \"text\"",     36, "TTS via daemon  --provider <id>  --voice <name>  --no-play"),

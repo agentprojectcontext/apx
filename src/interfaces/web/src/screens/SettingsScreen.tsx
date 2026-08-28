@@ -1,7 +1,7 @@
 import { type ReactElement } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
-  BellRing, Bot, Cpu, Database, Globe, IdCard, KeyRound, LayoutGrid, MessageCircle, Mic, Monitor, ScrollText, Send, Smartphone, Sparkles, User,
+  BellRing, Bot, Cpu, Database, Globe, IdCard, Image as ImageIcon, KeyRound, LayoutGrid, MessageCircle, Mic, Monitor, ScrollText, Send, Smartphone, Sparkles, User,
 } from "lucide-react";
 import { useNavCollapse, type TabSection } from "../components/common/TabNav";
 import { TabLayout } from "../components/common/TabLayout";
@@ -18,13 +18,14 @@ import { AdvancedPanel } from "../components/settings/AdvancedPanel";
 import { WebPanel } from "../components/settings/WebPanel";
 import { DesktopSettingsPanel } from "../components/settings/DesktopSettingsPanel";
 import { VoiceScreen } from "./modules/VoiceScreen";
+import { ImagesScreen } from "./modules/ImagesScreen";
 import { DeckScreen } from "./modules/DeckScreen";
 import { STORAGE } from "../constants";
 import { t } from "../i18n";
 
 type TabKey =
   | "identity" | "super_agent" | "profile" | "nudge" | "engines" | "memory" | "skills" | "telegram" | "devices"
-  | "voice" | "deck" | "desktop" | "web" | "advanced";
+  | "voice" | "images" | "deck" | "desktop" | "web" | "advanced";
 
 const SECTIONS: TabSection[] = [
   {
@@ -65,6 +66,7 @@ const SECTIONS: TabSection[] = [
     title: t("settings.modules_section"),
     items: [
       { key: "voice",       label: t("nav.modules.voice"),         icon: Mic },
+      { key: "images",      label: t("nav.modules.images"),        icon: ImageIcon },
       { key: "desktop",     label: t("nav.modules.desktop"),       icon: Monitor },
       { key: "deck",        label: t("nav.modules.deck"),          icon: LayoutGrid },
       { key: "web",         label: t("nav.modules.web"),           icon: Globe },
@@ -82,7 +84,7 @@ const SECTIONS: TabSection[] = [
 // on xl (and so wants full available width). Single-section panels (identity,
 // super agent, devices, advanced) keep a cosier reading width so wide displays
 // don't blow form fields up to absurd widths.
-const WIDE_TABS = new Set<TabKey>(["engines", "telegram", "memory", "skills", "web", "voice", "profile"]);
+const WIDE_TABS = new Set<TabKey>(["engines", "telegram", "memory", "skills", "web", "voice", "images", "profile"]);
 
 const PANELS: Record<TabKey, () => ReactElement> = {
   identity:    () => <IdentityPanel />,
@@ -95,6 +97,7 @@ const PANELS: Record<TabKey, () => ReactElement> = {
   telegram:    () => <TelegramSettingsTabs />,
   devices:     () => <DevicesPanel />,
   voice:       () => <VoiceScreen />,
+  images:      () => <ImagesScreen />,
   deck:        () => <DeckScreen />,
   desktop:     () => <DesktopSettingsPanel />,
   web:         () => <WebPanel />,
@@ -137,6 +140,7 @@ function tabFromPath(pathname: string): TabKey {
     case "telegram": return "telegram";
     case "devices": return "devices";
     case "voice": return "voice";
+    case "images": return "images";
     case "deck": return "deck";
     case "desktop": return "desktop";
     case "web": return "web";

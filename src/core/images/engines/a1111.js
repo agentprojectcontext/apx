@@ -1,0 +1,123 @@
+// AUTOMATIC1111-compatible adapter — POST /sdapi/v1/txt2img, synchronous.
+//
+// The most widely spoken text-to-image dialect there is: A1111 itself, Forge,
+// SD.Next, Draw Things on macOS, and the stable-diffusion.cpp server all
+// answer on it. One adapter therefore covers "the homelab box" and "a local
+// Mac server" with nothing different but a base_url.
+//
+// Synchronous: the request stays open for the whole generation and the reply
+// carries the images as base64. That is why it has no progress callback — the
+// server sends nothing until it is done. For a long queue prefer the sdcpp
+// adapter, which polls instead of holding a socket open.
+//
+// Shape of the reply (verified against stable-diffusion.cpp's shim):
+//   { images: ["<base64 png>", …], info: "<json string>", parameters: {…} }
+// `info` is a JSON *string* (not an object) and carries the resolved seed —
+// the only way to learn which seed a `seed: -1` request actually used.
+
+import { postJson, probeUrl, joinUrl, writeImage, decodeBase64Image } from "./shared.js";
+
+const DEFAULT_TIMEOUT_S = 600;
+
+function headersFor(config) {
+  const h = {};
+  if (config.api_key) h.authorization = `Bearer ${config.api_key}`;
+  return h;
+}
+
+/** The resolved seed hides inside a JSON string; a malformed one is not fatal. */
+function parseInfo(info) {
+  if (!info) return null;
+  if (typeof info === "object") return info;
+  try { return JSON.parse(info); } catch { return null; }
+}
+
+export default {
+  id: "a1111",
+
+  // Everything in the family contract except `format`: the A1111 API has no
+  // output-format field — the server decides (PNG in practice) and we sniff
+  // the real container from the bytes rather than trusting a request that was
+  // never sent.
+  supports: [
+    "negative_prompt", "width", "height", "steps", "cfg_scale",
+    "seed", "sampler", "scheduler", "count", "model",
+  ],
+
+  async isAvailable(config = {}) {
+    if (!config.base_url) return false;
+    // /sdapi/v1/options is the cheapest route every A1111 clone implements.
+    // A server that answers 404 there but serves txt2img still counts as
+    // reachable, so fall back to the root document before giving up.
+    return (
+      (await probeUrl(joinUrl(config.base_url, "/sdapi/v1/options"))) ||
+      (await probeUrl(joinUrl(config.base_url, "/")))
+    );
+  },
+
+  async generate({
+    prompt, negative_prompt, width, height, steps, cfg_scale, seed,
+    sampler, scheduler, count, model, format, outDir, config = {}, signal,
+  }) {
+    if (!config.base_url) throw new Error("a1111: base_url required");
+
+    const body = { prompt };
+    if (negative_prompt) body.negative_prompt = negative_prompt;
+    if (width) body.width = width;
+    if (height) body.height = height;
+    if (steps) body.steps = steps;
+    if (cfg_scale != null) body.cfg_scale = cfg_scale;
+    if (seed != null) body.seed = seed;
+    if (sampler) body.sampler_name = sampler;
+    if (scheduler) body.scheduler = scheduler;
+    if (count && count > 1) { body.n_iter = count; body.batch_size = 1; }
+    // A1111 switches checkpoints through override_settings, not a top-level
+    // field. Servers that host a single model (sd.cpp) ignore it harmlessly.
+    if (model) body.override_settings = { sd_model_checkpoint: model };
+
+    const timeoutMs = (Number(config.timeout_s) || DEFAULT_TIMEOUT_S) * 1000;
+    const reply = await postJson(
+      joinUrl(config.base_url, "/sdapi/v1/txt2img"),
+      body,
+      { headers: headersFor(config), signal, timeoutMs }
+    );
+
+    const b64s = Array.isArray(reply?.images) ? reply.images : [];
+    if (!b64s.length) throw new Error("a1111: server returned no images");
+
+    const info = parseInfo(reply?.info);
+    const seeds = Array.isArray(info?.all_seeds) ? info.all_seeds : [];
+
+    return {
+      images: b64s.map((b64, i) =>
+        ({ ...writeImage(decodeBase64Image(b64), { outDir, provider: "a1111", format, index: i }),
+           seed: seeds[i] ?? info?.seed ?? (seed >= 0 ? seed : null) })),
+      model: info?.sd_model_name || model || null,
+      meta: {
+        sampler: info?.sampler_name || sampler || null,
+        steps: info?.steps ?? steps ?? null,
+        cfg_scale: info?.cfg_scale ?? cfg_scale ?? null,
+      },
+    };
+  },
+
+  /** Live catalog for the settings UI: which checkpoints and samplers exist. */
+  async capabilities(config = {}) {
+    if (!config.base_url) return null;
+    const out = {};
+    const pull = async (route, shape) => {
+      try {
+        const res = await fetch(joinUrl(config.base_url, route), { headers: headersFor(config) });
+        if (!res.ok) return;
+        Object.assign(out, shape(await res.json()));
+      } catch { /* a missing sub-route is normal on minimal clones */ }
+    };
+    await pull("/sdapi/v1/sd-models", (j) =>
+      ({ models: (j || []).map((m) => m.model_name || m.title).filter(Boolean) }));
+    await pull("/sdapi/v1/samplers", (j) =>
+      ({ samplers: (j || []).map((s) => s.name).filter(Boolean) }));
+    await pull("/sdapi/v1/schedulers", (j) =>
+      ({ schedulers: (j || []).map((s) => s.name || s.label).filter(Boolean) }));
+    return Object.keys(out).length ? out : null;
+  },
+};

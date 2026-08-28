@@ -67,6 +67,7 @@ export const ROUTES = Object.freeze({
   "desktop": () => import("./desktop.js"),
   "voice": () => import("./voice.js"),
   "transcribe": () => import("./transcribe.js"),
+  "image": () => import("./image.js"),
 });
 
 export function resolveRoute(cmd) {

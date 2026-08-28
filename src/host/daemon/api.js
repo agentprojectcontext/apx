@@ -59,6 +59,7 @@ import { register as registerTopLevel } from "./api/top-level.js";
 import { register as registerSessionsSearch } from "./api/sessions-search.js";
 import { register as registerTranscribe } from "./api/transcribe.js";
 import { register as registerTts } from "./api/tts.js";
+import { register as registerImages } from "./api/images.js";
 import { register as registerEmbeddings } from "./api/embeddings.js";
 import { register as registerVoice } from "./api/voice.js";
 import { register as registerDesktop } from "./api/desktop.js";
@@ -180,6 +181,7 @@ export function buildApi({
   registerPlugins(api, ctx);
   registerTranscribe(api, ctx);
   registerTts(api, ctx);
+  registerImages(api, ctx);
   registerEmbeddings(api, ctx);
   registerVoice(api, ctx);
   registerDesktop(api, ctx);

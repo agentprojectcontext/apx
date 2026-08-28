@@ -1,0 +1,125 @@
+---
+title: Imágenes
+description: Generá imágenes desde un prompt con `apx image` — ruteado a un servidor de difusión en tu máquina, en tu red o en la nube.
+sidebar:
+  order: 10
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import Terminal from '../../../../components/Terminal.astro';
+
+APX convierte un prompt en un archivo con **`apx image`**. No corre un modelo propio: le habla a
+un servidor de difusión al que vos lo apuntás — en esta máquina, en tu red o una API en la nube —
+y rutea entre ellos igual que la voz rutea entre motores de TTS.
+
+## Arranque rápido
+
+<Terminal command='apx image "un zorro de origami verde sobre fondo blanco"'>
+{`/Users/vos/.apx/images/2026-08-28/a1111-6f0c….png
+  a1111 · z_image_turbo · 512x512 · seed 1608784042 · 476 KB · 24.9s`}
+</Terminal>
+
+Sin `--out`, el archivo queda en `~/.apx/images/<fecha>/` y se imprime la ruta. Nada se escribe
+dentro de un repo salvo que lo pidas:
+
+```bash
+apx image "retrato de un zorro" --size 768x512 --steps 8 --cfg 1.0 --out zorro.png
+```
+
+## Motores
+
+Un motor es un servidor más el dialecto que habla. Vienen cuatro:
+
+| id | API | Qué cubre |
+|---|---|---|
+| `a1111` | `POST /sdapi/v1/txt2img` (sincrónico) | El dialecto universal: AUTOMATIC1111, Forge, SD.Next, Draw Things en macOS, stable-diffusion.cpp. Lleva todas las perillas de muestreo. |
+| `sdcpp` | `POST /sdcpp/v1/img_gen` + polling | La cola nativa de stable-diffusion.cpp. El pedido vuelve enseguida y el job se consulta, así una imagen en cola nunca parece una conexión colgada. |
+| `openai` | `POST /v1/images/generations` | OpenAI (`gpt-image-1`, `dall-e-3`), o cualquier servidor compatible con OpenAI si ponés una URL base. |
+| `mock` | — | Motor de prueba offline. Siempre último en la cadena y siempre disponible, para que una llamada nunca falle del todo. |
+
+Podés agregar todos los endpoints propios que quieras; cada uno declara cuál de los tres
+dialectos habla, así una sola pantalla cubre un servidor local, una máquina en la red y una
+clave en la nube.
+
+<Aside type="caution" title="Ollama no genera imágenes">
+  Ollama sirve modelos de lenguaje y visión — ninguno produce píxeles, y no tiene un endpoint de
+  generación de imágenes al que APX pueda apuntar. Para un motor local en macOS, usá
+  [Draw Things](https://drawthings.ai/) (o cualquier servidor compatible con A1111) y apuntá el
+  motor `a1111` a su API HTTP.
+</Aside>
+
+## Configuración
+
+Todo vive bajo `images.*` en `~/.apx/config.json`, y tiene pantalla en
+**Configuración → Imágenes** del panel web.
+
+```bash
+apx config set --global images.a1111.base_url http://127.0.0.1:7860
+apx config set --global images.a1111.defaults '{"steps":8,"cfg_scale":1}'
+```
+
+| Clave | Qué hace |
+|---|---|
+| `images.<motor>.base_url` | Dónde está el servidor. Solo el origen, sin la ruta de la API. |
+| `images.<motor>.api_key` | Opcional. La mayoría de los servidores locales y de red no necesitan ninguna. |
+| `images.<motor>.model` | Checkpoint o id de modelo, cuando el servidor puede cambiarlo. |
+| `images.<motor>.defaults` | Tamaño, pasos, guía, sampler y scheduler de **este** servidor. |
+| `images.<motor>.timeout_s` | Cuánto esperar una imagen. |
+| `images.defaults` | La capa compartida de abajo: tamaño, formato, prompt negativo, cantidad. |
+| `images.order` | El orden de la cadena. Dibuja el primero que responde. |
+| `images.mode` | `chain` (router, por defecto) o `single` (solo `images.provider`). |
+| `images.custom.<slug>` | Tu propio endpoint. Necesita `label`, `kind` y `base_url`. |
+
+### Ruteo
+
+Los motores se prueban en orden y dibuja el primero que responde a un sondeo; uno configurado
+pero inalcanzable se saltea en vez de hacer fallar la llamada. `--provider` pisa el ruteo para
+una llamada, y `apx image providers` muestra qué responde en este momento.
+
+<Terminal command="apx image providers">
+{`Routing  chain (a1111 → sdcpp → openai → mock)
+
+  ● a1111  reachable, configured
+      http://127.0.0.1:7860
+  ○ openai  unreachable, not configured
+  ● mock  reachable, not configured`}
+</Terminal>
+
+### Dónde va cada perilla
+
+Las opciones se resuelven en tres capas — `images.defaults`, después
+`images.<motor>.defaults`, después la llamada. Los pasos y la guía son del **motor**, porque el
+valor correcto depende del checkpoint que ese servidor cargó: un checkpoint turbo quiere unos 8
+pasos con guía 1, uno normal 20 con guía 7. Ponerlos en el bloque del motor evita que quien
+llama tenga que acordarse con qué servidor está hablando.
+
+## No todos los motores respetan todas las opciones
+
+El dialecto de OpenAI no tiene pasos, guía, sampler, scheduler, semilla ni prompt negativo.
+stable-diffusion.cpp aloja un solo checkpoint y no puede cambiar de modelo. En vez de aceptar
+una opción e ignorarla en silencio, APX la **informa**:
+
+```
+  sdcpp ignored: model
+```
+
+`apx image capabilities` le pregunta al servidor qué ofrece de verdad — modelos, samplers,
+schedulers, formatos — así no adivinás nombres.
+
+## Opciones
+
+| Flag | Qué significa |
+|---|---|
+| `--out <archivo>` | Copia el resultado acá. También sirve un directorio. |
+| `--provider <id>` | `a1111` \| `sdcpp` \| `openai` \| `mock` \| `custom:<slug>` |
+| `--size <AxA>` | por ejemplo `768x512`. O `--width` / `--height`. |
+| `--steps N` | Pasos de muestreo. |
+| `--cfg N` | Escala de guía. |
+| `--seed N` | Fija la semilla para una imagen reproducible. `-1` es al azar. |
+| `--negative "…"` | Qué dejar afuera de la imagen. |
+| `--count N` | Cuántas imágenes por corrida. |
+| `--model <id>` | Checkpoint, cuando el servidor puede cambiarlo. |
+| `--format <ext>` | `png` \| `jpeg` \| `webp`, donde esté soportado. |
+| `--sampler` / `--scheduler` | Nombres de `apx image capabilities`. |
+| `--json` | Motor, request resuelto, opciones ignoradas y rutas de archivo. |
+| `--open` | Abre el resultado en el visor del sistema. |

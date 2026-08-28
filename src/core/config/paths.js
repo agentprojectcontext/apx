@@ -93,6 +93,15 @@ export let TMP_DIR;
 export let TTS_TMP_DIR;
 export let RECORDINGS_TMP_DIR;
 
+/**
+ * Generated images (see core/images/). NOT under tmp/ on purpose: a TTS clip is
+ * consumed once and thrown away, but a picture the user asked for is an
+ * artifact they will want again, so it keeps a dated gallery instead. Nothing
+ * here is ever written into a project checkout — see rule "no auto-writes into
+ * the repo": `apx image` only writes into the repo when --out says so.
+ */
+export let IMAGES_DIR;
+
 /** Managed runtimes we install on the user's behalf. */
 export let RUNTIME_DIR;
 export let WHISPER_VENV_DIR;
@@ -124,6 +133,7 @@ function rebuild(home) {
   TMP_DIR = path.join(home, "tmp");
   TTS_TMP_DIR = path.join(TMP_DIR, "tts");
   RECORDINGS_TMP_DIR = path.join(TMP_DIR, "recordings");
+  IMAGES_DIR = path.join(home, "images");
   RUNTIME_DIR = path.join(home, "runtime");
   WHISPER_VENV_DIR = path.join(RUNTIME_DIR, "whisper-venv");
 }

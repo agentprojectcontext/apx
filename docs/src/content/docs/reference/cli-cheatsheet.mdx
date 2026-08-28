@@ -311,6 +311,17 @@ a commitment is someone waiting.
 
 ---
 
+## Images
+
+| Command | What it does |
+|---|---|
+| `apx image "<prompt>"` | Generate an image (`--out <file> --size 768x512 --steps N --cfg N --seed N`) |
+| `apx image "<prompt>" --provider <id>` | Force an engine: `a1111` \| `sdcpp` \| `openai` \| `mock` \| `custom:<slug>` |
+| `apx image providers` | Which image engines are configured, reachable and in what order |
+| `apx image capabilities` | Models, samplers and schedulers a server offers (`--provider <id>`) |
+
+---
+
 ## Voice & Desktop
 
 | Command | What it does |

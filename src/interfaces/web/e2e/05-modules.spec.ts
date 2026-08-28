@@ -74,6 +74,40 @@ test.describe("module settings", () => {
     expect(errors).toEqual([]);
   });
 
+  test("Images panel renders the engine chain, the tester and the defaults", async ({ page, errors }) => {
+    await page.goto("/settings");
+    await page.getByTestId("tabnav-images").click();
+    await expect(page).toHaveURL(/\/settings\/images/);
+    await expect(page.getByTestId("screen-images")).toBeVisible();
+
+    // The chain is rendered from /api/images/providers. The built-in engines
+    // are always listed (configured or not) so there is somewhere to click to
+    // set a base URL; "mock" is deliberately hidden — it is an internal
+    // guarantee, not a choice.
+    await expect(page.getByTestId("image-provider-a1111")).toBeVisible();
+    await expect(page.getByTestId("image-provider-sdcpp")).toBeVisible();
+    await expect(page.getByTestId("image-provider-mock")).toHaveCount(0);
+    await expect(page.getByTestId("image-provider-add")).toBeVisible();
+
+    // Tester + shared defaults. Generating is NOT exercised here: it would
+    // need a real diffusion server, and this suite runs against the daemon
+    // alone.
+    await expect(page.getByTestId("image-test-prompt")).toBeVisible();
+    await expect(page.getByTestId("image-defaults-card")).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
+  test("Configuring an image engine asks for the base URL", async ({ page, errors }) => {
+    await page.goto("/settings/images");
+    await expect(page.getByTestId("screen-images")).toBeVisible();
+    await page.getByTestId("image-provider-a1111-config").click();
+    // The base URL is the whole point of the screen — a local server on this
+    // machine needs nothing else.
+    await expect(page.getByTestId("image-provider-base-url")).toBeVisible();
+    await page.keyboard.press("Escape");
+    expect(errors).toEqual([]);
+  });
+
   test("Deck panel renders the manifest", async ({ page, errors }) => {
     await page.goto("/settings");
     await page.getByTestId("tabnav-deck").click();

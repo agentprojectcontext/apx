@@ -1,0 +1,124 @@
+---
+title: Images
+description: Generate images from a prompt with `apx image` — routed to a diffusion server on your machine, on your network, or in the cloud.
+sidebar:
+  order: 10
+---
+
+import { Aside } from '@astrojs/starlight/components';
+import Terminal from '../../../components/Terminal.astro';
+
+APX turns a prompt into a file with **`apx image`**. It does not run a model itself: it talks to
+a diffusion server you point it at — one on this machine, one on your network, or a cloud API —
+and routes between them the same way voice routes between TTS engines.
+
+## Quick start
+
+<Terminal command='apx image "a green origami fox on a white background"'>
+{`/Users/you/.apx/images/2026-08-28/a1111-6f0c….png
+  a1111 · z_image_turbo · 512x512 · seed 1608784042 · 476 KB · 24.9s`}
+</Terminal>
+
+Without `--out` the file lands in `~/.apx/images/<date>/` and the path is printed. Nothing is
+written into a project checkout unless you ask for it:
+
+```bash
+apx image "portrait of a fox" --size 768x512 --steps 8 --cfg 1.0 --out fox.png
+```
+
+## Engines
+
+An engine is a server plus the dialect it speaks. Four are built in:
+
+| id | API | What it covers |
+|---|---|---|
+| `a1111` | `POST /sdapi/v1/txt2img` (synchronous) | The universal dialect: AUTOMATIC1111, Forge, SD.Next, Draw Things on macOS, stable-diffusion.cpp. Carries every sampling knob. |
+| `sdcpp` | `POST /sdcpp/v1/img_gen` + job polling | stable-diffusion.cpp's native queue. The request returns immediately and the job is polled, so a queued render never looks like a hung connection. |
+| `openai` | `POST /v1/images/generations` | OpenAI itself (`gpt-image-1`, `dall-e-3`), or any OpenAI-compatible server when you set a base URL. |
+| `mock` | — | An offline test engine. Always last in the chain and always available, so a call never fails outright. |
+
+You can add any number of your own endpoints; each one declares which of the three dialects it
+speaks, so a single screen covers a local server, a LAN box and a cloud key.
+
+<Aside type="caution" title="Ollama cannot generate images">
+  Ollama serves language and vision models — none of them produce pixels, and it has no
+  image-generation endpoint to point APX at. For a local engine on macOS, run
+  [Draw Things](https://drawthings.ai/) (or any A1111-compatible server) and point the `a1111`
+  engine at its HTTP API.
+</Aside>
+
+## Configuration
+
+Everything lives under `images.*` in `~/.apx/config.json`, and has a screen at
+**Settings → Images** in the web panel.
+
+```bash
+apx config set --global images.a1111.base_url http://127.0.0.1:7860
+apx config set --global images.a1111.defaults '{"steps":8,"cfg_scale":1}'
+```
+
+| Key | What it does |
+|---|---|
+| `images.<engine>.base_url` | Where the server is. The origin only — no API path. |
+| `images.<engine>.api_key` | Optional. Most local and LAN servers need none. |
+| `images.<engine>.model` | Checkpoint or model id, where the server can switch. |
+| `images.<engine>.defaults` | Size, steps, guidance, sampler, scheduler for **this** server. |
+| `images.<engine>.timeout_s` | How long to wait for one image. |
+| `images.defaults` | The shared bottom layer: size, format, negative prompt, count. |
+| `images.order` | The chain order. The first reachable engine draws. |
+| `images.mode` | `chain` (router, the default) or `single` (only `images.provider`). |
+| `images.custom.<slug>` | Your own endpoint. Needs `label`, `kind` and `base_url`. |
+
+### Routing
+
+Engines are tried in order and the first one that answers a probe draws; a configured but
+unreachable server is skipped rather than failing the call. `--provider` overrides the routing
+for one call, and `apx image providers` shows what is reachable right now.
+
+<Terminal command="apx image providers">
+{`Routing  chain (a1111 → sdcpp → openai → mock)
+
+  ● a1111  reachable, configured
+      http://127.0.0.1:7860
+  ○ openai  unreachable, not configured
+  ● mock  reachable, not configured`}
+</Terminal>
+
+### Where the knobs belong
+
+Options resolve in three layers — `images.defaults`, then `images.<engine>.defaults`, then the
+call. Steps and guidance belong to the **engine**, because the right value depends on the
+checkpoint that server loaded: a turbo checkpoint wants about 8 steps at guidance 1, a standard
+one 20 at guidance 7. Putting them in the engine's own block means no caller has to remember
+which server they are talking to.
+
+## Not every engine honors every option
+
+The OpenAI dialect has no steps, guidance, sampler, scheduler, seed or negative prompt.
+stable-diffusion.cpp hosts one checkpoint and cannot switch models. Rather than accepting an
+option and quietly ignoring it, APX **reports** it:
+
+```
+  sdcpp ignored: model
+```
+
+`apx image capabilities` asks a server what it actually offers — models, samplers, schedulers,
+output formats — so you are not guessing at names.
+
+## Options
+
+| Flag | Meaning |
+|---|---|
+| `--out <file>` | Copy the result here. A directory works too. |
+| `--provider <id>` | `a1111` \| `sdcpp` \| `openai` \| `mock` \| `custom:<slug>` |
+| `--size <WxH>` | e.g. `768x512`. Or `--width` / `--height`. |
+| `--steps N` | Sampling steps. |
+| `--cfg N` | Guidance scale. |
+| `--seed N` | Fix the seed for a reproducible image. `-1` is random. |
+| `--negative "…"` | What to keep out of the picture. |
+| `--count N` | How many images in one run. |
+| `--model <id>` | Checkpoint, where the server can switch. |
+| `--format <ext>` | `png` \| `jpeg` \| `webp`, where supported. |
+| `--sampler` / `--scheduler` | Names from `apx image capabilities`. |
+| `--json` | Engine, resolved request, ignored options and file paths. |
+| `--open` | Open the result in the OS viewer. |
