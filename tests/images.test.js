@@ -276,6 +276,63 @@ test("a1111 posts the A1111 dialect and reads the seed out of `info`", async () 
   } finally { restore(); }
 });
 
+// A single-checkpoint server (stable-diffusion.cpp, and every clone that loads
+// one model at launch) accepts override_settings, answers 200, and renders with
+// what it already had. Measured against the real thing: a checkpoint name that
+// does not exist came back 200 with sd_model_name unchanged. Declaring `model`
+// supported for the dialect is right — A1111 and Forge do switch — so the
+// promise is checked against the RESPONSE instead of being dropped for everyone.
+test("a1111 reports `model` as unhonored when the server rendered something else", async () => {
+  const { restore } = stubFetch({
+    "/sdapi/v1/txt2img": () => ({
+      images: [TINY_PNG_B64],
+      info: JSON.stringify({ sd_model_name: "z_image_turbo-Q4_K.gguf" }),
+    }),
+  });
+  try {
+    const res = await generate({
+      prompt: "a fox", provider: "a1111", model: "some-other-checkpoint",
+      outDir: outDir(), globalConfig: { images: { a1111: { base_url: "http://box.test:8189" } } },
+    });
+    assert.deepEqual(res.ignored, ["model"], "the silent drop is reported, not swallowed");
+    assert.equal(res.model, "z_image_turbo-Q4_K.gguf", "the model that rendered, not the one asked for");
+  } finally { restore(); }
+});
+
+test("a1111 does not cry wolf when the server honored the checkpoint", async () => {
+  const { restore } = stubFetch({
+    "/sdapi/v1/txt2img": () => ({
+      images: [TINY_PNG_B64],
+      // Servers report the filename for what a person types without extension.
+      info: JSON.stringify({ sd_model_name: "dreamshaper_8.safetensors" }),
+    }),
+  });
+  try {
+    const res = await generate({
+      prompt: "a fox", provider: "a1111", model: "dreamshaper_8",
+      outDir: outDir(), globalConfig: { images: { a1111: { base_url: "http://box.test:8189" } } },
+    });
+    assert.deepEqual(res.ignored, [], "an extension is not a different model");
+  } finally { restore(); }
+});
+
+test("a1111 says nothing about a model nobody asked for", async () => {
+  const { restore } = stubFetch({
+    "/sdapi/v1/txt2img": () => ({
+      images: [TINY_PNG_B64],
+      info: JSON.stringify({ sd_model_name: "z_image_turbo-Q4_K.gguf" }),
+    }),
+  });
+  try {
+    const res = await generate({
+      prompt: "a fox", outDir: outDir(), provider: "a1111",
+      globalConfig: { images: { a1111: { base_url: "http://box.test:8189" } } },
+    });
+    assert.deepEqual(res.ignored, []);
+    assert.equal(res.model, "z_image_turbo-Q4_K.gguf");
+  } finally { restore(); }
+});
+
 test("a1111 surfaces the server's own words on an error", async () => {
   const { restore } = stubFetch({
     "/sdapi/v1/txt2img": () => new Response(JSON.stringify({ error: "unknown sampler 'nope'" }), { status: 400 }),

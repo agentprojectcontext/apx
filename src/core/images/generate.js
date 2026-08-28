@@ -163,7 +163,7 @@ export async function generate({
     engineCfg: engineConfig,
     request: rest,
   });
-  const ignored = ignoredOptions(adapter, { ...present(rest) });
+  const declaredIgnored = ignoredOptions(adapter, { ...present(rest) });
 
   const dir = outDir || imageOutDir();
   const started = Date.now();
@@ -176,6 +176,12 @@ export async function generate({
     onProgress,
     signal,
   });
+
+  // An adapter may discover, from the reply, that the server dropped something
+  // it had declared support for — a single-checkpoint clone answering 200 to a
+  // checkpoint switch it never made. The static declaration is the promise;
+  // this is the receipt.
+  const ignored = [...new Set([...declaredIgnored, ...(result.unhonored || [])])];
 
   return {
     images: result.images || [],
