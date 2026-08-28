@@ -64,8 +64,10 @@ Para profundizar, seguí los enlaces del final.
 | Comando | Qué hace |
 |---|---|
 | `apx agent add <slug>` | Crea un agente local del proyecto (`--role R --model M --skills a,b --language L --description D`) |
+| `apx agent set <slug>` | Edita el system prompt (`--prompt -`) o cualquier otro campo |
 | `apx agent list` | Lista los agentes del proyecto |
 | `apx agent get <slug>` | Imprime la definición de un agente |
+| `apx agent remove <slug>` | Borra un agente del proyecto (archivo + memoria de runtime) |
 | `apx agent import` | Importa una plantilla de agente desde `~/.apx/agents/` |
 | `apx agent vault list` | Lista las plantillas del vault (defaults incluidos + tus overrides) |
 | `apx agent vault add` | Crea una nueva plantilla de vault |
@@ -153,6 +155,22 @@ Para profundizar, seguí los enlaces del final.
 
 ---
 
+## Obsidian
+
+| Comando | Qué hace |
+|---|---|
+| `apx obsidian set <ruta-vault>` | Conecta un vault, validando la ruta (`--global --mcp --memory`) |
+| `apx obsidian status` | Muestra el vault configurado, la cantidad de notas y los toggles del scope |
+| `apx obsidian sync` | Espeja la memoria de APX dentro del vault, sin duplicados |
+| `apx obsidian remove` | Desconecta el vault (y el MCP auto-registrado, si lo hay) |
+
+El scope funciona como en el resto de APX: el comando apunta al proyecto actual salvo
+que `--global` (o `--scope global`) ponga el vault en el espacio que comparten todos
+los proyectos. `--mcp` registra un servidor MCP `obsidian` apuntado a él; `--memory`
+enciende la sincronización de memoria, que después corre con `apx obsidian sync`.
+
+---
+
 ## Servicio del daemon
 
 | Comando | Qué hace |
@@ -208,6 +226,7 @@ Para profundizar, seguí los enlaces del final.
 | `apx search "query"` | Búsqueda web vía DDG / Brave / navegador (`--mode <m> -n N`) |
 | `apx conversations list` | Lista las conversaciones de exec/chat almacenadas |
 | `apx conversations get <agent> <id>` | Imprime una conversación almacenada |
+| `apx acp` | Sirve al super-agente por Agent Client Protocol (stdio, para IDEs) |
 
 ---
 
@@ -231,7 +250,7 @@ Para profundizar, seguí los enlaces del final.
 
 ---
 
-## Rutinas
+## Rutinas y pipeline
 
 | Comando | Qué hace |
 |---|---|
@@ -284,6 +303,9 @@ tareas: una tarea es trabajo, un compromiso es alguien esperando.
 | `apx artifact create <name>` | Crea un archivo gestionado en el almacenamiento del proyecto (`--content '...' --project 0`) |
 | `apx artifact list` | Lista los artefactos |
 | `apx artifact show <name>` | Imprime el contenido del artefacto |
+| `apx artifact preview <name>` | Sirve HTML/React en una URL local con recarga en vivo (`--open --share`) |
+| `apx artifact share <name>` | Preview más una URL pública por túnel |
+| `apx artifact previews` | Lista los previews corriendo (se frena uno con `apx artifact stop <id>`) |
 | `apx artifact remove <name>` | Elimina un artefacto |
 
 ---
@@ -329,6 +351,7 @@ tareas: una tarea es trabajo, un compromiso es alguien esperando.
 | `apx voice say "text"` | TTS vía daemon (`--provider <id> --voice <name> --no-play`) |
 | `apx voice listen` | Micrófono → `/api/voice/turn` → respuesta (`--seconds N --no-play`) |
 | `apx voice providers` | Lista los proveedores de TTS / STT configurados |
+| `apx transcribe <file…\|dir>` | STT de audio/video con el whisper caliente del daemon; sirve en lote (`--lang es --provider <id> --json`) |
 | `apx desktop start` | Lanza la ventana de voz flotante de Electron (`--debug`) |
 | `apx desktop stop` | Detiene la ventana de escritorio |
 | `apx desktop status` | Muestra el estado del proceso, PID y estado de autostart |

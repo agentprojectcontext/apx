@@ -64,8 +64,10 @@ For deep dives, follow the links at the bottom.
 | Command | What it does |
 |---|---|
 | `apx agent add <slug>` | Create a project-local agent (`--role R --model M --skills a,b --language L --description D`) |
+| `apx agent set <slug>` | Edit the system prompt (`--prompt -`) or any other field |
 | `apx agent list` | List project agents |
 | `apx agent get <slug>` | Print one agent definition |
+| `apx agent remove <slug>` | Delete a project agent (file + runtime memory) |
 | `apx agent import` | Import an agent template from `~/.apx/agents/` |
 | `apx agent vault list` | List vault templates (bundled defaults + your overrides) |
 | `apx agent vault add` | Create a new vault template |
@@ -153,6 +155,22 @@ For deep dives, follow the links at the bottom.
 
 ---
 
+## Obsidian
+
+| Command | What it does |
+|---|---|
+| `apx obsidian set <vault-path>` | Connect a vault, validating the path (`--global --mcp --memory`) |
+| `apx obsidian status` | Show the configured vault, note count and toggles for the scope |
+| `apx obsidian sync` | Mirror APX memory into the vault, without duplicates |
+| `apx obsidian remove` | Disconnect the vault (and any auto-registered MCP) |
+
+Scope works like the rest of APX: the command targets the current project unless
+`--global` (or `--scope global`) puts the vault in the space every project shares.
+`--mcp` registers an `obsidian` MCP server pointing at it; `--memory` turns on memory
+sync, which then runs on `apx obsidian sync`.
+
+---
+
 ## Daemon Service
 
 | Command | What it does |
@@ -208,6 +226,7 @@ For deep dives, follow the links at the bottom.
 | `apx search "query"` | Web search via DDG / Brave / browser (`--mode <m> -n N`) |
 | `apx conversations list` | List stored exec/chat conversations |
 | `apx conversations get <agent> <id>` | Print a stored conversation |
+| `apx acp` | Serve the super-agent over the Agent Client Protocol (stdio, for IDEs) |
 
 ---
 
@@ -231,7 +250,7 @@ For deep dives, follow the links at the bottom.
 
 ---
 
-## Routines
+## Routines & Pipeline
 
 | Command | What it does |
 |---|---|
@@ -284,6 +303,9 @@ a commitment is someone waiting.
 | `apx artifact create <name>` | Create a managed file in project storage (`--content '...' --project 0`) |
 | `apx artifact list` | List artifacts |
 | `apx artifact show <name>` | Print artifact content |
+| `apx artifact preview <name>` | Serve HTML/React on a local URL with live reload (`--open --share`) |
+| `apx artifact share <name>` | Preview plus a public tunnel URL |
+| `apx artifact previews` | List running previews (stop one with `apx artifact stop <id>`) |
 | `apx artifact remove <name>` | Delete an artifact |
 
 ---
@@ -329,6 +351,7 @@ a commitment is someone waiting.
 | `apx voice say "text"` | TTS via daemon (`--provider <id> --voice <name> --no-play`) |
 | `apx voice listen` | Mic → `/api/voice/turn` → reply (`--seconds N --no-play`) |
 | `apx voice providers` | List configured TTS / STT providers |
+| `apx transcribe <file…\|dir>` | STT of audio/video through the warm daemon whisper; bulk-capable (`--lang es --provider <id> --json`) |
 | `apx desktop start` | Launch the floating Electron voice window (`--debug`) |
 | `apx desktop stop` | Stop the desktop window |
 | `apx desktop status` | Show process state, PID, and autostart status |
