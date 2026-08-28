@@ -1,7 +1,7 @@
 import {
   keepCommitment, missCommitment, dropCommitment, renegotiateCommitment,
 } from "#core/stores/commitments.js";
-import { projectMeta, resolveProject } from "../helpers.js";
+import { missingArg, projectMeta, resolveProject } from "../helpers.js";
 
 // Close out a commitment. The sibling of record_commitment: a promise you can
 // record but never resolve is a promise that silently rots. kept/missed carry
@@ -27,9 +27,12 @@ export default {
       },
     },
   },
-  makeHandler: ({ projects, requirePermission }) => async ({ project, commitment, action, due, note } = {}) => {
+  makeHandler: ({ projects, requirePermission }) => async (args = {}) => {
+    const { project, commitment, action, due, note } = args;
     await requirePermission("mark_commitment", { dangerous: true, args: { commitment, action } });
-    if (!commitment) return { error: "commitment required" };
+    // Same trap as complete_task: list_commitments returns `id`, this takes
+    // `commitment`. Say which, rather than only that one is missing.
+    if (!commitment) return missingArg("mark_commitment", "commitment", { required: ["commitment", "action"], optional: ["project", "due", "note"] }, args);
     let p;
     try {
       p = resolveProject(projects, project || "default");

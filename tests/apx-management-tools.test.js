@@ -105,3 +105,22 @@ test("remove_agent errors on an unknown agent", async () => {
   const r = await removeAgentTool.makeHandler(ctx)({ agent: "ghost" });
   assert.ok(r.error && /not found/i.test(r.error));
 });
+
+test("complete_task — a missing task id says what the tool takes and what arrived", async () => {
+  // The 2026-08-27 failure: the model passed `id` — the key list_tasks and
+  // create_task both hand back — against a schema that says `task`. "task
+  // required" was true and unusable, so it retried the identical call and gave
+  // up with the task still open. The error now carries the way out.
+  const r = await completeTask.makeHandler(ctx)({ project: "default", id: "t_cte2nl" });
+  assert.match(r.error, /task required/);
+  assert.match(r.error, /complete_task takes task, action/);
+  assert.match(r.error, /you sent project, id/);
+  assert.deepEqual(r.expects.required, ["task", "action"]);
+});
+
+test("mark_commitment — same trap, same way out", async () => {
+  const r = await markCommitment.makeHandler(ctx)({ id: "c_lbxh1o", action: "drop" });
+  assert.match(r.error, /commitment required/);
+  assert.match(r.error, /mark_commitment takes commitment, action/);
+  assert.match(r.error, /you sent id, action/);
+});

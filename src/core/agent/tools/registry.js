@@ -201,11 +201,23 @@ export const BASE_TOOL_NAMES = new Set([
   // Tasks (very common ask via chat).
   TOOLS.CREATE_TASK,
   TOOLS.LIST_TASKS,
+  // The write-back half. It was left out and the asymmetry bit: on Telegram the
+  // model could open a task and list it but not close one, so — seeing the name
+  // in the lazy-tools block and no schema — it invented the call. It passed
+  // `id`, which is what list_tasks hands back, against a schema that says
+  // `task`, and spent three iterations on "task required" before giving up with
+  // the task still open. A pair where one half is hot and the other is cold is
+  // a pair the model will guess its way across.
+  TOOLS.COMPLETE_TASK,
   // Commitments. In the base set on purpose: a promise is caught in passing
   // ("le dije a Ana que el viernes"), and a tool the model has to discover
   // first is a tool it will not reach for mid-sentence.
   TOOLS.RECORD_COMMITMENT,
   TOOLS.LIST_COMMITMENTS,
+  // Same pairing, same reason: a promise you can record but never resolve rots
+  // in the watcher's signal list forever (secretary-watch has been reporting
+  // one dead commitment from July 2025 on every run since August).
+  TOOLS.MARK_COMMITMENT,
   // Files + basic shell — frequent enough on chat to keep hot.
   TOOLS.READ_FILE,
   TOOLS.WRITE_FILE,

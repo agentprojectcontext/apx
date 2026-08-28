@@ -329,6 +329,40 @@ export async function runAgent({
   // that queue into effectiveSchemas at the top of each iteration, so tools
   // activated on step N are callable from step N+1. No session → no-op.
   const toolSession = toolHandlerCtx?.toolSession || null;
+
+  const schemaOnTheWire = (n) =>
+    effectiveSchemas.some((sc) => (sc?.function?.name || sc?.name) === n);
+
+  /**
+   * A tool the model called WITHOUT ever receiving its schema.
+   *
+   * buildLazyToolsBlock puts the NAMES of not-loaded tools in the system prompt
+   * (that is what makes them discoverable), and not every provider refuses a
+   * call to a tool that was never in the request. So the model can name a real
+   * tool and invent its arguments, and the handler will happily run them:
+   * `complete_task` was called as `{project, id}` — `id` is what list_tasks
+   * hands back, the schema says `task`, and `action` was missing entirely — and
+   * "task required" told the model nothing it could act on. It burned three
+   * iterations and left the task open.
+   *
+   * Activating and returning the schema costs one step and makes the retry
+   * informed. It also closes a gap: the role gate (`allowedTools`) only ever
+   * filtered the schemas the model was SENT, so a guessed name walked straight
+   * past it into the handler map, which holds every tool regardless.
+   */
+  const revealUnloadedTool = (session, name) => {
+    const r = session.activate({ names: [name] });
+    if (r.denied?.length) return { error: `tool "${name}" is not available to you` };
+    if (r.unknown?.length) return { error: `unknown tool: ${name}` };
+    const schema = session.pending.find((sc) => (sc?.function?.name || sc?.name) === name);
+    return {
+      error: `tool "${name}" was not loaded, so you called it without its schema — nothing ran.`,
+      activated: name,
+      schema: schema?.function || schema || null,
+      note: "Ya está cargada. Llamala de nuevo usando exactamente los parámetros de arriba.",
+    };
+  };
+
   const drainPendingTools = () => {
     if (!toolSession || toolSession.pending.length === 0) return;
     const seen = new Set(
@@ -710,7 +744,14 @@ export async function runAgent({
         } else {
           try {
             const handler = handlers[name];
-            toolResult = handler ? await handler(args) : { error: `unknown tool: ${name}` };
+            if (!handler) toolResult = { error: `unknown tool: ${name}` };
+            // Suppression comes first: a suppressed tool was REMOVED from the
+            // schema set on purpose, and telling the model it merely wasn't
+            // loaded would invite it to activate the tool and send twice.
+            else if (toolSession && !suppressed.has(name) && !schemaOnTheWire(name)) {
+              toolResult = revealUnloadedTool(toolSession, name);
+            }
+            else toolResult = await handler(args);
           } catch (e) {
             toolResult = { error: e.message };
           } finally {

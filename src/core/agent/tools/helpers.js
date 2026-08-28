@@ -9,6 +9,33 @@ import { PERMISSION_MODES, DEFAULT_PERMISSION_MODE } from "#core/constants/permi
 
 export { projectMeta, resolveProject } from "#core/apc/projects-helpers.js";
 
+/**
+ * A missing-argument error that names what the tool actually takes.
+ *
+ * "task required" is true and useless. The model that triggered it had passed
+ * `id` — the key list_tasks hands back — so the error confirmed something was
+ * missing without saying what would satisfy it. It retried the identical call,
+ * gave up, and left the task open. Naming the accepted keys and echoing the
+ * ones that arrived ends that in one step instead of three.
+ *
+ * @param {string} tool      tool name, for the message
+ * @param {string} missing   the parameter that was not supplied
+ * @param {{required?: string[], optional?: string[]}} accepts
+ * @param {object} got       the args the model actually sent
+ */
+export function missingArg(tool, missing, accepts = {}, got = {}) {
+  const required = accepts.required || [];
+  const optional = accepts.optional || [];
+  const sent = Object.keys(got || {});
+  return {
+    error:
+      `${missing} required. ${tool} takes ${required.join(", ") || "(none required)"}` +
+      `${optional.length ? ` (optional: ${optional.join(", ")})` : ""}` +
+      `${sent.length ? `; you sent ${sent.join(", ")}` : "; you sent nothing"}.`,
+    expects: { required, optional },
+  };
+}
+
 export function safePathJoin(root, sub = ".") {
   const target = path.resolve(root, sub || ".");
   const rootResolved = path.resolve(root);
