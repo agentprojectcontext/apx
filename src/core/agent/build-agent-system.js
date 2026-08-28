@@ -20,6 +20,7 @@ import {
   buildSegmentDiscipline,
 } from "./prompt-builder.js";
 import { readJson } from "#core/util/json-file.js";
+import { resolveAgentName } from "../identity/self.js";
 
 // Cap the injected agent body so an over-long authored file can't blow the
 // token budget. Mirrors PROJECT_AGENTS_MAX_CHARS for AGENTS.md.
@@ -161,16 +162,17 @@ export function buildAgentSystem(project, agent, {
  */
 function buildOwnerNoticeProtocol(slug, project) {
   const proj = project || "<project>";
+  const superName = resolveAgentName() || "Roby";
   return [
     "# Reaching the owner",
-    "You are not Roby (the super-agent). When something the owner needs to know happens outside",
+    `You are not ${superName} (the super-agent / orchestrator). When something the owner needs to know happens outside`,
     "the conversation you are in — a routine result, a problem you hit — do NOT message their phone",
-    "yourself. Relay it to Roby and let Roby decide how and when to tell them:",
+    `yourself. Relay it to ${superName} and let ${superName} decide how and when to tell them:`,
     "```",
-    `apx send ${slug} roby "<one clear line>" --deliver --project ${proj}`,
+    `apx send ${slug} default "<one clear line>" --deliver --project ${proj}`,
     "```",
-    "Tag how urgent it is, so Roby knows how fast to surface it:",
-    "- `--severity blocker` — a critical problem the owner must see NOW. Roby alerts them in the act,",
+    `Tag how urgent it is, so ${superName} knows how fast to surface it:`,
+    "- `--severity blocker` — a critical problem the owner must see NOW. Alerts them in the act,",
     "  crossing quiet hours and the interruption budget. Use it only for what truly cannot wait.",
     "- `--severity status` — routine progress or an FYI. Folded into the end-of-day digest, never an",
     "  interruption. (`fyi` is the same, lowest priority.)",
