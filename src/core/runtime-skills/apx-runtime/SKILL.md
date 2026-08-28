@@ -21,8 +21,8 @@ A "runtime" is an external AI coding CLI that APX invokes headlessly. APX spawns
 | id | binary | Headless flag |
 |---|---|---|
 | `claude-code`   | `claude`        | `-p "<prompt>" --append-system-prompt "<sys>" --output-format json` |
-| `codex`         | `codex`         | `exec "<prompt>" --sandbox workspace-write --skip-git-repo-check` |
-| `opencode`      | `opencode`      | non-interactive mode |
+| `codex`         | `codex`         | `exec "<prompt>" --sandbox workspace-write --skip-git-repo-check --json` |
+| `opencode`      | `opencode`      | `run "<prompt>"` (non-interactive) |
 | `aider`         | `aider`         | `--message "<prompt>" --yes-always --no-auto-commits` |
 | `cursor-agent`  | `cursor-agent`  | headless print mode |
 | `gemini-cli`    | `gemini`        | headless prompt mode |
@@ -53,6 +53,25 @@ Behavior:
 3. Spawns CLI with the right flags; cwd = project path.
 4. Captures stdout. If runtime printed `APC_RESULT: <value>`, that's the structured result; else first 200 chars of stdout.
 5. Writes a session file under `~/.apx/projects/<apxId>/agents/<slug>/sessions/` — `<slug>` is the agent, or the runtime id for a pass-through run.
+
+## `apx run` delegates; `apx send` converses
+
+`apx run` is a ONE-SHOT: the CLI starts cold, does the task, exits. When you want
+a back-and-forth with the CLI instead — ask, read the answer, ask again — address
+it as an a2a peer:
+
+```bash
+apx send <you> opencode "<message>" --deliver
+apx send <you> "opencode#review" "<message>" --deliver   # a second, separate thread
+```
+
+The peer answers on the a2a channel and CONTINUES ITS OWN SESSION between turns
+(`claude -p --resume`, `codex exec resume`, `opencode run --session`); APX keeps
+the id on the thread. So the second message costs one message, not a re-read of
+everything that came before. See the **apx** skill for the full addressing rules.
+
+Use `apx run` when you want the task done and the result back. Use `apx send`
+when the exchange has more than one turn.
 
 ## Resuming an external session
 

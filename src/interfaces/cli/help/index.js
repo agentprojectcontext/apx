@@ -1185,10 +1185,13 @@ export const HELP_TOPICS = new Map(Object.entries({
   }),
   send: topic({
     title: "apx send",
-    summary: "Log an agent-to-agent message, optionally delivering it through the target engine.",
-    usage: ["apx send <from> <to> \"<message>\" [--deliver] [--severity blocker|status|fyi] [--model <id>] [--usage <json>] [--project <name|id|path>]"],
+    summary: "Log an agent-to-agent message, optionally delivering it through the recipient.",
+    usage: ["apx send <from> <to> \"<message>\" [--deliver] [--code] [--background] [--timeout <s>] [--severity blocker|status|fyi] [--model <id>] [--usage <json>] [--project <name|id|path>]"],
     options: [
-      ["--deliver", "Run the target engine after logging the message."],
+      ["--deliver", "Run the recipient now and print its reply (plus the session it kept)."],
+      ["--code", "Open the exchange as a coding session: the peer runs with write access, and the exchange shows up in the Code module. Without it the peer is read-only. Not available for claude-code or codex."],
+      ["--background", "Hand the turn back immediately; the reply lands on the thread when the peer finishes. For work that takes minutes."],
+      ["--timeout <s>", "Seconds before the peer is killed. Default 300 in the foreground, 3600 with --background."],
       ["--severity <blocker|status|fyi>", "Urgency for the owner. blocker = alert now (Roby pings, crosses quiet-hours); status/fyi = rides the digest."],
       ["--model <id>", "Attribution override. Default: the sender agent's configured model. Sets which model the message shows as."],
       ["--usage <json>", "Token usage, e.g. '{\"input_tokens\":10,\"output_tokens\":5}'. A plain relay spends none, so it stays empty unless you pass it."],
@@ -1196,7 +1199,17 @@ export const HELP_TOPICS = new Map(Object.entries({
     ],
     examples: [
       "apx send planner reviewer \"Please review this plan\" --deliver",
+      "apx send claude-code opencode \"Take a look at src/auth and tell me what you'd change\" --deliver",
+      "apx send claude-code opencode:review \"Second thread, separate history\" --deliver",
+      "apx send claude-code opencode \"Add the retry to the fetch helper\" --deliver --code --background",
       "apx send magui roby \"Postiz API is down, daily post failed\" --severity blocker --deliver",
+    ],
+    notes: [
+      "<to> is a PEER: an agent slug from AGENTS.md (answered by its model), or a runtime id (claude-code, codex, opencode, aider, cursor-agent, gemini-cli, qwen-code, antigravity) answered by spawning that CLI.",
+      "Append :<thread> for a second, independent exchange with the same peer (opencode:review). Separate history, separate session.",
+      "A runtime peer continues its OWN session between turns, and runs in your current directory rather than the project's.",
+      "Read-only is the default on purpose: being messaged is not consent to have your checkout edited. --code is what opens write access, and it is enforced by the runtime itself (opencode --agent), not just asked for in the prompt.",
+      "claude-code and codex are never --code peers: they are the CLIs you drive yourself, and a message must not also start them writing to the same checkout. They answer read-only; send the work to opencode or use apx run.",
     ],
   }),
   connections: topic({

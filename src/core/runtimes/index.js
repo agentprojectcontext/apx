@@ -11,9 +11,24 @@
 //     id,
 //     binary,                         executable name to look for in PATH
 //     versionFlag,                    flag to print the version
-//     async run({ system, prompt, cwd, env, timeoutMs })
-//          → { exitCode, output, externalSessionPath?, raw? }
+//     sessions,                       "capture" when it can continue its own
+//                                     conversation; absent when every run
+//                                     starts cold
+//     async run({ system, prompt, cwd, env, timeoutMs,
+//                 sessionKey, resumeSessionId })
+//          → { exitCode, output, sessionId?, externalSessionPath?, raw? }
 //   }
+//
+// The session arguments are what turn a runtime from a one-shot into a real
+// a2a peer: `resumeSessionId` continues the conversation the peer already has,
+// and `sessionId` comes back so the caller can store it and resume again next
+// turn. `sessionKey` is a stable name for the exchange, for CLIs that can only
+// find their own session again by title (opencode); the ones that hand their id
+// straight back (claude-code, codex) ignore it.
+//
+// A runtime WITHOUT sessions is not shut out of a2a — the caller flattens the
+// thread history into the prompt instead. Sessions only make that unnecessary,
+// which is the point: a resumed peer does not re-read what it already knows.
 
 import claudeCode from "./claude-code.js";
 import codex from "./codex.js";

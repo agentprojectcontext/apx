@@ -68,8 +68,12 @@ test("codex runtime uses exec mode that works outside git repos", async () => {
       "workspace-write",
       "--skip-git-repo-check",
     ]);
-    assert.match(args[4], /system text/);
-    assert.match(args[4], /do work/);
+    // `--json` rides along because the thread id it prints is the only way a
+    // later turn can resume this same conversation. The prompt stays last.
+    assert.equal(args[4], "--json");
+    assert.match(args[5], /system text/);
+    assert.match(args[5], /do work/);
+    // A build that emits no parsable event still gets its stdout through.
     assert.equal(r.output, "codex output");
   });
 });

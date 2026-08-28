@@ -1,5 +1,7 @@
 import { http } from "../http.js";
 import { readAgents } from "#core/apc/parser.js";
+import { parsePeerAddress, isRuntimeName } from "#core/agent/a2a/peers.js";
+import { RUNTIME_IDS } from "#core/runtimes/index.js";
 import { resolveProjectId } from "./project.js";
 
 const SUPER_AGENT_ALIASES = new Set(["super-agent", "superagent", "super_agent"]);
@@ -24,19 +26,27 @@ async function projectsWithAgent(slug) {
 async function resolveSendTarget(to, projectFlag) {
   if (projectFlag) return resolveProjectId(projectFlag);
 
-  if (SUPER_AGENT_ALIASES.has(to)) {
+  // `<name>#<thread>` addresses the same peer on a separate thread; only the
+  // name decides WHO answers, so that is what every lookup below reads.
+  const { name } = parsePeerAddress(to);
+
+  if (SUPER_AGENT_ALIASES.has(name)) {
     throw new Error(
       `"${to}" is the super-agent — it is not addressable via a2a send yet. ` +
       `Talk to it with \`apx exec "<msg>"\` (no -a). To reach a project agent named "${to}", pass --project <name>.`
     );
   }
 
-  const hits = await projectsWithAgent(to);
+  const hits = await projectsWithAgent(name);
   if (hits.length === 1) return hits[0].id;
   if (hits.length === 0) {
+    // No agent owns the name — a runtime peer (opencode, codex, claude-code, …)
+    // is not registered anywhere, so it runs in the project you are standing
+    // in, exactly like `apx run --runtime`.
+    if (isRuntimeName(name)) return resolveProjectId(undefined);
     throw new Error(
-      `no agent "${to}" in any project. Run \`apx agent list --all\` to see agents and their projects, ` +
-      `then retry with --project <name>.`
+      `no agent or runtime "${to}" in any project. Run \`apx agent list --all\` to see agents and ` +
+      `their projects, then retry with --project <name>. Runtime peers: ${RUNTIME_IDS.join(", ")}.`
     );
   }
   const where = hits.map((h) => h.name).join(", ");
@@ -54,7 +64,7 @@ export async function cmdSend(args) {
   const from = args._[0];
   const to = args._[1];
   if (!from || !to) {
-    throw new Error('apx send: usage: apx send <from> <to> "<body>" [--deliver] [--severity blocker|status|fyi] [--project <name>]');
+    throw new Error('apx send: usage: apx send <from> <to> "<body>" [--deliver] [--code] [--background] [--timeout <s>] [--severity blocker|status|fyi] [--project <name>]');
   }
   let body = args._.slice(2).join(" ").trim();
   if (!body || body === "-") {
@@ -102,12 +112,31 @@ export async function cmdSend(args) {
     catch { throw new Error(`apx send: --usage must be JSON, e.g. '{"input_tokens":10,"output_tokens":5}'`); }
   }
 
+  const timeoutFlag = args?.flags?.timeout;
+  const timeoutS = timeoutFlag && timeoutFlag !== true ? parseInt(timeoutFlag, 10) : null;
+  if (timeoutFlag && timeoutFlag !== true && !(timeoutS > 0)) {
+    throw new Error(`apx send: --timeout must be a positive number of seconds (got "${timeoutFlag}")`);
+  }
+
   const pid = await resolveSendTarget(to, args?.flags?.project);
   const result = await http.post(`/api/projects/${pid}/send`, {
     from,
     to,
     body,
     deliver: !!args.flags.deliver,
+    // Where the sender is standing. A runtime peer answers by running a coding
+    // CLI, and an exchange between two coding CLIs is about a codebase — the
+    // one you are in, which the project record does not know (the default
+    // project's path is a storage directory, not a checkout).
+    cwd: process.cwd(),
+    // --code opens the exchange as a working session instead of a conversation:
+    // the peer runs with its write access on. Off by default, deliberately —
+    // being messaged is not consent to have your checkout edited.
+    ...(args.flags.code ? { code: true } : {}),
+    // --background hands the turn back immediately; the reply lands on the
+    // thread when the peer finishes. What makes a long coding session usable.
+    ...(args.flags.background ? { background: true } : {}),
+    ...(timeoutS ? { timeout_s: timeoutS } : {}),
     ...(severity ? { severity } : {}),
     ...(model ? { model } : {}),
     ...(usage ? { usage } : {}),
@@ -118,11 +147,26 @@ export async function cmdSend(args) {
   if (result.owner_notified) console.log(`   ⚠️  owner alerted now (critical): ${result.owner_notified_line || ""}`);
   else if (result.owner_notify_reason) console.log(`   (owner not alerted: ${result.owner_notify_reason})`);
   if (result.reply) {
-    if (result.reply.error) {
+    if (result.reply.status === "delivering") {
+      console.log(
+        `\n⏳ ${to} is working on it (up to ${result.reply.timeout_s}s). ` +
+        `The reply lands on this thread — read it with \`apx messages\` or the web inbox.`
+      );
+    } else if (result.reply.error) {
       console.log(`\n⚠  delivery failed: ${result.reply.error}`);
     } else {
       console.log(`\n← ${to} replies:`);
       console.log(result.reply.text);
+      // The session the peer is keeping for this thread. Printed because it is
+      // the thing that makes the next turn a continuation instead of a restart,
+      // and a run you cannot see is a run you cannot debug.
+      if (result.reply.session_id) {
+        console.log(`\n   (${result.reply.runtime || "session"} ${result.reply.session_id})`);
+      } else if (result.reply.session_note) {
+        // No session is fine — the thread still continues, carried in the
+        // prompt. Saying WHY beats leaving the line blank and looking broken.
+        console.log(`\n   (sin sesión reanudable: ${result.reply.session_note})`);
+      }
     }
   }
 }

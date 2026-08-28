@@ -1,5 +1,6 @@
 // Claude Code runtime adapter. Uses the headless `-p` mode:
 //   claude -p "<prompt>"  --append-system-prompt "<system>"  --output-format json
+//   claude -p "<prompt>"  --resume <session-id>              continue that session
 // Returns one JSON line with the result and session_id.
 // Reference: https://docs.claude.com/en/docs/claude-code/headless
 
@@ -33,8 +34,15 @@ export default {
   binary: "claude",
   versionFlag: "--version",
 
-  async run({ system, prompt, cwd, env, timeoutMs }) {
+  sessions: "capture",
+
+  async run({ system, prompt, cwd, env, timeoutMs, resumeSessionId = null, mode = "code" }) {
     const args = ["-p", prompt, "--output-format", "json"];
+    // `plan` is Claude Code's own read-only mode: it answers normally but will
+    // not edit. That is what a plain a2a message should get — a peer you talked
+    // to should not be able to rewrite your checkout because it was asked to.
+    if (mode === "chat") args.push("--permission-mode", "plan");
+    if (resumeSessionId) args.push("--resume", resumeSessionId);
     if (system) {
       args.push("--append-system-prompt", system);
     }
@@ -70,8 +78,9 @@ export default {
       exitCode: r.exitCode,
       output,
       stderr: r.stderr,
+      killed: r.killed,
       externalSessionPath,
-      sessionId,
+      sessionId: sessionId || resumeSessionId || null,
       raw: parsed,
     };
   },

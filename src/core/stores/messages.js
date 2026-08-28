@@ -500,6 +500,34 @@ export function listProjectA2AThreads(projectRoot) {
 /** One a2a thread (by pair id) shaped for the web chat viewer: every utterance
  *  as an agent turn carrying its author, so the viewer can attribute each
  *  bubble to whichever agent spoke. Null when the pair has no messages. */
+/**
+ * A pointer a PEER keeps for its a2a thread with `from` — the most recent
+ * `key` stamped on a row that peer itself spoke. Two live here: the runtime's
+ * own session (`runtime_session_id`) and, for a coding exchange, the Code
+ * module session it is mirrored into (`code_session_id`).
+ *
+ * The pointer lives on the ledger rather than in a side table, so a deleted
+ * thread takes it with it and there is no second store to keep in sync. Null is
+ * the ordinary first-turn answer: the peer then opens a session and reports it.
+ *
+ * `author === to` is load-bearing, not tidiness. A thread is keyed by the
+ * unordered PAIR, so claude-code→opencode and opencode→claude-code are ONE
+ * thread — and that one thread holds TWO sessions, one per peer. Without the
+ * check the newer of them wins and is handed to the wrong CLI, which rejects it
+ * outright ("Session not found").
+ */
+export function readA2APeerSession(projectRoot, { from, to, key = "runtime_session_id" }) {
+  const pair = new Set([from, to]);
+  const rows = readProjectMessages(projectRoot, { channel: "a2a", limit: 300 }).filter((m) => {
+    if (!m.meta?.[key]) return false;
+    if (m.author !== to) return false;
+    const parts = [m.agent_slug, m.author, m.meta?.from, m.meta?.to].filter(Boolean);
+    return parts.length > 0 && parts.every((p) => pair.has(p));
+  });
+  const last = rows.sort((a, b) => (a.ts || "").localeCompare(b.ts || "")).pop();
+  return last?.meta?.[key] || null;
+}
+
 export function readProjectA2AThread(projectRoot, id) {
   const want = String(id || "");
   const msgs = readProjectMessages(projectRoot, { channel: "a2a", limit: 1000 })

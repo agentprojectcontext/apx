@@ -6,9 +6,17 @@ const DEFAULT_TIMEOUT = 5 * 60 * 1000; // 5 minutes
 
 export function runProcess({ command, args = [], stdin = "", cwd, env, timeoutMs = DEFAULT_TIMEOUT }) {
   return new Promise((resolve) => {
+    // `cwd` moves the child's working directory but NOT its inherited `PWD`,
+    // which still names wherever the daemon was started. Tools that trust `PWD`
+    // over getcwd() — opencode does — then resolve the wrong project: an a2a
+    // coding session asked to write a file wrote it into the daemon's checkout
+    // instead of the caller's. Keep the two in agreement.
+    const childEnv = { ...process.env, ...(env || {}) };
+    if (cwd) childEnv.PWD = cwd;
+
     const child = spawn(command, args, {
       cwd,
-      env: { ...process.env, ...(env || {}) },
+      env: childEnv,
       stdio: ["pipe", "pipe", "pipe"],
     });
 
