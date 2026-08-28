@@ -6,9 +6,10 @@
 //   POST /projects/:pid/agents/:slug/compact
 //   POST /projects/:pid/agents/:slug/conversations/:id/compact
 //   POST /projects/:pid/send                                   (agent-to-agent)
+import fs from "node:fs";
 import { readAgents } from "#core/apc/parser.js";
 import { listConversations, readConversation, deleteConversation, truncateConversation, setConversationMeta, shapeConversationMessage } from "#core/stores/conversations.js";
-import { listGlobalThreads, readGlobalThread, deleteGlobalThread, setGlobalThreadMeta, listProjectA2AThreads, readProjectA2AThread, listProjectGroupThreads, readProjectGroupThread, deleteGroupThread, readProjectMessages } from "#core/stores/messages.js";
+import { listGlobalThreads, readGlobalThread, deleteGlobalThread, setGlobalThreadMeta, listProjectA2AThreads, readProjectA2AThread, listProjectGroupThreads, readProjectGroupThread, deleteGroupThread, readProjectMessages, readA2APeerSession } from "#core/stores/messages.js";
 
 // Prior turns of an a2a thread between `from` and `to`, oldest→newest, shaped as
 // LLM messages from `viewer`'s side (its own lines = assistant, the peer's =
@@ -38,9 +39,25 @@ function a2aPairHistory(storageRoot, from, to, viewer, limit = 24) {
         : { role: "user", content: `From ${m.author}:\n\n${m.body || ""}` },
     );
 }
+/** The sender's working directory, if it still is one. This is untrusted input
+ *  naming a directory we are about to spawn a coding CLI in, so it gets checked
+ *  rather than believed; anything else falls back to the project path. */
+function senderCwd(raw) {
+  if (!raw || typeof raw !== "string") return null;
+  try {
+    return fs.statSync(raw).isDirectory() ? raw : null;
+  } catch {
+    return null;
+  }
+}
+
 import { compactConversation } from "#core/stores/conversations-compactor.js";
 import { getActiveTurnByKey, convTurnKey } from "../active-turns.js";
-import { replyAsAgent } from "#core/agent/a2a/reply.js";
+import { replyToPeer } from "#core/agent/a2a/reply.js";
+import { resolvePeer, refusesCodeMode, NO_CODE_PEERS } from "#core/agent/a2a/peers.js";
+import { createCodeSession, getCodeSession, appendTurn as appendCodeTurn } from "#core/stores/code-sessions.js";
+import { CODE_MODES } from "#core/constants/code-modes.js";
+import { RUNTIME_IDS } from "#core/runtimes/index.js";
 import { resolveAgentModel } from "#core/agent/agent-model.js";
 import { notifyOwnerViaRoby } from "#core/routines/delivery.js";
 import { A2A_SEVERITY } from "#core/routines/signals.js";
@@ -314,7 +331,15 @@ export function register(api, { projects, project, config, plugins, registries }
   api.post("/projects/:pid/send", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    const { from, to, body, deliver = false, _depth = 0, requested_by = null, severity = null, model = null, usage = null } = req.body || {};
+    const { from, to, body, deliver = false, _depth = 0, requested_by = null, severity = null, model = null, usage = null, code = false, background = false, timeout_s = null } = req.body || {};
+    // Two kinds of exchange, and the difference is real: a `chat` peer runs in
+    // its own read-only mode, a `code` peer may write. Chat is the default
+    // because receiving a message must not be enough to let the sender rewrite
+    // your checkout — opening a coding session is a decision.
+    const mode = code ? "code" : "chat";
+    // A conversation answers in seconds; a coding session does not. Background
+    // runs get the hour that `call_runtime` gives its own detached spawns.
+    const timeoutMs = (Number(timeout_s) || (background ? 3600 : 300)) * 1000;
     if (!from || !to || !body)
       return res.status(400).json({ error: "from, to, body required" });
     if (_depth > 3)
@@ -331,18 +356,34 @@ export function register(api, { projects, project, config, plugins, registries }
     // identity that isn't registered anywhere — a coding CLI (claude/codex/…)
     // relaying to an agent, a routine, a system actor. Requiring `from` to be an
     // AGENTS.md agent is what blocked CLI→agent relays (404 "from not found").
-    // A synthetic sender ({slug}) is enough: replyAsAgent only reads `from.slug`,
+    // A synthetic sender ({slug}) is enough: the reply layer only reads `from.slug`,
     // and the a2a log records the label. The RECIPIENT still has to exist, so a
     // typo'd or wrong-project target fails loudly instead of vanishing.
     const fromAgent = agents.find((a) => a.slug === from) || { slug: from, fields: {}, synthetic: true };
-    const toAgent = agents.find((a) => a.slug === to);
-    if (!toAgent)
+    // The RECIPIENT is a PEER, not necessarily an agent: `to` may name an
+    // AGENTS.md agent or an external coding runtime (opencode, codex,
+    // claude-code, …), optionally with a `#thread` suffix that keeps two
+    // exchanges with the same peer from reading each other's mail. A name that
+    // nothing claims still fails loudly rather than vanishing.
+    const peer = resolvePeer(to, agents);
+    if (!peer)
       return res.status(404).json({
-        error: `to agent "${to}" not found in project "${p.name}"`,
+        error: `no agent or runtime "${to}" in project "${p.name}"`,
         project: p.name,
         available: agents.map((a) => a.slug),
-        hint: "run `apx agent list --all` to see every agent and its project",
+        runtimes: RUNTIME_IDS,
+        hint: "run `apx agent list --all` for agents and their projects; a runtime peer is any id in `runtimes`",
       });
+
+    if (mode === "code" && refusesCodeMode(peer)) {
+      return res.status(400).json({
+        error: `"${peer.runtime}" cannot be opened as a --code peer`,
+        no_code_peers: NO_CODE_PEERS,
+        hint:
+          `${peer.runtime} is a CLI you drive yourself — a message must not also start it writing to the same ` +
+          `checkout. Send without --code to ask it something, or open the coding session on another peer.`,
+      });
+    }
 
     // Snapshot the prior conversation BEFORE we log the new message, so the
     // reply sees history without the turn it is answering.
@@ -414,18 +455,53 @@ export function register(api, { projects, project, config, plugins, registries }
       ts,
     });
 
-    // An agent that inherits still replies: replyAsAgent resolves the router
-    // default for it. `deliver` is the only gate here.
-    let reply = null;
-    if (deliver) {
+    // Run the peer and file both halves of its answer. Returns the payload the
+    // caller gets back; NEVER throws, so the background path can fire it
+    // un-awaited without an unhandled rejection taking the daemon with it.
+    // A --code exchange IS a coding session, so it has to live where coding
+    // sessions live. Without this it exists only as an a2a thread and the Code
+    // panel — the one place you go to see what was built — never shows it.
+    // Sender is the user turn; the peer that does the work is the assistant,
+    // which is the same shape /m/code writes for its own sessions.
+    const openCodeSession = () => {
+      if (mode !== "code") return null;
+      const known = readA2APeerSession(p.storagePath, { from, to, key: "code_session_id" });
+      let session = known ? getCodeSession(p.storagePath, known) : null;
+      if (!session) {
+        session = createCodeSession(p.storagePath, {
+          projectId: p.id,
+          title: `a2a: ${from} -> ${to}`,
+          mode: CODE_MODES.BUILD,
+          agentSlug: to,
+        });
+      }
+      appendCodeTurn(p.storagePath, session.id, {
+        role: "user",
+        parts: [{ kind: "text", text: body }],
+        mode: CODE_MODES.BUILD,
+      });
+      return session;
+    };
+
+    const runReply = async () => {
+      const codeSession = openCodeSession();
       try {
-        const result = await replyAsAgent({
+        const result = await replyToPeer({
+          peer,
           projectPath: p.path,
-          toAgent,
           fromAgent,
+          fromAddress: from,
           body,
           config: p.config || config,
           history,
+          // A runtime peer runs where the sender is, falling back to the
+          // project. It also continues the session this thread already opened
+          // instead of starting a stranger.
+          cwd: senderCwd(req.body?.cwd) || p.path,
+          projectName: p.name,
+          resumeSessionId: readA2APeerSession(p.storagePath, { from, to }),
+          mode,
+          timeoutMs,
         });
 
         p.logMessage({
@@ -444,8 +520,23 @@ export function register(api, { projects, project, config, plugins, registries }
             final: true,
             model: result.model,
             usage: result.usage,
+            // Where this thread's external session lives, so the NEXT turn
+            // resumes it. Stored on the ledger rather than in a side table: a
+            // thread that gets deleted takes its session pointer with it.
+            ...(result.runtime ? { runtime: result.runtime } : {}),
+            ...(result.mode ? { mode: result.mode } : {}),
+            ...(result.sessionId ? { runtime_session_id: result.sessionId } : {}),
+            ...(codeSession ? { code_session_id: codeSession.id } : {}),
           },
         });
+        if (codeSession) {
+          appendCodeTurn(p.storagePath, codeSession.id, {
+            role: "assistant",
+            parts: [{ kind: "text", text: result.text }],
+            mode: CODE_MODES.BUILD,
+            ...(result.model ? { model: result.model } : { model: result.runtime || to }),
+          });
+        }
         p.logMessage({
           agent_slug: from,
           channel: "a2a",
@@ -454,10 +545,64 @@ export function register(api, { projects, project, config, plugins, registries }
           body: result.text,
           meta: { from: to, depth: _depth + 1 },
         });
-        reply = { text: result.text, usage: result.usage };
+        return {
+          text: result.text,
+          usage: result.usage,
+          ...(result.runtime ? { runtime: result.runtime } : {}),
+          ...(result.sessionId ? { session_id: result.sessionId } : {}),
+          ...(result.sessionNote ? { session_note: result.sessionNote } : {}),
+          ...(codeSession ? { code_session_id: codeSession.id } : {}),
+        };
       } catch (e) {
-        reply = { error: e.message };
+        // A peer that did not answer is news, and in the background there is no
+        // response left to carry it — so the failure goes on the thread, marked
+        // as a failure rather than dressed up as something the peer said.
+        p.logMessage({
+          agent_slug: to,
+          channel: "a2a",
+          direction: "out",
+          // attribution-exempt: a delivery failure, not a turn — nothing was
+          // spent and no model spoke, so there is no model or usage to record.
+          type: "agent",
+          actor_kind: "agent",
+          actor_id: to,
+          author: to,
+          body: `did not answer: ${e.message}`,
+          meta: {
+            to: from,
+            depth: _depth + 1,
+            reply_to: fromAgent.slug,
+            final: true,
+            failed: true,
+            failure_reason: e.message,
+            ...(codeSession ? { code_session_id: codeSession.id } : {}),
+          },
+        });
+        // The coding session must show the failure too, or it reads as a
+        // request nobody ever answered.
+        if (codeSession) {
+          appendCodeTurn(p.storagePath, codeSession.id, {
+            role: "assistant",
+            parts: [{ kind: "text", text: `did not answer: ${e.message}` }],
+            mode: CODE_MODES.BUILD,
+            model: to,
+          });
+        }
+        return { error: e.message, ...(codeSession ? { code_session_id: codeSession.id } : {}) };
       }
+    };
+
+    // An agent that inherits still replies: replyToPeer resolves the router
+    // default for it. `deliver` is the only gate here.
+    let reply = null;
+    if (deliver && background) {
+      // Un-awaited on purpose: a coding session can run for an hour, and the
+      // sender should not hold a socket open for it. The reply lands on the
+      // thread when it lands, and every surface that reads the thread sees it.
+      runReply();
+      reply = { status: "delivering", background: true, timeout_s: Math.round(timeoutMs / 1000) };
+    } else if (deliver) {
+      reply = await runReply();
     }
 
     res.json({
