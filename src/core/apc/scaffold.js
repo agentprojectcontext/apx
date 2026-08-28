@@ -597,6 +597,24 @@ export function addImportedAgent(root, slug) {
   fs.writeFileSync(p, JSON.stringify(cfg, null, 2) + "\n");
 }
 
+// Drop a slug from the project's agents.imported list. The counterpart of
+// addImportedAgent, and the reason a rename does not leave a ghost: an imported
+// agent has NO local file (readAgents resolves it from the vault by that list),
+// so renaming it writes the new slug locally and the old one keeps resolving
+// from the vault — the same agent showing up twice in the roster, one card with
+// the chats and one with the history. Returns whether anything was removed;
+// a project with no project.json or no list is a no-op, not an error.
+export function removeImportedAgent(root, slug) {
+  const p = apcProjectFile(root);
+  if (!fs.existsSync(p)) return false;
+  const cfg = readJson(p, null);
+  const imported = cfg?.agents?.imported;
+  if (!Array.isArray(imported) || !imported.includes(slug)) return false;
+  cfg.agents.imported = imported.filter((s) => s !== slug);
+  fs.writeFileSync(p, JSON.stringify(cfg, null, 2) + "\n");
+  return true;
+}
+
 // NOTE: AGENTS.md is created once at `apx init` (see AGENTS_MD_TEMPLATE) and is
 // thereafter owned by the user — APX never regenerates it. Agents live in
 // `.apc/agents/<slug>.md` (read by parser.js readAgents); they are NOT listed

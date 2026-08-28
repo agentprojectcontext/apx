@@ -13,7 +13,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { readAgents } from "#core/apc/parser.js";
 import { apcAgentFile } from "#core/apc/paths.js";
-import { writeAgentFile, ensureAgentDir } from "#core/apc/scaffold.js";
+import { writeAgentFile, ensureAgentDir, removeImportedAgent } from "#core/apc/scaffold.js";
 import { ensureAgentRuntimeDir, agentMemoryPath, agentRuntimeDir, readAgentMemory, writeAgentMemory } from "#core/agent/memory.js";
 import { isBlobKey, normalizeAgentType, pickBlob } from "#core/apc/agent-identity.js";
 import { readOrganization, resolveAreaSlug } from "#core/stores/organization.js";
@@ -253,12 +253,18 @@ export async function renameAgent(project, oldSlug, newSlug, opts = {}) {
   if (!source) throw new Error(`agent ${oldSlug} not found`);
   if (roster.find((a) => a.slug === newSlug)) throw new Error(`agent ${newSlug} already exists`);
 
-  // 1) Move the definition file. If it's missing (agent lived only in runtime),
-  //    re-materialize it under the new slug from what we parsed.
+  // 1) Move the definition file. If it's missing — the agent lived only in the
+  //    runtime, or only in the VAULT (imported: no local file at all, resolved
+  //    through `.apc/project.json`'s `agents.imported`) — re-materialize it
+  //    under the new slug from what we parsed. Either way the old slug must
+  //    stop resolving, so the import entry goes with it: left behind, the vault
+  //    template kept answering to the old slug and the rename read as a
+  //    DUPLICATE — one card with the chats, one with the history.
   const oldFile = apcAgentFile(project.path, oldSlug);
   ensureAgentDir(project.path, newSlug);
   if (fs.existsSync(oldFile)) fs.renameSync(oldFile, apcAgentFile(project.path, newSlug));
   else writeAgentFile(project.path, newSlug, source.fields || {}, source.body || "");
+  removeImportedAgent(project.path, oldSlug);
 
   // 2) Move the runtime dir (memory, conversations, sessions) wholesale.
   const oldDir = agentRuntimeDir(project, oldSlug);
