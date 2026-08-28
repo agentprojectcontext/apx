@@ -140,3 +140,49 @@ test("isSecretKey handles junk input without throwing", () => {
   assert.equal(isSecretKey(null), false);
   assert.equal(isSecretKey(42), false);
 });
+
+// ---------------------------------------------------------------------------
+// User-added providers live in an object keyed by slug, so their secret path
+// has a WILDCARD in the middle (`voice.tts.custom.*.api_key`). redactConfig
+// used to skip every wildcard pattern outright, which meant a custom TTS
+// endpoint's key was served in clear text to anyone who opened Settings — the
+// exact failure the spare-Gemini-keys case above was written for, in a
+// different shape. Image providers (images.custom.*) are keyed the same way.
+// ---------------------------------------------------------------------------
+
+const WITH_CUSTOM = {
+  voice: { tts: { custom: {
+    qvox: { label: "QVox", base_url: "http://localhost:5111/v1", api_key: "tok-voice-11111" },
+    other: { base_url: "http://localhost:5112/v1" },
+  } } },
+  images: { custom: {
+    box: { label: "Homelab", kind: "sdcpp", base_url: "http://example.test:8189", api_key: "tok-image-22222" },
+  } },
+};
+
+test("a custom provider's key is redacted, not served in clear text", () => {
+  const red = redactConfig(WITH_CUSTOM);
+  assert.ok(isSecretMarker(red.voice.tts.custom.qvox.api_key));
+  assert.ok(isSecretMarker(red.images.custom.box.api_key));
+  // Non-secret fields on the same object are untouched.
+  assert.equal(red.voice.tts.custom.qvox.base_url, "http://localhost:5111/v1");
+  assert.equal(red.images.custom.box.kind, "sdcpp");
+  // A provider with no key gains none.
+  assert.equal(red.voice.tts.custom.other.api_key, undefined);
+});
+
+test("saving the redacted view back keeps a custom provider's real key", () => {
+  const merged = mergeRedactedSecrets(redactConfig(WITH_CUSTOM), WITH_CUSTOM);
+  assert.equal(merged.voice.tts.custom.qvox.api_key, "tok-voice-11111");
+  assert.equal(merged.images.custom.box.api_key, "tok-image-22222");
+});
+
+test("the built-in image engines are declared secret paths", () => {
+  for (const p of ["images.a1111.api_key", "images.sdcpp.api_key", "images.openai.api_key"]) {
+    assert.ok(SECRET_PATHS.includes(p), p);
+    assert.equal(isSecretKey(p), true);
+  }
+  // …and their non-secret siblings are not.
+  assert.equal(isSecretKey("images.a1111.base_url"), false);
+  assert.equal(isSecretKey("images.provider"), false);
+});

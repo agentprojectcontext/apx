@@ -18,6 +18,9 @@ export const SECRET_PATHS = [
   "voice.tts.elevenlabs.api_key",
   "voice.tts.openai.api_key",
   "voice.tts.gemini.api_key",
+  "images.a1111.api_key",
+  "images.sdcpp.api_key",
+  "images.openai.api_key",
   "transcription.openai.api_key",
   "transcription.custom.api_key",
   "memory.embeddings.openai.api_key",
@@ -30,7 +33,52 @@ export const SECRET_PATHS = [
   // below. Listed here so the "which keys are secrets" question still has one
   // answer to read.
   "engines.gemini.api_keys.*",
+  // User-added providers live in an object keyed by slug, so the segment in
+  // the middle is a wildcard. redact() walks these too — see expandWildcards.
+  "voice.tts.custom.*.api_key",
+  "images.custom.*.api_key",
 ];
+
+/**
+ * Expand a wildcard path against a real config, yielding the concrete dotted
+ * paths that exist in it. Only object maps are walked: `engines.gemini.
+ * api_keys.*` addresses a LIST, which has no key to name, and stays handled by
+ * the array cases below.
+ */
+function expandWildcards(cfg, pattern) {
+  const parts = pattern.split(".");
+  let paths = [[]];
+  let nodes = [cfg];
+  for (const part of parts) {
+    const nextPaths = [];
+    const nextNodes = [];
+    for (let i = 0; i < nodes.length; i++) {
+      const node = nodes[i];
+      if (!node || typeof node !== "object" || Array.isArray(node)) continue;
+      const keys = part === "*" ? Object.keys(node) : [part];
+      for (const key of keys) {
+        if (!(key in node)) continue;
+        nextPaths.push([...paths[i], key]);
+        nextNodes.push(node[key]);
+      }
+    }
+    paths = nextPaths;
+    nodes = nextNodes;
+  }
+  return paths.map((p) => p.join("."));
+}
+
+/** Every concrete secret path present in `cfg`, wildcards resolved. */
+function concreteSecretPaths(cfg) {
+  const out = [];
+  for (const pattern of SECRET_PATHS) {
+    if (!pattern.includes("*")) { out.push(pattern); continue; }
+    // A trailing `*` addresses list entries, not map keys — skip those here.
+    if (pattern.endsWith(".*")) continue;
+    out.push(...expandWildcards(cfg, pattern));
+  }
+  return out;
+}
 
 // Leaf names that carry a secret even when the full path is not in
 // SECRET_PATHS yet — a provider added after this list was last touched still
@@ -88,8 +136,7 @@ export function redactConfig(cfg) {
   const out = JSON.parse(JSON.stringify(cfg || {}));
   const mark = (val) => (typeof val === "string" && val.length ? secretMarker(val) : val);
 
-  for (const dotted of SECRET_PATHS) {
-    if (dotted.includes("*")) continue;
+  for (const dotted of concreteSecretPaths(cfg)) {
     const parts = dotted.split(".");
     let cur = out;
     for (let i = 0; i < parts.length - 1; i++) {
@@ -147,8 +194,7 @@ function setDotted(obj, dotted, value) {
  */
 export function mergeRedactedSecrets(next, prior) {
   if (!next || typeof next !== "object") return next;
-  for (const dotted of SECRET_PATHS) {
-    if (dotted.includes("*")) continue;
+  for (const dotted of concreteSecretPaths(next)) {
     if (isSecretMarker(getDotted(next, dotted))) {
       const priorVal = getDotted(prior, dotted);
       if (typeof priorVal === "string" && priorVal.length) setDotted(next, dotted, priorVal);
