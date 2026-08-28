@@ -12,27 +12,27 @@ import Terminal from '../../../components/Terminal.astro';
 A dense reference of every `apx` command. One line per command, organized to match `apx --help`.
 For deep dives, follow the links at the bottom.
 
-<Terminal command="apx --help" caption="apx --help showing all command groups">
-{`  apx  Agent Project Context  v1.38.0
+<Terminal command="apx --help" caption="apx --help — trimmed to the first and last of its 24 sections; the real output lists every command in full">
+{`  apx  Agent Project Context  v1.82.0
   Docs: https://agentprojectcontext.com
 
   Usage:  apx <command> [subcommand] [args] [--flags]
 
-  Bootstrap     init · setup · status · update
-  Projects      project add|list|remove|rebuild
-  Agents        agent add|list|get|remove · agent vault …
-  APX Profile   identity show|set|wizard
-  Config        config show|set · model · permission
-  Sessions      session new|list|resume|find · sessions list
-  MCPs          mcp list|add|remove|enable|run|tools|logs|check
-  Daemon        daemon start|stop|reload|status · log
-  Telegram      telegram send|status · messages tail|chat|search
-  LLM / Code    exec · chat · code · search
-  Runtimes      run --runtime … · env detect
-  Routines      routine add|list|run · task add|list|done
-  Voice         voice say|listen|providers · desktop · pair
 
-  Run 'apx <command> --help' for details.`}
+  Bootstrap
+
+  apx init [path]                       --name "<name>"  initialize a new APC project
+  apx setup                             interactive wizard: provider → model → channels → daemon  (alias: install)
+  apx status                            full system status: daemon, super-agent, engines, telegram, projects
+  apx update                            check for updates and upgrade  (alias: upgrade)
+
+  # … 22 more groups, from Projects to Pair …
+
+  Flags
+
+    --project <name|id|path>              pin commands to a specific project
+    --help                                show this help
+    --version                             print version`}
 </Terminal>
 
 ---
