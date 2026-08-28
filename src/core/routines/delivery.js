@@ -45,6 +45,53 @@ export const PROFILE_DELIVERY = "profile";
 export const NO_DELIVERY = "none";
 
 /**
+ * The token a routine writes INSTEAD of a message when it decides it has
+ * nothing worth interrupting for.
+ *
+ * The watch and a2a-sweep prompts have promised this since they were written —
+ * "if you decide to stay quiet, say so in your reply and it goes nowhere" — and
+ * nothing in the code ever kept the promise. `routineOutputText` returns any
+ * non-empty reply, so the sentence the model wrote to explain ITSELF was
+ * delivered as if it were the news: "Me mantengo en silencio. La señal de
+ * inactividad de 8 días en flit es de severidad baja…" arrived on Manu's phone
+ * twice on 2026-08-27, and each one was charged against the interruption budget
+ * — two of that day's three unscheduled slots spent by a routine saying it had
+ * nothing to say. The budget that exists to protect real messages was being
+ * drained by abstentions.
+ *
+ * A decision is not a message, so it gets a token rather than a sentence. The
+ * reasoning after the marker still matters — it just belongs in the run log and
+ * the routine's memory, which is where the prompt already asks for it.
+ */
+export const ABSTAIN_MARKER = "NO_MESSAGE";
+
+const ABSTAIN_RE = new RegExp(`^${ABSTAIN_MARKER}\\b[\\s:.,\u2013\u2014-]*(.*)$`, "i");
+
+/**
+ * Read a routine's reply as an abstention, or null if it is a real message.
+ *
+ * Deliberately marker-only: no prose detection. A regex hunting for "silencio"
+ * or "staying quiet" across two languages would both miss abstentions the model
+ * phrased differently AND swallow a genuine message that happens to mention
+ * keeping quiet — and a delivery that eats real news is worse than the bug it
+ * would be fixing. The marker has to be the first thing on the first line;
+ * anything after it is kept as the reason.
+ *
+ * @returns {{reason: string}|null}
+ */
+export function readAbstention(text) {
+  const raw = typeof text === "string" ? text.trim() : "";
+  if (!raw) return null;
+  const lines = raw.split(/\r?\n/);
+  // A model that emphasises or fences the marker still means the marker. NOT
+  // `_` — it is markdown emphasis everywhere except inside NO_MESSAGE itself.
+  const first = lines[0].replace(/[`*#>]/g, "").trim();
+  const m = ABSTAIN_RE.exec(first);
+  if (!m) return null;
+  return { reason: [m[1], ...lines.slice(1)].join("\n").trim() };
+}
+
+/**
  * Write the text into a global channel ledger. That is the whole of "delivery"
  * for a surface APX owns: appendGlobalMessage announces the row on the message
  * bus, so a panel with the thread open sees it arrive, and one that is closed
@@ -85,7 +132,7 @@ function mediaMeta(attachments) {
  * channel" — golf-coach's tip lands in golf-coach's thread, and stays there to
  * be answered, run after run.
  */
-function deliverToAgentWebChat(ctx, { routine, text, attachments, agent }) {
+function deliverToAgentWebChat(ctx, { routine, text, attachments, agent, abstained }) {
   const storagePath = ctx?.project?.storagePath;
   if (!storagePath) throw new Error("no project storagePath for the agent web chat");
   const author = agent.name || agent.slug;
@@ -134,6 +181,7 @@ function deliverToAgentWebChat(ctx, { routine, text, attachments, agent }) {
       routine_id: routine.id || "",
       via: "routine_delivery",
       conversation: AGENT_WEB_CHAT_ID,
+      ...(abstained ? { abstained: true } : {}),
       // The one-line headline the event feed hands the desktop mascot.
       ...(agent.notify ? { notify: agent.notify } : {}),
       ...(agent.model ? { model: agent.model } : {}),
@@ -148,12 +196,12 @@ function deliverToAgentWebChat(ctx, { routine, text, attachments, agent }) {
 function ledgerAdapter(channel) {
   return {
     id: channel,
-    async deliver(ctx, { routine, text, attachments, agent }) {
+    async deliver(ctx, { routine, text, attachments, agent, abstained }) {
       // A non-Roby agent's routine goes to ITS own chat, not the super-agent's
       // channel (the rule above). Only the super-agent's own routines — or a
       // channel with no agent identity — write the global channel thread.
       if (channel === CHANNELS.WEB && agent?.slug && agent.slug !== SUPERAGENT_ACTOR_ID) {
-        return deliverToAgentWebChat(ctx, { routine, text, attachments, agent });
+        return deliverToAgentWebChat(ctx, { routine, text, attachments, agent, abstained });
       }
       appendGlobalMessage({
         channel,
@@ -169,6 +217,9 @@ function ledgerAdapter(channel) {
           routine: routine.name,
           routine_id: routine.id || "",
           via: "routine_delivery",
+          // A decision, not a message — so a reader (and any future UI) can
+          // fold it away instead of showing it as something Roby said.
+          ...(abstained ? { abstained: true } : {}),
           // Attribution when the caller carried it (the super-agent's own run —
           // see runner.js). Without it the delivered row renders "0 tok"/no model.
           ...(agent?.model ? { model: agent.model } : {}),
@@ -177,6 +228,7 @@ function ledgerAdapter(channel) {
         },
       });
       const n = (attachments || []).filter((a) => a && a.path).length;
+      if (abstained) return { note: `noted in the ${channel} thread (stayed quiet)` };
       return { note: `written to the ${channel} thread${n ? ` (+${n} image${n > 1 ? "s" : ""})` : ""}` };
     },
   };
@@ -266,6 +318,10 @@ async function composeRobyNotice({ agent, text, notify, globalConfig, severity =
 export const DELIVERY_ADAPTERS = Object.freeze({
   [CHANNELS.TELEGRAM]: {
     id: CHANNELS.TELEGRAM,
+    // A channel that reaches a PHONE. What makes it valuable — it arrives
+    // whether or not you went looking — is also what makes it the wrong place
+    // for a routine's reasoning, so `abstentionChannels` routes around it.
+    push: true,
     // The tool that would produce the same message from inside the loop. The
     // runner suppresses it for the run, the way it already suppresses the tool
     // an equivalent post_command would duplicate.
@@ -333,6 +389,22 @@ export const DELIVERY_ADAPTERS = Object.freeze({
 /** The channel ids `deliver_to` accepts, for help text and validation. */
 export function deliveryChannelIds() {
   return Object.keys(DELIVERY_ADAPTERS);
+}
+
+/**
+ * Where an ABSTENTION goes. Never a push channel — the whole point is that the
+ * routine decided not to interrupt, and pushing "I decided not to interrupt you"
+ * is the interruption it just declined to make.
+ *
+ * It does not go nowhere either. Manu's rule when he found these on his phone:
+ * do not send it to Telegram, "que lo diga en canal web sino" — leave it
+ * somewhere he can go and look at it. So a routine whose channels are all push
+ * writes the note to the web thread instead of dropping it, and every row is
+ * stamped `abstained` so a reader can tell a decision from a message.
+ */
+export function abstentionChannels(channels) {
+  const quiet = (channels || []).filter((id) => DELIVERY_ADAPTERS[id] && !DELIVERY_ADAPTERS[id].push);
+  return quiet.length ? quiet : [CHANNELS.WEB];
 }
 
 /**
@@ -485,7 +557,7 @@ export function alreadyServedChannels({ routine, channels, postSinks, trace }) {
  *
  * @returns {Array<{channel, status, note?, error?}>}
  */
-export async function deliverRoutineOutput(ctx, { routine, channels, text, gate = null, attachments = [], agent = null }) {
+export async function deliverRoutineOutput(ctx, { routine, channels, text, gate = null, attachments = [], agent = null, abstained = false }) {
   const out = [];
   for (const id of channels || []) {
     const adapter = DELIVERY_ADAPTERS[id];
@@ -494,7 +566,7 @@ export async function deliverRoutineOutput(ctx, { routine, channels, text, gate 
       continue;
     }
     try {
-      const r = await adapter.deliver(ctx, { routine, text, gate, attachments, agent });
+      const r = await adapter.deliver(ctx, { routine, text, gate, attachments, agent, abstained });
       // "held" is not "ok" and not "error": the interruption budget did its job.
       // The caller must not treat it as a failed delivery — the message was
       // deliberately withheld, and the message the model wrote survives in the

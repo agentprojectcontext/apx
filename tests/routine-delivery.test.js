@@ -669,3 +669,124 @@ test("runRoutineNow — a non-Roby agent's web delivery lands in its OWN web cha
     cleanupTempProject(root);
   }
 });
+
+// ── abstention: the run that decided it had nothing to say ───────────────────
+// The watch and a2a-sweep prompts have always told the model that staying quiet
+// is free — "say so in your reply and it goes nowhere" — and for as long as they
+// said it, it was false. The reply was delivered like any other, so "Me mantengo
+// en silencio. La señal de flit es de severidad baja…" landed on Manu's phone
+// AND spent one of his three daily interruption slots. These cover the promise.
+
+test("readAbstention — the marker, with or without a reason, in the shapes a model writes it", async () => {
+  const { readAbstention, ABSTAIN_MARKER } = await import("#core/routines/delivery.js");
+  assert.equal(ABSTAIN_MARKER, "NO_MESSAGE");
+
+  assert.deepEqual(readAbstention("NO_MESSAGE"), { reason: "" });
+  assert.deepEqual(
+    readAbstention("NO_MESSAGE — flit lleva 8 días quieto, severidad baja."),
+    { reason: "flit lleva 8 días quieto, severidad baja." },
+  );
+  // The reasoning on its own lines, and emphasis around the marker, still count.
+  assert.deepEqual(
+    readAbstention("**NO_MESSAGE**\nflit: 8 días, baja.\nQueda para el anchor."),
+    { reason: "flit: 8 días, baja.\nQueda para el anchor." },
+  );
+  assert.equal(readAbstention(""), null);
+  assert.equal(readAbstention(null), null);
+});
+
+test("readAbstention — prose about staying quiet is a MESSAGE, not an abstention", async () => {
+  const { readAbstention } = await import("#core/routines/delivery.js");
+  // Exactly the replies that were being pushed. They are not markers, so they
+  // still deliver: fixing this by sniffing for "silencio" would have swallowed a
+  // real message the day one legitimately mentioned keeping quiet.
+  assert.equal(readAbstention("Me mantengo en silencio. La señal de flit es baja."), null);
+  assert.equal(readAbstention("Staying quiet — nothing worth interrupting for."), null);
+  // And the marker has to lead: buried in a sentence it is prose about the marker.
+  assert.equal(readAbstention("Te aviso que iba a mandar NO_MESSAGE pero mejor te cuento"), null);
+});
+
+test("abstentionChannels — never a push channel, and never nowhere", async () => {
+  const { abstentionChannels } = await import("#core/routines/delivery.js");
+  // Manu's rule: not the phone, "que lo diga en canal web sino".
+  assert.deepEqual(abstentionChannels(["telegram"]), ["web"]);
+  assert.deepEqual(abstentionChannels(["telegram", "web"]), ["web"]);
+  assert.deepEqual(abstentionChannels([]), ["web"]);
+});
+
+test("runRoutineNow — an abstention is never pushed, never charged to the budget, and is readable on web", async () => {
+  const { listNudges } = await import("#core/nudge/index.js");
+  const root = makeTempProject({ name: "northwind" });
+  const sent = [];
+  const cfg = { super_agent: { enabled: true, model: "mock:test", permission_mode: "total" } };
+  const ctx = makeCtx(root, { plugins: fakeTelegram(sent), globalConfig: cfg });
+  const before = listNudges().length;
+  try {
+    const out = await runRoutineNow(ctx, {
+      name: "secretary-watch",
+      kind: "super_agent",
+      schedule: "every:2h",
+      deliver_to: ["telegram"],
+      spec: { prompt: "Judge the signals. [mock:reply:NO_MESSAGE flit lleva 8 días quieto, severidad baja.]" },
+    });
+    assert.equal(out.status, "ok", "abstaining is a successful run, not a failed one");
+    assert.equal(out.abstained, true);
+    assert.equal(sent.length, 0, "nothing reached the phone");
+    assert.equal(listNudges().length, before, "no interruption slot was spent");
+
+    // It is not lost either: the reasoning is on the web thread, stamped so a
+    // reader can tell a decision from something Roby said.
+    const row = readGlobalMessages("web", { limit: 20 }).find((m) => m.meta?.routine === "secretary-watch");
+    assert.ok(row, "the note is on the web channel");
+    assert.equal(row.meta.abstained, true);
+    assert.match(row.body, /flit lleva 8 días quieto/);
+    assert.doesNotMatch(row.body, /NO_MESSAGE/, "the marker is a control token, not prose");
+  } finally {
+    cleanupTempProject(root);
+  }
+});
+
+test("runRoutineNow — a bare marker with no reasoning is written nowhere at all", async () => {
+  const root = makeTempProject({ name: "northwind" });
+  const sent = [];
+  const cfg = { super_agent: { enabled: true, model: "mock:test", permission_mode: "total" } };
+  const ctx = makeCtx(root, { plugins: fakeTelegram(sent), globalConfig: cfg });
+  try {
+    const out = await runRoutineNow(ctx, {
+      name: "quiet-watch",
+      kind: "super_agent",
+      schedule: "every:2h",
+      deliver_to: ["telegram"],
+      spec: { prompt: "Judge. [mock:reply:NO_MESSAGE]" },
+    });
+    assert.equal(out.status, "ok");
+    assert.equal(out.abstained, true);
+    assert.equal(sent.length, 0);
+    assert.deepEqual(out.delivery.results, [], "nothing to file, so nothing filed");
+  } finally {
+    cleanupTempProject(root);
+  }
+});
+
+test("runRoutineNow — a real message still goes to telegram, unchanged", async () => {
+  // The regression that would matter most: an abstention path that eats news.
+  const root = makeTempProject({ name: "northwind" });
+  const sent = [];
+  const cfg = { super_agent: { enabled: true, model: "mock:test", permission_mode: "total" } };
+  const ctx = makeCtx(root, { plugins: fakeTelegram(sent), globalConfig: cfg });
+  try {
+    const out = await runRoutineNow(ctx, {
+      name: "loud-watch",
+      kind: "super_agent",
+      schedule: "every:2h",
+      deliver_to: ["telegram"],
+      spec: { prompt: "Judge. [mock:reply:El service de la Amarok vence hoy — llamá al taller.]" },
+    });
+    assert.equal(out.status, "ok");
+    assert.ok(!out.abstained);
+    assert.equal(sent.length, 1);
+    assert.match(sent[0].text, /vence hoy/);
+  } finally {
+    cleanupTempProject(root);
+  }
+});
