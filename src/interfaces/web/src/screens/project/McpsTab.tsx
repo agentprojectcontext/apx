@@ -8,7 +8,7 @@ import { Mcps, Vars, type McpAddBody, type McpScope, type McpLogsResult, type Va
 import type { McpEntry } from "../../types/daemon";
 import { cn } from "../../lib/cn";
 import { Section } from "../../components/Section";
-import { Badge, Button, Dialog, Empty, Field, Input, Loading, Switch } from "../../components/ui";
+import { Badge, Button, Dialog, Empty, Field, FilterChips, Input, Loading, Switch } from "../../components/ui";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import { Tip } from "../../components/ui/tip";
 import { UiSelect } from "../../components/UiSelect";
@@ -60,6 +60,16 @@ function sourceToScope(source: string): McpScope {
   return "shared";
 }
 
+// Which of the three writable scopes a row belongs to is a storage detail, and
+// so is which foreign IDE config we merely read it from. For filtering, the
+// only distinction that matters is where the server lives: in this project, or
+// machine-wide. Everything that is not the global store is the project.
+type ScopeFilter = "all" | "project" | "global";
+
+function sourceBucket(source: string): Exclude<ScopeFilter, "all"> {
+  return source === "global" ? "global" : "project";
+}
+
 function sourceLabel(source: string): string {
   if (source === "runtime") return t("project.mcps.source_runtime");
   if (source === "apc") return t("project.mcps.source_apc");
@@ -83,10 +93,18 @@ export function McpsTab({ pid }: { pid: string }) {
   const [results, setResults] = useState<Record<string, McpResult>>({});
   const [expandedTools, setExpandedTools] = useState<Record<string, boolean>>({});
   const [confirm, setConfirm] = useState<{ name: string; scope: McpScope } | null>(null);
+  const [scopeFilter, setScopeFilter] = useState<ScopeFilter>("all");
 
   const varNames = useMemo(
     () => (vars.data ? Object.keys(vars.data.effective).sort() : []),
     [vars.data],
+  );
+
+  const visible = useMemo(
+    () => (list.data || []).filter(
+      (m) => scopeFilter === "all" || sourceBucket(m.source) === scopeFilter,
+    ),
+    [list.data, scopeFilter],
   );
 
   const doRemove = async () => {
@@ -124,6 +142,19 @@ export function McpsTab({ pid }: { pid: string }) {
           title={t("project.mcps.title")}
           description={t("project.mcps.subtitle")}
           action={<Button size="sm" variant="primary" onClick={() => setDialog({ kind: "new" })}><Plus size={14} /> {t("project.mcps.new")}</Button>}
+          filters={
+            <FilterChips
+              value={scopeFilter}
+              onChange={setScopeFilter}
+              testIdPrefix="mcp-scope-filter"
+              label={t("project.mcps.filter_label")}
+              options={[
+                { value: "all" as const, label: t("project.mcps.filter_all") },
+                { value: "project" as const, label: t("project.mcps.filter_project") },
+                { value: "global" as const, label: t("project.mcps.filter_global") },
+              ]}
+            />
+          }
         >
           {conflicts.data?.conflicts?.length ? (
             <div className="mb-3 rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs">
@@ -148,10 +179,14 @@ export function McpsTab({ pid }: { pid: string }) {
           ) : null}
 
           {list.isLoading && <Loading />}
-          {!list.isLoading && (list.data?.length ?? 0) === 0 && <Empty icon={Plug}>{t("project.mcps.empty")}</Empty>}
+          {!list.isLoading && visible.length === 0 && (
+            <Empty icon={Plug}>
+              {(list.data?.length ?? 0) === 0 ? t("project.mcps.empty") : t("project.mcps.filter_empty")}
+            </Empty>
+          )}
 
           <ul className="space-y-2 text-sm">
-            {(list.data || []).map((m) => {
+            {visible.map((m) => {
               const writable = m.source === "apc" || m.source === "runtime" || m.source === "global";
               const scopeForRemove: McpScope = sourceToScope(m.source);
               const isActive = activeMcp === m.name;
