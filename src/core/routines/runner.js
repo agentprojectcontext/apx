@@ -47,6 +47,9 @@ import {
   alreadyServedChannels,
   routineOutputText,
   notifyOwnerViaRoby,
+  readAbstention,
+  abstentionChannels,
+  ABSTAIN_MARKER,
   AGENT_WEB_CHAT_ID,
 } from "#core/routines/delivery.js";
 import { recordDelivery, markDelivery, DELIVERY_STATUS } from "#core/stores/deliveries.js";
@@ -588,7 +591,8 @@ async function handleWatch(ctx, routine) {
         `${formatSignals(signals)}\n\n` +
         "These were found deterministically — they are facts, not guesses. Your job is " +
         "judgement: decide whether any of it is worth interrupting for right now, and if " +
-        "so say the one thing that matters. Staying quiet is a valid outcome.",
+        "so say the one thing that matters. Staying quiet is a valid outcome — reply with " +
+        `${ABSTAIN_MARKER} on the first line when you choose it, and your reasoning after.`,
     },
   };
 
@@ -860,10 +864,34 @@ async function runRoutinePipeline(ctx, routine) {
   setRoutineRunPhase(ctx.runId, "delivery");
   const llmOutput = result?.reply || result?.text || "";
   const deliveryText = routineOutputText(result);
+  // A run that judged it had nothing worth interrupting for. Not an empty run
+  // and not a failed one — a decision, and the watch prompts have always told
+  // the model that making it is free. Until this branch existed it was not:
+  // "Me mantengo en silencio…" was delivered as the news and charged to the
+  // interruption budget like any other push. See readAbstention in delivery.js.
+  const abstention = readAbstention(deliveryText);
   const wanted = delivery.channels.length + delivery.unknown.length;
   let deliveries = [];
   let deliverySkipped = [];
-  if (wanted > 0 && status === "ok" && deliveryText) {
+  if (wanted > 0 && status === "ok" && abstention) {
+    result = { ...result, abstained: true, abstain_reason: abstention.reason || null };
+    // No gate, so no nudge is spent and no cooldown consumed; no push channel,
+    // so nothing reaches the phone. A bare marker with no reasoning is written
+    // nowhere at all — the run log already records that it ran and stayed quiet.
+    if (abstention.reason) {
+      deliveries = await deliverRoutineOutput(runCtx, {
+        routine,
+        channels: abstentionChannels(delivery.channels),
+        text: abstention.reason,
+        gate: null,
+        abstained: true,
+        agent:
+          result?.agent_slug && result.agent_slug !== SUPERAGENT_ACTOR_ID
+            ? { slug: result.agent_slug, name: result.agent_name || result.agent_slug, model: result.model, usage: result.usage }
+            : { slug: SUPERAGENT_ACTOR_ID, model: result?.model, usage: result?.usage },
+      });
+    }
+  } else if (wanted > 0 && status === "ok" && deliveryText) {
     deliverySkipped = alreadyServedChannels({
       routine,
       channels: delivery.channels,
@@ -1012,7 +1040,7 @@ async function runRoutinePipeline(ctx, routine) {
     actor_id: "apx:routine",
     author: "apx",
     body: status === "ok"
-      ? `routine ${routine.name} ok${skip ? " (skipped LLM)" : ""}`
+      ? `routine ${routine.name} ok${skip ? " (skipped LLM)" : result?.abstained ? " (stayed quiet)" : ""}`
       : `routine ${routine.name} error: ${errMsg}`,
     meta: {
       routine: routine.name, status, skipped: skip, result,

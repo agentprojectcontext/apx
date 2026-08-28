@@ -147,6 +147,19 @@ export default {
       };
     }
 
+    // `[mock:reply:<text>]` → the model answers with exactly <text>. For tests
+    // about what the LOOP does with an answer rather than about producing one:
+    // the abstention marker is only interesting if the reply starts with it,
+    // and the default echo prefixes everything with "[mock:…] received:".
+    const replyText = userText.match(/\[mock:reply:([^\]]*)\]/)?.[1];
+    if (replyText !== undefined) {
+      return {
+        text: replyText,
+        usage: { input_tokens: userText.length, output_tokens: replyText.length },
+        raw: { model, mock: true },
+      };
+    }
+
     const sysHint = system ? ` (system: ${system.slice(0, 40)}…)` : "";
     return {
       text: `[mock:${model}] received: ${userText}${sysHint}`,
