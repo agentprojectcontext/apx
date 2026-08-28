@@ -39,7 +39,10 @@ apx <command> --help
 ```bash
 # One-shot super-agent call
 apx exec "prompt"               # default 'cli' channel
-apx exec --code "prompt"        # 'code' channel: coding system prompt + git/code tools
+apx exec --code "prompt"        # 'code' channel: coding prompt + git/code tools.
+                                # Runs in a persistent code session (visible at
+                                # /m/code); the session id is printed on stderr.
+apx exec --code --session <id> "…"   # continue that session instead of a new one
 apx exec --channel <name> "…"   # explicit channel (cli, code, api, …)
 
 # Project + daemon

@@ -367,9 +367,30 @@ Mirá [Deck](/apx/docs/es/surfaces/deck/) para la referencia de la CLI de vincul
 
 ### Code
 
-El módulo Code (`/m/code`) es la superficie de administración del asistente de codificación de APX
-(`apx code`). Te deja elegir un proyecto e inspeccionar el rastro de herramientas de sesiones
-recientes.
+El módulo Code (`/m/code`) es la superficie de administración del asistente de codificación de
+APX. Trabaja sobre una **sesión de código**: una transcripción persistente con su propio
+baseline de git, modo plan/build y, opcionalmente, un agente del proyecto.
+
+Abre con las sesiones de **todos los proyectos**, las más recientes primero — el selector de
+proyecto arriba del riel filtra la lista en vez de definirla. Importa porque una sesión
+pertenece al proyecto que resolvió su directorio de trabajo, así que una corrida arrancada en
+otro lado quedaría invisible acá. Cada fila dice de qué proyecto es y, si tiene uno, qué
+agente responde.
+
+**Nueva sesión** hace las dos preguntas que son decisiones: en qué proyecto corre (archivos,
+terminal y diff quedan acotados a él) y qué agente responde — el super-agente, o cualquier
+agente de ese proyecto. Las dos quedan a la vista después en el panel **Contexto**, donde
+además se puede cambiar el agente de esa sesión.
+
+La terminal comparte las mismas sesiones:
+
+```bash
+apx exec --code "refactorizá el middleware de auth"
+```
+
+corre un turno en una sesión nueva titulada con tu prompt, imprime la respuesta por stdout e
+imprime el id de la sesión por stderr para que puedas abrirla en el panel. Pasá
+`--session <id>` para continuar una existente.
 
 ### Config
 

@@ -121,6 +121,19 @@ function labelForEvent(event) {
   }
 }
 
+// A session title has to be readable in a list of twenty, so it is the prompt's
+// opening words rather than "New session" — the panel's session list is the
+// only place a `--code` turn can be found again, and twelve rows all reading
+// "New session" is the same as not finding it.
+const TITLE_MAX = 60;
+export function codeSessionTitle(prompt) {
+  const flat = String(prompt || "").replace(/\s+/g, " ").trim();
+  if (!flat) return "Code";
+  const firstLine = flat.split(/(?<=[.?!])\s/)[0] || flat;
+  const base = firstLine.length <= TITLE_MAX ? firstLine : flat;
+  return base.length <= TITLE_MAX ? base : base.slice(0, TITLE_MAX - 1).trimEnd() + "…";
+}
+
 async function readPromptFromStdin() {
   const fs = await import("node:fs");
   if (process.stdin.isTTY) return "";
@@ -138,6 +151,72 @@ async function readPromptFromStdin() {
   return chunks.join("").trim();
 }
 
+/**
+ * Run one `--code` turn inside a persistent code session.
+ *
+ * `--session <id>` continues an existing one (the session carries the history,
+ * mode, model and agent); without it a fresh session is created and titled from
+ * the prompt. Either way the id is printed on stderr so the caller — a human or
+ * an agent shelling out — knows exactly which session to open in the panel.
+ */
+async function runCodeSessionTurn({ args, pid, prompt, model }) {
+  const flagged = args.flags.session;
+  let sid = typeof flagged === "string" && flagged.trim() ? flagged.trim() : null;
+  let created = false;
+
+  if (!sid) {
+    // No agentSlug here on purpose: `-a <slug>` never reaches this path — it
+    // sets useSuperAgent=false and routes to the agent's own exec endpoint.
+    const session = await http.post(`/api/projects/${pid}/code/sessions`, {
+      title: codeSessionTitle(prompt),
+      ...(model ? { model } : {}),
+    });
+    sid = session.id;
+    created = true;
+  }
+
+  const status = createExecStatus();
+  status.start();
+  let result;
+  try {
+    result = await http.streamPost(
+      `/api/projects/${pid}/code/sessions/${sid}/chat/stream`,
+      { prompt, channel: CHANNELS.CODE, cwd: process.cwd(), confirm: false },
+      (event) => status.set(labelForEvent(event))
+    );
+  } catch (e) {
+    // Name the session even on failure: the user turn is already stored there,
+    // so that is where the half-finished run can be inspected and resumed.
+    process.stderr.write(
+      `\n— code session ${sid}${created ? " (new)" : ""} | project ${pid} | ${http.baseUrl()}/m/code\n`
+    );
+    throw e;
+  } finally {
+    status.clear();
+  }
+
+  // A turn that produced no text is a failed turn, not an empty answer. Saying
+  // so beats a blank line and exit 0, which reads as "it worked, silently".
+  if (!result?.text) {
+    throw new Error(
+      `apx exec --code: the turn ended without a reply. Session ${sid} (project ${pid}) has the transcript: ${http.baseUrl()}/m/code`
+    );
+  }
+
+  process.stdout.write(result.text + "\n");
+  // Always tell the caller where the turn landed — a piped/scripted run needs
+  // the id to pass back as --session, and a human needs it to find the session
+  // in the panel. stderr keeps stdout clean for scripts.
+  process.stderr.write(
+    `\n— code session ${sid}${created ? " (new)" : ""} | project ${pid} | ${http.baseUrl()}/m/code\n`
+  );
+  if (process.stderr.isTTY || args.flags.verbose) {
+    process.stderr.write(
+      `— ${result.name || "super-agent"} | in=${result.usage?.input_tokens || "?"} out=${result.usage?.output_tokens || "?"}\n`
+    );
+  }
+}
+
 export async function cmdExec(args) {
   const { slug, useSuperAgent, promptParts } = resolveExecRequest(args);
   let prompt = promptParts.join(" ").trim();
@@ -152,14 +231,24 @@ export async function cmdExec(args) {
   }
 
   const pid = await resolveProjectId(args?.flags?.project);
+  const channel = resolveExecChannel(args);
   const body = {
     prompt,
-    channel: resolveExecChannel(args),
+    channel,
     channelMeta: { cwd: process.cwd() },
   };
   if (args.flags.model && args.flags.model !== true) body.model = args.flags.model;
   if (args.flags.temperature) body.temperature = parseFloat(args.flags.temperature);
   if (args.flags["max-tokens"]) body.maxTokens = parseInt(args.flags["max-tokens"], 10);
+
+  // The code channel runs through a persistent code session instead of the
+  // stateless super-agent route. Same output on stdout; the difference is that
+  // the turn is now READABLE afterwards in the web panel (/m/code) and by the
+  // next `--code` turn that continues the session, instead of existing only in
+  // whatever terminal happened to run it.
+  if (useSuperAgent && channel === CHANNELS.CODE) {
+    return runCodeSessionTurn({ args, pid, prompt, model: body.model });
+  }
 
   if (useSuperAgent) {
     // Stream the turn so we can render a live progress indicator instead of a

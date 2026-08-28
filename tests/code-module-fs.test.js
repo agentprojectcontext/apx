@@ -36,3 +36,58 @@ test("CodeFileTree lists files via ProjectFiles.tree, not a find pipeline", () =
 test("CodeTerminal still talks to /api/run (it is the terminal)", () => {
   assert.match(read(TERMINAL), /["'`]\/api\/run["'`]/);
 });
+
+// ---------------------------------------------------------------------------
+// The panel showed only the ACTIVE project's sessions, so a session started
+// from any other cwd — every `apx exec --code` run — was invisible, with no
+// hint that it existed. The list is now unfiltered by default and the project
+// picker narrows it; the open session's project comes from the ROW, since an id
+// alone does not address a session.
+
+const SESSION_LIST = "src/interfaces/web/src/components/code/CodeSessionList.tsx";
+const NEW_DIALOG = "src/interfaces/web/src/components/code/NewCodeSessionDialog.tsx";
+const CODE_API = "src/interfaces/web/src/lib/api/code.ts";
+
+test("the session list defaults to every project, and the picker is the filter", () => {
+  const src = read(SCREEN);
+  assert.match(src, /Code\.sessions\.listAll\(\)/, "the unfiltered list must be the default");
+  assert.match(src, /filterPid \? Code\.sessions\.list\(filterPid\) : Code\.sessions\.listAll\(\)/);
+  // The picker narrows the LIST; it must not be wired straight to the project
+  // the open session runs in, which is what conflated the two.
+  assert.match(src, /onChange=\{onFilterProject\}/);
+});
+
+test("selecting a session moves to the row's project, not the filter's", () => {
+  const src = read(SCREEN);
+  // A cross-project row carries its own pid; opening it with the project in
+  // view would 404 or, worse, hit a same-id session elsewhere.
+  assert.match(src, /const onSelectSession = \(row: CodeSessionRow\)/);
+  assert.match(src, /setPid\(rowPid\(row\)\)/);
+  assert.match(src, /Code\.sessions\.remove\(target\.pid, target\.id\)/);
+});
+
+test("the cross-project route is the one the client calls for the full list", () => {
+  assert.match(read(CODE_API), /["'`]\/api\/code\/sessions["'`]/);
+});
+
+test("agent choice lives at session creation, not in a rail dropdown", () => {
+  const dialog = read(NEW_DIALOG);
+  assert.match(dialog, /agentSlug/, "the dialog must carry the agent");
+  assert.match(dialog, /allowAll=\{false\}/, "a new session has to land in a project");
+
+  // The old rail control read as a global "who am I talking to" while silently
+  // re-pointing whichever session was open. It must not come back.
+  const src = read(SCREEN);
+  assert.doesNotMatch(
+    src,
+    /<UiSelect[\s\S]{0,200}?onChange=\{onAgentChange\}/,
+    "the agent selector belongs in the dialog and the session's Context panel"
+  );
+  assert.match(src, /<NewCodeSessionDialog/);
+});
+
+test("session rows name their project and their agent", () => {
+  const src = read(SESSION_LIST);
+  assert.match(src, /s\.projectName/, "a cross-project list must say which project");
+  assert.match(src, /s\.agentSlug/, "and who answers in the session");
+});

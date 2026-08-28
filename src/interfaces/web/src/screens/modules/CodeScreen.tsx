@@ -8,11 +8,15 @@ import { Artifacts } from "../../lib/api/artifacts";
 import { ProjectFiles } from "../../lib/api/projectFiles";
 import { Empty, Loading } from "../../components/ui";
 import { Tip } from "../../components/ui/tip";
-import { UiSelect } from "../../components/UiSelect";
 import { useSetPageLabel, useSetPageActions } from "../../hooks/useNavCollapseCtx";
 import { MessageList } from "../../components/chat/MessageList";
-import { CodeProjectPicker } from "../../components/code/CodeProjectPicker";
+import { CodeProjectPicker, ALL_PROJECTS } from "../../components/code/CodeProjectPicker";
 import { CodeSessionList } from "../../components/code/CodeSessionList";
+import {
+  NewCodeSessionDialog,
+  SUPER_AGENT_VALUE,
+  type NewSessionValues,
+} from "../../components/code/NewCodeSessionDialog";
 import { CodeComposer } from "../../components/code/CodeComposer";
 import { CodeSidePanel } from "../../components/code/CodeSidePanel";
 import { CodeFileTree } from "../../components/code/CodeFileTree";
@@ -23,12 +27,10 @@ import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import { useToast } from "../../components/Toast";
 import { t } from "../../i18n";
 import { applyStreamEvent, textOf, type ChatMsg } from "../../hooks/useChat";
-import type { CodeMode, CodeStreamEvent, CodeTurn } from "../../lib/api/code";
+import type { CodeMode, CodeSessionRow, CodeStreamEvent, CodeTurn } from "../../lib/api/code";
 
 // Suppress unused import warning for textOf (kept for consumers)
 void textOf;
-
-const SUPER_AGENT_VALUE = "super-agent";
 
 // Hit area is wider than the visible line so the handle is comfortable to
 // grab — the inner ::before line is what the user sees.
@@ -54,9 +56,16 @@ export function CodeScreen() {
   const projects = useSWR("/api/projects", () => Projects.list());
   const projectList = useMemo(() => projects.data || [], [projects.data]);
 
+  // Two different projects live here, and conflating them was the bug.
+  //   filterPid — what the session LIST shows. "" = every project (the default).
+  //   pid       — the project the OPEN session belongs to. Everything else in
+  //               the module (files, terminal, artifacts, diff, agents) is
+  //               scoped to this one, and it follows the session, not the filter.
+  const [filterPid, setFilterPid] = useState<string>(ALL_PROJECTS);
   const [pid, setPid] = useState<string>("");
   const [sid, setSid] = useState<string | null>(null);
-  const [agentSlug, setAgentSlug] = useState<string>(SUPER_AGENT_VALUE);
+  const [newOpen, setNewOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [msgs, setMsgs] = useState<ChatMsg[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -65,8 +74,9 @@ export function CodeScreen() {
   const [termOpen, setTermOpen] = useState(false);
   const [termInitCmd, setTermInitCmd] = useState("");
   const [worktreeOpen, setWorktreeOpen] = useState(false);
-  // Session id pending delete confirmation.
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  // Session pending delete confirmation — id AND project, since the list can
+  // span projects and an id alone does not address a session.
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; pid: string } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const deepLinkDone = useRef(false);
@@ -88,14 +98,25 @@ export function CodeScreen() {
     setTermInitCmd(cmd);
   }, []);
 
-  // Default to the first registered project once the list loads.
+  // Default to the first registered project once the list loads — only as the
+  // fallback scope for a screen with no session open yet.
   useEffect(() => {
     if (!pid && projectList.length) setPid(String(projectList[0].id));
   }, [pid, projectList]);
 
-  // Sessions for the active project.
-  const sessions = useSWR(pid ? ["code-sessions", pid] : null, () =>
-    Code.sessions.list(pid),
+  // The session list. Unfiltered by default: a session started by
+  // `apx exec --code` belongs to whatever project that cwd resolved to, and
+  // scoping the list to the project in view made those invisible.
+  const sessions = useSWR(
+    filterPid ? ["code-sessions", filterPid] : ["code-sessions", "all"],
+    () => (filterPid ? Code.sessions.list(filterPid) : Code.sessions.listAll()),
+  );
+
+  // Rows carry their own pid only in the cross-project list; when the list is
+  // already scoped, the filter IS the pid.
+  const rowPid = useCallback(
+    (row: CodeSessionRow) => String(row.pid ?? filterPid ?? pid),
+    [filterPid, pid],
   );
 
   // Agents for the active project.
@@ -111,17 +132,16 @@ export function CodeScreen() {
     Code.changes(pid, sid!),
   );
 
-  // Auto-select the newest session when the list loads / project changes.
+  // Auto-select the newest session when the list loads or the filter changes.
+  // Selecting also moves `pid`: the row's project is what makes it openable.
   useEffect(() => {
     const list = sessions.data || [];
-    if (!sid && list.length) setSid(list[0].id);
-    if (sid && list.length && !list.some((s) => s.id === sid)) setSid(list[0]?.id ?? null);
-  }, [sessions.data, sid]);
-
-  // Sync agentSlug from the active session when it loads.
-  useEffect(() => {
-    if (session.data) setAgentSlug(session.data.agentSlug || SUPER_AGENT_VALUE);
-  }, [session.data]);
+    if (!list.length) return;
+    if (sid && list.some((s) => s.id === sid)) return;
+    const next = list[0];
+    setSid(next.id);
+    setPid(rowPid(next));
+  }, [sessions.data, sid, rowPid]);
 
   // Hydrate the message list whenever the active session's transcript loads.
   // (Not while streaming — we own the array then.)
@@ -138,57 +158,71 @@ export function CodeScreen() {
   const mode: CodeMode = active?.mode === "plan" ? "plan" : "build";
   const model = active?.model || "";
 
-  const onPickProject = (next: string) => {
-    if (next === pid || busy) return;
-    setPid(next);
+  // Narrowing the LIST. It deliberately does not touch the open session's
+  // project — the auto-select effect moves to whatever the new list holds.
+  const onFilterProject = (next: string) => {
+    if (next === filterPid || busy) return;
+    setFilterPid(next);
     setSid(null);
     setMsgs([]);
   };
 
-  const onSelectSession = (id: string) => {
-    if (busy || id === sid) return;
-    setSid(id);
+  const onSelectSession = (row: CodeSessionRow) => {
+    if (busy || row.id === sid) return;
+    setPid(rowPid(row));
+    setSid(row.id);
     setMsgs([]);
   };
 
-  const onCreateSession = async () => {
-    if (!pid || busy) return;
+  const onCreateSession = async (values: NewSessionValues) => {
+    if (busy) return;
+    setCreating(true);
     try {
-      const created = await Code.sessions.create(pid, {
-        title: t("code_module.untitled"),
-        agentSlug: agentSlug !== SUPER_AGENT_VALUE ? agentSlug : null,
+      const created = await Code.sessions.create(values.pid, {
+        title: values.title,
+        agentSlug: values.agentSlug,
+        mode: values.mode,
       });
-      await sessions.mutate();
+      // The new session may live outside the current filter — show it rather
+      // than creating something the list then hides.
+      if (filterPid && filterPid !== values.pid) setFilterPid(values.pid);
+      setPid(values.pid);
       setSid(created.id);
       setMsgs([]);
+      setNewOpen(false);
+      await sessions.mutate();
     } catch (e) {
       toast.error((e as Error).message);
+    } finally {
+      setCreating(false);
     }
   };
 
-  const onRenameSession = async (id: string, current: string) => {
+  const onRenameSession = async (row: CodeSessionRow, current: string) => {
     const title = window.prompt(t("code_module.rename"), current);
     if (!title || title === current) return;
     try {
-      await Code.sessions.update(pid, id, { title });
+      await Code.sessions.update(rowPid(row), row.id, { title });
       await sessions.mutate();
-      if (id === sid) await session.mutate();
+      if (row.id === sid) await session.mutate();
     } catch (e) {
       toast.error((e as Error).message);
     }
   };
 
-  const onDeleteSession = (id: string) => {
+  const onDeleteSession = (row: CodeSessionRow) => {
     if (busy) return;
-    setConfirmDelete(id);
+    // Keep the row's project: deleting by the project in view would 404 (or,
+    // worse, hit a same-id session elsewhere).
+    setConfirmDelete({ id: row.id, pid: rowPid(row) });
   };
 
   const doDeleteSession = async () => {
-    const id = confirmDelete;
-    if (!id) return;
+    const target = confirmDelete;
+    if (!target) return;
     try {
-      await Code.sessions.remove(pid, id);
-      if (id === sid) {
+      await Code.sessions.remove(target.pid, target.id);
+      if (target.id === sid) {
         setSid(null);
         setMsgs([]);
       }
@@ -198,9 +232,12 @@ export function CodeScreen() {
     }
   };
 
-  // Persist mode / model changes to the session (PATCH) + keep SWR in sync.
+  // Re-point THIS session at another agent. The choice is made when the session
+  // is created (see NewCodeSessionDialog); this is the correction, and it lives
+  // in the session's own properties panel so it cannot be mistaken for a global
+  // "who am I talking to" switch — which is exactly how the old rail dropdown
+  // read.
   const onAgentChange = async (slug: string) => {
-    setAgentSlug(slug);
     if (!sid) return;
     try {
       await Code.sessions.update(pid, sid, {
@@ -212,6 +249,7 @@ export function CodeScreen() {
     }
   };
 
+  // Persist mode / model changes to the session (PATCH) + keep SWR in sync.
   const patchSession = useCallback(
     async (patch: { mode?: CodeMode; model?: string | null }) => {
       if (!sid) return;
@@ -397,13 +435,15 @@ export function CodeScreen() {
 
   const hasProjects = !projects.isLoading && projectList.length > 0;
 
+  // Roster of the OPEN session's project — the Context panel edits this
+  // session, so a slug from another project would be dropped on save.
   const agentOptions = useMemo(() => {
     const base = [{ value: SUPER_AGENT_VALUE, label: t("modules_ui.code_super_agent"), icon: Bot, description: t("modules_ui.code_super_agent_desc") }];
     const project = (agentsData.data || []).map((a) => ({
       value: a.slug,
-      label: a.slug,
+      label: a.name || a.slug,
       icon: Bot,
-      description: a.description || a.role || undefined,
+      description: a.description || a.role || a.slug,
     }));
     return [...base, ...project];
   }, [agentsData.data]);
@@ -415,6 +455,9 @@ export function CodeScreen() {
   );
   const activeProject = useMemo(() => projectList.find((p) => String(p.id) === pid), [projectList, pid]);
   useSetPageLabel(activeTitle);
+
+  // The list spans projects unless narrowed, so rows must say which one.
+  const showProject = !filterPid;
 
   // Detect unanswered ask_questions in the last assistant turn. Local "dismissed"
   // ref keys off the turn id so the panel re-appears for a fresh batch.
@@ -477,7 +520,12 @@ export function CodeScreen() {
           {/* TOP: horizontal split across [left | tree | main | right] */}
           <Panel id="top" defaultSize={termOpen ? "55%" : "100%"} minSize="20%">
             <PanelGroup orientation="horizontal" id="code-layout" className="h-full">
-              {/* Left panel: session list + agent selector */}
+              {/* Left panel: project FILTER over the session list.
+                  The agent selector that used to sit at the bottom of this rail
+                  is gone: it read as "who am I talking to" while silently
+                  re-pointing whichever session was open. It now lives where the
+                  choice is actually made (the New session dialog) and where it
+                  is corrected (the session's Context panel). */}
               {leftOpen && (
                 <>
                   <Panel id="left" defaultSize="14%" minSize="8%">
@@ -485,8 +533,8 @@ export function CodeScreen() {
                       <div className="shrink-0 border-b border-border p-2">
                         <CodeProjectPicker
                           projects={projectList}
-                          value={pid}
-                          onChange={onPickProject}
+                          value={filterPid}
+                          onChange={onFilterProject}
                           disabled={busy}
                         />
                       </div>
@@ -495,19 +543,12 @@ export function CodeScreen() {
                           sessions={sessions.data || []}
                           activeId={sid}
                           busy={busy}
+                          showProject={showProject}
+                          filtered={!!filterPid}
                           onSelect={onSelectSession}
-                          onCreate={onCreateSession}
+                          onCreate={() => setNewOpen(true)}
                           onRename={onRenameSession}
                           onDelete={onDeleteSession}
-                        />
-                      </div>
-                      <div className="shrink-0 border-t border-border p-2">
-                        <UiSelect
-                          value={agentSlug}
-                          onChange={onAgentChange}
-                          options={agentOptions}
-                          disabled={busy}
-                          showIcon={true}
                         />
                       </div>
                     </aside>
@@ -663,9 +704,13 @@ export function CodeScreen() {
                                 createdAt: session.data.createdAt,
                                 updatedAt: session.data.updatedAt,
                                 agentSlug: session.data.agentSlug ?? null,
+                                projectName: activeProject?.name ?? null,
                               }
                             : null
                         }
+                        agentOptions={agentOptions}
+                        onAgentChange={onAgentChange}
+                        busy={busy}
                         onRunInTerminal={runInTerminal}
                         onEditArtifact={openArtifact}
                       />
@@ -687,6 +732,15 @@ export function CodeScreen() {
           )}
         </PanelGroup>
       )}
+
+      <NewCodeSessionDialog
+        open={newOpen}
+        projects={projectList}
+        defaultPid={pid || String(projectList[0]?.id ?? "")}
+        busy={creating}
+        onClose={() => setNewOpen(false)}
+        onCreate={(values) => void onCreateSession(values)}
+      />
 
       <ConfirmDialog
         open={!!confirmDelete}

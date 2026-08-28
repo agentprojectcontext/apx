@@ -177,12 +177,18 @@ async function streamRequest(method, path, body, onEvent, opts = {}) {
     opts.signal.addEventListener("abort", () => reader.cancel().catch(() => {}), { once: true });
   }
 
+  // A read that dies mid-stream is NOT a clean end unless the caller aborted:
+  // the turn was cut off. Remembered here and raised below, because breaking
+  // out silently returned null and the caller printed an empty answer with exit
+  // 0 — the turn had failed and nothing said so.
+  let readError = null;
+
   while (true) {
     let chunk;
     try {
       chunk = await reader.read();
     } catch (e) {
-      // AbortError or cancel — treat as clean end
+      if (!opts.signal?.aborted) readError = e;
       break;
     }
     if (chunk.done) break;
@@ -198,14 +204,29 @@ async function streamRequest(method, path, body, onEvent, opts = {}) {
     }
   }
 
+  // Trailing line with no newline. Only a PARSE failure is ignorable here — a
+  // half-written line at a dropped connection. Wrapping the whole block in a
+  // bare catch also swallowed the `error` event's throw, which is how a failed
+  // turn reached the user as a blank line and a zero exit code.
   buffer += decoder.decode();
   if (buffer.trim()) {
+    let event = null;
     try {
-      const event = JSON.parse(buffer);
+      event = JSON.parse(buffer);
+    } catch {
+      event = null;
+    }
+    if (event) {
       if (event.type === "final") finalResult = event.result;
       if (event.type === "error") throw new Error(event.error || "stream error");
       await onEvent?.(event);
-    } catch {}
+    }
+  }
+
+  if (readError) {
+    throw new Error(
+      `${method} ${path}: the stream ended early (${readError.message}). The turn did not finish.`
+    );
   }
 
   return finalResult;

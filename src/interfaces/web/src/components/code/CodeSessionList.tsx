@@ -1,4 +1,4 @@
-import { Plus, MessageSquare, Trash2, Pencil } from "lucide-react";
+import { Plus, MessageSquare, Trash2, Pencil, Bot } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 import { Empty } from "../ui";
@@ -9,17 +9,28 @@ interface Props {
   sessions: CodeSessionRow[];
   activeId: string | null;
   busy: boolean;
-  onSelect: (id: string) => void;
+  /** Name each row's project — true while the list spans more than one. */
+  showProject?: boolean;
+  /** Empty-state copy differs between "no sessions at all" and "none here". */
+  filtered?: boolean;
+  onSelect: (row: CodeSessionRow) => void;
   onCreate: () => void;
-  onRename: (id: string, current: string) => void;
-  onDelete: (id: string) => void;
+  onRename: (row: CodeSessionRow, current: string) => void;
+  onDelete: (row: CodeSessionRow) => void;
 }
 
-// Left-rail list of a project's code sessions (OpenCode's session switcher).
+// Left-rail list of code sessions (OpenCode's session switcher).
+//
+// The rows carry their project and their agent on purpose: a session created
+// from `apx exec --code` in some other checkout lands in THAT project, and
+// without those two facts on the row the list is a wall of "New session" you
+// cannot tell apart.
 export function CodeSessionList({
   sessions,
   activeId,
   busy,
+  showProject = false,
+  filtered = false,
   onSelect,
   onCreate,
   onRename,
@@ -47,15 +58,18 @@ export function CodeSessionList({
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
         {sessions.length === 0 ? (
           <div className="p-2">
-            <Empty>{t("code_module.no_sessions")}</Empty>
+            <Empty>
+              {t(filtered ? "code_module.no_sessions_here" : "code_module.no_sessions")}
+            </Empty>
           </div>
         ) : (
           <ul className="space-y-0.5">
             {sessions.map((s) => (
-              <li key={s.id} className="group/item relative">
+              <li key={`${s.pid ?? ""}:${s.id}`} className="group/item relative">
                 <button
                   type="button"
-                  onClick={() => onSelect(s.id)}
+                  onClick={() => onSelect(s)}
+                  data-testid="code-session-row"
                   className={cn(
                     "flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors",
                     s.id === activeId
@@ -67,15 +81,22 @@ export function CodeSessionList({
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-medium">{s.title}</span>
                     <span className="block truncate text-[10px] text-muted-foreground">
-                      {s.mode} · {s.messageCount} msg{s.model ? ` · ${s.model}` : ""}
+                      {showProject && s.projectName ? `${s.projectName} · ` : ""}
+                      {s.mode} · {t("code_module.msg_count", { n: s.messageCount })}
                     </span>
+                    {s.agentSlug && (
+                      <span className="mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground">
+                        <Bot className="size-2.5 shrink-0 opacity-70" />
+                        <span className="truncate font-mono">{s.agentSlug}</span>
+                      </span>
+                    )}
                   </span>
                 </button>
                 <div className="absolute right-1 top-1 hidden items-center gap-0.5 group-hover/item:flex">
                   <Tip content={t("code_module.rename")}>
                     <button
                       type="button"
-                      onClick={() => onRename(s.id, s.title)}
+                      onClick={() => onRename(s, s.title)}
                       className="rounded p-1 text-muted-foreground hover:bg-background hover:text-foreground"
                     >
                       <Pencil className="size-3" />
@@ -84,7 +105,7 @@ export function CodeSessionList({
                   <Tip content={t("code_module.delete")}>
                     <button
                       type="button"
-                      onClick={() => onDelete(s.id)}
+                      onClick={() => onDelete(s)}
                       className="rounded p-1 text-muted-foreground hover:bg-background hover:text-rose-500"
                     >
                       <Trash2 className="size-3" />

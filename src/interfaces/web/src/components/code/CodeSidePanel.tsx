@@ -6,6 +6,7 @@ import { t } from "../../i18n";
 import { CodeContextTab } from "./CodeContextTab";
 import { CodeChangesTab } from "./CodeChangesTab";
 import { CodeArtifactsTab } from "./CodeArtifactsTab";
+import type { UiSelectOption } from "../UiSelect";
 import type { CodeChanges, CodeTurn } from "../../lib/api/code";
 
 interface Props {
@@ -14,7 +15,18 @@ interface Props {
   changes: CodeChanges | undefined;
   changesLoading: boolean;
   onRefreshChanges: () => void;
-  session?: { title: string; mode: string; createdAt: string; updatedAt: string; agentSlug: string | null } | null;
+  session?: {
+    title: string;
+    mode: string;
+    createdAt: string;
+    updatedAt: string;
+    agentSlug: string | null;
+    projectName?: string | null;
+  } | null;
+  /** Agent roster of the session's project — makes the Context agent editable. */
+  agentOptions?: UiSelectOption[];
+  onAgentChange?: (slug: string) => void;
+  busy?: boolean;
   onRunInTerminal?: (cmd: string) => void;
   onEditArtifact?: (name: string) => void;
 }
@@ -25,7 +37,19 @@ const TABS = [
   { value: "artifacts", icon: Package, label: "tab_artifacts" },
 ] as const;
 
-export function CodeSidePanel({ pid, turns, changes, changesLoading, onRefreshChanges, session, onRunInTerminal, onEditArtifact }: Props) {
+export function CodeSidePanel({
+  pid,
+  turns,
+  changes,
+  changesLoading,
+  onRefreshChanges,
+  session,
+  agentOptions,
+  onAgentChange,
+  busy,
+  onRunInTerminal,
+  onEditArtifact,
+}: Props) {
   const [active, setActive] = useState<string>("context");
   const changeCount = changes?.files.length || 0;
 
@@ -58,7 +82,13 @@ export function CodeSidePanel({ pid, turns, changes, changesLoading, onRefreshCh
         </TabsList>
       </div>
       <TabsContent value="context" className="min-h-0 flex-1 overflow-y-auto">
-        <CodeContextTab turns={turns} session={session} />
+        <CodeContextTab
+          turns={turns}
+          session={session}
+          agentOptions={agentOptions}
+          onAgentChange={onAgentChange}
+          busy={busy}
+        />
       </TabsContent>
       <TabsContent value="changes" className="min-h-0 flex-1 overflow-hidden">
         <CodeChangesTab changes={changes} loading={changesLoading} onRefresh={onRefreshChanges} />
