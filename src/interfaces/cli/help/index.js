@@ -2359,7 +2359,7 @@ export function buildHelp(version) {
     hCmd("apx image \"<prompt>\"",      36, "text-to-image via the routed engine  --out  --size  --steps  --cfg  --provider"),
     hCmd("apx image providers",        36, "which image engines are configured and reachable"),
 
-    hSec("Voice & Overlay"),
+    hSec("Voice & Desktop"),
     hCmd("apx voice say \"text\"",     36, "TTS via daemon  --provider <id>  --voice <name>  --no-play"),
     hCmd("apx voice listen",           36, "mic → /voice/turn → reply  --seconds N  --no-play"),
     hCmd("apx voice providers",        36, "list configured TTS / STT providers"),
