@@ -246,3 +246,46 @@ test("rename repoints groups, tasks, deliveries, code sessions, telegram and .ap
     cleanupTempProject(other);
   }
 });
+
+test("renaming an imported vault agent leaves no ghost under the old slug", async () => {
+  const root = makeTempProject({});
+  const { app } = makeApp(root);
+  const { server, baseUrl } = await listen(app);
+  try {
+    const pid = await pidFor(baseUrl, root);
+
+    // The shape a vault import leaves behind: NO local .apc/agents/<slug>.md —
+    // the roster resolves the agent through `agents.imported` (what `apx agent
+    // import` and the import_agent tool write). Renaming used to materialize
+    // the new slug locally and leave this entry pointing at the vault, so the
+    // same agent came back as a second card.
+    const projectFile = path.join(root, ".apc", "project.json");
+    const meta = JSON.parse(fs.readFileSync(projectFile, "utf8"));
+    meta.agents = { imported: ["tessa-qa"] };
+    fs.writeFileSync(projectFile, JSON.stringify(meta, null, 2) + "\n");
+    assert.ok(!fs.existsSync(path.join(root, ".apc", "agents", "tessa-qa.md")));
+
+    let r = await fetch(`${baseUrl}/api/projects/${pid}/agents`);
+    assert.deepEqual((await r.json()).map((a) => a.slug), ["tessa-qa"]);
+
+    r = await fetch(`${baseUrl}/api/projects/${pid}/agents/tessa-qa/rename`, {
+      method: "POST", headers: json, body: JSON.stringify({ slug: "nadia" }),
+    });
+    assert.equal(r.status, 200, JSON.stringify(await r.clone().json()));
+
+    // One agent, under the new slug — not two.
+    const roster = await (await fetch(`${baseUrl}/api/projects/${pid}/agents`)).json();
+    assert.deepEqual(roster.map((a) => a.slug), ["nadia"]);
+    assert.equal((await fetch(`${baseUrl}/api/projects/${pid}/agents/tessa-qa`)).status, 404);
+
+    // Materialized locally, and the import entry that resurrected it is gone.
+    assert.ok(fs.existsSync(path.join(root, ".apc", "agents", "nadia.md")));
+    assert.deepEqual(
+      JSON.parse(fs.readFileSync(projectFile, "utf8")).agents.imported,
+      [],
+    );
+  } finally {
+    await new Promise((res) => server.close(res));
+    cleanupTempProject(root);
+  }
+});
