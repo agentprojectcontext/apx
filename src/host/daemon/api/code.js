@@ -1,17 +1,24 @@
 // Code module API — persistent OpenCode-style coding sessions per project.
 //
+//   GET    /code/sessions                               every project's, tagged with pid
 //   GET    /projects/:pid/code/sessions
 //   POST   /projects/:pid/code/sessions                 { title?, model?, mode? }
 //   GET    /projects/:pid/code/sessions/:sid
 //   PATCH  /projects/:pid/code/sessions/:sid            { title?, model?, mode? }
 //   DELETE /projects/:pid/code/sessions/:sid
-//   POST   /projects/:pid/code/sessions/:sid/chat/stream   { prompt }   NDJSON
+//   POST   /projects/:pid/code/sessions/:sid/chat/stream                    NDJSON
+//                        { prompt, channel?, cwd?, confirm? }
 //   GET    /projects/:pid/code/sessions/:sid/changes
 //
 // Unlike the stateless super-agent endpoint, these sessions are server-side
 // stateful: the turn handler rebuilds `previousMessages` from the stored
-// transcript, runs the super-agent on the `code` channel (with plan/build mode
+// transcript, runs the super-agent on a code channel (with plan/build mode
 // + per-mode tool gating), then persists the rich assistant turn.
+//
+// Both code surfaces come through here: the web panel (`web_code`) and
+// `apx exec --code` (`code`). That is the point — a session is where a coding
+// turn is READABLE afterwards, so a turn that skips it is a turn nobody can
+// find. See resolveCodeChannel().
 import { runSuperAgent } from "#core/agent/super-agent.js";
 import { appendSuperAgentErrorTrace, asyncRoute } from "./shared.js";
 import { createWebConfirmAdapter } from "#core/confirmation/adapters/web.js";
@@ -19,6 +26,7 @@ import { CHANNELS } from "#core/constants/channels.js";
 import { CODE_MODES, DEFAULT_CODE_MODE } from "#core/constants/code-modes.js";
 import {
   listCodeSessions,
+  listCodeSessionsAcross,
   getCodeSession,
   createCodeSession,
   updateCodeSession,
@@ -43,12 +51,41 @@ function modeGuidanceFor(mode) {
   return codeModeGuidance(mode);
 }
 
+// A code session is the persistent thing; `code` and `web_code` are the two
+// SURFACES that drive one. The web panel is the default; `apx exec --code`
+// passes `channel: "code"` so the turn is prompted as the terminal surface it
+// actually came from (and gets the caller's cwd) while still landing in a
+// session the panel can open. Anything else falls back to the web channel —
+// a client must not be able to name an arbitrary channel here.
+const CODE_CHANNELS = new Set([CHANNELS.CODE, CHANNELS.WEB_CODE]);
+function resolveCodeChannel(raw) {
+  const channel = String(raw || "").toLowerCase();
+  return CODE_CHANNELS.has(channel) ? channel : CHANNELS.WEB_CODE;
+}
+
 // History flattening + stream-event accumulator now live in core/ — see
 // codeSessionHistory() (transcript → engine messages) and makeTurnAccumulator()
 // (stream events → persistable ChatParts) imported above.
 
 export function register(api, { projects, project, config, registries, plugins }) {
   const findProject = (req, res) => project(req, res);
+
+  // ---- List across every project ------------------------------------------
+  // A code session is addressed by (project, id), so a client that only knows
+  // the project it is currently looking at cannot find a session started
+  // anywhere else — from the panel a turn run from another cwd simply looked
+  // lost. This is the unfiltered list; the per-project route below is the
+  // filter, not the default.
+  api.get("/code/sessions", (req, res) => {
+    const entries = projects
+      .list()
+      .map((row) => ({
+        id: row.id,
+        name: row.name,
+        storagePath: projects.get(row.id)?.storagePath || null,
+      }));
+    res.json({ sessions: listCodeSessionsAcross(entries) });
+  });
 
   // ---- List ----------------------------------------------------------------
   api.get("/projects/:pid/code/sessions", (req, res) => {
@@ -135,8 +172,9 @@ export function register(api, { projects, project, config, registries, plugins }
     if (!p) return;
     const session = getCodeSession(p.storagePath, req.params.sid);
     if (!session) return res.status(404).json({ error: "session not found" });
-    const { prompt } = req.body || {};
+    const { prompt, cwd } = req.body || {};
     if (!prompt) return res.status(400).json({ error: "prompt required" });
+    const channel = resolveCodeChannel(req.body?.channel);
 
     const mode = session.mode === CODE_MODES.PLAN ? CODE_MODES.PLAN : DEFAULT_CODE_MODE;
     const previousMessages = codeSessionHistory(session);
@@ -176,11 +214,14 @@ export function register(api, { projects, project, config, registries, plugins }
         plugins,
         registries,
         prompt,
-        channel: CHANNELS.WEB_CODE,
+        channel,
         channelMeta: {
           projectId: String(p.id),
           projectName: p.name,
           projectPath: p.path,
+          // `code.md` renders {{cwd}}; a missing var renders empty, so the web
+          // surface is unaffected by carrying the key.
+          cwd: typeof cwd === "string" && cwd ? cwd : p.path,
           mode,
           modeGuidance: modeGuidanceFor(mode),
           agentSlug: session.agentSlug || null,
@@ -201,7 +242,12 @@ export function register(api, { projects, project, config, registries, plugins }
         // it keeps the normal "text ends the turn" behavior.
         completionContract: mode === CODE_MODES.BUILD,
         onEvent,
-        requestConfirmation: createWebConfirmAdapter({ onEvent }),
+        // The confirmation round-trip needs a client that can answer it (the
+        // panel POSTs to /super-agent/confirm/:id). `apx exec --code` streams
+        // only to draw a spinner, so it sends `confirm: false` and falls back
+        // to the permission policy — same opt-out the super-agent route has.
+        requestConfirmation:
+          req.body?.confirm === false ? undefined : createWebConfirmAdapter({ onEvent }),
       });
       projects.rebuild(p.id);
 
@@ -242,7 +288,7 @@ export function register(api, { projects, project, config, registries, plugins }
       });
       appendSuperAgentErrorTrace(req, e, {
         prompt,
-        channel: CHANNELS.WEB_CODE,
+        channel,
         previousMessages,
         model: session.model,
         stream: true,

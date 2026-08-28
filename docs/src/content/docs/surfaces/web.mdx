@@ -363,9 +363,30 @@ See [Deck](/apx/docs/surfaces/deck/) for the pairing CLI reference.
 
 ### Code
 
-The Code module (`/m/code`) is the admin surface for the APX coding assistant
-(`apx code`). It lets you pick a project and inspect the tool trail from recent
-sessions.
+The Code module (`/m/code`) is the admin surface for the APX coding assistant.
+It opens on a **code session**: a persistent transcript with its own git
+baseline, plan/build mode, and optional project agent.
+
+It opens on **every project's** sessions, newest first — the project picker at
+the top of the rail narrows the list rather than defining it. That matters
+because a session belongs to the project its working directory resolved to, so
+a run started elsewhere would otherwise be invisible here. Each row names its
+project and, when one is set, its agent.
+
+**New session** asks the two questions that are decisions: which project it
+runs in (files, terminal and diff are scoped to it) and which agent answers in
+it — the super-agent, or any agent of that project. Both are visible afterwards
+in the **Context** panel, where the agent can still be changed for that session.
+
+The terminal shares the same sessions:
+
+```bash
+apx exec --code "refactor the auth middleware"
+```
+
+runs one turn in a fresh session titled from your prompt, prints the reply on
+stdout, and prints the session id on stderr so you can open it in the panel.
+Pass `--session <id>` to continue an existing one.
 
 ### Config
 

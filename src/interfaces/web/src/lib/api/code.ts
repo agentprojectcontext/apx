@@ -44,6 +44,14 @@ export interface CodeSessionRow {
   updatedAt: string;
   messageCount: number;
   hasGit: boolean;
+  /**
+   * Which project the session lives in. Only the cross-project list fills these
+   * — every other read is already scoped to a project. A session id is NOT
+   * addressable on its own, so a row without its `pid` is a row the UI cannot
+   * open; treat the pair as the identity.
+   */
+  pid?: string;
+  projectName?: string | null;
 }
 
 /** Full session with transcript. */
@@ -83,6 +91,15 @@ const base = (pid: string | number) => `/api/projects/${pid}/code/sessions`;
 
 export const Code = {
   sessions: {
+    /**
+     * Every project's sessions, newest-updated first. This is the DEFAULT list:
+     * a session started from another cwd (`apx exec --code`) belongs to
+     * whichever project that cwd resolved to, and scoping the list to the
+     * project the panel happens to be showing made those simply disappear.
+     */
+    listAll: () =>
+      http.get<{ sessions: CodeSessionRow[] }>("/api/code/sessions").then((r) => r.sessions),
+
     list: (pid: string | number) =>
       http.get<{ sessions: CodeSessionRow[] }>(base(pid)).then((r) => r.sessions),
 

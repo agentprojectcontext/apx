@@ -61,6 +61,27 @@ export function listCodeSessions(storagePath) {
   return rows;
 }
 
+/**
+ * Every project's sessions in one list, newest-updated first.
+ *
+ * `projects` is plain data — `[{ id, name, storagePath }]` — so core stays free
+ * of the daemon's ProjectManager. Each row carries the `pid` and `projectName`
+ * it came from, because a session id alone is not addressable: every read after
+ * this one needs the project to resolve a storage path. Without that pairing an
+ * "all projects" list is a list of things you cannot open.
+ */
+export function listCodeSessionsAcross(projects = []) {
+  const rows = [];
+  for (const p of projects) {
+    if (!p?.storagePath) continue;
+    for (const row of listCodeSessions(p.storagePath)) {
+      rows.push({ ...row, pid: String(p.id), projectName: p.name || null });
+    }
+  }
+  rows.sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
+  return rows;
+}
+
 /** Full session (with messages) or null. */
 export function getCodeSession(storagePath, id) {
   if (!id || typeof id !== "string") return null;

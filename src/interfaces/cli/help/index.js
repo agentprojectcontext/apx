@@ -1068,14 +1068,15 @@ export const HELP_TOPICS = new Map(Object.entries({
     summary: "One-shot LLM call. Default target is the APX super-agent (daemon); use -a for an APC agent slug.",
     usage: [
       "apx exec \"<prompt>\" [--model <id>] [--project <name|id|path>]",
-      "apx exec --code \"<prompt>\"   (coding channel: code system prompt + git tools)",
+      "apx exec --code \"<prompt>\" [--session <id>]   (coding channel; lands in a code session)",
       "apx exec -- \"<prompt>\"",
       "apx exec -a <agent> \"<prompt>\" [--model <id>]",
       "apx exec <agent> \"<prompt>\"  (legacy positional agent)",
     ],
     options: [
       ["-a, --agent <slug>", "APC agent slug (omit for super-agent default)."],
-      ["-c, --code", "Run on the 'code' channel (coding system prompt + code tools)."],
+      ["-c, --code", "Run on the 'code' channel. The turn is saved as a code session, visible at /m/code."],
+      ["--session <id>", "Continue an existing code session instead of opening a new one (--code only)."],
       ["--channel <name>", "Explicit channel (cli, code, api, …). Default cli."],
       ["--model <id>", "Override configured model."],
       ["--max-tokens N", "Output token limit."],
@@ -1085,6 +1086,7 @@ export const HELP_TOPICS = new Map(Object.entries({
     examples: [
       "apx exec \"What time is it in UTC?\"",
       "apx exec --code \"refactor the auth middleware\"",
+      "apx exec --code --session cs_ab12cd \"now add a test for it\"",
       "apx exec -- \"decime qué hora es\"",
       "apx exec -a reviewer \"Summarize your role\"",
       "apx exec reviewer \"Summarize your role\" --model gpt-5.2",
