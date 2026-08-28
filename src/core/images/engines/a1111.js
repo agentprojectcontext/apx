@@ -25,6 +25,20 @@ function headersFor(config) {
   return h;
 }
 
+/**
+ * Is `asked` the checkpoint the server says it `rendered` with? Compared
+ * loosely on purpose: a server reports "z_image_turbo-Q4_K.gguf" for what a
+ * person types as "z_image_turbo-Q4_K", and a strict compare would cry wolf on
+ * every correct request.
+ */
+function sameCheckpoint(asked, rendered) {
+  if (!asked || !rendered) return false;
+  const norm = (v) => String(v).toLowerCase().replace(/\.(gguf|safetensors|ckpt|pt)$/, "").trim();
+  const a = norm(asked);
+  const r = norm(rendered);
+  return a === r || r.includes(a) || a.includes(r);
+}
+
 /** The resolved seed hides inside a JSON string; a malformed one is not fatal. */
 function parseInfo(info) {
   if (!info) return null;
@@ -39,6 +53,16 @@ export default {
   // output-format field — the server decides (PNG in practice) and we sniff
   // the real container from the bytes rather than trusting a request that was
   // never sent.
+  //
+  // `model` is listed, but it is the one entry this adapter cannot promise
+  // STATICALLY. Real A1111 and Forge switch checkpoints through
+  // override_settings; a single-checkpoint clone accepts the field, answers
+  // 200, and renders with whatever it loaded at launch — measured against
+  // stable-diffusion.cpp, which happily took a checkpoint name that does not
+  // exist. So the promise is verified per RESPONSE instead: `info` names the
+  // model that actually rendered, and generate() reports `model` as unhonored
+  // when that is not the one asked for. Declaring it here is right for the
+  // dialect; the per-response check is what keeps it honest per server.
   supports: [
     "negative_prompt", "width", "height", "steps", "cfg_scale",
     "seed", "sampler", "scheduler", "count", "model",
@@ -87,12 +111,17 @@ export default {
 
     const info = parseInfo(reply?.info);
     const seeds = Array.isArray(info?.all_seeds) ? info.all_seeds : [];
+    const rendered = info?.sd_model_name || null;
 
     return {
       images: b64s.map((b64, i) =>
         ({ ...writeImage(decodeBase64Image(b64), { outDir, provider: "a1111", format, index: i }),
            seed: seeds[i] ?? info?.seed ?? (seed >= 0 ? seed : null) })),
-      model: info?.sd_model_name || model || null,
+      // Report the model that RENDERED, never the one that was asked for — a
+      // server that ignored the request must not have its silence read as
+      // agreement.
+      model: rendered || (sameCheckpoint(model, rendered) ? model : null) || null,
+      unhonored: model && rendered && !sameCheckpoint(model, rendered) ? ["model"] : [],
       meta: {
         sampler: info?.sampler_name || sampler || null,
         steps: info?.steps ?? steps ?? null,
