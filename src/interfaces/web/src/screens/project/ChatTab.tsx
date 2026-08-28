@@ -55,8 +55,6 @@ export function ChatTab({
   onBack,
   onSelectionChange,
   channelScope,
-  threadFaces,
-  threadTitle,
 }: {
   pid: string;
   hideSidebar?: boolean;
@@ -88,12 +86,6 @@ export function ChatTab({
    *  "web" so their switcher never offers a Telegram thread; project-first
    *  navigation omits it and keeps every channel. */
   channelScope?: string;
-  /** For an a2a thread: the participants' resolved faces and the "A · B" title.
-   *  An a2a thread is a conversation BETWEEN two agents, not the super-agent's,
-   *  so the header wears both faces and their names instead of Roby's. The host
-   *  (inbox/phone) has these on the row; ChatTab has only the thread id. */
-  threadFaces?: AgentFace[];
-  threadTitle?: string;
 }) {
   const toast = useToast();
   const navigate = useNavigate();
@@ -285,17 +277,11 @@ export function ChatTab({
         : selected.agentSlug,
   ]);
 
-  // A group opened from the sidebar carries no faces prop, so read its roster
-  // from the thread: the header can then show every member and "add someone"
-  // knows who is already in. Keyed on the thread so it refetches when a member
-  // is added.
-  const groupThreadKey =
-    selected.kind === "thread" && selected.channel === "group"
-      ? `/api/projects/${pid}/super-agent/threads/group/${selected.threadId}`
-      : null;
-  const groupThreadId = selected.kind === "thread" ? selected.threadId : "";
-  const groupDetail = useSWR(groupThreadKey, () => Conversations.thread(pid, "group", groupThreadId));
-  const groupParticipants = groupDetail.data?.participants ?? [];
+  // Who is in this room, straight off the loaded thread. The daemon resolves the
+  // roster and the faces with the messages (api/thread-faces.js), so there is
+  // nothing left to fetch a second time and nothing to re-derive: the header
+  // shows every member and "add someone" knows who is already in.
+  const groupParticipants = conversationMeta?.participants ?? [];
 
   // The conversation on screen moved somewhere ELSE — a message on Telegram,
   // another device on the same thread, a routine writing into the file. The
@@ -416,8 +402,8 @@ export function ChatTab({
     const gid = selected.threadId;
     try {
       await Groups.addParticipant(pid, gid, slug);
-      await groupDetail.mutate();
-      void loadThread("group", gid, { silent: true });
+      // The silent re-read brings the new roster back with the messages.
+      await loadThread("group", gid, { silent: true });
       void mutate(`/api/projects/${pid}/super-agent/threads`);
       return gid;
     } catch (e) {
@@ -433,8 +419,7 @@ export function ChatTab({
     const gid = selected.threadId;
     try {
       await Groups.removeParticipant(pid, gid, slug);
-      await groupDetail.mutate();
-      void loadThread("group", gid, { silent: true });
+      await loadThread("group", gid, { silent: true });
       void mutate(`/api/projects/${pid}/super-agent/threads`);
     } catch (e) {
       toast.error((e as Error)?.message || t("shared_ui.err_chat_failed"));
@@ -579,31 +564,28 @@ export function ChatTab({
   // An a2a thread is a conversation BETWEEN two agents — not the super-agent's,
   // even though (like every stored thread) selected.kind is "thread". It gets
   // both faces and their "A · B" title, and none of the super-agent chrome.
-  // Faces for the multi-agent header: the prop when the inbox handed us one,
-  // else (a group opened from the sidebar) resolved from the thread's roster.
-  const groupFaces: AgentFace[] = useMemo(
-    () => groupParticipants.map((slug) => {
-      const hit = agentList.find((a) => a.slug === slug);
-      return { slug, icon: hit?.icon, emoji: hit?.emoji, name: hit?.name || slug };
-    }),
-    [groupParticipants, agentList],
+  // Faces for the multi-agent header — read, not derived. They arrive resolved
+  // on the thread, which is what makes this identical in every frame around the
+  // chat: opened from the inbox, from the phone, or from the project sidebar,
+  // an a2a thread wears the same two avatars and the same "Andy · Claude". The
+  // panel used to resolve them here against `agentList`, which knows neither the
+  // super-agent nor a coding CLI, so the surface that had no inbox row to copy
+  // from showed a faceless header titled with the raw pair id.
+  const a2aFaces = useMemo<AgentFace[]>(
+    () => (isMultiThread ? conversationMeta?.faces ?? [] : []),
+    [isMultiThread, conversationMeta],
   );
-  const a2aFaces = useMemo(() => {
-    const raw = isMultiThread
-      ? (threadFaces?.length ? threadFaces : (isGroup ? groupFaces : []))
-      : [];
-    // Inbox faces always carry slug after the API; older payloads / name-only
-    // faces still resolve against this project's roster so a click has a target.
-    return raw.map((f, i) => {
-      if (f.slug) return f;
-      const fromRoster = groupParticipants[i];
-      if (fromRoster) return { ...f, slug: fromRoster };
-      const hit = agentList.find((a) => a.name === f.name || a.slug === f.name);
-      return hit ? { ...f, slug: hit.slug } : f;
-    });
-  }, [isMultiThread, threadFaces, isGroup, groupFaces, groupParticipants, agentList]);
+  // What a multi-agent thread is CALLED — "Andy · Claude", not `andy~claude-code`.
+  // The loaded thread first (it is the only source on a deep link), then the row
+  // that opened it, so clicking one in the sidebar does not flash the pair id for
+  // the length of a fetch. Both already carry the daemon's resolved name.
+  const multiThreadLabel = isMultiThread
+    ? conversationMeta?.title ||
+      selectedMeta?.title ||
+      (selected.kind === "thread" ? selected.threadId : "")
+    : "";
   const agentLabel = isMultiThread
-    ? threadTitle || conversationMeta?.title || (selected.kind === "thread" ? selected.threadId : "")
+    ? multiThreadLabel
     : activeIsRoby ? persona : activeAgent?.name || activeAgent?.slug || selected.agentSlug;
   const channelLabel =
     selected.kind === "thread" ? selected.channel : selectedMeta?.channel || "web";
@@ -619,7 +601,7 @@ export function ChatTab({
     selected.kind === "live"
       ? ""
       : isMultiThread
-        ? threadTitle || conversationMeta?.title || (selected.kind === "thread" ? selected.threadId : "")
+        ? multiThreadLabel
         : conversationMeta?.title ||
           selectedMeta?.title ||
           (selected.kind === "thread" ? selected.threadId : selected.convId);

@@ -478,9 +478,11 @@ export function ChatList({
                   selected.threadId === th.id;
                 // Multi-agent threads (a2a between two agents, or a group room)
                 // aren't the super-agent's: draw every participant's face and
-                // skip the super-agent badge.
+                // skip the super-agent badge. The faces arrive resolved on the
+                // thread (api/thread-faces.js) — resolving them here against
+                // `agents` drew a bare letter for the super-agent and for every
+                // coding CLI, neither of which is a project agent.
                 const isMulti = th.channel === "a2a" || th.channel === "group";
-                const parts = (th as unknown as { participants?: string[] }).participants;
                 return (
                   <ChatListItem
                     key={`thread-${th.channel}-${th.id}`}
@@ -488,7 +490,7 @@ export function ChatList({
                     subtitle={[th.channel, `${th.messages} msg`].join(" · ")}
                     badge={isMulti ? undefined : t("agents_ui.super_agent_badge")}
                     face={isMulti ? undefined : { icon: superAgentIcon, name: superAgentLabel }}
-                    faces={isMulti && parts?.length ? parts.map(faceFor) : undefined}
+                    faces={isMulti ? th.participant_faces : undefined}
                     timeAgo={th.last_ts}
                     selected={active}
                     onClick={() =>

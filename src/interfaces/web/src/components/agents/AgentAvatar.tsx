@@ -2,6 +2,7 @@ import { BlobAvatar } from "./BlobAvatar";
 import { isBlobKey } from "./blobPresets";
 import { cn } from "../../lib/cn";
 import { Tip } from "../ui/tip";
+import type { AgentFace } from "../../types/daemon";
 import claudeLogo from "../../assets/cli/claude.webp";
 import codexLogo from "../../assets/cli/codex.webp";
 import opencodeLogo from "../../assets/cli/opencode.png";
@@ -44,15 +45,10 @@ export function agentDiscColour(seed: string): string {
   return DISC_COLOURS[h % DISC_COLOURS.length];
 }
 
-export interface AgentFace {
-  /** Project / actor slug — needed to open the agent's ficha from a group face. */
-  slug?: string | null;
-  /** Blob-preset key (see blobPresets), when the agent has one. */
-  icon?: string | null;
-  emoji?: string | null;
-  /** Display name — used for the fallback initial and to seed the colour. */
-  name?: string | null;
-}
+// A face is whatever the API resolved for one participant — declared with the
+// rest of the daemon payload types, and re-exported here because this is where
+// every caller already imports it from.
+export type { AgentFace };
 
 /**
  * A cluster of faces for a group chat (a2a). Overlapping discs, each ringed in

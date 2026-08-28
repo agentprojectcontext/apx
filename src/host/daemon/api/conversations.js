@@ -62,6 +62,7 @@ import { resolveAgentModel } from "#core/agent/agent-model.js";
 import { notifyOwnerViaRoby } from "#core/routines/delivery.js";
 import { A2A_SEVERITY } from "#core/routines/signals.js";
 import { nowIso, asyncRoute, a2aSlugThreadId, rejectA2AWrite } from "./shared.js";
+import { faceResolverFor, readAgentsSafe } from "./thread-faces.js";
 
 export function register(api, { projects, project, config, plugins, registries }) {
   // The super-agent (default name "apx") is a pseudo-agent: it owns
@@ -89,7 +90,8 @@ export function register(api, { projects, project, config, plugins, registries }
     if (!p) return;
     const listA2A = a2aSlugThreadId(req.params.slug);
     if (listA2A !== null) {
-      const th = listProjectA2AThreads(p.storagePath).find((t) => t.id === listA2A);
+      const found = listProjectA2AThreads(p.storagePath).find((t) => t.id === listA2A);
+      const th = found && faceResolverFor(projects).decorate(found, readAgentsSafe(p.path));
       // One pair id is one thread. Shaped like a conversation summary so the
       // sidebar renders it beside the ordinary ones.
       return res.json(th ? [{
@@ -101,6 +103,8 @@ export function register(api, { projects, project, config, plugins, registries }
         channel: "a2a",
         messages: th.messages,
         title: th.title,
+        participants: th.participants,
+        participant_faces: th.participant_faces,
         preview: th.preview || undefined,
         preview_at: th.last_ts || undefined,
       }] : []);
@@ -142,14 +146,20 @@ export function register(api, { projects, project, config, plugins, registries }
     if (!p) return;
     const detailA2A = a2aSlugThreadId(req.params.slug);
     if (detailA2A !== null) {
-      const th = readProjectA2AThread(p.storagePath, detailA2A || req.params.id);
-      if (!th) return res.status(404).json({ error: "conversation not found" });
+      const found = readProjectA2AThread(p.storagePath, detailA2A || req.params.id);
+      if (!found) return res.status(404).json({ error: "conversation not found" });
+      const th = faceResolverFor(projects).decorate(found, readAgentsSafe(p.path));
       return res.json({
         id: th.id,
         agent_slug: req.params.slug,
         channel: "a2a",
         messages: th.messages,
-        meta: { channel: "a2a", participants: th.participants },
+        meta: {
+          channel: "a2a",
+          title: th.title,
+          participants: th.participants,
+          participant_faces: th.participant_faces,
+        },
       });
     }
     const conv = readConversation(p.storagePath, req.params.slug, req.params.id);
@@ -231,7 +241,16 @@ export function register(api, { projects, project, config, plugins, registries }
     try { a2a = listProjectA2AThreads(p.storagePath); } catch { /* best-effort */ }
     let groups = [];
     try { groups = listProjectGroupThreads(p.storagePath); } catch { /* best-effort */ }
-    res.json([...global, ...a2a, ...groups]);
+    // a2a and group threads carry their participants' faces and a title made of
+    // real names — the same decoration the inbox rows get, from the same
+    // resolver (thread-faces.js). Without it the sidebar had to re-derive faces
+    // from its own agent list (which does not know the super-agent or a coding
+    // CLI) and the thread header, having no list at all, fell back to printing
+    // the raw pair id: `andy~claude-code` where "Andy · Claude" belongs.
+    const faces = faceResolverFor(projects);
+    const agents = readAgentsSafe(p.path);
+    const decorated = [...a2a, ...groups].map((th) => faces.decorate(th, agents));
+    res.json([...global, ...decorated]);
   });
 
   api.get("/projects/:pid/super-agent/threads/:channel/:id", (req, res) => {
@@ -249,7 +268,10 @@ export function register(api, { projects, project, config, plugins, registries }
           project: threadScope(p),
         });
     if (!thread) return res.status(404).json({ error: "thread not found" });
-    res.json(thread);
+    // Same decoration as the list: whoever opens a thread directly (a deep link,
+    // the phone, a pane that was handed no row) gets the faces and the name with
+    // the messages, instead of having to ask a second surface for them.
+    res.json(faceResolverFor(projects).decorate(thread, readAgentsSafe(p.path)));
   });
 
   api.delete("/projects/:pid/super-agent/threads/:channel/:id", (req, res) => {
