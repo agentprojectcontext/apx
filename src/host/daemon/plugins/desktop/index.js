@@ -156,7 +156,16 @@ async function _handleMessage({ ws, text, previousMessages }, { projects, config
       previousMessages: ws ? history.slice(0, -1) : history,
       overrideModel: cfg.model || null,
       signal: controller.signal,
-      onToken: (chunk) => { liveBuf += chunk; },
+      onToken: (chunk) => {
+        liveBuf += chunk;
+        // Ship the token onward too. `liveBuf` alone meant the window sat on
+        // "Pensando…" for the whole turn and then painted the finished reply in
+        // one go, even though the tokens had been arriving all along. The
+        // renderer paints these into a provisional bubble that the matching
+        // `segment` then replaces — deltas are for reading, segments are what
+        // gets spoken and kept.
+        _send(ws, { type: "delta", text: chunk });
+      },
       onEvent: async (event) => {
         if (event.type === "tool_start") {
           const t = event.trace;
