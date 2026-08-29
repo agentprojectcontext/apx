@@ -22,6 +22,22 @@ import { SUPERAGENT_ACTOR_ID } from "../constants/actors.js";
 import { readConfig } from "../config/index.js";
 import { resolveSuperAgentBlob } from "../apc/agent-identity.js";
 
+/**
+ * One entry per channel, keeping the FIRST seen — which is the most recent,
+ * because every list feeding this is already sorted newest-first.
+ *
+ * Written out rather than `new Map(items.map(…))`: that form keeps the LAST
+ * duplicate, so it silently picked each channel's OLDEST conversation and every
+ * row wore a months-stale date and preview.
+ */
+function latestPerChannel(items) {
+  const byChannel = new Map();
+  for (const item of items) {
+    if (!byChannel.has(item.channel)) byChannel.set(item.channel, item);
+  }
+  return [...byChannel.values()];
+}
+
 /** Most recent first; slug breaks ties so two identical calls agree. */
 function byRecency(a, b) {
   const t = (b.last_activity_at || "").localeCompare(a.last_activity_at || "");
@@ -41,10 +57,14 @@ function byRecency(a, b) {
  *                    with none drops out (unless includeEmpty). The inbox and the
  *                    phone pass "web" so a Telegram thread never surfaces there;
  *                    project-first navigation passes nothing and sees every channel.
+ *   - perChannel     emit one row per (agent, channel) instead of a single
+ *                    headline per agent, so a list can group by channel and a
+ *                    quiet channel is not hidden behind a louder one. Ignored
+ *                    when `channel` is set — that already scopes to one.
  * @returns {{ rows: object[], skipped: {id:any, error:string}[] }}
  */
 export function listAgentInbox(projects, opts = {}) {
-  const { limit, includeEmpty = false, channel = null } = opts || {};
+  const { limit, includeEmpty = false, channel = null, perChannel = false } = opts || {};
   const rows = [];
   const skipped = [];
 
@@ -83,27 +103,34 @@ export function listAgentInbox(projects, opts = {}) {
       // When `channel` is set, the headline must be on THAT channel — the inbox
       // and the phone are web-only, so an agent whose only chat is on Telegram
       // has nothing to show there and drops out (unless includeEmpty).
-      const latest =
-        conversations.find((c) =>
-          channel ? c.channel === channel : c.channel !== CHANNELS.ROUTINE,
-        ) || null;
-      if (!latest && !includeEmpty) continue;
+      const eligible = conversations.filter((c) =>
+        channel ? c.channel === channel : c.channel !== CHANNELS.ROUTINE,
+      );
+      // `perChannel`: one row per channel this agent was talked to on, instead
+      // of a single headline. An agent reached on WhatsApp AND on the web is
+      // two conversations, and collapsing them to whichever spoke last hid the
+      // other one entirely — which is the whole reason WhatsApp threads were
+      // invisible even once they were being written.
+      const headlines = perChannel ? latestPerChannel(eligible) : [eligible[0] || null];
+      if (!headlines[0] && !includeEmpty) continue;
 
-      rows.push({
-        ...projectMeta,
-        agent_slug: agent.slug,
-        agent_name: agent.fields?.Name || agent.name || agent.slug,
-        agent_emoji: agent.fields?.Emoji || agent.emoji || null,
-        agent_icon: agent.fields?.Icon || agent.icon || null,
-        kind: "agent",
-        pinned: false,
-        conversation_id: latest?.id || null,
-        channel: latest?.channel || null,
-        messages: latest?.messages || 0,
-        // The agent's last REPLY, not the user's last prompt.
-        preview: latest?.preview || null,
-        last_activity_at: latest?.last_turn_at || latest?.started_at || "",
-      });
+      for (const latest of headlines) {
+        rows.push({
+          ...projectMeta,
+          agent_slug: agent.slug,
+          agent_name: agent.fields?.Name || agent.name || agent.slug,
+          agent_emoji: agent.fields?.Emoji || agent.emoji || null,
+          agent_icon: agent.fields?.Icon || agent.icon || null,
+          kind: "agent",
+          pinned: false,
+          conversation_id: latest?.id || null,
+          channel: latest?.channel || null,
+          messages: latest?.messages || 0,
+          // The agent's last REPLY, not the user's last prompt.
+          preview: latest?.preview || null,
+          last_activity_at: latest?.last_turn_at || latest?.started_at || "",
+        });
+      }
     }
   }
 
@@ -112,8 +139,8 @@ export function listAgentInbox(projects, opts = {}) {
   // The super-agent is the single voice the owner talks to and the others
   // report through it. It is pinned first and marked distinct so the hierarchy
   // is visible, rather than sorted in among its own reports.
-  const superRow = buildSuperAgentRow({ channel });
-  const out = superRow ? [superRow, ...rows] : rows;
+  const superRows = buildSuperAgentRows({ channel, perChannel });
+  const out = [...superRows, ...rows];
 
   return {
     rows: Number.isFinite(limit) && limit > 0 ? out.slice(0, limit) : out,
@@ -129,8 +156,8 @@ export function listAgentInbox(projects, opts = {}) {
  * (~/.apx/messages/<channel>/YYYY-MM-DD.jsonl). So recency and the preview come
  * from there, not from agents/<slug>/conversations.
  */
-function buildSuperAgentRow(opts = {}) {
-  const { channel = null } = opts || {};
+function buildSuperAgentRows(opts = {}) {
+  const { channel = null, perChannel = false } = opts || {};
   let threads = [];
   try {
     threads = listGlobalThreads();
@@ -138,17 +165,27 @@ function buildSuperAgentRow(opts = {}) {
     threads = [];
   }
 
+  const eligible = threads.filter((t) =>
+    channel ? t.channel === channel : t.channel !== CHANNELS.ROUTINE,
+  );
+  // The super-agent is the one the owner actually talks to, so it is where
+  // per-channel matters most: telegram, whatsapp, web and desktop are four
+  // conversations, not one row wearing whichever channel spoke last.
+  if (perChannel) {
+    const heads = latestPerChannel(eligible);
+    if (!heads.length) return [superAgentRow(null, threads)];
+    return heads.map((t) => superAgentRow(t, threads));
+  }
+  return [superAgentRow(eligible[0] || null, threads)];
+}
+
+/** One super-agent row for one headline thread (or none yet). */
+function superAgentRow(latest, threads) {
+  // `messages` counts every thread on purpose: it is the super-agent's total
+  // volume, not this row's. The headline is picked by the caller — a routine
+  // run is never one, and the row stays pinned even with no thread yet (it
+  // falls through to a live session).
   const messages = threads.reduce((n, t) => n + (t.messages || 0), 0);
-  // Same rule as the project agents: a routine run is not a chat, so it never
-  // becomes the row's headline. listGlobalThreads sorts by last_ts desc, so the
-  // first matching thread is the most recent real conversation. When `channel`
-  // is set (the inbox/phone are web-only) the headline must be on that channel;
-  // the super-agent still stays pinned even with no web thread yet (falls to a
-  // live session).
-  const latest =
-    threads.find((t) =>
-      channel ? t.channel === channel : t.channel !== CHANNELS.ROUTINE,
-    ) || null;
 
   let preview = null;
   if (latest) {

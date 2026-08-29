@@ -13,8 +13,36 @@ import { InboxRowItem } from "./InboxRowItem";
  * click, which meant losing the list to read one row.
  */
 
+/** Display name for a channel heading. Proper nouns mostly, so they read the
+ *  same in either locale; anything unknown shows its raw value rather than
+ *  being hidden, because a channel nobody named is exactly the one worth
+ *  seeing. */
+const CHANNEL_LABELS: Record<string, string> = {
+  whatsapp: "WhatsApp",
+  telegram: "Telegram",
+  web: "Web",
+  web_sidebar: "Web · sidebar",
+  web_code: "Web · code",
+  desktop: "Desktop",
+  deck: "Deck",
+  code: "Code",
+  cli: "CLI",
+  api: "API",
+  a2a: "Agente ↔ agente",
+  group: "Grupos",
+  direct: "Direct",
+  other: "—",
+};
+
+function channelLabel(channel: string): string {
+  return CHANNEL_LABELS[channel] || channel;
+}
+
+/** Identity of a row. Channel is part of it: the same agent now appears once
+ *  per channel it was talked to on, so keying by agent alone would collide —
+ *  React would drop rows and selecting one would highlight its twin. */
 export function rowKey(row: InboxRow): string {
-  return `${row.project_id ?? "global"}::${row.agent_slug}`;
+  return `${row.project_id ?? "global"}::${row.agent_slug}::${row.channel ?? ""}`;
 }
 
 export function InboxList({
@@ -37,10 +65,25 @@ export function InboxList({
     const needle = q.trim().toLowerCase();
     if (!needle) return rows;
     return rows.filter((r) =>
-      [r.agent_name, r.agent_slug, r.project_name, r.preview]
+      [r.agent_name, r.agent_slug, r.project_name, r.preview, r.channel]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(needle)));
   }, [rows, q]);
+
+  // Grouped by channel, groups ordered by their most recent conversation, so a
+  // channel that just spoke rises to the top rather than sitting wherever a
+  // fixed channel order happened to put it. `rows` already arrives sorted by
+  // recency, so first-seen order is recency order.
+  const grouped = useMemo(() => {
+    const byChannel = new Map<string, InboxRow[]>();
+    for (const row of filtered) {
+      const key = row.channel || "other";
+      const bucket = byChannel.get(key);
+      if (bucket) bucket.push(row);
+      else byChannel.set(key, [row]);
+    }
+    return [...byChannel.entries()];
+  }, [filtered]);
 
   return (
     <aside className="flex w-full shrink-0 flex-col border-r border-border sm:w-72" data-testid="inbox-list">
@@ -77,17 +120,28 @@ export function InboxList({
           </p>
         ) : null}
 
-        {filtered.map((row) => {
-          const key = rowKey(row);
-          return (
-            <InboxRowItem
-              key={key}
-              row={row}
-              selected={key === selectedKey}
-              onSelect={onSelect}
-            />
-          );
-        })}
+        {grouped.map(([channel, group]) => (
+          <section key={channel} data-testid={`inbox-group-${channel}`}>
+            {/* The channel a conversation happened on is part of what it IS —
+                a WhatsApp from a contact and a web chat are different things
+                even with the same agent — so the list says so instead of
+                interleaving them by timestamp alone. */}
+            <h3 className="sticky top-0 z-10 bg-bg/95 px-2.5 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wide text-muted-fg backdrop-blur">
+              {channelLabel(channel)}
+            </h3>
+            {group.map((row) => {
+              const key = rowKey(row);
+              return (
+                <InboxRowItem
+                  key={key}
+                  row={row}
+                  selected={key === selectedKey}
+                  onSelect={onSelect}
+                />
+              );
+            })}
+          </section>
+        ))}
       </div>
     </aside>
   );
