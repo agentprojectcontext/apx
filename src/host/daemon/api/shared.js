@@ -149,6 +149,16 @@ export function buildRequestLogger({ log, match }) {
     // that far — and keep it for the 401s that never did. Logging both shapes
     // for the same URL makes the lines impossible to grep as one.
     const reqPath = req.path;
+    // The caller's own label for the surface it is (`channel` in the body:
+    // "whatsapp" for the Tasker bridge, "web" for the panel, absent for a bare
+    // API call). Turns on any channel but web/web_sidebar are deliberately not
+    // persisted to the ledger — see logWebTurn — so without this the log is the
+    // ONLY record that an automation fired at all, and two automations on the
+    // same device are indistinguishable by IP. Just the channel name: the body
+    // also carries the message text, which stays out of the log.
+    const channel = typeof req.body?.channel === "string"
+      ? req.body.channel.slice(0, 32)
+      : "";
 
     let done = false;
     const finish = (outcome) => {
@@ -156,7 +166,8 @@ export function buildRequestLogger({ log, match }) {
       done = true;
       const ms = Math.round(Number(process.hrtime.bigint() - startedAt) / 1e6);
       log(
-        `request ${req.method} ${reqPath} from ${caller} → ${outcome} ${ms}ms` +
+        `request ${req.method} ${reqPath} from ${caller}` +
+        `${channel ? ` channel=${channel}` : ""} → ${outcome} ${ms}ms` +
         ` [${req.apxTraceId}]`
       );
     };
