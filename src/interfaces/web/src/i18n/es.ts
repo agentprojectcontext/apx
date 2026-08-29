@@ -1394,6 +1394,7 @@ export const es = {
   },
 
   desktop_screen: {
+    model_title: "Modelo",
     status_title:        "Estado",
     autostart_title:     "Arranque automático",
     shortcut_title:      "Atajo de teclado",
@@ -2226,6 +2227,11 @@ export const es = {
   },
 
   modules_ui: {
+    desktop_model: "Modelo de la ventana",
+    desktop_model_desc: "Qué modelo contesta en la ventana flotante. Es la única superficie donde alguien espera la respuesta en voz alta, así que puede tener uno más rápido que el resto.",
+    desktop_model_hint: "Por defecto usa el del super-agente. Elegir otro acá no cambia Telegram, las rutinas ni el resto.",
+    desktop_model_set: "Modelo de la ventana: {value}.",
+    desktop_model_inherit: "el del super-agente",
     desktop_pos_left:        "Izquierda",
     desktop_pos_center:      "Centro",
     desktop_pos_right:       "Derecha",
