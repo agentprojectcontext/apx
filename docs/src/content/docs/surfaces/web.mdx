@@ -140,6 +140,36 @@ so nothing is missed while it was away. If the socket cannot be opened at all
 (a proxy that refuses upgrades), the lists fall back to their 15-second refresh
 and the panel keeps working, just less immediately.
 
+## Notifications, and which channels reach you
+
+The panel can tell you when an agent writes and you are not looking: one
+notification per thread, through the service worker, tapping it opens that
+conversation. Turn it on in **Settings → Notifications** (or from the phone's
+own preferences sheet). It needs https — `apx panel tailscale on` — and it needs
+the app to be running, backgrounded included; waking a fully closed app is web
+push, which APX does not do yet.
+
+What raises one is an **agent reply**, and only that. Your own message does not,
+and neither does any of the work in between: a turn can run two dozen tools and
+each one moves the thread, which is how the same turn used to arrive as a stack
+of notifications. A streamed answer that lands in pieces rings once and then
+updates the same banner quietly.
+
+**Which channels may ring is answered per device.** The phone has Telegram
+installed on it, so an APX notification about a Telegram reply is the same news
+twice — there it starts off. On the laptop it is the only way to hear about it,
+so there everything starts on. Chips under **Settings → Notifications** switch
+each channel for the device you are on; the choice lives in that browser
+(`localStorage`) and never leaves it.
+
+The same idea applies to the **lists**. The inbox and `/mobile` show every
+channel a conversation can happen on, grouped, and a chip row switches each one
+off and back on for that device — again with Telegram off by default on the
+phone. A channel that is off keeps its chip (with its count), so the way back is
+where the way out was, and a list emptied by a filter says so instead of
+claiming there is nothing there. On the phone, where there are no channel
+headings, every row wears its channel as a tag.
+
 ## Project workspace
 
 Opening a project lands on its **Overview** — a "mission control" floor with live

@@ -1,8 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Ellipsis, Search, Settings, Share, ShieldAlert, Smartphone, SquarePen, Users, X } from "lucide-react";
 import { installStance, onInstallStateChange, promptInstall } from "../../lib/pwa";
 import { NotifyNudge, PrefsDialog } from "../../components/settings/PanelPrefs";
 import { InboxRowItem } from "../../components/inbox/InboxRowItem";
+import { ChannelChips } from "../../components/inbox/ChannelChips";
+import { channelEnabledIn, channelsOf } from "../../lib/channels";
+import { useChannelPrefs } from "../../hooks/useChannelPrefs";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 import type { InboxRow } from "../../lib/api/inbox";
@@ -28,10 +31,25 @@ export function MobileChatList({
   const [query, setQuery] = useState("");
   const [prefsOpen, setPrefsOpen] = useState(false);
   const androidOptions = typeof window.APXAndroid?.openOptions === "function";
+  const view = useChannelPrefs("view");
+
+  // Off the unfiltered rows, so a channel switched off keeps its own chip to
+  // come back through — and its count while it is off.
+  const channels = useMemo(() => channelsOf(rows), [rows]);
+  const counts = useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const row of rows) {
+      const key = row.channel || "other";
+      out[key] = (out[key] || 0) + 1;
+    }
+    return out;
+  }, [rows]);
 
   const q = query.trim().toLowerCase();
   const match = (s: string | null | undefined) => !q || String(s || "").toLowerCase().includes(q);
-  const shownRows = rows.filter((r) => match(r.agent_name) || match(r.agent_slug) || match(r.project_name));
+  const shownRows = rows
+    .filter((r) => channelEnabledIn(view.prefs, "view", r.channel))
+    .filter((r) => match(r.agent_name) || match(r.agent_slug) || match(r.project_name));
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
@@ -83,6 +101,16 @@ export function MobileChatList({
             className="h-10 w-full rounded-full border border-border bg-muted/30 pl-9 pr-3 text-[15px] outline-none placeholder:text-muted-fg focus:border-primary/50"
           />
         </div>
+        {/* Which channels this phone wants to see. Telegram starts off here —
+            the app is on this very device — and one tap brings it back. */}
+        <ChannelChips
+          channels={channels}
+          counts={counts}
+          enabled={view.enabled}
+          onToggle={view.toggle}
+          className="-mx-4 mt-2 px-4 pb-0.5"
+          testIdPrefix="mobile-channel"
+        />
       </header>
 
       {/* Both offers live at the top of the screen the phone lands on, for the
@@ -103,7 +131,9 @@ export function MobileChatList({
         {!shownRows.length && (
           <p className={cn("px-4 py-10 text-center text-sm text-muted-fg")}>
             <Users size={20} className="mx-auto mb-2 opacity-50" />
-            {t("mobile.empty")}
+            {/* An empty list because every channel is off is not an empty
+                inbox, and saying so sends someone hunting for a bug. */}
+            {rows.length && !q ? t("channels.all_hidden") : t("mobile.empty")}
           </p>
         )}
       </div>
