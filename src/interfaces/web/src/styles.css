@@ -164,6 +164,12 @@
 ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 5px; }
 ::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground)); }
 
+/* A strip that scrolls sideways and is only ONE row tall — a filter chip row —
+   where the 10px bar above is a second row of furniture under a single line of
+   controls. The strip still scrolls; it just does it the way a phone does. */
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
 /* ── Blob agent avatars (animated) ──────────────────────────────────────────
    Body is an <img>; eyes are an inline SVG overlaid at the same box. The
    wrapper bobs+tilts (pivot at base); eyes look around and blink on their own
