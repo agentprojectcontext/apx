@@ -34,6 +34,14 @@ export function register(api) {
     }
   }));
 
+  // GET /tts/warmup — tell the engine that would speak next to get ready.
+  // The desktop calls this the moment the mic opens, so the model is resident
+  // by the time there is a reply to say.
+  api.get("/tts/warmup", asyncRoute(async (_req, res) => {
+    const { warmupTts } = await import("#core/voice/tts.js");
+    res.json(await warmupTts());
+  }));
+
   api.get("/tts/providers", asyncRoute(async (_req, res) => {
     try {
       const info = await listProviders(readConfig());
