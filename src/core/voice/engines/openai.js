@@ -101,6 +101,12 @@ export default {
       // QVox / Qwen3-TTS extras (ignored by stock OpenAI, so only sent here).
       if (styleHint) body.instruct = styleHint;
       if (language) body.language = language;
+      // Voice cloning: the endpoint reads the reference itself, so this is a
+      // path on ITS filesystem, not ours. `ref_text` is what the recording
+      // says — optional, and worth setting: telling the model that measured
+      // 15.8 chars/s against 12.9 without it.
+      if (config.clone) body.clone = config.clone;
+      if (config.ref_text) body.ref_text = config.ref_text;
       if (config.temperature != null) body.temperature = config.temperature;
     } else if (styleHint && /gpt-4o.*tts/i.test(model || "")) {
       // Stock OpenAI's newer TTS models accept a natural-language `instructions`.
