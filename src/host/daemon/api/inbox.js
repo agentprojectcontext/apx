@@ -111,6 +111,11 @@ export function register(api, { projects }) {
       const { rows, skipped } = listAgentInbox(entries, {
         includeEmpty: req.query.include_empty === "1" || req.query.include_empty === "true",
         channel,
+        // No `?channel=` means "show me everything", and everything now means
+        // one row per channel rather than one row per agent wearing whichever
+        // channel happened to speak last. Asking for a single channel already
+        // answers the question, so it keeps the one-row-per-agent shape.
+        perChannel: !channel,
       });
 
       // The super-agent's display name lives in identity.json, and core must not

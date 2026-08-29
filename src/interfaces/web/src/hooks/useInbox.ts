@@ -4,14 +4,17 @@ import { Inbox, type InboxRow } from "../lib/api/inbox";
 import { useLiveMessages } from "./useLiveMessages";
 
 /**
- * Every agent as a conversation, most recent first, super-agent pinned.
+ * Every conversation, most recent first, super-agent pinned.
  *
- * Scoped to the WEB channel by default: this hook feeds the inbox and the phone,
- * and both are web-only — a Telegram (or any other channel) thread must not
- * surface there. a2a group rows always come through regardless. Pass `channel:
- * null` for the full every-channel roster (the "new chat" agent picker uses it).
+ * Every channel by default. It used to scope to `web`, which meant the inbox
+ * and the phone could only ever show one of the places a conversation actually
+ * happens — a WhatsApp contact or a Telegram thread was answered and then
+ * invisible. With no filter the daemon returns one row per (agent, channel),
+ * which is what lets the list group by channel instead of mixing them.
+ *
+ * Pass a channel to scope back to one (and get one row per agent again).
  */
-export function useInbox(includeEmpty = false, channel: string | null = "web") {
+export function useInbox(includeEmpty = false, channel: string | null = null) {
   const { data, error, isLoading, mutate } = useSWR<InboxRow[]>(
     `/api/inbox?include_empty=${includeEmpty ? 1 : 0}&channel=${channel ?? ""}`,
     () => Inbox.list(includeEmpty, channel ?? undefined),

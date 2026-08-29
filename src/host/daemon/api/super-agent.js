@@ -67,12 +67,25 @@ export function inspectorRecord(trace) {
 }
 
 // Persist human web turns to the cross-channel message store so they feed the
-// RAG index, search_messages, and the "active threads" awareness block. Only
-// the human surfaces (web big chat + sidebar) — not generic "api"/automation
-// callers. Best-effort: a logging failure never breaks the reply.
-const WEB_LOGGED_CHANNELS = new Set([CHANNELS.WEB, CHANNELS.WEB_SIDEBAR]);
+// RAG index, search_messages, and the "active threads" awareness block.
+//
+// This used to keep only web + web_sidebar, on the reasoning that everything
+// else was "automation". That was wrong once real people started arriving over
+// those channels: a WhatsApp contact writing to the bridge, or an agent relay,
+// produced a turn that was answered and then vanished — no thread, no history,
+// nothing in the inbox, and no way to tell a working bridge from a dead one.
+//
+// So the rule inverts: a conversation is written unless it is machine chatter.
+// A routine's output already travels its own delivery path and lands in the
+// agent's chat; writing it here too would double it and bury the inbox.
+//
+// Consequence worth naming: message text from third parties (WhatsApp) now
+// enters the ledger, which is what feeds RAG and the awareness block. That is
+// the price of the conversation being visible at all, and the owner chose it.
+// Best-effort: a logging failure never breaks the reply.
+const LEDGER_SKIP_CHANNELS = new Set([CHANNELS.ROUTINE]);
 function logWebTurn(channel, { prompt, replyText, name, model, usage, trace, project, media, inspector, reasoning }) {
-  if (!WEB_LOGGED_CHANNELS.has(channel)) return;
+  if (!channel || LEDGER_SKIP_CHANNELS.has(channel)) return;
   // Which project the chat was opened from. The ledger is one file per
   // channel+day for the whole daemon, so without this stamp a chat started
   // inside a project could only be found in the Base workspace — from the
