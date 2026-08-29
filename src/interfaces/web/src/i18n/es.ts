@@ -1965,7 +1965,7 @@ export const es = {
     toast_transcription_updated: "Transcripción actualizada.",
     qvox_title: "Voz local en esta Mac",
     qvox_body: "QVox corre Qwen3-TTS en la GPU de tu Mac: el audio no sale de la máquina, no se paga por minuto y no depende de que un servicio esté arriba.",
-    qvox_note: "Necesita uv y Node 18 o superior. QVox no los instala por vos, sólo avisa si faltan.",
+    qvox_note: "Necesita uv y Node 18 o superior: npm instala sólo el comando, el motor corre por uv. El primer modelo son varios gigas de descarga.",
     qvox_ask: "Pedile a {persona} que lo instale",
     qvox_repo: "Ver el repositorio",
   },

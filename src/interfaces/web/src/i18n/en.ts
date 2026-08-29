@@ -1967,7 +1967,7 @@ export const en = {
     toast_transcription_updated: "Transcription updated.",
     qvox_title: "Local voice on this Mac",
     qvox_body: "QVox runs Qwen3-TTS on your Mac's GPU: the audio never leaves the machine, there is nothing to pay per minute, and nothing to be down.",
-    qvox_note: "Needs uv and Node 18 or newer. QVox does not install them for you — it only tells you if they are missing.",
+    qvox_note: "Needs uv and Node 18 or newer: npm installs only the command, and the engine runs through uv. The first model is a multi-gigabyte download.",
     qvox_ask: "Ask {persona} to install it",
     qvox_repo: "See the repository",
   },
