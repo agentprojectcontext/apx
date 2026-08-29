@@ -349,6 +349,32 @@ export function extractBareFunctionCalls(text, knownNames) {
   }
   return out;
 }
+// APX's own context annotation for a past tool result, in every spelling a
+// model reaches for when it copies the shape instead of calling the tool:
+// `[tool result: run_shell]`, `[result: shell]`, `[tool_result: shell]`. The
+// name is bounded so an ordinary bracketed sentence is not swallowed.
+const TOOL_LOG_NAME = String.raw`\[(?:tool[\s_-]*)?results?\s*[:\-]\s*[a-z0-9_.\- ]{1,40}\]`;
+/** The whole line, when the line IS the annotation. */
+const TOOL_LOG_LINE = new RegExp(String.raw`^[ \t]*${TOOL_LOG_NAME}[^\n]*$`, "gim");
+/** Just the prefix, so a human sentence around it survives. */
+const TOOL_LOG_PREFIX = new RegExp(String.raw`${TOOL_LOG_NAME}\s*`, "gi");
+
+/**
+ * Does this text CLAIM tool results that no tool produced?
+ *
+ * The loop calls this on a turn that emitted zero tool calls. Two or more
+ * annotation lines is not a model quoting its history in passing, it is a model
+ * writing the transcript it was supposed to generate — and the sentence after
+ * them ("Listo, ya te lo mandé") is a report on work that never happened. There
+ * is nothing to recover here: the lines carry no structured call, and guessing
+ * a shell command out of hallucinated prose and running it would be far worse
+ * than asking the model to do the work for real.
+ */
+export function looksLikeFabricatedToolLog(text) {
+  if (!text || typeof text !== "string") return false;
+  return (String(text).match(TOOL_LOG_PREFIX) || []).length >= 2;
+}
+
 export function cleanTextOfPseudoToolCalls(text, knownNames) {
   if (!text || typeof text !== "string") return text;
 
@@ -375,8 +401,15 @@ export function cleanTextOfPseudoToolCalls(text, knownNames) {
   // A line that IS the annotation goes whole — the prefix used to be stripped
   // on its own, which left `(command=…) → ==> …` standing there as the answer.
   // Mid-sentence the prefix alone still goes, so the human half survives.
-  out = out.replace(/^[ \t]*\[tool result:\s*[^\]\n]*\][^\n]*$/gim, "");
-  out = out.replace(/\[tool result:\s*[^\]\n]*\]\s*/gi, "");
+  //
+  // Matched loosely, because a model copying the shape out of its history does
+  // not copy it exactly. The turn that shipped on 2026-08-29 wrote `[result:
+  // shell]` — no "tool", and the tool's real name is `run_shell` — five times,
+  // each followed by a made-up command and a made-up output, and the strict
+  // pattern let every line through. `[tool_result: x]`, `[results: x]` and
+  // `[result - x]` are the same copy with a different slip.
+  out = out.replace(TOOL_LOG_LINE, "");
+  out = out.replace(TOOL_LOG_PREFIX, "");
   // The same for the bare `[tool <name>]` form once its call has been lifted
   // out above: what is left is bookkeeping, never something to say.
   out = out.replace(/^[ \t]*\[tool[ _]+[a-z_][a-z0-9_]*\][^\n]*$/gim, "");
