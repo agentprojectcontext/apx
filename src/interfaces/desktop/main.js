@@ -670,29 +670,84 @@ ipcMain.on("resize-window", (_e, { height }) => {
 // Renderer asks for TTS playback of the agent reply. We synthesize via the
 // daemon and pipe the audio path back as a daemon-event the renderer already
 // knows how to consume (tts-ready { url, duration } / tts-failed).
+// Speech is generated a sentence at a time so the first one can start playing
+// while the rest is still being made. The engine runs at roughly 0.85x real
+// time, which means every sentence finishes generating before the one ahead of
+// it finishes playing — so the reply comes out continuous, but Roby starts
+// talking after the first sentence instead of after the whole answer. Measured
+// on a two-sentence reply: first audio at 2.0s instead of 4.8s, and the gap
+// grows with the length of the answer.
+//
+// The limit mirrors the engine's own chunking. Past ~80 characters the model
+// stops finding its end token and the audio degrades, so there is nothing to
+// gain by sending it more in one go.
+function splitForSpeech(text, { min = 12, limit = 80 } = {}) {
+  const out = [];
+  let cur = "";
+  const flush = () => { if (cur) { out.push(cur); cur = ""; } };
+  const add = (piece) => {
+    if (!piece) return;
+    if (cur && cur.length + 1 + piece.length > limit) flush();
+    cur = cur ? `${cur} ${piece}` : piece;
+    // Cut as soon as there is enough to say. Packing sentences up to the limit
+    // would undo the point of this: two sentences that fit in one chunk get
+    // generated together, and the listener waits for both before hearing
+    // either. `min` only exists so a two-word sentence doesn't become a
+    // generation of its own, and it is deliberately small: a short greeting
+    // degrades the whole chunk it is folded into. "¡Hola Manu!" alone is
+    // bounded to about a second of possible damage, but merged ahead of a full
+    // sentence it took the pair from 13 chars/s down to 8.
+    if (cur.length >= min) flush();
+  };
+  for (const sentence of String(text).trim().split(/(?<=[.!?…])\s+/)) {
+    if (sentence.length <= limit) { add(sentence); continue; }
+    // A sentence too long on its own: break it at clauses, then words.
+    for (const clause of sentence.split(/(?<=[,;:—–])\s+/)) {
+      if (clause.length <= limit) { add(clause); continue; }
+      for (const word of clause.split(" ")) add(word);
+    }
+  }
+  flush();
+  return out.length ? out : [String(text)];
+}
+
 ipcMain.handle("request-tts", async (_e, { text, seg }) => {
+  const send = (msg) => mainWindow?.webContents.send("daemon-event", msg);
   if (!text || !text.trim()) {
-    mainWindow?.webContents.send("daemon-event", { type: "tts-failed", seg });
+    send({ type: "tts-failed", seg });
     return;
   }
+  const chunks = splitForSpeech(text);
+  let delivered = 0;
   try {
-    const result = await daemonTtsSay(text);
-    if (result?.ok && result.audio_path) {
-      // Expose the local file via file:// — preload's contextIsolation lets
-      // the renderer's <audio> tag fetch it directly. `seg` ties this audio to
-      // the bubble that asked for it.
-      const url = "file://" + result.audio_path;
-      mainWindow?.webContents.send("daemon-event", {
-        type: "tts-ready",
-        seg,
-        url,
-        duration: result.duration_s || 0,
-      });
-    } else {
-      mainWindow?.webContents.send("daemon-event", { type: "tts-failed", seg, error: result?.error || "no audio" });
+    for (const chunk of chunks) {
+      const result = await daemonTtsSay(chunk);
+      if (result?.ok && result.audio_path) {
+        // Expose the local file via file:// — preload's contextIsolation lets
+        // the renderer's <audio> tag fetch it directly. `seg` ties this audio
+        // to the bubble that asked for it.
+        send({
+          type: "tts-part",
+          seg,
+          url: "file://" + result.audio_path,
+          duration: result.duration_s || 0,
+        });
+        delivered++;
+      } else if (!delivered) {
+        // Nothing has played yet and the engine is refusing: stop asking. A
+        // whole reply of failures would otherwise cost one full timeout each.
+        send({ type: "tts-failed", seg, error: result?.error || "no audio" });
+        return;
+      }
+      // A later chunk failing is survivable — the bubble keeps what it has.
     }
+    // Tells the renderer no more audio is coming, so a player waiting on the
+    // next sentence knows it has reached the end instead of stalling.
+    send({ type: "tts-end", seg, parts: delivered });
+    if (!delivered) send({ type: "tts-failed", seg, error: "no audio" });
   } catch (e) {
-    mainWindow?.webContents.send("daemon-event", { type: "tts-failed", seg, error: e.message });
+    if (delivered) send({ type: "tts-end", seg, parts: delivered });
+    else send({ type: "tts-failed", seg, error: e.message });
   }
 });
 
@@ -745,6 +800,30 @@ ipcMain.handle("warmup-stt", async () => {
     // Cold model load can take ~30s; give it room. (Renderer fires this
     // fire-and-forget, so a long warm-up never blocks the UI.)
     req.setTimeout(45000, () => { req.destroy(); resolve({ ok: false }); });
+    req.end();
+  });
+});
+
+// Same idea as warmup-stt, for the other half of the round trip. Fired when
+// the mic opens: the user then spends a few seconds speaking, and the voice
+// engine spends them getting its weights back into RAM instead of making the
+// reply wait afterwards.
+ipcMain.handle("warmup-tts", async () => {
+  return new Promise((resolve) => {
+    const token = readToken();
+    const req = http.request({
+      hostname: DAEMON_HOST,
+      port: DAEMON_PORT,
+      path: "/api/tts/warmup",
+      method: "GET",
+      headers: { ...(token ? { "Authorization": `Bearer ${token}` } : {}) },
+    }, (res) => {
+      let data = "";
+      res.on("data", (c) => data += c);
+      res.on("end", () => { try { resolve(JSON.parse(data)); } catch { resolve({ ok: false }); } });
+    });
+    req.on("error", () => resolve({ ok: false }));
+    req.setTimeout(120000, () => { req.destroy(); resolve({ ok: false }); });
     req.end();
   });
 });
@@ -1002,11 +1081,18 @@ async function sendMessageToDaemon(text, previousMessages) {
 // engine), retry once with `provider: "mock"` so the renderer at least gets
 // a duration + scrubber instead of hanging. The user can plug a real TTS
 // engine in via the Voices web admin to get audible speech.
+// The daemon's chain already tries every configured engine, so there is nothing
+// left to retry here. It used to fall back to the `mock` engine, which returns
+// a silent WAV of about the right length: the bubble grew a working-looking
+// player, the progress bar ran to the end, and no sound ever came out. A turn
+// with no voice should say so, not mime one — so a mock result is reported as
+// a failure and the bubble simply stays text.
 function daemonTtsSay(text) {
   return _ttsRequest(text, /* explicitProvider */ null).then((r) => {
-    if (r.ok) return r;
-    console.warn(`desktop: tts chain failed (${r.error}) — retrying with mock`);
-    return _ttsRequest(text, /* explicitProvider */ "mock");
+    if (r.ok && r.provider === "mock") {
+      return { ok: false, error: "no TTS engine answered (silent placeholder)" };
+    }
+    return r;
   });
 }
 

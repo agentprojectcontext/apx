@@ -59,6 +59,25 @@ export default {
     return Boolean(config.base_url) || Boolean(getKey(config, parentEnginesCfg));
   },
 
+  // Only local endpoints have anything to warm. A cloud API is as ready as it
+  // will ever be, and a hosted server is not ours to spin up — so a stock
+  // OpenAI config skips instead of sending a pointless request.
+  async warmup(config = {}) {
+    if (!config.base_url) return { ok: true, skipped: "not a local endpoint" };
+    const url = config.base_url.replace(/\/+$/, "") + "/warmup";
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        ...(config.api_key ? { authorization: `Bearer ${config.api_key}` } : {}),
+      },
+      body: "{}",
+      signal: AbortSignal.timeout(120_000),
+    });
+    if (!res.ok) throw new Error(`warmup ${res.status}`);
+    return await res.json().catch(() => ({ ok: true }));
+  },
+
   async synthesize({ text, voice, language, style, outDir, config = {}, format, signal, parentEnginesCfg }) {
     if (!text) throw new Error("openai-tts: empty text");
     const isCustom = Boolean(config.base_url);

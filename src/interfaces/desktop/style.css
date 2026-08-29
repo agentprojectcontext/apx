@@ -390,6 +390,11 @@ button { font-family: inherit; }
 }
 .chip:hover { background: var(--glass-hairline); color: var(--ink); border-color: transparent; }
 .chip.done  { color: oklch(0.6 0.15 150); }
+/* "Sin voz": a passive marker, not a button — and it stays visible on older
+   turns too, which .turn-actions otherwise hides. */
+.chip.unvoiced { cursor: default; opacity: .75; }
+.chip.unvoiced:hover { background: transparent; color: var(--ink-2); border-color: var(--glass-hairline); }
+.turn-actions:has(.unvoiced) { display: flex; opacity: 1; }
 
 /* system notice (e.g. no mic permission / dead mic) — not a chat message */
 .sys-notice {

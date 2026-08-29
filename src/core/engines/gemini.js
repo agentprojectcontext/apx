@@ -3,6 +3,7 @@
 // use) so it can drive the super-agent loop on parity with Groq / OpenAI.
 import { randomUUID } from "node:crypto";
 import { matchesModelGlob, modelListFromConfig } from "./_globs.js";
+import { streamSseDataEvents } from "./_streaming.js";
 
 const API_BASE = "https://generativelanguage.googleapis.com/v1beta/models";
 
@@ -70,6 +71,55 @@ function markExhausted(model, key, now = Date.now()) {
   const reset = new Date(now);
   reset.setUTCHours(24, 0, 0, 0);
   exhausted.set(cooldownKey(model, key), reset.getTime());
+}
+
+/**
+ * Read a `streamGenerateContent?alt=sse` response and rebuild the single
+ * response object the non-streaming path returns, so everything downstream —
+ * thought filtering, functionCall extraction, thought-signature replay — runs
+ * on one shape and stays unaware that streaming happened.
+ *
+ * Visible text deltas are handed to `onToken` as they arrive. Thought parts are
+ * NOT: they are the model's internal reasoning, and the desktop speaks what it
+ * streams.
+ */
+async function readGeminiStream(response, onToken) {
+  const parts = [];
+  let finishReason = null;
+  let usageMetadata = null;
+
+  const isTextPart = (p) => typeof p?.text === "string" && !(p.functionCall || p.function_call);
+
+  for await (const evt of streamSseDataEvents(response)) {
+    const cand = evt?.candidates?.[0];
+    if (evt?.usageMetadata) usageMetadata = evt.usageMetadata;
+    if (cand?.finishReason) finishReason = cand.finishReason;
+
+    for (const p of cand?.content?.parts || []) {
+      if (isTextPart(p) && !p.thought && p.text) {
+        try { onToken(p.text); } catch { /* a consumer throwing must not kill the turn */ }
+      }
+      // Text arrives in fragments; fold consecutive same-kind text parts back
+      // into one so the replayed model turn matches what a single-shot call
+      // would have produced. functionCall parts always arrive whole.
+      const last = parts[parts.length - 1];
+      if (
+        isTextPart(p) && last && isTextPart(last) &&
+        Boolean(last.thought) === Boolean(p.thought)
+      ) {
+        last.text += p.text || "";
+        const sig = p.thoughtSignature || p.thought_signature;
+        if (sig) last.thoughtSignature = sig;
+        continue;
+      }
+      parts.push({ ...p });
+    }
+  }
+
+  return {
+    candidates: [{ content: { parts }, finishReason }],
+    ...(usageMetadata ? { usageMetadata } : {}),
+  };
 }
 
 /** Did this response mean "this key has no quota left", as opposed to a real error? */
@@ -337,6 +387,7 @@ export default {
     toolChoice,
     config = {},
     signal,
+    onToken,
   }) {
     const keys = getKeys(config);
     if (!keys.length) throw new Error("gemini: no api_key (set GEMINI_API_KEY or engines.gemini.api_key)");
@@ -369,20 +420,34 @@ export default {
     // request, not the turn.
     const order = fresh.length ? fresh : keys;
 
+    // Streaming is opt-in per call: the caller wants tokens as they land, and
+    // the turn isn't forcing a function call (mode ANY produces a call, not
+    // prose — there'd be nothing to stream). Same request body either way; only
+    // the endpoint and how the response is read differ, so the key rotation and
+    // error handling below stay shared.
+    const wantsStream =
+      typeof onToken === "function" && toolChoice !== "required" && toolChoice !== "any";
+
     let json;
     let lastError = null;
     for (let i = 0; i < order.length; i++) {
       const key = order[i];
-      const url = `${API_BASE}/${encodeURIComponent(model)}:generateContent?key=${key}`;
+      const verb = wantsStream ? "streamGenerateContent?alt=sse&" : "generateContent?";
+      const url = `${API_BASE}/${encodeURIComponent(model)}:${verb}key=${key}`;
       const res = await fetch(url, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
         signal,
       });
-      const payload = await res.json();
 
-      if (res.ok) { json = payload; break; }
+      // An SSE response body must not be read as JSON, so settle the ok/error
+      // question on the status first and only then choose how to read it.
+      if (res.ok) {
+        json = wantsStream ? await readGeminiStream(res, onToken) : await res.json();
+        break;
+      }
+      const payload = await res.json().catch(() => ({}));
 
       if (isQuotaError(res.status, payload)) {
         markExhausted(model, key);

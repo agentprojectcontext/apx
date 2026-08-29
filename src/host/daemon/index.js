@@ -304,8 +304,8 @@ async function main() {
     setTimeout(() => triggerWakeup(cfg, log), 3000);
     // Preload whisper-server in the background so first desktop transcription is fast.
     // Adopts an existing one if already on the port; otherwise spawns fresh.
-    import("./whisper-server.js").then(({ preloadWhisperServer }) => {
-      preloadWhisperServer((m) => log(m));
+    import("./whisper-server.js").then(({ preloadWhisperServer, startWhisperKeepWarm }) => {
+      preloadWhisperServer((m) => log(m)).then(() => startWhisperKeepWarm((m) => log(m)));
     }).catch(() => {});
   });
 
@@ -366,7 +366,8 @@ async function main() {
     stopMemory();
     registries.shutdown();
     // Best-effort shutdown of whisper-server subprocess.
-    import("./whisper-server.js").then(({ shutdownWhisperServer }) => {
+    import("./whisper-server.js").then(({ shutdownWhisperServer, stopWhisperKeepWarm }) => {
+      stopWhisperKeepWarm();
       shutdownWhisperServer().catch(() => {});
     }).catch(() => {});
     // Close the LAN listener(s) too, or the port stays held after SIGTERM and
