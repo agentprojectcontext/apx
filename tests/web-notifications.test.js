@@ -113,6 +113,9 @@ test("both surfaces can pick which channels ring them", () => {
   const prefs = webSrc("components", "settings", "PanelPrefs.tsx");
   const desktop = webSrc("components", "settings", "WebPanel.tsx");
   assert.match(prefs, /export function NotificationChannels/);
+  // Only while notifications can actually arrive: a channel switch under
+  // "this browser is blocking notifications" would do nothing.
+  assert.match(prefs, /if \(notifyStance\(\)\.kind !== "on"\) return null;/);
   assert.match(prefs, /<NotificationChannels \/>/, "the phone's dialog offers it");
   assert.match(desktop, /<NotificationChannels \/>/, "and so does the panel");
 });

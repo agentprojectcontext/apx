@@ -34,7 +34,7 @@ export function ChannelChips({
   if (channels.length < 2) return null; // nothing to choose between
   return (
     <div
-      className={cn("flex items-center gap-1 overflow-x-auto", className)}
+      className={cn("no-scrollbar flex items-center gap-1 overflow-x-auto", className)}
       role="group"
       aria-label={t("channels.filter")}
     >

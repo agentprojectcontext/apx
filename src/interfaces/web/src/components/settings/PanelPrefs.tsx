@@ -156,6 +156,10 @@ export function NotificationChannels({ className }: { className?: string }) {
   const notify = useChannelPrefs("notify");
   const { rows } = useInbox();
   const channels = channelsOf(rows);
+  // Only while notifications can actually arrive. Offering "which channels may
+  // ring you" under "this browser is blocking notifications" is a switch that
+  // does nothing — the same rule the stance messages above follow.
+  if (notifyStance().kind !== "on") return null;
   if (channels.length < 2) return null;
   return (
     <div className={className ?? "space-y-2"}>
