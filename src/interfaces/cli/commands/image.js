@@ -4,8 +4,19 @@
 //   apx image "<prompt>" --out fox.png         write it where you say
 //   apx image "<prompt>" --size 768x512 --steps 8 --cfg 1.0
 //   apx image "<prompt>" --provider a1111      force one engine
+//   apx image "<prompt>" --init photo.png      img2img: start from that picture
+//   apx image "<prompt>" --control pose.png    ControlNet: keep its structure
+//   apx image "<prompt>" --init p.png --mask m.png   inpaint just the white part
 //   apx image providers                        which engines are reachable
 //   apx image capabilities [--provider <id>]   models/samplers a server offers
+//
+// Two reference-image flags, not one, because they are two operations against
+// two routes: --init hands the sampler a canvas to repaint (how far it may
+// stray is --denoise), --control hands it a structure to build a fresh picture
+// around (how hard to enforce it is --control-strength). --img-ref is accepted
+// as a friendlier spelling of --init, which is the one people reach for.
+// The file is read here and sent as base64, so the daemon may be on another
+// machine; express caps a body at 2 MB, which SIZE_LIMIT keeps us under.
 //
 // A thin client over the daemon's POST /api/images/generate — the same routing
 // the web panel and any agent surface use, so a picture made here is made the
@@ -39,9 +50,39 @@ const USAGE = [
   "Usage: apx image \"<prompt>\" [--out <file>] [--provider <id>] [--size 768x512]",
   "                  [--steps N] [--cfg N] [--seed N] [--negative \"...\"]",
   "                  [--count N] [--model <id>] [--format png|jpeg|webp] [--json] [--open]",
+  "                  [--init <img> [--denoise 0.45] [--mask <img> [--mask-blur N]]]",
+  "                  [--control <img> [--control-strength 0.8]]",
   "       apx image providers",
   "       apx image capabilities [--provider <id>]",
 ].join("\n");
+
+// Express parses request bodies up to 2 MB (host/daemon/api.js). Base64 costs
+// a third on top, so refuse a little under that with an actionable message
+// rather than letting the daemon answer an opaque 413.
+const SIZE_LIMIT = 1_400_000;
+
+/**
+ * Read a reference image and return bare base64.
+ *
+ * Failing loudly here matters: a mistyped path that fell through would render
+ * a perfectly good picture that simply ignored the reference, and nothing in
+ * the output would say why.
+ */
+function readImageFlag(value, flagName) {
+  const file = str(value);
+  if (!file) throw new Error(`${flagName} needs a file path`);
+  const resolved = path.resolve(file);
+  if (!fs.existsSync(resolved)) throw new Error(`${flagName}: no such file — ${resolved}`);
+  const stat = fs.statSync(resolved);
+  if (stat.isDirectory()) throw new Error(`${flagName}: that is a directory — ${resolved}`);
+  if (stat.size > SIZE_LIMIT) {
+    throw new Error(
+      `${flagName}: ${formatBytes(stat.size)} is too big (limit ${formatBytes(SIZE_LIMIT)}).\n` +
+      `  Shrink it first, e.g.  sips -Z 768 "${resolved}" --out /tmp/ref.png`
+    );
+  }
+  return fs.readFileSync(resolved).toString("base64");
+}
 
 function num(v) {
   if (v === undefined || v === true) return undefined;
@@ -70,6 +111,44 @@ function requestFrom(flags) {
   put("negative_prompt", str(flags.negative ?? flags["negative-prompt"]));
   put("model", str(flags.model));
   put("format", str(flags.format));
+
+  // --img-ref is the same thing as --init; refuse to guess if both are given
+  // with different files, since silently dropping one changes the picture.
+  const initFlag = flags.init ?? flags["img-ref"] ?? flags.img_ref;
+  const controlFlag = flags.control ?? flags["control-image"] ?? flags.control_image;
+  if (initFlag !== undefined && controlFlag !== undefined) {
+    throw new Error(
+      "--init and --control are different operations; pass one.\n" +
+      "  --init    repaint that picture (img2img)\n" +
+      "  --control build a new one around its structure (ControlNet)"
+    );
+  }
+  const maskFlag = flags.mask;
+  if (maskFlag !== undefined && initFlag === undefined) {
+    throw new Error("--mask needs --init: inpainting repaints part of a picture you supply");
+  }
+  if (initFlag !== undefined) {
+    put("init_image", readImageFlag(initFlag, "--init"));
+    put("denoising_strength", num(flags.denoise ?? flags["denoising-strength"] ?? flags.denoising_strength));
+  }
+  if (maskFlag !== undefined) {
+    put("mask", readImageFlag(maskFlag, "--mask"));
+    put("mask_blur", num(flags["mask-blur"] ?? flags.mask_blur));
+    // Named rather than numeric: nobody remembers that 2 means latent noise,
+    // and it is the knob that decides whether the prompt lands at all.
+    const fill = str(flags["inpaint-fill"] ?? flags.inpaint_fill);
+    if (fill) {
+      const FILLS = { fill: 0, original: 1, noise: 2, nothing: 3 };
+      if (!(fill in FILLS)) {
+        throw new Error(`--inpaint-fill: unknown "${fill}". Use: ${Object.keys(FILLS).join(" | ")}`);
+      }
+      put("inpainting_fill", FILLS[fill]);
+    }
+  }
+  if (controlFlag !== undefined) {
+    put("control_image", readImageFlag(controlFlag, "--control"));
+    put("control_strength", num(flags["control-strength"] ?? flags.control_strength));
+  }
   return body;
 }
 
@@ -181,7 +260,14 @@ export async function cmdImage(args) {
     return;
   }
 
-  const body = { prompt, ...requestFrom(flags) };
+  let body;
+  try {
+    body = { prompt, ...requestFrom(flags) };
+  } catch (e) {
+    process.stderr.write(err(`apx image: ${e.message}`) + "\n");
+    process.exitCode = 1;
+    return;
+  }
   const quiet = !!flags.json;
   if (!quiet) {
     process.stderr.write(dim(`Generating… ${prompt.length > 60 ? prompt.slice(0, 60) + "…" : prompt}`) + "\n");
@@ -207,6 +293,7 @@ export async function cmdImage(args) {
     const secs = (result.elapsed_ms / 1000).toFixed(1);
     const bits = [
       result.provider,
+      result.meta?.mode && result.meta.mode !== "txt2img" ? result.meta.mode : null,
       result.model || null,
       `${result.request?.width}x${result.request?.height}`,
       images[0]?.seed != null ? `seed ${images[0].seed}` : null,

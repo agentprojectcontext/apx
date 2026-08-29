@@ -2,7 +2,15 @@
 //
 //   POST /images/generate    { prompt, provider?, width?, height?, size?,
 //                              steps?, cfg_scale?, seed?, sampler?, scheduler?,
-//                              count?, format?, negative_prompt?, model? }
+//                              count?, format?, negative_prompt?, model?,
+//                              init_image?, denoising_strength?,
+//                              control_image?, control_strength? }
+//                            init_image / control_image are base64 (bare or a
+//                            data: URL). They are two different operations —
+//                            repaint this canvas vs. keep this structure — and
+//                            no engine accepts both. Bodies are capped at 2 MB
+//                            by the express json parser. The echoed `request`
+//                            has the payloads replaced by a size marker.
 //                            → { images: [{path, url, bytes, mime, seed}],
 //                                provider, model, request, ignored, elapsed_ms }
 //
