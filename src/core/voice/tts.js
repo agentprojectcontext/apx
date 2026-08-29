@@ -123,7 +123,7 @@ export async function synthesize({
       // An aborted turn is the caller changing its mind, not an engine fault —
       // trying the next voice would speak a reply nobody is waiting for.
       if (e?.name === "AbortError" || signal?.aborted) throw e;
-      logWarn(`tts: ${selectedProvider} failed — ${e?.message || e}`, "tts");
+      logWarn("tts", `${selectedProvider} failed — ${e?.message || e}`);
     }
   }
   throw lastError || new Error("synthesize: no TTS engine available");
@@ -151,7 +151,7 @@ export async function warmupTts({ globalConfig } = {}) {
     const r = await first.adapter.warmup(first.engineConfig, cfg.engines);
     return { ok: true, provider: first.provider, ...r };
   } catch (e) {
-    logWarn(`tts: warmup of ${first.provider} failed — ${e?.message || e}`, "tts");
+    logWarn("tts", `warmup of ${first.provider} failed — ${e?.message || e}`);
     return { ok: false, provider: first.provider, error: e?.message || String(e) };
   }
 }
