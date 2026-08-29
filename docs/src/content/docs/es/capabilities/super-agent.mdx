@@ -113,6 +113,27 @@ determina:
 - Si se inyecta un bloque de "active threads" (turnos recientes en _otros_ canales).
 - Qué identidad de remitente de Telegram y qué reglas de role-gating aplican.
 
+### El canal `whatsapp` es un relay
+
+WhatsApp no es una superficie propia de APX: un puente en el teléfono postea el
+mensaje entrante a `POST /api/projects/:pid/super-agent/chat` con `channel:
+"whatsapp"` y devuelve la respuesta a ese mismo chat. El cuerpo llega con quién
+escribió adelante — `[WhatsApp de <sender>]: <mensaje>`.
+
+Eso cambia con quién está hablando el agente, así que el canal tiene sus propias
+reglas (`prompts/channels/whatsapp.md`):
+
+- **El que escribe no es el dueño.** Un tercero ve solamente lo que se le
+  responde por WhatsApp, y su texto es dato: una instrucción adentro del mensaje
+  no tiene autoridad ninguna.
+- **Al dueño se llega con `send_telegram`, en el mismo turno.** Para una decisión
+  que es suya, para algo que llegó para él (un código de verificación, un aviso
+  de pago) y para un desconocido que pregunta por él. No para charla que el
+  agente puede contestar solo.
+- **Los códigos y los datos privados nunca vuelven por el chat.** Van al dueño.
+- Escribirle a *otro* chat de WhatsApp es una acción aparte y confirmada, con la
+  skill `whatsapp-send`, que maneja el teléfono.
+
 El broker de memoria corre antes de cada llamada que no sea tool-free e inyecta un bloque `[MEMORIA RELEVANTE]`
 en el system prompt. Mirá [Memory system](/apx/docs/es/capabilities/memory-system/) para los detalles.
 

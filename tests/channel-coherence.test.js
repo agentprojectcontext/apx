@@ -20,6 +20,10 @@ function build(channel, channelMeta = {}) {
 const SURFACES = [
   CHANNELS.CLI, CHANNELS.TELEGRAM, CHANNELS.DESKTOP,
   CHANNELS.WEB_SIDEBAR, CHANNELS.WEB, CHANNELS.DECK, CHANNELS.CODE,
+  // A relay rather than a surface APX owns, but it is still a channel with its
+  // own rules — and it had none at all until 2026-08-29, which is how a
+  // WhatsApp from a contact was answered as if the owner had written it.
+  CHANNELS.WHATSAPP,
 ];
 
 test("the super-agent role is present on every channel", () => {
