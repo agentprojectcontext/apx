@@ -89,6 +89,67 @@ export function decodeBase64Image(b64) {
 }
 
 /**
+ * Outbound counterpart of decodeBase64Image: hand a server bare base64.
+ *
+ * Diffusion servers are inconsistent about the `data:` prefix — A1111 strips it,
+ * stable-diffusion.cpp does not and decodes the literal "data:image/png;base64,"
+ * as image bytes, which fails deep inside the sampler with a message that names
+ * neither the field nor the prefix. Normalizing on the way out costs nothing and
+ * removes a whole class of "the reference image did nothing" reports.
+ */
+export function toRawBase64(b64) {
+  const raw = String(b64 || "").replace(/^data:[^;]+;base64,/, "").trim();
+  if (!raw) throw new Error("empty image payload");
+  return raw;
+}
+
+/**
+ * Pixel dimensions of a PNG or JPEG, straight from the header bytes.
+ *
+ * There is no image library in this tree and this does not need one: an
+ * inpainting mask whose size differs from the canvas is the single most common
+ * way the feature "does nothing", and the servers accept the mismatch silently.
+ * Reading two headers is enough to turn that into an error that names the fix.
+ *
+ * Returns null for anything it cannot parse — callers treat that as "unknown",
+ * never as "mismatched", so an exotic-but-valid file is not rejected.
+ */
+export function imageSize(buf) {
+  if (!buf || buf.length < 24) return null;
+  // PNG: an 8-byte signature, then the IHDR chunk with width/height at 16..24.
+  if (buf[0] === 0x89 && buf.toString("ascii", 1, 4) === "PNG") {
+    return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+  }
+  // JPEG: walk the marker segments to the first SOF, which carries the size.
+  if (buf[0] === 0xff && buf[1] === 0xd8) {
+    let i = 2;
+    while (i + 9 < buf.length) {
+      if (buf[i] !== 0xff) { i++; continue; }
+      const marker = buf[i + 1];
+      // SOF0-SOF15, minus the four that are not frame headers (DHT/JPG/DAC/RST).
+      if (marker >= 0xc0 && marker <= 0xcf &&
+          marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+        return { height: buf.readUInt16BE(i + 5), width: buf.readUInt16BE(i + 7) };
+      }
+      i += 2 + buf.readUInt16BE(i + 2);
+    }
+  }
+  return null;
+}
+
+/**
+ * A stand-in for an image payload in anything a human or a log will read.
+ *
+ * The resolved request travels back to the caller and into `--json`; a 700 KB
+ * base64 string in there turns a readable receipt into an unreadable one and
+ * bloats every stored session. The size is what a reader actually wants.
+ */
+export function redactImagePayload(b64) {
+  const n = String(b64 || "").length;
+  return `<base64 ${Math.round((n * 3) / 4 / 1024)} KB>`;
+}
+
+/**
  * POST JSON and parse the reply, turning a non-2xx into an Error whose message
  * carries the server's own words — a 400 from a diffusion server usually names
  * the offending field, and swallowing that costs the user the fix.

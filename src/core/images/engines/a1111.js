@@ -14,8 +14,35 @@
 //   { images: ["<base64 png>", …], info: "<json string>", parameters: {…} }
 // `info` is a JSON *string* (not an object) and carries the resolved seed —
 // the only way to learn which seed a `seed: -1` request actually used.
+//
+// ── img2img ────────────────────────────────────────────────────────────────
+// An `init_image` switches the route to POST /sdapi/v1/img2img, where the
+// picture is the starting canvas rather than a structural hint: the reply keeps
+// the same envelope, so only the URL and two fields differ. `denoising_strength`
+// is how far the sampler is allowed to walk away from it — ~0.3 retouches,
+// ~0.45 is the useful middle, >0.6 reinvents the scene. Verified against
+// stable-diffusion.cpp at 512x768.
+//
+// ── Inpainting ─────────────────────────────────────────────────────────────
+// A `mask` alongside the init image confines the repaint to the white areas
+// and leaves the black ones byte-identical, which is the only way to change one
+// thing in a picture and keep the rest of the scene. Verified against
+// stable-diffusion.cpp's shim.
+//
+// `inpainting_fill` decides what the masked region starts from, and it is the
+// setting that decides whether the prompt lands at all:
+//   1 "original" (default) keeps the existing pixels — a gentle edit, but on a
+//     turbo checkpoint at cfg 1.0 the old content can outvote the prompt
+//     entirely and nothing visibly changes;
+//   2 "latent noise" throws them away, which is what a prompt that has to
+//     override the region needs.
+// Measured on Z-Image Turbo: fill 1 at denoise 0.75 left a green body green;
+// fill 2 at denoise 1.0 turned it red with the rest of the frame untouched.
+//
+// Structural conditioning (ControlNet) is NOT here: that server takes a
+// `control_image` on its own native route, so it lives in the sdcpp adapter.
 
-import { postJson, probeUrl, joinUrl, writeImage, decodeBase64Image } from "./shared.js";
+import { postJson, probeUrl, joinUrl, writeImage, decodeBase64Image, toRawBase64, imageSize } from "./shared.js";
 
 const DEFAULT_TIMEOUT_S = 600;
 
@@ -66,6 +93,8 @@ export default {
   supports: [
     "negative_prompt", "width", "height", "steps", "cfg_scale",
     "seed", "sampler", "scheduler", "count", "model",
+    "init_image", "denoising_strength",
+    "mask", "mask_blur", "inpainting_fill", "inpaint_full_res",
   ],
 
   async isAvailable(config = {}) {
@@ -82,9 +111,17 @@ export default {
   async generate({
     prompt, negative_prompt, width, height, steps, cfg_scale, seed,
     sampler, scheduler, count, model, format, outDir, config = {}, signal,
+    init_image, denoising_strength,
+    mask, mask_blur, inpainting_fill, inpaint_full_res,
   }) {
     if (!config.base_url) throw new Error("a1111: base_url required");
 
+    // A mask with nothing to mask is a request that would render a plain
+    // txt2img and look like the mask was ignored. Refuse instead.
+    if (mask && !init_image) {
+      throw new Error("a1111: mask needs an init image — inpainting repaints part of a picture");
+    }
+    const img2img = !!init_image;
     const body = { prompt };
     if (negative_prompt) body.negative_prompt = negative_prompt;
     if (width) body.width = width;
@@ -99,9 +136,36 @@ export default {
     // field. Servers that host a single model (sd.cpp) ignore it harmlessly.
     if (model) body.override_settings = { sd_model_checkpoint: model };
 
+    // img2img carries the canvas plus how far the sampler may stray from it.
+    // The field is `init_images` (plural, an array) even for a single picture —
+    // an `init_image` singular is silently ignored and you get plain txt2img.
+    if (img2img) {
+      body.init_images = [toRawBase64(init_image)];
+      body.denoising_strength = denoising_strength != null ? denoising_strength : 0.45;
+    }
+
+    if (mask) {
+      const initBuf = decodeBase64Image(init_image);
+      const maskBuf = decodeBase64Image(mask);
+      const a = imageSize(initBuf);
+      const b = imageSize(maskBuf);
+      // Servers accept a mismatched mask without complaint and then inpaint the
+      // wrong region (or nothing), so catch it here where the fix is sayable.
+      if (a && b && (a.width !== b.width || a.height !== b.height)) {
+        throw new Error(
+          `a1111: mask is ${b.width}x${b.height} but the init image is ${a.width}x${a.height} — ` +
+          "they must match exactly; resize the mask first"
+        );
+      }
+      body.mask = toRawBase64(mask);
+      if (mask_blur != null) body.mask_blur = mask_blur;
+      body.inpainting_fill = inpainting_fill != null ? inpainting_fill : 1;
+      body.inpaint_full_res = inpaint_full_res != null ? inpaint_full_res : false;
+    }
+
     const timeoutMs = (Number(config.timeout_s) || DEFAULT_TIMEOUT_S) * 1000;
     const reply = await postJson(
-      joinUrl(config.base_url, "/sdapi/v1/txt2img"),
+      joinUrl(config.base_url, img2img ? "/sdapi/v1/img2img" : "/sdapi/v1/txt2img"),
       body,
       { headers: headersFor(config), signal, timeoutMs }
     );
@@ -123,9 +187,12 @@ export default {
       model: rendered || (sameCheckpoint(model, rendered) ? model : null) || null,
       unhonored: model && rendered && !sameCheckpoint(model, rendered) ? ["model"] : [],
       meta: {
+        mode: mask ? "inpaint" : img2img ? "img2img" : "txt2img",
         sampler: info?.sampler_name || sampler || null,
         steps: info?.steps ?? steps ?? null,
         cfg_scale: info?.cfg_scale ?? cfg_scale ?? null,
+        ...(img2img ? { denoising_strength: body.denoising_strength } : {}),
+        ...(mask ? { inpainting_fill: body.inpainting_fill, mask_blur: body.mask_blur ?? null } : {}),
       },
     };
   },

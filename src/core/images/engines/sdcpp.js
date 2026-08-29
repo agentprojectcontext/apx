@@ -17,8 +17,23 @@
 // One model per server: stable-diffusion.cpp loads a checkpoint at launch, so
 // there is no field to switch it and `model` is declared unsupported rather
 // than quietly ignored.
+//
+// ── ControlNet ─────────────────────────────────────────────────────────────
+// A `control_image` conditions the render on the structure of a picture —
+// pose, composition, edges — while the prompt still decides everything else.
+// It rides on this native route (the A1111 shim has no field for it), needs a
+// server launched with a ControlNet model loaded, and `control_strength`
+// (0..1, default 0.8) sets how hard the structure is enforced.
+//
+// This is NOT img2img: the control image is never the canvas, so the output
+// does not start from those pixels. To *edit* a picture use the a1111
+// adapter's `init_image` instead.
+//
+// The finished job's envelope is the trap here — `result.images[0].b64_json`.
+// It is not a list of strings the way the A1111 route answers, and it is not
+// `.b64` or `.data`; imagesFrom() below is what absorbs that difference.
 
-import { postJson, getJson, probeUrl, joinUrl, trimBase, writeImage, decodeBase64Image } from "./shared.js";
+import { postJson, getJson, probeUrl, joinUrl, trimBase, writeImage, decodeBase64Image, toRawBase64 } from "./shared.js";
 
 const DEFAULT_POLL_MS = 1200;
 const DEFAULT_TIMEOUT_S = 900;
@@ -61,6 +76,7 @@ export default {
   supports: [
     "negative_prompt", "width", "height", "steps", "cfg_scale",
     "seed", "sampler", "scheduler", "count", "format",
+    "control_image", "control_strength",
   ],
 
   async isAvailable(config = {}) {
@@ -73,6 +89,7 @@ export default {
   async generate({
     prompt, negative_prompt, width, height, steps, cfg_scale, seed,
     sampler, scheduler, count, format, outDir, config = {}, signal, onProgress,
+    control_image, control_strength,
   }) {
     if (!config.base_url) throw new Error("sdcpp: base_url required");
 
@@ -89,6 +106,12 @@ export default {
     if (count) body.batch_count = count;
     if (seed != null) body.seed = seed;
     if (format) body.output_format = format;
+    // Bare base64: this server decodes the "data:…;base64," prefix as pixels
+    // and fails inside the sampler without naming the field.
+    if (control_image) {
+      body.control_image = toRawBase64(control_image);
+      body.control_strength = control_strength != null ? control_strength : 0.8;
+    }
     if (Object.keys(sample_params).length) body.sample_params = sample_params;
 
     const submitted = await postJson(
@@ -145,7 +168,11 @@ export default {
         ({ ...writeImage(decodeBase64Image(b64), { outDir, provider: "sdcpp", format: outFormat, index: i }),
            seed: seed >= 0 ? seed : null })),
       model: null, // filled in by the facade from capabilities() when known
-      meta: { job_id: submitted.id, elapsed_s: job?.completed && job?.started ? job.completed - job.started : null },
+      meta: {
+        job_id: submitted.id,
+        elapsed_s: job?.completed && job?.started ? job.completed - job.started : null,
+        ...(control_image ? { mode: "controlnet", control_strength: body.control_strength } : {}),
+      },
     };
   },
 

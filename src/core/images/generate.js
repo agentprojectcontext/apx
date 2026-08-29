@@ -23,7 +23,7 @@ import {
   resolveMode,
   resolveChainOrder,
 } from "./engines/index.js";
-import { parseSize } from "./engines/shared.js";
+import { parseSize, redactImagePayload } from "./engines/shared.js";
 
 export { IMAGES_DIR };
 
@@ -49,7 +49,35 @@ export const FAMILY_DEFAULTS = Object.freeze({
 export const REQUEST_OPTIONS = Object.freeze([
   "negative_prompt", "width", "height", "steps", "cfg_scale",
   "seed", "sampler", "scheduler", "count", "format", "model",
+  "init_image", "denoising_strength", "control_image", "control_strength",
+  "mask", "mask_blur", "inpainting_fill", "inpaint_full_res",
 ]);
+
+/**
+ * The two ways a caller can hand in a reference picture. They are different
+ * operations against different routes, not two spellings of one:
+ *
+ *   init_image     the canvas the sampler starts from   (img2img, a1111 route)
+ *   control_image  a structural hint it renders around  (ControlNet, sdcpp route)
+ *
+ * `mask` is not a third one: it is a modifier on init_image that confines the
+ * repaint to part of the canvas (inpainting), which is why it rides the same
+ * route and is refused on its own.
+ *
+ * No engine speaks both, which is exactly why they are separate keys — folding
+ * them into one "reference image" would make the engine silently pick a
+ * meaning, and the two produce very different pictures.
+ */
+export const IMAGE_INPUTS = Object.freeze(["init_image", "control_image", "mask"]);
+
+/** Swap base64 payloads for a size marker in anything echoed back to a caller. */
+function redactInputs(request) {
+  const out = { ...request };
+  for (const k of IMAGE_INPUTS) {
+    if (out[k]) out[k] = redactImagePayload(out[k]);
+  }
+  return out;
+}
 
 /** Today's folder under the gallery. Dated so a busy week stays navigable. */
 export function imageOutDir(now = new Date()) {
@@ -193,7 +221,9 @@ export async function generate({
       || (adapter.supports?.includes("model") ? request.model : null)
       || null,
     prompt: prompt.trim(),
-    request,
+    // Redacted: the payload is up to a megabyte of base64 and this object ends
+    // up in --json, in logs and in stored sessions.
+    request: redactInputs(request),
     ignored,
     elapsed_ms: Date.now() - started,
     meta: result.meta || {},
