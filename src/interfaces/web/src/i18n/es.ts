@@ -212,6 +212,7 @@ export const es = {
     test_failed: "No se pudo mostrar. Revisá que el navegador tenga permiso a nivel sistema.",
     nudge:       "¿Te aviso cuando un agente escriba?",
     nudge_yes:   "Activar",
+    channels_hint: "Qué canales pueden sonar en este dispositivo. En el celu Telegram arranca apagado — la app ya está ahí.",
   },
   inbox: {
     search: "Buscar",
@@ -225,6 +226,16 @@ export const es = {
     empty: "Todavía no hablaste con ningún agente.",
     show_quiet: "Ver los que no hablaron",
     no_reply_yet: "(sin respuestas todavía)",
+  },
+
+  // Filtros y etiquetas de canal: cuáles de los lugares donde puede pasar una
+  // conversación quiere ver y escuchar ESTE dispositivo (lib/channels.ts).
+  channels: {
+    filter:      "Canales",
+    a2a:         "Agente ↔ agente",
+    group:       "Grupos",
+    other:       "Sin canal",
+    all_hidden:  "Acá están todos los canales apagados. Tocá uno para volver a verlo.",
   },
 
   settings: {

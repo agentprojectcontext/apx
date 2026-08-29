@@ -24,8 +24,9 @@
 // subscription is not built.
 import { Inbox, type InboxRow } from "./api/inbox";
 import { t } from "../i18n";
-import { subscribeLive } from "./live";
-import { isInstalled, isSecure } from "./net";
+import { subscribeLive, type LiveEvent } from "./live";
+import { isSecure } from "./net";
+import { channelEnabled, isPhoneSurface } from "./channels";
 // Pure URL helpers, no React: the tap has to land on the same path the inbox
 // row would have navigated to, and there is exactly one place that knows it.
 import { chatPath, keyFor, pidOf, queryForChat, urlLooksAt } from "../screens/mobile/routes";
@@ -36,10 +37,15 @@ const PREF_KEY = "apx.notify.agents";
 const BLOB_ICON = (key: string | null) => (key ? `/modules/blobs/${key}.png` : APP_ICON);
 const APP_ICON = "/favicon/dark/android-chrome-192x192.png";
 
-/** Newest activity per thread at the last time we looked. Seeded, never
- *  notified from, on the first pass — otherwise switching this on fires one
- *  notification per agent you have ever talked to. */
+/** The agent's newest REPLY per thread at the last time we looked — not the
+ *  thread's newest activity, which also moves for the owner's own send and for
+ *  every tool the agent runs. Seeded, never notified from, on the first pass —
+ *  otherwise switching this on fires one notification per agent you have ever
+ *  talked to. */
 const seen = new Map<string, string>();
+/** When each thread last RANG, so a streamed answer arriving in five pieces
+ *  updates one banner instead of ringing five times. */
+const rang = new Map<string, number>();
 let seeded = false;
 let started = false;
 let unsubscribe: (() => void) | null = null;
@@ -118,7 +124,12 @@ function looking(row: InboxRow): boolean {
   return urlLooksAt(window.location.href, row);
 }
 
-async function show(row: InboxRow) {
+/** How long one thread owns the bell. A Telegram answer is streamed in pieces
+ *  and each piece is a real new reply, so the honest rendering is one alert and
+ *  then a quiet running update of the same banner. */
+const RING_EVERY_MS = 45_000;
+
+async function show(row: InboxRow, { quiet = false }: { quiet?: boolean } = {}) {
   const reg = await navigator.serviceWorker.getRegistration();
   const title = row.agent_name || row.agent_slug;
   const body = (row.preview || "").trim().slice(0, 180);
@@ -131,7 +142,10 @@ async function show(row: InboxRow) {
     // One live notification per thread: an agent mid-turn writes several rows,
     // and a stack of five from the same conversation is noise, not news.
     tag: keyOf(row),
-    renotify: true,
+    // `quiet` REPLACES the banner without alerting again — same thread, still
+    // talking. renotify must go with it: it is what forces a second sound.
+    renotify: !quiet,
+    silent: quiet,
     data: { url: conversationUrl(row) },
   };
   if (reg) {
@@ -184,14 +198,6 @@ export async function sendTestNotification(): Promise<boolean> {
   }
 }
 
-/** Whether this panel IS the phone surface — installed as an app, or already
- *  inside /mobile. Decided where the notification is built, because that is the
- *  only place that knows which surface the person is actually using. */
-function onPhoneSurface(): boolean {
-  if (isInstalled()) return true;
-  return typeof location !== "undefined" && location.pathname.startsWith("/mobile");
-}
-
 /**
  * Where tapping it should land — in the shape of the surface that raised it.
  *
@@ -204,19 +210,32 @@ function onPhoneSurface(): boolean {
  */
 export function conversationUrl(row: InboxRow): string {
   const key = keyFor(row);
-  if (onPhoneSurface()) return chatPath(pidOf(row), row.agent_slug, key);
+  if (isPhoneSurface()) return chatPath(pidOf(row), row.agent_slug, key);
   // The desktop route has no "no project" sentinel: the super-agent lives in
   // workspace 0 there, which is the same place its own sidebar opens it from.
   const pid = row.project_id ?? 0;
   return `/p/${pid}/chat?${queryForChat(key).toString()}`;
 }
 
-/** Rows whose newest activity we had not seen yet. */
+/**
+ * Rows where the AGENT has said something we had not seen yet.
+ *
+ * `preview_at` and not `last_activity_at`, and that one field is the whole
+ * difference between a bell and an alarm. A thread's activity moves for the
+ * owner's own send and for every tool row of a turn — 560 of them on one busy
+ * Telegram day — so keying off it meant a notification for your own message the
+ * instant you sent it, and another for every step the agent took answering it.
+ * The agent's reply is the only thing here that is news.
+ *
+ * The baseline is updated for EVERY row, including ones this device is not
+ * listening to: unmuting a channel should start telling you about what happens
+ * next, not replay what you chose not to hear.
+ */
 export function freshRows(rows: InboxRow[], previous: Map<string, string>): InboxRow[] {
   const out: InboxRow[] = [];
   for (const row of rows) {
     const key = keyOf(row);
-    const at = row.last_activity_at || "";
+    const at = row.preview_at || "";
     if (!at) continue;
     const before = previous.get(key);
     // Unseen counts as fresh, or the first message of a NEW conversation —
@@ -225,6 +244,29 @@ export function freshRows(rows: InboxRow[], previous: Map<string, string>): Inbo
     previous.set(key, at);
   }
   return out;
+}
+
+/**
+ * Is this burst worth asking the inbox about?
+ *
+ * The live feed carries every write: the owner's own message, each tool row,
+ * each compaction. Fetching the inbox for all of them was 60-odd requests for
+ * one 24-step turn, and every one of them a chance to ring about something that
+ * was not an answer. An agent SPEAKING is the only thing that can produce a
+ * notification, so it is the only thing that justifies the request.
+ *
+ * A ledger write says so with `type`/`direction`; a conversation write (a
+ * project agent's own file) has neither and carries `role` instead. A resync
+ * always passes: we were disconnected, and what we missed is exactly what this
+ * is for.
+ */
+export function announcesAnAgentTurn(events: LiveEvent[]): boolean {
+  return (events || []).some((e) => {
+    if (e.scope === "resync") return true;
+    if (e.role) return e.role === "assistant";
+    if (e.type) return e.type === "agent" && e.direction === "out";
+    return false;
+  });
 }
 
 async function check() {
@@ -241,11 +283,21 @@ async function check() {
     seeded = true;
     return;
   }
+  const now = Date.now();
   for (const row of fresh) {
     // A row with no reply yet is the user's own message coming back around.
     if (!row.preview) continue;
+    // This device's answer for this channel. The phone starts with Telegram
+    // off — the app is ON it, so APX announcing a Telegram reply is the same
+    // event twice — and the laptop starts with everything on. Either can be
+    // changed per channel, per device, in Preferences.
+    if (!channelEnabled("notify", row.channel)) continue;
     if (looking(row)) continue;
-    await show(row).catch(() => {});
+    // Same thread, still mid-answer: replace the banner, do not ring again.
+    const key = keyOf(row);
+    const quiet = now - (rang.get(key) ?? 0) < RING_EVERY_MS;
+    if (!quiet) rang.set(key, now);
+    await show(row, { quiet }).catch(() => {});
   }
 }
 
@@ -260,7 +312,12 @@ export function startAgentNotifications() {
   if (Notification.permission !== "granted") return;
   started = true;
   void check();                              // seed the baseline
-  unsubscribe = subscribeLive(() => { void check(); });
+  // Every burst, but only a fetch when an agent actually spoke. The channel
+  // filter is read at notification time rather than here, so switching a
+  // channel back on takes effect on its next turn with no reload.
+  unsubscribe = subscribeLive((events) => {
+    if (announcesAnAgentTurn(events)) void check();
+  });
 }
 
 /** Test seam: forget the baseline and the subscription. */
@@ -270,4 +327,5 @@ export function resetNotifications() {
   started = false;
   seeded = false;
   seen.clear();
+  rang.clear();
 }

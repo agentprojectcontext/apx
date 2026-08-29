@@ -25,6 +25,10 @@ export interface InboxRow {
   messages: number;
   /** What the AGENT last said — not what the user last asked. */
   preview: string | null;
+  /** WHEN it said that. Distinct from `last_activity_at`, which also moves for
+   *  the owner's own send and for every tool row of a turn — see lib/notify.ts,
+   *  where the difference is one bell per answer instead of one per step. */
+  preview_at?: string | null;
   last_activity_at: string;
 }
 

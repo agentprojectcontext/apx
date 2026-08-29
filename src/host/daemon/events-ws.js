@@ -131,6 +131,12 @@ function publicEvent(event, projects) {
     conversation_id: event.conversation_id || null,
     direction: event.direction || null,
     type: event.type || null,
+    // A conversation write (a project agent's chat file) has no direction and
+    // no type — it carries the ROLE it was appended under. Without it every
+    // such write looks identical on the wire, and a surface that only wants to
+    // hear about the agent SPEAKING has to re-fetch on the owner's own send and
+    // on every tool row too. See lib/notify.ts.
+    role: event.role || null,
     author: event.author || null,
     // How the row was produced, when it matters to a subscriber — "routine_delivery"
     // marks an agent reaching the owner, which the mascot surfaces on its own.

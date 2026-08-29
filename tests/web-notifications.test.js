@@ -47,13 +47,74 @@ test("an unseen thread counts as fresh, so a brand-new conversation announces it
 test("one notification per thread, replaced rather than stacked", () => {
   const notify = webSrc("lib", "notify.ts");
   assert.match(notify, /tag: keyOf\(row\)/, "the thread key is the tag");
-  assert.match(notify, /renotify: true/);
+  // It still re-alerts by default; only a repeat inside the ring window is
+  // downgraded to a silent replacement (see the streamed-answer test below).
+  assert.match(notify, /renotify: !quiet/);
 });
 
 test("the icon is the agent's own blob, with the app mark as the badge", () => {
   const notify = webSrc("lib", "notify.ts");
   assert.match(notify, /\/modules\/blobs\/\$\{key\}\.png/, "the same PNG the inbox draws");
   assert.match(notify, /badge: APP_ICON/, "the status-bar glyph is monochrome, so it is the app mark");
+});
+
+// ── What is worth a notification ───────────────────────────────────────────
+// The bug this section exists for: sending a message rang the phone instantly,
+// and then again for every tool the agent ran answering it — 60 tool rows in
+// one busy turn. Two separate mistakes, both fixed here.
+
+test("news is the agent's reply, not the thread moving", () => {
+  const notify = webSrc("lib", "notify.ts");
+  const fresh = notify.slice(notify.indexOf("export function freshRows("), notify.indexOf("export function announcesAnAgentTurn("));
+  assert.match(fresh, /const at = row\.preview_at \|\| "";/,
+    "preview_at is when the AGENT spoke; last_activity_at also moves for your own send and for tool rows");
+  assert.doesNotMatch(fresh, /last_activity_at/);
+  // The baseline is still taken for every row, muted ones included: unmuting a
+  // channel should start telling you about what happens NEXT, not replay it.
+  assert.match(fresh, /previous\.set\(key, at\);/);
+});
+
+test("only an agent turn is worth asking the inbox about", () => {
+  const notify = webSrc("lib", "notify.ts");
+  const gate = notify.slice(notify.indexOf("export function announcesAnAgentTurn("));
+  assert.match(gate, /if \(e\.scope === "resync"\) return true;/, "a reconnect re-checks once");
+  assert.match(gate, /if \(e\.role\) return e\.role === "assistant";/, "conversation writes carry a role");
+  assert.match(gate, /return e\.type === "agent" && e\.direction === "out";/, "ledger writes carry type + direction");
+  // And it is actually wired to the feed, or it is a function nobody calls.
+  assert.match(notify, /subscribeLive\(\(events\) => \{\s*\n\s*if \(announcesAnAgentTurn\(events\)\) void check\(\);/);
+});
+
+test("a channel this device muted never rings it", () => {
+  const notify = webSrc("lib", "notify.ts");
+  const check = notify.slice(notify.indexOf("async function check()"));
+  assert.match(check, /if \(!channelEnabled\("notify", row\.channel\)\) continue;/);
+});
+
+test("the phone starts with Telegram muted, and only the phone", () => {
+  // The app is installed on that very device: APX announcing a Telegram reply
+  // there is the same news twice. On the laptop it is the only way to hear it.
+  const channels = webSrc("lib", "channels.ts");
+  assert.match(channels, /const PHONE_MUTED = new Set\(\["telegram"\]\);/);
+  assert.match(channels, /return !\(isPhoneSurface\(\) && PHONE_MUTED\.has\(channel\)\);/);
+  // A default, not a stored choice: only explicit answers are written, so a
+  // channel invented later is not silently muted by an old snapshot.
+  assert.match(channels, /explicit === undefined \? channelDefault\(axis, key\) : explicit/);
+});
+
+test("a streamed answer updates one banner instead of ringing five times", () => {
+  const notify = webSrc("lib", "notify.ts");
+  assert.match(notify, /const RING_EVERY_MS = 45_000;/);
+  assert.match(notify, /const quiet = now - \(rang\.get\(key\) \?\? 0\) < RING_EVERY_MS;/);
+  // renotify is what forces the second sound, so it has to go with silent.
+  assert.match(notify, /renotify: !quiet,\s*\n\s*silent: quiet,/);
+});
+
+test("both surfaces can pick which channels ring them", () => {
+  const prefs = webSrc("components", "settings", "PanelPrefs.tsx");
+  const desktop = webSrc("components", "settings", "WebPanel.tsx");
+  assert.match(prefs, /export function NotificationChannels/);
+  assert.match(prefs, /<NotificationChannels \/>/, "the phone's dialog offers it");
+  assert.match(desktop, /<NotificationChannels \/>/, "and so does the panel");
 });
 
 test("the tap lands on the inbox row's own path, not a hand-built URL", () => {
@@ -93,7 +154,7 @@ test("the switch never offers a button for a state the user cannot change here",
 test("both locales carry every notify string", () => {
   const en = webSrc("i18n", "en.ts");
   const es = webSrc("i18n", "es.ts");
-  for (const key of ["title", "on", "off", "on_hint", "off_hint", "denied", "insecure", "unsupported"]) {
+  for (const key of ["title", "on", "off", "on_hint", "off_hint", "denied", "insecure", "unsupported", "channels_hint"]) {
     assert.match(en, new RegExp(`\\b${key}:`), `en is missing notify.${key}`);
     assert.match(es, new RegExp(`\\b${key}:`), `es is missing notify.${key}`);
   }
@@ -174,10 +235,13 @@ test("the tap lands in the shape of the surface that raised it", () => {
   // PATH, the desktop panel in the QUERY. Handing out the phone path
   // unconditionally threw a laptop click into the phone surface — one column,
   // no sidebar, on a 27-inch screen you were already sitting in front of.
-  assert.match(notify, /function onPhoneSurface\(\): boolean/);
-  assert.match(notify, /if \(isInstalled\(\)\) return true;/);
-  assert.match(notify, /location\.pathname\.startsWith\("\/mobile"\)/);
-  assert.match(notify, /if \(onPhoneSurface\(\)\) return chatPath\(pidOf\(row\), row\.agent_slug, key\);/);
+  // "Which surface is this" is now one answer for two questions — the URL
+  // shape AND which channels start muted — so it lives in lib/channels.ts.
+  const channels = webSrc("lib", "channels.ts");
+  assert.match(channels, /export function isPhoneSurface\(\): boolean/);
+  assert.match(channels, /if \(isInstalled\(\)\) return true;/);
+  assert.match(channels, /location\.pathname\.startsWith\("\/mobile"\)/);
+  assert.match(notify, /if \(isPhoneSurface\(\)\) return chatPath\(pidOf\(row\), row\.agent_slug, key\);/);
   assert.match(notify, /return `\/p\/\$\{pid\}\/chat\?\$\{queryForChat\(key\)\.toString\(\)\}`/);
   // The desktop route has no "no project" sentinel — the super-agent is in 0.
   assert.match(notify, /const pid = row\.project_id \?\? 0;/);

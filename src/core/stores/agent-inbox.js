@@ -128,6 +128,12 @@ export function listAgentInbox(projects, opts = {}) {
           messages: latest?.messages || 0,
           // The agent's last REPLY, not the user's last prompt.
           preview: latest?.preview || null,
+          // WHEN that reply was written — which is not when the thread last
+          // moved. A row moves for the owner's own send and for every tool the
+          // agent runs; only this moves when the agent actually SAYS something,
+          // which is the difference between one notification per answer and one
+          // per step of a 24-step turn. See lib/notify.ts.
+          preview_at: latest?.preview_at || null,
           last_activity_at: latest?.last_turn_at || latest?.started_at || "",
         });
       }
@@ -188,6 +194,10 @@ function superAgentRow(latest, threads) {
   const messages = threads.reduce((n, t) => n + (t.messages || 0), 0);
 
   let preview = null;
+  // When that reply was written. The thread's own `last_ts` moves for the
+  // owner's send too, so it cannot answer "did the agent say something new" —
+  // which is the only question a notification should be asking.
+  let previewAt = null;
   if (latest) {
     try {
       const thread = readGlobalThread({ channel: latest.channel, date: latest.id });
@@ -199,8 +209,10 @@ function superAgentRow(latest, threads) {
         .replace(/\s+/g, " ")
         .trim()
         .slice(0, 160) || null;
+      previewAt = lastReply?.ts || null;
     } catch {
       preview = null;
+      previewAt = null;
     }
   }
 
@@ -218,6 +230,7 @@ function superAgentRow(latest, threads) {
     channel: latest?.channel || null,
     messages,
     preview,
+    preview_at: previewAt,
     last_activity_at: latest?.last_ts || "",
   };
 }

@@ -82,6 +82,57 @@ test("the preview is what the AGENT last said, not what the user asked", () => {
   }
 });
 
+// ── When the AGENT last spoke ──────────────────────────────────────────────
+// The row's `last_activity_at` moves for the owner's own message and for every
+// tool the agent runs while answering. A notifier keyed off it rang the instant
+// you sent a message, and again for each of the 24 steps that followed.
+// `preview_at` is the timestamp of the thing the preview came from.
+
+test("preview_at is the agent's reply, not the thread's last movement", () => {
+  const p = makeProject("alpha", ["scout"]);
+  try {
+    writeConversation(p, "scout", {
+      id: "c1",
+      startedAt: "2026-08-01T10:00:00Z",
+      // The user asked something AFTER the agent's reply, and the frontmatter
+      // moved with it — that is the shape that used to ring the bell.
+      lastAt: "2026-08-01T10:05:00Z",
+      turns: [
+        ...TURNS,
+        { role: "user", ts: "2026-08-01T10:05:00Z", content: "and the invoices?" },
+      ],
+    });
+
+    const scout = listAgentInbox([p]).rows.find((r) => r.agent_slug === "scout");
+    assert.equal(scout.last_activity_at, "2026-08-01T10:05:00Z", "the thread did move");
+    assert.equal(scout.preview_at, "2026-08-01T10:01:00Z", "but the agent has not spoken since");
+    assert.equal(scout.preview, "report filed. 9 receipts, nothing over policy.");
+  } finally {
+    cleanup(p);
+  }
+});
+
+test("a tool row does not count as the agent speaking", () => {
+  const p = makeProject("alpha", ["scout"]);
+  try {
+    writeConversation(p, "scout", {
+      id: "c1",
+      startedAt: "2026-08-01T10:00:00Z",
+      lastAt: "2026-08-01T10:09:00Z",
+      turns: [
+        ...TURNS,
+        { role: "user", ts: "2026-08-01T10:08:00Z", content: "check again" },
+        { role: "tool", ts: "2026-08-01T10:09:00Z", content: '{"tool":"read_file"}' },
+      ],
+    });
+
+    const scout = listAgentInbox([p]).rows.find((r) => r.agent_slug === "scout");
+    assert.equal(scout.preview_at, "2026-08-01T10:01:00Z", "mid-turn work is not an answer");
+  } finally {
+    cleanup(p);
+  }
+});
+
 test("rows carry the project they came from, and the agent's display name", () => {
   const p = makeProject("alpha", ["scout"]);
   try {
@@ -129,6 +180,26 @@ test("the super-agent is pinned first and marked distinct", () => {
     assert.equal(rows[0].agent_slug, SUPERAGENT_ACTOR_ID);
     assert.equal(rows[0].channel, "telegram", "recency comes from the channel ledger");
     assert.equal(rows[1].agent_slug, "scout");
+  } finally {
+    cleanup(p);
+  }
+});
+
+test("the super-agent row says when it last spoke, not when it was last written to", () => {
+  const p = makeProject("alpha", ["scout"]);
+  try {
+    seedGlobalThread("whatsapp", "2026-08-02", [
+      { ts: "2026-08-02T10:00:00Z", type: "user", body: "[WhatsApp de juan]: hola" },
+      { ts: "2026-08-02T10:01:00Z", type: "agent", body: "hola juan, decime", actor_id: SUPERAGENT_ACTOR_ID },
+      // The bridge forwarded another inbound message that has not been answered.
+      { ts: "2026-08-02T10:04:00Z", type: "user", body: "[WhatsApp de juan]: ?" },
+    ]);
+
+    const row = listAgentInbox([p], { channel: "whatsapp" }).rows
+      .find((r) => r.kind === "super_agent");
+    assert.equal(row.last_activity_at, "2026-08-02T10:04:00Z");
+    assert.equal(row.preview_at, "2026-08-02T10:01:00Z", "the last thing IT said");
+    assert.equal(row.preview, "hola juan, decime");
   } finally {
     cleanup(p);
   }

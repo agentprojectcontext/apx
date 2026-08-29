@@ -142,6 +142,33 @@ test("a ledger write reaches every connected client", async () => {
   stop();
 });
 
+test("a conversation write carries the role it was appended under", async () => {
+  reset();
+  const stop = startEventsBridge({ projects: null });
+  const ws = new FakeWs();
+  registerEventsClient(ws);
+  ws.sent.length = 0;
+
+  // A project agent's own file: no direction, no type — appendTurn emits the
+  // ROLE. Without it on the wire every such write looks the same, and a
+  // subscriber that only cares about the agent SPEAKING has to re-fetch for the
+  // owner's message and for each tool row too (60-odd fetches for one turn).
+  emitMessageEvent({
+    scope: "conversation",
+    project_root: null,
+    agent_slug: "scout",
+    conversation_id: "c1",
+    role: "tool",
+    ts: "2026-01-15T10:00:00Z",
+  });
+  await wait(400);
+
+  const [frame] = ws.frames();
+  assert.equal(frame.events[0].role, "tool");
+  assert.equal(frame.events[0].type, null, "a conversation write has no ledger type");
+  stop();
+});
+
 test("a streamed turn's many writes collapse into one frame", async () => {
   reset();
   const stop = startEventsBridge({ projects: null });
