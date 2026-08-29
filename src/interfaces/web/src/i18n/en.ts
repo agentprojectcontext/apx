@@ -1393,6 +1393,7 @@ export const en = {
   },
 
   desktop_screen: {
+    model_title: "Model",
     status_title:        "Status",
     autostart_title:     "Auto-start",
     shortcut_title:      "Keyboard shortcut",
@@ -2225,6 +2226,11 @@ export const en = {
   },
 
   modules_ui: {
+    desktop_model: "Window model",
+    desktop_model_desc: "Which model answers in the floating window. It is the one surface where someone waits for the reply out loud, so it is allowed a faster one than the rest.",
+    desktop_model_hint: "Defaults to the super-agent's. Choosing another here does not change Telegram, the routines, or anything else.",
+    desktop_model_set: "Window model: {value}.",
+    desktop_model_inherit: "the super-agent's",
     desktop_pos_left:        "Left",
     desktop_pos_center:      "Center",
     desktop_pos_right:       "Right",
