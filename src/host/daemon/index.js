@@ -307,6 +307,14 @@ async function main() {
     import("./whisper-server.js").then(({ preloadWhisperServer, startWhisperKeepWarm }) => {
       preloadWhisperServer((m) => log(m)).then(() => startWhisperKeepWarm((m) => log(m)));
     }).catch(() => {});
+    // Same treatment for the voice engine. Warming it only when the microphone
+    // opens is too late: on a machine short on RAM the weights get compressed
+    // out while idle, and decompressing them takes far longer than anyone
+    // spends speaking — so the reply queues behind a warm-up still in flight.
+    // Only ever pings an engine running on this machine or the LAN.
+    import("./tts-keepwarm.js").then(({ startTtsKeepWarm }) => {
+      startTtsKeepWarm((m) => log(m));
+    }).catch(() => {});
   });
 
   // Attach WebSocket upgrades: the desktop channel on /api/desktop/ws, a
@@ -370,6 +378,9 @@ async function main() {
       stopWhisperKeepWarm();
       shutdownWhisperServer().catch(() => {});
     }).catch(() => {});
+    // The voice engine is a separate service with its own lifetime — nothing to
+    // shut down here, only our timer to stop pinging it.
+    import("./tts-keepwarm.js").then(({ stopTtsKeepWarm }) => stopTtsKeepWarm()).catch(() => {});
     // Close the LAN listener(s) too, or the port stays held after SIGTERM and
     // the next `apx restart` fails with "already running".
     for (const s2 of secondary) {
