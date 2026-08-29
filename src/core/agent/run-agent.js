@@ -3,6 +3,7 @@ import {
   extractPseudoToolCalls,
   extractBareFunctionCalls,
   cleanTextOfPseudoToolCalls,
+  looksLikeFabricatedToolLog,
 } from "./tools/tool-call-parser.js";
 import { resolveActiveModel, fallbackModels } from "./model-router.js";
 import { MAX_TOOL_ITERS, ACK_ONLY_TOOLS, MAX_CONSECUTIVE_ACKS, TURN_ENDING_TOOLS } from "./constants.js";
@@ -187,6 +188,35 @@ const TRUNCATED_SIGNAL =
   "task, writing a file, sending a message — CALL THEM NOW, one step at a time, " +
   "and keep any prose to a single short line. Composing the result as text is " +
   "not the same as doing it.]";
+
+// A turn that WROTE tool results instead of producing them.
+//
+// The shipped example (2026-08-29, Telegram): a fallback model answered with
+// five `[result: shell]` lines — invented commands, invented output — and then
+// "Listo, te mandé el WhatsApp". No tool ran. The user was told a message had
+// been sent to a real phone number that was never sent.
+//
+// Nothing in those lines can be recovered: there is no structured call in them,
+// and reconstructing a shell command from hallucinated prose to run it for real
+// would be a far worse failure than the one it fixes. So the model is told the
+// results are not real and asked to do the work — the same in-band correction
+// the truncation case uses, and for the same reason (weak models answer a
+// conversation turn far more reliably than a system suffix).
+const FABRICATED_RESULTS_SIGNAL =
+  "[Internal turn note — this is NOT from the user. Your last message was " +
+  "written as if tools had run, but you called none, so none of those results " +
+  "exist and nothing you described actually happened.\n" +
+  "Lines like `[tool result: …]` in this conversation are a LOG of past calls. " +
+  "They are not a format for you to write in — writing one does not run " +
+  "anything.\n" +
+  "Do the work now: emit real tool calls, one step at a time. If you cannot " +
+  "(no such tool, missing permission, unclear arguments), say that plainly to " +
+  "the user instead — but never report an action you did not take.]";
+
+// How many times one turn may be corrected for this before we let it end. A
+// model that fabricates twice in a row is not going to start acting on the
+// third try, and the wrap-up still fires.
+const MAX_FABRICATION_RETRIES = 2;
 
 /**
  * Shared tool-calling agent loop used by super-agent and future surfaces.
@@ -430,6 +460,7 @@ export async function runAgent({
   // budget. Bounded so a model that only ever returns empty can't spin forever.
   let emptyRetries = 0;
   let lengthContinues = 0;
+  let fabricationRetries = 0;
   const MAX_EMPTY_RETRIES = 2;
   // Side-effect dedupe. Weaker models (Gemini especially) sometimes
   // re-emit the SAME tool call across iterations — e.g. send_telegram
@@ -613,6 +644,9 @@ export async function runAgent({
     }
 
     if (!toolCalls || toolCalls.length === 0) {
+      // Checked BEFORE the cleaner, which is what strips the evidence.
+      const fabricated =
+        effectiveSchemas.length > 0 && looksLikeFabricatedToolLog(lastText);
       lastText = cleanTextOfPseudoToolCalls(lastText, callableNames) || lastText;
       // Dud turn (no tools, no text): re-prompt instead of ending empty, and
       // don't let it cost an iteration of the tool budget. `iter -= 1` cancels
@@ -623,6 +657,22 @@ export async function runAgent({
         emptyRetries += 1;
         await emitProgress(onEvent, { type: "empty_retry", iteration: iter + 1, attempt: emptyRetries });
         iter -= 1;
+        continue;
+      }
+      // It narrated the tools instead of calling them. Do NOT let this text
+      // stand as the answer — it reports work that never happened. The
+      // fabricated turn goes into the history so the model can see what it is
+      // being corrected about, followed by the correction.
+      if (fabricated && fabricationRetries < MAX_FABRICATION_RETRIES) {
+        fabricationRetries += 1;
+        await emitProgress(onEvent, {
+          type: "fabricated_results",
+          model: activeModel,
+          iteration: iter + 1,
+          attempt: fabricationRetries,
+        });
+        conversation.push({ role: "assistant", content: lastText });
+        conversation.push({ role: "user", content: FABRICATED_RESULTS_SIGNAL });
         continue;
       }
       // Cut off at the output cap, not finished. Keep the truncated text in the

@@ -87,16 +87,79 @@ test("reader: tool records replay the RESULT, not just the call, and stay bounde
     { ts: `${today}T10:00:06Z`, direction: "out", type: "agent", body: "listo, lo leí" },
   ]);
   const turns = getRecentChannelTurnsFromFs({ channel: "telegram", chat_id: 7, _globalMessagesDir: dir });
-  // user, then tool+agent coalesced onto the assistant side.
+  // user, then the tool log on the system side, then what the agent said.
   assert.equal(turns[0].role, "user");
-  assert.equal(turns[1].role, "assistant");
+  assert.equal(turns[1].role, "system");
   assert.match(turns[1].content, /\[tool result: read_file\]/);
   // The invocation stays: a result with no question attached is unreadable.
   assert.match(turns[1].content, /path=\/tmp\/x/);
   // The point of the record: what came BACK is in context, not only what was asked.
   assert.match(turns[1].content, /EL-CONTENIDO-QUE-IMPORTA/);
-  assert.ok(turns[1].content.length <= 700 + 64, "tool slice stays bounded");
-  assert.match(turns[1].content, /listo, lo leí/);
+  assert.ok(turns[1].content.length <= 700 + 64 + 200, "tool slice stays bounded");
+  assert.equal(turns[2].role, "assistant");
+  assert.match(turns[2].content, /listo, lo leí/);
+});
+
+// The half the shape fix missed, and the reason it shipped again on 2026-08-29.
+//
+// These lines used to ride as `role: "assistant"`, coalesced into the model's
+// own turns — one for every tool it had ever run. Whatever shape they have,
+// sitting in the model's own voice makes them a worked example of how to
+// answer: `[tool result: run_shell] (…) → …` then prose. A fallback model
+// (zen:big-pickle, reached after gemini 503'd) reproduced it from memory as
+// `[result: shell]` — five invented commands, five invented outputs, and
+// "Listo, te mandé el WhatsApp". Nothing ran; the message was never sent.
+//
+// A tool result is something that was OBSERVED, not something the agent said.
+// On the system side it is a log about the conversation instead of a turn in
+// it, and there is no longer an example of the agent narrating tools.
+test("reader: a tool result is never in the model's own voice", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-reader-side-"));
+  const today = new Date().toISOString().slice(0, 10);
+  seedTelegram(dir, 74, [
+    { ts: `${today}T10:00:00Z`, direction: "in", type: "user", body: "mandale un whatsapp" },
+    {
+      ts: `${today}T10:00:05Z`,
+      direction: "out",
+      type: "tool",
+      body: `run_shell({"command":"adb devices"})`,
+      meta: { tool: "run_shell", result: { exit_code: 0, stdout: "R5CX91B2M6F device\n" } },
+    },
+    {
+      ts: `${today}T10:00:06Z`,
+      direction: "out",
+      type: "tool",
+      body: `run_shell({"command":"adb shell input keyevent 66"})`,
+      meta: { tool: "run_shell", result: { exit_code: 0, stdout: "" } },
+    },
+    { ts: `${today}T10:00:07Z`, direction: "out", type: "agent", body: "listo, se lo mandé" },
+  ]);
+  const turns = getRecentChannelTurnsFromFs({ channel: "telegram", chat_id: 74, _globalMessagesDir: dir });
+
+  for (const t of turns) {
+    if (t.role !== "assistant") continue;
+    assert.doesNotMatch(
+      t.content,
+      /\[tool result:/,
+      "no assistant turn may carry a tool annotation — that is the worked example",
+    );
+  }
+  // The facts are still in the window, just not in the agent's voice.
+  const log = turns.filter((t) => t.role === "system").map((t) => t.content).join("\n");
+  assert.match(log, /adb devices/);
+  assert.match(log, /R5CX91B2M6F device/);
+  assert.match(log, /adb shell input keyevent 66/);
+  // Both calls coalesce into ONE system turn, headed once — not once per line.
+  assert.equal(turns.filter((t) => t.role === "system").length, 1);
+  assert.equal((log.match(/Tool log —/g) || []).length, 1);
+  // …and the header says whose lines these are, because for Gemini and
+  // Anthropic a mid-history system turn arrives as a USER turn.
+  assert.match(log, /Not from the user, not your own words/);
+  // What the agent actually said is its own turn, and only that.
+  assert.deepEqual(
+    turns.filter((t) => t.role === "assistant").map((t) => t.content),
+    ["listo, se lo mandé"],
+  );
 });
 
 // The regression behind fourteen leaked turns in a day. This history sits on

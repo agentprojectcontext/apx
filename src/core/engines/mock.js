@@ -136,6 +136,38 @@ export default {
       };
     }
 
+    // `[mock:fabricate:<tool>]` → the leak of 2026-08-29, one copy generation
+    // past `[mock:prose:…]`: a model that writes the whole TRANSCRIPT — several
+    // annotation lines with invented commands and invented output, then a
+    // confident report that the work is done. Nothing here is recoverable (no
+    // structured call, and the name is a paraphrase of the real tool's), so the
+    // only correct move is to refuse the text and ask for the real work. Once
+    // corrected it calls the tool, so a test can assert the recovery.
+    const fabricateTool =
+      userText.match(/\[mock:fabricate:([a-z_]+)\]/)?.[1] ||
+      messages.map((m) => String(m.content || "").match(/\[mock:fabricate:([a-z_]+)\]/)?.[1]).find(Boolean);
+    if (fabricateTool) {
+      const corrected = messages.some((m) =>
+        /written as if tools had run/i.test(String(m.content || "")),
+      );
+      if (corrected && toolsAvailable) return mkToolCall(fabricateTool, "mock-fabricate-1");
+      if (hasToolResult) {
+        return {
+          text: "Listo, ahora sí lo hice.",
+          usage: { input_tokens: userText.length, output_tokens: 8 },
+          raw: { model, mock: true },
+        };
+      }
+      return {
+        text:
+          "[result: shell] adb devices → List of devices attached\n" +
+          "[result: shell] adb shell input keyevent 66 — send pressed\n\n" +
+          "Listo, ya se lo mandé.",
+        usage: { input_tokens: userText.length, output_tokens: 48 },
+        raw: { model, mock: true },
+      };
+    }
+
     // `mock:truncated` → a degenerate answer: non-empty, but far too small to
     // stand in for anything. Models the flaky provider response that used to
     // get written over a whole conversation as its "summary".

@@ -974,6 +974,15 @@ function renderToolCallSummary(m, name) {
   return flatten(text).replace(/[{}]/g, "").slice(0, TOOL_CALL_CAP);
 }
 
+// Names the lines below for whoever reads them back. Not decoration: for Gemini
+// and Anthropic a mid-history system turn arrives as a USER turn, and a bare
+// `[tool result: …]` line there reads as something the user typed and is owed a
+// reply. This says what it is and that it is nobody's turn.
+const TOOL_LOG_HEADER =
+  "[Tool log — what already ran in this conversation. Not from the user, not " +
+  "your own words, and nothing here is waiting on a reply. Read it for facts; " +
+  "to act again, call the tool.]";
+
 // Truncated, prefixed rendering of a tool record for model context (Pieza 3).
 // Shape: `[tool result: <name>] (<short invocation>) → <result>`. The result
 // gets the bulk of the budget.
@@ -1084,10 +1093,38 @@ export function getRecentChannelTurnsFromFs({
       content: `[RESUMEN COMPACTADO ${label}]:\n${String(compact.body).trim()}`,
     });
   }
+  // Whether the previous record was also a tool, so only the first line of each
+  // contiguous run carries the header.
+  let inToolRun = false;
   for (const m of kept) {
     if (m.type === "tool") {
-      turns.push({ role: "assistant", content: renderToolResult(m) });
+      // On the SYSTEM side, never the assistant's. A tool result is something
+      // that was observed, not something the agent said — and putting it in the
+      // agent's own voice is what taught the agent to fake it.
+      //
+      // With `role: "assistant"` these lines were coalesced into the model's
+      // own turns, once per tool it had ever run: in a busy Telegram thread,
+      // 62% of the window was the model apparently answering in the shape
+      // `[tool result: run_shell] (command=…) → …` followed by prose. That is a
+      // worked example of narrating tool calls instead of making them, and on
+      // 2026-08-29 a fallback model copied it — five fabricated `[result:
+      // shell]` lines and a confident "I sent the WhatsApp". Nothing had run.
+      //
+      // Fixing the SHAPE was tried first (see the tests); the shape is not what
+      // makes it copyable, the SIDE is. Here the same text is unmistakably a
+      // log about the conversation rather than a turn in it, which is exactly
+      // how the compacted summary above already rides.
+      //
+      // Headed on the first line of each contiguous run, because for Gemini and
+      // Anthropic a mid-history system turn is serialised as a USER turn — and
+      // an unlabelled `[tool result: …]` arriving as the user's words is
+      // something a model will try to answer. The header says whose lines these
+      // are and that nobody is waiting on them.
+      const line = renderToolResult(m);
+      turns.push({ role: "system", content: inToolRun ? line : `${TOOL_LOG_HEADER}\n${line}` });
+      inToolRun = true;
     } else {
+      inToolRun = false;
       const role = m.type === "user" ? "user" : "assistant";
       let content = m.body;
       if (role === "assistant") content = sanitizeAssistantForContext(content);
