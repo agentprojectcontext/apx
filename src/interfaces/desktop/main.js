@@ -1128,7 +1128,12 @@ function _ttsRequest(text, explicitProvider) {
       });
     });
     req.on("error", (e) => resolve({ ok: false, error: e.message }));
-    req.setTimeout(30_000, () => { req.destroy(); resolve({ ok: false, error: "tts timeout" }); });
+    // Generous on purpose. A sentence normally comes back in a second or two,
+    // but the first one after the engine starts pays for loading a
+    // multi-gigabyte model, and 30s was cutting that off — the reply lost its
+    // voice for the one reason the user can do nothing about. Waiting is worse
+    // than instant; silence is worse than waiting.
+    req.setTimeout(120_000, () => { req.destroy(); resolve({ ok: false, error: "tts timeout" }); });
     req.write(body);
     req.end();
   });
