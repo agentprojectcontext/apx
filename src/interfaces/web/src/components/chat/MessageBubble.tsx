@@ -3,14 +3,14 @@ import { Bot, Clock, CornerDownRight, Copy, Info, Pencil, RefreshCw, X } from "l
 import { cn } from "../../lib/cn";
 import { AgentAvatar, type AgentFace } from "../agents/AgentAvatar";
 import { ToolCall } from "./ToolCall";
-import { ActionGroup, splitTurnParts } from "./ActionGroup";
+import { ActionGroup, segmentTurnParts, countTurnTools, type TurnSegment } from "./ActionGroup";
 import { SkillTrace } from "./SkillTrace";
 import { ReasoningBlock } from "./ReasoningBlock";
 import { AskQuestionsCard } from "./AskQuestionsCard";
 import { AskAnswersCard, parseAskAnswerText } from "./AskAnswersCard";
 import { AttachmentGroup, stripMediaMarker } from "./Attachment";
 import { MarkdownPreview, renderMentions } from "../files/MarkdownPreview";
-import { textOf, type ChatMsg } from "../../hooks/useChat";
+import { textOf, type ChatMsg, type ChatPart } from "../../hooks/useChat";
 import { Tip } from "../ui/tip";
 import { t } from "../../i18n";
 
@@ -83,9 +83,17 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
   const media = mine ? msg.media : undefined;
   const copyText = media?.length ? stripMediaMarker(textOf(msg), media.length) : textOf(msg);
   const hasTools = msg.parts.some((p) => p.kind === "tool");
-  // A user turn is never grouped — it has no tools, and `work` would be empty
-  // anyway; splitting only shapes the assistant side.
-  const { work, rest } = mine ? { work: [], rest: msg.parts } : splitTurnParts(msg.parts);
+  // A user turn is never grouped — it has no tools, and the segmenter would
+  // return one plain part per message anyway; blocks only shape the agent side.
+  //
+  // The turn keeps ITS OWN count across however many blocks it happened in:
+  // three tools, a sentence, three more tools is one turn of six actions, not
+  // two turns of three.
+  const segments = mine ? [] : segmentTurnParts(msg.parts);
+  const toolTotal = mine ? 0 : countTurnTools(msg.parts);
+  const blockCount = segments.filter((seg) => seg.kind === "work").length;
+  // The last block is the one still working; the earlier ones already finished.
+  const lastWorkAt = segments.map((seg) => seg.kind).lastIndexOf("work");
   // Simple view: same parts, no ActionGroup. Narration that lived inside the
   // work block comes out as regular bubbles; tools stay hidden (ask_questions
   // still shows — it is a control the reader must reach).
@@ -96,6 +104,11 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
         (p.kind === "tool" && p.tool === "ask_questions"),
       )
     : null;
+  // What actually gets drawn, in order. Only the agent's full view has blocks;
+  // the user's own turn and the simple view are flat lists of parts.
+  const renderList: TurnSegment[] = showTools && !mine
+    ? segments
+    : (simpleParts || msg.parts).map((part) => ({ kind: "part", part }) as const);
 
   if (mine && isAskAnswer) {
     const text = textOf(msg);
@@ -113,6 +126,58 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
     // text of a photo message must not refuse the save.
     if (v || media?.length) onEdit(v);
   };
+
+  // One part of the turn, outside any block: the agent's own words, its
+  // thinking, or a card that must stay in the open.
+  const renderPart = (part: ChatPart, i: number) =>
+    part.kind === "reasoning" ? (
+      <ReasoningBlock key={i} text={part.text} streaming={part.streaming} />
+    ) : part.kind === "tool" ? (
+      part.tool === "ask_questions" && !mine ? (
+        <AskQuestionsCard key={`${part.id}-${i}`} part={part} pending={!!askPending} />
+      ) : (
+        <ToolCall key={`${part.id}-${i}`} part={part} />
+      )
+    ) : textOfPart(part.text, media) ? (
+      <div
+        key={i}
+        className={cn(
+          // max-w-full AND overflow-wrap:anywhere. The column caps at 85%, but
+          // a flex child is free to exceed its parent unless it is told not to,
+          // so one unbroken string still pushed the bubble past both edges of a
+          // phone with the text cut off on the left. `anywhere` rather than
+          // Tailwind's `break-words` (overflow-wrap: break-word) because only
+          // `anywhere` also shrinks the element's MIN-CONTENT width:
+          // break-word wraps the glyphs but still reports the whole URL as the
+          // narrowest the box can be, so any ancestor that sizes to content — a
+          // flex item, a grid cell — is laid out around the unbroken string and
+          // the overflow comes back.
+          "max-w-full [overflow-wrap:anywhere] rounded-2xl px-3 py-2 text-sm leading-relaxed",
+          mine
+            ? "whitespace-pre-wrap rounded-br-sm bg-bubble-mine text-foreground"
+            // Agent bubble — the softer muted fill the group v1 used, now
+            // shared by every chat bubble so 1:1 and group read the same.
+            : "w-full rounded-bl-sm bg-muted/50 text-foreground",
+        )}
+      >
+        {/* The agent writes markdown — **bold**, lists, `code`, links — so its
+            turns render through the (dependency-free, no
+            dangerouslySetInnerHTML) markdown component. The user's own bubble
+            stays literal: they typed it, and reflowing their text as markdown
+            would eat their asterisks and line breaks. The first/last child
+            margins are zeroed so the block spacing does not double up with the
+            bubble's own py-2. */}
+        {mine ? (
+          renderMentions(textOfPart(part.text, media))
+        ) : (
+          <MarkdownPreview
+            content={textOfPart(part.text, media)}
+            mentions
+            className="text-sm text-foreground [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
+          />
+        )}
+      </div>
+    ) : null;
 
   return (
     <div
@@ -174,12 +239,6 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
             Each badge opens the skill it names. */}
         {!mine && msg.inspector && <SkillTrace inspector={msg.inspector} />}
 
-        {/* The work: every tool call and the line written before it, collapsed
-            into one row. A 24-step turn is a log, not a conversation — it goes
-            behind one click so the answer below is what you read first.
-            Simple view skips this entirely (narration reappears as bubbles). */}
-        {showTools && !mine && work.length > 0 && <ActionGroup parts={work} running={!!msg.pending} />}
-
         {/* Editing your own turn in place: on save it re-sends and everything
             below is dropped and re-answered. Enter saves, Esc/Cancel backs out. */}
         {mine && editing && (
@@ -205,65 +264,33 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
             </div>
           </div>
         )}
+        {/* The turn in the order it happened: a run of tool calls collapses into
+            one block, and what the agent SAID between the runs stands outside
+            them, as the message it is. A 24-step turn is still a log rather
+            than a screenful of cards — but the reader can now see WHERE in the
+            turn each thing was said, instead of only the closing line with
+            everything before it inside one box.
 
-        {/* Full view: what the agent said once the work was done. Simple view:
-            every text/reasoning part in original order (tools hidden). */}
-        {!(mine && editing) && (simpleParts || rest).map((part, i) =>
-          part.kind === "reasoning" ? (
-            <ReasoningBlock key={i} text={part.text} streaming={part.streaming} />
-          ) : part.kind === "tool" ? (
-            part.tool === "ask_questions" && !mine ? (
-              <AskQuestionsCard
-                key={`${part.id}-${i}`}
-                part={part}
-                pending={!!askPending}
-              />
-            ) : (
-              <ToolCall key={`${part.id}-${i}`} part={part} />
-            )
-          ) : textOfPart(part.text, media) ? (
-            <div
-              key={i}
-              className={cn(
-                // max-w-full AND overflow-wrap:anywhere. The column caps at
-                // 85%, but a flex child is free to exceed its parent unless it
-                // is told not to, so one unbroken string still pushed the
-                // bubble past both edges of a phone with the text cut off on
-                // the left. `anywhere` rather than Tailwind's `break-words`
-                // (overflow-wrap: break-word) because only `anywhere` also
-                // shrinks the element's MIN-CONTENT width: break-word wraps the
-                // glyphs but still reports the whole URL as the narrowest the
-                // box can be, so any ancestor that sizes to content — a flex
-                // item, a grid cell — is laid out around the unbroken string
-                // and the overflow comes back.
-                "max-w-full [overflow-wrap:anywhere] rounded-2xl px-3 py-2 text-sm leading-relaxed",
-                mine
-                  ? "whitespace-pre-wrap rounded-br-sm bg-bubble-mine text-foreground"
-                  // Agent bubble — the softer muted fill the group v1 used, now
-                  // shared by every chat bubble so 1:1 and group read the same.
-                  : "w-full rounded-bl-sm bg-muted/50 text-foreground",
-              )}
-            >
-              {/* The agent writes markdown — **bold**, lists, `code`, links —
-                  so its turns render through the (dependency-free, no
-                  dangerouslySetInnerHTML) markdown component. The user's own
-                  bubble stays literal: they typed it, and reflowing their text
-                  as markdown would eat their asterisks and line breaks. The
-                  first/last child margins are zeroed so the block spacing does
-                  not double up with the bubble's own py-2. */}
-              {mine ? (
-                renderMentions(textOfPart(part.text, media))
-              ) : (
-                <MarkdownPreview
-                  content={textOfPart(part.text, media)}
-                  mentions
-                  className="text-sm text-foreground [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
-                />
-              )}
-            </div>
-          ) : null,
+            Simple view has no blocks at all: every text/reasoning part in
+            original order, tools hidden (ask_questions still shows — it is a
+            control the reader must reach). */}
+        {!(mine && editing) && renderList.map((seg, si) =>
+          seg.kind === "work" ? (
+            <ActionGroup
+              key={`work-${si}`}
+              parts={seg.parts}
+              // Only the LAST block is still working; the ones above it have
+              // already finished, and a spinner on each would say otherwise.
+              running={!!msg.pending && si === lastWorkAt}
+              // Numbered against the TURN, not the block: a second block
+              // starting over at "1 action" would read as a second turn. A turn
+              // with one block just says how many — "1–4 of 4" is noise.
+              range={blockCount > 1 ? { from: seg.from, to: seg.to, total: toolTotal } : undefined}
+            />
+          ) : (
+            renderPart(seg.part, si)
+          ),
         )}
-
         {/* Still going. Not just before the first part arrives: a turn that has
             been running shell commands for two minutes shows a list of finished
             steps and nothing that says more is coming, so it reads as an answer
