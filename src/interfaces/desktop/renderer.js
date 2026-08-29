@@ -59,6 +59,7 @@
   let pausePreviewed = false;   // a preview decode fired for the current pause
   let reuseLiveOnStop = false;  // commit should reuse pendingUserText, not re-decode
   let livePromise = null;       // in-flight preview decode (awaited on reuse)
+  let previewFlushTs = 0;       // audio cut-off the pending preview actually saw
 
   // Web Audio analyser — drives the live capsule wave from real mic amplitude
   let audioCtx = null;
@@ -92,6 +93,7 @@
   // requestTts / second finalize on the same in-flight bubble.
   let doneHandled = false;
   let ttsTimer = null;
+  let prewarmedTurn = false;      // this turn already kicked a speak-ahead
 
   // ── Inline SVG icons (mirrors the design's I.* set) ──────────────────────
   const SVG = (path, attrs = {}) => {
@@ -819,6 +821,7 @@
     currentTurn++;
     resetTurnAudio();
     doneHandled = false;
+    prewarmedTurn = false;
     if (ttsTimer) { clearTimeout(ttsTimer); ttsTimer = null; }
   }
   function resetTurnAudio() {
@@ -904,6 +907,7 @@
     pausePreviewed = false;
     reuseLiveOnStop = false;
     livePromise = null;
+    previewFlushTs = 0;
     pendingUserText = "";
     // Warm both models now, while the user is about to speak. Whisper is needed
     // in a few seconds, the voice engine a few seconds after that — and both
@@ -997,12 +1001,18 @@
         // in-flight preview if it hasn't settled yet.
         if (reuseLiveOnStop) {
           if (livePromise) { try { await livePromise; } catch {} }
-          text = (pendingUserText || "").trim();
+          // Only if the preview's audio actually covers everything said. If the
+          // user resumed speaking after that cut-off (and the new pause couldn't
+          // fire its own preview because one was still in flight), the stashed
+          // text is a truncated utterance — decode again rather than send half
+          // a sentence.
+          if (previewFlushTs && lastVoiceTs <= previewFlushTs) text = (pendingUserText || "").trim();
         }
         // Manual send (Enviar / ⌘G release) or no preview yet → one fresh decode.
         if (!text) text = (await transcribeBuffered()).trim();
         recordedChunks = [];
         reuseLiveOnStop = false;
+        previewFlushTs = 0;
         // Guard with .trim() — whisper occasionally returns a single space or
         // newline for very short clips, which used to commit an empty bubble.
         if (!text || isCancelled) {
@@ -1178,6 +1188,29 @@
     } catch {}
     return "";
   }
+  // MediaRecorder only hands over a blob once per timeslice, so at any instant
+  // the last second of speech is still inside the recorder. A preview decode
+  // that skipped this would transcribe an utterance with its tail missing —
+  // which is exactly what made the reuse below unsafe, and why every turn used
+  // to pay a second full decode. requestData() forces the pending audio out now.
+  function flushRecorder() {
+    return new Promise((resolve) => {
+      if (!mediaRecorder || mediaRecorder.state !== "recording") return resolve();
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        mediaRecorder.removeEventListener("dataavailable", finish);
+        resolve();
+      };
+      mediaRecorder.addEventListener("dataavailable", finish);
+      try { mediaRecorder.requestData(); } catch { finish(); return; }
+      // The event is the normal path; the timer only exists so a recorder that
+      // never answers can't wedge the preview (and with it the auto-send).
+      setTimeout(finish, 250);
+    });
+  }
+
   // Decode what's been recorded so far (fired once per speech pause). The
   // result is stashed in pendingUserText and reused by the auto-send on stop,
   // so the same audio is never decoded twice. livePromise lets onstop await an
@@ -1187,8 +1220,17 @@
     liveBusy = true;
     livePromise = (async () => {
       try {
+        await flushRecorder();
+        // Stamp the cut-off BEFORE decoding: onstop reuses this text only if no
+        // further speech arrived after this instant.
+        previewFlushTs = Date.now();
         const text = await transcribeBuffered();
-        if (text && mode === "listening") pendingUserText = text;
+        // Deliberately not gated on `mode === "listening"`: the auto-send flips
+        // the mode to "transcribing" at SILENCE_MS, which lands *before* this
+        // decode settles. Gating here threw the result away every single time
+        // and made the reuse below dead code — one wasted decode per turn, plus
+        // a second one on the critical path.
+        if (text && !isCancelled) pendingUserText = text;
       } finally { liveBusy = false; }
     })();
     return livePromise;
@@ -1218,6 +1260,59 @@
   // mount the placeholder bubble, and ask main to grow the window now (not
   // one ResizeObserver tick later). Shared by commitUserMessage + regen so
   // both paths set up the daemon-event pipeline identically.
+  // Emoji and reasoning are stripped daemon-side before a segment is spoken, so
+  // a sentence carrying either would be pre-made under a key the real request
+  // never uses. Cheaper to skip than to synthesize and throw away.
+  const HAS_EMOJI = /\p{Extended_Pictographic}|\p{Regional_Indicator}/u;
+  const HAS_REASONING = /[<[]\s*\/?\s*(think|thinking|reason|reasoning|scratchpad|analysis)/i;
+  // The daemon can only hand the renderer a segment once the whole turn has
+  // resolved, so the voice engine sits idle for the model's entire generation
+  // and only then starts on sentence one. The tokens are already arriving,
+  // though — as soon as they contain a finished sentence, that sentence is
+  // almost certainly the first thing that will be spoken, so start making it
+  // now. main.js keys the result by exact text: if the reply turns out
+  // different, the pre-made audio is simply never claimed.
+  function maybePrewarmTts() {
+    if (prewarmedTurn || !streamingAgentEntry) return;
+    const buf = streamingAgentEntry.text || "";
+    // A long preamble with no sentence end is a model that isn't writing prose
+    // (reasoning, a list, code) — stop watching rather than guess.
+    if (buf.length > 400) { prewarmedTurn = true; return; }
+    if (HAS_REASONING.test(buf)) { prewarmedTurn = true; return; }
+    // Only look at whole sentences: a half-streamed one is not yet the chunk.
+    const complete = buf.match(/^[\s\S]*[.!?…](?=\s)/);
+    if (!complete) return;
+    const first = firstSpeechChunk(complete[0].trim());
+    if (!first) return;      // no chunk has closed yet — keep watching
+    prewarmedTurn = true;
+    if (HAS_EMOJI.test(first)) return;
+    window.apx?.prewarmTts?.(first);
+  }
+
+  // Mirror of main.js splitForSpeech, for its first chunk only. It has to agree
+  // exactly: a chunk built here that the real request never asks for is not just
+  // wasted, it holds the voice engine's lock while the chunk that *is* wanted
+  // waits behind it. Returns null while no chunk has closed yet — the splitter
+  // packs short sentences together, so "Hola." on its own is not a chunk.
+  function firstSpeechChunk(text, { min = 12, limit = 80 } = {}) {
+    const pieces = [];
+    for (const sentence of String(text).trim().split(/(?<=[.!?…])\s+/)) {
+      if (sentence.length <= limit) { pieces.push(sentence); continue; }
+      for (const clause of sentence.split(/(?<=[,;:—–])\s+/)) {
+        if (clause.length <= limit) { pieces.push(clause); continue; }
+        for (const word of clause.split(" ")) pieces.push(word);
+      }
+    }
+    let cur = "";
+    for (const piece of pieces) {
+      if (!piece) continue;
+      if (cur && cur.length + 1 + piece.length > limit) return cur;
+      cur = cur ? `${cur} ${piece}` : piece;
+      if (cur.length >= min) return cur;
+    }
+    return null;
+  }
+
   function startAgentTurn() {
     beginAgentTurn();      // bump currentTurn + reset the audio queue/guards
     mode = "thinking";
@@ -1282,6 +1377,7 @@
         ensureStreamingAgentBubble();
         streamingAgentEntry.text += msg.text;
         streamingAgentEntry.msgEl.innerHTML = formatWordsHtml(streamingAgentEntry.text);
+        maybePrewarmTts();
         requestWindowResize();
         scrollConvToBottom();
         break;

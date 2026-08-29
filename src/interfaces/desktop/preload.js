@@ -37,6 +37,13 @@ contextBridge.exposeInMainWorld("apx", {
     return true; // optimistic; renderer waits for the event either way
   },
 
+  // Start synthesizing a sentence before the turn that will ask for it has
+  // finished streaming. Fire-and-forget: requestTts picks the audio up if it
+  // asks for that exact sentence, and nothing breaks if it doesn't.
+  prewarmTts: (text) => {
+    ipcRenderer.invoke("prewarm-tts", { text }).catch(() => {});
+  },
+
   // Daemon events (tokens, tools, done, error, tts-ready/failed)
   onDaemonEvent:        (fn) => ipcRenderer.on("daemon-event", (_e, msg) => fn(msg)),
   onDaemonConnected:    (fn) => ipcRenderer.on("daemon-connected",    fn),

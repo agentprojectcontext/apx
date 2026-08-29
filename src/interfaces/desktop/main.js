@@ -711,6 +711,30 @@ function splitForSpeech(text, { min = 12, limit = 80 } = {}) {
   return out.length ? out : [String(text)];
 }
 
+// Speech generated ahead of the request for it, keyed by the exact chunk text.
+// The renderer kicks this the moment the first sentence has streamed in, so the
+// voice engine works during the model's remaining tokens instead of after them
+// — the single longest stretch of dead time in a voice turn. A key that never
+// gets claimed just means one small wasted synthesis, never wrong audio: only
+// an exact text match is ever served from here.
+const ttsAhead = new Map();   // chunk text -> Promise<{ok, audio_path, ...}>
+
+ipcMain.handle("prewarm-tts", async (_e, { text }) => {
+  const first = splitForSpeech(text || "")[0];
+  // splitForSpeech packs sentences shorter than its `min` together with the
+  // next one, so a short opener would be pre-made as the wrong chunk. The
+  // renderer already filters those out; this is the backstop.
+  if (!first || first !== (text || "").trim() || ttsAhead.has(first)) return;
+  if (ttsAhead.size > 4) ttsAhead.clear();   // a turn never needs more than one
+  const t0 = Date.now();
+  ttsAhead.set(first, daemonTtsSay(first)
+    .then((r) => {
+      console.log(`desktop: speech-ahead ready in ${Date.now() - t0}ms — "${first.slice(0, 48)}"`);
+      return r;
+    })
+    .catch(() => ({ ok: false })));
+});
+
 ipcMain.handle("request-tts", async (_e, { text, seg }) => {
   const send = (msg) => mainWindow?.webContents.send("daemon-event", msg);
   if (!text || !text.trim()) {
@@ -721,7 +745,12 @@ ipcMain.handle("request-tts", async (_e, { text, seg }) => {
   let delivered = 0;
   try {
     for (const chunk of chunks) {
-      const result = await daemonTtsSay(chunk);
+      const ahead = ttsAhead.get(chunk);
+      if (ahead) ttsAhead.delete(chunk);
+      if (delivered === 0) {
+        console.log(`desktop: first chunk ${ahead ? "claimed from speech-ahead" : "synthesized on demand"}`);
+      }
+      const result = ahead ? await ahead : await daemonTtsSay(chunk);
       if (result?.ok && result.audio_path) {
         // Expose the local file via file:// — preload's contextIsolation lets
         // the renderer's <audio> tag fetch it directly. `seg` ties this audio
@@ -741,6 +770,9 @@ ipcMain.handle("request-tts", async (_e, { text, seg }) => {
       }
       // A later chunk failing is survivable — the bubble keeps what it has.
     }
+    // Anything still sitting here was pre-made for a sentence this reply never
+    // asked for (the model revised it, or a tag/emoji changed the chunk).
+    ttsAhead.clear();
     // Tells the renderer no more audio is coming, so a player waiting on the
     // next sentence knows it has reached the end instead of stalling.
     send({ type: "tts-end", seg, parts: delivered });
