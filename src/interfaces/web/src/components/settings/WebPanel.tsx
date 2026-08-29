@@ -1,5 +1,5 @@
 import { Section } from "../Section";
-import { LanguageButtons, NotificationSwitch, ThemeButtons } from "./PanelPrefs";
+import { LanguageButtons, NotificationChannels, NotificationSwitch, ThemeButtons } from "./PanelPrefs";
 import { t } from "../../i18n";
 
 // Settings for the web panel itself: appearance, UI language, notifications.
@@ -24,7 +24,12 @@ export function WebPanel() {
       </Section>
 
       <Section title={t("notify.title")}>
-        <NotificationSwitch />
+        <div className="space-y-4">
+          <NotificationSwitch />
+          {/* Which channels may ring THIS device — the laptop and the phone
+              answer that differently, so the answer is stored per device. */}
+          <NotificationChannels />
+        </div>
       </Section>
     </div>
   );

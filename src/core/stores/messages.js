@@ -491,6 +491,10 @@ export function listProjectA2AThreads(projectRoot) {
       started_at: uniq[0].ts,
       last_ts: last.ts,
       preview: `${last.author}: ${(last.body || "").replace(/\s+/g, " ").trim()}`.slice(0, 140),
+      // Every utterance in an a2a thread is an agent's, so "when an agent last
+      // spoke" is simply the last row. The field exists so a notifier can ask
+      // that question of any thread without knowing which kind it is.
+      preview_at: last.ts,
     });
   }
   out.sort((a, b) => (b.last_ts || "").localeCompare(a.last_ts || ""));
@@ -646,11 +650,17 @@ export function listProjectGroupThreads(projectRoot) {
   const byId = new Map();
   for (const r of groupRows(projectRoot, null)) {
     const gid = r.meta.group_id;
-    const g = byId.get(gid) || { id: gid, participants: [], title: null, homes: null, created: null, display: [], last: null };
+    const g = byId.get(gid) || { id: gid, participants: [], title: null, homes: null, created: null, display: [], last: null, lastAgent: null };
     if (Array.isArray(r.meta.participants)) g.participants = r.meta.participants; // latest control wins
     if (r.meta.homes && typeof r.meta.homes === "object") g.homes = r.meta.homes;
     if (r.meta.kind === "group_created") { g.title = r.meta.title || null; g.created = r.ts; }
-    if (!isControlRow(r)) { g.display.push(r); g.last = r; }
+    if (!isControlRow(r)) {
+      g.display.push(r);
+      g.last = r;
+      // The last thing an AGENT said, tracked apart from the last thing said.
+      // A room where the owner spoke last has nothing new to be told about.
+      if (r.author !== "owner") g.lastAgent = r;
+    }
     byId.set(gid, g);
   }
   const out = [];
@@ -667,6 +677,7 @@ export function listProjectGroupThreads(projectRoot) {
       preview: g.last
         ? `${g.last.author === "owner" ? "vos" : g.last.author}: ${(g.last.body || "").replace(/\s+/g, " ").trim()}`.slice(0, 140)
         : undefined,
+      preview_at: g.lastAgent?.ts || null,
     });
   }
   out.sort((a, b) => (b.last_ts || "").localeCompare(a.last_ts || ""));

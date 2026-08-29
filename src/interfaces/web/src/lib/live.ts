@@ -27,6 +27,9 @@ export interface LiveEvent {
   conversation_id: string | null;
   direction: string | null;
   type: string | null;
+  /** A conversation write carries the role it was appended under
+   *  (user / assistant / tool) instead of a direction and a type. */
+  role?: string | null;
   ts: string | null;
 }
 

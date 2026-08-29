@@ -211,6 +211,9 @@ export const en = {
     test_failed: "Nothing was shown. Check the browser has permission at the system level.",
     nudge:       "Tell you when an agent writes?",
     nudge_yes:   "Turn on",
+    // Per device, not per account: the phone has Telegram installed ON it,
+    // the laptop does not, so the same channel deserves opposite answers.
+    channels_hint: "Which channels may ring this device. The phone starts with Telegram off — the app is already on it.",
   },
   inbox: {
     search: "Search",
@@ -224,6 +227,16 @@ export const en = {
     empty: "You have not talked to any agent yet.",
     show_quiet: "Show quiet agents",
     no_reply_yet: "(no replies yet)",
+  },
+
+  // Channel filters + tags: which of the places a conversation can happen this
+  // DEVICE wants to see and be told about (lib/channels.ts).
+  channels: {
+    filter:      "Channels",
+    a2a:         "Agent ↔ agent",
+    group:       "Groups",
+    other:       "No channel",
+    all_hidden:  "Every channel is switched off here. Tap one to bring it back.",
   },
 
   settings: {

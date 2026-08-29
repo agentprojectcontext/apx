@@ -11,6 +11,10 @@ import {
   sendTestNotification,
   type NotifyStance,
 } from "../../lib/notify";
+import { ChannelChips } from "../inbox/ChannelChips";
+import { channelsOf } from "../../lib/channels";
+import { useChannelPrefs } from "../../hooks/useChannelPrefs";
+import { useInbox } from "../../hooks/useInbox";
 
 // The two panel-local preferences — how it looks, and what language it speaks.
 // They live here rather than inside the settings screen because the phone
@@ -131,6 +135,37 @@ export function NotificationSwitch({ className }: { className?: string }) {
       <p className="text-xs text-muted-fg">
         {tested === false ? t("notify.test_failed") : on ? t("notify.on_hint") : t("notify.off_hint")}
       </p>
+    </div>
+  );
+}
+
+/**
+ * Which channels are allowed to ring THIS device.
+ *
+ * Not a global setting, and that is the point: the phone has Telegram
+ * installed on it, so an APX notification about a Telegram reply is the same
+ * news twice — while on the laptop it is the only way to hear it at all. So the
+ * phone starts with Telegram off and the panel starts with everything on, and
+ * either can be changed here, per channel.
+ *
+ * The list is the channels this install actually uses (from the inbox it has
+ * already loaded), not a catalog of everything APX can speak: a switch for a
+ * channel you have never received anything on is a question nobody asked.
+ */
+export function NotificationChannels({ className }: { className?: string }) {
+  const notify = useChannelPrefs("notify");
+  const { rows } = useInbox();
+  const channels = channelsOf(rows);
+  if (channels.length < 2) return null;
+  return (
+    <div className={className ?? "space-y-2"}>
+      <ChannelChips
+        channels={channels}
+        enabled={notify.enabled}
+        onToggle={notify.toggle}
+        testIdPrefix="notify-channel"
+      />
+      <p className="text-xs text-muted-fg">{t("notify.channels_hint")}</p>
     </div>
   );
 }
@@ -261,6 +296,7 @@ export function PrefsDialog({ open, onClose }: { open: boolean; onClose: () => v
             {t("notify.title")}
           </h3>
           {nativeNotifications ? <NativeNotificationStatus /> : <NotificationSwitch />}
+          <NotificationChannels />
         </section>
       </div>
     </Dialog>

@@ -43,6 +43,7 @@ function a2aInboxRows(entries, faces) {
         channel: "a2a",
         messages: th.messages,
         preview: th.preview || null,
+        preview_at: th.preview_at || null,
         last_activity_at: th.last_ts,
       });
     }
@@ -78,6 +79,7 @@ function groupInboxRows(entries, faces) {
         channel: "group",
         messages: th.messages,
         preview: th.preview || null,
+        preview_at: th.preview_at || null,
         last_activity_at: th.last_ts,
       });
     }
