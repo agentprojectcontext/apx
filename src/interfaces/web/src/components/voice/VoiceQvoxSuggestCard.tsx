@@ -14,8 +14,11 @@ import { QVOX_REPO } from "../../lib/qvox";
 // instructions after the colon.
 const ASK_PROMPT =
   "Install QVox (local Qwen3-TTS on Apple Silicon) and wire it into APX as a voice provider. " +
-  "Steps: check that Node 18+ and `uv` are installed (`brew install uv` if missing — QVox does not install it for you); " +
-  "`npm install -g qwen3-tts-api`; `qvox serve` and leave it running on 127.0.0.1:5111; " +
+  "Steps: check that Node 18+ and `uv` are installed (`brew install uv` if missing — the npm package " +
+  "installs only the Node CLI, and the engine runs through `uv run`, so it will not start without it); " +
+  "`npm install -g qwen3-tts-api`; `qvox setup`, which creates the config and folders and checks the " +
+  "dependencies; `qvox models download` for the first model, a multi-gigabyte download; " +
+  "`qvox serve` and leave it running on 127.0.0.1:5111; " +
   "then add it in APX as a custom OpenAI-compatible TTS provider with base_url http://127.0.0.1:5111/v1. " +
   `Repo: ${QVOX_REPO}. ` +
   "Tell me what you did and what is still missing. With these instructions: ";
@@ -39,7 +42,7 @@ export function VoiceQvoxSuggestCard() {
       <p className="mt-1.5 text-sm text-muted-fg">{t("voice_ui.qvox_body")}</p>
 
       <pre className="mt-3 overflow-x-auto rounded-lg bg-muted/40 p-3 text-[11px] leading-relaxed text-muted-fg">
-        <code>{"brew install uv\nnpm install -g qwen3-tts-api\nqvox serve"}</code>
+        <code>{"brew install uv\nnpm install -g qwen3-tts-api\nqvox setup\nqvox serve"}</code>
       </pre>
       <p className="mt-2 text-xs text-muted-fg">{t("voice_ui.qvox_note")}</p>
 
