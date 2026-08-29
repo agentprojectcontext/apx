@@ -140,6 +140,36 @@ no se pierde nada de lo que pasó mientras estuvo afuera. Si el socket no se
 puede abrir (un proxy que rechaza upgrades), las listas vuelven a su refresco de
 15 segundos y el panel sigue funcionando, sólo que menos inmediato.
 
+## Notificaciones y qué canales te llegan
+
+El panel puede avisarte cuando un agente escribe y vos no estás mirando: una
+notificación por conversación, a través del service worker, y tocarla abre ese
+chat. Se activa en **Settings → Notificaciones** (o desde la hoja de
+preferencias del celular). Necesita https — `apx panel tailscale on` — y necesita
+que la app esté corriendo, aunque sea en segundo plano; despertar una app
+cerrada del todo es web push, que APX todavía no hace.
+
+Lo que dispara una es la **respuesta de un agente**, y nada más. Tu propio
+mensaje no, y el trabajo del medio tampoco: un turno puede correr dos docenas de
+herramientas y cada una mueve la conversación, que es por qué un mismo turno
+llegaba como una pila de notificaciones. Una respuesta que se transmite de a
+pedazos suena una vez y después actualiza el mismo cartel en silencio.
+
+**Qué canales pueden sonar se responde por dispositivo.** En el celular tenés
+Telegram instalado, así que una notificación de APX sobre una respuesta de
+Telegram es la misma noticia dos veces: ahí arranca apagado. En la compu es la
+única forma de enterarte, así que ahí arranca todo prendido. Los chips de
+**Settings → Notificaciones** prenden y apagan cada canal en el dispositivo
+donde estás; la elección vive en ese navegador (`localStorage`) y no sale de ahí.
+
+Lo mismo vale para las **listas**. La bandeja y `/mobile` muestran todos los
+canales donde puede pasar una conversación, agrupados, y una fila de chips
+apaga y prende cada uno para ese dispositivo — de nuevo con Telegram apagado por
+defecto en el celu. Un canal apagado conserva su chip (y su contador), así que la
+vuelta está donde estaba la ida, y una lista vacía por un filtro lo dice en vez
+de hacerte creer que no hay nada. En el celular, que no tiene títulos de canal,
+cada fila lleva su canal como etiqueta.
+
 ## Workspace de proyecto
 
 Abrir un proyecto te lleva a su **Resumen** — un "mission control" con tarjetas

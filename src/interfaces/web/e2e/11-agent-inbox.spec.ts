@@ -136,6 +136,73 @@ test.describe("agent inbox", () => {
     expect(errors).toEqual([]);
   });
 
+  // ── Channel filters ──────────────────────────────────────────────────────
+  // The inbox lists every channel a conversation can happen on. Which of them
+  // this DEVICE wants to see is a per-device answer (localStorage), and the
+  // phone starts with Telegram off — the app is installed on that very phone.
+
+  const CHANNEL_ROWS = [
+    {
+      project_id: null, project_name: null, project_path: null,
+      agent_slug: "super_agent", agent_name: "APX", agent_emoji: null, agent_icon: null,
+      kind: "super_agent", pinned: true, conversation_id: "2026-08-29", channel: "telegram",
+      messages: 4, preview: "Listo.", preview_at: new Date().toISOString(),
+      last_activity_at: new Date().toISOString(),
+    },
+    {
+      project_id: 7, project_name: "Northwind", project_path: "/path/to/northwind",
+      agent_slug: "linus", agent_name: "Linus", agent_emoji: "🐧", agent_icon: null,
+      kind: "agent", pinned: false, conversation_id: "conversation-linus", channel: "web",
+      messages: 2, preview: "Hi.", preview_at: new Date().toISOString(),
+      last_activity_at: new Date().toISOString(),
+    },
+  ];
+
+  test("a channel can be switched off and back on, and the choice sticks", async ({ page, errors }) => {
+    await page.route(
+      (url) => url.pathname === "/api/inbox",
+      (route) => route.fulfill({ json: CHANNEL_ROWS }),
+    );
+
+    await page.goto("/m/inbox");
+    await expect(page.getByTestId("inbox-group-telegram")).toBeVisible();
+
+    await page.getByTestId("inbox-channel-telegram").click();
+    await expect(page.getByTestId("inbox-group-telegram")).toHaveCount(0);
+    // The other channel is untouched — these are switches, not one choice.
+    await expect(page.getByTestId("inbox-group-web")).toBeVisible();
+    // And the way back is the same chip, which never disappears with its rows.
+    await expect(page.getByTestId("inbox-channel-telegram")).toBeVisible();
+
+    await page.reload();
+    await expect(page.getByTestId("inbox-group-telegram")).toHaveCount(0);
+
+    await page.getByTestId("inbox-channel-telegram").click();
+    await expect(page.getByTestId("inbox-group-telegram")).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
+  test("the phone hides Telegram out of the box and tags every row", async ({ page, errors }) => {
+    await page.route(
+      (url) => url.pathname === "/api/inbox",
+      (route) => route.fulfill({ json: CHANNEL_ROWS }),
+    );
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/mobile");
+
+    // Telegram is on this device already; APX listing it again is duplication.
+    await expect(page.getByTestId("inbox-row-super_agent")).toHaveCount(0);
+    await expect(page.getByTestId("inbox-row-linus")).toBeVisible();
+    // The phone has no channel headings to group under, so the row carries it.
+    await expect(page.getByTestId("channel-tag-web")).toBeVisible();
+
+    // One tap and it is back — a default, not a decision made for the owner.
+    await page.getByTestId("mobile-channel-telegram").click();
+    await expect(page.getByTestId("inbox-row-super_agent")).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
   test("desktop inbox has + Nuevo and can open any agent", async ({ page, errors }) => {
     const row = {
       project_id: 7,

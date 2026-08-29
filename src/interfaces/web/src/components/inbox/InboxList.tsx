@@ -3,6 +3,9 @@ import { Plus, Search } from "lucide-react";
 import type { InboxRow } from "../../lib/api/inbox";
 import { t } from "../../i18n";
 import { InboxRowItem } from "./InboxRowItem";
+import { ChannelChips } from "./ChannelChips";
+import { channelEnabledIn, channelLabel, channelsOf } from "../../lib/channels";
+import { useChannelPrefs } from "../../hooks/useChannelPrefs";
 
 /**
  * The conversation rail: every agent as a chat, most recent first.
@@ -12,31 +15,6 @@ import { InboxRowItem } from "./InboxRowItem";
  * previous version was a full-width list of cards that navigated AWAY on
  * click, which meant losing the list to read one row.
  */
-
-/** Display name for a channel heading. Proper nouns mostly, so they read the
- *  same in either locale; anything unknown shows its raw value rather than
- *  being hidden, because a channel nobody named is exactly the one worth
- *  seeing. */
-const CHANNEL_LABELS: Record<string, string> = {
-  whatsapp: "WhatsApp",
-  telegram: "Telegram",
-  web: "Web",
-  web_sidebar: "Web · sidebar",
-  web_code: "Web · code",
-  desktop: "Desktop",
-  deck: "Deck",
-  code: "Code",
-  cli: "CLI",
-  api: "API",
-  a2a: "Agente ↔ agente",
-  group: "Grupos",
-  direct: "Direct",
-  other: "—",
-};
-
-function channelLabel(channel: string): string {
-  return CHANNEL_LABELS[channel] || channel;
-}
 
 /** Identity of a row. Channel is part of it: the same agent now appears once
  *  per channel it was talked to on, so keying by agent alone would collide —
@@ -60,15 +38,30 @@ export function InboxList({
   onNew?: () => void;
 }) {
   const [q, setQ] = useState("");
+  const view = useChannelPrefs("view");
+
+  // Every channel this install actually has, and how many rows each holds —
+  // computed BEFORE the filter, or a channel would vanish from its own switch
+  // the moment it was turned off and there would be no way back.
+  const channels = useMemo(() => channelsOf(rows), [rows]);
+  const counts = useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const row of rows) {
+      const key = row.channel || "other";
+      out[key] = (out[key] || 0) + 1;
+    }
+    return out;
+  }, [rows]);
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    if (!needle) return rows;
-    return rows.filter((r) =>
+    const shown = rows.filter((r) => channelEnabledIn(view.prefs, "view", r.channel));
+    if (!needle) return shown;
+    return shown.filter((r) =>
       [r.agent_name, r.agent_slug, r.project_name, r.preview, r.channel]
         .filter(Boolean)
         .some((v) => String(v).toLowerCase().includes(needle)));
-  }, [rows, q]);
+  }, [rows, q, view.prefs]);
 
   // Grouped by channel, groups ordered by their most recent conversation, so a
   // channel that just spoke rises to the top rather than sitting wherever a
@@ -113,10 +106,25 @@ export function InboxList({
         {action}
       </div>
 
+      {/* Which channels this DEVICE wants to see. A row per switch, under the
+          search rather than beside it: they are filters, not the primary
+          action (AGENTS.md rule 11b). */}
+      <ChannelChips
+        channels={channels}
+        counts={counts}
+        enabled={view.enabled}
+        onToggle={view.toggle}
+        className="shrink-0 border-b border-border px-2 py-1.5"
+        testIdPrefix="inbox-channel"
+      />
+
       <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
         {!filtered.length ? (
           <p className="px-3 py-6 text-center text-xs text-muted-fg">
-            {q ? t("inbox.no_match") : t("inbox.empty")}
+            {/* Three different silences, and saying the wrong one sends someone
+                looking for a bug: nothing matched the search, every channel is
+                switched off, or there is genuinely nothing here yet. */}
+            {q ? t("inbox.no_match") : rows.length ? t("channels.all_hidden") : t("inbox.empty")}
           </p>
         ) : null}
 
