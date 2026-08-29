@@ -76,4 +76,7 @@ GET    /api/integrations/oauth/callback                    # OAuth redirect targ
 - Don't confuse `apx plugins` (daemon plugins list) with connectors. Different subsystem.
 - Don't treat a connector as an MCP. If the user wants to *register an MCP server*, that's `apx-mcp`.
 - Don't try to connect `whatsapp` — it's `coming_soon` (needs a QR-pairing bridge APX doesn't ship yet).
+  This is the CONNECTOR, not the `whatsapp` **channel**: a phone-side bridge already posts incoming
+  WhatsApp messages to the super-agent with `channel: "whatsapp"`, and that works. Never answer a
+  message that arrived on it with "WhatsApp is not supported yet".
 - Don't retry a tool after a "not connected / read-only / not authorized" error — surface the panel step and stop.

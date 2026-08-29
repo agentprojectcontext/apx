@@ -42,6 +42,11 @@ const CHANNEL_PROMPT_FILES = {
   [CHANNELS.DECK]: "channels/deck.md",
   [CHANNELS.DESKTOP]: "channels/desktop.md",
   [CHANNELS.CODE]: "channels/code.md",
+  // A relay, not a chat surface APX owns: a bridge on the owner's phone posts
+  // the message here and carries the answer back. Without this block a WhatsApp
+  // turn got no channel context at all — the agent answered the sender as if it
+  // were the owner and the owner never heard that anyone had written.
+  [CHANNELS.WHATSAPP]: "channels/whatsapp.md",
 };
 
 // Channels where the user CAN see two text segments per turn (chat history is
