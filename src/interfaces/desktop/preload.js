@@ -22,6 +22,9 @@ contextBridge.exposeInMainWorld("apx", {
   // while the window is open / on mic-open so the first decode isn't cold.
   warmupStt: () => ipcRenderer.invoke("warmup-stt").catch(() => ({ ok: false })),
 
+  // Keep the voice engine warm too — same reason, other end of the turn.
+  warmupTts: () => ipcRenderer.invoke("warmup-tts").catch(() => ({ ok: false })),
+
   // Send final text to daemon
   sendMessage: (text, previousMessages) =>
     ipcRenderer.invoke("send-message", { text, previousMessages }),
