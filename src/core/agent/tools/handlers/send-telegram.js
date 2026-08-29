@@ -2,26 +2,48 @@ import { canNudge, recordNudge, nudgeFeedbackKeyboard } from "#core/nudge/index.
 import { CHANNELS } from "#core/constants/channels.js";
 
 /**
- * Is the person we are about to message the same person who is talking to us
- * right now?
+ * Is this message a REACTION to something that arrived, or the agent deciding
+ * on its own to speak?
  *
- * PUSH PATH 3 OF 4, and the only one whose solicited-ness is not fixed. When
- * the turn came in over Telegram and the text is going back to that same chat,
- * the user is on the other end waiting — that is a reply, not an interruption,
- * and spending their daily budget on it would be wrong. Every other case (a
- * routine, a web turn pushing to the phone, a cron) is APX choosing to speak.
+ * PUSH PATH 3 OF 4, and the only one whose solicited-ness is not fixed. The
+ * budget exists to stop APX inventing reasons to interrupt; it was never meant
+ * to swallow an answer to a message somebody actually sent.
+ *
+ * A turn on a conversation channel EXISTS because something came in — a
+ * WhatsApp from a contact, a web prompt, an A2A relay. Reporting that to the
+ * owner is the point of the bridge, not an interruption the agent thought up,
+ * so it does not spend the allowance. Only a self-started turn does: a routine
+ * or a cron, which arrive on CHANNELS.ROUTINE and keep paying.
+ *
+ * Recipient still matters, or "someone messaged me" becomes a licence to push
+ * anywhere. Telegram keeps its stricter rule (back to the originating chat
+ * only); every other channel may reach the DEFAULT chat — the owner's — and
+ * naming an explicit chat_id makes it a push again.
+ *
+ * NOTE: reactive means unbounded by design. A third party who messages the
+ * WhatsApp line controls how often the owner is pinged. That is the trade the
+ * owner asked for; the ledger still records every send.
  */
-function isReplyToTheLiveChat(ctx, chatId) {
-  if (ctx?.channel !== CHANNELS.TELEGRAM) return false;
-  // buildTelegramMeta (channels/telegram/helpers.js:59) spells it `chatId`.
-  // Reading `chat_id` here would have silently made every reply look
-  // unsolicited and started charging the user's budget for their own answers.
-  const origin = ctx?.channelMeta?.chatId ?? ctx?.channelMeta?.chat_id;
-  if (!origin) return false;
-  // No chat_id given means "the channel default", which for a Telegram turn is
-  // the chat it arrived on.
-  if (chatId == null || chatId === "") return true;
-  return String(chatId) === String(origin);
+function isReactiveReply(ctx, chatId) {
+  // No channel at all, or a routine/cron turn: the agent chose to speak.
+  if (!ctx?.channel) return false;
+  if (ctx.channel === CHANNELS.ROUTINE) return false;
+
+  if (ctx.channel === CHANNELS.TELEGRAM) {
+    // buildTelegramMeta (channels/telegram/helpers.js:59) spells it `chatId`.
+    // Reading `chat_id` here would have silently made every reply look
+    // unsolicited and started charging the user's budget for their own answers.
+    const origin = ctx?.channelMeta?.chatId ?? ctx?.channelMeta?.chat_id;
+    if (!origin) return false;
+    // No chat_id given means "the channel default", which for a Telegram turn
+    // is the chat it arrived on.
+    if (chatId == null || chatId === "") return true;
+    return String(chatId) === String(origin);
+  }
+
+  // WhatsApp, web, desktop, api, a2a…: no Telegram chat of their own, so the
+  // default chat is the owner's and that is the only one they get for free.
+  return chatId == null || chatId === "";
 }
 
 function decodeBase64(b64) {
@@ -126,7 +148,7 @@ export default {
       );
     }
 
-    const solicited = isReplyToTheLiveChat(ctx, chat_id);
+    const solicited = isReactiveReply(ctx, chat_id);
     const gate = canNudge(
       {
         kind: ctx?.channelMeta?.routineName ? `routine:${ctx.channelMeta.routineName}` : "agent_message",
