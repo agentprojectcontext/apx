@@ -4,6 +4,8 @@ import useSWR from "swr";
 import { Section } from "../Section";
 import { Button, Field, Switch, Loading } from "../ui";
 import { UiSelect } from "../UiSelect";
+import { AgentModelSelect } from "../agents/AgentModelSelect";
+import { INHERIT_MODEL, isInheritedModel } from "../agents/modelCatalog";
 import { ShortcutInput } from "../ShortcutInput";
 import { DesktopStatusCard } from "../desktop/DesktopStatusCard";
 import { useToast } from "../Toast";
@@ -38,6 +40,7 @@ export function DesktopSettingsPanel() {
       shortcut?: string; enabled?: boolean;
       theme?: "light" | "dark" | "system";
       position?: "left" | "center" | "right";
+      model?: string;
     };
   };
   const savedShortcut = cfgView.desktop?.shortcut || DEFAULT_SHORTCUT;
@@ -46,6 +49,7 @@ export function DesktopSettingsPanel() {
   // user explicitly pins light/dark.
   const theme    = cfgView.desktop?.theme    || "system";
   const position = cfgView.desktop?.position || "right";
+  const model    = cfgView.desktop?.model    || INHERIT_MODEL;
 
   const { data: autostart, mutate: mutateAutostart } = useSWR(
     "/api/desktop/autostart",
@@ -131,6 +135,37 @@ export function DesktopSettingsPanel() {
                 >
                   {t("common.save")}
                 </Button>
+              }
+            />
+          </Field>
+        )}
+      </Section>
+
+      {/* Voice turns are answered by the super-agent, but they are answered out
+          loud and while someone waits — so this surface is allowed its own,
+          faster model without changing what Telegram or the routines use. */}
+      <Section
+        title={t("desktop_screen.model_title")}
+        description={t("modules_ui.desktop_model_desc")}
+      >
+        {cfgLoading ? <Loading /> : (
+          <Field
+            label={t("modules_ui.desktop_model")}
+            hint={t("modules_ui.desktop_model_hint")}
+          >
+            <AgentModelSelect
+              value={model}
+              onChange={(v) =>
+                patchKey(
+                  "desktop.model",
+                  // Empty, not the marker: the daemon reads `cfg.model || null`,
+                  // so an empty value is what "use the super-agent's" looks like
+                  // on its side.
+                  isInheritedModel(v) ? "" : v,
+                  t("modules_ui.desktop_model_set", {
+                    value: isInheritedModel(v) ? t("modules_ui.desktop_model_inherit") : v,
+                  })
+                )
               }
             />
           </Field>

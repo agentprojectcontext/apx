@@ -169,6 +169,9 @@ const SENTENCE_FRAGMENTS = new Set([
   "agents_ui.unit_seconds", "agents_ui.unit_minutes", "agents_ui.unit_hours",
   "agents_ui.unit_days",
 
+  // substituted into "Window model: {value}." — never a label on its own
+  "modules_ui.desktop_model_inherit",
+
   // relative time dropped mid-text (AGENTS.md 11a names `in`)
   "when.now", "when.in", "when.ago",
 
