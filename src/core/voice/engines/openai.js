@@ -71,7 +71,9 @@ export default {
         "content-type": "application/json",
         ...(config.api_key ? { authorization: `Bearer ${config.api_key}` } : {}),
       },
-      body: "{}",
+      // Say which speaker, so the endpoint warms the model that will answer
+      // rather than a sibling of it.
+      body: JSON.stringify(config.voice ? { voice: config.voice } : {}),
       signal: AbortSignal.timeout(120_000),
     });
     if (!res.ok) throw new Error(`warmup ${res.status}`);
