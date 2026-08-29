@@ -8,6 +8,8 @@ import { VoiceProviderList } from "../../components/voice/VoiceProviderList";
 import { VoiceProviderModal, type VoiceProviderSave } from "../../components/voice/VoiceProviderModal";
 import { VoiceTestCard } from "../../components/voice/VoiceTestCard";
 import { VoiceSttCard } from "../../components/voice/VoiceSttCard";
+import { VoiceQvoxSuggestCard } from "../../components/voice/VoiceQvoxSuggestCard";
+import { shouldSuggestQvox } from "../../lib/qvox";
 import { Voice, type TranscriptionConfig, type TtsMode, type VoiceTtsConfig } from "../../lib/api/voice";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import { t } from "../../i18n";
@@ -187,6 +189,10 @@ export function VoiceScreen() {
           >
             {cfgLoading ? <Loading /> : <VoiceSttCard config={transcriptionCfg} onPatch={patchStt} />}
           </Section>
+
+          {/* Only while it is missing: once a QVox endpoint is configured the
+              suggestion has nothing left to say. */}
+          {!provLoading && shouldSuggestQvox(engines) && <VoiceQvoxSuggestCard />}
         </div>
       </div>
 
