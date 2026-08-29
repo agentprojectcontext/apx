@@ -117,6 +117,59 @@ export function traceIdMiddleware(req, res, next) {
   next();
 }
 
+// One log line per super-agent HTTP request: caller, method, path, status and
+// how long the turn took.
+//
+// Why this exists: the super-agent endpoints are what phone automations
+// (Tasker), the Deck app and `apx exec` all POST into, and nothing recorded
+// that a request had even *arrived*. A client sending a stale token, the wrong
+// HTTP method or the wrong URL produced exactly the same silence as a daemon
+// that was down — which is how one Tasker misconfiguration (HEAD instead of
+// POST) survived an hour of debugging against the phone instead of being read
+// off a log line.
+//
+// Mounted ABOVE the auth wall on purpose. A bad token is rejected before the
+// /api router ever runs, so a router-level middleware would miss the 401 —
+// the single most useful line here.
+//
+// Metadata only: never the body or the headers, both of which carry the bearer
+// token and the message text.
+export function buildRequestLogger({ log, match }) {
+  return function requestLogger(req, res, next) {
+    if (!match(req.path)) return next();
+
+    const startedAt = process.hrtime.bigint();
+    // Behind `tailscale serve` the socket peer is always loopback and the real
+    // tailnet caller is in X-Forwarded-For, so prefer that when present.
+    const forwarded = (req.get("x-forwarded-for") || "").split(",")[0].trim();
+    const caller = forwarded || req.ip || req.socket?.remoteAddress || "unknown";
+    // Snapshot the path NOW: express rewrites req.url (and with it req.path) to
+    // be relative once the request enters the router mounted at /api, so a path
+    // read inside the finish callback would lose the prefix for routes that got
+    // that far — and keep it for the 401s that never did. Logging both shapes
+    // for the same URL makes the lines impossible to grep as one.
+    const reqPath = req.path;
+
+    let done = false;
+    const finish = (outcome) => {
+      if (done) return;
+      done = true;
+      const ms = Math.round(Number(process.hrtime.bigint() - startedAt) / 1e6);
+      log(
+        `request ${req.method} ${reqPath} from ${caller} → ${outcome} ${ms}ms` +
+        ` [${req.apxTraceId}]`
+      );
+    };
+
+    // "finish" = a response was written. "close" without "finish" = the client
+    // hung up first (a Tasker HTTP timeout looks exactly like this), which is
+    // worth a distinct outcome rather than no line at all.
+    res.on("finish", () => finish(String(res.statusCode)));
+    res.on("close", () => finish("client-aborted"));
+    next();
+  };
+}
+
 // Paths that bypass auth: /api/health for liveness probes, /api/pair/* so a
 // fresh client can bootstrap a token without already having one, and
 // /api/admin/web-token so the local same-origin admin panel can self-bootstrap.

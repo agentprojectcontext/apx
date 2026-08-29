@@ -19,6 +19,7 @@ import { logError } from "#core/logging.js";
 import {
   traceIdMiddleware,
   buildAuthMiddleware,
+  buildRequestLogger,
   makeProjectResolver,
   makeTopProjectResolver,
   errorMiddleware,
@@ -89,6 +90,7 @@ export function buildApi({
   token,
   tokenStore,
   mobilityDispatch,
+  log,
 }) {
   const telegram = plugins?.get("telegram");
   const app = express();
@@ -106,6 +108,17 @@ export function buildApi({
   // carries no Authorization header by definition — is answered rather than
   // rejected as unauthenticated.
   app.use(corsBetweenOwnAddresses({ port: effectivePort(config), host: effectiveHost(config) }));
+  // Above the auth wall so 401s from a client with a stale token are logged
+  // too — see buildRequestLogger. No-op when the daemon didn't pass a logger
+  // (tests build the app directly).
+  if (typeof log === "function") {
+    app.use(
+      buildRequestLogger({
+        log,
+        match: (p) => p.startsWith(API_PREFIX) && p.includes("/super-agent/"),
+      })
+    );
+  }
   // Prefer the multi-token store when provided (production path); fall
   // back to the single `token` argument for legacy callers and tests
   // that haven't migrated yet.

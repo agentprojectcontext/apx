@@ -226,6 +226,7 @@ async function main() {
     tokenStore,
     version: PKG.version,
     startedAt,
+    log,
     addProjectGlobally: (absPath) => {
       try {
         const fresh = readConfig();
