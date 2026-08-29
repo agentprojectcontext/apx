@@ -626,6 +626,41 @@
     const total = Math.max(0, Math.round(s || 0));
     return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
   }
+  // A bubble's text lands as soon as the turn resolves, but its voice is still
+  // being generated — so the reply sat there looking finished and mute, and
+  // then a player appeared out of nowhere seconds later. This placeholder fills
+  // that gap. Same bar geometry and padding as the real scrubber, so swapping
+  // one for the other doesn't move anything on screen.
+  function buildPendingAudioHtml() {
+    const N = 38;
+    const bars = waveShape(N, 13);
+    return `
+      <div class="audio pending" role="status" aria-label="Generando audio…">
+        <span class="play"></span>
+        <div class="wavebar">
+          ${bars.map((h, i) => `<i style="height:${Math.round(h * 24)}px;--i:${i}"></i>`).join("")}
+        </div>
+        <span class="dur">···</span>
+      </div>
+    `;
+  }
+
+  // Only ever called for a turn that is live and has asked for speech: a past
+  // bubble that was never voiced must not grow a spinner when it is rebuilt.
+  function showPendingAudio(turnId) {
+    const turnEl = $convScroll?.querySelector(`[data-id="${turnId}"]`);
+    if (!turnEl || turnEl.querySelector(".audio")) return;
+    turnEl.querySelector(".turn-actions")?.insertAdjacentHTML("beforebegin", buildPendingAudioHtml());
+  }
+
+  // The placeholder promises audio is coming, so every path that ends that
+  // promise — audio arrived, TTS failed, the watchdog gave up — has to take it
+  // down. One left spinning forever is worse than never having shown it.
+  function clearPendingAudio(turnId) {
+    const turnEl = $convScroll?.querySelector(`[data-id="${turnId}"]`);
+    turnEl?.querySelector(".audio.pending")?.remove();
+  }
+
   function buildScrubberHtml(m) {
     const N = 38;
     const bars = waveShape(N, 13);
@@ -765,6 +800,7 @@
     if (m._parts.length > 1) { m._onPartArrived?.(); return; }
 
     const turnEl = $convScroll?.querySelector(`[data-id="${turnId}"]`);
+    turnEl?.querySelector(".audio.pending")?.remove();
     if (turnEl && !turnEl.querySelector(".audio")) {
       // Insert the scrubber HTML just before turn-actions (matches appendTurn).
       const actions = turnEl.querySelector(".turn-actions");
@@ -1397,6 +1433,7 @@
         // it for gapless sequential playback. `speak` carries the inline emotion
         // tags (the bubble `text` has them stripped) so a tag-aware engine like
         // QVox can act on them; falls back to the visible text.
+        showPendingAudio(id);
         window.apx?.requestTts?.(msg.speak || text, id);
         requestWindowResize();
         scrollConvToBottom();
@@ -1414,7 +1451,12 @@
         // the capsule can't get stuck in "Pensando…".
         if (turnWatchdog) clearTimeout(turnWatchdog);
         turnWatchdog = setTimeout(() => {
-          turnAudios.forEach((e) => { if (!e.ready) { e.ready = true; e.failed = true; e.played = true; } });
+          turnAudios.forEach((e) => {
+            if (e.ready) return;
+            e.ready = true; e.failed = true; e.played = true;
+            clearPendingAudio(e.m.id);
+            markTurnUnvoiced(e.m.id, "la voz no respondió");
+          });
           pumpAudioQueue();
         }, 12000);
         // Play whatever audio is already ready; flip to idle if there's nothing
@@ -1436,7 +1478,7 @@
       case "tts-failed": {
         // No audio for this segment — skip it in the queue so playback advances.
         const m = (msg.seg != null) ? messages.find((x) => x.id === msg.seg) : null;
-        if (m) { queueMarkFailed(m); markTurnUnvoiced(m.id, msg.error); }
+        if (m) { clearPendingAudio(m.id); queueMarkFailed(m); markTurnUnvoiced(m.id, msg.error); }
         break;
       }
       case "error": {

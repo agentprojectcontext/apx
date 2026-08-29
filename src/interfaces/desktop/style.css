@@ -358,6 +358,35 @@ button { font-family: inherit; }
 .wavebar i.cur { transform: scaleY(1.25); }
 .audio .dur { font-size: 11px; color: var(--ink-3); font-variant-numeric: tabular-nums; min-width: 30px; text-align: right; }
 
+/* Waiting for the voice. Same box as the real player so the swap is invisible:
+   the bars keep their shape and only their opacity moves, in a wave that runs
+   left to right — the reply is being spoken into existence, in order. */
+.audio.pending { pointer-events: none; }
+.audio.pending .play {
+  background: none; box-shadow: none;
+  border: 2px solid color-mix(in oklch, var(--ink-3) 30%, transparent);
+  border-top-color: var(--accent);
+  animation: audio-spin .7s linear infinite;
+}
+.audio.pending .wavebar { cursor: default; }
+.audio.pending .wavebar i {
+  animation: audio-wait 1.15s ease-in-out infinite;
+  animation-delay: calc(var(--i) * 28ms);
+}
+.audio.pending .dur { letter-spacing: 1.5px; opacity: .7; }
+@keyframes audio-spin { to { transform: rotate(360deg); } }
+@keyframes audio-wait {
+  0%, 100% { opacity: .28; }
+  45%      { opacity: .9; }
+}
+/* Motion is the whole signal here, so without it say so in the bars instead of
+   leaving a placeholder indistinguishable from a finished, silent player. */
+@media (prefers-reduced-motion: reduce) {
+  .audio.pending .play,
+  .audio.pending .wavebar i { animation: none; }
+  .audio.pending .wavebar i { opacity: .4; }
+}
+
 /* Continued agent messages (no repeated "Roby" header) hug the previous one. */
 .turn.cont { padding-top: 0; }
 .turn.cont .msg-agent { margin-top: 1px; }
