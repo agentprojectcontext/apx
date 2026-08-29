@@ -24,6 +24,7 @@ import {
 import { runSuperAgent, isSuperAgentEnabled } from "#core/agent/super-agent.js";
 import { appendGlobalMessage } from "#core/stores/messages.js";
 import { stripEmotionTags } from "#core/voice/emotions.js";
+import { stripEmoji } from "#core/voice/pronounceable.js";
 import { stripReasoning } from "#core/util/thinking.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { tryResolveSkillCommand } from "#core/agent/skills/trigger.js";
@@ -126,7 +127,11 @@ async function _handleMessage({ ws, text, previousMessages }, { projects, config
     // Desktop is voice-first: an unstripped reasoning dump would be spoken
     // aloud, at length, in the wrong language. Drop the segment entirely
     // rather than narrate the model's notes.
-    const spoken = stripReasoning(seg).answer;
+    // Desktop is a voice capsule, so emoji come out of both halves: the TTS
+    // hums for two seconds trying to pronounce one, and a bubble that keeps it
+    // would no longer match what was said. A segment that was *only* an emoji
+    // leaves nothing to say and is dropped, rather than spoken as a shrug.
+    const spoken = stripEmoji(stripReasoning(seg).answer);
     if (!spoken.trim()) return;
     _send(ws, { type: "segment", seq: ++segSeq, text: stripEmotionTags(spoken), speak: spoken });
   };
