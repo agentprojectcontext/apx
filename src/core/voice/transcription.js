@@ -33,6 +33,10 @@ export const DEFAULT_LOCAL = {
   language: "auto",
   beam_size: 5,
   idle_minutes: 10,
+  // The daemon re-warms the model inside this window so the first utterance of
+  // the day isn't the one that pays the ~10s load. Set false to let the server
+  // idle out and hand the RAM back instead.
+  keep_warm: true,
   // Long audio (Telegram voice notes > 10 min) can take several minutes on
   // CPU. 20 minutes covers ~60-minute notes on a small int8 model.
   timeout_ms: 20 * 60_000,
