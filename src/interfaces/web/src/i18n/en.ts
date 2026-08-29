@@ -1748,6 +1748,11 @@ export const en = {
     working_generic:     "Working…",
     actions_count:       "{n} actions",
     actions_count_one:   "1 action",
+    // A turn that ran tools, said something, then ran more: several blocks,
+    // ONE count. Numbered against the turn so the second block does not read
+    // as a second turn starting over at one.
+    actions_range:       "Actions {from}–{to} of {total}",
+    actions_at:          "Action {n} of {total}",
     show_tools:          "Show tools",
     show_tools_hint:     "Off = clean chat; on = actions and tools visible",
     show_tools_on:       "Full view (tools)",

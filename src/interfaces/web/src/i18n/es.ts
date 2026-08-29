@@ -1749,6 +1749,8 @@ export const es = {
     working_generic:     "Trabajando…",
     actions_count:       "{n} acciones",
     actions_count_one:   "1 acción",
+    actions_range:       "Acciones {from}–{to} de {total}",
+    actions_at:          "Acción {n} de {total}",
     show_tools:          "Mostrar tools",
     show_tools_hint:     "Off = chat pelado; on = acciones y tools visibles",
     show_tools_on:       "Vista completa (tools)",
