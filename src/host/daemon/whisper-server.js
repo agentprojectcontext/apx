@@ -239,6 +239,50 @@ export async function warmupWhisper() {
   }
 }
 
+// ── Keep-warm ───────────────────────────────────────────────────────────────
+//
+// Loading large-v3-turbo costs ~10s, and it is paid by whoever speaks first
+// after the weights fall out of resident memory. That used to be the user:
+// the desktop window warms on open, but `/warmup` holds the model lock while
+// it loads, so an utterance started seconds later queued behind it — which is
+// exactly the ~11s first-transcription stall in the logs, against ~0.9s for
+// every one after it.
+//
+// The window can't own this, because it is closed most of the day and the model
+// goes cold in between. The daemon can: it pings /warmup on a cycle shorter
+// than the server's idle timeout, so the weights stay hot and the timer stays
+// reset for as long as the daemon is up.
+//
+// Turn it off with transcription.local.keep_warm = false, and the idle watchdog
+// takes over: the server exits after idle_minutes and gives the RAM back, at
+// the cost of a cold first utterance.
+let _keepWarmTimer = null;
+
+export function startWhisperKeepWarm(log = console.log) {
+  stopWhisperKeepWarm();
+  return getConfig().then((cfg) => {
+    if (cfg.provider === "openai" || cfg.provider === "custom") return;
+    if (cfg.local.keep_warm === false) return;
+    const idleMin = Number(cfg.local.idle_minutes ?? DEFAULT_LOCAL.idle_minutes) || 10;
+    // Comfortably inside the idle window, and never a busy-loop on a tiny one.
+    const everyMs = Math.max(60_000, (idleMin - 2) * 60_000);
+    const ping = () => {
+      warmupWhisper()
+        .then((r) => { if (!r.ok) log(`whisper: keep-warm failed — ${r.error}`); })
+        .catch(() => {});
+    };
+    ping();
+    _keepWarmTimer = setInterval(ping, everyMs);
+    _keepWarmTimer.unref?.();
+    log(`whisper: keep-warm every ${Math.round(everyMs / 60_000)} min (idle timeout ${idleMin} min)`);
+  }).catch(() => {});
+}
+
+export function stopWhisperKeepWarm() {
+  if (_keepWarmTimer) clearInterval(_keepWarmTimer);
+  _keepWarmTimer = null;
+}
+
 export async function shutdownWhisperServer() {
   if (_serverProcess) {
     try { _serverProcess.kill(); } catch {}

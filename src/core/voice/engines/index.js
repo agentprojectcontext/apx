@@ -101,6 +101,58 @@ export function resolveChainOrder(ttsCfg) {
 }
 
 /**
+ * Every engine that could handle a synthesize() call, in the order they should
+ * be tried. `selectTtsEngine` returns the first of these; `synthesize()` walks
+ * the whole list so an engine that *looks* usable but fails at request time
+ * (a local server that isn't running) hands off to the next one instead of
+ * sinking the turn.
+ *
+ * WHY THIS EXISTS. isAvailable() is a config probe, not a reachability probe —
+ * a custom endpoint reports itself available on the strength of having a
+ * base_url. That is the right call for the settings UI (it must list an engine
+ * the user configured even while its server is down) but it made "chain" mode
+ * a misnomer: selection stopped at the first *configured* engine and a failure
+ * there never reached the second. Falling back on the real error is both more
+ * accurate than any probe and free.
+ *
+ * @returns {Promise<Array<{provider, adapter, engineConfig}>>}
+ */
+export async function resolveTtsCandidates({ globalConfig, provider }) {
+  const ttsCfg = ttsConfig(globalConfig);
+  const entry = (id) => ({
+    provider: id,
+    adapter: getTtsAdapter(id),
+    engineConfig: providerConfig(globalConfig, id),
+  });
+
+  // An explicit provider means the caller wants THAT engine — the voice
+  // tester, or a retry. No fallback: silently speaking in a different voice
+  // than the one under test would be worse than failing.
+  if (provider && provider !== "auto") return [entry(provider)];
+
+  if (resolveMode(ttsCfg) === "single") {
+    const id = ttsCfg?.provider;
+    if (id && id !== "auto") return [entry(id)];
+    // Misconfigured single mode (no concrete provider) → fall through to chain.
+  }
+
+  const out = [];
+  for (const id of resolveChainOrder(ttsCfg)) {
+    if (id !== "mock" && !isEnabled(ttsCfg, id)) continue;
+    const cfg = providerConfig(globalConfig, id);
+    try {
+      if (id !== "mock" && !(await getTtsAdapter(id).isAvailable(cfg, globalConfig?.engines))) continue;
+    } catch { continue; }
+    out.push(entry(id));
+  }
+  // mock closes the list so synthesize() never throws for want of an engine.
+  // It returns silence, so callers that can tell the user "no voice" should
+  // check the returned `provider` rather than treat it as speech.
+  if (!out.some((c) => c.provider === "mock")) out.push(entry("mock"));
+  return out;
+}
+
+/**
  * Resolve which engine should handle a synthesize() call.
  * Returns { provider, adapter, engineConfig }.
  */

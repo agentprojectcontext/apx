@@ -108,6 +108,7 @@
     person: () => SVG('<circle cx="12" cy="8" r="3.6"/><path d="M5.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/>', { width: 12, height: 12, viewBox: "0 0 24 24" }),
     refresh:() => SVG('<path d="M3 12a9 9 0 0 1 15.5-6.2L21 8M21 3v5h-5M21 12a9 9 0 0 1-15.5 6.2L3 16M3 21v-5h5"/>', { width: 13, height: 13, viewBox: "0 0 24 24", "stroke-width": "1.9" }),
     copy:   () => SVG('<rect x="9" y="9" width="11" height="11" rx="2.5"/><path d="M5 15V5a2 2 0 0 1 2-2h8"/>', { width: 13, height: 13, viewBox: "0 0 24 24" }),
+    muted:  () => SVG('<path d="M11 5 6.5 9H3v6h3.5L11 19V5z"/><path d="M16 9.5l4 5M20 9.5l-4 5"/>', { width: 12, height: 12, viewBox: "0 0 24 24" }),
     check:  () => SVG('<path d="M5 12l4.5 4.5L19 7"/>', { width: 13, height: 13, viewBox: "0 0 24 24", "stroke-width": "2" }),
     play:   () => `<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.2v13.6c0 .8.9 1.3 1.6.9l10.5-6.8c.6-.4.6-1.3 0-1.7L9.6 4.3C8.9 3.9 8 4.4 8 5.2z"/></svg>`,
     pause:  () => `<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="6.5" y="5" width="4" height="14" rx="1.3"/><rect x="13.5" y="5" width="4" height="14" rx="1.3"/></svg>`,
@@ -448,7 +449,11 @@
           <button class="chip btn-regen">${ICON.refresh()} Regenerar</button>
         </div>
       `;
-      if (m.audio && m.dur) {
+      if (m.audio) {
+        // A missing duration is no reason to withhold the player — the <audio>
+        // element reports its own once metadata loads. Requiring m.dur here is
+        // what limited playback to the engines that happen to measure their
+        // output, which in practice meant the silent mock and nothing else.
         // Insert scrubber before turn-actions
         const scrubberHtml = buildScrubberHtml(m);
         const actions = t.querySelector(".turn-actions");
@@ -563,6 +568,16 @@
     scrollConvToBottom();
   }
 
+  // Drop the provisional bubble without recording anything. Streamed deltas are
+  // a preview of a segment that is still coming; the `segment` event is what
+  // becomes a message, gets spoken, and enters history. Finalizing here instead
+  // would file the same reply twice.
+  function discardStreamingAgent() {
+    if (!streamingAgentEntry) return;
+    streamingAgentEntry.el.remove();
+    streamingAgentEntry = null;
+  }
+
   function finalizeStreamingAgent({ audio, dur } = {}) {
     if (!streamingAgentEntry) return;
     const m = {
@@ -603,11 +618,17 @@
   }
 
   // ── Audio scrubber ───────────────────────────────────────────────────────
+  // m:ss. The old formatter hardcoded the "0:" minute, so anything past a
+  // minute read as 0:73.
+  function fmtDur(s) {
+    const total = Math.max(0, Math.round(s || 0));
+    return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
+  }
   function buildScrubberHtml(m) {
     const N = 38;
     const bars = waveShape(N, 13);
     const dur = m.dur || 0;
-    const fmt = (s) => `0:${String(Math.round(s)).padStart(2, "0")}`;
+    const fmt = fmtDur;
     return `
       <div class="audio" data-bars="${N}">
         <button class="play" aria-label="Reproducir respuesta">${ICON.play()}</button>
@@ -618,19 +639,37 @@
       </div>
     `;
   }
+  // One player per bubble, fed by a playlist that is still being written.
+  //
+  // The reply is synthesized a sentence at a time, so parts arrive while
+  // earlier ones are already playing. The element plays them back to back and
+  // reports one continuous position across the whole list, which is what the
+  // listener perceives — they hear one answer, not three clips.
   function wireScrubber(turnEl, m) {
     const N = 38;
     const audioEl = turnEl.querySelector(".audio");
-    if (!audioEl || !m.audio) return;
+    // A bubble rebuilt from state carries only the finished url; treat it as a
+    // one-item playlist so replay works the same on both paths.
+    if (!m._parts?.length && m.audio) m._parts = [{ url: m.audio, dur: m.dur || 0 }];
+    if (!audioEl || !m._parts?.length) return;
     const $play = audioEl.querySelector(".play");
     const $bar  = audioEl.querySelector(".wavebar");
     const bars  = $bar.querySelectorAll("i");
     const $dur  = audioEl.querySelector(".dur");
-    const dur   = m.dur || 1;
-    const fmt   = (s) => `0:${String(Math.round(s)).padStart(2, "0")}`;
-    const audio = new Audio(m.audio);
-    m._audioEl = audio;          // the audio queue drives sequential playback
+    const fmt   = fmtDur;
+    const audio = new Audio(m._parts[0].url);
+    m._audioEl  = audio;         // the audio queue drives sequential playback
+    m._partIdx  = 0;
     let raf = null;
+    let waiting = false;         // played everything that has arrived so far
+
+    const partDur = (i) => {
+      if (i === m._partIdx && audio.duration > 0 && isFinite(audio.duration)) return audio.duration;
+      return m._parts[i]?.dur || 0;
+    };
+    const total   = () => m._parts.reduce((a, _, i) => a + partDur(i), 0);
+    const before  = () => m._parts.slice(0, m._partIdx).reduce((a, _, i) => a + partDur(i), 0);
+    const elapsed = () => before() + (audio.currentTime || 0);
 
     const setProgress = (p) => {
       p = Math.max(0, Math.min(1, p));
@@ -639,15 +678,40 @@
         b.classList.toggle("on", i <= cur);
         b.classList.toggle("cur", i === cur && !audio.paused);
       });
-      $dur.textContent = p > 0 || !audio.paused ? fmt(p * dur) : fmt(dur);
+      const t = total();
+      $dur.textContent = p > 0 || !audio.paused ? fmt(p * t) : fmt(t);
     };
-    const tick = () => {
-      if (audio.duration > 0) setProgress(audio.currentTime / audio.duration);
-      raf = requestAnimationFrame(tick);
+    const paint = () => { const t = total(); setProgress(t > 0 ? elapsed() / t : 0); };
+    const tick  = () => { paint(); raf = requestAnimationFrame(tick); };
+
+    // Load a part and keep playing. Used both when one ends and when a part
+    // the player was waiting for finally shows up.
+    const playPart = (i) => {
+      m._partIdx = i;
+      waiting = false;
+      audio.src = m._parts[i].url;
+      audio.play().catch(() => onSegmentEnded(m));
     };
+    // Called from attachAudioPart when the list grows.
+    m._onPartArrived = () => {
+      const t = total();
+      if (waiting && m._parts[m._partIdx + 1]) playPart(m._partIdx + 1);
+      else if (audio.paused && audio.currentTime === 0) $dur.textContent = fmt(t);
+    };
+    // Called from the tts-end event: nothing more is coming.
+    m._onPartsDone = () => { if (waiting) { waiting = false; onSegmentEnded(m); } };
+
+    audio.addEventListener("loadedmetadata", paint);
     audio.addEventListener("play",  () => { $play.innerHTML = ICON.pause(); raf = requestAnimationFrame(tick); if (mode !== "speaking") { mode = "speaking"; render(); } });
     audio.addEventListener("pause", () => { $play.innerHTML = ICON.play();  if (raf) cancelAnimationFrame(raf); });
-    audio.addEventListener("ended", () => { $play.innerHTML = ICON.play(); if (raf) cancelAnimationFrame(raf); setProgress(1); onSegmentEnded(m); });
+    audio.addEventListener("ended", () => {
+      if (m._parts[m._partIdx + 1]) return playPart(m._partIdx + 1);
+      if (!m._partsDone) { waiting = true; return; }   // the next sentence is still being made
+      $play.innerHTML = ICON.play();
+      if (raf) cancelAnimationFrame(raf);
+      setProgress(1);
+      onSegmentEnded(m);
+    });
     // 404 / decode error / autoplay block: don't hang — advance the queue.
     audio.addEventListener("error", () => onSegmentEnded(m));
 
@@ -666,18 +730,38 @@
     $bar.addEventListener("click", (e) => {
       const r = $bar.getBoundingClientRect();
       const p = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
-      if (audio.duration > 0) audio.currentTime = p * audio.duration;
+      // Map one position on the bar onto (part, offset) — the bar spans the
+      // whole reply, not the sentence that happens to be playing.
+      let target = p * total();
+      for (let i = 0; i < m._parts.length; i++) {
+        const d = partDur(i);
+        if (target <= d || i === m._parts.length - 1) {
+          if (i !== m._partIdx) {
+            const wasPlaying = !audio.paused;
+            m._partIdx = i;
+            audio.src = m._parts[i].url;
+            if (wasPlaying) audio.play().catch(() => {});
+          }
+          audio.currentTime = Math.max(0, Math.min(target, Math.max(0, d - 0.05)));
+          break;
+        }
+        target -= d;
+      }
       setProgress(p);
     });
   }
 
-  // Post-finalize hook: add a scrubber to an already-rendered agent turn
-  // when its TTS audio arrives. Called from the `tts-ready` daemon event.
-  function attachAudioToTurn(turnId, { url, dur }) {
+  // Post-finalize hook: a sentence of this turn's speech just arrived. The
+  // first one mounts the player; later ones extend the playlist under it.
+  function attachAudioPart(turnId, { url, dur }) {
     const m = messages.find((x) => x.id === turnId);
     if (!m) return;
-    m.audio = url;
-    m.dur   = dur || 0;
+    (m._parts = m._parts || []).push({ url, dur: dur || 0 });
+    m.audio = m._parts[0].url;                       // kept for rebuilds
+    m.dur   = m._parts.reduce((a, p) => a + (p.dur || 0), 0);
+
+    if (m._parts.length > 1) { m._onPartArrived?.(); return; }
+
     const turnEl = $convScroll?.querySelector(`[data-id="${turnId}"]`);
     if (turnEl && !turnEl.querySelector(".audio")) {
       // Insert the scrubber HTML just before turn-actions (matches appendTurn).
@@ -687,10 +771,32 @@
       else turnEl.insertAdjacentHTML("beforeend", html);
       wireScrubber(turnEl, m); // sets m._audioEl
     }
-    // Audio is ready → let the sequential queue play it when it's this
-    // segment's turn (gapless auto-play across the turn's bubbles).
+    // The first sentence is enough to start: let the queue play it while the
+    // rest of the reply is still being spoken into existence.
     queueMarkReady(m);
     scrollConvToBottom();
+  }
+
+  // No more sentences are coming for this bubble.
+  function markAudioComplete(turnId) {
+    const m = messages.find((x) => x.id === turnId);
+    if (!m) return;
+    m._partsDone = true;
+    m._onPartsDone?.();
+  }
+
+  // The other half of attachAudioPart: this segment produced no audio. Say so
+  // on the bubble instead of leaving the reply mutely text-only — "no voice
+  // this time" and "the voice is broken" look identical otherwise, and the
+  // second one is worth knowing about.
+  function markTurnUnvoiced(turnId, reason) {
+    const turnEl = $convScroll?.querySelector(`[data-id="${turnId}"]`);
+    if (!turnEl || turnEl.querySelector(".unvoiced")) return;
+    const el = document.createElement("span");
+    el.className = "chip unvoiced";
+    el.title = reason ? `Sin voz: ${reason}` : "Sin voz";
+    el.innerHTML = `${ICON.muted()} Sin voz`;
+    turnEl.querySelector(".turn-actions")?.prepend(el);
   }
 
   function waveShape(n, seed = 7) {
@@ -767,14 +873,23 @@
   // Called from a segment audio's `ended` (or `error`). Advances the queue.
   function onSegmentEnded(m) {
     const e = turnAudios.find((x) => x.m === m);
-    if (e) { if (e.played) return; e.played = true; }
-    if (queuePlaying && ttsAudio === m._audioEl) {
+    const counted = !!e?.played;   // the queue already moved past this one
+    if (e) e.played = true;
+    if (!counted && queuePlaying && ttsAudio === m._audioEl) {
       queuePlaying = false;
       audioCursor++;
       pumpAudioQueue();
-    } else if (mode === "speaking") {
-      mode = "idle"; render();
+      return;
     }
+    // Nothing is playing any more, so the capsule must not still say so.
+    //
+    // This used to hang on "Roby está hablando…" forever. When a segment's TTS
+    // outran the turn watchdog, the watchdog wrote the entry off as played;
+    // the audio then arrived anyway, the user pressed play by hand, and on
+    // `ended` the already-played guard returned early — before the line that
+    // puts the capsule back to idle. The guard is about not advancing the
+    // queue twice, so that is all it guards now.
+    if (!queuePlaying && mode === "speaking") { mode = "idle"; render(); }
   }
 
   // ── Recording flow ───────────────────────────────────────────────────────
@@ -790,9 +905,12 @@
     reuseLiveOnStop = false;
     livePromise = null;
     pendingUserText = "";
-    // Warm the whisper model now (overlaps the mic warm-up), so the decode at
-    // the end of this utterance doesn't pay a cold start.
+    // Warm both models now, while the user is about to speak. Whisper is needed
+    // in a few seconds, the voice engine a few seconds after that — and both
+    // cost far more when cold than the whole rest of the turn. Overlapping them
+    // with the utterance is free time that would otherwise be dead waiting.
     window.apx?.warmupStt?.();
+    window.apx?.warmupTts?.();
     mode = "listening";
     render();
     startMic();
@@ -1156,9 +1274,22 @@
         break;
       case "tool_start":  addToolPill(msg.name); break;
       case "tool_done":   updateToolPill(msg.name); break;
+      case "delta": {
+        // Tokens as they land. Purely visual: this bubble is thrown away the
+        // moment the real segment arrives, so nothing here is spoken or kept.
+        if (!msg.text) break;
+        ensureConv();
+        ensureStreamingAgentBubble();
+        streamingAgentEntry.text += msg.text;
+        streamingAgentEntry.msgEl.innerHTML = formatWordsHtml(streamingAgentEntry.text);
+        requestWindowResize();
+        scrollConvToBottom();
+        break;
+      }
       case "segment": {
         // Each segment is its own agent message bubble + its own audio.
         ensureConv();
+        discardStreamingAgent();   // the streamed preview is now redundant
         const text = (msg.text || "").trim();
         if (!text) break;
         const id = nextId++;
@@ -1179,6 +1310,7 @@
         if (doneHandled) break;
         doneHandled = true;
         turnDone = true;
+        discardStreamingAgent();   // nothing should outlive the turn as a preview
         // Record the whole turn as one assistant entry for conversation context.
         const full = (msg.text || "").trim();
         if (full) history.push({ role: "assistant", content: full });
@@ -1197,13 +1329,18 @@
         }
         break;
       }
-      case "tts-ready":
-        if (msg.seg != null) attachAudioToTurn(msg.seg, { url: msg.url, dur: msg.duration });
+      case "tts-part":
+        // One sentence of this bubble's speech. The first starts playback; the
+        // rest queue up behind it while they are still being generated.
+        if (msg.seg != null) attachAudioPart(msg.seg, { url: msg.url, dur: msg.duration });
+        break;
+      case "tts-end":
+        if (msg.seg != null) markAudioComplete(msg.seg);
         break;
       case "tts-failed": {
         // No audio for this segment — skip it in the queue so playback advances.
         const m = (msg.seg != null) ? messages.find((x) => x.id === msg.seg) : null;
-        if (m) queueMarkFailed(m);
+        if (m) { queueMarkFailed(m); markTurnUnvoiced(m.id, msg.error); }
         break;
       }
       case "error": {

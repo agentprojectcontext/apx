@@ -54,20 +54,71 @@ def _load_model_if_needed(model_name, device, compute_type):
     return m
 
 
+def _silent_clip_path():
+    """A one-second 16 kHz mono WAV of near-silence, written to a temp file.
+
+    Deliberately not pure zeroes: a digitally silent clip can be short-circuited
+    before the model runs, which is the opposite of what a warmup wants.
+    """
+    import struct
+    import tempfile
+
+    rate, secs = 16000, 1
+    frames = rate * secs
+    # A whisper of dither — inaudible, but real samples the model must decode.
+    pcm = b"".join(struct.pack("<h", (i % 7) - 3) for i in range(frames))
+    data_size = len(pcm)
+    header = (
+        b"RIFF" + struct.pack("<I", 36 + data_size) + b"WAVEfmt "
+        + struct.pack("<IHHIIHH", 16, 1, 1, rate, rate * 2, 2, 16)
+        + b"data" + struct.pack("<I", data_size)
+    )
+    tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+    tmp.write(header + pcm)
+    tmp.close()
+    return tmp.name
+
+
 def _warmup_model():
-    """Eagerly load the active backend's model into RAM. Returns True if loaded."""
-    global _mlx_loaded
-    if _Handler.backend == "mlx":
-        import mlx_whisper  # noqa: F401  (raises ImportError if the stack is missing)
-        try:
-            from mlx_whisper.load_models import load_model
-            load_model(_Handler.model_name)
+    """Make the model ready to answer FAST, not merely resident.
+
+    Loading the weights is only half the cost. On MLX the first real
+    transcription also compiles the Metal graph, and that half is the expensive
+    one: measured on this machine, a freshly loaded model still spent ~10s on
+    its first utterance and 0.7s on every one after it. A warmup that stops at
+    load_model() therefore moves nothing — the user goes on paying the compile.
+
+    So we transcribe a throwaway clip. It costs the daemon a second at boot and
+    takes the stall out of the first thing anyone says.
+    """
+    global _mlx_loaded, _model
+    clip = None
+    try:
+        if _Handler.backend == "mlx":
+            import mlx_whisper  # noqa: F401  (raises ImportError if the stack is missing)
+            clip = _silent_clip_path()
+            mlx_whisper.transcribe(clip, path_or_hf_repo=_Handler.model_name)
             _mlx_loaded = True
-        except Exception:
-            pass  # first transcribe will load it lazily
-        return _mlx_loaded
-    _load_model_if_needed(_Handler.model_name, _Handler.device, _Handler.compute_type)
-    return _model is not None
+            return True
+        _load_model_if_needed(_Handler.model_name, _Handler.device, _Handler.compute_type)
+        clip = _silent_clip_path()
+        # Consume the generator — faster-whisper decodes lazily.
+        segments, _info = _model.transcribe(clip, beam_size=1)
+        for _ in segments:
+            pass
+        return True
+    except ImportError:
+        raise
+    except Exception as e:
+        # A warmup that fails is a slow first request, not a broken server.
+        print(f"[whisper-server] warmup failed: {e}", file=sys.stderr, flush=True)
+        return _mlx_loaded if _Handler.backend == "mlx" else (_model is not None)
+    finally:
+        if clip:
+            try:
+                os.unlink(clip)
+            except Exception:
+                pass
 
 
 def _transcribe_file(audio_path, language, beam_size):
@@ -141,7 +192,13 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/health":
-            _touch()
+            # Deliberately does NOT _touch(). A health check is someone asking
+            # whether we are alive, not someone using us — and because the
+            # desktop window polls /health, counting it as use kept the idle
+            # watchdog permanently reset. The server then lived for days
+            # holding a port while its weights were long since paged out: it
+            # neither died nor stayed warm. Real use (/transcribe, /warmup)
+            # is what resets the timer now.
             loaded = _mlx_loaded if _Handler.backend == "mlx" else (_model is not None)
             self._send_json(200, {
                 "ok": True,
