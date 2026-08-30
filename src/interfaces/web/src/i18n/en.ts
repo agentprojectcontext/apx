@@ -1992,7 +1992,7 @@ export const en = {
     qvox_running: "Running",
     qvox_stopped: "Stopped",
     qvox_stopped_hint: "QVox is set up but not answering on its port. Start it with `qvox serve`, or check that its LaunchAgent is loaded.",
-    qvox_install_title: "Add a local voice on this Mac",
+    qvox_install_title: "Add QVox — a local Qwen3 voice on this Mac",
   },
 
   telegram_ui: {

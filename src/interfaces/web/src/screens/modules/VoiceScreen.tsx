@@ -157,7 +157,10 @@ export function VoiceScreen() {
   return (
     <div data-testid="screen-voice">
       <div className="grid items-start gap-6 xl:grid-cols-2">
-        {/* Left: TTS providers */}
+        {/* Left: TTS providers, then the QVox cards — outside the providers
+            block, because they are about the local engine itself rather than
+            about the fallback order the list configures. */}
+        <div className="space-y-6">
         <Section
           title={t("voice_screen.providers_title")}
           description={t("voice_ui.providers_desc")}
@@ -179,34 +182,23 @@ export function VoiceScreen() {
               busy={busyDefault}
             />
           )}
-          {/* The offer belongs under the list it is an alternative to. */}
-          {!provLoading && !qvoxDebug && shouldSuggestQvox(engines) && (
-            <div className="mt-6"><VoiceQvoxInstallCard /></div>
-          )}
-
-          {/* ?qvox=debug — the three states stacked here, in one column, so the
-              set can be reviewed without installing and uninstalling QVox.
-              Temporary; goes away once the design is settled. */}
-          {qvoxDebug && (
-            <div className="mt-6 space-y-6 rounded-xl border border-dashed border-amber-500/40 p-4">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-amber-500">
-                debug · ?qvox=debug
-              </p>
-              <div>
-                <p className="mb-1.5 text-xs text-muted-fg">1 · notice — QVox not installed</p>
-                <VoiceQvoxInstallCard />
-              </div>
-              <div>
-                <p className="mb-1.5 text-xs text-muted-fg">2 · local voice — stopped</p>
-                <VoiceQvoxStatusCard force="stopped" />
-              </div>
-              <div>
-                <p className="mb-1.5 text-xs text-muted-fg">3 · local voice — running</p>
-                <VoiceQvoxStatusCard force="running" />
-              </div>
-            </div>
-          )}
         </Section>
+
+        {/* One card, chosen by state: the offer while QVox is missing, the
+            status once it is here. `?qvox=debug` renders all of them instead —
+            temporary, and the only thing it changes is how many are shown. */}
+        {!provLoading && (qvoxDebug ? (
+          <>
+            <VoiceQvoxInstallCard />
+            <VoiceQvoxStatusCard force="stopped" />
+            <VoiceQvoxStatusCard force="running" />
+          </>
+        ) : shouldSuggestQvox(engines) ? (
+          <VoiceQvoxInstallCard />
+        ) : (
+          <VoiceQvoxStatusCard />
+        ))}
+        </div>
 
         {/* Right: test + STT */}
         <div className="space-y-6">
@@ -221,9 +213,7 @@ export function VoiceScreen() {
             {cfgLoading ? <Loading /> : <VoiceSttCard config={transcriptionCfg} onPatch={patchStt} />}
           </Section>
 
-          {/* Whether the local engine is up — a different question from what
-              the provider list answers, so it sits with the things that use it. */}
-          {!provLoading && !shouldSuggestQvox(engines) && <VoiceQvoxStatusCard />}
+
         </div>
       </div>
 
