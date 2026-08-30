@@ -28,7 +28,7 @@ export function VoiceQvoxStatusCard({ force }: { force?: "running" | "stopped" }
   const known = !!force || data !== undefined;
 
   return (
-    <div className="rounded-xl border border-border p-5" data-testid="qvox-status">
+    <div className="rounded-xl border border-dashed border-border p-5" data-testid="qvox-status">
       <div className="flex items-center gap-2">
         <h3 className="text-sm font-semibold text-foreground">{t("voice_ui.qvox_title")}</h3>
         {known && (
