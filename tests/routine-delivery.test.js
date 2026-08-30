@@ -325,20 +325,33 @@ test("deliverRoutineOutput — telegram sends the text then each queued photo", 
 });
 
 test("deliverRoutineOutput — the web row carries the attached images in its meta", async () => {
+  // A real file, because the row must name a copy inside ~/.apx/media: the
+  // skill's own path (~/.apx/skills/<slug>/grip.jpg) is one /api/media has to
+  // refuse, so a row naming it rendered as "attachment failed" every time.
+  const skillDir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-skill-media-"));
+  const grip = path.join(skillDir, "grip.jpg");
+  fs.writeFileSync(grip, Buffer.from("jpeg-ish bytes"));
+
   await deliverRoutineOutput(
     { plugins: { get: () => null }, project: { id: 11 }, globalConfig: {} },
     {
       routine: { name: "golf-web", id: "r_9" },
       channels: ["web"],
       text: "🏌️ Tip: el grip",
-      attachments: [{ id: "grip", path: "/x/grip.jpg", file: "grip.jpg", mime: "image/jpeg", caption: "el agarre" }],
+      attachments: [{ id: "grip", path: grip, file: "grip.jpg", mime: "image/jpeg", caption: "el agarre" }],
     },
   );
   const rows = readGlobalMessages({ channel: "web", limit: 50 });
   const mine = rows.filter((r) => r.meta?.routine === "golf-web");
   assert.equal(mine.length, 1);
-  assert.equal(mine[0].meta.local_path, "/x/grip.jpg", "first image on the flat field");
+  const mediaRoot = fs.realpathSync(path.join(TMP_HOME, ".apx", "media"));
+  assert.ok(
+    mine[0].meta.local_path.startsWith(mediaRoot + path.sep),
+    `first image on the flat field, archived inside the media dir (got ${mine[0].meta.local_path})`,
+  );
+  assert.equal(fs.readFileSync(mine[0].meta.local_path, "utf8"), "jpeg-ish bytes");
   assert.equal(mine[0].meta.media_kind, "photo");
+  assert.equal(mine[0].meta.file_name, "grip.jpg", "the name the viewer shows is the skill's, not the digest");
   assert.equal(mine[0].meta.media.length, 1);
   assert.equal(mine[0].meta.media[0].caption, "el agarre");
 });

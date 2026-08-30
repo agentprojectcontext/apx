@@ -28,6 +28,7 @@ import { TOOLS } from "#core/agent/tools/names.js";
 import { canNudge, recordNudge } from "#core/nudge/index.js";
 import { conversationPath, startConversation, appendTurn } from "#core/stores/conversations.js";
 import { callEngine } from "#core/engines/index.js";
+import { attachmentsMeta } from "#core/stores/media-archive.js";
 
 /**
  * A project agent's ONE persistent web chat with the owner. A routine run by a
@@ -101,27 +102,14 @@ export function readAbstention(text) {
  * core/stores/messages.js) — an unstamped row lands in the default workspace,
  * which is not where the routine ran.
  */
-/** The `media` array a delivered row carries, shaped for the thread viewer. */
+/** The `media` a delivered row carries, shaped for the thread viewer.
+ *
+ *  This used to name the skill's own file — `~/.apx/skills/<slug>/grip.png` —
+ *  and the media endpoint serves nothing from outside ~/.apx/media, so every
+ *  delivered image rendered as "attachment failed" no matter how correct the
+ *  row was. `attachmentsMeta` archives the bytes first and records the copy. */
 function mediaMeta(attachments) {
-  const usable = (attachments || []).filter((a) => a && a.path);
-  if (!usable.length) return {};
-  const media = usable.map((a) => ({
-    kind: "photo",
-    path: a.path,
-    name: a.file || null,
-    mime: a.mime || null,
-    caption: a.caption || "",
-  }));
-  // Also mirror the FIRST image onto the flat fields mediaFromMeta reads, so a
-  // reader that only understands the single-attachment shape still sees one.
-  const first = usable[0];
-  return {
-    media,
-    media_kind: "photo",
-    local_path: first.path,
-    file_name: first.file || null,
-    mime_type: first.mime || null,
-  };
+  return attachmentsMeta(attachments);
 }
 
 /**
@@ -163,6 +151,10 @@ function deliverToAgentWebChat(ctx, { routine, text, attachments, agent, abstain
       ...(agent.usage ? { usage: agent.usage } : {}),
       via: "routine_delivery",
       routine: routine.name,
+      // The image belongs on the THREAD too, not only on the ledger row. This
+      // file is what the panel reopens; without it the tip came back as text
+      // and the picture it was built around was only in the inbox copy.
+      ...mediaMeta(attachments),
     },
   });
   // The cross-channel ledger row, under the AGENT (search, RAG, the inbox) —

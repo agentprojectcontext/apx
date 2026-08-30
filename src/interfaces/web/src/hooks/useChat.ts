@@ -328,6 +328,14 @@ function threadToChatMsgs(messages: ConversationMessage[]): ChatMsg[] {
         if (m.model) turn.model = m.model;
         if (m.tool_summary) turn.toolSummary = m.tool_summary;
         if (m.skill_inspector) turn.inspector = m.skill_inspector;
+        // What the AGENT sent with this turn — a skill's image it attached, a
+        // photo it pushed to Telegram, a file a routine delivered. The stored
+        // row always carried it; this branch simply never read it, so an agent
+        // could hand you a file and the thread would show the caption alone.
+        // `media_list` is the several-file spelling a delivery writes; the flat
+        // one mirrors its first file, so the list wins where both are present.
+        const sent = m.media_list?.length ? m.media_list : m.media ? [m.media] : [];
+        if (sent.length) turn.media = [...(turn.media || []), ...sent];
         if (m.usage) {
           turn.usage = {
             input_tokens: (turn.usage?.input_tokens || 0) + (m.usage.input_tokens || 0),

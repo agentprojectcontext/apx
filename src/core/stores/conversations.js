@@ -5,6 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { parseFrontmatter } from "#core/apc/frontmatter.js";
 import { emitMessageEvent } from "#core/events/bus.js";
+import { mediaFromMeta } from "#core/stores/messages.js";
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 
@@ -148,11 +149,24 @@ export function readConversation(storagePath, agentSlug, idOrFilename) {
  *  back from the ledger must not be two different things to the viewer. */
 export function shapeConversationMessage(t) {
   const base = { role: t.role, content: t.content, ts: t.ts };
+  // The file this turn carried, in EITHER direction and under the same field
+  // names `readGlobalThread` hands out — one viewer shapes both. A conversation
+  // file used to surface no media at all: a photo dropped in the composer of a
+  // project agent's chat was sent to the model and then read back as the raw
+  // "[image attached — saved to /Users/…]" marker, and an image the agent
+  // attached had nowhere to be recorded at all.
+  const media = mediaFromMeta(t.meta);
+  const mediaFields = {
+    ...(media ? { media } : {}),
+    ...(Array.isArray(t.meta?.media) && t.meta.media.length ? { media_list: t.meta.media } : {}),
+  };
+  if (t.role === "user") return { ...base, ...mediaFields };
   if (t.role === "assistant") {
     const meta = t.meta || {};
     const usage = meta.usage;
     return {
       ...base,
+      ...mediaFields,
       ...(meta.agent ? { agent: meta.agent } : {}),
       ...(meta.agent_name ? { agent_name: meta.agent_name } : {}),
       ...(meta.actor_kind ? { actor_kind: meta.actor_kind } : {}),

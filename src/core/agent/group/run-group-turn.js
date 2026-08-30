@@ -168,6 +168,7 @@ export async function runGroupTurn({ p, gid, text, attachments = [], media = nul
       reason: ctx.byOwner ? null : ctx.reason,
       model: result.model, usage: result.usage,
       trace: result.trace,
+      media: result.media,
     });
     said.push({ slug, text: reply });
     onEvent({ type: "speaker_final", slug, model: result.model || modelId, usage: result.usage });
