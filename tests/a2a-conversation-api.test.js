@@ -56,14 +56,14 @@ function api(projects) {
   });
 }
 
-async function withProject(fn) {
+async function withProject(fn, pair) {
   const root = makeTempProject({ name: "A2A Project", agents: [{ slug: "roby", role: "super" }] });
   const projects = new ProjectManager({});
   projects.register(root);
   const id = projects.list()[0].id;
   // The a2a ledger lives in the project's STORAGE dir (~/.apx/projects/<id>),
   // which the manager resolves — not in the repo checkout.
-  writeA2AThread(projects.get(id).storagePath);
+  writeA2AThread(projects.get(id).storagePath, pair);
   const { server, baseUrl } = await listen(api(projects));
   try {
     await fn({ baseUrl, id });
@@ -148,7 +148,6 @@ test("writes aimed at an a2a thread are refused with a reason, not 'agent not fo
   await withProject(async ({ baseUrl, id }) => {
     const base = `${baseUrl}/api/projects/${id}/agents/a2a:cursor~roby`;
     const cases = [
-      ["DELETE", `${base}/conversations/cursor~roby`, undefined],
       ["POST", `${base}/conversations/cursor~roby/compact`, {}],
       ["POST", `${base}/compact`, {}],
       ["POST", `${base}/chat`, { prompt: "hola" }],
@@ -176,4 +175,121 @@ test("the a2a prefix has one definition, shared by the route that mints it", asy
   const inbox = fs.readFileSync(path.join(process.cwd(), "src/host/daemon/api/inbox.js"), "utf8");
   assert.match(inbox, /A2A_SLUG_PREFIX/, "inbox mints the slug from the shared constant");
   assert.doesNotMatch(inbox, /`a2a:\$\{/, "no second hardcoded copy of the prefix");
+});
+
+// ── Deleting a pair thread ─────────────────────────────────────────────────
+// The one write that DOES mean something for a derived thread. It used to have
+// no path at all: the per-agent route refused it, and the thread route fell
+// through to `deleteGlobalThread`, which hunts for a channel+day file named
+// after the pair id and never finds one — 404 on both surfaces, so an a2a chat
+// could be read but never removed.
+
+test("deleting an a2a thread removes its ledger rows, and it stops listing", async () => {
+  await withProject(async ({ baseUrl, id }) => {
+    const del = await fetch(`${baseUrl}/api/projects/${id}/super-agent/threads/a2a/cursor~roby`, {
+      method: "DELETE",
+    });
+    assert.equal(del.status, 200, "used to be 404 'thread not found'");
+    assert.deepEqual(await del.json(), { ok: true, removed: 2 });
+
+    const gone = await fetch(`${baseUrl}/api/projects/${id}/super-agent/threads/a2a/cursor~roby`);
+    assert.equal(gone.status, 404);
+    const threads = await (await fetch(`${baseUrl}/api/projects/${id}/super-agent/threads`)).json();
+    assert.equal(threads.filter((t) => t.id === "cursor~roby").length, 0);
+  });
+});
+
+test("the same delete works through the synthetic agent slug the inbox opens", async () => {
+  await withProject(async ({ baseUrl, id }) => {
+    const del = await fetch(
+      `${baseUrl}/api/projects/${id}/agents/a2a:cursor~roby/conversations/cursor~roby`,
+      { method: "DELETE" },
+    );
+    assert.equal(del.status, 200, "used to refuse with 'a2a threads cannot be deleted'");
+    assert.deepEqual(await del.json(), { ok: true, removed: 2 });
+    const list = await (await fetch(`${baseUrl}/api/projects/${id}/agents/a2a:cursor~roby/conversations`)).json();
+    assert.deepEqual(list, []);
+  });
+});
+
+test("deleting a pair that is not there is a 404, not a silent ok", async () => {
+  await withProject(async ({ baseUrl, id }) => {
+    const thread = await fetch(`${baseUrl}/api/projects/${id}/super-agent/threads/a2a/nadie~nada`, {
+      method: "DELETE",
+    });
+    assert.equal(thread.status, 404);
+    const slug = await fetch(
+      `${baseUrl}/api/projects/${id}/agents/a2a:nadie~nada/conversations/nadie~nada`,
+      { method: "DELETE" },
+    );
+    assert.equal(slug.status, 404);
+    // …and the thread that IS there is untouched by either miss.
+    const kept = await fetch(`${baseUrl}/api/projects/${id}/super-agent/threads/a2a/cursor~roby`);
+    assert.equal(kept.status, 200);
+  });
+});
+
+test("one pair leaves, the other stays — including on a shared day file", async () => {
+  const { deleteA2AThread, listProjectA2AThreads } = await import("#core/stores/messages.js");
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-a2a-del-"));
+  const dir = path.join(root, "messages");
+  fs.mkdirSync(dir, { recursive: true });
+  const row = (ts, from, to, body) => JSON.stringify({
+    ts, channel: "a2a", direction: "out", type: "agent",
+    author: from, agent_slug: from, body, meta: { from, to },
+  });
+  // Two pairs on the same day, plus a third day file holding only the survivor,
+  // plus a row on another channel that must not be touched.
+  fs.writeFileSync(path.join(dir, "2026-08-25.jsonl"), [
+    row("2026-08-25T10:00:00Z", "cursor", "roby", "uno"),
+    row("2026-08-25T10:01:00Z", "aider", "roby", "dos"),
+    JSON.stringify({ ts: "2026-08-25T10:02:00Z", channel: "web", direction: "in", type: "user",
+      author: "manu", body: "hola", meta: {} }),
+  ].join("\n") + "\n");
+  fs.writeFileSync(path.join(dir, "2026-08-26.jsonl"), row("2026-08-26T09:00:00Z", "aider", "roby", "tres") + "\n");
+
+  const out = deleteA2AThread(root, "cursor~roby");
+  assert.deepEqual(out, { removed: 1 });
+  const left = listProjectA2AThreads(root);
+  assert.deepEqual(left.map((t) => t.id), ["aider~roby"]);
+  assert.equal(left[0].messages, 2, "the other pair keeps both of its days");
+  const day = fs.readFileSync(path.join(dir, "2026-08-25.jsonl"), "utf8");
+  assert.match(day, /"channel":"web"/, "an unrelated channel is not collateral");
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
+test("a pair id carrying a '#' survives the round trip, encoded", async () => {
+  // A coding CLI names itself: `opencode#bg`, so the pair id is
+  // `opencode#bg~tester`. Raw in a URL the '#' opens the FRAGMENT and the id is
+  // truncated to `opencode` before the request even leaves the browser — that
+  // is the 404 those chats answered. Encoded, it reaches the route intact.
+  await withProject(async ({ baseUrl, id }) => {
+    const base = `${baseUrl}/api/projects/${id}/super-agent/threads/a2a`;
+    const truncated = await fetch(`${base}/opencode`);
+    assert.equal(truncated.status, 404, "what the raw '#' left of the id");
+
+    const ok = await fetch(`${base}/opencode%23bg~tester`);
+    assert.equal(ok.status, 200);
+    assert.equal((await ok.json()).id, "opencode#bg~tester");
+
+    const del = await fetch(`${base}/opencode%23bg~tester`, { method: "DELETE" });
+    assert.equal(del.status, 200);
+    assert.deepEqual(await del.json(), { ok: true, removed: 2 });
+  }, ["opencode#bg", "tester"]);
+});
+
+test("the web client encodes every path segment it does not mint itself", async () => {
+  // The guard on the fix above: an id or slug interpolated raw into a path is
+  // how the '#' escaped in the first place.
+  const client = fs.readFileSync(
+    path.join(process.cwd(), "src/interfaces/web/src/lib/api/conversations.ts"), "utf8",
+  );
+  const segments = [...client.matchAll(/(?<=\/)\$\{([^}]+)\}/g)].map((m) => m[1]);
+  assert.ok(segments.length >= 8, "found the interpolated segments at all");
+  for (const expr of segments) {
+    assert.ok(
+      expr === "pid" || expr.startsWith("seg("),
+      `path segment \${${expr}} is not encoded`,
+    );
+  }
 });

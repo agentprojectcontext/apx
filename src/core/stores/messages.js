@@ -559,6 +559,48 @@ export function readProjectA2AThread(projectRoot, id) {
   };
 }
 
+/**
+ * Delete a whole a2a pair thread: every ledger row the two agents exchanged,
+ * across day files. Returns how many rows went.
+ *
+ * A pair id is DERIVED (see `a2aPair`) and never stored, so a line cannot be
+ * matched on a field the way a group's `meta.group_id` can. Each line is read
+ * back through `parseDayJsonl` — the one interpreter every reader uses — so a
+ * row that lists under this pair is exactly a row that is removed here, with
+ * no second derivation to drift from the first.
+ *
+ * The peers' session pointers (`runtime_session_id`, `code_session_id`) ride on
+ * these same rows, so the thread takes them with it: the next exchange between
+ * the two opens a fresh session instead of resuming one whose transcript is
+ * gone. See `readA2APeerSession`.
+ */
+export function deleteA2AThread(projectRoot, id) {
+  const want = String(id || "");
+  const dir = path.join(projectRoot, "messages");
+  if (!want || !fs.existsSync(dir)) return { removed: 0 };
+  let removed = 0;
+  for (const f of fs.readdirSync(dir).filter((x) => /^\d{4}-\d{2}-\d{2}\.jsonl$/.test(x))) {
+    const full = path.join(dir, f);
+    const lines = fs.readFileSync(full, "utf8").split("\n");
+    let hits = 0;
+    const kept = lines.filter((line) => {
+      if (!line.trim()) return true;
+      const [row] = parseDayJsonl(line);
+      if (!row || row.channel !== "a2a") return true;
+      if (a2aPairId(a2aPair(row)) !== want) return true;
+      hits += 1;
+      return false;
+    });
+    // Per FILE, not a running total: the day files that hold none of this pair
+    // must not be rewritten just because an earlier one did.
+    if (hits) {
+      fs.writeFileSync(full, kept.join("\n"));
+      removed += hits;
+    }
+  }
+  return { removed };
+}
+
 // ── Group chats ───────────────────────────────────────────────────────────
 // A group is the owner + N agents in one room. It rides the SAME ledger as a2a
 // (channel "group"), so it lists, opens, and renders through the same thread

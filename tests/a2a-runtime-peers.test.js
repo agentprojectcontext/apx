@@ -20,7 +20,8 @@ const TMP_HOME = fs.mkdtempSync(path.join(os.tmpdir(), "apx-a2a-peers-"));
 process.env.HOME = TMP_HOME;
 process.env.APX_HOME = path.join(TMP_HOME, ".apx");
 
-const { parsePeerAddress, resolvePeer, a2aSessionKey, refusesCodeMode } = await import("#core/agent/a2a/peers.js");
+const { parsePeerAddress, resolvePeer, peerAddress, a2aSessionKey, refusesCodeMode } = await import("#core/agent/a2a/peers.js");
+const { SUPERAGENT_ACTOR_ID } = await import("#core/constants/actors.js");
 const { a2aReplyCommand, replyAsRuntime } = await import("#core/agent/a2a/reply.js");
 const { readA2APeerSession } = await import("#core/stores/messages.js");
 const claudeCode = (await import("#core/runtimes/claude-code.js")).default;
@@ -324,9 +325,24 @@ test("resolvePeer matches agents by slug, display name, and superagent aliases",
   assert.equal(resolvePeer("andy", mockAgents)?.name, "andy");
   // Display name
   assert.equal(resolvePeer("Crypto Analyst", mockAgents)?.name, "crypto-analyst");
-  // Superagent aliases
-  assert.equal(resolvePeer("default", mockAgents)?.name, "default");
-  assert.equal(resolvePeer("superagent", mockAgents)?.name, "default");
-  assert.equal(resolvePeer("super-agent", mockAgents)?.name, "default");
-  assert.equal(resolvePeer("apx", mockAgents)?.name, "default");
+  // Superagent aliases — every spelling lands on the SAME name, and it is the
+  // id the rest of APX already knows the super-agent by. It used to be
+  // "default", which no agent list or face resolver can place: an exchange with
+  // Roby showed up in the inbox as a chat with someone called "default".
+  for (const alias of ["default", "superagent", "super-agent", "super_agent", "apx"]) {
+    assert.equal(resolvePeer(alias, mockAgents)?.name, SUPERAGENT_ACTOR_ID, alias);
+    assert.equal(resolvePeer(alias, mockAgents)?.agent.slug, SUPERAGENT_ACTOR_ID, alias);
+  }
+});
+
+test("peerAddress is the canonical name, and keeps a :thread suffix", () => {
+  const mockAgents = [{ slug: "magui", name: "Magui", fields: { Name: "Magui" } }];
+  // Whatever was typed, one thread per peer.
+  assert.equal(peerAddress(resolvePeer("Magui", mockAgents)), "magui");
+  assert.equal(peerAddress(resolvePeer("MAGUI", mockAgents)), "magui");
+  assert.equal(peerAddress(resolvePeer("default", mockAgents)), SUPERAGENT_ACTOR_ID);
+  assert.equal(peerAddress(resolvePeer("apx", mockAgents)), SUPERAGENT_ACTOR_ID);
+  // …except the suffix, which exists precisely to keep two threads apart.
+  assert.equal(peerAddress(resolvePeer("opencode:review", mockAgents)), "opencode:review");
+  assert.equal(peerAddress(null), "");
 });

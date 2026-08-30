@@ -26,6 +26,7 @@
 // which api/conversations.js already relies on for the `a2a:` slug itself.
 import { RUNTIME_IDS } from "#core/runtimes/index.js";
 import { resolveAgentName } from "#core/identity/self.js";
+import { SUPERAGENT_ACTOR_ID } from "#core/constants/actors.js";
 
 const SUPERAGENT_PEERS = new Set(["default", "superagent", "super_agent", "super-agent", "apx"]);
 
@@ -82,10 +83,17 @@ export function resolvePeer(address, agents = []) {
     return {
       kind: "agent",
       address: full,
-      name: "default",
+      // ONE name for the super-agent on the ledger, whichever alias was typed.
+      // This used to answer to `default`, so `apx send magui default "…"` filed
+      // the exchange under a peer called "default" — a name no agent list, face
+      // resolver or reader can place, while the very same super-agent appears as
+      // `super_agent` everywhere else. Manu saw the result in his inbox: "Magui
+      // is talking to `default`, which does not exist". The aliases still all
+      // resolve; they just stop minting a second identity for the same agent.
+      name: SUPERAGENT_ACTOR_ID,
       thread,
       agent: {
-        slug: "default",
+        slug: SUPERAGENT_ACTOR_ID,
         name: displayName,
         fields: {
           Name: displayName,
@@ -99,6 +107,18 @@ export function resolvePeer(address, agents = []) {
   }
 
   return null;
+}
+
+/**
+ * The canonical address of a resolved peer — its real name, keeping any
+ * `:thread` suffix. What a caller should WRITE to the ledger instead of the
+ * string it was handed: `default`, `Roby`, `apx` and `roby` are one peer, and
+ * without this each spelling opened a thread of its own. The suffix stays, since
+ * it is the discriminator two threads with the same peer are keyed by.
+ */
+export function peerAddress(peer) {
+  if (!peer?.name) return "";
+  return peer.thread ? `${peer.name}:${peer.thread}` : peer.name;
 }
 
 /**
