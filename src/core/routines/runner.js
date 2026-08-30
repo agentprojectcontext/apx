@@ -19,6 +19,7 @@ import { runAgent, computeSuppressedTools } from "#core/agent/index.js";
 import { TELEGRAM_TOOL_ITERS, ROUTINE_UNCAPPED_TOOL_ITERS } from "#core/agent/constants.js";
 import { createToolSession, makeToolHandlers } from "#core/agent/tools/registry.js";
 import { readAgents } from "#core/apc/parser.js";
+import { scopeProjects } from "#core/apc/projects-helpers.js";
 import { buildAgentSystem } from "#core/agent/build-agent-system.js";
 import { resolveAgentModel } from "#core/agent/agent-model.js";
 import { resolveAgentAllowedTools } from "#core/agent/agent-tools.js";
@@ -248,7 +249,9 @@ async function handleExecAgent(ctx, routine) {
       toolSchemas: toolSession.initialSchemas,
       makeToolHandlers,
       toolHandlerCtx: {
-        projects,
+        // Scoped to the routine's OWN project, so an unqualified path is read
+        // against it instead of against the default project. See scopeProjects.
+        projects: scopeProjects(projects, project.id),
         plugins,
         registries,
         globalConfig: cfg,

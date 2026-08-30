@@ -18,6 +18,7 @@ import { resolveAgentAllowedTools } from "#core/agent/agent-tools.js";
 import { runAgent } from "#core/agent/index.js";
 import { createToolSession, makeToolHandlers } from "#core/agent/tools/registry.js";
 import { loadAgentSkills, collectAgentSkillMedia } from "#core/agent/skills/agent-skills.js";
+import { scopeProjects } from "#core/apc/projects-helpers.js";
 
 // A chat reply is prose, not a Telegram one-liner: run-agent's 512-token default
 // truncates an agent mid-answer on the surface where the whole answer is the
@@ -111,7 +112,9 @@ export async function runAgentTurn({
     toolSchemas: toolSession.initialSchemas,
     makeToolHandlers,
     toolHandlerCtx: {
-      projects,
+      // Same scoping as a routine run: this agent belongs to `p`, so that is
+      // what an unqualified path means to it. See scopeProjects.
+      projects: scopeProjects(projects, p.id),
       plugins,
       registries,
       globalConfig: cfg,

@@ -144,7 +144,13 @@ export async function grepFiles({
   cwd,
 }) {
   if (!pattern) throw new Error("pattern required");
-  const basePath = path.resolve(searchPathArg || cwd || process.cwd());
+  // A relative `path` is relative TO `cwd` — the caller's project, when one was
+  // sent. It used to be `path.resolve(searchPathArg || cwd || …)`, where any
+  // path at all short-circuited `cwd` and the relative one then resolved against
+  // the DAEMON's own directory: an agent searching `work/marketing/…` in its
+  // project was answered "path does not exist" with the apx checkout prefixed to
+  // it. An absolute path is unaffected — path.resolve ignores the base then.
+  const basePath = path.resolve(cwd || process.cwd(), searchPathArg || ".");
   if (!fs.existsSync(basePath)) throw new Error(`path does not exist: ${basePath}`);
 
   const lim = Math.min(parseInt(limit, 10) || 100, 1000);

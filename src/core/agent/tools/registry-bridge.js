@@ -64,11 +64,34 @@ function buildSchema(entry) {
   };
 }
 
+/**
+ * A bridged tool runs in the DAEMON's process, which stands in the apx checkout
+ * — so a relative path it is handed resolves against that checkout instead of
+ * against the project whose agent asked. `grep {path: "work/marketing/…"}` from
+ * Magui in Appsi came back "path does not exist:
+ * /…/agentprojectcontext/apx/work/marketing/…". A native tool has the registry
+ * to ask (see scopeProjects); a bridged one crosses HTTP and arrives with no
+ * project at all, so the caller's directory has to travel WITH the request.
+ *
+ * Only for the file tools, and only when the caller did not name one: `cwd` is
+ * a default for relative paths, never an override of an absolute one.
+ */
+function bridgeCwd(entry, args, ctx) {
+  if (entry.category !== "file") return null;
+  if (args.cwd) return null;
+  const scoped = ctx?.projects?.current?.();
+  return scoped?.path || null;
+}
+
 function buildHandler(entry) {
-  return ({ globalConfig }) => async (args = {}) => {
+  return (ctx = {}) => async (args = {}) => {
+    const { globalConfig } = ctx;
     const port = globalConfig?.port || process.env.APX_PORT || 7430;
     const method = String(entry.endpoint?.method || "POST").toUpperCase();
     let url = `http://127.0.0.1:${port}${entry.endpoint?.path || ""}`;
+
+    const cwd = bridgeCwd(entry, args, ctx);
+    if (cwd) args = { ...args, cwd };
 
     const token = daemonToken();
     const opts = {
