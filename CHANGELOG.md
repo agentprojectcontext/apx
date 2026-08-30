@@ -1,3 +1,10 @@
+## [1.83.1](https://github.com/agentprojectcontext/apx/compare/v1.83.0...v1.83.1) (2026-08-30)
+
+
+### Bug Fixes
+
+* **whatsapp:** a round nobody hears about, and a message nobody sees until it ends ([77124ba](https://github.com/agentprojectcontext/apx/commit/77124ba21303590fad33f2c1eea00baf8fad3b77))
+
 # [1.83.0](https://github.com/agentprojectcontext/apx/compare/v1.82.0...v1.83.0) (2026-08-30)
 
 
