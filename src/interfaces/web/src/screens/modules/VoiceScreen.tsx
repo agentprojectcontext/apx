@@ -68,9 +68,6 @@ export function VoiceScreen() {
     return (voiceCfg as Record<string, unknown>)[editing] as Record<string, unknown> || {};
   }, [editing, voiceCfg]);
 
-  // Temporary: `?qvox=debug` renders every QVox card state at once.
-  const qvoxDebug = new URLSearchParams(window.location.search).get("qvox") === "debug";
-
   const toggleEnabled = async (id: string, enabled: boolean) => {
     setBusyDefault(true);
     try {
@@ -185,19 +182,10 @@ export function VoiceScreen() {
         </Section>
 
         {/* One card, chosen by state: the offer while QVox is missing, the
-            status once it is here. `?qvox=debug` renders all of them instead —
-            temporary, and the only thing it changes is how many are shown. */}
-        {!provLoading && (qvoxDebug ? (
-          <>
-            <VoiceQvoxInstallCard />
-            <VoiceQvoxStatusCard force="stopped" />
-            <VoiceQvoxStatusCard force="running" />
-          </>
-        ) : shouldSuggestQvox(engines) ? (
-          <VoiceQvoxInstallCard />
-        ) : (
-          <VoiceQvoxStatusCard />
-        ))}
+            status once it is here. */}
+        {!provLoading && (shouldSuggestQvox(engines)
+          ? <VoiceQvoxInstallCard />
+          : <VoiceQvoxStatusCard />)}
         </div>
 
         {/* Right: test + STT */}
