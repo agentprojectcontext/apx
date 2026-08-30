@@ -212,7 +212,7 @@ test("the pet is told when an agent launches a final, not when the owner sends",
   });
   emitMessageEvent({
     scope: "project", channel: "a2a", thread: "2026-01-15",
-    direction: "out", type: "agent", author: "martin", agent_slug: "martin",
+    direction: "out", type: "agent", author: "magui", agent_slug: "magui", to: "roby",
   });
   await wait(400);
 
@@ -220,8 +220,12 @@ test("the pet is told when an agent launches a final, not when the owner sends",
   assert.deepEqual(frame.notifications, [
     "Roby respondió en Telegram",
     "sofia respondió en Grupo",
-    "martin respondió en A2A",
+    "Nuevo mensaje de Magui a Roby",
   ]);
+  // The recipient reaches the pet on the wire, not only inside the copy the
+  // daemon computed: an older client that renders `events` itself gets it too.
+  assert.equal(frame.events.find((e) => e.channel === "a2a").to, "roby");
+  assert.equal(frame.events.find((e) => e.channel === "telegram").to, null);
   stop();
 });
 

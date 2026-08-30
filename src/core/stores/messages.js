@@ -149,6 +149,12 @@ export function appendMessageToFs({ projectRoot, channel, direction, type, actor
     // Telegram / group / A2A, never the owner's send and never a stream chunk.
     final: fullMeta.final === true ? true : null,
     streamed: fullMeta.streamed === true ? true : null,
+    // The a2a counterpart. `author` is who spoke; on an a2a row `meta.to` is who
+    // was spoken TO, and the pet needs both ends to say "de magui a roby" rather
+    // than naming a channel nobody can place. a2a ONLY: it is the one channel
+    // where `to` is an agent's name and not an address (a chat id, a number)
+    // that has no business on a signal feed.
+    to: channel === "a2a" ? (fullMeta.to || null) : null,
     ts,
   });
   return { ts, file };
