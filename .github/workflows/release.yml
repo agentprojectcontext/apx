@@ -35,6 +35,19 @@ jobs:
             # with ERESOLVE. Removing opentui-spinner would also work but it
             # is used by the new TUI.
             - run: npm install --legacy-peer-deps
+
+            # `npm install` runs `prepare`, which points core.hooksPath at
+            # .githooks — so semantic-release's own `git push` fires the local
+            # pre-push gate. That gate runs `lint:web`, which needs the panel's
+            # separate pnpm install this job does not do, so every release since
+            # the gate landed died with "Cannot find package 'typescript-eslint'"
+            # AFTER tagging. The checks the hook exists to enforce are the CI
+            # workflow's job here; on this runner it is a broken duplicate.
+            - name: Take the local pre-push gate out of the way
+              run: |
+                  mkdir -p .no-hooks
+                  git config core.hooksPath .no-hooks
+
             - run: npm run test
             - run: npx semantic-release
               env:

@@ -105,6 +105,14 @@ jobs:
           sudo chmod +x /usr/local/bin/apx
           apx --version
 
+      # The daemon only mounts the SPA (and with it the 404-that-still-serves-
+      # the-shell) when src/interfaces/web/dist exists — see api/web.js. Every
+      # other spec drives the vite dev server on :7431 and never noticed; the
+      # one spec that asks the DAEMON for an unknown route got the bare JSON
+      # 404 and failed on every push since the job was added.
+      - name: Build the web bundle
+        run: node scripts/build-web.js
+
       - name: Start the daemon
         run: |
           node src/host/daemon/index.js > /tmp/apx-daemon.log 2>&1 &
