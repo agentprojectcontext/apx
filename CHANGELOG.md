@@ -1,3 +1,12 @@
+## [1.83.2](https://github.com/agentprojectcontext/apx/compare/v1.83.1...v1.83.2) (2026-08-30)
+
+
+### Bug Fixes
+
+* **a2a:** a thread nobody could delete, and a peer called "default" ([68f8635](https://github.com/agentprojectcontext/apx/commit/68f8635ad6e8d74dcbd6781b47fe59b923a1d9d4))
+* **mascot:** an a2a bubble named a channel instead of the two agents in it ([a3a6a16](https://github.com/agentprojectcontext/apx/commit/a3a6a16c288ca365c081c41b6e608d8610fdfaba))
+* **media:** the agent could send you a file, but never show you one ([8b0ecea](https://github.com/agentprojectcontext/apx/commit/8b0ecea9ea7b1803e94dfa77ae6e332ba9cfa8fe))
+
 ## [1.83.1](https://github.com/agentprojectcontext/apx/compare/v1.83.0...v1.83.1) (2026-08-30)
 
 
