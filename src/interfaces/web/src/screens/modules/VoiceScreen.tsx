@@ -180,7 +180,32 @@ export function VoiceScreen() {
             />
           )}
           {/* The offer belongs under the list it is an alternative to. */}
-          {!provLoading && (qvoxDebug || shouldSuggestQvox(engines)) && <VoiceQvoxInstallCard />}
+          {!provLoading && !qvoxDebug && shouldSuggestQvox(engines) && (
+            <div className="mt-6"><VoiceQvoxInstallCard /></div>
+          )}
+
+          {/* ?qvox=debug — the three states stacked here, in one column, so the
+              set can be reviewed without installing and uninstalling QVox.
+              Temporary; goes away once the design is settled. */}
+          {qvoxDebug && (
+            <div className="mt-6 space-y-6 rounded-xl border border-dashed border-amber-500/40 p-4">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-amber-500">
+                debug · ?qvox=debug
+              </p>
+              <div>
+                <p className="mb-1.5 text-xs text-muted-fg">1 · notice — QVox not installed</p>
+                <VoiceQvoxInstallCard />
+              </div>
+              <div>
+                <p className="mb-1.5 text-xs text-muted-fg">2 · local voice — stopped</p>
+                <VoiceQvoxStatusCard force="stopped" />
+              </div>
+              <div>
+                <p className="mb-1.5 text-xs text-muted-fg">3 · local voice — running</p>
+                <VoiceQvoxStatusCard force="running" />
+              </div>
+            </div>
+          )}
         </Section>
 
         {/* Right: test + STT */}
@@ -199,14 +224,6 @@ export function VoiceScreen() {
           {/* Whether the local engine is up — a different question from what
               the provider list answers, so it sits with the things that use it. */}
           {!provLoading && !shouldSuggestQvox(engines) && <VoiceQvoxStatusCard />}
-          {/* ?qvox=debug — every state at once, to review the three cards
-              side by side without installing and uninstalling QVox. Temporary. */}
-          {qvoxDebug && (
-            <>
-              <VoiceQvoxStatusCard force="running" />
-              <VoiceQvoxStatusCard force="stopped" />
-            </>
-          )}
         </div>
       </div>
 

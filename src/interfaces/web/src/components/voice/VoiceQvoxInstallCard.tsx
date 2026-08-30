@@ -36,7 +36,7 @@ export function VoiceQvoxInstallCard() {
 
   return (
     <div
-      className="mt-6 rounded-xl border border-dashed border-border p-5"
+      className="rounded-xl border border-dashed border-border p-5"
       data-testid="qvox-install"
     >
       <h3 className="text-sm font-semibold text-foreground">{t("voice_ui.qvox_install_title")}</h3>
