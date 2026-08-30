@@ -75,6 +75,29 @@ test("a channel switched off keeps the chip that brings it back", () => {
   assert.match(chips, /if \(channels\.length < 2\) return null;/, "nothing to choose between");
 });
 
+// ── One row per (agent, CHANNEL) ───────────────────────────────────────────
+// The super-agent has a row per channel and they all share a day id, so a key
+// without the channel collides three ways. React reuses one DOM node per key:
+// rows appeared twice, rows that had been filtered out stayed on screen, and
+// turning a channel off read as "the filter did not apply".
+
+test("the phone keys rows by channel too, like the desktop rail", () => {
+  const phone = webSrc("screens", "mobile", "MobileChatList.tsx");
+  assert.match(phone, /key=\{rowKey\(row\)\}/, "the shared, channel-aware key");
+  assert.doesNotMatch(phone, /key=\{`\$\{row\.project_id\}:/, "not a hand-rolled one without the channel");
+
+  const list = webSrc("components", "inbox", "InboxList.tsx");
+  assert.match(list, /export function rowKey/);
+  assert.match(list, /row\.channel \?\? ""/, "the channel is part of a row's identity");
+});
+
+test("tapping a row opens THAT thread, not the agent's newest one", () => {
+  // /mobile/chat/-/super_agent with no session opens whatever the inbox thinks
+  // is latest — so the row labelled WhatsApp opened Telegram.
+  const screen = webSrc("screens", "mobile", "MobileScreen.tsx");
+  assert.match(screen, /chatPath\(pidOf\(row\), row\.agent_slug, keyFor\(row\)\)/);
+});
+
 test("an empty list says WHICH kind of empty it is", () => {
   // Three silences that look identical and mean different things: nothing
   // matched the search, every channel is off, or there is genuinely nothing.

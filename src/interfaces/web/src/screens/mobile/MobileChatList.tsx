@@ -3,10 +3,12 @@ import { Ellipsis, Search, Settings, Share, ShieldAlert, Smartphone, SquarePen, 
 import { installStance, onInstallStateChange, promptInstall } from "../../lib/pwa";
 import { NotifyNudge, PrefsDialog } from "../../components/settings/PanelPrefs";
 import { InboxRowItem } from "../../components/inbox/InboxRowItem";
+import { rowKey } from "../../components/inbox/InboxList";
 import { ChannelFilter } from "../../components/inbox/ChannelFilter";
 import { channelEnabledIn, channelsOf } from "../../lib/channels";
 import { useChannelPrefs } from "../../hooks/useChannelPrefs";
 import { cn } from "../../lib/cn";
+import { isNativeShell } from "../../lib/net";
 import { t } from "../../i18n";
 import type { InboxRow } from "../../lib/api/inbox";
 
@@ -30,7 +32,9 @@ export function MobileChatList({
 }) {
   const [query, setQuery] = useState("");
   const [prefsOpen, setPrefsOpen] = useState(false);
-  const androidOptions = typeof window.APXAndroid?.openOptions === "function";
+  // Inside the app the WebView is already laid out below the system bars, so
+  // this header must not pay for them again (see lib/net.ts).
+  const androidOptions = isNativeShell();
   const view = useChannelPrefs("view");
 
   // Off the unfiltered rows, so a channel switched off keeps its own chip to
@@ -127,7 +131,14 @@ export function MobileChatList({
       <div className="min-h-0 flex-1 divide-y divide-border/60 overflow-y-auto pb-[env(safe-area-inset-bottom)]">
         {shownRows.map((row) => (
           <InboxRowItem
-            key={`${row.project_id}:${row.agent_slug}:${row.conversation_id ?? ""}`}
+            /* The CHANNEL is part of a row's identity, and leaving it out of the
+               key is what made this list unusable: the super-agent has one row
+               per channel and they share a day id, so telegram / whatsapp / web
+               all keyed as `null:super_agent:2026-08-30`. React reuses a DOM
+               node per key, so rows appeared twice, rows that had been filtered
+               out stayed on screen, and turning a channel off looked like a
+               filter that did not apply. Same key the desktop rail uses. */
+            key={rowKey(row)}
             row={row}
             variant="touch"
             onSelect={onOpenChat}

@@ -71,7 +71,10 @@ export function MobileChat({
         bare
         compact
         hideSidebar
-        channelScope="web"
+        /* No channel scope: the list this chat was opened from shows every
+           channel, so scoping the session picker to `web` meant the thread you
+           are actually reading — a WhatsApp one, say — was missing from its own
+           switcher. */
         onOpenInProject={() => window.open(agentCardUrl(row), "_blank", "noopener")}
         onBack={onBack}
         onSelectionChange={onPickSession}

@@ -188,6 +188,18 @@ export function isSecure(): boolean {
 }
 
 /** Whether the panel is running as an installed app rather than in a tab. */
+/**
+ * Is this the Android app's WebView, rather than a browser?
+ *
+ * The native shell lays the WebView out BELOW the system bars, so a page that
+ * also pads by `env(safe-area-inset-top)` pays for the status bar twice. The
+ * bridge object is the only honest signal — a user-agent sniff would call a
+ * plain Chrome tab on the same phone the app.
+ */
+export function isNativeShell(): boolean {
+  return typeof window !== "undefined" && typeof window.APXAndroid?.openOptions === "function";
+}
+
 export function isInstalled(): boolean {
   if (typeof window === "undefined") return false;
   return (
