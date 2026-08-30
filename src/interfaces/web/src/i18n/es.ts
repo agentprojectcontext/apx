@@ -1984,6 +1984,9 @@ export const es = {
     qvox_ask: "Pedile a {persona} que lo instale",
     qvox_repo: "Ver el repositorio",
     qvox_running: "Andando",
+    qvox_stopped: "Detenido",
+    qvox_stopped_hint: "QVox está configurado pero no contesta en su puerto. Levantalo con `qvox serve`, o revisá que su LaunchAgent esté cargado.",
+    qvox_install_title: "Agregá una voz local en esta Mac",
   },
 
   telegram_ui: {

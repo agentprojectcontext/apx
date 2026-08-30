@@ -8,7 +8,8 @@ import { VoiceProviderList } from "../../components/voice/VoiceProviderList";
 import { VoiceProviderModal, type VoiceProviderSave } from "../../components/voice/VoiceProviderModal";
 import { VoiceTestCard } from "../../components/voice/VoiceTestCard";
 import { VoiceSttCard } from "../../components/voice/VoiceSttCard";
-import { VoiceQvoxSuggestCard } from "../../components/voice/VoiceQvoxSuggestCard";
+import { VoiceQvoxStatusCard } from "../../components/voice/VoiceQvoxStatusCard";
+import { VoiceQvoxInstallCard } from "../../components/voice/VoiceQvoxInstallCard";
 import { shouldSuggestQvox } from "../../lib/qvox";
 import { Voice, type TranscriptionConfig, type TtsMode, type VoiceTtsConfig } from "../../lib/api/voice";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
@@ -66,6 +67,9 @@ export function VoiceScreen() {
     }
     return (voiceCfg as Record<string, unknown>)[editing] as Record<string, unknown> || {};
   }, [editing, voiceCfg]);
+
+  // Temporary: `?qvox=debug` renders every QVox card state at once.
+  const qvoxDebug = new URLSearchParams(window.location.search).get("qvox") === "debug";
 
   const toggleEnabled = async (id: string, enabled: boolean) => {
     setBusyDefault(true);
@@ -152,7 +156,7 @@ export function VoiceScreen() {
 
   return (
     <div data-testid="screen-voice">
-      <div className="grid gap-6 xl:grid-cols-2">
+      <div className="grid items-start gap-6 xl:grid-cols-2">
         {/* Left: TTS providers */}
         <Section
           title={t("voice_screen.providers_title")}
@@ -175,6 +179,8 @@ export function VoiceScreen() {
               busy={busyDefault}
             />
           )}
+          {/* The offer belongs under the list it is an alternative to. */}
+          {!provLoading && (qvoxDebug || shouldSuggestQvox(engines)) && <VoiceQvoxInstallCard />}
         </Section>
 
         {/* Right: test + STT */}
@@ -190,9 +196,17 @@ export function VoiceScreen() {
             {cfgLoading ? <Loading /> : <VoiceSttCard config={transcriptionCfg} onPatch={patchStt} />}
           </Section>
 
-          {/* Always present — it is the pointer to the project, not only an
-              install prompt. What changes is what it says once QVox is here. */}
-          {!provLoading && <VoiceQvoxSuggestCard missing={shouldSuggestQvox(engines)} />}
+          {/* Whether the local engine is up — a different question from what
+              the provider list answers, so it sits with the things that use it. */}
+          {!provLoading && !shouldSuggestQvox(engines) && <VoiceQvoxStatusCard />}
+          {/* ?qvox=debug — every state at once, to review the three cards
+              side by side without installing and uninstalling QVox. Temporary. */}
+          {qvoxDebug && (
+            <>
+              <VoiceQvoxStatusCard force="running" />
+              <VoiceQvoxStatusCard force="stopped" />
+            </>
+          )}
         </div>
       </div>
 

@@ -179,6 +179,15 @@ export interface SttModelsResponse {
   models: SttModelEntry[];
 }
 
+/** GET /tts/reachable — live probe of the self-hosted voice endpoint. */
+export type TtsReachableResponse = {
+  configured: boolean;      // a self-hosted endpoint is set up at all
+  provider?: string;        // e.g. "custom:qvox"
+  base_url?: string;
+  reachable?: boolean;      // it answered
+  ms?: number;
+};
+
 /** One STT engine entry as reported by GET /transcribe/providers. */
 export interface SttProviderEntry {
   id: string;             // "local" | "openai" | "custom"
@@ -235,6 +244,14 @@ export async function fetchTtsAudioUrl(audioPath: string): Promise<string> {
 export const Voice = {
   /** List TTS engines + availability + the configured default provider. */
   providers: () => http.get<TtsProvidersResponse>("/api/tts/providers"),
+
+  /**
+   * Whether the local voice server is answering right now. Separate from
+   * `providers()` on purpose: the `available` flag there is a config probe —
+   * a custom endpoint counts as available for having a base_url — so it never
+   * moves when the server goes down.
+   */
+  reachable: () => http.get<TtsReachableResponse>("/api/tts/reachable"),
 
   /** Detected hardware + the recommended local STT backend (Metal/CUDA/CPU). */
   sttHardware: () => http.get<SttHardwareResponse>("/api/transcribe/hardware"),
