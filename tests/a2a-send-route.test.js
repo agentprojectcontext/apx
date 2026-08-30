@@ -147,3 +147,48 @@ test("--background hands the turn back instead of holding it", async () => {
     assert.equal(out.reply.text, undefined, "there is no answer yet — that is the point");
   });
 });
+
+// ── One peer, one thread ───────────────────────────────────────────────────
+// The super-agent answers to `default`, `apx`, `super-agent` and its own name,
+// and the a2a system prompt hands agents the `default` spelling — so a routine
+// notifying Roby filed its exchange under a correspondent called "default",
+// which no agent list, face resolver or reader can place. Four aliases, four
+// threads, none of them recognisably Roby.
+
+test("every alias for the super-agent lands in ONE thread, under its real id", async () => {
+  await withApi(async ({ baseUrl, id, storagePath }) => {
+    const { listProjectA2AThreads } = await import("#core/stores/messages.js");
+    for (const alias of ["default", "apx", "super-agent"]) {
+      const res = await send(baseUrl, id, { from: "magui", to: alias, body: `[Posteo] via ${alias}` });
+      assert.equal(res.status, 200, alias);
+    }
+    const threads = listProjectA2AThreads(storagePath);
+    assert.deepEqual(threads.map((t) => t.id), ["magui~super_agent"]);
+    assert.equal(threads[0].messages, 3, "three notices, one conversation");
+    // And nothing was filed under the alias that was typed.
+    assert.equal(threads.filter((t) => t.id.includes("default")).length, 0);
+  });
+});
+
+test("a peer addressed by display name or odd case is the same peer", async () => {
+  await withApi(async ({ baseUrl, id, storagePath }) => {
+    const { listProjectA2AThreads } = await import("#core/stores/messages.js");
+    for (const spelling of ["roby", "Roby", "ROBY"]) {
+      const res = await send(baseUrl, id, { from: "magui", to: spelling, body: `hola (${spelling})` });
+      assert.equal(res.status, 200, spelling);
+    }
+    const threads = listProjectA2AThreads(storagePath);
+    assert.equal(threads.length, 1, "one correspondent, however you spell them");
+    assert.equal(threads[0].messages, 3);
+  });
+});
+
+test("a :thread suffix still keeps two exchanges with one peer apart", async () => {
+  await withApi(async ({ baseUrl, id, storagePath }) => {
+    const { listProjectA2AThreads } = await import("#core/stores/messages.js");
+    await send(baseUrl, id, { from: "tester", to: "opencode", body: "uno" });
+    await send(baseUrl, id, { from: "tester", to: "opencode:review", body: "dos" });
+    const ids = listProjectA2AThreads(storagePath).map((t) => t.id).sort();
+    assert.deepEqual(ids, ["opencode:review~tester", "opencode~tester"]);
+  });
+});

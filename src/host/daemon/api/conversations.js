@@ -9,7 +9,7 @@
 import fs from "node:fs";
 import { readAgents } from "#core/apc/parser.js";
 import { listConversations, readConversation, deleteConversation, truncateConversation, setConversationMeta, shapeConversationMessage } from "#core/stores/conversations.js";
-import { listGlobalThreads, readGlobalThread, deleteGlobalThread, setGlobalThreadMeta, listProjectA2AThreads, readProjectA2AThread, listProjectGroupThreads, readProjectGroupThread, deleteGroupThread, readProjectMessages, readA2APeerSession } from "#core/stores/messages.js";
+import { listGlobalThreads, readGlobalThread, deleteGlobalThread, setGlobalThreadMeta, listProjectA2AThreads, readProjectA2AThread, listProjectGroupThreads, readProjectGroupThread, deleteGroupThread, deleteA2AThread, readProjectMessages, readA2APeerSession } from "#core/stores/messages.js";
 
 // Prior turns of an a2a thread between `from` and `to`, oldest→newest, shaped as
 // LLM messages from `viewer`'s side (its own lines = assistant, the peer's =
@@ -54,7 +54,7 @@ function senderCwd(raw) {
 import { compactConversation } from "#core/stores/conversations-compactor.js";
 import { getActiveTurnByKey, convTurnKey } from "../active-turns.js";
 import { replyToPeer } from "#core/agent/a2a/reply.js";
-import { resolvePeer, refusesCodeMode, NO_CODE_PEERS } from "#core/agent/a2a/peers.js";
+import { resolvePeer, peerAddress, refusesCodeMode, NO_CODE_PEERS } from "#core/agent/a2a/peers.js";
 import { createCodeSession, getCodeSession, appendTurn as appendCodeTurn } from "#core/stores/code-sessions.js";
 import { CODE_MODES } from "#core/constants/code-modes.js";
 import { RUNTIME_IDS } from "#core/runtimes/index.js";
@@ -185,7 +185,16 @@ export function register(api, { projects, project, config, plugins, registries }
   api.delete("/projects/:pid/agents/:slug/conversations/:id", (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    if (rejectA2AWrite(req, res, "deleted")) return;
+    // Deleting IS something an a2a thread can do — it is the one write on this
+    // surface that has a meaning for a derived thread, so it delegates to the
+    // pair delete instead of refusing. The refusals left below (rename, archive,
+    // compact, chat) are the ones with nothing to act on.
+    const delA2A = a2aSlugThreadId(req.params.slug);
+    if (delA2A !== null) {
+      const out = deleteA2AThread(p.storagePath, delA2A || req.params.id);
+      if (!out.removed) return res.status(404).json({ error: "conversation not found" });
+      return res.json({ ok: true, ...out });
+    }
     if (!agentResolvable(p, req.params.slug))
       return res.status(404).json({ error: "agent not found" });
     const ok = deleteConversation(p.storagePath, req.params.slug, req.params.id);
@@ -279,8 +288,17 @@ export function register(api, { projects, project, config, plugins, registries }
     if (!p) return;
     // A group is a ledger thread of its own — delete every row for it, not a
     // global channel+date file (which is what 404'd before).
-    if (req.params.channel === "group") {
-      const out = deleteGroupThread(p.storagePath, req.params.id);
+    //
+    // An a2a pair is the same shape of thing: rows in THIS project's ledger,
+    // not a global channel+date file. It fell through to `deleteGlobalThread`,
+    // which looks for a file named after the pair id and never finds one — so
+    // the panel's Delete answered 404 on every agent-to-agent chat, and there
+    // was no other way to remove one. Reading a thread nobody can delete is
+    // half a surface.
+    if (req.params.channel === "group" || req.params.channel === "a2a") {
+      const out = req.params.channel === "group"
+        ? deleteGroupThread(p.storagePath, req.params.id)
+        : deleteA2AThread(p.storagePath, req.params.id);
       try { projects.rebuild(p.id); } catch { /* best-effort */ }
       if (!out.removed) return res.status(404).json({ error: "thread not found" });
       return res.json({ ok: true, ...out });
@@ -353,7 +371,7 @@ export function register(api, { projects, project, config, plugins, registries }
   api.post("/projects/:pid/send", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    const { from, to, body, deliver = false, _depth = 0, requested_by = null, severity = null, model = null, usage = null, code = false, background = false, timeout_s = null } = req.body || {};
+    const { from, to: toRaw, body, deliver = false, _depth = 0, requested_by = null, severity = null, model = null, usage = null, code = false, background = false, timeout_s = null } = req.body || {};
     // Two kinds of exchange, and the difference is real: a `chat` peer runs in
     // its own read-only mode, a `code` peer may write. Chat is the default
     // because receiving a message must not be enough to let the sender rewrite
@@ -362,7 +380,7 @@ export function register(api, { projects, project, config, plugins, registries }
     // A conversation answers in seconds; a coding session does not. Background
     // runs get the hour that `call_runtime` gives its own detached spawns.
     const timeoutMs = (Number(timeout_s) || (background ? 3600 : 300)) * 1000;
-    if (!from || !to || !body)
+    if (!from || !toRaw || !body)
       return res.status(400).json({ error: "from, to, body required" });
     if (_depth > 3)
       return res.status(429).json({ error: "a2a depth limit (3) exceeded" });
@@ -387,15 +405,23 @@ export function register(api, { projects, project, config, plugins, registries }
     // claude-code, …), optionally with a `#thread` suffix that keeps two
     // exchanges with the same peer from reading each other's mail. A name that
     // nothing claims still fails loudly rather than vanishing.
-    const peer = resolvePeer(to, agents);
+    const peer = resolvePeer(toRaw, agents);
     if (!peer)
       return res.status(404).json({
-        error: `no agent or runtime "${to}" in project "${p.name}"`,
+        error: `no agent or runtime "${toRaw}" in project "${p.name}"`,
         project: p.name,
         available: agents.map((a) => a.slug),
         runtimes: RUNTIME_IDS,
         hint: "run `apx agent list --all` for agents and their projects; a runtime peer is any id in `runtimes`",
       });
+
+    // One peer, one thread. Everything below files under the name the peer
+    // actually has — `Magui`, `magui`, `default`, `roby` and `apx` are not five
+    // correspondents. Addressing the super-agent by any of its aliases used to
+    // open a thread per alias, keyed by a string the inbox could not resolve to
+    // anyone; a project agent addressed by display name or in the wrong case did
+    // the same. The `:thread` suffix survives — that one IS a discriminator.
+    const to = peerAddress(peer);
 
     if (mode === "code" && refusesCodeMode(peer)) {
       return res.status(400).json({
