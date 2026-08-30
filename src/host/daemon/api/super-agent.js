@@ -84,21 +84,43 @@ export function inspectorRecord(trace) {
 // the price of the conversation being visible at all, and the owner chose it.
 // Best-effort: a logging failure never breaks the reply.
 const LEDGER_SKIP_CHANNELS = new Set([CHANNELS.ROUTINE]);
-function logWebTurn(channel, { prompt, replyText, name, model, usage, trace, project, media, inspector, reasoning }) {
+
+/** Which project the chat was opened from. The ledger is one file per
+ *  channel+day for the whole daemon, so without this stamp a chat started
+ *  inside a project could only be found in the Base workspace — from the
+ *  project it was started in, it looked gone. */
+const ledgerScope = (project) =>
+  project ? { project_id: String(project.id), project_name: project.name } : {};
+
+/**
+ * The INBOUND half, written the moment the request arrives.
+ *
+ * It used to be written with the reply, when the turn was over. A WhatsApp
+ * round drives a phone for three minutes, and for those three minutes nothing
+ * anywhere showed that a message had arrived at all — the panel open on that
+ * thread stayed blank until the whole turn landed, and a turn that crashed took
+ * the record of the message with it. What arrived is a fact as soon as it
+ * arrives; what the agent answers is a separate one.
+ *
+ * Best-effort: a logging failure never breaks the turn.
+ */
+function logInboundTurn(channel, { prompt, project, media }) {
   if (!channel || LEDGER_SKIP_CHANNELS.has(channel)) return;
-  // Which project the chat was opened from. The ledger is one file per
-  // channel+day for the whole daemon, so without this stamp a chat started
-  // inside a project could only be found in the Base workspace — from the
-  // project it was started in, it looked gone.
-  const scope = project ? { project_id: String(project.id), project_name: project.name } : {};
   try {
     appendGlobalMessage({
       channel, direction: "in", type: "user", author: "user", body: prompt,
       // `media` records the file the turn was sent with (local_path, name, mime
       // — see readTurnAttachments), which is what lets a reopened thread render
       // the photo instead of the marker text the agent was handed.
-      meta: { ...scope, ...(media || {}) },
+      meta: { ...ledgerScope(project), ...(media || {}) },
     });
+  } catch { /* the ledger is a record, not a dependency */ }
+}
+
+function logWebTurn(channel, { replyText, name, model, usage, trace, project, inspector, reasoning }) {
+  if (!channel || LEDGER_SKIP_CHANNELS.has(channel)) return;
+  const scope = ledgerScope(project);
+  try {
     // The steps, one row each — the same shape the Telegram path writes, which
     // is what lets a reopened thread render its tool calls instead of a bare
     // answer with the work erased. Results are already truncated upstream
@@ -249,6 +271,10 @@ export function register(api, { projects, registries, plugins, project, config }
     // path they name is one the daemon resolved, not one a client claimed.
     const turnPrompt = [...turnFiles.markers, prompt].filter(Boolean).join(" ");
 
+    // Before a single token: the message exists now, and the panel (and the
+    // inbox, and the live feed) should say so while the turn is still working.
+    logInboundTurn(ctx.channel, { prompt: turnPrompt, project: p, media: turnFiles.media });
+
     res.setHeader("content-type", "application/x-ndjson; charset=utf-8");
     res.setHeader("cache-control", "no-cache, no-transform");
     res.setHeader("x-accel-buffering", "no");
@@ -330,8 +356,6 @@ export function register(api, { projects, registries, plugins, project, config }
       });
       projects.rebuild(p.id);
       logWebTurn(ctx.channel, {
-        prompt: turnPrompt,
-        media: turnFiles.media,
         replyText: saResult.text,
         name: saResult.name,
         model: saResult.model,
@@ -428,6 +452,9 @@ export function register(api, { projects, registries, plugins, project, config }
         logInspectorDecision(out.trace, { trace_id: req.apxTraceId, channel: ctx.channel });
       } catch { /* inspector failure must not block the turn */ }
     }
+    // The message is on the record before the turn starts. This is the endpoint
+    // the phone bridge posts to, and its turns are the long ones.
+    logInboundTurn(ctx.channel, { prompt, project: p });
     try {
       const saResult = await runSuperAgent({
         globalConfig: config,
@@ -452,7 +479,6 @@ export function register(api, { projects, registries, plugins, project, config }
       });
       projects.rebuild(p.id);
       logWebTurn(ctx.channel, {
-        prompt,
         replyText: saResult.text,
         name: saResult.name,
         model: saResult.model,
