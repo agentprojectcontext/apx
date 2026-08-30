@@ -17,6 +17,7 @@ import { callEngine } from "#core/engines/index.js";
 import { resolveAgentAllowedTools } from "#core/agent/agent-tools.js";
 import { runAgent } from "#core/agent/index.js";
 import { createToolSession, makeToolHandlers } from "#core/agent/tools/registry.js";
+import { loadAgentSkills, collectAgentSkillMedia } from "#core/agent/skills/agent-skills.js";
 
 // A chat reply is prose, not a Telegram one-liner: run-agent's 512-token default
 // truncates an agent mid-answer on the surface where the whole answer is the
@@ -24,7 +25,9 @@ import { createToolSession, makeToolHandlers } from "#core/agent/tools/registry.
 export const AGENT_TURN_MAX_TOKENS = 4096;
 
 /**
- * @returns {{text, trace, usage, model, allowedTools}}
+ * @returns {{text, trace, usage, model, allowedTools, media}}
+ *   `media` is what the agent attached to THIS reply (attach_media). The caller
+ *   delivers it and records it on the turn; an empty array means it sent none.
  */
 export async function runAgentTurn({
   p,
@@ -69,6 +72,7 @@ export async function runAgentTurn({
       // back mid-turn, and the caller should be told which model replied.
       model: result.model || modelId,
       allowedTools: [],
+      media: [],
     };
   }
 
@@ -82,6 +86,19 @@ export async function runAgentTurn({
   // is loaded up front — a full channel gets the lot, a lightweight one starts
   // on the base set and expands through discover_tools.
   const toolSession = createToolSession(channel, { allowedTools });
+
+  // Images this agent's skills declare: the pool attach_media / view_media
+  // validate an id against, and the sink a queued attachment lands in.
+  //
+  // These used to be supplied ONLY by the routine runner, so attach_media was
+  // dead on every surface with a person on the other end: the same skills whose
+  // image manifest build-agent-system.js had just rendered into the prompt were
+  // not attachable, and the tool answered "no attachable images — this agent's
+  // skills declare none" to a model that could see them listed. A skill's
+  // picture is at its most useful mid-conversation, which was the one place it
+  // could not be sent.
+  const attachableMedia = collectAgentSkillMedia(loadAgentSkills(p, agent));
+  const mediaSink = [];
 
   const hasImage = (attachments || []).some((a) => a?.data && /^image\//.test(a.mime || ""));
   const result = await runAgent({
@@ -106,6 +123,8 @@ export async function runAgentTurn({
         projectPath: p.path,
       },
       toolSession,
+      attachableMedia,
+      mediaSink,
       requestConfirmation,
     },
     agentName: agent.slug,
@@ -121,5 +140,6 @@ export async function runAgentTurn({
     usage: result.usage,
     model: result.model || modelId,
     allowedTools,
+    media: mediaSink,
   };
 }

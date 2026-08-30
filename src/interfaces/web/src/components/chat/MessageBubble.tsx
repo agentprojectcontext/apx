@@ -80,7 +80,14 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
   // A turn that carried a file shows the file; its text is the marker the agent
   // was handed, so only what the user actually wrote (caption, or the voice
   // transcript) stays as text — copy included.
-  const media = mine ? msg.media : undefined;
+  //
+  // Both directions. This was `mine ? msg.media : undefined`, which threw away
+  // every attachment the AGENT sent: the photo it pushed to Telegram, the image
+  // a routine delivered, a skill diagram it attached. The row on disk had the
+  // file and the bubble dropped it on the floor — so "the agent shared a photo"
+  // rendered as a bare caption, or as the placeholder text where a caption was
+  // never written.
+  const media = msg.media;
   const copyText = media?.length ? stripMediaMarker(textOf(msg), media.length) : textOf(msg);
   const hasTools = msg.parts.some((p) => p.kind === "tool");
   // A user turn is never grouped — it has no tools, and the segmenter would

@@ -17,7 +17,7 @@
 import { readAgents } from "../apc/parser.js";
 import { listConversations } from "./conversations.js";
 import { CHANNELS } from "../constants/channels.js";
-import { listGlobalThreads, readGlobalThread } from "./messages.js";
+import { listGlobalThreads, readGlobalThread, previewText } from "./messages.js";
 import { SUPERAGENT_ACTOR_ID } from "../constants/actors.js";
 import { readConfig } from "../config/index.js";
 import { resolveSuperAgentBlob } from "../apc/agent-identity.js";
@@ -204,7 +204,10 @@ function superAgentRow(latest, threads) {
       const lastReply = [...(thread?.messages || [])]
         .reverse()
         .find((m) => m.role === "assistant");
-      preview = (lastReply?.content || "")
+      // A reply that was a FILE gets its file described, not the marker text
+      // that stands in for it on disk ("[photo]", "[image attached — saved to
+      // /Users/…]") — which is what the list used to print.
+      preview = previewText(lastReply?.content, lastReply?.media)
         .replace(/```[\s\S]*?```/g, " ")
         .replace(/\s+/g, " ")
         .trim()

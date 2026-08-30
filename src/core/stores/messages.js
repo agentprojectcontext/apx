@@ -26,6 +26,7 @@ import { nowIso } from "../util/time.js";
 import { summarizeToolTrace } from "../agent/tool-summary.js";
 import { emitMessageEvent } from "../events/bus.js";
 import { cleanTextOfPseudoToolCalls } from "../agent/tools/tool-call-parser.js";
+import { attachmentsMeta } from "./media-archive.js";
 
 function dayPathJsonl(projectRoot, ts) {
   const day = (ts || nowIso()).slice(0, 10);
@@ -496,7 +497,7 @@ export function listProjectA2AThreads(projectRoot) {
       messages: uniq.length,
       started_at: uniq[0].ts,
       last_ts: last.ts,
-      preview: `${last.author}: ${(last.body || "").replace(/\s+/g, " ").trim()}`.slice(0, 140),
+      preview: `${last.author}: ${previewText(last.body, mediaFromMeta(last.meta))}`.slice(0, 140),
       // Every utterance in an a2a thread is an agent's, so "when an agent last
       // spoke" is simply the last row. The field exists so a notifier can ask
       // that question of any thread without knowing which kind it is.
@@ -659,8 +660,10 @@ export function appendGroupOwnerMessage(logMessage, group_id, body, media = null
   });
 }
 
-/** Append one agent's reply, attributed to it and carrying who summoned it. */
-export function appendGroupAgentMessage(logMessage, group_id, { slug, body, reason = null, model = null, usage = null, trace = [] }) {
+/** Append one agent's reply, attributed to it and carrying who summoned it.
+ *  `media` is what it attached to this reply (attach_media) — archived and
+ *  folded into meta so the room shows the image, not just the sentence. */
+export function appendGroupAgentMessage(logMessage, group_id, { slug, body, reason = null, model = null, usage = null, trace = [], media = [] }) {
   const steps = Array.isArray(trace) ? trace.filter((s) => s?.tool) : [];
   const toolSummary = summarizeToolTrace(steps);
   for (const step of steps) {
@@ -681,6 +684,7 @@ export function appendGroupAgentMessage(logMessage, group_id, { slug, body, reas
       ...(model ? { model } : {}),
       ...(usage ? { usage } : {}),
       ...(toolSummary ? { tool_summary: toolSummary } : {}),
+      ...attachmentsMeta(media),
     },
   });
 }
@@ -723,7 +727,7 @@ export function listProjectGroupThreads(projectRoot) {
       started_at: g.created || (g.display[0]?.ts) || "",
       last_ts: g.last?.ts || g.created || "",
       preview: g.last
-        ? `${g.last.author === "owner" ? "vos" : g.last.author}: ${(g.last.body || "").replace(/\s+/g, " ").trim()}`.slice(0, 140)
+        ? `${g.last.author === "owner" ? "vos" : g.last.author}: ${previewText(g.last.body, mediaFromMeta(g.last.meta))}`.slice(0, 140)
         : undefined,
       preview_at: g.lastAgent?.ts || null,
     });
@@ -1449,6 +1453,35 @@ export function mediaFromMeta(meta) {
     size: meta.file_size ?? null,
     duration: meta.duration ?? null,
   };
+}
+
+const MEDIA_GLYPH = {
+  photo: "📷", audio: "🎤", video: "🎬", animation: "🎞", document: "📄", file: "📎",
+};
+
+/**
+ * The one-line preview a list shows for a turn — the chat list, the inbox row,
+ * a notification.
+ *
+ * A turn that carried a file has machine-facing text: the marker the agent was
+ * handed inbound ("[image attached — saved to /Users/…]") or the placeholder
+ * written outbound when the send had no caption ("[photo]"). Printing it raw is
+ * how a photo showed up in the list as a file path. The thread already strips
+ * that marker to render the file; this is the same decision for the one line
+ * that stands in for the thread.
+ *
+ * A glyph rather than a word: this text is produced server-side and read in
+ * whatever language the panel is set to, and "📷 el agarre" needs no catalog.
+ *
+ * @param {string} body        the row's stored text
+ * @param {object|null} media  what mediaFromMeta returned for that row
+ */
+export function previewText(body, media) {
+  const text = String(body || "").replace(/\s+/g, " ").trim();
+  if (!media) return text;
+  const caption = text.replace(/^\[[^\]]*\]\s*/, "").trim();
+  const glyph = MEDIA_GLYPH[media.kind] || MEDIA_GLYPH.file;
+  return `${glyph} ${caption || media.name || media.kind}`.trim();
 }
 
 // Read one channel+day thread shaped for the web chat viewer:

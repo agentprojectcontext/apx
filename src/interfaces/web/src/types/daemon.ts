@@ -327,8 +327,12 @@ export interface ConversationMessage {
     hinted?: string[];
     scored?: { slug: string; sim: number }[];
   };
-  /** Present on role:"user" rows that carried an attachment. */
+  /** The file this turn carried — a user's upload, or one the agent SENT (a
+   *  skill image it attached, a photo pushed to Telegram, a routine delivery).
+   *  A stored row records one file; `media_list` is the several-file spelling a
+   *  delivery writes, and it mirrors its first file here. */
   media?: MessageMedia;
+  media_list?: MessageMedia[];
 }
 
 export interface ToolSummary {

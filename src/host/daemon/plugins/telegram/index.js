@@ -48,9 +48,55 @@ import { handleUpdate } from "#core/channels/telegram/dispatch.js";
 import { handleCallbackQuery, startAskFlow, maybeConsumeAskTextAnswer } from "#core/channels/telegram/ask-callbacks.js";
 import { sendMessage, sendChatAction, editMessageReplyMarkup, answerCallbackQuery, getUpdates } from "#core/channels/telegram/api.js";
 import { sendPhoto, sendVoice, sendDocument, sendAudio } from "#core/channels/telegram/media.js";
+import { archiveOutboundMedia, outboundMediaMeta } from "#core/stores/media-archive.js";
 export { sendPhoto, sendVoice, sendDocument, sendAudio };
 
 const nowIso = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
+
+/**
+ * Record a photo/voice/document/audio the agent just SENT, with the file on it.
+ *
+ * Two bugs lived in the four copies of this that used to be inline below.
+ *
+ * `type` was the media kind ("photo", "voice", …), and the ledger's type is a
+ * five-value enum (core/stores/messages.js: user | agent | tool | system |
+ * compact). `inferMessageType` dropped the unknown value in silence and fell
+ * through to "outbound ⇒ agent", so the row was written — just not as anything
+ * that said a file was involved. The kind belongs in meta, where
+ * `mediaFromMeta` reads it; `type` says who spoke.
+ *
+ * And the meta named no file at all, so a thread had nothing to render: the
+ * caption alone, or the bare placeholder `[photo]` when the send had none. The
+ * bytes are archived first (media-archive.js) because a path outside
+ * ~/.apx/media is one the media endpoint must refuse — the photo the user
+ * already has on Telegram would still read "attachment failed" on the web.
+ */
+function logSentMedia({ poller, chat_id, author, kind, body, source, filename, mime, duration }) {
+  const archived = archiveOutboundMedia(source, { filename, mime });
+  appendGlobalMessage({
+    channel: CHANNELS.TELEGRAM,
+    direction: "out",
+    type: "agent",
+    actor_id: SUPERAGENT_ACTOR_ID,
+    actor_kind: "superagent",
+    // Same attribution `send()` writes. Without it the row is an agent turn
+    // that names no agent, and the thread cannot say who sent the file.
+    agent_slug: SUPERAGENT_ACTOR_ID,
+    author,
+    body,
+    meta: {
+      chat_id: chat_id || resolveChatId(poller.channel),
+      tg_channel: poller.channel.name,
+      // A send by public URL has no bytes of ours to keep, so it gets no
+      // attachment — but the row should still say what went out. Names only:
+      // `mediaFromMeta` needs a path before it offers a card, so this can never
+      // put a player on screen with nothing behind it.
+      ...(filename ? { file_name: filename } : {}),
+      ...(mime ? { mime_type: mime } : {}),
+      ...outboundMediaMeta(kind, archived, { duration }),
+    },
+  });
+}
 
 // ---------- per-channel poller ----------------------------------------------
 
@@ -352,15 +398,10 @@ export default {
       async sendPhoto({ channel: channelName, chat_id, photo, caption, parse_mode, author = resolveAgentName(config) }) {
         const p = pickPoller(pollers, channelName);
         const result = await p._sendPhoto({ chat_id, photo, caption, parse_mode });
-        appendGlobalMessage({
-          channel: CHANNELS.TELEGRAM,
-          direction: "out",
-          type: "photo",
-          actor_id: SUPERAGENT_ACTOR_ID,
-          actor_kind: "superagent",
-          author,
+        logSentMedia({
+          poller: p, chat_id, author, kind: "photo",
           body: caption || "[photo]",
-          meta: { chat_id: chat_id || resolveChatId(p.channel), tg_channel: p.channel.name },
+          source: photo,
         });
         return result;
       },
@@ -372,15 +413,10 @@ export default {
       async sendVoice({ channel: channelName, chat_id, audio, caption, duration, author = resolveAgentName(config) }) {
         const p = pickPoller(pollers, channelName);
         const result = await p._sendVoice({ chat_id, audio, caption, duration });
-        appendGlobalMessage({
-          channel: CHANNELS.TELEGRAM,
-          direction: "out",
-          type: "voice",
-          actor_id: SUPERAGENT_ACTOR_ID,
-          actor_kind: "superagent",
-          author,
+        logSentMedia({
+          poller: p, chat_id, author, kind: "audio",
           body: caption || "[voice]",
-          meta: { chat_id: chat_id || resolveChatId(p.channel), tg_channel: p.channel.name },
+          source: audio, mime: "audio/ogg", duration,
         });
         return result;
       },
@@ -392,15 +428,10 @@ export default {
       async sendDocument({ channel: channelName, chat_id, document, caption, filename, mime_type, author = resolveAgentName(config) }) {
         const p = pickPoller(pollers, channelName);
         const result = await p._sendDocument({ chat_id, document, caption, filename, mime_type });
-        appendGlobalMessage({
-          channel: CHANNELS.TELEGRAM,
-          direction: "out",
-          type: "document",
-          actor_id: SUPERAGENT_ACTOR_ID,
-          actor_kind: "superagent",
-          author,
+        logSentMedia({
+          poller: p, chat_id, author, kind: "document",
           body: caption || `[document${filename ? " " + filename : ""}]`,
-          meta: { chat_id: chat_id || resolveChatId(p.channel), tg_channel: p.channel.name, filename, mime_type },
+          source: document, filename, mime: mime_type,
         });
         return result;
       },
@@ -412,15 +443,10 @@ export default {
       async sendAudio({ channel: channelName, chat_id, audio, caption, title, performer, author = resolveAgentName(config) }) {
         const p = pickPoller(pollers, channelName);
         const result = await p._sendAudio({ chat_id, audio, caption, title, performer });
-        appendGlobalMessage({
-          channel: CHANNELS.TELEGRAM,
-          direction: "out",
-          type: "audio",
-          actor_id: SUPERAGENT_ACTOR_ID,
-          actor_kind: "superagent",
-          author,
+        logSentMedia({
+          poller: p, chat_id, author, kind: "audio",
           body: caption || title || "[audio]",
-          meta: { chat_id: chat_id || resolveChatId(p.channel), tg_channel: p.channel.name },
+          source: audio, filename: title ? `${title}.mp3` : undefined, mime: "audio/mpeg",
         });
         return result;
       },

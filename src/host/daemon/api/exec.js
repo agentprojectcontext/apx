@@ -20,6 +20,7 @@ import {
 } from "#core/stores/conversations.js";
 import { buildTurnAttribution, appendAgentReplyToConversation } from "#core/stores/turn-record.js";
 import { answerDeliveries } from "#core/stores/deliveries.js";
+import { attachmentsMeta } from "#core/stores/media-archive.js";
 import { asyncRoute, rejectA2AWrite} from "./shared.js";
 import { readTurnAttachments } from "./media.js";
 import { broadcastTurn } from "../events-ws.js";
@@ -94,7 +95,11 @@ function turnAttribution(agent, result) {
 }
 
 function persistAgentReply({ filePath, agent, result }) {
-  const attribution = turnAttribution(agent, result);
+  // Images the agent attached to THIS reply (attach_media). Archived into
+  // ~/.apx/media on the way, because a skill's picture lives beside its
+  // SKILL.md and the media endpoint serves nothing from outside the media dir —
+  // the row would name a file the viewer is not allowed to fetch.
+  const attribution = { ...turnAttribution(agent, result), ...attachmentsMeta(result.media) };
   appendAgentReplyToConversation({
     filePath,
     reply: result.text,
@@ -142,7 +147,7 @@ export function register(api, { projects, project, config, plugins, registries }
         engine: modelId,
         system,
       });
-      appendTurn({ filePath: conv.path, role: "user", content: turnPrompt });
+      appendTurn({ filePath: conv.path, role: "user", content: turnPrompt, meta: turnFiles.media || undefined });
 
       const result = await runAgentTurn({
         p, agent, modelId, system, prompt: turnPrompt,
@@ -228,7 +233,7 @@ export function register(api, { projects, project, config, plugins, registries }
           .json({ error: `conversation ${conversation_id} not found` });
       }
 
-      appendTurn({ filePath: turn.conv.path, role: "user", content: turnPrompt });
+      appendTurn({ filePath: turn.conv.path, role: "user", content: turnPrompt, meta: turnFiles.media || undefined });
       // Manu replied in this agent's chat → close its open deliveries (and cancel
       // any grace-window notify still pending). See core/stores/deliveries.js.
       try { answerDeliveries(p.storagePath, agent.slug); } catch { /* best-effort */ }
@@ -322,7 +327,7 @@ export function register(api, { projects, project, config, plugins, registries }
     keepalive.unref?.();
     res.on("close", () => clearInterval(keepalive));
 
-    appendTurn({ filePath: turn.conv.path, role: "user", content: turnPrompt });
+    appendTurn({ filePath: turn.conv.path, role: "user", content: turnPrompt, meta: turnFiles.media || undefined });
     // Manu replied in this agent's chat → close its open deliveries (and cancel
     // any grace-window notify still pending). See core/stores/deliveries.js.
     try { answerDeliveries(p.storagePath, agent.slug); } catch { /* best-effort */ }
