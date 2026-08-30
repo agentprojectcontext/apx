@@ -148,6 +148,10 @@ function publicEvent(event, projects) {
     // final on Telegram / group / A2A — never the owner's send.
     final: event.final === true ? true : null,
     streamed: event.streamed === true ? true : null,
+    // Who an a2a row was addressed to, so the bubble can name both ends
+    // ("de magui a roby") instead of just the channel. A name, not an address:
+    // see appendMessageToFs, which only lifts it for a2a. Null everywhere else.
+    to: event.to || null,
     ts: event.ts || null,
   };
 }

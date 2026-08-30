@@ -14,6 +14,7 @@ const { mascotNotificationsFromEvents, isAgentFinalEvent } =
   await import("#core/events/mascot-notify.js");
 const { appendGlobalMessage, appendMessageToFs } = await import("#core/stores/messages.js");
 const { onMessageEvent, resetEventBus } = await import("#core/events/bus.js");
+const { resolveAgentName } = await import("#core/identity/self.js");
 
 function capture(fn) {
   const seen = [];
@@ -38,13 +39,57 @@ test("an agent's launched final on telegram, group, or a2a is one bubble per age
     mascotNotificationsFromEvents([
       { direction: "out", type: "agent", channel: "telegram", author: "Roby", agent_slug: "super_agent" },
       { direction: "out", type: "agent", channel: "group", author: "sofia", agent_slug: "sofia" },
-      { direction: "out", type: "agent", channel: "a2a", author: "martin", agent_slug: "martin" },
+      { direction: "out", type: "agent", channel: "a2a", author: "magui", agent_slug: "magui", to: "roby" },
     ]),
     [
       "Roby respondió en Telegram",
       "sofia respondió en Grupo",
-      "martin respondió en A2A",
+      "Nuevo mensaje de Magui a Roby",
     ],
+  );
+});
+
+test("an a2a bubble names both ends, and one sender reaching two peers is two bubbles", () => {
+  assert.deepEqual(
+    mascotNotificationsFromEvents([
+      { direction: "out", type: "agent", channel: "a2a", author: "magui", agent_slug: "magui", to: "roby" },
+      { direction: "out", type: "agent", channel: "a2a", author: "magui", agent_slug: "magui", to: "martin" },
+      { direction: "out", type: "agent", channel: "a2a", author: "roby", agent_slug: "roby", to: "magui" },
+    ]),
+    [
+      "Nuevo mensaje de Magui a Roby",
+      "Nuevo mensaje de Magui a Martin",
+      "Nuevo mensaje de Roby a Magui",
+    ],
+  );
+});
+
+test("the super-agent is named, not filed: a bubble says Roby, not super_agent", () => {
+  // The ledger keys one thread per correspondent by ACTOR ID, so every alias
+  // (`roby`, `apx`, `default`) lands on `super_agent`. That is the right id and
+  // the wrong word for a sentence — "a Super_agent" is not who the owner talks
+  // to every day. The word is whatever HE renamed it to, which is why this
+  // reads the identity instead of pinning a name the owner is free to change.
+  const roby = resolveAgentName();
+  assert.notEqual(roby, "super_agent");
+  assert.deepEqual(
+    mascotNotificationsFromEvents([
+      { direction: "out", type: "agent", channel: "a2a", author: "magui", agent_slug: "magui", to: "super_agent" },
+      { direction: "out", type: "agent", channel: "a2a", author: "super_agent", agent_slug: "super_agent", to: "magui" },
+    ]),
+    [
+      `Nuevo mensaje de Magui a ${roby}`,
+      `Nuevo mensaje de ${roby} a Magui`,
+    ],
+  );
+});
+
+test("an a2a row with no recipient falls back to naming the channel", () => {
+  assert.deepEqual(
+    mascotNotificationsFromEvents([
+      { direction: "out", type: "agent", channel: "a2a", author: "martin", agent_slug: "martin" },
+    ]),
+    ["martin respondió en A2A"],
   );
 });
 
@@ -129,6 +174,53 @@ test("a group agent reply is a launched final on the project ledger", () => {
   assert.equal(seen[0].final, true);
   assert.equal(seen[0].author, "sofia");
   assert.deepEqual(mascotNotificationsFromEvents(seen), ["sofia respondió en Grupo"]);
+});
+
+test("an a2a row announces its recipient, and no other channel does", () => {
+  resetEventBus();
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "apx-a2a-final-"));
+  const seen = capture(() => {
+    appendMessageToFs({
+      projectRoot: root,
+      channel: "a2a",
+      direction: "out",
+      type: "agent",
+      agent_slug: "magui",
+      author: "magui",
+      body: "quedó programado el reel",
+      meta: { to: "roby", final: true },
+    });
+    // The mirror written under the recipient. It is the same utterance seen
+    // from the other side, so it must not bubble a second time.
+    appendMessageToFs({
+      projectRoot: root,
+      channel: "a2a",
+      direction: "in",
+      type: "agent",
+      agent_slug: "roby",
+      author: "magui",
+      body: "quedó programado el reel",
+      meta: { from: "magui" },
+    });
+    // `to` is an agent name only on a2a. Anywhere else it could be an address,
+    // so it stays off the wire.
+    appendMessageToFs({
+      projectRoot: root,
+      channel: "telegram",
+      direction: "out",
+      type: "agent",
+      agent_slug: "super_agent",
+      author: "Roby",
+      body: "listo",
+      meta: { to: "123456789", final: true },
+    });
+  });
+  assert.equal(seen[0].to, "roby");
+  assert.equal(seen[2].to, null);
+  assert.deepEqual(mascotNotificationsFromEvents(seen), [
+    "Nuevo mensaje de Magui a Roby",
+    "Roby respondió en Telegram",
+  ]);
 });
 
 test("desktop and android pets render the daemon list, never the owner's send", () => {
