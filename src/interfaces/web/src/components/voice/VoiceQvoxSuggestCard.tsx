@@ -4,7 +4,7 @@
 // the machine. On Apple Silicon there is a third option that neither does, but
 // only if you already know it exists — so it is named here, next to the
 // providers, and only while it is missing.
-import { Button } from "../ui/button";
+import { Badge, Button } from "../ui";
 import { t } from "../../i18n";
 import { usePersonaName } from "../../hooks/usePersonaName";
 import { QVOX_REPO } from "../../lib/qvox";
@@ -23,7 +23,12 @@ const ASK_PROMPT =
   `Repo: ${QVOX_REPO}. ` +
   "Tell me what you did and what is still missing. With these instructions: ";
 
-export function VoiceQvoxSuggestCard() {
+/**
+ * `missing` — QVox is not set up on this machine yet. The card is rendered
+ * either way; this decides whether it teaches the install or just says the
+ * local voice is up and points at the project.
+ */
+export function VoiceQvoxSuggestCard({ missing = true }: { missing?: boolean }) {
   const persona = usePersonaName();
 
   const ask = () => {
@@ -38,18 +43,32 @@ export function VoiceQvoxSuggestCard() {
       className="rounded-xl border border-dashed border-border p-5"
       data-testid="qvox-suggest"
     >
-      <h3 className="text-sm font-semibold text-foreground">{t("voice_ui.qvox_title")}</h3>
+      <div className="flex items-center gap-2">
+        <h3 className="text-sm font-semibold text-foreground">{t("voice_ui.qvox_title")}</h3>
+        {/* The shared Badge, same as the provider rows above: `accent` is a
+            surface token here, not the brand green, so a hand-rolled
+            `text-accent` badge renders near-black on a dark panel. */}
+        {!missing && <Badge tone="success">{t("voice_ui.qvox_running")}</Badge>}
+      </div>
       <p className="mt-1.5 text-sm text-muted-fg">{t("voice_ui.qvox_body")}</p>
 
-      <pre className="mt-3 overflow-x-auto rounded-lg bg-muted/40 p-3 text-[11px] leading-relaxed text-muted-fg">
-        <code>{"brew install uv\nnpm install -g qwen3-tts-api\nqvox setup\nqvox serve"}</code>
-      </pre>
-      <p className="mt-2 text-xs text-muted-fg">{t("voice_ui.qvox_note")}</p>
+      {/* Telling a machine that already runs QVox to go and install it is the
+          one thing this card must not do. */}
+      {missing && (
+        <>
+          <pre className="mt-3 overflow-x-auto rounded-lg bg-muted/40 p-3 text-[11px] leading-relaxed text-muted-fg">
+            <code>{"brew install uv\nnpm install -g qwen3-tts-api\nqvox setup\nqvox serve"}</code>
+          </pre>
+          <p className="mt-2 text-xs text-muted-fg">{t("voice_ui.qvox_note")}</p>
+        </>
+      )}
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
-        <Button size="sm" onClick={ask}>
-          {t("voice_ui.qvox_ask", { persona })}
-        </Button>
+        {missing && (
+          <Button size="sm" onClick={ask}>
+            {t("voice_ui.qvox_ask", { persona })}
+          </Button>
+        )}
         <a
           href={QVOX_REPO}
           target="_blank"

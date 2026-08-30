@@ -1983,6 +1983,7 @@ export const es = {
     qvox_note: "Necesita uv y Node 18 o superior: npm instala sólo el comando, el motor corre por uv. El primer modelo son varios gigas de descarga.",
     qvox_ask: "Pedile a {persona} que lo instale",
     qvox_repo: "Ver el repositorio",
+    qvox_running: "Andando",
   },
 
   telegram_ui: {

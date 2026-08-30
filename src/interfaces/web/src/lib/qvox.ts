@@ -12,8 +12,10 @@ export const QVOX_PORT_HINT = ":5111";
 export type ProviderLike = { id: string; note?: string };
 
 /**
- * Whether to offer QVox at all. Someone who already runs it — under that name
- * or their own — is not looking for the suggestion.
+ * Whether QVox is still missing. The card is shown either way — it is the
+ * pointer to the project, not only an install prompt — but a machine that
+ * already runs it must not be told to go and install it, so this decides
+ * which half of the card to render.
  */
 export function shouldSuggestQvox(engines: ProviderLike[]): boolean {
   return !engines.some(

@@ -190,9 +190,9 @@ export function VoiceScreen() {
             {cfgLoading ? <Loading /> : <VoiceSttCard config={transcriptionCfg} onPatch={patchStt} />}
           </Section>
 
-          {/* Only while it is missing: once a QVox endpoint is configured the
-              suggestion has nothing left to say. */}
-          {!provLoading && shouldSuggestQvox(engines) && <VoiceQvoxSuggestCard />}
+          {/* Always present — it is the pointer to the project, not only an
+              install prompt. What changes is what it says once QVox is here. */}
+          {!provLoading && <VoiceQvoxSuggestCard missing={shouldSuggestQvox(engines)} />}
         </div>
       </div>
 
