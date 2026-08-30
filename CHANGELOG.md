@@ -1,3 +1,67 @@
+# [1.83.0](https://github.com/agentprojectcontext/apx/compare/v1.82.0...v1.83.0) (2026-08-30)
+
+
+### Bug Fixes
+
+* **agent:** one WhatsApp became three Telegram messages, because it re-worded them ([17d2bed](https://github.com/agentprojectcontext/apx/commit/17d2beda690d8cb41e038f9e72419dfa3b0bfc2f))
+* **agent:** renaming a vault agent left the old slug answering too ([06bb258](https://github.com/agentprojectcontext/apx/commit/06bb25878486ce3da8c1e7bbfab9db1a99a67f77))
+* **agents:** a rename repoints every live pointer, not just the files ([b5d3966](https://github.com/agentprojectcontext/apx/commit/b5d39665a2833b992cf426bc6e800c1bf1a50408))
+* **agent:** stop the history teaching the model to fake tool results ([296dc78](https://github.com/agentprojectcontext/apx/commit/296dc7841b0263bb43ad44e0a3c5e98986a14a9f))
+* **cli:** the help still filed the desktop window under its old name ([368fd2d](https://github.com/agentprojectcontext/apx/commit/368fd2d4ac547f3776e0c936ee5ec36810c9c528))
+* **code:** a --code turn nobody could find, and a list that hid every other project ([4c1368c](https://github.com/agentprojectcontext/apx/commit/4c1368c88ca92c77fbebe977a89b3dd9668304f0))
+* **config:** a custom provider's API key was served to the panel in clear text ([9d6658f](https://github.com/agentprojectcontext/apx/commit/9d6658f028c388b1b7feb1e0102617ceaa631306))
+* **desktop:** the voice tried to pronounce emoji and hummed instead ([20527f9](https://github.com/agentprojectcontext/apx/commit/20527f9b699a869f39136b58aad2dc486a469e48))
+* **images:** --model was silently dropped by a single-checkpoint server ([2dabcb7](https://github.com/agentprojectcontext/apx/commit/2dabcb73ace4d4cc35cdc60972208082bd97497d))
+* **inbox:** the channel filters were a chip strip nobody could see ([21d28a9](https://github.com/agentprojectcontext/apx/commit/21d28a951aafb85d5c34f2a99dbf2261426205af))
+* **inbox:** the chip strip wore a full-size scrollbar, and offered a dead switch ([ab35711](https://github.com/agentprojectcontext/apx/commit/ab357117b3a431e7aa07d6e434ff0c52baa78671))
+* **memory,agent:** history shaped like a tool call taught the model to write calls ([fe7b8e7](https://github.com/agentprojectcontext/apx/commit/fe7b8e79bfffa07b5e803476d0a25595fe08db3f))
+* **mobile:** the phone list showed rows twice and opened the wrong thread ([791c7c9](https://github.com/agentprojectcontext/apx/commit/791c7c91e50a15ca24332f2623f9109886dce72c))
+* **notify:** one notification per answer, on the channels this device asked for ([20eb494](https://github.com/agentprojectcontext/apx/commit/20eb4944a99d42d6819373cc5e13a459d232739b))
+* **nudge:** stop the interruption budget swallowing replies to inbound messages ([1bfade7](https://github.com/agentprojectcontext/apx/commit/1bfade7a32a9b141f6195657dbb0a9fc1fc07ab5))
+* **tools:** half a pair is a pair the model guesses its way across ([2e391eb](https://github.com/agentprojectcontext/apx/commit/2e391eb23d9f9ef66336a7b25783db698dfe885b))
+* **voice:** tell the endpoint which speaker to warm ([c4024d9](https://github.com/agentprojectcontext/apx/commit/c4024d94e22c4caf2f03b2090365f03a6966fb12))
+* **voice:** the log line that would have explained a failed voice said nothing ([73af97c](https://github.com/agentprojectcontext/apx/commit/73af97c5b46257ca5cb1ace03a460c4610081fa1))
+* **voice:** the QVox card skipped the command written for this exact job ([3162b9d](https://github.com/agentprojectcontext/apx/commit/3162b9d390bfe1d0290b228f6ed869ff2977a506))
+* **voice:** the TTS chain stopped at the first engine, working or not ([375c0cc](https://github.com/agentprojectcontext/apx/commit/375c0cc240c46aab0b19bffd8c3dc4e58422480d))
+* **web:** a Role holding a whole sentence ran past the card edge ([9e57fbb](https://github.com/agentprojectcontext/apx/commit/9e57fbb7bfa3015e1e67d0a164cdb4d960c4cf72))
+* **web:** one answer to who is in a thread, instead of three ([6e144ca](https://github.com/agentprojectcontext/apx/commit/6e144caba6e386f128cdd5b8d35a0f3f7e81f56e))
+* **web:** translate the labels es.ts left in English, and undo two bad Capitals ([7042f47](https://github.com/agentprojectcontext/apx/commit/7042f4789d22ecbe5b6c41a8647aff937fa97fba))
+* **whatsapp:** the alert is a wake-up call, and it was being answered as a message ([6541be1](https://github.com/agentprojectcontext/apx/commit/6541be13d5cf9e9b2e4b8a7a6417096d743e87ce))
+
+
+### Features
+
+* **a2a:** an IDE can talk to another IDE, and the exchange keeps its session ([809d1a8](https://github.com/agentprojectcontext/apx/commit/809d1a84e52f7d52d51dd81c88928e0a11014bbd))
+* **a2a:** resolve super-agent aliases and display names, expose type in agentRow, support spec.cmd in shell routines ([496c805](https://github.com/agentprojectcontext/apx/commit/496c8057db98d7bb2b0ffe470549f74b07c8d641))
+* **agent,web:** vision bridge, composer slash commands, group rewind ([ee33e76](https://github.com/agentprojectcontext/apx/commit/ee33e76c4a5d9c01ca28c57039deaba8160b78d6))
+* **chat:** show a turn in the shape it happened, not one opaque work block ([9055959](https://github.com/agentprojectcontext/apx/commit/90559596751d09442716eeda1fa0d6a270e4e97a))
+* **daemon:** expose GET /tts/warmup ([f6f1863](https://github.com/agentprojectcontext/apx/commit/f6f186364e32d0688eb002cdd130951f0be58c3b))
+* **daemon:** log super-agent requests so a silent client stops looking like a dead daemon ([f1fb02b](https://github.com/agentprojectcontext/apx/commit/f1fb02b9e5f0490ab3d1cfb7505ea85955e63fbc))
+* **daemon:** log the caller's channel so two automations on one device are tellable apart ([6225c2c](https://github.com/agentprojectcontext/apx/commit/6225c2c75966f8fc741bef05e7793ee7c3b8bd49))
+* **desktop:** choose the window's model from the panel ([a164ca0](https://github.com/agentprojectcontext/apx/commit/a164ca06af2eb4d9a5099071cf4ee27548440300))
+* **desktop:** show the reply is still being voiced instead of a silent gap ([0669b0d](https://github.com/agentprojectcontext/apx/commit/0669b0d10251e3026978fa7e7d3c75871f3cda49))
+* **desktop:** the reply appears and starts speaking while it is still being made ([726516b](https://github.com/agentprojectcontext/apx/commit/726516b473217c4b434e34cc80a4002b9bdd0b27))
+* **engines:** gemini can stream its tokens ([a958fcf](https://github.com/agentprojectcontext/apx/commit/a958fcf17abdb5f2ca71ad8fdc23f002706160ef))
+* **image:** img2img, inpainting and ControlNet from one reference image ([6283d73](https://github.com/agentprojectcontext/apx/commit/6283d733cf7e3b67eddad589fb3ecb8bb8d1f04e))
+* **images:** a picture from a prompt, routed the way voice already is ([febf941](https://github.com/agentprojectcontext/apx/commit/febf94173969828474b757dfc4001d339fc46bb0))
+* **inbox:** hide the channels you do not want, and tag the ones you keep ([75a5f7f](https://github.com/agentprojectcontext/apx/commit/75a5f7fb142aacdd0b8f1dbba2bc1baa07dedb82))
+* **inbox:** show every channel, grouped, instead of web only ([0efdbdb](https://github.com/agentprojectcontext/apx/commit/0efdbdb5abe5bd54e91fd237efa2c3ff1aefafc9))
+* **routines:** a run you can watch, and a history that only counts runs ([a2776a8](https://github.com/agentprojectcontext/apx/commit/a2776a8e005a15197494fd7f0c2ef67b1f0cce9e))
+* **routines:** deciding there is nothing to say is not the same as saying it ([6d9fa12](https://github.com/agentprojectcontext/apx/commit/6d9fa122f756f4d42512fb2b2003c2bcb8e8d9cd))
+* **voice:** keep the QVox card on the screen once QVox is installed ([84042a7](https://github.com/agentprojectcontext/apx/commit/84042a72534f2bcc9f845012aa1e9162fe462f6a))
+* **voice:** pass a clone reference through to a local endpoint ([91037b2](https://github.com/agentprojectcontext/apx/commit/91037b22065f13d470e3c187396723c90e1236a5))
+* **voice:** split the QVox card in two, and give the status one a real probe ([d3f8ed9](https://github.com/agentprojectcontext/apx/commit/d3f8ed9cda92105b4dc01a333179abda5567b8aa))
+* **web:** offer the local voice where its absence is felt ([64c0d2b](https://github.com/agentprojectcontext/apx/commit/64c0d2b8da04df56e51981ba9d5f2f607e79479a))
+* **web:** the MCP list mixed the machine's servers in with the project's ([bbf9729](https://github.com/agentprojectcontext/apx/commit/bbf97290c91e1e5ea6b9245538030ea6acd9bdf3))
+* **whatsapp:** the relay channel had no rules, so the agent answered into a void ([5c361d8](https://github.com/agentprojectcontext/apx/commit/5c361d89696345aed57e7cdc1c1591f8d6e7f544))
+
+
+### Performance Improvements
+
+* **desktop:** the voice turn decoded the same audio twice and left the engine idle ([d54360f](https://github.com/agentprojectcontext/apx/commit/d54360f8c940bead9d8f24c2ff7eda4ffdad7bdd))
+* **voice:** warming the engine when the mic opens was twenty seconds too late ([85d6f9a](https://github.com/agentprojectcontext/apx/commit/85d6f9aba08d37871ca1f03009093133e11257b9))
+* **whisper:** the warmup loaded the weights and left the slow half ([92b763a](https://github.com/agentprojectcontext/apx/commit/92b763a272ebaa6e5f640ed2ad41f8d02057a859))
+
 # [1.82.0](https://github.com/agentprojectcontext/apx/compare/v1.81.0...v1.82.0) (2026-08-25)
 
 
