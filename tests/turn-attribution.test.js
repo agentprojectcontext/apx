@@ -77,16 +77,29 @@ test("telegram: every entry point hands the model to sendFinalReply", () => {
 
 test("web/desktop/voice: persisted agent turns carry model and usage", () => {
   // The signature may grow (trace, project…); what must never drop out is the
-  // attribution pair.
+  // attribution pair. `prompt` left it in 2026-08-30 on purpose: the inbound
+  // message is written when it ARRIVES (logInboundTurn), not when the turn ends
+  // — a WhatsApp round takes minutes and the message existed all along.
   assert.match(
     API_SUPER_AGENT,
-    /function logWebTurn\(channel, \{ prompt, replyText, name, model, usage[\w\s,]*\}\)/,
+    /function logWebTurn\(channel, \{ replyText, name, model, usage[\w\s,]*\}\)/,
     "logWebTurn must receive the attribution",
   );
   assert.match(
     API_SUPER_AGENT,
-    /logWebTurn\(ctx\.channel, \{\s*prompt,\s*replyText: saResult\.text,\s*name: saResult\.name,\s*model: saResult\.model,\s*usage: saResult\.usage,/,
+    /logWebTurn\(ctx\.channel, \{\s*replyText: saResult\.text,\s*name: saResult\.name,\s*model: saResult\.model,\s*usage: saResult\.usage,/,
     "both endpoints must hand the attribution to logWebTurn",
+  );
+  // And both endpoints still record what arrived, before they answer it.
+  assert.match(
+    API_SUPER_AGENT,
+    /logInboundTurn\(ctx\.channel, \{ prompt: turnPrompt, project: p, media: turnFiles\.media \}\)/,
+    "the streaming endpoint writes the inbound message up front",
+  );
+  assert.match(
+    API_SUPER_AGENT,
+    /logInboundTurn\(ctx\.channel, \{ prompt, project: p \}\)/,
+    "and so does the blocking one",
   );
   assert.match(
     API_SUPER_AGENT,

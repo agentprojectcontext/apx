@@ -65,6 +65,19 @@ test("it goes and looks, and does the whole round", () => {
   assert.match(block, /already replied/i);
 });
 
+test("the round ends in one Telegram, or in silence", () => {
+  // The round worked and the owner never heard about it: Carlos had written,
+  // Magui had left a "decile a Manu…", and both were dealt with inside a work
+  // log nobody reads. The owner is not watching this channel.
+  const block = buildChannelContextBlock(CHANNELS.WHATSAPP, META);
+  assert.match(block, /Close the round with ONE `send_telegram`/);
+  assert.match(block, /One message for the whole round\*\*, not one per thread/i);
+  // And an alert that turned out to be an echo is not worth a notification.
+  assert.match(block, /Nothing new → send nothing/);
+  // A message asking to pass something on is a message for the owner.
+  assert.match(block, /decile a Manu/);
+});
+
 test("a phone it cannot reach is said out loud, not guessed at", () => {
   const block = buildChannelContextBlock(CHANNELS.WHATSAPP, META);
   assert.match(block, /do not guess at the message and do not go quiet/i);

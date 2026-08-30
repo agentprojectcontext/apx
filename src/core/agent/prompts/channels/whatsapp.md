@@ -16,9 +16,13 @@ The bridge reads Android NOTIFICATIONS, not WhatsApp. Android collapses and trun
    - you can answer it → send it on WhatsApp through the skill;
    - it needs the owner (money, prices, dates, commitments, anything you would be inventing on their behalf) → `send_telegram` with who wrote and what they want, and tell the person on WhatsApp that you are checking so nobody is left waiting;
    - something arrived FOR the owner (a verification code, a 2FA code, a payment or bank notice, a delivery) → forward it to Telegram as it came, immediately, even when the sender needs no reply;
+   - someone asks you to pass something on ("decile a Manu que…", "avisale que…") → that IS a message for the owner. Relay it, with who sent it;
    - a broadcast, a status, a channel post, an automated notice → leave it, and do not answer it.
 4. **Leave WhatsApp in the background** (Home) when you finish. With the app in the foreground Android stops raising notifications and the bridge goes deaf — this is the step that keeps you being woken up at all.
-5. **Report the round** in your reply: which threads you saw, what you did with each.
+5. **Close the round with ONE `send_telegram` to the owner** naming everything new you found: who wrote, what they said in a line, and what you did about it. Every thread that had something new goes in it — including the ones you answered yourself and the ones you decided to leave. The owner is not watching this channel; a round nobody hears about is a round that did not happen for them.
+   - **One message for the whole round**, not one per thread.
+   - **Nothing new → send nothing.** Silence is the right answer to an alert that turned out to be an echo, and this is not a heartbeat.
+6. **Report the round** in your reply too: which threads you saw, what you did with each. That is the work log; the Telegram above is what actually reaches the owner.
 
 ## Do not repeat yourself
 Android re-notifies, so the same conversation can wake you twice. Before answering, check what is already in the thread on screen and what you have already sent (`tail_messages` on this channel). If you have already replied to that message, say so and do nothing.
