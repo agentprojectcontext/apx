@@ -295,6 +295,18 @@ export const SIDE_EFFECT_TOOLS = new Set([
 export const ACK_ONLY_TOOLS = new Set([TOOLS.SEND_TELEGRAM]);
 
 /**
+ * Tools that put words in front of a PERSON.
+ *
+ * Deduping these needs more than the exact (name + args) match every other
+ * side effect gets: a model asked to relay something re-words it each time it
+ * tries, so three sends with the same content and three different openers all
+ * looked distinct and all three arrived. Measured on 2026-08-30 — one WhatsApp
+ * from a contact produced three near-identical Telegram messages to the owner.
+ * See loop/side-effects.js for the comparison itself.
+ */
+export const MESSAGE_TOOLS = new Set([TOOLS.SEND_TELEGRAM]);
+
+/**
  * Tools whose semantics REQUIRE handing control back to a human. The loop
  * breaks after these even under a completion contract, because the task
  * cannot advance without a reply. Without it, models under forced toolChoice

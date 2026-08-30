@@ -747,14 +747,21 @@ export async function runAgent({
         },
         iteration: iter + 1,
       });
-      // Dedupe identical side-effecting calls within this turn.
+      // Dedupe identical side-effecting calls within this turn — and, for the
+      // ones a PERSON reads, calls that only differ in how they were worded.
+      // A model relaying something re-words it every time it repeats itself,
+      // so exact args alone let three "same" messages through (see
+      // loop/side-effects.js).
       const sig = sideEffects.signature(name, args);
-      if (sideEffects.seen(sig)) {
+      const restated = sideEffects.seen(sig) ? null : sideEffects.nearDuplicate(name, args);
+      if (sideEffects.seen(sig) || restated) {
         toolResult = {
           ok: true,
           deduped: true,
-          note: `Ya ejecuté "${name}" con estos mismos argumentos en este turno; no lo repito.`,
-          previous: sideEffects.previous(sig),
+          note: restated
+            ? `Ya dije esto mismo con "${name}" en este turno; no lo repito.`
+            : `Ya ejecuté "${name}" con estos mismos argumentos en este turno; no lo repito.`,
+          previous: restated || sideEffects.previous(sig),
         };
         await emitProgress(onEvent, {
           type: "tool_deduped",
@@ -808,7 +815,7 @@ export async function runAgent({
             if (toolHandlerCtx) toolHandlerCtx.securityGateCleared = false;
           }
         }
-        sideEffects.record(sig, summarizeForTrace(toolResult));
+        sideEffects.record(sig, summarizeForTrace(toolResult), { name, args });
       }
 
       // A tool may return images for the MODEL to see (view_media loads a skill
