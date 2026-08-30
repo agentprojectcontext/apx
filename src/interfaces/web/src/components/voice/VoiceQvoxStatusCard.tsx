@@ -14,18 +14,16 @@ import { t } from "../../i18n";
 import { Voice } from "../../lib/api/voice";
 import { QVOX_REPO } from "../../lib/qvox";
 
-export function VoiceQvoxStatusCard({ force }: { force?: "running" | "stopped" }) {
+export function VoiceQvoxStatusCard() {
   // Polled, because the interesting transition (the server dying) produces no
   // event anywhere. 15s is often enough to notice and rare enough to ignore.
-  const { data } = useSWR(
-    force ? null : "/api/tts/reachable",
-    () => Voice.reachable(),
-    { refreshInterval: 15_000 }
-  );
-  const running = force ? force === "running" : !!data?.reachable;
+  const { data } = useSWR("/api/tts/reachable", () => Voice.reachable(), {
+    refreshInterval: 15_000,
+  });
+  const running = !!data?.reachable;
   // Until the first probe answers, say nothing rather than flash "Stopped" at
   // a server that is perfectly fine.
-  const known = !!force || data !== undefined;
+  const known = data !== undefined;
 
   return (
     <div className="rounded-xl border border-dashed border-border p-5" data-testid="qvox-status">
