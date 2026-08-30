@@ -43,8 +43,22 @@ test("both lists filter through the shared predicate, not their own copy", () =>
     [webSrc("screens", "mobile", "MobileChatList.tsx"), "the phone"],
   ]) {
     assert.match(file, /channelEnabledIn\(view\.prefs, "view", r\.channel\)/, where);
-    assert.match(file, /<ChannelChips/, `${where} offers the switches`);
+    assert.match(file, /<ChannelFilter/, `${where} offers the switches`);
   }
+});
+
+test("the filter is a picker, not a strip that runs off the edge", () => {
+  // It shipped as one chip per channel. A real install has eleven, the inbox
+  // rail is 288px and the phone is narrower still, so the row scrolled out of
+  // sight and the filters could not be found at all.
+  const filter = webSrc("components", "inbox", "ChannelFilter.tsx");
+  assert.match(filter, /DropdownMenuCheckboxItem/, "a menu of switches");
+  // Base UI leaves a checkbox item's menu OPEN on click, which is what makes
+  // this multi-select instead of one-choice-and-it-closes.
+  assert.doesNotMatch(filter, /DropdownMenuCheckboxItem[\s\S]{0,300}closeOnClick=\{true\}/);
+  // And the trigger says how many are on without being opened.
+  assert.match(filter, /t\("channels\.n_of_m", \{ n: on, total: channels\.length \}\)/);
+  assert.match(filter, /onSetAll/, "one way back from a list filtered down to nothing");
 });
 
 test("a channel switched off keeps the chip that brings it back", () => {
@@ -56,7 +70,7 @@ test("a channel switched off keeps the chip that brings it back", () => {
   ]) {
     assert.match(file, /channelsOf\(rows\)/);
   }
-  const chips = webSrc("components", "inbox", "ChannelChips.tsx");
+  const chips = webSrc("components", "inbox", "ChannelFilter.tsx");
   assert.match(chips, /aria-pressed=\{on\}/, "a switch, not a link");
   assert.match(chips, /if \(channels\.length < 2\) return null;/, "nothing to choose between");
 });
@@ -77,7 +91,7 @@ test("the phone tags every row with its channel; the desktop rail does not repea
   // The raw storage value used to be printed as "· whatsapp". A channel is a
   // label on screen, so it wears its name (AGENTS.md rule 11a).
   assert.doesNotMatch(row, /· \{row\.channel\}/);
-  const chips = webSrc("components", "inbox", "ChannelChips.tsx");
+  const chips = webSrc("components", "inbox", "ChannelFilter.tsx");
   assert.match(chips, /export function ChannelTag/);
   assert.match(chips, /channelLabel\(channel\)/);
 });
@@ -85,7 +99,7 @@ test("the phone tags every row with its channel; the desktop rail does not repea
 test("both locales carry every channel string", () => {
   const en = webSrc("i18n", "en.ts");
   const es = webSrc("i18n", "es.ts");
-  for (const key of ["filter", "a2a", "group", "other", "all_hidden"]) {
+  for (const key of ["filter", "a2a", "group", "other", "all_hidden", "n_of_m", "select_all"]) {
     assert.match(en, new RegExp(`\\b${key}:`), `en is missing channels.${key}`);
     assert.match(es, new RegExp(`\\b${key}:`), `es is missing channels.${key}`);
   }

@@ -129,6 +129,19 @@ export function setChannelEnabled(axis: ChannelAxis, channel: string, on: boolea
   emitChange(axis);
 }
 
+/** Turn a whole set on or off in one write — "show everything again" is one
+ *  decision, not eleven, and eleven writes would be eleven re-renders. */
+export function setChannelsEnabled(axis: ChannelAxis, channels: string[], on: boolean) {
+  const next = { ...channelPrefs(axis) };
+  for (const channel of channels) next[channel] = on;
+  try {
+    localStorage.setItem(KEYS[axis], JSON.stringify(next));
+  } catch {
+    /* private mode: it holds for this session, which is all we can offer */
+  }
+  emitChange(axis);
+}
+
 // A same-tab change fires nothing on its own — `storage` only reaches OTHER
 // tabs — so the chips and the notifier would keep rendering the old answer
 // until something else re-rendered them.

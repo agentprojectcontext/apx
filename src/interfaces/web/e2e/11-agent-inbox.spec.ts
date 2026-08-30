@@ -167,17 +167,20 @@ test.describe("agent inbox", () => {
     await page.goto("/m/inbox");
     await expect(page.getByTestId("inbox-group-telegram")).toBeVisible();
 
-    await page.getByTestId("inbox-channel-telegram").click();
+    await page.getByTestId("inbox-channel-filter").click();
+    await page.getByTestId("inbox-channel-option-telegram").click();
     await expect(page.getByTestId("inbox-group-telegram")).toHaveCount(0);
-    // The other channel is untouched — these are switches, not one choice.
+    // The other channel is untouched — these are switches, not one choice —
+    // and the menu is still open, which is what makes it a multi-select.
     await expect(page.getByTestId("inbox-group-web")).toBeVisible();
-    // And the way back is the same chip, which never disappears with its rows.
-    await expect(page.getByTestId("inbox-channel-telegram")).toBeVisible();
+    await expect(page.getByTestId("inbox-channel-option-web")).toBeVisible();
+    await page.keyboard.press("Escape");
 
     await page.reload();
     await expect(page.getByTestId("inbox-group-telegram")).toHaveCount(0);
 
-    await page.getByTestId("inbox-channel-telegram").click();
+    await page.getByTestId("inbox-channel-filter").click();
+    await page.getByTestId("inbox-channel-option-telegram").click();
     await expect(page.getByTestId("inbox-group-telegram")).toBeVisible();
     expect(errors).toEqual([]);
   });
@@ -197,8 +200,9 @@ test.describe("agent inbox", () => {
     // The phone has no channel headings to group under, so the row carries it.
     await expect(page.getByTestId("channel-tag-web")).toBeVisible();
 
-    // One tap and it is back — a default, not a decision made for the owner.
-    await page.getByTestId("mobile-channel-telegram").click();
+    // Two taps and it is back — a default, not a decision made for the owner.
+    await page.getByTestId("mobile-channel-filter").click();
+    await page.getByTestId("mobile-channel-option-telegram").click();
     await expect(page.getByTestId("inbox-row-super_agent")).toBeVisible();
     expect(errors).toEqual([]);
   });

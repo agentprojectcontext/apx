@@ -3,7 +3,7 @@ import { Plus, Search } from "lucide-react";
 import type { InboxRow } from "../../lib/api/inbox";
 import { t } from "../../i18n";
 import { InboxRowItem } from "./InboxRowItem";
-import { ChannelChips } from "./ChannelChips";
+import { ChannelFilter } from "./ChannelFilter";
 import { channelEnabledIn, channelLabel, channelsOf } from "../../lib/channels";
 import { useChannelPrefs } from "../../hooks/useChannelPrefs";
 
@@ -106,17 +106,21 @@ export function InboxList({
         {action}
       </div>
 
-      {/* Which channels this DEVICE wants to see. A row per switch, under the
-          search rather than beside it: they are filters, not the primary
-          action (AGENTS.md rule 11b). */}
-      <ChannelChips
-        channels={channels}
-        counts={counts}
-        enabled={view.enabled}
-        onToggle={view.toggle}
-        className="shrink-0 border-b border-border px-2 py-1.5"
-        testIdPrefix="inbox-channel"
-      />
+      {/* Which channels this DEVICE wants to see. One picker, not a strip: on a
+          real install there are eleven channels and the rail is 288px wide, so
+          a chip row ran off the edge and the filters could not be found. */}
+      {channels.length > 1 && (
+        <div className="flex shrink-0 items-center gap-2 border-b border-border px-2 py-1.5">
+          <ChannelFilter
+            channels={channels}
+            counts={counts}
+            enabled={view.enabled}
+            onToggle={view.toggle}
+            onSetAll={(on) => view.setAll(channels, on)}
+            testIdPrefix="inbox-channel"
+          />
+        </div>
+      )}
 
       <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
         {!filtered.length ? (

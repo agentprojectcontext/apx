@@ -3,6 +3,7 @@ import {
   channelEnabledIn,
   channelPrefs,
   setChannelEnabled,
+  setChannelsEnabled,
   onChannelPrefsChange,
   type ChannelAxis,
 } from "../lib/channels";
@@ -33,5 +34,6 @@ export function useChannelPrefs(axis: ChannelAxis) {
     enabled,
     set: (channel: string, on: boolean) => setChannelEnabled(axis, channel, on),
     toggle: (channel: string) => setChannelEnabled(axis, channel, !enabled(channel)),
+    setAll: (channels: string[], on: boolean) => setChannelsEnabled(axis, channels, on),
   };
 }

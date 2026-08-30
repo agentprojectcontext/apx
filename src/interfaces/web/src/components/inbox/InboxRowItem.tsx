@@ -1,7 +1,7 @@
 import type { InboxRow } from "../../lib/api/inbox";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
-import { ChannelTag } from "./ChannelChips";
+import { ChannelTag } from "./ChannelFilter";
 import { toneChip } from "../../lib/tone";
 import { AgentAvatar, AgentAvatarGroup, SUPER_AGENT_ICON } from "../agents/AgentAvatar";
 
