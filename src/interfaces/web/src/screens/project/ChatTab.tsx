@@ -27,6 +27,7 @@ import { concernsConversation, concernsThread, type LiveEvent } from "../../lib/
 import type { UploadedMedia } from "../../lib/api/media";
 import { useToast } from "../../components/Toast";
 import { cn } from "../../lib/cn";
+import { isNativeShell } from "../../lib/net";
 import { t } from "../../i18n";
 import { toneChip } from "../../lib/tone";
 import { usePersonaName } from "../../hooks/usePersonaName";
@@ -798,7 +799,15 @@ export function ChatTab({
             "flex shrink-0 items-center justify-between gap-3 border-b border-border",
             // The phone pays for the notch here rather than in a second header
             // of its own: one implementation, two frames around it.
-            compact ? "gap-2 px-2 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))]" : "px-3 py-2",
+            //
+            // Except inside the Android app, which already lays the WebView out
+            // below the system bars — there `env(safe-area-inset-top)` is paid
+            // a SECOND time and the chat opens with a band of empty space the
+            // list it came from does not have. Same condition the phone list
+            // uses for its own header.
+            compact
+              ? cn("gap-2 px-2 pb-2", isNativeShell() ? "pt-1.5" : "pt-[max(0.5rem,env(safe-area-inset-top))]")
+              : "px-3 py-2",
           )}
         >
           {onBack && (

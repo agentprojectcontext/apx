@@ -3,7 +3,7 @@ import { Navigate, Route, Routes, useNavigate, useParams } from "react-router-do
 import { MobileChatList } from "./MobileChatList";
 import { MobileChat } from "./MobileChat";
 import { NewChatSheet } from "./NewChatSheet";
-import { chatPath, findRow, pidOf, MOBILE_ROOT } from "./routes";
+import { chatPath, findRow, keyFor, pidOf, MOBILE_ROOT } from "./routes";
 import { useInbox } from "../../hooks/useInbox";
 import { Loading } from "../../components/ui";
 import type { InboxRow } from "../../lib/api/inbox";
@@ -41,7 +41,11 @@ function ListRoute() {
   const { rows, isLoading, mutate } = useInbox();
   const navigate = useNavigate();
   const [newOpen, setNewOpen] = useState(false);
-  const openChat = (row: InboxRow) => navigate(chatPath(pidOf(row), row.agent_slug));
+  // WITH the row's own session, or the URL says only "the super-agent" and the
+  // chat opens whichever thread is newest — tapping the row labelled WhatsApp
+  // landed you in Telegram. The row knows which thread it is; the path has to
+  // carry it.
+  const openChat = (row: InboxRow) => navigate(chatPath(pidOf(row), row.agent_slug, keyFor(row)));
   if (isLoading) return <Busy />;
   return (
     <>

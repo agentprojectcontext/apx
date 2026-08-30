@@ -16,9 +16,19 @@ test("Android options live in the /mobile header only when the native bridge exi
   assert.match(activity, /@JavascriptInterface\s+public boolean notificationsEnabled\(\)/);
   assert.match(activity, /Settings\.ACTION_APP_NOTIFICATION_SETTINGS/);
   assert.doesNotMatch(activity, /Button menu = button\("⋮"\)/);
-  assert.match(inbox, /typeof window\.APXAndroid\?\.openOptions === "function"/);
+  // The detection moved to lib/net.ts (isNativeShell) when the chat header
+  // needed the same answer: inside the app the WebView is already laid out
+  // below the system bars, and paying for them twice opened every chat with a
+  // band of empty space the list it came from does not have.
+  const net = read("src", "interfaces", "web", "src", "lib", "net.ts");
+  assert.match(net, /export function isNativeShell\(\): boolean/);
+  assert.match(net, /typeof window\.APXAndroid\?\.openOptions === "function"/);
+  assert.match(inbox, /const androidOptions = isNativeShell\(\);/);
   assert.match(inbox, /androidOptions && \(/);
   assert.match(inbox, /window\.APXAndroid\?\.openOptions\(\)/);
+
+  const chat = read("src", "interfaces", "web", "src", "screens", "project", "ChatTab.tsx");
+  assert.match(chat, /isNativeShell\(\) \? "pt-1\.5" : "pt-\[max\(0\.5rem,env\(safe-area-inset-top\)\)\]"/);
 });
 
 test("mobile preferences use Android notification state instead of browser capability", () => {
