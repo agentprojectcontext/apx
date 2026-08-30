@@ -233,6 +233,12 @@ export const en = {
   // DEVICE wants to see and be told about (lib/channels.ts).
   channels: {
     filter:      "Channels",
+    // The trigger says how many are on without opening anything — which is the
+    // whole reason the picker is collapsed.
+    all:         "All",
+    n_of_m:      "{n} of {total}",
+    select_all:  "Select all",
+    none:        "None",
     a2a:         "Agent ↔ agent",
     group:       "Groups",
     other:       "No channel",

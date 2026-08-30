@@ -232,6 +232,10 @@ export const es = {
   // conversación quiere ver y escuchar ESTE dispositivo (lib/channels.ts).
   channels: {
     filter:      "Canales",
+    all:         "Todos",
+    n_of_m:      "{n} de {total}",
+    select_all:  "Seleccionar todos",
+    none:        "Ninguno",
     a2a:         "Agente ↔ agente",
     group:       "Grupos",
     other:       "Sin canal",

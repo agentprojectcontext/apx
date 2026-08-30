@@ -11,7 +11,7 @@ import {
   sendTestNotification,
   type NotifyStance,
 } from "../../lib/notify";
-import { ChannelChips } from "../inbox/ChannelChips";
+import { ChannelChips } from "../inbox/ChannelFilter";
 import { channelsOf } from "../../lib/channels";
 import { useChannelPrefs } from "../../hooks/useChannelPrefs";
 import { useInbox } from "../../hooks/useInbox";

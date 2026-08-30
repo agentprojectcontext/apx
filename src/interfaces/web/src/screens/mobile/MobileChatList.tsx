@@ -3,7 +3,7 @@ import { Ellipsis, Search, Settings, Share, ShieldAlert, Smartphone, SquarePen, 
 import { installStance, onInstallStateChange, promptInstall } from "../../lib/pwa";
 import { NotifyNudge, PrefsDialog } from "../../components/settings/PanelPrefs";
 import { InboxRowItem } from "../../components/inbox/InboxRowItem";
-import { ChannelChips } from "../../components/inbox/ChannelChips";
+import { ChannelFilter } from "../../components/inbox/ChannelFilter";
 import { channelEnabledIn, channelsOf } from "../../lib/channels";
 import { useChannelPrefs } from "../../hooks/useChannelPrefs";
 import { cn } from "../../lib/cn";
@@ -102,15 +102,20 @@ export function MobileChatList({
           />
         </div>
         {/* Which channels this phone wants to see. Telegram starts off here —
-            the app is on this very device — and one tap brings it back. */}
-        <ChannelChips
-          channels={channels}
-          counts={counts}
-          enabled={view.enabled}
-          onToggle={view.toggle}
-          className="-mx-4 mt-2 px-4 pb-0.5"
-          testIdPrefix="mobile-channel"
-        />
+            the app is on this very device — and the picker says so ("6 of 11")
+            without needing a strip of chips wider than the screen. */}
+        {channels.length > 1 && (
+          <div className="mt-2 flex items-center gap-2">
+            <ChannelFilter
+              channels={channels}
+              counts={counts}
+              enabled={view.enabled}
+              onToggle={view.toggle}
+              onSetAll={(on) => view.setAll(channels, on)}
+              testIdPrefix="mobile-channel"
+            />
+          </div>
+        )}
       </header>
 
       {/* Both offers live at the top of the screen the phone lands on, for the
