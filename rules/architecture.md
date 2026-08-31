@@ -3,8 +3,9 @@
 > Deep dive for [`AGENTS.md`](../AGENTS.md). The always-read constraint is rule
 > **8** (core → adapter → surface). This file explains the methodology behind the
 > rules, names the reference implementations to copy, and pins the seams that are
-> known-fragile. Current compliance state:
-> [`SURVEY-2026-08-17`](../spec/repair-and-refactoring-code/SURVEY-2026-08-17.md).
+> known-fragile. The running code-vs-contract survey is local-only under `spec/`
+> and is deliberately not linked from here — see
+> [`README.md`](README.md#what-is-not-here).
 
 ## The three layers
 
@@ -66,7 +67,7 @@ src/interfaces/    surfaces: cli, web, tui, desktop, mcp-server, acp.
 | Plugin that stays I/O-only | `host/daemon/plugins/telegram/index.js` | Lifecycle + offset persistence + thin send surface; per-update domain logic lives in `core/channels/telegram/`. |
 | Resource API client (web) | `src/interfaces/web/src/lib/api/*` | One file per resource, uniform `export const X = {list,get,add,remove}`, one typed HTTP client. |
 | Declarative data file | `core/http-tools/catalog.js`, `cli/help/index.js` | Data extracted from logic; the consumer only indexes/serves it. |
-| Scoped shared primitive | `core/engines/_health.js`, `engines/_streaming.js` | Family-local helpers with a `_` prefix. (Caveat: verify `_streaming` consumers — see survey.) |
+| Scoped shared primitive | `core/engines/_health.js`, `engines/_streaming.js` | Family-local helpers with a `_` prefix. (Caveat: verify `_streaming` consumers before assuming they all use it.) |
 
 ## One home per operation — the grep-first discipline
 
@@ -82,9 +83,9 @@ resolution (`core/apc/projects-helpers.js resolveProject`), scope normalization
 `agent/tools/names.js`).
 
 If the single you need doesn't exist yet (fetch-with-timeout, stdin read,
-turn-logging envelope), check the survey's rule-8 ledger first — it may already
-name the intended home. Create the single there and migrate callers; never add
-copy #2.
+turn-logging envelope), check the local survey's rule-8 ledger under `spec/`
+first — it may already name the intended home. Create the single there and
+migrate callers; never add copy #2.
 
 ## Comments are decision records — keep them true
 

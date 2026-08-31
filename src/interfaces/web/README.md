@@ -4,8 +4,10 @@ Local-first React app served by the daemon. Operates every part of APX
 (config, channels, projects, agents, routines, sessions, models, MCPs,
 tasks) without leaving the browser.
 
-> Spec: [spec/backlog/08-web-admin-panel.md](../../../spec/backlog/08-web-admin-panel.md) ·
-> No-Radix decision: [spec/decisions/005-no-radix-on-web-panel.md](../../../spec/decisions/005-no-radix-on-web-panel.md).
+> Rules: [`rules/web-ui.md`](../../../rules/web-ui.md) (how-to) ·
+> [`rules/enforcement.md`](../../../rules/enforcement.md) (what is actually gated) ·
+> No-Radix decision: [`rules/decisions/005`](../../../rules/decisions/005-no-radix-on-web-panel.md).
+> The panel's own backlog is local-only under `spec/` and not linked from here.
 
 ## Stack
 
@@ -20,21 +22,27 @@ tasks) without leaving the browser.
 
 ```
 src/
-├── main.tsx                 ← React 19 root + Router
-├── App.tsx                  ← layout shell (sidebar + main)
-├── styles.css               ← Tailwind + theme tokens (dark default)
+├── main.tsx        ← React 19 root + Router
+├── App.tsx         ← layout shell (sidebar + main)
+├── styles.css      ← Tailwind + theme tokens (dark default)
 ├── lib/
-│   ├── api.ts               ← typed daemon client (Bearer auth)
-│   └── cn.ts                ← clsx + tailwind-merge
-├── hooks/
-│   └── useTokenBootstrap.ts ← reads /api/admin/web-token on first paint
+│   ├── api/        ← ONE FILE PER RESOURCE (agents, routines, projects, …)
+│   │                 uniform `export const X = {list,get,add,remove}`
+│   ├── http.ts     ← the single typed client; Bearer auto-fetched
+│   └── …           ← cn, live, notify, pwa, when, …
+├── i18n/           ← en.ts + es.ts — every key in BOTH, always
 ├── components/
-│   ├── ProjectSidebar.tsx   ← rail of avatars (APX + projects)
-│   └── Section.tsx          ← card primitive + small UI atoms
+│   ├── ui/         ← curated Base UI primitives, behind the ui.tsx barrel
+│   └── …
 └── screens/
-    ├── ApxAdminScreen.tsx   ← default landing: global config / status
-    └── ProjectScreen.tsx    ← per-project nav: overview, config, agents, routines, tasks, mcps, threads
+    └── modules/    ← one module per project area
 ```
+
+**`lib/api/` is the rule, not a suggestion.** Nothing in the panel calls
+`fetch` directly — `tests/web-guardrails.test.js` fails the build if it does.
+This README described a single `lib/api.ts` long after it had been split into
+one file per resource; that shape is now a reference implementation in
+[`rules/architecture.md`](../../../rules/architecture.md).
 
 ## Talks to the daemon
 

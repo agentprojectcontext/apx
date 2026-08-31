@@ -100,7 +100,7 @@ name: vague-stuff
 # Teach the decision tree ("shared vs runtime", "what to do if it fails").
 
 # DON'T leave TODOs in production skills. Delete incomplete sections;
-# move them to spec/backlog/.
+# move them to spec/active/backlog/ (local-only).
 ```
 
 ## Optional scaffolding

@@ -5,11 +5,19 @@
 > `apx init` and owned by the project. End-user app usage lives in `docs/`.
 
 This file is the **hub**: the always-read contract (glossary, the dev loop, the
-numbered rules) lives here in full. Per-subsystem how-to is split into
-**read-on-demand** deep dives under [`rules/`](rules/) —
-open one only when you're working in that subsystem. See [Deep dives](#deep-dives--read-on-demand) below.
-The current code-vs-contract audit (live bugs, god-file verdicts, dedup backlog):
-[`spec/repair-and-refactoring-code/SURVEY-2026-08-17.md`](spec/repair-and-refactoring-code/SURVEY-2026-08-17.md) (local-only, under `spec/`).
+numbered rules) lives here in full. Everything else is **read-on-demand** under
+[`rules/`](rules/) — subsystem how-to, the workflow playbooks, and the
+architecture decisions. Open one only when you're in that situation.
+See [Deep dives](#deep-dives--read-on-demand) below.
+
+New here, or reviewing rather than writing? Start with
+[`rules/human-model.md`](rules/human-model.md) — what this system is and what
+breaks what — then [`rules/enforcement.md`](rules/enforcement.md), which says
+which of these rules can actually stop a mistake.
+
+Planning docs (roadmap, backlog, PRDs, the running code-vs-contract survey) stay
+**local** under `spec/`, which is gitignored. Nothing tracked links into it —
+those links are dead in every fresh clone, which is exactly what happened before.
 
 ## Contents
 
@@ -17,6 +25,7 @@ The current code-vs-contract audit (live bugs, god-file verdicts, dedup backlog)
 - [The dev loop](#the-dev-loop--skip-a-step-and-your-test-is-a-lie) — restart + verify, or your test is a lie
 - [Repo map](#repo-map) — top-level orientation (full breakdown in the deep dive)
 - [Project rules](#project-rules) — the numbered 1–17 contract
+- [The workflow](#the-workflow--how-a-change-gets-made) — plan → implement → review → verify → brief
 - [Deep dives](#deep-dives--read-on-demand) — subsystem how-to, read only when needed
 - [Agents (dogfood)](#agents-dogfood)
 
@@ -123,7 +132,10 @@ Top-level orientation; the full per-folder breakdown is in
 - `src/host/daemon/` — thin adapter over `core/`: HTTP API (`api/*.js`), plugins (`telegram/`, `desktop/`), WS hubs. No domain logic here.
 - `src/interfaces/` — `cli/`, `web/` (React+Vite panel), `tui/` (vendored OpenCode island, HTTP-only), `desktop/` (Electron), `android/` (native `/mobile` shell + floating mascot), `mcp-server/`, `acp/`.
 - `tests/` — backend suite (`npm run test:ci`); `src/interfaces/web/e2e/` — Playwright.
-- `skills/` — bundled `SKILL.md`s · `scripts/` — build/sync/hooks · `docs/` — public docs site.
+- `skills/` — bundled `SKILL.md`s · `scripts/` — build/sync/hooks.
+- `rules/` — **the engineering guardrails** (this hub's deep dives, the workflow playbooks, the ADRs). Tracked, never published.
+- `docs/` — the **public** Astro + Starlight site, deployed to GitHub Pages. Not a place for engineering rules.
+- `spec/`, `qa/`, `tmp/` — local-only, gitignored: planning, QA runs, scratch. Never link to them from a tracked file.
 
 ## Architecture & methodology — the shape every change follows
 
@@ -217,16 +229,52 @@ Full version with reference implementations: [`rules/architecture.md`](rules/arc
     Full procedure and the verification commands: **["The dev loop"](#the-dev-loop--skip-a-step-and-your-test-is-a-lie)**
     above. It is the single most common way work here goes sideways.
 
+## The workflow — how a change gets made
+
+Most code here is written by an agent. The scarce thing is not the code — it is
+**evidence that the code does what it claims**, in a form a human can check in a
+few minutes. Each stage below produces one piece of that evidence.
+
+```
+PLAN ──▶ IMPLEMENT ──▶ REVIEW (fresh context) ──▶ TEST + RUNTIME ──▶ OWNER BRIEF
+              │                                          ▲
+              ├── SECURITY, if it crosses a boundary ─────┤
+              └── DRIFT, if it is structural ─────────────┘
+```
+
+The playbooks are in [`rules/workflow/`](rules/workflow/) — one file per stage,
+read on demand. Three things hold the rest together:
+
+- **Self-review is not review.** Stage 3 means a reader in **fresh context**. An
+  agent re-reading its own diff confirms its own assumptions.
+- **`UNVERIFIED` is a valid answer; silence is not.** Never let "the tests
+  passed" stand in for "the changed path ran" — they are different claims
+  ([`05-test-and-runtime`](rules/workflow/05-test-and-runtime.md)).
+- **Restart before you conclude anything** (rule 17, below). A conclusion drawn
+  without `apx restart` is a conclusion about the old code.
+
+Scale it to the change: a typo needs stages 2 and 5. A new route needs 1, 2, 3,
+5 and 7. Anything touching auth, a shell, the filesystem, the network or an
+inbound channel adds 4. Anything structural adds 6.
+
+When something is already broken and you don't know why, go straight to
+[`08-incident-map`](rules/workflow/08-incident-map.md) — and do not change code
+before collecting evidence.
+
 ## Deep dives — read on demand
 
-Subsystem how-to lives in [`rules/`](rules/) so this
-hub stays scannable. Open a file only when you're working in that subsystem;
-when you change behavior it documents, update both the deep dive and the matching
-rule above in the same change.
+Everything read-on-demand lives in [`rules/`](rules/) so this hub stays
+scannable. Open a file only when you're in that situation; when you change
+behavior it documents, update both the deep dive and the matching rule above in
+the same change. Index: [`rules/README.md`](rules/README.md).
 
 | Deep dive | Read it when you're touching… |
 |---|---|
+| [`human-model.md`](rules/human-model.md) | **you're the owner, not the author** — what runs, what breaks what, what is actually guaranteed |
 | [`enforcement.md`](rules/enforcement.md) | **what is machine-enforced vs. convention** — and the three-pnpm-projects trap |
+| [`surfaces.md`](rules/surfaces.md) | who can reach the daemon, with what credential, carrying what state |
+| [`workflow/`](rules/workflow/) | the eight stage playbooks — plan, implement, review, security, verify, drift, brief, incident |
+| [`decisions/`](rules/decisions/) | why the code is shaped this way — ADRs 001–005 |
 | [`architecture.md`](rules/architecture.md) | any structural decision — layering, SOLID, registries, where logic lives |
 | [`repo-layout.md`](rules/repo-layout.md) | finding where a thing lives / where a new thing goes |
 | [`daemon-api.md`](rules/daemon-api.md) | HTTP routes, `asyncRoute`, plugins, WS hubs (rules 9 / 15) |

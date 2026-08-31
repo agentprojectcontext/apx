@@ -11,6 +11,11 @@
 >
 > When you add a gate, add its row here. When you write a rule nothing enforces,
 > say so in its row rather than leaving the reader to assume.
+>
+> And when you *raise* a gate, correct its row in the same commit. This table
+> claimed a coverage floor of 72/71/65 long after `scripts/test-ci.js` had been
+> ratcheted to 77/72/71 — a doc that understates a gate teaches people the gate
+> is looser than it is.
 
 ## The three checkouts problem
 
@@ -40,7 +45,7 @@ early return survived in two separate components.
 | No rebuilding `~/.apx` paths from `os.homedir()` | 13 | root `eslint.config.js` (`NO_HOMEDIR`) |
 | Async route handlers wrapped in `asyncRoute()` | 15 | root `eslint.config.js` (`ASYNC_ROUTE`) |
 | No skipped or todo tests | 1 | `scripts/test-ci.js` |
-| Coverage floor (line 72 / branch 71 / function 65) | 1 | `scripts/test-ci.js` |
+| Coverage floor (line 77 / branch 72 / function 71) | 1 | `scripts/test-ci.js` (`COVERAGE_FLOOR`) |
 | Every i18n key in **both** `en.ts` and `es.ts` | 11 | `tests/web-guardrails.test.js` |
 | No Radix, no `components.json` | 11 | `tests/web-guardrails.test.js` |
 | Panel requests go through `src/lib/api/*` | 11 | `tests/web-guardrails.test.js` |
@@ -102,6 +107,8 @@ Real rules. No mechanism. They hold because someone reads the diff.
 | Prompt budget (~2.5k tok for the super-agent prompt) | 12 | `scripts/inspect-channel-prompts.js` measures it; nothing gates it |
 | Restart the daemon before testing by hand | 17 | Inherently manual — and the most expensive rule in the file to skip |
 | The 14 Playwright specs | 11 | Now run in CI's `e2e` job, but **not** in `preflight` or `pre-push` (they need a booted daemon and a browser) |
+| The change workflow (plan → review → verify → brief) | — | Process, not code. [`workflow/`](workflow/) is the playbook; nothing can assert a review happened |
+| A tracked file must not link into `spec/` or `qa/` | — | Both are gitignored; such links are dead in every fresh clone. Caught in review — it went unnoticed across five files for months |
 
 ## The gates, and what each one runs
 
