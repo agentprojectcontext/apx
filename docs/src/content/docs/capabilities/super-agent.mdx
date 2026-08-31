@@ -278,7 +278,10 @@ verdict that kept it going.
 
 ## Per-surface tool budget
 
-How many tool steps one turn may take depends on whether you can watch it work.
+How many tool steps one turn may take depends on whether you can watch it work — and it is keyed
+on the **surface**, not on who is answering. A project agent in the web chat gets the same budget
+Roby does; a watched chat is a watched chat. (All three keys live under `super_agent` because that
+is where every tool-loop budget lives, including the routine one that governs project agents.)
 
 | Surface | Budget | Why |
 |---|---|---|

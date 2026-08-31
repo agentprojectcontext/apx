@@ -19,6 +19,7 @@ import { runAgent } from "#core/agent/index.js";
 import { createToolSession, makeToolHandlers } from "#core/agent/tools/registry.js";
 import { loadAgentSkills, collectAgentSkillMedia } from "#core/agent/skills/agent-skills.js";
 import { scopeProjects } from "#core/apc/projects-helpers.js";
+import { channelToolIters } from "#core/agent/constants.js";
 
 // A chat reply is prose, not a Telegram one-liner: run-agent's 512-token default
 // truncates an agent mid-answer on the surface where the whole answer is the
@@ -45,6 +46,10 @@ export async function runAgentTurn({
   temperature,
   maxTokens,
   tools = true,
+  // Left unset, the channel decides (channelToolIters). A project agent in the
+  // web chat is on the same watched surface Roby is, and was stopping every 9
+  // actions to ask whether to continue — the budget belongs to the surface, not
+  // to which agent happens to be answering.
   maxIters,
   projects,
   plugins,
@@ -101,6 +106,12 @@ export async function runAgentTurn({
   const attachableMedia = collectAgentSkillMedia(loadAgentSkills(p, agent));
   const mediaSink = [];
 
+  // An explicit budget from the caller always wins; otherwise the surface's own
+  // default applies. See channelToolIters.
+  const effectiveMaxIters = Number.isFinite(Number(maxIters)) && Number(maxIters) > 0
+    ? Number(maxIters)
+    : channelToolIters(cfg, channel);
+
   const hasImage = (attachments || []).some((a) => a?.data && /^image\//.test(a.mime || ""));
   const result = await runAgent({
     globalConfig: cfg,
@@ -132,7 +143,7 @@ export async function runAgentTurn({
     },
     agentName: agent.slug,
     maxTokens: cap,
-    ...(Number.isFinite(Number(maxIters)) ? { maxIters: Number(maxIters) } : {}),
+    ...(effectiveMaxIters ? { maxIters: effectiveMaxIters } : {}),
     onEvent,
     onToken,
   });

@@ -14,7 +14,7 @@ process.env.APX_HOME = path.join(TMP_HOME, ".apx"); // isolate the apx home too 
 const { test } = await import("node:test");
 const { default: assert } = await import("node:assert/strict");
 const {
-  superAgentToolIters,
+  channelToolIters,
   WEB_TOOL_ITERS,
   TELEGRAM_TOOL_ITERS,
   MAX_TOOL_ITERS,
@@ -22,27 +22,29 @@ const {
 const { CHANNELS } = await import("#core/constants/channels.js");
 const { runSuperAgent } = await import("#core/agent/super-agent.js");
 const { ProjectManager } = await import("#host/daemon/db.js");
-const { makeTempProject, cleanupTempProject } = await import("./_helpers.js");
+const { makeTempProject, cleanupTempProject, apiRouter } = await import("./_helpers.js");
+const { default: express } = await import("express");
+const { register: registerExec } = await import("../src/host/daemon/api/exec.js");
 
-test("superAgentToolIters — the web chat and its sidebar run to completion", () => {
-  assert.equal(superAgentToolIters({}, CHANNELS.WEB), WEB_TOOL_ITERS);
-  assert.equal(superAgentToolIters({}, CHANNELS.WEB_SIDEBAR), WEB_TOOL_ITERS);
+test("channelToolIters — the web chat and its sidebar run to completion", () => {
+  assert.equal(channelToolIters({}, CHANNELS.WEB), WEB_TOOL_ITERS);
+  assert.equal(channelToolIters({}, CHANNELS.WEB_SIDEBAR), WEB_TOOL_ITERS);
   assert.ok(WEB_TOOL_ITERS > TELEGRAM_TOOL_ITERS && WEB_TOOL_ITERS > MAX_TOOL_ITERS);
 });
 
-test("superAgentToolIters — every other channel keeps its own budget", () => {
+test("channelToolIters — every other channel keeps its own budget", () => {
   // Telegram resolves at its own call site, routines at theirs, and the coding
   // surfaces pass an explicit budget alongside the completion contract. None of
   // them should be pulled onto the web ceiling by accident.
   for (const ch of [CHANNELS.TELEGRAM, CHANNELS.API, CHANNELS.CODE, CHANNELS.WEB_CODE, CHANNELS.DECK, CHANNELS.ROUTINE]) {
-    assert.equal(superAgentToolIters({}, ch), null, `${ch} must keep its own budget`);
+    assert.equal(channelToolIters({}, ch), null, `${ch} must keep its own budget`);
   }
 });
 
-test("superAgentToolIters — config overrides the ceiling, 0/invalid falls back", () => {
-  assert.equal(superAgentToolIters({ super_agent: { web_max_iters: 12 } }, CHANNELS.WEB), 12);
-  assert.equal(superAgentToolIters({ super_agent: { web_max_iters: 0 } }, CHANNELS.WEB), WEB_TOOL_ITERS);
-  assert.equal(superAgentToolIters({ super_agent: { web_max_iters: -3 } }, CHANNELS.WEB), WEB_TOOL_ITERS);
+test("channelToolIters — config overrides the ceiling, 0/invalid falls back", () => {
+  assert.equal(channelToolIters({ super_agent: { web_max_iters: 12 } }, CHANNELS.WEB), 12);
+  assert.equal(channelToolIters({ super_agent: { web_max_iters: 0 } }, CHANNELS.WEB), WEB_TOOL_ITERS);
+  assert.equal(channelToolIters({ super_agent: { web_max_iters: -3 } }, CHANNELS.WEB), WEB_TOOL_ITERS);
 });
 
 test("runSuperAgent: the web budget reaches the loop (and an explicit maxIters still wins)", async () => {
@@ -59,36 +61,92 @@ test("runSuperAgent: the web budget reaches the loop (and an explicit maxIters s
     prompt: "[mock:loop:list_projects]",
   };
   const toolResults = (events) => events.filter((e) => e.type === "tool_result").length;
+  // web_max_iters keeps the test cheap; WEB_TOOL_ITERS itself is 1000, which is
+  // the runaway backstop, not something a test should sit through. Stuck
+  // detection is off because a mock that re-fires ONE tool is its textbook
+  // trigger — it would abort at 4 and we'd be measuring the detector, not the
+  // budget.
+  const cfg = (extra = {}) => ({
+    super_agent: {
+      enabled: true, model: "mock", permission_mode: "total",
+      web_max_iters: 7, stuck_detection: { enabled: false }, ...extra,
+    },
+    memory: { enabled: false },
+    engines: {},
+  });
   try {
-    // web_max_iters keeps the test cheap; WEB_TOOL_ITERS itself is 1000, which
-    // is the runaway backstop, not something a test should sit through.
     const webEvents = [];
-    await runSuperAgent({
-      ...base,
-      globalConfig: {
-        super_agent: { enabled: true, model: "mock", permission_mode: "total", web_max_iters: 5 },
-        memory: { enabled: false },
-        engines: {},
-      },
-      channel: CHANNELS.WEB,
-      onEvent: (e) => webEvents.push(e),
-    });
-    assert.equal(toolResults(webEvents), 4, "the web budget, not runAgent's conversational default");
+    await runSuperAgent({ ...base, globalConfig: cfg(), channel: CHANNELS.WEB, onEvent: (e) => webEvents.push(e) });
+    assert.equal(toolResults(webEvents), 6, "the web budget, not runAgent's conversational default");
+
+    const apiEvents = [];
+    await runSuperAgent({ ...base, globalConfig: cfg(), channel: CHANNELS.API, onEvent: (e) => apiEvents.push(e) });
+    assert.equal(toolResults(apiEvents), MAX_TOOL_ITERS - 1, "every other channel is untouched");
 
     const pinned = [];
-    await runSuperAgent({
-      ...base,
-      globalConfig: {
-        super_agent: { enabled: true, model: "mock", permission_mode: "total", web_max_iters: 5 },
-        memory: { enabled: false },
-        engines: {},
-      },
-      channel: CHANNELS.WEB,
-      maxIters: 3,
-      onEvent: (e) => pinned.push(e),
-    });
+    await runSuperAgent({ ...base, globalConfig: cfg(), channel: CHANNELS.WEB, maxIters: 3, onEvent: (e) => pinned.push(e) });
     assert.equal(toolResults(pinned), 2, "an explicit caller budget still wins");
   } finally {
     cleanupTempProject(root);
+  }
+});
+
+// The same wall, on a project agent: Magui in the web chat stopped after 9
+// actions and asked "¿seguimos?", turn after turn (2026-08-31). The budget
+// belongs to the SURFACE — a watched chat is a watched chat whether Roby or a
+// project agent is answering — but only runSuperAgent had been taught that, so
+// every non-super-agent kept runAgent's conversational default of 10.
+test("project agents on web get the surface budget too, not the chat default", async () => {
+  const root = fs.mkdtempSync(path.join(TMP_HOME, "proj-"));
+  const storage = fs.mkdtempSync(path.join(TMP_HOME, "store-"));
+  fs.mkdirSync(path.join(root, ".apc", "agents"), { recursive: true });
+  fs.writeFileSync(path.join(root, ".apc", "project.json"), JSON.stringify({ name: "tmp", apx: "installed" }));
+  fs.writeFileSync(
+    path.join(root, ".apc", "agents", "magui.md"),
+    ["---", "Role: Tester", "Model: mock", "---", "", "You are a test agent."].join("\n"),
+  );
+  const PROJECT = { id: "1", name: "tmp", path: root, storagePath: storage, logMessage: () => {} };
+
+  const app = express();
+  app.use(express.json());
+  registerExec(apiRouter(express, app), {
+    projects: { list: () => [PROJECT], get: () => PROJECT, rebuild: () => {} },
+    project: () => PROJECT,
+    // web_max_iters keeps the test cheap (the shipped ceiling is 1000), and
+    // stuck detection is off — a mock re-firing one tool is its trigger, and it
+    // would abort the loop before the budget ever ran out.
+    config: {
+      model: "mock", engines: {},
+      super_agent: { web_max_iters: 7, stuck_detection: { enabled: false } },
+    },
+    plugins: {},
+    registries: null,
+  });
+  const server = await new Promise((r) => {
+    const s = app.listen(0, "127.0.0.1", () => r(s));
+  });
+  const call = async (body) => {
+    const res = await fetch(`http://127.0.0.1:${server.address().port}/api/projects/1/agents/magui/exec`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return res.json();
+  };
+  try {
+    // Re-fires the tool every step it is offered, so the trace length IS the
+    // budget minus the step reserved for the wrap-up.
+    const onWeb = await call({ prompt: "[mock:loop:list_agents]", model: "mock", channel: CHANNELS.WEB });
+    assert.equal(onWeb.trace.length, 6, "the web budget reached the project-agent loop");
+
+    // An unwatched surface keeps the bounded conversational default: 10 iters,
+    // the last reserved for the wrap-up.
+    const onApi = await call({ prompt: "[mock:loop:list_agents]", model: "mock", channel: CHANNELS.API });
+    assert.equal(onApi.trace.length, MAX_TOOL_ITERS - 1, "every other channel is untouched");
+
+    const pinned = await call({ prompt: "[mock:loop:list_agents]", model: "mock", channel: CHANNELS.WEB, maxIters: 3 });
+    assert.equal(pinned.trace.length, 2, "an explicit caller budget still wins");
+  } finally {
+    server.close();
   }
 });

@@ -46,15 +46,21 @@ export const WEB_TOOL_ITERS = ROUTINE_UNCAPPED_TOOL_ITERS;
 const RUN_TO_COMPLETION_CHANNELS = new Set([CHANNELS.WEB, CHANNELS.WEB_SIDEBAR]);
 
 /**
- * Default tool-loop budget for a super-agent turn on `channel`, or null when
- * the channel has no opinion and runAgent's own default should stand. An
- * explicit `maxIters` from the caller always wins over this.
+ * Default tool-loop budget for a turn on `channel`, or null when the channel
+ * has no opinion and runAgent's own default should stand. An explicit
+ * `maxIters` from the caller always wins over this.
+ *
+ * Keyed on the SURFACE, not on who is answering: the budget is about whether a
+ * human can watch the turn work, which is just as true of a project agent as it
+ * is of the super-agent. Both reach it — runSuperAgent for Roby, runAgentTurn
+ * for everyone else — because a chat that stops every 9 actions to ask is the
+ * same friction whichever agent is in it.
  *
  * Telegram resolves its budget at its own call site (channels/telegram/reply.js)
  * and routines at theirs (routines/runner.js); this covers the surfaces that
- * reach runSuperAgent through the plain daemon chat route.
+ * reach the loop through the plain daemon chat routes.
  */
-export function superAgentToolIters(config, channel) {
+export function channelToolIters(config, channel) {
   if (!RUN_TO_COMPLETION_CHANNELS.has(channel)) return null;
   const raw = Number(config?.super_agent?.web_max_iters);
   return Number.isFinite(raw) && raw > 0 ? raw : WEB_TOOL_ITERS;
