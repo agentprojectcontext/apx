@@ -45,6 +45,7 @@ const CHANNEL_LABELS: Record<string, string> = {
   api: "API",
   direct: "Direct",
   routine: "Routine",
+  log: "Log",
 };
 
 export function channelLabel(channel: string): string {
@@ -78,7 +79,23 @@ export function isPhoneSurface(): boolean {
  */
 const PHONE_MUTED = new Set(["telegram"]);
 
-export function channelDefault(_axis: ChannelAxis, channel: string): boolean {
+/**
+ * Channels that never ring, on any device.
+ *
+ * `log` is the one: it exists so that output which must be READABLE but must
+ * not ARRIVE has somewhere to live — a routine's reasoning when it chose to
+ * stay quiet. A notification for that is the interruption the routine just
+ * declined to make, so the bell is off by default here rather than left to the
+ * generic "a new channel is probably worth hearing about" rule.
+ *
+ * View is untouched: the thread shows in the lists like any other, in its own
+ * channel group, and one tick in the filter hides it for a device that would
+ * rather not see it at all.
+ */
+const NEVER_NOTIFY = new Set(["log"]);
+
+export function channelDefault(axis: ChannelAxis, channel: string): boolean {
+  if (axis === "notify" && NEVER_NOTIFY.has(channel)) return false;
   return !(isPhoneSurface() && PHONE_MUTED.has(channel));
 }
 

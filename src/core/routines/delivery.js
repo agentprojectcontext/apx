@@ -185,6 +185,32 @@ function deliverToAgentWebChat(ctx, { routine, text, attachments, agent, abstain
   return { note: `posted to ${agent.slug}'s own web chat${n ? ` (+${n} image${n > 1 ? "s" : ""})` : ""}` };
 }
 
+/**
+ * Who a delivered ledger row is FROM.
+ *
+ * On `web` this never came up — a non-Roby agent is routed to its own chat
+ * before it gets here — but `log` takes every agent's abstentions into one
+ * shared thread, and stamping them all as the super-agent would read as Roby
+ * having said things golf-coach said.
+ */
+function ledgerActor(ctx, agent) {
+  const slug = agent?.slug;
+  if (slug && slug !== SUPERAGENT_ACTOR_ID) {
+    return {
+      actor_id: slug,
+      actor_kind: "agent",
+      agent_slug: slug,
+      author: agent.name || slug,
+    };
+  }
+  return {
+    actor_id: SUPERAGENT_ACTOR_ID,
+    actor_kind: "superagent",
+    agent_slug: SUPERAGENT_ACTOR_ID,
+    author: resolveAgentName(ctx?.globalConfig || {}),
+  };
+}
+
 function ledgerAdapter(channel) {
   return {
     id: channel,
@@ -199,10 +225,7 @@ function ledgerAdapter(channel) {
         channel,
         direction: "out",
         type: "agent",
-        actor_id: SUPERAGENT_ACTOR_ID,
-        actor_kind: "superagent",
-        agent_slug: SUPERAGENT_ACTOR_ID,
-        author: resolveAgentName(ctx?.globalConfig || {}),
+        ...ledgerActor(ctx, agent),
         body: text,
         meta: {
           project_id: ctx?.project?.id ?? null,
@@ -376,6 +399,11 @@ export const DELIVERY_ADAPTERS = Object.freeze({
     },
   },
   [CHANNELS.WEB]: ledgerAdapter(CHANNELS.WEB),
+  // Deliberately identical to `web` in mechanism and opposite in intent: the
+  // same ledger thread machinery pointed at a channel nobody is sitting in. A
+  // routine can name it in `deliver_to` to say "record this, do not deliver
+  // it"; abstentions go here whether they name it or not.
+  [CHANNELS.LOG]: ledgerAdapter(CHANNELS.LOG),
 });
 
 /** The channel ids `deliver_to` accepts, for help text and validation. */
@@ -384,19 +412,27 @@ export function deliveryChannelIds() {
 }
 
 /**
- * Where an ABSTENTION goes. Never a push channel — the whole point is that the
- * routine decided not to interrupt, and pushing "I decided not to interrupt you"
- * is the interruption it just declined to make.
+ * Where an ABSTENTION goes: `log`, always, whatever the routine delivers to.
  *
- * It does not go nowhere either. Manu's rule when he found these on his phone:
- * do not send it to Telegram, "que lo diga en canal web sino" — leave it
- * somewhere he can go and look at it. So a routine whose channels are all push
- * writes the note to the web thread instead of dropping it, and every row is
- * stamped `abstained` so a reader can tell a decision from a message.
+ * Never a push channel — the whole point is that the routine decided not to
+ * interrupt, and pushing "I decided not to interrupt you" is the interruption
+ * it just declined to make. And not nowhere either: Manu's rule when he found
+ * these on his phone was to leave them somewhere he can go and look at them.
+ *
+ * The first version of that rule read "somewhere quiet" as "the routine's own
+ * non-push channels, or `web`", and on a real install every one of them is
+ * `web` — so a watch running every two hours wrote twelve notes a day into the
+ * SAME dated thread as the conversation. Manu, 2026-08-31: "está bien la señal
+ * pero se ve muy seguido… ¿por qué no creamos canal log y que mande todo ahí?"
+ *
+ * Ignoring the routine's configured channels is the point, not a shortcut. A
+ * quiet channel that is also a chat is still the chat; the destination has to
+ * be decided by what the text IS (a decision, not a message), which is the same
+ * thing everywhere. Rows stay stamped `abstained`, so a reader can still tell a
+ * decision from something Roby said.
  */
-export function abstentionChannels(channels) {
-  const quiet = (channels || []).filter((id) => DELIVERY_ADAPTERS[id] && !DELIVERY_ADAPTERS[id].push);
-  return quiet.length ? quiet : [CHANNELS.WEB];
+export function abstentionChannels(_channels) {
+  return [CHANNELS.LOG];
 }
 
 /**

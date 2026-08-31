@@ -719,15 +719,19 @@ test("readAbstention — prose about staying quiet is a MESSAGE, not an abstenti
   assert.equal(readAbstention("Te aviso que iba a mandar NO_MESSAGE pero mejor te cuento"), null);
 });
 
-test("abstentionChannels — never a push channel, and never nowhere", async () => {
+test("abstentionChannels — always `log`, whatever the routine delivers to", async () => {
   const { abstentionChannels } = await import("#core/routines/delivery.js");
-  // Manu's rule: not the phone, "que lo diga en canal web sino".
-  assert.deepEqual(abstentionChannels(["telegram"]), ["web"]);
-  assert.deepEqual(abstentionChannels(["telegram", "web"]), ["web"]);
-  assert.deepEqual(abstentionChannels([]), ["web"]);
+  // Manu's rule was "not the phone, leave it where I can look at it"; the first
+  // reading of that sent it to `web`, and a watch on every:2h then wrote twelve
+  // notes a day into the same thread as the conversation. The destination is
+  // decided by what the text IS, so the routine's own channels do not move it.
+  assert.deepEqual(abstentionChannels(["telegram"]), ["log"]);
+  assert.deepEqual(abstentionChannels(["telegram", "web"]), ["log"]);
+  assert.deepEqual(abstentionChannels(["web"]), ["log"]);
+  assert.deepEqual(abstentionChannels([]), ["log"]);
 });
 
-test("runRoutineNow — an abstention is never pushed, never charged to the budget, and is readable on web", async () => {
+test("runRoutineNow — an abstention is never pushed, never charged to the budget, and is readable on log", async () => {
   const { listNudges } = await import("#core/nudge/index.js");
   const root = makeTempProject({ name: "northwind" });
   const sent = [];
@@ -747,13 +751,20 @@ test("runRoutineNow — an abstention is never pushed, never charged to the budg
     assert.equal(sent.length, 0, "nothing reached the phone");
     assert.equal(listNudges().length, before, "no interruption slot was spent");
 
-    // It is not lost either: the reasoning is on the web thread, stamped so a
+    // It is not lost either: the reasoning is on the log thread, stamped so a
     // reader can tell a decision from something Roby said.
-    const row = readGlobalMessages("web", { limit: 20 }).find((m) => m.meta?.routine === "secretary-watch");
-    assert.ok(row, "the note is on the web channel");
+    const row = readGlobalMessages({ channel: "log", limit: 20 }).find((m) => m.meta?.routine === "secretary-watch");
+    assert.ok(row, "the note is on the log channel");
     assert.equal(row.meta.abstained, true);
     assert.match(row.body, /flit lleva 8 días quieto/);
     assert.doesNotMatch(row.body, /NO_MESSAGE/, "the marker is a control token, not prose");
+    // And it is NOT in the conversation. This is the whole point of the channel:
+    // the chat stays the chat.
+    assert.equal(
+      readGlobalMessages({ channel: "web", limit: 20 }).filter((m) => m.meta?.routine === "secretary-watch").length,
+      0,
+      "the web thread is untouched",
+    );
   } finally {
     cleanupTempProject(root);
   }
