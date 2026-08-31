@@ -28,7 +28,7 @@ Everything is a client of one long-running process. Nothing else owns state.
 | Surface | Entry point | Runtime | Auth | State it holds | Boundary |
 |---|---|---|---|---|---|
 | **daemon** | `src/host/daemon/index.js` (`apx-daemon`) | long-lived, :7430 | token store | **all of it** — `~/.apx/` | HTTP + WS |
-| **API** | `host/daemon/api/*.js` — 54 routers, mounted by `buildApi()` | in-process | bearer, any token the store knows | none of its own | every data route under `/api` |
+| **API** | `host/daemon/api/*.js` — 53 routers, mounted by `buildApi()` | in-process | bearer, any token the store knows | none of its own | every data route under `/api` |
 | **web panel** | `src/interfaces/web` (React 19 + Vite) | vite :7431 dev · `dist/` served by the daemon in prod | bearer auto-fetched from `/api/admin/web-token` | SWR cache + per-device `localStorage` prefs | `src/lib/api/*` — nothing calls `fetch` directly |
 | **CLI** | `src/interfaces/cli/index.js` (`apx`) | short-lived, auto-starts the daemon | local, master token | none | lazy per-command route modules |
 | **TUI** | `src/interfaces/tui` — vendored OpenCode fork | short-lived | HTTP like any client | its own, internal | **zero `#core/` imports** — deliberate island |

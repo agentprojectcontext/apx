@@ -155,7 +155,7 @@ Places where things have actually broken, and will again:
 | Path | Why it matters |
 |---|---|
 | `src/host/daemon/index.js` | boot order — the honest table of contents |
-| `src/host/daemon/api/` | 54 routers; every data route lives under `/api` |
+| `src/host/daemon/api/` | 53 routers; every data route lives under `/api` |
 | `src/core/agent/run-agent.js` + `loop/` | the tool loop — where a turn actually happens |
 | `src/core/agent/prompts/` | what the agent is told, per channel and mode |
 | `src/core/agent/tools/handlers/` | one file per tool; the reference registry |
