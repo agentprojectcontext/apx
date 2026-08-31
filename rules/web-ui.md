@@ -2,8 +2,9 @@
 
 > Deep dive for [`AGENTS.md`](../AGENTS.md). Read before touching the web admin
 > panel. The always-read rule is **11 / 11b** in the hub; this is the how-to.
-> Known violations and their fixes are tracked in
-> [`SURVEY-2026-08-17`](../spec/repair-and-refactoring-code/SURVEY-2026-08-17.md).
+> Known violations and their fixes are tracked in the local-only survey under
+> `spec/` (gitignored — not linked from a tracked file, see
+> [`README.md`](README.md#what-is-not-here)).
 
 - **Run/verify**: `pnpm dev` (port 7431, proxies daemon 7430) hot-reloads; `pnpm build` regenerates `dist/`, which the daemon serves. Verify with `npx tsc --noEmit` — `vite build` does NOT type-check.
 - **i18n is es-typed**: `t()` keys derive from `i18n/es.ts` (`TKey = DeepKeys<EsStrings>`). Add every key to BOTH `es.ts` and `en.ts`. **`tsc` does NOT catch a missing one** — this file claimed it did, and the truth is worse: TypeScript only checks call sites against `es.ts`, `en.ts` enters the dictionary map as `unknown`, and `lookupWithFallback()` silently serves the Spanish string instead. An English user reads Spanish with every gate green. What catches it is `tests/web-guardrails.test.js`, which compares all ~2.2k leaf keys. No hardcoded user-facing literals — not even as prop defaults in shared components.

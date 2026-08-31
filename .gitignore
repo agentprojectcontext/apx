@@ -41,8 +41,14 @@ qa/
 # Build artifacts (root) — compiled CLI/TUI, not shipped to npm
 /dist/
 
-# Internal planning docs — local only (ADRs, roadmap, PRDs, backlog).
-# The AGENTS.md deep dives live in top-level rules/ (tracked), not here.
+# Internal planning docs — local only (roadmap, PRDs, backlog, feature dossiers,
+# the running code-vs-contract survey). Layout: spec/active/ + spec/archive/.
+#
+# Planning is not a guardrail. Everything an outside reader needs — the deep
+# dives, the workflow playbooks and the ADRs — lives in top-level rules/ and is
+# TRACKED. The ADRs were in here for months while five tracked files linked to
+# them, which made those links dead in every fresh clone; they now live in
+# rules/decisions/. Never link to this directory from a tracked file.
 /spec/
 
 # Screenshot harness — local dev tool, not shipped

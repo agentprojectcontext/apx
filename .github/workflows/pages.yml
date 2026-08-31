@@ -4,8 +4,14 @@ name: Deploy site to GitHub Pages
 #   /apx/        → landing.html (the site's index)
 #   /apx/docs/   → the Astro Starlight docs (built from ./docs)
 # so the docs live at https://agentprojectcontext.github.io/apx/docs/ and the
-# landing links to them. (The repo's root index.html is the web-admin SPA —
-# Vite needs it there, it is NOT published here.)
+# landing links to them.
+#
+# `landing.html` is the ONLY landing page. This comment used to claim the repo
+# root also held an index.html that was "the web-admin SPA, which Vite needs
+# there" — both halves were false. The SPA's entry is
+# src/interfaces/web/index.html (that project is self-contained), and the root
+# file was an older, superseded landing that nothing referenced. It is kept, out
+# of the way, at assets/legacy/landing-v1.html.
 # One-time setup: Repo Settings → Pages → Source: "GitHub Actions".
 
 on:
