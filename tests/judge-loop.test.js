@@ -18,6 +18,7 @@ const {
   buildJudgeFollowup,
   applyJudgeLoop,
   continuableTurn,
+  awaitingUser,
 } = await import("#core/agent/judge.js");
 const { runSuperAgent } = await import("#core/agent/super-agent.js");
 const { ProjectManager } = await import("#host/daemon/db.js");
@@ -51,6 +52,19 @@ test("continuableTurn: work that stopped, not chat and not a question", () => {
     false,
     "it is waiting for the user, not unfinished — the next move is theirs",
   );
+  // The wrap-up asks the same question ask_questions does, just in prose: it
+  // ran out of tool budget and offered to keep going. Continuing it answers
+  // over the user's head and — because the next round hits the same wall — ends
+  // in the same recap and the same question. That is the duplicate closing
+  // message reported on web chat (2026-08-30).
+  assert.equal(
+    continuableTurn({ trace: [{ tool: "read_file" }], endedAwaitingUser: true }),
+    false,
+    "the reserved wrap-up already asked whether to keep going",
+  );
+  assert.equal(awaitingUser({ trace: [{ tool: "read_file" }] }), false);
+  assert.equal(awaitingUser({ trace: [{ tool: "ask_questions" }] }), true);
+  assert.equal(awaitingUser({ trace: [], endedAwaitingUser: true }), true);
 });
 
 test("parseVerdict: strict JSON, JSON with prose around it, junk", () => {
@@ -131,6 +145,22 @@ test("applyJudgeLoop: low score refines with a followup, merges usage/trace, att
   assert.equal(result.judge.length, 2);
   assert.equal(events.filter((e) => e.type === "judge_verdict").length, 2);
   assert.equal(events[1].passed, true);
+});
+
+test("applyJudgeLoop: a round that ends asking the user stops the loop", async () => {
+  const followups = [];
+  const result = await applyJudgeLoop({
+    initialResult: { text: "first", usage: {}, trace: [{ tool: "a" }] },
+    cfg: { enabled: true, success_threshold: 0.6, max_iterations: 3 },
+    judgeFn: async () => ({ score: 0.1, reasoning: "still open", missing: ["the rest"] }),
+    runFollowup: async (followup) => {
+      followups.push(followup);
+      // This round burned its budget and closed with "want me to keep going?".
+      return { text: "second", usage: {}, trace: [{ tool: "b" }], endedAwaitingUser: true };
+    },
+  });
+  assert.equal(followups.length, 1, "a harsh judge must not re-ask over the user");
+  assert.equal(result.text, "second");
 });
 
 test("applyJudgeLoop: passing score or null verdict stops immediately", async () => {
@@ -238,6 +268,41 @@ test("runSuperAgent: unusable judge (mock echo isn't JSON) accepts the result gr
     });
     assert.equal(result.text, "all done");
     assert.equal(result.judge, undefined, "null verdict → no refinement, no trail");
+  } finally {
+    cleanupTempProject(root);
+  }
+});
+
+// The regression this fix exists for: web chat, tool budget exhausted, the
+// wrap-up asks "¿seguimos?" — and the judge used to re-run the turn, spend the
+// whole budget again, hit the same wall and send a near-identical recap plus
+// the same question, up to max_iterations times.
+test("runSuperAgent: a turn that exhausted its budget and wrapped up is not judged", async () => {
+  const root = makeTempProject({ name: "WrapUp Judge" });
+  const projects = new ProjectManager({ engines: {} });
+  projects.register(root);
+  try {
+    const events = [];
+    const result = await runSuperAgent({
+      globalConfig: {
+        super_agent: { enabled: true, model: "mock", permission_mode: "total", model_fallback: { enabled: false } },
+        memory: { enabled: false },
+        engines: {},
+      },
+      projects,
+      plugins: null,
+      registries: null,
+      // Never stops on its own: the loop runs out of action steps and closes
+      // with the tool-free wrap-up.
+      prompt: "[mock:loop:list_projects]",
+      channel: "web",
+      maxIters: 3,
+      onEvent: (e) => events.push(e),
+      judgeCompletionFn: async () => { throw new Error("must not judge a turn that asked the user"); },
+    });
+    assert.equal(result.endedAwaitingUser, true, "the wrap-up ran and it asked the user");
+    assert.equal(result.judge, undefined);
+    assert.equal(events.filter((e) => e.type === "final_wrapup").length, 1, "exactly one closing message");
   } finally {
     cleanupTempProject(root);
   }

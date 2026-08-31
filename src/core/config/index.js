@@ -69,6 +69,13 @@ const DEFAULT_CONFIG = {
     // is a runaway backstop, not a normal stopping point. Telegram-bound routines
     // keep telegram_max_iters so their message stays one concise turn.
     routine_max_iters: 0,
+    // Tool-loop budget for the web chat (big chat + docked sidebar). This is the
+    // surface you watch while it works, so it runs to completion instead of
+    // stopping every few actions to ask — the "want me to keep going?" close is
+    // Telegram's guardrail, where you can't see the turn go wrong. 0/unset →
+    // built-in ceiling (WEB_TOOL_ITERS in src/core/agent/constants.js), which is
+    // a runaway backstop, not a normal stopping point.
+    web_max_iters: 0,
     // How often a working turn may speak before it's done. The model's own
     // opening line always goes out (nothing is ever written on its behalf);
     // after that the turn stays quiet — one notice, the work, then the answer —

@@ -14,6 +14,7 @@ import { resolveAgentName } from "#core/identity/index.js";
 import { memoryBlockFor, buildActiveThreadsBlock } from "#core/memory/index.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { judgeConfig, judgeCompletion, applyJudgeLoop, continuableTurn } from "#core/agent/judge.js";
+import { superAgentToolIters } from "#core/agent/constants.js";
 import { mobilityContextBlock } from "#core/mobility/state.js";
 
 export {
@@ -50,6 +51,8 @@ export async function runSuperAgent({
   maxTokens,
   // Max tool-loop iterations; forwarded to runAgent. The Code module raises
   // this so coding tasks run to completion instead of stopping after a step.
+  // Left unset, the channel decides (superAgentToolIters): the web chat runs to
+  // completion, everything else keeps runAgent's conversational default.
   maxIters,
   // Structural "keep going until done" contract (finish tool + forced tool
   // choice). Coding surfaces (web Code build mode, terminal Build) turn this on.
@@ -149,6 +152,11 @@ export async function runSuperAgent({
     ? null
     : selectModelByRules({ prompt, previousMessages, channel, channelMeta }, globalConfig);
 
+  // An explicit budget from the caller always wins; otherwise the surface's own
+  // default applies. This is where the web chat stops hitting a wall every 9
+  // actions and asking whether to keep going — see WEB_TOOL_ITERS.
+  const effectiveMaxIters = maxIters || superAgentToolIters(globalConfig, channel);
+
   const runOnce = (turnPrompt, history) =>
     runAgent({
       globalConfig,
@@ -168,7 +176,7 @@ export async function runSuperAgent({
       agentName: resolveAgentName(globalConfig),
       suppressTools,
       ...(maxTokens ? { maxTokens } : {}),
-      ...(maxIters ? { maxIters } : {}),
+      ...(effectiveMaxIters ? { maxIters: effectiveMaxIters } : {}),
       ...(completionContract ? { completionContract: true } : {}),
     });
 

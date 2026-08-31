@@ -259,7 +259,10 @@ Cubre dos formas distintas de que un turno termine antes de tiempo:
   siguiente ("ahora genero el SRT en inglés") y no escribe ninguna llamada: la tarea queda a mitad
   esperando que la empujen. El juez es ese empujón. Un turno que no usó herramientas nunca se
   juzga (una charla no tiene nada que terminar), ni tampoco uno que cerró preguntándote algo —
-  ese está esperando, no inconcluso.
+  ese está esperando, no inconcluso. "Preguntándote algo" cubre las dos formas de preguntar: la
+  herramienta `ask_questions` y el paso de cierre reservado, ese que se queda sin presupuesto de
+  herramientas y te ofrece seguir. Continuar ese turno es responder por vos, y como la ronda
+  siguiente choca contra la misma pared, termina repitiendo el mismo resumen y la misma pregunta.
 
 ```json
 "super_agent": {
@@ -277,6 +280,33 @@ Cubre dos formas distintas de que un turno termine antes de tiempo:
 el overhead de verificación. Los veredictos salen como eventos `judge_verdict`, en el resultado
 como `result.judge`, y en el mensaje de Telegram que cerró el turno — así un turno que se hizo
 largo se puede rastrear hasta el veredicto que lo mantuvo andando.
+
+## Presupuesto de herramientas por superficie
+
+Cuántos pasos de herramienta puede dar un turno depende de si podés mirarlo trabajar.
+
+| Superficie | Presupuesto | Por qué |
+|---|---|---|
+| Telegram | `telegram_max_iters` (24) | Un turno en el celular pasa de largo sin forma de ver que se fue a la banquina, así que el presupuesto es la baranda: frena y pregunta. |
+| Chat web + sidebar | `web_max_iters` (1000) | Cada llamada se dibuja en vivo y estás a un click de frenarlo — la baranda sos vos, así que el turno corre hasta terminar el trabajo. |
+| Rutinas (sin Telegram) | `routine_max_iters` (1000) | Nadie está esperando a mitad de la corrida para contestar "¿sigo?". |
+| Superficies de código | Explícito, más el completion contract | Frenan en `finish`, no en un número. |
+
+Los dos techos de `1000` son frenos de emergencia, no puntos de parada normales: el loop ya
+termina en cuanto el modelo deja de llamar herramientas, y la detección de loops aborta las
+repeticiones. Poné cualquiera en `0` para usar el valor por defecto.
+
+```json
+"super_agent": {
+  "telegram_max_iters": 0,
+  "web_max_iters": 0,
+  "routine_max_iters": 0
+}
+```
+
+Cuando un presupuesto *sí* se agota, el último paso queda reservado para un mensaje de cierre sin
+herramientas, escrito por el modelo: qué hizo, qué falta y si querés que siga. En web eso pasó a
+ser un piso de seguridad raro en vez de la forma en que terminan casi todos los turnos.
 
 ## Detección de loops (stuck detection)
 
