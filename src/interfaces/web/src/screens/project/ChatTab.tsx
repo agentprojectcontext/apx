@@ -241,7 +241,8 @@ export function ChatTab({
   const isMultiThread = isA2A || isGroup;
 
   // Transcript layout: tools visible (ActionGroup) vs pelado (text only).
-  // Persisted per chat so the header switch and the create-group checkbox stick.
+  // Persisted per chat so the header switch and the create-group checkbox stick,
+  // falling back to this device's last header flip for chats never set.
   const showToolsKey = `${SHOW_TOOLS_PREF}.${pid}.${chatKeyToString(selected)}`;
   const [showTools, setShowToolsState] = useState(() => readShowTools(showToolsKey));
   useEffect(() => {
@@ -250,6 +251,7 @@ export function ChatTab({
   const setShowTools = (v: boolean) => {
     setShowToolsState(v);
     writeShowTools(showToolsKey, v);
+    writeShowToolsDefault(v);
   };
 
   // Whenever the user picks a stored conversation or a channel thread, reload
@@ -1322,23 +1324,38 @@ function formatDate(iso?: string): string {
 }
 
 // Per-chat preference: show tool ActionGroups vs pelado transcript.
-// Default off (pelado) so the thread reads like a conversation; flip the header
-// switch (or the create-group checkbox) when you want the work log.
+// A chat you have already set keeps its own value; one you have never opened
+// starts from the last flip of the header switch, so you do not re-flip it in
+// every new conversation. Pelado the very first time. Both keys live in
+// localStorage, so each device remembers what you read on that device.
 const SHOW_TOOLS_PREF = "apx.chat.showTools";
+const SHOW_TOOLS_LAST = "apx.chat.showTools.last";
 
-function readShowTools(key: string): boolean {
+function readFlag(key: string): boolean | null {
   try {
     const raw = localStorage.getItem(key);
-    if (raw === null) return false;
+    if (raw === null) return null;
     return raw === "1" || raw === "true";
   } catch {
-    return false;
+    return null;
   }
+}
+
+function readShowTools(key: string): boolean {
+  return readFlag(key) ?? readFlag(SHOW_TOOLS_LAST) ?? false;
 }
 
 function writeShowTools(key: string, v: boolean): void {
   try {
     localStorage.setItem(key, v ? "1" : "0");
+  } catch { /* quota / private mode */ }
+}
+
+/** The header switch also moves the device default. The create-group checkbox
+ *  does not: that one is a choice about that one room. */
+function writeShowToolsDefault(v: boolean): void {
+  try {
+    localStorage.setItem(SHOW_TOOLS_LAST, v ? "1" : "0");
   } catch { /* quota / private mode */ }
 }
 
