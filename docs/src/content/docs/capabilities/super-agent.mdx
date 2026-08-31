@@ -254,6 +254,10 @@ It covers two different ways a turn ends early:
   ("ahora genero el SRT en inglés") and writes no call: the task stops halfway and waits to be
   poked. The judge is the poke. A turn that ran no tools is never judged (chat has nothing to
   finish), nor is one that ended by asking you something — that one is waiting, not unfinished.
+  "Asking you something" covers both ways a turn can ask: the `ask_questions` tool, and the
+  reserved closing step that runs out of tool budget and offers to keep going. Continuing that
+  one answers over your head, and since the next round hits the same wall it just repeats the
+  same recap and the same question.
 
 ```json
 "super_agent": {
@@ -271,6 +275,33 @@ It covers two different ways a turn ends early:
 overhead low. Verdicts surface as `judge_verdict` events, on the result as `result.judge`, and on
 the Telegram message that closed the turn — so a turn that ran long can be traced back to the
 verdict that kept it going.
+
+## Per-surface tool budget
+
+How many tool steps one turn may take depends on whether you can watch it work.
+
+| Surface | Budget | Why |
+|---|---|---|
+| Telegram | `telegram_max_iters` (24) | A phone turn scrolls past with no way to see it go wrong, so the budget is the guardrail: it stops and asks. |
+| Web chat + sidebar | `web_max_iters` (1000) | Every call renders live and you're one click from stopping it — *you* are the guardrail, so the turn runs until the work is done. |
+| Routines (non-Telegram) | `routine_max_iters` (1000) | Nobody is waiting mid-run to answer "want me to keep going?". |
+| Coding surfaces | Explicit, plus the completion contract | They stop on `finish`, not on a count. |
+
+The two `1000` ceilings are runaway backstops, not normal stopping points: the loop already ends
+the moment the model stops calling tools, and stuck detection aborts the repeat-loops. Set any of
+these to `0` for the built-in default.
+
+```json
+"super_agent": {
+  "telegram_max_iters": 0,
+  "web_max_iters": 0,
+  "routine_max_iters": 0
+}
+```
+
+When a budget *is* exhausted, the last step is reserved for a tool-free, model-authored closing
+message: what it did, what's left, and whether to keep going. On web that is now a rare safety
+floor rather than the way most turns end.
 
 ## Stuck detection
 

@@ -217,6 +217,9 @@ else in between.
 
 How much work fits in one turn is a separate knob: `super_agent.telegram_max_iters` caps the
 tool steps a single turn may take (default 24, the last one reserved for the closing message).
+That cap is Telegram's guardrail — you can't watch a phone turn go wrong, so it stops and asks.
+The web chat, which you *do* watch, runs to completion instead; see
+[Per-surface tool budget](/apx/docs/capabilities/super-agent/#per-surface-tool-budget).
 
 ## Sender identity and roles
 

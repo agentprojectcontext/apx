@@ -159,14 +159,39 @@ export function buildJudgeFollowup(verdict, iteration) {
  *     it would be one model call per "hola".
  *   - a turn that ended by ASKING the user is not unfinished, it is waiting. A
  *     verdict of "not complete" there would push the agent to answer its own
- *     question instead of letting the person answer it.
+ *     question instead of letting the person answer it. That covers both ways a
+ *     turn can ask: the ask_questions tool, and run-agent's reserved wrap-up
+ *     step (`endedAwaitingUser`), whose whole job is to recap and ask "want me
+ *     to keep going?" when the tool budget runs out.
  *
- * @param {{trace?: {tool?: string}[]}} result a runAgent result
+ * The wrap-up case is the one that bit us (2026-08-30, web chat): the budget
+ * ran out at 9 actions, the wrap-up asked whether to continue, the judge read
+ * "worked and then stopped" and re-ran the turn — which spent another 9 actions
+ * and hit the same wall, so the user got the same recap and the same question
+ * three times in a row, never once getting to answer it. Extending a budget the
+ * system itself set is what maxIters is for; the judge's job is to poke a turn
+ * that quit on its own.
+ *
+ * @param {{trace?: {tool?: string}[], endedAwaitingUser?: boolean}} result a runAgent result
  */
 export function continuableTurn(result) {
   const trace = Array.isArray(result?.trace) ? result.trace : [];
   if (trace.length === 0) return false;
-  return !trace.some((t) => TURN_ENDING_TOOLS.has(String(t?.tool || "")));
+  return !awaitingUser(result);
+}
+
+/**
+ * Did this turn close by putting a question to the user? Two ways it can:
+ * the ask_questions tool, or run-agent's reserved wrap-up step, which recaps
+ * and asks "want me to keep going?" when the tool budget runs out
+ * (`endedAwaitingUser`). Either way the next move belongs to a person.
+ *
+ * @param {{trace?: {tool?: string}[], endedAwaitingUser?: boolean}} result a runAgent result
+ */
+export function awaitingUser(result) {
+  if (result?.endedAwaitingUser) return true;
+  const trace = Array.isArray(result?.trace) ? result.trace : [];
+  return trace.some((t) => TURN_ENDING_TOOLS.has(String(t?.tool || "")));
 }
 
 /**
@@ -202,6 +227,11 @@ export async function applyJudgeLoop({ initialResult, cfg, judgeFn, runFollowup,
       },
       trace: [...(result.trace || []), ...(next.trace || [])],
     };
+    // The round we just ran closed by asking the user something — it exhausted
+    // its budget and wrapped up, or it called ask_questions. Same rule as the
+    // gate that let us in here: another round would answer over their head and
+    // re-ask the identical question.
+    if (awaitingUser(result)) break;
   }
   return trail.length ? { ...result, judge: trail } : result;
 }

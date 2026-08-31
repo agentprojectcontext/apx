@@ -480,6 +480,13 @@ export async function runAgent({
   const stuckDetector = createStuckDetector(stuckCfg);
   let stuckNudged = false;
   let forceWrapUp = false;
+  // Set when the turn closed on the reserved wrap-up step (budget exhausted, or
+  // stuck-aborted). The wrap-up ASKS the user whether to keep going, so such a
+  // turn is waiting on a person — exactly like ask_questions — not unfinished.
+  // Callers that would otherwise "continue" it (the judge loop) must not, or the
+  // user gets the same recap and the same question again every round without
+  // ever being given the chance to answer it.
+  let endedAwaitingUser = false;
   const safeSig = (v) => {
     try {
       return JSON.stringify(v) ?? "";
@@ -688,6 +695,10 @@ export async function runAgent({
         conversation.push({ role: "user", content: TRUNCATED_SIGNAL });
         continue;
       }
+      // The text we just took as the answer IS the wrap-up: it ends by asking
+      // the user whether to continue. Tell the caller so nobody answers on
+      // their behalf.
+      if (isFinalWrapUp) endedAwaitingUser = true;
       break;
     }
 
@@ -938,5 +949,8 @@ export async function runAgent({
     trace,
     model: activeModel,
     routing,
+    // True when the turn closed on the reserved wrap-up — it asked the user a
+    // question and the next move is theirs. See endedAwaitingUser above.
+    endedAwaitingUser,
   };
 }
