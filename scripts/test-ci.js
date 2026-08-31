@@ -39,7 +39,14 @@ if (!files.length) {
 //
 // So these sit just under the observed floor of the range, not at its ceiling.
 // Raise them again only against several consecutive runs, never one.
-const COVERAGE_FLOOR = { line: 77, branch: 72, function: 71 };
+//
+// 2026-08-31, raised line 77->78 and function 71->72 against three consecutive
+// runs (220 files): line 78.82/78.82/78.82, branch 72.51/72.50/72.48, function
+// 72.91/72.91/72.94. Branch stays at 72 — its observed floor is 72.48, so 73
+// would sit ABOVE the range and fail on green code. Those samples are Node 24
+// (local); CI runs 22, hence keeping the same ~0.9 of headroom the previous
+// floors had rather than pushing to the measured value.
+const COVERAGE_FLOOR = { line: 78, branch: 72, function: 72 };
 
 // 4. A throwaway HOME for the whole run. Tests that isolate by stubbing
 //    os.homedir() are one refactor away from writing to the developer's real

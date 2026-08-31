@@ -45,7 +45,7 @@ early return survived in two separate components.
 | No rebuilding `~/.apx` paths from `os.homedir()` | 13 | root `eslint.config.js` (`NO_HOMEDIR`) |
 | Async route handlers wrapped in `asyncRoute()` | 15 | root `eslint.config.js` (`ASYNC_ROUTE`) |
 | No skipped or todo tests | 1 | `scripts/test-ci.js` |
-| Coverage floor (line 77 / branch 72 / function 71) | 1 | `scripts/test-ci.js` (`COVERAGE_FLOOR`) |
+| Coverage floor (line 78 / branch 72 / function 72) | 1 | `scripts/test-ci.js` (`COVERAGE_FLOOR`) |
 | Every i18n key in **both** `en.ts` and `es.ts` | 11 | `tests/web-guardrails.test.js` |
 | No Radix, no `components.json` | 11 | `tests/web-guardrails.test.js` |
 | Panel requests go through `src/lib/api/*` | 11 | `tests/web-guardrails.test.js` |
@@ -56,6 +56,7 @@ early return survived in two separate components.
 | Panel types | 11 | `tsc --noEmit` in `src/interfaces/web` |
 | SPA fallback matches the `<Routes>` registry | 9 | `tests/web-spa-fallback.test.js` |
 | Runtime skill headers, `name` == dir, English-only | 6 | `tests/runtime-skills.test.js` |
+| Every link in a tracked doc points at something tracked | — | `tests/docs-links.test.js` |
 
 ### Why i18n parity needed a test rather than types
 
@@ -93,6 +94,24 @@ The check uses `\p{Ll}`, not `[a-z]`. Three Spanish labels opened with `"ú"`
 (`"última:"`) while their English twins already read `"Last:"`; an ASCII-only
 check called that clean, and per-locale drift is exactly what 11a forbids.
 
+### Why dead links needed a gate rather than review
+
+`spec/` and `qa/` are gitignored because planning notes and raw QA logs quote
+real ids, real paths and occasionally real credentials, and this is a public
+repo with permanent history. Nothing stopped a **tracked** file from linking
+into them, and five did: `AGENTS.md`, three files under `rules/`, and the web
+panel README all pointed at a survey and at ADRs that were never pushed.
+
+Locally every one of those links worked, which is the whole problem — the
+machine that writes the link is the machine that will never notice. On GitHub
+and in every fresh clone they were 404s, and the five ADRs behind them were
+architecture decisions no outside reader could see. It held for months of
+review.
+
+`tests/docs-links.test.js` asserts the stronger property — a link must resolve
+to a **tracked** path — so it catches the ordinary broken relative path for
+free. Run against `8a244b5` it fails with exactly those six links.
+
 ## Convention only — nothing checks these
 
 Real rules. No mechanism. They hold because someone reads the diff.
@@ -108,7 +127,6 @@ Real rules. No mechanism. They hold because someone reads the diff.
 | Restart the daemon before testing by hand | 17 | Inherently manual — and the most expensive rule in the file to skip |
 | The 14 Playwright specs | 11 | Now run in CI's `e2e` job, but **not** in `preflight` or `pre-push` (they need a booted daemon and a browser) |
 | The change workflow (plan → review → verify → brief) | — | Process, not code. [`workflow/`](workflow/) is the playbook; nothing can assert a review happened |
-| A tracked file must not link into `spec/` or `qa/` | — | Both are gitignored; such links are dead in every fresh clone. Caught in review — it went unnoticed across five files for months |
 
 ## The gates, and what each one runs
 
