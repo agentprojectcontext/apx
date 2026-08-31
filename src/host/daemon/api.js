@@ -40,6 +40,7 @@ import { register as registerPlugins } from "./api/plugins.js";
 import { register as registerEngines } from "./api/engines.js";
 import { register as registerSkills } from "./api/skills.js";
 import { register as registerExec } from "./api/exec.js";
+import { register as registerTurns } from "./api/turns.js";
 import { register as registerSuperAgent } from "./api/super-agent.js";
 import { register as registerCode } from "./api/code.js";
 import { register as registerConversations } from "./api/conversations.js";
@@ -166,6 +167,7 @@ export function buildApi({
   registerEngines(api, ctx);
   registerSkills(api, ctx);
   registerExec(api, ctx);
+  registerTurns(api, ctx);
   registerSuperAgent(api, ctx);
   registerConfirm(api, ctx);
   registerNet(api, ctx);

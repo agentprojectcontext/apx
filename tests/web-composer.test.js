@@ -112,8 +112,15 @@ test("a queued turn waits its turn without touching the one in flight", () => {
   // queued bubble parked at the end of `msgs` would take the rest of the
   // stream — or be the thing a failed turn deleted.
   assert.match(chat, /const \[queued, setQueued\] = useState<QueuedTurn\[\]>\(\[\]\)/);
-  assert.match(chat, /if \(streaming\) \{\s*\n\s*setQueued\(\(curr\) => \[\.\.\.curr,/, "a send during a run queues instead of being dropped");
+  const duringRun = chat.slice(chat.indexOf("if (streaming) {"), chat.indexOf("const history: ConversationMessage[]"));
+  assert.match(duringRun, /setQueued\(\(curr\) => \[\.\.\.curr,/, "a send during a run queues instead of being dropped");
   assert.doesNotMatch(chat, /\(!trimmed && !files\.length\) \|\| streaming/, "streaming is no longer a refusal");
+  // …and by DEFAULT it also cuts the running turn short. Writing while an agent
+  // works almost always means "no, stop, do this instead" — which is what a new
+  // message has always done on Telegram. It is still queued either way: the
+  // drain effect is what sends it, so the message survives the interruption and
+  // goes out with a history that includes whatever the stopped turn wrote.
+  assert.match(duringRun, /if \(!queueOnSendRef\.current\) void stopTurn\(\)/, "interrupt is the default");
 
   // The drain is an EFFECT, not `send`'s own finally: `send` builds history
   // from the msgs its closure captured, which is the list from BEFORE the turn
@@ -130,6 +137,21 @@ test("a queued turn waits its turn without touching the one in flight", () => {
   // correction has to survive the stop.
   const stopBody = chat.slice(chat.indexOf("const stop = useCallback"), chat.indexOf("const unqueue ="));
   assert.doesNotMatch(stopBody, /setQueued/);
+
+  // Stop has to reach the DAEMON. Closing our socket never stopped the run —
+  // that is deliberate, it is what lets another tab catch up on a turn in
+  // progress — so the panel's stop button was a button that stopped nothing:
+  // the turn kept going, kept calling tools, and persisted its answer to a
+  // thread nobody was watching.
+  const stopTurnBody = chat.slice(chat.indexOf("const stopTurn = useCallback"), chat.indexOf("const send = useCallback"));
+  assert.match(stopTurnBody, /await Turns\.abort\(pid, target\)/, "the run is stopped by asking, not by hanging up");
+  assert.match(stopTurnBody, /if \(aborted\) return;/);
+  assert.match(stopTurnBody, /abortRef\.current\?\.abort\(\)/, "and the local abort stays as the fallback");
+  // The turn names itself before it does any work, so it can be addressed from
+  // the first token — `final` used to be the first mention of the conversation
+  // it had been writing to all along.
+  assert.match(chat, /if \(ev\.type === "start"\)/);
+  assert.match(chat, /turnTargetRef\.current = \{ channel: "web" \}/, "Roby's thread IS its channel");
   // Leaving the thread does drop it; a background catch-up of the same thread
   // must not.
   assert.match(chat, /if \(!opts\?\.silent\) \{ setMsgs\(\[\]\); setQueued\(\[\]\); \}/);
@@ -155,4 +177,21 @@ test("a queued turn is in the thread, and can be taken back", () => {
     assert.match(dict, /queued:\s+"/, `${lang} names the state`);
     assert.match(dict, /queued_cancel:\s+"/, `${lang} names the way out`);
   }
+});
+
+test("interrupt-or-queue is a per-device choice, offered where it applies", () => {
+  const composer = web("components", "chat", "Composer.tsx");
+  // Only while something is running: what happens if you write right now is the
+  // only question it answers, and a switch for a situation you are not in is
+  // clutter.
+  assert.match(composer, /\{streaming \? <SendModeToggle \/> : null\}/);
+  assert.match(composer, /onClick=\{\(\) => setQueueOnSend\(!queues\)\}/);
+  assert.match(composer, /aria-pressed=\{queues\}/, "it is a switch, and says so to a screen reader");
+
+  // Per device, like the channel view/notify choices — the phone and the desktop
+  // are used differently by the same person.
+  const prefs = web("lib", "chat-prefs.ts");
+  assert.match(prefs, /localStorage\.getItem\(KEY\) === "1"/);
+  assert.match(prefs, /return false;/, "the default is interrupt");
+  assert.match(prefs, /catch \{/, "private mode must not make the composer throw");
 });

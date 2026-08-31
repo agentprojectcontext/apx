@@ -58,6 +58,10 @@ export async function runAgentTurn({
   onEvent = null,
   onToken = null,
   requestConfirmation = null,
+  // Cancellation. Without it a turn could only be stopped by not looking at it:
+  // the caller's stream closing does not end the run (that is what lets another
+  // tab catch up), so "stop" and "interrupt" both come down to signalling this.
+  signal = null,
 }) {
   const cap = Number.isFinite(Number(maxTokens)) ? Number(maxTokens) : AGENT_TURN_MAX_TOKENS;
 
@@ -69,6 +73,7 @@ export async function runAgentTurn({
       config: p.config || config,
       temperature,
       maxTokens,
+      signal,
     });
     return {
       text: result.text || "",
@@ -143,6 +148,7 @@ export async function runAgentTurn({
     },
     agentName: agent.slug,
     maxTokens: cap,
+    signal,
     ...(effectiveMaxIters ? { maxIters: effectiveMaxIters } : {}),
     onEvent,
     onToken,

@@ -25,6 +25,7 @@ import { asyncRoute, rejectA2AWrite} from "./shared.js";
 import { readTurnAttachments } from "./media.js";
 import { broadcastTurn } from "../events-ws.js";
 import { startActiveTurn, appendActiveTurn, endActiveTurn, convTurnKey } from "../active-turns.js";
+import { wasAborted, abortedTurnEvent } from "./turn-abort.js";
 
 // How long a streamed turn may go silent before it writes a keepalive byte.
 // Matches api/super-agent.js — comfortably under undici's body timeout.
@@ -337,14 +338,34 @@ export function register(api, { projects, project, config, plugins, registries }
     // catch up on the partial and follow the tokens live. The turn keeps running
     // here regardless of whether this NDJSON socket stays open.
     const turnKey = convTurnKey(p.id, turn.conv.id);
+    // The run's kill switch. Closing this socket deliberately does NOT stop the
+    // turn — that is what lets another tab catch up — so stopping it has to be
+    // asked for out loud, via POST .../turns/abort, which reaches `abort` here.
+    const turnAbort = new AbortController();
     const active = startActiveTurn(turnKey, {
       project_id: p.id, agent_slug: agent.slug, conversation_id: turn.conv.id, model: modelId,
+      abort: () => turnAbort.abort(),
     });
+    // The steps as they happen. runAgentTurn throws on abort and its trace goes
+    // with it, so an interrupted turn would otherwise be persisted as prose with
+    // the work erased — and the turn that continues it would not know which
+    // tools had already run for real.
+    const partialTrace = [];
     const turnFrame = (phase, extra) => broadcastTurn({
       phase, project_id: p.id, agent_slug: agent.slug, conversation_id: turn.conv.id,
       turn_id: active.id, ...extra,
     });
     turnFrame("start");
+    // The conversation's identity, up front. It used to ride only on `final`,
+    // which meant the first turn of a new chat could not be addressed until it
+    // was over — no way to stop it, and nothing for another tab to follow.
+    send({
+      type: "start",
+      conversation_id: turn.conv.id,
+      turn_id: active.id,
+      agent_slug: agent.slug,
+      model: modelId,
+    });
 
     try {
       const result = await runAgentTurn({
@@ -357,7 +378,11 @@ export function register(api, { projects, project, config, plugins, registries }
         channelMeta,
         temperature, maxTokens, tools, maxIters,
         projects, plugins, registries, config,
-        onEvent: send,
+        signal: turnAbort.signal,
+        onEvent: (ev) => {
+          if (ev?.type === "tool_result" && ev.trace) partialTrace.push(ev.trace);
+          send(ev);
+        },
         onToken: (chunk) => { send({ type: "assistant_delta", delta: chunk }); appendActiveTurn(active.id, chunk); turnFrame("delta", { delta: chunk }); },
         // A streamed turn CAN answer a confirmation round-trip (the client
         // posts to /super-agent/confirm/:id). A caller that cannot — `apx exec`
@@ -385,6 +410,28 @@ export function register(api, { projects, project, config, plugins, registries }
       clearInterval(keepalive);
       res.end();
     } catch (e) {
+      // Interrupted, not broken. Whatever streamed is real work the user saw, so
+      // it stays in the thread — the message that interrupted this turn opens
+      // the next one, and reads what got done here as its history. Same contract
+      // Telegram has: "whatever streamed so far is already sent + logged; the
+      // newer message's run continues the thread."
+      if (wasAborted(e, turnAbort)) {
+        const partial = (active.text || "").trim();
+        if (partial || partialTrace.length) {
+          persistAgentReply({
+            filePath: turn.conv.path,
+            agent,
+            result: { text: partial, trace: partialTrace, model: modelId, media: [] },
+          });
+          projects.rebuild(p.id);
+        }
+        const ev = abortedTurnEvent({ text: partial, trace: partialTrace });
+        turnFrame("aborted", ev);
+        clearInterval(keepalive);
+        send(ev);
+        res.end();
+        return;
+      }
       turnFrame("error", { error: e.message });
       clearInterval(keepalive);
       send({ type: "error", error: e.message });

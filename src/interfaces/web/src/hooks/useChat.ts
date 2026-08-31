@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { SuperAgent, Agents, Conversations, Groups } from "../lib/api";
+import { SuperAgent, Agents, Conversations, Groups, Turns } from "../lib/api";
 import type { ActiveTurn, AgentFace, ChatStreamEvent, ChatUsage, ConversationMessage, MessageMedia, ToolSummary, TurnFrame } from "../types/daemon";
 import type { UploadedMedia } from "../lib/api/media";
 import { subscribeTurns } from "../lib/live";
 import { t } from "../i18n";
+import { queueOnSend, onChatPrefsChange } from "../lib/chat-prefs";
 
 export type ToolStatus = "running" | "done" | "error" | "deduped";
 
@@ -54,6 +55,9 @@ export interface ChatMsg {
   who?: string;
   /** Token accounting from the `final` event. */
   usage?: ChatUsage;
+  /** You stopped this turn. What is here is what it had done — real work, kept
+   *  on purpose so the message that interrupted it reads this as its history. */
+  stopped?: boolean;
   /** Operational notes (engine fallbacks, retries, suppressions). */
   notes?: string[];
   /** What a HISTORICAL turn did. Live turns render real ToolCall parts from
@@ -580,6 +584,25 @@ export function applyStreamEvent(turn: ChatMsg, ev: ChatStreamEvent): ChatMsg {
             : parts,
       };
     }
+    case "start":
+      // Identity only (which conversation / channel this turn is on). The pane
+      // binds to it outside the reducer — nothing about the bubble changes.
+      return turn;
+    case "aborted": {
+      // You stopped it. Everything streamed so far stands: it is work that
+      // really happened, the daemon persisted it, and the message that
+      // interrupted this turn reads it as history. So the only thing to do is
+      // close the open segment — no text is thrown away, and this is NOT an
+      // error, which is why it does not travel as one.
+      return {
+        ...turn,
+        pending: false,
+        stopped: true,
+        parts: turn.parts.map((p) =>
+          p.kind === "text" && p.streaming ? { kind: "text", text: p.text } : p,
+        ),
+      };
+    }
     default: {
       // `assistant_delta` — tokens as the model writes them. They only ever
       // extend a part that is still streaming; a segment already closed by
@@ -647,6 +670,11 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
   const [queued, setQueued] = useState<QueuedTurn[]>([]);
   const queueSeq = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
+  // How the DAEMON addresses the turn this tab started, so it can be stopped for
+  // real. abortRef only closes our socket, which the daemon deliberately ignores
+  // (that is what lets another tab catch up on a running turn) — the run itself
+  // stops only when asked, through POST /turns/abort.
+  const turnTargetRef = useRef<{ conversation_id?: string; channel?: string } | null>(null);
   const convoRef = useRef<string | undefined>(undefined);
   // Monotonic token guarding async history loads. Every load()/loadThread()/
   // clear() bumps it; a load only applies its result if it's still the latest.
@@ -658,6 +686,15 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
   // also pushes for everyone else, or it would paint each token twice.
   const streamingRef = useRef(false);
   useEffect(() => { streamingRef.current = streaming; }, [streaming]);
+  // Interrupt or wait, when you write during a running turn. Held in a ref so
+  // flipping the switch mid-turn takes effect on the very next send instead of
+  // rebuilding `send` and its captured history.
+  const queueOnSendRef = useRef(queueOnSend());
+  useEffect(() => {
+    const read = () => { queueOnSendRef.current = queueOnSend(); };
+    read();
+    return onChatPrefsChange(read);
+  }, []);
   // The turn this tab is FOLLOWING from the live feed (a turn it did not start):
   // its id and the text accumulated so far, so a frame that arrives after a
   // background refetch wiped the bubble can repaint it whole rather than lose it.
@@ -677,6 +714,28 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
     (ev: ChatStreamEvent) => {
       if (ev.type === "error") {
         onError?.(ev.error || t("shared_ui.err_stream"));
+        return;
+      }
+      // The turn names itself before it does any work, so stopping it (or
+      // interrupting it by sending) works from the first token — not only once
+      // it is over, which is when `final` used to be the first mention of the
+      // conversation it had been writing to all along.
+      if (ev.type === "start") {
+        if (ev.conversation_id) {
+          convoRef.current = ev.conversation_id;
+          setConversationId(ev.conversation_id);
+          turnTargetRef.current = { conversation_id: ev.conversation_id };
+        } else if (ev.channel) {
+          turnTargetRef.current = { channel: ev.channel };
+        }
+      }
+      // Stopped by you. Mark it the same way the local-abort path does, so the
+      // two routes to the same outcome read identically in the thread.
+      if (ev.type === "aborted") {
+        patchLast((m) => {
+          const closed = applyStreamEvent(m, ev);
+          return { ...closed, parts: [...closed.parts, { kind: "text", text: t("code_module.stopped") }] };
+        });
         return;
       }
       patchLast((m) => applyStreamEvent(m, ev));
@@ -768,6 +827,32 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
 
   useEffect(() => subscribeTurns(onTurnFrame), [onTurnFrame]);
 
+  /**
+   * Stop the turn the DAEMON is running, not just the socket we read it through.
+   *
+   * Closing the stream has never stopped a run and must not start to: another
+   * tab, or this one after a refresh, catches up on a turn in progress from the
+   * daemon's own copy (see active-turns.js). So the ask is explicit, and the
+   * daemon answers by closing the stream with `aborted` — which carries the
+   * partial and is not an error.
+   *
+   * The local abort is the fallback for the two cases the daemon cannot answer:
+   * there is no live turn under that key (it finished a moment before the click
+   * landed), or the request itself failed.
+   */
+  const stopTurn = useCallback(async () => {
+    const target = turnTargetRef.current;
+    if (target) {
+      try {
+        const { aborted } = await Turns.abort(pid, target);
+        if (aborted) return;
+      } catch {
+        /* the daemon could not be asked — fall through and at least stop reading */
+      }
+    }
+    abortRef.current?.abort();
+  }, [pid]);
+
   const send = useCallback(
     async (text: string, opts: SendOptions = {}) => {
       const trimmed = text.trim();
@@ -793,7 +878,17 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
       // now and leaves on its own when the run lands — refusing it is what made
       // "stop" the only button a working agent would show you.
       if (streaming) {
+        // Queued either way — the drain effect below is what actually sends it,
+        // once the pane is free and its history includes whatever the running
+        // turn wrote. The preference only decides whether we WAIT for that turn
+        // or cut it short.
         setQueued((curr) => [...curr, { id: `q${++queueSeq.current}`, text: trimmed, opts, msg: bubble() }]);
+        // Interrupt, by default: writing while an agent works almost always
+        // means "no, stop, do this instead", which is what a new message has
+        // always done on Telegram. Whatever the turn had written stays in the
+        // thread, so this lands as a redirection of work in progress rather
+        // than a fresh start.
+        if (!queueOnSendRef.current) void stopTurn();
         return;
       }
 
@@ -817,6 +912,10 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
         const slug = opts.agentSlug;
         const ctrl = new AbortController();
         abortRef.current = ctrl;
+        // Best guess until the turn's own `start` event names the conversation
+        // — which it does before any work, so this only covers the microseconds
+        // in between, and the first turn of a brand-new chat has nothing to name.
+        turnTargetRef.current = convoRef.current ? { conversation_id: convoRef.current } : null;
         try {
           await Agents.chatStream(
             pid,
@@ -863,6 +962,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
         } finally {
           setStreaming(false);
           abortRef.current = null;
+          turnTargetRef.current = null;
         }
         return;
       }
@@ -870,6 +970,9 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
       // ── Roby (super-agent): NDJSON event stream with tools. ────────────────
       const ctrl = new AbortController();
       abortRef.current = ctrl;
+      // Roby's thread IS the channel — it has no conversation id — so that is
+      // how the daemon addresses its live turn. See superAgentTurnKey.
+      turnTargetRef.current = { channel: "web" };
       try {
         await SuperAgent.stream(
           pid,
@@ -902,9 +1005,10 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
       } finally {
         setStreaming(false);
         abortRef.current = null;
+        turnTargetRef.current = null;
       }
     },
-    [pid, msgs, streaming, applyEvent, patchLast, onError],
+    [pid, msgs, streaming, applyEvent, patchLast, onError, stopTurn],
   );
 
   // Rewind the pane (and the bound file) to `keepVisible` turns, then send. The
@@ -973,7 +1077,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
   // pairing is the point of the two buttons — "this answer is going the wrong
   // way, here is what I actually meant": send the correction, stop the run, and
   // the correction leaves immediately instead of after the wrong answer.
-  const stop = useCallback(() => abortRef.current?.abort(), []);
+  const stop = useCallback(() => { void stopTurn(); }, [stopTurn]);
   const unqueue = useCallback((id: string) => setQueued((curr) => curr.filter((q) => q.id !== id)), []);
 
   // Drain: one at a time, as soon as the pane is free.

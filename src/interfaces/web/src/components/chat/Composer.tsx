@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Camera, FileText, Image as ImageIcon, Mic, Paperclip, Plus, Send, Trash2, X } from "lucide-react";
+import { Camera, FileText, Image as ImageIcon, ListPlus, Mic, Paperclip, Plus, Send, Trash2, X, Zap } from "lucide-react";
 import { ChatInput, type FilePicker } from "../ui/chat-input";
 import { ModelPicker } from "./ModelPicker";
 import {
@@ -33,6 +33,7 @@ import { transcribeAudio } from "../../lib/api/transcribe";
 import { canRecord, useRecorder } from "../../hooks/useRecorder";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
+import { queueOnSend, setQueueOnSend, onChatPrefsChange } from "../../lib/chat-prefs";
 
 interface Props {
   /** `media` are the files this turn carries, already stored by the daemon. */
@@ -467,13 +468,52 @@ export function Composer({
             ) : undefined
           }
           footer={
-            onModelChange ? (
-              <ModelPicker value={model || ""} onChange={onModelChange} disabled={streaming} />
+            onModelChange || streaming ? (
+              <div className="flex items-center gap-2">
+                {onModelChange ? (
+                  <ModelPicker value={model || ""} onChange={onModelChange} disabled={streaming} />
+                ) : null}
+                {/* Only while something is running: what happens if you write
+                    right now is the only question this answers, and a switch
+                    for a situation you are not in is clutter. */}
+                {streaming ? <SendModeToggle /> : null}
+              </div>
             ) : undefined
           }
         />
       )}
     </div>
+  );
+}
+
+/**
+ * Write during a running turn: interrupt it, or wait behind it?
+ *
+ * Interrupt is the default — it is what typing while an agent works almost
+ * always means, and what a new message has always done on Telegram. Queueing
+ * was the web's behaviour only because there was nothing to interrupt; it is
+ * worth keeping on purpose ("finish that, then do this"), so it is a choice
+ * rather than the only option. Per device, like the channel view/notify
+ * choices: the phone and the desktop are used differently.
+ */
+function SendModeToggle() {
+  const [queues, setQueues] = useState(queueOnSend());
+  useEffect(() => onChatPrefsChange(() => setQueues(queueOnSend())), []);
+  const label = queues ? t("chat_ui.send_mode_queue") : t("chat_ui.send_mode_interrupt");
+  return (
+    <Tip content={queues ? t("chat_ui.send_mode_tip_queue") : t("chat_ui.send_mode_tip_interrupt")}>
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        className="h-7 gap-1.5 px-2 text-xs text-muted-foreground"
+        aria-pressed={queues}
+        onClick={() => setQueueOnSend(!queues)}
+      >
+        {queues ? <ListPlus className="size-3.5" /> : <Zap className="size-3.5" />}
+        {label}
+      </Button>
+    </Tip>
   );
 }
 

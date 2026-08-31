@@ -585,7 +585,16 @@ export interface ChatStreamEvent {
     hinted?: string[];
     jit?: boolean;
   };
-  // final
+  // start: the turn's identity, sent before any work so a client can address it
+  // (stop it, or interrupt it by sending) from the first token onward. A project
+  // agent's turn names its conversation; Roby's names the channel, which is what
+  // its thread IS.
+  turn_id?: string;
+  conversation_id?: string;
+  channel?: string;
+  agent_slug?: string;
+  // final — and `aborted`, which carries the same shape for the partial the
+  // turn had produced when it was stopped. Deliberately not an `error`.
   result?: {
     text?: string;
     usage?: ChatUsage;
