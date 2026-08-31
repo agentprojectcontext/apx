@@ -10,9 +10,24 @@ export default {
     return { ok: true, soft: true };
   },
 
-  async chat({ system, messages, model = "mock", tools }) {
+  async chat({ system, messages, model = "mock", tools, signal }) {
     const last = [...messages].reverse().find((m) => m.role === "user");
     const userText = last?.content || "";
+    // `[mock:slow:<ms>]` → hold each step for <ms> before answering, and honor
+    // the abort signal while holding. A real engine call takes time, and
+    // anything about what happens DURING a turn — cancelling it, interrupting
+    // it, watching it stream — cannot be tested against a mock that finishes a
+    // 400-step loop in under a second. Capped so a typo cannot hang a suite.
+    const slowMs = Math.min(parseInt(userText.match(/\[mock:slow:(\d+)\]/)?.[1] ?? "0", 10) || 0, 5000);
+    if (slowMs) {
+      await new Promise((resolve, reject) => {
+        const t = setTimeout(resolve, slowMs);
+        signal?.addEventListener?.("abort", () => {
+          clearTimeout(t);
+          reject(Object.assign(new Error("aborted"), { name: "AbortError" }));
+        }, { once: true });
+      });
+    }
     // Mirror real engines: tool calls are only possible when the caller offers
     // tools. The loop withholds them on its tool-free wrap-up step, and we must
     // honor that here — otherwise the mock would keep "calling" tools the model

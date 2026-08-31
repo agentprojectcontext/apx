@@ -20,6 +20,7 @@ export * from "./api/engines";
 export * from "./api/admin";
 export * from "./api/identity";
 export * from "./api/super_agent";
+export * from "./api/turns";
 export * from "./api/filesystem";
 export * from "./api/voice";
 export * from "./api/deck";

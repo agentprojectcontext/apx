@@ -18,6 +18,8 @@ import { suggestSkillForPrompt } from "#core/agent/skills/rag.js";
 import { inspectPromptForSkills, isInspectorEnabled, summarizeTrace } from "#core/agent/skills/inspector.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { readTurnAttachments } from "./media.js";
+import { startActiveTurn, appendActiveTurn, endActiveTurn, superAgentTurnKey } from "../active-turns.js";
+import { wasAborted, abortedTurnEvent } from "./turn-abort.js";
 
 const log = loggerFor("super-agent");
 
@@ -302,11 +304,34 @@ export function register(api, { projects, registries, plugins, project, config }
     res.on("close", () => clearInterval(keepalive));
 
     const reasoning = [];
-    const onEvent = wrapOnEventForLog(send, {
+    // The run's kill switch, plus the registry entry that lets any surface find
+    // it. Roby's web chat has no conversation id — its thread IS the channel —
+    // so one live turn per project+channel, exactly as Telegram keys one live
+    // turn per chat_id. POST .../turns/abort reaches `abort` through this.
+    const turnAbort = new AbortController();
+    const turnKey = superAgentTurnKey(p.id, ctx.channel);
+    const active = startActiveTurn(turnKey, {
+      project_id: p.id, channel: ctx.channel, model: model || null,
+      abort: () => turnAbort.abort(),
+    });
+    // The steps as they happen. runSuperAgent throws on abort and its trace goes
+    // with it, so an interrupted turn would otherwise land in the ledger as
+    // prose with the work erased — and the turn that continues it would not know
+    // which tools had already run for real.
+    const partialTrace = [];
+    const logged = wrapOnEventForLog(send, {
       trace_id: req.apxTraceId,
       channel: ctx.channel,
       reasoning,
     });
+    const onEvent = (ev) => {
+      if (ev?.type === "tool_result" && ev.trace) partialTrace.push(ev.trace);
+      return logged(ev);
+    };
+
+    // The turn's identity, up front, so a client can stop it (POST
+    // .../turns/abort takes the channel for Roby — its thread IS the channel).
+    send({ type: "start", turn_id: active.id, channel: ctx.channel });
 
     // Surface the inspector decision to clients before model_start so the web
     // debug panel / TUI can render "loaded: X" the moment the turn begins.
@@ -344,10 +369,11 @@ export function register(api, { projects, registries, plugins, project, config }
         ...(Number.isFinite(Number(maxTokens)) ? { maxTokens: Number(maxTokens) } : {}),
         ...(completionContract ? { completionContract: true } : {}),
         onEvent,
+        signal: turnAbort.signal,
         // Token-by-token text. `assistant_text` still closes each segment with
         // the cleaned version, so a client that ignores deltas (apx exec) reads
         // exactly what it read before — it just reads it later.
-        onToken: (chunk) => send({ type: "assistant_delta", delta: chunk }),
+        onToken: (chunk) => { send({ type: "assistant_delta", delta: chunk }); appendActiveTurn(active.id, chunk); },
         // The thinking, live and on its own channel. Clients that don't render
         // it drop it; the answer never carries a word of it either way.
         onReasoningToken: (chunk) => send({ type: "assistant_reasoning_delta", reasoning: chunk }),
@@ -380,6 +406,28 @@ export function register(api, { projects, registries, plugins, project, config }
       clearInterval(keepalive);
       res.end();
     } catch (e) {
+      // Interrupted, not broken. Whatever streamed is real work the user saw, so
+      // it goes into the ledger the same way a finished turn does — the message
+      // that interrupted this one opens the next turn and reads this as its
+      // history. Same contract Telegram has: "whatever streamed so far is
+      // already sent + logged; the newer message's run continues the thread."
+      if (wasAborted(e, turnAbort)) {
+        const partial = (active.text || "").trim();
+        if (partial || partialTrace.length) {
+          logWebTurn(ctx.channel, {
+            replyText: partial,
+            model: model || null,
+            trace: partialTrace,
+            project: p,
+            inspector: inspectorTrace,
+            reasoning,
+          });
+        }
+        clearInterval(keepalive);
+        send(abortedTurnEvent({ text: partial, trace: partialTrace }));
+        res.end();
+        return;
+      }
       clearInterval(keepalive);
       appendSuperAgentErrorTrace(req, e, {
         prompt,
@@ -394,6 +442,8 @@ export function register(api, { projects, registries, plugins, project, config }
         error: `${e.message} (trace: ${req.apxTraceId})`,
       });
       res.end();
+    } finally {
+      endActiveTurn(active.id);
     }
   }));
 
