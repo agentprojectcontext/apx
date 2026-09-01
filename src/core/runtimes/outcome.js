@@ -73,19 +73,33 @@ export function runtimeLooksLikeFailure(r, { timedOut = false, timeoutS = 0 } = 
   return { failed: false };
 }
 
+// How long we wait for `<binary> --version` before giving up on the answer.
+// Not how long we wait for the runtime itself — that is the caller's timeout.
+export const PROBE_TIMEOUT_MS = 3000;
+
 /**
  * Can this runtime run at all? Answered BEFORE spawning it for real, because
  * "spawn error" is a useless thing to tell someone whose CLI is simply not
  * installed. Shared with the super-agent's call_runtime tool so a missing
  * binary reads the same however it was reached.
  */
-export async function runtimeAvailability(runtime, rt) {
+export async function runtimeAvailability(runtime, rt, { probeTimeoutMs = PROBE_TIMEOUT_MS } = {}) {
   const probe = await runProcess({
     command: rt.binary,
     args: rt.versionFlag ? [rt.versionFlag] : ["--version"],
-    timeoutMs: 3000,
+    timeoutMs: probeTimeoutMs,
   });
   if (probe.exitCode === 0 || probe.stdout || probe.stderr) {
+    return { ok: true };
+  }
+  // A probe WE killed is not evidence of absence — it is evidence of presence.
+  // A binary that is not there fails at spawn (ENOENT, exitCode -1) and never
+  // gets far enough to be killed, so `killed` can only mean the binary exists,
+  // started, and was slower than our clock. Under load `--version` really does
+  // take longer than three seconds, and reading that as "not installed" refused
+  // to run a CLI sitting right there — then fell into detectAll() below, which
+  // spawns EVERY coding CLI on the machine to reach a verdict we already had.
+  if (probe.killed) {
     return { ok: true };
   }
 

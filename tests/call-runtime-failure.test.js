@@ -12,6 +12,8 @@ import os from "node:os";
 import path from "node:path";
 import { ProjectManager } from "#host/daemon/db.js";
 import { makeToolHandlers } from "#core/agent/tools/registry.js";
+import { runtimeAvailability } from "#core/runtimes/outcome.js";
+import { getRuntime } from "#core/runtimes/index.js";
 import { makeTempProject, cleanupTempProject } from "./_helpers.js";
 
 function withFakeBinary(name, body, fn) {
@@ -154,4 +156,23 @@ test("call_runtime flags a runtime that exits non-zero as failed", async () => {
   } finally {
     cleanupTempProject(root);
   }
+});
+
+// Regression: the availability probe used to read its OWN timeout as proof the
+// binary was missing. It is proof of the opposite — a binary that is not there
+// fails at spawn and never lives long enough to be killed — and the wrong
+// reading had two costs. It refused to run a CLI that was installed, and it
+// fell through to detectAll(), which spawns every coding CLI on the machine.
+// Under `node --test --experimental-test-coverage` those children inherit
+// NODE_V8_COVERAGE, so one of them (a 9 MB bundled Node CLI) wrote its own
+// coverage into the run and pushed the ratchet from ~73% functions to 16%.
+test("a probe we killed ourselves means the runtime is present, not missing", async () => {
+  // Answers nothing at all, on any argument — so only the clock ends it.
+  await withFakeBinary("aider", "#!/bin/sh\nsleep 30\n", async () => {
+    const r = await runtimeAvailability("aider", getRuntime("aider"), { probeTimeoutMs: 200 });
+    assert.equal(r.ok, true, "a killed probe proves the binary exists and started");
+    // `detected` is only ever set on the detectAll() path. Its absence is the
+    // assertion that matters: we did not go spawn every CLI on the box.
+    assert.equal(r.detected, undefined, "a timeout must not trigger the detectAll storm");
+  });
 });

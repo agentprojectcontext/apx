@@ -129,7 +129,20 @@ Or env: GROQ_API_KEY, OPENROUTER_API_KEY`}
 
 ### El super-agente devuelve texto vacío
 
-**Problema:** `apx exec "hello"` o un mensaje de Telegram devuelve una respuesta vacía sin error.
+**Problema:** `apx exec "hello"`, un chat web o un mensaje de Telegram vuelve sin una respuesta real.
+
+**Lo que ves en realidad:** no es silencio. Todas las superficies tienen un piso de nunca-callar:
+cuando un turno termina sin nada que decir, se le pide al agente que escriba el cierre a partir de
+lo que el turno hizo, y una línea fija y corta ("Listo.") sale solo si tampoco pudo escribirla — lo
+cual ya es una señal, porque significa que dos llamadas seguidas volvieron vacías. Un turno que
+hubo que cerrar así queda anotado en el log:
+
+```bash
+apx log --tail 200 | grep "closed by the floor"
+```
+
+Un "Listo." pelado sin nada detrás, o un cierre que describe un trabajo que no pediste, es este
+síntoma — las causas de abajo son lo que hay que revisar.
 
 **Causa (modelo de Ollama no cargado):** Ollama está corriendo pero el modelo configurado no está descargado.
 El health check confirma que Ollama está arriba pero no verifica que el modelo específico exista — así que el
