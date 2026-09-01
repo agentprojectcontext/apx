@@ -22,7 +22,8 @@ process.env.APX_HOME = path.join(TMP_HOME, ".apx");
 
 const { parsePeerAddress, resolvePeer, peerAddress, a2aSessionKey, refusesCodeMode } = await import("#core/agent/a2a/peers.js");
 const { SUPERAGENT_ACTOR_ID } = await import("#core/constants/actors.js");
-const { a2aReplyCommand, replyAsRuntime } = await import("#core/agent/a2a/reply.js");
+const { a2aReplyCommand, replyAsRuntime, replyToPeer } = await import("#core/agent/a2a/reply.js");
+const { CHANNELS } = await import("#core/constants/channels.js");
 const { readA2APeerSession } = await import("#core/stores/messages.js");
 const claudeCode = (await import("#core/runtimes/claude-code.js")).default;
 const codex = (await import("#core/runtimes/codex.js")).default;
@@ -58,6 +59,15 @@ async function withFakeBinary(name, body, fn) {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 }
+
+// A ceiling, not a stopwatch. These tests assert what the adapter PASSES to the
+// binary and what it makes of the output; the number only has to be past the
+// worst case for a fake to start and exit. `node --test` runs ~220 files in
+// parallel with V8 coverage on, and a cold Node start under that load has gone
+// past five seconds — which killed the fake mid-run and failed an assertion
+// about its arguments, on every machine slow enough to notice. Named, so nobody
+// reads it back as "codex must answer within N".
+const SPAWN_TIMEOUT_MS = 60_000;
 
 const recorder = (emit) => `#!/usr/bin/env node
 const fs = require("node:fs");
@@ -129,11 +139,11 @@ test("mode decides what the peer may touch, and read-only is the default", async
   const emit = `process.stdout.write("ok\\n");`;
   const peer = { kind: "runtime", runtime: "opencode", address: "opencode", name: "opencode" };
   await withFakeBinary("opencode", recorder(emit), async ({ calls }) => {
-    await replyAsRuntime({ peer, fromAddress: "andy", body: "hi", config: {}, cwd: process.cwd(), timeoutMs: 5000 });
+    await replyAsRuntime({ peer, fromAddress: "andy", body: "hi", config: {}, cwd: process.cwd(), timeoutMs: SPAWN_TIMEOUT_MS });
     assert.deepEqual(calls()[0].slice(0, 3), ["run", "--agent", "plan"], "no mode given = read-only");
     assert.match(calls()[0].at(-1), /READ-ONLY/);
 
-    await replyAsRuntime({ peer, fromAddress: "andy", body: "hi", config: {}, cwd: process.cwd(), timeoutMs: 5000, mode: "code" });
+    await replyAsRuntime({ peer, fromAddress: "andy", body: "hi", config: {}, cwd: process.cwd(), timeoutMs: SPAWN_TIMEOUT_MS, mode: "code" });
     // The last call is the session lookup the adapter makes after a run; the
     // one under test is the last `run`.
     const coding = calls().filter((c) => c[0] === "run").at(-1);
@@ -147,7 +157,7 @@ test("codex opens a thread, then resumes it by id", async () => {
 process.stdout.write(JSON.stringify({ type: "item.completed", item: { type: "agent_message", text: "codex says hi" } }) + "\\n");`;
 
   await withFakeBinary("codex", recorder(emit), async ({ env, calls }) => {
-    const first = await codex.run({ prompt: "ping", cwd: process.cwd(), env, timeoutMs: 5000 });
+    const first = await codex.run({ prompt: "ping", cwd: process.cwd(), env, timeoutMs: SPAWN_TIMEOUT_MS });
     assert.equal(first.sessionId, "th_1");
     assert.equal(first.output, "codex says hi");
 
@@ -155,7 +165,7 @@ process.stdout.write(JSON.stringify({ type: "item.completed", item: { type: "age
       prompt: "again",
       cwd: process.cwd(),
       env,
-      timeoutMs: 5000,
+      timeoutMs: SPAWN_TIMEOUT_MS,
       resumeSessionId: "th_1",
     });
     assert.equal(second.sessionId, "th_1");
@@ -182,7 +192,7 @@ test("opencode names its session on the way in and reads the id back out", async
       prompt: "ping",
       cwd: process.cwd(),
       env,
-      timeoutMs: 5000,
+      timeoutMs: SPAWN_TIMEOUT_MS,
       sessionKey: "apx-a2a:andy~opencode",
     });
     assert.equal(first.sessionId, "ses_fake");
@@ -193,7 +203,7 @@ test("opencode names its session on the way in and reads the id back out", async
       prompt: "again",
       cwd: process.cwd(),
       env,
-      timeoutMs: 5000,
+      timeoutMs: SPAWN_TIMEOUT_MS,
       sessionKey: "apx-a2a:andy~opencode",
       resumeSessionId: "ses_fake",
     });
@@ -207,14 +217,14 @@ test("opencode names its session on the way in and reads the id back out", async
 test("claude code resumes the session it reported", async () => {
   const emit = `process.stdout.write(JSON.stringify({ result: "claude says hi", session_id: "sess-9" }));`;
   await withFakeBinary("claude", recorder(emit), async ({ env, calls }) => {
-    const first = await claudeCode.run({ prompt: "ping", cwd: process.cwd(), env, timeoutMs: 5000 });
+    const first = await claudeCode.run({ prompt: "ping", cwd: process.cwd(), env, timeoutMs: SPAWN_TIMEOUT_MS });
     assert.equal(first.sessionId, "sess-9");
 
     await claudeCode.run({
       prompt: "again",
       cwd: process.cwd(),
       env,
-      timeoutMs: 5000,
+      timeoutMs: SPAWN_TIMEOUT_MS,
       resumeSessionId: "sess-9",
     });
     const resumed = calls()[1];
@@ -243,7 +253,7 @@ test("a resumed peer is not handed the transcript again", async () => {
       config: {},
       history,
       cwd: process.cwd(),
-      timeoutMs: 5000,
+      timeoutMs: SPAWN_TIMEOUT_MS,
     });
     const cold = calls()[0].at(-1);
     assert.match(cold, /Earlier in this exchange/);
@@ -259,7 +269,7 @@ test("a resumed peer is not handed the transcript again", async () => {
       history,
       cwd: process.cwd(),
       resumeSessionId: "ses_x",
-      timeoutMs: 5000,
+      timeoutMs: SPAWN_TIMEOUT_MS,
     });
     const warm = calls().at(-1).at(-1);
     assert.doesNotMatch(warm, /Earlier in this exchange/);
@@ -278,7 +288,7 @@ test("every peer is told its output is the reply, and not to send it twice", asy
       body: "hello",
       config: {},
       cwd: process.cwd(),
-      timeoutMs: 5000,
+      timeoutMs: SPAWN_TIMEOUT_MS,
     });
     const prompt = calls()[0].at(-1);
     assert.match(prompt, /Your output IS the reply/);
@@ -332,7 +342,52 @@ test("resolvePeer matches agents by slug, display name, and superagent aliases",
   for (const alias of ["default", "superagent", "super-agent", "super_agent", "apx"]) {
     assert.equal(resolvePeer(alias, mockAgents)?.name, SUPERAGENT_ACTOR_ID, alias);
     assert.equal(resolvePeer(alias, mockAgents)?.agent.slug, SUPERAGENT_ACTOR_ID, alias);
+    assert.equal(resolvePeer(alias, mockAgents)?.kind, "super_agent", alias);
   }
+
+  assert.equal(
+    resolvePeer("Roby", mockAgents, { super_agent: { name: "Roby" } })?.kind,
+    "super_agent",
+    "the configured persona name is an address",
+  );
+  assert.equal(
+    resolvePeer("apx", [{ slug: "apx", name: "Project APX" }])?.kind,
+    "agent",
+    "a real project agent wins over a synthetic alias",
+  );
+});
+
+test("a super-agent A2A target runs the real tool loop with project context", async () => {
+  const config = { super_agent: { enabled: true, name: "Roby", model: "fake:model" } };
+  const peer = resolvePeer("Roby:crypto", [], config);
+  let call = null;
+  const out = await replyToPeer({
+    peer,
+    fromAgent: { slug: "crypto-analyst" },
+    fromAddress: "crypto-analyst",
+    body: "decide whether this alert belongs on Telegram",
+    config,
+    history: [{ role: "user", content: "From crypto-analyst:\n\nprior alert" }],
+    projectId: 0,
+    projectName: "default",
+    projectPath: "/tmp/default",
+    projects: { list: () => [] },
+    plugins: {},
+    registries: {},
+    runSuperAgentFn: async (args) => {
+      call = args;
+      return { text: "handled", usage: { input_tokens: 10 }, model: "fake:model" };
+    },
+  });
+
+  assert.equal(out.text, "handled");
+  assert.equal(call.channel, CHANNELS.A2A);
+  assert.equal(call.channelMeta.projectPath, "/tmp/default");
+  assert.equal(call.channelMeta.to, `${SUPERAGENT_ACTOR_ID}:crypto`);
+  assert.match(call.prompt, /^From crypto-analyst:/);
+  assert.match(call.contextNote, /using your own channel and tools/);
+  assert.doesNotMatch(call.contextNote, /no `apx telegram send`/);
+  assert.equal(call.previousMessages.length, 1, "the pair history reaches Roby's real loop");
 });
 
 test("peerAddress is the canonical name, and keeps a :thread suffix", () => {

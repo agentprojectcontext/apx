@@ -1,44 +1,63 @@
 import { http } from "../http.js";
 import { readAgents } from "#core/apc/parser.js";
-import { parsePeerAddress, isRuntimeName } from "#core/agent/a2a/peers.js";
+import { readConfig } from "#core/config/index.js";
+import {
+  findAddressedAgent,
+  isRuntimeName,
+  isSuperAgentName,
+  parsePeerAddress,
+} from "#core/agent/a2a/peers.js";
 import { RUNTIME_IDS } from "#core/runtimes/index.js";
 import { resolveProjectId } from "./project.js";
-
-const SUPER_AGENT_ALIASES = new Set(["super-agent", "superagent", "super_agent"]);
 
 // Find which registered project(s) own an agent with this slug. Returns
 // [{ id, name, path }]. Used to pick a target project automatically, and to
 // disambiguate when two projects both have (say) a "rocky".
-async function projectsWithAgent(slug) {
+async function projectsWithAgent(name) {
   const projects = await http.get("/api/projects");
   const hits = [];
   for (const proj of projects) {
     let agents = [];
     try { agents = readAgents(proj.path); } catch { /* skip unreadable */ }
-    if (agents.some((a) => a.slug === slug)) hits.push(proj);
+    if (findAddressedAgent(name, agents)) hits.push(proj);
   }
   return hits;
 }
 
 // Resolve the project id to send into. --project wins. Otherwise locate the
-// recipient across the registry: 1 match → use it; 0 or many → a clear,
-// actionable error (the terminal tells you what to do, per the design).
-async function resolveSendTarget(to, projectFlag) {
+// recipient across the registry. A super-agent target instead follows the
+// sender's project, because the daemon-level mode needs that project's context.
+export async function resolveSendTarget(to, projectFlag, from) {
   if (projectFlag) return resolveProjectId(projectFlag);
 
-  // `<name>#<thread>` addresses the same peer on a separate thread; only the
+  // `<name>:<thread>` addresses the same peer on a separate thread; only the
   // name decides WHO answers, so that is what every lookup below reads.
   const { name } = parsePeerAddress(to);
 
-  if (SUPER_AGENT_ALIASES.has(name)) {
+  // A real project agent wins over synthetic aliases, matching resolvePeer().
+  const hits = await projectsWithAgent(name);
+  if (hits.length === 1) return hits[0].id;
+  if (hits.length > 1) {
+    const where = hits.map((h) => h.name).join(", ");
     throw new Error(
-      `"${to}" is the super-agent — it is not addressable via a2a send yet. ` +
-      `Talk to it with \`apx exec "<msg>"\` (no -a). To reach a project agent named "${to}", pass --project <name>.`
+      `"${to}" exists in ${hits.length} projects (${where}). Pick one with --project <name> — e.g. ` +
+      `apx send ${"<from>"} ${to} "<msg>" --project ${hits[0].name}`
     );
   }
 
-  const hits = await projectsWithAgent(name);
-  if (hits.length === 1) return hits[0].id;
+  if (isSuperAgentName(name, readConfig())) {
+    const senderName = parsePeerAddress(from).name;
+    const senderHits = senderName ? await projectsWithAgent(senderName) : [];
+    if (senderHits.length === 1) return senderHits[0].id;
+    if (senderHits.length > 1) {
+      throw new Error(
+        `sender "${from}" exists in ${senderHits.length} projects (${senderHits.map((h) => h.name).join(", ")}). ` +
+        "Pick the A2A project with --project <name>."
+      );
+    }
+    return resolveProjectId(undefined);
+  }
+
   if (hits.length === 0) {
     // No agent owns the name — a runtime peer (opencode, codex, claude-code, …)
     // is not registered anywhere, so it runs in the project you are standing
@@ -49,11 +68,6 @@ async function resolveSendTarget(to, projectFlag) {
       `their projects, then retry with --project <name>. Runtime peers: ${RUNTIME_IDS.join(", ")}.`
     );
   }
-  const where = hits.map((h) => h.name).join(", ");
-  throw new Error(
-    `"${to}" exists in ${hits.length} projects (${where}). Pick one with --project <name> — e.g. ` +
-    `apx send ${"<from>"} ${to} "<msg>" --project ${hits[0].name}`
-  );
 }
 
 /** The a2a urgency tags. `blocker` reaches the owner in the act (crosses the
@@ -118,7 +132,7 @@ export async function cmdSend(args) {
     throw new Error(`apx send: --timeout must be a positive number of seconds (got "${timeoutFlag}")`);
   }
 
-  const pid = await resolveSendTarget(to, args?.flags?.project);
+  const pid = await resolveSendTarget(to, args?.flags?.project, from);
   const result = await http.post(`/api/projects/${pid}/send`, {
     from,
     to,

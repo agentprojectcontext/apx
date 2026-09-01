@@ -1,8 +1,8 @@
 // Agent-to-agent (A2A) reply: given a sender and a recipient PEER, produce the
-// recipient's answer. The recipient is either an AGENTS.md agent (answered by
-// its model) or an external coding runtime — opencode, codex, claude-code —
-// answered by spawning that CLI and reading its stdout. The same shape comes
-// back either way, so the caller logs both kinds of exchange identically.
+// recipient's answer. The recipient is an AGENTS.md agent (its model), the
+// daemon super-agent (its full identity/memory/tool loop), or an external
+// coding runtime — opencode, codex, claude-code — answered by spawning that
+// CLI and reading stdout. The same shape comes back in every case.
 //
 // Pure orchestration over core/agent + core/engines + core/runtimes: no HTTP,
 // no message-log writes (the caller decides whether and where to persist).
@@ -13,10 +13,13 @@ import { resolveAgentName } from "../../identity/self.js";
 import { readProfileState } from "../../profiles/store.js";
 import { getRuntime } from "../../runtimes/index.js";
 import { runtimeLooksLikeFailure } from "../../runtimes/outcome.js";
-import { a2aSessionKey } from "./peers.js";
+import { runSuperAgent } from "../super-agent.js";
+import { CHANNELS } from "#core/constants/channels.js";
+import { a2aSessionKey, peerAddress as canonicalPeerAddress } from "./peers.js";
 
-// The super-agent's own slug — the orchestrator that speaks to the owner.
-const ORCHESTRATOR_SLUGS = new Set(["default", "roby", "superagent", "super_agent", "super-agent", "apx"]);
+// The super-agent's stable slug plus accepted technical aliases. The configured
+// display name is checked separately, so no persona name is hardcoded here.
+const ORCHESTRATOR_SLUGS = new Set(["default", "superagent", "super_agent", "super-agent", "apx"]);
 
 // A shell word only needs quoting when it isn't one. A `:thread` address is
 // safe unquoted in every shell we target, but the quotes cost nothing and cover
@@ -48,14 +51,15 @@ function a2aEtiquette({ selfAddress, peerAddress, config }) {
   const superName = resolveAgentName(config) || "the orchestrator";
   const lines = [
     "## This is an agent-to-agent (a2a) message",
-    "It comes from another AGENT, not from the human owner. Do NOT notify the owner directly from this turn (no `apx telegram send`, no direct owner ping).",
+    "It comes from another AGENT, not from the human owner.",
   ];
   if (isOrchestrator) {
     lines.push(
-      "You are the orchestrator: YOU decide whether, how and when the owner hears about this — on your own channel, respecting quiet-hours. Don't relay noise; relay what the owner actually needs.",
+      "You are the orchestrator: YOU decide whether, how and when the owner hears about this — using your own channel and tools, respecting quiet-hours. Don't relay noise; relay what the owner actually needs.",
     );
   } else {
     lines.push(
+      "Do NOT notify the owner directly from this turn (no `apx telegram send`, no direct owner ping).",
       `You are NOT the orchestrator: if this needs the owner's attention or a decision, relay it to ${superName} (\`apx send <you> default "…" --deliver\` or \`apx send <you> ${superName.toLowerCase()} "…" --deliver\`) and let ${superName} decide how and when to tell them. Tag urgency: \`--severity blocker\` for a critical alert (${superName} pings the owner in the act, crossing quiet-hours), \`--severity status\`/\`fyi\` for a normal notice that rides the digest. Otherwise just do your part and reply here.`,
     );
   }
@@ -215,6 +219,56 @@ export async function replyAsAgent({
 }
 
 /**
+ * Run one A2A turn against the daemon super-agent mode. Unlike a synthetic
+ * project agent, this keeps the configured identity, memory, project context,
+ * permission guard and tool loop — including the ability to decide whether an
+ * agent's escalation belongs on Telegram.
+ */
+export async function replyAsSuperAgent({
+  peer,
+  fromAddress,
+  body,
+  config,
+  history = [],
+  projectPath,
+  projectId = null,
+  projectName = "",
+  projects,
+  plugins,
+  registries,
+  mode = "chat",
+  runSuperAgentFn = runSuperAgent,
+}) {
+  const selfAddress = canonicalPeerAddress(peer);
+  const contextNote = [
+    a2aEtiquette({ selfAddress, peerAddress: fromAddress, config }),
+    mode === "code"
+      ? "This exchange was explicitly opened as a CODING session. Do the requested work under the normal permission policy, verify it, then reply with the result."
+      : "This exchange is agent coordination. Use tools only when the message requires action; otherwise answer directly.",
+  ].join("\n\n");
+  const result = await runSuperAgentFn({
+    globalConfig: config,
+    projects,
+    plugins,
+    registries,
+    prompt: `From ${fromAddress}:\n\n${body}`,
+    contextNote,
+    previousMessages: history,
+    channel: CHANNELS.A2A,
+    channelMeta: {
+      projectId,
+      projectName,
+      projectPath,
+      from: fromAddress,
+      to: selfAddress,
+      mode,
+    },
+    completionContract: mode === "code",
+  });
+  return { text: result.text, usage: result.usage, model: result.model || null };
+}
+
+/**
  * Run one A2A turn against a RUNTIME: spawn the CLI and read its answer.
  *
  * `resumeSessionId` is the whole point. A runtime that continues its own
@@ -285,10 +339,11 @@ export async function replyAsRuntime({
 }
 
 /** One turn against whichever kind of peer this is. The caller logs the result
- *  the same way for both — that sameness is the point of the split living here
+ *  the same way for all — that sameness is the point of the split living here
  *  rather than in the route. */
 export async function replyToPeer({ peer, ...rest }) {
   if (peer.kind === "runtime") return replyAsRuntime({ peer, ...rest });
+  if (peer.kind === "super_agent") return replyAsSuperAgent({ peer, ...rest });
   return replyAsAgent({
     ...rest,
     toAgent: peer.agent,

@@ -42,6 +42,7 @@ const CHANNEL_PROMPT_FILES = {
   [CHANNELS.DECK]: "channels/deck.md",
   [CHANNELS.DESKTOP]: "channels/desktop.md",
   [CHANNELS.CODE]: "channels/code.md",
+  [CHANNELS.A2A]: "channels/a2a.md",
   // A relay, not a chat surface APX owns: a bridge on the owner's phone posts
   // the message here and carries the answer back. Without this block a WhatsApp
   // turn got no channel context at all — the agent answered the sender as if it
