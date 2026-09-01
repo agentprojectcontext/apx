@@ -126,6 +126,8 @@ curl -X POST http://127.0.0.1:7430/api/voice/turn \
   -d '{"text":"Hello APX","channel":"voice"}'
 ```
 
+`channel` names the surface the turn arrives on: `voice` (the deck's spoken mode), `deck`, `desktop`, `telegram`. Anything else — including omitting it — is treated as `api`, the bounded default: the route will not adopt another surface's behaviour just because a caller names it.
+
 Telegram voice messages and overlay mascot still have their own STT pipelines — they don't go through `/api/voice/turn` yet.
 
 ## Anti-examples

@@ -302,6 +302,13 @@ curl -X POST http://127.0.0.1:7430/voice/turn \
   -d '{"text": "What tasks are open?", "channel": "voice"}'
 ```
 
+`channel` nombra la superficie por la que llega el turno: `voice` (el modo
+hablado de la Deck), `deck`, `desktop` o `telegram`. Cualquier otra cosa —
+incluido omitirlo — se trata como `api`, el default acotado. El endpoint no
+adopta el comportamiento de otra superficie solo porque quien llama la nombre:
+una respuesta hablada tiene que ser corta y rápida, y el presupuesto de tools
+sin tope del chat web es de la superficie que estás mirando.
+
 Respuesta:
 
 ```json

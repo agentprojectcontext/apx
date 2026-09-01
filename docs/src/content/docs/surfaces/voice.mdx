@@ -299,6 +299,13 @@ curl -X POST http://127.0.0.1:7430/voice/turn \
   -d '{"text": "What tasks are open?", "channel": "voice"}'
 ```
 
+`channel` names the surface the turn arrives on: `voice` (the Deck's spoken
+mode), `deck`, `desktop` or `telegram`. Anything else — including leaving it
+out — is treated as `api`, the bounded default. The endpoint will not adopt
+another surface's behaviour just because a caller names it: a spoken answer is
+meant to be short and fast, and the web chat's run-to-completion tool budget
+belongs to the surface you are watching.
+
 Response:
 
 ```json
