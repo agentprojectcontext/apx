@@ -2,10 +2,10 @@
 //
 // `to` used to mean "an agent in AGENTS.md", and that alone is why a coding CLI
 // could talk INTO APX but never the other way round: `apx send claude opencode
-// "…"` died on `no agent "opencode"`. A PEER is the generalisation — an agent
-// OR an external runtime (opencode, codex, claude-code, …). Same envelope, same
-// ledger, same pair history; only the reply differs, because a runtime's reply
-// is a process's stdout instead of a model API's completion.
+// "…"` died on `no agent "opencode"`. A PEER is the generalisation — a project
+// agent, the daemon super-agent, or an external runtime (opencode, codex,
+// claude-code, …). Same envelope, ledger and pair history; only reply execution
+// differs.
 //
 // Address syntax: <name>[:<thread>]
 //
@@ -46,27 +46,42 @@ export function isRuntimeName(name) {
   return RUNTIME_IDS.includes(String(name || ""));
 }
 
+/** Find the real project agent claimed by an addressable name. */
+export function findAddressedAgent(name, agents = []) {
+  const raw = String(name || "");
+  if (!raw) return null;
+  const lower = raw.toLowerCase();
+  return (
+    agents.find((a) => a.slug === raw) ||
+    agents.find((a) => a.slug?.toLowerCase() === lower) ||
+    agents.find((a) => (a.name || a.fields?.Name || "").toLowerCase() === lower) ||
+    null
+  );
+}
+
+/**
+ * Whether a name addresses the daemon super-agent mode. The configured
+ * identity is an alias too; the stable ledger identity stays super_agent.
+ */
+export function isSuperAgentName(name, config = {}) {
+  const raw = String(name || "").trim().toLowerCase();
+  if (!raw) return false;
+  const configuredName = (resolveAgentName(config) || "").trim().toLowerCase();
+  return SUPERAGENT_PEERS.has(raw) || (configuredName && raw === configuredName);
+}
+
 /**
  * Resolve an address to whoever will answer it. An agent wins over a runtime of
  * the same name: a project that named an agent `codex` still owns that name.
  * Returns null when nothing claims it, so the caller can 404 with the options.
  */
-export function resolvePeer(address, agents = []) {
+export function resolvePeer(address, agents = [], config = {}) {
   const { address: full, name, thread } = parsePeerAddress(address);
   if (!full) return null;
 
-  // 1. Exact slug match
-  let agent = agents.find((a) => a.slug === name);
-
-  // 2. Case-insensitive slug match
-  if (!agent) {
-    agent = agents.find((a) => a.slug?.toLowerCase() === name.toLowerCase());
-  }
-
-  // 3. Match by agent display Name (e.g. Name: Andy, Name: April)
-  if (!agent) {
-    agent = agents.find((a) => (a.name || a.fields?.Name || "").toLowerCase() === name.toLowerCase());
-  }
+  // A real project agent wins over every synthetic identity. This preserves a
+  // project that intentionally owns an agent named `apx`, `default`, or Roby.
+  const agent = findAddressedAgent(name, agents);
 
   if (agent) return { kind: "agent", address: full, name: agent.slug, thread, agent };
 
@@ -74,14 +89,12 @@ export function resolvePeer(address, agents = []) {
     return { kind: "runtime", address: full, name, thread, runtime: name };
   }
 
-  // 4. Superagent fallback (default, super-agent, or configured identity name like "roby")
-  const configuredName = resolveAgentName() || "";
-  const nameLower = name.toLowerCase();
-  const isSuper = SUPERAGENT_PEERS.has(nameLower) || (configuredName && nameLower === configuredName.toLowerCase());
-  if (isSuper) {
-    const displayName = configuredName || "Roby";
+  // Super-agent fallback: aliases and configured identity all reach the same
+  // full daemon-level mode, never a fabricated project-agent model call.
+  if (isSuperAgentName(name, config)) {
+    const displayName = resolveAgentName(config);
     return {
-      kind: "agent",
+      kind: "super_agent",
       address: full,
       // ONE name for the super-agent on the ledger, whichever alias was typed.
       // This used to answer to `default`, so `apx send magui default "…"` filed

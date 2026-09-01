@@ -1205,7 +1205,7 @@ export const HELP_TOPICS = new Map(Object.entries({
       "apx send magui roby \"Postiz API is down, daily post failed\" --severity blocker --deliver",
     ],
     notes: [
-      "<to> is a PEER: an agent slug from AGENTS.md (answered by its model), or a runtime id (claude-code, codex, opencode, aider, cursor-agent, gemini-cli, qwen-code, antigravity) answered by spawning that CLI.",
+      "<to> is a PEER: an agent slug from AGENTS.md, the configured super-agent name (for example Roby; runs the real orchestrator), or a runtime id (claude-code, codex, opencode, aider, cursor-agent, gemini-cli, qwen-code, antigravity) answered by spawning that CLI.",
       "Append :<thread> for a second, independent exchange with the same peer (opencode:review). Separate history, separate session.",
       "A runtime peer continues its OWN session between turns, and runs in your current directory rather than the project's.",
       "Read-only is the default on purpose: being messaged is not consent to have your checkout edited. --code is what opens write access, and it is enforced by the runtime itself (opencode --agent), not just asked for in the prompt.",
