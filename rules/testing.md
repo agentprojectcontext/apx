@@ -15,6 +15,16 @@
 - **Coverage only ratchets up.** `COVERAGE_FLOOR` lives in `scripts/test-ci.js`
   (line/branch/function). When your change pushes coverage higher, raise the
   floor in the same commit; never lower it.
+- **Coverage measures `src/**` and `tests/**` — nothing else.** `test:ci` passes
+  `--test-coverage-include` for both, and it has to: `--experimental-test-coverage`
+  works by exporting `NODE_V8_COVERAGE`, and **every child process a test spawns
+  inherits it**. A spawned CLI that happens to be a Node program writes its own
+  coverage into the run, and the reporter merges it as if it were ours. That is
+  how a runtime probe falling through to `detectAll()` pulled in a 9 MB
+  cursor-agent bundle and dropped `all files` from ~72.9% functions to 15.98% —
+  red on a clean tree here, green in CI, where none of those CLIs are installed.
+  The symptom reads exactly like a Node-version difference and is not one. When
+  the ratchet moves for no reason, look for a test that spawned something first.
 - **Offline and hermetic.** No network, no API keys, no live daemon. CI runs
   Node ≥22 with `npm run test:ci` (recursive discovery under `tests/`).
 - **Fixtures are invented, never observed** (rule 3). The tempting move when

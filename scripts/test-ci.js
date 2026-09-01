@@ -48,6 +48,36 @@ if (!files.length) {
 // floors had rather than pushing to the measured value.
 const COVERAGE_FLOOR = { line: 78, branch: 72, function: 72 };
 
+// 5. Coverage measures THIS repo, and nothing else that happened to run.
+//
+// `node --test --experimental-test-coverage` works by exporting
+// NODE_V8_COVERAGE, and a child process inherits it. Several tests spawn a CLI
+// on purpose, so any of those that happens to BE a Node program writes its own
+// coverage into our run and the reporter merges it in as if it were ours.
+//
+// That is not hypothetical. `runtimeAvailability()` used to fall through to
+// `detectAll()`, which probes every coding CLI on the machine; on a developer
+// box that includes cursor-agent, whose 9 MB bundle landed in the report at
+// 11.57% functions and pulled `all files` from ~72.9% down to 15.98% — so the
+// ratchet failed on green code. Only locally, because a CI runner has none of
+// those CLIs installed. The symptom (a gate that is red here and green in CI)
+// reads exactly like a Node-version difference, and is not one: same Node, same
+// tree, different set of programs installed.
+//
+// Scoping the report is the fix that does not depend on knowing which CLI is on
+// which machine. Files outside these two trees are not ours to be measured on.
+// Requires Node >= 22.5, where --test-coverage-include landed.
+const COVERAGE_SCOPE = ["--test-coverage-include=src/**", "--test-coverage-include=tests/**"];
+
+const [nodeMajor, nodeMinor] = process.versions.node.split(".").map(Number);
+if (nodeMajor < 22 || (nodeMajor === 22 && nodeMinor < 5)) {
+  console.error(
+    `test:ci: needs Node >= 22.5 for --test-coverage-include (running ${process.versions.node}).\n` +
+      "Without it the coverage floor measures whatever else ran under NODE_V8_COVERAGE."
+  );
+  process.exit(1);
+}
+
 // 4. A throwaway HOME for the whole run. Tests that isolate by stubbing
 //    os.homedir() are one refactor away from writing to the developer's real
 //    ~/.apx: the stub is bypassed the moment a path comes from a constant
@@ -61,7 +91,7 @@ const sandbox = makeTestHome("apx-test-home");
 
 const child = spawn(
   process.execPath,
-  ["--test", "--experimental-test-coverage", "--test-reporter=spec", ...files],
+  ["--test", "--experimental-test-coverage", ...COVERAGE_SCOPE, "--test-reporter=spec", ...files],
   {
     cwd: REPO,
     stdio: ["inherit", "pipe", "inherit"],
