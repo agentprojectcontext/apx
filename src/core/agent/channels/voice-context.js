@@ -14,7 +14,9 @@
 //   wantsSuggestions — whether the surface can render the trailing
 //                      `suggestions` JSON block (deck/desktop UI can; raw
 //                      Telegram cannot)
-//   channel       — resolved surface ("deck"/"desktop"/"telegram"/…)
+//   channel       — resolved surface ("deck"/"desktop"/"telegram"). A channel
+//                   this file does not recognise resolves to "api", not to
+//                   itself — see the `default` branch for why
 //   channelMeta   — surface metadata (e.g. `{ voice: true }` flags spoken mode)
 import { CHANNELS } from "../../constants/channels.js";
 
@@ -93,6 +95,19 @@ export function buildVoiceChannelContext(channel, { projectId, language = "es" }
     case CHANNELS.TELEGRAM:
       return { ...base, contextNote: dynamicNote, channel: CHANNELS.TELEGRAM, channelMeta: {} };
     default:
-      return { ...base, contextNote: dynamicNote, channel: channel || CHANNELS.API, channelMeta: {} };
+      // An unrecognised channel does NOT pass through. The cases above ARE the
+      // surfaces this pre-processor knows how to shape; a string it does not
+      // recognise is by definition one it can make no claim about, and trusting
+      // it let the CALLER pick a surface's behaviour by naming it. That is a
+      // budget decision, not a label: `channelToolIters` (agent/constants.js)
+      // hands `web`/`web_sidebar` a run-to-completion ceiling because those are
+      // the surfaces a human WATCHES, so POST /voice/turn with
+      // `channel: "web"` would have run a SPOKEN turn uncapped — the opposite
+      // of what a voice answer wants, which is short and fast.
+      //
+      // So an unknown channel falls back to `api`, the bounded default, exactly
+      // as an absent one already did. This keeps the budget keyed on the real
+      // surface: a new one here is one more `case`, added deliberately.
+      return { ...base, contextNote: dynamicNote, channel: CHANNELS.API, channelMeta: {} };
   }
 }
