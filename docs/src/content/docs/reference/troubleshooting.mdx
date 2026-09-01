@@ -129,7 +129,20 @@ Or env: GROQ_API_KEY, OPENROUTER_API_KEY`}
 
 ### Super-agent returns empty text
 
-**Problem:** `apx exec "hello"` or a Telegram message returns an empty reply with no error.
+**Problem:** `apx exec "hello"`, a web chat or a Telegram message comes back with no real answer.
+
+**What you actually see:** not silence. Every surface has a never-silent floor: when a turn ends
+with nothing to say, the agent is asked to write the closing line from what the turn did, and a
+short canned line ("Done.") goes out only when it cannot answer either — which is itself a signal,
+because it means two calls in a row came back empty. A turn that had to be closed that way says so
+in the log:
+
+```bash
+apx log --tail 200 | grep "closed by the floor"
+```
+
+A bare "Done." with nothing behind it, or a closing that describes work you did not ask for, is
+this symptom — the causes below are what to check.
 
 **Cause (Ollama model not loaded):** Ollama is running but the configured model is not pulled.
 The health check confirms Ollama is up but does not verify the specific model exists — so the

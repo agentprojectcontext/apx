@@ -27,6 +27,15 @@ async function withFakeBinary(name, body, fn) {
   }
 }
 
+// A ceiling, not a stopwatch. These tests assert what the adapter PASSES to the
+// binary and what it makes of the output; the number only has to be past the
+// worst case for a fake to start and exit. `node --test` runs ~220 files in
+// parallel with V8 coverage on, and a cold Node start under that load has gone
+// past five seconds — which killed the fake mid-run and failed an assertion
+// about its arguments, on every machine slow enough to notice. Named, so nobody
+// reads it back as "codex must answer within N".
+const SPAWN_TIMEOUT_MS = 60_000;
+
 function fakeNodeScript(output) {
   return `#!/usr/bin/env node
 const fs = require("node:fs");
@@ -59,7 +68,7 @@ test("codex runtime uses exec mode that works outside git repos", async () => {
       prompt: "do work",
       cwd: process.cwd(),
       env,
-      timeoutMs: 5000,
+      timeoutMs: SPAWN_TIMEOUT_MS,
     });
     const args = JSON.parse(fs.readFileSync(env.APX_FAKE_ARGS_FILE, "utf8"));
     assert.deepEqual(args.slice(0, 4), [
@@ -85,7 +94,7 @@ test("cursor-agent runtime uses headless print mode", async () => {
       prompt: "do work",
       cwd: process.cwd(),
       env,
-      timeoutMs: 5000,
+      timeoutMs: SPAWN_TIMEOUT_MS,
     });
     const args = JSON.parse(fs.readFileSync(env.APX_FAKE_ARGS_FILE, "utf8"));
     assert.deepEqual(args.slice(0, 5), [
@@ -108,7 +117,7 @@ test("gemini-cli runtime uses headless prompt mode", async () => {
       prompt: "do work",
       cwd: process.cwd(),
       env,
-      timeoutMs: 5000,
+      timeoutMs: SPAWN_TIMEOUT_MS,
     });
     const args = JSON.parse(fs.readFileSync(env.APX_FAKE_ARGS_FILE, "utf8"));
     assert.deepEqual(args.slice(0, 2), ["--prompt", "system text\n\n---\n\ndo work"]);
@@ -124,7 +133,7 @@ test("qwen-code runtime passes system prompt separately", async () => {
       prompt: "do work",
       cwd: process.cwd(),
       env,
-      timeoutMs: 5000,
+      timeoutMs: SPAWN_TIMEOUT_MS,
     });
     const args = JSON.parse(fs.readFileSync(env.APX_FAKE_ARGS_FILE, "utf8"));
     assert.deepEqual(args, [
