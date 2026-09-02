@@ -114,6 +114,26 @@ by running the TURN in voice mode (`channelMeta.voice` + `mobility`), never by
 truncating afterwards. TTS or ffmpeg failing costs the audio and never the
 message, and a "mock" provider is silence, not speech — refuse it.
 
+The trip banner opens the trip's errands, never Maps — Maps is where the trip
+is read FROM. Its list comes from a read-only `GET /api/mobility/trip`: asking
+must never fire a reminder or spend a one-shot, and it is capped, because a city
+search matches dozens of shops. The count must not read zero before the daemon
+has answered; the daemon's list fills asynchronously as positions arrive.
+
+A trip can outlive the app — reinstall, force stop, an OEM power-manager freeze
+— leaving the trip flag set with no location service running. Resume tracking on
+listener rebind AND from the foreground activity: a foreground-service start is
+only guaranteed to be allowed while an activity is visible, and some OEMs refuse
+it outright from a notification listener. Starting a running service is a no-op,
+so calling both is safe.
+
+Trip state must survive a daemon restart. The in-memory map is authoritative for
+a trip the process has seen, but it is empty after a restart and the persisted
+mobility context is not — without that fallback every position for the rest of a
+real drive is answered "trip-ended" while the phone keeps uploading. The place
+cache expires on time as well as distance, or an errand added mid-drive stays
+invisible until the car has travelled the retarget distance.
+
 The Android start event and end event share `trip_id`. Before Telegram delivery,
 daemon must confirm that trip remains active; closing Maps cancels in-flight
 output. Mobility Telegram keyboards route postpone into the delivery queue and

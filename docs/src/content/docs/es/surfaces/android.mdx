@@ -74,6 +74,12 @@ en card, no solo anuncio de mensaje nuevo.
   Maps omite destino, card Android Auto pregunta dónde vas; **Responder** acepta
   dictado de voz y completa mismo viaje. Cambiar destino inicia evaluación nueva. No
   sube ruta, historial ni contenido completo de notificaciones.
+- El banner de viaje abre los pendientes del viaje, no Maps: al tocarlo lista
+  cada mandado pendiente que tenga un lugar compatible en esta vuelta, del más
+  cercano al más lejano, y cada fila abre ese lugar en Maps. La etiqueta de la
+  derecha lleva la cuenta en vivo ("8 cerca"). La lista sale de
+  `GET /api/mobility/trip`, que es de solo lectura: consultarla nunca dispara un
+  recordatorio. Está limitada a ocho lugares.
 - Mensajes de viaje tienen límite deliberado. Destino conocido debe quedar
   estable 45 segundos; navegación sin destino espera 10 minutos. Reabrir mismo
   destino queda silencioso 30 minutos; destino distinto no dispara otra

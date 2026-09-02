@@ -77,6 +77,11 @@ only announcing a new message.
   **Reply** accepts voice dictation and completes the same trip. Changing the destination starts a
   new evaluation. It uploads no route, location history, or complete
   notification content.
+- The trip banner opens the trip's errands, not Maps: tapping it lists every
+  pending errand with a matching place on this drive, nearest first, and each
+  row opens that place in Maps. Its right-hand label carries the live count
+  ("8 cerca"). The list comes from `GET /api/mobility/trip`, which is read-only
+  — asking never fires a reminder. It is capped at eight places.
 - Trip messages are intentionally rate-limited. A known destination must remain
   stable for 45 seconds; navigation without destination waits 10 minutes.
   Reopening the same destination stays silent for 30 minutes, and changing to a
