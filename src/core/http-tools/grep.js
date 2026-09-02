@@ -15,7 +15,19 @@ const execFileAsync = promisify(execFile);
 // ripgrep backend
 // ---------------------------------------------------------------------------
 
-async function grepWithRg({ pattern, searchPath, glob, caseSensitive, context = 0, limit }) {
+/**
+ * What to call a hit, relative to what was searched.
+ *
+ * `path.relative(searchPath, file)` is the answer for a directory search and
+ * the empty string when the search path IS the file — which is how a grep of
+ * one file reported its match against a file named "". A single file is still
+ * a file, so it gets its name.
+ */
+function fileLabel(searchPath, file, searchPathIsFile) {
+  return searchPathIsFile ? path.basename(file) : path.relative(searchPath, file);
+}
+
+async function grepWithRg({ pattern, searchPath, searchPathIsFile, glob, caseSensitive, context = 0, limit }) {
   const fullArgs = [
     "--json",
     "--max-filesize", "1M",
@@ -45,10 +57,20 @@ async function grepWithRg({ pattern, searchPath, glob, caseSensitive, context = 
       const lineNum = obj.data?.line_number;
       const text = obj.data?.lines?.text?.replace(/\n$/, "") || "";
       const last = matches[matches.length - 1];
-      if (last && last.file === file) {
+      // Grouped on the ABSOLUTE path, which is what `file` holds. Comparing it
+      // to `last.file` — the RELATIVE label stored below — never matched, so
+      // every hit opened a new group and `files_with_matches` was really a
+      // second copy of `total_matches`: four hits in two files reported four
+      // files. rg emits a file's matches consecutively, so comparing against
+      // the last group is enough.
+      if (last && last.absolute === file) {
         last.matches.push({ line: lineNum, text });
       } else {
-        matches.push({ file: path.relative(searchPath, file), absolute: file, matches: [{ line: lineNum, text }] });
+        matches.push({
+          file: fileLabel(searchPath, file, searchPathIsFile),
+          absolute: file,
+          matches: [{ line: lineNum, text }],
+        });
       }
       if (matches.reduce((s, m) => s + m.matches.length, 0) >= limit) break;
     }
@@ -72,9 +94,28 @@ function globToRegex(g) {
   );
 }
 
+/**
+ * Every file under `dir` — or `dir` itself when it IS a file.
+ *
+ * That second case is not an edge: `grep(path: "work/marketing/magui/brain.md")`
+ * is how an agent reads one known file, and it is what ripgrep does without
+ * being asked. Here the walk began with `readdirSync` on the path, which throws
+ * ENOTDIR for a file; the catch below swallowed it, the queue emptied, and the
+ * search returned NO MATCHES — not an error, an empty answer, to a question
+ * about a file sitting right there with the word in it.
+ *
+ * It only ever happened without ripgrep installed, which is why it survived: a
+ * dev machine with `brew install ripgrep` never reaches this backend, and the
+ * CI runner reaches nothing else.
+ */
 function walkFiles(dir, { globPattern, dot = false, maxFiles = 2000 } = {}) {
   const globRe = globPattern ? globToRegex(globPattern) : null;
   const result = [];
+  try {
+    if (fs.statSync(dir).isFile()) return [dir];
+  } catch {
+    return result;
+  }
   const queue = [dir];
   while (queue.length && result.length < maxFiles) {
     const current = queue.shift();
@@ -93,7 +134,7 @@ function walkFiles(dir, { globPattern, dot = false, maxFiles = 2000 } = {}) {
   return result;
 }
 
-async function grepWithNode({ pattern, searchPath, glob, caseSensitive, context = 0, limit }) {
+async function grepWithNode({ pattern, searchPath, searchPathIsFile, glob, caseSensitive, context = 0, limit }) {
   const re = new RegExp(pattern, caseSensitive ? "" : "i");
   const files = walkFiles(searchPath, { globPattern: glob, dot: false });
   const matches = [];
@@ -121,7 +162,7 @@ async function grepWithNode({ pattern, searchPath, glob, caseSensitive, context 
 
     if (fileMatches.length > 0) {
       matches.push({
-        file: path.relative(searchPath, file),
+        file: fileLabel(searchPath, file, searchPathIsFile),
         absolute: file,
         matches: fileMatches,
       });
@@ -151,7 +192,13 @@ export async function grepFiles({
   // project was answered "path does not exist" with the apx checkout prefixed to
   // it. An absolute path is unaffected — path.resolve ignores the base then.
   const basePath = path.resolve(cwd || process.cwd(), searchPathArg || ".");
-  if (!fs.existsSync(basePath)) throw new Error(`path does not exist: ${basePath}`);
+  // Answers "does it exist" and "is it one file" in a single stat, and both
+  // backends are told: searching ONE file is a normal thing to ask for, and
+  // each of them gets it wrong in its own way without being told. See
+  // walkFiles() and fileLabel().
+  let baseStat;
+  try { baseStat = fs.statSync(basePath); } catch { throw new Error(`path does not exist: ${basePath}`); }
+  const baseIsFile = baseStat.isFile();
 
   const lim = Math.min(parseInt(limit, 10) || 100, 1000);
   const ctx = Math.min(parseInt(context, 10) || 0, 10);
@@ -164,6 +211,7 @@ export async function grepFiles({
     result = await grepWithRg({
       pattern,
       searchPath: basePath,
+      searchPathIsFile: baseIsFile,
       glob,
       caseSensitive: !!case_sensitive,
       context: ctx,
@@ -173,6 +221,7 @@ export async function grepFiles({
     result = await grepWithNode({
       pattern,
       searchPath: basePath,
+      searchPathIsFile: baseIsFile,
       glob,
       caseSensitive: !!case_sensitive,
       context: ctx,
