@@ -191,7 +191,7 @@ test("API paths and SPA routes do not overlap", async () => {
     assert.ok(isApiPath(p), `${p} should be an API path`);
     assert.ok(!isKnownSpaRoute(p), `${p} is BOTH an API path and an SPA route`);
   }
-  for (const p of ["/m/inbox", "/settings/profile", "/p/0/tasks"]) {
+  for (const p of ["/inbox", "/m/chat", "/settings/profile", "/p/0/tasks"]) {
     assert.ok(isKnownSpaRoute(p), `${p} should be an SPA route`);
     assert.ok(!isApiPath(p), `${p} would be swallowed as an API path`);
   }

@@ -158,10 +158,10 @@ export function ChannelChips({
 
 /** The channel a row happened on, as a tag on the row itself.
  *
- *  The list is grouped by channel on the desktop rail, where a sticky heading
- *  can carry it. The phone drills into one flat list, so the same fact has to
- *  travel with the row — otherwise a WhatsApp from a contact and a web chat
- *  with the same agent are two identical-looking lines. */
+ *  Both lists — the desktop rail and /m/chat — are flat and sorted by recency,
+ *  so this fact has to travel with the row. Without it a WhatsApp from a
+ *  contact and a web chat with the same agent are two identical-looking
+ *  lines. */
 export function ChannelTag({ channel, className }: { channel: string | null; className?: string }) {
   if (!channel) return null;
   return (

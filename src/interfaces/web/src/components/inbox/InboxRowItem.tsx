@@ -119,12 +119,11 @@ export function InboxRowItem({
 
         <span className={cn("mt-0.5 flex items-center gap-1.5 text-muted-fg", touch ? "text-[11px]" : "text-[10px]")}>
           {row.project_name ? <span className="truncate">{row.project_name}</span> : null}
-          {/* Where this conversation happened, as a tag on the row — but only
-              on the phone. The desktop rail groups by channel under a sticky
-              heading that already says it; the phone drills into one flat list,
-              where a WhatsApp from a contact and a web chat with the same agent
-              would otherwise be two identical lines. */}
-          {touch ? <ChannelTag channel={row.channel} /> : null}
+          {/* Where this conversation happened, as a tag on the row. On every
+              surface: both lists are now flat and sorted by recency, so this is
+              the only thing telling a WhatsApp from a contact apart from a web
+              chat with the same agent — otherwise two identical lines. */}
+          <ChannelTag channel={row.channel} />
           {row.requested_by ? (
             <span className="shrink-0 rounded bg-primary/12 px-1 text-primary">
               for {row.requested_by}

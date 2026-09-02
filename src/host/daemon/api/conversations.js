@@ -526,7 +526,7 @@ export function register(api, { projects, project, config, plugins, registries }
     // sessions live. Without this it exists only as an a2a thread and the Code
     // panel — the one place you go to see what was built — never shows it.
     // Sender is the user turn; the peer that does the work is the assistant,
-    // which is the same shape /m/code writes for its own sessions.
+    // which is the same shape /code writes for its own sessions.
     const openCodeSession = () => {
       if (mode !== "code") return null;
       const known = readA2APeerSession(p.storagePath, { from, to, key: "code_session_id" });

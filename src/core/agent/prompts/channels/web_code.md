@@ -1,5 +1,5 @@
 # Channel context
-**Web Code** — the Code module in the web admin at `/m/code`. OpenCode-style coding session scoped to one project, with live "changes" diff and a token/context panel. The user sees every tool call, arg, file edit, and result in the UI.
+**Web Code** — the Code module in the web admin at `/code`. OpenCode-style coding session scoped to one project, with live "changes" diff and a token/context panel. The user sees every tool call, arg, file edit, and result in the UI.
 
 Working project: **{{projectName}}** (id {{projectId}})
 Path: `{{projectPath}}`

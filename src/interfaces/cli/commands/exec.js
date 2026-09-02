@@ -188,7 +188,7 @@ async function runCodeSessionTurn({ args, pid, prompt, model }) {
     // Name the session even on failure: the user turn is already stored there,
     // so that is where the half-finished run can be inspected and resumed.
     process.stderr.write(
-      `\n— code session ${sid}${created ? " (new)" : ""} | project ${pid} | ${http.baseUrl()}/m/code\n`
+      `\n— code session ${sid}${created ? " (new)" : ""} | project ${pid} | ${http.baseUrl()}/code\n`
     );
     throw e;
   } finally {
@@ -199,7 +199,7 @@ async function runCodeSessionTurn({ args, pid, prompt, model }) {
   // so beats a blank line and exit 0, which reads as "it worked, silently".
   if (!result?.text) {
     throw new Error(
-      `apx exec --code: the turn ended without a reply. Session ${sid} (project ${pid}) has the transcript: ${http.baseUrl()}/m/code`
+      `apx exec --code: the turn ended without a reply. Session ${sid} (project ${pid}) has the transcript: ${http.baseUrl()}/code`
     );
   }
 
@@ -208,7 +208,7 @@ async function runCodeSessionTurn({ args, pid, prompt, model }) {
   // the id to pass back as --session, and a human needs it to find the session
   // in the panel. stderr keeps stdout clean for scripts.
   process.stderr.write(
-    `\n— code session ${sid}${created ? " (new)" : ""} | project ${pid} | ${http.baseUrl()}/m/code\n`
+    `\n— code session ${sid}${created ? " (new)" : ""} | project ${pid} | ${http.baseUrl()}/code\n`
   );
   if (process.stderr.isTTY || args.flags.verbose) {
     process.stderr.write(
@@ -243,7 +243,7 @@ export async function cmdExec(args) {
 
   // The code channel runs through a persistent code session instead of the
   // stateless super-agent route. Same output on stdout; the difference is that
-  // the turn is now READABLE afterwards in the web panel (/m/code) and by the
+  // the turn is now READABLE afterwards in the web panel (/code) and by the
   // next `--code` turn that continues the session, instead of existing only in
   // whatever terminal happened to run it.
   if (useSuperAgent && channel === CHANNELS.CODE) {

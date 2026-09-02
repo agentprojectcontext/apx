@@ -3,7 +3,7 @@
   "short_name": "APX",
   "description": "Your agents, on your phone.",
   "id": "/",
-  "start_url": "/mobile",
+  "start_url": "/m/chat",
   "scope": "/",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
@@ -17,7 +17,9 @@
     { "src": "/favicon/dark/android-chrome-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "shortcuts": [
-    { "name": "Chats", "url": "/mobile" },
+    { "name": "Chats", "url": "/m/chat" },
+    { "name": "Tasks", "url": "/m/tasks" },
+    { "name": "Commitments", "url": "/m/commitments" },
     { "name": "Panel", "url": "/" }
   ]
 }

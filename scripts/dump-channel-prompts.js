@@ -77,7 +77,7 @@ const CHANNELS = {
     meta: {},
   },
   web_code: {
-    use: "Web admin /m/code — OpenCode-style coding surface, FULL tools",
+    use: "Web admin /code — OpenCode-style coding surface, FULL tools",
     meta: { projectId: 0, projectName: "default", projectPath: "~/.apx/projects/default", mode: "build" },
   },
   deck: {

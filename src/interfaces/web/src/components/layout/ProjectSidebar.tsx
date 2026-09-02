@@ -60,8 +60,8 @@ interface ModuleItem {
 // top-level entry next to Base rather than living inside Settings.
 function buildModules(): ModuleItem[] {
   return [
-    { id: "desktop", label: t("nav.modules.desktop"), href: "/m/desktop", icon: Monitor },
-    { id: "code",    label: t("nav.modules.code"),    href: "/m/code",    icon: Terminal },
+    { id: "desktop", label: t("nav.modules.desktop"), href: "/desktop", icon: Monitor },
+    { id: "code",    label: t("nav.modules.code"),    href: "/code",    icon: Terminal },
   ];
 }
 
@@ -359,9 +359,9 @@ export function ProjectSidebar({ onSelect, onOpenRoby, onOpenAddProject }: Props
         tone="emerald"
         testId="nav-inbox"
         title={t("inbox.title")}
-        active={isActive("/m/inbox")}
+        active={isActive("/inbox")}
         icon={<MessagesSquare size={18} />}
-        onClick={() => onSelect("/m/inbox")}
+        onClick={() => onSelect("/inbox")}
       />
 
       {isLoading && <div className="size-10 animate-pulse rounded-xl bg-muted" />}

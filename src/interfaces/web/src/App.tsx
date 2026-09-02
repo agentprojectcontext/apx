@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Route, Routes, useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Languages, Moon, Smartphone, Sun } from "lucide-react";
 import { ProjectSidebar, projectKindLabel } from "./components/layout/ProjectSidebar";
 import { ApxAdminScreen } from "./screens/ApxAdminScreen";
@@ -11,6 +11,7 @@ import { CodeScreen } from "./screens/modules/CodeScreen";
 import { AddProjectDialog } from "./components/AddProjectDialog";
 import { PairingScreen } from "./screens/PairingScreen";
 import { MobileScreen } from "./screens/mobile/MobileScreen";
+import { fromLegacyMobilePath } from "./screens/mobile/routes";
 import { RobyBubble } from "./components/RobyBubble";
 import { MobileHint } from "./components/MobileHint";
 import { NotifyNudge } from "./components/settings/PanelPrefs";
@@ -57,10 +58,20 @@ export function App() {
     <ToastProvider>
       <TooltipProvider delay={0}>
         <Routes>
+          {/* The panel's own modules used to live under /m too (/m/inbox,
+              /m/code, /m/desktop), which is why they are listed FIRST: a static
+              segment outranks the `/m/*` splat below in React Router's ranking,
+              so these keep working as links even though the namespace now
+              belongs to the phone. They are one-way — the panel's own rail
+              points at the short paths. */}
+          <Route path="/m/inbox"     element={<Moved to="/inbox" />} />
+          <Route path="/m/code/*"    element={<Moved to="/code" />} />
+          <Route path="/m/desktop/*" element={<Moved to="/desktop" />} />
+
           {/* The phone surface renders OUTSIDE the desktop shell — no project
               rail, no top bar, no card. Everything it needs is its own header,
               and anything the shell would add is width it does not have. */}
-          <Route path="/mobile/*" element={
+          <Route path="/m/*" element={
             /* Its own viewport box. Outside the Shell there is no h-screen
                ancestor, so the screen's h-full had nothing to be full OF: the
                composer flowed past the fold and you could not reach it.
@@ -71,11 +82,37 @@ export function App() {
               <MobileScreen />
             </div>
           } />
+
+          {/* The phone's old address. Kept because the links are out in the
+              world and cannot be recalled: the Android shell hardcodes
+              `/mobile`, QR codes have been scanned onto phones, and an
+              installed PWA keeps whatever start_url it was installed with. */}
+          <Route path="/mobile/*" element={<LegacyMobile />} />
+
           <Route path="*" element={<Shell />} />
         </Routes>
       </TooltipProvider>
     </ToastProvider>
   );
+}
+
+/**
+ * A route that moved, with everything after it intact.
+ *
+ * `<Navigate to="/code" />` alone would drop the deep segments AND the query,
+ * and `/m/code?pid=7&edit=1` is a real link the Artifacts tab hands out — the
+ * whole point of the redirect is that the thing it opens still opens.
+ */
+function Moved({ to }: { to: string }) {
+  const location = useLocation();
+  const rest = location.pathname.split("/").slice(3).join("/");
+  return <Navigate to={`${to}${rest ? `/${rest}` : ""}${location.search}${location.hash}`} replace />;
+}
+
+/** `/mobile/...` → `/m/...` (see screens/mobile/routes.ts). */
+function LegacyMobile() {
+  const location = useLocation();
+  return <Navigate to={`${fromLegacyMobilePath(location.pathname)}${location.search}${location.hash}`} replace />;
 }
 
 function Shell() {
@@ -116,10 +153,10 @@ function Shell() {
           <div className="flex-1 overflow-y-auto">
             <Routes>
               <Route path="/"           element={<ApxAdminScreen />} />
-              <Route path="/m/inbox"    element={<InboxScreen />} />
+              <Route path="/inbox"      element={<InboxScreen />} />
               <Route path="/settings/*" element={<SettingsScreen />} />
-              <Route path="/m/desktop/*" element={<DesktopScreen />} />
-              <Route path="/m/code/*"   element={<CodeScreen />} />
+              <Route path="/desktop/*"  element={<DesktopScreen />} />
+              <Route path="/code/*"     element={<CodeScreen />} />
               <Route path="/p/:pid/*"   element={<ProjectScreen />} />
               <Route path="*"           element={<NotFound />} />
             </Routes>
@@ -131,7 +168,7 @@ function Shell() {
         <RobyBubble open={robyOpen} onOpenChange={setRobyOpen} />
         <MobileLinkDialog open={mobileLinkOpen} onClose={() => setMobileLinkOpen(false)} />
         {/* On a narrow screen, the way to the phone surface and the way to
-            install it — both of which otherwise only exist inside /mobile,
+            install it — both of which otherwise only exist inside /m,
             which is the place you have not found yet. */}
         <MobileHint />
         {/* The offer, in the corner. It cannot open by itself: a browser only
@@ -168,8 +205,8 @@ function TopBar({
     ? t("topbar.breadcrumb_root")
     : parts[0] === "settings"
       ? [t("topbar.breadcrumb_root"), t("nav.settings"), section].filter(Boolean).join(" › ")
-      : parts[0] === "m"
-        ? [t("topbar.breadcrumb_root"), moduleLabel(parts[1]), pageLabel].filter(Boolean).join(" › ")
+      : isModule(parts[0])
+        ? [t("topbar.breadcrumb_root"), moduleLabel(parts[0]), pageLabel].filter(Boolean).join(" › ")
         : parts[0] === "p"
           ? (isDefault
               ? [t("topbar.breadcrumb_root"), t("topbar.breadcrumb_base"), section].filter(Boolean).join(" › ")
@@ -195,7 +232,7 @@ function TopBar({
       </span>
       {pageActions}
       {/* Send the chat surface to a phone: one scan carries the address, the
-          /mobile path and a pairing nonce. */}
+          /m/chat path and a pairing nonce. */}
       <Tip content={t("mobile_link.title")}>
         <button
           type="button"
@@ -251,6 +288,13 @@ function LanguageMenu() {
       </DropdownMenuContent>
     </DropdownMenu>
   );
+}
+
+/** The panel's own modules — the top-level sections that are not a project. */
+const MODULES = new Set(["inbox", "code", "desktop"]);
+
+function isModule(key?: string): boolean {
+  return !!key && MODULES.has(key);
 }
 
 function moduleLabel(key?: string) {

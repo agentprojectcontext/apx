@@ -73,7 +73,7 @@ to have your checkout edited.
 
 `--code` opens a **coding session** instead: write access on, the peer is told to
 do the work rather than describe it, and the exchange is mirrored into the **Code
-module** (`/m/code`) so it shows up where every other coding session does — the
+module** (`/code`) so it shows up where every other coding session does — the
 sender's messages as the user turns, the peer's replies as the assistant's.
 
 `claude-code` and `codex` are never `--code` peers. They are the CLIs you drive

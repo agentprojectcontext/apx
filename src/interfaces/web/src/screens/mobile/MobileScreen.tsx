@@ -1,24 +1,30 @@
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import { MobileChatList } from "./MobileChatList";
 import { MobileChat } from "./MobileChat";
+import { MobileTasks } from "./MobileTasks";
+import { MobileCommitments } from "./MobileCommitments";
+import { MobileTabBar } from "./MobileTabBar";
 import { NewChatSheet } from "./NewChatSheet";
-import { chatPath, findRow, keyFor, pidOf, MOBILE_ROOT } from "./routes";
+import { chatPath, findRow, keyFor, pidOf, CHAT_ROOT } from "./routes";
 import { useInbox } from "../../hooks/useInbox";
 import { Loading } from "../../components/ui";
 import type { InboxRow } from "../../lib/api/inbox";
 
 /**
- * The phone surface: chats, and one chat at a time.
+ * The phone surface: three tabs, and one chat at a time.
  *
  * The admin panel squeezed into 400px spends a third of the width on a module
  * rail and wraps captions one word per line. This is not that panel made
- * narrower — it is the chat half of it, shaped like a messaging app: a list you
- * drill into and back out of, one screen at a time, with the session switcher
- * living INSIDE a chat instead of being a second sidebar you have to leave.
+ * narrower — it is the handful of things you check standing up, each shaped
+ * like a phone app: a list you drill into and back out of, one screen at a
+ * time, with the session switcher living INSIDE a chat instead of being a
+ * second sidebar you have to leave.
  *
- * Everything else the panel does (projects, routines, code, settings) stays on
- * the desktop route. This is deliberately chat-only.
+ * Three tabs and not more. Chats, tasks, promises: the things that are ABOUT
+ * you and are true across every project. Everything the panel does that is
+ * about a project — routines, code, agents, settings — stays on the desktop
+ * route, because a phone is not where you configure anything.
  *
  * Every screen here is a URL (see routes.ts). It used to be `useState`, which
  * a phone punishes: reloading, or coming back to a tab the OS discarded while
@@ -27,13 +33,28 @@ import type { InboxRow } from "../../lib/api/inbox";
 export function MobileScreen() {
   return (
     <Routes>
-      <Route index element={<ListRoute />} />
+      <Route index element={<Navigate to={CHAT_ROOT} replace />} />
+      <Route path="chat" element={<Tabbed><ListRoute /></Tabbed>} />
+      {/* No tab bar inside a chat: that screen ends in a composer, and a nav
+          bar under it is 56px of thumb target where the send button goes. */}
       <Route path="chat/:pid/:slug" element={<ChatRoute />} />
       <Route path="chat/:pid/:slug/:session" element={<ChatRoute />} />
-      {/* Anything else under /mobile is the list, not a 404 screen inside an
-          app whose whole job is one list. */}
-      <Route path="*" element={<Navigate to={MOBILE_ROOT} replace />} />
+      <Route path="tasks" element={<Tabbed><MobileTasks /></Tabbed>} />
+      <Route path="commitments" element={<Tabbed><MobileCommitments /></Tabbed>} />
+      {/* `/m` itself, and anything unrecognised, is the chat list — not a 404
+          screen inside an app whose whole job is a handful of lists. */}
+      <Route path="*" element={<Navigate to={CHAT_ROOT} replace />} />
     </Routes>
+  );
+}
+
+/** A list screen plus the bar that moves between them. */
+function Tabbed({ children }: { children: ReactNode }) {
+  return (
+    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
+      <div className="min-h-0 flex-1 overflow-hidden">{children}</div>
+      <MobileTabBar />
+    </div>
   );
 }
 
@@ -105,7 +126,7 @@ function ChatRoute() {
  */
 function backToList(navigate: ReturnType<typeof useNavigate>) {
   if (window.history.length > 1) navigate(-1);
-  else navigate(MOBILE_ROOT, { replace: true });
+  else navigate(CHAT_ROOT, { replace: true });
 }
 
 function Busy() {

@@ -12,7 +12,7 @@ export const CHANNELS = Object.freeze({
   API: "api",
   WEB: "web",                 // Web admin big chat
   WEB_SIDEBAR: "web_sidebar", // Web admin docked sidebar
-  WEB_CODE: "web_code",       // Web admin `/m/code` (OpenCode-style)
+  WEB_CODE: "web_code",       // Web admin `/code` (OpenCode-style)
   DECK: "deck",               // Mobile cockpit dashboard
   DESKTOP: "desktop",         // Electron capsule (always voice mode)
   CODE: "code",               // `apx code` — terminal coding session

@@ -37,7 +37,7 @@ async function injectMessage(body: string) {
 test.describe("live updates", () => {
   test("the inbox opens an authenticated feed and is told when a ledger moves", async ({ page, errors }) => {
     const frames = watchLiveFeed(page);
-    await page.goto("/m/inbox");
+    await page.goto("/inbox");
     await expect(page.getByTestId("inbox-list")).toBeVisible();
 
     // The socket connected at all — an unauthorized upgrade is refused with a
@@ -118,7 +118,7 @@ test.describe("live updates", () => {
 
     const framesOne = watchLiveFeed(pageOne);
     const framesTwo = watchLiveFeed(pageTwo);
-    await Promise.all([pageOne.goto("/m/inbox"), pageTwo.goto("/m/inbox")]);
+    await Promise.all([pageOne.goto("/inbox"), pageTwo.goto("/inbox")]);
     await expect(pageOne.getByTestId("inbox-list")).toBeVisible();
     await expect(pageTwo.getByTestId("inbox-list")).toBeVisible();
     await expect.poll(() => framesOne.length, { timeout: 10_000 }).toBeGreaterThan(0);

@@ -7,9 +7,13 @@ sidebar:
 
 import { Steps, Aside } from '@astrojs/starlight/components';
 
-The **APX Android** app is a native shell around the daemon's `/mobile` surface.
-It keeps the existing React mobile UI as the single interface implementation,
-while Android owns the floating mascot, system notifications, and app launch.
+The **APX Android** app is a native shell around the daemon's phone surface. It
+keeps the existing React mobile UI as the single interface implementation, while
+Android owns the floating mascot, system notifications, and app launch.
+
+The app opens `/mobile`, which the panel redirects to `/m/chat` — the phone
+surface's current address, where it sits alongside `/m/tasks` and
+`/m/commitments` behind a bottom tab bar.
 
 ## Pair once
 

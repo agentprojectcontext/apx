@@ -119,6 +119,12 @@ A left rail shows all registered projects plus module shortcuts (Voices, Desktop
 Deck, Code). Below the rail is a **Roby** button that opens a floating chat
 sheet connected to the super-agent.
 
+Two more namespaces sit beside the project ones. The panel's own modules are
+top-level paths — `/inbox`, `/code`, `/desktop` — and `/m/…` belongs entirely to
+the phone surface: `/m/chat`, `/m/tasks`, `/m/commitments`. The phone's old
+address, `/mobile`, still resolves; it redirects into `/m/…` so links already out
+in the world (printed QR codes, the Android shell) keep working.
+
 ![Left rail — project list plus module shortcuts](../../../assets/shots/10-project-overview.png)
 
 ## Live updates
@@ -171,7 +177,7 @@ so there everything starts on. Chips under **Settings → Notifications** switch
 each channel for the device you are on; the choice lives in that browser
 (`localStorage`) and never leaves it.
 
-The same idea applies to the **lists**. The inbox and `/mobile` show every
+The same idea applies to the **lists**. The inbox and `/m/chat` show every
 channel a conversation can happen on, grouped, and a chip row switches each one
 off and back on for that device — again with Telegram off by default on the
 phone. A channel that is off keeps its chip (with its count), so the way back is
@@ -382,7 +388,7 @@ See [Voice](/apx/docs/surfaces/voice/) for the full CLI reference.
 
 ### Desktop
 
-The Desktop module (`/m/desktop`) shows whether the floating Electron window is
+The Desktop module (`/desktop`) shows whether the floating Electron window is
 running (connected WebSocket clients), lets you edit the global shortcut, and
 toggle whether the daemon responds to desktop messages. You cannot start or stop
 the Electron process from the web panel — use `apx desktop start / stop`.
@@ -404,7 +410,7 @@ See [Deck](/apx/docs/surfaces/deck/) for the pairing CLI reference.
 
 ### Code
 
-The Code module (`/m/code`) is the admin surface for the APX coding assistant.
+The Code module (`/code`) is the admin surface for the APX coding assistant.
 It opens on a **code session**: a persistent transcript with its own git
 baseline, plan/build mode, and optional project agent.
 

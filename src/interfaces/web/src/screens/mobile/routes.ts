@@ -4,10 +4,23 @@ import type { InboxRow } from "../../lib/api/inbox";
 /**
  * The phone surface in the URL.
  *
- *   /mobile                                  the chat list
- *   /mobile/team/:pid                        one project's team
- *   /mobile/chat/:pid/:slug                  a chat, on whatever it last used
- *   /mobile/chat/:pid/:slug/:session         a chat, on one specific session
+ *   /m                                       → /m/chat
+ *   /m/chat                                  the chat list
+ *   /m/chat/:pid/:slug                       a chat, on whatever it last used
+ *   /m/chat/:pid/:slug/:session              a chat, on one specific session
+ *   /m/tasks                                 every project's tasks
+ *   /m/commitments                           every project's promises
+ *   /m/team/:pid                             one project's team
+ *
+ * `/m` and not `/mobile`, and each surface named after WHAT IT SHOWS rather
+ * than what device is holding it. The phone stopped being a single screen the
+ * day it grew a tab bar: "/mobile" could only ever mean the one thing, and the
+ * second thing had to be `/mobile/tasks` — a path that says the device twice
+ * and the subject once.
+ *
+ * Old links still land: `/mobile/*` redirects here (App.tsx). They are not
+ * historical — the Android shell hardcodes `/mobile`, QR codes are printed and
+ * scanned, and an installed PWA keeps whatever start_url it was installed with.
  *
  * Navigation used to be `useState`, which meant a reload — or the phone
  * discarding the tab in the background, which it does constantly — dropped you
@@ -16,14 +29,32 @@ import type { InboxRow } from "../../lib/api/inbox";
  *
  * `~` separates a channel from a thread id because it is one of the handful of
  * characters a URL never has to escape (RFC 3986 unreserved), so the path stays
- * readable: /mobile/chat/0/roby/telegram~2026-08-19.
+ * readable: /m/chat/0/roby/telegram~2026-08-19.
  */
 
-export const MOBILE_ROOT = "/mobile";
+/** The phone surface's namespace. Every screen below hangs off it. */
+export const MOBILE_ROOT = "/m";
+
+/** The three tabs, in the order the bottom bar shows them. */
+export const CHAT_ROOT = `${MOBILE_ROOT}/chat`;
+export const TASKS_ROOT = `${MOBILE_ROOT}/tasks`;
+export const COMMITMENTS_ROOT = `${MOBILE_ROOT}/commitments`;
+
+/**
+ * The pre-`/m` spelling, kept alive by a redirect rather than by a second set
+ * of routes — one place to translate, and nothing downstream has to know two
+ * shapes. `/mobile` alone is the list, which is now `/m/chat`.
+ */
+export const LEGACY_MOBILE_ROOT = "/mobile";
+
+export function fromLegacyMobilePath(pathname: string): string {
+  const rest = pathname.slice(LEGACY_MOBILE_ROOT.length).replace(/^\/+/, "");
+  return rest ? `${MOBILE_ROOT}/${rest}` : CHAT_ROOT;
+}
 
 /**
  * The daemon-level super-agent belongs to no project: its inbox row carries
- * `project_id: null`. Left as an empty string that becomes `/mobile/chat//roby`
+ * `project_id: null`. Left as an empty string that becomes `/m/chat//roby`
  * — a path with an empty segment, which matches no route at all, so opening
  * Roby bounced straight back to the list.
  *
@@ -49,7 +80,7 @@ export function sessionParam(key: ChatKey): string | null {
   return null;
 }
 
-/** Query string ChatTab writes for a selection (`/p/:pid/chat` and `/m/inbox`). */
+/** Query string ChatTab writes for a selection (`/p/:pid/chat` and `/inbox`). */
 export function queryForChat(key: ChatKey): URLSearchParams {
   const next = new URLSearchParams();
   if (key.kind === "conv") {
@@ -65,7 +96,7 @@ export function queryForChat(key: ChatKey): URLSearchParams {
 }
 
 export function chatPath(pid: string, slug: string, key?: ChatKey): string {
-  const base = `${MOBILE_ROOT}/chat/${encodeURIComponent(pid)}/${encodeURIComponent(slug)}`;
+  const base = `${CHAT_ROOT}/${encodeURIComponent(pid)}/${encodeURIComponent(slug)}`;
   const session = key ? sessionParam(key) : null;
   return session ? `${base}/${encodeURIComponent(session)}` : base;
 }
@@ -115,15 +146,18 @@ export function keyFor(row: InboxRow, sessionId?: string, channel?: string): Cha
  * Does this URL mean the person is already reading this inbox row?
  *
  * ChatTab addresses a session two ways: query (`?channel=&thread=` or
- * `?agent=&conv=`) on `/p/:pid/chat` and `/m/inbox`, and a path on the phone
- * (`/mobile/chat/:pid/:slug/:session`). Matching only `?agent=` missed groups
+ * `?agent=&conv=`) on `/p/:pid/chat` and `/inbox`, and a path on the phone
+ * (`/m/chat/:pid/:slug/:session`). Matching only `?agent=` missed groups
  * and the inbox — both write `channel`+`thread` and have no agent param.
  */
 export function urlLooksAt(href: string, row: InboxRow): boolean {
   const url = new URL(href, "http://localhost");
   const key = keyFor(row);
 
-  const mobile = url.pathname.match(/^\/mobile\/chat\/[^/]+\/([^/]+)(?:\/([^/]+))?/);
+  // Both spellings: a notification raised before this rename still carries
+  // `/mobile/chat/...`, and "am I already reading this?" must not answer no
+  // just because the tab has not been redirected yet.
+  const mobile = url.pathname.match(/^\/(?:m|mobile)\/chat\/[^/]+\/([^/]+)(?:\/([^/]+))?/);
   if (mobile) {
     if (decodeURIComponent(mobile[1]) !== row.agent_slug) return false;
     if (!mobile[2]) return true;
@@ -198,7 +232,7 @@ export function placeholderRow(pid: string, slug: string, known: InboxRow[]): In
   };
 }
 
-/** The row a /mobile/chat/:pid/:slug URL points at. */
+/** The row a /m/chat/:pid/:slug URL points at. */
 export function findRow(rows: InboxRow[], pid: string, slug: string): InboxRow {
   const hit = rows.find((r) => pidOf(r) === pid && r.agent_slug === slug);
   return hit || placeholderRow(pid, slug, rows);

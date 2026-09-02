@@ -11,9 +11,9 @@ import { toneText } from "../lib/tone";
 /**
  * Getting the phone surface ONTO a phone.
  *
- * `/mobile` is a URL like any other, which means the honest answer to "how do I
+ * `/m/chat` is a URL like any other, which means the honest answer to "how do I
  * open this on my phone" was "type a LAN address by hand". The QR here carries
- * the whole thing in one scan: the best address this daemon has, the /mobile
+ * the whole thing in one scan: the best address this daemon has, the /m/chat
  * path, and — when the panel is running on the machine itself, which is the
  * only place allowed to mint one — a pairing nonce, so the phone lands already
  * authenticated instead of on a "pair this device" screen.
@@ -94,7 +94,7 @@ export function MobileLinkDialog({ open, onClose }: { open: boolean; onClose: ()
   }, [open, pairingId, paired]);
 
   const base = endpoint?.url || window.location.origin;
-  const link = `${base}/mobile`;
+  const link = `${base}/m/chat`;
   // The nonce rides in the FRAGMENT: it never reaches a server, never lands in
   // a Referer header, and never shows up in a proxy log.
   const scanUrl = pairingId ? `${link}#pair=${pairingId}` : link;

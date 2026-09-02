@@ -108,12 +108,23 @@ test("an empty list says WHICH kind of empty it is", () => {
   assert.match(phone, /rows\.length && !q \? t\("channels\.all_hidden"\) : t\("mobile\.empty"\)/);
 });
 
-test("the phone tags every row with its channel; the desktop rail does not repeat its heading", () => {
+test("every row carries its channel, on both surfaces, and nothing groups by it", () => {
   const row = webSrc("components", "inbox", "InboxRowItem.tsx");
-  assert.match(row, /touch \? <ChannelTag channel=\{row\.channel\} \/> : null/);
+  // Unconditional. It used to be phone-only, because the desktop rail grouped
+  // under sticky channel headings — and that grouping was the enemy of the
+  // sort: an inbox answers "what happened last", and channel buckets meant the
+  // newest thing on screen depended on which bucket it fell into. Both lists
+  // are now flat and sorted by recency, so the row is the only thing left
+  // telling a WhatsApp from a contact apart from a web chat with the same agent.
+  assert.match(row, /<ChannelTag channel=\{row\.channel\} \/>/);
+  assert.doesNotMatch(row, /touch \? <ChannelTag/);
   // The raw storage value used to be printed as "· whatsapp". A channel is a
   // label on screen, so it wears its name (AGENTS.md rule 11a).
   assert.doesNotMatch(row, /· \{row\.channel\}/);
+
+  const list = webSrc("components", "inbox", "InboxList.tsx");
+  assert.doesNotMatch(list, /inbox-group-/, "the desktop rail must not group by channel");
+
   const chips = webSrc("components", "inbox", "ChannelFilter.tsx");
   assert.match(chips, /export function ChannelTag/);
   assert.match(chips, /channelLabel\(channel\)/);

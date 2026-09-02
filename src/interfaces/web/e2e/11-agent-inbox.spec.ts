@@ -9,20 +9,20 @@ test.describe("agent inbox", () => {
     await page.goto("/");
     await expect(page.getByTestId("nav-inbox")).toBeVisible();
     await page.getByTestId("nav-inbox").click();
-    await expect(page).toHaveURL(/\/m\/inbox/);
+    await expect(page).toHaveURL(/\/inbox/);
     await expect(page.getByTestId("inbox-list")).toBeVisible();
     expect(errors, "no uncaught page errors").toEqual([]);
   });
 
   test("survives a reload on its own URL (the SPA route is registered)", async ({ page, errors }) => {
-    await page.goto("/m/inbox");
+    await page.goto("/inbox");
     await page.reload();
     await expect(page.getByTestId("inbox-list")).toBeVisible();
     expect(errors).toEqual([]);
   });
 
   test("project navigation still works and is not replaced", async ({ page }) => {
-    await page.goto("/m/inbox");
+    await page.goto("/inbox");
     // The project rail is still there, and still goes where it always did.
     await expect(page.getByTestId("project-avatar-0")).toBeVisible();
     await page.getByTestId("project-avatar-0").click();
@@ -30,7 +30,7 @@ test.describe("agent inbox", () => {
   });
 
   test("the home rail button still reaches the admin screen", async ({ page }) => {
-    await page.goto("/m/inbox");
+    await page.goto("/inbox");
     await page.getByTestId("nav-home").click();
     await expect(page.getByTestId("screen-admin")).toBeVisible();
   });
@@ -75,12 +75,12 @@ test.describe("agent inbox", () => {
       (route) => route.fulfill({ json: [a2aRow, teammateRow] }),
     );
 
-    await page.goto("/m/inbox");
+    await page.goto("/inbox");
     await expect(page.getByTestId("inbox-list")).toBeVisible();
     await expect(page.getByTestId("a2a-avatar-group")).toHaveAttribute("data-participant-count", "2");
 
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("/mobile");
+    await page.goto("/m/chat");
     await expect(page.getByTestId("a2a-avatar-group")).toHaveAttribute("data-participant-count", "2");
     const avatarFitsViewport = await page
       .getByTestId("inbox-row-ada-grace")
@@ -122,7 +122,7 @@ test.describe("agent inbox", () => {
     );
 
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("/mobile");
+    await page.goto("/m/chat");
     // Agents are loose: no per-project team folder rows, just the agent.
     await expect(page.getByTestId("inbox-row-linus")).toBeVisible();
 
@@ -132,7 +132,7 @@ test.describe("agent inbox", () => {
     await page.getByTestId("new-chat-mode-single").click();
     await expect(page.getByTestId("new-chat-linus")).toBeVisible();
     await page.getByTestId("new-chat-linus").click();
-    await expect(page).toHaveURL(/\/mobile\/chat\/7\/linus/);
+    await expect(page).toHaveURL(/\/m\/chat\/7\/linus/);
     expect(errors).toEqual([]);
   });
 
@@ -164,24 +164,41 @@ test.describe("agent inbox", () => {
       (route) => route.fulfill({ json: CHANNEL_ROWS }),
     );
 
-    await page.goto("/m/inbox");
-    await expect(page.getByTestId("inbox-group-telegram")).toBeVisible();
+    await page.goto("/inbox");
+    // The list is flat and sorted by recency (the same shape as /m/chat), so a
+    // channel switched off is a row that leaves — there are no headings left to
+    // watch for.
+    await expect(page.getByTestId("inbox-row-super_agent")).toBeVisible();
 
     await page.getByTestId("inbox-channel-filter").click();
     await page.getByTestId("inbox-channel-option-telegram").click();
-    await expect(page.getByTestId("inbox-group-telegram")).toHaveCount(0);
+    await expect(page.getByTestId("inbox-row-super_agent")).toHaveCount(0);
     // The other channel is untouched — these are switches, not one choice —
     // and the menu is still open, which is what makes it a multi-select.
-    await expect(page.getByTestId("inbox-group-web")).toBeVisible();
+    await expect(page.getByTestId("inbox-row-linus")).toBeVisible();
     await expect(page.getByTestId("inbox-channel-option-web")).toBeVisible();
     await page.keyboard.press("Escape");
 
     await page.reload();
-    await expect(page.getByTestId("inbox-group-telegram")).toHaveCount(0);
+    await expect(page.getByTestId("inbox-row-super_agent")).toHaveCount(0);
 
     await page.getByTestId("inbox-channel-filter").click();
     await page.getByTestId("inbox-channel-option-telegram").click();
-    await expect(page.getByTestId("inbox-group-telegram")).toBeVisible();
+    await expect(page.getByTestId("inbox-row-super_agent")).toBeVisible();
+    expect(errors).toEqual([]);
+  });
+
+  // What the headings used to say, the row says now — on BOTH surfaces, since
+  // neither list groups any more.
+  test("the desktop rail tags every row with its channel", async ({ page, errors }) => {
+    await page.route(
+      (url) => url.pathname === "/api/inbox",
+      (route) => route.fulfill({ json: CHANNEL_ROWS }),
+    );
+    await page.goto("/inbox");
+    await expect(page.getByTestId("inbox-list").getByTestId("channel-tag-telegram")).toBeVisible();
+    await expect(page.getByTestId("inbox-list").getByTestId("channel-tag-web")).toBeVisible();
+    await expect(page.getByTestId("inbox-group-telegram")).toHaveCount(0);
     expect(errors).toEqual([]);
   });
 
@@ -192,12 +209,12 @@ test.describe("agent inbox", () => {
     );
 
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("/mobile");
+    await page.goto("/m/chat");
 
     // Telegram is on this device already; APX listing it again is duplication.
     await expect(page.getByTestId("inbox-row-super_agent")).toHaveCount(0);
     await expect(page.getByTestId("inbox-row-linus")).toBeVisible();
-    // The phone has no channel headings to group under, so the row carries it.
+    // Nothing groups by channel any more, so the row carries it.
     await expect(page.getByTestId("channel-tag-web")).toBeVisible();
 
     // Two taps and it is back — a default, not a decision made for the owner.
@@ -229,7 +246,7 @@ test.describe("agent inbox", () => {
       (route) => route.fulfill({ json: [row] }),
     );
 
-    await page.goto("/m/inbox");
+    await page.goto("/inbox");
     await expect(page.getByTestId("inbox-new-chat")).toBeVisible();
     await page.getByTestId("inbox-new-chat").click();
     await expect(page.getByTestId("new-chat-sheet")).toBeVisible();

@@ -7,9 +7,13 @@ sidebar:
 
 import { Steps, Aside } from '@astrojs/starlight/components';
 
-**APX Android** es una app nativa que encapsula la superficie `/mobile` del
+**APX Android** es una app nativa que encapsula la superficie de celular del
 daemon. Mantiene la UI móvil React existente como implementación única; Android
 maneja mascota flotante, notificaciones del sistema y apertura de la app.
+
+La app abre `/mobile`, que el panel redirige a `/m/chat` — la dirección actual de
+la superficie de celular, donde convive con `/m/tasks` y `/m/commitments` detrás
+de una barra inferior.
 
 ## Vincular una vez
 
