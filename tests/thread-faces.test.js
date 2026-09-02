@@ -1,6 +1,6 @@
 // A multi-agent thread wears the same faces and the same name on EVERY surface.
 //
-// The bug this pins: `/m/inbox?channel=a2a&thread=andy~opencode` drew both
+// The bug this pins: `/inbox?channel=a2a&thread=andy~opencode` drew both
 // agents and titled the thread "Andy · OpenCode", while `/p/0/chat` — the same
 // thread, opened from the project Chats tab — drew no faces at all and titled it
 // with the raw pair id. Not two bugs: one answer computed in two places. The

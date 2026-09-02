@@ -62,14 +62,25 @@ export function channelLabel(channel: string): string {
 /**
  * Is this the phone shell, rather than the panel?
  *
- * Installed counts (the APK and an installed PWA both open at /mobile), and so
- * does simply being on the phone route in a browser. It decides two things: the
- * shape of the URL a notification tap lands on, and which channels are muted
- * out of the box.
+ * Installed counts (the APK and an installed PWA both open on the phone
+ * surface), and so does simply being on one of its routes in a browser. It
+ * decides two things: the shape of the URL a notification tap lands on, and
+ * which channels are muted out of the box.
+ *
+ * `/mobile` is still matched: it is the phone's old address and the Android
+ * shell still opens it, so a tab that has not been redirected yet is still a
+ * phone. The panel's own modules used to live under `/m` too, so they are
+ * excluded by name — being one render early on `/m/code` must not make a
+ * 27-inch panel start behaving like a phone.
  */
+const PANEL_MODULES_UNDER_M = /^\/m\/(inbox|code|desktop|voice|deck)(\/|$)/;
+
 export function isPhoneSurface(): boolean {
   if (isInstalled()) return true;
-  return typeof location !== "undefined" && location.pathname.startsWith("/mobile");
+  if (typeof location === "undefined") return false;
+  const path = location.pathname;
+  if (PANEL_MODULES_UNDER_M.test(path)) return false;
+  return path === "/m" || path.startsWith("/m/") || path.startsWith("/mobile");
 }
 
 /**

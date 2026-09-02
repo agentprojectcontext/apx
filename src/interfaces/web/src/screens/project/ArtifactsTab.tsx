@@ -12,7 +12,7 @@ export function ArtifactsTab({ pid }: { pid: string }) {
 
   const toCode = (params: Record<string, string>) => {
     const qs = new URLSearchParams({ pid, ...params }).toString();
-    navigate(`/m/code?${qs}`);
+    navigate(`/code?${qs}`);
   };
 
   return (

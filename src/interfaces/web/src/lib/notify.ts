@@ -114,9 +114,9 @@ export function disableNotifications() {
  * Reading the thread already counts as being told.
  *
  * Three surfaces, one question: is this row the thing on screen? The phone
- * puts the agent in the path (/mobile/chat/:pid/:slug), the desktop panel and
+ * puts the agent in the path (/m/chat/:pid/:slug), the desktop panel and
  * the inbox put the session in the query (`?agent=` / `?channel=&thread=`).
- * Matching only the agent slug missed groups and `/m/inbox` — both address a
+ * Matching only the agent slug missed groups and `/inbox` — both address a
  * thread, not an agent, so a reply you were watching also rang the bell.
  */
 function looking(row: InboxRow): boolean {
@@ -202,7 +202,7 @@ export async function sendTestNotification(): Promise<boolean> {
  * Where tapping it should land — in the shape of the surface that raised it.
  *
  * The two frames address a session differently: the phone puts it in the PATH
- * (/mobile/chat/-/super_agent/web~2026-08-20), the desktop panel in the QUERY
+ * (/m/chat/-/super_agent/web~2026-08-20), the desktop panel in the QUERY
  * (/p/0/chat?channel=web&thread=2026-08-20). This used to hand out the phone
  * path unconditionally, so clicking a notification on a laptop threw you into
  * the phone surface — a single-column chat with no sidebar, on a 27-inch

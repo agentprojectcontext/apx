@@ -224,7 +224,7 @@ test("the offer finds you, and cannot open by itself", () => {
 
 test("the inbox writes the open thread into the URL so looking() can see it", () => {
   // The inbox picks via initialSelection and never calls selectChat. Without
-  // this write, `/m/inbox` has no query and a group reply you are watching
+  // this write, `/inbox` has no query and a group reply you are watching
   // still rings the bell.
   const tab = webSrc("screens", "project", "ChatTab.tsx");
   assert.match(tab, /const initialAddr = initialSelection && !onSelectionChange/);
@@ -243,7 +243,14 @@ test("the tap lands in the shape of the surface that raised it", () => {
   const channels = webSrc("lib", "channels.ts");
   assert.match(channels, /export function isPhoneSurface\(\): boolean/);
   assert.match(channels, /if \(isInstalled\(\)\) return true;/);
-  assert.match(channels, /location\.pathname\.startsWith\("\/mobile"\)/);
+  // Both spellings of the phone's namespace: `/m` is where it lives now, and
+  // `/mobile` is the address the Android shell still opens and every printed QR
+  // code still carries.
+  assert.match(channels, /path\.startsWith\("\/m\/"\)/);
+  assert.match(channels, /path\.startsWith\("\/mobile"\)/);
+  // …and the panel's own modules, which used to live under /m, are excluded by
+  // name so a 27-inch screen one render early on /m/code is not a phone.
+  assert.match(channels, /PANEL_MODULES_UNDER_M/);
   assert.match(notify, /if \(isPhoneSurface\(\)\) return chatPath\(pidOf\(row\), row\.agent_slug, key\);/);
   assert.match(notify, /return `\/p\/\$\{pid\}\/chat\?\$\{queryForChat\(key\)\.toString\(\)\}`/);
   // The desktop route has no "no project" sentinel — the super-agent is in 0.

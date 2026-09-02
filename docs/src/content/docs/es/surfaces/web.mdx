@@ -119,6 +119,13 @@ Un riel izquierdo muestra todos los proyectos registrados más accesos directos 
 Deck, Code). Debajo del riel hay un botón **Roby** que abre una hoja flotante de chat
 conectada al super-agente.
 
+Hay otros dos espacios de URL además de los de proyecto. Los módulos del panel
+son rutas de primer nivel — `/inbox`, `/code`, `/desktop` — y `/m/…` es
+enteramente la superficie del celular: `/m/chat`, `/m/tasks`, `/m/commitments`.
+La dirección vieja del celular, `/mobile`, sigue funcionando: redirige a `/m/…`
+para que los links que ya andan dando vueltas (QR impresos, la app Android) no
+se rompan.
+
 ![Riel izquierdo — lista de proyectos más accesos directos a módulos](../../../../assets/shots/10-project-overview.png)
 
 ## Actualización en vivo
@@ -170,7 +177,7 @@ Telegram es la misma noticia dos veces: ahí arranca apagado. En la compu es la
 **Settings → Notificaciones** prenden y apagan cada canal en el dispositivo
 donde estás; la elección vive en ese navegador (`localStorage`) y no sale de ahí.
 
-Lo mismo vale para las **listas**. La bandeja y `/mobile` muestran todos los
+Lo mismo vale para las **listas**. La bandeja y `/m/chat` muestran todos los
 canales donde puede pasar una conversación, agrupados, y una fila de chips
 apaga y prende cada uno para ese dispositivo — de nuevo con Telegram apagado por
 defecto en el celu. Un canal apagado conserva su chip (y su contador), así que la
@@ -384,7 +391,7 @@ Mirá [Voz](/apx/docs/es/surfaces/voice/) para la referencia completa de la CLI.
 
 ### Desktop
 
-El módulo Desktop (`/m/desktop`) muestra si la ventana flotante de Electron está
+El módulo Desktop (`/desktop`) muestra si la ventana flotante de Electron está
 corriendo (clientes WebSocket conectados), te deja editar el atajo global y
 alternar si el daemon responde a los mensajes de desktop. No podés iniciar ni detener
 el proceso de Electron desde el panel web — usá `apx desktop start / stop`.
@@ -406,7 +413,7 @@ Mirá [Deck](/apx/docs/es/surfaces/deck/) para la referencia de la CLI de vincul
 
 ### Code
 
-El módulo Code (`/m/code`) es la superficie de administración del asistente de codificación de
+El módulo Code (`/code`) es la superficie de administración del asistente de codificación de
 APX. Trabaja sobre una **sesión de código**: una transcripción persistente con su propio
 baseline de git, modo plan/build y, opcionalmente, un agente del proyecto.
 

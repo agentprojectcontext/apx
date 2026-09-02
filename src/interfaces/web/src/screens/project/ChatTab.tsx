@@ -217,7 +217,7 @@ export function ChatTab({
   };
 
   // An embedding host (the inbox) picks the thread via initialSelection and
-  // never calls selectChat. Without this write, `/m/inbox` has no query, and
+  // never calls selectChat. Without this write, `/inbox` has no query, and
   // agent notifications cannot tell you are already reading the row that just
   // moved — they fire for a message already on screen.
   const initialAddr = initialSelection && !onSelectionChange ? queryForChat(initialSelection).toString() : "";

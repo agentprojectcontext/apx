@@ -9,7 +9,7 @@ test.describe("rail modules", () => {
   test("Desktop module shows status and links to its configuration", async ({ page, errors }) => {
     await page.goto("/");
     await page.getByTestId("module-avatar-desktop").click();
-    await expect(page).toHaveURL(/\/m\/desktop/);
+    await expect(page).toHaveURL(/\/desktop/);
     await expect(page.getByTestId("screen-desktop")).toBeVisible();
     // The rail surface keeps only live status + last conversation; the settings
     // link takes the heavy config (autostart/shortcut/appearance) to Settings.
@@ -20,7 +20,7 @@ test.describe("rail modules", () => {
   test("Code module renders the coding REPL", async ({ page, errors }) => {
     await page.goto("/");
     await page.getByTestId("module-avatar-code").click();
-    await expect(page).toHaveURL(/\/m\/code/);
+    await expect(page).toHaveURL(/\/code/);
     await expect(page.getByTestId("screen-code")).toBeVisible();
     await expect(page.getByTestId("code-project-select")).toBeVisible();
     expect(errors).toEqual([]);
@@ -30,7 +30,7 @@ test.describe("rail modules", () => {
     page,
     errors,
   }) => {
-    await page.goto("/m/code");
+    await page.goto("/code");
     await expect(page.getByTestId("screen-code")).toBeVisible();
 
     // Unfiltered by default: a session started from another cwd (an
@@ -46,7 +46,7 @@ test.describe("rail modules", () => {
     page,
     errors,
   }) => {
-    await page.goto("/m/code");
+    await page.goto("/code");
     await expect(page.getByTestId("screen-code")).toBeVisible();
 
     await page.getByTestId("code-new-session").click();

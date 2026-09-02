@@ -29,6 +29,12 @@ test("isKnownSpaRoute matches every client route in App.tsx", () => {
     "/",
     "/settings",
     "/settings/engines",
+    // The panel's own modules. They moved off `/m/` when that namespace went to
+    // the phone; the old spellings still resolve, redirecting client-side.
+    "/inbox",
+    "/code",
+    "/code/anything",
+    "/desktop",
     "/m/voice",
     "/m/desktop/x",
     "/m/deck",
@@ -39,13 +45,24 @@ test("isKnownSpaRoute matches every client route in App.tsx", () => {
     // real URLs — reloading a chat, or coming back to a tab the phone
     // discarded while you were in another app, has to land on the same thread
     // rather than on the list.
+    "/m",
+    "/m/chat",
+    "/m/tasks",
+    "/m/commitments",
+    "/m/chat/1/magui",
+    // The super-agent has no project, so its `:pid` segment is a sentinel.
+    "/m/chat/-/super_agent",
+    "/m/chat/-/super_agent/telegram~2026-08-19",
+    "/m/team/1",
+    // Anything under the phone's namespace renders the chat list rather than a
+    // 404 screen, so it is a real 200 — the same rule `/mobile` has always had.
+    "/m/nope",
+    // `/mobile`, the phone's old address. Kept because the links are out in the
+    // world: the Android shell hardcodes it and QR codes have been scanned.
     "/mobile",
     "/mobile/anything",
     "/mobile/chat/1/magui",
-    // The super-agent has no project, so its `:pid` segment is a sentinel.
-    "/mobile/chat/-/super_agent",
     "/mobile/chat/-/super_agent/telegram~2026-08-19",
-    "/mobile/team/1",
   ];
   for (const p of known) {
     assert.equal(isKnownSpaRoute(p), true, `${p} should be a known SPA route (200)`);
@@ -55,7 +72,7 @@ test("isKnownSpaRoute matches every client route in App.tsx", () => {
 test("isKnownSpaRoute rejects unknown routes so they 404", () => {
   // The reported regression: a typo'd path that visually 404s must also 404 at
   // the HTTP level.
-  const unknown = ["/settingsasdas", "/m/nope", "/p", "/random", "/foo/bar"];
+  const unknown = ["/settingsasdas", "/mobileasdas", "/inboxasdas", "/p", "/random", "/foo/bar"];
   for (const p of unknown) {
     assert.equal(isKnownSpaRoute(p), false, `${p} should be unknown (404)`);
   }

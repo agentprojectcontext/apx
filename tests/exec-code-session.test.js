@@ -2,7 +2,7 @@
 // route. The turn ran, printed, and vanished: nothing was persisted, so the web
 // Code module had nothing to list, and asked "which session did it go to?" the
 // honest answer was "none". It now opens (or continues) a real code session, so
-// the turn is readable at /m/code afterwards.
+// the turn is readable at /code afterwards.
 //
 // Driven end to end: the real CLI binary against a stub daemon on a throwaway
 // port. The fix is about WHICH route the CLI calls and WHAT it tells the caller,
@@ -169,7 +169,7 @@ test("the reply goes to stdout and the session id to stderr", async () => {
   // The CLI prints a version mark on stderr; stdout is the answer alone.
   assert.equal(r.stdout.trim(), "done", "stdout stays the answer alone, for scripts");
   assert.match(r.stderr, /cs_stub01/, "the caller must be told which session it landed in");
-  assert.match(r.stderr, /\/m\/code/, "and where to read it");
+  assert.match(r.stderr, /\/code\b/, "and where to read it");
 });
 
 test("--session continues an existing session instead of opening another", async () => {

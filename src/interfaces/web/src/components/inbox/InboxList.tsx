@@ -4,7 +4,7 @@ import type { InboxRow } from "../../lib/api/inbox";
 import { t } from "../../i18n";
 import { InboxRowItem } from "./InboxRowItem";
 import { ChannelFilter } from "./ChannelFilter";
-import { channelEnabledIn, channelLabel, channelsOf } from "../../lib/channels";
+import { channelEnabledIn, channelsOf } from "../../lib/channels";
 import { useChannelPrefs } from "../../hooks/useChannelPrefs";
 
 /**
@@ -63,21 +63,6 @@ export function InboxList({
         .some((v) => String(v).toLowerCase().includes(needle)));
   }, [rows, q, view.prefs]);
 
-  // Grouped by channel, groups ordered by their most recent conversation, so a
-  // channel that just spoke rises to the top rather than sitting wherever a
-  // fixed channel order happened to put it. `rows` already arrives sorted by
-  // recency, so first-seen order is recency order.
-  const grouped = useMemo(() => {
-    const byChannel = new Map<string, InboxRow[]>();
-    for (const row of filtered) {
-      const key = row.channel || "other";
-      const bucket = byChannel.get(key);
-      if (bucket) bucket.push(row);
-      else byChannel.set(key, [row]);
-    }
-    return [...byChannel.entries()];
-  }, [filtered]);
-
   return (
     <aside className="flex w-full shrink-0 flex-col border-r border-border sm:w-72" data-testid="inbox-list">
       {/* Search sits on the same 44px band as the thread header opposite it, so
@@ -132,28 +117,24 @@ export function InboxList({
           </p>
         ) : null}
 
-        {grouped.map(([channel, group]) => (
-          <section key={channel} data-testid={`inbox-group-${channel}`}>
-            {/* The channel a conversation happened on is part of what it IS —
-                a WhatsApp from a contact and a web chat are different things
-                even with the same agent — so the list says so instead of
-                interleaving them by timestamp alone. */}
-            <h3 className="sticky top-0 z-10 bg-bg/95 px-2.5 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wide text-muted-fg backdrop-blur">
-              {channelLabel(channel)}
-            </h3>
-            {group.map((row) => {
-              const key = rowKey(row);
-              return (
-                <InboxRowItem
-                  key={key}
-                  row={row}
-                  selected={key === selectedKey}
-                  onSelect={onSelect}
-                />
-              );
-            })}
-          </section>
-        ))}
+        {/* One flat list, newest first — the same shape as /m/chat.
+            It used to be grouped by channel under sticky headings, and the
+            grouping was quietly the enemy of the sort: what you want from an
+            inbox is "what happened last", and eleven channel buckets means the
+            newest thing on screen depends on which bucket it fell into. The
+            channel is still on every row (ChannelTag), where it belongs — it
+            says what a conversation IS without deciding where it sits. */}
+        {filtered.map((row) => {
+          const key = rowKey(row);
+          return (
+            <InboxRowItem
+              key={key}
+              row={row}
+              selected={key === selectedKey}
+              onSelect={onSelect}
+            />
+          );
+        })}
       </div>
     </aside>
   );

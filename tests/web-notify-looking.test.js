@@ -41,7 +41,7 @@ const group = row({
 });
 
 test("the inbox group URL counts as looking at that group, not at another row", () => {
-  const href = "http://localhost:7430/m/inbox?channel=group&thread=grp-mt8znlpd-hx36";
+  const href = "http://localhost:7430/inbox?channel=group&thread=grp-mt8znlpd-hx36";
   assert.equal(urlLooksAt(href, group), true);
   assert.equal(urlLooksAt(href, row({ kind: "group", conversation_id: "grp-other", agent_slug: "group:grp-other", channel: "group" })), false);
   assert.equal(urlLooksAt(href, row()), false);
@@ -55,8 +55,8 @@ test("a project chat group URL is the same shape as the inbox", () => {
 });
 
 test("an inbox with no session in the URL is not looking at any row", () => {
-  assert.equal(urlLooksAt("http://localhost:7430/m/inbox", group), false);
-  assert.equal(urlLooksAt("http://localhost:7430/m/inbox", row()), false);
+  assert.equal(urlLooksAt("http://localhost:7430/inbox", group), false);
+  assert.equal(urlLooksAt("http://localhost:7430/inbox", row()), false);
 });
 
 test("a desktop agent query still counts as looking at that agent", () => {
@@ -67,11 +67,20 @@ test("a desktop agent query still counts as looking at that agent", () => {
 });
 
 test("the phone path still counts as looking at that agent", () => {
+  assert.equal(urlLooksAt("http://localhost:7430/m/chat/1/april", row()), true);
+  assert.equal(urlLooksAt("http://localhost:7430/m/chat/1/april/conv-1", row()), true);
+  assert.equal(urlLooksAt("http://localhost:7430/m/chat/1/magui", row()), false);
+  assert.equal(
+    urlLooksAt("http://localhost:7430/m/chat/1/group%3Agrp-mt8znlpd-hx36/group~grp-mt8znlpd-hx36", group),
+    true,
+  );
+});
+
+// The phone's old address. A notification raised before the rename still
+// carries it, and a tab that has not been redirected yet is still the thread
+// you are reading — answering "no" there rings the bell for what is on screen.
+test("the pre-rename phone path still counts as looking", () => {
   assert.equal(urlLooksAt("http://localhost:7430/mobile/chat/1/april", row()), true);
   assert.equal(urlLooksAt("http://localhost:7430/mobile/chat/1/april/conv-1", row()), true);
   assert.equal(urlLooksAt("http://localhost:7430/mobile/chat/1/magui", row()), false);
-  assert.equal(
-    urlLooksAt("http://localhost:7430/mobile/chat/1/group%3Agrp-mt8znlpd-hx36/group~grp-mt8znlpd-hx36", group),
-    true,
-  );
 });

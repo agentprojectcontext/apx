@@ -7,7 +7,7 @@
 // resolved both here in the API, the sidebar re-derived faces in React from its
 // own agent list, and the thread header could only do it when the inbox handed
 // it the row it had already resolved. Same ledger, three resolutions, two of
-// them incomplete — which is why `/m/inbox` drew "Andy · OpenCode" with both
+// them incomplete — which is why `/inbox` drew "Andy · OpenCode" with both
 // avatars while `/p/0/chat` drew the same thread as a faceless `andy~opencode`.
 //
 // So it is answered ONCE, here, and travels ON the payload: `participant_faces`

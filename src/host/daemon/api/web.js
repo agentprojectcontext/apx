@@ -32,7 +32,13 @@ const WEB_DIST = path.resolve(__dirname, "..", "..", "..", "interfaces", "web", 
 const SPA_ROUTES = [
   /^\/$/,
   /^\/settings(\/.*)?$/,
+  // The panel's own modules. They used to live under /m/, which now belongs to
+  // the phone surface; both spellings resolve (the old one client-side).
+  /^\/(inbox|code|desktop|voice|deck)(\/.*)?$/,
   /^\/m\/(voice|desktop|deck|code|inbox)(\/.*)?$/,
+  // The phone: /m/chat, /m/tasks, /m/commitments — and /mobile, its old
+  // address, which redirects rather than 404s.
+  /^\/m(\/.*)?$/,
   /^\/mobile(\/.*)?$/,
   /^\/p\/[^/]+(\/.*)?$/,
 ];

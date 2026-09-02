@@ -395,7 +395,7 @@ export function CodeScreen() {
     [pid],
   );
 
-  // Deep-link from the project Artifacts tab (/m/code?pid=..&cmd=.. or &edit=..).
+  // Deep-link from the project Artifacts tab (/code?pid=..&cmd=.. or &edit=..).
   // Select the requested project, then prefill the terminal with the artifact
   // command (so args like a URL can be typed) or open the file for editing.
   useEffect(() => {
