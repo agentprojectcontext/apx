@@ -189,10 +189,14 @@ Dejá `route_to_agent` vacío (o sin configurar) para usar el super-agent (el va
 
 Pedido que lleva varios pasos queda visible mientras avanza:
 
-1. **Una línea actividad por tool real.** Telegram recibe `⚙️ <tool>` justo antes de iniciar cada
-   acción, incluso si modelo entra directo a herramienta.
-2. **Escribiendo mientras trabaja.** Indicador Telegram se renueva después de cada actividad y
-   mientras trabajo corre. Relleno opcional modelo sigue filtrado, así no duplica actividad.
+1. **La línea de apertura**, que escribe el propio modelo antes de su primera acción — "Reviso
+   eso", "Voy a buscarlo". Telegram es una conversación, así que eso es prosa y nada más: los
+   nombres de las herramientas nunca se mandan al chat. Un turno cuyo modelo entra directo a una
+   herramienta sin escribir esa línea se queda callado, en lugar de que se le invente una.
+2. **Escribiendo mientras trabaja.** El indicador "escribiendo…" de Telegram se renueva en cada
+   inicio de herramienta, así una corrida de veinte acciones sigue mostrando actividad sin gastar
+   veinte mensajes —y veinte notificaciones— en avisarlo. Las notas posteriores del modelo quedan
+   filtradas, para que un modelo que narra cada paso no convierta un turno en veinte.
 3. **El mensaje de cierre**, que trae el resultado completo. Es el mensaje para el que existe
    el turno, y nunca se saltea: si el turno actuó pero no produjo cierre, se le pide al agente
    que lo escriba a partir de lo que acaba de hacer. Recién si eso también falla —normalmente
@@ -211,8 +215,8 @@ aplica sin reiniciar:
 }
 ```
 
-`180` deja como mucho una nota opcional cada tres minutos; `0` desactiva sólo esas notas: actividad
-real tools sigue apareciendo.
+`180` deja como mucho una nota opcional cada tres minutos; `0` las desactiva por completo, y queda
+estrictamente línea de apertura → trabajo → respuesta.
 
 Cuánto trabajo entra en un turno es otra perilla: `super_agent.telegram_max_iters` limita los
 pasos de herramienta de un turno (por defecto 1000, último reservado para mensaje cierre). Es

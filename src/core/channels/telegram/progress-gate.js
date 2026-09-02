@@ -1,15 +1,18 @@
 // One notice, then the work, then the answer — the message budget for a
 // Telegram turn.
 //
-// Tool-start activity is now shown directly by reply.js, because a Telegram
-// owner asked to see every real action. This gate only controls OPTIONAL model
-// prose around those actions, so a model that narrates every step cannot double
-// every activity line with another push notification.
+// Model prose is the ONLY thing Telegram ever receives mid-turn: tool names are
+// not sent (see reply.js), so this gate is not trimming a second channel of
+// activity — it is the whole of what the owner sees between "on it" and the
+// answer. That is why it opens rather than staying shut: hold the first line too
+// and a turn that takes four minutes of tool work looks like nothing happened.
 //
 // So this gate decides which stream events become chat messages:
 //
-//   - The FIRST line the model writes goes out as an optional turn opener.
-//     A tool-start activity line still appears even if the model skips prose.
+//   - The FIRST line the model writes goes out as the turn opener. A turn whose
+//     model skips prose entirely and dives straight into tools stays silent —
+//     the typing indicator carries it, and nothing is invented on the agent's
+//     behalf.
 //   - Everything after it is held. The turn goes quiet — the typing indicator
 //     keeps ticking (poller._startTyping re-pings every 4s) — until the closing
 //     message the caller always sends.

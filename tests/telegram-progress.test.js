@@ -1,5 +1,9 @@
-// A Telegram turn exposes each real tool start, then answers. Optional model
-// filler remains gated so it cannot duplicate those activity notices.
+// A Telegram turn opens with the model's own line, works quietly, then answers.
+//
+// The thing most of these pin is a NEGATIVE: no tool name ever reaches the chat.
+// It briefly did — one "⚙️ run_shell" per tool start — and Telegram is a
+// conversation, so machine vocabulary in it is a bug however truthful it is.
+// What carries the work is the typing indicator, renewed on each tool start.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -80,16 +84,20 @@ test("progressEveryMs: unset falls back to the default, 0 disables", () => {
 
 // ── the wiring ─────────────────────────────────────────────────────────────
 
-/** Poller stub: records what would have been sent to the chat. */
+/** Poller stub: records what would have been sent to the chat, and every time
+ *  the typing indicator was renewed. */
 function makePoller(superAgentCfg = {}) {
   const sent = [];
+  const typing = [];
   return {
     sent,
+    typing,
     self: {
       globalConfig: { super_agent: superAgentCfg },
       channel: { name: "default" },
       log: () => {},
       _send: async ({ text }) => { sent.push(text); },
+      _typing: async (chatId) => { typing.push(chatId); },
     },
   };
 }
@@ -100,8 +108,8 @@ const toolStart = (n) => ({
   iteration: n,
 });
 
-test("stream: every real tool start sends one compact activity line", async () => {
-  const { self, sent } = makePoller({ telegram_progress_every_s: 90 });
+test("stream: seven tools cost one message — the model's opening line", async () => {
+  const { self, sent, typing } = makePoller({ telegram_progress_every_s: 90 });
   const { onEvent, state } = buildStreamHandler(self, {
     chat_id: "1234567890",
     update_id: 42,
@@ -115,16 +123,40 @@ test("stream: every real tool start sends one compact activity line", async () =
     await onEvent({ type: "assistant_text", text: `Paso ${i}`, iteration: i + 1 });
   }
 
-  assert.equal(sent[0], "Reviso eso");
-  assert.deepEqual(sent.slice(1), Array.from({ length: 7 }, () => "⚙️ list_tasks"));
-  assert.equal(state.streamedCount, 8);
-  assert.equal(state.toolNoticeCount, 7);
+  assert.deepEqual(sent, ["Reviso eso"], "one opener, then quiet until the answer");
+  assert.equal(state.streamedCount, 1);
   assert.equal(state.lastStreamedText, "Reviso eso");
   assert.equal(state.heldCount, 7, "every later note is accounted for, not silently dropped");
+  assert.equal(typing.length, 7, "each tool start refreshes the typing indicator instead");
 });
 
-test("stream: a turn that starts with tools is visibly active before model prose", async () => {
+test("stream: no tool name ever reaches the chat, whatever the tool is called", async () => {
+  // The regression, stated as the promise it broke: Telegram is prose. A turn
+  // that shells out does not get to say "run_shell" — not with a gear in front
+  // of it, not at all.
   const { self, sent } = makePoller({ telegram_progress_every_s: 90 });
+  const { onEvent } = buildStreamHandler(self, {
+    chat_id: "1234567890",
+    update_id: 45,
+    agentDisplay: "APX",
+  });
+
+  await onEvent({ type: "assistant_text", text: "Reviso eso", iteration: 1 });
+  for (const tool of ["run_shell", "asana_list_projects", "send_telegram"]) {
+    await onEvent({ type: "tool_start", trace: { id: `1:${tool}`, tool, args: {}, pending: true }, iteration: 1 });
+    await onEvent({ type: "tool_result", trace: { id: `1:${tool}`, tool, args: {}, result: "ok" }, iteration: 1 });
+  }
+
+  assert.deepEqual(sent, ["Reviso eso"]);
+  const joined = sent.join("\n");
+  assert.doesNotMatch(joined, /⚙️/, "no gear prefix");
+  assert.doesNotMatch(joined, /run_shell|asana_list_projects|send_telegram/, "no tool identifiers");
+});
+
+test("stream: a turn that dives straight into tools stays quiet until the model speaks", async () => {
+  // Nothing is written on the agent's behalf. The owner sees the typing
+  // indicator until the model itself has something to say.
+  const { self, sent, typing } = makePoller({ telegram_progress_every_s: 90 });
   const { onEvent, state } = buildStreamHandler(self, {
     chat_id: "1234567890",
     update_id: 43,
@@ -133,12 +165,13 @@ test("stream: a turn that starts with tools is visibly active before model prose
 
   await onEvent(toolStart(1));
   await onEvent(toolStart(2));
-  await onEvent({ type: "assistant_text", text: "Sigo buscando", iteration: 2 });
+  assert.deepEqual(sent, [], "two tools in, still not a word");
+  assert.equal(typing.length, 2, "but the chat is visibly working");
 
-  assert.deepEqual(sent, ["⚙️ list_tasks", "⚙️ list_tasks", "Sigo buscando"]);
-  assert.equal(state.streamedCount, 3);
-  assert.equal(state.toolNoticeCount, 2);
-  assert.equal(state.heldCount, 0);
+  await onEvent({ type: "assistant_text", text: "Sigo buscando", iteration: 2 });
+  assert.deepEqual(sent, ["Sigo buscando"], "the model's line is the first thing sent");
+  assert.equal(state.streamedCount, 1);
+  assert.equal(state.heldCount, 0, "tools did not spend the opener");
 });
 
 test("stream: a turn that never calls a tool is untouched", async () => {

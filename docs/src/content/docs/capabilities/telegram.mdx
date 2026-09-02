@@ -189,10 +189,14 @@ Leave `route_to_agent` empty (or unset) to use the super-agent (the default).
 
 A request that takes the agent several steps stays visibly active:
 
-1. **One activity line per real tool.** Telegram receives `⚙️ <tool>` immediately before each
-   action starts, even when the model opens directly into a tool.
-2. **Typing while it works.** Telegram's "typing…" indicator is renewed after each activity
-   line and while work runs. Optional model filler remains gated, so it cannot duplicate activity.
+1. **The opening line**, written by the model itself before its first action — "Reviso eso",
+   "Voy a buscarlo". Telegram is a conversation, so this is prose and nothing else: tool names
+   are never sent to the chat. A turn whose model dives straight into a tool without writing a
+   line stays quiet rather than have one invented on its behalf.
+2. **Typing while it works.** Telegram's "typing…" indicator is renewed at every tool start, so
+   a run of twenty actions keeps showing life without spending twenty messages — and twenty
+   push notifications — on saying so. Later model notes are gated, so a model that narrates
+   every step cannot turn one turn into a stream of them.
 3. **The closing message**, which carries the whole result. It is the message the turn exists
    for, and it is never skipped: when a turn acts but produces no closing, the agent is asked
    to write one from what it just did. Only if that fails too — usually the same engine outage
@@ -210,8 +214,8 @@ same file and applies it without a restart:
 }
 ```
 
-`180` means at most one optional model note every three minutes; `0` disables only those optional
-notes — real tool activity still appears.
+`180` means at most one optional model note every three minutes; `0` switches those notes off
+entirely, leaving strictly opening line → work → answer.
 
 How much work fits in one turn is a separate knob: `super_agent.telegram_max_iters` caps the
 tool steps a single turn may take (default 1000, the last one reserved for the closing message).
