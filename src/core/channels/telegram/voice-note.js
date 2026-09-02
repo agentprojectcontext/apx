@@ -1,18 +1,25 @@
 // Telegram replies as VOICE while the owner is driving.
 //
 // The rule: when a trip is active, every automatic Telegram reply goes out
-// twice — first the spoken note, then the same words as text under a
-// transcript header. Two sends, deliberately. The audio is what you can
-// consume with your eyes on the road; the text is what you can scroll back to
-// at the next red light, and what search, the web panel and the ledger can
-// read. Neither one alone covers both.
+// twice — first the spoken note, then the written reply under a transcript
+// header. Two sends, deliberately. The audio is what you can consume with your
+// eyes on the road; the text is what you can scroll back to at the next red
+// light, and what search, the web panel and the ledger can read. Neither one
+// alone covers both.
 //
-// Length is the other half of the feature and it is NOT handled here: a
-// spoken paragraph is unusable, so the turn itself runs in voice MODE
-// (channelMeta.voice → prompts/modes/voice.md, two short sentences), the same
-// switch the desktop capsule already uses. This module only delivers what
-// that produced. Trying to shorten text after the model wrote it would just
-// truncate mid-sentence.
+// They are not always the same words. The written half is the whole reply; the
+// spoken half is its FIRST PARAGRAPH (see spokenPart). That is what lets an
+// answer carry something unspeakable — a command, a prompt to paste, a diff —
+// without it being read out at the wheel: the model is told to put such things
+// below a blank line and to say where they went, and this module honours the
+// break it drew.
+//
+// Length is otherwise still the prompt's job, not this module's: the turn runs
+// in voice MODE (channelMeta.voice → prompts/modes/voice.md, two short
+// sentences) plus mobility mode, the same switch the desktop capsule uses.
+// Shortening a paragraph the model already wrote would only truncate it
+// mid-sentence, which is why nothing here does that — cutting at a boundary
+// the model was asked to draw is a different thing from cutting mid-thought.
 //
 // Core stays core: the Telegram I/O arrives as `io` ({ send, sendVoice }), so
 // nothing here imports the host plugin.
@@ -23,6 +30,33 @@ import { toVoiceNote } from "#core/voice/opus.js";
 import { stripEmoji } from "#core/voice/pronounceable.js";
 import { archiveOutboundMedia, outboundMediaMeta } from "#core/stores/media-archive.js";
 import { mobilityContext } from "#core/mobility/state.js";
+
+/**
+ * The half of a reply that gets SPOKEN: everything up to the first blank line
+ * or the first code fence, whichever comes first.
+ *
+ * This is not shortening the model's answer after the fact — that only ever
+ * truncates mid-sentence, which is why it was refused. It is honouring a
+ * boundary the model drew itself, on instruction: prompts/modes/mobility.md
+ * tells it the first paragraph is what gets spoken and that anything a person
+ * cannot hear — a command, a prompt to paste, a diff — goes below a blank line
+ * instead. Both halves are still delivered; only the audio stops at the break.
+ *
+ * Without it, "your answer is also a voice note" meant a driver being read a
+ * shell command character by character, because the model had nowhere else to
+ * put it and no reason to think it should.
+ *
+ * A reply with no break is spoken whole — the common case is one short
+ * paragraph, and nothing about it changes. A reply that opens straight into a
+ * code block has no sayable half at all; that comes back empty, and the caller
+ * sends it as plain text rather than voicing punctuation.
+ */
+export function spokenPart(text) {
+  const clean = String(text || "").trim();
+  if (!clean || clean.startsWith("```")) return "";
+  const breaks = [clean.indexOf("\n```"), clean.indexOf("\n\n")].filter((at) => at > 0);
+  return breaks.length ? clean.slice(0, Math.min(...breaks)).trim() : clean;
+}
 
 /**
  * Is the owner in a car right now, and does this install want spoken replies
@@ -66,6 +100,10 @@ export async function deliverVoiceReply({
   const lang = resolveLang(globalConfig);
   const clean = String(text || "").trim();
   if (!clean) return { voice: false, reason: "empty" };
+  // The audio is the FIRST paragraph; the transcript below is the whole reply.
+  // See spokenPart() — the split is the model's, made on instruction.
+  const head = spokenPart(clean);
+  if (!head) return { voice: false, reason: "nothing-sayable" };
 
   let audio = null;
   let converted = null;
@@ -73,8 +111,8 @@ export async function deliverVoiceReply({
     // Spoken text loses its emoji; the transcript below keeps them. A TTS model
     // has to produce something for every token, and 📍 comes out as a couple of
     // seconds of humming in the middle of the sentence.
-    const sayable = stripEmoji(clean);
-    const spoken = await synthesizeFn({ text: sayable || clean, globalConfig });
+    const sayable = stripEmoji(head);
+    const spoken = await synthesizeFn({ text: sayable || head, globalConfig });
     // "mock" is the selector's way of saying nothing spoke — the audio is
     // silence. Sending it would look like a delivered reply the owner simply
     // could not hear, which is worse than plain text.

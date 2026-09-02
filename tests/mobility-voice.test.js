@@ -84,6 +84,68 @@ test("a driving reply goes out as a voice note AND a flagged transcript", async 
   assert.match(io.sent[1].text, /Listo, anoté la tarea\./, "and must carry the same words");
 });
 
+test("only the first paragraph is spoken — the material stays in the text", async () => {
+  // The reported failure: asked something while driving, the owner got 1:13 of
+  // audio that read a whole A2A prompt out loud, ending in a colon. Both halves
+  // still have to arrive — dropping the prompt would be worse than reading it —
+  // so the audio stops at the break and the transcript carries everything.
+  startTrip();
+  const io = recordingIo();
+  const spoken = "Listo, ya le pasé el requerimiento. Te dejo el prompt en el chat web.";
+  const reply = `${spoken}\n\n\`\`\`\nTAREA: corregir el geofencing\n…\n\`\`\``;
+
+  const result = await deliverVoiceReply({
+    io, chat_id: 1234567890, text: reply,
+    globalConfig: { user: { language: "es" } },
+    synthesizeFn: async ({ text }) => {
+      assert.equal(text, spoken, "the code block must never reach the TTS engine");
+      const file = path.join(tmpHome, `s-${Math.random().toString(36).slice(2)}.wav`);
+      fs.writeFileSync(file, Buffer.alloc(64));
+      return { audio_path: file, duration_s: 3, provider: "qvox" };
+    },
+    toVoiceNoteFn: fakeConvert(),
+  });
+
+  assert.equal(result.voice, true);
+  assert.match(io.sent[1].text, /TAREA: corregir el geofencing/, "the transcript keeps the whole reply");
+});
+
+test("a reply that is only a code block is text, not a voice note", async () => {
+  // Nothing sayable in it. Voicing punctuation would be worse than staying
+  // quiet, and the caller still owes the text — which it sends.
+  startTrip();
+  const io = recordingIo();
+  const result = await deliverVoiceReply({
+    io, chat_id: 1234567890, text: "```\nnpm run preflight\n```",
+    globalConfig: { user: { language: "es" } },
+    synthesizeFn: async () => { throw new Error("must not synthesize"); },
+    toVoiceNoteFn: fakeConvert(),
+  });
+
+  assert.equal(result.voice, false);
+  assert.equal(result.reason, "nothing-sayable");
+  assert.deepEqual(io.sent, [], "and this module sends nothing — the caller falls through to text");
+});
+
+test("an ordinary one-paragraph reply is spoken whole", async () => {
+  // The common case must not change: no break, nothing to split.
+  startTrip();
+  const io = recordingIo();
+  const text = "Anoté la tarea y te aviso cuando pases cerca.";
+  await deliverVoiceReply({
+    io, chat_id: 1234567890, text,
+    globalConfig: { user: { language: "es" } },
+    synthesizeFn: async ({ text: said }) => {
+      assert.equal(said, text);
+      const file = path.join(tmpHome, `w-${Math.random().toString(36).slice(2)}.wav`);
+      fs.writeFileSync(file, Buffer.alloc(64));
+      return { audio_path: file, duration_s: 2, provider: "qvox" };
+    },
+    toVoiceNoteFn: fakeConvert(),
+  });
+  assert.equal(io.sent[0].kind, "voice");
+});
+
 test("the chips ride on the transcript, never on the audio player", async () => {
   startTrip();
   const io = recordingIo();
@@ -178,6 +240,11 @@ test("mobility mode teaches the model to answer in one or two spoken sentences",
   const block = buildMobilityModeBlock(true);
   assert.match(block, /ONE or TWO short sentences/);
   assert.match(block, /voice note/);
+  // And that unspeakable material has somewhere to GO. Without this the model
+  // has only two options, both bad: dictate the command or drop it.
+  assert.match(block, /first paragraph is spoken/i);
+  assert.match(block, /below a blank line/i);
+  assert.match(block, /chat web/i, "the phrase it is meant to say, in the owner's language");
 
   // And it reaches the assembled prompt only when the turn declares it.
   const system = buildSuperAgentSystem({
