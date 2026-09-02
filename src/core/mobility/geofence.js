@@ -232,10 +232,26 @@ function sameSpot(a, b) {
 /** Point each errand at its nearest candidate. Arithmetic only — never a call. */
 function rank(errands, position) {
   for (const errand of errands.values()) {
-    // A locked errand keeps its place. This is the owner's "unless we already
+    // A locked errand keeps its PLACE. This is the owner's "unless we already
     // have one single place to go": once the answer is settled, driving past
     // a closer branch does not re-open the question.
-    if (errand.locked && errand.chosen) continue;
+    //
+    // Its DISTANCE is not settled, though, and must be re-measured like anyone
+    // else's: the car is driving TOWARD that place, and how far away it is now
+    // is the whole basis of the proximity check. Keeping the number the lock
+    // was taken with froze it at the first sample of the trip — and since
+    // prepareTripPlan warms the plan from the ORIGIN, that number is the
+    // distance from where the drive started. A pinned errand (locked on sight,
+    // by definition) could therefore never come into range: you arrive at the
+    // shop and evaluateMobilityPosition is still comparing the radius against
+    // how far the shop is from your house.
+    if (errand.locked && errand.chosen) {
+      errand.chosen = {
+        ...errand.chosen,
+        distance_m: Math.round(haversineMeters(position, errand.chosen)),
+      };
+      continue;
+    }
     let best = null;
     for (const candidate of errand.candidates) {
       const distance_m = Math.round(haversineMeters(position, candidate));
