@@ -90,7 +90,7 @@ async function handleHeartbeat(ctx, routine) {
 // reliable signal is a `apx telegram …` post_command, which pipes the model's
 // final text straight into Telegram and shows up here as a suppressed
 // send_telegram (see tools-overlap.js). There the final turn literally becomes
-// the message, so the bounded single-turn chat budget is the right shape.
+// the message, so its dedicated Telegram ceiling is the right shape.
 //
 // Merely HAVING the send_telegram tool available does NOT count: it's a
 // near-universal default (an empty allowed_tools falls back to the broad set),
@@ -108,9 +108,8 @@ export function routineReportsToTelegram({ autoSuppress, deliverTo }) {
   return (autoSuppress || []).includes("send_telegram");
 }
 
-// Tool-loop budget for a routine: the bounded conversational budget when it
-// reports to Telegram, an effectively-unbounded ceiling when it doesn't (see
-// ROUTINE_UNCAPPED_TOOL_ITERS). Both honor a per-deployment config override.
+// Tool-loop budget for a routine: the dedicated Telegram or non-Telegram
+// runaway ceiling. Both honor a per-deployment config override.
 export function routineToolIters(config, { telegramBound }) {
   const sa = config?.super_agent || {};
   const pick = (raw, fallback) => {

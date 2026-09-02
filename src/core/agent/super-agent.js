@@ -14,7 +14,7 @@ import { resolveAgentName } from "#core/identity/index.js";
 import { memoryBlockFor, buildActiveThreadsBlock } from "#core/memory/index.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { judgeConfig, judgeCompletion, applyJudgeLoop, continuableTurn } from "#core/agent/judge.js";
-import { channelToolIters } from "#core/agent/constants.js";
+import { channelToolIters, MAX_TOOL_ITERS } from "#core/agent/constants.js";
 import { mobilityContextBlock } from "#core/mobility/state.js";
 
 export {
@@ -49,10 +49,12 @@ export async function runSuperAgent({
   systemSuffix = "",
   // Per-reply output cap; forwarded to runAgent. Summarize/ask raise it.
   maxTokens,
-  // Max tool-loop iterations; forwarded to runAgent. The Code module raises
-  // this so coding tasks run to completion instead of stopping after a step.
-  // Left unset, the channel decides (channelToolIters): the web chat runs to
-  // completion, everything else keeps runAgent's conversational default.
+  // Max tool-loop iterations for the TURN — the first run plus any judge round
+  // that continues it, which share this number rather than each getting it in
+  // full. Forwarded to runAgent; the Code module raises it so coding tasks run
+  // to completion instead of stopping after a step. Left unset, the channel
+  // decides (channelToolIters): the web chat runs to completion, everything
+  // else keeps runAgent's conversational default.
   maxIters,
   // Structural "keep going until done" contract (finish tool + forced tool
   // choice). Coding surfaces (web Code build mode, terminal Build) turn this on.
@@ -155,9 +157,16 @@ export async function runSuperAgent({
   // An explicit budget from the caller always wins; otherwise the surface's own
   // default applies. This is where the web chat stops hitting a wall every 9
   // actions and asking whether to keep going — see WEB_TOOL_ITERS.
-  const effectiveMaxIters = maxIters || channelToolIters(globalConfig, channel);
+  //
+  // Resolved to a NUMBER here, falling through to runAgent's own default rather
+  // than leaving it unset, because this is the turn's total and the judge loop
+  // below has to subtract from it. "Whatever runAgent picks" is not a total you
+  // can share between rounds.
+  const turnMaxIters = maxIters || channelToolIters(globalConfig, channel) || MAX_TOOL_ITERS;
 
-  const runOnce = (turnPrompt, history) =>
+  // `iters` is what THIS pass may spend, which is the whole budget for the
+  // first run and whatever is left for a judge round.
+  const runOnce = (turnPrompt, history, iters = turnMaxIters) =>
     runAgent({
       globalConfig,
       system,
@@ -176,7 +185,7 @@ export async function runSuperAgent({
       agentName: resolveAgentName(globalConfig),
       suppressTools,
       ...(maxTokens ? { maxTokens } : {}),
-      ...(effectiveMaxIters ? { maxIters: effectiveMaxIters } : {}),
+      maxIters: iters,
       ...(completionContract ? { completionContract: true } : {}),
     });
 
@@ -209,10 +218,13 @@ export async function runSuperAgent({
     initialResult: result,
     cfg: jCfg,
     onEvent,
+    // The turn's whole budget, shared with the run above rather than reissued
+    // per round. Without this the ceiling was (1 + max_iterations) × turnMaxIters.
+    maxIters: turnMaxIters,
     judgeFn: (r) => judgeCompletionFn({ goal: prompt, result: r, globalConfig }),
-    runFollowup: async (followup, prior) => {
+    runFollowup: async (followup, prior, { maxIters: roundIters } = {}) => {
       history.push({ role: "assistant", content: prior.text || "" });
-      const next = await runOnce(followup, [...history]);
+      const next = await runOnce(followup, [...history], roundIters);
       history.push({ role: "user", content: followup });
       return next;
     },

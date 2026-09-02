@@ -444,6 +444,14 @@ export async function runAgent({
   const trace = [];
   const totalUsage = { input_tokens: 0, output_tokens: 0 };
   let lastText = "";
+  // How much of `maxIters` this run actually spent. Returned so a CALLER that
+  // runs the loop more than once for one turn (the judge loop) can subtract it
+  // from a shared budget instead of handing every round the full number again.
+  // Counted in iterations, not tool calls: one iteration can carry several
+  // parallel calls or none, and iterations are what maxIters is denominated in.
+  // The empty-retry below deliberately rewinds `iter`, so it doesn't count here
+  // either — same rule in both places.
+  let itersUsed = 0;
 
   // Collapse repeated greetings within a single turn. A turn can produce several
   // text segments (pre-tool narration + final answer) and weaker models greet in
@@ -527,6 +535,7 @@ export async function runAgent({
       err.name = "AbortError";
       throw err;
     }
+    itersUsed = iter + 1;
     // Merge any tools activated via discover_tools on the previous iteration.
     drainPendingTools();
     // Final iteration of a non-contract turn: the model is out of action steps.
@@ -949,6 +958,8 @@ export async function runAgent({
     trace,
     model: activeModel,
     routing,
+    // Iterations of `maxIters` consumed. See itersUsed above.
+    iterations: itersUsed,
     // True when the turn closed on the reserved wrap-up — it asked the user a
     // question and the next move is theirs. See endedAwaitingUser above.
     endedAwaitingUser,

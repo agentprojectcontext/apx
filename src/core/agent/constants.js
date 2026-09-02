@@ -6,16 +6,12 @@ import { CHANNELS } from "#core/constants/channels.js";
 // Coding surfaces (web Code / terminal Build) raise this via maxIters and use
 // the finish-tool completionContract instead.
 export const MAX_TOOL_ITERS = 10;
-// Telegram is the "do real work for me" conversational surface (the super-agent
-// Roby): it needs to chain explore→edit→verify→close autonomously, not stop
-// after ~9 actions and ask "want me to continue?". A budget of 10 left only one
-// usable action step before the reserved wrap-up, so multi-step tasks routinely
-// cut off mid-job. We give it a real autonomy budget (mirroring the TUI Code
-// surface's maxIters:40) while keeping it below the coding surfaces. The
-// reserved final-step wrap-up still applies, but now only fires when a task
-// genuinely exhausts this budget — a rare safety floor, not the default close.
-// Overridable per-deployment via config.super_agent.telegram_max_iters.
-export const TELEGRAM_TOOL_ITERS = 24;
+// Telegram is an owner-controlled work surface too. Its live action notices
+// make long turns observable, so stopping after a small count and asking
+// "should I continue?" is friction rather than a guardrail. This is a runaway
+// backstop: the loop normally ends when work is done, while stuck detection
+// still aborts repeats. Overridable via config.super_agent.telegram_max_iters.
+export const TELEGRAM_TOOL_ITERS = 1000;
 // A background routine that does NOT report to Telegram has no human waiting on
 // a bounded chat turn: nobody is going to read a "want me to keep going?"
 // wrap-up, let alone answer it. Capping such a run at the conversational budget
@@ -39,6 +35,26 @@ export const ROUTINE_UNCAPPED_TOOL_ITERS = 1000;
 // backstop — not a normal stopping point.
 // Overridable per-deployment via config.super_agent.web_max_iters.
 export const WEB_TOOL_ITERS = ROUTINE_UNCAPPED_TOOL_ITERS;
+// ONE TURN, ONE BUDGET. Every number above is the budget for a TURN, not for
+// one pass of the tool loop — and a turn can run the loop more than once, when
+// the completion judge sends it back to finish something (agent/judge.js). Those
+// rounds SHARE the number: each gets what the rounds before it left. Before
+// this, every round was handed the full budget again and nothing summed, so the
+// real ceiling was (1 + judge.max_iterations) × the number written here — 3×1000
+// on web from a single message. That ceiling was never a decision anyone made;
+// it was the product of two settings that didn't know about each other.
+//
+// The alternative was a separate, smaller budget for verification rounds. It was
+// rejected for the reason this comment exists: a second number does not tell you
+// what one turn may spend, it just makes you multiply two numbers instead of
+// one. The budget answers "how many tool steps before we stop and ask the
+// human", and that question is about the turn.
+//
+// The floor below is what a round needs to be worth running: one action step,
+// plus the tool-free closing step run-agent.js reserves. With less than that a
+// round can only produce a "ran out of room" recap — over the top of an answer
+// we already have — so the judge loop stops instead of starting one.
+export const MIN_JUDGE_ROUND_ITERS = 2;
 // The channels WEB_TOOL_ITERS applies to. Coding surfaces (web_code, code) are
 // deliberately absent: they set their own budget alongside the completion
 // contract, and that pairing is what makes them stop on `finish` rather than on
@@ -72,4 +88,3 @@ export const MAX_CONSECUTIVE_ACKS = 2;
 // tool runs we break the loop — even under completionContract — because the
 // task literally cannot advance without a human reply. Without this, models
 // under forced toolChoice spam the same question across iterations.
-

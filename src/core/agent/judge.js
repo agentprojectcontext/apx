@@ -3,6 +3,12 @@
 // (0..1); below the threshold the agent gets a follow-up verification note and
 // continues — bounded by max_iterations so a harsh judge can't spin forever.
 //
+// Two bounds, and only one of them is a count of rounds. `max_iterations` caps
+// how many times we RE-ASK; the turn's tool budget caps how much the asking may
+// cost, and the rounds share that budget with the run that came before them
+// (applyJudgeLoop's `maxIters`). They used to be independent, which quietly made
+// the real ceiling max_iterations × the budget — see constants.js.
+//
 // It serves two different failures, through the same loop:
 //
 //   - Completion-contract turns (coding surfaces) declare "done" themselves,
@@ -14,6 +20,7 @@
 //     judge IS the poke, and it is on by default (`judge.continue_unfinished`).
 import { callEngine } from "../engines/index.js";
 import { TURN_ENDING_TOOLS } from "./tools/names.js";
+import { MIN_JUDGE_ROUND_ITERS } from "./constants.js";
 
 export function judgeConfig(globalConfig) {
   const raw = globalConfig?.super_agent?.judge || {};
@@ -195,14 +202,45 @@ export function awaitingUser(result) {
 }
 
 /**
+ * Iterations of the tool budget a run consumed. runAgent reports it directly;
+ * an injected runner (tests, a surface with its own loop) may not, and for
+ * those we fall back to a LOWER BOUND — a tool result cannot exist without an
+ * iteration that produced it, and a round that ran at all cost at least one.
+ * Under-counting means one extra round in a synthetic case; not counting at all
+ * would mean no ceiling, which is the bug this whole file's budget arithmetic
+ * exists to close.
+ *
+ * @param {{iterations?: number, trace?: unknown[]}} result a runAgent result
+ */
+export function itersSpent(result) {
+  const n = Number(result?.iterations);
+  if (Number.isFinite(n) && n >= 0) return n;
+  const trace = Array.isArray(result?.trace) ? result.trace : [];
+  return Math.max(1, trace.length);
+}
+
+/**
  * Refinement driver, dependency-injected so surfaces and tests supply their
  * own judge/runner. `judgeFn(result)` → verdict|null; `runFollowup(followupPrompt,
- * result)` → next run result. Merges usage and traces across rounds and
- * attaches the verdict trail as `result.judge`.
+ * result, {maxIters})` → next run result. Merges usage, traces and iteration
+ * spend across rounds and attaches the verdict trail as `result.judge`.
+ *
+ * `maxIters` is the budget for the WHOLE TURN — the run that produced
+ * `initialResult` plus every round this loop adds — not a per-round allowance.
+ * Each round is handed what the rounds before it left, and once too little is
+ * left to be worth a round (MIN_JUDGE_ROUND_ITERS) the loop stops. See the
+ * "one turn, one budget" note in constants.js for why the total is shared
+ * rather than the rounds getting a budget of their own.
+ *
+ * Omit it (or pass 0) and there is no arithmetic to do: rounds run on whatever
+ * budget the runner picks, bounded only by cfg.max_iterations. That is the
+ * shape an injected runner without a tool loop wants.
  */
-export async function applyJudgeLoop({ initialResult, cfg, judgeFn, runFollowup, onEvent = null }) {
+export async function applyJudgeLoop({ initialResult, cfg, judgeFn, runFollowup, onEvent = null, maxIters = 0 }) {
   let result = initialResult;
   const trail = [];
+  const budget = Number.isFinite(Number(maxIters)) && Number(maxIters) > 0 ? Number(maxIters) : 0;
+  let spent = itersSpent(initialResult);
   for (let i = 1; i <= cfg.max_iterations; i++) {
     const verdict = await judgeFn(result);
     if (verdict) {
@@ -218,7 +256,23 @@ export async function applyJudgeLoop({ initialResult, cfg, judgeFn, runFollowup,
       }
     }
     if (!verdict || verdict.score >= cfg.success_threshold) break;
-    const next = await runFollowup(buildJudgeFollowup(verdict, i), result);
+    // The verdict is worth recording even when we cannot act on it — it says
+    // the turn ended unverified, and why. Acting on it is what the budget
+    // decides. We judge first and check the budget here, rather than the other
+    // way round, because a completion-contract turn is judged FOR the verdict.
+    const remaining = budget ? budget - spent : 0;
+    if (budget && remaining < MIN_JUDGE_ROUND_ITERS) {
+      if (typeof onEvent === "function") {
+        await onEvent({ type: "judge_budget_exhausted", iteration: i, spent, budget });
+      }
+      break;
+    }
+    const next = await runFollowup(
+      buildJudgeFollowup(verdict, i),
+      result,
+      budget ? { maxIters: remaining } : {},
+    );
+    spent += itersSpent(next);
     result = {
       ...next,
       usage: {
@@ -226,6 +280,9 @@ export async function applyJudgeLoop({ initialResult, cfg, judgeFn, runFollowup,
         output_tokens: (result.usage?.output_tokens || 0) + (next.usage?.output_tokens || 0),
       },
       trace: [...(result.trace || []), ...(next.trace || [])],
+      // The turn's total, not this round's — same rule as usage and trace. A
+      // caller that logs "spent N of maxIters" must see one number for the turn.
+      iterations: spent,
     };
     // The round we just ran closed by asking the user something — it exhausted
     // its budget and wrapped up, or it called ask_questions. Same rule as the

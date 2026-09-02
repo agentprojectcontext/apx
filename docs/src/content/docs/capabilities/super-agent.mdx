@@ -271,40 +271,63 @@ It covers two different ways a turn ends early:
 }
 ```
 
-`model` empty → the judge runs on `super_agent.model`; set a cheap model to keep verification
-overhead low. Verdicts surface as `judge_verdict` events, on the result as `result.judge`, and on
+`model` empty → the judge runs on `super_agent.model`, and failing that on the model the turn
+itself ran on — so a project agent is still judged on an install that never configured a
+super-agent. Set a cheap model to keep verification overhead low. Verdicts surface as `judge_verdict` events, on the result as `result.judge`, and on
 the Telegram message that closed the turn — so a turn that ran long can be traced back to the
 verdict that kept it going.
+
+`max_iterations` caps how many times the judge may send a turn back — it does **not** multiply
+what the turn may spend. The rounds **share** the surface's tool budget with the run that came
+before them: each gets what is left, and when too little is left to be worth a round (one action
+step plus the reserved closing one) the loop stops there and emits `judge_budget_exhausted` rather
+than starting it. So one message on the web chat costs at most `web_max_iters`, not
+`(1 + max_iterations) × web_max_iters`.
 
 ## Per-surface tool budget
 
 How many tool steps one turn may take depends on whether you can watch it work — and it is keyed
 on the **surface**, not on who is answering. A project agent in the web chat gets the same budget
-Roby does; a watched chat is a watched chat. (All three keys live under `super_agent` because that
+Roby does; a watched chat is a watched chat. (All four keys live under `super_agent` because that
 is where every tool-loop budget lives, including the routine one that governs project agents.)
 
 | Surface | Budget | Why |
 |---|---|---|
-| Telegram | `telegram_max_iters` (24) | A phone turn scrolls past with no way to see it go wrong, so the budget is the guardrail: it stops and asks. |
+| Telegram | `telegram_max_iters` (1000) | Each real tool start is visible and Telegram keeps the typing indicator alive, so the turn normally runs until work is done. |
 | Web chat + sidebar | `web_max_iters` (1000) | Every call renders live and you're one click from stopping it — *you* are the guardrail, so the turn runs until the work is done. |
 | Routines (non-Telegram) | `routine_max_iters` (1000) | Nobody is waiting mid-run to answer "want me to keep going?". |
+| Group rooms | `group_max_iters` (50) | The one surface where a single message fans out — see below. |
 | Coding surfaces | Explicit, plus the completion contract | They stop on `finish`, not on a count. |
 
-The two `1000` ceilings are runaway backstops, not normal stopping points: the loop already ends
+Each number is the budget for a **turn**, not for one pass of the tool loop: if the completion
+judge sends the turn back to finish something, those rounds spend what is left of the same number
+rather than being handed it again.
+
+The three `1000` ceilings are runaway backstops, not normal stopping points: the loop already ends
 the moment the model stops calling tools, and stuck detection aborts the repeat-loops. Set any of
 these to `0` for the built-in default.
+
+A **group room** is watched and stoppable like the web chat, so by the surface rule it would take
+the same ceiling — but one line you write can cascade into up to ten agent replies, each a full
+tool loop. Giving every speaker the 1:1 ceiling would quietly make one message worth ten of them.
+So a speaker gets a slice instead: room for genuine multi-step work, while the ten of them
+together still cost no more than one turn in your 1:1 chat with any of them. Same principle as the
+judge rounds above — the budget belongs to *your* turn, and everything it fans out into fits
+inside it. A speaker that runs out closes with what it got done and the room carries on; solo work
+that needs hundreds of steps belongs in that agent's own chat, which has the ceiling for it.
 
 ```json
 "super_agent": {
   "telegram_max_iters": 0,
   "web_max_iters": 0,
-  "routine_max_iters": 0
+  "routine_max_iters": 0,
+  "group_max_iters": 0
 }
 ```
 
 When a budget *is* exhausted, the last step is reserved for a tool-free, model-authored closing
-message: what it did, what's left, and whether to keep going. On web that is now a rare safety
-floor rather than the way most turns end.
+message: what it did, what's left, and whether to keep going. With the run-to-completion ceilings,
+that is a rare safety floor rather than the way normal work ends.
 
 ## Stuck detection
 

@@ -1,6 +1,5 @@
-// A routine that does NOT report to Telegram must run to completion, not stop at
-// the bounded chat budget. Magui's backlog refill was being cut off at ~23 steps
-// because every exec_agent routine borrowed the Telegram tool-loop budget.
+// Every routine uses a high runaway ceiling. Non-Telegram routines still keep a
+// separate override because their delivery contract is different.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -28,13 +27,13 @@ test("routineReportsToTelegram — no telegram post_command is background work",
   assert.equal(routineReportsToTelegram({ autoSuppress: ["say_voice"] }), false);
 });
 
-test("routineToolIters — telegram-bound stays on the bounded chat budget", () => {
+test("routineToolIters — telegram-bound uses its own high safety ceiling", () => {
   assert.equal(routineToolIters({}, { telegramBound: true }), TELEGRAM_TOOL_ITERS);
 });
 
 test("routineToolIters — non-telegram runs to completion (uncapped ceiling)", () => {
   assert.equal(routineToolIters({}, { telegramBound: false }), ROUTINE_UNCAPPED_TOOL_ITERS);
-  assert.ok(ROUTINE_UNCAPPED_TOOL_ITERS > TELEGRAM_TOOL_ITERS);
+  assert.ok(ROUTINE_UNCAPPED_TOOL_ITERS >= TELEGRAM_TOOL_ITERS);
 });
 
 test("routineToolIters — config overrides both budgets when set > 0", () => {
