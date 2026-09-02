@@ -338,6 +338,31 @@ test("a settled plan stops searching even when the road keeps going", async () =
   assert.equal(searches, 1, "the only candidate is the answer; distance cannot change it");
 });
 
+test("a settled errand still comes into range as the car approaches it", async () => {
+  // The bug this pins: settling an errand froze its DISTANCE along with its
+  // place. Every plan is warmed at the origin (trip-event.js prepareTripPlan)
+  // and a pinned errand locks on sight, so the frozen number was "how far the
+  // shop is from where I set off" — and it stayed that for the whole drive.
+  // The driver pulled up outside the pharmacy and heard nothing.
+  givenTask("Comprar ibuprofeno", {
+    category: "trip",
+    location: { place: "Farmacia Pioneros", latitude: PHARMACY.latitude, longitude: PHARMACY.longitude },
+  });
+  const noSearch = async () => { throw new Error("a pinned errand must not search"); };
+  const at = (latitude) => acceptMobilityPosition({ trip_id: "trip-approach", latitude, longitude: -71.3103 });
+
+  // Leaving home, ~9 km short of the pharmacy: nothing to say yet.
+  assert.deepEqual(await evaluateMobilityPosition(at(-41.2150), ctx, noSearch), []);
+  // Same trip, now ~170 m away. This is the reminder the feature exists for.
+  const arriving = await evaluateMobilityPosition(at(-41.1450 - 0.0015), ctx, noSearch);
+  assert.equal(arriving.length, 1, "arriving at a settled errand must alert");
+  assert.equal(arriving[0].place, "Farmacia Pioneros");
+  assert.ok(
+    arriving[0].distance_m < PROXIMITY_RADIUS_M,
+    `the alert must carry the distance from HERE, got ${arriving[0].distance_m}`
+  );
+});
+
 test("the phone's list shows one row per errand, not one per shop", async () => {
   // The banner is a list of things to DO. Three supermarkets for one loaf is
   // one row that happens to name three options, not three rows.
