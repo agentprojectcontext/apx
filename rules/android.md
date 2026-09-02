@@ -164,6 +164,34 @@ restarting the service. Keep its movement and message filtering aligned with
 `src/interfaces/desktop/mascot.js` and `main.js`: inbound messages only, and no
 self-notification for desktop/voice input.
 
+Idle costs nothing; a trip is what may cost battery. The app is a WebView
+shell, and everything expensive in it has to be justified by something actually
+happening. Three rules, each of which was once broken and each of which the
+phone's battery screen noticed:
+
+- The mascot overlay draws only while it is being dragged, hopping, or showing
+  a message. At rest it holds its pose and wakes twice per blink cycle — a
+  perpetual `postInvalidateDelayed(32)` is a full software redraw thirty times
+  a second, over whatever the owner is really using, all day.
+- The WebView is paused AND its timers stopped when the activity leaves the
+  screen. `onPause()` alone only stops drawing; `/mobile` is a live React app
+  with its own socket, and without `pauseTimers()` it keeps running behind the
+  launcher.
+- The daemon socket's reconnect ladder is capped at 15 s during a trip and at
+  5 min outside one, and it does not climb at all with no active network —
+  `registerDefaultNetworkCallback` wakes it instead. A phone away from the
+  daemon cannot dial it; retrying every 15 s for a whole day is thousands of
+  radio wakeups that cannot succeed. Opening a trip reconnects immediately
+  rather than waiting out an idle backoff.
+
+Battery-optimisation exemption is the owner's decision, offered from the native
+menu and never taken automatically. Without it Android defers the trip's start
+and end while the phone is in a pocket; with it APX may also run while idle.
+Report the real state (`isIgnoringBatteryOptimizations`), open the direct
+dialog while restricted and the system list once exempt — that is where the
+exemption is taken back — and fall back to the app details page on OEM builds
+that ship neither screen.
+
 To exercise the Android Auto path without a car, run the Desktop Head Unit
 against the phone. It needs Android Auto developer settings enabled on the
 device (tap Version ten times in Android Auto's own settings, then the overflow

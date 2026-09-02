@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Not for dialling out: the socket's reconnect ladder asks whether there
+         is any network at all before it retries, and wakes on the callback
+         instead of on a timer. A phone away from the daemon used to retry
+         every 15 s all day. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
@@ -13,6 +18,11 @@
          for ACCESS_BACKGROUND_LOCATION: the ongoing notification is the
          permission model. Tracking runs only while a trip is active. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <!-- Asked for from the native menu and nowhere else: on this phone Android
+         holds back the trip's start and end events until the owner exempts APX
+         by hand, and that is a system decision, not one an app may make for
+         them. -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <application
         android:allowBackup="false"

@@ -39,6 +39,7 @@ switches for the complete car experience:
 | Trip detection | APX menu → **Enable trip detection**, then enable APX notification access | Reading Google Maps navigation state, and detecting an Android Auto session |
 | Location | Choose **While using the app** | Supplying the trip origin and the live position during a trip |
 | Overlay | Enable **Display over other apps** | Floating mascot only; not needed for car cards |
+| Battery | APX menu → **Remove battery restriction**, then confirm Android's dialog | Trip start and end arriving on time while the phone is in a pocket |
 
 In Android Auto settings, keep **Show message notifications** enabled. Enable
 **Show first line of messages** when the card should expose APX text instead of
@@ -156,6 +157,29 @@ only announcing a new message.
   authenticated foreground WebSocket to the daemon and reconnects after
   network interruptions. Disabling the mascot only removes the overlay.
 </Aside>
+
+## What it costs when nothing is happening
+
+APX is a WebView shell, and idle it is meant to cost nothing. A trip is the one
+state that is allowed to be expensive — that is when GPS runs and when a
+dropped socket has to be repaired in seconds.
+
+- The mascot animates while it is dragged, hopping, or showing a message. At
+  rest it holds its pose and only blinks, instead of redrawing thirty times a
+  second over whatever app is actually on screen.
+- Leaving APX pauses the embedded `/mobile` and stops its JavaScript timers.
+  Coming back resumes it. Native notifications are unaffected — they arrive
+  through the foreground service, not the WebView.
+- The socket's reconnect ladder is capped at 15 seconds during a trip and at 5
+  minutes outside one, and it stops entirely when the phone has no network,
+  waking on Android's connectivity callback instead of on a timer. A phone away
+  from the daemon used to redial it every 15 seconds all day. Opening a trip
+  reconnects immediately.
+- **APX menu → Remove battery restriction** opens Android's own dialog. It is
+  worth granting for trip detection: without it Android defers the start and
+  end of a trip while the phone is in a pocket. The menu row shows the current
+  state, and once APX is exempt the same row opens the system list, which is
+  where the exemption is taken back.
 
 ## Which route APX knows
 
