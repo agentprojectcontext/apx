@@ -204,6 +204,31 @@ session — see AndroidAutoDetector.DEVELOPER_TERMS. Android Auto also shows a
 consent dialog covering vehicle data, contacts, location, microphone and SMS;
 APX's detection does not depend on it, so leave that decision to the owner.
 
+The notification socket has the same problem as the trip service, from the other
+end: `MascotOverlayService` is what holds the connection to the daemon, and only
+`MainActivity` used to start it — so a reboot or the app's own update left the
+phone silent, looking perfectly healthy. `StartupReceiver` handles
+`BOOT_COMPLETED` and `MY_PACKAGE_REPLACED`; both are system broadcasts, so it
+must be `exported="true"`, it skips an unpaired phone, and it catches Android's
+refusal rather than letting a denied foreground-service start take the boot down.
+
+Verified on hardware, and the result is not the same on every phone:
+
+- **Samsung A55** — both halves work. The service returns after `adb install`
+  with nothing opened, and after a real reboot with zero `ActivityRecord`s.
+- **Honor 400 (MagicOS)** — the update half does NOT fire, with the broadcast
+  confirmed dispatched and the app not in stopped state. The OEM refuses the
+  background start, and Honor encrypts app logcat (`(HKS)…(HKE)`), so the
+  refusal cannot be read on the device. On that phone, open APX once after
+  installing; its auto-start whitelist is the manual toggle to try.
+
+Testing a reboot is easy to get wrong. `adb reboot` returns before the phone
+goes down, so poll `adb devices` until the serial disappears and prove it with
+`/proc/uptime` before vs after. Samsung restores the last task on unlock, so
+send HOME and force-stop first or the app starts the service itself. And read
+`createTime` against uptime plus the `ActivityRecord` count — a running service
+alone says nothing about who started it.
+
 Build and verify with the repository-local wrapper:
 
 ```bash
