@@ -11,6 +11,7 @@ import { resolveSuperAgentContext,
 import { loggerFor } from "#core/logging.js";
 import { appendGlobalMessage } from "#core/stores/messages.js";
 import { summarizeToolTrace } from "#core/agent/tool-summary.js";
+import { floorReplyText } from "#core/agent/closing-floor.js";
 import { SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
 import { createWebConfirmAdapter } from "#core/confirmation/adapters/web.js";
 import { tryResolveSkillCommand } from "#core/agent/skills/trigger.js";
@@ -18,7 +19,8 @@ import { suggestSkillForPrompt } from "#core/agent/skills/rag.js";
 import { inspectPromptForSkills, isInspectorEnabled, summarizeTrace } from "#core/agent/skills/inspector.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { readTurnAttachments } from "./media.js";
-import { startActiveTurn, appendActiveTurn, endActiveTurn, superAgentTurnKey } from "../active-turns.js";
+import { startActiveTurn, appendActiveTurn, recordActiveTurnEvent, endActiveTurn, superAgentTurnKey } from "../active-turns.js";
+import { broadcastTurn } from "../events-ws.js";
 import { wasAborted, abortedTurnEvent } from "./turn-abort.js";
 
 const log = loggerFor("super-agent");
@@ -119,62 +121,87 @@ function logInboundTurn(channel, { prompt, project, media }) {
   } catch { /* the ledger is a record, not a dependency */ }
 }
 
-function logWebTurn(channel, { replyText, name, model, usage, trace, project, inspector, reasoning }) {
+export function logWebTurn(channel, { replyText, name, model, usage, trace, project, inspector, reasoning, timeline = [] }) {
   if (!channel || LEDGER_SKIP_CHANNELS.has(channel)) return;
   const scope = ledgerScope(project);
   try {
-    // The steps, one row each — the same shape the Telegram path writes, which
-    // is what lets a reopened thread render its tool calls instead of a bare
-    // answer with the work erased. Results are already truncated upstream
-    // (run-agent's summarizeForTrace), so a row stays small.
-    for (const item of Array.isArray(trace) ? trace : []) {
-      if (!item?.tool) continue;
-      appendGlobalMessage({
-        channel,
-        direction: "out",
-        type: "tool",
-        actor_id: item.tool,
-        actor_kind: "tool",
-        author: name || undefined,
-        body: `${item.tool}(${JSON.stringify(item.args || {}).slice(0, 200)})`,
-        meta: { ...scope, tool: item.tool, args: item.args, result: item.result },
-      });
+    // Keep the stream's real order. Before this, live prose preceding a tool
+    // only existed in the browser; a refresh lost it, then the final-only ledger
+    // made the user think APX had erased part of the answer. Fall back to the
+    // old trace-first shape for blocking callers that have no event timeline.
+    const ordered = timeline.length
+      ? [...timeline]
+      : (Array.isArray(trace) ? trace.filter((item) => item?.tool).map((item) => ({ kind: "tool", trace: item })) : []);
+    const exactFinal = String(replyText || "").trim();
+    let finalTextIndex = -1;
+    if (exactFinal) {
+      for (let i = ordered.length - 1; i >= 0; i--) {
+        if (ordered[i]?.kind === "text" && String(ordered[i].text || "").trim() === exactFinal) {
+          finalTextIndex = i;
+          break;
+        }
+      }
+      if (finalTextIndex < 0) {
+        ordered.push({ kind: "text", text: replyText });
+        finalTextIndex = ordered.length - 1;
+      }
     }
-    if (replyText) {
-      // Attribution rides along on the record: which model answered and what the
-      // turn cost. Without it a reloaded thread renders "0 tok" and no model.
-      const toolSummary = summarizeToolTrace(trace);
-      // The skill inspector's decision, recorded next to the tool summary and
-      // for the same reason: it rides a live stream event, so a reopened thread
-      // had no way to show which skills paid for this turn's prompt. Only the
-      // decision is kept (slugs + similarities), never the injected bodies.
-      const skillInspector = inspectorRecord(inspector);
-      appendGlobalMessage({
-        channel,
-        direction: "out",
-        type: "agent",
-        actor_id: SUPERAGENT_ACTOR_ID,
-        actor_kind: "superagent",
-        agent_slug: SUPERAGENT_ACTOR_ID,
-        author: name || undefined,
-        body: replyText,
-        meta: {
-          ...scope,
-          ...(model ? { model } : {}),
-          ...(usage ? { usage } : {}),
-          ...(toolSummary ? { tool_summary: toolSummary } : {}),
-          ...(skillInspector ? { skill_inspector: skillInspector } : {}),
-          // Stored in meta, not as its own row: rows are what the agent reads
-          // back as history (getRecentChannelTurnsFromFs) and what search and
-          // the RAG index walk. The thinking is for whoever reopens the thread,
-          // never an input the model gets fed its own notes from.
-          ...(reasoning?.length ? { reasoning } : {}),
-        },
-      });
+    const toolSummary = summarizeToolTrace(trace);
+    const skillInspector = inspectorRecord(inspector);
+    for (let index = 0; index < ordered.length; index++) {
+      const item = ordered[index];
+      if (item?.kind === "tool" && item.trace?.tool) {
+        const tool = item.trace;
+        appendGlobalMessage({
+          channel,
+          direction: "out",
+          type: "tool",
+          actor_id: tool.tool,
+          actor_kind: "tool",
+          author: name || undefined,
+          body: `${tool.tool}(${JSON.stringify(tool.args || {}).slice(0, 200)})`,
+          meta: { ...scope, tool: tool.tool, args: tool.args, result: tool.result },
+        });
+      } else if (item?.kind === "text" && item.text) {
+        const isFinal = index === finalTextIndex;
+        appendGlobalMessage({
+          channel,
+          direction: "out",
+          type: "agent",
+          actor_id: SUPERAGENT_ACTOR_ID,
+          actor_kind: "superagent",
+          agent_slug: SUPERAGENT_ACTOR_ID,
+          author: name || undefined,
+          body: item.text,
+          meta: {
+            ...scope,
+            // Intermediate prose stays visible after a reopen but never becomes
+            // prompt history for the next turn; it is progress, not the answer.
+            ...(!isFinal ? { streamed: true } : {}),
+            ...(isFinal && model ? { model } : {}),
+            ...(isFinal && usage ? { usage } : {}),
+            ...(isFinal && toolSummary ? { tool_summary: toolSummary } : {}),
+            ...(isFinal && skillInspector ? { skill_inspector: skillInspector } : {}),
+            ...(isFinal && reasoning?.length ? { reasoning } : {}),
+          },
+        });
+      }
     }
   } catch {
     /* best-effort */
   }
+}
+
+/**
+ * One line when a turn had to be closed by the floor. Worth a log even when the
+ * model wrote the closing: the turn itself came back empty after runAgent's
+ * retries, which is a model-chain problem the owner should be able to see. When
+ * the canned line spoke too, TWO calls in a row returned nothing — that is
+ * almost always an engine that is down.
+ */
+function logFlooredTurn({ authored }, { trace_id, channel }) {
+  const how = authored ? "the model wrote the closing" : "the canned floor spoke — the model could not write it either";
+  log.warn(`empty turn closed by the floor: ${how}`, { trace_id, channel });
 }
 
 // A turn's thinking goes on the record, but the ledger is a day-file the whole
@@ -310,28 +337,53 @@ export function register(api, { projects, registries, plugins, project, config }
     // turn per chat_id. POST .../turns/abort reaches `abort` through this.
     const turnAbort = new AbortController();
     const turnKey = superAgentTurnKey(p.id, ctx.channel);
+    const threadId = new Date().toISOString().slice(0, 10);
     const active = startActiveTurn(turnKey, {
-      project_id: p.id, channel: ctx.channel, model: model || null,
+      project_id: p.id, channel: ctx.channel, thread_id: threadId, model: model || null,
       abort: () => turnAbort.abort(),
+    });
+    const turnFrame = (phase, extra = {}) => broadcastTurn({
+      phase,
+      project_id: p.id,
+      agent_slug: null,
+      conversation_id: null,
+      channel: ctx.channel,
+      thread_id: threadId,
+      turn_id: active.id,
+      ...extra,
     });
     // The steps as they happen. runSuperAgent throws on abort and its trace goes
     // with it, so an interrupted turn would otherwise land in the ledger as
     // prose with the work erased — and the turn that continues it would not know
     // which tools had already run for real.
     const partialTrace = [];
+    const timeline = [];
     const logged = wrapOnEventForLog(send, {
       trace_id: req.apxTraceId,
       channel: ctx.channel,
       reasoning,
     });
+    // The last thing the turn actually said. The result object does not carry
+    // it — `text` is the CLOSING — and it is the one piece of context a floored
+    // closing needs to not repeat itself. See core/agent/closing-floor.js.
+    let lastSaid = "";
     const onEvent = (ev) => {
-      if (ev?.type === "tool_result" && ev.trace) partialTrace.push(ev.trace);
+      recordActiveTurnEvent(active.id, ev);
+      if (ev?.type === "assistant_text" && ev.text) {
+        timeline.push({ kind: "text", text: ev.text });
+        if (String(ev.text).trim()) lastSaid = String(ev.text).trim();
+      }
+      if (ev?.type === "tool_result" && ev.trace) {
+        partialTrace.push(ev.trace);
+        timeline.push({ kind: "tool", trace: ev.trace });
+      }
       return logged(ev);
     };
 
     // The turn's identity, up front, so a client can stop it (POST
     // .../turns/abort takes the channel for Roby — its thread IS the channel).
-    send({ type: "start", turn_id: active.id, channel: ctx.channel });
+    turnFrame("start");
+    send({ type: "start", turn_id: active.id, channel: ctx.channel, thread_id: threadId });
 
     // Surface the inspector decision to clients before model_start so the web
     // debug panel / TUI can render "loaded: X" the moment the turn begins.
@@ -373,7 +425,11 @@ export function register(api, { projects, registries, plugins, project, config }
         // Token-by-token text. `assistant_text` still closes each segment with
         // the cleaned version, so a client that ignores deltas (apx exec) reads
         // exactly what it read before — it just reads it later.
-        onToken: (chunk) => { send({ type: "assistant_delta", delta: chunk }); appendActiveTurn(active.id, chunk); },
+        onToken: (chunk) => {
+          send({ type: "assistant_delta", delta: chunk });
+          appendActiveTurn(active.id, chunk);
+          turnFrame("delta", { delta: chunk });
+        },
         // The thinking, live and on its own channel. Clients that don't render
         // it drop it; the answer never carries a word of it either way.
         onReasoningToken: (chunk) => send({ type: "assistant_reasoning_delta", reasoning: chunk }),
@@ -381,8 +437,19 @@ export function register(api, { projects, registries, plugins, project, config }
         skipSkillsHint: inspectorOn,
       });
       projects.rebuild(p.id);
+      // Never-silent floor. runAgent already re-prompted a dud turn and gave
+      // up; without this the panel renders an empty bubble and the ledger keeps
+      // an empty assistant row — which is what the NEXT turn reads back as the
+      // answer it gave. A real reply passes through untouched and costs nothing.
+      const closing = await floorReplyText({
+        globalConfig: config,
+        text: saResult.text,
+        streamedText: lastSaid,
+        trace: saResult.trace,
+      });
+      if (closing.floored) logFlooredTurn(closing, { trace_id: req.apxTraceId, channel: ctx.channel });
       logWebTurn(ctx.channel, {
-        replyText: saResult.text,
+        replyText: closing.text,
         name: saResult.name,
         model: saResult.model,
         usage: saResult.usage,
@@ -390,18 +457,21 @@ export function register(api, { projects, registries, plugins, project, config }
         project: p,
         inspector: inspectorTrace,
         reasoning,
+        timeline,
       });
+      const finalResult = {
+        text: closing.text,
+        usage: saResult.usage,
+        // `name` is the agent persona; `model` is the engine that answered
+        // (it can differ from the configured one after a routing fallback).
+        name: saResult.name,
+        model: saResult.model,
+        trace: saResult.trace,
+      };
+      turnFrame("final", { result: finalResult });
       send({
         type: "final",
-        result: {
-          text: saResult.text,
-          usage: saResult.usage,
-          // `name` is the agent persona; `model` is the engine that answered
-          // (it can differ from the configured one after a routing fallback).
-          name: saResult.name,
-          model: saResult.model,
-          trace: saResult.trace,
-        },
+        result: finalResult,
       });
       clearInterval(keepalive);
       res.end();
@@ -421,10 +491,13 @@ export function register(api, { projects, registries, plugins, project, config }
             project: p,
             inspector: inspectorTrace,
             reasoning,
+            timeline,
           });
         }
         clearInterval(keepalive);
-        send(abortedTurnEvent({ text: partial, trace: partialTrace }));
+        const ev = abortedTurnEvent({ text: partial, trace: partialTrace });
+        turnFrame("aborted", { result: ev.result });
+        send(ev);
         res.end();
         return;
       }
@@ -436,6 +509,7 @@ export function register(api, { projects, registries, plugins, project, config }
         model,
         stream: true,
       });
+      turnFrame("error", { error: e.message });
       send({
         type: "error",
         trace_id: req.apxTraceId,
@@ -505,6 +579,15 @@ export function register(api, { projects, registries, plugins, project, config }
     // The message is on the record before the turn starts. This is the endpoint
     // the phone bridge posts to, and its turns are the long ones.
     logInboundTurn(ctx.channel, { prompt, project: p });
+    // Nothing is streamed to this caller, but the turn can still produce prose
+    // before its closing comes back empty — which is what tells the floor
+    // whether the turn worked or did nothing at all.
+    let lastSaid = "";
+    const logged = wrapOnEventForLog(null, {
+      trace_id: req.apxTraceId,
+      channel: ctx.channel,
+      reasoning,
+    });
     try {
       const saResult = await runSuperAgent({
         globalConfig: config,
@@ -520,16 +603,26 @@ export function register(api, { projects, registries, plugins, project, config }
         ...(Number.isFinite(Number(maxIters)) ? { maxIters: Number(maxIters) } : {}),
         ...(Number.isFinite(Number(maxTokens)) ? { maxTokens: Number(maxTokens) } : {}),
         ...(completionContract ? { completionContract: true } : {}),
-        onEvent: wrapOnEventForLog(null, {
-          trace_id: req.apxTraceId,
-          channel: ctx.channel,
-          reasoning,
-        }),
+        onEvent: (ev) => {
+          if (ev?.type === "assistant_text" && String(ev.text || "").trim()) {
+            lastSaid = String(ev.text).trim();
+          }
+          return logged(ev);
+        },
         skipSkillsHint: inspectorOn,
       });
       projects.rebuild(p.id);
+      // Same floor as the streamed route: an empty answer is never what this
+      // endpoint returns. `apx exec` and the phone bridge both read `text`.
+      const closing = await floorReplyText({
+        globalConfig: config,
+        text: saResult.text,
+        streamedText: lastSaid,
+        trace: saResult.trace,
+      });
+      if (closing.floored) logFlooredTurn(closing, { trace_id: req.apxTraceId, channel: ctx.channel });
       logWebTurn(ctx.channel, {
-        replyText: saResult.text,
+        replyText: closing.text,
         name: saResult.name,
         model: saResult.model,
         usage: saResult.usage,
@@ -539,7 +632,7 @@ export function register(api, { projects, registries, plugins, project, config }
         reasoning,
       });
       res.json({
-        text: saResult.text,
+        text: closing.text,
         usage: saResult.usage,
         name: saResult.name,
         model: saResult.model,

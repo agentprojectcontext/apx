@@ -9,6 +9,19 @@ import { readConfig } from "#core/config/index.js";
 import { resolveAgentName } from "#core/identity/index.js";
 import { faceResolverFor, readAgentsSafe } from "./thread-faces.js";
 import { pageEnvelope, A2A_SLUG_PREFIX, GROUP_SLUG_PREFIX } from "./shared.js";
+import { convTurnKey, getActiveTurnByKey, listActiveTurns } from "../active-turns.js";
+
+function activeTurnForRow(row, activeTurns) {
+  if (row.kind === "agent" && row.project_id != null && row.conversation_id) {
+    return getActiveTurnByKey(convTurnKey(row.project_id, row.conversation_id));
+  }
+  if (row.kind === "super_agent" && row.channel && row.conversation_id) {
+    return activeTurns.find((turn) =>
+      turn.channel === row.channel && turn.thread_id === row.conversation_id
+    ) || null;
+  }
+  return null;
+}
 
 // a2a "group chats" aren't any single agent's conversation, so listAgentInbox
 // (per-agent) doesn't see them. Fold each project's a2a pairs in as their own
@@ -136,7 +149,10 @@ export function register(api, { projects }) {
 
       // Merge a2a group chats in and re-sort so the newest conversation wins
       // regardless of whether it was an individual or a group one.
-      const merged = [...named, ...a2aInboxRows(entries, faces), ...groupInboxRows(entries, faces)].sort(
+      const activeTurns = listActiveTurns();
+      const merged = [...named, ...a2aInboxRows(entries, faces), ...groupInboxRows(entries, faces)]
+        .map((row) => ({ ...row, active_turn: activeTurnForRow(row, activeTurns) }))
+        .sort(
         (a, b) => new Date(b.last_activity_at || 0).getTime() - new Date(a.last_activity_at || 0).getTime()
       );
 

@@ -34,6 +34,12 @@ import { usePersonaName } from "../../hooks/usePersonaName";
 import { useSuperAgentConfig } from "../../hooks/useGlobalConfig";
 import { AgentAvatar, AgentAvatarGroup, SUPER_AGENT_ICON, type AgentFace } from "../../components/agents/AgentAvatar";
 import type { AgentEntry, ConversationListEntry } from "../../types/daemon";
+import { useChatVisibility } from "../../hooks/useChatActivity";
+import {
+  conversationActivityKey,
+  liveActivityKey,
+  threadActivityKey,
+} from "../../lib/chat-activity";
 
 // Virtual entry slug used in the agent dropdown to address the daemon-level
 // super-agent (persona "Roby" for the owner). Picked so it can't collide
@@ -95,7 +101,7 @@ export function ChatTab({
   const [creating, setCreating] = useState(false);
   const [model, setModel] = useState("");
   const [dismissedAskKey, setDismissedAskKey] = useState<string | null>(null);
-  const { msgs, send: sendChat, sendGroup, regenerate, editAndResend, stop, clear, load, loadThread, streaming, queued, unqueue, conversationMeta } =
+  const { msgs, send: sendChat, sendGroup, regenerate, editAndResend, stop, clear, load, loadThread, streaming, queued, unqueue, conversationId, conversationMeta } =
     useChat(pid, (m) => toast.error(m));
   const persona = usePersonaName();
   const { superAgent } = useSuperAgentConfig();
@@ -234,6 +240,18 @@ export function ChatTab({
   );
   const activeIsRoby = selected.kind === "thread" || isRoby(selected.agentSlug);
 
+  const visibleActivityKey = useMemo(() => {
+    if (selected.kind === "conv") return conversationActivityKey(pid, selected.convId);
+    if (selected.kind === "thread") {
+      return threadActivityKey(pid, selected.channel, selected.threadId);
+    }
+    if (conversationId) return conversationActivityKey(pid, conversationId);
+    return activeIsRoby
+      ? threadActivityKey(pid, "web", new Date().toISOString().slice(0, 10))
+      : liveActivityKey(pid, selected.agentSlug);
+  }, [pid, selected, conversationId, activeIsRoby]);
+  useChatVisibility(visibleActivityKey);
+
   const isA2A = selected.kind === "thread" && selected.channel === "a2a";
   const isGroup = selected.kind === "thread" && selected.channel === "group";
   // a2a and group are both multi-agent threads: many faces, no super-agent badge,
@@ -268,7 +286,11 @@ export function ChatTab({
       // conversationId undefined, so an `if (conversationId)` guard would skip
       // clearing and the previous chat's messages would linger under the new
       // header — the "title changes but content stays" bug.)
-      clear();
+      clear(
+        isRoby(selected.agentSlug)
+          ? threadActivityKey(pid, "web", new Date().toISOString().slice(0, 10))
+          : liveActivityKey(pid, selected.agentSlug),
+      );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [

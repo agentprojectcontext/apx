@@ -277,6 +277,8 @@ export interface ConversationListEntry {
   title?: string;
   /** Put away: still on disk, just out of the lists that offer chats to resume. */
   archived?: boolean;
+  /** Daemon snapshot when this conversation is being answered right now. */
+  active_turn?: ActiveTurn | null;
 }
 
 /** An attachment that arrived with a turn: the file is on disk under
@@ -357,18 +359,36 @@ export interface ConversationDetail {
 export interface ActiveTurn {
   turn_id: string;
   text: string;
+  project_id?: number | string | null;
   agent_slug?: string;
+  conversation_id?: string;
+  channel?: string;
+  thread_id?: string;
   model?: string;
   started_at?: string;
+  /** Ordered visible work captured by the daemon for a mid-turn reload. */
+  parts?: Array<
+    | { kind: "text"; text: string; streaming?: boolean }
+    | {
+      kind: "tool";
+      id: string;
+      tool: string;
+      args?: Record<string, unknown> | null;
+      result?: unknown;
+      status: "running" | "done" | "error";
+    }
+  >;
 }
 
 /** A live-feed frame carrying a turn's tokens as they are written — the stream
  *  that used to belong only to the sending tab, now pushed to every surface. */
 export interface TurnFrame {
-  phase: "start" | "delta" | "final" | "error";
+  phase: "start" | "delta" | "final" | "aborted" | "error";
   project_id: number | string | null;
   agent_slug: string | null;
   conversation_id: string | null;
+  channel?: string | null;
+  thread_id?: string | null;
   turn_id: string;
   delta?: string;
   result?: { text?: string; usage?: ChatUsage; model?: string; name?: string; conversation_id?: string };
@@ -409,6 +429,8 @@ export interface ThreadListEntry {
   /** …and the face each one wears. */
   participant_faces?: AgentFace[];
   preview?: string;
+  /** Daemon snapshot when this thread is being answered right now. */
+  active_turn?: ActiveTurn | null;
 }
 
 export interface ThreadDetail {
@@ -423,6 +445,7 @@ export interface ThreadDetail {
   /** …and the face each one wears, so the header can draw them without a list. */
   participant_faces?: AgentFace[];
   messages: ConversationMessage[];
+  active_turn?: ActiveTurn | null;
 }
 
 export interface PairedClient {
@@ -592,6 +615,7 @@ export interface ChatStreamEvent {
   turn_id?: string;
   conversation_id?: string;
   channel?: string;
+  thread_id?: string;
   agent_slug?: string;
   // final — and `aborted`, which carries the same shape for the partial the
   // turn had produced when it was stopped. Deliberately not an `error`.

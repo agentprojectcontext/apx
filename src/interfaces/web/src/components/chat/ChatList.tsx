@@ -21,6 +21,9 @@ import { Input, Loading, Switch } from "../ui";
 import { UiSelect } from "../UiSelect";
 import { t } from "../../i18n";
 import type { AgentEntry, ConversationListEntry, ThreadListEntry } from "../../types/daemon";
+import type { ActiveTurn } from "../../types/daemon";
+import { conversationActivityKey, threadActivityKey } from "../../lib/chat-activity";
+import { ChatRowActivity } from "./ChatRowActivity";
 
 // Channel taxonomy — same channels the daemon writes ("web", "voice",
 // "desktop", "telegram", …) folded into sidebar groups. Each group has an
@@ -492,6 +495,8 @@ export function ChatList({
                     face={isMulti ? undefined : { icon: superAgentIcon, name: superAgentLabel }}
                     faces={isMulti ? th.participant_faces : undefined}
                     timeAgo={th.last_ts}
+                    activityKey={threadActivityKey(pid, th.channel, th.id)}
+                    activeTurn={th.active_turn}
                     selected={active}
                     onClick={() =>
                       onSelect(
@@ -516,6 +521,8 @@ export function ChatList({
                     .join(" · ")}
                   face={faceFor(c.agent_slug)}
                   timeAgo={c.started_at}
+                  activityKey={conversationActivityKey(pid, c.id)}
+                  activeTurn={c.active_turn}
                   selected={active}
                   onClick={() =>
                     onSelect(
@@ -586,6 +593,8 @@ function ChatListItem({
   face,
   faces,
   timeAgo,
+  activityKey,
+  activeTurn,
   selected,
   onClick,
 }: {
@@ -598,6 +607,8 @@ function ChatListItem({
   /** Two faces for a group chat (a2a): drawn overlapping. Wins over `face`. */
   faces?: AgentFace[];
   timeAgo?: string;
+  activityKey: string | null;
+  activeTurn?: ActiveTurn | null;
   selected?: boolean;
   onClick: () => void;
 }) {
@@ -606,7 +617,7 @@ function ChatListItem({
       type="button"
       onClick={onClick}
       className={clsx(
-        "flex w-full items-start gap-2 rounded-md border px-2 py-2 text-left transition-colors",
+        "relative flex w-full items-start gap-2 rounded-md border px-2 py-2 text-left transition-colors",
         selected
           ? "border-primary/40 bg-primary/12"
           : "border-transparent hover:border-border hover:bg-accent/50",
@@ -629,9 +640,12 @@ function ChatListItem({
             </span>
           )}
         </span>
-        <span className="mt-0.5 flex items-center justify-between gap-2 text-[10px] text-muted-fg">
+        <span className="mt-0.5 flex items-center gap-2 text-[10px] text-muted-fg">
           <span className="truncate">{subtitle}</span>
-          {badge && <span className="shrink-0 truncate rounded bg-accent px-1.5 py-0.5">{badge}</span>}
+          <span className="ml-auto inline-flex shrink-0 items-center">
+            {badge && <span className="truncate rounded bg-accent px-1.5 py-0.5">{badge}</span>}
+            <ChatRowActivity activityKey={activityKey} activeTurn={activeTurn} />
+          </span>
         </span>
       </span>
     </button>

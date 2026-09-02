@@ -5,6 +5,13 @@ import type { UploadedMedia } from "../lib/api/media";
 import { subscribeTurns } from "../lib/live";
 import { t } from "../i18n";
 import { queueOnSend, onChatPrefsChange } from "../lib/chat-prefs";
+import {
+  conversationActivityKey,
+  isChatTurnClosed,
+  liveActivityKey,
+  setChatQueued,
+  threadActivityKey,
+} from "../lib/chat-activity";
 
 export type ToolStatus = "running" | "done" | "error" | "deduped";
 
@@ -112,6 +119,40 @@ export interface QueuedTurn {
   opts: SendOptions;
 }
 
+// Queue ownership follows the CHAT, not the mounted pane. Navigating away
+// destroys ChatTab but must not destroy a message already accepted from the
+// composer. The worker that started the active turn drains this map even after
+// its component unmounts; a newly mounted pane subscribes and paints it again.
+const backgroundQueues = new Map<string, QueuedTurn[]>();
+const backgroundQueueListeners = new Set<(key: string) => void>();
+let backgroundQueueSeq = 0;
+
+function readBackgroundQueue(key: string | null): QueuedTurn[] {
+  return key ? backgroundQueues.get(key) || [] : [];
+}
+
+function writeBackgroundQueue(key: string, queue: QueuedTurn[]) {
+  if (queue.length) backgroundQueues.set(key, queue);
+  else backgroundQueues.delete(key);
+  setChatQueued(key, queue.length);
+  for (const listener of backgroundQueueListeners) listener(key);
+}
+
+function takeBackgroundQueue(key: string): QueuedTurn | null {
+  const [next, ...rest] = readBackgroundQueue(key);
+  if (!next) return null;
+  writeBackgroundQueue(key, rest);
+  return next;
+}
+
+function moveBackgroundQueue(from: string | null, to: string) {
+  if (!from || from === to) return;
+  const pending = readBackgroundQueue(from);
+  if (!pending.length) return;
+  writeBackgroundQueue(from, []);
+  writeBackgroundQueue(to, [...readBackgroundQueue(to), ...pending]);
+}
+
 export interface ReloadOptions {
   /** A BACKGROUND re-read: the same conversation moved somewhere else and we
    *  are catching up. It must not blank the pane first, must not drop what was
@@ -129,7 +170,7 @@ export interface UseChatResult {
    *  against the last owner message (`from` = slug, `reason` = who pulled them). */
   sendGroup: (gid: string, text: string, nameOf: (slug: string) => string, opts?: { rerun?: boolean; from?: string; reason?: string | null; media?: UploadedMedia[] }) => Promise<void>;
   stop: () => void;
-  clear: () => void;
+  clear: (queueKey?: string) => void;
   /** Load a persisted conversation as history and bind subsequent sends to it.
    *  Only supported for project agents (super-agent conversations aren't
    *  persisted per-file). Pass `null` to drop the binding without clearing. */
@@ -406,11 +447,23 @@ export function mergeLocalTurns(remote: ChatMsg[], current: ChatMsg[]): ChatMsg[
  *  Marked local so a background refetch keeps it until the real turn persists. */
 function withActiveTurn(loaded: ChatMsg[], active?: ActiveTurn | null): ChatMsg[] {
   if (!active) return loaded;
+  const parts: ChatPart[] = active.parts?.length
+    ? active.parts.map((part) => part.kind === "text"
+      ? { kind: "text", text: part.text, ...(part.streaming ? { streaming: true } : {}) }
+      : {
+          kind: "tool",
+          id: part.id,
+          tool: part.tool,
+          args: part.args || undefined,
+          result: part.result,
+          status: part.status,
+        })
+    : active.text ? [{ kind: "text", text: active.text, streaming: true }] : [];
   return [
     ...loaded,
     {
       role: "assistant",
-      parts: active.text ? [{ kind: "text", text: active.text, streaming: true }] : [],
+      parts,
       ts: active.started_at || new Date().toISOString(),
       local: true,
       pending: true,
@@ -655,7 +708,29 @@ function metaFromDetail(detail: { channel?: string; meta?: Record<string, unknow
  */
 export function useChat(pid: string, onError?: (msg: string) => void): UseChatResult {
   const [msgs, setMsgs] = useState<ChatMsg[]>([]);
+  const msgsRef = useRef<ChatMsg[]>([]);
+  // React drops state updates after unmount. The request does not stop, so keep
+  // the worker's own copy synchronously: a background queue needs the answer
+  // that just finished when it builds the next turn's history.
+  const updateMsgs = useCallback((next: ChatMsg[] | ((curr: ChatMsg[]) => ChatMsg[])) => {
+    const value = typeof next === "function" ? next(msgsRef.current) : next;
+    msgsRef.current = value;
+    setMsgs(value);
+  }, []);
   const [streaming, setStreaming] = useState(false);
+  const streamingRef = useRef(false);
+  const updateStreaming = useCallback((value: boolean) => {
+    streamingRef.current = value;
+    setStreaming(value);
+  }, []);
+  // A turn opened from another pane is busy too, but it is followed through the
+  // shared feed instead of this hook's NDJSON response.
+  const [following, setFollowing] = useState(false);
+  const followingRef = useRef(false);
+  const updateFollowing = useCallback((value: boolean) => {
+    followingRef.current = value;
+    setFollowing(value);
+  }, []);
   const [conversationId, setConversationId] = useState<string | undefined>(undefined);
   // What the LOADED conversation says about itself — its engine, its channel —
   // read from the file's own frontmatter rather than from whatever the list row
@@ -668,24 +743,43 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
   // address the LAST message, so a queued bubble sitting there would take the
   // rest of the stream, or be the thing a failed turn deleted.
   const [queued, setQueued] = useState<QueuedTurn[]>([]);
-  const queueSeq = useRef(0);
+  const queueKeyRef = useRef<string | null>(null);
+  const bindQueue = useCallback((key: string) => {
+    queueKeyRef.current = key;
+    const snapshot = readBackgroundQueue(key);
+    setQueued(snapshot);
+    setChatQueued(key, snapshot.length);
+  }, []);
+  useEffect(() => {
+    const listener = (key: string) => {
+      if (key === queueKeyRef.current) setQueued(readBackgroundQueue(key));
+    };
+    backgroundQueueListeners.add(listener);
+    return () => { backgroundQueueListeners.delete(listener); };
+  }, []);
   const abortRef = useRef<AbortController | null>(null);
   // How the DAEMON addresses the turn this tab started, so it can be stopped for
   // real. abortRef only closes our socket, which the daemon deliberately ignores
   // (that is what lets another tab catch up on a running turn) — the run itself
   // stops only when asked, through POST /turns/abort.
-  const turnTargetRef = useRef<{ conversation_id?: string; channel?: string } | null>(null);
+  const turnTargetRef = useRef<{ conversation_id?: string; channel?: string; thread_id?: string } | null>(null);
   const convoRef = useRef<string | undefined>(undefined);
+  const threadRef = useRef<{ channel: string; id: string } | null>(null);
   // Monotonic token guarding async history loads. Every load()/loadThread()/
   // clear() bumps it; a load only applies its result if it's still the latest.
   // Without this, clicking chat A then B could land A's (slower) response last
   // and paint A's messages under B's header.
   const loadSeqRef = useRef(0);
+  // A running request belongs to the chat it started in, not whichever chat
+  // the owner opens next. Loading another chat advances this epoch: the old
+  // request continues in the daemon, but its late NDJSON frames cannot append
+  // themselves to the newly selected transcript.
+  const viewEpochRef = useRef(0);
   // True while THIS tab is the one streaming a turn over its own NDJSON socket.
   // The sender renders from that; it must ignore the live-turn frames the daemon
   // also pushes for everyone else, or it would paint each token twice.
-  const streamingRef = useRef(false);
-  useEffect(() => { streamingRef.current = streaming; }, [streaming]);
+  // Updated synchronously by updateStreaming; no render/effect round trip, so a
+  // send in the same tick cannot start a second run.
   // Interrupt or wait, when you write during a running turn. Held in a ref so
   // flipping the switch mid-turn takes effect on the very next send instead of
   // rebuilding `send` and its captured history.
@@ -699,16 +793,26 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
   // its id and the text accumulated so far, so a frame that arrives after a
   // background refetch wiped the bubble can repaint it whole rather than lose it.
   const liveTurnRef = useRef<{ id: string; text: string } | null>(null);
+  const drainQueueRef = useRef<() => void>(() => {});
+  const beginViewChange = useCallback(() => {
+    viewEpochRef.current++;
+    // Detach this pane from a turn that is still running elsewhere. The daemon
+    // and shared feed keep it alive; this chat must not inherit its typing pill.
+    updateStreaming(false);
+    updateFollowing(false);
+    liveTurnRef.current = null;
+    turnTargetRef.current = null;
+  }, [updateFollowing, updateStreaming]);
 
   // Mutate the trailing assistant turn in place.
   const patchLast = useCallback((fn: (m: ChatMsg) => ChatMsg) => {
-    setMsgs((curr) => {
+    updateMsgs((curr) => {
       const copy = [...curr];
       const last = copy[copy.length - 1];
       if (last && last.role === "assistant") copy[copy.length - 1] = fn(last);
       return copy;
     });
-  }, []);
+  }, [updateMsgs]);
 
   const applyEvent = useCallback(
     (ev: ChatStreamEvent) => {
@@ -722,10 +826,17 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
       // conversation it had been writing to all along.
       if (ev.type === "start") {
         if (ev.conversation_id) {
+          const nextKey = conversationActivityKey(pid, ev.conversation_id);
+          moveBackgroundQueue(queueKeyRef.current, nextKey);
+          bindQueue(nextKey);
           convoRef.current = ev.conversation_id;
+          threadRef.current = null;
           setConversationId(ev.conversation_id);
           turnTargetRef.current = { conversation_id: ev.conversation_id };
         } else if (ev.channel) {
+          const threadId = ev.thread_id || new Date().toISOString().slice(0, 10);
+          bindQueue(threadActivityKey(pid, ev.channel, threadId));
+          threadRef.current = { channel: ev.channel, id: threadId };
           turnTargetRef.current = { channel: ev.channel };
         }
       }
@@ -740,7 +851,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
       }
       patchLast((m) => applyStreamEvent(m, ev));
     },
-    [patchLast, onError],
+    [pid, patchLast, onError, bindQueue],
   );
 
   // ── Following a turn this tab did NOT start (live push) ──────────────────
@@ -749,7 +860,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
   // turns it into a settled reply (no longer local, so the next silent reload
   // replaces it with the identical persisted turn instead of doubling it).
   const paintLive = useCallback((text: string, agentSlug?: string) => {
-    setMsgs((curr) => {
+    updateMsgs((curr) => {
       const copy = [...curr];
       const last = copy[copy.length - 1];
       const base: ChatMsg = {
@@ -767,11 +878,11 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
       }
       return copy;
     });
-  }, []);
+  }, [updateMsgs]);
 
   const finalizeLive = useCallback(
     (text: string, opts: { model?: string; name?: string; usage?: ChatUsage; error?: string }) => {
-      setMsgs((curr) => {
+      updateMsgs((curr) => {
         const copy = [...curr];
         const last = copy[copy.length - 1];
         if (!last || last.role !== "assistant") return curr;
@@ -791,7 +902,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
         return copy;
       });
     },
-    [],
+    [updateMsgs],
   );
 
   // The daemon pushes every in-progress turn's tokens over the shared feed. A
@@ -801,8 +912,16 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
   const onTurnFrame = useCallback((f: TurnFrame) => {
     if (streamingRef.current) return;                 // the sender renders via NDJSON
     if (String(f.project_id) !== String(pid)) return;
-    if (!convoRef.current || f.conversation_id !== convoRef.current) return;
+    const sameConversation = !!convoRef.current && f.conversation_id === convoRef.current;
+    const sameThread = !!threadRef.current &&
+      f.channel === threadRef.current.channel &&
+      f.thread_id === threadRef.current.id;
+    if (!sameConversation && !sameThread) return;
     if (f.phase === "start") {
+      updateFollowing(true);
+      turnTargetRef.current = sameConversation
+        ? { conversation_id: f.conversation_id || undefined }
+        : { channel: f.channel || undefined };
       liveTurnRef.current = { id: f.turn_id, text: "" };
       paintLive("", f.agent_slug || undefined);
     } else if (f.phase === "delta") {
@@ -814,16 +933,32 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
       paintLive(cur.text, f.agent_slug || undefined);
     } else if (f.phase === "final") {
       liveTurnRef.current = null;
+      updateFollowing(false);
       finalizeLive(f.result?.text ?? "", {
         model: f.result?.model,
         name: f.result?.name || f.agent_slug || undefined,
         usage: f.result?.usage,
       });
+      turnTargetRef.current = null;
+      queueMicrotask(() => drainQueueRef.current());
+    } else if (f.phase === "aborted") {
+      liveTurnRef.current = null;
+      updateFollowing(false);
+      finalizeLive(f.result?.text ?? "", {
+        model: f.result?.model,
+        name: f.result?.name || f.agent_slug || undefined,
+        usage: f.result?.usage,
+      });
+      turnTargetRef.current = null;
+      queueMicrotask(() => drainQueueRef.current());
     } else if (f.phase === "error") {
       liveTurnRef.current = null;
+      updateFollowing(false);
       finalizeLive("", { error: f.error });
+      turnTargetRef.current = null;
+      queueMicrotask(() => drainQueueRef.current());
     }
-  }, [pid, paintLive, finalizeLive]);
+  }, [pid, paintLive, finalizeLive, updateFollowing]);
 
   useEffect(() => subscribeTurns(onTurnFrame), [onTurnFrame]);
 
@@ -877,12 +1012,21 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
       // Written while the previous turn was still going. It joins the thread
       // now and leaves on its own when the run lands — refusing it is what made
       // "stop" the only button a working agent would show you.
-      if (streaming) {
+      if (streamingRef.current || followingRef.current) {
         // Queued either way — the drain effect below is what actually sends it,
         // once the pane is free and its history includes whatever the running
         // turn wrote. The preference only decides whether we WAIT for that turn
         // or cut it short.
-        setQueued((curr) => [...curr, { id: `q${++queueSeq.current}`, text: trimmed, opts, msg: bubble() }]);
+        const key = queueKeyRef.current || (
+          opts.agentSlug
+            ? liveActivityKey(pid, opts.agentSlug)
+            : threadActivityKey(pid, "web", new Date().toISOString().slice(0, 10))
+        );
+        bindQueue(key);
+        writeBackgroundQueue(key, [
+          ...readBackgroundQueue(key),
+          { id: `q${++backgroundQueueSeq}`, text: trimmed, opts, msg: bubble() },
+        ]);
         // Interrupt, by default: writing while an agent works almost always
         // means "no, stop, do this instead", which is what a new message has
         // always done on Telegram. Whatever the turn had written stays in the
@@ -892,17 +1036,30 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
         return;
       }
 
-      const history: ConversationMessage[] = msgs.map((m) => ({
+      if (!queueKeyRef.current) {
+        bindQueue(
+          opts.agentSlug
+            ? liveActivityKey(pid, opts.agentSlug)
+            : threadActivityKey(pid, "web", new Date().toISOString().slice(0, 10)),
+        );
+      }
+
+      const history: ConversationMessage[] = msgsRef.current.map((m) => ({
         role: m.role,
         content: historyTextOf(m),
       }));
 
-      setMsgs((curr) => [
+      updateMsgs((curr) => [
         ...curr,
         bubble(),
         { role: "assistant", parts: [], ts: nowIso(), pending: true, local: true },
       ]);
-      setStreaming(true);
+      updateStreaming(true);
+      // This request can outlive the selected pane. Keep its paint work tied
+      // to the view it started from; navigation must never paste old tokens or
+      // a typing state into another agent's history.
+      const streamViewEpoch = viewEpochRef.current;
+      const ownsView = () => viewEpochRef.current === streamViewEpoch;
 
       // ── Project agent: streamed NDJSON, token-by-token like the super-agent.
       // It used to be a single blocking call, which meant no "typing", no
@@ -934,6 +1091,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
                 : {}),
             },
             (ev) => {
+              if (!ownsView()) return;
               // Bind this pane (and any later regenerate/edit rewind) to the file
               // the daemon appended to — it only names it on the closing event.
               if (ev.type === "final" && ev.result?.conversation_id) {
@@ -947,22 +1105,25 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
             },
             ctrl.signal,
           );
-          patchLast((m) => ({ ...m, pending: false }));
+          if (ownsView()) patchLast((m) => ({ ...m, pending: false }));
         } catch (e) {
-          if (ctrl.signal.aborted) {
+          if (ctrl.signal.aborted && ownsView()) {
             patchLast((m) => ({
               ...m,
               pending: false,
               parts: [...m.parts, { kind: "text", text: t("code_module.stopped") }],
             }));
-          } else {
+          } else if (ownsView()) {
             onError?.((e as Error)?.message || t("shared_ui.err_chat_failed"));
-            setMsgs((curr) => curr.filter((_, i) => i !== curr.length - 1));
+            updateMsgs((curr) => curr.filter((_, i) => i !== curr.length - 1));
           }
         } finally {
-          setStreaming(false);
-          abortRef.current = null;
-          turnTargetRef.current = null;
+          if (ownsView()) {
+            updateStreaming(false);
+            abortRef.current = null;
+            turnTargetRef.current = null;
+            queueMicrotask(() => drainQueueRef.current());
+          }
         }
         return;
       }
@@ -986,29 +1147,32 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
             ...(opts.attachments?.length
               ? { attachments: opts.attachments.map((a) => ({ path: a.path, name: a.name })) }
               : {}),
-          },
-          applyEvent,
+        },
+          (ev) => { if (ownsView()) applyEvent(ev); },
           ctrl.signal,
         );
-        patchLast((m) => ({ ...m, pending: false }));
+        if (ownsView()) patchLast((m) => ({ ...m, pending: false }));
       } catch (e) {
-        if (ctrl.signal.aborted) {
+        if (ctrl.signal.aborted && ownsView()) {
           patchLast((m) => ({
             ...m,
             pending: false,
             parts: [...m.parts, { kind: "text", text: t("code_module.stopped") }],
           }));
-        } else {
+        } else if (ownsView()) {
           onError?.((e as Error)?.message || t("shared_ui.err_stream_failed"));
-          setMsgs((curr) => curr.filter((_, i) => i !== curr.length - 1));
+          updateMsgs((curr) => curr.filter((_, i) => i !== curr.length - 1));
         }
       } finally {
-        setStreaming(false);
-        abortRef.current = null;
-        turnTargetRef.current = null;
+        if (ownsView()) {
+          updateStreaming(false);
+          abortRef.current = null;
+          turnTargetRef.current = null;
+          queueMicrotask(() => drainQueueRef.current());
+        }
       }
     },
-    [pid, msgs, streaming, applyEvent, patchLast, onError, stopTurn],
+    [pid, applyEvent, patchLast, onError, stopTurn, bindQueue, updateMsgs, updateStreaming],
   );
 
   // Rewind the pane (and the bound file) to `keepVisible` turns, then send. The
@@ -1028,10 +1192,10 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
           return;
         }
       }
-      setMsgs((curr) => curr.slice(0, keepVisible));
+      updateMsgs((curr) => curr.slice(0, keepVisible));
       await send(text, opts);
     },
-    [pid, streaming, send, onError],
+    [pid, streaming, send, onError, updateMsgs],
   );
 
   const regenerate = useCallback(
@@ -1078,58 +1242,82 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
   // way, here is what I actually meant": send the correction, stop the run, and
   // the correction leaves immediately instead of after the wrong answer.
   const stop = useCallback(() => { void stopTurn(); }, [stopTurn]);
-  const unqueue = useCallback((id: string) => setQueued((curr) => curr.filter((q) => q.id !== id)), []);
+  const unqueue = useCallback((id: string) => {
+    const key = queueKeyRef.current;
+    if (!key) return;
+    writeBackgroundQueue(key, readBackgroundQueue(key).filter((q) => q.id !== id));
+  }, []);
 
   // Drain: one at a time, as soon as the pane is free.
-  //
-  // From an EFFECT, not from `send`'s own `finally`. `send` builds its history
-  // out of the `msgs` its closure captured — the list as it was before the turn
-  // that just finished was written into it — so a queued message sent from in
-  // there would reach an agent with no record of the answer it is replying to.
-  // An effect runs after the render that committed those messages and reads
-  // them back through a fresh `send`.
+  // msgsRef is synchronous, so the worker can drain after its pane unmounts and
+  // still include the answer that just finished in the next turn's history.
+  const sendRef = useRef(send);
+  sendRef.current = send;
+  const drainQueue = useCallback(() => {
+    if (streamingRef.current || followingRef.current) return;
+    const key = queueKeyRef.current;
+    if (!key) return;
+    const next = takeBackgroundQueue(key);
+    if (next) void sendRef.current(next.text, next.opts);
+  }, []);
+  drainQueueRef.current = drainQueue;
   useEffect(() => {
-    if (streaming || queued.length === 0) return;
-    const [next, ...rest] = queued;
-    setQueued(rest);
-    void send(next.text, next.opts);
-  }, [streaming, queued, send]);
+    if (!streaming && !following && queued.length) drainQueue();
+  }, [streaming, following, queued.length, drainQueue]);
 
-  const clear = useCallback(() => {
-    if (streaming) return;
+  const clear = useCallback((queueKey?: string) => {
     loadSeqRef.current++; // cancel any in-flight history load
+    beginViewChange();
     convoRef.current = undefined;
+    threadRef.current = null;
     setConversationId(undefined);
     setConversationMeta(undefined);
-    setQueued([]);
-    setMsgs([]);
-  }, [streaming]);
+    updateFollowing(false);
+    turnTargetRef.current = null;
+    if (queueKey) bindQueue(queueKey);
+    else setQueued([]);
+    updateMsgs([]);
+  }, [beginViewChange, bindQueue, updateFollowing, updateMsgs]);
 
   const load = useCallback(
     async (agentSlug: string, conversationId: string, opts?: ReloadOptions) => {
-      if (streaming) return;
       const seq = ++loadSeqRef.current;
+      const activityKey = conversationActivityKey(pid, conversationId);
+      if (!opts?.silent) {
+        beginViewChange();
+        bindQueue(activityKey);
+      }
       // Blank the pane up front so it never shows the previous chat under the
       // new header while the fetch is in flight. A silent re-read is the SAME
       // chat catching up, so blanking would be a flash of empty for nothing —
       // and for the same reason it keeps the queue: what you queued belongs to
       // this thread, and only actually LEAVING it drops it.
-      if (!opts?.silent) { setMsgs([]); setQueued([]); }
+      if (!opts?.silent) updateMsgs([]);
       try {
         const detail = await Conversations.get(pid, agentSlug, conversationId);
         if (seq !== loadSeqRef.current) return; // superseded by a newer pick
         const loaded = threadToChatMsgs(detail.messages ?? []);
         convoRef.current = conversationId;
+        threadRef.current = null;
         setConversationId(conversationId);
         setConversationMeta(metaFromDetail(detail));
         // Opening a chat whose answer is still being written: show the partial
         // as a streaming bubble and let the live "turn" frames carry on filling
         // it — the whole point of the push feed. Only on a real open; a silent
         // refetch leaves the live bubble the frames are already maintaining.
-        const active = !opts?.silent ? detail.active_turn : null;
-        if (active) liveTurnRef.current = { id: active.turn_id, text: active.text || "" };
-        else if (!opts?.silent) liveTurnRef.current = null;
-        setMsgs((curr) =>
+        const active = !opts?.silent && !isChatTurnClosed(detail.active_turn?.turn_id)
+          ? detail.active_turn
+          : null;
+        if (active) {
+          liveTurnRef.current = { id: active.turn_id, text: active.text || "" };
+          updateFollowing(true);
+          turnTargetRef.current = { conversation_id: conversationId };
+        } else if (!opts?.silent) {
+          liveTurnRef.current = null;
+          updateFollowing(false);
+          turnTargetRef.current = null;
+        }
+        updateMsgs((curr) =>
           opts?.silent ? mergeLocalTurns(loaded, curr) : withActiveTurn(loaded, active),
         );
       } catch (e) {
@@ -1139,20 +1327,25 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
         // asked for by picking a chat reports, and clears.
         if (opts?.silent) return;
         convoRef.current = undefined;
+        threadRef.current = null;
         setConversationId(undefined);
         setConversationMeta(undefined);
-        setMsgs([]);
+        updateFollowing(false);
+        updateMsgs([]);
         onError?.((e as Error)?.message || t("shared_ui.err_load_conversation"));
       }
     },
-    [pid, streaming, onError],
+    [pid, onError, beginViewChange, bindQueue, updateFollowing, updateMsgs],
   );
 
   const loadThread = useCallback(
     async (channel: string, threadId: string, opts?: ReloadOptions) => {
-      if (streaming) return;
       const seq = ++loadSeqRef.current;
-      if (!opts?.silent) { setMsgs([]); setQueued([]); } // see load()
+      if (!opts?.silent) {
+        beginViewChange();
+        bindQueue(threadActivityKey(pid, channel, threadId));
+        updateMsgs([]);
+      }
       try {
         const detail = await Conversations.thread(pid, channel, threadId);
         if (seq !== loadSeqRef.current) return; // superseded by a newer pick
@@ -1160,6 +1353,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
         // Ledger threads have no conversation file — sends continue as fresh
         // web turns with this history as previousMessages.
         convoRef.current = undefined;
+        threadRef.current = { channel, id: threadId };
         setConversationId(undefined);
         // A thread knows its own name and channel, same as a conversation file
         // does — the header should not have to be handed them by whichever list
@@ -1170,17 +1364,35 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
           participants: detail.participants,
           faces: detail.participant_faces,
         });
-        setMsgs((curr) => (opts?.silent ? mergeLocalTurns(loaded, curr) : loaded));
+        const active = !opts?.silent && !isChatTurnClosed(detail.active_turn?.turn_id)
+          ? detail.active_turn
+          : null;
+        if (active) {
+          liveTurnRef.current = { id: active.turn_id, text: active.text || "" };
+          updateFollowing(true);
+          turnTargetRef.current = { channel };
+        } else if (!opts?.silent) {
+          liveTurnRef.current = null;
+          updateFollowing(false);
+          turnTargetRef.current = null;
+        }
+        updateMsgs((curr) => (
+          opts?.silent
+            ? mergeLocalTurns(loaded, curr)
+            : withActiveTurn(loaded, active)
+        ));
       } catch (e) {
         if (seq !== loadSeqRef.current) return;
         if (opts?.silent) return; // see load(): a failed catch-up changes nothing
         convoRef.current = undefined;
+        threadRef.current = null;
         setConversationId(undefined);
-        setMsgs([]);
+        updateFollowing(false);
+        updateMsgs([]);
         onError?.((e as Error)?.message || t("shared_ui.err_load_conversation"));
       }
     },
-    [pid, streaming, onError],
+    [pid, onError, beginViewChange, bindQueue, updateFollowing, updateMsgs],
   );
 
   // A group turn streams like a 1:1 one — same pending-bubble machinery — but the
@@ -1199,19 +1411,25 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
       if (!opts.rerun) {
         // Optimistic owner bubble — shows the photo/file immediately, same as a
         // 1:1 turn; the marker rides on the text the way the daemon folds it.
-        setMsgs((curr) => [...curr, {
+        updateMsgs((curr) => [...curr, {
           role: "user",
           parts: userPart([markersFor(files), trimmed].filter(Boolean).join(" ")),
           ts: nowIso(), local: true,
           ...(files.length ? { media: files.map(mediaOf) } : {}),
         }]);
       }
-      setStreaming(true);
+      updateStreaming(true);
       const ctrl = new AbortController();
       abortRef.current = ctrl;
+      // How the DAEMON addresses this cascade, set before the first byte: a room
+      // is a thread on channel "group", and a project runs several at once, so
+      // the id has to ride along. Without it Stop only closed this socket while
+      // the room kept working — the one turn shape that can run ten tool loops
+      // off a single line was the one that could not be interrupted.
+      turnTargetRef.current = { channel: "group", thread_id: gid };
       const onEvent = (ev: import("../lib/api/groups").GroupStreamEvent) => {
         if (ev.type === "speaker_start") {
-          setMsgs((curr) => [...curr, {
+          updateMsgs((curr) => [...curr, {
             role: "assistant", parts: [], ts: nowIso(), pending: true, local: true,
             agentId: ev.slug, agent: nameOf(ev.slug),
             ...(ev.reason ? { reason: ev.reason } : {}),
@@ -1235,6 +1453,11 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
           applyEvent(ev as ChatStreamEvent);
         } else if (ev.type === "speaker_final") {
           patchLast((m) => ({ ...m, pending: false, ...(ev.model ? { model: ev.model } : {}), ...(ev.usage ? { usage: ev.usage } : {}) }));
+        } else if (ev.type === "speaker_aborted") {
+          // You stopped the room mid-reply. Whatever this speaker had written is
+          // real work you watched happen and the daemon kept it in the thread —
+          // mark it the way a stopped 1:1 turn is marked, not as a failure.
+          patchLast((m) => ({ ...m, pending: false, parts: [...m.parts, { kind: "text", text: t("code_module.stopped") }] }));
         }
       };
       try {
@@ -1247,15 +1470,31 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
         if (ctrl.signal.aborted) patchLast((m) => ({ ...m, pending: false }));
         else onError?.((e as Error)?.message || t("shared_ui.err_chat_failed"));
       } finally {
-        setStreaming(false);
+        updateStreaming(false);
         abortRef.current = null;
+        turnTargetRef.current = null;
         // Reconcile with the canonical thread (model/usage/reason from the ledger,
         // join/leave notices, and drops the local bubbles for the persisted ones).
         void loadThread("group", gid, { silent: true });
       }
     },
-    [pid, streaming, applyEvent, patchLast, loadThread, onError],
+    [pid, streaming, applyEvent, patchLast, loadThread, onError, updateMsgs, updateStreaming],
   );
 
-  return { msgs, send, sendGroup, regenerate, editAndResend, stop, clear, load, loadThread, streaming, queued, unqueue, conversationId, conversationMeta };
+  return {
+    msgs,
+    send,
+    sendGroup,
+    regenerate,
+    editAndResend,
+    stop,
+    clear,
+    load,
+    loadThread,
+    streaming: streaming || following,
+    queued,
+    unqueue,
+    conversationId,
+    conversationMeta,
+  };
 }

@@ -140,6 +140,14 @@ no se pierde nada de lo que pasó mientras estuvo afuera. Si el socket no se
 puede abrir (un proxy que rechaza upgrades), las listas vuelven a su refresco de
 15 segundos y el panel sigue funcionando, sólo que menos inmediato.
 
+Los turnos activos y mensajes encolados también sobreviven la navegación dentro
+del panel. Si salís de un chat y volvés, se recuperan respuesta parcial **y
+tarjetas de tools terminadas** en orden original; luego continúa streaming.
+Todas listas chats usan mismo indicador compacto junto badge agente: spinner
+mientras agente escribe y punto azul cuando respuesta termina fuera chat abierto.
+Abrir chat limpia punto. Cambio chat limpia historial anterior enseguida; turno
+viejo sigue daemon, pero no puede escribir chat nuevo.
+
 ## Notificaciones y qué canales te llegan
 
 El panel puede avisarte cuando un agente escribe y vos no estás mirando: una
@@ -204,7 +212,8 @@ cerrada cuando termina, un clic para ver argumentos y resultados, y cualquier er
 nombrado en la fila misma. Lo que queda a la vista es el mensaje de cierre: la
 respuesta para la que existía el turno. Si volvés a abrir la conversación más
 tarde ves lo mismo: los pasos quedan guardados con el turno, no solo streameados
-y olvidados.
+y olvidados. Prosa progreso sigue visible, pero no vuelve al prompt siguiente;
+sólo respuesta final entra historial conversación.
 
 Un chat que arrancás dentro de un proyecto queda listado en ese proyecto. El
 workspace Base sigue mostrando todos los hilos de todos los canales; un proyecto
