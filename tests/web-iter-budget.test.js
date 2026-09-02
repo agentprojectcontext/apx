@@ -29,7 +29,7 @@ const { register: registerExec } = await import("../src/host/daemon/api/exec.js"
 test("channelToolIters — the web chat and its sidebar run to completion", () => {
   assert.equal(channelToolIters({}, CHANNELS.WEB), WEB_TOOL_ITERS);
   assert.equal(channelToolIters({}, CHANNELS.WEB_SIDEBAR), WEB_TOOL_ITERS);
-  assert.ok(WEB_TOOL_ITERS > TELEGRAM_TOOL_ITERS && WEB_TOOL_ITERS > MAX_TOOL_ITERS);
+  assert.ok(WEB_TOOL_ITERS >= TELEGRAM_TOOL_ITERS && WEB_TOOL_ITERS > MAX_TOOL_ITERS);
 });
 
 test("channelToolIters — every other channel keeps its own budget", () => {

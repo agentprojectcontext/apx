@@ -119,6 +119,14 @@ export function buildStreamHandler(self, { chat_id, update_id, agentDisplay }) {
           `${Math.round((ev.score ?? 0) * 100)}% ${ev.passed ? "→ done" : "→ continuing"}` +
           `${ev.reasoning ? ` (${ev.reasoning})` : ""}`
         );
+      } else if (ev.type === "judge_budget_exhausted") {
+        // The judge wanted another round and the turn had no budget left to
+        // give it. Logged because the alternative reading — "the judge passed
+        // it" — is wrong, and the trail alone doesn't distinguish the two.
+        self.log(
+          `telegram[${self.channel.name}] judge round ${ev.iteration} skipped: ` +
+          `tool budget spent (${ev.spent}/${ev.budget})`
+        );
       } else if (ev.type === "engine_failed") {
         // A model in the fallback chain errored; the loop is rotating to the
         // next one. Log so a mid-turn provider failure is diagnosable.

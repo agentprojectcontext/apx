@@ -57,7 +57,7 @@ This **replaces the old `echo "…date…"` pre_command + `{{pre_output}}` trick
 
 ## Iteration budget
 
-- A routine that **reports to Telegram** (its `post_commands` send via Telegram, so `send_telegram` is auto-suppressed) keeps a bounded conversational budget (`super_agent.telegram_max_iters`, default `TELEGRAM_TOOL_ITERS`) — a chat reply should be tight.
+- A routine that **reports to Telegram** (its `post_commands` send via Telegram, so `send_telegram` is auto-suppressed) uses `super_agent.telegram_max_iters` (default `TELEGRAM_TOOL_ITERS`, a high runaway backstop) and normally runs until work is done.
 - Any **other** routine runs effectively **uncapped** to completion (`super_agent.routine_max_iters`, default `ROUTINE_UNCAPPED_TOOL_ITERS`): background work nobody is watching (Magui filling a backlog) must finish, not get cut at the chat budget. Only the `post_command` Telegram sink marks a routine telegram-bound — a routine whose *agent* sends a summary at the end is still uncapped.
 
 ## Anti-example: double-reply

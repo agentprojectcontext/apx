@@ -276,41 +276,65 @@ Cubre dos formas distintas de que un turno termine antes de tiempo:
 }
 ```
 
-`model` vacío → el juez corre sobre `super_agent.model`; poné un modelo barato para mantener bajo
-el overhead de verificación. Los veredictos salen como eventos `judge_verdict`, en el resultado
+`model` vacío → el juez corre sobre `super_agent.model` y, si no hay, sobre el modelo con el que
+corrió el turno — así un agente de proyecto se juzga igual en una instalación que nunca configuró
+un super-agente. Poné un modelo barato para mantener bajo el overhead de verificación. Los veredictos salen como eventos `judge_verdict`, en el resultado
 como `result.judge`, y en el mensaje de Telegram que cerró el turno — así un turno que se hizo
 largo se puede rastrear hasta el veredicto que lo mantuvo andando.
+
+`max_iterations` limita cuántas veces el juez puede devolver un turno — **no** multiplica lo que
+el turno puede gastar. Las rondas **comparten** el presupuesto de herramientas de la superficie
+con la corrida que vino antes: cada una recibe lo que quedó, y cuando queda muy poco para que una
+ronda valga la pena (un paso de acción más el paso de cierre reservado) el loop frena ahí y emite
+`judge_budget_exhausted` en vez de arrancarla. Así un mensaje en el chat web cuesta como mucho
+`web_max_iters`, no `(1 + max_iterations) × web_max_iters`.
 
 ## Presupuesto de herramientas por superficie
 
 Cuántos pasos de herramienta puede dar un turno depende de si podés mirarlo trabajar — y se
 decide por **superficie**, no por quién contesta. Un agente de proyecto en el chat web tiene el
-mismo presupuesto que Roby; un chat que mirás es un chat que mirás. (Las tres perillas viven bajo
+mismo presupuesto que Roby; un chat que mirás es un chat que mirás. (Las cuatro perillas viven bajo
 `super_agent` porque ahí viven todos los presupuestos del tool loop, incluido el de rutinas, que
 gobierna agentes de proyecto.)
 
 | Superficie | Presupuesto | Por qué |
 |---|---|---|
-| Telegram | `telegram_max_iters` (24) | Un turno en el celular pasa de largo sin forma de ver que se fue a la banquina, así que el presupuesto es la baranda: frena y pregunta. |
+| Telegram | `telegram_max_iters` (1000) | Inicio de cada tool queda visible y Telegram mantiene indicador escribiendo, así turno normalmente corre hasta terminar. |
 | Chat web + sidebar | `web_max_iters` (1000) | Cada llamada se dibuja en vivo y estás a un click de frenarlo — la baranda sos vos, así que el turno corre hasta terminar el trabajo. |
 | Rutinas (sin Telegram) | `routine_max_iters` (1000) | Nadie está esperando a mitad de la corrida para contestar "¿sigo?". |
+| Salas grupales | `group_max_iters` (50) | La única superficie donde un mensaje se abre en varios — ver abajo. |
 | Superficies de código | Explícito, más el completion contract | Frenan en `finish`, no en un número. |
 
-Los dos techos de `1000` son frenos de emergencia, no puntos de parada normales: el loop ya
+Cada número es el presupuesto de un **turno**, no de una pasada del tool loop: si el judge de
+completitud devuelve el turno para terminar algo, esas rondas gastan lo que queda del mismo número
+en vez de recibirlo de nuevo entero.
+
+Los tres techos de `1000` son frenos de emergencia, no puntos de parada normales: el loop ya
 termina en cuanto el modelo deja de llamar herramientas, y la detección de loops aborta las
 repeticiones. Poné cualquiera en `0` para usar el valor por defecto.
+
+Una **sala grupal** se mira y se frena igual que el chat web, así que por la regla de superficie
+le tocaría el mismo techo — pero una línea tuya puede encadenar hasta diez respuestas de agentes,
+cada una un tool loop completo. Darle a cada orador el techo del 1:1 haría, sin que nadie lo
+decida, que un mensaje valga por diez. Entonces cada orador recibe una porción: espacio real para
+trabajo de varios pasos, y los diez juntos siguen costando no más que un turno en tu chat 1:1 con
+cualquiera de ellos. Mismo principio que las rondas del juez de arriba — el presupuesto es de *tu*
+turno, y todo lo que se desprende de él entra adentro. Un orador que se queda sin presupuesto
+cierra contando hasta dónde llegó y la sala sigue; el trabajo solitario que necesita cientos de
+pasos va en el chat propio de ese agente, que tiene el techo para eso.
 
 ```json
 "super_agent": {
   "telegram_max_iters": 0,
   "web_max_iters": 0,
-  "routine_max_iters": 0
+  "routine_max_iters": 0,
+  "group_max_iters": 0
 }
 ```
 
 Cuando un presupuesto *sí* se agota, el último paso queda reservado para un mensaje de cierre sin
-herramientas, escrito por el modelo: qué hizo, qué falta y si querés que siga. En web eso pasó a
-ser un piso de seguridad raro en vez de la forma en que terminan casi todos los turnos.
+herramientas, escrito por modelo: qué hizo, qué falta y si querés que siga. Con techos de ejecución
+hasta terminar, eso queda como piso raro de seguridad, no cierre normal.
 
 ## Detección de loops (stuck detection)
 

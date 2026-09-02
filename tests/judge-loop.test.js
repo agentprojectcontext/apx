@@ -19,6 +19,7 @@ const {
   applyJudgeLoop,
   continuableTurn,
   awaitingUser,
+  itersSpent,
 } = await import("#core/agent/judge.js");
 const { runSuperAgent } = await import("#core/agent/super-agent.js");
 const { ProjectManager } = await import("#host/daemon/db.js");
@@ -303,6 +304,132 @@ test("runSuperAgent: a turn that exhausted its budget and wrapped up is not judg
     assert.equal(result.endedAwaitingUser, true, "the wrap-up ran and it asked the user");
     assert.equal(result.judge, undefined);
     assert.equal(events.filter((e) => e.type === "final_wrapup").length, 1, "exactly one closing message");
+  } finally {
+    cleanupTempProject(root);
+  }
+});
+
+// ── One turn, one budget ──────────────────────────────────────────────────────
+// Each round used to be a full runAgent call handed the ENTIRE tool budget
+// again, with nothing summing them: the real ceiling of one message was
+// (1 + max_iterations) × maxIters — 3 × 1000 on the web chat since WEB_TOOL_ITERS
+// landed. Nobody decided that number; it was the product of two settings that
+// did not know about each other. Now the rounds share the turn's budget.
+
+test("itersSpent: the reported count, or a lower bound for a runner that doesn't report", () => {
+  assert.equal(itersSpent({ iterations: 7, trace: [{ tool: "a" }] }), 7, "reported wins over the trace");
+  assert.equal(itersSpent({ iterations: 0, trace: [] }), 0);
+  // No count reported (an injected runner): a tool result cannot exist without
+  // an iteration that produced it, and a round that ran cost at least one.
+  assert.equal(itersSpent({ trace: [{ tool: "a" }, { tool: "b" }] }), 2);
+  assert.equal(itersSpent({ trace: [] }), 1);
+  assert.equal(itersSpent(undefined), 1);
+});
+
+test("applyJudgeLoop: rounds share the turn's budget instead of each getting it in full", async () => {
+  const handed = [];
+  const events = [];
+  const result = await applyJudgeLoop({
+    // The first run already spent 4 of the turn's 10.
+    initialResult: { text: "first", usage: { input_tokens: 1, output_tokens: 1 }, trace: [{ tool: "a" }], iterations: 4 },
+    cfg: { enabled: true, success_threshold: 0.6, max_iterations: 3 },
+    maxIters: 10,
+    onEvent: (e) => events.push(e),
+    judgeFn: async () => ({ score: 0.1, reasoning: "still open", missing: ["the rest"] }),
+    runFollowup: async (_followup, _prior, opts) => {
+      handed.push(opts?.maxIters);
+      // Burns 5 of the 6 it was given: 9 of 10 spent, 1 left — less than a
+      // round needs (an action step plus the reserved close), so no round 2.
+      return { text: "second", usage: { input_tokens: 1, output_tokens: 1 }, trace: [{ tool: "b" }], iterations: 5 };
+    },
+  });
+  assert.deepEqual(handed, [6], "the round gets what the first run left, and there is only one round");
+  assert.equal(result.iterations, 9, "the merged result reports the TURN's total, like usage and trace");
+  assert.equal(result.judge.length, 2, "the second verdict is recorded — it says the turn ended unverified");
+  const exhausted = events.filter((e) => e.type === "judge_budget_exhausted");
+  assert.equal(exhausted.length, 1, "a loop stopped for budget must not read as a loop that passed");
+  assert.deepEqual({ spent: exhausted[0].spent, budget: exhausted[0].budget }, { spent: 9, budget: 10 });
+});
+
+test("applyJudgeLoop: a round that would get nothing is never started", async () => {
+  const handed = [];
+  const result = await applyJudgeLoop({
+    initialResult: { text: "first", usage: {}, trace: [{ tool: "a" }], iterations: 4 },
+    cfg: { enabled: true, success_threshold: 0.6, max_iterations: 3 },
+    maxIters: 4, // spent in full by the first run
+    judgeFn: async () => ({ score: 0.1, reasoning: "still open", missing: [] }),
+    runFollowup: async (_f, _p, opts) => {
+      handed.push(opts?.maxIters);
+      return { text: "second", usage: {}, trace: [], iterations: 1 };
+    },
+  });
+  assert.deepEqual(handed, [], "with nothing left, a round can only recap over the answer we already have");
+  assert.equal(result.text, "first");
+  assert.equal(result.judge.length, 1);
+});
+
+test("applyJudgeLoop: no turn budget → rounds bounded only by max_iterations", async () => {
+  // The injected-runner shape: a caller with no tool loop of its own has no
+  // budget to divide, so there is no arithmetic to do and nothing to hand over.
+  const handed = [];
+  await applyJudgeLoop({
+    initialResult: { text: "first", usage: {}, trace: [{ tool: "a" }] },
+    cfg: { enabled: true, success_threshold: 0.6, max_iterations: 3 },
+    judgeFn: async () => ({ score: 0.1, reasoning: "", missing: [] }),
+    runFollowup: async (_f, _p, opts) => {
+      handed.push(opts?.maxIters);
+      return { text: "again", usage: {}, trace: [{ tool: "b" }] };
+    },
+  });
+  assert.deepEqual(handed, [undefined, undefined, undefined], "three rounds, no budget passed to any of them");
+});
+
+// The regression, end to end through the real tool loop: a whole turn — the
+// first run plus every verification round — may not spend more than the budget
+// its surface set. Before this, `maxIters: 4` with `max_iterations: 3` meant a
+// ceiling of 16.
+test("runSuperAgent: one turn, one tool budget — judge rounds spend what the first run left", async () => {
+  const root = makeTempProject({ name: "Budget Judge" });
+  const projects = new ProjectManager({ engines: {} });
+  projects.register(root);
+  try {
+    const events = [];
+    const rounds = [];
+    const result = await runSuperAgent({
+      globalConfig: {
+        super_agent: {
+          enabled: true,
+          model: "mock:base",
+          permission_mode: "total",
+          model_fallback: { enabled: false },
+          judge: { max_iterations: 3 },
+        },
+        memory: { enabled: false },
+        engines: {},
+      },
+      projects,
+      plugins: null,
+      registries: null,
+      // Calls one tool, then answers: 2 of the 4 iterations.
+      prompt: "[mock:tool:list_projects] regenerá el post",
+      channel: "api",
+      maxIters: 4,
+      onEvent: (e) => events.push(e),
+      // A judge that is never satisfied — the harsh case the budget must bound.
+      judgeCompletionFn: async (args) => {
+        rounds.push(args.result?.iterations);
+        return { score: 0.1, reasoning: "half done", missing: ["subir el video"] };
+      },
+    });
+    assert.equal(result.iterations, 3, "2 for the first run + 1 for the single round the budget allowed");
+    assert.ok(result.iterations <= 4, "a turn may never spend more than its budget");
+    assert.equal(result.judge.length, 2, "judged twice, continued once — the third round had no budget");
+    assert.deepEqual(rounds, [2, 3], "the judge sees the turn's running total, not a per-round count");
+    assert.equal(
+      events.filter((e) => e.type === "judge_budget_exhausted").length,
+      1,
+      "the loop said why it stopped",
+    );
   } finally {
     cleanupTempProject(root);
   }
