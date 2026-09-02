@@ -221,6 +221,12 @@ Verified on hardware, and the result is not the same on every phone:
   background start, and Honor encrypts app logcat (`(HKS)…(HKE)`), so the
   refusal cannot be read on the device. On that phone, open APX once after
   installing; its auto-start whitelist is the manual toggle to try.
+  Re-measured 2026-09-02 on MagicOS 10.0.0.207 / Android 16: zero
+  `ServiceRecord`s still a full minute after `adb install -r`, so this is the
+  steady state and not a slow broadcast. `adb shell am start -n
+  dev.agentprojectcontext.apx/.MainActivity` is enough to bring it back — it
+  works with the screen off and the phone locked, so the "open it once" step
+  does not need the owner to unlock anything.
 
 Testing a reboot is easy to get wrong. `adb reboot` returns before the phone
 goes down, so poll `adb devices` until the serial disappears and prove it with
@@ -233,9 +239,22 @@ Build and verify with the repository-local wrapper:
 
 ```bash
 cd src/interfaces/android
+export JAVA_HOME=/opt/homebrew/opt/openjdk@17
+export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
 ./gradlew testDebugUnitTest assembleDebug
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
+
+Both exports are load-bearing on this machine and neither is discoverable from
+the error: `./gradlew` alone dies with "Unable to locate a Java Runtime" (the
+JDK is Homebrew's, not linked as the system `java`), and once that is fixed with
+"SDK location not found" — `local.properties` is gitignored, `ANDROID_HOME` is
+unset, and the only SDK carrying `platforms/android-35` and `build-tools/35.0.0`
+is the Homebrew commandlinetools one. The SDK under `proyectos_varios/android-lab`
+is NOT it: platform-tools and system images only, nothing that compiles.
+
+With two phones plugged in, every `adb` needs a target — `export
+ANDROID_SERIAL=<serial>` once beats `-s` on each call.
 
 The daemon still follows the normal APX dev loop. Android-only code does not
 require `apx restart`; any daemon or web change does.
