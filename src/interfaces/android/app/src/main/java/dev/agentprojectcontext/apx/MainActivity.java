@@ -15,6 +15,7 @@ import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.PowerManager;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.Gravity;
@@ -60,6 +61,9 @@ public final class MainActivity extends Activity {
         @Override public void onReceive(Context context, Intent intent) {
             updateTravelBanner();
         }
+    };
+    private final Runnable tripPlaceRecheck = () -> {
+        if (preferences.travelActive()) refreshTripPlaceCount();
     };
 
     @Override
@@ -290,6 +294,16 @@ public final class MainActivity extends Activity {
             openMobile("/mobile");
         }
         setMascotAppForeground(true);
+        // The embedded /mobile is a live React app: its own socket, its
+        // timers, its animations. Android does not stop any of that when the
+        // activity goes away, so leaving APX by the home button used to leave a
+        // full web app running behind the launcher for as long as the process
+        // survived. Resume it here, pause it in onPause, and off screen the
+        // WebView costs nothing.
+        if (webView != null) {
+            webView.onResume();
+            webView.resumeTimers();
+        }
         updateTravelBanner();
     }
 
@@ -314,6 +328,13 @@ public final class MainActivity extends Activity {
     @Override
     protected void onPause() {
         setMascotAppForeground(false);
+        if (webView != null) {
+            webView.onPause();
+            // pauseTimers() is process-wide and there is exactly one WebView
+            // here; it is what actually stops the JavaScript, where onPause()
+            // alone only stops drawing.
+            webView.pauseTimers();
+        }
         super.onPause();
     }
 
@@ -397,6 +418,7 @@ public final class MainActivity extends Activity {
             refreshTripPlaceCount();
             scheduleTripPlaceRecheck();
         } else {
+            travelBanner.removeCallbacks(tripPlaceRecheck);
             tripPlaceCount = -1;
         }
     }
@@ -440,9 +462,11 @@ public final class MainActivity extends Activity {
      */
     private void scheduleTripPlaceRecheck() {
         if (travelBanner == null) return;
-        travelBanner.postDelayed(() -> {
-            if (preferences.travelActive()) refreshTripPlaceCount();
-        }, 20_000L);
+        // Exactly one pending recheck. This runs on every banner update — every
+        // resume and every travel broadcast — and posting a fresh timer each
+        // time queued a stack of them that all fired at once.
+        travelBanner.removeCallbacks(tripPlaceRecheck);
+        travelBanner.postDelayed(tripPlaceRecheck, 20_000L);
     }
 
     /**
@@ -540,6 +564,9 @@ public final class MainActivity extends Activity {
         String drivingAlertsAction = notificationManager.isNotificationPolicyAccessGranted()
             ? "✓ Avisos durante conducción"
             : "Permitir avisos durante conducción";
+        String batteryAction = batteryUnrestricted()
+            ? "✓ Batería sin restricciones"
+            : "Quitar restricción de batería";
         boolean travelAccess = travelDetectionEnabled();
         String travelAction = !travelAccess
             ? "Activar detección de viajes"
@@ -549,20 +576,21 @@ public final class MainActivity extends Activity {
                 : "✓ Viaje de Maps detectado";
         new AlertDialog.Builder(this)
             .setTitle("APX Android")
-            .setItems(new String[]{mascotAction, soundAction, drivingAlertsAction, travelAction, "Probar aviso Android Auto", "Recargar /mobile", "Vincular otro dispositivo"}, (dialog, which) -> {
+            .setItems(new String[]{mascotAction, soundAction, drivingAlertsAction, batteryAction, travelAction, "Probar aviso Android Auto", "Recargar /mobile", "Vincular otro dispositivo"}, (dialog, which) -> {
                 if (which == 0) toggleMascot();
                 if (which == 1) toggleMessageSound();
                 if (which == 2) startActivity(new Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS));
-                if (which == 3) openTravelDetectionSettings();
-                if (which == 4) {
+                if (which == 3) openBatterySettings();
+                if (which == 4) openTravelDetectionSettings();
+                if (which == 5) {
                     Intent test = new Intent(this, MascotOverlayService.class)
                         .setAction(MascotOverlayService.ACTION_TEST_MESSAGE)
                         .putExtra(MascotOverlayService.EXTRA_TEST_MESSAGE, "Prueba APX: aviso directo en Android Auto.");
                     if (Build.VERSION.SDK_INT >= 26) startForegroundService(test); else startService(test);
                     Toast.makeText(this, "Aviso APX enviado", Toast.LENGTH_SHORT).show();
                 }
-                if (which == 5) openMobile("/mobile");
-                if (which == 6) {
+                if (which == 6) openMobile("/mobile");
+                if (which == 7) {
                     stopService(new Intent(this, MascotOverlayService.class));
                     preferences.clearPairing();
                     showPairing(null, null, false);
@@ -570,6 +598,40 @@ public final class MainActivity extends Activity {
             })
             .setNegativeButton("Cerrar", null)
             .show();
+    }
+
+    /** Is APX exempt from Doze / App Standby right now? */
+    private boolean batteryUnrestricted() {
+        PowerManager power = (PowerManager) getSystemService(POWER_SERVICE);
+        return power != null && power.isIgnoringBatteryOptimizations(getPackageName());
+    }
+
+    /**
+     * Hand the battery-optimisation decision to the owner, on the phone.
+     *
+     * It is theirs to make: the exemption is what stops Android deferring the
+     * trip's start and end while the phone is in a pocket, and it is also the
+     * one switch that lets APX cost battery when it is idle. So the app asks
+     * and never assumes — the direct dialog while APX is still restricted, and
+     * the system list once it is exempt, which is where the exemption can be
+     * taken back. Some OEM builds ship neither screen; fall back to the app's
+     * own details page rather than crashing on a missing activity.
+     */
+    private void openBatterySettings() {
+        Intent request = batteryUnrestricted()
+            ? new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+            : new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:" + getPackageName()));
+        try {
+            startActivity(request);
+            return;
+        } catch (RuntimeException noScreen) {
+            Log.w("APX", "No battery optimisation screen: " + noScreen.getMessage());
+        }
+        try {
+            startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getPackageName())));
+        } catch (RuntimeException noDetails) {
+            Toast.makeText(this, "Este Android no expone el ajuste de batería.", Toast.LENGTH_LONG).show();
+        }
     }
 
     private boolean travelDetectionEnabled() {

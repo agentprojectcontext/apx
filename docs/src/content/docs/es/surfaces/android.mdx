@@ -39,6 +39,7 @@ experiencia completa:
 | Detección de viajes | Menú APX → **Activar detección de viajes** y activar acceso a notificaciones APX | Leer estado y destino de navegación Google Maps, y detectar una sesión de Android Auto |
 | Ubicación | Elegir **Mientras se usa la app** | Enviar el origen del viaje y la posición en vivo durante el viaje |
 | Overlay | Activar **Mostrar sobre otras apps** | Solo mascota flotante; no necesario para cards del auto |
+| Batería | Menú APX → **Quitar restricción de batería** y confirmar el diálogo de Android | Que el inicio y el fin del viaje lleguen a tiempo con el teléfono en el bolsillo |
 
 En configuración Android Auto, mantener **Ver notificaciones de mensajes**
 activo. Activar **Mostrar la primera línea de los mensajes** para ver texto APX
@@ -154,6 +155,29 @@ en card, no solo anuncio de mensaje nuevo.
   WebSocket autenticado foreground y reconecta tras cortes. Desactivar mascota
   solo quita overlay.
 </Aside>
+
+## Cuánto cuesta cuando no pasa nada
+
+APX es una cáscara con un WebView adentro y, en reposo, no debería costar nada.
+El viaje es el único estado que puede ser caro: ahí corre el GPS y ahí un
+socket caído tiene que recuperarse en segundos.
+
+- La mascota se anima mientras la arrastrás, salta o muestra un mensaje. En
+  reposo mantiene la pose y solo parpadea, en lugar de redibujarse treinta
+  veces por segundo encima de la app que estés usando.
+- Salir de APX pausa el `/mobile` embebido y detiene sus timers de JavaScript;
+  al volver se reanuda. Las notificaciones nativas no dependen de eso: llegan
+  por el servicio en foreground, no por el WebView.
+- La escalera de reconexión del socket se corta en 15 segundos durante un viaje
+  y en 5 minutos fuera de uno, y se detiene del todo cuando el teléfono no
+  tiene red: despierta con el callback de conectividad de Android, no con un
+  temporizador. Antes, un teléfono lejos del daemon lo rediscaba cada 15
+  segundos todo el día. Al abrirse un viaje reconecta enseguida.
+- **Menú APX → Quitar restricción de batería** abre el diálogo propio de
+  Android. Conviene darlo para la detección de viajes: sin eso Android demora
+  el inicio y el fin del viaje con el teléfono en el bolsillo. La fila del menú
+  muestra el estado actual, y una vez que APX está exento la misma fila abre la
+  lista del sistema, que es donde se revierte.
 
 ## Qué ruta conoce APX
 

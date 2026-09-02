@@ -5,12 +5,16 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.res.AssetFileDescriptor;
 import android.graphics.PixelFormat;
 import android.media.AudioAttributes;
 import android.media.MediaPlayer;
+import android.net.ConnectivityManager;
+import android.net.Network;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
@@ -34,6 +38,16 @@ public final class MascotOverlayService extends Service {
     private static final String SERVICE_CHANNEL = "apx_mascot";
     private static final int SERVICE_NOTIFICATION = 7001;
 
+    // Two reconnect ladders, because the socket is worth two different amounts
+    // of battery. On a drive it is the only path a proximity card has, so a
+    // drop is repaired in seconds. Parked — which is most of the day — the
+    // daemon is often simply not addressable from where the phone is, and
+    // redialling it every 15 seconds for eight hours is a couple of thousand
+    // radio wakeups that cannot succeed. That is what the battery screen was
+    // reporting, and it is the whole reason this app looked expensive.
+    private static final long TRIP_MAX_BACKOFF_MS = 15_000L;
+    private static final long IDLE_MAX_BACKOFF_MS = 5 * 60_000L;
+
     private final Handler main = new Handler(Looper.getMainLooper());
     private WindowManager windowManager;
     private WindowManager.LayoutParams params;
@@ -46,12 +60,55 @@ public final class MascotOverlayService extends Service {
     private boolean foregroundStarted;
     private boolean appForeground;
     private int reconnectAttempts;
+    private ConnectivityManager connectivity;
+    private final Runnable reconnect = this::connect;
+    private final ConnectivityManager.NetworkCallback networkCallback = new ConnectivityManager.NetworkCallback() {
+        @Override public void onAvailable(Network network) {
+            // A network arriving is better news than any timer: dial now and
+            // drop the ladder, instead of waiting out a backoff that was
+            // scheduled while the phone had no way to reach anything.
+            main.post(() -> {
+                main.removeCallbacks(reconnect);
+                reconnectAttempts = 0;
+                if (socket == null) connect();
+            });
+        }
+
+        @Override public void onLost(Network network) {
+            // Nothing left to dial. Stop the ladder and wait to be told there
+            // is a network again — onAvailable is what restarts it.
+            main.post(() -> {
+                if (!networkUp()) main.removeCallbacks(reconnect);
+            });
+        }
+    };
+    private final BroadcastReceiver travelReceiver = new BroadcastReceiver() {
+        @Override public void onReceive(Context context, Intent intent) {
+            if (!preferences.travelActive()) return;
+            // Traveller mode just opened. Whatever idle backoff was pending,
+            // the socket carries proximity cards now — connect straight away.
+            main.removeCallbacks(reconnect);
+            reconnectAttempts = 0;
+            if (socket == null) connect();
+        }
+    };
 
     @Override
     public void onCreate() {
         super.onCreate();
         preferences = new ApxPreferences(this);
         createChannels();
+        connectivity = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+        try {
+            connectivity.registerDefaultNetworkCallback(networkCallback);
+        } catch (RuntimeException unavailable) {
+            // Without the callback the ladder is the only way back; it still
+            // works, it just cannot wake early.
+            android.util.Log.w("APX", "No connectivity callback: " + unavailable.getMessage());
+        }
+        IntentFilter travel = new IntentFilter(MapsNavigationListenerService.ACTION_TRAVEL_STATE_CHANGED);
+        if (Build.VERSION.SDK_INT >= 33) registerReceiver(travelReceiver, travel, RECEIVER_NOT_EXPORTED);
+        else registerReceiver(travelReceiver, travel);
     }
 
     @Override
@@ -226,8 +283,31 @@ public final class MascotOverlayService extends Service {
     private void clearAndReconnect(WebSocket failed) {
         if (socket == failed) socket = null;
         if (destroyed) return;
-        long delay = Math.min(15_000L, 1_000L << Math.min(reconnectAttempts++, 4));
-        main.postDelayed(this::connect, delay);
+        if (!networkUp()) {
+            // Airplane mode, no signal, Wi-Fi off. Retrying would burn the
+            // radio to reach a daemon that is not addressable from here; the
+            // connectivity callback wakes us when that changes.
+            main.removeCallbacks(reconnect);
+            return;
+        }
+        long ceiling = preferences.travelActive() ? TRIP_MAX_BACKOFF_MS : IDLE_MAX_BACKOFF_MS;
+        long delay = Math.min(ceiling, 1_000L << Math.min(reconnectAttempts++, 8));
+        main.removeCallbacks(reconnect);
+        main.postDelayed(reconnect, delay);
+    }
+
+    /**
+     * Is there any network at all? Deliberately not a check for internet
+     * capability — the daemon usually lives on the LAN or a tailnet, and a
+     * Wi-Fi that Android has decided has no internet still reaches it.
+     */
+    private boolean networkUp() {
+        if (connectivity == null) return true;
+        try {
+            return connectivity.getActiveNetwork() != null;
+        } catch (RuntimeException unknown) {
+            return true;
+        }
     }
 
     private void handleFrame(String text) {
@@ -327,6 +407,8 @@ public final class MascotOverlayService extends Service {
     public void onDestroy() {
         destroyed = true;
         main.removeCallbacksAndMessages(null);
+        try { connectivity.unregisterNetworkCallback(networkCallback); } catch (RuntimeException ignored) {}
+        try { unregisterReceiver(travelReceiver); } catch (RuntimeException ignored) {}
         if (socket != null) {
             socket.close(1000, "service stopped");
             socket = null;
