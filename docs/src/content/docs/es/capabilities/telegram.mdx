@@ -187,21 +187,19 @@ Dejá `route_to_agent` vacío (o sin configurar) para usar el super-agent (el va
 
 ## Cómo llega un turno de trabajo
 
-Un pedido que le lleva varios pasos al agente llega como **dos mensajes, no diez**:
+Pedido que lleva varios pasos queda visible mientras avanza:
 
-1. **Un aviso** cuando arranca el trabajo — la línea propia del agente ("Reviso eso"), que
-   escribe antes de usar la primera herramienta. Nunca se manda nada en su nombre: un turno que
-   arranca directo con una herramienta queda callado hasta que el agente tenga algo que decir.
-2. **Silencio mientras trabaja.** El indicador "escribiendo…" de Telegram sigue activo, pero
-   las notas que el modelo escribe antes de cada paso no se envían — una sola tarea no tiene
-   por qué hacerte sonar el teléfono ocho veces.
+1. **Una línea actividad por tool real.** Telegram recibe `⚙️ <tool>` justo antes de iniciar cada
+   acción, incluso si modelo entra directo a herramienta.
+2. **Escribiendo mientras trabaja.** Indicador Telegram se renueva después de cada actividad y
+   mientras trabajo corre. Relleno opcional modelo sigue filtrado, así no duplica actividad.
 3. **El mensaje de cierre**, que trae el resultado completo. Es el mensaje para el que existe
    el turno, y nunca se saltea: si el turno actuó pero no produjo cierre, se le pide al agente
    que lo escriba a partir de lo que acaba de hacer. Recién si eso también falla —normalmente
    la misma caída de motor que vació el turno— sale una línea fija en su lugar.
 
-En un trabajo largo se deja pasar una nota extra después de 90 segundos de silencio, para que
-una tarea de cuatro minutos no parezca colgada. La ventana es un ajuste global —
+En trabajo largo se deja pasar nota opcional modelo después de 90 segundos de silencio. Ventana
+es ajuste global —
 `~/.apx/config.json`, o la pantalla de Settings del panel web, que escribe el mismo archivo y lo
 aplica sin reiniciar:
 
@@ -213,13 +211,12 @@ aplica sin reiniciar:
 }
 ```
 
-`180` es como mucho una nota cada tres minutos; `0` es aviso, trabajo, respuesta — nada más en
-el medio.
+`180` deja como mucho una nota opcional cada tres minutos; `0` desactiva sólo esas notas: actividad
+real tools sigue apareciendo.
 
 Cuánto trabajo entra en un turno es otra perilla: `super_agent.telegram_max_iters` limita los
-pasos de herramienta de un turno (por defecto 24, el último reservado para el mensaje de cierre).
-Ese tope es la baranda de Telegram — no podés mirar un turno en el celular mientras se va a la
-banquina, así que frena y pregunta. El chat web, que sí mirás, corre hasta terminar; ver
+pasos de herramienta de un turno (por defecto 1000, último reservado para mensaje cierre). Es
+freno anti-loop; trabajo Telegram normal corre hasta terminar. Ver
 [Presupuesto de herramientas por superficie](/apx/docs/es/capabilities/super-agent/#presupuesto-de-herramientas-por-superficie).
 
 ## Identidad del remitente y roles

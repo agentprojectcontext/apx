@@ -100,6 +100,22 @@ test("reader: tool records replay the RESULT, not just the call, and stay bounde
   assert.match(turns[2].content, /listo, lo leí/);
 });
 
+test("reader: streamed and tool-progress rows stay visible but never become history", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-reader-progress-"));
+  const today = new Date().toISOString().slice(0, 10);
+  seedTelegram(dir, 8, [
+    { ts: `${today}T10:00:00Z`, direction: "in", type: "user", body: "revisá Asana" },
+    { ts: `${today}T10:00:01Z`, direction: "out", type: "agent", body: "Reviso eso", meta: { streamed: true } },
+    { ts: `${today}T10:00:02Z`, direction: "out", type: "agent", body: "⚙️ asana_list_projects", meta: { progress: true } },
+    { ts: `${today}T10:00:03Z`, direction: "out", type: "tool", body: "asana_list_projects({})", meta: { tool_name: "asana_list_projects", result: { count: 2 } } },
+    { ts: `${today}T10:00:04Z`, direction: "out", type: "agent", body: "Hay dos proyectos." },
+  ]);
+  const turns = getRecentChannelTurnsFromFs({ channel: "telegram", chat_id: 8, _globalMessagesDir: dir });
+  assert.deepEqual(turns.map((t) => t.role), ["user", "system", "assistant"]);
+  assert.doesNotMatch(turns.map((t) => t.content).join("\n"), /⚙️|Reviso eso/);
+  assert.match(turns.at(-1).content, /Hay dos proyectos/);
+});
+
 // The half the shape fix missed, and the reason it shipped again on 2026-08-29.
 //
 // These lines used to ride as `role: "assistant"`, coalesced into the model's

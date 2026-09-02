@@ -1127,11 +1127,17 @@ export function getRecentChannelTurnsFromFs({
   for (const m of mine) if (m.type === "compact") compact = m;
   const coverUntil = compact ? compact.meta?.covers_until_ts || compact.ts : "";
 
-  const eligible = mine.filter(
-    (m) =>
+  const eligible = mine.filter((m) => {
+    // Progress rows are for the person watching this turn, not conversation
+    // history. Replaying a long Telegram run as 30 assistant messages crowds
+    // out the owner's actual request and teaches the model to narrate tools.
+    const transientProgress = m.meta?.streamed === true || m.meta?.progress === true;
+    return (
+      !transientProgress &&
       (m.type === "user" || m.type === "agent" || (includeTools && m.type === "tool")) &&
       (!coverUntil || m.ts > coverUntil)
-  );
+    );
+  });
 
   // Keep the last `keep` conversational (user/agent) turns plus any tool
   // results interleaved among them.

@@ -244,7 +244,12 @@ class ChannelPoller {
   async _typing(chat_id) {
     const token = resolveBotToken(this.channel);
     if (!token || !chat_id) return;
-    try { await sendChatAction(token, chat_id); } catch { /* best-effort */ }
+    try {
+      await sendChatAction(token, chat_id);
+    } catch (e) {
+      // A silent typing failure looks exactly like a frozen agent to the owner.
+      this.log(`telegram[${this.channel.name}] sendChatAction failed: ${e.message}`);
+    }
   }
 
   // Returns a stop() fn; pings the typing indicator every 4s until called.
