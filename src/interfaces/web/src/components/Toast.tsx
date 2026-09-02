@@ -48,7 +48,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <Ctx.Provider value={api}>
       {children}
-      <div className="pointer-events-none fixed bottom-4 right-4 z-[100] flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2">
+      {/* Bottom-right on the panel, where it has always been. TOP on a phone:
+          down there is the tab bar, and in a chat the send button, so a toast
+          confirming what you just tapped landed exactly on the control you
+          tapped it with — "• Hecha" sitting over the tabs. A toast must never
+          cover the thing that raised it. */}
+      <div
+        className={cn(
+          "pointer-events-none fixed bottom-4 right-4 z-[100] flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2",
+          "max-sm:bottom-auto max-sm:left-4 max-sm:w-auto max-sm:top-[max(0.75rem,env(safe-area-inset-top))]",
+        )}
+        data-testid="toast-stack"
+      >
         {items.map((t) => (
           <div
             key={t.id}
