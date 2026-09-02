@@ -22,12 +22,32 @@ import { createProgressGate, progressEveryMs } from "./progress-gate.js";
 import { deliverVoiceReply, mobilityVoiceActive } from "./voice-note.js";
 
 /**
- * Build the streaming event handler for a Telegram super-agent turn. Each tool
- * gets one compact, visible activity line before it starts, then the typing
- * indicator stays alive while it runs. This is deliberately generated from the
- * real tool event rather than relying on a model filler sentence: a model that
- * opens directly into a tool must still look alive to the owner. Model-written
- * extra notes remain gated (see ./progress-gate.js) to avoid duplicate chatter.
+ * Build the streaming event handler for a Telegram super-agent turn. ONE notice
+ * goes out when work starts — the model's own opening line, the one the
+ * two-segment discipline has it write before the first tool — and the rest of
+ * the turn stays quiet until the caller sends the closing message. Nothing is
+ * ever written on the agent's behalf: a turn that opens straight into a tool
+ * stays quiet until the model itself speaks. The progress notes it writes
+ * before each later step are held back (see ./progress-gate.js for why, and for
+ * the long-job heartbeat that lets one through every N seconds).
+ *
+ * TOOL NAMES NEVER GO TO TELEGRAM. For one turn they did — a `⚙️ run_shell`
+ * line per tool start — and it was wrong on three counts. Telegram is a
+ * conversation, and "⚙️ run_shell" is not something a person says; it is
+ * untranslated machine vocabulary in a channel whose whole contract is natural
+ * prose. It also pushed a phone notification per tool step, so one turn buzzed
+ * a pocket ten times. And it was recorded as an agent-voiced outbound message,
+ * which is the shape that teaches a weak fallback model to WRITE tool names
+ * instead of calling tools — the failure stores/messages.js keeps out of the
+ * rolling history, precisely because history in the agent's own voice is what
+ * gets imitated.
+ *
+ * What shows activity instead is the model's own opening line plus the typing
+ * indicator, which the caller holds open for the whole turn (_startTyping) and
+ * this handler refreshes at each tool start. Tool calls are still logged in
+ * full for the audit trail and the other channels — see the `tool_result`
+ * branch, which records tool, args and result for every call.
+ *
  * Returns the handler plus a live `state` the caller reads AFTER the run to
  * drive the final send.
  *
@@ -35,10 +55,10 @@ import { deliverVoiceReply, mobilityVoiceActive } from "./voice-note.js";
  * mid-turn on a fallback), so every record this handler writes is stamped with
  * the model that produced it — not with the one the turn happened to end on.
  *
- * @returns {{ onEvent: Function, state: { streamedCount: number, lastStreamedText: string, heldCount: number, toolNoticeCount: number, model: string } }}
+ * @returns {{ onEvent: Function, state: { streamedCount: number, lastStreamedText: string, heldCount: number, model: string } }}
  */
 export function buildStreamHandler(self, { chat_id, update_id, agentDisplay }) {
-  const state = { streamedCount: 0, lastStreamedText: "", heldCount: 0, toolNoticeCount: 0, model: "" };
+  const state = { streamedCount: 0, lastStreamedText: "", heldCount: 0, model: "" };
   const gate = createProgressGate({ everyMs: progressEveryMs(self.globalConfig) });
   const onEvent = async (ev) => {
     try {
@@ -78,27 +98,16 @@ export function buildStreamHandler(self, { chat_id, update_id, agentDisplay }) {
           meta: { chat_id, tg_channel: self.channel.name, in_reply_to: update_id, streamed: true, iteration: ev.iteration, ...(state.model ? { model: state.model } : {}) },
         });
       } else if (ev.type === "tool_start" && ev.trace) {
-        const tr = ev.trace;
-        // The tool id is intentional: it is truthful, compact, works in every
-        // configured language, and matches the expandable action shown in web.
-        const piece = `⚙️ ${tr.tool}`;
-        await self._send({ chat_id, text: piece });
-        // Sending a Telegram message clears its typing affordance; renew it
-        // after the activity line so it stays visible during the real work.
+        // Nothing is SENT here — see the note on this function about why a tool
+        // name is not something Telegram should ever receive. The call is
+        // recorded on `tool_result`, which has the result as well as the args.
+        //
+        // The typing indicator is what the owner sees instead, and every caller
+        // that runs a turn already holds it open on a 4s timer (_startTyping).
+        // This extra ping is belt-and-braces: it costs one best-effort
+        // sendChatAction and guarantees the indicator is fresh at the moment a
+        // slow tool begins, whatever the caller did.
         await self._typing?.(chat_id);
-        state.streamedCount += 1;
-        state.toolNoticeCount += 1;
-        appendGlobalMessage({
-          channel: CHANNELS.TELEGRAM,
-          direction: "out",
-          type: "agent",
-          actor_id: SUPERAGENT_ACTOR_ID,
-          actor_kind: "superagent",
-          agent_slug: SUPERAGENT_ACTOR_ID,
-          author: agentDisplay,
-          body: piece,
-          meta: { chat_id, tg_channel: self.channel.name, in_reply_to: update_id, progress: true, tool: tr.tool, iteration: ev.iteration, ...(state.model ? { model: state.model } : {}) },
-        });
       } else if (ev.type === "tool_result" && ev.trace) {
         // Logged for the audit trail / other channels — NOT sent to Telegram.
         const tr = ev.trace;
@@ -330,9 +339,10 @@ export async function sendFinalReply(self, {
   } else if (!finalClean) {
     // The shared floor (core/agent/closing-floor.js): one cheap tool-free call
     // for a closing the model words itself, and the canned line only if that
-    // comes back empty too. `worked` is streamedCount rather than
-    // lastStreamedText because a tool notice — "⚙️ read_file" — is work the
-    // owner watched happen even when no prose went out with it.
+    // comes back empty too. `worked` is either half: prose the owner already
+    // read (streamedCount), or tools that ran without a word going out with
+    // them (toolSummary) — a silent turn that did real work still closes by
+    // saying where it got to, not with a bare acknowledgement.
     const { text, authored } = await closingFloorLine({
       globalConfig: self.globalConfig,
       worked: streamedCount > 0 || Boolean(toolSummary),
