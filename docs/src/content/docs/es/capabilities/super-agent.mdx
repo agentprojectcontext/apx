@@ -282,6 +282,15 @@ Cubre dos formas distintas de que un turno termine antes de tiempo:
   herramientas y te ofrece seguir. Continuar ese turno es responder por vos, y como la ronda
   siguiente choca contra la misma pared, termina repitiendo el mismo resumen y la misma pregunta.
 
+**Los agentes de proyecto también pasan por acá**, no solo el super-agente — por la mitad
+`continue_unfinished` nada más, porque nunca toman el camino del completion contract. Aplica en
+**todos los canales** en los que responde un agente de proyecto, no solo en los que mirás:
+anunciar el paso siguiente en vez de darlo es una falla del modelo, no de la superficie. Las dos
+exclusiones de arriba son las que mantienen bajo el costo — después de ellas, los únicos turnos
+que se juzgan son los que usaron herramientas de verdad y después se quedaron callados sin
+preguntar nada, o sea una llamada extra al modelo por un turno que si no se quedaba ahí hasta que
+escribieras "seguí".
+
 ```json
 "super_agent": {
   "judge": {

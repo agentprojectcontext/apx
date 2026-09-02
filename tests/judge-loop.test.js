@@ -22,6 +22,9 @@ const {
   itersSpent,
 } = await import("#core/agent/judge.js");
 const { runSuperAgent } = await import("#core/agent/super-agent.js");
+const { runAgentTurn } = await import("#core/agent/run-turn.js");
+const { readAgents } = await import("#core/apc/parser.js");
+const { CHANNELS } = await import("#core/constants/channels.js");
 const { ProjectManager } = await import("#host/daemon/db.js");
 const { makeTempProject, cleanupTempProject } = await import("./_helpers.js");
 
@@ -432,5 +435,156 @@ test("runSuperAgent: one turn, one tool budget — judge rounds spend what the f
     );
   } finally {
     cleanupTempProject(root);
+  }
+});
+
+test("judgeCompletion: the model that ran the turn is the last-resort scorer", async () => {
+  const seen = [];
+  const callEngineFn = async (params) => {
+    seen.push(params.modelId);
+    return { text: '{"score": 0.9, "reasoning": "ok", "missing": []}' };
+  };
+  const score = (globalConfig) =>
+    judgeCompletion({
+      goal: "g",
+      result: { text: "t", trace: [] },
+      globalConfig,
+      fallbackModel: "mock:agent",
+      callEngineFn,
+    });
+
+  // A project agent can be the only agent an install has: with no judge model
+  // and no super-agent model, resolving to "" would switch the judge off
+  // silently — shipped, on by default, and doing nothing.
+  await score({});
+  assert.equal(seen[0], "mock:agent");
+  // Both explicit knobs still win, in their existing order.
+  await score({ super_agent: { model: "mock:base" } });
+  assert.equal(seen[1], "mock:base");
+  await score({ super_agent: { model: "mock:base", judge: { model: "mock:judge" } } });
+  assert.equal(seen[2], "mock:judge");
+
+  // No fallback offered and nothing configured is still "unusable judge".
+  const none = await judgeCompletion({
+    goal: "g",
+    result: { text: "t", trace: [] },
+    globalConfig: {},
+    callEngineFn: async () => { throw new Error("must not call an engine with no model"); },
+  });
+  assert.equal(none, null);
+});
+
+// ── Project agents ────────────────────────────────────────────────────────────
+// The judge used to be wired only into runSuperAgent, so Roby was continued
+// automatically and every project agent was left waiting to be poked: Magui
+// announced her next step, wrote no tool call, and the turn ended there. Same
+// loop, same switch, same exclusions — now on the engine every project agent
+// runs through (run-turn.js).
+const projectAgentFixture = (judge = {}) => {
+  const root = makeTempProject({
+    name: "Judge Agent",
+    agents: [{ slug: "magui", role: "Tester", model: "mock" }],
+  });
+  const config = {
+    model: "mock",
+    engines: {},
+    memory: { enabled: false },
+    super_agent: {
+      model: "mock:base",
+      // A mock that re-fires one tool is stuck detection's textbook trigger; it
+      // would abort the loop and we would be measuring the detector.
+      stuck_detection: { enabled: false },
+      ...(Object.keys(judge).length ? { judge } : {}),
+    },
+  };
+  const projects = new ProjectManager(config);
+  const p = projects.register(root);
+  const agent = readAgents(root).find((a) => a.slug === "magui");
+  return { root, projects, p, agent };
+};
+
+const turn = ({ projects, p, agent }, extra = {}) =>
+  runAgentTurn({
+    p,
+    agent,
+    modelId: "mock:base",
+    system: "You are a test agent.",
+    prompt: "[mock:tool:list_agents] regenerá el post",
+    channel: CHANNELS.API,
+    projects,
+    plugins: null,
+    registries: null,
+    ...extra,
+  });
+
+test("runAgentTurn: a project agent that stopped mid-task gets continued", async () => {
+  const fx = projectAgentFixture();
+  try {
+    const scores = [0.2, 0.9];
+    const goals = [];
+    const continued = await turn(fx, {
+      judgeCompletionFn: async ({ goal }) => {
+        goals.push(goal);
+        return { score: scores.shift(), reasoning: "half done", missing: ["subir el video"] };
+      },
+    });
+    assert.equal(continued.judge.length, 2, "one verdict continued the turn, the next let it close");
+    assert.match(goals[0], /regenerá el post/, "the judge scores the ORIGINAL request, not its own followup");
+    // Judged on `api` — an unwatched surface. The bug is the model announcing
+    // its next step instead of taking it, which it does on every channel; the
+    // exclusions below are what keep the cost off the turns that don't need it.
+    assert.equal(continued.endedAwaitingUser, false);
+  } finally {
+    cleanupTempProject(fx.root);
+  }
+});
+
+test("runAgentTurn: chat is not judged, and the switch turns the whole thing off", async () => {
+  const chatFx = projectAgentFixture();
+  try {
+    // Chat has nothing to finish: judging every "hola" would be a call per line.
+    const chat = await turn(chatFx, {
+      prompt: "hola",
+      judgeCompletionFn: async () => { throw new Error("must not judge a toolless turn"); },
+    });
+    assert.equal(chat.judge, undefined);
+    assert.equal(chat.trace.length, 0);
+  } finally {
+    cleanupTempProject(chatFx.root);
+  }
+
+  const offFx = projectAgentFixture({ continue_unfinished: false });
+  try {
+    const off = await turn(offFx, {
+      judgeCompletionFn: async () => { throw new Error("must not judge when it is switched off"); },
+    });
+    assert.equal(off.judge, undefined);
+    assert.equal(off.trace.length, 1, "the turn still ran its tool; only the judge is off");
+  } finally {
+    cleanupTempProject(offFx.root);
+  }
+});
+
+// The same rule continuableTurn's header exists for, now reachable through a
+// second call site: a turn that spent its budget closes on the reserved wrap-up,
+// which asks "want me to keep going?". Continuing it answers over the user's
+// head and — because the next round hits the same wall — re-asks the identical
+// question. This is why the wiring is gated on continuableTurn rather than on
+// "did it run tools".
+test("runAgentTurn: a project agent that wrapped up asking the user is not judged", async () => {
+  const fx = projectAgentFixture();
+  try {
+    const result = await turn(fx, {
+      // Never stops on its own: it re-fires the tool every step it is offered,
+      // so the run ends at the budget and closes with the tool-free wrap-up.
+      prompt: "[mock:loop:list_agents]",
+      maxIters: 3,
+      judgeCompletionFn: async () => { throw new Error("must not judge a turn that asked the user"); },
+    });
+    assert.equal(result.endedAwaitingUser, true, "the wrap-up ran and it asked the user");
+    assert.equal(result.judge, undefined);
+    assert.equal(result.trace.length, 2, "budget minus the step reserved for the wrap-up");
+  } finally {
+    cleanupTempProject(fx.root);
   }
 });
