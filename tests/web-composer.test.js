@@ -112,8 +112,8 @@ test("a queued turn waits its turn without touching the one in flight", () => {
   // queued bubble parked at the end of `msgs` would take the rest of the
   // stream — or be the thing a failed turn deleted.
   assert.match(chat, /const \[queued, setQueued\] = useState<QueuedTurn\[\]>\(\[\]\)/);
-  const duringRun = chat.slice(chat.indexOf("if (streaming) {"), chat.indexOf("const history: ConversationMessage[]"));
-  assert.match(duringRun, /setQueued\(\(curr\) => \[\.\.\.curr,/, "a send during a run queues instead of being dropped");
+  const duringRun = chat.slice(chat.indexOf("if (streamingRef.current || followingRef.current)"), chat.indexOf("const history: ConversationMessage[]"));
+  assert.match(duringRun, /writeBackgroundQueue\(key, \[/, "a send during a run enters the chat-owned queue");
   assert.doesNotMatch(chat, /\(!trimmed && !files\.length\) \|\| streaming/, "streaming is no longer a refusal");
   // …and by DEFAULT it also cuts the running turn short. Writing while an agent
   // works almost always means "no, stop, do this instead" — which is what a new
@@ -122,15 +122,16 @@ test("a queued turn waits its turn without touching the one in flight", () => {
   // goes out with a history that includes whatever the stopped turn wrote.
   assert.match(duringRun, /if \(!queueOnSendRef\.current\) void stopTurn\(\)/, "interrupt is the default");
 
-  // The drain is an EFFECT, not `send`'s own finally: `send` builds history
-  // from the msgs its closure captured, which is the list from BEFORE the turn
-  // that just finished — a queued message sent from in there would reach an
-  // agent with no record of the answer it is replying to.
+  // The queue belongs to the chat, not the mounted pane. The worker survives a
+  // route change and drains from refs that were updated by the finished turn.
   const drain = chat.slice(chat.indexOf("const unqueue ="), chat.indexOf("const clear ="));
-  assert.match(drain, /useEffect\(\(\) => \{[\s\S]*if \(streaming \|\| queued\.length === 0\) return;/);
-  assert.match(drain, /const \[next, \.\.\.rest\] = queued;[\s\S]*void send\(next\.text, next\.opts\)/, "one at a time, in order");
-  const sendBody = chat.slice(chat.indexOf("const send = useCallback"), chat.indexOf("const stop = useCallback"));
-  assert.doesNotMatch(sendBody, /setQueued\(rest\)/, "nothing drains from inside the turn it is waiting on");
+  assert.match(chat, /const backgroundQueues = new Map<string, QueuedTurn\[\]>\(\)/);
+  assert.match(drain, /takeBackgroundQueue\(key\)/, "one at a time, in order");
+  assert.match(drain, /void sendRef\.current\(next\.text, next\.opts\)/);
+  assert.match(chat, /queueMicrotask\(\(\) => drainQueueRef\.current\(\)\)/,
+    "the request worker drains even after its pane unmounts");
+  assert.match(chat, /const history: ConversationMessage\[\] = msgsRef\.current\.map/,
+    "the queued turn sees the answer that just landed");
 
   // Stop ends the turn being written; it does not cancel what you queued —
   // "wrong direction, here is what I meant" is send-then-stop, and the
@@ -152,9 +153,29 @@ test("a queued turn waits its turn without touching the one in flight", () => {
   // it had been writing to all along.
   assert.match(chat, /if \(ev\.type === "start"\)/);
   assert.match(chat, /turnTargetRef\.current = \{ channel: "web" \}/, "Roby's thread IS its channel");
-  // Leaving the thread does drop it; a background catch-up of the same thread
-  // must not.
-  assert.match(chat, /if \(!opts\?\.silent\) \{ setMsgs\(\[\]\); setQueued\(\[\]\); \}/);
+  // Reopening the chat binds to its existing queue; navigation cannot erase it.
+  assert.match(chat, /const snapshot = readBackgroundQueue\(key\)/);
+  assert.doesNotMatch(chat, /backgroundQueues\.delete\(queueKeyRef\.current/);
+});
+
+test("switching chats never leaves the previous transcript or stream in the pane", () => {
+  const chat = web("hooks", "useChat.ts");
+  // History loads used to return while the previous pane's NDJSON request was
+  // active. The sidebar selected B, but B rendered A until that request ended.
+  const load = chat.slice(chat.indexOf("const load = useCallback"), chat.indexOf("const loadThread = useCallback"));
+  const loadThread = chat.slice(chat.indexOf("const loadThread = useCallback"), chat.indexOf("// A group turn"));
+  assert.doesNotMatch(load, /if \(streaming\) return/);
+  assert.doesNotMatch(loadThread, /if \(streaming\) return/);
+  assert.match(chat, /const viewEpochRef = useRef\(0\)/);
+  assert.match(chat, /const beginViewChange = useCallback/);
+  assert.match(load, /beginViewChange\(\);\s*\n\s*bindQueue\(activityKey\)/);
+  assert.match(loadThread, /beginViewChange\(\);\s*\n\s*bindQueue\(threadActivityKey/);
+  // The old HTTP stream may finish after the new history loaded, but its late
+  // frames are scoped to the view that launched it rather than patchLast(B).
+  assert.match(chat, /const streamViewEpoch = viewEpochRef\.current;/);
+  assert.match(chat, /const ownsView = \(\) => viewEpochRef\.current === streamViewEpoch;/);
+  assert.match(chat, /if \(!ownsView\(\)\) return;/);
+  assert.match(chat, /\(ev\) => \{ if \(ownsView\(\)\) applyEvent\(ev\); \}/);
 });
 
 test("a queued turn is in the thread, and can be taken back", () => {
@@ -194,4 +215,20 @@ test("interrupt-or-queue is a per-device choice, offered where it applies", () =
   assert.match(prefs, /localStorage\.getItem\(KEY\) === "1"/);
   assert.match(prefs, /return false;/, "the default is interrupt");
   assert.match(prefs, /catch \{/, "private mode must not make the composer throw");
+});
+
+test("every chat rail reuses one running/unread indicator", () => {
+  const activity = web("lib", "chat-activity.ts");
+  const indicator = web("components", "chat", "ChatRowActivity.tsx");
+  const chats = web("components", "chat", "ChatList.tsx");
+  const inbox = web("components", "inbox", "InboxRowItem.tsx");
+
+  assert.match(activity, /subscribeTurns\(onTurn\)/, "one device-wide turn feed");
+  assert.match(activity, /frame\.phase === "final" \|\| frame\.phase === "aborted"/);
+  assert.match(indicator, /LoaderCircle[\s\S]*animate-spin/, "working is a spinner");
+  assert.match(indicator, /bg-blue-500/, "finished out of view is a blue dot");
+  assert.match(indicator, /transition-\[width,margin,opacity\]/, "activity expands smoothly beside the badge");
+  assert.doesNotMatch(indicator, /absolute -right-1 -top-1/, "activity no longer floats in the row corner");
+  assert.match(chats, /<ChatRowActivity activityKey=\{activityKey\}/);
+  assert.match(inbox, /<ChatRowActivity activityKey=\{activityKey\}/);
 });

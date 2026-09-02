@@ -82,14 +82,17 @@ test("web/desktop/voice: persisted agent turns carry model and usage", () => {
   // — a WhatsApp round takes minutes and the message existed all along.
   assert.match(
     API_SUPER_AGENT,
-    /function logWebTurn\(channel, \{ replyText, name, model, usage[\w\s,]*\}\)/,
+    /export function logWebTurn\(channel, \{ replyText, name, model, usage,/,
     "logWebTurn must receive the attribution",
   );
-  assert.match(
-    API_SUPER_AGENT,
-    /logWebTurn\(ctx\.channel, \{\s*replyText: saResult\.text,\s*name: saResult\.name,\s*model: saResult\.model,\s*usage: saResult\.usage,/,
-    "both endpoints must hand the attribution to logWebTurn",
-  );
+  // `replyText` is the FLOORED text, not saResult.text: an empty turn is closed
+  // by core/agent/closing-floor.js before it is recorded, and what the record
+  // must hold is what the user was actually shown. The attribution is unchanged
+  // either way — it describes the turn, not the sentence.
+  const handoffs = [...API_SUPER_AGENT.matchAll(
+    /logWebTurn\(ctx\.channel, \{\s*replyText: closing\.text,\s*name: saResult\.name,\s*model: saResult\.model,\s*usage: saResult\.usage,/g,
+  )];
+  assert.equal(handoffs.length, 2, "both endpoints must hand the attribution to logWebTurn");
   // And both endpoints still record what arrived, before they answer it.
   assert.match(
     API_SUPER_AGENT,
@@ -103,7 +106,7 @@ test("web/desktop/voice: persisted agent turns carry model and usage", () => {
   );
   assert.match(
     API_SUPER_AGENT,
-    /meta: \{\s*\.\.\.scope,\s*\.\.\.\(model \? \{ model \} : \{\}\),\s*\.\.\.\(usage \? \{ usage \} : \{\}\),/,
+    /isFinal && model \? \{ model \} : \{\}[\s\S]*isFinal && usage \? \{ usage \} : \{\}/,
     "the persisted turn's meta must stamp model and usage",
   );
   for (const [name, src, modelExpr, usageExpr] of [

@@ -2,6 +2,12 @@ import type { InboxRow } from "../../lib/api/inbox";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 import { ChannelTag } from "./ChannelFilter";
+import { ChatRowActivity } from "../chat/ChatRowActivity";
+import {
+  activityKeyFromActiveTurn,
+  conversationActivityKey,
+  threadActivityKey,
+} from "../../lib/chat-activity";
 import { toneChip } from "../../lib/tone";
 import { AgentAvatar, AgentAvatarGroup, SUPER_AGENT_ICON } from "../agents/AgentAvatar";
 
@@ -44,6 +50,13 @@ export function InboxRowItem({
   const label = row.agent_name || row.agent_slug;
   const faces = participantFaces(row);
   const grouped = (row.kind === "a2a" || row.kind === "group") && faces.length > 0;
+  const activityKey = activityKeyFromActiveTurn(row.active_turn) || (
+    row.kind === "agent" && row.project_id != null && row.conversation_id
+      ? conversationActivityKey(row.project_id, row.conversation_id)
+      : row.kind === "super_agent" && row.project_id != null && row.channel && row.conversation_id
+        ? threadActivityKey(row.project_id, row.channel, row.conversation_id)
+        : null
+  );
 
   return (
     <button
@@ -51,7 +64,7 @@ export function InboxRowItem({
       data-testid={`inbox-row-${row.agent_slug}`}
       onClick={() => onSelect(row)}
       className={cn(
-        "flex w-full items-start text-left transition-colors",
+        "relative flex w-full items-start text-left transition-colors",
         touch
           ? "gap-3 rounded-none px-4 py-3 active:bg-accent/60"
           : "gap-2.5 rounded-lg px-2.5 py-2",
@@ -91,13 +104,16 @@ export function InboxRowItem({
           <span className={cn("truncate font-medium", touch ? "text-[15px] font-semibold" : "text-sm")}>
             {label}
           </span>
-          {row.kind === "super_agent" ? (
-            <span className={cn("shrink-0 rounded px-1 text-[9px] font-semibold uppercase tracking-wide", toneChip.emerald)}>
-              {t("agents_ui.super_agent_badge")}
+          <span className="ml-auto inline-flex shrink-0 items-center">
+            {row.kind === "super_agent" ? (
+              <span className={cn("rounded px-1 text-[9px] font-semibold uppercase tracking-wide", toneChip.emerald)}>
+                {t("agents_ui.super_agent_badge")}
+              </span>
+            ) : null}
+            <ChatRowActivity activityKey={activityKey} activeTurn={row.active_turn} />
+            <span className={cn("ml-2 text-muted-fg", touch ? "text-[11px]" : "text-[10px]")}>
+              {inboxRowTime(row.last_activity_at)}
             </span>
-          ) : null}
-          <span className={cn("ml-auto shrink-0 text-muted-fg", touch ? "text-[11px]" : "text-[10px]")}>
-            {inboxRowTime(row.last_activity_at)}
           </span>
         </span>
 

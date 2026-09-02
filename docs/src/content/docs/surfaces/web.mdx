@@ -140,6 +140,15 @@ so nothing is missed while it was away. If the socket cannot be opened at all
 (a proxy that refuses upgrades), the lists fall back to their 15-second refresh
 and the panel keeps working, just less immediately.
 
+Running turns and queued messages also survive navigation inside the panel. If
+you leave a chat and come back, its partial reply **and completed tool cards**
+are restored in their original order, then streaming continues. Every chat list
+uses the same compact status marker beside the agent badge: a spinner while the
+agent is writing, then a blue dot when the reply finishes outside the open chat.
+Opening the chat clears the dot. Switching chats clears the old transcript
+immediately; a request still running for that old chat continues in the daemon,
+but cannot write into the newly opened one.
+
 ## Notifications, and which channels reach you
 
 The panel can tell you when an agent writes and you are not looking: one
@@ -202,7 +211,9 @@ agent ran collapses into one **N actions** row — open while it works, closed o
 it is done, one click for the arguments and results, and any failure named in the
 row itself. What stays in the open is the closing message: the answer the turn
 was for. Reopening the conversation later shows the same thing: the steps are
-recorded with the turn, not just streamed and forgotten.
+recorded with the turn, not just streamed and forgotten. Progress prose stays
+visible too, but is not replayed into the next model prompt; only the final
+answer becomes conversation history.
 
 A chat you start inside a project is listed in that project. The Base workspace
 still shows every thread from every channel; a project shows the ones opened from

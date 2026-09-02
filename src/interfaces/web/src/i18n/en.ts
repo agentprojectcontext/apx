@@ -1751,6 +1751,8 @@ export const en = {
     send:                "Send",
     queued:              "Queued",
     queued_cancel:       "Don't send it",
+    running_elsewhere:   "Writing a reply",
+    unread_reply:        "New reply",
     send_mode_interrupt: "Interrupts",
     send_mode_queue:     "Queues",
     send_mode_tip_interrupt: "Writing during a turn cuts it short and starts with your message. Tap to queue instead.",

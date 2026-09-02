@@ -1748,6 +1748,8 @@ export const es = {
     send:                "Enviar",
     queued:              "En cola",
     queued_cancel:       "No mandarlo",
+    running_elsewhere:   "Escribiendo respuesta",
+    unread_reply:        "Respuesta nueva",
     send_mode_interrupt: "Interrumpe",
     send_mode_queue:     "Encola",
     send_mode_tip_interrupt: "Escribir durante un turno lo corta y arranca con tu mensaje. Tocá para encolar en su lugar.",

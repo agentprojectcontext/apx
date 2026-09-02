@@ -52,7 +52,7 @@ function senderCwd(raw) {
 }
 
 import { compactConversation } from "#core/stores/conversations-compactor.js";
-import { getActiveTurnByKey, convTurnKey } from "../active-turns.js";
+import { getActiveTurnByKey, convTurnKey, superAgentTurnKey } from "../active-turns.js";
 import { replyToPeer } from "#core/agent/a2a/reply.js";
 import { resolvePeer, peerAddress, refusesCodeMode, NO_CODE_PEERS } from "#core/agent/a2a/peers.js";
 import { createCodeSession, getCodeSession, appendTurn as appendCodeTurn } from "#core/stores/code-sessions.js";
@@ -114,7 +114,10 @@ export function register(api, { projects, project, config, plugins, registries }
     res.json(
       listConversations(p.storagePath, req.params.slug, {
         includeArchived: req.query.include_archived === "1",
-      }),
+      }).map((conversation) => ({
+        ...conversation,
+        active_turn: getActiveTurnByKey(convTurnKey(p.id, conversation.id)),
+      })),
     );
   });
 
@@ -245,6 +248,12 @@ export function register(api, { projects, project, config, plugins, registries }
     const global = listGlobalThreads({
       project: threadScope(p),
       includeArchived: req.query.include_archived === "1",
+    }).map((thread) => {
+      const active = getActiveTurnByKey(superAgentTurnKey(p.id, thread.channel));
+      return {
+        ...thread,
+        active_turn: active?.thread_id === thread.id ? active : null,
+      };
     });
     let a2a = [];
     try { a2a = listProjectA2AThreads(p.storagePath); } catch { /* best-effort */ }
@@ -280,7 +289,14 @@ export function register(api, { projects, project, config, plugins, registries }
     // Same decoration as the list: whoever opens a thread directly (a deep link,
     // the phone, a pane that was handed no row) gets the faces and the name with
     // the messages, instead of having to ask a second surface for them.
-    res.json(faceResolverFor(projects).decorate(thread, readAgentsSafe(p.path)));
+    const decorated = faceResolverFor(projects).decorate(thread, readAgentsSafe(p.path));
+    const active = req.params.channel === "a2a" || req.params.channel === "group"
+      ? null
+      : getActiveTurnByKey(superAgentTurnKey(p.id, req.params.channel));
+    res.json({
+      ...decorated,
+      active_turn: active?.thread_id === req.params.id ? active : null,
+    });
   });
 
   api.delete("/projects/:pid/super-agent/threads/:channel/:id", (req, res) => {
@@ -405,7 +421,7 @@ export function register(api, { projects, project, config, plugins, registries }
     // claude-code, …), optionally with a `#thread` suffix that keeps two
     // exchanges with the same peer from reading each other's mail. A name that
     // nothing claims still fails loudly rather than vanishing.
-    const peer = resolvePeer(toRaw, agents);
+    const peer = resolvePeer(toRaw, agents, p.config || config);
     if (!peer)
       return res.status(404).json({
         error: `no agent or runtime "${toRaw}" in project "${p.name}"`,
@@ -542,6 +558,10 @@ export function register(api, { projects, project, config, plugins, registries }
           body,
           config: p.config || config,
           history,
+          projectId: p.id,
+          projects,
+          plugins,
+          registries,
           // A runtime peer runs where the sender is, falling back to the
           // project. It also continues the session this thread already opened
           // instead of starting a stranger.

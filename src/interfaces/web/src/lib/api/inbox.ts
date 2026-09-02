@@ -1,5 +1,5 @@
 import { http, unwrapPage } from "../http";
-import type { AgentFace } from "../../types/daemon";
+import type { ActiveTurn, AgentFace } from "../../types/daemon";
 
 /** One row of the agent inbox: an agent, and the last thing it said. */
 export interface InboxRow {
@@ -30,6 +30,8 @@ export interface InboxRow {
    *  where the difference is one bell per answer instead of one per step. */
   preview_at?: string | null;
   last_activity_at: string;
+  /** Daemon-owned status; survives navigation and is shared by every rail. */
+  active_turn?: ActiveTurn | null;
 }
 
 export const Inbox = {
