@@ -176,3 +176,78 @@ test("a daemon restart mid-drive does not silently stop proximity evaluation", a
   observeMobilityEvent({ type: "trip.ended", trip_id: "survivor" });
   assert.equal(isMobilityTripActive("survivor"), false);
 });
+
+test("answering an errand from the phone means what answering it in Telegram means", async () => {
+  // The list on the phone offers the same four chips the Telegram card does.
+  // A "voy" pressed there has to reach the same record — same one-shot, same
+  // follow-up after the trip — or the two surfaces would disagree about a
+  // promise the owner only made once.
+  const { observeMobilityEvent, _resetMobilityStateForTest, listMobilityAlerts, pendingMobilityFollowups } =
+    await import("../src/core/mobility/state.js");
+  const { ensureTripPlan, _resetMobilityGeofencesForTest } =
+    await import("../src/core/mobility/geofence.js");
+  const { createTask } = await import("../src/core/stores/tasks.js");
+  _resetMobilityStateForTest();
+  _resetMobilityGeofencesForTest();
+
+  const storagePath = path.join(tmpHome, "answer-store", "acme");
+  const projects = { list: () => [{ id: "0", name: "acme", storagePath }], get: () => ({ id: "0", storagePath }) };
+  const task = createTask(storagePath, {
+    title: "Comprar pan lactal",
+    category: "trip",
+    location: { place: "La Anónima Pioneros", latitude: -41.1385, longitude: -71.3892 },
+  });
+  observeMobilityEvent({ type: "trip.started", trip_id: "trip-answer", destination: "Centro" });
+  await ensureTripPlan({ trip_id: "trip-answer", latitude: -41.1385, longitude: -71.3750 }, { projects });
+
+  const app = express();
+  app.use(express.json());
+  const api = express.Router();
+  register(api, { projects });
+  app.use("/api", api);
+  const server = app.listen(0);
+  try {
+    const url = `http://127.0.0.1:${server.address().port}/api/mobility/errands/answer`;
+    const post = (body) => fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    assert.equal((await post({ task_id: task.id, answer: "maybe" })).status, 400);
+    assert.equal((await post({ task_id: "t_nope", answer: "go" })).status, 404,
+      "an errand that is not on this trip is not answerable");
+
+    const ok = await post({ task_id: task.id, answer: "go" });
+    assert.equal(ok.status, 200);
+    assert.equal((await ok.json()).answer, "go");
+    const [alert] = listMobilityAlerts();
+    assert.equal(alert.answer, "go");
+    assert.equal(alert.place, "La Anónima Pioneros");
+    assert.equal(pendingMobilityFollowups("trip-answer").length, 1,
+      "a yes on the phone earns the same after-the-trip follow-up");
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test("no trip is running means there is nothing to answer", async () => {
+  const { _resetMobilityStateForTest } = await import("../src/core/mobility/state.js");
+  _resetMobilityStateForTest();
+  const app = express();
+  app.use(express.json());
+  const api = express.Router();
+  register(api, {});
+  app.use("/api", api);
+  const server = app.listen(0);
+  try {
+    const response = await fetch(`http://127.0.0.1:${server.address().port}/api/mobility/errands/answer`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ task_id: "t_1", answer: "go" }),
+    });
+    assert.equal(response.status, 409);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});

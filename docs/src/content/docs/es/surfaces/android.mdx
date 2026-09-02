@@ -79,12 +79,18 @@ en card, no solo anuncio de mensaje nuevo.
   Maps omite destino, card Android Auto pregunta dónde vas; **Responder** acepta
   dictado de voz y completa mismo viaje. Cambiar destino inicia evaluación nueva. No
   sube ruta, historial ni contenido completo de notificaciones.
-- El banner de viaje abre los pendientes del viaje, no Maps: al tocarlo lista
-  cada mandado pendiente que tenga un lugar compatible en esta vuelta, del más
-  cercano al más lejano, y cada fila abre ese lugar en Maps. La etiqueta de la
+- El banner de viaje abre los pendientes del viaje, no Maps: al tocarlo muestra
+  una tarjeta por mandado pendiente, del más cercano al más lejano, con **los
+  mismos cuatro botones que trae la tarjeta de Telegram** — Navegar, Sumar a la
+  ruta, Voy, Hoy no. Un "voy" acá llega al mismo registro que un "voy" en
+  Telegram, y gana el mismo seguimiento después del viaje; una tarjeta ya
+  contestada muestra la respuesta en lugar de volver a preguntar. Cuando un
+  mandado todavía tiene varios lugares posibles la tarjeta lo dice, en vez de
+  presentar el más cercano como una decisión que APX ya tomó. La etiqueta de la
   derecha lleva la cuenta en vivo ("8 cerca"). La lista sale de
-  `GET /api/mobility/trip`, que es de solo lectura: consultarla nunca dispara un
-  recordatorio. Está limitada a ocho lugares.
+  `GET /api/mobility/trip`, que es de solo lectura (consultarla nunca dispara un
+  recordatorio), y las respuestas van a `POST /api/mobility/errands/answer`.
+  Limitada a ocho mandados.
 - Mensajes de viaje tienen límite deliberado. Destino conocido debe quedar
   estable 45 segundos; navegación sin destino espera 10 minutos. Reabrir mismo
   destino queda silencioso 30 minutos; destino distinto no dispara otra
@@ -141,7 +147,8 @@ en card, no solo anuncio de mensaje nuevo.
   deja abierta.
 - Mientras hay un viaje activo, cada respuesta automática de Telegram sale **dos
   veces**: primero una nota de voz y después las mismas palabras como texto bajo
-  el encabezado "📝 Transcripción del audio". El turno corre en modo voz, así que
+  una línea discreta `[Transcripción]` — una etiqueta, no un cartel: el audio es
+  el mensaje y el texto está para pasarle el ojo. El turno corre en modo voz, así que
   la respuesta son una o dos frases habladas y no un párrafo leído en voz alta.
   Si falla el TTS o `ffmpeg` se pierde el audio, nunca el mensaje. Se apaga con
   `voice.mobility_replies: false`. El seguimiento de fin de viaje va en texto
@@ -182,6 +189,61 @@ socket caído tiene que recuperarse en segundos.
   el inicio y el fin del viaje con el teléfono en el bolsillo. La fila del menú
   muestra el estado actual, y una vez que APX está exento la misma fila abre la
   lista del sistema, que es donde se revierte.
+
+## El plan del viaje: cuántas búsquedas cuesta manejar
+
+Un mandado no siempre es un lugar. "Comprar pan" lo resuelve la panadería de la
+esquina o cualquiera de los dos supermercados, y cuál corresponde depende de
+dónde está el auto en ese momento. Contestar esa pregunta buscando de nuevo en
+cada muestra de GPS sería una llamada al proveedor de lugares cada pocos
+segundos; contestarla una sola vez al principio dejaría pasar al conductor por
+tres opciones mejores.
+
+Por eso el daemon mantiene un **plan de viaje**: una entrada por mandado, con
+todos los lugares que podrían resolverlo y aquel al que apunta ahora.
+
+- **El plan se arma cuando te subís al auto**, desde el origen que reporta el
+  teléfono — no de forma perezosa en la primera muestra, tomada 800 m más
+  adelante.
+- **Reordenar es gratis.** Elegir el candidato más cercano mientras el auto se
+  mueve es aritmética sobre coordenadas que ya están en memoria. Sin llamadas,
+  sin modelo.
+- **Volver a buscar es raro.** Pasa solo cuando el auto se aleja 8 km del área
+  buscada, o cuando cambia la lista de mandados abiertos — una lectura de
+  archivo local, chequeada en cada muestra, así que una tarea agregada en un
+  semáforo está viva en la siguiente.
+- **Un mandado resuelto deja de buscar.** Un único candidato *es* la decisión, y
+  un "voy" también: los dos fijan el mandado, y un mandado fijado no se vuelve a
+  buscar ni a reapuntar. Cuando todos están fijados el plan está terminado y el
+  resto del viaje no cuesta nada.
+
+Un viaje normal con la lista de compras resuelta cuesta entonces **una**
+búsqueda de lugares. Un viaje donde cada tarea trae su propia ubicación cuesta
+**cero** — y cero llamadas al modelo en ambos casos, porque una tarea `trip`
+dice qué es y dónde, en vez de pedirle a un modelo que lea el título y adivine.
+
+### Si alguna vez querés pagar por mejores lugares
+
+Lo que viene de fábrica es el stack gratuito (Nominatim para lugares,
+Valhalla/OSRM para rutas), y el plan de arriba es lo que hace barato cambiarlo.
+Como referencia, a precios de 2026 las alternativas de Google cobran por
+llamada, así que la cantidad de llamadas es todo el juego:
+
+- **Places API Nearby/Text Search** — 5.000 llamadas gratis por mes, después USD
+  32 cada 1.000. Una búsqueda por viaje es accesible; una por muestra de GPS no.
+- **Routes API `computeRoutes`** — desde USD 5 cada 1.000, y puede optimizar el
+  orden de hasta 25 paradas intermedias. Esta es la pieza que armaría una ruta
+  real de varios mandados en vez de una lista por cercanía.
+- **Search Along Route** — `computeRoutes` devuelve una polilínea codificada, y
+  Text Search la acepta como `searchAlongRouteParameters`, devolviendo solo
+  lugares que están *en* el camino. Dos llamadas por viaje, y estrictamente
+  mejor que buscar en un radio alrededor de un punto cuando hay destino.
+- **El geofencing propio de Android** (`GeofencingClient`, parte de Play
+  Services y sin costo) es la otra mitad: le entrega hasta 100 cercos al
+  sistema operativo, que despierta la app cuando se cruza uno usando geofencing
+  por hardware, en vez de que la app muestree GPS con un temporizador. El plan
+  de arriba ya produce exactamente el conjunto chico y estable de lugares que
+  una API así necesita.
 
 ## Qué ruta conoce APX
 

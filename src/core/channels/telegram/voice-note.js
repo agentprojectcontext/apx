@@ -87,7 +87,7 @@ export async function deliverVoiceReply({
 
     const duration = Math.round(spoken.duration_s || 0) || undefined;
     await io.sendVoice({ chat_id, audio: converted, duration });
-    const transcript = `${t("mobility.transcript", { lang })}:\n${clean}`;
+    const transcript = `${t("mobility.transcript", { lang })}\n${clean}`;
     const sent = await io.send({ chat_id, text: transcript, reply_markup });
     // The tmp file is about to be deleted, so the ledger row cannot point at
     // it — archive the bytes first and hand the caller the meta that makes the

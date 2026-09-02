@@ -22,7 +22,23 @@ final class DaemonClient {
     }
 
     /** One row of "what APX is watching for on this trip". */
-    record TripPlace(String place, String task, int distanceM, String mapsUrl, String answer) {}
+    /**
+     * One errand on the current trip. `options` is how many shops could still
+     * satisfy it — "buy bread" is a choice between supermarkets until the owner
+     * settles it, and a list that hid that would be claiming a decision APX has
+     * not made.
+     */
+    record TripPlace(
+        String taskId,
+        String place,
+        String task,
+        int distanceM,
+        String mapsUrl,
+        String addStopUrl,
+        int options,
+        boolean locked,
+        String answer
+    ) {}
 
     interface TripCallback {
         void onTrip(java.util.List<TripPlace> places);
@@ -112,10 +128,14 @@ final class DaemonClient {
                         JSONObject row = rows.optJSONObject(i);
                         if (row == null) continue;
                         places.add(new TripPlace(
+                            row.optString("task_id", ""),
                             row.optString("place", ""),
                             row.optString("task", ""),
                             row.optInt("distance_m", -1),
                             row.optString("maps_url", ""),
+                            row.optString("add_stop_url", ""),
+                            row.optInt("options", 1),
+                            row.optBoolean("locked", false),
                             row.isNull("answer") ? "" : row.optString("answer", "")
                         ));
                     }
@@ -125,6 +145,51 @@ final class DaemonClient {
                 }
             }
         });
+    }
+
+    /**
+     * Answer one errand from the phone's own list — the same "voy" / "hoy no"
+     * the Telegram card asks, reaching the same record on the daemon. Silent
+     * on success: the list has already redrawn optimistically, and a toast per
+     * tap while driving is noise.
+     */
+    static void answerErrand(String daemonUrl, String token, String taskId, String answer, AnswerCallback callback) {
+        if (daemonUrl == null || daemonUrl.isBlank() || token == null || token.isBlank()) {
+            callback.onAnswerFailed("Este teléfono todavía no está vinculado.");
+            return;
+        }
+        JSONObject payload = new JSONObject();
+        try {
+            payload.put("task_id", taskId);
+            payload.put("answer", answer);
+        } catch (JSONException error) {
+            callback.onAnswerFailed("No pude preparar la respuesta.");
+            return;
+        }
+        Request request = new Request.Builder()
+            .url(daemonUrl + "/api/mobility/errands/answer")
+            .header("Authorization", "Bearer " + token)
+            .post(RequestBody.create(payload.toString(), JSON))
+            .build();
+        HTTP.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException error) {
+                callback.onAnswerFailed("No pude hablar con el daemon: " + error.getMessage());
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) {
+                try (response) {
+                    if (response.isSuccessful()) callback.onAnswered();
+                    else callback.onAnswerFailed("El daemon respondió HTTP " + response.code());
+                }
+            }
+        });
+    }
+
+    interface AnswerCallback {
+        void onAnswered();
+        void onAnswerFailed(String message);
     }
 
     static void notifyTripStarted(String daemonUrl, String token, String tripId, String destination, DeviceLocation.Snapshot origin) {

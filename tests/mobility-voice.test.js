@@ -80,7 +80,7 @@ test("a driving reply goes out as a voice note AND a flagged transcript", async 
   assert.equal(io.sent[0].duration, 4);
   assert.match(io.sent[0].audio, /\.ogg$/, "Telegram only renders OGG/Opus as a voice note");
   assert.equal(io.sent[1].kind, "text");
-  assert.match(io.sent[1].text, /^📝 Transcripción del audio:/, "the text half must say it is a transcript");
+  assert.match(io.sent[1].text, /^\[Transcripción\]\n/, "the text half must say it is a transcript, quietly");
   assert.match(io.sent[1].text, /Listo, anoté la tarea\./, "and must carry the same words");
 });
 

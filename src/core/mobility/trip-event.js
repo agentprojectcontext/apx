@@ -11,6 +11,7 @@ import {
   evaluateMobilityPosition,
   followupKeyboard,
   followupMessage,
+  ensureTripPlan,
   proximityKeyboard,
   proximityMessage,
   releaseTripTargets,
@@ -250,15 +251,49 @@ export async function dispatchTripFollowups(tripId, ctx) {
   return { followups: asked };
 }
 
+/**
+ * Work out where this trip's errands are BEFORE the driving starts.
+ *
+ * The plan used to be built lazily, on the first GPS sample — which meant the
+ * one search of the drive happened while the car was already moving, and a
+ * shop 1.5 km behind the starting point was missed because the first sample
+ * that triggered the search was taken 800 m past it. Getting in the car is the
+ * natural moment: the phone is stationary, the fix is good, and the answer is
+ * ready before it is needed.
+ *
+ * Cheap by construction. It is the same ensureTripPlan() every sample calls,
+ * so warming it here does not ADD a search, it MOVES the one that was going to
+ * happen anyway to a better moment — and every later sample then finds the
+ * plan already warm.
+ */
+async function prepareTripPlan(event, ctx) {
+  if (!event.origin) return { prepared: false, reason: "no-origin" };
+  try {
+    const errands = await ensureTripPlan(
+      { trip_id: event.trip_id, latitude: event.origin.latitude, longitude: event.origin.longitude },
+      ctx,
+      ctx.mobilityFetch || fetch
+    );
+    return { prepared: true, errands: errands.size };
+  } catch (error) {
+    if (ctx?.log) ctx.log(`[mobility] could not prepare trip plan: ${error?.message || error}`);
+    return { prepared: false, reason: "search-failed" };
+  }
+}
+
 export async function dispatchMobilityEvent(event, ctx) {
   if (event.duplicate) return { skipped: true };
   // Arriving is a trigger, not a non-event: it is when the promises made
   // during the drive come due.
   if (event.type === "trip.ended") return dispatchTripFollowups(event.trip_id, ctx);
   if (event.type !== "trip.started") return { skipped: true };
-  if (event.evaluate === false) return { skipped: true, reason: "state-only" };
-  if (isMobilitySilentToday()) return { skipped: true, reason: "silent-today" };
-  if (mobilityQuestionIsRecent()) return { skipped: true, reason: "recently-asked" };
+  // Before any of the gates below: a trip the owner silenced, or one announced
+  // state-only by the tracking service, still deserves a warm plan — the gates
+  // decide whether to SPEAK, not whether to think.
+  const prepared = await prepareTripPlan(event, ctx);
+  if (event.evaluate === false) return { skipped: true, reason: "state-only", ...prepared };
+  if (isMobilitySilentToday()) return { skipped: true, reason: "silent-today", ...prepared };
+  if (mobilityQuestionIsRecent()) return { skipped: true, reason: "recently-asked", ...prepared };
   const enrichment = await enrichMobilityEvent(event, ctx, ctx.mobilityFetch || fetch);
   if (enrichment.checked && enrichment.candidates.length === 0) {
     return { skipped: true, reason: "no-route-match" };

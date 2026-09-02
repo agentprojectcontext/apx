@@ -19,7 +19,10 @@ const {
   PROXIMITY_RADIUS_M,
   _resetMobilityGeofencesForTest,
   acceptMobilityPosition,
+  ensureTripPlan,
   ensureTripTargets,
+  lockTripErrand,
+  tripPlaces,
   addToRouteUrl,
   evaluateMobilityPosition,
   followupKeyboard,
@@ -238,27 +241,117 @@ test("only a yes earns a follow-up, and answering it closes the loop", async () 
   assert.equal(getMobilityAlert(stored.id).answer, "go");
 });
 
-test("an errand added mid-drive is picked up without driving eight kilometres", async () => {
+test("an errand added mid-drive is picked up on the very next sample", async () => {
   // The place cache is keyed on how far you have travelled, which is right for
   // places and wrong for tasks: a "buy ibuprofen" added from the phone at a red
   // light was invisible for the rest of the trip, because the empty set had
   // already been cached before the task existed.
+  //
+  // The first fix was a ten-minute timer, which was still wrong in both
+  // directions — it paid for a search every ten minutes on a drive where
+  // nothing changed, and STILL hid a new errand for up to ten of them. What
+  // expires the plan now is the errand list itself, which is a local file read.
   const position = acceptMobilityPosition({ trip_id: "trip-late", ...DRIVING_AT });
   const search = fakeSearch([{ query: "farmacia", name: "Farmacia Ejemplo", ...PHARMACY }]);
 
   assert.deepEqual(await ensureTripTargets(position, ctx, search), [], "nothing pending yet");
 
   givenTask("Comprar ibuprofeno en la farmacia");
-  assert.deepEqual(
-    await ensureTripTargets(position, ctx, search),
-    [],
-    "same minute, same place: the cache still stands"
-  );
-
-  const elevenMinutesLater = Date.now() + 11 * 60_000;
-  const targets = await ensureTripTargets(position, ctx, search, elevenMinutesLater);
-  assert.equal(targets.length, 1);
+  const targets = await ensureTripTargets(position, ctx, search);
+  assert.equal(targets.length, 1, "same second, same place — but the list changed");
   assert.equal(targets[0].place, "Farmacia Ejemplo");
+});
+
+test("a drive where nothing changes costs exactly one place search", async () => {
+  // The whole economic argument for the plan. Fifty GPS samples along a road
+  // must not be fifty Nominatim queries — or, with a paid provider, fifty
+  // billable calls.
+  givenTask("Comprar ibuprofeno en la farmacia");
+  let searches = 0;
+  const search = async (url) => {
+    searches += 1;
+    return fakeSearch([{ query: "farmacia", name: "Farmacia Ejemplo", ...PHARMACY }])(url);
+  };
+  for (let step = 0; step < 50; step += 1) {
+    await evaluateMobilityPosition(
+      // Creeping ~11 m per sample: half a kilometre of road, nowhere near the
+      // 8 km that earns a fresh search.
+      acceptMobilityPosition({
+        trip_id: "trip-cheap",
+        latitude: DRIVING_AT.latitude + step * 0.0001,
+        longitude: DRIVING_AT.longitude,
+      }),
+      ctx,
+      search
+    );
+  }
+  assert.equal(searches, 1, "one search for the whole drive");
+});
+
+test("an errand with several shops follows the driver until it is settled", async () => {
+  // "Buy bread" is not a place, it is a choice between places. Re-ranking that
+  // choice as the car moves is arithmetic on numbers already in hand; only
+  // re-deciding by SEARCHING again would cost anything.
+  givenTask("Comprar pan en el supermercado");
+  const search = fakeSearch([
+    { query: "supermercado", name: "La Anónima", latitude: -41.1450, longitude: -71.3103 },
+    { query: "supermercado", name: "Todo", latitude: -41.1200, longitude: -71.3103 },
+  ]);
+  const near = (latitude) => acceptMobilityPosition({ trip_id: "trip-bread", latitude, longitude: -71.3103 });
+
+  let plan = await ensureTripPlan(near(-41.1420), ctx, search);
+  const [errand] = [...plan.values()];
+  assert.equal(errand.candidates.length, 2, "both shops stay on the books");
+  assert.equal(errand.chosen.place, "La Anónima", "the nearest one from here");
+  assert.equal(errand.locked, false);
+
+  // Drive north, past the other one.
+  plan = await ensureTripPlan(near(-41.1220), ctx, search);
+  assert.equal([...plan.values()][0].chosen.place, "Todo", "the choice follows the car");
+
+  // …until the owner answers "voy", which is the last word on which shop.
+  assert.equal(lockTripErrand("trip-bread", errand.task_id, "accepted"), true);
+  plan = await ensureTripPlan(near(-41.1420), ctx, search);
+  assert.equal([...plan.values()][0].chosen.place, "Todo", "a settled errand does not re-open");
+  assert.equal([...plan.values()][0].lock_reason, "accepted");
+});
+
+test("a settled plan stops searching even when the road keeps going", async () => {
+  // The terminal state the owner asked for: "unless we already have one single
+  // place to go". One candidate IS the decision, so there is nothing left that
+  // another search could change — not even eight kilometres later.
+  givenTask("Comprar ibuprofeno en la farmacia");
+  let searches = 0;
+  const search = async (url) => {
+    searches += 1;
+    return fakeSearch([{ query: "farmacia", name: "Farmacia Ejemplo", ...PHARMACY }])(url);
+  };
+  const trip = "trip-settled";
+  await ensureTripPlan(acceptMobilityPosition({ trip_id: trip, ...DRIVING_AT }), ctx, search);
+  assert.equal(searches, 1);
+  // 30 km down the road — far past RETARGET_DISTANCE_M.
+  await ensureTripPlan(
+    acceptMobilityPosition({ trip_id: trip, latitude: -41.4000, longitude: -71.3103 }),
+    ctx,
+    search
+  );
+  assert.equal(searches, 1, "the only candidate is the answer; distance cannot change it");
+});
+
+test("the phone's list shows one row per errand, not one per shop", async () => {
+  // The banner is a list of things to DO. Three supermarkets for one loaf is
+  // one row that happens to name three options, not three rows.
+  givenTask("Comprar pan en el supermercado");
+  const search = fakeSearch([
+    { query: "supermercado", name: "La Anónima", latitude: -41.1450, longitude: -71.3103 },
+    { query: "supermercado", name: "Todo", latitude: -41.1200, longitude: -71.3103 },
+  ]);
+  await ensureTripPlan(acceptMobilityPosition({ trip_id: "trip-list", ...DRIVING_AT }), ctx, search);
+  const rows = tripPlaces("trip-list");
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].options, 2, "the row says the choice is still open");
+  assert.equal(rows[0].locked, false);
+  assert.match(rows[0].maps_url, /^https:\/\/www\.google\.com\/maps\/dir\/\?api=1&destination=/);
 });
 
 test("a trip task with its own place needs no search and no model", async () => {

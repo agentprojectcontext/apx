@@ -179,6 +179,13 @@ llamada a un modelo**. El mismo recordatorio, sin red y sin tokens.
 apx task add "Comprar ibuprofeno" --category trip --place "Farmacia del Km 8" --at "-41.13,-71.31"
 ```
 
+Sin coordenadas el mandado igual funciona, pero pasa a ser una **elección**: el
+daemon busca lugares que lo resuelvan y se queda con todos, apuntando al más
+cercano mientras manejás. "Comprar pan lactal en el súper" matchea panaderías y
+supermercados a la vez, así que vigila varios negocios hasta que uno quede
+fijado — porque hay uno solo, o porque contestaste "voy". Ver
+[Android · el plan del viaje](/es/surfaces/android/#el-plan-del-viaje-cuántas-búsquedas-cuesta-manejar).
+
 `--radius <m>` define qué tan cerca cuenta como "ahí" para ese mandado; sin él
 rige el radio de movilidad por defecto. Un `--place` vacío en `apx task patch`
 borra la ubicación. Los tags no se tocan con nada de esto: una tarea puede tener

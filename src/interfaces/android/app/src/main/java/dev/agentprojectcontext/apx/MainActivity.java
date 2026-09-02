@@ -493,6 +493,15 @@ public final class MainActivity extends Activity {
         });
     }
 
+    /**
+     * The errands, as the thread of cards TripPlacesSheet builds — one card per
+     * errand carrying the same four chips the Telegram card offers.
+     *
+     * It was an AlertDialog.setItems() list before, where a tap could only mean
+     * "open in Maps". That made the phone strictly worse than the chat for the
+     * same information: no way to say "voy", no way to add a stop without
+     * losing the current route.
+     */
     private void renderTripPlaces(java.util.List<DaemonClient.TripPlace> places) {
         tripPlaceCount = places.size();
         updateTravelBanner();
@@ -504,28 +513,67 @@ public final class MainActivity extends Activity {
                 .show();
             return;
         }
-        String[] rows = new String[places.size()];
-        for (int i = 0; i < places.size(); i++) {
-            DaemonClient.TripPlace place = places.get(i);
-            String distance = place.distanceM() < 0 ? ""
-                : place.distanceM() >= 1000
-                    ? String.format(java.util.Locale.getDefault(), " · %.1f km", place.distanceM() / 1000f)
-                    : " · " + place.distanceM() + " m";
-            String answered = "go".equals(place.answer()) ? "  ✅"
-                : "skip".equals(place.answer()) ? "  ❌" : "";
-            rows[i] = place.place() + distance + answered + "\n" + place.task();
-        }
-        new AlertDialog.Builder(this)
+        AlertDialog[] open = new AlertDialog[1];
+        TripPlacesSheet.Actions actions = new TripPlacesSheet.Actions() {
+            @Override
+            public void navigate(DaemonClient.TripPlace place) {
+                openInMaps(place.mapsUrl());
+            }
+
+            @Override
+            public void addStop(DaemonClient.TripPlace place) {
+                // Falls back to plain navigation when the daemon had no
+                // destination to add a stop to — see addToRouteUrl.
+                String url = place.addStopUrl() == null || place.addStopUrl().isBlank()
+                    ? place.mapsUrl() : place.addStopUrl();
+                openInMaps(url);
+            }
+
+            @Override
+            public void answer(DaemonClient.TripPlace place, String answer) {
+                answerErrand(place, answer);
+                // Closed on the answer: the sheet is a snapshot, and leaving it
+                // open would keep showing chips for a question just settled.
+                if (open[0] != null) open[0].dismiss();
+            }
+        };
+        open[0] = new AlertDialog.Builder(this)
             .setTitle("Pendientes del viaje")
-            .setItems(rows, (dialog, which) -> openInMaps(places.get(which)))
+            .setView(TripPlacesSheet.build(this, places, actions))
             .setNegativeButton("Cerrar", null)
-            .show();
+            .create();
+        open[0].show();
     }
 
-    /** Hand one place to Maps for navigation. Falls back to any map app. */
-    private void openInMaps(DaemonClient.TripPlace place) {
-        if (place.mapsUrl() == null || place.mapsUrl().isBlank()) return;
-        Intent open = new Intent(Intent.ACTION_VIEW, Uri.parse(place.mapsUrl()));
+    /**
+     * Send one "voy" / "hoy no" to the daemon, which records it exactly as the
+     * Telegram chip would. Confirmed with a toast because the sheet closes: a
+     * tap with no visible consequence reads as a tap that did not register.
+     */
+    private void answerErrand(DaemonClient.TripPlace place, String answer) {
+        String said = "go".equals(answer) ? "Anotado: vas." : "Listo, hoy no.";
+        DaemonClient.answerErrand(
+            preferences.daemonUrl(), preferences.token(), place.taskId(), answer,
+            new DaemonClient.AnswerCallback() {
+                @Override
+                public void onAnswered() {
+                    runOnUiThread(() -> {
+                        Toast.makeText(MainActivity.this, said, Toast.LENGTH_SHORT).show();
+                        refreshTripPlaceCount();
+                    });
+                }
+
+                @Override
+                public void onAnswerFailed(String message) {
+                    runOnUiThread(() -> Toast.makeText(MainActivity.this, message, Toast.LENGTH_LONG).show());
+                }
+            });
+    }
+
+    /** Hand one Maps URL to Maps. Falls back to any map app. */
+    private void openInMaps(String url) {
+        if (url == null || url.isBlank()) return;
+        Intent open = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
         open.setPackage(MapsNavigationDetector.MAPS_PACKAGE);
         if (open.resolveActivity(getPackageManager()) == null) open.setPackage(null);
         try {

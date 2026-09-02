@@ -27,5 +27,5 @@ export default {
   "mobility.ack_skipped": "Certo, hoje não.",
   "mobility.ack_done": "Fechei a tarefa.",
   "mobility.ack_still_open": "Deixo em aberto.",
-  "mobility.transcript": "📝 Transcrição do áudio",
+  "mobility.transcript": "[Transcrição]",
 };

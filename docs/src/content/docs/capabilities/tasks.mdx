@@ -179,6 +179,13 @@ model call**. Same reminder, no network and no tokens.
 apx task add "Buy ibuprofen" --category trip --place "Pharmacy on Main" --at "-41.13,-71.31"
 ```
 
+Without coordinates the errand still works, but it becomes a **choice**: the
+daemon searches for places that satisfy it and keeps every one of them, pointing
+at the nearest as you drive. "Comprar pan lactal en el súper" matches both
+bakeries and supermarkets, so it is watching several shops until one is settled
+— by there being only one, or by you answering "voy". See
+[Android · the trip plan](/surfaces/android/#the-trip-plan-how-many-searches-a-drive-costs).
+
 `--radius <m>` sets how close counts as "there" for that one errand; without it
 the mobility default applies. An empty `--place` on `apx task patch` clears the
 location. Tags are untouched by any of this — a task can have both.
