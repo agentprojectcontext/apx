@@ -3,6 +3,12 @@ package dev.agentprojectcontext.apx;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import org.json.JSONObject;
+
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 final class ApxPreferences {
     static final String SOURCE_MAPS = "maps";
     static final String SOURCE_ANDROID_AUTO = "android_auto";
@@ -12,6 +18,7 @@ final class ApxPreferences {
     private static final String TOKEN = "client_token";
     private static final String MASCOT = "mascot_enabled";
     private static final String SOUND = "message_sound_enabled";
+    private static final String NOTIFY_CHANNELS = "notify_channels";
     private static final String MASCOT_AVATAR = "mascot_avatar";
     private static final String TRAVEL_ACTIVE = "maps_travel_active";
     private static final String TRAVEL_CHANGED_AT = "maps_travel_changed_at";
@@ -78,6 +85,46 @@ final class ApxPreferences {
 
     void setSoundEnabled(boolean enabled) {
         prefs.edit().putBoolean(SOUND, enabled).apply();
+    }
+
+    /**
+     * The channels this phone was explicitly told to ring for, or not.
+     *
+     * Only EXPLICIT answers are stored, exactly as the panel does it: an
+     * untouched channel falls through to NotifyChannels.enabledByDefault, so
+     * a default we change later reaches a phone that never had an opinion,
+     * instead of being frozen at install time as though the owner had chosen
+     * it. Stored as one JSON object rather than a string set because the value
+     * is three-state — on, off, never asked.
+     */
+    Map<String, Boolean> notifyChannels() {
+        Map<String, Boolean> choices = new LinkedHashMap<>();
+        try {
+            JSONObject stored = new JSONObject(prefs.getString(NOTIFY_CHANNELS, "{}"));
+            // keys(), not keySet(): Android ships its own org.json, and that
+            // one has no keySet — a difference the JVM unit tests cannot see,
+            // because they run against the Maven artifact where both exist.
+            for (Iterator<String> keys = stored.keys(); keys.hasNext(); ) {
+                String key = keys.next();
+                if (stored.opt(key) instanceof Boolean on) choices.put(key, on);
+            }
+        } catch (Exception ignored) {
+            // Something else wrote the key: fall back to every default.
+        }
+        return choices;
+    }
+
+    boolean notifyChannelEnabled(String channel) {
+        if (!NotifyChannels.known(channel)) return true;
+        Boolean explicit = notifyChannels().get(channel);
+        return explicit == null ? NotifyChannels.enabledByDefault(channel) : explicit;
+    }
+
+    void setNotifyChannelEnabled(String channel, boolean on) {
+        if (!NotifyChannels.known(channel)) return;
+        Map<String, Boolean> next = notifyChannels();
+        next.put(channel, on);
+        prefs.edit().putString(NOTIFY_CHANNELS, new JSONObject(next).toString()).apply();
     }
 
     void setMascotAvatar(String key) {

@@ -59,3 +59,52 @@ test("the persistent notification toggles mascot visibility", () => {
   assert.match(service, /preferences\.setMascotEnabled\(true\)/);
   assert.match(service, /notify\(SERVICE_NOTIFICATION, serviceNotification\(\)\)/);
 });
+
+test("the phone decides which kinds of news may interrupt it", () => {
+  const parser = read("java", "dev", "agentprojectcontext", "apx", "MessageFrameParser.java");
+  const channels = read("java", "dev", "agentprojectcontext", "apx", "NotifyChannels.java");
+  const prefs = read("java", "dev", "agentprojectcontext", "apx", "ApxPreferences.java");
+  const service = read("java", "dev", "agentprojectcontext", "apx", "MascotOverlayService.java");
+  const activity = read("java", "dev", "agentprojectcontext", "apx", "MainActivity.java");
+
+  // The five the daemon can tag, and the one that starts silent because its
+  // own app is on the same phone.
+  assert.match(channels, /List\.of\(TELEGRAM, GROUP, A2A, ROUTINE, MOBILITY\)/);
+  assert.match(channels, /return !TELEGRAM\.equals\(channel\);/);
+  // A line whose channel we cannot read still rings: silence is the one
+  // failure the owner cannot see.
+  assert.match(channels, /static boolean known\(String channel\)/);
+  assert.match(parser, /record Notice\(String text, String channel\)/);
+
+  // Only explicit answers are stored, so a default we change later still
+  // reaches a phone that never had an opinion.
+  assert.match(prefs, /Map<String, Boolean> notifyChannels\(\)/);
+  assert.match(prefs, /explicit == null \? NotifyChannels\.enabledByDefault\(channel\) : explicit/);
+
+  // One gate, ahead of the bubble AND the sound AND the car card.
+  assert.match(service, /if \(!preferences\.notifyChannelEnabled\(notice\.channel\(\)\)\) continue;/);
+  assert.match(service, /MessageFrameParser\.notices\(text\)/);
+
+  // Two ways in, one store: the native menu's ticks and the panel's.
+  assert.match(activity, /setMultiChoiceItems\(labels, checked/);
+  assert.match(activity, /public String notifyChannels\(\)/);
+  assert.match(activity, /public void setNotifyChannel\(String channel, boolean on\)/);
+  assert.match(activity, /apx:native-notify-channels/);
+});
+
+test("the panel offers the app's own switches, and only when the app has them", () => {
+  const root = path.join(ROOT, "src", "interfaces", "web", "src");
+  const panel = fs.readFileSync(path.join(root, "components/settings/PanelPrefs.tsx"), "utf8");
+
+  // An APK installed before the bridge learned these renders nothing here,
+  // rather than switches that would silently do nothing.
+  assert.match(panel, /window\.APXAndroid\?\.notifyChannels\?\.\(\)/);
+  assert.match(panel, /window\.APXAndroid\?\.setNotifyChannel\?\.\(channel, next\)/);
+  assert.match(panel, /if \(!names\.length\) return null;/);
+  // The native menu edits the same store behind the panel; it says so.
+  assert.match(panel, /apx:native-notify-channels/);
+  assert.match(
+    panel,
+    /nativeNotifications \? <NativeNotificationChannels \/> : <NotificationChannels \/>/,
+  );
+});

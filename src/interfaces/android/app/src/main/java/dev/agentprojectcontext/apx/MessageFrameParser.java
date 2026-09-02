@@ -11,6 +11,15 @@ import java.util.Map;
 final class MessageFrameParser {
     private MessageFrameParser() {}
 
+    /**
+     * One bubble, and the kind of news it is.
+     *
+     * `channel` is null when the daemon sent only the flat `notifications`
+     * list — an older build than this one. Null means "always ring": see
+     * NotifyChannels.known.
+     */
+    record Notice(String text, String channel) {}
+
     static String avatar(String text) {
         try {
             JSONObject frame = new JSONObject(text);
@@ -25,19 +34,36 @@ final class MessageFrameParser {
         }
     }
 
-    static List<String> notifications(String text) {
-        List<String> messages = new ArrayList<>();
+    static List<Notice> notices(String text) {
+        List<Notice> messages = new ArrayList<>();
         try {
             JSONObject frame = new JSONObject(text);
             if (!"messages".equals(frame.optString("type"))) return messages;
             // Daemon-computed copy is the contract: an empty array means the
             // owner's send is not news and must not fall through to a guess.
+            // `notices` carries the channel each line is about and wins when
+            // present; `notifications` is the same lines without it, kept for
+            // the reverse case — this APK against a daemon from before the tag
+            // existed.
+            if (frame.has("notices")) {
+                JSONArray ready = frame.optJSONArray("notices");
+                if (ready == null) return messages;
+                for (int i = 0; i < ready.length(); i++) {
+                    JSONObject notice = ready.optJSONObject(i);
+                    if (notice == null) continue;
+                    String line = notice.optString("text", "").trim();
+                    if (line.isEmpty()) continue;
+                    String channel = notice.optString("channel", "").trim();
+                    messages.add(new Notice(line, channel.isEmpty() ? null : channel));
+                }
+                return messages;
+            }
             if (frame.has("notifications")) {
                 JSONArray ready = frame.optJSONArray("notifications");
                 if (ready == null) return messages;
                 for (int i = 0; i < ready.length(); i++) {
                     String line = ready.optString(i, "").trim();
-                    if (!line.isEmpty()) messages.add(line);
+                    if (!line.isEmpty()) messages.add(new Notice(line, null));
                 }
                 return messages;
             }
@@ -52,17 +78,17 @@ final class MessageFrameParser {
         return messages;
     }
 
-    private static void appendMobility(List<String> messages, JSONArray events) {
+    private static void appendMobility(List<Notice> messages, JSONArray events) {
         for (int i = 0; i < events.length(); i++) {
             JSONObject event = events.optJSONObject(i);
             if (event == null) continue;
             if (!"mobility_delivery".equals(event.optString("via"))) continue;
             String notice = event.optString("notify", "").trim();
-            if (!notice.isBlank()) messages.add(notice);
+            if (!notice.isBlank()) messages.add(new Notice(notice, NotifyChannels.MOBILITY));
         }
     }
 
-    private static void appendRoutineDeliveries(List<String> messages, JSONArray events) {
+    private static void appendRoutineDeliveries(List<Notice> messages, JSONArray events) {
         Map<String, String> byAgent = new LinkedHashMap<>();
         for (int i = 0; i < events.length(); i++) {
             JSONObject event = events.optJSONObject(i);
@@ -77,21 +103,27 @@ final class MessageFrameParser {
         }
         for (Map.Entry<String, String> entry : byAgent.entrySet()) {
             String notify = entry.getValue();
-            messages.add(notify.isEmpty()
-                ? entry.getKey() + " te dejó un mensaje"
-                : entry.getKey() + ": " + notify);
+            messages.add(new Notice(
+                notify.isEmpty()
+                    ? entry.getKey() + " te dejó un mensaje"
+                    : entry.getKey() + ": " + notify,
+                NotifyChannels.ROUTINE
+            ));
         }
     }
 
-    private static void appendAgentFinals(List<String> messages, JSONArray events) {
-        Map<String, String> byAgent = new LinkedHashMap<>();
+    private static void appendAgentFinals(List<Notice> messages, JSONArray events) {
+        Map<String, Notice> byAgent = new LinkedHashMap<>();
         for (int i = 0; i < events.length(); i++) {
             JSONObject event = events.optJSONObject(i);
             if (event == null) continue;
             if (!isAgentFinal(event)) continue;
             String agent = speakerName(event);
             String channel = event.optString("channel");
-            byAgent.put(channel + "|" + agent, agent + " respondió en " + channelLabel(channel));
+            byAgent.put(
+                channel + "|" + agent,
+                new Notice(agent + " respondió en " + channelLabel(channel), channel)
+            );
         }
         messages.addAll(byAgent.values());
     }

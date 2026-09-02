@@ -20,7 +20,7 @@
 // Telegram poller and the agent loop, so every write anyone makes happens here.
 // See core/events/bus.js for the one case it does not cover.
 import { onMessageEvent, onRoutineEvent } from "#core/events/bus.js";
-import { mascotNotificationsFromEvents } from "#core/events/mascot-notify.js";
+import { mascotNoticesFromEvents } from "#core/events/mascot-notify.js";
 import { resolveSuperAgentBlob } from "#core/apc/agent-identity.js";
 import { apiPath } from "./api/prefix.js";
 
@@ -176,13 +176,19 @@ export function startEventsBridge({ projects } = {}) {
     pending.clear();
     // Nobody listening is the normal case (no panel open). Skip the work.
     if (_clients.size) {
+      // Computed once here so desktop and the phone cannot drift: both pets
+      // just render the lines. Empty means "this burst is not news" (the
+      // owner sending, a stream chunk, a tool row).
+      const notices = mascotNoticesFromEvents(events);
       broadcastEvents({
         type: "messages",
         events,
-        // Computed once here so desktop and the phone cannot drift: both pets
-        // just render the lines. Empty means "this burst is not news" (the
-        // owner sending, a stream chunk, a tool row).
-        notifications: mascotNotificationsFromEvents(events),
+        notifications: notices.map((notice) => notice.text),
+        // The same lines with the channel each one is about, so a device can
+        // answer "which of these may ring me" — the phone mutes Telegram
+        // because Telegram is installed on it. Sent alongside rather than
+        // instead: an APK from before this shipped still reads `notifications`.
+        notices,
       });
     }
   };

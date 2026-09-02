@@ -1,6 +1,7 @@
 package dev.agentprojectcontext.apx;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import org.junit.Test;
@@ -8,6 +9,11 @@ import org.junit.Test;
 import java.util.List;
 
 public final class MessageFrameParserTest {
+    /** The lines alone, for the assertions that are about wording. */
+    private static List<String> lines(String frame) {
+        return MessageFrameParser.notices(frame).stream().map(MessageFrameParser.Notice::text).toList();
+    }
+
     @Test
     public void prefersDaemonNotificationsAndTreatsEmptyAsNoNews() {
         String ready = """
@@ -15,14 +21,44 @@ public final class MessageFrameParserTest {
               {"direction":"in","channel":"telegram"}
             ]}
             """;
-        assertEquals(List.of("sofia respondió en Telegram"), MessageFrameParser.notifications(ready));
+        assertEquals(List.of("sofia respondió en Telegram"), lines(ready));
 
         String ownerSend = """
             {"type":"messages","notifications":[],"events":[
               {"direction":"in","channel":"telegram","type":"user"}
             ]}
             """;
-        assertTrue(MessageFrameParser.notifications(ownerSend).isEmpty());
+        assertTrue(MessageFrameParser.notices(ownerSend).isEmpty());
+    }
+
+    @Test
+    public void readsTheChannelEachNoticeIsAboutWhenTheDaemonTagsThem() {
+        String frame = """
+            {"type":"messages","notices":[
+              {"text":"Roby respondió en Telegram","channel":"telegram"},
+              {"text":"Pasá por La Anónima","channel":"mobility"}
+            ],"notifications":["Roby respondió en Telegram","Pasá por La Anónima"],"events":[]}
+            """;
+
+        assertEquals(
+            List.of(
+                new MessageFrameParser.Notice("Roby respondió en Telegram", "telegram"),
+                new MessageFrameParser.Notice("Pasá por La Anónima", "mobility")
+            ),
+            MessageFrameParser.notices(frame)
+        );
+    }
+
+    @Test
+    public void anUntaggedLineFromAnOlderDaemonHasNoChannelAndSoAlwaysRings() {
+        String frame = """
+            {"type":"messages","notifications":["sofia respondió en Telegram"],"events":[]}
+            """;
+
+        List<MessageFrameParser.Notice> notices = MessageFrameParser.notices(frame);
+        assertEquals(1, notices.size());
+        assertEquals(null, notices.get(0).channel());
+        assertFalse(NotifyChannels.known(notices.get(0).channel()));
     }
 
     @Test
@@ -41,17 +77,17 @@ public final class MessageFrameParserTest {
 
         assertEquals(
             List.of(
-                "Roby respondió en Telegram",
-                "sofia respondió en Grupo",
-                "martin respondió en A2A"
+                new MessageFrameParser.Notice("Roby respondió en Telegram", "telegram"),
+                new MessageFrameParser.Notice("sofia respondió en Grupo", "group"),
+                new MessageFrameParser.Notice("martin respondió en A2A", "a2a")
             ),
-            MessageFrameParser.notifications(frame)
+            MessageFrameParser.notices(frame)
         );
     }
 
     @Test
     public void rejectsMalformedFrames() {
-        assertTrue(MessageFrameParser.notifications("not json").isEmpty());
+        assertTrue(MessageFrameParser.notices("not json").isEmpty());
     }
 
     @Test
@@ -69,6 +105,11 @@ public final class MessageFrameParserTest {
             ]}
             """;
 
-        assertEquals(List.of("Pasá por La Anónima"), MessageFrameParser.notifications(frame));
+        // Filed on Telegram, tagged mobility: muting Telegram must not silence
+        // the car.
+        assertEquals(
+            List.of(new MessageFrameParser.Notice("Pasá por La Anónima", "mobility")),
+            MessageFrameParser.notices(frame)
+        );
     }
 }

@@ -318,8 +318,13 @@ public final class MascotOverlayService extends Service {
                 if (mascotView != null) mascotView.setAvatar(avatar);
             });
         }
-        for (String message : MessageFrameParser.notifications(text)) {
-            main.post(() -> presentMessage(message));
+        for (MessageFrameParser.Notice notice : MessageFrameParser.notices(text)) {
+            // One gate for the bubble, the sound and the car card: a channel
+            // the owner muted must not reach him by any of the three. He can
+            // still read every one of them in /mobile — this decides what
+            // INTERRUPTS, not what exists.
+            if (!preferences.notifyChannelEnabled(notice.channel())) continue;
+            main.post(() -> presentMessage(notice.text()));
         }
     }
 

@@ -10,7 +10,7 @@ const HOME = fs.mkdtempSync(path.join(os.tmpdir(), "apx-mascot-notify-"));
 process.env.HOME = HOME;
 process.env.APX_HOME = path.join(HOME, ".apx");
 
-const { mascotNotificationsFromEvents, isAgentFinalEvent } =
+const { mascotNotificationsFromEvents, mascotNoticesFromEvents, isAgentFinalEvent, NOTICE_CHANNELS } =
   await import("#core/events/mascot-notify.js");
 const { appendGlobalMessage, appendMessageToFs } = await import("#core/stores/messages.js");
 const { onMessageEvent, resetEventBus } = await import("#core/events/bus.js");
@@ -223,6 +223,54 @@ test("an a2a row announces its recipient, and no other channel does", () => {
   ]);
 });
 
+test("every bubble carries the channel a device filters on", () => {
+  assert.deepEqual(
+    mascotNoticesFromEvents([
+      { direction: "out", type: "agent", channel: "telegram", author: "Roby", agent_slug: "super_agent" },
+      { direction: "out", type: "agent", channel: "group", author: "sofia", agent_slug: "sofia" },
+      { direction: "out", type: "agent", channel: "a2a", author: "magui", agent_slug: "magui", to: "roby" },
+    ]),
+    [
+      { text: "Roby respondió en Telegram", channel: "telegram" },
+      { text: "sofia respondió en Grupo", channel: "group" },
+      { text: "Nuevo mensaje de Magui a Roby", channel: "a2a" },
+    ],
+  );
+});
+
+test("a delivery is tagged by what it IS, not by the channel it was filed on", () => {
+  // The whole point of the tag: the errand notice rides Telegram and the
+  // routine one is filed on web, so a phone that muted Telegram to stop the
+  // duplicate replies would otherwise lose the car — which is the one bubble
+  // it cannot get any other way.
+  assert.deepEqual(
+    mascotNoticesFromEvents([
+      { direction: "out", type: "agent", channel: "telegram", via: "mobility_delivery", notify: "Pasá por La Anónima", author: "Roby" },
+      { direction: "out", type: "agent", channel: "web", via: "routine_delivery", agent_slug: "golf-coach", notify: "🏌️ Tip Golf" },
+    ]),
+    [
+      { text: "Pasá por La Anónima", channel: "mobility" },
+      { text: "golf-coach: 🏌️ Tip Golf", channel: "routine" },
+    ],
+  );
+});
+
+test("the lines are the notices, and every channel is one a client can offer", () => {
+  const events = [
+    { direction: "out", type: "agent", channel: "telegram", via: "mobility_delivery", notify: "Pasá por La Anónima" },
+    { direction: "out", type: "agent", channel: "web", via: "routine_delivery", agent_slug: "golf-coach", notify: "🏌️" },
+    { direction: "out", type: "agent", channel: "telegram", author: "Roby", agent_slug: "super_agent" },
+    { direction: "out", type: "agent", channel: "group", author: "sofia", agent_slug: "sofia" },
+    { direction: "out", type: "agent", channel: "a2a", author: "magui", agent_slug: "magui", to: "roby" },
+  ];
+  const notices = mascotNoticesFromEvents(events);
+  // The flat list an older APK still reads is exactly these lines, in order.
+  assert.deepEqual(mascotNotificationsFromEvents(events), notices.map((n) => n.text));
+  // A tag outside the catalog is a switch the settings dialog never offers,
+  // so the bubble would be unmutable and unexplained.
+  for (const notice of notices) assert.ok(NOTICE_CHANNELS.includes(notice.channel), notice.channel);
+});
+
 test("desktop and android pets render the daemon list, never the owner's send", () => {
   const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
   const desktop = fs.readFileSync(path.join(root, "src/interfaces/desktop/main.js"), "utf8");
@@ -232,6 +280,7 @@ test("desktop and android pets render the daemon list, never the owner's send", 
   );
   assert.match(desktop, /Array\.isArray\(msg\.notifications\)/);
   assert.doesNotMatch(desktop, /direction !== "in"/);
+  assert.match(android, /frame\.has\("notices"\)/);
   assert.match(android, /frame\.has\("notifications"\)/);
   assert.match(android, /isAgentFinal/);
   assert.doesNotMatch(android, /!"in"\.equals\(event\.optString\("direction"\)\)/);

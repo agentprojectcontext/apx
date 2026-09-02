@@ -5,6 +5,12 @@ interface Window {
     openOptions(): void;
     notificationsEnabled(): boolean;
     openNotificationSettings(): void;
+    // Which kinds of news the APK may ring for, as a JSON string of
+    // `{ channel: boolean }` — a WebView bridge carries primitives only.
+    // Optional because they are: an APK installed before this shipped has a
+    // bridge without them, and the panel has to render against that phone too.
+    notifyChannels?(): string;
+    setNotifyChannel?(channel: string, on: boolean): void;
   };
 }
 
