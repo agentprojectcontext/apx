@@ -113,10 +113,17 @@ export function parseVerdict(text) {
  * Score a finished run against its goal. Returns {score, reasoning, missing}
  * or null when the judge is unusable (engine down, unparseable reply) — the
  * caller treats null as "accept the result", never as a failure.
+ *
+ * `fallbackModel` is the last resort for the model that does the scoring, and
+ * exists for project agents: they run on installs that never configured a
+ * super-agent, and resolving to "" there would switch the judge off silently —
+ * shipped, on by default, and doing nothing. The caller passes the model that
+ * ran the turn. The explicit knobs still win, in order: `judge.model`, then
+ * `super_agent.model`.
  */
-export async function judgeCompletion({ goal, result, globalConfig, callEngineFn = callEngine }) {
+export async function judgeCompletion({ goal, result, globalConfig, fallbackModel = "", callEngineFn = callEngine }) {
   const cfg = judgeConfig(globalConfig);
-  const modelId = cfg.model || globalConfig?.super_agent?.model || "";
+  const modelId = cfg.model || globalConfig?.super_agent?.model || fallbackModel || "";
   if (!modelId) return null;
   try {
     const r = await callEngineFn({

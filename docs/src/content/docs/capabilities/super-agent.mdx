@@ -277,6 +277,14 @@ It covers two different ways a turn ends early:
   one answers over your head, and since the next round hits the same wall it just repeats the
   same recap and the same question.
 
+**Project agents go through it too**, not only the super-agent — through the
+`continue_unfinished` half only, since they never take the completion-contract path. It applies on
+**every channel** a project agent answers on, not just the watched ones: announcing a next step
+instead of taking it is the model's failure, not the surface's. The two exclusions above are what
+keep the cost down — after them the only turns judged are the ones that ran real tools and then
+went quiet without asking anything, which is one extra model call for a turn that would otherwise
+have sat there until you typed "seguí".
+
 ```json
 "super_agent": {
   "judge": {
