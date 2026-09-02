@@ -37,8 +37,11 @@ export function register(api, ctx) {
     const taskId = String(req.body?.task_id || "").trim();
     const answer = String(req.body?.answer || "").trim();
     if (!taskId) return res.status(400).json({ error: "task_id required" });
-    if (answer !== "go" && answer !== "skip") {
-      return res.status(400).json({ error: "answer must be go or skip" });
+    // "next" is the phone's half of «avisar en la siguiente»: same three
+    // answers the Telegram card offers, because the docs promise the two
+    // surfaces ask the same question. "skip" stays for the older APK.
+    if (answer !== "go" && answer !== "skip" && answer !== "next") {
+      return res.status(400).json({ error: "answer must be go, next or skip" });
     }
 
     const existing = listMobilityAlerts()
@@ -53,9 +56,16 @@ export function register(api, ctx) {
     })();
     if (!alert) return res.status(404).json({ error: "that errand is not on this trip" });
 
-    const patch = answer === "go"
-      ? { answer: "go", answered_at: new Date().toISOString() }
-      : { answer: "skip", answered_at: new Date().toISOString(), outcome: "skipped" };
+    const answered_at = new Date().toISOString();
+    // "next" declines the PLACE: the errand stops counting as announced, so a
+    // different shop can raise it again later in the drive, and the outcome
+    // closes it for the after-trip follow-up — nothing was promised here.
+    // "skip" is still the whole errand, for the rest of the trip.
+    const patch = {
+      go: { answer: "go", answered_at },
+      next: { answer: "next", answered_at, outcome: "skipped_place" },
+      skip: { answer: "skip", answered_at, outcome: "skipped" },
+    }[answer];
     updateMobilityAlert(alert.id, patch);
     if (answer === "go") lockTripErrand(trip.trip_id, taskId, "accepted");
     res.json({ ok: true, alert_id: alert.id, answer });

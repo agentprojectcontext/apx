@@ -20,7 +20,12 @@
 import { t } from "#core/i18n/index.js";
 import { categoryIsLocatable } from "#core/constants/task-categories.js";
 import { activeTasks, haversineMeters, nearbyPois, taskNeeds } from "./osm-route.js";
-import { listMobilityAlerts, mobilityAlertFired, mobilityContext } from "./state.js";
+import {
+  declinedMobilityPlaces,
+  listMobilityAlerts,
+  mobilityAlertFired,
+  mobilityContext,
+} from "./state.js";
 
 // 2 km. The owner asked to hear about a place "at one or two kilometres" —
 // far enough to still change lanes for it, close enough that it is genuinely
@@ -229,9 +234,25 @@ function sameSpot(a, b) {
   return a && b && a.latitude === b.latitude && a.longitude === b.longitude;
 }
 
-/** Point each errand at its nearest candidate. Arithmetic only — never a call. */
+/**
+ * Point each errand at its nearest candidate. Arithmetic only — never a call.
+ *
+ * "Nearest" means nearest of the ones still on offer: a shop the owner answered
+ * "avisar en la siguiente" about is out of the running for the rest of the trip,
+ * so the errand moves on to the next one instead of asking about the same
+ * branch again.
+ */
 function rank(errands, position) {
   for (const errand of errands.values()) {
+    const declined = declinedMobilityPlaces(position.trip_id, errand.task_id);
+    const declinedSpot = (spot) => declined.some((gone) => sameSpot(gone, spot));
+    // Waving past the shop an errand was SETTLED on is the one answer that
+    // re-opens the question: the lock said "this branch", and the owner has
+    // just said "not this branch".
+    if (errand.locked && errand.chosen && declinedSpot(errand.chosen)) {
+      errand.locked = false;
+      errand.lock_reason = null;
+    }
     // A locked errand keeps its PLACE. This is the owner's "unless we already
     // have one single place to go": once the answer is settled, driving past
     // a closer branch does not re-open the question.
@@ -254,9 +275,14 @@ function rank(errands, position) {
     }
     let best = null;
     for (const candidate of errand.candidates) {
+      if (declinedSpot(candidate)) continue;
       const distance_m = Math.round(haversineMeters(position, candidate));
       if (!best || distance_m < best.distance_m) best = { ...candidate, distance_m };
     }
+    // No candidate left means every shop that could satisfy this errand has
+    // been waved past. `chosen: null` is silence for the rest of the trip —
+    // "avisar en la siguiente" with no siguiente is just "hoy no", and saying
+    // so out loud would be arguing with an answer the owner already gave.
     errand.chosen = best;
   }
   return errands;
@@ -465,6 +491,18 @@ export function proximityMessage(alert, lang = "es") {
  * and two answers, because "do I detour for this?" is the only question the
  * driver actually has to answer right now. The follow-up — "did you get it?" —
  * is asked after the trip, from the answer recorded here.
+ *
+ * The second answer is "avisar en la siguiente", not "hoy no". Waving past one
+ * shop is not the same as dropping the errand, and treating it as the same is
+ * what the button used to do: decline the branch you happen to be passing and
+ * the whole task went quiet for the rest of the drive, including at the three
+ * other branches you were about to drive past. So it declines the PLACE, and
+ * the errand is still owed a reminder at the next shop that satisfies it.
+ *
+ * When there is no next shop it degrades to exactly what "hoy no" did — silence
+ * for the rest of the trip — so nothing is lost by having only these two.
+ * Dropping every reminder for the day is a different question with its own
+ * button, on the trip card (trip-event.js).
  */
 export function proximityKeyboard(alert, { destination = "", lang = "es" } = {}) {
   return {
@@ -475,7 +513,7 @@ export function proximityKeyboard(alert, { destination = "", lang = "es" } = {})
       ],
       [
         { text: `✅ ${t("mobility.going", { lang })}`, callback_data: `apx:mobility:go:${alert.id}` },
-        { text: `❌ ${t("mobility.not_today", { lang })}`, callback_data: `apx:mobility:skip:${alert.id}` },
+        { text: `🔁 ${t("mobility.alert_next", { lang })}`, callback_data: `apx:mobility:next:${alert.id}` },
       ],
     ],
   };

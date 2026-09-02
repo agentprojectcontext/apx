@@ -35,8 +35,14 @@ process.env.USERPROFILE = tmpHome;
 const { handleCallbackQuery, buttonLabelFor } = await import("#core/channels/telegram/ask-callbacks.js");
 const { listDeliveries, DELIVERY_STATUS } = await import("#core/stores/deliveries.js");
 const { createTask, getTask } = await import("#core/stores/tasks.js");
-const { _resetMobilityStateForTest, getMobilityAlert, recordMobilityAlert } =
-  await import("#core/mobility/state.js");
+const {
+  _resetMobilityStateForTest,
+  declinedMobilityPlaces,
+  getMobilityAlert,
+  mobilityAlertFired,
+  pendingMobilityFollowups,
+  recordMobilityAlert,
+} = await import("#core/mobility/state.js");
 
 test.after(() => fs.rmSync(tmpHome, { recursive: true, force: true }));
 
@@ -182,6 +188,39 @@ test("a proximity no closes the alert without touching the task", async () => {
   await handleCallbackQuery(self, pressOf(`apx:mobility:skip:${alert.id}`));
   assert.equal(getMobilityAlert(alert.id).outcome, "skipped");
   assert.equal(getTask(storagePath, task.id).state, "open");
+});
+
+test("«avisar en la siguiente» leaves the errand owed another reminder", async () => {
+  // Pressed on the card, this must NOT read as "done with that task": the task
+  // stays open, no follow-up is owed, and the errand stops counting as
+  // announced so a different shop can raise it again later in the drive.
+  _resetMobilityStateForTest();
+  const storagePath = fs.mkdtempSync(path.join(os.tmpdir(), "apx-mobility-next-"));
+  const self = fakePoller(storagePath);
+  const task = createTask(storagePath, { title: "Comprar remedios" });
+  const alert = recordMobilityAlert({
+    trip_id: "trip-next", task_id: task.id, project_id: "default",
+    place: "Farmacia Ejemplo", latitude: -41.145, longitude: -71.31,
+  });
+  assert.equal(mobilityAlertFired("trip-next", task.id), true, "announced once");
+
+  await handleCallbackQuery(self, pressOf(`apx:mobility:next:${alert.id}`));
+
+  const after = getMobilityAlert(alert.id);
+  assert.equal(after.answer, "next");
+  assert.equal(after.outcome, "skipped_place");
+  assert.equal(getTask(storagePath, task.id).state, "open", "declining a shop is not finishing the errand");
+  assert.equal(pendingMobilityFollowups("trip-next").length, 0, "nothing was promised, so nothing to ask after");
+  assert.equal(
+    mobilityAlertFired("trip-next", task.id),
+    false,
+    "the errand is owed another reminder at the next shop",
+  );
+  assert.deepEqual(
+    declinedMobilityPlaces("trip-next", task.id).map((p) => p.place),
+    ["Farmacia Ejemplo"],
+    "but never again at this one",
+  );
 });
 
 test("the follow-up's done button actually closes the task it was about", async () => {

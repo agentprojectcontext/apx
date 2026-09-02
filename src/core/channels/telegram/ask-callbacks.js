@@ -131,7 +131,24 @@ export async function handleMobilityAlertCallback(self, callbackQuery, action, a
     // already driving to this one.
     lockTripErrand(alert.trip_id, alert.task_id, "accepted");
     ack = t("mobility.ack_going", { lang });
+  } else if (action === "next") {
+    // "Not this branch" — not "forget it". The record keeps the place it named
+    // so the geofence knows which shop to stop offering (declinedMobilityPlaces),
+    // and `answer: "next"` is what stops this errand counting as announced, so
+    // the next shop that satisfies it can still speak up later in the drive.
+    // The outcome closes it for the after-trip follow-up: nothing was promised
+    // here, so there is nothing to ask about afterwards.
+    updateMobilityAlert(alert.id, {
+      answer: "next",
+      answered_at: new Date().toISOString(),
+      outcome: "skipped_place",
+    });
+    ack = t("mobility.ack_next", { lang });
   } else if (action === "skip") {
+    // The pre-"next" button. Still handled because the cards carrying it are
+    // sitting in a phone's chat history and a button that answers nothing is
+    // worse than an outdated one. Same meaning it always had: the whole errand
+    // goes quiet for the trip.
     updateMobilityAlert(alert.id, { answer: "skip", answered_at: new Date().toISOString(), outcome: "skipped" });
     ack = t("mobility.ack_skipped", { lang });
   } else if (action === "done") {
