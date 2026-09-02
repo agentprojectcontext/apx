@@ -21,6 +21,14 @@ final class DaemonClient {
         void onError(String message);
     }
 
+    /** One row of "what APX is watching for on this trip". */
+    record TripPlace(String place, String task, int distanceM, String mapsUrl, String answer) {}
+
+    interface TripCallback {
+        void onTrip(java.util.List<TripPlace> places);
+        void onError(String message);
+    }
+
     private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
     static final OkHttpClient HTTP = new OkHttpClient.Builder().retryOnConnectionFailure(true).build();
 
@@ -62,6 +70,56 @@ final class DaemonClient {
                         return;
                     }
                     callback.onSuccess(token);
+                } catch (Exception error) {
+                    callback.onError("Respuesta inválida: " + error.getMessage());
+                }
+            }
+        });
+    }
+
+    /**
+     * The errands APX is watching on the active trip, for the banner's list.
+     * Read-only: asking never fires a reminder — see host/daemon/api/mobility.js.
+     */
+    static void fetchTripPlaces(String daemonUrl, String token, TripCallback callback) {
+        if (daemonUrl == null || daemonUrl.isBlank() || token == null || token.isBlank()) {
+            callback.onError("Este teléfono todavía no está vinculado.");
+            return;
+        }
+        Request request = new Request.Builder()
+            .url(daemonUrl + "/api/mobility/trip")
+            .header("Authorization", "Bearer " + token)
+            .get()
+            .build();
+        HTTP.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException error) {
+                callback.onError("No pude hablar con el daemon: " + error.getMessage());
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) {
+                try (response) {
+                    String body = response.body() == null ? "" : response.body().string();
+                    if (!response.isSuccessful()) {
+                        callback.onError("El daemon respondió HTTP " + response.code());
+                        return;
+                    }
+                    JSONObject json = new JSONObject(body);
+                    org.json.JSONArray rows = json.optJSONArray("places");
+                    java.util.List<TripPlace> places = new java.util.ArrayList<>();
+                    for (int i = 0; rows != null && i < rows.length(); i++) {
+                        JSONObject row = rows.optJSONObject(i);
+                        if (row == null) continue;
+                        places.add(new TripPlace(
+                            row.optString("place", ""),
+                            row.optString("task", ""),
+                            row.optInt("distance_m", -1),
+                            row.optString("maps_url", ""),
+                            row.isNull("answer") ? "" : row.optString("answer", "")
+                        ));
+                    }
+                    callback.onTrip(places);
                 } catch (Exception error) {
                     callback.onError("Respuesta inválida: " + error.getMessage());
                 }

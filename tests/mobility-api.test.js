@@ -1,13 +1,29 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import express from "express";
-import { register } from "../src/host/daemon/api/mobility.js";
-import {
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+
+// Trip state persists to ~/.apx/mobility.json, so this file needs its OWN
+// APX_HOME before the state module is imported and freezes that path — HOME
+// alone is not enough (AGENTS.md rule 1). Without it these tests wrote a fake
+// trip over the developer's live mobility state and the running daemon stopped
+// evaluating a real drive.
+const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "apx-mobility-api-"));
+process.env.APX_HOME = path.join(tmpHome, ".apx");
+process.env.HOME = tmpHome;
+process.env.USERPROFILE = tmpHome;
+
+const { register } = await import("../src/host/daemon/api/mobility.js");
+const {
   _resetMobilityEventsForTest,
   acceptMobilityEvent,
   mobilityPrompt,
   isMobilityTripActive,
-} from "../src/core/mobility/trip-event.js";
+} = await import("../src/core/mobility/trip-event.js");
+
+test.after(() => fs.rmSync(tmpHome, { recursive: true, force: true }));
 
 test.beforeEach(() => _resetMobilityEventsForTest());
 
@@ -143,4 +159,20 @@ test("a trip that ended stops earning proximity alerts", async () => {
     { projects: { list: () => [] } }
   );
   assert.deepEqual(result, { skipped: true, reason: "trip-ended" });
+});
+
+test("a daemon restart mid-drive does not silently stop proximity evaluation", async () => {
+  // The in-memory trip map is empty after a restart; the persisted mobility
+  // context is not. Without the fallback every position for the rest of that
+  // trip answered "trip-ended" while the phone kept uploading.
+  const { observeMobilityEvent, _resetMobilityStateForTest } =
+    await import("../src/core/mobility/state.js");
+  _resetMobilityEventsForTest();
+  _resetMobilityStateForTest();
+  observeMobilityEvent({ type: "trip.started", trip_id: "survivor", destination: "Centro" });
+  assert.equal(isMobilityTripActive("survivor"), true, "the persisted trip carries the restart");
+  assert.equal(isMobilityTripActive("some-other-trip"), false);
+
+  observeMobilityEvent({ type: "trip.ended", trip_id: "survivor" });
+  assert.equal(isMobilityTripActive("survivor"), false);
 });

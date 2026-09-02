@@ -96,3 +96,26 @@ test("trip GPS runs as a location-typed foreground service, only while a trip is
   assert.match(listener, /TripLocationService\.start\(this, tripId\)/);
   assert.match(listener, /TripLocationService\.stop\(this\)/);
 });
+
+test("the trip banner leads to the trip's errands, not back to Maps", () => {
+  const banner = read("src", "interfaces", "android", "app", "src", "main", "java", "dev", "agentprojectcontext", "apx", "TravelStatusBanner.java");
+  const activity = read("src", "interfaces", "android", "app", "src", "main", "java", "dev", "agentprojectcontext", "apx", "MainActivity.java");
+  const client = read("src", "interfaces", "android", "app", "src", "main", "java", "dev", "agentprojectcontext", "apx", "DaemonClient.java");
+  const listener = read("src", "interfaces", "android", "app", "src", "main", "java", "dev", "agentprojectcontext", "apx", "MapsNavigationListenerService.java");
+
+  // A drawn mark, not the emoji: the OEM font decided its shape and colour.
+  assert.match(banner, /R\.drawable\.ic_trip_car/);
+  // The comment still explains why it went; what must not come back is the
+  // affordance itself.
+  assert.doesNotMatch(banner, /setText\("Abrir Maps/);
+  assert.match(banner, /affordance\.setText\(placesLabel\(places\)\)/);
+  assert.match(activity, /showTripPlaces/);
+  assert.match(client, /\/api\/mobility\/trip/);
+  // A count of zero must never be shown before the daemon has answered.
+  assert.match(banner, /if \(places < 0\) return/);
+
+  // A trip that outlived the app (reinstall, force stop, an OEM freeze) has to
+  // get its GPS service back, or the phone reports a trip it is not tracking.
+  assert.match(listener, /resumeTripTracking/);
+  assert.match(activity, /TripLocationService\.start\(this, preferences\.travelTripId\(\)\)/);
+});

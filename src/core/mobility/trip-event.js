@@ -93,8 +93,23 @@ export function acceptMobilityEvent(body = {}, now = Date.now()) {
   return event;
 }
 
+/**
+ * Is this trip still running?
+ *
+ * The in-memory map is authoritative for a trip this process has SEEN — it is
+ * what makes a trip.ended cancel work already in flight. But it is empty after
+ * a restart, and a daemon restart mid-drive is routine here: without the
+ * fallback below, every position for the rest of that trip was answered
+ * "trip-ended" and proximity evaluation silently stopped for good, while the
+ * phone kept uploading and the persisted state kept saying the trip was on.
+ * The persisted context is what survives the restart, so it decides when this
+ * process has no opinion.
+ */
 export function isMobilityTripActive(tripId) {
-  return trips.get(tripId) === true;
+  const known = trips.get(tripId);
+  if (known !== undefined) return known === true;
+  const trip = mobilityContext().trip;
+  return Boolean(trip?.active && trip.trip_id === tripId);
 }
 
 export function mobilityPrompt(event, enrichment = null, awareness = mobilityContext()) {

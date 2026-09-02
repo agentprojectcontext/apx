@@ -16,6 +16,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -49,6 +50,9 @@ public final class MainActivity extends Activity {
     private ApxPreferences preferences;
     private WebView webView;
     private TravelStatusBanner travelBanner;
+    // -1 = not asked yet. The banner must not print "0 pendientes" before the
+    // daemon has answered.
+    private int tripPlaceCount = -1;
     private boolean travelReceiverRegistered;
     private boolean waitingForOverlay;
     private String pendingPath = "/mobile";
@@ -271,6 +275,15 @@ public final class MainActivity extends Activity {
             this,
             MapsNavigationListenerService.class
         ));
+        // A foreground-service start is only guaranteed to be allowed while an
+        // activity is visible, and some OEM power managers refuse it outright
+        // from the notification listener. This is the one moment the trip's GPS
+        // service can always be (re)started, so take it: a trip flagged active
+        // with nothing tracking is a trip the daemon hears nothing from.
+        // Starting an already-running service is a no-op.
+        if (preferences.travelActive() && !preferences.travelTripId().isBlank()) {
+            TripLocationService.start(this, preferences.travelTripId());
+        }
         if (waitingForOverlay) {
             waitingForOverlay = false;
             if (Settings.canDrawOverlays(this)) ensureMascotRunning();
@@ -330,7 +343,7 @@ public final class MainActivity extends Activity {
             return insets;
         });
         travelBanner = new TravelStatusBanner(this);
-        travelBanner.setOnClickListener(ignored -> openGoogleMaps());
+        travelBanner.setOnClickListener(ignored -> showTripPlaces());
         LinearLayout.LayoutParams bannerParams = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
@@ -374,12 +387,125 @@ public final class MainActivity extends Activity {
 
     private void updateTravelBanner() {
         if (travelBanner == null) return;
-        travelBanner.update(preferences.travelActive(), preferences.travelDestination(), preferences.travelSource());
+        travelBanner.update(
+            preferences.travelActive(),
+            preferences.travelDestination(),
+            preferences.travelSource(),
+            tripPlaceCount
+        );
+        if (preferences.travelActive()) {
+            refreshTripPlaceCount();
+            scheduleTripPlaceRecheck();
+        } else {
+            tripPlaceCount = -1;
+        }
     }
 
-    private void openGoogleMaps() {
-        Intent open = getPackageManager().getLaunchIntentForPackage(MapsNavigationDetector.MAPS_PACKAGE);
-        if (open != null) startActivity(open);
+    /**
+     * Keep the banner's count honest without making the driver tap to find out.
+     * Best-effort and silent: a count that could not be fetched shows as
+     * "Ver pendientes", never as zero — claiming there is nothing to stop for
+     * because the network was down is the one wrong answer here.
+     */
+    private void refreshTripPlaceCount() {
+        DaemonClient.fetchTripPlaces(preferences.daemonUrl(), preferences.token(), new DaemonClient.TripCallback() {
+            @Override
+            public void onTrip(java.util.List<DaemonClient.TripPlace> places) {
+                runOnUiThread(() -> {
+                    tripPlaceCount = places.size();
+                    if (travelBanner != null) {
+                        travelBanner.update(
+                            preferences.travelActive(),
+                            preferences.travelDestination(),
+                            preferences.travelSource(),
+                            tripPlaceCount
+                        );
+                    }
+                });
+            }
+
+            @Override
+            public void onError(String message) {
+                Log.i("APXTravel", "Could not read trip places: " + message);
+            }
+        });
+    }
+
+    /**
+     * The daemon's list fills in asynchronously — it only knows what is nearby
+     * once a GPS sample has reached it and the place search has answered. Asking
+     * once, the instant a trip opens, reliably gets "nothing nearby" for a trip
+     * that is about to have plenty, so ask again shortly after. One retry: this
+     * is a label, not a poll.
+     */
+    private void scheduleTripPlaceRecheck() {
+        if (travelBanner == null) return;
+        travelBanner.postDelayed(() -> {
+            if (preferences.travelActive()) refreshTripPlaceCount();
+        }, 20_000L);
+    }
+
+    /**
+     * The list behind the banner: every errand APX is watching on this trip,
+     * nearest first, each openable in Maps. This replaced an "Abrir Maps"
+     * shortcut that led nowhere useful — Maps is already open, it is where the
+     * trip is being read from.
+     */
+    private void showTripPlaces() {
+        Toast.makeText(this, "Buscando pendientes del viaje…", Toast.LENGTH_SHORT).show();
+        DaemonClient.fetchTripPlaces(preferences.daemonUrl(), preferences.token(), new DaemonClient.TripCallback() {
+            @Override
+            public void onTrip(java.util.List<DaemonClient.TripPlace> places) {
+                runOnUiThread(() -> renderTripPlaces(places));
+            }
+
+            @Override
+            public void onError(String message) {
+                runOnUiThread(() -> Toast.makeText(MainActivity.this, message, Toast.LENGTH_LONG).show());
+            }
+        });
+    }
+
+    private void renderTripPlaces(java.util.List<DaemonClient.TripPlace> places) {
+        tripPlaceCount = places.size();
+        updateTravelBanner();
+        if (places.isEmpty()) {
+            new AlertDialog.Builder(this)
+                .setTitle("Pendientes del viaje")
+                .setMessage("Por ahora no hay ningún mandado cerca de este viaje.\n\nAPX mira las tareas abiertas que nombran algo físico — farmacia, supermercado, ferretería, nafta — y busca lugares en el camino.")
+                .setPositiveButton("Cerrar", null)
+                .show();
+            return;
+        }
+        String[] rows = new String[places.size()];
+        for (int i = 0; i < places.size(); i++) {
+            DaemonClient.TripPlace place = places.get(i);
+            String distance = place.distanceM() < 0 ? ""
+                : place.distanceM() >= 1000
+                    ? String.format(java.util.Locale.getDefault(), " · %.1f km", place.distanceM() / 1000f)
+                    : " · " + place.distanceM() + " m";
+            String answered = "go".equals(place.answer()) ? "  ✅"
+                : "skip".equals(place.answer()) ? "  ❌" : "";
+            rows[i] = place.place() + distance + answered + "\n" + place.task();
+        }
+        new AlertDialog.Builder(this)
+            .setTitle("Pendientes del viaje")
+            .setItems(rows, (dialog, which) -> openInMaps(places.get(which)))
+            .setNegativeButton("Cerrar", null)
+            .show();
+    }
+
+    /** Hand one place to Maps for navigation. Falls back to any map app. */
+    private void openInMaps(DaemonClient.TripPlace place) {
+        if (place.mapsUrl() == null || place.mapsUrl().isBlank()) return;
+        Intent open = new Intent(Intent.ACTION_VIEW, Uri.parse(place.mapsUrl()));
+        open.setPackage(MapsNavigationDetector.MAPS_PACKAGE);
+        if (open.resolveActivity(getPackageManager()) == null) open.setPackage(null);
+        try {
+            startActivity(open);
+        } catch (RuntimeException noHandler) {
+            Toast.makeText(this, "No hay ninguna app de mapas para abrirlo.", Toast.LENGTH_LONG).show();
+        }
     }
 
     private final class AndroidBridge {

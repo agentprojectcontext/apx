@@ -209,6 +209,7 @@ public final class MapsNavigationListenerService extends NotificationListenerSer
         if (projecting) {
             Log.i(TAG, "Android Auto session detected");
             if (!preferences.travelActive()) setTravelActive(true, "", ApxPreferences.SOURCE_ANDROID_AUTO);
+            else resumeTripTracking();
             return;
         }
         Log.i(TAG, "Android Auto session ended");
@@ -300,17 +301,36 @@ public final class MapsNavigationListenerService extends NotificationListenerSer
         );
     }
 
+    /**
+     * Re-attach GPS to a trip that was already open when this service (re)bound.
+     * The app being reinstalled, force-stopped, or frozen by an OEM power
+     * manager kills the location service but leaves the trip flag set in
+     * preferences, and setTravelActive() short-circuits on unchanged state — so
+     * without this the phone reports a trip it is no longer tracking. Starting
+     * an already-running service is a no-op, so this is safe to call on every
+     * confirmation that a source is live.
+     */
+    private void resumeTripTracking() {
+        String tripId = preferences.travelTripId();
+        if (tripId.isBlank()) return;
+        if (!TripLocationService.start(this, tripId)) {
+            Log.w(TAG, "Trip is active but location tracking could not be resumed");
+        }
+    }
+
     private void observeNavigation(String destination) {
         mapsNavigating = true;
         if (destination == null || destination.isBlank()) {
             if (!preferences.travelActive()) {
                 setTravelActive(true, "", ApxPreferences.SOURCE_MAPS);
             } else if (preferences.travelDestination().isBlank() && !preferences.travelEventSent()) {
+                resumeTripTracking();
                 scheduleDaemonNotification(notificationDelay(""), false);
             }
             Log.i(TAG, "Google Maps navigation active; sharing location without inventing destination");
             return;
         }
+        if (preferences.travelActive()) resumeTripTracking();
         setTravelActive(true, destination, ApxPreferences.SOURCE_MAPS);
     }
 
