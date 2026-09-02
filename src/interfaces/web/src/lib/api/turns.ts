@@ -6,7 +6,8 @@ import { http } from "../http";
 // what lets a refresh or a second tab catch up on a turn in progress. So
 // cancelling has to be asked for out loud. Address the turn the way you already
 // address its thread: a project agent by conversation, Roby by channel (its
-// thread IS the channel).
+// thread IS the channel), a group room by channel + thread_id — one project runs
+// many rooms at once, so the channel alone does not say which one to stop.
 //
 // `aborted: false` is not a failure — the turn may simply have finished a moment
 // before the request landed. A caller interrupting in order to send should carry
@@ -14,6 +15,6 @@ import { http } from "../http";
 export const Turns = {
   abort: (
     pid: string | number,
-    target: { conversation_id?: string; channel?: string },
+    target: { conversation_id?: string; channel?: string; thread_id?: string },
   ) => http.post<{ ok: boolean; aborted: boolean }>(`/api/projects/${pid}/turns/abort`, target),
 };

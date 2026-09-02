@@ -13,7 +13,11 @@
 // Agents keep talking as long as they @-mention someone. The only loop guard
 // is a ceiling: one human message can produce at most this many agent replies
 // (A↔B ping-pong included). After that the cascade stops even if they still cite.
-const MAX_TURNS_PER_MESSAGE = 10;
+//
+// Exported because it is half of the group tool budget: each of these replies is
+// a full tool-loop run, so this number multiplies GROUP_TOOL_ITERS into what one
+// owner message may actually cost (see agent/constants.js).
+export const MAX_TURNS_PER_MESSAGE = 10;
 
 // Strip diacritics + lowercase so "@Natalia", "@natalia" and "@natália" all
 // resolve to the same participant.
@@ -107,6 +111,11 @@ export function seedSpeakers(text, participants) {
  *        reply text. The resolver appends it before scanning for mentions.
  * @param {(slug:string) => void} [args.onSpeakerStart]  fires before each run
  * @param {number} [args.maxTurns]
+ * @param {AbortSignal} [args.signal]
+ *        The owner stopped the room. Checked between speakers so an interrupted
+ *        cascade does not start the NEXT agent's turn: the speaker that was
+ *        mid-run is aborted through its own run's signal, and this stops the
+ *        queue behind it. Without it "stop" only ever ended one reply of ten.
  * @param {{from:string, reason?:string, byOwner?:boolean}} [args.resume]
  *        Regenerating one bubble: start from `from` instead of re-seeding the
  *        whole room from the owner line. Earlier replies this turn stay put;
@@ -120,6 +129,7 @@ export async function resolveGroupTurn({
   onSpeakerStart,
   maxTurns = MAX_TURNS_PER_MESSAGE,
   resume = null,
+  signal = null,
 }) {
   const replies = [];
   // Each queue entry remembers WHY the agent is speaking: addressed by the
@@ -132,6 +142,7 @@ export async function resolveGroupTurn({
     : seedSpeakers(text, participants).map((slug) => ({ slug, reason: "owner", byOwner: true }));
 
   while (queue.length && replies.length < maxTurns) {
+    if (signal?.aborted) break;
     const { slug, reason, byOwner } = queue.shift();
     const participant = participants.find((p) => p.slug === slug && p.kind !== "owner");
     if (!participant) continue;

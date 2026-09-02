@@ -21,8 +21,8 @@ const { apiRouter } = await import("./_helpers.js");
 const { register: registerExec } = await import("../src/host/daemon/api/exec.js");
 const { register: registerTurns } = await import("../src/host/daemon/api/turns.js");
 const {
-  startActiveTurn, endActiveTurn, abortActiveTurn, getActiveTurnByKey,
-  convTurnKey, superAgentTurnKey,
+  startActiveTurn, appendActiveTurn, recordActiveTurnEvent, endActiveTurn, abortActiveTurn, getActiveTurnByKey,
+  listActiveTurns, convTurnKey, superAgentTurnKey,
 } = await import("../src/host/daemon/active-turns.js");
 const { wasAborted, abortedTurnEvent } = await import("../src/host/daemon/api/turn-abort.js");
 const { readConversation, listConversations } = await import("#core/stores/conversations.js");
@@ -51,6 +51,55 @@ test("abortActiveTurn signals the live turn, and says so when there is nothing t
 test("superAgentTurnKey keys one live turn per project+channel", () => {
   assert.notEqual(superAgentTurnKey("1", "web"), superAgentTurnKey("1", "web_sidebar"));
   assert.notEqual(superAgentTurnKey("1", "web"), superAgentTurnKey("2", "web"));
+});
+
+test("active turn snapshots are safe, project-scoped and list-ready", () => {
+  const first = startActiveTurn(convTurnKey("1", "conv-a"), {
+    project_id: "1",
+    conversation_id: "conv-a",
+    agent_slug: "tester",
+    abort: () => {},
+  });
+  const second = startActiveTurn(superAgentTurnKey("2", "web"), {
+    project_id: "2",
+    channel: "web",
+    thread_id: "2026-09-01",
+    abort: () => {},
+  });
+  try {
+    assert.deepEqual(listActiveTurns({ projectId: "1" }).map((x) => x.turn_id), [first.id]);
+    const publicSecond = listActiveTurns({ projectId: "2" })[0];
+    assert.equal(publicSecond.thread_id, "2026-09-01");
+    assert.equal(publicSecond.channel, "web");
+    assert.equal("abort" in publicSecond, false, "the kill switch never reaches a list API");
+  } finally {
+    endActiveTurn(first.id);
+    endActiveTurn(second.id);
+  }
+});
+
+test("an active snapshot carries visible tool work across a reload", () => {
+  const key = superAgentTurnKey("1", "web");
+  const rec = startActiveTurn(key, { project_id: "1", channel: "web", thread_id: "2026-01-02" });
+  try {
+    appendActiveTurn(rec.id, "Reviso estado");
+    recordActiveTurnEvent(rec.id, { type: "assistant_text", text: "Reviso estado." });
+    recordActiveTurnEvent(rec.id, {
+      type: "tool_start",
+      trace: { id: "tool-1", tool: "list_projects", args: { scope: "current" } },
+    });
+    recordActiveTurnEvent(rec.id, {
+      type: "tool_result",
+      trace: { id: "tool-1", tool: "list_projects", args: { scope: "current" }, result: { ok: true } },
+    });
+    const active = getActiveTurnByKey(key);
+    assert.deepEqual(active?.parts, [
+      { kind: "text", text: "Reviso estado." },
+      { kind: "tool", id: "tool-1", tool: "list_projects", args: { scope: "current" }, result: { ok: true }, status: "done" },
+    ]);
+  } finally {
+    endActiveTurn(rec.id);
+  }
 });
 
 test("wasAborted only claims the abort we asked for", () => {

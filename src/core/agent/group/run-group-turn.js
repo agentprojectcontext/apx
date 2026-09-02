@@ -4,8 +4,10 @@
 // them — streaming tokens back tagged by speaker. Everything persists to the
 // message ledger via the group helpers (stores/messages.js); there is no
 // separate group store.
+import { wasAbortedBySignal } from "#core/agent/abort.js";
 import { resolveAgentModel } from "#core/agent/agent-model.js";
 import { buildAgentSystem } from "#core/agent/build-agent-system.js";
+import { groupToolIters } from "#core/agent/constants.js";
 import { runAgentTurn } from "#core/agent/run-turn.js";
 import { readAgents } from "#core/apc/parser.js";
 import { CHANNELS } from "#core/constants/channels.js";
@@ -51,10 +53,12 @@ function reasonLine({ reason, byOwner, ownerName, nameFor, me }) {
  * @param {object} [args.registries]
  * @param {string} [args.from]     regenerate: slug of the speaker to resume from
  * @param {string|null} [args.reason] regenerate: who pulled that speaker in (null = owner)
- * @param {(ev:object)=>void} [args.onEvent] stream sink: owner_message/speaker_start/speaker_delta/speaker_final/done
+ * @param {AbortSignal} [args.signal] the owner pressed Stop: aborts the speaker
+ *        mid-run and stops the cascade behind it (see the catch in runAgent)
+ * @param {(ev:object)=>void} [args.onEvent] stream sink: owner_message/speaker_start/speaker_delta/speaker_final/speaker_aborted/done
  * @returns {Promise<{messages: object[]}>}
  */
-export async function runGroupTurn({ p, gid, text, attachments = [], media = null, rerun = false, from = null, reason = null, ownerName = "Owner", config, projects, plugins, registries, onEvent = () => { } }) {
+export async function runGroupTurn({ p, gid, text, attachments = [], media = null, rerun = false, from = null, reason = null, ownerName = "Owner", config, projects, plugins, registries, signal = null, onEvent = () => { } }) {
   const thread = readProjectGroupThread(p.storagePath, gid);
   if (!thread) throw new Error(`group ${gid} not found`);
 
@@ -147,20 +151,53 @@ export async function runGroupTurn({ p, gid, text, attachments = [], media = nul
     const directive = reasonLine({ reason: ctx.reason, byOwner: ctx.byOwner, ownerName, nameFor, me });
 
     onEvent({ type: "speaker_start", slug, reason: ctx.byOwner ? null : ctx.reason });
-    const result = await runAgentTurn({
-      p: agentProject, agent, modelId, system,
-      prompt: `${transcript}\n\n---\n${directive}`,
-      previousMessages: [],
-      // The owner's image rides on this turn for every speaker answering it, so
-      // a vision model actually sees what was sent (not just the "[image
-      // attached]" marker already folded into the transcript text).
-      attachments,
-      channel: CHANNELS.WEB,
-      tools: true,
-      projects, plugins, registries, config: cfg,
-      onEvent,
-      onToken: (chunk) => onEvent({ type: "speaker_delta", slug, delta: chunk }),
-    });
+    // What this speaker has produced so far, kept alongside the stream so an
+    // interrupted reply can still be written to the room. runAgentTurn throws on
+    // abort and takes its text and trace with it.
+    const partialTrace = [];
+    let partialText = "";
+    let result;
+    try {
+      result = await runAgentTurn({
+        p: agentProject, agent, modelId, system,
+        prompt: `${transcript}\n\n---\n${directive}`,
+        previousMessages: [],
+        // The owner's image rides on this turn for every speaker answering it, so
+        // a vision model actually sees what was sent (not just the "[image
+        // attached]" marker already folded into the transcript text).
+        attachments,
+        channel: CHANNELS.WEB,
+        // NOT the web channel's budget, even though the channel above says web:
+        // that string picks the channel PROMPT, and a room fans one owner message
+        // out into up to MAX_TURNS_PER_MESSAGE of these runs. See GROUP_TOOL_ITERS.
+        maxIters: groupToolIters(cfg),
+        tools: true,
+        projects, plugins, registries, config: cfg,
+        signal,
+        onEvent: (ev) => {
+          if (ev?.type === "tool_result" && ev.trace) partialTrace.push(ev.trace);
+          onEvent(ev);
+        },
+        onToken: (chunk) => { partialText += chunk; onEvent({ type: "speaker_delta", slug, delta: chunk }); },
+      });
+    } catch (e) {
+      if (!wasAbortedBySignal(e, signal)) throw e;
+      // The owner stopped the room mid-reply. Whatever streamed is real work they
+      // watched happen, so it stays in the transcript with the tool rows that
+      // really ran — the next owner message reads this as history, exactly as the
+      // 1:1 chat does with an interrupted turn. Returning "" parses no mentions,
+      // and the resolver's own signal check stops the queue behind us.
+      const partial = partialText.trim();
+      if (partial || partialTrace.length) {
+        appendGroupAgentMessage(p.logMessage, gid, {
+          slug, body: partial,
+          reason: ctx.byOwner ? null : ctx.reason,
+          model: modelId, trace: partialTrace,
+        });
+      }
+      onEvent({ type: "speaker_aborted", slug, text: partial });
+      return "";
+    }
 
     const reply = (result.text || "").trim() || "…";
     appendGroupAgentMessage(p.logMessage, gid, {
@@ -175,7 +212,7 @@ export async function runGroupTurn({ p, gid, text, attachments = [], media = nul
     return reply;
   };
 
-  await resolveGroupTurn({ text, participants, runAgent, resume });
+  await resolveGroupTurn({ text, participants, runAgent, resume, signal });
   onEvent({ type: "done" });
   return { messages: said };
 }

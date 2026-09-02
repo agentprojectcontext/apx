@@ -8,21 +8,10 @@
 // message — so the partial has to survive into the thread, and the client has
 // to be able to tell "you stopped this" apart from "this broke".
 
-/**
- * Was this throw the abort we asked for, rather than a real failure?
- *
- * Checked against OUR controller, not just the error: an engine that aborts its
- * own fetch on a timeout also throws AbortError, and treating that as "the user
- * stopped it" would swallow a genuine failure and show the user a turn they
- * never interrupted.
- *
- * @param {unknown} e the thrown value
- * @param {AbortController} controller the turn's own controller
- */
-export function wasAborted(e, controller) {
-  if (!controller?.signal?.aborted) return false;
-  return e?.name === "AbortError" || /abort/i.test(String(e?.message || ""));
-}
+// `wasAborted` moved to core when the group cascade needed the same test and
+// core/ cannot import from host/ (rule 8). Re-exported here because this module
+// is where every route already asks the question.
+export { wasAborted } from "#core/agent/abort.js";
 
 /**
  * The terminal stream event for an interrupted turn. Deliberately NOT `error`:

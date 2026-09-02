@@ -18,19 +18,28 @@
 //   project agent  → { conversation_id }
 //   super-agent    → { channel }   (its thread IS the channel; see
 //                                   superAgentTurnKey)
+//   group room     → { channel: "group", thread_id }
+//
+// The third form is the general one: a channel that holds MANY threads needs to
+// say which. A group is the case that has it — one project runs any number of
+// rooms at once, so `channel` alone would stop whichever of them the map
+// happened to hold. A cascade is also the turn most worth stopping, since a
+// single owner line can fan out into ten full tool loops.
 import { asyncRoute } from "./shared.js";
-import { abortActiveTurn, convTurnKey, superAgentTurnKey } from "../active-turns.js";
+import { abortActiveTurn, convTurnKey, superAgentTurnKey, threadTurnKey } from "../active-turns.js";
 
 export function register(api, { project }) {
   api.post("/projects/:pid/turns/abort", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
-    const { conversation_id: conversationId, channel } = req.body || {};
+    const { conversation_id: conversationId, channel, thread_id: threadId } = req.body || {};
     if (!conversationId && !channel) {
       return res.status(400).json({ error: "conversation_id or channel required" });
     }
     const key = conversationId
       ? convTurnKey(p.id, conversationId)
+      : threadId
+      ? threadTurnKey(p.id, channel, threadId)
       : superAgentTurnKey(p.id, channel);
     // `false` is not an error: the turn may have finished a moment before the
     // click landed, and a client that interrupts by sending should carry on and
