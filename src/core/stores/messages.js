@@ -610,7 +610,11 @@ export function deleteA2AThread(projectRoot, id) {
 // every message tags its `meta.group_id`. Owner turns are `type:"user"` (so the
 // viewer puts them on the right); agent turns are `type:"agent"` attributed to
 // the speaker; control rows (`meta.kind`) never render.
-const GROUP_CHANNEL = "group";
+//
+// The channel name is exported because the daemon addresses a live group turn by
+// it too (active-turns keys a turn as project+channel+thread), and a second
+// literal is how the ledger and the live-turn registry drift apart.
+export const GROUP_CHANNEL = "group";
 
 function newGroupId() {
   // base36 time + a little entropy → short, URL-safe, and collision-proof for

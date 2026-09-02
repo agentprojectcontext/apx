@@ -17,6 +17,35 @@ let seq = 0;
 const byId = new Map();  // turnId -> record
 const byKey = new Map(); // key -> turnId  (the latest turn on that conversation)
 
+/** Public client shape. Abort hooks and internal keys never leave this module. */
+function publicTurn(rec) {
+  if (!rec) return null;
+  return {
+    turn_id: rec.id,
+    text: rec.text,
+    project_id: rec.project_id ?? null,
+    agent_slug: rec.agent_slug,
+    conversation_id: rec.conversation_id,
+    channel: rec.channel,
+    thread_id: rec.thread_id,
+    model: rec.model,
+    started_at: rec.started_at,
+    // The text alone is not enough to re-open a multi-step turn: it loses the
+    // actual tools and makes a still-working turn look idle. Keep the compact,
+    // render-ready timeline alongside it; abort hooks and private keys remain
+    // inside this module.
+    ...(rec.parts?.length
+      ? {
+          parts: rec.parts.map((part) => {
+            const copy = { ...part };
+            if (copy.streaming === false) delete copy.streaming;
+            return copy;
+          }),
+        }
+      : {}),
+  };
+}
+
 /** Key for a project-agent conversation turn. */
 export function convTurnKey(projectId, conversationId) {
   return `${projectId}:conv:${conversationId}`;
@@ -38,16 +67,74 @@ export function superAgentTurnKey(projectId, channel) {
  *  and to abortActiveTurn. */
 export function startActiveTurn(key, meta = {}) {
   const id = `turn_${Date.now().toString(36)}_${++seq}`;
-  const rec = { id, key, text: "", started_at: new Date().toISOString(), ...meta };
+  const rec = { id, key, text: "", started_at: new Date().toISOString(), ...meta, parts: [] };
   byId.set(id, rec);
   byKey.set(key, id);
   return rec;
 }
 
+function syncText(rec) {
+  rec.text = rec.parts
+    .filter((part) => part.kind === "text")
+    .map((part) => part.text || "")
+    .join("");
+}
+
 /** Grow the accumulated text as tokens arrive. */
 export function appendActiveTurn(id, delta) {
   const rec = byId.get(id);
-  if (rec && delta) rec.text += delta;
+  if (!rec || !delta) return;
+  const last = rec.parts.at(-1);
+  if (last?.kind === "text" && last.streaming) last.text += delta;
+  else rec.parts.push({ kind: "text", text: delta, streaming: true });
+  syncText(rec);
+}
+
+/** Record the visible work timeline of a live turn. This is deliberately a
+ * small transport shape: text segments plus tool starts/results, never hidden
+ * reasoning or the abort hook. A refresh can therefore show the same tools the
+ * original pane was watching. */
+export function recordActiveTurnEvent(id, event) {
+  const rec = byId.get(id);
+  if (!rec || !event) return;
+  if (event.type === "assistant_text" && event.text) {
+    const last = rec.parts.at(-1);
+    if (last?.kind === "text" && last.streaming) {
+      last.text = event.text;
+      last.streaming = false;
+    } else {
+      rec.parts.push({ kind: "text", text: event.text });
+    }
+    syncText(rec);
+    return;
+  }
+  if (event.type === "tool_start" && event.trace?.id) {
+    rec.parts.push({
+      kind: "tool",
+      id: event.trace.id,
+      tool: event.trace.tool || "tool",
+      args: event.trace.args,
+      status: "running",
+    });
+    return;
+  }
+  if (event.type === "tool_result" && event.trace?.id) {
+    const failed = !!event.trace.result && typeof event.trace.result === "object" && !!event.trace.result.error;
+    const part = rec.parts.findLast((item) => item.kind === "tool" && item.id === event.trace.id);
+    if (part) {
+      part.result = event.trace.result;
+      part.status = failed ? "error" : "done";
+    } else {
+      rec.parts.push({
+        kind: "tool",
+        id: event.trace.id,
+        tool: event.trace.tool || "tool",
+        args: event.trace.args,
+        result: event.trace.result,
+        status: failed ? "error" : "done",
+      });
+    }
+  }
 }
 
 /** Stop tracking. Idempotent — the finally block and an error path both call it. */
@@ -88,6 +175,14 @@ export function abortActiveTurn(key) {
 export function getActiveTurnByKey(key) {
   const id = byKey.get(key);
   const rec = id ? byId.get(id) : null;
-  if (!rec) return null;
-  return { turn_id: rec.id, text: rec.text, agent_slug: rec.agent_slug, model: rec.model, started_at: rec.started_at };
+  return publicTurn(rec);
+}
+
+/** Every live turn, optionally scoped to one project. Used by aggregate list
+ *  surfaces (Inbox / Chats) so they all render the same daemon-owned status. */
+export function listActiveTurns({ projectId } = {}) {
+  const want = projectId === undefined || projectId === null ? null : String(projectId);
+  return [...byId.values()]
+    .filter((rec) => want === null || String(rec.project_id) === want)
+    .map(publicTurn);
 }

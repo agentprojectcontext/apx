@@ -36,12 +36,19 @@ type GroupAgentStreamEvent = ChatStreamEvent & {
 // NDJSON events streamed while a group turn runs. Bodies are re-read from the
 // thread afterward; these drive live speaker attribution + token streaming.
 export type GroupStreamEvent =
+  // The cascade names itself before it does any work, so it can be stopped from
+  // the first token instead of only once it is over.
+  | { type: "start"; turn_id: string; channel: "group"; thread_id: string }
   | { type: "owner_message" }
   | { type: "speaker_start"; slug: string; reason?: string | null }
   | { type: "speaker_delta"; slug: string; delta: string }
   | { type: "speaker_final"; slug: string; model?: string; usage?: ChatUsage }
+  // One speaker was cut off by Stop; its partial is already in the thread.
+  | { type: "speaker_aborted"; slug: string; text: string }
   | { type: "done" }
   | { type: "final" }
+  // The room was stopped. Not an error — see api/turn-abort.js.
+  | { type: "aborted" }
   | { type: "error"; error: string }
   | GroupAgentStreamEvent;
 

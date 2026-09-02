@@ -35,6 +35,37 @@ export const ROUTINE_UNCAPPED_TOOL_ITERS = 1000;
 // backstop — not a normal stopping point.
 // Overridable per-deployment via config.super_agent.web_max_iters.
 export const WEB_TOOL_ITERS = ROUTINE_UNCAPPED_TOOL_ITERS;
+// A GROUP speaker gets its own number, and this is the one place that says why.
+// A group turn runs the same loop on the same watched surface as the web chat —
+// it streams live and, since the cascade registers in active-turns, Stop reaches
+// it — so by the surface rule above it would inherit WEB_TOOL_ITERS. It used to,
+// by accident: run-group-turn.js passes `channel: WEB` (for the channel PROMPT)
+// and the budget fell out of that string.
+//
+// What the surface rule does not model is the CASCADE. One owner line can
+// produce up to MAX_TURNS_PER_MESSAGE (10, group/turn-resolver.js) agent
+// replies, each a full loop run, so handing every speaker the 1:1 ceiling makes
+// one message worth ten of them — 10x whatever number is written down, which is
+// not a ceiling anybody chose. Same failure the judge rounds had, and the same
+// answer: the budget belongs to the OWNER'S turn, and the runs it fans out into
+// have to fit inside it.
+//
+// So: generous enough for genuine multi-step work (5x the conversational
+// default — a speaker asked to go look something up has real room), small
+// enough that ten of them is still a number picked on purpose. The invariant
+// that keeps it honest, asserted in tests/web-iter-budget.test.js:
+//
+//   GROUP_TOOL_ITERS * MAX_TURNS_PER_MESSAGE <= WEB_TOOL_ITERS
+//
+// — one owner message in a room can never cost more than one owner message in a
+// 1:1 web chat. Raise either factor and that test says so.
+//
+// Exhausting it is not a dead end: the last iteration is the tool-free wrap-up,
+// so the speaker closes with how far it got and the room carries on. A group is
+// a conversation; solo work that genuinely needs hundreds of steps belongs in
+// that agent's own chat, which has the ceiling for it.
+// Overridable per-deployment via config.super_agent.group_max_iters.
+export const GROUP_TOOL_ITERS = 50;
 // ONE TURN, ONE BUDGET. Every number above is the budget for a TURN, not for
 // one pass of the tool loop — and a turn can run the loop more than once, when
 // the completion judge sends it back to finish something (agent/judge.js). Those
@@ -80,6 +111,18 @@ export function channelToolIters(config, channel) {
   if (!RUN_TO_COMPLETION_CHANNELS.has(channel)) return null;
   const raw = Number(config?.super_agent?.web_max_iters);
   return Number.isFinite(raw) && raw > 0 ? raw : WEB_TOOL_ITERS;
+}
+
+/**
+ * Tool-loop budget for ONE speaker in a group cascade. Passed as an explicit
+ * `maxIters` by run-group-turn.js rather than resolved from the channel: the
+ * group turn runs on `channel: WEB` so the agent gets the web channel prompt,
+ * and `channelToolIters` must keep meaning what it means for a 1:1 web chat.
+ * See GROUP_TOOL_ITERS for why a room is not simply a watched chat.
+ */
+export function groupToolIters(config) {
+  const raw = Number(config?.super_agent?.group_max_iters);
+  return Number.isFinite(raw) && raw > 0 ? raw : GROUP_TOOL_ITERS;
 }
 // Defined in tools/names.js, next to the names they reference.
 export { ACK_ONLY_TOOLS, TURN_ENDING_TOOLS } from "./tools/names.js";

@@ -8,13 +8,21 @@
 //   POST /projects/:pid/groups                     create { title, participants } → { id }
 //   POST /projects/:pid/groups/:gid/participants   add an agent { slug }
 //   POST /projects/:pid/groups/:gid/message/stream owner speaks → NDJSON cascade
+//
+// The cascade registers in active-turns like every other turn, keyed as the
+// thread it is (project + channel "group" + room id), so `POST
+// /projects/:pid/turns/abort { channel: "group", thread_id }` can stop it. It
+// had no such record, which meant the one turn shape that can run ten agent
+// replies off a single line was the one nobody could interrupt.
 import { readAgents } from "#core/apc/parser.js";
 import {
   createGroupThread, addGroupParticipant, removeGroupParticipant, readProjectGroupThread, truncateGroupThread,
-  lastGroupOwnerMedia,
+  lastGroupOwnerMedia, GROUP_CHANNEL,
 } from "#core/stores/messages.js";
 import { runGroupTurn } from "#core/agent/group/run-group-turn.js";
 import { readTurnAttachments } from "./media.js";
+import { startActiveTurn, endActiveTurn, threadTurnKey } from "../active-turns.js";
+import { wasAborted } from "./turn-abort.js";
 import { asyncRoute } from "./shared.js";
 
 const KEEPALIVE_MS = 15000;
@@ -158,6 +166,22 @@ export function register(api, { projects, project, config, plugins, registries }
     keepalive.unref?.();
     res.on("close", () => clearInterval(keepalive));
 
+    // The room's kill switch. A cascade is the longest-running turn shape the
+    // daemon has — one owner line can fan out into MAX_TURNS_PER_MESSAGE full
+    // tool loops — and until this record existed the Stop button could only
+    // close the browser's socket while the room kept working and kept writing.
+    // Closing the socket deliberately does not stop the run (that is what lets
+    // another tab catch up), so stopping is asked for out loud, through
+    // POST /projects/:pid/turns/abort, which reaches `abort` here.
+    const turnAbort = new AbortController();
+    const active = startActiveTurn(threadTurnKey(p.id, GROUP_CHANNEL, req.params.gid), {
+      project_id: p.id,
+      channel: GROUP_CHANNEL,
+      thread_id: req.params.gid,
+      abort: () => turnAbort.abort(),
+    });
+    send({ type: "start", turn_id: active.id, channel: GROUP_CHANNEL, thread_id: req.params.gid });
+
     try {
       await runGroupTurn({
         p, gid: req.params.gid, text: turnPrompt, rerun: !!rerun,
@@ -165,16 +189,27 @@ export function register(api, { projects, project, config, plugins, registries }
         reason: typeof reason === "string" && reason.trim() ? reason.trim() : null,
         attachments: turnFiles.attachments, media: turnFiles.media,
         ownerName: ownerName(config), config, projects, plugins, registries,
+        signal: turnAbort.signal,
         onEvent: send,
       });
       try { projects.rebuild(p.id); } catch { /* best-effort */ }
-      send({ type: "final" });
+      // Stopped, not broken. runGroupTurn persists the interrupted speaker's
+      // partial and returns normally, so the room is consistent either way; the
+      // client only needs to know which of the two happened. `aborted` rather
+      // than `error` for the same reason the 1:1 stream draws the line there —
+      // a client that paints errors red must not accuse the daemon of breaking
+      // every time the owner presses Stop.
+      const stopped = turnAbort.signal.aborted;
+      send(stopped ? { type: "aborted" } : { type: "final" });
       clearInterval(keepalive);
       res.end();
     } catch (e) {
-      send({ type: "error", error: e.message });
+      try { projects.rebuild(p.id); } catch { /* best-effort */ }
+      send(wasAborted(e, turnAbort) ? { type: "aborted" } : { type: "error", error: e.message });
       clearInterval(keepalive);
       res.end();
+    } finally {
+      endActiveTurn(active.id);
     }
   }));
 }
