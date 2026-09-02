@@ -167,6 +167,12 @@ export function recordMobilityAlert(alert, now = Date.now()) {
   return record;
 }
 
+/** Every recorded alert, newest last. Read-only copies. */
+export function listMobilityAlerts() {
+  ensureLoaded();
+  return alerts.map((alert) => ({ ...alert }));
+}
+
 export function getMobilityAlert(id) {
   ensureLoaded();
   const found = alerts.find((alert) => alert.id === id);

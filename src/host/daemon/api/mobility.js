@@ -3,9 +3,23 @@ import {
   dispatchMobilityEvent,
   dispatchMobilityPosition,
 } from "#core/mobility/trip-event.js";
-import { acceptMobilityPosition } from "#core/mobility/geofence.js";
+import { acceptMobilityPosition, tripPlaces } from "#core/mobility/geofence.js";
+import { mobilityContext } from "#core/mobility/state.js";
 
 export function register(api, ctx) {
+  // What the phone's trip banner shows when it is tapped: the current trip and
+  // the errands APX is watching for on it. Read-only and deliberately separate
+  // from the alert path — a driver looking at the list is not being
+  // interrupted by it, so nothing here fires a reminder or spends a one-shot.
+  api.get("/mobility/trip", (req, res) => {
+    const state = mobilityContext();
+    const trip = state.trip?.active ? state.trip : null;
+    res.json({
+      trip,
+      places: trip ? tripPlaces(trip.trip_id) : [],
+    });
+  });
+
   api.post("/mobility/events", (req, res) => {
     let event;
     try {

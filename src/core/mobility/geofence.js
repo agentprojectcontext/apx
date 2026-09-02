@@ -15,7 +15,7 @@
 // not a licence to try the same reminder again two seconds later.
 import { t } from "#core/i18n/index.js";
 import { activeTasks, haversineMeters, nearbyPois, taskNeeds } from "./osm-route.js";
-import { mobilityAlertFired } from "./state.js";
+import { listMobilityAlerts, mobilityAlertFired } from "./state.js";
 
 // 2 km. The owner asked to hear about a place "at one or two kilometres" —
 // far enough to still change lanes for it, close enough that it is genuinely
@@ -28,9 +28,20 @@ export const PROXIMITY_RADIUS_M = 2_000;
 // sample into a Nominatim request.
 const RETARGET_DISTANCE_M = 8_000;
 
+// …but the ERRANDS do move. A task added from the phone while already driving
+// was invisible for the rest of the trip, because distance alone never expired
+// a set that was searched before the task existed. Ten minutes bounds a long
+// drive to a handful of searches and still notices a list that changed.
+const RETARGET_AFTER_MS = 10 * 60_000;
+
 // ~13 km around the current position. Nominatim needs a box with area, and a
 // box built from a single point has none — see boundingBox()'s padDegrees.
 const SEARCH_PAD_DEGREES = 0.12;
+
+// A city search can match thirty shops. The banner's list is "what is near me
+// on this drive", not a directory — past the nearest handful nobody is
+// detouring, and a long list is unreadable at a red light.
+const MAX_LISTED_PLACES = 8;
 
 // Per-trip targets, held in memory. Deliberately NOT persisted: they are a
 // derived cache (rebuilt from tasks + a place search in one call), while the
@@ -117,11 +128,11 @@ export async function buildTripTargets(position, ctx, fetchFn = fetch) {
  * travel. A search failure caches an empty set on purpose: the alternative is
  * retrying a dead endpoint on every GPS sample for the rest of the drive.
  */
-export async function ensureTripTargets(position, ctx, fetchFn = fetch) {
+export async function ensureTripTargets(position, ctx, fetchFn = fetch, now = Date.now()) {
   const cached = armed.get(position.trip_id);
-  if (cached && haversineMeters(cached.searchedAt, position) < RETARGET_DISTANCE_M) {
-    return cached.targets;
-  }
+  const nearby = cached && haversineMeters(cached.searchedAt, position) < RETARGET_DISTANCE_M;
+  const fresh = cached && now - cached.searchedAtMs < RETARGET_AFTER_MS;
+  if (nearby && fresh) return cached.targets;
   let targets = [];
   try {
     targets = await buildTripTargets(position, ctx, fetchFn);
@@ -131,9 +142,46 @@ export async function ensureTripTargets(position, ctx, fetchFn = fetch) {
   }
   armed.set(position.trip_id, {
     searchedAt: { latitude: position.latitude, longitude: position.longitude },
+    searchedAtMs: now,
+    lastPosition: cached?.lastPosition || null,
     targets,
   });
   return targets;
+}
+
+/**
+ * Everything this trip is watching, for a surface that wants to SHOW it rather
+ * than be interrupted by it — the phone's trip banner. Distances are measured
+ * from the newest sample, and each row says whether the owner has already been
+ * asked about that errand and what they answered, so the list reads as state
+ * and not as a second round of reminders.
+ */
+export function tripPlaces(tripId) {
+  const entry = armed.get(tripId);
+  if (!entry?.targets?.length) return [];
+  const from = entry.lastPosition || entry.searchedAt;
+  const answers = new Map(
+    listMobilityAlerts()
+      .filter((alert) => alert.trip_id === tripId)
+      .map((alert) => [alert.task_id, alert])
+  );
+  return entry.targets
+    .map((target) => {
+      const alert = answers.get(target.task_id);
+      return {
+        task_id: target.task_id,
+        task: target.task,
+        place: target.place,
+        latitude: target.latitude,
+        longitude: target.longitude,
+        distance_m: Math.round(haversineMeters(from, target)),
+        maps_url: navigateUrl(target),
+        alerted: Boolean(alert),
+        answer: alert?.answer || null,
+      };
+    })
+    .sort((a, b) => a.distance_m - b.distance_m)
+    .slice(0, MAX_LISTED_PLACES);
 }
 
 /**
@@ -145,6 +193,10 @@ export async function ensureTripTargets(position, ctx, fetchFn = fetch) {
  */
 export async function evaluateMobilityPosition(position, ctx, fetchFn = fetch) {
   const targets = await ensureTripTargets(position, ctx, fetchFn);
+  // Kept so tripPlaces() can answer "how far is it from here?" rather than
+  // "how far was it when the search ran".
+  const entry = armed.get(position.trip_id);
+  if (entry) entry.lastPosition = { latitude: position.latitude, longitude: position.longitude };
   const nearestPerTask = new Map();
   for (const target of targets) {
     if (mobilityAlertFired(position.trip_id, target.task_id)) continue;

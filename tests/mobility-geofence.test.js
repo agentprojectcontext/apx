@@ -19,6 +19,7 @@ const {
   PROXIMITY_RADIUS_M,
   _resetMobilityGeofencesForTest,
   acceptMobilityPosition,
+  ensureTripTargets,
   addToRouteUrl,
   evaluateMobilityPosition,
   followupKeyboard,
@@ -235,4 +236,27 @@ test("only a yes earns a follow-up, and answering it closes the loop", async () 
   updateMobilityAlert(stored.id, { followup_at: new Date().toISOString() });
   assert.deepEqual(pendingMobilityFollowups("trip-f"), []);
   assert.equal(getMobilityAlert(stored.id).answer, "go");
+});
+
+test("an errand added mid-drive is picked up without driving eight kilometres", async () => {
+  // The place cache is keyed on how far you have travelled, which is right for
+  // places and wrong for tasks: a "buy ibuprofen" added from the phone at a red
+  // light was invisible for the rest of the trip, because the empty set had
+  // already been cached before the task existed.
+  const position = acceptMobilityPosition({ trip_id: "trip-late", ...DRIVING_AT });
+  const search = fakeSearch([{ query: "farmacia", name: "Farmacia Ejemplo", ...PHARMACY }]);
+
+  assert.deepEqual(await ensureTripTargets(position, ctx, search), [], "nothing pending yet");
+
+  givenTask("Comprar ibuprofeno en la farmacia");
+  assert.deepEqual(
+    await ensureTripTargets(position, ctx, search),
+    [],
+    "same minute, same place: the cache still stands"
+  );
+
+  const elevenMinutesLater = Date.now() + 11 * 60_000;
+  const targets = await ensureTripTargets(position, ctx, search, elevenMinutesLater);
+  assert.equal(targets.length, 1);
+  assert.equal(targets[0].place, "Farmacia Ejemplo");
 });
