@@ -189,6 +189,15 @@ socket caído tiene que recuperarse en segundos.
   el inicio y el fin del viaje con el teléfono en el bolsillo. La fila del menú
   muestra el estado actual, y una vez que APX está exento la misma fila abre la
   lista del sistema, que es donde se revierte.
+- También decide si el **seguimiento por GPS puede arrancar solo**. La ubicación
+  es un permiso de "mientras se usa", así que otorgarlo no alcanza: Android
+  además exige que la app esté en un "estado elegible" para levantar un servicio
+  en primer plano de tipo ubicación, y el listener de notificaciones que detecta
+  el viaje corre en segundo plano. Sin la excepción ese arranque se rechaza, APX
+  lo registra y sigue: el daemon igual se entera de que el viaje empezó, pero no
+  hay flujo de posiciones y por lo tanto no hay avisos de cercanía hasta que
+  abrís APX, lo que vuelve elegible a la app y reintenta. Con la excepción, el
+  seguimiento arranca por sí solo.
 
 ## El plan del viaje: cuántas búsquedas cuesta manejar
 

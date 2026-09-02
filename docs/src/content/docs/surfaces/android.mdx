@@ -191,6 +191,14 @@ dropped socket has to be repaired in seconds.
   end of a trip while the phone is in a pocket. The menu row shows the current
   state, and once APX is exempt the same row opens the system list, which is
   where the exemption is taken back.
+- It also decides whether **GPS tracking can start on its own**. Location is a
+  while-in-use permission, so granting it is not enough — Android additionally
+  requires the app to be in an "eligible state" to start a location-typed
+  foreground service, and the notification listener that detects a trip runs in
+  the background. Without the exemption that start is refused, APX logs it and
+  carries on: the daemon still learns the trip began, but there is no position
+  stream and therefore no proximity reminders until you open APX, which makes
+  the app eligible and retries. With the exemption, tracking starts by itself.
 
 ## The trip plan: how many searches a drive costs
 
