@@ -91,6 +91,7 @@ export function buildApi({
   token,
   tokenStore,
   mobilityDispatch,
+  mobilityPositionDispatch,
   log,
 }) {
   const telegram = plugins?.get("telegram");
@@ -147,6 +148,7 @@ export function buildApi({
     token,
     tokenStore,
     mobilityDispatch,
+    mobilityPositionDispatch,
   };
 
   // ---- Tool routers — must mount BEFORE wildcard registry below ----

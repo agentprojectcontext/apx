@@ -57,6 +57,23 @@ apx voice listen --provider <id>                 # override STT provider
 
 Playback uses system binaries (`afplay`, `paplay`, `aplay`, `play`, `ffplay`). If none found, you get the file path and no playback.
 
+## Spoken replies while driving
+
+When the daemon knows a trip is in progress (Android reports it — see
+`rules/android.md`), every automatic Telegram reply goes out twice: a voice note
+first, then the same words as text under a transcript header. The turn itself
+runs in voice mode, so the reply is one or two spoken sentences rather than a
+paragraph read aloud.
+
+The audio is OGG/Opus — the only container Telegram renders as a voice note —
+converted from whatever the engine returned via `ffmpeg`. A failing engine or a
+missing `ffmpeg` costs the audio, never the message: it falls back to plain
+text. The `mock` engine is silence, not speech, and is refused.
+
+```bash
+apx config set --global voice.mobility_replies false   # keep replies text-only in the car
+```
+
 ## Configuration
 
 `~/.apx/config.json → voice.tts.<engine>`:

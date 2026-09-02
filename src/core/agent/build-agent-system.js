@@ -15,6 +15,7 @@ import {
   PROMPTS,
   buildChannelContextBlock,
   buildVoiceModeBlock,
+  buildMobilityModeBlock,
   buildRelationshipBlock,
   buildUserContextBlock,
   buildSegmentDiscipline,
@@ -99,6 +100,7 @@ export function buildAgentSystem(project, agent, {
   // agents talk through the same surfaces; they need the same formatting rules.
   const channelBlock = buildChannelContextBlock(channel, channelMeta);
   const voiceBlock = buildVoiceModeBlock(voice);
+  const mobilityBlock = buildMobilityModeBlock(!!channelMeta?.mobility);
   const segmentDiscipline = buildSegmentDiscipline({ channel: channelLow, voice });
 
   // Relationship block — "you're talking to <owner>" / "<contact>" / "<guest>".
@@ -145,6 +147,7 @@ export function buildAgentSystem(project, agent, {
     projectSkills,
     ...extraParts.filter(Boolean),
     voiceBlock,
+    mobilityBlock,
     PROMPTS.ACTION_DISCIPLINE,
     segmentDiscipline,
   ]

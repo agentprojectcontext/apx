@@ -29,6 +29,12 @@ public final class MapsNavigationListenerService extends NotificationListenerSer
     private ApxPreferences preferences;
     private long lastNavigationSignalElapsedMs;
     private boolean daemonNotificationPending;
+    // The two independent reasons APX believes the owner is driving. They
+    // start and stop on their own schedules — a route can finish with the
+    // phone still docked, and the cable can come out mid-route — so the trip
+    // only ends when both are false.
+    private boolean mapsNavigating;
+    private boolean autoConnected;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final Runnable verifyEnded = this::refreshFromActiveNotifications;
     private final Runnable verifySignalFreshness = () -> {
@@ -93,6 +99,13 @@ public final class MapsNavigationListenerService extends NotificationListenerSer
 
     @Override
     public void onNotificationPosted(StatusBarNotification item) {
+        if (AndroidAutoDetector.isAutoPackage(item.getPackageName())) {
+            // Android Auto replaces its own notification as the session
+            // changes state, so a single posted notification is never enough
+            // to conclude it disconnected — re-read what is actually on screen.
+            refreshFromActiveNotifications();
+            return;
+        }
         if (!matchesActiveRoute(item)) {
             if (MapsNavigationDetector.MAPS_PACKAGE.equals(item.getPackageName())
                 && preferences.travelActive()) {
@@ -110,7 +123,8 @@ public final class MapsNavigationListenerService extends NotificationListenerSer
 
     @Override
     public void onNotificationRemoved(StatusBarNotification item) {
-        if (!MapsNavigationDetector.MAPS_PACKAGE.equals(item.getPackageName())) return;
+        boolean auto = AndroidAutoDetector.isAutoPackage(item.getPackageName());
+        if (!auto && !MapsNavigationDetector.MAPS_PACKAGE.equals(item.getPackageName())) return;
         main.removeCallbacks(verifyEnded);
         main.postDelayed(verifyEnded, REMOVAL_DEBOUNCE_MS);
     }
@@ -120,6 +134,8 @@ public final class MapsNavigationListenerService extends NotificationListenerSer
         main.removeCallbacks(verifyEnded);
         main.removeCallbacks(verifySignalFreshness);
         lastNavigationSignalElapsedMs = 0L;
+        mapsNavigating = false;
+        autoConnected = false;
         setTravelActive(false, "");
         super.onListenerDisconnected();
     }
@@ -138,18 +154,89 @@ public final class MapsNavigationListenerService extends NotificationListenerSer
             Log.w(TAG, "Could not inspect active notifications", unavailable);
             return;
         }
+        StatusBarNotification route = null;
+        long routeAgeMs = 0L;
+        boolean projecting = false;
         if (active != null) {
             for (StatusBarNotification item : active) {
-                if (matchesActiveRoute(item)) {
-                    long age = Math.max(0L, System.currentTimeMillis() - item.getPostTime());
-                    if (age >= NAVIGATION_SIGNAL_TIMEOUT_MS) continue;
-                    lastNavigationSignalElapsedMs = SystemClock.elapsedRealtime() - age;
-                    scheduleFreshnessCheck(NAVIGATION_SIGNAL_TIMEOUT_MS - age);
-                    observeNavigation(destination(item));
-                    scheduleRoutePoll();
-                    return;
+                if (matchesProjection(item)) {
+                    projecting = true;
+                    continue;
                 }
+                if (route != null || !matchesActiveRoute(item)) continue;
+                long age = Math.max(0L, System.currentTimeMillis() - item.getPostTime());
+                if (age >= NAVIGATION_SIGNAL_TIMEOUT_MS) continue;
+                route = item;
+                routeAgeMs = age;
             }
+        }
+        // Order matters: record the car BEFORE deciding what to do about the
+        // route, so a route that just ended can hand the trip over to Android
+        // Auto instead of closing a drive that is still happening.
+        observeProjection(projecting);
+        if (route != null) {
+            lastNavigationSignalElapsedMs = SystemClock.elapsedRealtime() - routeAgeMs;
+            scheduleFreshnessCheck(NAVIGATION_SIGNAL_TIMEOUT_MS - routeAgeMs);
+            observeNavigation(destination(route));
+            scheduleRoutePoll();
+            return;
+        }
+        endMapsNavigation();
+    }
+
+    private boolean matchesProjection(StatusBarNotification item) {
+        Notification notification = item.getNotification();
+        Bundle extras = notification.extras == null ? Bundle.EMPTY : notification.extras;
+        // Either flag counts — see isProjectionActive: the real session
+        // notification carries FOREGROUND_SERVICE without ONGOING_EVENT.
+        int persistentFlags = Notification.FLAG_ONGOING_EVENT | Notification.FLAG_FOREGROUND_SERVICE;
+        return AndroidAutoDetector.isProjectionActive(
+            item.getPackageName(),
+            (notification.flags & persistentFlags) != 0,
+            extras.getCharSequence(Notification.EXTRA_TITLE),
+            extras.getCharSequence(Notification.EXTRA_TEXT)
+        );
+    }
+
+    /**
+     * The car came or went. Connecting opens a trip on its own — the owner is
+     * driving whether or not they asked Maps for a route — and disconnecting
+     * closes one only when no route is still running.
+     */
+    private void observeProjection(boolean projecting) {
+        if (autoConnected == projecting) return;
+        autoConnected = projecting;
+        if (projecting) {
+            Log.i(TAG, "Android Auto session detected");
+            if (!preferences.travelActive()) setTravelActive(true, "", ApxPreferences.SOURCE_ANDROID_AUTO);
+            return;
+        }
+        Log.i(TAG, "Android Auto session ended");
+        if (!mapsNavigating) setTravelActive(false, "");
+    }
+
+    /**
+     * Maps has no active route any more. That ends the trip only when the
+     * phone is not still plugged into the car; otherwise the same drive
+     * continues under the other source, keeping its trip id so the daemon
+     * does not see two journeys where there was one.
+     */
+    private void endMapsNavigation() {
+        boolean wasNavigating = mapsNavigating;
+        mapsNavigating = false;
+        if (autoConnected && preferences.travelActive()) {
+            // Only when a route was actually running: this runs on every poll,
+            // and re-announcing a hand-over that already happened turns the
+            // log into noise exactly where it needs to be readable.
+            if (!wasNavigating || ApxPreferences.SOURCE_ANDROID_AUTO.equals(preferences.travelSource())) return;
+            preferences.setTravelState(
+                true,
+                preferences.travelDestination(),
+                preferences.travelTripId(),
+                ApxPreferences.SOURCE_ANDROID_AUTO
+            );
+            Log.i(TAG, "Maps route ended; the Android Auto session keeps the trip open");
+            return;
         }
         setTravelActive(false, "");
     }
@@ -214,19 +301,25 @@ public final class MapsNavigationListenerService extends NotificationListenerSer
     }
 
     private void observeNavigation(String destination) {
+        mapsNavigating = true;
         if (destination == null || destination.isBlank()) {
             if (!preferences.travelActive()) {
-                setTravelActive(true, "");
+                setTravelActive(true, "", ApxPreferences.SOURCE_MAPS);
             } else if (preferences.travelDestination().isBlank() && !preferences.travelEventSent()) {
                 scheduleDaemonNotification(notificationDelay(""), false);
             }
             Log.i(TAG, "Google Maps navigation active; sharing location without inventing destination");
             return;
         }
-        setTravelActive(true, destination);
+        setTravelActive(true, destination, ApxPreferences.SOURCE_MAPS);
     }
 
+    /** Ending a trip has no source; starting one always does. */
     private void setTravelActive(boolean active, String destination) {
+        setTravelActive(active, destination, active ? ApxPreferences.SOURCE_MAPS : "");
+    }
+
+    private void setTravelActive(boolean active, String destination, String source) {
         boolean wasActive = preferences.travelActive();
         String previousDestination = preferences.travelDestination();
         String previousTripId = preferences.travelTripId();
@@ -244,7 +337,12 @@ public final class MapsNavigationListenerService extends NotificationListenerSer
                 ? previousTripId
                 : java.util.UUID.randomUUID().toString()
             : "";
-        preferences.setTravelState(active, resolvedDestination, tripId);
+        preferences.setTravelState(active, resolvedDestination, tripId, source);
+        // GPS follows the trip, not the notification: started here so both
+        // sources get tracking, stopped below so neither leaks a foreground
+        // service past the drive.
+        if (active) TripLocationService.start(this, tripId);
+        else TripLocationService.stop(this);
         if (active) {
             DaemonClient.notifyTripContext(
                 preferences.daemonUrl(),
@@ -296,7 +394,7 @@ public final class MapsNavigationListenerService extends NotificationListenerSer
             scheduleDaemonNotification(notificationDelay(resolvedDestination), true);
             Log.i(TAG, "Google Maps destination changed; APX started a new trip");
         } else if (!wasActive) {
-            Log.i(TAG, "Google Maps navigation started");
+            Log.i(TAG, "Trip started (source: " + (source.isBlank() ? "unknown" : source) + ")");
             preferences.setTravelEventSent(false);
             scheduleDaemonNotification(notificationDelay(resolvedDestination), true);
         } else if (destinationResolved) {

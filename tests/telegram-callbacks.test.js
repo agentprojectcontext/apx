@@ -20,8 +20,25 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { handleCallbackQuery, buttonLabelFor } from "#core/channels/telegram/ask-callbacks.js";
-import { listDeliveries, DELIVERY_STATUS } from "#core/stores/deliveries.js";
+
+// Mobility alerts persist to ~/.apx/mobility.json, so this file needs its OWN
+// APX_HOME before the state module is imported and freezes that path. HOME
+// alone is not enough — computeHome() reads APX_HOME first, and a test that
+// only moves HOME writes into the shared run sandbox and races every other
+// test that does the same (AGENTS.md rule 1). Set before the dynamic imports
+// below for the same reason: a static import would run first.
+const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "apx-tg-callbacks-"));
+process.env.APX_HOME = path.join(tmpHome, ".apx");
+process.env.HOME = tmpHome;
+process.env.USERPROFILE = tmpHome;
+
+const { handleCallbackQuery, buttonLabelFor } = await import("#core/channels/telegram/ask-callbacks.js");
+const { listDeliveries, DELIVERY_STATUS } = await import("#core/stores/deliveries.js");
+const { createTask, getTask } = await import("#core/stores/tasks.js");
+const { _resetMobilityStateForTest, getMobilityAlert, recordMobilityAlert } =
+  await import("#core/mobility/state.js");
+
+test.after(() => fs.rmSync(tmpHome, { recursive: true, force: true }));
 
 function fakePoller(storagePath = null) {
   const calls = { answers: [], keyboards: [], updates: [], logs: [], sends: [] };
@@ -34,6 +51,7 @@ function fakePoller(storagePath = null) {
     async _editKeyboard(k) { calls.keyboards.push(k); },
     async _handleUpdate(u) { calls.updates.push(u); },
     resolveProject() { return storagePath ? { id: "default", storagePath } : null; },
+    projects: { get: () => (storagePath ? { id: "default", storagePath } : null) },
     async _send(message) { calls.sends.push(message); return { message_id: 1 }; },
   };
 }
@@ -133,4 +151,61 @@ test("buttonLabelFor picks the tapped button out of the keyboard", () => {
   assert.equal(buttonLabelFor(q), "Dos");
   assert.equal(buttonLabelFor({ data: "zzz", message: q.message }), "");
   assert.equal(buttonLabelFor({}), "");
+});
+
+// ---------------------------------------------------------------------------
+// Proximity chips — the alert-scoped half of apx:mobility:*
+// ---------------------------------------------------------------------------
+
+test("a proximity yes is recorded as a promise, not acted on yet", async () => {
+  _resetMobilityStateForTest();
+  const self = fakePoller();
+  const alert = recordMobilityAlert({ trip_id: "trip-1", task_id: "t1", task: "Comprar remedios", place: "Farmacia Ejemplo" });
+  await handleCallbackQuery(self, pressOf(`apx:mobility:go:${alert.id}`));
+
+  assert.equal(getMobilityAlert(alert.id).answer, "go");
+  assert.equal(getMobilityAlert(alert.id).outcome, null, "the task is closed by the follow-up, not by the yes");
+  assert.equal(self.calls.answers.length, 1, "every press must be answered or the button spins");
+  // The fake poller carries no user language, so the ack lands in the default
+  // locale — which is the point: the label is host-emitted and localized.
+  assert.match(self.calls.answers[0].text, /you're going/i);
+  assert.equal(self.calls.keyboards.length, 1, "the dead keyboard is cleared");
+});
+
+test("a proximity no closes the alert without touching the task", async () => {
+  _resetMobilityStateForTest();
+  const storagePath = fs.mkdtempSync(path.join(os.tmpdir(), "apx-mobility-skip-"));
+  const self = fakePoller(storagePath);
+  const task = createTask(storagePath, { title: "Comprar remedios" });
+  const alert = recordMobilityAlert({ trip_id: "trip-2", task_id: task.id, project_id: "default", place: "Farmacia Ejemplo" });
+
+  await handleCallbackQuery(self, pressOf(`apx:mobility:skip:${alert.id}`));
+  assert.equal(getMobilityAlert(alert.id).outcome, "skipped");
+  assert.equal(getTask(storagePath, task.id).state, "open");
+});
+
+test("the follow-up's done button actually closes the task it was about", async () => {
+  _resetMobilityStateForTest();
+  const storagePath = fs.mkdtempSync(path.join(os.tmpdir(), "apx-mobility-done-"));
+  const self = fakePoller(storagePath);
+  const task = createTask(storagePath, { title: "Comprar remedios" });
+  const alert = recordMobilityAlert({ trip_id: "trip-3", task_id: task.id, project_id: "default", place: "Farmacia Ejemplo" });
+
+  await handleCallbackQuery(self, pressOf(`apx:mobility:done:${alert.id}`));
+  assert.equal(getTask(storagePath, task.id).state, "done");
+  assert.equal(getMobilityAlert(alert.id).outcome, "done");
+
+  // "not yet" leaves it open — the reminder was useful, the errand was not done.
+  const other = recordMobilityAlert({ trip_id: "trip-3", task_id: task.id, project_id: "default", place: "Otra Farmacia" });
+  await handleCallbackQuery(self, pressOf(`apx:mobility:open:${other.id}`));
+  assert.equal(getMobilityAlert(other.id).outcome, "still_open");
+});
+
+test("a press on an alert the daemon no longer has is answered, not ignored", async () => {
+  _resetMobilityStateForTest();
+  const self = fakePoller();
+  await handleCallbackQuery(self, pressOf("apx:mobility:go:mbgone"));
+  assert.equal(self.calls.answers.length, 1);
+  assert.equal(self.calls.keyboards.length, 1);
+  assert.match(self.calls.logs.join(" "), /mbgone is gone/);
 });

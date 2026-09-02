@@ -15,7 +15,9 @@ import { SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
 import { applyNudgeCallback } from "#core/nudge/index.js";
 import { recordDelivery } from "#core/stores/deliveries.js";
 import { silenceMobilityToday } from "#core/mobility/preferences.js";
-import { recordMobilityResponse } from "#core/mobility/state.js";
+import { getMobilityAlert, recordMobilityResponse, updateMobilityAlert } from "#core/mobility/state.js";
+import { doneTask } from "#core/stores/tasks.js";
+import { t, resolveLang } from "#core/i18n/index.js";
 
 /**
  * The label the user actually tapped, recovered from the keyboard attached to
@@ -101,8 +103,73 @@ export async function handleCallbackQuery(self, callbackQuery) {
   });
 }
 
+/**
+ * A proximity chip: "voy" / "hoy no" while driving, "hecho" / "todavía no"
+ * when the follow-up comes back after the trip. Each one carries the alert id
+ * (apx:mobility:<action>:<id>) because the answer has to land on the ONE place
+ * it was asked about — the owner can have two of these open at once, and a
+ * bare "yes" would close whichever came last.
+ */
+export async function handleMobilityAlertCallback(self, callbackQuery, action, alertId) {
+  const lang = resolveLang(self.globalConfig);
+  const alert = getMobilityAlert(alertId);
+  if (!alert) {
+    await self._answerCallback({ callback_query_id: callbackQuery.id });
+    await clearKeyboard(self, callbackQuery);
+    self.log(`telegram[${self.channel.name}] mobility alert ${alertId} is gone`);
+    return;
+  }
+
+  let ack = "";
+  if (action === "go") {
+    // Recorded, not acted on: the follow-up after the trip is what turns this
+    // yes into a closed task (core/mobility/trip-event.js).
+    updateMobilityAlert(alert.id, { answer: "go", answered_at: new Date().toISOString() });
+    ack = t("mobility.ack_going", { lang });
+  } else if (action === "skip") {
+    updateMobilityAlert(alert.id, { answer: "skip", answered_at: new Date().toISOString(), outcome: "skipped" });
+    ack = t("mobility.ack_skipped", { lang });
+  } else if (action === "done") {
+    const closed = closeAlertTask(self, alert);
+    updateMobilityAlert(alert.id, { outcome: closed ? "done" : "done_unlinked" });
+    ack = t("mobility.ack_done", { lang });
+    if (!closed) self.log(`telegram[${self.channel.name}] mobility task ${alert.task_id} not found — nothing closed`);
+  } else if (action === "open") {
+    updateMobilityAlert(alert.id, { outcome: "still_open" });
+    ack = t("mobility.ack_still_open", { lang });
+  }
+  recordMobilityResponse(action);
+  await self._answerCallback({ callback_query_id: callbackQuery.id, text: ack });
+  await clearKeyboard(self, callbackQuery);
+}
+
+/**
+ * Close the task the alert was about. The alert stores the project the task
+ * came from, so this resolves that project rather than searching every one —
+ * two projects can hold tasks with the same short id prefix.
+ */
+function closeAlertTask(self, alert) {
+  if (!alert.task_id) return false;
+  let storagePath = null;
+  try {
+    storagePath = self.projects.get(alert.project_id)?.storagePath || null;
+  } catch {
+    storagePath = null;
+  }
+  if (!storagePath) return false;
+  try {
+    return Boolean(doneTask(storagePath, alert.task_id, "mobility"));
+  } catch (error) {
+    self.log(`telegram[${self.channel.name}] could not close task: ${error.message}`);
+    return false;
+  }
+}
+
 export async function handleMobilityCallback(self, callbackQuery) {
-  const action = String(callbackQuery.data || "").split(":").pop();
+  const parts = String(callbackQuery.data || "").split(":");
+  const action = parts[2] || "";
+  const alertId = parts[3] || "";
+  if (alertId) return handleMobilityAlertCallback(self, callbackQuery, action, alertId);
   recordMobilityResponse(action);
   const chatId = callbackQuery.message?.chat?.id;
   let ack = "Listo.";

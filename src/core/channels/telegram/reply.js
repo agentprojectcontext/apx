@@ -19,6 +19,7 @@ import { getConfirmationStore as getConfirmStore } from "#core/confirmation/pend
 import { t, resolveLang } from "#core/i18n/index.js";
 import { buildTelegramMeta, resolveBotToken } from "./helpers.js";
 import { createProgressGate, progressEveryMs } from "./progress-gate.js";
+import { deliverVoiceReply, mobilityVoiceActive } from "./voice-note.js";
 
 /**
  * Build the streaming event handler for a Telegram super-agent turn. Each tool
@@ -173,13 +174,20 @@ export function runTelegramSuperAgent(self, {
     relationshipBlock,
     allowedTools,
     contextNote: contextNote || undefined,
-    channelMeta: buildTelegramMeta({
-      channelName: self.channel.name,
-      author,
-      chatId: chat_id,
-      target,
-      routeToAgent: self.channel.route_to_agent,
-    }),
+    channelMeta: {
+      ...buildTelegramMeta({
+        channelName: self.channel.name,
+        author,
+        chatId: chat_id,
+        target,
+        routeToAgent: self.channel.route_to_agent,
+      }),
+      // Driving flips this turn into voice mode, which is what actually makes
+      // the reply short (prompts/modes/voice.md + mobility.md). Doing it here
+      // rather than at send time is the whole point: you cannot shorten a
+      // paragraph after the model has written it, you can only truncate it.
+      ...(mobilityVoiceActive(self.globalConfig) ? { voice: true, mobility: true } : {}),
+    },
     signal,
     onEvent,
     requestConfirmation: confirmAdapter.requestConfirmation,
@@ -340,8 +348,36 @@ export async function sendFinalReply(self, {
   const actorId = replyActorId || SUPERAGENT_ACTOR_ID;
   const kind = replyKind || "superagent";
   try {
-    await self._send({ chat_id, text: toSend });
+    // Driving: the answer goes out spoken first, then as its own transcript.
+    // A failed voice attempt falls through to the plain send below — the
+    // upgrade is allowed to fail, the message is not.
+    const spoken = mobilityVoiceActive(self.globalConfig)
+      ? await deliverVoiceReply({
+          io: {
+            send: (args) => self._send(args),
+            sendVoice: (args) => self._sendVoice(args),
+          },
+          chat_id,
+          text: toSend,
+          globalConfig: self.globalConfig,
+          log: (line) => self.log(`telegram[${self.channel.name}] ${line}`),
+        })
+      : { voice: false, reason: "not-driving" };
+    if (!spoken.voice) {
+      if (spoken.reason !== "not-driving") {
+        self.log(`telegram[${self.channel.name}] voice reply unavailable (${spoken.reason}) — sending text`);
+      }
+      await self._send({ chat_id, text: toSend });
+    }
     const meta = { chat_id, tg_channel: self.channel.name, in_reply_to: update_id, final: true, ...extraMeta };
+    if (spoken.voice) {
+      // The row keeps the WORDS as its body (that is what search and the next
+      // turn's history need) and names the audio in meta, so the thread can
+      // play back exactly what the owner heard.
+      meta.voice_note = true;
+      meta.tts_provider = spoken.provider;
+      Object.assign(meta, spoken.media || {});
+    }
     if (replyText && stripThinking(replyText) !== replyText) meta.thinking_stripped = true;
     if (stripped.leaked) meta.reasoning_leak_suppressed = true;
     if (saUsage) meta.usage = saUsage;

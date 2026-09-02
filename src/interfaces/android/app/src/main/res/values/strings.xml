@@ -2,4 +2,9 @@
     <string name="app_name">APX</string>
     <string name="mascot_channel">Mascota APX</string>
     <string name="messages_channel">Mensajes APX</string>
+    <string name="trip_tracking_channel">Viaje en curso</string>
+    <string name="trip_tracking_channel_description">Mientras hay un viaje activo, APX comparte tu posición con tu daemon para avisarte si pasás cerca de algo pendiente.</string>
+    <string name="trip_tracking_title">Viaje en curso</string>
+    <string name="trip_tracking_text">APX sigue tu posición para avisarte de pendientes cercanos</string>
+    <string name="trip_tracking_text_destination">En camino a %1$s</string>
 </resources>

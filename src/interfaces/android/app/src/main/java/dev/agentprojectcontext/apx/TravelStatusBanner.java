@@ -48,6 +48,15 @@ final class TravelStatusBanner extends LinearLayout {
     }
 
     void update(boolean active, String destination) {
+        update(active, destination, ApxPreferences.SOURCE_MAPS);
+    }
+
+    /**
+     * `source` decides the sub-line, because "no destination yet" means two
+     * different things: Maps has not published one, or there is no route at
+     * all and APX only knows the phone is plugged into the car.
+     */
+    void update(boolean active, String destination, String source) {
         if (!active) {
             setVisibility(View.GONE);
             return;
@@ -55,10 +64,15 @@ final class TravelStatusBanner extends LinearLayout {
         boolean known = destination != null && !destination.isBlank();
         boolean sharedLink = known && (destination.startsWith("https://maps.app.goo.gl/")
             || destination.startsWith("https://goo.gl/maps/"));
-        title.setText(known ? "Estás en camino" : "Estás navegando por una ruta");
+        boolean projecting = ApxPreferences.SOURCE_ANDROID_AUTO.equals(source);
+        title.setText(known
+            ? "Estás en camino"
+            : projecting ? "Estás en el auto" : "Estás navegando por una ruta");
         detail.setText(sharedLink
             ? "Viaje compartido desde Google Maps"
-            : known ? "Destino: " + destination : "Google Maps activo · destino todavía no disponible");
+            : known ? "Destino: " + destination
+            : projecting ? "Android Auto conectado · sin ruta cargada"
+            : "Google Maps activo · destino todavía no disponible");
         setVisibility(View.VISIBLE);
     }
 

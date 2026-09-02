@@ -81,6 +81,52 @@ final class DaemonClient {
         notifyTripEvent(daemonUrl, token, tripId, "trip.ended", "", null, false);
     }
 
+    /**
+     * One GPS sample for a running trip. Fire-and-forget by design: the phone
+     * is on mobile data in a moving car and a sample that fails to upload is
+     * replaced by the next one 30 seconds later, so a retry queue would only
+     * deliver stale positions. The daemon answers 202 before it evaluates
+     * anything (host/daemon/api/mobility.js), so this call never waits on a
+     * place search or a Telegram send.
+     */
+    static void reportPosition(String daemonUrl, String token, String tripId, android.location.Location location) {
+        if (daemonUrl == null || daemonUrl.isBlank() || token == null || token.isBlank()) return;
+        if (tripId == null || tripId.isBlank() || location == null) return;
+        JSONObject payload = new JSONObject();
+        try {
+            payload.put("trip_id", tripId);
+            payload.put("latitude", location.getLatitude());
+            payload.put("longitude", location.getLongitude());
+            if (location.hasAccuracy()) payload.put("accuracy_m", location.getAccuracy());
+            if (location.hasSpeed()) payload.put("speed_mps", location.getSpeed());
+            if (location.hasBearing()) payload.put("heading_deg", location.getBearing());
+            payload.put("occurred_at", java.time.Instant.now().toString());
+            payload.put("source", "android");
+        } catch (JSONException error) {
+            Log.w(TAG, "Could not prepare position", error);
+            return;
+        }
+
+        Request request = new Request.Builder()
+            .url(daemonUrl + "/api/mobility/positions")
+            .header("Authorization", "Bearer " + token)
+            .post(RequestBody.create(payload.toString(), JSON))
+            .build();
+        HTTP.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException error) {
+                Log.w(TAG, "Could not send trip position: " + error.getMessage());
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) {
+                try (response) {
+                    if (!response.isSuccessful()) Log.w(TAG, "Position rejected: HTTP " + response.code());
+                }
+            }
+        });
+    }
+
     private static void notifyTripEvent(String daemonUrl, String token, String tripId, String type, String destination, DeviceLocation.Snapshot origin, boolean evaluate) {
         if (daemonUrl == null || daemonUrl.isBlank() || token == null || token.isBlank()) return;
         JSONObject payload = new JSONObject();
