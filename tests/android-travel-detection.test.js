@@ -97,6 +97,30 @@ test("trip GPS runs as a location-typed foreground service, only while a trip is
   assert.match(listener, /TripLocationService\.stop\(this\)/);
 });
 
+test("a foreground service Android refuses does not take the app down with it", () => {
+  // Observed on a real drive: Maps starts navigating while APX is not on
+  // screen, the notification listener starts the tracking service from the
+  // background, and startForeground(type=location) throws SecurityException —
+  // "the app must be in the eligible state" — killing the whole app at the one
+  // moment the owner needs it. Holding ACCESS_FINE_LOCATION is NOT enough; it
+  // is while-in-use, so the state matters too.
+  const service = read("src", "interfaces", "android", "app", "src", "main", "java", "dev", "agentprojectcontext", "apx", "TripLocationService.java");
+  const activity = read("src", "interfaces", "android", "app", "src", "main", "java", "dev", "agentprojectcontext", "apx", "MainActivity.java");
+
+  // The permission check must come BEFORE the typed start, not after it.
+  const guard = service.indexOf("if (!canTrack(this))");
+  const foreground = service.indexOf("startForegroundCompat()");
+  assert.ok(guard > 0 && foreground > guard, "canTrack must gate startForeground, not follow it");
+
+  // And the start itself is allowed to fail without throwing.
+  assert.match(service, /try \{[\s\S]*startForeground\(NOTIFICATION_ID[\s\S]*catch \(RuntimeException refused\)/);
+  assert.match(service, /private boolean startForegroundCompat\(\)/);
+
+  // Refused is not the end of it: opening APX puts the app in an eligible
+  // state, and the resume path retries the start.
+  assert.match(activity, /TripLocationService\.start\(this, preferences\.travelTripId\(\)\)/);
+});
+
 test("the trip banner leads to the trip's errands, not back to Maps", () => {
   const banner = read("src", "interfaces", "android", "app", "src", "main", "java", "dev", "agentprojectcontext", "apx", "TravelStatusBanner.java");
   const activity = read("src", "interfaces", "android", "app", "src", "main", "java", "dev", "agentprojectcontext", "apx", "MainActivity.java");

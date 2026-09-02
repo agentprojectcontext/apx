@@ -43,7 +43,7 @@ final class TripPlacesSheet {
     // Literal ARGB rather than Color.rgb(): these are class constants, and
     // android.graphics.Color is a throwing stub in a plain JVM unit test — one
     // call here made the whole class unloadable from TripPlacesSheetTest.
-    private static final int GROUND = 0xFF0C1A16;
+    static final int GROUND = 0xFF0C1A16;   // also paints the dialog frame
     private static final int CARD = 0xFF153028;   // the trip banner's ground
     private static final int BRAND = 0xFF3AE7B0;
     private static final int MUTED = 0xFFA6DCCA;

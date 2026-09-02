@@ -543,6 +543,13 @@ public final class MainActivity extends Activity {
             .setNegativeButton("Cerrar", null)
             .create();
         open[0].show();
+        // The dialog paints its own light frame behind the sheet, so the title
+        // and the button row read as a different surface from the cards between
+        // them. One colour, one surface.
+        if (open[0].getWindow() != null) {
+            open[0].getWindow().setBackgroundDrawable(
+                new android.graphics.drawable.ColorDrawable(TripPlacesSheet.GROUND));
+        }
     }
 
     /**
