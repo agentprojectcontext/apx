@@ -10,6 +10,7 @@ import { readAgents } from "#core/apc/parser.js";
 import { buildAgentSystem } from "#core/agent/build-agent-system.js";
 import { resolveAgentModel } from "#core/agent/agent-model.js";
 import { runAgentTurn } from "#core/agent/run-turn.js";
+import { floorReplyText } from "#core/agent/closing-floor.js";
 import { createWebConfirmAdapter } from "#core/confirmation/adapters/web.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import {
@@ -95,6 +96,50 @@ function turnAttribution(agent, result) {
   });
 }
 
+/**
+ * The never-silent floor, in the agent's own voice.
+ *
+ * runAgent re-prompts a dud turn and then gives up, and what came back went
+ * straight into the thread: an empty bubble in the panel and an empty assistant
+ * row on disk, which the next turn reads back as the answer this one gave. The
+ * closing is asked of the model first — the AGENT's model, because this thread
+ * is in its voice and not the super-agent's — and the canned line goes out only
+ * if that comes back empty too.
+ *
+ * A turn with a real answer is returned untouched and costs no model call.
+ * Deliberately NOT used on the abort path: an interrupted turn that wrote
+ * nothing is meant to leave no bubble at all.
+ *
+ * @returns {object} the same result, with `text` guaranteed non-empty
+ */
+async function withClosingFloor({ p, agent, modelId, config, result, streamedText = "" }) {
+  const closing = await floorReplyText({
+    globalConfig: p.config || config,
+    model: result.model || modelId,
+    text: result.text,
+    streamedText,
+    trace: result.trace,
+  });
+  if (!closing.floored) return result;
+  // eslint-disable-next-line no-console
+  console.warn(
+    `[apx] ${agent.slug}: empty turn closed by the floor — ` +
+    (closing.authored
+      ? "the model wrote the closing"
+      : "the canned floor spoke, the model could not write it either")
+  );
+  return { ...result, text: closing.text };
+}
+
+/** Collect the last thing the turn actually SAID. The result carries the
+ *  closing, so this is the one piece of context a floored closing needs. */
+function lastSaidCollector() {
+  const seen = { text: "" };
+  return [seen, (ev) => {
+    if (ev?.type === "assistant_text" && String(ev.text || "").trim()) seen.text = String(ev.text).trim();
+  }];
+}
+
 function persistAgentReply({ filePath, agent, result }) {
   // Images the agent attached to THIS reply (attach_media). Archived into
   // ~/.apx/media on the way, because a skill's picture lives beside its
@@ -150,14 +195,17 @@ export function register(api, { projects, project, config, plugins, registries }
       });
       appendTurn({ filePath: conv.path, role: "user", content: turnPrompt, meta: turnFiles.media || undefined });
 
-      const result = await runAgentTurn({
+      const [said, observe] = lastSaidCollector();
+      const raw = await runAgentTurn({
         p, agent, modelId, system, prompt: turnPrompt,
         attachments: turnFiles.attachments,
         channel: channel || CHANNELS.API,
         channelMeta,
         temperature, maxTokens, tools, maxIters,
         projects, plugins, registries, config,
+        onEvent: observe,
       });
+      const result = await withClosingFloor({ p, agent, modelId, config, result: raw, streamedText: said.text });
 
       const attribution = persistAgentReply({ filePath: conv.path, agent, result });
       setStatus(conv.path, "closed");
@@ -239,7 +287,8 @@ export function register(api, { projects, project, config, plugins, registries }
       // any grace-window notify still pending). See core/stores/deliveries.js.
       try { answerDeliveries(p.storagePath, agent.slug); } catch { /* best-effort */ }
 
-      const result = await runAgentTurn({
+      const [said, observe] = lastSaidCollector();
+      const raw = await runAgentTurn({
         p, agent, modelId,
         system: turn.system,
         prompt: turnPrompt,
@@ -249,7 +298,9 @@ export function register(api, { projects, project, config, plugins, registries }
         channelMeta,
         temperature, maxTokens, tools, maxIters,
         projects, plugins, registries, config,
+        onEvent: observe,
       });
+      const result = await withClosingFloor({ p, agent, modelId, config, result: raw, streamedText: said.text });
 
       persistAgentReply({ filePath: turn.conv.path, agent, result });
       projects.rebuild(p.id);
@@ -367,20 +418,31 @@ export function register(api, { projects, project, config, plugins, registries }
       model: modelId,
     });
 
+    const [said, observeSaid] = lastSaidCollector();
     try {
-      const result = await runAgentTurn({
+      const raw = await runAgentTurn({
         p, agent, modelId,
         system: turn.system,
         prompt: turnPrompt,
         attachments: turnFiles.attachments,
         previousMessages: turn.conv.history,
-        channel: channel || CHANNELS.WEB,
+        // `api`, the same default as the sibling /exec and /chat routes and as
+        // the super-agent's own streamed turn (resolveSuperAgentContext). The
+        // channel is whatever the CLIENT says it is: the web panel always sends
+        // `channel: "web"`, so it keeps the web chat's behaviour, and nothing
+        // here has to guess. This route used to default to CHANNELS.WEB, which
+        // was invisible only because the panel was its one caller — the next
+        // client to omit `channel` would have silently inherited the web chat's
+        // run-to-completion tool budget (channelToolIters) instead of the
+        // bounded conversational one, on a surface nobody was watching.
+        channel: channel || CHANNELS.API,
         channelMeta,
         temperature, maxTokens, tools, maxIters,
         projects, plugins, registries, config,
         signal: turnAbort.signal,
         onEvent: (ev) => {
           if (ev?.type === "tool_result" && ev.trace) partialTrace.push(ev.trace);
+          observeSaid(ev);
           send(ev);
         },
         onToken: (chunk) => { send({ type: "assistant_delta", delta: chunk }); appendActiveTurn(active.id, chunk); turnFrame("delta", { delta: chunk }); },
@@ -392,6 +454,7 @@ export function register(api, { projects, project, config, plugins, registries }
           req.body?.confirm === false ? null : createWebConfirmAdapter({ onEvent: send }),
       });
 
+      const result = await withClosingFloor({ p, agent, modelId, config, result: raw, streamedText: said.text });
       persistAgentReply({ filePath: turn.conv.path, agent, result });
       projects.rebuild(p.id);
 

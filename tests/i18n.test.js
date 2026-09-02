@@ -16,9 +16,9 @@ test("resolveLang reads globalConfig.user.language, slices to 2 chars, lowercase
 });
 
 test("t() returns the localized string when the key exists in the locale", () => {
-  assert.equal(t("telegram.fallback_listo", { lang: "es" }), "Listo.");
-  assert.equal(t("telegram.fallback_listo", { lang: "en" }), "Done.");
-  assert.equal(t("telegram.fallback_listo", { lang: "pt" }), "Pronto.");
+  assert.equal(t("reply.fallback_done", { lang: "es" }), "Listo.");
+  assert.equal(t("reply.fallback_done", { lang: "en" }), "Done.");
+  assert.equal(t("reply.fallback_done", { lang: "pt" }), "Pronto.");
 });
 
 test("t() falls back to DEFAULT_LANG when the requested locale is unknown", () => {

@@ -21,6 +21,8 @@ const DISPATCH = read("core", "channels", "telegram", "dispatch.js");
 const REPLY = read("core", "channels", "telegram", "reply.js");
 // The ask-flow resume (the second entry point into the reply path) lives here.
 const ASK_CALLBACKS = read("core", "channels", "telegram", "ask-callbacks.js");
+// The floor itself is shared with the web now — the wording lives here.
+const FLOOR = read("core", "agent", "closing-floor.js");
 
 test("telegram: super-agent catch surfaces a reply on non-abort errors", () => {
   // The dispatcher's super-agent catch must assign replyText (not just log +
@@ -41,18 +43,24 @@ test("telegram: super-agent catch surfaces a reply on non-abort errors", () => {
 });
 
 test("telegram: empty final text never ends the turn silently", () => {
-  // The never-silent floor lives in sendFinalReply (reply.js). Two layers, in
-  // this order: the model is asked to write the closing from what the turn did,
-  // and the canned line is what goes out only if that comes back empty too.
-  // The behaviour is exercised in telegram-closing.test.js; what this pins is
-  // that the floor itself is still there and still layered that way.
+  // sendFinalReply still decides WHEN a turn has nothing to send; what gets
+  // said is the shared floor's (core/agent/closing-floor.js), so the web says
+  // the same thing on the same failure. Both halves are pinned here: the
+  // branch, and the two layers it delegates to.
   const floor = REPLY.match(/}\s*else if \(!finalClean\) \{[\s\S]{0,1800}?\n {2}\}/);
   assert.ok(floor, "sendFinalReply must have an `else if (!finalClean)` floor branch");
-  assert.match(floor[0], /authorLineFn\(/, "the closing is the model's to word first");
-  assert.match(floor[0], /telegram\.fallback_continue/, "cut-off turn falls back to the neutral continue prompt");
-  assert.match(floor[0], /telegram\.fallback_listo/, "pure chit-chat turn falls back to the short ack");
+  assert.match(floor[0], /closingFloorLine\(/, "the wording belongs to the shared floor, not to this channel");
+  assert.match(floor[0], /authorLineFn/, "and the injectable author stays wired through it");
+
+  // Two layers, in this order: the model is asked to write the closing from
+  // what the turn did, and the canned line goes out only if that came back
+  // empty too. The behaviour is exercised in telegram-closing.test.js and
+  // web-empty-floor.test.js; what this pins is that the order still holds.
+  assert.match(FLOOR, /authorLineFn\(/, "the closing is the model's to word first");
+  assert.match(FLOOR, /reply\.fallback_continue/, "cut-off turn falls back to the neutral continue prompt");
+  assert.match(FLOOR, /reply\.fallback_done/, "pure chit-chat turn falls back to the short ack");
   assert.ok(
-    floor[0].indexOf("authorLineFn(") < floor[0].indexOf("telegram.fallback"),
+    FLOOR.indexOf("authorLineFn(") < FLOOR.indexOf("reply.fallback"),
     "canned text is the floor, not the first answer",
   );
 });

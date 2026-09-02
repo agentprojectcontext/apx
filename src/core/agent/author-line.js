@@ -56,6 +56,9 @@ function cleanLine(raw) {
  * @param {object}  o
  * @param {object}  o.globalConfig  config snapshot (names the model + language)
  * @param {string}  o.instruction   what the line has to do, addressed to the model
+ * @param {string} [o.model]        write with this model instead of the super-agent's.
+ *                                  A project agent's line is its own to word — it is
+ *                                  the one whose voice the thread is in.
  * @param {string} [o.context]      what just happened, so the line can be specific
  * @param {string} [o.lang]         override the tag to write in; defaults to the config's locale
  * @param {number} [o.maxTokens]
@@ -67,6 +70,7 @@ function cleanLine(raw) {
 export async function authorLine({
   globalConfig,
   instruction,
+  model = "",
   context = "",
   lang = "",
   maxTokens = 160,
@@ -74,7 +78,7 @@ export async function authorLine({
   signal = null,
   callEngineFn = callEngine,
 }) {
-  const modelId = globalConfig?.super_agent?.model || "";
+  const modelId = model || globalConfig?.super_agent?.model || "";
   if (!modelId || !instruction) return "";
 
   const parts = [instruction];
