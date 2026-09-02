@@ -3,6 +3,12 @@
 // Telegram's guardrail (you can't see a phone turn go wrong); on web it was
 // pure friction, and worse, the judge used to re-run the turn behind it and
 // send the same recap and the same question two more times.
+//
+// The other half of that rule is WHO may claim it. The ceiling is keyed on the
+// surface, so every place that decides a channel string decides a budget: a
+// route's default, and the voice entrypoint's channel pre-processor. Both are
+// covered below, because a caller must never end up on the watched-surface
+// ceiling by omission or by simply naming it.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -20,6 +26,7 @@ const {
   MAX_TOOL_ITERS,
 } = await import("#core/agent/constants.js");
 const { CHANNELS } = await import("#core/constants/channels.js");
+const { buildVoiceChannelContext } = await import("#core/agent/channels/voice-context.js");
 const { runSuperAgent } = await import("#core/agent/super-agent.js");
 const { ProjectManager } = await import("#host/daemon/db.js");
 const { makeTempProject, cleanupTempProject, apiRouter } = await import("./_helpers.js");
@@ -96,7 +103,15 @@ test("runSuperAgent: the web budget reaches the loop (and an explicit maxIters s
 // belongs to the SURFACE — a watched chat is a watched chat whether Roby or a
 // project agent is answering — but only runSuperAgent had been taught that, so
 // every non-super-agent kept runAgent's conversational default of 10.
-test("project agents on web get the surface budget too, not the chat default", async () => {
+
+/**
+ * One project + one mock agent behind the real exec routes, on a live socket.
+ * `call` drives POST .../exec and `callStream` drives POST .../chat/stream,
+ * returning its NDJSON `final` result — both budget tests build the same server
+ * because the point is that two routes on one agent must resolve a channel to
+ * the same ceiling.
+ */
+async function startAgentApi() {
   const root = fs.mkdtempSync(path.join(TMP_HOME, "proj-"));
   const storage = fs.mkdtempSync(path.join(TMP_HOME, "store-"));
   fs.mkdirSync(path.join(root, ".apc", "agents"), { recursive: true });
@@ -125,28 +140,98 @@ test("project agents on web get the surface budget too, not the chat default", a
   const server = await new Promise((r) => {
     const s = app.listen(0, "127.0.0.1", () => r(s));
   });
-  const call = async (body) => {
-    const res = await fetch(`http://127.0.0.1:${server.address().port}/api/projects/1/agents/magui/exec`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    return res.json();
+  const base = `http://127.0.0.1:${server.address().port}/api/projects/1/agents/magui`;
+  const post = (route, body) => fetch(`${base}/${route}`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  return {
+    close: () => server.close(),
+    call: async (body) => (await post("exec", body)).json(),
+    // `confirm: false` is what a client that cannot answer a confirmation
+    // round-trip sends; the loop then falls back to the configured policy
+    // instead of waiting on a POST that will never arrive.
+    callStream: async (body) => {
+      const res = await post("chat/stream", { confirm: false, ...body });
+      const events = (await res.text()).split("\n").filter((l) => l.trim()).map((l) => JSON.parse(l));
+      const final = events.find((e) => e.type === "final");
+      assert.ok(final, `expected a final event, got: ${events.map((e) => e.type).join(", ")}`);
+      return final.result;
+    },
   };
+}
+
+// Re-fires the tool every step it is offered, so the trace length IS the budget
+// minus the one step reserved for the tool-free wrap-up.
+const LOOP = { prompt: "[mock:loop:list_agents]", model: "mock" };
+
+test("project agents on web get the surface budget too, not the chat default", async () => {
+  const api = await startAgentApi();
   try {
-    // Re-fires the tool every step it is offered, so the trace length IS the
-    // budget minus the step reserved for the wrap-up.
-    const onWeb = await call({ prompt: "[mock:loop:list_agents]", model: "mock", channel: CHANNELS.WEB });
+    const onWeb = await api.call({ ...LOOP, channel: CHANNELS.WEB });
     assert.equal(onWeb.trace.length, 6, "the web budget reached the project-agent loop");
 
     // An unwatched surface keeps the bounded conversational default: 10 iters,
     // the last reserved for the wrap-up.
-    const onApi = await call({ prompt: "[mock:loop:list_agents]", model: "mock", channel: CHANNELS.API });
+    const onApi = await api.call({ ...LOOP, channel: CHANNELS.API });
     assert.equal(onApi.trace.length, MAX_TOOL_ITERS - 1, "every other channel is untouched");
 
-    const pinned = await call({ prompt: "[mock:loop:list_agents]", model: "mock", channel: CHANNELS.WEB, maxIters: 3 });
+    const pinned = await api.call({ ...LOOP, channel: CHANNELS.WEB, maxIters: 3 });
     assert.equal(pinned.trace.length, 2, "an explicit caller budget still wins");
   } finally {
-    server.close();
+    api.close();
   }
+});
+
+// A route's default channel IS a budget decision. /chat/stream defaulted to
+// CHANNELS.WEB while its /exec and /chat siblings defaulted to CHANNELS.API, so
+// a client that simply omitted `channel` was handed the run-to-completion
+// ceiling without ever asking for it. Nothing shipped hit it — the panel is the
+// route's only caller and always sends "web" — which is exactly why it is worth
+// closing: a default like that only springs on the NEXT client.
+test("chat/stream: an unnamed channel is `api`, not the web ceiling", async () => {
+  const api = await startAgentApi();
+  try {
+    const unnamed = await api.callStream({ ...LOOP });
+    assert.equal(
+      unnamed.trace.length, MAX_TOOL_ITERS - 1,
+      "a client that names no surface gets the bounded default, like /exec and /chat",
+    );
+
+    // The panel does name its surface, and still runs to completion.
+    const onWeb = await api.callStream({ ...LOOP, channel: CHANNELS.WEB });
+    assert.equal(onWeb.trace.length, 6, "the web panel's own streamed turn is unchanged");
+  } finally {
+    api.close();
+  }
+});
+
+// The same trap at the voice entrypoint. buildVoiceChannelContext passed an
+// unknown channel through verbatim, so POST /voice/turn with `channel: "web"`
+// would have run a SPOKEN turn on the web chat's uncapped budget — the opposite
+// of what a voice answer wants, which is short and fast. No caller did it (the
+// CLI sends no channel, the deck sends "voice"/"deck", desktop has its own
+// route), so this closes a trap rather than fixing a live bug.
+test("buildVoiceChannelContext: an unrecognised channel falls back to api", () => {
+  for (const claimed of [CHANNELS.WEB, CHANNELS.WEB_SIDEBAR, CHANNELS.WEB_CODE, CHANNELS.CODE, CHANNELS.ROUTINE, "nonsense", "", undefined]) {
+    const ctx = buildVoiceChannelContext(claimed, { projectId: "1" });
+    assert.equal(ctx.channel, CHANNELS.API, `"${claimed}" must not be trusted as a surface`);
+    assert.equal(
+      channelToolIters({}, ctx.channel), null,
+      `"${claimed}" must not reach the loop carrying a watched-surface budget`,
+    );
+  }
+});
+
+test("buildVoiceChannelContext: the surfaces it does know are untouched", () => {
+  // "voice" is the spoken MODE of the deck, not a channel of its own — so it
+  // resolves to deck + `{ voice: true }`, and desktop is always spoken.
+  const spoken = buildVoiceChannelContext("voice", {});
+  assert.equal(spoken.channel, CHANNELS.DECK);
+  assert.equal(spoken.channelMeta.voice, true);
+  assert.equal(buildVoiceChannelContext(CHANNELS.DECK, {}).channel, CHANNELS.DECK);
+  assert.equal(buildVoiceChannelContext(CHANNELS.DESKTOP, {}).channelMeta.voice, true);
+  assert.equal(buildVoiceChannelContext(CHANNELS.DESKTOP, {}).channel, CHANNELS.DESKTOP);
+  assert.equal(buildVoiceChannelContext(CHANNELS.TELEGRAM, {}).channel, CHANNELS.TELEGRAM);
 });
