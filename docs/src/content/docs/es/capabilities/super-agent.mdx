@@ -65,6 +65,24 @@ Cuando el modo super-agent está activo, el daemon resuelve el nombre del asiste
 `~/.apx/identity.json` y lo muestra en las líneas de estado, los headers de la TUI y las respuestas de Telegram —
 nunca la cadena "super-agent".
 
+## Contactarlo desde otro agente (A2A)
+
+Identidad configurada también funciona como dirección A2A de primera clase. Un agente puede
+contactar a Roby igual que a cualquier agente de proyecto:
+
+```bash
+apx send crypto-analyst roby "Alerta BTC: decidí si el dueño necesita recibirla por Telegram" --deliver
+```
+
+APX encuentra proyecto del emisor, guarda todos los alias de identidad bajo peer estable
+`super_agent` y ejecuta loop real del super-agent: identidad, memoria relevante, contexto de
+proyecto, política de permisos y herramientas. Esto difiere de `apx exec`, que representa un turno
+escrito por dueño. Si slug emisor existe en varios proyectos, agregá `--project <name>`.
+
+Agentes reales de proyecto siguen ganando sobre alias. Si un proyecto define intencionalmente un
+agente con slug `apx` o nombre igual a identidad configurada, selección elige ese agente dentro de
+su proyecto.
+
 ## El tool loop
 
 Por debajo, `runSuperAgent()` arma un system prompt (bloque de identidad + inventario de proyectos +

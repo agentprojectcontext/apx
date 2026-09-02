@@ -84,9 +84,10 @@ apx send <you> <agent> "<message>  engine=claude session=<your-session-id>" --de
 
 - `<you>` — your sender identity; for a coding CLI use the engine name (`claude`,
   `codex`, …). It does NOT need to be a registered agent.
-- `<agent>` — recipient slug. `--project` is optional unless the slug exists in
-  several projects (then `apx send` lists them). `apx agent list --all` shows
-  every agent and its project.
+- `<agent>` — recipient slug, the super-agent's configured name, or a technical
+  super-agent alias (`default`, `apx`, `super-agent`). `--project` is optional:
+  named project agents resolve by recipient; the super-agent follows the sender's
+  project context. Pass it when either side exists in several projects.
 - `--deliver` — runs the recipient now and returns its reply on stdout. The agent
   decides whether/how to tell the user on its own channel (respecting quiet-hours).
 - **The a2a thread keeps history** — each `--deliver` sees the earlier turns of
@@ -95,7 +96,11 @@ apx send <you> <agent> "<message>  engine=claude session=<your-session-id>" --de
 - Do NOT use `apx exec` for this (it posts on the USER channel — the agent sees it
   as if the user typed it), and do NOT `apx telegram send` the user directly (that
   bypasses the agent and the relay never closes).
-- The super-agent itself is not an a2a target — reach it with `apx exec "<msg>"`.
+- The super-agent is a first-class a2a target. Address it by its configured name
+  (for example `roby`) just like any other agent. APX runs the real super-agent
+  identity, memory, permission guard and tool loop; it decides whether an agent's
+  escalation should reach the owner. Use `apx exec` only for an owner-authored
+  turn, never to impersonate one from A2A.
 
 **Identify your session so the answer can return.** Put `engine=claude
 session=<id>` in the message body. Get your id from your own transcript path (most

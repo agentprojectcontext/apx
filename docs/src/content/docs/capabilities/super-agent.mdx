@@ -65,6 +65,24 @@ When the super-agent mode is active the daemon resolves the assistant's name fro
 `~/.apx/identity.json` and displays it in status lines, TUI headers, and Telegram replies —
 never the string "super-agent".
 
+## Reaching it from another agent (A2A)
+
+The configured identity is also a first-class A2A address. An agent can contact Roby as naturally
+as any project agent:
+
+```bash
+apx send crypto-analyst roby "BTC alert: decide whether the owner needs this on Telegram" --deliver
+```
+
+APX finds the sender's project, files every identity alias under the stable `super_agent` peer,
+and runs the real super-agent loop: identity, relevant memory, project context, permission policy,
+and tools. This is different from `apx exec`, which represents an owner-authored turn. If the
+sender slug exists in several projects, add `--project <name>`.
+
+Real project agents still win over aliases. If a project intentionally defines an agent whose
+slug is `apx` or whose name matches the configured identity, address selection chooses that agent
+inside its project.
+
 ## The tool loop
 
 Under the hood `runSuperAgent()` builds a system prompt (identity block + project inventory +
