@@ -52,9 +52,16 @@ test("voice mode layers extra content on desktop but not on text channels", () =
   const desktopVoice = build(CHANNELS.DESKTOP, { voice: true });
   const desktopNoVoice = build(CHANNELS.DESKTOP, {});
   // voice:true adds the voice-mode block → strictly longer than no-voice desktop.
+  // Same channel, one flag flipped, so length IS the difference.
   assert.ok(desktopVoice.length > desktopNoVoice.length, "voice mode should add content");
-  // and a text channel never carries the voice block
-  assert.ok(desktopVoice.length > cli.length);
+  // And a text channel never carries the voice block. Asserted by looking for
+  // the block, not by comparing the two prompts' LENGTHS: those are different
+  // channels with different blocks, so which one is longer says nothing about
+  // whether either carries voice mode. It only ever held because two-segment.md
+  // happened to be shorter than single-segment plus voice.md — a text-channel
+  // prompt growing for unrelated reasons would fail this, and did.
+  assert.match(desktopVoice, /Voice mode/, "desktop voice must carry the voice block");
+  assert.doesNotMatch(cli, /Voice mode/, "a text channel must never carry it");
 });
 
 test("unknown channel still builds (no channel block, no crash)", () => {
