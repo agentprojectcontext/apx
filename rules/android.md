@@ -144,6 +144,18 @@ restarting the service. Keep its movement and message filtering aligned with
 `src/interfaces/desktop/mascot.js` and `main.js`: inbound messages only, and no
 self-notification for desktop/voice input.
 
+To exercise the Android Auto path without a car, run the Desktop Head Unit
+against the phone. It needs Android Auto developer settings enabled on the
+device (tap Version ten times in Android Auto's own settings, then the overflow
+menu → start head unit server), `adb forward tcp:5277 tcp:5277`, and the DHU
+binary from the SDK's `extras/google/auto/`. A session makes Android Auto post
+its "connected to the car" notification, which is the signal the detector reads;
+`adb logcat -s APXTravel:V` shows the trip opening and closing. Note that the
+head-unit-server notification is itself persistent and must NOT be read as a
+session — see AndroidAutoDetector.DEVELOPER_TERMS. Android Auto also shows a
+consent dialog covering vehicle data, contacts, location, microphone and SMS;
+APX's detection does not depend on it, so leave that decision to the owner.
+
 Build and verify with the repository-local wrapper:
 
 ```bash
