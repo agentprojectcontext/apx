@@ -1,3 +1,49 @@
+# [1.84.0](https://github.com/agentprojectcontext/apx/compare/v1.83.2...v1.84.0) (2026-09-02)
+
+
+### Bug Fixes
+
+* **agent:** a project agent in the web chat stopped every 9 actions to ask ([9d8a22a](https://github.com/agentprojectcontext/apx/commit/9d8a22a23a13af732fa9a2b77d36a8bd180b3292))
+* **agent:** the same "want me to keep going?" three times, and a web chat that never finished ([951fe95](https://github.com/agentprojectcontext/apx/commit/951fe955f1bd4928bc52ab690fd438063663bc1e))
+* **android:** a foreground service Android refuses must not take the app down ([5c4cf8b](https://github.com/agentprojectcontext/apx/commit/5c4cf8be46bd968e6ecdc86453e568177e466b37))
+* **android:** the notification socket comes back on its own ([10452f2](https://github.com/agentprojectcontext/apx/commit/10452f227012abb4fba66df3ccd88351413df082))
+* **mobility:** a settled errand is a fixed place, not a fixed distance ([123ad1e](https://github.com/agentprojectcontext/apx/commit/123ad1e2354b2c456774028c36d8e9fcc8a335e6))
+* **routines:** an agent in one project reading another project's files ([98d0a77](https://github.com/agentprojectcontext/apx/commit/98d0a779d9cdc02e28dc9f372309b189a6bc2ddb))
+* **routines:** the watch explaining twelve times a day why it stayed quiet ([80e3de2](https://github.com/agentprojectcontext/apx/commit/80e3de234f4d1ffdc44e0ae9ef8d388d371d0d19))
+* **runtimes:** a probe we killed is not evidence the binary is missing ([821ed36](https://github.com/agentprojectcontext/apx/commit/821ed36cd40a195fddfc2f121b275cecb1e21312))
+* **tools:** grep of a single file answered "not found" without ripgrep ([b404d88](https://github.com/agentprojectcontext/apx/commit/b404d887d671d038fa7f918cb89cdc52c525e194))
+* **voice:** an unrecognised channel falls back to api, not to itself ([607a829](https://github.com/agentprojectcontext/apx/commit/607a829eda6dc3df68a327ec51832c81d76d2998))
+* **web:** a toast stops landing on the tab bar it is confirming ([0d070bc](https://github.com/agentprojectcontext/apx/commit/0d070bccc2842ccfefb4c29837df6e3033d838c4))
+* **web:** the tools switch forgot your choice in every new chat ([8a244b5](https://github.com/agentprojectcontext/apx/commit/8a244b591677e4038a2d83c19cfe819653a2a8d3))
+
+
+### Features
+
+* **a2a:** addressing the super-agent reaches the real orchestrator ([c80f916](https://github.com/agentprojectcontext/apx/commit/c80f91666770473d6d664a1cdfc47d4246c7eebb))
+* **agent:** one turn, one budget — judge rounds stop reissuing the ceiling ([a9c2fbd](https://github.com/agentprojectcontext/apx/commit/a9c2fbdbaceb8ca033186f78eeea3189e60cfbe6))
+* **agent:** the completion judge stops being a super-agent privilege ([a911dd2](https://github.com/agentprojectcontext/apx/commit/a911dd2e4ec4b8e96a4b6e3ca6d0e29a4caa880c))
+* **agent:** the never-silent floor stops being Telegram's alone ([bbdbfe7](https://github.com/agentprojectcontext/apx/commit/bbdbfe700f3d17d025be7c02a3d54689a7241050))
+* **android:** the phone picks which channels may interrupt it ([e207e17](https://github.com/agentprojectcontext/apx/commit/e207e17de40be853ab26a0fce682987d35b7b3db))
+* **group:** Stop reaches a room, and one owner line stops costing ten turns ([cc86dd1](https://github.com/agentprojectcontext/apx/commit/cc86dd1ecbc481ce6f1a2010c9d0e0ddea4164a0))
+* **mobility:** an errand is a choice between shops, and the plan settles it ([6d255a2](https://github.com/agentprojectcontext/apx/commit/6d255a21d3f7bc70601de6b2568fd1842d0bfa33))
+* **mobility:** Android Auto opens a trip, GPS feeds it, and the car answers by voice ([51bb1a5](https://github.com/agentprojectcontext/apx/commit/51bb1a5d91833a02d3577847702ad7cc8ba0aa67))
+* **mobility:** the trip banner shows the errands instead of a link back to Maps ([5a6f5ca](https://github.com/agentprojectcontext/apx/commit/5a6f5ca107a6fa7d5cae71b2f485bfb93cb762ef))
+* **tasks:** a task can say what KIND it is and where — and that skips the model ([9de411c](https://github.com/agentprojectcontext/apx/commit/9de411c8ef6530ba58329d2cfd121ee65ecd7454))
+* **telegram:** every tool the turn runs shows up as an activity line ([47d06d9](https://github.com/agentprojectcontext/apx/commit/47d06d9d47dd9a0068381cc56530448ef98d2df7))
+* **web:** a chat row shows what its turn is doing, and never renders nothing ([66f28d3](https://github.com/agentprojectcontext/apx/commit/66f28d36ff3a4dbb6410f1d0d341fead2aec51d0))
+* **web:** a stop button that stops, and a message that interrupts ([674693e](https://github.com/agentprojectcontext/apx/commit/674693ee4a8c115a83c98810b345922ba9010de4))
+* **web:** the phone grows tasks and promises, and /m stops meaning "the device" ([43655fb](https://github.com/agentprojectcontext/apx/commit/43655fba44d6a7e4370c9c32c097ba45e3ffcc53))
+
+
+### Performance Improvements
+
+* **android:** idle costs nothing, and the battery exemption is the owner's to give ([d0947a8](https://github.com/agentprojectcontext/apx/commit/d0947a8f84d47ac475bf35f679b6d04228df402d))
+
+
+### Reverts
+
+* **telegram:** a tool name is not something a person says ([dae5d10](https://github.com/agentprojectcontext/apx/commit/dae5d100a17ef32534695c00ed49a14eb41259a8))
+
 ## [1.83.2](https://github.com/agentprojectcontext/apx/compare/v1.83.1...v1.83.2) (2026-08-30)
 
 
