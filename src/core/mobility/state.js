@@ -130,11 +130,42 @@ export function mobilityAlertKey(tripId, taskId) {
   return `${clean(tripId, 100)}|${clean(taskId, 100)}`;
 }
 
-/** Has this errand already been announced on this trip? */
+/**
+ * Has this errand already been announced on this trip?
+ *
+ * One exception, and it is the owner's own doing: an alert answered "next"
+ * ("avisar en la siguiente") does not count as having announced the errand. It
+ * declined ONE shop, not the errand — so the errand is owed another reminder if
+ * a different shop that satisfies it turns up later in the drive.
+ *
+ * That does not re-open the spam this key exists to close. The default is
+ * unchanged: told once, done. Every extra reminder past the first costs a
+ * deliberate button press, one at a time, and only ever names a place the owner
+ * has not already waved past (see declinedMobilityPlaces).
+ */
 export function mobilityAlertFired(tripId, taskId) {
   ensureLoaded();
   const key = mobilityAlertKey(tripId, taskId);
-  return alerts.some((alert) => alert.key === key);
+  return alerts.some((alert) => alert.key === key && alert.answer !== "next");
+}
+
+/**
+ * The shops the owner has waved past for this errand on this trip.
+ *
+ * "Avisar en la siguiente" only means something if the NEXT one is a different
+ * one: without this the re-armed errand would re-rank onto the same nearest
+ * branch and ask about it again, which is the same message twice with extra
+ * steps.
+ *
+ * Coordinates, not names: two branches of one chain share a name, and the
+ * search that produced them is the same one that will produce them again.
+ */
+export function declinedMobilityPlaces(tripId, taskId) {
+  ensureLoaded();
+  const key = mobilityAlertKey(tripId, taskId);
+  return alerts
+    .filter((alert) => alert.key === key && alert.answer === "next")
+    .map((alert) => ({ latitude: alert.latitude, longitude: alert.longitude, place: alert.place }));
 }
 
 /**

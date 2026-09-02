@@ -116,7 +116,10 @@ final class TripPlacesSheet {
             answers.setOrientation(LinearLayout.HORIZONTAL);
             answers.setPadding(0, dp(context, 7), 0, 0);
             answers.addView(chip(context, "Voy", true, () -> actions.answer(place, "go")), chipParams(context, true));
-            answers.addView(chip(context, "Hoy no", false, () -> actions.answer(place, "skip")), chipParams(context, false));
+            // «Avisar en la siguiente»: declines THIS shop, not the errand — the
+            // same answer the Telegram card offers, so the two surfaces cannot
+            // mean different things by the same press.
+            answers.addView(chip(context, "En la siguiente", false, () -> actions.answer(place, "next")), chipParams(context, false));
             bubble.addView(answers);
         }
         return bubble;
@@ -173,6 +176,7 @@ final class TripPlacesSheet {
     static String stateLine(String answer, boolean locked, int options) {
         String said = answer == null ? "" : answer;
         if ("go".equals(said)) return "Dijiste que vas";
+        if ("next".equals(said)) return "Te aviso en la siguiente";
         if ("skip".equals(said)) return "Lo dejaste para otro día";
         if (locked) return "Lugar elegido";
         if (options > 1) return options + " lugares posibles · te muestro el más cercano";

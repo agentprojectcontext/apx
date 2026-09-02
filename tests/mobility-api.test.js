@@ -226,6 +226,21 @@ test("answering an errand from the phone means what answering it in Telegram mea
     assert.equal(alert.place, "La Anónima Pioneros");
     assert.equal(pendingMobilityFollowups("trip-answer").length, 1,
       "a yes on the phone earns the same after-the-trip follow-up");
+
+    // «En la siguiente» is the phone's half of the Telegram card's third
+    // answer: it declines the shop, so the errand is owed another reminder and
+    // owes no follow-up.
+    const { mobilityAlertFired, declinedMobilityPlaces } = await import("../src/core/mobility/state.js");
+    const next = await post({ task_id: task.id, answer: "next" });
+    assert.equal(next.status, 200);
+    assert.equal((await next.json()).answer, "next");
+    assert.equal(mobilityAlertFired("trip-answer", task.id), false,
+      "the errand can still speak up at another shop");
+    assert.deepEqual(
+      declinedMobilityPlaces("trip-answer", task.id).map((p) => p.place),
+      ["La Anónima Pioneros"],
+      "but never again at the one just waved past",
+    );
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }

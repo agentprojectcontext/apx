@@ -44,6 +44,9 @@ public class TripPlacesSheetTest {
     public void anAnsweredErrandShowsTheAnswerAndNotTheOptions() {
         assertEquals("Dijiste que vas", TripPlacesSheet.stateLine("go", true, 3));
         assertEquals("Lo dejaste para otro día", TripPlacesSheet.stateLine("skip", false, 3));
+        // Declining a shop is not dropping the errand: the line has to say the
+        // difference, or the list reads as if the task were closed.
+        assertEquals("Te aviso en la siguiente", TripPlacesSheet.stateLine("next", false, 3));
     }
 
     @Test
@@ -53,7 +56,7 @@ public class TripPlacesSheetTest {
         String source = new String(java.nio.file.Files.readAllBytes(java.nio.file.Paths.get(
             "src/main/java/dev/agentprojectcontext/apx/TripPlacesSheet.java")),
             java.nio.charset.StandardCharsets.UTF_8);
-        for (String label : new String[] { "Navegar", "Sumar a la ruta", "Voy", "Hoy no" }) {
+        for (String label : new String[] { "Navegar", "Sumar a la ruta", "Voy", "En la siguiente" }) {
             int at = source.indexOf("\"" + label + "\"");
             assertTrue("chip label missing: " + label, at > 0);
         }

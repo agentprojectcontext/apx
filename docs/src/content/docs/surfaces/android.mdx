@@ -84,7 +84,7 @@ only announcing a new message.
   notification content.
 - The trip banner opens the trip's errands, not Maps: tapping it shows one card
   per pending errand, nearest first, carrying **the same four chips the Telegram
-  card offers** — Navegar, Sumar a la ruta, Voy, Hoy no. A "voy" pressed here
+  card offers** — Navegar, Sumar a la ruta, Voy, En la siguiente. A "voy" pressed here
   reaches the same record a "voy" pressed in Telegram does, and earns the same
   follow-up after the trip; a card already answered shows the answer instead of
   re-offering the question. When an errand still has several possible shops the
@@ -143,10 +143,16 @@ only announcing a new message.
   never repeats, even after a daemon restart.
 - A proximity card carries four chips: **Navigate** and **Add stop** (Google
   Maps deep links; "Add stop" keeps the current destination and inserts the
-  place as a waypoint), plus **I'll go** and **Not today**. Answering "I'll go"
-  is a promise, not an action: when the trip ends APX asks **Did you make it to that
-  place?** with **Done** — which closes the task — and **Not yet**, which
-  leaves it open.
+  place as a waypoint), plus **I'll go** and **Tell me at the next one**.
+  Answering "I'll go" is a promise, not an action: when the trip ends APX asks
+  **Did you make it to that place?** with **Done** — which closes the task — and
+  **Not yet**, which leaves it open.
+- **"Tell me at the next one" declines the shop, not the errand.** Waving past
+  the branch you happen to be driving by leaves the task owed another reminder,
+  so the next shop that satisfies it can still speak up later in the same trip —
+  it just never asks about the branch you already declined. When there is no
+  next shop it goes quiet for the rest of the trip, which is what the old "Not
+  today" did to the whole errand on the first press.
 - While a trip is active, every automatic Telegram reply goes out **twice**: a
   voice note first, then the same words as text under a quiet `[Transcript]`
   line — a label, not a banner: the audio is the message and the text is there

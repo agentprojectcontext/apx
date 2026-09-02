@@ -207,7 +207,10 @@ test("the chips carry navigation, a stop on the current route, and both answers"
   assert.match(links[1].url, /waypoints=/);
   assert.match(links[1].url, /destination=Onelli%20444/);
   assert.equal(answers[0].callback_data, `apx:mobility:go:${recorded.id}`);
-  assert.equal(answers[1].callback_data, `apx:mobility:skip:${recorded.id}`);
+  // "Avisar en la siguiente", not "hoy no": the second answer declines this
+  // shop and leaves the errand owed a reminder at the next one.
+  assert.equal(answers[1].callback_data, `apx:mobility:next:${recorded.id}`);
+  assert.match(answers[1].text, /siguiente/i);
 
   // No destination known → the "add a stop" link degrades to plain navigation
   // instead of inventing a route.
@@ -360,6 +363,68 @@ test("a settled errand still comes into range as the car approaches it", async (
   assert.ok(
     arriving[0].distance_m < PROXIMITY_RADIUS_M,
     `the alert must carry the distance from HERE, got ${arriving[0].distance_m}`
+  );
+});
+
+test("«avisar en la siguiente» declines the shop, not the errand", async () => {
+  // Waving past the branch you happen to be passing is not dropping the errand.
+  // It used to be: one "hoy no" and the task went quiet for the whole drive,
+  // including at the other supermarket four blocks on.
+  givenTask("Comprar pan en el supermercado");
+  const search = fakeSearch([
+    { query: "supermercado", name: "La Anónima", latitude: -41.1450, longitude: -71.3103 },
+    { query: "supermercado", name: "Todo", latitude: -41.1200, longitude: -71.3103 },
+  ]);
+  const at = (latitude) => acceptMobilityPosition({ trip_id: "trip-next", latitude, longitude: -71.3103 });
+
+  // Passing the first one.
+  const first = await evaluateMobilityPosition(at(-41.1440), ctx, search);
+  assert.equal(first.length, 1);
+  assert.equal(first[0].place, "La Anónima");
+  const alert = recordMobilityAlert(first[0]);
+
+  // Told once, done — until the owner says otherwise.
+  assert.deepEqual(await evaluateMobilityPosition(at(-41.1440), ctx, search), []);
+
+  // 🔁 "Avisar en la siguiente".
+  updateMobilityAlert(alert.id, { answer: "next", outcome: "skipped_place" });
+
+  // Not here: this is still the shop that was just waved past.
+  assert.deepEqual(
+    await evaluateMobilityPosition(at(-41.1440), ctx, search),
+    [],
+    "the declined branch must not be offered again",
+  );
+
+  // But at the other one, yes — that is the whole point.
+  const second = await evaluateMobilityPosition(at(-41.1210), ctx, search);
+  assert.equal(second.length, 1);
+  assert.equal(second[0].place, "Todo", "the next shop still gets to speak up");
+
+  // And waving past the last one is silence, not an argument: "avisar en la
+  // siguiente" with no siguiente is just "hoy no".
+  updateMobilityAlert(recordMobilityAlert(second[0]).id, { answer: "next", outcome: "skipped_place" });
+  assert.deepEqual(await evaluateMobilityPosition(at(-41.1210), ctx, search), []);
+  assert.deepEqual(await evaluateMobilityPosition(at(-41.1440), ctx, search), []);
+});
+
+test("a plain «hoy no» still silences the whole errand for the trip", async () => {
+  // The old answer keeps its old meaning: the cards carrying that button are
+  // still sitting in a phone's chat history.
+  givenTask("Comprar pan en el supermercado");
+  const search = fakeSearch([
+    { query: "supermercado", name: "La Anónima", latitude: -41.1450, longitude: -71.3103 },
+    { query: "supermercado", name: "Todo", latitude: -41.1200, longitude: -71.3103 },
+  ]);
+  const at = (latitude) => acceptMobilityPosition({ trip_id: "trip-skip", latitude, longitude: -71.3103 });
+
+  const first = await evaluateMobilityPosition(at(-41.1440), ctx, search);
+  updateMobilityAlert(recordMobilityAlert(first[0]).id, { answer: "skip", outcome: "skipped" });
+
+  assert.deepEqual(
+    await evaluateMobilityPosition(at(-41.1210), ctx, search),
+    [],
+    "«hoy no» is about the errand, not about one shop",
   );
 });
 

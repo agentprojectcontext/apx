@@ -82,7 +82,7 @@ en card, no solo anuncio de mensaje nuevo.
 - El banner de viaje abre los pendientes del viaje, no Maps: al tocarlo muestra
   una tarjeta por mandado pendiente, del más cercano al más lejano, con **los
   mismos cuatro botones que trae la tarjeta de Telegram** — Navegar, Sumar a la
-  ruta, Voy, Hoy no. Un "voy" acá llega al mismo registro que un "voy" en
+  ruta, Voy, En la siguiente. Un "voy" acá llega al mismo registro que un "voy" en
   Telegram, y gana el mismo seguimiento después del viaje; una tarjeta ya
   contestada muestra la respuesta en lugar de volver a preguntar. Cuando un
   mandado todavía tiene varios lugares posibles la tarjeta lo dice, en vez de
@@ -141,10 +141,16 @@ en card, no solo anuncio de mensaje nuevo.
   daemon.
 - La tarjeta de cercanía trae cuatro chips: **Navegar** y **Sumar a la ruta**
   (links profundos a Google Maps; "Sumar a la ruta" conserva el destino actual e
-  inserta el lugar como parada), más **Voy** y **Hoy no**. Contestar "Voy" es
-  una promesa, no una acción: cuando el viaje termina APX pregunta **¿Pasaste
-  por ese lugar?** con **Hecho** — que cierra la tarea — y **Todavía no**, que la
-  deja abierta.
+  inserta el lugar como parada), más **Voy** y **Avisar en la siguiente**.
+  Contestar "Voy" es una promesa, no una acción: cuando el viaje termina APX
+  pregunta **¿Pasaste por ese lugar?** con **Hecho** — que cierra la tarea — y
+  **Todavía no**, que la deja abierta.
+- **"Avisar en la siguiente" descarta el local, no el mandado.** Dejar pasar la
+  sucursal por la que justo venías manejando deja la tarea con un aviso
+  pendiente: el próximo comercio que sirva para lo mismo todavía puede avisarte
+  en el mismo viaje, y sólo la sucursal que descartaste no vuelve a aparecer.
+  Cuando no hay siguiente se queda callado por el resto del viaje, que es lo que
+  el viejo "Hoy no" le hacía al mandado entero al primer toque.
 - Mientras hay un viaje activo, cada respuesta automática de Telegram sale **dos
   veces**: primero una nota de voz y después las mismas palabras como texto bajo
   una línea discreta `[Transcripción]` — una etiqueta, no un cartel: el audio es
