@@ -111,22 +111,24 @@ public final class TripLocationService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         String requested = intent == null ? "" : String.valueOf(intent.getStringExtra(EXTRA_TRIP_ID));
         if (requested != null && !requested.isBlank() && !"null".equals(requested)) tripId = requested;
-        startForegroundCompat();
+        // Permission first. startForeground() with the `location` type THROWS
+        // when the app may not use location, and this used to run before the
+        // check — so the whole app died with a SecurityException at the exact
+        // moment a trip began.
         if (!canTrack(this)) {
             Log.w(TAG, "Trip tracking asked for without location permission");
             stopSelf();
             return START_NOT_STICKY;
         }
-        requestUpdates();
-        // Re-assert the trip from HERE, not only from the notification
-        // listener. On some OEM builds (Magic OS observed) a background
-        // listener's network calls are dropped while its foreground service
-        // talks fine, so the daemon was receiving positions for a trip it had
-        // never been told had started — and answered every one of them
-        // "trip-ended". State-only (evaluate=false), so this updates awareness
-        // and never triggers a message; the daemon treats a repeat as a
-        // no-op update of the same trip.
+        boolean foreground = startForegroundCompat();
+        // Announced either way: a trip we cannot FOLLOW is still a trip, and
+        // the daemon already has an origin to reason about.
         announceTrip();
+        if (!foreground) {
+            stopSelf();
+            return START_NOT_STICKY;
+        }
+        requestUpdates();
         // Send the fix we already have so the daemon can evaluate proximity
         // immediately instead of waiting up to 30 s for the first update.
         publish(newestFix());
@@ -203,12 +205,37 @@ public final class TripLocationService extends Service {
         DaemonClient.reportPosition(preferences.daemonUrl(), preferences.token(), trip, location);
     }
 
-    private void startForegroundCompat() {
+    /**
+     * Go foreground, or say why not.
+     *
+     * Holding ACCESS_FINE_LOCATION is not sufficient on its own: it is a
+     * while-in-use permission, so Android also requires the app to be in an
+     * "eligible state" to start a `location`-typed foreground service — and it
+     * refuses with a SecurityException when it is not. The refusal is routine
+     * rather than exceptional: the notification listener that detects a trip
+     * runs in the background, which is exactly the ineligible case, and this
+     * threw straight through onStartCommand and killed the app every time a
+     * drive began with APX not on screen.
+     *
+     * Losing the GPS stream is a real cost — no proximity reminders on this
+     * leg — but it is recoverable and a crash is not: MainActivity retries the
+     * start on resume, when the app IS eligible, and "APX menu → Remove battery
+     * restriction" makes the background start succeed on its own.
+     */
+    private boolean startForegroundCompat() {
         Notification notice = buildNotification();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(NOTIFICATION_ID, notice, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION);
-        } else {
-            startForeground(NOTIFICATION_ID, notice);
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startForeground(NOTIFICATION_ID, notice, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION);
+            } else {
+                startForeground(NOTIFICATION_ID, notice);
+            }
+            return true;
+        } catch (RuntimeException refused) {
+            // SecurityException (not eligible) and
+            // ForegroundServiceStartNotAllowedException are both RuntimeException.
+            Log.w(TAG, "Android refused the trip tracking service: " + refused.getMessage());
+            return false;
         }
     }
 
