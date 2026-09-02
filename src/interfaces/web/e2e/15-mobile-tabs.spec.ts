@@ -113,6 +113,31 @@ test.describe("phone tabs", () => {
     expect(errors).toEqual([]);
   });
 
+  // Reported live, the first evening the tab bar existed: completing a task
+  // showed "• Hecha" in the bottom-right corner — exactly on top of the tabs.
+  // A toast must never cover the control that raised it.
+  test("a toast lands clear of the tab bar, not on top of it", async ({ page, errors }) => {
+    await page.route(
+      (url) => url.pathname === "/api/projects/0/tasks/t_late/done",
+      (route) => route.fulfill({ json: { ...TASKS[0], state: "done" } }),
+    );
+
+    await page.goto("/m/tasks");
+    await page.getByTestId("mobile-task-t_late").click();
+    await page.getByTestId("mobile-task-done").click();
+
+    const toast = page.getByTestId("toast-stack");
+    await expect(toast).toBeVisible();
+    const stack = await toast.boundingBox();
+    const bar = await page.getByTestId("mobile-tabbar").boundingBox();
+    expect(stack, "the toast stack is on screen").not.toBeNull();
+    expect(bar, "the tab bar is on screen").not.toBeNull();
+    // Entirely above the bar — measured, not asserted from the class string,
+    // because what matters is where it lands, not how it was spelled.
+    expect(stack!.y + stack!.height).toBeLessThanOrEqual(bar!.y);
+    expect(errors).toEqual([]);
+  });
+
   // The links are out in the world and cannot be recalled: the Android shell
   // hardcodes `/mobile`, and printed QR codes carry it.
   test("the phone's old address still lands", async ({ page }) => {
