@@ -76,11 +76,10 @@ const DEFAULT_CONFIG = {
     // built-in ceiling (WEB_TOOL_ITERS in src/core/agent/constants.js), which is
     // a runaway backstop, not a normal stopping point.
     web_max_iters: 0,
-    // How often a working turn may speak before it's done. The model's own
-    // opening line always goes out (nothing is ever written on its behalf);
-    // after that the turn stays quiet — one notice, the work, then the answer —
-    // except one more note per this many seconds so a long job doesn't look
-    // hung. 0 = never speak mid-turn. See core/channels/telegram/progress-gate.js.
+    // How often optional MODEL prose may appear during a working Telegram turn.
+    // Every real tool start is already shown immediately, with typing renewed;
+    // this controls only extra model-written heartbeats. 0 disables those extra
+    // notes. See core/channels/telegram/progress-gate.js.
     telegram_progress_every_s: 90,
     // Char cap for a FOREIGN project's AGENTS.md in the prompt. 0 = no cap.
     // The project APX runs inside is never capped regardless of this value —

@@ -187,22 +187,20 @@ Leave `route_to_agent` empty (or unset) to use the super-agent (the default).
 
 ## How a working turn arrives
 
-A request that takes the agent several steps arrives as **two messages, not ten**:
+A request that takes the agent several steps stays visibly active:
 
-1. **One notice** when work starts — the agent's own opening line ("Checking that"), which
-   it writes before reaching for the first tool. Nothing is ever sent on its behalf: a turn
-   that opens straight into a tool stays quiet until the agent has something of its own to say.
-2. **Quiet while it works.** Telegram's "typing…" indicator stays on, but the notes the model
-   writes before each step are not delivered — a single task should not buzz your phone eight
-   times.
+1. **One activity line per real tool.** Telegram receives `⚙️ <tool>` immediately before each
+   action starts, even when the model opens directly into a tool.
+2. **Typing while it works.** Telegram's "typing…" indicator is renewed after each activity
+   line and while work runs. Optional model filler remains gated, so it cannot duplicate activity.
 3. **The closing message**, which carries the whole result. It is the message the turn exists
    for, and it is never skipped: when a turn acts but produces no closing, the agent is asked
    to write one from what it just did. Only if that fails too — usually the same engine outage
    that emptied the turn — does a fixed line go out instead.
 
-On a long job one extra note is let through after 90 seconds of quiet, so a four-minute task
-does not look hung. The window is a global setting — `~/.apx/config.json`, or the Settings
-screen of the web panel, which writes the same file and applies it without a restart:
+On a long job one optional model note is let through after 90 seconds of quiet. The window is a
+global setting — `~/.apx/config.json`, or the Settings screen of the web panel, which writes the
+same file and applies it without a restart:
 
 ```json
 {
@@ -212,13 +210,12 @@ screen of the web panel, which writes the same file and applies it without a res
 }
 ```
 
-`180` means at most one note every three minutes; `0` means notice, work, answer — nothing
-else in between.
+`180` means at most one optional model note every three minutes; `0` disables only those optional
+notes — real tool activity still appears.
 
 How much work fits in one turn is a separate knob: `super_agent.telegram_max_iters` caps the
-tool steps a single turn may take (default 24, the last one reserved for the closing message).
-That cap is Telegram's guardrail — you can't watch a phone turn go wrong, so it stops and asks.
-The web chat, which you *do* watch, runs to completion instead; see
+tool steps a single turn may take (default 1000, the last one reserved for the closing message).
+It is a runaway backstop; normal Telegram work runs to completion. See
 [Per-surface tool budget](/apx/docs/capabilities/super-agent/#per-surface-tool-budget).
 
 ## Sender identity and roles

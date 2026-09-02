@@ -21,15 +21,12 @@ import { buildTelegramMeta, resolveBotToken } from "./helpers.js";
 import { createProgressGate, progressEveryMs } from "./progress-gate.js";
 
 /**
- * Build the streaming event handler for a Telegram super-agent turn. ONE notice
- * goes out when work starts — the model's own opening line, the one the
- * two-segment discipline has it write before the first tool — and the rest of
- * the turn stays quiet until the caller sends the closing message. Nothing is
- * ever written on the agent's behalf: a turn that opens straight into a tool
- * stays quiet until the model itself speaks. The progress notes it writes
- * before each later step are held back (see ./progress-gate.js for why, and for
- * the long-job heartbeat that lets one through every N seconds). Tool calls are
- * logged for the audit trail / other channels, never sent to Telegram.
+ * Build the streaming event handler for a Telegram super-agent turn. Each tool
+ * gets one compact, visible activity line before it starts, then the typing
+ * indicator stays alive while it runs. This is deliberately generated from the
+ * real tool event rather than relying on a model filler sentence: a model that
+ * opens directly into a tool must still look alive to the owner. Model-written
+ * extra notes remain gated (see ./progress-gate.js) to avoid duplicate chatter.
  * Returns the handler plus a live `state` the caller reads AFTER the run to
  * drive the final send.
  *
@@ -37,10 +34,10 @@ import { createProgressGate, progressEveryMs } from "./progress-gate.js";
  * mid-turn on a fallback), so every record this handler writes is stamped with
  * the model that produced it — not with the one the turn happened to end on.
  *
- * @returns {{ onEvent: Function, state: { streamedCount: number, lastStreamedText: string, heldCount: number, model: string } }}
+ * @returns {{ onEvent: Function, state: { streamedCount: number, lastStreamedText: string, heldCount: number, toolNoticeCount: number, model: string } }}
  */
 export function buildStreamHandler(self, { chat_id, update_id, agentDisplay }) {
-  const state = { streamedCount: 0, lastStreamedText: "", heldCount: 0, model: "" };
+  const state = { streamedCount: 0, lastStreamedText: "", heldCount: 0, toolNoticeCount: 0, model: "" };
   const gate = createProgressGate({ everyMs: progressEveryMs(self.globalConfig) });
   const onEvent = async (ev) => {
     try {
@@ -78,6 +75,28 @@ export function buildStreamHandler(self, { chat_id, update_id, agentDisplay }) {
           author: agentDisplay,
           body: piece,
           meta: { chat_id, tg_channel: self.channel.name, in_reply_to: update_id, streamed: true, iteration: ev.iteration, ...(state.model ? { model: state.model } : {}) },
+        });
+      } else if (ev.type === "tool_start" && ev.trace) {
+        const tr = ev.trace;
+        // The tool id is intentional: it is truthful, compact, works in every
+        // configured language, and matches the expandable action shown in web.
+        const piece = `⚙️ ${tr.tool}`;
+        await self._send({ chat_id, text: piece });
+        // Sending a Telegram message clears its typing affordance; renew it
+        // after the activity line so it stays visible during the real work.
+        await self._typing?.(chat_id);
+        state.streamedCount += 1;
+        state.toolNoticeCount += 1;
+        appendGlobalMessage({
+          channel: CHANNELS.TELEGRAM,
+          direction: "out",
+          type: "agent",
+          actor_id: SUPERAGENT_ACTOR_ID,
+          actor_kind: "superagent",
+          agent_slug: SUPERAGENT_ACTOR_ID,
+          author: agentDisplay,
+          body: piece,
+          meta: { chat_id, tg_channel: self.channel.name, in_reply_to: update_id, progress: true, tool: tr.tool, iteration: ev.iteration, ...(state.model ? { model: state.model } : {}) },
         });
       } else if (ev.type === "tool_result" && ev.trace) {
         // Logged for the audit trail / other channels — NOT sent to Telegram.

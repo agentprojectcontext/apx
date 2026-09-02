@@ -1,19 +1,15 @@
 // One notice, then the work, then the answer — the message budget for a
 // Telegram turn.
 //
-// The super-agent gets 24 tool steps on this channel (TELEGRAM_TOOL_ITERS), and
-// the two-segment discipline has it write a short line before each one ("Reviso
-// eso", "Busco el archivo"). Streaming every one of those turned a single
-// request into eight chat messages — eight push notifications on a phone for
-// one task. The information was real; the delivery was spam.
+// Tool-start activity is now shown directly by reply.js, because a Telegram
+// owner asked to see every real action. This gate only controls OPTIONAL model
+// prose around those actions, so a model that narrates every step cannot double
+// every activity line with another push notification.
 //
 // So this gate decides which stream events become chat messages:
 //
-//   - The FIRST line the model writes goes out as the turn's one notice. The
-//     two-segment discipline has it write that line before the first tool, so
-//     it lands before the work starts. Nothing is ever sent on the agent's
-//     behalf: a turn that opens straight into a tool stays quiet until the
-//     model itself speaks.
+//   - The FIRST line the model writes goes out as an optional turn opener.
+//     A tool-start activity line still appears even if the model skips prose.
 //   - Everything after it is held. The turn goes quiet — the typing indicator
 //     keeps ticking (poller._startTyping re-pings every 4s) — until the closing
 //     message the caller always sends.
