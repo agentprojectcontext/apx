@@ -2,6 +2,7 @@ import { runSuperAgent } from "#core/agent/super-agent.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { TOOLS } from "#core/agent/tools/names.js";
 import { resolveLang } from "#core/i18n/index.js";
+import { stripEmoji } from "#core/voice/pronounceable.js";
 import { deliverVoiceReply, mobilityVoiceActive } from "#core/channels/telegram/voice-note.js";
 import { isMobilitySilentToday } from "./preferences.js";
 import { enrichMobilityEvent } from "./osm-route.js";
@@ -34,6 +35,10 @@ const DEFAULT_AGENT_TIMEOUT_MS = 15_000;
 // five times at a green light is the exact failure this feature exists to
 // avoid. The rest stay unfired and are announced on a later sample.
 const MAX_ALERTS_PER_POSITION = 2;
+// Long enough for a whole proximity reminder (place, distance, errand) and
+// still bounded — the events socket carries this to the phone, and a full
+// agent answer does not belong on a car card.
+const CAR_CARD_MAX_CHARS = 220;
 // Trips whose first GPS sample has already been logged. "Is the phone actually
 // reporting?" is the first question every mobility problem starts with, and
 // without this the honest answer was "no way to tell from here" — positions
@@ -156,7 +161,15 @@ export function mobilityPrompt(event, enrichment = null, awareness = mobilityCon
  */
 async function sendMobilityMessage(ctx, { text, reply_markup, notify, speak = true }) {
   if (!ctx.telegram?.send) throw new Error("telegram plugin not loaded");
-  const meta = { via: "mobility_delivery", notify: (notify || text).replace(/[*_`]/g, "").slice(0, 100) };
+  // `notify` is what Android turns into a car card — and the Assistant READS
+  // that card aloud on the head unit, emoji included: a 📍 comes out as its
+  // Unicode name mid-sentence. It is also the whole message now rather than a
+  // headline, because a driver hearing half a reminder has to pick up the
+  // phone to get the rest, which is the one thing this feature exists to avoid.
+  const meta = {
+    via: "mobility_delivery",
+    notify: stripEmoji(notify || text).replace(/[*_`]/g, "").slice(0, CAR_CARD_MAX_CHARS),
+  };
   if (speak && mobilityVoiceActive(ctx.config)) {
     const spoken = await deliverVoiceReply({
       io: {

@@ -193,6 +193,27 @@ export const es = {
     new_chat_title: "Empezar un chat",
     new_chat_empty: "No se encontraron agentes.",
     group_slug_clash: "Ya elegiste otro «{slug}» de otro proyecto — el @slug tiene que ser único en la sala.",
+
+    // La barra de abajo: las tres cosas que se miran de parado.
+    tab_chats: "Chats",
+    tab_tasks: "Tasks",
+    tab_commitments: "Promesas",
+    tasks_search: "Buscar tasks",
+    commitments_search: "Buscar promesas",
+    load_more: "Ver {count} más",
+    // Cuándo vence algo. Se compara por día del calendario, no por instante:
+    // una task que vence hoy a medianoche no está vencida a las 9 de la mañana.
+    due: {
+      overdue:  "Vencidas",
+      today:    "Hoy",
+      tomorrow: "Mañana",
+      week:     "Esta semana",
+      later:    "Más adelante",
+      none:     "Sin fecha",
+    },
+    commitment_move: "Reprogramar",
+    commitment_moved_toast: "Fecha reprogramada.",
+    commitment_closed: "Cerrada. Reabrirla es acordar una fecha nueva con la persona — eso se hace en el panel.",
   },
   notify: {
     title:       "Notificaciones",
@@ -212,6 +233,7 @@ export const es = {
     test_failed: "No se pudo mostrar. Revisá que el navegador tenga permiso a nivel sistema.",
     nudge:       "¿Te aviso cuando un agente escriba?",
     nudge_yes:   "Activar",
+    native_channels_hint: "Qué te interrumpe en este celular. Telegram arranca apagado — la app ya está acá y avisa sola. Lo apagado igual se lee en el chat.",
     channels_hint: "Qué canales pueden sonar en este dispositivo. En el celu Telegram arranca apagado — la app ya está ahí.",
   },
   inbox: {
@@ -239,6 +261,7 @@ export const es = {
     a2a:         "Agente ↔ agente",
     group:       "Grupos",
     other:       "Sin canal",
+    mobility:    "Viajes y mandados",
     all_hidden:  "Acá están todos los canales apagados. Tocá uno para volver a verlo.",
   },
 
@@ -2088,6 +2111,12 @@ export const es = {
   },
 
   tasks: {
+    category_general: "Tarea",
+    category_trip: "Mandado en el camino",
+    location_label: "Lugar",
+    location_place: "Nombre del lugar",
+    location_address: "Dirección",
+    location_at: "Coordenadas",
     state_open:      "Abiertas",
     state_done:      "Hechas",
     state_dropped:   "Descartadas",

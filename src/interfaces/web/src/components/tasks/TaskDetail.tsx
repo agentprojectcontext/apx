@@ -8,7 +8,7 @@ import { UiSelect } from "../UiSelect";
 import { ReadOnlyBlock } from "../ReadOnlyBlock";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { useToast } from "../Toast";
-import { StatusIcon, StatusBadge, effectiveStatus, statusTint, TASK_STATUS_ORDER, statusLabel } from "./taskStatus";
+import { CategoryIcon, StatusIcon, StatusBadge, categoryLabel, effectiveStatus, statusTint, TASK_STATUS_ORDER, statusLabel } from "./taskStatus";
 import { relativeWhen } from "../../lib/when";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
@@ -99,6 +99,12 @@ export function TaskDetail({
         {/* compact meta strip — the same row the routine detail uses */}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-fg">
           <StatusBadge status={eff} />
+          {task.category && task.category !== "general" && (
+            <span className="inline-flex items-center gap-1">
+              <CategoryIcon category={task.category} />
+              {categoryLabel(task.category)}
+            </span>
+          )}
           {projectName && <Badge tone="info">{projectName.split("/").pop() || projectName}</Badge>}
           <span className="font-mono text-[10px]">{task.id}</span>
           {task.agent && <span>@{task.agent}</span>}
@@ -108,6 +114,25 @@ export function TaskDetail({
             </span>
           )}
           {task.tags?.map((tag) => <span key={tag}>#{tag}</span>)}
+          {task.location && (
+            // Pinned places link out to Maps; a place with only a name still
+            // says where, which is the point of writing it down.
+            <span>
+              {t("tasks.location_label")}:{" "}
+              {task.location.latitude != null && task.location.longitude != null ? (
+                <a
+                  className="underline underline-offset-2"
+                  href={`https://www.google.com/maps/search/?api=1&query=${task.location.latitude},${task.location.longitude}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  {task.location.place || task.location.address || `${task.location.latitude}, ${task.location.longitude}`}
+                </a>
+              ) : (
+                task.location.place || task.location.address
+              )}
+            </span>
+          )}
           {task.source && <span>{t("tasks.field_source")}: {task.source}</span>}
           {task.created_by && <span>{t("tasks.field_creator")}: {task.created_by}</span>}
           <span title={new Date(task.created_at).toLocaleString()}>

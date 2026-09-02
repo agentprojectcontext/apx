@@ -136,6 +136,19 @@ export interface RoutineFrame {
 // Workflow sub-status for an open task (orthogonal to `state`).
 export type TaskStatus = "pending" | "running" | "in_review" | "blocked";
 
+/** What KIND of task — a closed set the daemon routes on. See
+ *  core/constants/task-categories.js. Tags stay free-form and separate. */
+export type TaskCategory = "general" | "trip";
+
+/** Where an errand is. A category that is not locatable never carries one. */
+export interface TaskLocation {
+  place?: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+  radius_m?: number;
+}
+
 export interface TaskEntry {
   id: string;
   state: "open" | "done" | "dropped";
@@ -143,6 +156,8 @@ export interface TaskEntry {
   title: string;
   body: string | null;
   tags: string[];
+  category?: TaskCategory;
+  location?: TaskLocation | null;
   due: string | null;
   agent: string | null;
   source: string | null;

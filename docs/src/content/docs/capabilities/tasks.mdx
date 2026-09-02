@@ -157,7 +157,34 @@ apx task done abc      --project myapp     # prefix, resolves if unique
 | `due` | Optional | ISO date `YYYY-MM-DD`. Filterable with `--due-before`. |
 | `agent` | Optional | Agent slug responsible for the task. |
 | `source` | Auto / optional | Origin: `cli`, `telegram`, `super-agent`, … |
+| `category` | Optional | What KIND of task: `general` (default) or `trip`. Closed set — see below. |
+| `location` | Optional | Where a `trip` errand is: `place`, `address`, `latitude`/`longitude`, `radius_m`. |
 | `state` | Derived | `open` → `done` or `dropped`. Reopenable. |
+
+## Categories and places
+
+A **tag** is a free-form label you invent. A **category** is a closed set the
+system itself acts on, which is the difference that matters: `trip` means "an
+errand, at a place", and the daemon can route on that without asking a model to
+read the title and guess.
+
+That guess is exactly what a category replaces. While a trip is running, APX
+matches your position against open tasks and reminds you once when you pass
+somewhere useful. For a task with no location it has to search OpenStreetMap for
+places that might satisfy the errand; for a `trip` task that already carries its
+own coordinates it does none of that — **no geocoding, no place search, and no
+model call**. Same reminder, no network and no tokens.
+
+```bash
+apx task add "Buy ibuprofen" --category trip --place "Pharmacy on Main" --at "-41.13,-71.31"
+```
+
+`--radius <m>` sets how close counts as "there" for that one errand; without it
+the mobility default applies. An empty `--place` on `apx task patch` clears the
+location. Tags are untouched by any of this — a task can have both.
+
+The web task list draws a small mark for a category that has one; `general`
+draws nothing, because an icon on every row carries no information.
 
 ## How the super-agent feeds tasks
 
