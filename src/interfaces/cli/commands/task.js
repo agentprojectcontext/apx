@@ -1,6 +1,7 @@
 // apx task — per-project TODO list. Backed by /projects/:pid/tasks.
 //
 //   apx task add "<title>" [--project X] [--body Y] [--tag t] [--due 2026-05-30] [--agent A]
+//                          [--category trip] [--place "Farmacia X"] [--at "-41.13,-71.31"] [--radius 1500]
 //   apx task list          [--all | --project X] [--state ...] [--status ...] [--tag X] [--agent Y]
 //                          [--due-before ISO] [--due-after ISO] [--updated-since ISO] [--limit N]
 //   apx task show <id>     [--project X]
@@ -18,7 +19,7 @@ import { resolveProjectId } from "./project.js";
 
 // ── Usage strings (also used by index.js help topics) ────────────────────────
 export const TASK_USAGE = {
-  add:    'apx task add "<title>" [--project X] [--body Y] [--tag t]... [--due 2026-05-30] [--agent A]',
+  add:    'apx task add "<title>" [--project X] [--body Y] [--tag t]... [--due 2026-05-30] [--agent A] [--category trip] [--place "Farmacia X"] [--at "lat,lon"] [--radius 1500]',
   list:   "apx task list [--all | --project X] [--state open|done|dropped|all] [--status pending|running|in_review|blocked] [--tag X] [--agent Y] [--due-before ISO] [--due-after ISO] [--updated-since ISO] [--limit N]",
   show:   "apx task show <id> [--project X]",
   done:   "apx task done <id> [--project X] [--by name]",
@@ -85,6 +86,10 @@ function renderDetail(t) {
     title: t.title,
     body: t.body,
     tags: t.tags,
+    // Only when it says something: a "general" category on every row is noise,
+    // and an absent location should read as absent rather than as null.
+    category: t.category && t.category !== "general" ? t.category : undefined,
+    location: t.location || undefined,
     due: t.due,
     agent: t.agent,
     source: t.source,
@@ -93,6 +98,36 @@ function renderDetail(t) {
     done_at: t.done_at ? shortTs(t.done_at) : undefined,
     dropped_at: t.dropped_at ? shortTs(t.dropped_at) : undefined,
   }, null, 2));
+}
+
+/**
+ * Build the `location` field from the place flags, or return {} when none were
+ * given so a patch that touches nothing else stays a no-op.
+ *
+ * `--at` takes "lat,lon" as one argument because that is how coordinates are
+ * copied out of Maps — asking for two separate flags guarantees one of them is
+ * eventually forgotten, and half a coordinate is worse than none.
+ */
+function locationFrom(flags = {}) {
+  const place = flags.place;
+  const address = flags.address;
+  const at = flags.at;
+  const radius = flags.radius;
+  if (place === undefined && address === undefined && at === undefined && radius === undefined) return {};
+  // An explicitly empty --place clears the location.
+  if (place === "" && at === undefined && address === undefined) return { location: null };
+  const location = {};
+  if (place) location.place = place;
+  if (address) location.address = address;
+  if (at) {
+    const [lat, lon] = String(at).split(",").map((part) => Number(part.trim()));
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      location.latitude = lat;
+      location.longitude = lon;
+    }
+  }
+  if (radius) location.radius_m = Number(radius);
+  return { location };
 }
 
 // ── add ───────────────────────────────────────────────────────────────────────
@@ -107,6 +142,8 @@ export async function cmdTaskAdd(args) {
     agent: args.flags?.agent || null,
     source: args.flags?.source || "cli",
     tags: asArray(args.flags?.tag).filter(Boolean),
+    ...(args.flags?.category ? { category: args.flags.category } : {}),
+    ...locationFrom(args.flags),
   };
   const task = await http.post(`/api/projects/${pid}/tasks`, body);
   console.log(`added task ${task.id}: ${task.title}`);
@@ -202,8 +239,11 @@ export async function cmdTaskPatch(args) {
   if (args.flags?.due   !== undefined) patch.due   = args.flags.due || null;
   if (args.flags?.agent !== undefined) patch.agent = args.flags.agent || null;
   if (args.flags?.tag   !== undefined) patch.tags  = asArray(args.flags.tag).filter(Boolean);
+  if (args.flags?.category !== undefined) patch.category = args.flags.category;
+  const located = locationFrom(args.flags);
+  if ("location" in located) patch.location = located.location;
   if (Object.keys(patch).length === 0) {
-    return fail("patch", "at least one --title|--body|--due|--agent|--tag required");
+    return fail("patch", "at least one --title|--body|--due|--agent|--tag|--category|--place|--at required");
   }
   const t = await http.patch(`/api/projects/${pid}/tasks/${encodeURIComponent(id)}`, { patch });
   renderDetail(t);

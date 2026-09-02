@@ -118,6 +118,15 @@ public final class TripLocationService extends Service {
             return START_NOT_STICKY;
         }
         requestUpdates();
+        // Re-assert the trip from HERE, not only from the notification
+        // listener. On some OEM builds (Magic OS observed) a background
+        // listener's network calls are dropped while its foreground service
+        // talks fine, so the daemon was receiving positions for a trip it had
+        // never been told had started — and answered every one of them
+        // "trip-ended". State-only (evaluate=false), so this updates awareness
+        // and never triggers a message; the daemon treats a repeat as a
+        // no-op update of the same trip.
+        announceTrip();
         // Send the fix we already have so the daemon can evaluate proximity
         // immediately instead of waiting up to 30 s for the first update.
         publish(newestFix());
@@ -164,6 +173,18 @@ public final class TripLocationService extends Service {
         } catch (SecurityException denied) {
             return null;
         }
+    }
+
+    private void announceTrip() {
+        String trip = tripId.isBlank() ? preferences.travelTripId() : tripId;
+        if (trip.isBlank()) return;
+        DaemonClient.notifyTripContext(
+            preferences.daemonUrl(),
+            preferences.token(),
+            trip,
+            preferences.travelDestination(),
+            DeviceLocation.latest(this)
+        );
     }
 
     private void publish(Location location) {

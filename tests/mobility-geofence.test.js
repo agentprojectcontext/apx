@@ -59,8 +59,8 @@ const ctx = { projects };
 
 const { createTask, doneTask } = await import("../src/core/stores/tasks.js");
 
-function givenTask(title) {
-  return createTask(storagePath, { title });
+function givenTask(title, extra = {}) {
+  return createTask(storagePath, { title, ...extra });
 }
 
 /**
@@ -259,4 +259,62 @@ test("an errand added mid-drive is picked up without driving eight kilometres", 
   const targets = await ensureTripTargets(position, ctx, search, elevenMinutesLater);
   assert.equal(targets.length, 1);
   assert.equal(targets[0].place, "Farmacia Ejemplo");
+});
+
+test("a trip task with its own place needs no search and no model", async () => {
+  // This is what the `trip` category buys: the errand already knows where it
+  // is, so the alert costs zero network and zero tokens. A fetch call here is
+  // the regression.
+  givenTask("Comprar ibuprofeno en la farmacia del Km 8", {
+    category: "trip",
+    location: { place: "Farmacia Pioneros Km 8", latitude: PHARMACY.latitude, longitude: PHARMACY.longitude },
+  });
+  let searched = 0;
+  const alerts = await evaluateMobilityPosition(
+    acceptMobilityPosition({ trip_id: "trip-pinned", ...DRIVING_AT }),
+    ctx,
+    async () => { searched += 1; return { ok: true, status: 200, json: async () => [] }; }
+  );
+  assert.equal(searched, 0, "a pinned errand must not cost a place search");
+  assert.equal(alerts.length, 1);
+  assert.equal(alerts[0].place, "Farmacia Pioneros Km 8");
+  assert.equal(alerts[0].need_id, "pinned");
+});
+
+test("a task's own radius wins over the default", async () => {
+  // 1.3 km away, but this errand only wants to hear about it inside 500 m.
+  givenTask("Pasar por la ferretería", {
+    category: "trip",
+    location: {
+      place: "Ferretería Ejemplo",
+      latitude: PHARMACY.latitude,
+      longitude: PHARMACY.longitude,
+      radius_m: 500,
+    },
+  });
+  const alerts = await evaluateMobilityPosition(
+    acceptMobilityPosition({ trip_id: "trip-tight", ...DRIVING_AT }),
+    ctx,
+    async () => { throw new Error("must not search"); }
+  );
+  assert.deepEqual(alerts, [], "inside the default radius but outside its own");
+});
+
+test("a place is only kept when there is something usable in it", async () => {
+  const { normalizeTaskLocation, normalizeTaskCategory } =
+    await import("../src/core/constants/task-categories.js");
+  assert.equal(normalizeTaskLocation(null), null);
+  assert.equal(normalizeTaskLocation({}), null);
+  // Half a coordinate is worse than none — everything downstream would read it
+  // as an answer.
+  assert.equal(normalizeTaskLocation({ latitude: -41.1 }), null);
+  assert.deepEqual(normalizeTaskLocation({ place: "Farmacia" }), { place: "Farmacia" });
+  assert.deepEqual(
+    normalizeTaskLocation({ lat: -41.1, lng: -71.3 }),
+    { latitude: -41.1, longitude: -71.3 }
+  );
+  assert.equal(normalizeTaskLocation({ latitude: 999, longitude: -71.3 }), null);
+  assert.equal(normalizeTaskCategory("TRIP"), "trip");
+  assert.equal(normalizeTaskCategory("nonsense"), "general");
+  assert.equal(normalizeTaskCategory(undefined), "general");
 });

@@ -1,8 +1,8 @@
-import { Loader2, CheckCircle2, XCircle, Clock, CircleDot, HelpCircle } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Clock, CircleDot, HelpCircle, Car } from "lucide-react";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 import { toneDot, toneText, toneTint } from "../../lib/tone";
-import type { TaskEntry, TaskStatus } from "../../types/daemon";
+import type { TaskCategory, TaskEntry, TaskStatus } from "../../types/daemon";
 
 type Meta = { labelKey: string; color: string; dot: string; tint: string; Icon: typeof Clock; spin?: boolean };
 
@@ -62,4 +62,26 @@ export function StatusBadge({ status }: { status: TaskStatus | "done" | "dropped
 
 export function StatusDot({ status }: { status: TaskStatus }) {
   return <span className={cn("size-2 rounded-full", STATUS_META[status].dot)} />;
+}
+
+// ── Category ────────────────────────────────────────────────────────────────
+// What KIND of task, next to the status icon that says how it is going. The
+// two answer different questions and both belong on the row: a trip errand is
+// a trip errand whether it is pending or blocked.
+const CATEGORY_META: Record<TaskCategory, { labelKey: string; Icon: typeof Car } | null> = {
+  // "general" draws nothing: an icon on every row carries no information.
+  general: null,
+  trip: { labelKey: "tasks.category_trip", Icon: Car },
+};
+
+export function categoryLabel(category: TaskCategory): string {
+  const meta = CATEGORY_META[category];
+  return meta ? t(meta.labelKey as never) : t("tasks.category_general");
+}
+
+/** The little mark that says this is an errand. Null for a plain task. */
+export function CategoryIcon({ category, className }: { category?: TaskCategory; className?: string }) {
+  const meta = category ? CATEGORY_META[category] : null;
+  if (!meta) return null;
+  return <meta.Icon className={cn("size-3.5 shrink-0", toneText.emerald, className)} aria-label={categoryLabel(category!)} />;
 }

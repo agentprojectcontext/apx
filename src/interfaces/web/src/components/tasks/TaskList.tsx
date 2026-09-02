@@ -8,7 +8,7 @@ import { ConfirmDialog } from "../common/ConfirmDialog";
 import { SelectCheckbox } from "../common/SelectCheckbox";
 import { DropdownMenuItem, DropdownMenuSeparator } from "../ui/dropdown-menu";
 import { useToast } from "../Toast";
-import { StatusIcon, effectiveStatus, statusTint } from "./taskStatus";
+import { CategoryIcon, StatusIcon, effectiveStatus, statusTint } from "./taskStatus";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 import { toneText } from "../../lib/tone";
@@ -113,6 +113,7 @@ export function TaskList({
                   <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-md", statusTint(eff))}>
                     <StatusIcon status={eff} className="size-3.5" />
                   </span>
+                  <CategoryIcon category={task.category} />
                   <span className="min-w-0 flex-1 truncate text-sm font-medium">{task.title}</span>
                 </div>
                 <div className="mt-1 flex items-center justify-between gap-2 pl-8 text-[10px] text-muted-fg">

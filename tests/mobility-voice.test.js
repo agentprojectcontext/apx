@@ -148,6 +148,31 @@ test("temporary speech files do not survive the send", async () => {
   assert.deepEqual(after, before, "both the wav and the ogg are cleaned up");
 });
 
+test("what gets SPOKEN loses its emoji; what gets READ keeps them", async () => {
+  // Two different failures, one cause. A TTS model hums for a couple of
+  // seconds on a 📍; and on a car head unit the Assistant reads the card
+  // ALOUD, so the pin comes out as its Unicode name mid-sentence.
+  startTrip();
+  const io = recordingIo();
+  let spokenText = "";
+  await deliverVoiceReply({
+    io,
+    chat_id: 1234567890,
+    text: "📍 Estás cerca de Farmacia Ejemplo (1.2 km).",
+    globalConfig: { user: { language: "es" } },
+    synthesizeFn: async ({ text }) => {
+      spokenText = text;
+      const file = path.join(tmpHome, `speech-${Math.random().toString(36).slice(2)}.wav`);
+      fs.writeFileSync(file, Buffer.alloc(64));
+      return { audio_path: file, duration_s: 3, provider: "qvox" };
+    },
+    toVoiceNoteFn: fakeConvert(),
+  });
+  assert.doesNotMatch(spokenText, /📍/, "the audio must not try to pronounce a pin");
+  assert.match(spokenText, /Estás cerca de Farmacia Ejemplo/);
+  assert.match(io.sent[1].text, /📍/, "the written transcript keeps them — it is read, not spoken");
+});
+
 test("mobility mode teaches the model to answer in one or two spoken sentences", () => {
   assert.equal(buildMobilityModeBlock(false), "");
   const block = buildMobilityModeBlock(true);

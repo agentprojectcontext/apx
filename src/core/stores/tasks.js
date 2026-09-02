@@ -18,6 +18,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { nowIso } from "../util/time.js";
 import { shortId as makeShortId } from "../util/ids.js";
+import { normalizeTaskCategory, normalizeTaskLocation } from "#core/constants/task-categories.js";
 
 // Workflow sub-status for an *open* task. Orthogonal to `state`
 // (open/done/dropped): `state` is the storage lifecycle, `status` is how an
@@ -91,6 +92,11 @@ function projectState(events) {
           source: ev.source || null,
           created_by: ev.created_by || null,
           thread: ev.thread || null,
+          // What KIND of task, and where. Both are first-class rather than
+          // conventions inside `meta` or `tags`, because the daemon routes on
+          // them — see core/constants/task-categories.js.
+          category: normalizeTaskCategory(ev.category),
+          location: normalizeTaskLocation(ev.location),
           meta: ev.meta && typeof ev.meta === "object" ? { ...ev.meta } : {},
         });
         break;
@@ -100,7 +106,12 @@ function projectState(events) {
         const patch = ev.patch && typeof ev.patch === "object" ? ev.patch : {};
         for (const k of Object.keys(patch)) {
           if (k === "id" || k === "state" || k === "created_at") continue;
-          existing[k] = k === "status" ? normalizeStatus(patch[k]) : patch[k];
+          if (k === "status") existing[k] = normalizeStatus(patch[k]);
+          else if (k === "category") existing[k] = normalizeTaskCategory(patch[k]);
+          // A patch that clears the location must be able to say so, so null
+          // survives here where an unknown key would just be copied.
+          else if (k === "location") existing[k] = normalizeTaskLocation(patch[k]);
+          else existing[k] = patch[k];
         }
         existing.updated_at = ev.ts;
         break;
@@ -142,7 +153,8 @@ function projectState(events) {
 
 /**
  * Create a new task. Returns the freshly projected task object.
- * fields: { title (required), body?, tags?, due?, agent?, source?, meta? }
+ * fields: { title (required), body?, tags?, due?, agent?, source?, meta?,
+ *           category?, location? }
  */
 export function createTask(storagePath, fields) {
   if (!fields || typeof fields !== "object") throw new Error("createTask: fields required");
@@ -161,6 +173,8 @@ export function createTask(storagePath, fields) {
     source: fields.source || null,
     created_by: fields.created_by || null,
     thread: fields.thread || null,
+    category: normalizeTaskCategory(fields.category),
+    location: normalizeTaskLocation(fields.location),
     meta: fields.meta && typeof fields.meta === "object" ? fields.meta : {},
   };
   appendEvent(storagePath, ev);

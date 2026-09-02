@@ -157,7 +157,35 @@ apx task done abc      --project myapp     # prefijo, resuelve si es único
 | `due` | Opcional | Fecha ISO `YYYY-MM-DD`. Filtrable con `--due-before`. |
 | `agent` | Opcional | Slug del agente responsable de la task. |
 | `source` | Auto / opcional | Origen: `cli`, `telegram`, `super-agent`, … |
+| `category` | Opcional | Qué CLASE de tarea: `general` (por defecto) o `trip`. Conjunto cerrado — ver abajo. |
+| `location` | Opcional | Dónde está el mandado `trip`: `place`, `address`, `latitude`/`longitude`, `radius_m`. |
 | `state` | Derivado | `open` → `done` o `dropped`. Reabrible. |
+
+## Categorías y lugares
+
+Un **tag** es una etiqueta libre que inventás vos. Una **categoría** es un
+conjunto cerrado sobre el que actúa el sistema, y esa es la diferencia que
+importa: `trip` significa "un mandado, en un lugar", y el daemon puede rutear
+sobre eso sin pedirle a un modelo que lea el título y adivine.
+
+Esa adivinanza es justamente lo que reemplaza la categoría. Mientras hay un
+viaje en curso, APX cruza tu posición con las tareas abiertas y te avisa una vez
+cuando pasás cerca de algo útil. Para una tarea sin ubicación tiene que buscar
+lugares en OpenStreetMap que puedan servir; para una tarea `trip` que ya trae sus
+coordenadas no hace nada de eso: **ni geocoding, ni búsqueda de lugares, ni
+llamada a un modelo**. El mismo recordatorio, sin red y sin tokens.
+
+```bash
+apx task add "Comprar ibuprofeno" --category trip --place "Farmacia del Km 8" --at "-41.13,-71.31"
+```
+
+`--radius <m>` define qué tan cerca cuenta como "ahí" para ese mandado; sin él
+rige el radio de movilidad por defecto. Un `--place` vacío en `apx task patch`
+borra la ubicación. Los tags no se tocan con nada de esto: una tarea puede tener
+los dos.
+
+La lista de tareas de la web dibuja una marquita para la categoría que tiene
+una; `general` no dibuja nada, porque un ícono en todas las filas no informa.
 
 ## Cómo el super-agent alimenta las tasks
 

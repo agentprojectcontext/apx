@@ -14,6 +14,7 @@
 // state (./state.js) BEFORE the message is sent — a failed Telegram call is
 // not a licence to try the same reminder again two seconds later.
 import { t } from "#core/i18n/index.js";
+import { categoryIsLocatable } from "#core/constants/task-categories.js";
 import { activeTasks, haversineMeters, nearbyPois, taskNeeds } from "./osm-route.js";
 import { listMobilityAlerts, mobilityAlertFired } from "./state.js";
 
@@ -90,10 +91,38 @@ export function acceptMobilityPosition(body = {}, now = Date.now()) {
  * without a single network call.
  */
 export async function buildTripTargets(position, ctx, fetchFn = fetch) {
-  const rows = activeTasks(ctx.projects)
+  const open = activeTasks(ctx.projects);
+
+  // A task that already carries its own pinned place is the cheap path and the
+  // exact one: no geocoding, no place search, no model reading the title to
+  // guess what kind of errand it is. That is what a `trip` category with a
+  // location is FOR — see core/constants/task-categories.js.
+  const pinned = [];
+  const unpinned = [];
+  for (const task of open) {
+    const spot = task.location;
+    if (categoryIsLocatable(task.category) && spot?.latitude != null && spot?.longitude != null) {
+      pinned.push({
+        task_id: task.id,
+        task: task.title || "",
+        project_id: task.project_id ?? task.projectId ?? "",
+        need_id: "pinned",
+        place: spot.place || spot.address || task.title || "",
+        latitude: spot.latitude,
+        longitude: spot.longitude,
+        ...(Number.isFinite(spot.radius_m) ? { radius_m: spot.radius_m } : {}),
+      });
+      continue;
+    }
+    unpinned.push(task);
+  }
+
+  // Everything else still goes through the need vocabulary: a title that names
+  // a pharmacy, with no place attached, is worth searching for.
+  const rows = unpinned
     .map((task) => ({ task, needs: taskNeeds(task) }))
     .filter((row) => row.needs.length);
-  if (!rows.length) return [];
+  if (!rows.length) return pinned;
 
   const needs = [...new Map(
     rows.flatMap((row) => row.needs).map((need) => [`${need.id}:${need.query}`, need])
@@ -105,7 +134,7 @@ export async function buildTripTargets(position, ctx, fetchFn = fetch) {
     { padDegrees: SEARCH_PAD_DEGREES }
   );
 
-  const targets = [];
+  const targets = [...pinned];
   for (const row of rows) {
     for (const place of places) {
       if (!row.needs.some((need) => need.id === place.tags?.need_id)) continue;
@@ -201,7 +230,9 @@ export async function evaluateMobilityPosition(position, ctx, fetchFn = fetch) {
   for (const target of targets) {
     if (mobilityAlertFired(position.trip_id, target.task_id)) continue;
     const distance_m = Math.round(haversineMeters(position, target));
-    if (distance_m > PROXIMITY_RADIUS_M) continue;
+    // A task may set its own idea of "there" — a pharmacy you would detour two
+    // kilometres for is not a bakery you would only stop at if you were passing.
+    if (distance_m > (target.radius_m || PROXIMITY_RADIUS_M)) continue;
     const best = nearestPerTask.get(target.task_id);
     if (best && best.distance_m <= distance_m) continue;
     nearestPerTask.set(target.task_id, { ...target, trip_id: position.trip_id, distance_m });

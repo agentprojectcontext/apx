@@ -192,6 +192,27 @@ export const en = {
     new_chat_title: "Start a chat",
     new_chat_empty: "No agents found.",
     group_slug_clash: "You already picked another \"{slug}\" from a different project — @slug must be unique in the room.",
+
+    // The bottom bar: the three things you check standing up.
+    tab_chats: "Chats",
+    tab_tasks: "Tasks",
+    tab_commitments: "Promises",
+    tasks_search: "Search tasks",
+    commitments_search: "Search promises",
+    load_more: "Show {count} more",
+    // When something is due. Compared by calendar day, not by instant: a task
+    // due today at midnight is not overdue at 9am.
+    due: {
+      overdue:  "Overdue",
+      today:    "Today",
+      tomorrow: "Tomorrow",
+      week:     "This week",
+      later:    "Later",
+      none:     "No date",
+    },
+    commitment_move: "Reschedule",
+    commitment_moved_toast: "Date rescheduled.",
+    commitment_closed: "Closed. Reopening one means agreeing a new date with the person — that lives in the panel.",
   },
   notify: {
     title:       "Notifications",
@@ -211,6 +232,7 @@ export const en = {
     test_failed: "Nothing was shown. Check the browser has permission at the system level.",
     nudge:       "Tell you when an agent writes?",
     nudge_yes:   "Turn on",
+    native_channels_hint: "What may interrupt you on this phone. Telegram starts off — its own app is already here. A muted channel is still there to read in the chat.",
     // Per device, not per account: the phone has Telegram installed ON it,
     // the laptop does not, so the same channel deserves opposite answers.
     channels_hint: "Which channels may ring this device. The phone starts with Telegram off — the app is already on it.",
@@ -242,6 +264,7 @@ export const en = {
     a2a:         "Agent ↔ agent",
     group:       "Groups",
     other:       "No channel",
+    mobility:    "Trips and errands",
     all_hidden:  "Every channel is switched off here. Tap one to bring it back.",
   },
 
@@ -2094,6 +2117,12 @@ export const en = {
   },
 
   tasks: {
+    category_general: "Task",
+    category_trip: "Errand on the way",
+    location_label: "Place",
+    location_place: "Place name",
+    location_address: "Address",
+    location_at: "Coordinates",
     state_open:      "Open",
     state_done:      "Done",
     state_dropped:   "Dropped",

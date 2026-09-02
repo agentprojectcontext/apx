@@ -20,6 +20,7 @@ import fs from "node:fs";
 import { t, resolveLang } from "#core/i18n/index.js";
 import { synthesize } from "#core/voice/tts.js";
 import { toVoiceNote } from "#core/voice/opus.js";
+import { stripEmoji } from "#core/voice/pronounceable.js";
 import { archiveOutboundMedia, outboundMediaMeta } from "#core/stores/media-archive.js";
 import { mobilityContext } from "#core/mobility/state.js";
 
@@ -69,7 +70,11 @@ export async function deliverVoiceReply({
   let audio = null;
   let converted = null;
   try {
-    const spoken = await synthesizeFn({ text: clean, globalConfig });
+    // Spoken text loses its emoji; the transcript below keeps them. A TTS model
+    // has to produce something for every token, and 📍 comes out as a couple of
+    // seconds of humming in the middle of the sentence.
+    const sayable = stripEmoji(clean);
+    const spoken = await synthesizeFn({ text: sayable || clean, globalConfig });
     // "mock" is the selector's way of saying nothing spoke — the audio is
     // silence. Sending it would look like a delivered reply the owner simply
     // could not hear, which is worse than plain text.
