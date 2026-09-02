@@ -108,3 +108,24 @@ test("the panel offers the app's own switches, and only when the app has them", 
     /nativeNotifications \? <NativeNotificationChannels \/> : <NotificationChannels \/>/,
   );
 });
+
+test("the notification socket comes back after a reboot and after its own update", () => {
+  const manifest = read("AndroidManifest.xml");
+  const receiver = read("java", "dev", "agentprojectcontext", "apx", "StartupReceiver.java");
+
+  // Both are SYSTEM broadcasts: a non-exported receiver is never handed them.
+  assert.match(manifest, /android\.permission\.RECEIVE_BOOT_COMPLETED/);
+  assert.match(manifest, /android:name="\.StartupReceiver"\s+android:exported="true"/);
+  assert.match(manifest, /android\.intent\.action\.BOOT_COMPLETED/);
+  // An install force-stops the package and the service does not return on its
+  // own — the case that actually bit, twice, on two phones.
+  assert.match(manifest, /android\.intent\.action\.MY_PACKAGE_REPLACED/);
+
+  assert.match(receiver, /startForegroundService\(service\)/);
+  // A boot broadcast is exactly where Android is entitled to refuse a
+  // foreground service. Going quiet until APX is opened is the old behaviour;
+  // crashing the phone's boot is not.
+  assert.match(receiver, /catch \(RuntimeException refused\)/);
+  // An unpaired phone has nothing to connect to, so it pays nothing.
+  assert.match(receiver, /if \(!new ApxPreferences\(context\)\.paired\(\)\) return;/);
+});

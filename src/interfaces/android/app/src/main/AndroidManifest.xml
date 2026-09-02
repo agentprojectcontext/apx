@@ -6,6 +6,10 @@
          instead of on a timer. A phone away from the daemon used to retry
          every 15 s all day. -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- So the notification socket survives a reboot. Without it APX is silent
+         from the moment the phone restarts until someone opens the app, and
+         nothing about that looks broken from the outside. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
@@ -86,5 +90,20 @@
         <receiver
             android:name=".CarMessageActionReceiver"
             android:exported="false" />
+
+        <!-- exported=true because both of these are SYSTEM broadcasts: the
+             sender is Android, not APX, and a non-exported receiver is never
+             handed them. MY_PACKAGE_REPLACED is the app's own update, which
+             force-stops it and leaves the service down. -->
+        <receiver
+            android:name=".StartupReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>
