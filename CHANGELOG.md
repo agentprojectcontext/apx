@@ -1,3 +1,10 @@
+## [1.85.1](https://github.com/agentprojectcontext/apx/compare/v1.85.0...v1.85.1) (2026-09-02)
+
+
+### Bug Fixes
+
+* **agent:** the intro before a tool is not optional, and nothing else says "working" ([5ff30a4](https://github.com/agentprojectcontext/apx/commit/5ff30a4e6cb603246aa645e814d9f2266eb1b56b))
+
 # [1.85.0](https://github.com/agentprojectcontext/apx/compare/v1.84.0...v1.85.0) (2026-09-02)
 
 
