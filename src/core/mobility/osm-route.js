@@ -13,8 +13,21 @@ const NEEDS = [
   {
     id: "supermarket",
     query: "supermercado",
-    match: /an[oó]nima|supermercado|mercado|hacer (?:las )?compras|comprar comida|almac[eé]n/i,
+    // "en el súper" is what anyone actually writes, and it matched nothing —
+    // the vocabulary only knew the full word. Article-anchored on purpose:
+    // a bare /súper/ would fire on "súper importante".
+    match: /an[oó]nima|supermercado|mercado|(?:al|el|del) s[uú]per\b|hacer (?:las )?compras|comprar comida|almac[eé]n|\bpan\b|pan lactal/i,
     selectors: ['["shop"~"supermarket|convenience"]'],
+  },
+  {
+    id: "bakery",
+    query: "panadería",
+    // Bread is the clearest case of an errand with no single answer: the
+    // bakery on the corner and both supermarkets all satisfy it, which is why
+    // it deliberately overlaps the supermarket need above. The trip plan keeps
+    // every candidate and settles on one — see core/mobility/geofence.js.
+    match: /\bpan\b|panader[ií]a|factura[s]?\b|medialunas?/i,
+    selectors: ['["shop"~"bakery|pastry"]'],
   },
   {
     id: "pharmacy",

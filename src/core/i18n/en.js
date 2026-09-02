@@ -27,5 +27,5 @@ export default {
   "mobility.ack_skipped": "Fine, not today.",
   "mobility.ack_done": "Closed the task.",
   "mobility.ack_still_open": "Leaving it open.",
-  "mobility.transcript": "📝 Transcript of the voice note",
+  "mobility.transcript": "[Transcript]",
 };

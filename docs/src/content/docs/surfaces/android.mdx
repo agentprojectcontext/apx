@@ -82,11 +82,17 @@ only announcing a new message.
   **Reply** accepts voice dictation and completes the same trip. Changing the destination starts a
   new evaluation. It uploads no route, location history, or complete
   notification content.
-- The trip banner opens the trip's errands, not Maps: tapping it lists every
-  pending errand with a matching place on this drive, nearest first, and each
-  row opens that place in Maps. Its right-hand label carries the live count
-  ("8 cerca"). The list comes from `GET /api/mobility/trip`, which is read-only
-  — asking never fires a reminder. It is capped at eight places.
+- The trip banner opens the trip's errands, not Maps: tapping it shows one card
+  per pending errand, nearest first, carrying **the same four chips the Telegram
+  card offers** — Navegar, Sumar a la ruta, Voy, Hoy no. A "voy" pressed here
+  reaches the same record a "voy" pressed in Telegram does, and earns the same
+  follow-up after the trip; a card already answered shows the answer instead of
+  re-offering the question. When an errand still has several possible shops the
+  card says so, rather than presenting the nearest one as a decision APX has
+  made. Its right-hand label carries the live count ("8 cerca"). The list comes
+  from `GET /api/mobility/trip`, which is read-only — asking never fires a
+  reminder — and answering goes to `POST /api/mobility/errands/answer`. Capped
+  at eight errands.
 - Trip messages are intentionally rate-limited. A known destination must remain
   stable for 45 seconds; navigation without destination waits 10 minutes.
   Reopening the same destination stays silent for 30 minutes, and changing to a
@@ -142,8 +148,9 @@ only announcing a new message.
   place?** with **Done** — which closes the task — and **Not yet**, which
   leaves it open.
 - While a trip is active, every automatic Telegram reply goes out **twice**: a
-  voice note first, then the same words as text under a
-  "📝 Transcript of the voice note" header. The turn itself runs in voice mode,
+  voice note first, then the same words as text under a quiet `[Transcript]`
+  line — a label, not a banner: the audio is the message and the text is there
+  to be skimmed. The turn itself runs in voice mode,
   so the reply is one or two spoken sentences rather than a paragraph read
   aloud. TTS or `ffmpeg` failing costs the audio, never the message. Turn it off
   with `voice.mobility_replies: false`. The end-of-trip follow-up is plain text
@@ -184,6 +191,57 @@ dropped socket has to be repaired in seconds.
   end of a trip while the phone is in a pocket. The menu row shows the current
   state, and once APX is exempt the same row opens the system list, which is
   where the exemption is taken back.
+
+## The trip plan: how many searches a drive costs
+
+An errand is not always a place. "Buy bread" can be satisfied by the bakery on
+the corner or by either supermarket, and which one is right depends on where
+the car is at the time. Answering that question by searching again on every GPS
+sample would be a place-provider call every few seconds; answering it once at
+the start would send the driver past three better options.
+
+So the daemon keeps a **trip plan**: one entry per errand, holding every place
+that could satisfy it and the one it is currently pointed at.
+
+- **The plan is built when you get in the car**, from the origin the phone
+  reports — not lazily on the first sample taken 800 m down the road.
+- **Re-ranking is free.** Picking the nearest candidate as the car moves is
+  arithmetic on coordinates already held. No call, no model.
+- **Re-searching is rare.** It happens only when the car leaves the searched
+  area by 8 km, or when the open-errand list itself changes — a local file read,
+  checked on every sample, so a task added at a red light is live on the next
+  one.
+- **A settled errand stops looking.** One candidate *is* the decision, and so
+  is a "voy": both lock the errand, and a locked errand is never re-searched or
+  re-pointed. Once every errand is locked the plan is finished and the drive
+  costs nothing more.
+
+A normal drive with a settled shopping list therefore costs **one** place
+search. A drive where every task carries its own pin costs **zero** — and zero
+model calls either way, because a `trip` task states what it is and where,
+instead of asking a model to read the title and guess.
+
+### If you ever want to pay for better places
+
+The free stack (Nominatim for places, Valhalla/OSRM for routes) is what ships,
+and the plan above is what makes swapping it in cheap. For reference, at 2026
+prices the Google alternatives bill per call, so the number of calls is the
+whole game:
+
+- **Places API Nearby/Text Search** — 5,000 free calls a month, then USD 32 per
+  1,000. One search per drive is affordable; one per GPS sample is not.
+- **Routes API `computeRoutes`** — from USD 5 per 1,000, and it can optimise the
+  order of up to 25 intermediate stops. This is the piece that would build a
+  real multi-errand route rather than a nearest-first list.
+- **Search Along Route** — `computeRoutes` returns an encoded polyline, and Text
+  Search accepts it as `searchAlongRouteParameters`, returning only places
+  actually *on* the way. Two calls per trip, and strictly better than a radius
+  search around a point when a destination is known.
+- **Android's own geofencing** (`GeofencingClient`, part of Play Services and
+  not billed) is the other half: it hands up to 100 fences to the OS, which
+  wakes the app when one is crossed using batched hardware geofencing, instead
+  of the app sampling GPS on a timer. The plan above already produces exactly
+  the small, stable set of places such an API wants.
 
 ## Which route APX knows
 

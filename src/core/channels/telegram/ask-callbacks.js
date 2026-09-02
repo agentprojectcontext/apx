@@ -16,6 +16,7 @@ import { applyNudgeCallback } from "#core/nudge/index.js";
 import { recordDelivery } from "#core/stores/deliveries.js";
 import { silenceMobilityToday } from "#core/mobility/preferences.js";
 import { getMobilityAlert, recordMobilityResponse, updateMobilityAlert } from "#core/mobility/state.js";
+import { lockTripErrand } from "#core/mobility/geofence.js";
 import { doneTask } from "#core/stores/tasks.js";
 import { t, resolveLang } from "#core/i18n/index.js";
 
@@ -125,6 +126,10 @@ export async function handleMobilityAlertCallback(self, callbackQuery, action, a
     // Recorded, not acted on: the follow-up after the trip is what turns this
     // yes into a closed task (core/mobility/trip-event.js).
     updateMobilityAlert(alert.id, { answer: "go", answered_at: new Date().toISOString() });
+    // "Voy" is the last word on WHICH shop. Settle the errand there so a later
+    // re-search cannot re-point it at a different branch while the owner is
+    // already driving to this one.
+    lockTripErrand(alert.trip_id, alert.task_id, "accepted");
     ack = t("mobility.ack_going", { lang });
   } else if (action === "skip") {
     updateMobilityAlert(alert.id, { answer: "skip", answered_at: new Date().toISOString(), outcome: "skipped" });

@@ -1683,18 +1683,24 @@ export const HELP_TOPICS = new Map(Object.entries({
   "task add": topic({
     title: "apx task add",
     summary: "Create a task on a project's TODO list.",
-    usage: ["apx task add \"<title>\" [--project X] [--body Y] [--tag t]... [--due 2026-05-30] [--agent A] [--source S]"],
+    usage: ["apx task add \"<title>\" [--project X] [--body Y] [--tag t]... [--due 2026-05-30] [--agent A] [--source S] [--category trip] [--place \"Farmacia X\"] [--at \"lat,lon\"] [--radius 1500]"],
     options: [
       ["--body <text>", "Optional task body / description."],
       ["--tag <name>", "Tag the task. Repeatable for multiple tags."],
       ["--due <date>", "Due date (any ISO-ish string the daemon accepts)."],
       ["--agent <slug>", "Pre-assign the task to an agent."],
       ["--source <name>", "Origin label (default: cli)."],
+      ["--category <id>", "general (default) | trip. A trip task is an errand with a place, and mobility watches for it."],
+      ["--place <name>", "Where the errand is. Empty string clears it."],
+      ["--address <text>", "Street address, when the name alone is ambiguous."],
+      ["--at <lat,lon>", "Pin the exact spot. A pinned errand costs no place search and no model."],
+      ["--radius <m>", "How close counts as \"there\" for this errand (default 2000)."],
       ["--project <name|id|path>", "Pin command to a specific project."],
     ],
     examples: [
       "apx task add \"Review PR #42\" --agent reviewer --tag review",
       "apx task add \"Release notes\" --tag release --tag docs --due 2026-06-01",
+      "apx task add \"Comprar pan lactal\" --category trip --place \"La Anónima\" --at \"-41.13,-71.31\"",
     ],
   }),
   "task list": topic({
