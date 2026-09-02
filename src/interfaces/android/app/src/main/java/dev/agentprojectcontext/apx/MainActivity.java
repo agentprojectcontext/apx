@@ -36,7 +36,10 @@ import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import org.json.JSONObject;
+
 import java.net.URI;
+import java.util.List;
 import java.util.UUID;
 
 public final class MainActivity extends Activity {
@@ -551,6 +554,37 @@ public final class MainActivity extends Activity {
             runOnUiThread(() -> startActivity(new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
                 .putExtra(Settings.EXTRA_APP_PACKAGE, getPackageName())));
         }
+
+        /**
+         * The five channels and whether each may ring, as JSON.
+         *
+         * Resolved here, not raw storage: the panel gets the ANSWER for every
+         * channel, defaults filled in, so it never has to know that Telegram
+         * starts off on a phone. One rule, one place — NotifyChannels.
+         *
+         * A string and not an object because a WebView bridge only carries
+         * primitives across.
+         */
+        @JavascriptInterface
+        public String notifyChannels() {
+            JSONObject out = new JSONObject();
+            try {
+                for (String channel : NotifyChannels.ALL) {
+                    out.put(channel, preferences.notifyChannelEnabled(channel));
+                }
+            } catch (Exception ignored) {
+                // A JSONObject of five booleans does not throw; if it somehow
+                // did, an empty answer leaves the panel showing nothing rather
+                // than a wrong tick.
+            }
+            return out.toString();
+        }
+
+        /** The panel's own tick, written to the same store the menu writes. */
+        @JavascriptInterface
+        public void setNotifyChannel(String channel, boolean on) {
+            preferences.setNotifyChannelEnabled(channel, on);
+        }
     }
 
     private void showNativeMenu() {
@@ -576,21 +610,22 @@ public final class MainActivity extends Activity {
                 : "✓ Viaje de Maps detectado";
         new AlertDialog.Builder(this)
             .setTitle("APX Android")
-            .setItems(new String[]{mascotAction, soundAction, drivingAlertsAction, batteryAction, travelAction, "Probar aviso Android Auto", "Recargar /mobile", "Vincular otro dispositivo"}, (dialog, which) -> {
+            .setItems(new String[]{mascotAction, soundAction, notifyChannelsAction(), drivingAlertsAction, batteryAction, travelAction, "Probar aviso Android Auto", "Recargar /mobile", "Vincular otro dispositivo"}, (dialog, which) -> {
                 if (which == 0) toggleMascot();
                 if (which == 1) toggleMessageSound();
-                if (which == 2) startActivity(new Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS));
-                if (which == 3) openBatterySettings();
-                if (which == 4) openTravelDetectionSettings();
-                if (which == 5) {
+                if (which == 2) showNotifyChannels();
+                if (which == 3) startActivity(new Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS));
+                if (which == 4) openBatterySettings();
+                if (which == 5) openTravelDetectionSettings();
+                if (which == 6) {
                     Intent test = new Intent(this, MascotOverlayService.class)
                         .setAction(MascotOverlayService.ACTION_TEST_MESSAGE)
                         .putExtra(MascotOverlayService.EXTRA_TEST_MESSAGE, "Prueba APX: aviso directo en Android Auto.");
                     if (Build.VERSION.SDK_INT >= 26) startForegroundService(test); else startService(test);
                     Toast.makeText(this, "Aviso APX enviado", Toast.LENGTH_SHORT).show();
                 }
-                if (which == 6) openMobile("/mobile");
-                if (which == 7) {
+                if (which == 7) openMobile("/mobile");
+                if (which == 8) {
                     stopService(new Intent(this, MascotOverlayService.class));
                     preferences.clearPairing();
                     showPairing(null, null, false);
@@ -647,6 +682,63 @@ public final class MainActivity extends Activity {
 
     private void openTravelDetectionSettings() {
         startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS));
+    }
+
+    /** How many of the five are on, said on the row itself: the menu answers
+     *  "is something muted" without being opened. */
+    private String notifyChannelsAction() {
+        int on = 0;
+        for (String channel : NotifyChannels.ALL) {
+            if (preferences.notifyChannelEnabled(channel)) on++;
+        }
+        return on == NotifyChannels.ALL.size()
+            ? "Avisarme de todo"
+            : "Avisarme de… (" + on + " de " + NotifyChannels.ALL.size() + ")";
+    }
+
+    /**
+     * Which kinds of news may interrupt — as ticks, because that is the shape
+     * of the question: five independent yes/nos, all visible at once, no order
+     * and no priority between them.
+     *
+     * Applied on the spot rather than on a Save button. Each tick is complete
+     * on its own, and the next bubble either arrives or does not, which is the
+     * fastest way to find out whether the box you just ticked is the one you
+     * meant. The muted channels keep every message in /mobile — this only
+     * decides what jumps at you.
+     */
+    private void showNotifyChannels() {
+        List<String> channels = NotifyChannels.ALL;
+        String[] labels = new String[channels.size()];
+        boolean[] checked = new boolean[channels.size()];
+        for (int i = 0; i < channels.size(); i++) {
+            labels[i] = NotifyChannels.label(channels.get(i));
+            checked[i] = preferences.notifyChannelEnabled(channels.get(i));
+        }
+        new AlertDialog.Builder(this)
+            .setTitle("Avisarme de")
+            .setMultiChoiceItems(labels, checked, (dialog, which, on) -> {
+                preferences.setNotifyChannelEnabled(channels.get(which), on);
+                pushNotifyChannelsToPanel();
+            })
+            .setPositiveButton("Listo", null)
+            .show();
+    }
+
+    /**
+     * Tell the page what the menu just changed.
+     *
+     * The panel shows the same five switches (PanelPrefs.tsx) and reads them
+     * through the bridge, so a WebView already on screen behind this dialog
+     * would otherwise keep painting the answer from before the tick. One event,
+     * same as the panel fires for its own writes.
+     */
+    private void pushNotifyChannelsToPanel() {
+        if (webView == null) return;
+        webView.evaluateJavascript(
+            "window.dispatchEvent(new CustomEvent('apx:native-notify-channels'))",
+            null
+        );
     }
 
     private void toggleMessageSound() {

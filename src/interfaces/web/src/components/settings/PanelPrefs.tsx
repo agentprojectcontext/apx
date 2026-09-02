@@ -174,6 +174,72 @@ export function NotificationChannels({ className }: { className?: string }) {
   );
 }
 
+/**
+ * The same question, asked of the APK.
+ *
+ * The switches above this one live in localStorage and govern the panel's own
+ * bell. Inside the app that bell is not the one that rings: the APK holds its
+ * own socket so it can announce a turn while the WebView is closed, and it
+ * cannot read this browser's storage from a foreground service. So on that
+ * surface the ticks write through the bridge into the app's own store, and the
+ * native menu (⋯ → "Avisarme de…") edits exactly the same five.
+ *
+ * Absent on an APK installed before the bridge learned these methods: nothing
+ * renders rather than a row of switches that would silently do nothing.
+ */
+function NativeNotificationChannels({ className }: { className?: string }) {
+  const read = (): Record<string, boolean> => {
+    try {
+      const raw = window.APXAndroid?.notifyChannels?.();
+      if (!raw) return {};
+      const parsed = JSON.parse(raw) as unknown;
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+      const out: Record<string, boolean> = {};
+      for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+        if (typeof v === "boolean") out[k] = v;
+      }
+      return out;
+    } catch {
+      return {};
+    }
+  };
+  const [channels, setChannels] = useState<Record<string, boolean>>(read);
+
+  useEffect(() => {
+    // Two ways this changes behind the panel's back: the native menu ticking a
+    // box over the top of it (the activity fires the event), and the phone
+    // coming back to the app after the same edit somewhere else.
+    const refresh = () => setChannels(read());
+    window.addEventListener("apx:native-notify-channels", refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      window.removeEventListener("apx:native-notify-channels", refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, []);
+
+  const names = Object.keys(channels);
+  if (!names.length) return null;
+
+  const toggle = (channel: string) => {
+    const next = channels[channel] !== true;
+    window.APXAndroid?.setNotifyChannel?.(channel, next);
+    setChannels((prev) => ({ ...prev, [channel]: next }));
+  };
+
+  return (
+    <div className={className ?? "space-y-2"}>
+      <ChannelChips
+        channels={names}
+        enabled={(channel) => channels[channel] === true}
+        onToggle={toggle}
+        testIdPrefix="native-notify-channel"
+      />
+      <p className="text-xs text-muted-fg">{t("notify.native_channels_hint")}</p>
+    </div>
+  );
+}
+
 function NativeNotificationStatus({ className }: { className?: string }) {
   const read = () => {
     try { return window.APXAndroid?.notificationsEnabled() === true; } catch { return false; }
@@ -300,7 +366,7 @@ export function PrefsDialog({ open, onClose }: { open: boolean; onClose: () => v
             {t("notify.title")}
           </h3>
           {nativeNotifications ? <NativeNotificationStatus /> : <NotificationSwitch />}
-          <NotificationChannels />
+          {nativeNotifications ? <NativeNotificationChannels /> : <NotificationChannels />}
         </section>
       </div>
     </Dialog>

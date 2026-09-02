@@ -11,12 +11,35 @@
 // whom. It never carries the body. Delivery rows may also bring a bounded
 // `notify` headline the writer already chose (≤100 chars) — still a notice,
 // not the message.
+//
+// EACH LINE CARRIES ITS CHANNEL. The text alone leaves a client with nothing to
+// filter on: the phone has Telegram installed ON it, so an APX bubble about a
+// Telegram reply is the same news twice, while the trip notice on the same
+// phone is the only way that news arrives at all. So a notice is `{ text,
+// channel }` and the surface decides which channels may ring it — the web has
+// done that per device since lib/channels.ts; the APK could not, because what
+// reached it was a bare string.
 
 import { SUPERAGENT_ACTOR_ID } from "../constants/actors.js";
 import { resolveAgentName } from "../identity/self.js";
 
 const AGENT_FINAL_CHANNELS = new Set(["telegram", "group", "a2a"]);
 const DELIVERY_VIA = new Set(["routine_delivery", "mobility_delivery"]);
+
+/**
+ * The channels a BUBBLE can be about — not the channels APX speaks on.
+ *
+ * Five, and the list is closed by construction: three are agent finals
+ * (telegram / group / a2a) and two are deliveries that arrive with their own
+ * headline. A routine delivery is filed on `web` and a mobility one on
+ * telegram, but neither is news *about that channel* — "an errand on the way
+ * home" is not a Telegram message, and muting Telegram must not silence the
+ * car. So a delivery is tagged by what it IS, the same rule the `log` channel
+ * settled on core-side.
+ *
+ * A client shows this list as the choice; nothing else can ever ring.
+ */
+export const NOTICE_CHANNELS = ["telegram", "group", "a2a", "routine", "mobility"];
 
 function channelLabel(channel) {
   if (channel === "telegram") return "Telegram";
@@ -63,17 +86,19 @@ export function isAgentFinalEvent(event) {
 
 /**
  * @param {object[]} events  the public events already on a "messages" frame
- * @returns {string[]}       one bubble per distinct agent×channel (plus any
- *                           delivery headlines), in a stable order
+ * @returns {{text: string, channel: string}[]}
+ *          one notice per distinct agent×channel (plus any delivery
+ *          headlines), in a stable order, each tagged with the channel a
+ *          client filters on. See NOTICE_CHANNELS.
  */
-export function mascotNotificationsFromEvents(events) {
-  const lines = [];
+export function mascotNoticesFromEvents(events) {
+  const notices = [];
   const list = Array.isArray(events) ? events : [];
 
   for (const event of list) {
     if (event?.via === "mobility_delivery") {
       const notice = String(event.notify || "").trim();
-      if (notice) lines.push(notice);
+      if (notice) notices.push({ text: notice, channel: "mobility" });
     }
   }
 
@@ -85,7 +110,10 @@ export function mascotNotificationsFromEvents(events) {
   }
   for (const [agent, notify] of routineByAgent) {
     const notice = String(notify || "").trim();
-    lines.push(notice ? `${agent}: ${notice}` : `${agent} te dejó un mensaje`);
+    notices.push({
+      text: notice ? `${agent}: ${notice}` : `${agent} te dejó un mensaje`,
+      channel: "routine",
+    });
   }
 
   const finals = new Map();
@@ -101,10 +129,28 @@ export function mascotNotificationsFromEvents(events) {
     finals.set(`${event.channel}|${agent}|${to}`, { channel: event.channel, agent, to });
   }
   for (const { channel, agent, to } of finals.values()) {
-    lines.push(to
-      ? `Nuevo mensaje de ${peerLabel(agent)} a ${peerLabel(to)}`
-      : `${agent} respondió en ${channelLabel(channel)}`);
+    notices.push({
+      text: to
+        ? `Nuevo mensaje de ${peerLabel(agent)} a ${peerLabel(to)}`
+        : `${agent} respondió en ${channelLabel(channel)}`,
+      channel,
+    });
   }
 
-  return lines;
+  return notices;
+}
+
+/**
+ * The same notices as bare lines.
+ *
+ * Still the frame's `notifications`, because an APK is installed software that
+ * updates when its owner gets around to it: a phone carrying last month's build
+ * reads this field and must keep working. Desktop reads it too — the pet there
+ * has no per-channel question to answer, one screen showing everything is the
+ * whole point of it.
+ *
+ * @returns {string[]}
+ */
+export function mascotNotificationsFromEvents(events) {
+  return mascotNoticesFromEvents(events).map((notice) => notice.text);
 }

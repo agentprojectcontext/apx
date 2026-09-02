@@ -52,6 +52,10 @@ export function channelLabel(channel: string): string {
   if (channel === "a2a") return t("channels.a2a");
   if (channel === "group") return t("channels.group");
   if (channel === "other") return t("channels.other");
+  // Not a channel a conversation happens on — a kind of news the phone can
+  // ring for (the trip bubbles). It only ever appears in the APK's notify
+  // list, which is why it is a description and goes through i18n.
+  if (channel === "mobility") return t("channels.mobility");
   return CHANNEL_LABELS[channel] || channel;
 }
 

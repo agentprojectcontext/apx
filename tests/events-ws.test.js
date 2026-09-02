@@ -139,6 +139,7 @@ test("a ledger write reaches every connected client", async () => {
   assert.equal(frames[0].events[0].channel, "telegram");
   assert.equal(frames[0].events[0].thread, "2026-01-15");
   assert.deepEqual(frames[0].notifications, [], "the owner's send is not a pet bubble");
+  assert.deepEqual(frames[0].notices, [], "and carries no channel to ring either");
   stop();
 });
 
@@ -221,6 +222,15 @@ test("the pet is told when an agent launches a final, not when the owner sends",
     "Roby respondió en Telegram",
     "sofia respondió en Grupo",
     "Nuevo mensaje de Magui a Roby",
+  ]);
+  // The same lines with the channel each is about, so the phone can answer
+  // "may this one ring me". Sent alongside the flat list rather than instead
+  // of it — an APK installed before this reads `notifications` and must keep
+  // working.
+  assert.deepEqual(frame.notices, [
+    { text: "Roby respondió en Telegram", channel: "telegram" },
+    { text: "sofia respondió en Grupo", channel: "group" },
+    { text: "Nuevo mensaje de Magui a Roby", channel: "a2a" },
   ]);
   // The recipient reaches the pet on the wire, not only inside the copy the
   // daemon computed: an older client that renders `events` itself gets it too.
