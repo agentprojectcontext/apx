@@ -4,6 +4,9 @@ import android.content.Context;
 import android.content.SharedPreferences;
 
 final class ApxPreferences {
+    static final String SOURCE_MAPS = "maps";
+    static final String SOURCE_ANDROID_AUTO = "android_auto";
+
     private static final String NAME = "apx_android";
     private static final String URL = "daemon_url";
     private static final String TOKEN = "client_token";
@@ -14,6 +17,7 @@ final class ApxPreferences {
     private static final String TRAVEL_CHANGED_AT = "maps_travel_changed_at";
     private static final String TRAVEL_DESTINATION = "maps_travel_destination";
     private static final String TRAVEL_TRIP_ID = "maps_travel_trip_id";
+    private static final String TRAVEL_SOURCE = "maps_travel_source";
     private static final String TRAVEL_EVENT_SENT = "maps_travel_event_sent";
     private static final String TRAVEL_LAST_SENT_AT = "maps_travel_last_sent_at";
     private static final String TRAVEL_LAST_SENT_DESTINATION = "maps_travel_last_sent_destination";
@@ -36,6 +40,14 @@ final class ApxPreferences {
     long travelChangedAt() { return prefs.getLong(TRAVEL_CHANGED_AT, 0L); }
     String travelDestination() { return prefs.getString(TRAVEL_DESTINATION, ""); }
     String travelTripId() { return prefs.getString(TRAVEL_TRIP_ID, ""); }
+    /**
+     * What put APX in a trip: {@link #SOURCE_MAPS} (a Google Maps route) or
+     * {@link #SOURCE_ANDROID_AUTO} (the phone is projecting to a head unit).
+     * The two arrive independently and end independently — a route can finish
+     * while the car is still connected, and Auto can disconnect mid-route — so
+     * the trip only ends when NEITHER is live.
+     */
+    String travelSource() { return prefs.getString(TRAVEL_SOURCE, ""); }
     boolean travelEventSent() { return prefs.getBoolean(TRAVEL_EVENT_SENT, false); }
     long travelLastSentAt() {
         return prefs.getLong(
@@ -72,12 +84,18 @@ final class ApxPreferences {
         prefs.edit().putString(MASCOT_AVATAR, MascotBlobCatalog.forKey(key).key).apply();
     }
 
+    /** Keeps whatever source is already recorded (voice destination replies). */
     void setTravelState(boolean active, String destination, String tripId) {
+        setTravelState(active, destination, tripId, travelSource());
+    }
+
+    void setTravelState(boolean active, String destination, String tripId, String source) {
         prefs.edit()
             .putBoolean(TRAVEL_ACTIVE, active)
             .putLong(TRAVEL_CHANGED_AT, System.currentTimeMillis())
             .putString(TRAVEL_DESTINATION, active && destination != null ? destination : "")
             .putString(TRAVEL_TRIP_ID, active && tripId != null ? tripId : "")
+            .putString(TRAVEL_SOURCE, active && source != null ? source : "")
             .putBoolean(TRAVEL_EVENT_SENT, active && travelEventSent())
             .apply();
     }

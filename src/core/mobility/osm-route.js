@@ -36,7 +36,7 @@ const NEEDS = [
   },
 ];
 
-function activeTasks(projects) {
+export function activeTasks(projects) {
   const entries = [];
   for (const entry of projects?.list?.() || []) {
     let project;
@@ -48,7 +48,7 @@ function activeTasks(projects) {
   return tasks.filter((task) => !["done", "dropped", "cancelled"].includes(task.status));
 }
 
-function taskNeeds(task) {
+export function taskNeeds(task) {
   const text = `${task.title || ""} ${task.body || ""} ${(task.tags || []).join(" ")}`;
   return NEEDS.filter((need) => need.match.test(text)).map((need) => ({
     ...need,
@@ -145,11 +145,27 @@ export function decodePolyline(encoded, precision = 6) {
   return points;
 }
 
-export async function nearbyPois(route, needs, fetchFn = fetch) {
+/**
+ * Nominatim `viewbox` string (left,top,right,bottom) around a set of points.
+ *
+ * `padDegrees` exists because the live geofence (./geofence.js) searches around
+ * ONE point — the phone's current position — and a box built from a single
+ * point has zero area, which Nominatim answers with nothing at all. A route has
+ * its own extent and needs no padding.
+ */
+export function boundingBox(points, padDegrees = 0) {
+  const latitudes = points.map((point) => point.latitude);
+  const longitudes = points.map((point) => point.longitude);
+  const left = Math.min(...longitudes) - padDegrees;
+  const right = Math.max(...longitudes) + padDegrees;
+  const top = Math.max(...latitudes) + padDegrees;
+  const bottom = Math.min(...latitudes) - padDegrees;
+  return `${left},${top},${right},${bottom}`;
+}
+
+export async function nearbyPois(route, needs, fetchFn = fetch, { padDegrees = 0 } = {}) {
   if (!route?.points?.length || !needs.length) return [];
-  const latitudes = route.points.map((point) => point.latitude);
-  const longitudes = route.points.map((point) => point.longitude);
-  const viewbox = `${Math.min(...longitudes)},${Math.max(...latitudes)},${Math.max(...longitudes)},${Math.min(...latitudes)}`;
+  const viewbox = boundingBox(route.points, padDegrees);
   const seen = new Set();
   const rows = [];
   for (const [index, need] of needs.slice(0, 3).entries()) {

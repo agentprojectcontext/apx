@@ -1,7 +1,9 @@
 import {
   acceptMobilityEvent,
   dispatchMobilityEvent,
+  dispatchMobilityPosition,
 } from "#core/mobility/trip-event.js";
+import { acceptMobilityPosition } from "#core/mobility/geofence.js";
 
 export function register(api, ctx) {
   api.post("/mobility/events", (req, res) => {
@@ -16,6 +18,28 @@ export function register(api, ctx) {
     const dispatch = ctx.mobilityDispatch || dispatchMobilityEvent;
     setImmediate(() => {
       Promise.resolve(dispatch(event, ctx)).catch((error) => {
+        console.error(`[mobility] ${error?.message || error}`);
+      });
+    });
+  });
+
+  // The live GPS stream while a trip is running. Answered before any work for
+  // the same reason the event route is: the phone is on mobile data in a
+  // moving car, and a request it has to hold open until a place search and a
+  // Telegram send have finished is a request that times out. Proximity is
+  // evaluated after the ack, and the one-alert-per-place guarantee lives in
+  // core/mobility/geofence.js, not here.
+  api.post("/mobility/positions", (req, res) => {
+    let position;
+    try {
+      position = acceptMobilityPosition(req.body);
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
+    res.status(202).json({ accepted: true, trip_id: position.trip_id });
+    const dispatch = ctx.mobilityPositionDispatch || dispatchMobilityPosition;
+    setImmediate(() => {
+      Promise.resolve(dispatch(position, ctx)).catch((error) => {
         console.error(`[mobility] ${error?.message || error}`);
       });
     });

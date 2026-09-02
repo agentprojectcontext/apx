@@ -74,6 +74,46 @@ version-dependent, deduplicate repeated frames, fail closed when destination is
 empty or broad, and never capture projection video or audio. Stock car head
 units cannot be retrofitted by granting another Android permission.
 
+Android Auto is the SECOND trip source and it shares the notification
+listener with the Maps detector. Match the projection package's own session
+notification and treat FLAG_FOREGROUND_SERVICE as persistent alongside
+FLAG_ONGOING_EVENT — a real Galaxy A55 session posts NO_CLEAR |
+FOREGROUND_SERVICE with no ongoing flag, and gating on the ongoing flag alone
+detects nothing. Reject setup invitations and the developer head-unit-server
+notice; an unrecognised ongoing notification from that package still counts, so
+an untranslated locale does not blind the detector. Track both sources
+independently: the trip ends only when both are down, and a Maps route that
+finishes while the car stays connected keeps the same `trip_id`.
+
+Live position runs in a foreground service typed `location`, started and
+stopped by the trip itself. Never request ACCESS_BACKGROUND_LOCATION — the
+ongoing notification is the permission model, and the service is what buys
+while-in-use access off screen. Post one point plus accuracy to
+`/api/mobility/positions`, never route geometry and never a history. Sample at
+30 s / 150 m and floor uploads independently; a foreground-service start can be
+refused from the background, so log the refusal instead of assuming tracking is
+live.
+
+Proximity alerts are keyed on (trip, errand) — NOT on the place. A drive
+through one town matched fifteen shops to two tasks and sent eight Telegram
+messages in ninety seconds; the nearest matching place is the answer to an
+errand, and the rest are noise. Evaluate candidates without recording them, and
+burn the one-shot only on the ones actually sent, so a card the per-sample cap
+held back is not silently spent. Alerts survive a daemon restart because the
+delivered set is persisted before the send.
+
+A proximity card carries two Maps deep links and two answers. "I'll go" is a
+promise recorded against the alert, never an action on the task; the task moves
+only when the owner answers the end-of-trip follow-up. Ask that follow-up once,
+in plain text — the driving is over — and only for alerts that were answered
+yes.
+
+While a trip is active a Telegram reply goes out twice: the voice note, then
+the same words as a flagged transcript carrying the keyboard. Length is decided
+by running the TURN in voice mode (`channelMeta.voice` + `mobility`), never by
+truncating afterwards. TTS or ffmpeg failing costs the audio and never the
+message, and a "mock" provider is silence, not speech — refuse it.
+
 The Android start event and end event share `trip_id`. Before Telegram delivery,
 daemon must confirm that trip remains active; closing Maps cancels in-flight
 output. Mobility Telegram keyboards route postpone into the delivery queue and

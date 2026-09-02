@@ -36,8 +36,8 @@ switches for the complete car experience:
 | --- | --- | --- |
 | APX notifications | Accept Android's notification prompt | Every APX notification |
 | Driving alerts | APX menu → **Allow driving alerts**, then enable APX in the system screen | Heads-up cards while Android Auto enables Do Not Disturb |
-| Trip detection | APX menu → **Enable trip detection**, then enable APX notification access | Reading Google Maps navigation state and destination |
-| Location | Choose **While using the app** | Supplying the trip origin |
+| Trip detection | APX menu → **Enable trip detection**, then enable APX notification access | Reading Google Maps navigation state, and detecting an Android Auto session |
+| Location | Choose **While using the app** | Supplying the trip origin and the live position during a trip |
 | Overlay | Enable **Display over other apps** | Floating mascot only; not needed for car cards |
 
 In Android Auto settings, keep **Show message notifications** enabled. Enable
@@ -106,6 +106,38 @@ only announcing a new message.
 - Telegram offers **Yes, now**, **I cannot**, **Remind me later**, and **No more
   today**. Remind later records a pending delivery for a later round. Closing
   Maps before delivery cancels the pending notice.
+- Android Auto is a **second trip source**, independent of Maps. The same
+  notification listener recognises Android Auto's own session notification
+  ("Android Auto · Connected to the car") and opens a trip the moment the phone
+  projects to a head unit, with or without a route loaded. The banner then reads
+  **You are in the car**. Announcements ("tap to set up Android Auto") and the
+  developer head-unit-server notice are never treated as a session. A trip ends
+  only when BOTH sources are gone: a route that finishes with the phone still
+  plugged in keeps the same trip and the same `trip_id`.
+- While a trip is active, APX reports position to `/api/mobility/positions`
+  every 30 s / 150 m from a foreground service typed `location`. That service
+  is why APX does **not** ask for `ACCESS_BACKGROUND_LOCATION`: the ongoing
+  "Trip in progress" notification is the permission model, and tracking stops
+  with the trip. Each sample is one point plus accuracy; no route geometry and
+  no location history is uploaded or stored.
+- The daemon matches each position against pending tasks that name a physical
+  errand and alerts once when a matching place is within **2 km**. One alert per
+  errand per trip — a "buy ibuprofen" task that matches thirteen pharmacies gets
+  the nearest one, not thirteen cards — and at most two cards per sample. It
+  never repeats, even after a daemon restart.
+- A proximity card carries four chips: **Navigate** and **Add stop** (Google
+  Maps deep links; "Add stop" keeps the current destination and inserts the
+  place as a waypoint), plus **I'll go** and **Not today**. Answering "I'll go"
+  is a promise, not an action: when the trip ends APX asks **Did you make it to that
+  place?** with **Done** — which closes the task — and **Not yet**, which
+  leaves it open.
+- While a trip is active, every automatic Telegram reply goes out **twice**: a
+  voice note first, then the same words as text under a
+  "📝 Transcript of the voice note" header. The turn itself runs in voice mode,
+  so the reply is one or two spoken sentences rather than a paragraph read
+  aloud. TTS or `ffmpeg` failing costs the audio, never the message. Turn it off
+  with `voice.mobility_replies: false`. The end-of-trip follow-up is plain text
+  — it is read while parked.
 - Mobility deliveries also create an APX Android card and play the local sound
   when native message sounds are enabled.
 - Direct APX messages use Android's messaging notification format. Android Auto

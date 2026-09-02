@@ -63,6 +63,7 @@ const TWO_SEGMENT_CHANNELS = new Set([
 ]);
 
 const VOICE_MODE_FILE = "modes/voice.md";
+const MOBILITY_MODE_FILE = "modes/mobility.md";
 
 // ---------------------------------------------------------------------------
 // Prompt loading
@@ -116,6 +117,22 @@ export function buildVoiceModeBlock(active, emotionGuide = "") {
   }
   if (!emotionGuide) return base;
   return base ? `${base}\n\n${emotionGuide}` : emotionGuide;
+}
+
+/**
+ * Mobility mode: the owner is driving and this reply will be spoken aloud on a
+ * chat surface that is normally read. It layers ON TOP of voice mode rather
+ * than replacing it, because voice.md still owns "how to talk to a TTS engine"
+ * — this block owns the part voice.md cannot know: that the same words are
+ * also about to be posted as text under the audio, so length is charged twice.
+ */
+export function buildMobilityModeBlock(active) {
+  if (!active) return "";
+  try {
+    return loadPrompt(MOBILITY_MODE_FILE);
+  } catch {
+    return "";
+  }
 }
 
 // Pick the right segmenting discipline for the channel (and whether voice
@@ -381,6 +398,7 @@ export function buildSuperAgentSystem({
     voice,
     emotion ? buildEmotionGuide(emotion.tags) : ""
   );
+  const mobilityBlock = buildMobilityModeBlock(!!channelMeta?.mobility);
   const segmentDiscipline = buildSegmentDiscipline({ channel: channelLow, voice });
 
   return [
@@ -402,6 +420,7 @@ export function buildSuperAgentSystem({
     skipSkillsHint ? "" : buildSkillsHintBlock(listSkills),
     lazyToolsBlock,
     voiceBlock,
+    mobilityBlock,
     ACTION_DISCIPLINE,
     segmentDiscipline,
     systemSuffix,

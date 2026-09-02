@@ -81,3 +81,66 @@ test("POST /mobility/events acknowledges before dispatching configured workflow"
     await new Promise((resolve) => server.close(resolve));
   }
 });
+
+test("POST /mobility/positions validates before it acknowledges", async () => {
+  const app = express();
+  app.use(express.json());
+  const api = express.Router();
+  register(api, { mobilityPositionDispatch: async () => {} });
+  app.use("/api", api);
+  const server = app.listen(0);
+  try {
+    const url = `http://127.0.0.1:${server.address().port}/api/mobility/positions`;
+    const bad = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ latitude: -41.13, longitude: -71.31 }),
+    });
+    assert.equal(bad.status, 400);
+    assert.match((await bad.json()).error, /trip_id required/);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test("POST /mobility/positions acknowledges before evaluating proximity", async () => {
+  let resolveDispatch;
+  const dispatched = new Promise((resolve) => { resolveDispatch = resolve; });
+  const app = express();
+  app.use(express.json());
+  const api = express.Router();
+  register(api, { mobilityPositionDispatch: async (position) => resolveDispatch(position) });
+  app.use("/api", api);
+  const server = app.listen(0);
+  try {
+    const response = await fetch(`http://127.0.0.1:${server.address().port}/api/mobility/positions`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        trip_id: "journey-gps",
+        latitude: -41.1335,
+        longitude: -71.3103,
+        accuracy_m: 12,
+        speed_mps: 11.4,
+      }),
+    });
+    assert.equal(response.status, 202);
+    assert.equal((await response.json()).trip_id, "journey-gps");
+    const position = await dispatched;
+    assert.equal(position.latitude, -41.1335);
+    assert.equal(position.speed_mps, 11.4);
+  } finally {
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+test("a trip that ended stops earning proximity alerts", async () => {
+  const { dispatchMobilityPosition } = await import("../src/core/mobility/trip-event.js");
+  acceptMobilityEvent({ event_id: "s", trip_id: "gone", type: "trip.started" }, 1_000);
+  acceptMobilityEvent({ event_id: "e", trip_id: "gone", type: "trip.ended" }, 1_001);
+  const result = await dispatchMobilityPosition(
+    { trip_id: "gone", latitude: -41.1335, longitude: -71.3103 },
+    { projects: { list: () => [] } }
+  );
+  assert.deepEqual(result, { skipped: true, reason: "trip-ended" });
+});

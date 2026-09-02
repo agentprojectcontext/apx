@@ -11,4 +11,21 @@ export default {
   // ficam fixos, mas ao menos seguem o idioma do usuário).
   "telegram.error_agent": "⚠️ O agente encontrou um erro ({error}).",
   "telegram.error_generic": "⚠️ Não consegui responder agora ({error}).",
+  // Mobilidade — os botões e lembretes de uma linha que o DAEMON envia durante
+  // uma viagem (core/mobility/geofence.js). Emitidos pelo host, não pelo
+  // modelo: são lidos dirigindo, então ficam fixos e curtos.
+  "mobility.near": "Você está perto de {place} ({distance}).",
+  "mobility.task": "Tarefa",
+  "mobility.navigate": "Navegar",
+  "mobility.add_stop": "Adicionar parada",
+  "mobility.going": "Vou",
+  "mobility.not_today": "Hoje não",
+  "mobility.followup": "Você passou em {place}?",
+  "mobility.done": "Feito",
+  "mobility.still_open": "Ainda não",
+  "mobility.ack_going": "Anotado: você vai.",
+  "mobility.ack_skipped": "Certo, hoje não.",
+  "mobility.ack_done": "Fechei a tarefa.",
+  "mobility.ack_still_open": "Deixo em aberto.",
+  "mobility.transcript": "📝 Transcrição do áudio",
 };

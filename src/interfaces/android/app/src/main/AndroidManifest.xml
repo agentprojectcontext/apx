@@ -8,6 +8,11 @@
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- A foreground service typed `location` is what lets APX keep reading
+         the position while the phone is in a pocket or a dock, WITHOUT asking
+         for ACCESS_BACKGROUND_LOCATION: the ongoing notification is the
+         permission model. Tracking runs only while a trip is active. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
 
     <application
         android:allowBackup="false"
@@ -52,6 +57,11 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="User-enabled floating APX mascot and live message indicator" />
         </service>
+
+        <service
+            android:name=".TripLocationService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
 
         <service
             android:name=".MapsNavigationListenerService"

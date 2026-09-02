@@ -36,8 +36,8 @@ experiencia completa:
 | --- | --- | --- |
 | Notificaciones APX | Aceptar solicitud Android | Toda notificación APX |
 | Avisos durante conducción | Menú APX → **Permitir avisos durante conducción** y activar APX en pantalla del sistema | Cards flotantes mientras Android Auto activa No molestar |
-| Detección de viajes | Menú APX → **Activar detección de viajes** y activar acceso a notificaciones APX | Leer estado y destino de navegación Google Maps |
-| Ubicación | Elegir **Mientras se usa la app** | Enviar origen del viaje |
+| Detección de viajes | Menú APX → **Activar detección de viajes** y activar acceso a notificaciones APX | Leer estado y destino de navegación Google Maps, y detectar una sesión de Android Auto |
+| Ubicación | Elegir **Mientras se usa la app** | Enviar el origen del viaje y la posición en vivo durante el viaje |
 | Overlay | Activar **Mostrar sobre otras apps** | Solo mascota flotante; no necesario para cards del auto |
 
 En configuración Android Auto, mantener **Ver notificaciones de mensajes**
@@ -101,6 +101,40 @@ en card, no solo anuncio de mensaje nuevo.
 - Aviso Telegram ofrece **Sí, voy ahora**, **No podré**, **Recordarme luego** y
   **No avisar más hoy**. Recordar luego crea delivery pendiente para próxima
   ronda. Cerrar Maps antes del envío cancela aviso pendiente.
+- Android Auto es una **segunda fuente de viaje**, independiente de Maps. El
+  mismo listener de notificaciones reconoce la notificación de sesión de Android
+  Auto ("Android Auto · Conectado al vehículo") y abre un viaje apenas el
+  teléfono proyecta en una head unit, con ruta cargada o sin ella. El banner
+  pasa a decir **Estás en el auto**. Los avisos ("tocá para configurar Android
+  Auto") y la notificación del servidor de unidad principal de modo
+  desarrollador nunca cuentan como sesión. El viaje termina solo cuando se
+  apagan LAS DOS fuentes: una ruta que termina con el teléfono todavía enchufado
+  mantiene el mismo viaje y el mismo `trip_id`.
+- Mientras hay un viaje activo, APX reporta posición a `/api/mobility/positions`
+  cada 30 s / 150 m desde un servicio en primer plano de tipo `location`. Ese
+  servicio es la razón por la que APX **no** pide `ACCESS_BACKGROUND_LOCATION`:
+  la notificación persistente "Viaje en curso" es el modelo de permiso, y el
+  seguimiento se corta con el viaje. Cada muestra es un punto y su precisión: no
+  se sube ni se guarda geometría de ruta ni historial de ubicación.
+- El daemon cruza cada posición con las tareas pendientes que nombran un mandado
+  físico y avisa una vez cuando un lugar compatible queda a menos de **2 km**.
+  Un aviso por mandado y por viaje — una tarea "comprar ibuprofeno" que matchea
+  trece farmacias recibe la más cercana, no trece tarjetas — y como mucho dos
+  tarjetas por muestra. No se repite, ni siquiera después de reiniciar el
+  daemon.
+- La tarjeta de cercanía trae cuatro chips: **Navegar** y **Sumar a la ruta**
+  (links profundos a Google Maps; "Sumar a la ruta" conserva el destino actual e
+  inserta el lugar como parada), más **Voy** y **Hoy no**. Contestar "Voy" es
+  una promesa, no una acción: cuando el viaje termina APX pregunta **¿Pasaste
+  por ese lugar?** con **Hecho** — que cierra la tarea — y **Todavía no**, que la
+  deja abierta.
+- Mientras hay un viaje activo, cada respuesta automática de Telegram sale **dos
+  veces**: primero una nota de voz y después las mismas palabras como texto bajo
+  el encabezado "📝 Transcripción del audio". El turno corre en modo voz, así que
+  la respuesta son una o dos frases habladas y no un párrafo leído en voz alta.
+  Si falla el TTS o `ffmpeg` se pierde el audio, nunca el mensaje. Se apaga con
+  `voice.mobility_replies: false`. El seguimiento de fin de viaje va en texto
+  plano: se lee estacionado.
 - Delivery de movilidad también genera card Android APX y sonido local cuando
   sonido nativo está activo.
 - Mensajes directos APX usan formato mensajería Android. Android Auto puede

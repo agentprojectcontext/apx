@@ -7,7 +7,15 @@ const RECENT_QUESTION_MS = 20 * 60_000;
 let current = null;
 let lastQuestion = null;
 let lastResponse = null;
+let alerts = [];
 let loadedPath = null;
+
+// A proximity alert outlives the trip that produced it: the follow-up ("did you
+// actually stop there?") is asked once the driving is over. So the log is
+// persisted, not just held in memory — a daemon restart mid-trip must not
+// re-announce a place the owner was already told about. Bounded, because this
+// is a reminder log and not a location history.
+const MAX_ALERTS = 50;
 
 function clean(value, max = 900) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
@@ -24,10 +32,12 @@ function readFile() {
 
 function ensureLoaded() {
   if (loadedPath === MOBILITY_PATH) return;
-  const saved = readFile().mobility_context || {};
+  const file = readFile();
+  const saved = file.mobility_context || {};
   current = saved.trip || null;
   lastQuestion = saved.last_question || null;
   lastResponse = saved.last_response || null;
+  alerts = Array.isArray(file.mobility_alerts) ? file.mobility_alerts : [];
   loadedPath = MOBILITY_PATH;
 }
 
@@ -38,6 +48,7 @@ function persist() {
     last_question: lastQuestion,
     last_response: lastResponse,
   };
+  state.mobility_alerts = alerts.slice(-MAX_ALERTS);
   fs.mkdirSync(path.dirname(MOBILITY_PATH), { recursive: true });
   fs.writeFileSync(MOBILITY_PATH, JSON.stringify(state, null, 2));
 }
@@ -105,9 +116,89 @@ export function mobilityContextBlock() {
   return lines.join("\n");
 }
 
+/**
+ * The identity of a proximity alert: one ERRAND, on one trip.
+ *
+ * Deliberately NOT keyed on the place. "Buy ibuprofen at a pharmacy" is one
+ * errand; the nearest pharmacy is its answer, not thirteen separate reminders.
+ * A drive through Bariloche found fifteen matching shops for two tasks and sent
+ * eight Telegram messages in ninety seconds — the per-place key was the bug.
+ * Once the owner has been told where to stop for something, they have been
+ * told.
+ */
+export function mobilityAlertKey(tripId, taskId) {
+  return `${clean(tripId, 100)}|${clean(taskId, 100)}`;
+}
+
+/** Has this errand already been announced on this trip? */
+export function mobilityAlertFired(tripId, taskId) {
+  ensureLoaded();
+  const key = mobilityAlertKey(tripId, taskId);
+  return alerts.some((alert) => alert.key === key);
+}
+
+/**
+ * Record an alert the daemon is about to deliver. Written BEFORE the send, so a
+ * failed Telegram call still burns the one-shot: a delivery that errored is not
+ * a reason to try the same reminder again on the next GPS sample two seconds
+ * later. Returns the stored record (with its id).
+ */
+export function recordMobilityAlert(alert, now = Date.now()) {
+  ensureLoaded();
+  const record = {
+    id: `mb${Math.random().toString(36).slice(2, 8)}`,
+    key: mobilityAlertKey(alert.trip_id, alert.task_id),
+    trip_id: clean(alert.trip_id, 100),
+    task_id: clean(alert.task_id, 100),
+    task: clean(alert.task, 200),
+    project_id: clean(String(alert.project_id ?? ""), 100),
+    place: clean(alert.place, 200),
+    latitude: Number(alert.latitude),
+    longitude: Number(alert.longitude),
+    distance_m: Number(alert.distance_m) || 0,
+    fired_at: new Date(now).toISOString(),
+    answer: null,
+    answered_at: null,
+    followup_at: null,
+    outcome: null,
+  };
+  alerts = [...alerts, record].slice(-MAX_ALERTS);
+  persist();
+  return record;
+}
+
+export function getMobilityAlert(id) {
+  ensureLoaded();
+  const found = alerts.find((alert) => alert.id === id);
+  return found ? { ...found } : null;
+}
+
+export function updateMobilityAlert(id, patch, now = Date.now()) {
+  ensureLoaded();
+  const index = alerts.findIndex((alert) => alert.id === id);
+  if (index < 0) return null;
+  alerts[index] = { ...alerts[index], ...patch, updated_at: new Date(now).toISOString() };
+  persist();
+  return { ...alerts[index] };
+}
+
+/**
+ * Alerts the owner said yes to and has not been asked back about. This is the
+ * whole point of keeping the log: "voy" is a promise, and the assistant that
+ * never asks how it went is a notification, not a secretary.
+ */
+export function pendingMobilityFollowups(tripId = null) {
+  ensureLoaded();
+  return alerts
+    .filter((alert) => alert.answer === "go" && !alert.followup_at && !alert.outcome)
+    .filter((alert) => !tripId || alert.trip_id === tripId)
+    .map((alert) => ({ ...alert }));
+}
+
 export function _resetMobilityStateForTest() {
   ensureLoaded();
   current = null;
   lastQuestion = null;
   lastResponse = null;
+  alerts = [];
 }

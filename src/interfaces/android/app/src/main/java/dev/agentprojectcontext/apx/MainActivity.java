@@ -374,7 +374,7 @@ public final class MainActivity extends Activity {
 
     private void updateTravelBanner() {
         if (travelBanner == null) return;
-        travelBanner.update(preferences.travelActive(), preferences.travelDestination());
+        travelBanner.update(preferences.travelActive(), preferences.travelDestination(), preferences.travelSource());
     }
 
     private void openGoogleMaps() {
@@ -417,7 +417,10 @@ public final class MainActivity extends Activity {
         boolean travelAccess = travelDetectionEnabled();
         String travelAction = !travelAccess
             ? "Activar detección de viajes"
-            : preferences.travelActive() ? "✓ Viaje de Maps detectado" : "✓ Detección de viajes activa";
+            : !preferences.travelActive() ? "✓ Detección de viajes activa"
+            : ApxPreferences.SOURCE_ANDROID_AUTO.equals(preferences.travelSource())
+                ? "✓ Android Auto conectado"
+                : "✓ Viaje de Maps detectado";
         new AlertDialog.Builder(this)
             .setTitle("APX Android")
             .setItems(new String[]{mascotAction, soundAction, drivingAlertsAction, travelAction, "Probar aviso Android Auto", "Recargar /mobile", "Vincular otro dispositivo"}, (dialog, which) -> {
