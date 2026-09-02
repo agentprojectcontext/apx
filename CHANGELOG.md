@@ -1,3 +1,15 @@
+# [1.85.0](https://github.com/agentprojectcontext/apx/compare/v1.84.0...v1.85.0) (2026-09-02)
+
+
+### Bug Fixes
+
+* **mobility:** a voice note that reads out a prompt is not a voice note ([6306854](https://github.com/agentprojectcontext/apx/commit/6306854245870674eb12e018bcf8a3ca6a37dfb3))
+
+
+### Features
+
+* **mobility:** waving past one shop is not dropping the errand ([fdffa9f](https://github.com/agentprojectcontext/apx/commit/fdffa9f37b02cb61d0fd9ce166b980057c0f6f73))
+
 # [1.84.0](https://github.com/agentprojectcontext/apx/compare/v1.83.2...v1.84.0) (2026-09-02)
 
 
