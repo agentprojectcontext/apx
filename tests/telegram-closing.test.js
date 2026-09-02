@@ -69,7 +69,7 @@ test("closing: the canned floor speaks only when the model cannot", async () => 
     saTrace: [{ tool: "read_file" }],
     authorLineFn: async () => "",   // engine down — the usual reason the turn is empty
   });
-  assert.deepEqual(sent, [t("telegram.fallback_continue", { lang: "es" })]);
+  assert.deepEqual(sent, [t("reply.fallback_continue", { lang: "es" })]);
 });
 
 test("closing: a turn that did nothing at all still gets its short ack", async () => {
@@ -83,7 +83,7 @@ test("closing: a turn that did nothing at all still gets its short ack", async (
     saTrace: null,
     authorLineFn: async (o) => { asked.push(o); return ""; },
   });
-  assert.deepEqual(sent, [t("telegram.fallback_listo", { lang: "es" })]);
+  assert.deepEqual(sent, [t("reply.fallback_done", { lang: "es" })]);
   assert.equal(asked[0].context, "", "nothing happened — there is nothing to tell it about");
 });
 

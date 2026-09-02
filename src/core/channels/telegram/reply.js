@@ -10,8 +10,9 @@ import { TELEGRAM_TOOL_ITERS } from "#core/agent/constants.js";
 import { stripThinking, stripReasoning } from "#core/util/thinking.js";
 import { appendGlobalMessage, getRecentTelegramTurnsFromFs } from "#core/stores/messages.js";
 import { CHANNELS } from "#core/constants/channels.js";
-import { summarizeToolTrace, formatToolSummary } from "#core/agent/tool-summary.js";
+import { summarizeToolTrace } from "#core/agent/tool-summary.js";
 import { authorLine } from "#core/agent/author-line.js";
+import { closingFloorLine } from "#core/agent/closing-floor.js";
 import { SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
 import { createTelegramConfirmAdapter } from "#core/confirmation/adapters/telegram.js";
 import { getConfirmationStore as getConfirmStore } from "#core/confirmation/pending-store.js";
@@ -263,7 +264,7 @@ export function telegramErrorText(self, e) {
  * the last piece that went out. This is the message the whole turn is for: with
  * mid-turn notes held back, it's the only place the result can arrive — hence
  * the never-silent floor. When the closing comes back empty the model is asked
- * to write it from what the turn did (author-line.js), and only if THAT is
+ * to write it from what the turn did (closing-floor.js), and only if THAT is
  * empty too — usually because the engine is down, which is why the turn is
  * empty in the first place — does the canned line go out. Never silent beats
  * never canned, in that order.
@@ -292,23 +293,19 @@ export async function sendFinalReply(self, {
   if (finalClean && finalClean !== lastStreamedText) {
     toSend = finalClean;
   } else if (!finalClean) {
-    const lang = resolveLang(self.globalConfig);
-    const worked = streamedCount > 0 || Boolean(toolSummary);
-    // One cheap tool-free call: the closing is the model's to word, even when
-    // the turn that should have produced it came back with nothing.
-    const authored = await authorLineFn({
+    // The shared floor (core/agent/closing-floor.js): one cheap tool-free call
+    // for a closing the model words itself, and the canned line only if that
+    // comes back empty too. `worked` is streamedCount rather than
+    // lastStreamedText because a tool notice — "⚙️ read_file" — is work the
+    // owner watched happen even when no prose went out with it.
+    const { text, authored } = await closingFloorLine({
       globalConfig: self.globalConfig,
-      instruction: worked
-        ? "You worked on the user's request but the closing message never got written. Write it now: where the work got to, and whether you should keep going if something is left."
-        : "Your reply came back empty. Write the one line that should have gone out — acknowledge them without claiming a result you do not have.",
-      context: [
-        lastStreamedText ? `The last thing you said to them was: ${lastStreamedText}` : "",
-        toolSummary ? `What you did this turn: ${formatToolSummary(toolSummary)}` : "",
-      ].filter(Boolean).join("\n"),
+      worked: streamedCount > 0 || Boolean(toolSummary),
+      lastText: lastStreamedText,
+      toolSummary,
+      authorLineFn,
     });
-    toSend = authored || (worked
-      ? t("telegram.fallback_continue", { lang })
-      : t("telegram.fallback_listo", { lang }));
+    toSend = text;
     if (!authored) self.log(`telegram[${self.channel.name}] closing floor: the model could not write it either`);
   }
   if (!toSend) return; // everything was already streamed — nothing left to send
