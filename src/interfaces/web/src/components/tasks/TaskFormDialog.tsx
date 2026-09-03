@@ -6,9 +6,10 @@ import { X } from "lucide-react";
 import { Button, Dialog, Field, Input, Textarea } from "../ui";
 import { UiSelect } from "../UiSelect";
 import { useToast } from "../Toast";
-import { TASK_STATUS_ORDER, statusLabel } from "./taskStatus";
+import { useTaskColumns } from "./useTaskColumns";
+import { columnLabel } from "./columns";
 import { t } from "../../i18n";
-import type { TaskEntry, TaskStatus } from "../../types/daemon";
+import type { TaskEntry } from "../../types/daemon";
 
 /**
  * The one form for a task — creating and editing.
@@ -49,9 +50,12 @@ export function TaskFormDialog({
   const [body, setBody] = useState("");
   const [due, setDue] = useState("");
   const [agent, setAgent] = useState("");
-  const [status, setStatus] = useState<TaskStatus>("pending");
+  const [status, setStatus] = useState<string>("pending");
   const [tags, setTags] = useState<string[]>([]);
   const [tagDraft, setTagDraft] = useState("");
+  // What can be set has to be what exists — the project's own columns, not the
+  // four the panel used to hardcode.
+  const { statuses } = useTaskColumns(editing?.pid ?? fixedPid);
   const [target, setTarget] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -249,8 +253,8 @@ export function TaskFormDialog({
           <Field label={t("tasks.field_status")}>
             <UiSelect
               value={status}
-              onChange={(v) => setStatus(v as TaskStatus)}
-              options={TASK_STATUS_ORDER.map((s) => ({ value: s, label: statusLabel(s) }))}
+              onChange={setStatus}
+              options={statuses.map((c) => ({ value: c.id, label: columnLabel(c) }))}
             />
           </Field>
         )}

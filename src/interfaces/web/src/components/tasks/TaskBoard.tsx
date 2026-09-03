@@ -5,7 +5,7 @@ import { Tasks } from "../../lib/api";
 import type { GlobalTaskEntry } from "../../lib/api/tasks";
 import { Loading } from "../ui";
 import { useToast } from "../Toast";
-import { CategoryIcon, StatusIcon, statusTint } from "./taskStatus";
+import { CategoryIcon, StatusFooter, StatusIcon, effectiveStatus, statusTint } from "./taskStatus";
 import { DONE_COLUMN, columnFor, columnLabel, type BoardColumn } from "./columns";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
@@ -30,11 +30,17 @@ import type { TaskEntry } from "../../types/daemon";
 const BOARD_LIMIT = 300;
 
 export function TaskBoard({
-  pid, columns, selectedId, onSelect, onChanged, refreshKey,
+  pid, columns, state, selectedId, onSelect, onChanged, refreshKey,
 }: {
   /** Undefined on the aggregated view: every project at once. */
   pid?: string;
   columns: BoardColumn[];
+  /**
+   * The screen's Open/Done/Dropped/All filter. It used to be ignored here —
+   * the chips were on screen and did nothing, which is worse than not having
+   * them — so the board fetched everything and quietly dropped the archive.
+   */
+  state: "open" | "done" | "dropped" | "all";
   selectedId: string | null;
   onSelect: (id: string) => void;
   onChanged: () => void;
@@ -45,19 +51,15 @@ export function TaskBoard({
   const [dragging, setDragging] = useState<string | null>(null);
   const [over, setOver] = useState<string | null>(null);
 
-  const key = `board:${pid ?? "all"}:${refreshKey ?? 0}`;
+  const key = `board:${pid ?? "all"}:${state}:${refreshKey ?? 0}`;
   const { data, isLoading, mutate } = useSWR(key, () =>
     pid
-      ? Tasks.listPage(pid, { state: "all", limit: BOARD_LIMIT, offset: 0 }).then((r) => r.items)
-      : Tasks.globalPage({ state: "all", limit: BOARD_LIMIT, offset: 0 }).then((r) => r.items),
+      ? Tasks.listPage(pid, { state, limit: BOARD_LIMIT, offset: 0 }).then((r) => r.items)
+      : Tasks.globalPage({ state, limit: BOARD_LIMIT, offset: 0 }).then((r) => r.items),
   );
 
-  const tasks = (data ?? []) as TaskEntry[];
+  const live = (data ?? []) as TaskEntry[];
   const rowPid = (task: TaskEntry) => pid ?? String((task as GlobalTaskEntry).project_id ?? "");
-
-  // Dropped tasks are not a column — they were archived as "never mind", and a
-  // board is about work in flight.
-  const live = tasks.filter((x) => x.state !== "dropped");
 
   const refresh = () => { void mutate(); onChanged(); };
 
@@ -117,6 +119,7 @@ export function TaskBoard({
                 const due = task.due ? String(task.due).slice(0, 10) : null;
                 const overdue = task.state === "open" && !!due && due < new Date().toISOString().slice(0, 10);
                 const project = (task as GlobalTaskEntry).project_name;
+                const eff = effectiveStatus(task);
                 return (
                   <article
                     key={`${rowPid(task)}-${task.id}`}
@@ -136,8 +139,12 @@ export function TaskBoard({
                     )}
                   >
                     <div className="flex items-start gap-1.5">
-                      <span className={cn("mt-0.5 flex size-4 shrink-0 items-center justify-center rounded", statusTint(col.id === DONE_COLUMN ? "done" : "pending"))}>
-                        <StatusIcon status={col.id === DONE_COLUMN ? "done" : "pending"} className="size-2.5" />
+                      {/* The card's OWN state, not the column's. Hardcoding it
+                          to the column made every card in every working column
+                          identical — you could not tell a dropped card from a
+                          live one without opening it. */}
+                      <span className={cn("mt-0.5 flex size-4 shrink-0 items-center justify-center rounded", statusTint(eff))}>
+                        <StatusIcon status={eff} className="size-2.5" />
                       </span>
                       <CategoryIcon category={task.category} />
                       <span className={cn(
@@ -165,6 +172,10 @@ export function TaskBoard({
                       )}
                       {due && <span className={cn(overdue && cn("font-medium", toneText.red))}>⏱ {due}</span>}
                     </div>
+                    {/* The status on the bottom edge, even though the column
+                        already implies it: it is the one element that reads the
+                        same here and in the list, where nothing said it at all. */}
+                    <StatusFooter status={eff} className="mt-1.5 border-t border-border/60 pt-1.5" />
                   </article>
                 );
               })}

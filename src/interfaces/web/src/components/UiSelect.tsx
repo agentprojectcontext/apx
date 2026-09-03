@@ -31,6 +31,7 @@ export function UiSelect({
   disabled,
   className,
   showIcon = false,
+  "data-testid": dataTestId,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -39,10 +40,12 @@ export function UiSelect({
   disabled?: boolean;
   className?: string;
   showIcon?: boolean;
+  /** Put on the trigger, so a test can open the menu. */
+  "data-testid"?: string;
 }) {
   return (
     <Select value={value} onValueChange={(v) => onChange((v as string) ?? "")} disabled={disabled}>
-      <SelectTrigger className={cn("h-9 w-full", className)}>
+      <SelectTrigger className={cn("h-9 w-full", className)} data-testid={dataTestId}>
         <SelectValue placeholder={placeholder}>
           {(val) => {
             const opt = options.find((o) => o.value === val);

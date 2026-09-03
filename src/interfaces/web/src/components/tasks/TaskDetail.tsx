@@ -10,7 +10,9 @@ import { TaskComments } from "./TaskComments";
 import { TaskSubtasks } from "./TaskSubtasks";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { useToast } from "../Toast";
-import { CategoryIcon, StatusIcon, StatusBadge, categoryLabel, effectiveStatus, statusTint, TASK_STATUS_ORDER, statusLabel } from "./taskStatus";
+import { CategoryIcon, StatusIcon, StatusBadge, categoryLabel, effectiveStatus, statusTint } from "./taskStatus";
+import { useTaskColumns } from "./useTaskColumns";
+import { columnLabel } from "./columns";
 import { relativeWhen } from "../../lib/when";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
@@ -40,6 +42,7 @@ export function TaskDetail({
 }) {
   const toast = useToast();
   const navigate = useNavigate();
+  const { statuses } = useTaskColumns(pid);
   const { data: task, isLoading, mutate } = useSWR(
     `/api/projects/${pid}/tasks/${taskId}`,
     () => Tasks.get(pid, taskId),
@@ -193,9 +196,10 @@ export function TaskDetail({
           <div className="max-w-[16rem] space-y-1">
             <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-fg">{t("tasks.field_status")}</div>
             <UiSelect
+              data-testid="task-status-select"
               value={task.status ?? "pending"}
               onChange={(v) => act(() => Tasks.status(pid, task.id, v as TaskStatus))}
-              options={TASK_STATUS_ORDER.map((s) => ({ value: s, label: statusLabel(s) }))}
+              options={statuses.map((c) => ({ value: c.id, label: columnLabel(c) }))}
             />
           </div>
         )}

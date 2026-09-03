@@ -119,12 +119,18 @@ export function projectColumns(globalConfig, projectConfig) {
 }
 
 /**
- * Where a task sits on the board. Closed tasks land in `done` whatever their
- * last open sub-status was; an open task whose status is not a column on THIS
- * board falls into the first one, so a card is never invisible.
+ * Where a task sits on the board.
+ *
+ * `done` finishes in the done column. `dropped` does NOT: it was abandoned, not
+ * completed, and it stays in the column it was abandoned in — which is the
+ * useful thing to see when you go looking at what you gave up on and where.
+ * Filing it under "done" would claim it was finished.
+ *
+ * An open task whose status is not a column on THIS board falls into the first
+ * one, so a card is never invisible.
  */
 export function columnFor(task, columns) {
-  if (task?.state !== "open") return DONE_COLUMN;
+  if (task?.state === "done") return DONE_COLUMN;
   const status = task?.status || DEFAULT_TASK_STATUS;
   return columns.some((c) => c.id === status) ? status : (columns[0]?.id || DEFAULT_TASK_STATUS);
 }

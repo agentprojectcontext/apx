@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { mutate } from "swr";
 import { Plus, X, Zap } from "lucide-react";
 import { Tasks } from "../../lib/api";
 import { Button, Dialog, Field, Input } from "../ui";
@@ -117,6 +118,15 @@ export function TaskColumnsDialog({
       // The project's pick is saved AFTER the catalog, so a column added in the
       // same edit is already known when the subset referencing it is stored.
       if (pid) await Tasks.columns.saveForProject(pid, picked);
+
+      // Every control that offers a status reads the same cached key
+      // (useTaskColumns). Without this the board redrew with the new column
+      // while the detail's dropdown still listed the old four — you could drag
+      // a card somewhere the rest of the UI could not name.
+      await mutate((key) => typeof key === "string" && key.includes("/tasks/columns"), undefined, {
+        revalidate: true,
+      });
+
       toast.success(t("common.saved"));
       onSaved();
       onClose();

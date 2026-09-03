@@ -152,7 +152,12 @@ export interface TaskLocation {
 export interface TaskEntry {
   id: string;
   state: "open" | "done" | "dropped";
-  status?: TaskStatus;
+  /**
+   * The board column this task sits in. A plain string, NOT `TaskStatus`:
+   * columns are configurable (core/tasks/columns.js), so the four built-ins are
+   * a default catalog rather than a closed set.
+   */
+  status?: string;
   title: string;
   /** Id of the parent task. A subtask is a task with a parent — nothing more. */
   parent?: string | null;

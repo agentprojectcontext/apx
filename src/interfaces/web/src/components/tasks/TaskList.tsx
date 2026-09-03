@@ -8,7 +8,7 @@ import { ConfirmDialog } from "../common/ConfirmDialog";
 import { SelectCheckbox } from "../common/SelectCheckbox";
 import { DropdownMenuItem, DropdownMenuSeparator } from "../ui/dropdown-menu";
 import { useToast } from "../Toast";
-import { CategoryIcon, StatusIcon, effectiveStatus, statusTint } from "./taskStatus";
+import { CategoryIcon, StatusFooter, StatusIcon, effectiveStatus, statusTint } from "./taskStatus";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 import { toneText } from "../../lib/tone";
@@ -172,9 +172,16 @@ export function TaskList({
                   <span className="min-w-0 flex-1 truncate text-sm font-medium">{task.title}</span>
                 </div>
                 <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-muted-fg">
-                  <span className="truncate">
-                    {project ? `${project.split("/").pop()}${task.agent ? " · " : ""}` : ""}
-                    {task.agent ? `@${task.agent}` : (project ? "" : t("tasks.agent_none_short"))}
+                  <span className="flex min-w-0 items-center gap-1.5">
+                    {/* The status in words, not only as the colour of the square
+                        on the left. On the board the column says it; here
+                        nothing did, so the same task read differently in the
+                        two views. */}
+                    <StatusFooter status={eff} />
+                    <span className="truncate">
+                      {project ? `· ${project.split("/").pop()}` : ""}
+                      {task.agent ? ` @${task.agent}` : ""}
+                    </span>
                   </span>
                   <span className="flex shrink-0 items-center gap-1.5">
                     {/* What makes an epic legible from the list: "2/5" says this
