@@ -232,6 +232,31 @@ test.describe("task workspace", () => {
     await expect(page.getByTestId(`board-col-${id}`)).toHaveCount(0);
   });
 
+  test("the view and the filter you left on are the ones you come back to", async ({ page }) => {
+    const { projectId } = runtime();
+    await page.goto(`/p/${projectId}/tasks`);
+    await expect(page.getByTestId("task-list")).toBeVisible();
+
+    // Leave it on the board, filtered to something other than the default.
+    await page.getByTestId("task-view-board").click();
+    await expect(page.getByTestId("task-board")).toBeVisible();
+    await page.getByTestId("task-filter-all").click();
+
+    // Go somewhere else entirely and come back with a bare URL — no ?view.
+    // This is the trip that used to reset everything.
+    await page.goto("/settings");
+    await expect(page.getByTestId("settings-tab-identity")).toBeVisible();
+    await page.goto(`/p/${projectId}/tasks`);
+
+    await expect(page.getByTestId("task-board")).toBeVisible();
+    await expect(page.getByTestId("task-filter-all")).toHaveAttribute("aria-pressed", "true");
+
+    // A link that names a view still outranks the remembered one — otherwise a
+    // URL someone sends opens whatever that device happened to be doing.
+    await page.goto(`/p/${projectId}/tasks?view=list`);
+    await expect(page.getByTestId("task-list")).toBeVisible();
+  });
+
   test("a column added to the catalog shows up on the board", async ({ page }) => {
     const { projectId } = runtime();
     const name = `QA${Date.now() % 100000}`;

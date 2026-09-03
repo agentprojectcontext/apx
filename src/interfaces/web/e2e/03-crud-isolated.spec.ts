@@ -42,10 +42,12 @@ test.describe("isolated CRUD", () => {
     const doneRow = page.getByTestId("task-list").locator("li", { hasText: title });
     await expect(doneRow).toBeVisible();
 
-    // reopen → back under "open". Reload to read fresh state (the filter cache
-    // is not revalidated on switch — see findings note).
+    // reopen → back under "open". The filter is asked for EXPLICITLY: it is
+    // remembered per device now (taskViewPrefs.ts), so a reload no longer
+    // quietly resets it to "open" the way this step used to rely on.
     await rowAction(doneRow, "reopen");
     await page.reload();
+    await page.getByTestId("task-filter-open").click();
     const reopened = page.getByTestId("task-list").locator("li", { hasText: title });
     await expect(reopened).toBeVisible();
 
