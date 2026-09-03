@@ -39,12 +39,13 @@ export function columnLabel(col: BoardColumn): string {
 
 /**
  * Which column a task sits in. Mirrors `columnFor` in core/tasks/columns.js:
- * closed tasks land in `done` whatever their last open status was, and an open
- * task whose status is not a column HERE falls into the first one, so a card is
- * never invisible.
+ * `done` finishes in the done column, `dropped` stays where it was abandoned
+ * (it was not completed, and filing it under "done" would claim it was), and an
+ * open task whose status is not a column HERE falls into the first one, so a
+ * card is never invisible.
  */
 export function columnFor(task: TaskEntry, columns: BoardColumn[]): string {
-  if (task.state !== "open") return DONE_COLUMN;
+  if (task.state === "done") return DONE_COLUMN;
   const status = task.status || "pending";
   return columns.some((c) => c.id === status) ? status : (columns[0]?.id || "pending");
 }

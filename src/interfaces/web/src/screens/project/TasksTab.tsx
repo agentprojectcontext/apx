@@ -4,13 +4,14 @@ import { Check, ListTodo, MousePointerClick, Plus, Settings2, Trash2 } from "luc
 import useSWR from "swr";
 import { Tasks } from "../../lib/api";
 import type { GlobalTaskEntry } from "../../lib/api/tasks";
-import type { TaskEntry, TaskStatus } from "../../types/daemon";
+import type { TaskEntry } from "../../types/daemon";
 import { Section } from "../../components/Section";
 import { Pager, usePagedQuery } from "../../components/Pager";
 import { Button, Empty, FilterChips, Loading } from "../../components/ui";
 import { TaskList } from "../../components/tasks/TaskList";
 import { TaskDetail } from "../../components/tasks/TaskDetail";
-import { TASK_STATUS_ORDER, statusLabel } from "../../components/tasks/taskStatus";
+import { useTaskColumns } from "../../components/tasks/useTaskColumns";
+import { columnLabel } from "../../components/tasks/columns";
 import { TaskFormDialog } from "../../components/tasks/TaskFormDialog";
 import { TaskBoard } from "../../components/tasks/TaskBoard";
 import { TaskColumnsDialog } from "../../components/tasks/TaskColumnsDialog";
@@ -44,7 +45,9 @@ export function TasksTab({ pid }: { pid?: string }) {
   const [state, setState] = useState<"open" | "done" | "dropped" | "all">("open");
   // Workflow sub-status is a different question from state: "what is blocked
   // right now" is not "what is open". Only meaningful for open tasks.
-  const [status, setStatus] = useState<TaskStatus | "">("");
+  // A plain string, not the four built-ins: columns are configurable, so the
+  // filter's vocabulary is whatever this project has.
+  const [status, setStatus] = useState<string>("");
   const effStatus = state === "open" ? status : "";
 
   // Which view, in the URL so a board you are working in survives a refresh
@@ -58,7 +61,10 @@ export function TasksTab({ pid }: { pid?: string }) {
     }, { replace: true });
 
   const [editingColumns, setEditingColumns] = useState(false);
-  // Bumped after a column edit so the board refetches with the new set.
+  // Bumped after a column edit so the board refetches with the new set, and
+  // after ANY change made from the detail pane — the board keeps its own query,
+  // so revalidating only the list left a card sitting in the column it just
+  // left.
   const [columnsRev, setColumnsRev] = useState(0);
   const { data: colData, mutate: mutateColumns } = useSWR(
     view === "board" ? `/api/tasks/columns?pid=${pid ?? "all"}&r=${columnsRev}` : null,
@@ -73,6 +79,7 @@ export function TasksTab({ pid }: { pid?: string }) {
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<{ pid: string; task: TaskEntry } | null>(null);
   const { projects } = useProjects();
+  const { statuses } = useTaskColumns(pid);
   const toast = useToast();
 
   // Multi-select. Keyed by task id but carries the resolved pid + task so a
@@ -93,6 +100,9 @@ export function TasksTab({ pid }: { pid?: string }) {
   });
 
   const rowPid = (task: TaskEntry) => pid ?? String((task as GlobalTaskEntry).project_id ?? "");
+
+  /** Both views hold their own query — a change in one has to move the other. */
+  const refreshAll = () => { paged.mutate(); setColumnsRev((n) => n + 1); };
   const selectedId = params.get("task");
   const selected = paged.items.find((x) => x.id === selectedId) || null;
 
@@ -200,7 +210,7 @@ export function TasksTab({ pid }: { pid?: string }) {
                 label={t("project.global_tasks.any_status")}
                 options={[
                   { value: "" as const, label: t("project.global_tasks.any_status") },
-                  ...TASK_STATUS_ORDER.map((s) => ({ value: s, label: statusLabel(s) })),
+                  ...statuses.map((c) => ({ value: c.id, label: columnLabel(c) })),
                 ]}
               />
             </div>
@@ -213,9 +223,10 @@ export function TasksTab({ pid }: { pid?: string }) {
           <TaskBoard
             pid={pid}
             columns={colData?.columns ?? []}
+            state={state}
             selectedId={selectedId}
             onSelect={select}
-            onChanged={() => paged.mutate()}
+            onChanged={refreshAll}
             refreshKey={columnsRev}
           />
           <div className="min-h-0 w-full shrink-0 overflow-hidden border-t border-border lg:w-[360px] lg:border-l lg:border-t-0">
@@ -226,7 +237,7 @@ export function TasksTab({ pid }: { pid?: string }) {
                 taskId={selected.id}
                 projectName={pid ? undefined : (selected as GlobalTaskEntry).project_name}
                 onEdit={(task) => setEditing({ pid: rowPid(selected), task })}
-                onChanged={() => paged.mutate()}
+                onChanged={refreshAll}
                 onOpenTask={select}
               />
             ) : (

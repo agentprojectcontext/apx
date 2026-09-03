@@ -3,9 +3,28 @@ import { test, expect, runtime } from "./fixtures";
 // The task workspace: one-click completion, description vs agent prompt,
 // tags, subtasks, comments, and the board with its configurable columns.
 //
-// Everything runs against the throwaway project global-setup creates, so the
-// user's real tasks are never touched. Nothing here summons an agent: a comment
-// only starts a turn when it @-mentions one, and none of these do.
+// Tasks run against the throwaway project global-setup creates, so the user's
+// real tasks are never touched. Nothing here summons an agent: a comment only
+// starts a turn when it @-mentions one, and none of these do.
+//
+// COLUMNS ARE THE EXCEPTION AND NEED THEIR OWN CLEANUP. The catalog is GLOBAL by
+// design — one vocabulary for every project — so there is no throwaway copy of
+// it to work in. A test that adds a column and then fails before its own
+// teardown leaves that column in the real config, which is exactly what happened
+// while this file was being written. The afterEach below restores the shipped
+// four whatever the test did.
+
+/** The catalog every run must start and end with. */
+const DEFAULT_COLUMNS = ["pending", "running", "in_review", "blocked"];
+
+async function restoreColumns() {
+  const { daemon, token } = runtime();
+  await fetch(`${daemon}/api/tasks/columns`, {
+    method: "PUT",
+    headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+    body: JSON.stringify({ columns: DEFAULT_COLUMNS.map((id) => ({ id })) }),
+  });
+}
 
 /**
  * Type into a controlled input and wait until React has the value.
@@ -29,6 +48,8 @@ async function addTask(page: import("@playwright/test").Page, title: string) {
 }
 
 test.describe("task workspace", () => {
+  test.afterEach(restoreColumns);
+
   test("the row's status square completes in one click, and undo puts it back", async ({ page }) => {
     const { projectId } = runtime();
     const title = `e2e tick ${Date.now()}`;
@@ -135,6 +156,64 @@ test.describe("task workspace", () => {
     // The board is a view, not a replacement: the list is exactly as it was.
     await page.getByTestId("task-view-list").click();
     await expect(page.getByTestId("task-list").locator("li", { hasText: title })).toBeVisible();
+  });
+
+  test("the state filter actually filters the board", async ({ page }) => {
+    const { projectId } = runtime();
+    const title = `e2e filter ${Date.now()}`;
+    await page.goto(`/p/${projectId}/tasks`);
+    await addTask(page, title);
+
+    await page.getByTestId("task-view-board").click();
+    const card = page.locator(`[data-testid^="board-card-"]`, { hasText: title });
+    await expect(card).toBeVisible();
+
+    // The chips were on screen and inert: the board fetched everything and
+    // ignored them. An open task must not show up under "Done".
+    await page.getByTestId("task-filter-done").click();
+    await expect(card).toHaveCount(0);
+
+    await page.getByTestId("task-filter-open").click();
+    await expect(card).toBeVisible();
+  });
+
+  test("a custom column renders everywhere, board and list", async ({ page }) => {
+    const { projectId } = runtime();
+    const name = `Rev${Date.now() % 100000}`;
+    const id = name.toLowerCase();
+    const title = `e2e custom ${Date.now()}`;
+    await page.goto(`/p/${projectId}/tasks`);
+    await addTask(page, title);
+
+    // Add the column…
+    await page.getByTestId("task-view-board").click();
+    await page.getByTestId("task-columns").click();
+    await typeInto(page.getByTestId("column-new"), name);
+    await page.getByTestId("column-add").click();
+    await page.getByTestId("columns-save").click();
+    await expect(page.getByTestId(`board-col-${id}`)).toBeVisible();
+
+    // …and move a task into it from the DETAIL, whose dropdown used to know
+    // only the four built-ins — you could drag a card somewhere the rest of
+    // the UI could not name.
+    await page.locator(`[data-testid^="board-card-"]`, { hasText: title }).click();
+    await page.getByTestId("task-status-select").click();
+    await page.getByRole("option", { name }).click();
+    await expect(page.getByTestId(`board-col-${id}`).locator("article", { hasText: title })).toBeVisible();
+
+    // The list is the case that used to CRASH: every status helper indexed a
+    // four-entry table directly, so the first custom column took it down.
+    await page.getByTestId("task-view-list").click();
+    const row = page.getByTestId("task-list").locator("li", { hasText: title });
+    await expect(row).toBeVisible();
+    await expect(row).toContainText(name);
+
+    // Put the catalog back the way it was found.
+    await page.getByTestId("task-view-board").click();
+    await page.getByTestId("task-columns").click();
+    await page.getByTestId(`column-remove-${id}`).click();
+    await page.getByTestId("columns-save").click();
+    await expect(page.getByTestId(`board-col-${id}`)).toHaveCount(0);
   });
 
   test("a column added to the catalog shows up on the board", async ({ page }) => {

@@ -94,11 +94,16 @@ test("a column removed from the catalog disappears from the boards that used it"
   assert.deepEqual(ids(cols), ["pending", DONE_COLUMN]);
 });
 
-test("columnFor puts closed tasks in done and strays in the first column", () => {
+test("columnFor finishes in done, but a dropped task stays where it was left", () => {
   const cols = projectColumns({ tasks: { columns: [{ id: "qa" }, { id: "pending" }] } }, {});
   assert.equal(columnFor({ state: "done", status: "qa" }, cols), DONE_COLUMN);
-  assert.equal(columnFor({ state: "dropped", status: "qa" }, cols), DONE_COLUMN);
   assert.equal(columnFor({ state: "open", status: "qa" }, cols), "qa");
+
+  // Dropped is NOT done. It was abandoned, and the useful thing to see when you
+  // go looking at what you gave up on is WHERE you gave up. Filing it under
+  // "done" would claim it was finished.
+  assert.equal(columnFor({ state: "dropped", status: "qa" }, cols), "qa");
+
   // Its column was removed from this board — the card stays visible rather than
   // vanishing into a column that is not drawn.
   assert.equal(columnFor({ state: "open", status: "in_review" }, cols), "qa");

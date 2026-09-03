@@ -1,5 +1,5 @@
 import { http, unwrapPage } from "../http";
-import type { TaskEntry, TaskStatus } from "../../types/daemon";
+import type { TaskEntry } from "../../types/daemon";
 import type { BoardColumn } from "../../components/tasks/columns";
 
 /** What a project shows, plus the global vocabulary it may pick from. */
@@ -19,7 +19,8 @@ export interface TaskSummary {
   dropped: number;
   overdue: number;
   total: number;
-  status: Record<TaskStatus, number>;
+  /** Keyed by whatever columns are in use, not only the four built-ins. */
+  status: Record<string, number>;
 }
 
 export const Tasks = {
@@ -30,13 +31,13 @@ export const Tasks = {
     http.get<unknown>(`/api/tasks?state=${state}`).then((b) => unwrapPage<GlobalTaskEntry>(b).items),
   // Server-paginated variants: one project (listPage) or all projects
   // (globalPage). Each returns the requested window plus the full total.
-  listPage: (pid: string, { state, limit, offset, status }: { state: TaskEntry["state"] | "all"; limit: number; offset: number; status?: TaskStatus | "" }) =>
+  listPage: (pid: string, { state, limit, offset, status }: { state: TaskEntry["state"] | "all"; limit: number; offset: number; status?: string }) =>
     http
       .get<unknown>(
         `/api/projects/${pid}/tasks?state=${state}&limit=${limit}&offset=${offset}` + (status ? `&status=${status}` : ""),
       )
       .then((b) => unwrapPage<TaskEntry>(b)),
-  globalPage: ({ state, limit, offset, status }: { state: TaskEntry["state"] | "all"; limit: number; offset: number; status?: TaskStatus | "" }) =>
+  globalPage: ({ state, limit, offset, status }: { state: TaskEntry["state"] | "all"; limit: number; offset: number; status?: string }) =>
     http
       .get<unknown>(
         `/api/tasks?state=${state}&limit=${limit}&offset=${offset}` + (status ? `&status=${status}` : ""),
@@ -61,7 +62,7 @@ export const Tasks = {
     http.post<TaskEntry>(`/api/projects/${pid}/tasks`, body),
   patch:  (pid: string, id: string, patch: Partial<TaskEntry>) =>
     http.patch<TaskEntry>(`/api/projects/${pid}/tasks/${id}`, { patch }),
-  status: (pid: string, id: string, status: TaskStatus) =>
+  status: (pid: string, id: string, status: string) =>
     http.post<TaskEntry>(`/api/projects/${pid}/tasks/${id}/status`, { status }),
   done:   (pid: string, id: string) => http.post<TaskEntry>(`/api/projects/${pid}/tasks/${id}/done`),
   drop:   (pid: string, id: string) => http.post<TaskEntry>(`/api/projects/${pid}/tasks/${id}/drop`),
