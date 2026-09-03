@@ -196,6 +196,79 @@ test("openai custom endpoint forwards instruct/language/temperature, never to st
   }
 });
 
+test("openai custom endpoint: the configured language is what gets spoken", async () => {
+  // The gap this covers: nothing in the speaking path (Telegram voice notes,
+  // the desktop, a routine) passes a language, so a config that cannot carry
+  // one leaves the choice to whatever the server happens to default to.
+  const calls = [];
+  const realFetch = global.fetch;
+  global.fetch = async (url, opts) => {
+    calls.push(JSON.parse(opts.body));
+    return { ok: true, async arrayBuffer() { return new Uint8Array([1]).buffer; } };
+  };
+  const outDir = fs.mkdtempSync(path.join(os.tmpdir(), "qvox-lang-"));
+  const base = { base_url: "http://127.0.0.1:5111/v1" };
+  try {
+    await openaiEngine.synthesize({ text: "hola", outDir, config: { ...base, language: "Spanish" } });
+    assert.equal(calls[0].language, "Spanish");
+
+    // An explicit call still wins over the stored default.
+    calls.length = 0;
+    await openaiEngine.synthesize({ text: "hi", language: "English", outDir, config: { ...base, language: "Spanish" } });
+    assert.equal(calls[0].language, "English");
+
+    // "auto" means "say nothing and let the server decide", not a language.
+    calls.length = 0;
+    await openaiEngine.synthesize({ text: "hola", outDir, config: { ...base, language: "auto" } });
+    assert.equal(calls[0].language, undefined);
+
+    // Cloning: the reference and what it says both reach the server, since a
+    // cloned reference is the only way to get an accent no preset speaker has.
+    calls.length = 0;
+    await openaiEngine.synthesize({
+      text: "hola", outDir,
+      config: { ...base, clone: "/srv/voices/manu.wav", ref_text: "hola, probando" },
+    });
+    assert.equal(calls[0].clone, "/srv/voices/manu.wav");
+    assert.equal(calls[0].ref_text, "hola, probando");
+  } finally {
+    global.fetch = realFetch;
+    fs.rmSync(outDir, { recursive: true, force: true });
+  }
+});
+
+test("synthesize measures a float32 wav, not just the canonical 44-byte one", async () => {
+  // A float wav carries a `fact` chunk between `fmt ` and `data`, so the bytes
+  // at the canonical data-size offset belong to another chunk. Reading them
+  // reported a 12.4s clip as 3.0s — confidently, and with nothing to notice.
+  const u32 = (n) => { const b = Buffer.alloc(4); b.writeUInt32LE(n); return b; };
+  const u16 = (n) => { const b = Buffer.alloc(2); b.writeUInt16LE(n); return b; };
+  const rate = 24000, secs = 2, bytes = rate * secs * 4;
+  const fmt = Buffer.concat([
+    u16(3), u16(1), u32(rate), u32(rate * 4), u16(4), u16(32), u16(0), // IEEE float, mono
+  ]);
+  const wav = Buffer.concat([
+    Buffer.from("RIFF"), u32(0), Buffer.from("WAVE"),
+    Buffer.from("fmt "), u32(fmt.length), fmt,
+    Buffer.from("fact"), u32(4), u32(rate * secs),
+    Buffer.from("data"), u32(bytes), Buffer.alloc(bytes),
+  ]);
+
+  const realFetch = global.fetch;
+  global.fetch = async () => ({ ok: true, async arrayBuffer() { return wav.buffer.slice(wav.byteOffset, wav.byteOffset + wav.length); } });
+  try {
+    const r = await synthesize({
+      text: "hola",
+      provider: "custom:qvox",
+      globalConfig: CUSTOM_CFG,
+    });
+    assert.equal(r.duration_s, secs);
+    fs.rmSync(r.audio_path, { force: true });
+  } finally {
+    global.fetch = realFetch;
+  }
+});
+
 test("openai isAvailable: custom endpoint needs no key", async () => {
   assert.equal(await openaiEngine.isAvailable({ base_url: "http://x/v1" }), true);
   assert.equal(await openaiEngine.isAvailable({}), false);

@@ -49,24 +49,41 @@ export function ensureTtsTmpDir() {
  * @returns {Promise<{audio_path, duration_s, mime, provider}>}
  */
 /**
- * Duration of a PCM WAV, read from its 44-byte header. Most engines don't
- * report one — mock and piper were the only two that did, which is how the
- * desktop ended up able to play its silent placeholder and nothing else — and
- * a player that doesn't know how long the clip is can't draw a progress bar.
+ * Duration of a PCM WAV, read from its header. Most engines don't report one —
+ * mock and piper were the only two that did, which is how the desktop ended up
+ * able to play its silent placeholder and nothing else — and a player that
+ * doesn't know how long the clip is can't draw a progress bar.
+ *
+ * The chunks are walked rather than read at fixed offsets. Only the canonical
+ * 44-byte layout puts `fmt ` at 12 and `data` at 36; a float32 wav carries a
+ * `fact` chunk between them, and reading offset 40 there lands mid-chunk and
+ * yields a confident wrong answer — a 12.4s clip reported as 3.0s.
+ *
  * Returns null for anything that isn't a readable RIFF/WAVE (mp3, ogg).
  */
 function wavDurationSeconds(filePath) {
   try {
+    const head = Buffer.alloc(4096);
     const fd = fs.openSync(filePath, "r");
-    const head = Buffer.alloc(44);
-    const read = fs.readSync(fd, head, 0, 44, 0);
+    const read = fs.readSync(fd, head, 0, head.length, 0);
     fs.closeSync(fd);
-    if (read < 44) return null;
+    if (read < 12) return null;
     if (head.toString("ascii", 0, 4) !== "RIFF" || head.toString("ascii", 8, 12) !== "WAVE") return null;
-    const byteRate = head.readUInt32LE(28);
-    const dataSize = head.readUInt32LE(40);
-    if (!byteRate || !dataSize) return null;
-    return dataSize / byteRate;
+
+    let byteRate = 0;
+    let pos = 12;
+    while (pos + 8 <= read) {
+      const id = head.toString("ascii", pos, pos + 4);
+      const size = head.readUInt32LE(pos + 4);
+      const body = pos + 8;
+      if (id === "fmt " && body + 16 <= read) byteRate = head.readUInt32LE(body + 8);
+      // `data` is the last chunk read: its size is the sample bytes, and by
+      // now `fmt ` has been seen, since a wav that ordered them the other way
+      // would be unplayable everywhere else too.
+      if (id === "data") return byteRate ? size / byteRate : null;
+      pos = body + size + (size % 2); // chunks are word-aligned
+    }
+    return null;
   } catch {
     return null;
   }

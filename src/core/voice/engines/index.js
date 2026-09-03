@@ -63,7 +63,8 @@ function ttsConfig(globalConfig) {
   return globalConfig?.voice?.tts || {};
 }
 
-function providerConfig(globalConfig, provider) {
+/** The stored config block for one engine id (custom ids included). */
+export function providerConfig(globalConfig, provider) {
   const tts = ttsConfig(globalConfig);
   if (isCustomId(provider)) return tts?.custom?.[slugOf(provider)] || {};
   return tts?.[provider] || {};

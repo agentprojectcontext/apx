@@ -8,9 +8,15 @@
 // OpenAI-compatible speech server (e.g. a Qwen3-TTS / QVox daemon at
 // http://127.0.0.1:5111/v1). When base_url is set we additionally forward the
 // non-OpenAI fields that server understands — `instruct` (the base voice, from
-// the `style` arg), `language` and `temperature`. These extras are NEVER sent
-// to stock OpenAI (only when base_url is present), so the standard path stays
-// byte-for-byte compatible.
+// the `style` arg), `language`, `clone`/`ref_text` and `temperature`. These
+// extras are NEVER sent to stock OpenAI (only when base_url is present), so the
+// standard path stays byte-for-byte compatible.
+//
+// Which of `clone` / `voice` / `instruct` is set decides HOW the server speaks,
+// and they are not additive — QVox reads them in that order and the first one
+// wins. A named speaker carries its own accent, so picking one leaves `style`
+// describing only the delivery; only a cloned reference can carry an accent no
+// preset speaker has.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -71,9 +77,16 @@ export default {
         "content-type": "application/json",
         ...(config.api_key ? { authorization: `Bearer ${config.api_key}` } : {}),
       },
-      // Say which speaker, so the endpoint warms the model that will answer
-      // rather than a sibling of it.
-      body: JSON.stringify(config.voice ? { voice: config.voice } : {}),
+      // Say which voice, so the endpoint warms the model that will answer
+      // rather than a sibling of it — these are different multi-gigabyte
+      // checkpoints, and warming one leaves the other exactly as cold. The
+      // clone is named for the same reason: a cloned reference is served by a
+      // third checkpoint again, so a warmup that only ever mentions `voice`
+      // warms nothing the next request will use.
+      body: JSON.stringify({
+        ...(config.voice ? { voice: config.voice } : {}),
+        ...(config.clone ? { clone: config.clone, ref_text: config.ref_text } : {}),
+      }),
       signal: AbortSignal.timeout(120_000),
     });
     if (!res.ok) throw new Error(`warmup ${res.status}`);
@@ -100,7 +113,13 @@ export default {
     if (isCustom) {
       // QVox / Qwen3-TTS extras (ignored by stock OpenAI, so only sent here).
       if (styleHint) body.instruct = styleHint;
-      if (language) body.language = language;
+      // A caller that names a language wins; otherwise the configured one.
+      // Nothing in the speaking path (Telegram voice notes, the desktop, a
+      // routine) passes one, so without this the server was left to guess from
+      // its own default — right by luck here, wrong for anyone whose local
+      // server defaults elsewhere.
+      const lang = language || config.language;
+      if (lang && lang !== "auto") body.language = lang;
       // Voice cloning: the endpoint reads the reference itself, so this is a
       // path on ITS filesystem, not ours. `ref_text` is what the recording
       // says — optional, and worth setting: telling the model that measured
