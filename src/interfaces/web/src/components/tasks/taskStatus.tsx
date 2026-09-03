@@ -145,20 +145,38 @@ export function StatusFooter({ status, className }: { status: string; className?
 // What KIND of task, next to the state glyph that says how it is going. The
 // two answer different questions and both belong on the row: a trip errand is
 // a trip errand whether it is pending or blocked.
-const CATEGORY_META: Record<TaskCategory, { labelKey: string; Icon: typeof Car } | null> = {
-  // "general" draws nothing: an icon on every row carries no information.
-  general: null,
-  trip: { labelKey: "tasks.category_trip", Icon: Car },
+interface CategoryMeta {
+  labelKey: string;
+  /** Null draws nothing — an icon on every row carries no information. */
+  Icon: typeof Car | null;
+  /** Can it carry a place? That is what makes the mobility geofence consider it. */
+  locatable: boolean;
+}
+
+// Mirrors core/constants/task-categories.js. Adding one there means adding it
+// here too — the registry is small and closed on purpose, and the panel has no
+// path into src/core.
+const CATEGORY_META: Record<TaskCategory, CategoryMeta> = {
+  general: { labelKey: "tasks.category_general", Icon: null, locatable: false },
+  trip: { labelKey: "tasks.category_trip", Icon: Car, locatable: true },
 };
+
+/** The order the picker offers them in — the plain one first. */
+export const TASK_CATEGORY_ORDER: TaskCategory[] = ["general", "trip"];
+
+/** Does this kind of task get the place fields? */
+export function categoryIsLocatable(category?: TaskCategory | null): boolean {
+  return CATEGORY_META[(category || "general") as TaskCategory]?.locatable === true;
+}
 
 export function categoryLabel(category: TaskCategory): string {
   const meta = CATEGORY_META[category];
-  return meta ? t(meta.labelKey as never) : t("tasks.category_general");
+  return t((meta?.labelKey ?? "tasks.category_general") as never);
 }
 
 /** The little mark that says this is an errand. Null for a plain task. */
 export function CategoryIcon({ category, className }: { category?: TaskCategory; className?: string }) {
-  const meta = category ? CATEGORY_META[category] : null;
-  if (!meta) return null;
-  return <meta.Icon className={cn("size-3.5 shrink-0", toneText.emerald, className)} aria-label={categoryLabel(category!)} />;
+  const Icon = category ? CATEGORY_META[category]?.Icon : null;
+  if (!Icon) return null;
+  return <Icon className={cn("size-3.5 shrink-0", toneText.emerald, className)} aria-label={categoryLabel(category!)} />;
 }

@@ -175,3 +175,40 @@ test("a custom column survives a round trip through the event log", async () => 
   const read = await (await api(`/projects/0/tasks/${task.id}`)).json();
   assert.equal(read.status, "qa", "the fold must not rewrite a status it no longer recognises");
 });
+
+// ── the aggregated "All" ────────────────────────────────────────────────────
+
+test("the cross-project list answers 'all' with everything, not just the open ones", async () => {
+  // The route used to translate `all` into `undefined`, and undefined means
+  // OPEN in the store (it is the default, not "no filter"). So "All" returned
+  // exactly what "Open" did and every closed task looked deleted.
+  const open = await newTask({ title: "sigue abierta" });
+  const closed = await newTask({ title: "cerrada" });
+  const dropped = await newTask({ title: "descartada" });
+  await post(`/projects/0/tasks/${closed.id}/done`);
+  await post(`/projects/0/tasks/${dropped.id}/drop`);
+
+  const ids = async (query) => {
+    const page = await (await api(`/tasks?${query}`)).json();
+    return new Set(page.data.map((t) => t.id));
+  };
+
+  const all = await ids("state=all");
+  assert.ok(all.has(open.id), "an open task is in `all`");
+  assert.ok(all.has(closed.id), "a done task is in `all`");
+  assert.ok(all.has(dropped.id), "a dropped task is in `all`");
+
+  // And the other filters still mean what they say.
+  const onlyOpen = await ids("state=open");
+  assert.ok(onlyOpen.has(open.id));
+  assert.ok(!onlyOpen.has(closed.id));
+
+  const onlyDropped = await ids("state=dropped");
+  assert.ok(onlyDropped.has(dropped.id));
+  assert.ok(!onlyDropped.has(open.id));
+
+  // No filter at all stays the old default: open.
+  const bare = await ids("");
+  assert.ok(bare.has(open.id));
+  assert.ok(!bare.has(closed.id));
+});

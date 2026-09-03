@@ -164,7 +164,13 @@ export function TaskDetail({
           {task.location && (
             // Pinned places link out to Maps; a place with only a name still
             // says where, which is the point of writing it down.
-            <span>
+            //
+            // NAME **AND** ADDRESS, not one or the other. This used to fall
+            // back from place to address, so an errand that had both showed
+            // only the shop name — and "Farmacia del Puente" does not tell you
+            // which corner it is on. The address is the half you need at the
+            // wheel, and it is the half the mobility alert reads out.
+            <span data-testid="task-location">
               {t("tasks.location_label")}:{" "}
               {task.location.latitude != null && task.location.longitude != null ? (
                 <a
@@ -178,6 +184,9 @@ export function TaskDetail({
               ) : (
                 task.location.place || task.location.address
               )}
+              {task.location.address && task.location.address !== task.location.place
+                ? ` — ${task.location.address}`
+                : ""}
             </span>
           )}
           {task.source && <span>{t("tasks.field_source")}: {task.source}</span>}
