@@ -202,15 +202,20 @@ test("the chips carry navigation, a stop on the current route, and both answers"
 
   const recorded = getMobilityAlert(recordMobilityAlert(alert).id);
   const keyboard = proximityKeyboard(recorded, { destination: "Onelli 444", lang: "es" });
-  const [links, answers] = keyboard.inline_keyboard;
+  const [links, answers, dismissRow] = keyboard.inline_keyboard;
   assert.equal(links[0].url, navigateUrl(recorded));
   assert.match(links[1].url, /waypoints=/);
   assert.match(links[1].url, /destination=Onelli%20444/);
   assert.equal(answers[0].callback_data, `apx:mobility:go:${recorded.id}`);
-  // "Avisar en la siguiente", not "hoy no": the second answer declines this
-  // shop and leaves the errand owed a reminder at the next one.
+  // "Para después", not "hoy no": this answer declines THIS shop and leaves the
+  // errand owed a reminder at the next one.
   assert.equal(answers[1].callback_data, `apx:mobility:next:${recorded.id}`);
-  assert.match(answers[1].text, /siguiente/i);
+  assert.match(answers[1].text, /después/i);
+  // "No ahora" is the one that puts the errand away for the whole trip, and it
+  // sits on its own row: it is the only irreversible answer of the four, and a
+  // thumb at a red light should not find it beside "ask me again".
+  assert.equal(dismissRow[0].callback_data, `apx:mobility:skip:${recorded.id}`);
+  assert.match(dismissRow[0].text, /no ahora/i);
 
   // No destination known → the "add a stop" link degrades to plain navigation
   // instead of inventing a route.

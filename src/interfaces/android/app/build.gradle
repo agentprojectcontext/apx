@@ -32,6 +32,11 @@ android {
 dependencies {
     implementation "androidx.core:core:1.16.0"
     implementation "com.squareup.okhttp3:okhttp:4.12.0"
+    // The Android Auto chip. A MessagingStyle notification only ever gets two
+    // controls on a head unit (reply, mark-read), so four answers need the
+    // template library — see ApxCarAppService.
+    implementation "androidx.car.app:app:1.4.0"
+    implementation "androidx.car.app:app-projected:1.4.0"
     testImplementation "junit:junit:4.13.2"
     testImplementation "org.json:json:20240303"
 }

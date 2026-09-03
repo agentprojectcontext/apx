@@ -111,6 +111,9 @@ export async function buildTripTargets(position, ctx, fetchFn = fetch) {
         project_id: task.project_id ?? task.projectId ?? "",
         need_id: "pinned",
         place: spot.place || spot.address || task.title || "",
+        // The exact street address, when the task carries one. It rides all the
+        // way to the card and the spoken alert.
+        address: spot.address || null,
         latitude: spot.latitude,
         longitude: spot.longitude,
         ...(Number.isFinite(spot.radius_m) ? { radius_m: spot.radius_m } : {}),
@@ -147,6 +150,7 @@ export async function buildTripTargets(position, ctx, fetchFn = fetch) {
         project_id: row.task.project_id ?? row.task.projectId ?? "",
         need_id: place.tags.need_id,
         place: place.name,
+        address: place.address || null,
         latitude: place.latitude,
         longitude: place.longitude,
       });
@@ -474,21 +478,95 @@ export function addToRouteUrl(alert, destination = "") {
     `&waypoints=${stop}&travelmode=driving`;
 }
 
+/** One line, ending in exactly one full stop. */
+function sentence(line) {
+  return `${line.replace(/[.\s]+$/, "")}.`;
+}
+
 function distanceLabel(meters) {
   return meters >= 1000 ? `${(meters / 1000).toFixed(1)} km` : `${meters} m`;
 }
 
-/** The reminder itself — one line of place, one line of errand. Read at 60 km/h. */
+/**
+ * The reminder itself — read at 60 km/h, or heard over the car speakers.
+ *
+ * THE ADDRESS IS A LINE OF ITS OWN. "Estás cerca de Farmacia del Puente" names
+ * a shop; it does not tell you which corner it is on, and at the wheel that is
+ * the difference between taking the turn and driving past. It is omitted only
+ * when we genuinely do not have one — never faked from the place name.
+ */
 export function proximityMessage(alert, lang = "es") {
   return [
     `📍 ${t("mobility.near", { lang, vars: { place: alert.place, distance: distanceLabel(alert.distance_m) } })}`,
+    alert.address ? `${t("mobility.address", { lang })}: ${alert.address}` : "",
     alert.task ? `${t("mobility.task", { lang })}: ${alert.task}` : "",
   ].filter(Boolean).join("\n");
 }
 
 /**
+ * The four answers, in the order they are offered.
+ *
+ * The ids are the ones the Telegram callback handler already speaks
+ * (`apx:mobility:<action>`), so a tap on the car card and a tap on a Telegram
+ * chip land on the same branch. `next` is "tell me at the following shop";
+ * `skip` puts the errand away for the rest of the trip — the one-shot in
+ * state.js (mobilityAlertFired) is what makes that stick, since any answer
+ * other than `next` counts as announced.
+ */
+export const PROXIMITY_ACTIONS = Object.freeze([
+  { id: "navigate", label: "mobility.navigate" },
+  { id: "add_stop", label: "mobility.add_stop" },
+  { id: "next", label: "mobility.later" },
+  { id: "skip", label: "mobility.dismiss" },
+]);
+
+/**
+ * The alert as a NATIVE card: what Android draws on the phone and on the head
+ * unit, and what the Assistant reads aloud.
+ *
+ * Structured, not a rendered string, for two reasons. The car needs the pieces
+ * separately — a title line, a spoken body, four labelled actions, two Maps
+ * URIs — and building them by parsing a message back apart is how a card ends
+ * up saying something the message did not.
+ *
+ * NOTHING HERE CARRIES AN EMOJI. Android Auto hands the card to Assistant and
+ * it is read out loud: a 📍 is pronounced as its Unicode name in the middle of
+ * a sentence, and "check mark button navegar" is not a thing anyone wants to
+ * hear at 110 km/h. The Telegram card above keeps its glyphs — it is read with
+ * the eyes, and there they help.
+ */
+export function proximityCard(alert, { destination = "", lang = "es" } = {}) {
+  const distance = distanceLabel(alert.distance_m);
+  const lines = [
+    t("mobility.near", { lang, vars: { place: alert.place, distance } }),
+    alert.address ? `${t("mobility.address", { lang })}: ${alert.address}` : "",
+    alert.task ? `${t("mobility.task", { lang })}: ${alert.task}` : "",
+  ].filter(Boolean);
+  return {
+    id: alert.id,
+    trip_id: alert.trip_id,
+    task_id: alert.task_id,
+    title: alert.place,
+    address: alert.address || null,
+    distance_m: alert.distance_m,
+    distance_label: distance,
+    task: alert.task || null,
+    latitude: alert.latitude,
+    longitude: alert.longitude,
+    // One block, already in reading (and speaking) order. Sentences are
+    // normalised to exactly one full stop each: "mobility.near" ends with one
+    // of its own and the others do not, so a plain join produced "(600 m).."
+    // — which a speech engine reads as a pause twice as long as it should be.
+    body: lines.map(sentence).join(" "),
+    navigate_url: navigateUrl(alert),
+    add_stop_url: addToRouteUrl(alert, destination),
+    actions: PROXIMITY_ACTIONS.map(({ id, label }) => ({ id, label: t(label, { lang }) })),
+  };
+}
+
+/**
  * The chips. Two navigation links (which Telegram opens straight into Maps)
- * and two answers, because "do I detour for this?" is the only question the
+ * and three answers, because "do I detour for this?" is the only question the
  * driver actually has to answer right now. The follow-up — "did you get it?" —
  * is asked after the trip, from the answer recorded here.
  *
@@ -513,7 +591,14 @@ export function proximityKeyboard(alert, { destination = "", lang = "es" } = {})
       ],
       [
         { text: `✅ ${t("mobility.going", { lang })}`, callback_data: `apx:mobility:go:${alert.id}` },
-        { text: `🔁 ${t("mobility.alert_next", { lang })}`, callback_data: `apx:mobility:next:${alert.id}` },
+        { text: `🔁 ${t("mobility.later", { lang })}`, callback_data: `apx:mobility:next:${alert.id}` },
+      ],
+      // "No ahora" drops the ERRAND for the rest of the drive, where the row
+      // above only moves it to the next branch. It is on its own line because
+      // it is the only irreversible one of the four, and a thumb at a red light
+      // should not find it next to the answer that means "ask me again".
+      [
+        { text: `🚫 ${t("mobility.dismiss", { lang })}`, callback_data: `apx:mobility:skip:${alert.id}` },
       ],
     ],
   };

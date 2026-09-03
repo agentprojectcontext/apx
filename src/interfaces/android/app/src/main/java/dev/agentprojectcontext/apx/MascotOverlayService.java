@@ -318,6 +318,24 @@ public final class MascotOverlayService extends Service {
                 if (mascotView != null) mascotView.setAvatar(avatar);
             });
         }
+        // A proximity alert is its own frame and its own card — four buttons,
+        // not a bubble. It is gated on the same "mobility" channel the owner
+        // can mute, because it interrupts exactly like the rest.
+        MessageFrameParser.MobilityAlert alert = MessageFrameParser.mobilityAlert(text);
+        if (alert != null) {
+            if (preferences.notifyChannelEnabled("mobility")) {
+                // The head unit reads from the store; the phone gets a card.
+                // Both, always: the driver may be looking at either one.
+                CarAlertStore.put(alert);
+                main.post(() -> {
+                    ProximityNotification.show(this, alert);
+                    if (mascotView != null) mascotView.showMessage(alert.body());
+                    if (preferences.soundEnabled()) playNotificationSound();
+                });
+            }
+            return;
+        }
+
         for (MessageFrameParser.Notice notice : MessageFrameParser.notices(text)) {
             // One gate for the bubble, the sound and the car card: a channel
             // the owner muted must not reach him by any of the three. He can

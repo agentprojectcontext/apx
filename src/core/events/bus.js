@@ -104,3 +104,37 @@ export function onRoutineEvent(fn) {
 export function resetEventBus() {
   bus.removeAllListeners();
 }
+
+export const MOBILITY_ALERT_EVENT = "mobility_alert";
+
+/**
+ * A proximity alert is going out, as the CARD rather than as a rendered line.
+ *
+ * This is the one event that carries its whole payload. The message events
+ * above are signals — "thread X moved, go re-fetch" — because a browser can
+ * ask. The phone cannot: it is on a mobile connection, possibly on a head unit,
+ * and the alert has to become a notification with four buttons within a second
+ * of the car passing the place. A round trip to fetch what the frame could have
+ * carried is a round trip that fails in a tunnel.
+ *
+ * It exists so the alert does NOT depend on Telegram. Proximity delivery used
+ * to be a Telegram send whose ledger row Android turned into a card, so a
+ * daemon with no Telegram plugin loaded — or a phone whose owner never wired
+ * one up — got no alert at all, on the surface where it matters most.
+ *
+ * @param {object} card  core/mobility/geofence.js proximityCard() — emoji-free,
+ *                       four labelled actions, two Maps URIs.
+ */
+export function emitMobilityAlert(card) {
+  try {
+    bus.emit(MOBILITY_ALERT_EVENT, card);
+  } catch {
+    /* a broken listener must not fail the alert that produced it */
+  }
+}
+
+/** Subscribe to proximity-alert cards. Returns the unsubscribe function. */
+export function onMobilityAlert(fn) {
+  bus.on(MOBILITY_ALERT_EVENT, fn);
+  return () => bus.off(MOBILITY_ALERT_EVENT, fn);
+}

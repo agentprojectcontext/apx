@@ -2,6 +2,16 @@
     <string name="app_name">APX</string>
     <string name="mascot_channel">Mascota APX</string>
     <string name="messages_channel">Mensajes APX</string>
+    <string name="proximity_channel">Avisos de proximidad</string>
+    <!-- Head-unit copy. Read aloud by Assistant, so: no emoji, no markup, and
+         short enough to be heard between two turns. -->
+    <string name="car_trip_title">APX</string>
+    <string name="car_no_alerts">Nada cerca por ahora</string>
+    <string name="car_no_alerts_detail">Te aviso cuando pases cerca de algo pendiente.</string>
+    <string name="car_alert_gone">Ya respondiste este aviso.</string>
+    <string name="car_navigate_failed">No pude abrir la navegación.</string>
+    <string name="car_ack_dismissed">Listo, no te aviso mas de esta en este viaje.</string>
+    <string name="car_ack_later">Listo, te aviso en la siguiente.</string>
     <string name="trip_tracking_channel">Viaje en curso</string>
     <string name="trip_tracking_channel_description">Mientras hay un viaje activo, APX comparte tu posición con tu daemon para avisarte si pasás cerca de algo pendiente.</string>
     <string name="trip_tracking_title">Viaje en curso</string>

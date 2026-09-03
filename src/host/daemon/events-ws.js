@@ -19,7 +19,7 @@
 // Fan-out is per PROCESS and that is enough: the daemon owns the HTTP API, the
 // Telegram poller and the agent loop, so every write anyone makes happens here.
 // See core/events/bus.js for the one case it does not cover.
-import { onMessageEvent, onRoutineEvent } from "#core/events/bus.js";
+import { onMessageEvent, onMobilityAlert, onRoutineEvent } from "#core/events/bus.js";
 import { mascotNoticesFromEvents } from "#core/events/mascot-notify.js";
 import { resolveSuperAgentBlob } from "#core/apc/agent-identity.js";
 import { apiPath } from "./api/prefix.js";
@@ -100,6 +100,19 @@ export function broadcastTurn(frame) {
  *  ledger until it ends, so there is nothing for a client to re-fetch while it
  *  is still going. Sent straight, not through the 250ms batch: the whole point
  *  is watching a run move. */
+/**
+ * A proximity alert, as its own frame.
+ *
+ * NOT collapsed into the 250 ms message window below: that window exists to
+ * turn a chatty streamed turn into one re-fetch, and an alert is neither
+ * chatty nor a re-fetch — it is one card, complete, that has to reach the
+ * phone while the car is still near the place. It also carries its payload
+ * rather than a "go look" signal, for the same reason.
+ */
+export function broadcastMobilityAlert(card) {
+  broadcastEvents({ type: "mobility_alert", ts: new Date().toISOString(), alert: card });
+}
+
 export function broadcastRoutineRun(frame) {
   broadcastEvents({ type: "routine", ...frame });
 }
@@ -211,6 +224,12 @@ export function startEventsBridge({ projects } = {}) {
     });
   });
 
+  // Proximity alerts. Straight out, no batching: see broadcastMobilityAlert.
+  const unsubscribeMobility = onMobilityAlert((card) => {
+    if (!_clients.size) return;
+    broadcastMobilityAlert(card);
+  });
+
   const unsubscribe = onMessageEvent((event) => {
     let pub;
     try {
@@ -242,6 +261,7 @@ export function startEventsBridge({ projects } = {}) {
   return function stop() {
     unsubscribe();
     unsubscribeRoutines();
+    unsubscribeMobility();
     clearInterval(pinger);
     if (flushTimer) clearTimeout(flushTimer);
     pending.clear();
