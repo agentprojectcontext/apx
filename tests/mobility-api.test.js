@@ -186,7 +186,7 @@ test("answering an errand from the phone means what answering it in Telegram mea
     await import("../src/core/mobility/state.js");
   const { ensureTripPlan, _resetMobilityGeofencesForTest } =
     await import("../src/core/mobility/geofence.js");
-  const { createTask } = await import("../src/core/stores/tasks.js");
+  const { createTask, getTask } = await import("../src/core/stores/tasks.js");
   _resetMobilityStateForTest();
   _resetMobilityGeofencesForTest();
 
@@ -215,6 +215,7 @@ test("answering an errand from the phone means what answering it in Telegram mea
     });
 
     assert.equal((await post({ task_id: task.id, answer: "maybe" })).status, 400);
+
     assert.equal((await post({ task_id: "t_nope", answer: "go" })).status, 404,
       "an errand that is not on this trip is not answerable");
 
@@ -241,6 +242,16 @@ test("answering an errand from the phone means what answering it in Telegram mea
       ["La Anónima Pioneros"],
       "but never again at the one just waved past",
     );
+
+    // "done" is the CAR's answer: the owner read the trip's list on the head
+    // unit and closed the errand from there, without waiting to be asked. It
+    // is the only answer here that touches the TASK, which is why it is last —
+    // once it lands there is nothing left to decide about this errand.
+    const closed = await post({ task_id: task.id, answer: "done" });
+    assert.equal(closed.status, 200);
+    assert.equal((await closed.json()).answer, "done");
+    assert.equal(getTask(storagePath, task.id).state, "done",
+      "«ya la hice» from the car closes the task, not just the alert");
   } finally {
     await new Promise((resolve) => server.close(resolve));
   }
