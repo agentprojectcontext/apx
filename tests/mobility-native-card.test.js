@@ -188,3 +188,34 @@ test("the retired trip answers are still handled for cards already in a chat", (
   assert.match(handler, /action === "yes" \|\| action === "no"/);
   assert.match(handler, /action === "later"/);
 });
+
+// ── where a reminder is delivered ───────────────────────────────────────────
+// It used to be "Telegram, always", because Telegram was the only surface that
+// could draw buttons. Now the phone draws them natively, so the Telegram copy
+// was a second notification for the same event — which is how a chat used for
+// everything else fills up with driving reminders.
+
+test("mobility reminders go to the app by default, not to Telegram", async () => {
+  const { mobilitySurfaces } = await import("#core/mobility/preferences.js");
+  assert.deepEqual(mobilitySurfaces({}), { app: true, telegram: false });
+  assert.deepEqual(mobilitySurfaces(undefined), { app: true, telegram: false });
+});
+
+test("the owner can put them on Telegram, both, or neither", async () => {
+  const { mobilitySurfaces } = await import("#core/mobility/preferences.js");
+  const at = (notify) => mobilitySurfaces({ mobility: { notify } });
+  assert.deepEqual(at("telegram"), { app: false, telegram: true });
+  assert.deepEqual(at("both"), { app: true, telegram: true });
+  assert.deepEqual(at(["app", "telegram"]), { app: true, telegram: true });
+  // "none" turns driving reminders off without unpairing anything.
+  assert.deepEqual(at("none"), { app: false, telegram: false });
+  assert.deepEqual(at([]), { app: false, telegram: false });
+});
+
+test("a typo falls back to the default rather than delivering nowhere", async () => {
+  const { mobilitySurfaces } = await import("#core/mobility/preferences.js");
+  // Silently disabling the alerts because a config file says "telegran" is the
+  // worst possible reading of it.
+  assert.deepEqual(mobilitySurfaces({ mobility: { notify: "telegran" } }), { app: true, telegram: false });
+  assert.deepEqual(mobilitySurfaces({ mobility: { notify: 42 } }), { app: true, telegram: false });
+});

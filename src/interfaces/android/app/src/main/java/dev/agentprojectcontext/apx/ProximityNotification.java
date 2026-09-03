@@ -127,8 +127,15 @@ final class ProximityNotification {
         );
     }
 
+    /** The soundless v1. Left behind by an upgrade, and dead. */
+    private static final String LEGACY_CHANNEL = "apx_proximity";
+
     private static void ensureChannel(Context context) {
         NotificationManager manager = context.getSystemService(NotificationManager.class);
+        // An abandoned channel does not disappear on its own: it stays listed
+        // in the app's notification settings forever, with the same name as the
+        // live one, and whatever the owner toggles on it does nothing.
+        manager.deleteNotificationChannel(LEGACY_CHANNEL);
         NotificationChannel channel = new NotificationChannel(
             CHANNEL,
             context.getString(R.string.proximity_channel),
