@@ -2151,6 +2151,7 @@ export const es = {
     mark_dropped:    "Descartar",
     mark_reopen:     "Reabrir",
     agent_none:      "— sin asignar —",
+    agent_hint:      "Quién la tiene. No la toma solo: la trabaja si la mencionás en un comentario o si cae en una columna con automatización.",
     prompt_hint:     "Solo para tasks que ejecuta un agente. Si es un pendiente tuyo, dejalo vacío.",
     undo:            "Deshacer",
     comments_title:  "Comentarios",
