@@ -1,3 +1,22 @@
+# [1.86.0](https://github.com/agentprojectcontext/apx/compare/v1.85.1...v1.86.0) (2026-09-03)
+
+
+### Bug Fixes
+
+* **mobility:** pan lactal is a supermarket errand, not a bakery one ([2e374be](https://github.com/agentprojectcontext/apx/commit/2e374be6ae6deb013e5f373b1d58ced65ddbd3c9))
+* **mobility:** the errand leads, the card speaks, and the trip stops asking ([9af6aaa](https://github.com/agentprojectcontext/apx/commit/9af6aaa326a4c07e9ad90b843137ee77aa059db9))
+* **tasks:** a task is a task — the icon stops meaning status, and the filter works ([6803b33](https://github.com/agentprojectcontext/apx/commit/6803b331ab465e17c3d7d1c2f60380683216c785))
+
+
+### Features
+
+* **mobility:** the proximity alert stops going through Telegram, and gets four answers ([90e91bd](https://github.com/agentprojectcontext/apx/commit/90e91bde628dd499df1389c66d12f9923fdbe2ed))
+* **tasks:** a task the owner can read, and tick off in one click ([592b2b1](https://github.com/agentprojectcontext/apx/commit/592b2b1aba4bf97336e1726ac9e1dd15ab64016a))
+* **tasks:** subtasks, comments that summon agents, and a configurable board ([d907732](https://github.com/agentprojectcontext/apx/commit/d9077321d1a385d82d371bdcc3f37bd8dd35d029))
+* **tasks:** the screen opens where you left it, filtered how you left it ([72aab25](https://github.com/agentprojectcontext/apx/commit/72aab255b17160304e555aebaf8f84a85c37d1e6))
+* **tasks:** who has a task is a field you can see, not one you can only guess ([02e428d](https://github.com/agentprojectcontext/apx/commit/02e428d45a7d736b7da25371adfba3d850798df2))
+* **voice:** the engine's own voices and languages reach the settings ([92bf013](https://github.com/agentprojectcontext/apx/commit/92bf0136ad881f9a428205bb90401252818ab8be))
+
 ## [1.85.1](https://github.com/agentprojectcontext/apx/compare/v1.85.0...v1.85.1) (2026-09-02)
 
 
