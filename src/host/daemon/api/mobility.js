@@ -92,8 +92,11 @@ export function register(api, ctx) {
     // "next" is the phone's half of «avisar en la siguiente»: same three
     // answers the Telegram card offers, because the docs promise the two
     // surfaces ask the same question. "skip" stays for the older APK.
-    if (answer !== "go" && answer !== "skip" && answer !== "next") {
-      return res.status(400).json({ error: "answer must be go, next or skip" });
+    // "done" is the car's "ya la hice": the owner read the list on the head
+    // unit and is closing the errand from there, without waiting to be asked.
+    // It closes the TASK, which is the one answer here that does.
+    if (!["go", "next", "skip", "done"].includes(answer)) {
+      return res.status(400).json({ error: "answer must be go, next, skip or done" });
     }
 
     const existing = listMobilityAlerts()
@@ -113,6 +116,16 @@ export function register(api, ctx) {
     // different shop can raise it again later in the drive, and the outcome
     // closes it for the after-trip follow-up — nothing was promised here.
     // "skip" is still the whole errand, for the rest of the trip.
+    if (answer === "done") {
+      // Through core, like every other answer, so closing from the car records
+      // the same outcome as closing from the after-trip follow-up.
+      const result = answerMobilityAlert(alert.id, "done", {
+        lang: resolveLang(ctx.config),
+        closeTask: (target) => closeAlertTaskFor(ctx, target),
+      });
+      return res.json({ ok: true, alert_id: alert.id, answer, ack: result.ack });
+    }
+
     const patch = {
       go: { answer: "go", answered_at },
       next: { answer: "next", answered_at, outcome: "skipped_place" },

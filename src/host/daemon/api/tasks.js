@@ -87,7 +87,10 @@ export function register(api, { project, projects, config, plugins, registries }
     }
 
     const { tasks, skipped } = listTasksAcrossProjects(entries, {
-      state: state === "all" ? undefined : (state || "open"),
+      // "all" is passed THROUGH, not turned into undefined: listTasks reads a
+      // missing state as "open only", so mapping all→undefined made the
+      // aggregated view's All chip show exactly the same rows as Open.
+      state: state || "open",
       tag: tag || undefined,
       agent: agent || undefined,
       due_before: due_before || undefined,

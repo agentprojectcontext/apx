@@ -6,12 +6,17 @@
     <!-- Head-unit copy. Read aloud by Assistant, so: no emoji, no markup, and
          short enough to be heard between two turns. -->
     <string name="car_trip_title">APX</string>
-    <string name="car_no_alerts">Nada cerca por ahora</string>
-    <string name="car_no_alerts_detail">Te aviso cuando pases cerca de algo pendiente.</string>
+    <string name="car_no_alerts">Nada cerca</string>
+    <string name="car_loading">Buscando…</string>
     <string name="car_alert_gone">Ya respondiste este aviso.</string>
     <string name="car_navigate_failed">No pude abrir la navegación.</string>
     <string name="car_ack_dismissed">Listo, no te aviso mas de esta en este viaje.</string>
     <string name="car_ack_later">Listo, te aviso en la siguiente.</string>
+    <!-- Verbos de la lista de pendientes del viaje. -->
+    <string name="car_errand_done">Ya la hice</string>
+    <string name="car_ack_done">Listo, la cierro.</string>
+    <string name="mobility_navigate">Navegar ahora</string>
+    <string name="mobility_add_stop">Sumar a la ruta</string>
     <string name="trip_tracking_channel">Viaje en curso</string>
     <string name="trip_tracking_channel_description">Mientras hay un viaje activo, APX comparte tu posición con tu daemon para avisarte si pasás cerca de algo pendiente.</string>
     <string name="trip_tracking_title">Viaje en curso</string>
