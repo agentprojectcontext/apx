@@ -488,6 +488,23 @@ function distanceLabel(meters) {
 }
 
 /**
+ * The same distance, for a speech engine.
+ *
+ * "600 m" and "1.4 km" are right on a screen and wrong out loud: the unit is
+ * read as a letter or expanded inconsistently, and the decimal POINT is an
+ * English convention that a Spanish voice reads as "punto" in the middle of a
+ * number. Spelled out, and with the comma this language actually uses, it comes
+ * out as one spoken quantity instead of three tokens.
+ */
+function spokenDistance(meters, lang) {
+  if (meters >= 1000) {
+    const km = (meters / 1000).toFixed(1);
+    return `${lang === "en" ? km : km.replace(".", ",")} ${t("mobility.unit_km", { lang })}`;
+  }
+  return `${meters} ${t("mobility.unit_m", { lang })}`;
+}
+
+/**
  * The reminder itself — read at 60 km/h, or heard over the car speakers.
  *
  * THE ADDRESS IS A LINE OF ITS OWN. "Estás cerca de Farmacia del Puente" names
@@ -497,9 +514,15 @@ function distanceLabel(meters) {
  */
 export function proximityMessage(alert, lang = "es") {
   return [
-    `📍 ${t("mobility.near", { lang, vars: { place: alert.place, distance: distanceLabel(alert.distance_m) } })}`,
+    // THE ERRAND LEADS. The place is where, the distance is how far, but the
+    // errand is WHY any of it is on screen — and it used to be the third line,
+    // after two the driver had to read before learning whether this was worth
+    // looking at. Whatever is read first has to answer "do I care?".
+    alert.task ? `📍 ${alert.task}` : `📍 ${alert.place}`,
+    alert.task
+      ? t("mobility.near", { lang, vars: { place: alert.place, distance: distanceLabel(alert.distance_m) } })
+      : t("mobility.near_bare", { lang, vars: { distance: distanceLabel(alert.distance_m) } }),
     alert.address ? `${t("mobility.address", { lang })}: ${alert.address}` : "",
-    alert.task ? `${t("mobility.task", { lang })}: ${alert.task}` : "",
   ].filter(Boolean).join("\n");
 }
 
@@ -537,16 +560,29 @@ export const PROXIMITY_ACTIONS = Object.freeze([
  */
 export function proximityCard(alert, { destination = "", lang = "es" } = {}) {
   const distance = distanceLabel(alert.distance_m);
+  // SPOKEN, NOT LABELLED. The Telegram copy prefixes its lines with "Dirección:"
+  // and that is right for something read with the eyes — the label is how you
+  // skip to the part you want. Out loud it is the opposite: Assistant says the
+  // word "Dirección" and then the address, so every card costs the driver two
+  // filler words per line before the content. The errand leads here too.
+  const spoken = spokenDistance(alert.distance_m, lang);
   const lines = [
-    t("mobility.near", { lang, vars: { place: alert.place, distance } }),
-    alert.address ? `${t("mobility.address", { lang })}: ${alert.address}` : "",
-    alert.task ? `${t("mobility.task", { lang })}: ${alert.task}` : "",
+    alert.task || alert.place,
+    alert.task
+      ? t("mobility.near", { lang, vars: { place: alert.place, distance: spoken } })
+      : t("mobility.near_bare", { lang, vars: { distance: spoken } }),
+    alert.address || "",
   ].filter(Boolean);
   return {
     id: alert.id,
     trip_id: alert.trip_id,
     task_id: alert.task_id,
-    title: alert.place,
+    // The errand titles the card, for the same reason it leads the body: on a
+    // list of rows at a red light, "Comprar ibuprofeno" identifies which card
+    // this is and "Farmacia del Puente" does not — you have several errands,
+    // not several pharmacies.
+    title: alert.task || alert.place,
+    place: alert.place,
     address: alert.address || null,
     distance_m: alert.distance_m,
     distance_label: distance,

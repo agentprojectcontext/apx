@@ -10,6 +10,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), "apx-mobcard-"));
 process.env.APX_HOME = path.join(tmpHome, ".apx");
@@ -40,13 +41,27 @@ beforeEach(() => _resetMobilityStateForTest());
 // mid-sentence is the exact failure this guards.
 const EMOJI = /\p{Extended_Pictographic}/u;
 
-test("the card names the exact address, not only the distance", () => {
+test("the errand leads, then where it is, then the exact address", () => {
   const card = proximityCard(recordMobilityAlert(ALERT), { lang: "es" });
   assert.equal(card.address, "Av. San Martín 1234, Bariloche, Río Negro");
-  assert.match(card.body, /Av\. San Martín 1234/);
-  assert.match(card.body, /1\.4 km/);
-  assert.match(card.body, /Farmacia del Puente/);
-  assert.match(card.body, /Comprar ibuprofeno/);
+  // Whatever is heard first has to answer "do I care?", and that is the
+  // errand — not the shop, and not how far away it is.
+  assert.ok(card.body.startsWith("Comprar ibuprofeno."), card.body);
+  assert.equal(card.title, "Comprar ibuprofeno");
+  assert.equal(card.place, "Farmacia del Puente");
+  assert.ok(
+    card.body.indexOf("Farmacia del Puente") < card.body.indexOf("Av. San Martín 1234"),
+    "the shop comes before the door to aim at",
+  );
+
+  // Spoken units, not screen ones: "1.4 km" is read as a letter and an English
+  // decimal point by a Spanish voice. The compact form stays for the UI chip.
+  assert.match(card.body, /1,4 kilómetros/);
+  assert.equal(card.distance_label, "1.4 km");
+
+  // No "Dirección:" / "Tarea:" labels out loud — that is two filler words per
+  // line before the content. The Telegram copy keeps them; it is read.
+  assert.ok(!/Dirección|Tarea:/.test(card.body), card.body);
   // One full stop per sentence. "mobility.near" ends with its own and the
   // other lines do not, so a plain join produced "(1.4 km).." — which a speech
   // engine reads as a pause twice as long as it should be.
@@ -141,4 +156,35 @@ test("an unknown alert or an unknown action is refused, not guessed", () => {
   assert.equal(answerMobilityAlert("nope", "go").reason, "unknown-alert");
   assert.equal(answerMobilityAlert(alert.id, "destroy").reason, "unknown-action");
   assert.ok(MOBILITY_ANSWERS.includes("skip"));
+});
+
+// ── the trip-start card ─────────────────────────────────────────────────────
+// Source-level, like tests/android-travel-detection.test.js: the card is built
+// inside an agent run, and what is worth pinning is which controls it offers —
+// not that a model produced prose.
+
+test("the trip-start card offers one control and asks nothing", () => {
+  const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
+  const source = fs.readFileSync(path.join(root, "src/core/mobility/trip-event.js"), "utf8");
+  const card = source.slice(source.indexOf("ONE CONTROL, NOT A QUESTION"));
+
+  // "No avisar más hoy" is the one thing with no equivalent anywhere else.
+  assert.match(card, /apx:mobility:silence/);
+  // The old question is gone. `yes` and `no` returned an acknowledgement and
+  // changed no state; "recordarme luego" postponed the whole trip, which "Para
+  // después" now does per errand and better.
+  assert.ok(!/callback_data: "apx:mobility:yes"/.test(card), "«Sí, voy ahora» is back on the trip card");
+  assert.ok(!/callback_data: "apx:mobility:no"/.test(card), "«No podré» is back on the trip card");
+  assert.ok(!/callback_data: "apx:mobility:later"/.test(card), "«Recordarme luego» is back on the trip card");
+});
+
+test("the retired trip answers are still handled for cards already in a chat", () => {
+  const root = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
+  const handler = fs.readFileSync(
+    path.join(root, "src/core/channels/telegram/ask-callbacks.js"), "utf8",
+  );
+  // Removing them from the keyboard must not turn the ones already sitting in
+  // the chat history into buttons that answer nothing.
+  assert.match(handler, /action === "yes" \|\| action === "no"/);
+  assert.match(handler, /action === "later"/);
 });

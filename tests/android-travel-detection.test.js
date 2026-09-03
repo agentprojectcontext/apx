@@ -34,7 +34,13 @@ test("Android trip detector is opt-in and scoped to Google Maps navigation", () 
   assert.match(listener, /CarMessageNotification\.cancel/);
   assert.match(listener, /TravelEventGate\.coolingDown/);
   assert.match(eventGate, /KNOWN_DESTINATION_SETTLE_MS = 45_000L/);
-  assert.match(eventGate, /UNKNOWN_DESTINATION_SETTLE_MS = 10 \* 60_000L/);
+  // Shortened from ten minutes on purpose. The long wait was protecting a
+  // late-arriving destination, which the listener already handles by
+  // rescheduling at 45 s when it resolves — so on the case the settle actually
+  // governs (a drive with no route set) it was pure delay, and the trip-start
+  // message landed half way through the drive. Still longer than the known
+  // settle, still shorter than the cooldown that follows a send.
+  assert.match(eventGate, /UNKNOWN_DESTINATION_SETTLE_MS = 3 \* 60_000L/);
   assert.match(eventGate, /SAME_DESTINATION_COOLDOWN_MS = 30 \* 60_000L/);
   assert.match(listener, /daemonNotificationPending/);
   assert.match(listener, /notifyTripEnded/);

@@ -15,7 +15,12 @@ export default {
   // Movilidad — los botones y recordatorios de una línea que manda el DAEMON
   // durante un viaje (core/mobility/geofence.js). Los emite el host, no el
   // modelo: se leen manejando, así que quedan fijos y cortos.
-  "mobility.near": "Estás cerca de {place} ({distance}).",
+  "mobility.near": "Estás cerca de {place}, a {distance}.",
+  // Sin lugar con nombre propio: el título ya lo dijo, así que la línea sólo
+  // aporta la distancia.
+  "mobility.near_bare": "Estás a {distance}.",
+  "mobility.unit_m": "metros",
+  "mobility.unit_km": "kilómetros",
   "mobility.task": "Tarea",
   "mobility.address": "Dirección",
   // Las cuatro respuestas de la tarjeta nativa, en el orden en que se ofrecen.

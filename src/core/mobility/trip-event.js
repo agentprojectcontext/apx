@@ -342,13 +342,25 @@ export async function dispatchMobilityEvent(event, ctx) {
   if (!message || /^SILENT\b/i.test(message)) return { skipped: true, reason: "agent-silent" };
   const sent = await sendMobilityMessage(ctx, {
     text: message,
+    // ONE CONTROL, NOT A QUESTION.
+    //
+    // This card used to ask "¿vas ahora?" with three answers — sí / no /
+    // recordarme luego — and it was written before proximity alerts existed.
+    // Two of the three did nothing at all: `yes` and `no` returned an
+    // acknowledgement and changed no state, so the driver answered a question
+    // whose answer was discarded. The third, "recordarme luego", postponed the
+    // whole trip, which is now what "Para después" does per errand and better.
+    //
+    // What survives is the one control with no equivalent anywhere else:
+    // dropping every mobility reminder for the rest of the day. The message
+    // itself stays — the agent still says what it has to say about the trip;
+    // it just no longer pretends to be asking something.
+    //
+    // The removed callbacks are still HANDLED (ask-callbacks.js): cards
+    // carrying those buttons are sitting in the chat history on a phone, and a
+    // button that answers nothing is worse than an outdated one.
     reply_markup: {
       inline_keyboard: [
-        [
-          { text: "✅ Sí, voy ahora", callback_data: "apx:mobility:yes" },
-          { text: "❌ No podré", callback_data: "apx:mobility:no" },
-        ],
-        [{ text: "⏰ Recordarme luego", callback_data: "apx:mobility:later" }],
         [{ text: "🔕 No avisar más hoy", callback_data: "apx:mobility:silence" }],
       ],
     },

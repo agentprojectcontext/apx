@@ -84,15 +84,21 @@ final class TripScreen extends Screen implements DefaultLifecycleObserver {
             .build();
     }
 
-    /** "1.4 km · Av. San Martín 1234" — or as much of it as we actually know. */
+    /**
+     * "1.4 km · Farmacia del Puente · Av. San Martin 1234" — or as much of it
+     * as we actually know.
+     *
+     * The row's TITLE is the errand, so the shop belongs here: distance first
+     * because it decides whether to look at all, then which shop, then the
+     * door to aim at.
+     */
     private static String detailLine(MessageFrameParser.MobilityAlert alert) {
         StringBuilder out = new StringBuilder();
-        if (alert.distanceLabel() != null) out.append(alert.distanceLabel());
-        if (alert.address() != null) {
+        for (String part : new String[] { alert.distanceLabel(), alert.place(), alert.address() }) {
+            if (part == null || part.isBlank()) continue;
             if (out.length() > 0) out.append(" · ");
-            out.append(alert.address());
+            out.append(part);
         }
-        if (out.length() == 0 && alert.task() != null) out.append(alert.task());
         return out.toString();
     }
 }
