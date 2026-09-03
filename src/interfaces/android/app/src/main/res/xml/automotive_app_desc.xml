@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <automotiveApp>
+    <!-- The card APX already posted for chat messages. -->
     <uses name="notification" />
+    <!-- The chip: a real screen on the head unit, drawn by ApxCarAppService.
+         It is what lets a proximity alert show four answers, which a
+         notification on this surface never can. -->
+    <uses name="template" />
 </automotiveApp>

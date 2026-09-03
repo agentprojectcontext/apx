@@ -16,8 +16,12 @@ export default {
   // modelo: são lidos dirigindo, então ficam fixos e curtos.
   "mobility.near": "Você está perto de {place} ({distance}).",
   "mobility.task": "Tarefa",
-  "mobility.navigate": "Navegar",
+  "mobility.address": "Endereço",
+  "mobility.navigate": "Navegar agora",
   "mobility.add_stop": "Adicionar parada",
+  "mobility.later": "Mais tarde",
+  "mobility.dismiss": "Agora não",
+  "mobility.ack_dismissed": "Certo, não aviso mais sobre esta nesta viagem.",
   "mobility.going": "Vou",
   "mobility.not_today": "Hoje não",
   "mobility.alert_next": "Avisar na próxima",

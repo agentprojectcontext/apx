@@ -1,5 +1,7 @@
 package dev.agentprojectcontext.apx;
 
+import android.net.Uri;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -168,6 +170,47 @@ final class DaemonClient {
         }
         Request request = new Request.Builder()
             .url(daemonUrl + "/api/mobility/errands/answer")
+            .header("Authorization", "Bearer " + token)
+            .post(RequestBody.create(payload.toString(), JSON))
+            .build();
+        HTTP.newCall(request).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, IOException error) {
+                callback.onAnswerFailed("No pude hablar con el daemon: " + error.getMessage());
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) {
+                try (response) {
+                    if (response.isSuccessful()) callback.onAnswered();
+                    else callback.onAnswerFailed("El daemon respondió HTTP " + response.code());
+                }
+            }
+        });
+    }
+
+    /**
+     * Answer a proximity card by ALERT id.
+     *
+     * The sibling of answerErrand above, and they are not the same call:
+     * that one answers "this errand, on this trip" from the phone's own list,
+     * this one answers the specific card that was shown — which is what lets
+     * two alerts be open at once without a tap landing on the wrong one.
+     */
+    static void answerAlert(String daemonUrl, String token, String alertId, String action, AnswerCallback callback) {
+        if (daemonUrl == null || daemonUrl.isBlank() || token == null || token.isBlank()) {
+            callback.onAnswerFailed("Este teléfono todavía no está vinculado.");
+            return;
+        }
+        JSONObject payload = new JSONObject();
+        try {
+            payload.put("action", action);
+        } catch (JSONException error) {
+            callback.onAnswerFailed("No pude preparar la respuesta.");
+            return;
+        }
+        Request request = new Request.Builder()
+            .url(daemonUrl + "/api/mobility/alerts/" + Uri.encode(alertId) + "/answer")
             .header("Authorization", "Bearer " + token)
             .post(RequestBody.create(payload.toString(), JSON))
             .build();

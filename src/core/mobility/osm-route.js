@@ -194,8 +194,15 @@ export async function nearbyPois(route, needs, fetchFn = fetch, { padDegrees = 0
       const key = `${need.id}:${latitude.toFixed(5)},${longitude.toFixed(5)}`;
       if (seen.has(key)) continue;
       seen.add(key);
+      // Nominatim's display_name is "<name>, <street>, <number>, <city>, …".
+       // The first segment is the name; the REST is the street address, and it
+       // used to be discarded. At the wheel "Farmacia del Puente" is not enough
+       // to find a door — the address is what tells you which corner it is on,
+       // and it is the one thing a spoken alert has to say.
+      const parts = String(element.display_name || need.query).split(",");
       rows.push({
-        name: String(element.display_name || need.query).split(",")[0],
+        name: parts[0].trim(),
+        address: parts.slice(1).join(",").trim() || null,
         latitude,
         longitude,
         tags: { need_id: need.id },

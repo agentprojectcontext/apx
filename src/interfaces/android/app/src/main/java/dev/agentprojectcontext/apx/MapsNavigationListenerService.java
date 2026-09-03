@@ -382,6 +382,9 @@ public final class MapsNavigationListenerService extends NotificationListenerSer
             CarMessageNotification.cancel(this);
             if (!previousTripId.isBlank()) {
                 DaemonClient.notifyTripEnded(preferences.daemonUrl(), preferences.token(), previousTripId);
+                // The drive is over — the chip must not still be offering a
+                // detour to a shop the car left twenty kilometres ago.
+                CarAlertStore.clear();
             }
             Log.i(TAG, "Google Maps navigation ended");
             return;
@@ -409,6 +412,9 @@ public final class MapsNavigationListenerService extends NotificationListenerSer
             cancelDaemonNotification();
             if (!previousTripId.isBlank()) {
                 DaemonClient.notifyTripEnded(preferences.daemonUrl(), preferences.token(), previousTripId);
+                // The drive is over — the chip must not still be offering a
+                // detour to a shop the car left twenty kilometres ago.
+                CarAlertStore.clear();
             }
             preferences.setTravelEventSent(false);
             scheduleDaemonNotification(notificationDelay(resolvedDestination), true);

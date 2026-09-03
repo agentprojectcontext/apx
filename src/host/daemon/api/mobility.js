@@ -4,12 +4,41 @@ import {
   dispatchMobilityPosition,
 } from "#core/mobility/trip-event.js";
 import { acceptMobilityPosition, lockTripErrand, tripErrand, tripPlaces } from "#core/mobility/geofence.js";
+import { answerMobilityAlert, MOBILITY_ANSWERS } from "#core/mobility/answer.js";
+import { doneTask } from "#core/stores/tasks.js";
+import { resolveLang } from "#core/i18n/index.js";
 import {
   listMobilityAlerts,
   mobilityContext,
   recordMobilityAlert,
   updateMobilityAlert,
 } from "#core/mobility/state.js";
+
+/**
+ * Close the task a proximity alert was about.
+ *
+ * The daemon's half of core/mobility/answer.js: the alert records WHICH project
+ * the task came from, so this resolves that one project rather than searching
+ * every registered one — two projects can hold tasks whose short ids share a
+ * prefix. Mirrors closeAlertTask() in the Telegram adapter, which does the same
+ * thing with the plugin's own registry handle.
+ */
+function closeAlertTaskFor(ctx, alert) {
+  if (!alert?.task_id) return false;
+  let storagePath = null;
+  try {
+    storagePath = ctx.projects?.get(alert.project_id)?.storagePath || null;
+  } catch {
+    storagePath = null;
+  }
+  if (!storagePath) return false;
+  try {
+    return Boolean(doneTask(storagePath, alert.task_id, "mobility"));
+  } catch (error) {
+    console.warn(`[mobility] could not close task ${alert.task_id}: ${error.message}`);
+    return false;
+  }
+}
 
 export function register(api, ctx) {
   // What the phone's trip banner shows when it is tapped: the current trip and
@@ -23,6 +52,29 @@ export function register(api, ctx) {
       trip,
       places: trip ? tripPlaces(trip.trip_id) : [],
     });
+  });
+
+  // A button on the NATIVE card — the phone's notification, or the head unit.
+  //
+  // This is the other half of the alert no longer depending on Telegram: the
+  // card is pushed over the events socket (core/events/bus.js) and answered
+  // here, so a install with no Telegram plugin has a complete round trip.
+  // `navigate` and `add_stop` land on the same branch as "voy": the driver did
+  // not promise to go, they started going.
+  api.post("/mobility/alerts/:id/answer", (req, res) => {
+    const action = String(req.body?.action || "").trim();
+    if (!MOBILITY_ANSWERS.includes(action)) {
+      return res.status(400).json({ error: `action must be one of ${MOBILITY_ANSWERS.join(", ")}` });
+    }
+    const result = answerMobilityAlert(req.params.id, action, {
+      lang: resolveLang(ctx.config),
+      // Closing the task needs the project registry, which core does not have.
+      closeTask: (alert) => closeAlertTaskFor(ctx, alert),
+    });
+    if (!result.ok) {
+      return res.status(result.reason === "unknown-alert" ? 404 : 400).json({ error: result.reason });
+    }
+    res.json({ ok: true, ack: result.ack, alert: result.alert });
   });
 
   // "Voy" / "Hoy no" pressed on the phone's own list instead of on the

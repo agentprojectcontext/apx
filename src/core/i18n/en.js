@@ -16,8 +16,14 @@ export default {
   // a driver reads these at a glance, so they stay fixed and short.
   "mobility.near": "You're near {place} ({distance}).",
   "mobility.task": "Task",
-  "mobility.navigate": "Navigate",
-  "mobility.add_stop": "Add stop",
+  "mobility.address": "Address",
+  // The native card's four answers, in the order they are offered. No emoji:
+  // Android Auto hands the card to Assistant, which reads it out loud.
+  "mobility.navigate": "Navigate now",
+  "mobility.add_stop": "Add to route",
+  "mobility.later": "Later",
+  "mobility.dismiss": "Not now",
+  "mobility.ack_dismissed": "Fine — nothing more about this one on this trip.",
   "mobility.going": "I'll go",
   "mobility.not_today": "Not today",
   "mobility.alert_next": "Tell me at the next one",

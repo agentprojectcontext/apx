@@ -15,10 +15,10 @@ import { SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
 import { applyNudgeCallback } from "#core/nudge/index.js";
 import { recordDelivery } from "#core/stores/deliveries.js";
 import { silenceMobilityToday } from "#core/mobility/preferences.js";
-import { getMobilityAlert, recordMobilityResponse, updateMobilityAlert } from "#core/mobility/state.js";
-import { lockTripErrand } from "#core/mobility/geofence.js";
+import { getMobilityAlert, recordMobilityResponse } from "#core/mobility/state.js";
+import { answerMobilityAlert } from "#core/mobility/answer.js";
 import { doneTask } from "#core/stores/tasks.js";
-import { t, resolveLang } from "#core/i18n/index.js";
+import { resolveLang } from "#core/i18n/index.js";
 
 /**
  * The label the user actually tapped, recovered from the keyboard attached to
@@ -121,46 +121,17 @@ export async function handleMobilityAlertCallback(self, callbackQuery, action, a
     return;
   }
 
-  let ack = "";
-  if (action === "go") {
-    // Recorded, not acted on: the follow-up after the trip is what turns this
-    // yes into a closed task (core/mobility/trip-event.js).
-    updateMobilityAlert(alert.id, { answer: "go", answered_at: new Date().toISOString() });
-    // "Voy" is the last word on WHICH shop. Settle the errand there so a later
-    // re-search cannot re-point it at a different branch while the owner is
-    // already driving to this one.
-    lockTripErrand(alert.trip_id, alert.task_id, "accepted");
-    ack = t("mobility.ack_going", { lang });
-  } else if (action === "next") {
-    // "Not this branch" — not "forget it". The record keeps the place it named
-    // so the geofence knows which shop to stop offering (declinedMobilityPlaces),
-    // and `answer: "next"` is what stops this errand counting as announced, so
-    // the next shop that satisfies it can still speak up later in the drive.
-    // The outcome closes it for the after-trip follow-up: nothing was promised
-    // here, so there is nothing to ask about afterwards.
-    updateMobilityAlert(alert.id, {
-      answer: "next",
-      answered_at: new Date().toISOString(),
-      outcome: "skipped_place",
-    });
-    ack = t("mobility.ack_next", { lang });
-  } else if (action === "skip") {
-    // The pre-"next" button. Still handled because the cards carrying it are
-    // sitting in a phone's chat history and a button that answers nothing is
-    // worse than an outdated one. Same meaning it always had: the whole errand
-    // goes quiet for the trip.
-    updateMobilityAlert(alert.id, { answer: "skip", answered_at: new Date().toISOString(), outcome: "skipped" });
-    ack = t("mobility.ack_skipped", { lang });
-  } else if (action === "done") {
-    const closed = closeAlertTask(self, alert);
-    updateMobilityAlert(alert.id, { outcome: closed ? "done" : "done_unlinked" });
-    ack = t("mobility.ack_done", { lang });
-    if (!closed) self.log(`telegram[${self.channel.name}] mobility task ${alert.task_id} not found — nothing closed`);
-  } else if (action === "open") {
-    updateMobilityAlert(alert.id, { outcome: "still_open" });
-    ack = t("mobility.ack_still_open", { lang });
-  }
-  recordMobilityResponse(action);
+  // The answer itself lives in core (core/mobility/answer.js) so a tap here
+  // and a tap on the car card mean the same thing. This adapter supplies the
+  // one piece core cannot have: resolving the project a task lives in.
+  const { ack } = answerMobilityAlert(alertId, action, {
+    lang,
+    closeTask: (target) => {
+      const closed = closeAlertTask(self, target);
+      if (!closed) self.log(`telegram[${self.channel.name}] mobility task ${target.task_id} not found — nothing closed`);
+      return closed;
+    },
+  });
   await self._answerCallback({ callback_query_id: callbackQuery.id, text: ack });
   await clearKeyboard(self, callbackQuery);
 }

@@ -2,6 +2,7 @@ import { runSuperAgent } from "#core/agent/super-agent.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { TOOLS } from "#core/agent/tools/names.js";
 import { resolveLang } from "#core/i18n/index.js";
+import { emitMobilityAlert } from "#core/events/bus.js";
 import { stripEmoji } from "#core/voice/pronounceable.js";
 import { deliverVoiceReply, mobilityVoiceActive } from "#core/channels/telegram/voice-note.js";
 import { isMobilitySilentToday } from "./preferences.js";
@@ -12,6 +13,7 @@ import {
   followupKeyboard,
   followupMessage,
   ensureTripPlan,
+  proximityCard,
   proximityKeyboard,
   proximityMessage,
   releaseTripTargets,
@@ -211,14 +213,27 @@ export async function dispatchMobilityPosition(position, ctx) {
   const destination = mobilityContext().trip?.destination || "";
   const delivered = [];
   for (const candidate of candidates.slice(0, MAX_ALERTS_PER_POSITION)) {
-    // Recorded BEFORE the send: a Telegram call that fails is not a licence to
+    // Recorded BEFORE the send: a delivery that fails is not a licence to
     // announce the same errand again on the next sample two seconds later.
     const alert = recordMobilityAlert(candidate);
     const text = proximityMessage(alert, lang);
-    const sent = await sendMobilityMessage(ctx, {
-      text,
-      reply_markup: proximityKeyboard(alert, { destination, lang }),
-    });
+
+    // THE NATIVE CARD GOES FIRST, and it goes unconditionally. It is the
+    // surface the owner is actually looking at — the phone in the cradle, the
+    // head unit — and it used to be a side effect of the Telegram row, so a
+    // daemon without the plugin alerted nobody. Telegram is now the copy.
+    emitMobilityAlert(proximityCard(alert, { destination, lang }));
+
+    let sent = null;
+    try {
+      sent = await sendMobilityMessage(ctx, {
+        text,
+        reply_markup: proximityKeyboard(alert, { destination, lang }),
+      });
+    } catch (e) {
+      // A missing or broken Telegram plugin costs the copy, never the alert.
+      console.warn(`[mobility] telegram copy failed: ${e?.message || e}`);
+    }
     updateMobilityAlert(alert.id, { message_id: sent?.message_id ?? null });
     recordMobilityQuestion(text);
     delivered.push(alert.id);

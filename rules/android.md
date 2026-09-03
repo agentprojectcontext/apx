@@ -102,6 +102,37 @@ burn the one-shot only on the ones actually sent, so a card the per-sample cap
 held back is not silently spent. Alerts survive a daemon restart because the
 delivered set is persisted before the send.
 
+THE PROXIMITY ALERT DOES NOT DEPEND ON TELEGRAM. It is pushed as its own
+`mobility_alert` frame on the events socket (`core/events/bus.js` →
+`events-ws.js`), carrying its whole payload rather than a "go re-fetch" signal:
+a phone in a tunnel cannot ask, and the card has to become four buttons within
+a second of driving past the place. Telegram is a copy sent after, and a
+missing plugin costs the copy and never the alert — it used to be the other way
+round, so an install with no Telegram alerted nobody on the surface that
+matters most. Answers come back on `POST /api/mobility/alerts/:id/answer`, and
+the meaning of each one lives in `core/mobility/answer.js` so a tap on the car,
+on the phone and on Telegram land on the same branch.
+
+FOUR ANSWERS ON THE NATIVE CARD: navigate, add_stop, next, skip. `navigate` and
+`add_stop` record the same thing "voy" does — the driver did not promise to go,
+they started going — so the end-of-trip follow-up asks about them. `next` moves
+the errand to the following shop; `skip` ("No ahora") puts it away until the
+next drive, which the one-shot in state.js already enforces because any answer
+other than `next` counts as announced.
+
+THE CAR CARD CANNOT BE A NOTIFICATION. Android Auto renders a MessagingStyle
+notification with exactly two controls, reply and mark-as-read; a four-answer
+card does not fit a shape built for chat. Verified on the A55 with a live DHU
+session: the notification posts with `category=navigation actions=4` and
+gearhead logs `GH.MsgNotifParser: No semantic reply action found` and discards
+it. The four answers therefore live in a Car App Library service
+(`ApxCarAppService` + `TripScreen` + `AlertScreen`, category
+`androidx.car.app.category.POI`), which is also the chip in the Auto launcher;
+`CarAlertStore` is the process-wide set both ends share. Nothing on that path
+carries an emoji, because Assistant reads the card aloud — the daemon strips
+them before the frame is built and the strings in `values/strings.xml` never
+add any back.
+
 A proximity card carries two Maps deep links and two answers. "I'll go" is a
 promise recorded against the alert, never an action on the task; the task moves
 only when the owner answers the end-of-trip follow-up. Ask that follow-up once,
@@ -191,6 +222,29 @@ Report the real state (`isIgnoringBatteryOptimizations`), open the direct
 dialog while restricted and the system list once exempt — that is where the
 exemption is taken back — and fall back to the app details page on OEM builds
 that ship neither screen.
+
+Running the DHU is three steps and each one has a way to fail silently. The
+head unit server is SINGLE USE: it must be started from Android Auto's own
+overflow menu ("Iniciar servidor unidad princ.") before every DHU session, and
+a second `desktop-head-unit` against a spent server dies with "Failed to read
+from transport". `adb forward tcp:5277` opens the port on the MAC whether or
+not anything listens on the phone, so a successful `nc -z` proves nothing —
+check `adb shell ps -A | grep gearhead:projection` instead. The DHU is also an
+interactive console: backgrounded with no stdin it exits immediately after the
+handshake, so hold it open (`sleep 600 | ./desktop-head-unit`). And a template
+app that is not published needs "Fuentes desconocidas" ticked in Android Auto's
+developer settings or the chip never appears, with nothing logged to say why.
+
+Android Auto's settings are not reachable by intent on One UI — there is no
+launcher activity, and `.frx.SetupActivity` is the connect-to-a-car flow, not
+the settings. The path is Settings → Connected devices → Connection preferences
+→ Android Auto → ⋮.
+
+`node scripts/mobility-alert-e2e.mjs` drives a whole alert against the running
+daemon — a located errand, a trip, a GPS position 600 m away — and asserts the
+card, its address, the four emoji-free actions and the answer round trip. It
+cleans up after itself. With a phone attached, `adb shell dumpsys notification
+--noredact | grep -A3 apx_proximity` shows the other half.
 
 To exercise the Android Auto path without a car, run the Desktop Head Unit
 against the phone. It needs Android Auto developer settings enabled on the

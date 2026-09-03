@@ -42,6 +42,29 @@
             android:name="com.google.android.gms.car.application"
             android:resource="@xml/automotive_app_desc" />
 
+        <!-- The lowest car API this app needs. 1 is the floor and everything
+             used here (ListTemplate, Row, CarToast) is in it — asking for more
+             would hide the chip on older head units for no gained feature. -->
+        <meta-data
+            android:name="androidx.car.app.minCarApiLevel"
+            android:value="1" />
+
+        <!-- The chip itself. exported=true because the HOST starts it: Android
+             Auto binds this service to draw the screen. HostValidator inside is
+             what decides which hosts are allowed to. -->
+        <service
+            android:name=".ApxCarAppService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="androidx.car.app.CarAppService" />
+                <!-- POI: APX points at places you have an errand for. It is not
+                     a navigation app (Maps does the driving) and not a media
+                     one, and claiming either category would put it in the wrong
+                     part of the launcher. -->
+                <category android:name="androidx.car.app.category.POI" />
+            </intent-filter>
+        </service>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -89,6 +112,13 @@
 
         <receiver
             android:name=".CarMessageActionReceiver"
+            android:exported="false" />
+
+        <!-- The four proximity answers. Not exported: only our own
+             PendingIntents fire it, and an exported receiver would let any app
+             answer an alert on the owner's behalf. -->
+        <receiver
+            android:name=".ProximityActionReceiver"
             android:exported="false" />
 
         <!-- exported=true because both of these are SYSTEM broadcasts: the

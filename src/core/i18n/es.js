@@ -17,8 +17,14 @@ export default {
   // modelo: se leen manejando, así que quedan fijos y cortos.
   "mobility.near": "Estás cerca de {place} ({distance}).",
   "mobility.task": "Tarea",
-  "mobility.navigate": "Navegar",
+  "mobility.address": "Dirección",
+  // Las cuatro respuestas de la tarjeta nativa, en el orden en que se ofrecen.
+  // Sin emojis: Android Auto se las da al Assistant y las lee en voz alta.
+  "mobility.navigate": "Navegar ahora",
   "mobility.add_stop": "Sumar a la ruta",
+  "mobility.later": "Para después",
+  "mobility.dismiss": "No ahora",
+  "mobility.ack_dismissed": "Listo, no te aviso más de esta en este viaje.",
   "mobility.going": "Voy",
   "mobility.not_today": "Hoy no",
   "mobility.alert_next": "Avisar en la siguiente",

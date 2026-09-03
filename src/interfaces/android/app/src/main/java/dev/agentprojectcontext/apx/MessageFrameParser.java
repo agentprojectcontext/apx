@@ -20,6 +20,77 @@ final class MessageFrameParser {
      */
     record Notice(String text, String channel) {}
 
+    /**
+     * A proximity alert, complete.
+     *
+     * Unlike a Notice this carries its whole payload rather than a "go look"
+     * line: the phone cannot re-fetch it in a tunnel, and the card has to
+     * become four buttons within a second of driving past the place.
+     *
+     * `address` and `task` may be null — the daemon omits what it does not
+     * know rather than inventing it. Nothing here contains an emoji: Android
+     * Auto hands the card to Assistant, which reads it aloud.
+     */
+    record MobilityAlert(
+        String id,
+        String title,
+        String address,
+        String body,
+        String distanceLabel,
+        String task,
+        double latitude,
+        double longitude,
+        String navigateUrl,
+        String addStopUrl,
+        List<Action> actions
+    ) {}
+
+    /** One labelled answer. The id is what goes back to the daemon. */
+    record Action(String id, String label) {}
+
+    /** The `mobility_alert` frame, or null for any other frame. */
+    static MobilityAlert mobilityAlert(String text) {
+        try {
+            JSONObject frame = new JSONObject(text);
+            if (!"mobility_alert".equals(frame.optString("type"))) return null;
+            JSONObject alert = frame.optJSONObject("alert");
+            if (alert == null) return null;
+            String id = alert.optString("id", "").trim();
+            String title = alert.optString("title", "").trim();
+            if (id.isEmpty() || title.isEmpty()) return null;
+
+            List<Action> actions = new ArrayList<>();
+            JSONArray raw = alert.optJSONArray("actions");
+            for (int i = 0; raw != null && i < raw.length(); i++) {
+                JSONObject action = raw.optJSONObject(i);
+                if (action == null) continue;
+                String actionId = action.optString("id", "").trim();
+                String label = action.optString("label", "").trim();
+                if (!actionId.isEmpty() && !label.isEmpty()) actions.add(new Action(actionId, label));
+            }
+            return new MobilityAlert(
+                id,
+                title,
+                blankToNull(alert.optString("address", "")),
+                alert.optString("body", title).trim(),
+                blankToNull(alert.optString("distance_label", "")),
+                blankToNull(alert.optString("task", "")),
+                alert.optDouble("latitude", Double.NaN),
+                alert.optDouble("longitude", Double.NaN),
+                blankToNull(alert.optString("navigate_url", "")),
+                blankToNull(alert.optString("add_stop_url", "")),
+                actions
+            );
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private static String blankToNull(String value) {
+        String trimmed = value == null ? "" : value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
     static String avatar(String text) {
         try {
             JSONObject frame = new JSONObject(text);

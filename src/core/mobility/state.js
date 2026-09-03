@@ -184,6 +184,10 @@ export function recordMobilityAlert(alert, now = Date.now()) {
     task: clean(alert.task, 200),
     project_id: clean(String(alert.project_id ?? ""), 100),
     place: clean(alert.place, 200),
+    // The exact street address. Kept on the record, not only in the rendered
+    // message, so a card rebuilt later (a phone that reconnects, the car app
+    // asking again) says the same thing the first one did.
+    address: alert.address ? clean(alert.address, 300) : null,
     latitude: Number(alert.latitude),
     longitude: Number(alert.longitude),
     distance_m: Number(alert.distance_m) || 0,
