@@ -41,13 +41,28 @@ export function TaskDetail({
     () => Tasks.get(pid, taskId),
   );
   const [busy, setBusy] = useState(false);
-  // Destructive / consequential verbs confirm through a dialog, never fire on
-  // the first click (project rule: no silent state changes on a button).
-  const [confirm, setConfirm] = useState<"done" | "drop" | null>(null);
+  // `rules/web-ui.md` asks for a dialog before an EXECUTION or a DESTRUCTIVE
+  // change. Dropping is one; finishing a task is neither — it flips a bit that
+  // "reopen" flips back, and the dialog that used to guard it was pure friction
+  // on the single most frequent verb in the screen. Undo rides the toast.
+  const [confirm, setConfirm] = useState<"drop" | null>(null);
 
-  const act = async (fn: () => Promise<unknown>) => {
+  const act = async (fn: () => Promise<unknown>, done?: { label: string; undo: () => Promise<unknown> }) => {
     setBusy(true);
-    try { await fn(); void mutate(); onChanged(); }
+    try {
+      await fn();
+      void mutate();
+      onChanged();
+      if (done) {
+        toast.success(done.label, {
+          label: t("tasks.undo"),
+          onClick: () => {
+            done.undo().then(() => { void mutate(); onChanged(); })
+              .catch(() => toast.error(t("common.error_generic")));
+          },
+        });
+      }
+    }
     catch (e) { toast.error(e instanceof Error ? e.message : String(e)); }
     finally { setBusy(false); }
   };
@@ -79,7 +94,16 @@ export function TaskDetail({
             </Button>
             {isOpen ? (
               <>
-                <Button size="sm" variant="primary" loading={busy} onClick={() => setConfirm("done")}>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  loading={busy}
+                  data-testid="task-detail-done"
+                  onClick={() => act(
+                    () => Tasks.done(pid, task.id),
+                    { label: t("project.tasks.done"), undo: () => Tasks.reopen(pid, task.id) },
+                  )}
+                >
                   <Check size={13} /> {t("tasks.mark_done")}
                 </Button>
                 <Tip content={t("tasks.mark_dropped")}>
@@ -160,11 +184,19 @@ export function TaskDetail({
           </div>
         )}
 
+        {/* The owner's words first, the agent's prompt second — and the prompt
+            only when it exists. A task with an empty "Prompt" box on top read
+            like a job waiting to be dispatched; most tasks are not that, and
+            an empty field on every one of them is an invitation to fill it. */}
         <ReadOnlyBlock
-          title={t("tasks.field_prompt")}
-          body={task.body ?? ""}
-          empty={t("tasks.prompt_hint")}
+          title={t("tasks.field_description")}
+          body={task.description ?? ""}
+          empty={t("tasks.description_empty")}
         />
+
+        {task.body?.trim() ? (
+          <ReadOnlyBlock title={t("tasks.field_prompt")} body={task.body} mono />
+        ) : null}
 
         {task.thread && (
           <button
@@ -177,16 +209,6 @@ export function TaskDetail({
         )}
       </div>
 
-      <ConfirmDialog
-        open={confirm === "done"}
-        onClose={() => setConfirm(null)}
-        onConfirm={() => act(() => Tasks.done(pid, task.id))}
-        destructive={false}
-        title={t("tasks.confirm_done_title")}
-        description={t("tasks.confirm_done_desc", { title: task.title })}
-        confirmLabel={t("tasks.mark_done")}
-        testId="task-detail-done-confirm"
-      />
       <ConfirmDialog
         open={confirm === "drop"}
         onClose={() => setConfirm(null)}

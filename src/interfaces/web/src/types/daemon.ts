@@ -154,6 +154,9 @@ export interface TaskEntry {
   state: "open" | "done" | "dropped";
   status?: TaskStatus;
   title: string;
+  /** What the owner has to do, in their words. */
+  description?: string | null;
+  /** The prompt an agent receives when it runs the task. Not a description. */
   body: string | null;
   tags: string[];
   category?: TaskCategory;

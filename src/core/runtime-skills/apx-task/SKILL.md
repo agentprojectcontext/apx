@@ -12,6 +12,8 @@ A `task` is a per-project TODO. Append-only JSONL event log per month at `~/.apx
 ```bash
 # Add
 apx task add "Review the auth bug" --project acme
+apx task add "Llamar al contador" --project casa --description "Antes del viernes, por el monotributo"
+apx task add "Rotar las claves" --project acme --body "Rotate every API key in .env and open a PR" --agent ops
 apx task add "Call the client" --project acme --due 2026-05-30 --tag urgent
 apx task add "Demo for tester X" --project acme --agent reviewer --tag demo --tag external --source cli
 
@@ -34,6 +36,7 @@ apx task done    t_abc123 --project acme --by manuel
 apx task drop    t_abc123 --project acme               # archived (not "done")
 apx task reopen  t_abc123 --project acme
 apx task patch   t_abc123 --project acme --title "New title" --due 2026-06-10
+apx task patch   t_abc123 --project acme --description "Lo que tengo que hacer yo"
 apx task patch   t_abc123 --project acme --tag bug --tag blocker   # replaces tags
 ```
 
@@ -46,7 +49,8 @@ apx task patch   t_abc123 --project acme --tag bug --tag blocker   # replaces ta
 | Field | When | Notes |
 |---|---|---|
 | `title` | always | One imperative line. Required. |
-| `body` | optional | Longer notes. Markdown OK. |
+| `description` | optional | **What the OWNER has to do**, in their words. Markdown OK. This is what the panel, the phone and `apx task show` display. Fill it for anything a person will do. |
+| `body` | optional | **The prompt an AGENT receives** if it runs the task. Only for tasks meant to be executed by an agent — leave it empty for a plain to-do. |
 | `tags` | optional | Free-form. Used by `--tag` filter. |
 | `due` | optional | ISO `YYYY-MM-DD`. Filter with `--due-before` / `--due-after`. |
 | `agent` | optional | Slug of responsible agent. Used by `--agent` filter. |
@@ -60,8 +64,10 @@ The super-agent has `create_task`, `list_tasks`, and **`complete_task`** (done |
 
 ```json
 { "name": "create_task",
-  "arguments": { "project": "acme", "title": "Close the auth bug", "due": "<tomorrow>", "tags": ["bug"] } }
+  "arguments": { "project": "acme", "title": "Close the auth bug", "description": "The 401 on refresh — reproduce it first", "due": "<tomorrow>", "tags": ["bug"] } }
 ```
+
+**`description` vs `body`.** `description` is for the person; `body` is the prompt an agent receives. Most tasks the owner dictates are the first kind — write the description and leave `body` empty. Putting a prompt where the description belongs is what turns a to-do list into a queue of jobs its owner cannot read.
 
 "What's pending in acme?" → `list_tasks({ project: "acme" })`. If user doesn't say which project, `list_projects` first and ask — never assume. If the channel has pinned project context (Telegram), use that.
 

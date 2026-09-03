@@ -177,3 +177,49 @@ test("corrupt JSONL lines are skipped, not fatal", () => {
   assert.equal(out.length, 1);
   assert.equal(out[0].id, t.id);
 });
+
+// ── description vs body ──────────────────────────────────────────────────────
+// Two fields on purpose: `description` is what the OWNER has to do, `body` is
+// the prompt an agent receives. They used to be one field labelled "Prompt",
+// which made a to-do list read like a dispatch queue.
+
+test("createTask keeps description and body as separate fields", () => {
+  const t = createTask(storagePath, {
+    title: "Llamar al contador",
+    description: "Antes del viernes, por el monotributo",
+    body: "Draft the email to the accountant",
+  });
+  assert.equal(t.description, "Antes del viernes, por el monotributo");
+  assert.equal(t.body, "Draft the email to the accountant");
+});
+
+test("a task with no description projects null, not undefined", () => {
+  const t = createTask(storagePath, { title: "plain todo" });
+  assert.equal(t.description, null);
+  assert.equal(t.body, null);
+});
+
+test("patchTask sets and clears the description", () => {
+  const t = createTask(storagePath, { title: "x" });
+  assert.equal(patchTask(storagePath, t.id, { description: "hacelo hoy" }).description, "hacelo hoy");
+  assert.equal(patchTask(storagePath, t.id, { description: null }).description, null);
+});
+
+test("an event log written before description existed still projects", () => {
+  // Exactly what an older `create` line looks like: no `description` key at
+  // all. The fold must read it as absent rather than blowing up or inventing
+  // a value — every task on this machine predates the field.
+  const dir = path.join(storagePath, "tasks");
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(
+    path.join(dir, "2026-01.jsonl"),
+    JSON.stringify({
+      id: "t_legacy", ts: "2026-01-05T10:00:00Z", op: "create",
+      title: "old task", body: "old prompt", tags: [], meta: {},
+    }) + "\n",
+  );
+  const t = getTask(storagePath, "t_legacy");
+  assert.equal(t.title, "old task");
+  assert.equal(t.body, "old prompt");
+  assert.equal(t.description, null);
+});

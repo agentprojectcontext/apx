@@ -103,7 +103,12 @@ export function MobileTasks() {
             )}
             <ul className="divide-y divide-border/60">
               {group.rows.map((task) => (
-                <TaskRow key={`${task.project_id}-${task.id}`} task={task} onOpen={() => setOpen(task)} />
+                <TaskRow
+                  key={`${task.project_id}-${task.id}`}
+                  task={task}
+                  onOpen={() => setOpen(task)}
+                  onChanged={() => void mutate()}
+                />
               ))}
             </ul>
           </section>
@@ -131,21 +136,67 @@ export function MobileTasks() {
   );
 }
 
-function TaskRow({ task, onOpen }: { task: GlobalTaskEntry; onOpen: () => void }) {
+/**
+ * A row you can tick off without opening it.
+ *
+ * The sheet has always carried the verbs, and that was one tap too many for
+ * the commonest one: on a phone, "done" is what you do while walking, and
+ * open-sheet-find-button-tap is not that. The status square is the target now,
+ * padded out to a thumb, and undo rides the toast.
+ */
+function TaskRow({ task, onOpen, onChanged }: {
+  task: GlobalTaskEntry;
+  onOpen: () => void;
+  onChanged: () => void;
+}) {
+  const toast = useToast();
   const eff = effectiveStatus(task);
   const day = task.due ? String(task.due).slice(0, 10) : null;
   const late = task.state === "open" && !!day && day < new Date().toISOString().slice(0, 10);
+  const pid = String(task.project_id);
+  const isOpen = task.state === "open";
+
+  const tick = async () => {
+    try {
+      await (isOpen ? Tasks.done(pid, task.id) : Tasks.reopen(pid, task.id));
+      onChanged();
+      toast.success(
+        t(isOpen ? "project.tasks.done" : "project.tasks.reopen"),
+        {
+          label: t("tasks.undo"),
+          onClick: () => {
+            (isOpen ? Tasks.reopen(pid, task.id) : Tasks.done(pid, task.id))
+              .then(onChanged)
+              .catch(() => toast.error(t("common.error_generic")));
+          },
+        },
+      );
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : t("common.error_generic"));
+    }
+  };
+
   return (
-    <li>
+    <li className="flex items-start active:bg-accent/50">
+      {/* Its own control, outside the row button: a button inside a button is
+          invalid, and this one has to win the tap. */}
+      <button
+        type="button"
+        onClick={tick}
+        data-testid={`mobile-task-tick-${task.id}`}
+        aria-label={t(isOpen ? "tasks.tick_done" : "tasks.tick_reopen", { title: task.title })}
+        className="shrink-0 py-3 pl-4 pr-3"
+      >
+        <span className={cn("mt-0.5 flex size-7 items-center justify-center rounded-lg", statusTint(eff))}>
+          <StatusIcon status={eff} className="size-4" />
+        </span>
+      </button>
       <button
         type="button"
         onClick={onOpen}
         data-testid={`mobile-task-${task.id}`}
-        className="flex w-full items-start gap-3 px-4 py-3 text-left active:bg-accent/50"
+        className="flex min-w-0 flex-1 items-start py-3 pr-4 text-left"
       >
-        <span className={cn("mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg", statusTint(eff))}>
-          <StatusIcon status={eff} className="size-4" />
-        </span>
         <span className="min-w-0 flex-1">
           <span className="flex items-start gap-2">
             <span className={cn(
@@ -214,8 +265,14 @@ function TaskSheet({
         </SheetHeader>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 text-sm">
-          {task.body && <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{task.body}</p>}
-          {!task.body && <p className="text-muted-fg">{t("project.tasks.add_placeholder")}</p>}
+          {task.description
+            ? <p className="whitespace-pre-wrap [overflow-wrap:anywhere]">{task.description}</p>
+            : <p className="text-muted-fg">{t("tasks.description_empty")}</p>}
+          {task.body?.trim() ? (
+            <p className="mt-3 whitespace-pre-wrap rounded-lg border border-border bg-muted/20 px-3 py-2 font-mono text-xs [overflow-wrap:anywhere]">
+              {task.body}
+            </p>
+          ) : null}
           {!!task.tags?.length && (
             <div className="mt-3 flex flex-wrap gap-1.5">
               {task.tags.map((tag) => (

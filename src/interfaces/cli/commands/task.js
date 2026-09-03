@@ -1,6 +1,7 @@
 // apx task — per-project TODO list. Backed by /projects/:pid/tasks.
 //
-//   apx task add "<title>" [--project X] [--body Y] [--tag t] [--due 2026-05-30] [--agent A]
+//   apx task add "<title>" [--project X] [--description D] [--body Y] [--tag t]
+//                          [--due 2026-05-30] [--agent A]
 //                          [--category trip] [--place "Farmacia X"] [--at "-41.13,-71.31"] [--radius 1500]
 //   apx task list          [--all | --project X] [--state ...] [--status ...] [--tag X] [--agent Y]
 //                          [--due-before ISO] [--due-after ISO] [--updated-since ISO] [--limit N]
@@ -8,7 +9,12 @@
 //   apx task done <id>     [--project X] [--by name]
 //   apx task drop <id>     [--project X] [--by name]
 //   apx task reopen <id>   [--project X]
-//   apx task patch <id>    [--project X] [--title T] [--body B] [--due D] [--agent A] [--tag t]
+//   apx task patch <id>    [--project X] [--title T] [--description D] [--body B] [--due D]
+//                          [--agent A] [--tag t]
+//
+// --description is what YOU have to do; --body is the prompt an agent receives
+// when it runs the task. Keeping them apart is what makes `apx task list`
+// readable as a to-do rather than as a dispatch queue.
 //
 // Each subcommand exports a usage string + a usageX() helper. The top-level
 // help (apx task --help / apx task <sub> --help) is wired through HELP_TOPICS
@@ -19,13 +25,13 @@ import { resolveProjectId } from "./project.js";
 
 // ── Usage strings (also used by index.js help topics) ────────────────────────
 export const TASK_USAGE = {
-  add:    'apx task add "<title>" [--project X] [--body Y] [--tag t]... [--due 2026-05-30] [--agent A] [--category trip] [--place "Farmacia X"] [--at "lat,lon"] [--radius 1500]',
+  add:    'apx task add "<title>" [--project X] [--description D] [--body Y] [--tag t]... [--due 2026-05-30] [--agent A] [--category trip] [--place "Farmacia X"] [--at "lat,lon"] [--radius 1500]',
   list:   "apx task list [--all | --project X] [--state open|done|dropped|all] [--status pending|running|in_review|blocked] [--tag X] [--agent Y] [--due-before ISO] [--due-after ISO] [--updated-since ISO] [--limit N]",
   show:   "apx task show <id> [--project X]",
   done:   "apx task done <id> [--project X] [--by name]",
   drop:   "apx task drop <id> [--project X] [--by name]",
   reopen: "apx task reopen <id> [--project X]",
-  patch:  "apx task patch <id> [--project X] [--title T] [--body B] [--due D] [--agent A] [--tag t]",
+  patch:  "apx task patch <id> [--project X] [--title T] [--description D] [--body B] [--due D] [--agent A] [--tag t]",
 };
 
 // Print "<msg>\nUsage: <usage>" to stderr and exit 1. Each cmd has a tiny
@@ -84,6 +90,7 @@ function renderDetail(t) {
     id: t.id,
     state: t.state,
     title: t.title,
+    description: t.description || undefined,
     body: t.body,
     tags: t.tags,
     // Only when it says something: a "general" category on every row is noise,
@@ -137,6 +144,7 @@ export async function cmdTaskAdd(args) {
   const pid = await resolveProjectId(args?.flags?.project);
   const body = {
     title,
+    description: args.flags?.description || null,
     body: args.flags?.body || null,
     due: args.flags?.due || null,
     agent: args.flags?.agent || null,
@@ -235,6 +243,7 @@ export async function cmdTaskPatch(args) {
   const pid = await resolveProjectId(args?.flags?.project);
   const patch = {};
   if (args.flags?.title !== undefined) patch.title = args.flags.title;
+  if (args.flags?.description !== undefined) patch.description = args.flags.description || null;
   if (args.flags?.body  !== undefined) patch.body  = args.flags.body;
   if (args.flags?.due   !== undefined) patch.due   = args.flags.due || null;
   if (args.flags?.agent !== undefined) patch.agent = args.flags.agent || null;
@@ -243,7 +252,7 @@ export async function cmdTaskPatch(args) {
   const located = locationFrom(args.flags);
   if ("location" in located) patch.location = located.location;
   if (Object.keys(patch).length === 0) {
-    return fail("patch", "at least one --title|--body|--due|--agent|--tag|--category|--place|--at required");
+    return fail("patch", "at least one --title|--description|--body|--due|--agent|--tag|--category|--place|--at required");
   }
   const t = await http.patch(`/api/projects/${pid}/tasks/${encodeURIComponent(id)}`, { patch });
   renderDetail(t);
