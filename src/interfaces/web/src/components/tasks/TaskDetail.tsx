@@ -3,6 +3,7 @@ import useSWR from "swr";
 import { Check, CornerLeftUp, ExternalLink, Pencil, RotateCcw, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Tasks } from "../../lib/api";
+import { Agents } from "../../lib/api/agents";
 import { Badge, Button, Spinner, Tip } from "../ui";
 import { UiSelect } from "../UiSelect";
 import { ReadOnlyBlock } from "../ReadOnlyBlock";
@@ -43,6 +44,9 @@ export function TaskDetail({
   const toast = useToast();
   const navigate = useNavigate();
   const { statuses } = useTaskColumns(pid);
+  // The roster this task can be handed to. Same key the form and the comment
+  // thread use, so it is one request per project across the screen.
+  const { data: agents } = useSWR(pid ? `/api/projects/${pid}/agents` : null, () => Agents.list(pid));
   const { data: task, isLoading, mutate } = useSWR(
     `/api/projects/${pid}/tasks/${taskId}`,
     () => Tasks.get(pid, taskId),
@@ -191,16 +195,37 @@ export function TaskDetail({
           )}
         </div>
 
-        {/* Workflow status: a move, not a field — changed in place. */}
+        {/* The two decisions you change most often, in place: where it is and
+            who has it. Everything else goes through the edit dialog.
+
+            WHO HAS IT used to be a bare "@slug" buried in the meta strip above,
+            and invisible whenever it was empty — so a task nobody had looked
+            exactly like a task nobody could assign. An empty picker is the
+            thing that asks the question. */}
         {isOpen && (
-          <div className="max-w-[16rem] space-y-1">
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-fg">{t("tasks.field_status")}</div>
-            <UiSelect
-              data-testid="task-status-select"
-              value={task.status ?? "pending"}
-              onChange={(v) => act(() => Tasks.status(pid, task.id, v as TaskStatus))}
-              options={statuses.map((c) => ({ value: c.id, label: columnLabel(c) }))}
-            />
+          <div className="grid max-w-md gap-3 sm:grid-cols-2">
+            <div className="space-y-1">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-fg">{t("tasks.field_status")}</div>
+              <UiSelect
+                data-testid="task-status-select"
+                value={task.status ?? "pending"}
+                onChange={(v) => act(() => Tasks.status(pid, task.id, v as TaskStatus))}
+                options={statuses.map((c) => ({ value: c.id, label: columnLabel(c) }))}
+              />
+            </div>
+            <div className="space-y-1">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-fg">{t("tasks.field_agent")}</div>
+              <UiSelect
+                data-testid="task-agent-select"
+                value={task.agent ?? ""}
+                onChange={(v) => act(() => Tasks.patch(pid, task.id, { agent: v || null }))}
+                options={[
+                  { value: "", label: t("tasks.agent_none") },
+                  ...(agents ?? []).map((a) => ({ value: a.slug, label: a.name || a.slug })),
+                ]}
+              />
+              <p className="text-[10px] text-muted-fg">{t("tasks.agent_hint")}</p>
+            </div>
           </div>
         )}
 

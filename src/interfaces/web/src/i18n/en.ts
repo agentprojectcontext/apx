@@ -2157,6 +2157,7 @@ export const en = {
     mark_dropped:    "Discard",
     mark_reopen:     "Reopen",
     agent_none:      "— unassigned —",
+    agent_hint:      "Who has it. It does not pick it up on its own: it works on it if you mention it in a comment, or if the task lands in a column with automation.",
     prompt_hint:     "Only for tasks an agent runs. If it is your own to-do, leave it empty.",
     undo:            "Undo",
     comments_title:  "Comments",

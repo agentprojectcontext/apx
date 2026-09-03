@@ -158,6 +158,22 @@ test.describe("task workspace", () => {
     await expect(page.getByTestId("task-list").locator("li", { hasText: title })).toBeVisible();
   });
 
+  test("who has a task is a visible, in-place field — even when nobody does", async ({ page }) => {
+    const { projectId } = runtime();
+    const title = `e2e assignee ${Date.now()}`;
+    await page.goto(`/p/${projectId}/tasks`);
+    await addTask(page, title);
+    await page.getByTestId("task-list").locator("li", { hasText: title }).click();
+    await expect(page.getByTestId("task-detail")).toContainText(title);
+
+    // It used to be a bare "@slug" buried in the meta strip, and nothing at all
+    // when empty — so an unassigned task looked like one that could not be
+    // assigned. The empty picker is what asks the question.
+    const picker = page.getByTestId("task-agent-select");
+    await expect(picker).toBeVisible();
+    await expect(picker).toContainText("—");
+  });
+
   test("the state filter actually filters the board", async ({ page }) => {
     const { projectId } = runtime();
     const title = `e2e filter ${Date.now()}`;
