@@ -14,7 +14,10 @@ export default {
   // Mobility — the buttons and one-line reminders the DAEMON sends while a trip
   // is running (core/mobility/geofence.js). Host-emitted, not model-authored:
   // a driver reads these at a glance, so they stay fixed and short.
-  "mobility.near": "You're near {place} ({distance}).",
+  "mobility.near": "You're near {place}, {distance} away.",
+  "mobility.near_bare": "You're {distance} away.",
+  "mobility.unit_m": "metres",
+  "mobility.unit_km": "kilometres",
   "mobility.task": "Task",
   "mobility.address": "Address",
   // The native card's four answers, in the order they are offered. No emoji:

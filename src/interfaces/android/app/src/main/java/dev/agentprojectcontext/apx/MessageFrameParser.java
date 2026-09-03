@@ -33,7 +33,10 @@ final class MessageFrameParser {
      */
     record MobilityAlert(
         String id,
+        /** The ERRAND — what this card is about. Titles the row and the screen. */
         String title,
+        /** The shop it points at. Detail, not heading: you have several errands. */
+        String place,
         String address,
         String body,
         String distanceLabel,
@@ -71,6 +74,7 @@ final class MessageFrameParser {
             return new MobilityAlert(
                 id,
                 title,
+                blankToNull(alert.optString("place", "")),
                 blankToNull(alert.optString("address", "")),
                 alert.optString("body", title).trim(),
                 blankToNull(alert.optString("distance_label", "")),

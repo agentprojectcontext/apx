@@ -17,8 +17,13 @@ Native code owns only capabilities a browser/PWA cannot provide reliably:
   location history, or complete notification text.
 
 Never turn raw Maps notification churn into agent messages. Require 45 seconds
-of stability for a known destination and 10 minutes before an unknown-route
-prompt. Persist send history across service/app restarts. Suppress the same
+of stability for a known destination and 3 minutes before an unknown-route
+prompt. The unknown wait was ten minutes and that protected the wrong thing:
+a destination arriving late is already handled by rescheduling at 45 s when it
+resolves, so on the case the settle actually governs — a drive with no route
+set — the ten minutes were pure delay and the message landed half way through
+the drive. Neither gate touches proximity alerts; the state-only event and the
+GPS service start the moment navigation is detected. Persist send history across service/app restarts. Suppress the same
 destination for 30 minutes and any different destination for at least 5
 minutes; keep only the newest pending state during rapid cancel/restart tests.
 - a text share target for explicit Google Maps trip-progress shares. Accept only
@@ -112,6 +117,24 @@ round, so an install with no Telegram alerted nobody on the surface that
 matters most. Answers come back on `POST /api/mobility/alerts/:id/answer`, and
 the meaning of each one lives in `core/mobility/answer.js` so a tap on the car,
 on the phone and on Telegram land on the same branch.
+
+THE ERRAND LEADS THE WORDING, everywhere. The place is where and the distance
+is how far, but the errand is why the card is on screen at all, and whatever is
+read (or heard) first has to answer "do I care?". It titles the card and opens
+the body; the shop, the distance and the street follow in that order. The
+SPOKEN body drops the "Dirección:" / "Tarea:" labels the Telegram copy keeps —
+a label is how you skip ahead when reading and two filler words per line when
+listening — and spells its units out ("1,4 kilómetros", not "1.4 km", which a
+Spanish voice reads as a letter and an English decimal point). The compact form
+stays on `distance_label` for the UI chip.
+
+THE TRIP-START CARD ASKS NOTHING. It used to offer sí / no / recordarme luego,
+written before proximity alerts existed: `yes` and `no` returned an
+acknowledgement and changed no state, and "recordarme luego" postponed the whole
+trip, which "Para después" now does per errand and better. Only "No avisar más
+hoy" survives — the one control with no equivalent anywhere else. The retired
+callbacks are still handled, because cards carrying those buttons sit in the
+chat history on a phone.
 
 FOUR ANSWERS ON THE NATIVE CARD: navigate, add_stop, next, skip. `navigate` and
 `add_stop` record the same thing "voy" does — the driver did not promise to go,

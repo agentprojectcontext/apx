@@ -20,7 +20,7 @@ public final class CarAlertStoreTest {
 
     private static MessageFrameParser.MobilityAlert alert(String id, String title) {
         return new MessageFrameParser.MobilityAlert(
-            id, title, "Av. San Martin 1234", title + " cerca", "1.4 km", "Comprar algo",
+            id, title, "Farmacia", "Av. San Martin 1234", title + " cerca", "1.4 km", "Comprar algo",
             -41.13, -71.31, "https://maps/nav", "https://maps/stop",
             List.of(new MessageFrameParser.Action("navigate", "Navegar ahora"))
         );

@@ -196,9 +196,14 @@ test("the chips carry navigation, a stop on the current route, and both answers"
 
   recordMobilityAlert(alert);
   const message = proximityMessage(alert, "es");
+  // The errand is the first line. It used to be the third, after two the
+  // driver had to read before learning whether this was worth looking at.
+  assert.ok(message.startsWith("📍 Pasar por la farmacia"), message);
   assert.match(message, /Farmacia Ejemplo/);
   assert.match(message, /1\.\d km/);
-  assert.match(message, /Tarea: Pasar por la farmacia/);
+  // Telegram keeps its labels — a label is how you skip to the part you want
+  // when you are reading. The spoken card drops them.
+  assert.match(message, /Dirección: Bariloche/);
 
   const recorded = getMobilityAlert(recordMobilityAlert(alert).id);
   const keyboard = proximityKeyboard(recorded, { destination: "Onelli 444", lang: "es" });

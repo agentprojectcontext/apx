@@ -184,10 +184,12 @@ export async function handleMobilityCallback(self, callbackQuery) {
     silenceMobilityToday();
     ack = "Sin avisos de viaje por hoy.";
     response = ack;
-  } else if (action === "yes") {
-    ack = "Marcado: vas ahora.";
-  } else if (action === "no") {
-    ack = "Entendido: no vas ahora.";
+  } else if (action === "yes" || action === "no") {
+    // Retired from the trip card — they asked "¿vas ahora?" and did nothing
+    // with the answer. Still handled because cards carrying them are sitting
+    // in the chat history on a phone, and a button that answers nothing is
+    // worse than an outdated one.
+    ack = action === "yes" ? "Marcado: vas ahora." : "Entendido: no vas ahora.";
   }
   await self._answerCallback({ callback_query_id: callbackQuery.id, text: ack });
   await clearKeyboard(self, callbackQuery);
