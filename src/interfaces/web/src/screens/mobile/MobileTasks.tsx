@@ -6,6 +6,8 @@ import { StatusBadge, StatusIcon, effectiveStatus, statusTint } from "../../comp
 import { useToast } from "../../components/Toast";
 import { Loading } from "../../components/ui";
 import { Tasks, type GlobalTaskEntry } from "../../lib/api/tasks";
+import { TaskComments } from "../../components/tasks/TaskComments";
+import { TaskSubtasks } from "../../components/tasks/TaskSubtasks";
 import { DueChip, MobileChip, MobileGroupHeader, MobileListHeader, dueBucketLabel, groupByDue } from "./mobileList";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
@@ -232,8 +234,15 @@ function TaskSheet({
 }) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  const pid = task ? String(task.project_id) : "";
+  // The list row does not carry the thread (rows count comments, they do not
+  // ship them), so the sheet fetches the full task for its comments and
+  // subtasks. Same endpoint the panel's detail uses.
+  const { data: full, mutate: mutateFull } = useSWR(
+    task ? `/api/projects/${pid}/tasks/${task.id}` : null,
+    () => Tasks.get(pid, task!.id),
+  );
   if (!task) return null;
-  const pid = String(task.project_id);
 
   const act = async (fn: () => Promise<unknown>, label: string) => {
     setBusy(true);
@@ -273,6 +282,25 @@ function TaskSheet({
               {task.body}
             </p>
           ) : null}
+
+          {/* The same two components the panel uses. A phone is where a comment
+              actually gets written — you are away from the desk, you tag @qa,
+              and it runs. Duplicating them for mobile would mean two threads
+              that drift. */}
+          <div className="mt-4 space-y-4">
+            <TaskSubtasks
+              pid={pid}
+              taskId={task.id}
+              onOpen={() => { /* the sheet IS the detail here — no second pane to move to */ }}
+              onChanged={() => { void mutateFull(); onChanged(); }}
+            />
+            <TaskComments
+              pid={pid}
+              taskId={task.id}
+              comments={full?.comments ?? []}
+              onChanged={() => { void mutateFull(); onChanged(); }}
+            />
+          </div>
           {!!task.tags?.length && (
             <div className="mt-3 flex flex-wrap gap-1.5">
               {task.tags.map((tag) => (

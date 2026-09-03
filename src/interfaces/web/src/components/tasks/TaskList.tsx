@@ -1,5 +1,5 @@
 import { type ReactNode, useState } from "react";
-import { Check, Pencil, RotateCcw, Trash2 } from "lucide-react";
+import { Check, ListTree, MessageSquare, Pencil, RotateCcw, Trash2 } from "lucide-react";
 import { Tasks } from "../../lib/api";
 import type { GlobalTaskEntry } from "../../lib/api/tasks";
 import type { TaskEntry } from "../../types/daemon";
@@ -176,7 +176,22 @@ export function TaskList({
                     {project ? `${project.split("/").pop()}${task.agent ? " · " : ""}` : ""}
                     {task.agent ? `@${task.agent}` : (project ? "" : t("tasks.agent_none_short"))}
                   </span>
-                  {due && <span className={cn("shrink-0", overdue && cn("font-medium", toneText.red))}>⏱ {due}</span>}
+                  <span className="flex shrink-0 items-center gap-1.5">
+                    {/* What makes an epic legible from the list: "2/5" says this
+                        row is really five, without opening it. Both counters
+                        stay hidden at zero — a "0" on every row is noise. */}
+                    {!!task.subtask_count && (
+                      <span className="inline-flex items-center gap-0.5" title={t("tasks.subtasks_title")}>
+                        <ListTree size={10} />{task.subtask_done ?? 0}/{task.subtask_count}
+                      </span>
+                    )}
+                    {!!task.comment_count && (
+                      <span className="inline-flex items-center gap-0.5" title={t("tasks.comments_title")}>
+                        <MessageSquare size={10} />{task.comment_count}
+                      </span>
+                    )}
+                    {due && <span className={cn(overdue && cn("font-medium", toneText.red))}>⏱ {due}</span>}
+                  </span>
                 </div>
               </button>
 

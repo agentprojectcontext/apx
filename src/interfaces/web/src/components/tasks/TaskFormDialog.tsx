@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { Tasks } from "../../lib/api";
 import { Agents } from "../../lib/api/agents";
+import { X } from "lucide-react";
 import { Button, Dialog, Field, Input, Textarea } from "../ui";
 import { UiSelect } from "../UiSelect";
 import { useToast } from "../Toast";
@@ -17,6 +18,13 @@ import type { TaskEntry, TaskStatus } from "../../types/daemon";
  * it was permanent unless you went back to the CLI. Same dialog for both jobs
  * so what you can set is exactly what you can later fix.
  */
+/** Fold a draft into the list: trimmed, no duplicates, no empties. */
+function commitTag(list: string[], draft: string): string[] {
+  const tag = draft.trim().replace(/^#/, "");
+  if (!tag || list.includes(tag)) return list;
+  return [...list, tag];
+}
+
 export function TaskFormDialog({
   open,
   onClose,
@@ -42,6 +50,8 @@ export function TaskFormDialog({
   const [due, setDue] = useState("");
   const [agent, setAgent] = useState("");
   const [status, setStatus] = useState<TaskStatus>("pending");
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagDraft, setTagDraft] = useState("");
   const [target, setTarget] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -58,6 +68,8 @@ export function TaskFormDialog({
     setDue(task?.due ? String(task.due).slice(0, 10) : "");
     setAgent(task?.agent ?? "");
     setStatus(task?.status ?? "pending");
+    setTags(task?.tags ?? []);
+    setTagDraft("");
     setTarget(fixedPid ?? String(projects?.[0]?.id ?? ""));
   }, [open, editing, fixedPid, projects]);
 
@@ -72,12 +84,17 @@ export function TaskFormDialog({
     if (!title.trim() || !pid) return;
     setBusy(true);
     try {
+      // The draft is committed on save too: typing a tag and hitting Save
+       // without pressing Enter first used to drop it silently, which is most
+       // of why tags never got filled in.
+      const allTags = commitTag(tags, tagDraft);
       const fields = {
         title: title.trim(),
         description: description.trim() || null,
         body: body.trim() || null,
         due: due || null,
         agent: agent || null,
+        tags: allTags,
       };
       if (editing) {
         await Tasks.patch(pid, editing.task.id, fields);
@@ -167,6 +184,49 @@ export function TaskFormDialog({
             />
           </Field>
         )}
+
+        {/* Tags were settable from the CLI and the API but NOT here, so the
+            filter that reads them had almost nothing to filter. */}
+        <Field label={t("tasks.field_tags")} hint={t("tasks.tags_hint")}>
+          <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-border bg-transparent px-2 py-1.5">
+            {tags.map((tag) => (
+              <span
+                key={tag}
+                className="inline-flex items-center gap-1 rounded-md border border-border bg-muted/40 px-1.5 py-0.5 text-[11px]"
+              >
+                {tag}
+                <button
+                  type="button"
+                  aria-label={t("tasks.tag_remove", { tag })}
+                  data-testid={`task-tag-remove-${tag}`}
+                  className="text-muted-fg hover:text-fg"
+                  onClick={() => setTags((prev) => prev.filter((x) => x !== tag))}
+                >
+                  <X size={11} />
+                </button>
+              </span>
+            ))}
+            <input
+              value={tagDraft}
+              data-testid="task-tags-input"
+              placeholder={tags.length ? "" : t("tasks.tags_ph")}
+              className="min-w-[6rem] flex-1 bg-transparent text-xs outline-none placeholder:text-muted-fg"
+              onChange={(e) => setTagDraft(e.target.value)}
+              onKeyDown={(e) => {
+                // Enter and comma both commit — people type tags both ways, and
+                // Enter must not reach the dialog and submit the whole form.
+                if (e.key === "Enter" || e.key === ",") {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setTags((prev) => commitTag(prev, tagDraft));
+                  setTagDraft("");
+                } else if (e.key === "Backspace" && !tagDraft) {
+                  setTags((prev) => prev.slice(0, -1));
+                }
+              }}
+            />
+          </div>
+        </Field>
 
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label={t("tasks.field_agent")}>

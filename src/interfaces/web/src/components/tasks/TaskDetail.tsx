@@ -1,11 +1,13 @@
 import { useState } from "react";
 import useSWR from "swr";
-import { Check, ExternalLink, Pencil, RotateCcw, Trash2 } from "lucide-react";
+import { Check, CornerLeftUp, ExternalLink, Pencil, RotateCcw, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Tasks } from "../../lib/api";
 import { Badge, Button, Spinner, Tip } from "../ui";
 import { UiSelect } from "../UiSelect";
 import { ReadOnlyBlock } from "../ReadOnlyBlock";
+import { TaskComments } from "./TaskComments";
+import { TaskSubtasks } from "./TaskSubtasks";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { useToast } from "../Toast";
 import { CategoryIcon, StatusIcon, StatusBadge, categoryLabel, effectiveStatus, statusTint, TASK_STATUS_ORDER, statusLabel } from "./taskStatus";
@@ -25,7 +27,7 @@ import type { TaskEntry, TaskStatus } from "../../types/daemon";
  * move, not an edit.
  */
 export function TaskDetail({
-  pid, taskId, projectName, onEdit, onChanged,
+  pid, taskId, projectName, onEdit, onChanged, onOpenTask,
 }: {
   pid: string;
   taskId: string;
@@ -33,6 +35,8 @@ export function TaskDetail({
   projectName?: string;
   onEdit: (task: TaskEntry) => void;
   onChanged: () => void;
+  /** Select another task in the list next door (a subtask, or this one's parent). */
+  onOpenTask?: (id: string) => void;
 }) {
   const toast = useToast();
   const navigate = useNavigate();
@@ -123,13 +127,15 @@ export function TaskDetail({
         {/* compact meta strip — the same row the routine detail uses */}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-fg">
           <StatusBadge status={eff} />
+          {/* Which project this belongs to, before anything else about it: on
+              the aggregated list every row looks alike until you know that. */}
+          {projectName && <Badge tone="info">{projectName.split("/").pop() || projectName}</Badge>}
           {task.category && task.category !== "general" && (
             <span className="inline-flex items-center gap-1">
               <CategoryIcon category={task.category} />
               {categoryLabel(task.category)}
             </span>
           )}
-          {projectName && <Badge tone="info">{projectName.split("/").pop() || projectName}</Badge>}
           <span className="font-mono text-[10px]">{task.id}</span>
           {task.agent && <span>@{task.agent}</span>}
           {due && (
@@ -137,7 +143,17 @@ export function TaskDetail({
               {t("project.global_tasks.field_due")} {due}
             </span>
           )}
-          {task.tags?.map((tag) => <span key={tag}>#{tag}</span>)}
+          {/* Chips, not bare "#word" runs: at four tags the old version read as
+              one long string and you could not tell where a tag ended. */}
+          {task.tags?.map((tag) => (
+            <span
+              key={tag}
+              data-testid={`task-tag-${tag}`}
+              className="inline-flex items-center rounded-md border border-border bg-muted/40 px-1.5 py-0.5 text-[10px] font-medium text-fg"
+            >
+              {tag}
+            </span>
+          ))}
           {task.location && (
             // Pinned places link out to Maps; a place with only a name still
             // says where, which is the point of writing it down.
@@ -197,6 +213,32 @@ export function TaskDetail({
         {task.body?.trim() ? (
           <ReadOnlyBlock title={t("tasks.field_prompt")} body={task.body} mono />
         ) : null}
+
+        {/* A subtask says what it is part of, and gets you back there. */}
+        {task.parent && onOpenTask && (
+          <button
+            type="button"
+            data-testid="task-parent-link"
+            onClick={() => onOpenTask(task.parent!)}
+            className={cn("flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs hover:bg-primary/10", toneOutline.emerald)}
+          >
+            <CornerLeftUp className="size-3.5" />{t("tasks.part_of")}
+          </button>
+        )}
+
+        <TaskSubtasks
+          pid={pid}
+          taskId={task.id}
+          onOpen={(id) => onOpenTask?.(id)}
+          onChanged={() => { void mutate(); onChanged(); }}
+        />
+
+        <TaskComments
+          pid={pid}
+          taskId={task.id}
+          comments={task.comments ?? []}
+          onChanged={() => { void mutate(); onChanged(); }}
+        />
 
         {task.thread && (
           <button

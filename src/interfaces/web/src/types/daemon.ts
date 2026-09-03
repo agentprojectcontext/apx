@@ -154,6 +154,8 @@ export interface TaskEntry {
   state: "open" | "done" | "dropped";
   status?: TaskStatus;
   title: string;
+  /** Id of the parent task. A subtask is a task with a parent — nothing more. */
+  parent?: string | null;
   /** What the owner has to do, in their words. */
   description?: string | null;
   /** The prompt an agent receives when it runs the task. Not a description. */
@@ -171,6 +173,21 @@ export interface TaskEntry {
   dropped_at?: string | null;
   created_at: string;
   updated_at: string;
+  /** Present on the detail (GET one). List rows carry `comment_count` instead. */
+  comments?: TaskComment[];
+  comment_count?: number;
+  subtask_count?: number;
+  subtask_done?: number;
+}
+
+export interface TaskComment {
+  id: string;
+  ts: string;
+  /** "owner" or an agent slug. */
+  by: string | null;
+  text: string;
+  /** Agent slugs this comment addressed, resolved when it was written. */
+  mentions: string[];
 }
 
 export interface OrgArea {

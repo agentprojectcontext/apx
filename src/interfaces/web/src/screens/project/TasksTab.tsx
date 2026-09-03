@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { Check, ListTodo, MousePointerClick, Plus, Trash2 } from "lucide-react";
+import { Check, ListTodo, MousePointerClick, Plus, Settings2, Trash2 } from "lucide-react";
+import useSWR from "swr";
 import { Tasks } from "../../lib/api";
 import type { GlobalTaskEntry } from "../../lib/api/tasks";
 import type { TaskEntry, TaskStatus } from "../../types/daemon";
@@ -11,6 +12,9 @@ import { TaskList } from "../../components/tasks/TaskList";
 import { TaskDetail } from "../../components/tasks/TaskDetail";
 import { TASK_STATUS_ORDER, statusLabel } from "../../components/tasks/taskStatus";
 import { TaskFormDialog } from "../../components/tasks/TaskFormDialog";
+import { TaskBoard } from "../../components/tasks/TaskBoard";
+import { TaskColumnsDialog } from "../../components/tasks/TaskColumnsDialog";
+import type { BoardColumn } from "../../components/tasks/columns";
 import { BulkActionBar } from "../../components/common/BulkActionBar";
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import { useToast } from "../../components/Toast";
@@ -29,6 +33,11 @@ import { t } from "../../i18n";
  *
  * One task is always open on the right — a list you can only stare at is a
  * report, not a workspace.
+ *
+ * TWO VIEWS OVER THE SAME DATA. The list is unchanged — it is still the fastest
+ * way to read what is open and tick things off. The board is for moving work
+ * between columns, which a list cannot express. Both share the selection and
+ * the same detail pane, so switching never loses your place.
  */
 export function TasksTab({ pid }: { pid?: string }) {
   const [params, setParams] = useSearchParams();
@@ -37,6 +46,29 @@ export function TasksTab({ pid }: { pid?: string }) {
   // right now" is not "what is open". Only meaningful for open tasks.
   const [status, setStatus] = useState<TaskStatus | "">("");
   const effStatus = state === "open" ? status : "";
+
+  // Which view, in the URL so a board you are working in survives a refresh
+  // and can be linked to.
+  const view = params.get("view") === "board" ? "board" : "list";
+  const setView = (v: "list" | "board") =>
+    setParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (v === "board") next.set("view", "board"); else next.delete("view");
+      return next;
+    }, { replace: true });
+
+  const [editingColumns, setEditingColumns] = useState(false);
+  // Bumped after a column edit so the board refetches with the new set.
+  const [columnsRev, setColumnsRev] = useState(0);
+  const { data: colData, mutate: mutateColumns } = useSWR(
+    view === "board" ? `/api/tasks/columns?pid=${pid ?? "all"}&r=${columnsRev}` : null,
+    () => (pid ? Tasks.columns.forProject(pid) : Tasks.columns.catalog().then((r) => ({
+      // The aggregated board has no single project to read a subset from, so it
+      // shows the whole vocabulary.
+      columns: [...r.columns, { id: "done", label: null }] as BoardColumn[],
+      catalog: r.columns,
+    }))),
+  );
 
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<{ pid: string; task: TaskEntry } | null>(null);
@@ -125,12 +157,30 @@ export function TasksTab({ pid }: { pid?: string }) {
       title={pid ? t("project.tasks.title") : t("project.global_tasks.title")}
       description={pid ? t("project.tasks.subtitle") : t("project.global_tasks.subtitle")}
       action={
-        <Button size="sm" variant="primary" data-testid="task-new" onClick={() => setAdding(true)}>
-          <Plus size={14} /> {t("project.global_tasks.add")}
-        </Button>
+        <div className="flex items-center gap-2">
+          {view === "board" && (
+            <Button size="sm" data-testid="task-columns" onClick={() => setEditingColumns(true)}>
+              <Settings2 size={14} /> {t("tasks.columns_title")}
+            </Button>
+          )}
+          <Button size="sm" variant="primary" data-testid="task-new" onClick={() => setAdding(true)}>
+            <Plus size={14} /> {t("project.global_tasks.add")}
+          </Button>
+        </div>
       }
       filters={
         <>
+          <FilterChips
+            value={view}
+            onChange={setView}
+            testIdPrefix="task-view"
+            label={t("tasks.view_label")}
+            options={[
+              { value: "list" as const, label: t("tasks.view_list") },
+              { value: "board" as const, label: t("tasks.view_board") },
+            ]}
+          />
+          <span className="mx-2" />
           <FilterChips
             value={state}
             onChange={setState}
@@ -141,7 +191,7 @@ export function TasksTab({ pid }: { pid?: string }) {
               label: s === "all" ? t("common.all") : t(`tasks.state_${s}` as never),
             }))}
           />
-          {state === "open" ? (
+          {state === "open" && view === "list" ? (
             <div className="ml-2">
               <FilterChips
                 value={status}
@@ -158,8 +208,36 @@ export function TasksTab({ pid }: { pid?: string }) {
         </>
       }
     >
-      {paged.isLoading && <Loading />}
-      {!paged.isLoading && paged.total === 0 && (
+      {view === "board" && (
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border lg:flex-row">
+          <TaskBoard
+            pid={pid}
+            columns={colData?.columns ?? []}
+            selectedId={selectedId}
+            onSelect={select}
+            onChanged={() => paged.mutate()}
+            refreshKey={columnsRev}
+          />
+          <div className="min-h-0 w-full shrink-0 overflow-hidden border-t border-border lg:w-[360px] lg:border-l lg:border-t-0">
+            {selected ? (
+              <TaskDetail
+                key={`${rowPid(selected)}-${selected.id}`}
+                pid={rowPid(selected)}
+                taskId={selected.id}
+                projectName={pid ? undefined : (selected as GlobalTaskEntry).project_name}
+                onEdit={(task) => setEditing({ pid: rowPid(selected), task })}
+                onChanged={() => paged.mutate()}
+                onOpenTask={select}
+              />
+            ) : (
+              <Empty fill icon={MousePointerClick}>{t("tasks.detail_empty")}</Empty>
+            )}
+          </div>
+        </div>
+      )}
+
+      {view === "list" && paged.isLoading && <Loading />}
+      {view === "list" && !paged.isLoading && paged.total === 0 && (
         <Empty icon={ListTodo}>
           {!pid ? t("project.global_tasks.empty")
             : state === "open" ? t("project.tasks.empty_open")
@@ -167,7 +245,7 @@ export function TasksTab({ pid }: { pid?: string }) {
         </Empty>
       )}
 
-      {paged.items.length > 0 && (
+      {view === "list" && paged.items.length > 0 && (
         <div className={"flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-border lg:flex-row"}>
           <TaskList
             className={"max-h-64 shrink-0 border-b border-border lg:h-full lg:max-h-none lg:w-[280px] lg:border-b-0 lg:border-r"}
@@ -201,6 +279,10 @@ export function TasksTab({ pid }: { pid?: string }) {
                 projectName={pid ? undefined : (selected as GlobalTaskEntry).project_name}
                 onEdit={(task) => setEditing({ pid: rowPid(selected), task })}
                 onChanged={() => paged.mutate()}
+                // Subtasks and the "part of" link select their target in the
+                // list next door: a child is an ordinary task, so opening one
+                // is the same gesture as clicking its row.
+                onOpenTask={select}
               />
             ) : (
               <Empty fill icon={MousePointerClick}>{t("tasks.detail_empty")}</Empty>
@@ -208,6 +290,13 @@ export function TasksTab({ pid }: { pid?: string }) {
           </div>
         </div>
       )}
+
+      <TaskColumnsDialog
+        open={editingColumns}
+        onClose={() => setEditingColumns(false)}
+        pid={pid}
+        onSaved={() => { setColumnsRev((n) => n + 1); void mutateColumns(); }}
+      />
 
       <TaskFormDialog
         open={adding || !!editing}

@@ -259,6 +259,9 @@ async function handleExecAgent(ctx, routine) {
           routineName: routine.name,
           routineId: routine.id || "",
           projectPath: project.path,
+          // Who is speaking, for any tool that signs what it writes
+          // (comment_task). run-turn.js sets the same key.
+          agentSlug: slug,
         },
         toolSession,
         // Skill media plumbing for attach_media / view_media (see above).
