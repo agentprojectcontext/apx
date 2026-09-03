@@ -104,12 +104,56 @@ export interface CustomTtsConfig {
   base_url: string;     // OpenAI-compatible endpoint (required)
   api_key?: string;
   model?: string;
-  voice?: string;
+  // How the server is asked to speak. Not additive — QVox reads clone, then
+  // voice, then style, and the first one set decides the timbre and accent.
+  language?: string;    // "Spanish" | "English" | … ("auto" = server default)
+  voice?: string;       // a named preset speaker on the server
+  clone?: string;       // path (on the SERVER) to a reference recording
+  ref_text?: string;    // what that recording says — makes cloning faster
   format?: string;
   style?: string;       // base voice / instruct
   temperature?: number;
   emotions?: EmotionsConfig;
   enabled?: boolean;
+}
+
+/**
+ * Languages a Qwen3-TTS/QVox endpoint understands, read off the model's own
+ * `codec_language_id` map. Sent verbatim as the `language` field; anything
+ * outside the map is silently ignored by the model, which is exactly how a
+ * Spanish reply ends up with English phonetics.
+ */
+export const QVOX_LANGUAGES = [
+  "Spanish", "English", "Portuguese", "Italian", "French", "German",
+  "Russian", "Chinese", "Japanese", "Korean",
+] as const;
+
+/** GET /tts/voices — the speakers a self-hosted endpoint reports. */
+export type TtsVoicesResponse = {
+  voices: string[];
+  /** Per-voice metadata, when the endpoint publishes any. `native` means the
+   *  voice was recorded in the language the endpoint is currently speaking. */
+  details?: Record<string, { lang?: string; native?: boolean }>;
+  /** The language the endpoint speaks, for engines that serve one at a time. */
+  language?: string;
+  /** That language as an ISO code, to compare against a voice's own. */
+  lang?: string;
+  configured?: boolean;
+  reachable?: boolean;
+};
+
+/**
+ * Label for a voice in a picker: the name, plus the language it was recorded in
+ * when that differs from what the engine speaks. A foreign voice still works —
+ * it is the only way to get a male voice out of a Spanish model whose one native
+ * speaker is female — but it is a choice, and the bare name hides it.
+ */
+export function voiceLabel(name: string, list?: TtsVoicesResponse): string {
+  const lang = list?.details?.[name]?.lang;
+  if (!lang) return name;
+  // "alba · en → es" reads as what it is: an English voice coming out of the
+  // Spanish model. "lola · es" is simply itself.
+  return list?.lang && list.lang !== lang ? `${name} · ${lang} → ${list.lang}` : `${name} · ${lang}`;
 }
 
 export interface VoiceTtsConfig {
@@ -252,6 +296,14 @@ export const Voice = {
    * moves when the server goes down.
    */
   reachable: () => http.get<TtsReachableResponse>("/api/tts/reachable"),
+
+  /**
+   * The speakers a custom endpoint offers. Resolved daemon-side from the
+   * STORED base_url, so a provider still being typed into the form answers
+   * with an empty list and the field stays free text.
+   */
+  voices: (provider: string) =>
+    http.get<TtsVoicesResponse>(`/api/tts/voices?provider=${encodeURIComponent(provider)}`),
 
   /** Detected hardware + the recommended local STT backend (Metal/CUDA/CPU). */
   sttHardware: () => http.get<SttHardwareResponse>("/api/transcribe/hardware"),

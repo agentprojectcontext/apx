@@ -1,16 +1,20 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import useSWR from "swr";
 import { Play, Square, Volume2 } from "lucide-react";
 import { Button, Field, Textarea } from "../ui";
 import { UiSelect } from "../UiSelect";
 import { useToast } from "../Toast";
 import { useTtsPlayer } from "./useTtsPlayer";
-import { Voice, TTS_PROVIDER_META, type TtsEngineInfo, type TtsMode, type TtsSayResult } from "../../lib/api/voice";
+import { Voice, TTS_PROVIDER_META, voiceLabel, type TtsEngineInfo, type TtsMode, type TtsSayResult } from "../../lib/api/voice";
 import { t } from "../../i18n";
 
 // "Say this" tester. Lets you pick which engine to synthesize with (overriding
 // the saved default), then plays the resulting audio in-browser via /tts/say.
-// The base voice / emotions are configured per-engine now, so there's no
-// free-text style field here — pick the engine and hear it.
+//
+// The voice is overridable here too, and only here: picking one in the engine's
+// settings saves it for every channel, which is the wrong move while you are
+// still deciding which voice you want. This one rides along with the single
+// request and changes nothing.
 
 interface Props {
   engines: TtsEngineInfo[];
@@ -25,8 +29,24 @@ export function VoiceTestCard({ engines, defaultProvider, mode }: Props) {
   const [text, setText] = useState(t("voice_ui.test_default_text"));
   // "" = use the saved default; otherwise force a specific engine.
   const [engine, setEngine] = useState("");
+  // "" = whatever the engine has saved. Anything else overrides for this request.
+  const [voice, setVoice] = useState("");
   const [busy, setBusy] = useState(false);
   const [last, setLast] = useState<TtsSayResult | null>(null);
+
+  // Which engine will actually speak, so the voice list belongs to it. In chain
+  // mode with no override there is no answer — the router decides at send time —
+  // and an empty id means no list rather than a list from the wrong engine.
+  const speaking =
+    engine || (mode === "single" && defaultProvider && defaultProvider !== "auto" ? defaultProvider : "");
+  const { data: voiceList } = useSWR(
+    speaking ? ["tts-voices", speaking] : null,
+    () => Voice.voices(speaking)
+  );
+  const serverVoices = voiceList?.voices ?? [];
+
+  // A voice from the previous engine would be meaningless to the next one.
+  useEffect(() => setVoice(""), [speaking]);
 
   const defaultLabel =
     mode === "single" && defaultProvider && defaultProvider !== "auto"
@@ -57,6 +77,7 @@ export function VoiceTestCard({ engines, defaultProvider, mode }: Props) {
       const res = await Voice.say({
         text: txt,
         provider: engine || undefined,
+        voice: voice || undefined,
       });
       setLast(res);
       await play(res.audio_path);
@@ -72,6 +93,18 @@ export function VoiceTestCard({ engines, defaultProvider, mode }: Props) {
       <Field label={t("voice_ui.test_engine_label")} hint={t("voice_ui.test_engine_hint")}>
         <UiSelect value={engine} onChange={setEngine} options={options} />
       </Field>
+      {serverVoices.length > 0 && (
+        <Field label={t("voice_ui.test_voice_label")} hint={t("voice_ui.test_voice_hint")}>
+          <UiSelect
+            value={voice}
+            onChange={setVoice}
+            options={[
+              { value: "", label: t("voice_ui.test_voice_default") },
+              ...serverVoices.map((v) => ({ value: v, label: voiceLabel(v, voiceList) })),
+            ]}
+          />
+        </Field>
+      )}
       <Field label={t("voice_ui.test_text_label")}>
         <Textarea
           rows={2}
@@ -97,6 +130,7 @@ export function VoiceTestCard({ engines, defaultProvider, mode }: Props) {
         {last && (
           <span className="text-xs text-muted-fg">
             {t("voice_ui.engine_result")}: <strong>{last.provider}</strong>
+            {voice ? ` · ${voice}` : ""}
             {last.duration_s ? ` · ${last.duration_s.toFixed(1)}s` : ""}
           </span>
         )}

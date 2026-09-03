@@ -6,6 +6,11 @@
 //   GET  /tts/providers  → { configured_provider, mode, order,
 //                            engines: [{id, available, configured, enabled}] }
 //
+//   GET  /tts/voices?provider=<id>
+//                        → { voices: [name] } — the speakers a self-hosted
+//                          endpoint actually has, so the settings form can
+//                          offer them instead of asking for a typed guess.
+//
 // Audio files land under ~/.apx/tmp/tts/<uuid>.<ext>. The caller (CLI,
 // Telegram plugin, overlay) is responsible for picking them up.
 import { synthesize, listProviders } from "#core/voice/tts.js";
@@ -79,6 +84,45 @@ export function register(api) {
       });
     } catch (e) {
       res.status(500).json({ error: e.message });
+    }
+  }));
+
+  // GET /tts/voices — the speakers a custom endpoint offers right now.
+  //
+  // The base_url comes from the stored config and never from the query: this
+  // route makes the daemon fetch a URL on request, and the set of URLs it will
+  // fetch has to stay the set the user already configured. A provider that is
+  // still being typed into the form therefore has no list — the field falls
+  // back to free text, which is what it was before.
+  api.get("/tts/voices", asyncRoute(async (req, res) => {
+    try {
+      const { providerConfig } = await import("#core/voice/engines/index.js");
+      const cfg = providerConfig(readConfig(), String(req.query.provider || ""));
+      const base = cfg?.base_url;
+      if (!base) return res.json({ voices: [], configured: false });
+
+      const url = String(base).replace(/\/+$/, "") + "/voices";
+      const r = await fetch(url, { signal: AbortSignal.timeout(4000) });
+      if (!r.ok) return res.json({ voices: [], reachable: false });
+      const json = await r.json();
+      const voices = Array.isArray(json?.voices)
+        ? json.voices.filter((v) => typeof v === "string")
+        : [];
+      // `details` and `language` are optional: an endpoint that says which
+      // language each voice was recorded in gets labelled with it, and one that
+      // doesn't (QVox) still answers with a plain list.
+      res.json({
+        voices,
+        ...(json?.details && typeof json.details === "object" ? { details: json.details } : {}),
+        ...(typeof json?.language === "string" ? { language: json.language } : {}),
+        ...(typeof json?.lang === "string" ? { lang: json.lang } : {}),
+        configured: true,
+        reachable: true,
+      });
+    } catch {
+      // A server that is down or speaks a different dialect is not an error
+      // here: it means "no list", and the form degrades to free text.
+      res.json({ voices: [], reachable: false });
     }
   }));
 

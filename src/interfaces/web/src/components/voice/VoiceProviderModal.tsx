@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import useSWR from "swr";
 import { Button, Dialog, Field, Input, Switch, Textarea } from "../ui";
 import { UiSelect } from "../UiSelect";
 import { isSecretMarker, secretSuffix } from "../../lib/secrets";
@@ -8,7 +9,10 @@ import {
   GEMINI_TTS_VOICES,
   OPENAI_TTS_MODELS,
   OPENAI_TTS_VOICES,
+  QVOX_LANGUAGES,
   TTS_PROVIDER_META,
+  Voice,
+  voiceLabel,
   type CustomTtsConfig,
   type ElevenLabsConfig,
   type EmotionsConfig,
@@ -72,6 +76,15 @@ function EmotionsField({ on, setOn, tags, setTags }: {
 }
 
 export function VoiceProviderModal({ open, providerId, config, onClose, onSave }: Props) {
+  // The speakers this endpoint actually has. Resolved daemon-side from the
+  // SAVED base_url, so a provider still being created has no list — the field
+  // degrades to free text rather than to a wrong list.
+  const saved = open && providerId?.startsWith("custom:") ? providerId : null;
+  const { data: voiceList } = useSWR(saved ? ["tts-voices", saved] : null, () =>
+    Voice.voices(saved as string)
+  );
+  const serverVoices = voiceList?.voices ?? [];
+
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -100,7 +113,10 @@ export function VoiceProviderModal({ open, providerId, config, onClose, onSave }
         label: str(p.label),
         base_url: str(p.base_url),
         model: str(p.model),
+        language: str(p.language),
         voice: str(p.voice),
+        clone: str(p.clone),
+        ref_text: str(p.ref_text),
         format: str(p.format),
         style: str(p.style),
         temperature: str(p.temperature),
@@ -155,21 +171,29 @@ export function VoiceProviderModal({ open, providerId, config, onClose, onSave }
 
       const set: Record<string, unknown> = {};
       const unset: string[] = [];
-      const opt = (key: string, val: string) => {
-        if (val.trim()) set[`${base}.${key}`] = val.trim();
+      // Tolerates a field this provider's form never rendered: absent and
+      // blank both mean "clear it", never a crash on the way to saving.
+      const opt = (key: string, val: string | undefined) => {
+        if (val?.trim()) set[`${base}.${key}`] = val.trim();
         else unset.push(`${base}.${key}`);
       };
 
       if (isCustom) {
         set[`${base}.label`] = f.label.trim();
         set[`${base}.base_url`] = f.base_url.trim();
+        opt("language", f.language);
+        // The three ways to pick a timbre. They are not additive — the server
+        // reads clone, then voice, then style — so all three are stored and the
+        // form says which one is winning rather than hiding the other two.
+        opt("voice", f.voice);
+        opt("clone", f.clone);
+        opt("ref_text", f.ref_text);
         opt("style", f.style);
         if (f.temperature.trim() && !Number.isNaN(Number(f.temperature)))
           set[`${base}.temperature`] = Number(f.temperature);
         else unset.push(`${base}.temperature`);
-        // Advanced (optional): model/voice for non-QVox OpenAI-compatible servers.
+        // Advanced (optional): the model id, for servers that host several.
         opt("model", f.model);
-        opt("voice", f.voice);
       } else if (providerId === "piper") {
         opt("bin", f.bin);
         opt("model", f.model);
@@ -285,9 +309,46 @@ export function VoiceProviderModal({ open, providerId, config, onClose, onSave }
             <Field label={t("voice_ui.api_key_label")} hint={existingKey ? t("voice_ui.api_key_keep_hint") : t("voice_ui.api_key_optional_hint")}>
               <Input type="password" autoComplete="new-password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder={keyPlaceholder} />
             </Field>
-            <Field label={t("voice_ui.style_label")} hint={t("voice_ui.openai_style_hint")}>
+            <Field label={t("voice_ui.language_label")} hint={t("voice_ui.language_hint")}>
+              <UiSelect
+                value={f.language || ""}
+                onChange={(v) => up({ language: v })}
+                options={[
+                  { value: "", label: t("voice_ui.language_server_default") },
+                  ...QVOX_LANGUAGES.map((l) => ({ value: l, label: l })),
+                ]}
+              />
+            </Field>
+
+            {/* The timbre. Three mutually exclusive ways to set it, in the
+                order the server resolves them, with the winner named out loud:
+                a preset speaker keeps its own accent, so choosing one is also
+                choosing to ignore the accent described in the style. */}
+            <Field label={t("voice_ui.voice_label")} hint={t("voice_ui.qvox_voice_hint")}>
+              {serverVoices.length > 0 ? (
+                <UiSelect
+                  value={f.voice || ""}
+                  onChange={(v) => up({ voice: v })}
+                  options={[
+                    { value: "", label: t("voice_ui.voice_none") },
+                    ...serverVoices.map((v) => ({ value: v, label: voiceLabel(v, voiceList) })),
+                  ]}
+                />
+              ) : (
+                <Input value={f.voice || ""} onChange={(e) => up({ voice: e.target.value })} placeholder={t("voice_ui.custom_optional_ph")} />
+              )}
+            </Field>
+            <Field label={t("voice_ui.style_label")} hint={(f.voice || "").trim() ? t("voice_ui.style_overridden_hint") : t("voice_ui.qvox_style_hint")}>
               <Textarea rows={2} value={f.style || ""} onChange={(e) => up({ style: e.target.value })} placeholder={t("voice_ui.style_ph")} />
             </Field>
+            <Field label={t("voice_ui.clone_label")} hint={t("voice_ui.clone_hint")}>
+              <Input value={f.clone || ""} onChange={(e) => up({ clone: e.target.value })} placeholder="/Users/me/.qvox/voices/mi-voz.wav" />
+            </Field>
+            {(f.clone || "").trim() && (
+              <Field label={t("voice_ui.ref_text_label")} hint={t("voice_ui.ref_text_hint")}>
+                <Textarea rows={2} value={f.ref_text || ""} onChange={(e) => up({ ref_text: e.target.value })} />
+              </Field>
+            )}
             <Field label={t("voice_ui.temperature_label")} hint={t("voice_ui.temperature_hint")}>
               <Input value={f.temperature} onChange={(e) => up({ temperature: e.target.value })} inputMode="decimal" placeholder="0.7" />
             </Field>
@@ -304,9 +365,6 @@ export function VoiceProviderModal({ open, providerId, config, onClose, onSave }
                 <div className="mt-2 space-y-3">
                   <Field label={t("voice_ui.model_label")} hint={t("voice_ui.custom_model_hint")}>
                     <Input value={f.model} onChange={(e) => up({ model: e.target.value })} placeholder={t("voice_ui.custom_optional_ph")} />
-                  </Field>
-                  <Field label={t("voice_ui.voice_label")} hint={t("voice_ui.custom_voice_hint")}>
-                    <Input value={f.voice} onChange={(e) => up({ voice: e.target.value })} placeholder={t("voice_ui.custom_optional_ph")} />
                   </Field>
                 </div>
               )}
