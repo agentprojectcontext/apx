@@ -232,6 +232,37 @@ test.describe("task workspace", () => {
     await expect(page.getByTestId(`board-col-${id}`)).toHaveCount(0);
   });
 
+  test("an errand can be created with its place — the form's whole point for mobility", async ({ page }) => {
+    const { projectId } = runtime();
+    const title = `e2e errand ${Date.now()}`;
+    await page.goto(`/p/${projectId}/tasks?view=list`);
+
+    // `trip` is the category the mobility geofence watches. It could not be
+    // created from the panel at ALL — only from the CLI — so the errand
+    // reminders had nothing to remind about.
+    await page.getByTestId("task-new").click();
+    await typeInto(page.getByTestId("task-input"), title);
+    await page.getByTestId("task-category-select").click();
+    await page.getByRole("option", { name: /Errand|Mandado/ }).click();
+
+    await typeInto(page.getByTestId("task-place"), "Farmacia del Puente");
+    await typeInto(page.getByTestId("task-address"), "Av. San Martín 1234, Bariloche");
+    await typeInto(page.getByTestId("task-coords"), "-41.1335, -71.3103");
+    await page.getByTestId("task-add").click();
+
+    // The place survives the round trip and shows on the detail, where the
+    // pinned version links out to Maps.
+    await page.getByTestId("task-list").locator("li", { hasText: title }).click();
+    const detail = page.getByTestId("task-detail");
+    await expect(detail).toContainText("Farmacia del Puente");
+    await expect(detail).toContainText("Av. San Martín 1234");
+
+    // Re-opening the editor shows what was saved rather than an empty form.
+    await page.getByTestId("task-detail-edit").click();
+    await expect(page.getByTestId("task-place")).toHaveValue("Farmacia del Puente");
+    await expect(page.getByTestId("task-coords")).toHaveValue("-41.1335, -71.3103");
+  });
+
   test("the view and the filter you left on are the ones you come back to", async ({ page }) => {
     const { projectId } = runtime();
     await page.goto(`/p/${projectId}/tasks`);

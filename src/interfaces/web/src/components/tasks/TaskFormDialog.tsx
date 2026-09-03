@@ -9,7 +9,8 @@ import { useToast } from "../Toast";
 import { useTaskColumns } from "./useTaskColumns";
 import { columnLabel } from "./columns";
 import { t } from "../../i18n";
-import type { TaskEntry } from "../../types/daemon";
+import type { TaskCategory, TaskEntry, TaskLocation } from "../../types/daemon";
+import { TASK_CATEGORY_ORDER, categoryIsLocatable, categoryLabel } from "./taskStatus";
 
 /**
  * The one form for a task — creating and editing.
@@ -19,6 +20,22 @@ import type { TaskEntry } from "../../types/daemon";
  * it was permanent unless you went back to the CLI. Same dialog for both jobs
  * so what you can set is exactly what you can later fix.
  */
+/**
+ * "-41.13, -71.31" → a pair, or null.
+ *
+ * One field rather than two: coordinates are copied out of Maps as a pair and
+ * pasted as a pair, and splitting them into two inputs makes the commonest
+ * gesture — paste — into two edits and a chance to swap them.
+ */
+function parseCoords(value: string): { latitude: number; longitude: number } | null {
+  const [a, b] = value.split(/[,\s]+/).filter(Boolean);
+  const latitude = Number(a);
+  const longitude = Number(b);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return null;
+  return { latitude, longitude };
+}
+
 /** Fold a draft into the list: trimmed, no duplicates, no empties. */
 function commitTag(list: string[], draft: string): string[] {
   const tag = draft.trim().replace(/^#/, "");
@@ -53,6 +70,14 @@ export function TaskFormDialog({
   const [status, setStatus] = useState<string>("pending");
   const [tags, setTags] = useState<string[]>([]);
   const [tagDraft, setTagDraft] = useState("");
+  // What KIND of task, and where. A `trip` is what the mobility geofence
+  // considers — without these fields there was no way to create one from the
+  // panel at all, so the errand reminders had nothing to remind about.
+  const [category, setCategory] = useState<TaskCategory>("general");
+  const [place, setPlace] = useState("");
+  const [address, setAddress] = useState("");
+  const [coords, setCoords] = useState("");
+  const [radius, setRadius] = useState("");
   // What can be set has to be what exists — the project's own columns, not the
   // four the panel used to hardcode.
   const { statuses } = useTaskColumns(editing?.pid ?? fixedPid);
@@ -60,6 +85,10 @@ export function TaskFormDialog({
   const [busy, setBusy] = useState(false);
 
   const pid = editing?.pid ?? fixedPid ?? target;
+  const locatable = categoryIsLocatable(category);
+  // Typed something that is not a coordinate pair: say so instead of dropping it
+  // silently on save.
+  const coordsInvalid = coords.trim().length > 0 && !parseCoords(coords);
 
   // Reset every time the dialog opens so a cancelled edit never leaks into the
   // next one.
@@ -74,6 +103,15 @@ export function TaskFormDialog({
     setStatus(task?.status ?? "pending");
     setTags(task?.tags ?? []);
     setTagDraft("");
+    setCategory(task?.category ?? "general");
+    setPlace(task?.location?.place ?? "");
+    setAddress(task?.location?.address ?? "");
+    setCoords(
+      task?.location?.latitude != null && task?.location?.longitude != null
+        ? `${task.location.latitude}, ${task.location.longitude}`
+        : "",
+    );
+    setRadius(task?.location?.radius_m != null ? String(task.location.radius_m) : "");
     setTarget(fixedPid ?? String(projects?.[0]?.id ?? ""));
   }, [open, editing, fixedPid, projects]);
 
@@ -92,6 +130,18 @@ export function TaskFormDialog({
        // without pressing Enter first used to drop it silently, which is most
        // of why tags never got filled in.
       const allTags = commitTag(tags, tagDraft);
+      // A half-filled place is worse than none — the store drops it either way
+      // (normalizeTaskLocation), so send the pieces and let it decide.
+      const pin = parseCoords(coords);
+      const radiusM = Number(radius);
+      const location: TaskLocation | null = locatable
+        ? {
+            ...(place.trim() ? { place: place.trim() } : {}),
+            ...(address.trim() ? { address: address.trim() } : {}),
+            ...(pin ?? {}),
+            ...(Number.isFinite(radiusM) && radiusM > 0 ? { radius_m: radiusM } : {}),
+          }
+        : null;
       const fields = {
         title: title.trim(),
         description: description.trim() || null,
@@ -99,6 +149,10 @@ export function TaskFormDialog({
         due: due || null,
         agent: agent || null,
         tags: allTags,
+        category,
+        // Switching a trip back to a plain task clears its place rather than
+        // leaving a pin on something that is no longer an errand.
+        location: location && Object.keys(location).length ? location : null,
       };
       if (editing) {
         await Tasks.patch(pid, editing.task.id, fields);
@@ -187,6 +241,60 @@ export function TaskFormDialog({
               options={(projects ?? []).map((p) => ({ value: String(p.id), label: p.name || p.path || String(p.id) }))}
             />
           </Field>
+        )}
+
+        {/* WHAT KIND of task. `trip` is the one the mobility geofence watches,
+            and it could not be created from the panel — only from the CLI —
+            which is why the errand reminders had nothing to remind about. */}
+        <Field label={t("tasks.field_category")}>
+          <UiSelect
+            data-testid="task-category-select"
+            value={category}
+            onChange={(v) => setCategory(v as TaskCategory)}
+            options={TASK_CATEGORY_ORDER.map((c) => ({ value: c, label: categoryLabel(c) }))}
+          />
+        </Field>
+
+        {locatable && (
+          <div className="space-y-3 rounded-lg border border-border bg-muted/20 p-3">
+            <p className="text-[10px] text-muted-fg">{t("tasks.location_hint")}</p>
+            <Field label={t("tasks.location_place")}>
+              <Input
+                data-testid="task-place"
+                value={place}
+                placeholder={t("tasks.location_place_ph")}
+                onChange={(e) => setPlace(e.target.value)}
+              />
+            </Field>
+            <Field label={t("tasks.location_address")}>
+              <Input
+                data-testid="task-address"
+                value={address}
+                placeholder={t("tasks.location_address_ph")}
+                onChange={(e) => setAddress(e.target.value)}
+              />
+            </Field>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label={t("tasks.location_at")} hint={coordsInvalid ? t("tasks.location_at_invalid") : undefined}>
+                <Input
+                  data-testid="task-coords"
+                  value={coords}
+                  placeholder="-41.1335, -71.3103"
+                  aria-invalid={coordsInvalid || undefined}
+                  onChange={(e) => setCoords(e.target.value)}
+                />
+              </Field>
+              <Field label={t("tasks.location_radius")}>
+                <Input
+                  type="number"
+                  data-testid="task-radius"
+                  value={radius}
+                  placeholder={t("tasks.location_radius_ph")}
+                  onChange={(e) => setRadius(e.target.value)}
+                />
+              </Field>
+            </div>
+          </div>
         )}
 
         {/* Tags were settable from the CLI and the API but NOT here, so the
