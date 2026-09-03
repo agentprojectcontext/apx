@@ -28,7 +28,14 @@ import androidx.core.app.NotificationCompat;
  * one of the two answers.
  */
 final class ProximityNotification {
-    static final String CHANNEL = "apx_proximity";
+    /**
+     * v2 because a channel is IMMUTABLE once created: createNotificationChannel
+     * on an existing id updates the name and description and silently ignores
+     * importance, sound and vibration. The v1 channel shipped soundless and
+     * therefore non-alerting, so fixing it in place would have changed nothing
+     * on any phone that had already run the app.
+     */
+    static final String CHANNEL = "apx_proximity_v2";
     static final String ACTION_ANSWER = "dev.agentprojectcontext.apx.PROXIMITY_ANSWER";
     static final String EXTRA_ALERT_ID = "alert_id";
     static final String EXTRA_ACTION_ID = "action_id";
@@ -56,8 +63,15 @@ final class ProximityNotification {
             .setCategory(NotificationCompat.CATEGORY_NAVIGATION)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setOnlyAlertOnce(true)
+            // NOT onlyAlertOnce: each alert is its own place and its own
+            // decision, and the flag is what let the second one of a drive
+            // arrive without announcing itself.
             .setAutoCancel(true)
+            // Its own bundle, so One UI does not fold it into the app's
+            // aggregated section where the actions are a tap away instead of
+            // on screen.
+            .setGroup("apx_proximity")
+            .setDefaults(NotificationCompat.DEFAULT_VIBRATE)
             .setContentIntent(openApp(context, id));
 
         // The daemon decides the four and their order — it owns the wording and
@@ -121,10 +135,20 @@ final class ProximityNotification {
             NotificationManager.IMPORTANCE_HIGH
         );
         channel.setDescription("Avisos de lugares cerca tuyo durante un viaje.");
-        // Silent: MascotOverlayService already plays the one APX sound for the
-        // event, and a channel with its own tone would ring the same alert
-        // twice — once as the app's sound, once as Android's.
+        // Silent, because MascotOverlayService already plays the one APX sound
+        // for the event and a channel tone would ring the same alert twice.
         channel.setSound(null, null);
+        // BUT VIBRATING, and that pairing is the whole point. A channel with no
+        // sound AND no vibration is treated as non-alerting by One UI and
+        // MagicOS: the card was posted with its four actions, landed folded
+        // into the aggregated section, and never peeked — so the driver saw a
+        // line of text and no buttons, which is exactly the bug this is. The
+        // vibration keeps it a heads-up without a second sound.
+        channel.enableVibration(true);
+        channel.setVibrationPattern(new long[] { 0, 250 });
+        // A proximity alert is time-boxed by the car moving; it has to be
+        // readable on the lock screen while driving.
+        channel.setLockscreenVisibility(android.app.Notification.VISIBILITY_PUBLIC);
         manager.createNotificationChannel(channel);
     }
 }
