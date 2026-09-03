@@ -26,7 +26,11 @@ const NEEDS = [
     // bakery on the corner and both supermarkets all satisfy it, which is why
     // it deliberately overlaps the supermarket need above. The trip plan keeps
     // every candidate and settles on one — see core/mobility/geofence.js.
-    match: /\bpan\b|panader[ií]a|factura[s]?\b|medialunas?/i,
+    // "pan lactal" is the exception: it is a packaged supermarket product and
+    // a bakery does not carry it, so a bare /\bpan\b/ sent the owner to
+    // panaderías for an errand only a súper can satisfy. Everything else about
+    // bread still overlaps the supermarket need on purpose.
+    match: /\bpan\b(?! *lactal)|panader[ií]a|factura[s]?\b|medialunas?/i,
     selectors: ['["shop"~"bakery|pastry"]'],
   },
   {
