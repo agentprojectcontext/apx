@@ -52,6 +52,7 @@ export const TOOLS = Object.freeze({
   LIST_TASKS:          "list_tasks",
   CREATE_TASK:         "create_task",
   COMPLETE_TASK:       "complete_task",
+  COMMENT_TASK:        "comment_task",
   RECORD_COMMITMENT:   "record_commitment",
   MARK_COMMITMENT:     "mark_commitment",
   REMEMBER_ROUTINE:    "remember_routine",
@@ -133,6 +134,7 @@ export const NATIVE_TOOL_NAMES = new Set([
   TOOLS.REMOVE_AGENT,
   TOOLS.ADD_MCP,
   TOOLS.COMPLETE_TASK,
+  TOOLS.COMMENT_TASK,
   TOOLS.MARK_COMMITMENT,
   TOOLS.ADD_PROJECT,
   TOOLS.LIST_MCPS,
@@ -284,6 +286,7 @@ export const SIDE_EFFECT_TOOLS = new Set([
   TOOLS.REMOVE_AGENT,
   TOOLS.ADD_MCP,
   TOOLS.COMPLETE_TASK,
+  TOOLS.COMMENT_TASK,
   TOOLS.MARK_COMMITMENT,
   TOOLS.SET_IDENTITY,
 ]);

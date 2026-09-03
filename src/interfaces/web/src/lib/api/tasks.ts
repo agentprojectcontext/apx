@@ -1,5 +1,12 @@
 import { http, unwrapPage } from "../http";
 import type { TaskEntry, TaskStatus } from "../../types/daemon";
+import type { BoardColumn } from "../../components/tasks/columns";
+
+/** What a project shows, plus the global vocabulary it may pick from. */
+export interface ProjectColumns {
+  columns: BoardColumn[];
+  catalog: BoardColumn[];
+}
 
 export interface GlobalTaskEntry extends TaskEntry {
   project_id: number;
@@ -36,6 +43,20 @@ export const Tasks = {
       )
       .then((b) => unwrapPage<GlobalTaskEntry>(b)),
   get:    (pid: string, id: string) => http.get<TaskEntry>(`/api/projects/${pid}/tasks/${id}`),
+  /** Children of one task. `parent: ""` asks for top-level tasks only. */
+  subtasks: (pid: string, parent: string) =>
+    http
+      .get<unknown>(`/api/projects/${pid}/tasks?state=all&parent=${encodeURIComponent(parent)}`)
+      .then((b) => unwrapPage<TaskEntry>(b).items),
+  /**
+   * Add a comment. `summoned` names the agents an @mention pulled in — their
+   * replies land in the thread AFTER this resolves, so the caller re-fetches
+   * rather than waiting (a real QA run takes as long as the QA takes).
+   */
+  comment: (pid: string, id: string, text: string) =>
+    http.post<{ task: TaskEntry; summoned: string[] }>(
+      `/api/projects/${pid}/tasks/${id}/comments`, { text },
+    ),
   add:    (pid: string, body: Partial<TaskEntry>) =>
     http.post<TaskEntry>(`/api/projects/${pid}/tasks`, body),
   patch:  (pid: string, id: string, patch: Partial<TaskEntry>) =>
@@ -46,4 +67,18 @@ export const Tasks = {
   drop:   (pid: string, id: string) => http.post<TaskEntry>(`/api/projects/${pid}/tasks/${id}/drop`),
   reopen: (pid: string, id: string) => http.post<TaskEntry>(`/api/projects/${pid}/tasks/${id}/reopen`),
   summary: (pid: string) => http.get<TaskSummary>(`/api/projects/${pid}/tasks-summary`),
+
+  /**
+   * Board columns. The catalog is GLOBAL — renaming "in review" renames it for
+   * every project, which is what keeps a column name meaning one thing. What a
+   * project shows is a subset of it.
+   */
+  columns: {
+    catalog:     () => http.get<{ columns: BoardColumn[] }>(`/api/tasks/columns`),
+    saveCatalog: (columns: BoardColumn[]) =>
+      http.put<{ columns: BoardColumn[] }>(`/api/tasks/columns`, { columns }),
+    forProject:  (pid: string) => http.get<ProjectColumns>(`/api/projects/${pid}/tasks/columns`),
+    saveForProject: (pid: string, ids: string[]) =>
+      http.put<ProjectColumns>(`/api/projects/${pid}/tasks/columns`, { columns: ids }),
+  },
 };

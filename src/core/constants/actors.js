@@ -6,3 +6,8 @@
 // was named). Identity (display name + personality) lives in identity.json and
 // is resolved at runtime via resolveAgentName().
 export const SUPERAGENT_ACTOR_ID = "super_agent";
+
+// The human. Not an agent and never summonable: the owner speaks by typing, so
+// naming them in a mention resolves to nothing. Used as the author of anything
+// a person wrote — a task comment, a group line — where an agent slug would go.
+export const OWNER_ACTOR_ID = "owner";

@@ -6,8 +6,9 @@
 // Each line is a `{ id, ts, op, ... }` event. The current state of a task is
 // the result of folding every event with that id in chronological order:
 //
-//   create — sets initial fields (title, description, body, tags, due, agent,
-//            source, meta)
+//   create  — sets initial fields (title, description, body, tags, due, agent,
+//             source, meta, parent)
+//   comment — appends one comment to the task's thread (by, text)
 //   update — shallow-merge patch (`patch` field)
 //   done   — closes the task (`by` field optional)
 //   drop   — archives without "completed" semantics (`by` field optional)
@@ -27,8 +28,23 @@ import { normalizeTaskCategory, normalizeTaskLocation } from "#core/constants/ta
 export const TASK_STATUSES = Object.freeze(["pending", "running", "in_review", "blocked"]);
 export const DEFAULT_TASK_STATUS = "pending";
 
-function normalizeStatus(v) {
-  return TASK_STATUSES.includes(v) ? v : DEFAULT_TASK_STATUS;
+/**
+ * Write-side validation. `allowed` is the caller's vocabulary — the four above
+ * by default, or whatever columns the install has configured (core/tasks/
+ * columns.js). The store stays config-free: whoever knows the catalog passes it.
+ */
+function normalizeStatus(v, allowed = TASK_STATUSES) {
+  const list = Array.isArray(allowed) && allowed.length ? allowed : TASK_STATUSES;
+  return list.includes(v) ? v : DEFAULT_TASK_STATUS;
+}
+
+/**
+ * Read-side. Deliberately NOT re-validated against today's vocabulary: the value
+ * was checked when it was written, and a column removed from the catalog later
+ * must not silently rewrite the history of every task that sat in it. Shape only.
+ */
+function readStatus(v) {
+  return typeof v === "string" && /^[a-z0-9][a-z0-9_-]{0,31}$/.test(v) ? v : DEFAULT_TASK_STATUS;
 }
 
 function tasksDir(storagePath) {
@@ -48,12 +64,38 @@ function appendEvent(storagePath, event) {
   const file = monthlyFile(storagePath);
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.appendFileSync(file, JSON.stringify(event) + "\n");
+  _events.delete(storagePath);
+}
+
+// Parsed events, keyed by storage path and validated against the directory's
+// shape (names + sizes + mtimes). Only the READ and the JSON.parse are cached;
+// the fold is redone every call, so nobody can poison the cache by mutating a
+// task object we handed out.
+//
+// It earns its place now that comments live on this log: a task detail is one
+// getTask, a thread of twenty comments is twenty more events, and both the
+// panel and the phone poll. Before this, every list, get, patch and comment
+// re-read and re-parsed every monthly file on disk — four times per write.
+const _events = new Map();
+
+function dirSignature(dir, files) {
+  let sig = "";
+  for (const f of files) {
+    const st = fs.statSync(path.join(dir, f));
+    sig += `${f}:${st.size}:${st.mtimeMs};`;
+  }
+  return sig;
 }
 
 function readAllEvents(storagePath) {
   const dir = tasksDir(storagePath);
   if (!fs.existsSync(dir)) return [];
   const files = fs.readdirSync(dir).filter((f) => f.endsWith(".jsonl")).sort();
+
+  const sig = dirSignature(dir, files);
+  const hit = _events.get(storagePath);
+  if (hit && hit.sig === sig) return hit.events;
+
   const events = [];
   for (const f of files) {
     const text = fs.readFileSync(path.join(dir, f), "utf8");
@@ -69,7 +111,13 @@ function readAllEvents(storagePath) {
     }
   }
   events.sort((a, b) => (a.ts || "").localeCompare(b.ts || ""));
+  _events.set(storagePath, { sig, events });
   return events;
+}
+
+/** Drop every cached parse. For tests, and for anything that edits logs by hand. */
+export function resetTasksCache() {
+  _events.clear();
 }
 
 function projectState(events) {
@@ -84,8 +132,13 @@ function projectState(events) {
           created_at: ev.ts,
           updated_at: ev.ts,
           state: "open",
-          status: normalizeStatus(ev.status),
+          status: readStatus(ev.status),
           title: ev.title || "",
+          parent: ev.parent || null,
+          // Every comment on this task, oldest first. Lives on the same event
+          // log as the task itself so a comment is never orphaned from what it
+          // is about, and so an agent's reply is as durable as the task row.
+          comments: [],
           // What the OWNER has to do, in their words. `body` next to it is the
           // agent's prompt. They were one field for a while and it made the
           // task unreadable as a to-do: the panel labelled it "Prompt" and
@@ -114,7 +167,7 @@ function projectState(events) {
         const patch = ev.patch && typeof ev.patch === "object" ? ev.patch : {};
         for (const k of Object.keys(patch)) {
           if (k === "id" || k === "state" || k === "created_at") continue;
-          if (k === "status") existing[k] = normalizeStatus(patch[k]);
+          if (k === "status") existing[k] = readStatus(patch[k]);
           else if (k === "category") existing[k] = normalizeTaskCategory(patch[k]);
           // A patch that clears the location must be able to say so, so null
           // survives here where an unknown key would just be copied.
@@ -147,6 +200,25 @@ function projectState(events) {
         existing.updated_at = ev.ts;
         break;
       }
+      case "comment": {
+        if (!existing) break;
+        existing.comments.push({
+          id: ev.comment_id || ev.ts,
+          ts: ev.ts,
+          // Who said it: an actor id ("owner") or an agent slug. Free-form on
+          // purpose — the surfaces label it, the store just records it.
+          by: ev.by || null,
+          text: typeof ev.text === "string" ? ev.text : "",
+          // Agent slugs this comment addressed. Resolved at WRITE time by the
+          // caller, because the roster it resolves against can change later and
+          // a thread should keep saying who was actually pulled in that day.
+          mentions: Array.isArray(ev.mentions) ? [...ev.mentions] : [],
+        });
+        // A comment IS activity on the task — it moves updated_at, which is what
+        // `--updated-since` and every "what moved?" view read.
+        existing.updated_at = ev.ts;
+        break;
+      }
       default:
         // unknown op — record nothing, but don't throw
         break;
@@ -164,7 +236,7 @@ function projectState(events) {
  * fields: { title (required), description?, body?, tags?, due?, agent?,
  *           source?, meta?, category?, location? }
  */
-export function createTask(storagePath, fields) {
+export function createTask(storagePath, fields, { statuses } = {}) {
   if (!fields || typeof fields !== "object") throw new Error("createTask: fields required");
   if (!fields.title || typeof fields.title !== "string") throw new Error("createTask: title required");
   const id = shortId();
@@ -173,9 +245,13 @@ export function createTask(storagePath, fields) {
     ts: nowIso(),
     op: "create",
     title: fields.title.trim(),
+    // A subtask is just a task with a parent. No second store, no second set of
+    // verbs: everything that lists, filters, closes or comments on a task works
+    // on a subtask unchanged, which is the whole reason it is one field.
+    parent: fields.parent || null,
     description: fields.description || null,
     body: fields.body || null,
-    status: normalizeStatus(fields.status),
+    status: normalizeStatus(fields.status, statuses),
     tags: Array.isArray(fields.tags) ? fields.tags.filter((t) => typeof t === "string") : [],
     due: fields.due || null,
     agent: fields.agent || null,
@@ -204,10 +280,45 @@ function byNewest(a, b) {
   return t !== 0 ? t : String(b.id || "").localeCompare(String(a.id || ""));
 }
 
+/**
+ * How many children each task has, and how many are closed. Computed once over
+ * the whole fold rather than per row, because "2/5" on a parent is the only
+ * thing that makes an epic readable at a glance.
+ */
+function childIndex(tasks) {
+  const idx = new Map();
+  for (const t of tasks) {
+    if (!t.parent) continue;
+    const e = idx.get(t.parent) || { total: 0, done: 0 };
+    e.total += 1;
+    if (t.state === "done") e.done += 1;
+    idx.set(t.parent, e);
+  }
+  return idx;
+}
+
+/**
+ * A list row. Comments are DROPPED here and only counted: a page of 20 tasks
+ * with their full threads is a payload nobody on that screen reads, and the
+ * phone pays for it twice.
+ */
+function row(task, idx) {
+  const kids = idx.get(task.id);
+  const { comments, ...rest } = task;
+  return {
+    ...rest,
+    comment_count: comments.length,
+    subtask_count: kids?.total || 0,
+    subtask_done: kids?.done || 0,
+  };
+}
+
 /** List tasks with optional filters. */
 export function listTasks(storagePath, opts = {}) {
   const events = readAllEvents(storagePath);
-  const tasks = [...projectState(events).values()];
+  const all = [...projectState(events).values()];
+  const idx = childIndex(all);
+  const tasks = all.map((t) => row(t, idx));
 
   let out = tasks;
   if (opts.state && opts.state !== "all") {
@@ -220,6 +331,12 @@ export function listTasks(storagePath, opts = {}) {
   }
   if (opts.agent) {
     out = out.filter((t) => t.agent === opts.agent);
+  }
+  // Children of one task ("" / null asks for TOP-LEVEL tasks only, which is
+  // what a list wants so an epic's children do not also sit at the root).
+  if (opts.parent !== undefined) {
+    const want = opts.parent || null;
+    out = out.filter((t) => (t.parent || null) === want);
   }
   if (opts.due_before) {
     out = out.filter((t) => t.due && t.due <= opts.due_before);
@@ -294,10 +411,15 @@ export function getTask(storagePath, idOrPrefix) {
   if (!idOrPrefix || typeof idOrPrefix !== "string") return null;
   const events = readAllEvents(storagePath);
   const tasks = projectState(events);
-  if (tasks.has(idOrPrefix)) return tasks.get(idOrPrefix);
+  const idx = childIndex([...tasks.values()]);
+
+  // The detail keeps its thread — it is the one screen that reads it.
+  const full = (t) => ({ ...row(t, idx), comments: t.comments.map((c) => ({ ...c })) });
+
+  if (tasks.has(idOrPrefix)) return full(tasks.get(idOrPrefix));
   if (idOrPrefix.length < 3) return null;
   const matches = [...tasks.values()].filter((t) => t.id.startsWith(idOrPrefix));
-  if (matches.length === 1) return matches[0];
+  if (matches.length === 1) return full(matches[0]);
   return null;
 }
 
@@ -315,15 +437,18 @@ export function patchTask(storagePath, idOrPrefix, patch) {
   return getTask(storagePath, existing.id);
 }
 
-/** Set the workflow status (pending/running/in_review/blocked) of an open task. */
-export function setTaskStatus(storagePath, idOrPrefix, status) {
+/**
+ * Move an open task to a column. `statuses` is the vocabulary to validate
+ * against — omit it and the four built-ins apply.
+ */
+export function setTaskStatus(storagePath, idOrPrefix, status, { statuses } = {}) {
   const existing = getTask(storagePath, idOrPrefix);
   if (!existing) return null;
   appendEvent(storagePath, {
     id: existing.id,
     ts: nowIso(),
     op: "update",
-    patch: { status: normalizeStatus(status) },
+    patch: { status: normalizeStatus(status, statuses) },
   });
   return getTask(storagePath, existing.id);
 }
@@ -354,6 +479,31 @@ export function dropTask(storagePath, idOrPrefix, by = null) {
   return getTask(storagePath, existing.id);
 }
 
+/**
+ * Append a comment to a task's thread. Returns the projected task, or null if
+ * the task does not exist.
+ *
+ * `mentions` are agent slugs the caller already resolved — the store does no
+ * roster lookup of its own, so a thread keeps saying who was actually pulled in
+ * on the day it was written even after the project's agents change.
+ */
+export function addComment(storagePath, idOrPrefix, { by = null, text = "", mentions = [] } = {}) {
+  const existing = getTask(storagePath, idOrPrefix);
+  if (!existing) return null;
+  const body = typeof text === "string" ? text.trim() : "";
+  if (!body) throw new Error("addComment: text required");
+  appendEvent(storagePath, {
+    id: existing.id,
+    ts: nowIso(),
+    op: "comment",
+    comment_id: makeShortId("c"),
+    by,
+    text: body,
+    mentions: Array.isArray(mentions) ? mentions.filter((m) => typeof m === "string") : [],
+  });
+  return getTask(storagePath, existing.id);
+}
+
 /** Re-open a done/dropped task. */
 export function reopenTask(storagePath, idOrPrefix) {
   const existing = getTask(storagePath, idOrPrefix);
@@ -371,8 +521,11 @@ export function countTasks(storagePath) {
   const tasks = [...projectState(readAllEvents(storagePath)).values()];
   const today = new Date().toISOString().slice(0, 10);
   const open = tasks.filter((t) => t.state === "open");
+  // Every built-in, plus any configured column actually in use — a board with a
+  // "qa" column whose summary never mentions qa is a summary of a different board.
   const byStatus = {};
-  for (const s of TASK_STATUSES) byStatus[s] = open.filter((t) => t.status === s).length;
+  for (const s of TASK_STATUSES) byStatus[s] = 0;
+  for (const t of open) byStatus[t.status] = (byStatus[t.status] || 0) + 1;
   return {
     open: open.length,
     done: tasks.filter((t) => t.state === "done").length,

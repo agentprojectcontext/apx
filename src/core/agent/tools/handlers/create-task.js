@@ -14,6 +14,13 @@ export default {
         properties: {
           project: { type: "string", description: "Project id, name, or path." },
           title:   { type: "string", description: "Short imperative title for the task." },
+          parent: {
+            type: "string",
+            description:
+              "Optional id of a parent task, making this one a SUBTASK of it. Use it to split a task " +
+              "that is really several: create the parent (or reuse the existing one) and add a subtask " +
+              "per real unit of work, so each can be assigned, moved and closed on its own.",
+          },
           description: {
             type: "string",
             description:
@@ -36,7 +43,7 @@ export default {
       },
     },
   },
-  makeHandler: ({ projects }) => async ({ project: ref, title, description, body, tags, due, agent, source }) => {
+  makeHandler: ({ projects }) => async ({ project: ref, title, description, body, tags, due, agent, source, parent }) => {
     if (!ref) return { error: "project required" };
     if (!title) return { error: "title required" };
     const all = projects.list();
@@ -49,6 +56,7 @@ export default {
     if (!proj) return { error: `project storage not loaded: ${ref}` };
     const task = createTask(proj.storagePath, {
       title,
+      parent: parent || null,
       description: description || null,
       body: body || null,
       tags: Array.isArray(tags) ? tags : [],
@@ -61,6 +69,7 @@ export default {
       project: { id: proj.id, name: proj.name },
       title: task.title,
       state: task.state,
+      ...(task.parent ? { parent: task.parent } : {}),
     };
   },
 };

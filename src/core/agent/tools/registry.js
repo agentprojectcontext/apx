@@ -9,6 +9,7 @@ import configureAgent from "./handlers/configure-agent.js";
 import removeAgent from "./handlers/remove-agent.js";
 import addMcp from "./handlers/add-mcp.js";
 import completeTask from "./handlers/complete-task.js";
+import commentTask from "./handlers/comment-task.js";
 import markCommitment from "./handlers/mark-commitment.js";
 import addProject from "./handlers/add-project.js";
 import listMcps from "./handlers/list-mcps.js";
@@ -113,6 +114,7 @@ const NATIVE_TOOLS = [
   transcribeAudio,
   askQuestions,
   createTask,
+  commentTask,
   listTasks,
   recordCommitment,
   listCommitments,
@@ -209,6 +211,11 @@ export const BASE_TOOL_NAMES = new Set([
   // the task still open. A pair where one half is hot and the other is cold is
   // a pair the model will guess its way across.
   TOOLS.COMPLETE_TASK,
+  // Same argument as the pair above, one step further: an agent that just did
+  // the work is the one with something to say about it, and a note it has to
+  // discover first is a note it will not write. Cheap schema, and it keeps the
+  // task verbs a single hot group instead of three hot and one cold.
+  TOOLS.COMMENT_TASK,
   // Commitments. In the base set on purpose: a promise is caught in passing
   // ("le dije a Ana que el viernes"), and a tool the model has to discover
   // first is a tool it will not reach for mid-sentence.
@@ -287,6 +294,7 @@ const NATIVE_CATEGORY = {
   [TOOLS.ASK_QUESTIONS]:       "conversation",
   [TOOLS.CREATE_TASK]:         "tasks",
   [TOOLS.LIST_TASKS]:          "tasks",
+  [TOOLS.COMMENT_TASK]:        "tasks",
   [TOOLS.LIST_ROUTINES]:       "routines",
   [TOOLS.RUN_ROUTINE]:         "routines",
   [TOOLS.TRANSCRIBE_AUDIO]:    "voice",

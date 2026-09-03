@@ -33,14 +33,16 @@ export default {
           tag:        { type: "string", description: "Filter by exact tag match." },
           agent:      { type: "string", description: "Filter by agent slug." },
           due_before: { type: "string", description: "Return only tasks due on or before this ISO date." },
+          parent:     { type: "string", description: "Return only the SUBTASKS of this task id. Pass an empty string for top-level tasks only." },
           limit:      { type: "number", description: "Cap on rows returned. Default 100." },
         },
       },
     },
   },
   makeHandler: ({ projects }) => async (args = {}) => {
-    const { project: ref, state, status, tag, agent, due_before, limit } = args;
+    const { project: ref, state, status, tag, agent, due_before, limit, parent } = args;
     const opts = {
+      ...(parent !== undefined ? { parent } : {}),
       state: state || undefined,
       status: status || undefined,
       tag: tag || undefined,
@@ -86,6 +88,11 @@ function compact(t) {
     due: t.due,
     agent: t.agent,
     created_at: t.created_at,
+    // Only when they say something — a "0 subtasks, 0 comments" pair on every
+    // row is prompt tokens spent to communicate nothing.
+    ...(t.subtask_count ? { subtasks: `${t.subtask_done}/${t.subtask_count}` } : {}),
+    ...(t.comment_count ? { comments: t.comment_count } : {}),
+    ...(t.parent ? { parent: t.parent } : {}),
     ...(t.project_name ? { project: t.project_name } : {}),
   };
 }

@@ -1,6 +1,6 @@
 ---
 name: apx-task
-description: Per-project TODO list. Event-sourced, project-scoped, addressable by short id prefix. Load when user wants to note, remind, list, or complete a task. Triggers: 'add a task', 'remind me to…', 'what's pending', 'mark as done', 'open tasks'.
+description: Per-project TODO list with subtasks, comments and a board. Event-sourced, project-scoped, addressable by short id prefix. Load when user wants to note, remind, list, complete, split or comment on a task. Triggers: 'add a task', 'remind me to…', 'what's pending', 'mark as done', 'open tasks', 'split this task', 'subtask', 'comment on the task', 'move it to QA'.
 ---
 
 # apx-task
@@ -56,11 +56,55 @@ apx task patch   t_abc123 --project acme --tag bug --tag blocker   # replaces ta
 | `agent` | optional | Slug of responsible agent. Used by `--agent` filter. |
 | `source` | auto/optional | Origin (cli, telegram, super-agent). |
 | `state` | derived | Storage lifecycle: `open` after create, `done`/`dropped` after ops. |
-| `status` | sub-status | How an **open** task is progressing — `pending` (default) \| `running` \| `in_review` \| `blocked`. Orthogonal to `state`. Filter with `--status`; set via `POST …/tasks/:id/status` (the CLI `patch` does not set it). |
+| `status` | sub-status | Which BOARD COLUMN an **open** task sits in. Ships as `pending` (default) \| `running` \| `in_review` \| `blocked`, but the column catalog is configurable — call `GET /api/projects/:pid/tasks/columns` for what THIS project actually has. Orthogonal to `state`. Set via `POST …/tasks/:id/status` (the CLI `patch` does not set it). |
+| `parent` | optional | Id of a parent task. **A subtask is a task with a parent** — same store, same verbs, so it can be assigned, moved and closed on its own. |
+| `comments` | derived | The task's thread, oldest first. Present on `show`/`GET one`; list rows carry `comment_count` instead. |
+
+## Subtasks — splitting a task that is really several
+
+One row that bundles five requirements cannot be handed out, moved to QA, or
+ticked off in pieces. Split it: keep the parent as the epic and add a subtask
+per real unit of work.
+
+```bash
+apx task list --project acme --parent t_epic123   # its children
+apx task list --project acme --parent ""          # only top-level tasks
+```
+
+With the tool: `create_task({ project, title, parent: "t_epic123" })`.
+
+## Comments, and handing a task to an agent
+
+```
+POST /api/projects/:pid/tasks/:id/comments   { text }
+```
+
+**An @mention in a comment summons that agent.** It runs a REAL turn with its
+own tools against the task, and its reply is posted back as another comment —
+so "@qa probá el flujo de login" is a QA run, not a note. Agent→agent handovers
+(`@dev` inside QA's reply) cascade, are mirrored onto the a2a ledger, and stop
+at a ceiling of 4 replies per comment so a mention loop cannot run away.
+
+The `comment_task` tool writes a comment but **summons nobody** — that is
+deliberate: only the owner's comment, and the cascade already running under its
+ceiling, can start a turn. To hand work over, name the agent in your reply.
+
+## Board columns
+
+One catalog for every project (`config.tasks.columns`), and each project shows
+an ordered subset (`.apc/config.json` → `tasks.columns`). `done` is always the
+last column and is not in the catalog — closing a task is `POST …/done`, not a
+status. A column may carry `on_enter: { agent, instruction }`: a task landing
+there is handed to that agent through the same comment path as an @mention.
+
+```bash
+GET  /api/tasks/columns                  # the global catalog
+GET  /api/projects/:pid/tasks/columns    # what this project shows, + the catalog
+```
 
 ## Super-agent tools
 
-The super-agent has `create_task`, `list_tasks`, and **`complete_task`** (done | drop | reopen | status). Add, list, and close all happen with tools — no shelling out to `apx task done`. "Note that we need to close the auth bug in acme tomorrow" → model calls:
+The super-agent has `create_task`, `list_tasks`, **`complete_task`** (done | drop | reopen | status) and **`comment_task`**. Add, list, and close all happen with tools — no shelling out to `apx task done`. "Note that we need to close the auth bug in acme tomorrow" → model calls:
 
 ```json
 { "name": "create_task",
