@@ -12,6 +12,10 @@ import { TaskList } from "../../components/tasks/TaskList";
 import { TaskDetail } from "../../components/tasks/TaskDetail";
 import { useTaskColumns } from "../../components/tasks/useTaskColumns";
 import { columnLabel } from "../../components/tasks/columns";
+import {
+  readTaskViewPrefs, statusStillValid, writeTaskViewPrefs,
+  type TaskState, type TaskView,
+} from "../../components/tasks/taskViewPrefs";
 import { TaskFormDialog } from "../../components/tasks/TaskFormDialog";
 import { TaskBoard } from "../../components/tasks/TaskBoard";
 import { TaskColumnsDialog } from "../../components/tasks/TaskColumnsDialog";
@@ -42,23 +46,39 @@ import { t } from "../../i18n";
  */
 export function TasksTab({ pid }: { pid?: string }) {
   const [params, setParams] = useSearchParams();
-  const [state, setState] = useState<"open" | "done" | "dropped" | "all">("open");
+  // Where you left off. Read once, on mount — see taskViewPrefs.ts for why this
+  // is per device and why the URL still outranks it.
+  const [saved] = useState(readTaskViewPrefs);
+  const [state, setState] = useState<TaskState>(saved.state);
   // Workflow sub-status is a different question from state: "what is blocked
   // right now" is not "what is open". Only meaningful for open tasks.
   // A plain string, not the four built-ins: columns are configurable, so the
   // filter's vocabulary is whatever this project has.
-  const [status, setStatus] = useState<string>("");
+  const [status, setStatus] = useState<string>(saved.status);
   const effStatus = state === "open" ? status : "";
 
-  // Which view, in the URL so a board you are working in survives a refresh
-  // and can be linked to.
-  const view = params.get("view") === "board" ? "board" : "list";
-  const setView = (v: "list" | "board") =>
+  // Which view. The URL is the authority when it says something, so a shared
+  // link opens what it promises; otherwise the device's own last choice wins.
+  const urlView = params.get("view");
+  const view: TaskView = urlView === "board" ? "board" : urlView === "list" ? "list" : saved.view;
+  const setView = (v: TaskView) =>
     setParams((prev) => {
       const next = new URLSearchParams(prev);
-      if (v === "board") next.set("view", "board"); else next.delete("view");
+      next.set("view", v);
       return next;
     }, { replace: true });
+
+  // Put the restored view in the URL once, so the address bar and the screen
+  // never disagree — and so a refresh or a copied link keeps working.
+  useEffect(() => {
+    if (!urlView && view === "board") setView("board");
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Remember every change. Writing on each edit rather than on unmount is what
+  // makes it survive a hard refresh or a tab that is simply closed.
+  useEffect(() => {
+    writeTaskViewPrefs({ view, state, status });
+  }, [view, state, status]);
 
   const [editingColumns, setEditingColumns] = useState(false);
   // Bumped after a column edit so the board refetches with the new set, and
@@ -80,6 +100,14 @@ export function TasksTab({ pid }: { pid?: string }) {
   const [editing, setEditing] = useState<{ pid: string; task: TaskEntry } | null>(null);
   const { projects } = useProjects();
   const { statuses } = useTaskColumns(pid);
+
+  // A remembered column filter only means something on a board that has that
+  // column. Dropped rather than kept, because a filter matching nothing looks
+  // like an empty project, not like a filter.
+  useEffect(() => {
+    if (!status || statuses.length === 0) return;
+    if (!statusStillValid(status, statuses)) setStatus("");
+  }, [status, statuses]);
   const toast = useToast();
 
   // Multi-select. Keyed by task id but carries the resolved pid + task so a
