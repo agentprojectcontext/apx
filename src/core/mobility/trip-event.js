@@ -5,7 +5,7 @@ import { resolveLang } from "#core/i18n/index.js";
 import { emitMobilityAlert } from "#core/events/bus.js";
 import { stripEmoji } from "#core/voice/pronounceable.js";
 import { deliverVoiceReply, mobilityVoiceActive } from "#core/channels/telegram/voice-note.js";
-import { isMobilitySilentToday } from "./preferences.js";
+import { isMobilitySilentToday, mobilitySurfaces } from "./preferences.js";
 import { enrichMobilityEvent } from "./osm-route.js";
 import {
   _resetMobilityGeofencesForTest,
@@ -163,6 +163,11 @@ export function mobilityPrompt(event, enrichment = null, awareness = mobilityCon
  * unused here. Same helper, two callers, two different logging owners.
  */
 async function sendMobilityMessage(ctx, { text, reply_markup, notify, speak = true }) {
+  // The owner decides where driving reminders land — app, Telegram, both or
+  // neither (core/mobility/preferences.js). The default is app only: this is a
+  // message for someone at the wheel, and the surface they are looking at is
+  // the phone in the cradle, not a chat they use for everything else.
+  if (!mobilitySurfaces(ctx.config).telegram) return null;
   if (!ctx.telegram?.send) throw new Error("telegram plugin not loaded");
   // `notify` is what Android turns into a car card — and the Assistant READS
   // that card aloud on the head unit, emoji included: a 📍 comes out as its
@@ -211,6 +216,7 @@ export async function dispatchMobilityPosition(position, ctx) {
 
   const lang = resolveLang(ctx.config);
   const destination = mobilityContext().trip?.destination || "";
+  const surfaces = mobilitySurfaces(ctx.config);
   const delivered = [];
   for (const candidate of candidates.slice(0, MAX_ALERTS_PER_POSITION)) {
     // Recorded BEFORE the send: a delivery that fails is not a licence to
@@ -218,11 +224,11 @@ export async function dispatchMobilityPosition(position, ctx) {
     const alert = recordMobilityAlert(candidate);
     const text = proximityMessage(alert, lang);
 
-    // THE NATIVE CARD GOES FIRST, and it goes unconditionally. It is the
-    // surface the owner is actually looking at — the phone in the cradle, the
-    // head unit — and it used to be a side effect of the Telegram row, so a
-    // daemon without the plugin alerted nobody. Telegram is now the copy.
-    emitMobilityAlert(proximityCard(alert, { destination, lang }));
+    // THE NATIVE CARD GOES FIRST. It is the surface the owner is actually
+    // looking at — the phone in the cradle, the head unit — and it used to be
+    // a side effect of the Telegram row, so a daemon without the plugin
+    // alerted nobody. Telegram is the copy now, and an optional one.
+    if (surfaces.app) emitMobilityAlert(proximityCard(alert, { destination, lang }));
 
     let sent = null;
     try {
