@@ -107,6 +107,24 @@ burn the one-shot only on the ones actually sent, so a card the per-sample cap
 held back is not silently spent. Alerts survive a daemon restart because the
 delivered set is persisted before the send.
 
+THE APK AND THE DAEMON SHIP TOGETHER FOR PROXIMITY. This is the one place
+where an old APK against a new daemon loses a whole feature silently, so it is
+worth knowing before wondering why a phone stopped alerting:
+
+- the alert travels as a `mobility_alert` frame, and an APK that predates
+  MessageFrameParser.mobilityAlert() ignores an unknown frame type. No crash,
+  no log, no card — it simply never draws one. Everything else on the socket
+  keeps working, which is what makes it hard to notice.
+- a NEW APK against an OLD daemon is the harmless direction: no such frame is
+  ever sent, and the older `notify` headline path still produces the plain
+  message card it always did.
+- the chip (androidx.car.app) is APK-only and needs no daemon support at all,
+  but it has nothing to show until the frames arrive.
+
+So: after changing the frame or the card, reinstall the APK. `adb install -r`
+is enough on a Samsung; on the Honor (MagicOS) also open the app once, because
+the OEM refuses the background service start after a package replace.
+
 THE PROXIMITY ALERT DOES NOT DEPEND ON TELEGRAM. It is pushed as its own
 `mobility_alert` frame on the events socket (`core/events/bus.js` →
 `events-ws.js`), carrying its whole payload rather than a "go re-fetch" signal:
