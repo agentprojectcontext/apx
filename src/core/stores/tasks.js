@@ -6,7 +6,8 @@
 // Each line is a `{ id, ts, op, ... }` event. The current state of a task is
 // the result of folding every event with that id in chronological order:
 //
-//   create — sets initial fields (title, body, tags, due, agent, source, meta)
+//   create — sets initial fields (title, description, body, tags, due, agent,
+//            source, meta)
 //   update — shallow-merge patch (`patch` field)
 //   done   — closes the task (`by` field optional)
 //   drop   — archives without "completed" semantics (`by` field optional)
@@ -85,6 +86,13 @@ function projectState(events) {
           state: "open",
           status: normalizeStatus(ev.status),
           title: ev.title || "",
+          // What the OWNER has to do, in their words. `body` next to it is the
+          // agent's prompt. They were one field for a while and it made the
+          // task unreadable as a to-do: the panel labelled it "Prompt" and
+          // hinted "what the agent receives", so a list of things to do read
+          // like a queue of jobs to dispatch. Splitting them is what lets the
+          // same row be legible to a person and useful to an agent.
+          description: ev.description || null,
           body: ev.body || null,
           tags: Array.isArray(ev.tags) ? [...ev.tags] : [],
           due: ev.due || null,
@@ -153,8 +161,8 @@ function projectState(events) {
 
 /**
  * Create a new task. Returns the freshly projected task object.
- * fields: { title (required), body?, tags?, due?, agent?, source?, meta?,
- *           category?, location? }
+ * fields: { title (required), description?, body?, tags?, due?, agent?,
+ *           source?, meta?, category?, location? }
  */
 export function createTask(storagePath, fields) {
   if (!fields || typeof fields !== "object") throw new Error("createTask: fields required");
@@ -165,6 +173,7 @@ export function createTask(storagePath, fields) {
     ts: nowIso(),
     op: "create",
     title: fields.title.trim(),
+    description: fields.description || null,
     body: fields.body || null,
     status: normalizeStatus(fields.status),
     tags: Array.isArray(fields.tags) ? fields.tags.filter((t) => typeof t === "string") : [],

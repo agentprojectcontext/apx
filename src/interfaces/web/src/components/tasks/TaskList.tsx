@@ -20,6 +20,13 @@ import { toneText } from "../../lib/tone";
  *
  * The row is deliberately two lines: in a 260px column a single line either
  * eats the title or drops everything else.
+ *
+ * TICKING ONE OFF IS ONE CLICK. It used to be three plus a modal — open the
+ * "⋯", pick "mark done", confirm — which is a lot of ceremony to cross out
+ * "call the accountant", and the tasks piled up unticked because of it. The
+ * status square on the left IS the checkbox now, and the undo lives in the
+ * toast for the few seconds anyone wants it. Dropping still confirms: that one
+ * says "this was never worth doing", and it is rare enough to be worth a beat.
  */
 export function TaskList({
   tasks,
@@ -49,18 +56,41 @@ export function TaskList({
   onToggleCheck?: (task: TaskEntry) => void;
 }) {
   const toast = useToast();
-  // Row-menu verbs confirm through a dialog too — same rule as the detail pane.
-  const [confirm, setConfirm] = useState<{ kind: "done" | "drop"; task: TaskEntry } | null>(null);
+  // Only `drop` still asks. `done` is reversible and now undoes from the toast.
+  const [confirm, setConfirm] = useState<{ kind: "drop"; task: TaskEntry } | null>(null);
   const selecting = !!onToggleCheck && (checkedIds?.size ?? 0) > 0;
 
-  const act = async (fn: () => Promise<unknown>, label: string) => {
+  const act = async (fn: () => Promise<unknown>, label: string, undo?: () => Promise<unknown>) => {
     try {
       await fn();
-      toast.success(label);
+      toast.success(
+        label,
+        undo
+          ? {
+              label: t("tasks.undo"),
+              onClick: () => {
+                undo().then(onChanged).catch(() => toast.error(t("common.error_generic")));
+              },
+            }
+          : undefined,
+      );
       onChanged();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : t("common.error_generic"));
     }
+  };
+
+  /** The square on the left, used as a checkbox. Open → done; closed → open. */
+  const tick = (task: TaskEntry) => {
+    const p = pid(task);
+    if (task.state === "open") {
+      return act(
+        () => Tasks.done(p, task.id),
+        t("project.tasks.done"),
+        () => Tasks.reopen(p, task.id),
+      );
+    }
+    return act(() => Tasks.reopen(p, task.id), t("project.tasks.reopen"));
   };
 
   return (
@@ -103,20 +133,45 @@ export function TaskList({
                   />
                 </div>
               )}
+              {/* Not nested inside the select button — a button inside a button
+                  is invalid, and this one has to win the click. */}
+              <button
+                type="button"
+                onClick={() => tick(task)}
+                data-testid={`task-tick-${task.id}`}
+                aria-label={t(task.state === "open" ? "tasks.tick_done" : "tasks.tick_reopen", { title: task.title })}
+                className={cn("group/tick shrink-0 self-start py-2", onToggleCheck ? "pl-1.5" : "pl-2.5")}
+              >
+                <span
+                  className={cn(
+                    "relative flex size-6 items-center justify-center rounded-md transition-colors",
+                    statusTint(eff),
+                    "group-hover/tick:ring-2 group-hover/tick:ring-current/40",
+                  )}
+                >
+                  <StatusIcon status={eff} className="size-3.5 transition-opacity group-hover/tick:opacity-0" />
+                  {/* The hint that this square is clickable at all. */}
+                  <Check
+                    size={14}
+                    className={cn(
+                      "absolute opacity-0 transition-opacity group-hover/tick:opacity-100",
+                      task.state === "open" ? toneText.emerald : "text-muted-fg",
+                    )}
+                  />
+                </span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => onSelect(task.id)}
                 aria-current={active}
-                className={cn("min-w-0 flex-1 py-2 pr-2.5 text-left", onToggleCheck ? "pl-1.5" : "pl-2.5")}
+                className="min-w-0 flex-1 py-2 pl-1.5 pr-2.5 text-left"
               >
                 <div className="flex items-center gap-2">
-                  <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-md", statusTint(eff))}>
-                    <StatusIcon status={eff} className="size-3.5" />
-                  </span>
                   <CategoryIcon category={task.category} />
                   <span className="min-w-0 flex-1 truncate text-sm font-medium">{task.title}</span>
                 </div>
-                <div className="mt-1 flex items-center justify-between gap-2 pl-8 text-[10px] text-muted-fg">
+                <div className="mt-1 flex items-center justify-between gap-2 text-[10px] text-muted-fg">
                   <span className="truncate">
                     {project ? `${project.split("/").pop()}${task.agent ? " · " : ""}` : ""}
                     {task.agent ? `@${task.agent}` : (project ? "" : t("tasks.agent_none_short"))}
@@ -136,7 +191,7 @@ export function TaskList({
                     <>
                       <DropdownMenuItem
                         data-testid={`task-done-${task.id}`}
-                        onClick={() => setConfirm({ kind: "done", task })}
+                        onClick={() => tick(task)}
                       >
                         <Check size={15} className={toneText.emerald} />
                         {t("tasks.mark_done")}
@@ -167,16 +222,6 @@ export function TaskList({
       </ul>
       {footer ? <div className="shrink-0 border-t border-border px-3 py-2">{footer}</div> : null}
 
-      <ConfirmDialog
-        open={confirm?.kind === "done"}
-        onClose={() => setConfirm(null)}
-        onConfirm={() => { if (confirm) return act(() => Tasks.done(pid(confirm.task), confirm.task.id), t("project.tasks.done")); }}
-        destructive={false}
-        title={t("tasks.confirm_done_title")}
-        description={confirm ? t("tasks.confirm_done_desc", { title: confirm.task.title }) : ""}
-        confirmLabel={t("tasks.mark_done")}
-        testId="task-row-done-confirm"
-      />
       <ConfirmDialog
         open={confirm?.kind === "drop"}
         onClose={() => setConfirm(null)}

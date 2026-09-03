@@ -4,17 +4,30 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, R
 import { cn } from "../lib/cn";
 
 type ToastKind = "success" | "error" | "info";
+
+/**
+ * An optional verb on the toast. It exists so a reversible action can drop its
+ * confirm dialog: ticking a task off is one click and the undo lives here for
+ * the four seconds you might want it, instead of a modal standing between you
+ * and every single completion.
+ */
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 interface ToastItem {
   id: number;
   kind: ToastKind;
   message: string;
+  action?: ToastAction;
 }
 
 interface ToastCtx {
-  show: (kind: ToastKind, message: string) => void;
-  success: (message: string) => void;
-  error:   (message: string) => void;
-  info:    (message: string) => void;
+  show: (kind: ToastKind, message: string, action?: ToastAction) => void;
+  success: (message: string, action?: ToastAction) => void;
+  error:   (message: string, action?: ToastAction) => void;
+  info:    (message: string, action?: ToastAction) => void;
 }
 
 const Ctx = createContext<ToastCtx | null>(null);
@@ -24,19 +37,21 @@ let nextId = 1;
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<ToastItem[]>([]);
 
-  const show = useCallback((kind: ToastKind, message: string) => {
-    const id = nextId++;
-    setItems((prev) => [...prev, { id, kind, message }]);
-    setTimeout(() => {
-      setItems((prev) => prev.filter((t) => t.id !== id));
-    }, 4500);
+  const dismiss = useCallback((id: number) => {
+    setItems((prev) => prev.filter((t) => t.id !== id));
   }, []);
+
+  const show = useCallback((kind: ToastKind, message: string, action?: ToastAction) => {
+    const id = nextId++;
+    setItems((prev) => [...prev, { id, kind, message, action }]);
+    setTimeout(() => dismiss(id), 4500);
+  }, [dismiss]);
 
   const api = useMemo<ToastCtx>(() => ({
     show,
-    success: (m) => show("success", m),
-    error:   (m) => show("error", m),
-    info:    (m) => show("info", m),
+    success: (m, a) => show("success", m, a),
+    error:   (m, a) => show("error", m, a),
+    info:    (m, a) => show("info", m, a),
   }), [show]);
 
   // Expose globally so even non-React code (api error handlers) can fire.
@@ -80,6 +95,16 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 )}
               />
               <span className="flex-1 break-words">{t.message}</span>
+              {t.action && (
+                <button
+                  type="button"
+                  data-testid="toast-action"
+                  className="shrink-0 rounded px-1.5 py-0.5 text-xs font-semibold text-primary underline-offset-2 hover:underline"
+                  onClick={() => { dismiss(t.id); t.action?.onClick(); }}
+                >
+                  {t.action.label}
+                </button>
+              )}
             </div>
           </div>
         ))}

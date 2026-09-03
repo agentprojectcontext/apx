@@ -14,7 +14,20 @@ export default {
         properties: {
           project: { type: "string", description: "Project id, name, or path." },
           title:   { type: "string", description: "Short imperative title for the task." },
-          body:    { type: "string", description: "Optional longer description." },
+          description: {
+            type: "string",
+            description:
+              "What the OWNER has to do, in their words. Write this for a person reading a to-do list, " +
+              "not for a model: no prompt scaffolding, no 'you are an agent that…'. Fill it for anything " +
+              "the owner will do themselves — which is most tasks.",
+          },
+          body: {
+            type: "string",
+            description:
+              "The prompt an AGENT receives if it runs this task. Only fill it when the task is meant to " +
+              "be executed by an agent. Leave it empty for a normal to-do — a prompt in place of a " +
+              "description is what makes a task list unreadable to its owner.",
+          },
           tags:    { type: "array", items: { type: "string" }, description: "Optional tags." },
           due:     { type: "string", description: "Optional ISO date (YYYY-MM-DD) the task is due by." },
           agent:   { type: "string", description: "Optional agent slug responsible for the task." },
@@ -23,7 +36,7 @@ export default {
       },
     },
   },
-  makeHandler: ({ projects }) => async ({ project: ref, title, body, tags, due, agent, source }) => {
+  makeHandler: ({ projects }) => async ({ project: ref, title, description, body, tags, due, agent, source }) => {
     if (!ref) return { error: "project required" };
     if (!title) return { error: "title required" };
     const all = projects.list();
@@ -36,6 +49,7 @@ export default {
     if (!proj) return { error: `project storage not loaded: ${ref}` };
     const task = createTask(proj.storagePath, {
       title,
+      description: description || null,
       body: body || null,
       tags: Array.isArray(tags) ? tags : [],
       due: due || null,

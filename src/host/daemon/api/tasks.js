@@ -3,7 +3,8 @@
 //   GET    /projects/:pid/tasks                  ?state=open|done|dropped|all&tag=X&agent=Y
 //                                                &due_before=ISO&due_after=ISO&limit=N
 //                                                &status=pending|running|in_review|blocked&updated_since=ISO
-//   POST   /projects/:pid/tasks                  { title, body?, tags?, due?, agent?, source?, meta? }
+//   POST   /projects/:pid/tasks                  { title, description?, body?, tags?, due?,
+//                                                agent?, source?, meta? }
 //   GET    /projects/:pid/tasks/:id              (id or prefix)
 //   PATCH  /projects/:pid/tasks/:id              { patch: {...} }
 //   POST   /projects/:pid/tasks/:id/done         { by? }

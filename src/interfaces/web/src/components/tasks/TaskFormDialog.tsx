@@ -37,6 +37,7 @@ export function TaskFormDialog({
 }) {
   const toast = useToast();
   const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [body, setBody] = useState("");
   const [due, setDue] = useState("");
   const [agent, setAgent] = useState("");
@@ -52,6 +53,7 @@ export function TaskFormDialog({
     if (!open) return;
     const task = editing?.task;
     setTitle(task?.title ?? "");
+    setDescription(task?.description ?? "");
     setBody(task?.body ?? "");
     setDue(task?.due ? String(task.due).slice(0, 10) : "");
     setAgent(task?.agent ?? "");
@@ -72,6 +74,7 @@ export function TaskFormDialog({
     try {
       const fields = {
         title: title.trim(),
+        description: description.trim() || null,
         body: body.trim() || null,
         due: due || null,
         agent: agent || null,
@@ -129,12 +132,23 @@ export function TaskFormDialog({
           />
         </Field>
 
-        {/* "Prompt" meant nothing on its own — it is the task's instructions
-            for the agent, and saying so is the difference between a field
-            people fill and a field people skip. */}
+        {/* Two fields, not one. The description is what the owner has to do;
+            the prompt is what an agent receives if it runs the task. They were
+            the same box for a while, labelled "Prompt", and it quietly turned
+            the to-do list into a queue of jobs nobody read. */}
+        <Field label={t("tasks.field_description")} hint={t("tasks.description_hint")}>
+          <Textarea
+            data-testid="task-description"
+            rows={3}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder={t("tasks.description_ph")}
+          />
+        </Field>
+
         <Field label={t("tasks.field_prompt")} hint={t("tasks.prompt_hint")}>
           <Textarea
-            rows={4}
+            rows={3}
             value={body}
             onChange={(e) => setBody(e.target.value)}
             placeholder={t("tasks.prompt_ph")}
