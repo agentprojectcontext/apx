@@ -243,3 +243,37 @@ test("a call written as prose runs, and none of it is spoken", async () => {
   assert.doesNotMatch(out.text, /\[tool /, `markup reached the user: ${out.text}`);
   assert.doesNotMatch(out.text, /ya estaba hecho/, "a stale result must not be passed off as fresh");
 });
+
+// ── The 2026-09-02 leak: the model copies the history annotation ─────────────
+//
+// One generation past the fabricated tool log. The message store replaces a
+// past answer that carried data with an annotation, and while that annotation
+// rode in the assistant's own voice it filled the window — six of ten assistant
+// turns in Manu's Telegram thread were literally the same sentence. The model
+// wrote it back as its reply, and the loop passed it through because
+// `cleanTextOfPseudoToolCalls(text) || text` put the markup back the moment the
+// cleaner emptied it. Both halves are covered here.
+
+test("a reply that is nothing but the history annotation is never spoken", async () => {
+  const events = [];
+  const out = await runAgent({
+    globalConfig: { super_agent: { enabled: true, model: "mock", permission_mode: "total" } },
+    system: "you are a test agent",
+    toolSchemas: [{
+      type: "function",
+      function: { name: "list_routines", description: "List routines", parameters: { type: "object", properties: {} } },
+    }],
+    makeToolHandlers: () => ({ list_routines: async () => ({ routines: [] }) }),
+    toolHandlerCtx: {},
+    onEvent: (e) => events.push(e),
+    maxIters: 6,
+    prompt: "cuántas rutinas tengo [mock:copyomitted]",
+  });
+
+  assert.doesNotMatch(out.text, /\[omitted:/i, `the annotation reached the user: ${out.text}`);
+  assert.equal(out.text.trim(), "", "a turn that was only markup ends empty, for the floor to answer");
+  assert.ok(
+    events.some((e) => e.type === "empty_retry"),
+    "the turn was retried rather than passed through",
+  );
+});

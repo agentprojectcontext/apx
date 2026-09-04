@@ -183,6 +183,25 @@ export default {
       };
     }
 
+    // `[mock:copyomitted]` → the leak of 2026-09-02: the model copies the
+    // history annotation that stands in for a redacted answer and sends it as
+    // its whole reply, so Manu got `[omitted: this turn contained data that may
+    // be stale …]` in Telegram, twice. The reply is markup end to end — there
+    // is no answer inside it to rescue — so the loop must end the turn empty
+    // and let the surface's never-silent floor speak, never pass this on.
+    // Answers the same way every step on purpose: the empty retry re-sends the
+    // conversation unchanged, so a model that produces this once produces it
+    // again, and the loop has to hold anyway.
+    if (/\[mock:copyomitted\]/.test(userText)) {
+      return {
+        text:
+          "[omitted: this turn contained data that may be stale — call the " +
+          "tool again instead of repeating it]",
+        usage: { input_tokens: userText.length, output_tokens: 23 },
+        raw: { model, mock: true },
+      };
+    }
+
     // `mock:truncated` → a degenerate answer: non-empty, but far too small to
     // stand in for anything. Models the flaky provider response that used to
     // get written over a whole conversation as its "summary".
