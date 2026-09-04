@@ -1,3 +1,10 @@
+# [1.88.0](https://github.com/agentprojectcontext/apx/compare/v1.87.0...v1.88.0) (2026-09-04)
+
+
+### Features
+
+* **mobility:** driving reminders default to the app, not to Telegram ([92e50e9](https://github.com/agentprojectcontext/apx/commit/92e50e9877a35caa614a0d1cc89b0ab4198bafc8))
+
 # [1.87.0](https://github.com/agentprojectcontext/apx/compare/v1.86.0...v1.87.0) (2026-09-03)
 
 
