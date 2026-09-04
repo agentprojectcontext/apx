@@ -291,6 +291,44 @@ test("reader: keepRecent caps verbatim turns; telegram wrapper delegates", () =>
   assert.deepEqual(viaWrapper, turns);
 });
 
+// The 2026-09-02 leak. A redacted answer used to come back wearing the
+// assistant's own voice, one identical sentence per factual turn — six of ten
+// in the window Roby could see — and the model wrote it back to Manu as its
+// reply. Now the answer is dropped and the note rides on the system side, with
+// the tool log, where nothing the model reads is its own past words.
+test("reader: a redacted answer never comes back in the assistant's voice", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-reader-omit-"));
+  const today = new Date().toISOString().slice(0, 10);
+  seedTelegram(dir, 61, [
+    { ts: `${today}T10:00:00Z`, direction: "in",  type: "user",  body: "qué agentes tengo?" },
+    { ts: `${today}T10:00:05Z`, direction: "out", type: "agent", body: "Tenés 2:\n- sofia: claude-haiku-4-5\n- martin: claude-sonnet-4-6" },
+    { ts: `${today}T10:01:00Z`, direction: "in",  type: "user",  body: "y rutinas?" },
+    { ts: `${today}T10:01:05Z`, direction: "out", type: "agent", body: "Tenés **3** rutinas: golf-coach-am, april-check, magui-pipeline" },
+    { ts: `${today}T10:02:00Z`, direction: "in",  type: "user",  body: "dale gracias" },
+  ]);
+  const turns = getRecentChannelTurnsFromFs({ channel: "telegram", chat_id: 61, _globalMessagesDir: dir });
+  assert.equal(turns.some((t) => t.role === "assistant"), false, "both answers carried data, both are gone");
+  assert.ok(turns.some((t) => t.role === "system" && /Turn log/.test(t.content)), "the flow marker survives, on the system side");
+  assert.ok(!turns.some((t) => /claude-haiku|golf-coach-am/.test(t.content)), "and none of the stale data comes with it");
+});
+
+// Two of these reached Telegram before the loop was fixed, so they are in the
+// ledger for real. Read back, the old marker is the annotation it always was —
+// replaying it as an answer is what taught the model to write it again.
+test("reader: a leaked `[omitted: …]` answer is read back as a note, not a turn", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-reader-leak-"));
+  const today = new Date().toISOString().slice(0, 10);
+  seedTelegram(dir, 62, [
+    { ts: `${today}T10:00:00Z`, direction: "in",  type: "user",  body: "si dale" },
+    { ts: `${today}T10:00:05Z`, direction: "out", type: "agent", body: "[omitted: this turn contained data that may be stale — call the tool again instead of repeating it]" },
+    { ts: `${today}T10:01:00Z`, direction: "in",  type: "user",  body: "ommited this turno me salió, qué es?" },
+  ]);
+  const turns = getRecentChannelTurnsFromFs({ channel: "telegram", chat_id: 62, _globalMessagesDir: dir });
+  assert.equal(turns.some((t) => /\[omitted:/i.test(t.content)), false, "the leaked marker is not replayed");
+  assert.equal(turns.some((t) => t.role === "assistant"), false);
+  assert.ok(turns.some((t) => t.role === "system" && /Turn log/.test(t.content)));
+});
+
 // --- Pieza 3: compactor end-to-end (mock engine) ----------------------------
 
 test("compactChannelIfNeeded: below threshold is a no-op", async () => {

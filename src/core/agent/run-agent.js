@@ -661,15 +661,23 @@ export async function runAgent({
 
     if (!toolCalls || toolCalls.length === 0) {
       // Checked BEFORE the cleaner, which is what strips the evidence.
+      const rawText = lastText;
       const fabricated =
-        effectiveSchemas.length > 0 && looksLikeFabricatedToolLog(lastText);
-      lastText = cleanTextOfPseudoToolCalls(lastText, callableNames) || lastText;
+        effectiveSchemas.length > 0 && looksLikeFabricatedToolLog(rawText);
+      // No `|| rawText` fallback. When the cleaner empties a turn, the turn was
+      // markup end to end — a fabricated tool log, or the `[omitted: …]`
+      // annotation the model copied out of its own history — and putting the
+      // markup back is how a reply that was ONLY that annotation went out to
+      // Telegram verbatim on 2026-09-02, twice. There is no answer in there to
+      // rescue: an empty turn is retried below and then falls to the surface's
+      // never-silent floor, which is a wrap-up written for the user.
+      lastText = cleanTextOfPseudoToolCalls(rawText, callableNames);
       // Dud turn (no tools, no text): re-prompt instead of ending empty, and
       // don't let it cost an iteration of the tool budget. `iter -= 1` cancels
       // the loop's `iter++`; the emptyRetries cap stops an all-empty model from
       // looping forever (after which we break and the surface's last-resort
       // floor sends a non-silent reply).
-      if (!String(lastText).trim() && emptyRetries < MAX_EMPTY_RETRIES) {
+      if (!String(lastText).trim() && !fabricated && emptyRetries < MAX_EMPTY_RETRIES) {
         emptyRetries += 1;
         await emitProgress(onEvent, { type: "empty_retry", iteration: iter + 1, attempt: emptyRetries });
         iter -= 1;
@@ -687,7 +695,7 @@ export async function runAgent({
           iteration: iter + 1,
           attempt: fabricationRetries,
         });
-        conversation.push({ role: "assistant", content: lastText });
+        conversation.push({ role: "assistant", content: rawText });
         conversation.push({ role: "user", content: FABRICATED_RESULTS_SIGNAL });
         continue;
       }

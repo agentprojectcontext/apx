@@ -205,12 +205,13 @@ test("getRecentTelegramTurns — sanitizes assistant turns with factual data", a
     appendMessage({ projectRoot: root, db, channel: "telegram", direction: "out", author: "apx", body: "There are 2 agents:\n- sofia: claude-haiku-4-5\n- martin: claude-sonnet-4-6", meta: { chat_id: 1 }, ts: "2026-05-08T10:00:01Z" });
     const turns = getRecentTelegramTurns(db, { chat_id: 1, limit: 10, max_age_hours: 999_999 });
     assert.equal(turns[0].content, "which agents exist?");
-    // assistant turn was redacted because it contained model ids + bullet list.
-    // The annotation is third-person and bracketed on purpose: written as
-    // first-person assistant prose, models copied it and said it to the user.
-    assert.match(turns[1].content, /^\[omitted:/);
-    assert.doesNotMatch(turns[1].content, /\bI answered\b/);
+    // The assistant turn was redacted (model ids + bullet list), and what
+    // replaces it is a note on the SYSTEM side. Not a wording preference: while
+    // the annotation rode in the assistant's own voice, the window filled with
+    // copies of one sentence and the model said it back to the user.
+    assert.equal(turns[1].role, "system");
     assert.doesNotMatch(turns[1].content, /claude-haiku/);
+    assert.equal(turns.some((t) => t.role === "assistant"), false);
   } finally {
     db.close();
     cleanupTempProject(root);

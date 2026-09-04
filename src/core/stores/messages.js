@@ -323,7 +323,11 @@ export function getRecentTelegramTurns(
   return rows.reverse().map((r) => {
     const role = r.direction === "in" ? "user" : "assistant";
     let content = r.body;
-    if (role === "assistant") content = sanitizeAssistantForContext(content);
+    if (role === "assistant") {
+      content = sanitizeAssistantForContext(content);
+      // Redacted: the note goes on the system side, never in the model's voice.
+      if (content === null) return { role: "system", content: OMITTED_TURN_NOTE };
+    }
     return { role, content };
   });
 }
@@ -341,24 +345,49 @@ export function getRecentTelegramTurns(
 //                           (sofia exists, not "assistant", and her model is
 //                            claude-haiku-4-5, not the carry-over from above)
 //
-// Solution: replace any assistant turn that *looks* like it contains data
-// with a generic "I answered" placeholder. The model loses the cache to
-// copy from but keeps enough hint to track the conversation flow.
-const OMITTED_TURN =
-  "[omitted: this turn contained data that may be stale — call the tool again instead of repeating it]";
+// Solution: any assistant turn that *looks* like it contains data is dropped
+// from the model's own side, and a note on the system side keeps the place. The
+// model loses the cache to copy from but keeps enough hint to track the
+// conversation flow.
+// The annotation that stands in for a redacted answer, on the SYSTEM side.
+//
+// It used to ride in the assistant's own voice, and that is what broke: it is a
+// note ABOUT a turn ("you answered here, the data may have moved on"), so every
+// factual answer in the window rendered as this one sentence. On 2026-09-02 six
+// of the ten assistant turns Roby could see were literally this line, and
+// `zen:big-pickle` did the obvious thing — it wrote the sentence back as its own
+// reply, and Manu got `[omitted: …]` in Telegram twice. Tool logs were moved off
+// the assistant side for exactly this failure (see TOOL_LOG_HEADER); a note the
+// model cannot mistake for its own words is not a sentence it can copy.
+const OMITTED_TURN_NOTE =
+  "[Turn log — you answered here, and the answer carried data (names, models, " +
+  "paths, counts) that may have changed since. Not from the user, not your own " +
+  "words, and nothing here is waiting on a reply. To state any of it again, " +
+  "call the tool again.]";
 
+// The old assistant-voice marker. Kept only to recognise the ones already
+// written into the ledger before this was fixed, so a leaked turn is read back
+// as the annotation it always was instead of being replayed as an answer.
+const LEAKED_OMITTED_TURN = /^\s*\[omitted:[^\]]*\]\s*$/i;
+
+// Returns the text to keep in the assistant's voice, or `null` when the turn
+// must not stand there at all — the caller replaces it with OMITTED_TURN_NOTE.
 function sanitizeAssistantForContext(content) {
   if (!content) return "";
+  // A marker that leaked out as an answer (see run-agent's cleaner) is not a
+  // turn: it is this same annotation, wearing the assistant's voice because it
+  // was sent to the user. Read it back as a note, never as something said.
+  if (LEAKED_OMITTED_TURN.test(content)) return null;
   // A past turn that leaked wire format is the worst thing there is to replay:
   // the model reads its OWN voice writing a call as prose and does it again,
   // which is how one leaked turn becomes fourteen in a day. Scrub the markup
   // out of the history exactly as it is scrubbed out of an answer, so a reply
   // that leaked before this was fixed stops teaching the shape today rather
   // than when it ages out of the window. A turn that was nothing BUT markup
-  // becomes the annotation below — "call the tool again" is precisely right
-  // for a turn whose whole content was a call that never ran.
+  // is dropped and annotated — "call the tool again" is precisely right for a
+  // turn whose whole content was a call that never ran.
   content = cleanTextOfPseudoToolCalls(content) || "";
-  if (!content.trim()) return OMITTED_TURN;
+  if (!content.trim()) return null;
   // Heuristics — if any of these match, the turn likely contains facts
   // the model should re-derive from tools rather than parrot from cache.
   const FACTUAL_PATTERNS = [
@@ -372,12 +401,10 @@ function sanitizeAssistantForContext(content) {
   ];
   for (const re of FACTUAL_PATTERNS) {
     if (re.test(content)) {
-      // Third person, and visibly an annotation ABOUT the turn rather than the
-      // turn itself. Written in the first person ("I answered with data here…")
-      // this read as something the assistant had said, and after a few of them
-      // in a row the model copied the sentence and sent it to the user as its
-      // reply. History the model can mistake for its own voice gets imitated.
-      return OMITTED_TURN;
+      // Dropped from the assistant's side entirely. Third person and bracketed
+      // was not enough: whatever the wording, a line the model reads as its own
+      // past words is a line it will write again (see OMITTED_TURN_NOTE).
+      return null;
     }
   }
   // Otherwise it's conversational small-talk; keep up to 200 chars.
@@ -1200,7 +1227,21 @@ export function getRecentChannelTurnsFromFs({
       inToolRun = false;
       const role = m.type === "user" ? "user" : "assistant";
       let content = m.body;
-      if (role === "assistant") content = sanitizeAssistantForContext(content);
+      if (role === "assistant") {
+        content = sanitizeAssistantForContext(content);
+        // Redacted: the answer is gone, but the fact that one happened here is
+        // worth keeping so the model does not re-answer the question above it.
+        // It rides on the system side with the tool log, for the same reason.
+        if (content === null) {
+          const prev = turns[turns.length - 1];
+          // One note per run: three redacted answers in a row say nothing more
+          // than one, and a repeated line is a pattern to imitate.
+          if (!(prev && prev.role === "system" && prev.content === OMITTED_TURN_NOTE)) {
+            turns.push({ role: "system", content: OMITTED_TURN_NOTE });
+          }
+          continue;
+        }
+      }
       turns.push({ role, content });
     }
   }
