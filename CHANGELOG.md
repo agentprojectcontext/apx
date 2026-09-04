@@ -1,3 +1,16 @@
+# [1.87.0](https://github.com/agentprojectcontext/apx/compare/v1.86.0...v1.87.0) (2026-09-03)
+
+
+### Bug Fixes
+
+* **android:** the proximity card was posted correctly and never peeked ([32916bf](https://github.com/agentprojectcontext/apx/commit/32916bf99434d04aec6b51c22a1a6d31ddf6f32a)), closes [HI#importance](https://github.com/HI/issues/importance)
+
+
+### Features
+
+* **mobility:** the chip carries the whole list, not only what is in range ([1f6d536](https://github.com/agentprojectcontext/apx/commit/1f6d5368ee07b287e9c56b7c1d31fd462afb9163))
+* **tasks:** the new-task form can finally make an errand, and "All" means all ([ff2355b](https://github.com/agentprojectcontext/apx/commit/ff2355b801d7476c3f5d83bcd5aea99cf7087b30))
+
 # [1.86.0](https://github.com/agentprojectcontext/apx/compare/v1.85.1...v1.86.0) (2026-09-03)
 
 
