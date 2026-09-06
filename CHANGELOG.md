@@ -1,3 +1,10 @@
+## [1.88.1](https://github.com/agentprojectcontext/apx/compare/v1.88.0...v1.88.1) (2026-09-06)
+
+
+### Bug Fixes
+
+* **identity:** the owner's name comes from identity.json, not from the source ([f6cec7e](https://github.com/agentprojectcontext/apx/commit/f6cec7e0cf3b56c0ffcaca07b2e8a0137633acc9))
+
 # [1.88.0](https://github.com/agentprojectcontext/apx/compare/v1.87.0...v1.88.0) (2026-09-04)
 
 
