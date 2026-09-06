@@ -571,28 +571,7 @@ export function register(api, { projects, project, config, plugins, registries }
 
         const replyTs = nowIso();
         const replyMessageId = shortId("a2a");
-        if (Array.isArray(result.trace)) {
-          for (const step of result.trace) {
-            if (!step?.tool) continue;
-            p.logMessage({
-              agent_slug: to,
-              channel: "a2a",
-              direction: "out",
-              type: "tool",
-              actor_kind: "agent",
-              actor_id: step.tool,
-              author: to,
-              body: typeof step.result === "string" ? step.result : JSON.stringify(step.result || ""),
-              meta: {
-                to: from,
-                tool: step.tool,
-                args: step.args,
-                result: step.result,
-              },
-              ts: replyTs,
-            });
-          }
-        }
+        // Attach tool execution trace to the reply metadata instead of spamming raw JSON chat bubbles
         p.logMessage({
           agent_slug: to,
           channel: "a2a",
@@ -609,6 +588,7 @@ export function register(api, { projects, project, config, plugins, registries }
             final: true,
             model: result.model,
             usage: result.usage,
+            trace: result.trace,
             // Where this thread's external session lives, so the NEXT turn
             // resumes it. Stored on the ledger rather than in a side table: a
             // thread that gets deleted takes its session pointer with it.
@@ -641,6 +621,7 @@ export function register(api, { projects, project, config, plugins, registries }
         return {
           text: result.text,
           usage: result.usage,
+            trace: result.trace,
           ...(result.runtime ? { runtime: result.runtime } : {}),
           ...(result.sessionId ? { session_id: result.sessionId } : {}),
           ...(result.sessionNote ? { session_note: result.sessionNote } : {}),
