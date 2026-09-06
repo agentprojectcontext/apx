@@ -548,6 +548,7 @@ export function register(api, { projects, project, config, plugins, registries }
       try {
         const result = await replyToPeer({
           peer,
+          project: p,
           projectPath: p.path,
           fromAgent,
           fromAddress: from,
@@ -570,6 +571,28 @@ export function register(api, { projects, project, config, plugins, registries }
 
         const replyTs = nowIso();
         const replyMessageId = shortId("a2a");
+        if (Array.isArray(result.trace)) {
+          for (const step of result.trace) {
+            if (!step?.tool) continue;
+            p.logMessage({
+              agent_slug: to,
+              channel: "a2a",
+              direction: "out",
+              type: "tool",
+              actor_kind: "agent",
+              actor_id: step.tool,
+              author: to,
+              body: typeof step.result === "string" ? step.result : JSON.stringify(step.result || ""),
+              meta: {
+                to: from,
+                tool: step.tool,
+                args: step.args,
+                result: step.result,
+              },
+              ts: replyTs,
+            });
+          }
+        }
         p.logMessage({
           agent_slug: to,
           channel: "a2a",

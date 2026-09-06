@@ -14,6 +14,7 @@ import { readProfileState } from "../../profiles/store.js";
 import { getRuntime } from "../../runtimes/index.js";
 import { runtimeLooksLikeFailure } from "../../runtimes/outcome.js";
 import { runSuperAgent } from "../super-agent.js";
+import { runAgentTurn } from "../run-turn.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { a2aSessionKey, peerAddress as canonicalPeerAddress } from "./peers.js";
 
@@ -178,6 +179,7 @@ function flattenHistory(history) {
  * Returns { text, usage, model }. Throws on engine failure.
  */
 export async function replyAsAgent({
+  project,
   projectPath,
   toAgent,
   fromAgent,
@@ -187,6 +189,13 @@ export async function replyAsAgent({
   selfAddress = null,
   peerAddress = null,
   mode = "chat",
+  projects,
+  plugins,
+  registries,
+  projectId = null,
+  tools = true,
+  signal = null,
+  runAgentTurnFn = runAgentTurn,
 }) {
   const modelId = await resolveAgentModel({ agent: toAgent, config });
   if (!modelId) {
@@ -194,9 +203,9 @@ export async function replyAsAgent({
       `no model for agent ${toAgent?.slug || "?"} (no override, no router default)`
     );
   }
-  const peer = peerAddress || fromAgent.slug;
+  const peer = peerAddress || fromAgent?.slug || "peer";
   const system = buildA2AReplySystem({
-    projectPath,
+    projectPath: projectPath || project?.path,
     toAgent,
     fromAgent,
     config,
@@ -204,18 +213,56 @@ export async function replyAsAgent({
     peerAddress: peer,
     mode,
   });
-  // Prior turns of THIS pair's a2a thread go in front of the new message, so the
-  // reply is a continuation, not a stateless one-shot. Without this the agent has
-  // amnesia between a2a turns (it literally sees only the latest message).
-  const result = await callEngineWithFallback({
+
+  const p = project || {
+    id: projectId || 0,
+    path: projectPath || "",
+    config,
+  };
+
+  // If tools are explicitly disabled, or there is no real projectPath on disk,
+  // execute single turn with fallback without tool session.
+  if (!tools || !projectPath) {
+    const result = await callEngineWithFallback({
+      modelId,
+      system,
+      messages: [...history, { role: "user", content: `From ${peer}:\n\n${body}` }],
+      config,
+      signal,
+    });
+    return { text: result.text, usage: result.usage, model: result.model || modelId };
+  }
+
+  const result = await runAgentTurnFn({
+    p,
+    agent: toAgent,
     modelId,
     system,
-    messages: [...history, { role: "user", content: `From ${peer}:\n\n${body}` }],
+    prompt: `From ${peer}:\n\n${body}`,
+    previousMessages: history,
+    channel: CHANNELS.A2A,
+    channelMeta: {
+      projectId: p.id,
+      projectPath: p.path,
+      from: peer,
+      to: selfAddress || toAgent.slug,
+      mode,
+    },
+    tools: true,
+    projects,
+    plugins,
+    registries,
     config,
+    signal,
   });
-  // Return the model too: the a2a log must record which model answered, exactly
-  // like any other channel, or the thread viewer shows the reply with no model.
-  return { text: result.text, usage: result.usage, model: result.model || modelId };
+
+  return {
+    text: result.text,
+    usage: result.usage,
+    model: result.model || modelId,
+    trace: result.trace,
+    media: result.media,
+  };
 }
 
 /**
