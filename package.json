@@ -13,10 +13,10 @@
     "#interfaces/*": "./src/interfaces/*"
   },
   "bin": {
-    "apx": "./src/interfaces/cli/index.js",
-    "apx-daemon": "./src/host/daemon/index.js",
-    "apx-mcp": "./src/interfaces/mcp-server/index.js",
-    "apx-acp": "./src/interfaces/acp/index.js"
+    "apx": "src/interfaces/cli/index.js",
+    "apx-daemon": "src/host/daemon/index.js",
+    "apx-mcp": "src/interfaces/mcp-server/index.js",
+    "apx-acp": "src/interfaces/acp/index.js"
   },
   "files": [
     "src/",
@@ -105,7 +105,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/agentprojectcontext/apx.git"
+    "url": "git+https://github.com/agentprojectcontext/apx.git"
   },
   "homepage": "https://github.com/agentprojectcontext/apx"
 }
