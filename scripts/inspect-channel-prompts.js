@@ -35,13 +35,13 @@ const CHANNELS = {
     note: "plugins/telegram.js — sender-aware, role-gated tools",
     meta: {
       channelName: "roby-bot",
-      author: "Manu",
+      author: "Alex",
       chatId: "123456789",
       projectBlock: "Active project: apx (id=0).\n",
       routeBlock: "",
     },
     relationship:
-      "# Who you're talking to\nYou are talking to your owner, Manu.",
+      "# Who you're talking to\nYou are talking to your owner, Alex.",
   },
   terminal: {
     note: "interactive `apx code` TUI / sys session",
