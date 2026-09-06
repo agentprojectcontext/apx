@@ -44,7 +44,7 @@ export default {
           note: {
             type: "string",
             description:
-              "One durable, self-contained fact to remember, in the owner's language. e.g. 'Manu prefers terse replies with no trailing summaries'.",
+              "One durable, self-contained fact to remember, in the owner's language. e.g. 'the owner prefers terse replies with no trailing summaries'.",
           },
           channel: {
             type: "string",

@@ -23,7 +23,7 @@
 import fs from "node:fs";
 import { appendGlobalMessage } from "#core/stores/messages.js";
 import { CHANNELS } from "#core/constants/channels.js";
-import { SUPERAGENT_ACTOR_ID, resolveAgentName } from "#core/identity/index.js";
+import { SUPERAGENT_ACTOR_ID, resolveAgentName, resolveOwnerName } from "#core/identity/index.js";
 import { TOOLS } from "#core/agent/tools/names.js";
 import { canNudge, recordNudge } from "#core/nudge/index.js";
 import { conversationPath, startConversation, appendTurn } from "#core/stores/conversations.js";
@@ -301,6 +301,9 @@ export async function notifyOwnerViaRoby(ctx, { routine, agent, text, notify, ga
  *  when the model is unavailable, so the owner is never left un-told. */
 async function composeRobyNotice({ agent, text, notify, globalConfig, severity = null }) {
   const robyName = resolveAgentName(globalConfig) || "Roby";
+  // The owner's name comes from identity.json, never from this file: a name
+  // written in here is the author's own, shipped into every other install.
+  const owner = resolveOwnerName();
   const who = agent.name || agent.slug;
   const model = globalConfig?.super_agent?.model;
   // A `critical` relay is an alert, not a "you have a reply waiting" nudge — the
@@ -311,14 +314,14 @@ async function composeRobyNotice({ agent, text, notify, globalConfig, severity =
       const r = await callEngine({
         modelId: model,
         system: urgent
-          ? `You are ${robyName}, Manu's personal assistant. The agent "${who}" just flagged something CRITICAL ` +
-            `that needs Manu now. Write ONE short line (max ~160 characters) to send Manu on Telegram, in HIS ` +
-            `language, making clear it is urgent and from ${who}, and hinting what the problem is. No preamble, ` +
-            `no quotes — just the line.`
-          : `You are ${robyName}, Manu's personal assistant. The agent "${who}" just left Manu a message ` +
-            `in its own chat and it is waiting for a reply. Write ONE short line (max ~160 characters) to ` +
-            `send Manu on Telegram, in HIS language, telling him he has something to answer from ${who} and ` +
-            `hinting what it is about. Warm and brief. No preamble, no quotes — just the line.`,
+          ? `You are ${robyName}, ${owner}'s personal assistant. The agent "${who}" just flagged something ` +
+            `CRITICAL that needs ${owner} now. Write ONE short line (max ~160 characters) to send ${owner} on ` +
+            `Telegram, in THEIR language, making clear it is urgent and from ${who}, and hinting what the ` +
+            `problem is. No preamble, no quotes — just the line.`
+          : `You are ${robyName}, ${owner}'s personal assistant. The agent "${who}" just left ${owner} a ` +
+            `message in its own chat and it is waiting for a reply. Write ONE short line (max ~160 characters) ` +
+            `to send ${owner} on Telegram, in THEIR language, telling them they have something to answer from ` +
+            `${who} and hinting what it is about. Warm and brief. No preamble, no quotes — just the line.`,
         messages: [{ role: "user", content: `What ${who} left:\n\n${notify || text || ""}` }],
         config: globalConfig,
       });

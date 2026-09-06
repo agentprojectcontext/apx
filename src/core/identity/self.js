@@ -32,6 +32,19 @@ export function resolveAgentName(globalConfig = {}) {
   );
 }
 
+// Shown when the owner has not told the agent their name. Neutral on purpose:
+// a name written into a shipped prompt is ONE install's owner introducing
+// himself in everybody else's.
+export const OWNER_DISPLAY_FALLBACK = "the owner";
+
+// Resolve the OWNER's display name — the person the super-agent works for —
+// from identity.json (`owner_name`, written by `set_identity`). Every prompt
+// that addresses the owner by name goes through here; none may hardcode one.
+export function resolveOwnerName() {
+  const identity = readIdentity();
+  return identity?.owner_name || OWNER_DISPLAY_FALLBACK;
+}
+
 export function writeIdentity(fields) {
   const existing = readIdentity() || {};
   const now = new Date().toISOString();

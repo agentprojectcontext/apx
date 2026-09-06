@@ -33,6 +33,7 @@ const {
   deliverySuppressedTools,
   deliverRoutineOutput,
   alreadyServedChannels,
+  notifyOwnerViaRoby,
 } = await import("#core/routines/delivery.js");
 const { runRoutineNow, routineReportsToTelegram, buildDeliveryNotify } = await import("#core/routines/runner.js");
 const { upsertRoutine, getRoutine } = await import("#core/stores/routines.js");
@@ -546,6 +547,49 @@ test("buildDeliveryNotify — a model that is down falls back to the headline, n
   const long = "x".repeat(400);
   const out = await buildDeliveryNotify({ text: long, model: "does-not-exist:boom", config: {} });
   assert.ok(out.length > 0, "fell back to a truncation instead of going silent");
+});
+
+test("the notice addresses the owner from identity.json — no name is baked into the source", async () => {
+  // A prompt that spells out an owner's name is ONE install's owner introducing
+  // himself in everybody else's: `composeRobyNotice` shipped "You are Roby,
+  // <name>'s personal assistant" to every copy of APX until 2026-09-04. The
+  // name comes from identity.json or it is the neutral stand-in, never from
+  // here. `[mock:system]` hands the composed system prompt back as the answer,
+  // so what Telegram receives IS the prompt.
+  const { writeIdentity } = await import("#core/identity/index.js");
+  writeIdentity({ owner_name: "Alex", agent_name: "Roby" });
+  const sent = [];
+  const out = await notifyOwnerViaRoby(
+    { plugins: fakeTelegram(sent), globalConfig: { super_agent: { model: "mock:test" } } },
+    {
+      routine: { name: "scout-morning", id: "r_9" },
+      agent: { slug: "scout", name: "Scout" },
+      text: "",
+      notify: "[mock:system]",
+    },
+  );
+  assert.equal(out.sent, true);
+  assert.match(sent[0].text, /You are Roby, Alex's personal assistant/);
+  assert.match(sent[0].text, /send Alex on Telegram, in THEIR language/);
+  // And the owner is not assumed to be a man.
+  assert.doesNotMatch(sent[0].text, /\bHIS\b|\bhim\b|\bhe has\b/);
+});
+
+test("no owner name configured → a neutral stand-in, not a person", async () => {
+  const { writeIdentity } = await import("#core/identity/index.js");
+  writeIdentity({ owner_name: "", agent_name: "Roby" });
+  const sent = [];
+  await notifyOwnerViaRoby(
+    { plugins: fakeTelegram(sent), globalConfig: { super_agent: { model: "mock:test" } } },
+    {
+      routine: { name: "scout-morning", id: "r_10" },
+      agent: { slug: "scout", name: "Scout" },
+      text: "",
+      notify: "[mock:system]",
+      severity: "critical",
+    },
+  );
+  assert.match(sent[0].text, /You are Roby, the owner's personal assistant/);
 });
 
 // ── the loop and the sink, together ─────────────────────────────────────────
