@@ -66,6 +66,29 @@ export const WEB_TOOL_ITERS = ROUTINE_UNCAPPED_TOOL_ITERS;
 // that agent's own chat, which has the ceiling for it.
 // Overridable per-deployment via config.super_agent.group_max_iters.
 export const GROUP_TOOL_ITERS = 50;
+// An a2a reply has NO human on it — not a watching one, not any one. The
+// recipient is another agent, so run-agent's reserved wrap-up ("want me to keep
+// going?") is addressed to somebody who cannot answer: the thread just stops
+// there. That is what a peer handed real tools on the 10-step conversational
+// budget did — nine action steps, then a question into the void — once 6e910a0
+// put replyAsAgent on the full tool loop and left the budget alone.
+//
+// So a2a comes off the conversational budget for the same reason a non-Telegram
+// routine did: nobody is going to read that wrap-up, let alone answer it. It
+// does NOT get the uncapped ceiling either. replyAsAgent honours no timeoutMs
+// (only replyAsRuntime does), so there is no clock to stop a runaway and no
+// human to notice one; "run to completion" needs one or the other.
+//
+// Finite and generous, then — the same shape as a group speaker and, as there,
+// bounded because an exchange fans out: a --deliver chains up to four levels
+// (`_depth > 3`, conversations.js). Written out rather than aliased to
+// GROUP_TOOL_ITERS: the two numbers agree today for related but separate
+// reasons, and moving one should not silently move the other.
+//
+//   A2A_TOOL_ITERS * 4 <= WEB_TOOL_ITERS
+//
+// Overridable per-deployment via config.super_agent.a2a_max_iters.
+export const A2A_TOOL_ITERS = 50;
 // ONE TURN, ONE BUDGET. Every number above is the budget for a TURN, not for
 // one pass of the tool loop — and a turn can run the loop more than once, when
 // the completion judge sends it back to finish something (agent/judge.js). Those
@@ -108,6 +131,10 @@ const RUN_TO_COMPLETION_CHANNELS = new Set([CHANNELS.WEB, CHANNELS.WEB_SIDEBAR])
  * reach the loop through the plain daemon chat routes.
  */
 export function channelToolIters(config, channel) {
+  if (channel === CHANNELS.A2A) {
+    const raw = Number(config?.super_agent?.a2a_max_iters);
+    return Number.isFinite(raw) && raw > 0 ? raw : A2A_TOOL_ITERS;
+  }
   if (!RUN_TO_COMPLETION_CHANNELS.has(channel)) return null;
   const raw = Number(config?.super_agent?.web_max_iters);
   return Number.isFinite(raw) && raw > 0 ? raw : WEB_TOOL_ITERS;

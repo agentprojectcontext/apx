@@ -20,6 +20,23 @@ import { shortId } from "#core/util/ids.js";
 function a2aPairHistory(storageRoot, from, to, viewer, limit = 24) {
   const pair = new Set([from, to]);
   const rows = readProjectMessages(storageRoot, { channel: "a2a", limit: 300 }).filter((m) => {
+    // What was SAID, and only that. The a2a ledger also carries what a tool did
+    // on an agent's behalf (`type: "tool"` — written by the routine runner, and
+    // by this route between 6e910a0 and d06ed30), whose body is the raw result:
+    // a whole HTML file, a lint dump, a JSON blob. Those already passed through
+    // the model inside the turn that ran them; replaying them here as
+    // conversation is how the window emptied out. Measured on the magui~roby
+    // thread: 18 of the last 24 rows were tool exhaust, 84% of the characters,
+    // leaving six real lines to remember a multi-day job by — which is what an
+    // agent that had "gone stupid" was actually reading.
+    //
+    // Filtering HERE rather than trusting the writers, because the raw rows
+    // have had two authors already and the viewer (readProjectA2AThread) still
+    // wants them: it is this function, the one building an LLM context, that
+    // knows only utterances belong in it. A row with NO type is an utterance:
+    // that is how comment-turn.js mirrors an agent-to-agent handover from a
+    // task thread, and those belong in the history like anything else said.
+    if (m.type && m.type !== "agent") return false;
     const parts = [m.agent_slug, m.author, m.meta?.from, m.meta?.to].filter(Boolean);
     return parts.length > 0 && parts.every((s) => pair.has(s));
   });
@@ -621,7 +638,7 @@ export function register(api, { projects, project, config, plugins, registries }
         return {
           text: result.text,
           usage: result.usage,
-            trace: result.trace,
+          trace: result.trace,
           ...(result.runtime ? { runtime: result.runtime } : {}),
           ...(result.sessionId ? { session_id: result.sessionId } : {}),
           ...(result.sessionNote ? { session_note: result.sessionNote } : {}),
