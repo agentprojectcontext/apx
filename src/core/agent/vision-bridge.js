@@ -7,7 +7,7 @@
 // the photo". Bridging once with a vision model and folding the description
 // into the prompt is what makes Candela actually react to a gym selfie.
 import { callEngine } from "#core/engines/index.js";
-import { parseModelId } from "#core/agent/model-router.js";
+import { modelWiresVision } from "#core/agent/model-capabilities.js";
 
 const DEFAULT_VISION_MODEL = "gemini:gemini-2.0-flash";
 
@@ -15,17 +15,8 @@ const BRIDGE_SYSTEM =
   "You describe photos for another AI that cannot see them. Be concrete: who/what, " +
   "clothing, pose, setting, expression. 3–6 sentences. No preamble, no 'the image shows'.";
 
-/** Providers that render `message.images` natively on the wire. Everything
- *  else gets a text description instead of (or as well as) raw bytes. */
-const NATIVE_VISION_PROVIDERS = new Set(["gemini", "anthropic", "openai", "openrouter"]);
-
-export function providerWiresVision(modelId) {
-  try {
-    return NATIVE_VISION_PROVIDERS.has(parseModelId(modelId).provider);
-  } catch {
-    return false;
-  }
-}
+/** Backward-compatible name used by the turn builder. */
+export const providerWiresVision = modelWiresVision;
 
 export function visionBridgeModel(globalConfig) {
   const configured = globalConfig?.super_agent?.vision_bridge_model;

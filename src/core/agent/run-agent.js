@@ -5,7 +5,7 @@ import {
   cleanTextOfPseudoToolCalls,
   looksLikeFabricatedToolLog,
 } from "./tools/tool-call-parser.js";
-import { resolveActiveModel, fallbackModels } from "./model-router.js";
+import { resolveActiveModel, fallbackModels, isFallbackEnabled } from "./model-router.js";
 import { MAX_TOOL_ITERS, ACK_ONLY_TOOLS, MAX_CONSECUTIVE_ACKS, TURN_ENDING_TOOLS } from "./constants.js";
 import { TOOLS } from "./tools/names.js";
 import { pseudoToolSystem, shouldRetryWithPseudoTools } from "./tools/pseudo-tools.js";
@@ -32,6 +32,7 @@ import {
   providerWiresVision,
   withImageDescription,
 } from "./vision-bridge.js";
+import { messagesForModel } from "./model-capabilities.js";
 
 async function emitProgress(onEvent, event) {
   if (typeof onEvent !== "function") return;
@@ -269,7 +270,7 @@ export async function runAgent({
   const triedHealth = new Map(
     (routing.tried || []).map((t) => [t.modelId, t.healthy !== false])
   );
-  const retryChain = fallbackModels(globalConfig).filter((m) => {
+  const retryChain = (isFallbackEnabled(globalConfig) ? fallbackModels(globalConfig) : []).filter((m) => {
     if (m === activeModel) return false;
     if (triedHealth.get(m) === false) return false;
     return true;
@@ -419,7 +420,7 @@ export async function runAgent({
   const turnImages = attachments.filter((a) => a?.data && /^image\//.test(a.mime || ""));
   let turnPrompt = prompt;
   let imagesForModel = turnImages;
-  if (turnImages.length && !providerWiresVision(activeModel)) {
+  if (turnImages.length && !providerWiresVision(activeModel, globalConfig)) {
     const description = await describeTurnImages(turnImages, globalConfig, { signal });
     if (description) {
       turnPrompt = withImageDescription(prompt, description);
@@ -428,10 +429,12 @@ export async function runAgent({
         model: activeModel,
         images: turnImages.length,
       });
+      // The description replaces the bytes for this text-only model.
+      imagesForModel = [];
     }
-    // Do not put raw bytes on the wire for text-only providers — Zen free
-    // models 400 or silently drop them (see vision-bridge.js).
-    imagesForModel = [];
+    // If the bridge is unavailable, keep the internal image field until the
+    // per-model call adapter replaces it with a safe attachment marker. Raw
+    // bytes still never reach a text-only provider.
   }
   const conversation = [
     ...previousMessages,
@@ -510,7 +513,11 @@ export async function runAgent({
   const tryCallEngine = async (params, { allowRetry = true } = {}) => {
     while (true) {
       try {
-        return await callEngine({ ...params, modelId: activeModel });
+        return await callEngine({
+          ...params,
+          messages: messagesForModel(params.messages, activeModel, globalConfig),
+          modelId: activeModel,
+        });
       } catch (e) {
         if (signal?.aborted || e?.name === "AbortError") throw e;
         if (!allowRetry || retryChain.length === 0 || !isRetryableEngineError(e)) throw e;

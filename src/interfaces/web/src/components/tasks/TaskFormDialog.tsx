@@ -67,6 +67,8 @@ export function TaskFormDialog({
   const [body, setBody] = useState("");
   const [due, setDue] = useState("");
   const [agent, setAgent] = useState("");
+  const [priority, setPriority] = useState<string>("normal");
+  const [reminderFrequency, setReminderFrequency] = useState<string>("none");
   const [status, setStatus] = useState<string>("pending");
   const [tags, setTags] = useState<string[]>([]);
   const [tagDraft, setTagDraft] = useState("");
@@ -100,6 +102,8 @@ export function TaskFormDialog({
     setBody(task?.body ?? "");
     setDue(task?.due ? String(task.due).slice(0, 10) : "");
     setAgent(task?.agent ?? "");
+    setPriority(task?.priority ?? "normal");
+    setReminderFrequency(task?.reminder_frequency ?? "none");
     setStatus(task?.status ?? "pending");
     setTags(task?.tags ?? []);
     setTagDraft("");
@@ -148,6 +152,8 @@ export function TaskFormDialog({
         body: body.trim() || null,
         due: due || null,
         agent: agent || null,
+        priority: priority || "normal",
+        reminder_frequency: reminderFrequency || "none",
         tags: allTags,
         category,
         // Switching a trip back to a plain task clears its place rather than
@@ -348,12 +354,40 @@ export function TaskFormDialog({
               disabled={!pid}
               options={[
                 { value: "", label: t("tasks.agent_none") },
+                { value: "human", label: "👤 Humano (Owner)" },
                 ...(agents ?? []).map((a) => ({ value: a.slug, label: a.name || a.slug })),
               ]}
             />
           </Field>
           <Field label={t("project.global_tasks.field_due")}>
             <Input type="date" value={due} onChange={(e) => setDue(e.target.value)} />
+          </Field>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="Prioridad">
+            <UiSelect
+              value={priority}
+              onChange={setPriority}
+              options={[
+                { value: "low", label: "⚪ Baja" },
+                { value: "normal", label: "🟢 Normal" },
+                { value: "high", label: "🟠 Alta" },
+                { value: "urgent", label: "🔴 Urgente" },
+              ]}
+            />
+          </Field>
+          <Field label="Recordatorio">
+            <UiSelect
+              value={reminderFrequency}
+              onChange={setReminderFrequency}
+              options={[
+                { value: "none", label: "Sin recordatorio" },
+                { value: "once", label: "Una vez" },
+                { value: "daily", label: "Diario" },
+                { value: "weekly", label: "Semanal" },
+              ]}
+            />
           </Field>
         </div>
 

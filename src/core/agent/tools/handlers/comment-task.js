@@ -1,6 +1,7 @@
 import { addComment } from "#core/stores/tasks.js";
 import { mentionedAgents } from "#core/tasks/comment-turn.js";
 import { missingArg, projectMeta, resolveProject } from "../helpers.js";
+import { SUPERAGENT_ACTOR_ID } from "#core/constants/actors.js";
 
 // Leave a comment on a task. The write-up half of working on one: an agent that
 // reviewed, tested or fixed something says so where the task is, instead of the
@@ -53,7 +54,7 @@ export default {
       // Whoever is running this turn signs the comment. Falling back to a
       // generic id would make every agent's notes indistinguishable in a thread
       // whose entire value is knowing who said what.
-      const by = channelMeta?.agentSlug || "agent";
+      const by = channelMeta?.agentSlug || SUPERAGENT_ACTOR_ID;
       const mentions = mentionedAgents(text, p.path, by);
       const result = addComment(p.storagePath, task, { by, text, mentions });
       if (!result) return { error: `task not found: ${task}` };

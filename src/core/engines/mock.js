@@ -11,6 +11,8 @@ export default {
   },
 
   async chat({ system, messages, model = "mock", tools, signal }) {
+    const forcedStatus = String(model).match(/^fail-(\d{3})$/)?.[1];
+    if (forcedStatus) throw new Error(`mock ${forcedStatus}: forced test failure`);
     const last = [...messages].reverse().find((m) => m.role === "user");
     const userText = last?.content || "";
     // `[mock:slow:<ms>]` → hold each step for <ms> before answering, and honor

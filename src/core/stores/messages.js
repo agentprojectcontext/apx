@@ -477,19 +477,50 @@ function a2aPairId(pair) {
   return pair.join("~");
 }
 // `apx send … --deliver` logs each utterance twice — once under `from`, once
-// under `to`. Collapse to one line per (who, when, what) so the thread reads as
-// a conversation, not a doubled transcript.
-function dedupA2A(msgs) {
-  const best = new Map();
-  for (const m of msgs) {
-    const k = `${m.ts}|${m.author}|${(m.body || "").slice(0, 120)}`;
-    const cur = best.get(k);
-    // Keep the copy logged under the SPEAKER's own ledger (agent_slug === author):
-    // that is the one carrying the turn's usage/model/reply_to, not the mirror
-    // written under the other peer.
-    if (!cur || (m.agent_slug === m.author && cur.agent_slug !== cur.author)) best.set(k, m);
+// under `to`. New writes share an external_id. Older rows did not, so their
+// mirror is paired only when the full body, author and participant pair match,
+// the ledger owners are opposite, and timestamps are within five seconds.
+// This avoids collapsing two genuine repeated messages merely because they
+// share a second or the first 120 characters.
+export function dedupA2A(msgs) {
+  const sorted = [...(msgs || [])].sort((a, b) => (a.ts || "").localeCompare(b.ts || ""));
+  const out = [];
+  const strong = new Map();
+
+  const preferSpeakerCopy = (current, candidate) =>
+    candidate.agent_slug === candidate.author && current.agent_slug !== current.author;
+
+  for (const m of sorted) {
+    const pairId = a2aPairId(a2aPair(m));
+    if (m.external_id) {
+      const key = `${pairId}|${m.external_id}`;
+      const at = strong.get(key);
+      if (at === undefined) {
+        strong.set(key, out.length);
+        out.push(m);
+      } else if (preferSpeakerCopy(out[at], m)) {
+        out[at] = m;
+      }
+      continue;
+    }
+
+    const time = Date.parse(m.ts || "");
+    let mirrorAt = -1;
+    for (let i = out.length - 1; i >= 0; i -= 1) {
+      const current = out[i];
+      const currentTime = Date.parse(current.ts || "");
+      if (Number.isFinite(time) && Number.isFinite(currentTime) && time - currentTime > 5000) break;
+      if (current.external_id) continue;
+      if (current.author !== m.author || current.body !== m.body) continue;
+      if (a2aPairId(a2aPair(current)) !== pairId) continue;
+      if (current.agent_slug === m.agent_slug) continue;
+      mirrorAt = i;
+      break;
+    }
+    if (mirrorAt < 0) out.push(m);
+    else if (preferSpeakerCopy(out[mirrorAt], m)) out[mirrorAt] = m;
   }
-  return [...best.values()];
+  return out;
 }
 
 /** One thread entry per a2a participant-pair in this project. Shaped like a

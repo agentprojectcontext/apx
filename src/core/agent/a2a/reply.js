@@ -6,7 +6,7 @@
 //
 // Pure orchestration over core/agent + core/engines + core/runtimes: no HTTP,
 // no message-log writes (the caller decides whether and where to persist).
-import { callEngine } from "../../engines/index.js";
+import { callEngineWithFallback } from "../engine-call.js";
 import { readAgentMemory } from "../memory.js";
 import { resolveAgentModel } from "../agent-model.js";
 import { resolveAgentName } from "../../identity/self.js";
@@ -207,7 +207,7 @@ export async function replyAsAgent({
   // Prior turns of THIS pair's a2a thread go in front of the new message, so the
   // reply is a continuation, not a stateless one-shot. Without this the agent has
   // amnesia between a2a turns (it literally sees only the latest message).
-  const result = await callEngine({
+  const result = await callEngineWithFallback({
     modelId,
     system,
     messages: [...history, { role: "user", content: `From ${peer}:\n\n${body}` }],

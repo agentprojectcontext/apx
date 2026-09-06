@@ -650,6 +650,11 @@ export function ChatTab({
     if (id === "super_agent") return { icon: superAgentIcon, name: msg.agent || persona };
     const hit = agentList.find((a) => a.slug === id || a.name === id);
     if (hit) return { icon: hit.icon, emoji: hit.emoji, name: hit.name || hit.slug };
+    const participant = a2aFaces.find((face) => face.slug === id || face.name === id);
+    if (participant) return participant;
+    if (["roby", "apx", "default", "superagent", "super-agent", "__super_agent__"].includes(String(id).toLowerCase())) {
+      return { icon: superAgentIcon, name: msg.agent || persona };
+    }
     return { ...headerFace, name: msg.agent || headerFace.name };
   };
 

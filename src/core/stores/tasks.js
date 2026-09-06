@@ -21,6 +21,11 @@ import path from "node:path";
 import { nowIso } from "../util/time.js";
 import { shortId as makeShortId } from "../util/ids.js";
 import { normalizeTaskCategory, normalizeTaskLocation } from "#core/constants/task-categories.js";
+import {
+  normalizeTaskAssignee,
+  normalizeTaskPriority,
+  normalizeTaskReminderFrequency,
+} from "#core/constants/task-fields.js";
 
 // Workflow sub-status for an *open* task. Orthogonal to `state`
 // (open/done/dropped): `state` is the storage lifecycle, `status` is how an
@@ -149,7 +154,9 @@ function projectState(events) {
           body: ev.body || null,
           tags: Array.isArray(ev.tags) ? [...ev.tags] : [],
           due: ev.due || null,
-          agent: ev.agent || null,
+          agent: normalizeTaskAssignee(ev.agent),
+          priority: normalizeTaskPriority(ev.priority),
+          reminder_frequency: normalizeTaskReminderFrequency(ev.reminder_frequency),
           source: ev.source || null,
           created_by: ev.created_by || null,
           thread: ev.thread || null,
@@ -172,6 +179,9 @@ function projectState(events) {
           // A patch that clears the location must be able to say so, so null
           // survives here where an unknown key would just be copied.
           else if (k === "location") existing[k] = normalizeTaskLocation(patch[k]);
+          else if (k === "agent") existing[k] = normalizeTaskAssignee(patch[k]);
+          else if (k === "priority") existing[k] = normalizeTaskPriority(patch[k]);
+          else if (k === "reminder_frequency") existing[k] = normalizeTaskReminderFrequency(patch[k]);
           else existing[k] = patch[k];
         }
         existing.updated_at = ev.ts;
@@ -254,7 +264,9 @@ export function createTask(storagePath, fields, { statuses } = {}) {
     status: normalizeStatus(fields.status, statuses),
     tags: Array.isArray(fields.tags) ? fields.tags.filter((t) => typeof t === "string") : [],
     due: fields.due || null,
-    agent: fields.agent || null,
+    agent: normalizeTaskAssignee(fields.agent),
+    priority: normalizeTaskPriority(fields.priority),
+    reminder_frequency: normalizeTaskReminderFrequency(fields.reminder_frequency),
     source: fields.source || null,
     created_by: fields.created_by || null,
     thread: fields.thread || null,
@@ -428,11 +440,17 @@ export function patchTask(storagePath, idOrPrefix, patch) {
   const existing = getTask(storagePath, idOrPrefix);
   if (!existing) return null;
   if (!patch || typeof patch !== "object") return existing;
+  const normalized = { ...patch };
+  if (Object.hasOwn(normalized, "agent")) normalized.agent = normalizeTaskAssignee(normalized.agent);
+  if (Object.hasOwn(normalized, "priority")) normalized.priority = normalizeTaskPriority(normalized.priority);
+  if (Object.hasOwn(normalized, "reminder_frequency")) {
+    normalized.reminder_frequency = normalizeTaskReminderFrequency(normalized.reminder_frequency);
+  }
   appendEvent(storagePath, {
     id: existing.id,
     ts: nowIso(),
     op: "update",
-    patch,
+    patch: normalized,
   });
   return getTask(storagePath, existing.id);
 }

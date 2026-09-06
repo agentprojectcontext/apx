@@ -180,7 +180,7 @@ export function TaskList({
                     <StatusFooter status={eff} />
                     <span className="truncate">
                       {project ? `· ${project.split("/").pop()}` : ""}
-                      {task.agent ? ` @${task.agent}` : ""}
+                      {task.priority === "urgent" ? " 🔴" : task.priority === "high" ? " 🟠" : ""}{task.agent ? (task.agent === "human" || task.agent === "owner" ? " 👤 @human" : ` @${task.agent}`) : ""}
                     </span>
                   </span>
                   <span className="flex shrink-0 items-center gap-1.5">

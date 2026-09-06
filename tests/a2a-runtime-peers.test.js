@@ -22,7 +22,7 @@ process.env.APX_HOME = path.join(TMP_HOME, ".apx");
 
 const { parsePeerAddress, resolvePeer, peerAddress, a2aSessionKey, refusesCodeMode } = await import("#core/agent/a2a/peers.js");
 const { SUPERAGENT_ACTOR_ID } = await import("#core/constants/actors.js");
-const { a2aReplyCommand, replyAsRuntime, replyToPeer } = await import("#core/agent/a2a/reply.js");
+const { a2aReplyCommand, replyAsAgent, replyAsRuntime, replyToPeer } = await import("#core/agent/a2a/reply.js");
 const { CHANNELS } = await import("#core/constants/channels.js");
 const { readA2APeerSession } = await import("#core/stores/messages.js");
 const claudeCode = (await import("#core/runtimes/claude-code.js")).default;
@@ -388,6 +388,51 @@ test("a super-agent A2A target runs the real tool loop with project context", as
   assert.match(call.contextNote, /using your own channel and tools/);
   assert.doesNotMatch(call.contextNote, /no `apx telegram send`/);
   assert.equal(call.previousMessages.length, 1, "the pair history reaches Roby's real loop");
+});
+
+test("an APC agent A2A reply rotates through the shared model fallback", async () => {
+  const config = {
+    super_agent: {
+      model_fallback: { enabled: true, models: ["backup:ok"] },
+    },
+    engines: {
+      primary: { engine: "mock" },
+      backup: { engine: "mock" },
+    },
+  };
+  const out = await replyAsAgent({
+    projectPath: null,
+    toAgent: { slug: "reviewer", fields: { Model: "primary:fail-503" } },
+    fromAgent: { slug: "builder" },
+    body: "revisá el cambio",
+    config,
+  });
+
+  assert.equal(out.model, "backup:ok");
+  assert.match(out.text, /From builder/);
+});
+
+test("an APC agent A2A reply honors disabled fallback", async () => {
+  const config = {
+    super_agent: {
+      model_fallback: { enabled: false, models: ["backup:ok"] },
+    },
+    engines: {
+      primary: { engine: "mock" },
+      backup: { engine: "mock" },
+    },
+  };
+
+  await assert.rejects(
+    replyAsAgent({
+      projectPath: null,
+      toAgent: { slug: "reviewer", fields: { Model: "primary:fail-503" } },
+      fromAgent: { slug: "builder" },
+      body: "revisá el cambio",
+      config,
+    }),
+    /mock 503/,
+  );
 });
 
 test("peerAddress is the canonical name, and keeps a :thread suffix", () => {

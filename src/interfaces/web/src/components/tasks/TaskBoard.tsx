@@ -159,7 +159,17 @@ export function TaskBoard({
                           need on the aggregated board — every card looks alike
                           until you know it. */}
                       {project && <span className="truncate font-medium">{project.split("/").pop()}</span>}
-                      {task.agent && <span>@{task.agent}</span>}
+                      {task.priority && task.priority !== "normal" && (
+                        <span className={cn(
+                          "rounded px-1 py-0.2 font-medium",
+                          task.priority === "urgent" ? "bg-red-500/15 text-red-500" :
+                          task.priority === "high" ? "bg-amber-500/15 text-amber-500" :
+                          "bg-muted text-muted-fg"
+                        )}>
+                          {task.priority === "urgent" ? "🔴 Urgente" : task.priority === "high" ? "🟠 Alta" : "⚪ Baja"}
+                        </span>
+                      )}
+                      {task.agent && <span>{task.agent === "human" || task.agent === "owner" ? "👤 @human" : `@${task.agent}`}</span>}
                       {!!task.subtask_count && (
                         <span className="inline-flex items-center gap-0.5">
                           <ListTree size={9} />{task.subtask_done ?? 0}/{task.subtask_count}
