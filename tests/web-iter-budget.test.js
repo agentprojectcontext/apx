@@ -24,6 +24,7 @@ const {
   WEB_TOOL_ITERS,
   TELEGRAM_TOOL_ITERS,
   MAX_TOOL_ITERS,
+  A2A_TOOL_ITERS,
 } = await import("#core/agent/constants.js");
 const { CHANNELS } = await import("#core/constants/channels.js");
 const { buildVoiceChannelContext } = await import("#core/agent/channels/voice-context.js");
@@ -46,6 +47,27 @@ test("channelToolIters — every other channel keeps its own budget", () => {
   for (const ch of [CHANNELS.TELEGRAM, CHANNELS.API, CHANNELS.CODE, CHANNELS.WEB_CODE, CHANNELS.DECK, CHANNELS.ROUTINE]) {
     assert.equal(channelToolIters({}, ch), null, `${ch} must keep its own budget`);
   }
+});
+
+test("channelToolIters — a2a is not a chat, and not a blank cheque either", () => {
+  // The one surface with no human on it at all: the reader is another agent,
+  // which cannot answer the "want me to keep going?" that run-agent reserves
+  // its last iteration for. On the 10-step conversational budget a peer given
+  // real tools spent nine steps and closed with a question into the void.
+  assert.equal(channelToolIters({}, CHANNELS.A2A), A2A_TOOL_ITERS);
+  assert.ok(A2A_TOOL_ITERS > MAX_TOOL_ITERS, "a peer asked to do the work has room to do it");
+  // But not run-to-completion: replyAsAgent honours no timeoutMs (only
+  // replyAsRuntime does), so nothing but this number stops a runaway — and a
+  // --deliver chains up to four levels deep (`_depth > 3`, conversations.js),
+  // so four of these must still cost less than one watched turn.
+  assert.ok(
+    A2A_TOOL_ITERS * 4 <= WEB_TOOL_ITERS,
+    `four chained a2a turns (${A2A_TOOL_ITERS} each) must stay within the ${WEB_TOOL_ITERS} one watched turn may spend`,
+  );
+  assert.equal(channelToolIters({ super_agent: { a2a_max_iters: 7 } }, CHANNELS.A2A), 7);
+  assert.equal(channelToolIters({ super_agent: { a2a_max_iters: 0 } }, CHANNELS.A2A), A2A_TOOL_ITERS);
+  // The web override must not leak onto it: two surfaces, two decisions.
+  assert.equal(channelToolIters({ super_agent: { web_max_iters: 999 } }, CHANNELS.A2A), A2A_TOOL_ITERS);
 });
 
 test("channelToolIters — config overrides the ceiling, 0/invalid falls back", () => {

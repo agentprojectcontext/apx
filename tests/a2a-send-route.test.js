@@ -20,20 +20,26 @@ const { buildApi } = await import("#host/daemon/api.js");
 const { listCodeSessions } = await import("#core/stores/code-sessions.js");
 const { makeTempProject, cleanupTempProject } = await import("./_helpers.js");
 
-/** A stand-in `opencode` that answers, and reports no session of its own. */
+/** A stand-in `opencode` that answers, reports no session of its own, and keeps
+ *  the prompt it was given so a test can read what the peer actually saw. */
 function fakeOpencode() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "apx-send-bin-"));
+  const promptFile = path.join(dir, "last-prompt.txt");
   fs.writeFileSync(
     path.join(dir, "opencode"),
     `#!/usr/bin/env node
+const fs = require("node:fs");
 const args = process.argv.slice(2);
 if (args[0] === "session") process.stdout.write("[]");
-else process.stdout.write("peer answered\\n");
+else {
+  fs.writeFileSync(${JSON.stringify(promptFile)}, args.join("\\n"));
+  process.stdout.write("peer answered\\n");
+}
 `,
     { mode: 0o755 },
   );
   fs.chmodSync(path.join(dir, "opencode"), 0o755);
-  return dir;
+  return { dir, promptFile };
 }
 
 async function withApi(fn) {
@@ -49,11 +55,11 @@ async function withApi(fn) {
   const server = app.listen(0);
   await new Promise((r) => server.once("listening", r));
   const baseUrl = `http://127.0.0.1:${server.address().port}`;
-  const binDir = fakeOpencode();
+  const { dir: binDir, promptFile } = fakeOpencode();
   const oldPath = process.env.PATH || "";
   process.env.PATH = `${binDir}${path.delimiter}${oldPath}`;
   try {
-    await fn({ baseUrl, id, storagePath: projects.get(id).storagePath });
+    await fn({ baseUrl, id, storagePath: projects.get(id).storagePath, promptFile });
   } finally {
     process.env.PATH = oldPath;
     fs.rmSync(binDir, { recursive: true, force: true });
@@ -131,6 +137,49 @@ test("a plain exchange leaves the Code module alone", async () => {
     assert.equal(listCodeSessions(storagePath).length, 0, "talking is not a coding session");
     const { listProjectA2AThreads } = await import("#core/stores/messages.js");
     assert.equal(listProjectA2AThreads(storagePath)[0].messages, 2, "sender and reply render once each");
+  });
+});
+
+test("the history a peer is handed is what was SAID, not what its tools printed", async () => {
+  // An a2a reply runs the full tool loop, and the ledger it writes to carries
+  // both kinds of row: the agent's line (`type: "agent"`) and, from the routine
+  // runner and — between 6e910a0 and d06ed30 — this route itself, one row per
+  // tool step whose body is the raw result. Both name the same two
+  // participants, so the pair filter alone kept them all, and a2aPairHistory
+  // replayed a lint dump back at the peer as though somebody had said it.
+  //
+  // Measured on the live magui~roby thread before this filter: 18 of the last
+  // 24 rows were tool exhaust, 84% of the characters, leaving six real lines of
+  // a multi-day job for the peer to work from. It reads exactly like an agent
+  // that has stopped understanding what it is doing, because it is one.
+  await withApi(async ({ baseUrl, id, storagePath, promptFile }) => {
+    const dir = path.join(storagePath, "messages");
+    fs.mkdirSync(dir, { recursive: true });
+    const rows = [
+      { ts: "2026-09-06T10:00:00Z", channel: "a2a", direction: "out", type: "agent",
+        author: "roby", agent_slug: "roby", body: "Arrancá por el reel 129.",
+        meta: { from: "roby", to: "opencode" } },
+      // The shape the route used to write: a whole file, as a chat line.
+      { ts: "2026-09-06T10:01:00Z", channel: "a2a", direction: "out", type: "tool",
+        author: "opencode", agent_slug: "opencode", actor_id: "shell",
+        body: JSON.stringify({ exit_code: 0, stdout: "<!doctype html>\\n<html>LINT_DUMP_MARKER</html>" }),
+        meta: { to: "roby", tool: "shell" } },
+      { ts: "2026-09-06T10:02:00Z", channel: "a2a", direction: "in", type: "agent",
+        author: "opencode", agent_slug: "opencode", body: "Listo, quedó rendereado.",
+        meta: { from: "opencode", to: "roby" } },
+    ];
+    fs.writeFileSync(path.join(dir, "2026-09-06.jsonl"), rows.map((r) => JSON.stringify(r)).join("\n") + "\n");
+
+    const res = await send(baseUrl, id, { from: "roby", to: "opencode", body: "seguí", deliver: true });
+    assert.equal(res.status, 200);
+
+    // replyAsRuntime carries the thread in the prompt, so what the peer was
+    // handed is readable in full.
+    const prompt = fs.readFileSync(promptFile, "utf8");
+    assert.match(prompt, /Arrancá por el reel 129\./, "the earlier line survives");
+    assert.match(prompt, /Listo, quedó rendereado\./, "so does the peer's own");
+    assert.doesNotMatch(prompt, /LINT_DUMP_MARKER/, "the tool's raw output is not a turn in the conversation");
+    assert.doesNotMatch(prompt, /exit_code/, "nor is any of its envelope");
   });
 });
 
