@@ -588,7 +588,7 @@ export const HELP_TOPICS = new Map(Object.entries({
     examples: [
       "apx session resume b3f0c12a... --summary",
       "apx session resume 2026-05-09-01 --continue",
-      "apx session resume fb65f80d... --continue --msg \"Manu says: go ahead with the tests, don't touch login\"",
+      "apx session resume fb65f80d... --continue --msg \"the owner says: go ahead with the tests, don't touch login\"",
       "apx session resume b3f0c12a... --engine claude --into apx:reviewer",
     ],
   }),

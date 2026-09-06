@@ -123,7 +123,7 @@ That's the "return address". Any APX agent, on seeing it, knows how to reply.
 ```bash
 # Headless: inject one message into the session's transcript (full context) and
 # capture its reply on stdout. Implies --continue. Claude only for now.
-apx session resume <session-id> --continue --msg "Manu says: go ahead with the tests, don't touch login"
+apx session resume <session-id> --continue --msg "the owner says: go ahead with the tests, don't touch login"
 ```
 
 The reply the woken session produces comes back on stdout — the agent relays that
