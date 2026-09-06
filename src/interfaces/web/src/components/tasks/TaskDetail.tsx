@@ -3,7 +3,6 @@ import useSWR from "swr";
 import { Check, CornerLeftUp, ExternalLink, Pencil, RotateCcw, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Tasks } from "../../lib/api";
-import type { TaskEntry } from "../../types/daemon";
 import { Agents } from "../../lib/api/agents";
 import { Badge, Button, Spinner, Tip } from "../ui";
 import { UiSelect } from "../UiSelect";
@@ -146,7 +145,7 @@ export function TaskDetail({
           )}
           <span className="font-mono text-[10px]">{task.id}</span>
           {task.priority && task.priority !== "normal" && (
-            <Badge tone={task.priority === "urgent" ? "danger" : task.priority === "high" ? "warning" : "default"}>
+            <Badge tone={task.priority === "urgent" ? "danger" : task.priority === "high" ? "warning" : "muted"}>
               {task.priority === "urgent" ? "🔴 Urgente" : task.priority === "high" ? "🟠 Alta" : "⚪ Baja"}
             </Badge>
           )}

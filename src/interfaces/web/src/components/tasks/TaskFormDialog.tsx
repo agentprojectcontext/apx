@@ -152,8 +152,8 @@ export function TaskFormDialog({
         body: body.trim() || null,
         due: due || null,
         agent: agent || null,
-        priority: priority || "normal",
-        reminder_frequency: reminderFrequency || "none",
+        priority: (priority || "normal") as TaskEntry["priority"],
+        reminder_frequency: (reminderFrequency || "none") as TaskEntry["reminder_frequency"],
         tags: allTags,
         category,
         // Switching a trip back to a plain task clears its place rather than
