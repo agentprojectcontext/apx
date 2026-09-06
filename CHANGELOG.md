@@ -1,3 +1,11 @@
+# [1.89.0](https://github.com/agentprojectcontext/apx/compare/v1.88.1...v1.89.0) (2026-09-06)
+
+
+### Features
+
+* **a2a:** enable full agent tool execution loop and trace logging in A2A replies ([6e910a0](https://github.com/agentprojectcontext/apx/commit/6e910a0dea090d65c30de89f6e807a9bad1b3c04))
+* **core,web:** A2A resilient fallback, vision bridge text degradation, task priority/assignee fields in UI ([0a52a1a](https://github.com/agentprojectcontext/apx/commit/0a52a1a754bb8844cd2ed94e3535ea279a9bebdc))
+
 ## [1.88.1](https://github.com/agentprojectcontext/apx/compare/v1.88.0...v1.88.1) (2026-09-06)
 
 
