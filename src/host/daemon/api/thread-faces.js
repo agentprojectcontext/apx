@@ -17,8 +17,13 @@
 // It lives at the surface rather than in core because the super-agent's display
 // name comes from identity.json and core must not reach for it (rule 4).
 import { readAgents } from "#core/apc/parser.js";
+import { resolveSuperAgentBlob } from "#core/apc/agent-identity.js";
 import { readConfig } from "#core/config/index.js";
 import { resolveAgentName, SUPERAGENT_ACTOR_ID } from "#core/identity/index.js";
+
+const LEGACY_SUPER_AGENT_SLUGS = new Set([
+  "default", "superagent", "super-agent", "super_agent", "apx", "roby", "__super_agent__",
+]);
 
 // Coding CLIs aren't project agents (no .apc file, so no face resolves), but an
 // a2a pair with one should read as its brand, not a bare lowercase slug. Keys
@@ -85,7 +90,7 @@ export function createFaceResolver(projectPaths = []) {
       slug: SUPERAGENT_ACTOR_ID,
       name: resolveAgentName(cfg || {}),
       emoji: null,
-      icon: cfg?.super_agent?.icon || cfg?.desktop?.blob || null,
+      icon: resolveSuperAgentBlob(cfg || {}),
     };
     return superFace;
   };
@@ -95,6 +100,17 @@ export function createFaceResolver(projectPaths = []) {
     if (slug === SUPERAGENT_ACTOR_ID) return { ...superAgentFace() };
     const local = localAgents.find((a) => a.slug === slug);
     const hit = local ? faceOfAgent(local) : globalIndex().get(slug) || null;
+    if (!hit && LEGACY_SUPER_AGENT_SLUGS.has(String(slug).toLowerCase())) {
+      return { ...superAgentFace() };
+    }
+    if (!hit && String(slug).toLowerCase() === "roby-orchestrator") {
+      return {
+        slug,
+        name: "Roby Orchestrator",
+        emoji: null,
+        icon: superAgentFace().icon,
+      };
+    }
     return {
       // Physical key, so a surface can OPEN this agent and not just paint it.
       slug,

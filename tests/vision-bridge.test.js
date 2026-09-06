@@ -8,6 +8,7 @@ const {
   visionBridgeModel,
   withImageDescription,
 } = await import("#core/agent/vision-bridge.js");
+const { messagesForModel } = await import("#core/agent/model-capabilities.js");
 
 test("providerWiresVision: gemini/openai/anthropic/openrouter yes, zen no", () => {
   assert.equal(providerWiresVision("gemini:gemini-2.0-flash"), true);
@@ -16,6 +17,26 @@ test("providerWiresVision: gemini/openai/anthropic/openrouter yes, zen no", () =
   assert.equal(providerWiresVision("openrouter:google/gemini-flash"), true);
   assert.equal(providerWiresVision("zen:big-pickle"), false);
   assert.equal(providerWiresVision("groq:llama-3.3"), false);
+  assert.equal(
+    providerWiresVision("private:gpt-vision", { engines: { private: { engine: "openai" } } }),
+    true,
+  );
+});
+
+test("messagesForModel removes raw images from text-only fallback without mutating history", () => {
+  const original = [{
+    role: "user",
+    content: "mirá esto",
+    images: [{ mime: "image/jpeg", data: "secret-base64", path: "/tmp/photo.jpg" }],
+  }];
+  const degraded = messagesForModel(original, "zen:big-pickle");
+
+  assert.notEqual(degraded, original);
+  assert.equal(degraded[0].images, undefined);
+  assert.match(degraded[0].content, /\[imagen adjunta: \/tmp\/photo\.jpg\]/);
+  assert.doesNotMatch(degraded[0].content, /secret-base64/);
+  assert.equal(original[0].images[0].data, "secret-base64", "vision fallback still gets original pixels");
+  assert.equal(messagesForModel(original, "gemini:gemini-2.0-flash"), original);
 });
 
 test("visionBridgeModel: config override, then has_image rule, then default", () => {

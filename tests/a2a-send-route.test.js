@@ -129,6 +129,8 @@ test("a plain exchange leaves the Code module alone", async () => {
     assert.equal(res.status, 200);
     assert.equal((await res.json()).reply.text, "peer answered");
     assert.equal(listCodeSessions(storagePath).length, 0, "talking is not a coding session");
+    const { listProjectA2AThreads } = await import("#core/stores/messages.js");
+    assert.equal(listProjectA2AThreads(storagePath)[0].messages, 2, "sender and reply render once each");
   });
 });
 

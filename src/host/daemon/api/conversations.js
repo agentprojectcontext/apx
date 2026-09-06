@@ -9,7 +9,8 @@
 import fs from "node:fs";
 import { readAgents } from "#core/apc/parser.js";
 import { listConversations, readConversation, deleteConversation, truncateConversation, setConversationMeta, shapeConversationMessage } from "#core/stores/conversations.js";
-import { listGlobalThreads, readGlobalThread, deleteGlobalThread, setGlobalThreadMeta, listProjectA2AThreads, readProjectA2AThread, listProjectGroupThreads, readProjectGroupThread, deleteGroupThread, deleteA2AThread, readProjectMessages, readA2APeerSession } from "#core/stores/messages.js";
+import { listGlobalThreads, readGlobalThread, deleteGlobalThread, setGlobalThreadMeta, listProjectA2AThreads, readProjectA2AThread, listProjectGroupThreads, readProjectGroupThread, deleteGroupThread, deleteA2AThread, readProjectMessages, readA2APeerSession, dedupA2A } from "#core/stores/messages.js";
+import { shortId } from "#core/util/ids.js";
 
 // Prior turns of an a2a thread between `from` and `to`, oldest→newest, shaped as
 // LLM messages from `viewer`'s side (its own lines = assistant, the peer's =
@@ -22,15 +23,7 @@ function a2aPairHistory(storageRoot, from, to, viewer, limit = 24) {
     const parts = [m.agent_slug, m.author, m.meta?.from, m.meta?.to].filter(Boolean);
     return parts.length > 0 && parts.every((s) => pair.has(s));
   });
-  // Collapse the double-logged rows (one under each peer), keeping the copy
-  // written under the speaker's own ledger.
-  const best = new Map();
-  for (const m of rows) {
-    const k = `${m.ts}|${m.author}|${(m.body || "").slice(0, 120)}`;
-    const cur = best.get(k);
-    if (!cur || (m.agent_slug === m.author && cur.agent_slug !== cur.author)) best.set(k, m);
-  }
-  return [...best.values()]
+  return dedupA2A(rows)
     .sort((a, b) => (a.ts || "").localeCompare(b.ts || ""))
     .slice(-limit)
     .map((m) =>
@@ -469,6 +462,7 @@ export function register(api, { projects, project, config, plugins, registries }
     if (usage && typeof usage === "object") attrib.usage = usage;
 
     const ts = nowIso();
+    const messageId = shortId("a2a");
     p.logMessage({
       agent_slug: from,
       channel: "a2a",
@@ -477,6 +471,7 @@ export function register(api, { projects, project, config, plugins, registries }
       body,
       meta: { to, depth: _depth, final: true, ...sevMeta, ...attrib, ...(requested_by ? { requested_by } : {}) },
       ts,
+      external_id: messageId,
     });
 
     // A `blocker` is an alert, not a note for the next digest: Roby pings the
@@ -517,6 +512,7 @@ export function register(api, { projects, project, config, plugins, registries }
         ...(requested_by ? { requested_by } : {}),
       },
       ts,
+      external_id: messageId,
     });
 
     // Run the peer and file both halves of its answer. Returns the payload the
@@ -572,6 +568,8 @@ export function register(api, { projects, project, config, plugins, registries }
           timeoutMs,
         });
 
+        const replyTs = nowIso();
+        const replyMessageId = shortId("a2a");
         p.logMessage({
           agent_slug: to,
           channel: "a2a",
@@ -596,6 +594,8 @@ export function register(api, { projects, project, config, plugins, registries }
             ...(result.sessionId ? { runtime_session_id: result.sessionId } : {}),
             ...(codeSession ? { code_session_id: codeSession.id } : {}),
           },
+          ts: replyTs,
+          external_id: replyMessageId,
         });
         if (codeSession) {
           appendCodeTurn(p.storagePath, codeSession.id, {
@@ -612,6 +612,8 @@ export function register(api, { projects, project, config, plugins, registries }
           author: to,
           body: result.text,
           meta: { from: to, depth: _depth + 1 },
+          ts: replyTs,
+          external_id: replyMessageId,
         });
         return {
           text: result.text,

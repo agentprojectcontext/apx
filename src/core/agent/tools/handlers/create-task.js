@@ -37,13 +37,23 @@ export default {
           },
           tags:    { type: "array", items: { type: "string" }, description: "Optional tags." },
           due:     { type: "string", description: "Optional ISO date (YYYY-MM-DD) the task is due by." },
-          agent:   { type: "string", description: "Optional agent slug responsible for the task." },
+          agent:   { type: "string", description: "Responsible actor: an agent slug, or owner/human for the human owner." },
+          priority: {
+            type: "string",
+            enum: ["low", "normal", "high", "urgent"],
+            description: "Task priority. Defaults to normal.",
+          },
+          reminder_frequency: {
+            type: "string",
+            enum: ["none", "once", "daily", "weekly"],
+            description: "How often the owner wants a reminder recorded for this task. Defaults to none.",
+          },
           source:  { type: "string", description: "Where the task came from (telegram, desktop, …). Defaults to the calling channel." },
         },
       },
     },
   },
-  makeHandler: ({ projects }) => async ({ project: ref, title, description, body, tags, due, agent, source, parent }) => {
+  makeHandler: ({ projects }) => async ({ project: ref, title, description, body, tags, due, agent, priority, reminder_frequency, source, parent }) => {
     if (!ref) return { error: "project required" };
     if (!title) return { error: "title required" };
     const all = projects.list();
@@ -62,6 +72,8 @@ export default {
       tags: Array.isArray(tags) ? tags : [],
       due: due || null,
       agent: agent || null,
+      priority,
+      reminder_frequency,
       source: source || "super-agent",
     });
     return {
@@ -70,6 +82,9 @@ export default {
       title: task.title,
       state: task.state,
       ...(task.parent ? { parent: task.parent } : {}),
+      agent: task.agent,
+      priority: task.priority,
+      reminder_frequency: task.reminder_frequency,
     };
   },
 };

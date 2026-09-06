@@ -166,6 +166,8 @@ export interface TaskEntry {
   /** The prompt an agent receives when it runs the task. Not a description. */
   body: string | null;
   tags: string[];
+  priority?: "low" | "normal" | "high" | "urgent";
+  reminder_frequency?: "none" | "once" | "daily" | "weekly";
   category?: TaskCategory;
   location?: TaskLocation | null;
   due: string | null;

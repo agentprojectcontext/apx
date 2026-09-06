@@ -12,7 +12,8 @@
 // Same classifier as the loop (retry.js), same chain (model-router.js), so the
 // two agree about what "retryable" means and which model comes next.
 import { callEngine } from "../engines/index.js";
-import { fallbackModels } from "./model-router.js";
+import { fallbackModels, isFallbackEnabled } from "./model-router.js";
+import { messagesForModel } from "./model-capabilities.js";
 import { isRetryableEngineError, shortRetryReason } from "./retry.js";
 
 /**
@@ -27,11 +28,18 @@ import { isRetryableEngineError, shortRetryReason } from "./retry.js";
  *          actually answered, which is not always the one that was asked.
  */
 export async function callEngineWithFallback({ modelId, config, ...rest }, { onRotate } = {}) {
-  const chain = fallbackModels(config).filter((m) => m && m !== modelId);
+  const chain = isFallbackEnabled(config)
+    ? fallbackModels(config).filter((m) => m && m !== modelId)
+    : [];
   let active = modelId;
   for (;;) {
     try {
-      const out = await callEngine({ ...rest, config, modelId: active });
+      const out = await callEngine({
+        ...rest,
+        messages: messagesForModel(rest.messages, active, config),
+        config,
+        modelId: active,
+      });
       return { ...out, model: active };
     } catch (e) {
       if (e?.name === "AbortError" || rest.signal?.aborted) throw e;

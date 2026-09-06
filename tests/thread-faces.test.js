@@ -22,6 +22,7 @@ process.env.APX_HOME = path.join(TMP_HOME, ".apx");
 
 const { ProjectManager } = await import("#host/daemon/db.js");
 const { buildApi } = await import("#host/daemon/api.js");
+const { createFaceResolver } = await import("#host/daemon/api/thread-faces.js");
 const { makeTempProject, cleanupTempProject } = await import("./_helpers.js");
 
 async function listen(app) {
@@ -153,10 +154,23 @@ test("the super-agent in a pair wears its persona and its blob, not `super_agent
     const th = a2aOf(await fetch(`${baseUrl}/api/projects/${id}/super-agent/threads`).then((r) => r.json()));
     assert.equal(th.title, "Andy · Nova");
     assert.deepEqual(th.participant_faces[1], {
-      slug: "super_agent", name: "Nova", emoji: null, icon: null,
+      slug: "super_agent", name: "Nova", emoji: null, icon: "noche",
     });
   }, { pair: ["andy", "super_agent"] });
   fs.rmSync(path.join(TMP_HOME, ".apx", "identity.json"), { force: true });
+});
+
+test("legacy roby and roby-orchestrator rows keep recognizable avatars", async () => {
+  await withProject(async ({ root }) => {
+    writeAgent(root, "roby-orchestrator", { name: "Roby Orchestrator", icon: "orbit" });
+    const resolver = createFaceResolver([root]);
+    const legacy = resolver.face("roby");
+    const orchestrator = resolver.face("roby-orchestrator");
+    assert.equal(legacy.icon, "noche");
+    assert.equal(legacy.slug, "super_agent");
+    assert.equal(orchestrator.icon, "orbit");
+    assert.equal(orchestrator.name, "Roby Orchestrator");
+  }, { pair: ["andy", "roby"] });
 });
 
 test("a group keeps the name someone gave it, and gets one when nobody did", async () => {
