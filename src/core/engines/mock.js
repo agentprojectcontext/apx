@@ -207,7 +207,7 @@ export default {
     // get written over a whole conversation as its "summary".
     if (model === "truncated" || model === "mock:truncated") {
       return {
-        text: "USER_CONTEXT:\n- Manu",
+        text: "USER_CONTEXT:\n- Owner",
         usage: { input_tokens: userText.length, output_tokens: 6 },
         raw: { model, mock: true },
       };

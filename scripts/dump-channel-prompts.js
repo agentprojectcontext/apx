@@ -48,13 +48,13 @@ const CHANNELS = {
     use: "Telegram bot — chit-chat + actions, lightweight tool set",
     meta: {
       channelName: "roby-bot",
-      author: "Manu",
+      author: "Alex",
       chatId: "123456789",
       projectBlock: "Active project: apx (id=0).\n",
       routeBlock: "",
     },
     relationship:
-      "# Who you're talking to\nYou are talking to your owner, Manu.",
+      "# Who you're talking to\nYou are talking to your owner, Alex.",
   },
   cli: {
     use: "`apx exec super-agent` — one-shot terminal call",
@@ -159,8 +159,8 @@ const AGENT_SURFACES = {
     use: "Project agent answering its owner on Telegram",
     invocation: "telegram",
     channel: "telegram",
-    meta: { channelName: "april-bot", author: "Manu", chatId: "123456789" },
-    sender: { userId: 1, name: "Manu", isOwner: true, role: "owner" },
+    meta: { channelName: "april-bot", author: "Alex", chatId: "123456789" },
+    sender: { userId: 1, name: "Alex", isOwner: true, role: "owner" },
   },
   deck: {
     use: "Project agent on the cockpit deck",
