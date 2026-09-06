@@ -3,6 +3,7 @@ import useSWR from "swr";
 import { Check, CornerLeftUp, ExternalLink, Pencil, RotateCcw, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Tasks } from "../../lib/api";
+import type { TaskEntry } from "../../types/daemon";
 import { Agents } from "../../lib/api/agents";
 import { Badge, Button, Spinner, Tip } from "../ui";
 import { UiSelect } from "../UiSelect";
@@ -245,7 +246,7 @@ export function TaskDetail({
               <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-fg">Prioridad</div>
               <UiSelect
                 value={task.priority ?? "normal"}
-                onChange={(v) => act(() => Tasks.patch(pid, task.id, { priority: v as any }))}
+                onChange={(v) => act(() => Tasks.patch(pid, task.id, { priority: v as TaskEntry["priority"] }))}
                 options={[
                   { value: "low", label: "⚪ Baja" },
                   { value: "normal", label: "🟢 Normal" },
@@ -258,7 +259,7 @@ export function TaskDetail({
               <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-fg">Recordatorio</div>
               <UiSelect
                 value={task.reminder_frequency ?? "none"}
-                onChange={(v) => act(() => Tasks.patch(pid, task.id, { reminder_frequency: v as any }))}
+                onChange={(v) => act(() => Tasks.patch(pid, task.id, { reminder_frequency: v as TaskEntry["reminder_frequency"] }))}
                 options={[
                   { value: "none", label: "Sin recordatorio" },
                   { value: "once", label: "Una vez" },
