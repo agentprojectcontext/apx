@@ -1,3 +1,12 @@
+## [1.89.1](https://github.com/agentprojectcontext/apx/compare/v1.89.0...v1.89.1) (2026-09-06)
+
+
+### Bug Fixes
+
+* **pkg:** npm stops auto-correcting the manifest on every publish ([64a2308](https://github.com/agentprojectcontext/apx/commit/64a2308444ec67f6551839f38be1832c7f5d5d1d))
+* **web:** the priority badge names a tone that exists, and the form types its fields ([04797e8](https://github.com/agentprojectcontext/apx/commit/04797e8b755a0fb8cc4849f6ee1e21201796c1e6))
+* **web:** the task priority and reminder selects are typed, not `any` ([9099303](https://github.com/agentprojectcontext/apx/commit/909930340ca3d630ed546a0cb9d4c2d0c90cdcd6))
+
 # [1.89.0](https://github.com/agentprojectcontext/apx/compare/v1.88.1...v1.89.0) (2026-09-06)
 
 
