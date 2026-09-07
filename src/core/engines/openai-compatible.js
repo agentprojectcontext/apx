@@ -38,6 +38,7 @@ export function createOpenAiCompatibleEngine({
   defaultBaseUrl,
   apiKeyEnv,
   defaultFallbackModel = null,
+  // Object, or a function (config) => object called per request.
   extraHeaders = {},
   decorateMessage = null,
   // Zen free-tier accepts the literal key "public" with the opencode UA.
@@ -56,13 +57,16 @@ export function createOpenAiCompatibleEngine({
 
   // Headers beyond the ones every call needs. Some gateways gate on something
   // other than the key — OpenCode Zen serves its free tier only to a caller
-  // that identifies itself as the opencode client — and a self-hosted proxy in
-  // front of a model may want its own. The adapter carries a default per
-  // engine; `engines.<id>.headers` in config adds to or overrides it. The
-  // per-call ones (auth, content-type) always win, so config can't blank out
-  // the key by accident.
+  // that identifies itself as the opencode client, down to a per-request id —
+  // and a self-hosted proxy in front of a model may want its own. The adapter
+  // carries a default per engine, either an object or a function called once
+  // per request for the headers that can't be frozen at import time;
+  // `engines.<id>.headers` in config adds to or overrides it. The per-call ones
+  // (auth, content-type) always win, so config can't blank out the key by
+  // accident.
   function buildHeaders(config, perCall = {}) {
-    const merged = { ...extraHeaders, ...(config?.headers || {}), ...perCall };
+    const defaults = typeof extraHeaders === "function" ? extraHeaders(config) : extraHeaders;
+    const merged = { ...defaults, ...(config?.headers || {}), ...perCall };
     const out = {};
     for (const [k, v] of Object.entries(merged)) {
       if (v != null && v !== "") out[String(k).toLowerCase()] = String(v);

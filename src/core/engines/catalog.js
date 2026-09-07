@@ -3,7 +3,7 @@
 // { error }. Pure transport — no daemon dependencies. Both the daemon HTTP
 // adapter and CLI commands can reuse this.
 import { fetchJsonWithTimeout } from "./_health.js";
-import { ZEN_HEADERS } from "./zen.js";
+import { zenHeaders } from "./zen.js";
 
 export const DEFAULT_BASE = {
   openai:     "https://api.openai.com/v1",
@@ -74,7 +74,7 @@ export async function listModels(engine, baseUrl, apiKey) {
   if (engine === "zen") {
     const r = await fetchJsonWithTimeout(`${base || DEFAULT_BASE.zen}/models`, {
       timeoutMs: 5000,
-      headers: { ...ZEN_HEADERS, ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}) },
+      headers: { ...zenHeaders(), ...(apiKey ? { authorization: `Bearer ${apiKey}` } : {}) },
     });
     if (!r.ok) return { error: r.reason || `HTTP ${r.status}` };
     const list = Array.isArray(r.json?.data) ? r.json.data : [];
