@@ -476,6 +476,12 @@ function a2aPair(m) {
 function a2aPairId(pair) {
   return pair.join("~");
 }
+/** The id of the a2a thread two peers share — the same one listProjectA2AThreads
+ *  derives from the ledger, so a live turn can be keyed to the thread the inbox
+ *  is looking at. Order-independent: claude→magui and magui→claude are one thread. */
+export function a2aThreadId(from, to) {
+  return a2aPairId([...new Set([from, to].filter(Boolean))].sort());
+}
 // `apx send … --deliver` logs each utterance twice — once under `from`, once
 // under `to`. New writes share an external_id. Older rows did not, so their
 // mirror is paired only when the full body, author and participant pair match,
@@ -1629,6 +1635,13 @@ export function shapeLedgerMessage(r) {
     // (core/agent/tool-summary.js) because the live tool events are gone
     // by the time anyone reads the thread back.
     ...(r.meta?.tool_summary ? { tool_summary: r.meta.tool_summary } : {}),
+    // What an a2a peer's turn actually called. These used to be their own
+    // `type: "tool"` ledger rows; they were moved into the reply's meta so a
+    // trace could not eat the thread's context on the next turn — but nothing
+    // read them back out, so the thread showed an answer with no visible work
+    // and the "show tools" toggle rendered an empty group. Handed out here, the
+    // one place a row becomes a message.
+    ...(Array.isArray(r.meta?.trace) && r.meta.trace.length ? { trace: r.meta.trace } : {}),
     // Which skills the per-turn RAG put in the prompt. Same reasoning as
     // tool_summary: the live `skill_inspector` event is gone by read time.
     ...(r.meta?.skill_inspector ? { skill_inspector: r.meta.skill_inspector } : {}),

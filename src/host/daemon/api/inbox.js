@@ -9,11 +9,16 @@ import { readConfig } from "#core/config/index.js";
 import { resolveAgentName } from "#core/identity/index.js";
 import { faceResolverFor, readAgentsSafe } from "./thread-faces.js";
 import { pageEnvelope, A2A_SLUG_PREFIX, GROUP_SLUG_PREFIX } from "./shared.js";
-import { convTurnKey, getActiveTurnByKey, listActiveTurns } from "../active-turns.js";
+import { convTurnKey, threadTurnKey, getActiveTurnByKey, listActiveTurns } from "../active-turns.js";
 
 function activeTurnForRow(row, activeTurns) {
   if (row.kind === "agent" && row.project_id != null && row.conversation_id) {
     return getActiveTurnByKey(convTurnKey(row.project_id, row.conversation_id));
+  }
+  // a2a and group threads are keyed by thread, not by conversation: the run
+  // belongs to the pair, not to one agent's conversation file.
+  if ((row.kind === "a2a" || row.kind === "group") && row.project_id != null && row.conversation_id) {
+    return getActiveTurnByKey(threadTurnKey(row.project_id, row.channel || row.kind, row.conversation_id));
   }
   if (row.kind === "super_agent" && row.channel && row.conversation_id) {
     return activeTurns.find((turn) =>

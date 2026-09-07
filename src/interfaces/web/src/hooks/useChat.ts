@@ -367,6 +367,24 @@ function threadToChatMsgs(messages: ConversationMessage[]): ChatMsg[] {
           status: isErrorResult(m.result) ? "error" : "done",
         });
       } else {
+        // A peer's tool calls arrive on the assistant row itself (meta.trace)
+        // rather than as their own rows — a2a stores them that way so a trace
+        // cannot eat the thread's context. Expanded here, ahead of the answer,
+        // so the bubble reads like any other turn: what it did, then what it
+        // said. Without this the thread showed the claim and none of the work.
+        if (Array.isArray(m.trace)) {
+          for (const step of m.trace) {
+            if (!step?.tool) continue;
+            turn.parts.push({
+              kind: "tool",
+              id: `hist-${toolSeq++}`,
+              tool: step.tool,
+              args: step.args,
+              result: step.result,
+              status: isErrorResult(step.result) ? "error" : "done",
+            });
+          }
+        }
         if (m.agent) turn.agentId = m.agent;
         if (m.agent_name) turn.agent = m.agent_name;
         if (m.reason) turn.reason = m.reason; // group: "traído por X"
