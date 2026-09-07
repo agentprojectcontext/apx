@@ -72,14 +72,23 @@ What the PROJECT knows lives in two places, and the difference is a safety bound
 
 | File | Committed? | Written by |
 |---|---|---|
-| `~/.apx/projects/<apxId>/memory.md` | Never | You, with `remember` + `project` |
+| `~/.apx/projects/<apxId>/memory.md` | Never | You, with `remember` + `project` or `write_project_memory` |
 | `<repo>/.apc/memory.md` | Yes, git carries it | The owner, by hand, after reading it |
 
-Write with `remember` and a `project` — never by creating a memory file yourself. A `MEMORY.md` at the repo root, or any other name, is read by nothing.
+Never create a memory file yourself. A `memory.md` or `MEMORY.md` at the repo root is read by nothing — not the Memories screen, not the RAG indexer — and it gets committed, which on a repo that auto-deploys means it ships. Two tools write the local file, and which one you want is a question of SHAPE:
+
+| What you have | Tool |
+|---|---|
+| One durable sentence | `remember(note, project)` |
+| A whole document — a survey, the stack, sections, a table | `write_project_memory(project, content, mode)` |
 
 ```
 remember(note: "Northwind runs on Postgres in production", project: "northwind")
+
+write_project_memory(project: "northwind", content: "# Northwind\n\n## Stack\n…", mode: "replace")
 ```
+
+`write_project_memory` is a lazy tool — reach it with `discover_tools`. `mode: "append"` adds one dated bullet (same as `remember`); `mode: "replace"` rewrites the whole body after a timestamped backup, so read the current one first and keep what is still true.
 
 It lands in the local file on purpose. A note you write automatically can carry something the owner pasted into a chat, and a committed file is forever — APC keeps private runtime memory out of `.apc/`, which is only for curated facts that are safe for the team. If a fact belongs in the repo, say so and let the owner promote it from the Memories screen; do not write `.apc/memory.md` yourself unless they explicitly ask.
 
