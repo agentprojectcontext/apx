@@ -125,9 +125,22 @@ function claimSingleton() {
   }
 }
 
+// Remove the pid file — but only if it is OURS.
+//
+// It used to unlink whatever was there, which meant any daemon on its way out
+// could delete the pid file belonging to the daemon that was still running: a
+// second `apx daemon start` that loses the singleton race, or a process exiting
+// after another one had already claimed the port. The live daemon was then
+// invisible to `apx restart`, whose fallback (kill the pid in the file) had
+// nothing to kill — so it waited for a shutdown nobody had been asked for and
+// gave up with "did not shut down in time". A pid file names one process; only
+// that process gets to take it away.
 function clearPid() {
   try {
-    if (fs.existsSync(PID_PATH)) fs.unlinkSync(PID_PATH);
+    if (!fs.existsSync(PID_PATH)) return;
+    const owner = parseInt(fs.readFileSync(PID_PATH, "utf8"), 10);
+    if (owner && owner !== process.pid) return;
+    fs.unlinkSync(PID_PATH);
   } catch {}
 }
 
