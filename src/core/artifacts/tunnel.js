@@ -68,11 +68,42 @@ export class TunnelManager {
   constructor() {
     /** @type {Map<string, object>} id → record */
     this.tunnels = new Map();
-    // Kill any surviving children when the daemon process goes down.
+    // Kill any surviving children when the process goes down.
+    //
+    // This class is a module-level singleton (`export const tunnels` below), so
+    // these handlers are installed by the mere IMPORT of this file, in whatever
+    // process imports it — long before any tunnel is opened, and usually
+    // without one ever being opened at all.
+    //
+    // Which is why they must not call process.exit. They used to, and inside
+    // the daemon that was fatal: signal listeners run in registration order,
+    // this file is imported while routes are being wired, and the daemon
+    // registers its own `shutdown` afterwards. So SIGTERM ran cleanup, exited
+    // with 143, and the daemon's shutdown never happened — no "received
+    // SIGTERM" in the log, no clearPid (which is why ~/.apx/daemon.pid kept
+    // naming a dead process and every `apx restart` then failed with "did not
+    // shut down in time"), no plugins or scheduler stopped, and any turn in
+    // flight lost with nothing written to the ledger. A library cleans up after
+    // itself; whoever owns the process decides when it ends.
+    //
+    // Nothing is given up by not exiting. Registering a listener suppresses the
+    // default termination, so a process with NO owner would hang instead — the
+    // re-raise below covers that: `once` has already removed us by the time the
+    // handler runs, so a zero count means nobody else is listening, and the
+    // signal is sent again to die the way an unhandled one would.
     const cleanup = () => this.closeAllSync();
+    const onSignal = (sig) => function handler() {
+      cleanup();
+      // Take ourselves out before counting, so the count answers "is anyone
+      // else listening?" honestly. `process.once` has already done it by the
+      // time we run and this is a no-op — but relying on that timing is the
+      // kind of assumption that quietly stops being true.
+      process.removeListener(sig, handler);
+      if (process.listenerCount(sig) === 0) process.kill(process.pid, sig);
+    };
     process.once("exit", cleanup);
-    process.once("SIGINT", () => { cleanup(); process.exit(130); });
-    process.once("SIGTERM", () => { cleanup(); process.exit(143); });
+    process.once("SIGINT", onSignal("SIGINT"));
+    process.once("SIGTERM", onSignal("SIGTERM"));
   }
 
   static view(rec) {
