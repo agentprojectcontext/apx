@@ -1,3 +1,11 @@
+## [1.90.1](https://github.com/agentprojectcontext/apx/compare/v1.90.0...v1.90.1) (2026-09-07)
+
+
+### Bug Fixes
+
+* **daemon:** a library may not end a process it does not own ([e4eb80e](https://github.com/agentprojectcontext/apx/commit/e4eb80ea9bb83d30f94e7a8b2f432da52f8a816d))
+* **daemon:** a restart mid-answer leaves the partial, not nothing ([a041a8d](https://github.com/agentprojectcontext/apx/commit/a041a8d7934ca7b395bbd80110b6d918fad64f8a))
+
 # [1.90.0](https://github.com/agentprojectcontext/apx/compare/v1.89.2...v1.90.0) (2026-09-07)
 
 
