@@ -1,3 +1,18 @@
+# [1.90.0](https://github.com/agentprojectcontext/apx/compare/v1.89.2...v1.90.0) (2026-09-07)
+
+
+### Bug Fixes
+
+* **a2a:** send --deliver stops reporting failure over delivered messages ([4fccd5c](https://github.com/agentprojectcontext/apx/commit/4fccd5c594472fa7f442ccbd32f699886b8530d7))
+* **a2a:** show that a peer is working, and show what it did ([0beada2](https://github.com/agentprojectcontext/apx/commit/0beada2571685b4003faf1929d68853f19065f5c))
+* **memory:** --append stops reporting success over an unchanged file ([4d0a242](https://github.com/agentprojectcontext/apx/commit/4d0a24261f55ebaa3581b6a732656d3c4c3f96b0))
+* **zen:** send the session header the free tier now requires ([c90c507](https://github.com/agentprojectcontext/apx/commit/c90c5074cee866e288b6acfb9b32c3142ede6291))
+
+
+### Features
+
+* **tools:** write_project_memory, so a document has somewhere to go ([e724977](https://github.com/agentprojectcontext/apx/commit/e72497730f0f54beee03e0e998b1d8fde8aad304))
+
 ## [1.89.2](https://github.com/agentprojectcontext/apx/compare/v1.89.1...v1.89.2) (2026-09-07)
 
 
