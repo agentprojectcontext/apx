@@ -16,6 +16,7 @@ import listMcps from "./handlers/list-mcps.js";
 import listMcpTools from "./handlers/list-mcp-tools.js";
 import readAgentMemory from "./handlers/read-agent-memory.js";
 import remember from "./handlers/remember.js";
+import writeProjectMemory from "./handlers/write-project-memory.js";
 import readSelfMemory from "./handlers/read-self-memory.js";
 import listFiles from "./handlers/list-files.js";
 import readFile from "./handlers/read-file.js";
@@ -89,6 +90,7 @@ const NATIVE_TOOLS = [
   listMcpTools,
   readAgentMemory,
   remember,
+  writeProjectMemory,
   readSelfMemory,
   listFiles,
   readFile,
@@ -286,6 +288,7 @@ const NATIVE_CATEGORY = {
   [TOOLS.READ_AGENT_MEMORY]:   "memory",
   [TOOLS.READ_SELF_MEMORY]:    "memory",
   [TOOLS.REMEMBER]:            "memory",
+  [TOOLS.WRITE_PROJECT_MEMORY]: "memory",
   [TOOLS.SET_IDENTITY]:        "identity",
   [TOOLS.SEARCH_SESSIONS]:     "sessions",
   [TOOLS.SEARCH_MESSAGES]:     "messages",

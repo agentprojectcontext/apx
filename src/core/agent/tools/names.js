@@ -26,6 +26,7 @@ export const TOOLS = Object.freeze({
   READ_AGENT_MEMORY:   "read_agent_memory",
   READ_SELF_MEMORY:    "read_self_memory",
   REMEMBER:            "remember",
+  WRITE_PROJECT_MEMORY: "write_project_memory",
 
   // Filesystem / shell
   LIST_FILES:          "list_files",
@@ -140,6 +141,7 @@ export const NATIVE_TOOL_NAMES = new Set([
   TOOLS.LIST_MCPS,
   TOOLS.LIST_MCP_TOOLS,
   TOOLS.READ_AGENT_MEMORY,
+  TOOLS.WRITE_PROJECT_MEMORY,
   TOOLS.LIST_FILES,
   TOOLS.READ_FILE,
   TOOLS.WRITE_FILE,
