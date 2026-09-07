@@ -21,7 +21,7 @@ const { apiRouter } = await import("./_helpers.js");
 const { register: registerExec } = await import("../src/host/daemon/api/exec.js");
 const { register: registerTurns } = await import("../src/host/daemon/api/turns.js");
 const {
-  startActiveTurn, appendActiveTurn, recordActiveTurnEvent, endActiveTurn, abortActiveTurn, getActiveTurnByKey,
+  startActiveTurn, appendActiveTurn, recordActiveTurnEvent, endActiveTurn, abortActiveTurn, abortAllActiveTurns, getActiveTurnByKey,
   listActiveTurns, convTurnKey, superAgentTurnKey,
 } = await import("../src/host/daemon/active-turns.js");
 const { wasAborted, abortedTurnEvent } = await import("../src/host/daemon/api/turn-abort.js");
@@ -243,4 +243,58 @@ test("POST /turns/abort needs something to address", async () => {
   } finally {
     server.close();
   }
+});
+
+// ── Stopping every turn at once, on the way out ─────────────────────────────
+//
+// THE FAILURE THIS FIXES: `apx restart` in the middle of an answer threw the
+// answer away. The active-turn registry is in-memory and dies with the process
+// — that part is by design — but shutdown() never aborted the turns, so none of
+// them ran the catch that writes what had streamed into the ledger. The result
+// was a message that never existed: no partial in the thread, no record of the
+// tools that had really run, and the next turn with no idea any of it happened.
+//
+// Aborting on the way out reuses the Stop path, which already persists the
+// partial. It does NOT resume the turn afterwards — that needs the run's state
+// on disk, not just its text.
+test("abortAllActiveTurns pulls every turn's abort hook", () => {
+  const pulled = [];
+  const a = startActiveTurn("p1:conv:one", { abort: () => pulled.push("one") });
+  const b = startActiveTurn("p1:thread:a2a:claude~magui", { abort: () => pulled.push("two") });
+  try {
+    assert.equal(abortAllActiveTurns(), 2);
+    assert.deepEqual(pulled.sort(), ["one", "two"]);
+  } finally {
+    endActiveTurn(a.id);
+    endActiveTurn(b.id);
+  }
+});
+
+test("a turn with no abort hook is counted honestly, not claimed as stopped", () => {
+  const a = startActiveTurn("p1:conv:hookless", {});
+  try {
+    assert.equal(abortAllActiveTurns(), 0, "nothing to pull is not a stop");
+    assert.ok(getActiveTurnByKey("p1:conv:hookless"), "and it is still registered");
+  } finally {
+    endActiveTurn(a.id);
+  }
+});
+
+test("aborting one turn does not stop the sweep reaching the rest", () => {
+  const pulled = [];
+  const a = startActiveTurn("p1:conv:boom", { abort: () => { throw new Error("hook exploded"); } });
+  const b = startActiveTurn("p1:conv:fine", { abort: () => pulled.push("fine") });
+  try {
+    // abortActiveTurn swallows a throwing hook — the caller only needs to know
+    // we tried — so one bad run must not cost every other run its partial.
+    assert.equal(abortAllActiveTurns(), 2);
+    assert.deepEqual(pulled, ["fine"]);
+  } finally {
+    endActiveTurn(a.id);
+    endActiveTurn(b.id);
+  }
+});
+
+test("with nothing running it is a no-op, so shutdown never blocks on it", () => {
+  assert.equal(abortAllActiveTurns(), 0);
 });

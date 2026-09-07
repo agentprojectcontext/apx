@@ -38,6 +38,7 @@ import { registerDesktopClient, isDesktopUpgradePath } from "./desktop-ws.js";
 import { isTerminalUpgradePath, startTerminalSession } from "./terminal-ws.js";
 import { isEventsUpgradePath, registerEventsClient, startEventsBridge } from "./events-ws.js";
 import { isWsUpgradeAuthorized } from "./ws-auth.js";
+import { abortAllActiveTurns } from "./active-turns.js";
 import { log as logToUnified } from "#core/logging.js";
 import { initMemory, stopMemory } from "#core/memory/index.js";
 
@@ -266,6 +267,36 @@ async function main() {
     }
     log(`apx-daemon ${PKG.version} listening on http://${extraHosts.length ? LOOPBACK_HOST : host}:${port}`);
     log(`projects: ${projects.list().length} | plugins: ${Object.keys(plugins.status()).join(", ") || "(none)"}`);
+
+    // Signal handlers go up HERE, the moment the port is open — not at the end
+    // of main().
+    //
+    // They used to be registered ~130 lines further down, after whisper
+    // preload, the TTS keep-warm, the skills index refresh and a dynamic
+    // import of `ws`. Anything in that tail that threw left a daemon that was
+    // listening and serving with NO handler attached, and `kill` then fell
+    // through to Node's default: instant death. Which is why shutdown() never
+    // logged a line, in-flight turns were lost with no partial in the ledger,
+    // and ~/.apx/daemon.pid was left naming a dead process — so the next
+    // `apx restart` signalled a ghost and gave up with "did not shut down in
+    // time" while the real daemon kept running.
+    //
+    // `shutdown` is a hoisted function declaration and everything it closes
+    // over is initialised above this line, so it is safe to point at from here.
+    process.on("SIGINT", () => shutdown("SIGINT"));
+    process.on("SIGTERM", () => shutdown("SIGTERM"));
+    process.on("uncaughtException", (e) => {
+      log(`uncaughtException: ${e.stack || e.message}`);
+    });
+    // Node >= 15 terminates the process on an unhandled rejection. The CLI has
+    // always registered this; the daemon had not, so one un-awaited failure in
+    // a route or a plugin took down the process serving the SPA, Telegram
+    // polling, voice and the deck at once. Log and keep running — the
+    // request-level errorMiddleware already answers the caller.
+    process.on("unhandledRejection", (reason) => {
+      const e = reason instanceof Error ? reason : new Error(String(reason));
+      log(`unhandledRejection: ${e.stack || e.message}`);
+    });
     plugins.startAll();
     scheduler.start();
     // Durable background-runtime callbacks: deliver any results whose spawning
@@ -368,6 +399,17 @@ async function main() {
 
   function shutdown(signal) {
     log(`received ${signal}, shutting down...`);
+    // FIRST, before anything else is torn down: tell every turn in flight to
+    // stop. Each one's own catch writes what it had streamed into the ledger,
+    // the same path Stop uses — so an `apx restart` in the middle of an answer
+    // leaves a message that ends mid-sentence instead of one that was never
+    // written at all. They get the grace period below to finish that write.
+    try {
+      const aborted = abortAllActiveTurns();
+      if (aborted) log(`aborting ${aborted} turn(s) in flight so their partials reach the ledger`);
+    } catch (e) {
+      log(`warn: could not abort in-flight turns: ${e.message}`);
+    }
     scheduler.stop();
     callbackReconciler?.stop();
     eventsBridge?.();
@@ -391,23 +433,26 @@ async function main() {
       clearPid();
       process.exit(0);
     });
-    setTimeout(() => process.exit(1), 5000).unref();
+    // …and actually let it close. `server.close` only stops NEW connections and
+    // then waits for the open ones, and this daemon always has open ones: the
+    // desktop app, the live events feed and any terminal session hold sockets
+    // open indefinitely. So the callback above never fired and every shutdown
+    // sat out the full grace period and exited 1. Dropping the sockets is safe
+    // here — an aborted turn persists its partial to the ledger, not to the
+    // socket the caller was reading.
+    for (const s2 of secondary) s2.closeAllConnections?.();
+    server.closeAllConnections?.();
+    // The hard stop. It used to exit(1) without clearing the pid file, which is
+    // how `~/.apx/daemon.pid` came to name a process that no longer existed —
+    // and then every later `apx restart` signalled that ghost, waited, and gave
+    // up with "did not shut down in time" while the real daemon kept running.
+    setTimeout(() => {
+      log("shutdown grace period expired — exiting");
+      clearPid();
+      process.exit(1);
+    }, 5000).unref();
   }
 
-  process.on("SIGINT", () => shutdown("SIGINT"));
-  process.on("SIGTERM", () => shutdown("SIGTERM"));
-  process.on("uncaughtException", (e) => {
-    log(`uncaughtException: ${e.stack || e.message}`);
-  });
-  // Node >= 15 terminates the process on an unhandled rejection. The CLI has
-  // always registered this; the daemon had not, so one un-awaited failure in a
-  // route or a plugin took down the process serving the SPA, Telegram polling,
-  // voice and the deck at once. Log and keep running — the request-level
-  // errorMiddleware already answers the caller.
-  process.on("unhandledRejection", (reason) => {
-    const e = reason instanceof Error ? reason : new Error(String(reason));
-    log(`unhandledRejection: ${e.stack || e.message}`);
-  });
 }
 
 main().catch((e) => {
