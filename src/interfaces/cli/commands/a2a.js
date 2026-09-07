@@ -74,6 +74,45 @@ export async function resolveSendTarget(to, projectFlag, from) {
  *  interruption budget and quiet hours); `status`/`fyi` wait for a digest. */
 const SEVERITY_TAGS = new Set(["blocker", "status", "fyi"]);
 
+// What the ledger says happened, when the socket says nothing.
+//
+// `apx send --deliver` holds one request open for the whole peer turn, so a
+// dropped connection tells you nothing about the delivery — and the daemon
+// logs the message to the thread BEFORE it runs the peer, which means the
+// answer is already written down. Reading it back is the difference between
+// "we could not log your message" and "we logged it and lost the reply", and
+// between those two the user does opposite things: retype the message, or
+// wait. Guessing wrong is how the same long message landed on one thread five
+// times.
+export async function readBackSend({ pid, from, to, body, since }) {
+  const params = new URLSearchParams({ channel: "a2a", limit: "200", since });
+  let rows = [];
+  try {
+    rows = await http.get(`/api/projects/${pid}/messages?${params}`);
+  } catch {
+    return { logged: null, reply: null };  // the daemon is unreachable too — say so, claim nothing
+  }
+  const head = body.slice(0, 60);
+  const mine = rows.find((r) => r.author === from && typeof r.body === "string" && r.body.startsWith(head));
+  if (!mine) return { logged: false, reply: null };
+  const reply = rows.find((r) => r.author === to && r.direction === "out" && r.ts >= mine.ts && r.meta?.final);
+  return { logged: true, sent_ts: mine.ts, reply: reply || null };
+}
+
+/** Wait for the peer's reply to appear on the thread, checking every 5s. */
+export async function awaitReplyOnThread({ pid, from, to, body, since, deadline }) {
+  while (Date.now() < deadline) {
+    // Capped by what is left: a deadline the caller gave has to be the moment
+    // this returns, not that moment plus one whole poll interval.
+    await new Promise((r) => setTimeout(r, Math.min(5000, Math.max(0, deadline - Date.now()))));
+    const seen = await readBackSend({ pid, from, to, body, since });
+    if (seen.reply) return seen;
+    if (seen.logged === false) return seen;
+  }
+  return await readBackSend({ pid, from, to, body, since });
+}
+
+
 export async function cmdSend(args) {
   const from = args._[0];
   const to = args._[1];
@@ -133,29 +172,81 @@ export async function cmdSend(args) {
   }
 
   const pid = await resolveSendTarget(to, args?.flags?.project, from);
-  const result = await http.post(`/api/projects/${pid}/send`, {
-    from,
-    to,
-    body,
-    deliver: !!args.flags.deliver,
-    // Where the sender is standing. A runtime peer answers by running a coding
-    // CLI, and an exchange between two coding CLIs is about a codebase — the
-    // one you are in, which the project record does not know (the default
-    // project's path is a storage directory, not a checkout).
-    cwd: process.cwd(),
-    // --code opens the exchange as a working session instead of a conversation:
-    // the peer runs with its write access on. Off by default, deliberately —
-    // being messaged is not consent to have your checkout edited.
-    ...(args.flags.code ? { code: true } : {}),
-    // --background hands the turn back immediately; the reply lands on the
-    // thread when the peer finishes. What makes a long coding session usable.
-    ...(args.flags.background ? { background: true } : {}),
-    ...(timeoutS ? { timeout_s: timeoutS } : {}),
-    ...(severity ? { severity } : {}),
-    ...(model ? { model } : {}),
-    ...(usage ? { usage } : {}),
-    ...(requested_by ? { requested_by } : {}),
-  });
+  const deliver = !!args.flags.deliver;
+  const background = !!args.flags.background;
+  // Wait a little LONGER than the daemon will. Its own budget for a delivered
+  // turn is 300 s, and fetch's ceiling is the same 300 s, so a peer that used
+  // its whole budget lost the race by a hair and the CLI reported a failure
+  // over a delivery that had happened. The margin makes the daemon's answer —
+  // reply or timeout — the thing that ends the call.
+  const waitMs = deliver && !background ? ((timeoutS || 300) + 30) * 1000 : 0;
+  const sentSince = new Date(Date.now() - 10_000).toISOString();
+
+  let result;
+  try {
+    result = await sendRequest();
+  } catch (e) {
+    // Only a dropped socket is ambiguous. A refusal from the daemon (400, 429,
+    // "agent not found") already says what happened — let it through.
+    if (!e?.transport) throw e;
+
+    const seen = await readBackSend({ pid, from, to, body, since: sentSince });
+    if (seen.logged === null) {
+      throw new Error(`apx send: lost the connection to the daemon and could not reach it to check (${e.message}). Whether ${to} got the message is unknown — read the thread before resending: apx messages chat --channel a2a`);
+    }
+    if (!seen.logged) {
+      throw new Error(`apx send: the message was NOT logged — nothing reached ${to} (${e.message}). Safe to send again.`);
+    }
+
+    console.log(`✉  ${from} → ${to}  @ ${seen.sent_ts}${severity ? `  [${severity}]` : ""}`);
+    console.log(`   ${body}`);
+    console.log(`\n⚠  delivered, but the connection dropped while ${to} was still working (${e.message}).`);
+    console.log(`   The message IS on the thread — do NOT send it again, that duplicates it.`);
+    if (!deliver) {
+      console.log(`   Read the thread: apx messages chat --channel a2a`);
+      return;
+    }
+    console.log(`   Waiting for the reply on the thread instead…`);
+    const done = await awaitReplyOnThread({
+      pid, from, to, body, since: sentSince,
+      deadline: Date.now() + (waitMs || 300_000),
+    });
+    if (done.reply) {
+      console.log(`\n← ${to} replies:`);
+      console.log(done.reply.body);
+      return;
+    }
+    console.log(`\n   ${to} has not answered yet. It may still be running (engine retries make a turn slow).`);
+    console.log(`   Read it when it lands: apx messages chat --channel a2a`);
+    return;
+  }
+
+  function sendRequest() {
+    return http.post(`/api/projects/${pid}/send`, {
+      from,
+      to,
+      body,
+      deliver,
+      // Where the sender is standing. A runtime peer answers by running a coding
+      // CLI, and an exchange between two coding CLIs is about a codebase — the
+      // one you are in, which the project record does not know (the default
+      // project's path is a storage directory, not a checkout).
+      cwd: process.cwd(),
+      // --code opens the exchange as a working session instead of a conversation:
+      // the peer runs with its write access on. Off by default, deliberately —
+      // being messaged is not consent to have your checkout edited.
+      ...(args.flags.code ? { code: true } : {}),
+      // --background hands the turn back immediately; the reply lands on the
+      // thread when the peer finishes. What makes a long coding session usable.
+      ...(args.flags.background ? { background: true } : {}),
+      ...(timeoutS ? { timeout_s: timeoutS } : {}),
+      ...(severity ? { severity } : {}),
+      ...(model ? { model } : {}),
+      ...(usage ? { usage } : {}),
+      ...(requested_by ? { requested_by } : {}),
+    }, waitMs ? { timeoutMs: waitMs } : {});
+  }
+
   console.log(`✉  ${from} → ${to}  @ ${result.ts}${severity ? `  [${severity}]` : ""}`);
   console.log(`   ${body}`);
   if (result.owner_notified) console.log(`   ⚠️  owner alerted now (critical): ${result.owner_notified_line || ""}`);
