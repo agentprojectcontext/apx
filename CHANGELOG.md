@@ -1,3 +1,11 @@
+## [1.89.2](https://github.com/agentprojectcontext/apx/compare/v1.89.1...v1.89.2) (2026-09-07)
+
+
+### Bug Fixes
+
+* **a2a:** a peer reads what was said, and has room to finish ([781d09b](https://github.com/agentprojectcontext/apx/commit/781d09bb8b7ccb191393f6631a08ea404a181fc9))
+* **a2a:** attach tool trace to reply metadata instead of separate chat messages ([d06ed30](https://github.com/agentprojectcontext/apx/commit/d06ed30ca330515bf01ee7a7aaeefa29ae40643d))
+
 ## [1.89.1](https://github.com/agentprojectcontext/apx/compare/v1.89.0...v1.89.1) (2026-09-06)
 
 
