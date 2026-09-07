@@ -62,7 +62,7 @@ function senderCwd(raw) {
 }
 
 import { compactConversation } from "#core/stores/conversations-compactor.js";
-import { getActiveTurnByKey, convTurnKey, superAgentTurnKey } from "../active-turns.js";
+import { getActiveTurnByKey, startActiveTurn, endActiveTurn, convTurnKey, superAgentTurnKey, threadTurnKey } from "../active-turns.js";
 import { replyToPeer } from "#core/agent/a2a/reply.js";
 import { resolvePeer, peerAddress, refusesCodeMode, NO_CODE_PEERS } from "#core/agent/a2a/peers.js";
 import { createCodeSession, getCodeSession, appendTurn as appendCodeTurn } from "#core/stores/code-sessions.js";
@@ -70,6 +70,7 @@ import { CODE_MODES } from "#core/constants/code-modes.js";
 import { RUNTIME_IDS } from "#core/runtimes/index.js";
 import { resolveAgentModel } from "#core/agent/agent-model.js";
 import { notifyOwnerViaRoby } from "#core/routines/delivery.js";
+import { a2aThreadId } from "#core/stores/messages.js";
 import { A2A_SEVERITY } from "#core/routines/signals.js";
 import { nowIso, asyncRoute, a2aSlugThreadId, rejectA2AWrite } from "./shared.js";
 import { faceResolverFor, readAgentsSafe } from "./thread-faces.js";
@@ -277,7 +278,10 @@ export function register(api, { projects, project, config, plugins, registries }
     // the raw pair id: `andy~claude-code` where "Andy · Claude" belongs.
     const faces = faceResolverFor(projects);
     const agents = readAgentsSafe(p.path);
-    const decorated = [...a2a, ...groups].map((th) => faces.decorate(th, agents));
+    const decorated = [...a2a, ...groups].map((th) => {
+      const active = getActiveTurnByKey(threadTurnKey(p.id, th.channel || "a2a", th.id));
+      return { ...faces.decorate(th, agents), active_turn: active || null };
+    });
     res.json([...global, ...decorated]);
   });
 
@@ -300,8 +304,12 @@ export function register(api, { projects, project, config, plugins, registries }
     // the phone, a pane that was handed no row) gets the faces and the name with
     // the messages, instead of having to ask a second surface for them.
     const decorated = faceResolverFor(projects).decorate(thread, readAgentsSafe(p.path));
+    // a2a and group turns are keyed by THREAD, not by channel: the run belongs
+    // to the pair or the room. This used to be a hard `null` because nothing
+    // registered them — a peer worked in silence and a slow one looked exactly
+    // like a dead one from here.
     const active = req.params.channel === "a2a" || req.params.channel === "group"
-      ? null
+      ? getActiveTurnByKey(threadTurnKey(p.id, req.params.channel, req.params.id))
       : getActiveTurnByKey(superAgentTurnKey(p.id, req.params.channel));
     res.json({
       ...decorated,
@@ -685,15 +693,37 @@ export function register(api, { projects, project, config, plugins, registries }
 
     // An agent that inherits still replies: replyToPeer resolves the router
     // default for it. `deliver` is the only gate here.
+    // A delivered a2a turn is a real run — a full tool loop that can take the
+    // whole 300 s budget — and until it registered here nothing could see it.
+    // The peer worked in silence: no "pensando" on the thread, no row in
+    // listActiveTurns, and from the inbox a slow peer and a dead one looked
+    // exactly the same. Keyed to the thread the inbox shows, so the indicator
+    // lands on the conversation the owner is reading.
+    const a2aTurnKey = threadTurnKey(p.id, "a2a", a2aThreadId(from, to));
+    const withTurn = async (run) => {
+      const active = startActiveTurn(a2aTurnKey, {
+        project_id: p.id,
+        channel: "a2a",
+        thread_id: a2aThreadId(from, to),
+        agent_slug: to,
+        title: `${to} is answering ${from}`,
+      });
+      try {
+        return await run();
+      } finally {
+        endActiveTurn(active.id);
+      }
+    };
+
     let reply = null;
     if (deliver && background) {
       // Un-awaited on purpose: a coding session can run for an hour, and the
       // sender should not hold a socket open for it. The reply lands on the
       // thread when it lands, and every surface that reads the thread sees it.
-      runReply();
+      withTurn(runReply);
       reply = { status: "delivering", background: true, timeout_s: Math.round(timeoutMs / 1000) };
     } else if (deliver) {
-      reply = await runReply();
+      reply = await withTurn(runReply);
     }
 
     res.json({

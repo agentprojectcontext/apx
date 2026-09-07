@@ -361,6 +361,9 @@ export interface ConversationMessage {
   /** Compact record of what the turn did, written at the time (the live tool
    *  events are long gone by the time a thread is read back). */
   tool_summary?: ToolSummary;
+  /** An a2a peer's tool calls, carried on the reply row instead of as separate
+   *  ledger rows. Expanded into tool parts when the thread is rebuilt. */
+  trace?: ToolTrace[];
   /** The model's thinking for that turn, one entry per model pass. Never part
    *  of `content` — the adapter keeps the two apart. */
   reasoning?: string[];
