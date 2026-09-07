@@ -61,12 +61,18 @@ async function autoStart({ silent = false } = {}) {
   });
   child.unref();
   if (!silent) process.stderr.write("apx: starting daemon...\n");
-  // Wait up to 4s for /health
-  for (let i = 0; i < 20; i++) {
+  // Wait for /health. Four seconds was not enough and turned a slow boot into
+  // "apx daemon failed to start" on a daemon that then came up fine seconds
+  // later — this one loads sixteen projects, opens the sqlite-vec store and
+  // preloads a whisper model before it answers. Twenty is generous and costs
+  // nothing when the daemon is quick: the loop returns the moment /health does.
+  const DEADLINE_MS = 20_000;
+  const started = Date.now();
+  while (Date.now() - started < DEADLINE_MS) {
     await new Promise((r) => setTimeout(r, 200));
     if (await ping(200)) return true;
   }
-  throw new Error("apx daemon failed to start within 4s — check ~/.apx/daemon.log");
+  throw new Error(`apx daemon failed to start within ${Math.round(DEADLINE_MS / 1000)}s — check ~/.apx/daemon.log`);
 }
 
 export async function ensureDaemon(opts = {}) {

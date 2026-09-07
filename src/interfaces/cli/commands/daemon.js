@@ -5,9 +5,32 @@ import { installService, uninstallService, serviceStatus } from "#core/daemon/se
 
 // Wait until nothing answers on the daemon port (old process fully exited and
 // released it), so a fresh start can bind it. Resolves true when down.
-async function waitForPortReleased({ tries = 40, intervalMs = 150 } = {}) {
+/** Is the process named by the pid file still alive? */
+function daemonPidAlive() {
+  try {
+    if (!fs.existsSync(PID_PATH)) return false;
+    const pid = parseInt(fs.readFileSync(PID_PATH, "utf8"), 10);
+    if (!pid) return false;
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Gone means GONE — the process, not just the socket.
+//
+// This waited only for /health to stop answering, which is a different and
+// earlier moment: the server stops accepting the instant shutdown closes it,
+// while the process lives on for as long as its teardown takes. So `restart`
+// spawned the replacement about a second early, the newcomer's claimSingleton()
+// found the outgoing daemon's pid still alive, logged "fatal: apx-daemon
+// already running" and exited — and the restart then sat waiting for a daemon
+// nobody had managed to start. Waiting on the pid too closes that window; the
+// pid file is only removed by the process that owns it.
+async function waitForPortReleased({ tries = 60, intervalMs = 150 } = {}) {
   for (let i = 0; i < tries; i++) {
-    if (!(await http.ping(200))) return true;
+    if (!(await http.ping(200)) && !daemonPidAlive()) return true;
     await new Promise((r) => setTimeout(r, intervalMs));
   }
   return false;

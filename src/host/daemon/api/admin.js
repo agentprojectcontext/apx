@@ -49,7 +49,13 @@ export function register(api, { scheduler, plugins, config, registries }) {
 
   api.post("/admin/shutdown", (_req, res) => {
     res.json({ ok: true });
-    setTimeout(() => process.exit(0), 50);
+    // Raise the signal rather than exiting: `process.exit` skipped the whole
+    // shutdown path, so the "clean" restart was never clean — turns in flight
+    // died without their partial reaching the ledger, plugins and the scheduler
+    // were never stopped, and the pid file was left behind. SIGTERM to
+    // ourselves runs the same handler `kill` does, and there is exactly one
+    // shutdown to keep working. The 50 ms still lets the response flush.
+    setTimeout(() => process.kill(process.pid, "SIGTERM"), 50);
   });
 
   // Opens the OS-native folder picker on the daemon host and resolves with
