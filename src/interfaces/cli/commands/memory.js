@@ -40,9 +40,13 @@ export async function cmdMemory(args) {
 
   if (args.flags.append && args.flags.append !== true) {
     const note = String(args.flags.append);
-    appendAgentMemory(root, slug, note);
+    // Print the FILE, not just the fact. This command once reported "appended"
+    // over a byte-identical rewrite; naming the path is what lets the next
+    // person check the claim without diffing against a backup.
+    const file = appendAgentMemory(root, slug, note);
     await nudgeDaemon(root);
     console.log(`appended to ${slug} memory: ${note}`);
+    console.log(`  ${file}`);
     return;
   }
 

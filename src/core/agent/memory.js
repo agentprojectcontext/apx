@@ -63,16 +63,59 @@ export function writeAgentMemory(projectOrRoot, slug, body) {
 // (and the section) if missing. ONE home for the append convention so the CLI
 // (`apx memory <slug> --append`) and the super-agent's `write_agent_memory` tool
 // stamp memory identically. `now` is injectable so tests can pin the date.
+//
+// THE FAILURE THIS FIXES, from a real install: agents date and decorate the
+// heading by hand — `## Recent context · estado 2026-08-19`. Detection and
+// insertion used to be two different regexes, and they disagreed about that:
+// detection matched the bare words anywhere, so the section counted as present,
+// while insertion demanded a newline right after "context" and matched nothing.
+// `String.replace` with no match returns the body unchanged, so the file was
+// rewritten byte-identical and the caller printed "appended". Every note went
+// nowhere, and a diff against a backup showed no change to explain it.
+//
+// So: ONE pattern, matching the heading LINE — whatever decorates it — used for
+// both questions, and the caller is handed a body it can verify.
+const RECENT_HEADING = () => /^#{2,}[ \t]+Recent context.*$/gim;
+
 export function appendAgentMemory(projectOrRoot, slug, note, { now = new Date() } = {}) {
   ensureAgentRuntimeDir(projectOrRoot, slug);
   const text = String(note || "").trim();
   if (!text) throw new Error("note required");
   let body = readAgentMemory(projectOrRoot, slug);
   if (!body) body = EMPTY_MEMORY(slug);
-  if (!/##\s+Recent context/i.test(body)) {
+  const before = body;
+
+  const bullet = `- ${now.toISOString().slice(0, 10)}: ${text}\n`;
+
+  // The LAST heading, not the first: these sections are dated and accumulate,
+  // so the newest one is the live one. With a single undecorated section — the
+  // shape the template creates — first and last are the same heading.
+  const headings = [...body.matchAll(RECENT_HEADING())];
+  const last = headings[headings.length - 1];
+
+  if (!last) {
     body += body.endsWith("\n") ? "\n## Recent context\n" : "\n\n## Recent context\n";
+    body += bullet;
+  } else {
+    // Sliced, not `replace($1…)`: the note is agent-written text, and `$&` or
+    // `$1` inside it would be expanded as a replacement pattern.
+    const eol = body.indexOf("\n", last.index + last[0].length);
+    const at = eol === -1 ? body.length : eol + 1;
+    body = body.slice(0, at) + (eol === -1 ? "\n" : "") + bullet + body.slice(at);
   }
-  const today = now.toISOString().slice(0, 10);
-  body = body.replace(/(##\s+Recent context\s*\n)/i, `$1- ${today}: ${text}\n`);
+
+  // Belt and braces, and the actual lesson of the bug above: the write never
+  // failed — nothing checked whether the note was in what got written, so a
+  // no-op reported success. Two independent invariants, because reporting
+  // "appended" over a write that did not happen is worse than any error:
+  //   1. the note is in the body about to be written, and
+  //   2. the body is not the one we started with.
+  // Anything that breaks this again breaks loudly, in front of the caller.
+  if (!body.includes(bullet) || body === before) {
+    throw new Error(
+      `could not place the note in ${slug}'s memory (${agentMemoryPath(projectOrRoot, slug)}) — ` +
+      `nothing was written. The "## Recent context" heading may be malformed.`
+    );
+  }
   return writeAgentMemory(projectOrRoot, slug, body);
 }
