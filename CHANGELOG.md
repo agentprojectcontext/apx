@@ -1,3 +1,10 @@
+## [1.90.2](https://github.com/agentprojectcontext/apx/compare/v1.90.1...v1.90.2) (2026-09-07)
+
+
+### Bug Fixes
+
+* **daemon:** make `apx restart` actually restart ([3a67fbc](https://github.com/agentprojectcontext/apx/commit/3a67fbc29d4857536ce80d916ff478ff40f31fe0))
+
 ## [1.90.1](https://github.com/agentprojectcontext/apx/compare/v1.90.0...v1.90.1) (2026-09-07)
 
 
