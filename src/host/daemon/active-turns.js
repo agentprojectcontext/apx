@@ -170,6 +170,29 @@ export function abortActiveTurn(key) {
   return true;
 }
 
+/**
+ * Abort every live turn. Returns how many had an abort hook to pull.
+ *
+ * For shutdown. A turn is in-memory state and dies with the process either way
+ * — but a turn that is ABORTED runs its own catch first, and that catch already
+ * writes whatever streamed into the ledger, the same way Stop does. Without
+ * this, `apx restart` in the middle of an answer threw the work away silently:
+ * no partial in the thread, no trace of the tools that had really run, and the
+ * next turn with no idea any of it happened. Aborting on the way out turns a
+ * message that vanishes into a message that stops mid-sentence and is still
+ * there — which is what the reader can act on.
+ *
+ * It does NOT resume the turn after the restart. That needs the run's state on
+ * disk, not just its text.
+ */
+export function abortAllActiveTurns() {
+  let n = 0;
+  for (const key of [...byKey.keys()]) {
+    if (abortActiveTurn(key)) n++;
+  }
+  return n;
+}
+
 /** The turn currently being written on that conversation, if any — the partial
  *  a just-arrived client renders before it starts following the live frames. */
 export function getActiveTurnByKey(key) {
