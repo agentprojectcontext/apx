@@ -5,6 +5,7 @@
 // route registered in src/host/daemon/api/ verbatim. baseUrl() is the origin
 // only — it deliberately does NOT bake in the prefix.
 import fs from "node:fs";
+import nodeHttp from "node:http";
 import path from "node:path";
 import { TOKEN_PATH, LOG_PATH } from "#core/config/paths.js";
 import { spawn } from "node:child_process";
@@ -73,21 +74,93 @@ export async function ensureDaemon(opts = {}) {
   await autoStart(opts);
 }
 
+// A dropped socket and a refusal from the daemon are different facts, and the
+// caller has to be able to tell them apart: one means "we do not know whether
+// this happened", the other means "the daemon said no". Tagged here so no
+// command has to string-match "fetch failed".
+function transport(e) {
+  e.transport = true;
+  return e;
+}
+
+// A request that is allowed to take longer than `fetch` will wait.
+//
+// undici — Node's fetch — gives up on a request after 300 s (headersTimeout),
+// and that is EXACTLY the daemon's own default budget for a delivered a2a
+// turn. Two deadlines set to the same number means a peer that uses its whole
+// budget loses the race by a hair: `apx send --deliver` died with
+// `TypeError: fetch failed` over a message that HAD been delivered and a reply
+// that was still on its way, four times out of five. node:http has no such
+// default, so a caller that says how long it is willing to wait gets to wait
+// that long.
+function requestLong(method, p, body, { timeoutMs, token, signal }) {
+  return new Promise((resolve, reject) => {
+    const payload = body ? JSON.stringify(body) : undefined;
+    const req = nodeHttp.request(
+      {
+        host: DEFAULT_HOST,
+        port: DEFAULT_PORT,
+        path: p,
+        method,
+        headers: {
+          ...(payload ? { "content-type": "application/json", "content-length": Buffer.byteLength(payload) } : {}),
+          ...(token ? { authorization: `Bearer ${token}` } : {}),
+        },
+      },
+      (res) => {
+        let text = "";
+        res.setEncoding("utf8");
+        res.on("data", (c) => { text += c; });
+        res.on("end", () => {
+          let json;
+          try {
+            json = text ? JSON.parse(text) : null;
+          } catch {
+            if (res.statusCode >= 400) return reject(new Error(`${method} ${p} → ${res.statusCode}: ${text}`));
+            return resolve(text);
+          }
+          if (res.statusCode >= 400) {
+            const err = new Error(json?.error || `${method} ${p} → ${res.statusCode}`);
+            err.status = res.statusCode;
+            return reject(err);
+          }
+          resolve(json);
+        });
+        res.on("error", (e) => reject(transport(e)));
+      },
+    );
+    req.setTimeout(timeoutMs, () => {
+      req.destroy(transport(new Error(`no reply from the daemon after ${Math.round(timeoutMs / 1000)}s`)));
+    });
+    req.on("error", (e) => reject(e.transport ? e : transport(e)));
+    if (signal) signal.addEventListener("abort", () => req.destroy(new Error("aborted")), { once: true });
+    if (payload) req.write(payload);
+    req.end();
+  });
+}
+
 async function request(method, path, body, opts = {}) {
   if (opts.autoStart !== false) await ensureDaemon();
   else if (!(await ping())) {
     throw new Error(`apx daemon not running (no response on ${baseUrl()})`);
   }
   const token = readToken();
-  const res = await fetch(`${baseUrl()}${path}`, {
-    method,
-    headers: {
-      ...(body ? { "content-type": "application/json" } : {}),
-      ...(token ? { "authorization": `Bearer ${token}` } : {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-    signal: opts.signal,
-  });
+  // `timeoutMs` opts out of fetch's fixed 300 s ceiling — see requestLong().
+  if (opts.timeoutMs) return requestLong(method, path, body, { timeoutMs: opts.timeoutMs, token, signal: opts.signal });
+  let res;
+  try {
+    res = await fetch(`${baseUrl()}${path}`, {
+      method,
+      headers: {
+        ...(body ? { "content-type": "application/json" } : {}),
+        ...(token ? { "authorization": `Bearer ${token}` } : {}),
+      },
+      body: body ? JSON.stringify(body) : undefined,
+      signal: opts.signal,
+    });
+  } catch (e) {
+    throw transport(e);
+  }
   const text = await res.text();
   let json;
   try {
