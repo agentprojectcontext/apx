@@ -102,7 +102,7 @@ export const ENGINE_PRESETS = {
     known_models: [], // dynamic — fetched live from the local Ollama daemon
   },
   // OpenCode Zen. The free-tier ids are listed first: they bill at zero.
-  // Free models need the opencode User-Agent (see zen.js ZEN_HEADERS) and
+  // Free models need the opencode headers (see zen.js zenHeaders) and
   // accept api_key "public" when no personal key is set. Paid Claude/GPT/
   // Gemini models on the same base URL need a real Zen key.
   zen: {

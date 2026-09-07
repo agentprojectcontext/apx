@@ -36,12 +36,12 @@ test("openai-compatible: uses config.base_url override", async () => {
   }
 });
 
-// Zen's free tier answers 429 unless the caller names itself as the opencode
-// client, so the User-Agent is load-bearing, not decoration. These two pin it:
-// that the engine's default header reaches the wire, and that config can move
-// the version when the gateway asks for a newer one.
+// Zen's free tier answers 429 without the opencode User-Agent and 400
+// MissingSessionID without a session id, so both headers are load-bearing, not
+// decoration. These pin them: that the engine's defaults reach the wire, and
+// that config can move them when the gateway asks for something newer.
 test("zen: sends the opencode User-Agent on chat", async () => {
-  const { default: zen } = await import("#core/engines/zen.js");
+  const { default: zen, ZEN_USER_AGENT } = await import("#core/engines/zen.js");
 
   let sent = {};
   const originalFetch = globalThis.fetch;
@@ -62,7 +62,7 @@ test("zen: sends the opencode User-Agent on chat", async () => {
       messages: [{ role: "user", content: "ping" }],
       config: { api_key: "zen-key" },
     });
-    assert.equal(sent["user-agent"], "opencode/1.18.18");
+    assert.equal(sent["user-agent"], ZEN_USER_AGENT);
     assert.equal(sent.authorization, "Bearer zen-key");
   } finally {
     globalThis.fetch = originalFetch;
@@ -70,7 +70,9 @@ test("zen: sends the opencode User-Agent on chat", async () => {
 });
 
 test("zen: falls back to api_key public when none is configured", async () => {
-  const { default: zen, ZEN_PUBLIC_API_KEY } = await import("#core/engines/zen.js");
+  const { default: zen, ZEN_PUBLIC_API_KEY, ZEN_USER_AGENT } = await import(
+    "#core/engines/zen.js"
+  );
 
   let sent = {};
   const originalFetch = globalThis.fetch;
@@ -93,12 +95,51 @@ test("zen: falls back to api_key public when none is configured", async () => {
       messages: [{ role: "user", content: "ping" }],
       config: {},
     });
-    assert.equal(sent["user-agent"], "opencode/1.18.18");
+    assert.equal(sent["user-agent"], ZEN_USER_AGENT);
     assert.equal(sent.authorization, `Bearer ${ZEN_PUBLIC_API_KEY}`);
   } finally {
     globalThis.fetch = originalFetch;
     if (prev === undefined) delete process.env.OPENCODE_ZEN_API_KEY;
     else process.env.OPENCODE_ZEN_API_KEY = prev;
+  }
+});
+
+// The 2026-09-07 break: the gateway answers 400 MissingSessionID when
+// x-opencode-session is absent OR empty, so what matters is that a non-empty
+// id reaches the wire, and that it is the same id on the next call — the
+// gateway pins a session to one upstream provider.
+test("zen: sends a stable, non-empty x-opencode-session on every chat", async () => {
+  const { default: zen, ZEN_SESSION_ID } = await import("#core/engines/zen.js");
+
+  const seen = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (_url, opts) => {
+    seen.push(opts.headers);
+    return {
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: "hi" }, finish_reason: "stop" }],
+        usage: { prompt_tokens: 1, completion_tokens: 1 },
+      }),
+    };
+  };
+
+  try {
+    for (let i = 0; i < 2; i++) {
+      await zen.chat({
+        model: "big-pickle",
+        messages: [{ role: "user", content: "ping" }],
+        config: { api_key: "zen-key" },
+      });
+    }
+    assert.match(ZEN_SESSION_ID, /^ses_[0-9a-f]{12}[0-9A-Za-z]{14}$/);
+    assert.equal(seen[0]["x-opencode-session"], ZEN_SESSION_ID);
+    assert.equal(seen[1]["x-opencode-session"], ZEN_SESSION_ID);
+    // The request id travels too, and is per call, not per process.
+    assert.match(seen[0]["x-opencode-request"], /^msg_/);
+    assert.notEqual(seen[0]["x-opencode-request"], seen[1]["x-opencode-request"]);
+  } finally {
+    globalThis.fetch = originalFetch;
   }
 });
 

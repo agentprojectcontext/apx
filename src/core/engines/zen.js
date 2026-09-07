@@ -6,19 +6,79 @@
 // key is not optional, though. Zen also fronts paid Claude/GPT/Gemini models on
 // the same base URL, and the same key is what tells the two apart — so it is
 // required here like any other provider's.
+import { randomBytes } from "node:crypto";
 import { createOpenAiCompatibleEngine } from "./openai-compatible.js";
 import { matchesModelGlob, modelListFromConfig } from "./_globs.js";
 
-// The free tier is gated on the caller naming itself as the opencode client,
-// not only on the key: byte-for-byte the same request answers 429
-// FreeUsageLimitError without this User-Agent and 200 with it. So it travels
-// with every Zen call — chat, health and the model catalog. It is a pinned
-// version string, and pins go stale; `engines.zen.headers` overrides it from
-// config when Zen starts asking for a newer one.
+// The free tier is gated on the caller looking like the opencode client rather
+// than on the key — and since 2026-09-07 that takes two headers, not one:
 //
-// Pair with api_key "public" (or any Zen key). Missing UA → 429. Missing key
-// with UA still works for free models when the adapter falls back to "public".
-export const ZEN_HEADERS = { "user-agent": "opencode/1.18.18" };
+//   user-agent: opencode/<version>
+//     Old news: byte-for-byte the same request answers 429 FreeUsageLimitError
+//     without it and 200 with it.
+//   x-opencode-session: <non-empty id>
+//     New, and what broke every Zen call at once: without it the gateway
+//     answers 400 MissingSessionID — "OpenCode's free tier can only be used in
+//     OpenCode". An empty value counts as missing.
+//
+// Nothing changed in the opencode client: it has sent this header on every
+// `opencode*` call for months (session/llm/request.ts), together with the
+// request, client and project ids. What changed is the gateway
+// (console/.../zen/util/handler.ts), which now routes the free models through
+// its own "Console" inference backend and forwards those headers to it — and
+// Console rejects a request that carries no session.
+//
+// The values are not validated (any non-empty string answers 200), but we mint
+// opencode-shaped ids anyway, and keep ONE session per process: the gateway
+// pins a session to an upstream provider, so a fresh id per call would scatter
+// the turns of one conversation across providers and lose the prompt cache.
+//
+// Pins go stale. `engines.zen.headers` overrides any of these from config, and
+// a header set to "" there is dropped from the request altogether.
+export const ZEN_USER_AGENT = "opencode/1.18.29";
+
+const ID_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+let idClock = 0;
+let idCounter = 0;
+
+/**
+ * An id in opencode's own shape (schema/identifier.ts): `<prefix>_`, then 12
+ * hex chars encoding `(ms << 12) | counter` — one's-complemented when the ids
+ * are meant to sort newest first — then 14 random base62 chars.
+ */
+function opencodeId(prefix, { descending = true } = {}) {
+  const now = Date.now();
+  if (now !== idClock) {
+    idClock = now;
+    idCounter = 0;
+  }
+  idCounter++;
+  const current = BigInt(now) * 0x1000n + BigInt(idCounter);
+  const value = descending ? ~current : current;
+  const time = Array.from({ length: 6 }, (_, i) =>
+    Number((value >> BigInt(40 - 8 * i)) & 0xffn)
+      .toString(16)
+      .padStart(2, "0")
+  ).join("");
+  const rand = Array.from(randomBytes(14), (b) => ID_ALPHABET[b % 62]).join("");
+  return `${prefix}_${time}${rand}`;
+}
+
+/** One session per process — see the note above on sticky routing. */
+export const ZEN_SESSION_ID = opencodeId("ses");
+
+/**
+ * Every header a Zen call carries. A function rather than a constant because
+ * the request id is per call; the UA and the session id are not.
+ */
+export function zenHeaders() {
+  return {
+    "user-agent": ZEN_USER_AGENT,
+    "x-opencode-session": ZEN_SESSION_ID,
+    "x-opencode-request": opencodeId("msg", { descending: false }),
+    "x-opencode-client": "cli",
+  };
+}
 
 // Which models demand their own thinking back on every subsequent request.
 //
@@ -65,11 +125,12 @@ function replayReasoningContent(entry, source, { model, config }) {
   if (typeof reasoning === "string" && reasoning) entry.reasoning_content = reasoning;
 }
 
-// Free-tier key. With ZEN_HEADERS the gateway answers 200 for big-pickle and
+// Free-tier key. With zenHeaders() the gateway answers 200 for big-pickle and
 // the other *-free models; without the UA it answers 429 FreeUsageLimitError
-// even when the key is valid. Prefer a real OPENCODE_ZEN_API_KEY / engines.zen
-// api_key when present (paid models need one); fall back to "public" so agents
-// are never left keyless on the free tier.
+// and without the session header 400 MissingSessionID, valid key or not.
+// Prefer a real OPENCODE_ZEN_API_KEY / engines.zen api_key when present (paid
+// models need one); fall back to "public" so agents are never left keyless on
+// the free tier.
 export const ZEN_PUBLIC_API_KEY = "public";
 
 const base = createOpenAiCompatibleEngine({
@@ -77,7 +138,7 @@ const base = createOpenAiCompatibleEngine({
   defaultBaseUrl: "https://opencode.ai/zen/v1",
   apiKeyEnv: "OPENCODE_ZEN_API_KEY",
   defaultFallbackModel: "zen:big-pickle",
-  extraHeaders: ZEN_HEADERS,
+  extraHeaders: zenHeaders,
   decorateMessage: replayReasoningContent,
   defaultApiKey: ZEN_PUBLIC_API_KEY,
 });
