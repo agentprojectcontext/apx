@@ -492,7 +492,15 @@ export function ChatList({
                     title={th.title}
                     subtitle={[th.channel, `${th.messages} msg`].join(" · ")}
                     badge={isMulti ? undefined : t("agents_ui.super_agent_badge")}
-                    face={isMulti ? undefined : { icon: superAgentIcon, name: superAgentLabel }}
+                    // A thread that belongs to one PERSON wears their face, not
+                    // Roby's. On WhatsApp every row is Roby's, so drawing his
+                    // blob on all of them made a list of different people look
+                    // like one conversation repeated.
+                    face={
+                      isMulti
+                        ? undefined
+                        : th.contact_face ?? { icon: superAgentIcon, name: superAgentLabel }
+                    }
                     faces={isMulti ? th.participant_faces : undefined}
                     timeAgo={th.last_ts}
                     activityKey={threadActivityKey(pid, th.channel, th.id)}

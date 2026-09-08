@@ -1319,11 +1319,14 @@ export function appendGlobalMessage({ channel, direction, type, actor_id, actor_
   // and out, desktop, the web's own turns — so a surface subscribed to the bus
   // sees a conversation move no matter which device produced the turn.
   // `thread` is the day file's id because that is how a channel thread is
-  // addressed everywhere else (readGlobalThread, the inbox row, the URL).
+  // addressed everywhere else (readGlobalThread, the inbox row, the URL) — and
+  // on a channel where one day holds several people, the id names the person
+  // too. Emitting the bare date there would light the unread dot on a thread
+  // that is not the one that moved, and leave the one that did looking quiet.
   emitMessageEvent({
     scope: "global",
     channel,
-    thread: ts.slice(0, 10),
+    thread: threadId(ts.slice(0, 10), rowContact(record)),
     project_id: fullMeta.project_id ?? null,
     agent_slug: agent_slug || null,
     direction,
@@ -1373,6 +1376,86 @@ export function readGlobalMessages({ channel, limit = 100, since } = {}) {
 // channel+day JSONL file — the same granularity the context window reads.
 
 const CHANNEL_NAME_RE = /^[a-z0-9_-]+$/i;
+
+// ── One channel, several people ─────────────────────────────────────────────
+//
+// A thread used to be exactly one channel+day file, because every channel had
+// exactly one correspondent: Telegram is Manu, the web panel is Manu, the
+// desktop overlay is Manu. WhatsApp broke that assumption — the same day file
+// holds the owner, their partner and a stranger who wrote once — and reading it
+// as one thread showed three people's messages under one another's name.
+//
+// So a thread id gained an optional second half: the person it belongs to.
+//
+//   "2026-09-08"                       the whole day (every channel but WhatsApp)
+//   "2026-09-08~owner"                 the owner's own conversation
+//   "2026-09-08~5491155555555@lid"     one contact's conversation
+//
+// It stays ONE opaque string on purpose. A thread is addressed by (channel, id)
+// in the sidebar, the URL, the inbox row, the activity key and the delete
+// route; widening that pair to a triple would have meant touching every one of
+// them, and every surface that has ever stored a thread id would have gone
+// stale. A longer id flows through all of it unchanged.
+//
+// Rows written before this existed carry no contact at all, and they group
+// under the plain date — which is exactly the thread they were already in.
+const THREAD_CONTACT_SEP = "~";
+
+// No path separator and no traversal: the date half is what builds a filename,
+// but an id also becomes a key in .threads.json and a URL segment.
+const THREAD_ID_RE = /^(\d{4}-\d{2}-\d{2})(?:~([^/\\]{1,160}))?$/;
+
+/** Split a thread id into its day and its person. Returns null if malformed. */
+export function parseThreadId(id) {
+  const m = String(id || "").match(THREAD_ID_RE);
+  if (!m) return null;
+  const contact = m[2] && !m[2].includes("..") ? m[2] : null;
+  if (m[2] && !contact) return null;
+  return { date: m[1], contact };
+}
+
+/** Build a thread id. No contact gives back the bare date, so every existing
+ *  caller and every stored id keeps meaning what it meant. */
+export function threadId(date, contact) {
+  return contact ? `${date}${THREAD_CONTACT_SEP}${contact}` : String(date);
+}
+
+/**
+ * Which conversation a ledger row belongs to inside its channel+day, or null
+ * for "the whole day" — the shape every channel but WhatsApp has.
+ *
+ * `contact_key` is written by the channel that knows how to resolve one person
+ * from several addresses (core/identity/whatsapp.js). The `sender_jid` fallback
+ * is for rows written before that key existed: it splits them by address, which
+ * is less accurate than the roster but far better than one undifferentiated
+ * pile — and it means history separates too, not just new messages.
+ */
+export function rowContact(r) {
+  const key = r?.meta?.contact_key;
+  if (typeof key === "string" && key.trim()) return key.trim();
+  // The owner, from what the row already says about itself. Rows written before
+  // `contact_key` existed would otherwise fall to the address branch below and
+  // land in a DIFFERENT thread from the ones written after — splitting one
+  // conversation in half at the moment of the upgrade, and splitting it again
+  // every time the owner writes from their other line.
+  //
+  // Both of these are recorded facts, not inferences: `role` is what the sender
+  // resolved to when the message arrived, and `policy: "full"` is returned for
+  // the owner and for nobody else (resolveReplyPolicy), which is what makes it
+  // usable on the reply rows, where no role is stored.
+  if (r?.meta?.role === "owner" || r?.meta?.policy === "full") return "owner";
+  const jid = r?.meta?.sender_jid;
+  if (typeof jid === "string" && jid.trim()) {
+    // Same normalisation as normalizeJid, inlined: this store must not import a
+    // channel's identity module to read its own files back.
+    const at = jid.lastIndexOf("@");
+    if (at > 0) {
+      const user = jid.slice(0, at).split(":")[0].replace(/\D/g, "");
+      if (user) return `${user}@${jid.slice(at + 1).toLowerCase()}`;
+    }
+  }
+  return null;
+}
 
 // The workspace an unstamped row belongs to. Telegram, desktop and deck each
 // write one daemon-wide channel with no project of their own, and so does every
@@ -1441,7 +1524,9 @@ function threadKey(channel, date) {
  */
 export function setGlobalThreadMeta({ channel, date, title, archived, _globalMessagesDir } = {}) {
   if (!CHANNEL_NAME_RE.test(String(channel || ""))) return false;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ""))) return false;
+  // Naming and archiving are per THREAD, so a contact's conversation can be put
+  // away without hiding everyone else who wrote that day.
+  if (!parseThreadId(date)) return false;
   const base = _globalMessagesDir || GLOBAL_MESSAGES_DIR;
   if (!fs.existsSync(base)) return false;
   const all = readThreadMeta(base);
@@ -1460,6 +1545,31 @@ export function setGlobalThreadMeta({ channel, date, title, archived, _globalMes
   else delete all[key];
   fs.writeFileSync(threadMetaPath(base), JSON.stringify(all, null, 2) + "\n");
   return true;
+}
+
+// What to call a person's thread. The name the channel wrote down with the
+// message, newest first — a roster rename reaches the sidebar without anything
+// having to rewrite history. Falls back to the key, which for a stranger is
+// their number and is the most honest thing we have.
+function contactName(rows) {
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const r = rows[i];
+    if (r.type === "user" && r.author && r.author !== "unknown") return r.author;
+  }
+  return null;
+}
+
+// A thread's derived name. A whole-day thread is titled by the first thing said
+// in it; a person's thread is titled by the person, because "hola" is not what
+// distinguishes Magui's conversation from Carlos's — she is.
+function threadTitle(channel, id, contact, rows) {
+  if (contact) return contactName(rows) || contact;
+  const firstUser = rows.find((r) => r.type === "user");
+  const derived = String((firstUser || rows[0]).body || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 80);
+  return derived || `${channel} · ${id}`;
 }
 
 export function listGlobalThreads({ channels, project, includeArchived = false, _globalMessagesDir } = {}) {
@@ -1488,23 +1598,33 @@ export function listGlobalThreads({ channels, project, includeArchived = false, 
         project,
       );
       if (!msgs.length) continue;
-      const over = meta[threadKey(ch, m[1])] || {};
-      if (over.archived && !includeArchived) continue;
-      const firstUser = msgs.find((r) => r.type === "user");
-      const derived = String((firstUser || msgs[0]).body || "")
-        .replace(/\s+/g, " ")
-        .trim()
-        .slice(0, 80);
-      out.push({
-        id: m[1],
-        channel: ch,
-        // What the reader called it wins over the first thing that was said.
-        title: over.title || derived || `${ch} · ${m[1]}`,
-        archived: over.archived || undefined,
-        messages: msgs.length,
-        started_at: msgs[0].ts,
-        last_ts: msgs[msgs.length - 1].ts,
-      });
+
+      // One day file becomes one thread per person in it. For every channel but
+      // WhatsApp that is a single group keyed `null` — the plain date — so this
+      // is the same loop it always was, run once.
+      const groups = new Map();
+      for (const r of msgs) {
+        const key = rowContact(r);
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(r);
+      }
+
+      for (const [contact, rows] of groups) {
+        const id = threadId(m[1], contact);
+        const over = meta[threadKey(ch, id)] || {};
+        if (over.archived && !includeArchived) continue;
+        out.push({
+          id,
+          channel: ch,
+          ...(contact ? { contact, contact_name: contactName(rows) } : {}),
+          // What the reader called it wins over the first thing that was said.
+          title: over.title || threadTitle(ch, id, contact, rows),
+          archived: over.archived || undefined,
+          messages: rows.length,
+          started_at: rows[0].ts,
+          last_ts: rows[rows.length - 1].ts,
+        });
+      }
     }
   }
   out.sort((a, b) => (b.last_ts || "").localeCompare(a.last_ts || ""));
@@ -1656,15 +1776,25 @@ export function shapeLedgerMessage(r) {
 
 export function readGlobalThread({ channel, date, project, _globalMessagesDir } = {}) {
   if (!CHANNEL_NAME_RE.test(String(channel || ""))) return null;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ""))) return null;
+  // `date` is the thread id, which since WhatsApp may name a person inside the
+  // day. Parsing here rather than at every call site is what let the id stay a
+  // single opaque string for the URL, the sidebar and the inbox row.
+  const parsed = parseThreadId(date);
+  if (!parsed) return null;
+  const { contact } = parsed;
   const base = _globalMessagesDir || GLOBAL_MESSAGES_DIR;
-  const file = path.join(base, channel, `${date}.jsonl`);
+  const file = path.join(base, channel, `${parsed.date}.jsonl`);
   if (!fs.existsSync(file)) return null;
-  const messages = keepForProject(
+  const rows = keepForProject(
     parseDayJsonl(fs.readFileSync(file, "utf8"))
       .filter((r) => r.type === "user" || r.type === "agent" || r.type === "tool"),
     project,
-  ).map(shapeLedgerMessage);
+  ).filter((r) => (contact ? rowContact(r) === contact : true));
+  // A person's thread that holds nothing is not a thread. Without this an id
+  // for a contact who never wrote on that day opened an empty pane instead of
+  // 404ing, which is the difference between "gone" and "broken".
+  if (contact && !rows.length) return null;
+  const messages = rows.map(shapeLedgerMessage);
   // A day-file the asking project owns no turn in is not its thread to read.
   // The file exists — another project's chat is in it — so without this a
   // stale link or a bookmarked URL opened an empty pane instead of taking the
@@ -1674,15 +1804,11 @@ export function readGlobalThread({ channel, date, project, _globalMessagesDir } 
   // would put the same rule in two places, and the reader's own name for it —
   // which only this index knows — would never reach the header at all.
   const over = readThreadMeta(base)[threadKey(channel, date)] || {};
-  const firstUser = messages.find((m) => m.role === "user");
-  const derived = String((firstUser || messages[0] || {}).content || "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 80);
   return {
     id: date,
     channel,
-    title: over.title || derived || `${channel} · ${date}`,
+    ...(contact ? { contact, contact_name: contactName(rows) } : {}),
+    title: over.title || threadTitle(channel, date, contact, rows),
     archived: over.archived || undefined,
     messages,
   };
@@ -1694,18 +1820,28 @@ export function readGlobalThread({ channel, date, project, _globalMessagesDir } 
 // bad channel/date or a file that is already gone.
 export function deleteGlobalThread({ channel, date, project, _globalMessagesDir } = {}) {
   if (!CHANNEL_NAME_RE.test(String(channel || ""))) return false;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || ""))) return false;
+  const parsed = parseThreadId(date);
+  if (!parsed) return false;
   const base = _globalMessagesDir || GLOBAL_MESSAGES_DIR;
-  const file = path.join(base, channel, `${date}.jsonl`);
+  const file = path.join(base, channel, `${parsed.date}.jsonl`);
   if (!fs.existsSync(file)) return false;
   // Scoped delete: a day-file can hold turns from several projects, and the
   // sidebar that offered the Delete button was showing only one of them.
   // Dropping the whole file there would take another project's chat with it —
   // including the default workspace's unstamped Telegram and desktop turns,
   // which the old predicate swept up on every scoped delete.
-  if (project !== undefined && project !== null && project !== "") {
+  //
+  // A contact is the second way one file holds several conversations, and it
+  // has the sharper version of the same hazard: deleting a chat with one person
+  // must not delete what somebody else said the same day. Both scopes narrow
+  // the same rewrite.
+  const scoped = project !== undefined && project !== null && project !== "";
+  if (scoped || parsed.contact) {
     const rows = parseDayJsonl(fs.readFileSync(file, "utf8"));
-    const keep = rows.filter((r) => !rowBelongsTo(r, String(project)));
+    const drop = (r) =>
+      (!scoped || rowBelongsTo(r, String(project))) &&
+      (!parsed.contact || rowContact(r) === parsed.contact);
+    const keep = rows.filter((r) => !drop(r));
     if (keep.length === rows.length) return false;
     if (keep.length === 0) fs.unlinkSync(file);
     else fs.writeFileSync(file, keep.map((r) => JSON.stringify(r)).join("\n") + "\n");

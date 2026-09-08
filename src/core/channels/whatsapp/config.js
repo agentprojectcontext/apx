@@ -37,6 +37,11 @@ const SETTABLE = [
   "owner_jid", "self_jid", "self_is_owner",
   // Defaults every contact inherits unless their own row overrides them.
   "capabilities", "facts",
+  // How long a turn may run before it is cut and answered with the never-silent
+  // floor. Settable because the right number depends on the models in use, and
+  // the failure it guards against — a chat that just stops answering — is one
+  // the operator sees long before anyone here does.
+  "turn_deadline_ms", "third_party_deadline_ms",
 ];
 
 /**

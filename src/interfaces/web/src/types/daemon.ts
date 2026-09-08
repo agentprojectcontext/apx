@@ -458,10 +458,19 @@ export interface AgentFace {
   name?: string | null;
 }
 
-/** Super-agent channel thread (one per channel+day of the global ledger). */
+/** Super-agent channel thread (one per channel+day of the global ledger — and
+ *  on a channel where one day holds several correspondents, one per person). */
 export interface ThreadListEntry {
-  id: string;         // YYYY-MM-DD
+  id: string;         // "YYYY-MM-DD", or "YYYY-MM-DD~<contact>" on WhatsApp
   channel: string;    // telegram | web | desktop | deck | …
+  /** Set only when the thread is one person's inside a shared channel: their
+   *  stable key ("owner", or a jid). Absent means the whole day. */
+  contact?: string;
+  /** That person's display name, when the channel recorded one. */
+  contact_name?: string | null;
+  /** Their face — name plus, when the roster has one, their profile picture.
+   *  Resolved by the daemon so every surface draws the same person. */
+  contact_face?: AgentFace;
   /** Already display-ready: for a2a and group threads it is "Andy · Claude",
    *  built from the resolved faces below, not the raw pair id. */
   title: string;
@@ -481,6 +490,10 @@ export interface ThreadListEntry {
 export interface ThreadDetail {
   id: string;
   channel: string;
+  /** See ThreadListEntry: one person's thread inside a shared channel. */
+  contact?: string;
+  contact_name?: string | null;
+  contact_face?: AgentFace;
   /** What this thread is called: the reader's own name for it, the resolved
    *  "A · B" of a multi-agent thread, or the first thing that was said in it. */
   title?: string;

@@ -393,3 +393,40 @@ export function registerWhatsAppSender({ cfg, senderJid, addresses = null, pushN
   cfg.whatsapp = disk.whatsapp;
   return { mutated: true, created: false };
 }
+
+/** The owner's own thread. A constant so it cannot collide with a real jid,
+ *  which always carries an "@". */
+export const CONTACT_KEY_OWNER = "owner";
+
+/**
+ * The stable key that says WHICH conversation a message belongs to.
+ *
+ * A WhatsApp channel is not one conversation the way Telegram is: the same
+ * ledger holds the owner, their partner and a stranger, and reading them as one
+ * thread is how a private message ends up displayed under someone else's name.
+ * So every row records the person it belongs to, and the thread store groups by
+ * it.
+ *
+ * It is NOT the raw sender jid, and that distinction is the whole point. One
+ * human reaches us from several addresses — their LID in a group, their phone
+ * number in a direct chat — and keying by the address would give that person
+ * two threads that each hold half of what they said. The roster already knows
+ * which addresses are the same person; this asks it.
+ *
+ *  - the owner is always `"owner"`, whichever of their lines wrote
+ *  - a known contact is their roster jid, so an alias folds into the same thread
+ *  - a stranger is their own normalized address, which is all we know about them
+ *
+ * Returns null when there is no address at all — the caller writes no key and
+ * the row stays in the channel's unscoped thread, which is also where every row
+ * written before this existed lives.
+ */
+export function contactKeyFor(cfg, sender) {
+  if (sender?.isOwner) return CONTACT_KEY_OWNER;
+  const addrs = (sender?.addresses?.length ? sender.addresses : [sender?.jid])
+    .map(normalizeJid)
+    .filter(Boolean);
+  if (!addrs.length) return null;
+  const contact = findWhatsAppContact(cfg, addrs);
+  return normalizeJid(contact?.jid) || addrs[0];
+}
