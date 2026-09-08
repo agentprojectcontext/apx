@@ -1,3 +1,10 @@
+# [1.92.0](https://github.com/agentprojectcontext/apx/compare/v1.91.0...v1.92.0) (2026-09-08)
+
+
+### Features
+
+* **whatsapp:** one thread per person, and a turn that cannot hang forever ([776134e](https://github.com/agentprojectcontext/apx/commit/776134ef9d6618f8e8b74390d4fc3f296752b971))
+
 # [1.91.0](https://github.com/agentprojectcontext/apx/compare/v1.90.2...v1.91.0) (2026-09-08)
 
 
