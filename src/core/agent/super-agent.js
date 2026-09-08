@@ -70,6 +70,19 @@ export async function runSuperAgent({
   // restricts the visible tool schemas to those names; [] means no tools.
   // Used to gate guests/limited roles on Telegram (see resolveAllowedTools).
   allowedTools = "*",
+  // Who READS this turn. "third_party" is a person who is not the owner — a
+  // WhatsApp contact writing to the owner's personal number, say.
+  //
+  // This is a different axis from `allowedTools`, and conflating them is what
+  // made the WhatsApp channel unsafe: the tool gate decides what the turn can
+  // DO, and nothing at all about what the turn is TOLD. A guest with
+  // allowedTools: [] still received the memory block, the cross-channel active
+  // threads, the project index and the owner's AGENTS.md — every one of which
+  // the model can simply read out loud, no tool required.
+  //
+  // "third_party" forces the turn tool-free and swaps the whole system prompt
+  // for buildThirdPartySystem's, which shares none of that.
+  audience = "owner",
   // Channel-specific confirmation handler. See run-agent.js for contract.
   // Null disables human-in-the-loop (tools that need confirmation fail
   // immediately instead of waiting for user input).
@@ -95,6 +108,12 @@ export async function runSuperAgent({
   // Memory Broker (Pieza 4): assemble the [MEMORIA RELEVANTE] block before the
   // turn. Silent + bounded (≤ broker_budget_ms); skipped for tool-free callers
   // (summarize/ask) where injected context would only confuse the transcript.
+  // A third-party turn is tool-free by construction, not by the caller
+  // remembering to ask. Nothing a stranger says should be able to run anything,
+  // and forcing it here means a new call site cannot get this wrong.
+  const thirdParty = audience === "third_party";
+  if (thirdParty) noTools = true;
+
   let memoryBlock = "";
   let activeThreadsBlock = "";
   if (!noTools) {
@@ -142,6 +161,7 @@ export async function runSuperAgent({
     // full channels and tool-free callers, where it's omitted from the prompt.
     lazyToolsBlock: buildLazyToolsBlock(toolSession),
     skipSkillsHint,
+    audience,
   });
 
   const toolSchemas = noTools ? [] : toolSession.initialSchemas;

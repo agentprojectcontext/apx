@@ -249,10 +249,49 @@ function wrapOnEventForLog(send, { trace_id, channel, reasoning }) {
   };
 }
 
+
+/**
+ * Is this an inbound WhatsApp relay that the native channel already handled?
+ *
+ * The Tasker bridge on the owner's phone posts every WhatsApp notification to
+ * this endpoint with `channel: "whatsapp"`. That was the transport until the
+ * daemon got a real WhatsApp session — and now BOTH deliver the same message.
+ *
+ * Measured 2026-09-08, one "Gracias" from a contact:
+ *   22:11:27 in  channel  Gracias
+ *   22:11:28 in  bridge   [WhatsApp de …]: Gracias
+ *   22:11:29 out channel  De nada Magui!            ← actually sent
+ *   22:11:30 out bridge   De nada! Cualquier cosa…  ← written here, sent nowhere
+ *
+ * Two model turns per message, two answers that can contradict each other, and
+ * the bridge's one only ever reaches the ledger: Tasker does not relay the HTTP
+ * response back into the chat. So the owner reads a reply in the panel that the
+ * contact never received.
+ *
+ * The session is the authority. While it is connected the bridge is redundant
+ * by definition, so its posts are refused here rather than answered — which
+ * also means turning Tasker off is tidying up, not a prerequisite.
+ */
+function whatsappHandledByChannel(plugins, channel) {
+  if (String(channel || "").toLowerCase() !== CHANNELS.WHATSAPP) return false;
+  try {
+    return plugins?.get?.("whatsapp")?.status?.()?.state === "connected";
+  } catch {
+    return false;
+  }
+}
+
 export function register(api, { projects, registries, plugins, project, config }) {
   api.post("/projects/:pid/super-agent/chat/stream", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
+    // The native WhatsApp session already answered this one — see
+    // whatsappHandledByChannel. 200 rather than an error: the bridge is a
+    // fire-and-forget Tasker task with no error handling, and a 4xx would just
+    // make it retry.
+    if (whatsappHandledByChannel(plugins, req.body?.channel)) {
+      return res.json({ ok: true, skipped: "handled by the whatsapp channel" });
+    }
     // Optional coding-surface knobs: the terminal Code TUI (apx code, Build
     // mode) sends these so it runs to completion exactly like the web Code
     // module. Plain chat callers omit them and keep the lightweight defaults.
@@ -559,6 +598,13 @@ export function register(api, { projects, registries, plugins, project, config }
   api.post("/projects/:pid/super-agent/chat", asyncRoute(async (req, res) => {
     const p = project(req, res);
     if (!p) return;
+    // The native WhatsApp session already answered this one — see
+    // whatsappHandledByChannel. 200 rather than an error: the bridge is a
+    // fire-and-forget Tasker task with no error handling, and a 4xx would just
+    // make it retry.
+    if (whatsappHandledByChannel(plugins, req.body?.channel)) {
+      return res.json({ ok: true, skipped: "handled by the whatsapp channel" });
+    }
     const { prompt, previousMessages, model, maxIters, maxTokens, completionContract } =
       req.body || {};
     if (!prompt) return res.status(400).json({ error: "prompt required" });

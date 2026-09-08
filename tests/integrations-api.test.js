@@ -76,7 +76,10 @@ test("catalog lists asana (implemented) + coming-soon plugins", async () => {
     assert.ok(asana && asana.coming_soon === false);
     assert.equal(asana.status.status, "disconnected");
     assert.ok(json.find((c) => c.slug === "github" && c.coming_soon === false), "github is implemented");
-    assert.ok(json.find((c) => c.slug === "whatsapp" && c.coming_soon), "whatsapp is coming soon");
+    // WhatsApp is a CHANNEL, not a per-project integration — it moved to
+    // Settings → WhatsApp on 2026-09-08. One account cannot be N per-project
+    // pairings, so leaving it here would offer a connection that can't exist.
+    assert.equal(json.find((c) => c.slug === "whatsapp"), undefined, "whatsapp is a channel, not a plugin");
   } finally {
     close();
   }

@@ -8,8 +8,20 @@
 // into the prompt is what makes Candela actually react to a gym selfie.
 import { callEngine } from "#core/engines/index.js";
 import { modelWiresVision } from "#core/agent/model-capabilities.js";
+import { ENGINE_PRESETS } from "#core/engines/presets.js";
+import { logWarn } from "#core/logging.js";
 
-const DEFAULT_VISION_MODEL = "gemini:gemini-2.0-flash";
+// Read from the shared catalog rather than written here.
+//
+// It used to be the literal "gemini:gemini-2.0-flash", and Google retired that
+// model: every bridged image came back as a 404 the caller swallowed, so an
+// agent without vision silently stopped being able to see ANYTHING — no error
+// surfaced, just "I can't tell what this shows" forever. Found 2026-09-08 via a
+// WhatsApp sticker that never got described.
+//
+// A hardcoded model version is a dated fact wearing a constant's clothes. The
+// provider's default in presets.js is the one place that already tracks this.
+const DEFAULT_VISION_MODEL = `gemini:${ENGINE_PRESETS.gemini?.default_model || "gemini-3.7-flash"}`;
 
 const BRIDGE_SYSTEM =
   "You describe photos for another AI that cannot see them. Be concrete: who/what, " +
@@ -56,7 +68,11 @@ export async function describeTurnImages(images, globalConfig, { signal } = {}) 
     });
     const text = (result.text || "").trim();
     return text || null;
-  } catch {
+  } catch (e) {
+    // Swallowed on purpose — a missing description must not fail the turn — but
+    // NOT silently. A retired model returned a 404 here for an unknown length of
+    // time and nothing in the log said so.
+    logWarn("vision-bridge", `describe failed on ${modelId}: ${e.message}`);
     return null;
   }
 }
