@@ -1,3 +1,10 @@
+# [1.91.0](https://github.com/agentprojectcontext/apx/compare/v1.90.2...v1.91.0) (2026-09-08)
+
+
+### Features
+
+* **whatsapp:** native channel with a sealed turn for non-owners ([d456e44](https://github.com/agentprojectcontext/apx/commit/d456e446caaf36dc37a5d4f6c1cb11005f8d648c))
+
 ## [1.90.2](https://github.com/agentprojectcontext/apx/compare/v1.90.1...v1.90.2) (2026-09-07)
 
 
