@@ -50,6 +50,15 @@ const CHANNEL_PROMPT_FILES = {
   [CHANNELS.WHATSAPP]: "channels/whatsapp.md",
 };
 
+// Channel blocks for a turn whose reader is NOT the owner. A separate table on
+// purpose: the owner-facing file interpolates {{projectId}}/{{projectName}}/
+// {{projectPath}}, which is a leak the moment a stranger is the reader. A
+// channel with no entry here cannot run a third-party turn at all — see
+// buildThirdPartySystem.
+const THIRD_PARTY_CHANNEL_PROMPT_FILES = {
+  [CHANNELS.WHATSAPP]: "channels/whatsapp-guest.md",
+};
+
 // Channels where the user CAN see two text segments per turn (chat history is
 // visible). Voice / single-surface channels get single-segment discipline.
 const TWO_SEGMENT_CHANNELS = new Set([
@@ -85,6 +94,7 @@ const PROJECT_AGENT_ROLE = loadPrompt("core/project-agent.md");
 const ACTION_DISCIPLINE  = loadPrompt("discipline/action.md");
 const TWO_SEGMENT        = loadPrompt("discipline/two-segment.md");
 const SINGLE_SEGMENT     = loadPrompt("discipline/single-segment.md");
+const THIRD_PARTY_ROLE   = loadPrompt("core/third-party.md");
 
 // Back-compat shim — a few callers/tests still want the raw default prompt.
 export function loadDefaultSystemPrompt() {
@@ -242,14 +252,14 @@ export function buildIdentityBlock(identity, userLang = "en") {
 
 // "Who you're talking to" block — agent-agnostic, built once from the resolved
 // sender (see core/identity/telegram.js). Returns "" when there's no sender.
-export function buildRelationshipBlock(sender) {
+export function buildRelationshipBlock(sender, { platform = "Telegram" } = {}) {
   if (!sender || sender.userId == null) return "";
   const handle = sender.username ? ` (@${sender.username})` : "";
   const lines = ["# Who you're talking to"];
 
   if (sender.isGroup) {
     lines.push(
-      "This is a Telegram GROUP chat with multiple people — do NOT assume a single owner."
+      `This is a ${platform} GROUP chat with multiple people — do NOT assume a single owner.`
     );
     lines.push(`Sender of this message: ${sender.name}${handle}, role: ${sender.role}.`);
   } else if (sender.isOwner) {
@@ -325,6 +335,81 @@ function buildProjectIndex(projects) {
 }
 
 // ---------------------------------------------------------------------------
+// Third-party system prompt — the reader is NOT the owner
+// ---------------------------------------------------------------------------
+
+/**
+ * The system prompt for a turn whose reader is a third party.
+ *
+ * This is a SEPARATE composition, not buildSuperAgentSystem with the dangerous
+ * parts subtracted, and that is the entire point. Subtraction fails OPEN: the
+ * next block somebody appends to that array lands in the stranger's prompt too,
+ * and nobody finds out until it has already been said out loud to somebody.
+ * This function names every part it includes, so a new block reaches a third
+ * party only when a person writes it in here deliberately.
+ *
+ * What is absent, and why each one is a real leak and not a hypothetical:
+ *   - the project index      → every project name and filesystem path you own
+ *   - the project AGENTS.md  → how the work is organised and who runs it
+ *   - the memory block (RAG) → whatever the owner asked to have remembered
+ *   - active threads         → literally the last turn from EVERY other channel,
+ *                              so a stranger's "hola" is answered by a model
+ *                              holding what the owner said on Telegram minutes
+ *                              ago (core/memory/active-threads.js)
+ *   - custom instructions    → written by the owner, for the owner's eyes
+ *   - the skills hint        → the catalogue doubles as a list of the owner's
+ *                              business lines and clients
+ *   - the lazy-tools hint    → names capabilities that must not be offered here
+ *   - contextNote            → whatever the caller injected into this turn
+ *   - the notebook           → the super-agent's durable private facts
+ *
+ * A channel with no entry in THIRD_PARTY_CHANNEL_PROMPT_FILES throws instead of
+ * falling back to the owner-facing file: an unconfigured surface must not be
+ * able to answer a stranger by accident.
+ */
+export function buildThirdPartySystem({
+  globalConfig = {},
+  channel = "",
+  channelMeta = {},
+  // Pre-rendered "who you're talking to" block (buildRelationshipBlock).
+  relationshipBlock = "",
+}) {
+  const channelLow = String(channel || "").toLowerCase();
+  const rel = THIRD_PARTY_CHANNEL_PROMPT_FILES[channelLow];
+  if (!rel) {
+    throw new Error(
+      `buildThirdPartySystem: channel "${channel}" has no third-party prompt. ` +
+      `Add one to THIRD_PARTY_CHANNEL_PROMPT_FILES before letting it answer a non-owner.`
+    );
+  }
+
+  const identity = (() => {
+    try { return readIdentity(); } catch { return null; }
+  })();
+
+  // The persona, and only the persona. `owner_name`, `owner_context` and
+  // `personality` are all left out on purpose: the first two ARE the private
+  // detail, and the third is written to make the agent good company for the
+  // owner — which is not the register a stranger should be met in.
+  const lang = globalConfig?.user?.language || identity?.language || "en";
+  const agentName = identity?.agent_name || globalConfig?.super_agent?.name;
+  const persona = [
+    "# Agent profile",
+    agentName ? `Your name is ${agentName}.` : "",
+    `Default to the language with ISO 639-1 code "${lang}", but if the sender writes in another language, answer in theirs.`,
+  ].filter(Boolean).join("\n");
+
+  return [
+    THIRD_PARTY_ROLE,
+    persona,
+    relationshipBlock,
+    renderPromptTemplate(loadPrompt(rel), channelMeta),
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+// ---------------------------------------------------------------------------
 // Super-agent system prompt
 // ---------------------------------------------------------------------------
 
@@ -353,7 +438,15 @@ export function buildSuperAgentSystem({
   // inspector explicitly decided not to surface). Setting this to true removes
   // buildSkillsHintBlock from the prompt.
   skipSkillsHint = false,
+  // Who is going to READ this turn. "owner" is everything below; "third_party"
+  // hands off to buildThirdPartySystem, which shares none of it. The default is
+  // the permissive one because every existing caller is owner-facing — a new
+  // surface that talks to strangers has to say so.
+  audience = "owner",
 }) {
+  if (audience === "third_party") {
+    return buildThirdPartySystem({ globalConfig, channel, channelMeta, relationshipBlock });
+  }
   const sa = globalConfig.super_agent || {};
   const identity = (() => {
     try { return readIdentity(); } catch { return null; }

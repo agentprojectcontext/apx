@@ -412,6 +412,34 @@ async function main() {
 
   function shutdown(signal) {
     log(`received ${signal}, shutting down...`);
+    // THE WATCHDOG GOES FIRST, before any teardown can throw.
+    //
+    // It used to be armed at the very END of this function, which made it
+    // useless in the one case it exists for. Every step below except the turn
+    // abort was unguarded; a throw in any of them escapes into the
+    // `uncaughtException` handler, which by design LOGS AND KEEPS RUNNING. So
+    // the shutdown stopped halfway, the timer was never armed, and the daemon
+    // sat there half torn down: still answering /api/health, no longer logging,
+    // and deaf to every later SIGTERM. Observed 2026-09-08 — `apx restart` then
+    // reports "did not shut down in time" while the ghost keeps the port, and
+    // the only way out is `kill -9` by PID.
+    //
+    // Armed here, the process exits within the grace period no matter what any
+    // plugin, registry or store does on the way down. `unref()` so it never
+    // holds the loop open on its own — a clean shutdown still exits instantly.
+    setTimeout(() => {
+      log("shutdown grace period expired — exiting");
+      clearPid();
+      process.exit(1);
+    }, 5000).unref();
+
+    // A step that fails must not take the rest of the teardown with it: the
+    // socket a plugin failed to close matters less than the ones after it that
+    // never got asked.
+    const step = (name, fn) => {
+      try { fn(); } catch (e) { log(`warn: shutdown step "${name}" failed: ${e.message}`); }
+    };
+
     // FIRST, before anything else is torn down: tell every turn in flight to
     // stop. Each one's own catch writes what it had streamed into the ledger,
     // the same path Stop uses — so an `apx restart` in the middle of an answer
@@ -423,12 +451,12 @@ async function main() {
     } catch (e) {
       log(`warn: could not abort in-flight turns: ${e.message}`);
     }
-    scheduler.stop();
-    callbackReconciler?.stop();
-    eventsBridge?.();
-    plugins.stopAll();
-    stopMemory();
-    registries.shutdown();
+    step("scheduler", () => scheduler.stop());
+    step("callbackReconciler", () => callbackReconciler?.stop());
+    step("eventsBridge", () => eventsBridge?.());
+    step("plugins", () => plugins.stopAll());
+    step("memory", () => stopMemory());
+    step("registries", () => registries.shutdown());
     // Best-effort shutdown of whisper-server subprocess.
     import("./whisper-server.js").then(({ shutdownWhisperServer, stopWhisperKeepWarm }) => {
       stopWhisperKeepWarm();
@@ -455,15 +483,12 @@ async function main() {
     // socket the caller was reading.
     for (const s2 of secondary) s2.closeAllConnections?.();
     server.closeAllConnections?.();
-    // The hard stop. It used to exit(1) without clearing the pid file, which is
-    // how `~/.apx/daemon.pid` came to name a process that no longer existed —
-    // and then every later `apx restart` signalled that ghost, waited, and gave
-    // up with "did not shut down in time" while the real daemon kept running.
-    setTimeout(() => {
-      log("shutdown grace period expired — exiting");
-      clearPid();
-      process.exit(1);
-    }, 5000).unref();
+    // The hard stop lives at the TOP of this function now — see the watchdog
+    // comment there. It used to sit here, which meant anything that threw on
+    // the way down skipped it entirely. It also used to exit(1) without
+    // clearing the pid file, which is how `~/.apx/daemon.pid` came to name a
+    // process that no longer existed, and every later `apx restart` signalled
+    // that ghost while the real daemon kept running.
   }
 
 }

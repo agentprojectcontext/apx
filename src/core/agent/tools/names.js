@@ -100,6 +100,7 @@ export const TOOLS = Object.freeze({
 
   // Side-effects
   SEND_TELEGRAM:       "send_telegram",
+  SEND_WHATSAPP:       "send_whatsapp",
   SET_IDENTITY:        "set_identity",
   SET_PERMISSION_MODE: "set_permission_mode",
   TRANSCRIBE_AUDIO:    "transcribe_audio",
@@ -169,6 +170,7 @@ export const NATIVE_TOOL_NAMES = new Set([
   TOOLS.CALENDAR_CREATE_EVENT,
   TOOLS.CALENDAR_UPDATE_EVENT,
   TOOLS.SEND_TELEGRAM,
+  TOOLS.SEND_WHATSAPP,
   TOOLS.SET_IDENTITY,
   TOOLS.SET_PERMISSION_MODE,
   TOOLS.READ_SELF_MEMORY,
@@ -273,6 +275,7 @@ export const CODE_BUILD_TOOLS = "*";
  */
 export const SIDE_EFFECT_TOOLS = new Set([
   TOOLS.SEND_TELEGRAM,
+  TOOLS.SEND_WHATSAPP,
   TOOLS.CREATE_TASK,
   TOOLS.RECORD_COMMITMENT,
   TOOLS.REMEMBER_ROUTINE,
@@ -309,7 +312,7 @@ export const ACK_ONLY_TOOLS = new Set([TOOLS.SEND_TELEGRAM]);
  * from a contact produced three near-identical Telegram messages to the owner.
  * See loop/side-effects.js for the comparison itself.
  */
-export const MESSAGE_TOOLS = new Set([TOOLS.SEND_TELEGRAM]);
+export const MESSAGE_TOOLS = new Set([TOOLS.SEND_TELEGRAM, TOOLS.SEND_WHATSAPP]);
 
 /**
  * Tools whose semantics REQUIRE handing control back to a human. The loop

@@ -9,6 +9,7 @@ const {
   withImageDescription,
 } = await import("#core/agent/vision-bridge.js");
 const { messagesForModel } = await import("#core/agent/model-capabilities.js");
+const { ENGINE_PRESETS } = await import("#core/engines/presets.js");
 
 test("providerWiresVision: gemini/openai/anthropic/openrouter yes, zen no", () => {
   assert.equal(providerWiresVision("gemini:gemini-2.0-flash"), true);
@@ -47,12 +48,21 @@ test("visionBridgeModel: config override, then has_image rule, then default", ()
   assert.equal(
     visionBridgeModel({
       super_agent: {
-        routing: { rules: [{ model: "gemini:gemini-2.0-flash", when: { has_image: true } }] },
+        // Any model id at all — the point is that the rule wins, not which
+        // model the operator happened to pick.
+        routing: { rules: [{ model: "some:vision-model", when: { has_image: true } }] },
       },
     }),
-    "gemini:gemini-2.0-flash",
+    "some:vision-model",
   );
-  assert.equal(visionBridgeModel({}), "gemini:gemini-2.0-flash");
+  // The default follows the shared catalog; it is NOT a version written here.
+  //
+  // This assertion used to be the literal "gemini:gemini-2.0-flash". Google
+  // retired that model, every bridged image started coming back as a swallowed
+  // 404 — so an agent without vision silently stopped seeing anything — and
+  // this test went on passing, because it pinned the stale name rather than the
+  // property. Assert the wiring; let presets.js own the version.
+  assert.equal(visionBridgeModel({}), `gemini:${ENGINE_PRESETS.gemini.default_model}`);
 });
 
 test("withImageDescription folds a block the text model can read", () => {

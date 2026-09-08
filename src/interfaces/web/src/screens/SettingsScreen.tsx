@@ -13,6 +13,7 @@ import { MemoryPanel } from "../components/settings/MemoryPanel";
 import { SkillsSettings } from "../components/settings/SkillsSettings";
 import { ModelsTab } from "./base/ModelsTab";
 import { TelegramSettingsTabs } from "../components/settings/TelegramSettingsTabs";
+import { WhatsAppSettingsTabs } from "../components/settings/WhatsAppSettingsTabs";
 import { DevicesPanel } from "../components/settings/DevicesPanel";
 import { AdvancedPanel } from "../components/settings/AdvancedPanel";
 import { WebPanel } from "../components/settings/WebPanel";
@@ -24,7 +25,7 @@ import { STORAGE } from "../constants";
 import { t } from "../i18n";
 
 type TabKey =
-  | "identity" | "super_agent" | "profile" | "nudge" | "engines" | "memory" | "skills" | "telegram" | "devices"
+  | "identity" | "super_agent" | "profile" | "nudge" | "engines" | "memory" | "skills" | "telegram" | "whatsapp" | "devices"
   | "voice" | "images" | "deck" | "desktop" | "web" | "advanced";
 
 const SECTIONS: TabSection[] = [
@@ -59,6 +60,7 @@ const SECTIONS: TabSection[] = [
     title: t("settings.channels_section"),
     items: [
       { key: "telegram",    label: t("settings.tabs.telegram"),    icon: Send },
+      { key: "whatsapp",    label: t("settings.tabs.whatsapp"),    icon: MessageCircle },
       { key: "devices",     label: t("settings.tabs.devices"),     icon: Smartphone },
     ],
   },
@@ -84,7 +86,7 @@ const SECTIONS: TabSection[] = [
 // on xl (and so wants full available width). Single-section panels (identity,
 // super agent, devices, advanced) keep a cosier reading width so wide displays
 // don't blow form fields up to absurd widths.
-const WIDE_TABS = new Set<TabKey>(["engines", "telegram", "memory", "skills", "web", "voice", "images", "profile"]);
+const WIDE_TABS = new Set<TabKey>(["engines", "telegram", "whatsapp", "memory", "skills", "web", "voice", "images", "profile"]);
 
 const PANELS: Record<TabKey, () => ReactElement> = {
   identity:    () => <IdentityPanel />,
@@ -95,6 +97,7 @@ const PANELS: Record<TabKey, () => ReactElement> = {
   memory:      () => <MemoryPanel />,
   skills:      () => <SkillsSettings />,
   telegram:    () => <TelegramSettingsTabs />,
+  whatsapp:    () => <WhatsAppSettingsTabs />,
   devices:     () => <DevicesPanel />,
   voice:       () => <VoiceScreen />,
   images:      () => <ImagesScreen />,
@@ -111,7 +114,7 @@ export function SettingsScreen() {
   const Panel = PANELS[active];
   const { collapsed, toggle } = useNavCollapse(STORAGE.sidebarCollapsed + ".settings");
   // Silence lint warnings about unused icons import.
-  void KeyRound; void MessageCircle;
+  void KeyRound;
 
   return (
     <TabLayout
@@ -138,6 +141,7 @@ function tabFromPath(pathname: string): TabKey {
     case "memory": return "memory";
     case "skills": return "skills";
     case "telegram": return "telegram";
+    case "whatsapp": return "whatsapp";
     case "devices": return "devices";
     case "voice": return "voice";
     case "images": return "images";

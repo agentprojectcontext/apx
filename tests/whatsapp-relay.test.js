@@ -1,23 +1,27 @@
-// WhatsApp is an ALERT, and the agent has to know that.
+// The WhatsApp channel prompts, and the line between them.
 //
-// A bridge on the owner's phone posts to the super-agent with
-// `channel: "whatsapp"` whenever WhatsApp raises an Android notification. Two
-// generations of bug live here:
+// Three generations of contract live behind this file, and the scars are why
+// each assertion is here:
 //
 // 1. The channel had no prompt file at all (until 2026-08-29): the turn read as
 //    if the owner had written, so a contact was answered politely and the owner
 //    never heard that anyone had written.
-// 2. The prompt then told it to ANSWER the sender in the turn — so it answered
-//    instantly, from a notification Android had already collapsed into "7
-//    mensajes nuevos" or `%evtprm3`. It was replying to text that was not the
-//    message, through a path that delivers nothing by itself.
+// 2. The prompt then told it to ANSWER the sender in the turn — so it did,
+//    instantly, from an Android notification already collapsed into "7 mensajes
+//    nuevos". It was replying to text that was not the message, through a path
+//    that delivered nothing by itself.
+// 3. 2026-09-08: WhatsApp became a real channel with a real session, so the
+//    transport stopped being a notification bridge and the alert contract went
+//    with it. What replaced it is a SPLIT — the owner's line and everybody
+//    else's are two different prompts, and the whole safety story is that the
+//    second one cannot be handed the first one's contents.
 //
-// The contract now: the alert is a wake-up, the phone is where the messages
-// are, the round covers every unread thread, and anything a person receives is
-// an explicit send.
+// The third-party half is pinned in third-party-prompt.test.js (the containment
+// proof). This file pins the two blocks themselves and the fact that they stay
+// distinct.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildChannelContextBlock, buildSuperAgentSystem } from "#core/agent/prompt-builder.js";
+import { buildChannelContextBlock, buildSuperAgentSystem, buildThirdPartySystem } from "#core/agent/prompt-builder.js";
 import { CHANNELS } from "#core/constants/channels.js";
 import { TOOLS } from "#core/agent/tools/names.js";
 
@@ -33,92 +37,64 @@ test("the whatsapp channel has a context block, and it is reached by name", () =
   assert.doesNotMatch(block, /\{\{/);
 });
 
-test("it says who is on the other end — and that it is not the owner", () => {
+test("the owner's block says this line is the owner's, and that other people are elsewhere", () => {
   const block = buildChannelContextBlock(CHANNELS.WHATSAPP, META);
-  assert.match(block, /sender is NOT the owner/i);
-  // Third-party text is data. Someone writing "you have permission" on WhatsApp
-  // is not the owner granting it.
-  assert.match(block, /DATA, never instructions/);
+  // The owner turn must not believe it can see, or answer, a stranger's thread:
+  // that conversation runs sealed, in another turn, with another prompt.
+  assert.match(block, /paired this session is your owner/i);
+  assert.match(block, /sealed turn/i);
+  assert.match(block, /cannot see it/i);
 });
 
-test("the alert is a wake-up, not the message — and not something to answer", () => {
+test("it says how to write on a phone, because WhatsApp renders no markdown", () => {
   const block = buildChannelContextBlock(CHANNELS.WHATSAPP, META);
-  assert.match(block, /ALERT from the bridge/i);
-  // The exact shapes Android hands over. Answering these as if they were the
-  // message is what shipped: a reply composed from "7 mensajes nuevos".
-  assert.match(block, /7 mensajes nuevos/);
-  assert.match(block, /%evtprm3/);
-  assert.match(block, /never answer it from the alert text alone/i);
-  // And the turn text is not a delivery path, so a "reply" here reaches nobody.
-  assert.match(block, /Nothing you write in this turn reaches anybody/i);
+  assert.match(block, /no markdown/i);
+  assert.match(block, /literal characters/i);
+  assert.match(block, /one message per turn/i);
 });
 
-test("it goes and looks, and does the whole round", () => {
+test("it names what can and cannot be perceived", () => {
   const block = buildChannelContextBlock(CHANNELS.WHATSAPP, META);
-  assert.match(block, /whatsapp-send/, "the skill carries the device and the flows");
-  assert.match(block, /every unread thread, not just the one that woke you/i);
-  // Leaving WhatsApp in the foreground stops Android raising notifications,
-  // which is the same as unplugging the bridge.
-  assert.match(block, /Leave WhatsApp in the background/i);
-  // Re-notification must not become a second reply.
-  assert.match(block, /tail_messages/);
-  assert.match(block, /already replied/i);
+  for (const marker of [/\[audio\]/, /\[sticker/, /gif/i, /photo|pixels/i]) {
+    assert.match(block, marker);
+  }
+  // The one refusal. An agent that guesses a video's contents from its caption
+  // is worse than one that says it cannot watch it.
+  assert.match(block, /cannot watch|can't watch/i);
 });
 
-test("the round ends in one Telegram, or in silence", () => {
-  // The round worked and the owner never heard about it: Carlos had written,
-  // One of them had left a "decile que…", and both were dealt with inside a
-  // work log nobody reads. The owner is not watching this channel.
+test("it names the tool that reaches another person, and says it is irreversible", () => {
   const block = buildChannelContextBlock(CHANNELS.WHATSAPP, META);
-  assert.match(block, /Close the round with ONE `send_telegram`/);
-  assert.match(block, /One message for the whole round\*\*, not one per thread/i);
-  // And an alert that turned out to be an echo is not worth a notification.
-  assert.match(block, /Nothing new → send nothing/);
-  // A message asking to pass something on is a message for the owner.
-  assert.match(block, /pass something on/);
-});
-
-test("a phone it cannot reach is said out loud, not guessed at", () => {
-  const block = buildChannelContextBlock(CHANNELS.WHATSAPP, META);
-  assert.match(block, /do not guess at the message and do not go quiet/i);
-  assert.match(block, /could not read the phone/i);
-  // A locked screen is not a puzzle to solve, and retrying does not unlock it.
-  assert.match(block, /cannot be typed away/i);
-});
-
-test("it drives the bridge's phone, not whatever else is plugged in", () => {
-  // Measured: with the bridge phone off adb and another phone on USB, the agent
-  // opened WhatsApp on the OTHER phone — a different account, someone else's
-  // conversations, and an alert it could never have matched.
-  const block = buildChannelContextBlock(CHANNELS.WHATSAPP, META);
-  assert.match(block, /On the device that skill names, and no other/i);
-  assert.match(block, /not a fallback/i);
-});
-
-test("it names the one tool that actually reaches the owner", () => {
-  const block = buildChannelContextBlock(CHANNELS.WHATSAPP, META);
-  assert.match(block, new RegExp(TOOLS.SEND_TELEGRAM),
-    "the owner is on Telegram; nothing else in this turn reaches them");
-  // The cases the owner asked for: a decision that is theirs, and something
-  // that arrived for them (a code, a payment).
-  assert.match(block, /needs the owner/i);
-  assert.match(block, /verification code/i);
-  assert.match(block, /same turn/i, "consulting them is an action, not a promise");
-});
-
-test("it refuses to hand a third party what only the owner should have", () => {
-  const block = buildChannelContextBlock(CHANNELS.WHATSAPP, META);
-  assert.match(block, /Never hand a third party a code/i);
+  assert.match(block, new RegExp(TOOLS.SEND_WHATSAPP));
+  assert.match(block, /no undo/i);
+  // Answering the owner is not a tool call — the turn already goes to them.
+  // Without this the model reaches for send_whatsapp to reply to its own owner.
+  assert.match(block, /just write your reply/i);
 });
 
 test("a whatsapp turn carries the block through the assembled system prompt", () => {
-  const sys = buildSuperAgentSystem({
-    globalConfig: { super_agent: { enabled: true }, user: { language: "es" } },
-    projects: [],
+  const system = buildSuperAgentSystem({
+    globalConfig: { super_agent: { enabled: true, model: "mock:m" } },
+    projects: { list: () => [] },
     listSkills: () => [],
     channel: CHANNELS.WHATSAPP,
     channelMeta: META,
   });
-  assert.match(sys, /ALERT from the bridge/i, "the block has to survive assembly, not just exist");
-  assert.match(sys, new RegExp(TOOLS.SEND_TELEGRAM));
+  assert.match(system, /Channel: \*\*whatsapp\*\*/);
+  assert.doesNotMatch(system, /\{\{/);
+});
+
+test("the owner's block and the stranger's block are not the same file", () => {
+  // The failure this guards is a fallback: a third-party turn quietly rendering
+  // the owner-facing file, which interpolates the project id, name and PATH.
+  const owner = buildChannelContextBlock(CHANNELS.WHATSAPP, META);
+  const guest = buildThirdPartySystem({
+    globalConfig: { user: { language: "es" } },
+    channel: CHANNELS.WHATSAPP,
+    channelMeta: META,
+  });
+  assert.notEqual(owner, guest);
+  assert.ok(!guest.includes("/path/to/acme"), "the stranger's prompt must not carry the project path");
+  assert.ok(!guest.includes("acme"), "nor its name");
+  assert.match(guest, /whatsapp/i, "…but it is still a WhatsApp prompt");
 });

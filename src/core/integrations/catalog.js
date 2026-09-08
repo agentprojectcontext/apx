@@ -8,9 +8,13 @@
 // + register it in PLUGIN_SERVICES (open/closed) — no API/route changes.
 //
 // Scope of this catalog (per product decision): Asana, GitHub, Obsidian,
-// Calendar, WhatsApp. Telegram is intentionally absent — it's a channel,
-// configured under its own surface, not a service plugin. Transcription lives
-// with the desktop STT stack. Obsidian is path-based (a local Vault) rather than
+// Calendar. Telegram and WhatsApp are intentionally absent — both are CHANNELS,
+// configured under their own surface, not service plugins. WhatsApp used to sit
+// here as coming-soon, inherited from the PandaProject port; it moved out on
+// 2026-09-08 because a per-project integration models it wrong: there is one
+// account, and a WhatsApp Web session is a device singleton, so N projects
+// pairing N QRs against one number is a contradiction rather than a feature.
+// Transcription lives with the desktop STT stack. Obsidian is path-based (a local Vault) rather than
 // token-based, and Calendar is user-OAuth-based (auth: "oauth") — see
 // plugins/calendar.js for why it acts as you (invites + Meet) instead of as a
 // service account.
@@ -28,18 +32,9 @@ export const PLUGIN_SERVICES = Object.freeze({
 });
 
 // Static descriptors for plugins that are declared but not yet connectable.
-// WhatsApp needs a WhatsApp-Web bridge (QR pairing) that APX doesn't ship yet,
-// so it stays coming-soon rather than pretending to connect.
-const COMING_SOON = [
-  {
-    slug: "whatsapp",
-    name: "WhatsApp",
-    type: "channel",
-    description: "Conectá WhatsApp Web al orquestador — responde mensajes automáticamente",
-    auth: "qr",
-    coming_soon: true,
-  },
-];
+// Empty today — kept (rather than deleted along with the concatenation below)
+// so declaring the next coming-soon plugin stays a one-line change.
+const COMING_SOON = [];
 
 // The full catalog: implemented plugins first, then coming-soon. Implemented
 // entries carry their `ui` descriptor + tools so the generic component can

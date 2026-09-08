@@ -7,7 +7,11 @@
 # no `packageManager` pin, so contributors on pnpm 10 still read it from there.
 # Change both or neither.
 allowBuilds:
+  # Verified to work with its install script skipped — the socket has been
+  # live all along without it. No reason to run one.
+  '@whiskeysockets/baileys': false
   better-sqlite3: true
   electron: true
   esbuild: false
+  protobufjs: false
   puppeteer: true

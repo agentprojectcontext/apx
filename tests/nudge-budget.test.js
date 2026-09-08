@@ -265,7 +265,7 @@ test("the gate is NOT wired into the shared send, which also carries replies", (
     "the telegram plugin's send() must stay dumb — gating there would swallow replies");
 });
 
-test("no push path outside the audited four calls the telegram plugin's send", () => {
+test("no push path outside the audited list calls the telegram plugin's send", () => {
   // Catches the real failure mode: not a missing import, but a NEW file that
   // sends without anyone remembering this list exists.
   const allowed = new Set([
@@ -280,6 +280,18 @@ test("no push path outside the audited four calls the telegram plugin's send", (
     // exempts a solicited reply. The feature carries its own mute instead
     // (isMobilitySilentToday + the "🔕 No avisar más hoy" button).
     "src/core/mobility/trip-event.js",
+    // The WhatsApp → owner report. Solicited by construction, like the reply
+    // path: it fires ONLY because a person wrote to the owner's WhatsApp, and
+    // telling them that happened is the entire point of bridging the channel.
+    //
+    // It is also the one push path a stranger can trigger, so it does not rely
+    // on the budget for restraint — it carries its own, in the shape the budget
+    // could not provide anyway. `REPORT_WINDOW_MS` in
+    // core/channels/whatsapp/dispatch.js coalesces per correspondent (6h for
+    // someone off the roster, 15min for a real conversation), which bounds a
+    // hundred-message burst to one Telegram instead of letting the daily
+    // allowance be spent by whoever dials the number most.
+    "src/host/daemon/plugins/whatsapp/index.js",
   ]);
   // delivery.js reaches the plugin through a `tg` alias, which the telegram.send
   // pattern below does not match; it is in PUSH_PATHS and asserted to gate above.

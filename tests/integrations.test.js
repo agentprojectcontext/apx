@@ -115,7 +115,7 @@ test("asanaPlugin.deactivate: disables without dropping config", () => {
   assert.equal(patch.config, undefined); // config untouched
 });
 
-test("catalog: asana + github implemented (with ui), whatsapp coming soon, no telegram/transcription", () => {
+test("catalog: asana + github implemented (with ui); telegram, whatsapp and transcription are not plugins", () => {
   const catalog = listCatalog();
   const asana = catalog.find((c) => c.slug === "asana");
   assert.equal(asana.coming_soon, false);
@@ -128,8 +128,11 @@ test("catalog: asana + github implemented (with ui), whatsapp coming soon, no te
   assert.ok(github.ui && github.ui.configFields.some((f) => f.key === "token"));
   assert.ok(getPluginService("github"));
 
-  assert.ok(catalog.find((c) => c.slug === "whatsapp").coming_soon);
-  // Telegram is a channel, transcription lives with desktop STT — neither belongs here.
+  // Telegram and WhatsApp are channels; transcription lives with desktop STT —
+  // none of the three belongs here. WhatsApp sat here as coming-soon until
+  // 2026-09-08: a WhatsApp Web session is one account on one device, so a
+  // per-project integration models it wrong no matter how it is implemented.
+  assert.equal(catalog.find((c) => c.slug === "whatsapp"), undefined);
   assert.equal(catalog.find((c) => c.slug === "telegram"), undefined);
   assert.equal(catalog.find((c) => c.slug === "local-transcription"), undefined);
 });
