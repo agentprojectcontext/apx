@@ -1,3 +1,10 @@
+## [1.92.1](https://github.com/agentprojectcontext/apx/compare/v1.92.0...v1.92.1) (2026-09-08)
+
+
+### Bug Fixes
+
+* **inbox:** a WhatsApp row is titled by the person, not by Roby ([31385b9](https://github.com/agentprojectcontext/apx/commit/31385b907262ba955fac7098f83509343931d07c))
+
 # [1.92.0](https://github.com/agentprojectcontext/apx/compare/v1.91.0...v1.92.0) (2026-09-08)
 
 
