@@ -1,3 +1,10 @@
+## [1.92.2](https://github.com/agentprojectcontext/apx/compare/v1.92.1...v1.92.2) (2026-09-08)
+
+
+### Bug Fixes
+
+* **daemon:** one daemon per port, checked — the OS will not check it ([e36d344](https://github.com/agentprojectcontext/apx/commit/e36d344c3470a9a85b11ca9371fe55716cc4b82d))
+
 ## [1.92.1](https://github.com/agentprojectcontext/apx/compare/v1.92.0...v1.92.1) (2026-09-08)
 
 
