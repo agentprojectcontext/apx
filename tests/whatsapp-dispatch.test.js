@@ -202,3 +202,56 @@ test("a reply records which model answered and what it cost", async () => {
   assert.ok(out.meta.usage, "and the token usage");
   assert.equal(out.meta.audience, "third_party", "…and that this one was sealed");
 });
+
+test("two people on one line become two threads, not one shared pile", async () => {
+  _resetReportThrottle();
+  const h = harness();
+  await handleWhatsAppMessage(msg(CARLA, "te dejo esto anotado"), h.ctx);
+  await handleWhatsAppMessage(msg(OWNER, "che roby, todo bien?"), h.ctx);
+
+  const { listGlobalThreads, readGlobalThread } = await import("#core/stores/messages.js");
+  const threads = listGlobalThreads({ channels: ["whatsapp"] }).filter((t) => t.contact);
+
+  const carla = threads.find((t) => t.title === "Carla");
+  const owner = threads.find((t) => t.contact === "owner");
+  assert.ok(carla, `Carla has no thread of her own: ${JSON.stringify(threads)}`);
+  assert.ok(owner, "the owner's own WhatsApp chat is a thread too");
+  assert.notEqual(carla.id, owner.id);
+
+  // The containment the sealed turn provides in the MODEL must also hold in the
+  // VIEWER: opening Carla's thread cannot show what the owner wrote.
+  const read = readGlobalThread({ channel: "whatsapp", date: carla.id });
+  assert.ok(
+    read.messages.every((m) => !m.content.includes("che roby")),
+    "the owner's message leaked into a contact's thread",
+  );
+  assert.ok(read.messages.some((m) => m.content.includes("te dejo esto anotado")));
+});
+
+test("a turn that hangs is cut, and nobody is left on read", async () => {
+  _resetReportThrottle();
+  const h = harness();
+  // Deadlines are minutes in production; a test cannot wait that long, and a
+  // constant it cannot reach is a constant it cannot prove. `[mock:slow]`
+  // honours the abort signal, so this exercises the real cancellation path.
+  //
+  // Written to DISK, not onto the in-memory config: every inbound message
+  // re-reads the roster from disk (so a role granted seconds ago is honoured on
+  // the next message), and that read replaces the whole `whatsapp` block — an
+  // override set only in memory is gone before the turn starts.
+  patchWhatsAppConfig({ turn_deadline_ms: 150, third_party_deadline_ms: 150 });
+
+  await handleWhatsAppMessage(msg(CARLA, "[mock:slow:5000] me hacés un favor?"), h.ctx);
+  assert.equal(h.sent.length, 1, "a contact must get an answer even when the turn dies");
+  assert.match(h.sent[0].text, /te respondo/i);
+
+  await handleWhatsAppMessage(msg(OWNER, "[mock:slow:5000] mandale un sticker a carlos"), h.ctx);
+  assert.equal(h.sent.length, 2, "the OWNER is left on read too if nothing is sent");
+  assert.match(h.sent[1].text, /colg|cort/i);
+
+  const cut = h.reports.filter((r) => r.meta.kind === "whatsapp_error");
+  assert.ok(cut.length >= 1, "a cut turn is reported, not swallowed");
+  assert.match(cut[cut.length - 1].text, /por tiempo/i);
+
+  patchWhatsAppConfig({ turn_deadline_ms: 0, third_party_deadline_ms: 0 });
+});

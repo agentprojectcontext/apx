@@ -33,6 +33,7 @@ import { toneChip } from "../../lib/tone";
 import { usePersonaName } from "../../hooks/usePersonaName";
 import { useSuperAgentConfig } from "../../hooks/useGlobalConfig";
 import { AgentAvatar, AgentAvatarGroup, SUPER_AGENT_ICON, type AgentFace } from "../../components/agents/AgentAvatar";
+import { threadDate } from "../../lib/thread-id";
 import type { AgentEntry, ConversationListEntry } from "../../types/daemon";
 import { useChatVisibility } from "../../hooks/useChatActivity";
 import {
@@ -614,8 +615,11 @@ export function ChatTab({
     : activeIsRoby ? persona : activeAgent?.name || activeAgent?.slug || selected.agentSlug;
   const channelLabel =
     selected.kind === "thread" ? selected.channel : selectedMeta?.channel || "web";
+  // The DATE half of the thread id. A thread that belongs to one person carries
+  // them in its id too, and handing that whole string to a date formatter is
+  // how the header ends up reading "Invalid Date".
   const createdIso =
-    selected.kind === "thread" ? selected.threadId : selectedMeta?.createdAt;
+    selected.kind === "thread" ? threadDate(selected.threadId) : selectedMeta?.createdAt;
 
   // What this session is CALLED. The loaded file (or thread) knows its own
   // name, including the one the reader gave it; the list row is only what
@@ -865,7 +869,16 @@ export function ChatTab({
                   />
                 );
               }
-              const avatar = <AgentAvatar {...headerFace} size={compact ? 36 : 30} />;
+              // On a channel that talks to several people, the face is the
+              // PERSON. The title above already says "Magui" and the meta line
+              // still names Roby — drawing Roby's blob here as well made four
+              // WhatsApp threads look like four copies of the same chat.
+              const avatar = (
+                <AgentAvatar
+                  {...(conversationMeta?.contactFace ?? headerFace)}
+                  size={compact ? 36 : 30}
+                />
+              );
               // Tapping the face is the quick way to the agent's card/project —
               // more discoverable than the button in the row of actions.
               return openAgentAction ? (
@@ -1345,7 +1358,14 @@ function byRecency(a: ConversationListEntry, b: ConversationListEntry): number {
 // raw string for anything Date can't parse.
 function formatDate(iso?: string): string {
   if (!iso) return "";
-  const d = new Date(iso);
+  // A bare "YYYY-MM-DD" is a DAY, not an instant. `new Date()` reads it as UTC
+  // midnight, which anywhere west of Greenwich renders as the day before — a
+  // thread from the 8th was labelled the 7th all evening. Split it and build a
+  // local date; a full timestamp still parses the normal way.
+  const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  const d = day
+    ? new Date(Number(day[1]), Number(day[2]) - 1, Number(day[3]))
+    : new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return d.toLocaleDateString();
 }

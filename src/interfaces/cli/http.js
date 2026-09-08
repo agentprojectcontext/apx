@@ -75,8 +75,40 @@ async function autoStart({ silent = false } = {}) {
   throw new Error(`apx daemon failed to start within ${Math.round(DEADLINE_MS / 1000)}s — check ~/.apx/daemon.log`);
 }
 
+// The default port belongs to the default home.
+//
+// A daemon serves ONE ~/.apx, and the port it answers on is shared by everything
+// on the machine — so a process whose APX_HOME points somewhere else must not be
+// the one that claims it. A test suite does exactly that: it sets APX_HOME to a
+// sandbox, runs an `apx` command, finds nothing on 7430 (because the real daemon
+// happened to be restarting) and auto-starts a daemon that then answers for an
+// empty temp home. Every token 401s, no channel is connected, and the only
+// symptom is that WhatsApp quietly stops replying — with `/api/health` still
+// saying "ok", because health does not know which home it is serving.
+//
+// Seen for real on 2026-09-08: a preflight run during a daemon restart left the
+// user's WhatsApp offline for four minutes with nothing in any log saying why.
+//
+// So: auto-start only for the home the port is for. Anyone deliberately running
+// another home is told to start it themselves — they have to anyway, since the
+// two cannot share a port.
+function ownsDefaultPort() {
+  if (process.env.APX_PORT) return true; // a port they chose is a port they own
+  const home = process.env.APX_HOME;
+  if (!home) return true;
+  const dflt = path.join(process.env.HOME || "", ".apx");
+  return path.resolve(home) === path.resolve(dflt);
+}
+
 export async function ensureDaemon(opts = {}) {
   if (await ping()) return;
+  if (!ownsDefaultPort()) {
+    throw new Error(
+      `apx: no daemon on port ${DEFAULT_PORT}, and APX_HOME is ${process.env.APX_HOME} — ` +
+      "refusing to auto-start, because that daemon would answer for the wrong home on the shared port. " +
+      "Start it yourself, or set APX_PORT to a port of its own."
+    );
+  }
   await autoStart(opts);
 }
 

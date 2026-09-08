@@ -35,6 +35,7 @@ import {
   senderAddresses,
   REPLY_POLICIES,
   normalizeJid,
+  contactKeyFor,
 } from "#core/identity/whatsapp.js";
 import { resolveInboundMedia } from "./media.js";
 import { describeSticker } from "./stickers.js";
@@ -44,6 +45,21 @@ import { resolveCapabilities } from "./config.js";
 // How much of one conversation a sealed turn is allowed to see. Enough to hold
 // a thread, not enough to become a dossier.
 const CONTACT_HISTORY_TURNS = 12;
+
+// How long a turn may take before we stop waiting for it.
+//
+// A sealed turn is ONE model call with no tools — if it has not answered in a
+// minute and a half it is not going to, and the person on the other end has
+// been watching "escribiendo…" the whole time.
+const THIRD_PARTY_DEADLINE_MS = 90_000;
+// The owner's turn does real work with real tools, so it gets minutes rather
+// than seconds — but still a bound. This is the surface where a hang is
+// invisible: no spinner, no console, just a chat that stopped answering.
+const OWNER_DEADLINE_MS = 6 * 60_000;
+// Rounds of tools the owner's turn may take, mirroring Telegram's budget. The
+// deadline above is the backstop for a turn that hangs; this is the guardrail
+// for one that simply will not stop.
+const WHATSAPP_OWNER_ITERS = 18;
 
 // Coalescing the owner's reports.
 //
@@ -121,6 +137,12 @@ export async function handleWhatsAppMessage(m, ctx) {
   if (sender.isOwner) learnOwnerAliases(globalConfig, addresses);
   const policy = resolveReplyPolicy(globalConfig, sender);
   const thirdParty = policy === REPLY_POLICIES.TEXT_ONLY;
+  // Which conversation this belongs to. Stamped on every row in and out, so the
+  // thread store can split one day file into one thread per person without
+  // knowing anything about WhatsApp addressing — and so an alias (a LID in a
+  // group, a phone number in a direct chat) folds into the thread it belongs
+  // to instead of opening a second one for the same human.
+  const contactKey = contactKeyFor(globalConfig, sender);
 
   // Media resolves before the policy branch so the LOG is complete even for
   // people we never answer: "someone unknown sent a photo" is exactly the kind
@@ -153,6 +175,7 @@ export async function handleWhatsAppMessage(m, ctx) {
     meta: {
       chat_jid: chatJid,
       sender_jid: senderJid,
+      ...(contactKey ? { contact_key: contactKey } : {}),
       role: sender.role,
       is_group: sender.isGroup,
       policy,
@@ -183,21 +206,56 @@ export async function handleWhatsAppMessage(m, ctx) {
 
   let reply = "";
   let turn = null;
+  // A turn on this channel gets a DEADLINE, because the alternative is silence
+  // and silence is the one outcome this channel is not allowed to produce.
+  //
+  // Every other surface has someone watching: the web shows a spinner, Telegram
+  // has a typing indicator you can see stop. A WhatsApp conversation has none of
+  // that — a turn that never returns is indistinguishable from being ignored, on
+  // the surface where being ignored is the whole thing we promised not to do.
+  // And a turn CAN never return: an await with no timeout under it (a model
+  // call, a media upload to a number we have no session with) parks the promise
+  // forever, the daemon goes to 0% CPU, and nothing anywhere says a word.
+  //
+  // The signal is passed INTO the turn rather than raced against it, so the work
+  // actually stops instead of continuing unobserved behind a rejected promise.
+  const wa = globalConfig?.whatsapp || {};
+  const deadlineMs = thirdParty
+    ? Number(wa.third_party_deadline_ms) || THIRD_PARTY_DEADLINE_MS
+    : Number(wa.turn_deadline_ms) || OWNER_DEADLINE_MS;
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(new Error("turn deadline")), deadlineMs);
   try {
     turn = thirdParty
-      ? await runSealedTurn({ ctx, sender, chatJid, senderJid, body, media })
-      : await runOwnerTurn({ ctx, sender, chatJid, body, media });
+      ? await runSealedTurn({ ctx, sender, chatJid, senderJid, body, media, signal: abort.signal })
+      : await runOwnerTurn({ ctx, sender, chatJid, body, media, signal: abort.signal });
     reply = turn?.text || "";
+    // Aborted mid-flight: whatever came back is a fragment of a turn that was
+    // cut, not an answer. Fall through to the never-silent floor.
+    if (abort.signal.aborted && !reply.trim()) throw new Error("turn deadline");
   } catch (e) {
-    log(`whatsapp turn failed for ${senderJid}: ${e.message}`);
-    // Never leave someone on read because our side broke. They get a human
-    // sentence; the owner gets the actual error.
-    reply = thirdParty ? "Perdón, ahora no puedo contestarte bien. Te respondo en un rato." : "";
+    const timedOut = abort.signal.aborted;
+    log(`whatsapp turn ${timedOut ? "timed out" : "failed"} for ${senderJid}: ${e.message}`);
+    // Never leave someone on read because our side broke. This is the canned
+    // floor — the last resort, not the normal path: a model-authored sentence
+    // is impossible here precisely because the model is what did not answer.
+    //
+    // The OWNER gets one too. They are in the conversation like anyone else,
+    // and telling them on Telegram while their own WhatsApp stays blank is how
+    // a hang reads as the assistant having stopped working at all.
+    reply = thirdParty
+      ? "Perdón, ahora no puedo contestarte bien. Te respondo en un rato."
+      : timedOut
+        ? "Se me colgó ese pedido y lo corté para no dejarte esperando. Probá de nuevo o decímelo por Telegram."
+        : "";
     await notifyOwner(
-      `Se me cayó el turno de WhatsApp con ${sender.name}: ${e.message}`,
+      timedOut
+        ? `Corté por tiempo el turno de WhatsApp con ${sender.name} (${Math.round(deadlineMs / 1000)}s sin respuesta).`
+        : `Se me cayó el turno de WhatsApp con ${sender.name}: ${e.message}`,
       { kind: "whatsapp_error", sender_jid: senderJid }
     );
   } finally {
+    clearTimeout(timer);
     await session.setTyping(chatJid, false);
   }
 
@@ -212,6 +270,7 @@ export async function handleWhatsAppMessage(m, ctx) {
       meta: {
         chat_jid: chatJid,
         sender_jid: senderJid,
+        ...(contactKey ? { contact_key: contactKey } : {}),
         policy,
         // Which model answered and what it cost. The ledger already carried
         // this for every other channel, so a WhatsApp reply rendered without
@@ -266,7 +325,7 @@ export async function handleWhatsAppMessage(m, ctx) {
 /**
  * The owner's own turn: this is Roby, on WhatsApp instead of Telegram.
  */
-async function runOwnerTurn({ ctx, sender, chatJid, body, media }) {
+async function runOwnerTurn({ ctx, sender, chatJid, body, media, signal }) {
   const { globalConfig, projects, plugins, registries } = ctx;
   const r = await runSuperAgent({
     globalConfig,
@@ -279,6 +338,12 @@ async function runOwnerTurn({ ctx, sender, chatJid, body, media }) {
     channel: CHANNELS.WHATSAPP,
     relationshipBlock: buildWhatsAppRelationshipBlock(sender, globalConfig),
     channelMeta: { chatJid, whatsapp: true },
+    // The owner's turn has real tools, so it also gets a real budget — the same
+    // shape Telegram uses. Without one it fell through to the conversational
+    // default, which on a surface nobody is watching means "as many rounds as
+    // it likes".
+    maxIters: Number(globalConfig?.super_agent?.whatsapp_max_iters) || WHATSAPP_OWNER_ITERS,
+    signal,
   });
   return r;
 }
@@ -293,7 +358,7 @@ async function runOwnerTurn({ ctx, sender, chatJid, body, media }) {
  * else — a shared history across contacts would hand one person what another
  * said without any prompt ever leaking a thing.
  */
-async function runSealedTurn({ ctx, sender, chatJid, senderJid, body, media }) {
+async function runSealedTurn({ ctx, sender, chatJid, senderJid, body, media, signal }) {
   const { globalConfig, projects, plugins, registries } = ctx;
   const r = await runSuperAgent({
     globalConfig,
@@ -307,6 +372,7 @@ async function runSealedTurn({ ctx, sender, chatJid, senderJid, body, media }) {
     audience: "third_party",
     relationshipBlock: buildWhatsAppRelationshipBlock(sender, globalConfig),
     channelMeta: { chatJid, whatsapp: true },
+    signal,
   });
   return r;
 }

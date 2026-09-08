@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { BlobAvatar } from "./BlobAvatar";
 import { isBlobKey } from "./blobPresets";
 import { cn } from "../../lib/cn";
@@ -135,8 +136,10 @@ export function AgentAvatar({
   size = 32,
   className,
 }: AgentFace & { size?: number; className?: string }) {
+  const [photoFailed, setPhotoFailed] = useState(false);
   const label = (name || "").trim();
   const seed = label || icon || emoji || "?";
+  const photo = typeof icon === "string" && /^https?:\/\//i.test(icon) ? icon : null;
 
   const logo = CLI_LOGOS[label.toLowerCase()] || CLI_LOGOS[(icon || "").toLowerCase()];
   if (logo) {
@@ -153,6 +156,24 @@ export function AgentAvatar({
 
   if (isBlobKey(icon)) {
     return <BlobAvatar preset={icon} size={size} seed={seed} className={cn("shrink-0", className)} />;
+  }
+
+  // A real photograph. Agents wear blobs; the PEOPLE a channel talks to wear
+  // their own profile picture, and a WhatsApp thread is the first place a face
+  // here belongs to a human. Falls through to the initial disc when the URL
+  // dies — WhatsApp's CDN links expire, and a broken-image glyph looks worse
+  // than never having tried.
+  if (photo && !photoFailed) {
+    return (
+      <img
+        src={photo}
+        alt=""
+        aria-hidden
+        className={cn("shrink-0 rounded-full object-cover", className)}
+        style={{ width: size, height: size }}
+        onError={() => setPhotoFailed(true)}
+      />
+    );
   }
 
   return (

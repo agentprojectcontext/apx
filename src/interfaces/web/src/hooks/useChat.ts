@@ -704,6 +704,9 @@ export interface ConversationMeta {
    *  all the project Chats tab ever had, and why it drew none. */
   participants?: string[];
   faces?: AgentFace[];
+  /** The PERSON this thread is with, on a channel that carries several
+   *  (WhatsApp). Absent everywhere else, where the other side is the owner. */
+  contactFace?: AgentFace;
 }
 
 function metaFromDetail(detail: { channel?: string; meta?: Record<string, unknown> }): ConversationMeta {
@@ -1381,6 +1384,7 @@ export function useChat(pid: string, onError?: (msg: string) => void): UseChatRe
           title: detail.title,
           participants: detail.participants,
           faces: detail.participant_faces,
+          contactFace: detail.contact_face,
         });
         const active = !opts?.silent && !isChatTurnClosed(detail.active_turn?.turn_id)
           ? detail.active_turn

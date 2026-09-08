@@ -15,6 +15,7 @@ import { relativeWhen } from "../../lib/when";
 import { cn } from "../../lib/cn";
 import { t } from "../../i18n";
 import type { ChatKey, ChatSelectionMeta } from "./ChatList";
+import { threadDate } from "../../lib/thread-id";
 
 /** Where a chat's sessions come from depends on who you are talking to: the
  *  super-agent has channel threads, a project agent has conversation files. */
@@ -57,7 +58,7 @@ export function useSessionRows(
             key: { kind: "thread", channel: th.channel, threadId: th.id } as ChatKey,
             id: `${th.channel}:${th.id}`,
             label: th.title || th.id,
-            when: th.last_ts || th.started_at || th.id,
+            when: th.last_ts || th.started_at || threadDate(th.id) || "",
             channel: th.channel,
             archived: th.archived,
           }));

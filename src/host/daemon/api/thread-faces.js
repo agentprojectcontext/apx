@@ -151,6 +151,43 @@ export function createFaceResolver(projectPaths = []) {
   return { face, decorate };
 }
 
+/**
+ * The face of the PERSON a channel thread is with — not an agent's.
+ *
+ * WhatsApp threads are the one place where the other side of the conversation
+ * is a human with a name and a photo of their own, and the surfaces already
+ * know how to draw a face: they just had nothing to draw. Without this a
+ * sidebar of WhatsApp threads is four identical Roby discs, and the header of
+ * an open one names the assistant rather than the person it is talking to.
+ *
+ * The name is the ledger's (it is what the channel actually called them when
+ * the message arrived, so a rename in the roster shows up without rewriting
+ * history); the picture is the roster's, which is the only place it is kept.
+ * Both are optional — a stranger has no roster row at all — and a face with
+ * neither still renders as an initial, which is better than nothing.
+ */
+export function contactFaceFor(thread, cfg) {
+  if (!thread?.contact) return null;
+  const wa = cfg?.whatsapp || {};
+  const contacts = Array.isArray(wa.contacts) ? wa.contacts : [];
+  // The owner's key is a constant, not an address: find their row by any of the
+  // addresses the config records for them.
+  const owned = thread.contact === "owner"
+    ? [wa.owner_jid, ...(Array.isArray(wa.owner_alts) ? wa.owner_alts : []), wa.self_jid]
+        .filter(Boolean).map((a) => String(a).toLowerCase())
+    : [String(thread.contact).toLowerCase()];
+  const row = contacts.find((c) =>
+    [c?.jid, ...(Array.isArray(c?.alts) ? c.alts : [])]
+      .filter(Boolean)
+      .some((a) => owned.includes(String(a).toLowerCase())),
+  );
+  const name = thread.contact_name || row?.nickname || row?.name || null;
+  if (!name && !row?.avatar_url) return null;
+  // `icon` rather than a field of its own: AgentAvatar is the one renderer
+  // every surface calls, and it takes a URL here.
+  return { name, icon: row?.avatar_url || null, emoji: null };
+}
+
 /** The same resolver, built from a ProjectManager-style list of entries. */
 export function faceResolverFor(projects) {
   let paths = [];

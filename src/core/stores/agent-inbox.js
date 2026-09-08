@@ -33,7 +33,13 @@ import { resolveSuperAgentBlob } from "../apc/agent-identity.js";
 function latestPerChannel(items) {
   const byChannel = new Map();
   for (const item of items) {
-    if (!byChannel.has(item.channel)) byChannel.set(item.channel, item);
+    // Per channel AND per person. A channel where one day holds several
+    // correspondents (WhatsApp) is several conversations, and keying by the
+    // channel alone kept whichever of them spoke last — so a message from
+    // Magui hid the one from Carlos, and the owner's own thread hid both.
+    // Everything else has no contact, so this is the channel key it always was.
+    const key = item.contact ? `${item.channel}\u0000${item.contact}` : item.channel;
+    if (!byChannel.has(key)) byChannel.set(key, item);
   }
   return [...byChannel.values()];
 }
@@ -223,6 +229,10 @@ function superAgentRow(latest, threads) {
     project_id: null,
     project_name: null,
     project_path: null,
+    // Who the super-agent was talking TO on this row. The row's agent is always
+    // Roby; on WhatsApp the useful half is the other person, and a surface that
+    // lists four identical Roby rows tells the reader nothing.
+    ...(latest?.contact ? { contact: latest.contact, contact_name: latest.contact_name || null } : {}),
     agent_slug: SUPERAGENT_ACTOR_ID,
     agent_name: null, // resolved by the surface via resolveAgentName()
     agent_emoji: null,

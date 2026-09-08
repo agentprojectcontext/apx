@@ -73,7 +73,8 @@ import { notifyOwnerViaRoby } from "#core/routines/delivery.js";
 import { a2aThreadId } from "#core/stores/messages.js";
 import { A2A_SEVERITY } from "#core/routines/signals.js";
 import { nowIso, asyncRoute, a2aSlugThreadId, rejectA2AWrite } from "./shared.js";
-import { faceResolverFor, readAgentsSafe } from "./thread-faces.js";
+import { faceResolverFor, readAgentsSafe, contactFaceFor } from "./thread-faces.js";
+import { readConfig } from "#core/config/index.js";
 
 export function register(api, { projects, project, config, plugins, registries }) {
   // The super-agent (default name "apx") is a pseudo-agent: it owns
@@ -256,13 +257,20 @@ export function register(api, { projects, project, config, plugins, registries }
     // Global channel threads (telegram/web/desktop…) live in the cross-project
     // ledger; a2a "group chats" are project-scoped, so they come from this
     // project's own messages. Both fold into the same channel-grouped sidebar.
+    // Read once for the whole list: the roster that puts a face and a name on a
+    // WhatsApp thread lives in the global config, and asking per row would open
+    // the same file a dozen times.
+    let cfg = null;
+    try { cfg = readConfig(); } catch { /* a face is never worth a failed list */ }
     const global = listGlobalThreads({
       project: threadScope(p),
       includeArchived: req.query.include_archived === "1",
     }).map((thread) => {
       const active = getActiveTurnByKey(superAgentTurnKey(p.id, thread.channel));
+      const contactFace = contactFaceFor(thread, cfg);
       return {
         ...thread,
+        ...(contactFace ? { contact_face: contactFace } : {}),
         active_turn: active?.thread_id === thread.id ? active : null,
       };
     });
@@ -303,7 +311,15 @@ export function register(api, { projects, project, config, plugins, registries }
     // Same decoration as the list: whoever opens a thread directly (a deep link,
     // the phone, a pane that was handed no row) gets the faces and the name with
     // the messages, instead of having to ask a second surface for them.
-    const decorated = faceResolverFor(projects).decorate(thread, readAgentsSafe(p.path));
+    let decorated = faceResolverFor(projects).decorate(thread, readAgentsSafe(p.path));
+    // A person's thread on a shared channel carries the person, the same way a
+    // multi-agent thread carries its participants: resolved once here, so the
+    // header draws the same face whether it was opened from the sidebar, the
+    // inbox or a deep link with no row behind it.
+    try {
+      const contactFace = contactFaceFor(thread, readConfig());
+      if (contactFace) decorated = { ...decorated, contact_face: contactFace };
+    } catch { /* best-effort */ }
     // a2a and group turns are keyed by THREAD, not by channel: the run belongs
     // to the pair or the room. This used to be a hard `null` because nothing
     // registered them — a peer worked in silence and a slow one looked exactly
