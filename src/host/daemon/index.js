@@ -3,6 +3,7 @@
 // Must run before any outbound fetch — see the module header for why.
 import "#core/net/ipv4-first.js";
 import fs from "node:fs";
+import { homeId } from "./api/health.js";
 import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -267,6 +268,24 @@ async function main() {
     host && host !== LOOPBACK_HOST && host !== "0.0.0.0" && host !== "::" ? [host] : [];
   const secondary = [];
 
+  // One daemon per port — checked, because the OS will not check it for us.
+  //
+  // A wildcard bind (`*:7430`) and a loopback bind (`127.0.0.1:7430`) coexist
+  // happily: no EADDRINUSE, no error, nothing in either log. The more specific
+  // one silently wins every local connection, so the daemon that was already
+  // serving simply stops receiving — every token 401s against the newcomer's
+  // empty store, the panel renders an empty list, and both processes go on
+  // reporting `/api/health: ok`, because health did not know which home it was
+  // serving. That is how a test run took WhatsApp offline twice on 2026-09-08
+  // while every log looked fine.
+  //
+  // So: ask first. A daemon for the SAME home is a restart — its predecessor is
+  // on its way out and the port is about to free, which is normal and must not
+  // be refused. A daemon for a DIFFERENT home is the collision, and it stops
+  // here with a message that names the cause instead of leaving it to be found
+  // by reading `lsof` an hour later.
+  await refuseIfAnotherHomeIsServing(port, log);
+
   const server = app.listen(port, extraHosts.length ? LOOPBACK_HOST : host, () => {
     writePid();
     for (const h of extraHosts) {
@@ -497,3 +516,35 @@ main().catch((e) => {
   log(`fatal: ${e.stack || e.message}`);
   process.exit(1);
 });
+
+/**
+ * Refuse to start when a daemon for a DIFFERENT ~/.apx is already on this port.
+ *
+ * Deliberately narrow. It does not refuse on "something is listening" — that is
+ * the ordinary restart, where the outgoing daemon still answers for a second or
+ * two — and it does not refuse when it cannot tell (an old daemon with no
+ * `home_id`, a timeout, anything unparseable). Failing open here costs the
+ * collision this guards against; failing closed would cost the ability to
+ * restart, which is worse and would happen every day.
+ */
+async function refuseIfAnotherHomeIsServing(port, log) {
+  let other = null;
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 700);
+    const res = await fetch(`http://127.0.0.1:${port}/api/health`, { signal: ctrl.signal });
+    clearTimeout(t);
+    if (res.ok) other = await res.json();
+  } catch {
+    return; // nothing there, or it did not answer in time: carry on
+  }
+  const theirs = other?.home_id;
+  if (!theirs || theirs === homeId()) return;
+  log(
+    `refusing to start: another apx daemon is already serving port ${port} for a different ` +
+    `APX_HOME (${APX_HOME}). Two daemons on one port do not collide — the more specific bind ` +
+    `silently wins every local connection — so this one would take over and answer for the ` +
+    `wrong home. Stop the other daemon, or set APX_PORT.`
+  );
+  process.exit(1);
+}

@@ -186,3 +186,26 @@ test("a foreign APX_HOME never auto-starts a daemon on the shared port", async (
     if (port !== undefined) process.env.APX_PORT = port;
   }
 });
+
+test("a daemon refuses the shared port when another home is already serving it", async () => {
+  const src = await import("node:fs").then((fs) => fs.readFileSync("src/host/daemon/index.js", "utf8"));
+  // Asserted on source, like daemon-shutdown-guard: the alternative is racing a
+  // real daemon inside the suite, which is the very thing this prevents.
+  const guard = src.indexOf("refuseIfAnotherHomeIsServing(port");
+  const listen = src.indexOf("app.listen(port");
+  assert.ok(guard > 0, "the port guard is gone");
+  assert.ok(listen > 0);
+  assert.ok(guard < listen, "the guard must run BEFORE the bind — after it, the port is already taken");
+
+  // Fails OPEN on anything it cannot read. A daemon that refused whenever
+  // something answered could never restart, because the outgoing one still
+  // answers for a second or two — and that would break every day, unlike the
+  // collision, which needs a test run to happen at all.
+  assert.match(src, /if \(!theirs \|\| theirs === homeId\(\)\) return;/);
+
+  const { homeId } = await import("#host/daemon/api/health.js");
+  assert.notEqual(homeId("/a/.apx"), homeId("/b/.apx"), "two homes must not share a fingerprint");
+  assert.equal(homeId("/a/.apx"), homeId("/a/.apx"), "and one home must be stable");
+  // A digest, not the path: /api/health is the one route served without a token.
+  assert.doesNotMatch(homeId("/Users/someone/.apx"), /Users|someone/);
+});

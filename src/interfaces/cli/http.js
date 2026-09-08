@@ -6,6 +6,7 @@
 // only — it deliberately does NOT bake in the prefix.
 import fs from "node:fs";
 import nodeHttp from "node:http";
+import os from "node:os";
 import path from "node:path";
 import { TOKEN_PATH, LOG_PATH } from "#core/config/paths.js";
 import { spawn } from "node:child_process";
@@ -101,8 +102,11 @@ function ownsDefaultPort() {
   if (DEFAULT_PORT !== SHARED_PORT) return true;
   const home = process.env.APX_HOME;
   if (!home) return true;
-  const dflt = path.join(process.env.HOME || "", ".apx");
-  return path.resolve(home) === path.resolve(dflt);
+  // `os.userInfo()` and NOT `process.env.HOME`. A test sandbox moves HOME as
+  // well as APX_HOME, so "APX_HOME is $HOME/.apx" is true inside it — the check
+  // passed for exactly the case it existed to catch. userInfo reads the password
+  // database, which no environment variable can move.
+  return path.resolve(home) === path.resolve(path.join(os.userInfo().homedir, ".apx"));
 }
 
 export async function ensureDaemon(opts = {}) {
