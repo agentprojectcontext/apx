@@ -19,6 +19,11 @@ export interface InboxRow {
   participant_faces?: AgentFace[];
   /** For a2a spawned on someone's behalf: who asked for it ("a pedido de X"). */
   requested_by?: string | null;
+  /** Set when this row is one PERSON's conversation inside a channel that
+   *  carries several (WhatsApp): their stable key, and the face to draw. */
+  contact?: string;
+  contact_name?: string | null;
+  contact_face?: AgentFace;
   pinned: boolean;
   conversation_id: string | null;
   channel: string | null;

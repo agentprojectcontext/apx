@@ -92,8 +92,13 @@ async function autoStart({ silent = false } = {}) {
 // So: auto-start only for the home the port is for. Anyone deliberately running
 // another home is told to start it themselves — they have to anyway, since the
 // two cannot share a port.
+const SHARED_PORT = 7430;
+
 function ownsDefaultPort() {
-  if (process.env.APX_PORT) return true; // a port they chose is a port they own
+  // A port of its own is a port it owns — but naming the SHARED one explicitly
+  // is not ownership, it is the collision. (This read `if (process.env.APX_PORT)
+  // return true`, which let a suite that sets APX_PORT=7430 straight through.)
+  if (DEFAULT_PORT !== SHARED_PORT) return true;
   const home = process.env.APX_HOME;
   if (!home) return true;
   const dflt = path.join(process.env.HOME || "", ".apx");

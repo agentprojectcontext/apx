@@ -7,7 +7,7 @@ import { listAgentInbox } from "#core/stores/agent-inbox.js";
 import { listProjectA2AThreads, listProjectGroupThreads } from "#core/stores/messages.js";
 import { readConfig } from "#core/config/index.js";
 import { resolveAgentName } from "#core/identity/index.js";
-import { faceResolverFor, readAgentsSafe } from "./thread-faces.js";
+import { faceResolverFor, readAgentsSafe, contactFaceFor } from "./thread-faces.js";
 import { pageEnvelope, A2A_SLUG_PREFIX, GROUP_SLUG_PREFIX } from "./shared.js";
 import { convTurnKey, threadTurnKey, getActiveTurnByKey, listActiveTurns } from "../active-turns.js";
 
@@ -142,9 +142,25 @@ export function register(api, { projects }) {
       // reach for it — resolve it here, at the surface (AGENTS.md rule 4).
       const cfg = readConfig();
       const superName = resolveAgentName(cfg);
-      const named = rows.map((r) =>
-        r.kind === "super_agent" ? { ...r, agent_name: r.agent_name || superName } : r
-      );
+      // A super-agent row is titled by the agent — except on a channel that
+      // carries several people, where the useful half is the OTHER side. Four
+      // WhatsApp rows all reading "Roby · WhatsApp" tell the reader nothing
+      // about which conversation each one is; "Magui", "Carlos", "Manu" do.
+      // The badge under the name still says it was Roby who answered.
+      const named = rows.map((r) => {
+        if (r.kind !== "super_agent") return r;
+        const face = contactFaceFor(r, cfg);
+        if (!face) return { ...r, agent_name: r.agent_name || superName };
+        return {
+          ...r,
+          agent_name: face.name || r.agent_name || superName,
+          // Their photo, or nothing — and nothing means the initial disc of
+          // their own name. Falling back to Roby's blob here would put the
+          // assistant's face on a row named after somebody else.
+          agent_icon: face.icon || null,
+          contact_face: face,
+        };
+      });
 
       // Faces and titles for the multi-agent rows: one resolver for the request,
       // shared with the Chats sidebar and the thread header (thread-faces.js).

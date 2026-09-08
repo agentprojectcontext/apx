@@ -47,7 +47,10 @@ export function InboxRowItem({
   onSelect: (row: InboxRow) => void;
 }) {
   const touch = variant === "touch";
-  const label = row.agent_name || row.agent_slug;
+  // On a channel with several correspondents the row is the PERSON's; the
+  // daemon resolved their name and face, so nothing is re-derived here.
+  const contactFace = row.contact_face;
+  const label = contactFace?.name || row.agent_name || row.agent_slug;
   const faces = participantFaces(row);
   const grouped = (row.kind === "a2a" || row.kind === "group") && faces.length > 0;
   const activityKey = activityKeyFromActiveTurn(row.active_turn) || (
@@ -91,7 +94,13 @@ export function InboxRowItem({
           />
         ) : (
           <AgentAvatar
-            icon={row.kind === "super_agent" ? row.agent_icon || SUPER_AGENT_ICON : row.agent_icon}
+            icon={
+              contactFace
+                ? contactFace.icon
+                : row.kind === "super_agent"
+                  ? row.agent_icon || SUPER_AGENT_ICON
+                  : row.agent_icon
+            }
             emoji={row.agent_emoji}
             name={label}
             size={touch ? 48 : 32}
