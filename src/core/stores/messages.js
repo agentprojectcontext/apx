@@ -1655,9 +1655,27 @@ export function listGlobalThreads({ channels, project, includeArchived = false, 
 // What marks a row as carrying a file is the file: a Telegram `file_id` or a
 // `local_path`. Requiring the id would have made every web upload — which has
 // no Telegram anything — read back as a plain typed message.
+// Kinds a channel names its own way, mapped onto the four the viewer can
+// actually render (Attachment.tsx: photo, video/animation, audio, else a file
+// card). A WhatsApp voice note is an audio player and a sticker is a picture —
+// letting either fall through to a generic file card is how a sticker ends up
+// as a paperclip in a thread that is mostly stickers.
+const MEDIA_KIND_ALIAS = { voice: "audio", sticker: "photo", image: "photo", gif: "animation" };
+
 export function mediaFromMeta(meta) {
+  // WhatsApp nested the attachment under `meta.media` while every other channel
+  // spreads it flat. The writer is flat now, but the rows already on disk are
+  // not, and a photo somebody sent yesterday should not stay unreadable because
+  // of where a key used to sit.
+  //
+  // Note `meta.media` means a LIST elsewhere (media_list) — only a single
+  // object in the old shape is unwrapped here.
+  if (meta?.media && !Array.isArray(meta.media) && typeof meta.media === "object" && meta.media.meta) {
+    meta = { ...meta, ...meta.media.meta, media_kind: meta.media.kind };
+  }
   if (!meta || (!meta.file_id && !meta.local_path)) return null;
-  const kind = Array.isArray(meta.media_kind) ? meta.media_kind[0] : meta.media_kind;
+  const rawKind = Array.isArray(meta.media_kind) ? meta.media_kind[0] : meta.media_kind;
+  const kind = MEDIA_KIND_ALIAS[rawKind] || rawKind;
   const resolved =
     kind ||
     (meta.transcription_backend !== undefined ? "audio" : meta.width ? "photo" : "file");

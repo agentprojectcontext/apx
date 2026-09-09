@@ -187,7 +187,19 @@ export async function handleWhatsAppMessage(m, ctx) {
       role: sender.role,
       is_group: sender.isGroup,
       policy,
-      ...(media.media ? { media: media.media } : {}),
+      // FLAT, the way every other channel writes it (telegram's mediaMeta).
+      //
+      // This used to nest the whole thing under `meta.media`, and mediaFromMeta
+      // — the one function that turns a stored row back into an attachment —
+      // looks for `local_path`/`file_id` at the top level. So it found nothing,
+      // the thread rendered the marker text instead of the file, and a photo
+      // arrived in the panel as the sentence "[image attached — saved to
+      // /Users/…]". The bytes were always there; nothing could see them.
+      //
+      // `meta.media` also already means something else: a LIST of attachments
+      // (shapeLedgerMessage reads it as `media_list`), so one object sitting
+      // there was overloading the key as well as hiding from the reader.
+      ...(media.media ? { ...media.media.meta, media_kind: media.media.kind } : {}),
     },
   });
 
