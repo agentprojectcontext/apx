@@ -4,6 +4,9 @@ import useSWR from "swr";
 import { Bot, FolderTree, MessageSquare, PanelLeft, PanelRight, Terminal, X } from "lucide-react";
 import { Group as PanelGroup, Panel, Separator as PanelResizeHandle } from "react-resizable-panels";
 import { Code, Projects, Agents } from "../../lib/api";
+import { Turns } from "../../lib/api/turns";
+import { subscribeTurns } from "../../lib/live";
+import { queueOnSend, onChatPrefsChange } from "../../lib/chat-prefs";
 import { Artifacts } from "../../lib/api/artifacts";
 import { ProjectFiles } from "../../lib/api/projectFiles";
 import { Empty, Loading } from "../../components/ui";
@@ -26,11 +29,61 @@ import { InlineAskPanel, pendingAskQuestions } from "../../components/chat/Inlin
 import { ConfirmDialog } from "../../components/common/ConfirmDialog";
 import { useToast } from "../../components/Toast";
 import { t } from "../../i18n";
-import { applyStreamEvent, textOf, type ChatMsg } from "../../hooks/useChat";
+import { applyStreamEvent, textOf, type ChatMsg, type QueuedTurn } from "../../hooks/useChat";
 import type { CodeMode, CodeSessionRow, CodeStreamEvent, CodeTurn } from "../../lib/api/code";
+import type { ActiveTurn, TurnFrame } from "../../types/daemon";
 
-// Suppress unused import warning for textOf (kept for consumers)
-void textOf;
+/**
+ * The daemon's copy of a turn in flight, as a message to render.
+ *
+ * A code turn is written to the session only when it ENDS, so a panel opened
+ * or refreshed mid-run had nothing to draw and showed a finished-looking
+ * conversation over a daemon that was still working — the exact state where
+ * you most need to see what is happening. This is that state, rebuilt: the
+ * same text and the same tool rows the original pane was watching.
+ */
+function activeTurnMsg(turn: ActiveTurn): ChatMsg {
+  return {
+    role: "assistant",
+    ts: turn.started_at || new Date().toISOString(),
+    pending: true,
+    ...(turn.model ? { model: turn.model } : {}),
+    parts: (turn.parts || []).map((part) =>
+      part.kind === "tool"
+        ? {
+            kind: "tool" as const,
+            id: part.id,
+            tool: part.tool,
+            args: part.args ?? undefined,
+            result: part.result,
+            status: part.status,
+          }
+        : { kind: "text" as const, text: part.text, streaming: part.streaming },
+    ),
+  };
+}
+
+/**
+ * Messages typed while a turn was running, per session.
+ *
+ * Module-level, not state, for the same reason the chat keeps its queue outside
+ * the pane: what you queued belongs to the SESSION, not to the render that
+ * happened to take it. Switch sessions and come back and it is still there,
+ * waiting for the run to end.
+ */
+const sessionQueues = new Map<string, QueuedTurn[]>();
+
+let queueSeq = 0;
+/** A queued turn renders as the bubble it will become — what you wrote is in
+ *  the conversation the moment you send it, whether or not the agent has got
+ *  to it yet. Same shape and same rendering the chat's queue uses. */
+function queuedTurn(text: string): QueuedTurn {
+  return {
+    id: `q-${++queueSeq}`,
+    text,
+    msg: { role: "user", parts: [{ kind: "text", text }], ts: new Date().toISOString() },
+  };
+}
 
 // Hit area is wider than the visible line so the handle is comfortable to
 // grab — the inner ::before line is what the user sees.
@@ -69,6 +122,13 @@ export function CodeScreen() {
   const [msgs, setMsgs] = useState<ChatMsg[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
+  // A turn is running that this pane did NOT start — another tab, `apx exec
+  // --code`, or this same tab before a refresh. It is streamed to us over the
+  // shared live feed instead of over our own NDJSON socket, and for everything
+  // the composer decides ("is something running?") it counts exactly as busy.
+  const [following, setFollowing] = useState(false);
+  // What you typed while a turn was running and chose to send after it.
+  const [queued, setQueued] = useState<QueuedTurn[]>([]);
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
   const [termOpen, setTermOpen] = useState(false);
@@ -77,9 +137,28 @@ export function CodeScreen() {
   // Session pending delete confirmation — id AND project, since the list can
   // span projects and an id alone does not address a session.
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; pid: string } | null>(null);
+  // Regenerate / Edit & resend, waiting to be confirmed. Both DELETE turns —
+  // the tool rows of a coding turn are a record of what really ran, and in this
+  // module that can be half an hour of work — so the question is asked before
+  // anything is dropped, not after. `keep` is how many turns survive.
+  const [confirmRewind, setConfirmRewind] = useState<
+    { keep: number; text: string; kind: "regenerate" | "edit" } | null
+  >(null);
+  // Only closes OUR socket. The run itself stops only when asked out loud, over
+  // POST /turns/abort — closing the stream deliberately does not end it, which
+  // is what lets a refresh or a second tab catch up on a turn in progress.
   const abortRef = useRef<AbortController | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const deepLinkDone = useRef(false);
+  // Read synchronously inside a callback that must not re-subscribe on every
+  // keystroke, and inside the frame handler, which is not re-created per turn.
+  const busyRef = useRef(false);
+  useEffect(() => { busyRef.current = busy; }, [busy]);
+  const followingRef = useRef(false);
+  useEffect(() => { followingRef.current = following; }, [following]);
+  const liveTurnRef = useRef<string | null>(null);
+  const queueOnSendRef = useRef(queueOnSend());
+  useEffect(() => onChatPrefsChange(() => { queueOnSendRef.current = queueOnSend(); }), []);
 
   // Open file tabs. `artifactName` marks an artifact opened for editing;
   // saves route through Artifacts.write instead of being read-only.
@@ -134,21 +213,54 @@ export function CodeScreen() {
 
   // Auto-select the newest session when the list loads or the filter changes.
   // Selecting also moves `pid`: the row's project is what makes it openable.
+  //
+  // Not while one is being created. This effect is what opens a session when
+  // the id on screen names nothing in the list — and for the moment between
+  // "created, selected" and "the list has been refetched", the brand new
+  // session is exactly that. It threw you straight back onto the previously
+  // newest session, so New session appeared to do nothing at all.
   useEffect(() => {
+    if (creating) return;
     const list = sessions.data || [];
     if (!list.length) return;
     if (sid && list.some((s) => s.id === sid)) return;
     const next = list[0];
     setSid(next.id);
     setPid(rowPid(next));
-  }, [sessions.data, sid, rowPid]);
+  }, [sessions.data, sid, rowPid, creating]);
+
+  // Opening another session: stop following the one we were watching, and pick
+  // up whatever was queued on the one just opened. Declared BEFORE the
+  // hydration effect on purpose — on a cached transcript both run in the same
+  // commit, and the one that reads the new session has to be the one that wins.
+  useEffect(() => {
+    setFollowing(false);
+    liveTurnRef.current = null;
+    setQueued(sid ? sessionQueues.get(sid) || [] : []);
+  }, [sid]);
 
   // Hydrate the message list whenever the active session's transcript loads.
   // (Not while streaming — we own the array then.)
+  //
+  // `active_turn` is the half the transcript cannot tell: a turn is stored only
+  // when it ends, so a session with one in flight used to load as a finished
+  // conversation with no sign that anything was happening. It is appended as
+  // the trailing pending turn and followed from there.
   useEffect(() => {
     if (busy) return;
-    if (session.data) setMsgs((session.data.messages as ChatMsg[]) || []);
-    else if (!sid) setMsgs([]);
+    if (!session.data) {
+      if (!sid) setMsgs([]);
+      return;
+    }
+    const stored = (session.data.messages as ChatMsg[]) || [];
+    const live = session.data.active_turn;
+    if (live) {
+      liveTurnRef.current = live.turn_id;
+      setFollowing(true);
+      setMsgs([...stored, activeTurnMsg(live)]);
+    } else {
+      setMsgs(stored);
+    }
   }, [session.data, sid, busy]);
 
   // Abort any in-flight stream on unmount.
@@ -211,7 +323,9 @@ export function CodeScreen() {
   };
 
   const onDeleteSession = (row: CodeSessionRow) => {
-    if (busy) return;
+    // Not while a turn is running on it — deleting the session under a live run
+    // leaves the daemon writing into a transcript that is no longer there.
+    if (busy || (following && row.id === sid)) return;
     // Keep the row's project: deleting by the project in view would 404 (or,
     // worse, hit a same-id session elsewhere).
     setConfirmDelete({ id: row.id, pid: rowPid(row) });
@@ -263,29 +377,85 @@ export function CodeScreen() {
     [pid, sid, session, sessions, toast],
   );
 
-  const stop = () => {
+  /**
+   * Stop the turn the DAEMON is running, not just the socket we read it through.
+   *
+   * Closing the stream has never stopped a run and must not start to: another
+   * tab, or this one after a refresh, catches up on a turn in progress from the
+   * daemon's own copy. So the ask is explicit, and the daemon answers by closing
+   * the stream with `aborted` — which carries the partial and is not an error.
+   *
+   * The local abort is the fallback for the two cases the daemon cannot answer:
+   * there is no live turn under that session (it finished a moment before the
+   * click landed), or the request itself failed.
+   */
+  const stop = useCallback(async () => {
+    if (pid && sid) {
+      try {
+        const { aborted } = await Turns.abort(pid, { code_session_id: sid });
+        if (aborted) return;
+      } catch {
+        /* fall through to closing our own socket */
+      }
+    }
     abortRef.current?.abort();
     setBusy(false);
-  };
+    setFollowing(false);
+    liveTurnRef.current = null;
+  }, [pid, sid]);
 
-  const patchLast = (fn: (m: ChatMsg) => ChatMsg) =>
+  const patchLast = useCallback((fn: (m: ChatMsg) => ChatMsg) => {
     setMsgs((curr) => {
       const copy = [...curr];
       const last = copy[copy.length - 1];
       if (last && last.role === "assistant") copy[copy.length - 1] = fn(last);
       return copy;
     });
+  }, []);
+
+  /** Park a message on this session's queue; it shows in the thread at once. */
+  const enqueue = useCallback((text: string, forSid: string) => {
+    const next = [...(sessionQueues.get(forSid) || []), queuedTurn(text)];
+    sessionQueues.set(forSid, next);
+    if (forSid === sid) setQueued(next);
+  }, [sid]);
+
+  /** Take one back before it goes out. Stop ends the turn being written; this
+   *  is how you drop what you queued behind it. */
+  const unqueue = useCallback((id: string) => {
+    if (!sid) return;
+    const next = (sessionQueues.get(sid) || []).filter((q) => q.id !== id);
+    if (next.length) sessionQueues.set(sid, next);
+    else sessionQueues.delete(sid);
+    setQueued(next);
+  }, [sid]);
 
   const send = async (overridePrompt?: string) => {
     const prompt = (overridePrompt ?? draft).trim();
-    if (!prompt || busy || !pid || !sid) return;
+    const fromDraft = overridePrompt === undefined;
+    if (!prompt || !pid || !sid) return;
+
+    // Writing during a run is no longer refused. It almost always means "no,
+    // stop, do this instead", so by default it INTERRUPTS — the same thing a
+    // new message has always done on Telegram — and queueing stays as the
+    // deliberate other choice ("finish that, then do this"), remembered per
+    // device. Either way the message is QUEUED: the drain effect below is what
+    // actually sends it, so it survives the interruption and goes out with a
+    // history that includes whatever the stopped turn wrote.
+    if (busy || following) {
+      if (fromDraft) setDraft("");
+      enqueue(prompt, sid);
+      if (!queueOnSendRef.current) void stop();
+      return;
+    }
+
     const now = new Date().toISOString();
     setMsgs((curr) => [
       ...curr,
       { role: "user", parts: [{ kind: "text", text: prompt }], ts: now },
       { role: "assistant", parts: [], ts: now, pending: true },
     ]);
-    setDraft("");
+    if (fromDraft) setDraft("");
     setBusy(true);
 
     const ctrl = new AbortController();
@@ -293,6 +463,25 @@ export function CodeScreen() {
     const onEvent = (ev: CodeStreamEvent) => {
       if (ev.type === "error") {
         toast.error(ev.error || t("modules_ui.code_stream_error"));
+        return;
+      }
+      // The turn names itself before doing any work, so it can be addressed
+      // (stopped, or interrupted by sending) from the first token on.
+      if (ev.type === "start") {
+        liveTurnRef.current = ev.turn_id || null;
+        return;
+      }
+      // You stopped it. Everything streamed stands — it is work that really
+      // happened and the daemon kept it — so this only closes the turn and
+      // says so, exactly the way the local-abort path below does.
+      if (ev.type === "aborted") {
+        patchLast((m) => {
+          const closed = applyStreamEvent(m, ev);
+          return {
+            ...closed,
+            parts: [...closed.parts, { kind: "text", text: t("code_module.stopped") }],
+          };
+        });
         return;
       }
       patchLast((m) => applyStreamEvent(m, ev));
@@ -306,6 +495,7 @@ export function CodeScreen() {
         patchLast((m) => ({
           ...m,
           pending: false,
+          stopped: true,
           parts: [...m.parts, { kind: "text", text: t("code_module.stopped") }],
         }));
       } else {
@@ -314,13 +504,124 @@ export function CodeScreen() {
       }
     } finally {
       if (abortRef.current === ctrl) abortRef.current = null;
+      liveTurnRef.current = null;
+      // The transcript is refreshed BEFORE the pane stops owning the array:
+      // clearing `busy` first re-runs the hydration effect against the session
+      // as it was before this turn, which blanks the answer for as long as the
+      // refetch takes.
+      await session.mutate();
       setBusy(false);
-      // Server persisted the turn; refresh derived views.
-      void session.mutate();
       void sessions.mutate();
       void changes.mutate();
     }
   };
+
+  // The live `send`, reachable from callbacks that must not be rebuilt on every
+  // keystroke — the drain effect and the rewind below.
+  const sendRef = useRef(send);
+  sendRef.current = send;
+
+  /**
+   * Rewind the pane AND the transcript to `keep` turns, then send.
+   *
+   * The transcript half is not optional: the daemon rebuilds a coding turn's
+   * history from the stored session, so a pane that rewound on its own would
+   * ask the model to try again with the answer it is replacing still in the
+   * prompt. send() appends onto whatever msgs is after the slice, so the order
+   * comes out right.
+   */
+  const rewindAndSend = useCallback(async (keep: number, text: string) => {
+    if (busy || following || !pid || !sid) return;
+    try {
+      await Code.sessions.truncate(pid, sid, keep);
+    } catch (e) {
+      toast.error((e as Error).message);
+      return;
+    }
+    setMsgs((curr) => curr.slice(0, keep));
+    // Deliberately NOT awaited. The caller is a confirm dialog that closes when
+    // this resolves, and a coding turn runs for minutes — awaiting it left a
+    // modal sitting on top of the very answer it had just asked for. The half
+    // that can fail, and the half that destroys anything, is already done.
+    void sendRef.current(text);
+  }, [busy, following, pid, sid, toast]);
+
+  /** Re-run an answer: drop it and everything under it, and re-ask the turn
+   *  that produced it. */
+  const askRegenerate = useCallback((index: number) => {
+    const target = msgs[index];
+    if (!target || target.role !== "assistant") return;
+    // The user turn that produced it: the nearest one before it.
+    let u = index - 1;
+    while (u >= 0 && msgs[u].role !== "user") u--;
+    if (u < 0) return;
+    setConfirmRewind({ keep: u, text: textOf(msgs[u]), kind: "regenerate" });
+  }, [msgs]);
+
+  /** Change what you asked and ask again — everything below it goes. */
+  const askEditResend = useCallback((index: number, text: string) => {
+    const target = msgs[index];
+    if (!target || target.role !== "user" || !text.trim()) return;
+    setConfirmRewind({ keep: index, text: text.trim(), kind: "edit" });
+  }, [msgs]);
+
+  // The queue drains the moment the pane is free: what you wrote during the run
+  // goes out as its own turn, in the order you wrote it, with the finished (or
+  // interrupted) turn already in its history.
+  useEffect(() => {
+    if (busy || following || !sid || !queued.length) return;
+    const [next, ...rest] = queued;
+    if (rest.length) sessionQueues.set(sid, rest);
+    else sessionQueues.delete(sid);
+    setQueued(rest);
+    void sendRef.current(next.text);
+  }, [busy, following, sid, queued]);
+
+  // Everything the pane re-reads once a turn it was watching is over. Held in a
+  // ref so following a turn does not re-subscribe on every render: the SWR
+  // handles are new objects each time, and the socket must not be.
+  const refreshRef = useRef<() => Promise<void>>(async () => {});
+  refreshRef.current = async () => {
+    await session.mutate();
+    void sessions.mutate();
+    void changes.mutate();
+  };
+
+  /**
+   * A turn on THIS session that this pane did not start.
+   *
+   * The daemon pushes every live turn over the shared feed, so a second tab —
+   * or this one after a refresh, or the panel while `apx exec --code` is
+   * driving the same session from a terminal — watches it happen instead of
+   * staring at a session that looks idle while the work goes on without it.
+   */
+  const onTurnFrame = useCallback((f: TurnFrame) => {
+    if (busyRef.current) return;                 // our own socket already renders it
+    if (!sid || f.thread_id !== sid) return;     // a code session IS its thread
+    if (String(f.project_id) !== String(pid)) return;
+    if (f.phase === "start") {
+      liveTurnRef.current = f.turn_id;
+      setFollowing(true);
+      // The prompt came from somewhere else; the daemon stored it the moment it
+      // arrived, so re-reading the transcript is what puts it on screen.
+      void refreshRef.current();
+      return;
+    }
+    if (f.phase === "delta") {
+      if (!followingRef.current) return;
+      patchLast((m) => applyStreamEvent(m, { type: "assistant_delta", delta: f.delta }));
+      return;
+    }
+    // final / aborted / error — the turn is in the transcript now. Re-read
+    // BEFORE dropping the follow, so the pane never blinks through the version
+    // of the session that does not have it yet.
+    void (async () => {
+      await refreshRef.current();
+      liveTurnRef.current = null;
+      setFollowing(false);
+    })();
+  }, [pid, sid, patchLast]);
+  useEffect(() => subscribeTurns(onTurnFrame), [onTurnFrame]);
 
   const copyToClipboard = async (text: string) => {
     try {
@@ -462,7 +763,7 @@ export function CodeScreen() {
   // Detect unanswered ask_questions in the last assistant turn. Local "dismissed"
   // ref keys off the turn id so the panel re-appears for a fresh batch.
   const [dismissedKey, setDismissedKey] = useState<string | null>(null);
-  const pending = !busy ? pendingAskQuestions(msgs) : null;
+  const pending = !busy && !following ? pendingAskQuestions(msgs) : null;
   const askVisible = pending && pending.turnKey !== dismissedKey;
 
   const submitAnswers = (compiled: string) => {
@@ -627,8 +928,18 @@ export function CodeScreen() {
                           <div className="grid h-full place-items-center p-6">
                             <Empty>{t("code_module.pick_project")}</Empty>
                           </div>
-                        ) : msgs.length ? (
-                          <MessageList msgs={msgs} onCopy={copyToClipboard} />
+                        ) : msgs.length || queued.length ? (
+                          <MessageList
+                            msgs={msgs}
+                            onCopy={copyToClipboard}
+                            queued={queued}
+                            onUnqueue={unqueue}
+                            // Not while something is running: a rewind deletes
+                            // turns, and the turn in flight would append onto a
+                            // transcript that had moved under it.
+                            onRegenerate={busy || following ? undefined : askRegenerate}
+                            onEdit={busy || following ? undefined : askEditResend}
+                          />
                         ) : (
                           <div className="grid h-full place-items-center p-6">
                             <Empty>{t("code_module.empty_chat")}</Empty>
@@ -641,7 +952,7 @@ export function CodeScreen() {
                           questions={pending.questions}
                           onSubmit={submitAnswers}
                           onDismiss={() => setDismissedKey(pending.turnKey)}
-                          disabled={busy}
+                          disabled={busy || following}
                         />
                       )}
                     </>
@@ -672,8 +983,11 @@ export function CodeScreen() {
                       value={draft}
                       onValueChange={setDraft}
                       onSubmit={() => void send()}
-                      onStop={stop}
-                      busy={busy}
+                      onStop={() => void stop()}
+                      // A turn we are only WATCHING is still a turn running on
+                      // this session: Stop has to reach it and a message still
+                      // has to choose between queueing and interrupting.
+                      busy={busy || following}
                       disabled={!sid}
                       mode={mode}
                       onModeChange={(m) => void patchSession({ mode: m })}
@@ -749,6 +1063,29 @@ export function CodeScreen() {
         title={t("code_module.delete_confirm")}
         confirmLabel={t("common.delete")}
         testId="code-delete-session-confirm"
+      />
+
+      {/* Asking again throws away everything under the turn — in a coding
+          session that is real work, with the tool rows that recorded it, and
+          there is no undo. So it says how much before it does it. */}
+      <ConfirmDialog
+        open={!!confirmRewind}
+        onClose={() => setConfirmRewind(null)}
+        onConfirm={async () => {
+          const target = confirmRewind;
+          if (!target) return;
+          await rewindAndSend(target.keep, target.text);
+        }}
+        title={t(
+          confirmRewind?.kind === "edit"
+            ? "code_module.rewind_confirm_edit"
+            : "code_module.rewind_confirm_regenerate",
+        )}
+        description={t("code_module.rewind_confirm_desc", {
+          n: String(Math.max(0, msgs.length - (confirmRewind?.keep ?? msgs.length))),
+        })}
+        confirmLabel={t("code_module.rewind_confirm_go")}
+        testId="code-rewind-confirm"
       />
     </div>
   );

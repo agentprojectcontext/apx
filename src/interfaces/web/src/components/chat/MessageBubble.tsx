@@ -231,12 +231,16 @@ export function MessageBubble({ msg, askPending, isAskAnswer, onCopy, face, comp
             the document opens. */}
         {media?.length ? <AttachmentGroup media={media} /> : null}
 
-        {/* Operational notes (engine fallbacks, retries, suppressed tools). */}
+        {/* Operational notes (engine fallbacks, retries, suppressed tools).
+            Top-aligned and wrapping: a note now carries the REASON an engine
+            rotated, which is a sentence, not a word — centred on a single line
+            it either overflowed or squashed the icon. */}
         {!mine && msg.notes && msg.notes.length > 0 && (
           <div className="flex flex-col gap-0.5">
             {msg.notes.map((n, i) => (
-              <span key={i} className="flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400/80">
-                <Info size={10} /> {n}
+              <span key={i} className="flex items-start gap-1 text-[10px] text-amber-600 dark:text-amber-400/80">
+                <Info size={10} className="mt-[2px] shrink-0" />
+                <span className="min-w-0 break-words">{n}</span>
               </span>
             ))}
           </div>

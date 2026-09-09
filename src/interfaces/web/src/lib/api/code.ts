@@ -1,5 +1,5 @@
 import { http, streamNdjson } from "../http";
-import type { ChatStreamEvent, ChatUsage } from "../../types/daemon";
+import type { ActiveTurn, ChatStreamEvent, ChatUsage } from "../../types/daemon";
 
 // Code module client — the web surface for OpenCode-style coding sessions.
 //
@@ -66,6 +66,14 @@ export interface CodeSession {
   mode: CodeMode;
   git: { baselineCommit: string | null; baselineTree: string } | null;
   messages: CodeTurn[];
+  /**
+   * The turn being written RIGHT NOW, if any — what the transcript cannot say.
+   * A turn is stored only once it ends, so a panel opened or refreshed mid-run
+   * used to render a finished-looking session while the daemon was still
+   * working. This is the daemon's own copy: paint it, then follow the live
+   * frames.
+   */
+  active_turn?: ActiveTurn | null;
 }
 
 /** A single changed file in the session's diff vs its baseline. */
@@ -119,6 +127,20 @@ export const Code = {
 
     remove: (pid: string | number, sid: string) =>
       http.del<{ ok: boolean }>(`${base(pid)}/${sid}`),
+
+    /**
+     * Rewind the transcript to its first `keepVisible` turns — what Regenerate
+     * and Edit & resend stand on. The daemon rebuilds a coding turn's history
+     * from the stored transcript, so rewinding the pane without rewinding the
+     * file would prompt the next turn with the very answer it is replacing.
+     *
+     * It DELETES turns, tool rows included, with no undo — the surface that
+     * offers it asks first. 409 while a turn is running on the session.
+     */
+    truncate: (pid: string | number, sid: string, keepVisible: number) =>
+      http.post<{ ok: boolean; messages: number }>(`${base(pid)}/${sid}/truncate`, {
+        keep_visible: keepVisible,
+      }),
   },
 
   changes: (pid: string | number, sid: string) =>

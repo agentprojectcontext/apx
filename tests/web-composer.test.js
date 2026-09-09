@@ -127,7 +127,7 @@ test("a queued turn waits its turn without touching the one in flight", () => {
   const drain = chat.slice(chat.indexOf("const unqueue ="), chat.indexOf("const clear ="));
   assert.match(chat, /const backgroundQueues = new Map<string, QueuedTurn\[\]>\(\)/);
   assert.match(drain, /takeBackgroundQueue\(key\)/, "one at a time, in order");
-  assert.match(drain, /void sendRef\.current\(next\.text, next\.opts\)/);
+  assert.match(drain, /void sendRef\.current\(next\.text, next\.opts \|\| \{\}\)/);
   assert.match(chat, /queueMicrotask\(\(\) => drainQueueRef\.current\(\)\)/,
     "the request worker drains even after its pane unmounts");
   assert.match(chat, /const history: ConversationMessage\[\] = msgsRef\.current\.map/,
@@ -201,13 +201,19 @@ test("a queued turn is in the thread, and can be taken back", () => {
 });
 
 test("interrupt-or-queue is a per-device choice, offered where it applies", () => {
-  const composer = web("components", "chat", "Composer.tsx");
+  // One switch, not one per surface: the question it answers is about the
+  // person, not about the pane they happen to be typing in.
+  const toggle = web("components", "chat", "SendModeToggle.tsx");
+  assert.match(toggle, /onClick=\{\(\) => setQueueOnSend\(!queues\)\}/);
+  assert.match(toggle, /aria-pressed=\{queues\}/, "it is a switch, and says so to a screen reader");
+
   // Only while something is running: what happens if you write right now is the
   // only question it answers, and a switch for a situation you are not in is
   // clutter.
-  assert.match(composer, /\{streaming \? <SendModeToggle \/> : null\}/);
-  assert.match(composer, /onClick=\{\(\) => setQueueOnSend\(!queues\)\}/);
-  assert.match(composer, /aria-pressed=\{queues\}/, "it is a switch, and says so to a screen reader");
+  assert.match(web("components", "chat", "Composer.tsx"), /\{streaming \? <SendModeToggle \/> : null\}/);
+  // Including in the code module, where a turn runs for minutes — long enough
+  // to change your mind about it twice.
+  assert.match(web("components", "code", "CodeComposer.tsx"), /\{busy \? <SendModeToggle \/> : null\}/);
 
   // Per device, like the channel view/notify choices — the phone and the desktop
   // are used differently by the same person.
@@ -215,6 +221,80 @@ test("interrupt-or-queue is a per-device choice, offered where it applies", () =
   assert.match(prefs, /localStorage\.getItem\(KEY\) === "1"/);
   assert.match(prefs, /return false;/, "the default is interrupt");
   assert.match(prefs, /catch \{/, "private mode must not make the composer throw");
+});
+
+test("a code session takes a message while it is working", () => {
+  const screen = web("screens", "modules", "CodeScreen.tsx");
+  // The bug: `if (!prompt || busy || ...) return` — a coding turn runs for
+  // minutes and the composer simply swallowed anything typed during it.
+  assert.doesNotMatch(screen, /if \(!prompt \|\| busy/, "writing during a run must not be refused");
+  // Queued either way, so the message survives the interruption and goes out
+  // with the stopped turn already in its history.
+  assert.match(screen, /if \(busy \|\| following\) \{/);
+  assert.match(screen, /enqueue\(prompt, sid\);/);
+  assert.match(screen, /if \(!queueOnSendRef\.current\) void stop\(\);/);
+  // Stop asks the DAEMON, not just our own socket — closing the stream has
+  // never ended a run, which is what lets another surface catch up on it.
+  assert.match(screen, /Turns\.abort\(pid, \{ code_session_id: sid \}\)/);
+  // A turn we are only watching is still a turn running on this session.
+  assert.match(screen, /busy=\{busy \|\| following\}/);
+});
+
+test("a new code session is the one that opens", () => {
+  // New session created the session, selected it, and then the auto-select
+  // effect — which exists to open something when the id on screen names nothing
+  // in the list — fired against the list as it was BEFORE the refetch, where
+  // the brand new session is exactly that. It threw you back onto the
+  // previously newest session, so the button looked like it did nothing.
+  const screen = web("screens", "modules", "CodeScreen.tsx");
+  assert.match(screen, /if \(creating\) return;/);
+  assert.match(screen, /\}, \[sessions\.data, sid, rowPid, creating\]\)/);
+});
+
+test("a code session opened mid-run shows the turn in flight", () => {
+  // A code turn is written to the transcript only when it ENDS, so a panel
+  // opened or refreshed during one drew a finished-looking conversation over a
+  // daemon that was still working.
+  const api = fs.readFileSync(
+    path.join(__dirname, "..", "src", "host", "daemon", "api", "code.js"),
+    "utf8",
+  );
+  assert.match(api, /active_turn: getActiveTurnByKey\(codeTurnKey\(p\.id, session\.id\)\)/);
+  assert.match(api, /signal: turnAbort\.signal/, "without a signal there is nothing to stop");
+  assert.match(api, /if \(wasAborted\(e, turnAbort\)\) \{/, "stopping is not an error");
+
+  const screen = web("screens", "modules", "CodeScreen.tsx");
+  assert.match(screen, /setMsgs\(\[\.\.\.stored, activeTurnMsg\(live\)\]\)/);
+  assert.match(screen, /subscribeTurns\(onTurnFrame\)/, "and then it follows it live");
+});
+
+test("asking a code turn again says what it is about to delete", () => {
+  const screen = web("screens", "modules", "CodeScreen.tsx");
+  // The same two affordances the chat has — Regenerate on an answer, Edit &
+  // resend on your own turn — reusing the same MessageList props.
+  assert.match(screen, /onRegenerate=\{busy \|\| following \? undefined : askRegenerate\}/);
+  assert.match(screen, /onEdit=\{busy \|\| following \? undefined : askEditResend\}/);
+  // But not silently: a rewind deletes turns AND the tool rows that recorded
+  // what really ran, with no undo, which in a coding session can be a lot of
+  // work. So it goes through a dialog that says how many.
+  assert.match(screen, /setConfirmRewind\(\{ keep: u, text: textOf\(msgs\[u\]\), kind: "regenerate" \}\)/);
+  assert.match(screen, /open=\{!!confirmRewind\}/);
+  assert.match(screen, /testId="code-rewind-confirm"/);
+  for (const lang of ["en", "es"]) {
+    const dict = web("i18n", `${lang}.ts`);
+    assert.match(dict, /rewind_confirm_regenerate:\s+"/, `${lang} names the regenerate case`);
+    assert.match(dict, /rewind_confirm_edit:\s+"/, `${lang} names the edit case`);
+    assert.match(dict, /rewind_confirm_desc:[^\n]*\{n\}/, `${lang} says HOW MANY turns go`);
+  }
+
+  // The transcript rewinds with the pane. The daemon rebuilds a coding turn's
+  // history from the stored session, so a pane-only rewind would ask the model
+  // to try again with the answer it is replacing still in the prompt.
+  assert.match(screen, /await Code\.sessions\.truncate\(pid, sid, keep\)/);
+  // And the dialog closes on the REWIND, not on the turn: a coding turn runs
+  // for minutes, and awaiting it left the modal on top of the answer it asked
+  // for. The destructive half is what the confirm waits on.
+  assert.match(screen, /void sendRef\.current\(text\);/);
 });
 
 test("every chat rail reuses one running/unread indicator", () => {

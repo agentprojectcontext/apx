@@ -4,6 +4,7 @@ import { t } from "../../i18n";
 import { ChatInput } from "../ui/chat-input";
 import { Tip } from "../ui/tip";
 import { ModelPicker } from "../chat/ModelPicker";
+import { SendModeToggle } from "../chat/SendModeToggle";
 import type { CodeMode } from "../../lib/api/code";
 
 interface Props {
@@ -83,6 +84,12 @@ export function CodeComposer({
         <div className="flex items-center gap-2">
           <ModeToggle mode={mode} onChange={onModeChange} disabled={busy} />
           <ModelPicker value={model} onChange={onModelChange} disabled={busy} />
+          {/* Only while something is running: what happens if you write RIGHT
+              NOW is the only question this answers, and a switch for a
+              situation you are not in is clutter. It matters more here than
+              anywhere else — a coding turn runs for minutes, which is long
+              enough to change your mind about it twice. */}
+          {busy ? <SendModeToggle /> : null}
         </div>
       }
     />

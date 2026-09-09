@@ -7,7 +7,9 @@ import { http } from "../http";
 // cancelling has to be asked for out loud. Address the turn the way you already
 // address its thread: a project agent by conversation, Roby by channel (its
 // thread IS the channel), a group room by channel + thread_id — one project runs
-// many rooms at once, so the channel alone does not say which one to stop.
+// many rooms at once, so the channel alone does not say which one to stop — and
+// a code session by its own id, the one identity the panel and `apx exec --code`
+// share for the same session.
 //
 // `aborted: false` is not a failure — the turn may simply have finished a moment
 // before the request landed. A caller interrupting in order to send should carry
@@ -15,6 +17,11 @@ import { http } from "../http";
 export const Turns = {
   abort: (
     pid: string | number,
-    target: { conversation_id?: string; channel?: string; thread_id?: string },
+    target: {
+      conversation_id?: string;
+      channel?: string;
+      thread_id?: string;
+      code_session_id?: string;
+    },
   ) => http.post<{ ok: boolean; aborted: boolean }>(`/api/projects/${pid}/turns/abort`, target),
 };
